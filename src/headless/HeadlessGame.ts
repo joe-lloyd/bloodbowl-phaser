@@ -1258,7 +1258,8 @@ export class HeadlessGame {
             .getBuiltInFormations(isTeam1)
             .map((formation) => formation.name),
           canPlace: status.concessionDecision !== "pending",
-          canApplyPreset: status.concessionDecision !== "pending",
+          canApplyPreset:
+            status.concessionDecision !== "pending" && !status.swarming,
           canChooseConcession: status.concessionDecision === "pending",
           canConfirm: status.canConfirm,
         };

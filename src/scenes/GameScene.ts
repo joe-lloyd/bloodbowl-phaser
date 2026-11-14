@@ -770,7 +770,18 @@ export class GameScene extends Phaser.Scene {
       this,
       this.pitch,
       this.validator,
-      (playerId) => this.gameService.isSetupEligible(playerId)
+      (playerId) => this.gameService.isSetupEligible(playerId),
+      (teamId) => {
+        const status = this.gameService.getSetupStatus(teamId);
+        return status?.swarming
+          ? {
+              minimum: status.requiredPlayerCount,
+              maximum:
+                status.requiredPlayerCount +
+                status.swarming.maximumAdditionalPlayers,
+            }
+          : undefined;
+      }
     );
 
     // Handle late UI mounting (handshake).

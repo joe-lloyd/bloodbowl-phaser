@@ -309,6 +309,8 @@ export class GameService implements IGameService {
       this.weatherService,
       {
         onKickoffRequested: () => this.startKickoff(),
+        rollSwarming: (teamId) =>
+          this.diceController.rollD3("Swarming", teamId),
       },
       this.delay
     );

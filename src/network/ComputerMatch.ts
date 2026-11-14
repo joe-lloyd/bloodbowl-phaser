@@ -273,7 +273,8 @@ export function createComputerMatch(
         // The hand-over to the other team lands a moment after a confirm.
         return (
           active === teamId &&
-          !state.setup?.confirmedTeamIds?.includes(teamId) &&
+          (!state.setup?.confirmedTeamIds?.includes(teamId) ||
+            !!state.setup.swarming?.teams[teamId]) &&
           (state.subPhase === SubPhase.SETUP_KICKING ||
             state.subPhase === SubPhase.SETUP_RECEIVING)
         );

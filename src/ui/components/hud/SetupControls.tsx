@@ -146,12 +146,22 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
     >
       {compact ? (
         <div className="hud-label px-2.5 pt-2 text-hud-gold">
-          {isDefense ? "Setup Defense" : "Setup Offense"}
+          {status?.swarming
+            ? "Swarming"
+            : isDefense
+              ? "Setup Defense"
+              : "Setup Offense"}
         </div>
       ) : (
         <PanelHeader
           title={activeTeam?.name || "Unknown Team"}
-          aside={isDefense ? "Setup Defense" : "Setup Offense"}
+          aside={
+            status?.swarming
+              ? "Swarming"
+              : isDefense
+                ? "Setup Defense"
+                : "Setup Offense"
+          }
         />
       )}
 
@@ -184,98 +194,109 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
         )}
 
         {/* Formations: presets + this team's saved layouts */}
-        <select
-          value={selectedFormation}
-          onChange={(e) => setSelectedFormation(e.target.value)}
-          className="hud-field cursor-pointer"
-        >
-          <optgroup label="Presets">
-            {formations
-              .filter((f) => f.builtIn)
-              .map((f) => (
-                <option key={f.name} value={f.name}>
-                  {f.name}
-                </option>
-              ))}
-          </optgroup>
-          {formations.some((f) => !f.builtIn) && (
-            <optgroup label="Saved">
-              {formations
-                .filter((f) => !f.builtIn)
-                .map((f) => (
-                  <option key={f.name} value={f.name}>
-                    {f.name}
-                  </option>
-                ))}
-            </optgroup>
-          )}
-        </select>
-
-        <div className="flex gap-2">
-          <SetupActionButton
-            onAction={handleAction}
-            action="load"
-            label="LOAD"
-            color="blue"
-            disabled={!selectedFormation || concessionPending}
-            onClick={() => handleAction("load", selectedFormation)}
-          />
-          {compact ? (
-            <SetupActionButton
-              onAction={handleAction}
-              action="clear"
-              label="CLEAR"
-              color="red"
-              disabled={concessionPending}
-            />
-          ) : (
-            <SetupActionButton
-              onAction={handleAction}
-              action="delete"
-              label="DELETE"
-              color="red"
-              disabled={!selected || selected.builtIn}
-              onClick={() => handleAction("delete", selectedFormation)}
-            />
-          )}
-        </div>
-
-        <div className={compact ? "hidden" : "flex items-stretch gap-2"}>
-          <input
-            type="text"
-            value={saveName}
-            onChange={(e) => setSaveName(e.target.value)}
-            placeholder="Formation name…"
-            maxLength={24}
-            className="hud-field min-w-0 flex-1"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div className="w-24">
-            <SetupActionButton
-              onAction={handleAction}
-              action="save"
-              label="SAVE"
-              color="yellow"
-              disabled={saveName.trim().length === 0}
-              onClick={() => {
-                handleAction("save", saveName.trim());
-                setSaveName("");
-              }}
-            />
-          </div>
-        </div>
-
-        {!compact && (
+        {status?.swarming ? (
+          <p className="font-hud-body text-hud-sm text-hud-bone">
+            Swarming rolled {status.swarming.roll}. Add up to{" "}
+            {status.swarming.maximumAdditionalPlayers} reserve Linemen. The
+            confirmed formation stays in place. Finish without extras to
+            decline.
+          </p>
+        ) : (
           <>
-            <div className="my-0.5 h-px bg-white/10"></div>
-            <SetupActionButton
-              onAction={handleAction}
-              action="clear"
-              label="CLEAR PITCH"
-              sub="Reset"
-              color="red"
-              disabled={concessionPending}
-            />
+            <select
+              value={selectedFormation}
+              onChange={(e) => setSelectedFormation(e.target.value)}
+              className="hud-field cursor-pointer"
+            >
+              <optgroup label="Presets">
+                {formations
+                  .filter((f) => f.builtIn)
+                  .map((f) => (
+                    <option key={f.name} value={f.name}>
+                      {f.name}
+                    </option>
+                  ))}
+              </optgroup>
+              {formations.some((f) => !f.builtIn) && (
+                <optgroup label="Saved">
+                  {formations
+                    .filter((f) => !f.builtIn)
+                    .map((f) => (
+                      <option key={f.name} value={f.name}>
+                        {f.name}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+            </select>
+
+            <div className="flex gap-2">
+              <SetupActionButton
+                onAction={handleAction}
+                action="load"
+                label="LOAD"
+                color="blue"
+                disabled={!selectedFormation || concessionPending}
+                onClick={() => handleAction("load", selectedFormation)}
+              />
+              {compact ? (
+                <SetupActionButton
+                  onAction={handleAction}
+                  action="clear"
+                  label="CLEAR"
+                  color="red"
+                  disabled={concessionPending}
+                />
+              ) : (
+                <SetupActionButton
+                  onAction={handleAction}
+                  action="delete"
+                  label="DELETE"
+                  color="red"
+                  disabled={!selected || selected.builtIn}
+                  onClick={() => handleAction("delete", selectedFormation)}
+                />
+              )}
+            </div>
+
+            <div className={compact ? "hidden" : "flex items-stretch gap-2"}>
+              <input
+                type="text"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="Formation name…"
+                maxLength={24}
+                className="hud-field min-w-0 flex-1"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div className="w-24">
+                <SetupActionButton
+                  onAction={handleAction}
+                  action="save"
+                  label="SAVE"
+                  color="yellow"
+                  disabled={saveName.trim().length === 0}
+                  onClick={() => {
+                    handleAction("save", saveName.trim());
+                    setSaveName("");
+                  }}
+                />
+              </div>
+            </div>
+
+            {!compact && (
+              <>
+                <div className="my-0.5 h-px bg-white/10"></div>
+                <SetupActionButton
+                  onAction={handleAction}
+                  action="clear"
+                  label="CLEAR PITCH"
+                  sub="Reset"
+                  color="red"
+                  disabled={concessionPending}
+                />
+              </>
+            )}
           </>
         )}
 
@@ -284,7 +305,13 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
         <SetupActionButton
           onAction={handleAction}
           action="confirm"
-          label={isComplete ? "CONFIRM SETUP" : "SETUP INCOMPLETE"}
+          label={
+            status?.swarming
+              ? "FINISH SWARMING"
+              : isComplete
+                ? "CONFIRM SETUP"
+                : "SETUP INCOMPLETE"
+          }
           // A short-handed team fields everyone it has, so the target is the
           // available count — never a hard-coded seven.
           // On a phone the checklist above already counts the players

@@ -47,8 +47,8 @@ A team SHALL set up a minimum of three players in Centre Field squares directly 
 - **WHEN** a coach places three players in Centre Field squares adjacent to their Line of Scrimmage and the rest legally
 - **THEN** the formation confirms
 
-### Requirement: A team sets up at most seven players
-A team SHALL set up no more than seven players for a drive. Any available player not chosen for the drive SHALL be placed in the Reserves box and SHALL remain available for the start of the next drive.
+### Requirement: Normal setup fields at most seven players
+A team SHALL set up no more than seven players during normal setup. Any available player not chosen for the drive SHALL be placed in the Reserves box. After both normal setups, a team with Swarming MAY add its rolled allowance of reserve Linemen as described below.
 
 #### Scenario: An eighth placement is refused
 - **WHEN** a coach with seven players on the pitch attempts to place an eighth
@@ -57,6 +57,43 @@ A team SHALL set up no more than seven players for a drive. Any available player
 #### Scenario: Unchosen players go to Reserves
 - **WHEN** a coach with nine available players confirms a setup of seven
 - **THEN** the two unchosen players are in the Reserves box and are available at the start of the next drive
+
+### Requirement: Swarming adds optional reserve Linemen after normal setup
+
+After both normal setups and before the kick, a team with the Swarming team
+special rule SHALL roll a D3 once for that drive. The coach MAY add up to that
+many available reserve Linemen, following the usual placement restrictions.
+The confirmed players SHALL stay in place. The allowance and placements SHALL
+survive save/resume and lockstep snapshots. A new drive SHALL clear the previous
+allowance. Swarming SHALL apply under both the GW baseline and optional NAF
+rules.
+
+#### Scenario: Swarming exceeds seven
+
+- **WHEN** a team confirms seven players and has an eligible reserve Lineman
+- **THEN** its Swarming step allows that Lineman to join within the D3 allowance
+- **AND** kickoff waits until the coach finishes the step
+
+#### Scenario: The coach declines the extras
+
+- **WHEN** a coach finishes Swarming without placing additional players
+- **THEN** the original formation remains and the drive continues
+
+#### Scenario: A reserve positional attempts to join
+
+- **WHEN** Swarming placement targets a player without the Lineman keyword
+- **THEN** placement is refused
+
+#### Scenario: A confirmed player attempts to move
+
+- **WHEN** a coach attempts to move, remove, or swap a player from the confirmed formation during Swarming
+- **THEN** the action is refused
+
+#### Scenario: Both teams have Swarming
+
+- **WHEN** both teams have eligible reserve Linemen
+- **THEN** the kicking coach resolves Swarming before the receiving coach
+- **AND** kickoff begins after both steps finish
 
 ### Requirement: The kicking team sets up first
 Setup SHALL run in order: the kicking team places and confirms its formation, then the receiving team places and confirms its own. The team not currently setting up SHALL NOT be able to place players.

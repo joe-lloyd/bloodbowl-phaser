@@ -6,6 +6,25 @@ This is the rule set the engine implements for Sevens, written from
 building the game, not a copy of the magazine. Anything not listed here
 follows the 2025 rulebook.
 
+The GW rulebook, Sevens supplement, and official errata take precedence.
+For ambiguous interactions, the game uses
+[NAF clarifications](https://www.thenaf.net/naf-recommendations-and-clarifications-for-bb2025/).
+Deliberate NAF departures are optional. The organizer chooses the rules
+when creating a tournament or league season. The choice is stored and
+cannot change during that competition, including through a cloud write.
+
+The default is **GW 2025 Sevens**. The optional **NAF Sevens rulings of
+26 September 2026** ignore Insignificant when drafting a roster. Other
+roster limits still apply. Team Builder has a separate draft-rules choice
+for preparing such a roster. Entry always validates against the competition's
+choice, regardless of the team's draft setting. Friendly matches use the GW
+baseline. Existing teams and competitions without a setting use that baseline.
+
+Swarming applies in both profiles. GW's
+[Sevens designer notes](https://www.warhammer-community.com/en-gb/articles/f0owm2ar/designers-notes-on-blood-bowl-sevens/)
+acknowledge Snotlings as an exception to the seven-player limit, and the NAF
+Sevens table explicitly confirms it. Disabling Swarming would be a house rule.
+
 Each rule has an ID so code, tests and pull requests can cite it. The
 status column compares the engine on 25 October 2026:
 
@@ -42,12 +61,13 @@ with SPP instead of the official Sevens advancement in section 6.
 
 | ID | Rule | Status |
 | --- | --- | --- |
-| M1 | Set up at most 7 players, kicking team first, between your End Zone and your Line of Scrimmage. At most one player per Wide Zone, at least 3 in the Centre Field on your Line of Scrimmage, and nobody in No Man's Land. Spare players go to Reserves. | ok |
+| M1 | Normal setup fields at most 7 players, kicking team first, between your End Zone and your Line of Scrimmage. At most one player per Wide Zone, at least 3 in the Centre Field on your Line of Scrimmage, and nobody in No Man's Land. Spare players go to Reserves. Swarming is the exception in M7. | ok |
 | M2 | A team that cannot put 3 on its Line of Scrimmage may concede without penalty, as in the rulebook. Otherwise every available player stands on the line. | ok |
 | M3 | Kick-off deviation distance is the lower of 2D6. The Kick skill's D3 still applies. | ok |
 | M4 | A kick that lands in No Man's Land is not a touchback. A touchback happens only when the ball leaves the pitch or crosses the kicking team's Line of Scrimmage. | ok |
 | M5 | Throw-in distance is D6+2 instead of 2D6. Everything else is unchanged. | ok |
 | M6 | Argue the Call: on a D6, 1 to 4 means the player is still Sent-off; 5 or 6 means the player returns to their square. Either way the Turnover stands, and the coach is never ejected. | ok |
+| M7 | After both normal setups, a team with Swarming may add D3 reserve Linemen before the kick. Only available Linemen may join. The confirmed formation stays in place, and the usual setup-area and Wide Zone limits apply. The coach may decline some or all extras. | ok: the allowance and placements survive save/resume and online snapshots. Each new drive rolls again. Computer coaches place eligible extras through the same setup commands. |
 
 A knockout tie cannot end level. The 2025 rulebook (p. 87) plays Extra
 Time and then Penalties, and the Sevens rules add nothing. The game plays

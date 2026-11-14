@@ -10,6 +10,37 @@ command.
 
 ## Requirements
 
+### Requirement: Competition rules distinguish GW rules from optional NAF departures
+
+Every new competition SHALL store a rules choice independently of its roster
+profile. The default SHALL be GW 2025 Sevens with official errata and NAF
+interpretations of ambiguous rules. An organizer MAY select the dated NAF
+Sevens rulings of 26 September 2026. This choice SHALL remain fixed throughout
+the tournament or league season and SHALL accompany fixture launches, online
+lobbies, and saved matches. An older record without a choice SHALL use the GW
+baseline.
+
+#### Scenario: NAF roster departure is selected
+
+- **WHEN** a competition selects the dated NAF rulings
+- **THEN** entry ignores Insignificant during draft-list validation
+- **AND** all other roster constraints still apply
+
+#### Scenario: A team's draft choice differs from the competition
+
+- **WHEN** a roster prepared with NAF rules attempts to enter a GW competition
+- **THEN** entry validates the roster against GW rules and refuses any violation
+
+#### Scenario: Rules change after creation
+
+- **WHEN** an organizer attempts to replace the saved rules choice
+- **THEN** both local persistence and Firestore refuse the change
+
+#### Scenario: Swarming is independent of optional NAF departures
+
+- **WHEN** a match uses either rules choice
+- **THEN** eligible teams retain the Swarming exception to seven-player setup
+
 ### Requirement: Competitions define a roster rule profile
 
 Every new league or tournament SHALL define a versioned profile containing

@@ -445,6 +445,32 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
   });
 
   describe("a competition participant", () => {
+    it.each(["leagues", "tournaments"])(
+      "keeps the selected Sevens rules fixed in %s, including for the organizer",
+      async (collectionName) => {
+        const ref = doc(
+          dbFor(ORGANIZER),
+          collectionName,
+          `rules-${collectionName}`
+        );
+        await setDoc(ref, {
+          organizerUid: ORGANIZER,
+          ruleset: "naf-sevens-2026-09-26",
+          name: "NAF season",
+        });
+        await expect(
+          updateDoc(ref, { name: "Renamed season" })
+        ).resolves.toBeUndefined();
+        await expect(updateDoc(ref, { ruleset: "gw-2025" })).rejects.toThrow();
+        await expect(
+          setDoc(
+            doc(dbFor(ORGANIZER), collectionName, `unknown-${collectionName}`),
+            { organizerUid: ORGANIZER, ruleset: "naf-latest" }
+          )
+        ).rejects.toThrow();
+      }
+    );
+
     const entrants = (): CompetitionEntrant[] =>
       seedEntrants(
         [GUEST, HOST, THIRD, ORGANIZER].map((uid) => ({

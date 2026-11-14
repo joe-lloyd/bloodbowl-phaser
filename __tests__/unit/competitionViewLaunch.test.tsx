@@ -50,62 +50,67 @@ describe("launching a competition fixture", () => {
     container.remove();
   });
 
-  it("plays a local league fixture with progression on", async () => {
-    const teams = ["home", "away"].map((id) =>
-      new TeamBuilder().withId(id).withName(id).withPlayers(7).build()
-    );
-    saveTeams(teams);
-    const entrants: CompetitionEntrant[] = teams.map((team, index) => ({
-      id: `local:${team.id}`,
-      teamId: team.id,
-      ownerUid: null,
-      name: team.name,
-      rosterName: team.rosterName,
-      seed: index + 1,
-    }));
-    const fixtures = generateRoundRobin(entrants);
-    const league: LeagueDoc = {
-      id: "season-1",
-      type: "league",
-      name: "Season 1",
-      organizerUid: null,
-      participantUids: [],
-      status: "active",
-      entrants,
-      fixtures,
-      standings: computeStandings(entrants, fixtures),
-      points: { win: 3, draw: 1, loss: 0 },
-      createdAt: 1,
-      updatedAt: 1,
-    };
-    await saveCompetition(league);
-
-    await act(async () => {
-      root.render(
-        <MemoryRouter initialEntries={["/leagues/season-1"]}>
-          <Routes>
-            <Route
-              path="/leagues/:id"
-              element={<CompetitionView type="league" />}
-            />
-            <Route path="/play" element={<LaunchedMatch />} />
-          </Routes>
-        </MemoryRouter>
+  it.each(["gw-2025", "naf-sevens-2026-09-26"] as const)(
+    "plays a local league fixture with progression on under %s",
+    async (ruleset) => {
+      const teams = ["home", "away"].map((id) =>
+        new TeamBuilder().withId(id).withName(id).withPlayers(7).build()
       );
-    });
-    const play = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Play local"
-    )!;
-    await act(async () => play.click());
+      saveTeams(teams);
+      const entrants: CompetitionEntrant[] = teams.map((team, index) => ({
+        id: `local:${team.id}`,
+        teamId: team.id,
+        ownerUid: null,
+        name: team.name,
+        rosterName: team.rosterName,
+        seed: index + 1,
+      }));
+      const fixtures = generateRoundRobin(entrants);
+      const league: LeagueDoc = {
+        ruleset,
+        id: "season-1",
+        type: "league",
+        name: "Season 1",
+        organizerUid: null,
+        participantUids: [],
+        status: "active",
+        entrants,
+        fixtures,
+        standings: computeStandings(entrants, fixtures),
+        points: { win: 3, draw: 1, loss: 0 },
+        createdAt: 1,
+        updatedAt: 1,
+      };
+      await saveCompetition(league);
 
-    const launched = container.querySelector('[data-testid="launched"]');
-    expect(JSON.parse(launched!.textContent!)).toEqual({
-      progressionEnabled: true,
-      competitionContext: {
-        competitionType: "league",
-        competitionId: "season-1",
-        fixtureId: fixtures[0].id,
-      },
-    });
-  });
+      await act(async () => {
+        root.render(
+          <MemoryRouter initialEntries={["/leagues/season-1"]}>
+            <Routes>
+              <Route
+                path="/leagues/:id"
+                element={<CompetitionView type="league" />}
+              />
+              <Route path="/play" element={<LaunchedMatch />} />
+            </Routes>
+          </MemoryRouter>
+        );
+      });
+      const play = [...container.querySelectorAll("button")].find(
+        (button) => button.textContent === "Play local"
+      )!;
+      await act(async () => play.click());
+
+      const launched = container.querySelector('[data-testid="launched"]');
+      expect(JSON.parse(launched!.textContent!)).toEqual({
+        progressionEnabled: true,
+        competitionContext: {
+          ruleset,
+          competitionType: "league",
+          competitionId: "season-1",
+          fixtureId: fixtures[0].id,
+        },
+      });
+    }
+  );
 });

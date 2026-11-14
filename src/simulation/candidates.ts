@@ -31,7 +31,8 @@ import { PassController } from "../game/controllers/PassController";
 import { weatherEffects } from "../game/rules/weather";
 import { legalHandoffTargets } from "../game/rules/handoff";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
-import { GameConfig } from "../config/GameConfig";
+import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
+import { SetupValidator } from "../game/validators/SetupValidator";
 import { jumpTargets } from "../game/rules/jump";
 import { moveAllowance } from "../game/skills/movement";
 import {
@@ -361,6 +362,49 @@ async function setupCandidates(
   const gs = game.ctx.gameService;
   const team = gs.getTeam(teamId)!;
   const isTeam1 = teamId === game.ctx.team1.id;
+  if (setup?.status.swarming) {
+    const swarm = setup.status.swarming;
+    const positions = [...setup.placements];
+    const commands: HeadlessCommand[] = [];
+    const zone = getSevensSetupZone(isTeam1);
+    const validator = new SetupValidator();
+    const limits = {
+      minimum: setup.status.requiredPlayerCount,
+      maximum:
+        setup.status.requiredPlayerCount + swarm.maximumAdditionalPlayers,
+    };
+    const reserves = team.players.filter(
+      (player) => !player.gridPosition && gs.isSetupEligible(player.id)
+    );
+    for (const player of reserves.slice(
+      0,
+      swarm.maximumAdditionalPlayers - swarm.additionalPlayerCount
+    )) {
+      let placed = false;
+      for (let x = zone.minX; x <= zone.maxX && !placed; x++) {
+        for (let y = 0; y < GameConfig.PITCH_HEIGHT && !placed; y++) {
+          const candidate = { playerId: player.id, x, y };
+          if (
+            !validator.validatePlacement(
+              candidate,
+              positions,
+              isTeam1,
+              setup.status.availablePlayerCount,
+              limits
+            ).valid
+          )
+            continue;
+          positions.push(candidate);
+          commands.push({ type: "place-player", ...candidate });
+          placed = true;
+        }
+      }
+    }
+    commands.push({ type: "confirm-setup", teamId });
+    return [
+      { kind: "setup", commands, label: "Add reserve Linemen with Swarming" },
+    ];
+  }
   const clear: HeadlessCommand[] = (setup?.placements ?? []).map((p) => ({
     type: "remove-player",
     playerId: p.playerId,

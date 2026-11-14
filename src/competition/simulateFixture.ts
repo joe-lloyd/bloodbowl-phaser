@@ -27,6 +27,7 @@ import {
   CompetitionDoc,
   CompetitionFixture,
 } from "./types";
+import { DEFAULT_SEVENS_RULESET } from "../game/rules/sevensRuleset";
 import { fixturePaysWinnings } from "../game/rules/winnings";
 
 export interface SimulatedFixture {
@@ -113,6 +114,7 @@ export async function simulateFixture(
   const seed = options.seed ?? Math.floor(Math.random() * 2 ** 31);
   const rng = options.rng ?? new RNGService(seed);
   const context: CompetitionContext = {
+    ruleset: competition.ruleset ?? DEFAULT_SEVENS_RULESET,
     competitionType: competition.type,
     competitionId: competition.id,
     fixtureId,

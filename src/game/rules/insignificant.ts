@@ -14,6 +14,11 @@
 
 import { Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
+import {
+  DEFAULT_SEVENS_RULESET,
+  NAF_SEVENS_RULESET,
+  SevensRuleset,
+} from "./sevensRuleset";
 
 /** Does this player carry the Insignificant trait? */
 export function isInsignificant(player: Player): boolean {
@@ -39,7 +44,12 @@ export function insignificantLimitOk(players: Player[]): boolean {
  * A human-readable violation message for an illegal draft list, or null when
  * the list is legal — the team builder surfaces this when saving.
  */
-export function validateInsignificant(players: Player[]): string | null {
+export function validateInsignificant(
+  players: Player[],
+  ruleset: SevensRuleset = DEFAULT_SEVENS_RULESET
+): string | null {
+  // NAF Sevens, 26 September 2026: ignore this trait when drafting.
+  if (ruleset === NAF_SEVENS_RULESET) return null;
   if (insignificantLimitOk(players)) return null;
   const insignificant = countInsignificant(players);
   const significant = players.length - insignificant;

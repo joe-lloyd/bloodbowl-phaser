@@ -24,6 +24,11 @@ import { DIFFICULTIES, Difficulty } from "../../../simulation/ai/difficulty";
 import { RosterName, Team, TeamAdvancementMode } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import {
+  DEFAULT_SEVENS_RULESET,
+  SevensRuleset,
+} from "../../../game/rules/sevensRuleset";
+import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
+import {
   cx,
   Field,
   HudButton,
@@ -67,6 +72,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const [otherTeams, setOtherTeams] = useState<OwnedTeam[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [useProfile, setUseProfile] = useState(false);
+  const [ruleset, setRuleset] = useState<SevensRuleset>(DEFAULT_SEVENS_RULESET);
   const [advancementMode, setAdvancementModeChoice] =
     useState<TeamAdvancementMode>("advanced-league");
   const [draftBudget, setDraftBudget] = useState(1_200_000);
@@ -179,6 +185,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         )
       );
       const competition = await createCompetition({
+        ruleset,
         type,
         name,
         format,
@@ -258,6 +265,13 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         </div>
       </Section>
 
+      <Section title="Rules for this competition">
+        <SevensRulesetSelector value={ruleset} onChange={setRuleset} />
+        <p className="mt-3 font-hud-body text-hud-sm text-hud-dim">
+          This choice applies to the whole tournament or league season.
+        </p>
+      </Section>
+
       <Section title="Roster rule profile">
         <label className="flex items-start gap-3 font-hud-body text-hud-base text-hud-bone">
           <input
@@ -318,7 +332,8 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             const committed = !!candidate.team.activeCompetitionId;
             const compatibility = checkTeamCompatibility(
               candidate.team,
-              profile
+              profile,
+              ruleset
             );
             return (
               <button
