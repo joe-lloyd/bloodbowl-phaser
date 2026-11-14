@@ -284,19 +284,20 @@ on purpose, as with committed seeds.
 
 ## Where things live
 
-| Path                                      | Contents                                  |
-| ----------------------------------------- | ----------------------------------------- |
-| `src/simulation/candidates.ts`            | Legal candidates at any decision point    |
-| `src/simulation/coaches/`                 | The heuristic, random and Jev coaches     |
-| `src/simulation/ai/`                      | The planner, the computer coach           |
-| `src/simulation/runMatch.ts`              | One match, its findings and its recording |
-| `src/simulation/bench.ts`                 | Mirrored coach benchmark and its report   |
-| `src/simulation/standards.ts`             | Each roster's standard                    |
-| `src/simulation/raceRates.ts`             | Real per-race rates, generated            |
-| `src/simulation/ai/evaluationWeights.ts`  | The position score's weights, generated   |
-| `src/simulation/puzzles.ts`               | One-turn coaching puzzles                 |
-| `src/simulation/invariants.ts`            | Rules checked after every command         |
-| `src/simulation/replay.ts`                | Replay, trim, and match-save export       |
-| `src/simulation/viewer.ts`, `viewer.html` | Playback pages and the batch index        |
-| `src/simulation/cli.ts`                   | `pnpm sim` and `pnpm sim:replay`          |
-| `__tests__/simulation/`                   | Harness test and committed recordings     |
+| Path                                      | Contents                                            |
+| ----------------------------------------- | --------------------------------------------------- |
+| `src/simulation/candidates.ts`            | Legal candidates at any decision point              |
+| `src/simulation/coaches/`                 | The heuristic, random and Jev coaches               |
+| `src/simulation/ai/`                      | The planner, the computer coach                     |
+| `src/simulation/runMatch.ts`              | One match, its findings and its recording           |
+| `src/simulation/bench.ts`                 | Mirrored coach benchmark and its report             |
+| `src/simulation/standards.ts`             | Each roster's standard                              |
+| `src/simulation/raceRates.ts`             | Real per-race rates, generated                      |
+| `src/simulation/ai/evaluationWeights.ts`  | The position score's weights, generated             |
+| `src/simulation/puzzles.ts`               | One-turn coaching puzzles                           |
+| `src/simulation/invariants.ts`            | Rules checked after every command                   |
+| `src/simulation/replay.ts`                | Replay, trim, and match-save export                 |
+| `src/simulation/viewer.ts`, `viewer.html` | Playback pages and the batch index                  |
+| `src/simulation/cli.ts`                   | `pnpm sim` options and subcommands                  |
+| `src/simulation/commands/`                | One module per subcommand: run, replay, bench, tune |
+| `__tests__/simulation/`                   | Harness test and committed recordings               |
