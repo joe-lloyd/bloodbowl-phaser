@@ -191,11 +191,6 @@
       "count": 1
     }
   },
-  "src/game/kickoff/KickoffEventManager.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/game/managers/BallManager.ts": {
     "complexity": {
       "count": 2
