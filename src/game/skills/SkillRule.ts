@@ -455,11 +455,12 @@ export interface ActivationGate {
 
 /**
  * An action has been declared and the player's negatraits roll before it
- * is performed. Rules PUSH a gate; ActivationGateOperation rolls each in
- * fold order (team-rerollable, natural 1 fails) and applies the first
- * failure.
+ * is performed. Rules PUSH a gate and do nothing else, so the gates can be
+ * read before declaring (see activationGates). ActivationGateOperation rolls
+ * each in fold order (team-rerollable, natural 1 fails) and applies the
+ * first failure.
  */
-export interface ActivationDeclaredContext extends TriggerContextBase {
+export interface ActivationDeclaredContext {
   player: Player;
   action: ActionType;
   /** On-pitch team-mates (Really Stupid's helper check). */
@@ -602,10 +603,7 @@ export interface SkillRule {
    * Negatrait roll between declaring and performing an action — the rule
    * pushes an ActivationGate; ActivationGateOperation rolls and applies it.
    */
-  onActivationDeclared?(
-    ctx: ActivationDeclaredContext,
-    self: Player
-  ): void | Promise<void>;
+  onActivationDeclared?(ctx: ActivationDeclaredContext, self: Player): void;
   /** A Rush is about to be rolled (Drunkard's -1). */
   onRushDeclared?(ctx: RushDeclaredContext, self: Player): void | Promise<void>;
   /** A Jump/Leap Agility Test is about to be rolled (Leap, Pogo, Very Long Legs). */

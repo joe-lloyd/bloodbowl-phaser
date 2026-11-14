@@ -12,7 +12,7 @@ import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
-import { GameEventNames, StepPrompt } from "@/types/events";
+import { ActionType, GameEventNames, StepPrompt } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { DiceWatch } from "../presentation/diceWatch";
 import { PassController } from "./PassController";
@@ -40,6 +40,8 @@ import { planMoveLegs, StepRisk, stepRolls } from "../rules/moveLegs";
 import { standUpCost } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
+import { activationGates } from "../skills";
+import type { ActivationGate } from "../skills/SkillRule";
 import { rollLabel } from "../rules/rollTargets";
 import type {
   BiteTargetDecisionRequest,
@@ -733,6 +735,17 @@ export class GameplayInteractionController {
     blockReplacement?: BlockReplacement;
     razzleDazzle?: boolean;
   }) => {
+    // A negatrait roll binds the player to the action: ask before it
+    if (
+      data.action !== "forgoe" &&
+      !(await this.confirmGates(
+        data.playerId,
+        data.action === "standUp" ? "move" : data.action
+      ))
+    ) {
+      return;
+    }
+
     // Immediate Actions
     if (data.action === "standUp") {
       try {
@@ -1629,6 +1642,8 @@ export class GameplayInteractionController {
               }
 
               if (!currentAction) {
+                if (!(await this.confirmGates(selectedPlayer.id, "block")))
+                  return;
                 // If no action declared for this player, implicitly declare
                 // BLOCK — refused e.g. for a prone/stunned blocker
                 if (
@@ -1703,6 +1718,8 @@ export class GameplayInteractionController {
             ? state.activePlayer?.action
             : undefined;
 
+        if (!currentAction && !(await this.confirmGates(player.id, "move")))
+          return;
         if (!this.declareMoveIfNone(player.id, currentAction)) return;
 
         // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
@@ -2407,7 +2424,15 @@ export class GameplayInteractionController {
     const owner = this.routeOwnerAt(gridX, gridY);
     if (!owner) return false;
     if (owner.id !== this.selectedPlayerId) this.selectPlayer(owner.id);
-    return this.selectedPlayerId === owner.id;
+    if (this.selectedPlayerId !== owner.id) return false;
+    // A negatrait roll comes first: ask, declare the Move, then drag again
+    if (this.pendingGates(owner.id, "move").length > 0) {
+      void this.confirmGates(owner.id, "move").then(
+        (ok) => ok && this.declareMoveIfNone(owner.id)
+      );
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -2935,6 +2960,7 @@ export class GameplayInteractionController {
     x: number,
     y: number
   ): Promise<void> {
+    if (!(await this.confirmGates(playerId, "foul"))) return;
     if (!this.gameService.declareAction(playerId, "foul")) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
@@ -2944,6 +2970,52 @@ export class GameplayInteractionController {
     }
     this.enterActionMode(playerId, "foul", null);
     await this.onSquareClicked(x, y);
+  }
+
+  /** The negatrait rolls a fresh declaration of `action` would make now. */
+  private pendingGates(playerId: string, action: ActionType): ActivationGate[] {
+    if (this.gameService.getState().activePlayer?.id === playerId) return [];
+    const player = this.gameService.getPlayerById(playerId);
+    if (!player) return [];
+    return activationGates(
+      player,
+      action,
+      this.gameService.getTeammates(playerId)
+    );
+  }
+
+  /**
+   * Bone Head, Bloodlust and the other negatraits roll the moment an action
+   * is declared, and the roll binds the player to it. Ask first, so a coach
+   * who only meant to measure a route can back out with nothing spent.
+   */
+  private confirmGates(playerId: string, action: ActionType): Promise<boolean> {
+    const gates = this.pendingGates(playerId, action);
+    const player = this.gameService.getPlayerById(playerId);
+    if (gates.length === 0 || !player) return Promise.resolve(true);
+    const actionId = `gate-${++this.riskPrompts}`;
+    return new Promise((resolve) => {
+      const onResult = (data: { actionId: string; confirmed: boolean }) => {
+        if (data.actionId !== actionId) return;
+        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
+        resolve(data.confirmed);
+      };
+      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
+      const lines = gates.map(
+        (gate) =>
+          `${rollLabel(gate.skill, Math.max(2, gate.target - gate.modifier))}. ${GATE_FAILURE_TEXT[gate.onFail.kind]}`
+      );
+      lines.push("Once rolled, the action cannot be changed.");
+      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
+        actionId,
+        title: `${player.playerName} must roll first`,
+        message: lines.join("\n"),
+        confirmLabel: "Roll",
+        cancelLabel: "Cancel",
+        risky: true,
+        chooserTeamId: player.teamId,
+      });
+    });
   }
 
   private confirmFoul(fouler: Player, target: Player): Promise<boolean> {
@@ -3618,3 +3690,13 @@ export class GameplayInteractionController {
     this.highlightManager.clearAllHighlights();
   }
 }
+
+/** What a failed negatrait roll does, as the confirm before it says. */
+const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string> = {
+  distracted: "On a fail they are Distracted and the activation ends.",
+  endActivation: "On a fail the activation ends.",
+  rooted: "On a fail they are Rooted and cannot leave their square.",
+  lashOut: "On a fail they lash out at a team-mate next to them.",
+  bloodlust:
+    "On a fail they may switch to a Move, and must bite a Thrall before the activation ends.",
+};
