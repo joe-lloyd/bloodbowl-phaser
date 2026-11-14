@@ -64,9 +64,7 @@ it("answers the Foul with the number of assists the coach clicks", async () => {
   expect(container.textContent).not.toContain("%");
 
   await act(async () =>
-    container
-      .querySelector<HTMLButtonElement>('[data-testid="foul-assists-0"]')!
-      .click()
+    buttons.find((button) => buttonLabel(button) === "+0")!.click()
   );
 
   expect(answered).toEqual({ count: 0 });
