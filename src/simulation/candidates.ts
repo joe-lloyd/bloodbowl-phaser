@@ -328,7 +328,12 @@ function decisionCandidates(
       );
       if (pending.optional) {
         out.push(
-          one({ type: "choose-inducement" }, `Keep ${pending.kind} for later`)
+          one(
+            { type: "choose-inducement" },
+            pending.kind === "team-captain"
+              ? "Appoint no Team Captain"
+              : `Keep ${pending.kind} for later`
+          )
         );
       }
       return out;
@@ -430,6 +435,9 @@ async function setupCandidates(
     // Sweltering Heat and similar drive effects bench players for a drive.
     .filter((p) => !isConfinedToReserves(p, gs.getState()))
     .sort((a, b) => b.stats.ST - a.stats.ST || a.number - b.number);
+  // An available Team Captain must be set up (p.155): bring them into the seven.
+  const captainAt = eligible.findIndex((p) => p.teamCaptain);
+  if (captainAt >= 7) eligible.splice(6, 0, ...eligible.splice(captainAt, 1));
 
   return new FormationManager()
     .getBuiltInFormations(isTeam1)

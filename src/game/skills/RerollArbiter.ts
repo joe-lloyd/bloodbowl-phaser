@@ -172,9 +172,14 @@ export class RerollArbiter {
     uses[key] = (uses[key] ?? 0) + 1;
   }
 
-  public consumeTeamReroll(teamId: string): void {
+  /** This turn's Team Re-roll is used, without spending one (Team Captain). */
+  public markTeamRerollUsed(teamId: string): void {
     const teams = this.spend().teams;
     if (!teams.includes(teamId)) teams.push(teamId);
+  }
+
+  public consumeTeamReroll(teamId: string): void {
+    this.markTeamRerollUsed(teamId);
     // Brilliant Coaching's free re-roll is spent before the team's own.
     if (consumeFreeReroll(this.state, teamId)) {
       this.eventBus?.emit(GameEventNames.DriveEffectExpired, {

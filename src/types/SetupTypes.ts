@@ -37,7 +37,8 @@ export type SetupRestrictionId =
   | "short-handed-line"
   | "max-seven"
   | "required-player-count"
-  | "concession-decision";
+  | "concession-decision"
+  | "team-captain";
 
 export interface SetupRestriction {
   id: SetupRestrictionId;

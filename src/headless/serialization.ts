@@ -105,6 +105,8 @@ export interface GameSnapshot {
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Veterans who spent their re-roll this game; absent on pre-feature saves. */
   veteranRerollsUsed?: string[];
+  /** Teams that spent the Bribery and Corruption re-roll; absent on pre-feature saves. */
+  briberyRerollsUsed?: string[];
   /** This team turn's once-a-turn spending; absent on pre-feature saves. */
   turnUsage?: GameState["turnUsage"];
   /** The team taking a running Charge!; absent otherwise. */
@@ -234,6 +236,9 @@ export function serializeGameState(
     veteranRerollsUsed: state.veteranRerollsUsed
       ? [...state.veteranRerollsUsed]
       : undefined,
+    briberyRerollsUsed: state.briberyRerollsUsed
+      ? [...state.briberyRerollsUsed]
+      : undefined,
     turnUsage: state.turnUsage ? structuredClone(state.turnUsage) : undefined,
     ...(state.chargeTeamId ? { chargeTeamId: state.chargeTeamId } : {}),
     raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
@@ -325,6 +330,9 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     veteranRerollsUsed: snapshot.veteranRerollsUsed
       ? [...snapshot.veteranRerollsUsed]
       : undefined,
+    briberyRerollsUsed: snapshot.briberyRerollsUsed
+      ? [...snapshot.briberyRerollsUsed]
+      : undefined,
     turnUsage: snapshot.turnUsage
       ? structuredClone(snapshot.turnUsage)
       : undefined,
@@ -348,15 +356,27 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
   };
 }
 
-/** Restore a saved roster while retaining live team, array and player references. */
+/** Make `target` hold exactly `source`'s fields, dropping any it lacks. */
+function replaceFields<T extends object>(target: T, source: T): T {
+  for (const key of Object.keys(target)) {
+    if (!(key in source)) Reflect.deleteProperty(target, key);
+  }
+  return Object.assign(target, source);
+}
+
+/**
+ * Restore a saved roster while retaining live team, array and player
+ * references. A field the saved record lacks, such as a Team Captain title
+ * granted since, is cleared rather than kept.
+ */
 export function restoreTeam(team: Team, saved: Team): void {
   const copy = structuredClone(saved);
   const players = copy.players.map((record) => {
     const player = team.players.find((candidate) => candidate.id === record.id);
-    return player ? Object.assign(player, record) : record;
+    return player ? replaceFields(player, record) : record;
   });
   team.players.splice(0, team.players.length, ...players);
-  Object.assign(team, { ...copy, players: team.players });
+  replaceFields(team, { ...copy, players: team.players });
 }
 
 /**

@@ -10,13 +10,7 @@ import {
   TraitKeyWord,
   PlayerTemplate,
 } from "../types/Player";
-import {
-  League,
-  TeamRoster,
-  TeamSpecialRule,
-  RosterName,
-  AdditionalRule,
-} from "../types/Team";
+import { League, TeamRoster, TeamSpecialRule, RosterName } from "../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../types/Skills";
 
 const AMAZON_ROSTER: TeamRoster = {
@@ -24,7 +18,6 @@ const AMAZON_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.LUSTRIAN_SUPERLEAGUE],
   specialRules: [],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -87,7 +80,6 @@ const BLACK_ORC_ROSTER: TeamRoster = {
   rosterName: RosterName.BLACK_ORC,
   rerollCost: 60_000,
   leagues: [League.BADLANDS_BRAWL],
-  additionalRules: [],
   specialRules: [
     TeamSpecialRule.BRAWLIN_BRUTES,
     TeamSpecialRule.BRIBERY_AND_CORRUPTION,
@@ -156,7 +148,6 @@ const BRETONIAN_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.OLD_WORLD_CLASSIC],
   specialRules: [],
-  additionalRules: [],
   tier: 2,
   apothecary: true,
   playerTemplates: [
@@ -220,7 +211,6 @@ const CHAOS_CHOSEN_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.CHAOS_CLASH],
   specialRules: [TeamSpecialRule.FAVOURED_OF],
-  additionalRules: [AdditionalRule.FAVOURED_OF],
   maxBigGuys: 1,
   tier: 3,
   apothecary: true,
@@ -317,7 +307,6 @@ const CHAOS_DWARF_ROSTER: TeamRoster = {
   rerollCost: 70_000,
   leagues: [League.BADLANDS_BRAWL, League.CHAOS_CLASH],
   specialRules: [TeamSpecialRule.FAVOURED_OF_HASHUT],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -425,14 +414,7 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
   rosterName: RosterName.CHAOS_RENEGADE,
   rerollCost: 70_000,
   leagues: [League.CHAOS_CLASH],
-  specialRules: [],
-  additionalRules: [
-    AdditionalRule.PICK_FAVOURED_OF_CHAOS_UNDIVIDED,
-    AdditionalRule.PICK_FAVOURED_OF_KHORNE,
-    AdditionalRule.PICK_FAVOURED_OF_NURGLE,
-    AdditionalRule.PICK_FAVOURED_OF_SLAANESH,
-    AdditionalRule.PICK_FAVOURED_OF_TZEENTCH,
-  ],
+  specialRules: [TeamSpecialRule.FAVOURED_OF],
   maxBigGuys: 3,
   tier: 3,
   apothecary: true,
@@ -628,7 +610,6 @@ const DARK_ELF_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.ELVEN_KINGDOMS_LEAGUE],
   specialRules: [],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -712,7 +693,6 @@ const DWARF_ROSTER: TeamRoster = {
     TeamSpecialRule.BRAWLIN_BRUTES,
     TeamSpecialRule.BRIBERY_AND_CORRUPTION,
   ],
-  additionalRules: [],
   tier: 2,
   apothecary: true,
   playerTemplates: [
@@ -809,7 +789,6 @@ const ELVEN_UNION_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.ELVEN_KINGDOMS_LEAGUE],
   specialRules: [],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -872,7 +851,6 @@ const HIGH_ELF_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.ELVEN_KINGDOMS_LEAGUE],
   specialRules: [],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -940,7 +918,6 @@ const GNOME_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.HALFLING_THIMBLE_CUP, League.WOODLAND_LEAGUE],
   specialRules: [],
-  additionalRules: [],
   tier: 4,
   apothecary: true,
   playerTemplates: [
@@ -1041,7 +1018,6 @@ const GOBLIN_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.BADLANDS_BRAWL, League.UNDERWORLD_CHALLENGE],
   specialRules: [TeamSpecialRule.BRIBERY_AND_CORRUPTION],
-  additionalRules: [],
   tier: 4,
   apothecary: true,
   playerTemplates: [
@@ -1198,7 +1174,6 @@ const HALFLING_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.HALFLING_THIMBLE_CUP, League.WOODLAND_LEAGUE],
   specialRules: [],
-  additionalRules: [],
   tier: 3,
   apothecary: true,
   playerTemplates: [
@@ -1287,7 +1262,6 @@ const HUMAN_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.OLD_WORLD_CLASSIC],
   specialRules: [TeamSpecialRule.TEAM_CAPTAIN],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -1385,7 +1359,6 @@ const IMPERIAL_NOBILITY_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.OLD_WORLD_CLASSIC],
   specialRules: [],
-  additionalRules: [],
   tier: 2,
   apothecary: true,
   playerTemplates: [
@@ -1463,7 +1436,6 @@ const KHORNE_ROSTER: TeamRoster = {
     TeamSpecialRule.BRAWLIN_BRUTES,
     TeamSpecialRule.FAVOURED_OF_KHORNE,
   ],
-  additionalRules: [],
   tier: 3,
   apothecary: true,
   playerTemplates: [
@@ -1541,7 +1513,6 @@ const LIZARDMEN_ROSTER: TeamRoster = {
   rerollCost: 70_000,
   leagues: [League.LUSTRIAN_SUPERLEAGUE],
   specialRules: [],
-  additionalRules: [],
   tier: 2,
   apothecary: true,
   playerTemplates: [
@@ -1612,7 +1583,6 @@ const NECROMANTIC_HORROR_ROSTER: TeamRoster = {
   rerollCost: 70_000,
   leagues: [League.SYLVANIAN_SPOTLIGHT],
   specialRules: [TeamSpecialRule.MASTERS_OF_UNDEATH],
-  additionalRules: [],
   tier: 1,
   apothecary: false,
   playerTemplates: [
@@ -1717,7 +1687,6 @@ const NORSE_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.CHAOS_CLASH, League.OLD_WORLD_CLASSIC],
   specialRules: [],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -1829,7 +1798,6 @@ const NURGLE_ROSTER: TeamRoster = {
     TeamSpecialRule.BRAWLIN_BRUTES,
     TeamSpecialRule.FAVOURED_OF_NURGLE,
   ],
-  additionalRules: [],
   tier: 2,
   apothecary: false,
   playerTemplates: [
@@ -1926,7 +1894,6 @@ const OGRE_ROSTER: TeamRoster = {
     TeamSpecialRule.BRAWLIN_BRUTES,
     TeamSpecialRule.LOW_COST_LINEMEN,
   ],
-  additionalRules: [],
   tier: 4,
   apothecary: true,
   playerTemplates: [
@@ -2000,7 +1967,6 @@ const OLD_WORLD_ALLIANCE_ROSTER: TeamRoster = {
   rerollCost: 70_000,
   leagues: [League.OLD_WORLD_CLASSIC],
   specialRules: [],
-  additionalRules: [],
   maxBigGuys: 1,
   tier: 1,
   apothecary: true,
@@ -2164,7 +2130,6 @@ const ORC_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.BADLANDS_BRAWL],
   specialRules: [TeamSpecialRule.BRAWLIN_BRUTES, TeamSpecialRule.TEAM_CAPTAIN],
-  additionalRules: [],
   tier: 2,
   apothecary: true,
   playerTemplates: [
@@ -2264,7 +2229,6 @@ const SHAMBLING_UNDEAD_ROSTER: TeamRoster = {
   rerollCost: 70_000,
   leagues: [League.SYLVANIAN_SPOTLIGHT],
   specialRules: [TeamSpecialRule.MASTERS_OF_UNDEATH],
-  additionalRules: [],
   tier: 2,
   apothecary: false,
   playerTemplates: [
@@ -2368,7 +2332,6 @@ const SKAVEN_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.UNDERWORLD_CHALLENGE],
   specialRules: [],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -2460,7 +2423,6 @@ const SNOTLING_ROSTER: TeamRoster = {
     TeamSpecialRule.LOW_COST_LINEMEN,
     TeamSpecialRule.SWARMING,
   ],
-  additionalRules: [],
   tier: 4,
   apothecary: true,
   playerTemplates: [
@@ -2583,7 +2545,6 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.SYLVANIAN_SPOTLIGHT],
   specialRules: [TeamSpecialRule.MASTERS_OF_UNDEATH],
-  additionalRules: [],
   tier: 2,
   apothecary: false,
   playerTemplates: [
@@ -2678,7 +2639,6 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
   rerollCost: 70_000,
   leagues: [League.UNDERWORLD_CHALLENGE],
   specialRules: [TeamSpecialRule.BRIBERY_AND_CORRUPTION],
-  additionalRules: [],
   maxBigGuys: 1,
   tier: 3,
   apothecary: true,
@@ -2844,7 +2804,6 @@ const VAMPIRE_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.SYLVANIAN_SPOTLIGHT],
   specialRules: [TeamSpecialRule.MASTERS_OF_UNDEATH],
-  additionalRules: [],
   tier: 2,
   apothecary: true,
   playerTemplates: [
@@ -2949,7 +2908,6 @@ const WOOD_ELF_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.ELVEN_KINGDOMS_LEAGUE, League.WOODLAND_LEAGUE],
   specialRules: [],
-  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [

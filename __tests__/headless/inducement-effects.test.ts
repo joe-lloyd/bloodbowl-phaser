@@ -13,6 +13,7 @@ import { ClearPitchOperation } from "../../src/game/operations/EndDriveOperation
 import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
 import { RosterName } from "../../src/types/Team";
 import { foulAddingAllAssists, forceDice } from "../utils/test-helpers";
+import { bribesLeft } from "../../src/game/inducements/bribes";
 
 /**
  * What each Sevens inducement does once bought (docs/SEVENS_RULES.md L3,
@@ -265,6 +266,8 @@ describe("Bribes", () => {
     const weapon = game.ctx.team1.players[0];
     weapon.skills.push(getSkill(SkillType.SECRET_WEAPON));
 
+    // Argue the Call first (rulebook p.87): a 2 leaves the Bribe to try
+    forceDice(game.ctx.rng, [2]);
     await runUntilDecision(game, new ClearPitchOperation("touchdown", "team1", true));
     expect(game.pendingDecision()).toMatchObject({
       type: "reaction",
@@ -275,6 +278,20 @@ describe("Bribes", () => {
     await game.execute({ type: "use-reaction", accept: true });
 
     expect(weapon.status).toBe(PlayerStatus.RESERVE);
+  });
+
+  it("are not needed when a Secret Weapon wins the argument", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    await induce(game, [{ inducement: Inducement.BRIBE, quantity: 1 }]);
+    const weapon = game.ctx.team1.players[0];
+    weapon.skills.push(getSkill(SkillType.SECRET_WEAPON));
+
+    forceDice(game.ctx.rng, [5]);
+    await runUntilDecision(game, new ClearPitchOperation("touchdown", "team1", true));
+
+    expect(game.pendingDecision()).toBeNull();
+    expect(weapon.status).toBe(PlayerStatus.RESERVE);
+    expect(bribesLeft(game.ctx.gameService.getState(), "team1")).toBe(1);
   });
 
   it("are not offered to a team without one", async () => {

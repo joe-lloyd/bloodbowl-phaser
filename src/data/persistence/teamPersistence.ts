@@ -30,7 +30,9 @@ import {
 } from "../../types/Player";
 import {
   DraftRecord,
+  FavouredOfRule,
   Formation,
+  League,
   MatchedPlayAllocation,
   PendingDevelopment,
   RosterName,
@@ -48,6 +50,12 @@ import {
   SevensRuleset,
 } from "../../game/rules/sevensRuleset";
 import { staysOnRoster } from "../../game/rules/leagueRoster";
+import { parseAllegiance } from "../../game/rules/teamAllegiance";
+import {
+  appointTeamCaptain,
+  hasTeamCaptainRule,
+  mayCaptain,
+} from "../../game/rules/teamCaptain";
 
 export const TEAM_SCHEMA_VERSION = 1;
 
@@ -67,6 +75,8 @@ export interface StoredPlayer {
   timesKeptFromDraft?: number;
   /** Sevens D8 Veteran; hydration applies its MA -1. */
   veteran?: true;
+  /** Team Captain; hydration grants its Pro. */
+  teamCaptain?: true;
   /** An SPP advancement roll made but not yet spent. */
   pendingAdvancementRoll?: PendingAdvancementRoll;
 }
@@ -108,6 +118,8 @@ export interface StoredTeam {
   draftInducements?: InducementSelectionLine[];
   draftHistory?: DraftRecord[];
   computerCoached?: true;
+  league?: League;
+  favouredOf?: FavouredOfRule;
 }
 
 const INDUCEMENTS = new Set<string>(Object.values(Inducement));
@@ -193,6 +205,7 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
       ? { timesKeptFromDraft: raw.timesKeptFromDraft }
       : {}),
     ...(raw.veteran === true ? { veteran: true } : {}),
+    ...(raw.teamCaptain === true ? { teamCaptain: true } : {}),
     ...(raw.pendingAdvancementRoll
       ? {
           pendingAdvancementRoll:
@@ -348,6 +361,7 @@ export function dehydratePlayer(player: Player): StoredPlayer {
       ? { timesKeptFromDraft: player.timesKeptFromDraft }
       : {}),
     ...(player.veteran ? { veteran: true } : {}),
+    ...(player.teamCaptain ? { teamCaptain: true } : {}),
     ...(player.pendingAdvancementRoll
       ? { pendingAdvancementRoll: player.pendingAdvancementRoll }
       : {}),
@@ -364,6 +378,9 @@ export function hydrateStoredTeam(
 ): HydrationResult {
   const warnings: string[] = [];
   const rosterName = raw.rosterName as RosterName | undefined;
+  const knownRoster = Object.values(RosterName).find(
+    (name) => name === raw.rosterName
+  );
   const teamId = String(raw.id);
   const storedPlayers = Array.isArray(raw.players)
     ? (raw.players as Record<string, unknown>[]).map(toStoredPlayer)
@@ -445,8 +462,18 @@ export function hydrateStoredTeam(
     ...(Array.isArray(raw.draftHistory)
       ? { draftHistory: raw.draftHistory as DraftRecord[] }
       : {}),
+    ...(knownRoster ? parseAllegiance(knownRoster, raw) : {}),
   };
   team.players = team.players.filter((player) => staysOnRoster(team, player));
+  // A stored Team Captain title stands only where the rules allow one:
+  // the roster has the rule, the player may lead it, and one Captain only.
+  const flagged = new Set(
+    storedPlayers.filter((stored) => stored.teamCaptain).map((p) => p.id)
+  );
+  const captain = team.players.find(
+    (player) => flagged.has(player.id) && mayCaptain(player)
+  );
+  if (captain && hasTeamCaptainRule(team)) appointTeamCaptain(team, captain);
   team.teamValue = calculateTeamValue(team);
   return { team, warnings };
 }
@@ -502,6 +529,8 @@ export function dehydrateTeam(team: Team): StoredTeam {
       : {}),
     ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
     ...(team.computerCoached ? { computerCoached: true as const } : {}),
+    ...(team.league ? { league: team.league } : {}),
+    ...(team.favouredOf ? { favouredOf: team.favouredOf } : {}),
   };
 }
 

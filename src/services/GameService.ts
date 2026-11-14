@@ -111,7 +111,9 @@ import { sevensInducementCatalog } from "@/game/inducements/catalog";
 import { inducementCount } from "@/game/inducements/inventory";
 import { rollMasterChefs } from "@/game/inducements/masterChef";
 import { InducementSession } from "@/game/inducements/InducementSession";
+import { captainVacancyCandidates } from "@/game/rules/teamCaptain";
 import {
+  AppointTeamCaptainOperation,
   OfferYouDopeOperation,
   ResolvePregameInducementsOperation,
   getMatchInducements,
@@ -617,6 +619,15 @@ export class GameService implements IGameService {
       budgets: { ...budgets },
       inventory: inventory.map((entry) => ({ ...entry })),
     };
+    // A league team that lost its Team Captain appoints a new one first.
+    if (
+      this.state.paysWinnings &&
+      [this.team1, this.team2].some(
+        (team) => captainVacancyCandidates(team).length > 0
+      )
+    ) {
+      this.flowManager.add(new AppointTeamCaptainOperation());
+    }
     // Prayers and Desperate Measures are rolled once, before the first
     // set-up (L4, L5).
     const rollsOnTables = inventory.some(

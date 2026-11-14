@@ -15,6 +15,7 @@ import { Chip, hudButtonClass } from "../componentWarehouse/HudKit";
 import { numToHex } from "../TeamManagement/TeamStatsOverview";
 import { SkillList, StatCells } from "./AvailableHires";
 import { isLinemanPosition } from "../../../game/rules/rosterLegality";
+import { mayCaptain } from "../../../game/rules/teamCaptain";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 
 interface TeamRosterProps {
@@ -23,6 +24,8 @@ interface TeamRosterProps {
   onReorderPlayers: (sourceSlot: number, targetSlot: number) => void;
   /** Draft teams only: make this Lineman the Veteran (D8). */
   onChooseVeteran?: (playerId: string) => void;
+  /** Draft teams with the Team Captain rule only: name this player Captain. */
+  onChooseTeamCaptain?: (playerId: string) => void;
   /**
    * Open a player's page. Defaults to navigating straight there; the Team
    * Builder passes one that saves unsaved edits first.
@@ -31,7 +34,7 @@ interface TeamRosterProps {
 }
 
 /**
- * Clicks on the row's own controls (name, Make Veteran, Fire, the drag
+ * Clicks on the row's own controls (name, Make Veteran, Make Captain, Fire, the drag
  * handle) keep their own behaviour instead of also opening the player.
  */
 function isRowControl(target: EventTarget | null): boolean {
@@ -104,6 +107,7 @@ export function TeamRoster({
   onFirePlayer,
   onReorderPlayers,
   onChooseVeteran,
+  onChooseTeamCaptain,
   onOpenPlayer,
 }: TeamRosterProps) {
   const navigate = useNavigate();
@@ -217,6 +221,25 @@ export function TeamRoster({
                         title="Make this Lineman the team's Veteran (MA -1)"
                       >
                         Make Veteran
+                      </button>
+                    ) : null}
+                    {player.teamCaptain ? (
+                      <span data-testid="team-captain-badge">
+                        <Chip
+                          tone="gold"
+                          title="Pro, at no extra cost. While on the pitch, each Team Re-roll used rolls a D6: on a 6 it is free. Must be set up if able."
+                        >
+                          Captain
+                        </Chip>
+                      </span>
+                    ) : onChooseTeamCaptain && mayCaptain(player) ? (
+                      <button
+                        data-testid="choose-team-captain"
+                        className={hudButtonClass("ghost", "sm")}
+                        onClick={() => onChooseTeamCaptain(player.id)}
+                        title="Make this player the Team Captain (gains Pro)"
+                      >
+                        Make Captain
                       </button>
                     ) : null}
                   </div>

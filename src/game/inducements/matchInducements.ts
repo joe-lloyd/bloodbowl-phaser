@@ -30,6 +30,10 @@ import { getDriveEffects } from "../kickoff/driveEffects";
 import { eligibleSkills } from "../progression/progression";
 import { rollPrayersToNuffle } from "./prayersToNuffle";
 import { DesperateMeasure, rollDesperateMeasures } from "./desperateMeasures";
+import {
+  appointTeamCaptain,
+  captainVacancyCandidates,
+} from "../rules/teamCaptain";
 
 export interface HeldMeasure {
   measure: DesperateMeasure;
@@ -467,6 +471,36 @@ export class ResolvePregameInducementsOperation extends GameOperation {
 }
 
 /**
+ * Team Captain, May 2026 errata to p.155: a team whose Captain has left
+ * its roster may appoint a new one "during the Pre-game Sequence of your
+ * next League Fixture". Runs once both coaches confirm their inducements,
+ * before any Prayer is rolled; declining leaves the team without one.
+ */
+export class AppointTeamCaptainOperation extends GameOperation {
+  public readonly name = "AppointTeamCaptain";
+
+  async execute(context: FlowContext): Promise<void> {
+    for (const team of context.gameService.getTeams()) {
+      const candidates = captainVacancyCandidates(team);
+      if (candidates.length === 0) continue;
+      const answer = await choose(context, {
+        kind: "team-captain",
+        chooserTeamId: team.id,
+        playerIds: candidates.map((p) => p.id),
+        optional: true,
+      });
+      const chosen = candidates.find((p) => p.id === answer.playerId);
+      if (!chosen) continue;
+      appointTeamCaptain(team, chosen);
+      announce(
+        context,
+        `${chosen.playerName} is ${team.name}'s new Team Captain`
+      );
+    }
+  }
+}
+
+/**
  * You Dope! (L21), after both set-ups and before the kick: one player of
  * the team on the pitch gets +1 ST or +1 AG for the game. Declining keeps
  * the measure for a later drive.
@@ -547,6 +581,7 @@ export function validChoiceAnswer(
     case "iron-man":
     case "knuckle-dusters":
     case "hangover":
+    case "team-captain":
       return answer;
   }
 }

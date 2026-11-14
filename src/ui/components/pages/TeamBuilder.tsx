@@ -23,6 +23,19 @@ import { sevensInducementCatalog } from "../../../game/inducements/catalog";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
 import { chooseVeteran } from "../../../game/rules/veteran";
 import {
+  chooseTeamCaptain,
+  hasTeamCaptainRule,
+} from "../../../game/rules/teamCaptain";
+import {
+  chooseFavouredOf,
+  chooseLeague,
+  favouredOfChoices,
+  leagueChoices,
+  teamFavouredOf,
+  teamLeague,
+  teamSpecialRules,
+} from "../../../game/rules/teamAllegiance";
+import {
   getRosterByRosterName,
   getAvailableRosterNames,
 } from "../../../data/RosterTemplates";
@@ -48,7 +61,11 @@ import {
   formatGold,
   numToHex,
 } from "../TeamManagement/TeamStatsOverview";
-import { lockAdvancementMode } from "../../../types/Team";
+import {
+  FavouredOfRule,
+  League,
+  lockAdvancementMode,
+} from "../../../types/Team";
 import { mustAdvance } from "../../../game/progression/progression";
 import {
   clearUnneededExpensiveMistakes,
@@ -226,6 +243,38 @@ export function TeamBuilder() {
       return;
     }
     setTeam({ ...team });
+  };
+
+  const handleChooseTeamCaptain = (playerId: string) => {
+    if (!team) return;
+    const decision = chooseTeamCaptain(team, playerId);
+    if (!decision.allowed) {
+      alert(decision.reason);
+      return;
+    }
+    setTeam({ ...team, players: [...team.players] });
+  };
+
+  const handleChooseLeague = (league: League) => {
+    if (!team) return;
+    const next = { ...team };
+    const decision = chooseLeague(next, league);
+    if (!decision.allowed) {
+      alert(decision.reason);
+      return;
+    }
+    setTeam(next);
+  };
+
+  const handleChooseFavouredOf = (alignment: FavouredOfRule) => {
+    if (!team) return;
+    const next = { ...team };
+    const decision = chooseFavouredOf(next, alignment);
+    if (!decision.allowed) {
+      alert(decision.reason);
+      return;
+    }
+    setTeam(next);
   };
 
   const handleReorderPlayers = (sourceSlot: number, targetSlot: number) => {
@@ -620,6 +669,63 @@ export function TeamBuilder() {
                 ))}
               </select>
             </Field>
+            <Field
+              label="League"
+              hint={
+                leagueChoices(team.rosterName).length > 1 && !active
+                  ? "Chosen when drafting; fixed once the team has played."
+                  : undefined
+              }
+            >
+              <select
+                data-testid="team-league"
+                className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                value={teamLeague(team)}
+                disabled={active || leagueChoices(team.rosterName).length < 2}
+                onChange={(e) => handleChooseLeague(e.target.value as League)}
+              >
+                {leagueChoices(team.rosterName).map((league) => (
+                  <option key={league} value={league}>
+                    {league}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {favouredOfChoices(team.rosterName).length > 0 && (
+              <Field
+                label="Favoured of"
+                hint={
+                  active
+                    ? undefined
+                    : "Chosen when drafting; it cannot change later."
+                }
+              >
+                <select
+                  data-testid="team-favoured-of"
+                  className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  value={teamFavouredOf(team)}
+                  disabled={active}
+                  onChange={(e) =>
+                    handleChooseFavouredOf(e.target.value as FavouredOfRule)
+                  }
+                >
+                  {favouredOfChoices(team.rosterName).map((alignment) => (
+                    <option key={alignment} value={alignment}>
+                      {alignment.replace("Favoured of ", "")}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="hud-label">Special rules</span>
+              <span
+                data-testid="team-special-rules"
+                className="flex min-h-11 items-center text-hud-sm text-hud-bone"
+              >
+                {teamSpecialRules(team).join(", ") || "None"}
+              </span>
+            </div>
             <Field label="Coach">
               <input
                 type="text"
@@ -697,6 +803,11 @@ export function TeamBuilder() {
             onReorderPlayers={handleReorderPlayers}
             onOpenPlayer={handleOpenPlayer}
             onChooseVeteran={active ? undefined : handleChooseVeteran}
+            onChooseTeamCaptain={
+              !active && hasTeamCaptainRule(team)
+                ? handleChooseTeamCaptain
+                : undefined
+            }
           />
         </div>
 

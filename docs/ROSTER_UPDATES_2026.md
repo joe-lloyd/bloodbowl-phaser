@@ -163,7 +163,21 @@ three Dark Elf Blitzers or two Underworld Big Guys, shows the violation.
 Even after it has played, it may release players from the surplus, and
 only from the surplus, for no refund, until it is legal again.
 
-Still open: the Norse roster grants Favoured of Khorne when the team picks
-Chaos Clash, and the game does not store a league choice yet. Team display
-names keep their historical spellings, such as Bretonian, so saved teams
-still resolve.
+Team display names keep their historical spellings, such as Bretonian, so
+saved teams still resolve.
+
+## Team special rules, 14 November 2026
+
+The roster pages list the Leagues and special rules each team may choose.
+Teams now store both choices:
+
+- A multi-League roster picks its League in the team builder. A Norse team
+  in the Chaos Clash gains Favoured of Khorne, as page 159 says.
+- Chaos Chosen and Chaos Renegades pick a Favoured of alignment. The
+  Chaos Renegade roster now carries the Favoured of rule in place of five
+  "Pick" annotations, and its choices leave out Hashut, as its roster page
+  does.
+- Human and Orc teams name a Team Captain.
+
+[Section 8 of the Sevens checklist](SEVENS_RULES.md#8-team-special-rules)
+describes the rules.

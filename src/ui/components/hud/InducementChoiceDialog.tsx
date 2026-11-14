@@ -22,6 +22,7 @@ const TITLES: Record<InducementChoiceKind, string> = {
   "intensive-training": "Intensive Training: pick a Primary skill",
   hangover: "Hangover: who misses the first drive?",
   "you-dope": "You Dope!: +1 ST or +1 AG for the game",
+  "team-captain": "Appoint a new Team Captain",
 };
 
 /**
@@ -98,7 +99,9 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
       actions={
         request.optional && (
           <HudButton variant="ghost" block onClick={() => answer({})}>
-            Keep it for later
+            {request.kind === "team-captain"
+              ? "Appoint nobody"
+              : "Keep it for later"}
           </HudButton>
         )
       }
