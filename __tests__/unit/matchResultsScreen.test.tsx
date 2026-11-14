@@ -182,6 +182,33 @@ describe("MatchResultsScreen", () => {
     }
   });
 
+  it("adds the game to each team's played games when the coach leaves", async () => {
+    const { state, team1, team2 } = setup(false);
+    state.score["team-1"] = 2;
+    state.score["team-2"] = 1;
+    saveTeams([structuredClone(team1), structuredClone(team2)]);
+
+    await render();
+    const exit = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Continue to Main Menu")
+    )!;
+    await act(async () => exit.click());
+
+    const played = (id: string) =>
+      loadTeams().find((team) => team.id === id)!.playedGames;
+    expect(played("team-1")).toMatchObject([
+      {
+        kind: "local",
+        opponent: { name: "Bad Badgers" },
+        score: { own: 2, opponent: 1 },
+        outcome: "win",
+      },
+    ]);
+    expect(played("team-2")).toMatchObject([
+      { score: { own: 1, opponent: 2 }, outcome: "loss" },
+    ]);
+  });
+
   it("lists injuries suffered by both teams, including players who never activated", async () => {
     const { team1, team2 } = setup(false);
     team1.players[0].status = PlayerStatus.INJURED;

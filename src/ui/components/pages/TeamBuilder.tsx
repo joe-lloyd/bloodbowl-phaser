@@ -77,6 +77,7 @@ import {
 import { RNGService } from "../../../services/rng/RNGService";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
+import { PlayedGames } from "../TeamManagement/PlayedGames";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 
 // interface TeamBuilderProps {}
@@ -940,6 +941,8 @@ export function TeamBuilder() {
           </Section>
         )}
       </fieldset>
+
+      <PlayedGames games={team.playedGames ?? []} />
     </PageShell>
   );
 }

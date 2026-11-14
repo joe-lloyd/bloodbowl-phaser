@@ -6,6 +6,7 @@ import { InjuryType, Player, PlayerStatus, PlayerTemplate } from "./Player";
 import { SeedMetadata } from "./seedMetadata";
 import type { SevensRuleset } from "../game/rules/sevensRuleset";
 import type { InducementSelectionLine } from "./Inducements";
+import type { PlayedGame } from "../game/progression/matchHistory";
 import { SkillCategory, SkillType } from "./Skills";
 import {
   APOTHECARY_COST,
@@ -282,6 +283,8 @@ export interface Team {
 
   /** `competitionId:fixtureId` of each result in this team's record. */
   recordedFixtureIds?: string[];
+  /** Every game this team played, newest first (matchHistory.ts). */
+  playedGames?: PlayedGame[];
 
   /** Immutable progression lifecycle; absent on unmigrated legacy teams. */
   advancementMode?: TeamAdvancementMode;

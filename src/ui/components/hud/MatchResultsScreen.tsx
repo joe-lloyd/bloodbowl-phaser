@@ -16,6 +16,10 @@ import { getTeamById, saveTeam } from "../../../game/managers/TeamManager";
 import { recordPendingDevelopment } from "../../../game/progression/postMatch";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import {
+  playedGameFor,
+  withPlayedGame,
+} from "../../../game/progression/matchHistory";
+import {
   keepRecordedResult,
   recordCompetitionFixture,
 } from "../../../competition/resultRecording";
@@ -416,6 +420,39 @@ export function MatchResultsScreen({
     for (const team of managed) await saveTeam(team);
   };
 
+  /** Each of this coach's teams keeps the game in its played games. */
+  const recordPlayedGames = async () => {
+    if (!tracker || teams.length < 2) return;
+    const stats = tracker.summary().players;
+    const id = fixtureContext
+      ? `${fixtureContext.competitionId}:${fixtureContext.fixtureId}`
+      : developmentMatchId.current;
+    const kind = getActiveOnlineMatch()?.kind ?? "local";
+    for (const team of savedTeams(teams)) {
+      const stored = getTeamById(team.id);
+      const opponent = teams.find((other) => other.id !== team.id);
+      if (!stored || !opponent) continue;
+      const game = playedGameFor(
+        stored,
+        opponent,
+        { score: state.score, result: state.result },
+        stats,
+        {
+          id,
+          playedAt: Date.now(),
+          kind,
+          ...(fixtureContext ? { fixture: id } : {}),
+        }
+      );
+      const updated = withPlayedGame(stored, game);
+      // The history never holds the coach on this screen
+      if (updated !== stored)
+        await saveTeam(updated).catch((cause) =>
+          console.warn("[MatchResults] played game not saved:", cause)
+        );
+    }
+  };
+
   const managePostMatchTeam = (): boolean => {
     if (!state.paysWinnings) return false;
     const managed = own.filter(
@@ -448,6 +485,7 @@ export function MatchResultsScreen({
       }
       setConfirmed(true);
       await recordDevelopment();
+      await recordPlayedGames();
       setError("");
       if (openManagement) managePostMatchTeam();
       return true;
@@ -463,6 +501,7 @@ export function MatchResultsScreen({
   const leave = async () => {
     if (!canExit) return;
     if (progressionEnabled && !(await confirmSpp(false))) return;
+    await recordPlayedGames();
     if (!managePostMatchTeam()) {
       finishWithMatch();
       navigate(leaveTo);
