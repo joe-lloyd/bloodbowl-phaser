@@ -75,7 +75,9 @@ export function checkInvariants(
 
   for (const team of after.teams) {
     const count = team.players.filter((p) => p.position).length;
-    if (count > 7)
+    // Swarming adds up to the drive's D3 roll of Linemen after set-up
+    const swarmed = after.setup?.swarming?.teams[team.id]?.roll ?? 0;
+    if (count > 7 + swarmed)
       fail("seven-a-side", `${team.name} has ${count} players on the pitch`);
     if (team.rerolls < 0)
       fail("rerolls-non-negative", `${team.name} has ${team.rerolls} re-rolls`);

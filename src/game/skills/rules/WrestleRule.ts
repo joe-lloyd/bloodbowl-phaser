@@ -19,7 +19,8 @@ export const WrestleRule: SkillRule = {
     // Only the two players in the block may wrestle, one use per block
     if (self.id !== ctx.attacker.id && self.id !== ctx.defender.id) return;
     if (ctx.placedProne) return;
-    if (ctx.suppressReactions) return; // Juggernaut on a Blitz
+    // Juggernaut on a Blitz bars the opposition's Wrestle, not the blitzer's
+    if (ctx.suppressReactions && self.id !== ctx.attacker.id) return;
     if (!ctx.decisions) return;
 
     const answer = (await ctx.decisions.request({

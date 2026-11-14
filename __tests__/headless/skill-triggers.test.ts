@@ -16,7 +16,11 @@ import { GameOperation } from "../../src/game/core/GameOperation";
  */
 
 const give = (player: { skills: unknown[] }, type: SkillType) =>
-  player.skills.push({ type, category: SkillCategory.GENERAL, description: "" });
+  player.skills.push({
+    type,
+    category: SkillCategory.GENERAL,
+    description: "",
+  });
 
 const scenario: Scenario = {
   id: "skill-triggers",
@@ -74,9 +78,9 @@ describe("reactive triggers — all-participant gather (3.1)", () => {
       (e) => e.name === GameEventNames.SkillTriggered
     );
     expect(skillEvents).toHaveLength(1);
-    expect(
-      (skillEvents[0].data as { playerId: string }).playerId
-    ).toBe(game.ctx.team2.players[0].id);
+    expect((skillEvents[0].data as { playerId: string }).playerId).toBe(
+      game.ctx.team2.players[0].id
+    );
 
     // The dodge dice event carries the worsened modifier: total = roll - 2
     // (the target square is free of markers, so the base modifier is 0)
@@ -213,6 +217,69 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     expect(defender.status).toBe(PlayerStatus.PRONE);
     expect(armour).toHaveLength(0);
     expect(turnovers).toHaveLength(0);
+  });
+
+  // The attacker's Wrestle folds before the defender's Block, which must not
+  // undo it: a carrier Placed Prone drops the ball (p.42)
+  it("drops the ball when a Block-skilled carrier is Wrestled Prone", async () => {
+    const game = new HeadlessGame({ scenario, seed: 5 });
+    const attacker = game.ctx.team1.players[0];
+    const defender = game.ctx.team2.players[0];
+    give(attacker, SkillType.WRESTLE);
+    give(defender, SkillType.BLOCK);
+    const square = { ...defender.gridPosition! };
+    game.ctx.gameService.setBallPosition(square.x, square.y);
+
+    const resolveDone = game.ctx.gameService.resolveBlock(
+      attacker.id,
+      defender.id,
+      bothDown
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.WRESTLE,
+    });
+    await game.execute({ type: "use-reaction", accept: true });
+    await resolveDone;
+
+    expect(defender.status).toBe(PlayerStatus.PRONE);
+    expect(game.ctx.gameService.getState().ballPosition).not.toEqual(square);
+  });
+
+  // Juggernaut bars only the opposition's Wrestle, and its optional push
+  // must not undo the blitzer's own accepted Wrestle, in either skill order
+  it.each([
+    [[SkillType.WRESTLE, SkillType.JUGGERNAUT]],
+    [[SkillType.JUGGERNAUT, SkillType.WRESTLE]],
+  ])("lets a Juggernaut blitzer Wrestle (%j)", async (skills) => {
+    const game = new HeadlessGame({ scenario, seed: 5 });
+    const attacker = game.ctx.team1.players[0];
+    const defender = game.ctx.team2.players[0];
+    skills.forEach((skill) => give(attacker, skill));
+    const declared = await game.execute({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    expect(declared.ok).toBe(true);
+
+    const resolveDone = game.ctx.gameService.resolveBlock(
+      attacker.id,
+      defender.id,
+      bothDown
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.WRESTLE,
+      chooserTeamId: game.ctx.team1.id,
+    });
+    await game.execute({ type: "use-reaction", accept: true });
+    await resolveDone;
+
+    expect(attacker.status).toBe(PlayerStatus.PRONE);
+    expect(defender.status).toBe(PlayerStatus.PRONE);
   });
 
   it("declining applies the normal Both Down", async () => {
