@@ -2,23 +2,15 @@ import Phaser from "phaser";
 import { drawsFor } from "../game/presentation/screenSettled";
 import { Pitch } from "../game/elements/Pitch";
 import { PlayerSprite } from "../game/elements/PlayerSprite";
-import { BallSprite, CARRIED_HEIGHT } from "../game/elements/BallSprite";
+import { BallSprite } from "../game/elements/BallSprite";
 import { Dugout } from "../game/elements/Dugout";
-import {
-  playerHitArea,
-  setHitArea,
-  squareHitArea,
-  squareHitAreaContains,
-} from "../game/elements/InteractiveHitArea";
 import { preloadStadium, Stadium } from "../game/elements/Stadium";
 import { preloadPlayerArt } from "../game/presentation/playerArt";
 import { Team, TeamColors } from "../types/Team";
-import { Player, PlayerStatus } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
-import { GameService } from "../services/GameService";
 import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
-import { SubPhase, GamePhase } from "../types/GameState";
+import { SubPhase } from "../types/GameState";
 import { GameEventNames } from "../types/events";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { FormationManager } from "../game/managers/FormationManager";
@@ -28,7 +20,6 @@ import { GameplayInteractionController } from "../game/controllers/GameplayInter
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 import { CameraController } from "../game/controllers/CameraController";
 import { TouchController } from "../game/controllers/TouchController";
-import { PassController } from "../game/controllers/PassController";
 import {
   measureHudRects,
   watchHudPanels,
@@ -36,34 +27,27 @@ import {
 import {
   DEFAULT_PITCH_THEME_ID,
   PitchThemeId,
-  resolvePitchTheme,
 } from "../game/presentation/pitchThemes";
-import {
-  createMatchSave,
-  MatchSave,
-  restoreMatchSave,
-} from "../headless/serialization";
 import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
-import { getActiveOnlineMatch } from "../network/OnlineMatch";
 import { kitOf } from "../game/presentation/kits";
-import { fixturePaysWinnings } from "../game/rules/winnings";
 import {
-  findBoardStateConflicts,
-  isActivatedThisTurn,
-  resolveBallRepresentation,
-  resolvePlayerLocation,
-} from "../game/presentation/boardState";
-
-/** The commands a dropped player sends: see GameScene.awaitsEngine. */
-const DROP_COMMANDS = new Set([
-  "place-player",
-  "remove-player",
-  "kickoff-place-player",
-]);
+  ensureMatchServices,
+  GameSceneData,
+  resolveMatchStart,
+  startAutosave,
+} from "./matchStart";
+import { followMatchWithCamera } from "./matchCamera";
+import * as board from "./boardSprites";
+import { subscribeBoardEvents, subscribeTurnMarkers } from "./boardEvents";
+import { wirePointerInput, wireTouchInput } from "./boardInput";
+import {
+  applyPitchRepositioning,
+  dragSolidDefencePlayers,
+  listenToPlacement,
+} from "./setupPlacement";
 
 /**
- * Game Scene - Unified scene for Setup and Gameplay
  * Game Scene - Unified scene for Setup and Gameplay
  */
 export class GameScene extends Phaser.Scene {
@@ -228,74 +212,18 @@ export class GameScene extends Phaser.Scene {
     super({ key });
   }
 
-  init(data: {
-    team1: Team;
-    team2: Team;
-    progressionEnabled?: boolean;
-    pitchThemeId?: string;
-    competitionContext?: CompetitionContext;
-    resumeSave?: MatchSave;
-    autosaveEnabled?: boolean;
-    /** The match seeded the engine from a save before the board mounted. */
-    resumed?: boolean;
-  }): void {
-    const restored = data.resumeSave ? restoreMatchSave(data.resumeSave) : null;
-    this.team1 = restored?.teams[0] ?? data.team1;
-    this.team2 = restored?.teams[1] ?? data.team2;
-    this.pitchThemeId = resolvePitchTheme(
-      restored?.save.presentation?.pitchThemeId ?? data.pitchThemeId
-    ).id;
-    this.competitionContext =
-      restored?.save.competition ?? data.competitionContext;
-    this.resumedMatch = !!restored || data.resumed === true;
-    this.autosaveEnabled =
-      data.autosaveEnabled ?? this.sys.settings.key === "GameScene";
+  init(data: GameSceneData): void {
+    const start = resolveMatchStart(data, this.sys.settings.key);
+    this.team1 = start.team1;
+    this.team2 = start.team2;
+    this.pitchThemeId = start.pitchThemeId;
+    this.competitionContext = start.competitionContext;
+    this.resumedMatch = start.resumed;
+    this.autosaveEnabled = start.autosaveEnabled;
+    this.kickingTeam = start.kickingTeam;
+    this.receivingTeam = start.receivingTeam;
 
-    // Default kicking/receiving (will be set by coinflip)
-    this.kickingTeam =
-      restored?.save.drive.kickingTeamId === this.team2.id
-        ? this.team2
-        : this.team1;
-    this.receivingTeam =
-      restored?.save.drive.receivingTeamId === this.team1.id
-        ? this.team1
-        : this.team2;
-
-    // Ensure ServiceContainer is initialized
-    if (!ServiceContainer.isInitialized()) {
-      const initialState =
-        restored?.state ??
-        GameService.createMatchState(
-          this.team1,
-          this.team2,
-          GamePhase.SETUP,
-          SubPhase.INTRO,
-          // A league fixture takes on Journeymen at kick-off and rolls the
-          // Fan Factors for its winnings at full time
-          {
-            paysWinnings: fixturePaysWinnings(
-              this.competitionContext?.competitionType
-            ),
-          }
-        );
-      if (!restored && this.competitionContext?.knockout) {
-        initialState.knockout = true;
-      }
-      ServiceContainer.initialize(
-        window.eventBus,
-        this.team1,
-        this.team2,
-        initialState,
-        undefined,
-        undefined,
-        restored?.save.matchStats.progressionEnabled ??
-          data.progressionEnabled ??
-          false,
-        restored?.save.rng,
-        restored?.save.matchStats,
-        restored?.save.turnManager
-      );
-    }
+    ensureMatchServices(start, data.progressionEnabled);
 
     const container = ServiceContainer.getInstance();
     this.gameService = container.gameService;
@@ -327,28 +255,7 @@ export class GameScene extends Phaser.Scene {
       home: this.kitOf(this.team1.id).primary,
       away: this.kitOf(this.team2.id).primary,
     });
-
-    // Only a press on the canvas itself is a board click. A dialog that
-    // opens under a still mouse leaves Phaser thinking the pointer is over
-    // the canvas, so a click on the dialog's button came through as a click
-    // on the board behind it and deselected the player.
-    const onCanvas = (pointer: Phaser.Input.Pointer) =>
-      pointer.event?.target === this.game.canvas;
-
-    // A click on nothing deselects. Behind everything, over the whole stadium.
-    this.add
-      .rectangle(0, 0, this.stadium.width, this.stadium.height, 0x000000, 0)
-      .setOrigin(0)
-      .setDepth(-1)
-      .setInteractive()
-      .on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-        // Fingers go through the TouchController, which taps on the lift
-        if (!onCanvas(pointer) || pointer.wasTouch) return;
-        // Squares on the pitch belong to the gameplay controller; only a
-        // click in the stands or the surrounds deselects.
-        const square = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
-        if (!this.pitch.isOnPitch(square)) this.onBackgroundClick();
-      });
+    wirePointerInput(this);
 
     // 2. The overlay layer, anchored on the far corner of square (0, 0).
     const origin = this.stadium.origin;
@@ -366,36 +273,6 @@ export class GameScene extends Phaser.Scene {
       this.pitch,
       this.movementValidator
     );
-
-    // Pitch interaction (Now safe to attach)
-    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      // A finger has no hover
-      if (pointer.wasTouch) return;
-      if (this.isSetupActive) {
-        // Direct Pitch Highlight for Setup
-        const gridPos = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
-        if (this.pitch.isOnPitch(gridPos)) {
-          this.pitch.highlightHoverSquare(gridPos.x, gridPos.y);
-        } else {
-          this.pitch.clearHover();
-        }
-        return;
-      }
-      this.gameplayController.handlePointerMove(pointer, this.isSetupActive);
-    });
-
-    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (!onCanvas(pointer) || pointer.wasTouch) return;
-      console.log(
-        `[GameScene] Global PointerDown: ${pointer.worldX}, ${pointer.worldY}`
-      );
-      this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
-    });
-
-    // Global Key Inputs
-    this.input.keyboard?.on("keydown-ESC", () => {
-      this.onBackgroundClick();
-    });
 
     this.initializeControllers();
 
@@ -419,40 +296,7 @@ export class GameScene extends Phaser.Scene {
       }
     );
 
-    this.touchController = new TouchController(this, this.cameraController, {
-      tap: (at) => {
-        // As a mouse click: the stands deselect, then the board takes it
-        const square = this.pitch.worldToGrid(at.worldX, at.worldY);
-        if (!this.pitch.isOnPitch(square)) this.onBackgroundClick();
-        this.gameplayController.tap(at, this.isSetupActive);
-      },
-      fitAll: (at) => {
-        if (
-          this.gameplayController.hasSelection() ||
-          this.gameplayController.playerAtPoint(at)
-        )
-          return false;
-        this.cameraController.reset(600);
-        return true;
-      },
-      showCard: (at) => {
-        const player = this.gameplayController.playerAtPoint(at);
-        if (player) this.eventBus.emit(GameEventNames.UI_ShowPlayerInfo, player);
-        return player !== null;
-      },
-      startRoute: (at) =>
-        !this.isSetupActive && this.gameplayController.startRouteDrag(at),
-      routeTo: (at) => this.gameplayController.dragRouteTo(at),
-    });
-
-    // Camera keyboard shortcuts: 0 or 1 hands the camera back, on the overview.
-    this.input.keyboard?.on("keydown-ZERO", () => {
-      this.cameraController.reset(600);
-    });
-
-    this.input.keyboard?.on("keydown-ONE", () => {
-      this.cameraController.showAllPlayers(600);
-    });
+    this.touchController = wireTouchInput(this);
 
     // 6. Setup Orchestrator for game flow (AFTER controllers are ready)
     this.orchestrator = new SceneOrchestrator(
@@ -474,171 +318,10 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    if (this.autosaveEnabled) {
-      const container = ServiceContainer.getInstance();
-      this.autosave = new MatchAutosave(
-        this.eventBus,
-        this.gameService,
-        () =>
-          createMatchSave({
-            state: this.gameService.getState(),
-            teams: [this.team1, this.team2],
-            drive: {
-              kickingTeamId: this.kickingTeam.id,
-              receivingTeamId: this.receivingTeam.id,
-            },
-            rng: container.rngService.captureState(),
-            matchStats: container.matchStats.captureState(),
-            turnManager: this.gameService.captureTurnManagerState(),
-            competition: this.competitionContext,
-            presentation: { pitchThemeId: this.pitchThemeId },
-          }),
-        { enabled: true }
-      );
-      this.autosave.start();
-    }
+    if (this.autosaveEnabled) this.autosave = startAutosave(this);
 
-    this.subscribe(GameEventNames.PlayerActivated, (playerId: string) => {
-      const sprite = this.playerSprites.get(playerId);
-      if (sprite) {
-        sprite.setActivated(true);
-      }
-    });
-
-    this.subscribe(GameEventNames.TurnStarted, (turnData) => {
-      // Reset all sprites and mark the active team with square borders.
-      // Online only: never show the blanket "active team" white square for
-      // a team the local coach doesn't control — that's replaced by the
-      // single-player remote-selection red ring (see RemoteSelectionChanged).
-      const onlineMatch = getActiveOnlineMatch();
-      this.playerSprites.forEach((sprite) => {
-        sprite.setActivated(false);
-        const isMyTeam =
-          !onlineMatch || sprite.getPlayer().teamId === onlineMatch.myTeamId;
-        sprite.setTeamTurnBorder(
-          sprite.getPlayer().teamId === turnData.teamId && isMyTeam
-        );
-      });
-      // Reset selection
-      this.gameplayController.deselectPlayer();
-      // A stale remote-selection ring (opponent disconnected mid-selection,
-      // or the turn simply ended without a drive-ending RefreshBoard) must
-      // not persist into the new turn.
-      this.setRemoteSelection(null);
-    });
-
-    // The rings mark the team whose turn it is. A turn with none after it
-    // (half time, full time) takes them away; the next turn draws its own.
-    this.subscribe(GameEventNames.TurnEnded, () =>
-      this.playerSprites.forEach((sprite) => sprite.setTeamTurnBorder(false))
-    );
-
-    // Online only: show a live indicator of which single opposing player
-    // the other coach currently has selected, in place of the blanket
-    // whole-team highlight suppressed above.
-    this.subscribe(GameEventNames.RemoteSelectionChanged, ({ playerId }) => {
-      this.setRemoteSelection(playerId);
-    });
-
-    let choosingInterceptor = false;
-    this.subscribe(GameEventNames.DecisionRequested, (request) => {
-      if (request.type !== "interception") return;
-      choosingInterceptor = true;
-      const squares = request.candidates.flatMap(({ playerId }) => {
-        const square = this.gameService.getPlayerById(playerId)?.gridPosition;
-        return square ? [square] : [];
-      });
-      this.cameraController.release();
-      this.cameraController.focusSquares(squares);
-    });
-    this.subscribe(GameEventNames.DecisionResolved, ({ type }) => {
-      if (type === "interception") choosingInterceptor = false;
-    });
-    this.subscribe(
-      GameEventNames.InterceptionAttempted,
-      ({ interceptorId }) => {
-        const square =
-          this.gameService.getPlayerById(interceptorId)?.gridPosition;
-        if (square) this.cameraController.focusSquare(square.x, square.y);
-      }
-    );
-
-    // The match camera follows the game: see CameraController.
-    this.subscribe(GameEventNames.Camera_TrackBall, ({ playerId }) => {
-      if (choosingInterceptor) return;
-      const target = playerId
-        ? this.playerSprites.get(playerId)
-        : this.ballSprite;
-      if (target) this.cameraController.follow(target);
-    });
-    this.subscribe(GameEventNames.Camera_Reset, (data) => {
-      this.cameraController.reset(data.duration || 800);
-    });
-    this.subscribe(GameEventNames.PlayerSelected, ({ player }) => {
-      if (!player?.gridPosition || this.isSetupActive || choosingInterceptor)
-        return;
-      this.cameraController.release();
-      // The kicker aims anywhere in the other half: keep it all in view
-      if (this.gameService.getPhase() === GamePhase.KICKOFF) {
-        this.cameraController.overview();
-        return;
-      }
-      this.frameReach(player.id, player.gridPosition);
-    });
-    this.subscribe(GameEventNames.PlayerMoved, ({ playerId, to }) => {
-      if (this.isSetupActive || choosingInterceptor) return;
-      this.frameReach(playerId, to, 900);
-    });
-    this.subscribe(GameEventNames.PhaseChanged, ({ phase }) => {
-      // Setup wants both benches in view for dragging players on.
-      if (phase === GamePhase.SETUP) this.cameraController.reset();
-    });
-    // A loaded scenario or a resumed match shows the whole board first; the
-    // turn start that follows the restore keeps the overview
-    let restored = false;
-    this.subscribe(GameEventNames.GameStateRestored, () => {
-      restored = true;
-    });
-    // A new turn frames the acting team with the ball, so every player the
-    // coach may move is in view (the ball alone left the team off screen
-    // when it lay in the other half)
-    this.subscribe(GameEventNames.TurnStarted, ({ teamId }) => {
-      choosingInterceptor = false;
-      this.cameraController.release();
-      if (restored) {
-        restored = false;
-        this.cameraController.overview();
-        return;
-      }
-      this.frameActingTeam(teamId);
-    });
-    // Aiming a pass: the thrower and every team-mate in range, so the
-    // receiver is on screen to click
-    let aimingPass = false;
-    this.subscribe(GameEventNames.UI_UpdateActionSteps, ({ currentStepId }) => {
-      const aiming = currentStepId === "pass";
-      if (aiming === aimingPass) return;
-      aimingPass = aiming;
-      const id = this.gameService.getState().activePlayer?.id;
-      const from = id ? this.gameService.getPlayerById(id)?.gridPosition : null;
-      if (!aiming || !id || !from) return;
-      const receivers = this.gameService
-        .getTeammates(id)
-        .flatMap((p) =>
-          p.status === PlayerStatus.ACTIVE &&
-          p.gridPosition &&
-          PassController.rangeValue(from, p.gridPosition) !== null
-            ? [p.gridPosition]
-            : []
-        );
-      this.cameraController.focusSquares([from, ...receivers]);
-    });
-    // Once a player is done, show the team-mates still to go
-    this.subscribe(GameEventNames.PlayerActivated, () => {
-      if (choosingInterceptor) return;
-      const teamId = this.gameService.getState().activeTeamId;
-      if (teamId) this.frameActingTeam(teamId, 900);
-    });
+    subscribeTurnMarkers(this);
+    followMatchWithCamera(this);
 
     // The board is built: the loading screen can go, as the camera comes in.
     this.eventBus.emit(GameEventNames.UI_LoadProgress, { progress: 1 });
@@ -784,114 +467,7 @@ export class GameScene extends Phaser.Scene {
       }
     );
 
-    // Handle late UI mounting (handshake).
-    // The coin flip only exists before the first drive — later drives set
-    // the kicking team automatically, so never re-show the overlay then.
-    this.subscribe(GameEventNames.UI_RequestCoinFlipState, () => {
-      // Only once the introductions are over
-      if (
-        this.isSetupActive &&
-        this.gameService.getSubPhase() === SubPhase.COIN_FLIP &&
-        this.gameService.canCoinFlip()
-      ) {
-        this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
-          team1: this.team1,
-          team2: this.team2,
-        });
-      }
-    });
-
-    // End-of-drive: clear the ball visual and refresh dugouts/pitch when the
-    // engine resets drive state, and surface KO recovery results.
-    this.subscribe(GameEventNames.RefreshBoard, () => {
-      // The reset takes the ball off the pitch. Derive the ball and the
-      // carrier marker from that state, as during play: destroying only the
-      // ball sprite left the scorer marked as carrier until the kick-off.
-      this.reconcileBallVisual();
-      // New drive: nobody is "activated", turn borders reset, and any player
-      // left Prone (rotated 90°) is stood back upright so the rotation does
-      // not carry into the next drive when the sprite is re-placed.
-      this.playerSprites.forEach((sprite) => {
-        sprite.setActivated(false);
-        sprite.setTeamTurnBorder(false);
-        sprite.resetOrientation();
-      });
-      this.setRemoteSelection(null);
-      this.refreshDugouts();
-    });
-
-    // Online: a snapshot arrived — reconcile the board to authoritative state.
-    // In setup we do a full refresh (repositions from state). In play we only
-    // reconcile status visuals (down/up/stunned/off-pitch): a full refresh
-    // would snap a mid-animation mover to its grid square, but updateStatus
-    // touches only alpha/angle/visibility, never position — so it's safe and
-    // catches any status-change event the watcher missed. A resync asks for
-    // positions as well: nothing is animating, and it may have rewound.
-    this.subscribe(GameEventNames.UI_SyncBoard, (data) => {
-      if (this.gameService.getPhase() === GamePhase.SETUP) {
-        this.refreshDugouts();
-        return;
-      }
-      if (data?.positions) {
-        this.refreshDugouts();
-        const ball = this.gameService.getState().ballPosition;
-        if (ball) this.placeBallVisual(ball.x, ball.y);
-      }
-      this.syncPlayerStatuses();
-    });
-
-    // A drop the engine turned down after the board let go of it: the board
-    // left the player where they were dropped (see awaitsEngine), and the
-    // record still has them where they were, so a redraw puts them back.
-    this.subscribe(GameEventNames.NetworkCommandRejected, ({ commandType }) => {
-      if (DROP_COMMANDS.has(commandType)) this.refreshDugouts();
-    });
-
-    // Online: the other coach's move, drawn as one line while the player
-    // runs it, and cleared once the move has run here and the walk has
-    // played, rather than after a guess at how long the walk takes
-    let otherMovesDrawn = 0;
-    this.subscribe(
-      GameEventNames.UI_ShowOtherCoachMove,
-      ({ from, path, ma }) => {
-        otherMovesDrawn++;
-        this.pitch.drawMovementPath([from, ...path], [], ma);
-      }
-    );
-    this.subscribe(
-      GameEventNames.UI_OtherCoachMoveResolved,
-      ({ playerId }) => {
-        const drawn = otherMovesDrawn;
-        void this.playerSettled(playerId).then(() => {
-          // A later move's path is not this one's to clear
-          if (drawn === otherMovesDrawn) this.pitch.clearPath();
-        });
-      }
-    );
-
-    // Touchdown celebration: the scoring team's players on the pitch jump
-    this.subscribe(GameEventNames.Touchdown, (data) => {
-      this.playerSprites.forEach((sprite) => {
-        const p = sprite.getPlayer();
-        if (p.teamId === data.teamId && p.gridPosition) {
-          sprite.playCelebrateAnimation();
-        }
-      });
-    });
-
-    this.subscribe(GameEventNames.KORecoveryRolled, (data) => {
-      const player = this.gameService.getPlayerById(data.playerId);
-      const name = player?.playerName ?? data.playerId;
-      this.eventBus.emit(GameEventNames.UI_LogEntry, {
-        category: "drive",
-        headline: data.recovered ? `${name} recovers!` : `${name} still out`,
-        detail: data.recovered
-          ? "Shakes it off and returns to the Reserves."
-          : "Still out cold.",
-        roll: data.roll,
-        teamId: player?.teamId,
-      });
-    });
+    subscribeBoardEvents(this);
   }
 
   // Start setup phase - can be overridden by subclasses (e.g., SandboxScene)
@@ -928,15 +504,9 @@ export class GameScene extends Phaser.Scene {
 
     // Placed players stay movable until setup is confirmed
     this.repositionTeam = activeTeam;
-    this.applyPitchRepositioning();
+    applyPitchRepositioning(this);
   }
 
-  /**
-   * Online: the opponent is setting up (or this coach has finished). Strip all
-   * placement interaction so the board is view-only — no dugout drag, no
-   * repositioning of placed players, no setup-zone highlight. The board still
-   * renders via UI_SyncBoard; placement re-enables when it's this coach's turn.
-   */
   /**
    * Online watcher: reconcile every sprite's status visual (prone/stunned/
    * off-pitch) to the authoritative player state, without moving anything.
@@ -955,12 +525,18 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Online: the opponent is setting up (or this coach has finished). Strip all
+   * placement interaction so the board is view-only — no dugout drag, no
+   * repositioning of placed players, no setup-zone highlight. The board still
+   * renders via UI_SyncBoard; placement re-enables when it's this coach's turn.
+   */
   public disableSetupInteraction(): void {
     this.isSetupActive = false;
     this.repositionTeam = null;
     // Broadcast-driven phase changes can arrive before controllers exist
     if (this.placementController) this.placementController.disablePlacement();
-    this.applyPitchRepositioning(); // team=null → every sprite loses drag
+    applyPitchRepositioning(this); // team=null → every sprite loses drag
     if (this.pitch) this.pitch.clearHighlights();
   }
 
@@ -971,121 +547,9 @@ export class GameScene extends Phaser.Scene {
    */
   private repositionTeam: Team | null = null;
 
-  /**
-   * Solid Defence reuses the familiar setup drag gesture, but the player
-   * stays on the pitch for the whole operation. The event manager validates
-   * the drop and only a successful authoritative move spends the allowance.
-   */
+  /** Solid Defence: these players may be dragged to a new setup square. */
   public setKickoffSolidDefenceDragPlayers(playerIds: string[]): void {
-    if (this.isSetupActive) return;
-    const eligible = new Set(playerIds);
-
-    this.playerSprites.forEach((sprite, playerId) => {
-      sprite.off("dragstart");
-      sprite.off("drag");
-      sprite.off("dragend");
-
-      if (!eligible.has(playerId)) {
-        sprite.disableInteractive();
-        return;
-      }
-
-      // Still picked by the figure. Set explicitly: setup gives these
-      // sprites their square hit area first, and Phaser would keep it.
-      setHitArea(sprite, playerHitArea(sprite), Phaser.Geom.Rectangle.Contains);
-      this.input.setDraggable(sprite);
-
-      sprite.on("dragstart", () => {
-        sprite.setDepth(10_000);
-      });
-      sprite.on(
-        "drag",
-        (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
-          sprite.setPosition(dragX, dragY);
-        }
-      );
-      sprite.on("dragend", () => {
-        const grid = this.pitch.worldToGrid(sprite.x, sprite.y);
-        const moved = this.gameService.placeKickoffEventPlayer(
-          playerId,
-          grid.x,
-          grid.y
-        );
-        if (!moved) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Solid Defence: drag to a different legal empty setup square."
-          );
-        }
-        // Local games have already changed authoritative state. Against the
-        // computer and online the engine's PlayerPlaced redraws the board
-        // once the move has run. Invalid drops return to the original square.
-        if (this.awaitsEngine(moved)) return;
-        this.placePlayersOnPitch();
-      });
-    });
-  }
-
-  private applyPitchRepositioning(): void {
-    const team = this.repositionTeam;
-    this.playerSprites.forEach((sprite) => {
-      const player = sprite.getPlayer();
-      sprite.off("dragstart");
-      sprite.off("drag");
-      sprite.off("dragend");
-      if (!team || player.teamId !== team.id || !this.isSetupActive) {
-        sprite.disableInteractive();
-        return;
-      }
-
-      // Picked by the square the player stands on, not by their figure:
-      // a big player's body reaches over the square behind them, and a
-      // press there belongs to whoever stands in that square
-      setHitArea(sprite, squareHitArea(sprite), squareHitAreaContains);
-      this.input.setDraggable(sprite);
-
-      // Hover shows the info panel the same way the dugout does; it clears
-      // on pointer-out during play, but setup keeps the last-shown player
-      // until another is inspected (see PlayerInfoPanel).
-      sprite.on("pointerover", () => {
-        this.eventBus.emit(GameEventNames.UI_ShowPlayerInfo, player);
-      });
-      sprite.on("pointerout", () => {
-        this.eventBus.emit(GameEventNames.UI_HidePlayerInfo);
-      });
-
-      sprite.on("dragstart", () => {
-        sprite.setDepth(10_000);
-        // Reuses the placement controller's selection funnel so drag-start
-        // shows this player's info exactly like a dugout drag would.
-        this.placementController.selectPlayer(player.id);
-      });
-      sprite.on(
-        "drag",
-        (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
-          sprite.setPosition(dragX, dragY);
-        }
-      );
-      sprite.on("dragend", () => {
-        const grid = this.pitch.worldToGrid(sprite.x, sprite.y);
-        if (!this.placementController.isInSetupZone(grid.x, grid.y)) {
-          // Dropped outside the setup zone: back to the dugout. Checked
-          // first, as a refused placement redraws the player on their old
-          // square, where they showed until the dugout took them.
-          this.placementController.removePlayer(player.id);
-          return;
-        }
-        const moved = this.placementController.placePlayer(
-          player.id,
-          grid.x,
-          grid.y
-        );
-        if (!moved) {
-          // e.g. occupied square: snap back to the current placement
-          this.placePlayersOnPitch();
-        }
-      });
-    });
+    dragSolidDefencePlayers(this, playerIds);
   }
 
   /**
@@ -1100,56 +564,8 @@ export class GameScene extends Phaser.Scene {
     return accepted && this.gameService.runsCommandsLater === true;
   }
 
-  // Setup-specific event listeners (placement controller events only)
-  // All game flow logic has been moved to SceneOrchestrator
   private setupSceneSpecificListeners(): void {
-    // Listen for placement changes from the placement controller
-    // These are scene-specific because they directly interact with the controller
-    this.placementController.on(
-      GameEventNames.PlayerPlaced,
-      (data: { playerId: string; x: number; y: number }) => {
-        const accepted = this.gameService.placePlayer(
-          data.playerId,
-          data.x,
-          data.y
-        );
-        this.placementController.syncFromTeam();
-        // The engine's answer redraws the board (UI_SyncBoard)
-        if (this.awaitsEngine(accepted)) return;
-        this.refreshDugouts();
-        this.checkSetupCompleteness();
-      }
-    );
-
-    this.placementController.on(
-      GameEventNames.PlayerRemoved,
-      (playerId: string) => {
-        this.gameService.removePlayer(playerId);
-        // Nothing comes back to check; the engine's answer redraws the board
-        if (this.awaitsEngine(true)) return;
-        this.refreshDugouts();
-        this.checkSetupCompleteness();
-      }
-    );
-
-    this.placementController.on(
-      GameEventNames.PlacementInvalid,
-      (data: { reason: string }) => {
-        this.eventBus.emit(GameEventNames.UI_Notification, data.reason);
-        this.placementController.syncFromTeam();
-        this.refreshDugouts();
-      }
-    );
-
-    // Setup player inspection: the controller resolves the full player on
-    // selection/drag-start; forward it to the shared bus so PlayerInfoPanel
-    // (which only listens on the scene's eventBus) receives it.
-    this.placementController.on(
-      GameEventNames.UI_ShowPlayerInfo,
-      (player: Player) => {
-        this.eventBus.emit(GameEventNames.UI_ShowPlayerInfo, player);
-      }
-    );
+    listenToPlacement(this);
   }
 
   public refreshDugouts(): void {
@@ -1173,7 +589,7 @@ export class GameScene extends Phaser.Scene {
   public startPlayPhase(): void {
     this.isSetupActive = false;
     this.repositionTeam = null;
-    this.applyPitchRepositioning(); // strip setup drag handlers
+    applyPitchRepositioning(this); // strip setup drag handlers
     this.placementController?.restoreFigureHitAreas();
     this.pitch.clearHighlights(); // Clear setup zones
     this.eventBus.emit(GameEventNames.UI_HideSetupControls);
@@ -1185,7 +601,7 @@ export class GameScene extends Phaser.Scene {
   public startKickoffPhase(subPhase?: SubPhase): void {
     this.isSetupActive = false;
     this.repositionTeam = null;
-    this.applyPitchRepositioning(); // strip setup drag handlers
+    applyPitchRepositioning(this); // strip setup drag handlers
     this.placementController?.restoreFigureHitAreas();
     this.pitch.clearHighlights();
     this.eventBus.emit(GameEventNames.UI_HideSetupControls);
@@ -1203,54 +619,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   protected placePlayersOnPitch(): void {
-    if (!this.isSceneLive("placePlayersOnPitch")) return;
-    // Get all players that have a grid position
-    const allPlayers = [
-      ...this.team1.players.filter((p) => p.gridPosition),
-      ...this.team2.players.filter((p) => p.gridPosition),
-    ];
-
-    allPlayers.forEach((player) => {
-      const pos = this.pitch.getPixelPosition(
-        player.gridPosition!.x,
-        player.gridPosition!.y
-      );
-
-      if (this.playerSprites.has(player.id)) {
-        const sprite = this.playerSprites.get(player.id)!;
-        sprite.setPosition(pos.x, pos.y);
-        sprite.setVisible(true);
-      } else {
-        const isTeam1 = player.teamId === this.team1.id;
-        const team = isTeam1 ? this.team1 : this.team2;
-        // Each side faces the end zone it attacks.
-        const sprite = new PlayerSprite(this, pos.x, pos.y, player, {
-          rosterName: team.rosterName,
-          colors: this.kitOf(team.id),
-          style: this.pitchThemeId,
-          facing: isTeam1 ? "e" : "w",
-        });
-        this.playerSprites.set(player.id, sprite);
-      }
-    });
-
-    // Hide any players that are in dugouts but still have visible pitch sprites
-    // (This handles moving from pitch back to dugout)
-    [...this.team1.players, ...this.team2.players].forEach((player) => {
-      if (!player.gridPosition && this.playerSprites.has(player.id)) {
-        this.playerSprites.get(player.id)!.setVisible(false);
-      }
-    });
-
-    // Newly created sprites during setup need the reposition drag handlers
-    if (this.isSetupActive && this.repositionTeam) {
-      this.applyPitchRepositioning();
-    }
-
-    // Ball is now in scene root with depth 100, so it automatically renders above players (depth 10)
-    // No need to manually bring to top
-
-    this.checkSetupCompleteness();
+    board.placePlayersOnPitch(this);
   }
 
   // Delegate to orchestrator
@@ -1302,220 +671,38 @@ export class GameScene extends Phaser.Scene {
     return kitOf([this.team1, this.team2], teamId);
   }
 
-  /**
-   * Animate the ball along a grid path in lockstep with a carrying player's
-   * movement animation (same 180ms linear steps as PlayerSprite). Without
-   * this the BallPlaced events teleport the ball to the destination before
-   * the player sprite even starts walking. `delayMs` holds the ball on its
-   * start square until the walking player reaches it (mid-path pickups).
-   */
-  /**
-   * Frame the acting team's players who have not yet acted, with the ball.
-   * At the start of a turn that is every player the coach may move.
-   */
-  private frameActingTeam(teamId: string, duration?: number): void {
-    const state = this.gameService.getState();
-    const players = [...this.team1.players, ...this.team2.players];
-    const ball = resolveBallRepresentation(state, players);
-    const acting = players
-      .filter(
-        (p) =>
-          p.teamId === teamId &&
-          p.gridPosition &&
-          !state.turn.activatedPlayerIds.has(p.id)
-      )
-      .map((p) => p.gridPosition!);
-    const squares = ball.kind === "none" ? acting : [...acting, ball.square];
-    if (squares.length === 0) this.cameraController.overview();
-    else this.cameraController.focusSquares(squares, duration);
-  }
-
-  /**
-   * Frame a player with every square they can still move to, so the coach
-   * can click where they want to end up. Anyone who cannot move (an
-   * opponent, a spent player) just gets their own square.
-   */
-  private frameReach(
-    playerId: string,
-    from: { x: number; y: number },
-    duration?: number
-  ): void {
-    const reach = this.gameService.getAvailableMovements(playerId);
-    this.cameraController.focusSquares([from, ...reach], duration);
-  }
-
   /** Resolves once the player's walk on screen has finished. */
   public playerSettled(playerId: string): Promise<void> {
     return this.playerSprites.get(playerId)?.motion ?? Promise.resolve();
   }
 
+  /** Walk the ball along a path with the player carrying it. */
   public animateBallAlong(
     from: { x: number; y: number },
     path: { x: number; y: number }[],
     delayMs: number = 0
   ): void {
-    if (!this.ballSprite || path.length === 0) return;
-
-    const startPx = this.pitch.getPixelPosition(from.x, from.y);
-    this.ballSprite.setPosition(startPx.x, startPx.y);
-
-    const tweenConfigs = path.map((step) => {
-      const px = this.pitch.getPixelPosition(step.x, step.y);
-      return { x: px.x, y: px.y, duration: 200, ease: "Linear" };
-    });
-
-    const ball = this.ballSprite;
-    this.tweens.chain({
-      targets: ball,
-      delay: delayMs,
-      tweens: tweenConfigs.map((t) => ({
-        ...t,
-        // Keep depth sorting with the carrier as the ball moves.
-        onUpdate: () => ball.setHeight(ball.altitude),
-      })),
-    });
+    board.animateBallAlong(this, from, path, delayMs);
   }
 
-  /**
-   * Move THE ball visual to a square. Idempotent by construction: the scene
-   * owns at most one BallSprite, which is repositioned (and its in-flight
-   * tweens cancelled) rather than destroyed and recreated, so no code path
-   * can leave a second ball behind.
-   */
+  /** Move THE ball visual to a square: there is only ever one. */
   protected placeBallVisual(x: number, y: number, height = 0): void {
-    // A BallKicked delivered to a shut-down scene is what crashed the second
-    // match of a session (`new BallSprite` on a null `sys`).
-    if (!this.isSceneLive("placeBallVisual")) return;
-
-    // Use WORLD coordinates (same as players) since ball will be in scene root
-    const pos = this.pitch.getPixelPosition(x, y);
-
-    if (this.ballSprite?.active) {
-      this.tweens.killTweensOf(this.ballSprite);
-      this.ballSprite.stopFlight();
-      this.ballSprite.setPosition(pos.x, pos.y);
-      // A re-used ball looks the same as a fresh one: no kick-off fade.
-      this.ballSprite.setAlpha(1);
-      this.ballSprite.setVisible(true);
-    } else {
-      this.ballSprite = new BallSprite(this, pos.x, pos.y);
-    }
-    this.ballSprite.setHeight(height);
+    board.placeBallVisual(this, x, y, height);
   }
 
-  /**
-   * Reconcile the ball visual and every carrier marker to the single
-   * representation derived from canonical state. Safe to call any number of
-   * times: exactly one ball visual survives and exactly one player (or none)
-   * is marked as the carrier.
-   */
+  /** Draw the ball and the carrier marker from the game state. */
   public reconcileBallVisual(): void {
-    const players = [...this.team1.players, ...this.team2.players];
-    const ball = resolveBallRepresentation(
-      this.gameService.getState(),
-      players
-    );
-
-    if (ball.kind === "none") {
-      this.ballSprite?.destroy();
-      this.ballSprite = null;
-    } else {
-      // Exactly one ball visual, at the one possession square — whether that
-      // square is empty (loose) or occupied by the carrier.
-      this.placeBallVisual(
-        ball.square.x,
-        ball.square.y,
-        ball.kind === "carried" ? CARRIED_HEIGHT : 0
-      );
-    }
-
-    const carrierId = ball.kind === "carried" ? ball.playerId : null;
-    this.playerSprites.forEach((sprite, playerId) => {
-      sprite.setCarryingBall(playerId === carrierId);
-    });
+    board.reconcileBallVisual(this);
   }
 
-  /**
-   * Reconcile pitch/dugout presentation from `resolvePlayerLocation` — the one
-   * function that owns "where is this player represented". A player resolved
-   * into a dugout box loses their pitch sprite immediately, even if some rule
-   * path left a stale grid position behind.
-   */
-  public reconcilePlayerLocations(): void {
-    [...this.team1.players, ...this.team2.players].forEach((player) =>
-      this.reconcilePlayerLocation(player.id, true)
-    );
-    this.dugouts.forEach((dugout) => dugout.refresh());
-  }
-
-  /**
-   * Reconcile one player's pitch/dugout presentation. `reposition` is opt-in:
-   * during play a status change must not snap a mid-animation mover back to
-   * their grid square, but a player who has left the pitch must disappear from
-   * it immediately (KO, casualty, sent off).
-   */
+  /** Show one player on the pitch or in the dugout, from the game state. */
   public reconcilePlayerLocation(playerId: string, reposition = false): void {
-    const player = this.gameService.getPlayerById(playerId);
-    const sprite = this.playerSprites.get(playerId);
-    if (!player || !sprite) return;
-
-    const location = resolvePlayerLocation(player);
-    if (location.kind !== "pitch") {
-      sprite.setCarryingBall(false);
-      sprite.setVisible(false);
-      this.dugouts.forEach((dugout) => dugout.refresh());
-      return;
-    }
-
-    if (reposition) {
-      const pos = this.pitch.getPixelPosition(
-        location.square.x,
-        location.square.y
-      );
-      sprite.setPosition(pos.x, pos.y);
-    }
-    sprite.updateStatus();
+    board.reconcilePlayerLocation(this, playerId, reposition);
   }
 
-  /**
-   * Reapply the activated (dimmed) treatment from current-turn state. Only
-   * players resolved onto the pitch are touched: clearing the treatment falls
-   * back to the status visual, which would otherwise make a dugout player's
-   * sprite visible again.
-   */
-  public reconcileActivationStyling(): void {
-    const state = this.gameService.getState();
-    this.playerSprites.forEach((sprite, playerId) => {
-      const player = this.gameService.getPlayerById(playerId);
-      if (!player || resolvePlayerLocation(player).kind !== "pitch") return;
-      sprite.setActivated(isActivatedThisTurn(state, playerId));
-    });
-  }
-
-  /**
-   * Full-board reconciliation, used by restore/resume and any path that has
-   * to rebuild presentation from state alone.
-   */
+  /** Redraw the whole board from the game state, as after a restore. */
   public reconcileBoard(): void {
-    this.placePlayersOnPitch();
-    this.reconcilePlayerLocations();
-    this.reconcileBallVisual();
-    this.reconcileActivationStyling();
-    this.reportBoardStateConflicts();
-  }
-
-  /**
-   * Diagnostic: surface any state that cannot be drawn unambiguously (two
-   * balls, a player on the pitch and in a dugout box at once).
-   */
-  private reportBoardStateConflicts(): void {
-    const conflicts = findBoardStateConflicts(this.gameService.getState(), [
-      ...this.team1.players,
-      ...this.team2.players,
-    ]);
-    if (conflicts.length) {
-      console.warn("[GameScene] board state conflicts:", conflicts);
-    }
+    board.reconcileBoard(this);
   }
 
   // Interaction Helpers matched to Controller expectations

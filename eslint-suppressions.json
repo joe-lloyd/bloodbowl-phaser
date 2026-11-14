@@ -464,14 +464,6 @@
       "count": 1
     }
   },
-  "src/scenes/GameScene.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/scenes/SandboxScene.ts": {
     "complexity": {
       "count": 1
@@ -803,14 +795,6 @@
   },
   "src/ui/components/pages/TournamentBracket.tsx": {
     "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/dice/diceScene.ts": {
-    "max-lines": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
       "count": 1
     }
   },
