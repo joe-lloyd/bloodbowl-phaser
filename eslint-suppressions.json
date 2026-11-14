@@ -798,14 +798,6 @@
       "count": 1
     }
   },
-  "src/ui/dice/diceScene.ts": {
-    "max-lines": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/ui/pages/GamePage.tsx": {
     "complexity": {
       "count": 1
