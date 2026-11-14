@@ -794,6 +794,9 @@
     "max-lines": {
       "count": 1
     },
+    "react/no-unescaped-entities": {
+      "count": 1
+    },
     "sonarjs/cognitive-complexity": {
       "count": 3
     }
