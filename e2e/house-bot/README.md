@@ -11,8 +11,12 @@ If no bot is waiting it says so.
 
 ## How it works
 
-- The bot is an ordinary coach account. Its browser profile lives in
-  `~/.bb-house-bot/profile`, so it signs in once and stays signed in.
+- The bot is an ordinary coach account with an email and password, not a
+  Google account. On its first run the runner makes up a password and
+  keeps it in `~/.bb-house-bot/credentials.json`, readable only by your
+  user. It hands the login to the bot's page in memory, and the app signs
+  in, creating the account (coach name House Bot) the first time.
+  `HOUSE_BOT_EMAIL` changes the address from `house-bot@home.arpa`.
 - The runner sets the `bb-house-bot` flag in that browser. While the bot's
   lobby waits for a guest, the app writes the code to `houseBots/{uid}`
   every minute. Any signed-in coach may read it, and only that account may
@@ -26,6 +30,9 @@ If no bot is waiting it says so.
 
 ## Running it
 
+Email/Password sign-in must be enabled once in the Firebase console:
+Authentication, Sign-in method, Email/Password.
+
 Run it from a checkout of `main` that matches the deployed site: the online
 protocol refuses a coach on a different version.
 
@@ -35,8 +42,7 @@ cd ~/house-bot
 pnpm install
 cp ~/Projects/MyProjects/bloodbowl-phaser/.env .env
 
-pnpm house-bot:login   # once: sign in as the bot's Google account, close the window
-pnpm house-bot         # hosts games until stopped
+pnpm house-bot   # hosts games until stopped
 ```
 
 - `HOUSE_BOT_HEADED=1` shows the bot's browser.
@@ -44,6 +50,3 @@ pnpm house-bot         # hosts games until stopped
 - `HOUSE_BOT_PORT` changes the Vite port from 5299.
 - `HOUSE_BOT_OUT` changes where `bot.log` and screenshots go, from
   `~/.bb-house-bot/logs`.
-
-`house-bot:login` starts the plain Chromium binary rather than a Playwright
-one, because Google refuses to sign in a browser under automation.

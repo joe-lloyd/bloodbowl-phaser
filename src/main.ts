@@ -4,6 +4,7 @@ import { App } from "./ui/App";
 import { EventBus } from "./services/EventBus";
 import { connectTeamPersistenceToAuth } from "./firebase/cloudTeamRepository";
 import { connectMatchSavePersistenceToAuth } from "./firebase/cloudMatchSaveRepository";
+import { signInHouseBot } from "./firebase/houseBot";
 
 /**
  * Main entry point
@@ -17,6 +18,10 @@ const eventBus = new EventBus();
 // Signed-in users get a cloud team library; inert without Firebase config
 connectTeamPersistenceToAuth();
 connectMatchSavePersistenceToAuth();
+// Only the house bot's browser has an account to sign in with here
+void signInHouseBot().catch((error) =>
+  console.error("[HouseBot] sign-in failed:", error)
+);
 
 // Initialize React UI
 const reactRoot = document.getElementById("react-root");

@@ -1,14 +1,56 @@
 /**
  * The house bot: a scripted coach on old-mac that keeps an online lobby
  * open, so an admin can test online play without a second person
- * (scripts/house-bot). The bot's browser carries a localStorage flag; while
- * its lobby waits for a guest it announces the code in `houseBots/{uid}`,
- * which any signed-in coach may read.
+ * (e2e/house-bot). It signs in with an email and password, not a Google
+ * account. The bot's browser carries a localStorage flag; while its lobby
+ * waits for a guest it announces the code in `houseBots/{uid}`, which any
+ * signed-in coach may read.
  */
 
+import { FirebaseError } from "firebase/app";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import { collection, doc, getDocs, setDoc } from "firebase/firestore";
-import { getDb } from "./config";
-import { fetchLobby } from "./lobby";
+import { getDb, getFirebaseAuth, isFirebaseConfigured } from "./config";
+import { fetchLobby, setCoachName } from "./lobby";
+
+/** The bot's account, handed to its page by the runner and never stored. */
+export interface HouseBotLogin {
+  email: string;
+  password: string;
+}
+
+declare global {
+  interface Window {
+    __houseBotLogin?: HouseBotLogin;
+  }
+}
+
+/**
+ * Sign the bot in with the account the runner handed its page, creating it
+ * on the first run. Does nothing in any other browser.
+ */
+export async function signInHouseBot(): Promise<void> {
+  const login = window.__houseBotLogin;
+  if (!login || !isFirebaseConfigured()) return;
+  const auth = getFirebaseAuth();
+  if (auth.currentUser?.email === login.email) return;
+  try {
+    await signInWithEmailAndPassword(auth, login.email, login.password);
+  } catch (error) {
+    const code = error instanceof FirebaseError ? error.code : "";
+    if (code !== "auth/invalid-credential" && code !== "auth/user-not-found")
+      throw error;
+    const created = await createUserWithEmailAndPassword(
+      auth,
+      login.email,
+      login.password
+    );
+    await setCoachName(created.user.uid, "House Bot");
+  }
+}
 
 /** Set in the bot's browser profile by the runner. */
 export const HOUSE_BOT_FLAG = "bb-house-bot";

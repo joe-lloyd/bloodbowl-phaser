@@ -1,8 +1,7 @@
 /**
  * The house bot: a scripted coach that hosts online games against the
- * production backend, from old-mac. `pnpm house-bot`; first run
- * `pnpm house-bot:login`. e2e/house-bot/README.md has the steps. Not part
- * of `pnpm e2e`.
+ * production backend, from old-mac: `pnpm house-bot`.
+ * e2e/house-bot/README.md has the steps. Not part of `pnpm e2e`.
  */
 import { defineConfig } from "@playwright/test";
 
@@ -19,8 +18,6 @@ export default defineConfig({
   reporter: [["list"]],
   use: { actionTimeout: 4000 },
   webServer: {
-    // localhost, not 127.0.0.1: Google sign-in only allows authorized
-    // domains, and localhost is one by default
     command: `pnpm exec vite --host localhost --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: true,

@@ -1,17 +1,23 @@
 /**
- * The house bot. One browser, signed in once by hand as the bot's Google
- * account, hosts an online game on the production backend and announces
+ * The house bot. One browser, signed in with the bot's own email and
+ * password, hosts an online game on the production backend and announces
  * its lobby. An admin joins it from the main menu ("Play the House Bot")
  * and plays the scripted AI. At full time the bot hosts the next game.
  *
- * `pnpm house-bot:login` opens the bot's browser profile for that one
- * sign-in, outside automation so Google allows it. `pnpm house-bot` runs
- * the bot until it is stopped. See README.md beside this file.
+ * `pnpm house-bot` runs the bot until it is stopped. See README.md beside
+ * this file.
  */
 import { test, expect, chromium, Page } from "@playwright/test";
-import { spawn } from "node:child_process";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
+import { dirname } from "node:path";
 import { GameApp } from "../support/pages/game";
 import { OnlinePage } from "../support/pages/online";
 import {
@@ -46,36 +52,29 @@ const rec: Recorder = {
     page.screenshot({ path: `${OUT}/${Date.now()}-${name}.png` }),
 };
 
-test("sign the house bot in", async () => {
-  test.skip(process.env.HOUSE_BOT_LOGIN !== "1", "pnpm house-bot:login");
-  // The plain browser binary, not a Playwright-driven one: Google refuses
-  // to sign in a browser under automation
-  const browser = spawn(
-    chromium.executablePath(),
-    [`--user-data-dir=${PROFILE}`, "--no-first-run", APP_URL],
-    { stdio: "ignore" }
-  );
-  log("Sign in with the bot's Google account, then close the browser window.");
-  await new Promise((resolve) => browser.on("exit", resolve));
-  log("Browser closed. Start the bot with pnpm house-bot.");
-});
-
 test("the house bot hosts games until stopped", async () => {
-  test.skip(process.env.HOUSE_BOT_LOGIN === "1", "signing in instead");
   const context = await chromium.launchPersistentContext(PROFILE, {
     headless: process.env.HOUSE_BOT_HEADED !== "1",
     baseURL: APP_URL,
     viewport: { width: 1280, height: 800 },
   });
-  // The app announces this browser's lobby as the house bot's
-  await context.addInitScript(() => localStorage.setItem("bb-house-bot", "1"));
+  // The app signs this browser in as the bot and announces its lobby
+  await context.addInitScript((login) => {
+    window.__houseBotLogin = login;
+    localStorage.setItem("bb-house-bot", "1");
+  }, botLogin());
   const page = context.pages()[0] ?? (await context.newPage());
   page.on("dialog", (dialog) => void dialog.accept());
+  page.on("console", (message) => {
+    if (message.text().includes("[HouseBot]")) log(message.text());
+  });
 
   await page.goto("/");
   const signOut = page.getByRole("button", { name: /sign out/i });
   await signOut.waitFor({ timeout: 60_000 }).catch(() => {
-    throw new Error("The bot is not signed in. Run pnpm house-bot:login.");
+    throw new Error(
+      "The bot could not sign in. Is Email/Password sign-in enabled in the Firebase console? See bot.log."
+    );
   });
   await ensureTeam(page);
 
@@ -92,6 +91,28 @@ test("the house bot hosts games until stopped", async () => {
   }
   await context.close();
 });
+
+/**
+ * The bot's email and password. Made up on the first run and kept beside
+ * its profile, readable only by this user; the app creates the account on
+ * its first sign-in.
+ */
+function botLogin(): { email: string; password: string } {
+  const file = `${dirname(PROFILE)}/credentials.json`;
+  if (existsSync(file))
+    return JSON.parse(readFileSync(file, "utf8")) as {
+      email: string;
+      password: string;
+    };
+  const login = {
+    email: process.env.HOUSE_BOT_EMAIL ?? "house-bot@home.arpa",
+    password: randomBytes(24).toString("base64url"),
+  };
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify(login), { mode: 0o600 });
+  log(`made the bot's login for ${login.email}; kept in ${file}`);
+  return login;
+}
 
 /** The bot's own team, drafted once. */
 async function ensureTeam(page: Page) {
