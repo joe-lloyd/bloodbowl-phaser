@@ -28,6 +28,7 @@ import { KICKOFF_EVENTS_CASES } from "./kickoff-events";
 import { SEVENS_SETUP_CASES } from "./sevens-setup";
 import { DRIVE_RESET_CASES } from "./drive-reset";
 import { DRIVE_TRANSITION_CASES } from "./drive-transition";
+import { TEAM_SPECIAL_RULE_CASES } from "./team-special-rules";
 import { ruleScenarioCases } from "./fromRuleConfigs";
 
 /** Cases written directly against the shared contract, by section. */
@@ -38,6 +39,7 @@ export const AUTHORED_CASES: ScenarioCase[] = [
   ...REROLL_DECISION_CASES,
   ...KICKOFF_EVENTS_CASES,
   ...SEVENS_SETUP_CASES,
+  ...TEAM_SPECIAL_RULE_CASES,
   ...DRIVE_RESET_CASES,
   ...DRIVE_TRANSITION_CASES,
 ];

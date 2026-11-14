@@ -105,6 +105,8 @@ export interface GameSnapshot {
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Veterans who spent their re-roll this game; absent on pre-feature saves. */
   veteranRerollsUsed?: string[];
+  /** Teams that spent the Bribery and Corruption re-roll; absent on pre-feature saves. */
+  briberyRerollsUsed?: string[];
   /** This team turn's once-a-turn spending; absent on pre-feature saves. */
   turnUsage?: GameState["turnUsage"];
   /** Masters of Undeath usage and temporary recruits; absent on older saves. */
@@ -232,6 +234,9 @@ export function serializeGameState(
     veteranRerollsUsed: state.veteranRerollsUsed
       ? [...state.veteranRerollsUsed]
       : undefined,
+    briberyRerollsUsed: state.briberyRerollsUsed
+      ? [...state.briberyRerollsUsed]
+      : undefined,
     turnUsage: state.turnUsage ? structuredClone(state.turnUsage) : undefined,
     raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
     fanFactors: state.fanFactors ? { ...state.fanFactors } : undefined,
@@ -319,6 +324,9 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       : undefined,
     veteranRerollsUsed: snapshot.veteranRerollsUsed
       ? [...snapshot.veteranRerollsUsed]
+      : undefined,
+    briberyRerollsUsed: snapshot.briberyRerollsUsed
+      ? [...snapshot.briberyRerollsUsed]
       : undefined,
     turnUsage: snapshot.turnUsage
       ? structuredClone(snapshot.turnUsage)

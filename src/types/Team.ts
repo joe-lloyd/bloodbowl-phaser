@@ -184,23 +184,27 @@ export enum TeamSpecialRule {
   BRAWLIN_BRUTES = "Brawlin' Brutes",
   BRIBERY_AND_CORRUPTION = "Bribery and Corruption",
   TEAM_CAPTAIN = "Team Captain",
+  /** "Favoured of (...)": the team picks one alignment when drafting. */
   FAVOURED_OF = "Favoured of",
   MASTERS_OF_UNDEATH = "Masters of Undeath",
-  FAVOURED_OF_NURGLE = "Favoured of Nurgle",
-  FAVOURED_OF_KHORNE = "Favoured of Khorne",
   FAVOURED_OF_HASHUT = "Favoured of Hashut",
+  FAVOURED_OF_KHORNE = "Favoured of Khorne",
+  FAVOURED_OF_NURGLE = "Favoured of Nurgle",
+  FAVOURED_OF_SLAANESH = "Favoured of Slaanesh",
+  FAVOURED_OF_TZEENTCH = "Favoured of Tzeentch",
+  FAVOURED_OF_UNDIVIDED = "Favoured of Undivided",
   LOW_COST_LINEMEN = "Low Cost Linemen",
   SWARMING = "Swarming",
 }
 
-export enum AdditionalRule {
-  FAVOURED_OF = "Favoured of",
-  PICK_FAVOURED_OF_CHAOS_UNDIVIDED = "Pick: Favoured of Chaos Undivided",
-  PICK_FAVOURED_OF_KHORNE = "Pick: Favoured of Khorne",
-  PICK_FAVOURED_OF_NURGLE = "Pick: Favoured of Nurgle",
-  PICK_FAVOURED_OF_SLAANESH = "Pick: Favoured of Slaanesh",
-  PICK_FAVOURED_OF_TZEENTCH = "Pick: Favoured of Tzeentch",
-}
+/** One alignment a "Favoured of (...)" roster may pick (rulebook p.154). */
+export type FavouredOfRule =
+  | TeamSpecialRule.FAVOURED_OF_HASHUT
+  | TeamSpecialRule.FAVOURED_OF_KHORNE
+  | TeamSpecialRule.FAVOURED_OF_NURGLE
+  | TeamSpecialRule.FAVOURED_OF_SLAANESH
+  | TeamSpecialRule.FAVOURED_OF_TZEENTCH
+  | TeamSpecialRule.FAVOURED_OF_UNDIVIDED;
 
 /**
  * Team colors
@@ -298,6 +302,16 @@ export interface Team {
    * development choices between games (src/competition/computerTeams.ts).
    */
   computerCoached?: true;
+  /**
+   * The League chosen from a multi-League roster when drafting. Absent means
+   * the roster's first League (src/game/rules/teamAllegiance.ts).
+   */
+  league?: League;
+  /**
+   * The alignment a "Favoured of (...)" roster chose when drafting. Absent
+   * means Undivided; never set on any other roster (teamAllegiance.ts).
+   */
+  favouredOf?: FavouredOfRule;
 }
 
 /**
@@ -308,7 +322,6 @@ export interface TeamRoster {
   rerollCost: number;
   leagues: League[];
   specialRules: TeamSpecialRule[];
-  additionalRules: AdditionalRule[];
   /**
    * Most Big Guys the team may field across all its Big Guy positions, for
    * rosters that print a shared limit ("may have a single Big Guy, chosen

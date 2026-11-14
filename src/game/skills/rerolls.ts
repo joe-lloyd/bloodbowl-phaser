@@ -16,6 +16,7 @@ import { SkillRegistry } from "./SkillRegistry";
 import { TeamRerollGateContext } from "./SkillRule";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { VETERAN_REROLL_KINDS } from "../rules/veteran";
+import { teamCaptain } from "../rules/teamCaptain";
 import { requiredRoll } from "../rules/rollTargets";
 
 export interface RollLike {
@@ -193,6 +194,33 @@ export function spendTeamReroll(deps: RerollDeps, player: Player): boolean {
   for (const t of gateCtx.triggers) {
     deps.eventBus.emit(GameEventNames.SkillTriggered, t);
   }
-  deps.gameService.getRerollArbiter().consumeTeamReroll(player.teamId);
+  const arbiter = deps.gameService.getRerollArbiter();
+  if (teamCaptainFreesReroll(deps, player.teamId)) {
+    arbiter.markTeamRerollUsed(player.teamId);
+  } else {
+    arbiter.consumeTeamReroll(player.teamId);
+  }
   return gateCtx.allowed;
+}
+
+/**
+ * Team Captain (2025 rulebook p.155): while the Captain is on the pitch,
+ * a Team Re-roll the team uses rolls a D6 and is free on a natural 6.
+ */
+function teamCaptainFreesReroll(deps: RerollDeps, teamId: string): boolean {
+  const team = deps.gameService.getTeam(teamId);
+  const captain = team && teamCaptain(team);
+  if (!captain?.gridPosition) return false;
+  const roll = deps.gameService
+    .getDiceController()
+    .rollD6("Team Captain", teamId);
+  deps.eventBus.emit(GameEventNames.SkillTriggered, {
+    playerId: captain.id,
+    skill: "Team Captain",
+    effect:
+      roll === 6
+        ? "Team Captain: a natural 6, the Team Re-roll is free"
+        : `Team Captain: rolled ${roll}, the Team Re-roll is spent`,
+  });
+  return roll === 6;
 }

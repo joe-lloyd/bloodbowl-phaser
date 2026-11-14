@@ -137,6 +137,13 @@ export interface Player {
   veteran?: true;
 
   /**
+   * The team's Team Captain (2025 rulebook p.155). `skills` already holds
+   * the Pro the title grants (see src/game/rules/teamCaptain.ts). Absent on
+   * everyone else.
+   */
+  teamCaptain?: true;
+
+  /**
    * Set by hydration when a stored player's position no longer exists in
    * its roster template. Progression, injuries and career stats are still
    * intact; stats/skills/keywords/cost are placeholders. Never persisted —

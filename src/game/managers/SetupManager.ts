@@ -18,6 +18,7 @@ import { WeatherManager } from "./WeatherManager";
 import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
 import { isConfinedToReserves } from "../kickoff/driveEffects";
 import { GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
+import { teamCaptain } from "../rules/teamCaptain";
 
 export class SetupManager {
   private placedPlayers: Map<string, { x: number; y: number }> = new Map();
@@ -353,33 +354,48 @@ export class SetupManager {
     const skipped: { playerId?: string; reason: string }[] = [];
     const used = new Set<string>();
 
-    formation
-      .slice(0, Math.min(7, eligible.length))
-      .forEach((position, index) => {
-        const rosterIndex = Number.parseInt(position.playerId, 10);
-        const indexed = Number.isNaN(rosterIndex)
-          ? eligible[index]
-          : team.players[rosterIndex];
-        const player =
-          indexed && this.isEligible(indexed) && !used.has(indexed.id)
-            ? indexed
-            : eligible.find((candidate) => !used.has(candidate.id));
-        if (!player) {
-          skipped.push({
-            reason: "No available player for this preset square.",
-          });
-          return;
+    const slots = formation.slice(0, Math.min(7, eligible.length));
+    const picks = slots.map((position, index) => {
+      const rosterIndex = Number.parseInt(position.playerId, 10);
+      const indexed = Number.isNaN(rosterIndex)
+        ? eligible[index]
+        : team.players[rosterIndex];
+      const player =
+        indexed && this.isEligible(indexed) && !used.has(indexed.id)
+          ? indexed
+          : eligible.find((candidate) => !used.has(candidate.id));
+      if (player) used.add(player.id);
+      return player;
+    });
+    // An available Team Captain must be fielded (p.155): they take the
+    // last preset square from whoever the preset put there.
+    const captain = teamCaptain(team);
+    if (captain && this.isEligible(captain) && !used.has(captain.id)) {
+      for (let index = picks.length - 1; index >= 0; index--) {
+        if (picks[index]) {
+          picks[index] = captain;
+          break;
         }
-        used.add(player.id);
-        if (this.placePlayer(player.id, position.x, position.y)) {
-          placedPlayerIds.push(player.id);
-        } else {
-          skipped.push({
-            playerId: player.id,
-            reason: this.lastError ?? "Illegal preset placement.",
-          });
-        }
-      });
+      }
+    }
+
+    slots.forEach((position, index) => {
+      const player = picks[index];
+      if (!player) {
+        skipped.push({
+          reason: "No available player for this preset square.",
+        });
+        return;
+      }
+      if (this.placePlayer(player.id, position.x, position.y)) {
+        placedPlayerIds.push(player.id);
+      } else {
+        skipped.push({
+          playerId: player.id,
+          reason: this.lastError ?? "Illegal preset placement.",
+        });
+      }
+    });
 
     this.updateStatus(teamId);
     this.emitStatus(teamId);
@@ -672,6 +688,18 @@ export class SetupManager {
       previousDecision ??
       (availablePlayerCount <= 3 ? "pending" : "not-offered");
     const restrictions = [...validation.restrictions];
+    const captain = teamCaptain(team);
+    if (captain && this.isEligible(captain)) {
+      restrictions.push({
+        id: "team-captain",
+        summary: `Team Captain: ${captain.playerName}`,
+        satisfied: positions.some(
+          (position) => position.playerId === captain.id
+        ),
+        satisfiable: true,
+        message: "The Team Captain must be set up while they are able to play.",
+      });
+    }
     if (concessionDecision === "pending") {
       restrictions.push({
         id: "concession-decision",

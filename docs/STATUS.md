@@ -12,7 +12,9 @@ Standard, Hard or Legend difficulty.
 Teams can develop across matches and enter leagues or tournaments, against
 other coaches or computer teams whose games the computer simulates.
 The [roster update audit](ROSTER_UPDATES_2026.md) records the 2026 data updates
-and their sources.
+and their sources. Team Captain, Bribery and Corruption, Favoured of and
+League choice follow the [team special rules](SEVENS_RULES.md#8-team-special-rules)
+section of the Sevens checklist.
 
 The public catalog contains 108 skill and trait families. The
 [rule coverage gate](../__tests__/headless/rules/gate.test.ts) currently expects

@@ -30,7 +30,9 @@ import {
 } from "../../types/Player";
 import {
   DraftRecord,
+  FavouredOfRule,
   Formation,
+  League,
   MatchedPlayAllocation,
   PendingDevelopment,
   RosterName,
@@ -40,7 +42,14 @@ import {
   calculateTeamValue,
 } from "../../types/Team";
 import { SeedMetadata } from "../../types/seedMetadata";
-import { Skill, SkillCategory, migrateSkill } from "../../types/Skills";
+import {
+  Skill,
+  SkillCategory,
+  SkillType,
+  getSkill,
+  hasSkill,
+  migrateSkill,
+} from "../../types/Skills";
 import { Inducement, InducementSelectionLine } from "../../types/Inducements";
 import { getRosterByRosterName } from "../RosterTemplates";
 import {
@@ -48,6 +57,7 @@ import {
   SevensRuleset,
 } from "../../game/rules/sevensRuleset";
 import { staysOnRoster } from "../../game/rules/leagueRoster";
+import { parseAllegiance } from "../../game/rules/teamAllegiance";
 
 export const TEAM_SCHEMA_VERSION = 1;
 
@@ -67,6 +77,8 @@ export interface StoredPlayer {
   timesKeptFromDraft?: number;
   /** Sevens D8 Veteran; hydration applies its MA -1. */
   veteran?: true;
+  /** Team Captain; hydration grants its Pro. */
+  teamCaptain?: true;
   /** An SPP advancement roll made but not yet spent. */
   pendingAdvancementRoll?: PendingAdvancementRoll;
 }
@@ -108,6 +120,8 @@ export interface StoredTeam {
   draftInducements?: InducementSelectionLine[];
   draftHistory?: DraftRecord[];
   computerCoached?: true;
+  league?: League;
+  favouredOf?: FavouredOfRule;
 }
 
 const INDUCEMENTS = new Set<string>(Object.values(Inducement));
@@ -193,6 +207,7 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
       ? { timesKeptFromDraft: raw.timesKeptFromDraft }
       : {}),
     ...(raw.veteran === true ? { veteran: true } : {}),
+    ...(raw.teamCaptain === true ? { teamCaptain: true } : {}),
     ...(raw.pendingAdvancementRoll
       ? {
           pendingAdvancementRoll:
@@ -287,6 +302,9 @@ export function hydratePlayer(
     .map((advancement) => migrateSkill({ type: advancement.name }))
     .filter((skill): skill is Skill => skill !== null);
   const skills = [...templateSkills, ...advancementSkills];
+  if (stored.teamCaptain && !hasSkill(skills, SkillType.PRO)) {
+    skills.push(getSkill(SkillType.PRO));
+  }
 
   const teamValue =
     (stored.advancements ?? []).reduce(
@@ -324,6 +342,7 @@ export function hydratePlayer(
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
   if (stored.veteran) player.veteran = true;
+  if (stored.teamCaptain) player.teamCaptain = true;
   if (stored.pendingAdvancementRoll) {
     player.pendingAdvancementRoll = stored.pendingAdvancementRoll;
   }
@@ -348,6 +367,7 @@ export function dehydratePlayer(player: Player): StoredPlayer {
       ? { timesKeptFromDraft: player.timesKeptFromDraft }
       : {}),
     ...(player.veteran ? { veteran: true } : {}),
+    ...(player.teamCaptain ? { teamCaptain: true } : {}),
     ...(player.pendingAdvancementRoll
       ? { pendingAdvancementRoll: player.pendingAdvancementRoll }
       : {}),
@@ -364,6 +384,9 @@ export function hydrateStoredTeam(
 ): HydrationResult {
   const warnings: string[] = [];
   const rosterName = raw.rosterName as RosterName | undefined;
+  const knownRoster = Object.values(RosterName).find(
+    (name) => name === raw.rosterName
+  );
   const teamId = String(raw.id);
   const storedPlayers = Array.isArray(raw.players)
     ? (raw.players as Record<string, unknown>[]).map(toStoredPlayer)
@@ -445,6 +468,7 @@ export function hydrateStoredTeam(
     ...(Array.isArray(raw.draftHistory)
       ? { draftHistory: raw.draftHistory as DraftRecord[] }
       : {}),
+    ...(knownRoster ? parseAllegiance(knownRoster, raw) : {}),
   };
   team.players = team.players.filter((player) => staysOnRoster(team, player));
   team.teamValue = calculateTeamValue(team);
@@ -502,6 +526,8 @@ export function dehydrateTeam(team: Team): StoredTeam {
       : {}),
     ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
     ...(team.computerCoached ? { computerCoached: true as const } : {}),
+    ...(team.league ? { league: team.league } : {}),
+    ...(team.favouredOf ? { favouredOf: team.favouredOf } : {}),
   };
 }
 

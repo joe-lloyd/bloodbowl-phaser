@@ -26,6 +26,8 @@ export interface PlayerPlacement {
   conditions?: PlayerCondition[];
   /** Make this player the team's Sevens Veteran (D8) for the scenario. */
   veteran?: true;
+  /** Make this player the team's Team Captain, with its Pro, for the scenario. */
+  teamCaptain?: true;
   /** This player starts holding the ball (instead of a `ballPosition`). */
   hasBall?: true;
 }
@@ -43,6 +45,8 @@ export interface ScenarioSetup {
   team2Roster?: RosterName;
   /** Weather in effect; Perfect Conditions ("Nice") when omitted. */
   weather?: Weather;
+  /** Team Re-rolls each team holds; the team's own count when omitted. */
+  teamRerolls?: { team1?: number; team2?: number };
 }
 
 export interface Scenario {

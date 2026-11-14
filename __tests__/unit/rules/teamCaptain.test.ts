@@ -1,0 +1,143 @@
+import { describe, expect, it } from "vitest";
+import { RosterName, createTeam } from "../../../src/types/Team";
+import { InjuryType, createPlayer } from "../../../src/types/Player";
+import { SkillType } from "../../../src/types/Skills";
+import {
+  captainVacancyCandidates,
+  chooseTeamCaptain,
+} from "../../../src/game/rules/teamCaptain";
+import { stampFirstCompletedMatch } from "../../../src/game/rules/teamLifecycle";
+import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
+import {
+  dehydrateTeam,
+  readStoredTeam,
+} from "../../../src/data/persistence/teamPersistence";
+
+/**
+ * Team Captain, 2025 rulebook p.155: when drafting, name any player except
+ * a Big Guy; the Captain gains Pro without increasing their cost. May 2026
+ * errata: a Captain who leaves the roster is replaced in the Pre-game
+ * Sequence of the next League Fixture.
+ */
+function draft(rosterName: RosterName, positions: string[]) {
+  const roster = getRosterByRosterName(rosterName);
+  const team = createTeam("Test", rosterName, { primary: 0, secondary: 0 }, 0);
+  positions.forEach((position, index) => {
+    const template = roster.playerTemplates.find(
+      (t) => t.positionName === position
+    )!;
+    team.players.push(createPlayer(template, team.id, index + 1));
+  });
+  return team;
+}
+
+const skillsOf = (player: { skills: { type: SkillType }[] }) =>
+  player.skills.map((skill) => skill.type);
+
+describe("naming the Team Captain", () => {
+  it("gives a Human Blitzer Pro without changing their value", () => {
+    const team = draft(RosterName.HUMAN, ["Human Blitzer", "Human Lineman"]);
+    const blitzer = team.players[0];
+
+    expect(chooseTeamCaptain(team, blitzer.id)).toEqual({ allowed: true });
+
+    expect(blitzer.teamCaptain).toBe(true);
+    expect(skillsOf(blitzer)).toEqual([
+      SkillType.BLOCK,
+      SkillType.TACKLE,
+      SkillType.PRO,
+    ]);
+    expect(blitzer.cost).toBe(85_000);
+    expect(team.players[1].teamCaptain).toBeUndefined();
+  });
+
+  it("moves the title and its Pro to the newly named player", () => {
+    const team = draft(RosterName.ORC, ["Orc Blitzer", "Orc Lineman"]);
+    chooseTeamCaptain(team, team.players[0].id);
+    chooseTeamCaptain(team, team.players[1].id);
+
+    expect(team.players.map((p) => !!p.teamCaptain)).toEqual([false, true]);
+    expect(skillsOf(team.players[0])).not.toContain(SkillType.PRO);
+    expect(skillsOf(team.players[1])).toContain(SkillType.PRO);
+  });
+
+  it("refuses a Big Guy", () => {
+    const team = draft(RosterName.ORC, ["Untrained Troll", "Orc Lineman"]);
+
+    expect(chooseTeamCaptain(team, team.players[0].id)).toEqual({
+      allowed: false,
+      reason: "A Big Guy cannot be the Team Captain.",
+    });
+    expect(team.players[0].teamCaptain).toBeUndefined();
+  });
+
+  it("refuses a roster without the rule", () => {
+    const team = draft(RosterName.NORSE, ["Norse Raider Lineman"]);
+
+    expect(chooseTeamCaptain(team, team.players[0].id).allowed).toBe(false);
+  });
+
+  it("refuses once the team has played", () => {
+    const team = draft(RosterName.HUMAN, ["Human Blitzer", "Human Lineman"]);
+    stampFirstCompletedMatch(team);
+
+    expect(chooseTeamCaptain(team, team.players[0].id).allowed).toBe(false);
+  });
+
+  it("survives a save, and the loaded Captain still has Pro", () => {
+    const team = draft(RosterName.HUMAN, ["Human Thrower", "Human Lineman"]);
+    chooseTeamCaptain(team, team.players[0].id);
+
+    const stored = dehydrateTeam(team);
+    const loaded = readStoredTeam(JSON.parse(JSON.stringify(stored))).team;
+
+    expect(stored.players[0]).toMatchObject({ teamCaptain: true });
+    expect(loaded.players[0].teamCaptain).toBe(true);
+    expect(skillsOf(loaded.players[0])).toEqual([
+      SkillType.PASS,
+      SkillType.SURE_HANDS,
+      SkillType.PRO,
+    ]);
+    expect(skillsOf(loaded.players[1])).toEqual([]);
+  });
+});
+
+describe("replacing the Team Captain (errata p.155)", () => {
+  function activeLeagueTeam() {
+    const team = draft(RosterName.HUMAN, [
+      "Human Blitzer",
+      "Human Lineman",
+      "Ogre",
+    ]);
+    team.advancementMode = "sevens-skill-selection";
+    chooseTeamCaptain(team, team.players[0].id);
+    stampFirstCompletedMatch(team);
+    return team;
+  }
+
+  it("offers nobody while the Captain is on the roster", () => {
+    expect(captainVacancyCandidates(activeLeagueTeam())).toEqual([]);
+  });
+
+  it("offers every player but the Big Guy once a dead Captain leaves", () => {
+    const team = activeLeagueTeam();
+    team.players[0].injuries = [InjuryType.DEAD];
+    const loaded = readStoredTeam(dehydrateTeam(team)).team;
+
+    expect(loaded.players.map((p) => p.positionName)).toEqual([
+      "Human Lineman",
+      "Ogre",
+    ]);
+    expect(captainVacancyCandidates(loaded).map((p) => p.positionName)).toEqual(
+      ["Human Lineman"]
+    );
+  });
+
+  it("offers nobody to a Matched Play team", () => {
+    const team = activeLeagueTeam();
+    team.advancementMode = "matched-play";
+    team.players.shift();
+
+    expect(captainVacancyCandidates(team)).toEqual([]);
+  });
+});

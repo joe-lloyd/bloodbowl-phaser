@@ -7,13 +7,15 @@
 
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { Inducement, InducementCatalogEntry } from "../../types/Inducements";
-import { RosterName, Team, TeamSpecialRule } from "../../types/Team";
+import { RosterName, TeamSpecialRule } from "../../types/Team";
+import { TeamAllegiance, hasTeamSpecialRule } from "../rules/teamAllegiance";
 
 export function sevensInducementCatalog(
-  team: Pick<Team, "rosterName">
+  team: TeamAllegiance
 ): InducementCatalogEntry[] {
   const roster = getRosterByRosterName(team.rosterName);
-  const has = (rule: TeamSpecialRule) => roster.specialRules.includes(rule);
+  // Favoured of Nurgle may come from the alignment the team chose.
+  const has = (rule: TeamSpecialRule) => hasTeamSpecialRule(team, rule);
   const line = (
     inducement: Inducement,
     maxCount: number,

@@ -39,7 +39,7 @@ export class SendOffOperation extends GameOperation {
     );
     await context.delay(1000);
 
-    const argueOp = new ArgueTheCallOperation();
+    const argueOp = new ArgueTheCallOperation(player);
     await argueOp.execute(context);
 
     // A Bribe that works keeps the player on and causes no Turnover.

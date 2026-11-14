@@ -136,6 +136,8 @@ export interface GameState {
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Veterans (D8) who have spent their once-per-game re-roll; absent = none. */
   veteranRerollsUsed?: string[];
+  /** Teams that spent Bribery and Corruption's Argue the Call re-roll; absent = none. */
+  briberyRerollsUsed?: string[];
   /**
    * What this team turn has spent of its once-a-turn allowances; absent or
    * from an earlier turn = none (see skills/RerollArbiter.ts).

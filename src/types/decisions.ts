@@ -159,14 +159,16 @@ export interface ApothecaryDecisionAnswer {
  * Iron Man and Knuckle Dusters pick a player, Intensive Training picks a
  * Primary skill for its random player, Hangover picks an opposition player
  * and You Dope! picks a player and ST or AG. Desperate Measures may be
- * declined and kept for later; prayers may not.
+ * declined and kept for later; prayers may not. The same pre-game choice
+ * appoints a new Team Captain, which the coach may also decline.
  */
 export type InducementChoiceKind =
   | "iron-man"
   | "knuckle-dusters"
   | "intensive-training"
   | "hangover"
-  | "you-dope";
+  | "you-dope"
+  | "team-captain";
 
 export type DopeStat = "ST" | "AG";
 

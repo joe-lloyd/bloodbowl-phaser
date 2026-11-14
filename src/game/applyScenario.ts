@@ -10,7 +10,7 @@ import { Scenario, PlayerPlacement } from "../types/Scenario";
 import { Team } from "../types/Team";
 import { GameState, GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
-import { getSkill, hasSkill } from "../types/Skills";
+import { SkillType, getSkill, hasSkill } from "../types/Skills";
 import { SetupManager } from "./managers/SetupManager";
 
 function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
@@ -21,6 +21,15 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
     player.status = p.status || PlayerStatus.ACTIVE;
     if (p.stats) Object.assign(player.stats, p.stats);
     if (p.veteran) player.veteran = true;
+    if (p.teamCaptain) {
+      player.teamCaptain = true;
+      if (!hasSkill(player.skills, SkillType.PRO)) {
+        player.skills.push({
+          ...getSkill(SkillType.PRO),
+          scenarioGranted: true,
+        });
+      }
+    }
     player.conditions = p.conditions?.length
       ? p.conditions.map((type) => ({ type }))
       : undefined;
@@ -61,12 +70,16 @@ export function applyScenario(
   SetupManager.sanitizeTeam(team1);
   SetupManager.sanitizeTeam(team2);
 
-  // Skills granted by a previous scenario must not leak into this one
+  // Skills and titles granted by a previous scenario must not leak into this one
   [team1, team2].forEach((team) =>
     team.players.forEach((player) => {
       player.skills = player.skills.filter((s) => !s.scenarioGranted);
+      delete player.teamCaptain;
     })
   );
+  const { teamRerolls } = scenario.setup;
+  if (teamRerolls?.team1 !== undefined) team1.rerolls = teamRerolls.team1;
+  if (teamRerolls?.team2 !== undefined) team2.rerolls = teamRerolls.team2;
 
   applyPlacements(team1, scenario.setup.team1Placements);
   applyPlacements(team2, scenario.setup.team2Placements);

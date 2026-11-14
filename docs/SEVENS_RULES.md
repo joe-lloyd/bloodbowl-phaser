@@ -66,7 +66,7 @@ with SPP instead of the official Sevens advancement in section 6.
 | M3 | Kick-off deviation distance is the lower of 2D6. The Kick skill's D3 still applies. | ok |
 | M4 | A kick that lands in No Man's Land is not a touchback. A touchback happens only when the ball leaves the pitch or crosses the kicking team's Line of Scrimmage. | ok |
 | M5 | Throw-in distance is D6+2 instead of 2D6. Everything else is unchanged. | ok |
-| M6 | Argue the Call: on a D6, 1 to 4 means the player is still Sent-off; 5 or 6 means the player returns to their square. Either way the Turnover stands, and the coach is never ejected. | ok |
+| M6 | Argue the Call: on a D6, 1 to 4 means the player is still Sent-off; 5 or 6 means the player returns to their square. Either way the Turnover stands, and the coach is never ejected. | ok: Bribery and Corruption re-rolls a 1 once per game (T3) |
 | M7 | After both normal setups, a team with Swarming may add D3 reserve Linemen before the kick. Only available Linemen may join. The confirmed formation stays in place, and the usual setup-area and Wide Zone limits apply. The coach may decline some or all extras. | ok: the allowance and placements survive save/resume and online snapshots. Each new drive rolls again. Computer coaches place eligible extras through the same setup commands. |
 
 A knockout tie cannot end level. The 2025 rulebook (p. 87) plays Extra
@@ -167,10 +167,13 @@ What each L3 inducement does in the engine, from the 2025 rulebook pages
 - Each Blitzer's Best Keg adds 1 to its team's KO recovery rolls.
 - Each Extra Team Training adds a team re-roll to every half. The re-roll
   tracker runs to 6 (P4), so a team never starts a half with more than 6.
-- A Bribe is offered when Argue the Call fails, and when a Secret Weapon
-  is Sent-off at the end of a drive. On a 2+ the player stays and there is
-  no Turnover; on a 1 the Bribe is lost. Free Bribes from Get the Ref are
-  spent before bought ones.
+- A Bribe is offered when Argue the Call fails. That includes a Secret
+  Weapon Sent-off at the end of a drive, which argues first as the
+  rulebook allows on page 87. On a 2+ the player stays and there is no
+  Turnover; on a 1 the Bribe is lost. Free Bribes from Get the Ref are
+  spent before bought ones. The May 2026 FAQ says a team that cannot Argue
+  the Call goes straight to Bribes. In Sevens the coach is never ejected
+  (M6), so every Sent-off can be argued and that case does not arise.
 - A Wandering Apothecary or a Plague Doctor is one more Apothecary use,
   spent after the team's own Apothecary.
 - A Mortuary Assistant or a Plague Doctor re-rolls one failed
@@ -179,8 +182,8 @@ What each L3 inducement does in the engine, from the 2025 rulebook pages
 - A Halfling Master Chef rolls three D6 at the start of each half, before
   its first Kick-off. Each 4+ moves one team re-roll from the opposition
   to the chef's team for that half. The opposition cannot drop below 0.
-- Plague Doctor needs Favoured of Nurgle on the roster itself, so a Chaos
-  Renegade team that could pick Nurgle is not offered one.
+- Plague Doctor needs Favoured of Nurgle. A Chaos Chosen or Chaos
+  Renegade team that chose Nurgle has it (T4).
 
 ### Prayers to Nuffle (D8)
 
@@ -309,3 +312,51 @@ alternative.
 | MP5 | A team gets Skill Points equal to its tier number, from 1 for tier 1 to 4 for tier 4. | ok |
 | MP6 | A Primary skill costs 1 point. A Secondary skill costs 2 points, and only one per team. Each player gets at most one added skill. At most two Elite skills per team. Purchased skills do not raise team value. | ok: Elite skills are Block, Dodge, Guard and Mighty Blow, as in the engine's rulebook list |
 | MP7 | No SPP and no advancement during Matched Play games. | ok |
+
+## 8. Team special rules
+
+Spike! Journal 22 does not mention the team special rules, so they follow
+the 2025 rulebook, pages 154 to 159, and the May 2026 FAQ. Sevens has
+no Star Players and no Team Mascot inducement (L3), so the FAQ ruling on
+Team Captain with a Team Mascot does not apply.
+
+| ID | Rule | Status |
+| --- | --- | --- |
+| T1 | Team Captain (Human, Orc): when drafting, name any player except a Big Guy. The Captain gains Pro at no extra cost. While the Captain is on the pitch, each Team Re-roll the team uses rolls a D6, and a natural 6 makes it free. The Captain must be set up at the start of a Drive if able. | ok |
+| T2 | Team Captain replacement (May 2026 errata): a team whose Captain leaves its roster may appoint a new one during the Pre-game Sequence of its next League Fixture. | ok |
+| T3 | Bribery and Corruption: once per game, an Argue the Call roll of 1 may be re-rolled. Bribes cost 50,000 (L3). | ok |
+| T4 | Favoured of: a roster with a choice picks one alignment when drafting and keeps it. Chaos Chosen may pick Hashut, Khorne, Nurgle, Slaanesh, Tzeentch or Undivided. Chaos Renegades pick from the same list without Hashut. | ok |
+| T5 | Leagues: a roster with several Leagues picks one when drafting. A Norse team in the Chaos Clash gains Favoured of Khorne. | ok |
+
+Where the rules are silent or Sevens changes the context, the engine does
+this:
+
+- The Captain's title lives on the player, as the Veteran's does, so
+  saves, the online lobby and match snapshots carry it. A saved Captain
+  is given Pro again on load. A Captain may also be the Veteran.
+- The Captain's D6 is rolled every time, because a free re-roll has no
+  downside. A free re-roll is still the team's one Team Re-roll for that
+  turn. "On the pitch" means on a pitch square, Prone and Stunned
+  included, as the Leader Re-roll counts it.
+- A preset formation that leaves out an available Captain gives the
+  Captain its last square. The set-up checklist shows the Captain, and
+  set-up cannot be confirmed without them.
+- Sevens never lets a team fire a player after a game (L6), so the
+  rulebook's limit on firing a Captain never comes up. Removing a player
+  from a draft takes the title with them.
+- The replacement is offered after both coaches confirm inducements and
+  before any Prayer is rolled, in a league fixture only, to an active
+  league team with no Captain. It goes through the `inducement-choice`
+  decision with kind `team-captain`, which the coach may decline. A team
+  made before this rule existed, or one that named no Captain when
+  drafting, is offered one the same way.
+- The Bribery and Corruption re-roll is taken automatically, because a 1
+  always fails. Only a natural 1 is re-rolled, even though Sevens makes
+  1 to 4 fail alike. Its use is kept on game state, so saves and online
+  play carry it.
+- A League and an alignment are fixed once the team has played. Absent
+  choices default to the roster's first League and to Undivided. Loading
+  drops any stored choice the roster does not offer.
+- League choice gates no inducement, because Sevens sells no Star
+  Players. Favoured of Khorne and the other alignments also gate nothing
+  except Nurgle's Plague Doctor.
