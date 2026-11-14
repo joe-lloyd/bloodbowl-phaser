@@ -72,8 +72,13 @@ describe("a Secure the Ball pick-up", () => {
     ]);
     const securer = game.ctx.team1.players[0];
     expect(securer.gridPosition).toEqual({ x: 7, y: 5 });
-    expect(game.ctx.gameService.getState().ballPosition).toEqual({ x: 7, y: 5 });
-    expect(game.ctx.gameService.getState().turn.activatedPlayerIds.has(securer.id)).toBe(true);
+    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+      x: 7,
+      y: 5,
+    });
+    expect(
+      game.ctx.gameService.getState().turn.activatedPlayerIds.has(securer.id)
+    ).toBe(true);
     expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
   });
 
@@ -126,6 +131,79 @@ describe("a Secure the Ball pick-up in Pouring Rain", () => {
       "Bounce Direction: 7",
     ]);
     expect(failed.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+  });
+
+  // Big Hand "ignores all negative modifiers when attempting to pick up the
+  // ball", the rain's -1 included
+  it("lets Big Hand ignore the rain, so a 2 succeeds", async () => {
+    const game = new HeadlessGame({
+      scenario: scenario({
+        weather: "Pouring Rain",
+        securer: { skills: [SkillType.BIG_HAND] },
+      }),
+      seed: 9,
+    });
+    const secured = await secure(game, [
+      { x: 6, y: 5 },
+      { x: 7, y: 5 },
+    ]);
+
+    expect(diceOf(secured.events)).toEqual([
+      "Secure the Ball (Human Lineman #1): 2, needs 2+",
+    ]);
+    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+      x: 7,
+      y: 5,
+    });
+  });
+
+  // Extra Arms modifies "the Agility Test", and this pick-up is not one
+  it("gives Extra Arms no bonus, so a 2 still fails", async () => {
+    const game = new HeadlessGame({
+      scenario: scenario({
+        weather: "Pouring Rain",
+        securer: { skills: [SkillType.EXTRA_ARMS] },
+      }),
+      seed: 9,
+    });
+    game.ctx.team1.rerolls = 0;
+    const failed = await secure(game, [
+      { x: 6, y: 5 },
+      { x: 7, y: 5 },
+    ]);
+
+    expect(diceOf(failed.events)[0]).toBe(
+      "Secure the Ball (Human Lineman #1): 2, needs 3+"
+    );
+    expect(failed.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+  });
+});
+
+describe("a Big Hand pick-up in Pouring Rain", () => {
+  it("ignores the rain's -1 on the Agility Test", async () => {
+    const game = new HeadlessGame({
+      scenario: scenario({
+        weather: "Pouring Rain",
+        securer: { skills: [SkillType.BIG_HAND] },
+      }),
+      seed: 1,
+    });
+    const id = game.ctx.team1.players[0].id;
+    await game.execute({
+      type: "declare-action",
+      playerId: id,
+      action: "move",
+    });
+    const moved = await game.execute({
+      type: "move",
+      playerId: id,
+      path: [
+        { x: 6, y: 5 },
+        { x: 7, y: 5 },
+      ],
+    });
+
+    expect(diceOf(moved.events)[0]).toMatch(/^Pickup .*needs 3\+$/);
   });
 });
 

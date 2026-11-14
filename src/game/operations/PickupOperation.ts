@@ -61,14 +61,16 @@ export class PickupOperation extends GameOperation {
     );
 
     let roll = 1;
+    const securing = isSecuringBall(gameService.getState(), this.playerId);
+    const weather = weatherEffects(gameService.getState().weather).ballHandling;
     // Trigger point: rules may adjust the pickup (Big Hand, Extra Arms)
     // or auto-fail it (No Ball)
     const pickupCtx: PickupContext = {
       player,
       marking: markingOpponents,
-      modifiers:
-        -markingOpponents +
-        weatherEffects(gameService.getState().weather).ballHandling,
+      weather,
+      agilityTest: !securing,
+      modifiers: -markingOpponents + weather,
       decisions: gameService.getDecisionService(),
       flow: flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -99,7 +101,7 @@ export class PickupOperation extends GameOperation {
       });
       this.success = false;
       roll = 1;
-    } else if (isSecuringBall(gameService.getState(), this.playerId)) {
+    } else if (securing) {
       // Secure the Ball: no Agility Test, a D6 for 2+, though pick-up
       // modifiers still apply (FAQ). Sure Hands may not re-roll it; a team
       // re-roll still may.

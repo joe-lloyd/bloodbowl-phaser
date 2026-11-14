@@ -20,7 +20,8 @@ function apply(ctx: PickupContext | CatchContext, self: Player, what: string) {
 
 export const ExtraArmsRule: SkillRule = {
   onPickup(ctx, self) {
-    apply(ctx, self, "pick-up");
+    // Its +1 is to the Agility Test, which Secure the Ball does not take
+    if (ctx.agilityTest) apply(ctx, self, "pick-up");
   },
   onCatch(ctx, self) {
     apply(ctx, self, "catch");
