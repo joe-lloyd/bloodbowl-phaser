@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { ISO } from "./GridUtils";
 import { PLAYER_DEPTH } from "./PlayerSprite";
+import { BallTrail } from "./BallTrail";
 
 /** Height of a carried ball: in the carrier's hands. */
 export const CARRIED_HEIGHT = 1.0;
@@ -22,6 +23,8 @@ export class BallSprite extends Phaser.GameObjects.Container {
     null;
   /** The last flight's arrival, so the board can tell when it has landed. */
   private landing: Promise<void> = Promise.resolve();
+  /** Where the ball has flown since it was last at rest. */
+  private trail: BallTrail;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -40,6 +43,17 @@ export class BallSprite extends Phaser.GameObjects.Container {
     this.add([this.shadow, this.ball]);
     this.setHeight(0);
     scene.add.existing(this);
+    this.trail = new BallTrail(scene);
+  }
+
+  public override destroy(fromScene?: boolean): void {
+    this.trail.destroy();
+    super.destroy(fromScene);
+  }
+
+  /** The ball is at rest: its trail fades after a moment to read it. */
+  public restTrail(): void {
+    this.trail.rest();
   }
 
   public get altitude(): number {
@@ -70,6 +84,7 @@ export class BallSprite extends Phaser.GameObjects.Container {
     this.stopFlight();
     const from = { x: this.x, y: this.y, h: this.heightM };
     const end = opts.endHeight ?? 0;
+    this.trail.startFlight(this.x, this.y + this.ball.y);
     return (this.landing = new Promise((resolve) => {
       const tween = this.scene.tweens.addCounter({
         from: 0,
@@ -84,8 +99,12 @@ export class BallSprite extends Phaser.GameObjects.Container {
           this.setHeight(
             from.h + (end - from.h) * t + 4 * opts.apex * t * (1 - t)
           );
+          this.trail.addPoint(this.x, this.y + this.ball.y);
         },
-        onComplete: () => settle(),
+        onComplete: () => {
+          if (end === 0) this.trail.land(this.x, this.y);
+          settle();
+        },
       });
       const settle = () => {
         if (this.flight?.tween === tween) this.flight = null;

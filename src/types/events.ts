@@ -590,6 +590,8 @@ export interface GameEvents {
     playerId: string;
     position: { x: number; y: number };
     bouncePosition: { x: number; y: number };
+    /** A bounce waits for the board to show it before it lands. */
+    presentationId?: string;
   };
   [GameEventNames.InterceptionAttempted]: {
     passerId: string;

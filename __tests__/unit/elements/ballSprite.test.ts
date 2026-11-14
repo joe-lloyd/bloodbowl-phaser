@@ -51,8 +51,15 @@ function fakeScene() {
     setStrokeStyle() {},
     setScale() {},
     setAlpha() {},
+    setDepth() {
+      return this;
+    },
     lineStyle() {},
     lineBetween() {},
+    clear() {},
+    fillStyle() {},
+    fillCircle() {},
+    strokeEllipse() {},
     add() {},
     y: 0,
   });

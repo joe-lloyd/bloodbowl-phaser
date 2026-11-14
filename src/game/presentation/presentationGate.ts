@@ -1,5 +1,5 @@
 import { IEventBus } from "../../services/EventBus";
-import { DelayProvider } from "../core/GameFlowManager";
+import { DelayProvider, waitAtMost } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 
 let counter = 0;
@@ -26,18 +26,14 @@ export function awaitPresentation(
   presentationId: string,
   timeoutMs: number
 ): Promise<void> {
-  return new Promise<void>((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      eventBus.off(GameEventNames.UI_PresentationAcknowledged, onAck);
-      resolve();
-    };
-    const onAck = (data: { id: string }) => {
-      if (data?.id === presentationId) finish();
+  let onAck: (data: { id: string }) => void = () => {};
+  const shown = new Promise<void>((resolve) => {
+    onAck = (data) => {
+      if (data?.id === presentationId) resolve();
     };
     eventBus.on(GameEventNames.UI_PresentationAcknowledged, onAck);
-    void delay(timeoutMs).then(finish);
   });
+  return waitAtMost(delay, shown, timeoutMs).finally(() =>
+    eventBus.off(GameEventNames.UI_PresentationAcknowledged, onAck)
+  );
 }
