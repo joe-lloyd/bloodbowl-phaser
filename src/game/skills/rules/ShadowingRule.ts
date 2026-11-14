@@ -8,9 +8,10 @@
  * leave the Tackle Zone of multiple players with this Skill at the same
  * time, only one of those players may use this Skill."
  *
- * `self` is a marker of the vacated square, reacting after the dodge (and
- * any Diving Tackle) resolves. The chase is free: no dice for the shadower,
- * who arrives Standing.
+ * `self` is a marker of the vacated square. FAQ (May 2026): Diving Tackle
+ * reacts first, and "If the Dodge is successful, a Shadowing roll can be
+ * made", so this folds only on a dodge that stood. The chase is free: no
+ * dice for the shadower, who arrives Standing.
  */
 
 import { SkillType } from "../../../types/Skills";
@@ -19,13 +20,12 @@ import { SkillRule } from "../SkillRule";
 import { ReactionDecisionAnswer } from "../../../types/decisions";
 
 export const ShadowingRule: SkillRule = {
-  async onDodgeResolved(ctx, self) {
+  async onDodgeSucceeded(ctx, self) {
     if (self.id === ctx.player.id) return;
     if (self.teamId === ctx.player.teamId) return;
     if (self.status !== PlayerStatus.ACTIVE || !self.gridPosition) return;
-    // A Diving Tackle already claimed the vacated square, or another
-    // shadower got there first
-    if (ctx.proneInVacated || ctx.followInto) return;
+    // Another shadower got there first
+    if (ctx.followInto) return;
     // Only one shadower may try, even when several mark the square
     if (ctx.triggers.some((t) => t.skill === SkillType.SHADOWING)) return;
     // Only a marker of the VACATED square may chase
