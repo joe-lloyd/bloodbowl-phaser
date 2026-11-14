@@ -7,7 +7,7 @@ import { resolvePitchTheme } from "../../../game/presentation/pitchThemes";
 import { soundSettings } from "../../sound/settings";
 import type { DiceRoll, DiceTeam, DiceThrow } from "../../dice/diceScene";
 import type { BlockRollData } from "../../../services/BlockResolutionService";
-import { isBlockDice, isD6 } from "../../dice/thrownDice";
+import { isBlockDice, isD6, isD16 } from "../../dice/thrownDice";
 import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
 import { kitOf } from "../../../game/presentation/kits";
 
@@ -35,8 +35,8 @@ const QUEUED_HOLD_MS = 700;
 const MAX_QUEUE = 5;
 
 /**
- * Turn an engine DiceRoll into dice to throw: D6s and block dice only. A D3,
- * D8 or D16 has no die model.
+ * Turn an engine DiceRoll into dice to throw: D6s, D16s and block dice.
+ * A D3 or D8 has no die model.
  */
 export function toDice(
   event: RollEvent
@@ -46,10 +46,12 @@ export function toDice(
     const faces = values.map((v) => BLOCK_VALUE[String(v)]);
     return faces.every(Boolean) ? { kind: "block", values: faces } : null;
   }
-  if (isD6(event.diceType)) {
+  if (isD6(event.diceType) || isD16(event.diceType)) {
+    const sides = isD16(event.diceType) ? 16 : 6;
     const pips = values.map(Number);
-    return pips.every((v) => v >= 1 && v <= 6)
-      ? { kind: "d6", values: pips }
+    return pips.length > 0 &&
+      pips.every((v) => Number.isInteger(v) && v >= 1 && v <= sides)
+      ? { kind: sides === 16 ? "d16" : "d6", values: pips }
       : null;
   }
   return null;
@@ -130,7 +132,7 @@ function joinsThrow(waiting: Queued, next: Queued): boolean {
 }
 
 /**
- * The dice tray: the one place every roll is thrown, D6s and block dice
+ * The dice tray: the one place every roll is thrown, D6s, D16s and block dice
  * alike, as real 3D dice in the rolling team's colours, at the bottom
  * centre clear of the turn indicator, the clock and the corner panels.
  * The dice tumble, land, then lift up toward the coach with their result

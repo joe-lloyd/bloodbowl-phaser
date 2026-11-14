@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toDice } from "../../src/ui/components/hud/DiceTray";
 import { BLOCK_FACES, labelling } from "../../src/ui/dice/diceScene";
+import { isThrownIn3D } from "../../src/ui/dice/thrownDice";
 
 const roll = (
   diceType: string,
@@ -18,6 +19,29 @@ describe("dice tray", () => {
     expect(toDice(roll("1d6", 4))).toEqual({ kind: "d6", values: [4] });
     expect(toDice(roll("2d6", [6, 1]))).toEqual({ kind: "d6", values: [6, 1] });
   });
+
+  it("throws D16 rolls, including two-digit results, as the engine rolled them", () => {
+    for (let value = 1; value <= 16; value++) {
+      expect(toDice(roll("1d16", value))).toEqual({
+        kind: "d16",
+        values: [value],
+      });
+    }
+    expect(toDice(roll("2D16", [6, 16]))).toEqual({
+      kind: "d16",
+      values: [6, 16],
+    });
+    expect(isThrownIn3D("1d16")).toBe(true);
+    expect(isThrownIn3D("D16")).toBe(true);
+    expect(isThrownIn3D("1d8")).toBe(false);
+  });
+
+  it.each([0, 17, 1.5, NaN, Infinity])(
+    "rejects an invalid D16 value %s",
+    (value) => {
+      expect(toDice(roll("1d16", value))).toBeNull();
+    }
+  );
 
   it("throws block dice on the face for each result", () => {
     const dice = toDice(roll("2D Block", ["pow", "both-down"]));
