@@ -713,7 +713,7 @@ function WinningsPanel({
           )
           .join(", ")}
         ). Each team earns half the Fan Attendance plus its own touchdowns,
-        times 10,000 gp.
+        plus 1 if none of its players was Stalling, times 10,000 gp.
       </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {teams.map((team) => (

@@ -88,7 +88,9 @@ The magazine does not mention Stalling, so the 2025 rulebook's rule (p.80)
 applies unchanged. A player who holds the ball when activated, could score
 without rolling any dice, and ends the activation without scoring is
 Stalling. The crowd then rolls a D6 and hits on a result equal to or higher
-than the team's Turn number: the player is Knocked Down, a Turnover. With
+than the team's Turn number: the player is Knocked Down, a Turnover. A
+player with Steady Footing rolls for it first, and a 6 keeps them standing
+with no Turnover. With
 six-turn halves the roll can always hit, on a 6 or more on Turn 6, where an
 eight-turn half has two turns it never can. The engine keeps the rule as
 written rather than rescaling it. Forgoing the activation still rolls; a turn

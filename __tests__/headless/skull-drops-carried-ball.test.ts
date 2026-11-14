@@ -60,9 +60,11 @@ describe("a Skull on a ball carrier", () => {
     const rolls = response.events
       .filter((e) => e.name === "diceRoll")
       .map((e) => (e.data as { rollType: string }).rollType);
-    expect(rolls.indexOf("Armour Roll (Human Lineman #1)")).toBeLessThan(
-      rolls.indexOf("Bounce Direction")
-    );
+    const armour = rolls.indexOf("Armour Roll (Human Lineman #1)");
+    const bounce = rolls.indexOf("Bounce Direction");
+    expect(armour).toBeGreaterThanOrEqual(0);
+    expect(bounce).toBeGreaterThanOrEqual(0);
+    expect(armour).toBeLessThan(bounce);
     expect(response.snapshot.ballPosition).toEqual({ x: 9, y: 6 });
     expect(response.snapshot.activeTeamId).toBe("team2");
     const fallen = response.snapshot.teams[0].players[0];

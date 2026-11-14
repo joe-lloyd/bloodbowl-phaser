@@ -14,6 +14,7 @@ import { ArmourOperation } from "./ArmourOperation";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
 import { CrowdInjuryOperation } from "./CrowdInjuryOperation";
+import { steadyFootingSaves } from "../rules/steadyFooting";
 
 /**
  * The eight compass directions, clockwise from North, so a ±1 index step is a
@@ -216,7 +217,17 @@ export class FinishBallAndChainSquare extends GameOperation {
 
     const standing = () =>
       !!fanatic.gridPosition && fanatic.status === PlayerStatus.ACTIVE;
-    if (this.square.rushFailed && standing()) {
+    // Steady Footing covers Falling Over (p.136): a 6 keeps the Fanatic up
+    if (
+      this.square.rushFailed &&
+      standing() &&
+      !(await steadyFootingSaves(
+        fanatic,
+        gameService.getDiceController(),
+        eventBus,
+        gameService
+      ))
+    ) {
       eventBus.emit(
         GameEventNames.UI_Notification,
         `${fanatic.playerName} falls over!`

@@ -87,7 +87,11 @@ function swing(
   fanaticId: string,
   facing: { x: number; y: number }
 ) {
-  return game.execute({ type: "ball-and-chain", playerId: fanaticId, ...facing });
+  return game.execute({
+    type: "ball-and-chain",
+    playerId: fanaticId,
+    ...facing,
+  });
 }
 
 const dice = (response: CommandResponse): string[] =>
@@ -260,7 +264,11 @@ describe("a Ball & Chain collision is a normal Block", () => {
     });
     expect(
       rerolled.events.find((e) => e.name === GameEventNames.RerollUsed)?.data
-    ).toMatchObject({ playerId: fanatic.id, source: "team", rollKind: "block" });
+    ).toMatchObject({
+      playerId: fanatic.id,
+      source: "team",
+      rollKind: "block",
+    });
   });
 
   it("ignores Foul Appearance", async () => {
@@ -339,7 +347,10 @@ describe("a Ball & Chain collision is a normal Block", () => {
     const { game, fanatic, push } = run;
     const [target, , behind] = game.ctx.team2.players;
 
-    const first = await game.execute({ type: "choose-block-result", index: push });
+    const first = await game.execute({
+      type: "choose-block-result",
+      index: push,
+    });
     expect(first.pendingDecision).toMatchObject({
       type: "push-direction",
       defenderId: target.id,
@@ -383,7 +394,10 @@ describe("a Ball & Chain collision is a normal Block", () => {
       expect(pending.chooserTeamId).toBe(game.ctx.team1.id);
       const pow = pending.options.findIndex((o) => o.type === "pow");
       if (pow < 0) return null;
-      let reply = await game.execute({ type: "choose-block-result", index: pow });
+      let reply = await game.execute({
+        type: "choose-block-result",
+        index: pow,
+      });
       while (reply.pendingDecision) {
         reply = await game.execute(
           answerDecision(reply.pendingDecision, game, {})!
@@ -430,6 +444,33 @@ describe("Ball & Chain movement", () => {
     expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(true);
   });
 
+  // Steady Footing covers Falling Over (p.136), and Ball & Chain does not
+  // exclude it: a 6 keeps the Fanatic up, with no Injury and no Turnover
+  it("lets Steady Footing save a failed Rush", async () => {
+    const { game, fanatic, response } = await firstSeed(async (seed) => {
+      const { game, fanatic } = fanaticGame({
+        seed,
+        at: { x: 5, y: 5 },
+        fanaticSkills: [SkillType.STEADY_FOOTING],
+      });
+      game.ctx.team1.rerolls = 0;
+      await declare(game, fanatic.id);
+      for (let square = 0; square < 3; square++) {
+        await swing(game, fanatic.id, EAST);
+      }
+      if (fanatic.status !== PlayerStatus.ACTIVE) return null;
+      const response = await swing(game, fanatic.id, EAST);
+      const rolled = dice(response);
+      return rolled.some((d) => d.startsWith("Rush (Fanatic #7): 1")) &&
+        rolled.some((d) => d.startsWith("Steady Footing (Fanatic #7): 6"))
+        ? { game, fanatic, response }
+        : null;
+    });
+    expect(fanatic.status).toBe(PlayerStatus.ACTIVE);
+    expect(dice(response).some((d) => d.startsWith("Injury Roll"))).toBe(false);
+    expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
+  });
+
   it("enters the square of a failed Rush, then Falls Over there", async () => {
     const { game, fanatic, response, from } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({ seed, at: { x: 5, y: 5 } });
@@ -449,9 +490,9 @@ describe("Ball & Chain movement", () => {
         e.name === GameEventNames.PlayerMoved &&
         (e.data as { playerId: string }).playerId === fanatic.id
     );
-    expect(
-      (response.events[moved].data as { to: { x: number } }).to.x
-    ).toBe(from.x + 1);
+    expect((response.events[moved].data as { to: { x: number } }).to.x).toBe(
+      from.x + 1
+    );
     const injury = response.events.findIndex(
       (e) =>
         e.name === GameEventNames.DiceRoll &&
