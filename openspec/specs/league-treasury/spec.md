@@ -345,5 +345,8 @@ Finish post-match SHALL save the team and resolve Expensive Mistakes using
 the Treasury after purchases. Required development SHALL be completed first.
 If dice are rolled, the result SHALL remain visible before the coach returns
 to the league. Finishing or reloading SHALL NOT roll the same task again.
+The handoff and finish actions SHALL wait for acknowledged team saves.
+A rejected save SHALL keep the coach on the current page with a retry action.
+Retrying SHALL save the confirmed SPP and dice results without applying them again.
 Local games with two human teams SHALL visit each team in turn. Computer
 teams SHALL keep their automatic management.

@@ -212,8 +212,11 @@ export function createPendingSkillSelection(
   matchId: string,
   eligibleParticipantIds: readonly string[]
 ): PendingDevelopment {
+  const id = `pending-${matchId}-skill-selection`;
+  const existing = team.pendingDevelopment?.find((entry) => entry.id === id);
+  if (existing) return existing;
   const entry: PendingDevelopment = {
-    id: `pending-${matchId}-skill-selection`,
+    id,
     kind: "sevens-skill-selection",
     matchId,
     eligibleParticipantIds: [...eligibleParticipantIds],

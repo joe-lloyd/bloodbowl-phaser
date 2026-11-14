@@ -98,6 +98,8 @@ export function TeamBuilder() {
   const matchWinnings = searchParams.get(`winnings-${teamId ?? ""}`);
   const [completion, setCompletion] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const saveInFlight = useRef(false);
   // What storage held when this team was loaded or last saved from here.
   // Kept as a string because a cloud repository hands out its cached team
   // objects, which this page then edits in place.
@@ -290,11 +292,11 @@ export function TeamBuilder() {
       teams.push(toSave);
     }
 
-    TeamManager.saveTeams(teams);
+    return TeamManager.saveTeams(teams);
   };
 
-  const handleSave = () => {
-    if (!team) return;
+  const handleSave = async () => {
+    if (!team || saveInFlight.current) return;
     clearUnneededExpensiveMistakes(team);
     if (
       postMatch &&
@@ -313,25 +315,41 @@ export function TeamBuilder() {
     }
     setTeam({ ...team });
     if (results.length) setCompletion(results.join(" "));
-    persistTeam(team);
-    if (!isStored(team)) {
+    saveInFlight.current = true;
+    setSaving(true);
+    try {
+      await persistTeam(team);
+      if (!isStored(team)) {
+        setSaveError(
+          "Your team could not be saved. Your changes are still here. Try saving again."
+        );
+        return;
+      }
+      savedSnapshot.current = snapshotOf(team);
+      setSaveError("");
+      if (results.length) return;
+      const [nextTeam, ...remaining] = searchParams.getAll("nextTeam");
+      if (postMatch && nextTeam) {
+        searchParams.delete("nextTeam");
+        remaining.forEach((id) => searchParams.append("nextTeam", id));
+        navigate(
+          `/build-team/${encodeURIComponent(nextTeam)}?${searchParams}`,
+          {
+            replace: true,
+          }
+        );
+      } else {
+        navigate(postMatch ? destination : "/build-team", {
+          replace: postMatch,
+        });
+      }
+    } catch (cause) {
       setSaveError(
-        "Your team could not be saved. Your changes are still here. Try saving again."
+        `Your team could not be saved. ${cause instanceof Error ? cause.message : String(cause)}. Retry saving to continue.`
       );
-      return;
-    }
-    savedSnapshot.current = snapshotOf(team);
-    setSaveError("");
-    if (results.length) return;
-    const [nextTeam, ...remaining] = searchParams.getAll("nextTeam");
-    if (postMatch && nextTeam) {
-      searchParams.delete("nextTeam");
-      remaining.forEach((id) => searchParams.append("nextTeam", id));
-      navigate(`/build-team/${encodeURIComponent(nextTeam)}?${searchParams}`, {
-        replace: true,
-      });
-    } else {
-      navigate(postMatch ? destination : "/build-team", { replace: postMatch });
+    } finally {
+      saveInFlight.current = false;
+      setSaving(false);
     }
   };
 
@@ -350,8 +368,8 @@ export function TeamBuilder() {
    * (a hire, a reorder, a brand-new team) would be missing there. Offer to
    * save them first; cancelling stays on this page with the edits intact.
    */
-  const handleOpenPlayer = (playerId: string) => {
-    if (!team) return;
+  const handleOpenPlayer = async (playerId: string) => {
+    if (!team || saveInFlight.current) return;
     if (savedSnapshot.current !== snapshotOf(team)) {
       if (
         !postMatch &&
@@ -360,7 +378,22 @@ export function TeamBuilder() {
         return;
       }
       const wasLocked = team.advancementModeLocked;
-      persistTeam(team);
+      saveInFlight.current = true;
+      setSaving(true);
+      try {
+        await persistTeam(team);
+      } catch (cause) {
+        if (wasLocked) team.advancementModeLocked = wasLocked;
+        else delete team.advancementModeLocked;
+        setTeam({ ...team });
+        alert(
+          `Your changes could not be saved, so the player was not opened. Your edits are still here. ${cause instanceof Error ? cause.message : String(cause)}`
+        );
+        return;
+      } finally {
+        saveInFlight.current = false;
+        setSaving(false);
+      }
       // The repository logs a failed write instead of throwing (a full
       // localStorage, say), so read it back before leaving these edits.
       if (!isStored(team)) {
@@ -421,7 +454,7 @@ export function TeamBuilder() {
       actionBar={
         <>
           {!postMatch && !completion && (
-            <HudButton variant="ghost" onClick={handleBack}>
+            <HudButton variant="ghost" onClick={handleBack} disabled={saving}>
               Cancel
             </HudButton>
           )}
@@ -442,9 +475,13 @@ export function TeamBuilder() {
           <HudButton
             variant="primary"
             onClick={handleSave}
-            disabled={waitingForDevelopment}
+            disabled={waitingForDevelopment || saving}
           >
-            {completion ? (
+            {saving ? (
+              "Saving team..."
+            ) : saveError ? (
+              "Retry saving team"
+            ) : completion ? (
               searchParams.has("nextTeam") ? (
                 "Manage next team"
               ) : postMatch && destination !== "/build-team" ? (
@@ -506,7 +543,7 @@ export function TeamBuilder() {
         </Notice>
       )}
 
-      <fieldset disabled={!!completion} className="min-w-0">
+      <fieldset disabled={!!completion || saving} className="min-w-0">
         <PendingDevelopmentPanel
           team={team}
           showExpensiveMistakes={false}

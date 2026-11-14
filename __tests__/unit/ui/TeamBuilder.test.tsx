@@ -27,6 +27,7 @@ describe("post-match team management", () => {
   });
 
   afterEach(async () => {
+    setTeamRepository(null);
     await act(async () => root.unmount());
     container.remove();
     vi.restoreAllMocks();
@@ -149,6 +150,59 @@ describe("post-match team management", () => {
     expect(container.textContent).toBe("The league page");
     expect(getTeamById("post-match-next")?.treasury).toBe(30_000);
   });
+
+  it("waits for the cloud to acknowledge a finish instead of trusting its cache", async () => {
+    await renderPostMatch(30_000);
+    let cache = loadTeams();
+    let acknowledge!: () => void;
+    const written = new Promise<void>((resolve) => {
+      acknowledge = resolve;
+    });
+    setTeamRepository({
+      loadTeams: () => cache,
+      saveTeams: (teams) => {
+        cache = teams;
+        return written;
+      },
+      deleteTeam: () => {},
+    });
+    await click(/Finish post-match/);
+    expect(container.textContent).toContain("Post-match team management");
+    expect(
+      [...container.querySelectorAll("button")].find((b) =>
+        /Saving/.test(b.textContent ?? "")
+      )?.disabled
+    ).toBe(true);
+    await act(async () => acknowledge());
+    expect(container.textContent).toBe("The league page");
+  });
+
+  it("retries a rejected finish without rolling Expensive Mistakes again", async () => {
+    await renderPostMatch();
+    let cache = loadTeams();
+    let fail = true;
+    setTeamRepository({
+      loadTeams: () => cache,
+      saveTeams: (teams) => {
+        cache = teams;
+        return fail
+          ? Promise.reject(new Error("Cloud offline"))
+          : Promise.resolve();
+      },
+      deleteTeam: () => {},
+    });
+    vi.spyOn(RNGService.prototype, "rollDie").mockReturnValue(1);
+    await click(/Finish post-match/);
+    expect(container.textContent).toContain("Cloud offline");
+    expect(container.textContent).toContain("Rolled 1");
+    fail = false;
+    await click(/Retry saving team/);
+    expect(container.textContent).toBe("The league page");
+    expect(getTeamById("post-match")).toMatchObject({
+      treasury: 140_000,
+      pendingDevelopment: [],
+    });
+  });
 });
 
 /**
@@ -264,11 +318,11 @@ describe("TeamBuilder opening a player", () => {
     return event;
   }
 
-  function clickRow(slot: number) {
+  async function clickRow(slot: number) {
     const cell = container.querySelectorAll(
       `[data-testid="roster-row-${slot}"] td`
     )[2];
-    act(() => {
+    await act(async () => {
       cell.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
   }
@@ -291,7 +345,7 @@ describe("TeamBuilder opening a player", () => {
   it("opens a player of an unchanged saved team without asking", async () => {
     const team = await renderSavedTeam();
     const confirmSpy = vi.spyOn(window, "confirm");
-    clickRow(1);
+    await clickRow(1);
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(
       container.querySelector('[data-testid="player-page"]')?.textContent
@@ -303,7 +357,7 @@ describe("TeamBuilder opening a player", () => {
     const moved = team.players.find((p) => p.number === 1)!;
     moveSlot(1, 9);
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    clickRow(9);
+    await clickRow(9);
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(
       container.querySelector('[data-testid="player-page"]')?.textContent
@@ -322,7 +376,7 @@ describe("TeamBuilder opening a player", () => {
       throw new DOMException("quota exceeded", "QuotaExceededError");
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
-    clickRow(9);
+    await clickRow(9);
     expect(alertSpy).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="player-page"]')).toBeNull();
     expect(
@@ -337,7 +391,7 @@ describe("TeamBuilder opening a player", () => {
     const team = await renderSavedTeam();
     moveSlot(1, 9);
     vi.spyOn(window, "confirm").mockReturnValue(false);
-    clickRow(9);
+    await clickRow(9);
     expect(container.querySelector('[data-testid="player-page"]')).toBeNull();
     expect(
       container.querySelector('[data-testid="roster-row-9"]')?.textContent
@@ -388,7 +442,7 @@ describe("TeamBuilder opening a player", () => {
       container.querySelector('[data-testid="roster-row-4"]')?.textContent
     ).not.toContain("Empty slot");
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    clickRow(4);
+    await clickRow(4);
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(saves).toHaveLength(1);
     expect(container.querySelector('[data-testid="player-page"]')).toBeTruthy();
@@ -427,7 +481,7 @@ describe("TeamBuilder opening a player", () => {
       throw new DOMException("quota exceeded", "QuotaExceededError");
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
-    clickRow(9);
+    await clickRow(9);
     // Any later change re-renders from the same team object
     moveSlot(2, 8);
 

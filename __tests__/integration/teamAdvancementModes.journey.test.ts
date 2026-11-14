@@ -169,6 +169,16 @@ describe("Matched Play journey", () => {
 });
 
 describe("Sevens Skill Selection journey", () => {
+  it("keeps one award when the same match's development is recorded again", () => {
+    const team = buildLegalTeam("Retry Team", "sevens-skill-selection");
+    const eligible = eligibleSkillSelectionPlayers(team);
+    createPendingSkillSelection(team, "fixture-1", eligible);
+    createPendingSkillSelection(team, "fixture-1", eligible);
+    expect(team.pendingDevelopment).toEqual([
+      expect.objectContaining({ id: "pending-fixture-1-skill-selection", matchId: "fixture-1" }),
+    ]);
+  });
+
   it("plays a match with no SPP, resolves the pending award, and runs the Draft", () => {
     const team = buildLegalTeam("SS Team", "sevens-skill-selection");
     lockAdvancementMode(team);
