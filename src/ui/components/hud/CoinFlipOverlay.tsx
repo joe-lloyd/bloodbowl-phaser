@@ -11,7 +11,7 @@ import type { DiceThrow } from "../../dice/diceScene";
 import { teamLook } from "./DiceTray";
 
 /** How long the landed coin shows its face before the winner is named. */
-const RESULT_BEAT_MS = 700;
+export const RESULT_BEAT_MS = 700;
 
 interface CoinFlipProps {
   eventBus: EventBus;
