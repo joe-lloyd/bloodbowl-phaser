@@ -67,6 +67,15 @@ export function rollsForExpensiveMistakes(treasury: number): boolean {
   return treasury >= EXPENSIVE_MISTAKES_THRESHOLD;
 }
 
+/** Spending below the threshold completes this step without rolling dice. */
+export function clearUnneededExpensiveMistakes(team: Team): void {
+  if (rollsForExpensiveMistakes(team.treasury) || !team.pendingDevelopment)
+    return;
+  team.pendingDevelopment = team.pendingDevelopment.filter(
+    (entry) => entry.kind !== "expensive-mistakes"
+  );
+}
+
 /**
  * The table's result for a Treasury and a D6, or null when the Treasury is
  * under 100,000 and nothing is rolled.

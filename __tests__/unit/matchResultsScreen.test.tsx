@@ -26,6 +26,7 @@ import { recordCompetitionFixture } from "../../src/competition/resultRecording"
 import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
 import { loadTeams, saveTeams } from "../../src/game/managers/TeamManager";
 import { Team } from "../../src/types/Team";
+import { TeamBuilder as TeamBuilderPage } from "../../src/ui/components/pages/TeamBuilder";
 
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
@@ -343,10 +344,13 @@ describe("MatchResultsScreen", () => {
     }
   );
 
-  it("settles a league game against the computer: its MVP, both teams, and back to the league", async () => {
+  it("confirms a league game and opens the human team's management before returning to the league", async () => {
     localStorage.clear();
     const { services, state, team1, team2 } = setup(true);
+    team1.advancementMode = "advanced-league";
+    team2.advancementMode = "advanced-league";
     const league = await leagueOf([team1, team2]);
+    state.paysWinnings = true;
     state.score["team-1"] = 0;
     state.score["team-2"] = 2;
     services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
@@ -389,10 +393,16 @@ describe("MatchResultsScreen", () => {
                   <MatchResultsScreen
                     visible={true}
                     leaveTo="/leagues/season-1"
+                    fixtureContext={{
+                      competitionType: "league",
+                      competitionId: league.id,
+                      fixtureId: league.fixtures[0].id,
+                    }}
                   />
                 }
               />
               <Route path="/leagues/:id" element={<p>The league page</p>} />
+              <Route path="/build-team/:teamId" element={<TeamBuilderPage />} />
             </Routes>
           </MemoryRouter>
         );
@@ -421,10 +431,16 @@ describe("MatchResultsScreen", () => {
       expect(stored("team-2")).toMatchObject({ wins: 1, touchdowns: 2 });
       expect(stored("team-2").players[0].spp).toBeGreaterThan(0);
 
-      const leave = [...container.querySelectorAll("button")].find(
-        (b) => b.textContent === "Back to the competition"
+      expect(container.textContent).toContain("Post-match team management");
+      expect(
+        container
+          .querySelector('input[placeholder="Enter Team Name"]')
+          ?.getAttribute("value")
+      ).toBe("Reikland Reavers");
+      const finish = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Finish post-match")
       )!;
-      await act(async () => leave.click());
+      await act(async () => finish.click());
       expect(container.textContent).toBe("The league page");
     } finally {
       setActiveOnlineMatch(null);

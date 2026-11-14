@@ -17,11 +17,14 @@ import { keepRecordedResult } from "../../../competition/resultRecording";
 import { earnsWinnings } from "../../../game/rules/winnings";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import { injuryLabel, playerLabel } from "./turnSummary";
+import { CompetitionContext } from "../../../competition/types";
+import { getCompetition } from "../../../competition/repository";
 
 interface Props {
   visible: boolean;
   /** Where Leave goes; a competition game returns to its competition. */
   leaveTo?: string;
+  fixtureContext?: CompetitionContext;
 }
 
 function ownedTeams(teams: Team[]): Team[] {
@@ -67,7 +70,11 @@ function outcomeLabel(
   return `${scoreA > scoreB ? a.name : b.name} win`;
 }
 
-export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
+export function MatchResultsScreen({
+  visible,
+  leaveTo = "/",
+  fixtureContext,
+}: Props) {
   const navigate = useNavigate();
   const container = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance()
@@ -104,6 +111,47 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
   const computerMvpRolled = useRef(new Set<string>());
   /** Computer teams whose MVP did not roll by itself: the coach rolls it. */
   const [computerMvpFailed, setComputerMvpFailed] = useState<string[]>([]);
+
+  // A resumed results screen may have missed the recording event. Read the
+  // fixture too, so confirmation waits for its saved winnings in either case.
+  useEffect(() => {
+    if (!visible || !fixtureContext) return;
+    let cancelled = false;
+    void getCompetition(
+      fixtureContext.competitionType,
+      fixtureContext.competitionId
+    )
+      .then((competition) => {
+        if (cancelled || !competition) return;
+        const fixture = competition.fixtures.find(
+          (entry) => entry.id === fixtureContext.fixtureId
+        );
+        if (fixture?.status !== "complete") return;
+        setCompetitionRecorded(true);
+        const saved = fixture.result?.winnings;
+        const home = competition.entrants.find(
+          (entry) => entry.id === fixture.homeEntrantId
+        );
+        const away = competition.entrants.find(
+          (entry) => entry.id === fixture.awayEntrantId
+        );
+        if (saved && home && away)
+          setWinnings({
+            gold: { [home.teamId]: saved.home, [away.teamId]: saved.away },
+            fanFactors: {
+              [home.teamId]: saved.fanFactor.home,
+              [away.teamId]: saved.fanFactor.away,
+            },
+          });
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled)
+          setError(cause instanceof Error ? cause.message : String(cause));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, fixtureContext]);
 
   // Idempotency across rerender/resume/reconnect: seed from the tracker's
   // own persisted state instead of only from live events, so a remount never
@@ -218,7 +266,8 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
         (stats) => stats.teamId === team.id && stats.mvps > 0
       )
   );
-  const canExit = !progressionEnabled || confirmed;
+  const recordingPending = !!fixtureContext && !competitionRecorded;
+  const canExit = (!progressionEnabled || confirmed) && !recordingPending;
 
   const nomineesFor = (team: Team): string[] => {
     const existing = nominations[team.id];
@@ -309,7 +358,27 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
     });
   };
 
+  const managePostMatchTeam = (): boolean => {
+    if (!state.paysWinnings) return false;
+    const managed = own.filter(
+      (team) =>
+        !team.computerCoached && earnsWinnings(team) && !!getTeamById(team.id)
+    );
+    const [first, ...next] = managed;
+    if (!first) return false;
+    const params = new URLSearchParams({ postMatch: "1", returnTo: leaveTo });
+    next.forEach((team) => params.append("nextTeam", team.id));
+    managed.forEach((team) => {
+      const gold = winnings?.gold[team.id];
+      if (gold !== undefined) params.set(`winnings-${team.id}`, String(gold));
+    });
+    clearMatchSave();
+    navigate(`/build-team/${first.id}?${params}`, { replace: true });
+    return true;
+  };
+
   const confirmSpp = () => {
+    if (recordingPending) return;
     try {
       const concedingTeamId =
         result?.reason === "concession" ? result.concedingTeamId : undefined;
@@ -318,6 +387,7 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
       recordDevelopment(`match-${Date.now()}`);
       setConfirmed(true);
       setError("");
+      managePostMatchTeam();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
@@ -325,6 +395,7 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
 
   const leave = () => {
     if (!canExit) return;
+    if (managePostMatchTeam()) return;
     clearMatchSave();
     navigate(leaveTo);
   };
@@ -486,7 +557,7 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
             </div>
             <button
               onClick={confirmSpp}
-              disabled={pendingMvpTeams.length > 0}
+              disabled={pendingMvpTeams.length > 0 || recordingPending}
               className={`${hudButtonClass("gold", "lg")} mt-5`}
             >
               Confirm and assign SPP
@@ -513,13 +584,17 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
           }
           className={`${hudButtonClass("primary", "lg")} mt-6`}
         >
-          {leaveTo === "/"
-            ? "Continue to Main Menu"
-            : "Back to the competition"}
+          {state.paysWinnings
+            ? "Manage team"
+            : leaveTo === "/"
+              ? "Continue to Main Menu"
+              : "Back to the competition"}
         </button>
         {!canExit && (
           <p className="mt-2 text-hud-sm italic text-hud-dim">
-            Confirm MVP nomination and SPP for both teams before leaving.
+            {recordingPending
+              ? "Saving the competition result and winnings..."
+              : "Confirm MVP nomination and SPP for both teams before leaving."}
           </p>
         )}
 

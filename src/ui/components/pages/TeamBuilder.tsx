@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Team,
   RosterName,
@@ -49,6 +49,16 @@ import {
   numToHex,
 } from "../TeamManagement/TeamStatsOverview";
 import { lockAdvancementMode } from "../../../types/Team";
+import { mustAdvance } from "../../../game/progression/progression";
+import {
+  clearUnneededExpensiveMistakes,
+  describeExpensiveMistakes,
+  resolveExpensiveMistakes,
+  rollsForExpensiveMistakes,
+  stepsBeforeExpensiveMistakes,
+} from "../../../game/rules/expensiveMistakes";
+import { RNGService } from "../../../services/rng/RNGService";
+import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 
 // interface TeamBuilderProps {}
 
@@ -78,12 +88,24 @@ export function TeamBuilder() {
   const [selectedColor, setSelectedColor] = useState<number>(0x8e1b1b);
   const navigate = useNavigate();
   const { teamId } = useParams<{ teamId: string }>();
+  const { search } = useLocation();
+  const searchParams = new URLSearchParams(search);
+  const postMatch = searchParams.get("postMatch") === "1";
+  const returnTo = searchParams.get("returnTo") ?? "";
+  const destination = /^\/leagues\/[^/?#]+$/.test(returnTo)
+    ? returnTo
+    : "/build-team";
+  const matchWinnings = searchParams.get(`winnings-${teamId ?? ""}`);
+  const [completion, setCompletion] = useState("");
+  const [saveError, setSaveError] = useState("");
   // What storage held when this team was loaded or last saved from here.
   // Kept as a string because a cloud repository hands out its cached team
   // objects, which this page then edits in place.
   const savedSnapshot = useRef<string | null>(null);
 
   useEffect(() => {
+    setCompletion("");
+    setSaveError("");
     // Load existing team or create new one
     if (teamId) {
       const teams = TeamManager.loadTeams();
@@ -273,8 +295,44 @@ export function TeamBuilder() {
 
   const handleSave = () => {
     if (!team) return;
+    clearUnneededExpensiveMistakes(team);
+    if (
+      postMatch &&
+      (stepsBeforeExpensiveMistakes(team) > 0 || team.players.some(mustAdvance))
+    )
+      return;
+    const results: string[] = [];
+    if (stepsBeforeExpensiveMistakes(team) === 0) {
+      const rng = new RNGService(Date.now());
+      for (const entry of [...(team.pendingDevelopment ?? [])]) {
+        if (entry.kind !== "expensive-mistakes") continue;
+        results.push(
+          describeExpensiveMistakes(resolveExpensiveMistakes(team, entry, rng))
+        );
+      }
+    }
+    setTeam({ ...team });
+    if (results.length) setCompletion(results.join(" "));
     persistTeam(team);
-    navigate("/build-team");
+    if (!isStored(team)) {
+      setSaveError(
+        "Your team could not be saved. Your changes are still here. Try saving again."
+      );
+      return;
+    }
+    savedSnapshot.current = snapshotOf(team);
+    setSaveError("");
+    if (results.length) return;
+    const [nextTeam, ...remaining] = searchParams.getAll("nextTeam");
+    if (postMatch && nextTeam) {
+      searchParams.delete("nextTeam");
+      remaining.forEach((id) => searchParams.append("nextTeam", id));
+      navigate(`/build-team/${encodeURIComponent(nextTeam)}?${searchParams}`, {
+        replace: true,
+      });
+    } else {
+      navigate(postMatch ? destination : "/build-team", { replace: postMatch });
+    }
   };
 
   /** Whether storage already holds exactly this team. */
@@ -296,6 +354,7 @@ export function TeamBuilder() {
     if (!team) return;
     if (savedSnapshot.current !== snapshotOf(team)) {
       if (
+        !postMatch &&
         !confirm("Save your changes to this team before opening the player?")
       ) {
         return;
@@ -316,7 +375,7 @@ export function TeamBuilder() {
       }
       savedSnapshot.current = snapshotOf(team);
     }
-    navigate(`/build-team/${team.id}/player/${playerId}`);
+    navigate(`/build-team/${team.id}/player/${playerId}${search}`);
   };
 
   const handleBack = () => {
@@ -349,14 +408,23 @@ export function TeamBuilder() {
   const active = mode === "active";
   const violations = rosterViolations();
   const apothecaryPrice = priceOf(team, { type: "apothecary" });
+  const waitingForDevelopment =
+    postMatch &&
+    (stepsBeforeExpensiveMistakes(team) > 0 || team.players.some(mustAdvance));
+  const pendingMistakes =
+    team.pendingDevelopment?.some(
+      (entry) => entry.kind === "expensive-mistakes"
+    ) && rollsForExpensiveMistakes(team.treasury);
 
   return (
     <PageShell
       actionBar={
         <>
-          <HudButton variant="ghost" onClick={handleBack}>
-            Cancel
-          </HudButton>
+          {!postMatch && !completion && (
+            <HudButton variant="ghost" onClick={handleBack}>
+              Cancel
+            </HudButton>
+          )}
           <div className="flex items-baseline gap-5 font-hud-label font-bold uppercase tracking-[0.06em]">
             <span>
               <span className="font-hud-display text-hud-xl text-hud-bone">
@@ -371,8 +439,27 @@ export function TeamBuilder() {
               </span>
             </span>
           </div>
-          <HudButton variant="primary" onClick={handleSave}>
-            Save Team {violations.length > 0 && "(saved as incomplete draft)"}
+          <HudButton
+            variant="primary"
+            onClick={handleSave}
+            disabled={waitingForDevelopment}
+          >
+            {completion ? (
+              searchParams.has("nextTeam") ? (
+                "Manage next team"
+              ) : postMatch && destination !== "/build-team" ? (
+                "Back to the league"
+              ) : (
+                "Back to teams"
+              )
+            ) : postMatch || pendingMistakes ? (
+              "Finish post-match"
+            ) : (
+              <>
+                Save Team{" "}
+                {violations.length > 0 && "(saved as incomplete draft)"}
+              </>
+            )}
           </HudButton>
         </>
       }
@@ -387,207 +474,253 @@ export function TeamBuilder() {
         }
       />
 
-      {violations.length > 0 && (
-        <Notice
-          tone="warn"
-          title="Not yet legal for play or competition entry"
-          className="mb-6"
-        >
-          <ul className="list-disc pl-5">
-            {violations.map((detail, index) => (
-              <li key={index}>{detail}</li>
-            ))}
-          </ul>
+      {(postMatch || pendingMistakes || completion) && (
+        <Section title="Post-match team management" accent="gold">
+          {matchWinnings !== null && /^\d+$/.test(matchWinnings) && (
+            <p className="mb-2 text-hud-lg text-hud-gold">
+              Winnings: +{Number(matchWinnings).toLocaleString("en-GB")} gp
+              added to the Treasury.
+            </p>
+          )}
+          {completion ? (
+            <Notice tone="info" role="status">
+              Expensive Mistakes: {completion}
+            </Notice>
+          ) : (
+            <p className="text-hud-bone">
+              Advance your players and spend your winnings below. Finish
+              post-match saves your team and rolls Expensive Mistakes if at
+              least 100,000 gp remains.
+            </p>
+          )}
+          {waitingForDevelopment && (
+            <p className="mt-2 text-hud-warn">
+              Complete the pending team development before finishing.
+            </p>
+          )}
+        </Section>
+      )}
+      {saveError && (
+        <Notice tone="bad" role="alert" className="mb-4">
+          {saveError}
         </Notice>
       )}
 
-      <Section
-        title="Team details"
-        accent={{ color: numToHex(team.colors.primary) }}
-      >
-        <div className="mb-5 max-w-xl">
-          <TeamStatsOverview team={team} />
-        </div>
-        <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Team Name">
-            <input
-              type="text"
-              className="hud-field font-hud-label text-base font-bold uppercase tracking-[0.03em]"
-              value={team.name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Enter Team Name"
-            />
-          </Field>
-          <Field label="Roster">
-            <select
-              className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-              value={selectedRace}
-              disabled={active}
-              title={
-                active ? "Active teams cannot change roster type" : undefined
-              }
-              onChange={(e) => handleRaceChange(e.target.value as RosterName)}
-            >
-              {getAvailableRosterNames().map((race) => (
-                <option key={race} value={race}>
-                  {race}
-                </option>
+      <fieldset disabled={!!completion} className="min-w-0">
+        <PendingDevelopmentPanel
+          team={team}
+          showExpensiveMistakes={false}
+          onOpenPlayer={handleOpenPlayer}
+          onChange={(updated) => {
+            savedSnapshot.current = snapshotOf(updated);
+            setTeam(updated);
+          }}
+        />
+
+        {violations.length > 0 && (
+          <Notice
+            tone="warn"
+            title="Not yet legal for play or competition entry"
+            className="mb-6"
+          >
+            <ul className="list-disc pl-5">
+              {violations.map((detail, index) => (
+                <li key={index}>{detail}</li>
               ))}
-            </select>
-          </Field>
-          <Field label="Coach">
-            <input
-              type="text"
-              className="hud-field"
-              value={team.coachName || ""}
-              onChange={(e) => setTeam({ ...team, coachName: e.target.value })}
-              placeholder="Coach Name"
+            </ul>
+          </Notice>
+        )}
+
+        <Section
+          title="Team details"
+          accent={{ color: numToHex(team.colors.primary) }}
+        >
+          <div className="mb-5 max-w-xl">
+            <TeamStatsOverview team={team} />
+          </div>
+          <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Team Name">
+              <input
+                type="text"
+                className="hud-field font-hud-label text-base font-bold uppercase tracking-[0.03em]"
+                value={team.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="Enter Team Name"
+              />
+            </Field>
+            <Field label="Roster">
+              <select
+                className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                value={selectedRace}
+                disabled={active}
+                title={
+                  active ? "Active teams cannot change roster type" : undefined
+                }
+                onChange={(e) => handleRaceChange(e.target.value as RosterName)}
+              >
+                {getAvailableRosterNames().map((race) => (
+                  <option key={race} value={race}>
+                    {race}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Coach">
+              <input
+                type="text"
+                className="hud-field"
+                value={team.coachName || ""}
+                onChange={(e) =>
+                  setTeam({ ...team, coachName: e.target.value })
+                }
+                placeholder="Coach Name"
+              />
+            </Field>
+            <Field label="Starting Treasury">
+              <input
+                type="number"
+                step="10000"
+                className="hud-field disabled:cursor-not-allowed disabled:opacity-50"
+                value={team.startingTreasury}
+                disabled={active || team.players.length > 0}
+                onChange={(e) => {
+                  const newVal = parseInt(e.target.value) || 0;
+                  setTeam({
+                    ...team,
+                    startingTreasury: newVal,
+                    treasury: newVal, // synchronise current treasury as long as we are in drafting mode and no players bought
+                  });
+                }}
+              />
+            </Field>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <span className="hud-label">Team Colors</span>
+              <div className="flex flex-wrap gap-2">
+                {TEAM_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    aria-pressed={selectedColor === color}
+                    className={cx(
+                      "h-7 w-7 -skew-x-12 rounded-[2px] border transition-[transform,box-shadow] duration-150 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold focus-visible:ring-offset-2 focus-visible:ring-offset-hud-ink",
+                      selectedColor === color
+                        ? "scale-110 border-hud-gold shadow-hud-glow"
+                        : "border-white/30"
+                    )}
+                    style={{ backgroundColor: numToHex(color) }}
+                    onClick={() => handleColorChange(color)}
+                    title={numToHex(color)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <AdvancementModeSelector team={team} onChange={setTeam} />
+            </div>
+          </div>
+        </Section>
+
+        <AdvancementModePanel
+          team={team}
+          roster={roster}
+          onChange={(next) => setTeam(next)}
+        />
+
+        <div className="mb-6">
+          <AvailableHires
+            roster={roster}
+            colors={team.colors}
+            treasury={team.treasury}
+            onHirePlayer={handleHirePlayer}
+            hireRefusal={(template) => hireRefusal(team, template)}
+          />
+        </div>
+
+        <div className="mb-6">
+          <TeamRoster
+            team={team}
+            onFirePlayer={handleFirePlayer}
+            onReorderPlayers={handleReorderPlayers}
+            onOpenPlayer={handleOpenPlayer}
+            onChooseVeteran={active ? undefined : handleChooseVeteran}
+          />
+        </div>
+
+        <Section
+          title="Sideline staff"
+          aside={`Gold ${formatGold(team.treasury)}`}
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+            <StaffCounter
+              label="Re-Rolls"
+              count={team.rerolls}
+              team={team}
+              item={{ type: "reroll" }}
+              onBuy={handleBuy}
             />
-          </Field>
-          <Field label="Starting Treasury">
-            <input
-              type="number"
-              step="10000"
-              className="hud-field disabled:cursor-not-allowed disabled:opacity-50"
-              value={team.startingTreasury}
-              disabled={active || team.players.length > 0}
-              onChange={(e) => {
-                const newVal = parseInt(e.target.value) || 0;
-                setTeam({
-                  ...team,
-                  startingTreasury: newVal,
-                  treasury: newVal, // synchronise current treasury as long as we are in drafting mode and no players bought
-                });
-              }}
+            <label className="flex flex-col gap-1">
+              <span className="hud-label">
+                Apothecary ({formatGold(APOTHECARY_COST)})
+              </span>
+              <span className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 px-3">
+                <span className="font-hud-display text-hud-lg">
+                  {team.apothecary ? "Yes" : "No"}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={team.apothecary}
+                  onChange={handleApothecaryToggle}
+                  disabled={
+                    team.apothecary
+                      ? active
+                      : team.treasury < (apothecaryPrice.amount ?? Infinity)
+                  }
+                  title={apothecaryPrice.reason}
+                  className="hud-check"
+                />
+              </span>
+            </label>
+            <StaffCounter
+              label="Dedicated Fans"
+              count={team.dedicatedFans}
+              team={team}
+              item={{ type: "dedicated-fan" }}
+              onBuy={handleBuy}
             />
-          </Field>
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <span className="hud-label">Team Colors</span>
-            <div className="flex flex-wrap gap-2">
-              {TEAM_COLORS.map((color) => (
-                <button
-                  key={color}
-                  aria-pressed={selectedColor === color}
-                  className={cx(
-                    "h-7 w-7 -skew-x-12 rounded-[2px] border transition-[transform,box-shadow] duration-150 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold focus-visible:ring-offset-2 focus-visible:ring-offset-hud-ink",
-                    selectedColor === color
-                      ? "scale-110 border-hud-gold shadow-hud-glow"
-                      : "border-white/30"
-                  )}
-                  style={{ backgroundColor: numToHex(color) }}
-                  onClick={() => handleColorChange(color)}
-                  title={numToHex(color)}
+            <StaffCounter
+              label="Asst. Coaches"
+              count={team.coaches}
+              team={team}
+              item={{ type: "coach" }}
+              onBuy={handleBuy}
+            />
+            <StaffCounter
+              label="Cheerleaders"
+              count={team.cheerleaders}
+              team={team}
+              item={{ type: "cheerleader" }}
+              onBuy={handleBuy}
+            />
+          </div>
+        </Section>
+
+        {/* Matched Play buys inducements from the draft budget (MP2) */}
+        {team.advancementMode === "matched-play" && (
+          <Section title="Inducements on the draft list">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+              {sevensInducementCatalog(team).map((entry) => (
+                <StaffCounter
+                  key={entry.inducement}
+                  label={entry.inducement}
+                  count={draftInducementCount(team, entry.inducement)}
+                  team={team}
+                  item={{ type: "inducement", inducement: entry.inducement }}
+                  onBuy={handleBuy}
                 />
               ))}
             </div>
-          </div>
-          <div className="sm:col-span-2">
-            <AdvancementModeSelector team={team} onChange={setTeam} />
-          </div>
-        </div>
-      </Section>
-
-      <AdvancementModePanel
-        team={team}
-        roster={roster}
-        onChange={(next) => setTeam(next)}
-      />
-
-      <div className="mb-6">
-        <AvailableHires
-          roster={roster}
-          colors={team.colors}
-          treasury={team.treasury}
-          onHirePlayer={handleHirePlayer}
-          hireRefusal={(template) => hireRefusal(team, template)}
-        />
-      </div>
-
-      <div className="mb-6">
-        <TeamRoster
-          team={team}
-          onFirePlayer={handleFirePlayer}
-          onReorderPlayers={handleReorderPlayers}
-          onOpenPlayer={handleOpenPlayer}
-          onChooseVeteran={active ? undefined : handleChooseVeteran}
-        />
-      </div>
-
-      <Section
-        title="Sideline staff"
-        aside={`Gold ${formatGold(team.treasury)}`}
-      >
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-          <StaffCounter
-            label="Re-Rolls"
-            count={team.rerolls}
-            team={team}
-            item={{ type: "reroll" }}
-            onBuy={handleBuy}
-          />
-          <label className="flex flex-col gap-1">
-            <span className="hud-label">
-              Apothecary ({formatGold(APOTHECARY_COST)})
-            </span>
-            <span className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 px-3">
-              <span className="font-hud-display text-hud-lg">
-                {team.apothecary ? "Yes" : "No"}
-              </span>
-              <input
-                type="checkbox"
-                checked={team.apothecary}
-                onChange={handleApothecaryToggle}
-                disabled={
-                  team.apothecary
-                    ? active
-                    : team.treasury < (apothecaryPrice.amount ?? Infinity)
-                }
-                title={apothecaryPrice.reason}
-                className="hud-check"
-              />
-            </span>
-          </label>
-          <StaffCounter
-            label="Dedicated Fans"
-            count={team.dedicatedFans}
-            team={team}
-            item={{ type: "dedicated-fan" }}
-            onBuy={handleBuy}
-          />
-          <StaffCounter
-            label="Asst. Coaches"
-            count={team.coaches}
-            team={team}
-            item={{ type: "coach" }}
-            onBuy={handleBuy}
-          />
-          <StaffCounter
-            label="Cheerleaders"
-            count={team.cheerleaders}
-            team={team}
-            item={{ type: "cheerleader" }}
-            onBuy={handleBuy}
-          />
-        </div>
-      </Section>
-
-      {/* Matched Play buys inducements from the draft budget (MP2) */}
-      {team.advancementMode === "matched-play" && (
-        <Section title="Inducements on the draft list">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-            {sevensInducementCatalog(team).map((entry) => (
-              <StaffCounter
-                key={entry.inducement}
-                label={entry.inducement}
-                count={draftInducementCount(team, entry.inducement)}
-                team={team}
-                item={{ type: "inducement", inducement: entry.inducement }}
-                onBuy={handleBuy}
-              />
-            ))}
-          </div>
-        </Section>
-      )}
+          </Section>
+        )}
+      </fieldset>
     </PageShell>
   );
 }

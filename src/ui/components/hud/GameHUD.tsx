@@ -43,6 +43,7 @@ import { SoundToggle } from "./SoundToggle";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { MatchResultsScreen } from "./MatchResultsScreen";
 import { useNavigate } from "react-router-dom";
+import { CompetitionContext } from "../../../competition/types";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { KickoffEventOverlay } from "./KickoffEventOverlay";
 import { InducementSelectionPanel } from "./InducementSelectionPanel";
@@ -86,6 +87,7 @@ interface GameHUDProps {
   styleId?: string;
   /** Where the results screen's Leave goes. */
   leaveTo?: string;
+  fixtureContext?: CompetitionContext;
 }
 
 interface TurnData {
@@ -107,6 +109,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onlineMenu,
   styleId,
   leaveTo,
+  fixtureContext,
 }) => {
   const [inducementsPending, setInducementsPending] = useState(
     () =>
@@ -345,6 +348,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       <MatchResultsScreen
         visible={turnData.phase === GamePhase.GAME_OVER}
         leaveTo={leaveTo}
+        fixtureContext={fixtureContext}
       />
 
       {/* Structural-transition announcer: turn started, round passed,

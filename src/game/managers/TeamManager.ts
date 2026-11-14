@@ -9,6 +9,7 @@ import {
 } from "../../data/persistence/teamPersistence";
 import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
 import { chooseFirstLinemanAsVeteran } from "../rules/veteran";
+import { clearUnneededExpensiveMistakes } from "../rules/expensiveMistakes";
 import { isSeedOwned } from "../../seeding/seedMeta";
 import {
   cleanupDevelopmentSeedData,
@@ -107,6 +108,7 @@ export function getLocalRepository(): TeamRepository {
  * Save teams to the active backend
  */
 export function saveTeams(teams: Team[]): void {
+  teams.forEach(clearUnneededExpensiveMistakes);
   activeRepository.saveTeams(teams);
 }
 
@@ -119,6 +121,7 @@ export function saveTeams(teams: Team[]): void {
 export function loadTeams(): Team[] {
   const teams = activeRepository.loadTeams();
   teams.forEach((team) => {
+    clearUnneededExpensiveMistakes(team);
     // Teams saved before firstMatchPlayedAt existed: a team with recorded
     // win/loss/draw history has necessarily completed a match, so it is
     // active; an unplayed team is left in draft (see teamLifecycle.ts).

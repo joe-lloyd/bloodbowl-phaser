@@ -316,6 +316,7 @@ export function GamePage({
         onlineMenu={onlineMenu}
         styleId={selectedPitchThemeId}
         leaveTo={fixtureContext ? competitionPath(fixtureContext) : undefined}
+        fixtureContext={fixtureContext ?? undefined}
       />
 
       <RotatePrompt />

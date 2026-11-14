@@ -5,11 +5,151 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TeamBuilder } from "../../../src/ui/components/pages/TeamBuilder";
 import {
   loadTeams,
+  getTeamById,
   saveTeams,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
 import { Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
+import { queueExpensiveMistakes } from "../../../src/game/rules/expensiveMistakes";
+import { PlayerPage } from "../../../src/ui/components/pages/PlayerPage";
+import { RNGService } from "../../../src/services/rng/RNGService";
+
+describe("post-match team management", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    localStorage.clear();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  async function renderPostMatch(treasury = 150_000, nextTeam = false) {
+    const team = new TeamTestBuilder()
+      .withId("post-match")
+      .withName("Post-match Humans")
+      .withPlayers(7)
+      .withTreasury(treasury)
+      .withStats(1, 0, 0)
+      .build();
+    team.advancementMode = "advanced-league";
+    queueExpensiveMistakes(team, "league:f1");
+    const next = new TeamTestBuilder()
+      .withId("post-match-next")
+      .withName("Next coach's team")
+      .withPlayers(7)
+      .withTreasury(30_000)
+      .withStats(1, 0, 0)
+      .build();
+    next.advancementMode = "advanced-league";
+    saveTeams(nextTeam ? [team, next] : [team]);
+    await act(async () => {
+      root.render(
+        <MemoryRouter
+          initialEntries={[
+            "/build-team/post-match?postMatch=1&returnTo=%2Fleagues%2Fseason-1&winnings-post-match=60000" +
+              (nextTeam
+                ? "&nextTeam=post-match-next&winnings-post-match-next=50000"
+                : ""),
+          ]}
+        >
+          <Routes>
+            <Route path="/build-team/:teamId" element={<TeamBuilder />} />
+            <Route
+              path="/build-team/:teamId/player/:playerId"
+              element={<PlayerPage />}
+            />
+            <Route path="/leagues/:id" element={<p>The league page</p>} />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+    return team;
+  }
+
+  async function click(label: RegExp) {
+    const button = [...container.querySelectorAll("button")].find((b) =>
+      label.test(b.textContent ?? "")
+    );
+    expect(button, `Missing button ${label}`).toBeDefined();
+    await act(async () => button!.click());
+  }
+
+  it("shows winnings, keeps purchases on the team, and skips the roll after spending", async () => {
+    const team = await renderPostMatch();
+    expect(container.textContent).toContain("Post-match team management");
+    expect(container.textContent).toContain("60,000 gp");
+    const staff = [...container.querySelectorAll("section")].find((s) =>
+      s.textContent?.includes("Sideline staff")
+    )!;
+    const rerolls = [...staff.querySelectorAll("div")].find(
+      (d) => d.textContent?.includes("Re-Rolls") && d.querySelector("button")
+    )!;
+    await act(async () => rerolls.querySelector("button")!.click());
+    await click(/Finish post-match/);
+    expect(container.textContent).toBe("The league page");
+    expect(getTeamById(team.id)).toMatchObject({
+      treasury: 50_000,
+      rerolls: team.rerolls + 1,
+      pendingDevelopment: [],
+    });
+  });
+
+  it("rolls once when finishing above the threshold and shows the result before returning", async () => {
+    const team = await renderPostMatch();
+    vi.spyOn(RNGService.prototype, "rollDie").mockReturnValue(1);
+    expect(
+      container.querySelector('[data-testid="expensive-mistakes"]')
+    ).toBeNull();
+    await click(/Finish post-match/);
+    expect(container.textContent).toContain("Rolled 1");
+    expect(getTeamById(team.id)).toMatchObject({
+      treasury: 140_000,
+      pendingDevelopment: [],
+    });
+    await click(/Back to the league/);
+    expect(container.textContent).toBe("The league page");
+    expect(getTeamById(team.id)?.treasury).toBe(140_000);
+  });
+
+  it("keeps the post-match destination when visiting a player", async () => {
+    await renderPostMatch(30_000);
+    const cell = container.querySelectorAll(
+      '[data-testid="roster-row-1"] td'
+    )[2];
+    await act(async () =>
+      cell.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    );
+    expect(container.textContent).toContain("SPP & career statistics");
+    await click(/Back to Manage Team/);
+    expect(container.textContent).toContain("Post-match team management");
+    await click(/Finish post-match/);
+    expect(container.textContent).toBe("The league page");
+  });
+
+  it("manages both human teams before returning to the league", async () => {
+    await renderPostMatch(30_000, true);
+    await click(/Finish post-match/);
+    expect(
+      container
+        .querySelector('input[placeholder="Enter Team Name"]')
+        ?.getAttribute("value")
+    ).toBe("Next coach's team");
+    expect(container.textContent).toContain("50,000 gp");
+    await click(/Finish post-match/);
+    expect(container.textContent).toBe("The league page");
+    expect(getTeamById("post-match-next")?.treasury).toBe(30_000);
+  });
+});
 
 /**
  * team-management-layout: "Detail page shows the stats grid" — TeamBuilder
