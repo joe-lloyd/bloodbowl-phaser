@@ -213,39 +213,17 @@ export function noiseBurst(
     start + attack + Math.max(decay, 0.01)
   );
 
-  source.connect(filter);
-  filter.connect(gainNode);
-  gainNode.connect(dest);
-
   const stopAt = start + attack + Math.max(decay, 0.01) + 0.03;
-  source.start(start);
-  source.stop(stopAt);
-
-  let stopped = false;
-  const cleanup = () => {
-    if (stopped) return;
-    stopped = true;
-    try {
-      source.disconnect();
-      filter.disconnect();
-      gainNode.disconnect();
-    } catch {
-      // Already disconnected — harmless.
-    }
-    onEnded?.();
-  };
-  source.onended = cleanup;
-
-  return {
-    stop: () => {
-      if (stopped) return;
-      try {
-        source.stop(ctx.currentTime);
-      } catch {
-        // Already stopped/scheduled — harmless.
-      }
-    },
-  };
+  return playFiltered(
+    ctx,
+    source,
+    filter,
+    gainNode,
+    dest,
+    start,
+    stopAt,
+    onEnded
+  );
 }
 
 /**
@@ -292,11 +270,37 @@ export function noiseSweep(
     start + Math.max(duration, 0.02)
   );
 
+  const stopAt = start + Math.max(duration, 0.02) + 0.03;
+  return playFiltered(
+    ctx,
+    source,
+    filter,
+    gainNode,
+    dest,
+    start,
+    stopAt,
+    onEnded
+  );
+}
+
+/**
+ * Wires noise through its filter and gain, plays it from `start` to `stopAt`,
+ * and disconnects everything once it ends.
+ */
+function playFiltered(
+  ctx: AudioContext,
+  source: AudioBufferSourceNode,
+  filter: BiquadFilterNode,
+  gainNode: GainNode,
+  dest: AudioNode,
+  start: number,
+  stopAt: number,
+  onEnded: (() => void) | undefined
+): PlaybackUnit {
   source.connect(filter);
   filter.connect(gainNode);
   gainNode.connect(dest);
 
-  const stopAt = start + Math.max(duration, 0.02) + 0.03;
   source.start(start);
   source.stop(stopAt);
 

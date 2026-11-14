@@ -233,6 +233,40 @@ export class MovementManager {
     return Promise.resolve();
   }
 
+  /**
+   * Declares a Rush, lets rules modify it (Drunkard), and rolls it. A failed
+   * Rush may be rerolled (Sure Feet, team reroll).
+   */
+  private async rollRush(
+    player: Player,
+    gameService: IGameService | undefined
+  ) {
+    const rushCtx: RushDeclaredContext = {
+      player,
+      modifiers: rushModifier(this.state, player),
+      triggers: [],
+    };
+    await foldTrigger("onRushDeclared", [player], rushCtx);
+    for (const t of rushCtx.triggers) {
+      this.eventBus.emit(GameEventNames.SkillTriggered, t);
+    }
+    const roll = () =>
+      this.diceController.rollSkillCheck(
+        "Rush",
+        2,
+        rushCtx.modifiers,
+        player.playerName
+      );
+    return gameService
+      ? withRerollOffer(
+          { gameService, eventBus: this.eventBus },
+          player,
+          "rush",
+          roll
+        )
+      : roll();
+  }
+
   public async movePlayer(
     playerId: string,
     path: { x: number; y: number }[],
@@ -365,32 +399,7 @@ export class MovementManager {
 
       if (totalUsed > maView.stats.MA) {
         showWalk();
-        // Trigger point: rush declared — rules may modify it (Drunkard)
-        const rushCtx: RushDeclaredContext = {
-          player,
-          modifiers: rushModifier(this.state, player),
-          triggers: [],
-        };
-        await foldTrigger("onRushDeclared", [player], rushCtx);
-        for (const t of rushCtx.triggers) {
-          this.eventBus.emit(GameEventNames.SkillTriggered, t);
-        }
-        const rollRush = () =>
-          this.diceController.rollSkillCheck(
-            "Rush",
-            2,
-            rushCtx.modifiers,
-            player.playerName
-          );
-        // A failed rush may be rerolled (Sure Feet / team reroll)
-        const check = gameService
-          ? await withRerollOffer(
-              { gameService, eventBus: this.eventBus },
-              player,
-              "rush",
-              rollRush
-            )
-          : rollRush();
+        const check = await this.rollRush(player, gameService);
 
         if (
           !check.success &&
@@ -849,30 +858,7 @@ export class MovementManager {
     // Roll each Rush BEFORE the Jump test. A failed Rush drops the player in
     // the square they are in, ends the activation, and is a Turnover.
     for (let i = 0; i < rushesNeeded; i++) {
-      const rushCtx: RushDeclaredContext = {
-        player,
-        modifiers: rushModifier(this.state, player),
-        triggers: [],
-      };
-      await foldTrigger("onRushDeclared", [player], rushCtx);
-      rushCtx.triggers.forEach((t) =>
-        this.eventBus.emit(GameEventNames.SkillTriggered, t)
-      );
-      const rollRush = () =>
-        this.diceController.rollSkillCheck(
-          "Rush",
-          2,
-          rushCtx.modifiers,
-          player.playerName
-        );
-      const check = gameService
-        ? await withRerollOffer(
-            { gameService, eventBus: this.eventBus },
-            player,
-            "rush",
-            rollRush
-          )
-        : rollRush();
+      const check = await this.rollRush(player, gameService);
       if (
         !check.success &&
         !(await steadyFootingSaves(

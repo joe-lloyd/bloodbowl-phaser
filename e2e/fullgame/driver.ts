@@ -346,7 +346,7 @@ export async function perform(
         }
         break;
       }
-      case "end-turn":
+      case "end-turn": {
         await shot(page, `turn-${String(++turnShots).padStart(2, "0")}`);
         const before = (await app.bridge.events()).length;
         // A team with nobody left to activate ends its own turn after 500 ms.
@@ -365,6 +365,7 @@ export async function perform(
               .slice(0, 1500)}`
           );
         break;
+      }
       case "choose-push-direction":
       case "touchback":
         await (t === "touchback"

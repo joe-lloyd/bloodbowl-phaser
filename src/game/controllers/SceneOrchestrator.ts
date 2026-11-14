@@ -30,6 +30,7 @@ interface SceneOrchestratorConfig {
 
 export class SceneOrchestrator {
   private currentHandler: PhaseHandler | null = null;
+  private enteredHandler: PhaseHandler | null = null;
   private currentPhase: GamePhase | null = null;
 
   constructor(
@@ -136,9 +137,9 @@ export class SceneOrchestrator {
     }
 
     // 3. Enter new phase
-    if (this.currentHandler && !(this.currentHandler as any).isEntered) {
+    if (this.currentHandler && this.enteredHandler !== this.currentHandler) {
       this.currentHandler.enter();
-      (this.currentHandler as any).isEntered = true;
+      this.enteredHandler = this.currentHandler;
     }
 
     // Legacy mapping for direct control if needed

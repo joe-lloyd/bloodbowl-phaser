@@ -1,4 +1,5 @@
 import { GameOperation } from "../core/GameOperation";
+import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { BounceOperation } from "./BounceOperation";
@@ -36,7 +37,7 @@ export class PickupOperation extends GameOperation {
     super();
   }
 
-  async execute(context: any): Promise<void> {
+  async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;

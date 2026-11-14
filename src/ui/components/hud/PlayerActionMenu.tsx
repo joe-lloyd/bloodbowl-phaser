@@ -1,5 +1,4 @@
 import { useHeldOnline } from "../../hooks/useHeldOnline";
-/* eslint-disable react/prop-types */
 import { holdsMeasure } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
 import React, { useRef, useState } from "react";

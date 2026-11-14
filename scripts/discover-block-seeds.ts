@@ -3,10 +3,7 @@
  * Run with: npx ts-node scripts/discover-block-seeds.ts
  */
 
-import {
-  findSeedForInjuryChain,
-  findSeedForBlockOutcome,
-} from "../__tests__/utils/seed-finder.js";
+import { findSeedForInjuryChain } from "../__tests__/utils/seed-finder.js";
 
 console.log("🔍 Discovering seeds for 2D block scenarios...\n");
 

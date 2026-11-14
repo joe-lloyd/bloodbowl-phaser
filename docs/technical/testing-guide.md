@@ -64,9 +64,36 @@ smooth while testing any reduction in rendering work.
 ```bash
 pnpm exec tsc --noEmit
 pnpm lint
+pnpm dupes
 pnpm build:netlify
 ```
 
 The TypeScript check reports no errors, and CI fails a pull request that adds
 one. Vite transpilation does not replace this check. See
 [development](../DEVELOPMENT.md).
+
+## Size, complexity and duplication
+
+`pnpm lint` enforces these limits on every function and file:
+
+| Rule | Limit |
+| --- | --- |
+| `complexity` | 15 paths through a function |
+| `sonarjs/cognitive-complexity` | 15 |
+| `sonarjs/no-identical-functions` | no two functions with the same body |
+| `max-lines` | 800 lines per file; data tables in `src/data` are exempt |
+
+Code written before these rules is recorded in `eslint-suppressions.json`, as a
+count per file and rule. New violations fail. When you split a long file or
+simplify a complex function, lint fails until you shrink the baseline:
+
+```bash
+pnpm lint --prune-suppressions
+```
+
+Commit the smaller file with the change. Do not add entries to it by hand.
+Deleting or renaming a file does not fail lint, and its entry stays until you
+prune, so run the same command after any split or rename.
+
+`pnpm dupes` runs jscpd over `src`, `scripts`, `e2e` and `functions/src`. It
+fails when copied blocks of eight lines or more pass 1% of the code.
