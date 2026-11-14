@@ -36,8 +36,6 @@ const shot = (page: Page, n: string) =>
   page.screenshot({ path: `${OUT}/${n}.png` });
 const rec = { log, shot };
 
-let turnShots = 0;
-
 test("a full Sevens match, built and played through the UI", async ({
   page,
 }) => {

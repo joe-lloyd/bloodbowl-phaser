@@ -574,7 +574,7 @@ export function TeamBuilder() {
         />
         <p className="mt-3 font-hud-body text-hud-sm text-hud-dim">
           Prepare a roster for these rules. Tournament and league entry use the
-          competition's own choice. Friendly matches use GW rules.
+          competition&apos;s own choice. Friendly matches use GW rules.
         </p>
       </Section>
 

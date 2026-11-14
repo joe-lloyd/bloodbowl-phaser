@@ -7,6 +7,8 @@
  * - DO NOT manage global state or subscription.
  * - Return control to FlowManager upon completion (success/fail).
  */
+import type { FlowContext } from "./GameFlowManager";
+
 export abstract class GameOperation {
   public abstract readonly name: string;
 
@@ -15,5 +17,5 @@ export abstract class GameOperation {
    * @param context Dependency container (access to GameService, EventBus, etc.)
    * @returns Promise resolving when step is completely done (including animations)
    */
-  public abstract execute(context: any): Promise<void>;
+  public abstract execute(context: FlowContext): Promise<void>;
 }

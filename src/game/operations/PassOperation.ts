@@ -1,4 +1,5 @@
 import { GameOperation } from "../core/GameOperation";
+import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { IGameService } from "../../services/interfaces/IGameService";
@@ -46,7 +47,7 @@ export class FinishPassActivationOperation extends GameOperation {
     super();
   }
 
-  async execute(context: any): Promise<void> {
+  async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;
@@ -104,7 +105,7 @@ export class PassOperation extends GameOperation {
     super();
   }
 
-  async execute(context: any): Promise<void> {
+  async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;
@@ -421,7 +422,7 @@ export class PassOperation extends GameOperation {
   private async resolveOnTheBall(
     gameService: IGameService,
     eventBus: import("../../services/EventBus").IEventBus,
-    context: any,
+    context: FlowContext,
     passer: import("../../types/Player").Player,
     target: { x: number; y: number }
   ): Promise<void> {

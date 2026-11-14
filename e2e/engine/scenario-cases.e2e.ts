@@ -36,6 +36,7 @@ test("the registry is schema-valid before anything runs", () => {
 for (const run of runsForLayer(SCENARIO_CASES, "engine")) {
   const { scenarioCase, variant, key } = run;
 
+  // eslint-disable-next-line no-empty-pattern
   test(`${key} — ${variant.expectedOutcome}`, async ({}, testInfo) => {
     const observed = await runCaseInEngine(scenarioCase, variant);
 

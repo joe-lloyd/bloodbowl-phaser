@@ -1518,9 +1518,10 @@ export const VARIANTS: Variant[] = [
               '[role="menuitem"]:not([disabled])'
             ),
           ];
-          items
-            .find((b) => /abandon|end match/i.test(b.textContent ?? ""))
-            ?.click() ?? items.at(-1)?.click();
+          const quit =
+            items.find((b) => /abandon|end match/i.test(b.textContent ?? "")) ??
+            items.at(-1);
+          quit?.click();
         }, 120);
       }),
   },

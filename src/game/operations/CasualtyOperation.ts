@@ -1,11 +1,9 @@
 import { GameOperation } from "../core/GameOperation";
+import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryType, PlayerStatus } from "../../types/Player.js";
-import {
-  CasualtyType,
-  InjuryResult,
-} from "../controllers/InjuryController.js";
+import { CasualtyType, InjuryResult } from "../controllers/InjuryController.js";
 import {
   CasualtyCause,
   confirmKill,
@@ -51,7 +49,7 @@ export class CasualtyOperation extends GameOperation {
     super();
   }
 
-  async execute(context: any): Promise<void> {
+  async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;
