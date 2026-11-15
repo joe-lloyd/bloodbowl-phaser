@@ -71,7 +71,11 @@ export function playPitchExit(
       },
       onComplete: () => {
         prop.destroy();
-        stars?.destroy();
+        if (stars) {
+          // The twinkle repeats forever; it goes with the stars
+          scene.tweens.killTweensOf(stars);
+          stars.destroy();
+        }
         sprite.setVisible(true);
         resolve();
       },

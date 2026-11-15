@@ -170,6 +170,46 @@ describe("GameplayInteractionController", () => {
     );
   });
 
+  describe("Negatrait confirm", () => {
+    it("declares nothing when the coach picked someone else while it was open", async () => {
+      const boneHead = {
+        ...player1,
+        id: "bone",
+        skills: [getSkill(SkillType.BONE_HEAD)],
+      };
+      const mate = { ...player1, id: "mate", gridPosition: { x: 2, y: 2 } };
+      mockScene.team1.players = [boneHead, mate];
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+        weather: "Nice",
+        activePlayer: null,
+      } as unknown as GameState);
+      mockGameService.getPlayerById.mockImplementation(
+        (id: string) => ({ bone: boneHead, mate })[id]
+      );
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.declareAction.mockReturnValue(true);
+      mockGameService.getAvailableMovements.mockReturnValue([]);
+
+      controller.selectPlayer("bone");
+      const declaring = (controller as any).onActionSelected({
+        action: "blitz",
+        playerId: "bone",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // The confirm is up; the coach selects the team-mate, then confirms
+      controller.selectPlayer("mate");
+      await answerStepPrompt(true);
+      await declaring;
+
+      expect(mockGameService.declareAction).not.toHaveBeenCalledWith(
+        "bone",
+        "blitz",
+        undefined
+      );
+    });
+  });
+
   describe("Player Selection", () => {
     it("draws no tackle-zone squares for a Distracted opponent", () => {
       mockGameService.getState.mockReturnValue({

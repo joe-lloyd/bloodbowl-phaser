@@ -3017,7 +3017,7 @@ export class GameplayInteractionController {
         `${rollLabel(gate.skill, Math.max(2, gate.target - gate.modifier))}. ${GATE_FAILURE_TEXT[gate.onFail.kind]}`
     );
     lines.push("Once rolled, the action cannot be changed.");
-    return this.requestConfirmation("gate", {
+    const asked = this.requestConfirmation("gate", {
       title: `${player.playerName} must roll first`,
       message: lines.join("\n"),
       confirmLabel: "Roll",
@@ -3025,6 +3025,10 @@ export class GameplayInteractionController {
       risky: true,
       chooserTeamId: player.teamId,
     });
+    // A coach who picked someone else meanwhile meant that one instead
+    return asked.then(
+      (confirmed) => confirmed && this.selectedPlayerId === playerId
+    );
   }
 
   private confirmFoul(fouler: Player, target: Player): Promise<boolean> {

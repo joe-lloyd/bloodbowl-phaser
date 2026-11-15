@@ -54,6 +54,8 @@ export class Dugout {
   private inTransit = new Set<string>();
   /** Players already wearing the red card. */
   private sentOff = new Set<string>();
+  /** Gone with its scene or a reload: an exit still finishing is ignored. */
+  private destroyed = false;
   private onPlayerDragStart?: (playerId: string) => void;
   private onPlayerDragEnd?: (playerId: string, x: number, y: number) => void;
 
@@ -130,6 +132,7 @@ export class Dugout {
       sprite.setVisible(true);
       this.inTransit.add(player.id);
       void playPitchExit(this.scene, sprite, at, arrival.exit).then(() => {
+        if (this.destroyed) return;
         this.inTransit.delete(player.id);
         this.refresh();
       });
@@ -277,6 +280,8 @@ export class Dugout {
   }
 
   public destroy(): void {
+    this.destroyed = true;
+    this.inTransit.clear();
     this.playerSprites.forEach((sprite) => sprite.destroy());
     this.playerSprites.clear();
   }
