@@ -38,6 +38,7 @@
     "e2e:fullgame": "playwright test -c playwright.fullgame.config.ts",
     "e2e:kickoff-video": "playwright test -c playwright.kickoff.config.ts",
     "e2e:online-match": "playwright test -c playwright.online-match.config.ts",
+    "house-bot": "playwright test -c playwright.house-bot.config.ts",
     "e2e:merge": "playwright merge-reports --reporter=html,json e2e-results/blob",
     "e2e:update-snapshots": "playwright test --project=visual-regression --update-snapshots",
     "e2e:replay": "tsx scripts/e2e-replay.ts",

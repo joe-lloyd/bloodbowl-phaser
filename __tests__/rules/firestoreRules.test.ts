@@ -42,6 +42,11 @@ vi.mock("../../src/firebase/auth", () => ({
 }));
 
 import {
+  announceHouseBotLobby,
+  findHouseBotLobby,
+} from "../../src/firebase/houseBot";
+import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
+import {
   cancelEndMatch,
   commitSeed,
   createLobby,
@@ -92,6 +97,8 @@ const STRANGER = "stranger-uid";
 const ORGANIZER = "organizer-uid";
 const THIRD = "third-uid";
 const ADMIN = "owner";
+/** Signed in as the house bot's email account. */
+const BOT = "house-bot-uid";
 
 const apps: FirebaseApp[] = [];
 const dbs = new Map<string, Firestore>();
@@ -108,7 +115,16 @@ function dbFor(uid: string): Firestore {
     host,
     Number(port),
     // The emulator treats the token "owner" as having no rules at all
-    { mockUserToken: uid === ADMIN ? ADMIN : { sub: uid, user_id: uid } }
+    {
+      mockUserToken:
+        uid === ADMIN
+          ? ADMIN
+          : {
+              sub: uid,
+              user_id: uid,
+              ...(uid === BOT ? { email: HOUSE_BOT_EMAIL } : {}),
+            },
+    }
   );
   dbs.set(uid, db);
   return db;
@@ -195,6 +211,56 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
   beforeEach(() => {
     sessionStorage.clear();
     localStorage.clear();
+  });
+
+  describe("the house bot's lobby", () => {
+    const botLobby = async () =>
+      (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
+
+    it("is announced by the bot and found by another coach", async () => {
+      const code = await botLobby();
+      await as(BOT, () => announceHouseBotLobby(BOT, code));
+      expect(await as(GUEST, () => findHouseBotLobby())).toBe(code);
+
+      await as(GUEST, () => joinLobby(code, GUEST, "Guest"));
+      expect(await as(GUEST, () => findHouseBotLobby())).toBeNull();
+      await as(BOT, () => announceHouseBotLobby(BOT, null));
+    });
+
+    it("cannot be announced by any other account", async () => {
+      const code = await openLobby();
+      // Not even in their own document: only the bot's email may announce
+      await denied(as(HOST, () => announceHouseBotLobby(HOST, code)));
+      await denied(as(GUEST, () => announceHouseBotLobby(BOT, code)));
+      await denied(
+        setDoc(doc(dbFor(BOT), "houseBots", BOT), {
+          code,
+          updatedAt: Date.now(),
+          extra: true,
+        })
+      );
+    });
+
+    it("is still found past a malformed announcement", async () => {
+      const code = await botLobby();
+      await as(BOT, () => announceHouseBotLobby(BOT, code));
+      // Written past the rules, as a bad entry would be: newest, and broken
+      await setDoc(doc(dbFor(ADMIN), "houseBots", "broken"), {
+        code: "A/B",
+        updatedAt: Date.now() + 60 * 60 * 1000,
+      });
+      expect(await as(GUEST, () => findHouseBotLobby())).toBe(code);
+      await deleteDoc(doc(dbFor(ADMIN), "houseBots", "broken"));
+    });
+
+    it("is ignored once the bot has stopped announcing it", async () => {
+      const code = await botLobby();
+      await setDoc(doc(dbFor(BOT), "houseBots", BOT), {
+        code,
+        updatedAt: Date.now() - 10 * 60 * 1000,
+      });
+      expect(await as(GUEST, () => findHouseBotLobby())).toBeNull();
+    });
   });
 
   describe("a whole online match, as the app writes it", () => {
