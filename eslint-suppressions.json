@@ -499,11 +499,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/GameHUD.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/MatchOptionsMenu.tsx": {
     "complexity": {
       "count": 1
