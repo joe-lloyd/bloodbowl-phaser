@@ -3708,7 +3708,7 @@ const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string> = {
   endActivation: "On a fail the activation ends.",
   rooted: "On a fail they are Rooted and cannot leave their square.",
   lashOut:
-    "On a fail they lash out at a team-mate next to them, or with nobody beside them the activation ends.",
+    "On a fail they lash out at a Standing team-mate next to them. With none beside them, the activation ends.",
   bloodlust:
     "On a fail they may switch to a Move, and must bite a Thrall before the activation ends.",
 };
