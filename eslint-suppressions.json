@@ -604,14 +604,6 @@
       "count": 1
     }
   },
-  "src/ui/components/componentWarehouse/HudKit.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/BlockDiceDialog.tsx": {
     "complexity": {
       "count": 1
