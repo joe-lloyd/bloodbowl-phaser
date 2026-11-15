@@ -22,7 +22,12 @@ there is no Phaser menu-scene hierarchy to maintain.
 
 ## Commands, rules and presentation
 
-The UI sends actions through the game service. Operations in
+The UI sends actions through the game service. `GameService` is a facade:
+[`gameService/parts.ts`](../../src/services/gameService/parts.ts) builds the
+managers it delegates to, and the other modules in
+[`src/services/gameService/`](../../src/services/gameService/) hold its longer
+steps, such as declaring an action, ending an activation and the end of a
+drive. Operations in
 [`src/game/operations/`](../../src/game/operations/) resolve gameplay, with
 validators, managers and skill hooks enforcing their rules. The flow queue
 coordinates paced operations and decisions such as re-rolls or pushes.

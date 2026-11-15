@@ -452,7 +452,9 @@ export abstract class BlockPushChain extends BlockActivation {
       this.followUpCrowdSurf(chain.attackerId, first.from);
       return;
     }
-    // Steady Footing is the only wait, before anything is queued: the
+    // Steady Footing is the only wait. It comes before the original target's
+    // knockdown and the Frenzy continuation are queued (landLinks may already
+    // have queued a loose-ball Bounce or a crowd or trapdoor injury): the
     // knockdown's InOrderOperation must start in the same run that queues
     // Frenzy behind it, or Frenzy's follow-up overtakes the dropped ball.
     const defender =

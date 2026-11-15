@@ -2,535 +2,124 @@
  * GameService - Core game logic service
  *
  * Pure TypeScript implementation with no Phaser dependencies.
- * Manages game state, phase transitions, and turn management.
+ * Manages game state, phase transitions, and turn management. The managers
+ * it wires together are built in gameService/parts.ts; the longer steps
+ * live beside it in gameService/.
  */
 
-import { steadyFootingSaves } from "../game/rules/steadyFooting";
-import { whenMomentsComplete } from "../game/presentation/momentQueue";
 import { IGameService } from "./interfaces/IGameService.js";
 import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { ActionType, GameEventNames } from "../types/events";
-import { Team, isLeagueMode } from "@/types/Team";
-import {
-  Player,
-  PlayerStatus,
-  PlayerCondition,
-  hasCondition,
-  removeCondition,
-  hasTackleZone,
-} from "@/types/Player";
-import { SkillType, hasSkill } from "@/types/Skills";
+import { Team } from "@/types/Team";
+import { Player } from "@/types/Player";
 import { BlockResult, BlockResolutionService } from "./BlockResolutionService";
-import { ActivationValidator } from "../game/validators/ActivationValidator.js";
-
-import { SetupManager } from "../game/managers/SetupManager";
-import {
-  NextHalf,
-  TurnManager,
-  TurnManagerState,
-} from "../game/managers/TurnManager";
-import { penaltyShootout } from "@/game/rules/extraTime";
-import { BallManager } from "../game/managers/BallManager";
-import { MovementManager } from "../game/managers/MovementManager";
-import { BlockManager } from "../game/managers/BlockManager";
-import { WeatherManager } from "../game/managers/WeatherManager";
-
-import { PlayerActionManager } from "../game/managers/PlayerActionManager";
+import { NextHalf, TurnManagerState } from "../game/managers/TurnManager";
 import { PassController } from "../game/controllers/PassController";
 import { CatchController } from "../game/controllers/CatchController";
 import { BallMovementController } from "../game/controllers/BallMovementController";
 import { DiceController } from "../game/controllers/DiceController";
 import { ArmourController } from "../game/controllers/ArmourController";
 import { InjuryController } from "../game/controllers/InjuryController";
-
 import {
   GameFlowManager,
   DelayProvider,
   realTimeDelay,
 } from "@/game/core/GameFlowManager";
-import { PassOperation } from "@/game/operations/PassOperation";
-import { HandoffOperation } from "@/game/operations/HandoffOperation";
-import { isLegalHandoffTarget } from "@/game/rules/handoff";
-import { weatherEffects } from "@/game/rules/weather";
-import { canSecureBall, isSecuringBall } from "@/game/rules/secureBall";
-import {
-  ClearPitchOperation,
-  ExtraTimeKickoffOperation,
-  KORecoveryOperation,
-  StartNextDriveOperation,
-  TouchdownCelebrationOperation,
-} from "@/game/operations/EndDriveOperations";
-import {
-  assertSinglePlayerLocation,
-  movePlayerToBox,
-} from "@/game/rules/playerLocation";
-import { isInEndZone } from "@/game/elements/GridUtils";
-import { GameConfig } from "@/config/GameConfig";
-import { BounceOperation } from "@/game/operations/BounceOperation";
-import { PickupOperation } from "@/game/operations/PickupOperation";
-import { ArmourOperation } from "@/game/operations/ArmourOperation";
-import { ActivationGateOperation } from "@/game/operations/ActivationGateOperation";
-import { BreatheFireOperation } from "@/game/operations/BreatheFireOperation";
-import { ProjectileVomitOperation } from "@/game/operations/ProjectileVomitOperation";
-import { HypnoticGazeOperation } from "@/game/operations/HypnoticGazeOperation";
-import { BloodlustBiteOperation } from "@/game/operations/BloodlustBiteOperation";
-import { ChompOperation } from "@/game/operations/ChompOperation";
-import { ChainsawAttackOperation } from "@/game/operations/ChainsawAttackOperation";
+import { SwoopFacing } from "@/game/rules/throwTeammate";
+import { BallAndChainSquare } from "@/game/operations/BallAndChainOperation";
 import { FoulController } from "@/game/controllers/FoulController";
-import { FoulOperation } from "@/game/operations/FoulOperation";
-import { StabOperation } from "@/game/operations/StabOperation";
-import { PuntOperation } from "@/game/operations/PuntOperation";
-import { ThrowTeammateOperation } from "@/game/operations/ThrowTeammateOperation";
-import { SwoopFacing, isSwoopFacing } from "@/game/rules/throwTeammate";
-import { BombardierOperation } from "@/game/operations/BombardierOperation";
-import {
-  BallAndChainOperation,
-  BallAndChainSquare,
-  FinishBallAndChainSquare,
-} from "@/game/operations/BallAndChainOperation";
-import { CrowdTakesActionOperation } from "@/game/operations/CrowdTakesActionOperation";
-import { canScoreWithoutDice } from "@/game/rules/stalling";
 import { IRNGService } from "./rng/RNGService.js";
-import {
-  RerollArbiter,
-  DecisionService,
-  foldTrigger,
-  gatherParticipants,
-  adjacentStanding,
-  withRerollOffer,
-  FollowUpContext,
-  foldActionDeclared,
-  ActionDeclaredContext,
-  foldTurnEnding,
-  TurnEndingContext,
-  SkillRegistry,
-} from "@/game/skills";
-import { moveAllowance } from "@/game/skills/movement";
+import { RerollArbiter, DecisionService } from "@/game/skills";
 import { RerollSource } from "@/types/decisions";
-import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
-import {
-  calculateInducementBudgets,
-  draftListInventory,
-} from "@/game/inducements/rules";
-import { sevensInducementCatalog } from "@/game/inducements/catalog";
-import { inducementCount } from "@/game/inducements/inventory";
-import { rollMasterChefs } from "@/game/inducements/masterChef";
-import { InducementSession } from "@/game/inducements/InducementSession";
-import { captainVacancyCandidates } from "@/game/rules/teamCaptain";
-import {
-  AppointTeamCaptainOperation,
-  OfferYouDopeOperation,
-  ResolvePregameInducementsOperation,
-  getMatchInducements,
-  holdsMeasure,
-  holdsSportsWizard,
-  restoreFrogs,
-  offerMeasure,
-  revokeMatchGrants,
-  rushModifier,
-  trapdoorOpens,
-  validChoiceAnswer,
-} from "@/game/inducements/matchInducements";
-import { razzleDazzleAllows } from "../game/rules/actionAvailability";
-import { CastSportsWizardOperation } from "../game/inducements/sportsWizard";
-import { CrowdInjuryOperation } from "@/game/operations/CrowdInjuryOperation";
-import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
-import {
-  buildSeventsInducementProfile,
-  emptyInducementsState,
-  Inducement,
-  InducementOffer,
-} from "@/types/Inducements";
-import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
-import {
-  driveEffectsEmpty,
-  emptyDriveEffects,
-  getDriveEffects,
-  withDriveModifiers,
-} from "@/game/kickoff/driveEffects";
-import {
-  BlockReplacement,
-  BLOCK_REPLACEMENT_DEFINITIONS,
-  blockReplacementForDirectAction,
-} from "@/types/BlockReplacement";
-import {
-  hasReachableBlockReplacementTarget,
-  isLegalBlockReplacementTarget,
-  legalBlockReplacementTargets,
-} from "@/game/rules/blockReplacements";
-import { updateDedicatedFans } from "@/game/rules/leagueRoster";
-import { fanFactor } from "@/game/rules/winnings";
-
-/** Actions that spend a team's once-per-turn allowance (Throw Team-mate
- *  shares Pass's). Only these carry the release/commit rules of
- *  `defer-action-commitment` — Move, Block, and the special actions have no
- *  allowance at stake and keep the engine's free-replacement behaviour. */
-const ONCE_PER_TURN_ACTIONS = new Set<ActionType>([
-  "blitz",
-  "pass",
-  "handoff",
-  "foul",
-  "throwTeamMate",
-]);
-
-/** A Block only targets a Standing player of the other team. */
-function isStandingOpponent(
-  player: Player,
-  other: Player | undefined
-): boolean {
-  return (
-    !!other &&
-    other.teamId !== player.teamId &&
-    other.status === PlayerStatus.ACTIVE
-  );
-}
+import { Inducement, InducementOffer } from "@/types/Inducements";
+import { BlockReplacement } from "@/types/BlockReplacement";
+import { GameParts, createGameParts } from "./gameService/parts";
+import { createInitialState, createMatchState } from "./gameService/matchStart";
+import * as activation from "./gameService/activation";
+import * as answers from "./gameService/decisionAnswers";
+import * as ballActions from "./gameService/ballActions";
+import * as blockActions from "./gameService/blockActions";
+import * as declaration from "./gameService/declareAction";
+import * as drive from "./gameService/driveLifecycle";
+import * as inducements from "./gameService/inducements";
+import * as matchStart from "./gameService/matchStart";
+import * as moves from "./gameService/moveActions";
+import * as roster from "./gameService/roster";
+import * as specials from "./gameService/specialActions";
 
 export class GameService implements IGameService {
-  private state: GameState;
-  private team1: Team;
-  private team2: Team;
+  /** The managers and the state they share (gameService/parts.ts). */
+  private readonly parts: GameParts;
+  /** Blitzers whose one Block is spent this activation. */
+  private readonly blitzBlockUsed: Set<string>;
 
-  // Managers
-  private setupManager: SetupManager;
-  private turnManager: TurnManager;
-  private ballManager: BallManager;
-  private movementManager: MovementManager;
-  private blockManager: BlockManager;
-  private weatherService: WeatherManager;
+  /** The opening state of a fresh match, teams readied (matchStart.ts). */
+  public static createMatchState = createMatchState;
+  /** A default initial state. */
+  public static createInitialState = createInitialState;
 
-  /**
-   * Factory method to create a default initial state
-   */
-  /**
-   * The opening state of a fresh match, with both teams readied for it:
-   * everyone in the Reserves, a league team's injuries served and, in a
-   * league fixture, Journeymen taken on (leagueRoster.ts). A fixture that
-   * pays winnings is a league fixture (`fixturePaysWinnings`), and the state
-   * carries that as `paysWinnings`. A resumed match keeps its state.
-   */
-  public static createMatchState(
-    team1: Team,
-    team2: Team,
-    startingPhase: GamePhase = GamePhase.SETUP,
-    startingSubPhase?: SubPhase,
-    fixture: { paysWinnings?: boolean } = {}
-  ): GameState {
-    const readiness = { leagueFixture: !!fixture.paysWinnings };
-    SetupManager.sanitizeTeam(team1, readiness);
-    SetupManager.sanitizeTeam(team2, readiness);
-    const state = GameService.createInitialState(
-      team1,
-      team2,
-      startingPhase,
-      startingSubPhase
-    );
-    if (fixture.paysWinnings) state.paysWinnings = true;
-    return state;
-  }
-
-  public static createInitialState(
-    team1: Team,
-    team2: Team,
-    startingPhase: GamePhase = GamePhase.SANDBOX_IDLE,
-    startingSubPhase?: SubPhase
-  ): GameState {
-    return {
-      phase: startingPhase,
-      subPhase: startingSubPhase,
-      activeTeamId: null,
-      turn: {
-        teamId: "",
-        turnNumber: 0,
-        isHalf2: false,
-        activatedPlayerIds: new Set(),
-        hasBlitzed: false,
-        hasPassed: false,
-        hasHandedOff: false,
-        hasFouled: false,
-        hasThrownTeamMate: false,
-        hasKickedTeamMate: false,
-        hasThrownBomb: false,
-        movementUsed: new Map(),
-      },
-      score: {
-        [team1.id]: 0,
-        [team2.id]: 0,
-      },
-      weather: "Nice",
-      ballPosition: null, // Ball not placed yet
-      activePlayer: null,
-      setup: undefined,
-    };
-  }
-  private playerActionManager: PlayerActionManager;
-  private decisionService: DecisionService;
-  private rerollArbiter: RerollArbiter;
-  private kickoffEventManager!: KickoffEventManager;
-  private passController: PassController;
-  private catchController: CatchController;
   public diceController: DiceController;
-  private armourController: ArmourController;
-  private injuryController: InjuryController;
-  private foulController: FoulController;
-
-  // Game Flow Manager
   public flowManager: GameFlowManager;
 
-  // Validators
-  private activationValidator: ActivationValidator = new ActivationValidator();
-
   constructor(
-    private eventBus: IEventBus,
+    eventBus: IEventBus,
     team1: Team,
     team2: Team,
     rngService: IRNGService,
     blockResolutionService: BlockResolutionService,
     initialState?: GameState,
-    private delay: DelayProvider = realTimeDelay
+    delay: DelayProvider = realTimeDelay
   ) {
-    this.team1 = team1;
-    this.team2 = team2;
-
-    this.state = initialState || GameService.createInitialState(team1, team2);
-
-    // If starting a fresh game (no initial state), ensure teams are clean
-    if (!initialState) {
-      SetupManager.sanitizeTeam(team1);
-      SetupManager.sanitizeTeam(team2);
-    }
-
-    // Initialize Dice Controller first
-    this.diceController = new DiceController(eventBus, rngService);
-
-    // Mid-action decision channel + reroll constraints (skill rules)
-    this.decisionService = new DecisionService(eventBus);
-    this.rerollArbiter = new RerollArbiter(
-      this.state,
-      (id) => this.getTeam(id),
-      eventBus
-    );
-
-    // Initialize Flow Manager (Pass 'this' as context)
-    this.flowManager = new GameFlowManager({
-      gameService: this,
-      eventBus: eventBus,
-      delay: this.delay,
-    });
-
-    // Initialize Managers
-    this.weatherService = new WeatherManager(
+    this.parts = createGameParts({
+      game: this,
       eventBus,
-      this.state,
-      this.diceController
-    );
-
-    this.setupManager = new SetupManager(
-      eventBus,
-      this.state,
       team1,
       team2,
-      this.weatherService,
-      {
-        onKickoffRequested: () => this.startKickoff(),
-        rollSwarming: (teamId) =>
-          this.diceController.rollD3("Swarming", teamId),
-      },
-      this.delay
-    );
-
-    this.turnManager = new TurnManager(
-      eventBus,
-      this.state,
-      team1,
-      team2,
-      {
-        onPhaseChanged: (phase, subPhase) =>
-          this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
-        onHalfEnded: (next) => this.endDrive("halftime", next),
-        shootout: () =>
-          penaltyShootout(this.diceController, this.team1, this.team2),
-        onTurnEnding: (endingTeamId) => this.handleTurnEnding(endingTeamId),
-        betweenTurns: (endingTeamId) => this.castSportsWizards(endingTeamId),
-      },
-      this.delay
-    );
-
-    this.ballManager = new BallManager(
-      eventBus,
-      this.state,
-      team1,
-      team2,
-      this.weatherService,
-      this.diceController,
-      {
-        onTurnover: (reason) => this.triggerTurnover(reason),
-        onPhaseChange: (phase, subPhase) =>
-          this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
-        onBallPlaced: (x, y) =>
-          this.eventBus.emit(GameEventNames.BallPlaced, { x, y }),
-        getFlowManager: () => this.flowManager,
-        resolveKickoffEvent: (isTeam1Kicking) =>
-          this.kickoffEventManager.rollAndResolve(isTeam1Kicking),
-        resolveHighKickStep: (isTeam1Kicking, landingSquare) =>
-          this.kickoffEventManager.resolveHighKickStep(
-            isTeam1Kicking,
-            landingSquare
-          ),
-        consumeWeatherScatterPending: () =>
-          this.kickoffEventManager.consumeWeatherScatterPending(),
-      },
-      this.delay
-    );
-
-    this.playerActionManager = new PlayerActionManager(
-      eventBus,
-      this.state,
-      (id) => this.getPlayerById(id)
-    );
-
-    this.kickoffEventManager = new KickoffEventManager(
-      eventBus,
-      this.state,
-      team1,
-      team2,
-      this.diceController,
-      this.weatherService,
-      {
-        getTurnNumber: (teamId) => this.turnManager.getTurnNumber(teamId),
-        moveTurnMarkers: (delta) => this.turnManager.moveTurnMarkers(delta),
-      }
-    );
-
-    // Conditions expire on engine events, not in rules: Rooted ends when
-    // its player is Knocked Down or Placed Prone; Chomped ends the moment
-    // the chomper is no longer Marking the victim (moved, downed, pushed).
-    eventBus.on(
-      GameEventNames.PlayerKnockedDown,
-      ({ playerId }: { playerId: string }) => {
-        // A Charge! player going down aborts the whole sequence at once
-        this.kickoffEventManager?.noteChargePlayerDown(playerId);
-        this.onPlayerDowned(playerId);
-      }
-    );
-    eventBus.on(GameEventNames.PlayerStatusChanged, (p: Player) => {
-      if (p.status !== PlayerStatus.ACTIVE) this.onPlayerDowned(p.id);
-      this.sweepChomped();
-    });
-    eventBus.on(GameEventNames.PlayerMoved, () => this.sweepChomped());
-    eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
-      if (phase === GamePhase.GAME_OVER) {
-        // Get the Ref bribes are match-scoped and never leave this match.
-        this.state.bribes = {};
-        // Prayer and Desperate Measure grants last for this game only.
-        revokeMatchGrants(this.state, [
-          ...this.team1.players,
-          ...this.team2.players,
-        ]);
-        this.announceFullTime();
-        // Fan Factor reads the Dedicated Fans the teams kicked off with
-        this.rollFanFactors();
-        this.updateDedicatedFans();
-      }
-    });
-    // A Blitz's single block is tracked per activation; a fresh turn clears it.
-    eventBus.on(GameEventNames.TurnStarted, () => {
-      this.blitzBlockUsed.clear();
-      this.puntUsedThisTurn = false;
-      this.ballAndChainSquare = null;
-      this.crowdRolledFor = null;
-    });
-
-    this.passController = new PassController(
-      eventBus,
-      this.ballManager.movementController,
-      this.diceController
-    );
-    this.catchController = new CatchController();
-    this.armourController = new ArmourController();
-    this.injuryController = new InjuryController();
-    this.foulController = new FoulController();
-
-    this.movementManager = new MovementManager(
-      eventBus,
-      this.state,
-      team1,
-      team2,
-      this.diceController,
-      {
-        onTurnover: (reason: string) => this.triggerTurnover(reason),
-        onActivationFinished: (playerId: string) =>
-          this.finishActivation(playerId),
-        onTouchdown: (teamId: string, scorerId: string) =>
-          this.addTouchdown(teamId, scorerId),
-      }
-    );
-
-    this.blockManager = new BlockManager(
-      eventBus,
-      this.state,
-      team1,
-      team2,
+      initialState,
+      rngService,
       blockResolutionService,
-      this.diceController,
-      {
-        onTurnover: (reason) => this.triggerTurnover(reason),
-        getFlowManager: () => this.flowManager,
-      }
-    );
+      delay,
+    });
+    this.diceController = this.parts.diceController;
+    this.flowManager = this.parts.flowManager;
+    this.blitzBlockUsed = this.parts.marks.blitzBlockUsed;
 
     // A headless/sandbox scenario may begin directly in PLAY, bypassing the
     // normal kickoff transition, so seed its half-level Leader bank here.
-    if (this.state.phase === GamePhase.PLAY) {
-      this.rerollArbiter.beginHalf([this.team1.id, this.team2.id]);
+    if (this.parts.state.phase === GamePhase.PLAY) {
+      this.parts.rerollArbiter.beginHalf([team1.id, team2.id]);
     }
 
-    // A restored save may still have an unresolved Apothecary decision — the
-    // operation that requested it is long gone, so re-arm the decision
-    // channel directly rather than trying to resume a suspended await.
-    // Matched Play inducements come on the draft list (MP2): there is no
-    // petty cash to negotiate, so they are in the match from the start.
-    const draftList = this.draftListInventory();
-    if (!this.state.inducements && draftList.length > 0) {
-      this.commitInducements(
-        buildSeventsInducementProfile({ advancedLeague: false }),
-        calculateInducementBudgets(this.team1, this.team2),
-        draftList
-      );
-    }
-
-    const pendingApothecary = this.state.inducements?.pendingApothecaryDecision;
-    if (pendingApothecary) {
-      resumeApothecaryDecision(this, eventBus, pendingApothecary);
-    }
+    inducements.restoreMatchInducements(this.parts);
   }
 
   // ===== State Queries =====
 
   getState(): GameState {
-    return this.state;
+    return this.parts.state;
   }
 
   getPhase(): GamePhase {
-    return this.state.phase;
+    return this.parts.state.phase;
   }
 
   getSubPhase(): SubPhase | undefined {
-    return this.state.subPhase;
+    return this.parts.state.subPhase;
   }
 
   getActiveTeamId(): string | null {
-    return this.state.activeTeamId;
+    return this.parts.state.activeTeamId;
   }
   public getPassController(): PassController {
-    return this.passController;
+    return this.parts.passController;
   }
   public getCatchController(): CatchController {
-    return this.catchController;
+    return this.parts.catchController;
   }
 
   public getBallMovementController(): BallMovementController {
-    return this.ballManager.movementController;
+    return this.parts.ballManager.movementController;
   }
 
   public getDiceController(): DiceController {
@@ -538,15 +127,15 @@ export class GameService implements IGameService {
   }
 
   public getArmourController(): ArmourController {
-    return this.armourController;
+    return this.parts.armourController;
   }
 
   public getInjuryController(): InjuryController {
-    return this.injuryController;
+    return this.parts.injuryController;
   }
 
   public getFoulController(): FoulController {
-    return this.foulController;
+    return this.parts.foulController;
   }
 
   public getFlowContext(): import("@/game/core/GameFlowManager").FlowContext {
@@ -554,81 +143,48 @@ export class GameService implements IGameService {
   }
 
   public getDecisionService(): DecisionService {
-    return this.decisionService;
+    return this.parts.decisionService;
   }
 
   public getRerollArbiter(): RerollArbiter {
-    return this.rerollArbiter;
+    return this.parts.rerollArbiter;
   }
 
   /** Answer a pending reroll decision (dialog or protocol reply). */
   public answerReroll(accept: boolean, source?: RerollSource): boolean {
-    const pending = this.decisionService.pending();
-    if (!pending || pending.type !== "reroll") return false;
-    return this.decisionService.answer({ accept, source });
+    return answers.answerReroll(this.parts.decisionService, accept, source);
   }
 
   /** Answer a pending reaction decision (dialog or protocol reply). */
   public answerReaction(accept: boolean): boolean {
-    const pending = this.decisionService.pending();
-    if (!pending || pending.type !== "reaction") return false;
-    return this.decisionService.answer({ accept });
+    return answers.answerReaction(this.parts.decisionService, accept);
   }
 
-  /**
-   * Answer a pending Bloodlust bite-target decision with the Thrall Lineman
-   * the coach clicked, or undefined to bite nobody. False when none is
-   * pending or the player is not one of the offered targets.
-   */
+  /** Answer a pending Bloodlust bite-target decision; undefined bites nobody. */
   public answerBiteTarget(targetId?: string): boolean {
-    const pending = this.decisionService.pending();
-    if (!pending || pending.type !== "bite-target") return false;
-    if (targetId !== undefined && !pending.targetIds.includes(targetId))
-      return false;
-    return this.decisionService.answer({ targetId });
+    return answers.answerBiteTarget(this.parts.decisionService, targetId);
   }
 
-  /**
-   * Answer a pending interception decision — the defending coach's chosen
-   * interceptor, or undefined to decline. False when none is pending.
-   */
+  /** Answer a pending interception decision; undefined declines. */
   public answerInterception(playerId?: string): boolean {
-    const pending = this.decisionService.pending();
-    if (!pending || pending.type !== "interception") return false;
-    return this.decisionService.answer({ playerId });
+    return answers.answerInterception(this.parts.decisionService, playerId);
   }
 
   /** Answer a pending Apothecary decision (dialog or protocol reply). */
   public answerApothecary(accept: boolean): boolean {
-    const pending = this.decisionService.pending();
-    if (!pending || pending.type !== "apothecary") return false;
-    return this.decisionService.answer({ accept });
+    return answers.answerApothecary(this.parts.decisionService, accept);
   }
 
-  /**
-   * Answer a pending Prayer or Desperate Measure choice. False when none is
-   * pending or the answer is not one of the offered options.
-   */
+  /** Answer a pending Prayer or Desperate Measure choice. */
   public answerInducementChoice(
     answer: import("@/types/decisions").InducementChoiceDecisionAnswer
   ): boolean {
-    const pending = this.decisionService.pending();
-    if (!pending || pending.type !== "inducement-choice") return false;
-    const valid = validChoiceAnswer(pending, answer);
-    if (!valid) return false;
-    return this.decisionService.answer(valid);
+    return answers.answerInducementChoice(this.parts.decisionService, answer);
   }
 
-  /**
-   * Answer a pending Foul assists decision with how many Offensive Assists
-   * add +1. False when none is pending or the count is out of range.
-   */
+  /** Answer a pending Foul assists decision with the assists that count. */
   public answerFoulAssists(count: number): boolean {
-    const pending = this.decisionService.pending();
-    if (!pending || pending.type !== "foul-assists") return false;
-    if (!Number.isInteger(count) || count < 0 || count > pending.available)
-      return false;
-    return this.decisionService.answer({ count });
+    return answers.answerFoulAssists(this.parts.decisionService, count);
   }
 
   /** Commit a confirmed pregame inducement selection into match state. */
@@ -637,77 +193,11 @@ export class GameService implements IGameService {
     budgets: Record<string, number>,
     inventory: import("@/types/Inducements").InducementInventoryEntry[]
   ): void {
-    this.state.inducements = {
-      ...emptyInducementsState(),
-      ...this.state.inducements,
-      profile,
-      budgets: { ...budgets },
-      inventory: inventory.map((entry) => ({ ...entry })),
-    };
-    // A league team that lost its Team Captain appoints a new one first.
-    if (
-      this.state.paysWinnings &&
-      [this.team1, this.team2].some(
-        (team) => captainVacancyCandidates(team).length > 0
-      )
-    ) {
-      this.flowManager.add(new AppointTeamCaptainOperation());
-    }
-    // Prayers and Desperate Measures are rolled once, before the first
-    // set-up (L4, L5).
-    const rollsOnTables = inventory.some(
-      (entry) =>
-        entry.inducement === Inducement.PRAYERS_TO_NUFFLE ||
-        entry.inducement === Inducement.DESPERATE_MEASURES
-    );
-    if (rollsOnTables && !getMatchInducements(this.state).rolled) {
-      this.flowManager.add(new ResolvePregameInducementsOperation());
-    }
-  }
-
-  /** Both teams' Matched Play draft-list inducements (MP2). */
-  private draftListInventory() {
-    return [
-      ...draftListInventory(this.team1),
-      ...draftListInventory(this.team2),
-    ];
-  }
-
-  /**
-   * The pregame inducement negotiation, held here (not in the browser or
-   * the headless protocol layer) so local, online-host, and headless
-   * callers all validate against the exact same authoritative session
-   * regardless of which surface drives it.
-   */
-  private inducementSession: InducementSession | null = null;
-
-  private getOrCreateInducementSession(): InducementSession {
-    if (!this.inducementSession) {
-      const profile = buildSeventsInducementProfile({ advancedLeague: false });
-      const budgets = calculateInducementBudgets(this.team1, this.team2);
-      this.inducementSession = new InducementSession(profile, budgets, {
-        [this.team1.id]: sevensInducementCatalog(this.team1),
-        [this.team2.id]: sevensInducementCatalog(this.team2),
-      });
-    }
-    return this.inducementSession;
+    inducements.commitInducements(this.parts, profile, budgets, inventory);
   }
 
   getInducementOffer(): InducementOffer {
-    const session = this.getOrCreateInducementSession();
-    return {
-      profile: session.getProfile(),
-      budgets: session.getBudgets(),
-      catalogs: session.getCatalogs(),
-      selections: {
-        [this.team1.id]: session.getSelection(this.team1.id),
-        [this.team2.id]: session.getSelection(this.team2.id),
-      },
-      confirmed: {
-        [this.team1.id]: session.isConfirmed(this.team1.id),
-        [this.team2.id]: session.isConfirmed(this.team2.id),
-      },
-    };
+    return inducements.inducementOffer(this.parts);
   }
 
   selectInducement(
@@ -715,149 +205,107 @@ export class GameService implements IGameService {
     inducement: Inducement,
     quantity: number
   ): { ok: boolean; errors: string[] } {
-    return this.getOrCreateInducementSession().select(
-      teamId,
-      inducement,
-      quantity
-    );
+    return inducements.session(this.parts).select(teamId, inducement, quantity);
   }
 
   removeInducement(
     teamId: string,
     inducement: Inducement
   ): { ok: boolean; errors: string[] } {
-    return this.getOrCreateInducementSession().remove(teamId, inducement);
+    return inducements.session(this.parts).remove(teamId, inducement);
   }
 
   /** Confirm a team's pregame selection; commits the inventory once both have. */
   confirmInducements(teamId: string): { ok: boolean; errors: string[] } {
-    const session = this.getOrCreateInducementSession();
-    const result = session.confirm(teamId);
-    if (!result.ok) return result;
-    if (session.bothConfirmed([this.team1.id, this.team2.id])) {
-      this.commitInducements(session.getProfile(), session.getBudgets(), [
-        ...this.draftListInventory(),
-        ...session.toInventory(),
-      ]);
-    }
-    return result;
+    return inducements.confirmInducements(this.parts, teamId);
   }
 
   getTurnNumber(teamId: string): number {
-    return this.turnManager.getTurnNumber(teamId);
+    return this.parts.turnManager.getTurnNumber(teamId);
   }
 
   seedTurnCounts(turnNumber: number): void {
-    this.turnManager.seedTurnCounts(turnNumber);
+    this.parts.turnManager.seedTurnCounts(turnNumber);
   }
 
   captureTurnManagerState(): TurnManagerState {
-    return this.turnManager.captureState();
+    return this.parts.turnManager.captureState();
   }
 
   restoreTurnManagerState(snapshot: TurnManagerState): void {
-    this.turnManager.restoreState(snapshot);
+    this.parts.turnManager.restoreState(snapshot);
   }
 
   resyncSetupFromTeams(): void {
-    this.setupManager.resyncFromTeams();
+    this.parts.setupManager.resyncFromTeams();
   }
 
   // ===== Setup Phase =====
 
   startSetup(startingTeamId?: string): void {
-    this.rollMasterChefs();
-    this.setupManager.startSetup(startingTeamId);
-  }
-
-  /** Halfling Master Chefs cook once per half, before its first Kick-off. */
-  private rollMasterChefs(): void {
-    rollMasterChefs(
-      this.state,
-      [this.team1, this.team2],
-      this.diceController,
-      this.eventBus
-    );
+    matchStart.rollMasterChefs(this.parts);
+    this.parts.setupManager.startSetup(startingTeamId);
   }
 
   placePlayer(playerId: string, x: number, y: number): boolean {
-    return this.setupManager.placePlayer(playerId, x, y);
+    return this.parts.setupManager.placePlayer(playerId, x, y);
   }
 
   removePlayer(playerId: string): void {
-    this.setupManager.removePlayer(playerId);
+    this.parts.setupManager.removePlayer(playerId);
   }
 
   swapPlayers(player1Id: string, player2Id: string): boolean {
-    return this.setupManager.swapPlayers(player1Id, player2Id);
+    return this.parts.setupManager.swapPlayers(player1Id, player2Id);
   }
 
   confirmSetup(teamId: string): boolean {
-    return this.setupManager.confirmSetup(teamId);
+    return this.parts.setupManager.confirmSetup(teamId);
   }
 
   isSetupComplete(teamId: string): boolean {
-    return this.setupManager.isSetupComplete(teamId);
+    return this.parts.setupManager.isSetupComplete(teamId);
   }
 
   getSetupStatus(
     teamId: string
   ): import("../types/SetupTypes").SetupTeamStatus | undefined {
-    return this.setupManager.getSetupStatus(teamId);
+    return this.parts.setupManager.getSetupStatus(teamId);
   }
 
   getLastSetupError(): string | null {
-    return this.setupManager.getLastError();
+    return this.parts.setupManager.getLastError();
   }
 
   isSetupEligible(playerId: string): boolean {
-    return this.setupManager.isAvailable(playerId);
+    return this.parts.setupManager.isAvailable(playerId);
   }
 
   applySetupFormation(
     teamId: string,
     formation: import("../types/SetupTypes").FormationPosition[]
   ): import("../types/SetupTypes").SetupFormationResult {
-    return this.setupManager.applyFormation(teamId, formation);
+    return this.parts.setupManager.applyFormation(teamId, formation);
   }
 
   resolveSetupConcession(teamId: string, concede: boolean): boolean {
-    return this.setupManager.resolveConcession(teamId, concede);
+    return this.parts.setupManager.resolveConcession(teamId, concede);
   }
 
   getSetupZone(
     teamId: string
   ): import("../types/SetupTypes").SetupZone | undefined {
-    return this.setupManager.getSetupZone(teamId);
+    return this.parts.setupManager.getSetupZone(teamId);
   }
 
   // ===== Kickoff Phase =====
 
   startKickoff(): void {
-    this.state.phase = GamePhase.KICKOFF;
-    this.state.subPhase = SubPhase.ROLL_KICKOFF;
-    this.eventBus.emit(GameEventNames.KickoffStarted);
-    this.eventBus.emit(GameEventNames.PhaseChanged, {
-      phase: GamePhase.KICKOFF,
-      subPhase: SubPhase.ROLL_KICKOFF,
-    });
-    // You Dope! is offered after both set-ups, before the kick (L21).
-    if (
-      [this.team1, this.team2].some((team) =>
-        holdsMeasure(this.state, team.id, DesperateMeasure.YOU_DOPE)
-      )
-    ) {
-      this.flowManager.add(new OfferYouDopeOperation());
-    }
+    drive.startKickoff(this.parts);
   }
 
   selectKicker(playerId: string): void {
-    if (this.state.phase === GamePhase.KICKOFF) {
-      const player = this.getPlayerById(playerId);
-      if (player) {
-        this.eventBus.emit(GameEventNames.PlayerSelected, { player });
-      }
-    }
+    drive.selectKicker(this.parts, playerId);
   }
 
   async kickBall(
@@ -866,65 +314,66 @@ export class GameService implements IGameService {
     targetX: number,
     targetY: number
   ): Promise<void> {
-    await this.ballManager.kickBall(isTeam1Kicking, playerId, targetX, targetY);
+    await this.parts.ballManager.kickBall(
+      isTeam1Kicking,
+      playerId,
+      targetX,
+      targetY
+    );
   }
 
   rollKickoff(): void {
-    void this.ballManager.rollKickoff();
+    void this.parts.ballManager.rollKickoff();
   }
 
   resolveBallPlacement(): void {
-    this.ballManager.resolveBallPlacement();
+    this.parts.ballManager.resolveBallPlacement();
   }
 
   /** Touchback: receiving coach hands the ball to one of their players. */
   awardTouchback(playerId: string): boolean {
-    return this.ballManager.awardTouchback(playerId);
+    return this.parts.ballManager.awardTouchback(playerId);
   }
 
   isTouchbackPending(): boolean {
-    return this.ballManager.isTouchbackPending();
+    return this.parts.ballManager.isTouchbackPending();
   }
 
   kickoffBounceTouchback(to: { x: number; y: number }): boolean {
-    return this.ballManager.kickoffBounceTouchback(to);
+    return this.parts.ballManager.kickoffBounceTouchback(to);
   }
 
   getKickoffEventStep():
     | import("@/game/kickoff/KickoffEventManager").KickoffEventStepState
     | null {
-    return this.kickoffEventManager.getStep();
+    return this.parts.kickoffEventManager.getStep();
   }
 
   selectKickoffEventPlayer(playerId: string): boolean {
-    return this.kickoffEventManager.togglePlayerSelection(playerId);
+    return this.parts.kickoffEventManager.togglePlayerSelection(playerId);
   }
 
   moveKickoffEventPlayer(playerId: string, x: number, y: number): boolean {
-    return this.kickoffEventManager.movePlayer(playerId, x, y);
+    return this.parts.kickoffEventManager.movePlayer(playerId, x, y);
   }
 
   placeKickoffEventPlayer(playerId: string, x: number, y: number): boolean {
-    return this.kickoffEventManager.placePlayer(playerId, x, y);
+    return this.parts.kickoffEventManager.placePlayer(playerId, x, y);
   }
 
   confirmKickoffEventStep(): boolean {
-    return this.kickoffEventManager.confirmStep();
+    return this.parts.kickoffEventManager.confirmStep();
   }
 
   skipKickoffEventStep(): boolean {
-    return this.kickoffEventManager.skipStep();
+    return this.parts.kickoffEventManager.skipStep();
   }
 
   // ===== Sub-Phase Helpers =====
 
   /** The opening is done (teams introduced, weather shown): toss the coin. */
   beginCoinFlip(): void {
-    this.state.subPhase = SubPhase.COIN_FLIP;
-    this.eventBus.emit(GameEventNames.PhaseChanged, {
-      phase: GamePhase.SETUP,
-      subPhase: SubPhase.COIN_FLIP,
-    });
+    matchStart.beginCoinFlip(this.parts);
   }
 
   /**
@@ -934,7 +383,7 @@ export class GameService implements IGameService {
    * snapshot to the guest, so both see the same weather.
    */
   rollInitialWeather(): void {
-    this.weatherService.rollWeather();
+    this.parts.weatherService.rollWeather();
   }
 
   // ===== Turn Management =====
@@ -943,245 +392,24 @@ export class GameService implements IGameService {
   }
 
   startGame(kickingTeamId: string): void {
-    // A match that began past setup (a scenario) has its chef cook here.
-    this.rollMasterChefs();
-    this.rerollArbiter.beginHalf([this.team1.id, this.team2.id]);
-    this.turnManager.startGame(kickingTeamId);
+    matchStart.startGame(this.parts, kickingTeamId);
   }
 
   startTurn(teamId: string): void {
-    this.turnManager.startTurn(teamId);
+    this.parts.turnManager.startTurn(teamId);
   }
 
   endTurn(): void {
-    if (this.turnManager.isTurnoverInProgress()) return;
-    // A failed Bloodlust still owes its bite. Ending the turn is one more
-    // way of not biting, so it is settled first, exactly as ending the
-    // activation would: bite a Thrall, or take the Turnover and Distracted.
-    // The turn then ends, through that Turnover if there was one.
-    const live = this.state.activePlayer;
-    if (live && this.takeUnsatedBloodlust(live.id)) {
-      this.flowManager.add(
-        new BloodlustBiteOperation(live.id, "consequences", () =>
-          this.endTurn()
-        )
-      );
-      return;
-    }
-    // A turn can be force-ended (the online clock expiring, or a manual End
-    // Turn click) while a player's declaration is still live — declared and
-    // even committed (movement spent, a die rolled), but never finalized via
-    // finishActivation(). Left alone, that stale state.activePlayer survives
-    // into the next team's turn and declareAction()'s "a live once-per-turn
-    // declaration must release first" guard then refuses the NEXT team's
-    // very first declaration, making the turn look like it never ended.
-    // Finalize it the same way finishActivation() would.
-    if (live && this.takeStalling(live.id)) {
-      this.flowManager.add(
-        new CrowdTakesActionOperation(live.id, () => this.endTurn())
-      );
-      return;
-    }
-    this.crowdRolledFor = null;
-    if (this.state.activePlayer) {
-      this.playerActionManager.commitAction(this.state.activePlayer.id);
-      this.state.activePlayer = null;
-    }
-    this.turnManager.endTurn();
+    activation.endTurn(this.parts);
   }
 
   endHalf(): void {
-    this.turnManager.endHalf();
+    this.parts.turnManager.endHalf();
   }
 
   finishActivation(playerId: string): void {
-    // A Ball & Chain collision has resolved: the block engine ends a Block
-    // by finishing the activation, but the lurch only finishes its square,
-    // once everything the Block queued has come to rest.
-    const square = this.ballAndChainSquare;
-    if (square?.fanaticId === playerId) {
-      this.ballAndChainSquare = null;
-      this.flowManager.add(new FinishBallAndChainSquare(square));
-      return;
-    }
-    // Both Razzle-Dazzle Actions share one activation: the bite is due after both.
-    if (this.holdForSecondAction(playerId)) {
-      this.blitzBlockUsed.delete(playerId);
-      return;
-    }
-    // A failed Bloodlust is settled first: bite a Thrall or pay for it.
-    if (this.takeUnsatedBloodlust(playerId)) {
-      this.flowManager.add(
-        new BloodlustBiteOperation(playerId, "consequences", () =>
-          this.finishActivation(playerId)
-        )
-      );
-      return;
-    }
-    // Charge! free activations end without touching the turn ledger — the
-    // player may still activate normally when their team's turn begins.
-    if (this.kickoffEventManager.isChargeActive()) {
-      this.state.activePlayer = null;
-      this.kickoffEventManager.noteChargeActivationEnded(playerId);
-      this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
-      return;
-    }
-    // Stalling: the crowd may pelt a player who could have scored
-    if (this.takeStalling(playerId)) {
-      this.flowManager.add(
-        new CrowdTakesActionOperation(playerId, () =>
-          this.finishActivation(playerId)
-        )
-      );
-      return;
-    }
-    this.crowdRolledFor = null;
-    this.blitzBlockUsed.delete(playerId);
-    // Secure the Ball: "this Move Action must finish on a square containing
-    // a ball otherwise a Turnover is caused". A pick-up on the ball ends the
-    // activation holding it; a failed one has already turned over.
-    const securer = this.getPlayerById(playerId);
-    const ball = this.state.ballPosition;
-    if (
-      isSecuringBall(this.state, playerId) &&
-      !(
-        ball &&
-        securer?.gridPosition?.x === ball.x &&
-        securer.gridPosition.y === ball.y
-      )
-    ) {
-      this.triggerTurnover("Secure the Ball ended off the ball");
-    }
-    if (this.state.activePlayer?.id === playerId) {
-      // The activation being finalized commits the declaration — a Blitz
-      // ended without moving or rolling still spends the team's Blitz.
-      this.playerActionManager.commitAction(playerId);
-      this.state.activePlayer = null;
-    }
-    this.turnManager.finishActivation(playerId);
-    this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
+    activation.finishActivation(this.parts, playerId);
   }
-
-  private awaitingSecondAction(playerId: string): boolean {
-    return (
-      this.state.activePlayer?.id === playerId &&
-      !!this.state.activePlayer.razzleDazzle?.awaitingSecond
-    );
-  }
-
-  /**
-   * Razzle-Dazzle (L22): the first of the player's two Actions has ended,
-   * so the activation stays open for the second, unless the player can no
-   * longer act: down, off the pitch, or the turn is over.
-   */
-  private holdForSecondAction(playerId: string): boolean {
-    const active = this.state.activePlayer;
-    const razzle = active?.id === playerId ? active.razzleDazzle : undefined;
-    const player = this.getPlayerById(playerId);
-    if (
-      !razzle ||
-      razzle.actions.length !== 1 ||
-      razzle.awaitingSecond ||
-      this.state.phase !== GamePhase.PLAY ||
-      this.isTurnoverInProgress() ||
-      player?.status !== PlayerStatus.ACTIVE ||
-      !player.gridPosition ||
-      // An unsuccessful Secure the Ball must end in a Turnover, not a second Action.
-      (isSecuringBall(this.state, playerId) &&
-        !this.ballManager.hasBall(playerId))
-    ) {
-      return false;
-    }
-    this.playerActionManager.commitAction(playerId);
-    razzle.awaitingSecond = true;
-    this.eventBus.emit(
-      GameEventNames.UI_GameLog,
-      `Razzle-Dazzle: ${player.playerName} may declare a second Action`
-    );
-    this.eventBus.emit(GameEventNames.RazzleDazzleSecondAction, { playerId });
-    return true;
-  }
-
-  /** The player whose Crowd Takes Action roll this activation has made. */
-  private crowdRolledFor: string | null = null;
-
-  /**
-   * Stalling (2025 rulebook p.80), judged as the activation ends: the player
-   * held the ball and could score without dice when activated, and has not
-   * scored. A Pass or Hand-off that got rid of the ball is not Stalling;
-   * putting it down with Fumblerooski is (May 2026 FAQ). A player who
-   * Forgoes their activation is judged as they stand. Records the player
-   * for the post-game Winnings and returns true once per activation.
-   */
-  private takeStalling(playerId: string): boolean {
-    if (this.crowdRolledFor === playerId) return false;
-    if (this.state.phase !== GamePhase.PLAY) return false;
-    const player = this.getPlayerById(playerId);
-    if (!player?.gridPosition || player.status !== PlayerStatus.ACTIVE) {
-      return false;
-    }
-    const active = this.state.activePlayer;
-    const stalling =
-      active?.id === playerId
-        ? !!active.stalling &&
-          !(
-            (active.action === "pass" || active.action === "handoff") &&
-            !this.ballManager.hasBall(playerId)
-          )
-        : !this.hasPlayerActed(playerId) && this.couldScoreWithoutDice(player);
-    if (!stalling) return false;
-    this.crowdRolledFor = playerId;
-    if (!this.state.stallingPlayerIds?.includes(playerId)) {
-      this.state.stallingPlayerIds = [
-        ...(this.state.stallingPlayerIds ?? []),
-        playerId,
-      ];
-    }
-    return true;
-  }
-
-  /** Whether this ball carrier could score now without rolling any dice. */
-  private couldScoreWithoutDice(player: Player): boolean {
-    return canScoreWithoutDice({
-      player,
-      state: this.state,
-      players: [...this.team1.players, ...this.team2.players],
-      side: player.teamId === this.team1.id ? 1 : 2,
-    });
-  }
-
-  /** True once per failed Bloodlust activation; clears the mark. */
-  private takeUnsatedBloodlust(playerId: string): boolean {
-    const active = this.state.activePlayer;
-    if (active?.id !== playerId || !active.bloodlustUnsated) return false;
-    delete active.bloodlustUnsated;
-    return true;
-  }
-
-  /**
-   * Bloodlust: "If a player who failed this roll wants to perform a Pass
-   * Action, Hand-off Action, or score, then they must bite a Thrall Lineman
-   * before they perform the Action or score." Queues the bite ahead of
-   * `perform`; refusing leaves the ball where it is.
-   */
-  private biteBeforeBallAction(playerId: string, perform: () => void): void {
-    this.flowManager.add(
-      new BloodlustBiteOperation(playerId, "refuse", (sated) => {
-        if (sated) perform();
-        else if (this.state.activePlayer?.id === playerId) {
-          this.state.activePlayer.bloodlustUnsated = true;
-        }
-      })
-    );
-  }
-
-  /**
-   * The single block a Blitz allows was spent this activation. A Blitz may
-   * block once, at any point during the move; afterwards the player may keep
-   * moving, so a second block must be refused.
-   */
-  private blitzBlockUsed = new Set<string>();
-  private puntUsedThisTurn = false;
 
   public hasUsedBlitzBlock(playerId: string): boolean {
     if (!this.blitzBlockUsed.has(playerId)) return false;
@@ -1190,83 +418,21 @@ export class GameService implements IGameService {
     // Block — that is what produced "this Blitz has already used its Block"
     // on a plain Block the player was entitled to make.
     return (
-      this.state.activePlayer?.id === playerId &&
-      this.state.activePlayer?.action === "blitz"
+      this.parts.state.activePlayer?.id === playerId &&
+      this.parts.state.activePlayer?.action === "blitz"
     );
   }
 
-  /**
-   * End (or continue) a blocker's activation once their block has fully
-   * resolved. A plain Block always ends the activation. A Blitz block does
-   * not: while any of the MA+rush budget remains and the blocker is still
-   * Standing, the player stays active so the coach can keep moving (and
-   * Rush). The normal movement auto-finish ends it once the budget is spent.
-   */
   public finishBlockActivation(attackerId: string): void {
-    // The follow-up, if one was offered, is settled either way
-    this.eventBus.emit(GameEventNames.DecisionResolved, { type: "follow-up" });
-    // Pile Driver's free Foul comes first, on a Blitz as on a Block.
-    if (
-      this.blockManager.offerPileDriver(attackerId, () =>
-        this.finishBlockActivation(attackerId)
-      )
-    ) {
-      return;
-    }
-    const player = this.getPlayerById(attackerId);
-    const isBlitz =
-      this.state.activePlayer?.action === "blitz" &&
-      this.state.activePlayer?.id === attackerId;
-    if (player && isBlitz && player.status === PlayerStatus.ACTIVE) {
-      // The Blitz block's square was charged, and the block marked spent, in
-      // rollBlockDice; here we only decide whether the move continues.
-      if (
-        this.getMovementUsed(attackerId) <
-        moveAllowance(withDriveModifiers(player, this.state))
-      ) {
-        this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
-          playerId: attackerId,
-        });
-        // The board picks the blitzer back up for the rest of the move,
-        // however the block ended (with or without a follow-up, online too)
-        this.eventBus.emit(GameEventNames.UI_ResumeBlitzMove, {
-          playerId: attackerId,
-        });
-        return;
-      }
-    }
-    // A plain Block ends here — Hit and Run may take a free square first.
-    this.blockManager.endBlockActivation(attackerId);
+    activation.finishBlockActivation(this.parts, attackerId);
   }
 
-  /**
-   * A Stab always ends the activation, on a Blitz too. Hit and Run (p.123)
-   * covers "a Block Action or a Stab Special Action", so it may take its
-   * free square first (FAQ: also when the Stab replaced a Blitz's Block).
-   */
-  public async finishStabActivation(attackerId: string): Promise<void> {
-    const attacker = this.getPlayerById(attackerId);
-    if (attacker && hasSkill(attacker.skills, SkillType.HIT_AND_RUN)) {
-      await this.blockManager.resolveHitAndRun(attackerId);
-      return;
-    }
-    this.finishActivation(attackerId);
+  public finishStabActivation(attackerId: string): Promise<void> {
+    return activation.finishStabActivation(this.parts, attackerId);
   }
 
   canActivate(playerId: string): boolean {
-    const player = this.getPlayerById(playerId);
-    if (!player) return false;
-    // Charge! (kickoff 10) runs before the drive's first turn, so the turn
-    // ledger is not this window's: at the opening kick-off it names no
-    // team, and after a touchdown it holds the scoring turn. Only the
-    // charger up now may act, and only while Standing.
-    if (this.kickoffEventManager.isChargeActive()) {
-      return (
-        this.kickoffEventManager.getChargeActivePlayerId() === playerId &&
-        player.status === PlayerStatus.ACTIVE
-      );
-    }
-    return this.activationValidator.canActivate(player, this.state.turn);
+    return activation.canActivate(this.parts, playerId);
   }
 
   playerAction(playerId: string): boolean {
@@ -1274,92 +440,37 @@ export class GameService implements IGameService {
   }
 
   hasPlayerActed(playerId: string): boolean {
-    // The charger up now is mid-activation, whatever the stale ledger says
-    if (this.kickoffEventManager.getChargeActivePlayerId() === playerId) {
-      return false;
-    }
-    return this.state.turn.activatedPlayerIds.has(playerId);
+    return activation.hasPlayerActed(this.parts, playerId);
   }
 
   // ===== Action Methods =====
 
   previewBlock(attackerId: string, defenderId: string): void {
-    if (this.awaitingSecondAction(attackerId)) return;
-    this.blockManager.previewBlock(attackerId, defenderId);
+    if (activation.awaitingSecondAction(this.parts, attackerId)) return;
+    this.parts.blockManager.previewBlock(attackerId, defenderId);
   }
 
-  async multipleBlock(
+  multipleBlock(
     attackerId: string,
     defender1Id: string,
     defender2Id: string
   ): Promise<void> {
-    if (this.awaitingSecondAction(attackerId)) return;
-    await this.blockManager.startMultipleBlock(
+    return blockActions.multipleBlock(
+      this.parts,
       attackerId,
       defender1Id,
       defender2Id
     );
   }
 
-  async rollBlockDice(
+  rollBlockDice(
     attackerId: string,
     defenderId: string,
     numDice: number,
     isAttackerChoice: boolean
   ): Promise<void> {
-    const declaration = this.state.activePlayer;
-    if (
-      declaration?.id !== attackerId ||
-      this.awaitingSecondAction(attackerId) ||
-      (declaration.action !== "block" && declaration.action !== "blitz") ||
-      declaration.blockReplacement ||
-      this.hasUsedBlitzBlock(attackerId)
-    ) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "No normal Block is available for this declaration."
-      );
-      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-      return;
-    }
-
-    // A player that is down or stunned can never throw a block
-    const blocker = this.getPlayerById(attackerId);
-    if (!blocker || blocker.status !== PlayerStatus.ACTIVE) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "A prone or stunned player cannot block!"
-      );
-      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-      return;
-    }
-
-    // Only a Standing opponent can be Blocked; a downed one is Fouled
-    if (!isStandingOpponent(blocker, this.getPlayerById(defenderId))) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Only a Standing opponent can be Blocked."
-      );
-      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-      return;
-    }
-
-    // The block is happening — commit the declaration (a Blitz declared and
-    // blocked without moving first still spends the team's Blitz).
-    this.playerActionManager.commitAction(attackerId);
-
-    // The block at the end of a Blitz costs 1 movement (see
-    // chargeBlitzBlockSquare). The Blitz's one Block is spent the moment it
-    // is committed, whatever the dice later say.
-    if (
-      this.state.activePlayer?.action === "blitz" &&
-      this.state.activePlayer.id === attackerId
-    ) {
-      if (!(await this.chargeBlitzBlockSquare(attackerId))) return;
-      this.blitzBlockUsed.add(attackerId);
-    }
-
-    await this.blockManager.rollBlockDice(
+    return blockActions.rollBlockDice(
+      this.parts,
       attackerId,
       defenderId,
       numDice,
@@ -1367,318 +478,75 @@ export class GameService implements IGameService {
     );
   }
 
-  /**
-   * Charge the square of movement a Block costs during a Blitz: the Blitz's
-   * own block, and Frenzy's second block (2025 p.128: "performing a second
-   * Block Action will also cost the player a square of movement. If this
-   * player has no movement left, then they must Rush. If this player cannot
-   * Rush then they cannot perform the second Block Action."). A point beyond
-   * MA is a Rush, rolled BEFORE the block: on a failure the blitzer falls
-   * over in front of their target. Returns whether the block may go ahead.
-   */
-  public async chargeBlitzBlockSquare(attackerId: string): Promise<boolean> {
-    const attacker = this.getPlayerById(attackerId);
-    if (!attacker) return false;
-    const effectiveAttacker = withDriveModifiers(attacker, this.state);
-    const newUsed = (this.state.turn.movementUsed.get(attackerId) || 0) + 1;
-    if (newUsed > moveAllowance(effectiveAttacker)) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "No movement left to make the Blitz block!"
-      );
-      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-      return false;
-    }
-    this.state.turn.movementUsed.set(attackerId, newUsed);
-    if (newUsed <= effectiveAttacker.stats.MA) return true;
-
-    // The Blitz block's rush may be rerolled (Sure Feet / team)
-    const check = await withRerollOffer(
-      { gameService: this, eventBus: this.eventBus },
-      attacker,
-      "rush",
-      () =>
-        this.diceController.rollSkillCheck(
-          "Rush",
-          2,
-          rushModifier(this.state, attacker),
-          attacker.playerName
-        )
-    );
-    if (
-      check.success ||
-      (await steadyFootingSaves(
-        attacker,
-        this.diceController,
-        this.eventBus,
-        this
-      ))
-    )
-      return true;
-
-    attacker.status = PlayerStatus.PRONE;
-    this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
-      playerId: attackerId,
-    });
-    this.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
-    if (this.ballManager.hasBall(attackerId) && attacker.gridPosition) {
-      this.flowManager.add(new BounceOperation(attacker.gridPosition), true);
-    }
-    this.flowManager.add(new ArmourOperation(attackerId), true);
-    // The block never happens — release any dialog waiting on dice
-    this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-    this.triggerTurnover("Failed Rush on Blitz block");
-    return false;
+  public chargeBlitzBlockSquare(attackerId: string): Promise<boolean> {
+    return blockActions.chargeBlitzBlockSquare(this.parts, attackerId);
   }
 
-  async resolveBlock(
+  resolveBlock(
     attackerId: string,
     defenderId: string,
     result: BlockResult
   ): Promise<void> {
-    // Online, both coaches see the dice; close them for the one who didn't pick
-    this.eventBus.emit(GameEventNames.DecisionResolved, {
-      type: "block-dice",
-      result: result.type,
-    });
-    await this.blockManager.resolveBlock(attackerId, defenderId, result);
+    return blockActions.resolveBlock(
+      this.parts,
+      attackerId,
+      defenderId,
+      result
+    );
   }
 
   /** Keep an uphill roll without a re-roll; the defender then picks. */
   keepBlockDice(attackerId: string): void {
-    this.blockManager.keepBlockDice(attackerId);
+    this.parts.blockManager.keepBlockDice(attackerId);
   }
 
   /** Team Re-roll on a block: re-roll all the dice. */
   teamRerollBlock(attackerId: string): void {
-    this.blockManager.teamRerollBlock(attackerId);
+    this.parts.blockManager.teamRerollBlock(attackerId);
   }
 
   /** Pro on a block: re-roll a single die (3+ to use). */
   proRerollBlockDie(attackerId: string, dieIndex: number): void {
-    this.blockManager.proRerollBlockDie(attackerId, dieIndex);
+    this.parts.blockManager.proRerollBlockDie(attackerId, dieIndex);
   }
 
   /** Brawler on a block: re-roll the single Both Down die. */
   brawlerRerollBlockDie(attackerId: string): void {
-    this.blockManager.brawlerRerollBlockDie(attackerId);
+    this.parts.blockManager.brawlerRerollBlockDie(attackerId);
   }
 
   /** Veteran on a block: re-roll all the dice, once per game (D8). */
   veteranRerollBlock(attackerId: string): void {
-    this.blockManager.veteranRerollBlock(attackerId);
+    this.parts.blockManager.veteranRerollBlock(attackerId);
   }
 
-  public async executePush(
+  public executePush(
     attackerId: string,
     defenderId: string,
     direction: { x: number; y: number },
     resultType: string,
     followUp: boolean
   ): Promise<void> {
-    // Before the push: a chain push asks for the next direction from inside
-    this.eventBus.emit(GameEventNames.DecisionResolved, {
-      type: "push-direction",
-    });
-    await this.blockManager.executePush(
-      attackerId,
-      defenderId,
+    return blockActions.executePush(this.parts, attackerId, defenderId, {
       direction,
       resultType,
-      followUp
-    );
+      followUp,
+    });
   }
 
-  /**
-   * Follow-up into the square the pushed player vacated. This move is FREE:
-   * no movement cost, no dodge, no rush — a Blitz already paid its movement
-   * (and rolled any Rush) before the block.
-   */
-  public async followUpPush(
+  public followUpPush(
     attackerId: string,
     targetSquare: { x: number; y: number }
   ): Promise<void> {
-    const attacker = this.getPlayerById(attackerId);
-    if (!attacker || !attacker.gridPosition) return;
-
-    // Trigger point: the blocker follows up (Frenzy-style effects hook here)
-    const followCtx: FollowUpContext = {
-      attacker,
-      targetSquare,
-      decisions: this.decisionService,
-      flow: this.flowManager,
-      triggers: [],
-    };
-    await foldTrigger(
-      "onFollowUp",
-      gatherParticipants(
-        attacker,
-        undefined,
-        adjacentStanding(attacker.gridPosition, [
-          ...this.team1.players,
-          ...this.team2.players,
-        ])
-      ),
-      followCtx
-    );
-    followCtx.triggers.forEach((t) =>
-      this.eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
-
-    const from = { ...attacker.gridPosition };
-    attacker.gridPosition = { ...targetSquare };
-
-    // A carrier keeps the ball while following up
-    const carriedBall =
-      this.state.ballPosition &&
-      this.state.ballPosition.x === from.x &&
-      this.state.ballPosition.y === from.y;
-    if (carriedBall) {
-      this.state.ballPosition = { ...targetSquare };
-      this.eventBus.emit(GameEventNames.BallPlaced, { ...targetSquare });
-    }
-
-    this.eventBus.emit(GameEventNames.PlayerMoved, {
-      playerId: attackerId,
-      from,
-      to: { ...targetSquare },
-      path: [from, { ...targetSquare }],
-      ballFrom: carriedBall ? from : undefined,
-      ballPath: carriedBall ? [from, { ...targetSquare }] : undefined,
-      ballJoinStep: 0,
-    });
-
-    // Treacherous Trapdoor (L12): following up onto it may drop the blocker.
-    if (
-      trapdoorOpens(this.state, this.diceController, attacker, targetSquare)
-    ) {
-      attacker.gridPosition = undefined;
-      this.flowManager.add(
-        new CrowdInjuryOperation(attackerId, { ...targetSquare }, false, {
-          carriedBall: !!carriedBall,
-        }),
-        true
-      );
-      // Decided now, as for a crowd push: the activation ends straight after.
-      if (attacker.teamId === this.state.activeTeamId) {
-        this.triggerTurnover("Fell through a Trapdoor");
-      }
-      return;
-    }
-
-    // Following up onto a loose ball is entering its square — the player must
-    // roll to pick it up. PickupOperation is the same path a move takes, so a
-    // failed pickup bounces through BounceOperation (throw-in, catches) and
-    // is a turnover. Without this the player just stood on the ball holding
-    // nothing.
-    const looseBallHere =
-      !carriedBall &&
-      this.state.ballPosition &&
-      this.state.ballPosition.x === targetSquare.x &&
-      this.state.ballPosition.y === targetSquare.y;
-    if (looseBallHere) {
-      const pickup = new PickupOperation(attackerId);
-      await pickup.execute(this.getFlowContext());
-      if (!pickup.success) return; // the bounce and turnover are queued
-    }
-
-    this.checkForTouchdown(attackerId);
+    return blockActions.followUpPush(this.parts, attackerId, targetSquare);
   }
 
   triggerTurnover(reason: string): void {
-    // Charge! (kickoff 10) runs before the drive begins: a failure there
-    // only ends the Charge, never the coming turn. The knockdown itself
-    // aborts the sequence via the PlayerKnockedDown subscription.
-    if (
-      this.state.phase === GamePhase.KICKOFF ||
-      this.kickoffEventManager.isChargeActive()
-    ) {
-      return;
-    }
-    // Only the first turnover of a resolution latches; later failures in the
-    // same chain (bounce → dropped catch → …) are absorbed by it.
-    const banner = this.turnManager.checkTurnover(reason);
-    if (!banner) return;
-
-    // Let the reaction chain fully settle (ball at rest, armour/injury rolls
-    // done), then raise the turnover banner, so it plays after the fall's
-    // dice. Give it its moment, then end the turn once. A failed Bloodlust
-    // activation cut short still gets its bite.
-    this.flowManager
-      .whenIdle()
-      .then(() => {
-        const playerId = this.state.activePlayer?.id;
-        if (!playerId || !this.takeUnsatedBloodlust(playerId)) return;
-        this.flowManager.add(
-          new BloodlustBiteOperation(playerId, "consequences", () => {})
-        );
-        return this.flowManager.whenIdle();
-      })
-      .then(() => this.eventBus.emit(GameEventNames.UI_Turnover, banner))
-      .then(() => this.whenSettled())
-      .then(async (settled) => {
-        // A resync abandoned the choice it waited on: the restored game
-        // carries on without this chain.
-        if (!settled) return;
-        await this.offerSportsEspionage();
-        await whenMomentsComplete(this.eventBus);
-        this.turnManager.completeTurnover();
-      });
-  }
-
-  /**
-   * Resolves once the flow is idle and no decision waits for an answer. A
-   * roll outside the flow, such as a re-roll offer, can still be waiting when
-   * the flow empties, and a second question would be refused. False if a
-   * waited-on decision was abandoned instead of answered.
-   */
-  private async whenSettled(): Promise<boolean> {
-    await this.flowManager.whenIdle();
-    while (this.decisionService.pending()) {
-      if (!(await this.decisionService.whenClosed())) return false;
-      await this.flowManager.whenIdle();
-    }
-    return true;
-  }
-
-  /**
-   * Sports Espionage (L26): once the Turnover has resolved, the team that
-   * suffered it may gain two team re-rolls for the rest of the half. The
-   * dice that caused the Turnover are long settled by now. A bounce caught
-   * for a touchdown has ended the turn already, so there is no offer then.
-   */
-  private async offerSportsEspionage(): Promise<void> {
-    if (this.state.phase !== GamePhase.PLAY) return;
-    const team = this.state.activeTeamId
-      ? this.getTeam(this.state.activeTeamId)
-      : undefined;
-    if (
-      !team ||
-      !holdsMeasure(this.state, team.id, DesperateMeasure.SPORTS_ESPIONAGE)
-    ) {
-      return;
-    }
-    const playerId = this.state.activePlayer?.id ?? team.players[0]?.id;
-    if (!playerId) return;
-    const used = await offerMeasure(
-      { gameService: this },
-      team.id,
-      playerId,
-      DesperateMeasure.SPORTS_ESPIONAGE,
-      `${team.name} suffered a Turnover — use Sports Espionage for two team re-rolls?`
-    );
-    if (!used) return;
-    this.state.teamRerollsUsed ??= {};
-    this.state.teamRerollsUsed[team.id] =
-      (this.state.teamRerollsUsed[team.id] ?? 0) - 2;
-    this.eventBus.emit(
-      GameEventNames.UI_GameLog,
-      `Sports Espionage: ${team.name} gains two team re-rolls`
-    );
+    activation.triggerTurnover(this.parts, reason);
   }
 
   isTurnoverInProgress(): boolean {
-    return this.turnManager.isTurnoverInProgress();
+    return this.parts.turnManager.isTurnoverInProgress();
   }
 
   blockPlayer(
@@ -1688,299 +556,41 @@ export class GameService implements IGameService {
     return { success: false, result: "Not implemented" };
   }
 
-  /**
-   * Start Pass Action (Replaces throwBall)
-   * Queues a PassOperation in the FlowManager.
-   */
-  async throwBall(
+  throwBall(
     passerId: string,
     targetX: number,
     targetY: number,
     hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
-    if (this.awaitingSecondAction(passerId))
-      return { success: false, result: "second-action-not-declared" };
-    // NOTE: Signature kept async for compatibility, but it resolves immediately
-    // while the operation runs in background/flow.
-
-    if (this.state.phase !== GamePhase.PLAY) {
-      return { success: false, result: "Not in play phase" };
-    }
-
-    console.log(
-      `[GameService] Starting Pass Action: ${passerId} -> ${targetX},${targetY}`
+    return ballActions.throwBall(
+      this.parts,
+      passerId,
+      { x: targetX, y: targetY },
+      hailMary
     );
-
-    // 1. Validation (Keep basic checks here or move to op?)
-    // Basic checks for "Can I start this op?"
-    const passer = this.getPlayerById(passerId);
-    if (!passer || !passer.gridPosition) {
-      return { success: false, result: "Player not found" };
-    }
-
-    const hasBall = this.ballManager.hasBall(passerId); // Use ball manager!
-    if (!hasBall) {
-      // Fallback check
-      const ballPos = this.state.ballPosition;
-      if (
-        !ballPos ||
-        ballPos.x !== passer.gridPosition.x ||
-        ballPos.y !== passer.gridPosition.y
-      ) {
-        return { success: false, result: "Player does not have ball" };
-      }
-    }
-
-    // Hail Mary Pass: "they may declare any square on the pitch as the
-    // target square rather than using the Range Ruler" (2025 rulebook p.129).
-    if (hailMary && !hasSkill(passer.skills, SkillType.HAIL_MARY_PASS)) {
-      return { success: false, result: "Player does not have Hail Mary Pass" };
-    }
-    if (
-      targetX < 0 ||
-      targetY < 0 ||
-      targetX >= GameConfig.PITCH_WIDTH ||
-      targetY >= GameConfig.PITCH_HEIGHT
-    ) {
-      return { success: false, result: "Target is off the pitch" };
-    }
-    // "The declared square must be wholly underneath the maximum range of
-    // the Range Ruler" (p.74).
-    if (
-      !hailMary &&
-      PassController.rangeValue(passer.gridPosition, {
-        x: targetX,
-        y: targetY,
-      }) === null
-    ) {
-      return { success: false, result: "Target is beyond the Range Ruler" };
-    }
-
-    // A Hail Mary is thrown as a Long Bomb, so a Blizzard refuses it too.
-    const type = hailMary
-      ? "Long Bomb"
-      : this.passController.measureRange(passer.gridPosition, {
-          x: targetX,
-          y: targetY,
-        }).type;
-    if (!weatherEffects(this.state.weather).passTypes.includes(type)) {
-      return {
-        success: false,
-        result: `${this.state.weather}: only a Quick or Short Pass may be attempted`,
-      };
-    }
-
-    // 2. Queue Operation
-    const pass = new PassOperation(passerId, targetX, targetY, hailMary);
-    if (this.takeUnsatedBloodlust(passerId)) {
-      this.biteBeforeBallAction(passerId, () =>
-        this.flowManager.add(pass, true)
-      );
-      return { success: true, result: "Bloodlust: bite before the pass" };
-    }
-    this.flowManager.add(pass);
-
-    // 3. Return success (The flow takes over)
-    return { success: true, result: "Pass Started" };
   }
 
-  /**
-   * Start Hand-off Action. Queues a HandoffOperation — no Passing Ability
-   * Test, no scatter, no interception. The ball is placed directly in the
-   * target team-mate's square and they make a single Catch attempt. Targets
-   * a player id, not a square: a Hand-off targets a person.
-   */
-  async handOffBall(
+  handOffBall(
     passerId: string,
     targetPlayerId: string
   ): Promise<{ success: boolean; result?: string }> {
-    if (this.awaitingSecondAction(passerId))
-      return { success: false, result: "second-action-not-declared" };
-    if (this.state.phase !== GamePhase.PLAY) {
-      return { success: false, result: "Not in play phase" };
-    }
-
-    const passer = this.getPlayerById(passerId);
-    if (!passer || !passer.gridPosition) {
-      return { success: false, result: "Player not found" };
-    }
-
-    const hasBall = this.ballManager.hasBall(passerId);
-    if (!hasBall) {
-      const ballPos = this.state.ballPosition;
-      if (
-        !ballPos ||
-        ballPos.x !== passer.gridPosition.x ||
-        ballPos.y !== passer.gridPosition.y
-      ) {
-        return { success: false, result: "Player does not have ball" };
-      }
-    }
-
-    const target = this.getPlayerById(targetPlayerId);
-    if (!target || !target.gridPosition) {
-      return { success: false, result: "Target not found" };
-    }
-    if (!isLegalHandoffTarget(passer, target)) {
-      return { success: false, result: "Illegal hand-off target" };
-    }
-
-    const handoff = new HandoffOperation(passerId, targetPlayerId);
-    if (this.takeUnsatedBloodlust(passerId)) {
-      this.biteBeforeBallAction(passerId, () =>
-        this.flowManager.add(handoff, true)
-      );
-      return { success: true, result: "Bloodlust: bite before the hand-off" };
-    }
-    this.flowManager.add(handoff);
-    return { success: true, result: "Hand-off Started" };
+    return ballActions.handOffBall(this.parts, passerId, targetPlayerId);
   }
 
-  async puntBall(
-    playerId: string,
-    facingX: number,
-    facingY: number
-  ): Promise<void> {
-    if (this.awaitingSecondAction(playerId)) return;
-    const player = this.getPlayerById(playerId);
-    if (
-      !player?.gridPosition ||
-      this.puntUsedThisTurn ||
-      this.state.activePlayer?.id !== playerId ||
-      this.state.activePlayer.action !== "punt" ||
-      !hasSkill(player.skills, SkillType.PUNT) ||
-      !this.ballManager.hasBall(playerId)
-    ) {
-      return;
-    }
-    this.puntUsedThisTurn = true;
-    this.flowManager.add(new PuntOperation(playerId, facingX, facingY));
+  puntBall(playerId: string, facingX: number, facingY: number): Promise<void> {
+    return ballActions.puntBall(this.parts, playerId, facingX, facingY);
   }
 
-  // No changes needed here, just removing the section below
-
-  /**
-   * Get player at a specific position
-   */
   public getPlayerAt(x: number, y: number): Player | undefined {
-    // Public now for Context access
-    return (
-      this.team1.players.find(
-        (p) =>
-          p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
-      ) ||
-      this.team2.players.find(
-        (p) =>
-          p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
-      )
-    );
+    return roster.playerAt(this.parts, x, y);
   }
 
-  // Public helper for context
   public getOpponents(teamId: string): Player[] {
-    return teamId === this.team1.id ? this.team2.players : this.team1.players;
+    return roster.opponentsOf(this.parts, teamId);
   }
 
   public getTeammates(playerId: string): Player[] {
-    const player = this.getPlayerById(playerId);
-    if (!player) return [];
-    const team = player.teamId === this.team1.id ? this.team1 : this.team2;
-    return team.players.filter((p) => p.id !== playerId && p.gridPosition);
-  }
-
-  /** Rooted ends when its player is Knocked Down or Placed Prone. */
-  private onPlayerDowned(playerId: string): void {
-    const player = this.getPlayerById(playerId);
-    if (player && hasCondition(player, PlayerCondition.ROOTED)) {
-      removeCondition(player, PlayerCondition.ROOTED);
-      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-    }
-  }
-
-  /** Chomped ends the moment the chomper is no longer Marking the victim. */
-  private sweepChomped(): void {
-    for (const player of [...this.team1.players, ...this.team2.players]) {
-      const chomp = (player.conditions ?? []).find(
-        (c) => c.type === PlayerCondition.CHOMPED
-      );
-      if (!chomp) continue;
-      const chomper = chomp.byPlayerId
-        ? this.getPlayerById(chomp.byPlayerId)
-        : undefined;
-      const marking =
-        !!chomper?.gridPosition &&
-        !!player.gridPosition &&
-        hasTackleZone(chomper) &&
-        Math.abs(chomper.gridPosition.x - player.gridPosition.x) <= 1 &&
-        Math.abs(chomper.gridPosition.y - player.gridPosition.y) <= 1 &&
-        !(
-          chomper.gridPosition.x === player.gridPosition.x &&
-          chomper.gridPosition.y === player.gridPosition.y
-        );
-      if (!marking) {
-        removeCondition(player, PlayerCondition.CHOMPED);
-        this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-      }
-    }
-  }
-
-  /**
-   * Sports-Wizards cast "at the end of any Turn, before the next Turn
-   * begins" (2025 rulebook p.149): the coach whose turn ended is asked
-   * first. Null when neither team has a spell left.
-   */
-  private castSportsWizards(endingTeamId: string): Promise<void> | null {
-    if (this.state.phase !== GamePhase.PLAY) return null;
-    const other =
-      endingTeamId === this.team1.id ? this.team2.id : this.team1.id;
-    const casters = [endingTeamId, other].filter((teamId) =>
-      holdsSportsWizard(this.state, teamId)
-    );
-    if (casters.length === 0) return null;
-    for (const teamId of casters) {
-      this.flowManager.add(new CastSportsWizardOperation(teamId));
-    }
-    return this.whenSettled().then(() => undefined);
-  }
-
-  /** End-of-opposition-turn trigger: fold the reacting team (Pick-Me-Up). */
-  private handleTurnEnding(endingTeamId: string): void {
-    // Cheering Fans: an unused owed Offensive Assist dies with its turn.
-    const owed = getDriveEffects(this.state).owedAssists[endingTeamId];
-    if (owed && owed.turn === this.turnManager.getTurnNumber(endingTeamId)) {
-      delete getDriveEffects(this.state).owedAssists[endingTeamId];
-      this.eventBus.emit(GameEventNames.DriveEffectExpired, {
-        teamId: endingTeamId,
-        effect: "offensive-assist",
-        detail: "the Cheering Fans assist went unused",
-      });
-    }
-
-    const reacting = endingTeamId === this.team1.id ? this.team2 : this.team1;
-    const players = reacting.players.filter((p) => p.gridPosition);
-    const ctx: TurnEndingContext = {
-      endingTeamId,
-      players,
-      dice: this.diceController,
-      rolledFor: new Set(),
-      standUp: [],
-      triggers: [],
-    };
-    foldTurnEnding(ctx, players);
-    for (const id of ctx.standUp) {
-      const p = this.getPlayerById(id);
-      if (p && p.status === PlayerStatus.PRONE) {
-        p.status = PlayerStatus.ACTIVE;
-        this.eventBus.emit(GameEventNames.PlayerStoodUp, {
-          playerId: id,
-          cost: 0,
-        });
-        this.eventBus.emit(GameEventNames.PlayerStatusChanged, p);
-      }
-    }
-    for (const t of ctx.triggers) {
-      this.eventBus.emit(GameEventNames.SkillTriggered, t);
-    }
+    return roster.teammatesOf(this.parts, playerId);
   }
 
   passBall(
@@ -1992,433 +602,86 @@ export class GameService implements IGameService {
   }
 
   setBallPosition(x: number, y: number): void {
-    this.state.ballPosition = { x, y };
-    this.eventBus.emit(GameEventNames.BallPlaced, { x, y });
+    this.parts.state.ballPosition = { x, y };
+    this.parts.eventBus.emit(GameEventNames.BallPlaced, { x, y });
   }
 
   // ===== Score Management =====
 
   addTouchdown(teamId: string, scorerId?: string): void {
-    // A drive ends at its first touchdown. A pickup in the end zone scores
-    // from PickupOperation and the move that made it would score again.
-    if (this.state.phase !== GamePhase.PLAY) return;
-    // Bloodlust: an unsated scorer must bite first; "if this player was in
-    // the opposing End Zone, no Touchdown is scored" when they do not.
-    if (scorerId && this.takeUnsatedBloodlust(scorerId)) {
-      this.flowManager.add(
-        new BloodlustBiteOperation(scorerId, "consequences", (sated) =>
-          sated
-            ? this.addTouchdown(teamId, scorerId)
-            : this.finishActivation(scorerId)
-        )
-      );
-      return;
-    }
-    this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
-
-    // Scored in the opponent's Turn (a push or a catch): that Turn ends with
-    // the drive, and the scorers skip their next Turn celebrating.
-    if (this.state.activeTeamId && this.state.activeTeamId !== teamId) {
-      this.turnManager.skipNextTurn(teamId);
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `${this.getTeam(teamId)?.name ?? "The scorers"} skip their next turn celebrating!`
-      );
-    }
-
-    this.state.phase = GamePhase.TOUCHDOWN;
-    this.state.subPhase = SubPhase.SCORING;
-
-    // Phase first, then the score: the TOUCHDOWN phase handler is installed
-    // by the phase change and must already own the scene when the Touchdown
-    // event it announces arrives.
-    this.eventBus.emit(GameEventNames.PhaseChanged, {
-      phase: GamePhase.TOUCHDOWN,
-      subPhase: SubPhase.SCORING,
-    });
-    this.eventBus.emit(GameEventNames.Touchdown, {
-      teamId,
-      score: this.state.score[teamId],
-      scorerId,
-    });
-
-    // Scorer, score and the turns each team has left in the half: on the
-    // banner, which holds before setup, and as a row in the dice log.
-    const scorer = scorerId ? this.getPlayerById(scorerId) : undefined;
-    const who = scorer?.playerName ?? this.getTeam(teamId)?.name ?? teamId;
-    const score = `${this.team1.name} ${this.state.score[this.team1.id] ?? 0} : ${this.state.score[this.team2.id] ?? 0} ${this.team2.name}`;
-    const turnsLeft = [this.team1, this.team2]
-      .map((team) => `${team.name} ${this.turnManager.turnsLeft(team.id)}`)
-      .join(", ");
-    const detail = `${who} scores. ${score}. Turns left in the half: ${turnsLeft}`;
-    this.eventBus.emit(GameEventNames.UI_Announce, {
-      kind: "touchdown",
-      headline: "Touchdown!",
-      subtitle: detail,
-    });
-    this.eventBus.emit(GameEventNames.UI_LogEntry, {
-      category: "score",
-      headline: "TOUCHDOWN!",
-      detail,
-      teamId,
-    });
-
-    // The celebration window is a queued operation, not a bare timer, so the
-    // hand-off into the end-of-drive sequence is ordered against everything
-    // else in flight (and paced identically headless).
-    this.flowManager.add(new TouchdownCelebrationOperation(teamId));
+    drive.addTouchdown(this.parts, teamId, scorerId);
   }
 
-  /**
-   * Full time, announced once from the single place every GAME_OVER
-   * transition passes through (headless CLI included, since this runs at
-   * the engine level rather than in a Phaser scene). States the played
-   * score and the actual outcome — win/draw, or concession/forfeit labelled
-   * as such — never an invented result.
-   */
-  private announceFullTime(): void {
-    const score1 = this.state.score[this.team1.id] ?? 0;
-    const score2 = this.state.score[this.team2.id] ?? 0;
-    const scoreline = `${this.team1.name} ${score1} : ${score2} ${this.team2.name}`;
-    const result = this.state.result;
-    let outcome: string;
-    if (result?.reason === "concession" || result?.reason === "forfeit") {
-      const conceding =
-        (result.concedingTeamId && this.getTeam(result.concedingTeamId)) ||
-        undefined;
-      const verb = result.reason === "concession" ? "conceded" : "forfeited";
-      outcome = conceding ? `${conceding.name} ${verb}` : `Match ${verb}`;
-    } else if (score1 === score2 && result?.penalties) {
-      const won1 = result.penalties[this.team1.id] ?? 0;
-      const won2 = result.penalties[this.team2.id] ?? 0;
-      const winner = won1 > won2 ? this.team1 : this.team2;
-      outcome = `${winner.name} win on Penalties, ${Math.max(won1, won2)}–${Math.min(won1, won2)}`;
-    } else if (score1 === score2) {
-      outcome = "draw";
-    } else {
-      outcome = `${score1 > score2 ? this.team1.name : this.team2.name} win`;
-    }
-    const line = `FULL TIME — ${scoreline} (${outcome})`;
-    this.eventBus.emit(GameEventNames.UI_Notification, line);
-    this.eventBus.emit(GameEventNames.UI_GameLog, line);
-  }
-
-  /**
-   * The Fans (pre-game sequence): each team's Fan Factor is its Dedicated
-   * Fans plus a D3. Only league winnings read it, so it is rolled at full
-   * time, before Dedicated Fans change, and only in a fixture that pays
-   * winnings with a league team playing. A tournament or friendly rolls
-   * nothing, so its dice stay as they were. Nothing earlier in a Sevens
-   * game uses it: Pitch Invasion adds Dedicated Fans (docs/SEVENS_RULES.md
-   * K12).
-   */
-  private rollFanFactors(): void {
-    if (!this.state.paysWinnings || this.state.fanFactors) return;
-    const teams = [this.team1, this.team2];
-    if (!teams.some((team) => isLeagueMode(team.advancementMode))) return;
-    const fanFactors: Record<string, number> = {};
-    for (const team of teams) {
-      const d3 = this.diceController.rollD3(
-        `Fan Factor (${team.name})`,
-        team.id
-      );
-      fanFactors[team.id] = fanFactor(team.dedicatedFans ?? 0, d3);
-    }
-    this.state.fanFactors = fanFactors;
-  }
-
-  /**
-   * Post-game Update Dedicated Fans for both teams, on the played score: a
-   * concession never invents a result, so a conceded 0-0 is a draw. A
-   * Penalty Shoot-out decides a knockout game left level.
-   */
-  private updateDedicatedFans(): void {
-    const dice = this.diceController;
-    const penalties = this.state.result?.penalties ?? {};
-    for (const team of [this.team1, this.team2]) {
-      const otherId = team.id === this.team1.id ? this.team2.id : this.team1.id;
-      const lead =
-        (this.state.score[team.id] ?? 0) - (this.state.score[otherId] ?? 0) ||
-        (penalties[team.id] ?? 0) - (penalties[otherId] ?? 0);
-      const outcome = lead > 0 ? "win" : lead < 0 ? "loss" : "draw";
-      updateDedicatedFans(team, outcome, () =>
-        dice.rollD6(`Dedicated Fans (${team.name})`, team.id)
-      );
-    }
-  }
-
-  /**
-   * End of Drive Sequence (rulebook p.83): clear the pitch to the dugouts,
-   * roll KO recovery, then restart with the given kicking team — no coin
-   * flip after drive one. Runs as operations so the UI can pace each stage.
-   */
   endDrive(reason: "touchdown" | "halftime", next: NextHalf): void {
-    // A touchdown scored with no turns left in the half does not start a
-    // further drive in that half: the sequence continues into halftime (or,
-    // in the second half, to full time) instead.
-    const halfOver =
-      reason === "touchdown" && this.turnManager.isHalfExhausted();
-    const upNext = halfOver ? this.turnManager.beginNextHalf() : next;
-    const kickingTeamId =
-      upNext && "kickingTeamId" in upNext ? upNext.kickingTeamId : null;
-
-    this.flowManager.add(
-      new ClearPitchOperation(
-        halfOver ? "halftime" : reason,
-        kickingTeamId,
-        upNext !== null
-      )
-    );
-    this.flowManager.add(new KORecoveryOperation());
-    // Nothing next = full time; there is no next drive to set up.
-    if (upNext === null) return;
-    this.flowManager.add(
-      kickingTeamId
-        ? new StartNextDriveOperation(kickingTeamId)
-        : new ExtraTimeKickoffOperation()
-    );
+    drive.endDrive(this.parts, reason, next);
   }
 
-  /**
-   * Clear all drive state: players to dugouts (KO/Injured stay out),
-   * placement bookkeeping reset, ball off the pitch.
-   */
   resetDriveState(): void {
-    // Zap!'s Frogs are themselves again at the end of the drive
-    restoreFrogs(this.state, [...this.team1.players, ...this.team2.players]);
-    this.setupManager.resetForNewDrive();
-    this.state.ballPosition = null;
-    this.state.activePlayer = null;
-
-    // Kickoff-event effects never survive the drive (free re-roll, Dodgy
-    // Snack modifiers, confinement); bribes persist — they are match-scoped.
-    const driveEffects = getDriveEffects(this.state);
-    if (!driveEffectsEmpty(driveEffects)) {
-      for (const teamId of new Set([
-        ...Object.keys(driveEffects.freeRerolls),
-        ...Object.keys(driveEffects.owedAssists),
-      ])) {
-        this.eventBus.emit(GameEventNames.DriveEffectExpired, {
-          teamId,
-          effect: "drive-effects",
-          detail: "kickoff effects expire as the drive ends",
-        });
-      }
-      this.state.driveEffects = emptyDriveEffects();
-    }
-
-    // The kickoff-roll-once guard is scoped to the drive that just ended;
-    // the next drive's kickoff must be free to roll.
-    this.state.kickoffResolution = undefined;
-    this.state.kickoffKickResolved = undefined;
-
-    // Activation state must not leak into the next drive's setup — stale
-    // activatedPlayerIds left players "already gone" and blocked setup
-    this.state.turn.activatedPlayerIds.clear();
-    this.state.turn.movementUsed.clear();
-    this.state.turn.hasBlitzed = false;
-    this.state.turn.hasPassed = false;
-    this.state.turn.hasHandedOff = false;
-    this.state.turn.hasFouled = false;
-    this.state.turn.hasThrownTeamMate = false;
-    this.state.turn.hasKickedTeamMate = false;
-    this.state.turn.hasThrownBomb = false;
-
-    // A drive can end mid-activation (touchdown, halftime), which skips
-    // finishActivation — clear the Blitz block guard at this boundary too.
-    this.blitzBlockUsed.clear();
-
-    // Conditions do not survive the drive (Rooted explicitly ends here)
-    [...this.team1.players, ...this.team2.players].forEach((p) => {
-      if (p.conditions?.length) p.conditions = [];
-    });
-
-    this.eventBus.emit(GameEventNames.RefreshBoard);
+    drive.resetDriveState(this.parts);
   }
 
-  /**
-   * Roll KO recovery one knocked-out player at a time (D6, 4+ recovers to
-   * Reserves). Each roll is announced via KORecoveryRolled and shown for a
-   * beat BEFORE the status change is applied, so the visible roll and the
-   * record never disagree. `beat` paces the sequence (a real pause in the
-   * browser, immediate headless); the returned promise resolves only once
-   * every player has been rolled for and moved.
-   */
-  async rollKORecovery(
+  rollKORecovery(
     beat: () => Promise<void> = () => Promise.resolve()
   ): Promise<void> {
-    // You Dope! collapses cannot recover this end of drive (L21).
-    const noRecovery = this.state.matchInducements?.noRecoveryPlayerIds ?? [];
-    const knockedOut = [...this.team1.players, ...this.team2.players].filter(
-      (p) => p.status === PlayerStatus.KO && !noRecovery.includes(p.id)
-    );
-    if (this.state.matchInducements) {
-      this.state.matchInducements.noRecoveryPlayerIds = [];
-    }
-
-    for (const player of knockedOut) {
-      const roll = this.diceController.rollD6("KO Recovery");
-      // Blitzer's Best Kegs: +1 per Keg to the owner's recovery rolls.
-      const kegs = inducementCount(
-        this.state,
-        player.teamId,
-        Inducement.BLITZERS_BEST_KEGS
-      );
-      const recovered = roll + kegs >= 4;
-      this.eventBus.emit(GameEventNames.KORecoveryRolled, {
-        playerId: player.id,
-        roll,
-        recovered,
-      });
-      await beat();
-      if (recovered) {
-        movePlayerToBox(player, { box: "reserves" }, this.eventBus);
-      }
-    }
-
-    assertSinglePlayerLocation(
-      [...this.team1.players, ...this.team2.players],
-      "rollKORecovery"
-    );
+    return drive.rollKORecovery(this.parts, beat);
   }
 
-  /**
-   * Coin flip is only legal before the first drive of the match — never once
-   * a kickoff has happened, a turn has been played, or a score exists
-   * (scenario-started games count as underway).
-   */
-  /**
-   * Score a touchdown if the player is standing in the end zone they score
-   * in while holding the ball. Called after any event that can put a
-   * ball-carrier there: movement steps, pickups, catches, pushes.
-   */
   checkForTouchdown(playerId: string): boolean {
-    if (this.state.phase !== GamePhase.PLAY) return false;
-    const player = this.getPlayerById(playerId);
-    if (!player || !player.gridPosition) return false;
-    if (player.status !== PlayerStatus.ACTIVE) return false;
-    if (!this.ballManager.hasBall(playerId)) return false;
-
-    const side = player.teamId === this.team1.id ? 1 : 2;
-    if (!isInEndZone(player.gridPosition, GameConfig.PITCH_WIDTH, side)) {
-      return false;
-    }
-    this.addTouchdown(player.teamId, player.id);
-    return true;
+    return drive.checkForTouchdown(this.parts, playerId);
   }
 
   /** The pre-match toss on the seeded RNG: team 1 is heads. Returns the winner's id. */
   tossCoin(): string {
-    return this.diceController.tossCoin(this.team1, this.team2);
+    return this.diceController.tossCoin(this.parts.team1, this.parts.team2);
   }
 
   canCoinFlip(): boolean {
-    if (this.turnManager.hasGameStarted()) return false;
-    if (this.state.turn.turnNumber > 0) return false;
-    if (Object.values(this.state.score).some((s) => s > 0)) return false;
-    return true;
+    return matchStart.canCoinFlip(this.parts);
   }
 
   getScore(teamId: string): number {
-    return this.state.score[teamId] || 0;
+    return this.parts.state.score[teamId] || 0;
   }
 
   public getPlayerById(playerId: string): Player | undefined {
-    return (
-      this.team1.players.find((p) => p.id === playerId) ||
-      this.team2.players.find((p) => p.id === playerId)
-    );
+    return roster.playerById(this.parts, playerId);
   }
 
   // ===== Movement Implementation =====
 
   getMovementUsed(playerId: string): number {
-    return this.movementManager.getMovementUsed(playerId);
+    return this.parts.movementManager.getMovementUsed(playerId);
   }
 
   getAvailableMovements(
     playerId: string
   ): { x: number; y: number; cost?: number }[] {
-    return this.movementManager.getAvailableMovements(playerId);
+    return this.parts.movementManager.getAvailableMovements(playerId);
   }
 
-  async movePlayer(
+  movePlayer(
     playerId: string,
     path: { x: number; y: number }[]
   ): Promise<void> {
-    if (this.awaitingSecondAction(playerId)) return;
-    // Bombardier: "A player that declared a Throw Bomb Special Action may
-    // not perform a Move Action before throwing the bomb" (p.125).
-    const declared = this.state.activePlayer;
-    if (declared?.id === playerId && declared.action === "throwBomb") {
-      throw new Error("A bomber may not move before throwing the bomb");
-    }
-    const context = this.getFlowContext();
-    await this.movementManager.movePlayer(playerId, path, context);
-    // The first square moved commits the declared action.
-    this.playerActionManager.commitAction(playerId);
+    return moves.movePlayer(this.parts, playerId, path);
   }
 
   dropBallWithFumblerooski(
     playerId: string,
     square: { x: number; y: number }
   ): boolean {
-    if (this.awaitingSecondAction(playerId)) return false;
-    const player = this.getPlayerById(playerId);
-    const active = this.state.activePlayer;
-    if (
-      !player?.gridPosition ||
-      active?.id !== playerId ||
-      active.action !== "move" ||
-      !hasSkill(player.skills, SkillType.FUMBLEROOSKI) ||
-      !this.ballManager.hasBall(playerId)
-    ) {
-      return false;
-    }
-    const dx = Math.abs(player.gridPosition.x - square.x);
-    const dy = Math.abs(player.gridPosition.y - square.y);
-    if (Math.max(dx, dy) !== 1 || this.getPlayerAt(square.x, square.y)) {
-      return false;
-    }
-    this.setBallPosition(square.x, square.y);
-    this.eventBus.emit(GameEventNames.SkillTriggered, {
-      playerId,
-      skill: SkillType.FUMBLEROOSKI,
-      effect: "Fumblerooski: left the ball behind without causing a Turnover",
-    });
-    return true;
+    return moves.dropBallWithFumblerooski(this.parts, playerId, square);
   }
 
-  async standUp(playerId: string): Promise<void> {
-    if (this.awaitingSecondAction(playerId)) return;
-    // Standing up in place is a Move Action. Declaring it rolls the
-    // activation gate (Bone Head, Bloodlust, …) before the player rises,
-    // and a failed gate that ends the activation leaves them Prone.
-    if (this.state.activePlayer?.id !== playerId) {
-      if (!this.declareAction(playerId, "move")) {
-        throw new Error("This player cannot be activated");
-      }
-    }
-    if (!(await this.whenSettled())) return;
-    // A gate can end the turn too: Animal Savagery downing the carrier
-    if (
-      this.state.activePlayer?.id !== playerId ||
-      this.turnManager.isTurnoverInProgress()
-    )
-      return;
-    await this.movementManager.standUp(playerId);
-    // Standing up spends movement — commits the declared action.
-    this.playerActionManager.commitAction(playerId);
+  standUp(playerId: string): Promise<void> {
+    return moves.standUp(this.parts, playerId);
   }
 
-  async jumpPlayer(
+  jumpPlayer(
     playerId: string,
     target: { x: number; y: number }
   ): Promise<void> {
-    if (this.awaitingSecondAction(playerId)) return;
-    const context = this.getFlowContext();
-    await this.movementManager.jumpPlayer(playerId, target, context);
-    this.playerActionManager.commitAction(playerId);
+    return moves.jumpPlayer(this.parts, playerId, target);
   }
 
   declareAction(
@@ -2427,511 +690,54 @@ export class GameService implements IGameService {
     requestedReplacement?: BlockReplacement,
     options: { razzleDazzle?: boolean } = {}
   ): boolean {
-    // Charge! (kickoff 10): the current Charge player acts outside any turn
-    if (this.kickoffEventManager.isChargeActive()) {
-      return this.chargeDeclareAction(playerId, action);
-    }
-
-    // Must be activatable at all: active team, on-pitch, standing or prone
-    // (never Stunned), and not already activated this turn. The browser
-    // checks this before calling; the headless protocol relies on this guard.
-    if (!this.canActivate(playerId)) return false;
-
-    const activating = this.getPlayerById(playerId);
-    if (!activating) return false;
-
-    // Razzle-Dazzle (L22): a player whose first Action has ended declares
-    // the second. Another player acting ends that activation instead.
-    const held = this.state.activePlayer;
-    if (held?.razzleDazzle?.awaitingSecond && held.id !== playerId) {
-      this.finishActivation(held.id);
-    }
-    const firstAction =
-      held?.id === playerId && held.razzleDazzle?.awaitingSecond
-        ? (held.razzleDazzle.actions[0] as ActionType)
-        : undefined;
-    if (firstAction && !razzleDazzleAllows(firstAction, action)) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Razzle-Dazzle: the second Action cannot repeat the first, and only one of them may contain a Move."
-      );
-      return false;
-    }
-    if (
-      options.razzleDazzle &&
-      (firstAction ||
-        !holdsMeasure(
-          this.state,
-          activating.teamId,
-          DesperateMeasure.RAZZLE_DAZZLE
-        ) ||
-        this.playerActionManager.isActionCommitted(playerId).committed)
-    ) {
-      return false;
-    }
-
-    const directReplacement = blockReplacementForDirectAction(action);
-    const blockReplacement = requestedReplacement ?? directReplacement;
-    // A direct Special Action is a no-move declaration, exactly like a
-    // standalone Block. Once this activation has spent movement the attack
-    // must have been declared as a Blitz before the move began — refuse here
-    // so a forged or stale command cannot bypass the availability gate.
-    if (directReplacement && !firstAction) {
-      const movementSpent =
-        (this.state.turn.movementUsed.get(playerId) ?? 0) > 0;
-      if (movementSpent) {
-        const label = BLOCK_REPLACEMENT_DEFINITIONS[directReplacement].label;
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `${activating.playerName} has already moved — ${label} must be declared as Blitz (with ${label}) before moving.`
-        );
-        return false;
-      }
-    }
-    // Replacement declarations are immutable for the activation: neither a
-    // forged replacement nor a normal action may swap one in or out after the
-    // player has started. Preserve the engine's existing Move-then-Block
-    // declaration compatibility for ordinary actions.
-    if (
-      !firstAction &&
-      this.state.activePlayer &&
-      (this.state.activePlayer.blockReplacement || blockReplacement)
-    ) {
-      return false;
-    }
-    // A live once-per-turn declaration (Blitz/Pass/Hand-off/Foul/Throw
-    // Team-mate — the only actions with a team allowance at stake) must
-    // release before this one takes over; a committed one refuses instead.
-    // Actions with no allowance (Move, Block, the special actions, …) keep
-    // the engine's existing free-replacement behaviour — e.g. Move-then-
-    // Block for the same player is not "changing your mind" about anything.
-    //
-    // Separately, an activation GATE roll (Bone Head, Bloodlust, …) makes
-    // the declaration binding the instant it fires, "before the die is even
-    // thrown" (see ActivationGateOperation) — the only rules-sanctioned way
-    // to change the declared action afterward is Bloodlust's own downgrade-
-    // to-Move reaction, resolved inline by that same operation, never a
-    // fresh declare-action. So a gate-committed declaration refuses ANY
-    // redeclare regardless of whether the action itself carries a
-    // once-per-turn allowance — this is distinct from (and checked before)
-    // the once-per-turn case above: isActionCommitted() reports "movement"
-    // instead of "gate" the moment real movement is spent, so the Move-
-    // then-Block carve-out above is untouched by this check.
-    if (this.state.activePlayer && !firstAction) {
-      const existingId = this.state.activePlayer.id;
-      const status = this.playerActionManager.isActionCommitted(existingId);
-      // Nor may a player who has started the activation switch to another
-      // Action: moving, or standing up, then declaring a Block would be a
-      // Blitz that never spent the team's Blitz (and, from Prone, a free
-      // Jump Up).
-      if (
-        status.committed &&
-        existingId === playerId &&
-        this.state.activePlayer.action !== action
-      ) {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `Cannot change the declared Action — ${PlayerActionManager.describeCommitReason(status.reason!)}.`
-        );
-        return false;
-      }
-      if (status.committed && status.reason === "gate") {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `Cannot change the declared Action — ${PlayerActionManager.describeCommitReason(status.reason)}.`
-        );
-        return false;
-      }
-    }
-    if (
-      this.state.activePlayer &&
-      !firstAction &&
-      ONCE_PER_TURN_ACTIONS.has(this.state.activePlayer.action as ActionType)
-    ) {
-      const existingId = this.state.activePlayer.id;
-      const status = this.playerActionManager.isActionCommitted(existingId);
-      if (status.committed) {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `Cannot change the declared Action — ${PlayerActionManager.describeCommitReason(status.reason!)}.`
-        );
-        return false;
-      }
-      this.playerActionManager.cancelAction(existingId);
-    }
-    if (requestedReplacement && action !== "blitz") {
-      if (directReplacement !== requestedReplacement) return false;
-    }
-    if (blockReplacement) {
-      const definition = BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement];
-      if (!hasSkill(activating.skills, definition.skill)) return false;
-      if (action === "blitz") {
-        if (this.state.turn.hasBlitzed) return false;
-        if (
-          !hasReachableBlockReplacementTarget(
-            activating,
-            this.getOpponents(activating.teamId),
-            this.getAvailableMovements(playerId),
-            blockReplacement
-          )
-        ) {
-          return false;
-        }
-      } else {
-        if (action !== definition.directAction) return false;
-        if (
-          legalBlockReplacementTargets(
-            activating,
-            this.getOpponents(activating.teamId),
-            blockReplacement
-          ).length === 0
-        ) {
-          return false;
-        }
-      }
-    }
-
-    // Distracted expires when the player is next activated
-    if (activating && hasCondition(activating, PlayerCondition.DISTRACTED)) {
-      removeCondition(activating, PlayerCondition.DISTRACTED);
-      this.eventBus.emit(GameEventNames.PlayerStatusChanged, activating);
-    }
-    // Eye Gouged (cannot assist) also expires once the player is activated
-    if (activating && hasCondition(activating, PlayerCondition.EYE_GOUGED)) {
-      removeCondition(activating, PlayerCondition.EYE_GOUGED);
-      this.eventBus.emit(GameEventNames.PlayerStatusChanged, activating);
-    }
-    // A Rooted player may not leave their square, so no Move-type actions
-    if (
-      activating &&
-      hasCondition(activating, PlayerCondition.ROOTED) &&
-      (action === "move" || action === "secureBall")
-    ) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `${activating.playerName} is Rooted and cannot Move!`
-      );
-      return false;
-    }
-    if (activating && action === "secureBall") {
-      const others = [...this.team1.players, ...this.team2.players].filter(
-        (p) => p.id !== activating.id && p.gridPosition
-      );
-      if (!canSecureBall(activating, this.state.ballPosition, others)) {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Secure the Ball needs a loose ball with no Standing opponent within 2 squares"
-        );
-        return false;
-      }
-    }
-
-    // A player who is down cannot plain-Block: standing up costs movement,
-    // so a hit after rising is what Blitz is for. Jump Up is the exception —
-    // it may declare a Block while Prone, with standing gated on an Agility
-    // test (+1) resolved by the stand-up step. Multiple Block gets no such
-    // exception.
-    if (action === "block" || action === "multipleBlock") {
-      const player = this.getPlayerById(playerId);
-      if (!player) return false;
-      const jumpUpProneBlock =
-        action === "block" &&
-        player.status === PlayerStatus.PRONE &&
-        hasSkill(player.skills, SkillType.JUMP_UP);
-      if (player.status !== PlayerStatus.ACTIVE && !jumpUpProneBlock) {
-        return false;
-      }
-      if (
-        action === "multipleBlock" &&
-        !hasSkill(player.skills, SkillType.MULTIPLE_BLOCK)
-      ) {
-        return false;
-      }
-    }
-    // A Stab Special Action needs the Stab trait and a Standing stabber
-    if (action === "stab") {
-      const player = this.getPlayerById(playerId);
-      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
-      if (!hasSkill(player.skills, SkillType.STAB)) return false;
-    }
-    // A Throw / Kick Team-mate Action needs the trait and a Standing thrower
-    if (action === "throwTeamMate") {
-      const player = this.getPlayerById(playerId);
-      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
-      if (
-        !hasSkill(player.skills, SkillType.THROW_TEAM_MATE) &&
-        !hasSkill(player.skills, SkillType.KICK_TEAM_MATE)
-      ) {
-        return false;
-      }
-    }
-    // A Throw Bomb Special Action needs the Bombardier trait and a Standing thrower
-    if (action === "throwBomb") {
-      const player = this.getPlayerById(playerId);
-      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
-      if (!hasSkill(player.skills, SkillType.BOMBARDIER)) return false;
-    }
-    // Punt and Hypnotic Gaze let the player Move first, so a Prone player may
-    // still declare them and stand up as part of that Move (errata p.122).
-    const canDeclareMoveFirst = (p: Player) =>
-      p.status === PlayerStatus.ACTIVE || p.status === PlayerStatus.PRONE;
-    if (action === "punt") {
-      const player = this.getPlayerById(playerId);
-      if (
-        !player ||
-        !canDeclareMoveFirst(player) ||
-        !hasSkill(player.skills, SkillType.PUNT) ||
-        this.puntUsedThisTurn
-      ) {
-        return false;
-      }
-    }
-    // Ball & Chain: the trait needs a Standing Fanatic — and a Fanatic may
-    // declare NOTHING else (the lurch is the only action available to them).
-    {
-      const player = this.getPlayerById(playerId);
-      const isFanatic =
-        !!player && hasSkill(player.skills, SkillType.BALL_AND_CHAIN);
-      if (action === "ballAndChain") {
-        if (!player || player.status !== PlayerStatus.ACTIVE) return false;
-        if (!isFanatic) return false;
-      } else if (isFanatic && player!.status === PlayerStatus.ACTIVE) {
-        // A Standing Fanatic can only ever declare Ball & Chain.
-        return false;
-      }
-    }
-    // The other special actions likewise need their trait and a Standing player
-    if (
-      action === "breatheFire" ||
-      action === "vomit" ||
-      action === "gaze" ||
-      action === "chomp" ||
-      action === "chainsaw"
-    ) {
-      const player = this.getPlayerById(playerId);
-      if (!player) return false;
-      if (
-        action === "gaze"
-          ? !canDeclareMoveFirst(player)
-          : player.status !== PlayerStatus.ACTIVE
-      ) {
-        return false;
-      }
-      const needed =
-        action === "breatheFire"
-          ? SkillType.BREATHE_FIRE
-          : action === "vomit"
-            ? SkillType.PROJECTILE_VOMIT
-            : action === "gaze"
-              ? SkillType.HYPNOTIC_GAZE
-              : action === "chainsaw"
-                ? SkillType.CHAINSAW
-                : SkillType.MONSTROUS_MOUTH;
-      if (!hasSkill(player.skills, needed)) return false;
-    }
-    // Rules may refuse the declaration outright (Unsteady vs Secure the Ball)
-    const declaring = this.getPlayerById(playerId);
-    if (declaring) {
-      const ctx: ActionDeclaredContext = {
-        player: declaring,
-        action,
-        hasBall:
-          !!this.state.ballPosition &&
-          !!declaring.gridPosition &&
-          this.state.ballPosition.x === declaring.gridPosition.x &&
-          this.state.ballPosition.y === declaring.gridPosition.y,
-        refused: false,
-        triggers: [],
-      };
-      foldActionDeclared(ctx);
-      for (const t of ctx.triggers) {
-        this.eventBus.emit(GameEventNames.SkillTriggered, t);
-      }
-      if (ctx.refused) return false;
-    }
-    // Stalling is judged from the moment of activation, so a re-declaration
-    // (Move then Block) keeps what the first one saw
-    const prior = this.state.activePlayer;
-    const stalling =
-      prior?.id === playerId && prior.stalling !== undefined
-        ? prior.stalling
-        : !!declaring && this.couldScoreWithoutDice(declaring);
-    if (
-      !this.playerActionManager.declareAction(
-        playerId,
-        action,
-        blockReplacement
-      )
-    ) {
-      return false;
-    }
-    if (this.state.activePlayer?.id === playerId) {
-      this.state.activePlayer.stalling = stalling;
-    }
-    const declared = this.state.activePlayer!;
-    if (firstAction) {
-      declared.razzleDazzle = {
-        actions: [firstAction, action],
-        movementBefore: this.state.turn.movementUsed.get(playerId) ?? 0,
-      };
-      if (held?.bloodlustUnsated) declared.bloodlustUnsated = true;
-      // The activation's rolls (Bone Head, …) came with its first Action
-      return true;
-    }
-    if (options.razzleDazzle) declared.razzleDazzle = { actions: [action] };
-    // Negatraits roll between declaring and performing (Bone Head, …):
-    // queued at the FRONT of the flow so the gate — decisions included —
-    // resolves before the declared action can proceed
-    if (
-      declaring &&
-      declaring.skills.some(
-        (s) => SkillRegistry.get(s.type)?.onActivationDeclared
-      )
-    ) {
-      this.flowManager.add(new ActivationGateOperation(playerId, action), true);
-    }
-    return true;
-  }
-
-  /**
-   * Charge! declarations run through the normal action state but deliberately
-   * do not touch the coming turn's action flags or activation ledger.
-   */
-  private chargeDeclareAction(
-    playerId: string,
-    action: import("@/types/events").ActionType
-  ): boolean {
-    const player = this.getPlayerById(playerId);
-    if (
-      !player ||
-      player.status !== PlayerStatus.ACTIVE ||
-      this.kickoffEventManager.getChargeActivePlayerId() !== playerId ||
-      !this.kickoffEventManager.canChargeAct(playerId, action)
-    ) {
-      return false;
-    }
-
-    let teammateMode: "throw" | "kick" | undefined;
-    if (action === "throwTeamMate") {
-      const canThrow = hasSkill(player.skills, SkillType.THROW_TEAM_MATE);
-      const canKick = hasSkill(player.skills, SkillType.KICK_TEAM_MATE);
-      if (!canThrow && !canKick) return false;
-      teammateMode = canKick && !canThrow ? "kick" : "throw";
-    }
-
-    this.state.activePlayer = { id: playerId, action };
-    this.kickoffEventManager.noteChargeActionDeclared(action, teammateMode);
-    this.eventBus.emit(
-      GameEventNames.UI_Notification,
-      `Charge! action declared: ${action}`
+    return declaration.declareAction(
+      this.parts,
+      playerId,
+      action,
+      requestedReplacement,
+      options
     );
-    return true;
   }
 
   cancelAction(playerId: string): boolean {
-    return this.playerActionManager.cancelAction(playerId);
+    return this.parts.playerActionManager.cancelAction(playerId);
   }
 
   commitAction(playerId: string): void {
-    this.playerActionManager.commitAction(playerId);
+    this.parts.playerActionManager.commitAction(playerId);
   }
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean {
-    return this.ballManager.attemptPickup(player, position);
+    return this.parts.ballManager.attemptPickup(player, position);
   }
 
   /** Throw-in from the square where the ball left the pitch (p.73). */
   throwInBall(from: { x: number; y: number }): void {
-    this.ballManager.throwIn(from);
+    this.parts.ballManager.throwIn(from);
   }
 
   public getTeam(teamId: string): Team | undefined {
-    if (this.team1.id === teamId) return this.team1;
-    if (this.team2.id === teamId) return this.team2;
-    return undefined;
+    return roster.teamById(this.parts, teamId);
   }
 
   /** Both teams in `team1`, `team2` order — the order snapshots use. */
   public getTeams(): [Team, Team] {
-    return [this.team1, this.team2];
+    return [this.parts.team1, this.parts.team2];
   }
 
-  public async foulPlayer(
+  public foulPlayer(
     foulerId: string,
     targetX: number,
     targetY: number
   ): Promise<void> {
-    if (this.awaitingSecondAction(foulerId)) return;
-    if (this.state.phase !== GamePhase.PLAY) {
-      return;
-    }
-
-    const fouler = this.getPlayerById(foulerId);
-    if (!fouler || !fouler.gridPosition) {
-      return;
-    }
-    // The Foul's activation gate (Bone Head, …) settles first, and a failed
-    // one that ended the activation or changed it to a Move stops it here
-    if (!(await this.whenSettled())) return;
-    const declared = this.state.activePlayer;
-    if (
-      declared?.id !== foulerId ||
-      declared.action !== "foul" ||
-      this.turnManager.isTurnoverInProgress()
-    ) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `${fouler.playerName} has no Foul declared.`
-      );
-      return;
-    }
-    // A Foul is made on a downed opponent the fouler stands next to
-    const square = fouler.gridPosition;
-    if (
-      !square ||
-      Math.max(Math.abs(square.x - targetX), Math.abs(square.y - targetY)) !== 1
-    ) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `${fouler.playerName} must stand next to the player to Foul them.`
-      );
-      return;
-    }
-
-    this.flowManager.add(new FoulOperation(foulerId, targetX, targetY));
+    return specials.foulPlayer(this.parts, foulerId, targetX, targetY);
   }
 
-  /**
-   * Stab Special Action (2025 p.136): unmodifiable Armour Roll against an
-   * adjacent Standing opponent; the activation ends after the stab. Legal
-   * as the declared "stab" action, or during a Blitz in place of the Block.
-   */
-  public async stabPlayer(
-    attackerId: string,
-    targetId: string
-  ): Promise<boolean> {
-    if (this.awaitingSecondAction(attackerId)) return false;
-    const gate = await this.commitBlockReplacement(
-      attackerId,
-      targetId,
-      "stab"
-    );
-    if (!gate.accepted) return false;
-    if (!gate.proceed) return true;
-
-    // A Dump-Off caught in the end zone has ended the drive
-    if (!(await this.blockManager.offerDumpOff(targetId))) return true;
-    this.flowManager.add(new StabOperation(attackerId, targetId));
-    return true;
+  public stabPlayer(attackerId: string, targetId: string): Promise<boolean> {
+    return specials.stabPlayer(this.parts, attackerId, targetId);
   }
 
-  /**
-   * Throw / Kick Team-mate Action: a Standing player with the trait throws an
-   * eligible team-mate (Right Stuff, ST 3 or less) at an aim square. Legal only
-   * as the declared "throwTeamMate" action. `mode` picks Kick's harsher fumble;
-   * when omitted it is inferred from the thrower's traits.
-   */
-  public async throwTeammate(
+  public throwTeammate(
     throwerId: string,
     teammateId: string,
     x: number,
@@ -2939,311 +745,45 @@ export class GameService implements IGameService {
     mode?: "throw" | "kick",
     swoopFacing?: SwoopFacing
   ): Promise<void> {
-    if (this.awaitingSecondAction(throwerId)) return;
-    if (
-      this.state.phase !== GamePhase.PLAY &&
-      !this.kickoffEventManager.isChargeActive()
-    ) {
-      return;
-    }
-
-    const thrower = this.getPlayerById(throwerId);
-    if (!thrower || thrower.status !== PlayerStatus.ACTIVE) return;
-    const canThrow = hasSkill(thrower.skills, SkillType.THROW_TEAM_MATE);
-    const canKick = hasSkill(thrower.skills, SkillType.KICK_TEAM_MATE);
-    if (!canThrow && !canKick) return;
-
-    const declared =
-      this.state.activePlayer?.id === throwerId
-        ? this.state.activePlayer.action
-        : undefined;
-    if (declared !== "throwTeamMate") return;
-
-    const resolved: "throw" | "kick" =
-      mode ?? (canKick && !canThrow ? "kick" : "throw");
-    // Swoop is the thrown player's skill, and using it is their choice.
-    if (swoopFacing !== undefined) {
-      if (!isSwoopFacing(swoopFacing)) {
-        throw new Error(`Unknown Swoop facing: ${String(swoopFacing)}`);
-      }
-      const teammate = this.getPlayerById(teammateId);
-      if (!teammate || !hasSkill(teammate.skills, SkillType.SWOOP)) {
-        throw new Error("The thrown player does not have Swoop");
-      }
-    }
-
-    this.flowManager.add(
-      new ThrowTeammateOperation(
-        throwerId,
-        teammateId,
-        x,
-        y,
-        resolved,
-        swoopFacing
-      )
-    );
+    return specials.throwTeammate(this.parts, {
+      throwerId,
+      teammateId,
+      x,
+      y,
+      mode,
+      swoopFacing,
+    });
   }
 
-  /**
-   * Throw Bomb Special Action (Bombardier): a Standing player with the trait
-   * lobs a bomb at a target square, resolved like a Pass. Legal only as the
-   * declared "throwBomb" action.
-   */
-  public async throwBomb(
-    throwerId: string,
-    x: number,
-    y: number
-  ): Promise<void> {
-    if (this.awaitingSecondAction(throwerId)) return;
-    if (this.state.phase !== GamePhase.PLAY) return;
-
-    const thrower = this.getPlayerById(throwerId);
-    if (!thrower || thrower.status !== PlayerStatus.ACTIVE) return;
-    if (!hasSkill(thrower.skills, SkillType.BOMBARDIER)) return;
-
-    const declared =
-      this.state.activePlayer?.id === throwerId
-        ? this.state.activePlayer.action
-        : undefined;
-    if (declared !== "throwBomb") return;
-
-    this.flowManager.add(new BombardierOperation(throwerId, x, y));
+  public throwBomb(throwerId: string, x: number, y: number): Promise<void> {
+    return specials.throwBomb(this.parts, throwerId, x, y);
   }
 
-  /**
-   * Ball & Chain Special Action (Fanatic): the player lurches one square in a
-   * chosen facing (a cardinal direction: an End Zone or a Sideline), deviated
-   * by the Throw-in Template. Each call is one square, up to MA and then two
-   * Rushes. Legal only as the declared "ballAndChain" action.
-   */
-  public async ballAndChain(
+  public ballAndChain(
     fanaticId: string,
     facingX: number,
     facingY: number
   ): Promise<void> {
-    if (this.awaitingSecondAction(fanaticId)) return;
-    if (this.state.phase !== GamePhase.PLAY) return;
-
-    const fanatic = this.getPlayerById(fanaticId);
-    if (!fanatic || fanatic.status !== PlayerStatus.ACTIVE) return;
-    if (!hasSkill(fanatic.skills, SkillType.BALL_AND_CHAIN)) return;
-
-    const declared =
-      this.state.activePlayer?.id === fanaticId
-        ? this.state.activePlayer.action
-        : undefined;
-    if (declared !== "ballAndChain") return;
-
-    this.flowManager.add(
-      new BallAndChainOperation(fanaticId, facingX, facingY)
-    );
+    return specials.ballAndChain(this.parts, fanaticId, facingX, facingY);
   }
 
-  /** The lurch square whose collision the block engine is resolving. */
-  private ballAndChainSquare: BallAndChainSquare | null = null;
-
-  public async ballAndChainCollision(
+  public ballAndChainCollision(
     square: BallAndChainSquare,
     targetId: string
   ): Promise<void> {
-    this.ballAndChainSquare = square;
-    if (square.pushedDownId) {
-      await this.blockManager.startBallAndChainPush(square.fanaticId, targetId);
-    } else {
-      await this.blockManager.startBallAndChainBlock(
-        square.fanaticId,
-        targetId
-      );
-    }
+    return specials.ballAndChainCollision(this.parts, square, targetId);
   }
 
-  /**
-   * Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic
-   * Gaze, Chomp): legal as their declared action, or — where the book says
-   * so — during a Blitz in place of the Block. Hypnotic Gaze has its own
-   * pre-move and never replaces a Blitz block.
-   */
-  public async performSpecialAction(
+  public performSpecialAction(
     kind: BlockReplacement | "gaze",
     attackerId: string,
     targetId: string
   ): Promise<boolean> {
-    if (this.awaitingSecondAction(attackerId)) return false;
-    if (this.state.phase !== GamePhase.PLAY) return false;
-    const attacker = this.getPlayerById(attackerId);
-    if (!attacker || attacker.status !== PlayerStatus.ACTIVE) return false;
-
-    if (kind !== "gaze") {
-      const gate = await this.commitBlockReplacement(
-        attackerId,
-        targetId,
-        kind
-      );
-      if (!gate.accepted) return false;
-      if (!gate.proceed) return true;
-    }
-
-    const requirement =
-      kind === "breatheFire"
-        ? SkillType.BREATHE_FIRE
-        : kind === "vomit"
-          ? SkillType.PROJECTILE_VOMIT
-          : kind === "gaze"
-            ? SkillType.HYPNOTIC_GAZE
-            : kind === "chainsaw"
-              ? SkillType.CHAINSAW
-              : SkillType.MONSTROUS_MOUTH;
-    if (!hasSkill(attacker.skills, requirement)) return false;
-
-    const declared =
-      this.state.activePlayer?.id === attackerId
-        ? this.state.activePlayer.action
-        : undefined;
-    if (kind === "gaze") {
-      const target = this.getPlayerById(targetId);
-      if (
-        declared !== "gaze" ||
-        !target ||
-        !target.gridPosition ||
-        target.teamId === attacker.teamId ||
-        target.status !== PlayerStatus.ACTIVE ||
-        !attacker.gridPosition ||
-        Math.max(
-          Math.abs(attacker.gridPosition.x - target.gridPosition.x),
-          Math.abs(attacker.gridPosition.y - target.gridPosition.y)
-        ) !== 1
-      ) {
-        return false;
-      }
-    }
-
-    // Dump-Off is resolved before a directly-targeting opposition Special
-    // Action, just as it is before a Block.
-    const target = this.getPlayerById(targetId);
-    if (
-      target &&
-      target.teamId !== attacker.teamId &&
-      !(await this.blockManager.offerDumpOff(targetId))
-    ) {
-      return true;
-    }
-    switch (kind) {
-      case "breatheFire":
-        this.flowManager.add(new BreatheFireOperation(attackerId, targetId));
-        break;
-      case "vomit":
-        this.flowManager.add(
-          new ProjectileVomitOperation(attackerId, targetId)
-        );
-        break;
-      case "gaze":
-        this.flowManager.add(new HypnoticGazeOperation(attackerId, targetId));
-        break;
-      case "chomp":
-        this.flowManager.add(new ChompOperation(attackerId, targetId));
-        break;
-      case "chainsaw":
-        this.flowManager.add(new ChainsawAttackOperation(attackerId, targetId));
-        break;
-    }
-    return true;
-  }
-
-  /**
-   * Validate and atomically commit the selected replacement before any roll
-   * or target mutation. Invalid/stale commands leave the state untouched.
-   */
-  private async commitBlockReplacement(
-    attackerId: string,
-    targetId: string,
-    replacement: BlockReplacement
-  ): Promise<{ accepted: boolean; proceed: boolean }> {
-    if (this.state.phase !== GamePhase.PLAY) {
-      return { accepted: false, proceed: false };
-    }
-    const attacker = this.getPlayerById(attackerId);
-    const target = this.getPlayerById(targetId);
-    const active = this.state.activePlayer;
-    const definition = BLOCK_REPLACEMENT_DEFINITIONS[replacement];
-    if (
-      !attacker ||
-      !target ||
-      !active ||
-      active.id !== attackerId ||
-      active.blockReplacement !== replacement ||
-      active.blockReplacementUsed ||
-      (active.action !== "blitz" &&
-        active.action !== definition.directAction) ||
-      !isLegalBlockReplacementTarget(attacker, target, replacement)
-    ) {
-      return { accepted: false, proceed: false };
-    }
-
-    const isBlitz = active.action === "blitz";
-    const effectiveAttacker = withDriveModifiers(attacker, this.state);
-    let newMovementUsed: number | undefined;
-    if (isBlitz) {
-      // The declaration may still be uncommitted here (the attack itself is
-      // what commits it) — only a Blitz block already spent this activation
-      // makes the command stale.
-      if (this.blitzBlockUsed.has(attackerId)) {
-        return { accepted: false, proceed: false };
-      }
-      const used = this.state.turn.movementUsed.get(attackerId) ?? 0;
-      newMovementUsed = used + 1;
-      if (newMovementUsed > moveAllowance(effectiveAttacker)) {
-        return { accepted: false, proceed: false };
-      }
-    }
-
-    // Commitment boundary: all legality checks passed. From here the attack
-    // and team Blitz are spent even if a required Rush subsequently fails.
-    active.blockReplacementUsed = true;
-    this.playerActionManager.commitAction(attackerId);
-    if (isBlitz && newMovementUsed !== undefined) {
-      this.blitzBlockUsed.add(attackerId);
-      this.state.turn.movementUsed.set(attackerId, newMovementUsed);
-      if (newMovementUsed > effectiveAttacker.stats.MA) {
-        const check = await withRerollOffer(
-          { gameService: this, eventBus: this.eventBus },
-          attacker,
-          "rush",
-          () =>
-            this.diceController.rollSkillCheck(
-              "Rush",
-              2,
-              rushModifier(this.state, attacker),
-              attacker.playerName,
-              attacker.teamId
-            )
-        );
-        if (
-          !check.success &&
-          !(await steadyFootingSaves(
-            attacker,
-            this.diceController,
-            this.eventBus,
-            this
-          ))
-        ) {
-          attacker.status = PlayerStatus.PRONE;
-          this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
-            playerId: attackerId,
-          });
-          this.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
-          if (this.ballManager.hasBall(attackerId) && attacker.gridPosition) {
-            this.flowManager.add(
-              new BounceOperation({ ...attacker.gridPosition }),
-              true
-            );
-          }
-          this.flowManager.add(new ArmourOperation(attackerId), true);
-          this.finishActivation(attackerId);
-          this.triggerTurnover("Failed Rush on Blitz special attack");
-          return { accepted: true, proceed: false };
-        }
-      }
-    }
-    return { accepted: true, proceed: true };
+    return specials.performSpecialAction(
+      this.parts,
+      kind,
+      attackerId,
+      targetId
+    );
   }
 }
