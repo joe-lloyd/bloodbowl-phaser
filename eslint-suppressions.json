@@ -180,14 +180,6 @@
       "count": 1
     }
   },
-  "src/scenes/SandboxScene.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/pages/CompetitionView.tsx": {
     "complexity": {
       "count": 3
