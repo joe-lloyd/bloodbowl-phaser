@@ -2,7 +2,7 @@
 
 Loaded after model_kit.py and team_models.py by batch_render.py. Coaches
 and the apothecary sit on their own folding chairs; cheerleaders perform a
-pom-pom routine; medics use a restrained carrying gait.
+pom-pom routine; goblin medics run the stretcher with their arms out to the poles.
 """
 
 SIDELINE_MODELS = {
@@ -15,8 +15,9 @@ SIDELINE_MODELS = {
                              shirt="wrap", sleeves="wrap", gloves="skin", shorts="kit2"),
     "sideline_fan": M("human", ["face:human", "hair:short", "sideline:fan"],
                       gloves="skin", shorts="kit2", colors=dict(skin=SKIN["dark"])),
-    "sideline_medic": M("human", ["face:human", "hair:short", "sideline:medic"],
-                        shirt="wrap", sleeves="wrap", shorts="kit2", gloves="skin"),
+    # Two goblins run the stretcher on and off, in a red-cross strap.
+    "sideline_medic": M("goblin", ["face:goblin", "ears:goblin", "sideline:medic"],
+                        bare_arms=True, shorts="kit2", colors=skin("goblin")),
 }
 MODELS.update(SIDELINE_MODELS)
 

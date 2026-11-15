@@ -20,7 +20,7 @@ and you must change the other.
 | `blender_players.py` | Materials, the rig of empties, poses (idle, run, block, fall, cheer), the render loop and the Blood Bowl light style (`bloodbowl`). |
 | `model_kit.py` | Body presets, rigs and around fifty parts (helmets, pads, horns, tails, weapons). |
 | `team_models.py` | One spec per model (`MODELS`), each roster position's model (`TEAMS`) and review kits. |
-| `sideline_models.py` | Seated assistant coaches and apothecaries, cheerleaders with pom-poms, scarf-wearing fans and stretcher medics, using the match rigs and kit masks. |
+| `sideline_models.py` | Seated assistant coaches and apothecaries, cheerleaders with pom-poms, scarf-wearing fans and goblin stretcher bearers, using the match rigs and kit masks. |
 | `render_sideline.py` | Renders sideline crew in the two dugout facings and medics in all eight walking facings, and saves their source `.blend` files. |
 | `check_models.py` | Builds every spec against stub Blender objects and checks every roster position has a model. Run it after editing specs. |
 | `render_models.py` | Picks the smallest frame that holds a model in every facing and frame, then renders it. |
