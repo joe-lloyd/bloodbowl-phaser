@@ -102,7 +102,7 @@ export class SandboxScene extends GameScene {
     return (window as unknown as { eventBus: IEventBus }).eventBus;
   }
 
-  init(data: { team1?: Team; team2?: Team; pitchThemeId?: string }): void {
+  init(data: { team1?: Team; team2?: Team }): void {
     // If teams are passed, use them. Otherwise generate Mock Teams.
     if (data && data.team1 && data.team2) {
       // Need to initialize ServiceContainer before GameScene uses it
@@ -117,13 +117,7 @@ export class SandboxScene extends GameScene {
         data.team2,
         initialState
       );
-      super.init(
-        data as {
-          team1: Team;
-          team2: Team;
-          pitchThemeId?: string;
-        }
-      );
+      super.init(data as { team1: Team; team2: Team });
     } else {
       // Default to two different rosters (never a mirror-match) so the two
       // sides are visually distinguishable at a glance without hovering
@@ -139,7 +133,7 @@ export class SandboxScene extends GameScene {
         0xdc143c
       );
 
-      // Keep the visual sandbox representative of league play so theme and
+      // Keep the visual sandbox representative of league play so stadium and
       // dugout presentation changes can be reviewed without extra setup.
       team1.coaches = 2;
       team1.cheerleaders = 3;
@@ -162,7 +156,7 @@ export class SandboxScene extends GameScene {
         initialState
       );
 
-      super.init({ team1, team2, pitchThemeId: data?.pitchThemeId });
+      super.init({ team1, team2 });
     }
 
     // Listen for shutdown to clean up custom listeners

@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
-import { resolvePitchTheme } from "../../../game/presentation/pitchThemes";
+import { MATCH_STYLE } from "../../../game/presentation/matchStyle";
 import { Team } from "../../../types/Team";
 import { matchKits } from "../../../game/presentation/kits";
 
 interface LoadingScreenProps {
   eventBus: IEventBus;
   teams?: { team1: Team; team2: Team };
-  styleId: string;
 }
 
 const css = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
@@ -18,14 +17,9 @@ const css = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
  * fades away. GameScene reports loader progress, and 1 once the board is
  * built.
  */
-export function LoadingScreen({
-  eventBus,
-  teams,
-  styleId,
-}: LoadingScreenProps) {
+export function LoadingScreen({ eventBus, teams }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
   const [gone, setGone] = useState(false);
-  const style = resolvePitchTheme(styleId);
   const kits = teams && matchKits(teams.team1.colors, teams.team2.colors);
 
   useEffect(() => {
@@ -50,8 +44,8 @@ export function LoadingScreen({
         done ? "opacity-0" : "opacity-100"
       }`}
       style={{
-        backgroundColor: css(style.background),
-        backgroundImage: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.88)), url(${style.stadiumPath}/preview.webp)`,
+        backgroundColor: css(MATCH_STYLE.background),
+        backgroundImage: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.88)), url(${MATCH_STYLE.stadiumPath}/preview.webp)`,
       }}
     >
       {teams && kits && (
@@ -81,7 +75,7 @@ export function LoadingScreen({
           />
         </div>
         <p className="mt-3 text-center font-hud-label text-hud-sm font-bold uppercase tracking-[0.3em] text-hud-gold/90">
-          {done ? "Kick-off" : `Filling the stands · ${style.name}`}
+          {done ? "Kick-off" : "Filling the stands"}
         </p>
       </div>
     </div>

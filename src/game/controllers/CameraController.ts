@@ -3,7 +3,7 @@ import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { Pitch } from "../elements/Pitch";
 import { prefersReducedMotion as reducedMotion } from "../presentation/motion";
-import { PitchThemeId, resolvePitchTheme } from "../presentation/pitchThemes";
+import { MATCH_STYLE } from "../presentation/matchStyle";
 import { matchesMedia, TOUCH_QUERY } from "../presentation/phoneLayout";
 import { ISO } from "../elements/GridUtils";
 import { isTyping } from "../presentation/keyboardFocus";
@@ -152,7 +152,6 @@ export class CameraController {
     world: { width: number; height: number },
     dugoutPoints: Point[],
     eventBus?: IEventBus,
-    style?: PitchThemeId,
     /** The HUD panels on screen now, measured from the page. */
     private readonly hudRects?: () => ScreenRect[] | undefined
   ) {
@@ -162,12 +161,8 @@ export class CameraController {
     this.dugoutPoints = dugoutPoints;
     this.eventBus = eventBus;
 
-    const theme = resolvePitchTheme(style);
-    this.camera.setBackgroundColor(theme.background);
+    this.camera.setBackgroundColor(MATCH_STYLE.background);
     this.camera.setBounds(0, 0, world.width, world.height);
-    if (theme.bloom && this.camera.postFX) {
-      this.camera.postFX.addBloom(0xffffff, 1, 1, 0.7, 0.5, 4);
-    }
 
     this.bindInput();
     this.scene.scale.on("resize", this.onResize, this);

@@ -438,7 +438,7 @@ TEAMS = {
                  ("Loren Forest Treeman", "treeman_loren")],
 }
 
-# Neon kit per team: primary (jersey), secondary (pads, helmets). Secondaries
+# Review kit per team: primary (jersey), secondary (pads, helmets). Secondaries
 # stay mid-tone: near-black helmets made heads vanish into the pads.
 KITS = {
     "AMAZON": (0xff8a1e, 0x2ac0b0), "BLACK_ORC": (0xffd21e, 0x8a8a96), "BRETONIAN": (0x2e6bff, 0xffd84a),

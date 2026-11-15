@@ -42,7 +42,7 @@ def stubs():
 
     shape = lambda *a, **k: None  # noqa: E731
     g = dict(joint=joint, mesh_object=mesh_object, sphere=shape, cylinder=shape, cone=shape, box=shape,
-             STYLES={"neon": {}}, STATE={}, KIT_GREY=(0.8, 0.8, 0.8), OUT={"l": -1, "r": 1},
+             STYLES={"bloodbowl": {}}, STATE={}, KIT_GREY=(0.8, 0.8, 0.8), OUT={"l": -1, "r": 1},
              R=lambda *a, **k: (0,) * 6, POSES={}, pose_idle=None)
     return g, made
 

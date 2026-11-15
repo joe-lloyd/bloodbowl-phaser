@@ -24,10 +24,6 @@ import {
   measureHudRects,
   watchHudPanels,
 } from "../game/presentation/hudRects";
-import {
-  DEFAULT_PITCH_THEME_ID,
-  PitchThemeId,
-} from "../game/presentation/pitchThemes";
 import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { kitOf } from "../game/presentation/kits";
@@ -98,7 +94,6 @@ export class GameScene extends Phaser.Scene {
   private remoteSelectedPlayerId: string | null = null;
   public isSetupActive: boolean = false;
   protected ballSprite: BallSprite | null = null;
-  private pitchThemeId: PitchThemeId = DEFAULT_PITCH_THEME_ID;
   private competitionContext?: CompetitionContext;
   private autosave: MatchAutosave | null = null;
   private resumedMatch = false;
@@ -219,7 +214,6 @@ export class GameScene extends Phaser.Scene {
     const start = resolveMatchStart(data, this.sys.settings.key);
     this.team1 = start.team1;
     this.team2 = start.team2;
-    this.pitchThemeId = start.pitchThemeId;
     this.competitionContext = start.competitionContext;
     this.resumedMatch = start.resumed;
     this.autosaveEnabled = start.autosaveEnabled;
@@ -234,12 +228,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Only the art this match needs: the stadium in the chosen style and the
-    // models for both rosters. Progress drives the loading screen.
-    preloadStadium(this, this.pitchThemeId);
+    // Only the art this match needs: the stadium and the models for both
+    // rosters. Progress drives the loading screen.
+    preloadStadium(this);
     preloadPlayerArt(
       this,
-      this.pitchThemeId,
       [this.team1, this.team2].flatMap((team) =>
         team.players.map((p) => ({
           rosterName: team.rosterName,
@@ -254,7 +247,7 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     // 1. The stadium, with team 1 as home (left end zone, far dugout).
-    this.stadium = new Stadium(this, this.pitchThemeId, {
+    this.stadium = new Stadium(this, {
       home: this.kitOf(this.team1.id).primary,
       away: this.kitOf(this.team2.id).primary,
     });
@@ -291,7 +284,6 @@ export class GameScene extends Phaser.Scene {
       { width: this.stadium.width, height: this.stadium.height },
       Array.from(this.dugouts.values()).flatMap((d) => d.getBounds()),
       this.eventBus,
-      this.pitchThemeId,
       () => {
         // The HUD may mount after the board: pick up its panels as they come
         panels.watch();
@@ -455,7 +447,6 @@ export class GameScene extends Phaser.Scene {
         this.kitOf(team.id),
         squares,
         toWorld,
-        this.pitchThemeId,
         facing
       );
       dugout.setDragCallbacks(

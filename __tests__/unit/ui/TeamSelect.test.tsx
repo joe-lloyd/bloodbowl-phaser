@@ -238,3 +238,50 @@ describe("TeamSelect ready-made teams", () => {
     ]);
   });
 });
+
+describe("TeamSelect match look", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    localStorage.clear();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    localStorage.clear();
+  });
+
+  it("has no match style picker: every match is played in the Blood Bowl stadium", async () => {
+    saveTeams([
+      new TeamTestBuilder()
+        .withId("team-orcs")
+        .withName("Green Bay Orcs")
+        .withRosterName(RosterName.ORC)
+        .withPlayers(11)
+        .build(),
+      new TeamTestBuilder()
+        .withId("team-humans")
+        .withName("River Vale Humans")
+        .withRosterName(RosterName.HUMAN)
+        .withPlayers(11)
+        .build(),
+    ]);
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamSelect mode="play" />
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.textContent).toContain("Green Bay Orcs");
+    expect(container.querySelector('[aria-label="Match style"]')).toBeNull();
+    expect(container.textContent).not.toContain("Choose the pitch");
+    expect(container.textContent).not.toMatch(/neon/i);
+  });
+});

@@ -10,9 +10,8 @@ import { DEFAULT_SETTINGS, LobbySettings } from "../../src/firebase/lobby";
  * openspec/changes/add-multiplayer-no-time-limit-option). The synced-clock
  * behavior itself (deadline math) is covered by TurnClock.test.ts.
  *
- * PitchThemePicker renders only <button>s, so the turn-timer <select> is
- * always the first <select> in the panel and the timeout-bank <select> the
- * second.
+ * The turn-timer <select> is the first <select> in the panel and the
+ * timeout-bank <select> the second.
  */
 describe("OnlineLobby SettingsPanel — turn timer", () => {
   let container: HTMLDivElement;
@@ -76,5 +75,13 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
   it("still selects a normal duration correctly (no regression)", async () => {
     await render({ ...DEFAULT_SETTINGS, turnSeconds: 90 }, () => {});
     expect(turnTimerSelect().value).toBe("90");
+  });
+
+  it("offers no match style choice, even for a lobby that saved Neon", async () => {
+    const legacy = { ...DEFAULT_SETTINGS, pitchThemeId: "neon" };
+    await render(legacy as LobbySettings, () => {});
+    expect(container.querySelector('[aria-label="Match style"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/neon/i);
+    expect(DEFAULT_SETTINGS).not.toHaveProperty("pitchThemeId");
   });
 });

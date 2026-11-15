@@ -3,7 +3,6 @@ import { EventBus, GameEventMap } from "../../../services/EventBus";
 import { GamePhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { resolvePitchTheme } from "../../../game/presentation/pitchThemes";
 import { soundSettings } from "../../sound/settings";
 import type { DiceRoll, DiceTeam, DiceThrow } from "../../dice/diceScene";
 import type { BlockRollData } from "../../../services/BlockResolutionService";
@@ -38,9 +37,7 @@ const MAX_QUEUE = 5;
  * Turn an engine DiceRoll into dice to throw: D6s, D16s and block dice.
  * A D3 or D8 has no die model.
  */
-export function toDice(
-  event: RollEvent
-): Omit<DiceRoll, "team" | "neon"> | null {
+export function toDice(event: RollEvent): Omit<DiceRoll, "team"> | null {
   const values = ([] as (number | string)[]).concat(event.value);
   if (isBlockDice(event.diceType)) {
     const faces = values.map((v) => BLOCK_VALUE[String(v)]);
@@ -145,18 +142,11 @@ function joinsThrow(waiting: Queued, next: Queued): boolean {
  * block dialog applies the choice). The tray only shows rolls; the numbers
  * come from the engine's own RNG. Rolls queue so none overlap.
  */
-export function DiceTray({
-  eventBus,
-  styleId,
-}: {
-  eventBus: EventBus;
-  styleId?: string;
-}) {
+export function DiceTray({ eventBus }: { eventBus: EventBus }) {
   const host = useRef<HTMLDivElement>(null);
   const queue = useRef<Queued[]>([]);
   const playing = useRef(false);
   const [current, setCurrent] = useState<Queued | null>(null);
-  const neon = resolvePitchTheme(styleId).bloom;
 
   useEffect(() => {
     let shown: Queued | null = null;
@@ -314,7 +304,7 @@ export function DiceTray({
       // when a Pro re-roll rolls only one of them
       if (!dice || dice.kind === "block" || !team) return;
       enqueue({
-        roll: { ...dice, team, neon },
+        roll: { ...dice, team },
         title: event.rollType,
         result: event.description || event.rollType,
         teamName: teamName(team.key),
@@ -340,7 +330,7 @@ export function DiceTray({
       if (shown?.block && !release) shown.endAfterMs = 0;
       enqueue(
         {
-          roll: { kind: "block", values, team, neon },
+          roll: { kind: "block", values, team },
           title: `Block: ${faces.length} ${faces.length === 1 ? "die" : "dice"}`,
           result: payload.results.map((r) => r.label).join(" · "),
           teamName: teamName(team.key),
@@ -404,7 +394,7 @@ export function DiceTray({
       eventBus.off(GameEventNames.UI_BlockRollCancelled, onCancelled);
       throwing?.stop();
     };
-  }, [eventBus, neon]);
+  }, [eventBus]);
 
   const color = current
     ? `#${current.roll.team.primary.toString(16).padStart(6, "0")}`

@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { Player, PlayerCondition, hasCondition } from "../../types/Player";
 import { TeamColors } from "../../types/Team";
-import { PitchThemeId } from "../presentation/pitchThemes";
 import {
   Animation,
   Facing,
@@ -15,11 +14,10 @@ import {
 import { prefersReducedMotion } from "../presentation/motion";
 import { playerBoxOf } from "../rules/playerLocation";
 
-/** How a player is drawn: which roster's models, in which kit and style, facing where. */
+/** How a player is drawn: which roster's models, in which kit, facing where. */
 export interface PlayerLook {
   rosterName: string;
   colors: TeamColors;
-  style: PitchThemeId;
   facing: Facing;
 }
 
@@ -203,7 +201,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   /** The three tinted layers, or a plain token if the art never loaded. */
   private buildFigure(): void {
     const art = modelArt(this.model);
-    const base = textureKey(this.look.style, this.model, "base");
+    const base = textureKey(this.model, "base");
     if (!this.scene.textures.exists(base)) {
       const token = this.scene.add.circle(0, -18, 16, this.look.colors.primary);
       token.setStrokeStyle(2, 0xffffff);
@@ -220,7 +218,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       const sprite = this.scene.add.sprite(
         0,
         0,
-        textureKey(this.look.style, this.model, layer),
+        textureKey(this.model, layer),
         frameName("idle", this.facing, 0)
       );
       sprite.setOrigin(art.anchor[0] / art.frame, art.anchor[1] / art.frame);
@@ -292,7 +290,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     return this.facing;
   }
 
-  /** Whether this sprite's atlas has frames for `anim`; older styles lack block and pass. */
+  /** Whether this sprite's atlas has frames for `anim`; older renders lack block and pass. */
   private hasAnimation(anim: Animation): boolean {
     const layer = this.layers[0];
     return !!layer && layer.texture.has(frameName(anim, this.facing, 0));
@@ -301,7 +299,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   /**
    * A one-shot action (block, pass) towards a world point, then back to idle.
    * A player who is down, or lying in a dugout box, does nothing. When this
-   * style's atlas has no frames for the action, `fallback` runs instead.
+   * sprite's atlas has no frames for the action, `fallback` runs instead.
    * Fire-and-forget.
    */
   public playAction(

@@ -11,14 +11,12 @@ import {
 import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { fixturePaysWinnings } from "../game/rules/winnings";
-import { resolvePitchTheme } from "../game/presentation/pitchThemes";
 
 /** What the page hands GameScene.init. */
 export interface GameSceneData {
   team1: Team;
   team2: Team;
   progressionEnabled?: boolean;
-  pitchThemeId?: string;
   competitionContext?: CompetitionContext;
   resumeSave?: MatchSave;
   autosaveEnabled?: boolean;
@@ -40,9 +38,6 @@ export function resolveMatchStart(data: GameSceneData, sceneKey: string) {
     restored,
     team1,
     team2,
-    pitchThemeId: resolvePitchTheme(
-      save?.presentation?.pitchThemeId ?? data.pitchThemeId
-    ).id,
     competitionContext: save?.competition ?? data.competitionContext,
     resumed: !!restored || data.resumed === true,
     autosaveEnabled: data.autosaveEnabled ?? sceneKey === "GameScene",
@@ -120,7 +115,6 @@ export function startAutosave(scene: GameScene): MatchAutosave {
         matchStats: container.matchStats.captureState(),
         turnManager: scene["gameService"].captureTurnManagerState(),
         competition: scene["competitionContext"],
-        presentation: { pitchThemeId: scene["pitchThemeId"] },
       }),
     { enabled: true }
   );

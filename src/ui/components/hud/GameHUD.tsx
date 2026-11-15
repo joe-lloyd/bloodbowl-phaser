@@ -84,8 +84,6 @@ interface GameHUDProps {
    */
   sevensInducementsEnabled?: boolean;
   onlineMenu?: OnlineMatchMenuProps;
-  /** The match style, so the dice tray matches the stadium. */
-  styleId?: string;
   /** Where the results screen's Leave goes. */
   leaveTo?: string;
   fixtureContext?: CompetitionContext;
@@ -108,7 +106,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   mode = "normal",
   sevensInducementsEnabled = false,
   onlineMenu,
-  styleId,
   leaveTo,
   fixtureContext,
 }) => {
@@ -327,7 +324,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   // Takeovers over the whole match, the same in either layout
   const takeovers = (
     <>
-      <DiceTray eventBus={eventBus} styleId={styleId} />
+      <DiceTray eventBus={eventBus} />
 
       {/* Full-screen overlays */}
       <CoinFlipOverlay eventBus={eventBus} />

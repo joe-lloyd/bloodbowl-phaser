@@ -201,7 +201,6 @@ async function build(players: unknown[]) {
     team.colors,
     SQUARES,
     toWorld,
-    "bloodbowl",
     "s"
   );
   return { scene, dugout, sprites: dugout.getSprites() };
@@ -303,7 +302,6 @@ describe("pitch visibility after a crowd push", () => {
         {
           rosterName: "Human",
           colors: makeTeam([]).colors,
-          style: "bloodbowl",
           facing: "w",
         }
       );

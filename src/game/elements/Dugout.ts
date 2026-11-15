@@ -5,7 +5,6 @@ import { playerBoxOf, PlayerBox } from "../rules/playerLocation";
 import { PlayerSprite } from "./PlayerSprite";
 import { GameEventNames } from "../../types/events";
 import { playerHitArea } from "./InteractiveHitArea";
-import { PitchThemeId } from "../presentation/pitchThemes";
 import { Facing } from "../presentation/playerArt";
 import type { DugoutBox, DugoutSquares } from "./Stadium";
 import { PitchExit, playPitchExit } from "./pitchExits";
@@ -40,7 +39,6 @@ export class Dugout {
   private kit: TeamColors;
   private squares: DugoutSquares;
   private toWorld: (gx: number, gy: number) => { x: number; y: number };
-  private style: PitchThemeId;
   private facing: Facing;
   private playerSprites: Map<string, PlayerSprite> = new Map();
   /** Who was on screen when the current refresh started (see place). */
@@ -65,7 +63,6 @@ export class Dugout {
     kit: TeamColors,
     squares: DugoutSquares,
     toWorld: (gx: number, gy: number) => { x: number; y: number },
-    style: PitchThemeId,
     facing: Facing
   ) {
     this.scene = scene;
@@ -73,7 +70,6 @@ export class Dugout {
     this.kit = kit;
     this.squares = squares;
     this.toWorld = toWorld;
-    this.style = style;
     this.facing = facing;
     this.refresh();
   }
@@ -204,7 +200,6 @@ export class Dugout {
     const sprite = new PlayerSprite(this.scene, x, y, player, {
       rosterName: this.team.rosterName,
       colors: this.kit,
-      style: this.style,
       facing: this.facing,
     });
 

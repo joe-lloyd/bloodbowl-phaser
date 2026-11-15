@@ -16,7 +16,6 @@ import { expectVisualCheckpoint, freezeAnimation } from "../support/visual";
 // registry — this is the movement section's own case data, mirroring
 // `__tests__/headless` per-section naming (see docs/E2E_TESTING.md).
 import { MOVEMENT_CASES } from "../../src/testing/cases/movement";
-import { PITCH_THEMES } from "../../src/game/presentation/pitchThemes";
 
 const scenarioCase = MOVEMENT_CASES[0];
 const variant = scenarioCase.variants[0];
@@ -88,24 +87,20 @@ test.describe("pitch presentation @visual", () => {
   });
 });
 
-test.describe("match styles @visual", () => {
-  // One baseline per match style: each is a different stadium render and
-  // sprite set, so each is its own presentation contract.
-  for (const theme of PITCH_THEMES) {
-    test(`style: ${theme.id}`, async ({ page }) => {
-      const app = new GameApp(page);
-      const url = `/sand-box?scenario=basic-scrimmage&seed=1&theme=${theme.id}`;
-      await page.goto(url);
-      await app.pitch.waitForCanvas();
+test.describe("match style @visual", () => {
+  // The Blood Bowl stadium render and sprite set: the one match look.
+  test("style: bloodbowl", async ({ page }) => {
+    const app = new GameApp(page);
+    await page.goto("/sand-box?scenario=basic-scrimmage&seed=1");
+    await app.pitch.waitForCanvas();
 
-      await app.sandbox.waitForScenarioLoaded();
-      const snapshot = await app.bridge.snapshot();
-      expect(snapshot.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
+    await app.sandbox.waitForScenarioLoaded();
+    const snapshot = await app.bridge.snapshot();
+    expect(snapshot.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
 
-      await freezeAnimation(page);
-      await expectVisualCheckpoint(page, `match-style-${theme.id}`, page, {
-        clip: await app.pitch.pitchViewportRect(),
-      });
+    await freezeAnimation(page);
+    await expectVisualCheckpoint(page, "match-style-bloodbowl", page, {
+      clip: await app.pitch.pitchViewportRect(),
     });
-  }
+  });
 });

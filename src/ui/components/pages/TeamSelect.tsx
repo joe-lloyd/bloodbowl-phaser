@@ -26,12 +26,7 @@ import {
   TeamSwatch,
 } from "../componentWarehouse/HudKit";
 import { numToHex } from "../TeamManagement/TeamStatsOverview";
-import { PitchThemePicker } from "../common/PitchThemePicker";
 import { DIFFICULTIES, Difficulty } from "../../../simulation/ai/difficulty";
-import {
-  DEFAULT_PITCH_THEME_ID,
-  PitchThemeId,
-} from "../../../game/presentation/pitchThemes";
 import {
   clearMatchSave,
   readMatchSave,
@@ -113,9 +108,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [opponent, setOpponent] = useState<"human" | "computer">("human");
   const vsComputer = mode === "play" && opponent === "computer";
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
-  const [pitchThemeId, setPitchThemeId] = useState<PitchThemeId>(
-    DEFAULT_PITCH_THEME_ID
-  );
   const navigate = useNavigate();
 
   /**
@@ -194,7 +186,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           team2: selectedTeam2,
           computerTeamId: selectedTeam2.id,
           difficulty,
-          pitchThemeId,
         },
       });
       return;
@@ -205,7 +196,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         team1: selectedTeam1,
         team2: selectedTeam2,
         progressionEnabled,
-        pitchThemeId,
       },
     });
   };
@@ -447,15 +437,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           )}
         </Section>
       )}
-
-      <Section title="Choose the pitch" className="mt-6">
-        <p className="mb-4 text-hud-sm text-hud-dim">
-          Presentation only—the same 20×11 field is used for every theme.
-        </p>
-        <div className="max-w-2xl">
-          <PitchThemePicker value={pitchThemeId} onChange={setPitchThemeId} />
-        </div>
-      </Section>
 
       {mode !== "sandbox" && !vsComputer && (
         <Panel className="p-4">

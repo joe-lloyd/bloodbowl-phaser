@@ -1,10 +1,9 @@
 """Build the stadium around a Sevens pitch and render it as one backdrop.
 
-    blender.exe -b --factory-startup --python stadium.py -- OUT_DIR layout [theme]
+    blender.exe -b --factory-startup --python stadium.py -- OUT_DIR layout
 
-The theme is "neon" (the default) or "bloodbowl": the same geometry in a
-night-club palette, or as a timber and stone ground in daylight with team
-banners and painted labels in a serif face.
+A timber and stone ground in daylight with team banners and painted labels
+in a serif face.
 
 One layout per run: a third layout in the same session rendered black.
 
@@ -61,50 +60,11 @@ DUGOUT_ROWS = 3
 LABELS = {"reserves": "RESERVES", "ko": "KO", "injured": "INJURED", "sent off": "SENT\nOFF"}
 
 # part -> (kind, colour, mask). kind "toon" is lit, "flat" glows at its colour.
-# Colours are linear, so a dark sRGB tone needs a very small value.
+# Colours are linear, so a dark sRGB tone needs a very small value. The trim_*
+# parts are the painted trims and the KO, injured and sent-off box rings;
+# trim_home and trim_away take the team colours. Banners hang over the stands.
 PARTS = {
-    "ground": ("toon", (0.003, 0.0025, 0.005), None),
-    "apron": ("toon", (0.007, 0.006, 0.011), None),
-    "turf_a": ("toon", (0.007, 0.014, 0.012), None),
-    "turf_b": ("toon", (0.011, 0.02, 0.017), None),
-    "zone_home": ("toon", (0.07, 0.07, 0.07), "home"),
-    "zone_away": ("toon", (0.07, 0.07, 0.07), "away"),
-    "dug_floor": ("toon", (0.006, 0.005, 0.009), None),
-    "dug_tile": ("toon", (0.016, 0.014, 0.024), None),
-    "concrete": ("toon", (0.03, 0.027, 0.04), None),
-    "riser": ("toon", (0.012, 0.01, 0.017), None),
-    "wall": ("toon", (0.018, 0.016, 0.026), None),
-    "metal": ("toon", (0.04, 0.04, 0.055), None),
-    "seat": ("toon", (0.035, 0.032, 0.045), None),
-    "seat_home": ("toon", (0.1, 0.1, 0.1), "home"),
-    "seat_away": ("toon", (0.1, 0.1, 0.1), "away"),
-    "fan_home": ("toon", (0.2, 0.2, 0.2), "home"),
-    "fan_away": ("toon", (0.2, 0.2, 0.2), "away"),
-    "fan_dark": ("toon", (0.02, 0.018, 0.03), None),
-    "fan_grey": ("toon", (0.1, 0.095, 0.12), None),
-    "skin_a": ("toon", (0.8, 0.58, 0.52), None),
-    "skin_b": ("toon", (0.5, 0.34, 0.26), None),
-    "skin_orc": ("toon", (0.34, 0.66, 0.42), None),
-    "line": ("flat", (0.6, 0.6, 0.7), None),
-    "board": ("flat", (0.004, 0.003, 0.007), None),
-    "screen": ("flat", (0.004, 0.005, 0.012), None),
-    "lamp": ("flat", (1.0, 0.98, 0.92), None),
-    "neon_home": ("flat", (1.0, 1.0, 1.0), "home"),
-    "neon_away": ("flat", (1.0, 1.0, 1.0), "away"),
-    "neon_pink": ("flat", (1.0, 0.16, 0.62), None),
-    "neon_cyan": ("flat", (0.14, 0.9, 1.0), None),
-    "neon_white": ("flat", (0.92, 0.94, 1.0), None),
-    "neon_ko": ("flat", (1.0, 0.72, 0.12), None),
-    "neon_injured": ("flat", (1.0, 0.12, 0.16), None),
-    "neon_off": ("flat", (0.7, 0.4, 1.0), None),
-}
-PARTS.update(banner_home=("toon", (0.5, 0.5, 0.5), "home"), banner_away=("toon", (0.5, 0.5, 0.5), "away"))  # only Blood Bowl hangs banners
-
-# Blood Bowl recolours the same parts. The neon_* names are just trims here:
-# pink is blood red, cyan is ink, white is gold, and the lamps are braziers.
-BLOODBOWL_PARTS = {
     "ground": ("toon", (0.006, 0.009, 0.004), None),
-    "label": ("flat", (0.86, 0.74, 0.48), None),
     "apron": ("toon", (0.1, 0.065, 0.035), None),
     "turf_a": ("toon", (0.075, 0.2, 0.04), None),
     "turf_b": ("toon", (0.1, 0.26, 0.055), None),
@@ -123,27 +83,31 @@ BLOODBOWL_PARTS = {
     "fan_away": ("toon", (0.36, 0.36, 0.36), "away"),
     "fan_dark": ("toon", (0.06, 0.045, 0.03), None),
     "fan_grey": ("toon", (0.3, 0.25, 0.18), None),
+    "skin_a": ("toon", (0.8, 0.58, 0.52), None),
+    "skin_b": ("toon", (0.5, 0.34, 0.26), None),
+    "skin_orc": ("toon", (0.34, 0.66, 0.42), None),
     "line": ("flat", (0.86, 0.86, 0.8), None),
     "board": ("toon", (0.62, 0.52, 0.34), None),
     "screen": ("toon", (0.08, 0.05, 0.025), None),
     "lamp": ("flat", (1.0, 0.5, 0.1), None),
-    "neon_pink": ("toon", (0.42, 0.03, 0.03), None),
-    "neon_cyan": ("toon", (0.05, 0.03, 0.02), None),
-    "neon_white": ("toon", (0.8, 0.55, 0.14), None),
-    "neon_ko": ("flat", (0.85, 0.6, 0.06), None),
-    "neon_injured": ("flat", (0.62, 0.04, 0.04), None),
-    "neon_off": ("flat", (0.3, 0.12, 0.5), None),
+    "trim_home": ("flat", (1.0, 1.0, 1.0), "home"),
+    "trim_away": ("flat", (1.0, 1.0, 1.0), "away"),
+    "trim_red": ("toon", (0.42, 0.03, 0.03), None),
+    "trim_dark": ("toon", (0.05, 0.03, 0.02), None),
+    "trim_gold": ("toon", (0.8, 0.55, 0.14), None),
+    "trim_ko": ("flat", (0.85, 0.6, 0.06), None),
+    "trim_injured": ("flat", (0.62, 0.04, 0.04), None),
+    "trim_off": ("flat", (0.3, 0.12, 0.5), None),
+    "banner_home": ("toon", (0.5, 0.5, 0.5), "home"),
+    "banner_away": ("toon", (0.5, 0.5, 0.5), "away"),
+    "label": ("flat", (0.86, 0.74, 0.48), None),
 }
-THEMES = {
-    "neon": dict(parts=PARTS, light="neon", background=(0.0015, 0.0012, 0.0025), font=None, banners=False, label=None,
-                 labels=LABELS),
-    "bloodbowl": dict(parts={**PARTS, **BLOODBOWL_PARTS}, light="bloodbowl", background=(0.006, 0.004, 0.003),
-                      font="C:/Windows/Fonts/georgiab.ttf", banners=True, label="label",
-                      labels={**LABELS, "ko": "KO'D", "injured": "CASUALTIES"}),
-}
-THEME = THEMES["neon"]
+# A timber and stone ground on a sunny afternoon, with serif labels.
+THEME = dict(parts=PARTS, light="bloodbowl", background=(0.006, 0.004, 0.003),
+             font="C:/Windows/Fonts/georgiab.ttf", banners=True, label="label",
+             labels={**LABELS, "ko": "KO'D", "injured": "CASUALTIES"})
 
-BOX_NEON = {"ko": "neon_ko", "injured": "neon_injured", "sent off": "neon_off"}
+BOX_TRIM = {"ko": "trim_ko", "injured": "trim_injured", "sent off": "trim_off"}
 MASK = {"home": (1, 0, 0), "away": (0, 1, 0), None: (0, 0, 0)}
 
 SPONSORS = ["BUGMAN'S XXXXXX", "NUFFLE", "CABALVISION", "BLOODWEISER", "DEATH OR GLORY", "SPIKE!"]
@@ -256,7 +220,7 @@ def dugout(b, side, gx0, gy0, along, depth, far):
     `along` and `depth` are unit grid steps, (1, 0) or (0, 1) with a sign.
     Box order runs along `along`; home runs it backwards so in the "far"
     layout both reserve boxes sit by the halfway line. `far` dugouts get a back wall
-    with neon signs; near ones would hide their own players behind a wall,
+    with signs; near ones would hide their own players behind a wall,
     so they get painted labels on the pitch-side apron instead.
     """
     order = DUGOUT[::-1] if side == "home" else DUGOUT
@@ -278,9 +242,9 @@ def dugout(b, side, gx0, gy0, along, depth, far):
     for name, n in order:
         b.dugouts.setdefault(side, {})[name] = [
             list(corner(i + k + 0.5, j + 0.5)) for j in range(DUGOUT_ROWS) for k in range(n)]
-        neon = BOX_NEON.get(name, f"neon_{side}")
-        # a neon ring round each box, then one raised tile per square
-        rect(neon, i, 0, i + n, DUGOUT_ROWS, 0.04, 0.09, inset=0.04)
+        trim = BOX_TRIM.get(name, f"trim_{side}")
+        # a trim ring round each box, then one raised tile per square
+        rect(trim, i, 0, i + n, DUGOUT_ROWS, 0.04, 0.09, inset=0.04)
         rect("dug_floor", i, 0, i + n, DUGOUT_ROWS, 0.04, 0.095, inset=0.16)
         for k in range(n):
             for j in range(DUGOUT_ROWS):
@@ -288,23 +252,23 @@ def dugout(b, side, gx0, gy0, along, depth, far):
         mid_i = i + n / 2
         label = THEME["labels"][name]
         if far:
-            # neon sign on the back wall, facing the pitch, which only far dugouts have
+            # sign on the back wall, facing the pitch, which only far dugouts have
             x, y = corner(mid_i, DUGOUT_ROWS + 0.035)
             rot = (90, 0, 0) if dy else (90, 0, 90)
-            b.text(THEME["label"] or neon, label, G(x, y, 1.0), label_size(label, n, 1.0), rot, extrude=0.03)
+            b.text(THEME["label"] or trim, label, G(x, y, 1.0), label_size(label, n, 1.0), rot, extrude=0.03)
         else:
             # painted on the apron between pitch and dugout, reading screen-right
             x, y = corner(mid_i, -0.08)
-            b.text(THEME["label"] or neon, label, G(x, y, 0.03), label_size(label, n, 1.4), (0, 0, 0) if ay == 0 else (0, 0, 90))
+            b.text(THEME["label"] or trim, label, G(x, y, 0.03), label_size(label, n, 1.4), (0, 0, 0) if ay == 0 else (0, 0, 90))
         i += n
     if far:
         rect("wall", -0.3, DUGOUT_ROWS + 0.05, length + 0.3, DUGOUT_ROWS + 0.25, 0.0, 2.2)
-        rect(f"neon_{side}", -0.3, DUGOUT_ROWS + 0.0, length + 0.3, DUGOUT_ROWS + 0.05, 2.1, 2.2)
+        rect(f"trim_{side}", -0.3, DUGOUT_ROWS + 0.0, length + 0.3, DUGOUT_ROWS + 0.05, 2.1, 2.2)
         for e in (-0.3, length + 0.3):
             rect("wall", e - 0.1, 0, e + 0.1, DUGOUT_ROWS + 0.25, 0.0, 1.1)
     else:
         rect("wall", -0.3, DUGOUT_ROWS + 0.05, length + 0.3, DUGOUT_ROWS + 0.25, 0.0, 0.35)
-        rect(f"neon_{side}", -0.3, DUGOUT_ROWS + 0.0, length + 0.3, DUGOUT_ROWS + 0.05, 0.3, 0.36)
+        rect(f"trim_{side}", -0.3, DUGOUT_ROWS + 0.0, length + 0.3, DUGOUT_ROWS + 0.05, 0.3, 0.36)
 
 
 def label_size(label, squares, most):
@@ -333,9 +297,9 @@ def stand(b, rng, x0, x1, front, out, rows, base, kit_of, back=True):
         else:
             b.box(part, (front + sgn * d0, t0, z0), (front + sgn * d1, t1, z1))
 
-    # front wall with a neon lip
+    # front wall with a trim lip
     place(x0, x1, 0, 0.3, 0, base + 0.5, "wall")
-    place(x0, x1, -0.02, 0.3, base + 0.42, base + 0.5, "neon_pink" if sgn > 0 else "neon_cyan")
+    place(x0, x1, -0.02, 0.3, base + 0.42, base + 0.5, "trim_red" if sgn > 0 else "trim_dark")
     for r in range(rows):
         d0 = 0.3 + r * tread
         z = base + r * step
@@ -352,7 +316,7 @@ def stand(b, rng, x0, x1, front, out, rows, base, kit_of, back=True):
                 fan(b, rng, place, t, t1, d0, z, kit)
             t += 0.62
         if r % 6 == 5:
-            place(x0, x1, d0 + tread - 0.04, d0 + tread, z + 0.04, z + 0.08, "neon_white")
+            place(x0, x1, d0 + tread - 0.04, d0 + tread, z + 0.04, z + 0.08, "trim_gold")
     depth = 0.3 + rows * tread
     top = base + rows * step
     if back:
@@ -362,7 +326,7 @@ def stand(b, rng, x0, x1, front, out, rows, base, kit_of, back=True):
             place(t - 1.3, t + 1.3, -0.08, -0.02, 0.15, base + 0.46, f"banner_{kit_of(t) or 'home'}")
             t += 9
         place(x0, x1, depth, depth + 0.4, 0, top + 1.8, "wall")
-        place(x0, x1, depth - 0.02, depth + 0.4, top + 1.7, top + 1.8, "neon_pink" if sgn > 0 else "neon_cyan")
+        place(x0, x1, depth - 0.02, depth + 0.4, top + 1.7, top + 1.8, "trim_red" if sgn > 0 else "trim_dark")
     return depth
 
 
@@ -423,7 +387,7 @@ def corner(b, rng, cx, cy, sx, sy, rows, base, kit, back=True):
     depth = 0.3 + rows * tread
     top = base + rows * step
     if back:
-        lip = "neon_pink"
+        lip = "trim_red"
         at(depth, depth + 0.4, 0, depth + 0.4, 0, top + 1.8, "wall")
         at(0, depth, depth, depth + 0.4, 0, top + 1.8, "wall")
         at(depth - 0.02, depth + 0.4, 0, depth + 0.4, top + 1.7, top + 1.8, lip)
@@ -438,19 +402,19 @@ def boards(b, x0, x1, at, normal, sponsors):
     for k, name in enumerate(sponsors):
         t0, t1 = x0 + k * seg + 0.05, x0 + (k + 1) * seg - 0.05
         mid = (t0 + t1) / 2
-        neon = ["neon_pink", "neon_cyan", "neon_white"][k % 3]
+        trim = ["trim_red", "trim_dark", "trim_gold"][k % 3]
         if along_x:
             b.box("board", (t0, at - 0.15, 0), (t1, at + 0.15, 1.0))
-            b.box(neon, (t0, at - 0.17, 0.92), (t1, at + 0.17, 1.0))
+            b.box(trim, (t0, at - 0.17, 0.92), (t1, at + 0.17, 1.0))
             face = at + 0.16 * normal[1]
             rot = (90, 0, 0) if normal[1] < 0 else (90, 0, 180)
-            b.text(neon, name, (mid, face, 0.22), 0.55, rot)
+            b.text(trim, name, (mid, face, 0.22), 0.55, rot)
         else:
             b.box("board", (at - 0.15, t0, 0), (at + 0.15, t1, 1.0))
-            b.box(neon, (at - 0.17, t0, 0.92), (at + 0.17, t1, 1.0))
+            b.box(trim, (at - 0.17, t0, 0.92), (at + 0.17, t1, 1.0))
             face = at + 0.16 * normal[0]
             rot = (90, 0, 90) if normal[0] > 0 else (90, 0, -90)
-            b.text(neon, name, (face, mid, 0.22), 0.55, rot)
+            b.text(trim, name, (face, mid, 0.22), 0.55, rot)
 
 
 def diagonal(b, part, x, y, half, z0, z1, step=0.5):
@@ -485,7 +449,7 @@ def banners(b, x0, x1, wall, out, top, kit_of):
     while t < x1 - 2:
         part = f"banner_{kit_of(t)}"
         for p, (t0, t1, z0, z1, d) in (("metal", (t - 0.1, t + 0.1, top, top + 4.6, 0.1)),
-                                       ("neon_white", (t - 0.18, t + 0.18, top + 4.6, top + 4.9, 0.18)),
+                                       ("trim_gold", (t - 0.18, t + 0.18, top + 4.6, top + 4.9, 0.18)),
                                        (part, (t + 0.1, t + 1.7, top + 2.4, top + 4.4, 0.04))):
             if along_x:
                 b.box(p, (t0, face - d, z0), (t1, face + d, z1))
@@ -500,9 +464,9 @@ def scoreboard(b, x, y):
         cx, cy = x + k * 5 * 0.7071, y + k * 5 * 0.7071
         b.box("metal", (cx - 0.3, cy - 0.3, 0), (cx + 0.3, cy + 0.3, 16))
     diagonal(b, "screen", x, y, 7, 16, 23)
-    diagonal(b, "neon_pink", x - 0.05, y + 0.05, 7.2, 23, 23.3)
-    diagonal(b, "neon_cyan", x - 0.05, y + 0.05, 7.2, 15.7, 16)
-    b.text("neon_white", "BLOOD BOWL", (x + 0.4, y - 0.4, 23.6), 2.2, (90, 0, 45), extrude=0.05)
+    diagonal(b, "trim_red", x - 0.05, y + 0.05, 7.2, 23, 23.3)
+    diagonal(b, "trim_dark", x - 0.05, y + 0.05, 7.2, 15.7, 16)
+    b.text("trim_gold", "BLOOD BOWL", (x + 0.4, y - 0.4, 23.6), 2.2, (90, 0, 45), extrude=0.05)
 
 
 # ------------------------------------------------------------------- layouts
@@ -644,7 +608,6 @@ def render_layout(layout, out_dir, sizes=("lo", "hi")):
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:]
     out, layout = args[:2]
-    THEME = THEMES[args[2] if len(args) > 2 else "neon"]
     for ob in list(bpy.data.objects):
         bpy.data.objects.remove(ob)
     g["setup_scene"](g["STYLES"][THEME["light"]])

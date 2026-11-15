@@ -39,8 +39,8 @@ presentation layer.
 [`skillCatalog.ts`](../../src/data/skillCatalog.ts) contains public skill metadata
 and original UI hints. Private book files are not runtime dependencies.
 
-[`src/game/presentation/`](../../src/game/presentation/) owns stadium styles and
-rendering policy. Sprite animation timing is independent of the render-on-change
+[`src/game/presentation/`](../../src/game/presentation/) owns the match style
+(`matchStyle.ts`) and rendering policy. Sprite animation timing is independent of the render-on-change
 optimisation. Art generation is documented in the
 [sprite pipeline](../../scripts/sprites/README.md).
 
