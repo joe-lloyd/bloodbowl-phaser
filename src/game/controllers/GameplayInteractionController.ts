@@ -12,7 +12,12 @@ import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
-import { ActionType, GameEventNames, StepPrompt } from "@/types/events";
+import {
+  ActionType,
+  AllEvents,
+  GameEventNames,
+  StepPrompt,
+} from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { DiceWatch } from "../presentation/diceWatch";
 import { PassController } from "./PassController";
@@ -2646,9 +2651,28 @@ export class GameplayInteractionController {
     });
   }
 
+  /** Ask the coach a yes or no question; resolves with their answer. */
+  private requestConfirmation(
+    prefix: string,
+    request: Omit<AllEvents[GameEventNames.UI_RequestConfirmation], "actionId">
+  ): Promise<boolean> {
+    const actionId = `${prefix}-${++this.riskPrompts}`;
+    return new Promise((resolve) => {
+      const onResult = (data: { actionId: string; confirmed: boolean }) => {
+        if (data.actionId !== actionId) return;
+        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
+        resolve(data.confirmed);
+      };
+      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
+      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
+        actionId,
+        ...request,
+      });
+    });
+  }
+
   /** Ask before a Dodge or Rush: what it needs and what can re-roll it. */
   private confirmStep(player: Player, risk: StepRisk): Promise<boolean> {
-    const actionId = `risky-step-${++this.riskPrompts}`;
     const rolls = stepRolls(risk, player.gridPosition!);
     const rollName = (kind: RouteRoll["type"]) =>
       kind === "pickup" ? "Pick up" : kind === "dodge" ? "Dodge" : "Rush";
@@ -2726,30 +2750,21 @@ export class GameplayInteractionController {
           : risk.kind === "rush-dodge"
             ? "Rush & Dodge"
             : "Pick up";
-    return new Promise((resolve) => {
-      const onResult = (data: { confirmed: boolean; actionId: string }) => {
-        if (data.actionId !== actionId) return;
-        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
-        resolve(data.confirmed);
-      };
-      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
-      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId,
-        title: `${player.playerName}: ${title}`,
-        chooserTeamId: player.teamId,
-        step: {
-          playerId: player.id,
-          rolls: rolls.map(({ type, target }) => ({ type, target })),
-        },
-        message:
-          `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
-          (rerolls.length
-            ? `Re-rolls: ${rerolls.join(", ")}.`
-            : "No re-roll available."),
-        confirmLabel: `${title}!`,
-        cancelLabel: "Stop here",
-        risky: true,
-      });
+    return this.requestConfirmation("risky-step", {
+      title: `${player.playerName}: ${title}`,
+      chooserTeamId: player.teamId,
+      step: {
+        playerId: player.id,
+        rolls: rolls.map(({ type, target }) => ({ type, target })),
+      },
+      message:
+        `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
+        (rerolls.length
+          ? `Re-rolls: ${rerolls.join(", ")}.`
+          : "No re-roll available."),
+      confirmLabel: `${title}!`,
+      cancelLabel: "Stop here",
+      risky: true,
     });
   }
 
@@ -2997,55 +3012,35 @@ export class GameplayInteractionController {
     const gates = this.pendingGates(playerId, action);
     const player = this.gameService.getPlayerById(playerId);
     if (gates.length === 0 || !player) return null;
-    const actionId = `gate-${++this.riskPrompts}`;
-    return new Promise((resolve) => {
-      const onResult = (data: { actionId: string; confirmed: boolean }) => {
-        if (data.actionId !== actionId) return;
-        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
-        resolve(data.confirmed);
-      };
-      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
-      const lines = gates.map(
-        (gate) =>
-          `${rollLabel(gate.skill, Math.max(2, gate.target - gate.modifier))}. ${GATE_FAILURE_TEXT[gate.onFail.kind]}`
-      );
-      lines.push("Once rolled, the action cannot be changed.");
-      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId,
-        title: `${player.playerName} must roll first`,
-        message: lines.join("\n"),
-        confirmLabel: "Roll",
-        cancelLabel: "Cancel",
-        risky: true,
-        chooserTeamId: player.teamId,
-      });
+    const lines = gates.map(
+      (gate) =>
+        `${rollLabel(gate.skill, Math.max(2, gate.target - gate.modifier))}. ${GATE_FAILURE_TEXT[gate.onFail.kind]}`
+    );
+    lines.push("Once rolled, the action cannot be changed.");
+    return this.requestConfirmation("gate", {
+      title: `${player.playerName} must roll first`,
+      message: lines.join("\n"),
+      confirmLabel: "Roll",
+      cancelLabel: "Cancel",
+      risky: true,
+      chooserTeamId: player.teamId,
     });
   }
 
   private confirmFoul(fouler: Player, target: Player): Promise<boolean> {
-    const actionId = `foul-${++this.riskPrompts}`;
-    return new Promise((resolve) => {
-      const onResult = (data: { actionId: string; confirmed: boolean }) => {
-        if (data.actionId !== actionId) return;
-        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
-        resolve(data.confirmed);
-      };
-      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
-      const foul = this.foulPreview(fouler, target);
-      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId,
-        title: "Confirm foul",
-        message: foul.lines.join("\n"),
-        confirmLabel: "Foul!",
-        cancelLabel: "Cancel",
-        risky: true,
-        // Online, the other coach sees the foul read-only
-        chooserTeamId: fouler.teamId,
-        step: {
-          playerId: fouler.id,
-          rolls: [{ type: "armour", target: foul.targetNumber }],
-        },
-      });
+    const foul = this.foulPreview(fouler, target);
+    return this.requestConfirmation("foul", {
+      title: "Confirm foul",
+      message: foul.lines.join("\n"),
+      confirmLabel: "Foul!",
+      cancelLabel: "Cancel",
+      risky: true,
+      // Online, the other coach sees the foul read-only
+      chooserTeamId: fouler.teamId,
+      step: {
+        playerId: fouler.id,
+        rolls: [{ type: "armour", target: foul.targetNumber }],
+      },
     });
   }
 

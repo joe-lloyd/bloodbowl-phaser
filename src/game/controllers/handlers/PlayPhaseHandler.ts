@@ -199,12 +199,7 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Fumble / Bounce: the hop waits for the dice before it, so a failed
     // catch is read before the ball moves on, and holds where it lands
     this.register(GameEventNames.PassFumbled, (data) => {
-      const acknowledge = () => {
-        if (data.presentationId)
-          this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
-            id: data.presentationId,
-          });
-      };
+      const acknowledge = () => this.acknowledge(data.presentationId);
       if (!this.scene["ballSprite"]) {
         acknowledge();
         return;
@@ -224,6 +219,14 @@ export class PlayPhaseHandler implements PhaseHandler {
     });
   }
 
+  /** Tell the engine the board has shown what it was waiting on. */
+  private acknowledge(presentationId: string | undefined): void {
+    if (presentationId)
+      this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
+        id: presentationId,
+      });
+  }
+
   /**
    * Walk the mover along the path once the dice deciding the step have
    * landed, after any walk still playing. The engine may wait on this.
@@ -231,12 +234,7 @@ export class PlayPhaseHandler implements PhaseHandler {
   private handlePlayerMove(
     data: GameEventMap[GameEventNames.PlayerMoved]
   ): void {
-    const acknowledge = () => {
-      if (data.presentationId)
-        this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
-          id: data.presentationId,
-        });
-    };
+    const acknowledge = () => this.acknowledge(data.presentationId);
     const sprite = this.scene["playerSprites"].get(data.playerId);
     if (!sprite) {
       this.scene.refreshDugouts();
