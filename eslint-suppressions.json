@@ -121,38 +121,12 @@
       "count": 1
     }
   },
-  "src/competition/computerTeams.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/competition/create.ts": {
     "complexity": {
       "count": 1
     }
   },
-  "src/competition/logic.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/competition/resultRecording.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/competition/rosterRules.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/competition/simulateFixture.ts": {
     "complexity": {
       "count": 1
     }

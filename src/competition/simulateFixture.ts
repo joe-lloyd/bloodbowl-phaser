@@ -90,11 +90,11 @@ export function currentRound(competition: CompetitionDoc): number | undefined {
     : undefined;
 }
 
-export async function simulateFixture(
+/** The two computer teams of a fixture the computer can play now. */
+function fixtureTeams(
   competition: CompetitionDoc,
-  fixtureId: string,
-  options: SimulationOptions = {}
-): Promise<SimulatedFixture> {
+  fixtureId: string
+): { home: Team; away: Team } {
   const fixture = simulatableFixtures(competition).find(
     (candidate) => candidate.id === fixtureId
   );
@@ -111,9 +111,27 @@ export async function simulateFixture(
   };
   const home = load(fixture.homeEntrantId);
   const away = load(fixture.awayEntrantId);
-  const seed = options.seed ?? Math.floor(Math.random() * 2 ** 31);
-  const rng = options.rng ?? new RNGService(seed);
-  const context: CompetitionContext = {
+  return { home, away };
+}
+
+/** Each team's MVP, drawn from up to six nominees. */
+function awardMvps(
+  tracker: HeadlessGame["ctx"]["matchStats"],
+  teams: Team[],
+  rng: Pick<IRNGService, "rollDie">
+): void {
+  for (const team of teams) {
+    const nominees = tracker.getEligibleMvpPlayers(team.id).slice(0, 6);
+    if (nominees.length > 0)
+      tracker.awardMvp(team.id, nominees, rng.rollDie(nominees.length));
+  }
+}
+
+function fixtureContext(
+  competition: CompetitionDoc,
+  fixtureId: string
+): CompetitionContext {
+  return {
     ruleset: competition.ruleset ?? DEFAULT_SEVENS_RULESET,
     competitionType: competition.type,
     competitionId: competition.id,
@@ -123,6 +141,26 @@ export async function simulateFixture(
       ? { knockout: true }
       : {}),
   };
+}
+
+/** A per-team tally as home and away, 0 for a team it does not name. */
+function bySide(
+  tally: Record<string, number>,
+  home: Team,
+  away: Team
+): { home: number; away: number } {
+  return { home: tally[home.id] ?? 0, away: tally[away.id] ?? 0 };
+}
+
+export async function simulateFixture(
+  competition: CompetitionDoc,
+  fixtureId: string,
+  options: SimulationOptions = {}
+): Promise<SimulatedFixture> {
+  const { home, away } = fixtureTeams(competition, fixtureId);
+  const seed = options.seed ?? Math.floor(Math.random() * 2 ** 31);
+  const rng = options.rng ?? new RNGService(seed);
+  const context = fixtureContext(competition, fixtureId);
 
   const game = new HeadlessGame({
     seed,
@@ -163,20 +201,15 @@ export async function simulateFixture(
   };
   const penalties = state.result?.penalties;
   const fanFactors = state.fanFactors;
+  const score = bySide(state.score, home, away);
   const updated = await recordCompetitionFixture(
     context,
-    state.score[home.id] ?? 0,
-    state.score[away.id] ?? 0,
+    score.home,
+    score.away,
     teams,
-    penalties && {
-      home: penalties[home.id] ?? 0,
-      away: penalties[away.id] ?? 0,
-    },
+    penalties && bySide(penalties, home, away),
     {
-      fanFactors: fanFactors && {
-        home: fanFactors[home.id] ?? 0,
-        away: fanFactors[away.id] ?? 0,
-      },
+      fanFactors: fanFactors && bySide(fanFactors, home, away),
       stalled: stalledSides(state.stallingPlayerIds, teams.home, teams.away),
     }
   );
@@ -184,11 +217,7 @@ export async function simulateFixture(
   // The results screen: MVPs, SPP, then development to make
   const tracker = game.ctx.matchStats;
   const both = [teams.home, teams.away];
-  for (const team of both) {
-    const nominees = tracker.getEligibleMvpPlayers(team.id).slice(0, 6);
-    if (nominees.length > 0)
-      tracker.awardMvp(team.id, nominees, rng.rollDie(nominees.length));
-  }
+  awardMvps(tracker, both, rng);
   const summary = tracker.applySpp(
     both,
     state.result?.reason === "concession"
