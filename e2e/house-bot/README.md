@@ -16,8 +16,10 @@ If no bot is waiting it says so.
   keeps it in `~/.bb-house-bot/credentials.json`, readable only by your
   user. It hands the login to the bot's page in memory, and the app signs
   in, creating the account (coach name House Bot) the first time. The
-  address is `lead.mushroom+housebot@gmail.com`, and `firestore.rules` lets only that
-  account announce a lobby, so another coach cannot pose as the bot.
+  address is `lead.mushroom+housebot@gmail.com`, which reaches Joe's inbox.
+  `firestore.rules` lets only that address, in the account with uid
+  `HOUSE_BOT_UID` (`src/firebase/houseBotAccount.ts`), announce a lobby,
+  so another coach cannot pose as the bot.
 - The runner sets the `bb-house-bot` flag in that browser. While the bot's
   lobby waits for a guest, the app writes the code to `houseBots/{uid}`
   every minute. Any signed-in coach may read it. An announcement older
@@ -32,18 +34,27 @@ If no bot is waiting it says so.
 
 ## Running it
 
-Email/Password sign-in must be enabled once in the Firebase console:
-Authentication, Sign-in method, Email/Password.
-
-Run it from a checkout of `main` that matches the deployed site: the online
-protocol refuses a coach on a different version.
+It runs on old-mac as the LaunchAgent `cc.jialab.bb-house-bot`, from a
+worktree of `main` at `~/house-bot`. Each run moves that worktree to the
+latest `main`, hosts one match and exits, and launchd starts the next.
+Install and run output goes to `~/Library/Logs/bb-house-bot.log`; the
+bot's own log is still `~/.bb-house-bot/logs/bot.log`.
 
 ```sh
-git worktree add ~/house-bot origin/main   # once; later: git -C ~/house-bot pull
-cd ~/house-bot
-pnpm install
+git worktree add --detach ~/house-bot origin/main   # once
+cd ~/house-bot && pnpm install
 cp ~/Projects/MyProjects/bloodbowl-phaser/.env .env
+cp e2e/house-bot/cc.jialab.bb-house-bot.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/cc.jialab.bb-house-bot.plist
+```
 
+Stop it with `launchctl bootout gui/$(id -u)/cc.jialab.bb-house-bot`.
+
+To run it by hand instead, stop the agent first and use a checkout of
+`main` that matches the deployed site: the online protocol refuses a coach
+on a different version.
+
+```sh
 pnpm house-bot   # hosts games until stopped
 ```
 

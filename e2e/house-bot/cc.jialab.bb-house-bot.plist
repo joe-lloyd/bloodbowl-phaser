@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The house bot on old-mac (e2e/house-bot/README.md). Each run moves
+     ~/house-bot to the latest main, hosts one match and exits; launchd
+     starts the next, so the bot never lags the deployed protocol for long.
+     Install: copy to ~/Library/LaunchAgents and run
+     launchctl bootstrap gui/$(id -u) on it. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>cc.jialab.bb-house-bot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-c</string>
+    <string>cd ~/house-bot &amp;&amp; git fetch -q origin main &amp;&amp; git checkout -q --detach origin/main &amp;&amp; pnpm install --frozen-lockfile --silent &amp;&amp; exec pnpm house-bot</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/Users/Shared/homelab-old-mac/build-tools/node-v24.22.1/bin:/usr/bin:/bin</string>
+    <key>HOUSE_BOT_MATCHES</key><string>1</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>30</integer>
+  <key>StandardOutPath</key><string>/Users/joe/Library/Logs/bb-house-bot.log</string>
+  <key>StandardErrorPath</key><string>/Users/joe/Library/Logs/bb-house-bot.log</string>
+</dict>
+</plist>
