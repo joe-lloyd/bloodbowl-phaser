@@ -136,11 +136,6 @@
       "count": 1
     }
   },
-  "src/firebase/lobby.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/gallery/fixtures.ts": {
     "complexity": {
       "count": 1
