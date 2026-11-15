@@ -6,7 +6,7 @@ import { TeamBuilder } from "../../../src/ui/components/pages/TeamBuilder";
 import {
   TeamRepository,
   saveTeams,
-  setTeamLibraryPending,
+  setTeamLibraryStatus,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
 import { Team } from "../../../src/types/Team";
@@ -100,7 +100,7 @@ describe("TeamBuilder loading a team from its route", () => {
   });
 
   it("waits for a library that is still arriving instead of starting another team", async () => {
-    setTeamLibraryPending(true);
+    setTeamLibraryStatus("loading");
     await renderRoute("/build-team/cloud-humans");
 
     expect(container.textContent).toContain("Loading team");
@@ -122,7 +122,7 @@ describe("TeamBuilder loading a team from its route", () => {
   });
 
   it("saves the late-arriving team over the original, keeping its ID", async () => {
-    setTeamLibraryPending(true);
+    setTeamLibraryStatus("loading");
     await renderRoute("/build-team/cloud-humans");
     const { library, repository } = cloudLibrary([savedHumans()]);
     await act(async () => setTeamRepository(repository));
@@ -142,7 +142,7 @@ describe("TeamBuilder loading a team from its route", () => {
       .withPlayers(2)
       .build();
     saveTeams([staleLocal]);
-    setTeamLibraryPending(true);
+    setTeamLibraryStatus("loading");
     await renderRoute("/build-team/cloud-humans");
 
     expect(container.textContent).toContain("Loading team");

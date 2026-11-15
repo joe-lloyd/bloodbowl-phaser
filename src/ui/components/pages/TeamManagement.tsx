@@ -19,7 +19,11 @@ import {
   PageShell,
   Panel,
 } from "../componentWarehouse/HudKit";
-import { useTeamLibrary } from "../../hooks/useTeamLibrary";
+import {
+  useTeamLibrary,
+  useTeamLibraryStatus,
+} from "../../hooks/useTeamLibrary";
+import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import {
   numToHex,
@@ -49,6 +53,7 @@ function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
 
 export function TeamManagement() {
   const [teams, reloadTeams] = useTeamLibrary();
+  const libraryStatus = useTeamLibraryStatus();
   const navigate = useNavigate();
 
   const handleCreateTeam = () => {
@@ -140,7 +145,9 @@ export function TeamManagement() {
         }
       />
 
-      {teams.length === 0 ? (
+      {libraryStatus === "failed" ? (
+        <TeamLibraryUnavailable />
+      ) : teams.length === 0 ? (
         <EmptyState
           title="No teams found in the archives."
           action={

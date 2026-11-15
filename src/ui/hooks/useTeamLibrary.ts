@@ -4,6 +4,8 @@
 
 import { useEffect, useState } from "react";
 import {
+  TeamLibraryStatus,
+  getTeamLibraryStatus,
   loadTeams,
   onTeamRepositoryChanged,
 } from "../../game/managers/TeamManager";
@@ -18,4 +20,14 @@ export function useTeamLibrary(): [Team[], () => void] {
   const [teams, setTeams] = useState<Team[]>(loadTeams);
   useEffect(() => onTeamRepositoryChanged(() => setTeams(loadTeams())), []);
   return [teams, () => setTeams(loadTeams())];
+}
+
+/** Whether the coach's library is loaded, still loading, or failed. */
+export function useTeamLibraryStatus(): TeamLibraryStatus {
+  const [status, setStatus] = useState<TeamLibraryStatus>(getTeamLibraryStatus);
+  useEffect(
+    () => onTeamRepositoryChanged(() => setStatus(getTeamLibraryStatus())),
+    []
+  );
+  return status;
 }

@@ -53,8 +53,13 @@ vi.mock("firebase/firestore", () => ({
 }));
 
 import {
+  TeamLibraryUnavailableError,
+  getLocalRepository,
+  getTeamLibraryStatus,
   isTeamLibraryPending,
   loadTeams,
+  retryTeamLibrary,
+  saveTeams,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
 import { connectTeamPersistenceToAuth } from "../../../src/firebase/cloudTeamRepository";
@@ -114,14 +119,54 @@ describe("team library pending", () => {
     expect(loadTeams().map((t) => t.id)).toEqual(["cloud-team"]);
   });
 
-  it("settles when the cloud library cannot be loaded", async () => {
+  it("marks the library failed, not loaded, when the cloud library cannot be loaded", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     connectTeamPersistenceToAuth(() => false);
     signIn("coach-1");
-    expect(isTeamLibraryPending()).toBe(true);
+    expect(getTeamLibraryStatus()).toBe("loading");
 
     fetches[0].reject(new Error("offline"));
-    await vi.waitFor(() => expect(isTeamLibraryPending()).toBe(false));
+    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("failed"));
+    expect(isTeamLibraryPending()).toBe(false);
+  });
+
+  it("neither shows nor saves to the local library after a signed-in load failed", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    getLocalRepository().saveTeams([cloudTeam("same-id")]);
+    const localBefore = localStorage.getItem("bloodbowl_teams");
+    connectTeamPersistenceToAuth(() => false);
+    signIn("coach-1");
+    fetches[0].reject(new Error("offline"));
+    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("failed"));
+
+    expect(loadTeams()).toEqual([]);
+    await expect(saveTeams([cloudTeam("same-id")])).rejects.toBeInstanceOf(
+      TeamLibraryUnavailableError
+    );
+    expect(localStorage.getItem("bloodbowl_teams")).toBe(localBefore);
+  });
+
+  it("loads the coach's library when Retry follows a failed load", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    connectTeamPersistenceToAuth(() => false);
+    signIn("coach-1");
+    fetches[0].reject(new Error("offline"));
+    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("failed"));
+
+    retryTeamLibrary();
+    expect(getTeamLibraryStatus()).toBe("loading");
+    expect(fetches).toHaveLength(2);
+    fetches[1].resolve(snapshotOf(cloudTeam("cloud-team")));
+    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("loaded"));
+    expect(loadTeams().map((t) => t.id)).toEqual(["cloud-team"]);
+  });
+
+  it("has nothing to retry once signed out", () => {
+    connectTeamPersistenceToAuth(() => false);
+    signOut();
+    retryTeamLibrary();
+    expect(fetches).toHaveLength(0);
+    expect(getTeamLibraryStatus()).toBe("loaded");
   });
 
   it("does not let an earlier sign-in's failed fetch settle a newer load", async () => {

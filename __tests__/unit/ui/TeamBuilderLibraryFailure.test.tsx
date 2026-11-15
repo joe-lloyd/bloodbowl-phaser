@@ -1,0 +1,171 @@
+import { act } from "react";
+import { createRoot, Root } from "react-dom/client";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { dehydrateTeam } from "../../../src/data/persistence/teamPersistence";
+import { Team } from "../../../src/types/Team";
+import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
+
+/**
+ * A signed-in coach refreshes Edit Team and their cloud library fails to
+ * load. localStorage may hold an older copy of the same team; the page must
+ * not open or save it as theirs, and Retry must load their library.
+ */
+
+const auth = vi.hoisted(() => ({
+  listener: null as null | ((user: unknown) => void),
+}));
+const fetches = vi.hoisted(
+  () =>
+    [] as {
+      resolve: (snapshot: unknown) => void;
+      reject: (error: unknown) => void;
+    }[]
+);
+
+vi.mock("../../../src/firebase/auth", () => ({
+  isAuthResolved: () => true,
+  subscribeToAuth: (listener: (user: unknown) => void) => {
+    auth.listener = listener;
+    listener(null);
+    return () => {};
+  },
+}));
+
+vi.mock("../../../src/firebase/config", () => ({
+  getDb: vi.fn(() => ({})),
+  isFirebaseConfigured: vi.fn(() => true),
+}));
+
+vi.mock("firebase/firestore", () => ({
+  collection: vi.fn(() => ({})),
+  collectionGroup: vi.fn(),
+  doc: vi.fn(() => ({})),
+  runTransaction: vi.fn(),
+  setDoc: vi.fn(() => Promise.resolve()),
+  getDocs: vi.fn(
+    () =>
+      new Promise((resolve, reject) => {
+        fetches.push({ resolve, reject });
+      })
+  ),
+}));
+
+import { TeamBuilder } from "../../../src/ui/components/pages/TeamBuilder";
+import { TeamManagement } from "../../../src/ui/components/pages/TeamManagement";
+import {
+  getLocalRepository,
+  loadTeams,
+  setTeamRepository,
+} from "../../../src/game/managers/TeamManager";
+import { connectTeamPersistenceToAuth } from "../../../src/firebase/cloudTeamRepository";
+
+function humans(name: string, players: number): Team {
+  return new TeamTestBuilder()
+    .withId("cloud-humans")
+    .withName(name)
+    .withPlayers(players)
+    .build();
+}
+
+describe("Edit Team when the signed-in library fails to load", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    localStorage.clear();
+    fetches.length = 0;
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    setTeamRepository(null);
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  /** An older local copy, then a signed-in refresh whose fetch fails. */
+  async function failSignedInLoad() {
+    getLocalRepository().saveTeams([humans("Stale Local Humans", 2)]);
+    connectTeamPersistenceToAuth(() => false);
+    auth.listener!({ uid: "coach-1" });
+    await act(async () => {
+      fetches[0].reject(new Error("offline"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    return localStorage.getItem("bloodbowl_teams");
+  }
+
+  async function render(path: string) {
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/build-team" element={<TeamManagement />} />
+            <Route path="/build-team/:teamId" element={<TeamBuilder />} />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+  }
+
+  function inputValues(): string[] {
+    return [...container.querySelectorAll("input")].map((input) => input.value);
+  }
+
+  function button(label: RegExp): HTMLButtonElement {
+    const match = [...container.querySelectorAll("button")].find((b) =>
+      label.test(b.textContent ?? "")
+    );
+    expect(match, `Missing button ${label}`).toBeDefined();
+    return match!;
+  }
+
+  it("does not open or save an older local copy with the same ID", async () => {
+    const localBefore = await failSignedInLoad();
+    await render("/build-team/cloud-humans");
+
+    expect(container.textContent).toContain("Couldn't load your teams");
+    expect(inputValues()).not.toContain("Stale Local Humans");
+    expect(container.textContent).not.toContain("Save Team");
+    expect(container.textContent).not.toContain("Team not found");
+    expect(localStorage.getItem("bloodbowl_teams")).toBe(localBefore);
+  });
+
+  it("opens the coach's own copy when Retry loads their library", async () => {
+    const localBefore = await failSignedInLoad();
+    await render("/build-team/cloud-humans");
+
+    await act(async () => button(/^Retry$/).click());
+    expect(container.textContent).toContain("Loading team");
+    expect(fetches).toHaveLength(2);
+    await act(async () => {
+      fetches[1].resolve({
+        docs: [{ data: () => dehydrateTeam(humans("Cloud Humans", 4)) }],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(inputValues()).toContain("Cloud Humans");
+    expect(container.textContent).toContain("4/11");
+    await act(async () => button(/Save Team/).click());
+    expect(loadTeams().map((team) => [team.id, team.name])).toEqual([
+      ["cloud-humans", "Cloud Humans"],
+    ]);
+    expect(localStorage.getItem("bloodbowl_teams")).toBe(localBefore);
+  });
+
+  it("shows Team Management the failure instead of the local teams", async () => {
+    await failSignedInLoad();
+    await render("/build-team");
+
+    expect(container.textContent).toContain("Couldn't load your teams");
+    expect(container.textContent).not.toContain("Stale Local Humans");
+    expect(button(/^Retry$/)).toBeDefined();
+  });
+});

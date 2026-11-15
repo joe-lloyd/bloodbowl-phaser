@@ -64,6 +64,7 @@ import { RNGService } from "../../../services/rng/RNGService";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 import { PlayedGames } from "../TeamManagement/PlayedGames";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
+import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
 // interface TeamBuilderProps {}
 
@@ -163,22 +164,39 @@ function readSearch(search: string, teamId: string | undefined) {
   };
 }
 
+/** Why a team's page has no team to show yet. */
+type TeamPendingView = "loading" | "missing" | "failed";
+
 /**
  * What a team's page shows before it has the team: loading while the
- * library may still arrive, then "not found" once it has settled without
- * it. Never another team in its place.
+ * library may still arrive, "not found" once it has settled without it,
+ * and a retry when the coach's library failed to load. Never another team
+ * (or an older local copy of this one) in its place.
  */
 function TeamPending({
-  missing,
+  view,
   onBack,
 }: {
-  missing: boolean;
+  view: TeamPendingView;
   onBack: () => void;
 }) {
-  if (!missing) {
+  if (view === "loading") {
     return (
       <PageShell>
         <p className="hud-label">Loading team...</p>
+      </PageShell>
+    );
+  }
+  if (view === "failed") {
+    return (
+      <PageShell width="narrow" className="flex flex-col justify-center">
+        <TeamLibraryUnavailable
+          action={
+            <HudButton variant="ghost" onClick={onBack}>
+              Back to Team Management
+            </HudButton>
+          }
+        />
       </PageShell>
     );
   }
@@ -202,8 +220,8 @@ function TeamPending({
 
 export function TeamBuilder() {
   const [team, setTeam] = useState<Team | null>(null);
-  /** The route names a team the settled library does not hold. */
-  const [teamMissing, setTeamMissing] = useState(false);
+  /** Why the route's team is not shown yet. */
+  const [pendingView, setPendingView] = useState<TeamPendingView>("loading");
   const [selectedRace, setSelectedRace] = useState<RosterName>(
     RosterName.AMAZON
   );
@@ -229,7 +247,7 @@ export function TeamBuilder() {
   useEffect(() => {
     setCompletion("");
     setSaveError("");
-    setTeamMissing(false);
+    setPendingView("loading");
     if (teamId) {
       // A team's page only ever shows that team, read from the coach's
       // settled library. After a refresh a signed-in coach's cloud library
@@ -239,19 +257,19 @@ export function TeamBuilder() {
       savedSnapshot.current = null;
       setTeam(null);
       const loadRequestedTeam = (): boolean => {
-        if (TeamManager.isTeamLibraryPending()) {
-          setTeamMissing(false);
+        const status = TeamManager.getTeamLibraryStatus();
+        if (status !== "loaded") {
+          setPendingView(status);
           return false;
         }
         const existingTeam = TeamManager.loadTeams().find(
           (t) => t.id === teamId
         );
         if (!existingTeam) {
-          setTeamMissing(true);
+          setPendingView("missing");
           return false;
         }
         savedSnapshot.current = snapshotOf(existingTeam);
-        setTeamMissing(false);
         setTeam(existingTeam);
         setSelectedRace(existingTeam.rosterName);
         setSelectedColor(existingTeam.colors.primary);
@@ -582,7 +600,7 @@ export function TeamBuilder() {
   };
 
   if (!team) {
-    return <TeamPending missing={teamMissing} onBack={handleBack} />;
+    return <TeamPending view={pendingView} onBack={handleBack} />;
   }
 
   if (!rosterChosen) {
