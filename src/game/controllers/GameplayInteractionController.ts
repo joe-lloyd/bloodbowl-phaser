@@ -1,113 +1,79 @@
 import Phaser from "phaser";
 import { GameScene } from "../../scenes/GameScene";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { BITE_TARGET_LAYER, Pitch, SquareMarker } from "../elements/Pitch";
+import { Pitch, SquareMarker } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
-import { weatherEffects } from "../rules/weather";
-import { moveAllowance } from "../skills/movement";
-import { withDriveModifiers } from "../kickoff/driveEffects";
-import { jumpTargets, JumpTarget } from "../rules/jump";
-import { GameConfig, isKickingTeamTerritory } from "../../config/GameConfig";
-import { GamePhase, SubPhase } from "../../types/GameState";
+import { GameConfig } from "../../config/GameConfig";
+import { GamePhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
-import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
-import { SkillType, hasSkill } from "@/types/Skills";
-import {
-  ActionType,
-  AllEvents,
-  GameEventNames,
-  StepPrompt,
-} from "@/types/events";
+import { Player } from "@/types/Player";
+import { ActionType, GameEventNames, UIEvents } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { DiceWatch } from "../presentation/diceWatch";
 import { PassController } from "./PassController";
-import {
-  isRightStuffEligible,
-  isThrowTeammateInRange,
-} from "../rules/throwTeammate";
-import {
-  legalHandoffTargets,
-  handoffTargetRefusalReason,
-} from "../rules/handoff";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
+import { BlockReplacement } from "../../types/BlockReplacement";
+import type { DecisionRequest, WizardSpell } from "../../types/decisions";
+import { TargetRollPreview } from "../rules/rollPreview";
+import { ActionStep } from "./interaction/actionSteps";
+import { BiteAndSpellTargets } from "./interaction/BiteAndSpellTargets";
+import { Confirmations } from "./interaction/Confirmations";
+import { PushPicker } from "./interaction/PushPicker";
 import {
-  KickoffEvent,
-  isOneSquareMoveEvent,
-  steppingPlayerId,
-} from "../kickoff/kickoffEvents";
+  askGates,
+  cancelAction,
+  endActivation,
+  reconcileRejectedCommand,
+  resumeBallAndChain,
+  resumeActivePlayer,
+  resumeBlitzMove,
+  selectAction,
+  selectPlayer,
+  selectStep,
+} from "./interaction/actionModes";
 import {
-  BlockReplacement,
-  BLOCK_REPLACEMENT_DEFINITIONS,
-  blockReplacementForDirectAction,
-} from "../../types/BlockReplacement";
-import { legalBlockReplacementTargets } from "../rules/blockReplacements";
-import { planMoveLegs, StepRisk, stepRolls } from "../rules/moveLegs";
-import { standUpCost } from "../skills/movement";
-import { rushModifier } from "../inducements/matchInducements";
-import { availableRerolls } from "../skills/rerolls";
-import { activationGates } from "../skills";
-import type { ActivationGate } from "../skills/SkillRule";
-import { rollLabel } from "../rules/rollTargets";
-import type {
-  BiteTargetDecisionRequest,
-  DecisionRequest,
-  InducementChoiceDecisionRequest,
-  RerollSource,
-  WizardSpell,
-} from "../../types/decisions";
+  followChargeSelection,
+  handleKickoffClick,
+  kickoffPlayerClick,
+  syncKickoffStep,
+} from "./interaction/kickoffInteraction";
+import { previewSquare } from "./interaction/previews";
+import { aimThrow, clearMovePlan, goMovePlan } from "./interaction/planBar";
+import { dragRouteTo, routeOwnerAt } from "./interaction/routes";
+import { playerClickTarget } from "./interaction/stepClicks";
 import {
-  foulPreview,
-  blockPreviewLines,
-  catchTarget,
-  interceptPreviewLine,
-  passTarget,
-  pickupTarget,
-  RoutePreview,
-  RouteRoll,
-  TargetRollPreview,
-} from "../rules/rollPreview";
-import { BlockValidator } from "../validators/BlockValidator";
+  clickInPlay,
+  clickTouchback,
+  handleJumpClick,
+} from "./interaction/squareClicks";
+
+type Square = { x: number; y: number };
 
 /**
- * Special activation actions that target a single adjacent Standing
- * opponent. Declaring one enters a "target" step; clicking a valid target
- * runs it through the matching IGameService call.
+ * The pointer and click controller for the match: selection, routes,
+ * action modes, previews, the kick-off, and push and bite picking.
+ *
+ * The board's state lives here. The modules under ./interaction take this
+ * controller and read and change that state as the methods here did, so
+ * the fields they use are public.
  */
-const SPECIAL_ACTION_MODES = new Set<string>([
-  "stab",
-  "breatheFire",
-  "vomit",
-  "gaze",
-  "chomp",
-  "chainsaw",
-]);
-
-/** The Thrall Linemen a failed Bloodlust may bite: ringed and marked red. */
-const BITE_TARGET_COLOR = 0xef4444;
-/** A Fireball's blast, and the players Zap! may pick. */
-const SPELL_TARGET_COLOR = 0xf97316;
-
 export class GameplayInteractionController {
-  private scene: GameScene;
-  private gameService: IGameService;
-  private eventBus: IEventBus;
-  private pitch: Pitch;
-  private movementValidator: MovementValidator;
+  readonly scene: GameScene;
+  readonly gameService: IGameService;
+  readonly eventBus: IEventBus;
+  readonly pitch: Pitch;
+  readonly movementValidator: MovementValidator;
   private highlightManager: HighlightManager;
 
   // State
-  private selectedPlayerId: string | null = null;
-  private lastHoverGrid: { x: number; y: number } | null = null;
-  private waypoints: { x: number; y: number }[] = [];
+  selectedPlayerId: string | null = null;
+  lastHoverGrid: Square | null = null;
+  waypoints: Square[] = [];
   /** Where a finger aimed a throw, and at which step (see aimKey). */
-  private aimedAt: { key: string; x: number; y: number } | null = null;
-  /** Numbers each Dodge/Rush prompt so a stale answer cannot match. */
-  private riskPrompts = 0;
-  /** Confirms still waiting for an answer, each dropped on destroy. */
-  private openConfirmations = new Set<() => void>();
-  private targetRollPreview: TargetRollPreview | null = null;
-  private targetAnchor: { x: number; y: number } | null = null;
-  private publishTargetPreview = () => {
+  aimedAt: { key: string; x: number; y: number } | null = null;
+  targetRollPreview: TargetRollPreview | null = null;
+  targetAnchor: Square | null = null;
+  publishTargetPreview = () => {
     const preview = this.targetRollPreview;
     if (!preview) return;
     const world = this.pitch.getPixelPosition(
@@ -131,78 +97,44 @@ export class GameplayInteractionController {
     });
   };
   /** A Dodge/Rush prompt waits for the dice before it opens. */
-  private readonly dice: DiceWatch;
-
-  /**
-   * A failed Bloodlust with two or more Thrall Linemen in reach: the ones
-   * this coach may click to bite. Empty when no bite is being chosen here.
-   * Like a push square, it is a mandatory pick: other clicks do nothing.
-   */
-  private biteTargetIds: string[] = [];
-  private biteMarkers: SquareMarker[] = [];
-  /** The Sports-Wizard spell whose target the next pitch click picks. */
-  private wizardSpell: WizardSpell | null = null;
-  private spellMarkers: SquareMarker[] = [];
-
-  // Push direction selection state
-  private pushSelectionActive: boolean = false;
-  private pushValidDirections: { x: number; y: number }[] = [];
-  private pushDefenderId: string = "";
-  private pushAttackerId: string = ""; // Track attacker ID
-  private pushResultType: string = "";
+  readonly dice: DiceWatch;
+  /** The yes-or-no questions still open, dropped on destroy. */
+  readonly confirmations: Confirmations;
+  /** A failed Bloodlust's bite, and a Sports-Wizard spell's target. */
+  readonly targets: BiteAndSpellTargets;
+  /** The square a Block pushes to: a mandatory pick. */
+  readonly push: PushPicker;
 
   // Store handler references for cleanup
   private pushDirectionHandler: (
-    data: import("@/types/events").UIEvents[GameEventNames.UI_SelectPushDirection]
+    data: UIEvents[GameEventNames.UI_SelectPushDirection]
   ) => void;
   private resumeBlitzMoveHandler: (data: { playerId: string }) => void;
-  private kickoffHighlightedPlayerIds = new Set<string>();
+  kickoffHighlightedPlayerIds = new Set<string>();
   /** The squares a kick-off one-square mover may step to, drawn for them. */
-  private kickoffSquareMarkers: SquareMarker[] = [];
+  kickoffSquareMarkers: SquareMarker[] = [];
   private kickoffStepSyncHandler = () => this.syncKickoffStepInteraction();
-  private kickoffPlayerSelectedHandler = (data: { player: Player | null }) => {
-    const step = this.gameService.getKickoffEventStep();
-    if (!step) return;
-    if (
-      step.charge?.activePlayerId &&
-      data.player?.id === step.charge.activePlayerId
-    ) {
-      if (
-        this.selectedPlayerId &&
-        this.selectedPlayerId !== step.charge.activePlayerId
-      ) {
-        this.scene.unhighlightPlayer(this.selectedPlayerId);
-      }
-      this.selectedPlayerId = step.charge.activePlayerId;
-      this.currentActionMode = null;
-      this.currentStepId = null;
-      this.actionSteps = [];
-      this.clearWaypoints();
-      this.hasMovedInAction = false;
-      this.pitch.clearPath();
-      this.pitch.clearPassVisualization();
-    }
-    this.syncKickoffStepInteraction();
-  };
+  private kickoffPlayerSelectedHandler = (data: { player: Player | null }) =>
+    followChargeSelection(this, data.player);
 
   // Pass mode state
-  private currentActionMode: import("@/types/events").ActionType | null = null;
+  currentActionMode: ActionType | null = null;
   /** Explicit direct/Blitz attack declaration retained through movement. */
-  private currentBlockReplacement: BlockReplacement | null = null;
-  private currentStepId: string | null = null;
-  private actionSteps: { id: string; label: string }[] = [];
-  private hasMovedInAction: boolean = false;
+  currentBlockReplacement: BlockReplacement | null = null;
+  currentStepId: string | null = null;
+  actionSteps: ActionStep[] = [];
+  hasMovedInAction: boolean = false;
   /**
    * The Jump step is selected: a click Jumps two squares in the compass
    * direction toward the pointer. A separate flag (not currentStepId) so the
    * Move step is never marked "done" — a Jump does not consume the Move.
    */
-  private jumpTargeting: boolean = false;
+  jumpTargeting: boolean = false;
   /** The team-mate chosen for a Throw / Kick Team-mate Action, awaiting an aim. */
-  private ttmTeammateId: string | null = null;
+  ttmTeammateId: string | null = null;
   /** First opponent selected for a Multiple Block, awaiting the second. */
-  private multipleBlockFirstTargetId: string | null = null;
-  private passController: PassController;
+  multipleBlockFirstTargetId: string | null = null;
+  readonly passController: PassController;
 
   /**
    * Online guest only. Bumped by every local mutation of
@@ -212,15 +144,15 @@ export class GameplayInteractionController {
    * rejection that arrives late for THAT cancel doesn't clobber whatever
    * newer state the coach has since built — see onNetworkCommandRejected.
    */
-  private interactionSeq = 0;
+  interactionSeq = 0;
   /** playerId -> interactionSeq at the moment a cancel-action's optimistic
    *  local reset was applied. A rejection for that cancel only reconciles
    *  if interactionSeq is still exactly this value — i.e. nothing local
    *  happened for this player in between. */
-  private pendingCancelSeqByPlayer = new Map<string, number>();
+  pendingCancelSeqByPlayer = new Map<string, number>();
 
   // Interaction Lock
-  private isBusy: boolean = false;
+  isBusy: boolean = false;
 
   constructor(
     scene: GameScene,
@@ -236,36 +168,22 @@ export class GameplayInteractionController {
     this.movementValidator = movementValidator;
     this.highlightManager = new HighlightManager(pitch);
     this.dice = new DiceWatch(eventBus);
+    this.confirmations = new Confirmations(eventBus);
+    this.targets = new BiteAndSpellTargets(gameService, scene, pitch, (x, y) =>
+      this.getPlayerAt(x, y)
+    );
+    this.push = new PushPicker(gameService, eventBus, this.highlightManager);
     this.passController = gameService.getPassController();
     this.scene.events.on("postupdate", this.publishTargetPreview);
 
     // Store handler reference for cleanup
     this.pushDirectionHandler = (data) => {
-      this.startPushDirectionSelection(data);
+      this.push.start(data);
     };
 
-    // A Blitz block that left movement re-enters the move: re-select the
-    // blitzer where the follow-up left them, with the rest of their MA (and
-    // Rush) available. Their one Block is spent, so only Move remains.
+    // A Blitz block that left movement re-enters the move
     this.resumeBlitzMoveHandler = (data) => {
-      const player = this.gameService.getPlayerById(data.playerId);
-      if (!player || this.gameService.hasPlayerActed(data.playerId)) return;
-      // Online, only the board of the coach who controls the blitzer
-      const online = getActiveOnlineMatch();
-      if (online && online.myTeamId !== player.teamId) return;
-      this.selectedPlayerId = data.playerId;
-      this.currentActionMode = "blitz";
-      this.currentStepId = "move";
-      this.hasMovedInAction = true;
-      this.clearWaypoints();
-      this.pitch.clearPath();
-      this.scene.highlightPlayer(data.playerId);
-      this.eventBus.emit(GameEventNames.PlayerSelected, { player });
-      this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-        steps: [{ id: "move", label: "Move" }],
-        currentStepId: "move",
-      });
-      this.refreshPlayerVisualization(data.playerId);
+      resumeBlitzMove(this, data.playerId);
     };
 
     // Listen for push direction selection request
@@ -337,7 +255,7 @@ export class GameplayInteractionController {
    * biting coach to click. Online, only the biting coach's board marks them.
    */
   private onDecisionRequested = (request: DecisionRequest) => {
-    if (request.type === "bite-target") this.markBiteTargets(request);
+    if (request.type === "bite-target") this.targets.markBiteTargets(request);
   };
 
   /**
@@ -345,153 +263,21 @@ export class GameplayInteractionController {
    * mark the bite the restored game waits on, if it waits on one.
    */
   private onStateRestored = () => {
-    this.clearBiteTargets();
-    const bite = this.pendingBite();
-    if (bite) this.markBiteTargets(bite);
+    this.targets.clearBiteTargets();
+    this.targets.markPendingBite();
   };
-
-  /** The bite being chosen, if any: online the match's, else the engine's. */
-  private pendingBite(): BiteTargetDecisionRequest | null {
-    const online = getActiveOnlineMatch();
-    const pending = online
-      ? online.pendingDecision()
-      : this.gameService.getDecisionService().pending();
-    return pending?.type === "bite-target" ? pending : null;
-  }
-
-  private markBiteTargets(request: BiteTargetDecisionRequest): void {
-    this.clearBiteTargets();
-    const online = getActiveOnlineMatch();
-    if (online && online.myTeamId !== request.chooserTeamId) return;
-    this.biteTargetIds = [...request.targetIds];
-    for (const id of this.biteTargetIds) {
-      const square = this.gameService.getPlayerById(id)?.gridPosition;
-      if (!square) continue;
-      this.scene.highlightPlayer(id, BITE_TARGET_COLOR);
-      // Its own layer, so clearing the move/selection highlights keeps it
-      this.biteMarkers.push(
-        this.pitch
-          .highlightSquare(square.x, square.y, BITE_TARGET_COLOR)
-          .setName(BITE_TARGET_LAYER)
-      );
-    }
-  }
-
-  private clearBiteTargets(): void {
-    for (const id of this.biteTargetIds) this.scene.unhighlightPlayer(id);
-    for (const marker of this.biteMarkers) if (marker.scene) marker.destroy();
-    this.biteTargetIds = [];
-    this.biteMarkers = [];
-  }
-
-  /**
-   * Route a click while a bite is being chosen: a marked Thrall is bitten,
-   * anything else is ignored. False when no bite is being chosen here.
-   */
-  private handleBiteTargetClick(playerId: string | undefined): boolean {
-    if (this.biteTargetIds.length === 0) return false;
-    // Gone without a resolve (state replaced): the board is free again
-    if (!this.pendingBite()) {
-      this.clearBiteTargets();
-      return false;
-    }
-    if (!playerId || !this.biteTargetIds.includes(playerId)) return true;
-    // Clear first: online, the answer is only pending until it comes back,
-    // and a second click (sprite and square both report it) must not resend
-    this.clearBiteTargets();
-    this.gameService.answerBiteTarget(playerId);
-    return true;
-  }
-
-  /** The Sports-Wizard offer waiting on this coach, if any. */
-  private pendingSpell(): InducementChoiceDecisionRequest | null {
-    const online = getActiveOnlineMatch();
-    const pending = online
-      ? online.pendingDecision()
-      : this.gameService.getDecisionService().pending();
-    return pending?.type === "inducement-choice" &&
-      pending.kind === "sports-wizard"
-      ? pending
-      : null;
-  }
 
   /** The dialog picked a spell, or went back: aim it with the pitch. */
   private onWizardTargeting = ({ spell }: { spell: WizardSpell | null }) => {
-    this.wizardSpell = spell;
-    this.clearSpellMarkers();
-    const pending = this.pendingSpell();
-    if (spell !== "zap" || !pending) return;
-    for (const id of pending.playerIds) {
-      const square = this.gameService.getPlayerById(id)?.gridPosition;
-      if (square) this.markSpellSquare(square);
-    }
+    this.targets.aimSpell(spell);
   };
-
-  private markSpellSquare(square: { x: number; y: number }): void {
-    this.spellMarkers.push(
-      this.pitch
-        .highlightSquare(square.x, square.y, SPELL_TARGET_COLOR)
-        .setName(BITE_TARGET_LAYER)
-    );
-  }
-
-  private clearSpellMarkers(): void {
-    for (const marker of this.spellMarkers) if (marker.scene) marker.destroy();
-    this.spellMarkers = [];
-  }
-
-  /** Fireball shows its blast, the square and its eight neighbours. */
-  private previewFireball(x: number, y: number): void {
-    if (this.wizardSpell !== "fireball") return;
-    this.clearSpellMarkers();
-    for (let dx = -1; dx <= 1; dx++)
-      for (let dy = -1; dy <= 1; dy++) {
-        const square = { x: x + dx, y: y + dy };
-        if (
-          square.x >= 0 &&
-          square.y >= 0 &&
-          square.x < GameConfig.PITCH_WIDTH &&
-          square.y < GameConfig.PITCH_HEIGHT
-        )
-          this.markSpellSquare(square);
-      }
-  }
-
-  /**
-   * Route a click while a spell is aimed: Fireball takes the square, Zap!
-   * an offered player. False when no spell is being aimed here.
-   */
-  private handleSpellClick(x: number, y: number): boolean {
-    const spell = this.wizardSpell;
-    if (!spell) return false;
-    if (!this.pendingSpell()) {
-      this.wizardSpell = null;
-      this.clearSpellMarkers();
-      return false;
-    }
-    if (spell === "fireball") {
-      this.gameService.answerInducementChoice({ spell, square: { x, y } });
-    } else {
-      const target = this.getPlayerAt(x, y);
-      if (!target) return true;
-      this.gameService.answerInducementChoice({ spell, playerId: target.id });
-    }
-    return true;
-  }
 
   /** Online, the other coach may pick the push; free this board then. */
   private onDecisionResolved = ({ type }: { type: string }) => {
-    if (type === "bite-target") this.clearBiteTargets();
-    if (type === "inducement-choice") {
-      this.wizardSpell = null;
-      this.clearSpellMarkers();
-    }
-    if (type !== "push-direction" || !this.pushSelectionActive) return;
-    this.pushSelectionActive = false;
-    this.pushValidDirections = [];
-    this.pushDefenderId = "";
-    this.pushAttackerId = "";
-    this.pushResultType = "";
+    if (type === "bite-target") this.targets.clearBiteTargets();
+    if (type === "inducement-choice") this.targets.dropSpell();
+    if (type !== "push-direction" || !this.push.active) return;
+    this.push.reset();
     this.clearAllInteractionHighlights();
   };
 
@@ -499,25 +285,14 @@ export class GameplayInteractionController {
     if (data.phase === GamePhase.PLAY) {
       return;
     }
-    this.pushSelectionActive = false;
-    this.pushValidDirections = [];
-    this.pushDefenderId = "";
-    this.pushAttackerId = "";
-    this.pushResultType = "";
-    this.clearBiteTargets();
+    this.push.reset();
+    this.targets.clearBiteTargets();
     this.isBusy = false;
     this.deselectPlayer();
     this.pitch.clearHover();
   };
 
-  private onEndActivation = () => {
-    const playerId = this.selectedPlayerId;
-    if (!playerId) return;
-    this.gameService.finishActivation(playerId);
-    // Ending a Charge! activation hands the board to the next charger,
-    // already selected: keep them
-    if (this.selectedPlayerId === playerId) this.deselectPlayer();
-  };
+  private onEndActivation = () => endActivation(this);
 
   /**
    * Razzle-Dazzle: the first Action ended and the activation stays open.
@@ -533,463 +308,24 @@ export class GameplayInteractionController {
     }, 50);
   };
 
-  private onCancelAction = () => {
-    if (!this.selectedPlayerId) return;
+  private onCancelAction = () => cancelAction(this);
 
-    // If we have already moved, we cannot fully cancel the action to select another player
-    // effectively, we can only "End Activation" or continue.
-    // BUT the requirement says: "if the player misclicked it they should be able to exit by pressing the back button"
-    // AND "if a player moves then they can no longer go back to the context menu"
+  /** Online guest only: undo a declaration or cancel the host refused. */
+  private onNetworkCommandRejected = (
+    data: Parameters<typeof reconcileRejectedCommand>[1]
+  ) => reconcileRejectedCommand(this, data);
 
-    if (this.hasMovedInAction) {
-      // If moved, Back might just deselect current step or do nothing?
-      // The requirement says "can no longer go back to the context menu".
-      // So maybe Back is disabled in UI?
-      // If UI emits this, let's treat it as deselecting ONLY if we haven't moved?
-      console.warn("Cannot cancel action after moving");
-      return;
-    }
+  private onStepSelected = (data: { stepId: string }) => selectStep(this, data);
 
-    // Determine what to go back to.
-    // If we are in an Action (like Pass) and haven't moved, "Back" should probably cancel the Action Mode
-    // and return to "Just Selected" state (Action Menu open).
+  private onActionSelected = (data: Parameters<typeof selectAction>[1]) =>
+    selectAction(this, data);
 
-    if (!this.gameService.cancelAction(this.selectedPlayerId)) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "This Action is already committed and cannot be cancelled."
-      );
-      return;
-    }
-
-    this.dropAim();
-    // Reset Action Mode but keep player selected
-    this.currentActionMode = null;
-    this.currentBlockReplacement = null;
-    this.currentStepId = null;
-    this.actionSteps = [];
-    this.pitch.clearPassVisualization();
-
-    // Record the interaction "moment" this optimistic reset happened at —
-    // an online guest's cancelAction() always reports success immediately,
-    // so a late rejection needs a way to tell whether anything local has
-    // moved on since (see onNetworkCommandRejected).
-    this.interactionSeq++;
-    this.pendingCancelSeqByPlayer.set(
-      this.selectedPlayerId,
-      this.interactionSeq
-    );
-
-    // Notify UI to show default menu again
-    // We do this by emitting PlayerSelected again (which resets menu in PlayerActionMenu)
-    const player = this.gameService.getPlayerById(this.selectedPlayerId);
-    if (player) {
-      this.eventBus.emit(GameEventNames.PlayerSelected, { player });
-
-      // Also need to refresh visuals (ranges might have been hidden/changed)
-      this.refreshPlayerVisualization(this.selectedPlayerId);
-    }
-  };
-
-  /**
-   * Online guest only. NetworkedGameService's declareAction()/cancelAction()
-   * answer optimistically — "true" before the host has even seen the
-   * command — so onActionSelected/onCancelAction above already advanced
-   * currentActionMode/actionSteps/currentStepId by the time the real
-   * verdict arrives. When that verdict is a rejection, this local
-   * step-machine is now describing an action the host never accepted:
-   * left alone, every further click (e.g. an attempted Block) keeps
-   * bouncing off a step the host has no matching declaration for
-   * (repro: a Bloodlust-gated declaration commits host-side, a stale
-   * cancel is rejected, the guest UI resets anyway, the redeclare that
-   * follows is rejected too, yet the UI had already switched to the
-   * "block" step — every subsequent block attempt then loops forever on
-   * "block-not-declared"). Deselecting forces a clean reselect against the
-   * replica, which the same response already corrected via its snapshot.
-   *
-   * Both branches below must independently confirm the rejection still
-   * describes THIS controller's current optimistic state before touching
-   * anything — a late rejection for a command the coach has since moved
-   * past (declared something else, cancelled again, deselected) must be a
-   * no-op, or reconciliation would itself become a source of desync.
-   */
-  private onNetworkCommandRejected = (data: {
-    commandType: string;
-    playerId?: string;
-    action?: string;
-    reason: string;
-  }) => {
-    if (data.commandType === "choose-bite-target") {
-      // The markers went when the answer was sent; a refused answer leaves
-      // the bite open, so mark its Thralls again for the coach to retry
-      const bite = this.pendingBite();
-      if (bite) this.markBiteTargets(bite);
-      return;
-    }
-    if (!this.selectedPlayerId || data.playerId !== this.selectedPlayerId) {
-      return;
-    }
-    const stale =
-      (data.commandType === "declare-action" &&
-        this.currentActionMode === data.action) ||
-      (data.commandType === "cancel-action" &&
-        this.pendingCancelSeqByPlayer.get(data.playerId) ===
-          this.interactionSeq);
-    if (!stale) return;
-
-    const playerId = this.selectedPlayerId;
-    this.pendingCancelSeqByPlayer.delete(playerId);
-    this.deselectPlayer();
-    this.eventBus.emit(
-      GameEventNames.UI_Notification,
-      "The board was out of sync — your last action wasn't accepted. Please reselect the player."
-    );
-    // Reselect so the menu rebuilds immediately against the now-corrected
-    // replica, rather than leaving the coach staring at an empty board.
-    this.selectPlayer(playerId);
-  };
-
-  private onStepSelected = (data: { stepId: string }) => {
-    // Validate step exists in current sequence
-    const stepExists = this.actionSteps.some((s) => s.id === data.stepId);
-    if (!stepExists) {
-      console.warn("Invalid step selected:", data.stepId);
-      return;
-    }
-    if (data.stepId !== this.currentStepId) this.dropAim();
-
-    // Stand Up executes immediately and hands over to the action's next step
-    if (data.stepId === "standup" && this.selectedPlayerId) {
-      const playerId = this.selectedPlayerId;
-      this.gameService
-        .standUp(playerId)
-        .then(() => {
-          // A Jump Up player standing to make a declared Block must pass an
-          // Agility test; on a failure they are still Prone and the Action is
-          // spent, so there is no next step to advance to.
-          const after = this.gameService.getPlayerById(playerId);
-          if (after?.status !== PlayerStatus.ACTIVE) {
-            this.deselectPlayer();
-            return;
-          }
-          this.actionSteps = this.actionSteps.filter((s) => s.id !== "standup");
-          // Advance to whatever the action's own next step is — a Block
-          // action has no "move" step, so assuming one stranded it.
-          this.currentStepId = this.actionSteps[0]?.id ?? "move";
-          this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-            steps: this.actionSteps,
-            currentStepId: this.currentStepId,
-          });
-          this.refreshPlayerVisualization(playerId);
-        })
-        .catch((err) => {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            `Cannot Stand Up: ${err}`
-          );
-        });
-      return;
-    }
-
-    // Jump step: enter Jump targeting — a snapped two-square arrow follows the
-    // pointer and a click leaps in that compass direction. Kept OFF of
-    // currentStepId (the Move step stays current, never marked done) since a
-    // Jump does not consume the Move.
-    if (data.stepId === "jump" && this.selectedPlayerId) {
-      this.jumpTargeting = true;
-      const player = this.gameService.getPlayerById(this.selectedPlayerId);
-      const targets = player ? this.computeJumpTargets(player) : [];
-      if (player?.gridPosition) {
-        this.pitch.drawJumpTargets(player.gridPosition, targets);
-      }
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        targets.length > 0
-          ? "Jump: click a highlighted landing square to leap over the adjacent square."
-          : "No adjacent player to Jump over."
-      );
-      return;
-    }
-
-    // Any other step ends Jump targeting.
-    this.jumpTargeting = false;
-    this.currentStepId = data.stepId;
-    this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-      steps: this.actionSteps,
-      currentStepId: this.currentStepId,
-    });
-    console.log(`Switched action step to: ${data.stepId}`);
-
-    // 1. Refresh static visuals (range overlay, tackle zones) for the new step
-    if (this.selectedPlayerId) {
-      this.refreshPlayerVisualization(this.selectedPlayerId);
-    }
-
-    // 2. Refresh dynamic visuals (cursor, path, pass lines)
-    if (this.lastHoverGrid) {
-      this.onSquareHovered(this.lastHoverGrid.x, this.lastHoverGrid.y);
-    } else {
-      // Clear dynamic visuals if no hover (path, cursor)
-      // Static visuals already handled above
-      this.pitch.clearPassVisualization();
-      this.pitch.clearPath();
-    }
-  };
-
-  private onActionSelected = async (data: {
-    action: import("@/types/events").ActionType;
-    playerId: string;
-    blockReplacement?: BlockReplacement;
-    razzleDazzle?: boolean;
-  }) => {
-    // A negatrait roll binds the player to the action: ask before it
-    const asked =
-      data.action === "forgoe"
-        ? null
-        : this.askGates(
-            data.playerId,
-            data.action === "standUp" ? "move" : data.action
-          );
-    if (asked && !(await asked)) return;
-
-    // Immediate Actions
-    if (data.action === "standUp") {
-      try {
-        await this.gameService.standUp(data.playerId);
-        this.selectPlayer(data.playerId);
-      } catch (err) {
-        console.error("Stand Up failed:", err);
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `Cannot Stand Up: ${err}`
-        );
-      }
-      return;
-    }
-
-    if (data.action === "forgoe") {
-      this.gameService.finishActivation(data.playerId);
-      this.deselectPlayer();
-      return;
-    }
-
-    // Mode-Setting Actions (Blitz, Pass, Move, etc.)
-    const blockReplacement =
-      data.blockReplacement ??
-      blockReplacementForDirectAction(data.action) ??
-      null;
-    const success = this.gameService.declareAction(
-      data.playerId,
-      data.action,
-      blockReplacement ?? undefined,
-      ...(data.razzleDazzle ? [{ razzleDazzle: true }] : [])
-    );
-    if (success) {
-      this.enterActionMode(data.playerId, data.action, blockReplacement);
-    } else {
-      console.log("Failed to declare action:", data.action);
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `Cannot declare ${data.action} (Already used?)`
-      );
-    }
-  };
-
-  /**
-   * Put the board into a declared action: its steps, its opening step and
-   * the movement overlay. Used when the coach declares, and when a restore
-   * hands back a player the engine already has mid-action.
-   */
-  private enterActionMode(
-    playerId: string,
-    action: import("@/types/events").ActionType,
-    blockReplacement: BlockReplacement | null
-  ): void {
-    // Set action mode state
-    this.currentActionMode = action;
-    this.currentBlockReplacement = blockReplacement;
-    this.hasMovedInAction = false;
-    // Local state moved on — invalidates any cancel-action rejection
-    // still in flight for this player (see onNetworkCommandRejected).
-    this.interactionSeq++;
-
-    // Define steps based on action
-    this.actionSteps = [];
-
-    switch (action) {
-      case "stab":
-      case "breatheFire":
-      case "vomit":
-      case "chomp":
-      case "chainsaw":
-        // Single-target special action: pick an adjacent Standing opponent
-        this.actionSteps = [{ id: "target", label: "Select Target" }];
-        break;
-      case "gaze":
-        // Hypnotic Gaze may Move first, then picks an adjacent target
-        this.actionSteps = [
-          { id: "move", label: "Move" },
-          { id: "target", label: "Select Target" },
-        ];
-        break;
-      case "pass":
-        this.actionSteps = [
-          { id: "move", label: "Move" },
-          { id: "pass", label: "Pass" },
-        ];
-        break;
-      case "punt":
-        this.actionSteps = [
-          { id: "move", label: "Move" },
-          { id: "punt", label: "Punt (pick direction)" },
-        ];
-        break;
-      case "throwBomb":
-        // A Bomber may not Move before throwing: one step, aim at any square.
-        this.actionSteps = [{ id: "bomb", label: "Throw Bomb" }];
-        break;
-      case "ballAndChain":
-        // The Fanatic's only action: pick a facing (a click direction).
-        this.actionSteps = [{ id: "swing", label: "Swing (pick a direction)" }];
-        break;
-      case "blitz":
-        this.actionSteps = blockReplacement
-          ? [
-              { id: "move", label: "Move" },
-              {
-                id: "target",
-                label: BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement].label,
-              },
-            ]
-          : [
-              { id: "move", label: "Move" },
-              { id: "block", label: "Block" },
-            ];
-        break;
-      case "handoff":
-        this.actionSteps = [
-          { id: "move", label: "Move" },
-          { id: "handoff", label: "Handoff" },
-        ];
-        break;
-      case "foul":
-        this.actionSteps = [
-          { id: "move", label: "Move" },
-          { id: "foul", label: "Foul" },
-        ];
-        break;
-      case "block":
-        // A standalone Block: pick an adjacent Standing opponent to block.
-        this.actionSteps = [{ id: "block", label: "Block" }];
-        break;
-      case "multipleBlock":
-        this.multipleBlockFirstTargetId = null;
-        this.actionSteps = [
-          { id: "multipleBlock", label: "Select Two Targets" },
-        ];
-        break;
-      case "throwTeamMate":
-        this.ttmTeammateId = null;
-        // Move first (optional), then throw: in the throw step the first
-        // click picks the adjacent Right-Stuff team-mate, the second aims.
-        this.actionSteps = [
-          { id: "move", label: "Move" },
-          { id: "throw", label: "Throw Team-mate" },
-        ];
-        break;
-      // Secure Ball logic? Usually automatic, but stepper requested.
-      case "secureBall":
-        this.actionSteps = [
-          { id: "move", label: "Move" },
-          { id: "secure", label: "Secure Ball" },
-        ];
-        break;
-      default:
-        // Move: walk by clicking squares, or Jump over an adjacent downed
-        // player via the Jump step (you can jump at any point in the move).
-        this.actionSteps = [
-          { id: "move", label: "Move" },
-          { id: "jump", label: "Jump" },
-        ];
-        break;
-    }
-
-    // The opening step is always the action's own first step. Deriving it
-    // from the list (rather than assuming "move") keeps single-step actions
-    // — Block, Throw Bomb, Ball & Chain, the special attacks — on a step
-    // their click handler actually matches; a hard-coded "move" left them
-    // on a step no branch claimed, so their clicks fell through.
-    const defaultStep = this.actionSteps[0]?.id ?? "move";
-
-    // A prone player stands up first — same activation, costs movement
-    const declarer = this.gameService.getPlayerById(playerId);
-    if (declarer?.status === PlayerStatus.PRONE) {
-      this.actionSteps.unshift({ id: "standup", label: "Stand Up" });
-      this.currentStepId = "standup";
-    } else {
-      this.currentStepId = defaultStep;
-    }
-
-    // Emit Step Info
-    this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-      steps: this.actionSteps,
-      currentStepId: this.currentStepId,
-    });
-
-    // Emit ActionModeChanged event for UI (Legacy?)
-    this.eventBus.emit(GameEventNames.ActionModeChanged, {
-      playerId: playerId,
-      action: action,
-      blockReplacement: blockReplacement ?? undefined,
-      autoSelectMove: true,
-    });
-
-    // Don't call selectPlayer here - it causes PlayerSelected event
-    // which resets the action mode we just set!
-    // The player is already selected, no need to refresh
-
-    // Update visuals to reflect new mode (e.g. Pass might hide movement range or show pass zones)
-    this.refreshPlayerVisualization(playerId);
-  }
-
-  /**
-   * After a reload or a resync the engine may hold one of this coach's
-   * players mid-action while the board has nothing selected, so clicks on
-   * the pitch did nothing. Select that player again and resume its action.
-   */
-  /**
-   * A Ball & Chain square has resolved with squares left: pick the Fanatic
-   * back up, wherever the square left it, for the coach's next facing.
-   */
   private resumeBallAndChain = (data: { playerId: string }) => {
-    const player = this.gameService.getPlayerById(data.playerId);
-    if (!player || this.gameService.hasPlayerActed(data.playerId)) return;
-    const online = getActiveOnlineMatch();
-    if (online && online.myTeamId !== player.teamId) return;
-    this.selectedPlayerId = data.playerId;
-    this.currentActionMode = "ballAndChain";
-    this.currentStepId = "swing";
-    this.hasMovedInAction = true;
-    this.scene.highlightPlayer(data.playerId);
-    this.eventBus.emit(GameEventNames.PlayerSelected, { player });
-    this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-      steps: [{ id: "swing", label: "Swing (pick a direction)" }],
-      currentStepId: "swing",
-    });
-    this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
-      playerId: data.playerId,
-    });
-    this.refreshPlayerVisualization(data.playerId);
+    resumeBallAndChain(this, data.playerId);
   };
 
-  private resumeActivePlayer = () => {
-    const active = this.gameService.getState().activePlayer;
-    const player = active ? this.gameService.getPlayerById(active.id) : null;
-    if (!active?.action || !player) return;
-    const online = getActiveOnlineMatch();
-    if (online && online.myTeamId !== player.teamId) return;
-    this.selectPlayer(active.id);
-  };
+  /** A reload or resync may hand back this coach's player mid-action. */
+  private resumeActivePlayer = () => resumeActivePlayer(this);
 
   public handlePointerDown(
     pointer: { worldX: number; worldY: number },
@@ -1001,11 +337,11 @@ export class GameplayInteractionController {
 
     // Crowd push squares sit one square off-pitch; accept clicks there
     // while a push direction is being chosen
-    const margin = this.pushSelectionActive ? 1 : 0;
+    const margin = this.push.active ? 1 : 0;
     const { valid, gridX, gridY } = this.getGridFromPointer(pointer, margin);
     if (valid) {
       this.onSquareClicked(gridX, gridY);
-    } else if (!this.pushSelectionActive) {
+    } else if (!this.push.active) {
       // Clicked outside pitch -> Deselect (but never mid push decision:
       // deselecting would wipe the pending push highlights)
       this.deselectPlayer();
@@ -1060,18 +396,23 @@ export class GameplayInteractionController {
     return { valid: false, gridX: -1, gridY: -1 };
   }
 
-  private async onSquareClicked(x: number, y: number): Promise<void> {
+  /**
+   * A click on a pitch square. The bite and spell picks come first, then
+   * the busy lock, the push pick, a Jump, the kick-off and the Touchback.
+   * Anything left is a click in play: the declared step's, or the pitch's.
+   */
+  async onSquareClicked(x: number, y: number): Promise<void> {
     // Before the busy lock: the bite may be asked while a move that ends in
     // the End Zone is still being walked
-    if (this.handleBiteTargetClick(this.getPlayerAt(x, y)?.id)) return;
-    if (this.handleSpellClick(x, y)) return;
+    if (this.targets.handleBiteTargetClick(this.getPlayerAt(x, y)?.id)) return;
+    if (this.targets.handleSpellClick(x, y)) return;
     if (this.isBusy) return;
 
     // Check if we're selecting a push direction first
-    if (this.handlePushDirectionClick(x, y)) {
+    if (this.push.click(x, y)) {
       return; // Push direction was selected, done
     }
-    if (this.pushSelectionActive) {
+    if (this.push.active) {
       return; // Push direction is a mandatory decision: ignore other clicks
     }
 
@@ -1082,675 +423,29 @@ export class GameplayInteractionController {
     // squares in the compass direction toward the pointer — regardless of what
     // is under the cursor.
     if (this.jumpTargeting && this.selectedPlayerId) {
-      await this.handleJumpClick(x, y);
+      await handleJumpClick(this, this.selectedPlayerId, x, y);
       return;
     }
 
     // KICKOFF PHASE
-    if (phase === GamePhase.KICKOFF) {
-      const kickoffStep = this.gameService.getKickoffEventStep();
-      if (!kickoffStep?.charge?.activePlayerId) {
-        this.handleKickoffClick(x, y, playerAtSquare);
-        return;
-      }
+    if (
+      phase === GamePhase.KICKOFF &&
+      !this.gameService.getKickoffEventStep()?.charge?.activePlayerId
+    ) {
+      handleKickoffClick(this, x, y, playerAtSquare);
+      return;
     }
 
-    // TOUCHBACK: the receiving coach must hand the ball to one of their
-    // players before anything else happens
     if (this.gameService.isTouchbackPending()) {
-      if (
-        playerAtSquare &&
-        this.gameService.awardTouchback(playerAtSquare.id)
-      ) {
-        return;
-      }
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Touchback: select one of your standing players to take the ball."
-      );
+      clickTouchback(this, playerAtSquare);
       return;
     }
 
-    // PASS Execution (if in pass aiming mode)
-    if (this.currentActionMode === "pass") {
-      console.log(
-        `[Interaction] onSquareClicked: Pass Mode Detected. Step: ${this.currentStepId}, Selected: ${this.selectedPlayerId}`
-      );
-    }
-
-    // PASS Execution (aiming step): a Pass targets any square on the Range
-    // Ruler, thrown via PassOperation.
-    if (
-      this.currentActionMode === "pass" &&
-      this.currentStepId === "pass" &&
-      this.selectedPlayerId
-    ) {
-      console.log("[Interaction] Attempting pass Execution...");
-      if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
-        return;
-      }
-      // The browser has no Hail Mary toggle yet: a passer with the skill
-      // throws one only at a square beyond the Range Ruler.
-      const passer = this.gameService.getPlayerById(this.selectedPlayerId);
-      const hailMary =
-        !!passer?.gridPosition &&
-        hasSkill(passer.skills, SkillType.HAIL_MARY_PASS) &&
-        PassController.rangeValue(passer.gridPosition, { x, y }) === null;
-      this.isBusy = true;
-      let thrown = true;
-      try {
-        const result = await this.gameService.throwBall(
-          this.selectedPlayerId,
-          x,
-          y,
-          hailMary
-        );
-        // A refused target (a Long Pass in a Blizzard) keeps the aim open.
-        thrown = result.success;
-        if (!thrown) {
-          this.eventBus.emit(GameEventNames.UI_Notification, result.result);
-        }
-      } finally {
-        this.isBusy = false;
-        if (thrown) this.deselectPlayer();
-      }
-      return;
-    }
-
-    // HAND-OFF Execution (target-selection step): a Hand-off never aims —
-    // only a click on a legal team-mate resolves it, through handOffBall
-    // (a target id, never a square). Empty squares and illegal targets are
-    // ignored (refused by reason), never thrown.
-    if (
-      this.currentActionMode === "handoff" &&
-      this.currentStepId === "handoff" &&
-      this.selectedPlayerId
-    ) {
-      if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
-        return;
-      }
-      const hander = this.gameService.getPlayerById(this.selectedPlayerId);
-      if (!hander) return;
-      if (!playerAtSquare) {
-        // Empty square: nothing happens (no throw, no scatter).
-        return;
-      }
-      const reason = handoffTargetRefusalReason(hander, playerAtSquare);
-      if (reason) {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `Cannot hand off to ${playerAtSquare.playerName}: ${reason}.`
-        );
-        return;
-      }
-      this.isBusy = true;
-      try {
-        await this.gameService.handOffBall(
-          this.selectedPlayerId,
-          playerAtSquare.id
-        );
-      } finally {
-        this.isBusy = false;
-        this.deselectPlayer();
-      }
-      return;
-    }
-
-    // PUNT: click a square to choose the Throw-in Template facing.
-    if (
-      this.currentActionMode === "punt" &&
-      this.currentStepId === "punt" &&
-      this.selectedPlayerId
-    ) {
-      const punter = this.gameService.getPlayerById(this.selectedPlayerId);
-      if (!punter?.gridPosition) return;
-      const facingX = Math.sign(x - punter.gridPosition.x);
-      const facingY = Math.sign(y - punter.gridPosition.y);
-      if (facingX === 0 && facingY === 0) return;
-      this.isBusy = true;
-      try {
-        await this.gameService.puntBall(
-          this.selectedPlayerId,
-          facingX,
-          facingY
-        );
-      } finally {
-        this.isBusy = false;
-        this.deselectPlayer();
-      }
-      return;
-    }
-
-    // MULTIPLE BLOCK: select two different adjacent Standing opponents.
-    if (
-      this.currentActionMode === "multipleBlock" &&
-      this.currentStepId === "multipleBlock" &&
-      this.selectedPlayerId
-    ) {
-      const attacker = this.gameService.getPlayerById(this.selectedPlayerId);
-      const target = playerAtSquare;
-      const adjacent =
-        !!attacker?.gridPosition &&
-        !!target?.gridPosition &&
-        Math.max(
-          Math.abs(attacker.gridPosition.x - target.gridPosition.x),
-          Math.abs(attacker.gridPosition.y - target.gridPosition.y)
-        ) === 1;
-      if (
-        !attacker ||
-        !target ||
-        target.teamId === attacker.teamId ||
-        target.status !== PlayerStatus.ACTIVE ||
-        !adjacent
-      ) {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Select an adjacent Standing opponent."
-        );
-        return;
-      }
-      if (!this.multipleBlockFirstTargetId) {
-        this.multipleBlockFirstTargetId = target.id;
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "First target selected — choose a different adjacent opponent."
-        );
-        return;
-      }
-      if (this.multipleBlockFirstTargetId === target.id) return;
-      this.isBusy = true;
-      try {
-        await this.gameService.multipleBlock(
-          this.selectedPlayerId,
-          this.multipleBlockFirstTargetId,
-          target.id
-        );
-      } finally {
-        this.isBusy = false;
-        this.multipleBlockFirstTargetId = null;
-        this.deselectPlayer();
-      }
-      return;
-    }
-
-    // THROW BOMB Execution (Bombardier): click any square to lob the bomb.
-    if (
-      this.currentActionMode === "throwBomb" &&
-      this.currentStepId === "bomb" &&
-      this.selectedPlayerId
-    ) {
-      if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
-        return;
-      }
-      this.isBusy = true;
-      try {
-        await this.gameService.throwBomb(this.selectedPlayerId, x, y);
-      } finally {
-        this.isBusy = false;
-        this.deselectPlayer();
-      }
-      return;
-    }
-
-    // BALL & CHAIN Execution (Fanatic): the click picks a facing — a cardinal
-    // direction (an End Zone or a Sideline) — and the Fanatic lurches one
-    // square. UI_ResumeBallAndChain picks it back up for the next.
-    if (
-      this.currentActionMode === "ballAndChain" &&
-      this.currentStepId === "swing" &&
-      this.selectedPlayerId
-    ) {
-      const fanatic = this.gameService.getPlayerById(this.selectedPlayerId);
-      if (!fanatic?.gridPosition) return;
-      const facingX = Math.sign(x - fanatic.gridPosition.x);
-      const facingY = Math.sign(y - fanatic.gridPosition.y);
-      if (facingX === 0 && facingY === 0) {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Click a square in the direction to swing."
-        );
-        return;
-      }
-      this.isBusy = true;
-      try {
-        await this.gameService.ballAndChain(
-          this.selectedPlayerId,
-          facingX,
-          facingY
-        );
-      } finally {
-        this.isBusy = false;
-        this.deselectPlayer();
-      }
-      return;
-    }
-
-    // THROW / KICK TEAM-MATE: clicking a valid target team-mate (adjacent,
-    // Standing, Right-Stuff) selects it as the throw target and jumps to the
-    // aim step — even directly from the Move step, so a direct click on the
-    // target works without first switching to the Throw step. Once a target
-    // is chosen, the next click aims at a Quick/Short-range square.
-    if (this.currentActionMode === "throwTeamMate" && this.selectedPlayerId) {
-      const thrower = this.gameService.getPlayerById(this.selectedPlayerId);
-      if (!this.ttmTeammateId) {
-        const mate = playerAtSquare;
-        const adjacent =
-          !!thrower?.gridPosition &&
-          Math.abs(thrower.gridPosition.x - x) <= 1 &&
-          Math.abs(thrower.gridPosition.y - y) <= 1;
-        const validTarget =
-          !!mate &&
-          !!thrower &&
-          mate.id !== thrower.id &&
-          mate.teamId === thrower.teamId &&
-          mate.status === PlayerStatus.ACTIVE &&
-          adjacent &&
-          isRightStuffEligible(mate);
-        if (validTarget) {
-          this.ttmTeammateId = mate!.id;
-          if (this.currentStepId !== "throw") {
-            this.currentStepId = "throw";
-            this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-              steps: this.actionSteps,
-              currentStepId: this.currentStepId,
-            });
-          }
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            `Aim ${mate!.playerName}'s throw — click a Quick/Short-range square.`
-          );
-          return;
-        }
-        // No valid target on this square. In the aim step tell the coach what
-        // to click; in the Move step let the click fall through to movement.
-        if (this.currentStepId === "throw") {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Select an adjacent Right Stuff team-mate (ST 3 or less)!"
-          );
-          return;
-        }
-      } else {
-        // A team-mate has been chosen — this click is the aim square.
-        if (
-          thrower?.gridPosition &&
-          !isThrowTeammateInRange(thrower.gridPosition, { x, y })
-        ) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Out of range — a team-mate can only be thrown to Quick or Short range!"
-          );
-          return;
-        }
-        this.isBusy = true;
-        try {
-          await this.gameService.throwTeammate(
-            this.selectedPlayerId,
-            this.ttmTeammateId,
-            x,
-            y
-          );
-        } finally {
-          this.isBusy = false;
-          this.ttmTeammateId = null;
-          this.deselectPlayer();
-        }
-        return;
-      }
-    }
-
-    // FOUL Execution. A Foul may move first, so during the Move step an empty
-    // square still falls through to movement — but a click on ANY player is
-    // claimed here, at either step. Without that, a coach who declared a Foul
-    // and went straight for the victim (still on the Move step) fell through
-    // to the implicit-Block path and got the block dice dialog instead.
-    if (
-      this.currentActionMode === "foul" &&
-      this.selectedPlayerId &&
-      (this.currentStepId === "foul" || playerAtSquare)
-    ) {
-      if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
-        return;
-      }
-
-      if (
-        playerAtSquare &&
-        (playerAtSquare.status === PlayerStatus.PRONE ||
-          playerAtSquare.status === PlayerStatus.STUNNED)
-      ) {
-        this.isBusy = true;
-        let committed = false;
-        try {
-          const fouler = this.gameService.getPlayerById(this.selectedPlayerId);
-          // The confirm repeats the hover card, so only the assist rings stay
-          this.targetRollPreview = null;
-          this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
-          if (!fouler || !(await this.confirmFoul(fouler, playerAtSquare)))
-            return;
-          committed = true;
-          this.clearRollPreviews();
-          await this.gameService.foulPlayer(this.selectedPlayerId, x, y);
-          // foulPlayer only queues FoulOperation on GameService's own
-          // GameFlowManager (fire-and-forget); wait for that queue to fully
-          // drain — including any KO/Casualty/Send-Off consequence it
-          // triggers — before clearing the red target highlight, so it
-          // doesn't disappear before the foul has actually resolved.
-          await this.gameService.getFlowContext().flowManager.whenIdle();
-        } finally {
-          this.isBusy = false;
-          if (committed) this.deselectPlayer();
-        }
-      } else {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Target must be Prone or Stunned!"
-        );
-      }
-      return;
-    }
-
-    // SPECIAL ACTION Execution, including an explicitly declared Blitz
-    // replacement retained through movement.
-    if (
-      this.currentActionMode &&
-      (SPECIAL_ACTION_MODES.has(this.currentActionMode) ||
-        (this.currentActionMode === "blitz" &&
-          this.currentBlockReplacement !== null)) &&
-      this.currentStepId === "target" &&
-      this.selectedPlayerId
-    ) {
-      const mode = this.currentActionMode;
-      const replacement =
-        this.currentBlockReplacement ?? blockReplacementForDirectAction(mode);
-      const attackerId = this.selectedPlayerId;
-      const attacker = this.gameService.getPlayerById(attackerId);
-      if (playerAtSquare && playerAtSquare.id === attackerId) {
-        return;
-      }
-      const adjacent =
-        !!attacker?.gridPosition &&
-        Math.abs(attacker.gridPosition.x - x) <= 1 &&
-        Math.abs(attacker.gridPosition.y - y) <= 1;
-      if (
-        playerAtSquare &&
-        attacker &&
-        playerAtSquare.teamId !== attacker.teamId &&
-        playerAtSquare.status === PlayerStatus.ACTIVE &&
-        adjacent
-      ) {
-        this.isBusy = true;
-        try {
-          if (replacement === "stab") {
-            await this.gameService.stabPlayer(attackerId, playerAtSquare.id);
-          } else if (replacement) {
-            await this.gameService.performSpecialAction(
-              replacement,
-              attackerId,
-              playerAtSquare.id
-            );
-          } else {
-            await this.gameService.performSpecialAction(
-              mode as "gaze",
-              attackerId,
-              playerAtSquare.id
-            );
-          }
-        } finally {
-          this.isBusy = false;
-          this.deselectPlayer();
-        }
-      } else {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Target must be an adjacent Standing opponent!"
-        );
-      }
-      return;
-    }
-
-    // BLITZ Execution (Block Step)
-    if (
-      this.currentActionMode === "blitz" &&
-      this.currentStepId === "block" &&
-      this.selectedPlayerId
-    ) {
-      if (playerAtSquare && playerAtSquare.id !== this.selectedPlayerId) {
-        const blitzer = this.gameService.getPlayerById(this.selectedPlayerId);
-        const inReach =
-          !!blitzer?.gridPosition &&
-          Math.max(
-            Math.abs(blitzer.gridPosition.x - x),
-            Math.abs(blitzer.gridPosition.y - y)
-          ) === 1;
-        if (inReach && this.isDownedOpponent(playerAtSquare)) {
-          await this.foulInsteadOfBlock(this.selectedPlayerId, x, y);
-          return;
-        }
-        // Initiate Block
-        this.isBusy = true;
-        // Don't wait for preview? Preview is sync usually?
-        // Actually previewBlock just emits an event for UI to show dialog.
-        // It doesn't need a lock usually, but deselectPlayer does cleanup.
-        this.gameService.previewBlock(this.selectedPlayerId, playerAtSquare.id);
-
-        this.deselectPlayer();
-        this.isBusy = false;
-        return;
-      } else if (!playerAtSquare) {
-        // Clicked empty space in Block mode?
-        // ...
-      }
-    }
-
-    // PLAY PHASE
-    if (playerAtSquare) {
-      // Clicking ANOTHER player?
-      if (playerAtSquare.id !== this.selectedPlayerId) {
-        // BLOCK CHECK — only for modes that actually mean to Block: nothing
-        // declared (the implicit shortcut), a declared standalone Block, or a
-        // Blitz still in its move. Every other action mode must have claimed
-        // this click already; letting them reach here is how a declared Foul
-        // (and any future targeted action) decayed into a block dice dialog.
-        const mayBlockFromHere =
-          this.currentActionMode === null ||
-          this.currentActionMode === "block" ||
-          this.currentActionMode === "blitz";
-
-        if (this.selectedPlayerId && mayBlockFromHere) {
-          const selectedPlayer = this.gameService.getPlayerById(
-            this.selectedPlayerId
-          );
-          const state = this.gameService.getState();
-
-          if (
-            selectedPlayer &&
-            state.activeTeamId === selectedPlayer.teamId &&
-            this.gameService.canActivate(selectedPlayer.id) &&
-            selectedPlayer.teamId !== playerAtSquare.teamId
-          ) {
-            // Check Adjacency
-            const dx = Math.abs((selectedPlayer.gridPosition?.x || 0) - x);
-            const dy = Math.abs((selectedPlayer.gridPosition?.y || 0) - y);
-
-            if (dx <= 1 && dy <= 1) {
-              if (this.isDownedOpponent(playerAtSquare)) {
-                await this.foulInsteadOfBlock(selectedPlayer.id, x, y);
-                return;
-              }
-              // IT'S A BLOCK!
-
-              // Implicit Action Declaration
-              // Only check current action if it's for THIS player
-              const currentAction =
-                state.activePlayer?.id === selectedPlayer.id &&
-                !state.activePlayer.razzleDazzle?.awaitingSecond
-                  ? state.activePlayer.action
-                  : undefined;
-
-              // A Blitz allows only one Block; after it, further clicks move.
-              if (this.gameService.hasUsedBlitzBlock(selectedPlayer.id)) {
-                this.eventBus.emit(
-                  GameEventNames.UI_Notification,
-                  "This Blitz has already used its Block \u2014 keep moving."
-                );
-                return;
-              }
-
-              // A declared, unspent block-replacing attack is what a target
-              // click resolves \u2014 never a Block. The declaration is read from
-              // the authoritative state (not the local step), so a re-selected
-              // player, a guest, and the host all take the same path.
-              const declaredReplacement =
-                state.activePlayer?.id === selectedPlayer.id &&
-                !state.activePlayer.razzleDazzle?.awaitingSecond &&
-                !state.activePlayer.blockReplacementUsed
-                  ? state.activePlayer.blockReplacement
-                  : undefined;
-
-              if (declaredReplacement) {
-                const label =
-                  BLOCK_REPLACEMENT_DEFINITIONS[declaredReplacement].label;
-                const legalTarget =
-                  legalBlockReplacementTargets(
-                    selectedPlayer,
-                    [playerAtSquare],
-                    declaredReplacement
-                  ).length > 0;
-                if (!legalTarget) {
-                  // Refuse by name: downgrading to a Block would spend the
-                  // one attack on something the coach did not choose. The
-                  // declaration and the remaining movement are untouched.
-                  this.eventBus.emit(
-                    GameEventNames.UI_Notification,
-                    `${label} cannot target ${playerAtSquare.playerName} \u2014 keep moving or end the activation.`
-                  );
-                  return;
-                }
-                this.isBusy = true;
-                try {
-                  if (declaredReplacement === "stab") {
-                    await this.gameService.stabPlayer(
-                      selectedPlayer.id,
-                      playerAtSquare.id
-                    );
-                  } else {
-                    await this.gameService.performSpecialAction(
-                      declaredReplacement,
-                      selectedPlayer.id,
-                      playerAtSquare.id
-                    );
-                  }
-                } finally {
-                  this.isBusy = false;
-                  this.deselectPlayer();
-                }
-                return;
-              }
-
-              if (!currentAction) {
-                const asked = this.askGates(selectedPlayer.id, "block");
-                if (asked && !(await asked)) return;
-                // If no action declared for this player, implicitly declare
-                // BLOCK — refused e.g. for a prone/stunned blocker
-                if (
-                  !this.gameService.declareAction(selectedPlayer.id, "block")
-                ) {
-                  this.eventBus.emit(
-                    GameEventNames.UI_Notification,
-                    "This player cannot Block (down players must Blitz)."
-                  );
-                  return;
-                }
-              } else if (currentAction === "move") {
-                // Cannot block if Move declared (unless Blitz, handled below)
-                this.eventBus.emit(
-                  GameEventNames.UI_Notification,
-                  "Cannot Block during Move action (need Blitz)"
-                );
-                return;
-              }
-
-              // Deselect player to clear movement path/highlights
-              this.deselectPlayer();
-              // Trigger Block Preview
-              this.gameService.previewBlock(
-                selectedPlayer.id,
-                playerAtSquare.id
-              );
-              return;
-            }
-          }
-        }
-
-        // If not a block, select them (inspection) — but never while a
-        // targeted action is mid-declaration. Reaching here means the click
-        // was not a valid target for that action; abandoning the action and
-        // reselecting the clicked player is never what the coach meant.
-        if (
-          this.currentActionMode !== null &&
-          !mayBlockFromHere &&
-          this.currentActionMode !== "move"
-        ) {
-          console.warn(
-            `[Interaction] Clicked player during ${this.currentActionMode} mode; ignoring to prevent selection change.`
-          );
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            `Finish your ${this.currentActionMode} Action first!`
-          );
-          return;
-        }
-
-        this.selectPlayer(playerAtSquare.id);
-      } else {
-        // Clicking SELF?
-        // Confirm logic (unchanged)
-      }
-    } else if (this.selectedPlayerId) {
-      // Empty Square Click
-      const player = this.gameService.getPlayerById(this.selectedPlayerId);
-      const state = this.gameService.getState();
-
-      // Only allow movement planning if active team and player can activate
-      if (
-        player &&
-        state.activeTeamId === player.teamId &&
-        this.gameService.canActivate(player.id)
-      ) {
-        // Implicit Action Declaration
-        // Only check current action if it's for THIS player
-        const currentAction =
-          state.activePlayer?.id === player.id
-            ? state.activePlayer?.action
-            : undefined;
-
-        const asked = currentAction ? null : this.askGates(player.id, "move");
-        if (asked && !(await asked)) return;
-        if (!this.declareMoveIfNone(player.id, currentAction)) return;
-
-        // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
-        const lastPos =
-          this.waypoints.length > 0
-            ? this.waypoints[this.waypoints.length - 1]
-            : player.gridPosition;
-
-        if (lastPos && lastPos.x === x && lastPos.y === y) {
-          // CONFIRM MOVE
-          this.executeMove();
-        } else {
-          // ADD WAYPOINT
-          this.addWaypoint(x, y);
-        }
-      } else {
-        this.deselectPlayer();
-      }
-    } else {
-      this.deselectPlayer(); // Clicking empty space with no selection
-    }
+    return clickInPlay(this, { x, y, player: playerAtSquare });
   }
 
-  private onSquareHovered(x: number, y: number): void {
-    this.previewFireball(x, y);
+  onSquareHovered(x: number, y: number): void {
+    this.targets.previewFireball(x, y);
     // Player Info
     const player = this.getPlayerAt(x, y);
     if (player) {
@@ -1758,211 +453,16 @@ export class GameplayInteractionController {
     } else {
       this.eventBus.emit(GameEventNames.UI_HidePlayerInfo);
     }
-    this.previewSquare(x, y);
-  }
-
-  /** What a click on this square would do: its rolls, path or throw. */
-  private previewSquare(x: number, y: number): void {
-    // 1. Highlight Square Cursor
-    this.pitch.highlightHoverSquare(x, y);
-    this.updateTargetPreview(x, y);
-
-    // 2. Visualization
-    if (this.selectedPlayerId) {
-      const isPassMode =
-        (this.currentActionMode === "pass" && this.currentStepId === "pass") ||
-        // A thrown Bomb aims like a Pass — same range template + arrow.
-        (this.currentActionMode === "throwBomb" &&
-          this.currentStepId === "bomb");
-
-      if (isPassMode) {
-        // PASS MODE: Visualize even if hovering a player
-        this.pitch.clearPath(); // Ensure movement path is gone
-
-        const selectedPlayer = this.gameService.getPlayerById(
-          this.selectedPlayerId
-        );
-        if (selectedPlayer && selectedPlayer.gridPosition) {
-          // Draw pass zones
-          const ranges = this.passController.getAllRanges(
-            selectedPlayer.gridPosition,
-            weatherEffects(this.gameService.getState().weather).passTypes
-          );
-          this.pitch.drawPassZones(ranges);
-
-          // Draw pass line to cursor
-          const passRange = this.passController.measureRange(
-            selectedPlayer.gridPosition,
-            { x, y }
-          );
-          this.pitch.drawPassLine(
-            selectedPlayer.gridPosition,
-            { x, y },
-            passRange.type
-          );
-
-          // Preview the interception corridor for a throw at this square: the
-          // whole zone a defender could intercept from, plus the squares where
-          // a standing opponent actually threatens the throw.
-          const opponents = this.gameService.getOpponents(
-            selectedPlayer.teamId
-          );
-          const zone = this.passController.getInterceptionSquares(
-            selectedPlayer.gridPosition,
-            { x, y }
-          );
-          const threats = this.passController
-            .checkInterceptions(
-              selectedPlayer.gridPosition,
-              { x, y },
-              opponents,
-              true
-            )
-            .map((i) => i.position);
-          this.pitch.drawInterceptZone(
-            selectedPlayer.gridPosition,
-            { x, y },
-            zone,
-            threats
-          );
-        }
-      } else if (
-        this.currentActionMode === "handoff" &&
-        this.currentStepId === "handoff"
-      ) {
-        // HAND-OFF MODE: highlight the legal team-mates. No Range Ruler,
-        // pass line, or interception preview — a Hand-off never aims.
-        this.pitch.clearPath();
-        this.pitch.clearPassVisualization();
-        const selectedPlayer = this.gameService.getPlayerById(
-          this.selectedPlayerId
-        );
-        if (selectedPlayer) {
-          const teammates = this.gameService.getTeammates(selectedPlayer.id);
-          const targets = legalHandoffTargets(selectedPlayer, teammates)
-            .filter((t) => !!t.gridPosition)
-            .map((t) => t.gridPosition!);
-          this.pitch.drawHandoffTargets(targets);
-        }
-      } else if (
-        this.currentActionMode === "throwTeamMate" &&
-        this.currentStepId === "throw"
-      ) {
-        // THROW TEAM-MATE aim: reuse the pass arrow + range template, but
-        // capped to Quick and Short range (a thrown player is too heavy to go
-        // further — Long / Long Bomb are out of range).
-        this.pitch.clearPath();
-        const thrower = this.gameService.getPlayerById(this.selectedPlayerId);
-        if (thrower && thrower.gridPosition) {
-          if (this.ttmTeammateId) {
-            // A mate is chosen: show the throw template + arrow to the cursor.
-            const all = this.passController.getAllRanges(thrower.gridPosition);
-            const limited = new Map<string, { x: number; y: number }[]>();
-            for (const type of ["Quick Pass", "Short Pass"]) {
-              const squares = all.get(type as never);
-              if (squares) limited.set(type, squares);
-            }
-            this.pitch.drawPassZones(limited);
-
-            const inRange = isThrowTeammateInRange(thrower.gridPosition, {
-              x,
-              y,
-            });
-            const passRange = this.passController.measureRange(
-              thrower.gridPosition,
-              { x, y }
-            );
-            // In range → colour by Quick/Short; out of range → grey arrow.
-            this.pitch.drawPassLine(
-              thrower.gridPosition,
-              { x, y },
-              inRange ? passRange.type : "Out of Range"
-            );
-          } else {
-            // No mate chosen yet: no target highlight, just clear stale viz.
-            this.pitch.clearPassVisualization();
-          }
-        }
-      } else if (
-        this.currentActionMode === "foul" &&
-        this.currentStepId === "foul"
-      ) {
-        // FOUL MODE: Highlight valid targets, redrawn on every hover. A
-        // foul in flight keeps its victim's square until it resolves.
-        if (this.isBusy) return;
-        this.pitch.clearPath();
-        this.pitch.clearLayer("highlight");
-        const selectedPlayer = this.gameService.getPlayerById(
-          this.selectedPlayerId
-        );
-        if (selectedPlayer && selectedPlayer.gridPosition) {
-          const opponents = this.gameService.getOpponents(
-            selectedPlayer.teamId
-          );
-          const adjOpponents = opponents.filter((p) => {
-            if (!p.gridPosition) return false;
-            const dx = Math.abs(
-              p.gridPosition.x - selectedPlayer.gridPosition!.x
-            );
-            const dy = Math.abs(
-              p.gridPosition.y - selectedPlayer.gridPosition!.y
-            );
-            return (
-              dx <= 1 &&
-              dy <= 1 &&
-              (p.status === PlayerStatus.PRONE ||
-                p.status === PlayerStatus.STUNNED)
-            );
-          });
-
-          adjOpponents.forEach((p) => {
-            if (p.gridPosition) {
-              this.pitch.highlightSquare(
-                p.gridPosition.x,
-                p.gridPosition.y,
-                0xff0000
-              );
-            }
-          });
-        }
-      } else if (this.jumpTargeting) {
-        // JUMP MODE: show every legal landing at once (lines + end nodes +
-        // amber jump-over nodes); no free walking path.
-        this.pitch.clearPassVisualization();
-        const selectedPlayer = this.gameService.getPlayerById(
-          this.selectedPlayerId
-        );
-        if (selectedPlayer?.gridPosition) {
-          this.pitch.drawJumpTargets(
-            selectedPlayer.gridPosition,
-            this.computeJumpTargets(selectedPlayer)
-          );
-        } else {
-          this.pitch.clearPath();
-        }
-      } else {
-        // MOVE MODE: Only visualize if NOT hovering a player
-        this.pitch.clearPassVisualization();
-
-        if (!this.getPlayerAt(x, y)) {
-          this.drawPath(x, y);
-        } else {
-          this.pitch.clearPath();
-        }
-      }
-    } else {
-      this.pitch.clearPath();
-      this.pitch.clearPassVisualization();
-    }
+    previewSquare(this, x, y);
   }
 
   public handlePlayerClick(playerId: string): void {
     // Online: input is locked while the opponent owns the turn/decision
     if (getActiveOnlineMatch()?.mayAct() === false) return;
     // A bite being chosen takes the click, even mid-walk
-    if (this.handleBiteTargetClick(playerId)) return;
+    if (this.targets.handleBiteTargetClick(playerId)) return;
     const square = this.gameService.getPlayerById(playerId)?.gridPosition;
-    if (square && this.handleSpellClick(square.x, square.y)) return;
+    if (square && this.targets.handleSpellClick(square.x, square.y)) return;
     // A route is still being walked
     if (this.isBusy) return;
     console.log(
@@ -1972,13 +472,10 @@ export class GameplayInteractionController {
     // Chain push: the option squares are occupied, so the click arrives via
     // the player sprite — route it to the push decision. While the decision
     // is open no selection changes are allowed (it's mandatory).
-    if (this.pushSelectionActive) {
+    if (this.push.active) {
       const clicked = this.gameService.getPlayerById(playerId);
       if (clicked && clicked.gridPosition) {
-        this.handlePushDirectionClick(
-          clicked.gridPosition.x,
-          clicked.gridPosition.y
-        );
+        this.push.click(clicked.gridPosition.x, clicked.gridPosition.y);
       }
       return;
     }
@@ -1986,123 +483,20 @@ export class GameplayInteractionController {
     // A player click and a grid-square click must take the same route during
     // kickoff selection. Previously sprite-originated clicks fell through to
     // ordinary turn selection and never reached the kickoff event manager.
-    if (this.gameService.getPhase() === GamePhase.KICKOFF) {
-      const step = this.gameService.getKickoffEventStep();
-      const clicked = this.gameService.getPlayerById(playerId);
-      if (step && !step.charge?.activePlayerId && clicked?.gridPosition) {
-        this.handleKickoffClick(
-          clicked.gridPosition.x,
-          clicked.gridPosition.y,
-          clicked
-        );
-        return;
-      }
-      if (
-        step?.charge?.activePlayerId &&
-        step.charge.activePlayerId !== playerId
-      ) {
-        return;
-      }
+    if (kickoffPlayerClick(this, playerId)) return;
+
+    const target = playerClickTarget(this, playerId);
+    if (target) {
+      this.onSquareClicked(target.x, target.y);
+      return; // EXIT IMMEDIATELY - DO NOT SELECT PLAYER
     }
 
-    // CRITICAL FIX: while aiming a targeted throw at a team-mate — a Pass or a
-    // Hand-off — clicking a player MUST be treated as a TARGET click that
-    // completes the action, never a re-selection of the clicked team-mate.
-    if (
-      (this.currentActionMode === "pass" && this.currentStepId === "pass") ||
-      (this.currentActionMode === "handoff" && this.currentStepId === "handoff")
-    ) {
-      const p1 = this.scene.team1.players.find((p) => p.id === playerId);
-      const p2 = this.scene.team2.players.find((p) => p.id === playerId);
-      const player = p1 || p2;
-
-      if (player && player.gridPosition) {
-        console.log(
-          `[Interaction] Target player clicked at ${player.gridPosition.x},${player.gridPosition.y}. Triggering ${this.currentActionMode} onSquareClicked.`
-        );
-        this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
-        return; // EXIT IMMEDIATELY - DO NOT SELECT PLAYER
-      }
-    }
-
-    // A Foul claims player clicks at either step (see onSquareClicked) so the
-    // victim can be picked without first advancing the stepper.
-    if (this.currentActionMode === "foul") {
-      const player = this.gameService.getPlayerById(playerId);
-      if (player && player.gridPosition) {
-        this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
-        return;
-      }
-    }
-
-    if (
-      this.currentActionMode === "multipleBlock" &&
-      this.currentStepId === "multipleBlock"
-    ) {
-      const player = this.gameService.getPlayerById(playerId);
-      if (player?.gridPosition) {
-        this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
-        return;
-      }
-    }
-
-    // Throw Bomb: clicking a player aims the bomb at their square.
-    if (
-      this.currentActionMode === "throwBomb" &&
-      this.currentStepId === "bomb"
-    ) {
-      const player = this.gameService.getPlayerById(playerId);
-      if (player && player.gridPosition) {
-        this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
-        return;
-      }
-    }
-
-    // Throw / Kick Team-mate: route the click to the grid handler, which
-    // selects a valid target team-mate (auto-advancing to the aim step) or
-    // aims once a target is chosen — never a plain re-selection.
-    if (this.currentActionMode === "throwTeamMate") {
-      const clicked = this.gameService.getPlayerById(playerId);
-      if (clicked && clicked.gridPosition) {
-        this.onSquareClicked(clicked.gridPosition.x, clicked.gridPosition.y);
-        return;
-      }
-    }
-
-    // Direct Special Actions and replacement Blitzes claim player-sprite
-    // clicks as target selections; never let them become a re-selection.
-    if (
-      this.currentStepId === "target" &&
-      (this.currentBlockReplacement !== null ||
-        this.currentActionMode === "gaze")
-    ) {
-      const clicked = this.gameService.getPlayerById(playerId);
-      if (clicked?.gridPosition) {
-        this.onSquareClicked(clicked.gridPosition.x, clicked.gridPosition.y);
-        return;
-      }
-    }
-
-    // Pass Mode Check 2: If we are in Pass Mode but maybe logic above failed,
-    // we STILL should not select another player if we are mid-action.
-    // However, if we click OURSELVES, that's fine (ignored below).
-    // If we click Teammate? In pass mode, that's a pass to them.
-    // So the block above should cover it.
-
-    // NEW BLOCK: If we are already selected and clicked ourselves, do nothing (don't re-trigger select)
+    // If we are already selected and clicked ourselves, do nothing (don't re-trigger select)
     if (this.selectedPlayerId === playerId) {
       console.log(
         "[Interaction] Clicked self, ignoring re-selection to preserve state."
       );
       return;
-    }
-
-    // Safety for other actions (Blitz/block etc) -> If busy or in middle of action step that aims
-    if (this.currentActionMode && this.currentStepId !== "move") {
-      // If we are in 'block' step, clicking player handles block in onSquareClicked usually,
-      // but handlePlayerClick comes from visual layer.
-      // We should redirect to onSquareClicked for consistency?
-      // For now, only strict on Pass as requested.
     }
 
     // Default: Select the player (or toggle selection)
@@ -2111,176 +505,13 @@ export class GameplayInteractionController {
   }
 
   public selectPlayer(playerId: string): void {
-    const player = this.gameService.getPlayerById(playerId);
-
-    if (!player) return;
-
-    // Choosing another of the acting team's players ends the one who was
-    // acting, as in the rules: a declaration with nothing done yet is
-    // released (the team's allowance comes back), anything further ends
-    // that player's activation. Looking at an opponent changes nothing.
-    const state = this.gameService.getState();
-    const active = state.activePlayer;
-    const ownTeamsTurn = state.activeTeamId === player.teamId;
-    if (active && active.id !== playerId && ownTeamsTurn) {
-      if (active.committed) this.gameService.finishActivation(active.id);
-      else this.gameService.cancelAction(active.id);
-    } else if (
-      !active &&
-      this.selectedPlayerId &&
-      this.selectedPlayerId !== playerId
-    ) {
-      // Movement spent outside a declaration must not leave a turn dangling
-      const prevId = this.selectedPlayerId;
-      if (
-        this.gameService.getMovementUsed(prevId) > 0 &&
-        !this.gameService.hasPlayerActed(prevId)
-      ) {
-        this.gameService.finishActivation(prevId);
-      }
-    }
-
-    this.deselectPlayer();
-    this.selectedPlayerId = playerId;
-
-    // Visual highlight
-    this.scene.highlightPlayer(playerId);
-
-    // UI Selection Event
-    this.eventBus.emit(GameEventNames.PlayerSelected, { player });
-
-    // The player still mid-action (selected again after clicking away, or
-    // after a reload): carry on with that action where it was left
-    const resumed = this.gameService.getState().activePlayer;
-    if (
-      resumed?.id === playerId &&
-      resumed.action &&
-      !resumed.razzleDazzle?.awaitingSecond &&
-      ownTeamsTurn &&
-      !this.gameService.hasPlayerActed(playerId)
-    ) {
-      this.enterActionMode(
-        playerId,
-        resumed.action as import("@/types/events").ActionType,
-        resumed.blockReplacement ?? null
-      );
-      this.hasMovedInAction = this.gameService.getMovementUsed(playerId) > 0;
-      return;
-    }
-
-    this.refreshPlayerVisualization(playerId);
-  }
-
-  private refreshPlayerVisualization(playerId: string): void {
-    const state = this.gameService.getState();
-    const player = this.gameService.getPlayerById(playerId);
-    if (!player) return;
-    const effectivePlayer = withDriveModifiers(player, state);
-
-    // canActivate answers for the Charge! window too
-    const canActivate = this.gameService.canActivate(playerId);
-    const isOwnTurn = state.activeTeamId === player.teamId;
-
-    if (isOwnTurn && canActivate) {
-      // Show Movement Range
-      // Show range if NOT in Pass Mode OR if in Move Step of Pass Mode. A
-      // Ball & Chain lurch goes where the Throw-in Template sends it.
-      if (
-        this.currentActionMode !== "ballAndChain" &&
-        (this.currentActionMode !== "pass" || this.currentStepId === "move")
-      ) {
-        // Calculate remaining SAFE MA (for overlay coloring)
-        let used = this.gameService.getMovementUsed(playerId);
-
-        // If prone, they need to spend 3 MA to stand (or all MA if less than 3)
-        if (player.status === "Prone") {
-          const standUpCost = Math.min(3, effectivePlayer.stats.MA);
-          used += standUpCost;
-        }
-
-        // With waypoints planned, draw the range as if the player already
-        // stood on the last node with the spent squares deducted
-        let reachable: { x: number; y: number; cost?: number }[];
-        if (this.waypoints.length > 0) {
-          const lastNode = this.waypoints[this.waypoints.length - 1];
-          const team =
-            player.teamId === this.getSceneTeam1().id
-              ? this.getSceneTeam1()
-              : this.getSceneTeam2();
-          const opponentTeam =
-            player.teamId === this.getSceneTeam1().id
-              ? this.getSceneTeam2()
-              : this.getSceneTeam1();
-          const remainingAllowance = Math.max(
-            0,
-            moveAllowance(effectivePlayer) - used - this.waypoints.length
-          );
-          reachable = this.movementValidator
-            .findReachableSquares(
-              { ...effectivePlayer, gridPosition: { ...lastNode } },
-              opponentTeam.players.filter((p) => p.gridPosition),
-              team.players.filter((p) => p.gridPosition && p.id !== player.id)
-            )
-            .filter((m) => m.cost <= remainingAllowance);
-          used += this.waypoints.length;
-        } else {
-          reachable = this.gameService.getAvailableMovements(playerId);
-        }
-
-        const remainingSafeMA = Math.max(0, effectivePlayer.stats.MA - used);
-
-        // Separate into Safe (<= RemainingMA) and Sprint (> RemainingMA)
-        const safeMoves: { x: number; y: number }[] = [];
-        const sprintMoves: { x: number; y: number }[] = [];
-
-        reachable.forEach((move) => {
-          if (move.cost !== undefined && move.cost > remainingSafeMA) {
-            sprintMoves.push(move);
-          }
-          // All are "reachable" for the overlay to NOT be dark
-          safeMoves.push(move);
-        });
-
-        // Show Overlay (Inverse of ALL reachable)
-        this.pitch.drawRangeOverlay(reachable);
-
-        // Show Sprint Risks
-        this.pitch.drawSprintRisks(sprintMoves);
-      } else {
-        // Aiming a pass or swinging the chain: clear the movement overlays
-        this.pitch.clearLayer("range_overlay");
-        this.pitch.clearLayer("sprint_risk");
-      }
-
-      // Show Tackle Zones (always show these)
-      const opponents = this.getOpposingPlayers(player.teamId);
-      const tackleZones: { x: number; y: number }[] = [];
-
-      opponents.forEach((op) => {
-        if (hasTackleZone(op) && op.gridPosition) {
-          // Standing and not Distracted — Distracted opponents draw none
-          // Add 8 squares around
-          for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-              if (dx === 0 && dy === 0) continue;
-              const tx = op.gridPosition.x + dx;
-              const ty = op.gridPosition.y + dy;
-              // Check bounds (0-25, 0-14)
-              if (tx >= 0 && tx < 26 && ty >= 0 && ty < 15) {
-                tackleZones.push({ x: tx, y: ty });
-              }
-            }
-          }
-        }
-      });
-      this.pitch.drawTackleZones(tackleZones);
-    }
+    selectPlayer(this, playerId);
   }
 
   public deselectPlayer(): void {
     // A push direction is a mandatory decision: Escape/background clicks
     // must not wipe the pending push highlights mid-block
-    if (this.pushSelectionActive) return;
+    if (this.push.active) return;
 
     if (this.selectedPlayerId) {
       this.scene.unhighlightPlayer(this.selectedPlayerId);
@@ -2309,64 +540,8 @@ export class GameplayInteractionController {
     this.eventBus.emit(GameEventNames.PlayerSelected, { player: null }); // OR add explicit deselect event
   }
 
-  private addWaypoint(x: number, y: number): void {
-    if (!this.selectedPlayerId) return;
-    const player = this.gameService.getPlayerById(this.selectedPlayerId);
-    if (!player) return;
-    const effectivePlayer = withDriveModifiers(
-      player,
-      this.gameService.getState()
-    );
-
-    // Get Path for this segment
-    const startPos =
-      this.waypoints.length > 0
-        ? this.waypoints[this.waypoints.length - 1]
-        : player.gridPosition!;
-
-    // Use pathfinder for this segment (smart pathing between clicks)
-    const team =
-      player.teamId === this.getSceneTeam1().id
-        ? this.getSceneTeam1()
-        : this.getSceneTeam2();
-    const opponentTeam =
-      player.teamId === this.getSceneTeam1().id
-        ? this.getSceneTeam2()
-        : this.getSceneTeam1();
-
-    const opponents = opponentTeam.players.filter((p) => p.gridPosition);
-    const teammates = team.players.filter(
-      (p) => p.gridPosition && p.id !== player.id
-    );
-    const mockPlayer = { ...effectivePlayer, gridPosition: startPos };
-
-    // The leg must fit the squares left after earlier moves and legs
-    const result = this.movementValidator.findPath(
-      mockPlayer,
-      x,
-      y,
-      opponents,
-      teammates,
-      this.gameService.getMovementUsed(player.id) + this.waypoints.length
-    );
-
-    if (!result.valid) {
-      this.eventBus.emit(GameEventNames.UI_Notification, "Out of reach");
-      return;
-    }
-    this.waypoints.push(...result.path);
-    this.drawCurrentPath();
-    // Range/sprint overlays now measure from the last node
-    this.refreshPlayerVisualization(player.id);
-  }
-
-  private executeMove(): void {
-    if (!this.selectedPlayerId || this.waypoints.length === 0) return;
-    void this.moveAlong(this.selectedPlayerId, [...this.waypoints]);
-  }
-
   /** A square click plots a move: declare one if the player has no action. */
-  private declareMoveIfNone(playerId: string, action?: string | null): boolean {
+  declareMoveIfNone(playerId: string, action?: string | null): boolean {
     const active = this.gameService.getState().activePlayer;
     if (active?.id === playerId && active.razzleDazzle?.awaitingSecond) {
       return this.gameService.declareAction(playerId, "move");
@@ -2385,37 +560,9 @@ export class GameplayInteractionController {
     return true;
   }
 
-  private clearWaypoints(): void {
+  clearWaypoints(): void {
     this.waypoints = [];
     this.eventBus.emit(GameEventNames.UI_MovePlan, null);
-  }
-
-  /** The player whose route a drag from this square would draw, if any. */
-  private routeOwnerAt(x: number, y: number): Player | null {
-    if (this.isBusy || this.pushSelectionActive) return null;
-    if (getActiveOnlineMatch()?.mayAct() === false) return null;
-    const state = this.gameService.getState();
-    const charging =
-      !!this.gameService.getKickoffEventStep()?.charge?.activePlayerId;
-    if (state.phase !== GamePhase.PLAY && !charging) return null;
-    const mode = this.currentActionMode;
-    if (mode !== null && mode !== "move" && mode !== "blitz") return null;
-    const id = this.selectedPlayerId;
-    const selected = id ? this.gameService.getPlayerById(id) : undefined;
-    const end = this.waypoints[this.waypoints.length - 1];
-    if (selected && end?.x === x && end.y === y) return selected;
-    const there = this.getPlayerAt(x, y);
-    if (
-      !there ||
-      there.teamId !== state.activeTeamId ||
-      !this.gameService.canActivate(there.id)
-    )
-      return null;
-    // Another player only while the selected one has not started an action
-    if (there.id !== id && mode !== null) return null;
-    const online = getActiveOnlineMatch();
-    if (online && online.myTeamId !== there.teamId) return null;
-    return there;
   }
 
   /**
@@ -2427,12 +574,12 @@ export class GameplayInteractionController {
   public startRouteDrag(world: { worldX: number; worldY: number }): boolean {
     const { valid, gridX, gridY } = this.getGridFromPointer(world);
     if (!valid) return false;
-    const owner = this.routeOwnerAt(gridX, gridY);
+    const owner = routeOwnerAt(this, gridX, gridY);
     if (!owner) return false;
     if (owner.id !== this.selectedPlayerId) this.selectPlayer(owner.id);
     if (this.selectedPlayerId !== owner.id) return false;
     // A negatrait roll comes first: ask, declare the Move, then drag again
-    const asked = this.askGates(owner.id, "move");
+    const asked = askGates(this, owner.id, "move");
     if (asked) {
       void asked.then((ok) => ok && this.declareMoveIfNone(owner.id));
       return false;
@@ -2448,57 +595,11 @@ export class GameplayInteractionController {
   public dragRouteTo(world: { worldX: number; worldY: number }): void {
     const id = this.selectedPlayerId;
     const player = id ? this.gameService.getPlayerById(id) : undefined;
-    if (!player?.gridPosition) return;
-    const { valid, gridX: x, gridY: y } = this.getGridFromPointer(world);
+    const start = player?.gridPosition;
+    if (!player || !start) return;
+    const { valid, gridX, gridY } = this.getGridFromPointer(world);
     if (!valid) return;
-    const start = player.gridPosition;
-    const end = this.waypoints[this.waypoints.length - 1] ?? start;
-    if (end.x === x && end.y === y) return;
-    if (start.x === x && start.y === y) {
-      this.clearWaypoints();
-      this.clearRollPreviews();
-      this.pitch.clearPath();
-      this.refreshPlayerVisualization(player.id);
-      return;
-    }
-    const back = this.waypoints.findIndex((p) => p.x === x && p.y === y);
-    if (back >= 0) {
-      this.waypoints = this.waypoints.slice(0, back + 1);
-      this.drawCurrentPath();
-      this.refreshPlayerVisualization(player.id);
-      return;
-    }
-    if (this.getPlayerAt(x, y)) return;
-    const state = this.gameService.getState();
-    const action =
-      state.activePlayer?.id === player.id
-        ? state.activePlayer.action
-        : undefined;
-    if (!this.declareMoveIfNone(player.id, action)) return;
-    // A finger going diagonally clips a square beside the corner: one step
-    // reaches here from the square before that, so the clipped one goes
-    const route = this.waypoints;
-    const before = route[route.length - 2] ?? start;
-    if (
-      route.length > 0 &&
-      Math.max(Math.abs(before.x - x), Math.abs(before.y - y)) === 1
-    ) {
-      this.waypoints = route.slice(0, -1);
-    }
-    this.addWaypoint(x, y);
-    // Out of reach: the route stays as it was
-    if (this.waypoints.length <= route.length - 1) this.waypoints = route;
-  }
-
-  /** The throw being aimed now, if any: who, what and from which step. */
-  private aimKey(): string | null {
-    const mode = this.currentActionMode;
-    const step = this.currentStepId;
-    const aiming =
-      (mode === "pass" && step === "pass") ||
-      (mode === "handoff" && step === "handoff") ||
-      (mode === "throwBomb" && step === "bomb");
-    return aiming ? `${this.selectedPlayerId}:${mode}:${step}` : null;
+    dragRouteTo(this, player, start, gridX, gridY);
   }
 
   /**
@@ -2511,29 +612,13 @@ export class GameplayInteractionController {
     world: { worldX: number; worldY: number },
     isSetupActive: boolean
   ): void {
-    const key = this.aimKey();
-    const { valid, gridX: x, gridY: y } = this.getGridFromPointer(world);
-    const aimed = this.aimedAt;
-    if (
-      valid &&
-      !isSetupActive &&
-      !this.isBusy &&
-      key &&
-      (aimed?.key !== key || aimed.x !== x || aimed.y !== y)
-    ) {
-      this.aimedAt = { key, x, y };
-      this.previewSquare(x, y);
-      this.eventBus.emit(GameEventNames.UI_ThrowAim, {
-        square: { x, y },
-        lines: this.targetRollPreview?.lines ?? [],
-      });
-      return;
-    }
+    const { valid, gridX, gridY } = this.getGridFromPointer(world);
+    if (valid && !isSetupActive && aimThrow(this, gridX, gridY)) return;
     this.dropAim();
     this.handlePointerDown(world, isSetupActive);
   }
 
-  private dropAim(): void {
+  dropAim(): void {
     if (!this.aimedAt) return;
     this.aimedAt = null;
     this.eventBus.emit(GameEventNames.UI_ThrowAim, null);
@@ -2542,274 +627,15 @@ export class GameplayInteractionController {
   }
 
   /** Throw at the aimed square, or walk the plotted route. */
-  private onGoMovePlan = (): void => {
-    if (this.isBusy) return;
-    const aimed = this.aimedAt;
-    if (aimed) {
-      this.dropAim();
-      // An aim from a step the coach has left throws nothing
-      if (aimed.key !== this.aimKey()) return;
-      if (getActiveOnlineMatch()?.mayAct() === false) return;
-      void this.onSquareClicked(aimed.x, aimed.y);
-      return;
-    }
-    this.executeMove();
-  };
+  private onGoMovePlan = (): void => goMovePlan(this);
 
   /** Drop the plotted route or the aim; the player stays selected. */
-  private onClearMovePlan = (): void => {
-    if (this.isBusy || !this.selectedPlayerId) return;
-    if (this.aimedAt) {
-      this.dropAim();
-      this.clearRollPreviews();
-      this.pitch.clearHover();
-      this.pitch.clearPassVisualization();
-      return;
-    }
-    this.clearWaypoints();
-    this.clearRollPreviews();
-    this.pitch.clearPath();
-    this.refreshPlayerVisualization(this.selectedPlayerId);
-  };
-
-  /**
-   * Walk the plotted route a leg at a time. A stretch that rolls nothing goes
-   * as one move; each Dodge or Rush stops the player on the square before
-   * it, asks the coach, and goes alone, so its dice land before the walk
-   * carries on. Declining stops the player there with the movement left.
-   */
-  private async moveAlong(
-    playerId: string,
-    route: { x: number; y: number }[]
-  ): Promise<void> {
-    this.isBusy = true;
-    this.clearWaypoints();
-    this.clearRollPreviews();
-    this.pitch.clearPath();
-    let walked = false;
-    try {
-      let rest = route;
-      while (rest.length > 0) {
-        const player = this.gameService.getPlayerById(playerId);
-        if (!player?.gridPosition) break;
-        const [leg] = this.planLegs(player, rest);
-        if (leg.risk) {
-          // The walk stops waiting on the dice after 3 s, but a slow screen
-          // or a queue in the tray can take longer: never ask about the
-          // next roll while the last one is still in the air
-          await this.dice.landed();
-          if (!(await this.confirmStep(player, leg.risk))) break;
-        }
-        await this.gameService.movePlayer(playerId, leg.path);
-        walked = true;
-        await this.scene.playerSettled?.(playerId);
-        const end = leg.path[leg.path.length - 1];
-        const now = this.gameService.getPlayerById(playerId);
-        if (
-          !this.isStillActing(playerId) ||
-          now?.status !== PlayerStatus.ACTIVE ||
-          now.gridPosition?.x !== end.x ||
-          now.gridPosition?.y !== end.y
-        ) {
-          break;
-        }
-        rest = rest.slice(leg.path.length);
-      }
-    } catch (err) {
-      console.error("Move failed", err);
-      this.isBusy = false;
-      this.deselectPlayer();
-      return;
-    }
-    this.isBusy = false;
-    if (walked) this.afterMove(playerId);
-    else this.refreshPlayerVisualization(playerId);
-  }
-
-  private planLegs(player: Player, route: { x: number; y: number }[]) {
-    const state = this.gameService.getState();
-    const mover = withDriveModifiers(player, state);
-    return planMoveLegs(player.gridPosition!, route, {
-      opponents: this.getOpposingPlayers(player.teamId),
-      ag: mover.stats.AG,
-      ma: mover.stats.MA,
-      used:
-        this.gameService.getMovementUsed(player.id) +
-        (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
-      rushModifier: rushModifier(state, player),
-      pickup:
-        state.ballPosition &&
-        !this.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
-          ? {
-              square: state.ballPosition,
-              target: pickupTarget(
-                mover,
-                state.ballPosition,
-                this.getOpposingPlayers(player.teamId),
-                state.weather
-              ),
-            }
-          : undefined,
-    });
-  }
-
-  /** Ask the coach a yes or no question; resolves with their answer. */
-  private requestConfirmation(
-    prefix: string,
-    request: Omit<AllEvents[GameEventNames.UI_RequestConfirmation], "actionId">
-  ): Promise<boolean> {
-    const actionId = `${prefix}-${++this.riskPrompts}`;
-    return new Promise((resolve) => {
-      const stopListening = () => {
-        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
-        this.openConfirmations.delete(stopListening);
-      };
-      const onResult = (data: { actionId: string; confirmed: boolean }) => {
-        if (data.actionId !== actionId) return;
-        stopListening();
-        resolve(data.confirmed);
-      };
-      this.openConfirmations.add(stopListening);
-      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
-      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId,
-        ...request,
-      });
-    });
-  }
-
-  /** Ask before a Dodge or Rush: what it needs and what can re-roll it. */
-  private confirmStep(player: Player, risk: StepRisk): Promise<boolean> {
-    const rolls = stepRolls(risk, player.gridPosition!);
-    const rollName = (kind: RouteRoll["type"]) =>
-      kind === "pickup" ? "Pick up" : kind === "dodge" ? "Dodge" : "Rush";
-    const rollText = rolls
-      .map((roll) => rollLabel(rollName(roll.type), roll.target))
-      .join(", then ");
-    const arbiter = this.gameService.getRerollArbiter();
-    // A team re-roll, Pro and Veteran each save one roll: with two rolls
-    // each is listed once, for either of them. A skill re-roll belongs to
-    // its own roll, as Dodge and Sure Hands are different skills.
-    const listed = new Set<RerollSource>();
-    const offers = rolls.map((roll) => ({
-      ...roll,
-      offer: availableRerolls(
-        { gameService: this.gameService, eventBus: this.eventBus },
-        player,
-        roll.type
-      ),
-    }));
-    const rerolls = offers.flatMap(({ type, target, offer }) => {
-      const sources = offer.sources.filter((source) => !listed.has(source));
-      for (const source of sources) if (source !== "skill") listed.add(source);
-      // Veteran covers some rolls and not others: name the one it covers
-      const which = rolls.length > 1 ? `${rollName(type)} ` : "";
-      return sources.map((source) => {
-        const covers = offers.filter((o) => o.offer.sources.includes(source));
-        const either = covers.length > 1;
-        const forOne = `one of the ${["two", "three"][covers.length - 2] ?? covers.length} rolls`;
-        switch (source) {
-          case "skill":
-            return `${offer.skillSource} re-roll: ${target}+`;
-          case "pro":
-            return either
-              ? `Pro needs 3+, for ${forOne}`
-              : `Pro needs 3+, then ${which}${target}+`;
-          case "team": {
-            const next = arbiter.nextTeamReroll(player.teamId);
-            switch (next) {
-              case "free":
-                return either
-                  ? `Brilliant Coaching free re-roll, for ${forOne}`
-                  : `Brilliant Coaching free re-roll: ${which}${target}+`;
-              case "leader":
-                return either
-                  ? `Leader re-roll, for ${forOne}`
-                  : `Leader re-roll: ${which}${target}+`;
-              case "team":
-                return either
-                  ? `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left), for ${forOne}`
-                  : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${which}${target}+`;
-              case null:
-                return "No team re-roll available";
-              default: {
-                const exhaustive: never = next;
-                return exhaustive;
-              }
-            }
-          }
-          case "veteran":
-            return either
-              ? `Veteran re-roll, for ${forOne}`
-              : `Veteran re-roll: ${which}${target}+`;
-          default: {
-            const exhaustive: never = source;
-            return exhaustive;
-          }
-        }
-      });
-    });
-    const title =
-      risk.kind === "dodge"
-        ? "Dodge"
-        : risk.kind === "rush"
-          ? "Rush"
-          : risk.kind === "rush-dodge"
-            ? "Rush & Dodge"
-            : "Pick up";
-    return this.requestConfirmation("risky-step", {
-      title: `${player.playerName}: ${title}`,
-      chooserTeamId: player.teamId,
-      step: {
-        playerId: player.id,
-        rolls: rolls.map(({ type, target }) => ({ type, target })),
-      },
-      message:
-        `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
-        (rerolls.length
-          ? `Re-rolls: ${rerolls.join(", ")}.`
-          : "No re-roll available."),
-      confirmLabel: `${title}!`,
-      cancelLabel: "Stop here",
-      risky: true,
-    });
-  }
-
-  /**
-   * Whether this player's activation runs on after a step: a turn of the
-   * drive they have not finished, or the Charge! activation they are up in.
-   */
-  private isStillActing(playerId: string): boolean {
-    const chargerId =
-      this.gameService.getKickoffEventStep()?.charge?.activePlayerId;
-    if (chargerId) return chargerId === playerId;
-    return (
-      this.gameService.getState().phase === GamePhase.PLAY &&
-      !this.gameService.hasPlayerActed(playerId)
-    );
-  }
-
-  private afterMove(playerId: string): void {
-    // GameService finishes the activation once MA+2 is spent; otherwise the
-    // player stays selected to plot the next leg.
-    if (!this.isStillActing(playerId)) {
-      // A Charge! that ran out of squares has already handed the board to
-      // the next charger: leave their unspent movement state alone
-      if (this.selectedPlayerId === playerId) this.deselectPlayer();
-      return;
-    }
-    this.hasMovedInAction = true;
-    this.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
-    this.clearWaypoints();
-    this.pitch.clearPath();
-    // Calling selectPlayer would reset the action mode
-    this.refreshPlayerVisualization(playerId);
-  }
+  private onClearMovePlan = (): void => clearMovePlan(this);
 
   public destroy(): void {
     // A question still open is dropped, never answered: whatever waited on
     // it (a Move, a Dodge, a declaration) must not carry on without a board
-    [...this.openConfirmations].forEach((stopListening) => stopListening());
+    this.confirmations.dropAll();
     this.scene.events.off("postupdate", this.publishTargetPreview);
     this.clearRollPreviews();
     this.dice.dispose();
@@ -2855,7 +681,7 @@ export class GameplayInteractionController {
       this.onDecisionRequested
     );
     this.eventBus.off(GameEventNames.GameStateRestored, this.onStateRestored);
-    this.clearBiteTargets();
+    this.targets.clearBiteTargets();
     this.eventBus.off(
       GameEventNames.KickoffEventStepStarted,
       this.kickoffStepSyncHandler
@@ -2886,72 +712,7 @@ export class GameplayInteractionController {
     }
   }
 
-  private availableRerolls(
-    player: Player,
-    kinds: ("dodge" | "rush" | "pickup")[]
-  ): string[] {
-    const arbiter = this.gameService.getRerollArbiter();
-    const skills = new Set(
-      kinds.map((kind) =>
-        kind === "dodge"
-          ? SkillType.DODGE
-          : kind === "rush"
-            ? SkillType.SURE_FEET
-            : SkillType.SURE_HANDS
-      )
-    );
-    const sources: string[] = [];
-    for (const skill of skills) {
-      if (
-        hasSkill(player.skills, skill) &&
-        arbiter.skillRerollAvailable(player, skill)
-      )
-        sources.push(skill);
-    }
-    const team = arbiter.nextTeamReroll(player.teamId);
-    if (team === "free") sources.push("Brilliant Coaching");
-    if (team === "leader") sources.push("Leader");
-    if (team === "team")
-      sources.push(`team ${arbiter.teamRerollsLeftFor(player.teamId)} left`);
-    if (
-      hasSkill(player.skills, SkillType.PRO) &&
-      arbiter.onceAvailable(player, SkillType.PRO)
-    )
-      sources.push("Pro on 3+");
-    if (arbiter.veteranRerollAvailable(player)) sources.push("Veteran");
-    return sources;
-  }
-
-  private drawPlannedRoute(
-    player: Player,
-    fullPath: { x: number; y: number }[]
-  ): RoutePreview {
-    const legs = this.planLegs(player, fullPath.slice(1));
-    const rolls = legs.flatMap((leg) =>
-      leg.risk ? stepRolls(leg.risk, leg.path[0]) : []
-    );
-    const mover = withDriveModifiers(player, this.gameService.getState());
-    const left = Math.max(
-      0,
-      mover.stats.MA -
-        this.gameService.getMovementUsed(player.id) -
-        (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0)
-    );
-    this.pitch.drawMovementPath(fullPath, rolls, left);
-    const route: RoutePreview = {
-      movementLeft: left,
-      riskySteps: rolls.length,
-      rolls,
-      rerolls: this.availableRerolls(
-        player,
-        rolls.map((r) => r.type)
-      ),
-    };
-    this.eventBus.emit(GameEventNames.UI_RoutePreview, route);
-    return route;
-  }
-
-  private clearRollPreviews(): void {
+  clearRollPreviews(): void {
     this.dropAim();
     this.targetRollPreview = null;
     this.targetAnchor = null;
@@ -2961,557 +722,12 @@ export class GameplayInteractionController {
     this.pitch.clearLayer("assist_ring");
   }
 
-  private isDownedOpponent(target: Player): boolean {
-    const selected = this.selectedPlayerId
-      ? this.gameService.getPlayerById(this.selectedPlayerId)
-      : undefined;
-    return (
-      !!selected &&
-      target.teamId !== selected.teamId &&
-      (target.status === PlayerStatus.PRONE ||
-        target.status === PlayerStatus.STUNNED)
-    );
-  }
-
-  /**
-   * A downed opponent can never be Blocked, only Fouled. A click on one
-   * declares the Foul in place of whatever is still uncommitted and hands
-   * the click to the Foul step, whose confirm lets the coach back out.
-   */
-  private async foulInsteadOfBlock(
-    playerId: string,
-    x: number,
-    y: number
-  ): Promise<void> {
-    const asked = this.askGates(playerId, "foul");
-    if (asked && !(await asked)) return;
-    if (!this.gameService.declareAction(playerId, "foul")) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "A downed player can only be Fouled, and this player cannot Foul now."
-      );
-      return;
-    }
-    this.enterActionMode(playerId, "foul", null);
-    await this.onSquareClicked(x, y);
-  }
-
-  /** The negatrait rolls a fresh declaration of `action` would make now. */
-  private pendingGates(playerId: string, action: ActionType): ActivationGate[] {
-    if (this.gameService.getState().activePlayer?.id === playerId) return [];
-    const player = this.gameService.getPlayerById(playerId);
-    if (!player) return [];
-    return activationGates(
-      player,
-      action,
-      this.gameService.getTeammates(playerId)
-    );
-  }
-
-  /**
-   * Bone Head, Bloodlust and the other negatraits roll the moment an action
-   * is declared, and the roll binds the player to it. Ask first, so a coach
-   * who only meant to measure a route can back out with nothing spent.
-   * Null when there is nothing to ask, so the declaration goes ahead in
-   * the same tick.
-   */
-  private askGates(
-    playerId: string,
-    action: ActionType
-  ): Promise<boolean> | null {
-    const gates = this.pendingGates(playerId, action);
-    const player = this.gameService.getPlayerById(playerId);
-    if (gates.length === 0 || !player) return null;
-    const lines = gates.map(
-      (gate) =>
-        `${rollLabel(gate.skill, Math.max(2, gate.target - gate.modifier))}. ${GATE_FAILURE_TEXT[gate.onFail.kind]}`
-    );
-    lines.push("Once rolled, the action cannot be changed.");
-    const asked = this.requestConfirmation("gate", {
-      title: `${player.playerName} must roll first`,
-      message: lines.join("\n"),
-      confirmLabel: "Roll",
-      cancelLabel: "Cancel",
-      risky: true,
-      chooserTeamId: player.teamId,
-    });
-    // A coach who picked someone else meanwhile meant that one instead
-    return asked.then(
-      (confirmed) => confirmed && this.selectedPlayerId === playerId
-    );
-  }
-
-  private confirmFoul(fouler: Player, target: Player): Promise<boolean> {
-    const foul = this.foulPreview(fouler, target);
-    return this.requestConfirmation("foul", {
-      title: "Confirm foul",
-      message: foul.lines.join("\n"),
-      confirmLabel: "Foul!",
-      cancelLabel: "Cancel",
-      risky: true,
-      // Online, the other coach sees the foul read-only
-      chooserTeamId: fouler.teamId,
-      step: {
-        playerId: fouler.id,
-        rolls: [{ type: "armour", target: foul.targetNumber }],
-      },
-    });
-  }
-
-  private foulPreview(fouler: Player, target: Player) {
-    return foulPreview(
-      fouler,
-      target,
-      [...this.getSceneTeam1().players, ...this.getSceneTeam2().players],
-      this.gameService.getState()
-    );
-  }
-
-  private updateTargetPreview(x: number, y: number): void {
-    // A prompt or an action is in flight: keep what the coach is reading
-    if (this.isBusy) return;
-    this.targetRollPreview = null;
-    this.targetAnchor = null;
-    this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
-    this.pitch.clearLayer("assist_ring");
-    this.pitch.clearLayer("intercept_roll_label");
-    this.eventBus.emit(GameEventNames.UI_RoutePreview, null);
-    if (!this.selectedPlayerId) return;
-    const actor = this.gameService.getPlayerById(this.selectedPlayerId);
-    const target = this.getPlayerAt(x, y);
-    if (!actor?.gridPosition || !target || target.id === actor.id) return;
-    const state = this.gameService.getState();
-    const opponents = this.gameService.getOpponents(actor.teamId);
-    const adjacent =
-      Math.max(
-        Math.abs(actor.gridPosition.x - x),
-        Math.abs(actor.gridPosition.y - y)
-      ) === 1;
-    let preview: TargetRollPreview | null = null;
-    let aim: StepPrompt | null = null;
-    const ringAssists = (ours: Player[], theirs: Player[]) =>
-      this.pitch.drawAssistRings(
-        ours.flatMap((p) => (p.gridPosition ? [p.gridPosition] : [])),
-        theirs.flatMap((p) => (p.gridPosition ? [p.gridPosition] : []))
-      );
-    if (
-      (this.currentActionMode === "block" ||
-        this.currentActionMode === "blitz") &&
-      !this.currentBlockReplacement &&
-      target.teamId !== actor.teamId &&
-      target.status === PlayerStatus.ACTIVE
-    ) {
-      const analysis = new BlockValidator().analyzeBlock(
-        actor,
-        target,
-        [...this.getSceneTeam1().players, ...this.getSceneTeam2().players],
-        state.activeTeamId
-      );
-      preview = {
-        square: { x, y },
-        lines: blockPreviewLines(analysis, actor, target, "attacker"),
-        danger: analysis.isUphill,
-      };
-      if (!adjacent)
-        preview.lines.push("At current positions. Move into reach to block.");
-      ringAssists(analysis.attackerAssists, analysis.defenderAssists);
-    } else if (
-      this.currentActionMode === "foul" &&
-      adjacent &&
-      target.teamId !== actor.teamId &&
-      (target.status === PlayerStatus.PRONE ||
-        target.status === PlayerStatus.STUNNED)
-    ) {
-      const foul = this.foulPreview(actor, target);
-      preview = { square: { x, y }, lines: foul.lines, danger: true };
-      ringAssists(
-        foul.analysis.offensiveAssists,
-        foul.analysis.defensiveAssists
-      );
-    } else if (
-      target.teamId === actor.teamId &&
-      ((this.currentActionMode === "pass" && this.currentStepId === "pass") ||
-        (this.currentActionMode === "handoff" &&
-          this.currentStepId === "handoff"))
-    ) {
-      const passer = withDriveModifiers(actor, state);
-      const receiver = withDriveModifiers(target, state);
-      const handoff = this.currentActionMode === "handoff";
-      const range = this.passController.measureRange(actor.gridPosition, {
-        x,
-        y,
-      });
-      const throwNeeds = passTarget(passer, opponents, state.weather, range);
-      const catchNeeds = catchTarget(
-        receiver,
-        opponents,
-        state.weather,
-        handoff ? "handoff" : "pass"
-      );
-      const lines = handoff ? [] : [rollLabel(range.type, throwNeeds)];
-      lines.push(rollLabel("Catch", catchNeeds));
-      // Online, the other coach sees the pass being aimed, read-only
-      const aimRolls: StepPrompt["rolls"] = handoff
-        ? [{ type: "catch", target: catchNeeds }]
-        : [
-            { type: "pass", target: throwNeeds },
-            { type: "catch", target: catchNeeds },
-          ];
-      aim = { playerId: actor.id, rolls: aimRolls };
-      const interceptorRolls: {
-        square: { x: number; y: number };
-        target: number;
-      }[] = [];
-      if (!handoff) {
-        const passingTeam = [actor, ...this.gameService.getTeammates(actor.id)];
-        for (const attempt of this.passController.checkInterceptions(
-          actor.gridPosition,
-          { x, y },
-          opponents,
-          true
-        )) {
-          const interceptor = this.gameService.getPlayerById(attempt.playerId);
-          if (!interceptor) continue;
-          if (
-            hasSkill(actor.skills, SkillType.CLOUD_BURSTER) &&
-            !hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)
-          )
-            continue;
-          const { line, accurate } = interceptPreviewLine(
-            interceptor,
-            passingTeam,
-            state.weather
-          );
-          lines.push(line);
-          if (interceptor.gridPosition)
-            interceptorRolls.push({
-              square: interceptor.gridPosition,
-              target: accurate,
-            });
-        }
-      }
-      this.pitch.drawInterceptionRolls(interceptorRolls);
-      preview = { square: { x, y }, lines, danger: false };
-    }
-    this.targetRollPreview = preview;
-    this.publishTargetPreview();
-    this.eventBus.emit(GameEventNames.UI_PassAimed, aim);
-  }
-
-  private drawCurrentPath(): void {
-    if (!this.selectedPlayerId) return;
-
-    // We need to calculate rolls for the FULL path to visualize correctly
-    // Recalculate rolls based on full sequence
-    // This is a bit heavy but ensures correct visualization (dodge/gfi)
-
-    // TODO: Use a validator helper to "Analyze Path"
-    // For now, simple draw
-    const player = this.gameService.getPlayerById(this.selectedPlayerId);
-    if (player && player.gridPosition) {
-      const fullPath = [
-        { x: player.gridPosition.x, y: player.gridPosition.y },
-        ...this.waypoints,
-      ];
-      const route = this.drawPlannedRoute(player, fullPath);
-      this.eventBus.emit(GameEventNames.UI_MovePlan, {
-        ...route,
-        squares: this.waypoints.length,
-      });
-    }
-  }
-
-  private drawPath(x: number, y: number): void {
-    if (!this.selectedPlayerId) return;
-    const player = this.gameService.getPlayerById(this.selectedPlayerId);
-    if (!player) return;
-
-    // Don't draw preview if not active team
-    const state = this.gameService.getState();
-    if (state.activeTeamId !== player.teamId) return;
-    const effectivePlayer = withDriveModifiers(player, state);
-
-    // Start from last waypoint
-    const startPos =
-      this.waypoints.length > 0
-        ? this.waypoints[this.waypoints.length - 1]
-        : player.gridPosition!;
-
-    // Find path for segment
-    const team =
-      player.teamId === this.getSceneTeam1().id
-        ? this.getSceneTeam1()
-        : this.getSceneTeam2();
-    const opponentTeam =
-      player.teamId === this.getSceneTeam1().id
-        ? this.getSceneTeam2()
-        : this.getSceneTeam1();
-
-    const opponents = opponentTeam.players.filter((p) => p.gridPosition);
-    const teammates = team.players.filter(
-      (p) => p.gridPosition && p.id !== player.id
-    );
-
-    const mockPlayer = { ...effectivePlayer, gridPosition: startPos };
-    const result = this.movementValidator.findPath(
-      mockPlayer,
-      x,
-      y,
-      opponents,
-      teammates,
-      this.gameService.getMovementUsed(player.id) + this.waypoints.length
-    );
-
-    if (result.valid) {
-      // Combine confirmed waypoints + preview path
-      // ALSO include the player's current position as the start of the visual path
-      const fullPath = [
-        { x: player.gridPosition!.x, y: player.gridPosition!.y },
-        ...this.waypoints,
-        ...result.path,
-      ];
-      // TODO: Get rolls for full path
-      this.drawPlannedRoute(player, fullPath);
-    } else {
-      // Just draw existing waypoints if preview is invalid
-      if (this.waypoints.length > 0) {
-        const fullPath = [
-          { x: player.gridPosition!.x, y: player.gridPosition!.y },
-          ...this.waypoints,
-        ];
-        this.drawPlannedRoute(player, fullPath);
-      } else {
-        this.pitch.clearPath();
-      }
-    }
-  }
-
-  private handleKickoffClick(
-    x: number,
-    y: number,
-    playerAtSquare: Player | null
-  ): void {
-    const eventStep = this.gameService.getKickoffEventStep();
-    if (eventStep) {
-      const mayAct = getActiveOnlineMatch()?.mayAct() ?? true;
-      if (!mayAct) return;
-
-      if (
-        playerAtSquare &&
-        playerAtSquare.teamId === eventStep.teamId &&
-        !eventStep.charge
-      ) {
-        const wasSelected = eventStep.selectedPlayerIds.includes(
-          playerAtSquare.id
-        );
-        if (this.gameService.selectKickoffEventPlayer(playerAtSquare.id)) {
-          this.selectedPlayerId = wasSelected ? null : playerAtSquare.id;
-          this.eventBus.emit(GameEventNames.PlayerSelected, {
-            player: wasSelected ? null : playerAtSquare,
-          });
-          // High Kick has exactly one known destination. Selecting the Open
-          // receiver on the pitch is the whole interaction.
-          if (
-            !wasSelected &&
-            eventStep.event === KickoffEvent.HIGH_KICK &&
-            eventStep.landingSquare
-          ) {
-            this.gameService.placeKickoffEventPlayer(
-              playerAtSquare.id,
-              eventStep.landingSquare.x,
-              eventStep.landingSquare.y
-            );
-            this.selectedPlayerId = null;
-          }
-          this.syncKickoffStepInteraction();
-        }
-        return;
-      }
-
-      const oneSquare = isOneSquareMoveEvent(eventStep.event);
-      // A one-square move goes to the pick the board has marked squares for
-      const mover = oneSquare
-        ? steppingPlayerId(eventStep)
-        : this.selectedPlayerId;
-      if (mover) {
-        const applied = oneSquare
-          ? this.gameService.moveKickoffEventPlayer(mover, x, y)
-          : this.gameService.placeKickoffEventPlayer(mover, x, y);
-        if (applied) {
-          this.selectedPlayerId = null;
-          this.syncKickoffStepInteraction();
-        } else {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            oneSquare
-              ? `${eventStep.event}: choose one adjacent empty pitch square.`
-              : `${eventStep.event}: place the player on the landing square.`
-          );
-        }
-      }
-      return;
-    }
-
-    const subPhase = this.gameService.getSubPhase();
-
-    if (subPhase === SubPhase.ROLL_KICKOFF) {
-      // If clicking on a player
-      if (playerAtSquare) {
-        // If own player -> Select/Switch Kicker
-        const kickingTeam = this.scene.kickingTeam;
-        if (playerAtSquare.teamId === kickingTeam.id) {
-          // Unhighlight previous if exists
-          if (
-            this.selectedPlayerId &&
-            this.selectedPlayerId !== playerAtSquare.id
-          ) {
-            this.scene.unhighlightPlayer(this.selectedPlayerId);
-          }
-
-          this.selectedPlayerId = playerAtSquare.id;
-          // Kickoff selection is only for aiming the kick — clear any
-          // movement/tackle overlays so it isn't mistaken for an activation.
-          this.pitch.clearHighlights();
-          this.scene.highlightPlayer(playerAtSquare.id);
-          this.gameService.selectKicker(playerAtSquare.id);
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Kicker Selected! Now choose target."
-          );
-          return;
-        }
-      }
-
-      // If clicking on a square (Target)
-      // Validate Target (Must be opponent half)
-      const isTeam1Kicking = this.scene.kickingTeam.id === this.scene.team1.id;
-      const isOpponentHalf = !isKickingTeamTerritory(x, isTeam1Kicking);
-
-      if (!isOpponentHalf) {
-        // If they clicked an empty square in their own half
-        if (this.selectedPlayerId) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Kick to opponent's half!"
-          );
-        }
-        return;
-      }
-
-      // If we have a selected kicker and clicked opponent half -> KICK!
-      if (this.selectedPlayerId) {
-        this.isBusy = true;
-        try {
-          this.gameService.kickBall(
-            isTeam1Kicking,
-            this.selectedPlayerId,
-            x,
-            y
-          );
-          this.selectedPlayerId = null; // Clear selection after kick
-        } finally {
-          this.isBusy = false;
-        }
-      } else {
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Select a Kicker first!"
-        );
-      }
-    }
-  }
-
   /**
    * Keep kickoff interaction visible on the board itself. Open eligible
    * players are blue; selected/current players are gold.
    */
-  private syncKickoffStepInteraction(): void {
-    for (const playerId of this.kickoffHighlightedPlayerIds) {
-      this.scene.unhighlightPlayer(playerId);
-    }
-    this.kickoffHighlightedPlayerIds.clear();
-    this.kickoffSquareMarkers.forEach((marker) => marker.destroy());
-    this.kickoffSquareMarkers = [];
-
-    const step = this.gameService.getKickoffEventStep();
-    if (!step) return;
-
-    const team = this.gameService.getTeam(step.teamId);
-    if (!team) return;
-    const onlineMatch = getActiveOnlineMatch();
-    const canAct =
-      !onlineMatch ||
-      (onlineMatch.myTeamId === step.teamId && onlineMatch.mayAct());
-    const opponents =
-      team.id === this.scene.team1.id
-        ? this.scene.team2.players
-        : this.scene.team1.players;
-    const eligible = team.players.filter((player) => {
-      if (!player.gridPosition || player.status !== PlayerStatus.ACTIVE) {
-        return false;
-      }
-      if (step.movedPlayerIds.includes(player.id)) return false;
-      return !opponents.some(
-        (opponent) =>
-          opponent.status === PlayerStatus.ACTIVE &&
-          opponent.gridPosition &&
-          Math.max(
-            Math.abs(opponent.gridPosition.x - player.gridPosition!.x),
-            Math.abs(opponent.gridPosition.y - player.gridPosition!.y)
-          ) === 1
-      );
-    });
-
-    // Eligible/selected pitch highlights belong to the deciding coach's own
-    // interaction. A coach who cannot act in this step is a passive
-    // spectator: they see the owning coach's moves happen live on the board
-    // (via the normal PlayerMoved/PlayerPlaced events) without these circles
-    // implying they can click anything themselves.
-    if (canAct) {
-      for (const player of eligible) {
-        this.scene.highlightPlayer(player.id, 0x38bdf8);
-        this.kickoffHighlightedPlayerIds.add(player.id);
-      }
-      for (const playerId of step.selectedPlayerIds) {
-        this.scene.highlightPlayer(playerId, 0xffd700);
-        this.kickoffHighlightedPlayerIds.add(playerId);
-      }
-      // The pick a square click moves: the empty squares around them, any
-      // of which they may step to.
-      const mover = isOneSquareMoveEvent(step.event)
-        ? steppingPlayerId(step)
-        : null;
-      if (mover) {
-        const everyone = [...team.players, ...opponents];
-        const at = team.players.find((p) => p.id === mover)?.gridPosition;
-        if (at) {
-          for (let dx = -1; dx <= 1; dx++)
-            for (let dy = -1; dy <= 1; dy++) {
-              const x = at.x + dx;
-              const y = at.y + dy;
-              const onPitch =
-                x >= 0 &&
-                y >= 0 &&
-                x < GameConfig.PITCH_WIDTH &&
-                y < GameConfig.PITCH_HEIGHT;
-              const taken = everyone.some(
-                (p) => p.gridPosition?.x === x && p.gridPosition?.y === y
-              );
-              if ((dx || dy) && onPitch && !taken)
-                this.kickoffSquareMarkers.push(
-                  this.pitch.highlightSquare(x, y, 0x22c55e)
-                );
-            }
-        }
-      }
-    }
-    if (step.charge?.activePlayerId) {
-      this.selectedPlayerId = step.charge.activePlayerId;
-      if (canAct) {
-        this.scene.highlightPlayer(step.charge.activePlayerId, 0xffd700);
-        this.kickoffHighlightedPlayerIds.add(step.charge.activePlayerId);
-      }
-    }
+  syncKickoffStepInteraction(): void {
+    syncKickoffStep(this);
   }
 
   /** Whoever stands on the square at this world point. */
@@ -3527,7 +743,7 @@ export class GameplayInteractionController {
     return this.selectedPlayerId !== null;
   }
 
-  private getPlayerAt(x: number, y: number): Player | null {
+  getPlayerAt(x: number, y: number): Player | null {
     const t1 = this.getSceneTeam1();
     const t2 = this.getSceneTeam2();
     const players = [...t1.players, ...t2.players];
@@ -3538,160 +754,18 @@ export class GameplayInteractionController {
     );
   }
 
-  /** Every legal Jump (over → landing) for the selected player right now. */
-  private computeJumpTargets(player: Player): JumpTarget[] {
-    const from = player.gridPosition;
-    if (!from || player.status !== PlayerStatus.ACTIVE) return [];
-    const others = [
-      ...this.getSceneTeam1().players,
-      ...this.getSceneTeam2().players,
-    ].filter((p) => p.id !== player.id && p.gridPosition);
-    const canJumpAnything =
-      hasSkill(player.skills, SkillType.LEAP) ||
-      hasSkill(player.skills, SkillType.POGO);
-    const inBounds = (x: number, y: number) =>
-      x >= 0 &&
-      y >= 0 &&
-      x < GameConfig.PITCH_WIDTH &&
-      y < GameConfig.PITCH_HEIGHT;
-    return jumpTargets(from, others, canJumpAnything, inBounds);
-  }
-
-  /** True when `target` is a legal Jump landing square (a push-back square). */
-  private isJumpTarget(
-    player: Player,
-    target: { x: number; y: number }
-  ): boolean {
-    return this.computeJumpTargets(player).some(
-      (t) => t.dest.x === target.x && t.dest.y === target.y
-    );
-  }
-
-  /**
-   * Resolve a Jump-targeting click: leap over the adjacent player into the
-   * clicked push-back square. A Jump does not end the Move — if the player is
-   * still Standing with an activation left they stay selected and can move or
-   * Jump again (the Move step is never marked complete).
-   */
-  private async handleJumpClick(x: number, y: number): Promise<void> {
-    const player = this.gameService.getPlayerById(this.selectedPlayerId!);
-    if (!player?.gridPosition) return;
-    if (!this.isJumpTarget(player, { x, y })) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Click one of the highlighted landing squares to Jump."
-      );
-      return;
-    }
-    this.jumpTargeting = false;
-    this.pitch.clearPath();
-    try {
-      await this.gameService.jumpPlayer(player.id, { x, y });
-    } catch (err) {
-      this.eventBus.emit(GameEventNames.UI_Notification, `Cannot Jump: ${err}`);
-    }
-    const after = this.gameService.getPlayerById(player.id);
-    if (
-      after?.status === PlayerStatus.ACTIVE &&
-      this.gameService.canActivate(player.id)
-    ) {
-      // Keep the player selected and in Move mode so they can keep moving or
-      // Jump again; refresh the movement overlay for the new square.
-      this.refreshPlayerVisualization(player.id);
-    } else {
-      this.deselectPlayer();
-    }
-  }
-
   // Helpers to access Scene data (temporary until full decouple)
-  private getSceneTeam1() {
+  getSceneTeam1() {
     return this.scene.team1;
   }
-  private getSceneTeam2() {
+  getSceneTeam2() {
     return this.scene.team2;
   }
 
-  private getOpposingPlayers(
-    myTeamId: string
-  ): import("../../types/Player").Player[] {
+  getOpposingPlayers(myTeamId: string): Player[] {
     const t1 = this.getSceneTeam1();
     const t2 = this.getSceneTeam2();
     return myTeamId === t1.id ? t2.players : t1.players;
-  }
-
-  /**
-   * Start push direction selection mode
-   */
-  private startPushDirectionSelection(data: {
-    validDirections: { x: number; y: number }[];
-    defenderId: string;
-    attackerId?: string;
-    resultType?: string;
-    pushTier?: "open" | "chain" | "crowd";
-  }): void {
-    this.pushSelectionActive = true;
-    this.pushValidDirections = data.validDirections || [];
-    this.pushDefenderId = data.defenderId;
-    this.pushAttackerId = data.attackerId || ""; // Store attacker ID
-    this.pushResultType = data.resultType || "";
-
-    // Clear any existing highlights first
-    this.clearAllInteractionHighlights();
-
-    // Yellow = open square, orange = chain push, red = into the crowd
-    const tierColors = { open: 0xffff00, chain: 0xff8800, crowd: 0xff0000 };
-    const color = tierColors[data.pushTier ?? "open"];
-    if (data.pushTier === "crowd") {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Push into the crowd!"
-      );
-    } else if (data.pushTier === "chain") {
-      this.eventBus.emit(GameEventNames.UI_Notification, "Chain push!");
-    }
-
-    // Highlight the valid push squares using HighlightManager
-    this.pushValidDirections.forEach((dir) => {
-      this.highlightManager.addPushHighlight(dir.x, dir.y, color);
-    });
-  }
-
-  /**
-   * Handle click on a push direction square
-   */
-  private handlePushDirectionClick(x: number, y: number): boolean {
-    if (!this.pushSelectionActive) return false;
-
-    const isValid = this.pushValidDirections.some(
-      (dir) => dir.x === x && dir.y === y
-    );
-
-    if (isValid) {
-      const attackerId = this.pushAttackerId;
-      const defenderId = this.pushDefenderId;
-      const resultType = this.pushResultType;
-
-      // Reset BEFORE executing: a chain push emits the next push-direction
-      // decision synchronously from inside executePush, and that fresh
-      // selection state must not be clobbered afterwards
-      this.pushSelectionActive = false;
-      this.pushValidDirections = [];
-      this.pushDefenderId = "";
-      this.pushAttackerId = "";
-      this.pushResultType = "";
-      this.clearAllInteractionHighlights();
-
-      void this.gameService.executePush(
-        attackerId,
-        defenderId,
-        { x, y },
-        resultType,
-        false
-      );
-
-      return true;
-    }
-    return false;
   }
 
   /**
@@ -3703,14 +777,3 @@ export class GameplayInteractionController {
     this.highlightManager.clearAllHighlights();
   }
 }
-
-/** What a failed negatrait roll does, as the confirm before it says. */
-const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string> = {
-  distracted: "On a fail they are Distracted and the activation ends.",
-  endActivation: "On a fail the activation ends.",
-  rooted: "On a fail they are Rooted and cannot leave their square.",
-  lashOut:
-    "On a fail they lash out at a Standing team-mate next to them. With none beside them, the activation ends.",
-  bloodlust:
-    "On a fail they may switch to a Move, and must bite a Thrall before the activation ends.",
-};

@@ -53,11 +53,6 @@
       "count": 1
     }
   },
-  "__tests__/unit/controllers/GameplayInteractionController.test.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "e2e/browser/later-drive-kickoff.e2e.ts": {
     "complexity": {
       "count": 1
@@ -183,17 +178,6 @@
   "src/gallery/fixtures.ts": {
     "complexity": {
       "count": 1
-    }
-  },
-  "src/game/controllers/GameplayInteractionController.ts": {
-    "complexity": {
-      "count": 11
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 9
     }
   },
   "src/game/controllers/SceneOrchestrator.ts": {
