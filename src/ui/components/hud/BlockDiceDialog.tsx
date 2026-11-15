@@ -2,11 +2,9 @@ import { useAfterDice } from "../../hooks/useAfterDice";
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect, useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
-import {
-  blockPreviewLines,
-  BlockSide,
-} from "../../../game/rules/rollPreview";
+import { blockPreviewLines, BlockSide } from "../../../game/rules/rollPreview";
 import { BlockAnalysis } from "../../../types/Actions";
+import type { Player } from "../../../types/Player";
 import {
   BlockResult,
   BlockRollData,
@@ -174,30 +172,11 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
 
   const { analysis } = data;
   const { attackerST, defenderST } = analysis;
-  const diceCount = rollData?.numDice ?? analysis.diceCount;
-  const isUphill = rollData ? !rollData.isAttackerChoice : analysis.isUphill;
+  const { diceCount, isUphill } = diceAndPicker(analysis, rollData);
 
   const canAct = !chosen && getActiveOnlineMatch()?.mayAct() !== false;
   const rerollFirst = rollData?.choiceStage === "attacker-reroll";
-  const service = ServiceContainer.isInitialized()
-    ? ServiceContainer.getInstance().gameService
-    : null;
-  const attackingTeamId = service?.getPlayerById(data.attackerId)?.teamId;
-  const attackingTeam = attackingTeamId
-    ? service?.getTeam(attackingTeamId)
-    : null;
-  const attacker = service?.getPlayerById(data.attackerId);
-  const defender = service?.getPlayerById(data.defenderId);
-  // Online, the defending coach sees this card too: word it for them
-  const viewer: BlockSide =
-    defender && getActiveOnlineMatch()?.myTeamId === defender.teamId
-      ? "defender"
-      : "attacker";
-  const viewerPicks = isUphill === (viewer === "defender");
-  const previewLines =
-    attacker && defender
-      ? blockPreviewLines(analysis, attacker, defender, viewer)
-      : [];
+  const { attacker, defender, attackingTeamName } = blockSides(data);
 
   const handleRoll = () => {
     // Online: only the coach who owns the action/decision may interact
@@ -280,17 +259,15 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     setIsOpen(false);
   };
 
+  // An uphill block's result is the defender's pick
+  const defenderPicks = isUphill && !!rollData && !rerollFirst;
   return (
     <DialogShell
       placement="dock"
       eyebrow={
         <DecisionTeam
-          playerId={
-            isUphill && rollData && !rerollFirst
-              ? data.defenderId
-              : data.attackerId
-          }
-          pick={isUphill && !!rollData && !rerollFirst}
+          playerId={defenderPicks ? data.defenderId : data.attackerId}
+          pick={defenderPicks}
         />
       }
       testId="block-dice-dialog"
@@ -302,25 +279,12 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         // must be picked
         !rollData &&
         canAct && (
-          <div className="flex items-center justify-between gap-3">
-            {!rollData && !isRolling && !heldDice ? (
-              <HudButton variant="ghost" hotkey="Escape" onClick={handleCancel}>
-                Cancel
-              </HudButton>
-            ) : (
-              <span />
-            )}
-            <HudButton
-              data-testid="block-roll-dice"
-              variant="primary"
-              size="lg"
-              hotkey="Enter"
-              onClick={handleRoll}
-              disabled={isRolling}
-            >
-              ROLL DICE
-            </HudButton>
-          </div>
+          <RollActions
+            showCancel={!isRolling && !heldDice}
+            isRolling={isRolling}
+            onCancel={handleCancel}
+            onRoll={handleRoll}
+          />
         )
       }
     >
@@ -343,110 +307,43 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         </div>
       </div>
 
-      <div data-testid="block-roll-analysis" className="mt-2 font-hud-body text-hud-xs leading-snug">
-        {previewLines.map((line, index) => <div key={index} className={index === 0 && !viewerPicks ? "text-hud-bad font-bold" : line.startsWith("Our assists") ? "text-hud-good" : line.startsWith("Their assists") ? "text-hud-bad" : ""}>{line}</div>)}
-      </div>
+      <BlockPreview
+        analysis={analysis}
+        attacker={attacker}
+        defender={defender}
+        isUphill={isUphill}
+      />
 
       {/* Dice count and who picks */}
-      <div className="mt-3 flex items-center justify-center gap-3">
-        <div className="font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-bone">
-          {diceCount} {diceCount === 1 ? "DIE" : "DICE"}{" "}
-          {isUphill ? <span className="text-hud-bad">(UPHILL)</span> : ""}
-        </div>
-        <div className="hud-label">
-          {isUphill ? "Defender Chooses" : "Attacker Chooses"}
-        </div>
-      </div>
+      <DiceCount diceCount={diceCount} isUphill={isUphill} />
 
       {/* The dice themselves are in the dice tray below: a click on a
           lifted die chooses it. These buttons keep the choice open to a
           keyboard or a screen reader. */}
       {shownRoll ? (
-        <div className="mt-3">
-          {canAct && rerollFirst && (
-            <HudButton
-              data-testid="block-keep-dice"
-              block
-              onClick={() =>
-                eventBus.emit(GameEventNames.UI_KeepBlockDice, {
-                  attackerId: data.attackerId,
-                })
-              }
-            >
-              Keep dice
-            </HudButton>
-          )}
-          <div className="flex justify-center gap-2">
-            {canAct &&
-              (!rerollFirst || proMode) &&
-              shownRoll.results.map((result, idx) => (
-                <DieChoice
-                  key={idx}
-                  index={idx}
-                  result={result.type}
-                  onPick={() => pickRef.current?.(idx)}
-                >
-                  {proMode ? `Re-roll ${result.label}` : result.label}
-                </DieChoice>
-              ))}
-          </div>
-          <div className="rounded-hud border border-hud-gold/30 bg-hud-gold/10 px-3 py-2 text-center font-hud-label text-hud-base font-semibold text-hud-gold">
-            {chosen
-              ? `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`
-              : proMode
-                ? `Pro: click a die in the tray, or press ${dieKeys(shownRoll.results.length)}, to re-roll it (3+)`
-                : getActiveOnlineMatch()?.mayAct() === false
-                  ? "The other coach is choosing…"
-                  : rerollFirst
-                    ? `${attackingTeam?.name ?? "Attacking team"}: re-roll first?`
-                    : `Click a die in the tray, or press ${dieKeys(shownRoll.results.length)}, to choose the result`}
-          </div>
-          {canAct &&
-            (shownRoll.teamRerollAvailable ||
-              shownRoll.proAvailable ||
-              shownRoll.brawlerAvailable ||
-              shownRoll.veteranRerollAvailable) && (
-              <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-                {shownRoll.teamRerollAvailable && (
-                  <HudButton
-                    data-testid="block-team-reroll"
-                    size="sm"
-                    hotkey="r"
-                    onClick={handleTeamReroll}
-                  >
-                    TEAM RE-ROLL (all dice)
-                  </HudButton>
-                )}
-                {shownRoll.proAvailable && (
-                  <HudButton
-                    size="sm"
-                    variant={proMode ? "gold" : "secondary"}
-                    onClick={() => setProMode((m) => !m)}
-                  >
-                    {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
-                  </HudButton>
-                )}
-                {shownRoll.brawlerAvailable && (
-                  <HudButton
-                    data-testid="block-brawler-reroll"
-                    size="sm"
-                    onClick={handleBrawlerReroll}
-                  >
-                    BRAWLER: RE-ROLL 1 BOTH DOWN
-                  </HudButton>
-                )}
-                {shownRoll.veteranRerollAvailable && (
-                  <HudButton
-                    data-testid="block-veteran-reroll"
-                    size="sm"
-                    onClick={handleVeteranReroll}
-                  >
-                    VETERAN RE-ROLL (all dice, once per game)
-                  </HudButton>
-                )}
-              </div>
-            )}
-        </div>
+        <BlockChoices
+          roll={shownRoll}
+          canAct={canAct}
+          rerollFirst={rerollFirst}
+          proMode={proMode}
+          chosen={chosen}
+          attackingTeamName={attackingTeamName}
+          onKeep={() =>
+            eventBus.emit(GameEventNames.UI_KeepBlockDice, {
+              attackerId: data.attackerId,
+            })
+          }
+          onPick={(index) => pickRef.current?.(index)}
+        >
+          <BlockRerolls
+            roll={shownRoll}
+            proMode={proMode}
+            onTeamReroll={handleTeamReroll}
+            onTogglePro={() => setProMode((m) => !m)}
+            onBrawlerReroll={handleBrawlerReroll}
+            onVeteranReroll={handleVeteranReroll}
+          />
+        </BlockChoices>
       ) : isRolling || rollData ? (
         <div className="mt-4 text-center font-hud-label text-hud-base uppercase tracking-[0.1em] text-hud-dim">
           Rolling…
@@ -455,6 +352,295 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     </DialogShell>
   );
 };
+
+/** The players and the attacking team in a block, when the game is up. */
+function blockSides({
+  attackerId,
+  defenderId,
+}: {
+  attackerId: string;
+  defenderId: string;
+}) {
+  if (!ServiceContainer.isInitialized())
+    return {
+      attacker: undefined,
+      defender: undefined,
+      attackingTeamName: undefined,
+    };
+  const service = ServiceContainer.getInstance().gameService;
+  const attacker = service.getPlayerById(attackerId);
+  const defender = service.getPlayerById(defenderId);
+  const attackingTeamId = attacker?.teamId;
+  return {
+    attacker,
+    defender,
+    attackingTeamName: attackingTeamId
+      ? service.getTeam(attackingTeamId)?.name
+      : undefined,
+  };
+}
+
+/** The dice and who picks: the roll's own once thrown, else the analysis'. */
+function diceAndPicker(
+  analysis: BlockAnalysis,
+  rollData: BlockRollData | null
+): { diceCount: number; isUphill: boolean } {
+  if (!rollData)
+    return { diceCount: analysis.diceCount, isUphill: analysis.isUphill };
+  return { diceCount: rollData.numDice, isUphill: !rollData.isAttackerChoice };
+}
+
+/** Cancel, while nothing is rolling or held, beside the roll button. */
+function RollActions({
+  showCancel,
+  isRolling,
+  onCancel,
+  onRoll,
+}: {
+  showCancel: boolean;
+  isRolling: boolean;
+  onCancel: () => void;
+  onRoll: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      {showCancel ? (
+        <HudButton variant="ghost" hotkey="Escape" onClick={onCancel}>
+          Cancel
+        </HudButton>
+      ) : (
+        <span />
+      )}
+      <HudButton
+        data-testid="block-roll-dice"
+        variant="primary"
+        size="lg"
+        hotkey="Enter"
+        onClick={onRoll}
+        disabled={isRolling}
+      >
+        ROLL DICE
+      </HudButton>
+    </div>
+  );
+}
+
+/** The block's odds in words, for whichever coach is looking. */
+function BlockPreview({
+  analysis,
+  attacker,
+  defender,
+  isUphill,
+}: {
+  analysis: BlockAnalysis;
+  attacker: Player | undefined;
+  defender: Player | undefined;
+  isUphill: boolean;
+}) {
+  // Online, the defending coach sees this card too: word it for them
+  const viewer: BlockSide =
+    defender && getActiveOnlineMatch()?.myTeamId === defender.teamId
+      ? "defender"
+      : "attacker";
+  const viewerPicks = isUphill === (viewer === "defender");
+  const previewLines =
+    attacker && defender
+      ? blockPreviewLines(analysis, attacker, defender, viewer)
+      : [];
+  return (
+    <div
+      data-testid="block-roll-analysis"
+      className="mt-2 font-hud-body text-hud-xs leading-snug"
+    >
+      {previewLines.map((line, index) => (
+        <div
+          key={index}
+          className={previewLineClass(line, index === 0 && !viewerPicks)}
+        >
+          {line}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DiceCount({
+  diceCount,
+  isUphill,
+}: {
+  diceCount: number;
+  isUphill: boolean;
+}) {
+  return (
+    <div className="mt-3 flex items-center justify-center gap-3">
+      <div className="font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-bone">
+        {diceCount} {diceCount === 1 ? "DIE" : "DICE"}{" "}
+        {isUphill ? <span className="text-hud-bad">(UPHILL)</span> : ""}
+      </div>
+      <div className="hud-label">
+        {isUphill ? "Defender Chooses" : "Attacker Chooses"}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The rolled dice as buttons, what to do with them, and the re-rolls
+ * (children) when this coach may act.
+ */
+function BlockChoices({
+  roll,
+  canAct,
+  rerollFirst,
+  proMode,
+  chosen,
+  attackingTeamName,
+  onKeep,
+  onPick,
+  children,
+}: {
+  roll: BlockRollData;
+  canAct: boolean;
+  rerollFirst: boolean;
+  proMode: boolean;
+  chosen: string | null;
+  attackingTeamName: string | undefined;
+  onKeep: () => void;
+  onPick: (index: number) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-3">
+      {canAct && rerollFirst && (
+        <HudButton data-testid="block-keep-dice" block onClick={onKeep}>
+          Keep dice
+        </HudButton>
+      )}
+      <div className="flex justify-center gap-2">
+        {canAct &&
+          (!rerollFirst || proMode) &&
+          roll.results.map((result, idx) => (
+            <DieChoice
+              key={idx}
+              index={idx}
+              result={result.type}
+              onPick={() => onPick(idx)}
+            >
+              {proMode ? `Re-roll ${result.label}` : result.label}
+            </DieChoice>
+          ))}
+      </div>
+      <div className="rounded-hud border border-hud-gold/30 bg-hud-gold/10 px-3 py-2 text-center font-hud-label text-hud-base font-semibold text-hud-gold">
+        {choiceStatus({
+          chosen,
+          proMode,
+          rerollFirst,
+          attackingTeamName,
+          diceShown: roll.results.length,
+        })}
+      </div>
+      {canAct && children}
+    </div>
+  );
+}
+
+/** Warns when the viewer does not pick, and colours each side's assists. */
+function previewLineClass(line: string, warning: boolean): string {
+  if (warning) return "text-hud-bad font-bold";
+  if (line.startsWith("Our assists")) return "text-hud-good";
+  if (line.startsWith("Their assists")) return "text-hud-bad";
+  return "";
+}
+
+/** The line under the dice: what was chosen, or how to choose. */
+function choiceStatus({
+  chosen,
+  proMode,
+  rerollFirst,
+  attackingTeamName,
+  diceShown,
+}: {
+  chosen: string | null;
+  proMode: boolean;
+  rerollFirst: boolean;
+  attackingTeamName: string | undefined;
+  diceShown: number;
+}): string {
+  if (chosen) return `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`;
+  if (proMode)
+    return `Pro: click a die in the tray, or press ${dieKeys(diceShown)}, to re-roll it (3+)`;
+  if (getActiveOnlineMatch()?.mayAct() === false)
+    return "The other coach is choosing…";
+  if (rerollFirst)
+    return `${attackingTeamName ?? "Attacking team"}: re-roll first?`;
+  return `Click a die in the tray, or press ${dieKeys(diceShown)}, to choose the result`;
+}
+
+/** The re-rolls the attacker may still use on these dice. */
+function BlockRerolls({
+  roll,
+  proMode,
+  onTeamReroll,
+  onTogglePro,
+  onBrawlerReroll,
+  onVeteranReroll,
+}: {
+  roll: BlockRollData;
+  proMode: boolean;
+  onTeamReroll: () => void;
+  onTogglePro: () => void;
+  onBrawlerReroll: () => void;
+  onVeteranReroll: () => void;
+}) {
+  if (
+    !roll.teamRerollAvailable &&
+    !roll.proAvailable &&
+    !roll.brawlerAvailable &&
+    !roll.veteranRerollAvailable
+  )
+    return null;
+  return (
+    <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+      {roll.teamRerollAvailable && (
+        <HudButton
+          data-testid="block-team-reroll"
+          size="sm"
+          hotkey="r"
+          onClick={onTeamReroll}
+        >
+          TEAM RE-ROLL (all dice)
+        </HudButton>
+      )}
+      {roll.proAvailable && (
+        <HudButton
+          size="sm"
+          variant={proMode ? "gold" : "secondary"}
+          onClick={onTogglePro}
+        >
+          {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
+        </HudButton>
+      )}
+      {roll.brawlerAvailable && (
+        <HudButton
+          data-testid="block-brawler-reroll"
+          size="sm"
+          onClick={onBrawlerReroll}
+        >
+          BRAWLER: RE-ROLL 1 BOTH DOWN
+        </HudButton>
+      )}
+      {roll.veteranRerollAvailable && (
+        <HudButton
+          data-testid="block-veteran-reroll"
+          size="sm"
+          onClick={onVeteranReroll}
+        >
+          VETERAN RE-ROLL (all dice, once per game)
+        </HudButton>
+      )}
+    </div>
+  );
+}
 
 /** The keys for the dice in the tray, left to right: "1", "1 or 2", "1 to 3". */
 const dieKeys = (count: number) =>
