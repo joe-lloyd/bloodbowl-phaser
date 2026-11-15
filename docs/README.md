@@ -25,6 +25,12 @@ The [project README](../README.md) shows the game and its main features.
 | [Art pipeline](../scripts/sprites/README.md)               | Building and rendering the game art                       |
 | [Utility scripts](../scripts/README.md)                    | Capture, performance and test tooling                     |
 
+## Open investigations
+
+Findings and options awaiting a product decision. They are not requirements.
+
+- [Competition team presets, copies and variants](investigations/competition-team-presets.md)
+
 ## Rules implementation
 
 These are project implementation notes and audits, not copies of the official books.
