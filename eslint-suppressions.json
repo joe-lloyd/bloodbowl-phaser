@@ -636,11 +636,6 @@
       "count": 1
     }
   },
-  "src/types/events.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/ui/components/TeamBuilder/TeamRoster.tsx": {
     "complexity": {
       "count": 1
