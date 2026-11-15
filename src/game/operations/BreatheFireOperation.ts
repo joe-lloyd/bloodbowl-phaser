@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
@@ -103,7 +104,7 @@ export class BreatheFireOperation extends GameOperation {
       attacker.playerName,
       attacker.teamId
     );
-    const ball = gameService.getState().ballPosition;
+    const ball = groundBall(gameService.getState());
 
     if (check.roll === 1) {
       // The flame washes back: the breather is Knocked Down — a turnover

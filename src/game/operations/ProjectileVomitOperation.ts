@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
@@ -129,7 +130,7 @@ export class ProjectileVomitOperation extends GameOperation {
     victim.status = PlayerStatus.PRONE;
     eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: victim.id });
     eventBus.emit(GameEventNames.PlayerStatusChanged, victim);
-    const ball = gameService.getState().ballPosition;
+    const ball = groundBall(gameService.getState());
     if (
       ball &&
       victim.gridPosition &&

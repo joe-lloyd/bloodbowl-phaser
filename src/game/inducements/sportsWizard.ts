@@ -6,6 +6,7 @@
  * it starts the next Turn.
  */
 
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { ArmourOperation } from "../operations/ArmourOperation";
@@ -87,7 +88,7 @@ function fireball(
   const hits = inBlast.filter(
     (p) => dice.rollD6(`Fireball (${p.playerName})`, team.id) >= 4
   );
-  const ball = gameService.getState().ballPosition;
+  const ball = groundBall(gameService.getState());
   const operations: GameOperation[] = [];
   let dropped = false;
   for (const player of hits) {
@@ -135,7 +136,7 @@ function zap(context: FlowContext, team: Team, target: Player): void {
     `Sports-Wizard (${team.name}): ${target.playerName} is turned into a Frog`
   );
   eventBus.emit(GameEventNames.PlayerStatusChanged, target);
-  const ball = state.ballPosition;
+  const ball = groundBall(state);
   if (
     ball?.x === target.gridPosition?.x &&
     ball?.y === target.gridPosition?.y

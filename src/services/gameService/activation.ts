@@ -5,6 +5,7 @@
  * passes.
  */
 
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { whenMomentsComplete } from "@/game/presentation/momentQueue";
 import { GameState, GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
@@ -137,7 +138,7 @@ export function finishActivation(parts: GameParts, playerId: string): void {
   // a ball otherwise a Turnover is caused". A pick-up on the ball ends the
   // activation holding it; a failed one has already turned over.
   const securer = parts.game.getPlayerById(playerId);
-  const ball = parts.state.ballPosition;
+  const ball = groundBall(parts.state);
   if (
     isSecuringBall(parts.state, playerId) &&
     !(

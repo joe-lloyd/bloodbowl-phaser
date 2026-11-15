@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames, ActionType } from "../../types/events";
@@ -173,7 +174,7 @@ export class ActivationGateOperation extends GameOperation {
         });
         eventBus.emit(GameEventNames.PlayerStatusChanged, victim);
 
-        const ball = gameService.getState().ballPosition;
+        const ball = groundBall(gameService.getState());
         const hadBall =
           !!ball &&
           ball.x === victim.gridPosition.x &&

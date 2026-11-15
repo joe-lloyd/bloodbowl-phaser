@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ballInTheAir } from "../../../src/game/rules/ballInTheAir";
+import {
+  ballInTheAir,
+  ballOnSquare,
+  groundBall,
+} from "../../../src/game/rules/ballInTheAir";
 import { isBallAt } from "../../../src/game/managers/movementShared";
 import { GamePhase, GameState } from "../../../src/types/GameState";
 
@@ -27,5 +31,15 @@ describe("a kicked ball still in the air", () => {
   it("is not in the air before the kick or after a Touchback", () => {
     expect(ballInTheAir(state({ kickoffKickResolved: undefined }))).toBe(false);
     expect(ballInTheAir(state({ ballPosition: null }))).toBe(false);
+  });
+
+  it("is on no square for anyone standing under it", () => {
+    expect(groundBall(state({}))).toBeNull();
+    expect(ballOnSquare(state({}), square)).toBe(false);
+    const landed = state({ phase: GamePhase.PLAY });
+    expect(groundBall(landed)).toEqual(square);
+    expect(ballOnSquare(landed, square)).toBe(true);
+    expect(ballOnSquare(landed, { x: 8, y: 3 })).toBe(false);
+    expect(ballOnSquare(landed, undefined)).toBe(false);
   });
 });

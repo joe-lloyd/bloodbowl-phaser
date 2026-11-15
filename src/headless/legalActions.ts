@@ -3,6 +3,7 @@
  * engine's own validators so no rule is decided here.
  */
 
+import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { HeadlessGameContext } from "./createHeadlessGame";
 import {
   GridPosition,
@@ -126,10 +127,7 @@ function playerActions({
       availability,
       hasBlitzed: state.turn.hasBlitzed,
       canFoul: !foulSpent(state, teamId),
-      carriesBall:
-        !!state.ballPosition &&
-        state.ballPosition.x === square.x &&
-        state.ballPosition.y === square.y,
+      carriesBall: ballOnSquare(state, square),
       canBlock: adjacentStanding.length > 0,
       canFoulAdjacent: adjacentDown.length > 0,
     })

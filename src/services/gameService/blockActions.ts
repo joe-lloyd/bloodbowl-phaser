@@ -268,11 +268,9 @@ export async function followUpPush(
   const from = { ...attacker.gridPosition };
   attacker.gridPosition = { ...targetSquare };
 
-  // A carrier keeps the ball while following up
-  const carriedBall =
-    state.ballPosition &&
-    state.ballPosition.x === from.x &&
-    state.ballPosition.y === from.y;
+  // A carrier keeps the ball while following up. A kick still in the air
+  // stays over its landing square: nobody under it carries it.
+  const carriedBall = isBallAt(state, from);
   if (carriedBall) {
     state.ballPosition = { ...targetSquare };
     eventBus.emit(GameEventNames.BallPlaced, { ...targetSquare });

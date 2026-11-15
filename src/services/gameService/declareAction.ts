@@ -3,6 +3,7 @@
  * run, then the declaration and the activation gate it queues.
  */
 
+import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { GameState } from "@/types/GameState";
 import { ActionType, GameEventNames } from "@/types/events";
 import {
@@ -411,11 +412,7 @@ function rulesRefuse(
   const ctx: ActionDeclaredContext = {
     player: declaring,
     action,
-    hasBall:
-      !!parts.state.ballPosition &&
-      !!declaring.gridPosition &&
-      parts.state.ballPosition.x === declaring.gridPosition.x &&
-      parts.state.ballPosition.y === declaring.gridPosition.y,
+    hasBall: ballOnSquare(parts.state, declaring.gridPosition),
     refused: false,
     triggers: [],
   };

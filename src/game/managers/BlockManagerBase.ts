@@ -1,3 +1,4 @@
+import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { Team } from "@/types/Team";
@@ -58,11 +59,7 @@ export abstract class BlockManagerBase {
   }
 
   protected ballAt(square: { x: number; y: number }): boolean {
-    return (
-      !!this.state.ballPosition &&
-      this.state.ballPosition.x === square.x &&
-      this.state.ballPosition.y === square.y
-    );
+    return ballOnSquare(this.state, square);
   }
 
   /**

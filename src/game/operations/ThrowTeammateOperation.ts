@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
@@ -447,7 +448,7 @@ export class ThrowTeammateOperation extends GameOperation {
   ): { carriesBall: boolean; occupant: Player | undefined } {
     const { gameService, eventBus } = context;
     // A thrown team-mate carrying the ball takes it with them through the air.
-    const ball = gameService.getState().ballPosition;
+    const ball = groundBall(gameService.getState());
     const carriesBall = !!ball && ball.x === from.x && ball.y === from.y;
 
     const occupant = gameService.getPlayerAt(landing.x, landing.y);
@@ -636,7 +637,7 @@ export class ThrowTeammateOperation extends GameOperation {
     context: FlowContext,
     player: Player
   ): boolean {
-    const ball = gameService.getState().ballPosition;
+    const ball = groundBall(gameService.getState());
     if (
       ball &&
       player.gridPosition &&

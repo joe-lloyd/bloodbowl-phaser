@@ -1,6 +1,6 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
-import { ballInTheAir } from "@/game/rules/ballInTheAir";
+import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { Team } from "@/types/Team";
 import {
   Player,
@@ -87,12 +87,7 @@ export function heldInSquare(eventBus: IEventBus, player: Player): boolean {
  * no square until it lands, so entering or falling under it does nothing.
  */
 export function isBallAt(state: GameState, square: Square): boolean {
-  return (
-    !!state.ballPosition &&
-    !ballInTheAir(state) &&
-    state.ballPosition.x === square.x &&
-    state.ballPosition.y === square.y
-  );
+  return ballOnSquare(state, square);
 }
 
 /**
