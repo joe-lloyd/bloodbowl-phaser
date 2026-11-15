@@ -13,7 +13,11 @@ import {
   EXECUTION_LAYERS,
   ScenarioCase,
 } from "../scenarioCase/types";
-import { validateScenarioCases, LayerSupport } from "../scenarioCase/validate";
+import {
+  validateScenarioCases,
+  LayerSupport,
+  ValidationIssue,
+} from "../scenarioCase/validate";
 import { auditSetupFixtures } from "../fixtures/validateFixtures";
 import { buildInventory, DECISION_REPLY_COMMANDS, InventoryEntry } from "./inventory";
 import type { CoverageFragment } from "./observed";
@@ -119,6 +123,59 @@ export interface BuildCoverageOptions {
   fragments?: CoverageFragment[];
 }
 
+function caseIssueKind(issue: ValidationIssue): CoverageIssue["kind"] {
+  if (issue.message.includes("no committed integer seed"))
+    return "unreachable-variant";
+  if (issue.field === "id") return "duplicate-case-id";
+  if (issue.field === "regression.id") return "duplicate-regression-id";
+  return "schema";
+}
+
+/** What a case's set-up fixture audit found, as coverage issues. */
+function fixtureIssues(scenarioCase: ScenarioCase): CoverageIssue[] {
+  const audit = auditSetupFixtures(
+    scenarioCase.id,
+    scenarioCase.setup,
+    (scenarioCase.syntheticGrants ?? []).map((grant) => ({
+      player: grant.player,
+      skill: grant.skill!,
+      reason: grant.reason,
+    }))
+  );
+  return audit.issues.map((fixtureIssue) => ({
+    kind:
+      fixtureIssue.kind === "implausible-grant"
+        ? "unexplained-synthetic-grant"
+        : "invalid-fixture",
+    message: `${fixtureIssue.ownerId}: ${fixtureIssue.message}`,
+  }));
+}
+
+/** Claims runs recorded, keyed by "caseId|layer". */
+function observedClaims(
+  fragments: CoverageFragment[]
+): Map<string, Set<string>> {
+  const observed = new Map<string, Set<string>>();
+  for (const fragment of fragments) {
+    const key = `${fragment.caseId}|${fragment.layer}`;
+    const bucket = observed.get(key) ?? new Set<string>();
+    for (const claim of fragment.claims) bucket.add(claim);
+    observed.set(key, bucket);
+  }
+  return observed;
+}
+
+function missingCoverageIssues(result: EntryResult): CoverageIssue[] {
+  return result.layers
+    .filter((layerResult) => layerResult.status === "missing")
+    .map((layerResult) => ({
+      kind: "missing-required-coverage",
+      message:
+        `${result.entry.id} (${result.entry.label}) has no ${layerResult.layer} case — ` +
+        `add one, or record a reviewed exclusion`,
+    }));
+}
+
 export function buildCoverage(
   cases: ScenarioCase[],
   options: BuildCoverageOptions = {}
@@ -130,37 +187,11 @@ export function buildCoverage(
   // ----- Case-level validity -----
   for (const issue of validateScenarioCases(cases, options.support)) {
     issues.push({
-      kind: issue.message.includes("no committed integer seed")
-        ? "unreachable-variant"
-        : issue.field === "id"
-          ? "duplicate-case-id"
-          : issue.field === "regression.id"
-            ? "duplicate-regression-id"
-            : "schema",
+      kind: caseIssueKind(issue),
       message: `${issue.caseId} · ${issue.field}: ${issue.message}`,
     });
   }
-
-  for (const scenarioCase of cases) {
-    const audit = auditSetupFixtures(
-      scenarioCase.id,
-      scenarioCase.setup,
-      (scenarioCase.syntheticGrants ?? []).map((grant) => ({
-        player: grant.player,
-        skill: grant.skill!,
-        reason: grant.reason,
-      }))
-    );
-    for (const fixtureIssue of audit.issues) {
-      issues.push({
-        kind:
-          fixtureIssue.kind === "implausible-grant"
-            ? "unexplained-synthetic-grant"
-            : "invalid-fixture",
-        message: `${fixtureIssue.ownerId}: ${fixtureIssue.message}`,
-      });
-    }
-  }
+  issues.push(...cases.flatMap(fixtureIssues));
 
   const knownIds = new Set(inventory.map((entry) => entry.id));
   for (const exclusionIssue of validateExclusions(exclusions, knownIds)) {
@@ -177,13 +208,7 @@ export function buildCoverage(
   const claimsByCase = new Map(
     cases.map((scenarioCase) => [scenarioCase.id, claimsOf(scenarioCase)])
   );
-  const observedByCaseLayer = new Map<string, Set<string>>();
-  for (const fragment of options.fragments ?? []) {
-    const key = `${fragment.caseId}|${fragment.layer}`;
-    const bucket = observedByCaseLayer.get(key) ?? new Set<string>();
-    for (const claim of fragment.claims) bucket.add(claim);
-    observedByCaseLayer.set(key, bucket);
-  }
+  const observedByCaseLayer = observedClaims(options.fragments ?? []);
   const covers = (
     scenarioCase: ScenarioCase,
     layer: ExecutionLayer,
@@ -222,18 +247,7 @@ export function buildCoverage(
     }),
   }));
 
-  for (const result of entries) {
-    for (const layerResult of result.layers) {
-      if (layerResult.status === "missing") {
-        issues.push({
-          kind: "missing-required-coverage",
-          message:
-            `${result.entry.id} (${result.entry.label}) has no ${layerResult.layer} case — ` +
-            `add one, or record a reviewed exclusion`,
-        });
-      }
-    }
-  }
+  issues.push(...entries.flatMap(missingCoverageIssues));
 
   // ----- Totals, per layer, never blended -----
   const totals = Object.fromEntries(

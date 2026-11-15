@@ -490,30 +490,6 @@
       "count": 1
     }
   },
-  "src/testing/coverage/report.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/testing/fixtures/validateFixtures.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/testing/scenarioCase/validate.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/types/Actions.ts": {
     "complexity": {
       "count": 1

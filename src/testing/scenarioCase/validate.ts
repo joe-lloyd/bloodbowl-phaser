@@ -147,6 +147,57 @@ const PLACING_COMMANDS = new Set<HeadlessCommand["type"]>([
   "kickoff-place-player",
 ]);
 
+type Add = (field: string, message: string) => void;
+
+/**
+ * Stale references: a ref may only name a player who is on the pitch by
+ * the time the step runs — either placed by the setup, or placed by an
+ * earlier step. Setup-driving cases legitimately start from an empty
+ * board and place their own players.
+ */
+function checkRefs(
+  command: HeadlessCommand,
+  placed: ReturnType<typeof placementIndices>,
+  where: string,
+  add: Add
+): void {
+  const placing = PLACING_COMMANDS.has(command.type);
+  for (const ref of referencesInCommand(command)) {
+    const parsed = parsePlayerRef(ref);
+    if (!parsed) continue;
+    if (placing) {
+      placed[parsed.team].add(parsed.index);
+      continue;
+    }
+    if (!placed[parsed.team].has(parsed.index)) {
+      add(
+        `${where}.command`,
+        `ref '${ref}' names a player who is not on the pitch at this point ` +
+          `(the setup does not place them, and no earlier step does either)`
+      );
+    }
+  }
+}
+
+/** A case that claims a layer must be drivable in it. */
+function checkStepLayers(
+  scenarioCase: ScenarioCase,
+  step: ScenarioCase["steps"][number],
+  support: LayerSupport,
+  where: string,
+  add: Add
+): void {
+  for (const layer of scenarioCase.layers) {
+    if (!support.supports(layer, step)) {
+      add(
+        where,
+        `case requires the '${layer}' layer but step '${step.intent ?? step.command.type}' ` +
+          `has no ${layer} adapter`
+      );
+    }
+  }
+}
+
 function validateSteps(
   scenarioCase: ScenarioCase,
   support: LayerSupport | undefined,
@@ -174,26 +225,7 @@ function validateSteps(
       );
     }
 
-    // Stale references: a ref may only name a player who is on the pitch by
-    // the time the step runs — either placed by the setup, or placed by an
-    // earlier step. Setup-driving cases legitimately start from an empty
-    // board and place their own players.
-    const placing = PLACING_COMMANDS.has(command.type);
-    for (const ref of referencesInCommand(command)) {
-      const parsed = parsePlayerRef(ref);
-      if (!parsed) continue;
-      if (placing) {
-        placed[parsed.team].add(parsed.index);
-        continue;
-      }
-      if (!placed[parsed.team].has(parsed.index)) {
-        add(
-          `${where}.command`,
-          `ref '${ref}' names a player who is not on the pitch at this point ` +
-            `(the setup does not place them, and no earlier step does either)`
-        );
-      }
-    }
+    checkRefs(command, placed, where, add);
 
     for (const square of squaresInCommand(command)) {
       if (!onPitch(square.x, square.y)) {
@@ -204,40 +236,11 @@ function validateSteps(
       }
     }
 
-    // A case that claims a layer must be drivable in it.
-    if (support) {
-      for (const layer of scenarioCase.layers) {
-        if (!support.supports(layer, step)) {
-          add(
-            where,
-            `case requires the '${layer}' layer but step '${step.intent ?? command.type}' ` +
-              `has no ${layer} adapter`
-          );
-        }
-      }
-    }
+    if (support) checkStepLayers(scenarioCase, step, support, where, add);
   });
 }
 
-/** Validate one case in isolation (ids across cases are checked separately). */
-export function validateScenarioCase(
-  scenarioCase: ScenarioCase,
-  support?: LayerSupport
-): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  const add = (field: string, message: string) =>
-    issues.push({ caseId: scenarioCase.id, field, message });
-
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(scenarioCase.id)) {
-    add("id", "case id must be lower-case kebab (stable, URL- and CLI-safe)");
-  }
-  if (!scenarioCase.capability.trim()) {
-    add("capability", "case must declare a capability for the coverage report");
-  }
-  if (scenarioCase.interactions.length === 0) {
-    add("interactions", "case must claim at least one inventory entry");
-  }
-
+function checkLayers(scenarioCase: ScenarioCase, add: Add): void {
   if (scenarioCase.layers.length === 0) {
     add("layers", "case must require at least one execution layer");
   }
@@ -252,7 +255,9 @@ export function validateScenarioCase(
   ) {
     add("layers", "a visual case must also require the browser layer");
   }
+}
 
+function checkVariants(scenarioCase: ScenarioCase, add: Add): void {
   if (scenarioCase.variants.length === 0) {
     add("variants", "case must declare at least one seeded variant");
   }
@@ -277,7 +282,9 @@ export function validateScenarioCase(
       );
     }
   });
+}
 
+function checkCheckpoints(scenarioCase: ScenarioCase, add: Add): void {
   // An expectation-free case passes by doing nothing.
   const totalCheckpoints =
     scenarioCase.checkpoints.length +
@@ -313,29 +320,30 @@ export function validateScenarioCase(
     }
     checkpointIds.add(checkpoint.id);
   }
+}
 
-  if (scenarioCase.regression) {
-    if (!scenarioCase.regression.id.trim()) {
-      add("regression.id", "regression case needs a stable id");
-    }
-    if (!scenarioCase.regression.summary.trim()) {
-      add(
-        "regression.summary",
-        "regression case must record the original failure"
-      );
-    }
-    if (
-      scenarioCase.regression.uiBoundary &&
-      !scenarioCase.layers.includes("browser")
-    ) {
-      add(
-        "layers",
-        `regression '${scenarioCase.regression.id}' is a UI-boundary defect, ` +
-          `so the case must also require the 'browser' layer`
-      );
-    }
+function checkRegression(scenarioCase: ScenarioCase, add: Add): void {
+  const regression = scenarioCase.regression;
+  if (!regression) return;
+  if (!regression.id.trim()) {
+    add("regression.id", "regression case needs a stable id");
   }
+  if (!regression.summary.trim()) {
+    add(
+      "regression.summary",
+      "regression case must record the original failure"
+    );
+  }
+  if (regression.uiBoundary && !scenarioCase.layers.includes("browser")) {
+    add(
+      "layers",
+      `regression '${regression.id}' is a UI-boundary defect, ` +
+        `so the case must also require the 'browser' layer`
+    );
+  }
+}
 
+function checkSyntheticGrants(scenarioCase: ScenarioCase, add: Add): void {
   for (const grant of scenarioCase.syntheticGrants ?? []) {
     if (!grant.reason.trim()) {
       add(
@@ -348,7 +356,32 @@ export function validateScenarioCase(
       add("syntheticGrants", `'${grant.player}' is not a player reference`);
     }
   }
+}
 
+/** Validate one case in isolation (ids across cases are checked separately). */
+export function validateScenarioCase(
+  scenarioCase: ScenarioCase,
+  support?: LayerSupport
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const add = (field: string, message: string) =>
+    issues.push({ caseId: scenarioCase.id, field, message });
+
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(scenarioCase.id)) {
+    add("id", "case id must be lower-case kebab (stable, URL- and CLI-safe)");
+  }
+  if (!scenarioCase.capability.trim()) {
+    add("capability", "case must declare a capability for the coverage report");
+  }
+  if (scenarioCase.interactions.length === 0) {
+    add("interactions", "case must claim at least one inventory entry");
+  }
+
+  checkLayers(scenarioCase, add);
+  checkVariants(scenarioCase, add);
+  checkCheckpoints(scenarioCase, add);
+  checkRegression(scenarioCase, add);
+  checkSyntheticGrants(scenarioCase, add);
   validateSteps(scenarioCase, support, issues);
   return issues;
 }
