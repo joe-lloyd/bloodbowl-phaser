@@ -75,31 +75,31 @@ describe("a Foul's events keep their order", () => {
     expect(await foul([], [5, 5, 4, 4], true)).toMatchInlineSnapshot(`
       [
         "ui:notification: Human Lineman #1 is fouling Human Lineman #1!",
-        "decisionRequested",
-        "decisionResolved",
+        "decisionRequested: type=foul-assists playerId=team1-player-1 targetId=team2-player-1 chooserTeamId=team1",
+        "decisionResolved: type=foul-assists",
         "ui:notification: Assists: +1 Offensive, -0 Defensive. Mod: +1",
-        "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 5 + 5 +1 = 11 (AV 9+)",
+        "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 5 + 5 +1 = 11 (AV 9+) | teamId=team2",
         "ui:notification: ARMOUR BROKEN!",
-        "diceRoll: Injury Roll (Human Lineman #1) | Injury Roll (Human Lineman #1): 4 + 4 = 8",
+        "diceRoll: Injury Roll (Human Lineman #1) | Injury Roll (Human Lineman #1): 4 + 4 = 8 | teamId=team2",
         "ui:notification: Injury Roll for Human Lineman #1",
         "ui:notification: KNOCKED OUT!",
-        "playerStatusChanged",
+        "playerStatusChanged: id=team2-player-1 teamId=team2 status=KO",
         "turnDataUpdated",
         "ui:notification: REFEREE SPOTTED IT! Human Lineman #1 is being sent off!",
         "ui:notification: Coach is Arguing the Call...",
-        "diceRoll: Argue the Call | Argue the Call: 1",
+        "diceRoll: Argue the Call | Argue the Call: 1 | teamId=team1",
         "ui:notification: Referee ignores the argument.",
-        "playerStatusChanged",
+        "playerStatusChanged: id=team1-player-1 teamId=team1 status=Removed",
         "ui:notification: Human Lineman #1 is removed from the pitch.",
-        "ui:logEntry",
-        "turnover",
+        "ui:logEntry: teamId=team1",
+        "turnover: teamId=team1",
         "playerActivated: team1-player-1",
-        "actionResolved",
-        "ui:turnover",
-        "turnEnded",
+        "actionResolved: playerId=team1-player-1",
+        "ui:turnover: teamId=team1",
+        "turnEnded: teamId=team1",
         "phaseChanged",
-        "turnStarted",
-        "ui:announce",
+        "turnStarted: teamId=team2",
+        "ui:announce: kind=turn-started",
       ]
     `);
   });
@@ -115,47 +115,46 @@ describe("a Foul's events keep their order", () => {
       [
         "ui:notification: Human Lineman #1 is fouling Human Lineman #1!",
         "ui:notification: Assists: +0 Offensive, -0 Defensive. Mod: +0",
-        "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 2 + 3 = 5 (AV 9+)",
-        "skillTriggered: Lone Fouler: re-roll the failed Armour Roll",
-        "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 4 + 4 = 8 (AV 9+)",
-        "skillTriggered: Dirty Player: +1 to the Armour Roll",
+        "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 2 + 3 = 5 (AV 9+) | teamId=team2",
+        "skillTriggered: Lone Fouler: re-roll the failed Armour Roll | playerId=team1-player-1 skill=Lone Fouler",
+        "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 4 + 4 = 8 (AV 9+) | teamId=team2",
+        "skillTriggered: Dirty Player: +1 to the Armour Roll | playerId=team1-player-1 skill=Dirty Player",
         "ui:notification: ARMOUR BROKEN!",
-        "diceRoll: Injury Roll (Human Lineman #1) | Injury Roll (Human Lineman #1): 3 + 2 = 5",
+        "diceRoll: Injury Roll (Human Lineman #1) | Injury Roll (Human Lineman #1): 3 + 2 = 5 | teamId=team2",
         "ui:notification: Injury Roll for Human Lineman #1",
         "ui:notification: STUNNED!",
-        "playerStatusChanged",
+        "playerStatusChanged: id=team2-player-1 teamId=team2 status=Stunned gridPosition=11,5",
         "turnDataUpdated",
         "ui:notification: REFEREE SPOTTED IT! Human Lineman #1 is being sent off!",
         "ui:notification: Coach is Arguing the Call...",
-        "diceRoll: Argue the Call | Argue the Call: 1",
+        "diceRoll: Argue the Call | Argue the Call: 1 | teamId=team1",
         "ui:notification: Referee ignores the argument.",
-        "playerStatusChanged",
+        "playerStatusChanged: id=team1-player-1 teamId=team1 status=Removed",
         "ui:notification: Human Lineman #1 is removed from the pitch.",
-        "ui:logEntry",
-        "turnover",
+        "ui:logEntry: teamId=team1",
+        "turnover: teamId=team1",
         "playerActivated: team1-player-1",
-        "actionResolved",
-        "ui:turnover",
-        "turnEnded",
+        "actionResolved: playerId=team1-player-1",
+        "ui:turnover: teamId=team1",
+        "turnEnded: teamId=team1",
         "phaseChanged",
-        "turnStarted",
-        "ui:announce",
+        "turnStarted: teamId=team2",
+        "ui:announce: kind=turn-started",
       ]
     `);
   });
 
   it("keeps a Sneaky Git on when a double holds", async () => {
-    expect(
-      await foul([SkillType.SNEAKY_GIT, SkillType.QUICK_FOUL], [2, 2])
-    ).toMatchInlineSnapshot(`
+    expect(await foul([SkillType.SNEAKY_GIT, SkillType.QUICK_FOUL], [2, 2]))
+      .toMatchInlineSnapshot(`
       [
         "ui:notification: Human Lineman #1 is fouling Human Lineman #1!",
         "ui:notification: Assists: +0 Offensive, -0 Defensive. Mod: +0",
-        "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 2 + 2 = 4 (AV 9+)",
+        "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 2 + 2 = 4 (AV 9+) | teamId=team2",
         "ui:notification: Armour Holds.",
-        "skillTriggered: Sneaky Git: not Sent-off on an unbroken double",
+        "skillTriggered: Sneaky Git: not Sent-off on an unbroken double | playerId=team1-player-1 skill=Sneaky Git",
         "turnDataUpdated",
-        "skillTriggered: Quick Foul: the activation continues after the Foul",
+        "skillTriggered: Quick Foul: the activation continues after the Foul | playerId=team1-player-1 skill=Quick Foul",
       ]
     `);
   });

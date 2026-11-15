@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import { PendingDecision } from "../../../src/headless/protocol";
+import {
+  HeadlessCommand,
+  PendingDecision,
+} from "../../../src/headless/protocol";
+import { stabilizeIds } from "../../../src/headless/createHeadlessGame";
+import { PlayerStatus } from "../../../src/types/Player";
 import { createReadyMadeTeam } from "../../../src/simulation/lineups";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
 import { SkillType } from "../../../src/types/Skills";
@@ -11,6 +16,7 @@ import {
   acceptAll,
   acrossSeeds,
   playOut,
+  skipKickoffEvent,
   turnGame,
 } from "./eventOrder";
 
@@ -20,6 +26,22 @@ import {
  */
 
 const SPARE = { x: 2, y: 12 };
+
+/** A touchback goes to the receiving team's first Standing player. */
+function touchbackToFirstStanding(
+  game: HeadlessGame,
+  pending: PendingDecision
+): HeadlessCommand | undefined {
+  if (pending.type !== "touchback") return undefined;
+  const team = [game.ctx.team1, game.ctx.team2].find(
+    (candidate) => candidate.id === pending.teamId
+  );
+  const receiver = team?.players.find(
+    (p) => p.gridPosition && p.status === PlayerStatus.ACTIVE
+  );
+  if (!receiver) throw new Error("a touchback with nobody to take it");
+  return { type: "touchback", playerId: receiver.id };
+}
 
 /** Take the Both Down whenever the dice offer one, else as acceptAll. */
 const bothDown: Answer = (pending: PendingDecision) => {
@@ -124,7 +146,10 @@ describe("manager events keep their order", () => {
             y: 1,
           },
         ],
-        acceptAll
+        (pending) =>
+          skipKickoffEvent(pending) ??
+          touchbackToFirstStanding(game, pending) ??
+          acceptAll(pending)
       );
     });
     expect(bySeed).toMatchSnapshot();
@@ -148,8 +173,15 @@ describe("manager events keep their order", () => {
   it("setup swaps", async () => {
     const game = new HeadlessGame({
       seed: 1,
-      team1: createReadyMadeTeam(RosterName.HUMAN, "Home", 1),
-      team2: createReadyMadeTeam(RosterName.ORC, "Away", 2),
+      // Ready-made ids embed the clock; pin them so the trace is stable.
+      team1: stabilizeIds(
+        createReadyMadeTeam(RosterName.HUMAN, "Home", 1),
+        "team1"
+      ),
+      team2: stabilizeIds(
+        createReadyMadeTeam(RosterName.ORC, "Away", 2),
+        "team2"
+      ),
     });
     const [a, b, c] = game.ctx.team1.players;
     const order = await playOut(game, [

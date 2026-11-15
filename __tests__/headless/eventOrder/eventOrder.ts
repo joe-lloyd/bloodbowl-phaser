@@ -8,13 +8,63 @@ import { defaultAnswer } from "../../../src/network/decisionTimeouts";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
 import { PlayerPlacement } from "../../../src/types/Scenario";
 
-/** Fields that tell two events of one name apart in an order assertion. */
+/** Text fields that say what happened. */
 const DETAIL_FIELDS = ["rollType", "description", "effect", "message"];
 
 /**
- * One line per event: its name, then the text that says what happened. A
- * test asserts the list literally, so any reordered roll, emit or queued
- * operation fails it.
+ * Fields that say who acted, on which decision, and where: player and team
+ * ids, the decision's type, and squares. Two events of one name with
+ * different players or squares project to different lines.
+ */
+const IDENTITY_FIELDS = [
+  "type",
+  "kind",
+  "id",
+  "playerId",
+  "attackerId",
+  "defenderId",
+  "targetId",
+  "victimId",
+  "causerId",
+  "passerId",
+  "interceptorId",
+  "throwerId",
+  "thrownPlayerId",
+  "chooserTeamId",
+  "teamId",
+  "status",
+  "skill",
+  "result",
+  "accept",
+  "x",
+  "y",
+  "from",
+  "to",
+  "position",
+  "gridPosition",
+  "finalPosition",
+  "landingPosition",
+];
+
+/** A square as "x,y"; any other value as itself when it is a scalar. */
+function show(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+  if (typeof value === "boolean") return String(value);
+  if (typeof value !== "object" || value === null) return undefined;
+  const x: unknown = Reflect.get(value, "x");
+  const y: unknown = Reflect.get(value, "y");
+  return typeof x === "number" && typeof y === "number"
+    ? `${x},${y}`
+    : undefined;
+}
+
+/**
+ * One line per event: its name, the text that says what happened, then who
+ * and where. A test asserts the list literally, so a reordered roll, emit,
+ * queued operation or decision fails it, and so does the same event moving
+ * to a different player or square.
  */
 export function eventOrder(events: EmittedEvent[]): string[] {
   return events.map(({ name, data }) => {
@@ -24,7 +74,15 @@ export function eventOrder(events: EmittedEvent[]): string[] {
       const value: unknown = Reflect.get(data, field);
       return typeof value === "string" ? [value] : [];
     });
-    return details.length ? `${name}: ${details.join(" | ")}` : name;
+    const identity = IDENTITY_FIELDS.flatMap((field) => {
+      const value = show(Reflect.get(data, field));
+      return value === undefined ? [] : [`${field}=${value}`];
+    });
+    const parts = [
+      ...details,
+      ...(identity.length ? [identity.join(" ")] : []),
+    ];
+    return parts.length ? `${name}: ${parts.join(" | ")}` : name;
   });
 }
 
@@ -45,9 +103,14 @@ export const acceptAll: Answer = (pending) => {
   }
 };
 
+/** Most replies one command may need before its decisions are settled. */
+const REPLY_CAP = 40;
+
 /**
  * Run each command, answering every decision it opens, and return the
- * event order of all of it. A rejected command shows as one line.
+ * event order of all of it. A rejected command or reply shows as one line.
+ * Throws when a decision has no reply, or is still open after the cap, so
+ * a snapshot never holds a trace that stopped part-way.
  */
 export async function playOut(
   game: HeadlessGame,
@@ -55,22 +118,37 @@ export async function playOut(
   answer: Answer = () => undefined
 ): Promise<string[]> {
   const events: EmittedEvent[] = [];
-  for (const command of commands) {
-    let response = await game.execute(command);
+  const run = async (command: HeadlessCommand) => {
+    const response = await game.execute(command);
     if (!response.ok) {
-      events.push({ name: "rejected", data: `${command.type}: ${response.reason}` });
+      events.push({
+        name: "rejected",
+        data: `${command.type}: ${response.reason}`,
+      });
     }
     events.push(...response.events);
-    for (let guard = 0; response.pendingDecision && guard < 40; guard++) {
+    return response;
+  };
+  for (const command of commands) {
+    let response = await run(command);
+    for (let replies = 0; response.pendingDecision; replies++) {
       const pending = response.pendingDecision;
+      if (replies === REPLY_CAP) {
+        throw new Error(
+          `${pending.type} still pending after ${REPLY_CAP} replies`
+        );
+      }
       const reply = answer(pending) ?? defaultAnswer(pending);
-      if (!reply) break;
-      response = await game.execute(reply);
-      events.push(...response.events);
+      if (!reply) throw new Error(`no reply for a ${pending.type} decision`);
+      response = await run(reply);
     }
   }
   return eventOrder(events);
 }
+
+/** Skip the kick-off event, as the rule catalog does. */
+export const skipKickoffEvent: Answer = (pending) =>
+  pending.type === "kickoff-event" ? { type: "kickoff-skip" } : undefined;
 
 /** A game in team1's turn with these players on the pitch. */
 export function turnGame(

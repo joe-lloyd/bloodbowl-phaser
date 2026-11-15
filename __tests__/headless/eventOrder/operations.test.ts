@@ -1,13 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType } from "../../../src/types/Skills";
-import { SEEDS, acceptAll, acrossSeeds, playOut, turnGame } from "./eventOrder";
+import {
+  Answer,
+  SEEDS,
+  acceptAll,
+  acrossSeeds,
+  playOut,
+  turnGame,
+} from "./eventOrder";
 
 /**
  * The literal events of each operation family, across seeds that reach
  * their branches. A refactor that moves a roll, an emit or a queued
  * operation changes one of these lists.
  */
+
+/** The defending coach tries the first interceptor offered. */
+const intercepting: Answer = (pending) =>
+  pending.type === "interception"
+    ? {
+        type: "choose-interception",
+        playerId: pending.candidates[0]?.playerId,
+      }
+    : acceptAll(pending);
 
 /** Keeps team1's turn open after the activation under test. */
 const SPARE = { x: 2, y: 12 };
@@ -24,7 +40,11 @@ describe("operation events keep their order", () => {
       const [attacker] = game.ctx.team1.players;
       const [target] = game.ctx.team2.players;
       return playOut(game, [
-        { type: "declare-action", playerId: attacker.id, action: "breatheFire" },
+        {
+          type: "declare-action",
+          playerId: attacker.id,
+          action: "breatheFire",
+        },
         {
           type: "special-action",
           action: "breatheFire",
@@ -165,7 +185,11 @@ describe("operation events keep their order", () => {
       );
       const [thrower, teammate] = game.ctx.team1.players;
       return playOut(game, [
-        { type: "declare-action", playerId: thrower.id, action: "throwTeamMate" },
+        {
+          type: "declare-action",
+          playerId: thrower.id,
+          action: "throwTeamMate",
+        },
         {
           type: "throw-teammate",
           throwerId: thrower.id,
@@ -189,7 +213,11 @@ describe("operation events keep their order", () => {
       );
       const [thrower, teammate] = game.ctx.team1.players;
       return playOut(game, [
-        { type: "declare-action", playerId: thrower.id, action: "throwTeamMate" },
+        {
+          type: "declare-action",
+          playerId: thrower.id,
+          action: "throwTeamMate",
+        },
         {
           type: "throw-teammate",
           throwerId: thrower.id,
@@ -204,10 +232,16 @@ describe("operation events keep their order", () => {
   });
 
   for (const variant of [
-    { name: "a short pass", target: { x: 8, y: 5 }, team2: [{ x: 7, y: 7 }] },
+    {
+      name: "a short pass",
+      target: { x: 8, y: 5 },
+      team2: [{ x: 7, y: 7 }],
+      answer: acceptAll,
+    },
     {
       name: "a long pass past an On the Ball interceptor",
       target: { x: 14, y: 5 },
+      answer: intercepting,
       team2: [
         { x: 9, y: 5, skills: [SkillType.ON_THE_BALL] },
         { x: 11, y: 6 },
@@ -217,6 +251,7 @@ describe("operation events keep their order", () => {
       name: "a pass to an empty square by a Diving Catch",
       target: { x: 9, y: 9 },
       team2: [{ x: 10, y: 10, skills: [SkillType.DIVING_CATCH] }],
+      answer: acceptAll,
     },
   ]) {
     it(`Pass: ${variant.name}`, async () => {
@@ -234,10 +269,16 @@ describe("operation events keep their order", () => {
             { type: "declare-action", playerId: passer.id, action: "pass" },
             { type: "pass", playerId: passer.id, ...variant.target },
           ],
-          acceptAll
+          variant.answer
         );
       });
       expect(bySeed).toMatchSnapshot();
+      if (variant.answer === intercepting) {
+        const rolls = Object.values(bySeed).flat();
+        expect(
+          rolls.some((line) => line.startsWith("diceRoll: Interception"))
+        ).toBe(true);
+      }
     });
   }
 
@@ -270,7 +311,10 @@ describe("operation events keep their order", () => {
     const bySeed = await acrossSeeds(SEEDS.slice(0, 3), async (seed) => {
       const game = turnGame(
         seed,
-        [{ x: 17, y: 5 }, { x: 10, y: 5, skills: [SkillType.SECRET_WEAPON] }],
+        [
+          { x: 17, y: 5 },
+          { x: 10, y: 5, skills: [SkillType.SECRET_WEAPON] },
+        ],
         [{ x: 12, y: 9, skills: [SkillType.SECRET_WEAPON] }],
         { x: 17, y: 5 }
       );
