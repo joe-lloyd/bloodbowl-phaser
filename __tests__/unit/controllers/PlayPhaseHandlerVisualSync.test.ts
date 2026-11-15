@@ -12,9 +12,7 @@ import { PlayerStatus } from "../../../src/types/Player";
 describe("PlayPhaseHandler board reconciliation", () => {
   const eventBus = new EventBus();
   let handler: PlayPhaseHandler;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let scene: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let tweens: any[];
 
   beforeEach(() => {

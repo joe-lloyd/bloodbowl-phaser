@@ -55,7 +55,7 @@ describe("interception targets", () => {
   it("offers in the dialog the roll the preview named for that pass", async () => {
     const seen: string[] = [];
     for (let seed = 1; seed <= 12; seed++) {
-      const { interceptor, preview, accurate, pending } =
+      const { interceptor, accurate, pending } =
         await throwPast(seed);
       if (pending?.type !== "interception") continue;
       const offered = pending.candidates.find(

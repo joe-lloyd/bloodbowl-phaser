@@ -1,15 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  DodgeController,
-  DodgeResult,
-} from "../../../src/game/controllers/DodgeController";
+import { DodgeController } from "../../../src/game/controllers/DodgeController";
 import { Player, PlayerCondition, PlayerStatus } from "../../../src/types/Player";
 
 describe("DodgeController", () => {
   let controller: DodgeController;
   let mockDiceController: any;
   let player: Player;
-  let opponents: Player[];
 
   beforeEach(() => {
     mockDiceController = {
@@ -26,19 +22,6 @@ describe("DodgeController", () => {
       stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
       status: PlayerStatus.ACTIVE,
     } as Player;
-
-    opponents = [
-      {
-        id: "opp1",
-        gridPosition: { x: 6, y: 5 },
-        status: PlayerStatus.ACTIVE,
-      } as Player,
-      {
-        id: "opp2",
-        gridPosition: { x: 4, y: 4 },
-        status: PlayerStatus.ACTIVE,
-      } as Player,
-    ];
   });
 
   describe("Dodge Required Detection", () => {

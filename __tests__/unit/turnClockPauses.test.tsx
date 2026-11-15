@@ -80,6 +80,23 @@ describe("TurnClock pauses", () => {
       timer: { deadline, turn, pausedBy: null, pausedAt: null, banks: {} },
     }) as unknown as LobbyDoc;
 
+  /** The host's clock, as the host sees it. */
+  const renderClock = (
+    lobby: LobbyDoc,
+    match: OnlineMatch,
+    opponentAway: boolean
+  ) =>
+    root.render(
+      <TurnClock
+        code={code}
+        lobby={lobby}
+        match={match}
+        eventBus={eventBus}
+        user={user}
+        opponentAway={opponentAway}
+      />
+    );
+
   beforeEach(() => {
     vi.useFakeTimers();
     hoisted.setTurnDeadlineMock.mockClear();
@@ -108,16 +125,7 @@ describe("TurnClock pauses", () => {
     } as unknown as OnlineMatch;
     const lobby = lobbyAt(Date.now() + 60_000);
     const render = (opponentAway: boolean) =>
-      root.render(
-        <TurnClock
-          code={code}
-          lobby={lobby}
-          match={match}
-          eventBus={eventBus}
-          user={user}
-          opponentAway={opponentAway}
-        />
-      );
+      renderClock(lobby, match, opponentAway);
 
     await act(async () => render(true));
     await act(async () => vi.advanceTimersByTime(5 * 60 * 1000));
@@ -186,16 +194,7 @@ describe("TurnClock pauses", () => {
     } as unknown as OnlineMatch;
     const before = lobbyAt(Date.now() + 60_000);
     const render = (lobby: LobbyDoc, opponentAway: boolean) =>
-      root.render(
-        <TurnClock
-          code={code}
-          lobby={lobby}
-          match={match}
-          eventBus={eventBus}
-          user={user}
-          opponentAway={opponentAway}
-        />
-      );
+      renderClock(lobby, match, opponentAway);
     await act(async () => render(before, true));
     await act(async () => vi.advanceTimersByTime(35_000));
     await act(async () => render(before, false));

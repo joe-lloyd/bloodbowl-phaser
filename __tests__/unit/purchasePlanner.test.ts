@@ -485,6 +485,21 @@ function shortTeam(
   return team;
 }
 
+/** The short team, or null when it breaks its roster or the Insignificant limit. */
+function legalShortTeam(
+  roster: RosterName,
+  listed: number,
+  missing: number,
+  treasury: number
+): Team | null {
+  const team = shortTeam(roster, listed, missing, treasury);
+  const legal =
+    team.players.length === listed &&
+    validateRosterLegality(team, getRosterByRosterName(roster)).length === 0 &&
+    !validateInsignificant(team.players);
+  return legal ? team : null;
+}
+
 /** Every Journeyman the plan lets go is followed by the player who replaces them. */
 function everyReleaseReplaced(plan: PlannedPurchase[]): boolean {
   return plan.every((item, index) => {
@@ -527,6 +542,38 @@ function fitOptionExists(team: Team): boolean {
         return true;
   }
   return false;
+}
+
+/**
+ * Apply the plan to a copy of the team. No unfit Journeyman is bought, and
+ * the team stops short of seven fit players, only when no fit player could
+ * be had; the plan spends what it says and stays within the list limits.
+ */
+function expectFitPlayersFirst(
+  team: Team,
+  plan: PlannedPurchase[],
+  treasury: number,
+  label: string
+): void {
+  const replay = structuredClone(team);
+  for (const item of plan) {
+    if (item.kind === "journeyman") {
+      const player = replay.players.find((p) => p.id === item.playerId)!;
+      if (
+        player.injuries.includes(InjuryType.MISS_NEXT_GAME) &&
+        fitPlayers(replay).length < 7
+      )
+        expect(fitOptionExists(replay), label).toBe(false);
+    }
+    applyPurchase(replay, item);
+  }
+  expect(replay.treasury, label).toBe(treasury - spent(plan));
+  expect(replay.treasury, label).toBeGreaterThanOrEqual(0);
+  expect(validateInsignificant(draftListPlayers(replay)), label).toBeNull();
+  expect(draftListPlayers(replay).length, label).toBeLessThanOrEqual(11);
+  // Seven reached whenever a fit player could still be had
+  if (fitPlayers(replay).length < 7)
+    expect(fitOptionExists(replay), label).toBe(false);
 }
 
 describe("making room for a fit player", () => {
@@ -669,56 +716,35 @@ describe("making room for a fit player", () => {
         { fit: false, valueIncrease: 0 },
       ],
     ];
+    const cases = rosters.flatMap((roster) =>
+      [8, 9, 10].flatMap((listed) =>
+        [1, 3].flatMap((missing) =>
+          waiting.flatMap((offers) =>
+            [25_000, 30_000, 60_000, 100_000].map((treasury) => ({
+              roster,
+              listed,
+              missing,
+              offers,
+              treasury,
+            }))
+          )
+        )
+      )
+    );
     let checked = 0;
-    for (const roster of rosters)
-      for (const listed of [8, 9, 10])
-        for (const missing of [1, 3])
-          for (const offers of waiting)
-            for (const treasury of [25_000, 30_000, 60_000, 100_000]) {
-              const team = shortTeam(roster, listed, missing, treasury);
-              if (
-                team.players.length !== listed ||
-                validateRosterLegality(team, getRosterByRosterName(roster))
-                  .length > 0 ||
-                validateInsignificant(team.players)
-              )
-                continue;
-              offers.forEach((offer, index) =>
-                waitingJourneyman(team, listed + 1 + index, offer)
-              );
-              const label = `${roster} ${listed}/${missing} ${JSON.stringify(offers)} ${treasury}`;
-              const plan = planPurchases(team);
-              expect(planPurchases(structuredClone(team)), label).toEqual(plan);
-              expect(everyReleaseReplaced(plan), label).toBe(true);
-              const replay = structuredClone(team);
-              for (const item of plan) {
-                if (item.kind === "journeyman") {
-                  const player = replay.players.find(
-                    (p) => p.id === item.playerId
-                  )!;
-                  if (
-                    player.injuries.includes(InjuryType.MISS_NEXT_GAME) &&
-                    fitPlayers(replay).length < 7
-                  )
-                    expect(fitOptionExists(replay), label).toBe(false);
-                }
-                applyPurchase(replay, item);
-              }
-              expect(replay.treasury, label).toBe(treasury - spent(plan));
-              expect(replay.treasury, label).toBeGreaterThanOrEqual(0);
-              expect(
-                validateInsignificant(draftListPlayers(replay)),
-                label
-              ).toBeNull();
-              expect(
-                draftListPlayers(replay).length,
-                label
-              ).toBeLessThanOrEqual(11);
-              // Seven reached whenever a fit player could still be had
-              if (fitPlayers(replay).length < 7)
-                expect(fitOptionExists(replay), label).toBe(false);
-              checked++;
-            }
+    for (const { roster, listed, missing, offers, treasury } of cases) {
+      const team = legalShortTeam(roster, listed, missing, treasury);
+      if (!team) continue;
+      offers.forEach((offer, index) =>
+        waitingJourneyman(team, listed + 1 + index, offer)
+      );
+      const label = `${roster} ${listed}/${missing} ${JSON.stringify(offers)} ${treasury}`;
+      const plan = planPurchases(team);
+      expect(planPurchases(structuredClone(team)), label).toEqual(plan);
+      expect(everyReleaseReplaced(plan), label).toBe(true);
+      expectFitPlayersFirst(team, plan, treasury, label);
+      checked++;
+    }
     expect(checked).toBeGreaterThan(200);
   });
 });

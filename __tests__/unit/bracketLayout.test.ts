@@ -26,6 +26,26 @@ function entrants(count: number): CompetitionEntrant[] {
 const bracketFor = (count: number) =>
   generateSingleElimination(entrants(count));
 
+/** Ties played to a result, byes left out. */
+const playedTies = (fixtures: CompetitionFixture[]) =>
+  fixtures.filter((tie) => tie.status === "complete" && !tie.result?.bye);
+
+const loserOf = (tie: CompetitionFixture) =>
+  tie.result!.winnerEntrantId === tie.homeEntrantId
+    ? tie.awayEntrantId!
+    : tie.homeEntrantId!;
+
+/** Every completed tie's winner holds its slot in the next tie. */
+function expectWinnersAdvanced(fixtures: CompetitionFixture[]): void {
+  for (const tie of fixtures) {
+    if (tie.status !== "complete" || !tie.nextFixtureId) continue;
+    const next = fixtures.find((f) => f.id === tie.nextFixtureId)!;
+    const slot =
+      tie.nextSlot === "home" ? next.homeEntrantId : next.awayEntrantId;
+    expect(slot).toBe(tie.result!.winnerEntrantId);
+  }
+}
+
 describe("layoutBracket", () => {
   it("returns an empty layout for no fixtures", () => {
     expect(layoutBracket([])).toEqual({
@@ -346,26 +366,12 @@ describe("a tournament played through to a champion", () => {
       // (A round-1 winner who then loses in round 2 is correctly eliminated
       // by that later defeat, so "winners are never eliminated" would be the
       // wrong invariant to assert here.)
-      const losers = new Set<string>();
-      for (const tie of current.fixtures) {
-        if (tie.status !== "complete" || tie.result?.bye) continue;
-        const loser =
-          tie.result!.winnerEntrantId === tie.homeEntrantId
-            ? tie.awayEntrantId
-            : tie.homeEntrantId;
-        losers.add(loser!);
-        seen.add(tie.id);
-      }
-      expect(eliminated).toEqual(losers);
+      const played = playedTies(current.fixtures);
+      for (const tie of played) seen.add(tie.id);
+      expect(eliminated).toEqual(new Set(played.map(loserOf)));
 
       // ...and the winner is occupying its slot in the next tie.
-      for (const tie of current.fixtures) {
-        if (tie.status !== "complete" || !tie.nextFixtureId) continue;
-        const next = current.fixtures.find((f) => f.id === tie.nextFixtureId)!;
-        const slot =
-          tie.nextSlot === "home" ? next.homeEntrantId : next.awayEntrantId;
-        expect(slot).toBe(tie.result!.winnerEntrantId);
-      }
+      expectWinnersAdvanced(current.fixtures);
 
       // The layout stays well-formed as results land.
       expect(layout.nodes).toHaveLength(current.fixtures.length);

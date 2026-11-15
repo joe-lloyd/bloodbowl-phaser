@@ -347,7 +347,6 @@ describe("SoundSuite plays recorded samples", () => {
     on: vi.fn(),
     off: vi.fn(),
     emit: vi.fn(),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
   /** Lets fetch() and decodeAudioData() promises settle. */

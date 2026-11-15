@@ -106,7 +106,7 @@ describe("KickoffEventOverlay", () => {
   });
 
   it("hides Skip/Done from the non-deciding coach, but still shows the event", async () => {
-    const { eventBus, team1, team2 } = setup();
+    const { eventBus, team2 } = setup();
     // team2's coach is watching a step that belongs to team1.
     setActiveOnlineMatch(fakeMatch(team2.id, false));
 

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { Mock } from "vitest";
 import { DiceController } from "../../../src/game/controllers/DiceController";
 import { RNGService } from "../../../src/services/rng/RNGService";
 import { EventBus, IEventBus } from "../../../src/services/EventBus";

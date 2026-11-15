@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { PickupController } from "../../../src/game/controllers/PickupController";
 import { Player, PlayerStatus } from "../../../src/types/Player";
-import { GameEventNames } from "../../../src/types/events";
 
 describe("PickupController", () => {
   let controller: PickupController;

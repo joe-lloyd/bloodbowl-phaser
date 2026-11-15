@@ -36,7 +36,6 @@ function emitterStub() {
 
 describe("a drop waits for the engine before redrawing", () => {
   const eventBus = new EventBus();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let scene: any;
   let controller: ReturnType<typeof emitterStub> & Record<string, unknown>;
   let service: {
