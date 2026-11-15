@@ -30,11 +30,6 @@
       "count": 2
     }
   },
-  "__tests__/headless/kickoff-events.test.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "__tests__/network/computerMatch.test.ts": {
     "sonarjs/cognitive-complexity": {
       "count": 1
