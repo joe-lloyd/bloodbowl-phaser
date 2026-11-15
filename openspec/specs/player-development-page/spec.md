@@ -22,6 +22,26 @@ injuries, level, SPP spent/available, career statistics, and pending development
 - **WHEN** a player has starting and gained skills
 - **THEN** the page lists the two groups separately with gained-skill provenance
 
+### Requirement: The player page shows the player's sprite large
+
+The player page SHALL show the player's own match sprite, large, beside the
+characteristics on wide screens and above them on narrow ones: the model the
+player's position uses in the match, tinted with the team's colours, scaled by a
+whole number of pixels so the pixel art stays crisp and square, and wholly visible
+without sideways scrolling at phone widths down to 320px.
+
+#### Scenario: A coach opens a player
+
+- **WHEN** a coach opens a player's page
+- **THEN** the player's match sprite is drawn several times its pitch size in the
+  team's colours, and the stats, skills and advancement controls stay on the page
+
+#### Scenario: A coach opens a player on a phone
+
+- **WHEN** the page is 320px wide
+- **THEN** the sprite sits above the characteristics, wholly on screen, and the page
+  does not scroll sideways
+
 ### Requirement: Standard SPP advancement is resolved in Manage Team
 
 An eligible coach SHALL spend a player's SPP and resolve legal skill or characteristic
