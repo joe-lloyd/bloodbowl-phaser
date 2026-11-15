@@ -91,6 +91,8 @@ export function playPitchExit(
       onComplete: () => {
         finished();
         clearProps();
+        // The coffin went alone; the player it carried arrives with it
+        sprite.setPosition(to.x, to.y);
         sprite.setVisible(true);
         resolve();
       },

@@ -24,6 +24,8 @@ import { DiceWatch } from "../../presentation/diceWatch";
 export class PlayPhaseHandler implements PhaseHandler {
   private unsubscribes: (() => void)[] = [];
   private dice: DiceWatch | null = null;
+  /** Counts the ball's moves and this handler's exits (see PassFumbled). */
+  private ballMoves = 0;
 
   constructor(
     private scene: GameScene,
@@ -39,6 +41,7 @@ export class PlayPhaseHandler implements PhaseHandler {
   }
 
   exit(): void {
+    this.ballMoves++;
     this.removeListeners();
     this.dice?.dispose();
     this.dice = null;
@@ -187,12 +190,14 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Ball possession is one mutually exclusive visual state: reconcile from
     // canonical state instead of imperatively moving a sprite per event.
     this.register(GameEventNames.BallPlaced, () => {
+      this.ballMoves++;
       this.scene.reconcileBallVisual();
     });
 
     // A mid-route pickup (success or failure) decides possession before the
     // rest of the route resolves — re-derive the loose ball / carrier marker.
     this.register(GameEventNames.BallPickup, () => {
+      this.ballMoves++;
       this.scene.reconcileBallVisual();
     });
 
@@ -208,8 +213,12 @@ export class PlayPhaseHandler implements PhaseHandler {
         data.bouncePosition.x,
         data.bouncePosition.y
       );
+      // The engine moved the ball on, or the board left, while the dice
+      // flew: this hop is history and must not move the ball back
+      const moves = this.ballMoves;
       void (this.dice?.landed() ?? Promise.resolve())
         .then(() => {
+          if (this.ballMoves !== moves) return;
           this.scene["placeBallVisual"](data.position.x, data.position.y, 1);
           const ball = this.scene["ballSprite"] as BallSprite | null;
           return ball?.flyTo(target, { duration: 380, apex: 0.9 });

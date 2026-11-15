@@ -103,6 +103,8 @@ export class GameplayInteractionController {
   private aimedAt: { key: string; x: number; y: number } | null = null;
   /** Numbers each Dodge/Rush prompt so a stale answer cannot match. */
   private riskPrompts = 0;
+  /** Confirms still waiting for an answer, each settled on destroy. */
+  private openConfirmations = new Set<(confirmed: boolean) => void>();
   private targetRollPreview: TargetRollPreview | null = null;
   private targetAnchor: { x: number; y: number } | null = null;
   private publishTargetPreview = () => {
@@ -2658,11 +2660,15 @@ export class GameplayInteractionController {
   ): Promise<boolean> {
     const actionId = `${prefix}-${++this.riskPrompts}`;
     return new Promise((resolve) => {
-      const onResult = (data: { actionId: string; confirmed: boolean }) => {
-        if (data.actionId !== actionId) return;
+      const settle = (confirmed: boolean) => {
         this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
-        resolve(data.confirmed);
+        this.openConfirmations.delete(settle);
+        resolve(confirmed);
       };
+      const onResult = (data: { actionId: string; confirmed: boolean }) => {
+        if (data.actionId === actionId) settle(data.confirmed);
+      };
+      this.openConfirmations.add(settle);
       this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
       this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
         actionId,
@@ -2800,6 +2806,8 @@ export class GameplayInteractionController {
   }
 
   public destroy(): void {
+    // A question still open goes unanswered: the board it was for is gone
+    [...this.openConfirmations].forEach((settle) => settle(false));
     this.scene.events.off("postupdate", this.publishTargetPreview);
     this.clearRollPreviews();
     this.dice.dispose();
@@ -3699,7 +3707,8 @@ const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string> = {
   distracted: "On a fail they are Distracted and the activation ends.",
   endActivation: "On a fail the activation ends.",
   rooted: "On a fail they are Rooted and cannot leave their square.",
-  lashOut: "On a fail they lash out at a team-mate next to them.",
+  lashOut:
+    "On a fail they lash out at a team-mate next to them, or with nobody beside them the activation ends.",
   bloodlust:
     "On a fail they may switch to a Move, and must bite a Thrall before the activation ends.",
 };

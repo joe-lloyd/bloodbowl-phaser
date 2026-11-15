@@ -171,6 +171,42 @@ describe("GameplayInteractionController", () => {
   });
 
   describe("Negatrait confirm", () => {
+    it("is let go, unanswered, when the board is torn down", async () => {
+      const boneHead = {
+        ...player1,
+        id: "bone",
+        skills: [getSkill(SkillType.BONE_HEAD)],
+      };
+      mockScene.team1.players = [boneHead];
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+        weather: "Nice",
+        activePlayer: null,
+      } as unknown as GameState);
+      mockGameService.getPlayerById.mockReturnValue(boneHead);
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.getAvailableMovements.mockReturnValue([]);
+      mockGameService.declareAction.mockReturnValue(true);
+
+      controller.selectPlayer("bone");
+      const declaring = (controller as any).onActionSelected({
+        action: "move",
+        playerId: "bone",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      controller.destroy();
+      await declaring;
+
+      expect(mockGameService.declareAction).not.toHaveBeenCalled();
+      const resultListeners = mockEventBus.on.mock.calls.filter(
+        ([name]) => name === GameEventNames.UI_ConfirmationResult
+      ).length;
+      const removed = mockEventBus.off.mock.calls.filter(
+        ([name]) => name === GameEventNames.UI_ConfirmationResult
+      ).length;
+      expect(removed).toBe(resultListeners);
+    });
+
     it("declares nothing when the coach picked someone else while it was open", async () => {
       const boneHead = {
         ...player1,
