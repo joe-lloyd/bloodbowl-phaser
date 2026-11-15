@@ -38,4 +38,13 @@ describe("admin emails", () => {
     expect(file).toMatch(/^VITE_ADMIN_EMAILS=\*$/m);
     expect(file).toMatch(/^VITE_FIREBASE_USE_EMULATORS=true$/m);
   });
+
+  it("never trusts an address nobody has proven, since anyone can sign up with it", () => {
+    expect(isAdminEmail("joe.lloyd.22.24@gmail.com", {}, false)).toBe(false);
+    expect(isAdminEmail("joe.lloyd.22.24@gmail.com", {}, true)).toBe(true);
+    // The emulator lane's wildcard still opens the tools to any test account
+    expect(isAdminEmail("ostrich.lion.428@example.com", EMULATOR, false)).toBe(
+      true
+    );
+  });
 });

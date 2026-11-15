@@ -10,6 +10,8 @@ import {
   Panel,
 } from "../componentWarehouse/HudKit";
 import { useAuth } from "../../hooks/useAuth";
+import { SignInDialog } from "../common/SignInDialog";
+import type { AuthUser } from "../../../firebase/auth";
 import { useCoachProfile } from "../../hooks/useCoachProfile";
 import {
   getActiveMatchCode,
@@ -40,7 +42,16 @@ interface ActiveMatch {
  */
 export function MainMenu() {
   const navigate = useNavigate();
-  const { user, ready, onlineAvailable, signIn, signOut } = useAuth();
+  const { user, ready, onlineAvailable, signOut } = useAuth();
+  // The sign-in dialog, open while something waits for a coach to sign in
+  const [signingIn, setSigningIn] = useState<{
+    resolve: (user: AuthUser) => void;
+    reject: (cancelled: SignInCancelled) => void;
+  } | null>(null);
+  const signIn = () =>
+    new Promise<AuthUser>((resolve, reject) =>
+      setSigningIn({ resolve, reject })
+    );
   const coach = useCoachProfile(user);
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
@@ -96,7 +107,8 @@ export function MainMenu() {
       try {
         await signIn();
       } catch (error) {
-        setAuthError(error instanceof Error ? error.message : String(error));
+        if (!(error instanceof SignInCancelled))
+          setAuthError(error instanceof Error ? error.message : String(error));
         return;
       }
     }
@@ -135,7 +147,8 @@ export function MainMenu() {
       await joinLobby(code, coach.uid, await resolveCoachName(coach.uid));
       navigate(`/online/lobby/${code}`);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : String(error));
+      if (!(error instanceof SignInCancelled))
+        setAuthError(error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -273,7 +286,9 @@ export function MainMenu() {
                 onSave={(name) => void coach.save(name)}
               />
               <span className="text-hud-sm text-hud-mute">
-                Signed in with Google. Your account name stays private.
+                {user.emailVerified
+                  ? "Signed in. Your account name stays private."
+                  : "Signed in. Check your inbox for the link that confirms your email."}
               </span>
               <HudButton
                 variant="ghost"
@@ -287,15 +302,9 @@ export function MainMenu() {
             onlineAvailable && (
               <HudButton
                 variant="secondary"
-                onClick={() =>
-                  void signIn().catch((error: unknown) =>
-                    setAuthError(
-                      error instanceof Error ? error.message : String(error)
-                    )
-                  )
-                }
+                onClick={() => void signIn().catch(() => {})}
               >
-                Sign in with Google
+                Sign in
               </HudButton>
             )
           )}
@@ -308,11 +317,26 @@ export function MainMenu() {
 
         <div className="hud-label mt-10 text-hud-mute">v0.1.0</div>
       </div>
+      {signingIn && (
+        <SignInDialog
+          onSignedIn={(signedIn) => {
+            signingIn.resolve(signedIn);
+            setSigningIn(null);
+          }}
+          onClose={() => {
+            signingIn.reject(new SignInCancelled());
+            setSigningIn(null);
+          }}
+        />
+      )}
     </PageShell>
   );
 }
 
 const ONLINE_HINT = "Online play requires Firebase config (see .env.example)";
+
+/** The coach closed the sign-in dialog: nothing to report. */
+class SignInCancelled extends Error {}
 
 /**
  * Height of the signed-in account controls: the coach name editor (36px),

@@ -7,7 +7,6 @@ import {
   AuthUser,
   getCurrentUser,
   isAuthResolved,
-  signInWithGoogle,
   signOutUser,
   subscribeToAuth,
 } from "../../firebase/auth";
@@ -20,7 +19,6 @@ export interface UseAuth {
   ready: boolean;
   /** False when no Firebase config is present (online play unavailable) */
   onlineAvailable: boolean;
-  signIn: () => Promise<AuthUser>;
   signOut: () => Promise<void>;
 }
 
@@ -41,7 +39,6 @@ export function useAuth(): UseAuth {
     user,
     ready,
     onlineAvailable: isFirebaseConfigured(),
-    signIn: signInWithGoogle,
     signOut: signOutUser,
   };
 }

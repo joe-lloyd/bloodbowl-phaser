@@ -27,7 +27,9 @@ export interface AdminEnv {
  */
 export function isAdminEmail(
   email: string | undefined,
-  env: AdminEnv
+  env: AdminEnv,
+  /** A Google account is; an email sign-up only once its link is clicked. */
+  verified = true
 ): boolean {
   if (!email) return false;
   const listed = (env.VITE_ADMIN_EMAILS ?? "")
@@ -36,6 +38,8 @@ export function isAdminEmail(
     .filter(Boolean);
   const emulated = env.VITE_FIREBASE_USE_EMULATORS === "true";
   if (listed.includes("*") && emulated) return true;
+  // Anyone can sign up with any address; only a proven one is trusted
+  if (!verified) return false;
   const emails = listed.filter((entry) => entry !== "*");
   const allowed = emails.length > 0 ? emails : [DEFAULT_ADMIN_EMAILS];
   return allowed.includes(email.toLowerCase());
@@ -44,8 +48,12 @@ export function isAdminEmail(
 export function isAdminUser(user: AuthUser | null): boolean {
   if (!isFirebaseConfigured()) return true;
   const env = import.meta.env;
-  return isAdminEmail(user?.email ?? undefined, {
-    VITE_ADMIN_EMAILS: env?.VITE_ADMIN_EMAILS,
-    VITE_FIREBASE_USE_EMULATORS: env?.VITE_FIREBASE_USE_EMULATORS,
-  });
+  return isAdminEmail(
+    user?.email ?? undefined,
+    {
+      VITE_ADMIN_EMAILS: env?.VITE_ADMIN_EMAILS,
+      VITE_FIREBASE_USE_EMULATORS: env?.VITE_FIREBASE_USE_EMULATORS,
+    },
+    user?.emailVerified ?? false
+  );
 }
