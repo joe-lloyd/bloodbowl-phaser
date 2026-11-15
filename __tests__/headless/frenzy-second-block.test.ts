@@ -6,6 +6,7 @@ import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition, hasCondition } from "../../src/types/Player";
 import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
 import { GameEventNames } from "../../src/types/events";
+import { forceDice } from "../utils/test-helpers";
 
 /**
  * Frenzy's second Block (2025 rulebook p.128): what may stop it and what it
@@ -61,6 +62,40 @@ function session(scenario: Scenario, seed: number) {
 const PUSH_SEED = 1;
 
 describe("Frenzy against Stand Firm", () => {
+  it("settles a knocked-down carrier's armour and bounce before resuming Blitz movement", async () => {
+    const setup = scenario({}, { skills: [SkillType.STAND_FIRM] });
+    setup.setup.ballPosition = { x: 11, y: 5 };
+    const { game, run, attacker, defender } = session(setup, 1);
+    forceDice(game.ctx.rng, [6, 1, 1, 5]);
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const after = await run({ type: "use-reaction", accept: true });
+
+    expect(after.pendingDecision).toBeNull();
+    expect(
+      after.events
+        .filter(
+          (event) =>
+            event.name === GameEventNames.DiceRoll ||
+            event.name === GameEventNames.UI_ResumeBlitzMove
+        )
+        .map((event) => event.name)
+    ).toEqual([
+      GameEventNames.DiceRoll,
+      GameEventNames.DiceRoll,
+      GameEventNames.UI_ResumeBlitzMove,
+    ]);
+  });
+
   it("still throws the second Block when the target stands firm", async () => {
     const { run, dice, attacker, defender } = session(
       scenario({}, { skills: [SkillType.STAND_FIRM] }),
@@ -88,6 +123,53 @@ describe("Frenzy against Stand Firm", () => {
     });
     expect(attacker.gridPosition).toEqual({ x: 10, y: 5 });
     expect(defender.gridPosition).toEqual({ x: 11, y: 5 });
+  });
+});
+
+describe("a cancelled Frenzy second Block", () => {
+  it("does not suppress Frenzy on the attacker's next activation", async () => {
+    const { game, run, attacker, defender } = session(
+      scenario({}, { skills: [SkillType.FOUL_APPEARANCE] }),
+      1
+    );
+    // Pass Foul Appearance, Push, then fail the second Foul Appearance.
+    forceDice(game.ctx.rng, [2, 4, 1]);
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const cancelled = await run({ type: "choose-push-direction", x: 12, y: 5 });
+    expect(cancelled.pendingDecision).toBeNull();
+    expect(game.ctx.gameService.hasPlayerActed(attacker.id)).toBe(true);
+
+    await run({ type: "end-turn" });
+    await run({ type: "end-turn" });
+    forceDice(game.ctx.rng, [2, 4, 2, 4]);
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const second = await run({ type: "choose-push-direction", x: 13, y: 5 });
+    expect(second.pendingDecision).toMatchObject({
+      type: "block-dice",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      options: [{ type: "push" }],
+    });
   });
 });
 

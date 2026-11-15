@@ -145,6 +145,7 @@ export class BlockManager extends BlockPushChain {
 
       if (ctx.cancelled) {
         // Foul Appearance et al: the block never happens; end the activation.
+        this.frenzyExtraFor = null;
         this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
         this.callbacks
           .getFlowManager?.()

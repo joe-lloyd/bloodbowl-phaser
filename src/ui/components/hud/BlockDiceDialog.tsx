@@ -57,11 +57,14 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   const [proMode, setProMode] = useState(false);
 
   useEffect(() => {
+    let holdTimer: ReturnType<typeof setTimeout> | undefined;
     const onOpen = (payload: {
       attackerId: string;
       defenderId: string;
       analysis: BlockAnalysis;
     }) => {
+      clearTimeout(holdTimer);
+      setChosen(null);
       setData(payload);
       setRollData(null);
       setIsRolling(false);
@@ -70,6 +73,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     };
 
     const onDiceRolled = (payload: BlockRollData) => {
+      clearTimeout(holdTimer);
       setIsRolling(false);
       setProMode(false);
       setChosen(null);
@@ -96,6 +100,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     // The roll will not happen (illegal block, no movement left, rush
     // declined or failed): close instead of spinning forever
     const onRollCancelled = () => {
+      clearTimeout(holdTimer);
+      setChosen(null);
       setIsOpen(false);
       setIsRolling(false);
       setRollData(null);
@@ -125,10 +131,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       if (getActiveOnlineMatch() && result) {
         setIsOpen(true);
         setChosen(result);
-        setTimeout(() => {
-          setChosen(null);
-          onRollCancelled();
-        }, 1500);
+        clearTimeout(holdTimer);
+        holdTimer = setTimeout(onRollCancelled, 1500);
         return;
       }
       onRollCancelled();
@@ -136,6 +140,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     eventBus.on(GameEventNames.DecisionResolved, onResolved);
 
     return () => {
+      clearTimeout(holdTimer);
       eventBus.off(GameEventNames.TurnEnded, onRollCancelled);
       eventBus.off(GameEventNames.UI_BlockDialog, onOpen);
       eventBus.off(GameEventNames.BlockDiceRolled, onDiceRolled);

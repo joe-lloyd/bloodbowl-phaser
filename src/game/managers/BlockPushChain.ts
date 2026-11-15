@@ -14,7 +14,11 @@ import { trapdoorOpens } from "../inducements/matchInducements";
 import { GameConfig } from "../../config/GameConfig";
 import { PushContext, foldTrigger } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
-import { FrenzyOperation, InOrderOperation } from "./BlockOperations";
+import {
+  FinishBlockOperation,
+  FrenzyOperation,
+  InOrderOperation,
+} from "./BlockOperations";
 import { BlockActivation } from "./BlockActivation";
 
 type Square = { x: number; y: number };
@@ -218,7 +222,7 @@ export abstract class BlockPushChain extends BlockActivation {
     }
 
     // No square was vacated, so no follow-up prompt will complete the Block.
-    flowManager?.context.gameService.finishBlockActivation(attacker.id);
+    flowManager?.add(new FinishBlockOperation(attacker.id));
   }
 
   /**
