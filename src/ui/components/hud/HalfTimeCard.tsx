@@ -114,44 +114,60 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
       />
       <div className="overflow-y-auto hud-scroll p-3 text-hud-sm text-hud-bone">
         {summary ? (
-          <>
-            <p className="font-bold">{summary.score}</p>
-            <p>{extraTime ? "A roll-off decides who kicks" : summary.kicker}</p>
-            <h3 className="hud-label mt-2">
-              {extraTime ? "Re-rolls carried over" : "Re-rolls reset"}
-            </h3>
-            <ul data-testid="half-time-rerolls">
-              {summary.rerolls.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-            <h3 className="hud-label mt-2">KO recovery</h3>
-            {summary.recovery.length ? (
-              <ul data-testid="half-time-recovery">
-                {summary.recovery.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            ) : (
-              <p>
-                {ready ? "Nobody was knocked out." : "Rolling for recovery."}
-              </p>
-            )}
-            <h3 className="hud-label mt-2">Out for the match</h3>
-            {summary.out.length ? (
-              <ul data-testid="half-time-out">
-                {summary.out.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            ) : (
-              <p>Nobody</p>
-            )}
-          </>
+          <HalfTimeDetails
+            summary={summary}
+            extraTime={extraTime}
+            ready={ready}
+          />
         ) : (
           <p>Second half next</p>
         )}
       </div>
     </Panel>
+  );
+}
+
+function HalfTimeDetails({
+  summary,
+  extraTime,
+  ready,
+}: {
+  summary: HalfTimeSummary;
+  extraTime: boolean;
+  ready: boolean;
+}) {
+  return (
+    <>
+      <p className="font-bold">{summary.score}</p>
+      <p>{extraTime ? "A roll-off decides who kicks" : summary.kicker}</p>
+      <h3 className="hud-label mt-2">
+        {extraTime ? "Re-rolls carried over" : "Re-rolls reset"}
+      </h3>
+      <ul data-testid="half-time-rerolls">
+        {summary.rerolls.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <h3 className="hud-label mt-2">KO recovery</h3>
+      {summary.recovery.length ? (
+        <ul data-testid="half-time-recovery">
+          {summary.recovery.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>{ready ? "Nobody was knocked out." : "Rolling for recovery."}</p>
+      )}
+      <h3 className="hud-label mt-2">Out for the match</h3>
+      {summary.out.length ? (
+        <ul data-testid="half-time-out">
+          {summary.out.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>Nobody</p>
+      )}
+    </>
   );
 }

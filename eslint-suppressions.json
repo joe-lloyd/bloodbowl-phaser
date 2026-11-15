@@ -509,19 +509,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/HalfTimeCard.tsx": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/KickoffEventOverlay.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/MatchOptionsMenu.tsx": {
     "complexity": {
       "count": 1

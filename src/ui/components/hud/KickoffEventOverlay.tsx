@@ -9,9 +9,47 @@ import {
   steppingPlayerId,
 } from "../../../game/kickoff/kickoffEvents";
 import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
+import type { Player } from "../../../types/Player";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useEventBus } from "../../hooks/useEventBus";
 import { Chip, HudButton, Panel } from "../componentWarehouse/HudKit";
+
+/** What the deciding coach should do next in this kickoff step. */
+function kickoffInstruction(
+  step: KickoffEventStepState,
+  players: readonly Player[]
+): string {
+  if (step.awaitingPlacement.length > 0)
+    return "Finish placing the highlighted player.";
+  const limit = step.selectionLimit;
+  if (isOneSquareMoveEvent(step.event)) {
+    // The pick a square click will move.
+    const stepping = players.find(
+      (player) => player.id === steppingPlayerId(step)
+    );
+    return stepping
+      ? `Now click a green square next to ${stepping.playerName} to move them there.`
+      : `Move up to ${limit} of your players one square each: click a player in a blue ring, then a green square next to them. Press Done when you have finished.`;
+  }
+  if (step.event === KickoffEvent.HIGH_KICK)
+    return `Click one eligible receiving player on the pitch to place them under the ball at (${step.landingSquare?.x}, ${step.landingSquare?.y}).`;
+  if (step.charge) {
+    const active = players.find(
+      (player) => player.id === step.charge?.activePlayerId
+    );
+    return `${active?.playerName ?? "The selected player"} is active. Choose an action in the normal player action window.`;
+  }
+  return `Pick up to ${limit} players in a blue ring, then press Charge! to move them one at a time.`;
+}
+
+/** Ends the step: once someone has moved, or once Charge! has its players. */
+function finishButton(step: KickoffEventStepState) {
+  if (isOneSquareMoveEvent(step.event))
+    return { label: "Done", ready: step.movedPlayerIds.length > 0 };
+  if (step.event === KickoffEvent.HIGH_KICK)
+    return { label: "Confirm", ready: true };
+  return { label: "Charge!", ready: step.selectedPlayerIds.length > 0 };
+}
 
 export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
   const [step, setStep] = React.useState<KickoffEventStepState | null>(null);
@@ -39,36 +77,12 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
   const match = getActiveOnlineMatch();
   const canAct = !match || (match.myTeamId === step.teamId && match.mayAct());
   const awaiting = new Set(step.awaitingPlacement);
-  const activeChargePlayer = team.players.find(
-    (player) => player.id === step.charge?.activePlayerId
-  );
   const oneSquare = isOneSquareMoveEvent(step.event);
   const limit = step.selectionLimit;
   const moved = step.movedPlayerIds.length;
   const picked = step.selectedPlayerIds.length;
-  // The pick a square click will move.
-  const stepping = team.players.find(
-    (player) => player.id === steppingPlayerId(step)
-  );
-  const instruction =
-    awaiting.size > 0
-      ? "Finish placing the highlighted player."
-      : oneSquare
-        ? stepping
-          ? `Now click a green square next to ${stepping.playerName} to move them there.`
-          : `Move up to ${limit} of your players one square each: click a player in a blue ring, then a green square next to them. Press Done when you have finished.`
-        : step.event === KickoffEvent.HIGH_KICK
-          ? `Click one eligible receiving player on the pitch to place them under the ball at (${step.landingSquare?.x}, ${step.landingSquare?.y}).`
-          : step.charge
-            ? `${activeChargePlayer?.playerName ?? "The selected player"} is active. Choose an action in the normal player action window.`
-            : `Pick up to ${limit} players in a blue ring, then press Charge! to move them one at a time.`;
   const count = oneSquare ? `${moved}/${limit} moved` : `${picked}/${limit}`;
-  // Ends the step: once someone has moved, or once Charge! has its players.
-  const finish = oneSquare
-    ? { label: "Done", ready: moved > 0 }
-    : step.event === KickoffEvent.HIGH_KICK
-      ? { label: "Confirm", ready: true }
-      : { label: "Charge!", ready: picked > 0 };
+  const finish = finishButton(step);
 
   return (
     <Panel
@@ -92,7 +106,9 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
       </div>
 
       <p className="mt-3 rounded-hud border-l-[3px] border-hud-gold bg-white/5 px-3 py-2 text-hud-sm text-hud-bone">
-        {canAct ? instruction : `Waiting for ${team.name}'s coach…`}
+        {canAct
+          ? kickoffInstruction(step, team.players)
+          : `Waiting for ${team.name}'s coach…`}
       </p>
 
       {/* Skip/Confirm are the deciding coach's controls only — the other
