@@ -9,9 +9,7 @@ test("the available hires list has no inner vertical scroll at 1440x900", async 
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/build-team/new-team");
-  await page
-    .getByRole("combobox", { name: "Roster", exact: true })
-    .selectOption("Vampire");
+  await page.getByTestId("roster-choice-Vampire").click();
   const hires = page
     .locator(".hud-slab")
     .filter({ has: page.getByRole("heading", { name: "AVAILABLE HIRES" }) });
@@ -31,9 +29,7 @@ test("a skill tooltip on the last hire opens whole, outside the table", async ({
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/build-team/new-team");
-  await page
-    .getByRole("combobox", { name: "Roster", exact: true })
-    .selectOption("Vampire");
+  await page.getByTestId("roster-choice-Vampire").click();
   const hires = page
     .locator(".hud-slab")
     .filter({ has: page.getByRole("heading", { name: "AVAILABLE HIRES" }) });
@@ -63,5 +59,42 @@ test("a skill tooltip on the last hire opens whole, outside the table", async ({
   expect(scrollBoxes).toBe(0);
   await page.screenshot({
     path: `${process.env.SHOTS ?? test.info().outputDir}/last-hire-tooltip.png`,
+  });
+});
+
+test("a new team chooses its roster first, then the main choices lead the sheet", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/build-team/new-team");
+  await expect(
+    page.getByRole("heading", { name: "CHOOSE YOUR TEAM" })
+  ).toBeVisible();
+  await expect(page.getByPlaceholder("Enter Team Name")).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath("roster-picker.png") });
+
+  await page.getByTestId("roster-choice-Human").click();
+  const main = page
+    .locator(".hud-slab")
+    .filter({ has: page.getByRole("heading", { name: "MAIN CHOICES" }) });
+  await expect(
+    main.getByRole("combobox", { name: "Roster", exact: true })
+  ).toHaveValue("Human");
+  await expect(
+    main.getByRole("combobox", { name: "Sevens rules" })
+  ).toBeVisible();
+  await expect(
+    main.getByRole("group", { name: "Advancement Mode" })
+  ).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("main-choices.png") });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/build-team/new-team");
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.screenshot({
+    path: test.info().outputPath("roster-picker-phone.png"),
   });
 });

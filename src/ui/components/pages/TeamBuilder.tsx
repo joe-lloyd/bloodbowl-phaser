@@ -76,6 +76,8 @@ import {
 } from "../../../game/rules/expensiveMistakes";
 import { RNGService } from "../../../services/rng/RNGService";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
+import { RosterPicker } from "../TeamBuilder/RosterPicker";
+import { PlayedGames } from "../TeamManagement/PlayedGames";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 
 // interface TeamBuilderProps {}
@@ -104,6 +106,8 @@ export function TeamBuilder() {
     RosterName.AMAZON
   );
   const [selectedColor, setSelectedColor] = useState<number>(0x8e1b1b);
+  /** A new team picks its roster before anything else. */
+  const [rosterChosen, setRosterChosen] = useState(true);
   const navigate = useNavigate();
   const { teamId } = useParams<{ teamId: string }>();
   const { search } = useLocation();
@@ -135,12 +139,14 @@ export function TeamBuilder() {
         setTeam(existingTeam);
         setSelectedRace(existingTeam.rosterName);
         setSelectedColor(existingTeam.colors.primary);
+        setRosterChosen(true);
         return;
       }
     }
 
     // Create new team
     savedSnapshot.current = null;
+    setRosterChosen(false);
     const newTeam = createTeam(
       "New Team",
       selectedRace,
@@ -172,6 +178,20 @@ export function TeamBuilder() {
     );
     newTeam.draftRuleset = team.draftRuleset;
     setTeam(newTeam);
+  };
+
+  const handleFirstRoster = (race: RosterName) => {
+    if (!team) return;
+    setSelectedRace(race);
+    const newTeam = createTeam(
+      team.name,
+      race,
+      { primary: selectedColor, secondary: 0xffffff },
+      team.treasury
+    );
+    newTeam.draftRuleset = team.draftRuleset;
+    setTeam(newTeam);
+    setRosterChosen(true);
   };
 
   const handleColorChange = (color: number) => {
@@ -491,6 +511,27 @@ export function TeamBuilder() {
     );
   }
 
+  if (!rosterChosen) {
+    return (
+      <PageShell
+        actionBar={
+          <HudButton variant="ghost" onClick={handleBack}>
+            Cancel
+          </HudButton>
+        }
+      >
+        <PageHeader
+          eyebrow="New team"
+          title="CHOOSE YOUR TEAM"
+          subtitle="Pick the roster first. Its players and special rules shape everything else on the team sheet."
+        />
+        <Section title="Rosters">
+          <RosterPicker onChoose={handleFirstRoster} />
+        </Section>
+      </PageShell>
+    );
+  }
+
   const roster = getRosterByRosterName(selectedRace);
   const mode = getTeamMode(team);
   const active = mode === "active";
@@ -566,18 +607,6 @@ export function TeamBuilder() {
         }
       />
 
-      <Section title="Draft rules">
-        <SevensRulesetSelector
-          value={team.draftRuleset}
-          disabled={saving || active || !!team.activeCompetitionId}
-          onChange={(draftRuleset) => setTeam({ ...team, draftRuleset })}
-        />
-        <p className="mt-3 font-hud-body text-hud-sm text-hud-dim">
-          Prepare a roster for these rules. Tournament and league entry use the
-          competition's own choice. Friendly matches use GW rules.
-        </p>
-      </Section>
-
       {(postMatch || pendingMistakes || completion) && (
         <Section title="Post-match team management" accent="gold">
           {matchWinnings !== null && /^\d+$/.test(matchWinnings) && (
@@ -611,6 +640,51 @@ export function TeamBuilder() {
       )}
 
       <fieldset disabled={!!completion || saving} className="min-w-0">
+        {/* What a coach decides first; nothing here changes after a match */}
+        {!(postMatch || completion) && (
+          <Section title="Main choices">
+            <div className="grid gap-x-6 gap-y-5 lg:grid-cols-2">
+              <Field label="Roster">
+                <select
+                  className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  value={selectedRace}
+                  disabled={active || saving}
+                  title={
+                    active
+                      ? "Active teams cannot change roster type"
+                      : undefined
+                  }
+                  onChange={(e) =>
+                    handleRaceChange(e.target.value as RosterName)
+                  }
+                >
+                  {getAvailableRosterNames().map((race) => (
+                    <option key={race} value={race}>
+                      {race}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div>
+                <SevensRulesetSelector
+                  value={team.draftRuleset}
+                  disabled={saving || active || !!team.activeCompetitionId}
+                  onChange={(draftRuleset) =>
+                    setTeam({ ...team, draftRuleset })
+                  }
+                />
+                <p className="mt-2 font-hud-body text-hud-sm text-hud-dim">
+                  Prepare a roster for these rules. Tournament and league entry
+                  use the competition's own choice. Friendly matches use GW
+                  rules.
+                </p>
+              </div>
+              <div className="lg:col-span-2">
+                <AdvancementModeSelector team={team} onChange={setTeam} />
+              </div>
+            </div>
+          </Section>
+        )}
         <PendingDevelopmentPanel
           team={team}
           showExpensiveMistakes={false}
@@ -651,23 +725,6 @@ export function TeamBuilder() {
                 onChange={(e) => handleNameChange(e.target.value)}
                 placeholder="Enter Team Name"
               />
-            </Field>
-            <Field label="Roster">
-              <select
-                className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                value={selectedRace}
-                disabled={active}
-                title={
-                  active ? "Active teams cannot change roster type" : undefined
-                }
-                onChange={(e) => handleRaceChange(e.target.value as RosterName)}
-              >
-                {getAvailableRosterNames().map((race) => (
-                  <option key={race} value={race}>
-                    {race}
-                  </option>
-                ))}
-              </select>
             </Field>
             <Field
               label="League"
@@ -773,9 +830,6 @@ export function TeamBuilder() {
                   />
                 ))}
               </div>
-            </div>
-            <div className="sm:col-span-2">
-              <AdvancementModeSelector team={team} onChange={setTeam} />
             </div>
           </div>
         </Section>
@@ -887,6 +941,8 @@ export function TeamBuilder() {
           </Section>
         )}
       </fieldset>
+
+      <PlayedGames games={team.playedGames ?? []} />
     </PageShell>
   );
 }

@@ -50,6 +50,11 @@ import {
   SevensRuleset,
 } from "../../game/rules/sevensRuleset";
 import { staysOnRoster } from "../../game/rules/leagueRoster";
+import {
+  PlayedGame,
+  parsePlayedGames,
+  storedPlayedGames,
+} from "../../game/progression/matchHistory";
 import { parseAllegiance } from "../../game/rules/teamAllegiance";
 import {
   appointTeamCaptain,
@@ -109,6 +114,7 @@ export interface StoredTeam {
   activeCompetitionId?: string;
   draftRuleset?: SevensRuleset;
   recordedFixtureIds?: string[];
+  playedGames?: PlayedGame[];
   /** Draft until this is set — see teamLifecycle.ts. */
   firstMatchPlayedAt?: number;
   advancementMode?: TeamAdvancementMode;
@@ -431,6 +437,9 @@ export function hydrateStoredTeam(
     ...(raw.recordedFixtureIds
       ? { recordedFixtureIds: raw.recordedFixtureIds as string[] }
       : {}),
+    ...(raw.playedGames !== undefined
+      ? { playedGames: parsePlayedGames(raw.playedGames) }
+      : {}),
     ...(raw.draftRuleset !== undefined
       ? { draftRuleset: readSevensRuleset(raw.draftRuleset) }
       : {}),
@@ -507,6 +516,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
     ...(team.recordedFixtureIds
       ? { recordedFixtureIds: team.recordedFixtureIds }
       : {}),
+    ...storedPlayedGames(team),
     ...(team.draftRuleset ? { draftRuleset: team.draftRuleset } : {}),
     ...(team.activeCompetitionId
       ? { activeCompetitionId: team.activeCompetitionId }
