@@ -75,6 +75,39 @@ function loadFragments(): CoverageFragment[] {
     );
 }
 
+/**
+ * Diff the gap set against the committed baseline. Only *new* gaps fail:
+ * historical backfill is tracked by the baseline, so a change that does not
+ * make coverage worse is not blocked by it.
+ */
+function compareBaseline(result: CoverageResult): void {
+  if (!existsSync(BASELINE)) {
+    console.error(
+      `\nno baseline at ${BASELINE} — create one with 'pnpm e2e:coverage:baseline'`
+    );
+    process.exit(1);
+  }
+  const baseline = JSON.parse(readFileSync(BASELINE, "utf8")) as {
+    gaps: string[];
+  };
+  const before = new Set(baseline.gaps);
+  const now = new Set(gapsOf(result));
+  const added = [...now].filter((gap) => !before.has(gap)).sort();
+  const closed = [...before].filter((gap) => !now.has(gap)).sort();
+
+  console.log("");
+  console.log(`vs baseline: ${closed.length} closed, ${added.length} added`);
+  for (const gap of closed) console.log(`  + closed  ${gap}`);
+  for (const gap of added) console.log(`  - ADDED   ${gap}`);
+
+  if (added.length > 0) {
+    console.error(
+      `\n${added.length} new coverage gap(s) — add cases or record a reviewed exclusion`
+    );
+    process.exit(1);
+  }
+}
+
 function main(): void {
   const fragments = loadFragments();
   if (fragments.length > 0) {
@@ -116,33 +149,7 @@ function main(): void {
   console.log(renderCoverageReport(result));
 
   if (argv.includes("--compare-baseline")) {
-    if (!existsSync(BASELINE)) {
-      console.error(
-        `\nno baseline at ${BASELINE} — create one with 'pnpm e2e:coverage:baseline'`
-      );
-      process.exit(1);
-    }
-    const baseline = JSON.parse(readFileSync(BASELINE, "utf8")) as {
-      gaps: string[];
-    };
-    const before = new Set(baseline.gaps);
-    const now = new Set(gapsOf(result));
-    const added = [...now].filter((gap) => !before.has(gap)).sort();
-    const closed = [...before].filter((gap) => !now.has(gap)).sort();
-
-    console.log("");
-    console.log(`vs baseline: ${closed.length} closed, ${added.length} added`);
-    for (const gap of closed) console.log(`  + closed  ${gap}`);
-    for (const gap of added) console.log(`  - ADDED   ${gap}`);
-
-    // Only *new* gaps fail: historical backfill is tracked by the baseline,
-    // so a change that does not make coverage worse is not blocked by it.
-    if (added.length > 0) {
-      console.error(
-        `\n${added.length} new coverage gap(s) — add cases or record a reviewed exclusion`
-      );
-      process.exit(1);
-    }
+    compareBaseline(result);
     return;
   }
 

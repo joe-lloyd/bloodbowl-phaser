@@ -131,21 +131,6 @@
       "count": 1
     }
   },
-  "scripts/coach/race-rates.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "scripts/e2e-coverage.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "scripts/e2e-seeds.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/competition/computerTeams.ts": {
     "complexity": {
       "count": 1

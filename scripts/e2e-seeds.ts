@@ -51,47 +51,54 @@ interface Unreachable {
   reason: string;
 }
 
+/** Every outcome to find a seed for, in catalog order. */
+function outcomesToSeed() {
+  return RULE_SCENARIOS.flatMap((entry) => entry.configs)
+    .filter((config) => !onlyConfig || config.id === onlyConfig)
+    .flatMap((config) =>
+      config.outcomes.map((outcome) => ({ config, outcome }))
+    );
+}
+
+/** Write the seeds in stable key order, so the committed diff is what changed. */
+function writeSeeds(seeds: CommittedSeedMap): void {
+  const ordered: CommittedSeedMap = {};
+  for (const key of Object.keys(seeds).sort()) ordered[key] = seeds[key];
+  writeFileSync(OUTPUT, `${JSON.stringify(ordered, null, 2)}\n`, "utf8");
+}
+
 async function main(): Promise<void> {
   const seeds: CommittedSeedMap = refresh ? {} : { ...COMMITTED_SEEDS };
   const unreachable: Unreachable[] = [];
   let discovered = 0;
   let kept = 0;
 
-  for (const entry of RULE_SCENARIOS) {
-    for (const config of entry.configs) {
-      if (onlyConfig && config.id !== onlyConfig) continue;
+  for (const { config, outcome } of outcomesToSeed()) {
+    const key = seedKey(config.id, outcome.id);
+    if (!refresh && seeds[key] !== undefined) {
+      kept++;
+      continue;
+    }
 
-      for (const outcome of config.outcomes) {
-        const key = seedKey(config.id, outcome.id);
-        if (!refresh && seeds[key] !== undefined) {
-          kept++;
-          continue;
-        }
-
-        try {
-          const found = await findSeed(
-            config,
-            outcome.id,
-            limitOverride !== undefined ? { limit: limitOverride } : undefined
-          );
-          seeds[key] = found.seed;
-          discovered++;
-          console.log(`  ✓ ${key} → ${found.seed}`);
-        } catch (error) {
-          // An unreachable outcome is reported, never guessed at. The gate
-          // will name it as a gap rather than the suite inventing a variant.
-          const reason = error instanceof Error ? error.message : String(error);
-          unreachable.push({ configId: config.id, outcomeId: outcome.id, reason });
-          console.log(`  ✗ ${key}: ${reason}`);
-        }
-      }
+    try {
+      const found = await findSeed(
+        config,
+        outcome.id,
+        limitOverride !== undefined ? { limit: limitOverride } : undefined
+      );
+      seeds[key] = found.seed;
+      discovered++;
+      console.log(`  ✓ ${key} → ${found.seed}`);
+    } catch (error) {
+      // An unreachable outcome is reported, never guessed at. The gate
+      // will name it as a gap rather than the suite inventing a variant.
+      const reason = error instanceof Error ? error.message : String(error);
+      unreachable.push({ configId: config.id, outcomeId: outcome.id, reason });
+      console.log(`  ✗ ${key}: ${reason}`);
     }
   }
 
-  // Stable key order keeps the committed diff to what actually changed.
-  const ordered: CommittedSeedMap = {};
-  for (const key of Object.keys(seeds).sort()) ordered[key] = seeds[key];
-  writeFileSync(OUTPUT, `${JSON.stringify(ordered, null, 2)}\n`, "utf8");
+  writeSeeds(seeds);
 
   console.log(
     `\n${discovered} discovered, ${kept} already pinned, ` +
