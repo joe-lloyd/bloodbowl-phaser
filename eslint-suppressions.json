@@ -499,11 +499,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/DiceTray.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/GameHUD.tsx": {
     "complexity": {
       "count": 1
@@ -514,11 +509,6 @@
       "count": 1
     },
     "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/MovePlanBar.tsx": {
-    "complexity": {
       "count": 1
     }
   },

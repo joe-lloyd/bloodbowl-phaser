@@ -419,29 +419,7 @@ export function DiceTray({
       }`}
       style={{ borderTop: color ? `3px solid ${color}` : undefined }}
     >
-      <div className="flex min-h-[34px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-1.5">
-        {/* Bone text with a swatch: a dark team colour is unreadable here. */}
-        <span
-          data-testid="dice-tray-team"
-          className="flex shrink-0 items-center gap-1.5 font-hud-label text-hud-sm font-bold uppercase tracking-[0.12em] text-hud-bone"
-        >
-          {color && (
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-2.5 rounded-[2px] ring-1 ring-white/40"
-              style={{ backgroundColor: color }}
-            />
-          )}
-          {current?.teamName}
-        </span>
-        <span
-          className={`truncate font-hud-label text-hud-sm font-semibold uppercase tracking-[0.05em] ${
-            current?.settled ? "text-hud-bone" : "text-hud-dim"
-          }`}
-        >
-          {current?.settled ? current.result : current?.title}
-        </span>
-      </div>
+      <DiceTrayHeader current={current} color={color} />
       <div className="relative">
         <div
           ref={host}
@@ -458,6 +436,41 @@ export function DiceTray({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+/** Who rolled, and the roll's title until it lands, then its result. */
+function DiceTrayHeader({
+  current,
+  color,
+}: {
+  current: Queued | null;
+  color?: string;
+}) {
+  return (
+    <div className="flex min-h-[34px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-1.5">
+      {/* Bone text with a swatch: a dark team colour is unreadable here. */}
+      <span
+        data-testid="dice-tray-team"
+        className="flex shrink-0 items-center gap-1.5 font-hud-label text-hud-sm font-bold uppercase tracking-[0.12em] text-hud-bone"
+      >
+        {color && (
+          <span
+            aria-hidden="true"
+            className="h-2.5 w-2.5 rounded-[2px] ring-1 ring-white/40"
+            style={{ backgroundColor: color }}
+          />
+        )}
+        {current?.teamName}
+      </span>
+      <span
+        className={`truncate font-hud-label text-hud-sm font-semibold uppercase tracking-[0.05em] ${
+          current?.settled ? "text-hud-bone" : "text-hud-dim"
+        }`}
+      >
+        {current?.settled ? current.result : current?.title}
+      </span>
     </div>
   );
 }
