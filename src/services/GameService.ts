@@ -174,6 +174,18 @@ const ONCE_PER_TURN_ACTIONS = new Set<ActionType>([
   "throwTeamMate",
 ]);
 
+/** A Block only targets a Standing player of the other team. */
+function isStandingOpponent(
+  player: Player,
+  other: Player | undefined
+): boolean {
+  return (
+    !!other &&
+    other.teamId !== player.teamId &&
+    other.status === PlayerStatus.ACTIVE
+  );
+}
+
 export class GameService implements IGameService {
   private state: GameState;
   private team1: Team;
@@ -1323,12 +1335,7 @@ export class GameService implements IGameService {
     }
 
     // Only a Standing opponent can be Blocked; a downed one is Fouled
-    const target = this.getPlayerById(defenderId);
-    if (
-      !target ||
-      target.teamId === blocker.teamId ||
-      target.status !== PlayerStatus.ACTIVE
-    ) {
+    if (!isStandingOpponent(blocker, this.getPlayerById(defenderId))) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         "Only a Standing opponent can be Blocked."
@@ -2882,8 +2889,7 @@ export class GameService implements IGameService {
     const square = fouler.gridPosition;
     if (
       !square ||
-      Math.max(Math.abs(square.x - targetX), Math.abs(square.y - targetY)) !==
-        1
+      Math.max(Math.abs(square.x - targetX), Math.abs(square.y - targetY)) !== 1
     ) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
@@ -3044,7 +3050,10 @@ export class GameService implements IGameService {
     if (square.pushedDownId) {
       await this.blockManager.startBallAndChainPush(square.fanaticId, targetId);
     } else {
-      await this.blockManager.startBallAndChainBlock(square.fanaticId, targetId);
+      await this.blockManager.startBallAndChainBlock(
+        square.fanaticId,
+        targetId
+      );
     }
   }
 
