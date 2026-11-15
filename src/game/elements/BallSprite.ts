@@ -23,7 +23,7 @@ export class BallSprite extends Phaser.GameObjects.Container {
     null;
   /** The last flight's arrival, so the board can tell when it has landed. */
   private landing: Promise<void> = Promise.resolve();
-  /** Where the ball has flown since it was last at rest. */
+  /** Recent flight marks, each with its own fade timer. */
   private trail: BallTrail;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -49,11 +49,6 @@ export class BallSprite extends Phaser.GameObjects.Container {
   public override destroy(fromScene?: boolean): void {
     this.trail.destroy();
     super.destroy(fromScene);
-  }
-
-  /** The ball is at rest: its trail fades after a moment to read it. */
-  public restTrail(): void {
-    this.trail.rest();
   }
 
   public get altitude(): number {
@@ -102,7 +97,9 @@ export class BallSprite extends Phaser.GameObjects.Container {
           this.trail.addPoint(this.x, this.y + this.ball.y);
         },
         onComplete: () => {
-          if (end === 0) this.trail.land(this.x, this.y);
+          this.trail.endFlight(
+            end === 0 ? { x: this.x, y: this.y } : undefined
+          );
           settle();
         },
       });
@@ -132,6 +129,7 @@ export class BallSprite extends Phaser.GameObjects.Container {
     if (!flight) return;
     this.flight = null;
     flight.tween.stop();
+    this.trail.endFlight();
     flight.settle();
   }
 

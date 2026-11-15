@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ball trail variants</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #101413;
+      --foreground: #e9e9df;
+      --muted-foreground: #a5b1aa;
+      --card: #18201b;
+      --border: #344139;
+      --primary: #d8bb76;
+      --radius: 12px;
+      --font-sans: system-ui, sans-serif;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--foreground);
+      font: 14px/1.5 var(--font-sans);
+    }
+    main {
+      max-width: 1040px;
+      margin: auto;
+    }
+    h1 {
+      font-size: 25px;
+      font-weight: 650;
+      letter-spacing: -0.6px;
+      margin: 0 0 6px;
+    }
+    p {
+      margin: 0;
+    }
+    .intro {
+      color: var(--muted-foreground);
+      max-width: 750px;
+      margin-bottom: 18px;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin-bottom: 16px;
+    }
+    button,
+    select {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--foreground);
+      font: inherit;
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+    button:hover,
+    button:focus-visible {
+      border-color: var(--primary);
+    }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    input {
+      accent-color: var(--primary);
+      width: 106px;
+    }
+    output {
+      font-variant-numeric: tabular-nums;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    article {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    article.selected {
+      border-color: var(--primary);
+    }
+    .caption {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px 0;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 0;
+      font-weight: 600;
+    }
+    .letter {
+      color: var(--primary);
+      margin-right: 7px;
+    }
+    .description {
+      min-height: 58px;
+      color: var(--muted-foreground);
+      font-size: 13px;
+      padding: 5px 14px 10px;
+    }
+    canvas {
+      width: 100%;
+      aspect-ratio: 620/290;
+      display: block;
+    }
+    .pick {
+      font-size: 12px;
+      padding: 4px 9px;
+      white-space: nowrap;
+    }
+    .timeline {
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 10px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .timeline div {
+      height: 100%;
+      background: var(--primary);
+      width: 0;
+    }
+    .status {
+      color: var(--muted-foreground);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+    .selection {
+      margin-top: 14px;
+      color: var(--primary);
+      min-height: 22px;
+    }
+    details {
+      margin-top: 12px;
+      color: var(--muted-foreground);
+    }
+    summary {
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    .reference {
+      max-width: 510px;
+    }
+    footer {
+      margin-top: 16px;
+      color: var(--muted-foreground);
+      font-size: 12px;
+    }
+    @media (max-width: 540px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .controls {
+        gap: 10px;
+      }
+      h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+  <main>
+    <h1>How should the ball leave a trail?</h1>
+    <p class="intro">
+      Four treatments on the same flight and bounces. Each mark has its own
+      timer: the start fades first, followed by the rest of the path. The ball's
+      motion stays the same.
+    </p>
+    <div class="controls">
+      <button id="replay">Replay</button>
+      <button id="pause">Pause</button>
+      <label
+        >Mark lifetime
+        <input
+          id="lifetime"
+          type="range"
+          min="800"
+          max="2600"
+          step="100"
+          value="1500"
+        /><output id="duration">1.5 s</output></label
+      >
+      <label
+        >Speed
+        <select id="speed">
+          <option value="1">Normal</option>
+          <option value="0.5">Half speed</option>
+        </select></label
+      >
+    </div>
+    <div class="status">
+      <span id="phase">In flight</span><span>Continuous replay</span>
+    </div>
+    <div class="timeline"><div id="progress"></div></div>
+    <div class="grid">
+      <article data-option="A">
+        <div class="caption">
+          <h2><span class="letter">A</span>Fine chalk</h2>
+          <button class="pick" data-pick="A">Choose A</button>
+        </div>
+        <p class="description">
+          A thin, warm white arc. A small mark at each landing.
+        </p>
+        <canvas
+          width="620"
+          height="290"
+          data-style="chalk"
+          aria-label="Fine chalk trail animation"
+        ></canvas>
+      </article>
+      <article data-option="B">
+        <div class="caption">
+          <h2><span class="letter">B</span>Quiet dots</h2>
+          <button class="pick" data-pick="B">Choose B</button>
+        </div>
+        <p class="description">
+          Small, widely spaced dots. No outline or landing ring.
+        </p>
+        <canvas
+          width="620"
+          height="290"
+          data-style="dots"
+          aria-label="Small dotted trail animation"
+        ></canvas>
+      </article>
+      <article data-option="C">
+        <div class="caption">
+          <h2><span class="letter">C</span>Short comet</h2>
+          <button class="pick" data-pick="C">Choose C</button>
+        </div>
+        <p class="description">
+          A short tapered tail follows the ball. It fades quickly as the ball
+          moves away.
+        </p>
+        <canvas
+          width="620"
+          height="290"
+          data-style="comet"
+          aria-label="Short comet trail animation"
+        ></canvas>
+      </article>
+      <article data-option="D">
+        <div class="caption">
+          <h2><span class="letter">D</span>Landing only</h2>
+          <button class="pick" data-pick="D">Choose D</button>
+        </div>
+        <p class="description">
+          No trail in the air. A soft ripple marks each bounce on the turf.
+        </p>
+        <canvas
+          width="620"
+          height="290"
+          data-style="ripples"
+          aria-label="Landing ripple animation"
+        ></canvas>
+      </article>
+    </div>
+    <p class="selection" id="selection" aria-live="polite">
+      Pick A, B, C or D, then tell me your choice in chat.
+    </p>
+    <details>
+      <summary>Compare with the existing gold dots</summary>
+      <article class="reference">
+        <div class="caption"><h2>Existing style</h2></div>
+        <p class="description">
+          The current gold dots and landing rings, shown with the new timer.
+        </p>
+        <canvas
+          width="620"
+          height="290"
+          data-style="current"
+          aria-label="Existing gold trail animation"
+        ></canvas>
+      </article>
+    </details>
+    <footer>
+      Visual sketches for choosing a style. The game keeps its current style
+      until you choose. Default timing: hold each mark for 0.9 s, then fade it
+      linearly over 0.6 s.
+    </footer>
+  </main>
+  <script>
+    (() => {
+      const canvases = [...document.querySelectorAll("canvas")];
+      const lifetime = document.querySelector("#lifetime");
+      const speed = document.querySelector("#speed");
+      const flights = [
+        { from: [75, 205], to: [300, 170], start: 0, duration: 900, apex: 94 },
+        {
+          from: [300, 170],
+          to: [370, 192],
+          start: 900,
+          duration: 350,
+          apex: 36,
+        },
+        {
+          from: [370, 192],
+          to: [425, 168],
+          start: 1250,
+          duration: 280,
+          apex: 24,
+        },
+        {
+          from: [425, 168],
+          to: [463, 182],
+          start: 1530,
+          duration: 200,
+          apex: 12,
+        },
+      ];
+      const end = 1730;
+      let elapsed = 0,
+        last = 0,
+        paused = false;
+      function position(f, t) {
+        const p = Math.max(0, Math.min(1, (t - f.start) / f.duration));
+        const x = f.from[0] + (f.to[0] - f.from[0]) * p,
+          ground = f.from[1] + (f.to[1] - f.from[1]) * p;
+        return { x, y: ground - 4 * f.apex * p * (1 - p) - 4, ground, p };
+      }
+      const points = flights.map((f) => {
+        const samples = [];
+        for (let t = f.start; t <= f.start + f.duration; t += 8) {
+          const p = position(f, t),
+            prev = samples[samples.length - 1];
+          if (!prev || Math.hypot(p.x - prev.x, p.y - prev.y) >= 9)
+            samples.push({ ...p, t });
+        }
+        return samples;
+      });
+      function fade(age, life = Number(lifetime.value)) {
+        return Math.max(0, Math.min(1, (life - age) / (life * 0.4)));
+      }
+      function ellipse(ctx, x, y, rx, ry, color, alpha = 1, width = 0) {
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        if (width) {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = width;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+      }
+      function pitch(ctx) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#172d23";
+        ctx.fillRect(0, 0, 620, 290);
+        ctx.save();
+        ctx.transform(1, 0.16, -0.74, 0.45, 130, 12);
+        for (let y = 0; y < 12; y++)
+          for (let x = 0; x < 12; x++) {
+            ctx.fillStyle = (x + y) % 2 ? "#244330" : "#284a35";
+            ctx.fillRect(x * 46, y * 46, 46, 46);
+            ctx.strokeStyle = "#a6bea615";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x * 46, y * 46, 46, 46);
+          }
+        ctx.strokeStyle = "#d1ddba50";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(8, 8, 534, 534);
+        ctx.beginPath();
+        ctx.moveTo(276, 8);
+        ctx.lineTo(276, 542);
+        ctx.stroke();
+        ctx.restore();
+        [
+          [130, 150, "#9d4a44"],
+          [220, 230, "#4b6981"],
+          [397, 120, "#9d4a44"],
+          [498, 225, "#4b6981"],
+        ].forEach(([x, y, color]) => {
+          ellipse(ctx, x, y + 5, 14, 6, "#000", 0.2);
+          ellipse(ctx, x, y, 12, 5, color, 0.7, 3);
+          ellipse(ctx, x, y - 9, 7, 10, color, 0.85);
+          ellipse(ctx, x, y - 22, 5, 5, "#b8aa88", 0.8);
+        });
+      }
+      function line(ctx, a, b, width, alpha, color) {
+        if (alpha <= 0) return;
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      function draw(canvas, t) {
+        const ctx = canvas.getContext("2d"),
+          style = canvas.dataset.style;
+        pitch(ctx);
+        const currentFlight =
+          flights.find((f) => t < f.start + f.duration) ||
+          flights[flights.length - 1];
+        const ball = position(currentFlight, t);
+        points.forEach((path, fi) => {
+          const visible = path.filter((p) => p.t <= t);
+          visible.forEach((p, i) => {
+            const age = t - p.t,
+              alpha = fade(age),
+              along = i / Math.max(1, visible.length - 1);
+            if (alpha <= 0 || style === "ripples") return;
+            if (t < end && Math.hypot(p.x - ball.x, p.y - ball.y) < 10) return;
+            if (style === "current") {
+              ellipse(
+                ctx,
+                p.x,
+                p.y,
+                3.2 + along * 1.6,
+                3.2 + along * 1.6,
+                "#000",
+                0.35 * alpha
+              );
+              ellipse(
+                ctx,
+                p.x,
+                p.y,
+                2.2 + along * 1.6,
+                2.2 + along * 1.6,
+                "#ffd84a",
+                (0.45 + along * 0.5) * alpha
+              );
+            } else if (style === "dots") {
+              if (i % 2 === 0)
+                ellipse(ctx, p.x, p.y, 1.7, 1.7, "#e9ddb4", 0.7 * alpha);
+            } else if (i > 0 && style === "chalk") {
+              line(ctx, visible[i - 1], p, 1.7, 0.7 * alpha, "#eee5cd");
+            } else if (i > 0 && style === "comet") {
+              const tail = fade(age, Math.min(420, Number(lifetime.value)));
+              line(
+                ctx,
+                visible[i - 1],
+                p,
+                Math.max(0.6, tail * 4),
+                tail * 0.8,
+                "#edcd8f"
+              );
+            }
+          });
+          const landed = flights[fi].start + flights[fi].duration;
+          if (t >= landed) {
+            const [x, y] = flights[fi].to,
+              age = t - landed,
+              alpha = fade(age);
+            if (style === "current") {
+              ellipse(ctx, x, y, 15, 7, "#000", 0.4 * alpha, 4);
+              ellipse(ctx, x, y, 15, 7, "#ffd84a", 0.95 * alpha, 2);
+            }
+            if (style === "ripples") {
+              const spread = Math.min(1, age / 600);
+              ellipse(
+                ctx,
+                x,
+                y,
+                7 + spread * 15,
+                3 + spread * 6,
+                "#dfd2ae",
+                0.7 * alpha,
+                1.5
+              );
+              ellipse(ctx, x, y, 2, 1, "#eee5cd", 0.6 * alpha);
+            }
+            if (style === "chalk" || style === "dots")
+              ellipse(ctx, x, y, 3, 1.5, "#eee5cd", 0.65 * alpha);
+          }
+        });
+        ellipse(ctx, ball.x, ball.ground, 9, 3.5, "#000", 0.4);
+        ctx.globalAlpha = 1;
+        ctx.save();
+        ctx.translate(ball.x, ball.y);
+        ctx.rotate(t < end ? t * 0.009 : 0);
+        ctx.fillStyle = "#a56332";
+        ctx.strokeStyle = "#382215";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 8, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "#f5e8cf";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-4, 0);
+        ctx.lineTo(4, 0);
+        ctx.moveTo(-2, -2);
+        ctx.lineTo(-2, 2);
+        ctx.moveTo(1, -2);
+        ctx.lineTo(1, 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      function frame(now) {
+        if (last && !paused) elapsed += (now - last) * Number(speed.value);
+        last = now;
+        const cycle = end + Number(lifetime.value) + 1100;
+        if (elapsed >= cycle) elapsed = 0;
+        canvases.forEach((canvas) => draw(canvas, elapsed));
+        document.querySelector("#phase").textContent =
+          elapsed < 900
+            ? "Flight"
+            : elapsed < end
+              ? "Bouncing"
+              : elapsed < end + Number(lifetime.value)
+                ? "At rest: trail fades on its own"
+                : "Trail gone";
+        document.querySelector("#progress").style.width =
+          (elapsed / cycle) * 100 + "%";
+        requestAnimationFrame(frame);
+      }
+      document.querySelector("#replay").onclick = () => {
+        elapsed = 0;
+      };
+      document.querySelector("#pause").onclick = (event) => {
+        paused = !paused;
+        event.target.textContent = paused ? "Play" : "Pause";
+      };
+      lifetime.oninput = () => {
+        document.querySelector("#duration").textContent =
+          (Number(lifetime.value) / 1000).toFixed(1) + " s";
+      };
+      document.querySelectorAll("[data-pick]").forEach(
+        (button) =>
+          (button.onclick = () => {
+            const choice = button.dataset.pick;
+            document
+              .querySelectorAll("[data-option]")
+              .forEach((card) =>
+                card.classList.toggle(
+                  "selected",
+                  card.dataset.option === choice
+                )
+              );
+            document.querySelector("#selection").textContent =
+              "Selected " +
+              choice +
+              ". Tell me " +
+              choice +
+              " in chat to use this style in the game.";
+          })
+      );
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</html>
