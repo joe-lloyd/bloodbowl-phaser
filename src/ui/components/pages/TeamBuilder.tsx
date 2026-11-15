@@ -231,17 +231,23 @@ export function TeamBuilder() {
     setSaveError("");
     setTeamMissing(false);
     if (teamId) {
-      // A team's page only ever shows that team. After a refresh a signed-in
-      // coach's cloud library arrives a moment after this page mounts, so a
-      // miss now waits for it rather than becoming a new team.
+      // A team's page only ever shows that team, read from the coach's
+      // settled library. After a refresh a signed-in coach's cloud library
+      // arrives a moment after this page mounts; until then the active
+      // library is localStorage, which may hold nothing or an older copy of
+      // this team. Nothing is shown (or can be saved) until it settles.
       savedSnapshot.current = null;
       setTeam(null);
       const loadRequestedTeam = (): boolean => {
+        if (TeamManager.isTeamLibraryPending()) {
+          setTeamMissing(false);
+          return false;
+        }
         const existingTeam = TeamManager.loadTeams().find(
           (t) => t.id === teamId
         );
         if (!existingTeam) {
-          setTeamMissing(!TeamManager.isTeamLibraryPending());
+          setTeamMissing(true);
           return false;
         }
         savedSnapshot.current = snapshotOf(existingTeam);

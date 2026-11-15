@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TeamBuilder } from "../../../src/ui/components/pages/TeamBuilder";
 import {
   TeamRepository,
+  saveTeams,
   setTeamLibraryPending,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
@@ -132,6 +133,36 @@ describe("TeamBuilder loading a team from its route", () => {
     expect(library.saves[0].map((team) => team.id)).toEqual(["cloud-humans"]);
     expect(library.saves[0][0].name).toBe("Cloud Humans");
     expect(container.textContent).toContain("Team management");
+  });
+
+  it("waits for the cloud copy instead of editing an older local copy of the same team", async () => {
+    const staleLocal = new TeamTestBuilder()
+      .withId("cloud-humans")
+      .withName("Stale Local Humans")
+      .withPlayers(2)
+      .build();
+    saveTeams([staleLocal]);
+    setTeamLibraryPending(true);
+    await renderRoute("/build-team/cloud-humans");
+
+    expect(container.textContent).toContain("Loading team");
+    expect(
+      [...container.querySelectorAll("input")].some(
+        (input) => input.value === "Stale Local Humans"
+      )
+    ).toBe(false);
+    expect(container.textContent).not.toContain("Save Team");
+
+    const { library, repository } = cloudLibrary([savedHumans()]);
+    await act(async () => setTeamRepository(repository));
+    expect(teamNameField()).toBeDefined();
+    expect(container.textContent).toContain("4/11");
+
+    await act(async () => button(/Save Team/).click());
+    expect(library.saves).toHaveLength(1);
+    expect(
+      library.saves[0].map((team) => [team.id, team.name, team.players.length])
+    ).toEqual([["cloud-humans", "Cloud Humans", 4]]);
   });
 
   it("still starts a new team from the new-team route", async () => {

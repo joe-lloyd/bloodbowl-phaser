@@ -48,7 +48,7 @@ For a signed-in user, saved teams SHALL persist to that user's Firestore team li
 
 - **WHEN** a signed-in user refreshes or directly opens an existing team's edit page (`/build-team/<team id>`) before their cloud library has loaded
 - **THEN** the page shows a loading state, then that team by its ID once the library arrives, and saving it updates the same team
-- **AND** the page never starts a new team, offers the roster picker, or shows any other team in its place
+- **AND** the page never starts a new team, offers the roster picker, or shows any other team (or an older local copy of this team) in its place
 
 #### Scenario: Editing a team that is not in the library
 

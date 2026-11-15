@@ -187,6 +187,9 @@ export async function migrateLocalTeams(
  * swap in the cloud repository. Signed out: restore localStorage. While the
  * session is still restoring, or the cloud library is still loading, the
  * library is marked pending so a page asking for one team waits for it.
+ * Each auth change starts a new library load; only the latest one may
+ * install a library or settle the pending state, so a slow fetch from an
+ * earlier sign-in can neither end a newer load nor outlive a sign-out.
  */
 export function connectTeamPersistenceToAuth(
   confirmMigration: (count: number) => boolean = (count) =>
@@ -195,7 +198,10 @@ export function connectTeamPersistenceToAuth(
         `Upload ${count === 1 ? "it" : "them"} to your cloud team library?`
     )
 ): void {
+  let latestLoad = 0;
   subscribeToAuth((user) => {
+    const load = ++latestLoad;
+    const isCurrent = () => load === latestLoad;
     if (!user) {
       // A null user before Firebase has reported may be a session that is
       // still restoring, whose cloud library is yet to arrive.
@@ -207,18 +213,20 @@ export function connectTeamPersistenceToAuth(
     void (async () => {
       try {
         const cloudTeams = await fetchCloudTeams(user.uid);
+        if (!isCurrent()) return;
         const migrated = await migrateLocalTeams(
           user.uid,
           cloudTeams,
           confirmMigration
         );
+        if (!isCurrent()) return;
         setTeamRepository(
           new CloudTeamRepository(user.uid, [...cloudTeams, ...migrated])
         );
       } catch (error) {
         console.error("Failed to load cloud team library:", error);
         // Nothing else is coming, so pages waiting for a team decide now.
-        setTeamLibraryPending(false);
+        if (isCurrent()) setTeamLibraryPending(false);
       }
     })();
   });
