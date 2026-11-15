@@ -394,6 +394,39 @@ function announce(context: FlowContext, text: string): void {
   context.eventBus.emit(GameEventNames.UI_GameLog, text);
 }
 
+/** Stiletto grants Stab, Blessing of Nuffle Pro, to a random player. */
+function blessRandomPlayer(
+  context: FlowContext,
+  team: Team,
+  pool: Player[],
+  prayer: PrayerToNuffle.STILETTO | PrayerToNuffle.BLESSING_OF_NUFFLE
+): void {
+  const state = context.gameService.getState();
+  const dice = context.gameService.getDiceController();
+  const skill =
+    prayer === PrayerToNuffle.STILETTO ? SkillType.STAB : SkillType.PRO;
+  const player = randomPlayer(dice, pool, prayer, team.id);
+  if (player && grantSkill(state, player, skill)) {
+    announce(context, `${prayer}: ${player.playerName} gains ${skill}`);
+  }
+}
+
+/** Grant the chosen player a prayer's skill, and say so if it took. */
+function grantChosenSkill(
+  context: FlowContext,
+  state: GameState,
+  player: Player | undefined,
+  grant: { skill: SkillType; prayerName: string }
+): void {
+  const { skill, prayerName } = grant;
+  if (player && grantSkill(state, player, skill)) {
+    announce(context, `${prayerName}: ${player.playerName} gains ${skill}`);
+  }
+}
+
+const primarySkills = (player: Player) =>
+  eligibleSkills(player, player.primary ?? []);
+
 async function applyPrayer(
   context: FlowContext,
   team: Team,
@@ -409,15 +442,9 @@ async function applyPrayer(
       announce(context, `${team.name} prayed for ${prayer}`);
       return;
     case PrayerToNuffle.STILETTO:
-    case PrayerToNuffle.BLESSING_OF_NUFFLE: {
-      const skill =
-        prayer === PrayerToNuffle.STILETTO ? SkillType.STAB : SkillType.PRO;
-      const player = randomPlayer(dice, pool, prayer, team.id);
-      if (player && grantSkill(state, player, skill)) {
-        announce(context, `${prayer}: ${player.playerName} gains ${skill}`);
-      }
+    case PrayerToNuffle.BLESSING_OF_NUFFLE:
+      blessRandomPlayer(context, team, pool, prayer);
       return;
-    }
     case PrayerToNuffle.IRON_MAN: {
       const options = pool.filter((p) => p.stats.AV < 11);
       if (options.length === 0) return;
@@ -428,9 +455,10 @@ async function applyPrayer(
         optional: false,
       });
       const player = options.find((p) => p.id === answer.playerId);
-      if (!player) return;
-      grantStat(state, player, "AV", 1);
-      announce(context, `Iron Man: ${player.playerName} gains +1 AV`);
+      if (player) {
+        grantStat(state, player, "AV", 1);
+        announce(context, `Iron Man: ${player.playerName} gains +1 AV`);
+      }
       return;
     }
     case PrayerToNuffle.KNUCKLE_DUSTERS: {
@@ -444,19 +472,18 @@ async function applyPrayer(
         playerIds: options.map((p) => p.id),
         optional: false,
       });
-      const player = options.find((p) => p.id === answer.playerId);
-      if (player && grantSkill(state, player, SkillType.MIGHTY_BLOW)) {
-        announce(
-          context,
-          `Knuckle Dusters: ${player.playerName} gains Mighty Blow`
-        );
-      }
+      grantChosenSkill(
+        context,
+        state,
+        options.find((p) => p.id === answer.playerId),
+        { skill: SkillType.MIGHTY_BLOW, prayerName: "Knuckle Dusters" }
+      );
       return;
     }
     case PrayerToNuffle.INTENSIVE_TRAINING: {
       const player = randomPlayer(dice, pool, prayer, team.id);
       if (!player) return;
-      const skills = eligibleSkills(player, player.primary ?? []);
+      const skills = primarySkills(player);
       if (skills.length === 0) return;
       const answer = await choose(context, {
         kind: "intensive-training",
@@ -466,12 +493,11 @@ async function applyPrayer(
         optional: false,
       });
       const skill = skills.find((s) => s === answer.skill);
-      if (skill && grantSkill(state, player, skill)) {
-        announce(
-          context,
-          `Intensive Training: ${player.playerName} gains ${skill}`
-        );
-      }
+      if (skill)
+        grantChosenSkill(context, state, player, {
+          skill,
+          prayerName: "Intensive Training",
+        });
       return;
     }
   }
@@ -660,20 +686,20 @@ export function validChoiceAnswer(
   if (!request.playerIds.includes(answer.playerId)) return null;
   switch (request.kind) {
     case "intensive-training":
-      return answer.skill !== undefined &&
-        request.skills?.includes(answer.skill)
-        ? answer
-        : null;
+      return offered(answer.skill, request.skills) ? answer : null;
     case "you-dope":
-      return answer.stat !== undefined && request.stats?.includes(answer.stat)
-        ? answer
-        : null;
+      return offered(answer.stat, request.stats) ? answer : null;
     case "iron-man":
     case "knuckle-dusters":
     case "hangover":
     case "team-captain":
       return answer;
   }
+}
+
+/** The answer names one of the request's options. */
+function offered<T>(choice: T | undefined, options: T[] | undefined): boolean {
+  return choice !== undefined && !!options?.includes(choice);
 }
 
 /** No spell keeps the wizard; Zap! names an offered player, Fireball a square. */
