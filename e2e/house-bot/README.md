@@ -24,9 +24,14 @@ If no bot is waiting it says so.
   lobby waits for a guest, the app writes the code to `houseBots/{uid}`
   every minute. Any signed-in coach may read it. An announcement older
   than three minutes is ignored.
-- The page loads the app from a Vite dev server on old-mac, because the AI
-  driver (`e2e/fullgame/brain.ts`) imports the running engine from it. That
-  server reads the production Firebase config from `.env`.
+- The bot's browser flag enables the same planner and paced command loop
+  as the local Standard computer opponent. Its choices go through the
+  online session, including block dice, pushes, follow-ups and re-rolls.
+  Both peers execute the same commands and check their resulting states.
+- The runner handles sign-in, lobby hosting, the opening toss and leaving
+  full time. It does not choose moves or translate them into board clicks.
+  The page loads a Vite dev server on old-mac with the production Firebase
+  config from `.env`.
 - The bot's team, House Bot Orcs, uses Matched Play, so it owes no skill
   pick after a game and can start the next one at once.
 - If the other coach ends the match early, the bot agrees and hosts the

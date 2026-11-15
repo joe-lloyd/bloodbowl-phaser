@@ -34,6 +34,7 @@ import { OnlineCoinFlip } from "./OnlineCoinFlip";
 import { TurnClock } from "./TurnClock";
 import { RefusalNotice } from "../components/hud/RefusalNotice";
 import { MatchBanner } from "./ConnectionBanner";
+import { isHouseBotBrowser } from "../../firebase/houseBot";
 
 interface OnlinePlayPageProps {
   eventBus: EventBus;
@@ -87,6 +88,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           user,
           eventBus,
           seed,
+          computer: isHouseBotBrowser() ? {} : undefined,
         });
         created.onFatalError((message) => setError(message));
         matchRef.current = created;
@@ -245,6 +247,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         progressionEnabled={lobby?.settings.progressionEnabled ?? false}
         competitionContext={lobby?.competitionContext}
         onlineMenu={onlineMenu}
+        resumed={!!lobby?.snapshot}
       />
       <MatchBanner
         match={match}

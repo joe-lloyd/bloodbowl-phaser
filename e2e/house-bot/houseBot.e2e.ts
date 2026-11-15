@@ -2,7 +2,8 @@
  * The house bot. One browser, signed in with the bot's own email and
  * password, hosts an online game on the production backend and announces
  * its lobby. An admin joins it from the main menu ("Play the House Bot")
- * and plays the scripted AI. At full time the bot hosts the next game.
+ * and plays the same planner as a local computer opponent. At full time
+ * the bot hosts the next game.
  *
  * `pnpm house-bot` runs the bot until it is stopped. See README.md beside
  * this file.
@@ -20,16 +21,7 @@ import { homedir } from "node:os";
 import { dirname } from "node:path";
 import { GameApp } from "../support/pages/game";
 import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
-import {
-  answerDialog,
-  brainCall,
-  brainNext,
-  buildTeam,
-  clickIf,
-  perform,
-  Recorder,
-  riskyMoveConfirm,
-} from "../fullgame/driver";
+import { buildTeam, clickIf, Recorder } from "../fullgame/driver";
 
 const PORT = Number(process.env.HOUSE_BOT_PORT ?? 5299);
 const APP_URL = `http://localhost:${PORT}`;
@@ -210,62 +202,16 @@ async function answerPrompt(page: Page): Promise<boolean> {
   );
 }
 
-type Next = Awaited<ReturnType<typeof brainNext>>;
-
-/** The AI's next move, or null when there is none for the bot to make. */
-async function nextMove(page: Page, app: GameApp, i: number) {
-  const next = await brainNext(page).catch(() => null);
-  if (next?.over) return "full time" as const;
-  if (!(await brainCall(page, "mayAct").catch(() => false))) return null;
-  if (await riskyMoveConfirm(page, rec)) return null;
-  if (await answerDialog(page, app, i, rec)) return null;
-  const waiting = (next as { waiting?: boolean } | null)?.waiting;
-  return next?.candidate && !waiting
-    ? { next, candidate: next.candidate }
-    : null;
-}
-
-/**
- * The scripted AI plays every move that is the bot's to make, until full
- * time or until the match ends early and the page leaves it.
- */
+/** The app's shared computer coach plays; the runner only handles the lobby and toss. */
 async function playMatch(page: Page): Promise<"full time" | "ended"> {
   const app = new GameApp(page);
-  let kicked = false;
-  for (let i = 0; ; i++) {
+  for (;;) {
     await page.waitForTimeout(250);
     if (!page.url().includes("/online/play/")) return "ended";
     if (await answerPrompt(page)) continue;
-    const move = await nextMove(page, app, i);
-    if (move === "full time") return move;
-    if (!move) continue;
-    const { next, candidate } = move;
-    // The kick is made once; the board takes a while to show it
-    const kick = candidate.commands[0]?.type === "kick-ball";
-    if (kick && kicked) continue;
-    const played = await play(page, app, i, next, candidate);
-    // Only a kick that went through counts; a failed one is tried again
-    kicked = (kick && played) || (kicked && next.phase !== "PLAY");
+    const state = await app.bridge.phase().catch(() => null);
+    if (state?.phase === "GAME_OVER") return "full time";
   }
-}
-
-async function play(
-  page: Page,
-  app: GameApp,
-  i: number,
-  next: Next,
-  candidate: NonNullable<Next["candidate"]>
-): Promise<boolean> {
-  log(`${i} ${next.phase}/${next.subPhase ?? "-"} :: ${candidate.label}`);
-  const played = await perform(page, app, candidate.commands, next, rec).then(
-    () => true,
-    (error: Error) => {
-      log(`${i} move failed: ${error.message.split("\n")[0]}`);
-      return false;
-    }
-  );
-  if (next.pending) await brainCall(page, "clearPending");
-  return played;
 }
 
 /** MVP, SPP and back to the menu, as a coach would. */

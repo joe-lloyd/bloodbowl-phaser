@@ -42,6 +42,11 @@ import { PROTOCOL_VERSION } from "./envelope";
 import { LobbyDoc, persistMatch } from "../firebase/lobby";
 import { AuthUser } from "../firebase/auth";
 import { fixturePaysWinnings } from "../game/rules/winnings";
+import {
+  ComputerCoachOptions,
+  createComputerCoach,
+  computerOwnsDecision,
+} from "./computerCoach";
 
 export interface ChatMessage {
   text: string;
@@ -198,6 +203,8 @@ interface CreateMatchOptions {
   seed: number;
   /** Override for tests (defaults to FirestoreTransport on the lobby code) */
   transport?: Transport;
+  /** Use the local computer's planner for this browser's own online team. */
+  computer?: Pick<ComputerCoachOptions, "coach" | "pace">;
 }
 
 /** What a pending decision has its deciding coach doing, for the banner. */
@@ -566,7 +573,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     (prompt) => void session!.sendPrompt(prompt)
   );
 
-  return finishMatch({
+  const match = finishMatch({
     role: isHost ? "host" : "guest",
     pendingDecision: () => game.pendingDecision(),
     sendChatRaw: (text) => void session!.sendChat(text, myName),
@@ -577,6 +584,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     run: runOwn,
     saveState: saveNow,
     close: () => {
+      computerCoach?.close();
       unsubscribeSelectionForwarding();
       unsubscribePromptForwarding();
       // Queued lockstep work still runs. It keeps the match's listeners, so
@@ -588,6 +596,30 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       void session!.whenIdle().finally(() => eventBus.dispose());
     },
   });
+
+  const computerCoach = options.computer
+    ? createComputerCoach({
+        ...options.computer,
+        game,
+        eventBus,
+        computerTeamId: myTeamId,
+        mayAct: () =>
+          match.mayAct() && computerOwnsDecision(game, myTeamId, team1.id),
+        run: (command) => {
+          if (command.type === "declare-action")
+            void session!.sendSelection(command.playerId);
+          if (command.type === "end-activation" || command.type === "end-turn")
+            void session!.sendSelection(null);
+          return runOwn(command);
+        },
+      })
+    : null;
+  if (computerCoach) {
+    if (saved)
+      eventBus.once(GameEventNames.GameStateRestored, computerCoach.start);
+    else computerCoach.start();
+  }
+  return match;
 
   // ===== Shared assembly =====
 
