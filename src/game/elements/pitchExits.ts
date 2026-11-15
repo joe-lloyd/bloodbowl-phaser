@@ -2,7 +2,12 @@ import Phaser from "phaser";
 import { Player, PlayerStatus } from "../../types/Player";
 import { TeamColors } from "../../types/Team";
 import { PlayerSprite, PLAYER_DEPTH } from "./PlayerSprite";
-import { BoardPoint, walkingSteps } from "../presentation/sidelineRoutes";
+import {
+  BoardPoint,
+  BoardProjection,
+  carrierProjection,
+  walkingSteps,
+} from "../presentation/sidelineRoutes";
 import { facingForStep } from "../presentation/playerArt";
 import { SidelineStaffSprite } from "./SidelineStaffSprite";
 
@@ -31,6 +36,11 @@ export function pitchExitFor(player: Player): PitchExit {
 
 /** World pixels a stretcher crew covers each second. */
 const CARRY_SPEED = 280;
+
+interface Carrier {
+  prop: Phaser.GameObjects.Container;
+  draw: (project: BoardProjection) => void;
+}
 
 /**
  * A walk follows the touchline route. A medical crew comes from the box
@@ -72,8 +82,9 @@ export function playPitchExit(
       return;
     }
     if (exit === "injured") leaveBlood(scene, route[0]);
-    const prop =
+    const carrier =
       exit === "dead" ? coffin(scene) : stretcher(scene, exit === "injured");
+    const { prop } = carrier;
     const to = route[route.length - 1];
     prop.setPosition(to.x, to.y).setDepth(PLAYER_DEPTH + to.y - 1);
     const stars = exit === "knockedOut" ? seeingStars(scene, sprite) : null;
@@ -99,13 +110,13 @@ export function playPitchExit(
       }
     });
     // The patient stays where they fell until the empty stretcher arrives.
-    await moveCarrier(scene, prop, medics, [...route].reverse());
+    await moveCarrier(scene, carrier, medics, [...route].reverse());
     if (stopped) return;
     medics.forEach((medic) => medic.stand());
     if (exit === "dead") sprite.setVisible(false);
     await moveCarrier(
       scene,
-      prop,
+      carrier,
       medics,
       route,
       sprite,
@@ -126,100 +137,127 @@ export function playPitchExit(
 
 function moveCarrier(
   scene: Phaser.Scene,
-  prop: Phaser.GameObjects.Container,
+  carrier: Carrier,
   medics: SidelineStaffSprite[],
   route: readonly BoardPoint[],
   patient?: PlayerSprite,
   stars?: Phaser.GameObjects.Text | null,
   coffinOnly = false
 ): Promise<void> {
+  const { prop } = carrier;
   return new Promise((resolve) => {
     scene.tweens.chain({
       targets: patient && !coffinOnly ? [prop, patient] : [prop],
-      tweens: route.slice(1).map((to, i) => ({
-        x: to.x,
-        y: to.y,
-        duration:
-          (Math.hypot(to.x - route[i].x, to.y - route[i].y) / CARRY_SPEED) *
-          1000,
-        // Pause at the pickup, while the patient is put on the stretcher.
-        delay: patient && i === 0 ? 350 : 0,
-        ease: "Linear",
-        onStart: () => {
-          const facing = facingForStep(to.x - route[i].x, to.y - route[i].y);
-          if (facing) medics.forEach((medic) => medic.walk(facing));
-        },
-        onUpdate: () => {
-          prop.setDepth(PLAYER_DEPTH + prop.y - (coffinOnly ? 0 : 1));
+      tweens: route.slice(1).map((to, i) => {
+        const project = carrierProjection(route[i], to);
+        const placeMedics = () => {
           medics.forEach((medic, index) => {
-            const side = index === 0 ? -1 : 1;
-            medic.setPosition(prop.x + side * 34, prop.y + side * 9);
+            const offset = project(index === 0 ? -48 : 48, 0);
+            medic.setPosition(prop.x + offset.x, prop.y + offset.y);
           });
-          if (patient && stars) {
-            stars.setPosition(
-              patient.x,
-              patient.y + patient.getHeadOffset() - 4
-            );
-            stars.setDepth(PLAYER_DEPTH + patient.y + 1);
-          }
-        },
-      })),
+        };
+        return {
+          x: to.x,
+          y: to.y,
+          duration:
+            (Math.hypot(to.x - route[i].x, to.y - route[i].y) / CARRY_SPEED) *
+            1000,
+          // Pause at the pickup, while the patient is put on the stretcher.
+          delay: patient && i === 0 ? 350 : 0,
+          ease: "Linear",
+          onStart: () => {
+            carrier.draw(project);
+            placeMedics();
+            const facing = facingForStep(to.x - route[i].x, to.y - route[i].y);
+            if (facing) {
+              medics.forEach((medic) => medic.walk(facing));
+              patient?.setFacing(facing);
+            }
+          },
+          onUpdate: () => {
+            prop.setDepth(PLAYER_DEPTH + prop.y - (coffinOnly ? 0 : 1));
+            placeMedics();
+            if (patient && stars) {
+              stars.setPosition(
+                patient.x,
+                patient.y + patient.getHeadOffset() - 4
+              );
+              stars.setDepth(PLAYER_DEPTH + patient.y + 1);
+            }
+          },
+        };
+      }),
       onComplete: () => resolve(),
     });
   });
 }
 
 /** Two poles and a canvas bed, under a player lying on it. */
-function stretcher(
-  scene: Phaser.Scene,
-  medical: boolean
-): Phaser.GameObjects.Container {
-  const bed = scene.add.graphics();
-  // The canvas: grey for a KO, white with a red cross for a casualty
-  bed.fillStyle(0x000000, 0.35);
-  bed.fillEllipse(0, 4, 66, 20);
-  bed.lineStyle(4, 0x5b3a1e, 1);
-  bed.lineBetween(-36, -4, 32, 10);
-  bed.lineBetween(-32, -12, 36, 2);
-  bed.fillStyle(medical ? 0xf3efe6 : 0x9a9488, 1);
-  bed.fillPoints(
-    [
-      new Phaser.Math.Vector2(-26, -9),
-      new Phaser.Math.Vector2(28, 1),
-      new Phaser.Math.Vector2(24, 8),
-      new Phaser.Math.Vector2(-30, -2),
-    ],
-    true
-  );
-  if (medical) {
-    bed.fillStyle(0xd0021b, 1);
-    bed.fillRect(-2, -6, 4, 12);
-    bed.fillRect(-7, -2, 14, 4);
-  }
-  return scene.add.container(0, 0, [bed]);
+function stretcher(scene: Phaser.Scene, medical: boolean): Carrier {
+  const bed = scene.add.graphics().setPosition(0, -14);
+  const shadow = scene.add.ellipse(0, 4, 66, 20, 0x000000, 0.35);
+  return {
+    prop: scene.add.container(0, 0, [shadow, bed]),
+    draw: (project) => {
+      bed.clear();
+      // The canvas: grey for a KO, white with a red cross for a casualty
+      bed.lineStyle(4, 0x5b3a1e, 1);
+      for (const side of [-10, 10]) {
+        const from = project(-44, side);
+        const to = project(44, side);
+        bed.lineBetween(from.x, from.y, to.x, to.y);
+      }
+      bed.fillStyle(medical ? 0xf3efe6 : 0x9a9488, 1);
+      bed.fillPoints(
+        [project(-34, -9), project(34, -9), project(34, 9), project(-34, 9)],
+        true
+      );
+      if (medical) {
+        bed.fillStyle(0xd0021b, 1);
+        bed.fillPoints(
+          [project(-9, -3), project(9, -3), project(9, 3), project(-9, 3)],
+          true
+        );
+        bed.fillPoints(
+          [project(-3, -9), project(3, -9), project(3, 9), project(-3, 9)],
+          true
+        );
+      }
+    },
+  };
 }
 
 /** A plain wooden coffin with a cross on the lid. */
-function coffin(scene: Phaser.Scene): Phaser.GameObjects.Container {
-  const box = scene.add.graphics();
-  box.fillStyle(0x000000, 0.4);
-  box.fillEllipse(0, 6, 70, 22);
-  const lid = [
-    [-34, -2],
-    [-20, -14],
-    [30, -4],
-    [34, 2],
-    [20, 12],
-    [-28, 4],
-  ].map(([x, y]) => new Phaser.Math.Vector2(x, y - 10));
-  box.fillStyle(0x4a2d16, 1);
-  box.fillPoints(lid, true);
-  box.lineStyle(2, 0x24150a, 1);
-  box.strokePoints(lid, true);
-  box.lineStyle(3, 0xd9c7a0, 1);
-  box.lineBetween(-8, -16, 12, -8);
-  box.lineBetween(-6, -8, 4, -16);
-  return scene.add.container(0, 0, [box]);
+function coffin(scene: Phaser.Scene): Carrier {
+  const box = scene.add.graphics().setPosition(0, -14);
+  const shadow = scene.add.ellipse(0, 6, 70, 22, 0x000000, 0.4);
+  return {
+    prop: scene.add.container(0, 0, [shadow, box]),
+    draw: (project) => {
+      box.clear();
+      const lid = [
+        [-38, -8],
+        [-24, -13],
+        [32, -13],
+        [38, 0],
+        [32, 13],
+        [-24, 13],
+      ].map(([x, y]) => project(x, y));
+      box.fillStyle(0x4a2d16, 1);
+      box.fillPoints(lid, true);
+      box.lineStyle(2, 0x24150a, 1);
+      box.strokePoints(lid, true);
+      box.lineStyle(3, 0xd9c7a0, 1);
+      const cross = [
+        project(-12, 0),
+        project(12, 0),
+        project(0, -7),
+        project(0, 7),
+      ];
+      box.lineBetween(cross[0].x, cross[0].y, cross[1].x, cross[1].y);
+      box.lineBetween(cross[2].x, cross[2].y, cross[3].x, cross[3].y);
+    },
+  };
 }
 
 /** Stars circling the head of a player who has been knocked out. */
