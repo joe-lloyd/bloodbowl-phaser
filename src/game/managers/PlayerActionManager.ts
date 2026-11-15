@@ -160,52 +160,31 @@ export class PlayerActionManager {
 
     switch (action) {
       case "blitz":
-        if (turn.hasBlitzed) return false;
-        break;
+        return !turn.hasBlitzed;
       case "pass":
-        if (turn.hasPassed) return false;
-        break;
-      case "punt":
-        break;
+        return !turn.hasPassed;
       case "handoff":
-        if (turn.hasHandedOff) return false;
-        break;
+        return !turn.hasHandedOff;
       case "foul": {
         const fouler = this.getPlayer(playerId);
-        if (!fouler || foulSpent(this.state, fouler.teamId)) return false;
-        break;
+        return !!fouler && !foulSpent(this.state, fouler.teamId);
       }
-      case "move":
-      case "block":
-      case "multipleBlock":
-      case "standUp":
-      case "secureBall":
-      case "forgoe":
-      case "special":
-      case "stab":
-      case "breatheFire":
-      case "vomit":
-      case "gaze":
-      case "chomp":
-      case "chainsaw":
-        // Always allowed if general activation is allowed (Stab: "there is
-        // no limit to the number of players that can declare this Special
-        // Action each Turn")
-        break;
       case "throwTeamMate":
         // "Only a single Throw Team-mate Action can be declared each Turn"
         // (p.55); a Kick Team-mate is its own once-per-Turn Special Action
         // (p.131). Neither is a Pass.
-        if (!this.teamMateThrowLimit(playerId)) return false;
-        break;
+        return this.teamMateThrowLimit(playerId) !== null;
       case "throwBomb":
         // Bombardier: "only one player can declare this Special Action
         // each Turn" (p.125).
-        if (turn.hasThrownBomb) return false;
-        break;
+        return !turn.hasThrownBomb;
+      default:
+        // Punt, Move, Block, Stab and the other Special Actions are always
+        // allowed if general activation is allowed (Stab: "there is no
+        // limit to the number of players that can declare this Special
+        // Action each Turn").
+        return true;
     }
-
-    return true;
   }
 
   /** Which unspent once-per-Turn limit this player's declaration uses. */

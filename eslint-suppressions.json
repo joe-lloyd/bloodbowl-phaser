@@ -180,16 +180,6 @@
       "count": 1
     }
   },
-  "src/game/managers/PlayerActionManager.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/game/managers/SetupManager.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/game/managers/moveAction.ts": {
     "complexity": {
       "count": 1

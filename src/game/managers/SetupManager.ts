@@ -285,15 +285,14 @@ export class SetupManager {
       );
     }
 
-    if (pos1 && pos2) {
-      this.placedPlayers.set(player1Id, pos2);
-      this.placedPlayers.set(player2Id, pos1);
-    } else if (pos1) {
-      this.placedPlayers.set(player2Id, pos1);
-      this.placedPlayers.delete(player1Id);
-    } else if (pos2) {
-      this.placedPlayers.set(player1Id, pos2);
-      this.placedPlayers.delete(player2Id);
+    // Each takes the other's square; one that had none leaves the pitch.
+    const exchanged = [
+      [player1Id, pos2],
+      [player2Id, pos1],
+    ] as const;
+    for (const [playerId, position] of exchanged) {
+      if (position) this.placedPlayers.set(playerId, position);
+      else this.placedPlayers.delete(playerId);
     }
     for (const player of [player1, player2]) {
       const position = this.placedPlayers.get(player.id);
