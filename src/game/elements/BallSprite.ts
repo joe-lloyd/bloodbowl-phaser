@@ -97,9 +97,7 @@ export class BallSprite extends Phaser.GameObjects.Container {
           this.trail.addPoint(this.x, this.y + this.ball.y);
         },
         onComplete: () => {
-          this.trail.endFlight(
-            end === 0 ? { x: this.x, y: this.y } : undefined
-          );
+          this.trail.endFlight();
           settle();
         },
       });
