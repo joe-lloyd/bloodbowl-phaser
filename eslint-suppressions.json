@@ -491,21 +491,6 @@
       "count": 1
     }
   },
-  "src/ui/pages/GamePage.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/pages/OnlineCoinFlip.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/pages/OnlinePlayPage.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/ui/pages/TurnClock.tsx": {
     "complexity": {
       "count": 2

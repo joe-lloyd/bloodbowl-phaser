@@ -36,6 +36,42 @@ interface GamePageProps {
   resumed?: boolean;
 }
 
+/** What local play passes to this page through the router. */
+interface RouteState {
+  team1?: Team;
+  team2?: Team;
+  competitionContext?: CompetitionContext;
+  progressionEnabled?: boolean;
+  pitchThemeId?: string;
+  resumeSave?: MatchSave;
+}
+
+/** The competition fixture this match plays, from props, save or router. */
+function fixtureContextFor(
+  competitionContext: CompetitionContext | undefined,
+  resumeSave: MatchSave | undefined,
+  routeState: RouteState
+): CompetitionContext | null {
+  return (
+    competitionContext ??
+    resumeSave?.competition ??
+    routeState.competitionContext ??
+    null
+  );
+}
+
+/** The teams of a resumed save, else the teams the router brought. */
+function savedOrRoutedTeams(
+  resumeSave: MatchSave | undefined,
+  routeState: RouteState
+): { team1: Team; team2: Team } | undefined {
+  if (resumeSave)
+    return { team1: resumeSave.teams[0], team2: resumeSave.teams[1] };
+  return routeState.team1 && routeState.team2
+    ? { team1: routeState.team1, team2: routeState.team2 }
+    : undefined;
+}
+
 /**
  * GamePage - Manages Phaser game lifecycle
  * Initializes Phaser on mount, destroys on unmount
@@ -53,15 +89,7 @@ export function GamePage({
   const gameRef = useRef<Phaser.Game | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const routeState =
-    (location.state as {
-      team1?: Team;
-      team2?: Team;
-      competitionContext?: CompetitionContext;
-      progressionEnabled?: boolean;
-      pitchThemeId?: string;
-      resumeSave?: MatchSave;
-    } | null) ?? {};
+  const routeState = (location.state as RouteState | null) ?? {};
   // A match against the computer only resumes through its own page.
   const [persistedResumeSave] = useState(() => {
     if (teams || mode === "sandbox") return undefined;
@@ -69,22 +97,12 @@ export function GamePage({
     return save && !save.computer ? save : undefined;
   });
   const resumeSave = routeState.resumeSave ?? persistedResumeSave;
-  const fixtureContext =
-    competitionContext ??
-    resumeSave?.competition ??
-    routeState.competitionContext ??
-    null;
-  const matchTeams =
-    teams ??
-    (resumeSave
-      ? {
-          team1: resumeSave.teams[0],
-          team2: resumeSave.teams[1],
-        }
-      : undefined) ??
-    (routeState.team1 && routeState.team2
-      ? { team1: routeState.team1, team2: routeState.team2 }
-      : undefined);
+  const fixtureContext = fixtureContextFor(
+    competitionContext,
+    resumeSave,
+    routeState
+  );
+  const matchTeams = teams ?? savedOrRoutedTeams(resumeSave, routeState);
   const selectedPitchThemeId = resolvePitchTheme(
     pitchThemeId ??
       resumeSave?.presentation?.pitchThemeId ??

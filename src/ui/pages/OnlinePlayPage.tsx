@@ -171,23 +171,14 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     );
   }
 
-  const endRequestBy = lobby?.endRequestBy ?? null;
-  const opponentUid = lobby
-    ? user.uid === lobby.hostUid
-      ? lobby.guestUid
-      : lobby.hostUid
-    : null;
-  const connection =
-    lobby && opponentUid
-      ? describeConnection(lobby, opponentUid, link.state, now)
-      : "online";
-  // Play stops on both screens at once, from when the drop began as both
-  // coaches see it: the absent coach's last heartbeat the server holds
-  const ownSeen = Math.max(link.confirmedSeen ?? 0, ackedSeen) || null;
-  const hold =
-    lobby && opponentUid
-      ? playHold(lobby, opponentUid, { ...link, confirmedSeen: ownSeen }, now)
-      : null;
+  const endRequest = endRequestFrom(lobby, user.uid);
+  const { connection, hold } = opponentPresence(
+    lobby,
+    user.uid,
+    link,
+    ackedSeen,
+    now
+  );
 
   // A rejected Firestore write must not vanish silently (the coach would
   // have no idea their "End Match" click did nothing) nor drop them out of
@@ -210,12 +201,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         role: match.role,
         opponentName: match.opponentName,
         connection,
-        endRequest:
-          endRequestBy === null
-            ? "none"
-            : endRequestBy === user.uid
-              ? "mine"
-              : "theirs",
+        endRequest,
         onSaveAndExit: () => {
           // saveState() already swallows its own persistence failures (see
           // OnlineMatch's persistNow) — leaving is always safe here.
@@ -276,9 +262,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           match={match}
           eventBus={eventBus}
           user={user}
-          opponentAway={hold != null}
-          awaySince={hold?.since ?? null}
-          awayIsMe={hold?.absent === "me"}
+          {...awayProps(hold)}
           offline={connection === "offline"}
         />
       )}
@@ -298,7 +282,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
       {/* Blocking decision prompt — only for the side who must respond.
           The proposer's own "cancel" lives in the options menu instead, so
           proposing no longer locks the requester out of their own screen. */}
-      {endRequestBy && endRequestBy !== user.uid && code && (
+      {endRequest === "theirs" && code && (
         <EndMatchModal
           opponentName={match.opponentName}
           onAgree={() =>
@@ -315,6 +299,57 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
       )}
     </div>
   );
+}
+
+/** Whether either coach asked to end the match, from this coach's side. */
+function endRequestFrom(
+  lobby: LobbyDoc | null,
+  uid: string
+): OnlineMatchMenuProps["endRequest"] {
+  const endRequestBy = lobby?.endRequestBy ?? null;
+  if (endRequestBy === null) return "none";
+  return endRequestBy === uid ? "mine" : "theirs";
+}
+
+/**
+ * The other coach's connection as this screen sees it, and the hold on
+ * play while either coach is away.
+ */
+function opponentPresence(
+  lobby: LobbyDoc | null,
+  uid: string,
+  link: OwnLink,
+  ackedSeen: number,
+  now: number
+) {
+  const opponentUid = lobby
+    ? uid === lobby.hostUid
+      ? lobby.guestUid
+      : lobby.hostUid
+    : null;
+  if (!lobby || !opponentUid)
+    return { connection: "online" as const, hold: null };
+  // Play stops on both screens at once, from when the drop began as both
+  // coaches see it: the absent coach's last heartbeat the server holds
+  const ownSeen = Math.max(link.confirmedSeen ?? 0, ackedSeen) || null;
+  return {
+    connection: describeConnection(lobby, opponentUid, link.state, now),
+    hold: playHold(
+      lobby,
+      opponentUid,
+      { ...link, confirmedSeen: ownSeen },
+      now
+    ),
+  };
+}
+
+/** The turn clock's view of a hold: who is away, and since when. */
+function awayProps(hold: ReturnType<typeof playHold>) {
+  return {
+    opponentAway: hold != null,
+    awaySince: hold?.since ?? null,
+    awayIsMe: hold?.absent === "me",
+  };
 }
 
 /** Blocking prompt shown to the coach who must respond to an end-match
