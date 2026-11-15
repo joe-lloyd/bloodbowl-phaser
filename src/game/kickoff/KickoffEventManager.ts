@@ -18,8 +18,6 @@ import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
 import { DiceController } from "../controllers/DiceController";
 import { WeatherManager } from "../managers/WeatherManager";
-import { inducementCount } from "../inducements/inventory";
-import { Inducement } from "@/types/Inducements";
 import { GameConfig } from "@/config/GameConfig";
 import { SetupValidator } from "../validators/SetupValidator";
 import {
@@ -32,9 +30,7 @@ import {
   isOneSquareMoveEvent,
   kickoffEventOwner,
 } from "./kickoffEvents";
-import {
-  getDriveEffects,
-} from "./driveEffects";
+import { kickoffEventResolvers } from "./kickoffResolvers";
 
 export interface ChargeBudget {
   blitz: number;
@@ -70,19 +66,6 @@ interface StepResolver {
   (skipped: boolean): void;
 }
 
-/** Context handed to each resolver: teams + the outcome being built. */
-export interface KickoffEventResolverContext {
-  isTeam1Kicking: boolean;
-  kickingTeam: Team;
-  receivingTeam: Team;
-  outcome: KickoffEventOutcome;
-}
-
-type KickoffEventResolver = (ctx: KickoffEventResolverContext) => void;
-
-/** Weather-table results 4-10 are Perfect Conditions (logged as "Nice"). */
-export const PERFECT_CONDITIONS = "Nice";
-
 export class KickoffEventManager {
   private step: KickoffEventStepState | null = null;
   private stepResolver: StepResolver | null = null;
@@ -92,7 +75,7 @@ export class KickoffEventManager {
   private chargePreviousActiveTeamId: string | null = null;
   private readonly setupValidator = new SetupValidator();
 
-  private readonly resolvers: Record<KickoffEvent, KickoffEventResolver>;
+  private readonly resolvers: ReturnType<typeof kickoffEventResolvers>;
 
   constructor(
     private eventBus: IEventBus,
@@ -100,26 +83,23 @@ export class KickoffEventManager {
     private team1: Team,
     private team2: Team,
     private diceController: DiceController,
-    private weatherManager: WeatherManager,
-    private callbacks: {
+    weatherManager: WeatherManager,
+    callbacks: {
       getTurnNumber: (teamId: string) => number;
       moveTurnMarkers: (delta: number) => void;
     }
   ) {
-    this.resolvers = {
-      [KickoffEvent.GET_THE_REF]: (ctx) => this.resolveGetTheRef(ctx),
-      [KickoffEvent.TIME_OUT]: (ctx) => this.resolveTimeOut(ctx),
-      [KickoffEvent.ALERT_DEFENCE]: () => {},
-      [KickoffEvent.HIGH_KICK]: () => {},
-      [KickoffEvent.CHEERING_FANS]: (ctx) => this.resolveCheeringFans(ctx),
-      [KickoffEvent.BRILLIANT_COACHING]: (ctx) =>
-        this.resolveBrilliantCoaching(ctx),
-      [KickoffEvent.CHANGING_WEATHER]: (ctx) => this.resolveChangingWeather(ctx),
-      [KickoffEvent.QUICK_SNAP]: () => {},
-      [KickoffEvent.CHARGE]: () => {},
-      [KickoffEvent.DODGY_SNACK]: (ctx) => this.resolveDodgySnack(ctx),
-      [KickoffEvent.PITCH_INVASION]: (ctx) => this.resolvePitchInvasion(ctx),
-    };
+    this.resolvers = kickoffEventResolvers({
+      eventBus,
+      state,
+      diceController,
+      weatherManager,
+      getTurnNumber: callbacks.getTurnNumber,
+      moveTurnMarkers: callbacks.moveTurnMarkers,
+      onWeatherScatter: () => {
+        this.weatherScatterPending = true;
+      },
+    });
   }
 
   // ===== Roll orchestration =====
@@ -268,246 +248,6 @@ export class KickoffEventManager {
     const pending = this.weatherScatterPending;
     this.weatherScatterPending = false;
     return pending;
-  }
-
-  // ===== Non-interactive resolvers =====
-
-  private resolveGetTheRef(ctx: KickoffEventResolverContext): void {
-    this.state.bribes ??= {};
-    for (const team of [ctx.kickingTeam, ctx.receivingTeam]) {
-      this.state.bribes[team.id] = (this.state.bribes[team.id] ?? 0) + 1;
-      grantEffect(ctx.outcome, team.id, "gains a Bribe (lost at full time)");
-      this.eventBus.emit(GameEventNames.DriveEffectGranted, {
-        teamId: team.id,
-        effect: "bribe",
-        detail: "one Bribe, usable until the end of the match",
-      });
-    }
-  }
-
-  private resolveTimeOut(ctx: KickoffEventResolverContext): void {
-    const kickingTurn = this.callbacks.getTurnNumber(ctx.kickingTeam.id);
-    // Sevens K3: markers on 5 or 6 move back one; otherwise forward.
-    const delta = kickingTurn >= 5 ? -1 : 1;
-    this.callbacks.moveTurnMarkers(delta);
-    for (const team of [ctx.kickingTeam, ctx.receivingTeam]) {
-      grantEffect(
-        ctx.outcome,
-        team.id,
-        delta < 0 ? "turn marker moves back one" : "turn marker moves forward one"
-      );
-    }
-  }
-
-  /** Shared D6 + staff roll-off: returns the winning team ids (both on a tie). */
-  private staffRollOff(
-    label: string,
-    staffOf: (team: Team) => number,
-    teams: Team[]
-  ): { winners: Team[]; totals: Record<string, number> } {
-    const totals: Record<string, number> = {};
-    for (const team of teams) {
-      const modifier = staffOf(team);
-      const roll = this.diceController.rollD6(
-        `${label} — ${team.name}`,
-        team.id
-      );
-      totals[team.id] = roll + modifier;
-      this.eventBus.emit(
-        GameEventNames.UI_GameLog,
-        `${label} — ${team.name}: D6 ${roll} + ${modifier} = ${totals[team.id]}`
-      );
-    }
-    const [a, b] = teams;
-    const winners =
-      totals[a.id] === totals[b.id]
-        ? [a, b]
-        : [totals[a.id] > totals[b.id] ? a : b];
-    return { winners, totals };
-  }
-
-  /** Shared D6 + modifier roll-off where the lowest total is afflicted. */
-  private lowRollOff(
-    label: string,
-    modifierOf: (team: Team) => number,
-    teams: Team[]
-  ): { afflicted: Team[]; totals: Record<string, number> } {
-    const totals: Record<string, number> = {};
-    for (const team of teams) {
-      const modifier = modifierOf(team);
-      const roll = this.diceController.rollD6(
-        `${label} — ${team.name}`,
-        team.id
-      );
-      totals[team.id] = roll + modifier;
-      this.eventBus.emit(
-        GameEventNames.UI_GameLog,
-        `${label} — ${team.name}: D6 ${roll} + ${modifier} = ${totals[team.id]}`
-      );
-    }
-    const [a, b] = teams;
-    const afflicted =
-      totals[a.id] === totals[b.id]
-        ? [a, b]
-        : [totals[a.id] < totals[b.id] ? a : b];
-    return { afflicted, totals };
-  }
-
-  private resolveCheeringFans(ctx: KickoffEventResolverContext): void {
-    const { winners } = this.staffRollOff(
-      "Cheering Fans",
-      (team) =>
-        team.cheerleaders +
-        inducementCount(this.state, team.id, Inducement.TEMP_AGENCY_CHEERLEADER),
-      [ctx.kickingTeam, ctx.receivingTeam]
-    );
-    for (const team of winners) {
-      getDriveEffects(this.state).owedAssists[team.id] = {
-        turn: this.callbacks.getTurnNumber(team.id) + 1,
-        used: false,
-      };
-      grantEffect(
-        ctx.outcome,
-        team.id,
-        "owes an extra Offensive Assist to the first Block of its next turn"
-      );
-      this.eventBus.emit(GameEventNames.DriveEffectGranted, {
-        teamId: team.id,
-        effect: "offensive-assist",
-        detail: "+1 Offensive Assist on the first Block of your next turn",
-      });
-    }
-  }
-
-  private resolveBrilliantCoaching(ctx: KickoffEventResolverContext): void {
-    const { winners } = this.staffRollOff(
-      "Brilliant Coaching",
-      (team) =>
-        team.coaches +
-        inducementCount(
-          this.state,
-          team.id,
-          Inducement.PART_TIME_ASSISTANT_COACH
-        ),
-      [ctx.kickingTeam, ctx.receivingTeam]
-    );
-    for (const team of winners) {
-      const effects = getDriveEffects(this.state);
-      effects.freeRerolls[team.id] = (effects.freeRerolls[team.id] ?? 0) + 1;
-      grantEffect(ctx.outcome, team.id, "gains a free team re-roll for this drive");
-      this.eventBus.emit(GameEventNames.DriveEffectGranted, {
-        teamId: team.id,
-        effect: "free-reroll",
-        detail: "one free team re-roll for this drive",
-      });
-    }
-  }
-
-  private resolveChangingWeather(ctx: KickoffEventResolverContext): void {
-    const weather = this.weatherManager.rollWeather();
-    const note =
-      weather === PERFECT_CONDITIONS
-        ? "weather becomes Perfect Conditions — the kick Scatters (3) in the air"
-        : `weather becomes ${weather}`;
-    for (const team of [ctx.kickingTeam, ctx.receivingTeam]) {
-      grantEffect(ctx.outcome, team.id, note);
-    }
-    if (weather === PERFECT_CONDITIONS) {
-      this.weatherScatterPending = true;
-    }
-  }
-
-  /** Random player of `team` currently on the pitch (D6-indexed, logged). */
-  private randomPitchPlayer(team: Team, label: string): Player | undefined {
-    const onPitch = team.players.filter((player) => !!player.gridPosition);
-    if (onPitch.length === 0) return undefined;
-    // Rejection sampling over a D16 keeps every roster slot equally likely.
-    const acceptedRange = Math.floor(16 / onPitch.length) * onPitch.length;
-    let roll: number;
-    do {
-      roll = this.diceController.rollD16(
-        `${label} — ${team.name}`,
-        team.id
-      );
-    } while (roll > acceptedRange);
-    const index = (roll - 1) % onPitch.length;
-    return onPitch[index];
-  }
-
-  private resolveDodgySnack(ctx: KickoffEventResolverContext): void {
-    const { afflicted } = this.lowRollOff(
-      "Dodgy Snack",
-      () => 0,
-      [ctx.kickingTeam, ctx.receivingTeam]
-    );
-    for (const team of afflicted) {
-      const player = this.randomPitchPlayer(team, "Dodgy Snack player");
-      if (!player) continue;
-      const roll = this.diceController.rollD6(
-        `Dodgy Snack — ${team.name}: ${player.playerName}`,
-        team.id
-      );
-      if (roll === 1) {
-        getDriveEffects(this.state).playerModifiers[player.id] = {
-          confinedToReserves: true,
-        };
-        this.removeFromPitch(player);
-        grantEffect(
-          ctx.outcome,
-          team.id,
-          `${player.playerName} is confined to the Reserves for the drive`
-        );
-      } else {
-        getDriveEffects(this.state).playerModifiers[player.id] = {
-          maModifier: -1,
-          avModifier: -1,
-        };
-        grantEffect(
-          ctx.outcome,
-          team.id,
-          `${player.playerName} suffers -1 MA and -1 AV for the drive`
-        );
-      }
-      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-      this.eventBus.emit(GameEventNames.DriveEffectGranted, {
-        teamId: team.id,
-        effect: "dodgy-snack",
-        detail:
-          roll === 1
-            ? `${player.playerName} is confined to Reserves for the drive`
-            : `${player.playerName} has -1 MA and -1 AV for the drive`,
-      });
-    }
-  }
-
-  private resolvePitchInvasion(ctx: KickoffEventResolverContext): void {
-    const { afflicted } = this.lowRollOff(
-      "Pitch Invasion",
-      (team) => team.dedicatedFans,
-      [ctx.kickingTeam, ctx.receivingTeam]
-    );
-    for (const team of afflicted) {
-      const player = this.randomPitchPlayer(team, "Pitch Invasion player");
-      if (!player) continue;
-      // Placed Stunned: rolls over at the end of that team's next turn.
-      player.status = PlayerStatus.STUNNED;
-      this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
-        playerId: player.id,
-      });
-      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-      grantEffect(
-        ctx.outcome,
-        team.id,
-        `${player.playerName} is Placed Prone and Stunned by the crowd`
-      );
-    }
-  }
-
-  /** Lift a player off the pitch into the Reserves box (visuals via events). */
-  private removeFromPitch(player: Player): void {
-    player.gridPosition = undefined;
-    player.status = PlayerStatus.RESERVE;
-    this.eventBus.emit(GameEventNames.PlayerRemoved, player.id);
   }
 
   // ===== Interactive step =====
