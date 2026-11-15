@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Player, PlayerStatus } from "../../../types/Player";
+import type { GameState } from "../../../types/GameState";
 import { useEventBus } from "../../hooks/useEventBus";
 import { EventBus } from "../../../services/EventBus";
 import { GameEventNames, InfoPanelSubject } from "../../../types/events";
@@ -8,6 +9,7 @@ import {
   effectiveAV,
   effectiveMA,
   getDriveEffects,
+  PlayerDriveModifiers,
 } from "../../../game/kickoff/driveEffects";
 import { rushAllowance } from "../../../game/skills/movement";
 import { SidelineCrewInfo } from "../../../game/presentation/sidelineStaff";
@@ -42,7 +44,12 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   const [chipOpened, setChipOpened] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
-  const cardShown = phone && (chipOpened || !!hoveredPlayer || !!hoveredCrew);
+  const cardShown = phoneCardShown(
+    phone,
+    chipOpened,
+    hoveredPlayer,
+    hoveredCrew
+  );
   useEffect(() => {
     if (!cardShown) return;
     const putAway = (event: Event) => {
@@ -183,159 +190,14 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   //    below the selected panel.
   // 3. If NO Selected, Hovered is shown normally in the selected panel's slot.
 
-  const renderPanel = (player: Player, isComparison: boolean) => {
-    const state = ServiceContainer.isInitialized()
-      ? ServiceContainer.getInstance().gameService.getState()
-      : null;
-    const ma = state ? effectiveMA(player, state) : player.stats.MA;
-    const av = state ? effectiveAV(player, state) : player.stats.AV;
-    const driveModifier = state
-      ? getDriveEffects(state).playerModifiers[player.id]
-      : undefined;
-    const used = state?.turn.movementUsed.get(player.id) ?? 0;
-    const activating = !isComparison && state?.activePlayer?.id === player.id;
-    // A failed pickup waiting on its re-roll leaves the ball on the square,
-    // not in the player's hands
-    const pending = ServiceContainer.isInitialized()
-      ? ServiceContainer.getInstance().gameService.getDecisionService().pending()
-      : null;
-    const pickingUp =
-      pending?.type === "reroll" &&
-      pending.rollKind === "pickup" &&
-      pending.playerId === player.id;
-    const holdsBall =
-      !pickingUp &&
-      player.status === PlayerStatus.ACTIVE &&
-      player.gridPosition != null &&
-      state?.ballPosition?.x === player.gridPosition.x &&
-      state?.ballPosition?.y === player.gridPosition.y;
-    const status = shownStatus(player);
-    const lowered = (value: number, base: number) =>
-      value < base ? "warn" : undefined;
-
-    return (
-      <Panel
-        key={player.id}
-        accent={isComparison ? "info" : "gold"}
-        className="w-full pointer-events-none animate-hud-in px-3 pb-3 pt-3"
-      >
-        {/* Header */}
-        <div className="flex items-start gap-2.5">
-          <span
-            className={`mt-0.5 flex h-9 min-w-[36px] items-center justify-center rounded-hud border font-hud-display text-hud-lg leading-none ${
-              isComparison
-                ? "border-hud-info/60 text-hud-info"
-                : "border-hud-gold/60 text-hud-gold"
-            }`}
-          >
-            #{player.number}
-          </span>
-          <div className="min-w-0 flex-1">
-            {isComparison && (
-              <span className="hud-label block text-hud-2xs text-hud-info">
-                COMPARING
-              </span>
-            )}
-            <div className="truncate font-hud-label text-hud-lg font-bold uppercase leading-tight tracking-[0.03em] text-hud-bone">
-              {player.playerName}
-            </div>
-            <div className="truncate text-hud-sm text-hud-dim">
-              {player.positionName}
-              {player.level > 1 && ` • Lvl ${player.level}`}
-              {player.spp > 0 && ` • ${player.spp} SPP`}
-            </div>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="mt-2.5 flex gap-1">
-          <Stat
-            label="MA"
-            value={ma}
-            tone={lowered(ma, player.stats.MA)}
-            title={ma < player.stats.MA ? `Base ${player.stats.MA}` : undefined}
-          />
-          <Stat label="ST" value={player.stats.ST} />
-          <Stat label="AG" value={`${player.stats.AG}+`} />
-          <Stat
-            label="PA"
-            value={player.stats.PA > 0 ? `${player.stats.PA}+` : "-"}
-          />
-          <Stat
-            label="AV"
-            value={av}
-            tone={lowered(av, player.stats.AV)}
-            title={av < player.stats.AV ? `Base ${player.stats.AV}` : undefined}
-          />
-        </div>
-
-        {(activating || holdsBall) && (
-          <div
-            data-testid="player-activation-info"
-            className="mt-2 flex flex-wrap items-center gap-1.5 text-hud-sm text-hud-bone"
-          >
-            {activating && (
-              <span data-testid="movement-left">
-                MA {ma}, {Math.max(0, ma - used)} left,{" "}
-                {Math.max(0, rushAllowance(player) - Math.max(0, used - ma))}{" "}
-                rush
-              </span>
-            )}
-            {holdsBall && <Chip tone="gold">Holding ball</Chip>}
-          </div>
-        )}
-
-        {driveModifier && (
-          <div className="mt-2 rounded-hud border border-hud-warn/50 bg-hud-warn/10 px-2 py-1 text-hud-sm font-semibold text-hud-warn">
-            Dodgy Snack:{" "}
-            {driveModifier.confinedToReserves
-              ? "confined to Reserves for this drive"
-              : `${driveModifier.maModifier ?? 0} MA, ${driveModifier.avModifier ?? 0} AV for this drive`}
-          </div>
-        )}
-
-        {/* Skills */}
-        <div className="mt-2.5">
-          <span className="hud-label mb-1 block text-hud-2xs">Skills</span>
-          <div className="text-hud-sm leading-snug text-hud-bone">
-            {player.skills.length > 0
-              ? player.skills.map((s) => s.type).join(", ")
-              : "No skills"}
-          </div>
-        </div>
-
-        {/* Status (if not active) */}
-        {status.status !== PlayerStatus.ACTIVE && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
-            <span data-testid="player-status" className="inline-flex">
-              <Chip
-                tone={
-                  status.status === PlayerStatus.RESERVE ? "neutral" : "bad"
-                }
-              >
-                {status.status}
-              </Chip>
-            </span>
-            {status.injuries.length > 0 && (
-              <span className="text-hud-sm text-hud-bad-soft">
-                {status.injuries.join(", ")}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Conditions (Distracted, Rooted, ...) — a Standing player can
-            still carry one of these, so this is independent of Status */}
-        {(player.conditions?.length ?? 0) > 0 && (
-          <div className="mt-2 border-t border-white/10 pt-2">
-            <Chip tone="skill">
-              {player.conditions!.map((c) => c.type).join(", ")}
-            </Chip>
-          </div>
-        )}
-      </Panel>
-    );
-  };
+  const renderPanel = (player: Player, isComparison: boolean) => (
+    <PlayerCard
+      key={player.id}
+      player={player}
+      isComparison={isComparison}
+      status={shownStatus(player)}
+    />
+  );
 
   /** The selected player in a thumb's width: tap it for the full card. */
   const renderChip = (player: Player) => {
@@ -453,3 +315,202 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     </div>
   );
 };
+
+/** A phone shows the full card from the chip, or for a press and hold. */
+function phoneCardShown(
+  phone: boolean,
+  chipOpened: boolean,
+  hoveredPlayer: Player | null,
+  hoveredCrew: SidelineCrewInfo | null
+): boolean {
+  return phone && (chipOpened || !!hoveredPlayer || !!hoveredCrew);
+}
+
+/** The game's view of the player: stats as modified now, and what they do. */
+function cardReadings(player: Player, isComparison: boolean) {
+  const state = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getState()
+    : null;
+  return {
+    ma: state ? effectiveMA(player, state) : player.stats.MA,
+    av: state ? effectiveAV(player, state) : player.stats.AV,
+    driveModifier: state
+      ? getDriveEffects(state).playerModifiers[player.id]
+      : undefined,
+    used: state?.turn.movementUsed.get(player.id) ?? 0,
+    activating: !isComparison && state?.activePlayer?.id === player.id,
+    holdsBall: holdsBall(player, state),
+  };
+}
+
+function holdsBall(player: Player, state: GameState | null): boolean {
+  // A failed pickup waiting on its re-roll leaves the ball on the square,
+  // not in the player's hands
+  const pending = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getDecisionService().pending()
+    : null;
+  const pickingUp =
+    pending?.type === "reroll" &&
+    pending.rollKind === "pickup" &&
+    pending.playerId === player.id;
+  return (
+    !pickingUp &&
+    player.status === PlayerStatus.ACTIVE &&
+    player.gridPosition != null &&
+    state?.ballPosition?.x === player.gridPosition.x &&
+    state?.ballPosition?.y === player.gridPosition.y
+  );
+}
+
+const lowered = (value: number, base: number) =>
+  value < base ? "warn" : undefined;
+
+function PlayerCard({
+  player,
+  isComparison,
+  status,
+}: {
+  player: Player;
+  isComparison: boolean;
+  status: StatusView;
+}) {
+  const { ma, av, driveModifier, used, activating, holdsBall } = cardReadings(
+    player,
+    isComparison
+  );
+  return (
+    <Panel
+      accent={isComparison ? "info" : "gold"}
+      className="w-full pointer-events-none animate-hud-in px-3 pb-3 pt-3"
+    >
+      <CardHeader player={player} isComparison={isComparison} />
+
+      {/* Stats */}
+      <div className="mt-2.5 flex gap-1">
+        <Stat
+          label="MA"
+          value={ma}
+          tone={lowered(ma, player.stats.MA)}
+          title={ma < player.stats.MA ? `Base ${player.stats.MA}` : undefined}
+        />
+        <Stat label="ST" value={player.stats.ST} />
+        <Stat label="AG" value={`${player.stats.AG}+`} />
+        <Stat
+          label="PA"
+          value={player.stats.PA > 0 ? `${player.stats.PA}+` : "-"}
+        />
+        <Stat
+          label="AV"
+          value={av}
+          tone={lowered(av, player.stats.AV)}
+          title={av < player.stats.AV ? `Base ${player.stats.AV}` : undefined}
+        />
+      </div>
+
+      {(activating || holdsBall) && (
+        <div
+          data-testid="player-activation-info"
+          className="mt-2 flex flex-wrap items-center gap-1.5 text-hud-sm text-hud-bone"
+        >
+          {activating && (
+            <span data-testid="movement-left">
+              MA {ma}, {Math.max(0, ma - used)} left,{" "}
+              {Math.max(0, rushAllowance(player) - Math.max(0, used - ma))} rush
+            </span>
+          )}
+          {holdsBall && <Chip tone="gold">Holding ball</Chip>}
+        </div>
+      )}
+
+      {driveModifier && <DodgySnack modifier={driveModifier} />}
+
+      {/* Skills */}
+      <div className="mt-2.5">
+        <span className="hud-label mb-1 block text-hud-2xs">Skills</span>
+        <div className="text-hud-sm leading-snug text-hud-bone">
+          {player.skills.length > 0
+            ? player.skills.map((s) => s.type).join(", ")
+            : "No skills"}
+        </div>
+      </div>
+
+      {/* Status (if not active) */}
+      {status.status !== PlayerStatus.ACTIVE && <StatusRow status={status} />}
+
+      {/* Conditions (Distracted, Rooted, ...) — a Standing player can
+          still carry one of these, so this is independent of Status */}
+      {(player.conditions?.length ?? 0) > 0 && (
+        <div className="mt-2 border-t border-white/10 pt-2">
+          <Chip tone="skill">
+            {player.conditions!.map((c) => c.type).join(", ")}
+          </Chip>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function CardHeader({
+  player,
+  isComparison,
+}: {
+  player: Player;
+  isComparison: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <span
+        className={`mt-0.5 flex h-9 min-w-[36px] items-center justify-center rounded-hud border font-hud-display text-hud-lg leading-none ${
+          isComparison
+            ? "border-hud-info/60 text-hud-info"
+            : "border-hud-gold/60 text-hud-gold"
+        }`}
+      >
+        #{player.number}
+      </span>
+      <div className="min-w-0 flex-1">
+        {isComparison && (
+          <span className="hud-label block text-hud-2xs text-hud-info">
+            COMPARING
+          </span>
+        )}
+        <div className="truncate font-hud-label text-hud-lg font-bold uppercase leading-tight tracking-[0.03em] text-hud-bone">
+          {player.playerName}
+        </div>
+        <div className="truncate text-hud-sm text-hud-dim">
+          {player.positionName}
+          {player.level > 1 && ` • Lvl ${player.level}`}
+          {player.spp > 0 && ` • ${player.spp} SPP`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DodgySnack({ modifier }: { modifier: PlayerDriveModifiers }) {
+  return (
+    <div className="mt-2 rounded-hud border border-hud-warn/50 bg-hud-warn/10 px-2 py-1 text-hud-sm font-semibold text-hud-warn">
+      Dodgy Snack:{" "}
+      {modifier.confinedToReserves
+        ? "confined to Reserves for this drive"
+        : `${modifier.maModifier ?? 0} MA, ${modifier.avModifier ?? 0} AV for this drive`}
+    </div>
+  );
+}
+
+function StatusRow({ status }: { status: StatusView }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
+      <span data-testid="player-status" className="inline-flex">
+        <Chip tone={status.status === PlayerStatus.RESERVE ? "neutral" : "bad"}>
+          {status.status}
+        </Chip>
+      </span>
+      {status.injuries.length > 0 && (
+        <span className="text-hud-sm text-hud-bad-soft">
+          {status.injuries.join(", ")}
+        </span>
+      )}
+    </div>
+  );
+}
