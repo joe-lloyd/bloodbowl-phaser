@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { gridPointToPixel } from "../../src/game/elements/GridUtils";
 import {
   pitchExitRoute,
+  carrierProjection,
   walkingSteps,
   worldToBoard,
 } from "../../src/game/presentation/sidelineRoutes";
@@ -12,6 +13,39 @@ const project = (x: number, y: number) => {
 };
 
 describe("sideline exit routes", () => {
+  it.each([
+    {
+      to: { x: 100, y: 50 },
+      along: { x: 40, y: 20 },
+      across: { x: -40, y: 20 },
+    },
+    {
+      to: { x: 100, y: -50 },
+      along: { x: 40, y: -20 },
+      across: { x: 40, y: 20 },
+    },
+    {
+      to: { x: -100, y: -50 },
+      along: { x: 40, y: 20 },
+      across: { x: -40, y: 20 },
+    },
+    {
+      to: { x: -100, y: 50 },
+      along: { x: 40, y: -20 },
+      across: { x: 40, y: 20 },
+    },
+  ])(
+    "projects a carrier along either board axis towards $to",
+    ({ to, along, across }) => {
+      const point = carrierProjection({ x: 0, y: 0 }, to);
+      const length = 40 * Math.SQRT2;
+      expect(point(length, 0).x).toBeCloseTo(along.x);
+      expect(point(length, 0).y).toBeCloseTo(along.y);
+      expect(point(0, length).x).toBeCloseTo(across.x);
+      expect(point(0, length).y).toBeCloseTo(across.y);
+    }
+  );
+
   it.each([
     { patient: [15.5, 8.5], box: [0.5, -1.5], lane: -0.5 },
     { patient: [2.5, 1.5], box: [20.5, 12.5], lane: 11.5 },

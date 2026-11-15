@@ -78,9 +78,13 @@ function shape(x = 0, y = 0) {
     "lineBetween",
     "strokePoints",
     "setOrigin",
+    "clear",
   ]) {
     self[name] = () => self;
   }
+  self.lineBetween = vi.fn(
+    (_x0: number, _y0: number, _x1: number, _y1: number) => self
+  );
   return self;
 }
 
@@ -99,10 +103,16 @@ type Chain = {
 function fakeScene() {
   const chains: Chain[] = [];
   const props: ReturnType<typeof shape>[] = [];
+  const graphics: ReturnType<typeof shape>[] = [];
   const scene = {
     add: {
-      graphics: () => shape(),
+      graphics: () => {
+        const graphic = shape();
+        graphics.push(graphic);
+        return graphic;
+      },
       text: () => shape(),
+      ellipse: () => shape(),
       container: () => {
         const prop = shape();
         props.push(prop);
@@ -120,6 +130,7 @@ function fakeScene() {
     scene,
     chains,
     props,
+    graphics,
     finishNext: async () => {
       const chain = chains.shift()!;
       for (const step of chain.tweens) {
@@ -143,6 +154,7 @@ const kit = { primary: 0xff0000, secondary: 0x000000 };
 function fakeSprite() {
   return Object.assign(shape(10, 20), emitter(), {
     getHeadOffset: () => -60,
+    setFacing: vi.fn(),
     animateMovement: vi.fn((_path: { x: number; y: number }[]) =>
       Promise.resolve()
     ),
@@ -150,6 +162,33 @@ function fakeSprite() {
 }
 
 describe("pitch exits", () => {
+  it("turns the stretcher poles between the two isometric route directions", () => {
+    const { scene, chains, graphics } = fakeScene();
+    void playPitchExit(
+      scene as never,
+      fakeSprite() as unknown as PlayerSprite,
+      [
+        { x: 0, y: 0 },
+        { x: 100, y: 50 },
+        { x: 0, y: 100 },
+      ],
+      "knockedOut",
+      kit
+    );
+    const bed = graphics[0];
+    const poles = () => bed.lineBetween.mock.calls.slice(-2);
+    chains[0].tweens[0].onStart?.();
+    expect(poles()).toHaveLength(2);
+    for (const [x0, y0, x1, y1] of poles()) {
+      expect(y1 - y0).toBeCloseTo(-(x1 - x0) / 2);
+    }
+    chains[0].tweens[1].onStart?.();
+    expect(poles()).toHaveLength(2);
+    for (const [x0, y0, x1, y1] of poles()) {
+      expect(y1 - y0).toBeCloseTo((x1 - x0) / 2);
+    }
+  });
+
   it.each(["knockedOut", "injured", "dead"] as const)(
     "brings the empty %s carrier along the sideline before picking up the patient",
     async (exit) => {

@@ -8,6 +8,23 @@ export interface BoardPoint {
 /** The projection accepts continuous grid coordinates, including off-pitch points. */
 export type BoardProjection = (x: number, y: number) => BoardPoint;
 
+/** A carrier turns in the board plane, preserving the isometric foreshortening. */
+export function carrierProjection(
+  from: BoardPoint,
+  to: BoardPoint
+): BoardProjection {
+  const direction =
+    to.x < from.x || (to.x === from.x && to.y < from.y) ? -1 : 1;
+  const dx = (to.x - from.x) * direction;
+  const dy = (to.y - from.y) * direction;
+  const squash = ISO.gx.y / ISO.gx.x;
+  const length = Math.hypot(dx, dy / squash);
+  return (along, across) => ({
+    x: (along * dx - (across * dy) / squash) / length,
+    y: (along * dy + across * dx * squash) / length,
+  });
+}
+
 /** Invert the board projection without rounding away a player's row. */
 export function worldToBoard(
   point: BoardPoint,
