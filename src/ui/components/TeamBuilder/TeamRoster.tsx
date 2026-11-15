@@ -115,7 +115,6 @@ export function TeamRoster({
     onOpenPlayer ??
     ((playerId: string) =>
       navigate(`/build-team/${team.id}/player/${playerId}`));
-  const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
 
   return (
     <BloodBowlTable
@@ -145,8 +144,6 @@ export function TeamRoster({
     >
       {rosterSlots(team).map((slotNumber) => {
         const player = team.players.find((p) => p.number === slotNumber);
-        const eligible = player ? canAdvance(player) : false;
-        const required = player ? mustAdvance(player) : false;
 
         return (
           <tr
@@ -191,57 +188,11 @@ export function TeamRoster({
                     >
                       {player.playerName}
                     </button>
-                    {required ? (
-                      <Chip
-                        tone="blood"
-                        title="Must advance before another match"
-                      >
-                        Must advance
-                      </Chip>
-                    ) : eligible ? (
-                      <Chip tone="gold" title="Eligible to advance">
-                        Can advance
-                      </Chip>
-                    ) : null}
-                    {player.veteran ? (
-                      <span data-testid="veteran-badge">
-                        <Chip
-                          tone="info"
-                          title="MA -1. Once per game: re-roll a failed pick-up, catch or Pass Action roll, or block dice that would Knock this player Down."
-                        >
-                          Veteran
-                        </Chip>
-                      </span>
-                    ) : onChooseVeteran &&
-                      isLinemanPosition(player.keywords) ? (
-                      <button
-                        data-testid="choose-veteran"
-                        className={hudButtonClass("ghost", "sm")}
-                        onClick={() => onChooseVeteran(player.id)}
-                        title="Make this Lineman the team's Veteran (MA -1)"
-                      >
-                        Make Veteran
-                      </button>
-                    ) : null}
-                    {player.teamCaptain ? (
-                      <span data-testid="team-captain-badge">
-                        <Chip
-                          tone="gold"
-                          title="Pro, at no extra cost. While on the pitch, each Team Re-roll used rolls a D6: on a 6 it is free. Must be set up if able."
-                        >
-                          Captain
-                        </Chip>
-                      </span>
-                    ) : onChooseTeamCaptain && mayCaptain(player) ? (
-                      <button
-                        data-testid="choose-team-captain"
-                        className={hudButtonClass("ghost", "sm")}
-                        onClick={() => onChooseTeamCaptain(player.id)}
-                        title="Make this player the Team Captain (gains Pro)"
-                      >
-                        Make Captain
-                      </button>
-                    ) : null}
+                    <PlayerBadges
+                      player={player}
+                      onChooseVeteran={onChooseVeteran}
+                      onChooseTeamCaptain={onChooseTeamCaptain}
+                    />
                   </div>
                 </td>
                 <td>
@@ -266,40 +217,8 @@ export function TeamRoster({
                 >
                   {player.spp}
                 </td>
-                <td
-                  className="num font-hud-label font-bold text-hud-gold"
-                  data-testid="player-value"
-                >
-                  {playsNextGame(team, player) ? (
-                    formatGold(playerValue(player))
-                  ) : (
-                    <span
-                      title={`${notInTeamValueReason(team, player)}: not counted in team value`}
-                    >
-                      <s className="text-hud-mute">
-                        {formatGold(playerValue(player))}
-                      </s>
-                      <span className="block whitespace-nowrap font-normal text-hud-sm text-hud-mute">
-                        Not in TV
-                      </span>
-                    </span>
-                  )}
-                </td>
-                {[
-                  player.careerStats?.matches ?? 0,
-                  player.careerStats?.touchdowns ?? 0,
-                  player.careerStats?.completions ?? 0,
-                  player.careerStats?.casualties ?? 0,
-                  player.careerStats?.kills ?? 0,
-                  player.careerStats?.mvps ?? 0,
-                ].map((value, statIndex) => (
-                  <td
-                    key={statIndex}
-                    className={value ? "num" : "num text-hud-mute"}
-                  >
-                    {value}
-                  </td>
-                ))}
+                <ValueCell team={team} player={player} />
+                <CareerCells player={player} />
                 <td>
                   <div className="flex items-center justify-end gap-1">
                     <span
@@ -361,5 +280,113 @@ export function TeamRoster({
         </td>
       </tr>
     </BloodBowlTable>
+  );
+}
+
+const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
+
+/** Advancement, Veteran and Captain: a badge, or a button to choose one. */
+function PlayerBadges({
+  player,
+  onChooseVeteran,
+  onChooseTeamCaptain,
+}: {
+  player: Player;
+  onChooseVeteran?: (playerId: string) => void;
+  onChooseTeamCaptain?: (playerId: string) => void;
+}) {
+  return (
+    <>
+      {mustAdvance(player) ? (
+        <Chip tone="blood" title="Must advance before another match">
+          Must advance
+        </Chip>
+      ) : canAdvance(player) ? (
+        <Chip tone="gold" title="Eligible to advance">
+          Can advance
+        </Chip>
+      ) : null}
+      {player.veteran ? (
+        <span data-testid="veteran-badge">
+          <Chip
+            tone="info"
+            title="MA -1. Once per game: re-roll a failed pick-up, catch or Pass Action roll, or block dice that would Knock this player Down."
+          >
+            Veteran
+          </Chip>
+        </span>
+      ) : onChooseVeteran && isLinemanPosition(player.keywords) ? (
+        <button
+          data-testid="choose-veteran"
+          className={hudButtonClass("ghost", "sm")}
+          onClick={() => onChooseVeteran(player.id)}
+          title="Make this Lineman the team's Veteran (MA -1)"
+        >
+          Make Veteran
+        </button>
+      ) : null}
+      {player.teamCaptain ? (
+        <span data-testid="team-captain-badge">
+          <Chip
+            tone="gold"
+            title="Pro, at no extra cost. While on the pitch, each Team Re-roll used rolls a D6: on a 6 it is free. Must be set up if able."
+          >
+            Captain
+          </Chip>
+        </span>
+      ) : onChooseTeamCaptain && mayCaptain(player) ? (
+        <button
+          data-testid="choose-team-captain"
+          className={hudButtonClass("ghost", "sm")}
+          onClick={() => onChooseTeamCaptain(player.id)}
+          title="Make this player the Team Captain (gains Pro)"
+        >
+          Make Captain
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+/** The player's value, struck through when it is not in team value. */
+function ValueCell({ team, player }: { team: Team; player: Player }) {
+  return (
+    <td
+      className="num font-hud-label font-bold text-hud-gold"
+      data-testid="player-value"
+    >
+      {playsNextGame(team, player) ? (
+        formatGold(playerValue(player))
+      ) : (
+        <span
+          title={`${notInTeamValueReason(team, player)}: not counted in team value`}
+        >
+          <s className="text-hud-mute">{formatGold(playerValue(player))}</s>
+          <span className="block whitespace-nowrap font-normal text-hud-sm text-hud-mute">
+            Not in TV
+          </span>
+        </span>
+      )}
+    </td>
+  );
+}
+
+/** Games, touchdowns, completions, casualties, kills and MVPs. */
+function CareerCells({ player }: { player: Player }) {
+  return (
+    <>
+      {[
+        player.careerStats?.matches ?? 0,
+        player.careerStats?.touchdowns ?? 0,
+        player.careerStats?.completions ?? 0,
+        player.careerStats?.casualties ?? 0,
+        player.careerStats?.kills ?? 0,
+        player.careerStats?.mvps ?? 0,
+      ].map((value, statIndex) => (
+        <td key={statIndex} className={value ? "num" : "num text-hud-mute"}>
+          {value}
+        </td>
+      ))}
+    </>
   );
 }

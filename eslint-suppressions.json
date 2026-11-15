@@ -483,14 +483,6 @@
       "count": 1
     }
   },
-  "src/ui/components/TeamBuilder/TeamRoster.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/pages/CompetitionView.tsx": {
     "complexity": {
       "count": 3
@@ -510,11 +502,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 2
-    }
-  },
-  "src/ui/components/pages/PlayerPage.tsx": {
-    "complexity": {
-      "count": 1
     }
   },
   "src/ui/components/pages/TournamentBracket.tsx": {
