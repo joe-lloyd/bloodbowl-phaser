@@ -8,6 +8,9 @@ import type { LobbyDoc } from "../../src/firebase/lobby";
 import type { OnlineMatch } from "../../src/network/OnlineMatch";
 
 // A coin that lands when the test says so, and the side it was thrown on
+const opening = vi.hoisted(() => ({
+  state: {} as import("../../src/types/GameState").GameState,
+}));
 const coins = vi.hoisted(
   () => [] as { side: number; land: () => void; stop: () => void }[]
 );
@@ -59,9 +62,12 @@ vi.mock("../../src/services/ServiceContainer", () => {
     },
   ];
   const gameService = {
+    getState: () => opening.state,
+    getDecisionService: () => ({ pending: () => null }),
     getActiveTeamId: () => "home",
     getTeam: (id: string) => teams.find((team) => team.id === id),
     getTeams: () => teams,
+    readyInducements: vi.fn(),
     getSubPhase: () => "INTRO",
     getState: () => engine.state,
     readyForWeather: (teamId: string) => {
@@ -90,7 +96,7 @@ const match = {
 const lobby = (coinFlip: LobbyDoc["coinFlip"]) =>
   ({ coinFlip }) as unknown as LobbyDoc;
 
-const mount = async (first: LobbyDoc) => {
+const mount = async (first: LobbyDoc, side: OnlineMatch = match) => {
   coins.length = 0;
   const bus = new EventBus();
   const container = document.createElement("div");
@@ -102,7 +108,7 @@ const mount = async (first: LobbyDoc) => {
         <OnlineCoinFlip
           code="ABC123"
           lobby={next}
-          match={match}
+          match={side}
           eventBus={bus}
         />
       )
@@ -322,5 +328,23 @@ describe("online coin toss", () => {
     expect(card.text()).toContain("KICK");
     expect(card.text()).toContain("RECEIVE");
     await card.unmount();
+  });
+  it("does not toss while the new purchase stage is incomplete even if legacy lobby flags are ready", async () => {
+    opening.state = {
+      score: { home: 0, away: 0 },
+      pregameInducements: { ready: { home: true } },
+    } as import("../../src/types/GameState").GameState;
+    const view = await mount(
+      { coinFlip: { hostReady: true, guestReady: true } } as LobbyDoc,
+      { ...match, role: "host" }
+    );
+    try {
+      expect(view.text()).toContain("READY FOR THE MATCH");
+      const { setCoinFlipWinner } = await import("../../src/firebase/lobby");
+      expect(setCoinFlipWinner).not.toHaveBeenCalled();
+    } finally {
+      await view.unmount();
+      opening.state = {} as import("../../src/types/GameState").GameState;
+    }
   });
 });

@@ -61,6 +61,10 @@ export interface IGameService {
   /** Answer a pending Foul assists decision; false when out of range. */
   answerFoulAssists(count: number): boolean;
 
+  readyInducements(
+    teamId: string
+  ): import("@/types/Inducements").InducementCommandResponse;
+
   // Sevens inducements
   /**
    * Commit a confirmed pregame inducement selection into match-scoped state
@@ -78,13 +82,15 @@ export interface IGameService {
     teamId: string,
     inducement: import("@/types/Inducements").Inducement,
     quantity: number
-  ): { ok: boolean; errors: string[] };
+  ): import("@/types/Inducements").InducementCommandResponse;
   removeInducement(
     teamId: string,
     inducement: import("@/types/Inducements").Inducement
-  ): { ok: boolean; errors: string[] };
+  ): import("@/types/Inducements").InducementCommandResponse;
   /** Confirm a team's pregame selection; commits once both teams have. */
-  confirmInducements(teamId: string): { ok: boolean; errors: string[] };
+  confirmInducements(
+    teamId: string
+  ): import("@/types/Inducements").InducementCommandResponse;
 
   /**
    * True when a mutator only sends a command and the engine runs it a

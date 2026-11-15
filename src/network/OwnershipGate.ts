@@ -229,6 +229,7 @@ function checkMatchCommand(
     // Pregame inducement selection and the opening weather's ready-up
     // belong to the affected team's coach, and (unlike play commands) have
     // no "active team" turn structure yet.
+    case "ready-inducements":
     case "select-inducement":
     case "remove-inducement":
     case "confirm-inducements":

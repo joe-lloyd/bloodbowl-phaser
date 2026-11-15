@@ -1,3 +1,4 @@
+import { Team } from "../../../types/Team";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
@@ -49,7 +50,7 @@ export class SetupPhaseHandler implements PhaseHandler {
     if (subPhase === SubPhase.INTRO) {
       if (!isOnline) this.runIntroSequence();
     } else if (subPhase === SubPhase.WEATHER) {
-      // Weather handled by intro or direct state
+      this.resumeWeather(isOnline);
     } else if (subPhase === SubPhase.COIN_FLIP) {
       // Only show if NOT mid-intro and NOT online (online toss is external).
       if (!this.isIntroSequence && !isOnline) {
@@ -88,6 +89,16 @@ export class SetupPhaseHandler implements PhaseHandler {
         }
       }
     }
+  }
+
+  private resumeWeather(isOnline: boolean): void {
+    // A saved weather roll needs no second roll or intro sequence.
+    if (isOnline || this.isIntroSequence) return;
+    this.gameService.beginCoinFlip();
+    this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
+      team1: this.scene.team1,
+      team2: this.scene.team2,
+    });
   }
 
   exit(): void {
@@ -156,88 +167,13 @@ export class SetupPhaseHandler implements PhaseHandler {
       case "list":
         this.emitFormationList(key, isTeam1);
         break;
-      case "save": {
-        const name = data.name?.trim();
-        if (!name) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Give the formation a name first."
-          );
-          break;
-        }
-        if (formationManager.isBuiltIn(name)) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            `"${name}" is a built-in formation — pick another name.`
-          );
-          break;
-        }
-        // Read positions straight off the team so anything on the pitch is
-        // captured, stored by roster index so the layout survives new team
-        // instances (next drive, next match)
-        const positions = activeTeam.players.flatMap((player, index) =>
-          player.gridPosition
-            ? [
-                {
-                  playerId: String(index),
-                  x: player.gridPosition.x,
-                  y: player.gridPosition.y,
-                },
-              ]
-            : []
-        );
-        if (positions.length === 0) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Place some players before saving a formation."
-          );
-          break;
-        }
-        formationManager.saveFormation(key, positions, name);
-        this.emitFormationList(key, isTeam1);
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `Formation "${name}" saved!`
-        );
+      case "save":
+        this.saveFormation(data.name, activeTeam, key, isTeam1);
         break;
-      }
-      case "default": // legacy alias for the first built-in preset
-      case "load": {
-        const name = data.name ?? "Balanced";
-        const positions = formationManager.getFormation(key, name, isTeam1);
-        if (!positions || positions.length === 0) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            `No formation named "${name}" for this team.`
-          );
-          break;
-        }
-        const result = this.gameService.applySetupFormation(
-          activeTeam.id,
-          positions
-        );
-        placementController?.syncFromTeam();
-        this.scene.refreshDugouts();
-        const outstanding = result.status.restrictions.filter(
-          (restriction) => !restriction.satisfied
-        );
-        const detail =
-          result.skipped.length > 0 || outstanding.length > 0
-            ? ` ${[
-                ...result.skipped.map((entry) => entry.reason),
-                ...outstanding.map((restriction) =>
-                  restriction.satisfiable
-                    ? restriction.message
-                    : `Relaxed: ${restriction.message}`
-                ),
-              ].join(" ")}`
-            : "";
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `Formation "${name}" loaded.${detail}`
-        );
+      case "default":
+      case "load":
+        this.loadFormation(data.name, activeTeam, key, isTeam1);
         break;
-      }
       case "delete": {
         const name = data.name;
         if (!name || formationManager.isBuiltIn(name)) break;
@@ -276,6 +212,101 @@ export class SetupPhaseHandler implements PhaseHandler {
       );
       show();
     });
+  }
+
+  private saveFormation(
+    rawName: string | undefined,
+    activeTeam: Team,
+    key: string,
+    isTeam1: boolean
+  ): void {
+    const formationManager: FormationManager = this.scene["formationManager"];
+    const name = rawName?.trim();
+    if (!name) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Give the formation a name first."
+      );
+      return;
+    }
+    if (formationManager.isBuiltIn(name)) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `"${name}" is a built-in formation — pick another name.`
+      );
+      return;
+    }
+    // Read positions straight off the team so anything on the pitch is
+    // captured, stored by roster index so the layout survives new team
+    // instances (next drive, next match)
+    const positions = activeTeam.players.flatMap((player, index) =>
+      player.gridPosition
+        ? [
+            {
+              playerId: String(index),
+              x: player.gridPosition.x,
+              y: player.gridPosition.y,
+            },
+          ]
+        : []
+    );
+    if (positions.length === 0) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Place some players before saving a formation."
+      );
+      return;
+    }
+    formationManager.saveFormation(key, positions, name);
+    this.emitFormationList(key, isTeam1);
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      `Formation "${name}" saved!`
+    );
+  }
+
+  private loadFormation(
+    rawName: string | undefined,
+    activeTeam: Team,
+    key: string,
+    isTeam1: boolean
+  ): void {
+    const formationManager: FormationManager = this.scene["formationManager"];
+    const placementController: PlayerPlacementController =
+      this.scene["placementController"];
+    const name = rawName ?? "Balanced";
+    const positions = formationManager.getFormation(key, name, isTeam1);
+    if (!positions || positions.length === 0) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `No formation named "${name}" for this team.`
+      );
+      return;
+    }
+    const result = this.gameService.applySetupFormation(
+      activeTeam.id,
+      positions
+    );
+    placementController?.syncFromTeam();
+    this.scene.refreshDugouts();
+    const outstanding = result.status.restrictions.filter(
+      (restriction) => !restriction.satisfied
+    );
+    const detail =
+      result.skipped.length > 0 || outstanding.length > 0
+        ? ` ${[
+            ...result.skipped.map((entry) => entry.reason),
+            ...outstanding.map((restriction) =>
+              restriction.satisfiable
+                ? restriction.message
+                : `Relaxed: ${restriction.message}`
+            ),
+          ].join(" ")}`
+        : "";
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      `Formation "${name}" loaded.${detail}`
+    );
   }
 
   private emitFormationList(key: string, isTeam1: boolean): void {

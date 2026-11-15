@@ -22,7 +22,7 @@ export function createMatchState(
   team2: Team,
   startingPhase: GamePhase = GamePhase.SETUP,
   startingSubPhase?: SubPhase,
-  fixture: { paysWinnings?: boolean } = {}
+  fixture: { paysWinnings?: boolean; pregameInducements?: boolean } = {}
 ): GameState {
   const readiness = { leagueFixture: !!fixture.paysWinnings };
   SetupManager.sanitizeTeam(team1, readiness);
@@ -34,6 +34,7 @@ export function createMatchState(
     startingSubPhase
   );
   if (fixture.paysWinnings) state.paysWinnings = true;
+  if (fixture.pregameInducements) state.pregameInducements = { ready: {} };
   return state;
 }
 

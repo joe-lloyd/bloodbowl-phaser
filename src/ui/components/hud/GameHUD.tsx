@@ -49,7 +49,6 @@ import { useNavigate } from "react-router-dom";
 import { CompetitionContext } from "../../../competition/types";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { KickoffEventOverlay } from "./KickoffEventOverlay";
-import { InducementSelectionPanel } from "./InducementSelectionPanel";
 import { MatchOptionsMenu } from "./MatchOptionsMenu";
 import {
   computeMatchOptionsMenu,
@@ -76,15 +75,6 @@ export interface OnlineMatchMenuProps {
 interface GameHUDProps {
   eventBus: EventBus;
   mode?: "normal" | "sandbox";
-  /**
-   * Show the pre-match Sevens inducement selection panel before setup. Off
-   * by default so existing local/sandbox/competition flows are unaffected
-   * until a caller opts in (see GameService.getOrCreateInducementSession,
-   * which currently always resolves the non-Advanced-League Sevens profile
-   * — Advanced League is a per-team/competition setting introduced by the
-   * sibling add-team-advancement-modes change and not yet threaded here).
-   */
-  sevensInducementsEnabled?: boolean;
   onlineMenu?: OnlineMatchMenuProps;
   /** Where the results screen's Leave goes. */
   leaveTo?: string;
@@ -106,17 +96,10 @@ interface TurnData {
 export const GameHUD: React.FC<GameHUDProps> = ({
   eventBus,
   mode = "normal",
-  sevensInducementsEnabled = false,
   onlineMenu,
   leaveTo,
   fixtureContext,
 }) => {
-  const [inducementsPending, setInducementsPending] = useState(
-    () =>
-      sevensInducementsEnabled &&
-      ServiceContainer.isInitialized() &&
-      !ServiceContainer.getInstance().gameService.getState().inducements
-  );
   const navigate = useNavigate();
   const phone = useMediaQuery(PHONE_QUERY);
   /** On a phone, the dice log or the sandbox panel, opened from its button. */
@@ -334,9 +317,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       <CoinFlipOverlay eventBus={eventBus} />
       {/* A hover read-out; a phone has no hover, and aims in its plan bar */}
       {!phone && <TargetRollPreview eventBus={eventBus} />}
-      {inducementsPending && (
-        <InducementSelectionPanel onDone={() => setInducementsPending(false)} />
-      )}
       <TurnoverOverlay eventBus={eventBus} />
       <MatchResultsScreen
         visible={turnData.phase === GamePhase.GAME_OVER}

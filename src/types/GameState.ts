@@ -89,6 +89,7 @@ export interface TurnUsage {
 }
 
 export interface GameState {
+  pregameInducements?: import("./Inducements").PregameInducementsState;
   phase: GamePhase;
   subPhase?: SubPhase;
   activeTeamId: string | null;

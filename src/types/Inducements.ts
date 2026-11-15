@@ -99,6 +99,23 @@ export interface InducementOffer {
   confirmed: Record<string, boolean>;
 }
 
+/** Readiness and shopping for a new graphical match; absent on older saves. */
+export interface PregameInducementsState {
+  ready: Record<string, boolean>;
+  offer?: InducementOffer;
+  complete?: boolean;
+  /** Inventory is committed, but captain/prayer/measure choices are unfinished. */
+  resolving?: boolean;
+}
+
+export interface InducementCommandResult {
+  ok: boolean;
+  errors: string[];
+}
+export type InducementCommandResponse =
+  | InducementCommandResult
+  | Promise<InducementCommandResult>;
+
 /** Build the Sevens inducement rule profile. */
 export function buildSeventsInducementProfile(opts: {
   advancedLeague: boolean;

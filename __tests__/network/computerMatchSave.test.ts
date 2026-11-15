@@ -1,3 +1,4 @@
+import { confirmComputerPregame } from "../utils/computerPregame";
 /**
  * Coming back to a match against the computer: the match saves itself from
  * the toss on, and a page that reloads picks up from that save. The human
@@ -164,11 +165,12 @@ async function savedTurn(teamId: string): Promise<MatchSave> {
 }
 
 describe("saving a match against the computer", () => {
-  it("saves nothing until the toss has been made", async () => {
+  it("saves readiness before the toss and keeps the match resumable", async () => {
     const live = startNew(0);
     await ms(150);
-    expect(latest).toBeNull();
+    expect(latest?.snapshot.pregameInducements?.ready.team2).toBe(true);
 
+    await confirmComputerPregame(live);
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
     while (!latest) await ms(10);
 
@@ -191,6 +193,7 @@ describe("saving a match against the computer", () => {
     // A draw goes to Extra Time, then Penalties
     expect(liveGame().ctx.gameService.getState().knockout).toBe(true);
 
+    await confirmComputerPregame(live);
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
     while (!latest) await ms(10);
     expect(latest.competition).toEqual(tie);
@@ -199,6 +202,7 @@ describe("saving a match against the computer", () => {
 
   it("saves once a coin-flip command has made the toss", async () => {
     const live = startNew(0);
+    await confirmComputerPregame(live);
     await live.run({ type: "coin-flip" });
     const end = Date.now() + 2000;
     while (!latest && Date.now() < end) await ms(10);
@@ -207,6 +211,7 @@ describe("saving a match against the computer", () => {
 
   it("resumes on the same board, score and turn", async () => {
     const live = startNew(0);
+    await confirmComputerPregame(live);
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
     await playToHumanTurn(live);
     await whenEngineQuiet();
@@ -226,6 +231,7 @@ describe("saving a match against the computer", () => {
 
   it("holds the computer's turn until the board is ready", async () => {
     const live = startNew(1);
+    await confirmComputerPregame(live);
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
     await playToHumanTurn(live);
     await live.run({ type: "end-turn" });
@@ -243,6 +249,7 @@ describe("saving a match against the computer", () => {
 
   it("never saves while a block, push or kick-off choice is open", async () => {
     const live = startNew(0);
+    await confirmComputerPregame(live);
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
     const rng = createCoachRng(11);
     while (!liveGame().snapshot().turn.isHalf2) {
@@ -258,6 +265,7 @@ describe("saving a match against the computer", () => {
 
   it("plays to full time across reloads, then clears the save", async () => {
     let live = startNew(0);
+    await confirmComputerPregame(live);
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
     const rng = createCoachRng(5);
     let reloads = 0;

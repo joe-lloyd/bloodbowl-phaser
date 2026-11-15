@@ -199,6 +199,8 @@ async function answerPrompt(page: Page): Promise<boolean> {
   return (
     (await clickIf(page, /^READY — ROLL WEATHER$/)) ||
     (await clickIf(page, /^ON TO THE COIN TOSS$/)) ||
+    (await clickIf(page, /^Ready —/i)) ||
+    (await clickIf(page, /^Confirm — no purchases$/i)) ||
     (await clickIf(page, /^READY — FLIP COIN$/)) ||
     (await clickIf(page, /^RECEIVE$/))
   );

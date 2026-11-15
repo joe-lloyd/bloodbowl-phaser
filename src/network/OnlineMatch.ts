@@ -12,6 +12,7 @@
  * turns) as each command plays out, so the board only ever renders.
  */
 
+import { assertPregameSaveable } from "../game/inducements/pregame";
 import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { IGameService } from "../services/interfaces/IGameService";
@@ -296,6 +297,7 @@ function startingState(lobby: LobbyDoc, team1: Team, team2: Team) {
       paysWinnings: fixturePaysWinnings(
         lobby.competitionContext?.competitionType
       ),
+      pregameInducements: true,
     }
   );
   if (lobby.competitionContext?.knockout) initialState.knockout = true;
@@ -458,6 +460,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     saveNow();
   };
   const saveNow = () => {
+    if (engine!.getState().pregameInducements?.resolving) return;
     void persistMatch(lobby.code, game.snapshot(), {
       teams: structuredClone([team1, team2]),
       rng: container.rngService.captureState(),
@@ -562,7 +565,14 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   });
   const runOwn = async (command: HeadlessCommand) => {
     const response = await session!.run(command);
-    if (response.ok) saveIfTurnChanged();
+    if (response.ok) {
+      const state = engine!.getState();
+      if (state.pregameInducements && state.turn.turnNumber === 0) {
+        // Keep a resumable boundary; an awaited prayer/captain choice must
+        // finish before persisting its final confirmation and outcomes.
+        if (!game.isSuspended() && !game.pendingDecision()) saveNow();
+      } else saveIfTurnChanged();
+    }
     return response;
   };
   void session.sendHello();
@@ -582,7 +592,10 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     kicked: () => engine!.getState().kickoffKickResolved != null,
     runProgressionCommand: runOwn,
     run: runOwn,
-    saveState: saveNow,
+    saveState: () => {
+      assertPregameSaveable(engine!.getState());
+      saveNow();
+    },
     close: () => {
       computerCoach?.close();
       unsubscribeSelectionForwarding();
@@ -689,6 +702,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
           });
           return owner === myTeamId;
         }
+        const pregame = engine!.getState().pregameInducements;
+        if (pregame && !pregame.complete)
+          return !pregame.offer?.confirmed[myTeamId];
         // Kickoff belongs to the kicking (non-active) team; otherwise the
         // active team acts.
         if (parts.phase() === GamePhase.KICKOFF) return isKickoffActor();

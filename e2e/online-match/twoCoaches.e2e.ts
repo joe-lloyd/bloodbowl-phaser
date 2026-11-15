@@ -84,7 +84,11 @@ function watch(page: Page, side: Side, rec: Recorder) {
       appendFileSync(`${OUT}/net-${side}.log`, `${Date.now()} ${text}\n`);
       return;
     }
-    if (/\[Online\]|\[Networked\]|\[Lockstep\]|\[DiceTray\]|rejected|resync/i.test(text))
+    if (
+      /\[Online\]|\[Networked\]|\[Lockstep\]|\[DiceTray\]|rejected|resync/i.test(
+        text
+      )
+    )
       rec.log(`console ${text.slice(0, 300)}`);
   });
 }
@@ -312,6 +316,8 @@ async function openingPrompt(page: Page): Promise<string | null> {
   if (await clickIf(page, /^READY — ROLL WEATHER$/))
     return "ready for the weather";
   if (await clickIf(page, /^ON TO THE COIN TOSS$/)) return "read the weather";
+  if (await clickIf(page, /^Confirm — no purchases$/i))
+    return "confirmed inducements";
   if (await clickIf(page, /^READY — FLIP COIN$/)) return "ready for the toss";
   return null;
 }
@@ -388,6 +394,77 @@ async function disrupt(what: string, host: Coach, guest: Coach, code: string) {
   await coach.page.waitForTimeout(4000);
   await overlay(coach);
   await coach.rec.shot(coach.page, `after-${what}`);
+}
+
+async function advanceCoaches(
+  host: Coach,
+  guest: Coach,
+  i: number
+): Promise<number | null> {
+  let moves = 0;
+  for (const coach of [host, guest]) {
+    const did = await step(coach, i).catch((error: Error) => {
+      coach.rec.log(`${i} step failed: ${error.message.split("\n")[0]}`);
+      return null;
+    });
+    if (did === "over") return null;
+    if (did) {
+      moves++;
+      await compare(host, guest, `${coach.side}: ${did}`);
+    }
+  }
+  return moves;
+}
+
+async function reportStall(
+  host: Coach,
+  guest: Coach,
+  i: number
+): Promise<void> {
+  mainLog(`STALL: nobody can act for ~15 s`);
+  await host.rec.shot(host.page, `stall-${i}`);
+  await guest.rec.shot(guest.page, `stall-${i}`);
+  for (const coach of [host, guest]) {
+    coach.rec.log(
+      `stall view: mayAct=${await mayAct(coach)} next=${JSON.stringify(await brainNext(coach.page).catch((e) => String(e))).slice(0, 400)}`
+    );
+  }
+}
+
+async function playMatch(
+  host: Coach,
+  guest: Coach,
+  code: string
+): Promise<number> {
+  let moves = 0;
+  let idle = 0;
+  const plan = [...PLAN];
+  for (let i = 0; i < MAX_ITER; i++) {
+    await host.page.waitForTimeout(150);
+    if (plan.length && moves >= plan[0].at) {
+      const { what } = plan.shift()!;
+      await disrupt(what, host, guest, code);
+      await compare(host, guest, `after ${what}`, 30_000);
+      idle = 0;
+      continue;
+    }
+    const progress = await advanceCoaches(host, guest, i);
+    if (progress === null) {
+      mainLog(`GAME OVER after ${moves} moves`);
+      break;
+    }
+    moves += progress;
+    idle = progress > 0 ? 0 : idle + 1;
+    if (idle === 60) {
+      await reportStall(host, guest, i);
+    }
+    if (idle === 240) {
+      mainLog(`GIVING UP: stalled for ~60 s`);
+      break;
+    }
+  }
+
+  return moves;
 }
 
 test("an online match between two machines stays in sync", async () => {
@@ -507,52 +584,7 @@ test("an online match between two machines stays in sync", async () => {
     );
   }
 
-  // ---- Play ----
-  let moves = 0;
-  let idle = 0;
-  const plan = [...PLAN];
-  for (let i = 0; i < MAX_ITER; i++) {
-    await host.page.waitForTimeout(150);
-    if (plan.length && moves >= plan[0].at) {
-      const { what } = plan.shift()!;
-      await disrupt(what, host, guest, code);
-      await compare(host, guest, `after ${what}`, 30_000);
-      idle = 0;
-      continue;
-    }
-    let acted = false;
-    for (const coach of [host, guest]) {
-      const did = await step(coach, i).catch((error: Error) => {
-        coach.rec.log(`${i} step failed: ${error.message.split("\n")[0]}`);
-        return null;
-      });
-      if (did === "over") {
-        mainLog(`GAME OVER after ${moves} moves`);
-        i = MAX_ITER;
-        break;
-      }
-      if (did) {
-        acted = true;
-        moves++;
-        await compare(host, guest, `${coach.side}: ${did}`);
-      }
-    }
-    idle = acted ? 0 : idle + 1;
-    if (idle === 60) {
-      mainLog(`STALL: nobody can act for ~15 s`);
-      await host.rec.shot(host.page, `stall-${i}`);
-      await guest.rec.shot(guest.page, `stall-${i}`);
-      for (const coach of [host, guest]) {
-        coach.rec.log(
-          `stall view: mayAct=${await mayAct(coach)} next=${JSON.stringify(await brainNext(coach.page).catch((e) => String(e))).slice(0, 400)}`
-        );
-      }
-    }
-    if (idle === 240) {
-      mainLog(`GIVING UP: stalled for ~60 s`);
-      break;
-    }
-  }
+  const moves = await playMatch(host, guest, code);
 
   await host.page.waitForTimeout(3000);
   await compare(host, guest, "full time", 15_000);

@@ -205,8 +205,8 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         connection,
         endRequest,
         onSaveAndExit: () => {
-          // saveState() already swallows its own persistence failures (see
-          // OnlineMatch's persistNow) — leaving is always safe here.
+          // An unfinished pregame choice throws before leaving, keeping
+          // its live continuation available for the coach to finish.
           match.saveState();
           leave();
         },

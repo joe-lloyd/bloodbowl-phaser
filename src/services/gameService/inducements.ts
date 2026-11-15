@@ -1,3 +1,5 @@
+import { isPregameOpening } from "@/game/inducements/pregame";
+import { GameEventNames } from "@/types/events";
 /**
  * Pregame inducements: the negotiation both coaches confirm, and committing
  * what they bought into the match.
@@ -34,6 +36,7 @@ export function commitInducements(
   inventory: InducementInventoryEntry[]
 ): void {
   const { state, team1, team2 } = parts;
+  if (state.pregameInducements) state.pregameInducements.resolving = true;
   state.inducements = {
     ...emptyInducementsState(),
     ...state.inducements,
@@ -58,6 +61,15 @@ export function commitInducements(
   if (rollsOnTables && !getMatchInducements(state).rolled) {
     parts.flowManager.add(new ResolvePregameInducementsOperation());
   }
+  if (state.pregameInducements) {
+    parts.flowManager.add({
+      name: "CompletePregameInducements",
+      async execute() {
+        state.pregameInducements!.resolving = false;
+        parts.eventBus.emit(GameEventNames.UI_SyncBoard);
+      },
+    });
+  }
 }
 
 /** Both teams' Matched Play draft-list inducements (MP2). */
@@ -72,6 +84,14 @@ export function draftListInventory(parts: GameParts) {
  * session regardless of which surface drives it.
  */
 export function session(parts: GameParts): InducementSession {
+  const saved = parts.state.pregameInducements?.offer;
+  if (saved)
+    return new InducementSession(
+      saved.profile,
+      saved.budgets,
+      saved.catalogs,
+      saved
+    );
   if (!parts.inducementSession) {
     const profile = buildSeventsInducementProfile({ advancedLeague: false });
     const budgets = calculateInducementBudgets(parts.team1, parts.team2);
@@ -84,8 +104,14 @@ export function session(parts: GameParts): InducementSession {
 }
 
 export function inducementOffer(parts: GameParts): InducementOffer {
+  return offerFor(parts, session(parts));
+}
+
+function offerFor(
+  parts: GameParts,
+  negotiation: InducementSession
+): InducementOffer {
   const { team1, team2 } = parts;
-  const negotiation = session(parts);
   return {
     profile: negotiation.getProfile(),
     budgets: negotiation.getBudgets(),
@@ -101,21 +127,78 @@ export function inducementOffer(parts: GameParts): InducementOffer {
   };
 }
 
+/** Reject purchases outside the ready, uncommitted opening. */
+function purchaseError(parts: GameParts, teamId: string): string | undefined {
+  if (![parts.team1.id, parts.team2.id].includes(teamId)) return "unknown-team";
+  const pregame = parts.state.pregameInducements;
+  if (!pregame) return undefined; // Existing headless scenarios and saves.
+  if (pregame.complete) return "inducements-already-confirmed";
+  if (![parts.team1.id, parts.team2.id].every((id) => pregame.ready[id]))
+    return "teams-not-ready";
+  if (!isPregameOpening(parts.state)) return "pregame-finished";
+  return undefined;
+}
+
+export function readyInducements(parts: GameParts, teamId: string) {
+  const pregame = parts.state.pregameInducements;
+  if (!pregame || ![parts.team1.id, parts.team2.id].includes(teamId))
+    return { ok: false, errors: ["pregame-unavailable"] };
+  if (pregame.complete || !isPregameOpening(parts.state))
+    return { ok: false, errors: ["pregame-finished"] };
+  pregame.ready[teamId] = true;
+  if (
+    [parts.team1.id, parts.team2.id].every((id) => pregame.ready[id]) &&
+    !pregame.offer
+  ) {
+    parts.inducementSession = null;
+    pregame.offer = offerFor(parts, session(parts));
+  }
+  parts.eventBus.emit(GameEventNames.UI_SyncBoard);
+  return { ok: true, errors: [] };
+}
+
+export function selectInducement(
+  parts: GameParts,
+  teamId: string,
+  inducement: Inducement,
+  quantity: number
+) {
+  const error = purchaseError(parts, teamId);
+  if (error) return { ok: false, errors: [error] };
+  const negotiation = session(parts);
+  const result = negotiation.select(teamId, inducement, quantity);
+  if (result.ok && parts.state.pregameInducements) {
+    parts.state.pregameInducements.offer = offerFor(parts, negotiation);
+    parts.eventBus.emit(GameEventNames.UI_SyncBoard);
+  }
+  return result;
+}
+
 /** Confirm a team's pregame selection; commits the inventory once both have. */
 export function confirmInducements(
   parts: GameParts,
   teamId: string
 ): { ok: boolean; errors: string[] } {
+  const pregame = parts.state.pregameInducements;
+  if (![parts.team1.id, parts.team2.id].includes(teamId))
+    return { ok: false, errors: ["unknown-team"] };
+  // Replayed or duplicate confirmation must not replenish spent inventory.
+  if (pregame?.complete) return { ok: true, errors: [] };
+  const error = purchaseError(parts, teamId);
+  if (error) return { ok: false, errors: [error] };
   const negotiation = session(parts);
   const result = negotiation.confirm(teamId);
   if (!result.ok) return result;
+  if (pregame) pregame.offer = offerFor(parts, negotiation);
   if (negotiation.bothConfirmed([parts.team1.id, parts.team2.id])) {
+    if (pregame) pregame.complete = true;
     parts.game.commitInducements(
       negotiation.getProfile(),
       negotiation.getBudgets(),
       [...draftListInventory(parts), ...negotiation.toInventory()]
     );
   }
+  parts.eventBus.emit(GameEventNames.UI_SyncBoard);
   return result;
 }
 
@@ -129,7 +212,11 @@ export function confirmInducements(
  */
 export function restoreMatchInducements(parts: GameParts): void {
   const draftList = draftListInventory(parts);
-  if (!parts.state.inducements && draftList.length > 0) {
+  if (
+    !parts.state.pregameInducements &&
+    !parts.state.inducements &&
+    draftList.length > 0
+  ) {
     parts.game.commitInducements(
       buildSeventsInducementProfile({ advancedLeague: false }),
       calculateInducementBudgets(parts.team1, parts.team2),

@@ -1,3 +1,4 @@
+import { confirmPregame } from "../support/pregame";
 /**
  * Letting go of a dragged player during setup takes them straight to where
  * they were dropped. Against the computer (and online) the engine runs the
@@ -322,13 +323,12 @@ async function startComputerSetup(page: Page, app: GameApp) {
     .first()
     .click();
   await page.getByRole("radio", { name: /Versus computer/ }).click();
-  await page
-    .getByRole("button", { name: new RegExp(COMPUTER) })
-    .click();
+  await page.getByRole("button", { name: new RegExp(COMPUTER) }).click();
   await expect(page.getByRole("button", { name: /Start Game/ })).toBeEnabled();
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
   await app.rollWeather(120_000);
+  await confirmPregame(page);
   const flip = page.getByRole("button", { name: "FLIP COIN" });
   await flip.waitFor({ timeout: 15_000 });
   await flip.click();

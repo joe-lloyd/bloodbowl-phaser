@@ -28,6 +28,7 @@ export class MatchAutosave {
   private readonly boundaryHandler = () => this.schedule();
   private readonly watchedEvents = [
     GameEventNames.GameStateChanged,
+    GameEventNames.UI_SyncBoard,
     GameEventNames.ActionResolved,
     GameEventNames.TurnEnded,
     GameEventNames.PhaseChanged,

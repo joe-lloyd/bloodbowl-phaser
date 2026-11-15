@@ -104,6 +104,7 @@ function computerMatchState(options: ComputerMatchOptions): GameState {
         paysWinnings: fixturePaysWinnings(
           options.competitionContext?.competitionType
         ),
+        pregameInducements: true,
       }
     );
   if (!options.resume && options.competitionContext?.knockout)
@@ -154,10 +155,16 @@ export function createComputerMatch(
       });
       if (refusal) return refusal;
       const response = await game.execute(command);
-      // Before the toss there is nothing to come back to. Either command
-      // makes the toss and starts set-up.
+      // Readiness and shopping are resumable before the toss as well.
       if (
-        (command.type === "start-setup" || command.type === "coin-flip") &&
+        [
+          "ready-inducements",
+          "select-inducement",
+          "remove-inducement",
+          "confirm-inducements",
+          "start-setup",
+          "coin-flip",
+        ].includes(command.type) &&
         response.ok
       )
         autosave?.start();

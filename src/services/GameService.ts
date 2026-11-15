@@ -1,3 +1,4 @@
+import { assertPregamePurchasesComplete } from "@/game/inducements/pregame";
 /**
  * GameService - Core game logic service
  *
@@ -196,6 +197,10 @@ export class GameService implements IGameService {
     inducements.commitInducements(this.parts, profile, budgets, inventory);
   }
 
+  readyInducements(teamId: string): { ok: boolean; errors: string[] } {
+    return inducements.readyInducements(this.parts, teamId);
+  }
+
   getInducementOffer(): InducementOffer {
     return inducements.inducementOffer(this.parts);
   }
@@ -205,14 +210,19 @@ export class GameService implements IGameService {
     inducement: Inducement,
     quantity: number
   ): { ok: boolean; errors: string[] } {
-    return inducements.session(this.parts).select(teamId, inducement, quantity);
+    return inducements.selectInducement(
+      this.parts,
+      teamId,
+      inducement,
+      quantity
+    );
   }
 
   removeInducement(
     teamId: string,
     inducement: Inducement
   ): { ok: boolean; errors: string[] } {
-    return inducements.session(this.parts).remove(teamId, inducement);
+    return inducements.selectInducement(this.parts, teamId, inducement, 0);
   }
 
   /** Confirm a team's pregame selection; commits the inventory once both have. */
@@ -241,8 +251,8 @@ export class GameService implements IGameService {
   }
 
   // ===== Setup Phase =====
-
   startSetup(startingTeamId?: string): void {
+    assertPregamePurchasesComplete(this.parts.state);
     matchStart.rollMasterChefs(this.parts);
     this.parts.setupManager.startSetup(startingTeamId);
   }
@@ -626,6 +636,7 @@ export class GameService implements IGameService {
 
   /** The pre-match toss on the seeded RNG: team 1 is heads. Returns the winner's id. */
   tossCoin(): string {
+    assertPregamePurchasesComplete(this.parts.state);
     return this.diceController.tossCoin(this.parts.team1, this.parts.team2);
   }
 

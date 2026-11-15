@@ -1,3 +1,5 @@
+import { usePregameInducements } from "../components/hud/pregameInducementHooks";
+import { PregameInducements } from "../components/hud/PregameInducements";
 import { useEffect, useRef, useState } from "react";
 import { EventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
@@ -35,6 +37,13 @@ interface Props {
   lobby: LobbyDoc;
   match: OnlineMatch;
   eventBus: EventBus;
+}
+
+function readyForToss(
+  pregame: ReturnType<typeof usePregameInducements>,
+  cf: NonNullable<LobbyDoc["coinFlip"]>
+): boolean {
+  return pregame.pregame ? !pregame.pending : !!cf.hostReady && !!cf.guestReady;
 }
 
 /**
@@ -172,6 +181,7 @@ function OnlineWeather({
 
 /** Both coaches ready up, the host tosses, the winner chooses. */
 function OnlineToss({ code, lobby, match, eventBus }: Props) {
+  const pregame = usePregameInducements(eventBus);
   const amHost = match.role === "host";
   const { team1, team2 } = match.teams;
   const myTeamId = match.myTeamId;
@@ -191,7 +201,7 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
   const throwing = useRef<DiceThrow | null>(null);
 
   const iAmReady = amHost ? !!cf.hostReady : !!cf.guestReady;
-  const bothReady = !!cf.hostReady && !!cf.guestReady;
+  const bothReady = readyForToss(pregame, cf);
   const winnerId = cf.winnerTeamId ?? null;
   const kickingId = cf.kickingTeamId ?? null;
   const teamById = (id: string | null) =>
@@ -313,6 +323,8 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
 
   // Done — the engine takes over from here.
   if (kickingId) return null;
+
+  if (pregame.pending) return <PregameInducements eventBus={eventBus} />;
 
   const winner = teamById(winnerId);
   const iWon = winnerId === myTeamId;

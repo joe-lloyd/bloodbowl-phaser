@@ -110,9 +110,6 @@
   },
   "e2e/online-match/twoCoaches.e2e.ts": {
     "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
       "count": 1
     }
   },
@@ -169,7 +166,7 @@
       "count": 1
     },
     "sonarjs/cognitive-complexity": {
-      "count": 2
+      "count": 1
     }
   },
   "src/game/managers/moveAction.ts": {

@@ -1,3 +1,4 @@
+import { confirmPregame } from "../support/pregame";
 /**
  * A friendly takes on no Journeymen (league-treasury spec: exhibition play
  * skips that step). The Human seed team has a player due to Miss Next Game,
@@ -37,6 +38,7 @@ test("a short team sets up with the players it has in a friendly", async ({
 
   // The short team kicks, so it sets up first
   await app.rollWeather(45_000);
+  await confirmPregame(page);
   const flip = page.getByRole("button", { name: "FLIP COIN" });
   await expect(flip).toBeVisible({ timeout: 15_000 });
   await flip.click();

@@ -1,3 +1,4 @@
+import { confirmPregame } from "../support/pregame";
 /**
  * During setup a player is picked up by the grid square they stand on, not
  * by their body. A big player's figure reaches up over the square behind
@@ -292,6 +293,7 @@ async function startSetup(
   await app.bridge.waitForReady();
 
   await app.rollWeather(45_000);
+  await confirmPregame(page);
   const flip = page.getByRole("button", { name: "FLIP COIN" });
   await expect(flip).toBeVisible({ timeout: 15_000 });
   await flip.click();

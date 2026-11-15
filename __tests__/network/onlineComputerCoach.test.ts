@@ -1,3 +1,4 @@
+import { pregameGame } from "../utils/pregameGame";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOnlineMatch, OnlineMatch } from "../../src/network/OnlineMatch";
 import {
@@ -11,13 +12,17 @@ import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
-import { DEFAULT_SETTINGS, LobbyDoc } from "../../src/firebase/lobby";
+import {
+  DEFAULT_SETTINGS,
+  LobbyDoc,
+  persistMatch,
+} from "../../src/firebase/lobby";
 import { drawsFor } from "../../src/game/presentation/screenSettled";
 import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
 
 vi.mock("../../src/firebase/lobby", async (load) => ({
   ...(await load<typeof import("../../src/firebase/lobby")>()),
-  persistMatch: async () => {},
+  persistMatch: vi.fn(async () => {}),
 }));
 
 const matches: OnlineMatch[] = [];
@@ -136,6 +141,82 @@ function recordCommands(transport: Transport): HeadlessCommand[] {
 }
 
 describe("the online computer coach", () => {
+  it("refuses a manual save while pregame choices are unresolved", () => {
+    const [end] = createInMemoryTransportPair();
+    const { match } = connect(matchPosition(), "host", end);
+    const state = ServiceContainer.getInstance().gameService.getState();
+    state.pregameInducements = {
+      ready: { team1: true, team2: true },
+      complete: true,
+      resolving: true,
+    };
+    vi.mocked(persistMatch).mockClear();
+    expect(() => match.saveState()).toThrow("Finish pregame choices");
+    expect(persistMatch).not.toHaveBeenCalled();
+    state.pregameInducements.resolving = false;
+    match.saveState();
+    expect(persistMatch).toHaveBeenCalledOnce();
+  });
+
+  it.each(["host", "guest"] as const)(
+    "the %s readies and confirms its own pregame purchases over the wire",
+    async (side) => {
+      const opening = pregameGame();
+      const lobby = matchPosition(side);
+      lobby.players.host.team = opening.ctx.team1;
+      lobby.players.guest.team = opening.ctx.team2;
+      lobby.snapshot = opening.snapshot();
+      lobby.resume = {
+        rng: opening.ctx.rng.captureState(),
+        matchStats: opening.ctx.matchStats.captureState(),
+        applied: 0,
+      };
+      const [hostEnd, guestEnd] = createInMemoryTransportPair();
+      const ownEnd = side === "host" ? hostEnd : guestEnd;
+      const peerEnd = side === "host" ? guestEnd : hostEnd;
+      const sent = recordCommands(ownEnd);
+      const human = connect(lobby, side === "host" ? "guest" : "host", peerEnd);
+      const bot = connect(lobby, side, ownEnd, true);
+      bot.bus.emit(GameEventNames.GameStateRestored);
+      await vi.waitFor(() =>
+        expect(
+          human.snapshot().pregameInducements?.ready[bot.match.myTeamId]
+        ).toBe(true)
+      );
+      expect(bot.snapshot().inducements).toBeUndefined();
+      expect(
+        (
+          await human.match.run({
+            type: "ready-inducements",
+            teamId: human.match.myTeamId,
+          })
+        ).ok
+      ).toBe(true);
+      expect(
+        (
+          await human.match.run({
+            type: "confirm-inducements",
+            teamId: human.match.myTeamId,
+          })
+        ).ok
+      ).toBe(true);
+      await vi.waitFor(() =>
+        expect(bot.snapshot().pregameInducements?.complete).toBe(true)
+      );
+      await vi.waitFor(() => expect(bot.snapshot()).toEqual(human.snapshot()));
+      expect(sent.map((command) => command.type)).toContain(
+        "ready-inducements"
+      );
+      expect(sent.map((command) => command.type)).toContain(
+        "confirm-inducements"
+      );
+      if (side === "host")
+        expect(sent.map((command) => command.type)).toContain(
+          "select-inducement"
+        );
+    }
+  );
+
   it.each(["host", "guest"] as const)(
     "the %s blocks and resolves its dice over the wire",
     async (side) => {
@@ -220,6 +301,16 @@ describe("the online computer coach", () => {
     const lobby = matchPosition("host", true);
     const peer = connect(lobby, "guest", guestEnd);
     const bot = connect(lobby, "host", hostEnd, true);
+    // The peer can start replaying the scoring move after the local engine
+    // first becomes quiet. Wait for its next drive before comparing states.
+    const peerNextDrive = new Promise<void>((resolve) => {
+      const onPhase = ({ phase }: { phase: GamePhase }) => {
+        if (phase !== GamePhase.SETUP) return;
+        peer.bus.off(GameEventNames.PhaseChanged, onPhase);
+        resolve();
+      };
+      peer.bus.on(GameEventNames.PhaseChanged, onPhase);
+    });
     bot.bus.emit(GameEventNames.GameStateRestored);
     await vi.waitFor(
       () => {
@@ -228,7 +319,9 @@ describe("the online computer coach", () => {
       { timeout: 3000 }
     );
     bot.match.setClockPaused("timeout");
+    await peerNextDrive;
     await whenEngineQuiet();
+    expect(bot.snapshot().phase).toBe(GamePhase.SETUP);
     await vi.waitFor(() => expect(bot.snapshot()).toEqual(peer.snapshot()));
   }, 15_000);
 });

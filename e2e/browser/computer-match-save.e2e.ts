@@ -1,3 +1,4 @@
+import { confirmPregame } from "../support/pregame";
 /**
  * Coming back to a match against the computer, through the real pages: the
  * toss starts the save, the options menu is usable, the menu banner and a
@@ -25,6 +26,7 @@ async function startComputerMatch(page: Page, app: GameApp) {
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
   await app.rollWeather(120_000);
+  await confirmPregame(page);
   const flip = page.getByRole("button", { name: "FLIP COIN" });
   await flip.waitFor({ timeout: 15_000 });
   await flip.click();

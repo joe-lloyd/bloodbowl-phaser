@@ -160,6 +160,7 @@ export type HeadlessCommand =
   | { type: "choose-foul-assists"; count: number }
   // Sevens pregame inducements
   | { type: "offer-inducements" }
+  | { type: "ready-inducements"; teamId: string }
   | {
       type: "select-inducement";
       teamId: string;
