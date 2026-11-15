@@ -19,6 +19,7 @@ const USER = {
   uid: "me",
   displayName: "Joe",
   email: null,
+  emailVerified: false,
   photoURL: null,
 } satisfies AuthUser;
 
