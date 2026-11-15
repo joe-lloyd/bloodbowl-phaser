@@ -146,11 +146,6 @@
       "count": 1
     }
   },
-  "src/gallery/variants.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/game/controllers/GameplayInteractionController.ts": {
     "complexity": {
       "count": 11
