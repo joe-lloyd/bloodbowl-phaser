@@ -121,8 +121,9 @@ test("one saved team can play a fresh catalogue opponent without saving the oppo
   await page.getByRole("button", { name: /Start Game/ }).click();
   const app = new GameApp(page);
   await app.bridge.waitForReady();
+  await app.rollWeather();
   await expect(page.getByRole("button", { name: "FLIP COIN" })).toBeVisible({
-    timeout: 60_000,
+    timeout: 15_000,
   });
   const opponent = (await app.bridge.snapshot()).teams.find(
     (team) => team.name === "Green Bay Smackers"

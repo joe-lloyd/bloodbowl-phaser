@@ -20,7 +20,8 @@ type CommandShape = Record<string, FieldKind>;
 /** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<string, CommandShape> = {
   "coin-flip": {},
-  "start-setup": { kickingTeamId: "string", rollWeather: "boolean?" },
+  "ready-weather": { teamId: "string" },
+  "start-setup": { kickingTeamId: "string" },
   "place-player": { playerId: "string", x: "integer", y: "integer" },
   "remove-player": { playerId: "string" },
   "swap-players": { player1Id: "string", player2Id: "string" },

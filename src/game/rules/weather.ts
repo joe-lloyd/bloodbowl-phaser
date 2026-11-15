@@ -13,6 +13,30 @@ export type Weather =
   | "Pouring Rain"
   | "Blizzard";
 
+/**
+ * The Weather Table: the 2D6 totals each result covers, lowest first. Both
+ * the weather roll and the dialog that shows it read it from here.
+ */
+export const WEATHER_TABLE: readonly {
+  weather: Weather;
+  from: number;
+  to: number;
+}[] = [
+  { weather: "Sweltering Heat", from: 2, to: 2 },
+  { weather: "Very Sunny", from: 3, to: 3 },
+  { weather: "Nice", from: 4, to: 10 },
+  { weather: "Pouring Rain", from: 11, to: 11 },
+  { weather: "Blizzard", from: 12, to: 12 },
+];
+
+/** The weather a 2D6 total gives. */
+export function weatherForRoll(total: number): Weather {
+  return (
+    WEATHER_TABLE.find((row) => total >= row.from && total <= row.to)
+      ?.weather ?? "Nice"
+  );
+}
+
 export interface WeatherEffects {
   /** Added to every Passing Ability Test. */
   passingAbility: number;

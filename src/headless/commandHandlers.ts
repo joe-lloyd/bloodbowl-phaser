@@ -256,10 +256,14 @@ async function specialAction(
 
 const COMMAND_HANDLERS: CommandHandlers = {
   "coin-flip": coinFlip,
+  "ready-weather": async ({ ctx }, cmd) => {
+    assertTeam(ctx, cmd.teamId);
+    if (!ctx.gameService.readyForWeather(cmd.teamId))
+      throw new Error("not-weather-time");
+  },
   "start-setup": async (host, cmd) => {
     assertTeam(host.ctx, cmd.kickingTeamId);
     host.setKickingTeam(cmd.kickingTeamId);
-    if (cmd.rollWeather) host.ctx.gameService.rollInitialWeather();
     host.ctx.gameService.startSetup(cmd.kickingTeamId);
   },
   "place-player": async (host, cmd) =>

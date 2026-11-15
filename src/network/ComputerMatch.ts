@@ -49,9 +49,9 @@ class ComputerGameService extends NetworkedGameService {
     super(engine, forward, pendingDecision, eventBus);
   }
   // The board's own intro runs the opening, as in a local match: weather,
-  // then the toss in the coin-flip overlay.
-  override rollInitialWeather(): void {
-    this.engine.rollInitialWeather();
+  // then the toss in the coin-flip overlay. The coach readies both teams.
+  override readyForWeather(teamId: string): boolean {
+    return this.engine.readyForWeather(teamId);
   }
   override beginCoinFlip(): void {
     this.engine.beginCoinFlip();

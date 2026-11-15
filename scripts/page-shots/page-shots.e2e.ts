@@ -19,6 +19,7 @@ import {
   writeFileSync,
 } from "fs";
 import { basename, dirname, join } from "path";
+import { GameApp } from "../../e2e/support/pages/game";
 
 const DIR = process.env.SHOTS ?? "e2e-results/page-shots/out";
 
@@ -194,9 +195,10 @@ test("a saved local match on the menu", async ({ page }) => {
     .last()
     .click();
   await page.getByRole("button", { name: /Start Game/ }).click();
+  await new GameApp(page).rollWeather(40_000);
   await page
     .getByRole("button", { name: "FLIP COIN" })
-    .waitFor({ timeout: 40_000 });
+    .waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: "FLIP COIN" }).click();
   await page.waitForTimeout(2500);
   await visit(page, "/");

@@ -1,4 +1,3 @@
-import { weatherDescription } from "../../rules/weather";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
@@ -8,7 +7,6 @@ import { SubPhase } from "../../../types/GameState";
 import { PlayerPlacementController } from "../PlayerPlacementController";
 import { FormationManager } from "@/game/managers/FormationManager";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
-import { DiceWatch } from "../../presentation/diceWatch";
 import { CAMERA_INTRO_MS } from "../CameraController";
 
 /** How long an announcement banner is up: the Announcer's enter, hold and exit. */
@@ -116,9 +114,11 @@ export class SetupPhaseHandler implements PhaseHandler {
   private register<K extends keyof GameEventMap>(
     event: K,
     handler: (data: GameEventMap[K]) => void
-  ): void {
+  ): () => void {
     this.eventBus.on(event, handler);
-    this.unsubscribes.push(() => this.eventBus.off(event, handler));
+    const off = () => this.eventBus.off(event, handler);
+    this.unsubscribes.push(off);
+    return off;
   }
 
   private removeListeners(): void {
@@ -253,6 +253,31 @@ export class SetupPhaseHandler implements PhaseHandler {
     }
   }
 
+  /**
+   * Show the weather dialog and wait until the coach has read the result.
+   * A dialog that mounts late asks for it again.
+   */
+  private weatherRead(): Promise<void> {
+    const { team1, team2 } = this.scene;
+    const show = () =>
+      this.eventBus.emit(GameEventNames.UI_StartWeather, { team1, team2 });
+    return new Promise((resolve) => {
+      const offRequest = this.register(
+        GameEventNames.UI_RequestWeatherState,
+        show
+      );
+      const offComplete = this.register(
+        GameEventNames.UI_WeatherComplete,
+        () => {
+          offRequest();
+          offComplete();
+          resolve();
+        }
+      );
+      show();
+    });
+  }
+
   private emitFormationList(key: string, isTeam1: boolean): void {
     const formationManager: FormationManager = this.scene["formationManager"];
     this.eventBus.emit(GameEventNames.UI_FormationsUpdated, {
@@ -271,12 +296,11 @@ export class SetupPhaseHandler implements PhaseHandler {
 
   /**
    * The opening, one beat after another: the camera sweeps in, each team is
-   * announced while its dugout cheers, the weather dice land and the
-   * weather is announced, and only then does the coin toss come up.
+   * announced while its dugout cheers, the coaches roll the weather in its
+   * dialog, and only then does the coin toss come up.
    */
   private async runIntroSequence(): Promise<void> {
     this.isIntroSequence = true;
-    const dice = new DiceWatch(this.eventBus);
     const pause = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
     const { team1, team2 } = this.scene;
@@ -297,15 +321,8 @@ export class SetupPhaseHandler implements PhaseHandler {
       ]);
     }
 
-    this.gameService.rollInitialWeather();
-    await dice.landed();
-    dice.dispose();
-    this.eventBus.emit(GameEventNames.UI_Announce, {
-      kind: "weather",
-      headline: this.gameService.getState().weather ?? "Nice",
-      subtitle: `Weather · ${weatherDescription(this.gameService.getState().weather)}`,
-    });
-    await pause(BANNER_MS);
+    // The coaches roll the weather themselves, in its own dialog
+    await this.weatherRead();
 
     this.isIntroSequence = false;
     this.gameService.beginCoinFlip();

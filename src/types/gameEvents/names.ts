@@ -91,6 +91,8 @@ export enum GameEventNames {
   WeatherChanged = "weatherChanged",
   DiceRoll = "diceRoll",
   GameStateRestored = "gameStateRestored",
+  /** A coach readied up for the opening weather roll. */
+  WeatherReady = "weatherReady",
   RefreshBoard = "refreshBoard",
   /** Crisp text (dugout headers, end-zone names) for the React overlay */
   /** Match assets loading: 0..1, for the loading screen. */
@@ -157,6 +159,12 @@ export enum GameEventNames {
   UI_StartGame = "ui:startGame",
   UI_StartCoinFlip = "ui:startCoinFlip",
   UI_ShowCoinFlip = "ui:showCoinFlip",
+  /** The opening's weather roll is up: show the coaches the dialog. */
+  UI_StartWeather = "ui:startWeather",
+  /** The coach has read the weather; the opening moves on to the toss. */
+  UI_WeatherComplete = "ui:weatherComplete",
+  /** A late-mounted weather dialog asks whether the roll is waiting. */
+  UI_RequestWeatherState = "ui:requestWeatherState",
   UI_CoinFlipComplete = "ui:coinFlipComplete",
   UI_RequestCoinFlipState = "ui:requestCoinFlipState",
   UI_ShowSetupControls = "ui:showSetupControls",

@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
+import { GameEventNames } from "../../src/types/events";
 import { OnlineCoinFlip } from "../../src/ui/pages/OnlineCoinFlip";
 import type { LobbyDoc } from "../../src/firebase/lobby";
 import type { OnlineMatch } from "../../src/network/OnlineMatch";
@@ -34,6 +35,12 @@ vi.mock("../../src/firebase/lobby", () => ({
   setCoinFlipChoice: vi.fn(),
 }));
 
+// The guest's engine at the opening: who has readied up, and the weather
+const engine = vi.hoisted(() => ({
+  state: { weather: "Nice", weatherReady: [] as string[] },
+  readied: [] as string[],
+}));
+
 vi.mock("../../src/services/ServiceContainer", () => {
   const teams = [
     {
@@ -56,6 +63,11 @@ vi.mock("../../src/services/ServiceContainer", () => {
     getTeam: (id: string) => teams.find((team) => team.id === id),
     getTeams: () => teams,
     getSubPhase: () => "INTRO",
+    getState: () => engine.state,
+    readyForWeather: (teamId: string) => {
+      engine.readied.push(teamId);
+      return true;
+    },
   };
   return {
     ServiceContainer: {
@@ -108,6 +120,72 @@ const mount = async (first: LobbyDoc) => {
 
 const tick = (ms: number) =>
   act(() => new Promise((resolve) => setTimeout(resolve, ms)));
+
+describe("online weather", () => {
+  it("rolls once both coaches are ready, then each reads it before the toss", async () => {
+    engine.state = { weather: "Nice", weatherReady: [] };
+    engine.readied = [];
+    const bus = new EventBus();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    coins.length = 0;
+    await act(async () =>
+      root.render(
+        <OnlineCoinFlip
+          code="ABC123"
+          lobby={lobby({})}
+          match={match}
+          eventBus={bus}
+        />
+      )
+    );
+    const text = () => container.textContent ?? "";
+    const button = (name: string) =>
+      [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes(name)
+      );
+    expect(text()).toContain("WEATHER");
+    expect(text()).not.toContain("COIN TOSS");
+
+    // This coach readies their own team only
+    await act(async () => button("READY — ROLL WEATHER")!.click());
+    expect(engine.readied).toEqual(["away"]);
+    await act(async () =>
+      bus.emit(GameEventNames.WeatherReady, { teamIds: ["away"] })
+    );
+    expect(text()).toContain("Waiting for Coach-HOST to ready up");
+
+    // The host readies: both engines roll the 2D6
+    engine.state = { weather: "Pouring Rain", weatherReady: ["away", "home"] };
+    await act(async () => {
+      bus.emit(GameEventNames.WeatherReady, { teamIds: ["away", "home"] });
+      bus.emit(GameEventNames.DiceRoll, {
+        rollType: "Weather",
+        diceType: "2d6",
+        value: [5, 6],
+        total: 11,
+        description: "Weather: 5 + 6 = 11",
+      });
+    });
+    await tick(20);
+    expect(coins.length).toBe(1);
+    expect(text()).not.toContain("Rolled 11");
+    await act(async () => coins[0].land());
+    await tick(800);
+    expect(text()).toContain("Pouring Rain");
+    expect(text()).toContain("Rolled 11");
+    expect(container.querySelector("[data-current]")?.textContent).toContain(
+      "Pouring Rain"
+    );
+
+    await act(async () => button("ON TO THE COIN TOSS")!.click());
+    expect(text()).toContain("COIN TOSS");
+    expect(button("READY — FLIP COIN")).toBeDefined();
+    await act(async () => root.unmount());
+    container.remove();
+  });
+});
 
 describe("online coin toss", () => {
   it("flips the coin onto the winner on both screens before the choice", async () => {

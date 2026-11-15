@@ -51,6 +51,11 @@ export interface CommonUIEvents {
   // Game Start
   [GameEventNames.UI_StartGame]: { team1: Team; team2: Team };
 
+  // Opening weather
+  [GameEventNames.UI_StartWeather]: { team1: Team; team2: Team };
+  [GameEventNames.UI_WeatherComplete]: void;
+  [GameEventNames.UI_RequestWeatherState]: void;
+
   // Coin Flip
   [GameEventNames.UI_StartCoinFlip]: { team1: Team; team2: Team };
   [GameEventNames.UI_ShowCoinFlip]: void;

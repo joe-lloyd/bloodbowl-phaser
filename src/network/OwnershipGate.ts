@@ -207,11 +207,13 @@ function checkMatchCommand(
   ctx: GateContext
 ): GateVerdict | undefined {
   switch (command.type) {
-    // Pregame inducement selection belongs to the affected team's coach,
-    // and (unlike play commands) has no "active team" turn structure yet.
+    // Pregame inducement selection and the opening weather's ready-up
+    // belong to the affected team's coach, and (unlike play commands) have
+    // no "active team" turn structure yet.
     case "select-inducement":
     case "remove-inducement":
     case "confirm-inducements":
+    case "ready-weather":
       return sameTeam(command.teamId, senderTeamId, "not-your-player");
 
     // Match ceremony is driven by the host

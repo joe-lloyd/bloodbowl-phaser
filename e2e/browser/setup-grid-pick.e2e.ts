@@ -291,8 +291,9 @@ async function startSetup(
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
 
+  await app.rollWeather(45_000);
   const flip = page.getByRole("button", { name: "FLIP COIN" });
-  await expect(flip).toBeVisible({ timeout: 45_000 });
+  await expect(flip).toBeVisible({ timeout: 15_000 });
   await flip.click();
   await expect(page.getByText(/Wins!$/)).toBeVisible({ timeout: 10_000 });
   const toss = (await app.bridge.events()).find(

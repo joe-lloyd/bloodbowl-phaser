@@ -20,7 +20,7 @@ import {
 } from "../../src/network/transport";
 import { Envelope } from "../../src/network/envelope";
 import { HeadlessCommand } from "../../src/headless/protocol";
-import { GamePhase } from "../../src/types/GameState";
+import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { trackEngineWork } from "../../src/game/core/GameFlowManager";
 import { refusalMessage } from "../../src/network/OwnershipGate";
@@ -188,13 +188,18 @@ describe("lockstep sessions", () => {
     void guestGame;
   }, 120_000);
 
-  it("rolls the opening weather on both engines with the start of setup", async () => {
+  it("rolls the opening weather on both engines once both coaches are ready", async () => {
     const make = () =>
-      new HeadlessGame({ seed: 8128, startingPhase: GamePhase.SETUP });
+      new HeadlessGame({
+        seed: 8128,
+        startingPhase: GamePhase.SETUP,
+        startingSubPhase: SubPhase.INTRO,
+      });
     const hostGame = make();
     const guestGame = new HeadlessGame({
       seed: 8128,
       startingPhase: GamePhase.SETUP,
+      startingSubPhase: SubPhase.INTRO,
       team1: structuredClone(hostGame.ctx.team1),
       team2: structuredClone(hostGame.ctx.team2),
     });
@@ -224,15 +229,31 @@ describe("lockstep sessions", () => {
       (roll: { rollType: string }) => rolls.push(roll.rollType)
     );
 
-    const started = await host.run({
-      type: "start-setup",
-      kickingTeamId: hostGame.ctx.team1.id,
-      rollWeather: true,
+    const hostReady = await host.run({
+      type: "ready-weather",
+      teamId: hostGame.ctx.team1.id,
+    });
+    await settle(host, guest);
+    expect(hostReady.ok).toBe(true);
+    // One coach ready is not enough
+    expect(rolls).toEqual([]);
+    expect(guestGame.snapshot().weatherReady).toEqual([hostGame.ctx.team1.id]);
+
+    // A coach cannot ready up for the other one
+    const forOther = await guest.run({
+      type: "ready-weather",
+      teamId: hostGame.ctx.team1.id,
+    });
+    expect(forOther.ok).toBe(false);
+
+    const guestReady = await guest.run({
+      type: "ready-weather",
+      teamId: hostGame.ctx.team2.id,
     });
     await settle(host, guest);
 
-    expect(started.ok).toBe(true);
-    expect(rolls.some((type) => /weather/i.test(type))).toBe(true);
+    expect(guestReady.ok).toBe(true);
+    expect(rolls).toEqual(["Weather"]);
     expect(guestGame.snapshot().weather).toBe(hostGame.snapshot().weather);
     expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
   });

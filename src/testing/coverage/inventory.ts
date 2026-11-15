@@ -37,6 +37,7 @@ export interface InventoryEntry {
 /** Commands an external agent can send that represent a real interaction. */
 export const INTERACTION_COMMANDS: HeadlessCommand["type"][] = [
   "coin-flip",
+  "ready-weather",
   "start-setup",
   "place-player",
   "remove-player",

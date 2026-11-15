@@ -222,6 +222,8 @@ export async function perform(
     const t = command.type as string;
     switch (t) {
       case "coin-flip":
+        await clickIf(page, /^ROLL WEATHER$/);
+        await clickIf(page, /^ON TO THE COIN TOSS$/);
         await clickIf(page, /^FLIP COIN$/);
         break;
       case "choose-kick-or-receive":
