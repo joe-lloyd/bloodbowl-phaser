@@ -11,7 +11,7 @@
 
 import { stateChecksum } from "../../headless/checksum";
 import { GameFork, HeadlessGame } from "../../headless/HeadlessGame";
-import { GamePhase } from "../../types/GameState";
+import { GamePhase, GameState } from "../../types/GameState";
 import { Candidate, enumerateDecision } from "../candidates";
 import { Coach, CoachChoice, CoachContext } from "../coach";
 import { CoachRng, createCoachRng } from "../rng";
@@ -108,17 +108,8 @@ export async function scorePlayout(
   const rng = createCoachRng(sampleSeed(seed, index));
   let handedOver = false;
   for (let steps = 0; steps < PLAYOUT_COMMANDS; steps++) {
-    const state = game.ctx.gameService.getState();
-    const scored = Object.keys(startScore).some(
-      (t) => (state.score[t] ?? 0) !== startScore[t]
-    );
-    if (state.activeTeamId !== us) handedOver = true;
-    if (
-      scored ||
-      state.phase !== GamePhase.PLAY ||
-      (handedOver && state.activeTeamId === us && !game.pendingDecision())
-    )
-      break;
+    if (game.ctx.gameService.getState().activeTeamId !== us) handedOver = true;
+    if (playoutOver(game, us, startScore, handedOver)) break;
     const point = await enumerateDecision(game, null);
     if (point.candidates.length === 0) break;
     const { index } = await policy.choose({
@@ -136,6 +127,36 @@ export async function scorePlayout(
     if (refused) break;
   }
   return evaluate(readBoard(game, us));
+}
+
+/**
+ * A playout ends at a score, when play stops, or when the turn has come
+ * back round to us with nothing left to answer.
+ */
+function playoutOver(
+  game: HeadlessGame,
+  us: string,
+  startScore: GameState["score"],
+  handedOver: boolean
+): boolean {
+  const state = game.ctx.gameService.getState();
+  const scored = Object.keys(startScore).some(
+    (t) => (state.score[t] ?? 0) !== startScore[t]
+  );
+  return (
+    scored ||
+    state.phase !== GamePhase.PLAY ||
+    (handedOver && state.activeTeamId === us && !game.pendingDecision())
+  );
+}
+
+/** The better half of `alive` by mean, always keeping the planner's pick, 0. */
+function betterHalf(alive: number[], mean: (i: number) => number): number[] {
+  const kept = [...alive]
+    .sort((a, b) => mean(b) - mean(a))
+    .slice(0, Math.max(1, alive.length >> 1));
+  if (!kept.includes(0) && kept.length > 0) kept.push(0);
+  return kept;
 }
 
 /** A seed for one sample of one decision, well spread. */
@@ -232,10 +253,7 @@ export function createSearchCoach(options: {
         });
       // A round the deadline cut short is the last.
       if (rows.length < seeds.length) break;
-      alive = [...alive]
-        .sort((a, b) => mean(b) - mean(a))
-        .slice(0, Math.max(1, alive.length >> 1));
-      if (!alive.includes(0) && alive.length > 0) alive.push(0);
+      alive = betterHalf(alive, mean);
       if (alive.length === 2 && round > 0) break;
     }
     const rival = [...alive].sort((a, b) => mean(b) - mean(a))[0] ?? 0;

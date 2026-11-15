@@ -79,36 +79,58 @@ function tackleZonesOn(board: Board, teamId: string, at: GridPosition): number {
     ).length;
 }
 
+type CommandOf<T extends HeadlessCommand["type"]> = Extract<
+  HeadlessCommand,
+  { type: T }
+>;
+
+/** Squares a player can cover this turn, rushing twice. */
+const reachOf = (player: Player) => player.stats.MA + 2;
+
+function moveDeclarationValue(
+  player: Player,
+  at: GridPosition,
+  board: Board
+): number {
+  if (board.carrier?.id === player.id) {
+    return distanceToGoal(board, player.teamId, at) <= reachOf(player)
+      ? 300
+      : 100;
+  }
+  if (!board.carrier && board.ball) {
+    return 80 - chebyshev(at, board.ball) * 5;
+  }
+  return 20 - (board.ball ? chebyshev(at, board.ball) : 0);
+}
+
+/** A Blitz is worth most when the opposing carrier is in reach. */
+function blitzDeclarationValue(
+  player: Player,
+  at: GridPosition,
+  board: Board
+): number {
+  const carrier = board.carrier;
+  const theirs = !!carrier && carrier.teamId !== board.teamId;
+  return theirs && chebyshev(at, carrier.gridPosition!) <= reachOf(player)
+    ? 90
+    : 10;
+}
+
 function scoreDeclaration(command: HeadlessCommand, board: Board): number {
   if (command.type !== "declare-action") return 0;
   const player = board.gs.getPlayerById(command.playerId);
   if (!player?.gridPosition) return 0;
   const at = player.gridPosition;
-  const ours = board.carrier?.teamId === board.teamId;
   const isCarrier = board.carrier?.id === player.id;
-  const reach = player.stats.MA + 2;
 
   if (command.blockReplacement) return 25;
   switch (command.action) {
     case "move":
-      if (isCarrier) {
-        return distanceToGoal(board, player.teamId, at) <= reach ? 300 : 100;
-      }
-      if (!board.carrier && board.ball) {
-        return 80 - chebyshev(at, board.ball) * 5;
-      }
-      return 20 - (board.ball ? chebyshev(at, board.ball) : 0);
+      return moveDeclarationValue(player, at, board);
     case "block":
       return bestBlockValue(player, board);
     case "blitz":
-      if (
-        board.carrier &&
-        !ours &&
-        chebyshev(at, board.carrier.gridPosition!) <= reach
-      ) {
-        return 90;
-      }
-      return 10;
+      return blitzDeclarationValue(player, at, board);
     case "standUp":
       return 15;
     case "pass":
@@ -159,59 +181,71 @@ function squareValue(player: Player, at: GridPosition, board: Board): number {
   return 0;
 }
 
+function moveStepValue(command: CommandOf<"move">, board: Board): number {
+  const player = board.gs.getPlayerById(command.playerId)!;
+  const from = player.gridPosition!;
+  const to = command.path[command.path.length - 1];
+  let value = squareValue(player, to, board) - squareValue(player, from, board);
+  if (tackleZonesOn(board, player.teamId, from) > 0) value -= 15; // a dodge
+  value -= tackleZonesOn(board, player.teamId, to) * 3;
+  if (board.gs.getMovementUsed(player.id) >= player.stats.MA) value -= 20; // a rush
+  const scores =
+    board.carrier?.id === player.id &&
+    distanceToGoal(board, player.teamId, to) === 0;
+  return scores ? 1000 : value;
+}
+
+function blockStepValue(command: CommandOf<"block">, board: Board): number {
+  const attacker = board.gs.getPlayerById(command.attackerId)!;
+  const defender = board.gs.getPlayerById(command.defenderId)!;
+  const diff = attacker.stats.ST - defender.stats.ST;
+  const carrierBonus = board.carrier?.id === defender.id ? 40 : 0;
+  return (diff > 0 ? 50 : diff === 0 ? 20 : -5) + carrierBonus;
+}
+
+function passStepValue(
+  command: CommandOf<"pass" | "handoff">,
+  board: Board
+): number {
+  const gs = board.gs;
+  const passer = gs.getPlayerById(command.playerId)!;
+  const target =
+    command.type === "handoff"
+      ? gs.getPlayerById(command.targetId)!.gridPosition!
+      : { x: command.x, y: command.y };
+  const gain =
+    distanceToGoal(board, passer.teamId, passer.gridPosition!) -
+    distanceToGoal(board, passer.teamId, target);
+  const receiver = [
+    ...gs.getTeammates(passer.id),
+    ...gs.getOpponents(passer.teamId),
+  ].find(
+    (p) => p.gridPosition?.x === target.x && p.gridPosition?.y === target.y
+  );
+  // Only ever aim at a standing team-mate; anything else gives the ball away.
+  const aimPenalty =
+    receiver?.teamId === passer.teamId &&
+    receiver.status === PlayerStatus.ACTIVE
+      ? 0
+      : 200;
+  return (
+    gain * 8 - tackleZonesOn(board, passer.teamId, target) * 10 - aimPenalty
+  );
+}
+
 function scoreStep(command: HeadlessCommand, board: Board): number {
   const gs = board.gs;
   switch (command.type) {
-    case "move": {
-      const player = gs.getPlayerById(command.playerId)!;
-      const from = player.gridPosition!;
-      const to = command.path[command.path.length - 1];
-      let value =
-        squareValue(player, to, board) - squareValue(player, from, board);
-      if (tackleZonesOn(board, player.teamId, from) > 0) value -= 15; // a dodge
-      value -= tackleZonesOn(board, player.teamId, to) * 3;
-      if (gs.getMovementUsed(player.id) >= player.stats.MA) value -= 20; // a rush
-      const scores =
-        board.carrier?.id === player.id &&
-        distanceToGoal(board, player.teamId, to) === 0;
-      return scores ? 1000 : value;
-    }
-    case "block": {
-      const attacker = gs.getPlayerById(command.attackerId)!;
-      const defender = gs.getPlayerById(command.defenderId)!;
-      const diff = attacker.stats.ST - defender.stats.ST;
-      const carrierBonus = board.carrier?.id === defender.id ? 40 : 0;
-      return (diff > 0 ? 50 : diff === 0 ? 20 : -5) + carrierBonus;
-    }
+    case "move":
+      return moveStepValue(command, board);
+    case "block":
+      return blockStepValue(command, board);
     case "stab":
     case "special-action":
       return 30;
     case "pass":
-    case "handoff": {
-      const passer = gs.getPlayerById(command.playerId)!;
-      const target =
-        command.type === "handoff"
-          ? gs.getPlayerById(command.targetId)!.gridPosition!
-          : { x: command.x, y: command.y };
-      const gain =
-        distanceToGoal(board, passer.teamId, passer.gridPosition!) -
-        distanceToGoal(board, passer.teamId, target);
-      const receiver = [
-        ...gs.getTeammates(passer.id),
-        ...gs.getOpponents(passer.teamId),
-      ].find(
-        (p) => p.gridPosition?.x === target.x && p.gridPosition?.y === target.y
-      );
-      // Only ever aim at a standing team-mate; anything else gives the ball away.
-      const aimPenalty =
-        receiver?.teamId === passer.teamId &&
-        receiver.status === PlayerStatus.ACTIVE
-          ? 0
-          : 200;
-      return (
-        gain * 8 - tackleZonesOn(board, passer.teamId, target) * 10 - aimPenalty
-      );
-    }
+    case "handoff":
+      return passStepValue(command, board);
     case "jump": {
       // A Jump is an Agility test: worth it only to make real progress.
       const player = gs.getPlayerById(command.playerId)!;
@@ -231,6 +265,22 @@ function scoreStep(command: HeadlessCommand, board: Board): number {
   }
 }
 
+/**
+ * Always bite, not the ball carrier if another Thrall is in reach, then in
+ * board order (as the planner). Steps of 1 outweigh the noise.
+ */
+function biteTargetValue(
+  command: CommandOf<"choose-bite-target">,
+  board: Board
+): number {
+  if (!command.playerId) return 0;
+  const pending = board.gs.getDecisionService().pending();
+  const targets = pending?.type === "bite-target" ? pending.targetIds : [];
+  const order = Math.max(0, targets.indexOf(command.playerId));
+  const carrier = board.carrier?.id === command.playerId;
+  return (carrier ? 1 : 2 + targets.length) + (targets.length - order);
+}
+
 function scoreDecision(command: HeadlessCommand, board: Board): number {
   const gs = board.gs;
   switch (command.type) {
@@ -246,6 +296,22 @@ function scoreDecision(command: HeadlessCommand, board: Board): number {
     }
     case "choose-follow-up":
       return command.followUp ? 1 : 0;
+    case "choose-bite-target":
+      return biteTargetValue(command, board);
+    case "touchback": {
+      const player = gs.getPlayerById(command.playerId)!;
+      return -tackleZonesOn(board, player.teamId, player.gridPosition!);
+    }
+    case "kickoff-skip":
+      return 1;
+    default:
+      return scoreOffer(command);
+  }
+}
+
+/** Offers the coach may take or turn down: taking one is worth more. */
+function scoreOffer(command: HeadlessCommand): number {
+  switch (command.type) {
     case "use-reroll":
       return command.accept ? (command.source === "skill" ? 3 : 2) : 0;
     case "use-reaction":
@@ -259,22 +325,6 @@ function scoreDecision(command: HeadlessCommand, board: Board): number {
     case "choose-foul-assists":
       // Every assist: more +1s break more armour (steps of 1 beat the noise)
       return command.count;
-    case "choose-bite-target": {
-      // Always bite, not the ball carrier if another Thrall is in reach,
-      // then in board order (as the planner). Steps of 1 outweigh the noise.
-      if (!command.playerId) return 0;
-      const pending = gs.getDecisionService().pending();
-      const targets = pending?.type === "bite-target" ? pending.targetIds : [];
-      const order = Math.max(0, targets.indexOf(command.playerId));
-      const carrier = board.carrier?.id === command.playerId;
-      return (carrier ? 1 : 2 + targets.length) + (targets.length - order);
-    }
-    case "touchback": {
-      const player = gs.getPlayerById(command.playerId)!;
-      return -tackleZonesOn(board, player.teamId, player.gridPosition!);
-    }
-    case "kickoff-skip":
-      return 1;
     default:
       return 0;
   }

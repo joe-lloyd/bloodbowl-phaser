@@ -29,45 +29,64 @@ const FUMBBL_NAMES: Partial<Record<RosterName, string>> = {
   [RosterName.SHAMBLING_UNDEAD]: "Shambling Undead",
 };
 
+/** Where a CSV parse has got to. */
+interface CsvState {
+  row: string[];
+  field: string;
+  quoted: boolean;
+  /** A quote inside a quoted field: an escaped quote or the field's end. */
+  pendingQuote: boolean;
+}
+
+/** Feed one character to the parse; returns the row a line end finishes. */
+function feedChar(state: CsvState, char: string): string[] | null {
+  if (state.pendingQuote) {
+    state.pendingQuote = false;
+    if (char === '"') {
+      state.field += '"';
+      return null;
+    }
+    state.quoted = false;
+  }
+  if (state.quoted) {
+    if (char === '"') state.pendingQuote = true;
+    else state.field += char;
+  } else if (char === '"') state.quoted = true;
+  else if (char === ",") {
+    state.row.push(state.field);
+    state.field = "";
+  } else if (char === "\n") {
+    const row = state.row;
+    row.push(state.field.replace(/\r$/, ""));
+    state.row = [];
+    state.field = "";
+    return row;
+  } else state.field += char;
+  return null;
+}
+
 /** One row at a time from a CSV file, quoted fields and all. */
 function* csvRows(file: string): Generator<string[]> {
   const fd = fs.openSync(file, "r");
   const buffer = Buffer.alloc(1 << 20);
   // A chunk can end inside a multi-byte character; the decoder holds it over.
   const decoder = new StringDecoder("utf8");
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
+  const state: CsvState = {
+    row: [],
+    field: "",
+    quoted: false,
+    pendingQuote: false,
+  };
   let read: number;
-  let pendingQuote = false;
   while ((read = fs.readSync(fd, buffer, 0, buffer.length, null)) > 0) {
     const text = decoder.write(buffer.subarray(0, read));
     for (const char of text) {
-      if (pendingQuote) {
-        pendingQuote = false;
-        if (char === '"') {
-          field += '"';
-          continue;
-        }
-        quoted = false;
-      }
-      if (quoted) {
-        if (char === '"') pendingQuote = true;
-        else field += char;
-      } else if (char === '"') quoted = true;
-      else if (char === ",") {
-        row.push(field);
-        field = "";
-      } else if (char === "\n") {
-        row.push(field.replace(/\r$/, ""));
-        yield row;
-        row = [];
-        field = "";
-      } else field += char;
+      const row = feedChar(state, char);
+      if (row) yield row;
     }
   }
   fs.closeSync(fd);
-  if (field || row.length) yield [...row, field];
+  if (state.field || state.row.length) yield [...state.row, state.field];
 }
 
 function* records(file: string): Generator<Record<string, string>> {

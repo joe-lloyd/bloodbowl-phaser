@@ -28,6 +28,42 @@ const READY_MADE_REROLLS = 2;
 const insignificant = (template: PlayerTemplate) =>
   hasSkill(template.skills, SkillType.INSIGNIFICANT);
 
+/** Whether one more of `template` stays within its own and the big guy limit. */
+function withinRosterLimits(
+  template: PlayerTemplate,
+  picked: PlayerTemplate[],
+  maxBigGuys: number | undefined
+): boolean {
+  if (
+    template.maxAllowed !== undefined &&
+    picked.filter((p) => p === template).length >= template.maxAllowed
+  )
+    return false;
+  return (
+    maxBigGuys === undefined ||
+    !isBigGuy(template.keywords) ||
+    picked.filter((t) => isBigGuy(t.keywords)).length < maxBigGuys
+  );
+}
+
+/** Linemen to fill the line-up to nine with what is left of the budget. */
+function linemenToAdd(
+  picked: PlayerTemplate[],
+  lineman: PlayerTemplate,
+  spent: number,
+  budget: number
+): number {
+  const significant = picked.filter((t) => !insignificant(t)).length;
+  const insignificantPicked = picked.length - significant;
+  let count = LINEUP_SIZE - picked.length;
+  if (insignificant(lineman)) {
+    count = Math.min(count, Math.max(0, significant - insignificantPicked));
+  }
+  count = Math.min(count, lineman.maxAllowed ?? count);
+  while (count > 0 && spent + count * lineman.cost > budget) count--;
+  return count;
+}
+
 /**
  * Up to four different positionals, most expensive first, within roster
  * limits and the budget, then Linemen up to nine players. Insignificant
@@ -49,7 +85,6 @@ export function lineupTemplates(
     .sort((a, b) => b.cost - a.cost);
 
   const picked: PlayerTemplate[] = [];
-  const count = (t: PlayerTemplate) => picked.filter((p) => p === t).length;
   let spent = 0;
   // Round-robin over positions so a line-up shows as many kinds as it can.
   for (
@@ -59,17 +94,7 @@ export function lineupTemplates(
   ) {
     for (const template of positionals) {
       if (picked.length >= MAX_NON_LINEMEN) break;
-      if (
-        template.maxAllowed !== undefined &&
-        count(template) >= template.maxAllowed
-      )
-        continue;
-      if (
-        roster.maxBigGuys !== undefined &&
-        isBigGuy(template.keywords) &&
-        picked.filter((t) => isBigGuy(t.keywords)).length >= roster.maxBigGuys
-      )
-        continue;
+      if (!withinRosterLimits(template, picked, roster.maxBigGuys)) continue;
       const linemenStillNeeded = Math.max(0, 7 - picked.length - 1);
       if (spent + template.cost + linemenStillNeeded * lineman.cost > budget)
         continue;
@@ -78,19 +103,7 @@ export function lineupTemplates(
     }
   }
 
-  const significant = picked.filter((t) => !insignificant(t)).length;
-  const insignificantPicked = picked.length - significant;
-  let linemenCount = LINEUP_SIZE - picked.length;
-  if (insignificant(lineman)) {
-    linemenCount = Math.min(
-      linemenCount,
-      Math.max(0, significant - insignificantPicked)
-    );
-  }
-  linemenCount = Math.min(linemenCount, lineman.maxAllowed ?? linemenCount);
-  while (linemenCount > 0 && spent + linemenCount * lineman.cost > budget)
-    linemenCount--;
-
+  const linemenCount = linemenToAdd(picked, lineman, spent, budget);
   return [...picked, ...Array.from({ length: linemenCount }, () => lineman)];
 }
 

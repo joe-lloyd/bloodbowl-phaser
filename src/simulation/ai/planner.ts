@@ -9,6 +9,7 @@
 import { HeadlessCommand } from "../../headless/protocol";
 import { GamePhase } from "../../types/GameState";
 import { ActionType } from "../../types/events";
+import { Player } from "../../types/Player";
 import { rollLabel } from "../../game/rules/rollTargets";
 import { Candidate } from "../candidates";
 import { Coach, CoachChoice, CoachContext } from "../coach";
@@ -80,6 +81,11 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
         )
       : -1;
   };
+  /** Walk what is left of the route first, then take the action's step. */
+  const walkThen = (
+    route: { path: { x: number; y: number }[] } | null,
+    act: () => number
+  ) => (route?.path.length ? stepTo(route) : act());
   switch (a.intent.kind) {
     case "score":
     case "carrier":
@@ -97,30 +103,33 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
     }
     case "blitz": {
       const target = a.intent.target.id;
-      if (a.intent.route?.path.length) return stepTo(a.intent.route);
-      return match(
-        (c) =>
-          c.type === "block" && c.attackerId === id && c.defenderId === target
+      return walkThen(a.intent.route, () =>
+        match(
+          (c) =>
+            c.type === "block" && c.attackerId === id && c.defenderId === target
+        )
       );
     }
     case "handoff": {
       const target = a.intent.to.id;
-      if (a.intent.route?.path.length) return stepTo(a.intent.route);
-      return match(
-        (c) =>
-          c.type === "handoff" && c.playerId === id && c.targetId === target
+      return walkThen(a.intent.route, () =>
+        match(
+          (c) =>
+            c.type === "handoff" && c.playerId === id && c.targetId === target
+        )
       );
     }
     case "pass": {
       const to = a.intent.to.gridPosition!;
-      if (a.intent.route?.path.length) return stepTo(a.intent.route);
-      return match(
-        (c) =>
-          c.type === "pass" &&
-          c.playerId === id &&
-          c.x === to.x &&
-          c.y === to.y &&
-          !c.hailMary
+      return walkThen(a.intent.route, () =>
+        match(
+          (c) =>
+            c.type === "pass" &&
+            c.playerId === id &&
+            c.x === to.x &&
+            c.y === to.y &&
+            !c.hailMary
+        )
       );
     }
   }
@@ -196,28 +205,47 @@ function planChoice(context: CoachContext, w: Weights): CoachChoice | null {
   const active = state.activePlayer;
   const actor = active ? board.gs.getPlayerById(active.id) : undefined;
   if (active && actor && actor.teamId === point.teamId && active.action) {
-    // Team-mates who have not acted yet still count as helpers, for the
-    // cage the carrier is walking into and the receiver it hands off to.
-    const acted = new Set(state.turn.activatedPlayerIds ?? []);
-    const waiting: Available = new Map(
-      board.ours
-        .filter((p) => p.id !== actor.id && !acted.has(p.id))
-        .map((p) => [p.id, new Set<ActionType>(["move"])])
-    );
-    const plan = continuation(
-      board,
-      w,
-      actor,
-      active.action as ActionType,
-      board.gs.hasUsedBlitzBlock(actor.id),
-      waiting
-    );
-    const index = plan ? nextStep(plan, candidates) : -1;
-    if (plan && index >= 0) return { index, note: noteFor(plan) };
-    const end = candidates.findIndex((c) => c.kind === "end-activation");
-    return end >= 0 ? { index: end } : null;
+    return continueChoice(board, w, candidates, actor, active.action);
   }
+  return declareChoice(board, w, candidates);
+}
 
+/** The next step of the activation under way, or ending it. */
+function continueChoice(
+  board: Board,
+  w: Weights,
+  candidates: readonly Candidate[],
+  actor: Player,
+  action: string
+): CoachChoice | null {
+  // Team-mates who have not acted yet still count as helpers, for the
+  // cage the carrier is walking into and the receiver it hands off to.
+  const acted = new Set(board.gs.getState().turn.activatedPlayerIds ?? []);
+  const waiting: Available = new Map(
+    board.ours
+      .filter((p) => p.id !== actor.id && !acted.has(p.id))
+      .map((p) => [p.id, new Set<ActionType>(["move"])])
+  );
+  const plan = continuation(
+    board,
+    w,
+    actor,
+    action as ActionType,
+    board.gs.hasUsedBlitzBlock(actor.id),
+    waiting
+  );
+  const index = plan ? nextStep(plan, candidates) : -1;
+  if (plan && index >= 0) return { index, note: noteFor(plan) };
+  const end = candidates.findIndex((c) => c.kind === "end-activation");
+  return end >= 0 ? { index: end } : null;
+}
+
+/** Declare the first planned activation on offer, else end the turn. */
+function declareChoice(
+  board: Board,
+  w: Weights,
+  candidates: readonly Candidate[]
+): CoachChoice | null {
   const plan = activations(board, w, availableActions(candidates));
   for (const a of plan) {
     const index = candidates.findIndex((c) => {

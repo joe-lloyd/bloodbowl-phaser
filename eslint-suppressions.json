@@ -131,21 +131,6 @@
       "count": 1
     }
   },
-  "scripts/coach/race-rates.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "scripts/e2e-coverage.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "scripts/e2e-seeds.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/competition/computerTeams.ts": {
     "complexity": {
       "count": 1
@@ -448,14 +433,6 @@
       "count": 1
     }
   },
-  "src/headless/serialization.ts": {
-    "complexity": {
-      "count": 3
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/network/ComputerMatch.ts": {
     "complexity": {
       "count": 2
@@ -496,136 +473,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
-    }
-  },
-  "src/seeding/competitionFixtures.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/seeding/teamFixtures.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/seeding/validateSeeds.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
-  "src/simulation/ai/board.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/decisions.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/planner.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/routes.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/simulation/ai/search.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
-  "src/simulation/candidates.ts": {
-    "complexity": {
-      "count": 3
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 4
-    }
-  },
-  "src/simulation/coaches/heuristic.ts": {
-    "complexity": {
-      "count": 3
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 3
-    }
-  },
-  "src/simulation/invariants.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
-  "src/simulation/lineups.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/simulation/puzzles.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/simulation/runMatch.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
-  "src/testing/coverage/report.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/testing/fixtures/validateFixtures.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/testing/scenarioCase/validate.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
     }
   },
   "src/types/Actions.ts": {

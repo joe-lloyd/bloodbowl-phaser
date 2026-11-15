@@ -133,14 +133,76 @@ function countEvents(
       stats[teamIndex(data.teamId)].turnovers++;
     if (event.name !== GameEventNames.DiceRoll || !data?.rollType) continue;
     const side = stats[data.teamId ? teamIndex(data.teamId) : team];
-    const failed = data.resultState === "failure";
-    if (data.rollType.startsWith("Dodge (")) {
-      side.dodges++;
-      if (failed) side.failedDodges++;
-    } else if (data.rollType.startsWith("Rush (")) {
-      side.rushes++;
-      if (failed) side.failedRushes++;
-    }
+    countRoll(side, data.rollType, data.resultState === "failure");
+  }
+}
+
+/** Count a Dodge or Rush roll; other rolls are not tracked. */
+function countRoll(side: TeamPlayStats, rollType: string, failed: boolean) {
+  if (rollType.startsWith("Dodge (")) {
+    side.dodges++;
+    if (failed) side.failedDodges++;
+  } else if (rollType.startsWith("Rush (")) {
+    side.rushes++;
+    if (failed) side.failedRushes++;
+  }
+}
+
+/**
+ * HeadlessGame reports refusals and exceptions alike as "command-failed:
+ * <message>". Refusals read as codes or sentences ("illegal-stab-target",
+ * "Not enough movement to Jump"); a crash reads like a JavaScript runtime
+ * error.
+ */
+function refusalFinding(
+  command: HeadlessCommand,
+  refusal: string | undefined,
+  label: string
+): { kind: FindingKind; key: string; message: string } {
+  const reason = refusal ?? "unknown";
+  const engineError =
+    /TypeError|ReferenceError|RangeError|Cannot read propert|is not a function|is not defined|of undefined|of null/.test(
+      reason
+    );
+  return {
+    kind: engineError ? "engine-error" : "rejected-candidate",
+    key: `${command.type}:${reason.replace(/[0-9a-z-]+-player-\d+/g, "<player>").slice(0, 80)}`,
+    message: `${label} → ${reason}`,
+  };
+}
+
+function recordedStep(
+  command: HeadlessCommand,
+  response: CommandResponse,
+  team: 0 | 1,
+  label: string,
+  note: string | undefined
+): RecordedStep {
+  return {
+    command,
+    ok: response.ok,
+    ...(response.reason ? { reason: response.reason } : {}),
+    team,
+    label,
+    ...(note ? { note } : {}),
+  };
+}
+
+type PlayerMatchStats = ReturnType<
+  HeadlessGame["ctx"]["matchStats"]["captureState"]
+>["players"];
+
+/** Add each player's casualties, completions and blocks to their team. */
+function addPlayerStats(
+  stats: [TeamPlayStats, TeamPlayStats],
+  playerStats: PlayerMatchStats,
+  teamIndex: (teamId: string) => 0 | 1
+): void {
+  for (const player of playerStats) {
+    const side = stats[teamIndex(player.teamId)];
+    side.casualties += player.casualties;
+    side.completions += player.completions;
+    side.blocks += player.blocks;
   }
 }
 
@@ -218,11 +280,87 @@ export async function grantSimInducements(game: HeadlessGame): Promise<void> {
   }
 }
 
+function finding(
+  kind: FindingKind,
+  key: string,
+  message: string,
+  step: number,
+  snapshot: GameSnapshot
+): Finding {
+  return {
+    kind,
+    key: `${kind}:${key}`,
+    message,
+    step,
+    phase: `${snapshot.phase}${snapshot.subPhase ? "/" + snapshot.subPhase : ""}`,
+    turn: `${snapshot.turn.isHalf2 ? "H2" : "H1"} T${snapshot.turn.turnNumber} ${snapshot.activeTeamId ?? "-"}`,
+  };
+}
+
+/** Count an accepted declaration by its kind of action. */
+function countDeclaration(side: TeamPlayStats, command: HeadlessCommand): void {
+  if (command.type !== "declare-action") return;
+  side.actions[command.action] = (side.actions[command.action] ?? 0) + 1;
+}
+
+/** A message for each team whose score its players' touchdowns do not add up to. */
+function uncreditedTouchdowns(
+  final: GameSnapshot,
+  playerStats: PlayerMatchStats
+): string[] {
+  const out: string[] = [];
+  for (const team of final.teams) {
+    const credited = playerStats
+      .filter((p) => p.teamId === team.id)
+      .reduce((sum, p) => sum + p.touchdowns, 0);
+    if (credited !== (final.score[team.id] ?? 0)) {
+      out.push(
+        `${team.name} scored ${final.score[team.id] ?? 0} but match stats credit ${credited} touchdowns`
+      );
+    }
+  }
+  return out;
+}
+
+/** The team in kicking set-up is the one that will kick. */
+function kickerAtSetup(
+  snapshot: GameSnapshot,
+  kickingTeamId: string | null
+): string | null {
+  return snapshot.subPhase === SubPhase.SETUP_KICKING
+    ? snapshot.activeTeamId
+    : kickingTeamId;
+}
+
+/** A team that kicks the ball is the kicking team, whatever came before. */
+function kickerAfter(
+  command: HeadlessCommand,
+  teamId: string,
+  kickingTeamId: string | null
+): string | null {
+  return command.type === "kick-ball" ? teamId : kickingTeamId;
+}
+
+/** Unfinished, and not because the game stopped offering anything legal. */
+function ranOutOfBudget(final: GameSnapshot, findings: Finding[]): boolean {
+  return (
+    final.phase !== GamePhase.GAME_OVER &&
+    findings.every((f) => f.kind !== "no-candidates")
+  );
+}
+
+/** The spec with its defaults filled in. */
+function matchSettings(spec: MatchSpec) {
+  return {
+    rerolls: spec.rerolls ?? 3,
+    coachSeed: spec.coachSeed ?? spec.seed,
+    maxCommands: spec.maxCommands ?? DEFAULT_MAX_COMMANDS,
+    inducements: spec.inducements ?? true,
+  };
+}
+
 export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
-  const rerolls = spec.rerolls ?? 3;
-  const coachSeed = spec.coachSeed ?? spec.seed;
-  const maxCommands = spec.maxCommands ?? DEFAULT_MAX_COMMANDS;
-  const inducements = spec.inducements ?? true;
+  const { rerolls, coachSeed, maxCommands, inducements } = matchSettings(spec);
   const game =
     spec.game ??
     createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup");
@@ -243,21 +381,12 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     key: string,
     message: string,
     snapshot: GameSnapshot
-  ) =>
-    findings.push({
-      kind,
-      key: `${kind}:${key}`,
-      message,
-      step: steps.length - 1,
-      phase: `${snapshot.phase}${snapshot.subPhase ? "/" + snapshot.subPhase : ""}`,
-      turn: `${snapshot.turn.isHalf2 ? "H2" : "H1"} T${snapshot.turn.turnNumber} ${snapshot.activeTeamId ?? "-"}`,
-    });
+  ) => findings.push(finding(kind, key, message, steps.length - 1, snapshot));
 
   while (steps.length < maxCommands) {
     const snapshot = game.snapshot();
     if (snapshot.phase === GamePhase.GAME_OVER) break;
-    if (snapshot.subPhase === SubPhase.SETUP_KICKING)
-      kickingTeamId = snapshot.activeTeamId;
+    kickingTeamId = kickerAtSetup(snapshot, kickingTeamId);
 
     const point = await enumerateDecision(game, kickingTeamId);
     const candidates = point.candidates.filter(
@@ -287,61 +416,36 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
       const before = game.snapshot();
       const response = await game.execute(command);
       countEvents(stats, response.events, team, teamIndex);
-      steps.push({
-        command,
-        ok: response.ok,
-        ...(response.reason ? { reason: response.reason } : {}),
-        team,
-        label: candidate.label,
-        ...(choice.note ? { note: choice.note } : {}),
-      });
-      if (command.type === "kick-ball" && response.ok)
-        kickingTeamId = point.teamId;
-      if (command.type === "declare-action" && response.ok)
-        stats[team].actions[command.action] =
-          (stats[team].actions[command.action] ?? 0) + 1;
-
+      steps.push(
+        recordedStep(command, response, team, candidate.label, choice.note)
+      );
       if (!response.ok) {
-        const reason = response.reason ?? "unknown";
-        // HeadlessGame reports refusals and exceptions alike as
-        // "command-failed: <message>". Refusals read as codes or sentences
-        // ("illegal-stab-target", "Not enough movement to Jump"); a crash
-        // reads like a JavaScript runtime error.
-        const engineError =
-          /TypeError|ReferenceError|RangeError|Cannot read propert|is not a function|is not defined|of undefined|of null/.test(
-            reason
-          );
-        report(
-          engineError ? "engine-error" : "rejected-candidate",
-          `${command.type}:${reason.replace(/[0-9a-z-]+-player-\d+/g, "<player>").slice(0, 80)}`,
-          `${candidate.label} → ${reason}`,
-          before
+        const { kind, key, message } = refusalFinding(
+          command,
+          response.reason,
+          candidate.label
         );
+        report(kind, key, message, before);
         refused.add(JSON.stringify(candidate.commands));
         break;
       }
+      kickingTeamId = kickerAfter(command, point.teamId, kickingTeamId);
+      countDeclaration(stats[team], command);
       refused = new Set();
-      for (const violation of monitor.observe(
+      const violations = monitor.observe(
         command,
         before,
         response.snapshot,
         !!response.pendingDecision
-      )) {
-        report(
-          "invariant",
-          violation.rule,
-          violation.message,
-          response.snapshot
-        );
-      }
+      );
+      violations.forEach((v) =>
+        report("invariant", v.rule, v.message, response.snapshot)
+      );
     }
   }
 
   const final = game.snapshot();
-  if (
-    final.phase !== GamePhase.GAME_OVER &&
-    findings.every((f) => f.kind !== "no-candidates")
-  ) {
+  if (ranOutOfBudget(final, findings)) {
     report(
       "budget-exhausted",
       final.phase,
@@ -352,25 +456,9 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   // Progression reads match stats, so every point on the scoreboard must
   // have a credited scorer or a player loses the SPP for it.
   const playerStats = game.ctx.matchStats.captureState().players;
-  for (const player of playerStats) {
-    const side = stats[teamIndex(player.teamId)];
-    side.casualties += player.casualties;
-    side.completions += player.completions;
-    side.blocks += player.blocks;
-  }
-  for (const team of final.teams) {
-    const credited = playerStats
-      .filter((p) => p.teamId === team.id)
-      .reduce((sum, p) => sum + p.touchdowns, 0);
-    if (credited !== (final.score[team.id] ?? 0)) {
-      report(
-        "invariant",
-        "touchdowns-credited",
-        `${team.name} scored ${final.score[team.id] ?? 0} but match stats credit ${credited} touchdowns`,
-        final
-      );
-    }
-  }
+  addPlayerStats(stats, playerStats, teamIndex);
+  for (const message of uncreditedTouchdowns(final, playerStats))
+    report("invariant", "touchdowns-credited", message, final);
 
   return {
     format: RECORDING_FORMAT,

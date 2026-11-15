@@ -305,17 +305,7 @@ function foldCompletedRecords(
   docs: CompetitionDoc[],
   teamsByRoster: Map<RosterName, Team>
 ): void {
-  const teamById = new Map(
-    [...teamsByRoster.values()].map((team) => [team.id, team])
-  );
-  const teamByEntrant = new Map<string, Team>();
-  for (const doc of docs) {
-    if (doc.status !== "complete") continue;
-    for (const entrant of doc.entrants) {
-      const team = teamById.get(entrant.teamId);
-      if (team) teamByEntrant.set(entrant.id, team);
-    }
-  }
+  const teamByEntrant = completedEntrantTeams(docs, teamsByRoster);
   for (const doc of docs) {
     if (doc.status !== "complete") continue;
     for (const fixture of doc.fixtures) {
@@ -331,17 +321,44 @@ function foldCompletedRecords(
       }
       const home = teamByEntrant.get(fixture.homeEntrantId);
       const away = teamByEntrant.get(fixture.awayEntrantId);
-      if (!home || !away) continue;
-      if (result.homeScore > result.awayScore) {
-        home.wins++;
-        away.losses++;
-      } else if (result.awayScore > result.homeScore) {
-        away.wins++;
-        home.losses++;
-      } else {
-        home.draws++;
-        away.draws++;
-      }
+      if (home && away) foldResult(home, away, result);
     }
+  }
+}
+
+/** The library team behind each entrant of a completed competition. */
+function completedEntrantTeams(
+  docs: CompetitionDoc[],
+  teamsByRoster: Map<RosterName, Team>
+): Map<string, Team> {
+  const teamById = new Map(
+    [...teamsByRoster.values()].map((team) => [team.id, team])
+  );
+  const teamByEntrant = new Map<string, Team>();
+  for (const doc of docs) {
+    if (doc.status !== "complete") continue;
+    for (const entrant of doc.entrants) {
+      const team = teamById.get(entrant.teamId);
+      if (team) teamByEntrant.set(entrant.id, team);
+    }
+  }
+  return teamByEntrant;
+}
+
+/** A win, a loss or a draw each, onto the two teams' records. */
+function foldResult(
+  home: Team,
+  away: Team,
+  result: { homeScore: number; awayScore: number }
+): void {
+  if (result.homeScore > result.awayScore) {
+    home.wins++;
+    away.losses++;
+  } else if (result.awayScore > result.homeScore) {
+    away.wins++;
+    home.losses++;
+  } else {
+    home.draws++;
+    away.draws++;
   }
 }

@@ -65,6 +65,19 @@ export interface Board {
   occupant: (Player | undefined)[];
 }
 
+/** Where the ball is: held by a standing player, loose, or nowhere. */
+function ballOn(
+  position: Square | null,
+  occupant: (Player | undefined)[]
+): Ball {
+  if (!position) return { kind: "none" };
+  const at = { ...position };
+  const holder = occupant[key(at)];
+  return holder && holder.status === PlayerStatus.ACTIVE
+    ? { kind: "carried", at, carrier: holder }
+    : { kind: "loose", at };
+}
+
 export function readBoard(game: HeadlessGame, us: string): Board {
   const gs = game.ctx.gameService;
   const state = gs.getState();
@@ -84,13 +97,7 @@ export function readBoard(game: HeadlessGame, us: string): Board {
   const occupant: (Player | undefined)[] = new Array(WIDTH * HEIGHT);
   for (const p of everyone) occupant[key(p.gridPosition!)] = p;
 
-  const at = state.ballPosition ? { ...state.ballPosition } : null;
-  const holder = at ? occupant[key(at)] : undefined;
-  const ball: Ball = !at
-    ? { kind: "none" }
-    : holder && holder.status === PlayerStatus.ACTIVE
-      ? { kind: "carried", at, carrier: holder }
-      : { kind: "loose", at };
+  const ball = ballOn(state.ballPosition, occupant);
 
   const turn = state.turn;
   const ourTeam = gs.getTeam(us);

@@ -33,6 +33,7 @@ import {
 import {
   CompetitionDoc,
   Standing,
+  TournamentDoc,
 } from "../competition/types";
 import { computeStandings } from "../competition/logic";
 import { getRosterByRosterName } from "../data/RosterTemplates";
@@ -109,22 +110,16 @@ function validateTeamFinances(team: Team): SeedViolation[] {
   return violations;
 }
 
-function validatePlayerProgression(player: Player): SeedViolation[] {
+/**
+ * Skill access: primary-skill advancements must come from primary
+ * categories, secondary-skill from secondary (roster access on the player).
+ */
+function skillAccessViolations(
+  player: Player,
+  subject: string
+): SeedViolation[] {
   const violations: SeedViolation[] = [];
-  const subject = `${player.teamId}/${player.id}`;
-  const advancements = player.advancements ?? [];
-
-  if (advancementCount(player) > 6 || player.level !== Math.min(6, advancements.length)) {
-    violations.push({
-      area: "progression",
-      subject,
-      detail: `level ${player.level} inconsistent with ${advancements.length} advancements (cap 6)`,
-    });
-  }
-
-  // Skill access: primary-skill advancements must come from primary
-  // categories, secondary-skill from secondary (roster access on the player).
-  for (const advancement of advancements) {
+  for (const advancement of player.advancements ?? []) {
     if (advancement.type === "characteristic") continue;
     const category = SKILL_DEFINITIONS[advancement.name as SkillType]?.category;
     const access =
@@ -137,8 +132,14 @@ function validatePlayerProgression(player: Player): SeedViolation[] {
       });
     }
   }
+  return violations;
+}
 
-  // No duplicate skills.
+function duplicateSkillViolations(
+  player: Player,
+  subject: string
+): SeedViolation[] {
+  const violations: SeedViolation[] = [];
   const seen = new Set<string>();
   for (const skill of player.skills) {
     if (seen.has(skill.type)) {
@@ -150,88 +151,123 @@ function validatePlayerProgression(player: Player): SeedViolation[] {
     }
     seen.add(skill.type);
   }
+  return violations;
+}
 
-  // Characteristic advances: at most 2 per stat, within maximums, and the
-  // current stat equals base + advances - injury decreases.
-  for (const stat of ["MA", "ST", "AG", "PA", "AV"] as const) {
-    const advances = player.characteristicAdvances?.[stat] ?? 0;
-    if (advances > 2) {
-      violations.push({
-        area: "progression",
-        subject,
-        detail: `${stat} advanced ${advances} times (max 2)`,
-      });
-    }
-    const decreases = player.injuries.filter(
-      (injury) => STAT_DECREASE_INJURIES[injury] === stat
-    ).length;
-    // The Veteran (D8) plays at MA -1.
-    const veteranPenalty = stat === "MA" && player.veteran ? 1 : 0;
-    const expected =
-      player.baseStats[stat] +
-      improvementDirection(stat) * advances -
-      improvementDirection(stat) * decreases -
-      veteranPenalty;
-    if (player.stats[stat] !== expected) {
-      violations.push({
-        area: "progression",
-        subject,
-        detail: `${stat} ${player.stats[stat]} !== base ${player.baseStats[stat]} +${advances} advances -${decreases} injuries -${veteranPenalty} Veteran`,
-      });
-    }
-    const maximum = CHARACTERISTIC_MAXIMUMS[stat];
-    const outOfBounds =
-      stat === "AG" || stat === "PA"
-        ? player.stats[stat] < maximum
-        : player.stats[stat] > maximum;
-    if (outOfBounds) {
-      violations.push({
-        area: "progression",
-        subject,
-        detail: `${stat} ${player.stats[stat]} beyond maximum ${maximum}`,
-      });
-    }
-  }
-
-  // History totals reproduce stored SPP and progression.
-  const spent = advancements.reduce((sum, record) => sum + record.sppCost, 0);
-  if (player.careerStats) {
-    const career = player.careerStats;
-    const statSpp =
-      career.completions * SPP_PER_STAT.completions +
-      career.interceptions * SPP_PER_STAT.interceptions +
-      career.casualties * SPP_PER_STAT.casualties +
-      career.touchdowns * SPP_PER_STAT.touchdowns +
-      career.mvps * SPP_PER_STAT.mvps;
-    if (career.sppEarned !== statSpp) {
-      violations.push({
-        area: "progression",
-        subject,
-        detail: `career sppEarned ${career.sppEarned} !== stat lines worth ${statSpp}`,
-      });
-    }
-    if (career.sppEarned !== player.spp + spent) {
-      violations.push({
-        area: "progression",
-        subject,
-        detail: `career sppEarned ${career.sppEarned} !== unspent ${player.spp} + advancement spending ${spent}`,
-      });
-    }
-    if (career.mvps > career.matches) {
-      violations.push({
-        area: "progression",
-        subject,
-        detail: `${career.mvps} MVPs in ${career.matches} matches`,
-      });
-    }
-  } else if (player.spp !== 0 || advancements.length > 0) {
+/**
+ * Characteristic advances: at most 2 per stat, within maximums, and the
+ * current stat equals base + advances - injury decreases.
+ */
+function statViolations(
+  player: Player,
+  stat: keyof PlayerStats,
+  subject: string
+): SeedViolation[] {
+  const violations: SeedViolation[] = [];
+  const advances = player.characteristicAdvances?.[stat] ?? 0;
+  if (advances > 2) {
     violations.push({
       area: "progression",
       subject,
-      detail: `progression without career history (spp ${player.spp}, ${advancements.length} advancements)`,
+      detail: `${stat} advanced ${advances} times (max 2)`,
     });
   }
+  const decreases = player.injuries.filter(
+    (injury) => STAT_DECREASE_INJURIES[injury] === stat
+  ).length;
+  // The Veteran (D8) plays at MA -1.
+  const veteranPenalty = stat === "MA" && player.veteran ? 1 : 0;
+  const expected =
+    player.baseStats[stat] +
+    improvementDirection(stat) * advances -
+    improvementDirection(stat) * decreases -
+    veteranPenalty;
+  if (player.stats[stat] !== expected) {
+    violations.push({
+      area: "progression",
+      subject,
+      detail: `${stat} ${player.stats[stat]} !== base ${player.baseStats[stat]} +${advances} advances -${decreases} injuries -${veteranPenalty} Veteran`,
+    });
+  }
+  const maximum = CHARACTERISTIC_MAXIMUMS[stat];
+  const outOfBounds =
+    stat === "AG" || stat === "PA"
+      ? player.stats[stat] < maximum
+      : player.stats[stat] > maximum;
+  if (outOfBounds) {
+    violations.push({
+      area: "progression",
+      subject,
+      detail: `${stat} ${player.stats[stat]} beyond maximum ${maximum}`,
+    });
+  }
+  return violations;
+}
 
+/** History totals reproduce stored SPP and progression. */
+function historyViolations(player: Player, subject: string): SeedViolation[] {
+  const violations: SeedViolation[] = [];
+  const advancements = player.advancements ?? [];
+  const spent = advancements.reduce((sum, record) => sum + record.sppCost, 0);
+  const career = player.careerStats;
+  if (!career) {
+    if (player.spp !== 0 || advancements.length > 0) {
+      violations.push({
+        area: "progression",
+        subject,
+        detail: `progression without career history (spp ${player.spp}, ${advancements.length} advancements)`,
+      });
+    }
+    return violations;
+  }
+  const statSpp =
+    career.completions * SPP_PER_STAT.completions +
+    career.interceptions * SPP_PER_STAT.interceptions +
+    career.casualties * SPP_PER_STAT.casualties +
+    career.touchdowns * SPP_PER_STAT.touchdowns +
+    career.mvps * SPP_PER_STAT.mvps;
+  if (career.sppEarned !== statSpp) {
+    violations.push({
+      area: "progression",
+      subject,
+      detail: `career sppEarned ${career.sppEarned} !== stat lines worth ${statSpp}`,
+    });
+  }
+  if (career.sppEarned !== player.spp + spent) {
+    violations.push({
+      area: "progression",
+      subject,
+      detail: `career sppEarned ${career.sppEarned} !== unspent ${player.spp} + advancement spending ${spent}`,
+    });
+  }
+  if (career.mvps > career.matches) {
+    violations.push({
+      area: "progression",
+      subject,
+      detail: `${career.mvps} MVPs in ${career.matches} matches`,
+    });
+  }
+  return violations;
+}
+
+function validatePlayerProgression(player: Player): SeedViolation[] {
+  const violations: SeedViolation[] = [];
+  const subject = `${player.teamId}/${player.id}`;
+  const advancements = player.advancements ?? [];
+
+  if (advancementCount(player) > 6 || player.level !== Math.min(6, advancements.length)) {
+    violations.push({
+      area: "progression",
+      subject,
+      detail: `level ${player.level} inconsistent with ${advancements.length} advancements (cap 6)`,
+    });
+  }
+  violations.push(...skillAccessViolations(player, subject));
+  violations.push(...duplicateSkillViolations(player, subject));
+  for (const stat of ["MA", "ST", "AG", "PA", "AV"] as const) {
+    violations.push(...statViolations(player, stat, subject));
+  }
+  violations.push(...historyViolations(player, subject));
   return violations;
 }
 
@@ -269,153 +305,187 @@ function sameStandings(a: Standing[], b: Standing[]): boolean {
   });
 }
 
-function validateCompetition(doc: CompetitionDoc): SeedViolation[] {
+function competitionViolation(
+  doc: CompetitionDoc,
+  detail: string
+): SeedViolation {
+  return { area: "competition", subject: doc.id, detail };
+}
+
+/** Lifecycle coherence: a status agrees with how many fixtures are done. */
+function lifecycleViolations(
+  doc: CompetitionDoc,
+  completed: number,
+  incomplete: number
+): SeedViolation[] {
   const violations: SeedViolation[] = [];
+  if (doc.status === "draft" && completed > 0) {
+    violations.push(
+      competitionViolation(doc, `draft has ${completed} completed fixtures`)
+    );
+  }
+  if (doc.status === "active" && (completed === 0 || incomplete === 0)) {
+    violations.push(
+      competitionViolation(
+        doc,
+        `active needs both completed (${completed}) and open (${incomplete}) fixtures`
+      )
+    );
+  }
+  if (doc.status === "complete" && incomplete > 0) {
+    violations.push(
+      competitionViolation(doc, `complete but ${incomplete} fixtures unfinished`)
+    );
+  }
+  return violations;
+}
 
-  if (!isSeedOwned(doc)) {
-    violations.push({
-      area: "competition",
-      subject: doc.id,
-      detail: "missing seed ownership metadata",
-    });
-  }
-  if (doc.entrants.length < 2) {
-    violations.push({
-      area: "competition",
-      subject: doc.id,
-      detail: `only ${doc.entrants.length} entrants`,
-    });
-  }
-  violations.push(...fixturesReferenceEntrants(doc));
-
-  const completed = doc.fixtures.filter((f) => f.status === "complete");
-  const incomplete = doc.fixtures.filter((f) => f.status !== "complete");
-
-  // Lifecycle coherence.
-  if (doc.status === "draft" && completed.length > 0) {
-    violations.push({
-      area: "competition",
-      subject: doc.id,
-      detail: `draft has ${completed.length} completed fixtures`,
-    });
-  }
-  if (
-    doc.status === "active" &&
-    (completed.length === 0 || incomplete.length === 0)
-  ) {
-    violations.push({
-      area: "competition",
-      subject: doc.id,
-      detail: `active needs both completed (${completed.length}) and open (${incomplete.length}) fixtures`,
-    });
-  }
-  if (doc.status === "complete" && incomplete.length > 0) {
-    violations.push({
-      area: "competition",
-      subject: doc.id,
-      detail: `complete but ${incomplete.length} fixtures unfinished`,
-    });
-  }
-
-  // Results exist exactly where fixtures are complete; elimination games
-  // always have a winner.
+/**
+ * Results exist exactly where fixtures are complete; elimination games
+ * always have a winner.
+ */
+function resultViolations(doc: CompetitionDoc): SeedViolation[] {
+  const violations: SeedViolation[] = [];
+  const elimination = isElimination(doc);
   for (const fixture of doc.fixtures) {
     if (fixture.status === "complete" && !fixture.result) {
-      violations.push({
-        area: "competition",
-        subject: doc.id,
-        detail: `fixture ${fixture.id} complete without a result`,
-      });
+      violations.push(
+        competitionViolation(doc, `fixture ${fixture.id} complete without a result`)
+      );
     }
     if (fixture.status !== "complete" && fixture.result) {
-      violations.push({
-        area: "competition",
-        subject: doc.id,
-        detail: `fixture ${fixture.id} ${fixture.status} but has a result`,
-      });
+      violations.push(
+        competitionViolation(
+          doc,
+          `fixture ${fixture.id} ${fixture.status} but has a result`
+        )
+      );
     }
     if (
-      doc.type === "tournament" &&
-      doc.format === "single-elimination" &&
+      elimination &&
       fixture.result &&
       !fixture.result.bye &&
       !fixture.result.winnerEntrantId
     ) {
-      violations.push({
-        area: "competition",
-        subject: doc.id,
-        detail: `elimination fixture ${fixture.id} has no winner`,
-      });
+      violations.push(
+        competitionViolation(doc, `elimination fixture ${fixture.id} has no winner`)
+      );
     }
   }
+  return violations;
+}
 
-  // Bracket progression: winners occupy their next slot; the final's winner
-  // is the recorded champion.
-  if (doc.type === "tournament" && doc.format === "single-elimination") {
-    for (const fixture of completed) {
-      if (!fixture.nextFixtureId || !fixture.result?.winnerEntrantId) continue;
-      const next = doc.fixtures.find((f) => f.id === fixture.nextFixtureId);
-      const slotValue =
-        fixture.nextSlot === "away" ? next?.awayEntrantId : next?.homeEntrantId;
-      if (slotValue !== fixture.result.winnerEntrantId) {
-        violations.push({
-          area: "competition",
-          subject: doc.id,
-          detail: `winner of ${fixture.id} not advanced to ${fixture.nextFixtureId} (${fixture.nextSlot})`,
-        });
-      }
-    }
-    const final = doc.fixtures.find((f) => !f.nextFixtureId);
-    if (doc.status === "complete") {
-      if (!doc.championEntrantId) {
-        violations.push({
-          area: "competition",
-          subject: doc.id,
-          detail: "completed tournament has no champion recorded",
-        });
-      } else if (final?.result?.winnerEntrantId !== doc.championEntrantId) {
-        violations.push({
-          area: "competition",
-          subject: doc.id,
-          detail: `champion ${doc.championEntrantId} did not win the final`,
-        });
-      }
-    }
-    if (doc.status === "active" && doc.championEntrantId) {
-      violations.push({
-        area: "competition",
-        subject: doc.id,
-        detail: "champion recorded before the bracket completed",
-      });
+function isElimination(doc: CompetitionDoc): doc is TournamentDoc {
+  return doc.type === "tournament" && doc.format === "single-elimination";
+}
+
+/**
+ * Bracket progression: winners occupy their next slot; the final's winner
+ * is the recorded champion.
+ */
+function bracketViolations(
+  doc: TournamentDoc,
+  completed: CompetitionDoc["fixtures"]
+): SeedViolation[] {
+  const violations: SeedViolation[] = [];
+  for (const fixture of completed) {
+    if (!fixture.nextFixtureId || !fixture.result?.winnerEntrantId) continue;
+    const next = doc.fixtures.find((f) => f.id === fixture.nextFixtureId);
+    const slotValue =
+      fixture.nextSlot === "away" ? next?.awayEntrantId : next?.homeEntrantId;
+    if (slotValue !== fixture.result.winnerEntrantId) {
+      violations.push(
+        competitionViolation(
+          doc,
+          `winner of ${fixture.id} not advanced to ${fixture.nextFixtureId} (${fixture.nextSlot})`
+        )
+      );
     }
   }
+  violations.push(...championViolations(doc));
+  return violations;
+}
 
-  // Standings reproduce the results (and a completed league's table leader
-  // is its recorded champion).
+function championViolations(doc: TournamentDoc): SeedViolation[] {
+  const final = doc.fixtures.find((f) => !f.nextFixtureId);
+  if (doc.status === "complete" && !doc.championEntrantId) {
+    return [
+      competitionViolation(doc, "completed tournament has no champion recorded"),
+    ];
+  }
+  if (
+    doc.status === "complete" &&
+    final?.result?.winnerEntrantId !== doc.championEntrantId
+  ) {
+    return [
+      competitionViolation(
+        doc,
+        `champion ${doc.championEntrantId} did not win the final`
+      ),
+    ];
+  }
+  if (doc.status === "active" && doc.championEntrantId) {
+    return [
+      competitionViolation(doc, "champion recorded before the bracket completed"),
+    ];
+  }
+  return [];
+}
+
+/**
+ * Standings reproduce the results (and a completed league's table leader
+ * is its recorded champion).
+ */
+function standingsViolations(doc: CompetitionDoc): SeedViolation[] {
+  const violations: SeedViolation[] = [];
   const expectedStandings = computeStandings(
     doc.entrants,
     doc.fixtures,
     doc.type === "league" ? doc.points : undefined
   );
   if (!sameStandings(doc.standings, expectedStandings)) {
-    violations.push({
-      area: "competition",
-      subject: doc.id,
-      detail: "standings do not match the fixture results",
-    });
+    violations.push(
+      competitionViolation(doc, "standings do not match the fixture results")
+    );
   }
   if (
     doc.type === "league" &&
     doc.status === "complete" &&
     (doc.standings.length === 0 || doc.standings[0].played === 0)
   ) {
-    violations.push({
-      area: "competition",
-      subject: doc.id,
-      detail: "completed league has no table leader (no fixtures played)",
-    });
+    violations.push(
+      competitionViolation(
+        doc,
+        "completed league has no table leader (no fixtures played)"
+      )
+    );
   }
+  return violations;
+}
 
+function validateCompetition(doc: CompetitionDoc): SeedViolation[] {
+  const violations: SeedViolation[] = [];
+
+  if (!isSeedOwned(doc)) {
+    violations.push(
+      competitionViolation(doc, "missing seed ownership metadata")
+    );
+  }
+  if (doc.entrants.length < 2) {
+    violations.push(
+      competitionViolation(doc, `only ${doc.entrants.length} entrants`)
+    );
+  }
+  violations.push(...fixturesReferenceEntrants(doc));
+
+  const completed = doc.fixtures.filter((f) => f.status === "complete");
+  const incomplete = doc.fixtures.filter((f) => f.status !== "complete");
+  violations.push(
+    ...lifecycleViolations(doc, completed.length, incomplete.length)
+  );
+  violations.push(...resultViolations(doc));
+  if (isElimination(doc)) violations.push(...bracketViolations(doc, completed));
+  violations.push(...standingsViolations(doc));
   return violations;
 }
 

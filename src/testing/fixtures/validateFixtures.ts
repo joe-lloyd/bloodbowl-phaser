@@ -98,6 +98,88 @@ export interface AuditOptions {
   defaultRoster?: RosterName;
 }
 
+interface GrantToAudit {
+  ownerId: string;
+  roster: RosterName;
+  playerIndex: number;
+  /** "team1:3" */
+  player: string;
+  skill: SkillType;
+  /** The declared isolation reason, if any. */
+  reason: string | undefined;
+}
+
+/** One granted skill: how it is justified, and the issue it raises, if any. */
+function auditGrant(grant: GrantToAudit): {
+  record: FixtureGrantRecord;
+  issue?: FixtureIssue;
+} {
+  const { ownerId, roster, playerIndex, player, skill, reason } = grant;
+  const legality = grantLegality(roster, playerIndex, skill);
+  const record: FixtureGrantRecord = {
+    ownerId,
+    player,
+    skill,
+    roster,
+    positionName: positionAt(roster, playerIndex) ?? "?",
+    legality,
+    ...(reason ? { reason } : {}),
+  };
+
+  if (legality === "native") {
+    return {
+      record,
+      issue: {
+        ownerId,
+        player,
+        skill,
+        kind: "redundant-grant",
+        message:
+          `${player} (${describeSlot(roster, playerIndex)}) ` +
+          `already has ${skill} from its roster — drop the grant`,
+      },
+    };
+  }
+
+  if (legality !== "illegal") return { record }; // rules-valid advancement
+
+  if (reason) {
+    record.justification = "declared";
+    return { record };
+  }
+
+  const native = nativeFixtures(skill)[0];
+  if (!native) {
+    // No fielded position owns it, so there is nothing to prefer. Note
+    // the unfielded holder, if any, so growing a composition later
+    // surfaces as an improvement rather than staying invisible.
+    record.justification = "forced";
+    const unfielded = nativePositions(skill).find((p) => !p.fielded);
+    if (unfielded) {
+      record.unfieldedNative = {
+        roster: unfielded.roster,
+        positionName: unfielded.positionName,
+      };
+    }
+    return { record };
+  }
+
+  return {
+    record,
+    issue: {
+      ownerId,
+      player,
+      skill,
+      kind: "implausible-grant",
+      message:
+        `${player} (${describeSlot(roster, playerIndex)}) ` +
+        `cannot legally hold ${skill}, but ${native.roster} "${native.positionName}" ` +
+        `(index ${native.playerIndex}) has it natively — field that fixture ` +
+        `or record an isolation reason`,
+    },
+  };
+}
+
 /**
  * Audit one scenario setup's skill grants against the roster it fields.
  *
@@ -140,70 +222,16 @@ export function auditSetupFixtures(
     for (const placement of side.placements) {
       const player = `${side.team}:${placement.playerIndex}`;
       for (const skill of grantedSkills(placement)) {
-        const legality = grantLegality(
-          side.roster,
-          placement.playerIndex,
-          skill
-        );
-        const reason = reasons.get(`${player}|${skill}`);
-        const record: FixtureGrantRecord = {
+        const { record, issue } = auditGrant({
           ownerId,
-          player,
-          skill,
           roster: side.roster,
-          positionName: positionAt(side.roster, placement.playerIndex) ?? "?",
-          legality,
-          ...(reason ? { reason } : {}),
-        };
-        grants.push(record);
-
-        if (legality === "native") {
-          issues.push({
-            ownerId,
-            player,
-            skill,
-            kind: "redundant-grant",
-            message:
-              `${player} (${describeSlot(side.roster, placement.playerIndex)}) ` +
-              `already has ${skill} from its roster — drop the grant`,
-          });
-          continue;
-        }
-
-        if (legality !== "illegal") continue; // rules-valid advancement
-
-        if (reason) {
-          record.justification = "declared";
-          continue;
-        }
-
-        const native = nativeFixtures(skill)[0];
-        if (!native) {
-          // No fielded position owns it, so there is nothing to prefer. Note
-          // the unfielded holder, if any, so growing a composition later
-          // surfaces as an improvement rather than staying invisible.
-          record.justification = "forced";
-          const unfielded = nativePositions(skill).find((p) => !p.fielded);
-          if (unfielded) {
-            record.unfieldedNative = {
-              roster: unfielded.roster,
-              positionName: unfielded.positionName,
-            };
-          }
-          continue;
-        }
-
-        issues.push({
-          ownerId,
+          playerIndex: placement.playerIndex,
           player,
           skill,
-          kind: "implausible-grant",
-          message:
-            `${player} (${describeSlot(side.roster, placement.playerIndex)}) ` +
-            `cannot legally hold ${skill}, but ${native.roster} "${native.positionName}" ` +
-            `(index ${native.playerIndex}) has it natively — field that fixture ` +
-            `or record an isolation reason`,
+          reason: reasons.get(`${player}|${skill}`),
         });
+        grants.push(record);
+        if (issue) issues.push(issue);
       }
     }
   }

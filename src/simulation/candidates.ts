@@ -13,34 +13,20 @@
 import { HeadlessGame } from "../headless/HeadlessGame";
 import { GameSnapshot } from "../headless/serialization";
 import {
-  GridPosition,
   HeadlessCommand,
   PendingDecision,
+  PlayerActions,
 } from "../headless/protocol";
-import { GamePhase, GameState, SubPhase } from "../types/GameState";
-import {
-  Player,
-  PlayerCondition,
-  PlayerStatus,
-  hasCondition,
-} from "../types/Player";
+import { GamePhase, SubPhase } from "../types/GameState";
+import { Player, PlayerStatus } from "../types/Player";
 import { ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
-import { PassController } from "../game/controllers/PassController";
-import { weatherEffects } from "../game/rules/weather";
-import { legalHandoffTargets } from "../game/rules/handoff";
-import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
 import { SetupValidator } from "../game/validators/SetupValidator";
-import { jumpTargets } from "../game/rules/jump";
-import { moveAllowance } from "../game/skills/movement";
-import {
-  isConfinedToReserves,
-  withDriveModifiers,
-} from "../game/kickoff/driveEffects";
-import { hasSkill, SkillType } from "../types/Skills";
+import { isConfinedToReserves } from "../game/kickoff/driveEffects";
 import { decisionOwner } from "../network/OwnershipGate";
+import { describePlayer, square, stepCandidates } from "./stepCandidates";
 
 export type CandidateKind =
   | "decision"
@@ -82,22 +68,6 @@ const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "chomp",
   "vomit",
 ]);
-
-const chebyshev = (a: GridPosition, b: GridPosition) =>
-  Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-
-const square = (p: GridPosition) => `(${p.x},${p.y})`;
-
-const onPitch = (p: GridPosition) =>
-  p.x >= 0 &&
-  p.x < GameConfig.PITCH_WIDTH &&
-  p.y >= 0 &&
-  p.y < GameConfig.PITCH_HEIGHT;
-
-export function describePlayer(player: Player): string {
-  const where = player.gridPosition ? ` at ${square(player.gridPosition)}` : "";
-  return `${player.positionName} #${player.number}${where}`;
-}
 
 /**
  * The decision point the game is waiting on. `kickingTeamId` is tracked by
@@ -165,15 +135,77 @@ export async function enumerateDecision(
   }
 }
 
+type PendingOf<T extends PendingDecision["type"]> = Extract<
+  PendingDecision,
+  { type: T }
+>;
+
+const one = (command: HeadlessCommand, label: string): Candidate => ({
+  kind: "decision",
+  commands: [command],
+  label,
+});
+
+function blockDiceCandidates(pending: PendingOf<"block-dice">): Candidate[] {
+  const out =
+    pending.choiceStage === "attacker-reroll"
+      ? [
+          one(
+            { type: "keep-block-dice", attackerId: pending.attackerId },
+            "Keep the block dice"
+          ),
+        ]
+      : pending.options.map((option, index) =>
+          one(
+            { type: "choose-block-result", index },
+            `Take the ${option.label} result`
+          )
+        );
+  if (pending.teamRerollAvailable) {
+    out.push(
+      one(
+        { type: "team-reroll-block", attackerId: pending.attackerId },
+        "Spend a team re-roll on the block dice"
+      )
+    );
+  }
+  if (pending.proAvailable) {
+    pending.options.forEach((option, dieIndex) =>
+      out.push(
+        one(
+          {
+            type: "pro-reroll-block",
+            attackerId: pending.attackerId,
+            dieIndex,
+          },
+          `Pro re-roll the ${option.label} die`
+        )
+      )
+    );
+  }
+  if (pending.brawlerAvailable) {
+    out.push(
+      one(
+        { type: "brawler-reroll-block", attackerId: pending.attackerId },
+        "Brawler re-roll the Both Down die"
+      )
+    );
+  }
+  if (pending.veteranRerollAvailable) {
+    out.push(
+      one(
+        { type: "veteran-reroll-block", attackerId: pending.attackerId },
+        "Spend the Veteran's re-roll on the block dice"
+      )
+    );
+  }
+  return out;
+}
+
 function decisionCandidates(
   game: HeadlessGame,
   pending: PendingDecision
 ): Candidate[] {
-  const one = (command: HeadlessCommand, label: string): Candidate => ({
-    kind: "decision",
-    commands: [command],
-    label,
-  });
   const gs = game.ctx.gameService;
   const name = (id: string) => {
     const player = gs.getPlayerById(id);
@@ -181,61 +213,8 @@ function decisionCandidates(
   };
 
   switch (pending.type) {
-    case "block-dice": {
-      const out =
-        pending.choiceStage === "attacker-reroll"
-          ? [
-              one(
-                { type: "keep-block-dice", attackerId: pending.attackerId },
-                "Keep the block dice"
-              ),
-            ]
-          : pending.options.map((option, index) =>
-              one(
-                { type: "choose-block-result", index },
-                `Take the ${option.label} result`
-              )
-            );
-      if (pending.teamRerollAvailable) {
-        out.push(
-          one(
-            { type: "team-reroll-block", attackerId: pending.attackerId },
-            "Spend a team re-roll on the block dice"
-          )
-        );
-      }
-      if (pending.proAvailable) {
-        pending.options.forEach((option, dieIndex) =>
-          out.push(
-            one(
-              {
-                type: "pro-reroll-block",
-                attackerId: pending.attackerId,
-                dieIndex,
-              },
-              `Pro re-roll the ${option.label} die`
-            )
-          )
-        );
-      }
-      if (pending.brawlerAvailable) {
-        out.push(
-          one(
-            { type: "brawler-reroll-block", attackerId: pending.attackerId },
-            "Brawler re-roll the Both Down die"
-          )
-        );
-      }
-      if (pending.veteranRerollAvailable) {
-        out.push(
-          one(
-            { type: "veteran-reroll-block", attackerId: pending.attackerId },
-            "Spend the Veteran's re-roll on the block dice"
-          )
-        );
-      }
-      return out;
-    }
+    case "block-dice":
+      return blockDiceCandidates(pending);
     case "push-direction":
       return pending.options.map((o) =>
         one(
@@ -310,37 +289,8 @@ function decisionCandidates(
         ),
         one({ type: "use-apothecary", accept: false }, "Keep the Apothecary"),
       ];
-    case "inducement-choice": {
-      if (pending.kind === "sports-wizard") {
-        return wizardCandidates(game, pending.chooserTeamId, pending.playerIds);
-      }
-      // Every offered player, with every offered skill or characteristic;
-      // a Desperate Measure may also be kept for later.
-      const extras: { skill?: string; stat?: DopeStat }[] = pending.skills
-        ? pending.skills.map((skill) => ({ skill }))
-        : pending.stats
-          ? pending.stats.map((stat) => ({ stat }))
-          : [{}];
-      const out = pending.playerIds.flatMap((playerId) =>
-        extras.map((extra) =>
-          one(
-            { type: "choose-inducement", playerId, ...extra },
-            `${pending.kind}: ${name(playerId)}${extra.skill ? ` learns ${extra.skill}` : ""}${extra.stat ? ` gains +1 ${extra.stat}` : ""}`
-          )
-        )
-      );
-      if (pending.optional) {
-        out.push(
-          one(
-            { type: "choose-inducement" },
-            pending.kind === "team-captain"
-              ? "Appoint no Team Captain"
-              : `Keep ${pending.kind} for later`
-          )
-        );
-      }
-      return out;
-    }
+    case "inducement-choice":
+      return inducementCandidates(game, pending, name);
     case "foul-assists":
       // Every assist first: adding them all is the default
       return Array.from({ length: pending.available + 1 }, (_, i) => {
@@ -358,6 +308,57 @@ function decisionCandidates(
         one({ type: "kickoff-confirm" }, `Confirm the ${pending.event} step`),
       ];
   }
+}
+
+function inducementCandidates(
+  game: HeadlessGame,
+  pending: PendingOf<"inducement-choice">,
+  name: (id: string) => string
+): Candidate[] {
+  if (pending.kind === "sports-wizard") {
+    return wizardCandidates(game, pending.chooserTeamId, pending.playerIds);
+  }
+  // Every offered player, with every offered skill or characteristic;
+  // a Desperate Measure may also be kept for later.
+  const extras: { skill?: string; stat?: DopeStat }[] = pending.skills
+    ? pending.skills.map((skill) => ({ skill }))
+    : pending.stats
+      ? pending.stats.map((stat) => ({ stat }))
+      : [{}];
+  const out = pending.playerIds.flatMap((playerId) =>
+    extras.map((extra) =>
+      one(
+        { type: "choose-inducement", playerId, ...extra },
+        `${pending.kind}: ${name(playerId)}${extra.skill ? ` learns ${extra.skill}` : ""}${extra.stat ? ` gains +1 ${extra.stat}` : ""}`
+      )
+    )
+  );
+  if (pending.optional) {
+    out.push(
+      one(
+        { type: "choose-inducement" },
+        pending.kind === "team-captain"
+          ? "Appoint no Team Captain"
+          : `Keep ${pending.kind} for later`
+      )
+    );
+  }
+  return out;
+}
+
+/** The first square of the zone, column by column, that `legal` accepts. */
+function firstLegalSquare(
+  playerId: string,
+  zone: { minX: number; maxX: number },
+  legal: (placement: { playerId: string; x: number; y: number }) => boolean
+): { playerId: string; x: number; y: number } | null {
+  for (let x = zone.minX; x <= zone.maxX; x++) {
+    for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
+      const candidate = { playerId, x, y };
+      if (legal(candidate)) return candidate;
+    }
+  }
+  return null;
 }
 
 async function setupCandidates(
@@ -397,25 +398,21 @@ async function setupCandidates(
       0,
       swarm.maximumAdditionalPlayers - swarm.additionalPlayerCount
     )) {
-      let placed = false;
-      for (let x = zone.minX; x <= zone.maxX && !placed; x++) {
-        for (let y = 0; y < GameConfig.PITCH_HEIGHT && !placed; y++) {
-          const candidate = { playerId: player.id, x, y };
-          if (
-            !validator.validatePlacement(
-              candidate,
-              positions,
-              isTeam1,
-              setup.status.availablePlayerCount,
-              limits
-            ).valid
-          )
-            continue;
-          positions.push(candidate);
-          commands.push({ type: "place-player", ...candidate });
-          placed = true;
-        }
-      }
+      const placement = firstLegalSquare(
+        player.id,
+        zone,
+        (candidate) =>
+          validator.validatePlacement(
+            candidate,
+            positions,
+            isTeam1,
+            setup.status.availablePlayerCount,
+            limits
+          ).valid
+      );
+      if (!placement) continue;
+      positions.push(placement);
+      commands.push({ type: "place-player", ...placement });
     }
     commands.push({ type: "confirm-setup", teamId });
     return [
@@ -523,6 +520,35 @@ function kickoffCandidates(
   return out;
 }
 
+/** The declarations the step enumerator can carry through for one player. */
+function declareCandidates(player: Player, entry: PlayerActions): Candidate[] {
+  const out: Candidate[] = [];
+  for (const action of entry.actions) {
+    if (!SUPPORTED_DECLARATIONS.has(action)) continue;
+    out.push({
+      kind: "declare",
+      commands: [{ type: "declare-action", playerId: player.id, action }],
+      label: `${describePlayer(player)} declares ${action}`,
+    });
+  }
+  for (const replacement of entry.replacementActions ?? []) {
+    if (!replacement.blitz) continue;
+    out.push({
+      kind: "declare",
+      commands: [
+        {
+          type: "declare-action",
+          playerId: player.id,
+          action: "blitz",
+          blockReplacement: replacement.blockReplacement,
+        },
+      ],
+      label: `${describePlayer(player)} declares ${replacement.label}`,
+    });
+  }
+  return out;
+}
+
 async function playCandidates(game: HeadlessGame): Promise<Candidate[]> {
   const gs = game.ctx.gameService;
   const state = gs.getState();
@@ -537,30 +563,7 @@ async function playCandidates(game: HeadlessGame): Promise<Candidate[]> {
   const out: Candidate[] = [];
   for (const entry of legal?.players ?? []) {
     const player = gs.getPlayerById(entry.playerId);
-    if (!player) continue;
-    for (const action of entry.actions) {
-      if (!SUPPORTED_DECLARATIONS.has(action)) continue;
-      out.push({
-        kind: "declare",
-        commands: [{ type: "declare-action", playerId: player.id, action }],
-        label: `${describePlayer(player)} declares ${action}`,
-      });
-    }
-    for (const replacement of entry.replacementActions ?? []) {
-      if (!replacement.blitz) continue;
-      out.push({
-        kind: "declare",
-        commands: [
-          {
-            type: "declare-action",
-            playerId: player.id,
-            action: "blitz",
-            blockReplacement: replacement.blockReplacement,
-          },
-        ],
-        label: `${describePlayer(player)} declares ${replacement.label}`,
-      });
-    }
+    if (player) out.push(...declareCandidates(player, entry));
   }
   if (legal?.canEndTurn) {
     out.push({
@@ -570,214 +573,4 @@ async function playCandidates(game: HeadlessGame): Promise<Candidate[]> {
     });
   }
   return out;
-}
-
-function stepCandidates(
-  game: HeadlessGame,
-  player: Player,
-  active: NonNullable<GameState["activePlayer"]>
-): Candidate[] {
-  const gs = game.ctx.gameService;
-  const state = gs.getState();
-  const at = player.gridPosition;
-  const out: Candidate[] = [];
-  const step = (command: HeadlessCommand, label: string) =>
-    out.push({ kind: "step", commands: [command], label });
-
-  if (at) {
-    const action = active.action;
-    const opponents = gs
-      .getOpponents(player.teamId)
-      .filter((o) => o.gridPosition);
-    const adjacent = opponents.filter(
-      (o) => chebyshev(o.gridPosition!, at) === 1
-    );
-    const carrying =
-      !!state.ballPosition &&
-      state.ballPosition.x === at.x &&
-      state.ballPosition.y === at.y;
-    const replacementPending =
-      !!active.blockReplacement && !active.blockReplacementUsed;
-
-    if (action === "ballAndChain" && player.status === PlayerStatus.ACTIVE) {
-      // The command takes a facing, one square per command: an End Zone or
-      // a Sideline
-      for (const facing of [
-        { x: 1, y: 0 },
-        { x: -1, y: 0 },
-        { x: 0, y: 1 },
-        { x: 0, y: -1 },
-      ]) {
-        const toward = { x: at.x + facing.x, y: at.y + facing.y };
-        step(
-          { type: "ball-and-chain", playerId: player.id, ...facing },
-          `${describePlayer(player)} lurches towards ${square(toward)}`
-        );
-      }
-    }
-
-    if (action === "standUp" && player.status === PlayerStatus.PRONE) {
-      step(
-        { type: "stand-up", playerId: player.id },
-        `${describePlayer(player)} stands up`
-      );
-    }
-
-    // A stood-up player moves on under the same declaration; a Prone one
-    // must stand first.
-    if (
-      action !== "block" &&
-      !(action === "standUp" && player.status === PlayerStatus.PRONE) &&
-      action !== "ballAndChain" &&
-      !isDirectReplacement(action)
-    ) {
-      for (const target of gs.getAvailableMovements(player.id)) {
-        if (chebyshev(target, at) !== 1) continue;
-        step(
-          {
-            type: "move",
-            playerId: player.id,
-            path: [{ x: target.x, y: target.y }],
-          },
-          `${describePlayer(player)} steps to ${square(target)}`
-        );
-      }
-    }
-
-    const movesWithJumps =
-      action === "move" ||
-      action === "blitz" ||
-      action === "pass" ||
-      action === "handoff" ||
-      action === "foul";
-    if (
-      movesWithJumps &&
-      player.status === PlayerStatus.ACTIVE &&
-      !hasCondition(player, PlayerCondition.ROOTED) &&
-      !hasCondition(player, PlayerCondition.CHOMPED) &&
-      gs.getMovementUsed(player.id) + 2 <=
-        moveAllowance(withDriveModifiers(player, state))
-    ) {
-      const others = [...gs.getTeammates(player.id), ...opponents];
-      const canJumpAnything =
-        hasSkill(player.skills, SkillType.LEAP) ||
-        hasSkill(player.skills, SkillType.POGO);
-      for (const target of jumpTargets(at, others, canJumpAnything, (x, y) =>
-        onPitch({ x, y })
-      )) {
-        step(
-          {
-            type: "jump",
-            playerId: player.id,
-            x: target.dest.x,
-            y: target.dest.y,
-          },
-          `${describePlayer(player)} jumps over ${square(target.over)} to ${square(target.dest)}`
-        );
-      }
-    }
-
-    const canBlock =
-      player.status === PlayerStatus.ACTIVE &&
-      !replacementPending &&
-      (action === "block" ||
-        (action === "blitz" && !gs.hasUsedBlitzBlock(player.id)));
-    if (canBlock) {
-      for (const target of adjacent.filter(
-        (o) => o.status === PlayerStatus.ACTIVE
-      )) {
-        step(
-          { type: "block", attackerId: player.id, defenderId: target.id },
-          `${describePlayer(player)} blocks ${describePlayer(target)}`
-        );
-      }
-    }
-
-    if (replacementPending && player.status === PlayerStatus.ACTIVE) {
-      const replacement = active.blockReplacement!;
-      for (const target of legalBlockReplacementTargets(
-        player,
-        opponents,
-        replacement
-      )) {
-        step(
-          replacement === "stab"
-            ? { type: "stab", attackerId: player.id, defenderId: target.id }
-            : {
-                type: "special-action",
-                action: replacement,
-                attackerId: player.id,
-                defenderId: target.id,
-              },
-          `${describePlayer(player)} uses ${replacement} on ${describePlayer(target)}`
-        );
-      }
-    }
-
-    if (action === "pass" && carrying && !state.turn.hasPassed) {
-      // Every in-range square, not just team-mates: passes to opponents and
-      // to empty grass are legal, and are where turnover rules get tested.
-      const everyone = [...gs.getTeammates(player.id), ...opponents];
-      // A Blizzard allows only Quick and Short Passes.
-      const { passTypes } = weatherEffects(state.weather);
-      for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
-        for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
-          if (x === at.x && y === at.y) continue;
-          if (PassController.rangeValue(at, { x, y }) === null) continue;
-          const range = gs.getPassController().measureRange(at, { x, y });
-          if (!passTypes.includes(range.type)) continue;
-          const there = everyone.find(
-            (p) => p.gridPosition?.x === x && p.gridPosition?.y === y
-          );
-          step(
-            { type: "pass", playerId: player.id, x, y },
-            there
-              ? `${describePlayer(player)} passes to ${describePlayer(there)}`
-              : `${describePlayer(player)} passes to the empty square ${square({ x, y })}`
-          );
-        }
-      }
-    }
-
-    if (action === "handoff" && carrying) {
-      for (const mate of legalHandoffTargets(
-        player,
-        gs.getTeammates(player.id)
-      )) {
-        step(
-          { type: "handoff", playerId: player.id, targetId: mate.id },
-          `${describePlayer(player)} hands off to ${describePlayer(mate)}`
-        );
-      }
-    }
-
-    if (action === "foul") {
-      for (const target of adjacent.filter(
-        (o) =>
-          o.status === PlayerStatus.PRONE || o.status === PlayerStatus.STUNNED
-      )) {
-        step(
-          { type: "foul", playerId: player.id, ...target.gridPosition! },
-          `${describePlayer(player)} fouls ${describePlayer(target)}`
-        );
-      }
-    }
-  }
-
-  out.push({
-    kind: "end-activation",
-    commands: [{ type: "end-activation", playerId: player.id }],
-    label: `${describePlayer(player)} ends their activation`,
-  });
-  return out;
-}
-
-function isDirectReplacement(action: string | null): boolean {
-  return (
-    action === "stab" ||
-    action === "chainsaw" ||
-    action === "breatheFire" ||
-    action === "chomp" ||
-    action === "vomit"
-  );
 }
