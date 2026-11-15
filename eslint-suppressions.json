@@ -207,17 +207,6 @@
       "count": 2
     }
   },
-  "src/game/managers/MovementManager.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/game/managers/PlayerActionManager.ts": {
     "complexity": {
       "count": 1
