@@ -43,12 +43,28 @@ function loadAtlas(style: PitchThemeId, model: string, layer: Layer) {
 
 const IDLE_FPS = 6;
 
+/**
+ * The largest whole multiple of the cropped figure's side that fits in
+ * `size` CSS pixels, so every art pixel becomes an exact square block. A
+ * figure bigger than `size` is shrunk to fit instead.
+ */
+export function wholePixelSize(side: number, size: number): number {
+  if (side <= 0 || size < side) return size;
+  return side * Math.floor(size / side);
+}
+
 interface PlayerPortraitProps {
   rosterName: string;
   positionName: string;
   colors: TeamColors;
-  /** Displayed size in CSS pixels; the art is scaled up by whole pixels. */
+  /** Displayed size in CSS pixels. */
   size?: number;
+  /**
+   * Treat `size` as the box to fit and scale the art by a whole number of
+   * pixels inside it, so large portraits stay crisp. Off for thumbnails,
+   * which keep their exact `size`.
+   */
+  wholePixels?: boolean;
   style?: PitchThemeId;
   /** Play the idle loop all the time rather than only on hover. */
   animate?: boolean;
@@ -67,10 +83,12 @@ export function PlayerPortrait({
   size = 56,
   style = DEFAULT_PITCH_THEME_ID,
   animate = false,
+  wholePixels = false,
 }: PlayerPortraitProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [layers, setLayers] = useState<Atlas[] | null>(null);
   const [hover, setHover] = useState(false);
+  const [figureSide, setFigureSide] = useState(0);
   const model = modelFor(rosterName, positionName);
 
   useEffect(() => {
@@ -94,6 +112,7 @@ export function PlayerPortrait({
     const ox = first.spriteSourceSize.x + first.frame.w / 2 - side / 2;
     const oy = first.spriteSourceSize.y + first.frame.h - side + 2;
     el.width = el.height = side;
+    setFigureSide(side);
     const ctx = el.getContext("2d")!;
     const full = document.createElement("canvas");
     full.width = full.height = art.frame;
@@ -149,14 +168,17 @@ export function PlayerPortrait({
     return () => clearInterval(timer);
   }, [layers, model, colors.primary, colors.secondary, animate, hover]);
 
+  const shown = wholePixels ? wholePixelSize(figureSide, size) : size;
+
   return (
     <canvas
       ref={canvas}
       aria-label={positionName}
       role="img"
+      data-model={model}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ width: size, height: size, imageRendering: "pixelated" }}
+      style={{ width: shown, height: shown, imageRendering: "pixelated" }}
       className="shrink-0"
     />
   );

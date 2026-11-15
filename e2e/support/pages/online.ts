@@ -21,8 +21,12 @@ export class OnlinePage {
    */
   async signIn(): Promise<void> {
     // Firebase talks to the auth emulator before it opens the popup
+    await this.page
+      .getByRole("button", { name: "Sign in", exact: true })
+      .click();
     const popupPromise = this.page.waitForEvent("popup", { timeout: 30_000 });
     await this.page
+      .getByTestId("sign-in-dialog")
       .getByRole("button", { name: /sign in with google/i })
       .click();
     const popup = await popupPromise;

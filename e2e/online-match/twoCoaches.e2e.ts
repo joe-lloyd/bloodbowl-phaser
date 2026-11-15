@@ -402,7 +402,7 @@ test("an online match between two machines stays in sync", async () => {
     await coach.page.goto("/");
     // A dev server reached over a tunnel takes a while to serve every module
     await coach.page
-      .getByRole("button", { name: /sign in with google/i })
+      .getByRole("button", { name: "Sign in", exact: true })
       .waitFor({ timeout: 120_000 });
     await new OnlinePage(coach.page).signIn();
   }
