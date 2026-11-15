@@ -702,17 +702,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/MatchResultsScreen.tsx": {
-    "complexity": {
-      "count": 3
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/MovePlanBar.tsx": {
     "complexity": {
       "count": 1
@@ -776,20 +765,6 @@
   "src/ui/components/pages/PlayerPage.tsx": {
     "complexity": {
       "count": 1
-    }
-  },
-  "src/ui/components/pages/TeamBuilder.tsx": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 3
     }
   },
   "src/ui/components/pages/TournamentBracket.tsx": {

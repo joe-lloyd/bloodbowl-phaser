@@ -2,11 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { Team } from "../../../types/Team";
-import { MatchResult } from "../../../types/GameState";
-import {
-  MatchStatsSummary,
-  sppValuesFor,
-} from "../../../game/progression/MatchStats";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
@@ -26,7 +21,13 @@ import {
 } from "../../../competition/resultRecording";
 import { earnsWinnings, stalledSides } from "../../../game/rules/winnings";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
-import { injuryLabel, playerLabel } from "./turnSummary";
+import {
+  LeaveControls,
+  MatchWinnings,
+  ResultHeader,
+  StatsTables,
+} from "./MatchResultsSections";
+import { MvpAwardCard } from "./MvpAwardCard";
 import { CompetitionContext } from "../../../competition/types";
 
 interface Props {
@@ -82,32 +83,13 @@ function savedTeams(teams: Team[]): Team[] {
     : ownedTeams(teams);
 }
 
-/**
- * The played score and the termination reason are kept as separate facts
- * (see `MatchResult`): a concession/forfeit never invents a touchdown or
- * rewrites the scoreline, it only changes how the outcome is labelled.
- */
-function outcomeLabel(
-  teams: Team[],
-  score: Record<string, number>,
-  result?: MatchResult
-): string {
-  if (result?.reason === "concession" || result?.reason === "forfeit") {
-    const conceding = teams.find((team) => team.id === result.concedingTeamId);
-    const verb = result.reason === "concession" ? "conceded" : "forfeited";
-    return conceding ? `${conceding.name} ${verb}` : `Match ${verb}`;
-  }
-  if (teams.length < 2) return "";
-  const [a, b] = teams;
-  const scoreA = score[a.id] ?? 0;
-  const scoreB = score[b.id] ?? 0;
-  const penalties = result?.penalties;
-  if (scoreA === scoreB && penalties) {
-    const [wonA, wonB] = [penalties[a.id] ?? 0, penalties[b.id] ?? 0];
-    return `${wonA > wonB ? a.name : b.name} win on Penalties, ${Math.max(wonA, wonB)}–${Math.min(wonA, wonB)}`;
-  }
-  if (scoreA === scoreB) return "Draw";
-  return `${scoreA > scoreB ? a.name : b.name} win`;
+/** A per-team record as the fixture's home and away values. */
+function homeAndAway(
+  values: Record<string, number>,
+  homeId: string,
+  awayId: string
+): { home: number; away: number } {
+  return { home: values[homeId] ?? 0, away: values[awayId] ?? 0 };
 }
 
 export function MatchResultsScreen({
@@ -142,10 +124,7 @@ export function MatchResultsScreen({
   >({});
   const [competitionRecorded, setCompetitionRecorded] = useState(false);
   /** League winnings the recorded fixture paid, by team id. */
-  const [winnings, setWinnings] = useState<{
-    gold: Record<string, number>;
-    fanFactors: Record<string, number>;
-  } | null>(null);
+  const [winnings, setWinnings] = useState<MatchWinnings | null>(null);
   const [, refresh] = useState(0);
   const [error, setError] = useState("");
   const computerMvpRolled = useRef(new Set<string>());
@@ -177,15 +156,11 @@ export function MatchResultsScreen({
       state.score[homeId] ?? 0,
       state.score[awayId] ?? 0,
       { home, away },
-      state.result?.penalties && {
-        home: state.result.penalties[homeId] ?? 0,
-        away: state.result.penalties[awayId] ?? 0,
-      },
+      state.result?.penalties &&
+        homeAndAway(state.result.penalties, homeId, awayId),
       {
-        fanFactors: state.fanFactors && {
-          home: state.fanFactors[homeId] ?? 0,
-          away: state.fanFactors[awayId] ?? 0,
-        },
+        fanFactors:
+          state.fanFactors && homeAndAway(state.fanFactors, homeId, awayId),
         stalled: stalledSides(state.stallingPlayerIds, home, away),
       }
     )
@@ -342,8 +317,8 @@ export function MatchResultsScreen({
       )
   );
   const recordingPending = !!fixtureContext && !competitionRecorded;
-  const canExit =
-    (!progressionEnabled || confirmed) && !recordingPending && !savingTeams;
+  const busy = recordingPending || savingTeams;
+  const canExit = (!progressionEnabled || confirmed) && !busy;
 
   const nomineesFor = (team: Team): string[] => {
     const existing = nominations[team.id];
@@ -568,34 +543,13 @@ export function MatchResultsScreen({
         className="mx-auto max-w-6xl p-6 animate-hud-pop"
       >
         {/* ---- Result ---- */}
-        <h1 className="font-hud-display text-hud-4xl uppercase tracking-[0.03em] text-hud-bone">
-          Full Time
-        </h1>
-        {teams.length >= 2 && (
-          <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-y border-hud-gold/30 bg-black/40 px-5 py-4">
-            <span className="truncate font-hud-label text-hud-2xl font-bold uppercase tracking-[0.03em]">
-              {teams[0].name}
-            </span>
-            <span className="-skew-x-12 bg-hud-blood px-5 py-1 font-hud-display text-hud-3xl text-white">
-              <span className="block skew-x-12">
-                {state.score[teams[0].id] ?? 0} :{" "}
-                {state.score[teams[1].id] ?? 0}
-              </span>
-            </span>
-            <span className="truncate text-right font-hud-label text-hud-2xl font-bold uppercase tracking-[0.03em]">
-              {teams[1].name}
-            </span>
-          </div>
-        )}
-        <p className="mt-3 font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-gold">
-          {outcomeLabel(teams, state.score, result)}
-        </p>
-        {competitionRecorded && (
-          <p className="mt-2 text-hud-sm text-hud-good">
-            ✓ Competition fixture result recorded.
-          </p>
-        )}
-        {winnings && <WinningsPanel teams={teams} winnings={winnings} />}
+        <ResultHeader
+          teams={teams}
+          score={state.score}
+          result={result}
+          competitionRecorded={competitionRecorded}
+          winnings={winnings}
+        />
 
         {/* ---- Statistics ---- */}
         <StatsTables
@@ -603,123 +557,43 @@ export function MatchResultsScreen({
           summary={statsSummary}
           showSpp={progressionEnabled}
         />
-        {!progressionEnabled && (
+        {!progressionEnabled ? (
           <p className="mt-3 text-hud-sm italic text-hud-dim">
             This match does not award SPP or MVP recognition.
           </p>
-        )}
-
-        {/* ---- Awards (eligible matches only) ---- */}
-        {progressionEnabled && !confirmed && (
+        ) : confirmed ? (
+          <p className="mt-6 rounded-hud border border-white/10 bg-black/30 p-4 text-hud-lg">
+            MVP and SPP are confirmed. Any player now eligible to advance is
+            saved as pending development — finish it any time from{" "}
+            <strong>Manage Team</strong>.
+          </p>
+        ) : (
+          // ---- Awards (eligible matches only) ----
           <>
             <div className="mt-6 grid gap-5 md:grid-cols-2">
-              {mvpTeams.map((team) => {
-                const eligibleIds = tracker.getEligibleMvpPlayers(team.id);
-                const nominees = nomineesFor(team);
-                const mvpResult = mvpResults[team.id];
-                return (
-                  <section
-                    key={team.id}
-                    className="rounded-hud border border-white/10 bg-black/30 p-4"
-                  >
-                    <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">
-                      {team.name} MVP
-                    </h2>
-                    <p className="mb-3 text-hud-sm text-hud-dim">
-                      Nominate six players who took part. Their displayed order
-                      is slots 1–6.
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {eligibleIds.map((playerId) => {
-                        const player = team.players.find(
-                          (candidate) => candidate.id === playerId
-                        )!;
-                        const slot = nominees.indexOf(playerId);
-                        return (
-                          <button
-                            key={playerId}
-                            disabled={!!mvpResult}
-                            onClick={() => toggleNominee(team, playerId)}
-                            className={`min-h-[40px] rounded-hud border px-3 py-2 text-left font-hud-label text-hud-base font-bold transition-colors disabled:cursor-default ${
-                              slot >= 0
-                                ? "border-hud-gold bg-hud-blood text-white"
-                                : "border-white/10 bg-hud-raise text-hud-bone hover:border-hud-gold/60"
-                            }`}
-                          >
-                            {slot >= 0 ? `${slot + 1}. ` : ""}#{player.number}{" "}
-                            {player.playerName}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {mvpResult ? (
-                      <p className="mt-3 font-hud-label text-hud-xl font-bold uppercase text-hud-gold">
-                        {mvpResult.roll >= 1
-                          ? `Rolled ${mvpResult.roll}: `
-                          : ""}
-                        {
-                          team.players.find(
-                            (player) => player.id === mvpResult.playerId
-                          )?.playerName
-                        }{" "}
-                        gains 4 SPP
-                      </p>
-                    ) : (
-                      <button
-                        onClick={() => void rollMvp(team)}
-                        disabled={
-                          nominees.length !== Math.min(6, eligibleIds.length)
-                        }
-                        className={`${hudButtonClass("primary", "lg")} mt-4`}
-                      >
-                        Roll MVP D6
-                      </button>
-                    )}
-                    <div className="mt-5 border-t border-white/10 pt-4">
-                      <p className="mb-2 text-hud-sm text-hud-dim">
-                        If this team was awarded a touchdown after a concession,
-                        assign its {sppValuesFor(team.rosterName).touchdown} SPP
-                        here. Repeat for each awarded touchdown.
-                      </p>
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        <select
-                          aria-label={`${team.name} awarded touchdown recipient`}
-                          value={touchdownRecipients[team.id] ?? ""}
-                          onChange={(event) =>
-                            setTouchdownRecipients((previous) => ({
-                              ...previous,
-                              [team.id]: event.target.value,
-                            }))
-                          }
-                          className="hud-field min-w-0 flex-1"
-                        >
-                          <option value="">Choose a player</option>
-                          {team.players
-                            .filter((player) => player.playerKind !== "star")
-                            .map((player) => (
-                              <option key={player.id} value={player.id}>
-                                #{player.number} {player.playerName}
-                              </option>
-                            ))}
-                        </select>
-                        <button
-                          disabled={!touchdownRecipients[team.id]}
-                          onClick={() => void assignAwardedTouchdown(team)}
-                          className={hudButtonClass("secondary")}
-                        >
-                          Assign touchdown
-                        </button>
-                      </div>
-                    </div>
-                  </section>
-                );
-              })}
+              {mvpTeams.map((team) => (
+                <MvpAwardCard
+                  key={team.id}
+                  team={team}
+                  eligibleIds={tracker.getEligibleMvpPlayers(team.id)}
+                  nominees={nomineesFor(team)}
+                  mvpResult={mvpResults[team.id]}
+                  touchdownRecipient={touchdownRecipients[team.id]}
+                  onToggleNominee={(playerId) => toggleNominee(team, playerId)}
+                  onRollMvp={() => void rollMvp(team)}
+                  onChooseTouchdownRecipient={(playerId) =>
+                    setTouchdownRecipients((previous) => ({
+                      ...previous,
+                      [team.id]: playerId,
+                    }))
+                  }
+                  onAssignTouchdown={() => void assignAwardedTouchdown(team)}
+                />
+              ))}
             </div>
             <button
               onClick={() => void confirmSpp()}
-              disabled={
-                pendingMvpTeams.length > 0 || recordingPending || savingTeams
-              }
+              disabled={pendingMvpTeams.length > 0 || busy}
               className={`${hudButtonClass("gold", "lg")} mt-5`}
             >
               Confirm and assign SPP
@@ -727,206 +601,20 @@ export function MatchResultsScreen({
           </>
         )}
 
-        {progressionEnabled && confirmed && (
-          <p className="mt-6 rounded-hud border border-white/10 bg-black/30 p-4 text-hud-lg">
-            MVP and SPP are confirmed. Any player now eligible to advance is
-            saved as pending development — finish it any time from{" "}
-            <strong>Manage Team</strong>.
-          </p>
-        )}
-
         {/* ---- Exit ---- */}
-        <button
-          onClick={leave}
-          disabled={!canExit}
-          title={
-            canExit
-              ? undefined
-              : "Confirm MVP nomination and SPP for both teams before leaving"
-          }
-          className={`${hudButtonClass("primary", "lg")} mt-6`}
-        >
-          {savingTeams
-            ? "Saving team..."
-            : error && confirmed
-              ? "Retry saving team"
-              : state.paysWinnings
-                ? "Manage team"
-                : leaveTo === "/"
-                  ? "Continue to Main Menu"
-                  : "Back to the competition"}
-        </button>
-        {!canExit && (
-          <p className="mt-2 text-hud-sm italic text-hud-dim">
-            {recordingPending
-              ? "Saving the competition result and winnings..."
-              : "Confirm MVP nomination and SPP for both teams before leaving."}
-          </p>
-        )}
-
-        {recordingError && (
-          <div className="mt-4">
-            <p role="alert" className="text-hud-bad-soft">
-              The competition result could not be saved. {recordingError}
-            </p>
-            <button
-              className={`${hudButtonClass("primary")} mt-2`}
-              onClick={() => setRecordingAttempt((attempt) => attempt + 1)}
-            >
-              Retry saving result
-            </button>
-          </div>
-        )}
-
-        {error && <p className="mt-4 text-hud-bad-soft">{error}</p>}
+        <LeaveControls
+          canExit={canExit}
+          savingTeams={savingTeams}
+          error={error}
+          confirmed={confirmed}
+          paysWinnings={!!state.paysWinnings}
+          leaveTo={leaveTo}
+          recordingPending={recordingPending}
+          recordingError={recordingError}
+          onLeave={leave}
+          onRetryRecording={() => setRecordingAttempt((attempt) => attempt + 1)}
+        />
       </Panel>
-    </div>
-  );
-}
-
-/**
- * League winnings (Record Outcome and Winnings): half the Fan Attendance
- * plus the team's own touchdowns, times 10,000 gp, paid into the Treasury.
- */
-function WinningsPanel({
-  teams,
-  winnings,
-}: {
-  teams: Team[];
-  winnings: {
-    gold: Record<string, number>;
-    fanFactors: Record<string, number>;
-  };
-}) {
-  const attendance = teams.reduce(
-    (total, team) => total + (winnings.fanFactors[team.id] ?? 0),
-    0
-  );
-  return (
-    <section
-      data-testid="match-winnings"
-      className="mt-4 rounded-hud border border-hud-gold/30 bg-black/30 p-4"
-    >
-      <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">
-        Winnings
-      </h2>
-      <p className="mt-1 text-hud-sm text-hud-dim">
-        Fan Attendance {attendance} (
-        {teams
-          .map(
-            (team) =>
-              `${team.name} Fan Factor ${winnings.fanFactors[team.id] ?? 0}`
-          )
-          .join(", ")}
-        ). Each team earns half the Fan Attendance plus its own touchdowns,
-        plus 1 if none of its players was Stalling, times 10,000 gp.
-      </p>
-      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-        {teams.map((team) => (
-          <li
-            key={team.id}
-            data-testid={`match-winnings-${team.id}`}
-            className="font-hud-label text-hud-lg font-bold"
-          >
-            {team.name}:{" "}
-            {earnsWinnings(team) ? (
-              <span className="text-hud-gold">
-                +{(winnings.gold[team.id] ?? 0).toLocaleString("en-US")} gp to
-                the Treasury
-              </span>
-            ) : (
-              <span className="text-hud-dim">
-                no winnings (Matched Play keeps no Treasury)
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function StatsTables({
-  teams,
-  summary,
-  showSpp,
-}: {
-  teams: Team[];
-  summary: MatchStatsSummary;
-  showSpp: boolean;
-}) {
-  return (
-    <div className="mt-6 grid gap-5 xl:grid-cols-2">
-      {teams.map((team) => (
-        <section key={team.id} className="overflow-auto">
-          <h2 className="mb-2 font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-bone">
-            {team.name}
-          </h2>
-          <table className="w-full text-hud-sm tabular-nums">
-            <thead>
-              <tr className="hud-label border-b border-hud-gold/30 text-left [&>th]:py-1.5 [&>th]:font-bold">
-                <th>Player</th>
-                <th>CMP</th>
-                <th>TTM</th>
-                <th>INT</th>
-                <th>CAS</th>
-                <th>TD</th>
-                {showSpp && <th>MVP</th>}
-                {showSpp && <th>SPP</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {team.players.map((player) => {
-                const stats = summary.players.find(
-                  (entry) => entry.playerId === player.id
-                );
-                if (!stats?.participated) return null;
-                return (
-                  <tr
-                    key={player.id}
-                    className="border-t border-white/5 odd:bg-white/[0.02]"
-                  >
-                    <td className="py-1">{player.playerName}</td>
-                    <td>{stats.completions}</td>
-                    <td>{stats.superbThrows + stats.safeLandings}</td>
-                    <td>{stats.interceptions}</td>
-                    <td>{stats.casualties}</td>
-                    <td>{stats.touchdowns}</td>
-                    {showSpp && <td>{stats.mvps}</td>}
-                    {showSpp && (
-                      <td className="font-bold text-hud-gold">
-                        +{stats.sppEarned}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div
-            data-testid={`match-injuries-${team.id}`}
-            className="mt-4 rounded-hud border border-hud-edge bg-black/20 p-3"
-          >
-            <h3 className="font-hud-display text-hud-lg text-hud-gold">
-              Injuries
-            </h3>
-            {team.players.some((player) => injuryLabel(player)) ? (
-              <ul className="mt-1 space-y-1 text-hud-sm text-hud-bone">
-                {team.players.map((player) => {
-                  const injury = injuryLabel(player);
-                  return injury ? (
-                    <li key={player.id}>
-                      {playerLabel(player)}: {injury}
-                    </li>
-                  ) : null;
-                })}
-              </ul>
-            ) : (
-              <p className="text-hud-sm text-hud-dim">No injuries</p>
-            )}
-          </div>
-        </section>
-      ))}
     </div>
   );
 }
