@@ -101,6 +101,14 @@ function OnlineWeather({
   const weather: Weather = engineState()?.weather ?? "Nice";
 
   const [wantReady, setWantReady] = useState(false);
+  // A refused ready (the opening moved on, or the order was wrong) gives
+  // the button back, so the coach can try again
+  useEventBus(eventBus, GameEventNames.NetworkCommandRejected, (rejected) => {
+    if (rejected.commandType !== "ready-weather") return;
+    sent.current = false;
+    setWantReady(false);
+    setReady(readyNow());
+  });
   const iAmReady = wantReady || ready.includes(myTeamId);
   const guestTeamId = amHost
     ? myTeamId === team1.id

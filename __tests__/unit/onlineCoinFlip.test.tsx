@@ -177,6 +177,23 @@ describe("online weather", () => {
     await dialog.unmount();
   });
 
+  it("gives a refused ready back, so the coach can try again", async () => {
+    const dialog = await mountWeather(match);
+    await act(async () => dialog.button("READY — ROLL WEATHER")!.click());
+    expect(engine.readied).toEqual(["away"]);
+    expect(dialog.button("READY — ROLL WEATHER")).toBeUndefined();
+
+    await act(async () =>
+      dialog.bus.emit(GameEventNames.NetworkCommandRejected, {
+        commandType: "ready-weather",
+        reason: "not-your-turn",
+      })
+    );
+    await act(async () => dialog.button("READY — ROLL WEATHER")!.click());
+    expect(engine.readied).toEqual(["away", "away"]);
+    await dialog.unmount();
+  });
+
   it("shows a weather a resync brings in, with no dice event", async () => {
     const dialog = await mountWeather(match);
     expect(dialog.button("READY — ROLL WEATHER")).toBeDefined();

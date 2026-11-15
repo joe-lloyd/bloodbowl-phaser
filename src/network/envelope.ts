@@ -15,7 +15,7 @@ import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { StepPrompt } from "../types/events";
 
 /** Bumped whenever commands/snapshots change incompatibly. */
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 14;
 
 export interface HelloPayload {
   protocolVersion: number;
