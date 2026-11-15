@@ -491,11 +491,6 @@
       "count": 1
     }
   },
-  "src/ui/components/pages/TournamentBracket.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/ui/pages/GamePage.tsx": {
     "complexity": {
       "count": 1

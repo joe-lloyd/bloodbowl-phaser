@@ -221,7 +221,6 @@ export function TournamentBracket({
               const home = entrantOf(fixture.homeEntrantId);
               const away = entrantOf(fixture.awayEntrantId);
               const ready = fixture.status === "ready" && Boolean(home && away);
-              const winnerId = fixture.result?.winnerEntrantId;
               const isFinal = node.side === "final";
 
               const card = (
@@ -236,31 +235,11 @@ export function TournamentBracket({
                 >
                   <BracketSlot
                     entrant={home}
-                    score={
-                      fixture.result?.walkover
-                        ? undefined
-                        : fixture.result?.homeScore
-                    }
-                    isWinner={!!winnerId && winnerId === fixture.homeEntrantId}
-                    isEliminated={
-                      !!fixture.homeEntrantId &&
-                      eliminated.has(fixture.homeEntrantId)
-                    }
-                    bye={false}
+                    {...slotFacts(fixture, "home", eliminated)}
                   />
                   <BracketSlot
                     entrant={away}
-                    score={
-                      fixture.result?.walkover
-                        ? undefined
-                        : fixture.result?.awayScore
-                    }
-                    isWinner={!!winnerId && winnerId === fixture.awayEntrantId}
-                    isEliminated={
-                      !!fixture.awayEntrantId &&
-                      eliminated.has(fixture.awayEntrantId)
-                    }
-                    bye={!!fixture.result?.bye}
+                    {...slotFacts(fixture, "away", eliminated)}
                   />
                   {fixture.result?.penalties && (
                     <p className="mt-1 text-hud-sm text-hud-mute tabular-nums">
@@ -305,6 +284,29 @@ export function TournamentBracket({
       </div>
     </div>
   );
+}
+
+/** One side of a fixture: its score, and whether it won or is out. */
+function slotFacts(
+  fixture: CompetitionFixture,
+  side: "home" | "away",
+  eliminated: ReadonlySet<string>
+) {
+  const { result } = fixture;
+  const entrantId =
+    side === "home" ? fixture.homeEntrantId : fixture.awayEntrantId;
+  const winnerId = result?.winnerEntrantId;
+  return {
+    score: result?.walkover
+      ? undefined
+      : side === "home"
+        ? result?.homeScore
+        : result?.awayScore,
+    isWinner: !!winnerId && winnerId === entrantId,
+    isEliminated: !!entrantId && eliminated.has(entrantId),
+    // Only the away slot can be a bye
+    bye: side === "away" && !!result?.bye,
+  };
 }
 
 function BracketSlot({
