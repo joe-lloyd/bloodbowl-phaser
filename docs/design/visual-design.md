@@ -66,22 +66,19 @@ down-left.
 - Players and the ball depth-sort by screen y, so nearer figures overlap
   farther ones.
 
-## Match styles
+## Match style
 
-A match style is a pre-rendered stadium, a render of every player model in
-that style's light, and a few colours for what Phaser draws on top. The
-catalogue is `src/game/presentation/pitchThemes.ts`; the id is still called a
-pitch theme because saves and online lobbies store it under that name.
+Every match is played in one style, Blood Bowl: a timber and stone ground on
+a sunny afternoon, team flags over the stands, serif labels on the dugouts.
+It is a pre-rendered stadium, a render of every player model in the same
+warm light, and the canvas colour around them, all in
+`src/game/presentation/matchStyle.ts`. New presentation work, such as pitch
+weather, draws on top of this style rather than adding another.
 
-- **Blood Bowl** (the default): a timber and stone ground on a sunny
-  afternoon, team flags over the stands, serif labels on the dugouts.
-- **Neon**: a night-club arena with black turf, glowing lines and bloom.
-
-Both styles share the board geometry, so a style changes only how the match
-looks. Ids from before the styles (classic, mud, astro, wasteland) load as
-the default. The shared `PitchThemePicker` shows a thumbnail of each stadium
-for local match setup and the online lobby; online guests display the host's
-choice.
+There used to be a second style, Neon, and a picker for it in local setup
+and the online lobby. Saves, lobbies and links from then still carry a pitch
+theme id (`presentation.pitchThemeId`, `settings.pitchThemeId`, `?theme=`);
+nothing reads it, so they open in the Blood Bowl style.
 
 ### Players
 

@@ -43,11 +43,12 @@ describe("hosted competition fixtures", () => {
     expect(created.competitionContext).toEqual(context);
     expect(created.players.host.team?.id).toBe("home");
     expect(created.fixtureTeams?.away.id).toBe("away");
-    expect(created.settings.pitchThemeId).toBe("bloodbowl");
+    // The match look is not a lobby setting any more
+    expect(created.settings).not.toHaveProperty("pitchThemeId");
     // A competition fixture counts for the teams: SPP and development
     expect(created.settings.progressionEnabled).toBe(true);
     expect(setDocMock.mock.calls[0][1]).toMatchObject({
-      settings: { pitchThemeId: "bloodbowl" },
+      settings: { progressionEnabled: true },
       competitionContext: context,
       fixtureTeams: {
         home: { id: "home" },

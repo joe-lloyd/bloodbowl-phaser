@@ -167,9 +167,6 @@ export interface MatchSave {
   matchStats: MatchStatsSnapshot;
   turnManager?: TurnManagerState;
   competition?: CompetitionContext;
-  presentation?: {
-    pitchThemeId?: string;
-  };
   /** Set when a computer coaches one side; absent for two people at one screen. */
   computer?: ComputerMatchSave;
 }
@@ -188,7 +185,6 @@ export interface CreateMatchSaveInput {
   matchStats: MatchStatsSnapshot;
   turnManager?: TurnManagerState;
   competition?: CompetitionContext;
-  presentation?: MatchSave["presentation"];
   computer?: ComputerMatchSave;
   savedAt?: number;
 }
@@ -414,9 +410,6 @@ export function createMatchSave(input: CreateMatchSaveInput): MatchSave {
       : {}),
     ...(input.competition
       ? { competition: structuredClone(input.competition) }
-      : {}),
-    ...(input.presentation
-      ? { presentation: structuredClone(input.presentation) }
       : {}),
     ...(input.computer ? { computer: { ...input.computer } } : {}),
   };

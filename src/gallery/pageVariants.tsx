@@ -30,7 +30,6 @@ import {
   PageShell,
   Section,
 } from "../ui/components/componentWarehouse/HudKit";
-import { DEFAULT_PITCH_THEME_ID } from "../game/presentation/pitchThemes";
 import type { LobbySettings } from "../firebase/lobby";
 
 const SECTION = "Pages";
@@ -144,7 +143,6 @@ function LobbySettingsDemo({ readOnly }: { readOnly: boolean }) {
   const [settings, setSettings] = useState<LobbySettings>({
     turnSeconds: 120,
     timeoutBankMs: 5 * 60 * 1000,
-    pitchThemeId: DEFAULT_PITCH_THEME_ID,
     progressionEnabled: false,
   });
   return (

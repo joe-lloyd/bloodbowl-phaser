@@ -25,7 +25,7 @@ dice and coaching decisions.
   and all.
 - Online hosting and joining by code, cloud teams and match chat when
   Firebase is configured and both coaches sign in.
-- Blood Bowl and Neon stadium styles, with camera zoom and pan.
+- A pre-rendered Blood Bowl stadium, with camera zoom and pan.
 
 ![Team building with positional hires and player statistics](docs/images/team-management.png)
 

@@ -51,6 +51,7 @@ import {
   readMatchSave,
 } from "../../../game/persistence/MatchSaveRepository";
 import { hasBlockingPendingDevelopment, Team } from "../../../types/Team";
+import { LeagueRounds } from "./LeagueRounds";
 
 type DraftScore = {
   home: string;
@@ -530,6 +531,88 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     );
   };
 
+  // One fixture as the round list shows it; a league's later rounds too.
+  const renderFixtureCard = (fixture: CompetitionFixture) => {
+    const home = entrant(fixture.homeEntrantId);
+    const away = entrant(fixture.awayEntrantId);
+    const ready = fixture.status === "ready" && Boolean(home && away);
+    return (
+      <article
+        key={fixture.id}
+        className="rounded-hud border border-white/10 bg-black/30 p-4 font-hud-body text-hud-base text-hud-bone"
+      >
+        <div className="flex justify-between gap-3">
+          <span className={cx(!home && "italic text-hud-mute")}>
+            {home?.name ?? "TBD"}
+          </span>
+          <strong className="tabular-nums">
+            {fixture.result?.walkover
+              ? "—"
+              : (fixture.result?.homeScore ?? "—")}
+          </strong>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className={cx(!away && "italic text-hud-mute")}>
+            {away?.name ?? (fixture.result?.bye ? "BYE" : "TBD")}
+          </span>
+          <strong className="tabular-nums">
+            {fixture.result?.walkover
+              ? "—"
+              : (fixture.result?.awayScore ?? "—")}
+          </strong>
+        </div>
+        {fixture.result?.walkover && (
+          <p className="mt-1 text-hud-sm text-hud-mute">
+            {walkoverLine(competition.entrants, fixture.result.walkover)}
+          </p>
+        )}
+        {fixture.result?.penalties && (
+          <p className="mt-1 text-hud-sm text-hud-mute tabular-nums">
+            Penalties {fixture.result.penalties.home}–
+            {fixture.result.penalties.away}
+          </p>
+        )}
+        {ready && (
+          <div className="mt-3 border-t border-white/10 pt-3">
+            {fixtureActions({ fixture, home, away, ready })}
+          </div>
+        )}
+      </article>
+    );
+  };
+
+  const simulatedResults = simulated.length > 0 && (
+    <Section title="Simulated results">
+      <ul className="space-y-3 font-hud-body text-hud-base text-hud-bone">
+        {simulated.map((result) => (
+          <li key={result.fixtureId}>
+            <span className="hud-label mr-2 text-hud-gold">
+              Round {result.round}
+            </span>
+            {result.home}{" "}
+            <strong className="tabular-nums">
+              {result.homeScore}–{result.awayScore}
+            </strong>{" "}
+            {result.away}
+            {result.penalties && (
+              <span className="text-hud-mute tabular-nums">
+                {" "}
+                (Penalties {result.penalties.home}–{result.penalties.away})
+              </span>
+            )}
+            {result.casualties.length > 0 && (
+              <ul className="mt-1 text-hud-sm text-hud-dim">
+                {result.casualties.map((casualty) => (
+                  <li key={casualty}>{casualty}</li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+
   const renderRoundList = () => (
     <div className="grid lg:grid-cols-2 gap-6">
       {rounds.map((round) => (
@@ -538,61 +621,36 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
           <div className="space-y-3">
             {competition.fixtures
               .filter((fixture) => fixture.round === round)
-              .map((fixture) => {
-                const home = entrant(fixture.homeEntrantId);
-                const away = entrant(fixture.awayEntrantId);
-                const ready =
-                  fixture.status === "ready" && Boolean(home && away);
-                return (
-                  <article
-                    key={fixture.id}
-                    className="rounded-hud border border-white/10 bg-black/30 p-4 font-hud-body text-hud-base text-hud-bone"
-                  >
-                    <div className="flex justify-between gap-3">
-                      <span className={cx(!home && "italic text-hud-mute")}>
-                        {home?.name ?? "TBD"}
-                      </span>
-                      <strong className="tabular-nums">
-                        {fixture.result?.walkover
-                          ? "—"
-                          : (fixture.result?.homeScore ?? "—")}
-                      </strong>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className={cx(!away && "italic text-hud-mute")}>
-                        {away?.name ?? (fixture.result?.bye ? "BYE" : "TBD")}
-                      </span>
-                      <strong className="tabular-nums">
-                        {fixture.result?.walkover
-                          ? "—"
-                          : (fixture.result?.awayScore ?? "—")}
-                      </strong>
-                    </div>
-                    {fixture.result?.walkover && (
-                      <p className="mt-1 text-hud-sm text-hud-mute">
-                        {walkoverLine(
-                          competition.entrants,
-                          fixture.result.walkover
-                        )}
-                      </p>
-                    )}
-                    {fixture.result?.penalties && (
-                      <p className="mt-1 text-hud-sm text-hud-mute tabular-nums">
-                        Penalties {fixture.result.penalties.home}–
-                        {fixture.result.penalties.away}
-                      </p>
-                    )}
-                    {ready && (
-                      <div className="mt-3 border-t border-white/10 pt-3">
-                        {fixtureActions({ fixture, home, away, ready })}
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
+              .map(renderFixtureCard)}
           </div>
         </div>
       ))}
+    </div>
+  );
+
+  // In a section body, where the buttons can wrap on a phone.
+  const simulateTools = (toSimulate.length > 0 || simulating) && (
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      {simulating ? (
+        <span role="status" className="font-hud-body text-hud-sm text-hud-dim">
+          Simulating {simulating}…
+        </span>
+      ) : (
+        <HudButton
+          variant="primary"
+          size="sm"
+          disabled={launching}
+          onClick={() =>
+            void simulate((latest) =>
+              simulatableFixtures(latest).find(
+                (fixture) => fixture.round === roundToSimulate
+              )
+            )
+          }
+        >
+          Simulate round {roundToSimulate}
+        </HudButton>
+      )}
     </div>
   );
 
@@ -700,83 +758,38 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         </Section>
       )}
 
-      {simulated.length > 0 && (
-        <Section title="Simulated results">
-          <ul className="space-y-3 font-hud-body text-hud-base text-hud-bone">
-            {simulated.map((result) => (
-              <li key={result.fixtureId}>
-                <span className="hud-label mr-2 text-hud-gold">
-                  Round {result.round}
-                </span>
-                {result.home}{" "}
-                <strong className="tabular-nums">
-                  {result.homeScore}–{result.awayScore}
-                </strong>{" "}
-                {result.away}
-                {result.penalties && (
-                  <span className="text-hud-mute tabular-nums">
-                    {" "}
-                    (Penalties {result.penalties.home}–{result.penalties.away})
-                  </span>
-                )}
-                {result.casualties.length > 0 && (
-                  <ul className="mt-1 text-hud-sm text-hud-dim">
-                    {result.casualties.map((casualty) => (
-                      <li key={casualty}>{casualty}</li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
+      {competition.type !== "league" && simulatedResults}
+
+      {competition.type === "league" ? (
+        <>
+          <LeagueRounds
+            competition={competition}
+            renderActions={fixtureActions}
+            renderCompactFixture={renderFixtureCard}
+            nextRoundTools={simulateTools}
+          />
+          {simulatedResults}
+        </>
+      ) : (
+        <Section title={isBracket ? "Bracket" : "Schedule"}>
+          {simulateTools}
+          {isBracket ? (
+            <TournamentBracket
+              fixtures={competition.fixtures}
+              entrants={competition.entrants}
+              championEntrantId={
+                competition.type === "tournament"
+                  ? competition.championEntrantId
+                  : undefined
+              }
+              renderActions={fixtureActions}
+              fallback={renderRoundList()}
+            />
+          ) : (
+            renderRoundList()
+          )}
         </Section>
       )}
-
-      <Section title={isBracket ? "Bracket" : "Schedule"}>
-        {/* In the body, where the buttons can wrap on a phone */}
-        {(toSimulate.length > 0 || simulating) && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            {simulating ? (
-              <span
-                role="status"
-                className="font-hud-body text-hud-sm text-hud-dim"
-              >
-                Simulating {simulating}…
-              </span>
-            ) : (
-              <HudButton
-                variant="primary"
-                size="sm"
-                disabled={launching}
-                onClick={() =>
-                  void simulate((latest) =>
-                    simulatableFixtures(latest).find(
-                      (fixture) => fixture.round === roundToSimulate
-                    )
-                  )
-                }
-              >
-                Simulate round {roundToSimulate}
-              </HudButton>
-            )}
-          </div>
-        )}
-        {isBracket ? (
-          <TournamentBracket
-            fixtures={competition.fixtures}
-            entrants={competition.entrants}
-            championEntrantId={
-              competition.type === "tournament"
-                ? competition.championEntrantId
-                : undefined
-            }
-            renderActions={fixtureActions}
-            fallback={renderRoundList()}
-          />
-        ) : (
-          renderRoundList()
-        )}
-      </Section>
       {error && (
         <Notice tone="bad" role="alert">
           {error}

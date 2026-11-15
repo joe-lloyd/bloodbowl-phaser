@@ -45,7 +45,10 @@ import {
   announceHouseBotLobby,
   findHouseBotLobby,
 } from "../../src/firebase/houseBot";
-import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
+import {
+  HOUSE_BOT_EMAIL,
+  HOUSE_BOT_UID,
+} from "../../src/firebase/houseBotAccount";
 import {
   cancelEndMatch,
   commitSeed,
@@ -98,7 +101,9 @@ const ORGANIZER = "organizer-uid";
 const THIRD = "third-uid";
 const ADMIN = "owner";
 /** Signed in as the house bot's email account. */
-const BOT = "house-bot-uid";
+const BOT = HOUSE_BOT_UID;
+/** Another account claiming the bot's email address. */
+const SQUATTER = "squatter-uid";
 
 const apps: FirebaseApp[] = [];
 const dbs = new Map<string, Firestore>();
@@ -122,7 +127,9 @@ function dbFor(uid: string): Firestore {
           : {
               sub: uid,
               user_id: uid,
-              ...(uid === BOT ? { email: HOUSE_BOT_EMAIL } : {}),
+              ...(uid === BOT || uid === SQUATTER
+                ? { email: HOUSE_BOT_EMAIL }
+                : {}),
             },
     }
   );
@@ -232,6 +239,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       // Not even in their own document: only the bot's email may announce
       await denied(as(HOST, () => announceHouseBotLobby(HOST, code)));
       await denied(as(GUEST, () => announceHouseBotLobby(BOT, code)));
+      // Nor another account with the bot's address
+      await denied(as(SQUATTER, () => announceHouseBotLobby(SQUATTER, code)));
       await denied(
         setDoc(doc(dbFor(BOT), "houseBots", BOT), {
           code,

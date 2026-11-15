@@ -12,7 +12,6 @@ import { ServiceContainer } from "../../services/ServiceContainer";
 import { Team } from "../../types/Team";
 import { CompetitionContext, competitionPath } from "../../competition/types";
 import { GamePhase } from "../../types/GameState";
-import { resolvePitchTheme } from "../../game/presentation/pitchThemes";
 import { renderOnlyOnChange } from "../../game/presentation/renderOnChange";
 import { MatchSave } from "../../headless/serialization";
 import {
@@ -29,7 +28,6 @@ interface GamePageProps {
   teams?: { team1: Team; team2: Team };
   progressionEnabled?: boolean;
   competitionContext?: CompetitionContext;
-  pitchThemeId?: string;
   /** Online-only match-options entries; forwarded to GameHUD untouched. */
   onlineMenu?: OnlineMatchMenuProps;
   /** The match behind this board was restored from a save. */
@@ -42,7 +40,6 @@ interface RouteState {
   team2?: Team;
   competitionContext?: CompetitionContext;
   progressionEnabled?: boolean;
-  pitchThemeId?: string;
   resumeSave?: MatchSave;
 }
 
@@ -82,7 +79,6 @@ export function GamePage({
   teams,
   progressionEnabled,
   competitionContext,
-  pitchThemeId,
   onlineMenu,
   resumed,
 }: GamePageProps) {
@@ -103,12 +99,6 @@ export function GamePage({
     routeState
   );
   const matchTeams = teams ?? savedOrRoutedTeams(resumeSave, routeState);
-  const selectedPitchThemeId = resolvePitchTheme(
-    pitchThemeId ??
-      resumeSave?.presentation?.pitchThemeId ??
-      routeState.pitchThemeId ??
-      new URLSearchParams(location.search).get("theme")
-  ).id;
 
   // Sound lives entirely in the UI layer: mounted once per game session,
   // torn down on unmount so it never outlives this page (or a Strudel
@@ -200,15 +190,12 @@ export function GamePage({
     // Wait for boot, then start appropriate scene
     game.events.once("ready", () => {
       if (mode === "sandbox") {
-        game.scene.start("SandboxScene", {
-          pitchThemeId: selectedPitchThemeId,
-        });
+        game.scene.start("SandboxScene", {});
       } else if (team1 && team2) {
         game.scene.start("GameScene", {
           team1,
           team2,
           progressionEnabled: enableProgression,
-          pitchThemeId: selectedPitchThemeId,
           competitionContext: fixtureContext ?? undefined,
           resumeSave,
           autosaveEnabled: !teams,
@@ -246,7 +233,6 @@ export function GamePage({
     navigate,
     teams,
     progressionEnabled,
-    selectedPitchThemeId,
     fixtureContext,
     resumeSave,
   ]);
@@ -254,18 +240,13 @@ export function GamePage({
   return (
     <div className="w-full h-full relative">
       {/* Phaser mounts into #game-container in index.html, behind this overlay. */}
-      <LoadingScreen
-        eventBus={eventBus}
-        teams={matchTeams}
-        styleId={selectedPitchThemeId}
-      />
+      <LoadingScreen eventBus={eventBus} teams={matchTeams} />
 
       {/* Game HUD overlay */}
       <GameHUD
         eventBus={eventBus}
         mode={mode}
         onlineMenu={onlineMenu}
-        styleId={selectedPitchThemeId}
         leaveTo={fixtureContext ? competitionPath(fixtureContext) : undefined}
         fixtureContext={fixtureContext ?? undefined}
       />

@@ -30,10 +30,6 @@ import { GameSnapshot } from "../headless/serialization";
 import { RNGState } from "../services/rng/RNGService";
 import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { CompetitionContext } from "../competition/types";
-import {
-  DEFAULT_PITCH_THEME_ID,
-  PitchThemeId,
-} from "../game/presentation/pitchThemes";
 import { OWN_SLOW_MS, type LinkState, type OwnLink } from "./connection";
 
 export * from "./connection";
@@ -61,8 +57,6 @@ export interface LobbySettings {
   timeoutBankMs: number;
   /** League fixture rules: SPP, MVP and advancement are enabled. */
   progressionEnabled: boolean;
-  /** Host-selected cosmetic field shared by both match clients. */
-  pitchThemeId?: PitchThemeId;
 }
 
 /**
@@ -132,7 +126,6 @@ export const DEFAULT_SETTINGS: LobbySettings = {
   turnSeconds: 120,
   timeoutBankMs: 5 * 60 * 1000,
   progressionEnabled: false,
-  pitchThemeId: DEFAULT_PITCH_THEME_ID,
 };
 
 /** Short, human-enterable, unambiguous (no 0/O/1/I). */

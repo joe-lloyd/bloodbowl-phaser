@@ -38,7 +38,6 @@ import {
 } from "../../../firebase/lobby";
 import { Team } from "../../../types/Team";
 import { CompetitionContext } from "../../../competition/types";
-import { PitchThemePicker } from "../common/PitchThemePicker";
 
 type Mode = "host" | "join";
 
@@ -559,15 +558,6 @@ export function SettingsPanel({
       title={readOnly ? "Match settings (host decides)" : "Match settings"}
       bodyClassName="flex flex-col gap-4"
     >
-      <div>
-        <Eyebrow className="mb-2">Pitch</Eyebrow>
-        <PitchThemePicker
-          compact
-          disabled={readOnly}
-          value={settings.pitchThemeId}
-          onChange={(pitchThemeId) => onChange({ ...settings, pitchThemeId })}
-        />
-      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Turn timer"

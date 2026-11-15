@@ -44,7 +44,6 @@ it.each([1, 6, 9, 16])(
           primary: 0x3355ff,
           secondary: 0xffffff,
         },
-        neon: false,
       },
       { sound: false }
     );
@@ -107,7 +106,6 @@ it("shows two block dice side by side when their throw is stopped before it land
         primary: 0x3355ff,
         secondary: 0xffffff,
       },
-      neon: false,
     },
     { sound: false }
   );

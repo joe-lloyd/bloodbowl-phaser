@@ -244,7 +244,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         teams={match.teams}
         progressionEnabled={lobby?.settings.progressionEnabled ?? false}
         competitionContext={lobby?.competitionContext}
-        pitchThemeId={lobby?.settings.pitchThemeId}
         onlineMenu={onlineMenu}
       />
       <MatchBanner

@@ -42,7 +42,6 @@ export interface DiceRoll {
   kind: DiceKind;
   values: number[];
   team: DiceTeam;
-  neon: boolean;
 }
 
 /** The coin toss: side 1 (heads) carries the first team's crest, side 2 the second's. */
@@ -50,7 +49,6 @@ export interface CoinToss {
   kind: "coin";
   side: 1 | 2;
   faces: [DiceTeam, DiceTeam];
-  neon: boolean;
 }
 
 // ------------------------------------------------------------------- stage
@@ -148,7 +146,7 @@ export function playRoll(
 }
 
 /** The box every throw plays in: renderer, camera, lights and a shadow floor. */
-function stage(host: HTMLElement, neon: boolean) {
+function stage(host: HTMLElement) {
   const gl = getRenderer();
   const width = host.clientWidth;
   const height = host.clientHeight;
@@ -160,8 +158,8 @@ function stage(host: HTMLElement, neon: boolean) {
   camera.position.set(0, 9.4, 5.4);
   const lookAt = new THREE.Vector3(0, 0, 0.15);
   camera.lookAt(lookAt);
-  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x1a1020, neon ? 0.9 : 1.6));
-  const sun = new THREE.DirectionalLight(0xffffff, neon ? 1.4 : 2.4);
+  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x1a1020, 1.6));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.4);
   sun.position.set(-4, 10, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -194,7 +192,7 @@ function throwCoin(
 ): Promise<number[]> {
   showing?.stop();
   if (opts.sound) void loadClacks();
-  const { gl, scene, camera, lookAt } = stage(host, toss.neon);
+  const { gl, scene, camera, lookAt } = stage(host);
 
   const geometry = new THREE.CylinderGeometry(
     COIN.radius,
@@ -209,7 +207,7 @@ function throwCoin(
   });
   const face = (team: DiceTeam) =>
     new THREE.MeshPhysicalMaterial({
-      map: coinTexture(team, toss.neon),
+      map: coinTexture(team),
       metalness: 0.35,
       roughness: 0.4,
       clearcoat: 0.6,
@@ -330,7 +328,7 @@ function throwDice(
   showing?.stop();
   const sim = simulate(roll.values.length, roll.kind);
   if (opts.sound) void loadClacks();
-  const { gl, scene, camera, lookAt } = stage(host, roll.neon);
+  const { gl, scene, camera, lookAt } = stage(host);
 
   const geometry =
     roll.kind === "d16"

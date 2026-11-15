@@ -5,9 +5,10 @@
 import { useEffect, useState } from "react";
 import {
   AuthUser,
+  ConfirmLink,
+  getConfirmLink,
   getCurrentUser,
   isAuthResolved,
-  signInWithGoogle,
   signOutUser,
   subscribeToAuth,
 } from "../../firebase/auth";
@@ -20,19 +21,22 @@ export interface UseAuth {
   ready: boolean;
   /** False when no Firebase config is present (online play unavailable) */
   onlineAvailable: boolean;
-  signIn: () => Promise<AuthUser>;
+  /** For an unverified email account: whether its link went out. */
+  confirmLink: ConfirmLink;
   signOut: () => Promise<void>;
 }
 
 export function useAuth(): UseAuth {
   const [user, setUser] = useState<AuthUser | null>(getCurrentUser);
   const [ready, setReady] = useState(isAuthResolved);
+  const [confirmLink, setConfirmLink] = useState(getConfirmLink);
 
   useEffect(
     () =>
       subscribeToAuth((next) => {
         setUser(next);
         setReady(isAuthResolved());
+        setConfirmLink(getConfirmLink());
       }),
     []
   );
@@ -41,7 +45,7 @@ export function useAuth(): UseAuth {
     user,
     ready,
     onlineAvailable: isFirebaseConfigured(),
-    signIn: signInWithGoogle,
+    confirmLink,
     signOut: signOutUser,
   };
 }

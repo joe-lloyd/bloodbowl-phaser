@@ -47,8 +47,8 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     void import("../../dice/diceScene").then((scene) => {
       if (live)
         setFaceImages([
-          scene.coinFaceImage(faces[0]!, false),
-          scene.coinFaceImage(faces[1]!, false),
+          scene.coinFaceImage(faces[0]!),
+          scene.coinFaceImage(faces[1]!),
         ]);
     });
     return () => {
@@ -86,7 +86,6 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
           kind: "coin",
           side: winningTeam === teams.team1 ? 1 : 2,
           faces: [faces[0], faces[1]],
-          neon: false,
         },
         { sound: !soundSettings.get().muted }
       );

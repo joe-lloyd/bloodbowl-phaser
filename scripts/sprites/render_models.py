@@ -40,7 +40,7 @@ def fits(px, animations=("idle",)):
     return True
 
 
-def render_models(ids, out_root, sizes=("lo", "hi"), style="neon", animations=("idle",)):
+def render_models(ids, out_root, sizes=("lo", "hi"), style="bloodbowl", animations=("idle",)):
     done = []
     for model_id in ids:
         t = time.time()

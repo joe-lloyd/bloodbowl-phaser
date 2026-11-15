@@ -31,7 +31,7 @@ def option(name, default):
     return value
 
 
-style = option("style", "neon")
+style = option("style", "bloodbowl")
 animations = option("anims", "idle").split(",")
 sizes = option("sizes", "lo,hi").split(",")
 out, ids = args[0], args[1:] or list(g["MODELS"])
