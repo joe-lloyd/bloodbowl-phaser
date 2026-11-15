@@ -1,25 +1,20 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import {
-  Team,
-  RosterName,
-  createTeam,
-  calculateTeamValue,
-} from "../../../types/Team";
+import { Team, RosterName, createTeam } from "../../../types/Team";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
-import { getTeamMode, isActiveTeam } from "../../../game/rules/teamLifecycle";
+import {
+  TeamMode,
+  getTeamMode,
+  isActiveTeam,
+} from "../../../game/rules/teamLifecycle";
 import { canEdit } from "../../../game/rules/teamEditLegality";
 import {
   StaffItem,
-  draftInducementCount,
-  draftListPlayers,
   hirePlayer,
   hireRefusal,
-  priceOf,
   purchase,
 } from "../../../game/rules/teamPricing";
-import { sevensInducementCatalog } from "../../../game/inducements/catalog";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
 import { chooseVeteran } from "../../../game/rules/veteran";
 import {
@@ -29,21 +24,11 @@ import {
 import {
   chooseFavouredOf,
   chooseLeague,
-  favouredOfChoices,
-  leagueChoices,
-  teamFavouredOf,
-  teamLeague,
-  teamSpecialRules,
 } from "../../../game/rules/teamAllegiance";
-import {
-  getRosterByRosterName,
-  getAvailableRosterNames,
-} from "../../../data/RosterTemplates";
+import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import * as TeamManager from "../../../game/managers/TeamManager";
 import { dehydrateTeam } from "../../../data/persistence/teamPersistence";
 import {
-  cx,
-  Field,
   HudButton,
   Notice,
   PageHeader,
@@ -52,15 +37,15 @@ import {
 } from "../componentWarehouse/HudKit";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
+import { AdvancementModePanel } from "../TeamBuilder/AdvancementModePanel";
+import { TeamBuilderActionBar } from "../TeamBuilder/TeamBuilderActionBar";
+import { PostMatchSection } from "../TeamBuilder/PostMatchSection";
+import { MainChoicesSection } from "../TeamBuilder/MainChoicesSection";
+import { TeamDetailsSection } from "../TeamBuilder/TeamDetailsSection";
 import {
-  AdvancementModePanel,
-  AdvancementModeSelector,
-} from "../TeamBuilder/AdvancementModePanel";
-import {
-  TeamStatsOverview,
-  formatGold,
-  numToHex,
-} from "../TeamManagement/TeamStatsOverview";
+  DraftInducementsSection,
+  SidelineStaffSection,
+} from "../TeamBuilder/SidelineStaffSection";
 import {
   FavouredOfRule,
   League,
@@ -75,29 +60,106 @@ import {
   stepsBeforeExpensiveMistakes,
 } from "../../../game/rules/expensiveMistakes";
 import { RNGService } from "../../../services/rng/RNGService";
-import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 import { PlayedGames } from "../TeamManagement/PlayedGames";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 
 // interface TeamBuilderProps {}
 
-const TEAM_COLORS = [
-  0x8e1b1b, // Blood Red
-  0x1e3a5f, // Ink Blue
-  0x556b2f, // Pitch Green
-  0xd6b25e, // Gold
-  0x2a1f1a, // Text Dark
-  0xb32020, // Deep Crimson
-  0xe8ddc4, // Warm Paper
-  0x6b5e54, // Muted Text
-  0xffffff, // White
-  0x000000, // Black
-];
+const MODE_EYEBROWS: Record<TeamMode, string> = {
+  active: "Active team",
+  draft: "Draft team",
+};
+
+const MODE_SUBTITLES: Record<TeamMode, string> = {
+  active:
+    "This team has played its first match. Roster type is locked and nobody can be fired. Between league fixtures, spend the Treasury on players at roster price, and on re-rolls and Sideline Staff at their Sevens prices, within the roster limits.",
+  draft:
+    "Draft teams may be edited freely and saved even while incomplete, but must pass roster legality before they can be selected for a match or entered in a competition.",
+};
 
 /** A comparable copy of what storage would hold for this team. */
 function snapshotOf(team: Team): string {
   return JSON.stringify(dehydrateTeam(team));
+}
+
+/** Whether storage already holds exactly this team. */
+function isStored(current: Team): boolean {
+  const stored = TeamManager.loadTeams().find((t) => t.id === current.id);
+  return !!stored && snapshotOf(stored) === snapshotOf(current);
+}
+
+/** Write the team to storage (shared by Save and opening a player). */
+function persistTeam(toSave: Team) {
+  // Draft work may be persisted incomplete or illegal — only play and
+  // competition entry require a valid roster (team-lifecycle-modes).
+  // Locking is a no-op until a mode has actually been chosen, so this is
+  // safe to call unconditionally on every save (team-advancement-modes:
+  // the mode is immutable from the moment it's first set).
+  lockAdvancementMode(toSave);
+
+  const teams = TeamManager.loadTeams();
+  const existingIndex = teams.findIndex((t) => t.id === toSave.id);
+
+  if (existingIndex >= 0) {
+    teams[existingIndex] = toSave;
+  } else {
+    teams.push(toSave);
+  }
+
+  return TeamManager.saveTeams(teams);
+}
+
+/** Saving locks a chosen mode; an unsaved team must stay changeable. */
+function restoreAdvancementLock(
+  team: Team,
+  wasLocked: Team["advancementModeLocked"]
+): void {
+  if (wasLocked) team.advancementModeLocked = wasLocked;
+  else delete team.advancementModeLocked;
+}
+
+/** Development a coach must finish before Finish post-match can save. */
+function developmentPending(team: Team): boolean {
+  return (
+    stepsBeforeExpensiveMistakes(team) > 0 || team.players.some(mustAdvance)
+  );
+}
+
+function hasPendingExpensiveMistakes(team: Team): boolean {
+  return (
+    !!team.pendingDevelopment?.some(
+      (entry) => entry.kind === "expensive-mistakes"
+    ) && rollsForExpensiveMistakes(team.treasury)
+  );
+}
+
+/** Roll every pending Expensive Mistakes entry once nothing else waits. */
+function rollExpensiveMistakes(team: Team): string[] {
+  const results: string[] = [];
+  if (stepsBeforeExpensiveMistakes(team) > 0) return results;
+  const rng = new RNGService(Date.now());
+  for (const entry of [...(team.pendingDevelopment ?? [])]) {
+    if (entry.kind !== "expensive-mistakes") continue;
+    results.push(
+      describeExpensiveMistakes(resolveExpensiveMistakes(team, entry, rng))
+    );
+  }
+  return results;
+}
+
+/** What the URL says about a post-match visit and where it returns to. */
+function readSearch(search: string, teamId: string | undefined) {
+  const searchParams = new URLSearchParams(search);
+  const returnTo = searchParams.get("returnTo") ?? "";
+  return {
+    searchParams,
+    postMatch: searchParams.get("postMatch") === "1",
+    destination: /^\/leagues\/[^/?#]+$/.test(returnTo)
+      ? returnTo
+      : "/build-team",
+    matchWinnings: searchParams.get(`winnings-${teamId ?? ""}`),
+  };
 }
 
 export function TeamBuilder() {
@@ -111,13 +173,10 @@ export function TeamBuilder() {
   const navigate = useNavigate();
   const { teamId } = useParams<{ teamId: string }>();
   const { search } = useLocation();
-  const searchParams = new URLSearchParams(search);
-  const postMatch = searchParams.get("postMatch") === "1";
-  const returnTo = searchParams.get("returnTo") ?? "";
-  const destination = /^\/leagues\/[^/?#]+$/.test(returnTo)
-    ? returnTo
-    : "/build-team";
-  const matchWinnings = searchParams.get(`winnings-${teamId ?? ""}`);
+  const { searchParams, postMatch, destination, matchWinnings } = readSearch(
+    search,
+    teamId
+  );
   const [completion, setCompletion] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -201,12 +260,6 @@ export function TeamBuilder() {
         ...team,
         colors: { ...team.colors, primary: color },
       });
-    }
-  };
-
-  const handleNameChange = (name: string) => {
-    if (team) {
-      setTeam({ ...team, name });
     }
   };
 
@@ -349,45 +402,27 @@ export function TeamBuilder() {
     return messages;
   };
 
-  /** Write the current team to storage (shared by Save and opening a player). */
-  const persistTeam = (toSave: Team) => {
-    // Draft work may be persisted incomplete or illegal — only play and
-    // competition entry require a valid roster (team-lifecycle-modes).
-    // Locking is a no-op until a mode has actually been chosen, so this is
-    // safe to call unconditionally on every save (team-advancement-modes:
-    // the mode is immutable from the moment it's first set).
-    lockAdvancementMode(toSave);
-
-    const teams = TeamManager.loadTeams();
-    const existingIndex = teams.findIndex((t) => t.id === toSave.id);
-
-    if (existingIndex >= 0) {
-      teams[existingIndex] = toSave;
+  /** Leave after a save: the next team to manage, the league, or the list. */
+  const leaveAfterSave = () => {
+    const [nextTeam, ...remaining] = searchParams.getAll("nextTeam");
+    if (postMatch && nextTeam) {
+      searchParams.delete("nextTeam");
+      remaining.forEach((id) => searchParams.append("nextTeam", id));
+      navigate(`/build-team/${encodeURIComponent(nextTeam)}?${searchParams}`, {
+        replace: true,
+      });
     } else {
-      teams.push(toSave);
+      navigate(postMatch ? destination : "/build-team", {
+        replace: postMatch,
+      });
     }
-
-    return TeamManager.saveTeams(teams);
   };
 
   const handleSave = async () => {
     if (!team || saveInFlight.current) return;
     clearUnneededExpensiveMistakes(team);
-    if (
-      postMatch &&
-      (stepsBeforeExpensiveMistakes(team) > 0 || team.players.some(mustAdvance))
-    )
-      return;
-    const results: string[] = [];
-    if (stepsBeforeExpensiveMistakes(team) === 0) {
-      const rng = new RNGService(Date.now());
-      for (const entry of [...(team.pendingDevelopment ?? [])]) {
-        if (entry.kind !== "expensive-mistakes") continue;
-        results.push(
-          describeExpensiveMistakes(resolveExpensiveMistakes(team, entry, rng))
-        );
-      }
-    }
+    if (postMatch && developmentPending(team)) return;
+    const results = rollExpensiveMistakes(team);
     setTeam({ ...team });
     if (results.length) setCompletion(results.join(" "));
     saveInFlight.current = true;
@@ -402,22 +437,7 @@ export function TeamBuilder() {
       }
       savedSnapshot.current = snapshotOf(team);
       setSaveError("");
-      if (results.length) return;
-      const [nextTeam, ...remaining] = searchParams.getAll("nextTeam");
-      if (postMatch && nextTeam) {
-        searchParams.delete("nextTeam");
-        remaining.forEach((id) => searchParams.append("nextTeam", id));
-        navigate(
-          `/build-team/${encodeURIComponent(nextTeam)}?${searchParams}`,
-          {
-            replace: true,
-          }
-        );
-      } else {
-        navigate(postMatch ? destination : "/build-team", {
-          replace: postMatch,
-        });
-      }
+      if (!results.length) leaveAfterSave();
     } catch (cause) {
       setSaveError(
         `Your team could not be saved. ${cause instanceof Error ? cause.message : String(cause)}. Retry saving to continue.`
@@ -428,14 +448,42 @@ export function TeamBuilder() {
     }
   };
 
-  /** Whether storage already holds exactly this team. */
-  const isStored = (current: Team): boolean => {
-    const stored = TeamManager.loadTeams().find((t) => t.id === current.id);
-    return (
-      !!stored &&
-      JSON.stringify(dehydrateTeam(stored)) ===
-        JSON.stringify(dehydrateTeam(current))
-    );
+  /** Save unsaved edits before the player page; false keeps them here. */
+  const saveBeforeOpeningPlayer = async (current: Team): Promise<boolean> => {
+    if (
+      !postMatch &&
+      !confirm("Save your changes to this team before opening the player?")
+    ) {
+      return false;
+    }
+    const wasLocked = current.advancementModeLocked;
+    saveInFlight.current = true;
+    setSaving(true);
+    try {
+      await persistTeam(current);
+    } catch (cause) {
+      restoreAdvancementLock(current, wasLocked);
+      setTeam({ ...current });
+      alert(
+        `Your changes could not be saved, so the player was not opened. Your edits are still here. ${cause instanceof Error ? cause.message : String(cause)}`
+      );
+      return false;
+    } finally {
+      saveInFlight.current = false;
+      setSaving(false);
+    }
+    // The repository logs a failed write instead of throwing (a full
+    // localStorage, say), so read it back before leaving these edits.
+    if (!isStored(current)) {
+      restoreAdvancementLock(current, wasLocked);
+      setTeam({ ...current });
+      alert(
+        "Your changes could not be saved, so the player was not opened. Your edits are still here."
+      );
+      return false;
+    }
+    savedSnapshot.current = snapshotOf(current);
+    return true;
   };
 
   /**
@@ -445,43 +493,11 @@ export function TeamBuilder() {
    */
   const handleOpenPlayer = async (playerId: string) => {
     if (!team || saveInFlight.current) return;
-    if (savedSnapshot.current !== snapshotOf(team)) {
-      if (
-        !postMatch &&
-        !confirm("Save your changes to this team before opening the player?")
-      ) {
-        return;
-      }
-      const wasLocked = team.advancementModeLocked;
-      saveInFlight.current = true;
-      setSaving(true);
-      try {
-        await persistTeam(team);
-      } catch (cause) {
-        if (wasLocked) team.advancementModeLocked = wasLocked;
-        else delete team.advancementModeLocked;
-        setTeam({ ...team });
-        alert(
-          `Your changes could not be saved, so the player was not opened. Your edits are still here. ${cause instanceof Error ? cause.message : String(cause)}`
-        );
-        return;
-      } finally {
-        saveInFlight.current = false;
-        setSaving(false);
-      }
-      // The repository logs a failed write instead of throwing (a full
-      // localStorage, say), so read it back before leaving these edits.
-      if (!isStored(team)) {
-        // Saving locks a chosen mode; an unsaved team must stay changeable
-        if (wasLocked) team.advancementModeLocked = wasLocked;
-        else delete team.advancementModeLocked;
-        setTeam({ ...team });
-        alert(
-          "Your changes could not be saved, so the player was not opened. Your edits are still here."
-        );
-        return;
-      }
-      savedSnapshot.current = snapshotOf(team);
+    if (
+      savedSnapshot.current !== snapshotOf(team) &&
+      !(await saveBeforeOpeningPlayer(team))
+    ) {
+      return;
     }
     navigate(`/build-team/${team.id}/player/${playerId}${search}`);
   };
@@ -536,103 +552,41 @@ export function TeamBuilder() {
   const mode = getTeamMode(team);
   const active = mode === "active";
   const violations = rosterViolations();
-  const apothecaryPrice = priceOf(team, { type: "apothecary" });
-  const waitingForDevelopment =
-    postMatch &&
-    (stepsBeforeExpensiveMistakes(team) > 0 || team.players.some(mustAdvance));
-  const pendingMistakes =
-    team.pendingDevelopment?.some(
-      (entry) => entry.kind === "expensive-mistakes"
-    ) && rollsForExpensiveMistakes(team.treasury);
+  const waitingForDevelopment = postMatch && developmentPending(team);
+  const pendingMistakes = hasPendingExpensiveMistakes(team);
 
   return (
     <PageShell
       actionBar={
-        <>
-          {!postMatch && !completion && (
-            <HudButton variant="ghost" onClick={handleBack} disabled={saving}>
-              Cancel
-            </HudButton>
-          )}
-          <div className="flex items-baseline gap-5 font-hud-label font-bold uppercase tracking-[0.06em]">
-            <span>
-              <span className="font-hud-display text-hud-xl text-hud-bone">
-                {draftListPlayers(team).length}/11
-              </span>{" "}
-              <span className="hud-label">Players</span>
-            </span>
-            <span>
-              <span className="hud-label">TV</span>{" "}
-              <span className="font-hud-display text-hud-xl text-hud-gold">
-                {formatGold(calculateTeamValue(team))}
-              </span>
-            </span>
-          </div>
-          <HudButton
-            variant="primary"
-            onClick={handleSave}
-            disabled={waitingForDevelopment || saving}
-          >
-            {saving ? (
-              "Saving team..."
-            ) : saveError ? (
-              "Retry saving team"
-            ) : completion ? (
-              searchParams.has("nextTeam") ? (
-                "Manage next team"
-              ) : postMatch && destination !== "/build-team" ? (
-                "Back to the league"
-              ) : (
-                "Back to teams"
-              )
-            ) : postMatch || pendingMistakes ? (
-              "Finish post-match"
-            ) : (
-              <>
-                Save Team{" "}
-                {violations.length > 0 && "(saved as incomplete draft)"}
-              </>
-            )}
-          </HudButton>
-        </>
+        <TeamBuilderActionBar
+          team={team}
+          postMatch={postMatch}
+          completion={completion}
+          saving={saving}
+          saveError={saveError}
+          waitingForDevelopment={waitingForDevelopment}
+          pendingMistakes={pendingMistakes}
+          incomplete={violations.length > 0}
+          hasNextTeam={searchParams.has("nextTeam")}
+          returnsToLeague={postMatch && destination !== "/build-team"}
+          onBack={handleBack}
+          onSave={handleSave}
+        />
       }
     >
       <PageHeader
-        eyebrow={`${active ? "Active team" : "Draft team"} · ${team.rosterName}`}
+        eyebrow={`${MODE_EYEBROWS[mode]} · ${team.rosterName}`}
         title="TEAM BUILDER"
-        subtitle={
-          active
-            ? "This team has played its first match. Roster type is locked and nobody can be fired. Between league fixtures, spend the Treasury on players at roster price, and on re-rolls and Sideline Staff at their Sevens prices, within the roster limits."
-            : "Draft teams may be edited freely and saved even while incomplete, but must pass roster legality before they can be selected for a match or entered in a competition."
-        }
+        subtitle={MODE_SUBTITLES[mode]}
       />
 
-      {(postMatch || pendingMistakes || completion) && (
-        <Section title="Post-match team management" accent="gold">
-          {matchWinnings !== null && /^\d+$/.test(matchWinnings) && (
-            <p className="mb-2 text-hud-lg text-hud-gold">
-              Winnings: +{Number(matchWinnings).toLocaleString("en-GB")} gp
-              added to the Treasury.
-            </p>
-          )}
-          {completion ? (
-            <Notice tone="info" role="status">
-              Expensive Mistakes: {completion}
-            </Notice>
-          ) : (
-            <p className="text-hud-bone">
-              Advance your players and spend your winnings below. Finish
-              post-match saves your team and rolls Expensive Mistakes if at
-              least 100,000 gp remains.
-            </p>
-          )}
-          {waitingForDevelopment && (
-            <p className="mt-2 text-hud-warn">
-              Complete the pending team development before finishing.
-            </p>
-          )}
-        </Section>
-      )}
+      <PostMatchSection
+        postMatch={postMatch}
+        pendingMistakes={pendingMistakes}
+        completion={completion}
+        matchWinnings={matchWinnings}
+        waitingForDevelopment={waitingForDevelopment}
+      />
       {saveError && (
         <Notice tone="bad" role="alert" className="mb-4">
           {saveError}
@@ -640,50 +594,15 @@ export function TeamBuilder() {
       )}
 
       <fieldset disabled={!!completion || saving} className="min-w-0">
-        {/* What a coach decides first; nothing here changes after a match */}
         {!(postMatch || completion) && (
-          <Section title="Main choices">
-            <div className="grid gap-x-6 gap-y-5 lg:grid-cols-2">
-              <Field label="Roster">
-                <select
-                  className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                  value={selectedRace}
-                  disabled={active || saving}
-                  title={
-                    active
-                      ? "Active teams cannot change roster type"
-                      : undefined
-                  }
-                  onChange={(e) =>
-                    handleRaceChange(e.target.value as RosterName)
-                  }
-                >
-                  {getAvailableRosterNames().map((race) => (
-                    <option key={race} value={race}>
-                      {race}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <div>
-                <SevensRulesetSelector
-                  value={team.draftRuleset}
-                  disabled={saving || active || !!team.activeCompetitionId}
-                  onChange={(draftRuleset) =>
-                    setTeam({ ...team, draftRuleset })
-                  }
-                />
-                <p className="mt-2 font-hud-body text-hud-sm text-hud-dim">
-                  Prepare a roster for these rules. Tournament and league entry
-                  use the competition's own choice. Friendly matches use GW
-                  rules.
-                </p>
-              </div>
-              <div className="lg:col-span-2">
-                <AdvancementModeSelector team={team} onChange={setTeam} />
-              </div>
-            </div>
-          </Section>
+          <MainChoicesSection
+            team={team}
+            selectedRace={selectedRace}
+            active={active}
+            saving={saving}
+            onRaceChange={handleRaceChange}
+            onChange={setTeam}
+          />
         )}
         <PendingDevelopmentPanel
           team={team}
@@ -709,130 +628,15 @@ export function TeamBuilder() {
           </Notice>
         )}
 
-        <Section
-          title="Team details"
-          accent={{ color: numToHex(team.colors.primary) }}
-        >
-          <div className="mb-5 max-w-xl">
-            <TeamStatsOverview team={team} />
-          </div>
-          <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Team Name">
-              <input
-                type="text"
-                className="hud-field font-hud-label text-base font-bold uppercase tracking-[0.03em]"
-                value={team.name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="Enter Team Name"
-              />
-            </Field>
-            <Field
-              label="League"
-              hint={
-                leagueChoices(team.rosterName).length > 1 && !active
-                  ? "Chosen when drafting; fixed once the team has played."
-                  : undefined
-              }
-            >
-              <select
-                data-testid="team-league"
-                className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                value={teamLeague(team)}
-                disabled={active || leagueChoices(team.rosterName).length < 2}
-                onChange={(e) => handleChooseLeague(e.target.value as League)}
-              >
-                {leagueChoices(team.rosterName).map((league) => (
-                  <option key={league} value={league}>
-                    {league}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {favouredOfChoices(team.rosterName).length > 0 && (
-              <Field
-                label="Favoured of"
-                hint={
-                  active
-                    ? undefined
-                    : "Chosen when drafting; it cannot change later."
-                }
-              >
-                <select
-                  data-testid="team-favoured-of"
-                  className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                  value={teamFavouredOf(team)}
-                  disabled={active}
-                  onChange={(e) =>
-                    handleChooseFavouredOf(e.target.value as FavouredOfRule)
-                  }
-                >
-                  {favouredOfChoices(team.rosterName).map((alignment) => (
-                    <option key={alignment} value={alignment}>
-                      {alignment.replace("Favoured of ", "")}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <span className="hud-label">Special rules</span>
-              <span
-                data-testid="team-special-rules"
-                className="flex min-h-11 items-center text-hud-sm text-hud-bone"
-              >
-                {teamSpecialRules(team).join(", ") || "None"}
-              </span>
-            </div>
-            <Field label="Coach">
-              <input
-                type="text"
-                className="hud-field"
-                value={team.coachName || ""}
-                onChange={(e) =>
-                  setTeam({ ...team, coachName: e.target.value })
-                }
-                placeholder="Coach Name"
-              />
-            </Field>
-            <Field label="Starting Treasury">
-              <input
-                type="number"
-                step="10000"
-                className="hud-field disabled:cursor-not-allowed disabled:opacity-50"
-                value={team.startingTreasury}
-                disabled={active || team.players.length > 0}
-                onChange={(e) => {
-                  const newVal = parseInt(e.target.value) || 0;
-                  setTeam({
-                    ...team,
-                    startingTreasury: newVal,
-                    treasury: newVal, // synchronise current treasury as long as we are in drafting mode and no players bought
-                  });
-                }}
-              />
-            </Field>
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <span className="hud-label">Team Colors</span>
-              <div className="flex flex-wrap gap-2">
-                {TEAM_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    aria-pressed={selectedColor === color}
-                    className={cx(
-                      "h-7 w-7 -skew-x-12 rounded-[2px] border transition-[transform,box-shadow] duration-150 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold focus-visible:ring-offset-2 focus-visible:ring-offset-hud-ink",
-                      selectedColor === color
-                        ? "scale-110 border-hud-gold shadow-hud-glow"
-                        : "border-white/30"
-                    )}
-                    style={{ backgroundColor: numToHex(color) }}
-                    onClick={() => handleColorChange(color)}
-                    title={numToHex(color)}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </Section>
+        <TeamDetailsSection
+          team={team}
+          active={active}
+          selectedColor={selectedColor}
+          onChange={setTeam}
+          onColorChange={handleColorChange}
+          onChooseLeague={handleChooseLeague}
+          onChooseFavouredOf={handleChooseFavouredOf}
+        />
 
         <AdvancementModePanel
           team={team}
@@ -865,126 +669,17 @@ export function TeamBuilder() {
           />
         </div>
 
-        <Section
-          title="Sideline staff"
-          aside={`Gold ${formatGold(team.treasury)}`}
-        >
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-            <StaffCounter
-              label="Re-Rolls"
-              count={team.rerolls}
-              team={team}
-              item={{ type: "reroll" }}
-              onBuy={handleBuy}
-            />
-            <label className="flex flex-col gap-1">
-              <span className="hud-label">
-                Apothecary ({formatGold(APOTHECARY_COST)})
-              </span>
-              <span className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 px-3">
-                <span className="font-hud-display text-hud-lg">
-                  {team.apothecary ? "Yes" : "No"}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={team.apothecary}
-                  onChange={handleApothecaryToggle}
-                  disabled={
-                    team.apothecary
-                      ? active
-                      : team.treasury < (apothecaryPrice.amount ?? Infinity)
-                  }
-                  title={apothecaryPrice.reason}
-                  className="hud-check"
-                />
-              </span>
-            </label>
-            <StaffCounter
-              label="Dedicated Fans"
-              count={team.dedicatedFans}
-              team={team}
-              item={{ type: "dedicated-fan" }}
-              onBuy={handleBuy}
-            />
-            <StaffCounter
-              label="Asst. Coaches"
-              count={team.coaches}
-              team={team}
-              item={{ type: "coach" }}
-              onBuy={handleBuy}
-            />
-            <StaffCounter
-              label="Cheerleaders"
-              count={team.cheerleaders}
-              team={team}
-              item={{ type: "cheerleader" }}
-              onBuy={handleBuy}
-            />
-          </div>
-        </Section>
+        <SidelineStaffSection
+          team={team}
+          active={active}
+          onBuy={handleBuy}
+          onApothecaryToggle={handleApothecaryToggle}
+        />
 
-        {/* Matched Play buys inducements from the draft budget (MP2) */}
-        {team.advancementMode === "matched-play" && (
-          <Section title="Inducements on the draft list">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {sevensInducementCatalog(team).map((entry) => (
-                <StaffCounter
-                  key={entry.inducement}
-                  label={entry.inducement}
-                  count={draftInducementCount(team, entry.inducement)}
-                  team={team}
-                  item={{ type: "inducement", inducement: entry.inducement }}
-                  onBuy={handleBuy}
-                />
-              ))}
-            </div>
-          </Section>
-        )}
+        <DraftInducementsSection team={team} onBuy={handleBuy} />
       </fieldset>
 
       <PlayedGames games={team.playedGames ?? []} />
     </PageShell>
-  );
-}
-
-/** A team asset bought one at a time, with its price and a "+" button. The
- *  price and any refusal come from priceOf, so a reached limit shows as a
- *  disabled button whose tooltip names it. */
-function StaffCounter({
-  label,
-  count,
-  team,
-  item,
-  onBuy,
-}: {
-  label: string;
-  count: number;
-  team: Team;
-  item: StaffItem;
-  onBuy: (item: StaffItem) => void;
-}) {
-  const price = priceOf(team, item);
-  const affordable = price.amount != null && team.treasury >= price.amount;
-  // The fullgame e2e driver finds a counter by this wrapper and its label.
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="hud-label">
-        {label}
-        {price.amount != null && ` (${formatGold(price.amount)})`}
-      </span>
-      <div className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 pl-3 pr-1">
-        <span className="font-hud-display text-hud-lg">{count}</span>
-        <HudButton
-          size="sm"
-          variant="secondary"
-          className="w-9 !px-0"
-          onClick={() => onBuy(item)}
-          disabled={!affordable}
-          title={price.reason}
-        >
-          +
-        </HudButton>
-      </div>
-    </div>
   );
 }
