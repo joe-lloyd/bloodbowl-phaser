@@ -39,7 +39,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open the address Vite prints. Start with **Build Team**, create two legal
+Open the address Vite prints. Start with **Teams**, create two legal
 teams, then choose **Play Local**. Firebase configuration is optional for
 local play. See the [development guide](docs/DEVELOPMENT.md) for tests,
 builds and online setup.

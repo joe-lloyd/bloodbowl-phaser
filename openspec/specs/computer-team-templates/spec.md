@@ -9,7 +9,7 @@ within each competition.
 
 ### Requirement: Every user has a computer-team catalogue
 
-Team Management SHALL provide My teams and Computer teams tabs. The computer
+Teams SHALL provide My teams and Computer teams tabs. The computer
 catalogue SHALL be bundled with the app, available signed out and signed in,
 and independent of development seeds or saved team documents. Each recipe SHALL
 have a distinct name and kit, a build description, and a Bonehead source link.

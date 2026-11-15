@@ -159,7 +159,7 @@ function LobbySettingsDemo({ readOnly }: { readOnly: boolean }) {
 export const PAGE_VARIANTS: Variant[] = [
   page("kit", "The page kit", () => <PageKit />, undefined),
   page("menu", "Main menu", () => at("/", "/", <MainMenu />)),
-  page("teams", "Team management", () =>
+  page("teams", "Teams", () =>
     at("/build-team", "/build-team", <TeamManagement />)
   ),
   page("builder", "Team builder", () =>

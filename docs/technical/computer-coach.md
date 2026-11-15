@@ -257,7 +257,7 @@ a friendly against the computer, and on for a league or cup game.
 
 ## Leagues and cups
 
-The Computer teams tab in Team Management provides Bonehead Podcast's Season 3
+The Computer teams tab in Teams provides Bonehead Podcast's Season 3
 Sevens starting builds, with names, kits, roster previews, and source links.
 The bundled catalogue has 82 recipes across 30 rosters. GW rules permit 81;
 the NAF rulings also permit the Snotling Max snots build. Prices and legality

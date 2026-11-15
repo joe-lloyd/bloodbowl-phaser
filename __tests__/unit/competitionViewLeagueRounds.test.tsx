@@ -150,6 +150,7 @@ describe("a league's rounds", () => {
     await show();
 
     expect(sectionTitles()).toEqual([
+      "Your teams",
       "Entrants",
       "Standings",
       "Next round",
@@ -212,6 +213,7 @@ describe("a league's rounds", () => {
     expect(nextRound()).toBe("Round 2");
     expect(upcomingRounds()).toEqual(["Round 3"]);
     expect(sectionTitles()).toEqual([
+      "Your teams",
       "Entrants",
       "Standings",
       "Next round",

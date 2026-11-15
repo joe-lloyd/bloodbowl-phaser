@@ -52,6 +52,7 @@ import {
 } from "../../../game/persistence/MatchSaveRepository";
 import { hasBlockingPendingDevelopment, Team } from "../../../types/Team";
 import { LeagueRounds } from "./LeagueRounds";
+import { LeagueTeamProgress } from "./LeagueTeamProgress";
 
 type DraftScore = {
   home: string;
@@ -392,10 +393,8 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     competition.type === "tournament" &&
     competition.format === "single-elimination";
 
-  // Shared by the bracket cards and the round list so the two presentations
-  // can never drift apart. Called as a plain function, never mounted as a
-  // component — a component boundary here would remount the score inputs on
-  // every keystroke and lose focus.
+  // Shared by the bracket cards and the round list. A plain function, never
+  // mounted: a component would remount the score inputs on every keystroke.
   const fixtureActions = ({ fixture, home, away }: BracketFixtureContext) => {
     if (!canReport(fixture)) return null;
     const busy = launching || simulating !== null;
@@ -679,6 +678,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
           </span>
         </Panel>
       )}
+      <LeagueTeamProgress competition={competition} />
 
       {competition.status === "active" && (
         <Section title="Entrants">
