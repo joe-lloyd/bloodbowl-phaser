@@ -12,11 +12,15 @@ import { KickoffController } from "../controllers/KickoffController";
 import { PickupController } from "../controllers/PickupController";
 import { BallMovementController } from "../controllers/BallMovementController";
 import { DiceController } from "../controllers/DiceController";
-import {
-  GameConfig,
-  isKickingTeamTerritory,
-} from "../../config/GameConfig";
+import { GameConfig, isKickingTeamTerritory } from "../../config/GameConfig";
 import { CatchOperation } from "../operations/CatchOperation";
+import {
+  isOffPitch,
+  kickoffOnTheBallReactor,
+  kickoffOnTheBallStep,
+  lastSquareIn,
+  throwInDirections,
+} from "./ballPaths";
 import { BounceOperation } from "../operations/BounceOperation";
 import { ReactionDecisionAnswer } from "../../types/decisions";
 import {
@@ -210,29 +214,7 @@ export class BallManager {
   ): Promise<void> {
     const receiving = isTeam1Kicking ? this.team2 : this.team1;
     const opponents = isTeam1Kicking ? this.team1 : this.team2;
-    const isOpen = (player: Player) =>
-      !!player.gridPosition &&
-      !opponents.players.some(
-        (opponent) =>
-          opponent.status === PlayerStatus.ACTIVE &&
-          opponent.gridPosition &&
-          Math.max(
-            Math.abs(opponent.gridPosition.x - player.gridPosition!.x),
-            Math.abs(opponent.gridPosition.y - player.gridPosition!.y)
-          ) === 1
-      );
-    const reactor = receiving.players
-      .filter(
-        (player) =>
-          player.status === PlayerStatus.ACTIVE &&
-          hasSkill(player.skills ?? [], SkillType.ON_THE_BALL) &&
-          isOpen(player)
-      )
-      .sort(
-        (a, b) =>
-          a.gridPosition!.y - b.gridPosition!.y ||
-          a.gridPosition!.x - b.gridPosition!.x
-      )[0];
+    const reactor = kickoffOnTheBallReactor(receiving, opponents);
     const flow = this.callbacks.getFlowManager?.();
     if (!reactor?.gridPosition || !flow || !this.state.ballPosition) return;
 
@@ -250,7 +232,6 @@ export class BallManager {
     const start = { ...reactor.gridPosition };
     const path: { x: number; y: number }[] = [];
     for (let step = 0; step < 3; step++) {
-      const current = reactor.gridPosition;
       const occupied = new Set(
         [...this.team1.players, ...this.team2.players]
           .filter((player) => player.id !== reactor.id && player.gridPosition)
@@ -258,50 +239,12 @@ export class BallManager {
             (player) => `${player.gridPosition!.x},${player.gridPosition!.y}`
           )
       );
-      const candidates: { x: number; y: number }[] = [];
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          if (dx === 0 && dy === 0) continue;
-          const square = { x: current.x + dx, y: current.y + dy };
-          const staysOwnHalf = isTeam1Kicking
-            ? square.x >= GameConfig.PITCH_WIDTH / 2
-            : square.x < GameConfig.PITCH_WIDTH / 2;
-          const marked = opponents.players.some(
-            (opponent) =>
-              opponent.status === PlayerStatus.ACTIVE &&
-              opponent.gridPosition &&
-              Math.max(
-                Math.abs(opponent.gridPosition.x - square.x),
-                Math.abs(opponent.gridPosition.y - square.y)
-              ) === 1
-          );
-          if (
-            square.x >= 0 &&
-            square.x < GameConfig.PITCH_WIDTH &&
-            square.y >= 0 &&
-            square.y < GameConfig.PITCH_HEIGHT &&
-            staysOwnHalf &&
-            !marked &&
-            !occupied.has(`${square.x},${square.y}`)
-          ) {
-            candidates.push(square);
-          }
-        }
-      }
-      candidates.sort(
-        (a, b) =>
-          Math.max(
-            Math.abs(a.x - this.state.ballPosition!.x),
-            Math.abs(a.y - this.state.ballPosition!.y)
-          ) -
-            Math.max(
-              Math.abs(b.x - this.state.ballPosition!.x),
-              Math.abs(b.y - this.state.ballPosition!.y)
-            ) ||
-          a.y - b.y ||
-          a.x - b.x
-      );
-      const next = candidates[0];
+      const next = kickoffOnTheBallStep(reactor.gridPosition, {
+        occupied,
+        opponents,
+        isTeam1Kicking,
+        ball: this.state.ballPosition!,
+      });
       if (!next) break;
       reactor.gridPosition = { ...next };
       path.push({ ...next });
@@ -351,10 +294,9 @@ export class BallManager {
 
   private async finishKickoffResolution(): Promise<void> {
     if (this.state.ballPosition && this.callbacks.resolveHighKickStep) {
-      await this.callbacks.resolveHighKickStep(
-        this.isTeam1Kicking,
-        { ...this.state.ballPosition }
-      );
+      await this.callbacks.resolveHighKickStep(this.isTeam1Kicking, {
+        ...this.state.ballPosition,
+      });
     }
 
     if (
@@ -515,35 +457,8 @@ export class BallManager {
    * lands empty → ball rests there.
    */
   public throwIn(from: { x: number; y: number }): void {
-    const maxX = GameConfig.PITCH_WIDTH - 1;
-    const maxY = GameConfig.PITCH_HEIGHT - 1;
-
     // Infield directions for the edge the ball left from
-    let dirs: { x: number; y: number }[];
-    if (from.x <= 0)
-      dirs = [
-        { x: 1, y: -1 },
-        { x: 1, y: 0 },
-        { x: 1, y: 1 },
-      ];
-    else if (from.x >= maxX)
-      dirs = [
-        { x: -1, y: -1 },
-        { x: -1, y: 0 },
-        { x: -1, y: 1 },
-      ];
-    else if (from.y <= 0)
-      dirs = [
-        { x: -1, y: 1 },
-        { x: 0, y: 1 },
-        { x: 1, y: 1 },
-      ];
-    else
-      dirs = [
-        { x: -1, y: -1 },
-        { x: 0, y: -1 },
-        { x: 1, y: -1 },
-      ];
+    const dirs = throwInDirections(from);
 
     const directionRoll = this.diceController.rollD6("Throw-in Direction");
     const dir = dirs[Math.floor((directionRoll - 1) / 2)];
@@ -556,20 +471,9 @@ export class BallManager {
       y: from.y + dir.y * (distance - 1),
     };
 
-    if (
-      landing.x < 0 ||
-      landing.x > maxX ||
-      landing.y < 0 ||
-      landing.y > maxY
-    ) {
+    if (isOffPitch(landing)) {
       // Left the pitch again: repeat from the last on-pitch square along dir
-      const steps = distance - 1;
-      let lastIn = { ...from };
-      for (let s = 1; s <= steps; s++) {
-        const p = { x: from.x + dir.x * s, y: from.y + dir.y * s };
-        if (p.x < 0 || p.x > maxX || p.y < 0 || p.y > maxY) break;
-        lastIn = p;
-      }
+      const lastIn = lastSquareIn(from, dir, distance - 1);
       this.eventBus.emit(GameEventNames.UI_Notification, "Thrown out again!");
       this.throwIn(lastIn);
       return;
@@ -593,10 +497,7 @@ export class BallManager {
       // A dropped throw-in is not a turnover
       this.callbacks
         .getFlowManager?.()
-        ?.add(
-          new CatchOperation(occupant.id, { origin: "throw-in" }),
-          true
-        );
+        ?.add(new CatchOperation(occupant.id, { origin: "throw-in" }), true);
     } else {
       const catcher = this.divingCatcherAt(landing);
       if (catcher) {

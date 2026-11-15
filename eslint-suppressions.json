@@ -180,14 +180,6 @@
       "count": 1
     }
   },
-  "src/game/managers/BallManager.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/game/managers/PlayerActionManager.ts": {
     "complexity": {
       "count": 1
