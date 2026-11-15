@@ -305,6 +305,8 @@ export interface Team {
    * development choices between games (src/competition/computerTeams.ts).
    */
   computerCoached?: true;
+  /** Source recipe for this match or competition copy. Never a saved template. */
+  computerTemplateId?: string;
   /**
    * The League chosen from a multi-League roster when drafting. Absent means
    * the roster's first League (src/game/rules/teamAllegiance.ts).

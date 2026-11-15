@@ -124,6 +124,7 @@ export interface StoredTeam {
   draftInducements?: InducementSelectionLine[];
   draftHistory?: DraftRecord[];
   computerCoached?: true;
+  computerTemplateId?: string;
   league?: League;
   favouredOf?: FavouredOfRule;
 }
@@ -456,6 +457,9 @@ export function hydrateStoredTeam(
       ? { advancementModeLocked: Boolean(raw.advancementModeLocked) }
       : {}),
     ...(raw.computerCoached === true ? { computerCoached: true as const } : {}),
+    ...(typeof raw.computerTemplateId === "string"
+      ? { computerTemplateId: raw.computerTemplateId }
+      : {}),
     ...(Array.isArray(raw.pendingDevelopment)
       ? { pendingDevelopment: raw.pendingDevelopment as PendingDevelopment[] }
       : {}),
@@ -539,6 +543,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
       : {}),
     ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
     ...(team.computerCoached ? { computerCoached: true as const } : {}),
+    computerTemplateId: team.computerTemplateId,
     ...(team.league ? { league: team.league } : {}),
     ...(team.favouredOf ? { favouredOf: team.favouredOf } : {}),
   };

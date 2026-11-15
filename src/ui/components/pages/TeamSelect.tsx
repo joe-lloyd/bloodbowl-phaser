@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { RosterName, Team } from "../../../types/Team";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
@@ -10,11 +10,14 @@ import {
   getRosterByRosterName,
 } from "../../../data/RosterTemplates";
 import { saveTeam } from "../../../game/managers/TeamManager";
+import {
+  getComputerTeamTemplates,
+  createComputerTeamFromTemplate,
+} from "../../../competition/computerTeamTemplates";
 import { createReadyMadeTeam } from "../../../simulation/lineups";
 import {
   Chip,
   cx,
-  EmptyState,
   HudButton,
   hudChoiceClass,
   Notice,
@@ -97,15 +100,32 @@ function ReadyMadeTeamPicker({
 
 export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [library, reloadTeams] = useTeamLibrary();
+  const [searchParams] = useSearchParams();
+  const computerTeams = useMemo(
+    () =>
+      getComputerTeamTemplates().map((template) =>
+        createComputerTeamFromTemplate(template.id)
+      ),
+    []
+  );
+  const initialComputer = computerTeams.find(
+    (team) =>
+      mode === "play" &&
+      team.computerTemplateId === searchParams.get("computer")
+  );
   // The computer's league and cup teams are the computer's to coach
   const teams = library.filter((team) => !team.computerCoached);
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
-  const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
+  const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(
+    initialComputer ?? null
+  );
   const [filter1, setFilter1] = useState("");
   const [filter2, setFilter2] = useState("");
   const [progressionEnabled, setProgressionEnabled] = useState(false);
   /** Who coaches Player 2: another person at this screen, or the computer. */
-  const [opponent, setOpponent] = useState<"human" | "computer">("human");
+  const [opponent, setOpponent] = useState<"human" | "computer">(
+    initialComputer ? "computer" : "human"
+  );
   const vsComputer = mode === "play" && opponent === "computer";
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const navigate = useNavigate();
@@ -140,7 +160,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   };
 
   const teams1 = teams.filter((team) => matchesFilter(team, filter1));
-  const teams2 = teams.filter((team) => matchesFilter(team, filter2));
+  const teams2 = (vsComputer ? computerTeams : teams).filter((team) =>
+    matchesFilter(team, filter2)
+  );
 
   const pendingDevelopment = (team: Team) => team.players.filter(mustAdvance);
 
@@ -180,11 +202,15 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       clearMatchSave();
     }
     if (vsComputer) {
+      if (!selectedTeam2.computerTemplateId) return;
+      const computerTeam = createComputerTeamFromTemplate(
+        selectedTeam2.computerTemplateId
+      );
       navigate("/play/computer", {
         state: {
           team1: selectedTeam1,
-          team2: selectedTeam2,
-          computerTeamId: selectedTeam2.id,
+          team2: computerTeam,
+          computerTeamId: computerTeam.id,
           difficulty,
         },
       });
@@ -209,38 +235,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     selectedTeam2 !== null &&
     selectedTeam1.id !== selectedTeam2.id &&
     blockingDevelopment.length === 0;
-
-  if (teams.length < 2) {
-    return (
-      <PageShell width="medium">
-        <PageHeader
-          eyebrow="Friendly Sevens Match"
-          title="TEAM SELECTION"
-          back={{ label: "← Back to Menu", onClick: handleBack }}
-        />
-        <EmptyState
-          title="You need at least 2 teams to play!"
-          action={
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex flex-wrap justify-center gap-3">
-                <HudButton onClick={handleBack}>← Back to Menu</HudButton>
-                <HudButton
-                  variant="primary"
-                  onClick={() => navigate("/build-team")}
-                >
-                  Build Team
-                </HudButton>
-              </div>
-              <ReadyMadeTeamPicker teams={teams} onAdded={reloadTeams} />
-            </div>
-          }
-        >
-          Go to Build Team to draft your own, or add a ready-made team to play
-          now.
-        </EmptyState>
-      </PageShell>
-    );
-  }
 
   const renderColumn = (
     player: 1 | 2,
@@ -275,7 +269,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         <div className="hud-scroll mt-2 flex h-[clamp(200px,calc(100vh_-_400px),620px)] flex-col gap-1.5 overflow-y-auto p-1">
           {columnTeams.length === 0 ? (
             <p className="py-6 text-center text-hud-sm text-hud-mute">
-              No teams match &quot;{filter}&quot;.
+              {filter
+                ? `No teams match "${filter}".`
+                : "No saved teams yet. Add a ready-made team below."}
             </p>
           ) : (
             columnTeams.map((team) => {
@@ -335,43 +331,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     >
       <PageHeader eyebrow="Friendly Sevens Match" title="TEAM SELECTION" />
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-5">
-        {renderColumn(
-          1,
-          filter1,
-          setFilter1,
-          teams1,
-          selectedTeam1,
-          handleSelectTeam1
-        )}
-        <span
-          aria-hidden
-          className="font-hud-display text-hud-3xl uppercase text-hud-gold"
-        >
-          VS
-        </span>
-        {renderColumn(
-          2,
-          filter2,
-          setFilter2,
-          teams2,
-          selectedTeam2,
-          handleSelectTeam2
-        )}
-      </div>
-
-      {blockingDevelopment.length > 0 && (
-        <Notice tone="blood" role="alert" className="mt-4">
-          {blockingDevelopment.length} player
-          {blockingDevelopment.length === 1 ? "" : "s"} must advance in Manage
-          Team before this match can start.
-        </Notice>
-      )}
-
-      <Section title="Ready-made teams" className="mt-6">
-        <ReadyMadeTeamPicker teams={teams} onAdded={reloadTeams} />
-      </Section>
-
       {mode === "play" && (
         <Section title="Player 2" className="mt-6">
           <div
@@ -398,7 +357,12 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                   hudChoiceClass(opponent === value),
                   "px-4 py-3 text-left"
                 )}
-                onClick={() => setOpponent(value)}
+                onClick={() => {
+                  if (value !== opponent) {
+                    setOpponent(value);
+                    setSelectedTeam2(null);
+                  }
+                }}
               >
                 <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
                   {label}
@@ -437,6 +401,43 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           )}
         </Section>
       )}
+
+      <div className="grid grid-cols-1 items-center gap-5 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        {renderColumn(
+          1,
+          filter1,
+          setFilter1,
+          teams1,
+          selectedTeam1,
+          handleSelectTeam1
+        )}
+        <span
+          aria-hidden
+          className="justify-self-center font-hud-display text-hud-3xl uppercase text-hud-gold"
+        >
+          VS
+        </span>
+        {renderColumn(
+          2,
+          filter2,
+          setFilter2,
+          teams2,
+          selectedTeam2,
+          handleSelectTeam2
+        )}
+      </div>
+
+      {blockingDevelopment.length > 0 && (
+        <Notice tone="blood" role="alert" className="mt-4">
+          {blockingDevelopment.length} player
+          {blockingDevelopment.length === 1 ? "" : "s"} must advance in Manage
+          Team before this match can start.
+        </Notice>
+      )}
+
+      <Section title="Ready-made teams" className="mt-6">
+        <ReadyMadeTeamPicker teams={teams} onAdded={reloadTeams} />
+      </Section>
 
       {mode !== "sandbox" && !vsComputer && (
         <Panel className="p-4">

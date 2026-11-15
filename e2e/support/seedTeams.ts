@@ -23,6 +23,7 @@ export async function seedAllRosters(
   await page.goto("/build-team");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+  await page.getByText("Development fixtures", { exact: true }).click();
   await page.getByRole("button", { name: /Seed All Rosters/ }).click();
   await expect
     .poll(() =>

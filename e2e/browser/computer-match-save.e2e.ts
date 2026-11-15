@@ -13,17 +13,15 @@ async function startComputerMatch(page: Page, app: GameApp) {
   await page.goto("/build-team");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+  await page.getByText("Development fixtures", { exact: true }).click();
   await page.getByRole("button", { name: /Seed All Rosters/ }).click();
   await page.goto("/select-team");
   await page
     .getByRole("button", { name: /Human Founders/ })
     .first()
     .click();
-  await page
-    .getByRole("button", { name: /Orc Founders/ })
-    .last()
-    .click();
   await page.getByRole("radio", { name: /Versus computer/ }).click();
+  await page.getByRole("button", { name: /Green Bay Smackers/ }).click();
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
   const flip = page.getByRole("button", { name: "FLIP COIN" });

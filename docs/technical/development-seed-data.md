@@ -27,8 +27,9 @@ legacy teams by exact name, as described below.
 
 ## Refreshing the seeds
 
-UI: **Team Management → 🌱 Seed All Rosters** (refresh) and
-**🗑️ Delete Seed Teams** (remove). Code:
+In development and browser-test builds, open **Team Management → Development
+fixtures** to use **Seed All Rosters** or **Delete Seed Teams**. Production
+builds provide the Computer teams catalogue instead. Code:
 
 ```ts
 import { seedDevelopmentData, cleanupDevelopmentSeedData } from "src/seeding";
