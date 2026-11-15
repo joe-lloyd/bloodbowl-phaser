@@ -201,22 +201,6 @@
       "count": 1
     }
   },
-  "src/network/ComputerMatch.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/network/OnlineMatch.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/scenes/SandboxScene.ts": {
     "complexity": {
       "count": 1
