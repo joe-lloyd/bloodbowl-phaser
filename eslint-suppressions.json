@@ -42,9 +42,11 @@
   },
   "__tests__/network/sessions.test.ts": {
     "complexity": {
-      "count": 2
-    },
-    "max-lines": {
+      "count": 1
+    }
+  },
+  "__tests__/network/sessionsHarness.ts": {
+    "complexity": {
       "count": 1
     },
     "sonarjs/cognitive-complexity": {
