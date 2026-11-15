@@ -491,14 +491,6 @@
       "count": 1
     }
   },
-  "src/ui/components/hud/MatchOptionsMenu.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/hud/PlayerActionMenu.tsx": {
     "complexity": {
       "count": 2
@@ -512,11 +504,6 @@
       "count": 2
     },
     "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/RerollDialog.tsx": {
-    "complexity": {
       "count": 1
     }
   },

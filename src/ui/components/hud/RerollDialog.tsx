@@ -142,32 +142,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
                 >
                   {keepRerollWhole(label)}
                 </HudButton>
-                {/* What each option needs, the target and nothing more */}
-                {source === "pro" ? (
-                  <p
-                    data-testid="reroll-need-pro"
-                    className="mt-1 text-hud-sm"
-                  >
-                    {request.needed !== undefined
-                      ? `Pro needs 3+, then ${request.needed}+.`
-                      : "Pro needs 3+."}{" "}
-                    A failed Pro check ends the re-roll.
-                  </p>
-                ) : (
-                  (request.needed !== undefined || source === "veteran") && (
-                    <p
-                      data-testid={`reroll-need-${source}`}
-                      className="mt-1 text-hud-sm"
-                    >
-                      {request.needed !== undefined &&
-                        `Needs ${request.needed}+.`}
-                      {request.needed !== undefined &&
-                        source === "veteran" &&
-                        " "}
-                      {source === "veteran" && "Once per game."}
-                    </p>
-                  )
-                )}
+                <SourceNeed source={source} needed={request.needed} />
               </div>
             );
           })}
@@ -195,3 +170,30 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
     </DialogShell>
   );
 };
+
+/** What a re-roll source needs, the target and nothing more. */
+function SourceNeed({
+  source,
+  needed,
+}: {
+  source: RerollSource;
+  needed: number | undefined;
+}) {
+  if (source === "pro")
+    return (
+      <p data-testid="reroll-need-pro" className="mt-1 text-hud-sm">
+        {needed !== undefined
+          ? `Pro needs 3+, then ${needed}+.`
+          : "Pro needs 3+."}{" "}
+        A failed Pro check ends the re-roll.
+      </p>
+    );
+  if (needed === undefined && source !== "veteran") return null;
+  return (
+    <p data-testid={`reroll-need-${source}`} className="mt-1 text-hud-sm">
+      {needed !== undefined && `Needs ${needed}+.`}
+      {needed !== undefined && source === "veteran" && " "}
+      {source === "veteran" && "Once per game."}
+    </p>
+  );
+}
