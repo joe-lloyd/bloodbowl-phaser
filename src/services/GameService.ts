@@ -174,6 +174,18 @@ const ONCE_PER_TURN_ACTIONS = new Set<ActionType>([
   "throwTeamMate",
 ]);
 
+/** A Block only targets a Standing player of the other team. */
+function isStandingOpponent(
+  player: Player,
+  other: Player | undefined
+): boolean {
+  return (
+    !!other &&
+    other.teamId !== player.teamId &&
+    other.status === PlayerStatus.ACTIVE
+  );
+}
+
 export class GameService implements IGameService {
   private state: GameState;
   private team1: Team;
@@ -1322,6 +1334,16 @@ export class GameService implements IGameService {
       return;
     }
 
+    // Only a Standing opponent can be Blocked; a downed one is Fouled
+    if (!isStandingOpponent(blocker, this.getPlayerById(defenderId))) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Only a Standing opponent can be Blocked."
+      );
+      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      return;
+    }
+
     // The block is happening — commit the declaration (a Blitz declared and
     // blocked without moving first still spends the team's Blitz).
     this.playerActionManager.commitAction(attackerId);
@@ -2369,6 +2391,21 @@ export class GameService implements IGameService {
 
   async standUp(playerId: string): Promise<void> {
     if (this.awaitingSecondAction(playerId)) return;
+    // Standing up in place is a Move Action. Declaring it rolls the
+    // activation gate (Bone Head, Bloodlust, …) before the player rises,
+    // and a failed gate that ends the activation leaves them Prone.
+    if (this.state.activePlayer?.id !== playerId) {
+      if (!this.declareAction(playerId, "move")) {
+        throw new Error("This player cannot be activated");
+      }
+    }
+    if (!(await this.whenSettled())) return;
+    // A gate can end the turn too: Animal Savagery downing the carrier
+    if (
+      this.state.activePlayer?.id !== playerId ||
+      this.turnManager.isTurnoverInProgress()
+    )
+      return;
     await this.movementManager.standUp(playerId);
     // Standing up spends movement — commits the declared action.
     this.playerActionManager.commitAction(playerId);
@@ -2833,6 +2870,33 @@ export class GameService implements IGameService {
     if (!fouler || !fouler.gridPosition) {
       return;
     }
+    // The Foul's activation gate (Bone Head, …) settles first, and a failed
+    // one that ended the activation or changed it to a Move stops it here
+    if (!(await this.whenSettled())) return;
+    const declared = this.state.activePlayer;
+    if (
+      declared?.id !== foulerId ||
+      declared.action !== "foul" ||
+      this.turnManager.isTurnoverInProgress()
+    ) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${fouler.playerName} has no Foul declared.`
+      );
+      return;
+    }
+    // A Foul is made on a downed opponent the fouler stands next to
+    const square = fouler.gridPosition;
+    if (
+      !square ||
+      Math.max(Math.abs(square.x - targetX), Math.abs(square.y - targetY)) !== 1
+    ) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${fouler.playerName} must stand next to the player to Foul them.`
+      );
+      return;
+    }
 
     this.flowManager.add(new FoulOperation(foulerId, targetX, targetY));
   }
@@ -2986,7 +3050,10 @@ export class GameService implements IGameService {
     if (square.pushedDownId) {
       await this.blockManager.startBallAndChainPush(square.fanaticId, targetId);
     } else {
-      await this.blockManager.startBallAndChainBlock(square.fanaticId, targetId);
+      await this.blockManager.startBallAndChainBlock(
+        square.fanaticId,
+        targetId
+      );
     }
   }
 

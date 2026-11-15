@@ -32,6 +32,16 @@ import {
 import { Team } from "../../src/types/Team";
 import { TeamBuilder as TeamBuilderPage } from "../../src/ui/components/pages/TeamBuilder";
 
+const clearActiveMatchCode = vi.fn(() => Promise.resolve());
+vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/firebase/lobby")>()),
+  clearActiveMatchCode: (uid: string) => clearActiveMatchCode(uid),
+}));
+vi.mock("../../src/firebase/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/firebase/auth")>()),
+  getCurrentUser: () => ({ uid: "coach-uid" }),
+}));
+
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
   getDb: vi.fn(),
@@ -147,6 +157,28 @@ describe("MatchResultsScreen", () => {
     } finally {
       setActiveOnlineMatch(null);
       setMatchSaveRepository(null);
+    }
+  });
+
+  it("drops the home screen's link to an online match once the coach leaves full time", async () => {
+    setup(false);
+    clearActiveMatchCode.mockClear();
+    setActiveOnlineMatch({
+      kind: "online",
+      code: "ABCD",
+      myTeamId: "team-1",
+      mayAct: () => true,
+    } as unknown as OnlineMatch);
+    try {
+      await render();
+      expect(clearActiveMatchCode).not.toHaveBeenCalled();
+      const exit = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Continue to Main Menu")
+      )!;
+      await act(async () => exit.click());
+      expect(clearActiveMatchCode).toHaveBeenCalledWith("coach-uid");
+    } finally {
+      setActiveOnlineMatch(null);
     }
   });
 
