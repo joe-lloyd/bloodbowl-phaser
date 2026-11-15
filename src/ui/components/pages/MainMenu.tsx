@@ -11,7 +11,11 @@ import {
 } from "../componentWarehouse/HudKit";
 import { useAuth } from "../../hooks/useAuth";
 import { SignInDialog } from "../common/SignInDialog";
-import type { AuthUser } from "../../../firebase/auth";
+import {
+  type AuthUser,
+  authErrorMessage,
+  sendVerificationLink,
+} from "../../../firebase/auth";
 import { useCoachProfile } from "../../hooks/useCoachProfile";
 import {
   getActiveMatchCode,
@@ -44,14 +48,34 @@ export function MainMenu() {
   const navigate = useNavigate();
   const { user, ready, onlineAvailable, signOut } = useAuth();
   // The sign-in dialog, open while something waits for a coach to sign in
-  const [signingIn, setSigningIn] = useState<{
-    resolve: (user: AuthUser) => void;
-    reject: (cancelled: SignInCancelled) => void;
-  } | null>(null);
+  const [signingIn, setSigningIn] = useState<SignInRequest | null>(null);
   const signIn = () =>
     new Promise<AuthUser>((resolve, reject) =>
-      setSigningIn({ resolve, reject })
+      setSigningIn({ id: ++signInRequests, resolve, reject })
     );
+  /** Answer one request. A late answer to an older one leaves the open
+   * dialog alone. */
+  const settle = (request: SignInRequest, signedIn: AuthUser | null) => {
+    if (signedIn) request.resolve(signedIn);
+    else request.reject(new SignInCancelled());
+    setSigningIn((open) => (open === request ? null : open));
+  };
+  // A cancelled attempt that signs the coach in late still answers the
+  // dialog open now
+  useEffect(() => {
+    if (!user || !signingIn) return;
+    signingIn.resolve(user);
+    setSigningIn(null);
+  }, [user, signingIn]);
+  const [link, setLink] = useState<ConfirmLink>({ kind: "sent" });
+  const resendLink = async () => {
+    try {
+      await sendVerificationLink();
+      setLink({ kind: "resent" });
+    } catch (error) {
+      setLink({ kind: "failed", message: authErrorMessage(error) });
+    }
+  };
   const coach = useCoachProfile(user);
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
@@ -285,11 +309,13 @@ export function MainMenu() {
                 placeholder={coach.effectiveName}
                 onSave={(name) => void coach.save(name)}
               />
-              <span className="text-hud-sm text-hud-mute">
-                {user.emailVerified
-                  ? "Signed in. Your account name stays private."
-                  : "Signed in. Check your inbox for the link that confirms your email."}
-              </span>
+              {user.emailVerified ? (
+                <span className="text-hud-sm text-hud-mute">
+                  Signed in. Your account name stays private.
+                </span>
+              ) : (
+                <ConfirmEmail link={link} onResend={() => void resendLink()} />
+              )}
               <HudButton
                 variant="ghost"
                 size="sm"
@@ -319,14 +345,16 @@ export function MainMenu() {
       </div>
       {signingIn && (
         <SignInDialog
-          onSignedIn={(signedIn) => {
-            signingIn.resolve(signedIn);
-            setSigningIn(null);
+          key={signingIn.id}
+          onSignedIn={(signedIn, linkFailure) => {
+            setLink(
+              linkFailure
+                ? { kind: "failed", message: linkFailure }
+                : { kind: "sent" }
+            );
+            settle(signingIn, signedIn);
           }}
-          onClose={() => {
-            signingIn.reject(new SignInCancelled());
-            setSigningIn(null);
-          }}
+          onClose={() => settle(signingIn, null)}
         />
       )}
     </PageShell>
@@ -337,6 +365,52 @@ const ONLINE_HINT = "Online play requires Firebase config (see .env.example)";
 
 /** The coach closed the sign-in dialog: nothing to report. */
 class SignInCancelled extends Error {}
+
+interface SignInRequest {
+  /** Keys the dialog, so each request gets a fresh one. */
+  id: number;
+  resolve: (user: AuthUser) => void;
+  reject: (cancelled: SignInCancelled) => void;
+}
+let signInRequests = 0;
+
+/** Where the link that proves an email address stands. */
+type ConfirmLink =
+  | { kind: "sent" }
+  | { kind: "failed"; message: string }
+  | { kind: "resent" };
+
+function confirmLinkText(link: ConfirmLink): string {
+  switch (link.kind) {
+    case "sent":
+      return "Signed in. Check your inbox for the link that confirms your email.";
+    case "failed":
+      return `The link to confirm your email did not send: ${link.message}`;
+    case "resent":
+      return "A new link to confirm your email is on its way.";
+  }
+}
+
+function ConfirmEmail({
+  link,
+  onResend,
+}: {
+  link: ConfirmLink;
+  onResend: () => void;
+}) {
+  return (
+    <span className="flex flex-wrap items-center justify-center gap-2 text-hud-sm text-hud-mute">
+      {confirmLinkText(link)}
+      <button
+        type="button"
+        className="text-hud-gold underline-offset-2 hover:underline"
+        onClick={onResend}
+      >
+        Send the link again
+      </button>
+    </span>
+  );
+}
 
 /**
  * Height of the signed-in account controls: the coach name editor (36px),
