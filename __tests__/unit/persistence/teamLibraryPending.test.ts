@@ -161,6 +161,30 @@ describe("team library pending", () => {
     expect(loadTeams().map((t) => t.id)).toEqual(["cloud-team"]);
   });
 
+  it("does not reload the library when auth reports the same account again", async () => {
+    connectTeamPersistenceToAuth(() => false);
+    signIn("coach-1");
+    fetches[0].resolve(snapshotOf(cloudTeam("cloud-team")));
+    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("loaded"));
+
+    // e.g. an email confirmation link was sent for the signed-in account
+    signIn("coach-1");
+
+    expect(getTeamLibraryStatus()).toBe("loaded");
+    expect(fetches).toHaveLength(1);
+    expect(loadTeams().map((t) => t.id)).toEqual(["cloud-team"]);
+  });
+
+  it("does not restart an in-flight load when auth reports the same account", async () => {
+    connectTeamPersistenceToAuth(() => false);
+    signIn("coach-1");
+    signIn("coach-1");
+    expect(fetches).toHaveLength(1);
+
+    fetches[0].resolve(snapshotOf(cloudTeam("cloud-team")));
+    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("loaded"));
+  });
+
   it("has nothing to retry once signed out", () => {
     connectTeamPersistenceToAuth(() => false);
     signOut();

@@ -14,7 +14,11 @@ import {
   removeLocalCompetitions,
   saveCompetition,
 } from "../competition/repository";
-import { loadTeams, saveTeams } from "../game/managers/TeamManager";
+import {
+  assertTeamLibraryLoaded,
+  loadTeams,
+  saveTeams,
+} from "../game/managers/TeamManager";
 import { buildAllSeedTeams } from "./teamFixtures";
 import { decorateSeedTeams } from "./playerLifecycle";
 import { buildSeedCompetitions } from "./competitionFixtures";
@@ -43,6 +47,9 @@ export interface SeedCleanupResult {
  * when a fixture is illegal — the previous seed state is left untouched.
  */
 export function seedDevelopmentData(): SeedRunResult {
+  // Teams and competitions are written together: refuse before either is
+  // touched while the coach's team library is not loaded.
+  assertTeamLibraryLoaded();
   // 1. Build + decorate + validate (no writes yet).
   const teams = buildAllSeedTeams();
   decorateSeedTeams(teams);
@@ -69,8 +76,7 @@ export function seedDevelopmentData(): SeedRunResult {
   return {
     teams: teams.length,
     leagues: competitions.filter((doc) => doc.type === "league").length,
-    tournaments: competitions.filter((doc) => doc.type === "tournament")
-      .length,
+    tournaments: competitions.filter((doc) => doc.type === "tournament").length,
     removedTeams,
     removedCompetitions: removedCompetitionIds.length,
   };
@@ -84,6 +90,7 @@ export function seedDevelopmentData(): SeedRunResult {
 export function cleanupDevelopmentSeedData(
   targetVersion?: number
 ): SeedCleanupResult {
+  assertTeamLibraryLoaded();
   const existing = loadTeams();
   const kept = existing.filter(
     (team) => !isSeedCleanupTarget(team, targetVersion)

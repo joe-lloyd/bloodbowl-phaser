@@ -27,6 +27,7 @@ import {
   setTeamRepository,
   setTeamLibraryRetry,
   setTeamLibraryStatus,
+  getTeamLibraryStatus,
   getLocalRepository,
 } from "../game/managers/TeamManager";
 
@@ -234,13 +235,20 @@ export function connectTeamPersistenceToAuth(
   });
 
   subscribeToAuth((user) => {
+    // Subscribers also hear auth updates that keep the same account (an
+    // email link sent, say). Only a change of account loads the library
+    // again; a failed load is retried with Retry, not by such updates.
+    if (user && user.uid === signedInUid) return;
     if (!user) {
+      const wasSignedIn = signedInUid !== null;
       signedInUid = null;
       latestLoad++;
       // A null user before Firebase has reported may be a session that is
       // still restoring, whose cloud library is yet to arrive.
-      if (isAuthResolved()) setTeamRepository(null);
-      else setTeamLibraryStatus("loading");
+      if (!isAuthResolved()) setTeamLibraryStatus("loading");
+      else if (wasSignedIn || getTeamLibraryStatus() !== "loaded") {
+        setTeamRepository(null);
+      }
       return;
     }
     signedInUid = user.uid;
