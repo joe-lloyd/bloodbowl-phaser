@@ -490,27 +490,6 @@
       "count": 1
     }
   },
-  "src/seeding/competitionFixtures.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/seeding/teamFixtures.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/seeding/validateSeeds.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/testing/coverage/report.ts": {
     "complexity": {
       "count": 1

@@ -196,10 +196,21 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
     ]);
   }
 
-  // 3. Trim to the draft budget: most expensive first, but never in a way
-  // that breaks the Insignificant whole-list limit.
+  return { picks, ...trimToBudget(picks, roster.apothecary, fixtureKey) };
+}
+
+/**
+ * Trim to the draft budget: most expensive player first, but never in a way
+ * that breaks the Insignificant whole-list limit, then re-rolls, then the
+ * apothecary. Removes players from `picks`.
+ */
+function trimToBudget(
+  picks: PlayerTemplate[],
+  hasApothecary: boolean,
+  fixtureKey: string
+): Pick<SquadPlan, "rerolls" | "apothecary"> {
   let rerolls = DESIRED_REROLLS;
-  let apothecary = roster.apothecary;
+  let apothecary = hasApothecary;
   const totalCost = () =>
     picks.reduce((sum, t) => sum + t.cost, 0) +
     rerolls * TEAM_REROLL_COST +
@@ -222,7 +233,6 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
         ]);
       }
       picks.splice(picks.indexOf(removed), 1);
-      counts.set(removed.positionName, countOf(removed) - 1);
     } else if (rerolls > 0) {
       rerolls--;
     } else if (apothecary) {
@@ -236,8 +246,7 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
       ]);
     }
   }
-
-  return { picks, rerolls, apothecary };
+  return { rerolls, apothecary };
 }
 
 /** The stable fixture key for a roster's seed team ("human", "orc", …). */
