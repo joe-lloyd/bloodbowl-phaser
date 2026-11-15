@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
 import {
+  assertTeamLibraryLoaded,
   deleteTeam,
   getTeamById,
   seedAllRosterTeams,
@@ -95,25 +96,32 @@ export function TeamManagement() {
     }
   };
 
-  const handleSeedTeams = () => {
-    if (
-      confirm("This will create sample teams for all roster types. Continue?")
-    ) {
-      seedAllRosterTeams();
-      reloadTeams();
+  /**
+   * Seed actions write teams and competitions together, so they run only
+   * when the coach's library is loaded, and say why when it is not.
+   */
+  const runSeedAction = (question: string, action: () => void) => {
+    try {
+      assertTeamLibraryLoaded();
+      if (!confirm(question)) return;
+      action();
+    } catch (reason) {
+      alert(reason instanceof Error ? reason.message : String(reason));
     }
+    reloadTeams();
   };
 
-  const handleDeleteSeedTeams = () => {
-    if (
-      confirm(
-        "This will delete all development seed teams and competitions. Continue?"
-      )
-    ) {
-      deleteAllSeedTeams();
-      reloadTeams();
-    }
-  };
+  const handleSeedTeams = () =>
+    runSeedAction(
+      "This will create sample teams for all roster types. Continue?",
+      seedAllRosterTeams
+    );
+
+  const handleDeleteSeedTeams = () =>
+    runSeedAction(
+      "This will delete all development seed teams and competitions. Continue?",
+      deleteAllSeedTeams
+    );
 
   const handleBack = () => {
     navigate("/");

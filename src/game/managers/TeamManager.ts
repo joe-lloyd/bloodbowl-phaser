@@ -80,16 +80,101 @@ const localRepository: TeamRepository = {
 
 let activeRepository: TeamRepository = localRepository;
 const repositoryListeners = new Set<() => void>();
+/**
+ * Whether the active backend is the coach's library.
+ *
+ * - `loaded`: it is (signed out, or the signed-in cloud library arrived).
+ * - `loading`: a signed-in coach's cloud library may still replace it, as
+ *   after a refresh, so the localStorage library is not theirs yet.
+ * - `failed`: the signed-in coach's cloud library could not be loaded. The
+ *   localStorage library is still not theirs, however long it stays active.
+ *
+ * One rule, applied here: until it is `loaded`, no teams are read as the
+ * coach's (loadTeams returns none) and nothing is written or deleted
+ * (assertTeamLibraryLoaded throws a TeamLibraryUnavailableError whose
+ * message says why). Pages that show teams sit behind TeamLibraryGate.
+ */
+export type TeamLibraryStatus = "loaded" | "loading" | "failed";
 
-/** Swap the persistence backend (null restores the localStorage default). */
-export function setTeamRepository(repository: TeamRepository | null): void {
-  activeRepository = repository ?? localRepository;
+let libraryStatus: TeamLibraryStatus = "loaded";
+let retryLibraryLoad: (() => void) | null = null;
+
+/** Why a save or delete was refused while the library is not loaded. */
+export class TeamLibraryUnavailableError extends Error {
+  constructor(readonly status: Exclude<TeamLibraryStatus, "loaded">) {
+    super(
+      status === "failed"
+        ? "Your teams could not be loaded from your account, so nothing was saved. Retry loading them first."
+        : "Your teams are still loading. Try again in a moment."
+    );
+    this.name = "TeamLibraryUnavailableError";
+  }
+}
+
+function notifyLibraryListeners(): void {
   repositoryListeners.forEach((listener) => listener());
 }
 
 /**
- * Hear when the backend is swapped: a signed-in coach's cloud library
- * arrives after the app loads. Returns an unsubscribe.
+ * Swap the persistence backend (null restores the localStorage default).
+ * Installing a backend settles the library: it is the one to read now.
+ */
+export function setTeamRepository(repository: TeamRepository | null): void {
+  activeRepository = repository ?? localRepository;
+  libraryStatus = "loaded";
+  notifyLibraryListeners();
+}
+
+/**
+ * Refuse a write while the coach's library is not loaded. Every save,
+ * delete and seed run calls this before it changes anything.
+ */
+export function assertTeamLibraryLoaded(): void {
+  if (libraryStatus !== "loaded") {
+    throw new TeamLibraryUnavailableError(libraryStatus);
+  }
+}
+
+/** Where the coach's library stands (see TeamLibraryStatus). */
+export function getTeamLibraryStatus(): TeamLibraryStatus {
+  return libraryStatus;
+}
+
+/**
+ * Whether the coach's library may still replace the active one. A page
+ * looking for one team by ID waits instead of deciding it is missing.
+ */
+export function isTeamLibraryPending(): boolean {
+  return libraryStatus === "loading";
+}
+
+/**
+ * Mark the library as loading or failed. Settling it as `loaded` without
+ * a new backend is for the signed-out default only.
+ */
+export function setTeamLibraryStatus(status: TeamLibraryStatus): void {
+  if (libraryStatus === status) return;
+  libraryStatus = status;
+  notifyLibraryListeners();
+}
+
+/**
+ * Register how to load the coach's library again (null when there is
+ * nothing to retry, e.g. signed out).
+ */
+export function setTeamLibraryRetry(retry: (() => void) | null): void {
+  retryLibraryLoad = retry;
+}
+
+/** Load the coach's library again after it failed to load. */
+export function retryTeamLibrary(): void {
+  retryLibraryLoad?.();
+}
+
+/**
+ * Hear when the backend is swapped or the library settles: a signed-in
+ * coach's cloud library arrives after the app loads. Returns an
+ * unsubscribe.
  */
 export function onTeamRepositoryChanged(listener: () => void): () => void {
   repositoryListeners.add(listener);
@@ -105,9 +190,12 @@ export function getLocalRepository(): TeamRepository {
  * Save teams to the active backend
  */
 export function saveTeams(teams: Team[]): Promise<void> {
-  teams.forEach(clearUnneededExpensiveMistakes);
   let saved: Promise<void>;
   try {
+    // A signed-in coach's teams must not land in the localStorage library
+    // while their own library is loading or failed to load.
+    assertTeamLibraryLoaded();
+    teams.forEach(clearUnneededExpensiveMistakes);
     saved = Promise.resolve(activeRepository.saveTeams(teams));
   } catch (cause) {
     saved = Promise.reject(cause);
@@ -127,6 +215,10 @@ export function saveTeams(teams: Team[]): Promise<void> {
  * template, so every loaded team is ready to play as-is.
  */
 export function loadTeams(): Team[] {
+  // Until the coach's library is loaded (a signed-in refresh, a retry, or
+  // after a failed load) the active backend may be localStorage, which is
+  // not theirs: show none of it as their teams.
+  if (libraryStatus !== "loaded") return [];
   const teams = activeRepository.loadTeams();
   teams.forEach((team) => {
     clearUnneededExpensiveMistakes(team);
@@ -182,6 +274,7 @@ export function saveTeam(team: Team): Promise<void> {
  * Delete a team
  */
 export function deleteTeam(teamId: string): void | Promise<void> {
+  assertTeamLibraryLoaded();
   return activeRepository.deleteTeam(teamId);
 }
 

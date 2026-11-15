@@ -44,6 +44,34 @@ For a signed-in user, saved teams SHALL persist to that user's Firestore team li
 - **WHEN** a signed-in user loads their team library
 - **THEN** they see only their own teams and cannot read another user's teams
 
+#### Scenario: Editing a team after a refresh
+
+- **WHEN** a signed-in user refreshes or directly opens an existing team's edit page (`/build-team/<team id>`) before their cloud library has loaded
+- **THEN** the page shows a loading state, then that team by its ID once the library arrives, and saving it updates the same team
+- **AND** the page never starts a new team, offers the roster picker, or shows any other team (or an older local copy of this team) in its place
+
+#### Scenario: Editing a team that is not in the library
+
+- **WHEN** the team library has loaded (signed out, or the signed-in cloud library has arrived) and does not hold the team ID in the edit page's route
+- **THEN** the page says the team was not found and offers a way back to Team Management, without creating or saving a team
+
+#### Scenario: The cloud library fails to load
+
+- **WHEN** a signed-in user's cloud team library fails to load, and `localStorage` may hold an older copy of one of their teams
+- **THEN** the edit page shows that their teams could not be loaded, with a Retry action and a way back, and never opens or saves the `localStorage` copy
+- **AND** every page that shows or changes their teams (Team Management, team editing and player pages, team selection, the online lobby, and competition creation and views) shows the same failure with Retry instead of the `localStorage` teams
+
+#### Scenario: Retrying a failed cloud library load
+
+- **WHEN** the user chooses Retry after their cloud team library failed to load
+- **THEN** those pages show that their teams are loading, never the `localStorage` teams, and once the library arrives the edit page opens their own copy of the team, and saving updates their cloud library
+
+#### Scenario: Team changes wait for the library
+
+- **WHEN** a signed-in user's team library is loading or failed to load
+- **THEN** no team is shown as theirs, and no team is saved or deleted and no development seed data is created or removed
+- **AND** an action that would change their teams says that their teams are still loading, or could not be loaded, instead of silently doing nothing
+
 ### Requirement: One-time migration of local teams
 
 On a user's first sign-in, any teams already stored in `localStorage` SHALL be offered for migration into their Firestore library. Migration SHALL NOT silently overwrite existing cloud teams, and declining SHALL leave local teams untouched.

@@ -16,7 +16,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { getDb } from "./config";
-import { subscribeToAuth } from "./auth";
+import { isAuthResolved, subscribeToAuth } from "./auth";
 import { Team } from "../types/Team";
 import {
   dehydrateTeam,
@@ -25,6 +25,9 @@ import {
 import {
   TeamRepository,
   setTeamRepository,
+  setTeamLibraryRetry,
+  setTeamLibraryStatus,
+  getTeamLibraryStatus,
   getLocalRepository,
 } from "../game/managers/TeamManager";
 
@@ -184,6 +187,13 @@ export async function migrateLocalTeams(
  * call when Firebase is unconfigured — subscribeToAuth is inert then).
  * Signed in: prime the cache from Firestore (after offering migration) and
  * swap in the cloud repository. Signed out: restore localStorage.
+ *
+ * The library is `loading` while the session restores or the cloud library
+ * loads, and `failed` when the signed-in coach's library could not be
+ * loaded; the localStorage library is never treated as theirs meanwhile.
+ * Each auth change or retry starts a new library load, and only the latest
+ * one may install a library or settle its status, so a slow fetch from an
+ * earlier sign-in can neither end a newer load nor outlive a sign-out.
  */
 export function connectTeamPersistenceToAuth(
   confirmMigration: (count: number) => boolean = (count) =>
@@ -192,25 +202,56 @@ export function connectTeamPersistenceToAuth(
         `Upload ${count === 1 ? "it" : "them"} to your cloud team library?`
     )
 ): void {
-  subscribeToAuth((user) => {
-    if (!user) {
-      setTeamRepository(null);
-      return;
-    }
+  let latestLoad = 0;
+  let signedInUid: string | null = null;
+
+  const loadCloudLibrary = (uid: string): void => {
+    const load = ++latestLoad;
+    const isCurrent = () => load === latestLoad;
+    setTeamLibraryStatus("loading");
     void (async () => {
       try {
-        const cloudTeams = await fetchCloudTeams(user.uid);
+        const cloudTeams = await fetchCloudTeams(uid);
+        if (!isCurrent()) return;
         const migrated = await migrateLocalTeams(
-          user.uid,
+          uid,
           cloudTeams,
           confirmMigration
         );
+        if (!isCurrent()) return;
         setTeamRepository(
-          new CloudTeamRepository(user.uid, [...cloudTeams, ...migrated])
+          new CloudTeamRepository(uid, [...cloudTeams, ...migrated])
         );
       } catch (error) {
         console.error("Failed to load cloud team library:", error);
+        // Failed is not settled: the coach's library is still elsewhere.
+        if (isCurrent()) setTeamLibraryStatus("failed");
       }
     })();
+  };
+
+  setTeamLibraryRetry(() => {
+    if (signedInUid) loadCloudLibrary(signedInUid);
+  });
+
+  subscribeToAuth((user) => {
+    // Subscribers also hear auth updates that keep the same account (an
+    // email link sent, say). Only a change of account loads the library
+    // again; a failed load is retried with Retry, not by such updates.
+    if (user && user.uid === signedInUid) return;
+    if (!user) {
+      const wasSignedIn = signedInUid !== null;
+      signedInUid = null;
+      latestLoad++;
+      // A null user before Firebase has reported may be a session that is
+      // still restoring, whose cloud library is yet to arrive.
+      if (!isAuthResolved()) setTeamLibraryStatus("loading");
+      else if (wasSignedIn || getTeamLibraryStatus() !== "loaded") {
+        setTeamRepository(null);
+      }
+      return;
+    }
+    signedInUid = user.uid;
+    loadCloudLibrary(user.uid);
   });
 }

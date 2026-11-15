@@ -29,6 +29,7 @@ import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import * as TeamManager from "../../../game/managers/TeamManager";
 import { dehydrateTeam } from "../../../data/persistence/teamPersistence";
 import {
+  EmptyState,
   HudButton,
   Notice,
   PageHeader,
@@ -63,6 +64,7 @@ import { RNGService } from "../../../services/rng/RNGService";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 import { PlayedGames } from "../TeamManagement/PlayedGames";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
+import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
 // interface TeamBuilderProps {}
 
@@ -162,8 +164,64 @@ function readSearch(search: string, teamId: string | undefined) {
   };
 }
 
+/** Why a team's page has no team to show yet. */
+type TeamPendingView = "loading" | "missing" | "failed";
+
+/**
+ * What a team's page shows before it has the team: loading while the
+ * library may still arrive, "not found" once it has settled without it,
+ * and a retry when the coach's library failed to load. Never another team
+ * (or an older local copy of this one) in its place.
+ */
+function TeamPending({
+  view,
+  onBack,
+}: {
+  view: TeamPendingView;
+  onBack: () => void;
+}) {
+  if (view === "loading") {
+    return (
+      <PageShell>
+        <p className="hud-label">Loading team...</p>
+      </PageShell>
+    );
+  }
+  if (view === "failed") {
+    return (
+      <PageShell width="narrow" className="flex flex-col justify-center">
+        <TeamLibraryUnavailable
+          action={
+            <HudButton variant="ghost" onClick={onBack}>
+              Back to Team Management
+            </HudButton>
+          }
+        />
+      </PageShell>
+    );
+  }
+  return (
+    <PageShell width="narrow" className="flex flex-col justify-center">
+      <EmptyState
+        title="Team not found"
+        titleAs="h2"
+        action={
+          <HudButton variant="ghost" onClick={onBack}>
+            Back to Team Management
+          </HudButton>
+        }
+      >
+        No saved team has this ID. It may have been deleted, or saved while
+        signed in to another account.
+      </EmptyState>
+    </PageShell>
+  );
+}
+
 export function TeamBuilder() {
   const [team, setTeam] = useState<Team | null>(null);
+  /** Why the route's team is not shown yet. */
+  const [pendingView, setPendingView] = useState<TeamPendingView>("loading");
   const [selectedRace, setSelectedRace] = useState<RosterName>(
     RosterName.AMAZON
   );
@@ -189,21 +247,43 @@ export function TeamBuilder() {
   useEffect(() => {
     setCompletion("");
     setSaveError("");
-    // Load existing team or create new one
+    setPendingView("loading");
     if (teamId) {
-      const teams = TeamManager.loadTeams();
-      const existingTeam = teams.find((t) => t.id === teamId);
-      if (existingTeam) {
+      // A team's page only ever shows that team, read from the coach's
+      // settled library. After a refresh a signed-in coach's cloud library
+      // arrives a moment after this page mounts; until then the active
+      // library is localStorage, which may hold nothing or an older copy of
+      // this team. Nothing is shown (or can be saved) until it settles.
+      savedSnapshot.current = null;
+      setTeam(null);
+      const loadRequestedTeam = (): boolean => {
+        const status = TeamManager.getTeamLibraryStatus();
+        if (status !== "loaded") {
+          setPendingView(status);
+          return false;
+        }
+        const existingTeam = TeamManager.loadTeams().find(
+          (t) => t.id === teamId
+        );
+        if (!existingTeam) {
+          setPendingView("missing");
+          return false;
+        }
         savedSnapshot.current = snapshotOf(existingTeam);
         setTeam(existingTeam);
         setSelectedRace(existingTeam.rosterName);
         setSelectedColor(existingTeam.colors.primary);
         setRosterChosen(true);
-        return;
-      }
+        return true;
+      };
+      if (loadRequestedTeam()) return;
+      const stopWaiting = TeamManager.onTeamRepositoryChanged(() => {
+        if (loadRequestedTeam()) stopWaiting();
+      });
+      return stopWaiting;
     }
 
-    // Create new team
+    // No team in the route: start a new one
     savedSnapshot.current = null;
     setRosterChosen(false);
     const newTeam = createTeam(
@@ -520,11 +600,7 @@ export function TeamBuilder() {
   };
 
   if (!team) {
-    return (
-      <PageShell>
-        <p className="hud-label">Loading...</p>
-      </PageShell>
-    );
+    return <TeamPending view={pendingView} onBack={handleBack} />;
   }
 
   if (!rosterChosen) {

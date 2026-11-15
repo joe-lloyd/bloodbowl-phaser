@@ -16,6 +16,7 @@ import { OnlinePlayPage } from "./pages/OnlinePlayPage";
 import { ReactElement } from "react";
 import { EventBus } from "../services/EventBus";
 import { useAuth } from "./hooks/useAuth";
+import { TeamLibraryGate } from "./components/TeamManagement/TeamLibraryGate";
 import { isAdminUser } from "../firebase/admin";
 import "./styles/global.css";
 
@@ -38,27 +39,41 @@ function AdminRoute({ children }: { children: ReactElement }) {
  * Root React component with client-side routing
  * Phaser only boots when entering /play or /sand-box routes
  */
+/** A page that shows or changes the coach's teams waits for their library. */
+function withTeamLibrary(page: ReactElement): ReactElement {
+  return <TeamLibraryGate>{page}</TeamLibraryGate>;
+}
+
 export function App({ eventBus }: AppProps) {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainMenu />} />
-        <Route path="/build-team" element={<TeamManagement />} />
-        <Route path="/build-team/new-team" element={<TeamBuilder />} />
-        <Route path="/build-team/:teamId" element={<TeamBuilder />} />
+        <Route
+          path="/build-team"
+          element={withTeamLibrary(<TeamManagement />)}
+        />
+        <Route
+          path="/build-team/new-team"
+          element={withTeamLibrary(<TeamBuilder />)}
+        />
+        <Route
+          path="/build-team/:teamId"
+          element={withTeamLibrary(<TeamBuilder />)}
+        />
         <Route
           path="/build-team/:teamId/player/:playerId"
-          element={<PlayerPage />}
+          element={withTeamLibrary(<PlayerPage />)}
         />
         <Route path="/shared-teams" element={<SharedTeamBrowser />} />
         <Route path="/leagues" element={<CompetitionHub type="league" />} />
         <Route
           path="/leagues/new"
-          element={<CompetitionBuilder type="league" />}
+          element={withTeamLibrary(<CompetitionBuilder type="league" />)}
         />
         <Route
           path="/leagues/:id"
-          element={<CompetitionView type="league" />}
+          element={withTeamLibrary(<CompetitionView type="league" />)}
         />
         <Route
           path="/tournaments"
@@ -66,18 +81,27 @@ export function App({ eventBus }: AppProps) {
         />
         <Route
           path="/tournaments/new"
-          element={<CompetitionBuilder type="tournament" />}
+          element={withTeamLibrary(<CompetitionBuilder type="tournament" />)}
         />
         <Route
           path="/tournaments/:id"
-          element={<CompetitionView type="tournament" />}
+          element={withTeamLibrary(<CompetitionView type="tournament" />)}
         />
-        <Route path="/select-team" element={<TeamSelect mode="play" />} />
-        <Route path="/online/host" element={<OnlineLobby mode="host" />} />
-        <Route path="/online/join" element={<OnlineLobby mode="join" />} />
+        <Route
+          path="/select-team"
+          element={withTeamLibrary(<TeamSelect mode="play" />)}
+        />
+        <Route
+          path="/online/host"
+          element={withTeamLibrary(<OnlineLobby mode="host" />)}
+        />
+        <Route
+          path="/online/join"
+          element={withTeamLibrary(<OnlineLobby mode="join" />)}
+        />
         <Route
           path="/online/lobby/:code"
-          element={<OnlineLobby mode="host" />}
+          element={withTeamLibrary(<OnlineLobby mode="host" />)}
         />
         <Route
           path="/online/play/:code"
