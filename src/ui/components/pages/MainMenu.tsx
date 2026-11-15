@@ -13,7 +13,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { SignInDialog } from "../common/SignInDialog";
 import {
   type AuthUser,
-  authErrorMessage,
+  type ConfirmLink,
   sendVerificationLink,
 } from "../../../firebase/auth";
 import { useCoachProfile } from "../../hooks/useCoachProfile";
@@ -46,7 +46,7 @@ interface ActiveMatch {
  */
 export function MainMenu() {
   const navigate = useNavigate();
-  const { user, ready, onlineAvailable, signOut } = useAuth();
+  const { user, ready, onlineAvailable, confirmLink, signOut } = useAuth();
   // The sign-in dialog, open while something waits for a coach to sign in
   const [signingIn, setSigningIn] = useState<SignInRequest | null>(null);
   const signIn = () =>
@@ -67,15 +67,6 @@ export function MainMenu() {
     signingIn.resolve(user);
     setSigningIn(null);
   }, [user, signingIn]);
-  const [link, setLink] = useState<ConfirmLink>({ kind: "sent" });
-  const resendLink = async () => {
-    try {
-      await sendVerificationLink();
-      setLink({ kind: "resent" });
-    } catch (error) {
-      setLink({ kind: "failed", message: authErrorMessage(error) });
-    }
-  };
   const coach = useCoachProfile(user);
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
@@ -314,7 +305,10 @@ export function MainMenu() {
                   Signed in. Your account name stays private.
                 </span>
               ) : (
-                <ConfirmEmail link={link} onResend={() => void resendLink()} />
+                <ConfirmEmail
+                  link={confirmLink}
+                  onResend={() => void sendVerificationLink()}
+                />
               )}
               <HudButton
                 variant="ghost"
@@ -346,14 +340,7 @@ export function MainMenu() {
       {signingIn && (
         <SignInDialog
           key={signingIn.id}
-          onSignedIn={(signedIn, linkFailure) => {
-            setLink(
-              linkFailure
-                ? { kind: "failed", message: linkFailure }
-                : { kind: "sent" }
-            );
-            settle(signingIn, signedIn);
-          }}
+          onSignedIn={(signedIn) => settle(signingIn, signedIn)}
           onClose={() => settle(signingIn, null)}
         />
       )}
@@ -373,12 +360,6 @@ interface SignInRequest {
   reject: (cancelled: SignInCancelled) => void;
 }
 let signInRequests = 0;
-
-/** Where the link that proves an email address stands. */
-type ConfirmLink =
-  | { kind: "sent" }
-  | { kind: "failed"; message: string }
-  | { kind: "resent" };
 
 function confirmLinkText(link: ConfirmLink): string {
   switch (link.kind) {

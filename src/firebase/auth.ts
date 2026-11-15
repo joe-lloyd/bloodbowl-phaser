@@ -28,9 +28,17 @@ export interface AuthUser {
   photoURL: string | null;
 }
 
+/** Where the link that proves the signed-in coach's email stands. */
+export type ConfirmLink =
+  | { kind: "sent" }
+  | { kind: "failed"; message: string }
+  | { kind: "resent" };
+
 type AuthListener = (user: AuthUser | null) => void;
 
 let currentUser: AuthUser | null = null;
+// Kept here, not in a page, so it outlives navigation
+let confirmLink: ConfirmLink = { kind: "sent" };
 const listeners = new Set<AuthListener>();
 let watching = false;
 let resolved = false;
@@ -51,9 +59,21 @@ function ensureWatching(): void {
   watching = true;
   onAuthStateChanged(getFirebaseAuth(), (user) => {
     resolved = true;
-    currentUser = toAuthUser(user);
+    const next = toAuthUser(user);
+    if (next?.uid !== currentUser?.uid) confirmLink = { kind: "sent" };
+    currentUser = next;
     listeners.forEach((listener) => listener(currentUser));
   });
+}
+
+function setConfirmLink(next: ConfirmLink): void {
+  confirmLink = next;
+  listeners.forEach((listener) => listener(currentUser));
+}
+
+/** Subscribers hear of a change to this as an auth change. */
+export function getConfirmLink(): ConfirmLink {
+  return confirmLink;
 }
 
 /**
@@ -144,33 +164,34 @@ export async function signInWithEmail(
 
 /**
  * A new email account, and a link to prove the address. The account can
- * play even when the link fails to send; `linkFailure` says why it did.
+ * play even when the link fails to send; getConfirmLink says it did.
  */
 export async function createAccountWithEmail(
   email: string,
   password: string
-): Promise<{ user: AuthUser; linkFailure?: string }> {
+): Promise<AuthUser> {
   requireConfigured();
   const credential = await createUserWithEmailAndPassword(
     getFirebaseAuth(),
     email.trim(),
     password
   );
-  const user = toAuthUser(credential.user)!;
-  try {
-    await sendEmailVerification(credential.user);
-    return { user };
-  } catch (error) {
-    return { user, linkFailure: authErrorMessage(error) };
-  }
+  await sendEmailVerification(credential.user).catch((error: unknown) =>
+    setConfirmLink({ kind: "failed", message: authErrorMessage(error) })
+  );
+  return toAuthUser(credential.user)!;
 }
 
 /** Send the signed-in coach another link to prove their email address. */
 export async function sendVerificationLink(): Promise<void> {
   requireConfigured();
   const user = getFirebaseAuth().currentUser;
-  if (!user) throw new Error("Sign in first.");
-  await sendEmailVerification(user);
+  if (!user) return;
+  await sendEmailVerification(user).then(
+    () => setConfirmLink({ kind: "resent" }),
+    (error: unknown) =>
+      setConfirmLink({ kind: "failed", message: authErrorMessage(error) })
+  );
 }
 
 export async function sendPasswordReset(email: string): Promise<void> {

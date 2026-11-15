@@ -26,8 +26,7 @@ export function SignInDialog({
   onSignedIn,
   onClose,
 }: {
-  /** `linkFailure` is why the link to prove a new address did not send. */
-  onSignedIn: (user: AuthUser, linkFailure?: string) => void;
+  onSignedIn: (user: AuthUser) => void;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<Mode>("sign-in");
@@ -37,15 +36,12 @@ export function SignInDialog({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const run = async (
-    work: () => Promise<{ user: AuthUser; linkFailure?: string }>
-  ) => {
+  const run = async (work: () => Promise<AuthUser>) => {
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      const { user, linkFailure } = await work();
-      onSignedIn(user, linkFailure);
+      onSignedIn(await work());
     } catch (cause) {
       setError(authErrorMessage(cause));
     } finally {
@@ -57,7 +53,7 @@ export function SignInDialog({
     run(() =>
       mode === "create"
         ? createAccountWithEmail(email, password)
-        : signInWithEmail(email, password).then((user) => ({ user }))
+        : signInWithEmail(email, password)
     );
 
   const resetPassword = async () => {
@@ -89,9 +85,7 @@ export function SignInDialog({
           variant="secondary"
           block
           disabled={busy}
-          onClick={() =>
-            void run(() => signInWithGoogle().then((user) => ({ user })))
-          }
+          onClick={() => void run(signInWithGoogle)}
         >
           Sign in with Google
         </HudButton>
