@@ -12,7 +12,7 @@
  * frames. FRAMES=<dir> also saves each case's frame log and a screenshot of
  * the board after the drop.
  *
- * Human Founders play the computer's Orc Founders. The Balanced preset puts
+ * Human Founders play the computer's Green Bay Smackers. The Balanced preset puts
  * a Lineman on (2, 4) and the second Lineman on (2, 6).
  */
 import { test, expect, Page } from "@playwright/test";
@@ -53,7 +53,7 @@ interface FrameLog {
 }
 
 const HOME = "Human Founders";
-const COMPUTER = "Orc Founders";
+const COMPUTER = "Green Bay Smackers";
 const LINEMAN = 6;
 /** Where the Balanced preset puts them with all 7 Human Founders fit */
 const LINEMAN_SQUARE = { x: 2, y: 6 };
@@ -321,11 +321,11 @@ async function startComputerSetup(page: Page, app: GameApp) {
     .getByRole("button", { name: new RegExp(HOME) })
     .first()
     .click();
+  await page.getByRole("radio", { name: /Versus computer/ }).click();
   await page
     .getByRole("button", { name: new RegExp(COMPUTER) })
-    .last()
     .click();
-  await page.getByRole("radio", { name: /Versus computer/ }).click();
+  await expect(page.getByRole("button", { name: /Start Game/ })).toBeEnabled();
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
   const flip = page.getByRole("button", { name: "FLIP COIN" });
