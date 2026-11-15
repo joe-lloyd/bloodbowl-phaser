@@ -117,14 +117,16 @@ function botLogin(): { email: string; password: string } {
 /** The bot's own team, drafted once. */
 async function ensureTeam(page: Page) {
   await page.goto("/build-team");
-  if (
-    await page
-      .getByText(TEAM, { exact: false })
-      .first()
-      .isVisible({ timeout: 5000 })
-      .catch(() => false)
-  )
-    return;
+  // isVisible answers at once, before the list renders; wait for the name
+  const drafted = await page
+    .getByText(TEAM, { exact: false })
+    .first()
+    .waitFor({ timeout: 10_000 })
+    .then(
+      () => true,
+      () => false
+    );
+  if (drafted) return;
   log(`drafting ${TEAM}`);
   await buildTeam(
     page,
