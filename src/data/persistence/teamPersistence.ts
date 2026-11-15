@@ -53,6 +53,7 @@ import { staysOnRoster } from "../../game/rules/leagueRoster";
 import {
   PlayedGame,
   parsePlayedGames,
+  storedPlayedGames,
 } from "../../game/progression/matchHistory";
 import { parseAllegiance } from "../../game/rules/teamAllegiance";
 import {
@@ -515,7 +516,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
     ...(team.recordedFixtureIds
       ? { recordedFixtureIds: team.recordedFixtureIds }
       : {}),
-    ...(team.playedGames ? { playedGames: team.playedGames } : {}),
+    ...storedPlayedGames(team),
     ...(team.draftRuleset ? { draftRuleset: team.draftRuleset } : {}),
     ...(team.activeCompetitionId
       ? { activeCompetitionId: team.activeCompetitionId }

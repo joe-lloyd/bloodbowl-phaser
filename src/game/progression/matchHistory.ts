@@ -40,6 +40,52 @@ export interface PlayedGame {
 /** The most games a team keeps, newest first, so its document stays small. */
 export const PLAYED_GAMES_KEPT = 100;
 
+/** Win, draw or loss for `team`, and how a game ended early or level. */
+function outcomeFor(
+  team: Team,
+  opponent: Team,
+  own: number,
+  theirs: number,
+  result?: MatchResult
+): Pick<PlayedGame, "outcome" | "ending"> {
+  if (result?.reason === "concession" || result?.reason === "forfeit") {
+    return {
+      outcome: result.concedingTeamId === team.id ? "loss" : "win",
+      ending: result.reason === "concession" ? "conceded" : "forfeited",
+    };
+  }
+  if (own === theirs && result?.penalties) {
+    const won = result.penalties[team.id] ?? 0;
+    const lost = result.penalties[opponent.id] ?? 0;
+    return { outcome: won > lost ? "win" : "loss", ending: "penalties" };
+  }
+  return { outcome: own > theirs ? "win" : own < theirs ? "loss" : "draw" };
+}
+
+/** This team's player, when they did something worth recording. */
+function playedGamePlayer(
+  team: Team,
+  line: PlayerMatchStats
+): PlayedGamePlayer | null {
+  if (line.teamId !== team.id || !line.participated) return null;
+  const player = team.players.find((p) => p.id === line.playerId);
+  const injured = line.injuriesSuffered > 0;
+  const scored =
+    line.touchdowns + line.casualties + line.completions + line.interceptions;
+  if (!player || (scored === 0 && line.mvps === 0 && !injured)) return null;
+  return {
+    playerId: player.id,
+    name: player.playerName,
+    number: player.number,
+    touchdowns: line.touchdowns,
+    casualties: line.casualties,
+    completions: line.completions,
+    interceptions: line.interceptions,
+    mvp: line.mvps > 0,
+    injured,
+  };
+}
+
 export function playedGameFor(
   team: Team,
   opponent: Team,
@@ -49,56 +95,26 @@ export function playedGameFor(
 ): PlayedGame {
   const own = match.score[team.id] ?? 0;
   const theirs = match.score[opponent.id] ?? 0;
-  const { result } = match;
-  let outcome: PlayedGame["outcome"] =
-    own > theirs ? "win" : own < theirs ? "loss" : "draw";
-  let ending: PlayedGame["ending"];
-  if (result?.reason === "concession" || result?.reason === "forfeit") {
-    outcome = result.concedingTeamId === team.id ? "loss" : "win";
-    ending = result.reason === "concession" ? "conceded" : "forfeited";
-  } else if (own === theirs && result?.penalties) {
-    const won = result.penalties[team.id] ?? 0;
-    const lost = result.penalties[opponent.id] ?? 0;
-    outcome = won > lost ? "win" : "loss";
-    ending = "penalties";
-  }
-
-  const players = stats.flatMap((line): PlayedGamePlayer[] => {
-    if (line.teamId !== team.id || !line.participated) return [];
-    const player = team.players.find((p) => p.id === line.playerId);
-    const injured = line.injuriesSuffered > 0;
-    const notable =
-      line.touchdowns +
-        line.casualties +
-        line.completions +
-        line.interceptions >
-        0 ||
-      line.mvps > 0 ||
-      injured;
-    if (!player || !notable) return [];
-    return [
-      {
-        playerId: player.id,
-        name: player.playerName,
-        number: player.number,
-        touchdowns: line.touchdowns,
-        casualties: line.casualties,
-        completions: line.completions,
-        interceptions: line.interceptions,
-        mvp: line.mvps > 0,
-        injured,
-      },
-    ];
-  });
-
+  const { outcome, ending } = outcomeFor(
+    team,
+    opponent,
+    own,
+    theirs,
+    match.result
+  );
   return {
     ...meta,
     opponent: { name: opponent.name, rosterName: opponent.rosterName },
     score: { own, opponent: theirs },
     outcome,
     ...(ending ? { ending } : {}),
-    players,
+    players: stats.flatMap((line) => playedGamePlayer(team, line) ?? []),
   };
+}
+
+/** The stored form of a team's played games: absent when there are none. */
+export function storedPlayedGames(team: Team): { playedGames?: PlayedGame[] } {
+  return team.playedGames ? { playedGames: team.playedGames } : {};
 }
 
 /** The team with `game` recorded once, newest first. */

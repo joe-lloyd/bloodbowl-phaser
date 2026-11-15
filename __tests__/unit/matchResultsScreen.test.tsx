@@ -182,6 +182,18 @@ describe("MatchResultsScreen", () => {
     }
   });
 
+  it("opens at full time on a HUD that was already mounted during play", async () => {
+    setup(false);
+    const screen = (visible: boolean) => (
+      <MemoryRouter>
+        <MatchResultsScreen visible={visible} />
+      </MemoryRouter>
+    );
+    await act(async () => root.render(screen(false)));
+    await act(async () => root.render(screen(true)));
+    expect(container.textContent).toContain("Full Time");
+  });
+
   it("adds the game to each team's played games when the coach leaves", async () => {
     const { state, team1, team2 } = setup(false);
     state.score["team-1"] = 2;

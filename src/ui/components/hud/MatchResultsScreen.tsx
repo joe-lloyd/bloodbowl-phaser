@@ -139,6 +139,8 @@ export function MatchResultsScreen({
   const savingTeamsRef = useRef(false);
   const developmentRecorded = useRef(false);
   const developmentMatchId = useRef(`match-${Date.now()}`);
+  // Each team's played-game entry, built once (see playedGameEntries)
+  const playedGames = useRef<Map<string, PlayedGame> | null>(null);
 
   // The results screen owns recording and retry, including on resume.
   // A complete fixture alone does not mean this client's teams were saved.
@@ -425,7 +427,6 @@ export function MatchResultsScreen({
    * Each team's entry in its played games, built once from the match's own
    * roster: the post-game development may yet remove a player who died.
    */
-  const playedGames = useRef<Map<string, PlayedGame> | null>(null);
   const playedGameEntries = (): Map<string, PlayedGame> => {
     if (playedGames.current) return playedGames.current;
     const entries = new Map<string, PlayedGame>();
