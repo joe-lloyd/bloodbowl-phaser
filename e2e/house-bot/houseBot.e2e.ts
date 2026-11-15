@@ -190,6 +190,34 @@ async function hostFreshGame(page: Page): Promise<string> {
   throw new Error("could not open a fresh lobby");
 }
 
+/** A prompt the bot answers before it looks for a move. */
+async function answerPrompt(page: Page): Promise<boolean> {
+  // The other coach asked to end the match: agree, so neither waits
+  if (await clickIf(page, /^End Match$/)) {
+    log("the other coach ended the match");
+    return true;
+  }
+  return (
+    (await clickIf(page, /^READY — FLIP COIN$/)) ||
+    (await clickIf(page, /^RECEIVE$/))
+  );
+}
+
+type Next = Awaited<ReturnType<typeof brainNext>>;
+
+/** The AI's next move, or null when there is none for the bot to make. */
+async function nextMove(page: Page, app: GameApp, i: number) {
+  const next = await brainNext(page).catch(() => null);
+  if (next?.over) return "full time" as const;
+  if (!(await brainCall(page, "mayAct").catch(() => false))) return null;
+  if (await riskyMoveConfirm(page, rec)) return null;
+  if (await answerDialog(page, app, i, rec)) return null;
+  const waiting = (next as { waiting?: boolean } | null)?.waiting;
+  return next?.candidate && !waiting
+    ? { next, candidate: next.candidate }
+    : null;
+}
+
 /**
  * The scripted AI plays every move that is the bot's to make, until full
  * time or until the match ends early and the page leaves it.
@@ -200,31 +228,31 @@ async function playMatch(page: Page): Promise<"full time" | "ended"> {
   for (let i = 0; ; i++) {
     await page.waitForTimeout(250);
     if (!page.url().includes("/online/play/")) return "ended";
-    // The other coach asked to end the match: agree, so neither waits
-    if (await clickIf(page, /^End Match$/)) {
-      log("the other coach ended the match");
-      continue;
-    }
-    if (await clickIf(page, /^READY — FLIP COIN$/)) continue;
-    if (await clickIf(page, /^RECEIVE$/)) continue;
-    const next = await brainNext(page).catch(() => null);
-    if (next?.over) return "full time";
-    if (!(await brainCall(page, "mayAct").catch(() => false))) continue;
-    if (await riskyMoveConfirm(page, rec)) continue;
-    if (await answerDialog(page, app, i, rec)) continue;
-    const c = next?.candidate;
-    if (!next || (next as { waiting?: boolean }).waiting || !c) continue;
-    if (c.commands[0]?.type === "kick-ball") {
-      if (kicked) continue;
-      kicked = true;
-    }
-    if (next.phase === "PLAY") kicked = false;
-    log(`${i} ${next.phase}/${next.subPhase ?? "-"} :: ${c.label}`);
-    await perform(page, app, c.commands, next, rec).catch((error: Error) =>
-      log(`${i} move failed: ${error.message.split("\n")[0]}`)
-    );
-    if (next.pending) await brainCall(page, "clearPending");
+    if (await answerPrompt(page)) continue;
+    const move = await nextMove(page, app, i);
+    if (move === "full time") return move;
+    if (!move) continue;
+    const { next, candidate } = move;
+    // The kick is made once; the board takes a while to show it
+    const kick = candidate.commands[0]?.type === "kick-ball";
+    if (kick && kicked) continue;
+    kicked = kick || (kicked && next.phase !== "PLAY");
+    await play(page, app, i, next, candidate);
   }
+}
+
+async function play(
+  page: Page,
+  app: GameApp,
+  i: number,
+  next: Next,
+  candidate: NonNullable<Next["candidate"]>
+) {
+  log(`${i} ${next.phase}/${next.subPhase ?? "-"} :: ${candidate.label}`);
+  await perform(page, app, candidate.commands, next, rec).catch(
+    (error: Error) => log(`${i} move failed: ${error.message.split("\n")[0]}`)
+  );
+  if (next.pending) await brainCall(page, "clearPending");
 }
 
 /** MVP, SPP and back to the menu, as a coach would. */
