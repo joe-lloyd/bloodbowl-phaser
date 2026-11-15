@@ -16,6 +16,7 @@ import { getTeamById, saveTeam } from "../../../game/managers/TeamManager";
 import { recordPendingDevelopment } from "../../../game/progression/postMatch";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import {
+  PlayedGame,
   playedGameFor,
   withPlayedGame,
 } from "../../../game/progression/matchHistory";
@@ -421,35 +422,66 @@ export function MatchResultsScreen({
   };
 
   /**
-   * Each of this coach's teams keeps the game in its played games. Built
-   * from the match's copy of the team, which still has a player who died
-   * and has left the stored roster. The save is not waited for: offline,
-   * a cloud write never settles, and the history must not hold the coach
-   * here.
+   * Each team's entry in its played games, built once from the match's own
+   * roster: the post-game development may yet remove a player who died.
+   */
+  const playedGames = useRef<Map<string, PlayedGame> | null>(null);
+  const playedGameEntries = (): Map<string, PlayedGame> => {
+    if (playedGames.current) return playedGames.current;
+    const entries = new Map<string, PlayedGame>();
+    if (tracker && teams.length >= 2) {
+      const stats = tracker.summary().players;
+      const id = fixtureContext
+        ? `${fixtureContext.competitionId}:${fixtureContext.fixtureId}`
+        : developmentMatchId.current;
+      const kind = getActiveOnlineMatch()?.kind ?? "local";
+      for (const team of savedTeams(teams)) {
+        const opponent = teams.find((other) => other.id !== team.id);
+        if (!opponent) continue;
+        entries.set(
+          team.id,
+          playedGameFor(
+            team,
+            opponent,
+            { score: state.score, result: state.result },
+            stats,
+            {
+              id,
+              playedAt: Date.now(),
+              kind,
+              ...(fixtureContext ? { fixture: id } : {}),
+            }
+          )
+        );
+      }
+    }
+    playedGames.current = entries;
+    return entries;
+  };
+
+  /**
+   * The match's copy of each team carries the game, so every save of it
+   * from here on, the development save included, keeps it.
+   */
+  const notePlayedGames = () => {
+    for (const team of savedTeams(teams)) {
+      const game = playedGameEntries().get(team.id);
+      if (game) team.playedGames = withPlayedGame(team, game).playedGames;
+    }
+  };
+
+  /**
+   * A stored team that no development save wrote, as in a friendly with
+   * progression off, gets the game too. The save is not waited for:
+   * offline, a cloud write never settles, and the history must not hold
+   * the coach on this screen.
    */
   const recordPlayedGames = () => {
-    if (!tracker || teams.length < 2) return;
-    const stats = tracker.summary().players;
-    const id = fixtureContext
-      ? `${fixtureContext.competitionId}:${fixtureContext.fixtureId}`
-      : developmentMatchId.current;
-    const kind = getActiveOnlineMatch()?.kind ?? "local";
+    notePlayedGames();
     for (const team of savedTeams(teams)) {
       const stored = getTeamById(team.id);
-      const opponent = teams.find((other) => other.id !== team.id);
-      if (!stored || !opponent) continue;
-      const game = playedGameFor(
-        team,
-        opponent,
-        { score: state.score, result: state.result },
-        stats,
-        {
-          id,
-          playedAt: Date.now(),
-          kind,
-          ...(fixtureContext ? { fixture: id } : {}),
-        }
-      );
+      const game = playedGameEntries().get(team.id);
+      if (!stored || !game) continue;
       const updated = withPlayedGame(stored, game);
       if (updated !== stored)
         void saveTeam(updated).catch((cause) =>
@@ -489,6 +521,7 @@ export function MatchResultsScreen({
         foldMatchSummaryIntoCareers(teams, finalSummary);
       }
       setConfirmed(true);
+      notePlayedGames();
       await recordDevelopment();
       recordPlayedGames();
       setError("");

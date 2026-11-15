@@ -383,6 +383,43 @@ describe("MatchResultsScreen", () => {
     expect(exitButton.disabled).toBe(false);
   });
 
+  it("keeps the played game when a later save of the team fails", async () => {
+    const { services, state, team1, team2 } = setup(true);
+    state.score["team-1"] = 1;
+    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
+    let cache = [structuredClone(team1), structuredClone(team2)];
+    let fail = false;
+    setTeamRepository({
+      loadTeams: () => cache,
+      saveTeams: (teams) => {
+        cache = teams;
+        return fail
+          ? Promise.reject(new Error("Cloud offline"))
+          : Promise.resolve();
+      },
+      deleteTeam: () => {},
+    });
+    await render();
+    const button = (text: string) =>
+      [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes(text)
+      )!;
+    for (const roll of [...container.querySelectorAll("button")].filter((b) =>
+      b.textContent?.includes("Roll MVP D6")
+    ))
+      await act(async () => roll.click());
+    await act(async () => button("Confirm and assign SPP").click());
+    // The exit saves the teams again, and this time the cloud is down
+    fail = true;
+    await act(async () => button("Continue to Main Menu").click());
+
+    const played = (id: string) =>
+      cache.find((team) => team.id === id)!.playedGames ?? [];
+    expect(played("team-1")).toHaveLength(1);
+    expect(played("team-2")).toHaveLength(1);
+  });
+
   /** A league of the two teams, stored with them, as the coach left it at kick-off. */
   async function leagueOf(teams: Team[]): Promise<LeagueDoc> {
     const entrants: CompetitionEntrant[] = teams.map((team, index) => ({
