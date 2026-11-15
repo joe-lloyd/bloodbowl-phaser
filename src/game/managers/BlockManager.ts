@@ -145,6 +145,7 @@ export class BlockManager extends BlockPushChain {
 
       if (ctx.cancelled) {
         // Foul Appearance et al: the block never happens; end the activation.
+        this.frenzyExtraFor = null;
         this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
         this.callbacks
           .getFlowManager?.()
@@ -468,6 +469,7 @@ export class BlockManager extends BlockPushChain {
     result: BlockResult
   ): Promise<void> {
     this.pendingBlockRoll = null; // the coach committed to a result
+    const isFrenzyExtra = this.frenzyExtraFor === attackerId;
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
 
@@ -528,7 +530,9 @@ export class BlockManager extends BlockPushChain {
 
     // A Frenzy extra block is now resolved (beginPush already read the flag);
     // clear it so this player Frenzies again on their next Block Action.
-    if (this.frenzyExtraFor === attackerId) this.frenzyExtraFor = null;
+    // Stand Firm can start the extra Block before the first resolve returns.
+    // Only the extra Block itself may clear its marker.
+    if (isFrenzyExtra) this.frenzyExtraFor = null;
   }
 
   /**

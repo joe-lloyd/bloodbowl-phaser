@@ -9,7 +9,7 @@ import { PileDriverOperation } from "../operations/PileDriverOperation";
 import {
   ContinueMultipleBlockOperation,
   CrowdSurfFollowUpOperation,
-  FinishActivationOperation,
+  FinishBlockOperation,
   ForcedFollowUpOperation,
   FrenzyOperation,
   HitAndRunOperation,
@@ -299,18 +299,18 @@ export abstract class BlockActivation extends BlockRerolls {
   ): Promise<void> {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
+    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
     if (
       !targetStanding ||
       !attacker ||
       !defender ||
       !standingNeighbours(attacker, defender)
     ) {
-      this.endBlockActivation(attackerId);
+      gs?.finishBlockActivation(attackerId);
       return;
     }
     // During a Blitz the second block costs a square too, Rushing if
     // needed; without one there is no second block.
-    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
     if (
       this.isBlitzBlock(attacker) &&
       gs &&
@@ -342,7 +342,7 @@ export abstract class BlockActivation extends BlockRerolls {
     } else if (attacker && this.isBallAndChain(attacker)) {
       // The Fanatic lurches on into the emptied square, no prompt
       flowManager?.add(new ForcedFollowUpOperation(attackerId, vacated));
-      flowManager?.add(new FinishActivationOperation(this, attackerId));
+      flowManager?.add(new FinishBlockOperation(attackerId));
     } else {
       flowManager?.add(new CrowdSurfFollowUpOperation(attackerId, vacated));
     }
@@ -367,8 +367,8 @@ export abstract class BlockActivation extends BlockRerolls {
     // Frenzy's first block: force the follow-up into the vacated square and,
     // if the target is still Standing, throw a mandatory second Block at the
     // same player. Queued at the BACK so a POW's armour/injury settle first;
-    // FrenzyOperation then follows up, blocks again if able, and ends the
-    // activation (so it is NOT combined with the forceFollowUp branch below).
+    // FrenzyOperation then follows up and blocks again if able. The completed
+    // sequence can resume a Blitz's movement.
     if (chain.frenzy) {
       flowManager?.add(
         new FrenzyOperation(
@@ -381,21 +381,20 @@ export abstract class BlockActivation extends BlockRerolls {
       );
     } else if (chain.forceFollowUp) {
       // Taunt, or Frenzy's second (extra) block: run the free follow-up now
-      // (at the FRONT) and end the activation once everything has settled —
-      // no follow-up prompt will fire.
+      // at the FRONT and complete the Block once everything has settled.
+      // No follow-up prompt will fire.
       flowManager?.add(
         new ForcedFollowUpOperation(attackerId, first.from),
         true
       );
-      flowManager?.add(new FinishActivationOperation(this, attackerId));
+      flowManager?.add(new FinishBlockOperation(attackerId));
     } else if (chain.preventFollowUp) {
-      // Fend denied the blocker their follow-up: no follow-up prompt will
-      // fire, so end the activation once any queued armour/injury rolls have
-      // settled (queued at the BACK so the turn flips only after they apply).
+      // Fend denied the follow-up. Complete the Block at the BACK, once any
+      // queued armour/injury rolls have settled.
       if (this.multipleBlockState?.attackerId === attackerId) {
         this.queueMultipleBlockContinuation(attackerId);
       } else {
-        flowManager?.add(new FinishActivationOperation(this, attackerId));
+        flowManager?.add(new FinishBlockOperation(attackerId));
       }
     }
   }

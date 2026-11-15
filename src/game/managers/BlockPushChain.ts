@@ -14,7 +14,11 @@ import { trapdoorOpens } from "../inducements/matchInducements";
 import { GameConfig } from "../../config/GameConfig";
 import { PushContext, foldTrigger } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
-import { FrenzyOperation, InOrderOperation } from "./BlockOperations";
+import {
+  FinishBlockOperation,
+  FrenzyOperation,
+  InOrderOperation,
+} from "./BlockOperations";
 import { BlockActivation } from "./BlockActivation";
 
 type Square = { x: number; y: number };
@@ -217,9 +221,8 @@ export abstract class BlockPushChain extends BlockActivation {
       return;
     }
 
-    // No square was vacated, so the follow-up prompt never fires — end the
-    // blocker's activation directly (Hit and Run may take a free square first).
-    this.endBlockActivation(attacker.id);
+    // No square was vacated, so no follow-up prompt will complete the Block.
+    flowManager?.add(new FinishBlockOperation(attacker.id));
   }
 
   /**

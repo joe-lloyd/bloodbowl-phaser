@@ -1,6 +1,6 @@
 import React, { act } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -48,6 +48,7 @@ describe("online dialogs", () => {
     container.remove();
     setActiveOnlineMatch(null);
     ServiceContainer.reset();
+    vi.useRealTimers();
   });
 
   const askReroll = () =>
@@ -208,6 +209,43 @@ describe("online dialogs", () => {
     await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
     await act(async () => askReroll());
     expect(container.innerHTML).toBe("");
+  });
+
+  it("keeps Frenzy's second dice visible after the first result's hold timer expires", async () => {
+    vi.useFakeTimers();
+    mayAct = true;
+    await act(async () => root.render(<BlockDiceDialog eventBus={eventBus} />));
+    const roll = {
+      attackerId: team1Ids[0],
+      defenderId: team2Ids[0],
+      numDice: 1,
+      isAttackerChoice: true,
+      results: [{ type: "push", label: "Push", icon: "" }],
+      teamRerollAvailable: false,
+      proAvailable: false,
+      brawlerAvailable: false,
+    } satisfies BlockRollData;
+    await act(async () => eventBus.emit(GameEventNames.BlockDiceRolled, roll));
+    await act(async () =>
+      eventBus.emit(GameEventNames.DecisionResolved, {
+        type: "block-dice",
+        result: "push",
+      })
+    );
+    expect(container.textContent).toContain("Chosen: PUSH");
+    await act(async () => vi.advanceTimersByTime(500));
+    await act(async () =>
+      eventBus.emit(GameEventNames.BlockDiceRolled, { ...roll })
+    );
+    await act(async () => vi.advanceTimersByTime(1500));
+
+    expect(
+      container.querySelector('[data-testid="block-dice-dialog"]')
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="block-die-0"]')
+    ).not.toBeNull();
+    expect(container.textContent).not.toContain("Chosen:");
   });
 
   it("shows the other coach's block dice and then the face they picked", async () => {
