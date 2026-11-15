@@ -14,7 +14,7 @@ import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 g = {"__name__": "bbmodels"}
-for name in ("blender_players.py", "model_kit.py", "team_models.py", "render_models.py"):
+for name in ("blender_players.py", "model_kit.py", "team_models.py", "sideline_models.py", "render_models.py"):
     with open(os.path.join(HERE, name)) as fh:
         exec(fh.read(), g)
 

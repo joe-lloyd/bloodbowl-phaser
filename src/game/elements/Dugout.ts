@@ -8,6 +8,7 @@ import { playerHitArea } from "./InteractiveHitArea";
 import { Facing } from "../presentation/playerArt";
 import type { DugoutBox, DugoutSquares } from "./Stadium";
 import { PitchExit, playPitchExit } from "./pitchExits";
+import { pitchExitRoute } from "../presentation/sidelineRoutes";
 
 /** How long a player takes to slide between dugout slots (KO -> Reserves). */
 const DUGOUT_SLOT_MOVE_MS = 320;
@@ -40,6 +41,7 @@ export class Dugout {
   private squares: DugoutSquares;
   private toWorld: (gx: number, gy: number) => { x: number; y: number };
   private facing: Facing;
+  private rows: number;
   private playerSprites: Map<string, PlayerSprite> = new Map();
   /** Who was on screen when the current refresh started (see place). */
   private visibleBeforeRefresh: Set<string> = new Set();
@@ -49,7 +51,13 @@ export class Dugout {
     { from: { x: number; y: number }; exit: PitchExit }
   >();
   /** Players still on their way to a box: a refresh leaves them be. */
-  private inTransit = new Set<string>();
+  private inTransit = new Map<
+    string,
+    {
+      box: keyof typeof BOX_SQUARES;
+      abort: AbortController;
+    }
+  >();
   /** Players already wearing the red card. */
   private sentOff = new Set<string>();
   /** Gone with its scene or a reload: an exit still finishing is ignored. */
@@ -63,7 +71,8 @@ export class Dugout {
     kit: TeamColors,
     squares: DugoutSquares,
     toWorld: (gx: number, gy: number) => { x: number; y: number },
-    facing: Facing
+    facing: Facing,
+    rows: number
   ) {
     this.scene = scene;
     this.team = team;
@@ -71,10 +80,19 @@ export class Dugout {
     this.squares = squares;
     this.toWorld = toWorld;
     this.facing = facing;
+    this.rows = rows;
     this.refresh();
   }
 
   public refresh(): void {
+    // A recovery or a new drive can change the destination mid-exit.
+    for (const [id, transit] of this.inTransit) {
+      const player = this.team.players.find((p) => p.id === id);
+      if (!player || playerBoxOf(player) !== transit.box) {
+        transit.abort.abort();
+        this.inTransit.delete(id);
+      }
+    }
     // Remember who was on screen, so a player who changes box slides across.
     this.visibleBeforeRefresh = new Set(
       Array.from(this.playerSprites.entries())
@@ -126,9 +144,18 @@ export class Dugout {
       sprite.setPosition(arrival.from.x, arrival.from.y);
       sprite.setDugoutPose(arrival.exit === "walk" ? "standing" : "lying");
       sprite.setVisible(true);
-      this.inTransit.add(player.id);
-      void playPitchExit(this.scene, sprite, at, arrival.exit).then(() => {
-        if (this.destroyed) return;
+      const transit = { box, abort: new AbortController() };
+      this.inTransit.set(player.id, transit);
+      const route = pitchExitRoute(arrival.from, at, this.rows, this.toWorld);
+      void playPitchExit(
+        this.scene,
+        sprite,
+        route,
+        arrival.exit,
+        this.kit,
+        transit.abort.signal
+      ).then(() => {
+        if (this.destroyed || this.inTransit.get(player.id) !== transit) return;
         this.inTransit.delete(player.id);
         this.refresh();
       });
@@ -276,7 +303,9 @@ export class Dugout {
 
   public destroy(): void {
     this.destroyed = true;
+    this.inTransit.forEach((transit) => transit.abort.abort());
     this.inTransit.clear();
+    this.arrivals.clear();
     this.playerSprites.forEach((sprite) => sprite.destroy());
     this.playerSprites.clear();
   }

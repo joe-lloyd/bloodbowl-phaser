@@ -1,6 +1,10 @@
 import Phaser from "phaser";
 import { Player, PlayerStatus } from "../../types/Player";
-import { PlayerSprite } from "./PlayerSprite";
+import { TeamColors } from "../../types/Team";
+import { PlayerSprite, PLAYER_DEPTH } from "./PlayerSprite";
+import { BoardPoint, walkingSteps } from "../presentation/sidelineRoutes";
+import { facingForStep } from "../presentation/playerArt";
+import { SidelineStaffSprite } from "./SidelineStaffSprite";
 
 /**
  * How a player leaves the pitch for a dugout box, so the coach can tell a
@@ -29,92 +33,140 @@ export function pitchExitFor(player: Player): PitchExit {
 const CARRY_SPEED = 280;
 
 /**
- * Carry `sprite` from where it stands to `to`, dressed for `exit`.
- * Resolves once it has arrived; the props it brought are gone by then.
+ * A walk follows the touchline route. A medical crew comes from the box
+ * along its reverse, collects the patient, and retraces its steps.
  */
 export function playPitchExit(
   scene: Phaser.Scene,
   sprite: PlayerSprite,
-  to: { x: number; y: number },
-  exit: PitchExit
+  route: readonly BoardPoint[],
+  exit: PitchExit,
+  kit: TeamColors,
+  signal?: AbortSignal
 ): Promise<void> {
-  const from = { x: sprite.x, y: sprite.y };
-  const distance = Math.hypot(to.x - from.x, to.y - from.y);
-  const duration = Phaser.Math.Clamp(
-    (distance / CARRY_SPEED) * 1000,
-    1200,
-    2600
-  );
-
-  // Torn down mid-exit, by a reload or the scene ending: the exit stops
-  // with the sprite, props and all, instead of tweening something gone
+  if (route.length < 2 || signal?.aborted) return Promise.resolve();
   const cleanups: (() => void)[] = [() => scene.tweens.killTweensOf(sprite)];
-  const onDestroy = () => cleanups.forEach((cleanup) => cleanup());
+  let cleaned = false;
+  const clear = () => {
+    if (cleaned) return;
+    cleaned = true;
+    cleanups.forEach((cleanup) => cleanup());
+  };
+  let stopped = false;
+  let stop: () => void = () => {};
+  const cancelled = new Promise<void>((resolve) => {
+    stop = resolve;
+  });
+  const onDestroy = () => {
+    stopped = true;
+    clear();
+    stop();
+  };
   sprite.once(Phaser.GameObjects.Events.DESTROY, onDestroy);
-  const finished = () => {
-    sprite.off(Phaser.GameObjects.Events.DESTROY, onDestroy);
-  };
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, onDestroy);
+  signal?.addEventListener("abort", onDestroy, { once: true });
 
-  if (exit === "walk") return walk(sprite, from, to).then(finished);
-
-  if (exit === "injured") leaveBlood(scene, from);
-  const prop =
-    exit === "dead" ? coffin(scene) : stretcher(scene, exit === "injured");
-  prop.setPosition(from.x, from.y).setDepth(sprite.depth - 1);
-  if (exit === "dead") {
-    sprite.setVisible(false);
-    prop.setDepth(sprite.depth);
-  }
-  const stars = exit === "knockedOut" ? seeingStars(scene, sprite) : null;
-  const clearProps = () => {
-    scene.tweens.killTweensOf(prop);
-    prop.destroy();
-    if (stars) {
-      // The twinkle repeats forever; it goes with the stars
-      scene.tweens.killTweensOf(stars);
-      stars.destroy();
+  const run = async () => {
+    if (exit === "walk") {
+      await sprite.animateMovement(walkingSteps(route));
+      return;
     }
-  };
-  cleanups.push(clearProps);
-
-  return new Promise((resolve) => {
-    scene.tweens.add({
-      targets: exit === "dead" ? [prop] : [sprite, prop],
-      x: to.x,
-      y: to.y,
-      duration,
-      ease: "Sine.easeInOut",
-      onUpdate: () => {
-        stars?.setPosition(sprite.x, sprite.y + sprite.getHeadOffset() - 4);
-        if (exit !== "dead") prop.setDepth(sprite.depth - 1);
-      },
-      onComplete: () => {
-        finished();
-        clearProps();
-        // The coffin went alone; the player it carried arrives with it
-        sprite.setPosition(to.x, to.y);
-        sprite.setVisible(true);
-        resolve();
-      },
+    if (exit === "injured") leaveBlood(scene, route[0]);
+    const prop =
+      exit === "dead" ? coffin(scene) : stretcher(scene, exit === "injured");
+    const to = route[route.length - 1];
+    prop.setPosition(to.x, to.y).setDepth(PLAYER_DEPTH + to.y - 1);
+    const stars = exit === "knockedOut" ? seeingStars(scene, sprite) : null;
+    const medics = [-1, 1].map(
+      (side, index) =>
+        new SidelineStaffSprite(
+          scene,
+          to.x + side * 34,
+          to.y + side * 9,
+          "medic",
+          kit,
+          "s",
+          index
+        )
+    );
+    cleanups.push(() => {
+      scene.tweens.killTweensOf(prop);
+      prop.destroy();
+      medics.forEach((medic) => medic.destroy());
+      if (stars) {
+        scene.tweens.killTweensOf(stars);
+        stars.destroy();
+      }
     });
+    // The patient stays where they fell until the empty stretcher arrives.
+    await moveCarrier(scene, prop, medics, [...route].reverse());
+    if (stopped) return;
+    medics.forEach((medic) => medic.stand());
+    if (exit === "dead") sprite.setVisible(false);
+    await moveCarrier(
+      scene,
+      prop,
+      medics,
+      route,
+      sprite,
+      stars,
+      exit === "dead"
+    );
+    if (stopped) return;
+    sprite.setPosition(to.x, to.y).setVisible(true);
+  };
+
+  return Promise.race([run(), cancelled]).finally(() => {
+    sprite.off(Phaser.GameObjects.Events.DESTROY, onDestroy);
+    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, onDestroy);
+    signal?.removeEventListener("abort", onDestroy);
+    clear();
   });
 }
 
-/** A sent-off player walks to the box, a square at a time. */
-function walk(
-  sprite: PlayerSprite,
-  from: { x: number; y: number },
-  to: { x: number; y: number }
+function moveCarrier(
+  scene: Phaser.Scene,
+  prop: Phaser.GameObjects.Container,
+  medics: SidelineStaffSprite[],
+  route: readonly BoardPoint[],
+  patient?: PlayerSprite,
+  stars?: Phaser.GameObjects.Text | null,
+  coffinOnly = false
 ): Promise<void> {
-  const steps = Math.max(
-    1,
-    Math.round(Math.hypot(to.x - from.x, to.y - from.y) / 48)
-  );
-  const path = Array.from({ length: steps }, (_, i) => ({
-    x: from.x + ((to.x - from.x) * (i + 1)) / steps,
-    y: from.y + ((to.y - from.y) * (i + 1)) / steps,
-  }));
-  return sprite.animateMovement(path);
+  return new Promise((resolve) => {
+    scene.tweens.chain({
+      targets: patient && !coffinOnly ? [prop, patient] : [prop],
+      tweens: route.slice(1).map((to, i) => ({
+        x: to.x,
+        y: to.y,
+        duration:
+          (Math.hypot(to.x - route[i].x, to.y - route[i].y) / CARRY_SPEED) *
+          1000,
+        // Pause at the pickup, while the patient is put on the stretcher.
+        delay: patient && i === 0 ? 350 : 0,
+        ease: "Linear",
+        onStart: () => {
+          const facing = facingForStep(to.x - route[i].x, to.y - route[i].y);
+          if (facing) medics.forEach((medic) => medic.walk(facing));
+        },
+        onUpdate: () => {
+          prop.setDepth(PLAYER_DEPTH + prop.y - (coffinOnly ? 0 : 1));
+          medics.forEach((medic, index) => {
+            const side = index === 0 ? -1 : 1;
+            medic.setPosition(prop.x + side * 34, prop.y + side * 9);
+          });
+          if (patient && stars) {
+            stars.setPosition(
+              patient.x,
+              patient.y + patient.getHeadOffset() - 4
+            );
+            stars.setDepth(PLAYER_DEPTH + patient.y + 1);
+          }
+        },
+      })),
+      onComplete: () => resolve(),
+    });
+  });
 }
 
 /** Two poles and a canvas bed, under a player lying on it. */

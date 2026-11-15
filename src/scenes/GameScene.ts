@@ -4,6 +4,8 @@ import { Pitch } from "../game/elements/Pitch";
 import { PlayerSprite } from "../game/elements/PlayerSprite";
 import { BallSprite } from "../game/elements/BallSprite";
 import { Dugout } from "../game/elements/Dugout";
+import { SidelineTerrace } from "../game/elements/SidelineTerrace";
+import { preloadSidelineArt } from "../game/elements/SidelineStaffSprite";
 import { preloadStadium, Stadium } from "../game/elements/Stadium";
 import { preloadPlayerArt } from "../game/presentation/playerArt";
 import { Team, TeamColors } from "../types/Team";
@@ -69,6 +71,7 @@ export class GameScene extends Phaser.Scene {
   // private diceLog!: DiceLog;
 
   private dugouts: Map<string, Dugout> = new Map();
+  private staffTerraces: SidelineTerrace[] = [];
 
   // Controllers (Setup Phase)
   private validator!: SetupValidator;
@@ -231,6 +234,7 @@ export class GameScene extends Phaser.Scene {
     // Only the art this match needs: the stadium and the models for both
     // rosters. Progress drives the loading screen.
     preloadStadium(this);
+    preloadSidelineArt(this);
     preloadPlayerArt(
       this,
       [this.team1, this.team2].flatMap((team) =>
@@ -282,7 +286,10 @@ export class GameScene extends Phaser.Scene {
       this,
       this.pitch,
       { width: this.stadium.width, height: this.stadium.height },
-      Array.from(this.dugouts.values()).flatMap((d) => d.getBounds()),
+      [
+        ...Array.from(this.dugouts.values()).flatMap((d) => d.getBounds()),
+        ...this.staffTerraces.flatMap((terrace) => terrace.bounds),
+      ],
       this.eventBus,
       () => {
         // The HUD may mount after the board: pick up its panels as they come
@@ -387,6 +394,8 @@ export class GameScene extends Phaser.Scene {
       });
       this.dugouts.clear();
     }
+    this.staffTerraces.forEach((terrace) => terrace.destroy());
+    this.staffTerraces = [];
 
     // Destroy pitch (if it exists)
     this.pitch?.destroy();
@@ -432,13 +441,25 @@ export class GameScene extends Phaser.Scene {
         this.kitOf(team.id),
         squares,
         toWorld,
-        facing
+        facing,
+        this.stadium.meta.rows
       );
       dugout.setDragCallbacks(
         (id) => this.onDugoutDragStart(id),
         (id, x, y) => this.onDugoutDragEnd(id, x, y)
       );
       this.dugouts.set(team.id, dugout);
+      this.staffTerraces.push(
+        new SidelineTerrace(
+          this,
+          team,
+          this.kitOf(team.id),
+          squares,
+          toWorld,
+          facing,
+          this.eventBus
+        )
+      );
     }
   }
 
@@ -451,6 +472,8 @@ export class GameScene extends Phaser.Scene {
   private rebuildDugouts(): void {
     this.dugouts.forEach((d) => d.destroy());
     this.dugouts.clear();
+    this.staffTerraces.forEach((terrace) => terrace.destroy());
+    this.staffTerraces = [];
     this.createDugouts();
   }
 

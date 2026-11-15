@@ -41,6 +41,11 @@ export function modelFor(rosterName: string, positionName: string): string {
   return roster.find((m) => MODELS[m]) ?? FALLBACK_MODEL;
 }
 
+/** Whether this model has been rendered into the sprite manifest yet. */
+export function hasModelArt(model: string): boolean {
+  return model in MODELS;
+}
+
 export function modelArt(model: string): ModelArt {
   return MODELS[model] ?? MODELS[FALLBACK_MODEL];
 }
@@ -58,10 +63,18 @@ export function preloadPlayerArt(
   scene: Phaser.Scene,
   players: { rosterName: string; positionName: string }[]
 ): void {
-  const base = MATCH_STYLE.spritePath;
   const models = new Set(
     players.map((p) => modelFor(p.rosterName, p.positionName))
   );
+  preloadModels(scene, models);
+}
+
+/** Queue non-player models through the same kit-layer atlas pipeline. */
+export function preloadModels(
+  scene: Phaser.Scene,
+  models: Iterable<string>
+): void {
+  const base = MATCH_STYLE.spritePath;
   for (const model of models) {
     for (const layer of LAYERS) {
       const key = textureKey(model, layer);

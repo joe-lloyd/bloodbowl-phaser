@@ -95,7 +95,7 @@ function members(
 
 /**
  * Pure staff projection used by the renderer and tests. Counts are capped so
- * the dedicated 180×150 rail can never spill into player interaction slots.
+ * the dedicated staff terrace can never spill into player interaction slots.
  */
 export function getVisibleSidelineStaff(team: Team): SidelineStaffMember[] {
   return [
