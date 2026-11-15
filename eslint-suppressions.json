@@ -53,11 +53,6 @@
       "count": 1
     }
   },
-  "__tests__/unit/controllers/GameplayInteractionController.test.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "e2e/browser/later-drive-kickoff.e2e.ts": {
     "complexity": {
       "count": 1
