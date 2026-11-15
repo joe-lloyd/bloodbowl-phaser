@@ -519,22 +519,6 @@
       "count": 2
     }
   },
-  "src/simulation/puzzles.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/simulation/runMatch.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/testing/coverage/report.ts": {
     "complexity": {
       "count": 1

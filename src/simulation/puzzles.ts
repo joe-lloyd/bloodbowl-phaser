@@ -9,6 +9,7 @@
  */
 
 import { HeadlessGame } from "../headless/HeadlessGame";
+import { EmittedEvent } from "../headless/protocol";
 import { GameSnapshot } from "../headless/serialization";
 import { playSetup } from "../game/rules-lab/factories";
 import { GamePhase } from "../types/GameState";
@@ -177,6 +178,30 @@ export const PUZZLES: readonly Puzzle[] = [
   },
 ];
 
+/** Play has stopped, or it is the other side's turn with nothing to answer. */
+function turnPassed(
+  snapshot: GameSnapshot,
+  pending: boolean,
+  team1: string
+): boolean {
+  return (
+    snapshot.phase !== GamePhase.PLAY ||
+    (!pending && snapshot.activeTeamId !== team1)
+  );
+}
+
+/** Whether any of `events` is a `name` event for `teamId`. */
+function hasTeamEvent(
+  events: EmittedEvent[],
+  name: string,
+  teamId: string
+): boolean {
+  return events.some((event) => {
+    const data = event.data as { teamId?: string } | undefined;
+    return event.name === name && data?.teamId === teamId;
+  });
+}
+
 /**
  * Play team1's turn of a puzzle with `coach`. Team2 only ever answers
  * decisions (block dice it picks, its own re-rolls), and the heuristic
@@ -207,12 +232,7 @@ export async function playPuzzle(
   for (let guard = 0; guard < 300; guard++) {
     const snapshot = game.snapshot();
     const pending = game.pendingDecision();
-    if (
-      scored ||
-      snapshot.phase !== GamePhase.PLAY ||
-      (!pending && snapshot.activeTeamId !== team1)
-    )
-      break;
+    if (scored || turnPassed(snapshot, !!pending, team1)) break;
     const point = await enumerateDecision(game, null);
     if (point.candidates.length === 0) break;
     const who = point.teamId === team1 ? coach : heuristicCoach;
@@ -220,13 +240,12 @@ export async function playPuzzle(
     const candidate = point.candidates[index] ?? point.candidates[0];
     for (const command of candidate.commands) {
       const response = await game.execute(command);
-      for (const event of response.events) {
-        const data = event.data as { teamId?: string } | undefined;
-        if (event.name === GameEventNames.Touchdown && data?.teamId === team1)
-          scored = true;
-        if (event.name === GameEventNames.Turnover && data?.teamId === team1)
-          turnover = true;
-      }
+      scored ||= hasTeamEvent(response.events, GameEventNames.Touchdown, team1);
+      turnover ||= hasTeamEvent(
+        response.events,
+        GameEventNames.Turnover,
+        team1
+      );
       if (!response.ok) break;
     }
   }
