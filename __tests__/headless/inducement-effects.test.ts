@@ -212,6 +212,15 @@ describe("Bribes", () => {
     expect(fouler.gridPosition).toEqual({ x: 10, y: 5 });
     expect(fouler.status).toBe(PlayerStatus.ACTIVE);
     expect(response.snapshot.activeTeamId).toBe("team1");
+    // The card both coaches watch reads the Bribe and its outcome
+    expect(
+      response.events
+        .filter((e) => e.name === GameEventNames.RefereeCall)
+        .map((e) => e.data)
+    ).toMatchObject([
+      { step: "bribed", roll: 2, works: true, playerId: fouler.id },
+      { step: "outcome", result: "bribed", cause: "foul" },
+    ]);
     expect(
       game.ctx.gameService.getState().inducements?.inventory[0].remainingUses
     ).toBe(1);

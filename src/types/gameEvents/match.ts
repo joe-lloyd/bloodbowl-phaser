@@ -86,6 +86,8 @@ export interface MatchGameEvents {
     effect: string;
   };
 
+  [GameEventNames.RefereeCall]: RefereeCallStep;
+
   [GameEventNames.RerollUsed]: {
     playerId: string;
     source: import("../decisions").RerollSource;
@@ -200,6 +202,33 @@ export interface MatchGameEvents {
 /**
  * Action types available in the game
  */
+/**
+ * One step of a Sent-off, for the card both coaches watch. Every step names
+ * the player and why they were Sent-off. The outcome is last; the engine
+ * waits until the card has shown it.
+ */
+export type RefereeCallStep = {
+  playerId: string;
+  teamId: string;
+  /** A spotted Foul causes a Turnover; a Secret Weapon at the drive's end does not. */
+  cause: "foul" | "secret-weapon";
+} & (
+  | { step: "called" }
+  | {
+      step: "argued";
+      /** Every Argue the Call die, in order: a 1 re-rolled by Bribery and Corruption shows both. */
+      rolls: number[];
+      swayed: boolean;
+    }
+  /** A Bribe was used; `works` on a 2+. */
+  | { step: "bribed"; roll: number; works: boolean }
+  | {
+      step: "outcome";
+      result: "swayed" | "bribed" | "sent-off";
+      presentationId: string;
+    }
+);
+
 export type ActionType =
   | "move"
   | "block"

@@ -53,6 +53,8 @@ export enum GameEventNames {
   /** A skill rule changed a roll/dice/result, or offered/used a reroll */
   SkillTriggered = "skillTriggered",
   RerollUsed = "rerollUsed",
+  /** A Sent-off, one step at a time: the call, the argument, any Bribe */
+  RefereeCall = "refereeCall",
   /** The engine paused on a mid-action decision (reroll offer, reaction) */
   DecisionRequested = "decisionRequested",
   /** That decision was answered, by whichever coach owns it */
@@ -89,10 +91,10 @@ export enum GameEventNames {
   DriveEnded = "driveEnded",
   BallPickup = "ballPickup",
   WeatherChanged = "weatherChanged",
-  DiceRoll = "diceRoll",
-  GameStateRestored = "gameStateRestored",
   /** A coach readied up for the opening weather roll. */
   WeatherReady = "weatherReady",
+  DiceRoll = "diceRoll",
+  GameStateRestored = "gameStateRestored",
   RefreshBoard = "refreshBoard",
   /** Crisp text (dugout headers, end-zone names) for the React overlay */
   /** Match assets loading: 0..1, for the loading screen. */
@@ -157,14 +159,14 @@ export enum GameEventNames {
   UI_ConfirmSetup = "ui:confirmSetup",
   UI_LoadScenario = "ui:loadScenario",
   UI_StartGame = "ui:startGame",
-  UI_StartCoinFlip = "ui:startCoinFlip",
-  UI_ShowCoinFlip = "ui:showCoinFlip",
   /** The opening's weather roll is up: show the coaches the dialog. */
   UI_StartWeather = "ui:startWeather",
   /** The coach has read the weather; the opening moves on to the toss. */
   UI_WeatherComplete = "ui:weatherComplete",
   /** A late-mounted weather dialog asks whether the roll is waiting. */
   UI_RequestWeatherState = "ui:requestWeatherState",
+  UI_StartCoinFlip = "ui:startCoinFlip",
+  UI_ShowCoinFlip = "ui:showCoinFlip",
   UI_CoinFlipComplete = "ui:coinFlipComplete",
   UI_RequestCoinFlipState = "ui:requestCoinFlipState",
   UI_ShowSetupControls = "ui:showSetupControls",

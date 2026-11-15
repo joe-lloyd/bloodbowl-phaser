@@ -53,6 +53,8 @@ export interface ScenarioSetup {
    * Magic Scroll is read at once, so that team starts with its Sports-Wizard.
    */
   measures?: { team1?: DesperateMeasure[]; team2?: DesperateMeasure[] };
+  /** Bribes each team holds, as Get the Ref leaves them; none when omitted. */
+  bribes?: { team1?: number; team2?: number };
 }
 
 export interface Scenario {

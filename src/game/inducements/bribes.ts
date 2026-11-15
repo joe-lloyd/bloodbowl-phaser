@@ -37,18 +37,18 @@ function spendBribe(state: GameState, teamId: string): void {
 }
 
 /**
- * Offer a Bribe for a player about to be Sent-off. Returns true when the
- * Bribe works and the player stays; false when no Bribe is held, the coach
- * declines, or the referee pockets it.
+ * Offer a Bribe for a player about to be Sent-off. Returns the Bribe's roll
+ * when one is used, and whether it works (2+: the player stays); null when
+ * no Bribe is held or the coach declines.
  */
 export async function offerBribe(
   gameService: IGameService,
   eventBus: IEventBus,
   player: Player
-): Promise<boolean> {
+): Promise<{ roll: number; works: boolean } | null> {
   const state = gameService.getState();
   const held = bribesLeft(state, player.teamId);
-  if (held <= 0) return false;
+  if (held <= 0) return null;
 
   const answer = await gameService.getDecisionService().request({
     type: "reaction",
@@ -57,7 +57,7 @@ export async function offerBribe(
     skill: BRIBE_DECISION,
     prompt: `${player.playerName} is being Sent-off. Use a Bribe (${held} left)? A 2+ keeps them on the pitch.`,
   });
-  if (!("accept" in answer) || !answer.accept) return false;
+  if (!("accept" in answer) || !answer.accept) return null;
 
   spendBribe(state, player.teamId);
   const roll = gameService
@@ -70,5 +70,5 @@ export async function offerBribe(
       ? `Bribe accepted (${roll}): ${player.playerName} stays on the pitch.`
       : `The referee pockets the Bribe (${roll}): ${player.playerName} is Sent-off anyway.`
   );
-  return works;
+  return { roll, works };
 }
