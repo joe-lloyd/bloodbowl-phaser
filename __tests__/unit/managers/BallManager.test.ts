@@ -3,8 +3,6 @@ import { BallManager } from "../../../src/game/managers/BallManager";
 import { GameState, GamePhase, SubPhase } from "../../../src/types/GameState";
 import { Team } from "../../../src/types/Team";
 import { Player, PlayerStatus } from "../../../src/types/Player";
-import { WeatherManager } from "../../../src/game/managers/WeatherManager";
-import { GameEventNames } from "../../../src/types/events";
 
 describe("BallManager", () => {
   let manager: BallManager;

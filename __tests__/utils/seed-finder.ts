@@ -116,76 +116,56 @@ export function findSeedForInjuryChain(
   for (let seed = 1; seed <= maxAttempts; seed++) {
     const rng = new RNGService(seed);
     const diceController = new DiceController(eventBus, rng);
-
-    let valid = true;
-
-    // Step 1: Check block result if specified
-    const blockResults = diceController.rollBlockDice(numBlockDice);
-
-    if (options.blockResult) {
-      // For single die, exact match
-      if (numBlockDice === 1) {
-        if (blockResults[0].type !== options.blockResult) {
-          continue;
-        }
-      } else {
-        // For multiple dice, need at least one matching result
-        // (attacker will choose the best, which should include POW if available)
-        const hasPow = blockResults.some(
-          (r) => r.type === "pow" || r.type === "pow-dodge"
-        );
-        if (!hasPow) {
-          continue;
-        }
-      }
-    } else if (numBlockDice > 1) {
-      // If no specific result required but using multiple dice,
-      // at least make sure we have a POW for successful block
-      const hasPow = blockResults.some(
-        (r) => r.type === "pow" || r.type === "pow-dodge"
-      );
-      if (!hasPow) {
-        continue;
-      }
-    }
-
-    // Step 2: Check armor roll
-    const armorTarget = options.armorTarget || 10;
-    const armorCheck = diceController.rollArmorCheck(armorTarget);
-
-    if (armorCheck.broken !== options.armorBreak) {
-      continue;
-    }
-
-    // If armor not broken, no need to check injury
-    if (!options.armorBreak) {
-      return { seed, attempts: seed };
-    }
-
-    // Step 3: Check injury total if specified
-    if (options.injuryTotal !== undefined) {
-      const injuryResult = diceController.rollInjury();
-
-      if (injuryResult.total < options.injuryTotal) {
-        continue;
-      }
-    }
-
-    // Step 4: Check casualty roll if specified (D16)
-    if (options.casualtyRoll !== undefined) {
-      const casualtyRoll = rng.rollDie(16);
-
-      if (casualtyRoll !== options.casualtyRoll) {
-        continue;
-      }
-    }
-
-    if (valid) {
+    if (injuryChainMatches(rng, diceController, options, numBlockDice)) {
       return { seed, attempts: seed };
     }
   }
 
   return null;
+}
+
+const isPow = (r: BlockResult) => r.type === "pow" || r.type === "pow-dodge";
+
+function blockMatches(
+  blockResults: BlockResult[],
+  options: InjuryChainOptions,
+  numBlockDice: number
+): boolean {
+  // A single die must show the result asked for, if any.
+  if (numBlockDice === 1) {
+    return !options.blockResult || blockResults[0].type === options.blockResult;
+  }
+  // With several dice the attacker picks the best, so a POW must be there.
+  return blockResults.some(isPow);
+}
+
+/** Rolls the chain in order (block, armour, injury, casualty) and checks it. */
+function injuryChainMatches(
+  rng: RNGService,
+  diceController: DiceController,
+  options: InjuryChainOptions,
+  numBlockDice: number
+): boolean {
+  const blockResults = diceController.rollBlockDice(numBlockDice);
+  if (!blockMatches(blockResults, options, numBlockDice)) return false;
+
+  const armorCheck = diceController.rollArmorCheck(options.armorTarget || 10);
+  if (armorCheck.broken !== options.armorBreak) return false;
+  // If armor is not broken, there is no injury to check.
+  if (!options.armorBreak) return true;
+
+  if (
+    options.injuryTotal !== undefined &&
+    diceController.rollInjury().total < options.injuryTotal
+  ) {
+    return false;
+  }
+
+  // The casualty roll is a D16.
+  return (
+    options.casualtyRoll === undefined ||
+    rng.rollDie(16) === options.casualtyRoll
+  );
 }
 
 /**

@@ -28,6 +28,28 @@ async function settle(...sessions: LockstepSession[]) {
 
 const SEEDS = [5150, 5151, 5152, 5153];
 
+type SimGame = ReturnType<typeof createSimGame>;
+type Transport = ReturnType<typeof createInMemoryTransportPair>[number];
+type Side = "host" | "guest";
+
+/** One coach's session: the host plays team 1 and the guest team 2. */
+function sideSession(
+  game: SimGame,
+  end: Transport,
+  side: Side,
+  onDesync?: (detail: string) => void
+) {
+  return new LockstepSession({
+    transport: end,
+    game,
+    selfId: `${side}-uid`,
+    myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
+    peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
+    hostTeamId: game.ctx.team1.id,
+    onDesync,
+  });
+}
+
 async function playUntilOwed(decision: string, reply: string) {
   for (const seed of SEEDS) {
     const recording = await runMatch({
@@ -65,20 +87,10 @@ describe.each([
     const guestGame = await build();
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
     const desyncs: string[] = [];
-    const session = (
-      game: typeof hostGame,
-      end: typeof hostEnd,
-      side: string
-    ) =>
-      new LockstepSession({
-        transport: end,
-        game,
-        selfId: `${side}-uid`,
-        myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
-        peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
-        hostTeamId: game.ctx.team1.id,
-        onDesync: (detail) => desyncs.push(`${side}: ${detail}`),
-      });
+    const session = (game: SimGame, end: Transport, side: Side) =>
+      sideSession(game, end, side, (detail) =>
+        desyncs.push(`${side}: ${detail}`)
+      );
     const host = session(hostGame, hostEnd, "host");
     const guest = session(guestGame, guestEnd, "guest");
     const play = async (command: HeadlessCommand) => {
@@ -135,21 +147,8 @@ describe("a full resync while a pre-match inducement choice is open", () => {
       if (pending?.type !== "inducement-choice" || !pending.optional) continue;
       const guestGame = await build();
       const [hostEnd, guestEnd] = createInMemoryTransportPair();
-      const session = (
-        game: typeof hostGame,
-        end: typeof hostEnd,
-        side: string
-      ) =>
-        new LockstepSession({
-          transport: end,
-          game,
-          selfId: `${side}-uid`,
-          myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
-          peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
-          hostTeamId: game.ctx.team1.id,
-        });
-      const host = session(hostGame, hostEnd, "host");
-      const guest = session(guestGame, guestEnd, "guest");
+      const host = sideSession(hostGame, hostEnd, "host");
+      const guest = sideSession(guestGame, guestEnd, "guest");
       await guest.requestResync();
       await settle(host, guest);
 
@@ -175,21 +174,8 @@ describe("a full resync onto a page with nothing paused", () => {
     const hostGame = await build();
     const guestGame = await build();
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
-    const session = (
-      game: typeof hostGame,
-      end: typeof hostEnd,
-      side: string
-    ) =>
-      new LockstepSession({
-        transport: end,
-        game,
-        selfId: `${side}-uid`,
-        myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
-        peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
-        hostTeamId: game.ctx.team1.id,
-      });
-    const host = session(hostGame, hostEnd, "host");
-    const guest = session(guestGame, guestEnd, "guest");
+    const host = sideSession(hostGame, hostEnd, "host");
+    const guest = sideSession(guestGame, guestEnd, "guest");
     const steps = recording.steps;
     for (const step of steps.slice(0, stop + 1)) {
       if (!(await host.run(step.command)).ok) await guest.run(step.command);
@@ -203,7 +189,7 @@ describe("a full resync onto a page with nothing paused", () => {
     const freshGame = await build();
     const { score } = freshGame.ctx.gameService.getState();
     score[freshGame.ctx.team1.id] = 7;
-    const fresh = session(freshGame, guestEnd, "guest");
+    const fresh = sideSession(freshGame, guestEnd, "guest");
     await fresh.sendHello();
     await settle(host, fresh);
     expect(stateChecksum(freshGame)).toBe(stateChecksum(hostGame));

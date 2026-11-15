@@ -12,7 +12,6 @@ import globals from "globals";
 export default tseslint.config(
   {
     ignores: [
-      "__tests__/",
       "**/dist/",
       "**/lib/",
       "**/node_modules/",
@@ -65,6 +64,11 @@ export default tseslint.config(
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
     },
+  },
+  {
+    // Tests use the source rules, but mocks and fixtures may be typed any.
+    files: ["__tests__/**"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
   },
   {
     // Rosters, skills and rule scenarios are tables, not logic.

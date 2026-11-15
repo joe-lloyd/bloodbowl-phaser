@@ -2,11 +2,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   PassController,
   PassRange,
-  PassType,
 } from "../../../src/game/controllers/PassController";
 import { Player, PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
-import { BallMovementController } from "../../../src/game/controllers/BallMovementController";
 
 describe("PassController", () => {
   let controller: PassController;

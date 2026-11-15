@@ -47,7 +47,6 @@ const player = (id: string, teamId: string, x: number, y: number) => ({
 
 describe("carrier marker across the touchdown reset", () => {
   const eventBus = new EventBus();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let scene: any;
   let state: { ballPosition: { x: number; y: number } | null };
   let ballSprite: { destroy: ReturnType<typeof vi.fn> };
