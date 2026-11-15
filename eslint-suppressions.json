@@ -556,14 +556,6 @@
       "count": 2
     }
   },
-  "src/simulation/candidates.ts": {
-    "complexity": {
-      "count": 3
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 4
-    }
-  },
   "src/simulation/coaches/heuristic.ts": {
     "complexity": {
       "count": 3
