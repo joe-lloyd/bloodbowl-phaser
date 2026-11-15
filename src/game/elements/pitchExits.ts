@@ -46,7 +46,16 @@ export function playPitchExit(
     2600
   );
 
-  if (exit === "walk") return walk(sprite, from, to);
+  // Torn down mid-exit, by a reload or the scene ending: the exit stops
+  // with the sprite, props and all, instead of tweening something gone
+  const cleanups: (() => void)[] = [() => scene.tweens.killTweensOf(sprite)];
+  const onDestroy = () => cleanups.forEach((cleanup) => cleanup());
+  sprite.once(Phaser.GameObjects.Events.DESTROY, onDestroy);
+  const finished = () => {
+    sprite.off(Phaser.GameObjects.Events.DESTROY, onDestroy);
+  };
+
+  if (exit === "walk") return walk(sprite, from, to).then(finished);
 
   if (exit === "injured") leaveBlood(scene, from);
   const prop =
@@ -57,6 +66,16 @@ export function playPitchExit(
     prop.setDepth(sprite.depth);
   }
   const stars = exit === "knockedOut" ? seeingStars(scene, sprite) : null;
+  const clearProps = () => {
+    scene.tweens.killTweensOf(prop);
+    prop.destroy();
+    if (stars) {
+      // The twinkle repeats forever; it goes with the stars
+      scene.tweens.killTweensOf(stars);
+      stars.destroy();
+    }
+  };
+  cleanups.push(clearProps);
 
   return new Promise((resolve) => {
     scene.tweens.add({
@@ -70,12 +89,8 @@ export function playPitchExit(
         if (exit !== "dead") prop.setDepth(sprite.depth - 1);
       },
       onComplete: () => {
-        prop.destroy();
-        if (stars) {
-          // The twinkle repeats forever; it goes with the stars
-          scene.tweens.killTweensOf(stars);
-          stars.destroy();
-        }
+        finished();
+        clearProps();
         sprite.setVisible(true);
         resolve();
       },
