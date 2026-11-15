@@ -20,7 +20,6 @@ import {
 import { GameEventNames } from "../../types/events";
 import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
-import { InjuryOperation } from "../operations/InjuryOperation";
 import { CatchOperation } from "../operations/CatchOperation";
 import { GameConfig } from "../../config/GameConfig";
 import { GameOperation } from "../core/GameOperation";
@@ -33,9 +32,14 @@ import {
 } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
 import { PassController, PassResult } from "../controllers/PassController";
-import { FlowContext } from "../core/GameFlowManager";
+import { FlowContext, GameFlowManager } from "../core/GameFlowManager";
 import { InOrderOperation, driveOver } from "./BlockOperations";
 import { snapshotRoll } from "./BlockRerolls";
+import {
+  blockChoiceStage,
+  bothDownRolls,
+  recomputeBlockDice,
+} from "./blockSteps";
 import { BlockPushChain } from "./BlockPushChain";
 
 /**
@@ -125,35 +129,13 @@ export class BlockManager extends BlockPushChain {
     // pre-block die, or cancel the block before any block dice are rolled.
     if (attacker && defender) {
       const analysis = this.analyzeBlock(attacker, defender);
-      // Cheering Fans: the owed assist lands on this first Block of the turn
-      if (this.applyOwedAssist(attacker, analysis)) {
-        consumeOffensiveAssist(
-          this.state,
-          attacker.teamId,
-          this.state.turn.turnNumber
-        );
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Cheering Fans: +1 Offensive Assist on the first Block!"
-        );
-      }
-      const ctx: BlockDeclaredContext = {
+      this.cheerOwedAssist(attacker, analysis);
+      const ctx = this.blockDeclaredContext(
         attacker,
         defender,
-        diceCount: numDice,
-        isAttackerChoice,
-        attackerStrength: analysis.attackerST,
-        defenderStrength: analysis.defenderST,
-        isBlitz:
-          this.state.activePlayer?.action === "blitz" &&
-          this.state.activePlayer?.id === attacker.id,
-        cancelled: false,
-        allPlayers: this.allPlayers(),
-        decisions: this.decisions(),
-        flow: this.callbacks.getFlowManager?.(),
-        dice: this.diceController,
-        triggers: [],
-      };
+        { numDice, isAttackerChoice },
+        analysis
+      );
       await foldTrigger(
         "onBlockDeclared",
         this.blockParticipants(attacker, defender),
@@ -171,50 +153,16 @@ export class BlockManager extends BlockPushChain {
       }
 
       // Trickster: the defender relocated before the dice are determined —
-      // re-run the assist analysis from the new square. A Multiple Block's
-      // Blocks are simultaneous, so it reads the board before either one.
+      // re-run the assist analysis from the new square.
       if (ctx.relocateDefenderTo && defender.gridPosition) {
-        const board =
-          this.multipleBlockState?.attackerId === attacker.id
-            ? this.multipleBlockState.board.map((p) =>
-                p.id === defender.id ? defender : p
-              )
-            : this.allPlayers();
-        const from = { ...defender.gridPosition };
-        defender.gridPosition = { ...ctx.relocateDefenderTo };
-        this.eventBus.emit(GameEventNames.PlayerMoved, {
-          playerId: defender.id,
-          from,
-          to: { ...ctx.relocateDefenderTo },
-        });
-        // Removed from the pitch and placed elsewhere: free of any Chomp,
-        // even beside the chomper (FAQ May 2026)
-        if (hasCondition(defender, PlayerCondition.CHOMPED)) {
-          removeCondition(defender, PlayerCondition.CHOMPED);
-          this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
-        }
-        const moved = this.blockValidator.analyzeBlock(
+        this.relocateDefender(
           attacker,
           defender,
-          board,
-          this.state.activeTeamId
+          { from: defender.gridPosition, to: ctx.relocateDefenderTo },
+          ctx
         );
-        ctx.attackerStrength = moved.attackerST;
-        ctx.defenderStrength = moved.defenderST;
       }
-
-      // Recompute the dice if a rule changed the effective strengths.
-      if (
-        ctx.attackerStrength !== analysis.attackerST ||
-        ctx.defenderStrength !== analysis.defenderST
-      ) {
-        const recomputed = blockDiceForStrength(
-          ctx.attackerStrength,
-          ctx.defenderStrength
-        );
-        ctx.diceCount = recomputed.diceCount;
-        ctx.isAttackerChoice = !recomputed.isUphill;
-      }
+      recomputeBlockDice(ctx, analysis);
 
       numDice = ctx.diceCount;
       isAttackerChoice = ctx.isAttackerChoice;
@@ -256,16 +204,87 @@ export class BlockManager extends BlockPushChain {
       ...this.blockRerollAvailability(attacker, results, isAttackerChoice),
     };
 
-    rollData.choiceStage =
-      !isAttackerChoice &&
-      (rollData.teamRerollAvailable ||
-        rollData.proAvailable ||
-        rollData.brawlerAvailable ||
-        rollData.veteranRerollAvailable)
-        ? "attacker-reroll"
-        : "pick";
+    rollData.choiceStage = blockChoiceStage(rollData);
     this.pendingBlockRoll = rollData;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(rollData));
+  }
+
+  /** Cheering Fans: the owed assist lands on this first Block of the turn. */
+  private cheerOwedAssist(attacker: Player, analysis: BlockAnalysis): void {
+    if (!this.applyOwedAssist(attacker, analysis)) return;
+    consumeOffensiveAssist(
+      this.state,
+      attacker.teamId,
+      this.state.turn.turnNumber
+    );
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      "Cheering Fans: +1 Offensive Assist on the first Block!"
+    );
+  }
+
+  private blockDeclaredContext(
+    attacker: Player,
+    defender: Player,
+    dice: { numDice: number; isAttackerChoice: boolean },
+    analysis: BlockAnalysis
+  ): BlockDeclaredContext {
+    const active = this.state.activePlayer;
+    return {
+      attacker,
+      defender,
+      diceCount: dice.numDice,
+      isAttackerChoice: dice.isAttackerChoice,
+      attackerStrength: analysis.attackerST,
+      defenderStrength: analysis.defenderST,
+      isBlitz: active?.action === "blitz" && active?.id === attacker.id,
+      cancelled: false,
+      allPlayers: this.allPlayers(),
+      decisions: this.decisions(),
+      flow: this.callbacks.getFlowManager?.(),
+      dice: this.diceController,
+      triggers: [],
+    };
+  }
+
+  /**
+   * Trickster moved the defender to `to`. A Multiple Block's Blocks are
+   * simultaneous, so it reads the board before either one.
+   */
+  private relocateDefender(
+    attacker: Player,
+    defender: Player,
+    squares: { from: { x: number; y: number }; to: { x: number; y: number } },
+    ctx: BlockDeclaredContext
+  ): void {
+    const { to } = squares;
+    const board =
+      this.multipleBlockState?.attackerId === attacker.id
+        ? this.multipleBlockState.board.map((p) =>
+            p.id === defender.id ? defender : p
+          )
+        : this.allPlayers();
+    const from = { ...squares.from };
+    defender.gridPosition = { ...to };
+    this.eventBus.emit(GameEventNames.PlayerMoved, {
+      playerId: defender.id,
+      from,
+      to: { ...to },
+    });
+    // Removed from the pitch and placed elsewhere: free of any Chomp,
+    // even beside the chomper (FAQ May 2026)
+    if (hasCondition(defender, PlayerCondition.CHOMPED)) {
+      removeCondition(defender, PlayerCondition.CHOMPED);
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
+    }
+    const moved = this.blockValidator.analyzeBlock(
+      attacker,
+      defender,
+      board,
+      this.state.activeTeamId
+    );
+    ctx.attackerStrength = moved.attackerST;
+    ctx.defenderStrength = moved.defenderST;
   }
 
   /**
@@ -659,6 +678,15 @@ export class BlockManager extends BlockPushChain {
         ctx.defenderKnockedDown = false;
       }
     }
+    this.resolveBothDown(attacker, defender, ctx);
+  }
+
+  /** Both Down after the Steady Footing rolls: lay the players down. */
+  private resolveBothDown(
+    attacker: Player,
+    defender: Player,
+    ctx: BlockResultContext
+  ): void {
     const attackerHadBall = this.isOnBall(attacker);
 
     if (ctx.placedProne) {
@@ -679,48 +707,41 @@ export class BlockManager extends BlockPushChain {
     }
 
     const flowManager = this.callbacks.getFlowManager?.();
-    if (flowManager) {
-      // A downed carrier drops the ball (prone players can't hold it) — Safe
-      // Pair of Hands places it in an adjacent empty square instead of bouncing.
-      const drops: GameOperation[] = [];
-      [defender, attacker].forEach((p) => {
-        const down =
-          p === attacker ? ctx.attackerKnockedDown : ctx.defenderKnockedDown;
-        const drop =
-          down && this.isOnBall(p)
-            ? this.dropCarrierBall(p, flowManager)
-            : null;
-        if (drop) drops.push(drop);
-      });
+    if (flowManager) this.queueBothDown(attacker, defender, ctx, flowManager);
+    this.endBothDown(attacker, ctx, attackerHadBall, flowManager);
+  }
 
-      // Only the players actually knocked down roll armour — none at all
-      // when a rule placed them prone (Wrestle), though a Ball & Chain
-      // player Placed Prone still rolls Injury. Defender first, then any
-      // dropped ball Bounces (p.44). On Both Down each player knocked the
-      // other down as part of the Block Action, so either can earn casualty
-      // SPP even though only the attacker declared the Block.
-      const rolls: GameOperation[] = [];
-      if (!ctx.placedProne) {
-        if (ctx.defenderKnockedDown) {
-          rolls.push(new ArmourOperation(defender.id, attacker.id));
-        }
-        if (ctx.attackerKnockedDown) {
-          rolls.push(new ArmourOperation(attacker.id, defender.id));
-        }
-      } else {
-        [defender, attacker].forEach((p) => {
-          if (hasSkill(p.skills, SkillType.BALL_AND_CHAIN)) {
-            rolls.push(
-              new InjuryOperation(p.id, { stunnedIsKnockedOut: true })
-            );
-          }
-        });
-      }
-      if (rolls.length + drops.length > 0) {
-        flowManager.add(new InOrderOperation([...rolls, ...drops]), true);
-      }
+  /** Queue the armour or injury rolls, then the dropped balls. */
+  private queueBothDown(
+    attacker: Player,
+    defender: Player,
+    ctx: BlockResultContext,
+    flowManager: GameFlowManager
+  ): void {
+    // A downed carrier drops the ball (prone players can't hold it) — Safe
+    // Pair of Hands places it in an adjacent empty square instead of bouncing.
+    const drops: GameOperation[] = [];
+    [defender, attacker].forEach((p) => {
+      const down =
+        p === attacker ? ctx.attackerKnockedDown : ctx.defenderKnockedDown;
+      const drop =
+        down && this.isOnBall(p) ? this.dropCarrierBall(p, flowManager) : null;
+      if (drop) drops.push(drop);
+    });
+
+    // The armour rolls first, then any dropped ball Bounces (p.44).
+    const rolls = bothDownRolls(ctx, attacker, defender);
+    if (rolls.length + drops.length > 0) {
+      flowManager.add(new InOrderOperation([...rolls, ...drops]), true);
     }
+  }
 
+  private endBothDown(
+    attacker: Player,
+    ctx: BlockResultContext,
+    attackerHadBall: boolean,
+    flowManager: GameFlowManager | undefined
+  ): void {
     if (ctx.attackerKnockedDown) {
       if (!ctx.placedProne) {
         // A turnover happens only if the active player (the attacker) went

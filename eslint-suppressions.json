@@ -188,14 +188,6 @@
       "count": 1
     }
   },
-  "src/game/managers/BlockManager.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/game/managers/PlayerActionManager.ts": {
     "complexity": {
       "count": 1
