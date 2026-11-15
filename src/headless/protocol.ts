@@ -32,12 +32,9 @@ export interface GridPosition {
 export type HeadlessCommand =
   // Setup
   | { type: "coin-flip" }
-  | {
-      type: "start-setup";
-      kickingTeamId: string;
-      /** Roll the match's opening weather first (online: both engines do) */
-      rollWeather?: boolean;
-    }
+  /** A coach is ready for the opening weather; it is rolled once both are. */
+  | { type: "ready-weather"; teamId: string }
+  | { type: "start-setup"; kickingTeamId: string }
   | { type: "place-player"; playerId: string; x: number; y: number }
   | { type: "remove-player"; playerId: string }
   | { type: "swap-players"; player1Id: string; player2Id: string }

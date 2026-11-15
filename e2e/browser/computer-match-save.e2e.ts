@@ -24,8 +24,9 @@ async function startComputerMatch(page: Page, app: GameApp) {
   await page.getByRole("button", { name: /Green Bay Smackers/ }).click();
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
+  await app.rollWeather(120_000);
   const flip = page.getByRole("button", { name: "FLIP COIN" });
-  await flip.waitFor({ timeout: 120_000 });
+  await flip.waitFor({ timeout: 15_000 });
   await flip.click();
 }
 

@@ -80,6 +80,8 @@ export function ScoreBoard({
       GameEventNames.RerollUsed,
       GameEventNames.DriveEffectGranted,
       GameEventNames.DriveEffectExpired,
+      // A Bribe spent on a Sent-off
+      GameEventNames.RefereeCall,
     ] as const;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     events.forEach((e) => eventBus.on(e as any, refresh));

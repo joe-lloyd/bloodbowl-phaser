@@ -20,7 +20,7 @@ import {
 } from "../../src/network/transport";
 import { Envelope } from "../../src/network/envelope";
 import { HeadlessCommand } from "../../src/headless/protocol";
-import { GamePhase } from "../../src/types/GameState";
+import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { trackEngineWork } from "../../src/game/core/GameFlowManager";
 import { refusalMessage } from "../../src/network/OwnershipGate";
@@ -188,13 +188,18 @@ describe("lockstep sessions", () => {
     void guestGame;
   }, 120_000);
 
-  it("rolls the opening weather on both engines with the start of setup", async () => {
+  it("rolls the opening weather on both engines once both coaches are ready", async () => {
     const make = () =>
-      new HeadlessGame({ seed: 8128, startingPhase: GamePhase.SETUP });
+      new HeadlessGame({
+        seed: 8128,
+        startingPhase: GamePhase.SETUP,
+        startingSubPhase: SubPhase.INTRO,
+      });
     const hostGame = make();
     const guestGame = new HeadlessGame({
       seed: 8128,
       startingPhase: GamePhase.SETUP,
+      startingSubPhase: SubPhase.INTRO,
       team1: structuredClone(hostGame.ctx.team1),
       team2: structuredClone(hostGame.ctx.team2),
     });
@@ -204,11 +209,14 @@ describe("lockstep sessions", () => {
       myTeamId: hostGame.ctx.team1.id,
       peerTeamId: hostGame.ctx.team2.id,
     };
+    const desyncs: string[] = [];
+    const onDesync = (detail: string) => desyncs.push(detail);
     const host = new LockstepSession({
       ...ids,
       transport: hostEnd,
       game: hostGame,
       selfId: "host-uid",
+      onDesync,
     });
     const guest = new LockstepSession({
       ...ids,
@@ -217,6 +225,7 @@ describe("lockstep sessions", () => {
       transport: guestEnd,
       game: guestGame,
       selfId: "guest-uid",
+      onDesync,
     });
     const rolls: string[] = [];
     hostGame.ctx.eventBus.on(
@@ -224,15 +233,36 @@ describe("lockstep sessions", () => {
       (roll: { rollType: string }) => rolls.push(roll.rollType)
     );
 
-    const started = await host.run({
-      type: "start-setup",
-      kickingTeamId: hostGame.ctx.team1.id,
-      rollWeather: true,
+    // Both coaches press READY at the same moment. The guest goes first;
+    // the host's ready waits until the guest's has arrived
+    const [hostEarly, guestReady] = await Promise.all([
+      host.run({ type: "ready-weather", teamId: hostGame.ctx.team1.id }),
+      guest.run({ type: "ready-weather", teamId: hostGame.ctx.team2.id }),
+    ]);
+    await settle(host, guest);
+    expect(hostEarly).toMatchObject({ ok: false, reason: "not-your-turn" });
+    expect(guestReady.ok).toBe(true);
+    // One coach ready is not enough
+    expect(rolls).toEqual([]);
+    expect(hostGame.snapshot().weatherReady).toEqual([hostGame.ctx.team2.id]);
+    expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
+
+    // A coach cannot ready up for the other one
+    const forOther = await guest.run({
+      type: "ready-weather",
+      teamId: hostGame.ctx.team1.id,
+    });
+    expect(forOther.ok).toBe(false);
+
+    const hostReady = await host.run({
+      type: "ready-weather",
+      teamId: hostGame.ctx.team1.id,
     });
     await settle(host, guest);
 
-    expect(started.ok).toBe(true);
-    expect(rolls.some((type) => /weather/i.test(type))).toBe(true);
+    expect(hostReady.ok).toBe(true);
+    expect(desyncs).toEqual([]);
+    expect(rolls).toEqual(["Weather"]);
     expect(guestGame.snapshot().weather).toBe(hostGame.snapshot().weather);
     expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
   });

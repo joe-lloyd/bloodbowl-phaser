@@ -20,6 +20,15 @@ import type { DiceThrow } from "../dice/diceScene";
 import { teamLook } from "../components/hud/DiceTray";
 import { RESULT_BEAT_MS } from "../components/hud/CoinFlipOverlay";
 import { DIE_LANDING_TIMEOUT_MS } from "../../game/presentation/diceWatch";
+import { weatherRolled } from "../../services/gameService/matchStart";
+import { useEventBus } from "../hooks/useEventBus";
+import {
+  WeatherResult,
+  WeatherStage,
+  WeatherTable,
+  useWeatherThrow,
+} from "../components/hud/WeatherReveal";
+import type { Weather } from "../../game/rules/weather";
 
 interface Props {
   code: string;
@@ -29,16 +38,140 @@ interface Props {
 }
 
 /**
- * Shared, host-authoritative coin toss for online matches.
+ * The shared opening of an online match: the weather, then the coin toss.
  *
- * 1. Both players ready up (dual-active ready check).
- * 2. The host rolls the winner and writes it to the lobby doc; both see the
+ * 1. Both coaches ready up for the weather. Each sends ready-weather, and
+ *    both engines roll the same 2D6 once the second arrives.
+ * 2. Each coach reads the result and moves on to the toss.
+ * 3. Both coaches ready up for the toss (dual-active ready check).
+ * 4. The host rolls the winner and writes it to the lobby doc; both see the
  *    same result in real time.
- * 3. Only the winner may choose kick/receive — the loser watches.
- * 4. The host applies the result to its engine (UI_CoinFlipComplete →
+ * 5. Only the winner may choose kick/receive — the loser watches.
+ * 6. The host applies the result to its engine (UI_CoinFlipComplete →
  *    startSetup), which flows setup to both sides via broadcasts.
  */
-export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
+export function OnlineCoinFlip(props: Props) {
+  const cf = props.lobby.coinFlip ?? {};
+  // A toss already under way (a resumed match) has had its weather
+  const [weatherRead, setWeatherRead] = useState(
+    !!(cf.hostReady || cf.guestReady || cf.winnerTeamId)
+  );
+  if (!weatherRead)
+    return <OnlineWeather {...props} onRead={() => setWeatherRead(true)} />;
+  return <OnlineToss {...props} />;
+}
+
+/** Each coach's engine, for the weather both of them roll. */
+function engineState() {
+  return ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getState()
+    : null;
+}
+
+/**
+ * Both coaches ready up, both engines roll the weather, each coach reads
+ * it. The guest's ready goes first: a host who readies first waits, and
+ * their ready is sent once the guest's has arrived (see OwnershipGate).
+ */
+function OnlineWeather({
+  match,
+  eventBus,
+  onRead,
+}: Props & { onRead: () => void }) {
+  const { team1, team2 } = match.teams;
+  const myTeamId = match.myTeamId;
+  const amHost = match.role === "host";
+  const readyNow = () => engineState()?.weatherReady ?? [];
+  const [ready, setReady] = useState<string[]>(readyNow);
+  useEventBus(eventBus, GameEventNames.WeatherReady, ({ teamIds }) =>
+    setReady(teamIds)
+  );
+  const sent = useRef(false);
+  // A resync replaces the engine's state without replaying its events; a
+  // ready it dropped is sent again
+  useEventBus(eventBus, GameEventNames.GameStateRestored, () => {
+    const now = readyNow();
+    if (!now.includes(myTeamId)) sent.current = false;
+    setReady(now);
+  });
+  const { stage, step, total } = useWeatherThrow(eventBus, team1.id, () => {
+    const state = engineState();
+    return !!state && weatherRolled(state);
+  });
+  const weather: Weather = engineState()?.weather ?? "Nice";
+
+  const [wantReady, setWantReady] = useState(false);
+  // A refused ready (the opening moved on, or the order was wrong) gives
+  // the button back, so the coach can try again
+  useEventBus(eventBus, GameEventNames.NetworkCommandRejected, (rejected) => {
+    if (rejected.commandType !== "ready-weather") return;
+    sent.current = false;
+    setWantReady(false);
+    setReady(readyNow());
+  });
+  const iAmReady = wantReady || ready.includes(myTeamId);
+  const guestTeamId = amHost
+    ? myTeamId === team1.id
+      ? team2.id
+      : team1.id
+    : myTeamId;
+  useEffect(() => {
+    if (!wantReady || sent.current || ready.includes(myTeamId)) return;
+    if (amHost && !ready.includes(guestTeamId)) return;
+    if (!ServiceContainer.isInitialized()) return;
+    sent.current = true;
+    ServiceContainer.getInstance().gameService.readyForWeather(myTeamId);
+  }, [wantReady, ready, amHost, guestTeamId, myTeamId]);
+  const readyUp = () => setWantReady(true);
+
+  return (
+    <DialogShell
+      zClass="z-[100]"
+      placement="center"
+      backdrop="heavy"
+      titleAs="h1"
+      title="WEATHER"
+      width="w-[480px]"
+      className="text-center"
+      testId="weather-dialog"
+    >
+      <div className="mb-4 flex items-center justify-center gap-4">
+        <TeamChip name={team1.name} me={myTeamId === team1.id} />
+        <span className="font-hud-display text-hud-lg text-hud-gold">VS</span>
+        <TeamChip name={team2.name} me={myTeamId === team2.id} />
+      </div>
+      <div className="space-y-4 [@media(max-height:500px)]:space-y-2">
+        {step === "waiting" && (
+          <p className="text-hud-dim">
+            Before kick-off the coaches roll 2D6 on the Weather Table. It sets
+            the conditions for the whole match.
+          </p>
+        )}
+        <WeatherStage stage={stage} step={step} />
+        {step === "shown" && <WeatherResult weather={weather} total={total} />}
+        <WeatherTable result={step === "shown" ? weather : null} />
+        {step === "waiting" &&
+          (iAmReady ? (
+            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+              Waiting for {match.opponentName} to ready up…
+            </p>
+          ) : (
+            <HudButton variant="primary" size="lg" block onClick={readyUp}>
+              READY — ROLL WEATHER
+            </HudButton>
+          ))}
+        {step === "shown" && (
+          <HudButton variant="primary" size="lg" block onClick={onRead}>
+            ON TO THE COIN TOSS
+          </HudButton>
+        )}
+      </div>
+    </DialogShell>
+  );
+}
+
+/** Both coaches ready up, the host tosses, the winner chooses. */
+function OnlineToss({ code, lobby, match, eventBus }: Props) {
   const amHost = match.role === "host";
   const { team1, team2 } = match.teams;
   const myTeamId = match.myTeamId;

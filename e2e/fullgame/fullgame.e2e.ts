@@ -105,9 +105,10 @@ test("a full Sevens match, built and played through the UI", async ({
   await ux?.probe("team select");
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
+  await app.rollWeather(20_000);
   await page
     .getByRole("button", { name: "FLIP COIN" })
-    .waitFor({ timeout: 20_000 });
+    .waitFor({ timeout: 15_000 });
 
   // ---- Play ----
   let lastKey = "";

@@ -101,6 +101,8 @@ export interface GameSnapshot {
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
   /** Bribes held per team (Get the Ref); absent on pre-feature saves. */
   bribes?: Record<string, number>;
+  /** Coaches ready for the opening weather; absent = none, or a pre-feature save. */
+  weatherReady?: string[];
   /** Team Re-rolls spent this half; absent on pre-feature saves (= none). */
   teamRerollsUsed?: Record<string, number>;
   /** Unspent Leader Re-rolls this half; absent on pre-feature saves. */
@@ -246,6 +248,7 @@ export function serializeGameState(
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
     driveEffects: cloneOf(state.driveEffects),
     bribes: copyOf(state.bribes),
+    weatherReady: listOf(state.weatherReady),
     teamRerollsUsed: copyOf(state.teamRerollsUsed),
     leaderRerolls: leaderRerollsOf(state.leaderRerolls),
     veteranRerollsUsed: listOf(state.veteranRerollsUsed),
@@ -324,6 +327,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
     driveEffects: cloneOf(snapshot.driveEffects),
     bribes: copyOf(snapshot.bribes),
+    weatherReady: listOf(snapshot.weatherReady),
     teamRerollsUsed: copyOf(snapshot.teamRerollsUsed),
     leaderRerolls: leaderRerollsOf(snapshot.leaderRerolls),
     veteranRerollsUsed: listOf(snapshot.veteranRerollsUsed),

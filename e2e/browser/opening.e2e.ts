@@ -1,6 +1,7 @@
 /**
  * The opening of a real match, in order: both teams are introduced, the
- * weather dice land, and only then does the coin toss come up. The coin is
+ * coach rolls the weather in its dialog and reads the result off the
+ * Weather Table, and only then does the coin toss come up. The coin is
  * tossed on the engine's seeded RNG and named only after it lands. Once
  * both teams are set up, no setup zone is left glowing.
  *
@@ -55,32 +56,54 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     await expect(flip).toHaveCount(0);
     await shot(`intro-${name.split(" ")[0].toLowerCase()}`);
   }
-  await expect(banner).toContainText(
-    /Weather · (No effect on play|-1 passing|-1 pick-up|-1 rush|D3 players)/,
-    { timeout: 15_000 }
+  // The weather waits for the coach, with the table to read it off
+  const weather = page.getByTestId("weather-dialog");
+  await expect(weather).toBeVisible({ timeout: 15_000 });
+  await expect(flip).toHaveCount(0);
+  await expect(page.getByTestId("weather-table").locator("li")).toHaveCount(5);
+  await shot("weather-ready");
+  await page.getByRole("button", { name: "ROLL WEATHER" }).click();
+  await expect(page.getByTestId("weather-stage").locator("canvas")).toBeVisible();
+  await expect(page.getByTestId("weather-result")).toBeVisible({
+    timeout: 15_000,
+  });
+  const rolled = (await app.bridge.events()).find(
+    (e) =>
+      e.name === GameEventNames.DiceRoll &&
+      (e.data as { rollType: string }).rollType === "Weather"
   );
+  const total = (rolled?.data as { total: number }).total;
+  const state = await app.bridge.snapshot();
+  await expect(page.getByTestId("weather-result")).toContainText(
+    `${state.weather}`
+  );
+  await expect(page.getByTestId("weather-result")).toContainText(
+    `Rolled ${total}`
+  );
+  await expect(
+    page.getByTestId("weather-table").locator("li[data-current]")
+  ).toContainText(state.weather);
   await expect(flip).toHaveCount(0);
   await shot("weather");
+  await page.getByRole("button", { name: "ON TO THE COIN TOSS" }).click();
 
-  // The toss comes up after them, showing whose side is whose
+  // The toss comes up after it, showing whose side is whose
   await expect(flip).toBeVisible({ timeout: 15_000 });
   const announced = (await app.bridge.events())
     .filter(
       (e) =>
         e.name === GameEventNames.UI_Announce ||
+        e.name === GameEventNames.UI_StartWeather ||
         e.name === GameEventNames.UI_StartCoinFlip
     )
     .map((e) =>
       e.name === GameEventNames.UI_Announce
         ? (e.data as { kind: string }).kind
-        : "coin"
+        : e.name === GameEventNames.UI_StartWeather
+          ? "weather"
+          : "coin"
     );
-  expect(announced.slice(0, 4)).toEqual([
-    "team-intro",
-    "team-intro",
-    "weather",
-    "coin",
-  ]);
+  expect([...new Set(announced)]).toEqual(["team-intro", "weather", "coin"]);
   await expect(page.getByTestId("coin-side-heads")).toContainText(
     "Human Founders"
   );

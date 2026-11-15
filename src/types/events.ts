@@ -17,7 +17,7 @@ import type { NetworkGameEvents, NetworkUIEvents } from "./gameEvents/network";
 import type { CommonUIEvents } from "./gameEvents/ui";
 
 export { GameEventNames };
-export type { ActionType } from "./gameEvents/match";
+export type { ActionType, RefereeCallStep } from "./gameEvents/match";
 export type { PromptRollType, StepPrompt } from "./gameEvents/network";
 export type {
   LogEntryCategory,

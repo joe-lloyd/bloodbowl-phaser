@@ -275,8 +275,11 @@ export interface IGameService {
   /** True after a turnover is latched, until the next turn begins. */
   isTurnoverInProgress(): boolean;
 
-  /** Roll initial weather (seeded) without advancing the setup subphase */
-  rollInitialWeather(): void;
+  /**
+   * A coach is ready for the opening weather roll; the weather is rolled
+   * once both are. False outside the opening or once it is rolled.
+   */
+  readyForWeather(teamId: string): boolean;
   /** Leave the opening introductions for the coin toss. */
   beginCoinFlip(): void;
 

@@ -150,5 +150,13 @@ export function applyScenario(
     ...(scenario.setup.measures
       ? { matchInducements: scenarioMeasures(scenario, team1, team2) }
       : {}),
+    ...(scenario.setup.bribes
+      ? {
+          bribes: {
+            [team1.id]: scenario.setup.bribes.team1 ?? 0,
+            [team2.id]: scenario.setup.bribes.team2 ?? 0,
+          },
+        }
+      : {}),
   };
 }

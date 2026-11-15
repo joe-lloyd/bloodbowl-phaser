@@ -2,7 +2,7 @@ import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { GameEventNames } from "../../types/events";
 import { DiceController } from "../controllers/DiceController";
-import type { Weather } from "../rules/weather";
+import { weatherForRoll, type Weather } from "../rules/weather";
 
 /** Plain rulebook statement of what each weather result does (for the match log). */
 const WEATHER_EFFECT: Record<Weather, string> = {
@@ -25,25 +25,7 @@ export class WeatherManager {
 
   public rollWeather(): Weather {
     const roll = this.diceController.roll2D6("Weather");
-    let weather: Weather = "Nice";
-
-    switch (roll) {
-      case 2:
-        weather = "Sweltering Heat";
-        break;
-      case 3:
-        weather = "Very Sunny";
-        break;
-      case 11:
-        weather = "Pouring Rain";
-        break;
-      case 12:
-        weather = "Blizzard";
-        break;
-      default:
-        weather = "Nice";
-        break;
-    }
+    const weather = weatherForRoll(roll);
 
     this.state.weather = weather;
 

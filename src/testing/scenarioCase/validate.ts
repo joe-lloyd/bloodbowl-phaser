@@ -41,6 +41,7 @@ export interface LayerSupport {
 /** Every command type the protocol accepts, for the "invalid step" check. */
 const KNOWN_COMMAND_TYPES = new Set<HeadlessCommand["type"]>([
   "coin-flip",
+  "ready-weather",
   "start-setup",
   "place-player",
   "remove-player",

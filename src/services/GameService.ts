@@ -376,14 +376,8 @@ export class GameService implements IGameService {
     matchStart.beginCoinFlip(this.parts);
   }
 
-  /**
-   * Roll the initial weather using the seeded RNG, without advancing the
-   * setup subphase. Used by online play, which skips the local intro (that
-   * normally rolls weather) — the host rolls once and the result rides the
-   * snapshot to the guest, so both see the same weather.
-   */
-  rollInitialWeather(): void {
-    this.parts.weatherService.rollWeather();
+  readyForWeather(teamId: string): boolean {
+    return matchStart.readyForWeather(this.parts, teamId);
   }
 
   // ===== Turn Management =====

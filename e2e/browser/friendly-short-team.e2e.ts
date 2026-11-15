@@ -36,8 +36,9 @@ test("a short team sets up with the players it has in a friendly", async ({
   await app.bridge.waitForReady();
 
   // The short team kicks, so it sets up first
+  await app.rollWeather(45_000);
   const flip = page.getByRole("button", { name: "FLIP COIN" });
-  await expect(flip).toBeVisible({ timeout: 45_000 });
+  await expect(flip).toBeVisible({ timeout: 15_000 });
   await flip.click();
   await expect(page.getByText(/Wins!$/)).toBeVisible({ timeout: 15_000 });
   const toss = (await app.bridge.events()).find(

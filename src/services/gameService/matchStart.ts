@@ -75,6 +75,33 @@ export function createInitialState(
   };
 }
 
+/**
+ * A coach is ready for the opening weather roll. Once both coaches are, the
+ * weather is rolled, before the coin toss. False outside the opening, for a
+ * team not in the match, or once the weather is rolled.
+ */
+export function readyForWeather(parts: GameParts, teamId: string): boolean {
+  const { state } = parts;
+  const teamIds = [parts.team1.id, parts.team2.id];
+  if (
+    state.phase !== GamePhase.SETUP ||
+    state.subPhase !== SubPhase.INTRO ||
+    !teamIds.includes(teamId) ||
+    weatherRolled(state)
+  )
+    return false;
+  const ready = [...new Set([...(state.weatherReady ?? []), teamId])];
+  state.weatherReady = ready;
+  parts.eventBus.emit(GameEventNames.WeatherReady, { teamIds: ready });
+  if (weatherRolled(state)) parts.weatherService.rollWeather();
+  return true;
+}
+
+/** Both coaches readied up, so the opening weather has been rolled. */
+export function weatherRolled(state: GameState): boolean {
+  return (state.weatherReady?.length ?? 0) >= 2;
+}
+
 /** The opening is done (teams introduced, weather shown): toss the coin. */
 export function beginCoinFlip(parts: GameParts): void {
   parts.state.subPhase = SubPhase.COIN_FLIP;

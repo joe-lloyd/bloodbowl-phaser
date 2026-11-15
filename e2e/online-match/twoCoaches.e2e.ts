@@ -307,10 +307,20 @@ const MACHINE = { host: "HOST · old-mac", guest: "GUEST · Hasaki" };
 const overlay = (coach: Coach) =>
   brainCall(coach.page, "installOverlay", MACHINE[coach.side]).catch(() => {});
 
+/** The weather and the coin toss before kick-off. Returns what it did. */
+async function openingPrompt(page: Page): Promise<string | null> {
+  if (await clickIf(page, /^READY — ROLL WEATHER$/))
+    return "ready for the weather";
+  if (await clickIf(page, /^ON TO THE COIN TOSS$/)) return "read the weather";
+  if (await clickIf(page, /^READY — FLIP COIN$/)) return "ready for the toss";
+  return null;
+}
+
 /** One move by this coach, if it is theirs to make. Returns what it did. */
 async function step(coach: Coach, i: number): Promise<string | null> {
   const { page, app, rec } = coach;
-  if (await clickIf(page, /^READY — FLIP COIN$/)) return "ready for the toss";
+  const opening = await openingPrompt(page);
+  if (opening) return opening;
   if (await clickIf(page, /^RECEIVE$/)) return "chose to receive";
   // At full time nobody may act, so look for it before asking that
   if ((await brainNext(page).catch(() => null))?.over) return "over";

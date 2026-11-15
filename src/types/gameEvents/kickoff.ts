@@ -79,6 +79,8 @@ export interface KickoffGameEvents {
     detail: string;
   };
   [GameEventNames.WeatherChanged]: string;
+  /** Every team whose coach is ready for the opening weather so far. */
+  [GameEventNames.WeatherReady]: { teamIds: string[] };
 
   /**
    * Punt has rolled its direction and distance and knows where the ball will

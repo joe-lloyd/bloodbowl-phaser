@@ -16,6 +16,7 @@ import { GamePhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
 
 import { CoinFlipOverlay } from "./CoinFlipOverlay";
+import { WeatherOverlay } from "./WeatherOverlay";
 import { SetupControls } from "./SetupControls";
 import { TargetRollPreview } from "./RollPreviews";
 import { ConfirmationModal } from "./ConfirmationModal";
@@ -27,6 +28,7 @@ import { BlockDiceDialog } from "./BlockDiceDialog";
 import { FollowUpDialog } from "./FollowUpDialog";
 import { RerollDialog } from "./RerollDialog";
 import { ReactionDialog } from "./ReactionDialog";
+import { SentOffCard } from "./SentOffCard";
 import { FoulAssistsDialog } from "./FoulAssistsDialog";
 import { ApothecaryDialog } from "./ApothecaryDialog";
 import { InducementChoiceDialog } from "./InducementChoiceDialog";
@@ -312,6 +314,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       <FollowUpDialog eventBus={eventBus} />
       <RerollDialog eventBus={eventBus} />
       <ReactionDialog eventBus={eventBus} />
+      <SentOffCard eventBus={eventBus} />
       <FoulAssistsDialog eventBus={eventBus} />
       <BiteTargetPrompt eventBus={eventBus} />
       <ApothecaryDialog eventBus={eventBus} />
@@ -327,6 +330,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       <DiceTray eventBus={eventBus} />
 
       {/* Full-screen overlays */}
+      <WeatherOverlay eventBus={eventBus} />
       <CoinFlipOverlay eventBus={eventBus} />
       {/* A hover read-out; a phone has no hover, and aims in its plan bar */}
       {!phone && <TargetRollPreview eventBus={eventBus} />}

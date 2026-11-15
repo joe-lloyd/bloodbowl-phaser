@@ -6,6 +6,7 @@ import { DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { ReactionDecisionRequest } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { BRIBE_DECISION } from "../../../game/inducements/bribes";
 import {
   DialogActions,
   DialogShell,
@@ -26,7 +27,8 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
 
   useEffect(() => {
     const onRequested = (data: DecisionRequest) => {
-      if (data.type === "reaction") {
+      // The Sent-off card asks about a Bribe itself
+      if (data.type === "reaction" && data.skill !== BRIBE_DECISION) {
         setRequest(data);
       }
     };

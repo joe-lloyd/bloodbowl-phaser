@@ -14,6 +14,7 @@
  * - While a decision is pending, all other commands wait.
  * - Setup placement belongs to the placed player's team; confirm-setup to
  *   the confirming team; coin-flip / start-setup to the host.
+ * - Each coach readies up for the opening weather, the guest before the host.
  * - Play commands belong to the active team, and may only reference that
  *   team's own players.
  */
@@ -36,6 +37,8 @@ export interface GateContext {
   hostTeamId: string;
   /** Current phase — kickoff is owned by the kicking (non-active) team */
   phase?: GamePhase;
+  /** Teams whose coach is ready for the opening weather roll. */
+  weatherReady?: string[];
 }
 
 export type GateVerdict =
@@ -200,6 +203,22 @@ function checkCharge(
     : allow;
 }
 
+/**
+ * Both coaches may ready up for the weather, so the two commands are put in
+ * one order: the guest first, then the host. Two at once would each run
+ * first on their own engine and the engines would disagree.
+ */
+function checkWeatherReady(
+  teamId: string,
+  senderTeamId: string,
+  ctx: GateContext
+): GateVerdict {
+  const guestReady = ctx.weatherReady?.some((id) => id !== ctx.hostTeamId);
+  if (senderTeamId === ctx.hostTeamId && !guestReady)
+    return deny("not-your-turn");
+  return sameTeam(teamId, senderTeamId, "not-your-player");
+}
+
 /** Pregame, ceremony, kick and post-match commands; undefined for others. */
 function checkMatchCommand(
   command: HeadlessCommand,
@@ -207,12 +226,16 @@ function checkMatchCommand(
   ctx: GateContext
 ): GateVerdict | undefined {
   switch (command.type) {
-    // Pregame inducement selection belongs to the affected team's coach,
-    // and (unlike play commands) has no "active team" turn structure yet.
+    // Pregame inducement selection and the opening weather's ready-up
+    // belong to the affected team's coach, and (unlike play commands) have
+    // no "active team" turn structure yet.
     case "select-inducement":
     case "remove-inducement":
     case "confirm-inducements":
       return sameTeam(command.teamId, senderTeamId, "not-your-player");
+
+    case "ready-weather":
+      return checkWeatherReady(command.teamId, senderTeamId, ctx);
 
     // Match ceremony is driven by the host
     case "coin-flip":
@@ -351,6 +374,7 @@ export function gateContextOf(
     teamIdOfPlayer: (playerId) => gameService.getPlayerById(playerId)?.teamId,
     hostTeamId,
     phase: gameService.getState().phase,
+    weatherReady: gameService.getState().weatherReady,
   };
 }
 

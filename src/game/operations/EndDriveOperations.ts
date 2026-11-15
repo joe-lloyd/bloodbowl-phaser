@@ -23,8 +23,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { Player, PlayerStatus } from "../../types/Player";
 import { Team } from "../../types/Team";
 import { getDriveEffects } from "../kickoff/driveEffects";
-import { offerBribe } from "../inducements/bribes";
-import { ArgueTheCallOperation } from "./ArgueTheCallOperation";
+import { resolveSendOff } from "./refereeCall";
 import { DiceController } from "../controllers/DiceController";
 import { rollYouDopeCollapse } from "../inducements/matchInducements";
 import { rollOff } from "../rules/extraTime";
@@ -153,11 +152,7 @@ export class ClearPitchOperation extends GameOperation {
         });
         // Sent-off "as if they had committed a Foul Action" and "may still
         // Argue the Call as usual" (2025 rulebook p.87), then Bribe.
-        const argue = new ArgueTheCallOperation(player);
-        await argue.execute(context);
-        if (argue.swayed) continue;
-        if (await offerBribe(gameService, eventBus, player)) continue;
-        movePlayerToBox(player, { box: "sent-off" }, eventBus);
+        await resolveSendOff(context, player, "secret-weapon");
       }
     }
 

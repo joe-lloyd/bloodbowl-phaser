@@ -294,11 +294,24 @@ export class GameApp {
   readonly pitch: PitchPage;
   readonly bridge: GameBridge;
 
-  constructor(page: Page) {
+  constructor(private readonly page: Page) {
     this.menu = new MenuPage(page);
     this.sandbox = new SandboxPage(page);
     this.hud = new HudPage(page);
     this.pitch = new PitchPage(page);
     this.bridge = new GameBridge(page);
+  }
+
+  /**
+   * The opening's weather dialog: roll the 2D6, wait for the result, and go
+   * on to the coin toss. `timeout` covers the introductions before it.
+   */
+  async rollWeather(timeout = 60_000): Promise<void> {
+    const roll = this.page.getByRole("button", { name: "ROLL WEATHER" });
+    await roll.waitFor({ timeout });
+    await roll.click();
+    await this.page
+      .getByRole("button", { name: "ON TO THE COIN TOSS" })
+      .click({ timeout: 15_000 });
   }
 }

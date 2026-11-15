@@ -143,6 +143,11 @@ export interface GameState {
   /** Bribes held per team (Get the Ref); match-scoped, lost at full time. */
   bribes?: Record<string, number>;
   /**
+   * Teams whose coach is ready for the opening weather roll; absent = none.
+   * Both ready means the weather has been rolled.
+   */
+  weatherReady?: string[];
+  /**
    * Team Re-rolls each team has spent this half; absent = none. The roster's
    * purchased count is never spent (see game/teamRerolls.ts).
    */

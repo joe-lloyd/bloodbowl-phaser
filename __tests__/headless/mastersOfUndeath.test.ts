@@ -392,7 +392,6 @@ describe("Raised Lineman post-match recruitment", () => {
       await game.execute({
         type: "start-setup",
         kickingTeamId: team.id,
-        rollWeather: false,
       })
     ).toMatchObject({ ok: true });
     expect(
@@ -421,7 +420,6 @@ describe("Raised Lineman post-match recruitment", () => {
     await game.execute({
       type: "start-setup",
       kickingTeamId: team.id,
-      rollWeather: false,
     });
     expect(
       game.ctx.team1.players.filter((p) => p.playerKind === "journeyman")

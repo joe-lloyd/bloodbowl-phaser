@@ -372,13 +372,9 @@ export class NetworkedGameService implements IGameService {
 
   startSetup(startingTeamId?: string): void {
     // Only the opening toss starts setup from the board; later drives start
-    // inside the engine. Both engines roll the opening weather with it.
+    // inside the engine.
     if (startingTeamId) {
-      this.send({
-        type: "start-setup",
-        kickingTeamId: startingTeamId,
-        rollWeather: true,
-      });
+      this.send({ type: "start-setup", kickingTeamId: startingTeamId });
     }
   }
   placePlayer(playerId: string, x: number, y: number): boolean {
@@ -729,7 +725,10 @@ export class NetworkedGameService implements IGameService {
 
   startKickoff(): void {}
   rollKickoff(): void {}
-  rollInitialWeather(): void {} // rolled by the start-setup command instead
+  readyForWeather(teamId: string): boolean {
+    this.send({ type: "ready-weather", teamId });
+    return true;
+  }
   beginCoinFlip(): void {} // the online toss runs outside the engine
   startGame(_kickingTeamId: string): void {}
   startTurn(_teamId: string): void {}

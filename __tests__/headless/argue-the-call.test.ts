@@ -79,6 +79,22 @@ describe("Argue the Call", () => {
     }
   );
 
+  it("tells the card both coaches watch each step, in order", async () => {
+    const game = new HeadlessGame({ scenario, seed: 1 });
+    const { fouler, response } = await foul(game, 0, 3);
+
+    const call = { playerId: fouler.id, teamId: "team1", cause: "foul" };
+    expect(
+      response.events
+        .filter((e) => e.name === GameEventNames.RefereeCall)
+        .map((e) => e.data)
+    ).toMatchObject([
+      { ...call, step: "called" },
+      { ...call, step: "argued", rolls: [3], swayed: false },
+      { ...call, step: "outcome", result: "sent-off" },
+    ]);
+  });
+
   it("never ejects the coach: a later Send-off is argued again", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
     await foul(game, 0, 1);
