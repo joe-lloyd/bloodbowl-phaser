@@ -84,16 +84,21 @@ export async function findHouseBotLobby(
   const snapshot = await getDocs(collection(getDb(), "houseBots"));
   const waiting = snapshot.docs
     .map((entry) => entry.data())
-    .flatMap((data) =>
-      typeof data.code === "string" &&
-      typeof data.updatedAt === "number" &&
-      now - data.updatedAt < HOUSE_BOT_FRESH_MS
-        ? [{ code: data.code, updatedAt: data.updatedAt }]
-        : []
-    )
+    .flatMap((data) => {
+      const { code, updatedAt } = data;
+      // A lobby code names one document; anything else is not one
+      const usable =
+        typeof code === "string" &&
+        /^[A-Z0-9]{4,8}$/.test(code) &&
+        typeof updatedAt === "number" &&
+        updatedAt <= now + 60_000 &&
+        now - updatedAt < HOUSE_BOT_FRESH_MS;
+      return usable ? [{ code, updatedAt }] : [];
+    })
     .sort((a, b) => b.updatedAt - a.updatedAt);
   for (const { code } of waiting) {
-    const lobby = await fetchLobby(code);
+    // One lobby that cannot be read does not stop the search
+    const lobby = await fetchLobby(code).catch(() => null);
     if (lobby?.status === "lobby" && !lobby.guestUid) return code;
   }
   return null;

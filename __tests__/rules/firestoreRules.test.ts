@@ -241,6 +241,18 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       );
     });
 
+    it("is still found past a malformed announcement", async () => {
+      const code = await botLobby();
+      await as(BOT, () => announceHouseBotLobby(BOT, code));
+      // Written past the rules, as a bad entry would be: newest, and broken
+      await setDoc(doc(dbFor(ADMIN), "houseBots", "broken"), {
+        code: "A/B",
+        updatedAt: Date.now() + 60 * 60 * 1000,
+      });
+      expect(await as(GUEST, () => findHouseBotLobby())).toBe(code);
+      await deleteDoc(doc(dbFor(ADMIN), "houseBots", "broken"));
+    });
+
     it("is ignored once the bot has stopped announcing it", async () => {
       const code = await botLobby();
       await setDoc(doc(dbFor(BOT), "houseBots", BOT), {
