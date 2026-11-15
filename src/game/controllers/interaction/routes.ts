@@ -17,6 +17,7 @@ import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { planMoveLegs, stepRolls } from "../../rules/moveLegs";
 import { rushModifier } from "../../inducements/matchInducements";
 import { pickupTarget, RoutePreview } from "../../rules/rollPreview";
+import { ballInTheAir } from "../../rules/ballInTheAir";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { riskyStepRequest } from "./Confirmations";
 
@@ -147,8 +148,11 @@ export function planLegs(
       c.gameService.getMovementUsed(player.id) +
       (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
     rushModifier: rushModifier(state, player),
+    // A kick still in the air is no loose ball: whoever stands under it
+    // Catches it when it lands
     pickup:
       state.ballPosition &&
+      !ballInTheAir(state) &&
       !c.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
         ? {
             square: state.ballPosition,

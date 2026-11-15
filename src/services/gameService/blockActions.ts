@@ -6,6 +6,7 @@
  */
 
 import { steadyFootingSaves } from "@/game/rules/steadyFooting";
+import { isBallAt } from "@/game/managers/movementShared";
 import { GameEventNames } from "@/types/events";
 import { Player, PlayerStatus } from "@/types/Player";
 import { BounceOperation } from "@/game/operations/BounceOperation";
@@ -307,12 +308,8 @@ export async function followUpPush(
   // roll to pick it up. PickupOperation is the same path a move takes, so a
   // failed pickup bounces through BounceOperation (throw-in, catches) and
   // is a turnover. Without this the player just stood on the ball holding
-  // nothing.
-  const looseBallHere =
-    !carriedBall &&
-    state.ballPosition &&
-    state.ballPosition.x === targetSquare.x &&
-    state.ballPosition.y === targetSquare.y;
+  // nothing. A kick still in the air (a Charge! Blitz) is not loose yet.
+  const looseBallHere = !carriedBall && isBallAt(state, targetSquare);
   if (looseBallHere) {
     const pickup = new PickupOperation(attackerId);
     await pickup.execute(parts.game.getFlowContext());
