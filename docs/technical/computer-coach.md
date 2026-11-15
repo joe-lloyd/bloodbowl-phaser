@@ -15,18 +15,22 @@ The coach sits behind the simulator's `Coach` seam
 offers and never builds a command itself. Its code is in
 `src/simulation/ai/`:
 
-| File             | What it owns                                                         |
-| ---------------- | -------------------------------------------------------------------- |
-| `board.ts`       | One read of the engine per decision: players, ball, tackle zones     |
-| `chance.ts`      | Dice maths: rolls, re-rolls, block dice                              |
-| `routes.ts`      | The safest path to every reachable square                            |
-| `activations.ts` | Whole activations in risk order, and what an acting player does next |
-| `decisions.ts`   | Block dice, re-rolls, push squares, follow-ups and other decisions   |
-| `weights.ts`     | Every number its judgement rests on, as one plain object             |
-| `planner.ts`     | The `Coach`: maps the best activation onto a candidate               |
-| `evaluate.ts`    | The trained score of an end position, for the lookahead              |
-| `search.ts`      | The lookahead: tries the planner's choices against others on copies  |
-| `difficulty.ts`  | The levels on the team selection page and the competition builder    |
+| File                       | What it owns                                                         |
+| -------------------------- | -------------------------------------------------------------------- |
+| `board.ts`                 | One read of the engine per decision: players, ball, tackle zones     |
+| `chance.ts`                | Dice maths: rolls, re-rolls, block dice                              |
+| `routes.ts`                | The safest path to every reachable square                            |
+| `activations.ts`           | Whole activations in risk order, and what an acting player does next |
+| `activationContext.ts`     | What every activation is judged against: routes, turnover cost       |
+| `ballActivations.ts`       | Scoring, carrying, hand-offs, passes, receivers and pick-ups         |
+| `blockActivations.ts`      | Blocks, blitzes and the assists for a hit on their carrier           |
+| `repositionActivations.ts` | Role squares around the ball, chasing it, and standing up            |
+| `decisions.ts`             | Block dice, re-rolls, push squares, follow-ups and other decisions   |
+| `weights.ts`               | Every number its judgement rests on, as one plain object             |
+| `planner.ts`               | The `Coach`: maps the best activation onto a candidate               |
+| `evaluate.ts`              | The trained score of an end position, for the lookahead              |
+| `search.ts`                | The lookahead: tries the planner's choices against others on copies  |
+| `difficulty.ts`            | The levels on the team selection page and the competition builder    |
 
 At each decision the coach re-reads the board and lists whole activations:
 which player, which action, the target square, the full path and its value.

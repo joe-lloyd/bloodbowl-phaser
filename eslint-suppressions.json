@@ -490,17 +490,6 @@
       "count": 3
     }
   },
-  "src/simulation/ai/activations.ts": {
-    "complexity": {
-      "count": 8
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 10
-    }
-  },
   "src/simulation/ai/board.ts": {
     "complexity": {
       "count": 1
