@@ -89,7 +89,12 @@ function rerollAndDirtyPlayer(
     foulerHasNoAssists: boolean;
     reroll: () => number[];
   }
-): { rolls: number[]; broken: boolean; dirtyUsedOnArmour: boolean } {
+): {
+  rolls: number[];
+  broken: boolean;
+  dirtyPlayer: boolean;
+  dirtyUsedOnArmour: boolean;
+} {
   const announce = (skill: SkillType, effect: string) =>
     context.eventBus.emit(GameEventNames.SkillTriggered, {
       playerId: fouler.id,
@@ -118,16 +123,14 @@ function rerollAndDirtyPlayer(
   // Dirty Player: +1 after the roll, to Armour OR Injury. Prefer Armour
   // when the +1 breaks it and the target allows armour modifiers,
   // otherwise hold it for the Injury Roll.
+  const dirtyPlayer = hasSkill(fouler.skills, SkillType.DIRTY_PLAYER);
   const dirtyUsedOnArmour =
-    hasSkill(fouler.skills, SkillType.DIRTY_PLAYER) &&
-    !broken &&
-    !armourCtx.modifiersLocked &&
-    breaks(1);
+    dirtyPlayer && !broken && !armourCtx.modifiersLocked && breaks(1);
   if (dirtyUsedOnArmour) {
     broken = true;
     announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Armour Roll");
   }
-  return { rolls, broken, dirtyUsedOnArmour };
+  return { rolls, broken, dirtyPlayer, dirtyUsedOnArmour };
 }
 
 /**
@@ -366,7 +369,8 @@ export class FoulOperation extends GameOperation {
         ).rolls,
     });
     rolls = armourResult.rolls;
-    const { broken, dirtyUsedOnArmour } = armourResult;
+    // Dirty Player is decided here, before the waits below, and held.
+    const { broken, dirtyPlayer, dirtyUsedOnArmour } = armourResult;
 
     const isNaturalDouble = rolls[0] === rolls[1];
     let spotted = isNaturalDouble;
@@ -387,8 +391,7 @@ export class FoulOperation extends GameOperation {
         spotted = true;
       }
 
-      const dirtyOnInjury =
-        hasSkill(fouler.skills, SkillType.DIRTY_PLAYER) && !dirtyUsedOnArmour;
+      const dirtyOnInjury = dirtyPlayer && !dirtyUsedOnArmour;
       if (dirtyOnInjury) {
         announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Injury Roll");
       }
