@@ -182,6 +182,27 @@ describe("MatchResultsScreen", () => {
     }
   });
 
+  it("records a game once, even when the page reloads before the coach leaves again", async () => {
+    const { team1, team2 } = setup(false);
+    saveTeams([structuredClone(team1), structuredClone(team2)]);
+    const leaveFullTime = async () => {
+      await render();
+      const exit = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Continue to Main Menu")
+      )!;
+      await act(async () => exit.click());
+    };
+    await leaveFullTime();
+    // A reload mounts a fresh results screen on the restored match
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await leaveFullTime();
+
+    expect(
+      loadTeams().find((team) => team.id === "team-1")!.playedGames
+    ).toHaveLength(1);
+  });
+
   it("opens at full time on a HUD that was already mounted during play", async () => {
     setup(false);
     const screen = (visible: boolean) => (

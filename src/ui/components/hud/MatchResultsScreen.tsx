@@ -49,6 +49,24 @@ function finishWithMatch(): void {
   }
 }
 
+/**
+ * One name for this match that survives a reload, so the history and the
+ * post-game development record it once: the fixture, the online lobby, or
+ * the dice seed it started from with the two teams.
+ */
+function matchKey(
+  container: ServiceContainer | null,
+  teamIds: string[],
+  fixtureContext?: CompetitionContext
+): string {
+  if (fixtureContext)
+    return `${fixtureContext.competitionId}:${fixtureContext.fixtureId}`;
+  const online = getActiveOnlineMatch();
+  if (online?.kind === "online") return `online:${online.code}`;
+  const seed = container?.rngService.getInitialSeed() ?? 0;
+  return `match:${seed}:${[...teamIds].sort().join(":")}`;
+}
+
 function ownedTeams(teams: Team[]): Team[] {
   const online = getActiveOnlineMatch();
   return online ? teams.filter((team) => team.id === online.myTeamId) : teams;
@@ -138,7 +156,6 @@ export function MatchResultsScreen({
   const [savingTeams, setSavingTeams] = useState(false);
   const savingTeamsRef = useRef(false);
   const developmentRecorded = useRef(false);
-  const developmentMatchId = useRef(`match-${Date.now()}`);
   // Each team's played-game entry, built once (see playedGameEntries)
   const playedGames = useRef<Map<string, PlayedGame> | null>(null);
 
@@ -406,9 +423,7 @@ export function MatchResultsScreen({
       managed.forEach((team) => {
         recordPendingDevelopment(
           team,
-          fixtureContext
-            ? `${fixtureContext.competitionId}:${fixtureContext.fixtureId}`
-            : developmentMatchId.current,
+          matchKey(container, teamIds, fixtureContext),
           gameState?.raisedDead?.[team.id],
           {
             // A league fixture's Journeymen who played wait on a hiring decision
@@ -432,9 +447,7 @@ export function MatchResultsScreen({
     const entries = new Map<string, PlayedGame>();
     if (tracker && teams.length >= 2) {
       const stats = tracker.summary().players;
-      const id = fixtureContext
-        ? `${fixtureContext.competitionId}:${fixtureContext.fixtureId}`
-        : developmentMatchId.current;
+      const id = matchKey(container, teamIds, fixtureContext);
       const kind = getActiveOnlineMatch()?.kind ?? "local";
       for (const team of savedTeams(teams)) {
         const opponent = teams.find((other) => other.id !== team.id);
