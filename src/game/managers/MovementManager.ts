@@ -181,7 +181,8 @@ export class MovementManager {
     return Promise.resolve();
   }
 
-  public async movePlayer(
+  // Not async: callers get the action's own promise, with no extra await.
+  public movePlayer(
     playerId: string,
     path: { x: number; y: number }[],
     context?: FlowContext
@@ -189,7 +190,7 @@ export class MovementManager {
     return movePlayer(this.deps, playerId, path, context);
   }
 
-  public async jumpPlayer(
+  public jumpPlayer(
     playerId: string,
     target: { x: number; y: number },
     context?: FlowContext

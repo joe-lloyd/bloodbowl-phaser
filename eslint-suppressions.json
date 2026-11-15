@@ -217,6 +217,14 @@
       "count": 1
     }
   },
+  "src/game/managers/moveAction.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "sonarjs/cognitive-complexity": {
+      "count": 1
+    }
+  },
   "src/game/operations/ArmourOperation.ts": {
     "complexity": {
       "count": 1

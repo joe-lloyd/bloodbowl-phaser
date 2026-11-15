@@ -8,6 +8,9 @@
  * the to square. Pass → Stand in the target and continue; fail → Fall Over in
  * the target (a natural 1 → Fall Over where they stand); either fall ends the
  * activation and is a Turnover.
+ *
+ * As in moveAction.ts, every await sits in jumpPlayer itself, where the old
+ * MovementManager method had it; the work between awaits is synchronous.
  */
 
 import { Player, PlayerStatus } from "@/types/Player";
@@ -67,29 +70,119 @@ export async function jumpPlayer(
   target: Square,
   context?: FlowContext
 ): Promise<void> {
+  const prepared = prepareJump(deps, playerId, target, context);
+  if (!prepared.ok) return Promise.reject(prepared.reason);
+  const { jump } = prepared;
+  const { player, gameService } = jump;
+  const { eventBus, diceController } = deps;
+
+  // Roll each Rush BEFORE the Jump test. A failed Rush drops the player in
+  // the square they are in, ends the activation, and is a Turnover.
+  const rushesNeeded = Math.max(
+    0,
+    jump.preUsed + JUMP_COST - jump.maView.stats.MA
+  );
+  for (let i = 0; i < rushesNeeded; i++) {
+    const check = await rollRush(deps, player, gameService);
+    if (
+      !check.success &&
+      !(await steadyFootingSaves(player, diceController, eventBus, gameService))
+    ) {
+      fallOnRush(jump);
+      return;
+    }
+  }
+
+  const jumpCtx = jumpDeclaredContext(jump);
+  // Markers of the vacated square fold first (Tentacles, Prehensile Tail),
+  // so the jumper's own Leap or Pogo sees every negative modifier.
+  const leftMarkers = adjacentStanding(jump.from, jump.opponents);
+  await foldTrigger("onJumpDeclared", leftMarkers, jumpCtx);
+  if (!jumpCtx.escapeCancelled) {
+    await foldTrigger("onJumpDeclared", [player], jumpCtx);
+  }
+  jumpCtx.triggers.forEach((t) =>
+    eventBus.emit(GameEventNames.SkillTriggered, t)
+  );
+  // Tentacles held the jumper: no Agility Test, no move, and the
+  // activation ends, with no Turnover.
+  if (jumpCtx.escapeCancelled) {
+    deps.callbacks.onActivationFinished(playerId);
+    return;
+  }
+  const modifier = jumpCtx.negativeModifier + jumpCtx.bonusModifier;
+
+  const rollJump = () =>
+    diceController.rollSkillCheck(
+      "Jump",
+      player.stats.AG,
+      modifier,
+      player.playerName
+    );
+  const rolled = gameService
+    ? await withRerollOffer({ gameService, eventBus }, player, "jump", rollJump)
+    : rollJump();
+  deps.state.turn.movementUsed.set(playerId, jump.preUsed + JUMP_COST);
+
+  // Markers of the vacated square react after any re-rolls (Diving Tackle).
+  const resolvedCtx = jumpResolvedContext(jump, rolled, modifier);
+  await foldTrigger("onJumpResolved", leftMarkers, resolvedCtx);
+  resolvedCtx.triggers.forEach((t) =>
+    eventBus.emit(GameEventNames.SkillTriggered, t)
+  );
+  diveIntoVacated(eventBus, {
+    diverId: resolvedCtx.proneInVacated,
+    opponents: jump.opponents,
+    mover: player,
+    // A dive only follows a roll that passed, so the jumper lands in
+    // the target square; it must be there before the diver takes `from`.
+    vacated: jump.from,
+    landing: target,
+  });
+
+  const saved =
+    !resolvedCtx.success &&
+    (await steadyFootingSaves(player, diceController, eventBus, gameService));
+  if (!resolvedCtx.success && !saved) {
+    fallFromJump(jump, rolled.roll);
+    return;
+  }
+  const pickupContext = landJump(jump, resolvedCtx.success, rolled.roll);
+  if (!pickupContext) return;
+  // Landing on the loose ball: the Pick-up comes after the Jump. A
+  // failed Pick-up bounces the ball and causes the Turnover itself.
+  const pickupOp = new PickupOperation(playerId);
+  await pickupOp.execute(pickupContext);
+  if (pickupOp.success) finishAfterPickup(jump);
+}
+
+/** Checks the Jump before any dice: who jumps, over what, and the cost. */
+function prepareJump(
+  deps: MovementDeps,
+  playerId: string,
+  target: Square,
+  context: FlowContext | undefined
+): { ok: true; jump: JumpRun } | { ok: false; reason: string } {
   const { state, eventBus } = deps;
   const player = findPlayer(deps, playerId);
-  if (!player?.gridPosition) return Promise.reject("Player not found!");
+  if (!player?.gridPosition) return { ok: false, reason: "Player not found!" };
 
-  if (heldInSquare(eventBus, player)) return Promise.reject("Cannot move");
+  if (heldInSquare(eventBus, player))
+    return { ok: false, reason: "Cannot move" };
   if (player.status !== PlayerStatus.ACTIVE) {
-    return Promise.reject("Only a Standing player may Jump");
+    return { ok: false, reason: "Only a Standing player may Jump" };
   }
   // Drive modifiers (Dodgy Snack) apply to Jump costs too
   const maView = withDriveModifiers(player, state);
 
   const from = { ...player.gridPosition };
-  const opponents = teamsOf(deps, player).opp.players.filter(
-    (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
-  );
-
   const over = jumpedSquare(deps, player, from, target);
   if (!over) {
     eventBus.emit(
       GameEventNames.UI_Notification,
       "You may only Jump over an adjacent player into their push-back squares"
     );
-    return Promise.reject("Invalid Jump");
+    return { ok: false, reason: "Invalid Jump" };
   }
 
   const preUsed = movementUsed(state, playerId);
@@ -98,7 +191,7 @@ export async function jumpPlayer(
       GameEventNames.UI_Notification,
       `${player.playerName} does not have the Movement to Jump`
     );
-    return Promise.reject("Not enough movement to Jump");
+    return { ok: false, reason: "Not enough movement to Jump" };
   }
   const jump: JumpRun = {
     deps,
@@ -109,48 +202,13 @@ export async function jumpPlayer(
     from,
     target,
     over,
-    opponents,
+    opponents: teamsOf(deps, player).opp.players.filter(
+      (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
+    ),
     preUsed,
     holdingBall: isBallAt(state, from),
   };
-
-  if (!(await rushBeforeJump(jump))) return;
-
-  // Markers of the vacated square fold first (Tentacles, Prehensile Tail),
-  // so the jumper's own Leap or Pogo sees every negative modifier.
-  const leftMarkers = adjacentStanding(from, opponents);
-  const jumpCtx = await declareJump(jump, leftMarkers);
-  // Tentacles held the jumper: no Agility Test, no move, and the
-  // activation ends, with no Turnover.
-  if (jumpCtx.escapeCancelled) {
-    deps.callbacks.onActivationFinished(playerId);
-    return;
-  }
-
-  const { resolvedCtx, roll } = await rollJump(jump, jumpCtx, leftMarkers);
-  diveIntoVacated(eventBus, {
-    diverId: resolvedCtx.proneInVacated,
-    opponents,
-    mover: player,
-    // A dive only follows a roll that passed, so the jumper lands in
-    // the target square; it must be there before the diver takes `from`.
-    vacated: from,
-    landing: target,
-  });
-
-  const saved =
-    !resolvedCtx.success &&
-    (await steadyFootingSaves(
-      player,
-      deps.diceController,
-      eventBus,
-      jump.gameService
-    ));
-  if (resolvedCtx.success || saved) {
-    await landJump(jump, resolvedCtx.success || roll !== 1 ? target : from);
-    return;
-  }
-  fallFromJump(jump, roll);
+  return { ok: true, jump };
 }
 
 /** The target must be one of the jumped-over player's push-back squares. */
@@ -176,51 +234,27 @@ function jumpedSquare(
   )?.over;
 }
 
-/**
- * Roll each Rush BEFORE the Jump test. A failed Rush drops the player in
- * the square they are in, ends the activation, and is a Turnover. Returns
- * false when the player fell.
- */
-async function rushBeforeJump(jump: JumpRun): Promise<boolean> {
-  const { deps, player, maView, gameService } = jump;
-  const rushesNeeded = Math.max(0, jump.preUsed + JUMP_COST - maView.stats.MA);
-  for (let i = 0; i < rushesNeeded; i++) {
-    const check = await rollRush(deps, player, gameService);
-    if (
-      check.success ||
-      (await steadyFootingSaves(
-        player,
-        deps.diceController,
-        deps.eventBus,
-        gameService
-      ))
-    ) {
-      continue;
-    }
-    player.status = PlayerStatus.PRONE;
-    deps.state.turn.movementUsed.set(player.id, moveAllowance(maView));
-    fallOver(deps, {
-      player,
-      square: jump.from,
-      ballBounces: jump.holdingBall,
-      context: jump.context,
-      reason: "Failed Rush",
-    });
-    deps.callbacks.onActivationFinished(player.id);
-    return false;
-  }
-  return true;
+/** A failed Rush before the Jump: the player Falls Over where they stand. */
+function fallOnRush(jump: JumpRun): void {
+  const { deps, player } = jump;
+  player.status = PlayerStatus.PRONE;
+  deps.state.turn.movementUsed.set(player.id, moveAllowance(jump.maView));
+  fallOver(deps, {
+    player,
+    square: jump.from,
+    ballBounces: jump.holdingBall,
+    context: jump.context,
+    reason: "Failed Rush",
+  });
+  deps.callbacks.onActivationFinished(player.id);
 }
 
 /**
  * Trigger point: Jump declared. The marking penalty is the greater of the
  * markers on the from and to squares; rules may add to it or offset it.
  */
-async function declareJump(
-  jump: JumpRun,
-  leftMarkers: Player[]
-): Promise<JumpDeclaredContext> {
-  const { deps, player, gameService, from, target, opponents } = jump;
+function jumpDeclaredContext(jump: JumpRun): JumpDeclaredContext {
+  const { deps, gameService, from, target, opponents } = jump;
   const markFrom = -deps.dodgeController.calculateDodgeModifiers(
     from,
     opponents
@@ -230,8 +264,8 @@ async function declareJump(
     opponents
   );
   const penalty = Math.max(markFrom, markTo);
-  const jumpCtx: JumpDeclaredContext = {
-    player,
+  return {
+    player: jump.player,
     from,
     to: { ...target },
     over: { ...jump.over },
@@ -243,49 +277,18 @@ async function declareJump(
     dice: deps.diceController,
     triggers: [],
   };
-  await foldTrigger("onJumpDeclared", leftMarkers, jumpCtx);
-  if (!jumpCtx.escapeCancelled) {
-    await foldTrigger("onJumpDeclared", [player], jumpCtx);
-  }
-  jumpCtx.triggers.forEach((t) =>
-    deps.eventBus.emit(GameEventNames.SkillTriggered, t)
-  );
-  return jumpCtx;
 }
 
-/**
- * Rolls the Jump's Agility Test after any re-rolls and spends its
- * movement; markers of the vacated square then react (Diving Tackle).
- */
-async function rollJump(
+function jumpResolvedContext(
   jump: JumpRun,
-  jumpCtx: JumpDeclaredContext,
-  leftMarkers: Player[]
-): Promise<{ resolvedCtx: JumpResolvedContext; roll: number }> {
-  const { deps, player, gameService, from, target } = jump;
-  const modifier = jumpCtx.negativeModifier + jumpCtx.bonusModifier;
-
-  const roll = () =>
-    deps.diceController.rollSkillCheck(
-      "Jump",
-      player.stats.AG,
-      modifier,
-      player.playerName
-    );
-  const rolled = gameService
-    ? await withRerollOffer(
-        { gameService, eventBus: deps.eventBus },
-        player,
-        "jump",
-        roll
-      )
-    : roll();
-  deps.state.turn.movementUsed.set(player.id, jump.preUsed + JUMP_COST);
-
-  const resolvedCtx: JumpResolvedContext = {
+  rolled: { roll: number; success: boolean },
+  modifier: number
+): JumpResolvedContext {
+  const { player, gameService } = jump;
+  return {
     player,
-    from,
-    to: { ...target },
+    from: jump.from,
+    to: { ...jump.target },
     naturalRoll: rolled.roll,
     target: player.stats.AG,
     modifiers: modifier,
@@ -293,22 +296,23 @@ async function rollJump(
     decisions: gameService?.getDecisionService(),
     flow: jump.context?.flowManager,
     arbiter: gameService?.getRerollArbiter(),
-    dice: deps.diceController,
+    dice: jump.deps.diceController,
     triggers: [],
   };
-  await foldTrigger("onJumpResolved", leftMarkers, resolvedCtx);
-  resolvedCtx.triggers.forEach((t) =>
-    deps.eventBus.emit(GameEventNames.SkillTriggered, t)
-  );
-  return { resolvedCtx, roll: rolled.roll };
 }
 
 /**
- * The jumper Stands in `destination`: the target, or the square they left
- * when Steady Footing saved a natural 1.
+ * The jumper Stands in the target, or in the square they left when Steady
+ * Footing saved a natural 1. Returns the flow context when a loose ball
+ * waits on the landing square for a Pick-up.
  */
-async function landJump(jump: JumpRun, destination: Square): Promise<void> {
-  const { deps, player, from, holdingBall } = jump;
+function landJump(
+  jump: JumpRun,
+  success: boolean,
+  roll: number
+): FlowContext | undefined {
+  const { deps, player, from, holdingBall, context } = jump;
+  const destination = success || roll !== 1 ? jump.target : from;
   player.gridPosition = { ...destination };
   deps.eventBus.emit(GameEventNames.PlayerMoved, {
     playerId: player.id,
@@ -328,46 +332,44 @@ async function landJump(jump: JumpRun, destination: Square): Promise<void> {
       player,
       destination,
       holdingBall,
-      jump.context?.flowManager
+      context?.flowManager
     );
-    return;
+    return undefined;
   }
-  if (await ballEndsJump(jump, destination)) return;
-  if (jump.preUsed + JUMP_COST >= moveAllowance(jump.maView)) {
-    deps.callbacks.onActivationFinished(player.id);
+  if (holdingBall) {
+    if (carriedBallScores(jump, destination)) return undefined;
+  } else if (context && isBallAt(deps.state, destination)) {
+    return context;
   }
+  finishIfSpent(jump);
+  return undefined;
 }
 
-/**
- * The ball after a landing: a carried ball moves with the jumper and may
- * score, and a loose ball on the square is picked up. True when that ends
- * the activation.
- */
-async function ballEndsJump(
-  jump: JumpRun,
-  destination: Square
-): Promise<boolean> {
-  const { deps, player, context } = jump;
-  if (jump.holdingBall) {
-    jump.gameService?.setBallPosition(destination.x, destination.y);
-    deps.state.ballPosition = { ...destination };
-    deps.eventBus.emit(GameEventNames.BallPlaced, { ...destination });
-    const side = player.teamId === deps.team1.id ? 1 : 2;
-    if (!isInEndZone(destination, GameConfig.PITCH_WIDTH, side)) return false;
-    deps.callbacks.onTouchdown?.(player.teamId, player.id);
-    return true;
+/** A carried ball lands with the jumper; true when it scores. */
+function carriedBallScores(jump: JumpRun, destination: Square): boolean {
+  const { deps, player } = jump;
+  jump.gameService?.setBallPosition(destination.x, destination.y);
+  deps.state.ballPosition = { ...destination };
+  deps.eventBus.emit(GameEventNames.BallPlaced, { ...destination });
+  const side = player.teamId === deps.team1.id ? 1 : 2;
+  if (!isInEndZone(destination, GameConfig.PITCH_WIDTH, side)) return false;
+  deps.callbacks.onTouchdown?.(player.teamId, player.id);
+  return true;
+}
+
+/** After a successful Pick-up on landing: Secure the Ball ends the activation. */
+function finishAfterPickup(jump: JumpRun): void {
+  if (isSecuringBall(jump.deps.state, jump.player.id)) {
+    jump.deps.callbacks.onActivationFinished(jump.player.id);
+    return;
   }
-  if (!context || !isBallAt(deps.state, destination)) return false;
-  // Landing on the loose ball: the Pick-up comes after the Jump. A
-  // failed Pick-up bounces the ball and causes the Turnover itself.
-  const pickupOp = new PickupOperation(player.id);
-  await pickupOp.execute(context);
-  if (!pickupOp.success) return true;
-  if (isSecuringBall(deps.state, player.id)) {
-    deps.callbacks.onActivationFinished(player.id);
-    return true;
+  finishIfSpent(jump);
+}
+
+function finishIfSpent(jump: JumpRun): void {
+  if (jump.preUsed + JUMP_COST >= moveAllowance(jump.maView)) {
+    jump.deps.callbacks.onActivationFinished(jump.player.id);
   }
-  return false;
 }
 
 /**
