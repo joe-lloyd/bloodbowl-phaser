@@ -10,6 +10,8 @@ import {
 } from "../../../game/progression/progression";
 import { RNGService } from "../../../services/rng/RNGService";
 import { PlayerDevelopment } from "../hud/PlayerDevelopment";
+import { PlayerPortrait } from "../common/PlayerPortrait";
+import { numToHex } from "../TeamManagement/TeamStatsOverview";
 import {
   Chip,
   EmptyState,
@@ -17,6 +19,7 @@ import {
   Notice,
   PageHeader,
   PageShell,
+  Panel,
   Section,
   Stat,
 } from "../componentWarehouse/HudKit";
@@ -123,75 +126,84 @@ export function PlayerPage() {
         }
       />
 
-      <Section title="Characteristics">
-        <div className="flex gap-2">
-          {characteristicRows.map(({ stat, current, base }) => (
-            <Stat
-              key={stat}
-              label={STAT_LABELS[stat]}
-              value={current}
-              tone={current !== base ? "gold" : undefined}
-            />
-          ))}
-        </div>
-        {characteristicRows.some(({ current, base }) => current !== base) && (
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-hud-sm text-hud-dim">
-            {characteristicRows
-              .filter(({ current, base }) => current !== base)
-              .map(({ stat, base, advances }) => (
-                <li key={stat}>
-                  {STAT_LABELS[stat]}: base {base}
-                  {advances > 0 ? `, +${advances} advance(s)` : ""}
-                </li>
+      <div className="grid gap-x-6 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
+        <PlayerSprite player={player} team={team} />
+        <div className="min-w-0">
+          <Section title="Characteristics">
+            <div className="flex gap-2">
+              {characteristicRows.map(({ stat, current, base }) => (
+                <Stat
+                  key={stat}
+                  label={STAT_LABELS[stat]}
+                  value={current}
+                  tone={current !== base ? "gold" : undefined}
+                />
               ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="Skills">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <h3 className="hud-label mb-2 text-hud-gold">Starting skills</h3>
-            {startingSkills.length === 0 ? (
-              <p className="text-hud-mute">None</p>
-            ) : (
-              <ul className="flex flex-wrap gap-1.5">
-                {startingSkills.map((skill) => (
-                  <li key={skill.type}>
-                    <Chip>{skill.type}</Chip>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div>
-            <h3 className="hud-label mb-2 text-hud-gold">Gained skills</h3>
-            {gainedSkills.length === 0 ? (
-              <p className="text-hud-mute">None</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {gainedSkills.map((skill) => {
-                  const advancement = (player.advancements ?? []).find(
-                    (candidate) => candidate.name === skill.type
-                  );
-                  return (
-                    <li key={skill.type}>
-                      <Chip tone="skill">{skill.type}</Chip>
-                      {advancement && (
-                        <span className="ml-2 text-hud-sm text-hud-dim">
-                          ({advancement.type.replace("-", " ")},{" "}
-                          {advancement.sppCost} SPP
-                          {advancement.elite ? ", elite" : ""})
-                        </span>
-                      )}
+            </div>
+            {characteristicRows.some(
+              ({ current, base }) => current !== base
+            ) && (
+              <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-hud-sm text-hud-dim">
+                {characteristicRows
+                  .filter(({ current, base }) => current !== base)
+                  .map(({ stat, base, advances }) => (
+                    <li key={stat}>
+                      {STAT_LABELS[stat]}: base {base}
+                      {advances > 0 ? `, +${advances} advance(s)` : ""}
                     </li>
-                  );
-                })}
+                  ))}
               </ul>
             )}
-          </div>
+          </Section>
+
+          <Section title="Skills">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <h3 className="hud-label mb-2 text-hud-gold">
+                  Starting skills
+                </h3>
+                {startingSkills.length === 0 ? (
+                  <p className="text-hud-mute">None</p>
+                ) : (
+                  <ul className="flex flex-wrap gap-1.5">
+                    {startingSkills.map((skill) => (
+                      <li key={skill.type}>
+                        <Chip>{skill.type}</Chip>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <h3 className="hud-label mb-2 text-hud-gold">Gained skills</h3>
+                {gainedSkills.length === 0 ? (
+                  <p className="text-hud-mute">None</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {gainedSkills.map((skill) => {
+                      const advancement = (player.advancements ?? []).find(
+                        (candidate) => candidate.name === skill.type
+                      );
+                      return (
+                        <li key={skill.type}>
+                          <Chip tone="skill">{skill.type}</Chip>
+                          {advancement && (
+                            <span className="ml-2 text-hud-sm text-hud-dim">
+                              ({advancement.type.replace("-", " ")},{" "}
+                              {advancement.sppCost} SPP
+                              {advancement.elite ? ", elite" : ""})
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </Section>
         </div>
-      </Section>
+      </div>
 
       <Section title="Injuries">
         {player.injuries.length === 0 ? (
@@ -238,6 +250,45 @@ export function PlayerPage() {
         )}
       </Section>
     </PageShell>
+  );
+}
+
+/**
+ * The box the player's sprite is fitted into, in CSS pixels. The art is
+ * scaled by whole pixels inside it, so the drawn figure is at most this big;
+ * with the panel's padding it still fits a 320px-wide phone.
+ */
+const SPRITE_BOX = 240;
+
+/**
+ * The player's match sprite, large: the model their position uses in the
+ * match, in their team's colours, under a rule in the team's primary colour.
+ */
+function PlayerSprite({ player, team }: { player: Player; team: Team }) {
+  return (
+    <Panel
+      accent={{ color: numToHex(team.colors.primary) }}
+      className="mx-auto mb-6 w-fit p-3 md:mx-0"
+      data-testid="player-sprite"
+    >
+      <figure className="flex flex-col items-center gap-2">
+        <div
+          className="flex items-end justify-center"
+          style={{ width: SPRITE_BOX, height: SPRITE_BOX }}
+        >
+          <PlayerPortrait
+            rosterName={team.rosterName}
+            positionName={player.positionName}
+            colors={team.colors}
+            size={SPRITE_BOX}
+            wholePixels
+          />
+        </div>
+        <figcaption className="hud-label text-center text-hud-2xs">
+          {player.positionName} · {team.rosterName}
+        </figcaption>
+      </figure>
+    </Panel>
   );
 }
 

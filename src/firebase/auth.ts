@@ -6,24 +6,41 @@
  */
 
 import {
+  createUserWithEmailAndPassword,
   GoogleAuthProvider,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   onAuthStateChanged,
   User,
 } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { getFirebaseAuth, isFirebaseConfigured } from "./config";
 
 export interface AuthUser {
   uid: string;
   displayName: string | null;
   email: string | null;
+  /** True for Google, and for an email sign-up once its link is clicked. */
+  emailVerified: boolean;
   photoURL: string | null;
 }
+
+/** Where the link that proves the signed-in coach's email stands. */
+export type ConfirmLink =
+  | { kind: "sent" }
+  | { kind: "failed"; message: string }
+  | { kind: "resent" };
 
 type AuthListener = (user: AuthUser | null) => void;
 
 let currentUser: AuthUser | null = null;
+// Kept here, not in a page, so it outlives navigation
+let confirmLink: ConfirmLink = { kind: "sent" };
+/** Counts link sends; only the newest may report how it went. */
+let linkAttempt = 0;
 const listeners = new Set<AuthListener>();
 let watching = false;
 let resolved = false;
@@ -34,6 +51,7 @@ function toAuthUser(user: User | null): AuthUser | null {
     uid: user.uid,
     displayName: user.displayName,
     email: user.email,
+    emailVerified: user.emailVerified,
     photoURL: user.photoURL,
   };
 }
@@ -43,9 +61,37 @@ function ensureWatching(): void {
   watching = true;
   onAuthStateChanged(getFirebaseAuth(), (user) => {
     resolved = true;
-    currentUser = toAuthUser(user);
+    const next = toAuthUser(user);
+    if (next?.uid !== currentUser?.uid) {
+      confirmLink = { kind: "sent" };
+      linkAttempt++;
+    }
+    currentUser = next;
     listeners.forEach((listener) => listener(currentUser));
   });
+}
+
+/**
+ * Send the link that proves this account's email, and report how it went
+ * unless a newer send, or another account, has come since.
+ */
+async function sendLink(user: User, sent: ConfirmLink): Promise<void> {
+  const attempt = ++linkAttempt;
+  const report = (next: ConfirmLink) => {
+    if (attempt !== linkAttempt) return;
+    confirmLink = next;
+    listeners.forEach((listener) => listener(currentUser));
+  };
+  await sendEmailVerification(user).then(
+    () => report(sent),
+    (error: unknown) =>
+      report({ kind: "failed", message: authErrorMessage(error) })
+  );
+}
+
+/** Subscribers hear of a change to this as an auth change. */
+export function getConfirmLink(): ConfirmLink {
+  return confirmLink;
 }
 
 /**
@@ -88,6 +134,81 @@ export async function signInWithGoogle(): Promise<AuthUser> {
   const user = toAuthUser(credential.user);
   if (!user) throw new Error("sign-in-returned-no-user");
   return user;
+}
+
+function requireConfigured(): void {
+  if (!isFirebaseConfigured()) {
+    throw new Error(
+      "Online play is not configured. Add Firebase config to .env.local (see .env.example)."
+    );
+  }
+}
+
+/** What a coach is told when an email sign-in or sign-up is refused. */
+export function authErrorMessage(error: unknown): string {
+  const code = error instanceof FirebaseError ? error.code : "";
+  switch (code) {
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return "Wrong email or password.";
+    case "auth/invalid-email":
+      return "That is not an email address.";
+    case "auth/email-already-in-use":
+      return "An account already uses this email. Sign in instead, with the password or with Google.";
+    case "auth/weak-password":
+      return "Use a password of at least 6 characters.";
+    case "auth/too-many-requests":
+      return "Too many tries. Wait a minute and try again.";
+    case "auth/popup-closed-by-user":
+      return "The Google window was closed before signing in.";
+    default:
+      return error instanceof Error ? error.message : String(error);
+  }
+}
+
+export async function signInWithEmail(
+  email: string,
+  password: string
+): Promise<AuthUser> {
+  requireConfigured();
+  const credential = await signInWithEmailAndPassword(
+    getFirebaseAuth(),
+    email.trim(),
+    password
+  );
+  return toAuthUser(credential.user)!;
+}
+
+/**
+ * A new email account, and a link to prove the address. The account can
+ * play even when the link fails to send; getConfirmLink says it did.
+ */
+export async function createAccountWithEmail(
+  email: string,
+  password: string
+): Promise<AuthUser> {
+  requireConfigured();
+  const credential = await createUserWithEmailAndPassword(
+    getFirebaseAuth(),
+    email.trim(),
+    password
+  );
+  await sendLink(credential.user, { kind: "sent" });
+  return toAuthUser(credential.user)!;
+}
+
+/** Send the signed-in coach another link to prove their email address. */
+export async function sendVerificationLink(): Promise<void> {
+  requireConfigured();
+  const user = getFirebaseAuth().currentUser;
+  if (!user) return;
+  await sendLink(user, { kind: "resent" });
+}
+
+export async function sendPasswordReset(email: string): Promise<void> {
+  requireConfigured();
+  await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
 }
 
 export async function signOutUser(): Promise<void> {
