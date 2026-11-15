@@ -103,8 +103,8 @@ export class GameplayInteractionController {
   private aimedAt: { key: string; x: number; y: number } | null = null;
   /** Numbers each Dodge/Rush prompt so a stale answer cannot match. */
   private riskPrompts = 0;
-  /** Confirms still waiting for an answer, each settled on destroy. */
-  private openConfirmations = new Set<(confirmed: boolean) => void>();
+  /** Confirms still waiting for an answer, each dropped on destroy. */
+  private openConfirmations = new Set<() => void>();
   private targetRollPreview: TargetRollPreview | null = null;
   private targetAnchor: { x: number; y: number } | null = null;
   private publishTargetPreview = () => {
@@ -2660,15 +2660,16 @@ export class GameplayInteractionController {
   ): Promise<boolean> {
     const actionId = `${prefix}-${++this.riskPrompts}`;
     return new Promise((resolve) => {
-      const settle = (confirmed: boolean) => {
+      const stopListening = () => {
         this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
-        this.openConfirmations.delete(settle);
-        resolve(confirmed);
+        this.openConfirmations.delete(stopListening);
       };
       const onResult = (data: { actionId: string; confirmed: boolean }) => {
-        if (data.actionId === actionId) settle(data.confirmed);
+        if (data.actionId !== actionId) return;
+        stopListening();
+        resolve(data.confirmed);
       };
-      this.openConfirmations.add(settle);
+      this.openConfirmations.add(stopListening);
       this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
       this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
         actionId,
@@ -2806,8 +2807,9 @@ export class GameplayInteractionController {
   }
 
   public destroy(): void {
-    // A question still open goes unanswered: the board it was for is gone
-    [...this.openConfirmations].forEach((settle) => settle(false));
+    // A question still open is dropped, never answered: whatever waited on
+    // it (a Move, a Dodge, a declaration) must not carry on without a board
+    [...this.openConfirmations].forEach((stopListening) => stopListening());
     this.scene.events.off("postupdate", this.publishTargetPreview);
     this.clearRollPreviews();
     this.dice.dispose();

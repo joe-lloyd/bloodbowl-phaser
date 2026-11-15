@@ -195,7 +195,9 @@ describe("GameplayInteractionController", () => {
       });
       await new Promise((resolve) => setTimeout(resolve, 0));
       controller.destroy();
-      await declaring;
+      // Never answered, so the declaration never goes on
+      void declaring;
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(mockGameService.declareAction).not.toHaveBeenCalled();
       const resultListeners = mockEventBus.on.mock.calls.filter(
@@ -470,6 +472,53 @@ describe("GameplayInteractionController", () => {
       } finally {
         mockGameService.getMovementUsed.mockReturnValue(0);
       }
+    });
+
+    it("walks nowhere when the board is torn down with a Dodge prompt open", async () => {
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      (controller as any).onSquareClicked(6, 5); // Add
+      (controller as any).onSquareClicked(6, 5); // Confirm: asks for the Dodge
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const ask = mockEventBus.emit.mock.calls
+        .filter(([name]) => name === GameEventNames.UI_RequestConfirmation)
+        .at(-1);
+      expect(ask).toBeDefined();
+
+      controller.destroy();
+      // Nothing may touch the pitch once the board is gone
+      const pitchCalls = () =>
+        Object.values(mockPitch).reduce(
+          (count: number, member) =>
+            count +
+            (typeof member === "function" && "mock" in member
+              ? (member as { mock: { calls: unknown[] } }).mock.calls.length
+              : 0),
+          0
+        );
+      const drawnAtTeardown = pitchCalls();
+      // A late answer reaches only listeners still attached: none
+      const removed = new Set(
+        mockEventBus.off.mock.calls
+          .filter(([name]) => name === GameEventNames.UI_ConfirmationResult)
+          .map(([, handler]) => handler)
+      );
+      mockEventBus.on.mock.calls
+        .filter(
+          ([name, handler]) =>
+            name === GameEventNames.UI_ConfirmationResult &&
+            !removed.has(handler)
+        )
+        .forEach(([, handler]) =>
+          handler({ confirmed: true, actionId: ask![1].actionId })
+        );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(mockGameService.movePlayer).not.toHaveBeenCalled();
+      expect(pitchCalls()).toBe(drawnAtTeardown);
     });
 
     it("should execute move and deselect if player has acted", async () => {

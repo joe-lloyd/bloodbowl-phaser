@@ -44,4 +44,15 @@ describe("the ball's trail", () => {
     trail.land(40, 0);
     expect(at(dots, 40, 0)).toBe(true);
   });
+
+  it("draws no dot over the ball as a hop in place comes back down", () => {
+    const { scene, dots } = fakeScene();
+    const trail = new BallTrail(scene as never);
+    trail.startFlight(0, 0);
+    trail.addPoint(0, -20);
+    // Coming back down onto the square it left
+    trail.addPoint(0, -2);
+    expect(at(dots, 0, 0)).toBe(false);
+    expect(at(dots, 0, -20)).toBe(true);
+  });
 });

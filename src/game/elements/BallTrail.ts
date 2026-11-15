@@ -18,8 +18,8 @@ export class BallTrail {
   private flights: { x: number; y: number }[][] = [];
   private landings: { x: number; y: number }[] = [];
   private fade: Phaser.Tweens.Tween | null = null;
-  /** The last flight is still in the air: its newest dot is under the ball. */
-  private flying = false;
+  /** Where the ball is while a flight is still in the air. */
+  private ballAt: { x: number; y: number } | null = null;
 
   constructor(private scene: Phaser.Scene) {
     this.graphics = scene.add.graphics().setDepth(TRAIL_DEPTH);
@@ -29,7 +29,7 @@ export class BallTrail {
   public startFlight(x: number, y: number): void {
     this.cancelFade();
     this.flights.push([{ x, y }]);
-    this.flying = true;
+    this.ballAt = { x, y };
     this.draw();
   }
 
@@ -37,15 +37,16 @@ export class BallTrail {
   public addPoint(x: number, y: number): void {
     const flight = this.flights[this.flights.length - 1];
     if (!flight) return;
+    this.ballAt = { x, y };
     const last = flight[flight.length - 1];
-    if (Math.hypot(x - last.x, y - last.y) < DOT_SPACING) return;
-    flight.push({ x, y });
+    if (Math.hypot(x - last.x, y - last.y) >= DOT_SPACING)
+      flight.push({ x, y });
     this.draw();
   }
 
   /** The current flight came down on the turf here. */
   public land(x: number, y: number): void {
-    this.flying = false;
+    this.ballAt = null;
     this.landings.push({ x, y });
     this.draw();
   }
@@ -66,7 +67,7 @@ export class BallTrail {
     this.cancelFade();
     this.flights = [];
     this.landings = [];
-    this.flying = false;
+    this.ballAt = null;
     this.graphics.clear();
   }
 
@@ -84,13 +85,15 @@ export class BallTrail {
   private draw(): void {
     const g = this.graphics;
     g.clear();
-    this.flights.forEach((flight, f) => {
-      // The ball itself covers the newest point of a flight still going
-      const shown =
-        this.flying && f === this.flights.length - 1
-          ? flight.slice(0, -1)
-          : flight;
-      shown.forEach((point, i) => {
+    const ball = this.ballAt;
+    for (const flight of this.flights) {
+      flight.forEach((point, i) => {
+        // No dot over the ball in the air, whichever way it is going
+        if (
+          ball &&
+          Math.hypot(point.x - ball.x, point.y - ball.y) < DOT_SPACING
+        )
+          return;
         // Smaller and fainter towards where the flight began
         const along = flight.length > 1 ? i / (flight.length - 1) : 1;
         g.fillStyle(0x000000, 0.35);
@@ -98,7 +101,7 @@ export class BallTrail {
         g.fillStyle(GOLD, 0.45 + along * 0.5);
         g.fillCircle(point.x, point.y, 2.2 + along * 1.6);
       });
-    });
+    }
     for (const point of this.landings) {
       g.lineStyle(4, 0x000000, 0.4);
       g.strokeEllipse(point.x, point.y, 30, 14);
