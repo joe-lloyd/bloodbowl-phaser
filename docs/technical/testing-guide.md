@@ -83,6 +83,11 @@ one. Vite transpilation does not replace this check. See
 | `sonarjs/no-identical-functions` | no two functions with the same body |
 | `max-lines` | 800 lines per file; data tables in `src/data` are exempt |
 
+Tests in `__tests__` are linted with the same rules as the source, except
+`@typescript-eslint/no-explicit-any`, which is off for them because mocks and
+fixtures use `any`. Split a test file that passes 800 lines by `describe` block,
+and put the setup the parts share in a helper module beside them.
+
 Code written before these rules is recorded in `eslint-suppressions.json`, as a
 count per file and rule. New violations fail. When you split a long file or
 simplify a complex function, lint fails until you shrink the baseline:
@@ -96,4 +101,5 @@ Deleting or renaming a file does not fail lint, and its entry stays until you
 prune, so run the same command after any split or rename.
 
 `pnpm dupes` runs jscpd over `src`, `scripts`, `e2e` and `functions/src`. It
-fails when copied blocks of eight lines or more pass 1% of the code.
+fails when copied blocks of eight lines or more pass 1% of the code. It skips
+`__tests__`, where about 4.5% of the code is copied.
