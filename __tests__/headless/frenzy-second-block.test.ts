@@ -5,6 +5,7 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition, hasCondition } from "../../src/types/Player";
 import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
+import { GameEventNames } from "../../src/types/events";
 
 /**
  * Frenzy's second Block (2025 rulebook p.128): what may stop it and what it
@@ -99,6 +100,139 @@ const ADJACENT_BLITZ_SEED = 11;
 const EXHAUSTED_BLITZ_SEED = 11;
 
 describe("Frenzy's second Block during a Blitz", () => {
+  it("resumes movement when the first block knocks the target down", async () => {
+    const { game, run, attacker, defender } = session(scenario({}, {}), 2);
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    const first = await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    expect(first.pendingDecision).toMatchObject({
+      type: "block-dice",
+      options: [{ type: "pow" }],
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const after = await run({ type: "choose-push-direction", x: 12, y: 5 });
+
+    expect(after.pendingDecision).toBeNull();
+    expect(attacker.gridPosition).toEqual({ x: 11, y: 5 });
+    expect(game.ctx.gameService.hasPlayerActed(attacker.id)).toBe(false);
+    expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(1);
+    expect(after.events.map((event) => event.name)).toContain(
+      GameEventNames.UI_ResumeBlitzMove
+    );
+  });
+
+  it("resumes movement after Stand Firm stops both pushes", async () => {
+    const { game, run, attacker, defender } = session(
+      scenario({}, { skills: [SkillType.STAND_FIRM] }),
+      11
+    );
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const second = await run({ type: "use-reaction", accept: true });
+    expect(second.pendingDecision).toMatchObject({
+      type: "block-dice",
+      options: [{ type: "push" }],
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const after = await run({ type: "use-reaction", accept: true });
+
+    expect(after.pendingDecision).toBeNull();
+    expect(attacker.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(game.ctx.gameService.hasPlayerActed(attacker.id)).toBe(false);
+    expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(2);
+    expect(after.events.map((event) => event.name)).toContain(
+      GameEventNames.UI_ResumeBlitzMove
+    );
+  });
+
+  it("can dodge, push twice with forced follow-ups, then dodge away with its remaining movement", async () => {
+    const setup = scenario({ x: 9, stats: { MA: 6, AG: 2 } }, {});
+    setup.setup.team2Placements.push({ playerIndex: 1, x: 8, y: 5 });
+    const { game, run, dice, attacker, defender } = session(setup, 11);
+    const gs = game.ctx.gameService;
+
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    const approach = await run({
+      type: "move",
+      playerId: attacker.id,
+      path: [{ x: 10, y: 5 }],
+    });
+    expect(approach.ok).toBe(true);
+    expect(attacker.gridPosition).toEqual({ x: 10, y: 5 });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const second = await run({ type: "choose-push-direction", x: 12, y: 5 });
+    expect(second.pendingDecision).toMatchObject({
+      type: "block-dice",
+      options: [{ type: "push" }],
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const after = await run({ type: "choose-push-direction", x: 13, y: 5 });
+
+    expect(dice()).toEqual([
+      "Dodge (Human Lineman #1): 4, needs 3+",
+      "Rolled 1 block dice: push",
+      "Rolled 1 block dice: push",
+    ]);
+    expect(after.pendingDecision).toBeNull();
+    expect(attacker.gridPosition).toEqual({ x: 12, y: 5 });
+    expect(defender.gridPosition).toEqual({ x: 13, y: 5 });
+    expect(gs.hasPlayerActed(attacker.id)).toBe(false);
+    expect(gs.hasUsedBlitzBlock(attacker.id)).toBe(true);
+    expect(gs.getMovementUsed(attacker.id)).toBe(3);
+    expect(after.events).toContainEqual({
+      name: GameEventNames.UI_ResumeBlitzMove,
+      data: { playerId: attacker.id },
+    });
+
+    const third = await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    expect(third.ok).toBe(false);
+    expect(third.reason).toContain("blitz-block-already-used");
+
+    const escape = await run({
+      type: "move",
+      playerId: attacker.id,
+      path: [{ x: 11, y: 4 }],
+    });
+    expect(escape.ok).toBe(true);
+    expect(attacker.gridPosition).toEqual({ x: 11, y: 4 });
+    expect(gs.getMovementUsed(attacker.id)).toBe(4);
+    expect(dice()).toEqual([
+      "Dodge (Human Lineman #1): 4, needs 3+",
+      "Rolled 1 block dice: push",
+      "Rolled 1 block dice: push",
+      "Dodge (Human Lineman #1): 4, needs 2+",
+    ]);
+  });
+
   it("costs a square, so a blitzer out of movement must Rush", async () => {
     const { game, run, dice, attacker, defender } = session(
       scenario({ stats: { MA: 1 } }, {}),

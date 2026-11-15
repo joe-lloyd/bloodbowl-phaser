@@ -20,6 +20,7 @@ import { InterceptionDialog } from "../../src/ui/components/hud/InterceptionDial
 import { ApothecaryDialog } from "../../src/ui/components/hud/ApothecaryDialog";
 import { ConfirmationModal } from "../../src/ui/components/hud/ConfirmationModal";
 import { BlockDiceDialog } from "../../src/ui/components/hud/BlockDiceDialog";
+import type { BlockRollData } from "../../src/services/BlockResolutionService";
 import { WaitingBanner } from "../../src/ui/pages/WaitingBanner";
 
 let container: HTMLDivElement;
@@ -180,6 +181,68 @@ describe("decision dialogs wait for the die to land", () => {
     expect(shown("block-die-0")).toBeNull();
     await act(async () => tray(1, 1));
     expect(shown("block-die-0")?.textContent).toBe("POW");
+  });
+
+  it("opens Frenzy's automatic second roll for selection as soon as its dice land", async () => {
+    await act(async () => root.render(<BlockDiceDialog eventBus={bus} />));
+    const roll = {
+      attackerId: playerId,
+      defenderId,
+      numDice: 1,
+      isAttackerChoice: true,
+      results: [{ type: "push", icon: "", label: "Push" }],
+      teamRerollAvailable: false,
+      proAvailable: false,
+      brawlerAvailable: false,
+      veteranRerollAvailable: false,
+    } satisfies BlockRollData;
+    await act(async () =>
+      bus.emit(GameEventNames.UI_BlockDialog, {
+        attackerId: playerId,
+        defenderId,
+        analysis: {
+          diceCount: 1,
+          isUphill: false,
+          attackerST: 3,
+          defenderST: 3,
+          attackerAssists: [],
+          defenderAssists: [],
+        },
+      })
+    );
+    await act(async () => bus.emit(GameEventNames.BlockDiceRolled, roll));
+    await act(async () =>
+      bus.emit(GameEventNames.DecisionResolved, { type: "block-dice" })
+    );
+    expect(shown("block-dice-dialog")).toBeNull();
+
+    await act(async () => {
+      tray(2, 1);
+      bus.emit(GameEventNames.BlockDiceRolled, {
+        ...roll,
+        results: [{ type: "pow", icon: "", label: "POW" }],
+      });
+    });
+    expect(shown("block-roll-dice")).toBeNull();
+    expect(shown("block-die-0")).toBeNull();
+
+    await act(async () => tray(2, 2));
+    expect(shown("block-die-0")?.textContent).toBe("POW");
+    const selections: unknown[] = [];
+    bus.on(GameEventNames.UI_BlockResultSelected, (selection) =>
+      selections.push(selection)
+    );
+    await act(async () =>
+      bus.emit(GameEventNames.UI_BlockDieClicked, { index: 0 })
+    );
+    expect(selections).toEqual([
+      {
+        attackerId: playerId,
+        defenderId,
+        result: { type: "pow", icon: "", label: "POW" },
+      },
+    ]);
+    expect(shown("block-dice-dialog")).toBeNull();
   });
 });
 

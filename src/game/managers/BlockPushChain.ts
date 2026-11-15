@@ -217,9 +217,8 @@ export abstract class BlockPushChain extends BlockActivation {
       return;
     }
 
-    // No square was vacated, so the follow-up prompt never fires — end the
-    // blocker's activation directly (Hit and Run may take a free square first).
-    this.endBlockActivation(attacker.id);
+    // No square was vacated, so no follow-up prompt will complete the Block.
+    flowManager?.context.gameService.finishBlockActivation(attacker.id);
   }
 
   /**

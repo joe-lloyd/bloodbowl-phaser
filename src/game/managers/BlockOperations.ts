@@ -31,31 +31,26 @@ export class CrowdSurfFollowUpOperation extends GameOperation {
 }
 
 /**
- * Ends the blocker's activation once the push chain (and any armour/injury
- * rolls it queued) has fully settled. Queued at the BACK of the flow so the
- * turn only flips after those rolls apply — used when no follow-up prompt
- * will fire to end the activation (Fend denied the follow-up). Pile Driver
- * and Hit and Run still get their turn first.
+ * Completes the Block once the push chain and its armour/injury rolls have
+ * settled. A Blitz can then resume movement. Used when no follow-up prompt
+ * will complete the Block, including forced follow-ups and Fend.
  */
-export class FinishActivationOperation extends GameOperation {
-  public readonly name = "FinishActivation";
+export class FinishBlockOperation extends GameOperation {
+  public readonly name = "FinishBlock";
 
-  constructor(
-    private manager: BlockActivation,
-    private attackerId: string
-  ) {
+  constructor(private attackerId: string) {
     super();
   }
 
-  async execute(_context: FlowContext): Promise<void> {
-    this.manager.endBlockActivation(this.attackerId);
+  async execute(context: FlowContext): Promise<void> {
+    context.gameService.finishBlockActivation(this.attackerId);
   }
 }
 
 /**
  * Taunt (2025 rulebook p.136): the pushed player's coach made the blocker
- * Follow-up. Runs the free move without offering a choice; the activation
- * ends via a FinishActivationOperation queued at the back, once armour and
+ * Follow-up. Runs the free move without offering a choice; the Block
+ * completes via a FinishBlockOperation queued at the back, once armour and
  * injury rolls have settled.
  */
 export class ForcedFollowUpOperation extends GameOperation {
