@@ -170,52 +170,13 @@ export function MainMenu() {
           className="mt-4 h-[3px] w-56 bg-gradient-to-r from-transparent via-hud-blood to-transparent"
         />
 
-        {(activeMatch || localMatch) && (
-          <div className="mt-8 flex w-full max-w-2xl flex-col gap-3">
-            {activeMatch && (
-              <button
-                onClick={() => navigate(activeMatch.path)}
-                className={cx(
-                  hudButtonClass("primary", "lg", true),
-                  "justify-between"
-                )}
-              >
-                <span>{activeMatch.label}</span>
-                <span className="font-hud-display tracking-[0.2em] text-hud-gold">
-                  {activeMatch.code}
-                </span>
-              </button>
-            )}
-            {localMatch && (
-              <Panel
-                accent="gold"
-                className="flex flex-wrap items-center gap-4 p-4 text-left"
-              >
-                <button
-                  onClick={resumeLocal}
-                  className="min-w-0 flex-1 rounded-hud text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
-                  data-testid="resume-local-match"
-                >
-                  <span className="hud-label block text-hud-gold">
-                    {localMatch.againstComputer
-                      ? "Resume match against the computer"
-                      : "Resume local match"}
-                  </span>
-                  <span className="mt-1 block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
-                    {localMatch.homeTeamName} {localMatch.homeScore} :{" "}
-                    {localMatch.awayScore} {localMatch.awayTeamName}
-                  </span>
-                  <span className="block text-hud-sm text-hud-dim">
-                    Half {localMatch.half}, turn {localMatch.turn}
-                  </span>
-                </button>
-                <HudButton variant="danger" size="sm" onClick={discardLocal}>
-                  Discard saved match
-                </HudButton>
-              </Panel>
-            )}
-          </div>
-        )}
+        <ResumeBanners
+          activeMatch={activeMatch}
+          localMatch={localMatch}
+          onOpen={navigate}
+          onResumeLocal={resumeLocal}
+          onDiscardLocal={discardLocal}
+        />
 
         <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MenuSection title="Play">
@@ -410,6 +371,69 @@ function CoachNameEditor({
       >
         {saved ? "✓" : ""}
       </span>
+    </div>
+  );
+}
+
+/** The way back into an online match, or a saved local one. */
+function ResumeBanners({
+  activeMatch,
+  localMatch,
+  onOpen,
+  onResumeLocal,
+  onDiscardLocal,
+}: {
+  activeMatch: ActiveMatch | null;
+  localMatch: MatchSaveDescription | null;
+  onOpen: (path: string) => void;
+  onResumeLocal: () => void;
+  onDiscardLocal: () => void;
+}) {
+  if (!activeMatch && !localMatch) return null;
+  return (
+    <div className="mt-8 flex w-full max-w-2xl flex-col gap-3">
+      {activeMatch && (
+        <button
+          onClick={() => onOpen(activeMatch.path)}
+          className={cx(
+            hudButtonClass("primary", "lg", true),
+            "justify-between"
+          )}
+        >
+          <span>{activeMatch.label}</span>
+          <span className="font-hud-display tracking-[0.2em] text-hud-gold">
+            {activeMatch.code}
+          </span>
+        </button>
+      )}
+      {localMatch && (
+        <Panel
+          accent="gold"
+          className="flex flex-wrap items-center gap-4 p-4 text-left"
+        >
+          <button
+            onClick={onResumeLocal}
+            className="min-w-0 flex-1 rounded-hud text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
+            data-testid="resume-local-match"
+          >
+            <span className="hud-label block text-hud-gold">
+              {localMatch.againstComputer
+                ? "Resume match against the computer"
+                : "Resume local match"}
+            </span>
+            <span className="mt-1 block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+              {localMatch.homeTeamName} {localMatch.homeScore} :{" "}
+              {localMatch.awayScore} {localMatch.awayTeamName}
+            </span>
+            <span className="block text-hud-sm text-hud-dim">
+              Half {localMatch.half}, turn {localMatch.turn}
+            </span>
+          </button>
+          <HudButton variant="danger" size="sm" onClick={onDiscardLocal}>
+            Discard saved match
+          </HudButton>
+        </Panel>
+      )}
     </div>
   );
 }

@@ -491,19 +491,6 @@
       "count": 1
     }
   },
-  "src/ui/components/pages/MainMenu.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/pages/OnlineLobby.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/ui/components/pages/TournamentBracket.tsx": {
     "complexity": {
       "count": 1

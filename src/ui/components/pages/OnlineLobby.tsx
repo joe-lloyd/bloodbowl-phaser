@@ -82,19 +82,17 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       try {
         const existing = await getActiveMatchCode(user.uid);
         if (cancelled) return;
-        if (existing) {
-          const doc = await fetchLobby(existing);
-          if (cancelled) return;
-          if (doc && doc.status === "active") {
-            navigate(`/online/play/${existing}`, { replace: true });
-            return;
-          }
-          if (doc && doc.status === "lobby") {
-            setCode(existing); // reattach to the open lobby
-            return;
-          }
-          // stale/finished pointer — fall through and make a fresh lobby
+        const doc = existing ? await fetchLobby(existing) : null;
+        if (cancelled) return;
+        if (doc?.status === "active") {
+          navigate(`/online/play/${existing}`, { replace: true });
+          return;
         }
+        if (doc?.status === "lobby") {
+          setCode(existing); // reattach to the open lobby
+          return;
+        }
+        // No pointer, or a stale/finished one: make a fresh lobby
         const coachName = await resolveCoachName(user.uid);
         const created = await createLobby(
           user.uid,
@@ -119,30 +117,27 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     return subscribeLobby(code, setLobby);
   }, [code]);
 
-
   // The seed both coaches make: commit to a secret once the opponent is
   // here, reveal it once both have committed (see firebase/lobby).
-  const commits = lobby?.seedCommits ?? {};
-  const reveals = lobby?.seedReveals ?? {};
   const myUid = user?.uid;
-  const bothCommitted =
-    !!lobby?.guestUid && !!commits[lobby.hostUid] && !!commits[lobby.guestUid];
+  const { committed, revealed, bothCommitted } = seedProgress(lobby, myUid);
   useEffect(() => {
     if (!lobby || !myUid || lobby.status !== "lobby" || !lobby.guestUid) return;
-    if (!commits[myUid]) void commitSeed(lobby.code, myUid);
-    else if (bothCommitted && !reveals[myUid])
-      void revealSeed(lobby.code, myUid);
+    if (!committed) void commitSeed(lobby.code, myUid);
+    else if (bothCommitted && !revealed) void revealSeed(lobby.code, myUid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lobby?.code, lobby?.status, lobby?.guestUid, myUid, !!commits[myUid ?? ""], bothCommitted, !!reveals[myUid ?? ""]]);
+  }, [
+    lobby?.code,
+    lobby?.status,
+    lobby?.guestUid,
+    myUid,
+    committed,
+    bothCommitted,
+    revealed,
+  ]);
 
   // The house bot says where it waits, until a guest arrives
-  const botWaitingIn =
-    isHouseBotBrowser() &&
-    lobby?.status === "lobby" &&
-    lobby.hostUid === myUid &&
-    !lobby.guestUid
-      ? lobby.code
-      : null;
+  const botWaitingIn = houseBotWaitingIn(lobby, myUid);
   useEffect(() => {
     if (!myUid || !isHouseBotBrowser()) return;
     const announce = () =>
@@ -178,121 +173,49 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
 
   // Join mode: enter a code first
   if (!code) {
+    const join = async () => {
+      setError(null);
+      setBusy(true);
+      try {
+        const coachName = await resolveCoachName(user.uid);
+        const joined = await joinLobby(joinInput, user.uid, coachName);
+        setCode(joined.code);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    };
     return (
-      <PageShell width="narrow" className="flex flex-col justify-center">
-        <Panel accent="gold" className="flex flex-col items-center gap-5 px-6 py-8 text-center">
-          <div>
-            <Eyebrow tone="gold">Online</Eyebrow>
-            <h1 className="mt-1 font-hud-display text-hud-3xl uppercase tracking-[0.02em] text-hud-bone">
-              Join Game
-            </h1>
-          </div>
-          <input
-            value={joinInput}
-            onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
-            placeholder="MATCH CODE"
-            maxLength={6}
-            aria-label="Match code"
-            className="hud-field !min-h-[64px] !w-72 max-w-full text-center !font-hud-display !text-hud-2xl uppercase tracking-[0.3em] indent-[0.3em]"
-          />
-          <HudButton
-            variant="primary"
-            size="lg"
-            className="w-72 max-w-full"
-            disabled={busy || joinInput.trim().length < 6}
-            onClick={async () => {
-              setError(null);
-              setBusy(true);
-              try {
-                const coachName = await resolveCoachName(user.uid);
-                const joined = await joinLobby(joinInput, user.uid, coachName);
-                setCode(joined.code);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : String(e));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            Join
-          </HudButton>
-          {error && <ErrorText text={error} />}
-          <HudButton variant="ghost" onClick={() => navigate("/")}>
-            Back
-          </HudButton>
-        </Panel>
-      </PageShell>
+      <JoinByCode
+        joinInput={joinInput}
+        onJoinInput={setJoinInput}
+        busy={busy}
+        error={error}
+        onJoin={join}
+        onBack={() => navigate("/")}
+      />
     );
   }
 
   if (!lobby) {
-    return (
-      <PageShell width="narrow" className="flex flex-col items-center justify-center gap-4">
-        <p role="status" className="hud-label text-hud-base text-hud-dim">
-          {busy ? "Creating lobby…" : "Loading lobby…"}
-        </p>
-        {error && <ErrorText text={error} />}
-      </PageShell>
-    );
+    return <LobbyLoading busy={busy} error={error} />;
   }
 
   const isHost = user.uid === lobby.hostUid;
   const me = lobby.players[user.uid];
-  const opponentUid = isHost ? lobby.guestUid : lobby.hostUid;
-  const opponent = opponentUid ? lobby.players[opponentUid] : null;
-
-  const waitingOn: string[] = [];
-  if (!lobby.guestUid) waitingOn.push("an opponent to join");
-  if (me && !me.team) waitingOn.push("you to pick a team");
-  if (me?.team && !me.ready) waitingOn.push("you to ready up");
-  if (opponent && !opponent.team)
-    waitingOn.push(`${opponent.displayName} to pick a team`);
-  if (opponent?.team && !opponent.ready)
-    waitingOn.push(`${opponent.displayName} to ready up`);
-
-  const startable = isHost && canStart(lobby);
 
   return (
     <PageShell
       width="medium"
       actionBar={
-        <>
-          <HudButton variant="ghost" onClick={() => navigate("/")}>
-            Leave
-          </HudButton>
-          {waitingOn.length > 0 && (
-            <p className="min-w-0 flex-1 text-center font-hud-body text-hud-sm text-hud-dim">
-              Waiting for {waitingOn.join(", ")}
-            </p>
-          )}
-          <div className="flex flex-wrap items-center gap-3">
-            <HudButton
-              variant={startable || me?.ready ? "secondary" : "primary"}
-              size="lg"
-              disabled={!me?.team}
-              onClick={() => void setReady(lobby.code, user.uid, !me?.ready)}
-            >
-              {me?.ready ? "Not ready" : "Ready!"}
-            </HudButton>
-            {isHost && (
-              <HudButton
-                variant={startable ? "primary" : "secondary"}
-                size="lg"
-                disabled={!canStart(lobby)}
-                onClick={() =>
-                  void startMatch(
-                    lobby.code,
-                    lobby.settings,
-                    lobby.hostUid,
-                    lobby.guestUid!
-                  )
-                }
-              >
-                Start Match
-              </HudButton>
-            )}
-          </div>
-        </>
+        <LobbyActions
+          lobby={lobby}
+          isHost={isHost}
+          me={me}
+          onLeave={() => navigate("/")}
+          onReady={() => void setReady(lobby.code, user.uid, !me?.ready)}
+        />
       }
     >
       <PageHeader
@@ -317,48 +240,16 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <PlayerCard
-          label={isHost ? "You (Host)" : "Host"}
-          player={lobby.players[lobby.hostUid]}
-        />
-        <PlayerCard
-          label={isHost ? "Guest" : "You (Guest)"}
-          player={lobby.guestUid ? lobby.players[lobby.guestUid] : null}
-          empty={!lobby.guestUid ? "Waiting for opponent…" : undefined}
-        />
-      </div>
+      <LobbyPlayers lobby={lobby} isHost={isHost} />
 
       {/* Your team picker — your own library only */}
       <Section title="Your team">
-        {lobby.fixtureTeams && me?.team ? (
-          <p className="font-hud-body text-hud-base text-hud-bone">
-            {me.team.name} ({me.team.rosterName}) — locked for this fixture
-          </p>
-        ) : myTeams.length === 0 ? (
-          <p className="font-hud-body text-hud-base text-hud-dim">
-            No saved teams — build one first.
-          </p>
-        ) : (
-          <select
-            value={me?.team?.id ?? ""}
-            onChange={(e) => {
-              const team = myTeams.find((t: Team) => t.id === e.target.value);
-              if (team) void selectTeam(lobby.code, user.uid, team);
-            }}
-            aria-label="Your team"
-            className="hud-field"
-          >
-            <option value="" disabled>
-              Pick a team…
-            </option>
-            {myTeams.map((team: Team) => (
-              <option key={team.id} value={team.id}>
-                {team.name} ({team.rosterName})
-              </option>
-            ))}
-          </select>
-        )}
+        <TeamPicker
+          me={me}
+          fixture={!!lobby.fixtureTeams}
+          myTeams={myTeams}
+          onPick={(team) => void selectTeam(lobby.code, user.uid, team)}
+        />
       </Section>
 
       <SettingsPanel
@@ -369,6 +260,247 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
 
       {error && <ErrorText text={error} />}
     </PageShell>
+  );
+}
+
+/** How far this coach is with the shared seed (see firebase/lobby). */
+function seedProgress(lobby: LobbyDoc | null, myUid: string | undefined) {
+  const commits = lobby?.seedCommits ?? {};
+  const reveals = lobby?.seedReveals ?? {};
+  return {
+    committed: !!commits[myUid ?? ""],
+    revealed: !!reveals[myUid ?? ""],
+    bothCommitted:
+      !!lobby?.guestUid &&
+      !!commits[lobby.hostUid] &&
+      !!commits[lobby.guestUid],
+  };
+}
+
+/** The lobby the house bot hosts while no guest has joined, if any. */
+function houseBotWaitingIn(
+  lobby: LobbyDoc | null,
+  myUid: string | undefined
+): string | null {
+  return isHouseBotBrowser() &&
+    lobby?.status === "lobby" &&
+    lobby.hostUid === myUid &&
+    !lobby.guestUid
+    ? lobby.code
+    : null;
+}
+
+/** What the match still waits for, in the order the coaches do it. */
+function lobbyWaitingOn(
+  lobby: LobbyDoc,
+  me: LobbyPlayer | undefined,
+  isHost: boolean
+): string[] {
+  const opponentUid = isHost ? lobby.guestUid : lobby.hostUid;
+  const opponent = opponentUid ? lobby.players[opponentUid] : null;
+  const waitingOn: string[] = [];
+  if (!lobby.guestUid) waitingOn.push("an opponent to join");
+  if (me && !me.team) waitingOn.push("you to pick a team");
+  if (me?.team && !me.ready) waitingOn.push("you to ready up");
+  if (opponent && !opponent.team)
+    waitingOn.push(`${opponent.displayName} to pick a team`);
+  if (opponent?.team && !opponent.ready)
+    waitingOn.push(`${opponent.displayName} to ready up`);
+  return waitingOn;
+}
+
+function JoinByCode({
+  joinInput,
+  onJoinInput,
+  busy,
+  error,
+  onJoin,
+  onBack,
+}: {
+  joinInput: string;
+  onJoinInput: (value: string) => void;
+  busy: boolean;
+  error: string | null;
+  onJoin: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <PageShell width="narrow" className="flex flex-col justify-center">
+      <Panel
+        accent="gold"
+        className="flex flex-col items-center gap-5 px-6 py-8 text-center"
+      >
+        <div>
+          <Eyebrow tone="gold">Online</Eyebrow>
+          <h1 className="mt-1 font-hud-display text-hud-3xl uppercase tracking-[0.02em] text-hud-bone">
+            Join Game
+          </h1>
+        </div>
+        <input
+          value={joinInput}
+          onChange={(e) => onJoinInput(e.target.value.toUpperCase())}
+          placeholder="MATCH CODE"
+          maxLength={6}
+          aria-label="Match code"
+          className="hud-field !min-h-[64px] !w-72 max-w-full text-center !font-hud-display !text-hud-2xl uppercase tracking-[0.3em] indent-[0.3em]"
+        />
+        <HudButton
+          variant="primary"
+          size="lg"
+          className="w-72 max-w-full"
+          disabled={busy || joinInput.trim().length < 6}
+          onClick={onJoin}
+        >
+          Join
+        </HudButton>
+        {error && <ErrorText text={error} />}
+        <HudButton variant="ghost" onClick={onBack}>
+          Back
+        </HudButton>
+      </Panel>
+    </PageShell>
+  );
+}
+
+function LobbyLoading({
+  busy,
+  error,
+}: {
+  busy: boolean;
+  error: string | null;
+}) {
+  return (
+    <PageShell
+      width="narrow"
+      className="flex flex-col items-center justify-center gap-4"
+    >
+      <p role="status" className="hud-label text-hud-base text-hud-dim">
+        {busy ? "Creating lobby…" : "Loading lobby…"}
+      </p>
+      {error && <ErrorText text={error} />}
+    </PageShell>
+  );
+}
+
+/** Leave, what the match waits for, Ready and, for the host, Start. */
+function LobbyActions({
+  lobby,
+  isHost,
+  me,
+  onLeave,
+  onReady,
+}: {
+  lobby: LobbyDoc;
+  isHost: boolean;
+  me: LobbyPlayer | undefined;
+  onLeave: () => void;
+  onReady: () => void;
+}) {
+  const waitingOn = lobbyWaitingOn(lobby, me, isHost);
+  const startable = isHost && canStart(lobby);
+  return (
+    <>
+      <HudButton variant="ghost" onClick={onLeave}>
+        Leave
+      </HudButton>
+      {waitingOn.length > 0 && (
+        <p className="min-w-0 flex-1 text-center font-hud-body text-hud-sm text-hud-dim">
+          Waiting for {waitingOn.join(", ")}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <HudButton
+          variant={startable || me?.ready ? "secondary" : "primary"}
+          size="lg"
+          disabled={!me?.team}
+          onClick={onReady}
+        >
+          {me?.ready ? "Not ready" : "Ready!"}
+        </HudButton>
+        {isHost && (
+          <HudButton
+            variant={startable ? "primary" : "secondary"}
+            size="lg"
+            disabled={!canStart(lobby)}
+            onClick={() =>
+              void startMatch(
+                lobby.code,
+                lobby.settings,
+                lobby.hostUid,
+                lobby.guestUid!
+              )
+            }
+          >
+            Start Match
+          </HudButton>
+        )}
+      </div>
+    </>
+  );
+}
+
+function LobbyPlayers({ lobby, isHost }: { lobby: LobbyDoc; isHost: boolean }) {
+  return (
+    <div className="mb-6 grid gap-4 sm:grid-cols-2">
+      <PlayerCard
+        label={isHost ? "You (Host)" : "Host"}
+        player={lobby.players[lobby.hostUid]}
+      />
+      <PlayerCard
+        label={isHost ? "Guest" : "You (Guest)"}
+        player={lobby.guestUid ? lobby.players[lobby.guestUid] : null}
+        empty={!lobby.guestUid ? "Waiting for opponent…" : undefined}
+      />
+    </div>
+  );
+}
+
+/**
+ * A fixture's team is locked; otherwise the coach picks from their own
+ * library.
+ */
+function TeamPicker({
+  me,
+  fixture,
+  myTeams,
+  onPick,
+}: {
+  me: LobbyPlayer | undefined;
+  fixture: boolean;
+  myTeams: Team[];
+  onPick: (team: Team) => void;
+}) {
+  if (fixture && me?.team)
+    return (
+      <p className="font-hud-body text-hud-base text-hud-bone">
+        {me.team.name} ({me.team.rosterName}) — locked for this fixture
+      </p>
+    );
+  if (myTeams.length === 0)
+    return (
+      <p className="font-hud-body text-hud-base text-hud-dim">
+        No saved teams — build one first.
+      </p>
+    );
+  return (
+    <select
+      value={me?.team?.id ?? ""}
+      onChange={(e) => {
+        const team = myTeams.find((t: Team) => t.id === e.target.value);
+        if (team) onPick(team);
+      }}
+      aria-label="Your team"
+      className="hud-field"
+    >
+      <option value="" disabled>
+        Pick a team…
+      </option>
+      {myTeams.map((team: Team) => (
+        <option key={team.id} value={team.id}>
+          {team.name} ({team.rosterName})
+        </option>
+      ))}
+    </select>
   );
 }
 
