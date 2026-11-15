@@ -6,8 +6,10 @@
 
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { ScenarioCase, step } from "../scenarioCase/types";
+import { GameEventNames } from "../../types/events";
 import {
   stepAccepted,
+  stepRejected,
   checkpointAssert,
   setupSquares,
   placeSeven,
@@ -152,7 +154,73 @@ const applyFormation: ScenarioCase = {
   checkpoints: [stepAccepted(0), teamIsSetUp("team1")],
 };
 
+/**
+ * The opening weather waits for both coaches: one coach ready rolls
+ * nothing, readying twice changes nothing, and the second coach rolls the
+ * 2D6 once. After that the weather cannot be readied again.
+ */
+const weatherReadyUp: ScenarioCase = {
+  id: "opening-weather-ready-up",
+  name: "Both coaches ready up for the weather",
+  description:
+    "Before the coin toss each coach readies up for the weather. The 2D6 " +
+    "are rolled once, when the second coach is ready.",
+  capability: "phase-flow",
+  interactions: ["protocol-command:ready-weather", "phase:SETUP"],
+  setup: {
+    team1Placements: [],
+    team2Placements: [],
+    activeTeam: "team1",
+    phase: GamePhase.SETUP,
+    subPhase: SubPhase.INTRO,
+  },
+  steps: [
+    step({ type: "ready-weather", teamId: "team1" }, "the home coach readies"),
+    step({ type: "ready-weather", teamId: "team1" }, "and again"),
+    step({ type: "ready-weather", teamId: "team2" }, "the away coach readies"),
+    step({ type: "ready-weather", teamId: "team2" }, "a ready after the roll"),
+  ],
+  layers: ["engine"],
+  interactive: true,
+  tags: ["match-flow"],
+  variants: [
+    {
+      id: "rolled-once",
+      name: "Rolled once both are ready",
+      seed: 1,
+      expectedOutcome: "one Weather roll, after the second coach readies",
+    },
+  ],
+  checkpoints: [
+    stepAccepted(0),
+    stepAccepted(1),
+    stepAccepted(2),
+    stepRejected(3, "not-weather-time"),
+    {
+      id: "rolled-once",
+      description: "the weather is rolled once, with both coaches ready",
+      layers: ["engine"],
+      assert(observed) {
+        const rolls = observed.events.filter(
+          (event) =>
+            event.name === GameEventNames.DiceRoll &&
+            (event.data as { rollType: string }).rollType === "Weather"
+        );
+        checkpointAssert(
+          rolls.length === 1,
+          `the weather must be rolled once, rolled ${rolls.length} times`
+        );
+        checkpointAssert(
+          observed.snapshot.weatherReady?.join() === "team1,team2",
+          "both coaches must be recorded as ready"
+        );
+      },
+    },
+  ],
+};
+
 export const SEVENS_SETUP_CASES: ScenarioCase[] = [
   setupAdjustments,
   applyFormation,
+  weatherReadyUp,
 ];
