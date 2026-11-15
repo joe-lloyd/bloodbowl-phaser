@@ -1498,6 +1498,66 @@
    "frame": 160,
    "ppu": 25
   },
+  "sideline_apothecary": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "idle": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "sideline_cheerleader": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "idle": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "sideline_coach": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "idle": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "sideline_fan": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "idle": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "sideline_medic": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
   "skaven_blitzer": {
    "anchor": [
     64.0,
