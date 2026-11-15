@@ -106,17 +106,19 @@ const NEIGHBOURS = Array.from({ length: CELLS }, (_, cell) =>
 const rollChance = (target: number) =>
   (7 - Math.min(6, Math.max(2, target))) / 6;
 
-/**
- * Every square the player can reach, each by its safest path, judged on its
- * own dice. A loose ball square ends a path (stepping on it is a Pick-up);
- * other players block.
- */
-export function routesFor(board: Board, player: Player): Map<number, Route> {
-  const start = player.gridPosition!;
-  const [normal, rushes] = movesLeft(board, player);
-  const steps = Math.min(MAX_STEPS, normal + rushes);
-  const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
+/** What one search needs to price a step: fixed for the whole search. */
+interface Search {
+  board: Board;
+  /** The loose ball's cell, or -1. */
+  ballKey: number;
+  rush: number;
+  /** The chance of a Dodge into a square with this many tackle zones. */
+  dodgeInto: number[];
+  pickup: number;
+}
 
+function searchFor(board: Board, player: Player): Search {
+  const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
   // The chance of each step, by what it depends on.
   const rush = rollChance(
     requiredRoll(2, weatherEffects(board.weather).rush ?? 0)
@@ -132,51 +134,110 @@ export function routesFor(board: Board, player: Player): Map<number, Route> {
           pickupTarget(player, square(ballKey), board.theirs, board.weather)
         )
       : 1;
+  return { board, ballKey, rush, dodgeInto, pickup };
+}
 
-  // bestAt[k][cell]: chance of reaching cell in exactly k steps (-1: never)
+/** Step from `cell`, reached in k steps with chance p, to each free neighbour. */
+function relax(
+  search: Search,
+  k: number,
+  cell: number,
+  p: number,
+  stepRush: number
+): void {
+  const { board, ballKey } = search;
+  const leavesZone = board.marks[cell] > 0;
+  for (const next of NEIGHBOURS[cell]) {
+    if (board.occupant[next]) continue;
+    let chance = stepRush;
+    if (leavesZone) chance *= search.dodgeInto[board.marks[next]];
+    if (next === ballKey) chance *= search.pickup;
+    const q = p * chance;
+    if (q > bestAt[k + 1][next]) {
+      bestAt[k + 1][next] = q;
+      parentAt[k + 1][next] = cell;
+    }
+  }
+}
+
+/**
+ * Fill bestAt[k][cell], the chance of reaching cell in exactly k steps
+ * (-1: never), and parentAt, the cell each best path came from.
+ */
+function spread(
+  search: Search,
+  start: Square,
+  steps: number,
+  normal: number
+): void {
   for (let k = 0; k <= steps; k++) bestAt[k].fill(-1);
   bestAt[0][key(start)] = 1;
   for (let k = 0; k < steps; k++) {
-    const stepRush = k >= normal ? rush : 1;
+    const stepRush = k >= normal ? search.rush : 1;
     for (let cell = 0; cell < CELLS; cell++) {
       const p = bestAt[k][cell];
-      if (p < 0 || (cell === ballKey && k > 0)) continue;
-      const leavesZone = board.marks[cell] > 0;
-      for (const next of NEIGHBOURS[cell]) {
-        if (board.occupant[next]) continue;
-        let chance = stepRush;
-        if (leavesZone) chance *= dodgeInto[board.marks[next]];
-        if (next === ballKey) chance *= pickup;
-        const q = p * chance;
-        if (q > bestAt[k + 1][next]) {
-          bestAt[k + 1][next] = q;
-          parentAt[k + 1][next] = cell;
-        }
-      }
+      if (p < 0 || (cell === search.ballKey && k > 0)) continue;
+      relax(search, k, cell, p, stepRush);
     }
   }
+}
+
+/** The squares of the best k-step path to `cell`, from parentAt. */
+function pathTo(cell: number, steps: number): Square[] {
+  const path: Square[] = new Array(steps);
+  for (let k = steps, c = cell; k > 0; c = parentAt[k][c], k--)
+    path[k - 1] = square(c);
+  return path;
+}
+
+/** The step count with the best chance of reaching `cell`, or -1. */
+function bestStepCount(cell: number, steps: number): number {
+  let bestK = -1;
+  for (let k = 1; k <= steps; k++)
+    if (bestAt[k][cell] > (bestK < 0 ? 0 : bestAt[bestK][cell] + 1e-9))
+      bestK = k;
+  return bestK;
+}
+
+/** The dice on a path, step by step; a step past `normal` is a Rush. */
+function pathRolls(
+  board: Board,
+  player: Player,
+  start: Square,
+  path: Square[],
+  normal: number
+): RollTarget[] {
+  const rolls: RollTarget[] = [];
+  let from = start;
+  for (let i = 0; i < path.length; i++) {
+    rolls.push(...stepRolls(board, player, from, path[i], i >= normal));
+    from = path[i];
+  }
+  return rolls;
+}
+
+/**
+ * Every square the player can reach, each by its safest path, judged on its
+ * own dice. A loose ball square ends a path (stepping on it is a Pick-up);
+ * other players block.
+ */
+export function routesFor(board: Board, player: Player): Map<number, Route> {
+  const start = player.gridPosition!;
+  const [normal, rushes] = movesLeft(board, player);
+  const steps = Math.min(MAX_STEPS, normal + rushes);
+  spread(searchFor(board, player), start, steps, normal);
 
   const out = new Map<number, Route>();
   for (let cell = 0; cell < CELLS; cell++) {
     if (cell === key(start)) continue;
-    let bestK = -1;
-    for (let k = 1; k <= steps; k++)
-      if (bestAt[k][cell] > (bestK < 0 ? 0 : bestAt[bestK][cell] + 1e-9))
-        bestK = k;
+    const bestK = bestStepCount(cell, steps);
     if (bestK < 0) continue;
-    const path: Square[] = new Array(bestK);
-    for (let k = bestK, c = cell; k > 0; c = parentAt[k][c], k--)
-      path[k - 1] = square(c);
+    const path = pathTo(cell, bestK);
     // A path whose chance is exactly 1 rolled nothing.
-    let rolls: RollTarget[] = NO_ROLLS;
-    if (bestAt[bestK][cell] !== 1) {
-      rolls = [];
-      let from = start;
-      for (let i = 0; i < path.length; i++) {
-        rolls.push(...stepRolls(board, player, from, path[i], i >= normal));
-        from = path[i];
-      }
-    }
+    const rolls =
+      bestAt[bestK][cell] === 1
+        ? NO_ROLLS
+        : pathRolls(board, player, start, path, normal);
     out.set(cell, {
       to: square(cell),
       path,
