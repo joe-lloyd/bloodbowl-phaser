@@ -27,10 +27,20 @@ export function assertPregameSaveable(state: GameState): void {
 }
 
 /**
+ * The order the teams buy inducements in: the higher team value first, the
+ * home team on a tie. Set once, with the offer.
+ */
+export function buyOrder(
+  home: { id: string; value: number },
+  away: { id: string; value: number }
+): [string, string] {
+  return away.value > home.value ? [away.id, home.id] : [home.id, away.id];
+}
+
+/**
  * The team buying inducements now, or null before the offer or once both
- * have confirmed. Teams buy in turn, the higher team value first: that team
- * has the smaller budget, and on equal budgets the home team goes first.
- * One coach buys at a time, so two coaches online never act at once.
+ * have confirmed. Teams buy in turn (`buyOrder`), so one coach buys at a
+ * time and two coaches online never act at once.
  */
 export function shoppingTeamId(
   pregame: PregameInducementsState | undefined,
@@ -38,10 +48,6 @@ export function shoppingTeamId(
 ): string | null {
   const offer = pregame?.offer;
   if (!offer || pregame.complete) return null;
-  const [home, away] = teamIds;
-  const order =
-    (offer.budgets[away] ?? 0) < (offer.budgets[home] ?? 0)
-      ? [away, home]
-      : [home, away];
+  const order = pregame.buyOrder ?? teamIds;
   return order.find((teamId) => !offer.confirmed[teamId]) ?? null;
 }

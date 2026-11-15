@@ -111,8 +111,7 @@ export class SetupPhaseHandler implements PhaseHandler {
     this.register(GameEventNames.UI_CoinFlipComplete, (data) => {
       this.scene.kickingTeam = data.kickingTeam;
       this.scene.receivingTeam = data.receivingTeam;
-      // Online skips the local intro (which rolls weather); the
-      // start-setup command rolls it on both engines instead.
+      // The weather is rolled before the toss, so setup only starts here
       this.gameService.startSetup(data.kickingTeam.id);
     });
 

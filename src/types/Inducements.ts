@@ -103,6 +103,8 @@ export interface InducementOffer {
 export interface PregameInducementsState {
   ready: Record<string, boolean>;
   offer?: InducementOffer;
+  /** Who buys first and second: the higher team value first, set with the offer. */
+  buyOrder?: [string, string];
   complete?: boolean;
   /** Inventory is committed, but captain/prayer/measure choices are unfinished. */
   resolving?: boolean;

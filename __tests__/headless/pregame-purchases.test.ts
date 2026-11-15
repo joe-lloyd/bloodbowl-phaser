@@ -91,11 +91,17 @@ describe("graphical match pregame through the protocol", () => {
     expect(game.snapshot().inducements).toBeUndefined();
     await ready(game);
     expect(game.ctx.gameService.getInducementOffer().budgets.team1).toBe(0);
+    // Neither has petty cash: the higher team value still buys first
+    expect(game.ctx.gameService.getInducementOffer().budgets.team2).toBe(0);
+    expect(game.snapshot().pregameInducements?.buyOrder).toEqual([
+      "team2",
+      "team1",
+    ]);
+    await game.execute(team2Confirms);
     expect((await game.execute(buyTraining)).reason).toContain(
       "budget-exceeded"
     );
-    for (const teamId of ["team1", "team2"])
-      await game.execute({ type: "confirm-inducements", teamId });
+    await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
     expect(game.snapshot().inducements?.inventory[0].quantity).toBe(1);
     await game.execute({ type: "confirm-inducements", teamId: "team1" });

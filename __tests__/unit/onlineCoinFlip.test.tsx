@@ -64,6 +64,9 @@ vi.mock("../../src/services/ServiceContainer", () => {
   ];
   const gameService = {
     getDecisionService: () => ({ pending: () => null }),
+    getFlowContext: () => ({
+      flowManager: { whenIdle: () => Promise.resolve() },
+    }),
     getActiveTeamId: () => "home",
     getTeam: (id: string) => teams.find((team) => team.id === id),
     getTeams: () => teams,
@@ -328,6 +331,53 @@ describe("online coin toss", () => {
     expect(card.text()).toContain("RECEIVE");
     await card.unmount();
   });
+  it("readies both coaches for the toss after the inducements, before the host writes a winner", async () => {
+    engine.state = {
+      score: { home: 0, away: 0 },
+      weather: "Nice",
+      weatherReady: ["away", "home"],
+      pregameInducements: { ready: { home: true, away: true }, complete: true },
+    };
+    const { setCoinFlipReady, setCoinFlipWinner } =
+      await import("../../src/firebase/lobby");
+    vi.mocked(setCoinFlipWinner).mockClear();
+    const view = await mount(
+      { coinFlip: {} } as LobbyDoc,
+      {
+        ...match,
+        role: "host",
+        myTeamId: "home",
+      } as OnlineMatch
+    );
+    try {
+      await tick(20);
+      // The weather was read before the reload; then the toss ready-up
+      expect(view.text()).toContain("ON TO THE COIN TOSS");
+      const on = [...document.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("ON TO THE COIN TOSS")
+      )!;
+      await act(async () => on.click());
+      await tick(20);
+      // The lobby rules need both flags first: shopping alone is not enough
+      expect(view.text()).toContain("READY — FLIP COIN");
+      expect(setCoinFlipWinner).not.toHaveBeenCalled();
+      const ready = [...document.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("READY — FLIP COIN")
+      )!;
+      await act(async () => ready.click());
+      expect(setCoinFlipReady).toHaveBeenCalledWith("ABC123", true);
+
+      await view.render({
+        coinFlip: { hostReady: true, guestReady: true },
+      } as LobbyDoc);
+      await tick(20);
+      expect(setCoinFlipWinner).toHaveBeenCalledTimes(1);
+    } finally {
+      await view.unmount();
+      engine.state = { weather: "Nice", weatherReady: [] };
+    }
+  });
+
   it("does not toss while the new purchase stage is incomplete even if legacy lobby flags are ready", async () => {
     engine.state = {
       score: { home: 0, away: 0 },

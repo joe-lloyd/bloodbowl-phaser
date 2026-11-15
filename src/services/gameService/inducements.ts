@@ -1,4 +1,8 @@
-import { isPregameOpening, shoppingTeamId } from "@/game/inducements/pregame";
+import {
+  buyOrder,
+  isPregameOpening,
+  shoppingTeamId,
+} from "@/game/inducements/pregame";
 import { GameEventNames } from "@/types/events";
 /**
  * Pregame inducements: the negotiation both coaches confirm, and committing
@@ -27,6 +31,7 @@ import {
 } from "@/types/Inducements";
 import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
 import type { GameParts } from "./parts";
+import { calculateTeamValue } from "@/types/Team";
 
 /** Commit a confirmed pregame inducement selection into match state. */
 export function commitInducements(
@@ -155,6 +160,10 @@ export function readyInducements(parts: GameParts, teamId: string) {
   ) {
     parts.inducementSession = null;
     pregame.offer = offerFor(parts, session(parts));
+    pregame.buyOrder = buyOrder(
+      { id: parts.team1.id, value: calculateTeamValue(parts.team1) },
+      { id: parts.team2.id, value: calculateTeamValue(parts.team2) }
+    );
   }
   parts.eventBus.emit(GameEventNames.UI_SyncBoard);
   return { ok: true, errors: [] };

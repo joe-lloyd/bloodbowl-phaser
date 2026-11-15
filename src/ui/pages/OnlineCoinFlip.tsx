@@ -43,7 +43,11 @@ function readyForToss(
   pregame: ReturnType<typeof usePregameInducements>,
   cf: NonNullable<LobbyDoc["coinFlip"]>
 ): boolean {
-  return pregame.pregame ? !pregame.pending : !!cf.hostReady && !!cf.guestReady;
+  // Both coaches ready up for the toss after the inducements, as the lobby
+  // rules require both flags before the host may write the winner
+  return (
+    (!pregame.pregame || !pregame.pending) && !!cf.hostReady && !!cf.guestReady
+  );
 }
 
 /**
