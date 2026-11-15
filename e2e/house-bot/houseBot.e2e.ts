@@ -183,6 +183,11 @@ async function hostFreshGame(page: Page): Promise<string> {
       const value = await code.getAttribute("data-code");
       if (value) return value;
     }
+    // A match from before a restart, or one just over: see it through
+    if (landed === "old match") {
+      log("hosting resumed an earlier match; finishing it first");
+      if ((await playMatch(page)) === "full time") await leaveFullTime(page);
+    }
     log(`hosting landed on ${landed}; trying again`);
     await page.goto("/");
     await page.waitForTimeout(5000);
@@ -236,8 +241,9 @@ async function playMatch(page: Page): Promise<"full time" | "ended"> {
     // The kick is made once; the board takes a while to show it
     const kick = candidate.commands[0]?.type === "kick-ball";
     if (kick && kicked) continue;
-    kicked = kick || (kicked && next.phase !== "PLAY");
-    await play(page, app, i, next, candidate);
+    const played = await play(page, app, i, next, candidate);
+    // Only a kick that went through counts; a failed one is tried again
+    kicked = (kick && played) || (kicked && next.phase !== "PLAY");
   }
 }
 
@@ -247,12 +253,17 @@ async function play(
   i: number,
   next: Next,
   candidate: NonNullable<Next["candidate"]>
-) {
+): Promise<boolean> {
   log(`${i} ${next.phase}/${next.subPhase ?? "-"} :: ${candidate.label}`);
-  await perform(page, app, candidate.commands, next, rec).catch(
-    (error: Error) => log(`${i} move failed: ${error.message.split("\n")[0]}`)
+  const played = await perform(page, app, candidate.commands, next, rec).then(
+    () => true,
+    (error: Error) => {
+      log(`${i} move failed: ${error.message.split("\n")[0]}`);
+      return false;
+    }
   );
   if (next.pending) await brainCall(page, "clearPending");
+  return played;
 }
 
 /** MVP, SPP and back to the menu, as a coach would. */

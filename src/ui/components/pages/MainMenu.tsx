@@ -108,6 +108,23 @@ export function MainMenu() {
     setAuthError(null);
     try {
       const coach = user ?? (await signIn());
+      // Joining would replace the pointer to a match still in progress
+      const current = await getActiveMatchCode(coach.uid);
+      const lobby = current ? await fetchLobby(current) : null;
+      if (lobby?.status === "active") {
+        navigate(`/online/play/${current}`);
+        return;
+      }
+      if (lobby?.status === "lobby" && lobby.guestUid === coach.uid) {
+        navigate(`/online/lobby/${current}`);
+        return;
+      }
+      if (lobby?.status === "lobby") {
+        setAuthError(
+          `You are hosting lobby ${current}. Leave it before playing the house bot.`
+        );
+        return;
+      }
       const code = await findHouseBotLobby();
       if (!code) {
         setAuthError(
