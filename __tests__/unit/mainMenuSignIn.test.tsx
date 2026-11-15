@@ -121,13 +121,10 @@ describe("signing in from the main menu", () => {
     container.querySelector('[data-testid="sign-in-dialog"]');
   const where = () =>
     container.querySelector('[data-testid="where"]')?.textContent ?? "/";
-  const createAccount = async () => {
+  const createAccount = async (email = "coach@example.com") => {
     await click("New here? Create an account");
     await act(async () => {
-      typeInto(
-        container.querySelector('input[type="email"]')!,
-        "coach@example.com"
-      );
+      typeInto(container.querySelector('input[type="email"]')!, email);
       typeInto(
         container.querySelector('input[type="password"]')!,
         "tackle-zone-7"
@@ -198,6 +195,37 @@ describe("signing in from the main menu", () => {
     await act(async () => sdk.state.links[1].resolve());
     expect(container.textContent).toContain(
       "A new link to confirm your email is on its way."
+    );
+  });
+
+  it("reports only the newest send when two overlap", async () => {
+    await click("Sign in");
+    await createAccount();
+    // The first link is still on its way when the coach asks again
+    await click("Send the link again");
+    await act(async () => sdk.state.links[1].resolve());
+    await act(async () => sdk.state.links[0].reject(TOO_MANY));
+
+    expect(container.textContent).toContain(
+      "A new link to confirm your email is on its way."
+    );
+  });
+
+  it("keeps another account's late send off the coach signed in now", async () => {
+    await click("Sign in");
+    await createAccount("first@example.com");
+    await act(async () => sdk.state.links[0].resolve());
+    await click("Send the link again");
+    await click("Sign out");
+
+    await click("Sign in");
+    await createAccount("second@example.com");
+    await act(async () => sdk.state.links[2].reject(TOO_MANY));
+    // The first account's resend lands after the second's failed
+    await act(async () => sdk.state.links[1].resolve());
+
+    expect(container.textContent).toContain(
+      "The link to confirm your email did not send"
     );
   });
 

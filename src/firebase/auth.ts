@@ -39,6 +39,8 @@ type AuthListener = (user: AuthUser | null) => void;
 let currentUser: AuthUser | null = null;
 // Kept here, not in a page, so it outlives navigation
 let confirmLink: ConfirmLink = { kind: "sent" };
+/** Counts link sends; only the newest may report how it went. */
+let linkAttempt = 0;
 const listeners = new Set<AuthListener>();
 let watching = false;
 let resolved = false;
@@ -60,15 +62,31 @@ function ensureWatching(): void {
   onAuthStateChanged(getFirebaseAuth(), (user) => {
     resolved = true;
     const next = toAuthUser(user);
-    if (next?.uid !== currentUser?.uid) confirmLink = { kind: "sent" };
+    if (next?.uid !== currentUser?.uid) {
+      confirmLink = { kind: "sent" };
+      linkAttempt++;
+    }
     currentUser = next;
     listeners.forEach((listener) => listener(currentUser));
   });
 }
 
-function setConfirmLink(next: ConfirmLink): void {
-  confirmLink = next;
-  listeners.forEach((listener) => listener(currentUser));
+/**
+ * Send the link that proves this account's email, and report how it went
+ * unless a newer send, or another account, has come since.
+ */
+async function sendLink(user: User, sent: ConfirmLink): Promise<void> {
+  const attempt = ++linkAttempt;
+  const report = (next: ConfirmLink) => {
+    if (attempt !== linkAttempt) return;
+    confirmLink = next;
+    listeners.forEach((listener) => listener(currentUser));
+  };
+  await sendEmailVerification(user).then(
+    () => report(sent),
+    (error: unknown) =>
+      report({ kind: "failed", message: authErrorMessage(error) })
+  );
 }
 
 /** Subscribers hear of a change to this as an auth change. */
@@ -176,9 +194,7 @@ export async function createAccountWithEmail(
     email.trim(),
     password
   );
-  await sendEmailVerification(credential.user).catch((error: unknown) =>
-    setConfirmLink({ kind: "failed", message: authErrorMessage(error) })
-  );
+  await sendLink(credential.user, { kind: "sent" });
   return toAuthUser(credential.user)!;
 }
 
@@ -187,11 +203,7 @@ export async function sendVerificationLink(): Promise<void> {
   requireConfigured();
   const user = getFirebaseAuth().currentUser;
   if (!user) return;
-  await sendEmailVerification(user).then(
-    () => setConfirmLink({ kind: "resent" }),
-    (error: unknown) =>
-      setConfirmLink({ kind: "failed", message: authErrorMessage(error) })
-  );
+  await sendLink(user, { kind: "resent" });
 }
 
 export async function sendPasswordReset(email: string): Promise<void> {
