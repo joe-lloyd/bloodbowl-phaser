@@ -31,16 +31,13 @@ const inBounds = (p: { x: number; y: number }) =>
 const where = (p: PlayerSnapshot) =>
   `${p.id} (${p.positionName}) at (${p.position?.x},${p.position?.y})`;
 
-export function checkInvariants(
-  before: GameSnapshot,
-  after: GameSnapshot,
-  decisionPending: boolean
-): InvariantViolation[] {
-  const out: InvariantViolation[] = [];
-  const fail = (rule: string, message: string) => out.push({ rule, message });
-  const players = after.teams.flatMap((t) => t.players);
-  const onPitch = players.filter((p) => p.position);
+type Fail = (rule: string, message: string) => void;
 
+/** One player per square, on the grid, standing or down. Returns who is where. */
+function squareChecks(
+  onPitch: PlayerSnapshot[],
+  fail: Fail
+): Map<string, PlayerSnapshot> {
   const occupied = new Map<string, PlayerSnapshot>();
   for (const p of onPitch) {
     const key = `${p.position!.x},${p.position!.y}`;
@@ -60,19 +57,31 @@ export function checkInvariants(
       );
     }
   }
+  return occupied;
+}
 
-  if (after.phase === GamePhase.PLAY) {
-    for (const p of players) {
-      if (
-        !p.position &&
-        ON_PITCH_STATUSES.has(p.status) &&
-        p.status !== PlayerStatus.ACTIVE
-      ) {
-        fail("off-pitch-status", `${p.id} is off the pitch but ${p.status}`);
-      }
+function offPitchChecks(
+  after: GameSnapshot,
+  players: PlayerSnapshot[],
+  fail: Fail
+): void {
+  if (after.phase !== GamePhase.PLAY) return;
+  for (const p of players) {
+    if (
+      !p.position &&
+      ON_PITCH_STATUSES.has(p.status) &&
+      p.status !== PlayerStatus.ACTIVE
+    ) {
+      fail("off-pitch-status", `${p.id} is off the pitch but ${p.status}`);
     }
   }
+}
 
+function teamChecks(
+  before: GameSnapshot,
+  after: GameSnapshot,
+  fail: Fail
+): void {
   for (const team of after.teams) {
     const count = team.players.filter((p) => p.position).length;
     // Swarming adds up to the drive's D3 roll of Linemen after set-up
@@ -96,7 +105,14 @@ export function checkInvariants(
       );
     }
   }
+}
 
+function ballChecks(
+  after: GameSnapshot,
+  occupied: Map<string, PlayerSnapshot>,
+  decisionPending: boolean,
+  fail: Fail
+): void {
   if (after.ballPosition && !inBounds(after.ballPosition)) {
     fail(
       "ball-in-bounds",
@@ -121,7 +137,14 @@ export function checkInvariants(
       );
     }
   }
+}
 
+function turnChecks(
+  before: GameSnapshot,
+  after: GameSnapshot,
+  players: PlayerSnapshot[],
+  fail: Fail
+): void {
   if (after.phase === GamePhase.PLAY && after.activePlayer) {
     const owner = players.find((p) => p.id === after.activePlayer!.id);
     if (owner && owner.teamId !== after.activeTeamId) {
@@ -148,7 +171,24 @@ export function checkInvariants(
       "the match went from the second half back to the first"
     );
   }
+}
 
+export function checkInvariants(
+  before: GameSnapshot,
+  after: GameSnapshot,
+  decisionPending: boolean
+): InvariantViolation[] {
+  const out: InvariantViolation[] = [];
+  const fail = (rule: string, message: string) => out.push({ rule, message });
+  const players = after.teams.flatMap((t) => t.players);
+  const occupied = squareChecks(
+    players.filter((p) => p.position),
+    fail
+  );
+  offPitchChecks(after, players, fail);
+  teamChecks(before, after, fail);
+  ballChecks(after, occupied, decisionPending, fail);
+  turnChecks(before, after, players, fail);
   return out;
 }
 
@@ -167,6 +207,79 @@ export interface RuleMonitor {
   ): InvariantViolation[];
 }
 
+/** Counted per declaration: a Time-Out can repeat a turn number. */
+function blitzBlockCheck(
+  command: HeadlessCommand,
+  before: GameSnapshot,
+  blitzBlocks: Map<string, number>,
+  fail: Fail
+): void {
+  if (command.type === "declare-action") blitzBlocks.delete(command.playerId);
+  if (command.type !== "block" || before.activePlayer?.action !== "blitz")
+    return;
+  const blocks = (blitzBlocks.get(command.attackerId) ?? 0) + 1;
+  blitzBlocks.set(command.attackerId, blocks);
+  if (blocks > 1) {
+    fail(
+      "one-block-per-blitz",
+      `${command.attackerId} made block ${blocks} in one Blitz`
+    );
+  }
+}
+
+/** A pass the passing team does not end up holding ends their turn. */
+function passTurnoverCheck(
+  command: HeadlessCommand,
+  team: string,
+  after: GameSnapshot,
+  fail: Fail
+): void {
+  const stillTheirTurn =
+    after.phase === GamePhase.PLAY && after.activeTeamId === team;
+  const holder = after.ballPosition
+    ? after.teams
+        .flatMap((t) => t.players)
+        .find(
+          (p) =>
+            p.position?.x === after.ballPosition!.x &&
+            p.position?.y === after.ballPosition!.y &&
+            p.status === PlayerStatus.ACTIVE
+        )
+    : undefined;
+  if (stillTheirTurn && holder?.teamId !== team) {
+    fail(
+      "uncaught-pass-is-turnover",
+      `after a ${command.type} by ${team} the ball is ${holder ? `held by ${holder.id}` : "loose"} and it is still ${team}'s turn`
+    );
+  }
+}
+
+/** Nobody moves further than MA plus Rushes. */
+function movementChecks(
+  before: GameSnapshot,
+  after: GameSnapshot,
+  fail: Fail
+): void {
+  for (const player of after.teams.flatMap((t) => t.players)) {
+    const used = after.turn.movementUsed[player.id] ?? 0;
+    // Judged when it is spent, against the player as they were before
+    // the command: a skill can lapse at the end of a drive, even in the
+    // command that spent the squares it allowed.
+    if (used <= (before.turn.movementUsed[player.id] ?? 0)) continue;
+    const mover =
+      before.teams.flatMap((t) => t.players).find((p) => p.id === player.id) ??
+      player;
+    const allowance =
+      mover.stats.MA + (mover.skills.includes("Sprint") ? 3 : 2);
+    if (used > allowance) {
+      fail(
+        "movement-allowance",
+        `${player.id} has moved ${used} squares, allowance ${allowance}`
+      );
+    }
+  }
+}
+
 export function createRuleMonitor(): RuleMonitor {
   const blitzBlocks = new Map<string, number>();
   /** The passing team while a Pass or Hand-off is still resolving. */
@@ -178,65 +291,17 @@ export function createRuleMonitor(): RuleMonitor {
       const fail = (rule: string, message: string) =>
         out.push({ rule, message });
 
-      // Counted per declaration: a Time-Out can repeat a turn number.
-      if (command.type === "declare-action")
-        blitzBlocks.delete(command.playerId);
-      if (command.type === "block" && before.activePlayer?.action === "blitz") {
-        const blocks = (blitzBlocks.get(command.attackerId) ?? 0) + 1;
-        blitzBlocks.set(command.attackerId, blocks);
-        if (blocks > 1) {
-          fail(
-            "one-block-per-blitz",
-            `${command.attackerId} made block ${blocks} in one Blitz`
-          );
-        }
-      }
+      blitzBlockCheck(command, before, blitzBlocks, fail);
 
       if (command.type === "pass" || command.type === "handoff") {
         passingTeam = before.activeTeamId;
       }
       if (passingTeam && !decisionPending) {
-        const team = passingTeam;
+        passTurnoverCheck(command, passingTeam, after, fail);
         passingTeam = null;
-        const stillTheirTurn =
-          after.phase === GamePhase.PLAY && after.activeTeamId === team;
-        const holder = after.ballPosition
-          ? after.teams
-              .flatMap((t) => t.players)
-              .find(
-                (p) =>
-                  p.position?.x === after.ballPosition!.x &&
-                  p.position?.y === after.ballPosition!.y &&
-                  p.status === PlayerStatus.ACTIVE
-              )
-          : undefined;
-        if (stillTheirTurn && holder?.teamId !== team) {
-          fail(
-            "uncaught-pass-is-turnover",
-            `after a ${command.type} by ${team} the ball is ${holder ? `held by ${holder.id}` : "loose"} and it is still ${team}'s turn`
-          );
-        }
       }
 
-      for (const player of after.teams.flatMap((t) => t.players)) {
-        const used = after.turn.movementUsed[player.id] ?? 0;
-        // Judged when it is spent, against the player as they were before
-        // the command: a skill can lapse at the end of a drive, even in the
-        // command that spent the squares it allowed.
-        if (used <= (before.turn.movementUsed[player.id] ?? 0)) continue;
-        const mover =
-          before.teams
-            .flatMap((t) => t.players)
-            .find((p) => p.id === player.id) ?? player;
-        const allowance =
-          mover.stats.MA + (mover.skills.includes("Sprint") ? 3 : 2);
-        if (used > allowance) {
-          fail(
-            "movement-allowance",
-            `${player.id} has moved ${used} squares, allowance ${allowance}`
-          );
-        }
-      }
+      movementChecks(before, after, fail);
       return out;
     },
   };
