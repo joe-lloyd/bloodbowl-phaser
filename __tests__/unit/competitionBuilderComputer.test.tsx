@@ -220,3 +220,33 @@ it("fills a league without secure-context browser APIs", async () => {
   expect(new Set(league.entrants.map((team) => team.name)).size).toBe(16);
   expect(league.fixtures).toHaveLength(120);
 });
+
+it("lets an organizer replace a NAF-only build after switching to GW rules", async () => {
+  await openBuilder();
+  const choose = async (selector: string, value: string) => {
+    await act(async () => {
+      const select = container.querySelector<HTMLSelectElement>(selector)!;
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  };
+  await choose('select[aria-label="Sevens rules"]', "naf-sevens-2026-09-26");
+  await act(async () => button("+ Add computer team").click());
+  await choose('select[aria-label$=" roster"]', RosterName.SNOTLING);
+  await choose('select[aria-label$=" build"]', "snotling-max-snots");
+  await choose('select[aria-label="Sevens rules"]', "gw-2025");
+  expect(container.textContent).toContain("Choose another build.");
+  expect(
+    container.querySelector<HTMLSelectElement>('select[aria-label$=" build"]')!
+      .value
+  ).toBe("snotling-max-snots");
+  await choose('select[aria-label$=" build"]', "snotling-max-strength");
+  expect(container.textContent).not.toContain("Choose another build.");
+  await act(async () => button("+ Add computer team").click());
+  await generatedLeague();
+  expect(
+    loadTeams().filter(
+      (team) => team.computerTemplateId === "snotling-max-strength"
+    )
+  ).toHaveLength(1);
+});

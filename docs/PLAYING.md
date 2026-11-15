@@ -21,6 +21,23 @@ Both coaches use the same screen. You can build teams and play locally without
 signing in. Saved teams and a local match are stored in that browser, so clearing
 site data removes those local saves. Use **Resume Match** when it appears on the menu.
 
+## Play against the computer
+
+Open **Build Team → Computer teams** to browse ready-made opponents. Search by
+name or roster, or expand a card to inspect its lineup and Bonehead Podcast
+source. The rules selector shows only builds legal under that profile.
+
+Choose **Play against**, select your own team, and start the match. You need
+only one saved team. You can also choose **Versus computer** on the team
+selection page and pick an opponent there. Friendly matches use GW rules and
+start with a fresh copy each time.
+
+For a season, choose **Add to a league** on a card or add computer teams in the
+competition builder. Choose an advancement mode in the competition's roster
+rule profile. Every computer entrant becomes a separate team that keeps its
+own skills, purchases, injuries, and results. The starting template stays
+unchanged and can enter other leagues at the same time.
+
 ## During the match
 
 Select one of the active coach's players and choose an action from the HUD.

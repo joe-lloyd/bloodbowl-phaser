@@ -54,6 +54,9 @@ async function showTeam(): Promise<{
       </MemoryRouter>
     );
   });
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>('#computer-tab')!.click();
+  });
   expect(container.textContent).toContain("Computer");
   return {
     team,

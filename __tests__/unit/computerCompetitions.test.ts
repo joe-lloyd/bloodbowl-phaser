@@ -12,7 +12,6 @@ vi.mock("../../src/firebase/config", () => ({
 
 import { createCompetition } from "../../src/competition/create";
 import {
-  computerTeamName,
   createComputerTeam,
   manageComputerTeam,
 } from "../../src/competition/computerTeams";
@@ -321,15 +320,4 @@ describe("simulating a game between two computer teams", () => {
     expect(getTeamById(orcs.id)!.treasury).toBeLessThanOrEqual(before[0]);
     expect(getTeamById(dwarfs.id)!.treasury).toBeLessThanOrEqual(before[1]);
   }, 60_000);
-});
-
-describe("computer team names", () => {
-  it("use a place and a nickname no other team has while any are left", () => {
-    const taken = new Set<string>();
-    for (let i = 0; i < 16; i++) taken.add(computerTeamName(taken));
-    const places = [...taken].map((name) => name.split(" ")[0]);
-    const nicknames = [...taken].map((name) => name.split(" ").at(-1));
-    expect(new Set(places).size).toBeGreaterThanOrEqual(15);
-    expect(new Set(nicknames).size).toBe(16);
-  });
 });

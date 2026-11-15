@@ -257,10 +257,26 @@ a friendly against the computer, and on for a league or cup game.
 
 ## Leagues and cups
 
-The competition builder adds computer teams by roster. Each is a ready-made
-legal team (`createComputerTeam` in `src/competition/computerTeams.ts`) with
-`computerCoached` set, kept in the organizer's team library so it can enter
-next season too. Team selection and the online lobby leave these teams out.
+The Computer teams tab in Team Management provides Bonehead Podcast's Season 3
+Sevens starting builds, with names, kits, roster previews, and source links.
+The bundled catalogue has 82 recipes across 30 rosters. GW rules permit 81;
+the NAF rulings also permit the Snotling Max snots build. Prices and legality
+come from the game's current purchasing and draft rules.
+
+`src/data/computerTeamCatalogue.ts` stores frozen recipes. They have no team or
+player ids, match record, injuries, or advancement mode, and browsing them writes
+nothing to a user's library. `createComputerTeamFromTemplate` purchases a fresh
+600,000 draft from a recipe, creates fresh player ids, and chooses its Veteran.
+Friendlies use an unsaved copy with progression off.
+
+The competition creation boundary accepts `computerTemplateId` choices and
+creates separate teams in the organizer's library. Each copy takes the
+competition profile's advancement mode, or Advanced League without a profile.
+Its `computerTemplateId` survives local and cloud persistence. Results, injuries,
+purchases, and skills belong to that copy. Choosing the same recipe in a second
+league starts again with rookies and fresh ids. Computer-team copies appear
+under Competition teams in the Computer teams tab; they are excluded from the
+human-team selectors.
 
 To start a solo season, select your team, then choose **Fill league with
 computer teams**. The default is 16 teams, giving your team 15 different
@@ -270,7 +286,7 @@ opponents. The size selector also offers 8 teams for 7 matches each and
 Filling keeps the teams you selected and the computer teams you already
 added. New teams get unique names and the least-used roster types, so every
 available roster appears before another type repeats. You can change each
-computer team's roster or remove it before generating the league. With no
+computer team's roster and build, or remove it before generating the league. With no
 human team selected, filling creates a league controlled entirely by the
 computer.
 

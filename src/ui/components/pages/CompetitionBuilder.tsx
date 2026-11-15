@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createCompetition } from "../../../competition/create";
-import {
-  computerTeamName,
-  createComputerTeam,
-} from "../../../competition/computerTeams";
+import { getComputerTeamTemplates } from "../../../competition/computerTeamTemplates";
+import { ComputerTeamTemplate } from "../../../data/computerTeamCatalogue";
 import {
   competitionPath,
   CompetitionType,
@@ -25,6 +23,7 @@ import { RosterName, Team, TeamAdvancementMode } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import {
   DEFAULT_SEVENS_RULESET,
+  NAF_SEVENS_RULESET,
   SevensRuleset,
 } from "../../../game/rules/sevensRuleset";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
@@ -47,24 +46,20 @@ type Candidate = {
 };
 
 /** A computer team to build when the competition is generated. */
-type ComputerRow = { name: string; rosterName: RosterName };
-
-const ROSTERS = Object.values(RosterName);
-const KIT_COLOURS = [
-  0xb22222, 0x1f4e9c, 0x2e8b57, 0xd4a017, 0x6a0dad, 0xff7f00, 0x008b8b,
-  0x8b4513, 0x708090, 0xc71585, 0x556b2f, 0x4682b4,
-];
+type ComputerRow = { id: number; template: ComputerTeamTemplate };
 
 /**
  * Every coach's team is added to a competition the same way — as a
  * reference to a live team, whether it is the organizer's own or another
  * coach's (shared-team-library: "no distinction between a 'shared' and a
  * 'local' entrant source"). There is no publish/shared-copy step; other
- * coaches' teams are read directly. Computer teams are built here and kept
- * in the organizer's library.
+ * coaches' teams are read directly. Computer recipes become separate teams
+ * in the organizer's library when the competition is created.
  */
 export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextComputerId = useRef(1);
   const { user } = useAuth();
   const [name, setName] = useState("");
   const [format, setFormat] = useState<TournamentFormat>("single-elimination");
@@ -72,11 +67,24 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const [otherTeams, setOtherTeams] = useState<OwnedTeam[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [useProfile, setUseProfile] = useState(false);
-  const [ruleset, setRuleset] = useState<SevensRuleset>(DEFAULT_SEVENS_RULESET);
+  const [ruleset, setRuleset] = useState<SevensRuleset>(
+    searchParams.get("ruleset") === NAF_SEVENS_RULESET
+      ? NAF_SEVENS_RULESET
+      : DEFAULT_SEVENS_RULESET
+  );
+  const templates = useMemo(() => getComputerTeamTemplates(ruleset), [ruleset]);
+  const rosters = [
+    ...new Set(templates.map((template) => template.rosterName)),
+  ];
   const [advancementMode, setAdvancementModeChoice] =
     useState<TeamAdvancementMode>("advanced-league");
-  const [draftBudget, setDraftBudget] = useState(1_200_000);
-  const [computerRows, setComputerRows] = useState<ComputerRow[]>([]);
+  const [draftBudget, setDraftBudget] = useState(600_000);
+  const [computerRows, setComputerRows] = useState<ComputerRow[]>(() => {
+    const template = templates.find(
+      (candidate) => candidate.id === searchParams.get("computer")
+    );
+    return template ? [{ id: 0, template }] : [];
+  });
   const [leagueSize, setLeagueSize] = useState(16);
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const [localTeams] = useTeamLibrary();
@@ -98,12 +106,14 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   }, [user]);
 
   const candidates: Candidate[] = [
-    ...localTeams.map((team) => ({
-      id: `own:${team.id}`,
-      label: `${team.name} (${team.rosterName}) — ${team.computerCoached ? "computer team" : "your team"}`,
-      team,
-      ownerUid: user?.uid,
-    })),
+    ...localTeams
+      .filter((team) => !team.computerCoached)
+      .map((team) => ({
+        id: `own:${team.id}`,
+        label: `${team.name} (${team.rosterName}) · your team`,
+        team,
+        ownerUid: user?.uid,
+      })),
     ...otherTeams
       // Another coach's computer team plays from their library, not this one
       .filter(
@@ -127,7 +137,8 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
     );
 
   /** Fill empty places, keeping existing entrants and spreading roster types. */
-  const addComputerTeams = (count: number) =>
+  const addComputerTeams = (count: number) => {
+    const ids = Array.from({ length: count }, () => nextComputerId.current++);
     setComputerRows((rows) => {
       const next = [...rows];
       const chosen = candidates.filter((candidate) =>
@@ -136,39 +147,36 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
       const rosterCounts = new Map<RosterName, number>();
       for (const roster of [
         ...chosen.map((candidate) => candidate.team.rosterName),
-        ...rows.map((row) => row.rosterName),
+        ...rows.map((row) => row.template.rosterName),
       ]) {
         rosterCounts.set(roster, (rosterCounts.get(roster) ?? 0) + 1);
       }
-      const taken = new Set([
-        ...rows.map((row) => row.name),
-        ...candidates.map((candidate) => candidate.team.name),
-      ]);
-      for (let index = 0; index < count; index++) {
+      for (const id of ids) {
         const fewest = Math.min(
-          ...ROSTERS.map((roster) => rosterCounts.get(roster) ?? 0)
+          ...rosters.map((roster) => rosterCounts.get(roster) ?? 0)
         );
-        const pool = ROSTERS.filter(
+        const pool = rosters.filter(
           (roster) => (rosterCounts.get(roster) ?? 0) === fewest
         );
-        const rosterName = pool[Math.floor(Math.random() * pool.length)];
-        const name = computerTeamName(taken);
-        next.push({ name, rosterName });
-        taken.add(name);
-        rosterCounts.set(rosterName, (rosterCounts.get(rosterName) ?? 0) + 1);
+        const roster = pool[Math.floor(Math.random() * pool.length)];
+        const variants = templates.filter(
+          (template) => template.rosterName === roster
+        );
+        const unused = variants.filter(
+          (template) => !next.some((row) => row.template.id === template.id)
+        );
+        const choices = unused.length > 0 ? unused : variants;
+        const template = choices[Math.floor(Math.random() * choices.length)];
+        next.push({ id, template });
+        rosterCounts.set(roster, (rosterCounts.get(roster) ?? 0) + 1);
       }
       return next;
     });
+  };
 
   const entrantCount = selected.length + computerRows.length;
 
-  const computerEntrants =
-    computerRows.length +
-    selected.filter(
-      (id) =>
-        candidates.find((candidate) => candidate.id === id)?.team
-          .computerCoached
-    ).length;
+  const computerEntrants = computerRows.length;
 
   const create = async () => {
     setError(null);
@@ -176,14 +184,6 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
       .map((id) => candidates.find((candidate) => candidate.id === id))
       .filter((candidate): candidate is Candidate => Boolean(candidate));
     try {
-      const built = computerRows.map((row, index) =>
-        createComputerTeam(
-          row.rosterName,
-          row.name,
-          KIT_COLOURS[index % KIT_COLOURS.length],
-          profile?.advancementMode ?? "advanced-league"
-        )
-      );
       const competition = await createCompetition({
         ruleset,
         type,
@@ -195,7 +195,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             team: candidate.team,
             ownerUid: candidate.ownerUid ?? null,
           })),
-          ...built.map((team) => ({ team, ownerUid: user?.uid ?? null })),
+          ...computerRows.map((row) => ({
+            computerTemplateId: row.template.id,
+          })),
         ],
         profile,
         computerDifficulty: difficulty,
@@ -378,8 +380,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         <p className="mb-4 font-hud-body text-hud-sm text-hud-dim">
           The computer coaches these teams. You play your own games against
           them, or take one over for a game. A game between two computer teams
-          is played out in seconds, injuries and all. They join your team
-          library, so they can play next season too.
+          is played out in seconds, injuries and all. Each selected starting
+          roster becomes a separate team for this competition and follows its
+          advancement mode. Its template stays unchanged.
         </p>
         {type === "league" && (
           <div className="mb-5 space-y-3">
@@ -420,45 +423,90 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           <ul className="mb-4 space-y-2">
             {computerRows.map((row, index) => (
               <li
-                key={row.name}
+                key={row.id}
                 className="flex flex-wrap items-center gap-2 font-hud-body text-hud-base text-hud-bone"
               >
                 <span className="min-w-[12rem] flex-1">
                   <span className="font-hud-label font-bold uppercase tracking-[0.06em] text-hud-gold">
                     Seed {selected.length + index + 1}:{" "}
                   </span>
-                  {row.name}
+                  {row.template.name}
                 </span>
                 <select
-                  aria-label={`${row.name} roster`}
-                  value={row.rosterName}
-                  onChange={(event) =>
-                    setComputerRows((rows) =>
-                      rows.map((candidate) =>
-                        candidate.name === row.name
-                          ? {
-                              ...candidate,
-                              rosterName: event.target.value as RosterName,
-                            }
-                          : candidate
-                      )
-                    )
-                  }
+                  aria-label={`${row.template.name} roster`}
+                  value={row.template.rosterName}
+                  onChange={(event) => {
+                    const template = templates.find(
+                      (candidate) => candidate.rosterName === event.target.value
+                    );
+                    if (template)
+                      setComputerRows((rows) =>
+                        rows.map((candidate) =>
+                          candidate.id === row.id
+                            ? { ...candidate, template }
+                            : candidate
+                        )
+                      );
+                  }}
                   className="hud-field w-auto"
                 >
-                  {ROSTERS.map((roster) => (
+                  {rosters.map((roster) => (
                     <option key={roster} value={roster}>
                       {roster}
                     </option>
                   ))}
                 </select>
+                <select
+                  aria-label={`${row.template.name} build`}
+                  value={row.template.id}
+                  className="hud-field w-auto max-w-full"
+                  onChange={(event) => {
+                    const template = templates.find(
+                      (candidate) => candidate.id === event.target.value
+                    );
+                    if (template)
+                      setComputerRows((rows) =>
+                        rows.map((candidate) =>
+                          candidate.id === row.id
+                            ? { ...candidate, template }
+                            : candidate
+                        )
+                      );
+                  }}
+                >
+                  {!templates.some(
+                    (template) => template.id === row.template.id
+                  ) && (
+                    <option value={row.template.id} disabled>
+                      Choose a legal build
+                    </option>
+                  )}
+                  {templates
+                    .filter(
+                      (template) =>
+                        template.rosterName === row.template.rosterName
+                    )
+                    .map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} · {template.buildName}
+                      </option>
+                    ))}
+                </select>
+                {!templates.some(
+                  (template) => template.id === row.template.id
+                ) && (
+                  <Notice tone="bad">
+                    This starting roster is not legal under the selected rules.
+                    Choose another build.
+                  </Notice>
+                )}
                 <HudButton
                   variant="ghost"
                   size="sm"
-                  aria-label={`Remove ${row.name}`}
+                  aria-label={`Remove ${row.template.name}`}
                   onClick={() =>
                     setComputerRows((rows) =>
-                      rows.filter((candidate) => candidate.name !== row.name)
+                      rows.filter((candidate) => candidate.id !== row.id)
                     )
                   }
                 >

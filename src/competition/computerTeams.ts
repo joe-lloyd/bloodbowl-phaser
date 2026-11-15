@@ -5,10 +5,8 @@
  * the way a person's team does.
  */
 
-import { getRosterByRosterName } from "../data/RosterTemplates";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import {
-  allocateMatchedPlaySkill,
   chooseSecondarySkill,
   draftedPlayerPrice,
   keepDraftedPlayer,
@@ -49,7 +47,11 @@ import {
   resolveExpensiveMistakes,
 } from "../game/rules/expensiveMistakes";
 import { IRNGService } from "../services/rng/RNGService";
-import { createReadyMadeTeam } from "../simulation/lineups";
+import {
+  createComputerTeamFromTemplate,
+  getComputerTeamTemplates,
+} from "./computerTeamTemplates";
+export { COMPUTER_COACH } from "./computerTeamTemplates";
 import { Player } from "../types/Player";
 import {
   calculateTeamValue,
@@ -57,86 +59,12 @@ import {
   isPendingRecruit,
   PendingDevelopment,
   RosterName,
-  startingDedicatedFans,
   Team,
   TeamAdvancementMode,
 } from "../types/Team";
 import { CompetitionDoc } from "./types";
 
 type Rng = Pick<IRNGService, "rollDie">;
-
-export const COMPUTER_COACH = "Computer";
-
-const PLACES = [
-  "Altdorf",
-  "Middenheim",
-  "Nuln",
-  "Talabheim",
-  "Marienburg",
-  "Averheim",
-  "Karak Varn",
-  "Praag",
-  "Erengrad",
-  "Bögenhafen",
-  "Wissenburg",
-  "Grimminhagen",
-  "Mordheim",
-  "Sylvania",
-  "Lustria",
-  "Naggaroth",
-];
-
-const NICKNAMES = [
-  "Marauders",
-  "Reavers",
-  "Bonecrushers",
-  "Gutrippers",
-  "Nightmares",
-  "Hammers",
-  "Warhawks",
-  "Grudgebearers",
-  "Ravagers",
-  "Stormcrows",
-  "Butchers",
-  "Wolves",
-  "Avengers",
-  "Bloodletters",
-  "Ironhides",
-  "Screamers",
-];
-
-/**
- * A team name not in `taken`, such as "Nuln Bonecrushers", from a place and
- * a nickname no taken name uses while any are left.
- */
-export function computerTeamName(
-  taken: ReadonlySet<string>,
-  random: () => number = Math.random
-): string {
-  const names = [...taken];
-  const unused = (
-    words: string[],
-    inName: (name: string, word: string) => boolean
-  ) => {
-    const left = words.filter(
-      (word) => !names.some((name) => inName(name, word))
-    );
-    return left.length > 0 ? left : words;
-  };
-  const places = unused(PLACES, (name, place) => name.startsWith(`${place} `));
-  const nicknames = unused(NICKNAMES, (name, nickname) =>
-    name.includes(` ${nickname}`)
-  );
-  const pick = (list: string[]) => list[Math.floor(random() * list.length)];
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const name = `${pick(places)} ${pick(nicknames)}`;
-    if (!taken.has(name)) return name;
-  }
-  for (let number = 2; ; number++) {
-    const name = `${pick(places)} ${pick(nicknames)} ${number}`;
-    if (!taken.has(name)) return name;
-  }
-}
 
 /** A ready-made legal team for the computer to coach. */
 export function createComputerTeam(
@@ -145,28 +73,14 @@ export function createComputerTeam(
   primaryColour: number,
   advancementMode: TeamAdvancementMode
 ): Team {
-  const team = createReadyMadeTeam(rosterName, name, primaryColour);
-  team.coachName = COMPUTER_COACH;
-  team.computerCoached = true;
-  // Team Builder picks the mode when the team is created
-  team.advancementMode = advancementMode;
-  team.advancementModeLocked = true;
-  team.dedicatedFans = startingDedicatedFans(advancementMode);
-  if (advancementMode === "matched-play") {
-    // Matched Play buys its skills at creation: one Primary skill
-    const roster = getRosterByRosterName(rosterName);
-    for (const player of team.players) {
-      const skill = eligibleSkills(player, player.primary ?? [])[0];
-      if (!skill) continue;
-      try {
-        allocateMatchedPlaySkill(team, roster, player, skill, "primary");
-        break;
-      } catch {
-        // Too dear for this player; try the next
-      }
-    }
-  }
-  team.teamValue = calculateTeamValue(team);
+  const template = getComputerTeamTemplates().find(
+    (candidate) => candidate.rosterName === rosterName
+  );
+  if (!template)
+    throw new Error(`No legal computer template for ${rosterName}.`);
+  const team = createComputerTeamFromTemplate(template.id, { advancementMode });
+  team.name = name;
+  team.colors.primary = primaryColour;
   return team;
 }
 
