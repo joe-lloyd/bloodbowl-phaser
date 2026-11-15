@@ -2,42 +2,52 @@ import { describe, expect, it } from "vitest";
 import { EventEmitter } from "node:events";
 import { BallTrail } from "../../../src/game/elements/BallTrail";
 
-/** A scene whose graphics remember every dot drawn since the last clear. */
+/** Record the shapes the coach would see after the latest redraw. */
 function fakeScene() {
-  const dots: { x: number; y: number; alpha: number; color: number }[] = [];
-  const rings: { x: number; y: number; alpha: number }[] = [];
+  const lines: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    width: number;
+    color: number;
+    alpha: number;
+  }[] = [];
+  const dots: number[][] = [];
+  const rings: number[][] = [];
   const events = new EventEmitter();
   const time = { now: 0 };
-  let alpha = 1;
-  let color = 0;
+  let style = { width: 1, color: 0, alpha: 1 };
   const graphics = {
     setDepth: () => graphics,
     clear: () => {
+      lines.length = 0;
       dots.length = 0;
       rings.length = 0;
       return graphics;
     },
-    fillStyle: (value: number, opacity: number) => {
-      color = value;
-      alpha = opacity;
-      return graphics;
-    },
+    fillStyle: () => graphics,
     fillCircle: (x: number, y: number) => {
-      dots.push({ x, y, alpha, color });
-      return graphics;
-    },
-    lineStyle: (_width: number, _color: number, opacity: number) => {
-      alpha = opacity;
+      dots.push([x, y]);
       return graphics;
     },
     strokeEllipse: (x: number, y: number) => {
-      rings.push({ x, y, alpha });
+      rings.push([x, y]);
+      return graphics;
+    },
+    lineStyle: (width: number, color: number, alpha: number) => {
+      style = { width, color, alpha };
+      return graphics;
+    },
+    lineBetween: (x1: number, y1: number, x2: number, y2: number) => {
+      lines.push({ x1, y1, x2, y2, ...style });
       return graphics;
     },
     destroy: () => {},
   };
   return {
     scene: { add: { graphics: () => graphics }, events, time },
+    lines,
     dots,
     rings,
     advanceTo: (now: number) => {
@@ -47,65 +57,78 @@ function fakeScene() {
   };
 }
 
-const at = (dots: { x: number; y: number }[], x: number, y: number) =>
-  dots.some((dot) => dot.x === x && dot.y === y);
+const path = (lines: ReturnType<typeof fakeScene>["lines"]) =>
+  lines.map(({ x1, y1, x2, y2 }) => [x1, y1, x2, y2]);
 
-describe("the ball's trail", () => {
-  it("expires on its own without a coach taking another action", () => {
-    const { scene, dots, rings, advanceTo } = fakeScene();
+describe("the ball's short comet trail", () => {
+  it("draws a warm continuous tail without dots or landing rings", () => {
+    const { scene, lines, dots, rings } = fakeScene();
     const trail = new BallTrail(scene as never);
     trail.startFlight(0, 0);
+    trail.addPoint(20, 0);
     trail.addPoint(40, 0);
-    trail.endFlight({ x: 40, y: 0 });
-    expect(dots.length).toBeGreaterThan(0);
-    expect(rings.length).toBeGreaterThan(0);
-
-    advanceTo(1500);
+    trail.endFlight();
+    expect(lines).toEqual([
+      { x1: 0, y1: 0, x2: 20, y2: 0, width: 4, color: 0xedcd8f, alpha: 0.8 },
+      { x1: 20, y1: 0, x2: 40, y2: 0, width: 4, color: 0xedcd8f, alpha: 0.8 },
+    ]);
     expect(dots).toEqual([]);
     expect(rings).toEqual([]);
   });
 
-  it("fades each mark linearly, with the start disappearing before the end", () => {
-    const { scene, dots, rings, advanceTo } = fakeScene();
+  it("expires on its own after 420 ms without another coach action", () => {
+    const { scene, lines, advanceTo } = fakeScene();
     const trail = new BallTrail(scene as never);
     trail.startFlight(0, 0);
+    trail.addPoint(40, 0);
+    trail.endFlight();
+    expect(lines.length).toBeGreaterThan(0);
+    advanceTo(420);
+    expect(lines).toEqual([]);
+  });
+
+  it("fades and tapers each segment linearly, oldest first", () => {
+    const { scene, lines, advanceTo } = fakeScene();
+    const trail = new BallTrail(scene as never);
+    trail.startFlight(0, 0);
+    trail.addPoint(20, 0);
+    advanceTo(100);
+    trail.addPoint(40, 0);
+    trail.endFlight();
+    advanceTo(294);
+    expect(lines[0].alpha).toBeCloseTo(0.6);
+    expect(lines[0].width).toBeCloseTo(3);
+    expect(lines[1].alpha).toBeCloseTo(0.8);
+    advanceTo(336);
+    expect(lines[0].alpha).toBeCloseTo(0.4);
+    expect(lines[0].width).toBeCloseTo(2);
+    expect(lines[1].alpha).toBeCloseTo(0.8);
+    advanceTo(436);
+    expect(path(lines)).toEqual([[20, 0, 40, 0]]);
+    expect(lines[0].alpha).toBeCloseTo(0.4);
+    expect(lines[0].width).toBeCloseTo(2);
+    advanceTo(520);
+    expect(lines).toEqual([]);
+  });
+
+  it("neither joins separate flights nor resets the older tail's timer", () => {
+    const { scene, lines, advanceTo } = fakeScene();
+    const trail = new BallTrail(scene as never);
+    trail.startFlight(0, 0);
+    trail.addPoint(40, 0);
+    trail.endFlight();
     advanceTo(300);
-    trail.addPoint(40, 0);
-    trail.endFlight({ x: 40, y: 0 });
-    const goldAt = (x: number) =>
-      dots.find((dot) => dot.color === 0xffd84a && dot.x === x)?.alpha;
-
-    advanceTo(1050);
-    expect(goldAt(0)).toBeCloseTo(0.3375);
-    expect(goldAt(40)).toBeCloseTo(0.95);
-    advanceTo(1200);
-    expect(goldAt(0)).toBeCloseTo(0.225);
-    expect(goldAt(40)).toBeCloseTo(0.95);
-    advanceTo(1500);
-    expect(goldAt(0)).toBeUndefined();
-    expect(goldAt(40)).toBeCloseTo(0.475);
-    expect(rings[1].alpha).toBeCloseTo(0.475);
-    advanceTo(1800);
-    expect(dots).toEqual([]);
-    expect(rings).toEqual([]);
-  });
-
-  it("does not restart an older trail's timer when the ball bounces again", () => {
-    const { scene, dots, advanceTo } = fakeScene();
-    const trail = new BallTrail(scene as never);
-    trail.startFlight(0, 0);
-    trail.addPoint(40, 0);
-    trail.endFlight({ x: 40, y: 0 });
-    advanceTo(1000);
     trail.startFlight(80, 0);
     trail.addPoint(120, 0);
-    trail.endFlight({ x: 120, y: 0 });
-
-    advanceTo(1500);
-    expect(at(dots, 0, 0)).toBe(false);
-    expect(at(dots, 80, 0)).toBe(true);
-    advanceTo(2500);
-    expect(dots).toEqual([]);
+    trail.endFlight();
+    expect(path(lines)).toEqual([
+      [0, 0, 40, 0],
+      [80, 0, 120, 0],
+    ]);
+    advanceTo(420);
+    expect(path(lines)).toEqual([[80, 0, 120, 0]]);
+    advanceTo(720);
+    expect(lines).toEqual([]);
   });
 
   it("stops listening to the scene when destroyed", () => {
@@ -116,44 +139,37 @@ describe("the ball's trail", () => {
     expect(scene.events.listenerCount("update")).toBe(0);
   });
 
-  it("ends a caught flight without drawing a landing ring", () => {
-    const { scene, dots, rings, advanceTo } = fakeScene();
+  it("keeps the tail clear of the ball during flight", () => {
+    const { scene, lines } = fakeScene();
     const trail = new BallTrail(scene as never);
     trail.startFlight(0, 0);
-    trail.addPoint(40, 0);
-    trail.endFlight();
-    expect(at(dots, 40, 0)).toBe(true);
-    expect(rings).toEqual([]);
-    advanceTo(1500);
-    expect(dots).toEqual([]);
-  });
-
-  it("draws no dot over the ball while it is still in the air", () => {
-    const { scene, dots } = fakeScene();
-    const trail = new BallTrail(scene as never);
-    trail.startFlight(0, 0);
-    // A low hop: the ball is drawn here, under the trail's depth
     trail.addPoint(20, 0);
-    expect(at(dots, 0, 0)).toBe(true);
-    expect(at(dots, 20, 0)).toBe(false);
-
+    expect(lines).toEqual([]);
     trail.addPoint(40, 0);
-    expect(at(dots, 20, 0)).toBe(true);
-    expect(at(dots, 40, 0)).toBe(false);
-
-    // Down on the turf, the whole arc shows
-    trail.endFlight({ x: 40, y: 0 });
-    expect(at(dots, 40, 0)).toBe(true);
+    expect(path(lines)).toEqual([[0, 0, 20, 0]]);
+    trail.addPoint(60, 0);
+    expect(path(lines)).toEqual([
+      [0, 0, 20, 0],
+      [20, 0, 40, 0],
+    ]);
   });
 
-  it("draws no dot over the ball as a hop in place comes back down", () => {
-    const { scene, dots } = fakeScene();
+  it("keeps a hop's returning ball clear of the rising tail", () => {
+    const { scene, lines } = fakeScene();
     const trail = new BallTrail(scene as never);
     trail.startFlight(0, 0);
     trail.addPoint(0, -20);
-    // Coming back down onto the square it left
+    trail.addPoint(0, -40);
     trail.addPoint(0, -2);
-    expect(at(dots, 0, 0)).toBe(false);
-    expect(at(dots, 0, -20)).toBe(true);
+    expect(path(lines)).toEqual([[0, -20, 0, -40]]);
+  });
+
+  it("hides a segment crossing the ball even when its endpoints are clear", () => {
+    const { scene, lines } = fakeScene();
+    const trail = new BallTrail(scene as never);
+    trail.startFlight(-20, 0);
+    trail.addPoint(20, 0);
+    trail.addPoint(0, 1);
+    expect(lines).toEqual([]);
   });
 });
