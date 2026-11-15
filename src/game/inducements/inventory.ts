@@ -5,10 +5,7 @@
  */
 
 import { GameState } from "../../types/GameState";
-import {
-  Inducement,
-  InducementInventoryEntry,
-} from "../../types/Inducements";
+import { Inducement, InducementInventoryEntry } from "../../types/Inducements";
 
 /** Every inducement line this team holds in this match. */
 export function purchasedInducements(

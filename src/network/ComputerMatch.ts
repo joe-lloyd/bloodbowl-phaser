@@ -158,7 +158,7 @@ export function createComputerMatch(
       // Readiness and shopping are resumable before the toss as well.
       if (
         [
-          "ready-inducements",
+          "ready-weather",
           "select-inducement",
           "remove-inducement",
           "confirm-inducements",

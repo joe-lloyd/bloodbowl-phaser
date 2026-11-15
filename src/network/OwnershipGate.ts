@@ -28,6 +28,7 @@ import {
   PendingDecision,
 } from "../headless/protocol";
 import { GamePhase } from "../types/GameState";
+import { shoppingTeamId } from "../game/inducements/pregame";
 
 export interface GateContext {
   activeTeamId: string | null;
@@ -39,6 +40,8 @@ export interface GateContext {
   phase?: GamePhase;
   /** Teams whose coach is ready for the opening weather roll. */
   weatherReady?: string[];
+  /** The team buying pregame inducements now, if any. */
+  inducementShopper?: string | null;
 }
 
 export type GateVerdict =
@@ -219,6 +222,17 @@ function checkWeatherReady(
   return sameTeam(teamId, senderTeamId, "not-your-player");
 }
 
+/** A pregame purchase: only by the buying team's coach, on their turn. */
+function checkPurchase(
+  teamId: string,
+  senderTeamId: string,
+  ctx: GateContext
+): GateVerdict {
+  if (ctx.inducementShopper && ctx.inducementShopper !== senderTeamId)
+    return deny("not-your-turn");
+  return sameTeam(teamId, senderTeamId, "not-your-player");
+}
+
 /** Pregame, ceremony, kick and post-match commands; undefined for others. */
 function checkMatchCommand(
   command: HeadlessCommand,
@@ -226,14 +240,13 @@ function checkMatchCommand(
   ctx: GateContext
 ): GateVerdict | undefined {
   switch (command.type) {
-    // Pregame inducement selection and the opening weather's ready-up
-    // belong to the affected team's coach, and (unlike play commands) have
-    // no "active team" turn structure yet.
-    case "ready-inducements":
+    // Pregame inducements belong to the buying team's coach. Teams buy in
+    // turn, so the coach whose turn it is not is refused here, before the
+    // command is sent: two purchases at once would split the engines.
     case "select-inducement":
     case "remove-inducement":
     case "confirm-inducements":
-      return sameTeam(command.teamId, senderTeamId, "not-your-player");
+      return checkPurchase(command.teamId, senderTeamId, ctx);
 
     case "ready-weather":
       return checkWeatherReady(command.teamId, senderTeamId, ctx);
@@ -376,6 +389,10 @@ export function gateContextOf(
     hostTeamId,
     phase: gameService.getState().phase,
     weatherReady: gameService.getState().weatherReady,
+    inducementShopper: shoppingTeamId(
+      gameService.getState().pregameInducements,
+      [game.ctx.team1.id, game.ctx.team2.id]
+    ),
   };
 }
 

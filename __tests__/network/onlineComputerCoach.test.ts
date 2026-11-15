@@ -1,3 +1,4 @@
+import { shoppingTeamId } from "../../src/game/inducements/pregame";
 import { pregameGame } from "../utils/pregameGame";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOnlineMatch, OnlineMatch } from "../../src/network/OnlineMatch";
@@ -178,20 +179,39 @@ describe("the online computer coach", () => {
       const human = connect(lobby, side === "host" ? "guest" : "host", peerEnd);
       const bot = connect(lobby, side, ownEnd, true);
       bot.bus.emit(GameEventNames.GameStateRestored);
+      const botReady = () =>
+        vi.waitFor(() =>
+          expect(
+            human.snapshot().pregameInducements?.ready[bot.match.myTeamId]
+          ).toBe(true)
+        );
+      const humanReady = async () =>
+        expect(
+          (
+            await human.match.run({
+              type: "ready-weather",
+              teamId: human.match.myTeamId,
+            })
+          ).ok
+        ).toBe(true);
+      // The guest readies for the weather first, then the host
+      if (side === "guest") {
+        await botReady();
+        await humanReady();
+      } else {
+        await humanReady();
+        await botReady();
+      }
+      expect(bot.snapshot().inducements).toBeUndefined();
+      // The teams buy in turn; the human confirms on theirs
       await vi.waitFor(() =>
         expect(
-          human.snapshot().pregameInducements?.ready[bot.match.myTeamId]
-        ).toBe(true)
+          shoppingTeamId(human.snapshot().pregameInducements, [
+            "team1",
+            "team2",
+          ])
+        ).toBe(human.match.myTeamId)
       );
-      expect(bot.snapshot().inducements).toBeUndefined();
-      expect(
-        (
-          await human.match.run({
-            type: "ready-inducements",
-            teamId: human.match.myTeamId,
-          })
-        ).ok
-      ).toBe(true);
       expect(
         (
           await human.match.run({
@@ -204,9 +224,7 @@ describe("the online computer coach", () => {
         expect(bot.snapshot().pregameInducements?.complete).toBe(true)
       );
       await vi.waitFor(() => expect(bot.snapshot()).toEqual(human.snapshot()));
-      expect(sent.map((command) => command.type)).toContain(
-        "ready-inducements"
-      );
+      expect(sent.map((command) => command.type)).toContain("ready-weather");
       expect(sent.map((command) => command.type)).toContain(
         "confirm-inducements"
       );

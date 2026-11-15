@@ -61,10 +61,6 @@ export interface IGameService {
   /** Answer a pending Foul assists decision; false when out of range. */
   answerFoulAssists(count: number): boolean;
 
-  readyInducements(
-    teamId: string
-  ): import("@/types/Inducements").InducementCommandResponse;
-
   // Sevens inducements
   /**
    * Commit a confirmed pregame inducement selection into match-scoped state

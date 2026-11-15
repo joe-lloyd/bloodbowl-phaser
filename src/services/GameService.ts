@@ -197,10 +197,6 @@ export class GameService implements IGameService {
     inducements.commitInducements(this.parts, profile, budgets, inventory);
   }
 
-  readyInducements(teamId: string): { ok: boolean; errors: string[] } {
-    return inducements.readyInducements(this.parts, teamId);
-  }
-
   getInducementOffer(): InducementOffer {
     return inducements.inducementOffer(this.parts);
   }

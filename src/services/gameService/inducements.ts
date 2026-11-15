@@ -1,4 +1,4 @@
-import { isPregameOpening } from "@/game/inducements/pregame";
+import { isPregameOpening, shoppingTeamId } from "@/game/inducements/pregame";
 import { GameEventNames } from "@/types/events";
 /**
  * Pregame inducements: the negotiation both coaches confirm, and committing
@@ -136,9 +136,12 @@ function purchaseError(parts: GameParts, teamId: string): string | undefined {
   if (![parts.team1.id, parts.team2.id].every((id) => pregame.ready[id]))
     return "teams-not-ready";
   if (!isPregameOpening(parts.state)) return "pregame-finished";
+  if (shoppingTeamId(pregame, [parts.team1.id, parts.team2.id]) !== teamId)
+    return "not-your-turn-to-buy";
   return undefined;
 }
 
+/** A coach readied up for the weather, which readies them for the match too. */
 export function readyInducements(parts: GameParts, teamId: string) {
   const pregame = parts.state.pregameInducements;
   if (!pregame || ![parts.team1.id, parts.team2.id].includes(teamId))

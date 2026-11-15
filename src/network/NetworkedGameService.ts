@@ -227,9 +227,6 @@ export class NetworkedGameService implements IGameService {
       errors: response.ok ? [] : [response.reason ?? "Purchase refused"],
     };
   }
-  readyInducements(teamId: string) {
-    return this.pregameCommand({ type: "ready-inducements", teamId });
-  }
   selectInducement(
     teamId: string,
     inducement: import("../types/Inducements").Inducement,

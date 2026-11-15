@@ -4,12 +4,17 @@
 
 ### Requirement: Coaches ready before buying inducements
 
-New graphical matches SHALL wait for both teams to ready before allowing inducement purchases. Each coach SHALL then confirm a legal selection or explicitly confirm no purchases before the coin toss and initial setup proceed. Local hotseat, computer and online matches SHALL follow this order.
+New graphical matches SHALL wait for both teams to ready before allowing inducement purchases. Readying up for the opening weather roll SHALL count as readying for the match. The teams SHALL then buy in turn, the higher team value first, and each coach SHALL confirm a legal selection or explicitly confirm no purchases before the coin toss and initial setup proceed. Local hotseat, computer and online matches SHALL follow this order.
 
 #### Scenario: One coach has not readied
 
 - **WHEN** only one coach is ready
 - **THEN** shopping and match setup remain unavailable
+
+#### Scenario: Teams buy in turn
+
+- **WHEN** both teams are ready
+- **THEN** only the team with the higher team value may buy until it confirms, and the other coach sees who is buying
 
 #### Scenario: Both coaches confirm
 
@@ -23,7 +28,7 @@ New graphical matches SHALL wait for both teams to ready before allowing inducem
 
 ### Requirement: Pregame purchases belong to the owning coach
 
-Online coaches SHALL ready, edit and confirm only their own team. Accepted changes SHALL be reflected on both screens. Confirmed purchases SHALL be locked and invalid or unaffordable selections SHALL produce visible errors without advancing the match.
+Online coaches SHALL ready, edit and confirm only their own team, and only on their team's turn to buy. A command out of turn SHALL be refused before it is sent, so the two engines never apply purchases in different orders. Accepted changes SHALL be reflected on both screens. Confirmed purchases SHALL be locked and invalid or unaffordable selections SHALL produce visible errors without advancing the match.
 
 #### Scenario: Guest edits a purchase
 

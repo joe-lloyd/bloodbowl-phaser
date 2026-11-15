@@ -1,3 +1,4 @@
+import { shoppingTeamId } from "./pregame";
 import {
   Inducement,
   InducementOffer,
@@ -37,16 +38,12 @@ export function computerInducementPurchases(
 export function nextComputerPregameCommand(
   pregame: import("../../types/Inducements").PregameInducementsState,
   teamId: string,
-  teamIds: string[]
+  teamIds: readonly [string, string]
 ): import("../../headless/protocol").HeadlessCommand | null {
-  if (!pregame.ready[teamId]) return { type: "ready-inducements", teamId };
-  if (
-    !teamIds.every((id) => pregame.ready[id]) ||
-    !pregame.offer ||
-    pregame.offer.confirmed[teamId]
-  )
-    return null;
+  // Ready for the weather is ready for the match
+  if (!pregame.ready[teamId]) return { type: "ready-weather", teamId };
   const offer = pregame.offer;
+  if (!offer || shoppingTeamId(pregame, teamIds) !== teamId) return null;
   for (const line of computerInducementPurchases(offer, teamId)) {
     const quantity =
       offer.selections[teamId]?.find(

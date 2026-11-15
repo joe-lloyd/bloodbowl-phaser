@@ -5,12 +5,15 @@ import { deserializeGameState } from "../../src/headless/serialization";
 import { SubPhase } from "../../src/types/GameState";
 import { Inducement } from "../../src/types/Inducements";
 
+/** Both coaches ready up for the weather, which readies them for the match. */
 async function ready(game: HeadlessGame) {
-  for (const team of [game.ctx.team1, game.ctx.team2])
+  for (const team of [game.ctx.team2, game.ctx.team1])
     expect(
-      (await game.execute({ type: "ready-inducements", teamId: team.id })).ok
+      (await game.execute({ type: "ready-weather", teamId: team.id })).ok
     ).toBe(true);
 }
+/** Team 2 has the higher team value here, so it buys first. */
+const team2Confirms = { type: "confirm-inducements", teamId: "team2" } as const;
 const buyTraining = {
   type: "select-inducement",
   teamId: "team1",
@@ -32,12 +35,16 @@ describe("graphical match pregame through the protocol", () => {
     ).toBe(false);
     expect(game.driveKickingTeamId()).toBeNull();
     await ready(game);
-    expect((await game.execute(buyTraining)).ok).toBe(true);
-    await game.execute({ type: "confirm-inducements", teamId: "team1" });
+    // The teams buy in turn, the higher team value first
+    expect((await game.execute(buyTraining)).reason).toContain(
+      "not-your-turn-to-buy"
+    );
+    await game.execute(team2Confirms);
     expect(
       (await game.execute({ type: "start-setup", kickingTeamId: "team2" })).ok
     ).toBe(false);
-    await game.execute({ type: "confirm-inducements", teamId: "team2" });
+    expect((await game.execute(buyTraining)).ok).toBe(true);
+    await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().inducements?.inventory).toEqual([
       expect.objectContaining({
         inducement: Inducement.EXTRA_TEAM_TRAINING,
@@ -54,8 +61,8 @@ describe("graphical match pregame through the protocol", () => {
   it("restores one coach's locked purchases and the other coach's readiness", async () => {
     const original = pregameGame();
     await ready(original);
+    await original.execute(team2Confirms);
     await original.execute(buyTraining);
-    await original.execute({ type: "confirm-inducements", teamId: "team1" });
     const snapshot = original.snapshot();
     const game = new HeadlessGame({
       team1: structuredClone(original.ctx.team1),
@@ -66,14 +73,15 @@ describe("graphical match pregame through the protocol", () => {
     expect(game.ctx.gameService.getInducementOffer()).toEqual(
       original.ctx.gameService.getInducementOffer()
     );
+    // Team 2 has confirmed: its turn to buy is over
     expect(
-      (await game.execute({ ...buyTraining, quantity: 0 })).reason
-    ).toContain("already-confirmed");
-    await game.execute({ type: "confirm-inducements", teamId: "team2" });
+      (await game.execute({ ...buyTraining, teamId: "team2" })).reason
+    ).toContain("not-your-turn-to-buy");
+    await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().pregameInducements?.complete).toBe(true);
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
     game.ctx.gameService.getState().inducements!.inventory[0].remainingUses = 0;
-    await game.execute({ type: "confirm-inducements", teamId: "team2" });
+    await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().inducements?.inventory[0].remainingUses).toBe(0);
     expect((await game.execute(buyTraining)).ok).toBe(false);
   });
@@ -97,6 +105,7 @@ describe("graphical match pregame through the protocol", () => {
   it("resolves bought prayer choices before allowing setup", async () => {
     const game = pregameGame();
     await ready(game);
+    await game.execute(team2Confirms);
     vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(3); // Iron Man
     await game.execute({
       ...buyTraining,
@@ -110,10 +119,9 @@ describe("graphical match pregame through the protocol", () => {
         })
       ).ok
     ).toBe(true); // The same roll of 3 gives Hangover after Iron Man.
-    await game.execute({ type: "confirm-inducements", teamId: "team1" });
     const confirmed = await game.execute({
       type: "confirm-inducements",
-      teamId: "team2",
+      teamId: "team1",
     });
     expect(confirmed.pendingDecision?.type).toBe("inducement-choice");
     const service = game.ctx.gameService;

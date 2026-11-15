@@ -9,6 +9,7 @@ import { Team } from "@/types/Team";
 import { SetupManager } from "@/game/managers/SetupManager";
 import { rollMasterChefs as cookMasterChefs } from "@/game/inducements/masterChef";
 import type { GameParts } from "./parts";
+import { readyInducements } from "./inducements";
 
 /**
  * The opening state of a fresh match, with both teams readied for it:
@@ -93,6 +94,8 @@ export function readyForWeather(parts: GameParts, teamId: string): boolean {
     return false;
   const ready = [...new Set([...(state.weatherReady ?? []), teamId])];
   state.weatherReady = ready;
+  // Ready for the weather is ready for the match: the inducements follow
+  if (state.pregameInducements) readyInducements(parts, teamId);
   parts.eventBus.emit(GameEventNames.WeatherReady, { teamIds: ready });
   if (weatherRolled(state)) parts.weatherService.rollWeather();
   return true;

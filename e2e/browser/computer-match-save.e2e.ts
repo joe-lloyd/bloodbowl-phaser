@@ -32,16 +32,23 @@ async function startComputerMatch(page: Page, app: GameApp) {
   await flip.click();
 }
 
-/** The toss is won or lost at random; a toss the human wins needs a choice. */
+/**
+ * Wait for a save from after the toss. The toss is won or lost at random;
+ * a toss the human wins needs a choice.
+ */
 async function waitForSave(page: Page) {
   const receive = page.getByRole("button", { name: /^RECEIVE$/ });
   await expect(async () => {
     if (await receive.count()) await receive.first().click({ timeout: 500 });
-    const saved = await page.evaluate(
-      (key) => localStorage.getItem(key) !== null,
-      SAVE_KEY
-    );
-    expect(saved).toBe(true);
+    // Readiness and purchases save before the toss too: wait for set-up
+    const subPhase = await page.evaluate((key) => {
+      const raw = localStorage.getItem(key);
+      return raw
+        ? (JSON.parse(raw) as { snapshot?: { subPhase?: string } }).snapshot
+            ?.subPhase
+        : null;
+    }, SAVE_KEY);
+    expect(subPhase).toMatch(/^SETUP_/);
   }).toPass({ timeout: 60_000 });
 }
 

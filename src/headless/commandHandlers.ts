@@ -602,10 +602,6 @@ const COMMAND_HANDLERS: CommandHandlers = {
   },
 
   // --- Sevens pregame inducements ---
-  "ready-inducements": async ({ ctx }, cmd) => {
-    assertTeam(ctx, cmd.teamId);
-    requireOk(await ctx.gameService.readyInducements(cmd.teamId));
-  },
   "select-inducement": async ({ ctx }, cmd) => {
     assertTeam(ctx, cmd.teamId);
     requireOk(

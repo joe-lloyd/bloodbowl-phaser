@@ -216,7 +216,11 @@ export function applyApothecaryAnswer(
     if (request.location === "pitch" && request.position) {
       movePlayerToBox(
         player,
-        { box: "pitch", position: request.position, status: PlayerStatus.STUNNED },
+        {
+          box: "pitch",
+          position: request.position,
+          status: PlayerStatus.STUNNED,
+        },
         eventBus
       );
       eventBus.emit(
@@ -238,7 +242,10 @@ export function applyApothecaryAnswer(
   // record; 1-3 leaves the original result standing.
   const roll = gameService
     .getDiceController()
-    .rollD6(`Apothecary Patch-Up (${player.playerName})`, request.chooserTeamId);
+    .rollD6(
+      `Apothecary Patch-Up (${player.playerName})`,
+      request.chooserTeamId
+    );
   if (roll >= 4) {
     if (request.casualtyType) {
       const index = player.injuries.lastIndexOf(
@@ -271,12 +278,14 @@ export function resumeApothecaryDecision(
   eventBus: IEventBus,
   request: ApothecaryDecisionRequest
 ): void {
-  gameService.getDecisionService().seed(request, (answer) =>
-    applyApothecaryAnswer(
-      gameService,
-      eventBus,
-      request,
-      answer as ApothecaryDecisionAnswer
-    )
-  );
+  gameService
+    .getDecisionService()
+    .seed(request, (answer) =>
+      applyApothecaryAnswer(
+        gameService,
+        eventBus,
+        request,
+        answer as ApothecaryDecisionAnswer
+      )
+    );
 }

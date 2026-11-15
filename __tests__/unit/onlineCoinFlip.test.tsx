@@ -8,9 +8,6 @@ import type { LobbyDoc } from "../../src/firebase/lobby";
 import type { OnlineMatch } from "../../src/network/OnlineMatch";
 
 // A coin that lands when the test says so, and the side it was thrown on
-const opening = vi.hoisted(() => ({
-  state: {} as import("../../src/types/GameState").GameState,
-}));
 const coins = vi.hoisted(
   () => [] as { side: number; land: () => void; stop: () => void }[]
 );
@@ -38,9 +35,13 @@ vi.mock("../../src/firebase/lobby", () => ({
   setCoinFlipChoice: vi.fn(),
 }));
 
-// The guest's engine at the opening: who has readied up, and the weather
+// The guest's engine at the opening: who has readied up, the weather, and
+// any pregame purchases
 const engine = vi.hoisted(() => ({
-  state: { weather: "Nice", weatherReady: [] as string[] },
+  state: { weather: "Nice", weatherReady: [] as string[] } as Record<
+    string,
+    unknown
+  >,
   readied: [] as string[],
 }));
 
@@ -62,12 +63,10 @@ vi.mock("../../src/services/ServiceContainer", () => {
     },
   ];
   const gameService = {
-    getState: () => opening.state,
     getDecisionService: () => ({ pending: () => null }),
     getActiveTeamId: () => "home",
     getTeam: (id: string) => teams.find((team) => team.id === id),
     getTeams: () => teams,
-    readyInducements: vi.fn(),
     getSubPhase: () => "INTRO",
     getState: () => engine.state,
     readyForWeather: (teamId: string) => {
@@ -330,21 +329,21 @@ describe("online coin toss", () => {
     await card.unmount();
   });
   it("does not toss while the new purchase stage is incomplete even if legacy lobby flags are ready", async () => {
-    opening.state = {
+    engine.state = {
       score: { home: 0, away: 0 },
       pregameInducements: { ready: { home: true } },
-    } as import("../../src/types/GameState").GameState;
+    };
     const view = await mount(
       { coinFlip: { hostReady: true, guestReady: true } } as LobbyDoc,
       { ...match, role: "host" }
     );
     try {
-      expect(view.text()).toContain("READY FOR THE MATCH");
+      expect(view.text()).toContain("Waiting for both coaches to ready up");
       const { setCoinFlipWinner } = await import("../../src/firebase/lobby");
       expect(setCoinFlipWinner).not.toHaveBeenCalled();
     } finally {
       await view.unmount();
-      opening.state = {} as import("../../src/types/GameState").GameState;
+      engine.state = { weather: "Nice", weatherReady: [] };
     }
   });
 });
