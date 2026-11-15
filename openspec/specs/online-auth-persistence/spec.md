@@ -44,6 +44,17 @@ For a signed-in user, saved teams SHALL persist to that user's Firestore team li
 - **WHEN** a signed-in user loads their team library
 - **THEN** they see only their own teams and cannot read another user's teams
 
+#### Scenario: Editing a team after a refresh
+
+- **WHEN** a signed-in user refreshes or directly opens an existing team's edit page (`/build-team/<team id>`) before their cloud library has loaded
+- **THEN** the page shows a loading state, then that team by its ID once the library arrives, and saving it updates the same team
+- **AND** the page never starts a new team, offers the roster picker, or shows any other team in its place
+
+#### Scenario: Editing a team that is not in the library
+
+- **WHEN** the team library has settled (signed out, or the cloud library has loaded or failed to load) and does not hold the team ID in the edit page's route
+- **THEN** the page says the team was not found and offers a way back to Team Management, without creating or saving a team
+
 ### Requirement: One-time migration of local teams
 
 On a user's first sign-in, any teams already stored in `localStorage` SHALL be offered for migration into their Firestore library. Migration SHALL NOT silently overwrite existing cloud teams, and declining SHALL leave local teams untouched.

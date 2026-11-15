@@ -16,7 +16,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { getDb } from "./config";
-import { subscribeToAuth } from "./auth";
+import { isAuthResolved, subscribeToAuth } from "./auth";
 import { Team } from "../types/Team";
 import {
   dehydrateTeam,
@@ -25,6 +25,7 @@ import {
 import {
   TeamRepository,
   setTeamRepository,
+  setTeamLibraryPending,
   getLocalRepository,
 } from "../game/managers/TeamManager";
 
@@ -183,7 +184,9 @@ export async function migrateLocalTeams(
  * Wire team persistence to auth state. Call once at app startup (safe to
  * call when Firebase is unconfigured — subscribeToAuth is inert then).
  * Signed in: prime the cache from Firestore (after offering migration) and
- * swap in the cloud repository. Signed out: restore localStorage.
+ * swap in the cloud repository. Signed out: restore localStorage. While the
+ * session is still restoring, or the cloud library is still loading, the
+ * library is marked pending so a page asking for one team waits for it.
  */
 export function connectTeamPersistenceToAuth(
   confirmMigration: (count: number) => boolean = (count) =>
@@ -194,9 +197,13 @@ export function connectTeamPersistenceToAuth(
 ): void {
   subscribeToAuth((user) => {
     if (!user) {
-      setTeamRepository(null);
+      // A null user before Firebase has reported may be a session that is
+      // still restoring, whose cloud library is yet to arrive.
+      if (isAuthResolved()) setTeamRepository(null);
+      else setTeamLibraryPending(true);
       return;
     }
+    setTeamLibraryPending(true);
     void (async () => {
       try {
         const cloudTeams = await fetchCloudTeams(user.uid);
@@ -210,6 +217,8 @@ export function connectTeamPersistenceToAuth(
         );
       } catch (error) {
         console.error("Failed to load cloud team library:", error);
+        // Nothing else is coming, so pages waiting for a team decide now.
+        setTeamLibraryPending(false);
       }
     })();
   });

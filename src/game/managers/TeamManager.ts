@@ -80,16 +80,39 @@ const localRepository: TeamRepository = {
 
 let activeRepository: TeamRepository = localRepository;
 const repositoryListeners = new Set<() => void>();
+let libraryPending = false;
 
-/** Swap the persistence backend (null restores the localStorage default). */
+/**
+ * Swap the persistence backend (null restores the localStorage default).
+ * Installing a backend settles the library: it is the one to read now.
+ */
 export function setTeamRepository(repository: TeamRepository | null): void {
   activeRepository = repository ?? localRepository;
+  libraryPending = false;
   repositoryListeners.forEach((listener) => listener());
 }
 
 /**
- * Hear when the backend is swapped: a signed-in coach's cloud library
- * arrives after the app loads. Returns an unsubscribe.
+ * Whether the coach's library may still replace the active one: after a
+ * refresh a signed-in coach's cloud teams arrive a moment after the app
+ * loads, and until then the localStorage library is not theirs. A page
+ * looking for one team by ID waits instead of deciding it is missing.
+ */
+export function isTeamLibraryPending(): boolean {
+  return libraryPending;
+}
+
+/** Mark the library as still arriving (or settled without a new backend). */
+export function setTeamLibraryPending(pending: boolean): void {
+  if (libraryPending === pending) return;
+  libraryPending = pending;
+  repositoryListeners.forEach((listener) => listener());
+}
+
+/**
+ * Hear when the backend is swapped or the library settles: a signed-in
+ * coach's cloud library arrives after the app loads. Returns an
+ * unsubscribe.
  */
 export function onTeamRepositoryChanged(listener: () => void): () => void {
   repositoryListeners.add(listener);
