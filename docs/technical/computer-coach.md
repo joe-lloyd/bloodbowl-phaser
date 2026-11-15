@@ -8,6 +8,13 @@ the simulator as `planner`:
 pnpm sim bench --coach planner --vs heuristic --games 200
 ```
 
+The online house bot also uses this planner. Local and online computer turns
+share `src/network/computerCoach.ts`, including animation pacing and pending
+choices such as block dice, pushes, follow-ups and re-rolls. The online bot
+sends the chosen commands through its lockstep session, so the other peer
+executes the same actions. Its Playwright runner handles the lobby and opening
+toss; it does not choose gameplay actions or rewrite movement destinations.
+
 ## How it decides
 
 The coach sits behind the simulator's `Coach` seam

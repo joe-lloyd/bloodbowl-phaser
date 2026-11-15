@@ -11,10 +11,8 @@
  * human cannot move the computer's players or answer its decisions.
  */
 
-import { whenEngineQuiet } from "../game/core/GameFlowManager";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { clearMatchSave } from "../game/persistence/MatchSaveRepository";
-import { whenScreenSettled } from "../game/presentation/screenSettled";
 import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { ServiceContainer } from "../services/ServiceContainer";
@@ -28,19 +26,12 @@ import {
 } from "../headless/protocol";
 import { GameEventNames } from "../types/events";
 import { GamePhase, GameState, SubPhase } from "../types/GameState";
-import { GameSnapshot } from "../headless/serialization";
 import { Team } from "../types/Team";
 import { CompetitionContext } from "../competition/types";
-import { enumerateDecision } from "../simulation/candidates";
 import { Coach } from "../simulation/coach";
-import { createCoachRng } from "../simulation/rng";
-import { plannerCoach } from "../simulation/ai/planner";
 import { NetworkedGameService } from "./NetworkedGameService";
-import {
-  decisionOwner,
-  gateContextOf,
-  refusalOnceQuiet,
-} from "./OwnershipGate";
+import { refusalOnceQuiet } from "./OwnershipGate";
+import { createComputerCoach, computerOwnsDecision } from "./computerCoach";
 import { OnlineMatch } from "./OnlineMatch";
 import { possessive } from "../game/managers/TurnManager";
 import { fixturePaysWinnings } from "../game/rules/winnings";
@@ -74,42 +65,7 @@ class ComputerGameService extends NetworkedGameService {
   }
 }
 
-/** How long the computer waits before each kind of command, in ms. */
-function pause(command: HeadlessCommand): number {
-  switch (command.type) {
-    case "place-player":
-    case "remove-player":
-      return 40;
-    case "confirm-setup":
-      return 400;
-    case "declare-action":
-      return 700;
-    case "move":
-      return 320;
-    case "end-activation":
-      return 250;
-    case "end-turn":
-      return 600;
-    default:
-      return 550;
-  }
-}
-
 const COMPUTER_NAME = "Computer";
-
-/** Resolves once the page is in view. */
-function whenWatched(): Promise<void> {
-  if (typeof document === "undefined" || !document.hidden)
-    return Promise.resolve();
-  return new Promise((resolve) => {
-    const onShow = () => {
-      if (document.hidden) return;
-      document.removeEventListener("visibilitychange", onShow);
-      resolve();
-    };
-    document.addEventListener("visibilitychange", onShow);
-  });
-}
 
 export interface ComputerMatchOptions {
   eventBus: IEventBus;
@@ -160,37 +116,12 @@ const progressionOf = (options: ComputerMatchOptions): boolean =>
   options.progressionEnabled ??
   false;
 
-/** During a kick-off, the kicking team: the one not active. */
-function kickingTeamOf(
-  snapshot: GameSnapshot,
-  team1Id: string,
-  team2Id: string
-): string | null {
-  if (snapshot.phase !== GamePhase.KICKOFF) return null;
-  return snapshot.activeTeamId === team1Id ? team2Id : team1Id;
-}
-
-/** Dev builds keep a log of the computer's choices on the window. */
-function logChoice(
-  snapshot: GameSnapshot,
-  label: string,
-  note: string | undefined
-): void {
-  if (!import.meta.env?.DEV) return;
-  const log = ((
-    window as unknown as { __computerLog?: string[] }
-  ).__computerLog ??= []);
-  log.push(`${snapshot.turn.turnNumber} ${label}${note ? ` | ${note}` : ""}`);
-}
-
 export function createComputerMatch(
   options: ComputerMatchOptions
 ): OnlineMatch {
   const { eventBus: pageBus, team1, team2, computerTeamId } = options;
   // Everything this match does on the page's bus ends when it closes.
   const eventBus = scopeEventBus(pageBus);
-  const coach: Coach & { close?(): void } = options.coach ?? plannerCoach;
-  const pace = options.pace ?? 1;
   const myTeamId = computerTeamId === team1.id ? team2.id : team1.id;
   const teamName = (id: string) => (id === team1.id ? team1 : team2).name;
 
@@ -296,131 +227,21 @@ export function createComputerMatch(
     : null;
   if (options.resume) autosave?.start();
 
-  const owner = (teamId: string): boolean => {
-    const pending = game.pendingDecision();
-    const active = engine!.getActiveTeamId();
-    if (pending)
-      return decisionOwner(pending, gateContextOf(game, myTeamId)) === teamId;
-    const state = engine!.getState();
-    switch (state.phase) {
-      case GamePhase.SETUP:
-        // The hand-over to the other team lands a moment after a confirm.
-        return (
-          active === teamId &&
-          (!state.setup?.confirmedTeamIds?.includes(teamId) ||
-            !!state.setup.swarming?.teams[teamId]) &&
-          (state.subPhase === SubPhase.SETUP_KICKING ||
-            state.subPhase === SubPhase.SETUP_RECEIVING)
-        );
-      case GamePhase.KICKOFF:
-        // The kicking team acts, and it is the one not active.
-        return (
-          active != null &&
-          active !== teamId &&
-          state.kickoffKickResolved == null
-        );
-      case GamePhase.PLAY:
-        return active === teamId;
-      default:
-        return false;
-    }
-  };
-
-  // ===== The computer coach =====
-  const rng = createCoachRng(Math.floor(Math.random() * 2 ** 31));
-  let thinking = false;
-  let closed = false;
-  const wait = (ms: number) =>
-    new Promise((resolve) => setTimeout(resolve, ms * pace));
-
-  /** One decision, if it is the computer's to make; true when it acted. */
-  const think = async (): Promise<boolean> => {
-    if (thinking || closed || !owner(computerTeamId)) return false;
-    thinking = true;
-    try {
-      // A turn that is about to end by itself has nothing left to decide.
-      await whenEngineQuiet();
-      if (closed || !owner(computerTeamId)) return false;
-      const snapshot = game.snapshot();
-      const point = await enumerateDecision(
-        game,
-        kickingTeamOf(snapshot, team1.id, team2.id)
-      );
-      if (point.teamId !== computerTeamId || point.candidates.length === 0)
-        return false;
-      const { index, note } = await coach.choose({
-        game,
-        snapshot,
-        point,
-        rng,
-      });
-      const candidate = point.candidates[index] ?? point.candidates[0];
-      logChoice(snapshot, candidate.label, note);
-      for (const command of candidate.commands) {
-        // Each step is seen before the next: the walk, the ball, the dice
-        // and the banners it started have all been shown. Nothing plays on
-        // in a tab nobody is watching, to pile up for when they come back.
-        await whenWatched();
-        await whenScreenSettled(eventBus);
-        await wait(pause(command));
-        if (closed) return false;
-        showIntent(command);
-        const response = await runAs(computerTeamId, command);
-        if (!response.ok) {
-          console.warn(
-            `[Computer] ${command.type} refused: ${response.reason}`
-          );
-          break;
-        }
-        moveResolved(command);
-      }
-      return true;
-    } catch (error) {
-      console.error("[Computer] coach failed:", error);
-      return false;
-    } finally {
-      thinking = false;
-    }
-  };
-
-  /** The board finishes showing the computer's move. */
-  const moveResolved = (command: HeadlessCommand) => {
-    if (command.type === "move")
-      eventBus.emit(GameEventNames.UI_OtherCoachMoveResolved, {
-        playerId: command.playerId,
-      });
-  };
-
-  /** Show the human which player the computer is using, and where it runs. */
-  const showIntent = (command: HeadlessCommand) => {
-    if (command.type === "declare-action")
-      eventBus.emit(GameEventNames.RemoteSelectionChanged, {
-        playerId: command.playerId,
-      });
-    if (command.type === "end-activation" || command.type === "end-turn")
-      eventBus.emit(GameEventNames.RemoteSelectionChanged, { playerId: null });
-    if (command.type === "move") {
-      const player = engine!.getPlayerById(command.playerId);
-      if (player?.gridPosition)
-        eventBus.emit(GameEventNames.UI_ShowOtherCoachMove, {
-          from: { ...player.gridPosition },
-          path: command.path,
-          ma: player.stats.MA,
-        });
-    }
-  };
-
-  // Act again at once after acting; otherwise look again shortly.
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const loop = () => {
-    if (closed) return;
-    void think().then((acted) => {
-      timer = setTimeout(loop, acted ? 0 : Math.max(5, 200 * pace));
-    });
-  };
+  const owner = (teamId: string) =>
+    computerOwnsDecision(game, teamId, myTeamId);
+  const computerCoach = createComputerCoach({
+    game,
+    eventBus,
+    computerTeamId,
+    mayAct: () => owner(computerTeamId),
+    run: (command) => runAs(computerTeamId, command),
+    coach: options.coach,
+    pace: options.pace,
+  });
   // A resumed computer waits for the board, so its moves are seen.
-  if (options.resume) eventBus.once(GameEventNames.GameStateRestored, loop);
-  else loop();
+  if (options.resume)
+    eventBus.once(GameEventNames.GameStateRestored, computerCoach.start);
+  else computerCoach.start();
   // Dev builds only: lets a scripted coach drive the human side to record
   // whole matches against the computer.
   if (import.meta.env?.DEV)
@@ -451,7 +272,7 @@ export function createComputerMatch(
     coachName: (teamId) => (teamId === computerTeamId ? COMPUTER_NAME : "You"),
     teams: { team1, team2 },
     // While the computer's command runs the engine can be between decisions.
-    mayAct: () => !thinking && owner(myTeamId),
+    mayAct: () => !computerCoach.isThinking() && owner(myTeamId),
     waitingLabel,
     pendingDecision: () => game.pendingDecision(),
     decidingTeamId: () => {
@@ -469,13 +290,11 @@ export function createComputerMatch(
     // The results screen settles both teams' awards from this one page.
     runProgressionCommand: (command) => enqueue(() => game.execute(command)),
     close: () => {
-      closed = true;
-      clearTimeout(timer);
+      computerCoach.close();
       autosave?.dispose();
       // A finished match has nothing to come back to.
       if (autosave && engine!.getPhase() === GamePhase.GAME_OVER)
         clearMatchSave();
-      coach.close?.();
       eventBus.dispose();
     },
   };
