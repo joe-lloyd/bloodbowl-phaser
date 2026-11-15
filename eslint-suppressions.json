@@ -214,14 +214,6 @@
       "count": 1
     }
   },
-  "src/game/operations/BreatheFireOperation.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/game/operations/EndDriveOperations.ts": {
     "sonarjs/cognitive-complexity": {
       "count": 1
@@ -233,21 +225,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 2
-    }
-  },
-  "src/game/operations/PileDriverOperation.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/game/operations/ProjectileVomitOperation.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/game/operations/PuntOperation.ts": {
-    "complexity": {
-      "count": 1
     }
   },
   "src/game/operations/ThrowTeammateOperation.ts": {

@@ -1,11 +1,12 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { PlayerStatus } from "../../types/Player";
+import { Player, PlayerStatus } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
+import { adjacentStandingRefusal } from "./specialActionTarget";
 
 /** Ends the breather's activation once everything has settled. */
 class FinishBreatheFireOperation extends GameOperation {
@@ -18,6 +19,33 @@ class FinishBreatheFireOperation extends GameOperation {
   async execute(context: FlowContext): Promise<void> {
     context.gameService.finishActivation(this.attackerId);
   }
+}
+
+type Square = { x: number; y: number };
+
+/** A ball held on `at` bounces from it, next in the queue. */
+function bounceFrom(
+  context: FlowContext,
+  at: Square,
+  ball: Square | null
+): void {
+  if (ball && ball.x === at.x && ball.y === at.y) {
+    context.flowManager.add(new BounceOperation({ ...at }), true);
+  }
+}
+
+/** Knock `player` Down, bouncing any ball they hold. */
+function knockDown(
+  context: FlowContext,
+  player: Player,
+  at: Square,
+  ball: Square | null
+): void {
+  const { eventBus } = context;
+  player.status = PlayerStatus.PRONE;
+  eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: player.id });
+  eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+  bounceFrom(context, at, ball);
 }
 
 /**
@@ -49,17 +77,14 @@ export class BreatheFireOperation extends GameOperation {
     const target = gameService.getPlayerById(this.targetId);
     if (!attacker?.gridPosition || !target?.gridPosition) return;
 
-    if (target.status !== PlayerStatus.ACTIVE) {
-      eventBus.emit(GameEventNames.UI_Notification, "Target must be Standing!");
-      return;
-    }
-    const dx = Math.abs(attacker.gridPosition.x - target.gridPosition.x);
-    const dy = Math.abs(attacker.gridPosition.y - target.gridPosition.y);
-    if (dx > 1 || dy > 1 || dx + dy === 0) {
-      eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Target must be Marked by the breather!"
-      );
+    const refusal = adjacentStandingRefusal(
+      attacker.gridPosition,
+      target.gridPosition,
+      target,
+      "Target must be Marked by the breather!"
+    );
+    if (refusal) {
+      eventBus.emit(GameEventNames.UI_Notification, refusal);
       return;
     }
 
@@ -83,39 +108,13 @@ export class BreatheFireOperation extends GameOperation {
     if (check.roll === 1) {
       // The flame washes back: the breather is Knocked Down — a turnover
       eventBus.emit(GameEventNames.UI_Notification, "The flame washes back!");
-      attacker.status = PlayerStatus.PRONE;
-      eventBus.emit(GameEventNames.PlayerKnockedDown, {
-        playerId: attacker.id,
-      });
-      eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
-      if (
-        ball &&
-        ball.x === attacker.gridPosition.x &&
-        ball.y === attacker.gridPosition.y
-      ) {
-        context.flowManager.add(
-          new BounceOperation({ ...attacker.gridPosition }),
-          true
-        );
-      }
+      knockDown(context, attacker, attacker.gridPosition, ball);
       context.flowManager.add(new ArmourOperation(attacker.id), true);
       gameService.triggerTurnover("Knocked Down by their own fire");
     } else if (check.roll === 6) {
       // Natural 6: the target is Knocked Down instead of Placed Prone
       eventBus.emit(GameEventNames.UI_Notification, "ENGULFED!");
-      target.status = PlayerStatus.PRONE;
-      eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: target.id });
-      eventBus.emit(GameEventNames.PlayerStatusChanged, target);
-      if (
-        ball &&
-        ball.x === target.gridPosition.x &&
-        ball.y === target.gridPosition.y
-      ) {
-        context.flowManager.add(
-          new BounceOperation({ ...target.gridPosition }),
-          true
-        );
-      }
+      knockDown(context, target, target.gridPosition, ball);
       context.flowManager.add(
         // Breathe Fire is a special action, not a Block — never arms Plague Ridden.
         new ArmourOperation(target.id, attacker.id, undefined, "special"),
@@ -129,16 +128,7 @@ export class BreatheFireOperation extends GameOperation {
       );
       target.status = PlayerStatus.PRONE;
       eventBus.emit(GameEventNames.PlayerStatusChanged, target);
-      if (
-        ball &&
-        ball.x === target.gridPosition.x &&
-        ball.y === target.gridPosition.y
-      ) {
-        context.flowManager.add(
-          new BounceOperation({ ...target.gridPosition }),
-          true
-        );
-      }
+      bounceFrom(context, target.gridPosition, ball);
     } else {
       eventBus.emit(GameEventNames.UI_Notification, "The flame gutters out.");
     }

@@ -1,6 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
-import { PlayerStatus } from "../../types/Player";
+import { Player, PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { GameEventNames } from "../../types/events";
 import { ReactionDecisionAnswer } from "../../types/decisions";
@@ -19,6 +19,39 @@ import { InjuryOperation } from "./InjuryOperation";
  * or when the Foul is no longer possible, `resume` carries on with the
  * activation (a Blitz may keep moving).
  */
+type Square = { x: number; y: number };
+
+/** A Standing attacker next to a Prone or Stunned defender. */
+function canPileDrive(
+  attacker: Player,
+  from: Square,
+  defender: Player,
+  to: Square
+): boolean {
+  const downed =
+    defender.status === PlayerStatus.PRONE ||
+    defender.status === PlayerStatus.STUNNED;
+  const adjacent =
+    Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) === 1;
+  return attacker.status === PlayerStatus.ACTIVE && downed && adjacent;
+}
+
+/**
+ * A player with the ball who is Placed Prone drops it, and during their
+ * own activation that is a Turnover (2025 rulebook, Placed Prone). A
+ * follow-up onto a loose ball can leave the blocker holding it.
+ */
+function dropHeldBall(context: FlowContext, attacker: Player): void {
+  const ball = context.gameService.getState().ballPosition;
+  const at = attacker.gridPosition;
+  if (at && ball?.x === at.x && ball.y === at.y) {
+    context.flowManager.add(new BounceOperation({ ...at }), true);
+    context.gameService.triggerTurnover(
+      "Pile Driver: the ball carrier was Placed Prone"
+    );
+  }
+}
+
 export class PileDriverOperation extends GameOperation {
   public readonly name = "PileDriverOperation";
 
@@ -35,20 +68,14 @@ export class PileDriverOperation extends GameOperation {
     const defender = context.gameService.getPlayerById(this.defenderId);
     if (
       !attacker?.gridPosition ||
-      attacker.status !== PlayerStatus.ACTIVE ||
       !defender?.gridPosition ||
-      (defender.status !== PlayerStatus.PRONE &&
-        defender.status !== PlayerStatus.STUNNED)
+      !canPileDrive(
+        attacker,
+        attacker.gridPosition,
+        defender,
+        defender.gridPosition
+      )
     ) {
-      this.resume();
-      return;
-    }
-    const adjacent =
-      Math.max(
-        Math.abs(attacker.gridPosition.x - defender.gridPosition.x),
-        Math.abs(attacker.gridPosition.y - defender.gridPosition.y)
-      ) === 1;
-    if (!adjacent) {
       this.resume();
       return;
     }
@@ -84,17 +111,7 @@ export class PileDriverOperation extends GameOperation {
           new InjuryOperation(attacker.id, { stunnedIsKnockedOut: true })
         );
       }
-      // A player with the ball who is Placed Prone drops it, and during
-      // their own activation that is a Turnover (2025 rulebook, Placed
-      // Prone). A follow-up onto a loose ball can leave the blocker holding it.
-      const ball = context.gameService.getState().ballPosition;
-      const at = attacker.gridPosition;
-      if (at && ball?.x === at.x && ball.y === at.y) {
-        context.flowManager.add(new BounceOperation({ ...at }), true);
-        context.gameService.triggerTurnover(
-          "Pile Driver: the ball carrier was Placed Prone"
-        );
-      }
+      dropHeldBall(context, attacker);
     }
     context.gameService.finishActivation(attacker.id);
     if (context.gameService.getState().activePlayer?.id === attacker.id) {

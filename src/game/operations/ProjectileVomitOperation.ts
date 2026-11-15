@@ -7,6 +7,7 @@ import { FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
+import { adjacentStandingRefusal } from "./specialActionTarget";
 import { foldArmourRoll } from "./ArmourOperation";
 import { gatherParticipants } from "../skills";
 
@@ -52,14 +53,14 @@ export class ProjectileVomitOperation extends GameOperation {
     const target = gameService.getPlayerById(this.targetId);
     if (!attacker?.gridPosition || !target?.gridPosition) return;
 
-    if (target.status !== PlayerStatus.ACTIVE) {
-      eventBus.emit(GameEventNames.UI_Notification, "Target must be Standing!");
-      return;
-    }
-    const dx = Math.abs(attacker.gridPosition.x - target.gridPosition.x);
-    const dy = Math.abs(attacker.gridPosition.y - target.gridPosition.y);
-    if (dx > 1 || dy > 1 || dx + dy === 0) {
-      eventBus.emit(GameEventNames.UI_Notification, "Target must be adjacent!");
+    const refusal = adjacentStandingRefusal(
+      attacker.gridPosition,
+      target.gridPosition,
+      target,
+      "Target must be adjacent!"
+    );
+    if (refusal) {
+      eventBus.emit(GameEventNames.UI_Notification, refusal);
       return;
     }
 
