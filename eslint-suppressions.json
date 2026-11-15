@@ -315,14 +315,6 @@
       "count": 1
     }
   },
-  "src/game/validators/MovementValidator.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/headless/cli.ts": {
     "complexity": {
       "count": 1
@@ -371,14 +363,6 @@
     }
   },
   "src/scenes/SandboxScene.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/types/Actions.ts": {
     "complexity": {
       "count": 1
     },
