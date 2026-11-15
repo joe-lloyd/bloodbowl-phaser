@@ -20,6 +20,8 @@ and you must change the other.
 | `blender_players.py` | Materials, the rig of empties, poses (idle, run, block, fall, cheer), the render loop and the Blood Bowl light style (`bloodbowl`). |
 | `model_kit.py` | Body presets, rigs and around fifty parts (helmets, pads, horns, tails, weapons). |
 | `team_models.py` | One spec per model (`MODELS`), each roster position's model (`TEAMS`) and review kits. |
+| `sideline_models.py` | Seated assistant coaches and apothecaries, cheerleaders with pom-poms, scarf-wearing fans and stretcher medics, using the match rigs and kit masks. |
+| `render_sideline.py` | Renders sideline crew in the two dugout facings and medics in all eight walking facings, and saves their source `.blend` files. |
 | `check_models.py` | Builds every spec against stub Blender objects and checks every roster position has a model. Run it after editing specs. |
 | `render_models.py` | Picks the smallest frame that holds a model in every facing and frame, then renders it. |
 | `batch_render.py` | Headless batch with `--style`, `--anims` and `--sizes`; skips finished models, so it resumes. |
@@ -33,6 +35,13 @@ team's colours.
 # on the Blender machine
 blender -b --factory-startup --python batch_render.py -- OUT --style bloodbowl --anims idle,run,fall,cheer --sizes lo
 ```
+
+To render just the sideline models, run `render_sideline.py -- OUT` inside
+Blender, then pack them with
+`python3 scripts/sprites/build_game_assets.py bloodbowl OUT -`. This adds the
+crew to the existing manifest and preserves the player and stadium assets.
+Their dedicated staff terraces are drawn by `SidelineTerrace` alongside the
+reserve boxes, leaving the touchline exit lane and all player slots clear.
 
 ## Stadium
 

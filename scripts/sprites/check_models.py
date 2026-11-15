@@ -59,6 +59,7 @@ def main():
     g, made = stubs()
     exec((HERE / "model_kit.py").read_text(), g)
     exec((HERE / "team_models.py").read_text(), g)
+    exec((HERE / "sideline_models.py").read_text(), g)
     errors = []
     materials = set(g["BASE_COLORS"]) | set(g["FLAT_COLORS"]) | {"kit1", "kit2", "skin"}
     for name, spec in g["MODELS"].items():
@@ -90,6 +91,7 @@ def main():
             elif mapped[pos] not in g["MODELS"]:
                 errors.append(f"{team}: {pos!r} maps to missing model {mapped[pos]}")
     used = {m for team in g["TEAMS"].values() for _, m in team}
+    used.update(g["SIDELINE_MODELS"])
     for name in g["MODELS"]:
         if name not in used:
             errors.append(f"{name}: no team uses this model")

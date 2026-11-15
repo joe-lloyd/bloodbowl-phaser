@@ -125,10 +125,22 @@ function makeFakeScene() {
 }
 
 /** Each exit to a box finishes when the test says so. */
-const exits = vi.hoisted(() => ({ finish: [] as (() => void)[] }));
+const exits = vi.hoisted(() => ({
+  finish: [] as (() => void)[],
+  signals: [] as AbortSignal[],
+}));
 vi.mock("../../../src/game/elements/pitchExits", () => ({
-  playPitchExit: () =>
-    new Promise<void>((resolve) => exits.finish.push(resolve)),
+  playPitchExit: (
+    _scene: unknown,
+    _sprite: unknown,
+    _route: unknown,
+    _exit: unknown,
+    _kit: unknown,
+    signal: AbortSignal
+  ) => {
+    exits.signals.push(signal);
+    return new Promise<void>((resolve) => exits.finish.push(resolve));
+  },
 }));
 
 vi.mock("phaser", () => ({
@@ -193,6 +205,7 @@ async function build(players: unknown[]) {
   const DugoutCtor = Dugout as unknown as new (...args: unknown[]) => {
     getSprites(): Map<string, FakeContainer>;
     refresh(): void;
+    arriveFrom(id: string, from: { x: number; y: number }, exit: string): void;
   };
   const team = makeTeam(players);
   const dugout = new DugoutCtor(
@@ -201,7 +214,8 @@ async function build(players: unknown[]) {
     team.colors,
     SQUARES,
     toWorld,
-    "s"
+    "s",
+    11
   );
   return { scene, dugout, sprites: dugout.getSprites() };
 }
@@ -279,6 +293,27 @@ describe("Dugout", () => {
       (call) => call[4] === 0xd0021b
     );
     expect(cards).toHaveLength(0);
+  });
+
+  it("cancels a collection when a new drive puts the player back on the pitch", async () => {
+    const knocked = player("returning", PlayerStatus.ACTIVE);
+    const { dugout, sprites } = await build([knocked]);
+    movePlayerToBox(knocked as never, { box: "ko" });
+    dugout.arriveFrom(knocked.id, { x: 120, y: 90 }, "knockedOut");
+    dugout.refresh();
+    const finish = exits.finish[exits.finish.length - 1];
+    const signal = exits.signals[exits.signals.length - 1];
+    expect(signal.aborted).toBe(false);
+    movePlayerToBox(knocked as never, {
+      box: "pitch",
+      position: { x: 3, y: 5 },
+    });
+    dugout.refresh();
+    expect(signal.aborted).toBe(true);
+    expect(sprites.get(knocked.id)!.visible).toBe(false);
+    finish();
+    await Promise.resolve();
+    expect(sprites.get(knocked.id)!.visible).toBe(false);
   });
 });
 
