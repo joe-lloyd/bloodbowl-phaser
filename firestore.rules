@@ -22,11 +22,13 @@ service cloud.firestore {
     }
 
     // The house bot's open lobby (src/firebase/houseBot.ts): any coach may
-    // look for it, and only the bot's own account may announce one.
+    // look for it, and only the bot's own account may announce one. The uid
+    // is pinned too, so nobody can claim the address in another account.
     match /houseBots/{uid} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid
-        && request.auth.token.email == 'house-bot@home.arpa'
+        && uid == 'RXklxhmipMYFLUZNimxsbJWuJew1'
+        && request.auth.token.email == 'lead.mushroom+housebot@gmail.com'
         && request.resource.data.keys().hasOnly(['code', 'updatedAt'])
         && (request.resource.data.code == null
           || request.resource.data.code is string)

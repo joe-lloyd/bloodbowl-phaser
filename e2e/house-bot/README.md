@@ -16,7 +16,7 @@ If no bot is waiting it says so.
   keeps it in `~/.bb-house-bot/credentials.json`, readable only by your
   user. It hands the login to the bot's page in memory, and the app signs
   in, creating the account (coach name House Bot) the first time. The
-  address is `house-bot@home.arpa`, and `firestore.rules` lets only that
+  address is `lead.mushroom+housebot@gmail.com`, and `firestore.rules` lets only that
   account announce a lobby, so another coach cannot pose as the bot.
 - The runner sets the `bb-house-bot` flag in that browser. While the bot's
   lobby waits for a guest, the app writes the code to `houseBots/{uid}`
