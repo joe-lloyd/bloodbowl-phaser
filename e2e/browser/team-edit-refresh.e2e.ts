@@ -84,6 +84,6 @@ test("an edit link to a team that is not saved says so and starts nothing", asyn
   await page.screenshot({ path: test.info().outputPath("team-not-found.png") });
   expect(await storedTeams(page)).toEqual([]);
 
-  await page.getByRole("button", { name: "Back to Team Management" }).click();
+  await page.getByRole("button", { name: "Back to Teams" }).click();
   await expect(page).toHaveURL(/\/build-team$/);
 });

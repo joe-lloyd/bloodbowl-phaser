@@ -27,7 +27,7 @@ legacy teams by exact name, as described below.
 
 ## Refreshing the seeds
 
-In development and browser-test builds, open **Team Management → Development
+In development and browser-test builds, open **Teams → Development
 fixtures** to use **Seed All Rosters** or **Delete Seed Teams**. Production
 builds provide the Computer teams catalogue instead. Code:
 

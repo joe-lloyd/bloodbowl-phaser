@@ -176,9 +176,11 @@ type TeamPendingView = "loading" | "missing" | "failed";
 function TeamPending({
   view,
   onBack,
+  backLabel,
 }: {
   view: TeamPendingView;
   onBack: () => void;
+  backLabel: string;
 }) {
   if (view === "loading") {
     return (
@@ -193,7 +195,7 @@ function TeamPending({
         <TeamLibraryUnavailable
           action={
             <HudButton variant="ghost" onClick={onBack}>
-              Back to Team Management
+              {backLabel}
             </HudButton>
           }
         />
@@ -207,7 +209,7 @@ function TeamPending({
         titleAs="h2"
         action={
           <HudButton variant="ghost" onClick={onBack}>
-            Back to Team Management
+            {backLabel}
           </HudButton>
         }
       >
@@ -235,6 +237,8 @@ export function TeamBuilder() {
     search,
     teamId
   );
+  // Opened from a league (after a game, or its Progress team action)
+  const fromLeague = destination !== "/build-team";
   const [completion, setCompletion] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -492,9 +496,7 @@ export function TeamBuilder() {
         replace: true,
       });
     } else {
-      navigate(postMatch ? destination : "/build-team", {
-        replace: postMatch,
-      });
+      navigate(destination, { replace: postMatch });
     }
   };
 
@@ -583,7 +585,7 @@ export function TeamBuilder() {
   };
 
   const handleBack = () => {
-    navigate("/build-team");
+    navigate(destination);
   };
 
   const handleApothecaryToggle = () => {
@@ -600,7 +602,13 @@ export function TeamBuilder() {
   };
 
   if (!team) {
-    return <TeamPending view={pendingView} onBack={handleBack} />;
+    return (
+      <TeamPending
+        view={pendingView}
+        onBack={handleBack}
+        backLabel={fromLeague ? "Back to the league" : "Back to Teams"}
+      />
+    );
   }
 
   if (!rosterChosen) {
@@ -644,7 +652,7 @@ export function TeamBuilder() {
           pendingMistakes={pendingMistakes}
           incomplete={violations.length > 0}
           hasNextTeam={searchParams.has("nextTeam")}
-          returnsToLeague={postMatch && destination !== "/build-team"}
+          returnsToLeague={fromLeague}
           onBack={handleBack}
           onSave={handleSave}
         />

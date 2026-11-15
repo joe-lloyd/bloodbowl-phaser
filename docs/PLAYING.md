@@ -5,8 +5,8 @@ end zone to score. Each half gives each coach six turns.
 
 ## Start a local match
 
-1. Open **Build Team** from the main menu.
-2. Create a team, choose its roster and advancement mode, then hire a legal squad.
+1. Open **Teams** from the main menu.
+2. Choose **Create New Team**, choose its roster and advancement mode, then hire a legal squad.
    The builder shows budget and roster restrictions.
 3. Save the team and create a second team for the other coach.
 4. Return to the menu and choose **Play Local**.
@@ -23,7 +23,7 @@ site data removes those local saves. Use **Resume Match** when it appears on the
 
 ## Play against the computer
 
-Open **Build Team → Computer teams** to browse ready-made opponents. Search by
+Open **Teams → Computer teams** to browse ready-made opponents. Search by
 name or roster, or expand a card to inspect its lineup and Bonehead Podcast
 source. The rules selector shows only builds legal under that profile.
 
@@ -60,10 +60,15 @@ and action panels more room.
 
 ## Develop a team
 
-Team pages show player statistics, treasury, injuries and development choices.
-The team's advancement mode determines how it gains skills. Leagues and
-tournaments have their own pages in the main menu. Teams must satisfy the
-competition's eligibility checks before entering.
+Every team you have is under **Teams**. A team's page (**Manage Team**) shows
+player statistics, treasury, injuries and development choices. The team's
+advancement mode determines how it gains skills. Leagues and tournaments have
+their own pages in the main menu. Teams must satisfy the competition's
+eligibility checks before entering.
+
+A league page lists your teams in it under **Your teams**, with any development
+waiting. **Progress team** opens that team's page, and **Back to the league**
+returns to the league. After a league game, open the league again to find it.
 
 ## Play online
 

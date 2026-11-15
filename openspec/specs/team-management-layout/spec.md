@@ -6,11 +6,20 @@ Define where per-team stats (value, treasury, roster count, record) and per-play
 
 ## Requirements
 
+### Requirement: The team section is named Teams
+
+The main menu entry and page that list a coach's teams SHALL be named Teams, and buttons that return to that page SHALL read Back to Teams. Actions that start a new team SHALL keep a name that says so, such as Create New Team, and a team's own page SHALL keep Manage Team.
+
+#### Scenario: Opening the section from the main menu
+
+- **WHEN** a coach chooses Teams on the main menu
+- **THEN** the Teams page lists their teams, with Create New Team to start another
+
 ### Requirement: Team overview cards show the per-team stats summary
-The Team Management overview page SHALL render each team's stats summary — team value, treasury, roster count, and win/draw/loss record — inline on that team's overview card. The team detail page MAY also show this same summary; it is not required to be removed from the detail page.
+The Teams overview page SHALL render each team's stats summary — team value, treasury, roster count, and win/draw/loss record — inline on that team's overview card. The team detail page MAY also show this same summary; it is not required to be removed from the detail page.
 
 #### Scenario: Overview card shows the stats grid
-- **WHEN** a coach views the Team Management overview listing their saved teams
+- **WHEN** a coach views the Teams overview listing their saved teams
 - **THEN** each team card shows that team's value, treasury, roster count (x/11), and win/draw/loss record
 
 #### Scenario: Detail page still shows the stats grid
@@ -18,10 +27,10 @@ The Team Management overview page SHALL render each team's stats summary — tea
 - **THEN** that team's value, treasury, roster count, and win/draw/loss record are also shown there
 
 ### Requirement: Per-player career statistics are shown on the team detail page, not the overview
-The Team Management overview page SHALL NOT render per-player career statistics (games played, touchdowns, completions, casualties, kills, MVPs). The team detail page's player roster table SHALL show each player's career statistics as additional columns, one row per player.
+The Teams overview page SHALL NOT render per-player career statistics (games played, touchdowns, completions, casualties, kills, MVPs). The team detail page's player roster table SHALL show each player's career statistics as additional columns, one row per player.
 
 #### Scenario: Overview omits career statistics
-- **WHEN** a coach views the Team Management overview listing their saved teams
+- **WHEN** a coach views the Teams overview listing their saved teams
 - **THEN** no team card shows a per-player career-statistics table or block
 
 #### Scenario: Detail page roster table shows career-stat columns

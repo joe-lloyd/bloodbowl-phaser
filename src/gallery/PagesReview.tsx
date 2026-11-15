@@ -36,8 +36,8 @@ const SKETCH_GROUPS = [
 const PAGE_SHOTS = [
   ["menu", "Main menu"],
   ["menu-resume", "Main menu with a saved local match"],
-  ["build-team-empty", "Team management with no teams"],
-  ["build-team", "Team management with seeded teams"],
+  ["build-team-empty", "Teams page with no teams"],
+  ["build-team", "Teams page with seeded teams"],
   ["team-builder-new", "Team builder, a new team"],
   ["team-builder", "Team builder, a seeded team"],
   ["team-builder-roster", "Team builder, the roster table"],

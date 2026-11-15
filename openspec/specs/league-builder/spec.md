@@ -85,6 +85,25 @@ Because entrants reference live teams, advancement gained in one league fixture 
 - **WHEN** a player gains a skill after a round-one fixture
 - **THEN** that player has the skill when their team plays its round-two fixture
 
+### Requirement: The league page links the coach's teams to their progression
+
+A league page SHALL list, near its top under Your teams, each team in the league that is in the viewing coach's library and has not withdrawn, with the team's crest, name and where its development stands: development to finish (saying when the league requires it finished before the team's next game), players who can advance, or up to date. Each team a person coaches SHALL offer a Progress team action whose accessible name includes the team's name. It SHALL open that team's existing page with the league as the place to return to: the page's leave button SHALL read Back to the league, and leaving or saving SHALL return to that league. A computer-coached team SHALL be listed without the action and SHALL say the computer makes its development choices. A league with none of the coach's teams SHALL show no Your teams section.
+
+#### Scenario: After a game the coach finds their team on the league page
+
+- **WHEN** a coach finishes post-match for a league game and returns to the league
+- **THEN** Your teams lists their teams in that league, each with where its development stands
+
+#### Scenario: Several teams in one league
+
+- **WHEN** a coach with two teams in a league chooses Progress team for the second team
+- **THEN** the second team's page opens, not the first's, and Back to the league returns to that league
+
+#### Scenario: A computer team in the coach's library
+
+- **WHEN** the organizer views a league with a computer-coached team from their library
+- **THEN** that team is listed as making its own development choices, with no Progress team action
+
 ### Requirement: A team belongs to at most one active competition
 
 A team SHALL record the single active league or tournament it is entered in. Entering a team into a competition SHALL be refused when it is already entered in an active one, and the reason SHALL be stated. The association SHALL be cleared when the competition completes or the team is withdrawn.

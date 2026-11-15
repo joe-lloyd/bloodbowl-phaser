@@ -53,13 +53,13 @@ For a signed-in user, saved teams SHALL persist to that user's Firestore team li
 #### Scenario: Editing a team that is not in the library
 
 - **WHEN** the team library has loaded (signed out, or the signed-in cloud library has arrived) and does not hold the team ID in the edit page's route
-- **THEN** the page says the team was not found and offers a way back to Team Management, without creating or saving a team
+- **THEN** the page says the team was not found and offers a way back to Teams, without creating or saving a team
 
 #### Scenario: The cloud library fails to load
 
 - **WHEN** a signed-in user's cloud team library fails to load, and `localStorage` may hold an older copy of one of their teams
 - **THEN** the edit page shows that their teams could not be loaded, with a Retry action and a way back, and never opens or saves the `localStorage` copy
-- **AND** every page that shows or changes their teams (Team Management, team editing and player pages, team selection, the online lobby, and competition creation and views) shows the same failure with Retry instead of the `localStorage` teams
+- **AND** every page that shows or changes their teams (the Teams page, team editing and player pages, team selection, the online lobby, and competition creation and views) shows the same failure with Retry instead of the `localStorage` teams
 
 #### Scenario: Retrying a failed cloud library load
 

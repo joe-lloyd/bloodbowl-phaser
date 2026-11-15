@@ -217,7 +217,7 @@ export function MainMenu() {
               Play Local
             </HudButton>
             <HudButton block onClick={() => navigate("/build-team")}>
-              Build Team
+              Teams
             </HudButton>
           </MenuSection>
 

@@ -26,8 +26,10 @@ export class MenuPage {
     return this.page.getByRole("button", { name: "Play Local" }).click();
   }
 
-  buildTeam(): Promise<void> {
-    return this.page.getByRole("button", { name: "Build Team" }).click();
+  openTeams(): Promise<void> {
+    return this.page
+      .getByRole("button", { name: "Teams", exact: true })
+      .click();
   }
 
   /** The Sandbox entry is admin-gated; without Firebase everyone is admin. */

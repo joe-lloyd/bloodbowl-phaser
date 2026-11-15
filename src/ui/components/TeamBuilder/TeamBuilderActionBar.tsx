@@ -16,6 +16,7 @@ interface Props {
   /** The roster is not yet legal, so a save keeps it as a draft. */
   incomplete: boolean;
   hasNextTeam: boolean;
+  /** Opened from a league, so leaving goes back to it. */
   returnsToLeague: boolean;
   onBack: () => void;
   onSave: () => void;
@@ -35,7 +36,7 @@ function saveButtonLabel({
   if (saveError) return "Retry saving team";
   if (completion) {
     if (hasNextTeam) return "Manage next team";
-    return returnsToLeague ? "Back to the league" : "Back to teams";
+    return returnsToLeague ? "Back to the league" : "Back to Teams";
   }
   if (postMatch || pendingMistakes) return "Finish post-match";
   return <>Save Team {incomplete && "(saved as incomplete draft)"}</>;
@@ -49,6 +50,7 @@ export function TeamBuilderActionBar(props: Props) {
     completion,
     saving,
     waitingForDevelopment,
+    returnsToLeague,
     onBack,
     onSave,
   } = props;
@@ -56,7 +58,7 @@ export function TeamBuilderActionBar(props: Props) {
     <>
       {!postMatch && !completion && (
         <HudButton variant="ghost" onClick={onBack} disabled={saving}>
-          Cancel
+          {returnsToLeague ? "Back to the league" : "Cancel"}
         </HudButton>
       )}
       <div className="flex items-baseline gap-5 font-hud-label font-bold uppercase tracking-[0.06em]">

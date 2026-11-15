@@ -117,7 +117,7 @@ describe("TeamBuilder loading a team from its route", () => {
     expect(container.textContent).not.toContain("Amazon");
     expect(localStorage.getItem("bloodbowl_teams")).toBeNull();
 
-    await act(async () => button(/Back to Team Management/).click());
+    await act(async () => button(/Back to Teams/).click());
     expect(container.textContent).toContain("Team management");
   });
 

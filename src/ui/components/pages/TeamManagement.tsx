@@ -33,10 +33,6 @@ import {
 import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 
-/**
- * Team Management Component
- * Lists all teams with create/edit/delete functionality
- */
 /** Draft/active mode plus shared roster legality, for the team-list badge. */
 function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
   const mode = getTeamMode(team);
@@ -52,6 +48,7 @@ function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
   return { mode, legal };
 }
 
+/** The Teams section: every team the coach has, to create, manage or delete. */
 export function TeamManagement() {
   const [teams, reloadTeams] = useTeamLibrary();
   const navigate = useNavigate();
@@ -131,8 +128,8 @@ export function TeamManagement() {
     <PageShell>
       <PageHeader
         back={{ label: "← Back to Menu", onClick: handleBack }}
-        title="TEAM MANAGEMENT"
-        subtitle="Manage your roster and prepare for the next match."
+        title="TEAMS"
+        subtitle="Build a new team, or manage and progress the ones you have."
         actions={
           <>
             <HudButton onClick={() => navigate("/shared-teams")}>
