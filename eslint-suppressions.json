@@ -196,32 +196,6 @@
       "count": 1
     }
   },
-  "src/game/skills/rerolls.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/game/skills/rules/ShadowingRule.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/game/skills/rules/TentaclesRule.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/game/skills/rules/TricksterRule.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/headless/cli.ts": {
     "complexity": {
       "count": 1

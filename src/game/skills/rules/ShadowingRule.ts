@@ -15,30 +15,39 @@
  */
 
 import { SkillType } from "../../../types/Skills";
-import { PlayerStatus } from "../../../types/Player";
+import { Player, PlayerStatus } from "../../../types/Player";
 import { SkillRule } from "../SkillRule";
 import { ReactionDecisionAnswer } from "../../../types/decisions";
 
+type Dodge = Parameters<NonNullable<SkillRule["onDodgeSucceeded"]>>[0];
+
+/**
+ * Whether `self` may try to Shadow this dodge: a Standing opponent who
+ * marked the vacated square, with uses left this Turn, and no other
+ * shadower has tried.
+ */
+function mayShadow(ctx: Dodge, self: Player): boolean {
+  if (self.id === ctx.player.id) return false;
+  if (self.teamId === ctx.player.teamId) return false;
+  if (self.status !== PlayerStatus.ACTIVE || !self.gridPosition) return false;
+  // Another shadower got there first
+  if (ctx.followInto) return false;
+  // Only one shadower may try, even when several mark the square
+  if (ctx.triggers.some((t) => t.skill === SkillType.SHADOWING)) return false;
+  // Only a marker of the VACATED square may chase
+  const dx = Math.abs(self.gridPosition.x - ctx.from.x);
+  const dy = Math.abs(self.gridPosition.y - ctx.from.y);
+  if (dx > 1 || dy > 1 || dx + dy === 0) return false;
+  // At most MA uses per Turn
+  return (
+    !ctx.arbiter ||
+    ctx.arbiter.usesThisTurn(self, SkillType.SHADOWING) < self.stats.MA
+  );
+}
+
 export const ShadowingRule: SkillRule = {
   async onDodgeSucceeded(ctx, self) {
-    if (self.id === ctx.player.id) return;
-    if (self.teamId === ctx.player.teamId) return;
-    if (self.status !== PlayerStatus.ACTIVE || !self.gridPosition) return;
-    // Another shadower got there first
-    if (ctx.followInto) return;
-    // Only one shadower may try, even when several mark the square
-    if (ctx.triggers.some((t) => t.skill === SkillType.SHADOWING)) return;
-    // Only a marker of the VACATED square may chase
-    const dx = Math.abs(self.gridPosition.x - ctx.from.x);
-    const dy = Math.abs(self.gridPosition.y - ctx.from.y);
-    if (dx > 1 || dy > 1 || dx + dy === 0) return;
-    if (!ctx.decisions || !ctx.dice) return;
-    // At most MA uses per Turn
-    if (
-      ctx.arbiter &&
-      ctx.arbiter.usesThisTurn(self, SkillType.SHADOWING) >= self.stats.MA
-    )
-      return;
+    if (!ctx.decisions || !ctx.dice || !mayShadow(ctx, self)) return;
 
     const answer = (await ctx.decisions.request({
       type: "reaction",
@@ -50,10 +59,7 @@ export const ShadowingRule: SkillRule = {
     if (!answer.accept) return;
 
     ctx.arbiter?.consumeUse(self, SkillType.SHADOWING);
-    const roll = ctx.dice.rollD6(
-      `Shadowing (${self.playerName})`,
-      self.teamId
-    );
+    const roll = ctx.dice.rollD6(`Shadowing (${self.playerName})`, self.teamId);
     if (roll >= 4) ctx.followInto = self.id;
     ctx.triggers.push({
       playerId: self.id,

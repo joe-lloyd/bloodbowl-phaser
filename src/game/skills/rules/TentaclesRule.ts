@@ -26,18 +26,25 @@ type Escape = Pick<
   "player" | "from" | "escapeCancelled" | "triggers" | "decisions" | "dice"
 >;
 
-async function grip(ctx: Escape, self: Player): Promise<void> {
-  if (self.id === ctx.player.id) return;
-  if (self.teamId === ctx.player.teamId) return;
-  if (self.status !== PlayerStatus.ACTIVE || !self.gridPosition) return;
-  if (ctx.escapeCancelled) return;
+/**
+ * Whether `self` may try to grip: a Standing opponent who marks the square
+ * being left, before anyone else has held or tried to hold the dodger.
+ */
+function mayGrip(ctx: Escape, self: Player): boolean {
+  if (self.id === ctx.player.id) return false;
+  if (self.teamId === ctx.player.teamId) return false;
+  if (self.status !== PlayerStatus.ACTIVE || !self.gridPosition) return false;
+  if (ctx.escapeCancelled) return false;
   // Only a marker of the VACATED square may grip the dodger
   const dx = Math.abs(self.gridPosition.x - ctx.from.x);
   const dy = Math.abs(self.gridPosition.y - ctx.from.y);
-  if (dx > 1 || dy > 1 || dx + dy === 0) return;
+  if (dx > 1 || dy > 1 || dx + dy === 0) return false;
   // Only one set of tentacles may try, even when several mark the square
-  if (ctx.triggers.some((t) => t.skill === SkillType.TENTACLES)) return;
-  if (!ctx.decisions || !ctx.dice) return;
+  return !ctx.triggers.some((t) => t.skill === SkillType.TENTACLES);
+}
+
+async function grip(ctx: Escape, self: Player): Promise<void> {
+  if (!ctx.decisions || !ctx.dice || !mayGrip(ctx, self)) return;
 
   const answer = (await ctx.decisions.request({
     type: "reaction",
