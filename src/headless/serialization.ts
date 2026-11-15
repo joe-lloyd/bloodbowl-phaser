@@ -17,6 +17,7 @@ import {
 } from "../types/GameState";
 import { Team } from "../types/Team";
 import {
+  Player,
   PlayerStats,
   PlayerStatus,
   PlayerConditionInstance,
@@ -192,6 +193,27 @@ export interface CreateMatchSaveInput {
   savedAt?: number;
 }
 
+/** A deep copy of an optional field; undefined when it is unset or empty. */
+function cloneOf<T>(value: T | null | undefined): T | undefined {
+  return value ? structuredClone(value) : undefined;
+}
+
+/** A shallow copy of an optional record; undefined when it is unset. */
+function copyOf<T extends object>(value: T | null | undefined): T | undefined {
+  return value ? { ...value } : undefined;
+}
+
+/** A copy of an optional list; undefined when it is unset. */
+function listOf<T>(value: readonly T[] | null | undefined): T[] | undefined {
+  return value ? [...value] : undefined;
+}
+
+function leaderRerollsOf(
+  value: GameState["leaderRerolls"]
+): GameState["leaderRerolls"] {
+  return value ? { ...value, teamIds: [...value.teamIds] } : undefined;
+}
+
 export function serializeGameState(
   state: GameState,
   teams: Team[]
@@ -226,61 +248,45 @@ export function serializeGameState(
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
-    driveEffects: state.driveEffects
-      ? structuredClone(state.driveEffects)
-      : undefined,
-    bribes: state.bribes ? { ...state.bribes } : undefined,
-    teamRerollsUsed: state.teamRerollsUsed
-      ? { ...state.teamRerollsUsed }
-      : undefined,
-    leaderRerolls: state.leaderRerolls
-      ? { ...state.leaderRerolls, teamIds: [...state.leaderRerolls.teamIds] }
-      : undefined,
-    veteranRerollsUsed: state.veteranRerollsUsed
-      ? [...state.veteranRerollsUsed]
-      : undefined,
-    briberyRerollsUsed: state.briberyRerollsUsed
-      ? [...state.briberyRerollsUsed]
-      : undefined,
-    stallingPlayerIds: state.stallingPlayerIds
-      ? [...state.stallingPlayerIds]
-      : undefined,
-    turnUsage: state.turnUsage ? structuredClone(state.turnUsage) : undefined,
+    driveEffects: cloneOf(state.driveEffects),
+    bribes: copyOf(state.bribes),
+    teamRerollsUsed: copyOf(state.teamRerollsUsed),
+    leaderRerolls: leaderRerollsOf(state.leaderRerolls),
+    veteranRerollsUsed: listOf(state.veteranRerollsUsed),
+    briberyRerollsUsed: listOf(state.briberyRerollsUsed),
+    stallingPlayerIds: listOf(state.stallingPlayerIds),
+    turnUsage: cloneOf(state.turnUsage),
     ...(state.chargeTeamId ? { chargeTeamId: state.chargeTeamId } : {}),
-    raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
-    fanFactors: state.fanFactors ? { ...state.fanFactors } : undefined,
-    inducements: state.inducements
-      ? structuredClone(state.inducements)
-      : undefined,
-    matchInducements: state.matchInducements
-      ? structuredClone(state.matchInducements)
-      : undefined,
-    kickoffResolution: state.kickoffResolution
-      ? structuredClone(state.kickoffResolution)
-      : undefined,
-    kickoffKickResolved: state.kickoffKickResolved
-      ? { ...state.kickoffKickResolved }
-      : undefined,
-    setup: state.setup ? structuredClone(state.setup) : null,
-    result: state.result ? structuredClone(state.result) : undefined,
+    raisedDead: copyOf(state.raisedDead),
+    fanFactors: copyOf(state.fanFactors),
+    inducements: cloneOf(state.inducements),
+    matchInducements: cloneOf(state.matchInducements),
+    kickoffResolution: cloneOf(state.kickoffResolution),
+    kickoffKickResolved: copyOf(state.kickoffKickResolved),
+    setup: cloneOf(state.setup) ?? null,
+    result: cloneOf(state.result),
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
       rerolls: teamRerollsLeft(state, team),
-      players: team.players.map((p) => ({
-        id: p.id,
-        name: p.playerName,
-        teamId: p.teamId,
-        number: p.number,
-        positionName: p.positionName,
-        position: p.gridPosition ? { ...p.gridPosition } : null,
-        status: p.status,
-        stats: { ...p.stats },
-        skills: p.skills.map((s) => (typeof s === "string" ? s : s.type)),
-        conditions: (p.conditions ?? []).map((c) => ({ ...c })),
-        movementUsed: state.turn.movementUsed.get(p.id) ?? 0,
-      })),
+      players: team.players.map((p) => playerSnapshot(p, state.turn)),
     })),
+  };
+}
+
+function playerSnapshot(p: Player, turn: TurnData): PlayerSnapshot {
+  return {
+    id: p.id,
+    name: p.playerName,
+    teamId: p.teamId,
+    number: p.number,
+    positionName: p.positionName,
+    position: p.gridPosition ? { ...p.gridPosition } : null,
+    status: p.status,
+    stats: { ...p.stats },
+    skills: p.skills.map((s) => (typeof s === "string" ? s : s.type)),
+    conditions: (p.conditions ?? []).map((c) => ({ ...c })),
+    movementUsed: turn.movementUsed.get(p.id) ?? 0,
   };
 }
 
@@ -320,48 +326,23 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
-    driveEffects: snapshot.driveEffects
-      ? structuredClone(snapshot.driveEffects)
-      : undefined,
-    bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
-    teamRerollsUsed: snapshot.teamRerollsUsed
-      ? { ...snapshot.teamRerollsUsed }
-      : undefined,
-    leaderRerolls: snapshot.leaderRerolls
-      ? {
-          ...snapshot.leaderRerolls,
-          teamIds: [...snapshot.leaderRerolls.teamIds],
-        }
-      : undefined,
-    veteranRerollsUsed: snapshot.veteranRerollsUsed
-      ? [...snapshot.veteranRerollsUsed]
-      : undefined,
-    briberyRerollsUsed: snapshot.briberyRerollsUsed
-      ? [...snapshot.briberyRerollsUsed]
-      : undefined,
-    stallingPlayerIds: snapshot.stallingPlayerIds
-      ? [...snapshot.stallingPlayerIds]
-      : undefined,
-    turnUsage: snapshot.turnUsage
-      ? structuredClone(snapshot.turnUsage)
-      : undefined,
+    driveEffects: cloneOf(snapshot.driveEffects),
+    bribes: copyOf(snapshot.bribes),
+    teamRerollsUsed: copyOf(snapshot.teamRerollsUsed),
+    leaderRerolls: leaderRerollsOf(snapshot.leaderRerolls),
+    veteranRerollsUsed: listOf(snapshot.veteranRerollsUsed),
+    briberyRerollsUsed: listOf(snapshot.briberyRerollsUsed),
+    stallingPlayerIds: listOf(snapshot.stallingPlayerIds),
+    turnUsage: cloneOf(snapshot.turnUsage),
     chargeTeamId: snapshot.chargeTeamId,
-    raisedDead: snapshot.raisedDead ? { ...snapshot.raisedDead } : undefined,
-    fanFactors: snapshot.fanFactors ? { ...snapshot.fanFactors } : undefined,
-    inducements: snapshot.inducements
-      ? structuredClone(snapshot.inducements)
-      : undefined,
-    matchInducements: snapshot.matchInducements
-      ? structuredClone(snapshot.matchInducements)
-      : undefined,
-    kickoffResolution: snapshot.kickoffResolution
-      ? structuredClone(snapshot.kickoffResolution)
-      : undefined,
-    kickoffKickResolved: snapshot.kickoffKickResolved
-      ? { ...snapshot.kickoffKickResolved }
-      : undefined,
-    setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
-    result: snapshot.result ? structuredClone(snapshot.result) : undefined,
+    raisedDead: copyOf(snapshot.raisedDead),
+    fanFactors: copyOf(snapshot.fanFactors),
+    inducements: cloneOf(snapshot.inducements),
+    matchInducements: cloneOf(snapshot.matchInducements),
+    kickoffResolution: cloneOf(snapshot.kickoffResolution),
+    kickoffKickResolved: copyOf(snapshot.kickoffKickResolved),
+    setup: cloneOf(snapshot.setup),
+    result: cloneOf(snapshot.result),
   };
 }
 
@@ -451,6 +432,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isComputerSaveOrAbsent(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (isRecord(value) &&
+      typeof value.computerTeamId === "string" &&
+      typeof value.difficulty === "string")
+  );
+}
+
 export function deserializeMatchSave(value: string | unknown): MatchSave {
   const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
   if (
@@ -465,10 +455,7 @@ export function deserializeMatchSave(value: string | unknown): MatchSave {
     typeof parsed.drive.receivingTeamId !== "string" ||
     !isRecord(parsed.rng) ||
     !isRecord(parsed.matchStats) ||
-    (parsed.computer !== undefined &&
-      (!isRecord(parsed.computer) ||
-        typeof parsed.computer.computerTeamId !== "string" ||
-        typeof parsed.computer.difficulty !== "string"))
+    !isComputerSaveOrAbsent(parsed.computer)
   ) {
     throw new Error("unsupported-or-invalid-match-save");
   }

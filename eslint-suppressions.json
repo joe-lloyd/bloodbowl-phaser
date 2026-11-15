@@ -448,14 +448,6 @@
       "count": 1
     }
   },
-  "src/headless/serialization.ts": {
-    "complexity": {
-      "count": 3
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/network/ComputerMatch.ts": {
     "complexity": {
       "count": 2
