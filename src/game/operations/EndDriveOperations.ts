@@ -58,6 +58,42 @@ export function skippableBeat(context: FlowContext, ms: number): Promise<void> {
   });
 }
 
+/** Both teams' players, the active team's first; none between drives. */
+function activeTeamFirst(gameService: FlowContext["gameService"]): Player[] {
+  const activeTeamId = gameService.getActiveTeamId();
+  const activeTeam = activeTeamId
+    ? gameService.getTeam(activeTeamId)
+    : undefined;
+  return activeTeam
+    ? [...activeTeam.players, ...gameService.getOpponents(activeTeam.id)]
+    : [];
+}
+
+const secretWeaponInPlay = (player: Player): boolean =>
+  hasSkill(player.skills, SkillType.SECRET_WEAPON) &&
+  player.status !== PlayerStatus.RESERVE &&
+  player.status !== PlayerStatus.REMOVED;
+
+/**
+ * You Dope! (L21): each doped player who played the drive rolls a D6; on 1
+ * or 2 they are Knocked-out and skip this KO recovery.
+ */
+function youDopeCollapse(context: FlowContext): void {
+  const { gameService, eventBus } = context;
+  const collapsed = rollYouDopeCollapse(
+    gameService.getState(),
+    gameService.getDiceController(),
+    gameService.getTeams().flatMap((team) => team.players)
+  );
+  for (const player of collapsed) {
+    movePlayerToBox(player, { box: "ko" }, eventBus);
+    eventBus.emit(
+      GameEventNames.UI_GameLog,
+      `You Dope!: ${player.playerName} collapses and is Knocked-out`
+    );
+  }
+}
+
 /**
  * The celebration window after a touchdown. The TOUCHDOWN phase handler owns
  * the scene while this runs; when the window ends this operation hands off
@@ -107,19 +143,9 @@ export class ClearPitchOperation extends GameOperation {
       nextKickingTeamId: this.nextKickingTeamId,
     });
 
-    const activeTeamId = gameService.getActiveTeamId();
-    const activeTeam = activeTeamId
-      ? gameService.getTeam(activeTeamId)
-      : undefined;
-    const players = activeTeam
-      ? [...activeTeam.players, ...gameService.getOpponents(activeTeam.id)]
-      : [];
+    const players = activeTeamFirst(gameService);
     for (const player of players) {
-      if (
-        hasSkill(player.skills, SkillType.SECRET_WEAPON) &&
-        player.status !== PlayerStatus.RESERVE &&
-        player.status !== PlayerStatus.REMOVED
-      ) {
+      if (secretWeaponInPlay(player)) {
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: player.id,
           skill: SkillType.SECRET_WEAPON,
@@ -142,22 +168,7 @@ export class ClearPitchOperation extends GameOperation {
         ? swelteringHeat(gameService.getTeams(), gameService.getDiceController())
         : [];
 
-    // You Dope! (L21): each doped player who played the drive rolls a D6;
-    // on 1 or 2 they are Knocked-out and skip this KO recovery.
-    if (this.anotherDrive) {
-      const collapsed = rollYouDopeCollapse(
-        gameService.getState(),
-        gameService.getDiceController(),
-        gameService.getTeams().flatMap((team) => team.players)
-      );
-      for (const player of collapsed) {
-        movePlayerToBox(player, { box: "ko" }, eventBus);
-        eventBus.emit(
-          GameEventNames.UI_GameLog,
-          `You Dope!: ${player.playerName} collapses and is Knocked-out`
-        );
-      }
-    }
+    if (this.anotherDrive) youDopeCollapse(context);
 
     await context.delay(800);
 

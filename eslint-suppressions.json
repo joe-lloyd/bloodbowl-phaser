@@ -214,11 +214,6 @@
       "count": 1
     }
   },
-  "src/game/operations/EndDriveOperations.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/game/operations/PassOperation.ts": {
     "complexity": {
       "count": 2
