@@ -55,18 +55,21 @@ export class BounceOperation extends GameOperation {
     // 2. Animate Bounce: one hop at a time, so a chain of bounces and the
     // catch rolls between them can be followed
     const presentationId = nextPresentationId("bounce");
+    // Listening before the hop is announced, so a board that answers at
+    // once is still heard
+    const shown = awaitPresentation(
+      eventBus,
+      context.delay,
+      presentationId,
+      BOUNCE_PRESENTATION_TIMEOUT_MS
+    );
     eventBus.emit(GameEventNames.PassFumbled, {
       playerId: "bounce", // Dummy
       position: this.startPosition,
       bouncePosition: { x: newX, y: newY },
       presentationId,
     });
-    await awaitPresentation(
-      eventBus,
-      context.delay,
-      presentationId,
-      BOUNCE_PRESENTATION_TIMEOUT_MS
-    );
+    await shown;
 
     // 3. Validation
     // A kick-off bounce out of the receiving half is a Touchback (p.52).
