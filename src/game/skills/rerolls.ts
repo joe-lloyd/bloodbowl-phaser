@@ -87,6 +87,66 @@ export function availableRerolls(
   return { sources, skillSource };
 }
 
+/**
+ * Spend the chosen re-roll source. False when the dice may not be
+ * re-rolled after all: a failed Pro attempt, or a Team Re-roll a Loner
+ * rule kept.
+ */
+function spendReroll(
+  deps: RerollDeps,
+  arbiter: ReturnType<IGameService["getRerollArbiter"]>,
+  player: Player,
+  choice: {
+    chosen: RerollSource;
+    skillSource: SkillType | undefined;
+    rollKind: RerollableRollKind;
+  }
+): boolean {
+  const { chosen, skillSource, rollKind } = choice;
+  if (chosen === "pro") {
+    // Book: once attempted, the roll is locked against every other source
+    arbiter.consumeOnce(player, SkillType.PRO);
+    const gate = deps.gameService
+      .getDiceController()
+      .rollSkillCheck("Pro", 3, 0, player.playerName);
+    if (!gate.success) {
+      deps.eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: player.id,
+        skill: String(SkillType.PRO),
+        effect: "Pro: the attempt fails — no other re-roll may be used",
+      });
+      return false;
+    }
+    deps.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: player.id,
+      skill: String(SkillType.PRO),
+      effect: `Pro: re-roll the failed ${rollKind}`,
+    });
+  } else if (chosen === "skill" && skillSource) {
+    arbiter.consumeSkillReroll(player, skillSource);
+    deps.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: player.id,
+      skill: String(skillSource),
+      effect: `${String(skillSource)}: reroll the failed ${rollKind}`,
+    });
+  } else if (chosen === "veteran") {
+    arbiter.consumeVeteranReroll(player);
+  } else if (!spendTeamReroll(deps, player)) {
+    return false;
+  }
+  return true;
+}
+
+/** The roll the coach needs, for the re-roll prompt. */
+function neededFor(first: RollLike): number | undefined {
+  return (
+    first.needed ??
+    (first.target === undefined
+      ? undefined
+      : requiredRoll(first.target, first.modifiers))
+  );
+}
+
 export async function withRerollOffer<T extends RollLike>(
   deps: RerollDeps,
   player: Player,
@@ -120,11 +180,7 @@ export async function withRerollOffer<T extends RollLike>(
     sources,
     skill: skillSource ? String(skillSource) : undefined,
     roll: first.roll,
-    needed:
-      first.needed ??
-      (first.target === undefined
-        ? undefined
-        : requiredRoll(first.target, first.modifiers)),
+    needed: neededFor(first),
   });
   if (!answer.accept) return first;
 
@@ -132,35 +188,7 @@ export async function withRerollOffer<T extends RollLike>(
     answer.source && sources.includes(answer.source)
       ? answer.source
       : sources[0];
-  if (chosen === "pro") {
-    // Book: once attempted, the roll is locked against every other source
-    arbiter.consumeOnce(player, SkillType.PRO);
-    const gate = deps.gameService
-      .getDiceController()
-      .rollSkillCheck("Pro", 3, 0, player.playerName);
-    if (!gate.success) {
-      deps.eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId: player.id,
-        skill: String(SkillType.PRO),
-        effect: "Pro: the attempt fails — no other re-roll may be used",
-      });
-      return first;
-    }
-    deps.eventBus.emit(GameEventNames.SkillTriggered, {
-      playerId: player.id,
-      skill: String(SkillType.PRO),
-      effect: `Pro: re-roll the failed ${rollKind}`,
-    });
-  } else if (chosen === "skill" && skillSource) {
-    arbiter.consumeSkillReroll(player, skillSource);
-    deps.eventBus.emit(GameEventNames.SkillTriggered, {
-      playerId: player.id,
-      skill: String(skillSource),
-      effect: `${String(skillSource)}: reroll the failed ${rollKind}`,
-    });
-  } else if (chosen === "veteran") {
-    arbiter.consumeVeteranReroll(player);
-  } else if (!spendTeamReroll(deps, player)) {
+  if (!spendReroll(deps, arbiter, player, { chosen, skillSource, rollKind })) {
     return first;
   }
 

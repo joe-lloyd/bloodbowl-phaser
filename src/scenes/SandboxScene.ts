@@ -10,17 +10,88 @@ import { ScenarioLoader } from "../services/ScenarioLoader";
 import { IEventBus } from "../services/EventBus";
 import { SCENARIOS } from "../data/scenarios";
 import { findRuleConfig } from "../data/ruleScenarios";
-import {
-  findKickoffConfig,
-  KICKOFF_TOPIC,
-} from "../data/kickoffScenarios";
+import { findKickoffConfig, KICKOFF_TOPIC } from "../data/kickoffScenarios";
 import { SCENARIO_CASES } from "../testing/cases";
 import { findScenarioCase } from "../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
+import { Scenario } from "../types/Scenario";
 import {
   SANDBOX_DEFAULT_TEAM1_ROSTER,
   SANDBOX_DEFAULT_TEAM2_ROSTER,
 } from "./sandboxDefaultTeams";
+
+/** A scenario the sandbox can load, with the outcome it is written for. */
+interface SandboxScenario {
+  scenario: Scenario;
+  expectedOutcome?: string;
+}
+
+/**
+ * A core scenario, a scenario case or a rule-catalog config, by id.
+ * Scenario cases are the E2E unit: the sandbox loads the exact setup,
+ * roster fixture and committed seed a failing CI run used, so a reported
+ * "case/variant" is reproducible by pasting it into the URL.
+ */
+function findSandboxScenario(
+  scenarioId: string,
+  outcomeId: string | undefined
+): SandboxScenario | undefined {
+  const scenario = SCENARIOS.find((s) => s.id === scenarioId);
+  if (scenario) return { scenario };
+  const scenarioCase = findScenarioCase(SCENARIO_CASES, scenarioId);
+  if (scenarioCase) return scenarioFromCase(scenarioCase, outcomeId);
+  return scenarioFromConfig(scenarioId, outcomeId);
+}
+
+function scenarioFromCase(
+  scenarioCase: NonNullable<ReturnType<typeof findScenarioCase>>,
+  outcomeId: string | undefined
+): SandboxScenario {
+  const variant =
+    scenarioCase.variants.find((candidate) => candidate.id === outcomeId) ??
+    scenarioCase.variants[0];
+  return {
+    scenario: {
+      id: scenarioCase.id,
+      name: `${scenarioCase.capability}: ${scenarioCase.name}`,
+      description: scenarioCase.description,
+      setup: {
+        ...scenarioCase.setup,
+        // Pin the rosters the case ran with; see the rule-config note below.
+        team1Roster: scenarioCase.setup.team1Roster ?? RosterName.HUMAN,
+        team2Roster: scenarioCase.setup.team2Roster ?? RosterName.HUMAN,
+      },
+      seed: variant.seed,
+    },
+    expectedOutcome: variant.expectedOutcome,
+  };
+}
+
+function scenarioFromConfig(
+  scenarioId: string,
+  outcomeId: string | undefined
+): SandboxScenario | undefined {
+  const ruleConfig = findRuleConfig(scenarioId);
+  const config = ruleConfig?.config ?? findKickoffConfig(scenarioId);
+  if (!config) return undefined;
+  return {
+    scenario: {
+      id: config.id,
+      name: `${ruleConfig?.skill ?? KICKOFF_TOPIC}: ${config.name}`,
+      description: config.description,
+      // Pin the rosters the seed finder runs with (createHeadlessGame
+      // defaults to Human): a found seed only reproduces if the replay
+      // uses identical teams — different ST/AV changes the dice count
+      // and RNG draw order, so the same seed rolls different results.
+      setup: {
+        ...config.setup,
+        team1Roster: config.setup.team1Roster ?? RosterName.HUMAN,
+        team2Roster: config.setup.team2Roster ?? RosterName.HUMAN,
+      },
+    },
+    expectedOutcome: config.outcomes.find((o) => o.id === outcomeId)?.name,
+  };
+}
 
 export class SandboxScene extends GameScene {
   constructor() {
@@ -155,155 +226,107 @@ export class SandboxScene extends GameScene {
     outcomeId?: string
   ): void {
     // A core scenario id, a scenario-case id, or a rule-catalog config id.
-    let scenario = SCENARIOS.find((s) => s.id === scenarioId);
-    let expectedOutcome: string | undefined;
-
-    // Scenario cases are the E2E unit: the sandbox loads the exact setup,
-    // roster fixture and committed seed a failing CI run used, so a reported
-    // "case/variant" is reproducible by pasting it into the URL.
-    const scenarioCase = findScenarioCase(SCENARIO_CASES, scenarioId);
-    if (!scenario && scenarioCase) {
-      const variant =
-        scenarioCase.variants.find((candidate) => candidate.id === outcomeId) ??
-        scenarioCase.variants[0];
-      scenario = {
-        id: scenarioCase.id,
-        name: `${scenarioCase.capability}: ${scenarioCase.name}`,
-        description: scenarioCase.description,
-        setup: {
-          ...scenarioCase.setup,
-          // Pin the rosters the case ran with; see the rule-config note below.
-          team1Roster: scenarioCase.setup.team1Roster ?? RosterName.HUMAN,
-          team2Roster: scenarioCase.setup.team2Roster ?? RosterName.HUMAN,
-        },
-        seed: variant.seed,
-      };
-      expectedOutcome = variant.expectedOutcome;
-    }
-
-    if (!scenario) {
-      const ruleConfig = findRuleConfig(scenarioId);
-      const config = ruleConfig?.config ?? findKickoffConfig(scenarioId);
-      if (config) {
-        scenario = {
-          id: config.id,
-          name: `${ruleConfig?.skill ?? KICKOFF_TOPIC}: ${config.name}`,
-          description: config.description,
-          // Pin the rosters the seed finder runs with (createHeadlessGame
-          // defaults to Human): a found seed only reproduces if the replay
-          // uses identical teams — different ST/AV changes the dice count
-          // and RNG draw order, so the same seed rolls different results.
-          setup: {
-            ...config.setup,
-            team1Roster:
-              config.setup.team1Roster ?? RosterName.HUMAN,
-            team2Roster:
-              config.setup.team2Roster ?? RosterName.HUMAN,
-          },
-        };
-        expectedOutcome = config.outcomes.find(
-          (o) => o.id === outcomeId
-        )?.name;
-      }
-    }
-    // The seed a scenario's expected outcome was written for. A rule
-    // config has none: its outcome comes with the seed the search found.
-    const promisedSeed = scenario?.seed;
-    if (scenario && seedOverride !== undefined) {
-      scenario = { ...scenario, seed: seedOverride };
-    }
-    if (scenario) {
-      // 1. Handle Team/Roster changes if specified
-      if (
-        scenario.setup.team1Roster &&
-        scenario.setup.team1Roster !== this.team1.rosterName
-      ) {
-        console.log(
-          `[Sandbox] Swapping Team 1 to ${scenario.setup.team1Roster}`
-        );
-        this.team1 = TeamFactory.createTestTeam(
-          scenario.setup.team1Roster,
-          `Test ${scenario.setup.team1Roster} 1`,
-          0x4169e1
-        );
-      }
-
-      if (
-        scenario.setup.team2Roster &&
-        scenario.setup.team2Roster !== this.team2.rosterName
-      ) {
-        console.log(
-          `[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`
-        );
-        this.team2 = TeamFactory.createTestTeam(
-          scenario.setup.team2Roster,
-          `Test ${scenario.setup.team2Roster} 2`,
-          0xdc143c
-        );
-      }
-
-      // CRITICAL: Destroy old ball sprite BEFORE loading new scenario
-      // This prevents duplicate balls when loading multiple scenarios
-      if (this.ballSprite) {
-        this.ballSprite.destroy();
-        this.ballSprite = null;
-      }
-
-      // 2. Load Scenario Logic
-      const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
-      loader.load(scenario);
-
-      // 3. Refresh Scene State
-      // reloadState(false) is safe here as ScenarioLoader already called ServiceContainer.initialize
-      this.reloadState(false);
-      this.placePlayersOnPitch();
-
-      // A KICKOFF-phase scenario needs the kicking/receiving teams wired so
-      // the kicker can be selected — handleKickoffClick matches the clicked
-      // player against scene.kickingTeam (default team1 is otherwise stale,
-      // and a roster swap replaces the team objects).
-      if (scenario.setup.phase === GamePhase.KICKOFF) {
-        const team1Kicks = scenario.setup.activeTeam !== "team2";
-        this.kickingTeam = team1Kicks ? this.team1 : this.team2;
-        this.receivingTeam = team1Kicks ? this.team2 : this.team1;
-      }
-
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `Loaded Scenario: ${scenario.name}`
-      );
-
-      // Always surface the effective seed (the scenario's own, or the
-      // random one the container fell back to) so any game is reproducible
-      const effectiveSeed =
-        ServiceContainer.getInstance().rngService.getInitialSeed();
-      this.eventBus.emit(GameEventNames.ScenarioLoaded, {
-        name: scenario.name,
-        seed: effectiveSeed,
-        // An expected outcome holds only for the seed it was written for
-        expectedOutcome:
-          promisedSeed === undefined || effectiveSeed === promisedSeed
-            ? (expectedOutcome ?? scenario.expectedOutcome)
-            : undefined,
-      });
-
-      // Mirror the load into the URL so a refresh reproduces it exactly.
-      // Scenario id + seed + outcome is the full state: the explorer's
-      // topic/rule selects are derivable from the config id via the catalog
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set("scenario", scenarioId);
-      newUrl.searchParams.set("seed", String(effectiveSeed));
-      if (outcomeId && expectedOutcome) {
-        newUrl.searchParams.set("outcome", outcomeId);
-      } else {
-        newUrl.searchParams.delete("outcome");
-      }
-      window.history.replaceState({ path: newUrl.href }, "", newUrl.href);
-    } else {
+    const found = findSandboxScenario(scenarioId, outcomeId);
+    if (!found) {
       console.warn(`Scenario not found: ${scenarioId}`);
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         `Scenario not found: ${scenarioId}`
+      );
+      return;
+    }
+    const { expectedOutcome } = found;
+    // The seed a scenario's expected outcome was written for. A rule
+    // config has none: its outcome comes with the seed the search found.
+    const promisedSeed = found.scenario.seed;
+    const scenario =
+      seedOverride === undefined
+        ? found.scenario
+        : { ...found.scenario, seed: seedOverride };
+    this.swapRosters(scenario);
+
+    // CRITICAL: Destroy old ball sprite BEFORE loading new scenario
+    // This prevents duplicate balls when loading multiple scenarios
+    if (this.ballSprite) {
+      this.ballSprite.destroy();
+      this.ballSprite = null;
+    }
+
+    // 2. Load Scenario Logic
+    const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
+    loader.load(scenario);
+
+    // 3. Refresh Scene State
+    // reloadState(false) is safe here as ScenarioLoader already called ServiceContainer.initialize
+    this.reloadState(false);
+    this.placePlayersOnPitch();
+
+    // A KICKOFF-phase scenario needs the kicking/receiving teams wired so
+    // the kicker can be selected — handleKickoffClick matches the clicked
+    // player against scene.kickingTeam (default team1 is otherwise stale,
+    // and a roster swap replaces the team objects).
+    if (scenario.setup.phase === GamePhase.KICKOFF) {
+      const team1Kicks = scenario.setup.activeTeam !== "team2";
+      this.kickingTeam = team1Kicks ? this.team1 : this.team2;
+      this.receivingTeam = team1Kicks ? this.team2 : this.team1;
+    }
+
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      `Loaded Scenario: ${scenario.name}`
+    );
+
+    // Always surface the effective seed (the scenario's own, or the
+    // random one the container fell back to) so any game is reproducible
+    const effectiveSeed =
+      ServiceContainer.getInstance().rngService.getInitialSeed();
+    this.eventBus.emit(GameEventNames.ScenarioLoaded, {
+      name: scenario.name,
+      seed: effectiveSeed,
+      // An expected outcome holds only for the seed it was written for
+      expectedOutcome:
+        promisedSeed === undefined || effectiveSeed === promisedSeed
+          ? (expectedOutcome ?? scenario.expectedOutcome)
+          : undefined,
+    });
+
+    // Mirror the load into the URL so a refresh reproduces it exactly.
+    // Scenario id + seed + outcome is the full state: the explorer's
+    // topic/rule selects are derivable from the config id via the catalog
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("scenario", scenarioId);
+    newUrl.searchParams.set("seed", String(effectiveSeed));
+    if (outcomeId && expectedOutcome) {
+      newUrl.searchParams.set("outcome", outcomeId);
+    } else {
+      newUrl.searchParams.delete("outcome");
+    }
+    window.history.replaceState({ path: newUrl.href }, "", newUrl.href);
+  }
+
+  /** Handle Team/Roster changes if specified. */
+  private swapRosters(scenario: Scenario): void {
+    if (
+      scenario.setup.team1Roster &&
+      scenario.setup.team1Roster !== this.team1.rosterName
+    ) {
+      console.log(`[Sandbox] Swapping Team 1 to ${scenario.setup.team1Roster}`);
+      this.team1 = TeamFactory.createTestTeam(
+        scenario.setup.team1Roster,
+        `Test ${scenario.setup.team1Roster} 1`,
+        0x4169e1
+      );
+    }
+
+    if (
+      scenario.setup.team2Roster &&
+      scenario.setup.team2Roster !== this.team2.rosterName
+    ) {
+      console.log(`[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`);
+      this.team2 = TeamFactory.createTestTeam(
+        scenario.setup.team2Roster,
+        `Test ${scenario.setup.team2Roster} 2`,
+        0xdc143c
       );
     }
   }

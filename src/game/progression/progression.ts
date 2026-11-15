@@ -430,6 +430,55 @@ function skillAccessIsLegal(
   return !!categories?.includes(category) && isSkillLegal(player, skill);
 }
 
+function applyCharacteristic(
+  player: Player,
+  choice: Extract<AdvancementChoice, { kind: "characteristic" }>,
+  cost: number
+): PlayerAdvancement {
+  if (!characteristicChoices(player, choice.roll).includes(choice.stat)) {
+    throw new Error("Characteristic is not legal for this roll");
+  }
+  const direction = choice.stat === "AG" || choice.stat === "PA" ? -1 : 1;
+  player.stats[choice.stat] += direction;
+  player.characteristicAdvances ??= {};
+  player.characteristicAdvances[choice.stat] =
+    (player.characteristicAdvances[choice.stat] ?? 0) + 1;
+  return {
+    id: `adv-${advancementCount(player) + 1}`,
+    type: "characteristic",
+    name: `+1 ${choice.stat}`,
+    sppCost: cost,
+    valueIncrease: VALUE_INCREASES[choice.stat],
+  };
+}
+
+function applySkillAdvancement(
+  player: Player,
+  choice: Exclude<AdvancementChoice, { kind: "characteristic" }>,
+  cost: number
+): PlayerAdvancement {
+  const access =
+    choice.kind === "chosen-secondary" ||
+    (choice.kind === "characteristic-fallback" && choice.access === "secondary")
+      ? "secondary"
+      : "primary";
+  if (!skillAccessIsLegal(player, choice.skill, access)) {
+    throw new Error(`Skill is not a legal ${access} choice`);
+  }
+  const elite = ELITE_SKILLS.has(choice.skill);
+  const valueIncrease =
+    (access === "primary" ? 20_000 : 40_000) + (elite ? 10_000 : 0);
+  player.skills.push(getSkill(choice.skill));
+  return {
+    id: `adv-${advancementCount(player) + 1}`,
+    type: access === "primary" ? "primary-skill" : "secondary-skill",
+    name: choice.skill,
+    sppCost: cost,
+    valueIncrease,
+    elite,
+  };
+}
+
 export function applyAdvancement(
   player: Player,
   choice: AdvancementChoice
@@ -438,46 +487,10 @@ export function applyAdvancement(
   const cost = costFor(player, choice);
   if ((player.spp ?? 0) < cost) throw new Error("Not enough SPP");
 
-  let record: PlayerAdvancement;
-  if (choice.kind === "characteristic") {
-    if (!characteristicChoices(player, choice.roll).includes(choice.stat)) {
-      throw new Error("Characteristic is not legal for this roll");
-    }
-    const direction = choice.stat === "AG" || choice.stat === "PA" ? -1 : 1;
-    player.stats[choice.stat] += direction;
-    player.characteristicAdvances ??= {};
-    player.characteristicAdvances[choice.stat] =
-      (player.characteristicAdvances[choice.stat] ?? 0) + 1;
-    record = {
-      id: `adv-${advancementCount(player) + 1}`,
-      type: "characteristic",
-      name: `+1 ${choice.stat}`,
-      sppCost: cost,
-      valueIncrease: VALUE_INCREASES[choice.stat],
-    };
-  } else {
-    const access =
-      choice.kind === "chosen-secondary" ||
-      (choice.kind === "characteristic-fallback" &&
-        choice.access === "secondary")
-        ? "secondary"
-        : "primary";
-    if (!skillAccessIsLegal(player, choice.skill, access)) {
-      throw new Error(`Skill is not a legal ${access} choice`);
-    }
-    const elite = ELITE_SKILLS.has(choice.skill);
-    const valueIncrease =
-      (access === "primary" ? 20_000 : 40_000) + (elite ? 10_000 : 0);
-    player.skills.push(getSkill(choice.skill));
-    record = {
-      id: `adv-${advancementCount(player) + 1}`,
-      type: access === "primary" ? "primary-skill" : "secondary-skill",
-      name: choice.skill,
-      sppCost: cost,
-      valueIncrease,
-      elite,
-    };
-  }
+  const record =
+    choice.kind === "characteristic"
+      ? applyCharacteristic(player, choice, cost)
+      : applySkillAdvancement(player, choice, cost);
 
   player.spp -= cost;
   player.advancements ??= [];

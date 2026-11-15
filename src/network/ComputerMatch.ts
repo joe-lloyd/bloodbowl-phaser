@@ -27,7 +27,8 @@ import {
   PendingDecision,
 } from "../headless/protocol";
 import { GameEventNames } from "../types/events";
-import { GamePhase, SubPhase } from "../types/GameState";
+import { GamePhase, GameState, SubPhase } from "../types/GameState";
+import { GameSnapshot } from "../headless/serialization";
 import { Team } from "../types/Team";
 import { CompetitionContext } from "../competition/types";
 import { enumerateDecision } from "../simulation/candidates";
@@ -129,6 +130,59 @@ export interface ComputerMatchOptions {
   competitionContext?: CompetitionContext;
 }
 
+/**
+ * A resumed match's state, or a fresh one. A league fixture takes on
+ * Journeymen at kick-off and rolls the Fan Factors for its winnings at
+ * full time; a drawn cup tie goes to Extra Time, then Penalties.
+ */
+function computerMatchState(options: ComputerMatchOptions): GameState {
+  const { team1, team2 } = options;
+  const initialState =
+    options.resume?.state ??
+    GameService.createMatchState(
+      team1,
+      team2,
+      GamePhase.SETUP,
+      SubPhase.INTRO,
+      {
+        paysWinnings: fixturePaysWinnings(
+          options.competitionContext?.competitionType
+        ),
+      }
+    );
+  if (!options.resume && options.competitionContext?.knockout)
+    initialState.knockout = true;
+  return initialState;
+}
+
+const progressionOf = (options: ComputerMatchOptions): boolean =>
+  options.resume?.save.matchStats.progressionEnabled ??
+  options.progressionEnabled ??
+  false;
+
+/** During a kick-off, the kicking team: the one not active. */
+function kickingTeamOf(
+  snapshot: GameSnapshot,
+  team1Id: string,
+  team2Id: string
+): string | null {
+  if (snapshot.phase !== GamePhase.KICKOFF) return null;
+  return snapshot.activeTeamId === team1Id ? team2Id : team1Id;
+}
+
+/** Dev builds keep a log of the computer's choices on the window. */
+function logChoice(
+  snapshot: GameSnapshot,
+  label: string,
+  note: string | undefined
+): void {
+  if (!import.meta.env?.DEV) return;
+  const log = ((
+    window as unknown as { __computerLog?: string[] }
+  ).__computerLog ??= []);
+  log.push(`${snapshot.turn.turnNumber} ${label}${note ? ` | ${note}` : ""}`);
+}
+
 export function createComputerMatch(
   options: ComputerMatchOptions
 ): OnlineMatch {
@@ -181,24 +235,7 @@ export function createComputerMatch(
   const run = (command: HeadlessCommand) => runAs(myTeamId, command);
 
   let engine: GameService | null = null;
-  const initialState =
-    options.resume?.state ??
-    // A league fixture takes on Journeymen at kick-off and rolls the Fan
-    // Factors for its winnings at full time
-    GameService.createMatchState(
-      team1,
-      team2,
-      GamePhase.SETUP,
-      SubPhase.INTRO,
-      {
-        paysWinnings: fixturePaysWinnings(
-          options.competitionContext?.competitionType
-        ),
-      }
-    );
-  // A drawn cup tie goes to Extra Time, then Penalties
-  if (!options.resume && options.competitionContext?.knockout)
-    initialState.knockout = true;
+  const initialState = computerMatchState(options);
   const container = ServiceContainer.initialize(
     eventBus,
     team1,
@@ -214,9 +251,7 @@ export function createComputerMatch(
         eventBus
       );
     },
-    options.resume?.save.matchStats.progressionEnabled ??
-      options.progressionEnabled ??
-      false,
+    progressionOf(options),
     options.resume?.save.rng,
     options.resume?.save.matchStats,
     options.resume?.save.turnManager
@@ -308,13 +343,10 @@ export function createComputerMatch(
       await whenEngineQuiet();
       if (closed || !owner(computerTeamId)) return false;
       const snapshot = game.snapshot();
-      const kicker =
-        snapshot.phase === GamePhase.KICKOFF
-          ? snapshot.activeTeamId === team1.id
-            ? team2.id
-            : team1.id
-          : null;
-      const point = await enumerateDecision(game, kicker);
+      const point = await enumerateDecision(
+        game,
+        kickingTeamOf(snapshot, team1.id, team2.id)
+      );
       if (point.teamId !== computerTeamId || point.candidates.length === 0)
         return false;
       const { index, note } = await coach.choose({
@@ -324,14 +356,7 @@ export function createComputerMatch(
         rng,
       });
       const candidate = point.candidates[index] ?? point.candidates[0];
-      if (import.meta.env?.DEV) {
-        const log = ((
-          window as unknown as { __computerLog?: string[] }
-        ).__computerLog ??= []);
-        log.push(
-          `${snapshot.turn.turnNumber} ${candidate.label}${note ? ` | ${note}` : ""}`
-        );
-      }
+      logChoice(snapshot, candidate.label, note);
       for (const command of candidate.commands) {
         // Each step is seen before the next: the walk, the ball, the dice
         // and the banners it started have all been shown. Nothing plays on
@@ -348,10 +373,7 @@ export function createComputerMatch(
           );
           break;
         }
-        if (command.type === "move")
-          eventBus.emit(GameEventNames.UI_OtherCoachMoveResolved, {
-            playerId: command.playerId,
-          });
+        moveResolved(command);
       }
       return true;
     } catch (error) {
@@ -360,6 +382,14 @@ export function createComputerMatch(
     } finally {
       thinking = false;
     }
+  };
+
+  /** The board finishes showing the computer's move. */
+  const moveResolved = (command: HeadlessCommand) => {
+    if (command.type === "move")
+      eventBus.emit(GameEventNames.UI_OtherCoachMoveResolved, {
+        playerId: command.playerId,
+      });
   };
 
   /** Show the human which player the computer is using, and where it runs. */

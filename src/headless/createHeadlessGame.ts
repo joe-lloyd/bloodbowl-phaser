@@ -95,24 +95,17 @@ export function stabilizeIds(team: Team, stableId: string): Team {
   return team;
 }
 
-export function createHeadlessGame(
-  options: HeadlessGameOptions = {}
-): HeadlessGameContext {
-  if (options.ctx) return options.ctx;
+type RestoredSave = ReturnType<typeof restoreMatchSave> | null;
 
-  const restored = options.matchSave
-    ? restoreMatchSave(options.matchSave)
-    : null;
-  const rngState = restored?.save.rng ?? options.rngState;
-  const matchStatsState = restored?.save.matchStats ?? options.matchStatsState;
-  const seed =
-    rngState?.initialSeed ??
-    options.seed ??
-    options.scenario?.seed ??
-    Date.now();
-
-  // A scenario may pin specific rosters (as the browser sandbox does);
-  // explicit options still win over the scenario's choice
+/**
+ * The two teams: a saved match's, the caller's, or default test teams. A
+ * scenario may pin specific rosters (as the browser sandbox does);
+ * explicit options still win over the scenario's choice.
+ */
+function matchTeams(
+  options: HeadlessGameOptions,
+  restored: RestoredSave
+): { team1: Team; team2: Team } {
   const roster = options.defaultRoster ?? RosterName.HUMAN;
   const team1Roster = options.scenario?.setup.team1Roster ?? roster;
   const team2Roster = options.scenario?.setup.team2Roster ?? roster;
@@ -130,6 +123,69 @@ export function createHeadlessGame(
       TeamFactory.createTestTeam(team2Roster, "Away Team", 0x0000cc),
       "team2"
     );
+  return { team1, team2 };
+}
+
+/** The RNG and statistics to resume, a save's first, and the seed. */
+function savedInputs(options: HeadlessGameOptions, restored: RestoredSave) {
+  const rngState = restored?.save.rng ?? options.rngState;
+  const matchStatsState = restored?.save.matchStats ?? options.matchStatsState;
+  const seed =
+    rngState?.initialSeed ??
+    options.seed ??
+    options.scenario?.seed ??
+    Date.now();
+  return { rngState, matchStatsState, seed };
+}
+
+const savedTurnManager = (
+  options: HeadlessGameOptions,
+  restored: RestoredSave
+) => restored?.save.turnManager ?? options.turnManagerState;
+
+/** The state the engine starts from; undefined lets it ready a fresh game. */
+function startingState(
+  options: HeadlessGameOptions,
+  restored: RestoredSave,
+  team1: Team,
+  team2: Team
+): GameState | undefined {
+  const initialState: GameState | undefined =
+    restored?.state ?? options.initialState;
+  if (initialState) return initialState;
+  if (options.scenario) return applyScenario(options.scenario, team1, team2);
+  if (options.startingPhase) {
+    return GameService.createMatchState(
+      team1,
+      team2,
+      options.startingPhase,
+      options.startingSubPhase,
+      { paysWinnings: options.paysWinnings }
+    );
+  }
+  if (options.paysWinnings) {
+    // As the engine readies a fresh game itself, but for a league fixture
+    return GameService.createMatchState(
+      team1,
+      team2,
+      GamePhase.SANDBOX_IDLE,
+      undefined,
+      { paysWinnings: true }
+    );
+  }
+  return undefined;
+}
+
+export function createHeadlessGame(
+  options: HeadlessGameOptions = {}
+): HeadlessGameContext {
+  if (options.ctx) return options.ctx;
+
+  const restored = options.matchSave
+    ? restoreMatchSave(options.matchSave)
+    : null;
+  const { rngState, matchStatsState, seed } = savedInputs(options, restored);
+  const { team1, team2 } = matchTeams(options, restored);
 
   const eventBus = new EventBus();
   const matchStats = new MatchStats(
@@ -144,28 +200,7 @@ export function createHeadlessGame(
   if (rngState) rng.restoreState(rngState);
   const blockResolutionService = new BlockResolutionService(rng);
 
-  let initialState: GameState | undefined =
-    restored?.state ?? options.initialState;
-  if (options.scenario && !initialState) {
-    initialState = applyScenario(options.scenario, team1, team2);
-  } else if (!initialState && options.startingPhase) {
-    initialState = GameService.createMatchState(
-      team1,
-      team2,
-      options.startingPhase,
-      options.startingSubPhase,
-      { paysWinnings: options.paysWinnings }
-    );
-  } else if (!initialState && options.paysWinnings) {
-    // As the engine readies a fresh game itself, but for a league fixture
-    initialState = GameService.createMatchState(
-      team1,
-      team2,
-      GamePhase.SANDBOX_IDLE,
-      undefined,
-      { paysWinnings: true }
-    );
-  }
+  const initialState = startingState(options, restored, team1, team2);
 
   const gameService = new GameService(
     eventBus,
@@ -178,8 +213,7 @@ export function createHeadlessGame(
   );
   if (options.knockout) gameService.getState().knockout = true;
   if (options.paysWinnings) gameService.getState().paysWinnings = true;
-  const turnManagerState =
-    restored?.save.turnManager ?? options.turnManagerState;
+  const turnManagerState = savedTurnManager(options, restored);
   if (turnManagerState) {
     gameService.restoreTurnManagerState(turnManagerState);
   }

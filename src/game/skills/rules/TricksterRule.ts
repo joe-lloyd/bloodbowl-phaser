@@ -16,40 +16,56 @@
  */
 
 import { SkillType } from "../../../types/Skills";
+import { Player } from "../../../types/Player";
 import { SkillRule } from "../SkillRule";
 import { ReactionDecisionAnswer } from "../../../types/decisions";
 import { GameConfig } from "../../../config/GameConfig";
+
+/**
+ * The free squares next to the attacker the defender may slip to, in board
+ * order, matching every other deterministic gather.
+ */
+function tricksterSquares(
+  base: { x: number; y: number },
+  allPlayers: Player[]
+): { x: number; y: number }[] {
+  const occupied = new Set(
+    allPlayers
+      .filter((p) => p.gridPosition)
+      .map((p) => `${p.gridPosition!.x},${p.gridPosition!.y}`)
+  );
+  const candidates: { x: number; y: number }[] = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const square = { x: base.x + dx, y: base.y + dy };
+      if ((dx !== 0 || dy !== 0) && isFreeOnPitch(square, occupied)) {
+        candidates.push(square);
+      }
+    }
+  }
+  candidates.sort((a, b) => a.y - b.y || a.x - b.x);
+  return candidates;
+}
+
+const isFreeOnPitch = (
+  square: { x: number; y: number },
+  occupied: Set<string>
+): boolean =>
+  square.x >= 0 &&
+  square.y >= 0 &&
+  square.x < GameConfig.PITCH_WIDTH &&
+  square.y < GameConfig.PITCH_HEIGHT &&
+  !occupied.has(`${square.x},${square.y}`);
 
 export const TricksterRule: SkillRule = {
   async onBlockDeclared(ctx, self) {
     if (self.id !== ctx.defender.id || ctx.cancelled) return;
     if (!ctx.decisions || !ctx.attacker.gridPosition) return;
 
-    const occupied = new Set(
+    const candidates = tricksterSquares(
+      ctx.attacker.gridPosition,
       ctx.allPlayers
-        .filter((p) => p.gridPosition)
-        .map((p) => `${p.gridPosition!.x},${p.gridPosition!.y}`)
     );
-    const base = ctx.attacker.gridPosition;
-    const candidates: { x: number; y: number }[] = [];
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        if (dx === 0 && dy === 0) continue;
-        const square = { x: base.x + dx, y: base.y + dy };
-        if (
-          square.x < 0 ||
-          square.y < 0 ||
-          square.x >= GameConfig.PITCH_WIDTH ||
-          square.y >= GameConfig.PITCH_HEIGHT
-        ) {
-          continue;
-        }
-        if (occupied.has(`${square.x},${square.y}`)) continue;
-        candidates.push(square);
-      }
-    }
-    // Board order, matching every other deterministic gather
-    candidates.sort((a, b) => a.y - b.y || a.x - b.x);
     if (candidates.length === 0) return;
 
     const answer = (await ctx.decisions.request({

@@ -32,7 +32,11 @@ export function pushBackSquares(
   const behind = { x: over.x + dx, y: over.y + dy };
   if (dx !== 0 && dy !== 0) {
     // Diagonal: the far corner plus the two orthogonal-behind squares.
-    return [behind, { x: over.x + dx, y: over.y }, { x: over.x, y: over.y + dy }];
+    return [
+      behind,
+      { x: over.x + dx, y: over.y },
+      { x: over.x, y: over.y + dy },
+    ];
   }
   if (dx !== 0) {
     // Horizontal: the square behind plus the two diagonally behind it.
@@ -48,6 +52,41 @@ export function pushBackSquares(
     { x: over.x - 1, y: over.y + dy },
     { x: over.x + 1, y: over.y + dy },
   ];
+}
+
+/**
+ * An adjacent player who may be jumped: Prone/Stunned by default, any with
+ * Leap/Pogo.
+ */
+function isAdjacentJumpable(
+  p: Player,
+  at: { x: number; y: number },
+  from: { x: number; y: number },
+  canJumpAnything: boolean
+): boolean {
+  const adjacent =
+    Math.max(Math.abs(at.x - from.x), Math.abs(at.y - from.y)) === 1;
+  return (
+    adjacent &&
+    (p.status === PlayerStatus.PRONE ||
+      p.status === PlayerStatus.STUNNED ||
+      canJumpAnything)
+  );
+}
+
+/** The eight squares around `from`, row by row from the top left. */
+function adjacentSquares(from: {
+  x: number;
+  y: number;
+}): { x: number; y: number }[] {
+  const squares: { x: number; y: number }[] = [];
+  for (const dy of [-1, 0, 1]) {
+    for (const dx of [-1, 0, 1]) {
+      if (dx !== 0 || dy !== 0)
+        squares.push({ x: from.x + dx, y: from.y + dy });
+    }
+  }
+  return squares;
 }
 
 /**
@@ -78,28 +117,13 @@ export function jumpTargets(
   };
   for (const p of others) {
     const op = p.gridPosition;
-    if (!op) continue;
-    const adjacent =
-      Math.max(Math.abs(op.x - from.x), Math.abs(op.y - from.y)) === 1;
-    if (!adjacent) continue;
-    // You may only Jump over a player — Prone/Stunned by default, any with
-    // Leap/Pogo.
-    const jumpable =
-      p.status === PlayerStatus.PRONE ||
-      p.status === PlayerStatus.STUNNED ||
-      canJumpAnything;
-    if (!jumpable) continue;
-    landBeyond(op);
+    if (op && isAdjacentJumpable(p, op, from, canJumpAnything)) landBeyond(op);
   }
   if (canJumpAnything) {
-    for (const dy of [-1, 0, 1]) {
-      for (const dx of [-1, 0, 1]) {
-        const over = { x: from.x + dx, y: from.y + dy };
-        if (dx === 0 && dy === 0) continue;
-        if (!inBounds(over.x, over.y)) continue;
-        if (occupied.has(`${over.x},${over.y}`)) continue;
-        landBeyond(over);
-      }
+    for (const over of adjacentSquares(from)) {
+      if (!inBounds(over.x, over.y)) continue;
+      if (occupied.has(`${over.x},${over.y}`)) continue;
+      landBeyond(over);
     }
   }
   return out;

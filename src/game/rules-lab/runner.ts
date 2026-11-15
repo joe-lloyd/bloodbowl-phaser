@@ -28,6 +28,93 @@ function resolveCommand(
   return resolveCommandReferences(game.ctx, command);
 }
 
+type Decision<T extends PendingDecision["type"]> = Extract<
+  PendingDecision,
+  { type: T }
+>;
+
+/** The policy's preferred block result when the dice show it, else the first. */
+function blockIndex(
+  pending: Decision<"block-dice">,
+  policy: DecisionPolicy
+): number {
+  if (!policy.preferBlockResult) return 0;
+  const preferred = pending.options.findIndex(
+    (o) => o.type === policy.preferBlockResult
+  );
+  return preferred >= 0 ? preferred : 0;
+}
+
+/** The receiving team's first Standing player on the pitch takes the ball. */
+function touchbackAnswer(
+  pending: Decision<"touchback">,
+  game: HeadlessGame
+): HeadlessCommand | null {
+  const team =
+    pending.teamId === game.ctx.team1.id ? game.ctx.team1 : game.ctx.team2;
+  const receiver = team.players.find(
+    (p: Player) => p.gridPosition && p.status === PlayerStatus.ACTIVE
+  );
+  return receiver ? { type: "touchback", playerId: receiver.id } : null;
+}
+
+function rerollAnswer(policy: DecisionPolicy): HeadlessCommand {
+  const setting = policy.acceptRerolls ?? true;
+  if (setting === false) return { type: "use-reroll", accept: false };
+  return {
+    type: "use-reroll",
+    accept: true,
+    source: typeof setting === "string" ? setting : undefined,
+  };
+}
+
+/** Default: the defending coach picks the least-penalised interceptor. */
+function interceptionAnswer(
+  pending: Decision<"interception">,
+  policy: DecisionPolicy
+): HeadlessCommand {
+  if ((policy.acceptInterceptions ?? true) === false) {
+    return { type: "choose-interception" };
+  }
+  const best = [...pending.candidates].sort(
+    (a, b) => b.modifier - a.modifier
+  )[0];
+  return { type: "choose-interception", playerId: best?.playerId };
+}
+
+/** The yes-or-no decisions, answered as the policy says. */
+function consentAnswer(
+  pending: Decision<"follow-up" | "reaction" | "bite-target" | "apothecary">,
+  policy: DecisionPolicy
+): HeadlessCommand {
+  switch (pending.type) {
+    case "follow-up":
+      return { type: "choose-follow-up", followUp: policy.followUp ?? true };
+    case "reaction":
+      return { type: "use-reaction", accept: policy.acceptReactions ?? true };
+    case "bite-target":
+      // As the single-Thrall bite: accepting bites the first in board order.
+      return policy.acceptReactions === false
+        ? { type: "choose-bite-target" }
+        : { type: "choose-bite-target", playerId: pending.targetIds[0] };
+    case "apothecary":
+      return { type: "use-apothecary", accept: policy.useApothecary ?? false };
+  }
+}
+
+/** The first option offered; a Desperate Measure is kept for later. */
+function inducementAnswer(
+  pending: Decision<"inducement-choice">
+): HeadlessCommand {
+  return pending.optional
+    ? { type: "choose-inducement" }
+    : {
+        type: "choose-inducement",
+        playerId: pending.playerIds[0],
+        skill: pending.skills?.[0],
+      };
+}
+
 /**
  * The reply a decision policy gives to a pending decision, or null to leave
  * it pending and stop. Exported so the E2E engine adapter answers decisions
@@ -44,69 +131,27 @@ export function answerDecision(
   switch (pending.type) {
     case "kickoff-event":
       return { type: "kickoff-skip" };
-    case "block-dice": {
-      let index = 0;
-      if (policy.preferBlockResult) {
-        const preferred = pending.options.findIndex(
-          (o) => o.type === policy.preferBlockResult
-        );
-        if (preferred >= 0) index = preferred;
-      }
-      return { type: "choose-block-result", index };
-    }
+    case "block-dice":
+      return {
+        type: "choose-block-result",
+        index: blockIndex(pending, policy),
+      };
     case "push-direction": {
       const dir = pending.options[0];
       return { type: "choose-push-direction", x: dir.x, y: dir.y };
     }
-    case "follow-up":
-      return { type: "choose-follow-up", followUp: policy.followUp ?? true };
-    case "touchback": {
-      const team =
-        pending.teamId === game.ctx.team1.id ? game.ctx.team1 : game.ctx.team2;
-      const receiver = team.players.find(
-        (p: Player) => p.gridPosition && p.status === PlayerStatus.ACTIVE
-      );
-      return receiver ? { type: "touchback", playerId: receiver.id } : null;
-    }
-    case "reroll": {
-      const setting = policy.acceptRerolls ?? true;
-      if (setting === false) return { type: "use-reroll", accept: false };
-      return {
-        type: "use-reroll",
-        accept: true,
-        source: typeof setting === "string" ? setting : undefined,
-      };
-    }
-    case "reaction":
-      return { type: "use-reaction", accept: policy.acceptReactions ?? true };
-    case "bite-target":
-      // As the single-Thrall bite: accepting bites the first in board order.
-      return policy.acceptReactions === false
-        ? { type: "choose-bite-target" }
-        : { type: "choose-bite-target", playerId: pending.targetIds[0] };
-    case "interception": {
-      // Default: the defending coach picks the least-penalised interceptor.
-      if ((policy.acceptInterceptions ?? true) === false) {
-        return { type: "choose-interception" };
-      }
-      const best = [...pending.candidates].sort(
-        (a, b) => b.modifier - a.modifier
-      )[0];
-      return { type: "choose-interception", playerId: best?.playerId };
-    }
-    case "apothecary":
-      return { type: "use-apothecary", accept: policy.useApothecary ?? false };
+    case "touchback":
+      return touchbackAnswer(pending, game);
+    case "reroll":
+      return rerollAnswer(policy);
+    case "interception":
+      return interceptionAnswer(pending, policy);
     case "foul-assists":
       return { type: "choose-foul-assists", count: pending.available };
     case "inducement-choice":
-      // The first option offered; a Desperate Measure is kept for later.
-      return pending.optional
-        ? { type: "choose-inducement" }
-        : {
-            type: "choose-inducement",
-            playerId: pending.playerIds[0],
-            skill: pending.skills?.[0],
-          };
+      return inducementAnswer(pending);
+    default:
+      return consentAnswer(pending, policy);
   }
 }
 

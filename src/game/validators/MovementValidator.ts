@@ -94,13 +94,7 @@ export class MovementValidator {
     const start = player.gridPosition;
     // Only a square on the pitch has neighbours to step to. Off the grid,
     // the flood would wander between fractions without end.
-    if (
-      !start ||
-      !Number.isInteger(start.x) ||
-      !Number.isInteger(start.y) ||
-      !this.isInBounds(start.x, start.y)
-    )
-      return [];
+    if (!start || !this.isPitchSquare(start)) return [];
 
     const reachable: { x: number; y: number; cost: number }[] = [];
     const maxMovement = moveAllowance(player);
@@ -127,20 +121,36 @@ export class MovementValidator {
         reachable.push({ x: current.x, y: current.y, cost: current.cost });
       }
 
-      if (current.cost >= maxMovement) continue;
-
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          const x = current.x + dx;
-          const y = current.y + dy;
-          if (!this.isInBounds(x, y) || blocked[y * width + x]) continue;
-          blocked[y * width + x] = 1;
-          queue.push({ x, y, cost: current.cost + 1 });
-        }
-      }
+      if (current.cost < maxMovement) this.flood(current, blocked, queue);
     }
 
     return reachable;
+  }
+
+  private isPitchSquare(square: { x: number; y: number }): boolean {
+    return (
+      Number.isInteger(square.x) &&
+      Number.isInteger(square.y) &&
+      this.isInBounds(square.x, square.y)
+    );
+  }
+
+  /** Queue every free square around `current`, one step further on. */
+  private flood(
+    current: { x: number; y: number; cost: number },
+    blocked: Uint8Array,
+    queue: { x: number; y: number; cost: number }[]
+  ): void {
+    const width = this.WIDTH;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const x = current.x + dx;
+        const y = current.y + dy;
+        if (!this.isInBounds(x, y) || blocked[y * width + x]) continue;
+        blocked[y * width + x] = 1;
+        queue.push({ x, y, cost: current.cost + 1 });
+      }
+    }
   }
 
   getTackleZones(x: number, y: number, opponents: Player[]): number {
@@ -221,54 +231,85 @@ export class MovementValidator {
       const currentSteps = stepsMap.get(currentKey) || 0;
       if (currentSteps >= maxSteps) continue; // Stop exploring if max MA reached
 
-      const neighbors = this.getNeighbors(current.x, current.y);
-      for (const neighbor of neighbors) {
-        const neighborKey = `${neighbor.x},${neighbor.y}`;
-        if (closedSet.has(neighborKey)) continue;
-
+      const occupants = [...opponents, ...teammates];
+      for (const neighbor of this.getNeighbors(current.x, current.y)) {
         // Every occupied square is impassable, Prone or Stunned included
         if (
-          this.isOccupied(neighbor.x, neighbor.y, [...opponents, ...teammates])
+          closedSet.has(`${neighbor.x},${neighbor.y}`) ||
+          this.isOccupied(neighbor.x, neighbor.y, occupants)
         ) {
           continue;
         }
 
-        // --- WEIGHT CALCULATION ---
-        // safe: base 1, + 10 per TZ on the target square and + 4 for a step
-        //       past MA, so the pathfinder detours around tackle zones and
-        //       avoids Rushes when it can, and takes a Rush over a Dodge.
-        // direct: steps dominate, TZ count only breaks ties — guarantees a
-        //         path to anything reachable within MA+2 steps.
-        const tackleZones = this.getTackleZones(
-          neighbor.x,
-          neighbor.y,
-          opponents
+        const tentativeGScore =
+          (gScore.get(currentKey) || 0) +
+          this.stepCost(neighbor, currentSteps, player, opponents, mode);
+        this.relax(
+          { openSet, cameFrom, gScore, stepsMap, fScore },
+          { current, neighbor, tentativeGScore, steps: currentSteps + 1 },
+          start,
+          end
         );
-        const rush = currentSteps + 1 > player.stats.MA ? 4 : 0;
-        const stepCost =
-          mode === "safe" ? 1 + tackleZones * 10 + rush : 100 + tackleZones;
-
-        const tentativeGScore = (gScore.get(currentKey) || 0) + stepCost;
-
-        if (tentativeGScore < (gScore.get(neighborKey) || Infinity)) {
-          cameFrom.set(neighborKey, current);
-          gScore.set(neighborKey, tentativeGScore);
-          stepsMap.set(neighborKey, currentSteps + 1);
-
-          // Add heuristic with tie-breaker
-          fScore.set(
-            neighborKey,
-            tentativeGScore + this.heuristic(neighbor, end, start, end)
-          );
-
-          if (!openSet.some((n) => n.x === neighbor.x && n.y === neighbor.y)) {
-            openSet.push(neighbor);
-          }
-        }
       }
     }
 
     return [];
+  }
+
+  /** Record `neighbor` as reached through `current` when that is cheaper. */
+  private relax(
+    search: {
+      openSet: { x: number; y: number }[];
+      cameFrom: Map<string, { x: number; y: number }>;
+      gScore: Map<string, number>;
+      stepsMap: Map<string, number>;
+      fScore: Map<string, number>;
+    },
+    step: {
+      current: { x: number; y: number };
+      neighbor: { x: number; y: number };
+      tentativeGScore: number;
+      steps: number;
+    },
+    start: { x: number; y: number },
+    end: { x: number; y: number }
+  ): void {
+    const { current, neighbor, tentativeGScore } = step;
+    const neighborKey = `${neighbor.x},${neighbor.y}`;
+    if (tentativeGScore >= (search.gScore.get(neighborKey) || Infinity)) return;
+    search.cameFrom.set(neighborKey, current);
+    search.gScore.set(neighborKey, tentativeGScore);
+    search.stepsMap.set(neighborKey, step.steps);
+
+    // Add heuristic with tie-breaker
+    search.fScore.set(
+      neighborKey,
+      tentativeGScore + this.heuristic(neighbor, end, start, end)
+    );
+
+    if (!search.openSet.some((n) => n.x === neighbor.x && n.y === neighbor.y)) {
+      search.openSet.push(neighbor);
+    }
+  }
+
+  /**
+   * The weight of one step onto `square`.
+   * safe: base 1, + 10 per TZ on the target square and + 4 for a step
+   *       past MA, so the pathfinder detours around tackle zones and
+   *       avoids Rushes when it can, and takes a Rush over a Dodge.
+   * direct: steps dominate, TZ count only breaks ties — guarantees a
+   *         path to anything reachable within MA+2 steps.
+   */
+  private stepCost(
+    square: { x: number; y: number },
+    currentSteps: number,
+    player: Player,
+    opponents: Player[],
+    mode: "safe" | "direct"
+  ): number {
+    const tackleZones = this.getTackleZones(square.x, square.y, opponents);
+    const rush = currentSteps + 1 > player.stats.MA ? 4 : 0;
+    return mode === "safe" ? 1 + tackleZones * 10 + rush : 100 + tackleZones;
   }
 
   public validatePath(

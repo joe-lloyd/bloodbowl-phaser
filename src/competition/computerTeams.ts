@@ -264,27 +264,9 @@ function resolveEntry(
       );
       return;
     }
-    case "advanced-league-advancement": {
-      const player = team.players.find((p) => p.id === entry.playerId);
-      const choice =
-        player && advancementChoice(player, nextAdvancementCosts(player)!, rng);
-      if (!player || !choice) {
-        team.pendingDevelopment = team.pendingDevelopment!.filter(
-          (candidate) => candidate.id !== entry.id
-        );
-        if (player) throw new Error(`no advancement for ${player.playerName}`);
-        return;
-      }
-      applyAdvancement(player, choice);
-      if (!mustAdvance(player))
-        team.pendingDevelopment = team.pendingDevelopment!.filter(
-          (candidate) => candidate.id !== entry.id
-        );
-      report.done.push(
-        `${team.name}: ${player.playerName} took ${describeChoice(choice)}`
-      );
+    case "advanced-league-advancement":
+      resolveLeagueAdvancement(team, entry, rng, report);
       return;
-    }
     case "sevens-skill-selection":
       resolveSkillSelection(team, entry, rng, report);
       return;
@@ -294,18 +276,51 @@ function resolveEntry(
     case "expensive-mistakes":
       // Rolled after hiring, by manageComputerTeam
       return;
-    case "drafted-player-offer": {
-      const player = team.players.find((p) => p.id === entry.playerId)!;
-      // Keep every drafted player the Treasury can pay for
-      const keep = draftedPlayerPrice(player) <= team.treasury;
-      if (keep) keepDraftedPlayer(team, entry);
-      else releaseDraftedPlayer(team, entry);
-      report.done.push(
-        `${team.name}: drafted ${player.playerName} ${keep ? "kept" : "released"}`
-      );
+    case "drafted-player-offer":
+      resolveDraftedOffer(team, entry, report);
       return;
-    }
   }
+}
+
+function resolveLeagueAdvancement(
+  team: Team,
+  entry: Extract<PendingDevelopment, { kind: "advanced-league-advancement" }>,
+  rng: Rng,
+  report: ManagementReport
+): void {
+  const player = team.players.find((p) => p.id === entry.playerId);
+  const choice =
+    player && advancementChoice(player, nextAdvancementCosts(player)!, rng);
+  if (!player || !choice) {
+    team.pendingDevelopment = team.pendingDevelopment!.filter(
+      (candidate) => candidate.id !== entry.id
+    );
+    if (player) throw new Error(`no advancement for ${player.playerName}`);
+    return;
+  }
+  applyAdvancement(player, choice);
+  if (!mustAdvance(player))
+    team.pendingDevelopment = team.pendingDevelopment!.filter(
+      (candidate) => candidate.id !== entry.id
+    );
+  report.done.push(
+    `${team.name}: ${player.playerName} took ${describeChoice(choice)}`
+  );
+}
+
+function resolveDraftedOffer(
+  team: Team,
+  entry: Extract<PendingDevelopment, { kind: "drafted-player-offer" }>,
+  report: ManagementReport
+): void {
+  const player = team.players.find((p) => p.id === entry.playerId)!;
+  // Keep every drafted player the Treasury can pay for
+  const keep = draftedPlayerPrice(player) <= team.treasury;
+  if (keep) keepDraftedPlayer(team, entry);
+  else releaseDraftedPlayer(team, entry);
+  report.done.push(
+    `${team.name}: drafted ${player.playerName} ${keep ? "kept" : "released"}`
+  );
 }
 
 /** Spend what each player has earned, as a keen coach would. */
@@ -314,22 +329,33 @@ function spendSpp(team: Team, rng: Rng, report: ManagementReport): void {
     // A Journeyman's SPP waits until they are hired
     if (isPendingRecruit(team, player.id)) continue;
     for (let guard = 0; guard < 10 && canAdvance(player); guard++) {
-      let choice: AdvancementChoice | null = null;
-      try {
-        choice = advancementChoice(player, nextAdvancementCosts(player)!, rng);
-        if (!choice) break;
-        applyAdvancement(player, choice);
-        report.done.push(
-          `${team.name}: ${player.playerName} took ${describeChoice(choice)}`
-        );
-      } catch (cause) {
-        report.refused.push({
-          rule: "advancement-refused",
-          detail: `${team.name} ${player.playerName}${choice ? ` ${describeChoice(choice)}` : ""}: ${cause}`,
-        });
-        break;
-      }
+      if (!advanceOnce(team, player, rng, report)) break;
     }
+  }
+}
+
+/** Take one advancement; false when there is none or it was refused. */
+function advanceOnce(
+  team: Team,
+  player: Player,
+  rng: Rng,
+  report: ManagementReport
+): boolean {
+  let choice: AdvancementChoice | null = null;
+  try {
+    choice = advancementChoice(player, nextAdvancementCosts(player)!, rng);
+    if (!choice) return false;
+    applyAdvancement(player, choice);
+    report.done.push(
+      `${team.name}: ${player.playerName} took ${describeChoice(choice)}`
+    );
+    return true;
+  } catch (cause) {
+    report.refused.push({
+      rule: "advancement-refused",
+      detail: `${team.name} ${player.playerName}${choice ? ` ${describeChoice(choice)}` : ""}: ${cause}`,
+    });
+    return false;
   }
 }
 
@@ -339,6 +365,20 @@ function describeChoice(choice: AdvancementChoice): string {
     : `${choice.kind} ${choice.skill}`;
 }
 
+/** Roll for a characteristic, falling back to a Primary skill. */
+function characteristicAdvancement(
+  player: Player,
+  rng: Rng
+): AdvancementChoice | null {
+  const roll = rng.rollDie(8);
+  const stats = characteristicChoices(player, roll);
+  if (stats.length > 0) return { kind: "characteristic", roll, stat: stats[0] };
+  const skill = eligibleSkills(player, player.primary ?? [])[0];
+  return skill
+    ? { kind: "characteristic-fallback", roll, skill, access: "primary" }
+    : null;
+}
+
 /** Save for a characteristic once close; otherwise take what is affordable. */
 function advancementChoice(
   player: Player,
@@ -346,16 +386,8 @@ function advancementChoice(
   rng: Rng
 ): AdvancementChoice | null {
   const spp = player.spp ?? 0;
-  if (spp >= costs.characteristic) {
-    const roll = rng.rollDie(8);
-    const stats = characteristicChoices(player, roll);
-    if (stats.length > 0)
-      return { kind: "characteristic", roll, stat: stats[0] };
-    const skill = eligibleSkills(player, player.primary ?? [])[0];
-    return skill
-      ? { kind: "characteristic-fallback", roll, skill, access: "primary" }
-      : null;
-  }
+  if (spp >= costs.characteristic)
+    return characteristicAdvancement(player, rng);
   if (spp >= costs.chosenSecondary && (player.secondary ?? []).length > 0) {
     const skill = eligibleSkills(player, player.secondary ?? [])[0];
     if (skill) return { kind: "chosen-secondary", skill };

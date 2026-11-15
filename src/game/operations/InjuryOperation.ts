@@ -2,7 +2,7 @@ import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService.js";
 import { Player, PlayerStatus } from "../../types/Player.js";
-import { InjuryResult } from "../controllers/InjuryController.js";
+import { CasualtyType, InjuryResult } from "../controllers/InjuryController.js";
 import { CasualtyOperation } from "./CasualtyOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
 import { movePlayerToBox } from "../rules/playerLocation";
@@ -91,7 +91,6 @@ export class InjuryOperation extends GameOperation {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;
-    const flowManager = context.flowManager;
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
@@ -155,33 +154,41 @@ export class InjuryOperation extends GameOperation {
       case InjuryResult.BADLY_HURT:
       case InjuryResult.SERIOUSLY_HURT:
       case InjuryResult.DEAD:
-        eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
-        player.status = PlayerStatus.INJURED;
-        eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
-          causerId: this.opts.causedById,
-          victimId: player.id,
-          cause: this.opts.cause ?? "special",
-          sppEligible:
-            this.opts.cause === "block" &&
-            !!this.opts.causedById &&
-            this.opts.causedById !== player.id,
-        });
-        // Trigger Casualty Operation
-        flowManager.add(
-          new CasualtyOperation(
-            this.playerId,
-            this.opts.casualtyIsBadlyHurt
-              ? InjuryResult.BADLY_HURT
-              : ctx.result,
-            this.opts.causedById,
-            this.opts.cause
-          ),
-          true
-        );
+        this.casualty(context, player, ctx.result);
         break;
     }
 
     // Emit status change event (if exists) or just generic update
     // Assuming service or managers handle the actual removal from pitch if status is KO/INJURED
+  }
+
+  /** A Casualty leaves the pitch now; its Casualty Roll is queued next. */
+  private casualty(
+    context: FlowContext,
+    player: Player,
+    result: CasualtyType
+  ): void {
+    const { eventBus, flowManager } = context;
+    eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
+    player.status = PlayerStatus.INJURED;
+    eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
+      causerId: this.opts.causedById,
+      victimId: player.id,
+      cause: this.opts.cause ?? "special",
+      sppEligible:
+        this.opts.cause === "block" &&
+        !!this.opts.causedById &&
+        this.opts.causedById !== player.id,
+    });
+    // Trigger Casualty Operation
+    flowManager.add(
+      new CasualtyOperation(
+        this.playerId,
+        this.opts.casualtyIsBadlyHurt ? InjuryResult.BADLY_HURT : result,
+        this.opts.causedById,
+        this.opts.cause
+      ),
+      true
+    );
   }
 }

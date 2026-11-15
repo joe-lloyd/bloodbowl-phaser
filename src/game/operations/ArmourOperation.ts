@@ -38,8 +38,7 @@ export async function foldArmourRoll(
   const ctx: ArmourBreakContext = {
     ...roll,
     injuryModifier: 0,
-    broken:
-      roll.roll >= effectiveAV(roll.player, gameService.getState()),
+    broken: roll.roll >= effectiveAV(roll.player, gameService.getState()),
     decisions: gameService.getDecisionService(),
     flow: flowManager,
     arbiter: gameService.getRerollArbiter(),
@@ -141,7 +140,6 @@ export class ArmourOperation extends GameOperation {
   async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
     const eventBus = context.eventBus;
-    const flowManager = context.flowManager;
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
@@ -172,10 +170,7 @@ export class ArmourOperation extends GameOperation {
     const opponents = gameService.getOpponents(player.teamId);
     // Standing opponents adjacent to the fallen player, plus — for a failed
     // Dodge — those adjacent to the square they were leaving (Arm Bar).
-    const nearby = [
-      ...(player.gridPosition ? adjacentStanding(player.gridPosition, opponents) : []),
-      ...(this.fall ? adjacentStanding(this.fall.vacatedSquare, opponents) : []),
-    ];
+    const nearby = this.nearbyOpponents(player, opponents);
     const ctx = await foldArmourRoll(
       context,
       gatherParticipants(
@@ -196,6 +191,32 @@ export class ArmourOperation extends GameOperation {
     );
     const isBroken = armourSkipped || armourBroken(ctx, roll, gameService);
 
+    this.resolveBreak(context, isBroken, armourSkipped, ctx.injuryModifier);
+  }
+
+  /**
+   * Standing opponents adjacent to the fallen player, plus — for a failed
+   * Dodge — those adjacent to the square they were leaving (Arm Bar).
+   */
+  private nearbyOpponents(player: Player, opponents: Player[]): Player[] {
+    return [
+      ...(player.gridPosition
+        ? adjacentStanding(player.gridPosition, opponents)
+        : []),
+      ...(this.fall
+        ? adjacentStanding(this.fall.vacatedSquare, opponents)
+        : []),
+    ];
+  }
+
+  /** A broken armour queues the Injury Roll next; a held one is announced. */
+  private resolveBreak(
+    context: FlowContext,
+    isBroken: boolean,
+    armourSkipped: boolean,
+    injuryModifier: number
+  ): void {
+    const { eventBus, flowManager } = context;
     if (isBroken) {
       if (!armourSkipped) {
         eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
@@ -205,7 +226,7 @@ export class ArmourOperation extends GameOperation {
       // Dodge/Leap is not a Block Action, so it never arms Plague Ridden.
       flowManager.add(
         new InjuryOperation(this.playerId, {
-          modifier: ctx.injuryModifier,
+          modifier: injuryModifier,
           causedById: this.causedById,
           cause: this.fall?.cause ?? this.cause,
           stunnedIsKnockedOut: armourSkipped,

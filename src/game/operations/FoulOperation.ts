@@ -65,6 +65,184 @@ class FinishFoulActivationOperation extends GameOperation {
   }
 }
 
+/** Both teams' players, the fouler's first, for counting assists. */
+function foulPlayers(context: FlowContext, fouler: Player): Player[] {
+  const { gameService } = context;
+  const opponents = gameService.getOpponents(fouler.teamId);
+  const team = gameService.getTeam(fouler.teamId);
+  return [...(team?.players || []), ...opponents];
+}
+
+const signed = (n: number): string => `${n >= 0 ? "+" : ""}${n}`;
+
+/**
+ * After the armour fold: Lone Fouler re-rolls a failed Armour Roll when
+ * there are no assists, then Dirty Player adds +1 to the Armour Roll when
+ * that breaks it, otherwise holding it for the Injury Roll.
+ */
+function rerollAndDirtyPlayer(
+  context: FlowContext,
+  fouler: Player,
+  armourCtx: Awaited<ReturnType<typeof foldArmourRoll>>,
+  armour: {
+    rolls: number[];
+    foulerHasNoAssists: boolean;
+    reroll: () => number[];
+  }
+): {
+  rolls: number[];
+  broken: boolean;
+  dirtyPlayer: boolean;
+  dirtyUsedOnArmour: boolean;
+} {
+  const announce = (skill: SkillType, effect: string) =>
+    context.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: fouler.id,
+      skill,
+      effect,
+    });
+  let { rolls } = armour;
+  const breaks = (bonus: number) =>
+    armourBroken(armourCtx, rolls[0] + rolls[1] + bonus, context.gameService);
+  let broken = breaks(0);
+
+  // Lone Fouler: with no assists, re-roll a failed Armour Roll.
+  if (
+    !broken &&
+    armour.foulerHasNoAssists &&
+    hasSkill(fouler.skills, SkillType.LONE_FOULER)
+  ) {
+    announce(
+      SkillType.LONE_FOULER,
+      "Lone Fouler: re-roll the failed Armour Roll"
+    );
+    rolls = armour.reroll();
+    broken = breaks(0);
+  }
+
+  // Dirty Player: +1 after the roll, to Armour OR Injury. Prefer Armour
+  // when the +1 breaks it and the target allows armour modifiers,
+  // otherwise hold it for the Injury Roll.
+  const dirtyPlayer = hasSkill(fouler.skills, SkillType.DIRTY_PLAYER);
+  const dirtyUsedOnArmour =
+    dirtyPlayer && !broken && !armourCtx.modifiersLocked && breaks(1);
+  if (dirtyUsedOnArmour) {
+    broken = true;
+    announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Armour Roll");
+  }
+  return { rolls, broken, dirtyPlayer, dirtyUsedOnArmour };
+}
+
+/**
+ * The Foul's target must be Prone or Stunned; otherwise the coach is told
+ * and the Foul does nothing.
+ */
+function isFoulable(context: FlowContext, target: Player): boolean {
+  if (
+    target.status === PlayerStatus.PRONE ||
+    target.status === PlayerStatus.STUNNED
+  ) {
+    return true;
+  }
+  console.warn(
+    `[FoulOperation] target ${target.playerName} is not Prone/Stunned (Status: ${target.status})`
+  );
+  context.eventBus.emit(
+    GameEventNames.UI_Notification,
+    "Target must be Prone or Stunned!"
+  );
+  return false;
+}
+
+/**
+ * Whether the referee Sends-off the fouler, after Sneaky Git, Under
+ * Scrutiny and Grudge Match have had their say, in that order.
+ */
+function refereeSpots(
+  context: FlowContext,
+  fouler: Player,
+  roll: {
+    spotted: boolean;
+    broken: boolean;
+    isNaturalDouble: boolean;
+    grudgeMatch: boolean;
+  }
+): boolean {
+  const { eventBus, gameService } = context;
+  const { broken, isNaturalDouble, grudgeMatch } = roll;
+  let { spotted } = roll;
+  // Sneaky Git: a natural double on the Armour Roll does not Send-off the
+  // fouler unless the target's armour was broken.
+  if (
+    spotted &&
+    !broken &&
+    isNaturalDouble &&
+    hasSkill(fouler.skills, SkillType.SNEAKY_GIT)
+  ) {
+    spotted = false;
+    eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: fouler.id,
+      skill: SkillType.SNEAKY_GIT,
+      effect: "Sneaky Git: not Sent-off on an unbroken double",
+    });
+  }
+
+  // Under Scrutiny (L18): a Foul that breaks the armour of a player whose
+  // team prayed for it is always spotted, double or not.
+  if (broken && underScrutiny(gameService.getState(), fouler.teamId)) {
+    spotted = true;
+    eventBus.emit(
+      GameEventNames.UI_GameLog,
+      `Under Scrutiny: the referee saw ${fouler.playerName} break the armour`
+    );
+  }
+  if (spotted && grudgeMatch) {
+    spotted = false;
+    eventBus.emit(
+      GameEventNames.UI_GameLog,
+      `Grudge Match: ${fouler.playerName} cannot be Sent-off for this Foul`
+    );
+  }
+  return spotted;
+}
+
+/**
+ * Queue any Send-off, commit the declaration and end the activation, or
+ * let a Quick Foul fouler carry on moving.
+ */
+function finishFoul(
+  context: FlowContext,
+  fouler: Player,
+  spotted: boolean
+): void {
+  const { gameService } = context;
+  // 4. Handle spotted / send-off
+  if (spotted) {
+    const sendOffOp = new SendOffOperation(
+      fouler.id,
+      "Player Sent Off for Fouling"
+    );
+    // Add to front of queue so it processes next
+    context.flowManager.add(sendOffOp, true);
+  }
+
+  // The Armour Roll (and any Injury Roll) already happened — commit the
+  // declaration so it cannot be released or replaced after the fact.
+  gameService.commitAction(fouler.id);
+
+  // A Foul Action ends the activation — unless the fouler has Quick Foul,
+  // which lets them continue their Move with any movement remaining.
+  if (hasSkill(fouler.skills, SkillType.QUICK_FOUL)) {
+    context.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: fouler.id,
+      skill: SkillType.QUICK_FOUL,
+      effect: "Quick Foul: the activation continues after the Foul",
+    });
+  } else {
+    context.flowManager.add(new FinishFoulActivationOperation(fouler.id));
+  }
+}
+
 /**
  * FoulOperation
  *
@@ -102,20 +280,7 @@ export class FoulOperation extends GameOperation {
       eventBus.emit(GameEventNames.UI_Notification, "Foul target missing!");
       return;
     }
-
-    if (
-      target.status !== PlayerStatus.PRONE &&
-      target.status !== PlayerStatus.STUNNED
-    ) {
-      console.warn(
-        `[FoulOperation] target ${target.playerName} is not Prone/Stunned (Status: ${target.status})`
-      );
-      eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Target must be Prone or Stunned!"
-      );
-      return;
-    }
+    if (!isFoulable(context, target)) return;
 
     eventBus.emit(
       GameEventNames.UI_Notification,
@@ -126,11 +291,11 @@ export class FoulOperation extends GameOperation {
     const grudgeMatch = await useGrudgeMatch(context, fouler);
 
     // 1. Analyze Foul (Assists)
-    const opponents = gameService.getOpponents(fouler.teamId);
-    const team = gameService.getTeam(fouler.teamId);
-    const allPlayers = [...(team?.players || []), ...opponents];
-
-    const analysis = foulController.analyzeFoul(fouler, target, allPlayers);
+    const analysis = foulController.analyzeFoul(
+      fouler,
+      target,
+      foulPlayers(context, fouler)
+    );
 
     // Offensive Assists "may apply" (FAQ, May 2026): the coach declares how
     // many add +1 before the roll. Defensive Assists always apply.
@@ -151,7 +316,7 @@ export class FoulOperation extends GameOperation {
 
     eventBus.emit(
       GameEventNames.UI_Notification,
-      `Assists: +${offensive} Offensive, -${defensive} Defensive. Mod: ${modifier >= 0 ? "+" : ""}${modifier}`
+      `Assists: +${offensive} Offensive, -${defensive} Defensive. Mod: ${signed(modifier)}`
     );
 
     await context.delay(1000);
@@ -177,7 +342,7 @@ export class FoulOperation extends GameOperation {
     // target's own armour rules (Iron Hard Skin) may cancel them. They do
     // not read the natural roll, so a Lone Fouler re-roll reuses the fold.
     const foulArmourRoll = `Foul Armour Roll (${target.playerName})`;
-    let armour = diceController.rollArmorCheck(
+    const armour = diceController.rollArmorCheck(
       av,
       target.playerName,
       target.teamId,
@@ -191,41 +356,21 @@ export class FoulOperation extends GameOperation {
       roll: rolls[0] + rolls[1],
       armourModifier: modifier,
     });
-    const breaks = (bonus: number) =>
-      armourBroken(armourCtx, rolls[0] + rolls[1] + bonus, gameService);
-    let broken = breaks(0);
-
-    // Lone Fouler: with no assists, re-roll a failed Armour Roll.
-    if (
-      !broken &&
-      foulerHasNoAssists &&
-      hasSkill(fouler.skills, SkillType.LONE_FOULER)
-    ) {
-      announce(
-        SkillType.LONE_FOULER,
-        "Lone Fouler: re-roll the failed Armour Roll"
-      );
-      armour = diceController.rollArmorCheck(
-        av,
-        target.playerName,
-        target.teamId,
-        modifier,
-        foulArmourRoll
-      );
-      rolls = armour.rolls;
-      broken = breaks(0);
-    }
-
-    // Dirty Player: +1 after the roll, to Armour OR Injury. Prefer Armour
-    // when the +1 breaks it and the target allows armour modifiers,
-    // otherwise hold it for the Injury Roll.
-    const dirtyPlayer = hasSkill(fouler.skills, SkillType.DIRTY_PLAYER);
-    let dirtyUsedOnArmour = false;
-    if (dirtyPlayer && !broken && !armourCtx.modifiersLocked && breaks(1)) {
-      broken = true;
-      dirtyUsedOnArmour = true;
-      announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Armour Roll");
-    }
+    const armourResult = rerollAndDirtyPlayer(context, fouler, armourCtx, {
+      rolls,
+      foulerHasNoAssists,
+      reroll: () =>
+        diceController.rollArmorCheck(
+          av,
+          target.playerName,
+          target.teamId,
+          modifier,
+          foulArmourRoll
+        ).rolls,
+    });
+    rolls = armourResult.rolls;
+    // Dirty Player is decided here, before the waits below, and held.
+    const { broken, dirtyPlayer, dirtyUsedOnArmour } = armourResult;
 
     const isNaturalDouble = rolls[0] === rolls[1];
     let spotted = isNaturalDouble;
@@ -267,62 +412,12 @@ export class FoulOperation extends GameOperation {
 
     await context.delay(1000);
 
-    // Sneaky Git: a natural double on the Armour Roll does not Send-off the
-    // fouler unless the target's armour was broken.
-    if (
-      spotted &&
-      !broken &&
-      isNaturalDouble &&
-      hasSkill(fouler.skills, SkillType.SNEAKY_GIT)
-    ) {
-      spotted = false;
-      announce(
-        SkillType.SNEAKY_GIT,
-        "Sneaky Git: not Sent-off on an unbroken double"
-      );
-    }
-
-    // Under Scrutiny (L18): a Foul that breaks the armour of a player whose
-    // team prayed for it is always spotted, double or not.
-    if (broken && underScrutiny(gameService.getState(), fouler.teamId)) {
-      spotted = true;
-      eventBus.emit(
-        GameEventNames.UI_GameLog,
-        `Under Scrutiny: the referee saw ${fouler.playerName} break the armour`
-      );
-    }
-    if (spotted && grudgeMatch) {
-      spotted = false;
-      eventBus.emit(
-        GameEventNames.UI_GameLog,
-        `Grudge Match: ${fouler.playerName} cannot be Sent-off for this Foul`
-      );
-    }
-
-    // 4. Handle spotted / send-off
-    if (spotted) {
-      const sendOffOp = new SendOffOperation(
-        fouler.id,
-        "Player Sent Off for Fouling"
-      );
-      // Add to front of queue so it processes next
-      context.flowManager.add(sendOffOp, true);
-    }
-
-    // The Armour Roll (and any Injury Roll) already happened — commit the
-    // declaration so it cannot be released or replaced after the fact.
-    gameService.commitAction(this.foulerId);
-
-    // A Foul Action ends the activation — unless the fouler has Quick Foul,
-    // which lets them continue their Move with any movement remaining.
-    if (hasSkill(fouler.skills, SkillType.QUICK_FOUL)) {
-      eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId: fouler.id,
-        skill: SkillType.QUICK_FOUL,
-        effect: "Quick Foul: the activation continues after the Foul",
-      });
-    } else {
-      context.flowManager.add(new FinishFoulActivationOperation(this.foulerId));
-    }
+    spotted = refereeSpots(context, fouler, {
+      spotted,
+      broken,
+      isNaturalDouble,
+      grudgeMatch,
+    });
+    finishFoul(context, fouler, spotted);
   }
 }

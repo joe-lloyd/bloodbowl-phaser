@@ -28,6 +28,35 @@ export const DEFENDER_DECISION_SECONDS: Record<
   "kickoff-event": 10,
 };
 
+type Decision<T extends PendingDecision["type"]> = Extract<
+  PendingDecision,
+  { type: T }
+>;
+
+function blockDiceDefault(pending: Decision<"block-dice">): HeadlessCommand {
+  return pending.choiceStage === "attacker-reroll"
+    ? { type: "keep-block-dice", attackerId: pending.attackerId }
+    : { type: "choose-block-result", index: 0 };
+}
+
+function pushDefault(
+  pending: Decision<"push-direction">
+): HeadlessCommand | null {
+  const [first] = pending.options;
+  return first
+    ? { type: "choose-push-direction", x: first.x, y: first.y }
+    : null;
+}
+
+/** The Sports-Wizard is asked between turns, of either coach: keep it. */
+function inducementDefault(
+  pending: Decision<"inducement-choice">
+): HeadlessCommand | null {
+  return pending.kind === "sports-wizard"
+    ? { type: "choose-inducement" }
+    : null;
+}
+
 /**
  * What the decider's screen answers when their clock runs out: decline
  * anything optional, otherwise the first option. Null when there is no
@@ -38,15 +67,9 @@ export function defaultAnswer(
 ): HeadlessCommand | null {
   switch (pending.type) {
     case "block-dice":
-      return pending.choiceStage === "attacker-reroll"
-        ? { type: "keep-block-dice", attackerId: pending.attackerId }
-        : { type: "choose-block-result", index: 0 };
-    case "push-direction": {
-      const [first] = pending.options;
-      return first
-        ? { type: "choose-push-direction", x: first.x, y: first.y }
-        : null;
-    }
+      return blockDiceDefault(pending);
+    case "push-direction":
+      return pushDefault(pending);
     case "reaction":
       return { type: "use-reaction", accept: false };
     case "bite-target":
@@ -64,10 +87,7 @@ export function defaultAnswer(
       // As before the choice existed: every assist adds +1
       return { type: "choose-foul-assists", count: pending.available };
     case "inducement-choice":
-      // The Sports-Wizard is asked between turns, of either coach: keep it
-      return pending.kind === "sports-wizard"
-        ? { type: "choose-inducement" }
-        : null;
+      return inducementDefault(pending);
     case "touchback":
     case "kickoff-event":
       return null;

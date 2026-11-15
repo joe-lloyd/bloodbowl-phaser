@@ -46,6 +46,32 @@ export interface CompatibilityResult {
   reasons: string[];
 }
 
+/** The advancement mode and draft budget a roster profile demands. */
+function profileReasons(team: Team, profile: RosterRuleProfile): string[] {
+  const reasons: string[] = [];
+  if (!team.advancementMode) {
+    reasons.push(
+      "Team has not chosen an advancement mode yet (edit it in Team Builder)."
+    );
+  } else if (team.advancementMode !== profile.advancementMode) {
+    reasons.push(
+      `Advancement mode mismatch: team is ${team.advancementMode}, competition requires ${profile.advancementMode}.`
+    );
+  }
+
+  const teamValue = calculateTeamValue(team);
+  if (teamValue > profile.draftBudget) {
+    reasons.push(
+      `Team value ${teamValue.toLocaleString()} exceeds the draft budget of ${profile.draftBudget.toLocaleString()}.`
+    );
+  }
+  return reasons;
+}
+
+const developmentBlocks = (team: Team, profile: RosterRuleProfile) =>
+  profile.requireDevelopmentComplete &&
+  hasBlockingPendingDevelopment(team);
+
 /**
  * The single validator used by both the competition-entry UI and the
  * authoritative save path (CompetitionBuilder.create / addEntrantToCompetition).
@@ -60,22 +86,7 @@ export function checkTeamCompatibility(
   const reasons: string[] = [];
   if (!profile && !ruleset) return { compatible: true, reasons };
 
-  if (profile && !team.advancementMode) {
-    reasons.push(
-      "Team has not chosen an advancement mode yet (edit it in Team Builder)."
-    );
-  } else if (profile && team.advancementMode !== profile.advancementMode) {
-    reasons.push(
-      `Advancement mode mismatch: team is ${team.advancementMode}, competition requires ${profile.advancementMode}.`
-    );
-  }
-
-  const teamValue = calculateTeamValue(team);
-  if (profile && teamValue > profile.draftBudget) {
-    reasons.push(
-      `Team value ${teamValue.toLocaleString()} exceeds the draft budget of ${profile.draftBudget.toLocaleString()}.`
-    );
-  }
+  if (profile) reasons.push(...profileReasons(team, profile));
 
   try {
     const roster = getRosterByRosterName(team.rosterName);
@@ -91,10 +102,7 @@ export function checkTeamCompatibility(
     reasons.push(error instanceof Error ? error.message : String(error));
   }
 
-  if (
-    profile?.requireDevelopmentComplete &&
-    hasBlockingPendingDevelopment(team)
-  ) {
+  if (profile && developmentBlocks(team, profile)) {
     reasons.push(
       "Team has unresolved development (Skill Selection or a required advancement) — resolve it in Manage Team."
     );

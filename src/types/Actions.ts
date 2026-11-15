@@ -148,40 +148,22 @@ export function validateAction(action: PlayerAction): ActionValidation {
       if (action.path.length === 0) {
         return { valid: false, reason: "No movement path specified" };
       }
-      if (action.player.hasActed) {
-        return { valid: false, reason: "Player has already acted this turn" };
-      }
-      return { valid: true };
+      return notYetActed(action.player);
 
     case ActionType.BLOCK:
-      if (action.attacker.hasActed) {
-        return { valid: false, reason: "Player has already acted this turn" };
-      }
-      return { valid: true };
+      return notYetActed(action.attacker);
 
     case ActionType.BLITZ:
-      if (action.player.hasActed) {
-        return { valid: false, reason: "Player has already acted this turn" };
-      }
-      return { valid: true };
+      return notYetActed(action.player);
 
     case ActionType.PASS:
-      if (action.thrower.hasActed) {
-        return { valid: false, reason: "Player has already acted this turn" };
-      }
-      return { valid: true };
+      return notYetActed(action.thrower);
 
     case ActionType.HANDOFF:
-      if (action.giver.hasActed) {
-        return { valid: false, reason: "Player has already acted this turn" };
-      }
-      return { valid: true };
+      return notYetActed(action.giver);
 
     case ActionType.FOUL:
-      if (action.fouler.hasActed) {
-        return { valid: false, reason: "Player has already acted this turn" };
-      }
-      return { valid: true };
+      return notYetActed(action.fouler);
 
     case ActionType.STANDUP:
       if (action.player.status !== "Prone") {
@@ -192,6 +174,12 @@ export function validateAction(action: PlayerAction): ActionValidation {
     default:
       return { valid: false, reason: "Unknown action type" };
   }
+}
+
+function notYetActed(player: Pick<Player, "hasActed">): ActionValidation {
+  return player.hasActed
+    ? { valid: false, reason: "Player has already acted this turn" }
+    : { valid: true };
 }
 
 /**

@@ -71,6 +71,37 @@ export function exceedsRosterLimit(
   );
 }
 
+function positionViolations(
+  rostered: Team["players"],
+  roster: TeamRoster
+): RosterViolation[] {
+  const violations: RosterViolation[] = [];
+  const counts = new Map<string, number>();
+  for (const player of rostered) {
+    counts.set(player.positionName, (counts.get(player.positionName) ?? 0) + 1);
+  }
+  for (const [positionName, count] of counts) {
+    const template = roster.playerTemplates.find(
+      (candidate) => candidate.positionName === positionName
+    );
+    if (!template) {
+      violations.push({
+        rule: "unknown-position",
+        detail: `${positionName} is not on the ${roster.rosterName} roster`,
+      });
+    } else if (
+      template.maxAllowed !== undefined &&
+      count > template.maxAllowed
+    ) {
+      violations.push({
+        rule: "positional-limit",
+        detail: `${count} × ${positionName} (roster max ${template.maxAllowed})`,
+      });
+    }
+  }
+  return violations;
+}
+
 /**
  * Validate a finished draft list against its roster template. Returns every
  * violation found (empty when the list is legal).
@@ -111,29 +142,7 @@ export function validateRosterLegality(
   const rostered = players.filter(
     (player) => !isDeadLeaguePlayer(team, player)
   );
-  const counts = new Map<string, number>();
-  for (const player of rostered) {
-    counts.set(player.positionName, (counts.get(player.positionName) ?? 0) + 1);
-  }
-  for (const [positionName, count] of counts) {
-    const template = roster.playerTemplates.find(
-      (candidate) => candidate.positionName === positionName
-    );
-    if (!template) {
-      violations.push({
-        rule: "unknown-position",
-        detail: `${positionName} is not on the ${roster.rosterName} roster`,
-      });
-    } else if (
-      template.maxAllowed !== undefined &&
-      count > template.maxAllowed
-    ) {
-      violations.push({
-        rule: "positional-limit",
-        detail: `${count} × ${positionName} (roster max ${template.maxAllowed})`,
-      });
-    }
-  }
+  violations.push(...positionViolations(rostered, roster));
 
   const bigGuys = rostered.filter((player) => isBigGuy(player.keywords));
   if (roster.maxBigGuys !== undefined && bigGuys.length > roster.maxBigGuys) {

@@ -88,6 +88,39 @@ function resolveByes(fixtures: CompetitionFixture[]): void {
   }
 }
 
+/** Round `round`, match `order` of a bracket; round 1 takes its seeds. */
+function bracketFixture(
+  round: number,
+  order: number,
+  rounds: number,
+  slots: (string | null)[]
+): CompetitionFixture {
+  const id = `round-${round}-match-${order}`;
+  const homeEntrantId = round === 1 ? slots[(order - 1) * 2] : null;
+  const awayEntrantId = round === 1 ? slots[(order - 1) * 2 + 1] : null;
+  const sourceFixtureIds =
+    round === 1
+      ? undefined
+      : [
+          `round-${round - 1}-match-${order * 2 - 1}`,
+          `round-${round - 1}-match-${order * 2}`,
+        ];
+  return {
+    id,
+    round,
+    order,
+    homeEntrantId,
+    awayEntrantId,
+    status: fixtureState(homeEntrantId, awayEntrantId),
+    sourceFixtureIds,
+    nextFixtureId:
+      round < rounds
+        ? `round-${round + 1}-match-${Math.ceil(order / 2)}`
+        : undefined,
+    nextSlot: round < rounds ? (order % 2 ? "home" : "away") : undefined,
+  };
+}
+
 export function generateSingleElimination(
   entrants: CompetitionEntrant[]
 ): CompetitionFixture[] {
@@ -108,30 +141,7 @@ export function generateSingleElimination(
     const matchCount = bracketSize / 2 ** round;
     const matches: CompetitionFixture[] = [];
     for (let order = 1; order <= matchCount; order++) {
-      const id = `round-${round}-match-${order}`;
-      const homeEntrantId = round === 1 ? slots[(order - 1) * 2] : null;
-      const awayEntrantId = round === 1 ? slots[(order - 1) * 2 + 1] : null;
-      const sourceFixtureIds =
-        round === 1
-          ? undefined
-          : [
-              `round-${round - 1}-match-${order * 2 - 1}`,
-              `round-${round - 1}-match-${order * 2}`,
-            ];
-      matches.push({
-        id,
-        round,
-        order,
-        homeEntrantId,
-        awayEntrantId,
-        status: fixtureState(homeEntrantId, awayEntrantId),
-        sourceFixtureIds,
-        nextFixtureId:
-          round < rounds
-            ? `round-${round + 1}-match-${Math.ceil(order / 2)}`
-            : undefined,
-        nextSlot: round < rounds ? (order % 2 ? "home" : "away") : undefined,
-      });
+      matches.push(bracketFixture(round, order, rounds, slots));
     }
     roundFixtures.push(matches);
     fixtures.push(...matches);
@@ -163,28 +173,42 @@ export function repairBracketLinkage(fixtures: CompetitionFixture[]): boolean {
   let repaired = false;
 
   for (const fixture of fixtures) {
-    if (fixture.round > firstRound && !fixture.sourceFixtureIds?.length) {
-      const sources = [
-        byRoundOrder.get(`${fixture.round - 1}:${fixture.order * 2 - 1}`),
-        byRoundOrder.get(`${fixture.round - 1}:${fixture.order * 2}`),
-      ].filter((f): f is CompetitionFixture => !!f);
-      if (sources.length) {
-        fixture.sourceFixtureIds = sources.map((source) => source.id);
-        repaired = true;
-      }
-    }
-    if (fixture.round < lastRound && !fixture.nextFixtureId) {
-      const next = byRoundOrder.get(
-        `${fixture.round + 1}:${Math.ceil(fixture.order / 2)}`
-      );
-      if (next) {
-        fixture.nextFixtureId = next.id;
-        fixture.nextSlot = fixture.order % 2 ? "home" : "away";
-        repaired = true;
-      }
-    }
+    const sources =
+      fixture.round > firstRound && repairSources(fixture, byRoundOrder);
+    const next = fixture.round < lastRound && repairNext(fixture, byRoundOrder);
+    if (sources || next) repaired = true;
   }
   return repaired;
+}
+
+/** Link a later-round fixture to the two fixtures that feed it. */
+function repairSources(
+  fixture: CompetitionFixture,
+  byRoundOrder: Map<string, CompetitionFixture>
+): boolean {
+  if (fixture.sourceFixtureIds?.length) return false;
+  const sources = [
+    byRoundOrder.get(`${fixture.round - 1}:${fixture.order * 2 - 1}`),
+    byRoundOrder.get(`${fixture.round - 1}:${fixture.order * 2}`),
+  ].filter((f): f is CompetitionFixture => !!f);
+  if (!sources.length) return false;
+  fixture.sourceFixtureIds = sources.map((source) => source.id);
+  return true;
+}
+
+/** Link a fixture to the next-round fixture its winner goes on to. */
+function repairNext(
+  fixture: CompetitionFixture,
+  byRoundOrder: Map<string, CompetitionFixture>
+): boolean {
+  if (fixture.nextFixtureId) return false;
+  const next = byRoundOrder.get(
+    `${fixture.round + 1}:${Math.ceil(fixture.order / 2)}`
+  );
+  if (!next) return false;
+  fixture.nextFixtureId = next.id;
+  fixture.nextSlot = fixture.order % 2 ? "home" : "away";
+  return true;
 }
 
 export function generateRoundRobin(
@@ -314,6 +338,28 @@ function homeLead(result: Omit<FixtureResult, "completedAt">): number {
 
 const SHOOTOUT_ROLL_OFFS = 5;
 
+function checkPenalties(
+  homeScore: number,
+  awayScore: number,
+  allowDraw: boolean,
+  { home, away }: PenaltyShootout
+): void {
+  if (allowDraw || homeScore !== awayScore) {
+    throw new Error("Penalties only decide a knockout game left level.");
+  }
+  if (
+    !Number.isInteger(home) ||
+    !Number.isInteger(away) ||
+    home < 0 ||
+    away < 0 ||
+    home + away !== SHOOTOUT_ROLL_OFFS
+  ) {
+    throw new Error(
+      "A Penalty Shoot-out is five roll-offs, each won by one side."
+    );
+  }
+}
+
 function completedResult(
   homeEntrantId: string,
   awayEntrantId: string,
@@ -329,21 +375,7 @@ function completedResult(
     throw new Error("Scores cannot be negative.");
   }
   if (penalties) {
-    if (allowDraw || homeScore !== awayScore) {
-      throw new Error("Penalties only decide a knockout game left level.");
-    }
-    const { home, away } = penalties;
-    if (
-      !Number.isInteger(home) ||
-      !Number.isInteger(away) ||
-      home < 0 ||
-      away < 0 ||
-      home + away !== SHOOTOUT_ROLL_OFFS
-    ) {
-      throw new Error(
-        "A Penalty Shoot-out is five roll-offs, each won by one side."
-      );
-    }
+    checkPenalties(homeScore, awayScore, allowDraw, penalties);
   } else if (!allowDraw && homeScore === awayScore) {
     throw new Error(
       "A knockout game left level is decided on Penalties: enter the shoot-out."

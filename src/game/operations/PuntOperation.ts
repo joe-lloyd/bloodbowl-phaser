@@ -3,6 +3,8 @@ import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
+import { Player } from "../../types/Player";
+import { GameState } from "../../types/GameState";
 import { ReactionDecisionAnswer } from "../../types/decisions";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
@@ -67,6 +69,50 @@ class PuntPossessionCheckOperation extends GameOperation {
   }
 }
 
+type Square = { x: number; y: number };
+
+/** The punter has the skill and stands on the ball. */
+function canPunt(punter: Player, at: Square, state: GameState): boolean {
+  return (
+    hasSkill(punter.skills, SkillType.PUNT) &&
+    state.ballPosition?.x === at.x &&
+    state.ballPosition?.y === at.y
+  );
+}
+
+/** The Throw-in Template: 1-2 turns left, 3-4 goes straight, 5-6 right. */
+function templateOffset(roll: number): number {
+  if (roll <= 2) return -1;
+  return roll <= 4 ? 0 : 1;
+}
+
+/**
+ * Where the ball lands `distance` squares along `direction`, or the first
+ * square off the pitch when it goes into the crowd.
+ */
+function puntFlight(
+  from: Square,
+  direction: Square,
+  distance: number
+): { landing: Square; intoCrowd: boolean } {
+  let landing = { ...from };
+  for (let step = 0; step < distance; step++) {
+    landing = {
+      x: landing.x + direction.x,
+      y: landing.y + direction.y,
+    };
+    if (
+      landing.x < 0 ||
+      landing.x >= GameConfig.PITCH_WIDTH ||
+      landing.y < 0 ||
+      landing.y >= GameConfig.PITCH_HEIGHT
+    ) {
+      return { landing, intoCrowd: true };
+    }
+  }
+  return { landing, intoCrowd: false };
+}
+
 /** Punt (2025 p.132): throw-in template direction and D6 distance. */
 export class PuntOperation extends GameOperation {
   public readonly name = "PuntOperation";
@@ -82,14 +128,8 @@ export class PuntOperation extends GameOperation {
   async execute(context: FlowContext): Promise<void> {
     const { gameService, eventBus, flowManager } = context;
     const punter = gameService.getPlayerById(this.playerId);
-    if (
-      !punter?.gridPosition ||
-      !hasSkill(punter.skills, SkillType.PUNT) ||
-      gameService.getState().ballPosition?.x !== punter.gridPosition.x ||
-      gameService.getState().ballPosition?.y !== punter.gridPosition.y
-    ) {
-      return;
-    }
+    if (!punter?.gridPosition) return;
+    if (!canPunt(punter, punter.gridPosition, gameService.getState())) return;
 
     const dice = gameService.getDiceController();
     let directionRoll = dice.rollD6("Punt Direction", punter.teamId);
@@ -119,26 +159,9 @@ export class PuntOperation extends GameOperation {
     }
 
     const facing = facingIndex(this.facingX, this.facingY);
-    const offset = directionRoll <= 2 ? -1 : directionRoll <= 4 ? 0 : 1;
-    const direction = DIRS[(facing + offset + 8) % 8];
+    const direction = DIRS[(facing + templateOffset(directionRoll) + 8) % 8];
     const from = { ...punter.gridPosition };
-    let landing = { ...from };
-    let intoCrowd = false;
-    for (let step = 0; step < distance; step++) {
-      landing = {
-        x: landing.x + direction.x,
-        y: landing.y + direction.y,
-      };
-      if (
-        landing.x < 0 ||
-        landing.x >= GameConfig.PITCH_WIDTH ||
-        landing.y < 0 ||
-        landing.y >= GameConfig.PITCH_HEIGHT
-      ) {
-        intoCrowd = true;
-        break;
-      }
-    }
+    const { landing, intoCrowd } = puntFlight(from, direction, distance);
 
     // Presentation boundary. Every die this Punt needs has been rolled and the
     // destination is fixed, but NOTHING has moved yet: a graphical client

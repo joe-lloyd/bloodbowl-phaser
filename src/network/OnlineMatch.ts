@@ -200,30 +200,118 @@ interface CreateMatchOptions {
   transport?: Transport;
 }
 
-export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
-  const { lobby, user, eventBus: pageBus, seed } = options;
-  // Everything this match does on the page's bus ends when it closes.
-  const eventBus = scopeEventBus(pageBus);
+/** What a pending decision has its deciding coach doing, for the banner. */
+function decisionActivity(pending: PendingDecision): string {
+  switch (pending.type) {
+    case "block-dice":
+      return pending.choiceStage === "attacker-reroll"
+        ? "choosing a block re-roll"
+        : "picking a block die";
+    case "reroll":
+      return "choosing a re-roll";
+    case "push-direction":
+      return "choosing a push square";
+    case "follow-up":
+      return "deciding whether to follow up";
+    case "interception":
+      return "choosing an interceptor";
+    case "bite-target":
+      return "choosing who to bite";
+    case "reaction":
+      return `deciding whether to use ${pending.skill}`;
+    case "apothecary":
+      return "deciding whether to use the apothecary";
+    case "inducement-choice":
+      return "choosing an inducement";
+    case "foul-assists":
+      return "choosing the foul's assists";
+    case "touchback":
+      return "choosing who takes the ball";
+    case "kickoff-event":
+      return "resolving the kick-off";
+    default: {
+      const exhaustive: never = pending;
+      return exhaustive;
+    }
+  }
+}
+
+/**
+ * Which side of the lobby this page plays. Same construction order on both
+ * machines: team1 = host's team.
+ */
+function lobbySides(lobby: LobbyDoc, user: AuthUser) {
   const isHost = user.uid === lobby.hostUid;
   const hostPlayer = lobby.players[lobby.hostUid];
   const guestPlayer = lobby.guestUid ? lobby.players[lobby.guestUid] : null;
   if (!hostPlayer?.team || !guestPlayer?.team) {
     throw new Error("lobby-not-ready");
   }
-
-  // Same construction order on both machines: team1 = host's team
   const team1 = hostPlayer.team;
   const team2 = guestPlayer.team;
-  const myTeamId = isHost ? team1.id : team2.id;
-  const opponentName = isHost
-    ? guestPlayer.displayName
-    : hostPlayer.displayName;
-  // Coach names (privacy-safe) keyed by the team each controls
-  const coachNames: Record<string, string> = {
-    [team1.id]: hostPlayer.displayName,
-    [team2.id]: guestPlayer.displayName,
+  return {
+    isHost,
+    team1,
+    team2,
+    myTeamId: isHost ? team1.id : team2.id,
+    opponentName: isHost ? guestPlayer.displayName : hostPlayer.displayName,
+    // Coach names (privacy-safe) keyed by the team each controls
+    coachNames: {
+      [team1.id]: hostPlayer.displayName,
+      [team2.id]: guestPlayer.displayName,
+    } satisfies Record<string, string>,
+    myName: isHost ? hostPlayer.displayName : guestPlayer.displayName,
   };
-  const myName = isHost ? hostPlayer.displayName : guestPlayer.displayName;
+}
+
+/**
+ * A resumed match rebuilds the last saved state; a fresh one boots into
+ * SETUP/INTRO like local play so the opening sequence runs.
+ */
+function startingState(lobby: LobbyDoc, team1: Team, team2: Team) {
+  const saved = lobby.snapshot ? lobby : null;
+  if (saved?.snapshot) {
+    for (const team of [team1, team2]) {
+      const roster = saved.resume?.teams?.find(
+        (record) => record.id === team.id
+      );
+      if (roster) restoreTeam(team, roster);
+    }
+    applySnapshotToTeams(saved.snapshot, [team1, team2]);
+    return { saved, initialState: deserializeGameState(saved.snapshot) };
+  }
+  const initialState = GameService.createMatchState(
+    team1,
+    team2,
+    GamePhase.SETUP,
+    SubPhase.INTRO,
+    {
+      paysWinnings: fixturePaysWinnings(
+        lobby.competitionContext?.competitionType
+      ),
+    }
+  );
+  if (lobby.competitionContext?.knockout) initialState.knockout = true;
+  return { saved, initialState };
+}
+
+/** What a saved match resumes with; empty for a fresh one. */
+function resumeParts(saved: ReturnType<typeof startingState>["saved"]) {
+  return {
+    rng: saved?.resume?.rng,
+    matchStats: saved?.resume?.matchStats,
+    turnManager: saved?.snapshot?.turnManager,
+    kickingTeamId: saved?.snapshot?.turnManager?.driveKickingTeamId ?? null,
+    applied: saved?.resume?.applied ?? 0,
+  };
+}
+
+export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
+  const { lobby, user, eventBus: pageBus, seed } = options;
+  // Everything this match does on the page's bus ends when it closes.
+  const eventBus = scopeEventBus(pageBus);
+  const { isHost, team1, team2, myTeamId, opponentName, coachNames, myName } =
+    lobbySides(lobby, user);
   // While the turn clock is stopped, all input is frozen for both players.
   let hold: InputHold = null;
 
@@ -311,33 +399,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   const teamName = (teamId: string) =>
     (teamId === team1.id ? team1 : team2).name;
 
-  // A resumed match rebuilds the last saved state; a fresh one boots into
-  // SETUP/INTRO like local play so the opening sequence runs.
-  const saved = lobby.snapshot ? lobby : null;
-  let initialState;
-  if (saved?.snapshot) {
-    for (const team of [team1, team2]) {
-      const roster = saved.resume?.teams?.find(
-        (record) => record.id === team.id
-      );
-      if (roster) restoreTeam(team, roster);
-    }
-    applySnapshotToTeams(saved.snapshot, [team1, team2]);
-    initialState = deserializeGameState(saved.snapshot);
-  } else {
-    initialState = GameService.createMatchState(
-      team1,
-      team2,
-      GamePhase.SETUP,
-      SubPhase.INTRO,
-      {
-        paysWinnings: fixturePaysWinnings(
-          lobby.competitionContext?.competitionType
-        ),
-      }
-    );
-    if (lobby.competitionContext?.knockout) initialState.knockout = true;
-  }
+  const { saved, initialState } = startingState(lobby, team1, team2);
+  const resume = resumeParts(saved);
 
   let session: LockstepSession | null = null;
   const dispatch = (command: HeadlessCommand): Promise<CommandResponse> =>
@@ -360,9 +423,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       );
     },
     lobby.settings.progressionEnabled ?? false,
-    saved?.resume?.rng,
-    saved?.resume?.matchStats,
-    saved?.snapshot?.turnManager
+    resume.rng,
+    resume.matchStats,
+    resume.turnManager
   );
   const game: HeadlessGame = new HeadlessGame({
     ctx: {
@@ -374,7 +437,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       seed,
       matchStats: container.matchStats,
     },
-    kickingTeamId: saved?.snapshot?.turnManager?.driveKickingTeamId ?? null,
+    kickingTeamId: resume.kickingTeamId,
   });
 
   // Save at every change of turn, by the coach whose command changed it:
@@ -403,7 +466,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     myTeamId,
     peerTeamId: isHost ? team2.id : team1.id,
     hostTeamId: team1.id,
-    appliedCommands: saved?.resume?.applied ?? 0,
+    appliedCommands: resume.applied,
     onHello: checkHello,
     onChat: (payload) =>
       pushChat({
@@ -621,36 +684,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
             hostTeamId: team1.id,
           });
           const team = owner ? teamName(owner) : opponentName;
-          switch (pending.type) {
-            case "block-dice":
-              return `${team} is ${pending.choiceStage === "attacker-reroll" ? "choosing a block re-roll" : "picking a block die"}`;
-            case "reroll":
-              return `${team} is choosing a re-roll`;
-            case "push-direction":
-              return `${team} is choosing a push square`;
-            case "follow-up":
-              return `${team} is deciding whether to follow up`;
-            case "interception":
-              return `${team} is choosing an interceptor`;
-            case "bite-target":
-              return `${team} is choosing who to bite`;
-            case "reaction":
-              return `${team} is deciding whether to use ${pending.skill}`;
-            case "apothecary":
-              return `${team} is deciding whether to use the apothecary`;
-            case "inducement-choice":
-              return `${team} is choosing an inducement`;
-            case "foul-assists":
-              return `${team} is choosing the foul's assists`;
-            case "touchback":
-              return `${team} is choosing who takes the ball`;
-            case "kickoff-event":
-              return `${team} is resolving the kick-off`;
-            default: {
-              const exhaustive: never = pending;
-              return exhaustive;
-            }
-          }
+          return `${team} is ${decisionActivity(pending)}`;
         }
         if (parts.phase() === GamePhase.KICKOFF && parts.kicked()) {
           return "The kick-off is landing…";
