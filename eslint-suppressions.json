@@ -323,48 +323,6 @@
       "count": 1
     }
   },
-  "src/game/rules/actionAvailability.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/game/rules/jump.ts": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/game/rules/moveLegs.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/game/rules/rosterLegality.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/game/rules/stalling.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/game/rules/teamPricing.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/game/skills/rerolls.ts": {
     "complexity": {
       "count": 1

@@ -29,6 +29,36 @@ const ACTIVATION_ROLLS = [
   SkillType.BLOODLUST,
 ];
 
+type Square = { x: number; y: number };
+
+/** Standing on the ball, with no roll to make when activated. */
+function canRunWithBall(
+  player: Player,
+  ball: Square | null,
+  start: Square
+): boolean {
+  if (!ball || ball.x !== start.x || ball.y !== start.y) return false;
+  if (player.status !== PlayerStatus.ACTIVE) return false;
+  return !ACTIVATION_ROLLS.some((skill) => hasSkill(player.skills, skill));
+}
+
+const onPitch = (square: Square): boolean =>
+  square.x >= 0 &&
+  square.y >= 0 &&
+  square.x < GameConfig.PITCH_WIDTH &&
+  square.y < GameConfig.PITCH_HEIGHT;
+
+/** The nine squares centred on `from` (itself included), column by column. */
+function neighbours(from: Square): Square[] {
+  const squares: Square[] = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      squares.push({ x: from.x + dx, y: from.y + dy });
+    }
+  }
+  return squares;
+}
+
 /**
  * Whether `player` holds the ball and could walk it into their End Zone
  * this activation without rolling any dice: Standing, no roll when
@@ -50,12 +80,7 @@ export function canScoreWithoutDice({
   side: 1 | 2;
 }): boolean {
   const start = player.gridPosition;
-  const ball = state.ballPosition;
-  if (!start || !ball || ball.x !== start.x || ball.y !== start.y) {
-    return false;
-  }
-  if (player.status !== PlayerStatus.ACTIVE) return false;
-  if (ACTIVATION_ROLLS.some((skill) => hasSkill(player.skills, skill))) {
+  if (!start || !canRunWithBall(player, state.ballPosition, start)) {
     return false;
   }
 
@@ -76,34 +101,24 @@ export function canScoreWithoutDice({
         ) === 1
     );
   const trapdoors = prayerInPlay(state, PrayerToNuffle.TREACHEROUS_TRAPDOOR);
+  const seen = new Set([`${start.x},${start.y}`]);
+  const blocked = (square: Square, key: string) =>
+    seen.has(key) ||
+    occupied.has(key) ||
+    !onPitch(square) ||
+    (trapdoors && isTrapdoorSquare(square.x, square.y));
 
   // Breadth-first over the squares the player can leave without a Dodge
   const ma = withDriveModifiers(player, state).stats.MA;
   let frontier = marked(start.x, start.y) ? [] : [start];
-  const seen = new Set([`${start.x},${start.y}`]);
   for (let step = 1; step <= ma && frontier.length > 0; step++) {
-    const next: { x: number; y: number }[] = [];
-    for (const from of frontier) {
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          const square = { x: from.x + dx, y: from.y + dy };
-          const key = `${square.x},${square.y}`;
-          if (
-            seen.has(key) ||
-            occupied.has(key) ||
-            square.x < 0 ||
-            square.y < 0 ||
-            square.x >= GameConfig.PITCH_WIDTH ||
-            square.y >= GameConfig.PITCH_HEIGHT ||
-            (trapdoors && isTrapdoorSquare(square.x, square.y))
-          ) {
-            continue;
-          }
-          seen.add(key);
-          if (isInEndZone(square, GameConfig.PITCH_WIDTH, side)) return true;
-          if (!marked(square.x, square.y)) next.push(square);
-        }
-      }
+    const next: Square[] = [];
+    for (const square of frontier.flatMap(neighbours)) {
+      const key = `${square.x},${square.y}`;
+      if (blocked(square, key)) continue;
+      seen.add(key);
+      if (isInEndZone(square, GameConfig.PITCH_WIDTH, side)) return true;
+      if (!marked(square.x, square.y)) next.push(square);
     }
     frontier = next;
   }

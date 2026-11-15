@@ -252,6 +252,18 @@ export function hireRefusal(
     return `A Sevens team may have at most ${limit} players, counting a Journeyman or recruit still waiting on a hiring decision.`;
   }
   if (!isActiveTeam(team)) return undefined;
+  return compositionRefusal(team, template, listed);
+}
+
+/**
+ * Why an active team's list, `listed`, has no room for `template` under the
+ * position QTY, Big Guy, Lineman and Insignificant limits.
+ */
+function compositionRefusal(
+  team: Team,
+  template: PlayerTemplate,
+  listed: Player[]
+): string | undefined {
   const ofPosition = listed.filter(
     (player) => player.positionName === template.positionName
   ).length;

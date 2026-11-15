@@ -133,167 +133,207 @@ const isStanding = (p: Player): boolean => p.status === PlayerStatus.ACTIVE;
 const isDown = (p: Player): boolean =>
   p.status === PlayerStatus.PRONE || p.status === PlayerStatus.STUNNED;
 
-export function computeActionAvailability(
-  input: ActionAvailabilityInput
+type GatedKey = Exclude<
+  keyof ActionAvailability,
+  "standUp" | "directBlockReplacements" | "blitzBlockReplacements"
+>;
+
+/** The Action each menu entry counts as for the Razzle-Dazzle limits. */
+const SECOND_ACTION_TYPE: Record<GatedKey, ActionType> = {
+  move: "move",
+  block: "block",
+  multipleBlock: "multipleBlock",
+  jump: "move",
+  blitz: "blitz",
+  pass: "pass",
+  punt: "punt",
+  handoff: "handoff",
+  foul: "foul",
+  secureBall: "secureBall",
+  stab: "stab",
+  breatheFire: "breatheFire",
+  vomit: "vomit",
+  gaze: "gaze",
+  chomp: "chomp",
+  chainsaw: "chainsaw",
+  throwTeammate: "throwTeamMate",
+  kickTeammate: "throwTeamMate",
+  throwBomb: "throwBomb",
+  ballAndChain: "ballAndChain",
+};
+
+function secondActionAvailability(
+  input: ActionAvailabilityInput,
+  first: ActionType
 ): ActionAvailability {
-  const first = input.secondActionAfter;
-  if (first) {
-    // The second Action starts afresh: moving in the first one does not
-    // stop a Block, only the Razzle-Dazzle limits do.
-    const all = computeActionAvailability({
-      ...input,
-      hasMovedInAction: false,
-      secondActionAfter: undefined,
-    });
-    const allows = (action: ActionType) => razzleDazzleAllows(first, action);
-    return {
-      move: all.move && allows("move"),
-      block: all.block && allows("block"),
-      multipleBlock: all.multipleBlock && allows("multipleBlock"),
-      jump: all.jump && allows("move"),
-      blitz: all.blitz && allows("blitz"),
-      pass: all.pass && allows("pass"),
-      punt: all.punt && allows("punt"),
-      handoff: all.handoff && allows("handoff"),
-      foul: all.foul && allows("foul"),
-      standUp: false,
-      secureBall: all.secureBall && allows("secureBall"),
-      stab: all.stab && allows("stab"),
-      breatheFire: all.breatheFire && allows("breatheFire"),
-      vomit: all.vomit && allows("vomit"),
-      gaze: all.gaze && allows("gaze"),
-      chomp: all.chomp && allows("chomp"),
-      chainsaw: all.chainsaw && allows("chainsaw"),
-      throwTeammate: all.throwTeammate && allows("throwTeamMate"),
-      kickTeammate: all.kickTeammate && allows("throwTeamMate"),
-      throwBomb: all.throwBomb && allows("throwBomb"),
-      ballAndChain: all.ballAndChain && allows("ballAndChain"),
-      directBlockReplacements: all.directBlockReplacements.filter((r) =>
-        allows(r)
-      ),
-      blitzBlockReplacements: allows("blitz") ? all.blitzBlockReplacements : [],
-    };
-  }
-  const { player, ballPosition, opponents, teammates, reachable, turn } = input;
-  const here = player.gridPosition;
-  const none: ActionAvailability = {
-    move: false,
-    block: false,
-    multipleBlock: false,
-    jump: false,
-    blitz: false,
-    pass: false,
-    punt: false,
-    handoff: false,
-    foul: false,
+  // The second Action starts afresh: moving in the first one does not
+  // stop a Block, only the Razzle-Dazzle limits do.
+  const all = computeActionAvailability({
+    ...input,
+    hasMovedInAction: false,
+    secondActionAfter: undefined,
+  });
+  const allows = (action: ActionType) => razzleDazzleAllows(first, action);
+  const gate = (key: GatedKey) => all[key] && allows(SECOND_ACTION_TYPE[key]);
+  return {
+    move: gate("move"),
+    block: gate("block"),
+    multipleBlock: gate("multipleBlock"),
+    jump: gate("jump"),
+    blitz: gate("blitz"),
+    pass: gate("pass"),
+    punt: gate("punt"),
+    handoff: gate("handoff"),
+    foul: gate("foul"),
     standUp: false,
-    secureBall: false,
-    stab: false,
-    breatheFire: false,
-    vomit: false,
-    gaze: false,
-    chomp: false,
-    chainsaw: false,
-    throwTeammate: false,
-    kickTeammate: false,
-    throwBomb: false,
-    ballAndChain: false,
-    directBlockReplacements: [],
-    blitzBlockReplacements: [],
+    secureBall: gate("secureBall"),
+    stab: gate("stab"),
+    breatheFire: gate("breatheFire"),
+    vomit: gate("vomit"),
+    gaze: gate("gaze"),
+    chomp: gate("chomp"),
+    chainsaw: gate("chainsaw"),
+    throwTeammate: gate("throwTeammate"),
+    kickTeammate: gate("kickTeammate"),
+    throwBomb: gate("throwBomb"),
+    ballAndChain: gate("ballAndChain"),
+    directBlockReplacements: all.directBlockReplacements.filter((r) =>
+      allows(r)
+    ),
+    blitzBlockReplacements: allows("blitz") ? all.blitzBlockReplacements : [],
   };
-  if (!here) return none;
+}
 
-  const isProne = player.status === PlayerStatus.PRONE;
-  const canAct = !player.hasActed && player.status !== PlayerStatus.STUNNED;
-  if (!canAct) return { ...none, standUp: false };
+const none = (): ActionAvailability => ({
+  move: false,
+  block: false,
+  multipleBlock: false,
+  jump: false,
+  blitz: false,
+  pass: false,
+  punt: false,
+  handoff: false,
+  foul: false,
+  standUp: false,
+  secureBall: false,
+  stab: false,
+  breatheFire: false,
+  vomit: false,
+  gaze: false,
+  chomp: false,
+  chainsaw: false,
+  throwTeammate: false,
+  kickTeammate: false,
+  throwBomb: false,
+  ballAndChain: false,
+  directBlockReplacements: [],
+  blitzBlockReplacements: [],
+});
 
-  // Ball & Chain: a Fanatic can declare NOTHING else — the lurch is its only
-  // action (Standing only; a Prone Fanatic can still Stand Up first).
-  if (
-    hasSkill(player.skills, SkillType.BALL_AND_CHAIN) &&
-    player.status === PlayerStatus.ACTIVE
-  ) {
-    return { ...none, ballAndChain: true };
-  }
+type Square = { x: number; y: number };
 
+/** The board as seen by a player who can act, standing on `here`. */
+interface ActingBoard {
+  input: ActionAvailabilityInput;
+  here: Square;
+  standingEnemies: Player[];
+  downEnemies: Player[];
+  standingMates: Player[];
+  handoffEligibleMates: Player[];
+  ballReachable: boolean;
+  canHaveBall: boolean;
+  canEndAdjacentTo: (target: Square) => boolean;
+}
+
+const onPitch = (p: Player) => !!p.gridPosition;
+
+function actingBoard(
+  input: ActionAvailabilityInput,
+  here: Square
+): ActingBoard {
+  const { ballPosition, opponents, teammates, reachable } = input;
   // Squares the player could be standing on when they act — every reachable
   // square plus the one they occupy now (acting without moving).
   const endSquares = [here, ...reachable];
-  const canEndAdjacentTo = (target: { x: number; y: number }): boolean =>
-    endSquares.some((s) => chebyshev(s, target) === 1);
-
-  const onPitch = (p: Player) => !!p.gridPosition;
-  const standingEnemies = opponents.filter((o) => onPitch(o) && isStanding(o));
-  const downEnemies = opponents.filter((o) => onPitch(o) && isDown(o));
-  const standingMates = teammates.filter((t) => onPitch(t) && isStanding(t));
-  // A Hand-off target must be Standing AND still hold its Tackle Zone — a
-  // Distracted team-mate is "Standing" (isStanding above) but is not a legal
-  // target, so this is a narrower list than standingMates.
-  const handoffEligibleMates = teammates.filter(
-    (t) => onPitch(t) && hasTackleZone(t)
-  );
-
   const holdsBall =
     !!ballPosition && ballPosition.x === here.x && ballPosition.y === here.y;
   const ballReachable =
     !!ballPosition &&
     reachable.some((s) => s.x === ballPosition.x && s.y === ballPosition.y);
-  const canHaveBall = holdsBall || ballReachable;
+  return {
+    input,
+    here,
+    standingEnemies: opponents.filter((o) => onPitch(o) && isStanding(o)),
+    downEnemies: opponents.filter((o) => onPitch(o) && isDown(o)),
+    standingMates: teammates.filter((t) => onPitch(t) && isStanding(t)),
+    // A Hand-off target must be Standing AND still hold its Tackle Zone — a
+    // Distracted team-mate is "Standing" (isStanding above) but is not a legal
+    // target, so this is a narrower list than standingMates.
+    handoffEligibleMates: teammates.filter(
+      (t) => onPitch(t) && hasTackleZone(t)
+    ),
+    ballReachable,
+    canHaveBall: holdsBall || ballReachable,
+    canEndAdjacentTo: (target) =>
+      endSquares.some((s) => chebyshev(s, target) === 1),
+  };
+}
 
+/** Blitz, Foul, Pass and Hand-off: each moves first, then acts. */
+function moveFirstActions(board: ActingBoard) {
+  const { input, canEndAdjacentTo, canHaveBall } = board;
+  const { player, turn } = input;
+  const fresh = !input.hasMovedInAction;
   // A move-first action needs a legal end square adjacent to a valid target.
   const blitz =
     !turn.hasBlitzed &&
-    !input.hasMovedInAction &&
-    standingEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
+    fresh &&
+    board.standingEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
   const foul =
     !turn.hasFouled &&
-    !input.hasMovedInAction &&
-    downEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
+    fresh &&
+    board.downEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
   // My Ball: "may not declare Pass Actions, Hand-off Actions" (2025 p.132).
   const myBall = hasSkill(player.skills, SkillType.MY_BALL);
-  const pass =
-    !myBall && !turn.hasPassed && !input.hasMovedInAction && canHaveBall;
+  const pass = !myBall && !turn.hasPassed && fresh && canHaveBall;
   // Reachability form: a legal final square exists that is adjacent to a
   // Standing, Tackle-Zone-holding team-mate. Possession is not required to
   // declare — canHaveBall already covers "reachable within movement".
   const handoff =
     !myBall &&
     !turn.hasHandedOff &&
-    !input.hasMovedInAction &&
+    fresh &&
     canHaveBall &&
-    handoffEligibleMates.some((t) => canEndAdjacentTo(t.gridPosition!));
+    board.handoffEligibleMates.some((t) => canEndAdjacentTo(t.gridPosition!));
+  return { blitz, foul, pass, handoff };
+}
 
-  // Special actions target an already-adjacent Standing opponent.
-  const adjacentStandingEnemy = standingEnemies.some(
+/** Block, Multiple Block and Jump: from the square the player is on. */
+function standingStillActions(board: ActingBoard) {
+  const { input, here } = board;
+  const { player, opponents, teammates } = input;
+  const adjacentEnemies = board.standingEnemies.filter(
     (e) => chebyshev(here, e.gridPosition!) === 1
   );
-
   // A standalone Block: adjacent to a Standing opponent and not yet moved
   // (once moved, a Block needs a Blitz). The auto-block on clicking an
   // adjacent enemy still works; this just surfaces it as a menu button.
   // A Prone player may only declare it with Jump Up (2025 p.130), which
   // gates standing up on an Agility test — everyone else must Blitz.
   const block =
-    adjacentStandingEnemy &&
+    adjacentEnemies.length > 0 &&
     !input.hasMovedInAction &&
     (isStanding(player) || hasSkill(player.skills, SkillType.JUMP_UP));
   const multipleBlock =
     !input.hasMovedInAction &&
     hasSkill(player.skills, SkillType.MULTIPLE_BLOCK) &&
-    standingEnemies.filter(
-      (enemy) => chebyshev(here, enemy.gridPosition!) === 1
-    ).length >= 2;
+    adjacentEnemies.length >= 2;
 
   // Jump: over an adjacent player (Prone/Stunned by default, any with
   // Leap/Pogo) into one of their unoccupied push-back squares.
   const canJumpAnything =
     hasSkill(player.skills, SkillType.LEAP) ||
     hasSkill(player.skills, SkillType.POGO);
-  const inBounds = (x: number, y: number) =>
-    x >= 0 &&
-    y >= 0 &&
-    x < GameConfig.PITCH_WIDTH &&
-    y < GameConfig.PITCH_HEIGHT;
   const jump =
     isStanding(player) &&
     jumpTargets(
@@ -302,14 +342,21 @@ export function computeActionAvailability(
       canJumpAnything,
       inBounds
     ).length > 0;
-  const gaze =
-    hasSkill(player.skills, SkillType.HYPNOTIC_GAZE) &&
-    standingEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
+  return { block, multipleBlock, jump };
+}
+
+const inBounds = (x: number, y: number) =>
+  x >= 0 && y >= 0 && x < GameConfig.PITCH_WIDTH && y < GameConfig.PITCH_HEIGHT;
+
+/** Direct and Blitz block-replacing Special Actions with a legal target. */
+function blockReplacementActions(board: ActingBoard) {
+  const { player, opponents, reachable, turn } = board.input;
+  const fresh = !board.input.hasMovedInAction;
   // A direct block-replacing Special Action is a no-move declaration, exactly
   // like a standalone Block: once the activation has spent movement, the only
   // way to attack is the Blitz variant (declared before moving).
   const directBlockReplacements =
-    player.status === PlayerStatus.ACTIVE && !input.hasMovedInAction
+    player.status === PlayerStatus.ACTIVE && fresh
       ? BLOCK_REPLACEMENTS.filter(
           (replacement) =>
             legalBlockReplacementTargets(player, opponents, replacement)
@@ -317,7 +364,7 @@ export function computeActionAvailability(
         )
       : [];
   const blitzBlockReplacements =
-    !turn.hasBlitzed && !input.hasMovedInAction
+    !turn.hasBlitzed && fresh
       ? BLOCK_REPLACEMENTS.filter((replacement) =>
           hasReachableBlockReplacementTarget(
             player,
@@ -327,10 +374,19 @@ export function computeActionAvailability(
           )
         )
       : [];
+  return { directBlockReplacements, blitzBlockReplacements };
+}
 
+/** Gaze, Throw and Kick Team-mate, Throw Bomb and Punt. */
+function skillActions(board: ActingBoard) {
+  const { input, here, canHaveBall } = board;
+  const { player } = input;
+  const gaze =
+    hasSkill(player.skills, SkillType.HYPNOTIC_GAZE) &&
+    board.standingEnemies.some((e) => board.canEndAdjacentTo(e.gridPosition!));
   // Throw / Kick Team-mate: an adjacent Standing team-mate that is Right-Stuff
   // eligible (has the trait and Strength 3 or less) is a legal target.
-  const adjacentEligibleMate = standingMates.some(
+  const adjacentEligibleMate = board.standingMates.some(
     (t) => chebyshev(here, t.gridPosition!) === 1 && isRightStuffEligible(t)
   );
   const throwTeammate =
@@ -345,8 +401,39 @@ export function computeActionAvailability(
     !input.hasMovedInAction;
   const punt =
     hasSkill(player.skills, SkillType.PUNT) &&
-    (isStanding(player) || isProne) &&
+    (isStanding(player) || player.status === PlayerStatus.PRONE) &&
     canHaveBall;
+  return { gaze, throwTeammate, kickTeammate, throwBomb, punt };
+}
+
+export function computeActionAvailability(
+  input: ActionAvailabilityInput
+): ActionAvailability {
+  const first = input.secondActionAfter;
+  if (first) return secondActionAvailability(input, first);
+  const { player, ballPosition, opponents, teammates } = input;
+  const here = player.gridPosition;
+  if (!here) return none();
+
+  const canAct = !player.hasActed && player.status !== PlayerStatus.STUNNED;
+  if (!canAct) return { ...none(), standUp: false };
+
+  // Ball & Chain: a Fanatic can declare NOTHING else — the lurch is its only
+  // action (Standing only; a Prone Fanatic can still Stand Up first).
+  if (
+    hasSkill(player.skills, SkillType.BALL_AND_CHAIN) &&
+    player.status === PlayerStatus.ACTIVE
+  ) {
+    return { ...none(), ballAndChain: true };
+  }
+
+  const board = actingBoard(input, here);
+  const { blitz, foul, pass, handoff } = moveFirstActions(board);
+  const { block, multipleBlock, jump } = standingStillActions(board);
+  const { gaze, throwTeammate, kickTeammate, throwBomb, punt } =
+    skillActions(board);
+  const { directBlockReplacements, blitzBlockReplacements } =
+    blockReplacementActions(board);
 
   // Rooted (Take Root) and Chomped players may not leave their square, so
   // no Move Action, Jump or Secure the Ball (2025 rulebook, Take Root).
@@ -364,10 +451,10 @@ export function computeActionAvailability(
     punt,
     handoff,
     foul,
-    standUp: isProne,
+    standUp: player.status === PlayerStatus.PRONE,
     secureBall:
       !heldInPlace &&
-      ballReachable &&
+      board.ballReachable &&
       canSecureBall(player, ballPosition, [...opponents, ...teammates]),
     stab: directBlockReplacements.includes("stab"),
     breatheFire: directBlockReplacements.includes("breatheFire"),

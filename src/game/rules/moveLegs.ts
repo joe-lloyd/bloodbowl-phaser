@@ -70,6 +70,28 @@ const marking = (square: Square, opponents: Player[]) =>
 /** A natural 1 always fails and a natural 6 always passes. */
 const need = (target: number) => Math.min(6, Math.max(2, target));
 
+function movementRisk(
+  rush: boolean,
+  dodge: boolean,
+  rushNeed: number,
+  dodgeNeed: number
+): MovementRisk | null {
+  if (rush && dodge) return { kind: "rush-dodge", rushNeed, dodgeNeed };
+  if (rush) return { kind: "rush", rushNeed };
+  if (dodge) return { kind: "dodge", dodgeNeed };
+  return null;
+}
+
+function stepRisk(
+  movement: MovementRisk | null,
+  ball: { target: number } | null
+): StepRisk | null {
+  if (!ball) return movement;
+  return movement
+    ? { kind: "ball-step", movement, pickupNeed: ball.target }
+    : { kind: "pickup", pickupNeed: ball.target };
+}
+
 /**
  * Split a route into legs at every step that needs a roll, so the board can
  * walk the safe part, stop, and ask before each Dodge or Rush.
@@ -100,19 +122,8 @@ export function planMoveLegs(
     safe = [];
     const rushNeed = need(2 - ctx.rushModifier);
     const dodgeNeed = need(ctx.ag + marking(step, ctx.opponents));
-    const movement: MovementRisk | null =
-      !rush && !dodge
-        ? null
-        : rush && dodge
-          ? { kind: "rush-dodge", rushNeed, dodgeNeed }
-          : rush
-            ? { kind: "rush", rushNeed }
-            : { kind: "dodge", dodgeNeed };
-    const risk: StepRisk | null = ball
-      ? movement
-        ? { kind: "ball-step", movement, pickupNeed: ball.target }
-        : { kind: "pickup", pickupNeed: ball.target }
-      : movement;
+    const movement = movementRisk(rush, dodge, rushNeed, dodgeNeed);
+    const risk = stepRisk(movement, ball);
     if (risk) legs.push({ risk, path: [step] });
   });
   if (safe.length) legs.push({ risk: null, path: safe });
