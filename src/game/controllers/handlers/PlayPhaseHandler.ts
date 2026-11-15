@@ -24,6 +24,8 @@ import { DiceWatch } from "../../presentation/diceWatch";
 export class PlayPhaseHandler implements PhaseHandler {
   private unsubscribes: (() => void)[] = [];
   private dice: DiceWatch | null = null;
+  /** Counts the ball's moves and this handler's exits (see PassFumbled). */
+  private ballMoves = 0;
 
   constructor(
     private scene: GameScene,
@@ -39,6 +41,7 @@ export class PlayPhaseHandler implements PhaseHandler {
   }
 
   exit(): void {
+    this.ballMoves++;
     this.removeListeners();
     this.dice?.dispose();
     this.dice = null;
@@ -187,34 +190,50 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Ball possession is one mutually exclusive visual state: reconcile from
     // canonical state instead of imperatively moving a sprite per event.
     this.register(GameEventNames.BallPlaced, () => {
+      this.ballMoves++;
       this.scene.reconcileBallVisual();
     });
 
     // A mid-route pickup (success or failure) decides possession before the
     // rest of the route resolves — re-derive the loose ball / carrier marker.
     this.register(GameEventNames.BallPickup, () => {
+      this.ballMoves++;
       this.scene.reconcileBallVisual();
     });
 
-    // Fumble / Bounce
-    this.register(
-      GameEventNames.PassFumbled,
-      (data: {
-        playerId: string;
-        position: { x: number; y: number };
-        bouncePosition: { x: number; y: number };
-      }) => {
-        if (this.scene["ballSprite"]) {
-          this.scene["placeBallVisual"](data.position.x, data.position.y, 1);
-          const ball = this.scene["ballSprite"] as BallSprite;
-          const target = this.scene["pitch"].getPixelPosition(
-            data.bouncePosition.x,
-            data.bouncePosition.y
-          );
-          void ball.flyTo(target, { duration: 420, apex: 0.8 });
-        }
+    // Fumble / Bounce: the hop waits for the dice before it, so a failed
+    // catch is read before the ball moves on, and holds where it lands
+    this.register(GameEventNames.PassFumbled, (data) => {
+      const acknowledge = () => this.acknowledge(data.presentationId);
+      if (!this.scene["ballSprite"]) {
+        acknowledge();
+        return;
       }
-    );
+      const target = this.scene["pitch"].getPixelPosition(
+        data.bouncePosition.x,
+        data.bouncePosition.y
+      );
+      // The engine moved the ball on, or the board left, while the dice
+      // flew: this hop is history and must not move the ball back
+      const moves = this.ballMoves;
+      void (this.dice?.landed() ?? Promise.resolve())
+        .then(() => {
+          if (this.ballMoves !== moves) return;
+          this.scene["placeBallVisual"](data.position.x, data.position.y, 1);
+          const ball = this.scene["ballSprite"] as BallSprite | null;
+          return ball?.flyTo(target, { duration: 380, apex: 0.9 });
+        })
+        .then(() => new Promise((resolve) => setTimeout(resolve, 150)))
+        .finally(acknowledge);
+    });
+  }
+
+  /** Tell the engine the board has shown what it was waiting on. */
+  private acknowledge(presentationId: string | undefined): void {
+    if (presentationId)
+      this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
+        id: presentationId,
+      });
   }
 
   /**
@@ -224,12 +243,7 @@ export class PlayPhaseHandler implements PhaseHandler {
   private handlePlayerMove(
     data: GameEventMap[GameEventNames.PlayerMoved]
   ): void {
-    const acknowledge = () => {
-      if (data.presentationId)
-        this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
-          id: data.presentationId,
-        });
-    };
+    const acknowledge = () => this.acknowledge(data.presentationId);
     const sprite = this.scene["playerSprites"].get(data.playerId);
     if (!sprite) {
       this.scene.refreshDugouts();

@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useRef } from "react";
 import { RouteSummary } from "./RollPreviews";
 import { GameEventNames } from "../../../types/events";
 import { EventBus } from "../../../services/EventBus";
 import { HudButton } from "../componentWarehouse/HudKit";
+import { useHotkey } from "../../hotkeys";
 
 // Icons (simple SVGs for now, or just text)
 const CheckIcon = () => (
@@ -61,49 +62,15 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
           const isPast = steps.findIndex((s) => s.id === currentStepId) > index;
 
           return (
-            <button
+            <StepButton
               key={step.id}
-              data-testid={`action-step-${step.id}`}
-              data-active={isActive ? "true" : "false"}
-              onClick={(e) => {
-                e.stopPropagation();
-                // Only allow navigating to past steps or current (future steps might need logic to unlock)
-                // For now, allow free navigation as per original logic, but usually games restrict going forward without completing action
-                handleStepClick(step.id);
-              }}
-              className={`relative flex min-h-[44px] w-full items-center ${compact ? "gap-1.5" : "gap-3"} rounded-hud border px-2 text-left transition-[background-color,border-color] duration-150 ease-bb ${
-                isActive
-                  ? "border-hud-gold bg-hud-gold/15 text-hud-bone shadow-hud-glow"
-                  : isPast
-                    ? "border-hud-good/40 bg-hud-good/10 text-hud-bone/85 hover:border-hud-good"
-                    : "border-white/10 bg-hud-raise/70 text-hud-dim hover:border-hud-gold/50 hover:text-hud-bone"
-              }`}
-            >
-              {/* Step Number / Icon */}
-              <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-hud font-hud-display text-hud-base leading-none ${
-                  isActive
-                    ? "bg-hud-gold text-hud-ink"
-                    : isPast
-                      ? "bg-hud-good text-hud-ink"
-                      : "border border-white/15 text-hud-dim"
-                }`}
-              >
-                {isPast ? <CheckIcon /> : index + 1}
-              </span>
-
-              {/* Label */}
-              <span
-                className={`flex-grow font-hud-label font-bold uppercase tracking-[0.05em] ${compact ? "text-hud-sm leading-tight" : "text-hud-base"}`}
-              >
-                {step.label}
-              </span>
-
-              {/* Active Indicator (Chevron) */}
-              {isActive && !compact && (
-                <span className="text-hud-gold animate-pulse">◄</span>
-              )}
-            </button>
+              step={step}
+              index={index}
+              isActive={isActive}
+              isPast={isPast}
+              compact={compact}
+              onSelect={handleStepClick}
+            />
           );
         })}
       </div>
@@ -144,3 +111,69 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
     </div>
   );
 };
+
+/** One step of the action. Its number key selects it, as a click does. */
+function StepButton({
+  step,
+  index,
+  isActive,
+  isPast,
+  compact,
+  onSelect,
+}: {
+  step: { id: string; label: string };
+  index: number;
+  isActive: boolean;
+  isPast: boolean;
+  compact: boolean;
+  onSelect: (stepId: string) => void;
+}) {
+  const button = useRef<HTMLButtonElement>(null);
+  useHotkey(
+    index < 9 ? String(index + 1) : undefined,
+    () => onSelect(step.id),
+    true,
+    button
+  );
+  return (
+    <button
+      ref={button}
+      data-testid={`action-step-${step.id}`}
+      data-active={isActive ? "true" : "false"}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(step.id);
+      }}
+      className={`relative flex min-h-[44px] w-full items-center ${compact ? "gap-1.5" : "gap-3"} rounded-hud border px-2 text-left transition-[background-color,border-color] duration-150 ease-bb ${
+        isActive
+          ? "border-hud-gold bg-hud-gold/15 text-hud-bone shadow-hud-glow"
+          : isPast
+            ? "border-hud-good/40 bg-hud-good/10 text-hud-bone/85 hover:border-hud-good"
+            : "border-white/10 bg-hud-raise/70 text-hud-dim hover:border-hud-gold/50 hover:text-hud-bone"
+      }`}
+    >
+      {/* The step's number is also its key */}
+      <span
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-hud font-hud-display text-hud-base leading-none ${
+          isActive
+            ? "bg-hud-gold text-hud-ink"
+            : isPast
+              ? "bg-hud-good text-hud-ink"
+              : "border border-white/15 text-hud-dim"
+        }`}
+      >
+        {isPast ? <CheckIcon /> : index + 1}
+      </span>
+
+      <span
+        className={`flex-grow font-hud-label font-bold uppercase tracking-[0.05em] ${compact ? "text-hud-sm leading-tight" : "text-hud-base"}`}
+      >
+        {step.label}
+      </span>
+
+      {isActive && !compact && (
+        <span className="text-hud-gold animate-pulse">◄</span>
+      )}
+    </button>
+  );
+}

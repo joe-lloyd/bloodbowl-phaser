@@ -92,6 +92,28 @@ export async function whenEngineQuiet(maxMs = 30_000): Promise<void> {
 
 export const noDelay: DelayProvider = () => Promise.resolve();
 
+/**
+ * Resolve when `shown` does, or after `ms` at the latest. Under real-time
+ * pacing the wait counts as engine work only until it resolves, so an early
+ * answer frees whenEngineQuiet at once instead of at the end of the guard.
+ * Any other provider runs the guard itself: headless resolves at once.
+ */
+export function waitAtMost(
+  delay: DelayProvider,
+  shown: Promise<void>,
+  ms: number
+): Promise<void> {
+  if (delay !== realTimeDelay) return Promise.race([shown, delay(ms)]);
+  if (!paced) return Promise.resolve();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const guard = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  return trackEngineWork(
+    Promise.race([shown, guard]).finally(() => clearTimeout(timer))
+  );
+}
+
 export interface FlowContext {
   gameService: import("@/services/interfaces/IGameService").IGameService;
   eventBus: import("@/services/EventBus").IEventBus;

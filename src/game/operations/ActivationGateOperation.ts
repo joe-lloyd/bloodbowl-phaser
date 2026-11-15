@@ -8,8 +8,8 @@ import {
   PlayerCondition,
   addCondition,
 } from "../../types/Player";
-import { foldTrigger, withRerollOffer } from "../skills";
-import { ActivationDeclaredContext, ActivationGate } from "../skills/SkillRule";
+import { activationGates, withRerollOffer } from "../skills";
+import { ActivationGate } from "../skills/SkillRule";
 import { ReactionDecisionAnswer } from "../../types/decisions";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
@@ -57,23 +57,12 @@ export class ActivationGateOperation extends GameOperation {
     const player = gameService.getPlayerById(this.playerId);
     if (!player || !player.gridPosition) return;
 
-    const ctx: ActivationDeclaredContext = {
+    const gates = activationGates(
       player,
-      action: this.action,
-      teammates: gameService.getTeammates(this.playerId),
-      gates: [],
-      dice: gameService.getDiceController(),
-      decisions: gameService.getDecisionService(),
-      flow: context.flowManager,
-      arbiter: gameService.getRerollArbiter(),
-      triggers: [],
-    };
-    await foldTrigger("onActivationDeclared", [player], ctx);
-    for (const t of ctx.triggers) {
-      eventBus.emit(GameEventNames.SkillTriggered, t);
-    }
-
-    for (const gate of ctx.gates) {
+      this.action,
+      gameService.getTeammates(this.playerId)
+    );
+    for (const gate of gates) {
       // The gate rolls whether it passes or fails — the declaration becomes
       // binding here, before the die is even thrown, so a failed Bone Head
       // (etc.) still spends the team's once-per-turn allowance.

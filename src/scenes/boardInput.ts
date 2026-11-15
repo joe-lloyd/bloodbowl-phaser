@@ -37,6 +37,9 @@ export function wirePointerInput(scene: GameScene): void {
   scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
     // A finger has no hover
     if (pointer.wasTouch) return;
+    // While a button is held the raise stays on the player pressed, the
+    // one being dragged, so nobody else is drawn over them
+    if (!pointer.isDown) scene.raisePlayerAt(pointer.worldX, pointer.worldY);
     if (scene.isSetupActive) {
       // Direct Pitch Highlight for Setup
       const gridPos = pitch().worldToGrid(pointer.worldX, pointer.worldY);
@@ -52,6 +55,8 @@ export function wirePointerInput(scene: GameScene): void {
 
   scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
     if (!onCanvas(pointer) || pointer.wasTouch) return;
+    // A press raises who it lands on, and lowers anyone raised before
+    scene.raisePlayerAt(pointer.worldX, pointer.worldY);
     console.log(
       `[GameScene] Global PointerDown: ${pointer.worldX}, ${pointer.worldY}`
     );

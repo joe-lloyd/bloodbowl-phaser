@@ -214,9 +214,6 @@
     },
     "sonarjs/cognitive-complexity": {
       "count": 9
-    },
-    "sonarjs/no-identical-functions": {
-      "count": 1
     }
   },
   "src/game/controllers/SceneOrchestrator.ts": {

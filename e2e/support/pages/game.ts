@@ -148,6 +148,35 @@ export class HudPage {
     await this.pitch.clickPlayer(playerRef);
     await expect(this.actionMenu()).toBeVisible();
     await this.actionButton(action).click();
+    await this.rollNegatraitIfAsked(playerRef);
+  }
+
+  /** The confirm a negatrait (Bone Head, Bloodlust, …) asks before it rolls. */
+  negatraitConfirm(): Locator {
+    return this.page
+      .getByTestId("confirmation-modal")
+      .filter({ hasText: "must roll first" });
+  }
+
+  /**
+   * A declaration that rolls a negatrait asks first. Press Roll when it
+   * does; otherwise go on once the declaration has landed.
+   */
+  async rollNegatraitIfAsked(playerRef: string): Promise<void> {
+    const id = await this.bridge.resolveRef(playerRef);
+    const confirm = this.negatraitConfirm();
+    await expect
+      .poll(
+        async () =>
+          (await confirm.isVisible()) ||
+          (await this.bridge.snapshot()).activePlayer?.id === id,
+        { timeout: 3_000 }
+      )
+      .toBe(true)
+      .catch(() => {});
+    if (await confirm.isVisible()) {
+      await confirm.getByRole("button", { name: "Roll", exact: true }).click();
+    }
   }
 
   endTurn(): Locator {
@@ -191,7 +220,9 @@ export class HudPage {
 
   async answerReaction(accept: boolean): Promise<void> {
     await expect(this.reactionDialog()).toBeVisible();
-    await this.page.getByTestId(accept ? "reaction-yes" : "reaction-no").click();
+    await this.page
+      .getByTestId(accept ? "reaction-yes" : "reaction-no")
+      .click();
     await expect(this.reactionDialog()).toBeHidden();
   }
 

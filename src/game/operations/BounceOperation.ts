@@ -3,6 +3,16 @@ import { GameEventNames } from "../../types/events";
 import { FlowContext } from "../core/GameFlowManager";
 import { CatchOperation } from "./CatchOperation";
 import { GameConfig } from "@/config/GameConfig";
+import {
+  awaitPresentation,
+  nextPresentationId,
+} from "../presentation/presentationGate";
+
+/**
+ * Longest the engine waits for the board to show a bounce: the dice before
+ * it land, the ball hops one square, and it holds there to be read.
+ */
+const BOUNCE_PRESENTATION_TIMEOUT_MS = 6000;
 
 export class BounceOperation extends GameOperation {
   public readonly name = "BounceOperation";
@@ -42,14 +52,24 @@ export class BounceOperation extends GameOperation {
       `[BounceOperation] Bouncing from ${this.startPosition.x},${this.startPosition.y} to ${newX},${newY}`
     );
 
-    // 2. Animate Bounce
+    // 2. Animate Bounce: one hop at a time, so a chain of bounces and the
+    // catch rolls between them can be followed
+    const presentationId = nextPresentationId("bounce");
+    // Listening before the hop is announced, so a board that answers at
+    // once is still heard
+    const shown = awaitPresentation(
+      eventBus,
+      context.delay,
+      presentationId,
+      BOUNCE_PRESENTATION_TIMEOUT_MS
+    );
     eventBus.emit(GameEventNames.PassFumbled, {
       playerId: "bounce", // Dummy
       position: this.startPosition,
       bouncePosition: { x: newX, y: newY },
+      presentationId,
     });
-
-    await context.delay(200); // Wait for bounce anim
+    await shown;
 
     // 3. Validation
     // A kick-off bounce out of the receiving half is a Touchback (p.52).

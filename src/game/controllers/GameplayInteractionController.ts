@@ -12,7 +12,12 @@ import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
-import { GameEventNames, StepPrompt } from "@/types/events";
+import {
+  ActionType,
+  AllEvents,
+  GameEventNames,
+  StepPrompt,
+} from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { DiceWatch } from "../presentation/diceWatch";
 import { PassController } from "./PassController";
@@ -40,6 +45,8 @@ import { planMoveLegs, StepRisk, stepRolls } from "../rules/moveLegs";
 import { standUpCost } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
+import { activationGates } from "../skills";
+import type { ActivationGate } from "../skills/SkillRule";
 import { rollLabel } from "../rules/rollTargets";
 import type {
   BiteTargetDecisionRequest,
@@ -96,6 +103,8 @@ export class GameplayInteractionController {
   private aimedAt: { key: string; x: number; y: number } | null = null;
   /** Numbers each Dodge/Rush prompt so a stale answer cannot match. */
   private riskPrompts = 0;
+  /** Confirms still waiting for an answer, each dropped on destroy. */
+  private openConfirmations = new Set<() => void>();
   private targetRollPreview: TargetRollPreview | null = null;
   private targetAnchor: { x: number; y: number } | null = null;
   private publishTargetPreview = () => {
@@ -733,6 +742,16 @@ export class GameplayInteractionController {
     blockReplacement?: BlockReplacement;
     razzleDazzle?: boolean;
   }) => {
+    // A negatrait roll binds the player to the action: ask before it
+    const asked =
+      data.action === "forgoe"
+        ? null
+        : this.askGates(
+            data.playerId,
+            data.action === "standUp" ? "move" : data.action
+          );
+    if (asked && !(await asked)) return;
+
     // Immediate Actions
     if (data.action === "standUp") {
       try {
@@ -1629,6 +1648,8 @@ export class GameplayInteractionController {
               }
 
               if (!currentAction) {
+                const asked = this.askGates(selectedPlayer.id, "block");
+                if (asked && !(await asked)) return;
                 // If no action declared for this player, implicitly declare
                 // BLOCK — refused e.g. for a prone/stunned blocker
                 if (
@@ -1703,6 +1724,8 @@ export class GameplayInteractionController {
             ? state.activePlayer?.action
             : undefined;
 
+        const asked = currentAction ? null : this.askGates(player.id, "move");
+        if (asked && !(await asked)) return;
         if (!this.declareMoveIfNone(player.id, currentAction)) return;
 
         // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
@@ -2407,7 +2430,14 @@ export class GameplayInteractionController {
     const owner = this.routeOwnerAt(gridX, gridY);
     if (!owner) return false;
     if (owner.id !== this.selectedPlayerId) this.selectPlayer(owner.id);
-    return this.selectedPlayerId === owner.id;
+    if (this.selectedPlayerId !== owner.id) return false;
+    // A negatrait roll comes first: ask, declare the Move, then drag again
+    const asked = this.askGates(owner.id, "move");
+    if (asked) {
+      void asked.then((ok) => ok && this.declareMoveIfNone(owner.id));
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -2623,9 +2653,33 @@ export class GameplayInteractionController {
     });
   }
 
+  /** Ask the coach a yes or no question; resolves with their answer. */
+  private requestConfirmation(
+    prefix: string,
+    request: Omit<AllEvents[GameEventNames.UI_RequestConfirmation], "actionId">
+  ): Promise<boolean> {
+    const actionId = `${prefix}-${++this.riskPrompts}`;
+    return new Promise((resolve) => {
+      const stopListening = () => {
+        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
+        this.openConfirmations.delete(stopListening);
+      };
+      const onResult = (data: { actionId: string; confirmed: boolean }) => {
+        if (data.actionId !== actionId) return;
+        stopListening();
+        resolve(data.confirmed);
+      };
+      this.openConfirmations.add(stopListening);
+      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
+      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
+        actionId,
+        ...request,
+      });
+    });
+  }
+
   /** Ask before a Dodge or Rush: what it needs and what can re-roll it. */
   private confirmStep(player: Player, risk: StepRisk): Promise<boolean> {
-    const actionId = `risky-step-${++this.riskPrompts}`;
     const rolls = stepRolls(risk, player.gridPosition!);
     const rollName = (kind: RouteRoll["type"]) =>
       kind === "pickup" ? "Pick up" : kind === "dodge" ? "Dodge" : "Rush";
@@ -2703,30 +2757,21 @@ export class GameplayInteractionController {
           : risk.kind === "rush-dodge"
             ? "Rush & Dodge"
             : "Pick up";
-    return new Promise((resolve) => {
-      const onResult = (data: { confirmed: boolean; actionId: string }) => {
-        if (data.actionId !== actionId) return;
-        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
-        resolve(data.confirmed);
-      };
-      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
-      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId,
-        title: `${player.playerName}: ${title}`,
-        chooserTeamId: player.teamId,
-        step: {
-          playerId: player.id,
-          rolls: rolls.map(({ type, target }) => ({ type, target })),
-        },
-        message:
-          `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
-          (rerolls.length
-            ? `Re-rolls: ${rerolls.join(", ")}.`
-            : "No re-roll available."),
-        confirmLabel: `${title}!`,
-        cancelLabel: "Stop here",
-        risky: true,
-      });
+    return this.requestConfirmation("risky-step", {
+      title: `${player.playerName}: ${title}`,
+      chooserTeamId: player.teamId,
+      step: {
+        playerId: player.id,
+        rolls: rolls.map(({ type, target }) => ({ type, target })),
+      },
+      message:
+        `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
+        (rerolls.length
+          ? `Re-rolls: ${rerolls.join(", ")}.`
+          : "No re-roll available."),
+      confirmLabel: `${title}!`,
+      cancelLabel: "Stop here",
+      risky: true,
     });
   }
 
@@ -2762,6 +2807,9 @@ export class GameplayInteractionController {
   }
 
   public destroy(): void {
+    // A question still open is dropped, never answered: whatever waited on
+    // it (a Move, a Dodge, a declaration) must not carry on without a board
+    [...this.openConfirmations].forEach((stopListening) => stopListening());
     this.scene.events.off("postupdate", this.publishTargetPreview);
     this.clearRollPreviews();
     this.dice.dispose();
@@ -2935,6 +2983,8 @@ export class GameplayInteractionController {
     x: number,
     y: number
   ): Promise<void> {
+    const asked = this.askGates(playerId, "foul");
+    if (asked && !(await asked)) return;
     if (!this.gameService.declareAction(playerId, "foul")) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
@@ -2946,30 +2996,65 @@ export class GameplayInteractionController {
     await this.onSquareClicked(x, y);
   }
 
+  /** The negatrait rolls a fresh declaration of `action` would make now. */
+  private pendingGates(playerId: string, action: ActionType): ActivationGate[] {
+    if (this.gameService.getState().activePlayer?.id === playerId) return [];
+    const player = this.gameService.getPlayerById(playerId);
+    if (!player) return [];
+    return activationGates(
+      player,
+      action,
+      this.gameService.getTeammates(playerId)
+    );
+  }
+
+  /**
+   * Bone Head, Bloodlust and the other negatraits roll the moment an action
+   * is declared, and the roll binds the player to it. Ask first, so a coach
+   * who only meant to measure a route can back out with nothing spent.
+   * Null when there is nothing to ask, so the declaration goes ahead in
+   * the same tick.
+   */
+  private askGates(
+    playerId: string,
+    action: ActionType
+  ): Promise<boolean> | null {
+    const gates = this.pendingGates(playerId, action);
+    const player = this.gameService.getPlayerById(playerId);
+    if (gates.length === 0 || !player) return null;
+    const lines = gates.map(
+      (gate) =>
+        `${rollLabel(gate.skill, Math.max(2, gate.target - gate.modifier))}. ${GATE_FAILURE_TEXT[gate.onFail.kind]}`
+    );
+    lines.push("Once rolled, the action cannot be changed.");
+    const asked = this.requestConfirmation("gate", {
+      title: `${player.playerName} must roll first`,
+      message: lines.join("\n"),
+      confirmLabel: "Roll",
+      cancelLabel: "Cancel",
+      risky: true,
+      chooserTeamId: player.teamId,
+    });
+    // A coach who picked someone else meanwhile meant that one instead
+    return asked.then(
+      (confirmed) => confirmed && this.selectedPlayerId === playerId
+    );
+  }
+
   private confirmFoul(fouler: Player, target: Player): Promise<boolean> {
-    const actionId = `foul-${++this.riskPrompts}`;
-    return new Promise((resolve) => {
-      const onResult = (data: { actionId: string; confirmed: boolean }) => {
-        if (data.actionId !== actionId) return;
-        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
-        resolve(data.confirmed);
-      };
-      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
-      const foul = this.foulPreview(fouler, target);
-      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId,
-        title: "Confirm foul",
-        message: foul.lines.join("\n"),
-        confirmLabel: "Foul!",
-        cancelLabel: "Cancel",
-        risky: true,
-        // Online, the other coach sees the foul read-only
-        chooserTeamId: fouler.teamId,
-        step: {
-          playerId: fouler.id,
-          rolls: [{ type: "armour", target: foul.targetNumber }],
-        },
-      });
+    const foul = this.foulPreview(fouler, target);
+    return this.requestConfirmation("foul", {
+      title: "Confirm foul",
+      message: foul.lines.join("\n"),
+      confirmLabel: "Foul!",
+      cancelLabel: "Cancel",
+      risky: true,
+      // Online, the other coach sees the foul read-only
+      chooserTeamId: fouler.teamId,
+      step: {
+        playerId: fouler.id,
+        rolls: [{ type: "armour", target: foul.targetNumber }],
+      },
     });
   }
 
@@ -3618,3 +3703,14 @@ export class GameplayInteractionController {
     this.highlightManager.clearAllHighlights();
   }
 }
+
+/** What a failed negatrait roll does, as the confirm before it says. */
+const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string> = {
+  distracted: "On a fail they are Distracted and the activation ends.",
+  endActivation: "On a fail the activation ends.",
+  rooted: "On a fail they are Rooted and cannot leave their square.",
+  lashOut:
+    "On a fail they lash out at a Standing team-mate next to them. With none beside them, the activation ends.",
+  bloodlust:
+    "On a fail they may switch to a Move, and must bite a Thrall before the activation ends.",
+};

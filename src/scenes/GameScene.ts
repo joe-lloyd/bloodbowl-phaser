@@ -92,6 +92,8 @@ export class GameScene extends Phaser.Scene {
 
   // State
   private playerSprites: Map<string, PlayerSprite> = new Map();
+  /** The player under the pointer, drawn over the others. */
+  private raisedSprite: PlayerSprite | null = null;
   /** Online only: which player the OTHER coach currently has selected. */
   private remoteSelectedPlayerId: string | null = null;
   public isSetupActive: boolean = false;
@@ -150,6 +152,7 @@ export class GameScene extends Phaser.Scene {
 
     this.playerSprites.forEach((s) => s.destroy());
     this.playerSprites.clear();
+    this.raisedSprite = null;
 
     // CRITICAL: Clear player grid positions from previous scenario
     if (clearPlayerPositions) {
@@ -323,6 +326,21 @@ export class GameScene extends Phaser.Scene {
     subscribeTurnMarkers(this);
     followMatchWithCamera(this);
 
+    // A ball in someone's hands, or a game moving on, is a ball at rest:
+    // the trail of how it got there fades
+    const restTrail = () => this.ballSprite?.restTrail();
+    for (const name of [
+      GameEventNames.CatchSucceeded,
+      GameEventNames.PassIntercepted,
+      GameEventNames.TurnStarted,
+      GameEventNames.PlayerSelected,
+    ] as const) {
+      this.subscribe(name, restTrail);
+    }
+    this.subscribe(GameEventNames.BallPickup, ({ success }) => {
+      if (success) restTrail();
+    });
+
     // The board is built: the loading screen can go, as the camera comes in.
     this.eventBus.emit(GameEventNames.UI_LoadProgress, { progress: 1 });
     if (!this.resumedMatch) this.cameraController.intro();
@@ -394,13 +412,27 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Destroy pitch (if it exists)
-    if (this.pitch) {
-      // Pitch is a custom class with a container, destroy the container
-      const container = this.pitch.getContainer();
-      if (container && typeof container.destroy === "function") {
-        container.destroy();
+    this.pitch?.destroy();
+  }
+
+  /**
+   * Raise the player on the square under the pointer, so one standing
+   * behind a team-mate shows their whole figure and number.
+   */
+  public raisePlayerAt(worldX: number, worldY: number): void {
+    const square = this.pitch.worldToGrid(worldX, worldY);
+    let hovered: PlayerSprite | null = null;
+    for (const sprite of this.playerSprites.values()) {
+      const at = sprite.getPlayer().gridPosition;
+      if (sprite.visible && at?.x === square.x && at.y === square.y) {
+        hovered = sprite;
+        break;
       }
     }
+    if (hovered === this.raisedSprite) return;
+    if (this.raisedSprite?.active) this.raisedSprite.setRaised(false);
+    hovered?.setRaised(true);
+    this.raisedSprite = hovered;
   }
 
   /**

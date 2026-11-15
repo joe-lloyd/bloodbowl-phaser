@@ -74,6 +74,7 @@ class FakeGameObject {
   on() {
     return this;
   }
+  destroy() {}
 }
 
 class FakeContainer extends FakeGameObject {
@@ -122,6 +123,13 @@ function makeFakeScene() {
     input: { setDraggable: vi.fn() },
   };
 }
+
+/** Each exit to a box finishes when the test says so. */
+const exits = vi.hoisted(() => ({ finish: [] as (() => void)[] }));
+vi.mock("../../../src/game/elements/pitchExits", () => ({
+  playPitchExit: () =>
+    new Promise<void>((resolve) => exits.finish.push(resolve)),
+}));
 
 vi.mock("phaser", () => ({
   default: {
@@ -225,6 +233,45 @@ describe("Dugout", () => {
     );
     expect(card).toBeDefined();
     expect(sprites.get("off")!.list).toContain(card!.value);
+  });
+
+  it("gives the red card to a player sent off after the match began", async () => {
+    const offender = player("late", PlayerStatus.RESERVE);
+    const { scene, dugout, sprites } = await build([offender]);
+    offender.status = PlayerStatus.REMOVED;
+    dugout.refresh();
+    dugout.refresh();
+    const cards = scene.add.rectangle.mock.results.filter(
+      (r) => (r.value as FakeGameObject).angle === -10
+    );
+    expect(cards).toHaveLength(1);
+    expect(sprites.get("late")!.list).toContain(cards[0].value);
+  });
+
+  it("does not draw a player again when their exit ends after the dugout is gone", async () => {
+    const knocked = player("ko", PlayerStatus.KO);
+    const { dugout, sprites } = await build([]);
+    const withArrivals = dugout as unknown as {
+      arriveFrom(
+        id: string,
+        from: { x: number; y: number },
+        exit: string
+      ): void;
+      destroy(): void;
+    };
+    // The team list is the dugout's own: add the player as they leave
+    (dugout as unknown as { team: { players: unknown[] } }).team.players.push(
+      knocked
+    );
+    withArrivals.arriveFrom("ko", { x: 0, y: 0 }, "knockedOut");
+    dugout.refresh();
+    expect(sprites.size).toBe(1);
+
+    // A scenario reload tears the dugout down mid-carry
+    withArrivals.destroy();
+    exits.finish.forEach((finish) => finish());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(sprites.size).toBe(0);
   });
 
   it("gives a reserve no red card", async () => {

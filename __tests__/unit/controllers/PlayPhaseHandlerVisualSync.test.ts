@@ -86,6 +86,52 @@ describe("PlayPhaseHandler board reconciliation", () => {
     expect(scene.reconcileBallVisual).toHaveBeenCalled();
   });
 
+  it("drops a bounce the engine moved past before it could play, and still answers it", async () => {
+    const acks: { id: string }[] = [];
+    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>
+      acks.push(data)
+    );
+    eventBus.emit(GameEventNames.PassFumbled, {
+      playerId: "bounce",
+      position: { x: 4, y: 4 },
+      bouncePosition: { x: 5, y: 4 },
+      presentationId: "bounce-7",
+    });
+    // The engine gave up waiting and placed the ball elsewhere
+    eventBus.emit(GameEventNames.BallPlaced, { x: 9, y: 9 });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(scene.placeBallVisual).not.toHaveBeenCalled();
+    expect(scene.ballSprite.flyTo).not.toHaveBeenCalled();
+    expect(acks).toEqual([{ id: "bounce-7" }]);
+  });
+
+  it("drops a bounce whose board left while its dice were in the air, and still answers it", async () => {
+    const acks: { id: string }[] = [];
+    eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>
+      acks.push(data)
+    );
+    // The failed catch's die is still in the air when the bounce comes
+    eventBus.emit(GameEventNames.UI_DiceInAir, {
+      count: 1,
+      thrown: 1,
+      landedThrough: 0,
+    });
+    eventBus.emit(GameEventNames.PassFumbled, {
+      playerId: "bounce",
+      position: { x: 4, y: 4 },
+      bouncePosition: { x: 5, y: 4 },
+      presentationId: "bounce-8",
+    });
+    // A scene reload: the handler exits before the hop could play
+    handler.exit();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(scene.placeBallVisual).not.toHaveBeenCalled();
+    expect(scene.ballSprite.flyTo).not.toHaveBeenCalled();
+    expect(acks).toEqual([{ id: "bounce-8" }]);
+  });
+
   it("presents a declared Punt and acknowledges it when the kick lands", async () => {
     const acks: { id: string }[] = [];
     eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>

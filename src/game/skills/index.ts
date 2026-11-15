@@ -13,8 +13,11 @@ import {
   hasTackleZone,
 } from "../../types/Player";
 import { SkillRegistry } from "./SkillRegistry";
+import { ActionType } from "../../types/events";
 import {
   ActionDeclaredContext,
+  ActivationDeclaredContext,
+  ActivationGate,
   BlockResultContext,
   CountAssistContext,
   TurnEndingContext,
@@ -261,7 +264,6 @@ export type TriggerHook =
   | "onHandoffDeclared"
   | "onInjuryRoll"
   | "onCasualty"
-  | "onActivationDeclared"
   | "onRushDeclared"
   | "onJumpDeclared"
   | "onJumpResolved"
@@ -383,6 +385,28 @@ export async function foldTrigger(
       await rule?.[hook]?.(ctx, self);
     }
   }
+}
+
+/**
+ * The negatrait rolls declaring `action` would make, in the order they are
+ * rolled. Nothing is rolled: the coach can be told before committing.
+ */
+export function activationGates(
+  player: Player,
+  action: ActionType,
+  teammates: Player[]
+): ActivationGate[] {
+  const ctx: ActivationDeclaredContext = {
+    player,
+    action,
+    teammates,
+    gates: [],
+  };
+  for (const skill of player.skills) {
+    if (!skillInEffect(player, skill.type)) continue;
+    SkillRegistry.get(skill.type)?.onActivationDeclared?.(ctx, player);
+  }
+  return ctx.gates;
 }
 
 /**

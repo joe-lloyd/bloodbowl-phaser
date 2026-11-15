@@ -152,6 +152,10 @@ export class CatchOperation extends GameOperation {
       }
       // CATCH SUCCESS (possession is positional: ball is on their square)
       eventBus.emit(GameEventNames.UI_Notification, "Catch Successful!");
+      eventBus.emit(GameEventNames.CatchSucceeded, {
+        playerId: player.id,
+        position: { ...player.gridPosition },
+      });
       if (
         this.pass?.accurate &&
         player.teamId === this.pass.passerTeamId &&

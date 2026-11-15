@@ -8,6 +8,7 @@ import {
   resolvePlayerLocation,
 } from "../game/presentation/boardState";
 import { applyPitchRepositioning } from "./setupPlacement";
+import { pitchExitFor } from "../game/elements/pitchExits";
 
 /**
  * The player and ball sprites on the pitch, drawn from the game state. The
@@ -201,6 +202,16 @@ export function reconcilePlayerLocation(
 
   const location = resolvePlayerLocation(player);
   if (location.kind !== "pitch") {
+    // Seen leaving in play: carried, or walked, from where they were
+    if (!reposition && sprite.visible) {
+      scene["dugouts"]
+        .get(player.teamId)
+        ?.arriveFrom(
+          player.id,
+          { x: sprite.x, y: sprite.y },
+          pitchExitFor(player)
+        );
+    }
     sprite.setCarryingBall(false);
     sprite.setVisible(false);
     scene["dugouts"].forEach((dugout) => dugout.refresh());

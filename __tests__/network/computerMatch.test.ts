@@ -35,6 +35,20 @@ afterEach(() => {
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+/**
+ * Stand in for the board's bounce animation: the page acknowledges each
+ * bounce once it has played, and the engine waits for that, so a test
+ * without a board answers at once instead of waiting out the guard.
+ */
+function acknowledgeBounces(bus: EventBus): void {
+  bus.on(GameEventNames.PassFumbled, ({ presentationId }) => {
+    if (presentationId)
+      bus.emit(GameEventNames.UI_PresentationAcknowledged, {
+        id: presentationId,
+      });
+  });
+}
+
 describe("a match against the computer, once closed", () => {
   const teams = () => ({
     team1: stabilizeIds(createLineupTeam(RosterName.HUMAN, "H", 1), "team1"),
@@ -210,6 +224,7 @@ describe("a match against the computer", () => {
         "team2"
       );
       const eventBus = new EventBus();
+      acknowledgeBounces(eventBus);
       let computerActivations = 0;
       eventBus.on(GameEventNames.PlayerActivated, (playerId: string) => {
         if (playerId.startsWith(team2.id)) computerActivations++;
