@@ -11,6 +11,7 @@
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
+import { GameState } from "../../types/GameState";
 import { InjuryResult } from "../controllers/InjuryController";
 import { CasualtyOperation } from "./CasualtyOperation";
 import { BounceOperation } from "./BounceOperation";
@@ -46,12 +47,7 @@ export class CrowdInjuryOperation extends GameOperation {
     if (!player) return;
 
     // Ball carried off the pitch is thrown back in before injury drama
-    const state = gameService.getState();
-    const carriedBall = this.trapdoor
-      ? this.trapdoor.carriedBall
-      : state.ballPosition &&
-        state.ballPosition.x === this.exitSquare.x &&
-        state.ballPosition.y === this.exitSquare.y;
+    const carriedBall = this.carriedBall(gameService.getState());
 
     eventBus.emit(
       GameEventNames.UI_Notification,
@@ -65,12 +61,7 @@ export class CrowdInjuryOperation extends GameOperation {
     const roll = gameService
       .getDiceController()
       .roll2D6(`Injury by the Crowd (${player.playerName})`);
-    const { result } = await resolveInjuryRoll(
-      context,
-      player,
-      roll,
-      0
-    );
+    const { result } = await resolveInjuryRoll(context, player, roll, 0);
 
     // A player in the crowd is off the pitch whatever the result — every
     // branch moves them through the one location seam (the trailing
@@ -113,6 +104,21 @@ export class CrowdInjuryOperation extends GameOperation {
     eventBus.emit(GameEventNames.PlayerStatusChanged, player);
     await context.delay(600);
 
+    this.afterCrowd(context, carriedBall);
+  }
+
+  private carriedBall(state: GameState): boolean {
+    if (this.trapdoor) return this.trapdoor.carriedBall;
+    return (
+      !!state.ballPosition &&
+      state.ballPosition.x === this.exitSquare.x &&
+      state.ballPosition.y === this.exitSquare.y
+    );
+  }
+
+  /** Return a carried ball to play, then end the turn if it was one's own. */
+  private afterCrowd(context: FlowContext, carriedBall: boolean): void {
+    const { gameService, flowManager } = context;
     if (carriedBall && this.trapdoor) {
       gameService.setBallPosition(this.exitSquare.x, this.exitSquare.y);
       flowManager.add(new BounceOperation(this.exitSquare), true);
