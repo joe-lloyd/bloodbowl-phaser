@@ -85,7 +85,6 @@ function setup(
     { width: 5000, height: 3500 },
     [pitch.getPointPosition(0, -4), pitch.getPointPosition(21, 15)],
     bus as never,
-    "bloodbowl",
     hudRects
   );
   return { camera, controller, inputHandlers, pitch, bus, render };

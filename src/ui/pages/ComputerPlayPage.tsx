@@ -22,7 +22,6 @@ export interface ComputerPlayState {
   computerTeamId: string;
   difficulty?: Difficulty;
   progressionEnabled?: boolean;
-  pitchThemeId?: string;
   /** The league or cup fixture this match plays. */
   competitionContext?: CompetitionContext;
 }
@@ -40,12 +39,10 @@ function startFrom(state: ComputerPlayState | null) {
   if (save?.computer) {
     const { computerTeamId, difficulty: savedDifficulty } = save.computer;
     const difficulty = difficultyOf(savedDifficulty);
-    const pitchThemeId = save.presentation?.pitchThemeId;
     const competitionContext = save.competition;
     return {
       resumed: true,
       progressionEnabled: save.matchStats.progressionEnabled,
-      pitchThemeId,
       competitionContext,
       options: (eventBus: EventBus) => {
         const restored = restoreMatchSave(save);
@@ -56,7 +53,7 @@ function startFrom(state: ComputerPlayState | null) {
           computerTeamId,
           coach: coachFor(difficulty),
           resume: restored,
-          autosave: { difficulty, pitchThemeId },
+          autosave: { difficulty },
           competitionContext,
         };
       },
@@ -67,7 +64,6 @@ function startFrom(state: ComputerPlayState | null) {
   return {
     resumed: false,
     progressionEnabled: state.progressionEnabled,
-    pitchThemeId: state.pitchThemeId,
     competitionContext: state.competitionContext,
     options: (eventBus: EventBus) => ({
       eventBus,
@@ -76,7 +72,7 @@ function startFrom(state: ComputerPlayState | null) {
       computerTeamId: state.computerTeamId,
       coach: coachFor(difficulty),
       progressionEnabled: state.progressionEnabled,
-      autosave: { difficulty, pitchThemeId: state.pitchThemeId },
+      autosave: { difficulty },
       competitionContext: state.competitionContext,
     }),
   };
@@ -129,7 +125,6 @@ export function ComputerPlayPage({ eventBus }: { eventBus: EventBus }) {
         teams={match.teams}
         progressionEnabled={start.progressionEnabled}
         competitionContext={start.competitionContext}
-        pitchThemeId={start.pitchThemeId}
         resumed={start.resumed}
       />
     </div>

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import manifest from "./spriteManifest.json";
 import { ISO } from "../elements/GridUtils";
-import { PitchThemeId, resolvePitchTheme } from "./pitchThemes";
+import { MATCH_STYLE } from "./matchStyle";
 
 /**
  * Pre-rendered player art. Every model was rendered in Blender from the
@@ -45,12 +45,8 @@ export function modelArt(model: string): ModelArt {
   return MODELS[model] ?? MODELS[FALLBACK_MODEL];
 }
 
-export function textureKey(
-  style: PitchThemeId,
-  model: string,
-  layer: Layer
-): string {
-  return `player:${style}:${model}:${layer}`;
+export function textureKey(model: string, layer: Layer): string {
+  return `player:${model}:${layer}`;
 }
 
 export function frameName(anim: Animation, facing: Facing, index: number) {
@@ -60,16 +56,15 @@ export function frameName(anim: Animation, facing: Facing, index: number) {
 /** Queue the atlases for every model these players use. */
 export function preloadPlayerArt(
   scene: Phaser.Scene,
-  style: PitchThemeId,
   players: { rosterName: string; positionName: string }[]
 ): void {
-  const base = resolvePitchTheme(style).spritePath;
+  const base = MATCH_STYLE.spritePath;
   const models = new Set(
     players.map((p) => modelFor(p.rosterName, p.positionName))
   );
   for (const model of models) {
     for (const layer of LAYERS) {
-      const key = textureKey(style, model, layer);
+      const key = textureKey(model, layer);
       if (scene.textures.exists(key)) continue;
       scene.load.atlas(
         key,

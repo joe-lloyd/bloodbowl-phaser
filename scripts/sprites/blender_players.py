@@ -49,18 +49,6 @@ KIT_GREY = (0.8, 0.8, 0.8)
 
 # Per art direction: toon light bands, sun, edge lights, palette and kit.
 STYLES = {
-    "neon": dict(
-        size="lo",
-        # Bands keep only a light violet cast so skin colours still tell races apart.
-        ramp=[(0.0, (0.44, 0.38, 0.56)), (0.3, (0.8, 0.76, 0.88)), (0.7, (1.0, 0.98, 1.0))],
-        sun=dict(energy=2.6, color=(0.85, 0.85, 1.0), rot=(55, 0, 160)),
-        # screen-left is world (-1, -1), screen-right (1, 1); both lean slightly behind
-        rims=[((-1.4, -0.6, 0.25), (1.0, 0.15, 0.7)), ((0.6, 1.4, 0.25), (0.15, 0.9, 1.0))],
-        rim_width=0.55,
-        palette=dict(cloth=(0.34, 0.32, 0.4), leather=(0.32, 0.22, 0.2), boot=(0.1, 0.09, 0.12),
-                     metal=(0.2, 0.2, 0.25), skin=(0.8, 0.58, 0.52), orc_skin=(0.34, 0.66, 0.42)),
-        kit=dict(human=("visor",), orc=("visor", "bald"), elf=("visor",)),
-    ),
     # Tabletop Blood Bowl: warm afternoon sun, one soft warm edge from behind.
     "bloodbowl": dict(
         size="lo",

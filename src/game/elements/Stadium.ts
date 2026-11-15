@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { PitchThemeId, resolvePitchTheme } from "../presentation/pitchThemes";
+import { MATCH_STYLE } from "../presentation/matchStyle";
 
 /** The dugout boxes a stadium has, each a list of square centres in grid units. */
 export type DugoutBox = "reserves" | "ko" | "injured" | "sent off";
@@ -27,17 +27,17 @@ export interface StadiumMeta {
 
 const LAYERS = ["base", "home", "away"] as const;
 
-function key(style: PitchThemeId, part: string): string {
-  return `stadium:${style}:${part}`;
+function key(part: string): string {
+  return `stadium:${part}`;
 }
 
-/** Queue the backdrop layers and meta for a style. */
-export function preloadStadium(scene: Phaser.Scene, style: PitchThemeId) {
-  const path = resolvePitchTheme(style).stadiumPath;
-  scene.load.json(key(style, "meta"), `${path}/meta.json`);
+/** Queue the backdrop layers and meta. */
+export function preloadStadium(scene: Phaser.Scene) {
+  const path = MATCH_STYLE.stadiumPath;
+  scene.load.json(key("meta"), `${path}/meta.json`);
   for (const layer of LAYERS) {
-    if (!scene.textures.exists(key(style, layer)))
-      scene.load.image(key(style, layer), `${path}/${layer}.webp`);
+    if (!scene.textures.exists(key(layer)))
+      scene.load.image(key(layer), `${path}/${layer}.webp`);
   }
 }
 
@@ -54,16 +54,12 @@ export class Stadium {
   public readonly meta: StadiumMeta;
   private image: Phaser.GameObjects.Image | null = null;
 
-  constructor(
-    scene: Phaser.Scene,
-    style: PitchThemeId,
-    colors: { home: number; away: number }
-  ) {
-    this.meta = scene.cache.json.get(key(style, "meta")) as StadiumMeta;
+  constructor(scene: Phaser.Scene, colors: { home: number; away: number }) {
+    this.meta = scene.cache.json.get(key("meta")) as StadiumMeta;
     const layers = LAYERS.filter((layer) =>
-      scene.textures.exists(key(style, layer))
+      scene.textures.exists(key(layer))
     ).flatMap((layer) => {
-      const image = scene.textures.get(key(style, layer)).getSourceImage();
+      const image = scene.textures.get(key(layer)).getSourceImage();
       const tint = layer === "base" ? 0xffffff : colors[layer];
       return image instanceof HTMLImageElement ? [{ image, tint }] : [];
     });
@@ -71,7 +67,7 @@ export class Stadium {
     // A plain texture: addCanvas would keep a 28 MB copy of the pixels
     const canvas = flatten(layers);
     const texture = scene.textures.create(
-      key(style, `match-${Phaser.Math.RND.uuid()}`),
+      key(`match-${Phaser.Math.RND.uuid()}`),
       canvas
     );
     if (!texture) return;

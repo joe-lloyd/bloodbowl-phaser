@@ -26,7 +26,7 @@ import { GameEventNames } from "../../src/types/events";
 import { RosterName } from "../../src/types/Team";
 import { CompetitionContext } from "../../src/competition/types";
 
-const autosave = { difficulty: "standard", pitchThemeId: "chalk" };
+const autosave = { difficulty: "standard" };
 const ms = (time: number) =>
   new Promise((resolve) => setTimeout(resolve, time));
 
@@ -176,7 +176,8 @@ describe("saving a match against the computer", () => {
       computerTeamId: "team2",
       difficulty: "standard",
     });
-    expect(latest.presentation?.pitchThemeId).toBe("chalk");
+    // The match look is not saved: there is only one
+    expect(latest).not.toHaveProperty("presentation");
   });
 
   it("plays a cup tie under cup rules and saves which fixture it is", async () => {

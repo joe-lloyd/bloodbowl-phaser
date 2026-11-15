@@ -55,7 +55,6 @@ export const SCREEN_VARIANTS: Variant[] = [
       <LoadingScreen
         eventBus={fx.bus}
         teams={{ team1: fx.team1, team2: fx.team2 }}
-        styleId="bloodbowl"
       />
     ),
     drive: (fx) =>

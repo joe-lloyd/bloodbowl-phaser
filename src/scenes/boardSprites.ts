@@ -46,7 +46,6 @@ export function placePlayersOnPitch(scene: GameScene): void {
       const sprite = new PlayerSprite(scene, pos.x, pos.y, player, {
         rosterName: team.rosterName,
         colors: scene["kitOf"](team.id),
-        style: scene["pitchThemeId"],
         facing: isTeam1 ? "e" : "w",
       });
       sprites.set(player.id, sprite);

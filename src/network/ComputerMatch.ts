@@ -125,7 +125,7 @@ export interface ComputerMatchOptions {
   /** The save this match picks up; team1 and team2 are its restored teams. */
   resume?: Pick<RestoredMatchSave, "save" | "state">;
   /** What a save holds beyond the engine. Unset, the match is not saved. */
-  autosave?: { difficulty: string; pitchThemeId?: string };
+  autosave?: { difficulty: string };
   /** The league or cup fixture this match plays. */
   competitionContext?: CompetitionContext;
 }
@@ -286,7 +286,6 @@ export function createComputerMatch(
             rng: container.rngService.captureState(),
             matchStats: container.matchStats.captureState(),
             turnManager: engine!.captureTurnManagerState(),
-            presentation: { pitchThemeId: saveOptions.pitchThemeId },
             computer: { computerTeamId, difficulty: saveOptions.difficulty },
             competition: options.competitionContext,
           });

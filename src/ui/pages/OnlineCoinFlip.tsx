@@ -132,7 +132,6 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
             kind: "coin",
             side: winnerId === team1.id ? 1 : 2,
             faces: [faces[0], faces[1]],
-            neon: false,
           },
           { sound: !soundSettings.get().muted }
         );

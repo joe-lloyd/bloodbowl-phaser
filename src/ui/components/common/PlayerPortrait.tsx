@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  DEFAULT_PITCH_THEME_ID,
-  PitchThemeId,
-  resolvePitchTheme,
-} from "../../../game/presentation/pitchThemes";
+import { MATCH_STYLE } from "../../../game/presentation/matchStyle";
 import {
   frameName,
   LAYERS,
@@ -22,8 +18,8 @@ type Atlas = { image: HTMLImageElement; frames: Record<string, AtlasFrame> };
 const atlases = new Map<string, Promise<Atlas>>();
 
 /** One atlas layer, fetched once per page and shared by every portrait. */
-function loadAtlas(style: PitchThemeId, model: string, layer: Layer) {
-  const base = `${resolvePitchTheme(style).spritePath}/${model}/${layer}`;
+function loadAtlas(model: string, layer: Layer) {
+  const base = `${MATCH_STYLE.spritePath}/${model}/${layer}`;
   let atlas = atlases.get(base);
   if (!atlas) {
     atlas = Promise.all([
@@ -49,7 +45,6 @@ interface PlayerPortraitProps {
   colors: TeamColors;
   /** Displayed size in CSS pixels; the art is scaled up by whole pixels. */
   size?: number;
-  style?: PitchThemeId;
   /** Play the idle loop all the time rather than only on hover. */
   animate?: boolean;
 }
@@ -65,7 +60,6 @@ export function PlayerPortrait({
   positionName,
   colors,
   size = 56,
-  style = DEFAULT_PITCH_THEME_ID,
   animate = false,
 }: PlayerPortraitProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -75,13 +69,13 @@ export function PlayerPortrait({
 
   useEffect(() => {
     let live = true;
-    Promise.all(LAYERS.map((layer) => loadAtlas(style, model, layer)))
+    Promise.all(LAYERS.map((layer) => loadAtlas(model, layer)))
       .then((loaded) => live && setLayers(loaded))
       .catch(() => live && setLayers(null));
     return () => {
       live = false;
     };
-  }, [style, model]);
+  }, [model]);
 
   useEffect(() => {
     const el = canvas.current;

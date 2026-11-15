@@ -231,24 +231,12 @@ function d16Face(g: CanvasRenderingContext2D, value: number, S: number) {
     g.fillRect(S * 0.42, S * 0.81, S * 0.16, S * 0.025);
 }
 
-/** The face colour and the ink on it. The glow layer is a white mask. */
-function faceColours(
-  roll: DiceRoll,
-  layer: "color" | "glow"
-): { body: string; ink: string } {
-  if (layer === "glow") return { body: "#000", ink: "#fff" };
-  if (roll.neon) return { body: "#141019", ink: hex(roll.team.primary) };
-  return { body: hex(roll.team.primary), ink: hex(roll.team.secondary) };
-}
-
-function faceTexture(
-  roll: DiceRoll,
-  value: number,
-  layer: "color" | "glow"
-): THREE.CanvasTexture {
-  const key = [roll.kind, value, roll.team.key, roll.neon, layer].join(":");
+/** A face in the team's kit: primary body, secondary ink. */
+function faceTexture(roll: DiceRoll, value: number): THREE.CanvasTexture {
+  const key = [roll.kind, value, roll.team.key].join(":");
   return cachedTexture(key, (g, S) => {
-    const { body, ink } = faceColours(roll, layer);
+    const body = hex(roll.team.primary);
+    const ink = hex(roll.team.secondary);
     g.fillStyle = body;
     g.fillRect(0, 0, S, S);
     g.fillStyle = g.strokeStyle = ink;
@@ -259,31 +247,18 @@ function faceTexture(
 }
 
 export function faceMaterial(roll: DiceRoll, value: number): THREE.Material {
-  const map = faceTexture(roll, value, "color");
-  if (roll.neon)
-    return new THREE.MeshStandardMaterial({
-      map,
-      roughness: 0.35,
-      metalness: 0.1,
-      emissive: new THREE.Color(roll.team.primary),
-      emissiveMap: faceTexture(roll, value, "glow"),
-      emissiveIntensity: 1.6,
-    });
   return new THREE.MeshPhysicalMaterial({
-    map,
+    map: faceTexture(roll, value),
     roughness: 0.42,
     clearcoat: 0.7,
     clearcoatRoughness: 0.25,
   });
 }
 
-export function coinTexture(
-  team: DiceTeam,
-  neon: boolean
-): THREE.CanvasTexture {
-  return cachedTexture(["coin", team.key, neon].join(":"), (g, S) => {
-    const body = neon ? "#141019" : hex(team.primary);
-    const ink = neon ? hex(team.primary) : hex(team.secondary);
+export function coinTexture(team: DiceTeam): THREE.CanvasTexture {
+  return cachedTexture(["coin", team.key].join(":"), (g, S) => {
+    const body = hex(team.primary);
+    const ink = hex(team.secondary);
     g.fillStyle = body;
     g.fillRect(0, 0, S, S);
     g.strokeStyle = g.fillStyle = ink;
@@ -300,6 +275,6 @@ export function coinTexture(
 }
 
 /** A coin face as an image, to show the coach which side is whose. */
-export function coinFaceImage(team: DiceTeam, neon: boolean): string {
-  return (coinTexture(team, neon).image as HTMLCanvasElement).toDataURL();
+export function coinFaceImage(team: DiceTeam): string {
+  return (coinTexture(team).image as HTMLCanvasElement).toDataURL();
 }

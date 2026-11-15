@@ -11,7 +11,6 @@
 import { test, expect } from "@playwright/test";
 import { GamePhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
-import { PITCH_THEMES } from "../../src/game/presentation/pitchThemes";
 import { GameApp } from "../support/pages/game";
 import { recordBrowserCoverage } from "../support/coverageFragments";
 
@@ -156,31 +155,36 @@ test.describe("core turn interactions", () => {
 });
 
 test.describe("presentation", () => {
-  // Match styles are chosen by URL and must survive into the rendered match
-  // and across a reload — a style that resets on refresh looks like a bug.
-  for (const theme of PITCH_THEMES) {
-    test(`match style '${theme.id}' loads and persists across a reload`, async ({
-      page,
-    }) => {
-      const app = new GameApp(page);
-      await page.goto(
-        `/sand-box?scenario=basic-scrimmage&seed=1&theme=${theme.id}`
-      );
-      await app.pitch.waitForCanvas();
-      await app.sandbox.waitForScenarioLoaded();
-
-      // The scenario is on the pitch and the canvas rendered with the theme.
-      const snapshot = await app.bridge.snapshot();
-      expect(snapshot.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
-
-      await page.reload();
-      await app.pitch.waitForCanvas();
-      await app.sandbox.waitForScenarioLoaded();
-      expect(page.url()).toContain(`theme=${theme.id}`);
-      const afterReload = await app.bridge.snapshot();
-      expect(afterReload.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
+  // The Neon style is gone, but links from when it existed still carry
+  // ?theme=neon. They open the Blood Bowl stadium, before and after a reload.
+  test("a link that still asks for the Neon style opens the Blood Bowl stadium", async ({
+    page,
+  }) => {
+    const stadiumArt: string[] = [];
+    page.on("request", (request) => {
+      const path = new URL(request.url()).pathname;
+      if (path.includes("/stadium/")) stadiumArt.push(path);
     });
-  }
+    const app = new GameApp(page);
+    await page.goto("/sand-box?scenario=basic-scrimmage&seed=1&theme=neon");
+    await app.pitch.waitForCanvas();
+    await app.sandbox.waitForScenarioLoaded();
+    const snapshot = await app.bridge.snapshot();
+    expect(snapshot.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
+
+    await page.reload();
+    await app.pitch.waitForCanvas();
+    await app.sandbox.waitForScenarioLoaded();
+    const afterReload = await app.bridge.snapshot();
+    expect(afterReload.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
+
+    expect(
+      stadiumArt.some((p) => p.endsWith("/stadium/bloodbowl/base.webp"))
+    ).toBe(true);
+    expect(
+      stadiumArt.filter((p) => !p.includes("/stadium/bloodbowl/"))
+    ).toEqual([]);
+  });
 
   test("the stadium fills the window with the pitch inside it", async ({
     page,

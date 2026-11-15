@@ -935,7 +935,7 @@ PARTS = dict(
 )
 
 
-def build_model(spec, style_name="neon"):
+def build_model(spec, style_name="bloodbowl"):
     """Clear the scene and build one model from its spec."""
     style = STYLES[style_name]
     rig = spec.get("rig", "biped")
