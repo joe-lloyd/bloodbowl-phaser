@@ -1,3 +1,4 @@
+import { confirmPregame } from "../support/pregame";
 import { expect, Page, test } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
@@ -122,6 +123,7 @@ test("one saved team can play a fresh catalogue opponent without saving the oppo
   const app = new GameApp(page);
   await app.bridge.waitForReady();
   await app.rollWeather();
+  await confirmPregame(page);
   await expect(page.getByRole("button", { name: "FLIP COIN" })).toBeVisible({
     timeout: 15_000,
   });

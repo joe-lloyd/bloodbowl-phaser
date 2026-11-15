@@ -592,10 +592,16 @@ export async function persistMatch(
   snapshot: GameSnapshot,
   resume: MatchResume
 ): Promise<void> {
-  await updateDoc(lobbyRef(code), {
-    snapshot: plain(snapshot),
-    resume: plain(resume),
-    snapshotAt: serverTimestamp(),
+  const ref = lobbyRef(code);
+  await runTransaction(getDb(), async (tx) => {
+    const stored = await tx.get(ref);
+    const applied = (stored.data() as LobbyDoc | undefined)?.resume?.applied;
+    if (applied !== undefined && resume.applied < applied) return;
+    tx.update(ref, {
+      snapshot: plain(snapshot),
+      resume: plain(resume),
+      snapshotAt: serverTimestamp(),
+    });
   });
 }
 

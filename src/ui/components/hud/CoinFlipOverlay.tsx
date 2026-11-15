@@ -1,3 +1,5 @@
+import { usePregameInducements } from "./pregameInducementHooks";
+import { PregameInducements } from "./PregameInducements";
 import React, { useState, useEffect, useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
@@ -18,6 +20,7 @@ interface CoinFlipProps {
 }
 
 export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
+  const pregame = usePregameInducements(eventBus);
   const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState<"START" | "FLIPPING" | "RESULT">("START");
   const [teams, setTeams] = useState<{ team1: Team; team2: Team } | null>(null);
@@ -128,6 +131,7 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
   }, [step, computerWon]);
 
   if (!isVisible || !teams) return null;
+  if (pregame.pending) return <PregameInducements eventBus={eventBus} />;
 
   return (
     <DialogShell

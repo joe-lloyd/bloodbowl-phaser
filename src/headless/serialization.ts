@@ -8,6 +8,7 @@
  */
 
 import type { Weather } from "../game/rules/weather";
+import { assertPregameSaveable } from "../game/inducements/pregame";
 import {
   GameState,
   GamePhase,
@@ -123,6 +124,7 @@ export interface GameSnapshot {
   fanFactors?: GameState["fanFactors"];
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
+  pregameInducements?: GameState["pregameInducements"];
   /** Rolled Prayers and Desperate Measures; absent on pre-feature saves. */
   matchInducements?: GameState["matchInducements"];
   /**
@@ -259,6 +261,7 @@ export function serializeGameState(
     raisedDead: copyOf(state.raisedDead),
     fanFactors: copyOf(state.fanFactors),
     inducements: cloneOf(state.inducements),
+    pregameInducements: cloneOf(state.pregameInducements),
     matchInducements: cloneOf(state.matchInducements),
     kickoffResolution: cloneOf(state.kickoffResolution),
     kickoffKickResolved: copyOf(state.kickoffKickResolved),
@@ -338,6 +341,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     raisedDead: copyOf(snapshot.raisedDead),
     fanFactors: copyOf(snapshot.fanFactors),
     inducements: cloneOf(snapshot.inducements),
+    pregameInducements: cloneOf(snapshot.pregameInducements),
     matchInducements: cloneOf(snapshot.matchInducements),
     kickoffResolution: cloneOf(snapshot.kickoffResolution),
     kickoffKickResolved: copyOf(snapshot.kickoffKickResolved),
@@ -394,6 +398,7 @@ export function applySnapshotToTeams(
 
 /** Build a complete JSON-safe cold-restore payload without widening GameSnapshot. */
 export function createMatchSave(input: CreateMatchSaveInput): MatchSave {
+  assertPregameSaveable(input.state);
   const payload: MatchSave = {
     version: MATCH_SAVE_VERSION,
     savedAt: input.savedAt ?? Date.now(),

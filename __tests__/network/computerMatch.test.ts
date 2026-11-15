@@ -1,10 +1,11 @@
+import { confirmComputerPregame } from "../utils/computerPregame";
 /**
  * A match against the computer, end to end through ComputerMatch: the
  * human side is played by the heuristic coach through the match's own
  * `run`, the way the board's actions arrive, and the computer plays its
  * side by itself. The human may never act for the computer's team.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createComputerMatch } from "../../src/network/ComputerMatch";
 import {
   OnlineMatch,
@@ -104,6 +105,45 @@ describe("a match against the computer, once closed", () => {
   });
 });
 
+it("the computer waits for both teams, buys its own inducements and confirms before setup", async () => {
+  const team1 = stabilizeIds(
+    createLineupTeam(RosterName.HUMAN, "Home", 1),
+    "team1"
+  );
+  const team2 = stabilizeIds(
+    createLineupTeam(RosterName.HUMAN, "Computer", 2),
+    "team2"
+  );
+  team1.rerolls = 6;
+  team2.rerolls = 0;
+  team1.advancementMode = team2.advancementMode = "advanced-league";
+  match = createComputerMatch({
+    eventBus: new EventBus(),
+    team1,
+    team2,
+    computerTeamId: team2.id,
+    pace: 0,
+  });
+  const state = () => ServiceContainer.getInstance().gameService.getState();
+  await vi.waitFor(() =>
+    expect(state().pregameInducements?.ready.team2).toBe(true)
+  );
+  expect(state().inducements).toBeUndefined();
+  expect(state().pregameInducements?.offer).toBeUndefined();
+  await confirmComputerPregame(match);
+  expect(state().inducements?.inventory.length).toBeGreaterThan(0);
+  expect(
+    state().inducements?.inventory.every(
+      (entry) => entry.ownerTeamId === team2.id
+    )
+  ).toBe(true);
+  expect(state().pregameInducements?.offer?.confirmed).toEqual({
+    team1: true,
+    team2: true,
+  });
+  expect(team2.rerolls).toBe(0);
+});
+
 describe("whose turn it is against the computer", () => {
   // Activates every player it can, then has only End Turn left to choose,
   // while the engine is about to end the turn by itself.
@@ -142,6 +182,7 @@ describe("whose turn it is against the computer", () => {
       pace,
     });
     // The computer kicks, so the human takes the first turn.
+    await confirmComputerPregame(match);
     await match.run({ type: "start-setup", kickingTeamId: team2.id });
     const game = (
       globalThis.window as unknown as {
@@ -236,6 +277,7 @@ describe("a match against the computer", () => {
         computerTeamId: team2.id,
         pace: 0,
       });
+      await confirmComputerPregame(match);
       // The board's coin toss.
       await match.run({
         type: "start-setup",
@@ -323,6 +365,7 @@ describe("the computer's pace", () => {
       computerTeamId: team2.id,
       pace: 0,
     });
+    await confirmComputerPregame(match);
     await match.run({ type: "start-setup", kickingTeamId: team2.id });
     const game = (
       globalThis.window as unknown as {

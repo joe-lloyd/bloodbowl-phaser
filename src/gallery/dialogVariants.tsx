@@ -378,6 +378,8 @@ export const DIALOG_VARIANTS: Variant[] = [
     id: "inducement-panel",
     section: "Decision dialogs",
     title: "Pre-match inducements",
-    view: () => <InducementSelectionPanel onDone={() => {}} />,
+    view: (fx) => (
+      <InducementSelectionPanel teamId={fx.team1.id} onChanged={() => {}} />
+    ),
   },
 ];

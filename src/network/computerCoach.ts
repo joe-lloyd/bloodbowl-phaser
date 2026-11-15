@@ -1,4 +1,5 @@
 /** The same planner and paced command loop for local and online computer coaches. */
+import { nextComputerPregameCommand } from "../game/inducements/computerPurchases";
 import { whenEngineQuiet } from "../game/core/GameFlowManager";
 import { whenScreenSettled } from "../game/presentation/screenSettled";
 import { HeadlessGame } from "../headless/HeadlessGame";
@@ -10,7 +11,7 @@ import { plannerCoach } from "../simulation/ai/planner";
 import { enumerateDecision } from "../simulation/candidates";
 import { createCoachRng } from "../simulation/rng";
 import { GameEventNames } from "../types/events";
-import { GamePhase, SubPhase } from "../types/GameState";
+import { GamePhase, GameState, SubPhase } from "../types/GameState";
 import { decisionOwner, gateContextOf } from "./OwnershipGate";
 
 export interface ComputerCoachOptions {
@@ -81,6 +82,17 @@ function logChoice(
   log.push(`${snapshot.turn.turnNumber} ${label}${note ? ` | ${note}` : ""}`);
 }
 
+/** A setup still awaiting placement, confirmation or Swarming. */
+function ownsSetup(state: GameState, teamId: string): boolean {
+  return (
+    state.activeTeamId === teamId &&
+    (!state.setup?.confirmedTeamIds?.includes(teamId) ||
+      !!state.setup.swarming?.teams[teamId]) &&
+    (state.subPhase === SubPhase.SETUP_KICKING ||
+      state.subPhase === SubPhase.SETUP_RECEIVING)
+  );
+}
+
 export function computerOwnsDecision(
   game: HeadlessGame,
   teamId: string,
@@ -91,16 +103,11 @@ export function computerOwnsDecision(
   if (pending)
     return decisionOwner(pending, gateContextOf(game, hostTeamId)) === teamId;
   const state = game.ctx.gameService.getState();
+  if (state.pregameInducements && !state.pregameInducements.complete)
+    return !state.pregameInducements.offer?.confirmed[teamId];
   switch (state.phase) {
     case GamePhase.SETUP:
-      // The hand-over to the other team lands a moment after a confirm.
-      return (
-        active === teamId &&
-        (!state.setup?.confirmedTeamIds?.includes(teamId) ||
-          !!state.setup.swarming?.teams[teamId]) &&
-        (state.subPhase === SubPhase.SETUP_KICKING ||
-          state.subPhase === SubPhase.SETUP_RECEIVING)
-      );
+      return ownsSetup(state, teamId);
     case GamePhase.KICKOFF:
       // The kicking team acts, and it is the one not active.
       return (
@@ -123,6 +130,16 @@ export function createComputerCoach(options: ComputerCoachOptions) {
   const wait = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms * pace));
 
+  const thinkPregame = async (): Promise<boolean | null> => {
+    const pregame = game.ctx.gameService.getState().pregameInducements;
+    if (!pregame || pregame.complete || game.pendingDecision()) return null;
+    const command = nextComputerPregameCommand(pregame, computerTeamId, [
+      game.ctx.team1.id,
+      game.ctx.team2.id,
+    ]);
+    return command ? (await run(command)).ok : false;
+  };
+
   /** One decision, if it is the computer's to make; true when it acted. */
   const think = async (): Promise<boolean> => {
     if (thinking || closed || !mayAct()) return false;
@@ -131,6 +148,8 @@ export function createComputerCoach(options: ComputerCoachOptions) {
       // A turn that is about to end by itself has nothing left to decide.
       await whenEngineQuiet();
       if (closed || !mayAct()) return false;
+      const pregameActed = await thinkPregame();
+      if (pregameActed !== null) return pregameActed;
       const snapshot = game.snapshot();
       const point = await enumerateDecision(
         game,

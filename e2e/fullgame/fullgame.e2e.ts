@@ -1,3 +1,4 @@
+import { confirmPregame } from "../support/pregame";
 /**
  * One full Sevens match played through the real UI, start to finish.
  *
@@ -106,6 +107,7 @@ test("a full Sevens match, built and played through the UI", async ({
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
   await app.rollWeather(20_000);
+  await confirmPregame(page);
   await page
     .getByRole("button", { name: "FLIP COIN" })
     .waitFor({ timeout: 15_000 });
@@ -135,12 +137,10 @@ test("a full Sevens match, built and played through the UI", async ({
 
     // A dialog click that misses (an overlay passing over it) is retried
     // next step, like any other failed move
-    const answered = await answerDialog(page, app, i, rec).catch(
-      (e: Error) => {
-        log(`${i} dialog failed: ${e.message.split("\n")[0]}`);
-        return true;
-      }
-    );
+    const answered = await answerDialog(page, app, i, rec).catch((e: Error) => {
+      log(`${i} dialog failed: ${e.message.split("\n")[0]}`);
+      return true;
+    });
     if (answered) continue;
 
     const next = await brainNext(page);
@@ -169,7 +169,9 @@ test("a full Sevens match, built and played through the UI", async ({
         `   board ${await page.evaluate(() => {
           const scene = (
             window as unknown as {
-              game?: { scene: { getScene(k: string): Record<string, unknown> } };
+              game?: {
+                scene: { getScene(k: string): Record<string, unknown> };
+              };
             }
           ).game?.scene.getScene("GameScene");
           const c = scene?.gameplayController as
@@ -240,7 +242,10 @@ test("a full Sevens match, built and played through the UI", async ({
   }
 
   if (ux)
-    writeFileSync(`${OUT}/ux-summary.json`, JSON.stringify(ux.summary(), null, 2));
+    writeFileSync(
+      `${OUT}/ux-summary.json`,
+      JSON.stringify(ux.summary(), null, 2)
+    );
   await page.waitForTimeout(3000);
   await shot(page, "end");
   log(`fallbacks=${fallbacks}`);

@@ -78,6 +78,7 @@ export function ensureMatchServices(
       // Fan Factors for its winnings at full time
       {
         paysWinnings: fixturePaysWinnings(competitionContext?.competitionType),
+        pregameInducements: true,
       }
     );
   if (!restored && competitionContext?.knockout) {

@@ -34,8 +34,20 @@ export class InducementSession {
   constructor(
     private readonly profile: InducementRuleProfile,
     private readonly budgets: Record<string, number>,
-    private readonly catalogs: Record<string, InducementCatalogEntry[]>
-  ) {}
+    private readonly catalogs: Record<string, InducementCatalogEntry[]>,
+    saved?: {
+      selections: Record<string, InducementSelectionLine[]>;
+      confirmed: Record<string, boolean>;
+    }
+  ) {
+    for (const [id, selection] of Object.entries(saved?.selections ?? {}))
+      this.selections.set(
+        id,
+        selection.map((line) => ({ ...line }))
+      );
+    for (const [id, confirmed] of Object.entries(saved?.confirmed ?? {}))
+      if (confirmed) this.confirmed.add(id);
+  }
 
   getProfile(): InducementRuleProfile {
     return this.profile;
@@ -78,6 +90,10 @@ export class InducementSession {
     if (this.confirmed.has(teamId)) {
       return { ok: false, errors: ["already-confirmed"] };
     }
+    if (!(teamId in this.catalogs))
+      return { ok: false, errors: ["unknown-team"] };
+    if (!Number.isSafeInteger(quantity) || quantity < 0)
+      return { ok: false, errors: ["invalid-quantity"] };
     const current = this.selections.get(teamId) ?? [];
     const next = current.filter((line) => line.inducement !== inducement);
     if (quantity > 0) next.push({ inducement, quantity });
@@ -99,6 +115,9 @@ export class InducementSession {
 
   /** Re-validate and lock in a team's current selection. */
   confirm(teamId: string): InducementCommandResult {
+    if (!(teamId in this.catalogs))
+      return { ok: false, errors: ["unknown-team"] };
+    if (this.confirmed.has(teamId)) return { ok: true, errors: [] };
     const selection = this.selections.get(teamId) ?? [];
     const check = validateInducementSelection(
       this.getCatalogFor(teamId),

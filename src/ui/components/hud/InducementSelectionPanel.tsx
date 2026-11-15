@@ -1,118 +1,127 @@
-import React, { useMemo, useState } from "react";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { Inducement } from "../../../types/Inducements";
-import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
+import { DialogShell, HudButton, Notice } from "../componentWarehouse/HudKit";
+import { usePregameCommand } from "./pregameInducementHooks";
 
-interface InducementSelectionPanelProps {
-  /** Called once both teams have confirmed and the inventory is committed. */
-  onDone: () => void;
-}
+const EFFECTS: Partial<Record<Inducement, string>> = {
+  [Inducement.TEMP_AGENCY_CHEERLEADER]: "+1 to Cheering Fans.",
+  [Inducement.PART_TIME_ASSISTANT_COACH]: "+1 to Brilliant Coaching.",
+  [Inducement.BLITZERS_BEST_KEGS]: "+1 to KO recovery rolls per keg.",
+  [Inducement.PRAYERS_TO_NUFFLE]:
+    "Roll a random match-long blessing or dirty trick.",
+  [Inducement.EXTRA_TEAM_TRAINING]:
+    "An extra team re-roll each half (starting maximum 6).",
+  [Inducement.BRIBE]:
+    "On 2+, prevent a sending-off after Argue the Call fails.",
+  [Inducement.WANDERING_APOTHECARY]:
+    "One additional Apothecary use this match.",
+  [Inducement.MORTUARY_ASSISTANT]: "Re-roll one failed Regeneration roll.",
+  [Inducement.PLAGUE_DOCTOR]:
+    "An additional Apothecary use or failed Regeneration re-roll.",
+  [Inducement.HALFLING_MASTER_CHEF]:
+    "Each half, roll three dice: each 4+ gains a re-roll and removes one from the opponent if available.",
+  [Inducement.DESPERATE_MEASURES]:
+    "Roll a random trick to use once this match.",
+};
 
-/**
- * The pre-match inducement selection and confirmation flow (tasks.md 2.4):
- * one authoritative budget/catalog per match, each coach spends their petty
- * cash in turn, and confirming both locks the selection into match state.
- *
- * Routes every mutation through IGameService.selectInducement /
- * removeInducement / confirmInducements — the exact same authoritative
- * session GameService holds for the headless protocol and, over the
- * network, for the online host (see GameService.getOrCreateInducementSession
- * and NetworkedGameService, which sends these as protocol commands for the
- * guest instead of mutating a local copy). Local hotseat play walks both
- * coaches through this same panel in one browser tab, team1 first.
- */
-export const InducementSelectionPanel: React.FC<
-  InducementSelectionPanelProps
-> = ({ onDone }) => {
-  const container = ServiceContainer.isInitialized()
-    ? ServiceContainer.getInstance()
-    : null;
-  const teams = useMemo(() => {
-    if (!container) return null;
-    const state = container.gameService.getState();
-    const ids = Object.keys(state.score);
-    if (ids.length !== 2) return null;
-    return ids as [string, string];
-  }, [container]);
-
-  const [turnIndex, setTurnIndex] = useState(0);
-  const [, forceRender] = useState(0);
-
-  if (!container || !teams) return null;
-
-  const activeTeamId = teams[turnIndex];
-  const activeTeam = container.gameService.getTeam(activeTeamId)!;
-  const offer = container.gameService.getInducementOffer();
-  const budget = offer.budgets[activeTeamId] ?? 0;
-  const selection = offer.selections[activeTeamId] ?? [];
-  const catalog = offer.catalogs[activeTeamId] ?? [];
-  const qtyOf = (inducement: Inducement) =>
-    selection.find((line) => line.inducement === inducement)?.quantity ?? 0;
-
-  const spend = selection.reduce((sum, line) => {
-    const entry = catalog.find(
-      (c) => c.inducement === line.inducement
+export function InducementSelectionPanel({
+  teamId,
+  onChanged,
+}: {
+  teamId: string;
+  onChanged: () => void;
+}) {
+  const service = ServiceContainer.getInstance().gameService;
+  const team = service.getTeam(teamId)!;
+  const offer = service.getInducementOffer();
+  const catalog = offer.catalogs[teamId] ?? [];
+  const selection = offer.selections[teamId] ?? [];
+  const budget = offer.budgets[teamId] ?? 0;
+  const spent = selection.reduce(
+    (sum, line) =>
+      sum +
+      (catalog.find((entry) => entry.inducement === line.inducement)?.price ??
+        0) *
+        line.quantity,
+    0
+  );
+  const { busy, error, run } = usePregameCommand(onChanged);
+  const draft =
+    team.advancementMode === "matched-play"
+      ? (team.draftInducements ?? [])
+      : [];
+  const setQuantity = (inducement: Inducement, quantity: number) =>
+    void run(() =>
+      quantity === 0
+        ? service.removeInducement(teamId, inducement)
+        : service.selectInducement(teamId, inducement, quantity)
     );
-    return sum + (entry ? entry.price * line.quantity : 0);
-  }, 0);
-
-  const setQuantity = (inducement: Inducement, quantity: number) => {
-    const clamped = Math.max(0, quantity);
-    const result =
-      clamped === 0
-        ? container.gameService.removeInducement(activeTeamId, inducement)
-        : container.gameService.selectInducement(
-            activeTeamId,
-            inducement,
-            clamped
-          );
-    if (!result.ok) {
-      console.warn("[Inducements] selection rejected:", result.errors);
-    }
-    forceRender((n) => n + 1);
-  };
-
-  const confirmAndAdvance = () => {
-    const result = container.gameService.confirmInducements(activeTeamId);
-    if (!result.ok) {
-      console.warn("[Inducements] confirm rejected:", result.errors);
-      return;
-    }
-    if (turnIndex + 1 < teams.length) {
-      setTurnIndex(turnIndex + 1);
-      return;
-    }
-    onDone();
-  };
-
   return (
     <DialogShell
-      title={<>Inducements — {activeTeam.name}</>}
-      width="w-[520px]"
+      zClass="z-[100]"
+      title={`Inducements — ${team.name}`}
+      width="w-[600px]"
       placement="center"
       backdrop="heavy"
-      className="max-h-[80vh] overflow-y-auto hud-scroll"
+      className="max-h-[85dvh] overflow-y-auto hud-scroll"
       actions={
-        <HudButton variant="gold" size="lg" block onClick={confirmAndAdvance}>
-          {turnIndex + 1 < teams.length
-            ? `CONFIRM — NEXT: ${container.gameService.getTeam(teams[turnIndex + 1])?.name}`
-            : "CONFIRM AND START MATCH"}
+        <HudButton
+          variant="gold"
+          size="lg"
+          block
+          disabled={busy}
+          onClick={() => void run(() => service.confirmInducements(teamId))}
+        >
+          {busy
+            ? "Saving…"
+            : spent > 0
+              ? "Confirm inducements"
+              : "Confirm — no purchases"}
         </HudButton>
       }
     >
-      <p className="mb-4 flex items-baseline gap-2">
-        <span className="hud-label">Petty Cash:</span>
-        <span className="font-hud-display text-hud-xl text-hud-gold">
-          {(budget - spend).toLocaleString()}
-        </span>
-        <span className="text-hud-dim">
-          / {budget.toLocaleString()} gold remaining
-        </span>
+      <p className="mb-2 text-hud-dim">
+        Both teams are ready. Confirm your selection before the coin toss.
       </p>
-
-      <div className="flex flex-col gap-2">
+      <p className="mb-4 font-hud-display text-hud-xl text-hud-gold">
+        {(budget - spent).toLocaleString()} / {budget.toLocaleString()} gold
+        remaining
+      </p>
+      {team.advancementMode === "matched-play" ? (
+        <Notice className="mb-3">
+          Matched Play inducements come from your draft budget. There is no
+          additional petty cash.
+        </Notice>
+      ) : (
+        budget === 0 && (
+          <Notice className="mb-3">
+            No petty cash: your team value is equal to or higher than your
+            opponent&apos;s. You can continue without buying anything.
+          </Notice>
+        )
+      )}
+      {draft.length > 0 && (
+        <div className="mb-3 text-hud-sm">
+          <strong>Already on your draft list</strong>
+          <ul>
+            {draft.map((line) => (
+              <li key={line.inducement}>
+                {line.quantity} × {line.inducement}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {error && (
+        <Notice tone="bad" role="alert" className="mb-3">
+          {error}
+        </Notice>
+      )}
+      <div className="space-y-2">
         {catalog.map((entry) => {
-          const qty = qtyOf(entry.inducement);
+          const quantity =
+            selection.find((line) => line.inducement === entry.inducement)
+              ?.quantity ?? 0;
           return (
             <div
               key={entry.inducement}
@@ -126,24 +135,36 @@ export const InducementSelectionPanel: React.FC<
                   {entry.price.toLocaleString()} gold each · max{" "}
                   {entry.maxCount}
                 </div>
+                <p className="text-hud-sm text-hud-dim">
+                  {EFFECTS[entry.inducement]}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <HudButton
+                  aria-label={`Remove ${entry.inducement}`}
                   size="sm"
                   className="!w-9 !px-0"
-                  onClick={() => setQuantity(entry.inducement, qty - 1)}
-                  disabled={qty <= 0}
+                  disabled={busy || quantity === 0}
+                  onClick={() => setQuantity(entry.inducement, quantity - 1)}
                 >
                   −
                 </HudButton>
-                <span className="w-6 text-center font-hud-display text-hud-xl">
-                  {qty}
+                <span
+                  aria-label={`${entry.inducement} quantity`}
+                  className="w-5 text-center font-hud-display text-hud-xl"
+                >
+                  {quantity}
                 </span>
                 <HudButton
+                  aria-label={`Buy ${entry.inducement}`}
                   size="sm"
                   className="!w-9 !px-0"
-                  onClick={() => setQuantity(entry.inducement, qty + 1)}
-                  disabled={qty >= entry.maxCount}
+                  disabled={
+                    busy ||
+                    quantity >= entry.maxCount ||
+                    entry.price > budget - spent
+                  }
+                  onClick={() => setQuantity(entry.inducement, quantity + 1)}
                 >
                   +
                 </HudButton>
@@ -151,13 +172,7 @@ export const InducementSelectionPanel: React.FC<
             </div>
           );
         })}
-        {budget === 0 && (
-          <p className="text-center text-hud-sm text-hud-mute">
-            No petty cash this match — team values are level (or this team
-            has the higher value).
-          </p>
-        )}
       </div>
     </DialogShell>
   );
-};
+}

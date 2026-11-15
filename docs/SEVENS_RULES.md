@@ -182,6 +182,18 @@ Where the magazine is silent, the engine does this:
 | L5 | Desperate Measures: each one bought rolls on the D8 table below, re-rolling duplicates. Each result can be used once per game. | ok |
 | L6 | No player or Sideline Staff may be fired after a game, and nobody can Temporarily Retire. | ok: a team that has played is refused when it fires a player, and cannot sell back staff. The game has no Temporary Retirement |
 
+New local, computer and online matches use this pregame sequence: both
+coaches ready up for the weather roll, the teams buy inducements in turn
+(the higher team value first, and each confirms even when it buys none),
+any prayer or desperate-measure choices resolve, then the coin toss starts
+setup. The computer readies and buys its own affordable inducements.
+The purchase screen shows the remaining petty cash, per-item limits and
+match effects. Matched Play keeps its draft-budget purchases and receives
+no extra petty cash; those draft purchases load with the match.
+Readiness and accepted selections survive save/resume and online sync.
+Confirmed purchases cannot be edited or loaded twice. Existing in-progress
+saves and sandbox scenarios without this pregame step remain playable.
+
 What each L3 inducement does in the engine, from the 2025 rulebook pages
 147 to 149:
 

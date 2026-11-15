@@ -218,37 +218,39 @@ export class NetworkedGameService implements IGameService {
     // on both engines. Committing here would change this engine only.
   }
   getInducementOffer() {
-    // Known limitation: the catalog/profile/budget always match the host
-    // (pure functions of each team's TV, which does sync), but the
-    // in-progress selections/confirmed flags are NOT part of GameSnapshot —
-    // only the *committed* inventory is (GameState.inducements, post-
-    // confirm). Pre-confirm, this reflects only this replica's own
-    // never-mutated session, not the host's live in-progress picks. Real
-    // Blood Bowl inducement selection is simultaneous/blind before reveal,
-    // so a coach not seeing the opponent's uncommitted choices is correct
-    // behavior; what is missing is this team's OWN selection echoing back
-    // before the next snapshot, which the optimistic `select`/`remove`
-    // return values above already paper over for the common case.
     return this.inner.getInducementOffer();
+  }
+  private async pregameCommand(command: HeadlessCommand) {
+    const response = await this.run(command);
+    return {
+      ok: response.ok,
+      errors: response.ok ? [] : [response.reason ?? "Purchase refused"],
+    };
   }
   selectInducement(
     teamId: string,
     inducement: import("../types/Inducements").Inducement,
     quantity: number
-  ): { ok: boolean; errors: string[] } {
-    this.send({ type: "select-inducement", teamId, inducement, quantity });
-    return { ok: true, errors: [] }; // optimistic; a rejection self-corrects on sync
+  ) {
+    return this.pregameCommand({
+      type: "select-inducement",
+      teamId,
+      inducement,
+      quantity,
+    });
   }
   removeInducement(
     teamId: string,
     inducement: import("../types/Inducements").Inducement
-  ): { ok: boolean; errors: string[] } {
-    this.send({ type: "remove-inducement", teamId, inducement });
-    return { ok: true, errors: [] };
+  ) {
+    return this.pregameCommand({
+      type: "remove-inducement",
+      teamId,
+      inducement,
+    });
   }
-  confirmInducements(teamId: string): { ok: boolean; errors: string[] } {
-    this.send({ type: "confirm-inducements", teamId });
-    return { ok: true, errors: [] };
+  confirmInducements(teamId: string) {
+    return this.pregameCommand({ type: "confirm-inducements", teamId });
   }
   isSetupComplete(teamId: string): boolean {
     return this.getSetupStatus(teamId)?.canConfirm ?? false;

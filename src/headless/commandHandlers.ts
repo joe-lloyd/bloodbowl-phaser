@@ -1,3 +1,4 @@
+import { assertPregamePurchasesComplete } from "../game/inducements/pregame";
 /**
  * Command handlers - one per command type, run by HeadlessGame.execute once a
  * command has passed its shape check and the pending-decision gate.
@@ -170,6 +171,7 @@ async function coinFlip({
   setKickingTeam,
 }: CommandHost): Promise<void> {
   const gs = ctx.gameService;
+  assertPregamePurchasesComplete(gs.getState());
   // Coin flip lives UI-side in the browser; headless resolves it with
   // the seeded RNG so it stays deterministic and replayable.
   if (!gs.canCoinFlip()) {
@@ -263,6 +265,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
   },
   "start-setup": async (host, cmd) => {
     assertTeam(host.ctx, cmd.kickingTeamId);
+    assertPregamePurchasesComplete(host.ctx.gameService.getState());
     host.setKickingTeam(cmd.kickingTeamId);
     host.ctx.gameService.startSetup(cmd.kickingTeamId);
   },
@@ -602,7 +605,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
   "select-inducement": async ({ ctx }, cmd) => {
     assertTeam(ctx, cmd.teamId);
     requireOk(
-      ctx.gameService.selectInducement(
+      await ctx.gameService.selectInducement(
         cmd.teamId,
         cmd.inducement as Inducement,
         cmd.quantity
@@ -612,11 +615,14 @@ const COMMAND_HANDLERS: CommandHandlers = {
   "remove-inducement": async ({ ctx }, cmd) => {
     assertTeam(ctx, cmd.teamId);
     requireOk(
-      ctx.gameService.removeInducement(cmd.teamId, cmd.inducement as Inducement)
+      await ctx.gameService.removeInducement(
+        cmd.teamId,
+        cmd.inducement as Inducement
+      )
     );
   },
   "confirm-inducements": async ({ ctx }, cmd) => {
     assertTeam(ctx, cmd.teamId);
-    requireOk(ctx.gameService.confirmInducements(cmd.teamId));
+    requireOk(await ctx.gameService.confirmInducements(cmd.teamId));
   },
 };

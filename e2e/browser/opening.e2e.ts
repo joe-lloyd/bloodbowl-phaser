@@ -1,3 +1,4 @@
+import { confirmPregame } from "../support/pregame";
 /**
  * The opening of a real match, in order: both teams are introduced, the
  * coach rolls the weather in its dialog and reads the result off the
@@ -87,7 +88,9 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await shot("weather");
   await page.getByRole("button", { name: "ON TO THE COIN TOSS" }).click();
 
-  // The toss comes up after it, showing whose side is whose
+  await confirmPregame(page);
+
+  // The toss comes up after the weather and confirmed purchases
   await expect(flip).toBeVisible({ timeout: 15_000 });
   const announced = (await app.bridge.events())
     .filter(

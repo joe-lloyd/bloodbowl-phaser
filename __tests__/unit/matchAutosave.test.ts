@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { MatchAutosave } from "../../src/game/persistence/MatchAutosave";
 import {
@@ -136,7 +136,11 @@ describe("MatchAutosave", () => {
       { repository, debounceMs: 1 }
     );
     const saved = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      await vi.waitFor(() =>
+        expect(repository.writes.at(-1)?.matchStats).toEqual(
+          stats.captureState()
+        )
+      );
       return JSON.stringify(repository.writes.at(-1)?.matchStats);
     };
     autosave.start();
