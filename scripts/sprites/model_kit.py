@@ -97,6 +97,8 @@ BASE_COLORS = dict(
     fur=(0.46, 0.34, 0.24), wood=(0.44, 0.28, 0.15), leaf=(0.34, 0.66, 0.28), wrap=(0.8, 0.76, 0.6),
     hair=(0.08, 0.07, 0.1), skin=(0.8, 0.58, 0.52), horn=(0.78, 0.72, 0.6), feather=(0.95, 0.4, 0.15),
     flesh=(0.75, 0.4, 0.45), dark=(0.05, 0.05, 0.07),
+    # The red of a medical cross, whatever the team's colours
+    medical=(0.78, 0.07, 0.08),
 )
 FLAT_COLORS = dict(eyes=(1.0, 0.08, 0.1), glow=(0.3, 1.0, 0.45), fire=(1.0, 0.55, 0.1))
 SKIN = dict(

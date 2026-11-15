@@ -52,9 +52,10 @@ def sideline_part(c, role):
         mesh_object("notes", box(0.25, 0.015, 0.32), "wrap", hand, (0, -0.08, -0.1))
         mesh_object("clip", box(0.09, 0.025, 0.05), "steel", hand, (0, -0.09, 0.07))
     if role in ("apothecary", "medic"):
-        mesh_object("medical_strap", box(0.12, c.td + 0.02, c.th), "kit1", chest, (0.15, 0, c.th * 0.6))
-        mesh_object("medical_badge_v", box(0.04, 0.025, 0.16), "kit2", chest, (-0.1, -c.td / 2 - 0.02, c.th * 0.6))
-        mesh_object("medical_badge_h", box(0.14, 0.025, 0.04), "kit2", chest, (-0.1, -c.td / 2 - 0.025, c.th * 0.6))
+        # A red cross on a white strap, the same for every team
+        mesh_object("medical_strap", box(0.12, c.td + 0.02, c.th), "wrap", chest, (0.15, 0, c.th * 0.6))
+        mesh_object("medical_badge_v", box(0.04, 0.025, 0.16), "medical", chest, (-0.1, -c.td / 2 - 0.02, c.th * 0.6))
+        mesh_object("medical_badge_h", box(0.14, 0.025, 0.04), "medical", chest, (-0.1, -c.td / 2 - 0.025, c.th * 0.6))
     if role == "fan":
         mesh_object("scarf", box(c.tw + 0.06, c.td + 0.04, 0.1), "kit2", chest, (0, 0, c.th))
         mesh_object("scarf_tail", box(0.12, 0.04, 0.4), "kit2", chest, (0.13, -c.td / 2 - 0.03, c.th - 0.15))

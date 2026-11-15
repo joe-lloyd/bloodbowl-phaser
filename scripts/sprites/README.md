@@ -2,8 +2,13 @@
 
 Players and the stadium are pre-rendered in Blender, from the same camera the
 game draws the board with, then packed into Phaser atlases. Blender runs on a
-Windows machine with a GPU (Jellybingus); the packing runs anywhere with
-Python 3 and Pillow.
+Windows machine with a GPU (Jellybingus). The sideline crew were also rendered
+in Blender 5.1 on Daily Driver, which gives the same frames. The packing runs
+anywhere with Python 3 and Pillow.
+
+The player atlases shipped today are a separate pixel-art pass (#164, from
+Conveyor), not this pipeline's output, so the sideline crew still have the
+Blender toon look.
 
 ## The camera
 
