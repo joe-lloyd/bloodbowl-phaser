@@ -113,6 +113,12 @@ describe("PlayPhaseHandler board reconciliation", () => {
     eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>
       acks.push(data)
     );
+    // The failed catch's die is still in the air when the bounce comes
+    eventBus.emit(GameEventNames.UI_DiceInAir, {
+      count: 1,
+      thrown: 1,
+      landedThrough: 0,
+    });
     eventBus.emit(GameEventNames.PassFumbled, {
       playerId: "bounce",
       position: { x: 4, y: 4 },
