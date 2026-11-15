@@ -430,15 +430,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (hovered === this.raisedSprite) return;
-    this.lowerRaisedPlayer();
+    if (this.raisedSprite?.active) this.raisedSprite.setRaised(false);
     hovered?.setRaised(true);
     this.raisedSprite = hovered;
-  }
-
-  /** Put the raised player back among the others. */
-  public lowerRaisedPlayer(): void {
-    if (this.raisedSprite?.active) this.raisedSprite.setRaised(false);
-    this.raisedSprite = null;
   }
 
   /**
