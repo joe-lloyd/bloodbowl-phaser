@@ -214,14 +214,6 @@
       "count": 1
     }
   },
-  "src/game/operations/PassOperation.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
   "src/game/operations/ThrowTeammateOperation.ts": {
     "complexity": {
       "count": 1
