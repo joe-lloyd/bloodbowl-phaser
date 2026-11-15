@@ -58,11 +58,6 @@
       "count": 1
     }
   },
-  "__tests__/unit/matchResultsScreen.test.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "e2e/browser/later-drive-kickoff.e2e.ts": {
     "complexity": {
       "count": 1
