@@ -202,26 +202,13 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
       </div>
 
       {!winner && (
-        <div className="space-y-5">
-          <div className="flex justify-center py-4 [perspective:600px]">
-            <HudCoin spin={spin} />
-          </div>
-          {!bothReady ? (
-            iAmReady ? (
-              <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-                Waiting for {match.opponentName} to ready up…
-              </p>
-            ) : (
-              <HudButton variant="primary" size="lg" block onClick={ready}>
-                READY — FLIP COIN
-              </HudButton>
-            )
-          ) : (
-            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-gold">
-              Flipping…
-            </p>
-          )}
-        </div>
+        <ReadyCheck
+          spin={spin}
+          bothReady={bothReady}
+          iAmReady={iAmReady}
+          opponentName={match.opponentName}
+          onReady={ready}
+        />
       )}
 
       <div
@@ -235,38 +222,98 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
       />
 
       {winner && landed && (
-        <div className="space-y-5 animate-hud-in">
-          <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
-            {winner.name} wins the toss!
-          </div>
-          {iWon ? (
-            <>
-              <p className="text-hud-dim">Choose to kick or receive</p>
-              <div className="grid grid-cols-2 gap-3">
-                <HudButton
-                  variant="gold"
-                  size="lg"
-                  onClick={() => choose("kick")}
-                >
-                  KICK
-                </HudButton>
-                <HudButton
-                  variant="primary"
-                  size="lg"
-                  onClick={() => choose("receive")}
-                >
-                  RECEIVE
-                </HudButton>
-              </div>
-            </>
-          ) : (
-            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-              {match.opponentName} is choosing to kick or receive…
-            </p>
-          )}
-        </div>
+        <TossResult
+          winnerName={winner.name}
+          iWon={iWon}
+          opponentName={match.opponentName}
+          onChoose={choose}
+        />
       )}
     </DialogShell>
+  );
+}
+
+/** Both coaches ready up, then the coin spins until the host's result. */
+function ReadyCheck({
+  spin,
+  bothReady,
+  iAmReady,
+  opponentName,
+  onReady,
+}: {
+  spin: number;
+  bothReady: boolean;
+  iAmReady: boolean;
+  opponentName: string;
+  onReady: () => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex justify-center py-4 [perspective:600px]">
+        <HudCoin spin={spin} />
+      </div>
+      {!bothReady ? (
+        iAmReady ? (
+          <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+            Waiting for {opponentName} to ready up…
+          </p>
+        ) : (
+          <HudButton variant="primary" size="lg" block onClick={onReady}>
+            READY — FLIP COIN
+          </HudButton>
+        )
+      ) : (
+        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-gold">
+          Flipping…
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** The winner chooses to kick or receive; the other coach waits. */
+function TossResult({
+  winnerName,
+  iWon,
+  opponentName,
+  onChoose,
+}: {
+  winnerName: string;
+  iWon: boolean;
+  opponentName: string;
+  onChoose: (choice: "kick" | "receive") => void;
+}) {
+  return (
+    <div className="space-y-5 animate-hud-in">
+      <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
+        {winnerName} wins the toss!
+      </div>
+      {iWon ? (
+        <>
+          <p className="text-hud-dim">Choose to kick or receive</p>
+          <div className="grid grid-cols-2 gap-3">
+            <HudButton
+              variant="gold"
+              size="lg"
+              onClick={() => onChoose("kick")}
+            >
+              KICK
+            </HudButton>
+            <HudButton
+              variant="primary"
+              size="lg"
+              onClick={() => onChoose("receive")}
+            >
+              RECEIVE
+            </HudButton>
+          </div>
+        </>
+      ) : (
+        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+          {opponentName} is choosing to kick or receive…
+        </p>
+      )}
+    </div>
   );
 }
 

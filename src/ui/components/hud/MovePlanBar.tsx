@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames, UIEvents } from "../../../types/events";
 import { GamePhase, SubPhase } from "../../../types/GameState";
@@ -46,22 +46,8 @@ export function MovePlanBar({
   useEventBus(eventBus, GameEventNames.KickoffEventStepStarted, bump);
   useEventBus(eventBus, GameEventNames.KickoffEventStepResolved, bump);
 
-  const game = ServiceContainer.isInitialized()
-    ? ServiceContainer.getInstance().gameService
-    : null;
-  const aimingKick =
-    phase === GamePhase.KICKOFF &&
-    game?.getSubPhase() === SubPhase.ROLL_KICKOFF &&
-    !game.getKickoffEventStep();
-  if (aimingKick && !getActiveOnlineMatch())
-    return (
-      <div
-        data-testid="move-hint"
-        className="hud-slab whitespace-nowrap px-3.5 py-2 font-hud-label text-hud-sm font-bold uppercase tracking-[0.08em] text-hud-gold pointer-events-none"
-      >
-        Tap your kicker, then a square in their half
-      </div>
-    );
+  if (isAimingKick(phase) && !getActiveOnlineMatch())
+    return <MoveHint>Tap your kicker, then a square in their half</MoveHint>;
   if (phase !== GamePhase.PLAY) return null;
 
   const clear = (
@@ -136,13 +122,31 @@ export function MovePlanBar({
   const mine = online ? online.myTeamId === activeTeamId : true;
   if (!mine) return null;
   return (
+    <MoveHint>
+      {selected?.teamId === activeTeamId
+        ? "Tap a square or drag a route"
+        : "Your turn · tap a player"}
+    </MoveHint>
+  );
+}
+
+/** Whether the kicking coach is choosing where to kick. */
+function isAimingKick(phase: GamePhase): boolean {
+  if (phase !== GamePhase.KICKOFF || !ServiceContainer.isInitialized())
+    return false;
+  const game = ServiceContainer.getInstance().gameService;
+  return (
+    game.getSubPhase() === SubPhase.ROLL_KICKOFF && !game.getKickoffEventStep()
+  );
+}
+
+function MoveHint({ children }: { children: ReactNode }) {
+  return (
     <div
       data-testid="move-hint"
       className="hud-slab whitespace-nowrap px-3.5 py-2 font-hud-label text-hud-sm font-bold uppercase tracking-[0.08em] text-hud-gold pointer-events-none"
     >
-      {selected?.teamId === activeTeamId
-        ? "Tap a square or drag a route"
-        : "Your turn · tap a player"}
+      {children}
     </div>
   );
 }

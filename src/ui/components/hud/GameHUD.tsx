@@ -275,38 +275,28 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     );
   };
 
+  const menuActions: Record<MatchOptionsMenuActionId, () => void> = {
+    "exit-sandbox": () => navigate("/"),
+    "return-to-menu": () => navigate("/"),
+    "abandon-match": () => {
+      // Navigate first: if leaving the page fails for any reason, the
+      // save is still intact and the match still resumable.
+      navigate("/");
+      clearMatchSave();
+    },
+    "save-and-exit": () => onlineMenu?.onSaveAndExit(),
+    "leave-match": () => onlineMenu?.onSaveAndExit(),
+    "request-end-match": () => onlineMenu?.onRequestEndMatch(),
+    "cancel-end-match": () => onlineMenu?.onCancelEndMatch(),
+    "force-abandon": () => onlineMenu?.onForceAbandon(),
+    reconnect: () => onlineMenu?.onReconnect(),
+    "respond-end-match": () => {},
+    "connection-status": () => {},
+  };
+
   const handleMenuSelect = (id: MatchOptionsMenuActionId) => {
     try {
-      switch (id) {
-        case "exit-sandbox":
-        case "return-to-menu":
-          navigate("/");
-          return;
-        case "abandon-match":
-          // Navigate first: if leaving the page fails for any reason, the
-          // save is still intact and the match still resumable.
-          navigate("/");
-          clearMatchSave();
-          return;
-        case "save-and-exit":
-        case "leave-match":
-          onlineMenu?.onSaveAndExit();
-          return;
-        case "request-end-match":
-          onlineMenu?.onRequestEndMatch();
-          return;
-        case "cancel-end-match":
-          onlineMenu?.onCancelEndMatch();
-          return;
-        case "force-abandon":
-          onlineMenu?.onForceAbandon();
-          return;
-        case "reconnect":
-          onlineMenu?.onReconnect();
-          return;
-        default:
-          return;
-      }
+      menuActions[id]();
     } catch (error) {
       reportMenuActionFailed(error);
     }

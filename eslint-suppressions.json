@@ -58,11 +58,6 @@
       "count": 1
     }
   },
-  "__tests__/unit/matchResultsScreen.test.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "e2e/browser/later-drive-kickoff.e2e.ts": {
     "complexity": {
       "count": 1
@@ -483,144 +478,12 @@
       "count": 1
     }
   },
-  "src/ui/components/TeamBuilder/TeamRoster.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/BlockDiceDialog.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/DiceTray.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/GameHUD.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/HalfTimeCard.tsx": {
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/KickoffEventOverlay.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/MatchOptionsMenu.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/MovePlanBar.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/PlayerActionMenu.tsx": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/PlayerInfoPanel.tsx": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/RerollDialog.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/SandboxOverlay.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/SetupControls.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/pages/CompetitionView.tsx": {
     "complexity": {
       "count": 3
     },
     "sonarjs/cognitive-complexity": {
       "count": 1
-    }
-  },
-  "src/ui/components/pages/MainMenu.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/pages/OnlineLobby.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
-  },
-  "src/ui/components/pages/PlayerPage.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/components/pages/TournamentBracket.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/pages/GamePage.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/pages/OnlineCoinFlip.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/pages/OnlinePlayPage.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/ui/pages/TurnClock.tsx": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
     }
   }
 }

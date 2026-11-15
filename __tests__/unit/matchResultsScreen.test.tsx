@@ -1,36 +1,16 @@
+/**
+ * The full-time screen's result, injuries and winnings.
+ * The shared setup is in matchResultsScreenHarness.tsx.
+ */
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ServiceContainer } from "../../src/services/ServiceContainer";
-import { EventBus } from "../../src/services/EventBus";
-import { GameEventNames } from "../../src/types/events";
-import { GamePhase } from "../../src/types/GameState";
+import { MemoryRouter } from "react-router-dom";
+import { describe, expect, it, vi } from "vitest";
 import { MatchResultsScreen } from "../../src/ui/components/hud/MatchResultsScreen";
 import { InjuryType, PlayerStatus } from "../../src/types/Player";
 import { ArmourOperation } from "../../src/game/operations/ArmourOperation";
 import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOperation";
 import { GameFlowManager, noDelay } from "../../src/game/core/GameFlowManager";
-import { TeamBuilder } from "../utils/test-builders";
-import {
-  OnlineMatch,
-  setActiveOnlineMatch,
-} from "../../src/network/OnlineMatch";
-import { setMatchSaveRepository } from "../../src/game/persistence/MatchSaveRepository";
-import {
-  computeStandings,
-  generateRoundRobin,
-} from "../../src/competition/logic";
-import { saveCompetition } from "../../src/competition/repository";
-import { recordCompetitionFixture } from "../../src/competition/resultRecording";
-import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
-import {
-  loadTeams,
-  saveTeams,
-  setTeamRepository,
-} from "../../src/game/managers/TeamManager";
-import { Team } from "../../src/types/Team";
-import { TeamBuilder as TeamBuilderPage } from "../../src/ui/components/pages/TeamBuilder";
+import { resultsHarness, setup } from "./matchResultsScreenHarness";
 
 const clearActiveMatchCode = vi.fn(() => Promise.resolve());
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
@@ -48,159 +28,35 @@ vi.mock("../../src/firebase/config", () => ({
 }));
 
 describe("MatchResultsScreen", () => {
-  let container: HTMLDivElement;
-  let root: Root;
-
-  beforeEach(() => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
-  });
-
-  afterEach(async () => {
-    vi.restoreAllMocks();
-    setTeamRepository(null);
-    await act(async () => root.unmount());
-    container.remove();
-    ServiceContainer.reset();
-  });
-
-  function setup(progressionEnabled: boolean) {
-    const team1 = new TeamBuilder()
-      .withId("team-1")
-      .withName("Reikland Reavers")
-      .withPlayers(2)
-      .build();
-    const team2 = new TeamBuilder()
-      .withId("team-2")
-      .withName("Bad Badgers")
-      .withPlayers(2)
-      .build();
-    [...team1.players, ...team2.players].forEach((p) => {
-      p.playerName = `Player ${p.number}`;
-    });
-    const eventBus = new EventBus();
-    const services = ServiceContainer.initialize(
-      eventBus,
-      team1,
-      team2,
-      undefined,
-      undefined,
-      undefined,
-      progressionEnabled
-    );
-    const state = services.gameService.getState();
-    state.phase = GamePhase.GAME_OVER;
-    return { services, state, team1, team2 };
-  }
-
-  async function render() {
-    await act(async () => {
-      root.render(
-        <MemoryRouter>
-          <MatchResultsScreen visible={true} />
-        </MemoryRouter>
-      );
-    });
-  }
+  const h = resultsHarness();
 
   it("shows the result and statistics for a progression-disabled match, with no SPP column and a free exit", async () => {
     const { state } = setup(false);
     state.score["team-1"] = 2;
     state.score["team-2"] = 1;
 
-    await render();
+    await h.render();
 
-    expect(container.textContent).toContain("Full Time");
-    expect(container.textContent).toContain("Reikland Reavers");
-    expect(container.textContent).toContain("Bad Badgers");
-    expect(container.textContent).toContain("2 : 1");
-    expect(container.textContent).toContain("Reikland Reavers win");
-    const sppHeader = [...container.querySelectorAll("th")].find(
+    expect(h.container.textContent).toContain("Full Time");
+    expect(h.container.textContent).toContain("Reikland Reavers");
+    expect(h.container.textContent).toContain("Bad Badgers");
+    expect(h.container.textContent).toContain("2 : 1");
+    expect(h.container.textContent).toContain("Reikland Reavers win");
+    const sppHeader = [...h.container.querySelectorAll("th")].find(
       (th) => th.textContent === "SPP"
     );
     expect(sppHeader).toBeUndefined();
     expect(
-      [...container.querySelectorAll("th")].some(
+      [...h.container.querySelectorAll("th")].some(
         (th) => th.textContent === "MVP"
       )
     ).toBe(false);
-    expect(container.textContent).toContain("This match does not award SPP");
+    expect(h.container.textContent).toContain("This match does not award SPP");
 
-    const exitButton = [...container.querySelectorAll("button")].find((b) =>
+    const exitButton = [...h.container.querySelectorAll("button")].find((b) =>
       b.textContent?.includes("Continue to Main Menu")
     )!;
     expect(exitButton.disabled).toBe(false);
-  });
-
-  it("clears the save when a match against the computer ends", async () => {
-    setup(false);
-    const clear = vi.fn();
-    setMatchSaveRepository({
-      read: () => null,
-      write: () => {},
-      clear,
-      describe: () => null,
-    });
-    setActiveOnlineMatch({
-      kind: "computer",
-      myTeamId: "team-1",
-      mayAct: () => true,
-    } as unknown as OnlineMatch);
-    try {
-      await render();
-      const exit = [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Continue to Main Menu")
-      )!;
-      await act(async () => exit.click());
-      expect(clear).toHaveBeenCalledTimes(1);
-    } finally {
-      setActiveOnlineMatch(null);
-      setMatchSaveRepository(null);
-    }
-  });
-
-  it("drops the home screen's link to an online match once the coach leaves full time", async () => {
-    setup(false);
-    clearActiveMatchCode.mockClear();
-    setActiveOnlineMatch({
-      kind: "online",
-      code: "ABCD",
-      myTeamId: "team-1",
-      mayAct: () => true,
-    } as unknown as OnlineMatch);
-    try {
-      await render();
-      expect(clearActiveMatchCode).not.toHaveBeenCalled();
-      const exit = [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Continue to Main Menu")
-      )!;
-      await act(async () => exit.click());
-      expect(clearActiveMatchCode).toHaveBeenCalledWith("coach-uid");
-    } finally {
-      setActiveOnlineMatch(null);
-    }
-  });
-
-  it("records a game once, even when the page reloads before the coach leaves again", async () => {
-    const { team1, team2 } = setup(false);
-    saveTeams([structuredClone(team1), structuredClone(team2)]);
-    const leaveFullTime = async () => {
-      await render();
-      const exit = [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Continue to Main Menu")
-      )!;
-      await act(async () => exit.click());
-    };
-    await leaveFullTime();
-    // A reload mounts a fresh results screen on the restored match
-    await act(async () => root.unmount());
-    root = createRoot(container);
-    await leaveFullTime();
-
-    expect(
-      loadTeams().find((team) => team.id === "team-1")!.playedGames
-    ).toHaveLength(1);
   });
 
   it("opens at full time on a HUD that was already mounted during play", async () => {
@@ -210,113 +66,9 @@ describe("MatchResultsScreen", () => {
         <MatchResultsScreen visible={visible} />
       </MemoryRouter>
     );
-    await act(async () => root.render(screen(false)));
-    await act(async () => root.render(screen(true)));
-    expect(container.textContent).toContain("Full Time");
-  });
-
-  it("adds the game to each team's played games when the coach leaves", async () => {
-    const { state, team1, team2 } = setup(false);
-    state.score["team-1"] = 2;
-    state.score["team-2"] = 1;
-    saveTeams([structuredClone(team1), structuredClone(team2)]);
-
-    await render();
-    const exit = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Continue to Main Menu")
-    )!;
-    await act(async () => exit.click());
-
-    const played = (id: string) =>
-      loadTeams().find((team) => team.id === id)!.playedGames;
-    expect(played("team-1")).toMatchObject([
-      {
-        kind: "local",
-        opponent: { name: "Bad Badgers" },
-        score: { own: 2, opponent: 1 },
-        outcome: "win",
-      },
-    ]);
-    expect(played("team-2")).toMatchObject([
-      { score: { own: 1, opponent: 2 }, outcome: "loss" },
-    ]);
-  });
-
-  it("leaves full time while offline, with the played game still saving", async () => {
-    const { team1, team2 } = setup(false);
-    let cache = [structuredClone(team1), structuredClone(team2)];
-    setTeamRepository({
-      loadTeams: () => cache,
-      // A cloud write that never settles, as it does with no connection
-      saveTeams: (teams) => {
-        cache = teams;
-        return new Promise(() => {});
-      },
-      deleteTeam: () => {},
-    });
-    await act(async () =>
-      root.render(
-        <MemoryRouter initialEntries={["/play"]}>
-          <Routes>
-            <Route path="/play" element={<MatchResultsScreen visible />} />
-            <Route path="/" element={<p>Main menu</p>} />
-          </Routes>
-        </MemoryRouter>
-      )
-    );
-    const exit = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Continue to Main Menu")
-    )!;
-    await act(async () => exit.click());
-    expect(container.textContent).toContain("Main menu");
-  });
-
-  it("keeps a player who died in the game in the team's played games", async () => {
-    const { services, team1, team2 } = setup(false);
-    const fallen = team1.players[0];
-    const line = (playerId: string, teamId: string, extra = {}) => ({
-      playerId,
-      teamId,
-      participated: true,
-      completions: 0,
-      attempts: 0,
-      superbThrows: 0,
-      safeLandings: 0,
-      interceptions: 0,
-      casualties: 0,
-      kills: 0,
-      touchdowns: 0,
-      mvps: 0,
-      blocks: 0,
-      yards: 0,
-      injuriesSuffered: 0,
-      sppEarned: 0,
-      ...extra,
-    });
-    vi.spyOn(services.matchStats, "summary").mockReturnValue({
-      progressionEnabled: false,
-      players: [
-        line(fallen.id, "team-1", { touchdowns: 1, injuriesSuffered: 1 }),
-        line(team2.players[0].id, "team-2"),
-      ],
-    });
-    // A dead league player has already left the stored roster
-    const stored = structuredClone(team1);
-    stored.players = stored.players.filter((p) => p.id !== fallen.id);
-    saveTeams([stored, structuredClone(team2)]);
-
-    await render();
-    const exit = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Continue to Main Menu")
-    )!;
-    await act(async () => exit.click());
-
-    const played = loadTeams().find(
-      (team) => team.id === "team-1"
-    )!.playedGames!;
-    expect(played[0].players).toMatchObject([
-      { playerId: fallen.id, touchdowns: 1, injured: true },
-    ]);
+    await act(async () => h.root.render(screen(false)));
+    await act(async () => h.root.render(screen(true)));
+    expect(h.container.textContent).toContain("Full Time");
   });
 
   it("lists injuries suffered by both teams, including players who never activated", async () => {
@@ -327,8 +79,8 @@ describe("MatchResultsScreen", () => {
     team1.players[1].injuries = [InjuryType.MISS_NEXT_GAME];
     team2.players[0].status = PlayerStatus.DEAD;
     team2.players[0].injuries = [InjuryType.DEAD];
-    await render();
-    const injuries = container.querySelector(
+    await h.render();
+    const injuries = h.container.querySelector(
       '[data-testid="match-injuries-team-1"]'
     );
     expect(injuries?.textContent).toContain(
@@ -338,7 +90,7 @@ describe("MatchResultsScreen", () => {
       `${team1.players[1].playerName} #2: Seriously hurt`
     );
     expect(
-      container.querySelector('[data-testid="match-injuries-team-2"]')
+      h.container.querySelector('[data-testid="match-injuries-team-2"]')
         ?.textContent
     ).toContain(`${team2.players[0].playerName} #1: Dead`);
   });
@@ -368,469 +120,13 @@ describe("MatchResultsScreen", () => {
           : new CrowdInjuryOperation(player.id, { x: 0, y: 5 }, false)
       );
       await flow.whenIdle();
-      await render();
+      await h.render();
       expect(
-        container.querySelector('[data-testid="match-injuries-team-1"]')
+        h.container.querySelector('[data-testid="match-injuries-team-1"]')
           ?.textContent
       ).toContain(`${player.playerName} #1: Badly hurt`);
     }
   );
-
-  it("holds the exit until MVP/SPP is confirmed for a progression-eligible match", async () => {
-    const { services, state, team1, team2 } = setup(true);
-    state.score["team-1"] = 1;
-    state.score["team-2"] = 0;
-    // One participant per team so the default MVP nomination is already
-    // complete (no selection clicks required to enable the roll button).
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
-
-    await render();
-
-    let exitButton = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Continue to Main Menu")
-    )!;
-    expect(exitButton.disabled).toBe(true);
-
-    const rollButtons = [...container.querySelectorAll("button")].filter((b) =>
-      b.textContent?.includes("Roll MVP D6")
-    );
-    expect(rollButtons).toHaveLength(2);
-    for (const button of rollButtons) {
-      await act(async () => {
-        button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      });
-    }
-
-    const confirmButton = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Confirm and assign SPP")
-    )!;
-    expect(confirmButton.disabled).toBe(false);
-    await act(async () => {
-      confirmButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    exitButton = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Continue to Main Menu")
-    )!;
-    expect(exitButton.disabled).toBe(false);
-  });
-
-  it("keeps the played game when a later save of the team fails", async () => {
-    const { services, state, team1, team2 } = setup(true);
-    state.score["team-1"] = 1;
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
-    let cache = [structuredClone(team1), structuredClone(team2)];
-    let fail = false;
-    setTeamRepository({
-      loadTeams: () => cache,
-      saveTeams: (teams) => {
-        cache = teams;
-        return fail
-          ? Promise.reject(new Error("Cloud offline"))
-          : Promise.resolve();
-      },
-      deleteTeam: () => {},
-    });
-    await render();
-    const button = (text: string) =>
-      [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes(text)
-      )!;
-    for (const roll of [...container.querySelectorAll("button")].filter((b) =>
-      b.textContent?.includes("Roll MVP D6")
-    ))
-      await act(async () => roll.click());
-    await act(async () => button("Confirm and assign SPP").click());
-    // The exit saves the teams again, and this time the cloud is down
-    fail = true;
-    await act(async () => button("Continue to Main Menu").click());
-
-    const played = (id: string) =>
-      cache.find((team) => team.id === id)!.playedGames ?? [];
-    expect(played("team-1")).toHaveLength(1);
-    expect(played("team-2")).toHaveLength(1);
-  });
-
-  /** A league of the two teams, stored with them, as the coach left it at kick-off. */
-  async function leagueOf(teams: Team[]): Promise<LeagueDoc> {
-    const entrants: CompetitionEntrant[] = teams.map((team, index) => ({
-      id: `local:${team.id}`,
-      teamId: team.id,
-      ownerUid: null,
-      name: team.name,
-      rosterName: team.rosterName,
-      seed: index + 1,
-    }));
-    const fixtures = generateRoundRobin(entrants);
-    const league: LeagueDoc = {
-      id: "season-1",
-      type: "league",
-      name: "Season 1",
-      organizerUid: null,
-      participantUids: [],
-      status: "active",
-      entrants,
-      fixtures,
-      standings: computeStandings(entrants, fixtures),
-      points: { win: 3, draw: 1, loss: 0 },
-      createdAt: 1,
-      updatedAt: 1,
-    };
-    await saveCompetition(league);
-    teams.forEach((team) => (team.activeCompetitionId = league.id));
-    saveTeams(teams.map((team) => structuredClone(team)));
-    return league;
-  }
-
-  it("keeps confirmed SPP and the match save when storage fails, then retries without another award", async () => {
-    localStorage.clear();
-    const { services, state, team1, team2 } = setup(true);
-    team1.advancementMode = "advanced-league";
-    team2.advancementMode = "advanced-league";
-    state.paysWinnings = true;
-    saveTeams([team1, team2]);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
-    const clear = vi.fn();
-    setMatchSaveRepository({
-      read: () => null,
-      write: () => {},
-      clear,
-      describe: () => null,
-    });
-    await act(async () =>
-      root.render(
-        <MemoryRouter initialEntries={["/play"]}>
-          <Routes>
-            <Route
-              path="/play"
-              element={
-                <MatchResultsScreen visible leaveTo="/leagues/season-1" />
-              }
-            />
-            <Route
-              path="/build-team/:teamId"
-              element={<p>Team management</p>}
-            />
-          </Routes>
-        </MemoryRouter>
-      )
-    );
-    for (const button of [...container.querySelectorAll("button")].filter((b) =>
-      b.textContent?.includes("Roll MVP D6")
-    ))
-      await act(async () => button.click());
-    const write = vi
-      .spyOn(Storage.prototype, "setItem")
-      .mockImplementation(() => {
-        throw new Error("Storage full");
-      });
-    const confirm = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Confirm and assign SPP")
-    )!;
-    await act(async () => confirm.click());
-    expect(container.textContent).toContain("Full Time");
-    expect(container.textContent).toContain("Storage full");
-    expect(clear).not.toHaveBeenCalled();
-    write.mockRestore();
-    const retry = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Retry saving team")
-    )!;
-    await act(async () => retry.click());
-    expect(container.textContent).toBe("Team management");
-    expect(loadTeams().map((team) => team.players[0].spp)).toEqual([4, 4]);
-    expect(clear).toHaveBeenCalledTimes(1);
-  });
-
-  it("retries fixture recording and waits for this client's saved teams even when the fixture is complete", async () => {
-    localStorage.clear();
-    const { services, state, team1, team2 } = setup(true);
-    team1.advancementMode = "advanced-league";
-    team2.advancementMode = "advanced-league";
-    state.paysWinnings = true;
-    const league = await leagueOf([team1, team2]);
-    const fixtureContext = {
-      competitionType: "league" as const,
-      competitionId: league.id,
-      fixtureId: league.fixtures[0].id,
-    };
-    await recordCompetitionFixture(fixtureContext, 1, 0, {
-      home: team1,
-      away: team2,
-    });
-    let cache = loadTeams();
-    let fail = true;
-    let acknowledge!: () => void;
-    const written = new Promise<void>((resolve) => {
-      acknowledge = resolve;
-    });
-    setTeamRepository({
-      loadTeams: () => cache,
-      saveTeams: (teams) => {
-        cache = teams;
-        return fail ? Promise.reject(new Error("Cloud offline")) : written;
-      },
-      deleteTeam: () => {},
-    });
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
-    await act(async () =>
-      root.render(
-        <MemoryRouter>
-          <MatchResultsScreen visible fixtureContext={fixtureContext} />
-        </MemoryRouter>
-      )
-    );
-    expect(container.textContent).toContain(
-      "The competition result could not be saved. Cloud offline"
-    );
-    for (const button of [...container.querySelectorAll("button")].filter((b) =>
-      b.textContent?.includes("Roll MVP D6")
-    ))
-      await act(async () => button.click());
-    const confirm = () =>
-      [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Confirm and assign SPP")
-      )!;
-    expect(confirm().disabled).toBe(true);
-    fail = false;
-    const retry = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Retry saving result")
-    )!;
-    await act(async () => retry.click());
-    expect(confirm().disabled).toBe(true);
-    await act(async () => acknowledge());
-    expect(confirm().disabled).toBe(false);
-    expect(container.textContent).toContain(
-      "Competition fixture result recorded"
-    );
-    expect(
-      loadTeams().map((team) => ({ wins: team.wins, losses: team.losses }))
-    ).toEqual([
-      { wins: 1, losses: 0 },
-      { wins: 0, losses: 1 },
-    ]);
-  });
-
-  it.each([
-    {
-      result: "a win",
-      score: [1, 0],
-      home: { wins: 1, draws: 0, losses: 0, touchdowns: 1 },
-      away: { wins: 0, draws: 0, losses: 1, touchdowns: 0 },
-    },
-    {
-      result: "a draw",
-      score: [1, 1],
-      home: { wins: 0, draws: 1, losses: 0, touchdowns: 1 },
-      away: { wins: 0, draws: 1, losses: 0, touchdowns: 1 },
-    },
-  ])(
-    "keeps $result recorded at full time when SPP is confirmed",
-    async ({ score, home, away }) => {
-      localStorage.clear();
-      const { services, state, team1, team2 } = setup(true);
-      const league = await leagueOf([team1, team2]);
-      state.score["team-1"] = score[0];
-      state.score["team-2"] = score[1];
-      services.eventBus.emit(
-        GameEventNames.PlayerActivated,
-        team1.players[0].id
-      );
-      services.eventBus.emit(
-        GameEventNames.PlayerActivated,
-        team2.players[0].id
-      );
-      // GamePage records the fixture at full time; it is the season's last
-      const fixture = league.fixtures[0];
-      await recordCompetitionFixture(
-        {
-          competitionType: "league",
-          competitionId: league.id,
-          fixtureId: fixture.id,
-        },
-        score[0],
-        score[1],
-        { home: team1, away: team2 }
-      );
-
-      await render();
-      for (const button of [...container.querySelectorAll("button")].filter(
-        (b) => b.textContent?.includes("Roll MVP D6")
-      )) {
-        await act(async () => button.click());
-      }
-      const confirm = [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Confirm and assign SPP")
-      )!;
-      await act(async () => confirm.click());
-
-      const stored = (id: string) =>
-        loadTeams().find((team) => team.id === id)!;
-      const key = `${league.id}:${fixture.id}`;
-      expect(stored("team-1")).toMatchObject({
-        ...home,
-        recordedFixtureIds: [key],
-      });
-      expect(stored("team-2")).toMatchObject({
-        ...away,
-        recordedFixtureIds: [key],
-      });
-      // The season is over, so both teams are free to enter the next one
-      expect(stored("team-1").activeCompetitionId).toBeUndefined();
-      expect(stored("team-2").activeCompetitionId).toBeUndefined();
-      // And the MVP's SPP is kept as well
-      expect(stored("team-1").players[0].spp).toBeGreaterThan(0);
-    }
-  );
-
-  it("confirms a league game and opens the human team's management before returning to the league", async () => {
-    localStorage.clear();
-    const { services, state, team1, team2 } = setup(true);
-    team1.advancementMode = "advanced-league";
-    team2.advancementMode = "advanced-league";
-    const league = await leagueOf([team1, team2]);
-    state.paysWinnings = true;
-    state.score["team-1"] = 0;
-    state.score["team-2"] = 2;
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
-    await recordCompetitionFixture(
-      {
-        competitionType: "league",
-        competitionId: league.id,
-        fixtureId: league.fixtures[0].id,
-      },
-      0,
-      2,
-      { home: team1, away: team2 }
-    );
-    // The engine rolls the MVP among the nominees
-    const runProgressionCommand = vi.fn(
-      async (command: { teamId: string; nominatedPlayerIds: string[] }) => {
-        services.matchStats.awardMvp(
-          command.teamId,
-          command.nominatedPlayerIds,
-          1
-        );
-        return { ok: true, events: [] };
-      }
-    );
-    setActiveOnlineMatch({
-      kind: "computer",
-      myTeamId: "team-1",
-      mayAct: () => true,
-      runProgressionCommand,
-    } as unknown as OnlineMatch);
-    try {
-      await act(async () => {
-        root.render(
-          <MemoryRouter initialEntries={["/play/computer"]}>
-            <Routes>
-              <Route
-                path="/play/computer"
-                element={
-                  <MatchResultsScreen
-                    visible={true}
-                    leaveTo="/leagues/season-1"
-                    fixtureContext={{
-                      competitionType: "league",
-                      competitionId: league.id,
-                      fixtureId: league.fixtures[0].id,
-                    }}
-                  />
-                }
-              />
-              <Route path="/leagues/:id" element={<p>The league page</p>} />
-              <Route path="/build-team/:teamId" element={<TeamBuilderPage />} />
-            </Routes>
-          </MemoryRouter>
-        );
-      });
-
-      // The computer named its own nominees; the coach rolls only theirs
-      expect(runProgressionCommand).toHaveBeenCalledWith({
-        type: "award-mvp",
-        teamId: "team-2",
-        nominatedPlayerIds: [team2.players[0].id],
-      });
-      const rolls = [...container.querySelectorAll("button")].filter((b) =>
-        b.textContent?.includes("Roll MVP D6")
-      );
-      expect(rolls).toHaveLength(1);
-      await act(async () => rolls[0].click());
-      const confirm = [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Confirm and assign SPP")
-      )!;
-      await act(async () => confirm.click());
-
-      const stored = (id: string) =>
-        loadTeams().find((team) => team.id === id)!;
-      expect(stored("team-1")).toMatchObject({ losses: 1, wins: 0 });
-      // The computer's team is this coach's too, so its game is kept
-      expect(stored("team-2")).toMatchObject({ wins: 1, touchdowns: 2 });
-      expect(stored("team-2").players[0].spp).toBeGreaterThan(0);
-
-      expect(container.textContent).toContain("Post-match team management");
-      expect(
-        container
-          .querySelector('input[placeholder="Enter Team Name"]')
-          ?.getAttribute("value")
-      ).toBe("Reikland Reavers");
-      const finish = [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Finish post-match")
-      )!;
-      await act(async () => finish.click());
-      expect(container.textContent).toBe("The league page");
-    } finally {
-      setActiveOnlineMatch(null);
-    }
-  });
-
-  it("lets the coach roll the computer's MVP when it did not roll by itself", async () => {
-    const { services, state, team1, team2 } = setup(true);
-    state.score["team-1"] = 1;
-    state.score["team-2"] = 0;
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
-    let refuse = true;
-    const runProgressionCommand = vi.fn(
-      async (command: { teamId: string; nominatedPlayerIds: string[] }) => {
-        if (refuse) return { ok: false, reason: "engine busy", events: [] };
-        services.matchStats.awardMvp(
-          command.teamId,
-          command.nominatedPlayerIds,
-          1
-        );
-        return { ok: true, events: [] };
-      }
-    );
-    setActiveOnlineMatch({
-      kind: "computer",
-      myTeamId: "team-1",
-      mayAct: () => true,
-      runProgressionCommand,
-    } as unknown as OnlineMatch);
-    try {
-      await render();
-      expect(container.textContent).toContain("engine busy");
-      const rolls = [...container.querySelectorAll("button")].filter((b) =>
-        b.textContent?.includes("Roll MVP D6")
-      );
-      // The coach's own, and the computer's that failed
-      expect(rolls).toHaveLength(2);
-      refuse = false;
-      for (const roll of rolls) await act(async () => roll.click());
-      const confirm = [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Confirm and assign SPP")
-      )!;
-      expect(confirm.disabled).toBe(false);
-    } finally {
-      setActiveOnlineMatch(null);
-    }
-  });
 
   it("names the winner of a knockout tie decided on Penalties", async () => {
     const { state } = setup(false);
@@ -841,13 +137,13 @@ describe("MatchResultsScreen", () => {
       penalties: { "team-1": 2, "team-2": 3 },
     };
 
-    await render();
+    await h.render();
 
-    expect(container.textContent).toContain("1 : 1");
-    expect(container.textContent).toContain(
+    expect(h.container.textContent).toContain("1 : 1");
+    expect(h.container.textContent).toContain(
       "Bad Badgers win on Penalties, 3–2"
     );
-    expect(container.textContent).not.toContain("Draw");
+    expect(h.container.textContent).not.toContain("Draw");
   });
 
   it("labels a concession without inventing a touchdown or mutating the played score (regression: 0-0 stays 0-0)", async () => {
@@ -856,44 +152,11 @@ describe("MatchResultsScreen", () => {
     state.score["team-2"] = 0;
     state.result = { reason: "concession", concedingTeamId: team1.id };
 
-    await render();
+    await h.render();
 
-    expect(container.textContent).toContain("0 : 0");
-    expect(container.textContent).toContain("Reikland Reavers conceded");
-    expect(container.textContent).not.toContain("win");
-    expect(container.textContent).not.toContain("Draw");
-  });
-
-  it("shows each team's league winnings once the fixture is recorded", async () => {
-    const { services, state } = setup(false);
-    state.score["team-1"] = 2;
-    state.score["team-2"] = 1;
-    services.gameService.getTeam("team-1")!.advancementMode =
-      "sevens-skill-selection";
-    services.gameService.getTeam("team-2")!.advancementMode = "advanced-league";
-
-    await render();
-    expect(
-      container.querySelector('[data-testid="match-winnings"]')
-    ).toBeNull();
-
-    await act(async () => {
-      services.eventBus.emit(GameEventNames.CompetitionResultRecorded, {
-        fixtureId: "f1",
-        winnings: { "team-1": 60_000, "team-2": 50_000 },
-        fanFactors: { "team-1": 4, "team-2": 4 },
-      });
-    });
-
-    const panel = container.querySelector('[data-testid="match-winnings"]')!;
-    expect(panel.textContent).toContain("Fan Attendance 8");
-    expect(
-      container.querySelector('[data-testid="match-winnings-team-1"]')
-        ?.textContent
-    ).toBe("Reikland Reavers: +60,000 gp to the Treasury");
-    expect(
-      container.querySelector('[data-testid="match-winnings-team-2"]')
-        ?.textContent
-    ).toBe("Bad Badgers: +50,000 gp to the Treasury");
+    expect(h.container.textContent).toContain("0 : 0");
+    expect(h.container.textContent).toContain("Reikland Reavers conceded");
+    expect(h.container.textContent).not.toContain("win");
+    expect(h.container.textContent).not.toContain("Draw");
   });
 });

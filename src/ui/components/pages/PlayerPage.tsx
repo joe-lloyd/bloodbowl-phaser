@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { PlayerStats } from "../../../types/Player";
+import { Player, PlayerStats } from "../../../types/Player";
+import type { Team } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
 import {
   canAdvance,
@@ -206,37 +207,7 @@ export function PlayerPage() {
         )}
       </Section>
 
-      <Section title="SPP & career statistics">
-        <p className="mb-3 text-hud-base text-hud-bone">
-          {player.spp} SPP available
-          {required && (
-            <span className="ml-2 font-bold text-hud-blood-hot">
-              — must advance
-            </span>
-          )}
-        </p>
-        {player.careerStats ? (
-          <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
-            <Stat label="Matches" value={player.careerStats.matches} />
-            <Stat label="Completions" value={player.careerStats.completions} />
-            <Stat
-              label="Interceptions"
-              value={player.careerStats.interceptions}
-            />
-            <Stat label="Casualties" value={player.careerStats.casualties} />
-            <Stat label="Touchdowns" value={player.careerStats.touchdowns} />
-            <Stat label="MVPs" value={player.careerStats.mvps} />
-          </div>
-        ) : (
-          <p className="text-hud-mute">
-            This player has not appeared in a recorded match yet.
-          </p>
-        )}
-        <p className="mt-3 text-hud-sm text-hud-mute">
-          Provenance: {player.playerKind ?? "roster"} player
-          {team.seedMetadata ? " (development seed data)" : ""}
-        </p>
-      </Section>
+      <SppAndCareer player={player} team={team} required={required} />
 
       <Section
         title="Pending development"
@@ -267,5 +238,50 @@ export function PlayerPage() {
         )}
       </Section>
     </PageShell>
+  );
+}
+
+/** Unspent SPP, the career record, and where the player came from. */
+function SppAndCareer({
+  player,
+  team,
+  required,
+}: {
+  player: Player;
+  team: Team;
+  required: boolean;
+}) {
+  return (
+    <Section title="SPP & career statistics">
+      <p className="mb-3 text-hud-base text-hud-bone">
+        {player.spp} SPP available
+        {required && (
+          <span className="ml-2 font-bold text-hud-blood-hot">
+            — must advance
+          </span>
+        )}
+      </p>
+      {player.careerStats ? (
+        <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
+          <Stat label="Matches" value={player.careerStats.matches} />
+          <Stat label="Completions" value={player.careerStats.completions} />
+          <Stat
+            label="Interceptions"
+            value={player.careerStats.interceptions}
+          />
+          <Stat label="Casualties" value={player.careerStats.casualties} />
+          <Stat label="Touchdowns" value={player.careerStats.touchdowns} />
+          <Stat label="MVPs" value={player.careerStats.mvps} />
+        </div>
+      ) : (
+        <p className="text-hud-mute">
+          This player has not appeared in a recorded match yet.
+        </p>
+      )}
+      <p className="mt-3 text-hud-sm text-hud-mute">
+        Provenance: {player.playerKind ?? "roster"} player
+        {team.seedMetadata ? " (development seed data)" : ""}
+      </p>
+    </Section>
   );
 }

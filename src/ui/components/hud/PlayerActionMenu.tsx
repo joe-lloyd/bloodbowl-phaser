@@ -6,13 +6,15 @@ import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { Player, PlayerStatus } from "../../../types/Player";
-import { GamePhase } from "../../../types/GameState";
+import { GamePhase, GameState } from "../../../types/GameState";
 import { ActionType, GameEventNames } from "../../../types/events";
 import {
   computeActionAvailability,
   ActionAvailability,
+  TurnFlags,
 } from "../../../game/rules/actionAvailability";
 import { ActionStepper } from "./ActionStepper";
+import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
 import { Hotkey, useHotkey } from "../../hotkeys";
 import {
   Chip,
@@ -171,38 +173,11 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   useEventBus(eventBus, GameEventNames.TurnStarted, close);
   useEventBus(eventBus, GameEventNames.Turnover, close);
 
-  const kickoffStep = ServiceContainer.isInitialized()
-    ? ServiceContainer.getInstance().gameService.getKickoffEventStep()
-    : null;
-  const activeCharge =
-    turnData?.phase === GamePhase.KICKOFF && kickoffStep?.charge?.activePlayerId
-      ? kickoffStep
-      : null;
-  const effectiveActiveTeamId = activeCharge?.teamId ?? turnData?.activeTeamId;
-
-  // Razzle-Dazzle: offered as the player is activated, then the menu comes
-  // back for the second Action once the first has ended.
-  const liveState = ServiceContainer.isInitialized()
-    ? ServiceContainer.getInstance().gameService.getState()
-    : null;
-  const declaration =
-    selectedPlayer && liveState?.activePlayer?.id === selectedPlayer.id
-      ? liveState.activePlayer
-      : null;
-  const secondActionAfter = declaration?.razzleDazzle?.awaitingSecond
-    ? (declaration.razzleDazzle.actions[0] as ActionType)
-    : undefined;
-  const canRazzle =
-    !!selectedPlayer &&
-    !!liveState &&
-    !activeCharge &&
-    !declaration?.committed &&
-    !declaration?.razzleDazzle &&
-    holdsMeasure(
-      liveState,
-      selectedPlayer.teamId,
-      DesperateMeasure.RAZZLE_DAZZLE
-    );
+  const { activeCharge, effectiveActiveTeamId } = actingSide(turnData);
+  const { declaration, secondActionAfter, canRazzle } = razzleDazzle(
+    selectedPlayer,
+    !!activeCharge
+  );
 
   // Contextual availability: recomputed from live game state whenever the
   // selection, the turn flags, movement, or the board changes.
@@ -220,24 +195,12 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         opponents: gs.getOpponents(selectedPlayer.teamId),
         teammates: gs.getTeammates(selectedPlayer.id),
         reachable: gs.getAvailableMovements(selectedPlayer.id),
-        turn: {
-          // Charge! runs before the next TurnStarted refreshes the HUD's
-          // turn flags. Its Blitz belongs to this kick-off's own budget,
-          // regardless of whether the previous turn used a Blitz.
-          hasBlitzed: activeCharge?.charge
-            ? activeCharge.charge.budget.blitz <= 0
-            : !!turnData.hasBlitzed,
-          hasPassed: !!turnData.hasPassed,
-          hasHandedOff: !!turnData.hasHandedOff,
-          // Grudge Match (L24) allows a second Foul this turn.
-          hasFouled:
-            !!turnData.hasFouled &&
-            !holdsMeasure(
-              gs.getState(),
-              selectedPlayer.teamId,
-              DesperateMeasure.GRUDGE_MATCH
-            ),
-        },
+        turn: menuTurnFlags(
+          turnData,
+          activeCharge,
+          gs.getState(),
+          selectedPlayer.teamId
+        ),
         hasMovedInAction,
         secondActionAfter,
       });
@@ -290,20 +253,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     }
   };
 
-  const isProne = selectedPlayer.status === PlayerStatus.PRONE;
-  const hasActed = selectedPlayer.hasActed;
-
   // Render Helper with proper color handling
-  const ActionButton: React.FC<{
-    action?: ActionType;
-    label: string;
-    sub?: string;
-    disabled?: boolean;
-    color?: string;
-    onClick?: () => void;
-    blockReplacement?: BlockReplacement;
-    hotkey?: Hotkey;
-  }> = ({
+  const ActionButton: React.FC<ActionButtonProps> = ({
     action,
     label,
     sub,
@@ -390,29 +341,6 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     );
   };
 
-  const a = availability;
-  // Nothing situational to offer beyond ending the activation.
-  const anyContextual =
-    a.block ||
-    a.multipleBlock ||
-    a.blitz ||
-    a.pass ||
-    a.punt ||
-    a.handoff ||
-    a.foul ||
-    a.standUp ||
-    a.secureBall ||
-    a.stab ||
-    a.breatheFire ||
-    a.vomit ||
-    a.gaze ||
-    a.chomp ||
-    a.chainsaw ||
-    a.throwTeammate ||
-    a.kickTeammate ||
-    a.throwBomb ||
-    a.ballAndChain;
-
   return (
     <div
       data-testid="player-action-menu"
@@ -440,13 +368,9 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         }
       >
         {!compact && (
-          <PanelHeader
-            title={selectedPlayer.playerName || "Unknown"}
-            aside={
-              secondActionAfter
-                ? "Razzle-Dazzle: 2nd Action"
-                : selectedPlayer.positionName
-            }
+          <MenuHeader
+            player={selectedPlayer}
+            secondAction={!!secondActionAfter}
           />
         )}
 
@@ -461,258 +385,397 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             firstOfTwo={declaration?.razzleDazzle?.actions.length === 1}
           />
         ) : (
-          <div
-            className={`hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto ${compact ? "" : "p-2"}`}
-          >
-            <div className={`flex flex-col ${compact ? "gap-1.5" : "gap-1"}`}>
-              {canRazzle && (
-                <ActionButton
-                  label="RAZZLE-DAZZLE"
-                  sub={razzleOn ? "On: pick 1st Action" : "Two Actions"}
-                  color={razzleOn ? "yellow" : "gray"}
-                  onClick={() => setRazzleOn((on) => !on)}
-                />
-              )}
-              {/* Move opens the Move sequence panel (Stand Up → Move → Jump);
-                a prone player stands up as its first step. Clicking an empty
-                square still auto-moves. */}
-              {a.move && (
-                <ActionButton
-                  action="move"
-                  label="MOVE"
-                  hotkey="m"
-                  sub={isProne ? "Stand + Move" : a.jump ? "Jump" : undefined}
-                  disabled={false}
-                  color="green"
-                />
-              )}
-              {/* Block without moving; auto-block on clicking an adjacent enemy
-                still works. */}
-              {a.block && (
-                <ActionButton
-                  action="block"
-                  label="BLOCK"
-                  hotkey="b"
-                  disabled={false}
-                  color="red"
-                />
-              )}
-              {a.multipleBlock && (
-                <ActionButton
-                  action="multipleBlock"
-                  label="MULTIPLE BLOCK"
-                  sub="2 Targets"
-                  disabled={false}
-                  color="red"
-                />
-              )}
-
-              {/* Only actions with a legal target this activation are shown. */}
-              {a.blitz && (
-                <ActionButton
-                  action="blitz"
-                  label="BLITZ"
-                  hotkey="z"
-                  sub="1/Turn"
-                  disabled={false}
-                  color="red"
-                />
-              )}
-              {a.blitzBlockReplacements.map((replacement) => (
-                <ActionButton
-                  key={`blitz-${replacement}`}
-                  action="blitz"
-                  blockReplacement={replacement}
-                  label={`BLITZ (WITH ${BLOCK_REPLACEMENT_DEFINITIONS[
-                    replacement
-                  ].label.toUpperCase()})`}
-                  sub="1/Turn"
-                  disabled={false}
-                  color="red"
-                />
-              ))}
-              {a.pass && (
-                <ActionButton
-                  action="pass"
-                  label="PASS"
-                  hotkey="p"
-                  sub="1/Turn"
-                  disabled={false}
-                  color="yellow"
-                />
-              )}
-              {a.punt && (
-                <ActionButton
-                  action="punt"
-                  label="PUNT"
-                  sub="1/Turn"
-                  disabled={false}
-                  color="yellow"
-                />
-              )}
-              {a.handoff && (
-                <ActionButton
-                  action="handoff"
-                  label="HAND-OFF"
-                  hotkey="h"
-                  sub="1/Turn"
-                  disabled={false}
-                  color="yellow"
-                />
-              )}
-              {a.foul && (
-                <ActionButton
-                  action="foul"
-                  label="FOUL"
-                  hotkey="f"
-                  sub="1/Turn"
-                  disabled={false}
-                  color="purple"
-                />
-              )}
-
-              {/* Special actions — only when the player has the trait and an
-                adjacent Standing opponent to target. */}
-              {a.stab && (
-                <ActionButton
-                  action="stab"
-                  blockReplacement="stab"
-                  label="STAB"
-                  sub="Special"
-                  disabled={false}
-                  color="orange"
-                />
-              )}
-              {a.breatheFire && (
-                <ActionButton
-                  action="breatheFire"
-                  blockReplacement="breatheFire"
-                  label="BREATHE FIRE"
-                  sub="Special"
-                  disabled={false}
-                  color="orange"
-                />
-              )}
-              {a.vomit && (
-                <ActionButton
-                  action="vomit"
-                  blockReplacement="vomit"
-                  label="PROJECTILE VOMIT"
-                  sub="Special"
-                  disabled={false}
-                  color="green"
-                />
-              )}
-              {a.gaze && (
-                <ActionButton
-                  action="gaze"
-                  label="HYPNOTIC GAZE"
-                  sub="Special"
-                  disabled={false}
-                  color="purple"
-                />
-              )}
-              {a.chomp && (
-                <ActionButton
-                  action="chomp"
-                  blockReplacement="chomp"
-                  label="CHOMP"
-                  sub="Special"
-                  disabled={false}
-                  color="orange"
-                />
-              )}
-              {a.chainsaw && (
-                <ActionButton
-                  action="chainsaw"
-                  blockReplacement="chainsaw"
-                  label="CHAINSAW"
-                  sub="Special"
-                  disabled={false}
-                  color="orange"
-                />
-              )}
-              {a.throwBomb && (
-                <ActionButton
-                  action="throwBomb"
-                  label="THROW BOMB"
-                  sub="Special"
-                  disabled={false}
-                  color="orange"
-                />
-              )}
-              {a.ballAndChain && (
-                <ActionButton
-                  action="ballAndChain"
-                  label="BALL & CHAIN"
-                  sub="Special"
-                  disabled={false}
-                  color="orange"
-                />
-              )}
-              {a.throwTeammate && (
-                <ActionButton
-                  action="throwTeamMate"
-                  label="THROW TEAM-MATE"
-                  sub="Special"
-                  disabled={false}
-                  color="green"
-                />
-              )}
-              {a.kickTeammate && (
-                <ActionButton
-                  action="throwTeamMate"
-                  label="KICK TEAM-MATE"
-                  sub="Special"
-                  disabled={false}
-                  color="green"
-                />
-              )}
-
-              {isProne && (
-                <ActionButton
-                  action="standUp"
-                  label="STAND UP"
-                  hotkey="u"
-                  sub="3 MA"
-                  disabled={!a.standUp}
-                  color="blue"
-                />
-              )}
-
-              {a.secureBall && (
-                <ActionButton
-                  action="secureBall"
-                  label="SECURE BALL"
-                  sub="Pick Up"
-                  disabled={false}
-                  color="blue"
-                />
-              )}
-
-              {secondActionAfter && !compact && (
-                <div className="px-1 py-1 text-center text-hud-sm italic text-hud-dim">
-                  Pick the second Action, or end the activation.
-                </div>
-              )}
-              {!anyContextual && !secondActionAfter && !compact && (
-                <div className="px-1 py-1 text-center text-hud-sm italic text-hud-dim">
-                  No special actions available — click a square to move.
-                </div>
-              )}
-
-              <ActionButton
-                action="forgoe"
-                label="END ACTIVATION"
-                hotkey="e"
-                sub="Skip"
-                disabled={hasActed}
-                color="gray"
-              />
-            </div>
-          </div>
+          <ActionList
+            Button={ActionButton}
+            availability={availability}
+            isProne={selectedPlayer.status === PlayerStatus.PRONE}
+            hasActed={selectedPlayer.hasActed}
+            compact={compact}
+            canRazzle={canRazzle}
+            razzleOn={razzleOn}
+            onToggleRazzle={() => setRazzleOn((on) => !on)}
+            secondActionAfter={secondActionAfter}
+          />
         )}
       </Panel>
     </div>
   );
 };
+
+interface ActionButtonProps {
+  action?: ActionType;
+  label: string;
+  sub?: string;
+  disabled?: boolean;
+  color?: string;
+  onClick?: () => void;
+  blockReplacement?: BlockReplacement;
+  hotkey?: Hotkey;
+}
+
+/** The availability flags, without the block replacement lists. */
+type AvailabilityFlag = {
+  [K in keyof ActionAvailability]: ActionAvailability[K] extends boolean
+    ? K
+    : never;
+}[keyof ActionAvailability];
+
+/** A button the menu shows while its availability flag is set. */
+type MenuAction = { when: AvailabilityFlag } & Pick<
+  ActionButtonProps,
+  "label" | "sub" | "hotkey" | "color" | "blockReplacement"
+> & { action: ActionType };
+
+/**
+ * Block without moving (auto-block on clicking an adjacent enemy still
+ * works), then Blitz. The Blitz block replacements follow these.
+ */
+const BLOCK_ACTIONS: MenuAction[] = [
+  { when: "block", action: "block", label: "BLOCK", hotkey: "b", color: "red" },
+  {
+    when: "multipleBlock",
+    action: "multipleBlock",
+    label: "MULTIPLE BLOCK",
+    sub: "2 Targets",
+    color: "red",
+  },
+  // Only actions with a legal target this activation are shown.
+  {
+    when: "blitz",
+    action: "blitz",
+    label: "BLITZ",
+    hotkey: "z",
+    sub: "1/Turn",
+    color: "red",
+  },
+];
+
+/**
+ * The once-a-turn actions, then the special actions: those only when the
+ * player has the trait and an adjacent Standing opponent to target.
+ */
+const OTHER_ACTIONS: MenuAction[] = [
+  {
+    when: "pass",
+    action: "pass",
+    label: "PASS",
+    hotkey: "p",
+    sub: "1/Turn",
+    color: "yellow",
+  },
+  {
+    when: "punt",
+    action: "punt",
+    label: "PUNT",
+    sub: "1/Turn",
+    color: "yellow",
+  },
+  {
+    when: "handoff",
+    action: "handoff",
+    label: "HAND-OFF",
+    hotkey: "h",
+    sub: "1/Turn",
+    color: "yellow",
+  },
+  {
+    when: "foul",
+    action: "foul",
+    label: "FOUL",
+    hotkey: "f",
+    sub: "1/Turn",
+    color: "purple",
+  },
+  {
+    when: "stab",
+    action: "stab",
+    blockReplacement: "stab",
+    label: "STAB",
+    sub: "Special",
+    color: "orange",
+  },
+  {
+    when: "breatheFire",
+    action: "breatheFire",
+    blockReplacement: "breatheFire",
+    label: "BREATHE FIRE",
+    sub: "Special",
+    color: "orange",
+  },
+  {
+    when: "vomit",
+    action: "vomit",
+    blockReplacement: "vomit",
+    label: "PROJECTILE VOMIT",
+    sub: "Special",
+    color: "green",
+  },
+  {
+    when: "gaze",
+    action: "gaze",
+    label: "HYPNOTIC GAZE",
+    sub: "Special",
+    color: "purple",
+  },
+  {
+    when: "chomp",
+    action: "chomp",
+    blockReplacement: "chomp",
+    label: "CHOMP",
+    sub: "Special",
+    color: "orange",
+  },
+  {
+    when: "chainsaw",
+    action: "chainsaw",
+    blockReplacement: "chainsaw",
+    label: "CHAINSAW",
+    sub: "Special",
+    color: "orange",
+  },
+  {
+    when: "throwBomb",
+    action: "throwBomb",
+    label: "THROW BOMB",
+    sub: "Special",
+    color: "orange",
+  },
+  {
+    when: "ballAndChain",
+    action: "ballAndChain",
+    label: "BALL & CHAIN",
+    sub: "Special",
+    color: "orange",
+  },
+  {
+    when: "throwTeammate",
+    action: "throwTeamMate",
+    label: "THROW TEAM-MATE",
+    sub: "Special",
+    color: "green",
+  },
+  {
+    when: "kickTeammate",
+    action: "throwTeamMate",
+    label: "KICK TEAM-MATE",
+    sub: "Special",
+    color: "green",
+  },
+];
+
+/**
+ * Charge!'s step once it has a player picked to act (it reuses this menu),
+ * and the team whose players the menu is for.
+ */
+function actingSide(
+  turnData: { phase?: GamePhase; activeTeamId?: string | null } | null
+): {
+  activeCharge: KickoffEventStepState | null;
+  effectiveActiveTeamId: string | null | undefined;
+} {
+  const kickoffStep = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getKickoffEventStep()
+    : null;
+  const activeCharge =
+    turnData?.phase === GamePhase.KICKOFF && kickoffStep?.charge?.activePlayerId
+      ? kickoffStep
+      : null;
+  return {
+    activeCharge,
+    effectiveActiveTeamId: activeCharge?.teamId ?? turnData?.activeTeamId,
+  };
+}
+
+/**
+ * Razzle-Dazzle: offered as the player is activated, then the menu comes
+ * back for the second Action once the first has ended.
+ */
+function razzleDazzle(player: Player | null, charging: boolean) {
+  const state = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getState()
+    : null;
+  if (!player || !state)
+    return {
+      declaration: null,
+      secondActionAfter: undefined,
+      canRazzle: false,
+    };
+  const declaration =
+    state.activePlayer?.id === player.id ? state.activePlayer : null;
+  return {
+    declaration,
+    secondActionAfter: declaration?.razzleDazzle?.awaitingSecond
+      ? (declaration.razzleDazzle.actions[0] as ActionType)
+      : undefined,
+    canRazzle:
+      !charging &&
+      !declaration?.committed &&
+      !declaration?.razzleDazzle &&
+      holdsMeasure(state, player.teamId, DesperateMeasure.RAZZLE_DAZZLE),
+  };
+}
+
+/** The HUD's turn flags, with Charge!'s Blitz and Grudge Match applied. */
+function menuTurnFlags(
+  turnData: {
+    hasBlitzed?: boolean;
+    hasPassed?: boolean;
+    hasHandedOff?: boolean;
+    hasFouled?: boolean;
+  },
+  activeCharge: KickoffEventStepState | null,
+  state: GameState,
+  teamId: string
+): TurnFlags {
+  return {
+    // Charge! runs before the next TurnStarted refreshes the HUD's
+    // turn flags. Its Blitz belongs to this kick-off's own budget,
+    // regardless of whether the previous turn used a Blitz.
+    hasBlitzed: activeCharge?.charge
+      ? activeCharge.charge.budget.blitz <= 0
+      : !!turnData.hasBlitzed,
+    hasPassed: !!turnData.hasPassed,
+    hasHandedOff: !!turnData.hasHandedOff,
+    // Grudge Match (L24) allows a second Foul this turn.
+    hasFouled:
+      !!turnData.hasFouled &&
+      !holdsMeasure(state, teamId, DesperateMeasure.GRUDGE_MATCH),
+  };
+}
+
+/** The line under the full menu's buttons, if it has one. */
+function menuNote(
+  a: ActionAvailability,
+  secondActionAfter: ActionType | undefined
+): string | null {
+  if (secondActionAfter)
+    return "Pick the second Action, or end the activation.";
+  // Nothing situational to offer beyond ending the activation.
+  const contextual =
+    a.standUp ||
+    a.secureBall ||
+    [...BLOCK_ACTIONS, ...OTHER_ACTIONS].some(({ when }) => a[when]);
+  return contextual
+    ? null
+    : "No special actions available — click a square to move.";
+}
+
+function MenuHeader({
+  player,
+  secondAction,
+}: {
+  player: Player;
+  secondAction: boolean;
+}) {
+  return (
+    <PanelHeader
+      title={player.playerName || "Unknown"}
+      aside={secondAction ? "Razzle-Dazzle: 2nd Action" : player.positionName}
+    />
+  );
+}
+
+/**
+ * The actions open to the player now, then End Activation. `Button` is the
+ * menu's own button, which sends the action for the selected player.
+ */
+function ActionList({
+  Button,
+  availability: a,
+  isProne,
+  hasActed,
+  compact,
+  canRazzle,
+  razzleOn,
+  onToggleRazzle,
+  secondActionAfter,
+}: {
+  Button: React.FC<ActionButtonProps>;
+  availability: ActionAvailability;
+  isProne: boolean;
+  hasActed: boolean;
+  compact: boolean;
+  canRazzle: boolean;
+  razzleOn: boolean;
+  onToggleRazzle: () => void;
+  secondActionAfter: ActionType | undefined;
+}) {
+  const offered = (actions: MenuAction[]) =>
+    actions
+      .filter(({ when }) => a[when])
+      .map(({ when, ...button }) => <Button key={when} {...button} />);
+  const note = compact ? null : menuNote(a, secondActionAfter);
+  return (
+    <div
+      className={`hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto ${compact ? "" : "p-2"}`}
+    >
+      <div className={`flex flex-col ${compact ? "gap-1.5" : "gap-1"}`}>
+        {canRazzle && (
+          <Button
+            label="RAZZLE-DAZZLE"
+            sub={razzleOn ? "On: pick 1st Action" : "Two Actions"}
+            color={razzleOn ? "yellow" : "gray"}
+            onClick={onToggleRazzle}
+          />
+        )}
+        {/* Move opens the Move sequence panel (Stand Up → Move → Jump);
+          a prone player stands up as its first step. Clicking an empty
+          square still auto-moves. */}
+        {a.move && (
+          <Button
+            action="move"
+            label="MOVE"
+            hotkey="m"
+            sub={isProne ? "Stand + Move" : a.jump ? "Jump" : undefined}
+            color="green"
+          />
+        )}
+        {offered(BLOCK_ACTIONS)}
+        {a.blitzBlockReplacements.map((replacement) => (
+          <Button
+            key={`blitz-${replacement}`}
+            action="blitz"
+            blockReplacement={replacement}
+            label={`BLITZ (WITH ${BLOCK_REPLACEMENT_DEFINITIONS[
+              replacement
+            ].label.toUpperCase()})`}
+            sub="1/Turn"
+            color="red"
+          />
+        ))}
+        {offered(OTHER_ACTIONS)}
+        {isProne && (
+          <Button
+            action="standUp"
+            label="STAND UP"
+            hotkey="u"
+            sub="3 MA"
+            disabled={!a.standUp}
+            color="blue"
+          />
+        )}
+        {a.secureBall && (
+          <Button
+            action="secureBall"
+            label="SECURE BALL"
+            sub="Pick Up"
+            color="blue"
+          />
+        )}
+        {note && (
+          <div className="px-1 py-1 text-center text-hud-sm italic text-hud-dim">
+            {note}
+          </div>
+        )}
+        <Button
+          action="forgoe"
+          label="END ACTIVATION"
+          hotkey="e"
+          sub="Skip"
+          disabled={hasActed}
+          color="gray"
+        />
+      </div>
+    </div>
+  );
+}

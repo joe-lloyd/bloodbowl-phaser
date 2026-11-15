@@ -113,20 +113,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       // Tab is trapped by hand: while the menu (or its confirm step) is
       // open, Tab/Shift+Tab wraps within its own focusable elements rather
       // than leaking focus out to whatever's next/previous in the page.
-      const focusable = getFocusable();
-      if (focusable.length === 0) return;
-      const currentIndex = focusable.indexOf(
-        document.activeElement as HTMLElement
-      );
-      if (event.shiftKey) {
-        if (currentIndex <= 0) {
-          event.preventDefault();
-          focusable[focusable.length - 1].focus();
-        }
-      } else if (currentIndex === -1 || currentIndex === focusable.length - 1) {
-        event.preventDefault();
-        focusable[0].focus();
-      }
+      wrapTab(event, getFocusable());
       return;
     }
     if (confirming) return;
@@ -144,15 +131,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       // Includes a panel entry's own interactive children (see
       // getFocusable), so Arrow keys can move focus into e.g. the mute
       // checkbox/volume slider, not just cycle past them.
-      const focusable = getFocusable();
-      if (focusable.length === 0) return;
-      const currentIndex = focusable.indexOf(
-        document.activeElement as HTMLElement
-      );
-      const delta = event.key === "ArrowDown" ? 1 : -1;
-      const nextIndex =
-        (currentIndex + delta + focusable.length) % focusable.length;
-      focusable[nextIndex]?.focus();
+      stepFocus(getFocusable(), event.key === "ArrowDown" ? 1 : -1);
     }
   };
 
@@ -282,3 +261,31 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
     </div>
   );
 };
+
+/** Tab past the last element, or Shift+Tab past the first, wraps round. */
+function wrapTab(event: React.KeyboardEvent, focusable: HTMLElement[]) {
+  if (focusable.length === 0) return;
+  const currentIndex = focusable.findIndex(
+    (element) => element === document.activeElement
+  );
+  if (event.shiftKey) {
+    if (currentIndex <= 0) {
+      event.preventDefault();
+      focusable[focusable.length - 1].focus();
+    }
+  } else if (currentIndex === -1 || currentIndex === focusable.length - 1) {
+    event.preventDefault();
+    focusable[0].focus();
+  }
+}
+
+/** Moves focus one element on, or back, wrapping round. */
+function stepFocus(focusable: HTMLElement[], delta: 1 | -1) {
+  if (focusable.length === 0) return;
+  const currentIndex = focusable.findIndex(
+    (element) => element === document.activeElement
+  );
+  const nextIndex =
+    (currentIndex + delta + focusable.length) % focusable.length;
+  focusable[nextIndex]?.focus();
+}

@@ -80,6 +80,12 @@ function formStateFromUrl() {
   };
 }
 
+interface ScenarioInfo {
+  name: string;
+  seed?: number;
+  expectedOutcome?: string;
+}
+
 const selectClass = "hud-field cursor-pointer";
 const boxClass =
   "rounded-hud border border-white/10 bg-black/30 px-2.5 py-1.5 text-hud-sm text-hud-bone/85";
@@ -101,24 +107,15 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
   const [outcomeId, setOutcomeId] = useState(init.outcomeId);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [scenarioInfo, setScenarioInfo] = useState<{
-    name: string;
-    seed?: number;
-    expectedOutcome?: string;
-  } | null>(null);
+  const [scenarioInfo, setScenarioInfo] = useState<ScenarioInfo | null>(null);
 
   useEventBus(eventBus, GameEventNames.ScenarioLoaded, (data) => {
     setScenarioInfo(data);
   });
 
-  const entry = skill ? ruleScenariosFor(skill as SkillType) : undefined;
-  const visibleConfigs =
-    topic === KICKOFF_TOPIC ? KICKOFF_SCENARIOS : entry?.configs;
+  const visibleConfigs = configsFor(topic, skill);
   const config: RuleConfig | undefined = visibleConfigs?.find(
     (candidate) => candidate.id === configId
-  );
-  const selectedOutcome = config?.outcomes.find(
-    (outcome) => outcome.id === outcomeId
   );
 
   const load = (scenarioId: string, seed?: number, outcome?: string) => {
@@ -237,26 +234,23 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
         {topic === CASE_TOPIC && <ScenarioCasePanel eventBus={eventBus} />}
 
         {/* Level 2: Rule, badged implemented (✓) / inert (○) */}
-        {topic &&
-          topic !== CORE_TOPIC &&
-          topic !== CASE_TOPIC &&
-          topic !== KICKOFF_TOPIC && (
-            <select
-              aria-label="Sandbox rule"
-              value={skill}
-              onChange={(e) => pickSkill(e.target.value)}
-              className={selectClass}
-            >
-              <option value="" disabled>
-                Select Rule
+        {topicHasRules(topic) && (
+          <select
+            aria-label="Sandbox rule"
+            value={skill}
+            onChange={(e) => pickSkill(e.target.value)}
+            className={selectClass}
+          >
+            <option value="" disabled>
+              Select Rule
+            </option>
+            {skillsInTopic(topic).map((type) => (
+              <option key={type} value={type}>
+                {SkillRegistry.has(type) ? "✓" : "○"} {type}
               </option>
-              {skillsInTopic(topic).map((type) => (
-                <option key={type} value={type}>
-                  {SkillRegistry.has(type) ? "✓" : "○"} {type}
-                </option>
-              ))}
-            </select>
-          )}
+            ))}
+          </select>
+        )}
 
         {/* Level 3: Configuration */}
         {(topic === KICKOFF_TOPIC || skill) &&
@@ -277,94 +271,165 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
               ))}
             </select>
           ) : (
-            <div className={`${boxClass} italic`}>
-              {SkillRegistry.has(skill as SkillType)
-                ? "No configurations yet."
-                : "Inert — no rule implemented yet."}
-            </div>
+            <NoConfigurations skill={skill} />
           ))}
 
         {config && <div className={boxClass}>{config.description}</div>}
 
         {/* Level 4: Seed row + outcome finder */}
         {config && (
-          <>
-            <div className="flex gap-1">
-              <input
-                aria-label="Scenario seed"
-                type="number"
-                value={seedInput}
-                onChange={(e) => setSeedInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") load(config.id, parsedSeed());
-                  e.stopPropagation();
-                }}
-                placeholder="Seed"
-                className="hud-field tabular-nums"
-              />
-              <button
-                onClick={rollRandomSeed}
-                title="Random seed"
-                className={`${hudButtonClass("secondary", "sm")} !px-2.5`}
-              >
-                🎲
-              </button>
-            </div>
-            <div className="flex gap-1">
-              <select
-                aria-label="Seeded outcome"
-                value={outcomeId}
-                onChange={(e) => pickOutcome(e.target.value)}
-                className={`${selectClass} flex-1`}
-              >
-                <option value="" disabled>
-                  Outcome…
-                </option>
-                {config.outcomes.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={findSeedForOutcome}
-                disabled={!outcomeId || searching}
-                className={hudButtonClass("gold", "sm")}
-              >
-                {searching ? "…" : "FIND"}
-              </button>
-            </div>
-            {selectedOutcome?.description && (
-              <div className={boxClass}>{selectedOutcome.description}</div>
-            )}
-            {searchError && (
-              <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 px-2.5 py-1.5 text-hud-sm text-hud-bad-soft">
-                {searchError}
-              </div>
-            )}
-          </>
+          <SeedFinder
+            config={config}
+            seedInput={seedInput}
+            onSeedInput={setSeedInput}
+            onLoadSeed={() => load(config.id, parsedSeed())}
+            onRandomSeed={rollRandomSeed}
+            outcomeId={outcomeId}
+            onPickOutcome={pickOutcome}
+            onFind={findSeedForOutcome}
+            searching={searching}
+            searchError={searchError}
+          />
         )}
 
-        {scenarioInfo && (
-          <div
-            data-testid="sandbox-scenario-info"
-            data-scenario-seed={scenarioInfo.seed ?? ""}
-            className={boxClass}
-          >
-            <div>
-              <span className="hud-label inline">Seed:</span>{" "}
-              <span className="font-bold tabular-nums text-hud-gold">
-                {scenarioInfo.seed ?? "—"}
-              </span>
-            </div>
-            {scenarioInfo.expectedOutcome && (
-              <div className="italic text-hud-dim">
-                {scenarioInfo.expectedOutcome}
-              </div>
-            )}
-          </div>
-        )}
+        {scenarioInfo && <LoadedScenario info={scenarioInfo} />}
       </div>
     </Panel>
+  );
+}
+
+/** The topics that list rules at level 2; the rest have their own lists. */
+function topicHasRules(topic: string): boolean {
+  return (
+    !!topic &&
+    topic !== CORE_TOPIC &&
+    topic !== CASE_TOPIC &&
+    topic !== KICKOFF_TOPIC
+  );
+}
+
+/** The configurations at level 3: Kickoff's own, or the chosen rule's. */
+function configsFor(topic: string, skill: string): RuleConfig[] | undefined {
+  if (topic === KICKOFF_TOPIC) return KICKOFF_SCENARIOS;
+  return skill ? ruleScenariosFor(skill as SkillType)?.configs : undefined;
+}
+
+function NoConfigurations({ skill }: { skill: string }) {
+  return (
+    <div className={`${boxClass} italic`}>
+      {SkillRegistry.has(skill as SkillType)
+        ? "No configurations yet."
+        : "Inert — no rule implemented yet."}
+    </div>
+  );
+}
+
+/** The seed and expected outcome of the scenario on the board. */
+function LoadedScenario({ info }: { info: ScenarioInfo }) {
+  return (
+    <div
+      data-testid="sandbox-scenario-info"
+      data-scenario-seed={info.seed ?? ""}
+      className={boxClass}
+    >
+      <div>
+        <span className="hud-label inline">Seed:</span>{" "}
+        <span className="font-bold tabular-nums text-hud-gold">
+          {info.seed ?? "—"}
+        </span>
+      </div>
+      {info.expectedOutcome && (
+        <div className="italic text-hud-dim">{info.expectedOutcome}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Level 4: the seed row, and an outcome finder that searches for a seed
+ * producing the chosen outcome.
+ */
+function SeedFinder({
+  config,
+  seedInput,
+  onSeedInput,
+  onLoadSeed,
+  onRandomSeed,
+  outcomeId,
+  onPickOutcome,
+  onFind,
+  searching,
+  searchError,
+}: {
+  config: RuleConfig;
+  seedInput: string;
+  onSeedInput: (value: string) => void;
+  onLoadSeed: () => void;
+  onRandomSeed: () => void;
+  outcomeId: string;
+  onPickOutcome: (value: string) => void;
+  onFind: () => void;
+  searching: boolean;
+  searchError: string | null;
+}) {
+  const selectedOutcome = config.outcomes.find(
+    (outcome) => outcome.id === outcomeId
+  );
+  return (
+    <>
+      <div className="flex gap-1">
+        <input
+          aria-label="Scenario seed"
+          type="number"
+          value={seedInput}
+          onChange={(e) => onSeedInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onLoadSeed();
+            e.stopPropagation();
+          }}
+          placeholder="Seed"
+          className="hud-field tabular-nums"
+        />
+        <button
+          onClick={onRandomSeed}
+          title="Random seed"
+          className={`${hudButtonClass("secondary", "sm")} !px-2.5`}
+        >
+          🎲
+        </button>
+      </div>
+      <div className="flex gap-1">
+        <select
+          aria-label="Seeded outcome"
+          value={outcomeId}
+          onChange={(e) => onPickOutcome(e.target.value)}
+          className={`${selectClass} flex-1`}
+        >
+          <option value="" disabled>
+            Outcome…
+          </option>
+          {config.outcomes.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={onFind}
+          disabled={!outcomeId || searching}
+          className={hudButtonClass("gold", "sm")}
+        >
+          {searching ? "…" : "FIND"}
+        </button>
+      </div>
+      {selectedOutcome?.description && (
+        <div className={boxClass}>{selectedOutcome.description}</div>
+      )}
+      {searchError && (
+        <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 px-2.5 py-1.5 text-hud-sm text-hud-bad-soft">
+          {searchError}
+        </div>
+      )}
+    </>
   );
 }
