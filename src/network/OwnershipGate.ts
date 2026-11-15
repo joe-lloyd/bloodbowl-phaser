@@ -123,6 +123,189 @@ export function decisionOwner(
   }
 }
 
+/** Run `then` only on the sender's own turn. */
+const duringOwnTurn = (
+  ctx: GateContext,
+  senderTeamId: string,
+  then: () => GateVerdict
+): GateVerdict =>
+  ctx.activeTeamId === senderTeamId ? then() : deny("not-your-turn");
+
+const ownsPlayer = (
+  ctx: GateContext,
+  senderTeamId: string,
+  playerId: string
+): GateVerdict =>
+  ctx.teamIdOfPlayer(playerId) === senderTeamId
+    ? allow
+    : deny("not-your-player");
+
+const sameTeam = (
+  teamId: string,
+  senderTeamId: string,
+  reason: GateRejectReason
+): GateVerdict => (teamId === senderTeamId ? allow : deny(reason));
+
+const BLOCK_REROLL_COMMANDS = new Set<HeadlessCommand["type"]>([
+  "team-reroll-block",
+  "pro-reroll-block",
+  "brawler-reroll-block",
+  "veteran-reroll-block",
+]);
+
+/** Decision replies: only the deciding side, only while one is pending. */
+function checkDecisionReply(
+  command: HeadlessCommand,
+  senderTeamId: string,
+  ctx: GateContext
+): GateVerdict {
+  if (!ctx.pendingDecision) return deny("no-decision-pending");
+  const pending = ctx.pendingDecision;
+  const owner = decisionOwner(pending, ctx);
+  if (owner !== senderTeamId) return deny("not-your-decision");
+  if (pending.type !== "block-dice") return allow;
+  const rerollStage = pending.choiceStage === "attacker-reroll";
+  if (command.type === "choose-block-result" && rerollStage)
+    return deny("decision-pending");
+  if (command.type === "keep-block-dice" && !rerollStage)
+    return deny("not-your-decision");
+  if (
+    BLOCK_REROLL_COMMANDS.has(command.type) &&
+    ctx.teamIdOfPlayer(pending.attackerId) !== senderTeamId
+  )
+    return deny("not-your-decision");
+  return allow;
+}
+
+/** The player a Charge! command acts through. */
+function actingPlayerId(command: HeadlessCommand): string | undefined {
+  if ("playerId" in command) return command.playerId;
+  if ("attackerId" in command) return command.attackerId;
+  if ("throwerId" in command) return command.throwerId;
+  return undefined;
+}
+
+/** A Charge! kick-off event: the charging team moves its own players. */
+function checkCharge(
+  command: HeadlessCommand,
+  senderTeamId: string,
+  ctx: GateContext,
+  pending: PendingDecision
+): GateVerdict {
+  const owner = decisionOwner(pending, ctx);
+  if (owner !== senderTeamId) return deny("not-your-decision");
+  const playerId = actingPlayerId(command);
+  return playerId && ctx.teamIdOfPlayer(playerId) !== senderTeamId
+    ? deny("not-your-player")
+    : allow;
+}
+
+/** Pregame, ceremony, kick and post-match commands; undefined for others. */
+function checkMatchCommand(
+  command: HeadlessCommand,
+  senderTeamId: string,
+  ctx: GateContext
+): GateVerdict | undefined {
+  switch (command.type) {
+    // Pregame inducement selection belongs to the affected team's coach,
+    // and (unlike play commands) has no "active team" turn structure yet.
+    case "select-inducement":
+    case "remove-inducement":
+    case "confirm-inducements":
+      return sameTeam(command.teamId, senderTeamId, "not-your-player");
+
+    // Match ceremony is driven by the host
+    case "coin-flip":
+    case "start-setup":
+      return sameTeam(ctx.hostTeamId, senderTeamId, "host-only");
+
+    // Post-match choices belong to the coach of the affected team/player.
+    case "award-mvp":
+      if (ctx.phase !== GamePhase.GAME_OVER) return deny("not-your-turn");
+      return sameTeam(command.teamId, senderTeamId, "not-your-player");
+    case "assign-awarded-touchdown":
+      if (ctx.phase !== GamePhase.GAME_OVER) return deny("not-your-turn");
+      return ownsPlayer(ctx, senderTeamId, command.playerId);
+
+    // Kickoff: the kicking team's coach acts through their own player. During
+    // KICKOFF the kicking team is the NON-active team (active is the receiving
+    // team, set last during SETUP_RECEIVING), so the active team can't kick.
+    case "select-kicker":
+    case "kick-ball":
+      if (
+        ctx.phase === GamePhase.KICKOFF &&
+        ctx.activeTeamId === senderTeamId
+      ) {
+        return deny("not-your-turn");
+      }
+      return ownsPlayer(ctx, senderTeamId, command.playerId);
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Setup is sequential (kicking team, then receiving team): a coach may
+ * only place/edit their own players while it is their setup turn, so a
+ * coach who has finished can't keep editing during the opponent's setup.
+ * Undefined for any other command.
+ */
+function checkSetupCommand(
+  command: HeadlessCommand,
+  senderTeamId: string,
+  ctx: GateContext
+): GateVerdict | undefined {
+  const owns = (playerId: string) => ownsPlayer(ctx, senderTeamId, playerId);
+  switch (command.type) {
+    case "place-player":
+    case "remove-player":
+      return duringOwnTurn(ctx, senderTeamId, () => owns(command.playerId));
+    case "swap-players":
+      return duringOwnTurn(ctx, senderTeamId, () => {
+        const first = owns(command.player1Id);
+        return first.allowed ? owns(command.player2Id) : first;
+      });
+    case "confirm-setup":
+    case "apply-formation":
+    case "setup-concession":
+      return duringOwnTurn(ctx, senderTeamId, () =>
+        sameTeam(command.teamId, senderTeamId, "not-your-turn")
+      );
+    default:
+      return undefined;
+  }
+}
+
+/** Turn play: the active coach acts through their own player. */
+function checkPlayCommand(
+  command: HeadlessCommand,
+  senderTeamId: string,
+  ctx: GateContext
+): GateVerdict {
+  const owns = (playerId: string) => ownsPlayer(ctx, senderTeamId, playerId);
+  switch (command.type) {
+    // Block references two players; the attacker must be yours
+    case "block":
+    case "multiple-block":
+    case "stab":
+    case "special-action":
+      return duringOwnTurn(ctx, senderTeamId, () => owns(command.attackerId));
+    case "throw-teammate":
+    case "throw-bomb":
+      return duringOwnTurn(ctx, senderTeamId, () => owns(command.throwerId));
+
+    case "end-turn":
+      return duringOwnTurn(ctx, senderTeamId, () => allow);
+
+    // All remaining play commands act through a single own player
+    default:
+      return duringOwnTurn(ctx, senderTeamId, () => {
+        const playerId = "playerId" in command ? command.playerId : undefined;
+        return playerId ? owns(playerId) : allow;
+      });
+  }
+}
+
 export function checkOwnership(
   command: HeadlessCommand,
   senderTeamId: string,
@@ -137,140 +320,24 @@ export function checkOwnership(
     return allow;
   }
 
-  // Decision replies: only the deciding side, only while one is pending
   if (command.type in DECISION_REPLIES) {
-    if (!ctx.pendingDecision) return deny("no-decision-pending");
-    const pending = ctx.pendingDecision;
-    const owner = decisionOwner(pending, ctx);
-    if (owner !== senderTeamId) return deny("not-your-decision");
-    if (pending.type === "block-dice") {
-      if (
-        command.type === "choose-block-result" &&
-        pending.choiceStage === "attacker-reroll"
-      )
-        return deny("decision-pending");
-      if (
-        command.type === "keep-block-dice" &&
-        pending.choiceStage !== "attacker-reroll"
-      )
-        return deny("not-your-decision");
-      if (
-        (command.type === "team-reroll-block" ||
-          command.type === "pro-reroll-block" ||
-          command.type === "brawler-reroll-block" ||
-          command.type === "veteran-reroll-block") &&
-        ctx.teamIdOfPlayer(pending.attackerId) !== senderTeamId
-      )
-        return deny("not-your-decision");
-    }
-    return allow;
+    return checkDecisionReply(command, senderTeamId, ctx);
   }
+  const pending = ctx.pendingDecision;
   if (
-    ctx.pendingDecision?.type === "kickoff-event" &&
-    ctx.pendingDecision.charge &&
+    pending?.type === "kickoff-event" &&
+    pending.charge &&
     CHARGE_COMMANDS.has(command.type)
   ) {
-    const owner = decisionOwner(ctx.pendingDecision, ctx);
-    if (owner !== senderTeamId) return deny("not-your-decision");
-    const playerId =
-      "playerId" in command
-        ? command.playerId
-        : "attackerId" in command
-          ? command.attackerId
-          : "throwerId" in command
-            ? command.throwerId
-            : undefined;
-    return playerId && ctx.teamIdOfPlayer(playerId) !== senderTeamId
-      ? deny("not-your-player")
-      : allow;
+    return checkCharge(command, senderTeamId, ctx, pending);
   }
-  if (ctx.pendingDecision) {
-    return deny("decision-pending");
-  }
+  if (pending) return deny("decision-pending");
 
-  const ownsPlayer = (playerId: string): GateVerdict =>
-    ctx.teamIdOfPlayer(playerId) === senderTeamId
-      ? allow
-      : deny("not-your-player");
-
-  switch (command.type) {
-    // Pregame inducement selection belongs to the affected team's coach,
-    // and (unlike play commands) has no "active team" turn structure yet.
-    case "select-inducement":
-    case "remove-inducement":
-    case "confirm-inducements":
-      return command.teamId === senderTeamId ? allow : deny("not-your-player");
-
-    // Match ceremony is driven by the host
-    case "coin-flip":
-    case "start-setup":
-      return senderTeamId === ctx.hostTeamId ? allow : deny("host-only");
-
-    // Setup is sequential (kicking team, then receiving team): a coach may
-    // only place/edit their own players while it is their setup turn, so a
-    // coach who has finished can't keep editing during the opponent's setup.
-    case "place-player":
-    case "remove-player":
-      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
-      return ownsPlayer(command.playerId);
-    case "swap-players": {
-      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
-      const first = ownsPlayer(command.player1Id);
-      return first.allowed ? ownsPlayer(command.player2Id) : first;
-    }
-    case "confirm-setup":
-      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
-      return command.teamId === senderTeamId ? allow : deny("not-your-turn");
-    case "apply-formation":
-    case "setup-concession":
-      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
-      return command.teamId === senderTeamId ? allow : deny("not-your-turn");
-
-    // Post-match choices belong to the coach of the affected team/player.
-    case "award-mvp":
-      if (ctx.phase !== GamePhase.GAME_OVER) return deny("not-your-turn");
-      return command.teamId === senderTeamId ? allow : deny("not-your-player");
-    case "assign-awarded-touchdown":
-      if (ctx.phase !== GamePhase.GAME_OVER) return deny("not-your-turn");
-      return ownsPlayer(command.playerId);
-
-    // Kickoff: the kicking team's coach acts through their own player. During
-    // KICKOFF the kicking team is the NON-active team (active is the receiving
-    // team, set last during SETUP_RECEIVING), so the active team can't kick.
-    case "select-kicker":
-    case "kick-ball":
-      if (
-        ctx.phase === GamePhase.KICKOFF &&
-        ctx.activeTeamId === senderTeamId
-      ) {
-        return deny("not-your-turn");
-      }
-      return ownsPlayer(command.playerId);
-
-    // Block references two players; the attacker must be yours
-    case "block":
-      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
-      return ownsPlayer(command.attackerId);
-    case "multiple-block":
-    case "stab":
-    case "special-action":
-      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
-      return ownsPlayer(command.attackerId);
-    case "throw-teammate":
-    case "throw-bomb":
-      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
-      return ownsPlayer(command.throwerId);
-
-    case "end-turn":
-      return ctx.activeTeamId === senderTeamId ? allow : deny("not-your-turn");
-
-    // All remaining play commands act through a single own player
-    default: {
-      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
-      const playerId = (command as { playerId?: string }).playerId;
-      return playerId ? ownsPlayer(playerId) : allow;
-    }
-  }
+  return (
+    checkMatchCommand(command, senderTeamId, ctx) ??
+    checkSetupCommand(command, senderTeamId, ctx) ??
+    checkPlayCommand(command, senderTeamId, ctx)
+  );
 }
 
 export function gateContextOf(

@@ -215,20 +215,7 @@ export class LockstepSession {
     // Whichever side has run more commands holds the newer state and sends
     // it: a reloaded page resumes from its last save, which may be behind.
     if (envelope.kind === "hello") {
-      this.seq.acceptFrom(envelope.from, envelope.seq);
-      this.options.onHello?.(envelope.payload, envelope.from);
-      // A page on another version speaks shapes this engine cannot read
-      if (envelope.payload.protocolVersion !== PROTOCOL_VERSION) {
-        this.close();
-        return;
-      }
-      const { applied, checksum } = envelope.payload;
-      // The other page is new, so this side answers for both
-      this.awaitingCatchUp = false;
-      void this.enqueue(async () => {
-        if (this.applied < applied) await this.requestResync();
-        else await this.sendCatchUp(applied, checksum);
-      });
+      this.receiveHello(envelope);
       return;
     }
     if (envelope.kind === "catch-up") {
@@ -248,6 +235,28 @@ export class LockstepSession {
     if (order === "duplicate") return;
     if (order === "gap") void this.requestResync();
 
+    this.dispatch(envelope);
+  }
+
+  private receiveHello(envelope: Extract<Envelope, { kind: "hello" }>): void {
+    this.seq.acceptFrom(envelope.from, envelope.seq);
+    this.options.onHello?.(envelope.payload, envelope.from);
+    // A page on another version speaks shapes this engine cannot read
+    if (envelope.payload.protocolVersion !== PROTOCOL_VERSION) {
+      this.close();
+      return;
+    }
+    const { applied, checksum } = envelope.payload;
+    // The other page is new, so this side answers for both
+    this.awaitingCatchUp = false;
+    void this.enqueue(async () => {
+      if (this.applied < applied) await this.requestResync();
+      else await this.sendCatchUp(applied, checksum);
+    });
+  }
+
+  /** An envelope that arrived in sequence: run or hand on what it carries. */
+  private dispatch(envelope: Envelope): void {
     switch (envelope.kind) {
       case "command": {
         const { command, before } = envelope.payload;
