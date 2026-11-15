@@ -89,9 +89,11 @@ export const SentOffCard: React.FC<{ eventBus: EventBus }> = ({ eventBus }) => {
         : current
     );
   });
+  // In the same order as the offer: a Bribe the other coach answers while
+  // this screen's dice still roll must not be offered again after it
   useEventBus(eventBus, GameEventNames.DecisionResolved, ({ type }) => {
     if (type !== "reaction") return;
-    setCard((current) =>
+    later((current) =>
       current?.bribeAsk ? { ...current, bribeAsk: undefined } : current
     );
   });

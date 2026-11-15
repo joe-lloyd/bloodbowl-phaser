@@ -121,7 +121,79 @@ const mount = async (first: LobbyDoc) => {
 const tick = (ms: number) =>
   act(() => new Promise((resolve) => setTimeout(resolve, ms)));
 
+/** The opening dialog before the weather, for this coach. */
+const mountWeather = async (coach: OnlineMatch) => {
+  engine.state = { weather: "Nice", weatherReady: [] };
+  engine.readied = [];
+  coins.length = 0;
+  const bus = new EventBus();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      <OnlineCoinFlip
+        code="ABC123"
+        lobby={lobby({})}
+        match={coach}
+        eventBus={bus}
+      />
+    )
+  );
+  return {
+    bus,
+    text: () => container.textContent ?? "",
+    button: (name: string) =>
+      [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes(name)
+      ),
+    unmount: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    },
+  };
+};
+
+const host = {
+  ...match,
+  role: "host",
+  myTeamId: "home",
+  opponentName: "Coach-GUEST",
+} as unknown as OnlineMatch;
+
 describe("online weather", () => {
+  it("holds a host's ready until the guest's has arrived", async () => {
+    const dialog = await mountWeather(host);
+    await act(async () => dialog.button("READY — ROLL WEATHER")!.click());
+    // Sending now could cross the guest's ready on the wire
+    expect(engine.readied).toEqual([]);
+    expect(dialog.text()).toContain("Waiting for Coach-GUEST to ready up");
+
+    engine.state = { weather: "Nice", weatherReady: ["away"] };
+    await act(async () =>
+      dialog.bus.emit(GameEventNames.WeatherReady, { teamIds: ["away"] })
+    );
+    expect(engine.readied).toEqual(["home"]);
+    await dialog.unmount();
+  });
+
+  it("shows a weather a resync brings in, with no dice event", async () => {
+    const dialog = await mountWeather(match);
+    expect(dialog.button("READY — ROLL WEATHER")).toBeDefined();
+
+    // The other engine's state arrives whole, already rolled
+    engine.state = { weather: "Blizzard", weatherReady: ["away", "home"] };
+    await act(async () =>
+      dialog.bus.emit(GameEventNames.GameStateRestored, engine.state as never)
+    );
+
+    expect(dialog.text()).toContain("Blizzard");
+    expect(dialog.button("READY — ROLL WEATHER")).toBeUndefined();
+    await act(async () => dialog.button("ON TO THE COIN TOSS")!.click());
+    expect(dialog.text()).toContain("COIN TOSS");
+    await dialog.unmount();
+  });
+
   it("rolls once both coaches are ready, then each reads it before the toss", async () => {
     engine.state = { weather: "Nice", weatherReady: [] };
     engine.readied = [];

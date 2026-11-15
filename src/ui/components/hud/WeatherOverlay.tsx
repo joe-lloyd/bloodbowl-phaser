@@ -23,9 +23,7 @@ import {
 export const WeatherOverlay: React.FC<{ eventBus: EventBus }> = ({
   eventBus,
 }) => {
-  const [teams, setTeams] = useState<{ team1: Team; team2: Team } | null>(
-    null
-  );
+  const [teams, setTeams] = useState<{ team1: Team; team2: Team } | null>(null);
 
   useEventBus(eventBus, GameEventNames.UI_StartWeather, (data) => {
     const match = getActiveOnlineMatch();
@@ -65,9 +63,7 @@ function WeatherDialog({
   onDone: () => void;
 }) {
   const { gameService } = ServiceContainer.getInstance();
-  const { stage, step, total } = useWeatherThrow(
-    eventBus,
-    teams.team1.id,
+  const { stage, step, total } = useWeatherThrow(eventBus, teams.team1.id, () =>
     weatherRolled(gameService.getState())
   );
   const weather = gameService.getState().weather;

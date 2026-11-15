@@ -20,19 +20,26 @@ export type WeatherStep = "waiting" | "rolling" | "shown";
 /**
  * Throws the opening weather's 2D6 into the dialog when the engine rolls
  * it, in the home team's colours, and reports when the result may show.
- * A dialog opened after the roll (a resumed match) shows the result at once.
+ * A dialog opened after the roll (a resumed match), or whose engine is
+ * restored to a rolled state, shows the result at once: no dice event
+ * comes then.
  */
 export function useWeatherThrow(
   eventBus: IEventBus,
   teamId: string,
-  rolledAlready: boolean
+  rolled: () => boolean
 ) {
   const stage = useRef<HTMLDivElement>(null);
   const throwing = useRef<DiceThrow | null>(null);
-  const [step, setStep] = useState<WeatherStep>(
-    rolledAlready ? "shown" : "waiting"
+  const [step, setStep] = useState<WeatherStep>(() =>
+    rolled() ? "shown" : "waiting"
   );
   const [total, setTotal] = useState<number | null>(null);
+
+  useEventBus(eventBus, GameEventNames.GameStateRestored, () => {
+    if (rolled())
+      setStep((current) => (current === "waiting" ? "shown" : current));
+  });
 
   useEventBus(eventBus, GameEventNames.DiceRoll, (roll) => {
     if (roll.rollType !== "Weather" || step !== "waiting") return;

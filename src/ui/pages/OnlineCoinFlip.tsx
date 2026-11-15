@@ -68,7 +68,11 @@ function engineState() {
     : null;
 }
 
-/** Both coaches ready up, both engines roll the weather, each coach reads it. */
+/**
+ * Both coaches ready up, both engines roll the weather, each coach reads
+ * it. The guest's ready goes first: a host who readies first waits, and
+ * their ready is sent once the guest's has arrived (see OwnershipGate).
+ */
 function OnlineWeather({
   match,
   eventBus,
@@ -76,28 +80,41 @@ function OnlineWeather({
 }: Props & { onRead: () => void }) {
   const { team1, team2 } = match.teams;
   const myTeamId = match.myTeamId;
-  const [ready, setReady] = useState<string[]>(
-    () => engineState()?.weatherReady ?? []
-  );
+  const amHost = match.role === "host";
+  const readyNow = () => engineState()?.weatherReady ?? [];
+  const [ready, setReady] = useState<string[]>(readyNow);
   useEventBus(eventBus, GameEventNames.WeatherReady, ({ teamIds }) =>
     setReady(teamIds)
   );
-  const rolledAtMount = useState(() => {
+  const sent = useRef(false);
+  // A resync replaces the engine's state without replaying its events; a
+  // ready it dropped is sent again
+  useEventBus(eventBus, GameEventNames.GameStateRestored, () => {
+    const now = readyNow();
+    if (!now.includes(myTeamId)) sent.current = false;
+    setReady(now);
+  });
+  const { stage, step, total } = useWeatherThrow(eventBus, team1.id, () => {
     const state = engineState();
     return !!state && weatherRolled(state);
-  })[0];
-  const { stage, step, total } = useWeatherThrow(
-    eventBus,
-    team1.id,
-    rolledAtMount
-  );
+  });
   const weather: Weather = engineState()?.weather ?? "Nice";
-  const iAmReady = ready.includes(myTeamId);
 
-  const readyUp = () => {
+  const [wantReady, setWantReady] = useState(false);
+  const iAmReady = wantReady || ready.includes(myTeamId);
+  const guestTeamId = amHost
+    ? myTeamId === team1.id
+      ? team2.id
+      : team1.id
+    : myTeamId;
+  useEffect(() => {
+    if (!wantReady || sent.current || ready.includes(myTeamId)) return;
+    if (amHost && !ready.includes(guestTeamId)) return;
     if (!ServiceContainer.isInitialized()) return;
+    sent.current = true;
     ServiceContainer.getInstance().gameService.readyForWeather(myTeamId);
-  };
+  }, [wantReady, ready, amHost, guestTeamId, myTeamId]);
+  const readyUp = () => setWantReady(true);
 
   return (
     <DialogShell

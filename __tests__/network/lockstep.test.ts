@@ -209,11 +209,14 @@ describe("lockstep sessions", () => {
       myTeamId: hostGame.ctx.team1.id,
       peerTeamId: hostGame.ctx.team2.id,
     };
+    const desyncs: string[] = [];
+    const onDesync = (detail: string) => desyncs.push(detail);
     const host = new LockstepSession({
       ...ids,
       transport: hostEnd,
       game: hostGame,
       selfId: "host-uid",
+      onDesync,
     });
     const guest = new LockstepSession({
       ...ids,
@@ -222,6 +225,7 @@ describe("lockstep sessions", () => {
       transport: guestEnd,
       game: guestGame,
       selfId: "guest-uid",
+      onDesync,
     });
     const rolls: string[] = [];
     hostGame.ctx.eventBus.on(
@@ -229,15 +233,19 @@ describe("lockstep sessions", () => {
       (roll: { rollType: string }) => rolls.push(roll.rollType)
     );
 
-    const hostReady = await host.run({
-      type: "ready-weather",
-      teamId: hostGame.ctx.team1.id,
-    });
+    // Both coaches press READY at the same moment. The guest goes first;
+    // the host's ready waits until the guest's has arrived
+    const [hostEarly, guestReady] = await Promise.all([
+      host.run({ type: "ready-weather", teamId: hostGame.ctx.team1.id }),
+      guest.run({ type: "ready-weather", teamId: hostGame.ctx.team2.id }),
+    ]);
     await settle(host, guest);
-    expect(hostReady.ok).toBe(true);
+    expect(hostEarly).toMatchObject({ ok: false, reason: "not-your-turn" });
+    expect(guestReady.ok).toBe(true);
     // One coach ready is not enough
     expect(rolls).toEqual([]);
-    expect(guestGame.snapshot().weatherReady).toEqual([hostGame.ctx.team1.id]);
+    expect(hostGame.snapshot().weatherReady).toEqual([hostGame.ctx.team2.id]);
+    expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
 
     // A coach cannot ready up for the other one
     const forOther = await guest.run({
@@ -246,13 +254,14 @@ describe("lockstep sessions", () => {
     });
     expect(forOther.ok).toBe(false);
 
-    const guestReady = await guest.run({
+    const hostReady = await host.run({
       type: "ready-weather",
-      teamId: hostGame.ctx.team2.id,
+      teamId: hostGame.ctx.team1.id,
     });
     await settle(host, guest);
 
-    expect(guestReady.ok).toBe(true);
+    expect(hostReady.ok).toBe(true);
+    expect(desyncs).toEqual([]);
     expect(rolls).toEqual(["Weather"]);
     expect(guestGame.snapshot().weather).toBe(hostGame.snapshot().weather);
     expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
