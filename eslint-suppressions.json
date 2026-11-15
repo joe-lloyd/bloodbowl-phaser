@@ -522,17 +522,6 @@
       "count": 2
     }
   },
-  "src/services/GameService.ts": {
-    "complexity": {
-      "count": 8
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 3
-    }
-  },
   "src/simulation/ai/board.ts": {
     "complexity": {
       "count": 1
