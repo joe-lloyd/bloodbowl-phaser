@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
@@ -153,7 +154,7 @@ export class ChainsawAttackOperation extends GameOperation {
     gameService: IGameService,
     context: FlowContext
   ): void {
-    const ball = gameService.getState().ballPosition;
+    const ball = groundBall(gameService.getState());
     if (
       ball &&
       player.gridPosition &&

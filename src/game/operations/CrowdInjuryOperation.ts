@@ -8,6 +8,7 @@
  * (absorbed by the turnover latch if one is already resolving).
  */
 
+import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
@@ -109,11 +110,7 @@ export class CrowdInjuryOperation extends GameOperation {
 
   private carriedBall(state: GameState): boolean {
     if (this.trapdoor) return this.trapdoor.carriedBall;
-    return (
-      !!state.ballPosition &&
-      state.ballPosition.x === this.exitSquare.x &&
-      state.ballPosition.y === this.exitSquare.y
-    );
+    return ballOnSquare(state, this.exitSquare);
   }
 
   /** Return a carried ball to play, then end the turn if it was one's own. */

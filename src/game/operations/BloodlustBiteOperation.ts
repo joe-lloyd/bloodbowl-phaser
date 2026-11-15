@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
@@ -159,7 +160,7 @@ export class BloodlustBiteOperation extends GameOperation {
 }
 
 function holdsBall(context: FlowContext, player: Player): boolean {
-  const ball = context.gameService.getState().ballPosition;
+  const ball = groundBall(context.gameService.getState());
   return (
     !!ball &&
     !!player.gridPosition &&

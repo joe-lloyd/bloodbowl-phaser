@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
@@ -54,10 +55,12 @@ export class CrowdTakesActionOperation extends GameOperation {
           this.then();
           return;
         }
-        const ball = gameService.getState().ballPosition;
+        const ball = groundBall(gameService.getState());
         const carried = ball?.x === square.x && ball.y === square.y;
         player.status = PlayerStatus.PRONE;
-        eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: player.id });
+        eventBus.emit(GameEventNames.PlayerKnockedDown, {
+          playerId: player.id,
+        });
         eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         // Knocked Down: the Armour Roll, then the carried ball Bounces
         await flowManager.runToRest(

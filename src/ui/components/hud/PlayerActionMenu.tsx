@@ -1,3 +1,4 @@
+import { groundBall } from "../../../game/rules/ballInTheAir";
 import { useHeldOnline } from "../../hooks/useHeldOnline";
 import { holdsMeasure } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
@@ -191,7 +192,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       const live = gs.getPlayerById(selectedPlayer.id) ?? selectedPlayer;
       const normal = computeActionAvailability({
         player: live,
-        ballPosition: gs.getState().ballPosition ?? null,
+        // A kick still in the air is held by nobody standing under it
+        ballPosition: groundBall(gs.getState()),
         opponents: gs.getOpponents(selectedPlayer.teamId),
         teammates: gs.getTeammates(selectedPlayer.id),
         reachable: gs.getAvailableMovements(selectedPlayer.id),

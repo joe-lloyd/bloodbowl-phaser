@@ -3,6 +3,7 @@
  * queues the operation that resolves it.
  */
 
+import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { GamePhase } from "@/types/GameState";
 import { Player } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
@@ -81,8 +82,7 @@ export async function throwBall(
 /** Whether the passer holds the ball (the ball manager, or the ball's square). */
 function holdsBall(parts: GameParts, passerId: string, square: Square) {
   if (parts.ballManager.hasBall(passerId)) return true;
-  const ballPos = parts.state.ballPosition;
-  return !!ballPos && ballPos.x === square.x && ballPos.y === square.y;
+  return ballOnSquare(parts.state, square);
 }
 
 /** Why a Pass may not be aimed at this square, or null when it may. */

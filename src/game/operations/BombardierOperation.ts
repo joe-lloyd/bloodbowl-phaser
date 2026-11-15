@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
@@ -66,7 +67,10 @@ export class BombardierOperation extends GameOperation {
     const thrower = gameService.getPlayerById(this.throwerId);
     if (!thrower?.gridPosition) return;
     if (thrower.status !== PlayerStatus.ACTIVE) {
-      eventBus.emit(GameEventNames.UI_Notification, "The Bomber must be Standing!");
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        "The Bomber must be Standing!"
+      );
       return;
     }
     if (!hasSkill(thrower.skills, SkillType.BOMBARDIER)) return;
@@ -280,7 +284,10 @@ export class BombardierOperation extends GameOperation {
    * hit; each adjacent player is hit on a 4+. Standing players hit are Knocked
    * Down, and an Armour Roll is queued for every player hit.
    */
-  private explode(context: FlowContext, square: { x: number; y: number }): void {
+  private explode(
+    context: FlowContext,
+    square: { x: number; y: number }
+  ): void {
     const gameService = context.gameService as IGameService;
     const eventBus = context.eventBus;
     const dice = gameService.getDiceController();
@@ -304,7 +311,9 @@ export class BombardierOperation extends GameOperation {
       if (player.status === PlayerStatus.ACTIVE) {
         // Standing → Knocked Down, then an Armour Roll.
         player.status = PlayerStatus.PRONE;
-        eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: player.id });
+        eventBus.emit(GameEventNames.PlayerKnockedDown, {
+          playerId: player.id,
+        });
         eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         this.dropBallIfCarried(gameService, context, player);
       }
@@ -341,7 +350,7 @@ export class BombardierOperation extends GameOperation {
     context: FlowContext,
     player: Player
   ): void {
-    const ball = gameService.getState().ballPosition;
+    const ball = groundBall(gameService.getState());
     if (
       ball &&
       player.gridPosition &&

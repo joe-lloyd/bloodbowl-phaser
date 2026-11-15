@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
@@ -109,7 +110,7 @@ export class StabOperation extends GameOperation {
       eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: target.id });
       eventBus.emit(GameEventNames.PlayerStatusChanged, target);
       // A downed carrier drops the ball (bounce resolves after the injury)
-      const ball = gameService.getState().ballPosition;
+      const ball = groundBall(gameService.getState());
       if (
         ball &&
         ball.x === target.gridPosition.x &&

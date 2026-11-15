@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { Player, PlayerStatus } from "../../types/Player";
@@ -42,7 +43,7 @@ function canPileDrive(
  * follow-up onto a loose ball can leave the blocker holding it.
  */
 function dropHeldBall(context: FlowContext, attacker: Player): void {
-  const ball = context.gameService.getState().ballPosition;
+  const ball = groundBall(context.gameService.getState());
   const at = attacker.gridPosition;
   if (at && ball?.x === at.x && ball.y === at.y) {
     context.flowManager.add(new BounceOperation({ ...at }), true);

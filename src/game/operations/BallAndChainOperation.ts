@@ -1,3 +1,4 @@
+import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
@@ -93,7 +94,10 @@ export class BallAndChainOperation extends GameOperation {
     const fanatic = gameService.getPlayerById(this.fanaticId);
     if (!fanatic?.gridPosition) return;
     if (fanatic.status !== PlayerStatus.ACTIVE) {
-      eventBus.emit(GameEventNames.UI_Notification, "The Fanatic must be Standing!");
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        "The Fanatic must be Standing!"
+      );
       return;
     }
     if (!hasSkill(fanatic.skills, SkillType.BALL_AND_CHAIN)) return;
@@ -272,7 +276,7 @@ export async function moveBallAndChain(
     to: { ...to },
     path: [{ ...to }],
   });
-  const ball = context.gameService.getState().ballPosition;
+  const ball = groundBall(context.gameService.getState());
   if (ball?.x === to.x && ball.y === to.y) {
     await context.flowManager.runToRest(new BounceOperation({ ...to }));
   }
@@ -280,6 +284,9 @@ export async function moveBallAndChain(
 
 function inBounds({ x, y }: { x: number; y: number }): boolean {
   return (
-    x >= 0 && y >= 0 && x < GameConfig.PITCH_WIDTH && y < GameConfig.PITCH_HEIGHT
+    x >= 0 &&
+    y >= 0 &&
+    x < GameConfig.PITCH_WIDTH &&
+    y < GameConfig.PITCH_HEIGHT
   );
 }

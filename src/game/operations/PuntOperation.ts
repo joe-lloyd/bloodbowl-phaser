@@ -1,3 +1,4 @@
+import { ballOnSquare, groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
@@ -57,7 +58,7 @@ class PuntPossessionCheckOperation extends GameOperation {
   }
   async execute(context: FlowContext): Promise<void> {
     const player = context.gameService.getPlayerById(this.landingPlayerId);
-    const ball = context.gameService.getState().ballPosition;
+    const ball = groundBall(context.gameService.getState());
     if (
       player?.teamId !== this.punterTeamId &&
       player?.gridPosition &&
@@ -73,11 +74,7 @@ type Square = { x: number; y: number };
 
 /** The punter has the skill and stands on the ball. */
 function canPunt(punter: Player, at: Square, state: GameState): boolean {
-  return (
-    hasSkill(punter.skills, SkillType.PUNT) &&
-    state.ballPosition?.x === at.x &&
-    state.ballPosition?.y === at.y
-  );
+  return hasSkill(punter.skills, SkillType.PUNT) && ballOnSquare(state, at);
 }
 
 /** The Throw-in Template: 1-2 turns left, 3-4 goes straight, 5-6 right. */

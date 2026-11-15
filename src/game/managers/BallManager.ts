@@ -1,3 +1,4 @@
+import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { whenMomentsComplete } from "../presentation/momentQueue";
 import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
@@ -602,12 +603,7 @@ export class BallManager {
     const p2 = this.team2.players.find((p) => p.id === playerId);
     const player = p1 || p2;
 
-    if (!player || !player.gridPosition || !this.state.ballPosition)
-      return false;
-
-    return (
-      player.gridPosition.x === this.state.ballPosition.x &&
-      player.gridPosition.y === this.state.ballPosition.y
-    );
+    // A kick still in the air is held by nobody under it
+    return !!player && ballOnSquare(this.state, player.gridPosition);
   }
 }
