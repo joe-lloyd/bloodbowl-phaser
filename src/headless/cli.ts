@@ -18,6 +18,7 @@ import { GameSnapshot, PlayerSnapshot } from "./serialization";
 import { SCENARIOS } from "../data/scenarios";
 import { GamePhase } from "../types/GameState";
 import { GameConfig } from "../config/GameConfig";
+import type { RuleConfig, ScriptResult } from "../game/rules-lab";
 
 interface CliOptions {
   scenario?: string;
@@ -229,25 +230,26 @@ async function main(): Promise<void> {
 
 // ===== Rule runner mode =====
 
-async function runRuleMode(options: CliOptions): Promise<void> {
-  const { RULE_SCENARIOS } = await import("../data/ruleScenarios");
-  const { runRuleConfig, findSeed } = await import("../game/rules-lab");
-  const { GameEventNames } = await import("../types/events");
+type RuleEntry =
+  (typeof import("../data/ruleScenarios"))["RULE_SCENARIOS"][number];
 
-  const entry = RULE_SCENARIOS.find(
+/** The catalog entry and configurations asked for; exits when there are none. */
+function ruleConfigs(
+  options: CliOptions,
+  entries: readonly RuleEntry[]
+): { entry: RuleEntry; configs: RuleConfig[] } {
+  const entry = entries.find(
     (e) => e.skill.toLowerCase() === options.rule!.toLowerCase()
   );
   if (!entry) {
-    const covered = RULE_SCENARIOS.map((e) => e.skill).join(", ");
+    const covered = entries.map((e) => e.skill).join(", ");
     process.stderr.write(
       `No catalog entry for rule '${options.rule}'. Covered rules: ${covered}\n`
     );
     process.exit(1);
   }
 
-  const configs = options.config
-    ? entry.configs.filter((c) => c.id === options.config)
-    : entry.configs;
+  const configs = selected(entry.configs, options.config);
   if (configs.length === 0) {
     process.stderr.write(
       `No configuration '${options.config}' for ${entry.skill}. ` +
@@ -255,6 +257,49 @@ async function runRuleMode(options: CliOptions): Promise<void> {
     );
     process.exit(1);
   }
+  return { entry, configs };
+}
+
+/** The items with the given id, or every item when none is given. */
+function selected<T extends { id: string }>(
+  items: T[],
+  id: string | undefined
+): T[] {
+  return id ? items.filter((item) => item.id === id) : items;
+}
+
+function skillEventLines(result: ScriptResult, names: string[]): string {
+  return result.events
+    .filter((e) => names.includes(e.name))
+    .map((e) => `      event ${e.name}: ${JSON.stringify(e.data)}`)
+    .join("\n");
+}
+
+/** Fixed seed: report which outcome(s) it produced. */
+function reportSeed(
+  config: RuleConfig,
+  seed: number,
+  result: ScriptResult,
+  out: (line: string) => void
+): void {
+  for (const outcome of config.outcomes) {
+    out(
+      `  seed ${seed} → ${outcome.id}: ${
+        outcome.matches(result) ? "MATCHED" : "not matched"
+      }`
+    );
+  }
+}
+
+const errorText = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+async function runRuleMode(options: CliOptions): Promise<void> {
+  const { RULE_SCENARIOS } = await import("../data/ruleScenarios");
+  const { runRuleConfig, findSeed } = await import("../game/rules-lab");
+  const { GameEventNames } = await import("../types/events");
+
+  const { entry, configs } = ruleConfigs(options, RULE_SCENARIOS);
 
   const out = (line: string) => process.stdout.write(line + "\n");
   let failed = false;
@@ -263,37 +308,22 @@ async function runRuleMode(options: CliOptions): Promise<void> {
     out(`\n=== ${entry.skill}: ${config.name} (${config.id})`);
     out(`    ${config.description}`);
 
-    const skillEvents = (result: {
-      events: { name: string; data?: unknown }[];
-    }) =>
-      result.events
-        .filter(
-          (e) =>
-            e.name === GameEventNames.SkillTriggered ||
-            e.name === GameEventNames.RerollUsed
-        )
-        .map((e) => `      event ${e.name}: ${JSON.stringify(e.data)}`)
-        .join("\n");
+    const skillEvents = (result: ScriptResult) =>
+      skillEventLines(result, [
+        GameEventNames.SkillTriggered,
+        GameEventNames.RerollUsed,
+      ]);
 
     if (options.seed !== undefined) {
       // Fixed seed: run it once, report which outcome(s) it produced
       const result = await runRuleConfig(config, options.seed);
-      for (const outcome of config.outcomes) {
-        out(
-          `  seed ${options.seed} → ${outcome.id}: ${
-            outcome.matches(result) ? "MATCHED" : "not matched"
-          }`
-        );
-      }
+      reportSeed(config, options.seed, result, out);
       const events = skillEvents(result);
       if (events) out(events);
       continue;
     }
 
-    const outcomes = options.outcome
-      ? config.outcomes.filter((o) => o.id === options.outcome)
-      : config.outcomes;
-    for (const outcome of outcomes) {
+    for (const outcome of selected(config.outcomes, options.outcome)) {
       try {
         const found = await findSeed(config, outcome.id);
         outcome.verify?.(found.result);
@@ -302,9 +332,7 @@ async function runRuleMode(options: CliOptions): Promise<void> {
         if (events) out(events);
       } catch (error) {
         failed = true;
-        out(
-          `  ✗ ${outcome.id}: ${error instanceof Error ? error.message : error}`
-        );
+        out(`  ✗ ${outcome.id}: ${errorText(error)}`);
       }
     }
   }
@@ -406,22 +434,28 @@ async function runTextMode(game: HeadlessGame): Promise<void> {
       continue;
     }
 
-    const response = await game.execute(command);
-    if (!response.ok) {
-      print(`✗ ${response.reason}`);
-    } else {
-      const events = renderEvents(response);
-      if (events) print(events);
-      if (response.legalActions) print(safeJsonPretty(response.legalActions));
-      if (response.pendingDecision) {
-        print(`! decision required: ${safeJson(response.pendingDecision)}`);
-      }
-      print(renderStatus(response.snapshot));
-      print(renderPitch(response.snapshot));
-    }
+    printResponse(await game.execute(command), print);
     rl.prompt();
   }
   process.exit(0);
+}
+
+function printResponse(
+  response: CommandResponse,
+  print: (text: string) => void
+): void {
+  if (!response.ok) {
+    print(`✗ ${response.reason}`);
+    return;
+  }
+  const events = renderEvents(response);
+  if (events) print(events);
+  if (response.legalActions) print(safeJsonPretty(response.legalActions));
+  if (response.pendingDecision) {
+    print(`! decision required: ${safeJson(response.pendingDecision)}`);
+  }
+  print(renderStatus(response.snapshot));
+  print(renderPitch(response.snapshot));
 }
 
 function safeJsonPretty(data: unknown): string {
