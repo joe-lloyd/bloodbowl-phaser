@@ -318,21 +318,6 @@ export class GameScene extends Phaser.Scene {
     subscribeTurnMarkers(this);
     followMatchWithCamera(this);
 
-    // A ball in someone's hands, or a game moving on, is a ball at rest:
-    // the trail of how it got there fades
-    const restTrail = () => this.ballSprite?.restTrail();
-    for (const name of [
-      GameEventNames.CatchSucceeded,
-      GameEventNames.PassIntercepted,
-      GameEventNames.TurnStarted,
-      GameEventNames.PlayerSelected,
-    ] as const) {
-      this.subscribe(name, restTrail);
-    }
-    this.subscribe(GameEventNames.BallPickup, ({ success }) => {
-      if (success) restTrail();
-    });
-
     // The board is built: the loading screen can go, as the camera comes in.
     this.eventBus.emit(GameEventNames.UI_LoadProgress, { progress: 1 });
     if (!this.resumedMatch) this.cameraController.intro();

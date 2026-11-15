@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { EventEmitter } from "node:events";
 
 /**
  * A pass that scatters off the pitch flies the ball toward the square it
@@ -64,6 +65,8 @@ function fakeScene() {
     y: 0,
   });
   const scene = {
+    events: new EventEmitter(),
+    time: { now: 0 },
     add: {
       ellipse: shape,
       container: shape,
