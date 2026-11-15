@@ -6,6 +6,7 @@ import { GamePhase } from "../../types/GameState";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import {
   LobbyDoc,
+  TimerState,
   setTurnDeadline,
   pauseClock,
   resumeClock,
@@ -102,9 +103,6 @@ export function TurnClock({
   );
   const present = (content: ReactNode) =>
     stripSlot ? createPortal(content, stripSlot) : content;
-  const clockClass = stripSlot
-    ? "flex skew-x-12 items-center gap-2 whitespace-nowrap text-hud-xs"
-    : "hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2";
   const timer = lobby.timer;
   // Both browsers run the engine; the coach whose turn it is keeps the clock
   const myTurn = () =>
@@ -119,7 +117,7 @@ export function TurnClock({
   };
   // Until the new active coach's deadline comes back, the one in the lobby
   // still belongs to the turn before
-  const deadlineIsThisTurn = timer?.turn != null && timer.turn === turnKey();
+  const deadlineIsThisTurn = deadlineIsFor(timer, turnKey);
   const turnSeconds = lobby.settings.turnSeconds;
   const clockEnabled = turnSeconds > 0;
   const [now, setNow] = useState(Date.now());
@@ -128,30 +126,14 @@ export function TurnClock({
   // The main clock stops while the other coach is disconnected, and while
   // the coach whose turn it is NOT owns a decision (an uphill block's dice,
   // Stand Firm, …). That coach gets a short clock of their own instead.
-  const activeTeamId = ServiceContainer.isInitialized()
-    ? ServiceContainer.getInstance().gameService.getActiveTeamId()
-    : null;
   const decidingTeamId = match.decidingTeamId();
-  const otherSideDeciding =
-    currentPhase() === GamePhase.PLAY &&
-    decidingTeamId != null &&
-    decidingTeamId !== activeTeamId;
-  const freezeRef = useRef<{
-    reason: "away" | "deciding";
-    /** The hold was for this coach's own silence */
-    awayIsMe: boolean;
-    /** Turn time left when the clock stopped */
-    remaining: number | null;
-  } | null>(null);
-  // A drop this coach shares with the other one stays a hold: while its
-  // own link is down, its view of the other coach says nothing, and a
-  // deadline written then would land late over the right one
-  const freezeReason: "away" | "deciding" | null =
-    opponentAway || (offline && freezeRef.current?.reason === "away")
-      ? "away"
-      : otherSideDeciding
-        ? "deciding"
-        : null;
+  const freezeRef = useRef<Freeze | null>(null);
+  const freezeReason = freezeReasonFor({
+    opponentAway,
+    offline,
+    frozen: freezeRef.current,
+    otherSideDeciding: otherSideIsDeciding(decidingTeamId),
+  });
   // The tick reads it without restarting
   const offlineRef = useRef(offline);
   useEffect(() => {
@@ -187,13 +169,13 @@ export function TurnClock({
       freezeRef.current = {
         reason: freezeReason,
         awayIsMe,
-        remaining: !clockEnabled
-          ? null
-          : !deadlineIsThisTurn
-            ? turnSeconds * 1000
-            : timer?.deadline != null
-              ? Math.min(turnSeconds * 1000, timer.deadline - stoppedAt)
-              : null,
+        remaining: timeLeftAtStop({
+          clockEnabled,
+          deadlineIsThisTurn,
+          turnSeconds,
+          deadline: timer?.deadline,
+          stoppedAt,
+        }),
       };
     } else if (!freezeReason && frozen) {
       freezeRef.current = null;
@@ -225,11 +207,7 @@ export function TurnClock({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freezeReason]);
 
-  const myBank = timer?.banks?.[user.uid] ?? 0;
-  const pausedByMe = timer?.pausedBy === user.uid;
-  const bankLeft = pausedByMe
-    ? Math.max(0, myBank - (now - (timer?.pausedAt ?? now)))
-    : myBank;
+  const { myBank, pausedByMe, bankLeft } = timeoutBank(timer, user.uid, now);
 
   const doResume = useCallback(() => {
     if (!timer) return;
@@ -356,7 +334,8 @@ export function TurnClock({
     const onTurnEnded = ({ teamId }: { teamId: string }) => {
       const turnover = turnoverThisTurn.current;
       turnoverThisTurn.current = false;
-      if (!clockEnabled || turnover || !timer?.deadline || timer.pausedBy) return;
+      if (!clockEnabled || turnover || !timer?.deadline || timer.pausedBy)
+        return;
       if (freezeRef.current || currentPhase() !== GamePhase.PLAY) return;
       if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() < timer.deadline - TIME_UP_GRACE_MS) return;
@@ -380,76 +359,259 @@ export function TurnClock({
     if (bankDry) doResume();
   }, [bankDry, doResume]);
 
-  if (
-    !clockEnabled ||
-    !timer ||
-    timer.deadline == null ||
-    currentPhase() !== GamePhase.PLAY
-  ) {
-    return null;
-  }
+  const shown = shownTimer(clockEnabled, timer);
+  if (!shown) return null;
 
   const frozen = freezeRef.current;
   if (frozen) {
-    const pending = match.pendingDecision();
-    const decision = decisionRef.current;
-    const left =
-      frozen.reason === "deciding" && pending && decision
-        ? DEFENDER_DECISION_SECONDS[pending.type] * 1000 -
-          (now - decision.since)
-        : 0;
-    const who =
-      decidingTeamId === match.myTeamId
-        ? "You have"
-        : `${match.opponentName} has`;
-    // In the strip there is room for one short line: the disconnect
-    // banner, the waiting banner and the decision dock name the rest
-    const stoppedText =
-      frozen.reason === "away"
-        ? stripSlot
-          ? "Paused"
-          : frozen.awayIsMe
-            ? "Your connection dropped: game paused"
-            : `${match.opponentName} disconnected: game paused`
-        : stripSlot
-          ? `${fmt(left)} to decide`
-          : `${who} ${fmt(left)} to decide (${pending?.type.replace(/-/g, " ")})`;
     return present(
-      <div data-testid="turn-clock-stopped" className={clockClass}>
-        <div
-          className={`font-hud-display ${stripSlot ? "text-hud-base" : "text-hud-2xl"} leading-none text-hud-info`}
-        >
-          ⏸ {fmt(frozen.remaining ?? 0)}
-        </div>
-        <div className="font-hud-body text-hud-xs text-hud-dim">
-          {stoppedText}
-        </div>
-      </div>
+      <StoppedClock
+        frozen={frozen}
+        pending={match.pendingDecision()}
+        decision={decisionRef.current}
+        now={now}
+        decidingIsMe={decidingTeamId === match.myTeamId}
+        opponentName={match.opponentName}
+        inStrip={stripSlot !== null}
+      />
     );
   }
 
-  const pauserName = timer.pausedBy
-    ? (match.coachName(timer.pausedBy) ?? "Opponent")
-    : null;
-  const resume = resuming(now);
-  // Never more than a turn's length: the coach who wrote the deadline may
-  // have a clock a little ahead of this one
-  const remaining = Math.min(
-    turnSeconds * 1000,
-    !deadlineIsThisTurn
-      ? turnSeconds * 1000
-      : resume
-        ? resume.remaining - (now - resume.at)
-        : timer.pausedBy
-          ? (timer.deadline ?? now) - (timer.pausedAt ?? now)
-          : timer.deadline - now
-  );
-  const low = remaining <= 15000 && !timer.pausedBy && deadlineIsThisTurn;
-
   return present(
-    <div data-testid="turn-clock" className={clockClass}>
+    <RunningClock
+      timer={shown}
+      remaining={turnTimeLeft({
+        turnSeconds,
+        deadlineIsThisTurn,
+        resume: resuming(now),
+        timer: shown,
+        now,
+      })}
+      deadlineIsThisTurn={deadlineIsThisTurn}
+      inStrip={stripSlot !== null}
+      coachName={(uid) => match.coachName(uid)}
+      pausedByMe={pausedByMe}
+      bankLeft={bankLeft}
+      myBank={myBank}
+      onResume={doResume}
+      onPause={() => void pauseClock(code, user.uid)}
+    />
+  );
+}
+
+type FreezeReason = "away" | "deciding";
+
+interface Freeze {
+  reason: FreezeReason;
+  /** The hold was for this coach's own silence */
+  awayIsMe: boolean;
+  /** Turn time left when the clock stopped */
+  remaining: number | null;
+}
+
+/** A timer whose deadline is set. */
+type ShownTimer = TimerState & { deadline: number };
+
+/**
+ * Until the new active coach's deadline comes back, the one in the lobby
+ * still belongs to the turn before.
+ */
+function deadlineIsFor(
+  timer: TimerState | null | undefined,
+  turnKey: () => string | null
+): boolean {
+  return timer?.turn != null && timer.turn === turnKey();
+}
+
+/**
+ * The coach whose turn it is NOT owns a decision (an uphill block's dice,
+ * Stand Firm, …).
+ */
+function otherSideIsDeciding(decidingTeamId: string | null): boolean {
+  const activeTeamId = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getActiveTeamId()
+    : null;
+  return (
+    currentPhase() === GamePhase.PLAY &&
+    decidingTeamId != null &&
+    decidingTeamId !== activeTeamId
+  );
+}
+
+/**
+ * Why the main clock stops, if it does. A drop this coach shares with the
+ * other one stays a hold: while its own link is down, its view of the
+ * other coach says nothing, and a deadline written then would land late
+ * over the right one.
+ */
+function freezeReasonFor({
+  opponentAway,
+  offline,
+  frozen,
+  otherSideDeciding,
+}: {
+  opponentAway: boolean;
+  offline: boolean;
+  frozen: Freeze | null;
+  otherSideDeciding: boolean;
+}): FreezeReason | null {
+  if (opponentAway || (offline && frozen?.reason === "away")) return "away";
+  return otherSideDeciding ? "deciding" : null;
+}
+
+/** Turn time left when the clock stopped; null for an untimed match. */
+function timeLeftAtStop({
+  clockEnabled,
+  deadlineIsThisTurn,
+  turnSeconds,
+  deadline,
+  stoppedAt,
+}: {
+  clockEnabled: boolean;
+  deadlineIsThisTurn: boolean;
+  turnSeconds: number;
+  deadline: number | null | undefined;
+  stoppedAt: number;
+}): number | null {
+  if (!clockEnabled) return null;
+  if (!deadlineIsThisTurn) return turnSeconds * 1000;
+  return deadline != null
+    ? Math.min(turnSeconds * 1000, deadline - stoppedAt)
+    : null;
+}
+
+/** This coach's timeout bank, running down while their own pause lasts. */
+function timeoutBank(
+  timer: TimerState | null | undefined,
+  uid: string,
+  now: number
+) {
+  const myBank = timer?.banks?.[uid] ?? 0;
+  const pausedByMe = timer?.pausedBy === uid;
+  const bankLeft = pausedByMe
+    ? Math.max(0, myBank - (now - (timer?.pausedAt ?? now)))
+    : myBank;
+  return { myBank, pausedByMe, bankLeft };
+}
+
+/** The timer, when a timed match in play has a deadline to show. */
+function shownTimer(
+  clockEnabled: boolean,
+  timer: TimerState | null | undefined
+): ShownTimer | null {
+  if (!clockEnabled || !timer || timer.deadline == null) return null;
+  if (currentPhase() !== GamePhase.PLAY) return null;
+  return { ...timer, deadline: timer.deadline };
+}
+
+/**
+ * Turn time on the clock. Never more than a turn's length: the coach who
+ * wrote the deadline may have a clock a little ahead of this one.
+ */
+function turnTimeLeft({
+  turnSeconds,
+  deadlineIsThisTurn,
+  resume,
+  timer,
+  now,
+}: {
+  turnSeconds: number;
+  deadlineIsThisTurn: boolean;
+  resume: { remaining: number; at: number } | null;
+  timer: ShownTimer;
+  now: number;
+}): number {
+  const turnMs = turnSeconds * 1000;
+  if (!deadlineIsThisTurn) return turnMs;
+  if (resume) return Math.min(turnMs, resume.remaining - (now - resume.at));
+  if (timer.pausedBy)
+    return Math.min(turnMs, timer.deadline - (timer.pausedAt ?? now));
+  return Math.min(turnMs, timer.deadline - now);
+}
+
+const clockClass = (inStrip: boolean) =>
+  inStrip
+    ? "flex skew-x-12 items-center gap-2 whitespace-nowrap text-hud-xs"
+    : "hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2";
+
+/** The main clock, stopped for a drop or for the other side's decision. */
+function StoppedClock({
+  frozen,
+  pending,
+  decision,
+  now,
+  decidingIsMe,
+  opponentName,
+  inStrip,
+}: {
+  frozen: Freeze;
+  pending: PendingDecision | null;
+  decision: { since: number } | null;
+  now: number;
+  decidingIsMe: boolean;
+  opponentName: string;
+  inStrip: boolean;
+}) {
+  const left =
+    frozen.reason === "deciding" && pending && decision
+      ? DEFENDER_DECISION_SECONDS[pending.type] * 1000 - (now - decision.since)
+      : 0;
+  const who = decidingIsMe ? "You have" : `${opponentName} has`;
+  // In the strip there is room for one short line: the disconnect
+  // banner, the waiting banner and the decision dock name the rest
+  const stoppedText =
+    frozen.reason === "away"
+      ? inStrip
+        ? "Paused"
+        : frozen.awayIsMe
+          ? "Your connection dropped: game paused"
+          : `${opponentName} disconnected: game paused`
+      : inStrip
+        ? `${fmt(left)} to decide`
+        : `${who} ${fmt(left)} to decide (${pending?.type.replace(/-/g, " ")})`;
+  return (
+    <div data-testid="turn-clock-stopped" className={clockClass(inStrip)}>
       <div
-        className={`font-hud-display ${stripSlot ? "text-hud-base" : "text-hud-2xl"} leading-none tabular-nums ${
+        className={`font-hud-display ${inStrip ? "text-hud-base" : "text-hud-2xl"} leading-none text-hud-info`}
+      >
+        ⏸ {fmt(frozen.remaining ?? 0)}
+      </div>
+      <div className="font-hud-body text-hud-xs text-hud-dim">
+        {stoppedText}
+      </div>
+    </div>
+  );
+}
+
+/** The running (or paused) turn clock, with the timeout controls. */
+function RunningClock({
+  timer,
+  remaining,
+  deadlineIsThisTurn,
+  inStrip,
+  coachName,
+  pausedByMe,
+  bankLeft,
+  myBank,
+  onResume,
+  onPause,
+}: {
+  timer: ShownTimer;
+  remaining: number;
+  deadlineIsThisTurn: boolean;
+  inStrip: boolean;
+  coachName: (uid: string) => string | undefined;
+  pausedByMe: boolean;
+  bankLeft: number;
+  myBank: number;
+  onResume: () => void;
+  onPause: () => void;
+}) {
+  const low = remaining <= 15000 && !timer.pausedBy && deadlineIsThisTurn;
+  return (
+    <div data-testid="turn-clock" className={clockClass(inStrip)}>
+      <div
+        className={`font-hud-display ${inStrip ? "text-hud-base" : "text-hud-2xl"} leading-none tabular-nums ${
           timer.pausedBy
             ? "text-hud-info"
             : low
@@ -473,33 +635,58 @@ export function TurnClock({
         )}
       </div>
       {timer.pausedBy ? (
-        <div
-          className="font-hud-body text-hud-xs text-hud-dim"
-          title={`Paused by ${pauserName}`}
-        >
-          {!stripSlot && <>by {pauserName}</>}
-          {pausedByMe && (
-            <>
-              <button
-                onClick={doResume}
-                className="ml-2 font-hud-label font-bold uppercase tracking-[0.06em] text-hud-gold underline-offset-2 hover:underline"
-              >
-                Resume
-              </button>
-              <span className="ml-2">({fmt(bankLeft)} left)</span>
-            </>
-          )}
-        </div>
+        <PausedBy
+          pauserName={coachName(timer.pausedBy) ?? "Opponent"}
+          inStrip={inStrip}
+          pausedByMe={pausedByMe}
+          bankLeft={bankLeft}
+          onResume={onResume}
+        />
       ) : (
         <button
-          onClick={() => void pauseClock(code, user.uid)}
+          onClick={onPause}
           disabled={myBank <= 0}
           aria-label={`Timeout, ${fmt(myBank)} left`}
           title={`Take a timeout: ${fmt(myBank)} left in your bank`}
           className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-gold/90 hover:text-hud-gold disabled:opacity-40"
         >
-          {stripSlot ? `⏸ ${fmt(myBank)}` : `⏸ Timeout (${fmt(myBank)})`}
+          {inStrip ? `⏸ ${fmt(myBank)}` : `⏸ Timeout (${fmt(myBank)})`}
         </button>
+      )}
+    </div>
+  );
+}
+
+/** Who paused, and for the coach who did, Resume and their bank. */
+function PausedBy({
+  pauserName,
+  inStrip,
+  pausedByMe,
+  bankLeft,
+  onResume,
+}: {
+  pauserName: string;
+  inStrip: boolean;
+  pausedByMe: boolean;
+  bankLeft: number;
+  onResume: () => void;
+}) {
+  return (
+    <div
+      className="font-hud-body text-hud-xs text-hud-dim"
+      title={`Paused by ${pauserName}`}
+    >
+      {!inStrip && <>by {pauserName}</>}
+      {pausedByMe && (
+        <>
+          <button
+            onClick={onResume}
+            className="ml-2 font-hud-label font-bold uppercase tracking-[0.06em] text-hud-gold underline-offset-2 hover:underline"
+          >
+            Resume
+          </button>
+          <span className="ml-2">({fmt(bankLeft)} left)</span>
+        </>
       )}
     </div>
   );

@@ -490,13 +490,5 @@
     "sonarjs/cognitive-complexity": {
       "count": 1
     }
-  },
-  "src/ui/pages/TurnClock.tsx": {
-    "complexity": {
-      "count": 2
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 2
-    }
   }
 }
