@@ -1,29 +1,20 @@
-import { IEventBus } from "../../services/EventBus";
-import { GamePhase, GameState } from "@/types/GameState";
-import { Team } from "@/types/Team";
 import {
   Player,
   PlayerStatus,
   PlayerCondition,
-  addCondition,
   hasCondition,
   removeCondition,
 } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { ReactionDecisionAnswer } from "../../types/decisions";
-import {
-  BlockValidator,
-  blockDiceForStrength,
-} from "../validators/BlockValidator";
+import { blockDiceForStrength } from "../validators/BlockValidator";
 import { BlockAnalysis } from "../../types/Actions";
 import {
   consumeOffensiveAssist,
   offensiveAssistBonus,
 } from "../kickoff/driveEffects";
 import {
-  BlockResolutionService,
   BlockResult,
-  BlockResultType,
   BlockRollData,
 } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
@@ -31,296 +22,28 @@ import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
 import { InjuryOperation } from "../operations/InjuryOperation";
 import { CatchOperation } from "../operations/CatchOperation";
-import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
-import { trapdoorOpens } from "../inducements/matchInducements";
 import { GameConfig } from "../../config/GameConfig";
-import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
-import { PileDriverOperation } from "../operations/PileDriverOperation";
-import { moveBallAndChain } from "../operations/BallAndChainOperation";
 import {
   foldBlockResult,
   foldTrigger,
-  gatherParticipants,
-  adjacentStanding,
   BlockResultContext,
   BlockDeclaredContext,
   BlockDiceRolledContext,
-  PushContext,
-  spendTeamReroll,
 } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
-import { PassController } from "../controllers/PassController";
+import { PassController, PassResult } from "../controllers/PassController";
+import { FlowContext } from "../core/GameFlowManager";
+import { InOrderOperation, driveOver } from "./BlockOperations";
+import { snapshotRoll } from "./BlockRerolls";
+import { BlockPushChain } from "./BlockPushChain";
 
 /**
- * Offers the blocker the follow-up into the square their crowd-surfed
- * victim vacated. Queued at the BACK of the flow so the crowd injury and
- * throw-in chain fully settle (ball at rest) before the prompt; the
- * blocker's activation then ends with the follow-up reply, never before.
+ * The Block Action from declaration to result: the dice, Dump-Off's
+ * interruption, and the Skull and Both Down results. The push, the
+ * re-rolls and what follows the Block live in the classes this extends.
  */
-class CrowdSurfFollowUpOperation extends GameOperation {
-  public readonly name = "CrowdSurfFollowUp";
-
-  constructor(
-    private attackerId: string,
-    private targetSquare: { x: number; y: number }
-  ) {
-    super();
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    context.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
-      attackerId: this.attackerId,
-      targetSquare: this.targetSquare,
-    });
-  }
-}
-
-/**
- * Ends the blocker's activation once the push chain (and any armour/injury
- * rolls it queued) has fully settled. Queued at the BACK of the flow so the
- * turn only flips after those rolls apply — used when no follow-up prompt
- * will fire to end the activation (Fend denied the follow-up). Pile Driver
- * and Hit and Run still get their turn first.
- */
-class FinishActivationOperation extends GameOperation {
-  public readonly name = "FinishActivation";
-
-  constructor(
-    private manager: BlockManager,
-    private attackerId: string
-  ) {
-    super();
-  }
-
-  async execute(_context: FlowContext): Promise<void> {
-    this.manager.endBlockActivation(this.attackerId);
-  }
-}
-
-/**
- * Taunt (2025 rulebook p.136): the pushed player's coach made the blocker
- * Follow-up. Runs the free move without offering a choice; the activation
- * ends via a FinishActivationOperation queued at the back, once armour and
- * injury rolls have settled.
- */
-class ForcedFollowUpOperation extends GameOperation {
-  public readonly name = "ForcedFollowUp";
-
-  constructor(
-    private attackerId: string,
-    private targetSquare: { x: number; y: number }
-  ) {
-    super();
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    const active = context.gameService.getState().activePlayer;
-    const attacker = context.gameService.getPlayerById(this.attackerId);
-    if (
-      attacker &&
-      active?.id === attacker.id &&
-      active.action === "ballAndChain"
-    ) {
-      await moveBallAndChain(context, attacker, this.targetSquare);
-      return;
-    }
-    await context.gameService.followUpPush(this.attackerId, this.targetSquare);
-  }
-}
-
-/**
- * Runs operations one after another, each with everything it queues: a
- * Knocked Down player's Armour Roll and Injury, then the ball they dropped
- * Bounces (2025 rulebook p.44). Adding them to the front one by one runs
- * them in a different order from an idle flow, which starts the first at
- * once, than from inside one.
- */
-class InOrderOperation extends GameOperation {
-  public readonly name = "InOrder";
-
-  constructor(private operations: GameOperation[]) {
-    super();
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    // Added to an idle flow this starts at once: yield, so what the caller
-    // queues next (a follow-up, the end of the activation) waits behind it
-    await Promise.resolve();
-    for (const operation of this.operations) {
-      await context.flowManager.runToRest(operation);
-    }
-  }
-}
-
-/**
- * A touchdown ends the drive, and any block still queued with it. A Charge!
- * Blitz runs during KICKOFF, so that phase is not over.
- */
-const driveOver = (phase: GamePhase) =>
-  phase === GamePhase.TOUCHDOWN ||
-  phase === GamePhase.SETUP ||
-  phase === GamePhase.HALFTIME ||
-  phase === GamePhase.GAME_OVER;
-
-/**
- * Frenzy (2025 rulebook p.130): the blocker must follow up a Push Back, and
- * if the target is still Standing must throw a second Block Action at the same
- * player. Runs after the first push settles; the second block re-enters the
- * normal block flow (which will not Frenzy again — one extra block only).
- */
-class FrenzyOperation extends GameOperation {
-  public readonly name = "Frenzy";
-
-  constructor(
-    private manager: BlockManager,
-    private attackerId: string,
-    private defenderId: string,
-    /** Null when the target stood firm: nothing to follow up into. */
-    private vacatedSquare: { x: number; y: number } | null,
-    private targetStanding: boolean
-  ) {
-    super();
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    // The push scored: the board is being cleared.
-    if (driveOver(context.gameService.getPhase())) return;
-    if (this.vacatedSquare) {
-      // Let the Push Back animation land before the blocker follows up…
-      await context.delay(300);
-      // Frenzy forces the follow-up into the vacated square.
-      await context.gameService.followUpPush(
-        this.attackerId,
-        this.vacatedSquare
-      );
-      // …and let that follow-up move finish before the second Block window opens.
-      await context.delay(450);
-    }
-    // Queued, so it runs after a Bloodlust bite the follow-up may have raised.
-    context.flowManager.add(
-      new FrenzySecondBlockOperation(
-        this.manager,
-        this.attackerId,
-        this.defenderId,
-        this.targetStanding
-      )
-    );
-  }
-}
-
-class FrenzySecondBlockOperation extends GameOperation {
-  public readonly name = "FrenzySecondBlock";
-
-  constructor(
-    private manager: BlockManager,
-    private attackerId: string,
-    private defenderId: string,
-    private targetStanding: boolean
-  ) {
-    super();
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    // A carrier following up into the end zone has just scored.
-    if (driveOver(context.gameService.getPhase())) return;
-    // Or found no Thrall to bite: Distracted, the ball dropped, the turn over.
-    const attacker = context.gameService.getPlayerById(this.attackerId);
-    if (attacker && hasCondition(attacker, PlayerCondition.DISTRACTED)) return;
-    await this.manager.frenzySecondBlock(
-      this.attackerId,
-      this.defenderId,
-      this.targetStanding
-    );
-  }
-}
-
-/**
- * Advances a Multiple Block only after the first block's complete push,
- * armour, injury, and ball chain has settled. A latched Turnover waits for
- * this operation too, so the second Block is still resolved in full.
- */
-class ContinueMultipleBlockOperation extends GameOperation {
-  public readonly name = "ContinueMultipleBlock";
-
-  constructor(
-    private manager: BlockManager,
-    private attackerId: string
-  ) {
-    super();
-  }
-
-  async execute(_context: FlowContext): Promise<void> {
-    await this.manager.continueMultipleBlock(this.attackerId);
-  }
-}
-
-/**
- * Hit and Run (2025 rulebook p.130): after fully resolving a Block, a still-
- * Standing player may move one free square (ignoring Tackle Zones) that leaves
- * them neither Marked by nor Marking any opponent. Offered as a yes/no
- * reaction; the free square is one that satisfies the constraint.
- */
-class HitAndRunOperation extends GameOperation {
-  public readonly name = "HitAndRun";
-
-  constructor(
-    private manager: BlockManager,
-    private attackerId: string
-  ) {
-    super();
-  }
-
-  async execute(_context: FlowContext): Promise<void> {
-    await this.manager.resolveHitAndRun(this.attackerId);
-  }
-}
-
-/**
- * The block roll as it stands now, for listeners. A re-roll or a kept roll
- * changes the pending roll in place; sending the same object again would
- * leave a listener that kept the last one, such as the block dialog's
- * React state, seeing nothing new.
- */
-const snapshotRoll = (roll: BlockRollData): BlockRollData => ({
-  ...roll,
-  results: [...roll.results],
-});
-
-/** Each block die's face as the log names it, e.g. "Attacker Down". */
-const faces = (results: BlockResult[]): string[] => results.map((r) => r.label);
-
-export class BlockManager {
-  private pileDriverTargets = new Map<string, string>();
-  private blockValidator: BlockValidator = new BlockValidator();
-  private multipleBlockState: {
-    attackerId: string;
-    defenderIds: [string, string];
-    nextIndex: number;
-    originalStrength: number;
-    continuationQueued: boolean;
-    /** Both Blocks' assists and strengths, analysed before either resolves. */
-    analyses: Record<string, BlockAnalysis>;
-    /** The board before either Block resolved, for a Trickster relocation. */
-    board: Player[];
-    /** Targets knocked down so far, offered to Pile Driver at the end. */
-    pileDriverTargetIds: string[];
-  } | null = null;
-
-  constructor(
-    private eventBus: IEventBus,
-    private state: GameState,
-    private team1: Team,
-    private team2: Team,
-    private blockResolutionService: BlockResolutionService,
-    private diceController: DiceController,
-    private callbacks: {
-      onTurnover: (reason: string) => void;
-      getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
-    }
-  ) {}
-
+export class BlockManager extends BlockPushChain {
   /**
    * Cheering Fans: an owed Offensive Assist adds +1 ST to the team's first
    * Block of the turn it was granted for. Returns 0 outside that window.
@@ -545,9 +268,6 @@ export class BlockManager {
     this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(rollData));
   }
 
-  /** The block roll awaiting the coach's result choice (for re-rolls). */
-  private pendingBlockRoll: BlockRollData | null = null;
-
   /**
    * Dump-Off: an opposition-targeted ball carrier may make an immediate
    * Quick Pass. It never causes a Turnover because it is an interruption
@@ -578,57 +298,13 @@ export class BlockManager {
     }
 
     const from = { ...passer.gridPosition };
-    const quickTargets = this.allPlayers()
-      .filter(
-        (candidate) =>
-          candidate.id !== passer.id &&
-          candidate.teamId === passer.teamId &&
-          candidate.status === PlayerStatus.ACTIVE &&
-          !!candidate.gridPosition &&
-          PassController.rangeValue(from, candidate.gridPosition) === 0
-      )
-      .sort((a, b) => {
-        const ad = Math.max(
-          Math.abs(a.gridPosition!.x - from.x),
-          Math.abs(a.gridPosition!.y - from.y)
-        );
-        const bd = Math.max(
-          Math.abs(b.gridPosition!.x - from.x),
-          Math.abs(b.gridPosition!.y - from.y)
-        );
-        return (
-          ad - bd ||
-          a.gridPosition!.y - b.gridPosition!.y ||
-          a.gridPosition!.x - b.gridPosition!.x
-        );
-      });
-    const receiver = quickTargets[0];
-    const emptyQuickPassSquares: Array<{ x: number; y: number }> = [];
-    if (!receiver?.gridPosition) {
-      for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
-        for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
-          const square = { x, y };
-          if (
-            (x !== from.x || y !== from.y) &&
-            !gs.getPlayerAt(x, y) &&
-            PassController.rangeValue(from, square) === 0
-          ) {
-            emptyQuickPassSquares.push(square);
-          }
-        }
-      }
-      emptyQuickPassSquares.sort(
-        (a, b) =>
-          Math.max(Math.abs(a.x - from.x), Math.abs(a.y - from.y)) -
-            Math.max(Math.abs(b.x - from.x), Math.abs(b.y - from.y)) ||
-          a.y - b.y ||
-          a.x - b.x
-      );
-    }
-    const targetSquare = receiver?.gridPosition
-      ? { ...receiver.gridPosition }
-      : emptyQuickPassSquares[0];
-    if (!targetSquare) return true;
+    const target = this.dumpOffTarget(
+      passer,
+      from,
+      (x, y) => !!gs.getPlayerAt(x, y)
+    );
+    if (!target) return true;
+    const { receiver, square: targetSquare } = target;
 
     const answer = (await gs.getDecisionService().request({
       type: "reaction",
@@ -657,19 +333,94 @@ export class BlockManager {
         gameService: gs,
         eventBus: this.eventBus,
       });
+    // The ball comes to rest, bounces and catches included, before the
+    // action that provoked the pass goes on.
+    await flow.runToRest(
+      this.landDumpOff(passer, { from, to: targetSquare, receiver, result }, gs)
+    );
+    return !driveOver(this.state.phase);
+  }
+
+  /**
+   * Dump-Off's Quick Pass target: the nearest team-mate in Quick Pass range,
+   * or else the nearest empty Quick Pass square. Ties go to the lower row,
+   * then the lower column.
+   */
+  private dumpOffTarget(
+    passer: Player,
+    from: { x: number; y: number },
+    isOccupied: (x: number, y: number) => boolean
+  ): { receiver?: Player; square: { x: number; y: number } } | null {
+    const distance = (square: { x: number; y: number }) =>
+      Math.max(Math.abs(square.x - from.x), Math.abs(square.y - from.y));
+    const nearestFirst = (
+      a: { x: number; y: number },
+      b: { x: number; y: number }
+    ) => distance(a) - distance(b) || a.y - b.y || a.x - b.x;
+
+    const receiver = this.allPlayers()
+      .filter(
+        (candidate) =>
+          candidate.id !== passer.id &&
+          candidate.teamId === passer.teamId &&
+          candidate.status === PlayerStatus.ACTIVE &&
+          !!candidate.gridPosition &&
+          PassController.rangeValue(from, candidate.gridPosition) === 0
+      )
+      .sort((a, b) => nearestFirst(a.gridPosition!, b.gridPosition!))[0];
+    if (receiver?.gridPosition) {
+      return { receiver, square: { ...receiver.gridPosition } };
+    }
+
+    const emptyQuickPassSquares: Array<{ x: number; y: number }> = [];
+    for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
+      for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
+        const square = { x, y };
+        if (
+          (x !== from.x || y !== from.y) &&
+          !isOccupied(x, y) &&
+          PassController.rangeValue(from, square) === 0
+        ) {
+          emptyQuickPassSquares.push(square);
+        }
+      }
+    }
+    const square = emptyQuickPassSquares.sort(nearestFirst)[0];
+    return square ? { receiver, square } : null;
+  }
+
+  /**
+   * Where Dump-Off's pass ends: the ball is placed there, and the returned
+   * operation catches or Bounces it.
+   */
+  private landDumpOff(
+    passer: Player,
+    {
+      from,
+      to,
+      receiver,
+      result,
+    }: {
+      from: { x: number; y: number };
+      to: { x: number; y: number };
+      receiver: Player | undefined;
+      result: PassResult;
+    },
+    gs: FlowContext["gameService"]
+  ): GameOperation {
     // A Dump-off offers no interception, so an inaccurate one scatters at once.
     const scatterPath =
       result.fumbled || result.accurate
         ? undefined
-        : gs.getPassController().scatterPass(targetSquare);
+        : gs.getPassController().scatterPass(to);
     const finalPosition = result.fumbled
       ? { ...from }
-      : (scatterPath?.[scatterPath.length - 1] ?? { ...targetSquare });
+      : (scatterPath?.[scatterPath.length - 1] ?? { ...to });
 
     this.eventBus.emit(GameEventNames.PassAttempted, {
       playerId: passer.id,
       from,
-      to: { ...targetSquare },
+      to: { ...to },
       passType: result.passType,
       accurate: result.accurate,
       finalPosition,
@@ -677,287 +428,16 @@ export class BlockManager {
     });
 
     gs.setBallPosition(finalPosition.x, finalPosition.y);
-    // The ball comes to rest, bounces and catches included, before the
-    // action that provoked the pass goes on.
     const landingPlayer = result.fumbled
       ? undefined
       : gs.getPlayerAt(finalPosition.x, finalPosition.y);
-    await flow.runToRest(
-      landingPlayer
-        ? new CatchOperation(landingPlayer.id, {
-            origin: "pass",
-            isPassTarget:
-              !!receiver && landingPlayer.id === receiver.id && result.accurate,
-          })
-        : new BounceOperation(finalPosition)
-    );
-    return !driveOver(this.state.phase);
-  }
-
-  /**
-   * Veteran (D8): "would be Knocked Down by their own Block". With the
-   * attacker's choice that is when every die knocks them down; with the
-   * defender's choice, when any die does. Player Down always does; Both
-   * Down does unless the attacker has Block.
-   */
-  private blockKnocksAttackerDown(
-    attacker: Player,
-    results: BlockResult[],
-    isAttackerChoice: boolean
-  ): boolean {
-    const knocksDown = (result: BlockResult) =>
-      result.type === "skull" ||
-      (result.type === "both-down" &&
-        !hasSkill(attacker.skills, SkillType.BLOCK));
-    return isAttackerChoice
-      ? results.length > 0 && results.every(knocksDown)
-      : results.some(knocksDown);
-  }
-
-  /** Which block-dice re-rolls the attacker may use right now. */
-  private blockRerollAvailability(
-    attacker: Player | undefined,
-    results: BlockResult[],
-    isAttackerChoice: boolean
-  ): {
-    teamRerollAvailable: boolean;
-    proAvailable: boolean;
-    brawlerAvailable: boolean;
-    veteranRerollAvailable: boolean;
-  } {
-    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
-    const arbiter = gs?.getRerollArbiter();
-    if (!attacker || !gs || !arbiter) {
-      return {
-        teamRerollAvailable: false,
-        proAvailable: false,
-        brawlerAvailable: false,
-        veteranRerollAvailable: false,
-      };
-    }
-    return {
-      veteranRerollAvailable:
-        arbiter.veteranRerollAvailable(attacker) &&
-        this.blockKnocksAttackerDown(attacker, results, isAttackerChoice),
-      teamRerollAvailable: arbiter.teamRerollAvailable(attacker.teamId),
-      proAvailable:
-        hasSkill(attacker.skills, SkillType.PRO) &&
-        gs.getState().activePlayer?.id === attacker.id &&
-        arbiter.onceAvailable(attacker, SkillType.PRO),
-      brawlerAvailable:
-        this.brawlerUsable(attacker) &&
-        results.some((r) => r.type === "both-down"),
-    };
-  }
-
-  /**
-   * Brawler (2025 rulebook p.127) works "when this player declares a Block
-   * Action", so never on a Blitz's Block, and only once per activation:
-   * Frenzy's second Block or a Multiple Block cannot use it again (May 2026
-   * FAQ). A player activates once per turn, so the per-turn ledger serves.
-   */
-  private brawlerUsable(attacker: Player): boolean {
-    const arbiter = this.callbacks
-      .getFlowManager?.()
-      ?.context.gameService.getRerollArbiter();
-    return (
-      !!arbiter &&
-      hasSkill(attacker.skills, SkillType.BRAWLER) &&
-      this.state.activePlayer?.id === attacker.id &&
-      !this.isBlitzBlock(attacker) &&
-      arbiter.onceAvailable(attacker, SkillType.BRAWLER)
-    );
-  }
-
-  public keepBlockDice(attackerId: string): void {
-    const pending = this.pendingBlockRoll;
-    if (
-      !pending ||
-      pending.attackerId !== attackerId ||
-      pending.choiceStage !== "attacker-reroll"
-    )
-      return;
-    pending.choiceStage = "pick";
-    pending.teamRerollAvailable = false;
-    pending.proAvailable = false;
-    pending.brawlerAvailable = false;
-    pending.veteranRerollAvailable = false;
-    this.eventBus.emit(GameEventNames.BlockDiceKept, snapshotRoll(pending));
-  }
-
-  /**
-   * Team Re-roll on a block: re-roll ALL the dice. One re-roll per block, so
-   * Pro and Brawler are locked out afterwards. A failed Loner roll spends
-   * the re-roll and leaves the original dice standing.
-   */
-  public teamRerollBlock(attackerId: string): void {
-    const pending = this.pendingBlockRoll;
-    if (!pending || pending.attackerId !== attackerId) return;
-    const attacker = this.getPlayerById(attackerId);
-    const gameService = this.callbacks.getFlowManager?.()?.context.gameService;
-    if (
-      !attacker ||
-      !gameService ||
-      !gameService.getRerollArbiter().teamRerollAvailable(attacker.teamId)
-    ) {
-      return;
-    }
-    if (spendTeamReroll({ gameService, eventBus: this.eventBus }, attacker)) {
-      const before = pending.results;
-      pending.results = this.diceController.rollBlockDice(
-        pending.numDice,
-        attacker.teamId
-      );
-      this.eventBus.emit(GameEventNames.RerollUsed, {
-        playerId: attackerId,
-        source: "team",
-        rollKind: "block",
-        before: faces(before),
-        after: faces(pending.results),
-      });
-    }
-    pending.teamRerollAvailable = false;
-    pending.proAvailable = false;
-    pending.brawlerAvailable = false;
-    pending.veteranRerollAvailable = false;
-    pending.choiceStage = "pick";
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(pending));
-  }
-
-  /**
-   * Pro on a block: re-roll a SINGLE die (3+ to use). Once attempted, no
-   * other re-roll source may be used on this block (rulebook p.133).
-   */
-  public proRerollBlockDie(attackerId: string, dieIndex: number): void {
-    const pending = this.pendingBlockRoll;
-    if (!pending || pending.attackerId !== attackerId) return;
-    if (dieIndex < 0 || dieIndex >= pending.results.length) return;
-    const attacker = this.getPlayerById(attackerId);
-    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
-    const arbiter = gs?.getRerollArbiter();
-    if (!attacker || !gs || !arbiter) return;
-    if (!hasSkill(attacker.skills, SkillType.PRO)) return;
-    if (gs.getState().activePlayer?.id !== attacker.id) return;
-    if (!arbiter.onceAvailable(attacker, SkillType.PRO)) return;
-
-    // Once Pro is attempted the die is committed to Pro — no other source.
-    arbiter.consumeOnce(attacker, SkillType.PRO);
-    const gate = this.diceController.rollSkillCheck(
-      "Pro",
-      3,
-      0,
-      attacker.playerName
-    );
-    if (gate.success) {
-      pending.results[dieIndex] = this.diceController.rollBlockDice(
-        1,
-        attacker.teamId
-      )[0];
-      this.eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId: attackerId,
-        skill: SkillType.PRO,
-        effect: "Pro: re-rolled a block die",
-      });
-    } else {
-      this.eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId: attackerId,
-        skill: SkillType.PRO,
-        effect: "Pro: the attempt fails — no other re-roll may be used",
-      });
-    }
-    pending.proAvailable = false;
-    pending.teamRerollAvailable = false;
-    pending.brawlerAvailable = false;
-    pending.veteranRerollAvailable = false;
-    pending.choiceStage = "pick";
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(pending));
-  }
-
-  /**
-   * Brawler on a block (2025 rulebook p.127): re-roll the single Both Down
-   * die. No skill check is needed — unlike Pro it just works — but it may
-   * only be used once per activation, and (matching Pro/Team Re-roll's mutual
-   * exclusion) it locks out the other re-roll sources on this block.
-   */
-  public brawlerRerollBlockDie(attackerId: string): void {
-    const pending = this.pendingBlockRoll;
-    if (!pending || pending.attackerId !== attackerId) return;
-    if (!pending.brawlerAvailable) return;
-    const attacker = this.getPlayerById(attackerId);
-    // Defense-in-depth, matching Pro: re-derive eligibility rather than
-    // trusting the cached `pending.brawlerAvailable` flag alone (host
-    // authority — see proRerollBlockDie's identical re-check).
-    if (!attacker || !this.brawlerUsable(attacker)) return;
-    const index = pending.results.findIndex((r) => r.type === "both-down");
-    if (index < 0) return;
-
-    this.callbacks
-      .getFlowManager?.()
-      ?.context.gameService.getRerollArbiter()
-      .consumeOnce(attacker, SkillType.BRAWLER);
-
-    pending.results[index] = this.diceController.rollBlockDice(
-      1,
-      attacker.teamId
-    )[0];
-    this.eventBus.emit(GameEventNames.SkillTriggered, {
-      playerId: attackerId,
-      skill: SkillType.BRAWLER,
-      effect: "Brawler: re-rolled a Both Down",
-    });
-    pending.brawlerAvailable = false;
-    pending.veteranRerollAvailable = false;
-    pending.teamRerollAvailable = false;
-    pending.proAvailable = false;
-    pending.choiceStage = "pick";
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(pending));
-  }
-
-  /**
-   * Veteran on a block (Sevens D8): once per game, re-roll ALL the dice of
-   * a block that would Knock the Veteran Down. Like a Team Re-roll it locks
-   * out the other sources on this block.
-   */
-  public veteranRerollBlock(attackerId: string): void {
-    const pending = this.pendingBlockRoll;
-    if (!pending || pending.attackerId !== attackerId) return;
-    const attacker = this.getPlayerById(attackerId);
-    const arbiter = this.callbacks
-      .getFlowManager?.()
-      ?.context.gameService.getRerollArbiter();
-    // Re-derive eligibility rather than trusting the cached flag (host
-    // authority, as for Pro and Brawler).
-    if (
-      !attacker ||
-      !arbiter ||
-      !arbiter.veteranRerollAvailable(attacker) ||
-      !this.blockKnocksAttackerDown(
-        attacker,
-        pending.results,
-        pending.isAttackerChoice
-      )
-    ) {
-      return;
-    }
-    arbiter.consumeVeteranReroll(attacker);
-    const before = pending.results;
-    pending.results = this.diceController.rollBlockDice(
-      pending.numDice,
-      attacker.teamId
-    );
-    this.eventBus.emit(GameEventNames.RerollUsed, {
-      playerId: attackerId,
-      source: "veteran",
-      rollKind: "block",
-      before: faces(before),
-      after: faces(pending.results),
-    });
-    pending.veteranRerollAvailable = false;
-    pending.teamRerollAvailable = false;
-    pending.proAvailable = false;
-    pending.brawlerAvailable = false;
-    pending.choiceStage = "pick";
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(pending));
+    return landingPlayer
+      ? new CatchOperation(landingPlayer.id, {
+          origin: "pass",
+          isPassTarget:
+            !!receiver && landingPlayer.id === receiver.id && result.accurate,
+        })
+      : new BounceOperation(finalPosition);
   }
 
   /**
@@ -1007,17 +487,7 @@ export class BlockManager {
         this.announce(resultCtx.triggers);
 
         if (resultCtx.saboteurExploded) {
-          const flowManager = this.callbacks.getFlowManager?.();
-          this.knockDownPlayer(attacker);
-          this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
-          if (flowManager) {
-            flowManager.add(new ArmourOperation(attacker.id), true);
-            if (this.isOnBall(attacker) && attacker.gridPosition) {
-              flowManager.add(new BounceOperation(attacker.gridPosition), true);
-              this.callbacks.onTurnover("Ball carrier hit by Saboteur");
-            }
-          }
-          this.endBlockActivation(attacker.id);
+          this.explodeSaboteur(attacker, defender);
           break;
         }
 
@@ -1040,443 +510,6 @@ export class BlockManager {
     // A Frenzy extra block is now resolved (beginPush already read the flag);
     // clear it so this player Frenzies again on their next Block Action.
     if (this.frenzyExtraFor === attackerId) this.frenzyExtraFor = null;
-  }
-
-  /** Is this block the block at the end of the active player's Blitz? */
-  private isBlitzBlock(attacker: Player): boolean {
-    return (
-      this.state.activePlayer?.action === "blitz" &&
-      this.state.activePlayer?.id === attacker.id
-    );
-  }
-
-  /**
-   * Fold the push reactions (Stand Firm / Fend / Strip Ball / Grab) and start
-   * the (possibly chained) push, or resolve it in place if refused. Shared by
-   * plain push/POW results and by Juggernaut converting a Both Down.
-   */
-  private async beginPush(
-    attacker: Player,
-    defender: Player,
-    resultType: BlockResultType,
-    knockDownDefender: boolean
-  ): Promise<void> {
-    const pushCtx: PushContext = {
-      attacker,
-      pushed: defender,
-      resultType,
-      isBlitz: this.isBlitzBlock(attacker),
-      pushedHasBall: this.isOnBall(defender),
-      blockerIgnoresReactions: false,
-      refused: false,
-      preventFollowUp: false,
-      stripBall: false,
-      eyeGouge: false,
-      grabPush: false,
-      sideStepPush: false,
-      forceFollowUp: false,
-      decisions: this.decisions(),
-      flow: this.callbacks.getFlowManager?.(),
-      triggers: [],
-    };
-    await foldTrigger(
-      "onPush",
-      this.blockParticipants(attacker, defender),
-      pushCtx
-    );
-    this.announce(pushCtx.triggers);
-
-    // Rooted players cannot be Pushed Back for any reason — a condition,
-    // not a skill reaction, so Juggernaut's cancel does not apply
-    if (hasCondition(defender, PlayerCondition.ROOTED)) {
-      pushCtx.refused = true;
-      this.announce([
-        {
-          playerId: defender.id,
-          skill: SkillType.TAKE_ROOT,
-          effect: "Rooted: cannot be pushed back",
-        },
-      ]);
-    }
-    // A Rooted attacker may never follow up
-    if (hasCondition(attacker, PlayerCondition.ROOTED)) {
-      pushCtx.preventFollowUp = true;
-    }
-    if (this.multipleBlockState?.attackerId === attacker.id) {
-      // Multiple Block never permits a Follow-up and cannot combine with
-      // Frenzy's forced follow-up/extra block.
-      pushCtx.preventFollowUp = true;
-      pushCtx.forceFollowUp = false;
-    }
-    // Ball & Chain: the Fanatic is moving into the square, not following
-    // up, so it always enters a square the push empties (Fend included)
-    if (this.isBallAndChain(attacker)) {
-      pushCtx.preventFollowUp = false;
-      pushCtx.forceFollowUp = true;
-    }
-
-    // Frenzy: the blocker MUST follow up a Push Back, and — on the first block
-    // only — must throw a second Block at the same player if they are still
-    // Standing. `frenzyExtraFor` marks the second (extra) block so it doesn't
-    // spawn a third.
-    const frenzy =
-      hasSkill(attacker.skills, SkillType.FRENZY) &&
-      this.multipleBlockState?.attackerId !== attacker.id &&
-      this.frenzyExtraFor !== attacker.id &&
-      !pushCtx.preventFollowUp;
-    if (
-      hasSkill(attacker.skills, SkillType.FRENZY) &&
-      this.multipleBlockState?.attackerId !== attacker.id &&
-      !pushCtx.preventFollowUp
-    ) {
-      pushCtx.forceFollowUp = true; // both the first and the extra block
-    }
-
-    if (pushCtx.refused) {
-      await this.resolveRefusedPush(
-        attacker,
-        defender,
-        knockDownDefender,
-        frenzy
-      );
-      return;
-    }
-
-    // Start a (possibly chained) push: the chain is decided link by link,
-    // applied only once fully chosen (rulebook p.55)
-    this.chain = {
-      attackerId: attacker.id,
-      resultType,
-      knockDownDefender,
-      preventFollowUp: pushCtx.preventFollowUp,
-      stripBall: pushCtx.stripBall,
-      eyeGouge: pushCtx.eyeGouge,
-      grabPush: pushCtx.grabPush,
-      sideStepPush: pushCtx.sideStepPush,
-      forceFollowUp: pushCtx.forceFollowUp,
-      frenzy,
-      blockerIgnoresReactions: pushCtx.blockerIgnoresReactions,
-      links: [],
-    };
-    this.requestPushDecision(attacker.gridPosition!, defender);
-  }
-
-  /**
-   * A refused push (Stand Firm): nobody moves, so there is no chain and no
-   * follow-up. POW results still knock the defender down — in place. Stand
-   * Firm "will not prevent a player with the Frenzy Skill from performing a
-   * second Block Action, so long as this player is still Standing" (p.136).
-   */
-  private async resolveRefusedPush(
-    attacker: Player,
-    defender: Player,
-    knockDownDefender: boolean,
-    frenzy: boolean
-  ): Promise<void> {
-    const flowManager = this.callbacks.getFlowManager?.();
-
-    if (
-      knockDownDefender &&
-      (await steadyFootingSaves(
-        defender,
-        this.diceController,
-        this.eventBus,
-        flowManager?.context.gameService
-      ))
-    ) {
-      knockDownDefender = false;
-    }
-    if (knockDownDefender) {
-      this.knockDownTarget(defender);
-      if (hasSkill(attacker.skills, SkillType.PILE_DRIVER)) {
-        this.pileDriverTargets.set(attacker.id, defender.id);
-      }
-      if (flowManager) {
-        const pos = defender.gridPosition;
-        const carried =
-          pos &&
-          this.state.ballPosition &&
-          this.state.ballPosition.x === pos.x &&
-          this.state.ballPosition.y === pos.y;
-        flowManager.add(
-          new InOrderOperation([
-            new ArmourOperation(defender.id, attacker.id),
-            ...(carried ? [new BounceOperation(pos)] : []),
-          ]),
-          true
-        );
-      }
-    }
-
-    if (frenzy && !knockDownDefender && flowManager) {
-      flowManager.add(
-        new FrenzyOperation(this, attacker.id, defender.id, null, true)
-      );
-      return;
-    }
-
-    // No square was vacated, so the follow-up prompt never fires — end the
-    // blocker's activation directly (Hit and Run may take a free square first).
-    this.endBlockActivation(attacker.id);
-  }
-
-  /**
-   * End the blocker's activation after a Block resolves — but if they are a
-   * still-Standing Hit and Run player with a legal free square, queue the
-   * Hit and Run move (which ends the activation itself). Currently wired into
-   * the knockdown-in-place completion; the push/follow-up path is a further
-   * increment. The Stab path goes through GameService.finishStabActivation.
-   */
-  public endBlockActivation(attackerId: string): void {
-    if (this.multipleBlockState?.attackerId === attackerId) {
-      this.queueMultipleBlockContinuation(attackerId);
-      return;
-    }
-    const flowManager = this.callbacks.getFlowManager?.();
-    if (!flowManager) {
-      this.callbacks
-        .getFlowManager?.()
-        ?.context.gameService.finishActivation(attackerId);
-      return;
-    }
-    if (
-      this.offerPileDriver(attackerId, () =>
-        this.endBlockActivation(attackerId)
-      )
-    ) {
-      return;
-    }
-    const attacker = this.getPlayerById(attackerId);
-    if (
-      attacker &&
-      attacker.status === PlayerStatus.ACTIVE &&
-      hasSkill(attacker.skills, SkillType.HIT_AND_RUN) &&
-      this.hitAndRunSquares(attacker).length > 0
-    ) {
-      flowManager.add(new HitAndRunOperation(this, attackerId));
-      return;
-    }
-    flowManager.context.gameService.finishActivation(attackerId);
-  }
-
-  /**
-   * Pile Driver (p.133): once the Block has fully resolved, a blocker who
-   * Knocked Down their target "may perform a free Foul Action" against it.
-   * Queues the optional Foul and returns true; `resume` carries on with the
-   * activation when the coach declines or the Foul is no longer possible.
-   */
-  public offerPileDriver(attackerId: string, resume: () => void): boolean {
-    // A Multiple Block keeps its knockdowns for the offers after both Blocks.
-    if (this.multipleBlockState?.attackerId === attackerId) return false;
-    const targetId = this.pileDriverTargets.get(attackerId);
-    this.pileDriverTargets.delete(attackerId);
-    const flowManager = this.callbacks.getFlowManager?.();
-    const attacker = this.getPlayerById(attackerId);
-    if (!targetId || !flowManager || attacker?.status !== PlayerStatus.ACTIVE) {
-      return false;
-    }
-    flowManager.add(new PileDriverOperation(attackerId, targetId, resume));
-    return true;
-  }
-
-  /** Pending chain-push state between push-direction decisions */
-  private chain: {
-    attackerId: string;
-    resultType: BlockResultType;
-    /** Whether the original defender goes down (skills may have cancelled) */
-    knockDownDefender?: boolean;
-    /** Fend denied the blocker their follow-up */
-    preventFollowUp?: boolean;
-    /** Strip Ball: the pushed carrier drops the ball where they land */
-    stripBall?: boolean;
-    /** Eye Gouge: the Block's target is Eye Gouged once pushed */
-    eyeGouge?: boolean;
-    /** Grab: the blocker picks any unoccupied square adjacent to the target */
-    grabPush?: boolean;
-    /** Sidestep: the player pushed in the current link picks the square */
-    sideStepPush?: boolean;
-    /** Juggernaut on a Blitz: Stand Firm is cancelled down the whole chain */
-    blockerIgnoresReactions?: boolean;
-    /** Taunt / Frenzy: the blocker must follow up — no follow-up choice offered */
-    forceFollowUp?: boolean;
-    /** Frenzy's FIRST block: force follow-up + a mandatory second block. */
-    frenzy?: boolean;
-    links: {
-      playerId: string;
-      from: { x: number; y: number };
-      to: { x: number; y: number } | null; // null = pushed into the crowd
-    }[];
-  } | null = null;
-
-  /** The attacker mid-Frenzy-extra block, so it does not Frenzy a third time. */
-  private frenzyExtraFor: string | null = null;
-
-  /**
-   * Start a two-target Multiple Block. Both opponents must be different,
-   * Standing, marked by the blocker, and opposing players when declared.
-   */
-  public async startMultipleBlock(
-    attackerId: string,
-    defender1Id: string,
-    defender2Id: string
-  ): Promise<void> {
-    const attacker = this.getPlayerById(attackerId);
-    const defenders = [
-      this.getPlayerById(defender1Id),
-      this.getPlayerById(defender2Id),
-    ];
-    const adjacent = (defender: Player | undefined) =>
-      !!attacker?.gridPosition &&
-      !!defender?.gridPosition &&
-      Math.max(
-        Math.abs(attacker.gridPosition.x - defender.gridPosition.x),
-        Math.abs(attacker.gridPosition.y - defender.gridPosition.y)
-      ) === 1;
-
-    if (!attacker || attacker.status !== PlayerStatus.ACTIVE) {
-      throw new Error("illegal-multiple-block:attacker");
-    }
-    if (!hasSkill(attacker.skills, SkillType.MULTIPLE_BLOCK)) {
-      throw new Error("illegal-multiple-block:skill");
-    }
-    if (defender1Id === defender2Id) {
-      throw new Error("illegal-multiple-block:duplicate-target");
-    }
-    if (
-      defenders.some(
-        (defender) =>
-          !defender ||
-          defender.teamId === attacker.teamId ||
-          defender.status !== PlayerStatus.ACTIVE ||
-          !adjacent(defender)
-      )
-    ) {
-      throw new Error("illegal-multiple-block:targets");
-    }
-    if (
-      this.state.activePlayer?.id !== attackerId ||
-      this.state.activePlayer.action !== "multipleBlock"
-    ) {
-      throw new Error("multiple-block-not-declared");
-    }
-
-    const originalStrength = attacker.stats.ST;
-    attacker.stats.ST = Math.max(1, attacker.stats.ST - 2);
-    // The Blocks happen simultaneously, so each target's assists are counted
-    // before either resolves, the other target included (May 2026 FAQ).
-    const analyses: Record<string, BlockAnalysis> = {};
-    for (const defender of defenders) {
-      if (!defender) continue;
-      analyses[defender.id] = this.blockValidator.analyzeBlock(
-        attacker,
-        defender,
-        this.allPlayers(),
-        this.state.activeTeamId
-      );
-    }
-    this.multipleBlockState = {
-      attackerId,
-      defenderIds: [defender1Id, defender2Id],
-      nextIndex: 1,
-      originalStrength,
-      continuationQueued: false,
-      analyses,
-      board: this.allPlayers().map((p) => ({
-        ...p,
-        gridPosition: p.gridPosition && { ...p.gridPosition },
-        conditions: p.conditions && [...p.conditions],
-      })),
-      pileDriverTargetIds: [],
-    };
-    this.eventBus.emit(GameEventNames.SkillTriggered, {
-      playerId: attackerId,
-      skill: SkillType.MULTIPLE_BLOCK,
-      effect: "Multiple Block: two Blocks at -2 Strength with no Follow-up",
-    });
-    await this.startBlock(attackerId, defender1Id);
-  }
-
-  private queueMultipleBlockContinuation(attackerId: string): void {
-    const state = this.multipleBlockState;
-    if (!state || state.attackerId !== attackerId || state.continuationQueued) {
-      return;
-    }
-    state.continuationQueued = true;
-    const flow = this.callbacks.getFlowManager?.();
-    if (flow) {
-      flow.add(new ContinueMultipleBlockOperation(this, attackerId));
-    } else {
-      void this.continueMultipleBlock(attackerId);
-    }
-  }
-
-  /** Continue with target two, or restore Strength and end after target two. */
-  public async continueMultipleBlock(attackerId: string): Promise<void> {
-    const state = this.multipleBlockState;
-    if (!state || state.attackerId !== attackerId) return;
-    state.continuationQueued = false;
-    // The next Block's dice would forget this one's knockdown.
-    const knockedDown = this.pileDriverTargets.get(attackerId);
-    this.pileDriverTargets.delete(attackerId);
-    if (knockedDown) state.pileDriverTargetIds.push(knockedDown);
-    // A push that scored ends the drive, and the second Block with it.
-    const scored = driveOver(this.state.phase);
-    if (!scored && state.nextIndex < state.defenderIds.length) {
-      const defenderId = state.defenderIds[state.nextIndex++];
-      await this.startBlock(attackerId, defenderId);
-      return;
-    }
-
-    const attacker = this.getPlayerById(attackerId);
-    if (attacker) attacker.stats.ST = state.originalStrength;
-    this.multipleBlockState = null;
-    if (scored) return;
-    // Pile Driver, once both Blocks have resolved: a declined Foul offers
-    // the other knocked-down target, if any.
-    const offerNext = (): void => {
-      const targetId = state.pileDriverTargetIds.shift();
-      if (targetId) {
-        this.pileDriverTargets.set(attackerId, targetId);
-        if (this.offerPileDriver(attackerId, offerNext)) return;
-      }
-      this.callbacks
-        .getFlowManager?.()
-        ?.context.gameService.finishActivation(attackerId);
-    };
-    offerNext();
-  }
-
-  /** Analyze and start a fresh Block Action (Frenzy's second block). */
-  public async startBlock(
-    attackerId: string,
-    defenderId: string
-  ): Promise<void> {
-    const attacker = this.getPlayerById(attackerId);
-    const defender = this.getPlayerById(defenderId);
-    if (!attacker || !defender) return;
-    const analysis = this.analyzeBlock(attacker, defender);
-    await this.rollBlockDice(
-      attackerId,
-      defenderId,
-      analysis.diceCount,
-      !analysis.isUphill
-    );
-  }
-
-  /** The Block as it stands, or as analysed when a Multiple Block began. */
-  private analyzeBlock(attacker: Player, defender: Player): BlockAnalysis {
-    const declared =
-      this.multipleBlockState?.attackerId === attacker.id
-        ? this.multipleBlockState.analyses[defender.id]
-        : undefined;
-    return declared
-      ? { ...declared }
-      : this.blockValidator.analyzeBlock(
-          attacker,
-          defender,
-          this.allPlayers(),
-          this.state.activeTeamId
-        );
   }
 
   /**
@@ -1518,609 +551,19 @@ export class BlockManager {
     await this.rollBlockDice(attackerId, defenderId, diceCount, true);
   }
 
-  /**
-   * Ball & Chain into a Prone or Stunned player: "that player is Pushed Back
-   * and an Armour Roll is made against them". The push uses the normal
-   * engine, chain pushes included, but it is not a Block Action, so the
-   * pushed player's own push reactions do not apply. FinishBallAndChainSquare
-   * makes the Armour Roll once the push has landed.
-   */
-  public async startBallAndChainPush(
-    attackerId: string,
-    pushedId: string
-  ): Promise<void> {
-    const attacker = this.getPlayerById(attackerId);
-    const pushed = this.getPlayerById(pushedId);
-    if (!attacker?.gridPosition || !pushed?.gridPosition) return;
-    this.chain = {
-      attackerId,
-      resultType: "push",
-      knockDownDefender: false,
-      forceFollowUp: true,
-      links: [],
-    };
-    this.requestPushDecision(attacker.gridPosition, pushed);
-  }
-
-  /** Is this attacker the Fanatic mid-lurch (Ball & Chain)? */
-  private isBallAndChain(attacker: Player): boolean {
-    return (
-      this.state.activePlayer?.action === "ballAndChain" &&
-      this.state.activePlayer?.id === attacker.id
-    );
-  }
-
-  /** Frenzy's second block, if the target is still standing and adjacent. */
-  public async frenzySecondBlock(
-    attackerId: string,
-    defenderId: string,
-    targetStanding: boolean
-  ): Promise<void> {
-    const attacker = this.getPlayerById(attackerId);
-    const defender = this.getPlayerById(defenderId);
-    const adjacent =
-      !!attacker?.gridPosition &&
-      !!defender?.gridPosition &&
-      Math.abs(attacker.gridPosition.x - defender.gridPosition.x) <= 1 &&
-      Math.abs(attacker.gridPosition.y - defender.gridPosition.y) <= 1;
-
-    if (
-      targetStanding &&
-      attacker?.status === PlayerStatus.ACTIVE &&
-      defender?.status === PlayerStatus.ACTIVE &&
-      adjacent
-    ) {
-      // During a Blitz the second block costs a square too, Rushing if
-      // needed; without one there is no second block.
-      const gs = this.callbacks.getFlowManager?.()?.context.gameService;
-      if (
-        this.isBlitzBlock(attacker) &&
-        gs &&
-        !(await gs.chargeBlitzBlockSquare(attackerId))
-      ) {
-        if (attacker.status === PlayerStatus.ACTIVE) {
-          gs.finishActivation(attackerId);
-        }
-        return;
-      }
-      this.frenzyExtraFor = attackerId;
-      await this.startBlock(attackerId, defenderId);
-    } else {
-      this.endBlockActivation(attackerId);
-    }
-  }
-
-  /** Squares a Hit and Run move may end in (leaving nobody marked). */
-  public hitAndRunSquares(player: Player): { x: number; y: number }[] {
-    if (!player.gridPosition) return [];
-    const opponents = this.allPlayers().filter(
-      (p) => p.teamId !== player.teamId
-    );
-    const squares: { x: number; y: number }[] = [];
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        const pos = {
-          x: player.gridPosition.x + dx,
-          y: player.gridPosition.y + dy,
-        };
-        if (
-          pos.x < 0 ||
-          pos.x >= GameConfig.PITCH_WIDTH ||
-          pos.y < 0 ||
-          pos.y >= GameConfig.PITCH_HEIGHT
-        )
-          continue;
-        if (this.getPlayerAt(pos.x, pos.y)) continue;
-        // Not Marked by / Marking: no standing opponent adjacent to the square.
-        const marked = opponents.some(
-          (o) =>
-            o.status === PlayerStatus.ACTIVE &&
-            o.gridPosition &&
-            Math.abs(o.gridPosition.x - pos.x) <= 1 &&
-            Math.abs(o.gridPosition.y - pos.y) <= 1
-        );
-        if (!marked) squares.push(pos);
-      }
-    }
-    return squares;
-  }
-
-  /** Offer Hit and Run's free move, then end the activation. */
-  public async resolveHitAndRun(attackerId: string): Promise<void> {
-    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
-    const attacker = this.getPlayerById(attackerId);
-    const squares = attacker ? this.hitAndRunSquares(attacker) : [];
-    if (
-      !attacker ||
-      attacker.status !== PlayerStatus.ACTIVE ||
-      !squares.length
-    ) {
-      gs?.finishActivation(attackerId);
-      return;
-    }
-
-    const decisions = this.decisions();
-    let use = true;
-    if (decisions) {
-      const answer = (await decisions.request({
-        type: "reaction",
-        playerId: attackerId,
-        chooserTeamId: attacker.teamId,
-        skill: SkillType.HIT_AND_RUN,
-        prompt: `${attacker.playerName} may Hit and Run one free square — use it?`,
-      })) as ReactionDecisionAnswer;
-      use = answer.accept;
-    }
-
-    if (use) {
-      this.freeMove(attacker, squares[0]);
-      this.eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId: attackerId,
-        skill: SkillType.HIT_AND_RUN,
-        effect: "Hit and Run: one free square",
-      });
-    }
-    gs?.finishActivation(attackerId);
-  }
-
-  /** Move a player to an adjacent square (no dice/cost), carrying the ball. */
-  private freeMove(player: Player, to: { x: number; y: number }): void {
-    const from = { ...player.gridPosition! };
-    player.gridPosition = { ...to };
-    const carriedBall =
-      !!this.state.ballPosition &&
-      this.state.ballPosition.x === from.x &&
-      this.state.ballPosition.y === from.y;
-    if (carriedBall) {
-      this.state.ballPosition = { ...to };
-      this.eventBus.emit(GameEventNames.BallPlaced, { ...to });
-    }
-    this.eventBus.emit(GameEventNames.PlayerMoved, {
-      playerId: player.id,
-      from,
-      to: { ...to },
-      path: [from, { ...to }],
-      ballFrom: carriedBall ? from : undefined,
-      ballPath: carriedBall ? [from, { ...to }] : undefined,
-      ballJoinStep: 0,
-    });
-    this.callbacks
-      .getFlowManager?.()
-      ?.context.gameService.checkForTouchdown(player.id);
-  }
-
-  private requestPushDecision(
-    pusherPos: { x: number; y: number },
-    pushed: Player
-  ): void {
-    const isOccupied = (x: number, y: number) =>
-      this.getPlayerAt(x, y) !== undefined;
-
-    // Grab (first push only) / Sidestep (any link): any unoccupied square
-    // adjacent to the pushed player — Grab hands the choice to the blocker,
-    // Sidestep to the PUSHED player's coach. Both fall back to the normal
-    // push if the target is fully boxed in (the skill "cannot be used").
-    const grabApplies = !!this.chain?.grabPush && this.chain.links.length === 0;
-    const anyAdjacent =
-      grabApplies || this.chain?.sideStepPush
-        ? this.blockResolutionService.getGrabPushOptions(
-            pushed.gridPosition!,
-            isOccupied
-          )
-        : [];
-
-    const { options, tier } =
-      anyAdjacent.length > 0
-        ? { options: anyAdjacent, tier: "open" as const }
-        : this.blockResolutionService.getPushOptions(
-            pusherPos,
-            pushed.gridPosition!,
-            isOccupied
-          );
-
-    const sideStepApplies =
-      !!this.chain?.sideStepPush && anyAdjacent.length > 0;
-    const attacker = this.getPlayerById(this.chain!.attackerId);
-
-    // The wider Grab/Sidestep square set is what's in play for THIS push
-    // decision — name the skill in the match log so a square outside the
-    // usual three doesn't look arbitrary (rulebook p.135).
-    if (anyAdjacent.length > 0) {
-      const skill = sideStepApplies ? SkillType.SIDESTEP : SkillType.GRAB;
-      const holderId = sideStepApplies ? pushed.id : attacker?.id;
-      if (holderId) {
-        this.eventBus.emit(GameEventNames.SkillTriggered, {
-          playerId: holderId,
-          skill,
-          effect: `${skill}: this push is offered among all open adjacent squares, not just the usual three`,
-        });
-      }
-    }
-
-    this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
-      defenderId: pushed.id,
-      validDirections: options,
-      canFollowUp:
-        this.blockResolutionService.allowsFollowUp(this.chain!.resultType) &&
-        !this.chain!.preventFollowUp,
-      resultType: this.chain!.resultType,
-      attackerId: this.chain!.attackerId,
-      // The blocker's coach chooses — except a Sidestep push, which the
-      // pushed player's coach places
-      chooserTeamId: sideStepApplies ? pushed.teamId : attacker?.teamId,
-      pushTier: tier,
-    });
-  }
-
-  private getPlayerAt(x: number, y: number): Player | undefined {
-    return [...this.team1.players, ...this.team2.players].find(
-      (p) => p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
-    );
-  }
-
-  /**
-   * Record the chosen push direction for the currently awaited player.
-   * Occupied target: the occupant is pushed onward (chain, rulebook p.55).
-   * Off-pitch target: pushed into the crowd. Otherwise the chain is
-   * complete and all links apply, innermost first.
-   */
-  public async executePush(
-    attackerId: string,
-    defenderId: string,
-    direction: { x: number; y: number },
-    resultType: string,
-    followUp: boolean
-  ): Promise<void> {
-    const defender = this.getPlayerById(defenderId);
-    if (!defender || !defender.gridPosition) return;
-
-    if (!this.chain) {
-      // Direct call without resolveBlock (tests/tools): start a chain now
-      this.chain = {
-        attackerId,
-        resultType: resultType as BlockResultType,
-        knockDownDefender: resultType === "pow" || resultType === "pow-dodge",
-        links: [],
-      };
-    }
-
-    const from = { ...defender.gridPosition };
-    const onPitch =
-      direction.x >= 0 &&
-      direction.x < GameConfig.PITCH_WIDTH &&
-      direction.y >= 0 &&
-      direction.y < GameConfig.PITCH_HEIGHT;
-
-    if (!onPitch) {
-      // Pushed into the crowd: chain ends at this link
-      this.chain.links.push({ playerId: defenderId, from, to: null });
-      await this.applyChain(followUp);
-      return;
-    }
-
-    this.chain.links.push({ playerId: defenderId, from, to: direction });
-
-    const occupant = this.getPlayerAt(direction.x, direction.y);
-    if (occupant && occupant.id !== defenderId) {
-      // Chain push: the occupant is pushed as if by the incoming player;
-      // the blocking coach keeps choosing directions. The occupant's own
-      // push reactions apply: Stand Firm "including during a Chain Push"
-      // (p.136) and Sidestep "for any reason" (p.135).
-      const reaction = await this.foldChainPush(occupant);
-      if (!this.chain) return;
-      if (reaction.refused) {
-        await this.refuseChain();
-        return;
-      }
-      this.chain.sideStepPush = reaction.sideStepPush;
-      this.requestPushDecision(from, occupant);
-      return;
-    }
-
-    await this.applyChain(followUp);
-  }
-
-  /**
-   * Fold the chain-pushed player's own push reactions. Only their rules run:
-   * the blocker's (Grab, Strip Ball, Eye Gouge) act on the Block's target,
-   * and Taunt reacts to a Block "performed against them".
-   */
-  private async foldChainPush(
-    pushed: Player
-  ): Promise<Pick<PushContext, "refused" | "sideStepPush">> {
-    const chain = this.chain!;
-    const attacker = this.getPlayerById(chain.attackerId)!;
-    const ctx: PushContext = {
-      attacker,
-      pushed,
-      resultType: chain.resultType,
-      isBlitz: this.isBlitzBlock(attacker),
-      pushedHasBall: this.isOnBall(pushed),
-      blockerIgnoresReactions: !!chain.blockerIgnoresReactions,
-      chainPush: true,
-      refused: false,
-      preventFollowUp: false,
-      stripBall: false,
-      eyeGouge: false,
-      grabPush: false,
-      sideStepPush: false,
-      forceFollowUp: false,
-      decisions: this.decisions(),
-      flow: this.callbacks.getFlowManager?.(),
-      triggers: [],
-    };
-    await foldTrigger("onPush", [pushed], ctx);
-    this.announce(ctx.triggers);
-    return ctx;
-  }
-
-  /**
-   * A chain-pushed player stood firm: the player pushed into them cannot
-   * move, so nobody in the chain moves. The Block's target is treated as
-   * having refused the push itself (a POW still knocks them down in place).
-   */
-  private async refuseChain(): Promise<void> {
-    const chain = this.chain!;
-    this.chain = null;
-    const attacker = this.getPlayerById(chain.attackerId);
-    const defender = this.getPlayerById(chain.links[0].playerId);
-    if (!attacker || !defender) return;
-    await this.resolveRefusedPush(
-      attacker,
-      defender,
-      chain.knockDownDefender ??
-        (chain.resultType === "pow" || chain.resultType === "pow-dodge"),
-      !!chain.frenzy
-    );
-  }
-
-  /** Apply all chain links innermost-first, then knockdown/follow-up. */
-  private async applyChain(followUp: boolean): Promise<void> {
-    if (!this.chain) return;
-    const {
-      attackerId,
-      resultType,
-      links,
-      preventFollowUp,
-      stripBall,
-      eyeGouge,
-      forceFollowUp,
-      frenzy,
-    } = this.chain;
-    let knockDownDefender =
-      this.chain.knockDownDefender ??
-      (resultType === "pow" || resultType === "pow-dodge");
-    this.chain = null;
-
-    // Eye Gouge: only the Block's target, and only now it is Pushed Back.
-    const target = this.getPlayerById(links[0]?.playerId ?? "");
-    if (eyeGouge && target) {
-      addCondition(target, PlayerCondition.EYE_GOUGED);
-      this.announce([
-        {
-          playerId: attackerId,
-          skill: SkillType.EYE_GOUGE,
-          effect: `Eye Gouge: ${target.playerName} cannot assist until next activated`,
-        },
-      ]);
-    }
-
+  /** A Saboteur target exploded: the blocker goes down instead. */
+  private explodeSaboteur(attacker: Player, defender: Player): void {
     const flowManager = this.callbacks.getFlowManager?.();
-    /** Treacherous Trapdoor (L12): pushed players who fell through. */
-    const fellThrough = new Set<string>();
-
-    const landedOnLooseBall = new Set<string>();
-    for (let i = links.length - 1; i >= 0; i--) {
-      const link = links[i];
-      const player = this.getPlayerById(link.playerId);
-      if (!player) continue;
-
-      if (link.to === null) {
-        // Crowd surf: off the pitch; injury without armour, ball throw-in
-        // and turnover handled by the operation. Whether it's a turnover is
-        // decided NOW — by the time the operation runs the turn may have
-        // ended (auto end-turn on the blocker's last activation)
-        player.gridPosition = undefined;
-        this.eventBus.emit(GameEventNames.PlayerPushedIntoCrowd, {
-          playerId: link.playerId,
-          exitSquare: link.from,
-        });
-        if (flowManager) {
-          const isTurnover =
-            player.teamId === flowManager.context.gameService.getActiveTeamId();
-          flowManager.add(
-            new CrowdInjuryOperation(link.playerId, link.from, isTurnover),
-            true
-          );
-        }
-        continue;
-      }
-
-      player.gridPosition = { ...link.to };
-
-      // A pushed player keeps hold of the ball
-      const carriedBall =
-        this.state.ballPosition &&
-        this.state.ballPosition.x === link.from.x &&
-        this.state.ballPosition.y === link.from.y;
-      if (carriedBall) {
-        this.state.ballPosition = { ...link.to };
-        this.eventBus.emit(GameEventNames.BallPlaced, { ...link.to });
-      }
-
-      const isOriginalDefender = i === 0;
-      // Pushed onto a loose ball: it bounces, and a pushed player cannot
-      // score with it. A fallen defender's bounce is queued with the
-      // knockdown below, or there too if Steady Footing keeps them up.
-      const onLooseBall =
-        !carriedBall &&
-        this.state.ballPosition?.x === link.to.x &&
-        this.state.ballPosition?.y === link.to.y;
-      if (onLooseBall) landedOnLooseBall.add(link.playerId);
-      if (onLooseBall && !(isOriginalDefender && knockDownDefender)) {
-        flowManager?.add(new BounceOperation(link.to), true);
-      }
-      this.eventBus.emit(GameEventNames.PlayerMoved, {
-        playerId: link.playerId,
-        from: link.from,
-        to: link.to,
-        path: [link.from, link.to],
-        ballFrom: carriedBall ? link.from : undefined,
-        ballPath: carriedBall ? [link.from, link.to] : undefined,
-        ballJoinStep: 0,
-        followUpData:
-          isOriginalDefender && !followUp && !preventFollowUp && !forceFollowUp
-            ? { attackerId, targetSquare: link.from }
-            : undefined,
-      });
-
-      // Pushed onto a Trapdoor: fall through it, injured as if Pushed into
-      // the Crowd, a carried ball Bouncing from the Trapdoor.
-      if (trapdoorOpens(this.state, this.diceController, player, link.to)) {
-        fellThrough.add(link.playerId);
-        player.gridPosition = undefined;
-        // The fallen defender's deferred bounce would be skipped below.
-        if (onLooseBall && isOriginalDefender && knockDownDefender) {
-          flowManager?.add(new BounceOperation(link.to), true);
-        }
-        if (flowManager) {
-          const isTurnover =
-            player.teamId === flowManager.context.gameService.getActiveTeamId();
-          flowManager.add(
-            new CrowdInjuryOperation(link.playerId, link.to, isTurnover, {
-              carriedBall: !!carriedBall,
-            }),
-            true
-          );
-        }
-        continue;
-      }
-
-      // A standing carrier pushed into their scoring end zone still scores
-      // (the original defender falls on POW, so no score for them)
-      const knockedDown = isOriginalDefender && knockDownDefender;
-      if (!knockedDown && !onLooseBall) {
-        flowManager?.context.gameService.checkForTouchdown(link.playerId);
+    this.knockDownPlayer(attacker);
+    this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
+    if (flowManager) {
+      flowManager.add(new ArmourOperation(attacker.id), true);
+      if (this.isOnBall(attacker) && attacker.gridPosition) {
+        flowManager.add(new BounceOperation(attacker.gridPosition), true);
+        this.callbacks.onTurnover("Ball carrier hit by Saboteur");
       }
     }
-
-    // Knockdown applies only to the original defender on POW results
-    const first = links[0];
-    if (first && first.to === null) {
-      // Defender surfed: the blocker is still offered the follow-up into
-      // the vacated square. Queued at the BACK so the crowd injury +
-      // throw-in settle first — the ball must be at rest and the follow-up
-      // answered before the activation (and possibly the turn) ends
-      const attacker = this.getPlayerById(attackerId);
-      if (this.multipleBlockState?.attackerId === attackerId) {
-        this.queueMultipleBlockContinuation(attackerId);
-      } else if (attacker && this.isBallAndChain(attacker)) {
-        // The Fanatic lurches on into the emptied square, no prompt
-        flowManager?.add(new ForcedFollowUpOperation(attackerId, first.from));
-        flowManager?.add(new FinishActivationOperation(this, attackerId));
-      } else {
-        flowManager?.add(
-          new CrowdSurfFollowUpOperation(attackerId, first.from)
-        );
-      }
-      return;
-    }
-    if (
-      first &&
-      first.to !== null &&
-      knockDownDefender &&
-      !fellThrough.has(first.playerId)
-    ) {
-      const defender = this.getPlayerById(first.playerId);
-      if (
-        defender &&
-        (await steadyFootingSaves(
-          defender,
-          this.diceController,
-          this.eventBus,
-          flowManager?.context.gameService
-        ))
-      ) {
-        knockDownDefender = false;
-        if (landedOnLooseBall.has(defender.id))
-          flowManager?.add(new BounceOperation(first.to), true);
-        else if (!stripBall)
-          flowManager?.context.gameService.checkForTouchdown(defender.id);
-      } else if (defender) {
-        this.knockDownTarget(defender);
-        const attacker = this.getPlayerById(attackerId);
-        if (attacker && hasSkill(attacker.skills, SkillType.PILE_DRIVER)) {
-          this.pileDriverTargets.set(attackerId, defender.id);
-        }
-        if (flowManager) {
-          // Knocked Down: the Armour Roll, then a carried ball Bounces from
-          // where they landed (p.44)
-          const carried =
-            this.state.ballPosition &&
-            this.state.ballPosition.x === first.to.x &&
-            this.state.ballPosition.y === first.to.y;
-          flowManager.add(
-            new InOrderOperation([
-              new ArmourOperation(first.playerId, attackerId),
-              ...(carried ? [new BounceOperation(first.to)] : []),
-            ]),
-            true
-          );
-        }
-      }
-    }
-
-    // Strip Ball: a still-standing carrier who was Pushed Back drops the ball
-    // where they land, which then bounces (a POW carrier drops it above).
-    if (
-      stripBall &&
-      !knockDownDefender &&
-      !fellThrough.has(first?.playerId ?? "") &&
-      flowManager &&
-      first &&
-      first.to !== null &&
-      this.state.ballPosition &&
-      this.state.ballPosition.x === first.to.x &&
-      this.state.ballPosition.y === first.to.y
-    ) {
-      flowManager.add(new BounceOperation(first.to), true);
-    }
-
-    // Frenzy's first block: force the follow-up into the vacated square and,
-    // if the target is still Standing, throw a mandatory second Block at the
-    // same player. Queued at the BACK so a POW's armour/injury settle first;
-    // FrenzyOperation then follows up, blocks again if able, and ends the
-    // activation (so it is NOT combined with the forceFollowUp branch below).
-    if (frenzy && first && first.to !== null) {
-      flowManager?.add(
-        new FrenzyOperation(
-          this,
-          attackerId,
-          first.playerId,
-          first.from,
-          !knockDownDefender
-        )
-      );
-    } else if (forceFollowUp && first && first.to !== null) {
-      // Taunt, or Frenzy's second (extra) block: run the free follow-up now
-      // (at the FRONT) and end the activation once everything has settled —
-      // no follow-up prompt will fire.
-      flowManager?.add(
-        new ForcedFollowUpOperation(attackerId, first.from),
-        true
-      );
-      flowManager?.add(new FinishActivationOperation(this, attackerId));
-    } else if (preventFollowUp && first && first.to !== null) {
-      // Fend denied the blocker their follow-up: no follow-up prompt will
-      // fire, so end the activation once any queued armour/injury rolls have
-      // settled (queued at the BACK so the turn flips only after they apply).
-      if (this.multipleBlockState?.attackerId === attackerId) {
-        this.queueMultipleBlockContinuation(attackerId);
-      } else {
-        flowManager?.add(new FinishActivationOperation(this, attackerId));
-      }
-    }
+    this.endBlockActivation(attacker.id);
   }
 
   /**
@@ -2244,7 +687,9 @@ export class BlockManager {
         const down =
           p === attacker ? ctx.attackerKnockedDown : ctx.defenderKnockedDown;
         const drop =
-          down && this.isOnBall(p) ? this.dropCarrierBall(p, flowManager) : null;
+          down && this.isOnBall(p)
+            ? this.dropCarrierBall(p, flowManager)
+            : null;
         if (drop) drops.push(drop);
       });
 
@@ -2265,7 +710,9 @@ export class BlockManager {
       } else {
         [defender, attacker].forEach((p) => {
           if (hasSkill(p.skills, SkillType.BALL_AND_CHAIN)) {
-            rolls.push(new InjuryOperation(p.id, { stunnedIsKnockedOut: true }));
+            rolls.push(
+              new InjuryOperation(p.id, { stunnedIsKnockedOut: true })
+            );
           }
         });
       }
@@ -2291,137 +738,5 @@ export class BlockManager {
       // no follow-up prompt will complete the block: complete it here.
       flowManager?.context.gameService.finishBlockActivation(attacker.id);
     }
-  }
-
-  private isOnBall(player: Player): boolean {
-    return (
-      !!player.gridPosition &&
-      !!this.state.ballPosition &&
-      this.state.ballPosition.x === player.gridPosition.x &&
-      this.state.ballPosition.y === player.gridPosition.y
-    );
-  }
-
-  /**
-   * A knocked-down carrier drops the ball. Safe Pair of Hands (2025 p.126)
-   * places it in an adjacent unoccupied square instead of Bouncing; otherwise
-   * the ball Bounces from the carrier's square as normal: the returned
-   * operation, for the caller to queue after the Armour Roll.
-   */
-  private dropCarrierBall(
-    player: Player,
-    flowManager: import("../core/GameFlowManager").GameFlowManager
-  ): GameOperation | null {
-    const pos = player.gridPosition!;
-    if (hasSkill(player.skills, SkillType.SAFE_PAIR_OF_HANDS)) {
-      const spot = this.adjacentEmptySquare(pos);
-      if (spot) {
-        flowManager.context.gameService.setBallPosition(spot.x, spot.y);
-        this.eventBus.emit(GameEventNames.BallPlaced, spot);
-        this.eventBus.emit(GameEventNames.SkillTriggered, {
-          playerId: player.id,
-          skill: SkillType.SAFE_PAIR_OF_HANDS,
-          effect: "Safe Pair of Hands: places the ball in an adjacent square",
-        });
-        return null;
-      }
-    }
-    return new BounceOperation(pos);
-  }
-
-  /** First unoccupied on-pitch square adjacent to `pos` (fixed clockwise order). */
-  private adjacentEmptySquare(pos: {
-    x: number;
-    y: number;
-  }): { x: number; y: number } | null {
-    const occupied = new Set(
-      this.allPlayers()
-        .filter((p) => p.gridPosition)
-        .map((p) => `${p.gridPosition!.x},${p.gridPosition!.y}`)
-    );
-    const dirs = [
-      [0, -1],
-      [1, -1],
-      [1, 0],
-      [1, 1],
-      [0, 1],
-      [-1, 1],
-      [-1, 0],
-      [-1, -1],
-    ];
-    for (const [dx, dy] of dirs) {
-      const s = { x: pos.x + dx, y: pos.y + dy };
-      if (
-        s.x < 0 ||
-        s.y < 0 ||
-        s.x >= GameConfig.PITCH_WIDTH ||
-        s.y >= GameConfig.PITCH_HEIGHT
-      ) {
-        continue;
-      }
-      if (!occupied.has(`${s.x},${s.y}`)) return s;
-    }
-    return null;
-  }
-
-  /**
-   * Knock down a player
-   */
-  private knockDownPlayer(player: Player): void {
-    player.status = PlayerStatus.PRONE;
-    this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
-      playerId: player.id,
-    });
-  }
-
-  /**
-   * Knock the Block's target down. A target on the active team, which only
-   * a Ball & Chain collision can block, is a Turnover: "A player on the
-   * active team is Knocked Down during their own team's turn" (p.43).
-   */
-  private knockDownTarget(defender: Player): void {
-    this.knockDownPlayer(defender);
-    if (defender.teamId === this.state.activeTeamId) {
-      this.callbacks.onTurnover("Team-mate Knocked Down");
-    }
-  }
-
-  private getPlayerById(playerId: string): Player | undefined {
-    return (
-      this.team1.players.find((p) => p.id === playerId) ||
-      this.team2.players.find((p) => p.id === playerId)
-    );
-  }
-
-  private allPlayers(): Player[] {
-    return [...this.team1.players, ...this.team2.players];
-  }
-
-  private decisions() {
-    return this.callbacks
-      .getFlowManager?.()
-      ?.context.gameService.getDecisionService();
-  }
-
-  /** Attacker → defender → players adjacent to either, by position. */
-  private blockParticipants(attacker: Player, defender: Player): Player[] {
-    const all = this.allPlayers();
-    const adjacents = [
-      ...(attacker.gridPosition
-        ? adjacentStanding(attacker.gridPosition, all)
-        : []),
-      ...(defender.gridPosition
-        ? adjacentStanding(defender.gridPosition, all)
-        : []),
-    ];
-    return gatherParticipants(attacker, defender, adjacents);
-  }
-
-  private announce(
-    triggers: { playerId: string; skill: string; effect: string }[]
-  ): void {
-    triggers.forEach((t) =>
-      this.eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
   }
 }
