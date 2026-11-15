@@ -22,10 +22,7 @@ import { GameplayInteractionController } from "../game/controllers/GameplayInter
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 import { CameraController } from "../game/controllers/CameraController";
 import { TouchController } from "../game/controllers/TouchController";
-import {
-  measureHudRects,
-  watchHudPanels,
-} from "../game/presentation/hudRects";
+import { measureHudRects, watchHudPanels } from "../game/presentation/hudRects";
 import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { kitOf } from "../game/presentation/kits";
@@ -278,9 +275,7 @@ export class GameScene extends Phaser.Scene {
 
     // A panel that opens after the camera framed, such as the action menu
     // once a player is selected, frames the squares again clear of it
-    const panels = watchHudPanels(() =>
-      this.cameraController.refreshFraming()
-    );
+    const panels = watchHudPanels(() => this.cameraController.refreshFraming());
     this.busSubscriptions.push(() => panels.stop());
     this.cameraController = new CameraController(
       this,
@@ -294,7 +289,11 @@ export class GameScene extends Phaser.Scene {
       () => {
         // The HUD may mount after the board: pick up its panels as they come
         panels.watch();
-        return measureHudRects(this.game.canvas, this.scale.width);
+        return measureHudRects(
+          this.game.canvas,
+          this.scale.width,
+          this.scale.height
+        );
       }
     );
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   CameraController,
+  clearArea,
   ScreenRect,
 } from "../../../src/game/controllers/CameraController";
 import { gridPointToPixel } from "../../../src/game/elements/GridUtils";
@@ -28,6 +29,14 @@ function setup(
     renderedZoom: 1,
     setBackgroundColor: vi.fn(),
     setBounds: vi.fn(),
+    getBounds: () => ({
+      x: 0,
+      y: 0,
+      right: 5000,
+      bottom: 3500,
+      width: 5000,
+      height: 3500,
+    }),
     setZoom: vi.fn(function (this: { zoom: number }, z: number) {
       this.zoom = z;
     }),
@@ -96,6 +105,17 @@ describe("CameraController", () => {
     ctx = setup();
   });
 
+  it("keeps the measured vertical centre when corner panels overlap the gap", () => {
+    expect(
+      clearArea(1920, 1080, [
+        { left: 0, top: 0, right: 1920, bottom: 100.5 },
+        { left: 0, top: 846, right: 1920, bottom: 1080 },
+        { left: 1616, top: 747.625, right: 1904, bottom: 1064 },
+        { left: 16, top: 663.625, right: 304, bottom: 832 },
+      ])
+    ).toEqual({ left: 328, top: 124.5, right: 1592, bottom: 822 });
+  });
+
   it("leaves room for the match strip above the playing squares at 1280x720", () => {
     const { camera, pitch } = setup({ width: 1280, height: 720 });
     const [, centreY] = camera.centerOn.mock.calls[0];
@@ -128,6 +148,103 @@ describe("CameraController", () => {
       expect(screenY(camera, pitch.getPointPosition(x, y).y)).toBeGreaterThan(
         100
       );
+    }
+  });
+
+  it("centres a small action between the measured score strip and tray", () => {
+    const { camera, controller, pitch } = setup(
+      { width: 1280, height: 720 },
+      () => [
+        { left: 0, top: 0, right: 1280, bottom: 100 },
+        { left: 0, top: 486, right: 1280, bottom: 720 },
+      ]
+    );
+    controller.focusSquare(10, 5);
+    const feet = screenPoint(camera, pitch.getPixelPosition(10, 5));
+    const zoom = camera.zoomTo.mock.lastCall![0];
+    // The frame includes 70 world pixels above the feet for the figure.
+    expect(feet.y - 35 * zoom).toBeCloseTo(293);
+  });
+
+  it("does not restart a glide for the same reach", () => {
+    const { camera, controller } = setup();
+    const squares = [
+      { x: 10, y: 5 },
+      { x: 11, y: 5 },
+    ];
+    controller.focusSquares(squares);
+    camera.pan.mockClear();
+    camera.zoomTo.mockClear();
+    controller.focusSquares(squares);
+    expect(camera.pan).not.toHaveBeenCalled();
+    expect(camera.zoomTo).not.toHaveBeenCalled();
+  });
+
+  it("does not zoom in as a long reach shrinks", () => {
+    const { camera, controller } = setup({ width: 1280, height: 720 });
+    const reach = [];
+    for (let x = 0; x <= 19; x++)
+      for (let y = 0; y <= 10; y++) reach.push({ x, y });
+    controller.focusSquares([{ x: 10, y: 5 }, ...reach]);
+    camera.zoomTo.mockClear();
+    controller.focusSquares([{ x: 10, y: 5 }]);
+    expect(camera.zoomTo).not.toHaveBeenCalled();
+  });
+
+  it("overrides a small pan deadband when a panel would cover the active figure", () => {
+    const panels = [
+      { left: 0, top: 0, right: 1280, bottom: 100 },
+      { left: 0, top: 486, right: 1280, bottom: 720 },
+    ];
+    const { camera, controller, pitch } = setup(
+      { width: 1280, height: 720 },
+      () => panels
+    );
+    const reach = [];
+    for (let x = 0; x <= 19; x++)
+      for (let y = 0; y <= 10; y++) reach.push({ x, y });
+    controller.focusSquares([{ x: 10, y: 5 }, ...reach]);
+    camera.pan.mockClear();
+    panels[0].bottom = 225;
+    controller.refreshFraming();
+    expect(camera.pan).toHaveBeenCalledTimes(1);
+    const feet = screenPoint(camera, pitch.getPixelPosition(10, 5));
+    expect(
+      feet.y - 70 * camera.zoomTo.mock.lastCall![0]
+    ).toBeGreaterThanOrEqual(249);
+  });
+
+  it("keeps the zoom when a reach shrinks and ignores a nearby move", () => {
+    const { camera, controller } = setup({ width: 1280, height: 720 });
+    const reach = [];
+    for (let x = 8; x <= 12; x++)
+      for (let y = 3; y <= 7; y++) reach.push({ x, y });
+    controller.focusSquares([{ x: 10, y: 5 }, ...reach]);
+    const zoom = camera.zoomTo.mock.lastCall![0];
+    controller.focusSquares([{ x: 10, y: 5 }]);
+    expect(camera.zoomTo.mock.lastCall![0]).toBe(zoom);
+    camera.pan.mockClear();
+    camera.zoomTo.mockClear();
+    controller.focusSquare(11, 5);
+    expect(camera.pan).not.toHaveBeenCalled();
+    expect(camera.zoomTo).not.toHaveBeenCalled();
+  });
+
+  it("still pans to a distant target after holding a nearby framing", () => {
+    const { camera, controller, pitch } = setup({ width: 1280, height: 720 });
+    controller.focusSquares([{ x: 1, y: 1 }]);
+    camera.pan.mockClear();
+    controller.focusSquares([
+      { x: 18, y: 9 },
+      { x: 19, y: 9 },
+    ]);
+    expect(camera.pan).toHaveBeenCalledTimes(1);
+    for (const x of [18, 19]) {
+      const point = screenPoint(camera, pitch.getPixelPosition(x, 9));
+      expect(point.x).toBeGreaterThan(328);
+      expect(point.x).toBeLessThan(952);
+      expect(point.y).toBeGreaterThan(110);
+      expect(point.y).toBeLessThan(720);
     }
   });
 
@@ -356,6 +473,21 @@ describe("CameraController", () => {
       expect(camera.pan).not.toHaveBeenCalled();
     });
 
+    it("stays put when a panel closes and gives space back", () => {
+      let panels: ScreenRect[] = [menu];
+      const { camera, controller } = setup(
+        { width: 1280, height: 720 },
+        () => panels
+      );
+      controller.focusSquares([from, ...reach]);
+      camera.pan.mockClear();
+      camera.zoomTo.mockClear();
+      panels = [];
+      controller.refreshFraming();
+      expect(camera.pan).not.toHaveBeenCalled();
+      expect(camera.zoomTo).not.toHaveBeenCalled();
+    });
+
     it("does not reframe old squares after the camera has moved on", () => {
       let panels: ScreenRect[] = [];
       const { camera, controller } = setup(
@@ -386,13 +518,12 @@ describe("CameraController", () => {
     const overview = ctx.camera.zoom;
     ctx.controller.focusSquare(10, 5);
     const target = ctx.pitch.getPixelPosition(10, 5);
-    expect(ctx.camera.pan).toHaveBeenLastCalledWith(
-      target.x,
-      target.y,
-      expect.any(Number),
-      "Sine.easeInOut",
-      true
-    );
+    const [panX, panY] = ctx.camera.pan.mock.lastCall!;
+    const zoom = ctx.camera.zoomTo.mock.lastCall![0];
+    expect(panX).toBe(target.x);
+    // The figure's middle sits between the score bug's padded bottom at
+    // 110 and the bottom of the 900 px viewport.
+    expect(450 + (target.y - 35 - panY) * zoom).toBeCloseTo(505);
     expect(ctx.camera.zoomTo.mock.lastCall![0]).toBeGreaterThan(overview);
     expect(ctx.bus.emit).toHaveBeenLastCalledWith("camera:stateChanged", {
       state: "active",

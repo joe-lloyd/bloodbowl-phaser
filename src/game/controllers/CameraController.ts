@@ -47,6 +47,9 @@ function defaultHudRects(width: number, height: number): ScreenRect[] {
 const REFRAME_TOLERANCE_PX = 8;
 /** A reframe for a panel that just opened: short, as the coach is about to click. */
 const REFRAME_MS = 350;
+/** Ignore small automatic corrections while the required action stays clear. */
+const PAN_DEADBAND_PX = 64;
+const ZOOM_DEADBAND = 0.1;
 
 /** Room between a framed square and a panel, so its figure clears it too. */
 const PANEL_MARGIN_PX = 24;
@@ -68,8 +71,9 @@ const THUMB_SQUARE_PX = 42;
 export const THUMB_ZOOM = THUMB_SQUARE_PX / ISO.tileHeight;
 
 /**
- * The part of the screen clear of every panel. Each panel in the way cuts
- * the area from whichever side keeps the most of it, largest panel first.
+ * The part of the screen clear of every panel. Full-width score/tray bands
+ * set its vertical edges; corner panels trim its sides. Without measured
+ * bands, each panel cuts from whichever side keeps the largest clear area.
  */
 export function clearArea(
   width: number,
@@ -87,7 +91,12 @@ export function clearArea(
       bottom: p.bottom + PANEL_MARGIN_PX,
     }))
     .sort((a, b) => size(b) - size(a));
-  for (const p of padded) {
+  const bands = padded.filter((p) => p.left <= 0 && p.right >= width);
+  for (const p of bands) {
+    if (p.top <= 0) area.top = Math.max(area.top, p.bottom);
+    if (p.bottom >= height) area.bottom = Math.min(area.bottom, p.top);
+  }
+  for (const p of padded.filter((p) => !bands.includes(p))) {
     const overlaps =
       p.left < area.right &&
       p.right > area.left &&
@@ -97,8 +106,14 @@ export function clearArea(
     const cuts: ScreenRect[] = [
       { ...area, left: Math.max(area.left, p.right) },
       { ...area, right: Math.min(area.right, p.left) },
-      { ...area, top: Math.max(area.top, p.bottom) },
-      { ...area, bottom: Math.min(area.bottom, p.top) },
+      // Measured score/tray edges own the vertical centre. Corner panels
+      // trim the sides of that gap rather than moving its centre again.
+      ...(bands.length
+        ? []
+        : [
+            { ...area, top: Math.max(area.top, p.bottom) },
+            { ...area, bottom: Math.min(area.bottom, p.top) },
+          ]),
     ];
     const best = cuts.reduce((a, b) => (size(b) > size(a) ? b : a));
     // A panel too big to cut around leaves the area as it was
@@ -139,10 +154,12 @@ export class CameraController {
   private eventBus?: IEventBus;
   private manual = false;
   private following: Phaser.GameObjects.GameObject | null = null;
-  /** The squares the camera last framed, and the clear area it fit them in. */
+  /** The last automatic destination, including a glide still in progress. */
   private framed: {
-    squares: { x: number; y: number }[];
+    points: Point[];
     area: ScreenRect;
+    centre: Point;
+    zoom: number;
   } | null = null;
   private unsubscribers: Array<() => void> = [];
 
@@ -227,19 +244,37 @@ export class CameraController {
   // ----------------------------------------------------------- movement
 
   private snap({ centre, zoom }: { centre: Point; zoom: number }): void {
+    this.allowFraming(centre, zoom);
     this.camera.setZoom(zoom);
     this.camera.centerOn(centre.x, centre.y);
   }
 
   private glide(centre: Point, zoom: number, duration = MOVE_MS): void {
+    const zoomChanged = this.framed?.zoom !== zoom;
     this.stopFollow();
     this.framed = null;
     if (reducedMotion()) {
       this.snap({ centre, zoom });
       return;
     }
-    this.camera.zoomTo(zoom, duration, "Sine.easeInOut", true);
+    this.allowFraming(centre, Math.min(this.camera.zoom, zoom));
+    if (zoomChanged) this.camera.zoomTo(zoom, duration, "Sine.easeInOut", true);
     this.camera.pan(centre.x, centre.y, duration, "Sine.easeInOut", true);
+  }
+
+  /** The stadium edge must not clamp the action away from the usable centre. */
+  private allowFraming(centre: Point, zoom: number): void {
+    const bounds = this.camera.getBounds();
+    const halfWidth = this.camera.width / (2 * zoom);
+    const halfHeight = this.camera.height / (2 * zoom);
+    const left = Math.min(bounds.x, centre.x - halfWidth);
+    const top = Math.min(bounds.y, centre.y - halfHeight);
+    this.camera.setBounds(
+      left,
+      top,
+      Math.max(bounds.right, centre.x + halfWidth) - left,
+      Math.max(bounds.bottom, centre.y + halfHeight) - top
+    );
   }
 
   /** Publish whether the camera is on its neutral framing. */
@@ -281,8 +316,7 @@ export class CameraController {
   /** Close on a world point, unless the coach has taken the camera. */
   public focus(point: Point, duration = MOVE_MS, force = false): void {
     if (this.manual && !force) return;
-    this.glide(point, this.actionZoom(), duration);
-    this.publishState("active", duration);
+    this.focusPoints([point], duration);
   }
 
   /** Close on a square. */
@@ -304,9 +338,15 @@ export class CameraController {
     duration = MOVE_MS
   ): void {
     if (this.manual || squares.length === 0) return;
+    this.focusPoints(
+      squares.map((s) => this.pitch.getPixelPosition(s.x, s.y)),
+      duration
+    );
+  }
+
+  private focusPoints(points: Point[], duration: number): void {
     const { width, height } = this.scene.scale;
     const area = this.clearAreaNow();
-    const points = squares.map((s) => this.pitch.getPixelPosition(s.x, s.y));
     const xs = points.map((p) => p.x);
     const ys = points.map((p) => p.y);
     // Figures stand above their squares
@@ -328,7 +368,15 @@ export class CameraController {
       Math.min(READABLE_FIGURE_PX / FIGURE_WORLD_PX, closest),
       this.thumbZoom()
     );
-    const zoom = Math.max(readable, Math.min(fit, closest));
+    const previous = this.framed;
+    // Spending movement or closing a panel should not zoom back in on each
+    // smaller reach. Keep the last zoom whenever it still fits and is readable.
+    const zoom =
+      previous &&
+      previous.zoom >= readable &&
+      previous.zoom <= Math.min(fit, closest)
+        ? previous.zoom
+        : Math.max(readable, Math.min(fit, closest));
     // The world point at the middle of the clear area: the box's middle,
     // or as near the first square as keeps the view inside the box
     const along = (anchor: number, low: number, high: number, half: number) =>
@@ -344,8 +392,34 @@ export class CameraController {
       x: middle.x - ((area.left + area.right) / 2 - width / 2) / zoom,
       y: middle.y - ((area.top + area.bottom) / 2 - height / 2) / zoom,
     };
+    if (previous && previous.zoom >= readable) {
+      const shift =
+        Math.hypot(centre.x - previous.centre.x, centre.y - previous.centre.y) *
+        previous.zoom;
+      // A long reach cannot fit at readable zoom. Its acting player takes
+      // priority; a group that fits must keep every player/target visible.
+      const required = fit < readable ? points.slice(0, 1) : points;
+      const visible = required.every((p) => {
+        const x = width / 2 + (p.x - previous.centre.x) * previous.zoom;
+        const y = height / 2 + (p.y - previous.centre.y) * previous.zoom;
+        return (
+          x >= area.left &&
+          x <= area.right &&
+          y - 70 * previous.zoom >= area.top &&
+          y <= area.bottom
+        );
+      });
+      if (
+        shift <= PAN_DEADBAND_PX &&
+        Math.abs(zoom / previous.zoom - 1) <= ZOOM_DEADBAND &&
+        visible
+      ) {
+        this.framed = { ...previous, points, area };
+        return;
+      }
+    }
     this.glide(centre, zoom, duration);
-    this.framed = { squares, area };
+    this.framed = { points, area, centre, zoom };
     this.publishState("active", duration);
   }
 
@@ -360,10 +434,20 @@ export class CameraController {
     const framed = this.framed;
     if (!framed || this.manual) return;
     const area = this.clearAreaNow();
+    // A closing panel gives space back. Keep the view the coach was using.
+    if (
+      area.left <= framed.area.left &&
+      area.right >= framed.area.right &&
+      area.top <= framed.area.top &&
+      area.bottom >= framed.area.bottom
+    ) {
+      this.framed = { ...framed, area };
+      return;
+    }
     const moved = (Object.keys(area) as (keyof ScreenRect)[]).some(
       (side) => Math.abs(area[side] - framed.area[side]) > REFRAME_TOLERANCE_PX
     );
-    if (moved) this.focusSquares(framed.squares, REFRAME_MS);
+    if (moved) this.focusPoints(framed.points, REFRAME_MS);
   }
 
   private clearAreaNow(): ScreenRect {
