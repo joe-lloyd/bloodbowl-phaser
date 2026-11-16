@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Camera playground · Blood Bowl Sevens</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Blood Bowl Sevens / camera study</p>
+        <h1>Keep your eye on the game.</h1>
+      </div>
+      <span class="prototype"
+        >Interactive prototype <span>Production camera unchanged</span></span
+      >
+    </header>
+    <main>
+      <section
+        class="policies"
+        aria-label="Camera policy"
+        id="policies"
+      ></section>
+      <p class="policy-summary" id="policy-summary"></p>
+      <div class="workspace">
+        <div class="view-column">
+          <section class="stadium" id="stage" aria-label="Interactive stadium">
+            <canvas
+              id="pitch"
+              tabindex="0"
+              aria-label="Pitch. Select a teammate or click an empty square to move. Drag to pan. Use the roster for keyboard selection."
+            ></canvas>
+            <div class="scoreboard" id="scoreboard">
+              <div class="score-row">
+                <div class="score-team home">
+                  <b>Reikland</b><span>Humans · RR 2</span>
+                </div>
+                <strong>0</strong>
+                <div class="half">Half<b>1</b></div>
+                <strong>0</strong>
+                <div class="score-team away">
+                  <b>Ironjaw</b><span>Orcs · RR 2</span>
+                </div>
+              </div>
+              <div class="turn-tab" id="turn-tab">Reikland to act · Turn 1</div>
+            </div>
+            <div class="view-tools">
+              <button id="zoom-out" aria-label="Zoom out">−</button
+              ><output id="zoom-value">1.00×</output
+              ><button id="zoom-in" aria-label="Zoom in">+</button>
+            </div>
+            <div class="player-bug" id="player-bug">Choose a teammate</div>
+            <div class="dice-tray" id="dice-tray" hidden>
+              <div class="tray-header">
+                <b id="dice-team">Reikland</b><span>Choose a block die</span
+                ><button id="close-tray" aria-label="Close dice tray">×</button>
+              </div>
+              <div class="dice" aria-label="Block dice">
+                <button class="die" aria-label="Choose push result">➜</button
+                ><button class="die" aria-label="Choose defender down result">
+                  ✸
+                </button>
+              </div>
+              <small>Prototype dice · choosing a die closes the tray</small>
+            </div>
+            <div id="loading" class="loading">Loading the stadium…</div>
+            <div class="transition-label" id="transition-label" hidden></div>
+          </section>
+          <div class="camera-status" role="status">
+            <span class="live-dot"></span><span id="reason">Loading</span
+            ><code id="zoom-lock">Zoom held</code>
+          </div>
+          <div class="actions">
+            <button id="move">Move 3 squares</button
+            ><button id="block">Block + dice</button
+            ><button id="tray" aria-pressed="false">Open tray</button>
+            <button id="end-activation" class="primary">End activation</button
+            ><button id="end-turn" class="turn-button">End team turn →</button>
+          </div>
+          <p class="hint">
+            Click a teammate to select. Click empty pitch to move. Drag to pan,
+            scroll to zoom. Use End activation to return to the team.
+          </p>
+          <details class="review">
+            <summary>
+              Keep a note for this comparison <span id="note-count"></span>
+            </summary>
+            <p id="note-context"></p>
+            <label for="notes">What worked or felt wrong?</label
+            ><textarea
+              id="notes"
+              rows="3"
+              placeholder="Try the isolated carrier, then End activation…"
+            ></textarea>
+            <div class="note-actions">
+              <button id="save-note">Save note locally</button
+              ><button id="copy-notes">Copy feedback</button
+              ><span id="note-status" role="status"></span>
+            </div>
+          </details>
+        </div>
+        <aside class="controls">
+          <section>
+            <div class="section-title">
+              <h2>Try an edge case</h2>
+              <button id="reset" class="text-button">Reset</button>
+            </div>
+            <label class="sr-only" for="scenario">Edge case</label
+            ><select id="scenario"></select>
+            <p class="scenario-copy" id="scenario-copy"></p>
+            <button id="replay" class="replay">↻ Replay opening</button>
+          </section>
+          <section>
+            <div class="section-title">
+              <h2 id="roster-title">Reikland</h2>
+              <span id="eligible-count">7 eligible</span>
+            </div>
+            <div class="roster" id="roster"></div>
+          </section>
+          <section class="readout">
+            <div class="section-title">
+              <h2>Camera</h2>
+              <label class="guide-label"
+                ><input type="checkbox" id="guides" /> Guides</label
+              >
+            </div>
+            <dl>
+              <div>
+                <dt>Zoom</dt>
+                <dd id="metric-zoom">—</dd>
+              </div>
+              <div>
+                <dt>Activation delta</dt>
+                <dd id="metric-delta">—</dd>
+              </div>
+              <div>
+                <dt>Usable view</dt>
+                <dd id="metric-area">—</dd>
+              </div>
+              <div>
+                <dt>Last trigger</dt>
+                <dd id="metric-trigger">—</dd>
+              </div>
+            </dl>
+            <p>
+              Centre = halfway between the score bug and the visible tray. The
+              tray stays at the bottom.
+            </p>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <footer>
+      Camera evaluation only. Movement and blocks are repeatable staging
+      controls, without match rules.
+    </footer>
+    <script type="module" src="./playground.ts"></script>
+  </body>
+</html>
