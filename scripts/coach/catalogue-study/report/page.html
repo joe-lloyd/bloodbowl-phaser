@@ -7,6 +7,7 @@
 <section><h2>What the matches exposed</h2>{{findings}}</section>
 <section><h2>Vampires and unreliable activations</h2>{{vampires}}<div class="scroll">{{vampire_table}}</div><p>{{negative_intro}}</p><div class="scroll">{{negative_table}}</div><p class="muted">Roll failures include rerolls and are distinct from final failed activations. Adjacency, ball possession, action, half, turn, pitch third, and score difference are captured at command entry. These are descriptive contexts, not randomized estimates of tactical benefit.</p></section>
 <section><h2>Skill and special-rule coverage</h2><p>{{coverage}}</p>{{coverage_table}}<p>{{coverage_limits}}</p><p>{{supplementary}}</p></section>
+<details><summary>Concrete match moments to investigate</summary>{{examples}}</details>
 <section><h2>Targets for bash teams</h2><p>{{standards}}</p><div class="scroll">{{standards_table}}</div></section>
 <section><h2>Changes worth testing next</h2>{{recommendations}}<details><summary>Suggested module boundaries</summary><p>Keep the existing planner as the coordinator. Select small capability modules from the actual players and skills on both teams, then compose their proposals and scores. Roster names may supply defaults; current players, conditions, turns, possession and opponent threats determine applicability.</p><pre><code>tactics/
   activationReliability.ts  // gates, support, safe ordering, reroll cost
