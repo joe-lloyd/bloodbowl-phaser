@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
+import { EventEmitter } from "node:events";
 import {
   CameraController,
   clearArea,
@@ -15,6 +16,7 @@ function setup(
   viewport = { width: 1600, height: 900 },
   hudRects?: () => ScreenRect[]
 ) {
+  const cameraEvents = new EventEmitter();
   const camera = {
     zoom: 1,
     scrollX: 0,
@@ -50,6 +52,10 @@ function setup(
       this.scrollY = y - this.height / 2;
     }),
     zoomTo: vi.fn(),
+    once: (event: string, callback: () => void) =>
+      cameraEvents.once(event, callback),
+    off: (event: string, callback: () => void) =>
+      cameraEvents.off(event, callback),
     pan: vi.fn(function (
       this: { scrollX: number; scrollY: number; width: number; height: number },
       x: number,
@@ -134,6 +140,11 @@ function setup(
     pitch,
     bus,
     render,
+    finishZoom: (zoom = camera.zoomTo.mock.lastCall![0]) => {
+      camera.zoom = zoom;
+      camera.zoomEffect.isRunning = false;
+      cameraEvents.emit("camerazoomcomplete");
+    },
     resize: (size?: typeof viewport) => {
       if (size) {
         Object.assign(scene.scale, size);
@@ -251,6 +262,31 @@ describe("CameraController", () => {
       "Cubic.easeInOut",
       true
     );
+  });
+
+  it("holds the ball-follow offset when a HUD band closes, then updates it on resize", () => {
+    let panels: ScreenRect[] = [
+      { left: 0, top: 0, right: 1600, bottom: 100 },
+      { left: 0, top: 780, right: 1600, bottom: 900 },
+    ];
+    const { camera, controller, resize } = setup(undefined, () => panels);
+    camera.zoom = 1;
+    controller.follow({} as never);
+    expect(camera.setFollowOffset.mock.lastCall).toEqual([0, -10]);
+    panels = [];
+    controller.refreshFraming();
+    expect(camera.setFollowOffset.mock.lastCall).toEqual([0, -10]);
+    expect(camera.setFollowOffset).toHaveBeenCalledTimes(1);
+    panels = [
+      { left: 0, top: 0, right: 1600, bottom: 200 },
+      { left: 0, top: 780, right: 1600, bottom: 900 },
+    ];
+    controller.refreshFraming();
+    expect(camera.setFollowOffset.mock.lastCall).toEqual([0, 40]);
+    panels = [];
+    resize({ width: 1920, height: 1080 });
+    expect(camera.setFollowOffset.mock.lastCall).toEqual([0, 0]);
+    expect(camera.setFollowOffset).toHaveBeenCalledTimes(3);
   });
 
   it("aligns a pixel-art opening centre before the first rendered frame", () => {
@@ -435,6 +471,69 @@ describe("CameraController", () => {
     expect(camera.zoomEffect.reset).toHaveBeenCalledTimes(resets);
     expect(camera.pan).toHaveBeenCalledTimes(1);
   });
+
+  it("fits the next team in a viewport resized during its final zoom", () => {
+    vi.useFakeTimers();
+    const { controller, camera, resize, finishZoom, pitch } = setup(
+      { width: 1280, height: 720 },
+      () => []
+    );
+    const next = [
+      { x: 1, y: 1 },
+      { x: 18, y: 9 },
+    ];
+    controller.handoff(
+      [
+        { x: 0, y: 0 },
+        { x: 19, y: 10 },
+      ],
+      next
+    );
+    finishZoom();
+    vi.advanceTimersByTime(1250);
+    camera.zoomEffect.isRunning = true;
+    resize({ width: 844, height: 390 });
+    finishZoom();
+    finishZoom();
+
+    const [cx, cy] = camera.pan.mock.lastCall!;
+    for (const square of next) {
+      const p = pitch.getPixelPosition(square.x, square.y);
+      const x = 422 + (p.x - cx) * camera.zoom;
+      const y = 195 + (p.y - cy) * camera.zoom;
+      expect(x - 50 * camera.zoom).toBeGreaterThan(24);
+      expect(x + 50 * camera.zoom).toBeLessThan(820);
+      expect(y - 70 * camera.zoom).toBeGreaterThan(24);
+      expect(y + 25 * camera.zoom).toBeLessThan(366);
+    }
+  });
+
+  it.each(["selection", "manual", "restore", "destroy"])(
+    "cancels a fit's resize correction on %s",
+    (reason) => {
+      const { controller, camera, resize, finishZoom } = setup();
+      controller.fitSquares([
+        { x: 1, y: 1 },
+        { x: 18, y: 9 },
+      ]);
+      camera.zoomEffect.isRunning = true;
+      resize({ width: 844, height: 390 });
+      if (reason === "selection") {
+        controller.release();
+        controller.focusSquare(8, 5);
+      }
+      if (reason === "manual") controller.panBy(10, 10);
+      if (reason === "restore") controller.reset();
+      if (reason === "destroy") controller.destroy();
+      camera.zoomTo.mockClear();
+      camera.pan.mockClear();
+      // A later effect's completion must not revive the cancelled team fit.
+      camera.zoomEffect.isRunning = false;
+      finishZoom(camera.zoom);
+      expect(camera.zoomTo).not.toHaveBeenCalled();
+      expect(camera.pan).not.toHaveBeenCalled();
+    }
+  );
 
   it.each(["selection", "manual", "restore", "destroy"])(
     "cancels stale handoff work on %s",

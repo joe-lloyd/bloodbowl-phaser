@@ -222,6 +222,17 @@ for (const afterMs of [250, 900]) {
   });
 }
 
+test("resizing during a team zoom keeps every eligible player visible", async ({
+  page,
+}) => {
+  const app = await openSpread(page);
+  await app.hud.declareAction("team1:0", "move");
+  await page.getByTestId("action-end-activation").click();
+  await expect.poll(async () => (await cameraState(page)).zooming).toBe(true);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expectTeamFits(page, app, 0, true);
+});
+
 for (const afterMs of [250, 700]) {
   test(`selection at ${afterMs}ms cancels the obsolete handoff fit`, async ({
     page,

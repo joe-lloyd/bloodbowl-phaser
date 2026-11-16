@@ -134,7 +134,8 @@ export class CameraController {
   private eventBus?: IEventBus;
   private manual = false;
   private minZoom = Number.POSITIVE_INFINITY;
-  private following: Phaser.GameObjects.GameObject | null = null;
+  private followArea: ScreenRect | null = null;
+  private fitZoomComplete?: () => void;
   /** The squares the camera last framed, and the clear area it fit them in. */
   private framed: {
     points: Point[];
@@ -249,6 +250,10 @@ export class CameraController {
   }
 
   private cancelCameraWork(stopPan = true): void {
+    if (this.fitZoomComplete) {
+      this.camera.off("camerazoomcomplete", this.fitZoomComplete);
+      this.fitZoomComplete = undefined;
+    }
     this.handoffTimer?.remove(false);
     this.handoffTimer = undefined;
     if (stopPan) this.camera.panEffect.reset();
@@ -412,8 +417,23 @@ export class CameraController {
       area,
       zoom
     );
+    const { width, height } = this.scene.scale;
+    const willZoom = zoom !== this.camera.zoom && !reducedMotion();
     this.glide(centre, zoom, duration);
     this.framed = { points, area, centre };
+    if (willZoom) {
+      // A resize during this zoom must still leave the whole team visible.
+      this.fitZoomComplete = () => {
+        this.fitZoomComplete = undefined;
+        if (
+          !this.handoffTimer &&
+          (width !== this.scene.scale.width ||
+            height !== this.scene.scale.height)
+        )
+          this.fitSquares(squares, REFRAME_MS);
+      };
+      this.camera.once("camerazoomcomplete", this.fitZoomComplete);
+    }
     this.publishState("active", reducedMotion() ? 0 : duration);
   }
 
@@ -438,22 +458,19 @@ export class CameraController {
   public refreshFraming(reason: "hud" | "resize" = "hud"): void {
     if (this.manual || this.handoffTimer || this.camera.zoomEffect.isRunning)
       return;
-    if (this.following) {
-      this.followInClearArea();
-      return;
-    }
-    const framed = this.framed;
-    if (!framed) return;
+    const previous = this.followArea ?? this.framed?.area;
+    if (!previous) return;
     const area = this.clearAreaNow();
     const narrowed =
       Math.max(
-        area.left - framed.area.left,
-        framed.area.right - area.right,
-        area.top - framed.area.top,
-        framed.area.bottom - area.bottom
+        area.left - previous.left,
+        previous.right - area.right,
+        area.top - previous.top,
+        previous.bottom - area.bottom
       ) > REFRAME_TOLERANCE_PX;
-    if (reason === "resize" || narrowed)
-      this.trackPoints(framed.points, REFRAME_MS);
+    if (reason !== "resize" && !narrowed) return;
+    if (this.followArea) this.followInClearArea(area);
+    else if (this.framed) this.trackPoints(this.framed.points, REFRAME_MS);
   }
 
   private clearAreaNow(): ScreenRect {
@@ -470,7 +487,6 @@ export class CameraController {
     if (this.manual) return;
     this.cancelCameraWork();
     this.framed = null;
-    this.following = target;
     this.camera.startFollow(
       target,
       false,
@@ -481,8 +497,8 @@ export class CameraController {
     this.publishState("active", 400);
   }
 
-  private followInClearArea(): void {
-    const area = this.clearAreaNow();
+  private followInClearArea(area = this.clearAreaNow()): void {
+    this.followArea = area;
     this.camera.setFollowOffset(
       (area.left + area.right - this.camera.width) / (2 * this.camera.zoom),
       (area.top + area.bottom - this.camera.height) / (2 * this.camera.zoom)
@@ -490,9 +506,9 @@ export class CameraController {
   }
 
   public stopFollow(): void {
-    if (this.following) {
+    if (this.followArea) {
       this.camera.stopFollow();
-      this.following = null;
+      this.followArea = null;
     }
   }
 
