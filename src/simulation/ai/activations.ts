@@ -54,6 +54,7 @@ export type Role =
   | "screen"
   | "chase"
   | "stall"
+  | "safety"
   | "feed";
 
 export type Intent =

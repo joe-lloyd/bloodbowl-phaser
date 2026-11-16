@@ -10,8 +10,10 @@ import { SPP_VALUES, sppValuesFor } from "../../game/progression/MatchStats";
 import { Route, routesFor, withTeamReroll } from "./routes";
 import { Weights } from "./weights";
 import type { Available, Tier } from "./activations";
+import { canStillScore } from "./latePlans";
 
 export interface Context {
+  goal: "attack" | "finish" | "protect";
   skillPlans: boolean;
   board: Board;
   w: Weights;
@@ -70,6 +72,12 @@ export function context(
     board.ours.reduce((sum, p) => sum + p.stats.MA, 0) /
     Math.max(1, board.ours.length);
   return {
+    goal:
+      board.turnsLeft > 1
+        ? "attack"
+        : canStillScore(board, available)
+          ? "finish"
+          : "protect",
     skillPlans,
     board,
     w,

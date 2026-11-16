@@ -36,6 +36,7 @@ import {
 } from "./activationContext";
 import type { Activation } from "./activations";
 import { feedingCost, moveFeedingCost, unfedChance } from "./feeding";
+import { exposureCost, lateMoveValue, scoringValue } from "./latePlans";
 
 /** The four corners of a square, in the order a cage is counted. */
 export const CORNERS = [
@@ -91,12 +92,15 @@ function carrierSquare(c: Context, at: Square, carrier: Player): number {
   // next to it and put tackle zones on the other four.
   const exposed = cage >= 3 ? 0 : 1 - cage / 4;
   const edge = Math.min(at.y, HEIGHT - 1 - at.y);
+  const progress =
+    board.turnsLeft === 0 || c.goal === "protect" ? 0 : w.advance * c.urgency;
   return (
-    -toGoal(board, at) * w.advance * c.urgency -
+    -toGoal(board, at) * progress -
     board.marks[key(at)] * w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner -
-    (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0)
+    (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0) -
+    exposureCost(c, carrier, at)
   );
 }
 
@@ -110,17 +114,19 @@ function scoreActivation(
   const scoring = [...routes.values()].filter((r) => toGoal(board, r.to) === 0);
   const success = (r: Route) =>
     r.chance * (1 - unfedChance(c, carrier, "move", r.to));
-  const bestScore = scoring.sort((a, b) => success(b) - success(a))[0];
+  const bestScore = scoring.sort(
+    (a, b) => success(b) - success(a) || a.path.length - b.path.length
+  )[0];
   if (!bestScore) return null;
   const late = board.turnsLeft === 0;
   const value =
-    gamble(
+    scoringValue(
       c,
-      bestScore.chance,
-      (1 - unfedChance(c, carrier, "move", bestScore.to)) * w.touchdown
-    ) -
-    (1 - bestScore.chance) * w.ballLoss -
-    feedingCost(c, carrier, "move", bestScore.to, true);
+      success(bestScore),
+      carrier,
+      w.ballLoss,
+      1 - bestScore.chance
+    ) - feedingCost(c, carrier, "move", bestScore.to, true);
   // A carrier already on its way keeps running while the run is worth
   // it: an opening dodge that spent the re-roll must not turn the rest
   // of the run into a reason to step back.
@@ -164,10 +170,11 @@ function carrierMoves(
     const back = toGoal(board, route.to) - toGoal(board, from);
     if (back > maxBack) continue;
     const gain = carrierSquare(c, route.to, carrier) - here;
-    const value =
+    const ordinary =
       gamble(c, route.chance, gain) -
       (1 - route.chance) * w.ballLoss -
       moveFeedingCost(c, carrier, route.to);
+    const value = lateMoveValue(c, carrier, route, ordinary);
     const isSafe =
       route.chance >= w.safeMove && plain.get(key(route.to)) === route;
     if (!isSafe) {
@@ -220,6 +227,7 @@ function stallRoute(
 ): Route | null {
   const { board } = c;
   if (board.turnsLeft === 0 || board.turnsLeft > 2) return null;
+  if (board.lead <= 0) return null;
   const reach = carrier.stats.MA;
   const here = { route: null as Route | null, at: carrier.gridPosition! };
   const options = [
@@ -374,7 +382,10 @@ function handoffTo(
     action: "handoff",
     intent: { kind: "handoff", to: mate, route: approach },
     tier: tierFor(chance, scoring ? w.safeScore : w.safeMove, "handoff"),
-    value: gamble(c, chance, gain) - (1 - reach) * w.ballLoss - 1,
+    value:
+      (scoring
+        ? scoringValue(c, chance, carrier, w.ballLoss)
+        : gamble(c, chance, gain) - (1 - reach) * w.ballLoss) - 1,
     rolls: [...(approach?.rolls ?? []), { kind: "catch", target }],
   };
 }
@@ -523,9 +534,9 @@ function passTo(
       "handoff"
     ),
     value:
-      gamble(c, chance, scoring ? w.touchdown : progress) -
-      (1 - best.chance) * w.ballLoss -
-      2,
+      (scoring
+        ? scoringValue(c, chance, carrier, w.ballLoss)
+        : gamble(c, chance, progress) - (1 - best.chance) * w.ballLoss) - 2,
     rolls: best.rolls,
   };
 }

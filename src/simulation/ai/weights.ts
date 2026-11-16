@@ -51,6 +51,10 @@ export const DEFAULT_WEIGHTS = {
   ballLoss: 60,
   /** Our player ends on the ground: out of position, maybe hurt. */
   ownDown: 12,
+  /** Residual positioning value when late progress cannot set up a touchdown. */
+  lateProgress: 0.05,
+  /** Persistent casualties also remove future fixtures' player value. */
+  seasonInjury: 3,
   /** Per opponent marking a non-carrier where it ends its move. */
   endInContact: 3,
   /** Standing a Prone player up without moving. */

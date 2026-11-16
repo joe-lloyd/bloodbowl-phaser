@@ -5,7 +5,7 @@
 
 ## 2. Match context
 
-- [ ] 2.1 Add turn-six risky scoring and turn-five reach preparation; verify complete engine-command sequences and matched safe alternatives.
+- [x] 2.1 Add turn-six risky scoring and turn-five reach preparation; verify complete engine-command sequences and matched safe alternatives.
 - [ ] 2.2 Add actual opponent and league-preservation context with defensive fallback; verify weak versus strong opponents, depleted teams, persistent injuries and necessary defence controls.
 
 ## 3. Repeatable policy lab

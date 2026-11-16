@@ -35,6 +35,7 @@ offers and never builds a command itself. Its code is in
 | `skillActivations.ts`             | Capability registry, Secure the Ball and Multiple Block plans       |
 | `gazeActivations.ts`              | Gaze targets that improve an available teammate's follow-up         |
 | `feeding.ts`, `feedingSupport.ts` | Vampire endpoints and native Thrall support preparation             |
+| `latePlans.ts`                    | Sevens scoring horizon, opponent replies and persistent player loss |
 | `decisions.ts`                    | Block dice, re-rolls, push squares, follow-ups and other decisions  |
 | `weights.ts`                      | Every number its judgement rests on, as one plain object            |
 | `planner.ts`                      | The `Coach`: maps the best activation onto a candidate              |
@@ -66,6 +67,20 @@ the remaining route from the observed square and ends preparation at its target.
 Changed possession, turns, actors or unavailable routes invalidate that intent.
 Search distinguishes plans sharing one declaration and primes the same coach
 with the trial target, including in browser workers.
+
+On turn five, carrier routes can prepare a turn-six score with necessary
+rushes. On turn six, incomplete distance gains lose their attack value while
+supported scoring attempts keep theirs. A scoring transfer competes against
+the complete handoff or running alternative. Receivers stop taking generic
+forward positions when only an end-zone play can help. The coach takes an
+available equalizer instead of stalling while behind.
+
+The opponent's authoritative turn count controls reply risk. When the supported
+scoring horizon is out of reach, safe withdrawals compete with defensive
+actions. Exposure uses the actual opponent's Strength, assists and casualty
+odds. Persistent matches raise the cost for valuable players. This is a bounded
+geometry and immediate-contact model; it does not prove every multi-player
+scoring chain impossible or forecast a whole season.
 
 Passing estimates include Pass and Catch skill rerolls and the actual spent
 skill ledger. Approach, throw, catch and receiver movement share one team
