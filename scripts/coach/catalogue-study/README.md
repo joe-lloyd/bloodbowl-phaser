@@ -68,7 +68,8 @@ python3 scripts/coach/catalogue-study/report/build.py \
 Multiple `--runs` directories can combine non-overlapping cohorts from the same
 source snapshot. The report rejects missing scheduled games, duplicate IDs,
 manifest mismatches, and legacy observations. `--allow-partial` is explicitly
-provisional. Scores, team and skill contexts, action selection, roster standards,
+provisional. A coach cohort with any unmatched valid games retains its descriptive
+points estimate but omits the paired confidence interval. Scores, team and skill contexts, action selection, roster standards,
 negative-trait contexts, all rule outcomes and event totals are available as CSV.
 The HTML embeds its tables and requires no server or network connection.
 
@@ -79,4 +80,6 @@ TypeScript project:
 pnpm exec vitest run __tests__/simulation/catalogue-study.test.ts
 pnpm exec eslint scripts/coach/catalogue-study.ts scripts/coach/catalogue-study
 pnpm exec tsc -p scripts/coach/catalogue-study/tsconfig.json
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+  -s scripts/coach/catalogue-study/report -p 'test_*.py'
 ```

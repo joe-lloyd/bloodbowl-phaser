@@ -19,7 +19,7 @@ def grouped(rows, key):
 
 def interval(pairs):
     if not pairs:
-        return [0, 0]
+        return [None, None]
     rng = random.Random(74119)
     n = len(pairs)
     samples = sorted(sum(rng.choice(pairs) for _ in range(n)) / n for _ in range(2000))
@@ -41,6 +41,22 @@ def summarize(rows):
                 spp_per_game=mean('standard_spp'), target_spp=mean('target_spp'),
                 blocks_declared=mean('block'), blitzes_declared=mean('blitz'), passes_declared=mean('pass'),
                 handoffs_declared=mean('handoff'), fouls_declared=mean('foul'))
+
+
+def summarize_cohort(cohort, coach, rows):
+    pairs = list(grouped(rows, lambda r: r['pair']).values())
+    complete = [pair for pair in pairs if len(pair) == 2]
+    pair_values = [summarize(pair)['points'] for pair in complete]
+    # The estimate includes every valid game. Only draw an interval when its
+    # paired bootstrap covers that exact population, including partial runs.
+    ci = interval(pair_values) if cohort != 'league' and len(complete) == len(pairs) else [None, None]
+    race_groups = list(grouped(rows, lambda r: r['roster']).values())
+    template_groups = list(grouped(rows, lambda r: r['template']).values())
+    return dict(cohort=cohort, coach=coach,
+        race_macro_points=sum(summarize(group)['points'] for group in race_groups)/len(race_groups),
+        template_macro_points=sum(summarize(group)['points'] for group in template_groups)/len(template_groups),
+        **summarize(rows), points_low=ci[0], points_high=ci[1], paired_seeds=len(complete),
+        unmatched_games=sum(len(pair) for pair in pairs if len(pair) != 2) if cohort != 'league' else 0)
 
 
 def write_csv(out, name, rows):
@@ -118,12 +134,7 @@ def collect(directories, rules_file):
         for k,rows in sorted(grouped(valid_team_games,lambda r:(r['cohort'],r['coach'],r['roster'])).items())]
     cohorts=[]
     for (cohort,coach), rows in sorted(grouped(valid_team_games,lambda r:(r['cohort'],r['coach'])).items()):
-        pair_values=[sum(1 if r['td']>r['against'] else .5 if r['td']==r['against'] else 0 for r in pair_rows)/len(pair_rows)
-            for pair_rows in grouped(rows,lambda r:r['pair']).values() if len(pair_rows)==2]
-        ci=interval(pair_values) if cohort!='league' else [None,None]
-        race_macro=sum(summarize(group)['points'] for group in grouped(rows,lambda r:r['roster']).values())/len(grouped(rows,lambda r:r['roster']))
-        template_macro=sum(summarize(group)['points'] for group in grouped(rows,lambda r:r['template']).values())/len(grouped(rows,lambda r:r['template']))
-        cohorts.append(dict(cohort=cohort,coach=coach,race_macro_points=race_macro,template_macro_points=template_macro,**summarize(rows),points_low=ci[0],points_high=ci[1],paired_seeds=len(pair_values)))
+        cohorts.append(summarize_cohort(cohort,coach,rows))
     rules=json.loads(rules_file.read_text())
     skill_rows=[]
     for skill in manifest['inventory']['skills']:
