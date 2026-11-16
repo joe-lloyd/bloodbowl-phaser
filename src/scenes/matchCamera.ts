@@ -3,7 +3,6 @@ import { GamePhase } from "../types/GameState";
 import { GameEventNames } from "../types/events";
 import { PlayerStatus } from "../types/Player";
 import { PassController } from "../game/controllers/PassController";
-import { resolveBallRepresentation } from "../game/presentation/boardState";
 
 /**
  * The match camera follows the game: see CameraController. Every
@@ -65,21 +64,28 @@ export function followMatchWithCamera(scene: GameScene): void {
   // A loaded scenario or a resumed match shows the whole board first; the
   // turn start that follows the restore keeps the overview
   let restored = false;
-  subscribe(GameEventNames.GameStateRestored, () => {
+  // A resumed scene may have restored before these subscriptions were installed.
+  let previousTeamId = gameService().getState().activeTeamId;
+  subscribe(GameEventNames.GameStateRestored, (state) => {
     restored = true;
+    previousTeamId = state.activeTeamId;
+    choosingInterceptor = false;
+    camera().reset();
   });
-  // A new turn frames the acting team with the ball, so every player the
-  // coach may move is in view (the ball alone left the team off screen
-  // when it lay in the other half)
   subscribe(GameEventNames.TurnStarted, ({ teamId }) => {
     choosingInterceptor = false;
     camera().release();
+    const handoff = previousTeamId !== null && previousTeamId !== teamId;
+    previousTeamId = teamId;
     if (restored) {
       restored = false;
       camera().overview();
       return;
     }
-    frameActingTeam(scene, teamId);
+    const next = teamSquares(scene, teamId);
+    if (handoff) camera().handoff(teamSquares(scene), next);
+    else if (next.length) camera().fitSquares(next, 650);
+    else camera().overview();
   });
   // Aiming a pass: the thrower and every team-mate in range, so the
   // receiver is on screen to click
@@ -102,37 +108,32 @@ export function followMatchWithCamera(scene: GameScene): void {
       );
     camera().focusSquares([from, ...receivers]);
   });
-  // Once a player is done, show the team-mates still to go
-  subscribe(GameEventNames.PlayerActivated, () => {
+  // Only an explicit UI completion asks the coach to choose another player.
+  subscribe(GameEventNames.Camera_ChooseNextPlayer, ({ teamId }) => {
     if (choosingInterceptor) return;
-    const teamId = gameService().getState().activeTeamId;
-    if (teamId) frameActingTeam(scene, teamId, 900);
+    const squares = teamSquares(scene, teamId, true);
+    camera().release();
+    if (squares.length) camera().fitSquares(squares, 420);
   });
 }
 
-/**
- * Frame the acting team's players who have not yet acted, with the ball.
- * At the start of a turn that is every player the coach may move.
- */
-function frameActingTeam(
-  scene: GameScene,
-  teamId: string,
-  duration?: number
-): void {
+function teamSquares(scene: GameScene, teamId?: string, eligibleOnly = false) {
   const state = scene["gameService"].getState();
-  const players = [...scene.team1.players, ...scene.team2.players];
-  const ball = resolveBallRepresentation(state, players);
-  const acting = players
-    .filter(
-      (p) =>
-        p.teamId === teamId &&
-        p.gridPosition &&
-        !state.turn.activatedPlayerIds.has(p.id)
-    )
-    .map((p) => p.gridPosition!);
-  const squares = ball.kind === "none" ? acting : [...acting, ball.square];
-  if (squares.length === 0) scene["cameraController"].overview();
-  else scene["cameraController"].focusSquares(squares, duration);
+  return [...scene.team1.players, ...scene.team2.players].flatMap((p) => {
+    const square = p.gridPosition;
+    return square &&
+      square.x >= 0 &&
+      square.x < 20 &&
+      square.y >= 0 &&
+      square.y < 11 &&
+      (!teamId || p.teamId === teamId) &&
+      (!eligibleOnly ||
+        ((p.status === PlayerStatus.ACTIVE ||
+          p.status === PlayerStatus.PRONE) &&
+          !state.turn.activatedPlayerIds.has(p.id)))
+      ? [square]
+      : [];
+  });
 }
 
 /**

@@ -417,6 +417,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center pointer-events-none z-50"
               style={{ top: "calc(env(safe-area-inset-top) + 6px)" }}
               data-hud-panels=""
+              data-hud-frame="top"
             >
               <ScoreBoard eventBus={eventBus} compact />
               <MatchStrip eventBus={eventBus}>
@@ -523,6 +524,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <div
             className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center"
             data-hud-panels=""
+            data-hud-frame="top"
           >
             <ScoreBoard eventBus={eventBus} />
             <MatchStrip eventBus={eventBus}>

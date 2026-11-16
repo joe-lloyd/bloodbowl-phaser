@@ -11,7 +11,7 @@
 import type { ActionType } from "@/types/events";
 import { GameEventNames } from "@/types/events";
 import { PlayerStatus } from "@/types/Player";
-import type { GameState } from "@/types/GameState";
+import { GamePhase, type GameState } from "@/types/GameState";
 import {
   BlockReplacement,
   blockReplacementForDirectAction,
@@ -364,10 +364,23 @@ export function reconcileRejectedCommand(
 export function endActivation(c: GameplayInteractionController): void {
   const playerId = c.selectedPlayerId;
   if (!playerId) return;
+  const before = c.gameService.getState();
+  const teamId = before.activeTeamId;
+  const turn = before.turn;
   c.gameService.finishActivation(playerId);
-  // Ending a Charge! activation hands the board to the next charger,
-  // already selected: keep them
-  if (c.selectedPlayerId === playerId) c.deselectPlayer();
+  // Charge!, Razzle-Dazzle and forced continuations already chose what comes next.
+  if (c.selectedPlayerId !== playerId) return;
+  c.deselectPlayer();
+  const state = c.gameService.getState();
+  if (
+    teamId &&
+    state.activeTeamId === teamId &&
+    state.turn === turn &&
+    !state.activePlayer &&
+    state.phase === GamePhase.PLAY
+  ) {
+    c.eventBus.emit(GameEventNames.Camera_ChooseNextPlayer, { teamId });
+  }
 }
 
 /** Whether this board's coach controls the player, online. */

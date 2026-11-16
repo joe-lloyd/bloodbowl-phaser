@@ -40,6 +40,24 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "camera-spread-team",
+    name: "Camera team handoffs",
+    description: "A team spread across the pitch to check selection, End activation and turn handoffs.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5 }, { playerIndex: 1, x: 9, y: 5 },
+        { playerIndex: 2, x: 0, y: 0 }, { playerIndex: 3, x: 19, y: 10 },
+        { playerIndex: 4, x: 0, y: 10 }, { playerIndex: 5, x: 19, y: 0 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 15, y: 4 }, { playerIndex: 1, x: 16, y: 5 },
+        { playerIndex: 2, x: 17, y: 4 },
+      ],
+      activeTeam: "team1", phase: GamePhase.PLAY, subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN, team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
     id: "near-corner-blitz",
     name: "Blitz from the near touchline",
     description:

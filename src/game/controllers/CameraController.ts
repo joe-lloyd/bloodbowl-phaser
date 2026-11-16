@@ -4,14 +4,11 @@ import { GameEventNames } from "../../types/events";
 import { Pitch } from "../elements/Pitch";
 import { prefersReducedMotion as reducedMotion } from "../presentation/motion";
 import { MATCH_STYLE } from "../presentation/matchStyle";
-import { matchesMedia, TOUCH_QUERY } from "../presentation/phoneLayout";
 import { ISO } from "../elements/GridUtils";
 import { isTyping } from "../presentation/keyboardFocus";
 
 type Point = { x: number; y: number };
 
-/** How much closer than the overview the camera sits on the action. */
-const ACTION_ZOOM = 1.5;
 const MOVE_MS = 700;
 /** How fast WASD or the arrow keys slide the view, in screen pixels a second. */
 const KEY_PAN_PX_PER_S = 900;
@@ -47,25 +44,13 @@ function defaultHudRects(width: number, height: number): ScreenRect[] {
 const REFRAME_TOLERANCE_PX = 8;
 /** A reframe for a panel that just opened: short, as the coach is about to click. */
 const REFRAME_MS = 350;
+const PAN_DEADBAND_PX = 64;
 
 /** Room between a framed square and a panel, so its figure clears it too. */
 const PANEL_MARGIN_PX = 24;
 
-/**
- * The farthest the camera pulls back to frame squares: a 2 m figure, 25 px
- * a metre seen from 30 degrees up, stays at least this tall on screen.
- * Round 3 saw players 15 px tall on a long reach.
- */
-const READABLE_FIGURE_PX = 28;
-const FIGURE_WORLD_PX = 2 * 25 * Math.cos(Math.PI / 6);
-
-/**
- * On a touch screen the camera never frames a square shorter than this, so
- * a thumb can hit it: a diamond 84 by 42 px. Apple asks for 44 pt targets;
- * a diamond's middle row is about that wide and tall.
- */
-const THUMB_SQUARE_PX = 42;
-export const THUMB_ZOOM = THUMB_SQUARE_PX / ISO.tileHeight;
+/** Cap small team fits at a 42px square. A spread team can zoom out further. */
+const TEAM_MAX_ZOOM = 42 / ISO.tileHeight;
 
 /**
  * The part of the screen clear of every panel. Each panel in the way cuts
@@ -76,7 +61,12 @@ export function clearArea(
   height: number,
   panels: ScreenRect[]
 ): ScreenRect {
-  const area = { left: 0, top: 0, right: width, bottom: height };
+  const area = {
+    left: PANEL_MARGIN_PX,
+    top: PANEL_MARGIN_PX,
+    right: width - PANEL_MARGIN_PX,
+    bottom: height - PANEL_MARGIN_PX,
+  };
   const size = (r: ScreenRect) =>
     Math.max(0, r.right - r.left) * Math.max(0, r.bottom - r.top);
   const padded = panels
@@ -87,7 +77,12 @@ export function clearArea(
       bottom: p.bottom + PANEL_MARGIN_PX,
     }))
     .sort((a, b) => size(b) - size(a));
-  for (const p of padded) {
+  const bands = padded.filter((p) => p.left <= 0 && p.right >= width);
+  for (const p of bands) {
+    if (p.top <= 0) area.top = Math.max(area.top, p.bottom);
+    if (p.bottom >= height) area.bottom = Math.min(area.bottom, p.top);
+  }
+  for (const p of padded.filter((p) => !bands.includes(p))) {
     const overlaps =
       p.left < area.right &&
       p.right > area.left &&
@@ -97,8 +92,12 @@ export function clearArea(
     const cuts: ScreenRect[] = [
       { ...area, left: Math.max(area.left, p.right) },
       { ...area, right: Math.min(area.right, p.left) },
-      { ...area, top: Math.max(area.top, p.bottom) },
-      { ...area, bottom: Math.min(area.bottom, p.top) },
+      ...(bands.length
+        ? []
+        : [
+            { ...area, top: Math.max(area.top, p.bottom) },
+            { ...area, bottom: Math.min(area.bottom, p.top) },
+          ]),
     ];
     const best = cuts.reduce((a, b) => (size(b) > size(a) ? b : a));
     // A panel too big to cut around leaves the area as it was
@@ -110,19 +109,16 @@ export function clearArea(
 /**
  * CameraController: the match camera.
  *
- * It has two framings. The overview fits the pitch and both dugouts in the
- * window; the action framing sits closer, centred on whatever matters now:
- * the selected player, where a player just moved, or the ball in flight.
- * Game events drive it (see SceneOrchestrator and the phase handlers), so a
- * rule change never needs camera code.
+ * Action tracking pans at the current zoom. Explicit End activation and
+ * team-turn handoffs fit groups; setup and restore use the overview.
  *
  * The coach can always take over: the mouse wheel zooms around the cursor
  * and a right- or middle-button drag pans; on a touch screen two fingers
  * pinch and one finger drags empty ground (see TouchController). A manual
  * move holds the camera still until the next turn or selection.
  */
-/** How long the opening sweep over the pitch takes. */
-export const CAMERA_INTRO_MS = 2200;
+/** One steady opening zoom, also used by setup startup timing. */
+export const CAMERA_INTRO_MS = 1250;
 
 /** Zoom per pixel the wheel scrolls: one 100-pixel notch is about 10%. */
 const ZOOM_PER_PIXEL = 0.001;
@@ -138,12 +134,15 @@ export class CameraController {
   private dugoutPoints: Point[];
   private eventBus?: IEventBus;
   private manual = false;
+  private minZoom = Number.POSITIVE_INFINITY;
   private following: Phaser.GameObjects.GameObject | null = null;
   /** The squares the camera last framed, and the clear area it fit them in. */
   private framed: {
-    squares: { x: number; y: number }[];
+    points: Point[];
     area: ScreenRect;
+    centre: Point;
   } | null = null;
+  private handoffTimer?: Phaser.Time.TimerEvent;
   private unsubscribers: Array<() => void> = [];
 
   constructor(
@@ -212,21 +211,10 @@ export class CameraController {
     return this.frame([...this.pitchCorners(), ...this.dugoutPoints], 1.06, 96);
   }
 
-  private actionZoom(): number {
-    return Math.max(
-      this.frame(this.pitchCorners()).zoom * ACTION_ZOOM,
-      this.thumbZoom()
-    );
-  }
-
-  /** The closest a touch screen must come for thumb-sized squares. */
-  private thumbZoom(): number {
-    return matchesMedia(TOUCH_QUERY) ? THUMB_ZOOM : 0;
-  }
-
   // ----------------------------------------------------------- movement
 
   private snap({ centre, zoom }: { centre: Point; zoom: number }): void {
+    this.allowFraming(centre, zoom);
     this.camera.setZoom(zoom);
     this.camera.centerOn(centre.x, centre.y);
   }
@@ -238,8 +226,35 @@ export class CameraController {
       this.snap({ centre, zoom });
       return;
     }
-    this.camera.zoomTo(zoom, duration, "Sine.easeInOut", true);
+    this.allowFraming(centre, Math.min(this.camera.zoom, zoom));
+    if (zoom !== this.camera.zoom)
+      this.camera.zoomTo(zoom, duration, "Sine.easeInOut", true);
     this.camera.pan(centre.x, centre.y, duration, "Sine.easeInOut", true);
+  }
+
+  /** Leave enough world around the stadium to centre action in the HUD gap. */
+  private allowFraming(centre: Point, zoom: number): void {
+    // Manual zoom must allow backing out from even the widest team fit.
+    this.minZoom = Math.min(this.minZoom, zoom * 0.8);
+    const bounds = this.camera.getBounds();
+    const halfWidth = this.camera.width / (2 * zoom);
+    const halfHeight = this.camera.height / (2 * zoom);
+    const left = Math.min(bounds.x, centre.x - halfWidth);
+    const top = Math.min(bounds.y, centre.y - halfHeight);
+    this.camera.setBounds(
+      left,
+      top,
+      Math.max(bounds.right, centre.x + halfWidth) - left,
+      Math.max(bounds.bottom, centre.y + halfHeight) - top
+    );
+  }
+
+  private cancelCameraWork(stopPan = true): void {
+    this.handoffTimer?.remove(false);
+    this.handoffTimer = undefined;
+    if (stopPan) this.camera.panEffect.reset();
+    this.camera.zoomEffect.reset();
+    this.stopFollow();
   }
 
   /** Publish whether the camera is on its neutral framing. */
@@ -250,29 +265,33 @@ export class CameraController {
     });
   }
 
-  /**
-   * The opening shot: the whole stadium, then a slow glide down onto the
-   * pitch while the loading screen fades.
-   */
+  /** Zoom into the overview with its world centre fixed throughout. */
   public intro(duration = CAMERA_INTRO_MS): void {
-    if (reducedMotion()) return;
-    const { width, height } = this.camera.getBounds();
-    this.snap(
-      this.frame(
-        [
-          { x: 0, y: 0 },
-          { x: width, y: height },
-        ],
-        1
-      )
-    );
-    const { centre, zoom } = this.overviewFraming();
-    this.camera.zoomTo(zoom, duration, "Cubic.easeInOut", true);
-    this.camera.pan(centre.x, centre.y, duration, "Cubic.easeInOut", true);
+    this.cancelCameraWork();
+    const target = this.overviewFraming();
+    if (reducedMotion()) {
+      this.snap(target);
+      return;
+    }
+    // Pixel-art cameras floor scroll on their first render. Start at that
+    // same centre so even the first visible frame holds its world position.
+    const centre = this.camera.roundPixels
+      ? {
+          x:
+            Math.floor(target.centre.x - this.camera.width / 2) +
+            this.camera.width / 2,
+          y:
+            Math.floor(target.centre.y - this.camera.height / 2) +
+            this.camera.height / 2,
+        }
+      : target.centre;
+    this.snap({ centre, zoom: target.zoom * 0.72 });
+    this.camera.zoomTo(target.zoom, duration, "Cubic.easeInOut", true);
   }
 
   /** The whole pitch and both benches. */
   public overview(duration = MOVE_MS): void {
+    this.cancelCameraWork();
     const { centre, zoom } = this.overviewFraming();
     this.glide(centre, zoom, duration);
     this.publishState("neutral", duration);
@@ -281,8 +300,7 @@ export class CameraController {
   /** Close on a world point, unless the coach has taken the camera. */
   public focus(point: Point, duration = MOVE_MS, force = false): void {
     if (this.manual && !force) return;
-    this.glide(point, this.actionZoom(), duration);
-    this.publishState("active", duration);
+    this.trackPoints([point], duration);
   }
 
   /** Close on a square. */
@@ -290,80 +308,152 @@ export class CameraController {
     this.focus(this.pitch.getPixelPosition(x, y), duration);
   }
 
-  /**
-   * Frame a group of squares, such as the acting team and the ball, or a
-   * player's reach, as close as the action framing allows while keeping
-   * them in view and clickable: in the part of the screen clear of every
-   * HUD panel, measured from the page. The camera may pull back past the
-   * overview, but never so far that players get hard to read. When the
-   * squares do not fit at that zoom, it frames the ones nearest the first
-   * square, the player whose reach it is.
-   */
-  public focusSquares(
-    squares: { x: number; y: number }[],
-    duration = MOVE_MS
-  ): void {
+  /** Track action at the current zoom. The first square is the required target. */
+  public focusSquares(squares: Point[], duration = MOVE_MS): void {
     if (this.manual || squares.length === 0) return;
-    const { width, height } = this.scene.scale;
-    const area = this.clearAreaNow();
-    const points = squares.map((s) => this.pitch.getPixelPosition(s.x, s.y));
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
-    // Figures stand above their squares
-    const box = {
-      left: Math.min(...xs),
-      right: Math.max(...xs),
-      top: Math.min(...ys) - 70,
-      bottom: Math.max(...ys),
+    this.trackPoints(
+      squares.map((s) => this.pitch.getPixelPosition(s.x, s.y)),
+      duration
+    );
+  }
+
+  private pointBox(points: Point[]): ScreenRect {
+    return {
+      left: Math.min(...points.map((p) => p.x)) - 50,
+      right: Math.max(...points.map((p) => p.x)) + 50,
+      top: Math.min(...points.map((p) => p.y)) - 70,
+      bottom: Math.max(...points.map((p) => p.y)) + 25,
     };
-    const pad = 1.15;
-    const areaWidth = area.right - area.left;
-    const areaHeight = area.bottom - area.top;
-    const fit = Math.min(
-      areaWidth / ((box.right - box.left) * pad),
-      areaHeight / ((box.bottom - box.top) * pad)
-    );
-    const closest = this.actionZoom();
-    const readable = Math.max(
-      Math.min(READABLE_FIGURE_PX / FIGURE_WORLD_PX, closest),
-      this.thumbZoom()
-    );
-    const zoom = Math.max(readable, Math.min(fit, closest));
-    // The world point at the middle of the clear area: the box's middle,
-    // or as near the first square as keeps the view inside the box
+  }
+
+  private centreInArea(middle: Point, area: ScreenRect, zoom: number): Point {
+    const { width, height } = this.scene.scale;
+    return {
+      x: middle.x - (area.left + area.right - width) / 2 / zoom,
+      y: middle.y - (area.top + area.bottom - height) / 2 / zoom,
+    };
+  }
+
+  private trackPoints(points: Point[], duration: number): void {
+    const previous = this.framed;
+    this.cancelCameraWork(false);
+    const zoom = this.camera.zoom;
+    const area = this.clearAreaNow();
+    const box = this.pointBox(points);
+    const halfWidth = (area.right - area.left) / (2 * 1.15 * zoom);
+    const halfHeight = (area.bottom - area.top) / (2 * 1.15 * zoom);
     const along = (anchor: number, low: number, high: number, half: number) =>
       high - low <= 2 * half
         ? (low + high) / 2
         : Math.min(Math.max(anchor, low + half), high - half);
-    const middle = {
-      x: along(points[0].x, box.left, box.right, areaWidth / (2 * pad * zoom)),
-      y: along(points[0].y, box.top, box.bottom, areaHeight / (2 * pad * zoom)),
-    };
-    // The camera centres the screen, not the clear area
-    const centre = {
-      x: middle.x - ((area.left + area.right) / 2 - width / 2) / zoom,
-      y: middle.y - ((area.top + area.bottom) / 2 - height / 2) / zoom,
-    };
+    const centre = this.centreInArea(
+      {
+        x: along(points[0].x, box.left, box.right, halfWidth),
+        y: along(points[0].y, box.top, box.bottom, halfHeight),
+      },
+      area,
+      zoom
+    );
+    // A reach larger than the current view gives priority to its acting player.
+    const required =
+      box.right - box.left <= 2 * halfWidth &&
+      box.bottom - box.top <= 2 * halfHeight
+        ? points
+        : points.slice(0, 1);
+    if (previous) {
+      const { width, height } = this.scene.scale;
+      // A selection may have cancelled the previous pan before it arrived.
+      const held = this.camera.panEffect.isRunning
+        ? previous.centre
+        : {
+            x: this.camera.scrollX + this.camera.width / 2,
+            y: this.camera.scrollY + this.camera.height / 2,
+          };
+      const visible = required.every((p) => {
+        const x = width / 2 + (p.x - held.x) * zoom;
+        const y = height / 2 + (p.y - held.y) * zoom;
+        return (
+          x - 50 * zoom >= area.left &&
+          x + 50 * zoom <= area.right &&
+          y - 70 * zoom >= area.top &&
+          y + 25 * zoom <= area.bottom
+        );
+      });
+      if (
+        visible &&
+        Math.hypot(centre.x - held.x, centre.y - held.y) * zoom <=
+          PAN_DEADBAND_PX
+      ) {
+        this.framed = { points, area, centre: held };
+        return;
+      }
+    }
     this.glide(centre, zoom, duration);
-    this.framed = { squares, area };
+    this.framed = { points, area, centre };
     this.publishState("active", duration);
   }
 
-  /**
-   * A HUD panel opened, closed or changed size since the camera last
-   * framed squares, such as the action menu that opens once a player is
-   * selected: frame the same squares again, clear of the panels as they
-   * are now. Nothing moves when the clear area is the same, after the
-   * camera has moved on, or while the coach holds it.
-   */
-  public refreshFraming(): void {
-    const framed = this.framed;
-    if (!framed || this.manual) return;
+  /** Intentional team/board fit. Every supplied on-pitch square must fit. */
+  public fitSquares(squares: Point[], duration = 420): void {
+    if (this.manual || squares.length === 0) return;
+    this.cancelCameraWork();
+    const points = squares.map((s) => this.pitch.getPixelPosition(s.x, s.y));
     const area = this.clearAreaNow();
-    const moved = (Object.keys(area) as (keyof ScreenRect)[]).some(
-      (side) => Math.abs(area[side] - framed.area[side]) > REFRAME_TOLERANCE_PX
+    const box = this.pointBox(points);
+    const zoom = Math.min(
+      (area.right - area.left) / ((box.right - box.left) * 1.15),
+      (area.bottom - area.top) / ((box.bottom - box.top) * 1.15),
+      TEAM_MAX_ZOOM
     );
-    if (moved) this.focusSquares(framed.squares, REFRAME_MS);
+    const centre = this.centreInArea(
+      {
+        x: (box.left + box.right) / 2,
+        y: (box.top + box.bottom) / 2,
+      },
+      area,
+      zoom
+    );
+    this.glide(centre, zoom, duration);
+    this.framed = { points, area, centre };
+    this.publishState("active", reducedMotion() ? 0 : duration);
+  }
+
+  /** Read the whole board before choosing from the new team's players. */
+  public handoff(all: Point[], next: Point[]): void {
+    this.release();
+    if (reducedMotion()) {
+      if (next.length) this.fitSquares(next, 0);
+      else if (all.length) this.fitSquares(all, 0);
+      else this.overview(0);
+      return;
+    }
+    if (all.length) this.fitSquares(all, 650);
+    else this.overview(650);
+    this.handoffTimer = this.scene.time.delayedCall(1250, () => {
+      this.handoffTimer = undefined;
+      if (next.length) this.fitSquares(next, 650);
+    });
+  }
+
+  /** Layout changes may move action clear of the HUD, but never change zoom. */
+  public refreshFraming(): void {
+    if (this.manual || this.handoffTimer || this.camera.zoomEffect.isRunning)
+      return;
+    if (this.following) {
+      this.followInClearArea();
+      return;
+    }
+    const framed = this.framed;
+    if (!framed) return;
+    const area = this.clearAreaNow();
+    const moved =
+      Math.max(
+        Math.abs(area.left - framed.area.left),
+        Math.abs(area.right - framed.area.right),
+        Math.abs(area.top - framed.area.top),
+        Math.abs(area.bottom - framed.area.bottom)
+      ) > REFRAME_TOLERANCE_PX;
+    if (moved) this.trackPoints(framed.points, REFRAME_MS);
   }
 
   private clearAreaNow(): ScreenRect {
@@ -375,19 +465,28 @@ export class CameraController {
     );
   }
 
-  /** Keep a moving object (the ball in flight) in the middle of the frame. */
-  public follow(target: Phaser.GameObjects.GameObject, zoom?: number): void {
-    if (this.manual || reducedMotion()) return;
+  /** Follow the ball without changing the coach's zoom. */
+  public follow(target: Phaser.GameObjects.GameObject): void {
+    if (this.manual) return;
+    this.cancelCameraWork();
     this.framed = null;
     this.following = target;
-    this.camera.zoomTo(
-      zoom ?? this.actionZoom() * 0.85,
-      400,
-      "Sine.easeOut",
-      true
+    this.camera.startFollow(
+      target,
+      false,
+      reducedMotion() ? 1 : 0.08,
+      reducedMotion() ? 1 : 0.08
     );
-    this.camera.startFollow(target, false, 0.08, 0.08);
+    this.followInClearArea();
     this.publishState("active", 400);
+  }
+
+  private followInClearArea(): void {
+    const area = this.clearAreaNow();
+    this.camera.setFollowOffset(
+      (area.left + area.right - this.camera.width) / (2 * this.camera.zoom),
+      (area.top + area.bottom - this.camera.height) / (2 * this.camera.zoom)
+    );
   }
 
   public stopFollow(): void {
@@ -399,6 +498,7 @@ export class CameraController {
 
   /** A new turn or selection hands the camera back to the game. */
   public release(): void {
+    this.cancelCameraWork();
     this.manual = false;
   }
 
@@ -424,7 +524,7 @@ export class CameraController {
   public zoomAt(x: number, y: number, factor: number): void {
     this.takeOver();
     const camera = this.camera;
-    const min = this.overviewFraming().zoom * 0.8;
+    const min = this.minZoom;
     const zoom = Math.min(
       Math.max(camera.zoom * factor, min),
       Math.max(min * 1.2, 4)
@@ -514,22 +614,19 @@ export class CameraController {
   private takeOver(): void {
     this.manual = true;
     this.framed = null;
-    this.stopFollow();
-    this.camera.panEffect.reset();
-    this.camera.zoomEffect.reset();
+    this.cancelCameraWork();
     this.publishState("active", 0);
   }
 
   private onResize(): void {
     if (this.manual) return;
-    this.framed = null;
-    this.snap(this.overviewFraming());
+    if (this.framed) this.trackPoints(this.framed.points, REFRAME_MS);
   }
 
   public destroy(): void {
     this.unsubscribers.forEach((off) => off());
     this.unsubscribers = [];
     this.scene.scale.off("resize", this.onResize, this);
-    this.stopFollow();
+    this.cancelCameraWork();
   }
 }

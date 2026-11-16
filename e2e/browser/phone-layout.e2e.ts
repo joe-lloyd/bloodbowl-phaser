@@ -1,4 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
+import { cameraState } from "../support/camera";
 import { GameApp } from "../support/pages/game";
 
 /**
@@ -79,7 +80,7 @@ test("a phone held upright is asked to turn sideways", async ({ page }) => {
   await expect(page.getByTestId("rotate-prompt")).toBeHidden();
 });
 
-test("a tap selects and zooms to thumb-sized squares, a tap plans, Go walks", async ({
+test("a tap selects at the current zoom, a tap plans, Go walks", async ({
   page,
 }) => {
   const app = await openScenario(page, "near-corner-blitz");
@@ -88,6 +89,7 @@ test("a tap selects and zooms to thumb-sized squares, a tap plans, Go walks", as
     "Your turn · tap a player"
   );
 
+  const zoom = (await cameraState(page)).zoom;
   await tapSquare(page, app, start);
   await expect(page.getByTestId("player-chip")).toBeVisible();
   await expect(page.getByTestId("action-move")).toBeVisible();
@@ -97,11 +99,7 @@ test("a tap selects and zooms to thumb-sized squares, a tap plans, Go walks", as
   await page.getByTestId("player-chip").tap();
   await expect(page.getByTestId("player-card")).toBeHidden();
   await app.pitch.waitForCameraToSettle();
-  const a = await app.pitch.viewportPoint(start);
-  const b = await app.pitch.viewportPoint({ x: start.x + 1, y: start.y });
-  // A diamond 84 by 42 px: one step along x is half of each
-  expect(Math.round(Math.abs(b.x - a.x) * 2)).toBeGreaterThanOrEqual(84);
-  expect(Math.round(Math.abs(b.y - a.y) * 2)).toBeGreaterThanOrEqual(42);
+  expect((await cameraState(page)).zoom).toBe(zoom);
 
   const target = { x: start.x + 2, y: start.y };
   await tapSquare(page, app, target);

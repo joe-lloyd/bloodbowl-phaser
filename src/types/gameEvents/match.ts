@@ -183,6 +183,7 @@ export interface MatchGameEvents {
   };
 
   // Camera
+  [GameEventNames.Camera_ChooseNextPlayer]: { teamId: string };
   [GameEventNames.Camera_TrackBall]: {
     /** Follow this player, or the ball when absent. Plain data: every bus
      *  event is recorded and cloned, so it must not carry display objects. */
