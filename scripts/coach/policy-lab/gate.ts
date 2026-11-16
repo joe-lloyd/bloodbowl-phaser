@@ -12,6 +12,7 @@ export const CONTRACT_FILES = [
   "__tests__/simulation/skill-plans.test.ts",
   "__tests__/simulation/plannerRuns.test.ts",
   "__tests__/simulation/policy-lab.test.ts",
+  "__tests__/simulation/telemetry-boundary.test.ts",
 ];
 
 const tacticalEvidence: Partial<Record<SkillType, string[]>> = {

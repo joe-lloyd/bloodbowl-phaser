@@ -1,17 +1,17 @@
+import { isDeepStrictEqual } from "node:util";
 /** Compare current modular plans with an archived, frozen pre-change planner. */
-import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   renameSync,
   writeFileSync,
 } from "node:fs";
 import { hostname } from "node:os";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { acquisitionDigest } from "../advanced-study/fingerprint";
+import { policySourceDigest, treeDigest } from "./fingerprint";
+import { recoverVerifiedGames } from "../policy-lab/recover";
 import { advancedInventory, teamFromVariant } from "../advanced-study/teams";
 import { catalogueInventory } from "../catalogue-study/schedule";
 import { playStudyGame } from "../catalogue-study/play";
@@ -51,24 +51,6 @@ function atomic(file: string, data: unknown) {
   writeFileSync(file + ".tmp", JSON.stringify(data));
   renameSync(file + ".tmp", file);
 }
-function treeDigest(base: string, paths: string[]): string {
-  const hash = createHash("sha256");
-  function visit(path: string) {
-    for (const item of readdirSync(path, { withFileTypes: true }).sort(
-      (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
-    )) {
-      const file = join(path, item.name);
-      if (item.isDirectory()) visit(file);
-      else
-        hash
-          .update(relative(base, file).split(sep).join("/"))
-          .update(readFileSync(file));
-    }
-  }
-  paths.forEach((path) => visit(join(base, path)));
-  return hash.digest("hex");
-}
-
 function track(coach: Coach, collectPlans = false) {
   const selected: Record<string, number> = {};
   const opportunities = createOpportunityLog();
@@ -142,10 +124,7 @@ if (args.includes("--worker")) {
       const replay = await replayStudyTrace(
         join(out, "traces", job.id + ".json.gz")
       );
-      if (
-        JSON.stringify(result.counters) !==
-        JSON.stringify(replay.observations.counters)
-      )
+      if (!isDeepStrictEqual(result.counters, replay.observations.counters))
         throw new Error("Replay event counters differ");
       atomic(join(out, "games", job.id + ".json"), {
         ...result,
@@ -235,17 +214,7 @@ if (args.includes("--worker")) {
   const workers = Number(flag("workers", "8"));
   if (!Number.isSafeInteger(workers) || workers < 1)
     throw new Error("Invalid worker count");
-  const hash = createHash("sha256").update(acquisitionDigest(root));
-  for (const file of ["run.ts", "pool.ts", "schedule.ts"])
-    hash
-      .update(file)
-      .update(readFileSync(join(root, "scripts/coach/policy-study", file)));
-  if (lab)
-    for (const file of ["teams.ts", "evidence.ts"])
-      hash
-        .update(file)
-        .update(readFileSync(join(root, "scripts/coach/policy-lab", file)));
-  const sourceDigest = hash.digest("hex");
+  const sourceDigest = policySourceDigest(root, lab);
   const baselineDigest = treeDigest(frozen, ["src"]);
   mkdirSync(join(out, "games"), { recursive: true });
   const inventory = catalogueInventory();
@@ -258,6 +227,7 @@ if (args.includes("--worker")) {
     host: hostname(),
     node: process.version,
     sourceDigest,
+    telemetry: "live-gameplay-events-v1",
     baselineDigest,
     baselineRevision: flag("baseline-revision", "unspecified"),
     revision: flag("revision", "unspecified"),
@@ -291,6 +261,16 @@ if (args.includes("--worker")) {
         "Source or schedule changed; use a fresh output directory"
       );
   } else atomic(file, manifest);
+  const reuse = flag("reuse-run", "");
+  if (reuse && !lab) throw new Error("Recovery requires --lab");
+  if (reuse)
+    await recoverVerifiedGames(
+      resolve(reuse),
+      resolve(flag("reuse-source", "")),
+      root,
+      out,
+      manifest
+    );
   const pending = jobs.filter(
     (job) => !existsSync(join(out, "games", job.id + ".json"))
   );

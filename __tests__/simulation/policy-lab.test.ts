@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { labInventory } from "../../scripts/coach/policy-lab/teams";
+import { validateRecovery } from "../../scripts/coach/policy-lab/recover";
+import { policySourceDigest } from "../../scripts/coach/policy-study/fingerprint";
 import { coverageInventory } from "../../scripts/coach/policy-lab/gate";
 import {
   policySchedule,
@@ -63,6 +65,63 @@ describe("repeatable Sevens policy lab", () => {
           `${j.variantIds[j.candidateSide]}/${j.candidateSide}/${j.receivingSide === j.candidateSide}`
       );
       expect(new Set(assignments).size).toBe(8);
+    }
+  });
+
+  it("rejects recovery after an AI, schedule or archived-source change", () => {
+    const root = mkdtempSync(join(tmpdir(), "bb7-recovery-inputs-"));
+    const old = join(root, "old"),
+      current = join(root, "current");
+    const inputs = [
+      "src/engine.ts",
+      "package.json",
+      "pnpm-lock.yaml",
+      "tsconfig.json",
+      "scripts/coach/catalogue-study/play.ts",
+      "scripts/coach/policy-lab/teams.ts",
+      "scripts/coach/policy-lab/evidence.ts",
+      ...["fingerprint.ts", "run.ts", "teams.ts", "schedule.ts"].map(
+        (f) => "scripts/coach/advanced-study/" + f
+      ),
+      ...["run.ts", "pool.ts", "schedule.ts"].map(
+        (f) => "scripts/coach/policy-study/" + f
+      ),
+    ];
+    try {
+      for (const base of [old, current])
+        for (const name of inputs) {
+          const file = join(base, name);
+          mkdirSync(dirname(file), { recursive: true });
+          writeFileSync(file, "stable");
+        }
+      const manifest = {
+        sourceDigest: policySourceDigest(old, true),
+        baselineDigest: "frozen",
+        revision: "original",
+        jobs: [],
+        variants: [],
+      };
+      expect(validateRecovery(manifest, manifest, old, current)).toHaveLength(
+        64
+      );
+      writeFileSync(join(current, "src/engine.ts"), "changed AI");
+      expect(() => validateRecovery(manifest, manifest, old, current)).toThrow(
+        "changed engine or AI"
+      );
+      writeFileSync(join(current, "src/engine.ts"), "stable");
+      const changed = { ...manifest, jobs: [policySchedule(variants)[0]] };
+      expect(() => validateRecovery(manifest, changed, old, current)).toThrow(
+        "schedule"
+      );
+      writeFileSync(
+        join(old, "scripts/coach/catalogue-study/play.ts"),
+        "tampered archive"
+      );
+      expect(() => validateRecovery(manifest, manifest, old, current)).toThrow(
+        "original manifest"
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 

@@ -258,7 +258,7 @@ def build(root, out, skill_plan=None):
         ]),
     }
     optional_files = []
-    for name in ("candidate-source.tar.gz", "frozen-source.tar.gz", "smoke-summary.json", "development-summary.json"):
+    for name in ("candidate-source.tar.gz", "frozen-source.tar.gz", "smoke-summary.json", "development-summary.json", "recovered-policy-source.tar.gz", "recovery.json"):
         if (root / name).exists():
             (out / name).write_bytes((root / name).read_bytes())
             optional_files.append(name)
@@ -275,9 +275,10 @@ def build(root, out, skill_plan=None):
             p.name.encode() + p.read_bytes() for p in sorted((root / "games").glob("*.json"))
         )).hexdigest(),
         "source_archives": {name: hashlib.sha256((root / name).read_bytes()).hexdigest()
-                            for name in ("candidate-source.tar.gz", "frozen-source.tar.gz")
+                            for name in ("candidate-source.tar.gz", "frozen-source.tar.gz", "recovered-policy-source.tar.gz")
                             if (root / name).exists()},
         "traces": str(root / "traces"),
+        "recovery": json.loads((root / "recovery.json").read_text()) if (root / "recovery.json").exists() else None,
         "limitations": [
             "One frozen opponent per acquisition: " + manifest.get("opponent", "planner") + ". Broader independent opponents remain follow-up tests.",
             "A team-level policy comparison cannot identify individual skill win value.",

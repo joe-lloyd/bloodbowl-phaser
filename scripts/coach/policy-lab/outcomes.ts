@@ -5,7 +5,6 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { CommandResponse } from "../../../src/headless/protocol";
 import type { MatchSave } from "../../../src/headless/serialization";
 import { snapshotHash } from "../../../src/simulation/runMatch";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
@@ -42,9 +41,25 @@ function outcomeTracker(game: HeadlessGame) {
   const moves = new Map<string, { x: number; y: number }>();
   const catches = new Map<string, string>();
   const throws = new Map<string, string>();
-  function before(step: Step): TurnContext {
+  const contextNow = (): TurnContext => {
     const state = game.ctx.gameService.getState();
-    const turn = `${state.turn.isHalf2}/${state.turn.turnNumber}/${state.activeTeamId}`;
+    return {
+      turn: `${state.turn.isHalf2}/${state.turn.turnNumber}/${state.activeTeamId}`,
+      late: state.turn.turnNumber >= 5,
+    };
+  };
+  function transfer(step: Step, context: TurnContext) {
+    if (step.ok && step.command.type === "pass") {
+      totals[step.team].passes++;
+      throws.set(step.command.playerId, context.turn);
+    }
+    if (step.ok && step.command.type === "handoff")
+      throws.delete(step.command.playerId);
+  }
+  function before(step: Step): void {
+    const state = game.ctx.gameService.getState();
+    const context = contextNow();
+    const { turn } = context;
     const command = step.command;
     if (command.type === "declare-action") {
       const player = game.ctx.gameService.getPlayerById(command.playerId);
@@ -59,7 +74,7 @@ function outcomeTracker(game: HeadlessGame) {
     }
     if (command.type === "move" && command.path.length)
       moves.set(command.playerId, command.path[command.path.length - 1]);
-    return { turn, late: state.turn.turnNumber >= 5 };
+    transfer(step, context);
   }
   function completion(data: unknown, context: TurnContext) {
     const passerId = eventId(data, "playerId") ?? "";
@@ -77,7 +92,8 @@ function outcomeTracker(game: HeadlessGame) {
   function touchdown(data: unknown, context: TurnContext) {
     const side = sides.get(eventId(data, "teamId") ?? "");
     if (side === undefined) throw new Error("Unknown scoring team");
-    const scorer = eventId(data, "scorerId") ?? "";
+    const scorer = eventId(data, "scorerId");
+    if (!scorer) return;
     if (catches.get(scorer) === context.turn) totals[side].receiverTouchdowns++;
     if (context.late) totals[side].lateTouchdowns++;
     const start = starts.get(scorer),
@@ -91,21 +107,13 @@ function outcomeTracker(game: HeadlessGame) {
     )
       totals[side].lateLongRuns++;
   }
-  function after(step: Step, response: CommandResponse, context: TurnContext) {
-    if (response.ok && step.command.type === "pass") {
-      totals[step.team].passes++;
-      throws.set(step.command.playerId, context.turn);
-    }
-    if (response.ok && step.command.type === "handoff")
-      throws.delete(step.command.playerId);
-    for (const event of response.events) {
-      if (event.name === GameEventNames.PassCompleted)
-        completion(event.data, context);
-      if (event.name === GameEventNames.Touchdown)
-        touchdown(event.data, context);
-    }
-  }
-  return { totals, before, after };
+  game.ctx.eventBus.on(GameEventNames.PassCompleted, (data) =>
+    completion(data, contextNow())
+  );
+  game.ctx.eventBus.on(GameEventNames.Touchdown, (data) =>
+    touchdown(data, contextNow())
+  );
+  return { totals, before };
 }
 
 export async function annotateTrace(file: string) {
@@ -116,10 +124,9 @@ export async function annotateTrace(file: string) {
   const game = new HeadlessGame({ matchSave: trace.initial });
   const tracker = outcomeTracker(game);
   for (const [index, step] of trace.recording.steps.entries()) {
-    const context = tracker.before(step);
+    tracker.before(step);
     const response = await game.execute(step.command);
     if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
-    tracker.after(step, response, context);
   }
   const hash = snapshotHash(game.snapshot());
   if (hash !== trace.recording.final.hash)
