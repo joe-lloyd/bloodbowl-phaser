@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Blood Bowl catalogue evaluation</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --text: var(--foreground, light-dark(#18232d, #e5eaf0));
+        --soft: var(--muted-foreground, light-dark(#49586a, #b0bdcb));
+        --line: var(--border, light-dark(#d5dde4, #364353));
+        --fill: var(--card, light-dark(#f1f5f7, #18222e));
+        --series: var(--chart-1, light-dark(#256b94, #67b1df));
+        --radius: 8px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+        color: var(--text);
+        font-family: var(--font-sans, system-ui, sans-serif);
+        font-size: 14px;
+      }
+      main {
+        display: grid;
+        gap: 20px;
+        min-width: 0;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: 500;
+      }
+      h2 {
+        font-size: 18px;
+        font-weight: 500;
+      }
+      h3 {
+        font-size: 15px;
+        font-weight: 500;
+      }
+      p,
+      li {
+        line-height: 1.55;
+      }
+      a {
+        color: var(--series);
+      }
+      section {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+      .muted {
+        color: var(--soft);
+      }
+      .panel {
+        background: var(--fill);
+        padding: 16px;
+        border-radius: var(--radius);
+      }
+      .scroll {
+        overflow-x: auto;
+        max-width: 100%;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        padding: 8px 10px;
+        text-align: right;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      td {
+        max-width: 480px;
+        overflow-wrap: anywhere;
+      }
+      thead {
+        background: var(--fill);
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      input,
+      select,
+      button {
+        font: inherit;
+        color: var(--text);
+        background: var(--fill);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 7px 10px;
+      }
+      input {
+        min-width: 180px;
+        flex: 1;
+      }
+      button {
+        cursor: var(--cursor-interaction, pointer);
+      }
+      button:disabled {
+        opacity: 0.45;
+      }
+      details {
+        padding: 12px 0;
+        border-top: 1px solid var(--line);
+      }
+      summary {
+        font-weight: 500;
+        cursor: var(--cursor-interaction, pointer);
+      }
+      details p,
+      details pre {
+        margin-top: 10px;
+      }
+      code {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.95em;
+      }
+      pre {
+        overflow: auto;
+        padding: 12px;
+        background: var(--fill);
+        border-radius: 5px;
+      }
+      svg {
+        width: 100%;
+        height: 210px;
+      }
+      svg text {
+        fill: var(--text);
+        font:
+          13px system-ui,
+          sans-serif;
+      }
+      .gridline {
+        stroke: var(--line);
+        stroke-width: 1;
+      }
+      .bar {
+        fill: var(--series);
+      }
+      .whisker {
+        stroke: var(--text);
+        stroke-width: 1.5;
+      }
+      ol,
+      ul {
+        margin: 0;
+        padding-left: 22px;
+      }
+      .number {
+        font-variant-numeric: tabular-nums;
+      }
+      .alert {
+        border-left: 3px solid var(--series);
+        padding-left: 14px;
+      }
+      .cell-long {
+        min-width: 280px;
+      }
+      #data-table th button {
+        border: 0;
+        background: none;
+        padding: 0;
+        font: inherit;
+        font-weight: 500;
+        text-align: inherit;
+        color: inherit;
+      }
+      #data-table td {
+        white-space: nowrap;
+      }
+      #data-table td.cell-long {
+        white-space: normal;
+      }
+      label {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .chart-caption {
+        font-size: 12px;
+        color: var(--soft);
+      }
+      @media (max-width: 500px) {
+        h1 {
+          font-size: 19px;
+        }
+        .controls label {
+          width: 100%;
+        }
+        select {
+          max-width: 100%;
+          flex: 1;
+        }
+        th,
+        td {
+          padding: 7px;
+        }
+        svg text {
+          font-size: 12px;
+        }
+      }
+      @media print {
+        .controls,
+        #pagination {
+          display: none;
+        }
+        .scroll {
+          overflow: visible;
+        }
+        details {
+          break-inside: avoid;
+        }
+        section {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>Blood Bowl catalogue evaluation</h1>
+        <p class="muted">{{subtitle}}</p>
+        <p>{{overview}}</p>
+      </section>
+      <section aria-labelledby="comparison-title">
+        <h2 id="comparison-title">How the coaches compare</h2>
+        {{chart}}
+        <p class="chart-caption">
+          Points share = wins + half of draws, divided by games. Whiskers show a
+          95% bootstrap interval over mirrored seed pairs; intervals are omitted
+          when any valid games lack their counterpart. Different opponent
+          schedules prevent direct Hard-versus-Legend ranking.
+        </p>
+        {{cohort_table}}
+      </section>
+      <section>
+        <h2>What the matches exposed</h2>
+        {{findings}}
+      </section>
+      <section>
+        <h2>Vampires and unreliable activations</h2>
+        {{vampires}}
+        <div class="scroll">{{vampire_table}}</div>
+        <p>{{negative_intro}}</p>
+        <div class="scroll">{{negative_table}}</div>
+        <p class="muted">
+          Roll failures include rerolls and are distinct from final failed
+          activations. Adjacency, ball possession, action, half, turn, pitch
+          third, and score difference are captured at command entry. These are
+          descriptive contexts, not randomized estimates of tactical benefit.
+        </p>
+      </section>
+      <section>
+        <h2>Skill and special-rule coverage</h2>
+        <p>{{coverage}}</p>
+        {{coverage_table}}
+        <p>{{coverage_limits}}</p>
+        <p>{{supplementary}}</p>
+      </section>
+      <details>
+        <summary>Concrete match moments to investigate</summary>
+        {{examples}}
+      </details>
+      <section>
+        <h2>Targets for bash teams</h2>
+        <p>{{standards}}</p>
+        <div class="scroll">{{standards_table}}</div>
+      </section>
+      <section>
+        <h2>Changes worth testing next</h2>
+        {{recommendations}}
+        <details>
+          <summary>Suggested module boundaries</summary>
+          <p>
+            Keep the existing planner as the coordinator. Select small
+            capability modules from the actual players and skills on both teams,
+            then compose their proposals and scores. Roster names may supply
+            defaults; current players, conditions, turns, possession and
+            opponent threats determine applicability.
+          </p>
+          <pre><code>tactics/
+  activationReliability.ts  // gates, support, safe ordering, reroll cost
+  vampireFeeding.ts         // reserve Thralls; legal bite endpoints
+  vampireDenial.ts          // threaten support and isolate hungry carriers
+  gazeAndSpecialAttacks.ts  // target value and follow-up opening
+  passingAndThrowing.ts     // passing, punts, throws, catches, jumps
+  foulAndWeaponPlans.ts     // ejection risk, victims, weapon lifetime
+  kickoffPlans.ts          // use legal event movement rather than skipping
+
+planner → modules selected by capabilities → proposed activations
+        → risk and interaction adjustments → legal candidate selection
+        → skill-specific pending-decision policy</code></pre>
+          <p>
+            Extend the engine-derived candidate seam and the planner’s Intent
+            type together. Hard and Legend must search the same expanded
+            actions. Preserve deterministic tie breaking and keep game-rule
+            legality in the engine.
+          </p>
+        </details>
+      </section>
+      <section id="spreadsheet">
+        <h2>Results spreadsheet</h2>
+        <p>
+          Search any field, sort by a column, and export the current rows. These
+          tables are embedded and work offline. Detailed team-game and matchup
+          rows are also available in the CSV bundle.
+        </p>
+        <div class="controls">
+          <label
+            >Dataset
+            <select id="dataset" aria-label="Dataset"></select></label
+          ><label
+            >Search
+            <input
+              id="query"
+              type="search"
+              placeholder="Vampire, Bloodlust, hard…" /></label
+          ><button id="download">Export filtered CSV</button>
+        </div>
+        <p id="description" class="muted"></p>
+        <div class="scroll">
+          <table id="data-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="pagination" class="controls">
+          <button id="previous">Previous</button
+          ><span id="page" aria-live="polite"></span
+          ><button id="next">Next</button>
+        </div>
+        <p id="load-error" role="status"></p>
+        <p>
+          <a href="study-data.zip"
+            >Download all spreadsheet data and report (ZIP)</a
+          >
+          · <a href="summary.json">Machine-readable summary</a> ·
+          <a href="skill-contexts.csv">Every recorded skill context (CSV)</a> ·
+          <a href="roll-contexts.csv">Every recorded roll context (CSV)</a> ·
+          <a href="team-games.csv">Every team-game (CSV)</a> ·
+          <a href="matchups.csv">Every template matchup (CSV)</a>
+        </p>
+      </section>
+      <details>
+        <summary>Method, reproducibility, and limits</summary>
+        {{method}}
+      </details>
+      <details>
+        <summary>Research and source references</summary>
+        {{sources}}
+      </details>
+    </main>
+    <script>
+      (async()=>{const compressed="{{payload}}";const status=document.getElementById('load-error');let tables;try{const bytes=Uint8Array.from(atob(compressed),c=>c.charCodeAt(0));const unpacked=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));tables=JSON.parse(await new Response(unpacked).text())}catch(e){status.textContent='This browser could not unpack the interactive tables. Open the CSV files or ZIP beside this report. '+e.message;return}
+      const descriptions={{descriptions}};const names={{names}};const select=document.getElementById('dataset'),query=document.getElementById('query');let page=0,sortKey=null,descending=false;const size=50;
+      Object.keys(tables).forEach(key=>{const option=document.createElement('option');option.value=key;option.textContent=names[key]||key;select.append(option)});select.value='skills';
+      function allRows(){const table=tables[select.value];return table.rows.map(values=>Object.fromEntries(table.columns.map((k,i)=>[k,values[i]])))}
+      function rows(){const text=query.value.trim().toLowerCase();let result=allRows().filter(row=>!text||Object.values(row).some(value=>String(value).toLowerCase().includes(text)));if(sortKey)result.sort((a,b)=>{const x=a[sortKey],y=b[sortKey];return (typeof x==='number'&&typeof y==='number'?x-y:String(x??'').localeCompare(String(y??''),undefined,{numeric:true}))*(descending?-1:1)});return result}
+      function label(key){return key.replaceAll('_',' ').replace(/([a-z])([A-Z])/g,'$1 $2')}
+      function value(key,v){if(v===null||v===undefined)return '—';if(typeof v==='boolean')return v?'Yes':'No';if(typeof v==='number'){if(/^(win_rate|turnover_rate|failure_rate|points|race_macro_points|template_macro_points|points_low|points_high)$/.test(key))return(v*100).toFixed(1)+'%';return Number.isInteger(v)?v.toLocaleString():v.toFixed(3)}return String(v)}
+      function render(){const data=rows(),columns=tables[select.value].columns,thead=document.querySelector('#data-table thead'),body=document.querySelector('#data-table tbody');thead.replaceChildren();body.replaceChildren();page=Math.min(page,Math.max(0,Math.ceil(data.length/size)-1));const tr=document.createElement('tr');columns.forEach(key=>{const th=document.createElement('th');th.setAttribute('scope','col');const button=document.createElement('button');button.textContent=label(key)+(sortKey===key?(descending?' ↓':' ↑'):'');button.onclick=()=>{descending=sortKey===key?!descending:false;sortKey=key;render()};th.append(button);tr.append(th)});thead.append(tr);data.slice(page*size,(page+1)*size).forEach(row=>{const tr=document.createElement('tr');columns.forEach(key=>{const td=document.createElement('td');td.textContent=value(key,row[key]);if(['effect','note','description','message','error'].includes(key))td.className='cell-long';tr.append(td)});body.append(tr)});document.getElementById('page').textContent=data.length?`${page*size+1}–${Math.min((page+1)*size,data.length)} of ${data.length.toLocaleString()} rows`:'No matching rows';document.getElementById('previous').disabled=page===0;document.getElementById('next').disabled=(page+1)*size>=data.length;document.getElementById('description').textContent=descriptions[select.value]||''}
+      select.onchange=()=>{page=0;sortKey=null;render()};query.oninput=()=>{page=0;render()};document.getElementById('previous').onclick=()=>{page--;render()};document.getElementById('next').onclick=()=>{page++;render()};document.getElementById('download').onclick=()=>{const columns=tables[select.value].columns;const escape=v=>{let s=String(v??'');if(/^[=+@-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"'};const csv=[columns,...rows().map(row=>columns.map(k=>row[k]))].map(row=>row.map(escape).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=select.value+'-filtered.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};render();
+      })().catch(error=>document.getElementById('load-error').textContent=String(error));
+    </script>
+  </body>
+</html>
