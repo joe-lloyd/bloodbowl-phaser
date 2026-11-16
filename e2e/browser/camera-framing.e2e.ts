@@ -1,63 +1,322 @@
 import { test, expect, Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
+import { GameEventNames } from "../../src/types/events";
+import {
+  cameraState,
+  sampleCamera,
+  finishCameraSample,
+  expectZoomHeld,
+} from "../support/camera";
 
-/**
- * Round 3, 1:06:00: framing a long reach zoomed out until players were
- * about 15 px tall. Round 3, 56:30: square 7,10 sat under the dice log's
- * A- button. The camera now stops pulling back while a 2 m figure is still
- * 28 px tall, and keeps the squares beside the player clear of every HUD
- * panel it measures on the page.
- */
-const BESIDE = [
-  { x: 7, y: 10 },
-  { x: 6, y: 10 },
-  { x: 8, y: 10 },
-  { x: 6, y: 9 },
-  { x: 8, y: 9 },
-];
+test.use({ contextOptions: { reducedMotion: "no-preference" } });
 
-/** A 2 m figure against a square's width on screen, 99 world px. */
-const FIGURE_PER_SQUARE = (2 * 25 * Math.cos(Math.PI / 6)) / (70 * Math.SQRT2);
-
-async function expectClickable(page: Page, app: GameApp) {
-  const canvas = await app.pitch.canvas.elementHandle();
-  for (const square of BESIDE) {
-    const point = await app.pitch.viewportPoint(square);
-    const onCanvas = await page.evaluate(
-      ([x, y, el]) => document.elementFromPoint(x, y) === el,
-      [point.x, point.y, canvas] as const
-    );
-    expect(onCanvas, `square ${square.x},${square.y} is covered`).toBe(true);
-  }
+async function openSpread(page: Page) {
+  const app = new GameApp(page);
+  await app.sandbox.open({ scenario: "camera-spread-team", seed: 1 });
+  await app.pitch.waitForCameraToSettle();
+  return app;
 }
+
+/** Check the live team's footprint against the visible React HUD gap. */
+async function expectTeamFits(
+  page: Page,
+  app: GameApp,
+  teamIndex: number,
+  eligibleOnly = false,
+  centred = true
+) {
+  await app.pitch.waitForCameraToSettle();
+  const state = await app.bridge.snapshot();
+  const team = state.teams[teamIndex];
+  const players = team.players.filter(
+    (p) =>
+      p.position &&
+      (!eligibleOnly || !state.turn.activatedPlayerIds.includes(p.id))
+  );
+  const { geometry, z, points } = await page.evaluate(
+    (squares) => {
+      const canvas = document
+        .querySelector("#game-container canvas")!
+        .getBoundingClientRect();
+      const top = document
+        .querySelector('[data-hud-frame="top"]')!
+        .getBoundingClientRect().bottom;
+      const tray = document.querySelector('[data-hud-frame="bottom"]')!;
+      const trayTop =
+        tray.getAttribute("aria-hidden") === "true"
+          ? canvas.bottom
+          : tray.getBoundingClientRect().top;
+      // The phone's centred movement hint also occupies the bottom of the gap.
+      const hint = document.querySelector('[data-testid="move-hint"]');
+      const bottom = Math.min(
+        trayTop,
+        hint?.getBoundingClientRect().top ?? canvas.bottom
+      );
+      const bridge = (
+        window as unknown as {
+          __bbTestBridge: import("../../src/testing/browserBridge").BrowserTestBridge;
+        }
+      ).__bbTestBridge;
+      const size = bridge.canvasSize();
+      return {
+        geometry: { top, bottom, left: canvas.left, right: canvas.right },
+        z: (bridge.cameraState()!.zoom * canvas.height) / size.height,
+        points: squares.map((s) => {
+          const p = bridge.squareToCanvas(s.x, s.y)!;
+          return {
+            x: canvas.left + (p.x * canvas.width) / size.width,
+            y: canvas.top + (p.y * canvas.height) / size.height,
+          };
+        }),
+      };
+    },
+    players.map((p) => p.position!)
+  );
+  for (const p of points) {
+    expect(p.x - 50 * z).toBeGreaterThanOrEqual(geometry.left + 23);
+    expect(p.x + 50 * z).toBeLessThanOrEqual(geometry.right - 23);
+    expect(p.y - 70 * z).toBeGreaterThanOrEqual(geometry.top + 23);
+    expect(p.y + 25 * z).toBeLessThanOrEqual(geometry.bottom - 23);
+  }
+  const middle =
+    (Math.min(...points.map((p) => p.y)) -
+      70 * z +
+      Math.max(...points.map((p) => p.y)) +
+      25 * z) /
+    2;
+  if (centred)
+    expect(
+      Math.abs(middle - (geometry.top + geometry.bottom) / 2)
+    ).toBeLessThan(3);
+}
+
+test("direct teammate selection after movement holds zoom for every frame and selects the requested player", async ({
+  page,
+}) => {
+  const app = await openSpread(page);
+  await app.hud.declareAction("team1:0", "move");
+  await app.pitch.clickSquare({ x: 8, y: 6 });
+  await app.pitch.clickSquare({ x: 8, y: 6 });
+  await expect
+    .poll(() => app.pitch.squareOf("team1:0"))
+    .toEqual({ x: 8, y: 6 });
+  await app.pitch.waitForCameraToSettle();
+  const requestedId = await app.bridge.resolveRef("team1:1");
+  await sampleCamera(page);
+  await app.pitch.clickPlayer("team1:1");
+  await app.pitch.waitForCameraToSettle();
+  await page.waitForTimeout(1500);
+  const selected = (await app.bridge.events())
+    .filter((e) => e.name === GameEventNames.PlayerSelected)
+    .at(-1);
+  expect(selected?.data).toMatchObject({ player: { id: requestedId } });
+  expect((await app.bridge.snapshot()).turn.activatedPlayerIds).toContain(
+    await app.bridge.resolveRef("team1:0")
+  );
+  expectZoomHeld(
+    await finishCameraSample(page, test.info(), "direct-selection-frames")
+  );
+  expect(
+    (await app.bridge.events()).filter(
+      (e) => e.name === GameEventNames.Camera_ChooseNextPlayer
+    )
+  ).toEqual([]);
+  await page.screenshot({
+    path: test.info().outputPath("direct-selection.png"),
+  });
+});
 
 for (const viewport of [
   { width: 1280, height: 720 },
   { width: 1920, height: 1080 },
+  { width: 844, height: 390 },
 ]) {
   test.describe(`${viewport.width}x${viewport.height}`, () => {
-    test.use({ viewport });
-    test("a long blitz reach keeps players readable and clear of the dice log", async ({
+    test.use({
+      viewport,
+      hasTouch: viewport.width === 844,
+      isMobile: viewport.width === 844,
+    });
+    test("explicit End activation fits every eligible teammate in the measured gap", async ({
+      page,
+    }) => {
+      const app = await openSpread(page);
+      await app.hud.declareAction("team1:0", "move");
+      await page.getByTestId("action-end-activation").click();
+      await expectTeamFits(page, app, 0, true);
+      await page.screenshot({
+        path: test.info().outputPath("eligible-team-fit.png"),
+      });
+    });
+    test("selection and action declaration pan clear of the HUD at a fixed zoom", async ({
       page,
     }) => {
       const app = new GameApp(page);
       await app.sandbox.open({ scenario: "near-corner-blitz", seed: 1 });
-      await app.pitch.clickPlayer("team1:0");
-      await expect(app.hud.actionMenu()).toBeVisible();
-      await app.hud.actionButton("blitz").click();
       await app.pitch.waitForCameraToSettle();
-
-      // One square across the screen: one step along x, one back along y
-      const a = await app.pitch.viewportPoint({ x: 7, y: 9 });
-      const b = await app.pitch.viewportPoint({ x: 8, y: 8 });
-      const figurePx = Math.hypot(b.x - a.x, b.y - a.y) * FIGURE_PER_SQUARE;
-      expect(Math.round(figurePx)).toBeGreaterThanOrEqual(28);
-      await expectClickable(page, app);
-
-      await test.info().attach(`long-reach-${viewport.width}x${viewport.height}`, {
-        body: await page.screenshot(),
-        contentType: "image/png",
-      });
+      await sampleCamera(page);
+      await app.hud.declareAction("team1:0", "blitz");
+      await app.pitch.waitForCameraToSettle();
+      const at = await app.pitch.viewportPoint({ x: 7, y: 9 });
+      expect(
+        await page.evaluate(
+          ([x, y]) => document.elementFromPoint(x, y)?.tagName,
+          [at.x, at.y]
+        )
+      ).toBe("CANVAS");
+      expectZoomHeld(
+        await finishCameraSample(page, test.info(), "selection-zoom")
+      );
+      await page.screenshot({ path: test.info().outputPath("tracking.png") });
     });
   });
 }
+
+test("the wheel can zoom out after a wide team fit", async ({ page }) => {
+  const app = await openSpread(page);
+  await app.hud.declareAction("team1:0", "move");
+  await page.getByTestId("action-end-activation").click();
+  await app.pitch.waitForCameraToSettle();
+  const before = (await cameraState(page)).zoom;
+  await page.mouse.move(640, 360);
+  await page.mouse.wheel(0, 100);
+  await expect
+    .poll(async () => (await cameraState(page)).zoom)
+    .toBeLessThan(before);
+});
+
+test("turn handoff fits both teams, pauses, then fits the new team", async ({
+  page,
+}) => {
+  const app = await openSpread(page);
+  await sampleCamera(page);
+  await app.hud.endTurn().click();
+  // During the pause all nine on-pitch players must fit, including the old team.
+  await page.waitForTimeout(800);
+  await expectTeamFits(page, app, 0);
+  await expectTeamFits(page, app, 1, false, false);
+  await page.screenshot({ path: test.info().outputPath("handoff-board.png") });
+  await page.waitForTimeout(1600);
+  await expectTeamFits(page, app, 1);
+  const samples = await finishCameraSample(page, test.info(), "handoff-frames");
+  const still = samples.filter((s) => !s.zooming && !s.panning);
+  expect(still.length).toBeGreaterThan(2);
+  expect(still.at(-1)!.zoom).toBeGreaterThan(
+    Math.min(...still.map((s) => s.zoom))
+  );
+  await page.screenshot({
+    path: test.info().outputPath("handoff-next-team.png"),
+  });
+});
+
+for (const afterMs of [250, 900]) {
+  test(`resizing at ${afterMs}ms preserves the next-team handoff`, async ({
+    page,
+  }) => {
+    const app = await openSpread(page);
+    await app.hud.endTurn().click();
+    await page.waitForTimeout(afterMs);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.waitForTimeout(2200);
+    await expectTeamFits(page, app, 1);
+  });
+}
+
+test("resizing during a team zoom keeps every eligible player visible", async ({
+  page,
+}) => {
+  const app = await openSpread(page);
+  await app.hud.declareAction("team1:0", "move");
+  await page.getByTestId("action-end-activation").click();
+  await expect.poll(async () => (await cameraState(page)).zooming).toBe(true);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expectTeamFits(page, app, 0, true);
+});
+
+for (const afterMs of [250, 700]) {
+  test(`selection at ${afterMs}ms cancels the obsolete handoff fit`, async ({
+    page,
+  }) => {
+    const app = await openSpread(page);
+    await app.hud.endTurn().click();
+    await page.waitForTimeout(afterMs);
+    const square = await app.pitch.squareOf("team2:0");
+    const point = await page.evaluate((s) => {
+      const bridge = (
+        window as unknown as {
+          __bbTestBridge: import("../../src/testing/browserBridge").BrowserTestBridge;
+        }
+      ).__bbTestBridge;
+      const canvas = document
+        .querySelector("#game-container canvas")!
+        .getBoundingClientRect();
+      const size = bridge.canvasSize();
+      const p = bridge.squareToCanvas(s.x, s.y)!;
+      return {
+        x: canvas.left + (p.x * canvas.width) / size.width,
+        y: canvas.top + (p.y * canvas.height) / size.height,
+      };
+    }, square);
+    await page.mouse.click(point.x, point.y);
+    const requestedId = await app.bridge.resolveRef("team2:0");
+    await expect
+      .poll(async () => {
+        const event = (await app.bridge.events())
+          .filter((e) => e.name === GameEventNames.PlayerSelected)
+          .at(-1);
+        return event?.data;
+      })
+      .toMatchObject({ player: { id: requestedId } });
+    await app.pitch.waitForCameraToSettle();
+    await sampleCamera(page);
+    await page.waitForTimeout(2200);
+    const samples = await finishCameraSample(
+      page,
+      test.info(),
+      "cancelled-handoff-frames"
+    );
+    expectZoomHeld(samples);
+    expect(new Set(samples.map((s) => JSON.stringify(s.centre))).size).toBe(1);
+    expect(samples.some((s) => s.panning || s.zooming)).toBe(false);
+  });
+}
+
+test("loading another scenario during handoff cancels the obsolete destination", async ({
+  page,
+}) => {
+  const app = await openSpread(page);
+  await app.hud.endTurn().click();
+  await page.waitForTimeout(250);
+  await app.sandbox.loadCoreScenario("near-corner-blitz");
+  await app.pitch.waitForCameraToSettle();
+  await sampleCamera(page);
+  await page.waitForTimeout(2200);
+  const samples = await finishCameraSample(
+    page,
+    test.info(),
+    "restored-handoff-frames"
+  );
+  expectZoomHeld(samples);
+  expect(new Set(samples.map((s) => JSON.stringify(s.centre))).size).toBe(1);
+  expect(samples.some((s) => s.panning || s.zooming)).toBe(false);
+});
+
+test.describe("reduced motion", () => {
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
+  test("turn handoff cuts to the next team and leaves no delayed camera work", async ({
+    page,
+  }) => {
+    const app = await openSpread(page);
+    await app.hud.endTurn().click();
+    await expectTeamFits(page, app, 1);
+    await sampleCamera(page);
+    await page.waitForTimeout(2100);
+    expectZoomHeld(
+      await finishCameraSample(page, test.info(), "reduced-motion-handoff")
+    );
+    expect(await cameraState(page)).toMatchObject({
+      panning: false,
+      zooming: false,
+    });
+  });
+});

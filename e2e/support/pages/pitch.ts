@@ -18,6 +18,11 @@ export interface Square {
   y: number;
 }
 
+interface Projection {
+  design: Square;
+  viewport: Square;
+}
+
 export class PitchPage {
   readonly canvas: Locator;
   private readonly bridge: GameBridge;
@@ -32,34 +37,96 @@ export class PitchPage {
     await this.bridge.waitForReady(timeout);
   }
 
-  /** Wait until the match camera has stopped panning and zooming. */
+  /** Wait for HUD layout transitions and their resulting camera pan. */
   async waitForCameraToSettle(timeout = 15_000): Promise<void> {
-    await this.page.waitForFunction(
-      () =>
-        !(
-          window as unknown as Record<string, BrowserTestBridge>
-        ).__bbTestBridge.cameraMoving(),
-      undefined,
+    await this.settledProjection(null, timeout);
+  }
+
+  private async settledProjection(
+    square: Square | null,
+    timeout = 15_000
+  ): Promise<Projection | null> {
+    // The tray's transitionend can start a pan after the previous one stops.
+    // Require matching camera values on two frames after transitions finish.
+    const handle = await this.page.waitForFunction(
+      (square) =>
+        new Promise<{ projection: Projection | null }>((resolve) => {
+          const bridge = (
+            window as unknown as { __bbTestBridge: BrowserTestBridge }
+          ).__bbTestBridge;
+          let previous = "";
+          const check = () => {
+            const panels = document.querySelectorAll(
+              "[data-hud-frame], [data-hud-panels]"
+            );
+            const transitioning = Array.from(panels).some((panel) =>
+              panel
+                .getAnimations({ subtree: true })
+                .some(
+                  (animation) =>
+                    animation instanceof CSSTransition &&
+                    animation.playState === "running"
+                )
+            );
+            const layout = Array.from(panels).flatMap((panel) =>
+              [panel, ...panel.children].map((element) => {
+                const { left, top, width, height } =
+                  element.getBoundingClientRect();
+                return { left, top, width, height };
+              })
+            );
+            const state = JSON.stringify({
+              camera: bridge.cameraState(),
+              layout,
+            });
+            if (
+              !transitioning &&
+              !bridge.cameraMoving() &&
+              state === previous
+            ) {
+              const design =
+                square && bridge.squareToCanvas(square.x, square.y);
+              const canvas = document.querySelector("#game-container canvas");
+              const box = canvas?.getBoundingClientRect();
+              const size = bridge.canvasSize();
+              // Read projection and CSS scale in the same browser turn as the
+              // settled check. Extra round trips can miss a new HUD reframe.
+              resolve({
+                projection:
+                  design && box
+                    ? {
+                        design,
+                        viewport: {
+                          x: box.left + (design.x * box.width) / size.width,
+                          y: box.top + (design.y * box.height) / size.height,
+                        },
+                      }
+                    : null,
+              });
+              return;
+            }
+            previous = transitioning || bridge.cameraMoving() ? "" : state;
+            requestAnimationFrame(check);
+          };
+          requestAnimationFrame(check);
+        }),
+      square,
       { timeout }
     );
+    const { projection } = await handle.jsonValue();
+    await handle.dispose();
+    return projection;
   }
 
   /** The square's centre in canvas coordinates, once the camera is still. */
   async designPoint(square: Square): Promise<Square> {
-    await this.waitForCameraToSettle();
-    const point = await this.page.evaluate(
-      ([gridX, gridY]) =>
-        (
-          window as unknown as Record<string, BrowserTestBridge>
-        ).__bbTestBridge.squareToCanvas(gridX, gridY),
-      [square.x, square.y] as const
-    );
-    if (!point) {
+    const projection = await this.settledProjection(square);
+    if (!projection) {
       throw new Error(
         `no pitch is rendered yet, so square (${square.x},${square.y}) has no position`
       );
     }
-    return point;
+    return projection.design;
   }
 
   /** The live design-space canvas size the scale manager is laying out to. */
@@ -71,34 +138,11 @@ export class PitchPage {
     );
   }
 
-  /**
-   * A design-space point as an offset within the canvas element.
-   *
-   * Phaser fits its design surface to the element, so the ratio of the
-   * element's CSS box to the live design size is the scale factor. Reading
-   * the design size from the running scale manager (not `GameConfig`) matters:
-   * the game sizes itself to its parent, and the pitch is laid out from that
-   * runtime width.
-   */
-  private async elementOffset(square: Square): Promise<Square> {
-    const [design, size, box] = await Promise.all([
-      this.designPoint(square),
-      this.canvasSize(),
-      this.canvas.boundingBox(),
-    ]);
-    if (!box) throw new Error("the game canvas has no layout box");
-    return {
-      x: design.x * (box.width / size.width),
-      y: design.y * (box.height / size.height),
-    };
-  }
-
   /** A grid square's centre as an absolute viewport point. */
   async viewportPoint(square: Square): Promise<Square> {
-    const offset = await this.elementOffset(square);
-    const box = await this.canvas.boundingBox();
-    if (!box) throw new Error("the game canvas has no layout box");
-    return { x: box.x + offset.x, y: box.y + offset.y };
+    const projection = await this.settledProjection(square);
+    if (!projection) throw new Error("the pitch has no canvas projection");
+    return projection.viewport;
   }
 
   /**
@@ -111,7 +155,8 @@ export class PitchPage {
    */
   async clickSquare(square: Square): Promise<void> {
     await this.hoverSquare(square);
-    await this.canvas.click({ position: await this.elementOffset(square) });
+    const point = await this.viewportPoint(square);
+    await this.page.mouse.click(point.x, point.y);
   }
 
   /** Move the pointer over a square without clicking (hover highlights). */

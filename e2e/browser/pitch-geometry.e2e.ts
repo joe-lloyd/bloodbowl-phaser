@@ -12,6 +12,7 @@ import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameConfig } from "../../src/config/GameConfig";
 import { SCENARIOS } from "../../src/data/scenarios";
+import type { BrowserTestBridge } from "../../src/testing/browserBridge";
 
 const SCENARIO_ID = "basic-scrimmage";
 
@@ -101,6 +102,7 @@ test.describe("pitch geometry and the test bridge", () => {
     expect(surface).not.toContain("execute");
     expect(surface).toEqual([
       "cameraMoving",
+      "cameraState",
       "canvasSize",
       "events",
       "pendingDecision",
@@ -128,5 +130,18 @@ test.describe("pitch geometry and the test bridge", () => {
     });
     const after = await app.bridge.snapshot();
     expect(after.ballPosition).toEqual(before.ballPosition);
+
+    const camera = await page.evaluate(() => {
+      const bridge = (
+        window as unknown as { __bbTestBridge: BrowserTestBridge }
+      ).__bbTestBridge;
+      const before = bridge.cameraState();
+      const copy = bridge.cameraState();
+      if (!copy) throw new Error("No live match camera");
+      copy.zoom = 99;
+      copy.centre.x = 99;
+      return { before, after: bridge.cameraState() };
+    });
+    expect(camera.after).toEqual(camera.before);
   });
 });

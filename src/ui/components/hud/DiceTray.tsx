@@ -403,6 +403,8 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
   return (
     <div
       data-testid="dice-tray"
+      data-hud-frame="bottom"
+      aria-hidden={!current}
       data-dice={current ? (current.settled ? "landed" : "in-air") : "empty"}
       className={`hud-slab pointer-events-none absolute bottom-4 left-1/2 z-[110] w-[420px] max-w-[50vw] -translate-x-1/2 overflow-hidden transition-all duration-200 ${
         current ? "opacity-100" : "translate-y-2 opacity-0"

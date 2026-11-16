@@ -268,3 +268,91 @@ describe("GameplayInteractionController", () => {
     );
   });
 });
+
+describe("explicit End activation camera intent", () => {
+  let controller: GameplayInteractionController;
+  let state: Pick<GameState, "phase" | "activeTeamId" | "activePlayer"> & {
+    turn: { activatedPlayerIds: Set<string> };
+  };
+  const endFromUi = () =>
+    mockEventBus.on.mock.calls.find(
+      ([event]) => event === GameEventNames.UI_EndActivation
+    )![1]();
+
+  beforeEach(() => {
+    controller = createController();
+    state = {
+      phase: GamePhase.PLAY,
+      activeTeamId: team1Id,
+      activePlayer: { id: player1.id, action: "move", committed: true },
+      turn: { activatedPlayerIds: new Set() },
+    };
+    mockGameService.getState.mockImplementation(() => state);
+    mockGameService.getPlayerById.mockImplementation((id: string) => ({
+      ...player1,
+      id,
+    }));
+    mockGameService.finishActivation.mockImplementation((id: string) => {
+      state.activePlayer = null;
+      state.turn.activatedPlayerIds.add(id);
+    });
+    controller["selectedPlayerId"] = player1.id;
+  });
+
+  it("asks for teammate framing after explicit UI completion", () => {
+    endFromUi();
+    expect(mockEventBus.emit).toHaveBeenCalledWith(
+      GameEventNames.Camera_ChooseNextPlayer,
+      { teamId: team1Id, playerId: player1.id }
+    );
+    expect(controller["selectedPlayerId"]).toBeNull();
+  });
+
+  it("keeps the explicit intent while a computer or online command is queued", () => {
+    mockGameService.runsCommandsLater = true;
+    mockGameService.finishActivation.mockImplementation(() => {});
+    endFromUi();
+    expect(mockEventBus.emit).toHaveBeenCalledWith(
+      GameEventNames.Camera_ChooseNextPlayer,
+      { teamId: team1Id, playerId: player1.id }
+    );
+    expect(controller["selectedPlayerId"]).toBeNull();
+  });
+
+  it("finishes the previous player during direct selection without requesting a team fit", () => {
+    controller.selectPlayer("mate");
+    expect(state.turn.activatedPlayerIds.has(player1.id)).toBe(true);
+    expect(controller["selectedPlayerId"]).toBe("mate");
+    expect(
+      mockEventBus.emit.mock.calls.filter(
+        ([event]) => event === GameEventNames.Camera_ChooseNextPlayer
+      )
+    ).toEqual([]);
+  });
+
+  it.each(["charge", "razzle", "forced"])(
+    "keeps %s continuation without a team fit",
+    (kind) => {
+      mockGameService.finishActivation.mockImplementation(() => {
+        if (kind === "charge") controller["selectedPlayerId"] = "next-charger";
+        else
+          state.activePlayer = {
+            id: player1.id,
+            action: "move",
+            committed: true,
+            ...(kind === "razzle"
+              ? { razzleDazzle: { actions: ["move"], awaitingSecond: true } }
+              : {}),
+          };
+      });
+      endFromUi();
+      expect(
+        mockEventBus.emit.mock.calls.filter(
+          ([event]) => event === GameEventNames.Camera_ChooseNextPlayer
+        )
+      ).toEqual([]);
+      if (kind === "charge")
+        expect(controller["selectedPlayerId"]).toBe("next-charger");
+    }
+  );
+});

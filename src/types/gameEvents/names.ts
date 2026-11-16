@@ -137,6 +137,7 @@ export enum GameEventNames {
   // Camera Events
   Camera_TrackBall = "camera:trackBall",
   Camera_Reset = "camera:reset",
+  Camera_ChooseNextPlayer = "camera:chooseNextPlayer",
   /** The camera left or returned to its neutral framing. Driven by
    *  CameraController itself (not per-call-site), so any camera move —
    *  present or future — publishes this without new wiring. */

@@ -9,11 +9,13 @@ import { confirmPregame } from "../support/pregame";
  * SHOTS=<dir> also saves a screenshot of each beat, for a walkthrough page.
  */
 import { test, expect } from "@playwright/test";
+import { sampleCamera, finishCameraSample } from "../support/camera";
 import { GameApp } from "../support/pages/game";
 import { seedAllRosters } from "../support/seedTeams";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 
+test.use({ contextOptions: { reducedMotion: "no-preference" } });
 if (process.env.SHOTS) test.use({ video: "on" });
 
 test("introductions, then the coin, then setup with no zone left glowing", async ({
@@ -46,6 +48,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     .getByRole("button", { name: /Orc Founders/ })
     .last()
     .click();
+  await sampleCamera(page);
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
 
@@ -57,6 +60,20 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     await expect(flip).toHaveCount(0);
     await shot(`intro-${name.split(" ")[0].toLowerCase()}`);
   }
+  const cameraFrames = await finishCameraSample(
+    page,
+    test.info(),
+    "opening-camera-frames"
+  );
+  const opening = cameraFrames.filter((s) => s.zooming);
+  expect(opening.length).toBeGreaterThan(2);
+  for (const axis of ["x", "y"] as const) {
+    const centres = opening.map((s) => s.centre[axis]);
+    expect(Math.max(...centres) - Math.min(...centres)).toBeLessThan(0.01);
+  }
+  expect(Math.max(...opening.map((s) => s.zoom))).toBeGreaterThan(
+    Math.min(...opening.map((s) => s.zoom))
+  );
   // The weather waits for the coach, with the table to read it off
   const weather = page.getByTestId("weather-dialog");
   await expect(weather).toBeVisible({ timeout: 15_000 });
@@ -64,7 +81,9 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await expect(page.getByTestId("weather-table").locator("li")).toHaveCount(5);
   await shot("weather-ready");
   await page.getByRole("button", { name: "ROLL WEATHER" }).click();
-  await expect(page.getByTestId("weather-stage").locator("canvas")).toBeVisible();
+  await expect(
+    page.getByTestId("weather-stage").locator("canvas")
+  ).toBeVisible();
   await expect(page.getByTestId("weather-result")).toBeVisible({
     timeout: 15_000,
   });

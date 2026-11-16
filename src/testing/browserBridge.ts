@@ -63,6 +63,13 @@ export interface BrowserTestBridge {
   squareToCanvas(gridX: number, gridY: number): { x: number; y: number } | null;
   /** True while the match camera is panning or zooming, when canvas points move. */
   cameraMoving(): boolean;
+  /** Live camera values for sampling transitions without mutating Phaser. */
+  cameraState(): {
+    zoom: number;
+    centre: { x: number; y: number };
+    panning: boolean;
+    zooming: boolean;
+  } | null;
   /** Names of the layers drawn on the pitch, such as "setup_zone_highlight". */
   pitchLayers(): string[];
   /** The grid squares under the square highlights actually visible on the pitch. */
@@ -121,6 +128,10 @@ function cloneTeam(team: HeadlessGameContext["team1"]): BridgeTeam {
 /** The shape of a running scene the bridge is willing to look at. */
 interface BridgeCamera {
   zoom: number;
+  width: number;
+  height: number;
+  scrollX: number;
+  scrollY: number;
   worldView: { x: number; y: number };
   panEffect: { isRunning: boolean };
   zoomEffect: { isRunning: boolean };
@@ -201,6 +212,21 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
         const cam = scene.cameras?.main;
         return !!cam && (cam.panEffect.isRunning || cam.zoomEffect.isRunning);
       }),
+    cameraState: () => {
+      const cam = activeScenes().find((scene) => scene.getPitch?.())?.cameras
+        ?.main;
+      return cam
+        ? {
+            zoom: cam.zoom,
+            centre: {
+              x: cam.scrollX + cam.width / 2,
+              y: cam.scrollY + cam.height / 2,
+            },
+            panning: cam.panEffect.isRunning,
+            zooming: cam.zoomEffect.isRunning,
+          }
+        : null;
+    },
     pitchLayers: () =>
       activeScenes().flatMap((scene) => scene.getPitch?.()?.layerNames() ?? []),
     pitchHighlights: () =>
