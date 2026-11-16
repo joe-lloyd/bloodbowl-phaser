@@ -10,6 +10,8 @@ The script exports immutable Git archives and installs their locked dependencies
 
 Every match saves its initial state, commands and decision notes, then immediately replays them and reconciles event counters. Eight-game blocks balance physical side, which policy uses each build and first receiver. A partial or finding-bearing block cannot enter an estimate. The quality gate stops acquisition errors; confirmation also requires a naturally selected and accepted pass. That checks an exercised gameplay path, not a pass-rate fitness bonus.
 
+See the [first measured results](../../../docs/technical/sevens-policy-lab-results.md) for the final source, passing outcomes and unresolved survival tradeoffs.
+
 ## Inspect evidence before changing policy
 
 The remote path prints at completion. Its `reports/index.html` reads saved results offline. `contracts/gate.json` lists failing named contracts. Each stage has `stage-gate.json`, `summary.json`, `decision-receipts.json`, per-roster CSVs and a manifest. Raw traces stay under the acquisition's `traces/` directory. The lab page exposes all 108 catalogue entries, including open tactical gaps.

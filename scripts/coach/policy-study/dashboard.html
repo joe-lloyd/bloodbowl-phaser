@@ -550,7 +550,10 @@
             y +
             '" y2="' +
             y +
-            '" stroke="var(--study-blue)" stroke-width="4"/><circle cx="' +
+            '" stroke="var(--study-blue)" stroke-width="4"/>';
+        if (row.points != null)
+          svg +=
+            '<circle cx="' +
             x(row.points) +
             '" cy="' +
             y +
