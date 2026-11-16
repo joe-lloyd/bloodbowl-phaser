@@ -178,12 +178,31 @@ describe("fumbled Throw Team-mate", () => {
   });
 
   it("preserves casualty state when a collision chain revisits a player", async () => {
-    await fumble([1, 2, 2, 7, 5, 1, 1, 6, 6, 6, 6, 1, 1, 6, 6, 1, 1], {
-      opponents: [
-        { playerIndex: 0, x: 4, y: 4 },
-        { playerIndex: 1, x: 4, y: 3 },
-      ],
-    });
+    const { game, mate, response } = await fumble(
+      [1, 2, 1, 1, 2, 1, 1, 7, 6, 6, 6, 6, 5, 1, 1],
+      {
+        opponents: [
+          { playerIndex: 0, x: 4, y: 4 },
+          { playerIndex: 1, x: 4, y: 3 },
+        ],
+      }
+    );
+    expect(
+      response.events
+        .filter(
+          (e) =>
+            e.name === "playerMoved" &&
+            (e.data as { playerId: string }).playerId === mate.id
+        )
+        .map((e) => (e.data as { to: { x: number; y: number } }).to)
+    ).toEqual([
+      { x: 4, y: 4 },
+      { x: 4, y: 3 },
+      { x: 4, y: 4 },
+      { x: 5, y: 4 },
+    ]);
+    expect(game.ctx.team2.players[0].status).toBe(PlayerStatus.DEAD);
+    expect(game.ctx.team2.players[0].gridPosition).toBeUndefined();
   });
 
   it("resolves each casualty before bouncing back to the vacated square", async () => {
