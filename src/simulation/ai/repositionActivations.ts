@@ -19,7 +19,7 @@ import { Context, gamble, tierFor } from "./activationContext";
 import { CORNERS } from "./ballActivations";
 import type { Activation, Role } from "./activations";
 import { moveFeedingCost } from "./feeding";
-import { exposureCost, injuryRiskValue } from "./latePlans";
+import { exposureCost, injuryRiskValue, opponentCanScore } from "./latePlans";
 
 export interface RoleSquare {
   role: Role;
@@ -63,16 +63,22 @@ function cageWallSquares(
 /** Their carrier: marks on it and its cage, and a screen in front of our end zone. */
 function theirCarrierSquares(c: Context, at: Square, add: AddSquare): void {
   const { board, w } = c;
+  const preserve =
+    c.goal === "protect" &&
+    board.persistentInjuries &&
+    !opponentCanScore(board);
   // A marker or two presses the carrier; a crowd only hands out free hits.
   const markers = board.ours.filter(
     (p) => standing(p) && distance(p.gridPosition!, at) === 1
   ).length;
-  const press = w.markCarrier / (1 + markers);
+  const press = preserve ? 0 : w.markCarrier / (1 + markers);
   // A square nobody else marks assists a hit; re-planning each step must
   // keep a helper heading there.
-  for (const s of neighbours(at))
-    add("mark", s, press + (board.marks[key(s)] === 1 ? w.assist : 0));
-  cageWallSquares(board, at, press, add);
+  if (press > 0) {
+    for (const s of neighbours(at))
+      add("mark", s, press + (board.marks[key(s)] === 1 ? w.assist : 0));
+    cageWallSquares(board, at, press, add);
+  }
   // A screen between the carrier and our end zone, two squares apart.
   for (const depth of [2, 4])
     for (const dy of [-4, -2, 0, 2, 4])

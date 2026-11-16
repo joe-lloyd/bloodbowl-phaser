@@ -38,10 +38,12 @@ if test "$mode" = full; then
   cp "$lab_root/"*-source.tar.gz "$lab_root/confirmation/"
   python3 scripts/coach/policy-study/report.py --run "$lab_root/confirmation" --out "$lab_root/reports/confirmation"
   python3 scripts/coach/policy-lab/check.py "$lab_root/reports/confirmation" --require-natural-pass
+  pnpm exec tsx scripts/coach/policy-lab/outcomes.ts "$lab_root/confirmation"
   # Persistent fixtures test preservation without claiming to simulate a career.
-  pnpm exec tsx scripts/coach/policy-study/run.ts "${common[@]}" --league --base-only --blocks 54 --seed-base "$persistent_seed" --out "$lab_root/persistent"
+  pnpm exec tsx scripts/coach/policy-study/run.ts "${common[@]}" --league --base-only --seed-base "$persistent_seed" --out "$lab_root/persistent"
   python3 scripts/coach/policy-study/report.py --run "$lab_root/persistent" --out "$lab_root/reports/persistent"
   python3 scripts/coach/policy-lab/check.py "$lab_root/reports/persistent"
+  pnpm exec tsx scripts/coach/policy-lab/outcomes.ts "$lab_root/persistent"
 fi
 python3 scripts/coach/policy-lab/report.py "$lab_root"
 printf 'Saved lab evidence: %s\n' "$lab_root"

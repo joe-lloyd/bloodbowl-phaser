@@ -77,7 +77,9 @@ available equalizer instead of stalling while behind.
 
 The opponent's authoritative turn count controls reply risk. When the supported
 scoring horizon is out of reach, safe withdrawals compete with defensive
-actions. Exposure uses the actual opponent's Strength, assists and casualty
+actions. Persistent late-half defence avoids gratuitous marking when the
+opponent also has no supported scoring reach. Favourable hits remain available.
+Exposure uses the actual opponent's Strength, assists and casualty
 odds. Persistent matches raise the cost for valuable players. This is a bounded
 geometry and immediate-contact model; it does not prove every multi-player
 scoring chain impossible or forecast a whole season.

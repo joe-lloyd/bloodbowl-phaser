@@ -189,6 +189,29 @@ describe("late-half scoring and preservation", () => {
     });
   });
 
+  it("screens an unreachable late-half carrier instead of offering a stronger opponent a free hit", async () => {
+    const game = tacticalGame(
+      {
+        team1Placements: [
+          { playerIndex: 0, x: 9, y: 5, stats: { ST: 2, AG: 2, MA: 6, AV: 7 } },
+        ],
+        team2Placements: [
+          {
+            playerIndex: 0,
+            x: 12,
+            y: 5,
+            hasBall: true,
+            stats: { ST: 5, MA: 1 },
+          },
+        ],
+      },
+      { league: true, opponentTurnsPlayed: 5 }
+    );
+    expect((await coachStep(game, createPlannerCoach())).note).toBe(
+      "moves to screen"
+    );
+  });
+
   it.each([
     [1, "block"],
     [6, "move"],

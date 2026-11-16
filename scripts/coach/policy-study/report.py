@@ -176,12 +176,20 @@ def analyse(manifest, all_games, blocks, excluded):
     methods = {v["id"]: v.get("buildMethod", v["arm"]) for v in manifest.get("variants", [])}
     build_methods = {method: comparison([b for b in blocks if methods.get(b[0]["variantIds"][0]) == method])
                      for method in sorted(set(methods.values()))}
+    loss_delta = {}
+    for key in ("deaths", "missNextGame"):
+        values = [statistics.fmean(
+            g.get("playerLosses", [{}, {}])[g["candidateSide"]].get(key, 0)
+            - g.get("playerLosses", [{}, {}])[1 - g["candidateSide"]].get(key, 0)
+            for g in block) for block in blocks]
+        loss_delta[key] = {"per_game": statistics.fmean(values) if values else None, "ci": interval(values)}
     return {
         "scheduled": len(manifest["jobs"]), "saved": len(all_games),
         "included": len(games), "excluded_blocks": excluded,
         "engine_findings": sum(len(g["findings"]) for g in all_games.values()),
         "comparisons": comparisons, "totals": totals, "actions": actions,
         "build_methods": build_methods, "equal_roster": roster_estimates(blocks, templates),
+        "player_loss_delta": loss_delta,
         "opportunities": {kind: sum(g.get("opportunities", {}).get(kind, {}).get("pass", 0) for g in games)
                           for kind in ("legal", "proposed")},
         "accepted_candidate_passes": sum(g["counters"].get("accepted:" + str(g["candidateSide"]) + ":pass", 0) for g in games),

@@ -44,6 +44,20 @@ class ReportTest(unittest.TestCase):
             (root / "games" / (g["id"] + ".json")).write_text(json.dumps(g))
         return manifest, games
 
+    def test_player_loss_interval_resamples_complete_blocks(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            manifest, games = self.fixture(root)
+            for game in games:
+                side = game["candidateSide"]
+                losses = [{"deaths": 0}, {"deaths": 0}]
+                losses[side if game["pair"] == "a" else 1 - side]["deaths"] = 2
+                game["playerLosses"] = losses
+                (root / "games" / (game["id"] + ".json")).write_text(json.dumps(game))
+            m, saved, blocks, excluded = load_games(root)
+            summary = analyse(m, saved, blocks, excluded)[0]
+            self.assertEqual(summary["player_loss_delta"]["deaths"], {"per_game": 0, "ci": [-2.0, 2.0]})
+
     def test_receiving_balance_and_equal_roster_interval(self):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)

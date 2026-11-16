@@ -6,7 +6,7 @@ Run the current committed AI against a frozen incumbent on Daily Driver:
 scripts/coach/policy-lab/daily-driver.sh full
 ```
 
-The script exports immutable Git archives and installs their locked dependencies. It does not call a model during games. It runs 53 tactical checks, a 192-game pilot with Vampire and special-action sentinels, a fresh 5,184-game confirmation and 432 persistent-context fixtures. All matches use normal Sevens setup and the real command engine. There is no forced opening contact line. `pilot` runs only the contracts and first match stage.
+The script exports immutable Git archives and installs their locked dependencies. It does not call a model during games. An offline outcome pass replays saved commands without re-running coach decisions; it records real Pass completions, same-turn receiver touchdowns and long late-half scoring runs. A handoff control prevents the engine's shared completion event from inflating passing counts. It runs 54 tactical checks, a 192-game pilot with Vampire and special-action sentinels, a fresh 5,184-game confirmation and 1,296 persistent-context fixtures. All matches use normal Sevens setup and the real command engine. There is no forced opening contact line. `pilot` runs only the contracts and first match stage.
 
 Every match saves its initial state, commands and decision notes, then immediately replays them and reconciles event counters. Eight-game blocks balance physical side, which policy uses each build and first receiver. A partial or finding-bearing block cannot enter an estimate. The quality gate stops acquisition errors; confirmation also requires a naturally selected and accepted pass. That checks an exercised gameplay path, not a pass-rate fitness bonus.
 

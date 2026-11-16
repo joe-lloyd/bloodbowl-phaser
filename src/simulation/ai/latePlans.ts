@@ -16,6 +16,30 @@ const validator = new BlockValidator();
 export const nextTurnReach = (player: Player) =>
   player.stats.MA + rushAllowance(player);
 
+/** Optimistic reply reach keeps pointless late contact separate from defence. */
+export function opponentCanScore(board: Board): boolean {
+  const turns = board.opponentTurnsLeft;
+  if (turns === 0 || board.ball.kind === "none") return false;
+  const goal = (at: Square) => WIDTH - 1 - toGoal(board, at);
+  const ball = board.ball;
+  if (ball.kind === "loose")
+    return board.theirs.some(
+      (p) =>
+        distance(p.gridPosition!, ball.at) + goal(ball.at) <=
+        turns * nextTurnReach(p)
+    );
+  if (ball.carrier.teamId === board.us) return true;
+  const reach = turns * nextTurnReach(ball.carrier);
+  if (goal(ball.at) <= reach) return true;
+  return board.theirs.some(
+    (mate) =>
+      mate.id !== ball.carrier.id &&
+      goal(mate.gridPosition!) <= turns * nextTurnReach(mate) &&
+      distance(ball.at, mate.gridPosition!) <=
+        reach + (ball.carrier.stats.PA > 0 ? 13 : 1)
+  );
+}
+
 /** An optimistic supported horizon prevents premature defensive surrender. */
 export function canStillScore(board: Board, available: Available): boolean {
   const carrier = carrierOf(board);
