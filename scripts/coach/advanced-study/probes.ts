@@ -1,5 +1,5 @@
 /** Mechanical skill ablations. Scripted actions are never counted as AI use. */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve, join } from "node:path";
 import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
@@ -110,6 +110,7 @@ async function probePair(config: RuleConfig, skill: SkillType, seed: number) {
       withSkill.holders > 0 &&
       withSkill.rejected === 0 &&
       withoutSkill.rejected === 0 &&
+      withoutSkill.triggers === 0 &&
       withSkill.pending === withoutSkill.pending;
     return {
       skill: skill,
@@ -164,9 +165,10 @@ async function main() {
         rows.push(await probePair(config, entry.skill, seed));
       }
       writeFileSync(
-        join(out, "probes.json"),
+        join(out, "probes.json.tmp"),
         JSON.stringify({ seeds, rows, selections, pipelineDigest })
       );
+      renameSync(join(out, "probes.json.tmp"), join(out, "probes.json"));
       console.log(JSON.stringify({ config: config.id, rows: rows.length }));
     }
 }

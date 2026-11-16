@@ -1,10 +1,13 @@
 """Report integrity regressions independent of private result artifacts."""
 import json
+import contextlib
+import io
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
-from report import analyse
+from report import analyse, build
 
 
 class ReportTests(unittest.TestCase):
@@ -56,6 +59,29 @@ class ReportTests(unittest.TestCase):
             game['counters']['skillTriggered']=2;file.write_text(json.dumps(game))
             with self.assertRaisesRegex(ValueError,'Skill reconciliation'):
                 analyse(root,baseline)
+
+    def test_build_publishes_csvs_and_safe_embedded_data_without_recursive_zip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);baseline=self.fixture(root)
+            manifest=root/'manifest.json';data=json.loads(manifest.read_text())
+            injected="</script><script>alert('injected')</script>"
+            data['definitions']['Horns']['description']=injected
+            manifest.write_text(json.dumps(data))
+            baseline_file=root/'baseline.json';baseline_file.write_text(json.dumps(baseline))
+            out=root/'dashboard'
+            with contextlib.redirect_stdout(io.StringIO()):
+                build(root,baseline_file,out)
+            page=(out/'index.html').read_text()
+            self.assertNotIn('{{DATA}}',page)
+            self.assertNotIn(injected,page)
+            self.assertIn(injected.replace('<',r'\u003c'),page)
+            self.assertTrue((out/'team-games.csv').is_file())
+            self.assertEqual(json.loads((out/'summary.json').read_text())['totals']['recorded'],3)
+            with zipfile.ZipFile(out/'study-data.zip') as archive:
+                self.assertIsNone(archive.testzip())
+                self.assertIn('index.html',archive.namelist())
+                self.assertIn('team-games.csv',archive.namelist())
+                self.assertNotIn('study-data.zip',archive.namelist())
 
 
 if __name__=='__main__':

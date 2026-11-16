@@ -1,11 +1,9 @@
 /** Frozen process-pool acquisition. Every full match is replayed before saving. */
 import { fork } from "node:child_process";
-import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   renameSync,
   writeFileSync,
 } from "node:fs";
@@ -14,6 +12,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { advancedInventory, teamFromVariant } from "./teams";
 import { advancedSchedule } from "./schedule";
+import { acquisitionDigest } from "./fingerprint";
 import type { AdvancedJob } from "./schedule";
 import { playStudyGame } from "../catalogue-study/play";
 import { replayStudyTrace } from "../catalogue-study/replay";
@@ -32,28 +31,6 @@ const byId = new Map(variants.map((v) => [v.id, v]));
 function atomic(file: string, value: unknown) {
   writeFileSync(file + ".tmp", JSON.stringify(value));
   renameSync(file + ".tmp", file);
-}
-function digest() {
-  const hash = createHash("sha256");
-  const root = resolve(dirname(entry), "../../..");
-  function visit(dir: string) {
-    for (const item of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    )) {
-      const file = join(dir, item.name);
-      if (item.isDirectory()) visit(file);
-      else if (!file.includes("__pycache__"))
-        hash.update(file.slice(root.length)).update(readFileSync(file));
-    }
-  }
-  for (const dir of [
-    "src",
-    "scripts/coach/advanced-study",
-    "scripts/coach/catalogue-study",
-  ])
-    visit(join(root, dir));
-  hash.update(readFileSync(join(root, "pnpm-lock.yaml")));
-  return hash.digest("hex");
 }
 
 if (args.includes("--worker")) {
@@ -97,7 +74,7 @@ if (args.includes("--worker")) {
   const limit = Number(flag("limit", "0"));
   if (limit > 0) jobs = jobs.slice(0, limit);
   mkdirSync(join(out, "games"), { recursive: true });
-  const sourceDigest = digest();
+  const sourceDigest = acquisitionDigest(resolve(dirname(entry), "../../.."));
   const manifest = {
     format: "bb7-advanced-study-v1",
     sourceDigest,

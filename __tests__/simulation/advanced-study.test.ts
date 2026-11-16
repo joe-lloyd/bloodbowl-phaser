@@ -1,13 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import {
   advancedInventory,
   teamFromVariant,
 } from "../../scripts/coach/advanced-study/teams";
 import { advancedSchedule } from "../../scripts/coach/advanced-study/schedule";
+import { acquisitionDigest } from "../../scripts/coach/advanced-study/fingerprint";
 import { probeRun } from "../../scripts/coach/advanced-study/probes";
 import { playStudyGame } from "../../scripts/coach/catalogue-study/play";
 import { replayStudyTrace } from "../../scripts/coach/catalogue-study/replay";
@@ -16,6 +23,47 @@ import { findRuleConfig } from "../../src/data/ruleScenarios";
 
 describe("advanced skill study", () => {
   const variants = advancedInventory();
+  it("resumes through report edits but rejects changes to acquisition inputs", () => {
+    const root = mkdtempSync(join(tmpdir(), "bb7-fingerprint-"));
+    const put = (name: string, content = "initial") => {
+      const file = join(root, name);
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, content);
+    };
+    try {
+      const inputs = [
+        "src/engine.ts",
+        "scripts/coach/catalogue-study/play.ts",
+        ...["fingerprint.ts", "run.ts", "teams.ts", "schedule.ts"].map(
+          (name) => "scripts/coach/advanced-study/" + name
+        ),
+        "package.json",
+        "pnpm-lock.yaml",
+        "tsconfig.json",
+      ];
+      inputs.forEach((name) => put(name));
+      const original = acquisitionDigest(root);
+      for (const file of [
+        "README.md",
+        "report.py",
+        "test_report.py",
+        "dashboard.html",
+        "probes.ts",
+      ])
+        put("scripts/coach/advanced-study/" + file);
+      put("scripts/coach/catalogue-study/report/analyse.py");
+      put("scripts/coach/catalogue-study/report/__pycache__/analyse.pyc");
+      expect(acquisitionDigest(root)).toBe(original);
+      for (const file of inputs) {
+        put(file, "changed");
+        expect(acquisitionDigest(root)).not.toBe(original);
+        put(file);
+      }
+      expect(acquisitionDigest(root)).toBe(original);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("covers every learnable skill with legal, deterministic, cost-matched builds", () => {
     expect(advancedInventory()).toEqual(variants);
     const covered = new Set(

@@ -368,19 +368,59 @@
       </header>
       <div id="top-metrics" class="grid"></div>
       <nav aria-label="Study sections" role="tablist">
-        <button role="tab" data-tab="overview" aria-selected="true">
+        <button
+          id="tab-overview"
+          role="tab"
+          data-tab="overview"
+          aria-controls="overview"
+          aria-selected="true"
+          tabindex="0"
+        >
           Findings</button
-        ><button role="tab" data-tab="skills" aria-selected="false">
+        ><button
+          id="tab-skills"
+          role="tab"
+          data-tab="skills"
+          aria-controls="skills"
+          aria-selected="false"
+          tabindex="-1"
+        >
           Skill coverage</button
-        ><button role="tab" data-tab="builds" aria-selected="false">
+        ><button
+          id="tab-builds"
+          role="tab"
+          data-tab="builds"
+          aria-controls="builds"
+          aria-selected="false"
+          tabindex="-1"
+        >
           Advanced teams</button
-        ><button role="tab" data-tab="tests" aria-selected="false">
+        ><button
+          id="tab-tests"
+          role="tab"
+          data-tab="tests"
+          aria-controls="tests"
+          aria-selected="false"
+          tabindex="-1"
+        >
           Test evidence</button
-        ><button role="tab" data-tab="plan" aria-selected="false">
+        ><button
+          id="tab-plan"
+          role="tab"
+          data-tab="plan"
+          aria-controls="plan"
+          aria-selected="false"
+          tabindex="-1"
+        >
           Next steps
         </button>
       </nav>
-      <section id="overview" class="stack" role="tabpanel">
+      <section
+        id="overview"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-overview"
+      >
         <div class="notice">
           <p>
             <strong>These are evaluations of the same frozen AI.</strong> Adding
@@ -430,10 +470,10 @@
             <h2>Advanced-team round</h2>
             <div id="advanced-comparisons"></div>
             <small
-              >648 games per comparison; intervals resample complete mirrored
-              pairs. Focused and randomized allocations match costs for each
-              template. Comparisons against original teams include extra
-              development value.</small
+              >648 games planned per comparison; each result shows its recorded
+              count. Intervals resample complete mirrored pairs. Focused and
+              randomized allocations match costs for each template. Comparisons
+              against original teams include extra development value.</small
             >
           </article>
         </div>
@@ -465,7 +505,13 @@
           ><a href="comparisons.csv">Comparison spreadsheet</a>
         </div>
       </section>
-      <section id="skills" class="stack" role="tabpanel" hidden>
+      <section
+        id="skills"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-skills"
+        hidden
+      >
         <div class="stack">
           <h2>Every skill has an evidence trail and a next test</h2>
           <p class="muted">
@@ -497,7 +543,13 @@
           ><a href="skill-plan.md">Full roadmap (Markdown)</a>
         </div>
       </section>
-      <section id="builds" class="stack" role="tabpanel" hidden>
+      <section
+        id="builds"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-builds"
+        hidden
+      >
         <h2>Advanced builds, with the reason for the control</h2>
         <p>
           Each focused build adds six legal advancements, with at most two per
@@ -531,7 +583,13 @@
           >Every advancement, player role and cost (CSV)</a
         >
       </section>
-      <section id="tests" class="stack" role="tabpanel" hidden>
+      <section
+        id="tests"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-tests"
+        hidden
+      >
         <h2>What was tested, and what the numbers can tell us</h2>
         <div id="test-metrics" class="grid"></div>
         <p>
@@ -598,7 +656,13 @@
           ><a href="acquisition-manifest.json">Frozen inputs and provenance</a>
         </div>
       </section>
-      <section id="plan" class="stack" role="tabpanel" hidden>
+      <section
+        id="plan"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-plan"
+        hidden
+      >
         <h2>A plan to cover every ability without one giant script</h2>
         <p>
           Load small capability modules from the players actually present on
@@ -706,16 +770,31 @@
             "learnable skills added to teams"
           ) +
           metric(d.skills.length, "skill and trait plans");
-        document.querySelectorAll("[data-tab]").forEach((button) => {
-          button.onclick = () => {
-            document
-              .querySelectorAll("[data-tab]")
-              .forEach((x) =>
-                x.setAttribute("aria-selected", String(x === button))
-              );
-            document
-              .querySelectorAll("section[role=tabpanel]")
-              .forEach((s) => (s.hidden = s.id !== button.dataset.tab));
+        const tabs = [...document.querySelectorAll("[data-tab]")];
+        function activateTab(button) {
+          tabs.forEach((tab) => {
+            tab.setAttribute("aria-selected", String(tab === button));
+            tab.tabIndex = tab === button ? 0 : -1;
+          });
+          document
+            .querySelectorAll("section[role=tabpanel]")
+            .forEach((panel) => {
+              panel.hidden = panel.id !== button.dataset.tab;
+            });
+        }
+        tabs.forEach((button, index) => {
+          button.onclick = () => activateTab(button);
+          button.onkeydown = (event) => {
+            const next = {
+              ArrowRight: (index + 1) % tabs.length,
+              ArrowLeft: (index + tabs.length - 1) % tabs.length,
+              Home: 0,
+              End: tabs.length - 1,
+            }[event.key];
+            if (next === undefined) return;
+            event.preventDefault();
+            activateTab(tabs[next]);
+            tabs[next].focus();
           };
         });
         const easy = b.cohorts.find(

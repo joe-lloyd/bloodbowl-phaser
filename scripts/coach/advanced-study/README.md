@@ -26,7 +26,7 @@ Probe output includes a script SHA-256 and an exact `probe-source.ts` copy. The 
 
 The report accepts `--allow-partial` for provisional progress. It validates game identity, schedule fields, replay markers and event reconciliation. Intervals use 2,000 resamples of complete mirrored pairs and are suppressed if any valid leg is unmatched. Detailed CSVs, the full roadmap and raw probe outcomes accompany the offline HTML. If the baseline ZIP is beside its summary, the download includes it. An optional `acquisition-source.tar.gz` in the run directory is also bundled; full natural-match traces remain in `traces/` outside the spreadsheet ZIP.
 
-To reproduce the published acquisition exactly, use its frozen source archive and manifest. A subsequent source refactor changes the resume fingerprint even if it preserves every variant and job. Use a fresh output directory for new acquisitions. No user library or public template is edited.
+To reproduce the published acquisition exactly, use its frozen source archive and manifest. The resume fingerprint includes engine sources, catalogue TypeScript, the acquisition runner/builders, dependencies and TypeScript configuration; report, dashboard, documentation and probe edits do not invalidate a new acquisition. Paths use forward slashes in the digest on every host. Acquisition source changes still require a fresh output directory even when they preserve every variant and job. Older manifests retain the fingerprint algorithm in their archived source. No user library or public template is edited.
 
 ```sh
 pnpm exec vitest run __tests__/simulation/advanced-study.test.ts \
