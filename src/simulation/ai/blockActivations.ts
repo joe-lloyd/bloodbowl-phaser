@@ -17,7 +17,7 @@ import {
 } from "./board";
 import { BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
 import { Route, movesLeft } from "./routes";
-import { Context } from "./activationContext";
+import { Context, gamble } from "./activationContext";
 import type { Activation } from "./activations";
 
 const blockValidator = new BlockValidator();
@@ -283,7 +283,7 @@ export function assistActivations(
         action: "move",
         intent: { kind: "reposition", role: "mark", route: best.route },
         tier: "assist",
-        value: best.gain,
+        value: gamble(c, best.route.chance, hit.value + best.gain),
         rolls: best.route.rolls,
       });
   }

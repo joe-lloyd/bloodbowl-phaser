@@ -20,6 +20,7 @@ export type RollKind =
   | "rush"
   | "pickup"
   | "secure"
+  | "pass"
   | "catch"
   | "block";
 
@@ -50,6 +51,7 @@ const KINDS: readonly RollTarget["kind"][] = [
   "pickup",
   "catch",
   "secure",
+  "pass",
 ];
 
 const REROLL_SKILL: Record<RollTarget["kind"], SkillType | null> = {
@@ -58,6 +60,7 @@ const REROLL_SKILL: Record<RollTarget["kind"], SkillType | null> = {
   pickup: SkillType.SURE_HANDS,
   catch: SkillType.CATCH,
   secure: null,
+  pass: SkillType.PASS,
 };
 
 /** The skill that re-rolls a failed roll of this kind, if the player has it. */
@@ -74,10 +77,56 @@ function skillReroll(player: Player, kind: RollTarget["kind"]): boolean {
 export function chain(
   player: Player,
   rolls: readonly RollTarget[],
-  teamReroll: boolean
+  teamReroll: boolean,
+  available: (skill: SkillType) => boolean = () => true
 ): Chance {
-  const has = KINDS.map((kind) => skillReroll(player, kind));
+  const has = KINDS.map((kind) => {
+    const skill = REROLL_SKILL[kind];
+    return skillReroll(player, kind) && skill !== null && available(skill);
+  });
   return chainFrom(0, 0, teamReroll, rolls, has, new Map()) as Chance;
+}
+
+/** Multiple players share one team reroll while retaining their own skill uses. */
+export function sequenceChance(
+  stages: readonly { player: Player; rolls: readonly RollTarget[] }[],
+  teamReroll: boolean,
+  available: (player: Player, skill: SkillType) => boolean = () => true
+): Chance {
+  const steps = stages.flatMap(({ player, rolls }) =>
+    rolls.map((roll) => ({ player, roll }))
+  );
+  const seen = new Map<string, number>();
+  const visit = (
+    i: number,
+    spent: ReadonlySet<string>,
+    team: boolean
+  ): number => {
+    if (i === steps.length) return 1;
+    const key = `${i}/${team}/${[...spent].sort().join(",")}`;
+    const known = seen.get(key);
+    if (known !== undefined) return known;
+    const { player, roll } = steps[i];
+    const p = d6(roll.target);
+    const skill = REROLL_SKILL[roll.kind];
+    const use = `${player.id}/${skill}`;
+    let saved = 0;
+    if (
+      skill !== null &&
+      !roll.noSkillReroll &&
+      hasSkill(player.skills, skill) &&
+      available(player, skill) &&
+      !spent.has(use)
+    ) {
+      saved = p * visit(i + 1, new Set([...spent, use]), team);
+    } else if (team) {
+      saved = p * visit(i + 1, spent, false);
+    }
+    const value = p * visit(i + 1, spent, team) + (1 - p) * saved;
+    seen.set(key, value);
+    return value;
+  };
+  return visit(0, new Set(), teamReroll) as Chance;
 }
 
 /**

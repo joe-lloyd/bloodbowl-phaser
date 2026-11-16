@@ -42,7 +42,7 @@ export function context(
   available: Available,
   skillPlans = true
 ): Context {
-  const teamReroll = board.rerolls > 0;
+  const teamReroll = board.gs.getRerollArbiter().teamRerollAvailable(board.us);
   // A player's paths do not depend on the re-roll, only their chances do.
   const plainCache = new Map<string, Map<number, Route>>();
   const rerollCache = new Map<string, Map<number, Route>>();
@@ -54,7 +54,12 @@ export function context(
   const rerollRoutes = (p: Player) => {
     let routes = rerollCache.get(p.id);
     if (!routes)
-      rerollCache.set(p.id, (routes = withTeamReroll(plainRoutes(p), p)));
+      rerollCache.set(
+        p.id,
+        (routes = withTeamReroll(plainRoutes(p), p, (skill) =>
+          board.gs.getRerollArbiter().skillRerollAvailable(p, skill)
+        ))
+      );
     return routes;
   };
   const ballAt = board.ball.kind === "none" ? null : board.ball.at;

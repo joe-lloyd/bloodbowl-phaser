@@ -77,9 +77,14 @@ export function createWorkerSearchCoach(options: {
     indices,
     seeds,
     deadlineAt,
+    plans,
   }) => {
     const jobs = seeds.flatMap((seed) =>
-      indices.map((index) => ({ index, seed }))
+      indices.map((index, k) => ({
+        index,
+        seed,
+        ...(plans ? { plan: plans[k] } : {}),
+      }))
     );
     // Dealt round the pool, so each worker gets about the same share.
     const shares = pool.map((_, slot) =>

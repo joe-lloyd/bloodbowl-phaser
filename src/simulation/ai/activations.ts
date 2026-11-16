@@ -2,11 +2,8 @@
  * Whole activations: which player does what, where to, and how much it is
  * worth, in the risk order Bot Bowl's scripted winners play a turn in.
  *
- * Nothing persists between decisions. Each decision reads the board again
- * and re-derives the list; a player already acting continues with the best
- * activation its declared action still allows. A path is re-planned from
- * the square the player now stands on, so a step that went to plan keeps
- * the same target and a surprise (a push, a bounce) picks a new one.
+ * Proposals are rebuilt from the current board. The coach retains the chosen
+ * target through declaration and movement while this module values alternatives.
  */
 
 import { Player } from "../../types/Player";
@@ -87,11 +84,39 @@ export interface Activation {
 /** What the engine lets each of our players declare right now. */
 export type Available = ReadonlyMap<string, ReadonlySet<ActionType>>;
 
+/** Distinguish targets that begin with the same player and declaration. */
+export function planIdentity(plan: Activation): string {
+  const prefix = `${plan.player.id}/${plan.action}/${plan.intent.kind}`;
+  const intent = plan.intent;
+  switch (intent.kind) {
+    case "score":
+    case "carrier":
+    case "pickup":
+    case "secure-ball":
+    case "reposition":
+      return `${prefix}/${intent.route.to.x},${intent.route.to.y}`;
+    case "pass":
+    case "handoff":
+      return `${prefix}/${intent.to.id}`;
+    case "block":
+    case "blitz":
+    case "gaze":
+      return `${prefix}/${intent.target.id}`;
+    case "multiple-block":
+      return `${prefix}/${intent.targets
+        .map((player) => player.id)
+        .sort()
+        .join(",")}`;
+    case "stand-up":
+      return prefix;
+  }
+}
+
 function sortActivations(list: Activation[]): Activation[] {
   return list.sort(
     (a, b) =>
-      TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) ||
       b.value - a.value ||
+      TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) ||
       a.player.id.localeCompare(b.player.id)
   );
 }
@@ -234,7 +259,7 @@ function continuationOptions(
   }
 }
 
-export function continuation(
+export function continuationPlans(
   board: Board,
   w: Weights,
   player: Player,
@@ -242,7 +267,7 @@ export function continuation(
   blitzBlockUsed: boolean,
   available: Available,
   skillPlans = true
-): Activation | null {
+): Activation[] {
   const c = context(
     board,
     w,
@@ -250,5 +275,11 @@ export function continuation(
     skillPlans
   );
   const options = continuationOptions(c, player, action, blitzBlockUsed);
-  return sortActivations(options.filter((a) => a.value > 0))[0] ?? null;
+  return sortActivations(options.filter((a) => a.value > 0));
+}
+
+export function continuation(
+  ...args: Parameters<typeof continuationPlans>
+): Activation | null {
+  return continuationPlans(...args)[0] ?? null;
 }

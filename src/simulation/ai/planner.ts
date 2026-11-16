@@ -19,12 +19,17 @@ import {
   Available,
   activations,
   continuation,
+  continuationPlans,
+  planIdentity,
 } from "./activations";
 import { Board, WIDTH, readBoard } from "./board";
 import { decide } from "./decisions";
 import { DEFAULT_WEIGHTS, Weights } from "./weights";
 import { RollTarget } from "./chance";
 import { enumerateLegalActions } from "../../headless/legalActions";
+import type { HeadlessGame } from "../../headless/HeadlessGame";
+import { context as activationContext } from "./activationContext";
+import { key } from "./board";
 
 const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   dodge: "Dodge",
@@ -32,6 +37,7 @@ const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   pickup: "Pick up",
   secure: "Secure the Ball",
   catch: "Catch",
+  pass: "Pass",
 };
 
 /** What the coach did and the rolls it needed, never how likely they were. */
@@ -163,15 +169,110 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
   }
 }
 
+interface RetainedPlan {
+  turn: string;
+  possession: string;
+  activation: Activation;
+}
+
+export interface PlannerCoach extends Coach {
+  /** Prime the same continuation policy when search selects an opening plan. */
+  remember(game: HeadlessGame, activation: Activation): void;
+}
+
+function turnKey(board: Board): string {
+  const state = board.gs.getState();
+  return `${state.turn.teamId}/${state.turn.turnNumber}/${state.turn.isHalf2}/${state.turn.extraTime}/${state.chargeTeamId}`;
+}
+
+function possessionKey(board: Board): string {
+  return board.ball.kind === "carried"
+    ? board.ball.carrier.id
+    : board.ball.kind === "loose"
+      ? `loose/${key(board.ball.at)}`
+      : "none";
+}
+
+function currentIntent(
+  board: Board,
+  stored: RetainedPlan | undefined,
+  actor: Player,
+  action: string
+): Activation | null {
+  if (!stored) return null;
+  return stored.turn === turnKey(board) &&
+    stored.possession === possessionKey(board) &&
+    stored.activation.player.id === actor.id &&
+    stored.activation.action === action
+    ? stored.activation
+    : null;
+}
+
+/** A retained movement target is repriced and rerouted from the observed square. */
+function retainedStep(
+  board: Board,
+  w: Weights,
+  actor: Player,
+  plan: Activation,
+  candidates: readonly Candidate[],
+  available: Available,
+  skillPlans: boolean
+): CoachChoice | null {
+  const intent = plan.intent;
+  if (actor.id !== plan.player.id || !actor.gridPosition) return null;
+  if (
+    intent.kind !== "reposition" &&
+    intent.kind !== "score" &&
+    intent.kind !== "carrier"
+  ) {
+    const resumed = continuationPlans(
+      board,
+      w,
+      actor,
+      plan.action,
+      board.gs.hasUsedBlitzBlock(actor.id),
+      available,
+      skillPlans
+    ).find((option) => planIdentity(option) === planIdentity(plan));
+    const index = resumed ? nextStep(resumed, candidates) : -1;
+    return index < 0 || !resumed ? null : { index, note: noteFor(resumed) };
+  }
+  if (key(actor.gridPosition) === key(intent.route.to)) {
+    const end = candidates.findIndex((c) => c.kind === "end-activation");
+    return end < 0 ? null : { index: end, note: noteFor(plan) };
+  }
+  const c = activationContext(board, w, available, skillPlans);
+  const route = c.routes(actor).get(key(intent.route.to));
+  if (!route || route.chance + 1e-9 < intent.route.chance) return null;
+  const resumed: Activation = {
+    ...plan,
+    player: actor,
+    intent: { ...intent, route },
+    rolls: route.rolls,
+  };
+  const index = nextStep(resumed, candidates);
+  return index < 0 ? null : { index, note: noteFor(resumed) };
+}
+
 export function createPlannerCoach(
   options: { weights?: Weights; name?: string; skillPlans?: boolean } = {}
-): Coach {
+): PlannerCoach {
   const w = options.weights ?? DEFAULT_WEIGHTS;
+  const memory = new WeakMap<HeadlessGame, RetainedPlan>();
+  const remember = (game: HeadlessGame, activation: Activation) => {
+    const board = readBoard(game, activation.player.teamId);
+    memory.set(game, {
+      turn: turnKey(board),
+      possession: possessionKey(board),
+      activation,
+    });
+  };
   return {
     name: options.name ?? "planner",
+    remember,
     async choose(context: CoachContext): Promise<CoachChoice> {
       return (
-        planChoice(context, w, options.skillPlans ?? true) ??
+        planChoice(context, w, options.skillPlans ?? true, memory, remember) ??
         heuristicCoach.choose(context)
       );
     },
@@ -221,7 +322,9 @@ function kickChoice(
 function planChoice(
   context: CoachContext,
   w: Weights,
-  skillPlans: boolean
+  skillPlans: boolean,
+  memory: WeakMap<HeadlessGame, RetainedPlan>,
+  remember: (game: HeadlessGame, activation: Activation) => void
 ): CoachChoice | null {
   const { game, point } = context;
   const candidates = point.candidates;
@@ -240,14 +343,25 @@ function planChoice(
   const active = state.activePlayer;
   const actor = active ? board.gs.getPlayerById(active.id) : undefined;
   if (active && actor && actor.teamId === point.teamId && active.action) {
-    const waiting =
-      skillPlans && active.action === "gaze"
-        ? new Map(
-            enumerateLegalActions({ ctx: game.ctx, pending: null })
-              .players.filter((p) => p.playerId !== actor.id)
-              .map((p) => [p.playerId, new Set(p.actions)])
-          )
-        : undefined;
+    const waiting: Available = new Map(
+      enumerateLegalActions({ ctx: game.ctx, pending: null })
+        .players.filter((p) => p.playerId !== actor.id)
+        .map((p) => [p.playerId, new Set(p.actions)])
+    );
+    const stored = currentIntent(board, memory.get(game), actor, active.action);
+    if (stored) {
+      const choice = retainedStep(
+        board,
+        w,
+        actor,
+        stored,
+        candidates,
+        waiting,
+        skillPlans
+      );
+      if (choice) return choice;
+      memory.delete(game);
+    }
     return continueChoice(
       board,
       w,
@@ -258,7 +372,10 @@ function planChoice(
       waiting
     );
   }
-  return declareChoice(board, w, candidates, skillPlans);
+  memory.delete(game);
+  return declareChoice(board, w, candidates, skillPlans, (activation) =>
+    remember(game, activation)
+  );
 }
 
 /** The next step of the activation under way, or ending it. */
@@ -301,7 +418,8 @@ function declareChoice(
   board: Board,
   w: Weights,
   candidates: readonly Candidate[],
-  skillPlans: boolean
+  skillPlans: boolean,
+  selected: (activation: Activation) => void
 ): CoachChoice | null {
   const plan = activations(board, w, availableActions(candidates), skillPlans);
   for (const a of plan) {
@@ -314,7 +432,10 @@ function declareChoice(
         command.action === a.action
       );
     });
-    if (index >= 0) return { index, note: noteFor(a) };
+    if (index >= 0) {
+      selected(a);
+      return { index, note: noteFor(a) };
+    }
   }
   const end = candidates.findIndex((c) => c.kind === "end-turn");
   return end >= 0 ? { index: end } : null;
