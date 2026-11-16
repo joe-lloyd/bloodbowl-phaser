@@ -91,32 +91,44 @@ describe("policy review controls", () => {
     expect(canStillScore({ ...board, turnsLeft: 1 }, available)).toBe(true);
   });
 
-  it("rejects an inflated securing plan after its Dodge reroll was spent", () => {
-    const game = tacticalGame({
-      teamRerolls: { team1: 1, team2: 0 },
-      team1Placements: [
-        {
-          playerIndex: 0,
-          x: 16,
-          y: 5,
-          stats: { AG: 2 },
-          skills: [SkillType.DODGE],
-        },
-      ],
-      team2Placements: [{ playerIndex: 0, x: 15, y: 5 }],
-      ballPosition: { x: 19, y: 5 },
-    });
-    const player = game.ctx.team1.players[0];
-    game.ctx.gameService
-      .getRerollArbiter()
-      .consumeSkillReroll(player, SkillType.DODGE);
-    const c = context(
-      readBoard(game, player.teamId),
-      DEFAULT_WEIGHTS,
-      new Map([[player.id, new Set(["secureBall" as const])]])
-    );
-    expect(secureBallActivations(c, player)).toEqual([]);
-  });
+  it.each([
+    { spent: false, expected: 1225 / 1296 },
+    { spent: true, expected: 25 / 27 },
+  ])(
+    "prices both securing and pickup with spent Dodge=$spent",
+    ({ spent, expected }) => {
+      const game = tacticalGame({
+        teamRerolls: { team1: 1, team2: 0 },
+        team1Placements: [
+          {
+            playerIndex: 0,
+            x: 16,
+            y: 5,
+            stats: { AG: 2 },
+            skills: [SkillType.DODGE],
+          },
+        ],
+        team2Placements: [{ playerIndex: 0, x: 15, y: 5 }],
+        ballPosition: { x: 19, y: 5 },
+      });
+      const player = game.ctx.team1.players[0];
+      if (spent)
+        game.ctx.gameService
+          .getRerollArbiter()
+          .consumeSkillReroll(player, SkillType.DODGE);
+      const c = context(
+        readBoard(game, player.teamId),
+        DEFAULT_WEIGHTS,
+        new Map([[player.id, new Set(["secureBall" as const])]])
+      );
+      const plans = secureBallActivations(c, player);
+      expect(plans).toHaveLength(1);
+      expect(plans[0].intent.kind).toBe("secure-ball");
+      if (plans[0].intent.kind !== "secure-ball")
+        throw new Error("Expected securing route");
+      expect(plans[0].intent.route.chance).toBeCloseTo(expected, 12);
+    }
+  );
 
   it("reprices retained positioning without borrowing the team reroll", async () => {
     const game = tacticalGame({

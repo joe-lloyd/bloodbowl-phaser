@@ -61,7 +61,12 @@ function pickupScoreValue(c: Context, player: Player): number {
   let value = -Infinity;
   for (const end of endings) {
     if (toGoal(board, end.to) !== 0) continue;
-    const chance = chain(player, [...pickup.rolls, ...end.rolls], c.teamReroll);
+    const chance = chain(
+      player,
+      [...pickup.rolls, ...end.rolls],
+      c.teamReroll,
+      (skill) => board.gs.getRerollArbiter().skillRerollAvailable(player, skill)
+    );
     value = Math.max(
       value,
       gamble(

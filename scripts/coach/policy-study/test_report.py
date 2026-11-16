@@ -5,6 +5,7 @@ import io
 import json
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -56,6 +57,45 @@ class ReportTest(unittest.TestCase):
             self.assertEqual(summary["scope"], "functional-sentinel")
             self.assertIsNone(summary["comparisons"]["overall"]["ci"])
             self.assertIsNone(summary["equal_roster"]["ci"])
+
+    def test_persistent_page_renders_with_and_without_loss_intervals(self):
+        for opponent in ("planner", "hard", "legend"):
+            with self.subTest(opponent=opponent), tempfile.TemporaryDirectory() as name:
+                root = Path(name)
+                run = root / "persistent"
+                run.mkdir()
+                manifest, _ = self.fixture(run)
+                manifest.update(opponent=opponent, context="persistent-fixture")
+                (run / "manifest.json").write_text(json.dumps(manifest))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build(run, root / "reports/persistent")
+                contracts = root / "contracts"
+                contracts.mkdir()
+                for file, value in (("gate.json", {"tests": 1}),
+                                    ("coverage.json", []), ("contracts.json", {})):
+                    (contracts / file).write_text(json.dumps(value))
+                generator = Path(__file__).resolve().parents[1] / "policy-lab/report.py"
+                subprocess.run([sys.executable, str(generator), str(root)],
+                               capture_output=True, check=True)
+                page = (root / "reports/index.html").read_text()
+                check = r"""
+import assert from 'node:assert/strict';
+import { JSDOM, VirtualConsole } from 'jsdom';
+import { readFileSync } from 'node:fs';
+const errors = [], console = new VirtualConsole();
+console.on('jsdomError', error => errors.push(error.message));
+const dom = new JSDOM(readFileSync(0, 'utf8'), { runScripts: 'dangerously', virtualConsole: console });
+assert.deepEqual(errors, []);
+const document = dom.window.document;
+assert.equal(document.querySelectorAll('#chart circle').length, 1);
+assert.equal(document.getElementById('source').textContent, 'Confirmation pending. Pilot results are diagnostic.');
+const preservation = document.getElementById('preservation').textContent;
+assert.ok(preservation.includes(process.argv[1] === 'planner' ? '95% interval 0.00 to 0.00' : 'interval not estimated'));
+dom.window.close();
+"""
+                rendered = subprocess.run(["node", "--input-type=module", "-e", check, opponent],
+                                          input=page, text=True, capture_output=True)
+                self.assertEqual(rendered.returncode, 0, rendered.stderr)
 
     def test_player_loss_interval_resamples_complete_blocks(self):
         with tempfile.TemporaryDirectory() as name:

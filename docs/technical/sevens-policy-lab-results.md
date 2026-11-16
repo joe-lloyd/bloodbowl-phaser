@@ -1,5 +1,7 @@
 # Sevens AI policy lab results
 
+The figures below describe the archived `aad98922` policy. A later pickup-reroll correction requires fresh confirmation, which is being acquired before these figures are applied to the corrected AI.
+
 The first policy-lab release completes useful passing plans, prices transfers with the actual shared reroll bank, and adds explicit turn-five preparation and turn-six scoring choices. A common planner handles movement, possession, hitting and defence. Capability modules add feeding support, Hypnotic Gaze and other supported actions. Match context uses actual opponents, skills, available players and persistent-injury costs.
 
 The lab runs normal Sevens matches through the command engine. It balances both policies across roster assignment, pitch side and first receiver in eight-game blocks. It saves commands and notes, replays every match and reconciles gameplay counters. Games use six-turn halves and separated setup lines.
