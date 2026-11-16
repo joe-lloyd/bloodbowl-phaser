@@ -319,3 +319,11 @@ The [study guide](../scripts/coach/catalogue-study/README.md) describes cohort
 selection, exact replay, resuming a batch, rare-rule probes and generating the
 standalone HTML workbook with CSV exports. This evaluates frozen scripted
 policies; it does not automatically train or promote new AI weights.
+
+## Advanced skill follow-up
+
+The [advanced skill study](../scripts/coach/advanced-study/README.md) adds six legal advancements to each public recipe, with focused and cost-matched randomized allocations. It runs 1,944 mirrored planner matches and 32-seed skill-present/removed probes across 160 rule configurations on Daily Driver. Actual initial-state traces are replay-verified before results are saved.
+
+The offline dashboard combines the original 7,776 games with the advanced round and supplies a roadmap for all 108 skill/trait names. All 72 learnable skills are assigned to advanced players. Controlled script effects, natural match events, native trait exposure and AI choice diagnostics remain distinct. A zero trigger count cannot establish that a passive mechanic was unused.
+
+Focused coverage builds took 49.5% of points against randomized allocations (mirrored-pair 95% bootstrap interval 46.2–53.1%). These coverage packages do not establish an optimized skill-development strategy. The planner still needs action and tactical modules before it can exploit several specialized abilities. The production AI is unchanged.

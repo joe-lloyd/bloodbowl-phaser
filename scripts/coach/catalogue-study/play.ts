@@ -9,14 +9,19 @@ import { makeCoach } from "../../../src/simulation/commands/shared";
 import { runMatch } from "../../../src/simulation/runMatch";
 import { createTelemetry } from "./telemetry";
 import type { StudyGame, StudyJob } from "./model";
+import type { Team } from "../../../src/types/Team";
 
 export async function playStudyGame(
   job: StudyJob,
-  out: string
+  out: string,
+  suppliedTeams?: [Team, Team]
 ): Promise<StudyGame> {
   const started = Date.now();
   const [team1, team2] = job.templates.map((id, i) =>
-    stabilizeIds(createComputerTeamFromTemplate(id), `team${i + 1}`)
+    stabilizeIds(
+      suppliedTeams?.[i] ?? createComputerTeamFromTemplate(id),
+      `team${i + 1}`
+    )
   );
   const game = new HeadlessGame({
     seed: job.seed,

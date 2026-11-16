@@ -157,7 +157,8 @@ export function answerDecision(
 
 export async function runRuleConfig(
   config: RuleConfig,
-  seed: number
+  seed: number,
+  prepareGame?: (game: HeadlessGame) => void | Promise<void>
 ): Promise<ScriptResult> {
   const scenario: Scenario = {
     id: `rule-config-${config.id}`,
@@ -171,6 +172,7 @@ export async function runRuleConfig(
   }
   if (config.rerolls?.team1) game.ctx.team1.rerolls = config.rerolls.team1;
   if (config.rerolls?.team2) game.ctx.team2.rerolls = config.rerolls.team2;
+  await prepareGame?.(game);
 
   const policy = config.decisionPolicy ?? {};
   const responses: CommandResponse[] = [];

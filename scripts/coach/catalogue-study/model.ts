@@ -3,7 +3,7 @@ import type { CoachName } from "../../../src/simulation/commands/shared";
 
 export interface StudyJob {
   id: string;
-  cohort: "league" | "calibration" | "hard" | "legend";
+  cohort: "league" | "calibration" | "hard" | "legend" | "advanced";
   pair: string;
   seed: number;
   templates: [string, string];

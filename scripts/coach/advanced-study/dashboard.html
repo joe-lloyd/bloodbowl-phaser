@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Blood Bowl AI — findings and skill coverage</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: var(--foreground, light-dark(#172632, #e8edf3));
+        --soft: var(--muted-foreground, light-dark(#536675, #b2bfcd));
+        --line: var(--border, light-dark(#dce4eb, #364554));
+        --fill: var(--card, light-dark(#f0f5f8, #192633));
+        --blue: var(--chart-1, light-dark(#256f99, #6fbce8));
+        --green: var(--chart-2, light-dark(#327b65, #73c6a6));
+        --radius: 10px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+        color: var(--ink);
+        font: 14px var(--font-sans, system-ui, sans-serif);
+      }
+      main {
+        display: grid;
+        gap: 20px;
+        min-width: 0;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      h1 {
+        font-size: 25px;
+        font-weight: 550;
+        line-height: 1.2;
+      }
+      h2 {
+        font-size: 19px;
+        font-weight: 550;
+      }
+      h3 {
+        font-size: 15px;
+        font-weight: 550;
+      }
+      p,
+      li {
+        line-height: 1.55;
+      }
+      a {
+        color: var(--blue);
+      }
+      .muted,
+      small {
+        color: var(--soft);
+      }
+      small {
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+      .panel,
+      .metric {
+        background: var(--fill);
+        padding: 16px;
+        border-radius: var(--radius);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .metric strong {
+        display: block;
+        font-weight: 550;
+        font-size: 26px;
+        margin-bottom: 5px;
+      }
+      .metric span {
+        color: var(--soft);
+        font-size: 12px;
+      }
+      .two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .finding {
+        border-left: 3px solid var(--blue);
+        padding-left: 13px;
+        display: grid;
+        gap: 5px;
+      }
+      .finding.good {
+        border-color: var(--green);
+      }
+      nav,
+      .controls,
+      .pager {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        color: var(--ink);
+        border: 1px solid var(--line);
+        background: var(--fill);
+        border-radius: 6px;
+        padding: 8px 10px;
+      }
+      button {
+        cursor: var(--cursor-interaction, pointer);
+      }
+      button[aria-selected="true"] {
+        color: var(--blue);
+        border-color: var(--blue);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      input {
+        flex: 1;
+        min-width: 170px;
+      }
+      select {
+        max-width: 100%;
+      }
+      section[hidden] {
+        display: none;
+      }
+      section {
+        min-width: 0;
+      }
+      .badge {
+        display: inline-block;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 3px 8px;
+        font-size: 11px;
+        color: var(--soft);
+      }
+      .skill summary {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+        cursor: var(--cursor-interaction, pointer);
+        font-size: 14px;
+      }
+      .skill summary span:first-child {
+        font-weight: 550;
+      }
+      .skill {
+        padding: 13px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .skill[open] {
+        padding-bottom: 18px;
+      }
+      .skill-body {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .skill-body .two {
+        gap: 18px;
+      }
+      .skill-body p {
+        margin-top: 4px;
+      }
+      .counts {
+        display: flex;
+        gap: 13px;
+        flex-wrap: wrap;
+        font-size: 12px;
+        color: var(--soft);
+      }
+      details > summary {
+        cursor: var(--cursor-interaction, pointer);
+      }
+      .scroll {
+        overflow-x: auto;
+        max-width: 100%;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        padding: 8px 9px;
+        border-bottom: 1px solid var(--line);
+        text-align: right;
+        vertical-align: top;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        font-weight: 500;
+        font-size: 12px;
+        color: var(--soft);
+      }
+      td {
+        font-size: 13px;
+      }
+      ul,
+      ol {
+        padding-left: 20px;
+        margin: 0;
+      }
+      .chart {
+        width: 100%;
+        height: 156px;
+      }
+      svg text {
+        fill: var(--ink);
+        font:
+          12px system-ui,
+          sans-serif;
+      }
+      .bar {
+        fill: var(--blue);
+      }
+      .axis {
+        stroke: var(--line);
+      }
+      .whisker {
+        stroke: var(--ink);
+        stroke-width: 2;
+      }
+      .page-title {
+        display: grid;
+        gap: 7px;
+      }
+      .notice {
+        border-left: 3px solid var(--green);
+        padding-left: 12px;
+      }
+      .downloads {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px 16px;
+      }
+      .build {
+        border-bottom: 1px solid var(--line);
+        padding: 12px 0;
+      }
+      .build summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .build ul {
+        margin-top: 12px;
+      }
+      .kicker {
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        color: var(--soft);
+      }
+      .subhead {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .count {
+        font-variant-numeric: tabular-nums;
+      }
+      .round-row {
+        display: grid;
+        gap: 5px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .round-row .subhead strong {
+        font-weight: 550;
+        font-size: 19px;
+      }
+      .phase {
+        display: grid;
+        gap: 8px;
+        border-top: 1px solid var(--line);
+        padding-top: 15px;
+      }
+      .phase:first-of-type {
+        border: 0;
+        padding-top: 0;
+      }
+      code {
+        font: 12px var(--font-mono, monospace);
+      }
+      @media (max-width: 520px) {
+        h1 {
+          font-size: 22px;
+        }
+        .grid {
+          gap: 7px;
+        }
+        .metric {
+          padding: 11px;
+        }
+        .metric strong {
+          font-size: 22px;
+        }
+        .two {
+          grid-template-columns: 1fr;
+        }
+        .skill summary {
+          align-items: flex-start;
+        }
+        .badge {
+          max-width: 140px;
+          text-align: right;
+        }
+        .controls > * {
+          max-width: 100%;
+        }
+        nav button {
+          flex: 1;
+        }
+        .subhead {
+          align-items: flex-start;
+        }
+        .metric span {
+          font-size: 11px;
+        }
+      }
+      @media print {
+        nav,
+        .controls,
+        .pager {
+          display: none;
+        }
+        section[hidden] {
+          display: grid;
+        }
+        details {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="page-title">
+        <p class="kicker">Blood Bowl Sevens · AI study</p>
+        <h1>Where the AI needs work</h1>
+        <p class="muted" id="subtitle"></p>
+      </header>
+      <div id="top-metrics" class="grid"></div>
+      <nav aria-label="Study sections" role="tablist">
+        <button
+          id="tab-overview"
+          role="tab"
+          data-tab="overview"
+          aria-controls="overview"
+          aria-selected="true"
+          tabindex="0"
+        >
+          Findings</button
+        ><button
+          id="tab-skills"
+          role="tab"
+          data-tab="skills"
+          aria-controls="skills"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          Skill coverage</button
+        ><button
+          id="tab-builds"
+          role="tab"
+          data-tab="builds"
+          aria-controls="builds"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          Advanced teams</button
+        ><button
+          id="tab-tests"
+          role="tab"
+          data-tab="tests"
+          aria-controls="tests"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          Test evidence</button
+        ><button
+          id="tab-plan"
+          role="tab"
+          data-tab="plan"
+          aria-controls="plan"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          Next steps
+        </button>
+      </nav>
+      <section
+        id="overview"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-overview"
+      >
+        <div class="notice">
+          <p>
+            <strong>These are evaluations of the same frozen AI.</strong> Adding
+            games and skills does not train it automatically. The results tell
+            us which decisions and tactical modules to improve next.
+          </p>
+        </div>
+        <div class="stack">
+          <h2>Three things the first round made clear</h2>
+          <article class="finding">
+            <h3>The old easy opponent is a weak training yardstick</h3>
+            <p id="easy-finding"></p>
+          </article>
+          <article class="finding">
+            <h3>Some useful actions almost never enter the AI’s plans</h3>
+            <p>
+              The planner league contained no selected fouls, jumps, stabs,
+              vomit replacements or Ball &amp; Chain actions, and only two
+              declared passes. Throws, gaze and punts also had gaps in the
+              simulator’s available choices.
+            </p>
+            <small
+              >Implication: expand legal action choices and tactical plans
+              before adjusting scoring weights.</small
+            >
+          </article>
+          <article class="finding">
+            <h3>Vampires need an explicit feeding plan</h3>
+            <p id="vampire-finding"></p>
+            <small
+              >Implication: coordinate Thralls and Vampire endpoints, then test
+              support denial when facing Vampires.</small
+            >
+          </article>
+        </div>
+        <div class="two">
+          <article class="panel stack">
+            <h2>Coach comparisons</h2>
+            <div id="baseline-chart"></div>
+            <small
+              >Share of points: a win counts as 1, a draw as ½. Hard and Legend
+              faced different schedules, so this is not a direct ranking between
+              them.</small
+            >
+          </article>
+          <article class="panel stack">
+            <h2>Advanced-team round</h2>
+            <div id="advanced-comparisons"></div>
+            <small
+              >648 games planned per comparison; each result shows its recorded
+              count. Intervals resample complete mirrored pairs. Focused and
+              randomized allocations match costs for each template. Comparisons
+              against original teams include extra development value.</small
+            >
+          </article>
+        </div>
+        <article class="panel stack">
+          <h2>What the extra skills changed</h2>
+          <p id="advanced-finding"></p>
+          <p id="coverage-finding"></p>
+          <p id="lethal-example" class="finding good"></p>
+          <div class="two">
+            <div class="stack">
+              <h3>Abilities that appeared after development</h3>
+              <div id="new-skill-evidence" class="scroll"></div>
+            </div>
+            <div class="stack">
+              <h3>Abilities still waiting for an AI plan</h3>
+              <div id="unused-skill-evidence" class="scroll"></div>
+            </div>
+          </div>
+          <small
+            >A recorded effect is not proof of a good decision. No recorded
+            effect can also mean a passive ability was silent. Added variants
+            describe roster presence, including benches; they are not tactical
+            opportunities.</small
+          >
+        </article>
+        <div class="downloads">
+          <a href="study-data.zip">Download all study data</a
+          ><a href="skill-plan.md">Read the full skill roadmap</a
+          ><a href="comparisons.csv">Comparison spreadsheet</a>
+        </div>
+      </section>
+      <section
+        id="skills"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-skills"
+        hidden
+      >
+        <div class="stack">
+          <h2>Every skill has an evidence trail and a next test</h2>
+          <p class="muted">
+            “Missing” can mean missing players, missing AI choices, sparse
+            observations or missing telemetry. It does not automatically mean a
+            rule is absent from the game.
+          </p>
+        </div>
+        <div class="controls">
+          <input
+            id="skill-query"
+            type="search"
+            aria-label="Search skills"
+            placeholder="Search a skill, team role or module…"
+          /><select id="skill-category" aria-label="Skill category">
+            <option value="">All categories</option></select
+          ><select id="skill-status" aria-label="Evidence gap">
+            <option value="">All evidence gaps</option>
+          </select>
+        </div>
+        <p class="muted" id="skill-count"></p>
+        <div id="skill-list"></div>
+        <div class="pager">
+          <button id="skills-back">Previous</button><span id="skill-page"></span
+          ><button id="skills-next">Next</button>
+        </div>
+        <div class="downloads">
+          <a href="skill-plan.csv">All 108 skill plans (CSV)</a
+          ><a href="skill-plan.md">Full roadmap (Markdown)</a>
+        </div>
+      </section>
+      <section
+        id="builds"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-builds"
+        hidden
+      >
+        <h2>Advanced builds, with the reason for the control</h2>
+        <p>
+          Each focused build adds six legal advancements, with at most two per
+          player. The randomized control uses the same players, category access
+          and elite-cost band. These are coverage-oriented packages, not claims
+          about the strongest possible team.
+        </p>
+        <p class="muted">
+          The randomized allocation is an experiment control using
+          chosen-advancement prices. It is separate from the application’s
+          cheaper two-roll random-primary development system. No free
+          inducements compensate the original teams.
+        </p>
+        <div class="controls">
+          <input
+            id="build-query"
+            type="search"
+            aria-label="Search advanced builds"
+            placeholder="Vampire, mutation, Lethal Flight…"
+          /><select id="build-arm" aria-label="Build type">
+            <option value="focused">Focused builds</option>
+            <option value="random">Randomized controls</option>
+          </select>
+        </div>
+        <div id="build-list"></div>
+        <div class="pager">
+          <button id="builds-back">Previous</button><span id="build-page"></span
+          ><button id="builds-next">Next</button>
+        </div>
+        <a href="advanced-builds.csv"
+          >Every advancement, player role and cost (CSV)</a
+        >
+      </section>
+      <section
+        id="tests"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-tests"
+        hidden
+      >
+        <h2>What was tested, and what the numbers can tell us</h2>
+        <div id="test-metrics" class="grid"></div>
+        <p>
+          Controlled scenarios run with the focal skill present and removed,
+          using 32 fixed seeds each. Their actions are scripted. “Changed
+          endpoint” means positions, possession, player status, injuries,
+          rerolls or score differed; it is not a win-rate improvement.
+        </p>
+        <p class="muted">
+          Some removed skills make an action illegal. Those are capability
+          losses and are separated from comparable outcomes. Rejected scripts
+          and errors are retained. Matching seeds reduce variance but do not
+          preserve identical dice sequences after different actions or
+          reactions.
+        </p>
+        <div class="controls">
+          <input
+            id="probe-query"
+            type="search"
+            aria-label="Search controlled tests"
+            placeholder="Find a skill or test situation…"
+          />
+        </div>
+        <div id="probe-table" class="scroll"></div>
+        <small
+          >Shows up to 20 matching contexts, ordered by changed endpoints. The
+          CSV retains every context. These fixtures include isolated and
+          scenario-granted skills; their provenance is in the acquisition
+          manifest.</small
+        >
+        <details>
+          <summary>Validity, format and scope</summary>
+          <div class="stack" style="margin-top: 12px">
+            <p id="validity"></p>
+            <p>
+              All natural matches start fresh in standard weather, use native
+              rerolls and the default GW Sevens profile, and have no free
+              simulation inducements or persistent team growth. Draft and
+              post-match rules are tracked separately. One original Snotling
+              recipe remains excluded by the default Insignificant draft limit.
+            </p>
+            <p>
+              For Brawlin’ Brutes, the historical objective remains
+              <strong>2 × touchdowns + 3 × SPP-eligible casualties</strong>.
+              Other rosters retain their existing touchdown-based target.
+              Targets against the old heuristic are not pass/fail thresholds
+              against equal planners.
+            </p>
+            <p>
+              Per-skill tactical advice is a hypothesis supported by the rule
+              fixtures. Whole-team results evaluate packages; they do not
+              isolate the value of each skill. Passive effects need additional
+              action/roll or opportunity telemetry before “unused” can be
+              concluded.
+            </p>
+            <p id="source"></p>
+          </div>
+        </details>
+        <div class="downloads">
+          <a href="context-probes.csv">Context summaries</a
+          ><a href="raw-context-probes.json">All paired probe outcomes</a
+          ><a href="opening-diagnostics.csv">Opening AI-choice diagnostics</a
+          ><a href="team-games.csv">Every advanced team-game</a
+          ><a href="acquisition-manifest.json">Frozen inputs and provenance</a>
+        </div>
+      </section>
+      <section
+        id="plan"
+        class="stack"
+        role="tabpanel"
+        aria-labelledby="tab-plan"
+        hidden
+      >
+        <h2>A plan to cover every ability without one giant script</h2>
+        <p>
+          Load small capability modules from the players actually present on
+          both teams. Keep legality in the engine, let modules propose useful
+          actions, then score the combined plans. Team names can supply
+          defaults; current skills, possession, support and threats decide
+          applicability.
+        </p>
+        <article class="phase">
+          <h3>1 · Make the missing actions available</h3>
+          <p>
+            Extend candidate enumeration and planning intents together for
+            throws, gaze, punts, secure-ball and Multiple Block. Add useful
+            foul, leap and special-attack plans. Give kickoff choices their own
+            policy.
+          </p>
+          <p>
+            <strong>Done when:</strong> each action has a beneficial board, a
+            harmful board and a neutral control, and the AI chooses a useful
+            target rather than merely triggering the rule.
+          </p>
+        </article>
+        <article class="phase">
+          <h3>2 · Compose skill and opponent context</h3>
+          <p>
+            Build focused modules for Vampire feeding, enemy support denial,
+            activation reliability, mutation movement and ball handling,
+            throwing/landing, marking, weapon/foul decisions and skill-specific
+            reactions.
+          </p>
+          <p>
+            <strong>Done when:</strong> combinations work together, support
+            moves before the risky activation where useful, and rules are valued
+            by scoring, possession and injury consequences.
+          </p>
+        </article>
+        <article class="phase">
+          <h3>3 · Confirm improvements against a diverse frozen pool</h3>
+          <p>
+            Compare candidate algorithms against the current and previous
+            generations, full-budget Hard/Legend and targeted exploiters. Use
+            fresh confirmation seeds and hold out team/skill combinations.
+          </p>
+          <p>
+            <strong>Promotion checks:</strong> complete mirrored pairs, clean
+            engine checks, race-macro performance, weak-roster protection, the
+            existing bash objectives, fewer unfed-carrier losses and useful
+            coverage. Avoid rewarding raw skill counts.
+          </p>
+        </article>
+        <article class="panel stack">
+          <h3>How to use the skill roadmap</h3>
+          <p>
+            Each of the 108 entries lists the relevant module, a useful
+            situation, a counterexample, natural effects, advancement exposure
+            and controlled evidence. Turn those rows into small planning puzzles
+            and measure the downstream result before changing production
+            weights.
+          </p>
+          <small
+            >No production policy has been promoted in this study. A new ability
+            can be useful in a particular position without being a good
+            development choice for every player.</small
+          >
+        </article>
+        <div class="downloads">
+          <a href="skill-plan.md">Full skill-by-skill plan</a
+          ><a href="skill-plan.csv">Plan spreadsheet</a>
+        </div>
+      </section>
+      <p id="load-error" role="status"></p>
+    </main>
+    <script type="application/json" id="study-data">
+      {{DATA}}
+    </script>
+    <script>
+      (() => {
+        const d = JSON.parse(document.getElementById("study-data").textContent),
+          b = d.baseline,
+          t = d.totals;
+        const $ = (id) => document.getElementById(id),
+          num = (n) => n.toLocaleString(),
+          pct = (n) => (n == null ? "Pending" : (100 * n).toFixed(1) + "%"),
+          esc = (v) =>
+            String(v ?? "").replace(
+              /[&<>"']/g,
+              (c) =>
+                ({
+                  "&": "&amp;",
+                  "<": "&lt;",
+                  ">": "&gt;",
+                  '"': "&quot;",
+                  "'": "&#39;",
+                })[c]
+            );
+        function metric(n, label) {
+          return `<div class="metric"><strong>${esc(n)}</strong><span>${esc(label)}</span></div>`;
+        }
+        $("subtitle").textContent =
+          `${d.partial ? "PROVISIONAL · " : ""}${num(t.baseline_games)} baseline games + ${num(t.recorded)} advanced games · 30 rosters · Daily Driver`;
+        $("top-metrics").innerHTML =
+          metric(num(t.baseline_games + t.recorded), "matches in both rounds") +
+          metric(
+            t.assigned_skills + " / " + t.learnable_skills,
+            "learnable skills added to teams"
+          ) +
+          metric(d.skills.length, "skill and trait plans");
+        const tabs = [...document.querySelectorAll("[data-tab]")];
+        function activateTab(button) {
+          tabs.forEach((tab) => {
+            tab.setAttribute("aria-selected", String(tab === button));
+            tab.tabIndex = tab === button ? 0 : -1;
+          });
+          document
+            .querySelectorAll("section[role=tabpanel]")
+            .forEach((panel) => {
+              panel.hidden = panel.id !== button.dataset.tab;
+            });
+        }
+        tabs.forEach((button, index) => {
+          button.onclick = () => activateTab(button);
+          button.onkeydown = (event) => {
+            const next = {
+              ArrowRight: (index + 1) % tabs.length,
+              ArrowLeft: (index + tabs.length - 1) % tabs.length,
+              Home: 0,
+              End: tabs.length - 1,
+            }[event.key];
+            if (next === undefined) return;
+            event.preventDefault();
+            activateTab(tabs[next]);
+            tabs[next].focus();
+          };
+        });
+        const easy = b.cohorts.find(
+          (r) => r.cohort === "calibration" && r.coach === "planner"
+        );
+        $("easy-finding").textContent =
+          `The planner won ${num(easy.wins)} of ${num(easy.games)} games against the old heuristic (${pct(easy.win_rate)} wins). Use it as a calibration opponent, alongside stronger and more varied opponents.`;
+        $("vampire-finding").textContent =
+          `The planner league recorded ${num(b.vampireFindings.unfedTurnovers)} unfed Bloodlust turnover events. ${num(b.vampireFindings.carryingAtCommandEntry)} involved a carrier at command entry; ${num(b.vampireFindings.lateSecondHalf)} were late in the second half. Those groups can overlap.`;
+        const coaches = b.cohorts.filter(
+          (r) =>
+            (r.cohort === "calibration" && r.coach === "planner") ||
+            r.cohort === r.coach
+        );
+        const labels = {
+          calibration: "Planner vs easy",
+          hard: "Hard vs planner",
+          legend: "Legend vs planner",
+        };
+        function chart(rows) {
+          return `<svg class="chart" viewBox="0 0 360 156" role="img" aria-label="Points share by comparison">${rows
+            .map((r, i) => {
+              const y = 24 + i * 42;
+              return `<text x="0" y="${y}">${esc(labels[r.cohort] || r.comparison)}</text><line class="axis" x1="130" x2="310" y1="${y - 4}" y2="${y - 4}"/><rect class="bar" x="130" y="${y - 14}" width="${180 * r.points}" height="18" rx="2"/><line class="whisker" x1="${130 + 180 * r.points_low}" x2="${130 + 180 * r.points_high}" y1="${y - 5}" y2="${y - 5}"/><text x="316" y="${y}">${pct(r.points)}</text>`;
+            })
+            .join("")}</svg>`;
+        }
+        $("baseline-chart").innerHTML = chart(coaches);
+        const names = {
+          "focused-vs-base": "Focused vs original",
+          "random-vs-base": "Randomized vs original",
+          "focused-vs-random": "Focused vs randomized",
+        };
+        $("advanced-comparisons").innerHTML = d.comparisons
+          .map(
+            (r) =>
+              `<div class="round-row"><div class="subhead"><span>${esc(names[r.comparison])}</span><strong>${pct(r.points)}</strong></div><small>${num(r.wins)} wins · ${num(r.draws)} draws · ${num(r.losses)} losses${r.points_low == null ? " · interval pending" : ` · 95% interval ${pct(r.points_low)}–${pct(r.points_high)}`}</small></div>`
+          )
+          .join("");
+        function skillEvidence(names) {
+          return (
+            "<table><thead><tr><th>Skill</th><th>Added variants</th><th>Learned-player effects</th></tr></thead><tbody>" +
+            names
+              .map((name) => {
+                const s = d.skills.find((s) => s.skill === name);
+                return `<tr><td>${esc(name)}</td><td>${s.advanced_variants}</td><td>${num(s.added_player_events)}</td></tr>`;
+              })
+              .join("") +
+            "</tbody></table>"
+          );
+        }
+        $("new-skill-evidence").innerHTML = skillEvidence([
+          "Extra Arms",
+          "Leader",
+          "Big Hand",
+          "Two Heads",
+          "Saboteur",
+        ]);
+        $("unused-skill-evidence").innerHTML = skillEvidence([
+          "Lethal Flight",
+          "Bullseye",
+          "Very Long Legs",
+          "Multiple Block",
+          "Kick",
+        ]);
+        const direct = d.comparisons.find(
+          (r) => r.comparison === "focused-vs-random"
+        );
+        $("advanced-finding").textContent =
+          direct?.points == null
+            ? "The advanced comparisons are still running."
+            : `Focused coverage builds took ${pct(direct.points)} of the points against cost-matched randomized builds. This compares two allocation strategies using the same planner; it does not demonstrate that the AI learned or that any individual skill is optimal.`;
+        $("coverage-finding").textContent =
+          `Across both rounds, ${d.skills.filter((s) => s.baseline_events || s.advanced_events).length} of 108 names produced announced effects; ${t.observed_skills} did so in the advanced matches. All ${t.assigned_skills} learnable skills were assigned to advanced players, while ${num(t.probe_pairs)} scripted skill-present/removed pairs provide separate mechanical evidence.`;
+        $("lethal-example").textContent = d.lethal_example;
+        $("lethal-example").hidden = !d.lethal_example;
+        let skillPage = 0,
+          buildPage = 0;
+        const size = 12;
+        for (const [id, values] of [
+          ["skill-category", new Set(d.skills.map((s) => s.category))],
+          ["skill-status", new Set(d.skills.map((s) => s.status))],
+        ])
+          for (const value of [...values].sort()) {
+            const o = document.createElement("option");
+            o.value = value;
+            o.textContent = value;
+            $(id).append(o);
+          }
+        function renderSkills() {
+          const query = $("skill-query").value.toLowerCase(),
+            category = $("skill-category").value,
+            status = $("skill-status").value;
+          const rows = d.skills
+            .filter(
+              (s) =>
+                (!category || s.category === category) &&
+                (!status || s.status === status) &&
+                JSON.stringify(s).toLowerCase().includes(query)
+            )
+            .sort(
+              (a, b) =>
+                a.baseline_events - b.baseline_events ||
+                a.skill.localeCompare(b.skill)
+            );
+          skillPage = Math.min(
+            skillPage,
+            Math.max(0, Math.ceil(rows.length / size) - 1)
+          );
+          $("skill-count").textContent =
+            `${num(rows.length)} skills · counts are announced effects, not opportunity or usefulness scores`;
+          $("skill-list").innerHTML = rows
+            .slice(skillPage * size, (skillPage + 1) * size)
+            .map(
+              (s) =>
+                `<details class="skill"><summary><span>${esc(s.skill)} <small>· ${esc(s.category)}</small></span><span class="badge">${esc(s.status)}</span></summary><div class="skill-body"><p>${esc(s.description)}</p><div class="counts"><span>Baseline effects: <strong>${num(s.baseline_events)}</strong></span><span>New effects: <strong>${num(s.advanced_events)}</strong></span><span>Variants adding it: <strong>${num(s.advanced_variants)}</strong></span></div><div class="two"><div><h3>Useful situation to test</h3><p>${esc(s.use_when)}</p></div><div><h3>When it may be a poor choice</h3><p>${esc(s.avoid_when)}</p></div></div><p><strong>Controlled evidence:</strong> ${num(s.controlled_pairs)} comparable seed pairs; ${num(s.changed_endpoints)} changed endpoints; ${num(s.capability_losses)} scripts lost a required capability without the skill.</p><small>${esc(s.contexts || "No in-match scenario: check lifecycle or draft scope.")}</small><p><strong>Next module:</strong> <code>${esc(s.module)}</code>. ${esc(s.next_test)}</p><small>Effects announced on a player who learned this skill: ${num(s.added_player_events)}. This is not a quality measure.</small></div></details>`
+            )
+            .join("");
+          $("skill-page").textContent = rows.length
+            ? `${skillPage * size + 1}–${Math.min((skillPage + 1) * size, rows.length)} of ${rows.length}`
+            : "No matches";
+          $("skills-back").disabled = skillPage === 0;
+          $("skills-next").disabled = (skillPage + 1) * size >= rows.length;
+        }
+        for (const id of ["skill-query", "skill-category", "skill-status"])
+          $(id).addEventListener(
+            id === "skill-query" ? "input" : "change",
+            () => {
+              skillPage = 0;
+              renderSkills();
+            }
+          );
+        $("skills-back").onclick = () => {
+          skillPage--;
+          renderSkills();
+        };
+        $("skills-next").onclick = () => {
+          skillPage++;
+          renderSkills();
+        };
+        renderSkills();
+        function renderBuilds() {
+          const query = $("build-query").value.toLowerCase(),
+            arm = $("build-arm").value;
+          const rows = d.builds.filter(
+            (r) =>
+              r.arm === arm && JSON.stringify(r).toLowerCase().includes(query)
+          );
+          buildPage = Math.min(
+            buildPage,
+            Math.max(0, Math.ceil(rows.length / size) - 1)
+          );
+          $("build-list").innerHTML = rows
+            .slice(buildPage * size, (buildPage + 1) * size)
+            .map(
+              (r) =>
+                `<details class="build"><summary><span>${esc(r.roster)} · ${esc(r.team)} <small>build ${r.replicate + 1}</small></span><small>TV ${num(r.team_value)} · ${r.spp_spent} SPP</small></summary><ul>${r.upgrades.map((a) => `<li>#${a.player} ${esc(a.position)} → <strong>${esc(a.skill)}</strong> <small>(${a.access})</small></li>`).join("")}</ul></details>`
+            )
+            .join("");
+          $("build-page").textContent = rows.length
+            ? `${buildPage * size + 1}–${Math.min((buildPage + 1) * size, rows.length)} of ${rows.length}`
+            : "No matches";
+          $("builds-back").disabled = buildPage === 0;
+          $("builds-next").disabled = (buildPage + 1) * size >= rows.length;
+        }
+        $("build-query").oninput = () => {
+          buildPage = 0;
+          renderBuilds();
+        };
+        $("build-arm").onchange = () => {
+          buildPage = 0;
+          renderBuilds();
+        };
+        $("builds-back").onclick = () => {
+          buildPage--;
+          renderBuilds();
+        };
+        $("builds-next").onclick = () => {
+          buildPage++;
+          renderBuilds();
+        };
+        renderBuilds();
+        $("test-metrics").innerHTML =
+          metric(num(t.verified), "full-match replays verified") +
+          metric(num(t.probe_pairs), "controlled seed pairs") +
+          metric(num(t.comparable_probes), "comparable probe endpoints");
+        function renderProbes() {
+          const q = $("probe-query").value.toLowerCase(),
+            rows = d.probes
+              .filter((r) => JSON.stringify(r).toLowerCase().includes(q))
+              .sort((a, b) => b.changed - a.changed)
+              .slice(0, 20);
+          $("probe-table").innerHTML =
+            `<table><thead><tr><th>Skill and situation</th><th>Comparable</th><th>Changed endpoint</th><th>Capability lost</th><th>Script refusals</th><th>Errors</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.skill)}<br><small>${esc(r.context)}</small></td><td>${r.comparable} / ${r.seeds}</td><td>${r.changed}</td><td>${r.required_capability}</td><td>${r.script_refusals}</td><td>${r.errors}</td></tr>`).join("")}</tbody></table>`;
+        }
+        $("probe-query").oninput = renderProbes;
+        renderProbes();
+        $("validity").textContent =
+          `${num(t.completed)} of ${num(t.scheduled)} advanced matches reached full time; ${num(t.verified)} saved command traces verified. Blocking findings: ${t.blocking_findings}; rejected candidates: ${t.warnings}. Probe exceptions: ${t.probe_errors}. All outputs, including exclusions, are retained.`;
+        $("source").textContent =
+          `Frozen engine base: ${d.source.revision}. Acquisition SHA-256: ${d.source.digest}. Host: ${d.source.host}. The original baseline contains ${num(t.baseline_games)} games.`;
+      })();
+    </script>
+  </body>
+</html>
