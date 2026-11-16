@@ -376,10 +376,13 @@ export function endActivation(c: GameplayInteractionController): void {
     teamId &&
     state.activeTeamId === teamId &&
     state.turn === turn &&
-    !state.activePlayer &&
+    (!state.activePlayer || c.gameService.runsCommandsLater) &&
     state.phase === GamePhase.PLAY
   ) {
-    c.eventBus.emit(GameEventNames.Camera_ChooseNextPlayer, { teamId });
+    c.eventBus.emit(GameEventNames.Camera_ChooseNextPlayer, {
+      teamId,
+      playerId,
+    });
   }
 }
 

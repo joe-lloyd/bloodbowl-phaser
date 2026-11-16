@@ -53,6 +53,7 @@ export const mockEventBus = {
 };
 
 export const mockGameService = {
+  runsCommandsLater: false,
   getState: vi.fn(),
   getPlayerById: vi.fn(),
   // These tests were one file, where the first set this to [] for the rest
@@ -144,6 +145,7 @@ export const player2 = {
 /** Clear the mocks, reset both teams, and build a fresh controller. */
 export function createController(): GameplayInteractionController {
   vi.clearAllMocks();
+  mockGameService.runsCommandsLater = false;
   mockGameService.getKickoffEventStep.mockReturnValue(null);
   mockGameService.selectKickoffEventPlayer.mockReturnValue(true);
   mockGameService.moveKickoffEventPlayer.mockReturnValue(true);

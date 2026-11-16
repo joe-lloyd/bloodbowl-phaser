@@ -303,7 +303,18 @@ describe("explicit End activation camera intent", () => {
     endFromUi();
     expect(mockEventBus.emit).toHaveBeenCalledWith(
       GameEventNames.Camera_ChooseNextPlayer,
-      { teamId: team1Id }
+      { teamId: team1Id, playerId: player1.id }
+    );
+    expect(controller["selectedPlayerId"]).toBeNull();
+  });
+
+  it("keeps the explicit intent while a computer or online command is queued", () => {
+    mockGameService.runsCommandsLater = true;
+    mockGameService.finishActivation.mockImplementation(() => {});
+    endFromUi();
+    expect(mockEventBus.emit).toHaveBeenCalledWith(
+      GameEventNames.Camera_ChooseNextPlayer,
+      { teamId: team1Id, playerId: player1.id }
     );
     expect(controller["selectedPlayerId"]).toBeNull();
   });

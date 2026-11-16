@@ -1,6 +1,6 @@
 import type { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
-import { GameEventNames } from "../types/events";
+import { GameEventNames, type GameEvents } from "../types/events";
 import { PlayerStatus } from "../types/Player";
 import { PassController } from "../game/controllers/PassController";
 
@@ -14,6 +14,30 @@ export function followMatchWithCamera(scene: GameScene): void {
   const gameService = () => scene["gameService"];
 
   let choosingInterceptor = false;
+  let nextPlayerChoice:
+    | GameEvents[GameEventNames.Camera_ChooseNextPlayer]
+    | null = null;
+  const frameNextChoice = () => {
+    const intent = nextPlayerChoice;
+    if (!intent) return;
+    const state = gameService().getState();
+    if (
+      state.activeTeamId !== intent.teamId ||
+      state.phase !== GamePhase.PLAY
+    ) {
+      nextPlayerChoice = null;
+      return;
+    }
+    // Computer and online commands finish after their UI handler returns.
+    if (
+      state.activePlayer ||
+      !state.turn.activatedPlayerIds.has(intent.playerId)
+    )
+      return;
+    nextPlayerChoice = null;
+    const squares = teamSquares(scene, intent.teamId, true);
+    if (squares.length) camera().fitSquares(squares, 420);
+  };
   subscribe(GameEventNames.DecisionRequested, (request) => {
     if (request.type !== "interception") return;
     choosingInterceptor = true;
@@ -43,6 +67,7 @@ export function followMatchWithCamera(scene: GameScene): void {
     camera().reset(data.duration || 800);
   });
   subscribe(GameEventNames.PlayerSelected, ({ player }) => {
+    if (player) nextPlayerChoice = null;
     if (!player?.gridPosition || scene.isSetupActive || choosingInterceptor)
       return;
     camera().release();
@@ -68,11 +93,13 @@ export function followMatchWithCamera(scene: GameScene): void {
   let previousTeamId = gameService().getState().activeTeamId;
   subscribe(GameEventNames.GameStateRestored, (state) => {
     restored = true;
+    nextPlayerChoice = null;
     previousTeamId = state.activeTeamId;
     choosingInterceptor = false;
     camera().reset();
   });
   subscribe(GameEventNames.TurnStarted, ({ teamId }) => {
+    nextPlayerChoice = null;
     choosingInterceptor = false;
     camera().release();
     const handoff = previousTeamId !== null && previousTeamId !== teamId;
@@ -109,11 +136,17 @@ export function followMatchWithCamera(scene: GameScene): void {
     camera().focusSquares([from, ...receivers]);
   });
   // Only an explicit UI completion asks the coach to choose another player.
-  subscribe(GameEventNames.Camera_ChooseNextPlayer, ({ teamId }) => {
+  subscribe(GameEventNames.Camera_ChooseNextPlayer, (intent) => {
     if (choosingInterceptor) return;
-    const squares = teamSquares(scene, teamId, true);
     camera().release();
-    if (squares.length) camera().fitSquares(squares, 420);
+    nextPlayerChoice = intent;
+    frameNextChoice();
+  });
+  subscribe(GameEventNames.ActionResolved, ({ playerId }) => {
+    if (nextPlayerChoice?.playerId === playerId) frameNextChoice();
+  });
+  subscribe(GameEventNames.NetworkCommandRejected, () => {
+    nextPlayerChoice = null;
   });
 }
 
