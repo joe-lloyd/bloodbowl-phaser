@@ -301,3 +301,21 @@ on purpose, as with committed seeds.
 | `src/simulation/cli.ts`                   | `pnpm sim` options and subcommands                  |
 | `src/simulation/commands/`                | One module per subcommand: run, replay, bench, tune |
 | `__tests__/simulation/`                   | Harness test and committed recordings               |
+
+## Evaluate the public computer-team templates
+
+The catalogue study uses the same Bonehead recipes as competition entrants,
+including their players, bench, veteran and native reroll banks. It runs a
+complete home-and-away template league, calibrates against the old heuristic,
+and compares the planner with deterministic Hard and Legend coaches. It also
+records skill effects and tactical contexts, verifies the named rule outcomes,
+and audits actions missing from the simulator candidate seam.
+
+```bash
+pnpm exec tsx scripts/coach/catalogue-study.ts --workers 10 --out sim-results/catalogue-study
+```
+
+The [study guide](../scripts/coach/catalogue-study/README.md) describes cohort
+selection, exact replay, resuming a batch, rare-rule probes and generating the
+standalone HTML workbook with CSV exports. This evaluates frozen scripted
+policies; it does not automatically train or promote new AI weights.
