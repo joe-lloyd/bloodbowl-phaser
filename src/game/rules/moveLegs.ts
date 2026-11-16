@@ -1,5 +1,5 @@
-import { RouteRoll } from "./rollPreview";
-import { Player, hasTackleZone } from "../../types/Player";
+import { dodgeTarget, markingPlayers, RouteRoll } from "./rollPreview";
+import { Player } from "../../types/Player";
 
 type Square = { x: number; y: number };
 
@@ -47,7 +47,7 @@ export type MoveLeg =
 export interface LegContext {
   /** Opponents on the pitch; only those with a Tackle Zone mark squares. */
   opponents: Player[];
-  ag: number;
+  player: Player;
   ma: number;
   /** Squares already spent this activation, stand-up cost included. */
   used: number;
@@ -55,17 +55,6 @@ export interface LegContext {
   rushModifier: number;
   pickup?: { square: Square; target: number };
 }
-
-const marking = (square: Square, opponents: Player[]) =>
-  opponents.filter(
-    (o) =>
-      o.gridPosition &&
-      hasTackleZone(o) &&
-      Math.max(
-        Math.abs(o.gridPosition.x - square.x),
-        Math.abs(o.gridPosition.y - square.y)
-      ) === 1
-  ).length;
 
 /** A natural 1 always fails and a natural 6 always passes. */
 const need = (target: number) => Math.min(6, Math.max(2, target));
@@ -107,7 +96,8 @@ export function planMoveLegs(
   let pickup = ctx.pickup;
   path.forEach((step, i) => {
     const rush = ctx.used + i + 1 > ctx.ma;
-    const dodge = marking(from, ctx.opponents) > 0;
+    const dodge = markingPlayers(from, ctx.opponents).length > 0;
+    const dodgeNeed = dodgeTarget(ctx.player, from, step, ctx.opponents);
     from = step;
     const ball =
       pickup && pickup.square.x === step.x && pickup.square.y === step.y
@@ -121,7 +111,6 @@ export function planMoveLegs(
     if (safe.length) legs.push({ risk: null, path: safe });
     safe = [];
     const rushNeed = need(2 - ctx.rushModifier);
-    const dodgeNeed = need(ctx.ag + marking(step, ctx.opponents));
     const movement = movementRisk(rush, dodge, rushNeed, dodgeNeed);
     const risk = stepRisk(movement, ball);
     if (risk) legs.push({ risk, path: [step] });

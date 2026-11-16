@@ -21,7 +21,30 @@ export const markingPlayers = (square: Square, opponents: Player[]) =>
   );
 
 const has = (player: Player, skill: SkillType) =>
-  hasSkill(player.skills, skill);
+  hasSkill(player.skills ?? [], skill);
+
+/** The Dodge target before optional reactions such as Diving Tackle. */
+export function dodgeTarget(
+  player: Player,
+  from: Square,
+  to: Square,
+  opponents: Player[]
+): number {
+  const marking = has(player, SkillType.STUNTY)
+    ? 0
+    : markingPlayers(to, opponents).filter((p) => !has(p, SkillType.TITCHY))
+        .length;
+  const tail = markingPlayers(from, opponents).some((p) =>
+    has(p, SkillType.PREHENSILE_TAIL)
+  );
+  const modifier =
+    -marking -
+    (tail ? 1 : 0) +
+    (has(player, SkillType.TITCHY) ? 1 : 0) +
+    (has(player, SkillType.TWO_HEADS) ? 1 : 0);
+  return requiredRoll(player.stats.AG, modifier);
+}
+
 const disturbing = (player: Player, opponents: Player[]) =>
   opponents.filter(
     (p) =>

@@ -6,7 +6,16 @@ import { createTestPlayer } from "../../fixtures/players";
 const opponent = (x: number, y: number, status = PlayerStatus.ACTIVE) =>
   createTestPlayer({ id: `o${x}${y}`, gridPosition: { x, y }, status });
 
-const ctx = { ag: 3, ma: 6, used: 0, rushModifier: 0, opponents: [] };
+const ctx = {
+  player: createTestPlayer({
+    stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 },
+    skills: [],
+  }),
+  ma: 6,
+  used: 0,
+  rushModifier: 0,
+  opponents: [],
+};
 const line = (n: number) =>
   Array.from({ length: n }, (_, i) => ({ x: i + 1, y: 5 }));
 

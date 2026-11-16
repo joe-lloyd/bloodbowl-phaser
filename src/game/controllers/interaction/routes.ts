@@ -142,7 +142,7 @@ export function planLegs(
   const mover = withDriveModifiers(player, state);
   return planMoveLegs(player.gridPosition!, route, {
     opponents: c.getOpposingPlayers(player.teamId),
-    ag: mover.stats.AG,
+    player: mover,
     ma: mover.stats.MA,
     used:
       c.gameService.getMovementUsed(player.id) +
