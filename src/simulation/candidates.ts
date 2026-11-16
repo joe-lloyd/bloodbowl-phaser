@@ -56,6 +56,7 @@ export interface DecisionPoint {
 const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "move",
   "block",
+  "multipleBlock",
   "blitz",
   "pass",
   "handoff",
@@ -67,6 +68,8 @@ const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "breatheFire",
   "chomp",
   "vomit",
+  "secureBall",
+  "gaze",
 ]);
 
 /**

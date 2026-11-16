@@ -4,7 +4,10 @@ import { Scenario, PlayerPlacement } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition, hasCondition } from "../../src/types/Player";
-import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
+import type {
+  CommandResponse,
+  EmittedEvent,
+} from "../../src/headless/protocol";
 import { GameEventNames } from "../../src/types/events";
 import { forceDice } from "../utils/test-helpers";
 
@@ -24,7 +27,13 @@ function scenario(
     description: "",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 5, skills: [SkillType.FRENZY], ...attacker },
+        {
+          playerIndex: 0,
+          x: 10,
+          y: 5,
+          skills: [SkillType.FRENZY],
+          ...attacker,
+        },
         // A spare player keeps team1's turn open after the activation.
         { playerIndex: 1, x: 2, y: 12 },
       ],
@@ -60,6 +69,46 @@ function session(scenario: Scenario, seed: number) {
 
 /** One block die, a Push; the second Block rolls a Skull. */
 const PUSH_SEED = 1;
+
+describe("Frenzy after a failed follow-up pickup", () => {
+  it.each([1, 6])(
+    "does not open another block decision after turnover on turn %i",
+    async (turn) => {
+      const base = scenario({}, {});
+      base.setup.team1Placements![1] = { playerIndex: 1, x: 2, y: 9 };
+      base.setup.ballPosition = { x: 12, y: 5 };
+      base.setup.turn = turn;
+      base.setup.teamRerolls = { team1: 0, team2: 0 };
+      const { game, run, attacker, defender } = session(base, 1);
+      // Push onto the loose ball; it bounces west into the vacated square.
+      // The forced follow-up fails its pickup, then the ball bounces south.
+      forceDice(game.ctx.rng, [3, 4, 1, 7]);
+      await run({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "block",
+      });
+      await run({
+        type: "block",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+      });
+      await run({ type: "choose-block-result", index: 0 });
+      const after = await run({ type: "choose-push-direction", x: 12, y: 5 });
+      expect(after.ok).toBe(true);
+      expect(
+        after.events.filter((e) => e.name === "ballPickup").map((e) => e.data)
+      ).toEqual([
+        expect.objectContaining({ playerId: attacker.id, success: false }),
+      ]);
+      expect(after.events.filter((e) => e.name === "turnover")).toHaveLength(1);
+      expect(
+        after.events.filter((e) => e.name === "blockDiceRolled")
+      ).toHaveLength(0);
+      expect(game.pendingDecision()?.type).not.toBe("block-dice");
+    }
+  );
+});
 
 describe("Frenzy against Stand Firm", () => {
   it("settles a knocked-down carrier's armour and bounce before resuming Blitz movement", async () => {
@@ -102,8 +151,16 @@ describe("Frenzy against Stand Firm", () => {
       PUSH_SEED
     );
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "block" });
-    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
     const reaction = await run({ type: "choose-block-result", index: 0 });
     expect(reaction.pendingDecision).toMatchObject({
       type: "reaction",
@@ -321,8 +378,16 @@ describe("Frenzy's second Block during a Blitz", () => {
       ADJACENT_BLITZ_SEED
     );
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "blitz" });
-    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
     await run({ type: "choose-block-result", index: 0 });
     const second = await run({ type: "choose-push-direction", x: 12, y: 5 });
 
@@ -341,7 +406,11 @@ describe("Frenzy's second Block during a Blitz", () => {
       EXHAUSTED_BLITZ_SEED
     );
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "blitz" });
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
     await run({
       type: "move",
       playerId: attacker.id,
@@ -350,7 +419,11 @@ describe("Frenzy's second Block during a Blitz", () => {
         { x: 10, y: 5 },
       ],
     });
-    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
     await run({ type: "choose-block-result", index: 0 });
     const after = await run({ type: "choose-push-direction", x: 12, y: 5 });
 

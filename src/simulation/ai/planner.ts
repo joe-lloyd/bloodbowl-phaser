@@ -24,11 +24,13 @@ import { Board, WIDTH, readBoard } from "./board";
 import { decide } from "./decisions";
 import { DEFAULT_WEIGHTS, Weights } from "./weights";
 import { RollTarget } from "./chance";
+import { enumerateLegalActions } from "../../headless/legalActions";
 
 const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   dodge: "Dodge",
   rush: "Rush",
   pickup: "Pick up",
+  secure: "Secure the Ball",
   catch: "Catch",
 };
 
@@ -38,6 +40,9 @@ export function noteFor(a: Activation): string {
     score: "runs in to score",
     carrier: "moves the ball carrier",
     pickup: "goes for the ball",
+    "secure-ball": "secures the ball",
+    gaze: "uses Hypnotic Gaze",
+    "multiple-block": "blocks two opponents",
     handoff: "hands off",
     pass: "throws a pass",
     block: "blocks",
@@ -90,6 +95,7 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
     case "score":
     case "carrier":
     case "pickup":
+    case "secure-ball":
     case "reposition":
       return stepTo(a.intent.route);
     case "stand-up":
@@ -99,6 +105,28 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
       return match(
         (c) =>
           c.type === "block" && c.attackerId === id && c.defenderId === target
+      );
+    }
+    case "multiple-block": {
+      const [first, second] = a.intent.targets;
+      return match(
+        (c) =>
+          c.type === "multiple-block" &&
+          c.attackerId === id &&
+          ((c.defender1Id === first.id && c.defender2Id === second.id) ||
+            (c.defender1Id === second.id && c.defender2Id === first.id))
+      );
+    }
+    case "gaze": {
+      const target = a.intent.target.id;
+      return walkThen(a.intent.route, () =>
+        match(
+          (c) =>
+            c.type === "special-action" &&
+            c.action === "gaze" &&
+            c.attackerId === id &&
+            c.defenderId === target
+        )
       );
     }
     case "blitz": {
@@ -136,13 +164,16 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
 }
 
 export function createPlannerCoach(
-  options: { weights?: Weights; name?: string } = {}
+  options: { weights?: Weights; name?: string; skillPlans?: boolean } = {}
 ): Coach {
   const w = options.weights ?? DEFAULT_WEIGHTS;
   return {
     name: options.name ?? "planner",
     async choose(context: CoachContext): Promise<CoachChoice> {
-      return planChoice(context, w) ?? heuristicCoach.choose(context);
+      return (
+        planChoice(context, w, options.skillPlans ?? true) ??
+        heuristicCoach.choose(context)
+      );
     },
   };
 }
@@ -187,13 +218,17 @@ function kickChoice(
   return { index: best.index };
 }
 
-function planChoice(context: CoachContext, w: Weights): CoachChoice | null {
+function planChoice(
+  context: CoachContext,
+  w: Weights,
+  skillPlans: boolean
+): CoachChoice | null {
   const { game, point } = context;
   const candidates = point.candidates;
   const board = readBoard(game, point.teamId);
 
   if (point.pending) {
-    const index = decide(board, point.pending, candidates);
+    const index = decide(board, point.pending, candidates, skillPlans);
     return index === null ? null : { index };
   }
   if (point.phase === GamePhase.SETUP) return setupChoice(candidates, w);
@@ -205,9 +240,25 @@ function planChoice(context: CoachContext, w: Weights): CoachChoice | null {
   const active = state.activePlayer;
   const actor = active ? board.gs.getPlayerById(active.id) : undefined;
   if (active && actor && actor.teamId === point.teamId && active.action) {
-    return continueChoice(board, w, candidates, actor, active.action);
+    const waiting =
+      skillPlans && active.action === "gaze"
+        ? new Map(
+            enumerateLegalActions({ ctx: game.ctx, pending: null })
+              .players.filter((p) => p.playerId !== actor.id)
+              .map((p) => [p.playerId, new Set(p.actions)])
+          )
+        : undefined;
+    return continueChoice(
+      board,
+      w,
+      candidates,
+      actor,
+      active.action,
+      skillPlans,
+      waiting
+    );
   }
-  return declareChoice(board, w, candidates);
+  return declareChoice(board, w, candidates, skillPlans);
 }
 
 /** The next step of the activation under way, or ending it. */
@@ -216,23 +267,28 @@ function continueChoice(
   w: Weights,
   candidates: readonly Candidate[],
   actor: Player,
-  action: string
+  action: string,
+  skillPlans: boolean,
+  available?: Available
 ): CoachChoice | null {
   // Team-mates who have not acted yet still count as helpers, for the
   // cage the carrier is walking into and the receiver it hands off to.
   const acted = new Set(board.gs.getState().turn.activatedPlayerIds ?? []);
-  const waiting: Available = new Map(
-    board.ours
-      .filter((p) => p.id !== actor.id && !acted.has(p.id))
-      .map((p) => [p.id, new Set<ActionType>(["move"])])
-  );
+  const waiting: Available =
+    available ??
+    new Map(
+      board.ours
+        .filter((p) => p.id !== actor.id && !acted.has(p.id))
+        .map((p) => [p.id, new Set<ActionType>(["move"])])
+    );
   const plan = continuation(
     board,
     w,
     actor,
     action as ActionType,
     board.gs.hasUsedBlitzBlock(actor.id),
-    waiting
+    waiting,
+    skillPlans
   );
   const index = plan ? nextStep(plan, candidates) : -1;
   if (plan && index >= 0) return { index, note: noteFor(plan) };
@@ -244,9 +300,10 @@ function continueChoice(
 function declareChoice(
   board: Board,
   w: Weights,
-  candidates: readonly Candidate[]
+  candidates: readonly Candidate[],
+  skillPlans: boolean
 ): CoachChoice | null {
-  const plan = activations(board, w, availableActions(candidates));
+  const plan = activations(board, w, availableActions(candidates), skillPlans);
   for (const a of plan) {
     const index = candidates.findIndex((c) => {
       const command = c.commands[0];

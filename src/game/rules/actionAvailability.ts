@@ -454,6 +454,7 @@ export function computeActionAvailability(
     standUp: player.status === PlayerStatus.PRONE,
     secureBall:
       !heldInPlace &&
+      !hasSkill(player.skills, SkillType.UNSTEADY) &&
       board.ballReachable &&
       canSecureBall(player, ballPosition, [...opponents, ...teammates]),
     stab: directBlockReplacements.includes("stab"),

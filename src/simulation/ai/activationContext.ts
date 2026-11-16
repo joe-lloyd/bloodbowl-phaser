@@ -12,6 +12,7 @@ import { Weights } from "./weights";
 import type { Available, Tier } from "./activations";
 
 export interface Context {
+  skillPlans: boolean;
   board: Board;
   w: Weights;
   available: Available;
@@ -38,7 +39,8 @@ export interface Context {
 export function context(
   board: Board,
   w: Weights,
-  available: Available
+  available: Available,
+  skillPlans = true
 ): Context {
   const teamReroll = board.rerolls > 0;
   // A player's paths do not depend on the re-roll, only their chances do.
@@ -63,6 +65,7 @@ export function context(
     board.ours.reduce((sum, p) => sum + p.stats.MA, 0) /
     Math.max(1, board.ours.length);
   return {
+    skillPlans,
     board,
     w,
     available,

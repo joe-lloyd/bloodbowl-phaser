@@ -10,11 +10,13 @@ import { runMatch } from "../../../src/simulation/runMatch";
 import { createTelemetry } from "./telemetry";
 import type { StudyGame, StudyJob } from "./model";
 import type { Team } from "../../../src/types/Team";
+import type { Coach } from "../../../src/simulation/coach";
 
 export async function playStudyGame(
   job: StudyJob,
   out: string,
-  suppliedTeams?: [Team, Team]
+  suppliedTeams?: [Team, Team],
+  suppliedCoaches?: [Coach, Coach]
 ): Promise<StudyGame> {
   const started = Date.now();
   const [team1, team2] = job.templates.map((id, i) =>
@@ -31,8 +33,8 @@ export async function playStudyGame(
   });
   const initial = game.matchSave();
   const telemetry = createTelemetry(game);
-  const coaches = job.coaches.map((name) =>
-    telemetry.wrap(makeCoach(name, []))
+  const coaches = job.coaches.map((name, side) =>
+    telemetry.wrap(suppliedCoaches?.[side] ?? makeCoach(name, []))
   ) as Parameters<typeof runMatch>[0]["coaches"];
   const recording = await runMatch({
     seed: job.seed,

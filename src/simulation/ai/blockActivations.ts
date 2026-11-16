@@ -23,7 +23,11 @@ import type { Activation } from "./activations";
 const blockValidator = new BlockValidator();
 
 /** How much `attacker` knocking this opponent down is worth. */
-function targetValue(c: Context, attacker: Player, target: Player): number {
+export function targetValue(
+  c: Context,
+  attacker: Player,
+  target: Player
+): number {
   const { board, w } = c;
   const carrier = carrierOf(board);
   if (carrier?.id === target.id)
@@ -54,7 +58,7 @@ function targetValue(c: Context, attacker: Player, target: Player): number {
  * on the ball carrier is worth the team re-roll; other blocks are judged
  * on the dice alone.
  */
-function blockFrom(
+export function blockFrom(
   c: Context,
   attacker: Player,
   target: Player,

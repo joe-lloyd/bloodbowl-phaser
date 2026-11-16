@@ -15,7 +15,13 @@ export type Chance = number & { readonly [chanceBrand]: true };
 export const CERTAIN = 1 as Chance;
 export const IMPOSSIBLE = 0 as Chance;
 
-export type RollKind = "dodge" | "rush" | "pickup" | "catch" | "block";
+export type RollKind =
+  | "dodge"
+  | "rush"
+  | "pickup"
+  | "secure"
+  | "catch"
+  | "block";
 
 /** A roll a plan needs, as a coach would read it: the kind and its N+. */
 export interface RollTarget {
@@ -43,18 +49,21 @@ const KINDS: readonly RollTarget["kind"][] = [
   "rush",
   "pickup",
   "catch",
+  "secure",
 ];
 
-const REROLL_SKILL: Record<RollTarget["kind"], SkillType> = {
+const REROLL_SKILL: Record<RollTarget["kind"], SkillType | null> = {
   dodge: SkillType.DODGE,
   rush: SkillType.SURE_FEET,
   pickup: SkillType.SURE_HANDS,
   catch: SkillType.CATCH,
+  secure: null,
 };
 
 /** The skill that re-rolls a failed roll of this kind, if the player has it. */
 function skillReroll(player: Player, kind: RollTarget["kind"]): boolean {
-  return hasSkill(player.skills, REROLL_SKILL[kind]);
+  const skill = REROLL_SKILL[kind];
+  return skill !== null && hasSkill(player.skills, skill);
 }
 
 /**
@@ -84,7 +93,7 @@ function chainFrom(
   seen: Map<number, number>
 ): number {
   if (i === rolls.length) return 1;
-  const id = i * 32 + spent * 2 + (team ? 1 : 0);
+  const id = i * (2 << KINDS.length) + spent * 2 + (team ? 1 : 0);
   const known = seen.get(id);
   if (known !== undefined) return known;
   const { kind, target, noSkillReroll } = rolls[i];

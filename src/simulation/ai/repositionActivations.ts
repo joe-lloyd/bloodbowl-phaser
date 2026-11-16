@@ -18,6 +18,7 @@ import { Route } from "./routes";
 import { Context, gamble, tierFor } from "./activationContext";
 import { CORNERS } from "./ballActivations";
 import type { Activation, Role } from "./activations";
+import { moveFeedingCost } from "./feeding";
 
 export interface RoleSquare {
   role: Role;
@@ -125,7 +126,9 @@ function roleRoute(
   for (const s of squares) {
     const route = routes.get(key(s.at));
     if (!route || route.chance < w.safeMove) continue;
-    const gain = gamble(c, route.chance, worth(s.at) - here);
+    const gain =
+      gamble(c, route.chance, worth(s.at) - here) -
+      moveFeedingCost(c, player, s.at);
     if (gain > (best?.gain ?? 0.5)) best = { route, gain, role: s.role };
   }
   return best;
@@ -144,7 +147,9 @@ function chaseRoute(
   let best: Reposition | null = null;
   for (const route of routes.values()) {
     if (route.chance < w.safeMove || board.marks[key(route.to)] > 0) continue;
-    const gain = (now - distance(route.to, target)) * 0.5;
+    const gain =
+      (now - distance(route.to, target)) * 0.5 -
+      moveFeedingCost(c, player, route.to);
     if (now > 3 && gain > (best?.gain ?? 0.5))
       best = { route, gain, role: "chase" };
   }

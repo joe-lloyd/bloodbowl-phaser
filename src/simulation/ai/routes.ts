@@ -7,7 +7,7 @@
 import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { requiredRoll } from "../../game/rules/rollTargets";
-import { pickupTarget } from "../../game/rules/rollPreview";
+import { pickupTarget, secureBallTarget } from "../../game/rules/rollPreview";
 import { weatherEffects } from "../../game/rules/weather";
 import { rushAllowance, standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
@@ -44,7 +44,8 @@ function stepRolls(
   player: Player,
   from: Square,
   to: Square,
-  rush: boolean
+  rush: boolean,
+  securing: boolean
 ): RollTarget[] {
   const rolls: RollTarget[] = [];
   if (rush)
@@ -71,16 +72,25 @@ function stepRolls(
   }
   if (board.ball.kind === "loose" && key(board.ball.at) === key(to))
     rolls.push({
-      kind: "pickup",
-      target: pickupTarget(player, to, board.theirs, board.weather),
+      kind: securing ? "secure" : "pickup",
+      target: (securing ? secureBallTarget : pickupTarget)(
+        player,
+        to,
+        board.theirs,
+        board.weather
+      ),
     });
   return rolls;
 }
 
 /** Squares left this activation: [normal steps, rushes]. */
-export function movesLeft(board: Board, player: Player): [number, number] {
+export function movesLeft(
+  board: Board,
+  player: Player,
+  extraUsed = 0
+): [number, number] {
   const fielded = withDriveModifiers(player, board.gs.getState());
-  let used = board.gs.getMovementUsed(player.id);
+  let used = board.gs.getMovementUsed(player.id) + extraUsed;
   if (player.status === PlayerStatus.PRONE) used += standUpCost(fielded);
   const ma = fielded.stats.MA;
   const rushes = rushAllowance(fielded) - Math.max(0, used - ma);
@@ -117,7 +127,7 @@ interface Search {
   pickup: number;
 }
 
-function searchFor(board: Board, player: Player): Search {
+function searchFor(board: Board, player: Player, securing: boolean): Search {
   const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
   // The chance of each step, by what it depends on.
   const rush = rollChance(
@@ -131,7 +141,12 @@ function searchFor(board: Board, player: Player): Search {
   const pickup =
     ballKey >= 0
       ? rollChance(
-          pickupTarget(player, square(ballKey), board.theirs, board.weather)
+          (securing ? secureBallTarget : pickupTarget)(
+            player,
+            square(ballKey),
+            board.theirs,
+            board.weather
+          )
         )
       : 1;
   return { board, ballKey, rush, dodgeInto, pickup };
@@ -205,12 +220,15 @@ function pathRolls(
   player: Player,
   start: Square,
   path: Square[],
-  normal: number
+  normal: number,
+  securing: boolean
 ): RollTarget[] {
   const rolls: RollTarget[] = [];
   let from = start;
   for (let i = 0; i < path.length; i++) {
-    rolls.push(...stepRolls(board, player, from, path[i], i >= normal));
+    rolls.push(
+      ...stepRolls(board, player, from, path[i], i >= normal, securing)
+    );
     from = path[i];
   }
   return rolls;
@@ -221,11 +239,16 @@ function pathRolls(
  * own dice. A loose ball square ends a path (stepping on it is a Pick-up);
  * other players block.
  */
-export function routesFor(board: Board, player: Player): Map<number, Route> {
+export function routesFor(
+  board: Board,
+  player: Player,
+  securing = false,
+  extraUsed = 0
+): Map<number, Route> {
   const start = player.gridPosition!;
-  const [normal, rushes] = movesLeft(board, player);
+  const [normal, rushes] = movesLeft(board, player, extraUsed);
   const steps = Math.min(MAX_STEPS, normal + rushes);
-  spread(searchFor(board, player), start, steps, normal);
+  spread(searchFor(board, player, securing), start, steps, normal);
 
   const out = new Map<number, Route>();
   for (let cell = 0; cell < CELLS; cell++) {
@@ -237,7 +260,7 @@ export function routesFor(board: Board, player: Player): Map<number, Route> {
     const rolls =
       bestAt[bestK][cell] === 1
         ? NO_ROLLS
-        : pathRolls(board, player, start, path, normal);
+        : pathRolls(board, player, start, path, normal, securing);
     out.set(cell, {
       to: square(cell),
       path,
