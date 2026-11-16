@@ -21,7 +21,14 @@ await build({
   root,
   base: "./",
   publicDir: false,
-  build: { outDir, emptyOutDir: true, target: "es2020" },
+  build: {
+    outDir,
+    emptyOutDir: true,
+    target: "es2020",
+    rollupOptions: {
+      input: [join(root, "index.html"), join(root, "compare.html")],
+    },
+  },
 });
 await mkdir(join(outDir, "assets/stadium"), { recursive: true });
 for (const layer of ["base", "home", "away"]) {

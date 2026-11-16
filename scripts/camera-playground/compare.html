@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>A and B compared · Blood Bowl Sevens</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="comparison-page">
+    <header>
+      <a href="./index.html">← Camera playground</a>
+      <h1>The difference happens when you end activation.</h1>
+      <p>
+        Both views start on the same player at the same zoom. Six teammates are
+        spread across the pitch.
+      </p>
+    </header>
+    <div class="comparison-actions">
+      <button id="compare-play" class="primary" disabled>
+        Replay End activation
+      </button>
+      <button id="compare-reset" disabled>Show before</button>
+      <p id="compare-status" role="status">Loading both views…</p>
+    </div>
+    <main class="comparison-views">
+      <section>
+        <h2>A · Zoom to fit the team</h2>
+        <p>The camera can pull back so you can see every eligible teammate.</p>
+        <iframe
+          id="compare-a"
+          title="A: zoom to fit the team"
+          src="./index.html"
+        ></iframe>
+      </section>
+      <section>
+        <h2>B · Keep the current zoom</h2>
+        <p>The camera only pans. Teammates can remain outside the view.</p>
+        <iframe
+          id="compare-b"
+          title="B: keep the current zoom"
+          src="./index.html"
+        ></iframe>
+      </section>
+    </main>
+    <p class="comparison-footnote">
+      With a compact team, A may keep the same zoom too. Opening, movement,
+      blocks, and turn handoff behave the same in A and B.
+    </p>
+    <script type="module" src="./compare.ts"></script>
+  </body>
+</html>

@@ -52,13 +52,16 @@ const report = {
   invariantSamples: 0,
   maxZoomDelta: 0,
   errors: [],
+  comparisons: [],
 };
 
 try {
-  for (const viewport of [
-    { width: 1440, height: 1000 },
-    { width: 390, height: 844 },
-  ]) {
+  for (const viewport of process.argv.includes("--compare-only")
+    ? []
+    : [
+        { width: 1440, height: 1000 },
+        { width: 390, height: 844 },
+      ]) {
     const context = await browser.newContext({
       viewport,
       ignoreHTTPSErrors: true,
@@ -459,6 +462,123 @@ try {
     );
     assert(overflow <= 1, `Horizontal page overflow ${overflow}px`);
     assert(errors.length === 0, `Browser errors: ${errors.join(", ")}`);
+    await context.close();
+  }
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    const context = await browser.newContext({
+      viewport,
+      ignoreHTTPSErrors: true,
+      colorScheme: "dark",
+    });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(url.replace(/index\.html$/, "compare.html"));
+    const state = (id) =>
+      page
+        .frameLocator(`#${id}`)
+        .locator("body")
+        .evaluate(() => window.cameraPlayground.snapshot());
+    const finished = () =>
+      page.waitForFunction(() =>
+        ["compare-a", "compare-b"].every((id) => {
+          const s = document
+            .getElementById(id)
+            ?.contentWindow?.cameraPlayground?.snapshot();
+          return (
+            s?.ready &&
+            s.selected === null &&
+            s.phase === "idle" &&
+            !s.animating
+          );
+        })
+      );
+    await finished();
+    const assert = (condition, message) => {
+      if (!condition) throw new Error(message);
+      report.checks++;
+    };
+    const afterA = await state("compare-a");
+    const afterB = await state("compare-b");
+    const visible = (s) =>
+      s.players.filter(
+        (p) =>
+          p.team === "home" &&
+          !p.spent &&
+          p.screen.x >= s.area.left &&
+          p.screen.x <= s.area.right &&
+          p.screen.y >= s.area.top &&
+          p.screen.y <= s.area.bottom
+      ).length;
+    assert(
+      afterA.policy === "team" && afterB.policy === "keep",
+      "Comparison did not load A and B"
+    );
+    assert(
+      afterA.zoom < afterB.zoom * 0.85,
+      "Comparison does not show a visible zoom difference"
+    );
+    assert(visible(afterA) === 6, "A does not show all six eligible teammates");
+    assert(
+      visible(afterB) < 6,
+      "B should leave teammates outside this close view"
+    );
+    await page.screenshot({
+      path: join(output, `${viewport.width}-comparison-after.png`),
+      fullPage: true,
+    });
+    await page.locator("#compare-reset").click();
+    const beforeA = await state("compare-a");
+    const beforeB = await state("compare-b");
+    assert(
+      beforeA.selected === "home-1" && beforeB.selected === "home-1",
+      "Show before did not restore the same player"
+    );
+    assert(
+      beforeA.zoom === beforeB.zoom,
+      "Comparison does not start at the same zoom"
+    );
+    assert(
+      beforeA.camera.x === beforeB.camera.x &&
+        beforeA.camera.y === beforeB.camera.y,
+      "Comparison does not start at the same centre"
+    );
+    assert(afterB.zoom === beforeB.zoom, "B changed zoom after End activation");
+    await page.screenshot({
+      path: join(output, `${viewport.width}-comparison-before.png`),
+      fullPage: true,
+    });
+    await page.locator("#compare-play").click();
+    await finished();
+    assert(
+      (await state("compare-a")).zoom === afterA.zoom,
+      "A replay changed the framing"
+    );
+    assert(
+      (await state("compare-b")).zoom === afterB.zoom,
+      "B replay changed the framing"
+    );
+    assert(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth
+      ),
+      "Comparison overflows the viewport"
+    );
+    assert(
+      errors.length === 0,
+      `Comparison browser errors: ${errors.join(", ")}`
+    );
+    report.comparisons.push({
+      viewport,
+      beforeZoom: beforeA.zoom,
+      zoomA: afterA.zoom,
+      zoomB: afterB.zoom,
+      visibleA: visible(afterA),
+      visibleB: visible(afterB),
+    });
     await context.close();
   }
   await rm(join(output, "failure.txt"), { force: true });

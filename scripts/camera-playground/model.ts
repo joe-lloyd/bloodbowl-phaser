@@ -16,7 +16,7 @@ export const policies: { id: Policy; title: string; copy: string }[] = [
   {
     id: "team",
     title: "A · Team reset",
-    copy: "End activation frames eligible teammates. End turn shows everyone, then frames the other team.",
+    copy: "End activation can change zoom to fit eligible teammates. End turn shows everyone, then frames the other team.",
   },
   {
     id: "keep",
@@ -182,7 +182,7 @@ export const scenarios: Scenario[] = [
   {
     id: "isolated",
     title: "Isolated carrier",
-    copy: "The carrier is far from six teammates. End activation makes the policy differences obvious.",
+    copy: "The carrier is far from six teammates. A and B pan back the same way if those teammates already fit at the current zoom.",
     home: points([
       [18, 9],
       [3, 3],

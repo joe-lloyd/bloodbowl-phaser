@@ -11,6 +11,8 @@ node scripts/camera-playground/build.mjs
 
 The output is `dist/camera-playground/`. It uses relative assets and needs no game service. The build copies the stadium and six player atlas images from `public/`. Vite bundles the atlas frame metadata and the game's grid projection. No production camera module is imported or changed.
 
+`compare.html` puts A and B side by side. It drives the full playground's existing controls in two matching views of the widely spread team. Replay ends the same activation in both views. Show before restores the identical starting player, centre, and zoom. A zooms out to fit the remaining teammates. B only pans. The main playground links to this comparison.
+
 To publish on old-mac, build into the HTMLify project folder:
 
 ```sh
@@ -26,6 +28,14 @@ Run the browser checks against the published page through the existing daemon:
 ```sh
 node scripts/camera-playground/verify.mjs /tmp/camera-playground-evidence
 ```
+
+To check only the A and B comparison:
+
+```sh
+node scripts/camera-playground/verify.mjs /tmp/camera-playground-ab-evidence --compare-only
+```
+
+These checks compare identical starting cameras, A's six visible eligible teammates, B's unchanged zoom, replay, and overflow at desktop and phone widths.
 
 The check reads the daemon token from the local HTMLify configuration without printing it. It compares the LAN certificate fingerprint with the configured certificate before browser access. Playwright accepts that daemon's self-signed certificate. No server starts. If Chromium is missing, install it with `pnpm exec playwright install chromium`.
 
