@@ -8,11 +8,13 @@
 import type { GameFork } from "../../headless/HeadlessGame";
 import { scorePlayout } from "./search";
 import { Weights } from "./weights";
+import type { Activation } from "./activations";
 
 /** One playout: a candidate at the decision, on one roll of the dice. */
 export interface PlayoutJob {
   index: number;
   seed: number;
+  plan?: Activation;
 }
 
 export interface SearchRequest {
@@ -40,14 +42,14 @@ console.debug = () => {};
 
 self.onmessage = async ({ data }: MessageEvent<SearchRequest>) => {
   const scores: (number | null)[] = [];
-  for (const { index, seed } of data.jobs) {
+  for (const { index, seed, plan } of data.jobs) {
     if (data.deadlineAt !== undefined && Date.now() > data.deadlineAt) {
       scores.push(null);
       continue;
     }
     try {
       scores.push(
-        await scorePlayout(data.root, data.us, index, seed, data.weights)
+        await scorePlayout(data.root, data.us, index, seed, data.weights, plan)
       );
     } catch (error) {
       console.warn("[Search worker] playout failed:", error);

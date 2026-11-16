@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 /** Frozen process-pool acquisition. Every full match is replayed before saving. */
 import { fork } from "node:child_process";
 import {
@@ -47,10 +48,7 @@ if (args.includes("--worker")) {
       const replay = await replayStudyTrace(
         join(out, "traces", job.id + ".json.gz")
       );
-      if (
-        JSON.stringify(replay.observations.counters) !==
-        JSON.stringify(result.counters)
-      )
+      if (!isDeepStrictEqual(replay.observations.counters, result.counters))
         throw new Error("Replay event counters differ");
       atomic(join(out, "games", job.id + ".json"), {
         ...result,

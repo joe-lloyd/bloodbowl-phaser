@@ -265,7 +265,11 @@ export function routesFor(
       to: square(cell),
       path,
       rolls,
-      chance: rolls.length ? chain(player, rolls, false) : CERTAIN,
+      chance: rolls.length
+        ? chain(player, rolls, false, (skill) =>
+            board.gs.getRerollArbiter().skillRerollAvailable(player, skill)
+          )
+        : CERTAIN,
     });
   }
   return out;
@@ -274,14 +278,15 @@ export function routesFor(
 /** The same paths with a team re-roll to hand for the dice on them. */
 export function withTeamReroll(
   routes: Map<number, Route>,
-  player: Player
+  player: Player,
+  available?: (skill: SkillType) => boolean
 ): Map<number, Route> {
   const out = new Map<number, Route>();
   for (const [cell, route] of routes)
     out.set(
       cell,
       route.rolls.length
-        ? { ...route, chance: chain(player, route.rolls, true) }
+        ? { ...route, chance: chain(player, route.rolls, true, available) }
         : route
     );
   return out;

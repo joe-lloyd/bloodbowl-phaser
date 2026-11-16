@@ -126,8 +126,11 @@ function gazePlan(
   if (gain <= 1) return [];
   const reach = route?.chance ?? 1;
   const value =
-    gamble(c, reach, (1 - unfedChance(c, player, "gaze", at)) * d6(3) * gain) -
-    (1 - reach) * before -
+    gamble(
+      c,
+      reach,
+      before + (1 - unfedChance(c, player, "gaze", at)) * d6(3) * gain
+    ) -
     feedingCost(c, player, "gaze", at) -
     baseline.alternative;
   return [

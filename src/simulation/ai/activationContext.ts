@@ -10,8 +10,10 @@ import { SPP_VALUES, sppValuesFor } from "../../game/progression/MatchStats";
 import { Route, routesFor, withTeamReroll } from "./routes";
 import { Weights } from "./weights";
 import type { Available, Tier } from "./activations";
+import { canStillScore } from "./latePlans";
 
 export interface Context {
+  goal: "attack" | "finish" | "protect";
   skillPlans: boolean;
   board: Board;
   w: Weights;
@@ -42,7 +44,7 @@ export function context(
   available: Available,
   skillPlans = true
 ): Context {
-  const teamReroll = board.rerolls > 0;
+  const teamReroll = board.gs.getRerollArbiter().teamRerollAvailable(board.us);
   // A player's paths do not depend on the re-roll, only their chances do.
   const plainCache = new Map<string, Map<number, Route>>();
   const rerollCache = new Map<string, Map<number, Route>>();
@@ -54,7 +56,12 @@ export function context(
   const rerollRoutes = (p: Player) => {
     let routes = rerollCache.get(p.id);
     if (!routes)
-      rerollCache.set(p.id, (routes = withTeamReroll(plainRoutes(p), p)));
+      rerollCache.set(
+        p.id,
+        (routes = withTeamReroll(plainRoutes(p), p, (skill) =>
+          board.gs.getRerollArbiter().skillRerollAvailable(p, skill)
+        ))
+      );
     return routes;
   };
   const ballAt = board.ball.kind === "none" ? null : board.ball.at;
@@ -65,6 +72,12 @@ export function context(
     board.ours.reduce((sum, p) => sum + p.stats.MA, 0) /
     Math.max(1, board.ours.length);
   return {
+    goal:
+      board.turnsLeft > 1
+        ? "attack"
+        : canStillScore(board, available)
+          ? "finish"
+          : "protect",
     skillPlans,
     board,
     w,

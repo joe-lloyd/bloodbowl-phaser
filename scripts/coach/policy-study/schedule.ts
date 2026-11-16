@@ -10,10 +10,33 @@ export interface PolicyJob extends StudyJob {
   leg: number;
 }
 
+/** Keep whole blocks, include named capability sentinels, then span the matrix. */
+export function limitPolicyBlocks(
+  jobs: PolicyJob[],
+  count: number,
+  requiredVariants: string[] = []
+): PolicyJob[] {
+  const pairs = [...new Set(jobs.map((j) => j.pair))];
+  const chosen = new Set<string>();
+  for (const id of requiredVariants) {
+    const pair = jobs.find((j) => j.variantIds.includes(id))?.pair;
+    if (pair && chosen.size < count) chosen.add(pair);
+  }
+  const remaining = Math.min(count, pairs.length) - chosen.size;
+  for (let i = 0; i < remaining; i++)
+    chosen.add(pairs[Math.floor((i * pairs.length) / remaining)]);
+  for (const pair of pairs) {
+    if (chosen.size >= Math.min(count, pairs.length)) break;
+    chosen.add(pair);
+  }
+  return jobs.filter((j) => chosen.has(j.pair));
+}
+
 export function policySchedule(
   variants: Variant[],
   smoke = false,
-  seedBase = 13_000_000
+  seedBase = 13_000_000,
+  receivingBalance = false
 ): PolicyJob[] {
   const groups = new Map<string, Variant[]>();
   for (const v of variants) {
@@ -32,7 +55,7 @@ export function policySchedule(
           groupIndex * 10000 +
           offset * 100 +
           index;
-        for (let leg = 0; leg < 4; leg++) {
+        for (let leg = 0; leg < (receivingBalance ? 8 : 4); leg++) {
           const sides: [Variant, Variant] = leg % 2 ? [b, a] : [a, b];
           jobs.push({
             id: `${pair}-${leg}`,
@@ -43,8 +66,11 @@ export function policySchedule(
             coaches: ["planner", "planner"],
             templates: [sides[0].template, sides[1].template],
             variantIds: [sides[0].id, sides[1].id],
-            candidateSide: leg === 0 || leg === 3 ? 0 : 1,
+            candidateSide: leg % 4 === 0 || leg % 4 === 3 ? 0 : 1,
             development: a.arm,
+            ...(receivingBalance
+              ? { receivingSide: leg < 4 ? (0 as const) : (1 as const) }
+              : {}),
           });
         }
       });

@@ -458,12 +458,7 @@
     <details>
       <summary>Method, integrity and limitations</summary>
       <p id="integrity"></p>
-      <p>
-        Each independent block has four games using the same seed: swap physical
-        sides, then swap which policy uses each team. Confidence intervals
-        resample whole four-game blocks 2,000 times. Point estimates and
-        intervals use the same complete, finding-free blocks.
-      </p>
+      <p id="block-method"></p>
       <ul id="limitations"></ul>
       <p id="provenance" class="muted"></p>
     </details>
@@ -506,21 +501,21 @@
       const ci = c.ci,
         verdict = s.engine_findings
           ? "Integrity findings block promotion."
-          : ci[0] > 0.5
-            ? "The new planner has a positive result against this frozen opponent."
-            : ci[1] < 0.5
-              ? "The new planner regressed against this frozen opponent."
-              : "The result is inconclusive: the interval still includes an even match.";
+          : s.scope === "functional-sentinel"
+            ? "Functional sentinel only; too few blocks for a general strength estimate."
+            : ci && ci[0] > 0.5
+              ? "The new planner has a positive result against this frozen opponent."
+              : ci && ci[1] < 0.5
+                ? "The new planner regressed against this frozen opponent."
+                : "The result is inconclusive: the interval still includes an even match.";
       $("verdict").textContent =
         (data.manifest.smoke ? "Smoke test only. " : "") +
         verdict +
         " New points share " +
         pct(c.points) +
-        " (95% interval " +
-        pct(ci[0]) +
-        "–" +
-        pct(ci[1]) +
-        ").";
+        (ci
+          ? " (95% interval " + pct(ci[0]) + " to " + pct(ci[1]) + ")."
+          : " (descriptive).");
       $("cards").innerHTML = [
         ["Included games", num(s.included)],
         ["Independent blocks", num(c.blocks)],
@@ -555,7 +550,10 @@
             y +
             '" y2="' +
             y +
-            '" stroke="var(--study-blue)" stroke-width="4"/><circle cx="' +
+            '" stroke="var(--study-blue)" stroke-width="4"/>';
+        if (row.points != null)
+          svg +=
+            '<circle cx="' +
             x(row.points) +
             '" cy="' +
             y +
@@ -727,11 +725,19 @@
       rosterTable();
       skillTable();
       $("macro").textContent =
-        "Equal-weight average across " +
-        s.rosters.length +
-        " rosters: " +
-        delta(s.macro_points_delta * 100) +
-        " percentage points compared with the previous policy (descriptive; no macro confidence interval).";
+        "Equal-roster points share: " +
+        pct(s.equal_roster.points) +
+        " · 95% interval " +
+        (s.equal_roster.ci
+          ? s.equal_roster.ci.map(pct).join(" to ")
+          : "not estimated") +
+        ". Whole balanced blocks are resampled before averaging rosters.";
+      $("block-method").textContent =
+        "Each block contains " +
+        (data.manifest.blockSize || 4) +
+        " games with the same seed, balancing physical side and which policy uses each roster" +
+        (data.manifest.blockSize === 8 ? ", plus first receiver" : "") +
+        ". Intervals resample complete, finding-free blocks 2,000 times.";
       $("integrity").textContent =
         num(s.saved) +
         " saved / " +

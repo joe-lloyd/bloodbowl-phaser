@@ -10,12 +10,13 @@ import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GameService } from "../../services/GameService";
 import { Weather } from "../../game/rules/weather";
 import { teamRerollsLeft } from "../../game/teamRerolls";
+import { isLeagueMode } from "../../types/Team";
 
 export type Square = GridPosition;
 
 export const WIDTH = GameConfig.PITCH_WIDTH;
 export const HEIGHT = GameConfig.PITCH_HEIGHT;
-const TURNS_PER_HALF = 6;
+const TURNS_PER_HALF = GameConfig.TURNS_PER_HALF;
 
 export const key = (s: Square) => s.y * WIDTH + s.x;
 export const onPitch = (s: Square) =>
@@ -54,6 +55,9 @@ export interface Board {
   rerolls: number;
   /** Our turns left in this half after this one; 0 on our last turn. */
   turnsLeft: number;
+  /** Opponent turns still to start, read from the authoritative turn counters. */
+  opponentTurnsLeft: number;
+  persistentInjuries: boolean;
   half2: boolean;
   /** Our score minus theirs. */
   lead: number;
@@ -114,6 +118,10 @@ export function readBoard(game: HeadlessGame, us: string): Board {
     weather: state.weather,
     rerolls: ourTeam ? teamRerollsLeft(state, ourTeam) : 0,
     turnsLeft: ourTurn ? Math.max(0, TURNS_PER_HALF - turn.turnNumber) : 0,
+    opponentTurnsLeft: Math.max(0, TURNS_PER_HALF - gs.getTurnNumber(them)),
+    persistentInjuries:
+      game.ctx.matchStats.progressionEnabled ||
+      isLeagueMode(ourTeam?.advancementMode),
     half2: !!turn.isHalf2,
     lead: (score[us] ?? 0) - (score[them] ?? 0),
     dir: us === team1 ? 1 : -1,

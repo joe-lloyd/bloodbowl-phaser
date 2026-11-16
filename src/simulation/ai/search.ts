@@ -15,7 +15,7 @@ import { GamePhase, GameState } from "../../types/GameState";
 import { Candidate, enumerateDecision } from "../candidates";
 import { Coach, CoachChoice, CoachContext } from "../coach";
 import { CoachRng, createCoachRng } from "../rng";
-import { Activation, activations } from "./activations";
+import { Activation, activations, planIdentity } from "./activations";
 import { readBoard } from "./board";
 import { evaluate } from "./evaluate";
 import { availableActions, createPlannerCoach, noteFor } from "./planner";
@@ -54,7 +54,7 @@ function shortlist(context: CoachContext, w: Weights, size: number): Option[] {
     w,
     availableActions(point.candidates)
   )) {
-    const id = `${activation.player.id}/${activation.action}`;
+    const id = planIdentity(activation);
     if (seen.has(id)) continue;
     seen.add(id);
     const index = point.candidates.findIndex((c: Candidate) => {
@@ -92,7 +92,8 @@ export async function scorePlayout(
   us: string,
   index: number,
   seed: number,
-  w: Weights = DEFAULT_WEIGHTS
+  w: Weights = DEFAULT_WEIGHTS,
+  openingPlan?: Activation
 ): Promise<number> {
   const game = await replay(root);
   const dice = game.ctx.rng.captureState();
@@ -103,6 +104,7 @@ export async function scorePlayout(
   if (opening) await game.execute(opening.commands[0]);
 
   const policy = createPlannerCoach({ weights: w });
+  if (openingPlan) policy.remember(game, openingPlan);
   // The planner draws nothing at random, but a decision it leaves to the
   // heuristic does: its own stream keeps the playout a function of its seed.
   const rng = createCoachRng(sampleSeed(seed, index));
@@ -120,10 +122,12 @@ export async function scorePlayout(
       point,
       rng,
     });
-    const candidate = point.candidates[index] ?? point.candidates[0];
+    const candidate = point.candidates[index];
     let refused = false;
-    for (const command of candidate.commands)
-      if (!(await game.execute(command)).ok) refused = true;
+    for (const command of candidate.commands) {
+      const result = await game.execute(command);
+      refused = refused || !result.ok;
+    }
     if (refused) break;
   }
   return evaluate(readBoard(game, us));
@@ -168,6 +172,7 @@ export interface PlayoutRound {
   root: GameFork;
   us: string;
   indices: number[];
+  plans?: Activation[];
   seeds: number[];
   /** Date.now() after which no playout starts. */
   deadlineAt?: number;
@@ -182,14 +187,14 @@ export type Playouts = (round: PlayoutRound) => Promise<number[][]>;
 
 /** Playouts in this thread, one after another. */
 export function playoutsHere(w: Weights): Playouts {
-  return async ({ root, us, indices, seeds, deadlineAt }) => {
+  return async ({ root, us, indices, seeds, deadlineAt, plans }) => {
     const late = () => deadlineAt !== undefined && Date.now() > deadlineAt;
     const rows: number[][] = [];
     for (const seed of seeds) {
       const row: number[] = [];
-      for (const index of indices) {
+      for (const [k, index] of indices.entries()) {
         if (late()) return rows;
-        row.push(await scorePlayout(root, us, index, seed, w));
+        row.push(await scorePlayout(root, us, index, seed, w, plans?.[k]));
       }
       rows.push(row);
     }
@@ -220,7 +225,8 @@ export function createSearchCoach(options: {
     root: GameFork,
     us: string,
     indices: number[],
-    rng: CoachRng
+    rng: CoachRng,
+    plans?: Activation[]
   ): Promise<number> => {
     const deadlineAt =
       budget.deadlineMs === undefined
@@ -245,6 +251,7 @@ export function createSearchCoach(options: {
         indices: alive.map((i) => indices[i]),
         seeds,
         deadlineAt,
+        ...(plans ? { plans: alive.map((i) => plans[i]) } : {}),
       });
       for (const row of rows)
         alive.forEach((i, k) => {
@@ -269,9 +276,11 @@ export function createSearchCoach(options: {
       { save: game.matchSave(), since: [] },
       point.teamId,
       list.map((option) => option.index),
-      context.rng
+      context.rng,
+      list.map((option) => option.activation)
     );
     const pick = list[best];
+    policy.remember(game, pick.activation);
     return { index: pick.index, note: noteFor(pick.activation) };
   };
 

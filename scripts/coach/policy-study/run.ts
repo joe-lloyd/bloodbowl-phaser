@@ -1,27 +1,29 @@
+import { isDeepStrictEqual } from "node:util";
 /** Compare current modular plans with an archived, frozen pre-change planner. */
-import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   renameSync,
   writeFileSync,
 } from "node:fs";
 import { hostname } from "node:os";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { acquisitionDigest } from "../advanced-study/fingerprint";
+import { policySourceDigest, treeDigest } from "./fingerprint";
+import { recoverVerifiedGames } from "../policy-lab/recover";
 import { advancedInventory, teamFromVariant } from "../advanced-study/teams";
 import { catalogueInventory } from "../catalogue-study/schedule";
 import { playStudyGame } from "../catalogue-study/play";
 import { replayStudyTrace } from "../catalogue-study/replay";
 import { createPlannerCoach } from "../../../src/simulation/ai/planner";
 import type { Coach } from "../../../src/simulation/coach";
-import { policySchedule } from "./schedule";
+import { policySchedule, limitPolicyBlocks } from "./schedule";
 import type { PolicyJob } from "./schedule";
 import { processPool } from "./pool";
 import { sppValuesFor } from "../../../src/game/progression/MatchStats";
+import { createOpportunityLog } from "../policy-lab/evidence";
+import { labInventory } from "../policy-lab/teams";
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) =>
@@ -32,33 +34,27 @@ const out = resolve(flag("out", "sim-results/skill-plans"));
 const baseline = flag("baseline", "");
 if (!baseline) throw new Error("--baseline must name the frozen source root");
 const frozen = resolve(baseline);
-const variants = advancedInventory();
+const lab = args.includes("--lab");
+const labVariants = lab ? labInventory() : null;
+const variants = labVariants ?? advancedInventory();
 const byId = new Map(variants.map((v) => [v.id, v]));
+const snapshots = new Map(labVariants?.map((v) => [v.id, v.team]));
+const getTeam = (id: string) => {
+  const snapshot = snapshots.get(id);
+  return snapshot ? structuredClone(snapshot) : teamFromVariant(byId.get(id)!);
+};
+const opponent = flag("opponent", "planner");
+if (!["planner", "heuristic", "hard", "legend"].includes(opponent))
+  throw new Error("Unsupported frozen opponent");
 
 function atomic(file: string, data: unknown) {
   writeFileSync(file + ".tmp", JSON.stringify(data));
   renameSync(file + ".tmp", file);
 }
-function treeDigest(base: string, paths: string[]): string {
-  const hash = createHash("sha256");
-  function visit(path: string) {
-    for (const item of readdirSync(path, { withFileTypes: true }).sort(
-      (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
-    )) {
-      const file = join(path, item.name);
-      if (item.isDirectory()) visit(file);
-      else
-        hash
-          .update(relative(base, file).split(sep).join("/"))
-          .update(readFileSync(file));
-    }
-  }
-  paths.forEach((path) => visit(join(base, path)));
-  return hash.digest("hex");
-}
-
-function track(coach: Coach) {
+function track(coach: Coach, collectPlans = false) {
   const selected: Record<string, number> = {};
+  const opportunities = createOpportunityLog();
+  let decisions = 0;
   let milliseconds = 0;
   const tracked: Coach = {
     name: coach.name,
@@ -67,6 +63,8 @@ function track(coach: Coach) {
       const choice = await coach.choose(context);
       milliseconds += performance.now() - start;
       const command = context.point.candidates[choice.index]?.commands[0];
+      if (collectPlans) opportunities.observe(context, choice, decisions);
+      decisions++;
       if (
         command?.type === "declare-action" &&
         choice.note?.startsWith("moves to feed")
@@ -87,6 +85,7 @@ function track(coach: Coach) {
   return {
     coach: tracked,
     selected,
+    ...opportunities,
     get milliseconds() {
       return milliseconds;
     },
@@ -95,9 +94,12 @@ function track(coach: Coach) {
 
 if (args.includes("--worker")) {
   const module = await import(
-    pathToFileURL(join(frozen, "src/simulation/ai/planner.ts")).href
+    pathToFileURL(join(frozen, "src/simulation/commands/shared.ts")).href
   );
-  const legacy: Coach = { ...module.plannerCoach, name: "planner-frozen" };
+  const legacy: Coach = {
+    ...module.makeCoach(opponent, []),
+    name: "planner-frozen",
+  };
   process.on("message", async (job: PolicyJob | null) => {
     if (!job) {
       process.disconnect();
@@ -105,7 +107,8 @@ if (args.includes("--worker")) {
     }
     try {
       const candidate = track(
-        createPlannerCoach({ name: "planner-skill-plans" })
+        createPlannerCoach({ name: "planner-skill-plans" }),
+        lab
       );
       const old = track(legacy);
       const coaches: [Coach, Coach] =
@@ -115,19 +118,13 @@ if (args.includes("--worker")) {
       const result = await playStudyGame(
         job,
         out,
-        [
-          teamFromVariant(byId.get(job.variantIds[0])!),
-          teamFromVariant(byId.get(job.variantIds[1])!),
-        ],
+        [getTeam(job.variantIds[0]), getTeam(job.variantIds[1])],
         coaches
       );
       const replay = await replayStudyTrace(
         join(out, "traces", job.id + ".json.gz")
       );
-      if (
-        JSON.stringify(result.counters) !==
-        JSON.stringify(replay.observations.counters)
-      )
+      if (!isDeepStrictEqual(result.counters, replay.observations.counters))
         throw new Error("Replay event counters differ");
       atomic(join(out, "games", job.id + ".json"), {
         ...result,
@@ -141,6 +138,15 @@ if (args.includes("--worker")) {
           candidate: candidate.milliseconds,
           frozen: old.milliseconds,
         },
+        ...(lab
+          ? {
+              opportunities: {
+                legal: candidate.legal,
+                proposed: candidate.proposed,
+              },
+              receipts: candidate.receipts,
+            }
+          : {}),
       });
       process.send?.({ done: job.id });
     } catch (error) {
@@ -157,13 +163,44 @@ if (args.includes("--worker")) {
     seedBase > 4_000_000_000
   )
     throw new Error("Invalid seed base");
-  let jobs = policySchedule(variants, smoke, seedBase);
-  if (smoke) {
+  let jobs = policySchedule(variants, smoke, seedBase, lab);
+  if (lab) {
+    if (args.includes("--base-only"))
+      jobs = jobs.filter((j) => j.development === "base");
+    // Small gates preserve whole blocks. Confirmation visits every recipe.
+    const blockLimit = Number(flag("blocks", "0"));
+    if (!Number.isSafeInteger(blockLimit) || blockLimit < 0)
+      throw new Error("Invalid block limit");
+    if (blockLimit) {
+      const sentinels = smoke
+        ? ["Vampire", "Throw Team-mate", "Multiple Block"].flatMap(
+            (capability) => {
+              const variant = variants.find((v) => {
+                const team = getTeam(v.id);
+                return (
+                  team.rosterName.includes(capability) ||
+                  team.players.some((p) =>
+                    p.skills.some((s) => s.type === capability)
+                  )
+                );
+              });
+              return variant ? [variant.id] : [];
+            }
+          )
+        : [];
+      jobs = limitPolicyBlocks(jobs, blockLimit, sentinels);
+    }
+    jobs = jobs.map((j) => ({
+      ...j,
+      persistentInjuries: args.includes("--league"),
+    }));
+  }
+  if (smoke && !lab) {
     const special = new Set(
       variants
         .filter(
           (v) =>
-            teamFromVariant(v).rosterName.includes("Vampire") ||
+            getTeam(v.id).rosterName.includes("Vampire") ||
             v.allocations.some((a) => a.skill === "Multiple Block")
         )
         .map((v) => v.id)
@@ -177,12 +214,7 @@ if (args.includes("--worker")) {
   const workers = Number(flag("workers", "8"));
   if (!Number.isSafeInteger(workers) || workers < 1)
     throw new Error("Invalid worker count");
-  const hash = createHash("sha256").update(acquisitionDigest(root));
-  for (const file of ["run.ts", "pool.ts", "schedule.ts"])
-    hash
-      .update(file)
-      .update(readFileSync(join(root, "scripts/coach/policy-study", file)));
-  const sourceDigest = hash.digest("hex");
+  const sourceDigest = policySourceDigest(root, lab);
   const baselineDigest = treeDigest(frozen, ["src"]);
   mkdirSync(join(out, "games"), { recursive: true });
   const inventory = catalogueInventory();
@@ -195,15 +227,26 @@ if (args.includes("--worker")) {
     host: hostname(),
     node: process.version,
     sourceDigest,
+    telemetry: "live-gameplay-events-v1",
     baselineDigest,
     baselineRevision: flag("baseline-revision", "unspecified"),
     revision: flag("revision", "unspecified"),
     smoke,
+    opponent,
     workers,
     variants,
     inventory,
     objectives,
     jobs,
+    ...(lab
+      ? {
+          lab: true,
+          blockSize: 8,
+          context: args.includes("--league")
+            ? "persistent-fixture"
+            : "exhibition",
+        }
+      : {}),
   };
   const file = join(out, "manifest.json");
   if (existsSync(file)) {
@@ -211,12 +254,24 @@ if (args.includes("--worker")) {
     if (
       previous.sourceDigest !== sourceDigest ||
       previous.baselineDigest !== baselineDigest ||
+      previous.node !== manifest.node ||
+      previous.opponent !== manifest.opponent ||
       JSON.stringify(previous.jobs) !== JSON.stringify(jobs)
     )
       throw new Error(
         "Source or schedule changed; use a fresh output directory"
       );
   } else atomic(file, manifest);
+  const reuse = flag("reuse-run", "");
+  if (reuse && !lab) throw new Error("Recovery requires --lab");
+  if (reuse)
+    await recoverVerifiedGames(
+      resolve(reuse),
+      resolve(flag("reuse-source", "")),
+      root,
+      out,
+      manifest
+    );
   const pending = jobs.filter(
     (job) => !existsSync(join(out, "games", job.id + ".json"))
   );

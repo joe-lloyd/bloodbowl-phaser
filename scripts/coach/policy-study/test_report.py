@@ -5,12 +5,13 @@ import io
 import json
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 
-from report import analyse, build, load_games
+from report import analyse, build, load_games, roster_estimates
 
 
 class ReportTest(unittest.TestCase):
@@ -43,6 +44,101 @@ class ReportTest(unittest.TestCase):
         for g in games:
             (root / "games" / (g["id"] + ".json")).write_text(json.dumps(g))
         return manifest, games
+
+    def test_small_hard_sentinel_suppresses_strength_intervals(self):
+        with tempfile.TemporaryDirectory() as name:
+            root, out = Path(name) / "run", Path(name) / "report"
+            root.mkdir()
+            manifest, _ = self.fixture(root)
+            manifest["opponent"] = "hard"
+            (root / "manifest.json").write_text(json.dumps(manifest))
+            with contextlib.redirect_stdout(io.StringIO()):
+                summary = build(root, out)
+            self.assertEqual(summary["scope"], "functional-sentinel")
+            self.assertIsNone(summary["comparisons"]["overall"]["ci"])
+            self.assertIsNone(summary["equal_roster"]["ci"])
+
+    def test_persistent_page_renders_with_and_without_loss_intervals(self):
+        for opponent in ("planner", "hard", "legend"):
+            with self.subTest(opponent=opponent), tempfile.TemporaryDirectory() as name:
+                root = Path(name)
+                run = root / "persistent"
+                run.mkdir()
+                manifest, _ = self.fixture(run)
+                manifest.update(opponent=opponent, context="persistent-fixture")
+                (run / "manifest.json").write_text(json.dumps(manifest))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    build(run, root / "reports/persistent")
+                contracts = root / "contracts"
+                contracts.mkdir()
+                for file, value in (("gate.json", {"tests": 1}),
+                                    ("coverage.json", []), ("contracts.json", {})):
+                    (contracts / file).write_text(json.dumps(value))
+                generator = Path(__file__).resolve().parents[1] / "policy-lab/report.py"
+                subprocess.run([sys.executable, str(generator), str(root)],
+                               capture_output=True, check=True)
+                page = (root / "reports/index.html").read_text()
+                check = r"""
+import assert from 'node:assert/strict';
+import { JSDOM, VirtualConsole } from 'jsdom';
+import { readFileSync } from 'node:fs';
+const errors = [], console = new VirtualConsole();
+console.on('jsdomError', error => errors.push(error.message));
+const dom = new JSDOM(readFileSync(0, 'utf8'), { runScripts: 'dangerously', virtualConsole: console });
+assert.deepEqual(errors, []);
+const document = dom.window.document;
+assert.equal(document.querySelectorAll('#chart circle').length, 1);
+assert.equal(document.getElementById('source').textContent, 'Confirmation pending. Pilot results are diagnostic.');
+const preservation = document.getElementById('preservation').textContent;
+assert.ok(preservation.includes(process.argv[1] === 'planner' ? '95% interval 0.00 to 0.00' : 'interval not estimated'));
+dom.window.close();
+"""
+                rendered = subprocess.run(["node", "--input-type=module", "-e", check, opponent],
+                                          input=page, text=True, capture_output=True)
+                self.assertEqual(rendered.returncode, 0, rendered.stderr)
+
+    def test_player_loss_interval_resamples_complete_blocks(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            manifest, games = self.fixture(root)
+            for game in games:
+                side = game["candidateSide"]
+                losses = [{"deaths": 0}, {"deaths": 0}]
+                losses[side if game["pair"] == "a" else 1 - side]["deaths"] = 2
+                game["playerLosses"] = losses
+                (root / "games" / (game["id"] + ".json")).write_text(json.dumps(game))
+            m, saved, blocks, excluded = load_games(root)
+            summary = analyse(m, saved, blocks, excluded)[0]
+            self.assertEqual(summary["player_loss_delta"]["deaths"], {"per_game": 0, "ci": [-2.0, 2.0]})
+
+    def test_receiving_balance_and_equal_roster_interval(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            manifest, games = self.fixture(root)
+            manifest["blockSize"] = 8
+            for job, game in zip(manifest["jobs"], games):
+                job["receivingSide"] = game["receivingSide"] = 0
+                game["initialReceivingSide"] = 0
+            for job in list(manifest["jobs"]):
+                extra = copy.deepcopy(job)
+                extra.update(id=job["pair"] + "-" + str(job["leg"] + 4), leg=job["leg"] + 4, receivingSide=1)
+                game = copy.deepcopy(next(g for g in games if g["id"] == job["id"]))
+                game.update(extra, initialReceivingSide=1)
+                manifest["jobs"].append(extra)
+                games.append(game)
+            (root / "manifest.json").write_text(json.dumps(manifest))
+            for game in games:
+                (root / "games" / (game["id"] + ".json")).write_text(json.dumps(game))
+            _, _, blocks, excluded = load_games(root)
+            self.assertEqual(excluded, [])
+            self.assertEqual([len(b) for b in blocks], [8, 8])
+            result = roster_estimates(blocks, {v: {"rosterName": "One roster"} for v in ("v1", "v2")})
+            self.assertEqual(result["points"], .75)
+            self.assertEqual(result["ci"], [.5, 1.0])
+            games[0]["initialReceivingSide"] = 1
+            (root / "games" / (games[0]["id"] + ".json")).write_text(json.dumps(games[0]))
+            with self.assertRaisesRegex(ValueError, "Engine first receiver differs"):
+                load_games(root)
 
     def test_point_estimate_and_interval_exclude_the_same_incomplete_block(self):
         with tempfile.TemporaryDirectory() as name:

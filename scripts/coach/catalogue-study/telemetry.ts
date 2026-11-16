@@ -175,13 +175,13 @@ export function createTelemetry(game: HeadlessGame) {
   const counters: Record<string, number> = {};
   let step = 0;
   const original = game.execute.bind(game);
-  const observe = (context: Context, response: CommandResponse) => {
+  const observe = (context: Context, events: CommandResponse["events"]) => {
     const turnover = new Set(
-      response.events
+      events
         .filter((e) => e.name === GameEventNames.Turnover)
         .map((e) => (e.data as { teamId: string }).teamId)
     );
-    for (const event of response.events) {
+    for (const event of events) {
       const data = (event.data ?? {}) as Data;
       if (event.name === GameEventNames.SkillTriggered)
         observeSkill(game, context, data, step, skills);
@@ -193,17 +193,60 @@ export function createTelemetry(game: HeadlessGame) {
       if (event.name === GameEventNames.PlayerCasualtyInflicted)
         increment(counters, `casualty:${data.cause}:${data.sppEligible}`);
     }
-    step++;
   };
+  let batch: { context: Context; events: CommandResponse["events"] } | null =
+    null;
+  // Gameplay measurements come from live emissions, not historical reply logs.
+  const measuredEvents = [
+    GameEventNames.SkillTriggered,
+    GameEventNames.DiceRoll,
+    GameEventNames.DecisionRequested,
+    GameEventNames.DecisionResolved,
+    GameEventNames.Turnover,
+    GameEventNames.TurnStarted,
+    GameEventNames.TurnEnded,
+    GameEventNames.Touchdown,
+    GameEventNames.PlayerCasualtyInflicted,
+    GameEventNames.PlayerStatusChanged,
+    GameEventNames.PlayerKnockedDown,
+    GameEventNames.PlayerMoved,
+    GameEventNames.PassAttempted,
+    GameEventNames.PassCompleted,
+    GameEventNames.BallPickup,
+  ] as const;
+  for (const name of measuredEvents) {
+    game.ctx.eventBus.on(name, (data) => {
+      const event = { name, data };
+      if (batch) batch.events.push(event);
+      else observe(commandContext(game, { type: "state" }), [event]);
+    });
+  }
   game.execute = async (command: unknown) => {
     const typed = command as HeadlessCommand;
-    // Queries return the existing event log without consuming or clearing it.
-    // Their events belong to the preceding mutation and must never be recounted.
+    // Read replies contain historical events. The bus records only new emissions,
+    // including suspended engine work that completes between command replies.
     if (["state", "legal-actions", "offer-inducements"].includes(typed.type))
       return original(command);
     const context = commandContext(game, typed);
-    const response = await original(command);
-    if (response.ok) observe(context, response);
+    const previous = batch;
+    const current = { context, events: [] as CommandResponse["events"] };
+    batch = current;
+    let response: CommandResponse;
+    try {
+      response = await original(command);
+    } finally {
+      batch = previous;
+    }
+    if (response.ok) {
+      increment(counters, `accepted:${typeOf(typed)}`);
+      if (context.actor)
+        increment(
+          counters,
+          `accepted:${sideOf(game, context.actor.teamId)}:${typeOf(typed)}`
+        );
+    }
+    observe(context, current.events);
+    step++;
     return response;
   };
   const wrap = (coach: Coach): Coach => ({

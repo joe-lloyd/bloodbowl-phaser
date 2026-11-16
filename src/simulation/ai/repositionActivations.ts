@@ -19,6 +19,7 @@ import { Context, gamble, tierFor } from "./activationContext";
 import { CORNERS } from "./ballActivations";
 import type { Activation, Role } from "./activations";
 import { moveFeedingCost } from "./feeding";
+import { exposureCost, injuryRiskValue, opponentCanScore } from "./latePlans";
 
 export interface RoleSquare {
   role: Role;
@@ -33,6 +34,9 @@ function ownCarrierSquares(c: Context, at: Square, add: AddSquare): void {
   const { board, w } = c;
   for (const [dx, dy] of CORNERS)
     add("cage", { x: at.x + dx, y: at.y + dy }, w.cageCorner);
+  // Final-turn receiver preparation must lead to a score. End-zone runs
+  // have their own complete transfer plan in deepReceiverActivations.
+  if (board.turnsLeft === 0) return;
   for (const ahead of [2, 3, 4])
     for (const dy of [-2, 0, 2])
       add(
@@ -59,16 +63,22 @@ function cageWallSquares(
 /** Their carrier: marks on it and its cage, and a screen in front of our end zone. */
 function theirCarrierSquares(c: Context, at: Square, add: AddSquare): void {
   const { board, w } = c;
+  const preserve =
+    c.goal === "protect" &&
+    board.persistentInjuries &&
+    !opponentCanScore(board);
   // A marker or two presses the carrier; a crowd only hands out free hits.
   const markers = board.ours.filter(
     (p) => standing(p) && distance(p.gridPosition!, at) === 1
   ).length;
-  const press = w.markCarrier / (1 + markers);
+  const press = preserve ? 0 : w.markCarrier / (1 + markers);
   // A square nobody else marks assists a hit; re-planning each step must
   // keep a helper heading there.
-  for (const s of neighbours(at))
-    add("mark", s, press + (board.marks[key(s)] === 1 ? w.assist : 0));
-  cageWallSquares(board, at, press, add);
+  if (press > 0) {
+    for (const s of neighbours(at))
+      add("mark", s, press + (board.marks[key(s)] === 1 ? w.assist : 0));
+    cageWallSquares(board, at, press, add);
+  }
   // A screen between the carrier and our end zone, two squares apart.
   for (const depth of [2, 4])
     for (const dy of [-4, -2, 0, 2, 4])
@@ -116,7 +126,11 @@ function roleRoute(
     );
     const marked = board.marks[key(at)];
     const role = squares.find((s) => s.at.x === at.x && s.at.y === at.y)?.role;
-    return base - (role === "mark" ? 0 : marked * w.endInContact);
+    return (
+      base -
+      (role === "mark" ? 0 : marked * w.endInContact) -
+      exposureCost(c, player, at)
+    );
   };
   const here =
     player.status === PlayerStatus.PRONE
@@ -142,6 +156,12 @@ function chaseRoute(
 ): Reposition | null {
   const { board, w } = c;
   if (board.ball.kind === "none" || !standing(player)) return null;
+  if (
+    board.turnsLeft === 0 &&
+    board.ball.kind === "carried" &&
+    board.ball.carrier.teamId === board.us
+  )
+    return null;
   const target = board.ball.at;
   const now = distance(player.gridPosition!, target);
   let best: Reposition | null = null;
@@ -183,15 +203,43 @@ export function repositionActivation(
   if (isCarrier) return [];
   const best =
     roleRoute(c, player, squares, routes) ?? chaseRoute(c, player, routes);
-  if (!best) return standUpActivation(c, player);
+  const withdrawal = withdrawalRoute(c, player, routes);
+  const selected =
+    withdrawal && withdrawal.gain > (best?.gain ?? 0) ? withdrawal : best;
+  if (!selected) return standUpActivation(c, player);
   return [
     {
       player,
       action: "move",
-      intent: { kind: "reposition", role: best.role, route: best.route },
-      tier: tierFor(best.route.chance, w.safeMove, "support"),
-      value: best.gain,
-      rolls: best.route.rolls,
+      intent: {
+        kind: "reposition",
+        role: selected.role,
+        route: selected.route,
+      },
+      tier: tierFor(selected.route.chance, w.safeMove, "support"),
+      value: selected.gain,
+      rolls: selected.route.rolls,
     },
   ];
+}
+
+/** Leaving unnecessary contact can be worth a scarce late-half activation. */
+function withdrawalRoute(
+  c: Context,
+  player: Player,
+  routes: Map<number, Route>
+): Reposition | null {
+  if (c.goal !== "protect") return null;
+  const here = exposureCost(c, player, player.gridPosition!);
+  if (here === 0) return null;
+  let best: Reposition | null = null;
+  for (const route of routes.values()) {
+    if (route.chance < c.w.safeMove) continue;
+    const gain =
+      route.chance * (here - exposureCost(c, player, route.to)) -
+      (1 - route.chance) * (c.turnover + injuryRiskValue(c, player)) -
+      moveFeedingCost(c, player, route.to);
+    if (gain > (best?.gain ?? 0)) best = { route, gain, role: "safety" };
+  }
+  return best;
 }

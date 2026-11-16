@@ -250,7 +250,9 @@ function isPassSquare(
 
 function passSteps(ctx: StepContext): void {
   const { gs, state, player, action, carrying, opponents, step } = ctx;
-  if (action !== "pass" || !carrying || state.turn.hasPassed) return;
+  // Moving commits this declaration's team allowance. It does not spend
+  // the throw inside the active Pass action.
+  if (action !== "pass" || !carrying) return;
   // Every in-range square, not just team-mates: passes to opponents and
   // to empty grass are legal, and are where turnover rules get tested.
   const everyone = [...gs.getTeammates(player.id), ...opponents];
