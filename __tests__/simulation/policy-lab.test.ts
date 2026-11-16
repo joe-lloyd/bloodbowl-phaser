@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { labInventory } from "../../scripts/coach/policy-lab/teams";
 import { coverageInventory } from "../../scripts/coach/policy-lab/gate";
-import { policySchedule } from "../../scripts/coach/policy-study/schedule";
+import {
+  policySchedule,
+  limitPolicyBlocks,
+} from "../../scripts/coach/policy-study/schedule";
 import { playStudyGame } from "../../scripts/coach/catalogue-study/play";
 import { replayStudyTrace } from "../../scripts/coach/catalogue-study/replay";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
@@ -61,6 +64,17 @@ describe("repeatable Sevens policy lab", () => {
       );
       expect(new Set(assignments).size).toBe(8);
     }
+  });
+
+  it("retains a required Vampire sentinel in a bounded pilot", () => {
+    const jobs = policySchedule(variants, true, 30000000, true);
+    const vampire = variants.find((v) =>
+      v.team.rosterName.includes("Vampire")
+    )!;
+    const pilot = limitPolicyBlocks(jobs, 24, [vampire.id]);
+    expect(pilot).toHaveLength(192);
+    expect(pilot.some((j) => j.variantIds.includes(vampire.id))).toBe(true);
+    expect(new Set(pilot.map((j) => j.pair)).size).toBe(24);
   });
 
   it("executes the requested first receiver through a complete match and replay", async () => {

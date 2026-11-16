@@ -22,6 +22,36 @@ describe("late-half scoring and preservation", () => {
     );
   });
 
+  it.each([
+    [2, 12, 16],
+    [10, 14, 17],
+  ])(
+    "targets a final-turn scoring receiver instead of progress from x%i",
+    async (carrier, progress, scorer) => {
+      const game = tacticalGame(
+        {
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: carrier,
+              y: 5,
+              hasBall: true,
+              stats: { MA: 1, PA: 2, AG: 2 },
+            },
+            { playerIndex: 1, x: progress, y: 5, stats: { MA: 1, AG: 2 } },
+            { playerIndex: 2, x: scorer, y: 5, stats: { MA: 1, AG: 2 } },
+          ],
+        },
+        { opponentTurnsPlayed: 6 }
+      );
+      const coach = createPlannerCoach();
+      let choice = await coachStep(game, coach);
+      for (let i = 0; i < 12 && choice.command.type !== "pass"; i++)
+        choice = await coachStep(game, coach);
+      expect(choice.command).toMatchObject({ type: "pass", x: scorer, y: 5 });
+    }
+  );
+
   it("prefers rushing into a better handoff when that alternative can score", async () => {
     const game = tacticalGame({
       team1Placements: [
@@ -69,6 +99,34 @@ describe("late-half scoring and preservation", () => {
       await coachStep(game, coach);
     }
     expect(game.ctx.team1.players[0].gridPosition?.x).toBe(11);
+  });
+
+  it("keeps turn-five preparation away from an equally reachable exposed sideline", async () => {
+    const game = tacticalGame(
+      {
+        turn: 5,
+        team1Placements: [
+          {
+            playerIndex: 0,
+            x: 5,
+            y: 5,
+            hasBall: true,
+            stats: { MA: 6, AG: 5, ST: 2, AV: 6 },
+          },
+        ],
+        team2Placements: [
+          { playerIndex: 0, x: 12, y: 0, stats: { MA: 1, ST: 5 } },
+        ],
+      },
+      { league: true, opponentTurnsPlayed: 4 }
+    );
+    const coach = createPlannerCoach();
+    await coachStep(game, coach);
+    for (let i = 0; i < 12 && game.ctx.gameService.getState().activePlayer; i++)
+      await coachStep(game, coach);
+    expect(game.ctx.team1.players[0].gridPosition).toMatchObject({ x: 11 });
+    expect(game.ctx.team1.players[0].gridPosition!.y).toBeGreaterThan(2);
+    expect(game.ctx.team1.players[0].gridPosition!.y).toBeLessThan(10);
   });
 
   it("takes the available turn-five equalizer instead of stalling while behind", async () => {

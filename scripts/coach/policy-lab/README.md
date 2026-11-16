@@ -6,7 +6,7 @@ Run the current committed AI against a frozen incumbent on Daily Driver:
 scripts/coach/policy-lab/daily-driver.sh full
 ```
 
-The script exports immutable Git archives and installs their locked dependencies. It does not call a model during games. It runs 49 tactical checks, a 192-game pilot, a fresh 5,184-game confirmation and 432 persistent-context fixtures. All matches use normal Sevens setup and the real command engine. There is no forced opening contact line. `pilot` runs only the contracts and first match stage.
+The script exports immutable Git archives and installs their locked dependencies. It does not call a model during games. It runs 53 tactical checks, a 192-game pilot with Vampire and special-action sentinels, a fresh 5,184-game confirmation and 432 persistent-context fixtures. All matches use normal Sevens setup and the real command engine. There is no forced opening contact line. `pilot` runs only the contracts and first match stage.
 
 Every match saves its initial state, commands and decision notes, then immediately replays them and reconciles event counters. Eight-game blocks balance physical side, which policy uses each build and first receiver. A partial or finding-bearing block cannot enter an estimate. The quality gate stops acquisition errors; confirmation also requires a naturally selected and accepted pass. That checks an exercised gameplay path, not a pass-rate fitness bonus.
 
@@ -43,7 +43,7 @@ python3 scripts/coach/policy-lab/report.py sim-results/lab
 
 Remove `--smoke --blocks 24` and use a fresh `--seed-base` for confirmation. Use `--league` for persistent-fixture context, `--base-only` to isolate base builds, and `--opponent heuristic|hard|legend` for frozen policy sentinels. Hard and Legend use deterministic trial counts without wall-clock cutoffs. They share planner ancestry and are not independent tactical oracles. Keep opponent acquisitions separate.
 
-Rerunning an unchanged command resumes missing games. Source, opponent, context or schedule changes reject an existing directory. Candidate engine and legal actions are shared with the frozen decision policy. Behaviour changes require fresh confirmation. Report-only changes can rebuild from saved games without replaying acquisition. Source archives live beside the run; the report records source and results digests.
+Rerunning an unchanged command resumes missing games. Source, opponent, context or schedule changes reject an existing directory. Candidate engine and legal actions are shared with the frozen decision policy. Behaviour changes require fresh confirmation. The driver derives fresh confirmation seeds from the committed revision, while the diagnostic pilot keeps fixed seeds. Report-only changes can rebuild from saved games without replaying acquisition. Source archives live beside the run; the report records source and results digests.
 
 ```sh
 pnpm exec tsc -p scripts/coach/policy-lab/tsconfig.json

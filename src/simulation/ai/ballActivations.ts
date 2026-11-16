@@ -358,7 +358,8 @@ function handoffTo(
   const { board, w } = c;
   const scoreChance = scoreChanceOf(c, mate);
   const progress = (carrierReach - bestReach(c, mate)) * w.advance * c.urgency;
-  if (scoreChance === 0 && progress < w.advance * 2) return null;
+  if (scoreChance === 0 && (board.turnsLeft === 0 || progress < w.advance * 2))
+    return null;
   const target = catchTarget(mate, board.theirs, board.weather, "handoff");
   // Get next to the receiver first, unless already there.
   const approach = approachTo(carrier, mate, routes);
@@ -518,7 +519,8 @@ function passTo(
   if (!inEndZone && !c.available.has(mate.id)) return null;
   const scoreChance = inEndZone ? 1 : scoreChanceOf(c, mate);
   const progress = (carrierReach - bestReach(c, mate)) * w.advance * c.urgency;
-  if (scoreChance === 0 && progress < w.advance * 4) return null;
+  if (scoreChance === 0 && (board.turnsLeft === 0 || progress < w.advance * 4))
+    return null;
   const catchRoll = catchTarget(mate, board.theirs, board.weather, "pass");
   const best = bestThrow(c, carrier, throwFrom, mate, catchRoll);
   if (!best) return null;

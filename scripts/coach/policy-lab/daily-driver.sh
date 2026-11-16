@@ -25,6 +25,8 @@ for source_root in "$lab_root/candidate" "$lab_root/frozen"; do
   fi
 done
 pnpm exec tsx scripts/coach/policy-lab/gate.ts "$lab_root/contracts"
+confirmation_seed=$((31000000 + 16#${revision:0:6} * 100))
+persistent_seed=$((confirmation_seed + 1000000))
 common=(--lab --baseline "$lab_root/frozen" --baseline-revision "$baseline" --revision "$revision" --workers 8)
 pnpm exec tsx scripts/coach/policy-study/run.ts "${common[@]}" --smoke --blocks 24 --out "$lab_root/pilot"
 python3 scripts/coach/policy-study/report.py --run "$lab_root/pilot" --out "$lab_root/reports/pilot"
@@ -32,12 +34,12 @@ python3 scripts/coach/policy-study/report.py --run "$lab_root/pilot" --out "$lab
 python3 scripts/coach/policy-lab/check.py "$lab_root/reports/pilot"
 python3 scripts/coach/policy-lab/report.py "$lab_root"
 if test "$mode" = full; then
-  pnpm exec tsx scripts/coach/policy-study/run.ts "${common[@]}" --seed-base 31000000 --out "$lab_root/confirmation"
+  pnpm exec tsx scripts/coach/policy-study/run.ts "${common[@]}" --seed-base "$confirmation_seed" --out "$lab_root/confirmation"
   cp "$lab_root/"*-source.tar.gz "$lab_root/confirmation/"
   python3 scripts/coach/policy-study/report.py --run "$lab_root/confirmation" --out "$lab_root/reports/confirmation"
   python3 scripts/coach/policy-lab/check.py "$lab_root/reports/confirmation" --require-natural-pass
   # Persistent fixtures test preservation without claiming to simulate a career.
-  pnpm exec tsx scripts/coach/policy-study/run.ts "${common[@]}" --league --base-only --blocks 54 --seed-base 32000000 --out "$lab_root/persistent"
+  pnpm exec tsx scripts/coach/policy-study/run.ts "${common[@]}" --league --base-only --blocks 54 --seed-base "$persistent_seed" --out "$lab_root/persistent"
   python3 scripts/coach/policy-study/report.py --run "$lab_root/persistent" --out "$lab_root/reports/persistent"
   python3 scripts/coach/policy-lab/check.py "$lab_root/reports/persistent"
 fi

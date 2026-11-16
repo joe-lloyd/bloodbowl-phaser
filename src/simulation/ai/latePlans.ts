@@ -8,7 +8,6 @@ import { blockOdds, casualtyChance, twoD6 } from "./chance";
 import { Board, Square, WIDTH, carrierOf, distance, toGoal } from "./board";
 import { movesLeft } from "./routes";
 import type { Route } from "./routes";
-import { moveFeedingCost } from "./feeding";
 import type { Context } from "./activationContext";
 import type { Available } from "./activations";
 
@@ -38,15 +37,13 @@ export function canStillScore(board: Board, available: Available): boolean {
     : [0, 0];
   const carryReach = normal + rushes + board.turnsLeft * nextTurnReach(carrier);
   if (toGoal(board, carrier.gridPosition!) <= carryReach) return true;
-  const canTransfer =
-    carrier.stats.PA > 0 || hasSkill(carrier.skills, SkillType.RIGHT_STUFF);
-  if (!canTransfer) return false;
+  const transferReach = carryReach + (carrier.stats.PA > 0 ? 13 : 1);
   return board.ours.some((mate) => {
     if (mate.id === carrier.id || !mate.gridPosition) return false;
     const turns = board.turnsLeft + (available.has(mate.id) ? 1 : 0);
     return (
       toGoal(board, mate.gridPosition) <= turns * nextTurnReach(mate) &&
-      distance(carrier.gridPosition!, mate.gridPosition) <= carryReach + 13
+      distance(carrier.gridPosition!, mate.gridPosition) <= transferReach
     );
   });
 }
@@ -75,11 +72,9 @@ export function lateMoveValue(
     return ordinary;
   if (toGoal(c.board, route.to) > nextTurnReach(carrier))
     return ordinary * c.w.lateProgress;
-  return (
-    route.chance * c.w.touchdown -
-    (1 - route.chance) * (c.turnover + c.w.ownDown) -
-    moveFeedingCost(c, carrier, route.to)
-  );
+  // Preparing a score adds value to the complete move. Keep its destination
+  // safety and loss costs so equally reachable endpoints still compete.
+  return ordinary + route.chance * c.w.touchdown;
 }
 
 /** The most damaging adjacent reply, including actual strength and assists. */

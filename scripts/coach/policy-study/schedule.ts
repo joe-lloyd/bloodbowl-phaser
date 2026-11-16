@@ -10,6 +10,28 @@ export interface PolicyJob extends StudyJob {
   leg: number;
 }
 
+/** Keep whole blocks, include named capability sentinels, then span the matrix. */
+export function limitPolicyBlocks(
+  jobs: PolicyJob[],
+  count: number,
+  requiredVariants: string[] = []
+): PolicyJob[] {
+  const pairs = [...new Set(jobs.map((j) => j.pair))];
+  const chosen = new Set<string>();
+  for (const id of requiredVariants) {
+    const pair = jobs.find((j) => j.variantIds.includes(id))?.pair;
+    if (pair && chosen.size < count) chosen.add(pair);
+  }
+  const remaining = Math.min(count, pairs.length) - chosen.size;
+  for (let i = 0; i < remaining; i++)
+    chosen.add(pairs[Math.floor((i * pairs.length) / remaining)]);
+  for (const pair of pairs) {
+    if (chosen.size >= Math.min(count, pairs.length)) break;
+    chosen.add(pair);
+  }
+  return jobs.filter((j) => chosen.has(j.pair));
+}
+
 export function policySchedule(
   variants: Variant[],
   smoke = false,

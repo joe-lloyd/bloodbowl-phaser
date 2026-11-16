@@ -18,7 +18,7 @@ import { playStudyGame } from "../catalogue-study/play";
 import { replayStudyTrace } from "../catalogue-study/replay";
 import { createPlannerCoach } from "../../../src/simulation/ai/planner";
 import type { Coach } from "../../../src/simulation/coach";
-import { policySchedule } from "./schedule";
+import { policySchedule, limitPolicyBlocks } from "./schedule";
 import type { PolicyJob } from "./schedule";
 import { processPool } from "./pool";
 import { sppValuesFor } from "../../../src/game/progression/MatchStats";
@@ -193,14 +193,23 @@ if (args.includes("--worker")) {
     if (!Number.isSafeInteger(blockLimit) || blockLimit < 0)
       throw new Error("Invalid block limit");
     if (blockLimit) {
-      const pairs = [...new Set(jobs.map((j) => j.pair))];
-      const chosen = new Set(
-        Array.from(
-          { length: Math.min(blockLimit, pairs.length) },
-          (_, i) => pairs[Math.floor((i * pairs.length) / blockLimit)]
-        )
-      );
-      jobs = jobs.filter((j) => chosen.has(j.pair));
+      const sentinels = smoke
+        ? ["Vampire", "Throw Team-mate", "Multiple Block"].flatMap(
+            (capability) => {
+              const variant = variants.find((v) => {
+                const team = getTeam(v.id);
+                return (
+                  team.rosterName.includes(capability) ||
+                  team.players.some((p) =>
+                    p.skills.some((s) => s.type === capability)
+                  )
+                );
+              });
+              return variant ? [variant.id] : [];
+            }
+          )
+        : [];
+      jobs = limitPolicyBlocks(jobs, blockLimit, sentinels);
     }
     jobs = jobs.map((j) => ({
       ...j,
