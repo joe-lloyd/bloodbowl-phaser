@@ -72,8 +72,6 @@ function outcomeTracker(game: HeadlessGame) {
             state.ballPosition?.y === player.gridPosition.y,
         });
     }
-    if (command.type === "move" && command.path.length)
-      moves.set(command.playerId, command.path[command.path.length - 1]);
     transfer(step, context);
   }
   function completion(data: unknown, context: TurnContext) {
@@ -107,6 +105,9 @@ function outcomeTracker(game: HeadlessGame) {
     )
       totals[side].lateLongRuns++;
   }
+  game.ctx.eventBus.on(GameEventNames.PlayerMoved, ({ playerId, to }) =>
+    moves.set(playerId, to)
+  );
   game.ctx.eventBus.on(GameEventNames.PassCompleted, (data) =>
     completion(data, contextNow())
   );

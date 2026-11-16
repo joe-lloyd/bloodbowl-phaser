@@ -10,13 +10,22 @@ import { enumerateDecision } from "../../src/simulation/candidates";
 import { createCoachRng } from "../../src/simulation/rng";
 import { RECORDING_FORMAT, snapshotHash } from "../../src/simulation/runMatch";
 import type { MatchRecording } from "../../src/simulation/runMatch";
+import type { HeadlessCommand } from "../../src/headless/protocol";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { SkillType } from "../../src/types/Skills";
 
-async function replayScore(game: HeadlessGame) {
+async function replayScore(
+  game: HeadlessGame,
+  commands: HeadlessCommand[] = []
+) {
   const initial = game.matchSave(),
     coach = createPlannerCoach();
   const steps: MatchRecording["steps"] = [];
+  for (const command of commands) {
+    const response = await game.execute(command);
+    expect(response.ok).toBe(true);
+    steps.push({ command, ok: response.ok, team: 0, label: "recorded play" });
+  }
   for (
     let i = 0;
     i < 20 && game.ctx.gameService.getState().score.team1 === 0;
@@ -69,6 +78,37 @@ async function replayScore(game: HeadlessGame) {
 }
 
 describe("saved policy outcome evidence", () => {
+  it("counts the actual landing square of a scoring jump", async () => {
+    const game = tacticalGame({
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 13,
+          y: 5,
+          hasBall: true,
+          stats: { MA: 6, AG: 2 },
+          skills: [SkillType.LEAP],
+        },
+      ],
+    });
+    const playerId = game.ctx.team1.players[0].id;
+    const result = await replayScore(game, [
+      { type: "declare-action", playerId, action: "move" },
+      {
+        type: "move",
+        playerId,
+        path: [14, 15, 16, 17].map((x) => ({ x, y: 5 })),
+      },
+      { type: "jump", playerId, x: 19, y: 5 },
+    ]);
+    expect(result.totals[0]).toEqual({
+      passes: 0,
+      completions: 0,
+      receiverTouchdowns: 0,
+      lateTouchdowns: 1,
+      lateLongRuns: 1,
+    });
+  });
   it("credits a completed end-zone pass and its same-turn receiver score", async () => {
     const result = await replayScore(
       tacticalGame({

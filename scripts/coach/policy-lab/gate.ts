@@ -8,6 +8,8 @@ import { ruleScenariosFor } from "../../../src/data/ruleScenarios";
 
 export const CONTRACT_FILES = [
   "__tests__/simulation/turn-plans.test.ts",
+  "__tests__/simulation/policy-review.test.ts",
+  "__tests__/simulation/policy-outcomes.test.ts",
   "__tests__/simulation/late-half-plans.test.ts",
   "__tests__/simulation/skill-plans.test.ts",
   "__tests__/simulation/plannerRuns.test.ts",

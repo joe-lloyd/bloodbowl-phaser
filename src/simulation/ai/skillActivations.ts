@@ -89,9 +89,13 @@ export function secureBallActivations(
   )
     return [];
   const routes = routesFor(board, player, true);
-  const route = (c.teamReroll ? withTeamReroll(routes, player) : routes).get(
-    key(board.ball.at)
-  );
+  const route = (
+    c.teamReroll
+      ? withTeamReroll(routes, player, (skill) =>
+          board.gs.getRerollArbiter().skillRerollAvailable(player, skill)
+        )
+      : routes
+  ).get(key(board.ball.at));
   if (!route) return [];
   const goal = toGoal(board, board.ball.at);
   const value =

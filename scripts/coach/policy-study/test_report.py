@@ -44,6 +44,19 @@ class ReportTest(unittest.TestCase):
             (root / "games" / (g["id"] + ".json")).write_text(json.dumps(g))
         return manifest, games
 
+    def test_small_hard_sentinel_suppresses_strength_intervals(self):
+        with tempfile.TemporaryDirectory() as name:
+            root, out = Path(name) / "run", Path(name) / "report"
+            root.mkdir()
+            manifest, _ = self.fixture(root)
+            manifest["opponent"] = "hard"
+            (root / "manifest.json").write_text(json.dumps(manifest))
+            with contextlib.redirect_stdout(io.StringIO()):
+                summary = build(root, out)
+            self.assertEqual(summary["scope"], "functional-sentinel")
+            self.assertIsNone(summary["comparisons"]["overall"]["ci"])
+            self.assertIsNone(summary["equal_roster"]["ci"])
+
     def test_player_loss_interval_resamples_complete_blocks(self):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)

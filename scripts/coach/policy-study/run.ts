@@ -232,6 +232,7 @@ if (args.includes("--worker")) {
     baselineRevision: flag("baseline-revision", "unspecified"),
     revision: flag("revision", "unspecified"),
     smoke,
+    opponent,
     workers,
     variants,
     inventory,
@@ -241,7 +242,6 @@ if (args.includes("--worker")) {
       ? {
           lab: true,
           blockSize: 8,
-          opponent,
           context: args.includes("--league")
             ? "persistent-fixture"
             : "exhibition",
@@ -254,6 +254,7 @@ if (args.includes("--worker")) {
     if (
       previous.sourceDigest !== sourceDigest ||
       previous.baselineDigest !== baselineDigest ||
+      previous.node !== manifest.node ||
       previous.opponent !== manifest.opponent ||
       JSON.stringify(previous.jobs) !== JSON.stringify(jobs)
     )

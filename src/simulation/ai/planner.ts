@@ -242,7 +242,9 @@ function retainedStep(
     return end < 0 ? null : { index: end, note: noteFor(plan) };
   }
   const c = activationContext(board, w, available, skillPlans);
-  const route = c.routes(actor).get(key(intent.route.to));
+  const routes =
+    intent.kind === "reposition" ? c.plainRoutes(actor) : c.routes(actor);
+  const route = routes.get(key(intent.route.to));
   if (!route || route.chance + 1e-9 < intent.route.chance) return null;
   const resumed: Activation = {
     ...plan,

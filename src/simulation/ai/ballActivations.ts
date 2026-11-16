@@ -24,7 +24,7 @@ import {
   standing,
   toGoal,
 } from "./board";
-import { Chance, RollTarget, d6, sequenceChance } from "./chance";
+import { Chance, RollTarget, d6, sequenceChance, IMPOSSIBLE } from "./chance";
 import { Route } from "./routes";
 import {
   Context,
@@ -314,15 +314,6 @@ function approachTo(
     .sort((a, b) => b.chance - a.chance)[0];
 }
 
-function finishRoute(c: Context, mate: Player): Route | null {
-  if (toGoal(c.board, mate.gridPosition!) === 0) return null;
-  return (
-    [...c.routes(mate).values()]
-      .filter((route) => toGoal(c.board, route.to) === 0)
-      .sort((a, b) => b.chance - a.chance)[0] ?? null
-  );
-}
-
 /** Approach, transfer and receiver movement spend from one shared reroll bank. */
 function transferChance(
   c: Context,
@@ -347,6 +338,34 @@ function transferChance(
   );
 }
 
+/** Price every finish together with the transfer's shared reroll budget. */
+function scoringTransferChance(
+  c: Context,
+  carrier: Player,
+  mate: Player,
+  approach: Route | null,
+  transfer: readonly RollTarget[],
+  catchRoll: number
+): Chance {
+  if (toGoal(c.board, mate.gridPosition!) === 0)
+    return transferChance(c, carrier, mate, approach, transfer, catchRoll);
+  let best = IMPOSSIBLE;
+  for (const finish of c.routes(mate).values()) {
+    if (toGoal(c.board, finish.to) !== 0) continue;
+    const chance = transferChance(
+      c,
+      carrier,
+      mate,
+      approach,
+      transfer,
+      catchRoll,
+      finish
+    );
+    if (chance > best) best = chance;
+  }
+  return best;
+}
+
 /** Hand the ball to `mate`, if it is worth it. */
 function handoffTo(
   c: Context,
@@ -367,15 +386,7 @@ function handoffTo(
   const reach = transferChance(c, carrier, mate, approach, [], target);
   const scoring = scoreChance > 0;
   const chance = scoring
-    ? transferChance(
-        c,
-        carrier,
-        mate,
-        approach,
-        [],
-        target,
-        finishRoute(c, mate)
-      )
+    ? scoringTransferChance(c, carrier, mate, approach, [], target)
     : reach;
   const gain = scoring ? w.touchdown : progress;
   return {
@@ -473,7 +484,6 @@ function bestThrow(
 ): Throw | null {
   const { board } = c;
   const to = mate.gridPosition!;
-  const finish = finishRoute(c, mate);
   let best: Throw | null = null;
   for (const route of throwFrom) {
     const from = route?.to ?? carrier.gridPosition!;
@@ -487,9 +497,13 @@ function bestThrow(
       transferChance(c, carrier, mate, route, transfer, catchRoll) *
       intercepted;
     const scoreChance =
-      transferChance(c, carrier, mate, route, transfer, catchRoll, finish) *
+      scoringTransferChance(c, carrier, mate, route, transfer, catchRoll) *
       intercepted;
-    if (!best || scoreChance > best.scoreChance)
+    if (
+      !best ||
+      scoreChance > best.scoreChance ||
+      (scoreChance === best.scoreChance && chance > best.chance)
+    )
       best = {
         route,
         chance,

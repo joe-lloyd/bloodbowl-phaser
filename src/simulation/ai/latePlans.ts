@@ -61,7 +61,13 @@ export function canStillScore(board: Board, available: Available): boolean {
     : [0, 0];
   const carryReach = normal + rushes + board.turnsLeft * nextTurnReach(carrier);
   if (toGoal(board, carrier.gridPosition!) <= carryReach) return true;
-  const transferReach = carryReach + (carrier.stats.PA > 0 ? 13 : 1);
+  const actions = available.get(carrier.id);
+  const canPass = carrier.stats.PA > 0 && actions?.has("pass");
+  const canHandoff = actions?.has("handoff");
+  if (board.turnsLeft === 0 && !canPass && !canHandoff) return false;
+  const transferReach =
+    carryReach +
+    ((board.turnsLeft > 0 ? carrier.stats.PA > 0 : canPass) ? 13 : 1);
   return board.ours.some((mate) => {
     if (mate.id === carrier.id || !mate.gridPosition) return false;
     const turns = board.turnsLeft + (available.has(mate.id) ? 1 : 0);

@@ -20,6 +20,7 @@ interface Inputs {
   sourceDigest: string;
   baselineDigest: string;
   revision: string;
+  node?: string;
   opponent?: string;
   jobs: PolicyJob[];
   variants: unknown[];
@@ -29,6 +30,7 @@ const atomic = (file: string, data: unknown) => {
   renameSync(file + ".tmp", file);
 };
 const sameInput = (a: Inputs, b: Inputs) =>
+  a.node === b.node &&
   a.baselineDigest === b.baselineDigest &&
   a.opponent === b.opponent &&
   isDeepStrictEqual(a.jobs, b.jobs) &&
@@ -48,6 +50,7 @@ export function validateRecovery(
   for (const file of [
     "package.json",
     "pnpm-lock.yaml",
+    "scripts/coach/policy-study/run.ts",
     "scripts/coach/policy-lab/teams.ts",
     "scripts/coach/policy-lab/evidence.ts",
     "scripts/coach/advanced-study/teams.ts",
@@ -62,7 +65,7 @@ export function validateRecovery(
   }
   if (!sameInput(old, current))
     throw new Error(
-      "Recovery requires identical builds, schedule and frozen opponent"
+      "Recovery requires identical runtime, builds, schedule and frozen opponent"
     );
   return policyDigest;
 }

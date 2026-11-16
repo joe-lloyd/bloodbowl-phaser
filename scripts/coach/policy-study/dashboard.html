@@ -501,21 +501,21 @@
       const ci = c.ci,
         verdict = s.engine_findings
           ? "Integrity findings block promotion."
-          : ci[0] > 0.5
-            ? "The new planner has a positive result against this frozen opponent."
-            : ci[1] < 0.5
-              ? "The new planner regressed against this frozen opponent."
-              : "The result is inconclusive: the interval still includes an even match.";
+          : s.scope === "functional-sentinel"
+            ? "Functional sentinel only; too few blocks for a general strength estimate."
+            : ci && ci[0] > 0.5
+              ? "The new planner has a positive result against this frozen opponent."
+              : ci && ci[1] < 0.5
+                ? "The new planner regressed against this frozen opponent."
+                : "The result is inconclusive: the interval still includes an even match.";
       $("verdict").textContent =
         (data.manifest.smoke ? "Smoke test only. " : "") +
         verdict +
         " New points share " +
         pct(c.points) +
-        " (95% interval " +
-        pct(ci[0]) +
-        "–" +
-        pct(ci[1]) +
-        ").";
+        (ci
+          ? " (95% interval " + pct(ci[0]) + " to " + pct(ci[1]) + ")."
+          : " (descriptive).");
       $("cards").innerHTML = [
         ["Included games", num(s.included)],
         ["Independent blocks", num(c.blocks)],
@@ -725,7 +725,9 @@
         "Equal-roster points share: " +
         pct(s.equal_roster.points) +
         " · 95% interval " +
-        s.equal_roster.ci.map(pct).join(" to ") +
+        (s.equal_roster.ci
+          ? s.equal_roster.ci.map(pct).join(" to ")
+          : "not estimated") +
         ". Whole balanced blocks are resampled before averaging rosters.";
       $("block-method").textContent =
         "Each block contains " +

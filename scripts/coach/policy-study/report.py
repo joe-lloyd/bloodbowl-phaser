@@ -129,6 +129,8 @@ def analyse(manifest, all_games, blocks, excluded):
             rows.append({
                 "game": g["id"], "block": g["pair"], "policy": policy,
                 "roster": roster, "template": g["templates"][side],
+                "opponent": templates[g["templates"][1 - side]]["rosterName"],
+                "opponent_template": g["templates"][1 - side],
                 "variant": g["variantIds"][side], "development": g["development"],
                 "seed": g["seed"], "side": side, "points": result,
                 "touchdowns": td, "casualties": cas,
@@ -156,6 +158,13 @@ def analyse(manifest, all_games, blocks, excluded):
                for key in ("touchdowns", "casualties", "turnovers", "spp_objective")},
         })
     totals = {}
+    matchup_groups = collections.defaultdict(list)
+    for row in rows:
+        if row["policy"] == "candidate":
+            matchup_groups[(row["roster"], row["opponent"])].append(row["points"])
+    matchups = [{"roster": own, "opponent": opponent, "games": len(values),
+                 "points": statistics.fmean(values)}
+                for (own, opponent), values in sorted(matchup_groups.items())]
     actions = {p: collections.Counter() for p in ("candidate", "frozen")}
     for policy in actions:
         own = [r for r in rows if r["policy"] == policy]
@@ -194,6 +203,7 @@ def analyse(manifest, all_games, blocks, excluded):
                           for kind in ("legal", "proposed")},
         "accepted_candidate_passes": sum(g["counters"].get("accepted:" + str(g["candidateSide"]) + ":pass", 0) for g in games),
         "rosters": roster_rows, "skills": skill_rows,
+        "matchups": matchups,
         "macro_points": statistics.fmean(r["points"] for r in roster_rows) if roster_rows else None,
         "macro_points_delta": statistics.fmean(r["points_delta"] for r in roster_rows) if roster_rows else None,
     }, rows, skills, rolls
@@ -213,6 +223,11 @@ def build(root, out, skill_plan=None):
     if len(games) != len(manifest["jobs"]):
         raise ValueError("Study is incomplete; report requires the complete acquisition")
     summary, rows, skills, rolls = analyse(manifest, games, blocks, excluded)
+    if manifest.get("opponent") in ("hard", "legend") and len(blocks) < 20:
+        summary["scope"] = "functional-sentinel"
+        for estimate in [*summary["comparisons"].values(), *summary["build_methods"].values(),
+                         summary["equal_roster"], *summary["player_loss_delta"].values()]:
+            estimate["ci"] = None
     if not rows:
         raise ValueError("No complete, finding-free balanced blocks")
     plans = []

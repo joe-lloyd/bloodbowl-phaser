@@ -109,6 +109,25 @@ describe("repeatable Sevens policy lab", () => {
         "changed engine or AI"
       );
       writeFileSync(join(current, "src/engine.ts"), "stable");
+      writeFileSync(
+        join(current, "scripts/coach/policy-study/run.ts"),
+        "changed coach construction"
+      );
+      expect(() => validateRecovery(manifest, manifest, old, current)).toThrow(
+        "changed gameplay input"
+      );
+      writeFileSync(
+        join(current, "scripts/coach/policy-study/run.ts"),
+        "stable"
+      );
+      expect(() =>
+        validateRecovery(
+          manifest,
+          { ...manifest, node: "v0.0.0" },
+          old,
+          current
+        )
+      ).toThrow("identical");
       const changed = { ...manifest, jobs: [policySchedule(variants)[0]] };
       expect(() => validateRecovery(manifest, changed, old, current)).toThrow(
         "schedule"
