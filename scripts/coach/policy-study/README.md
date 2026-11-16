@@ -1,6 +1,6 @@
 # Skill-aware policy comparison
 
-This compares the current modular planner with archived pre-change decision code. It does not tune weights during acquisition or treat skill trigger counts as win value. The archived planner uses the same current engine, legal candidates and team snapshots as the candidate.
+This compares a frozen modular planner candidate with archived pre-change decision code. The published confirmation predates feeding-valuation review corrections in the final PR; see [the results and provenance limits](RESULTS.md#review-corrections-after-acquisition). It does not tune weights during acquisition or treat skill trigger counts as win value. The archived planner uses the same current engine, legal candidates and team snapshots as the candidate.
 
 The first modules cover Secure the Ball, Hypnotic Gaze, Multiple Block and native Thrall feeding support. `createPlannerCoach({ skillPlans: false })` disables the modules for diagnosis; the experiment imports the actual old planner instead of relying on that switch as its control.
 

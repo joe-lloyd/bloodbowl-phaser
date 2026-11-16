@@ -6,7 +6,7 @@ import { Context, gamble, tierFor } from "./activationContext";
 import type { Activation } from "./activations";
 import { blockFrom, targetValue } from "./blockActivations";
 import { distance, key, standing, toGoal } from "./board";
-import { feedingCost } from "./feeding";
+import { feedingCost, unfedChance } from "./feeding";
 import { movesLeft, routesFor, withTeamReroll } from "./routes";
 import { gazeActivations } from "./gazeActivations";
 import type { ActionType } from "../../types/events";
@@ -64,8 +64,11 @@ function pickupScoreValue(c: Context, player: Player): number {
     const chance = chain(player, [...pickup.rolls, ...end.rolls], c.teamReroll);
     value = Math.max(
       value,
-      gamble(c, chance, w.touchdown) -
-        feedingCost(c, player, "move", end.to, true)
+      gamble(
+        c,
+        chance,
+        (1 - unfedChance(c, player, "move", end.to)) * w.touchdown
+      ) - feedingCost(c, player, "move", end.to, true)
     );
   }
   return value;
@@ -92,8 +95,13 @@ export function secureBallActivations(
   if (!route) return [];
   const goal = toGoal(board, board.ball.at);
   const value =
-    gamble(c, route.chance, goal === 0 ? w.touchdown : w.pickup) -
-    feedingCost(c, player, "secureBall", route.to, true);
+    gamble(
+      c,
+      route.chance,
+      goal === 0
+        ? (1 - unfedChance(c, player, "secureBall", route.to)) * w.touchdown
+        : w.pickup
+    ) - feedingCost(c, player, "secureBall", route.to, true);
   if (pickupScoreValue(c, player) > value) return [];
   return [
     {

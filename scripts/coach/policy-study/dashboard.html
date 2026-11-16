@@ -293,7 +293,8 @@
     <p id="verdict"></p>
     <p class="muted">
       A frozen previous planner plays the new modular planner. Both use the same
-      teams, advanced builds and game engine.
+      teams, advanced builds and game engine. Results describe the archived
+      source digests. Later planner corrections require separate confirmation.
     </p>
     <div class="cards" id="cards"></div>
     <div class="split">
@@ -624,7 +625,7 @@
         " gaze commands and " +
         num(s.actions.candidate["multiple-block"] || 0) +
         " double blocks. Multiple Block needs more targeted evidence before judging its value. " +
-        "Feeding trades fewer unfed endings for more bites on friendly Thralls; measure their resulting attrition next. " +
+        "Compare unfed endings and friendly bites for this acquisition; measure Thrall attrition before judging feeding value. " +
         "Use separate module ablations to identify which changes caused any team-level gains.";
       let showAllRosters = false;
       function rosterTable() {

@@ -35,7 +35,7 @@ import {
   tierFor,
 } from "./activationContext";
 import type { Activation } from "./activations";
-import { feedingCost, unfedChance } from "./feeding";
+import { feedingCost, moveFeedingCost, unfedChance } from "./feeding";
 
 /** The four corners of a square, in the order a cage is counted. */
 export const CORNERS = [
@@ -96,8 +96,7 @@ function carrierSquare(c: Context, at: Square, carrier: Player): number {
     board.marks[key(at)] * w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner -
-    (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0) -
-    feedingCost(c, carrier, "move", at, true)
+    (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0)
   );
 }
 
@@ -166,7 +165,9 @@ function carrierMoves(
     if (back > maxBack) continue;
     const gain = carrierSquare(c, route.to, carrier) - here;
     const value =
-      gamble(c, route.chance, gain) - (1 - route.chance) * w.ballLoss;
+      gamble(c, route.chance, gain) -
+      (1 - route.chance) * w.ballLoss -
+      moveFeedingCost(c, carrier, route.to);
     const isSafe =
       route.chance >= w.safeMove && plain.get(key(route.to)) === route;
     if (!isSafe) {

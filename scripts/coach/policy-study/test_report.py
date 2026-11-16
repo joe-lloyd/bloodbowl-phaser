@@ -72,6 +72,25 @@ class ReportTest(unittest.TestCase):
                     load_games(root)
                 path.write_text(json.dumps(games[0]))
 
+    def test_rebuild_excludes_stale_archives_and_unrelated_files(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            self.fixture(root)
+            out = root / "report"
+            source = root / "candidate-source.tar.gz"
+            source.write_bytes(b"acquisition A")
+            with contextlib.redirect_stdout(io.StringIO()):
+                build(root, out)
+                source.unlink()
+                (out / "notes.txt").write_text("keep me")
+                build(root, out)
+            self.assertFalse((out / source.name).exists())
+            self.assertEqual((out / "notes.txt").read_text(), "keep me")
+            with zipfile.ZipFile(out / "policy-study-data.zip") as archive:
+                self.assertNotIn(source.name, archive.namelist())
+                self.assertNotIn("notes.txt", archive.namelist())
+                self.assertEqual(json.loads(archive.read("provenance.json"))["source_archives"], {})
+
     def test_zip_matches_report_and_bash_weights_are_preserved(self):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)

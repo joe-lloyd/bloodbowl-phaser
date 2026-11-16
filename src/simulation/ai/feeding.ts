@@ -73,3 +73,17 @@ export function feedingCost(
     (support ? w.ownDown : c.turnover + w.ownDown + (carrying ? w.ballLoss : 0))
   );
 }
+
+/** New moves pay once; a committed move compares against ending here. */
+export function moveFeedingCost(
+  c: Context,
+  player: Player,
+  at: Square
+): number {
+  const active = c.board.gs.getState().activePlayer;
+  const owed =
+    active?.id === player.id && active.committed
+      ? feedingCost(c, player, "move", player.gridPosition!)
+      : 0;
+  return feedingCost(c, player, "move", at) - owed;
+}

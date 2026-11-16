@@ -27,6 +27,12 @@ An initial 3,240-game diagnostic run then exposed a Frenzy bug: a forced follow-
 
 The clean confirmation used a new 14-million seed range after that engine correction. No weights or tactical rules were tuned against its outcomes. The full run took 133.1 seconds with eight workers. The archived candidate source matches the committed acquisition inputs at SHA-256 `541c4edbbda9bcef8af063ca2a03d62eb8443221629d8e8922c560dc452ca386`. The control imports decision code frozen at `c55748321ee15d16a4060181c0818e35640f66ac`; both policies use the current engine and legal candidates.
 
+## Review corrections after acquisition
+
+The final PR corrects feeding-cost cancellation in carrier and support moves, including chase moves, and discounts pickup touchdown rewards when Bloodlust can prevent the score. Focused tactical regressions verify these corrections. The 3,240-game results above describe only the archived candidate with digest `541c4edbbda9bcef8af063ca2a03d62eb8443221629d8e8922c560dc452ca386`, before these review corrections. They do not establish performance of the final PR head. The source archives and acquisition remain unchanged; no new full-game confirmation was run for the review corrections.
+
+The report rebuild also removes stale optional source evidence and bundles only current managed files. Its feeding interpretation makes no fixed directional claim.
+
 ## Next experiments
 
 - Multiple Block is too sparse to assess. Add natural matchups with high-Strength blockers, two worthwhile adjacent targets and realistic assists, alongside dangerous reduced-Strength controls.

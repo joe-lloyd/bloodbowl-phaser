@@ -206,9 +206,13 @@ def build(root, out, skill_plan=None):
             for g in games.values()
         ]),
     }
+    optional_files = []
     for name in ("candidate-source.tar.gz", "frozen-source.tar.gz", "smoke-summary.json", "development-summary.json"):
         if (root / name).exists():
             (out / name).write_bytes((root / name).read_bytes())
+            optional_files.append(name)
+        else:
+            (out / name).unlink(missing_ok=True)
     provenance = {
         "candidate_source_digest": manifest["sourceDigest"],
         "frozen_source_digest": manifest["baselineDigest"],
@@ -230,6 +234,7 @@ def build(root, out, skill_plan=None):
             "Roll contexts describe command-entry position, not necessarily the eventual feeding endpoint.",
             "Raw traces remain beside acquisition games and are not included in the data ZIP.",
             "Archived decision code shares the candidate engine and legal command list.",
+            "Results describe the archived candidate source digest, not later planner revisions.",
         ],
     }
     files["provenance.json"] = json.dumps(provenance, indent=2)
@@ -242,9 +247,8 @@ def build(root, out, skill_plan=None):
     page = Path(__file__).with_name("dashboard.html").read_text().replace("__STUDY_DATA__", embedded)
     (out / "index.html").write_text(page)
     with zipfile.ZipFile(out / "policy-study-data.zip", "w", zipfile.ZIP_DEFLATED) as archive:
-        for file in sorted(out.iterdir()):
-            if file.is_file() and file.suffix != ".zip":
-                archive.write(file, file.name)
+        for name in sorted([*files, *optional_files, "index.html"]):
+            archive.write(out / name, name)
     print(json.dumps({"out": str(out), **summary["comparisons"]["overall"],
                       "findings": summary["engine_findings"], "excluded_blocks": len(excluded)}))
     return summary

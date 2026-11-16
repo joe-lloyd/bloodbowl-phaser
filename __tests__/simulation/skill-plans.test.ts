@@ -12,6 +12,12 @@ import {
 } from "../../src/simulation/ai/planner";
 import { createCoachRng } from "../../src/simulation/rng";
 import { chain } from "../../src/simulation/ai/chance";
+import { context } from "../../src/simulation/ai/activationContext";
+import { readBoard } from "../../src/simulation/ai/board";
+import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
+import { carrierActivations } from "../../src/simulation/ai/ballActivations";
+import { repositionActivation } from "../../src/simulation/ai/repositionActivations";
+import { secureBallActivations } from "../../src/simulation/ai/skillActivations";
 import { secureBallTarget } from "../../src/game/rules/rollPreview";
 
 function game(setup: Partial<ScenarioSetup> = {}) {
@@ -60,6 +66,85 @@ async function choose(
 }
 
 describe("skill-aware tactical choices", () => {
+  it("charges a new unsupported carrier move for Bloodlust once", () => {
+    const subject = game({
+      turn: 1,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 3,
+          y: 5,
+          stats: { MA: 1 },
+          hasBall: true,
+          skills: [SkillType.BLOODLUST],
+        },
+      ],
+      ballPosition: undefined,
+    });
+    const player = subject.ctx.team1.players[0];
+    const c = context(
+      readBoard(subject, player.teamId),
+      DEFAULT_WEIGHTS,
+      new Map([[player.id, new Set(["move" as const])]])
+    );
+    const ordinary = carrierActivations({ ...c, skillPlans: false }, player);
+    expect(ordinary.some((a) => a.intent.kind === "carrier")).toBe(true);
+    // One square gains 16 points; a 1/3 Bloodlust failure costs 28.
+    expect(
+      carrierActivations(c, player).filter((a) => a.intent.kind === "carrier")
+    ).toEqual([]);
+  });
+
+  it("does not spend a new unsupported Vampire activation on a small role gain", () => {
+    const subject = game({
+      team1Placements: [
+        { playerIndex: 0, x: 3, y: 5, skills: [SkillType.BLOODLUST] },
+      ],
+    });
+    const player = subject.ctx.team1.players[0];
+    const c = context(
+      readBoard(subject, player.teamId),
+      DEFAULT_WEIGHTS,
+      new Map([[player.id, new Set(["move" as const])]])
+    );
+    expect(
+      repositionActivation(c, player, [
+        { at: { x: 4, y: 5 }, role: "screen", value: 6 },
+      ])
+    ).toEqual([]);
+  });
+
+  it("discounts an unsupported goal-line secure pickup by its unfed scoring risk", () => {
+    const subject = game({
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 17,
+          y: 5,
+          stats: { AG: 5 },
+          skills: [SkillType.BLOODLUST],
+        },
+      ],
+      ballPosition: { x: 19, y: 5 },
+      team2Placements: [{ playerIndex: 0, x: 2, y: 8 }],
+    });
+    const player = subject.ctx.team1.players[0];
+    const c = context(
+      readBoard(subject, player.teamId),
+      DEFAULT_WEIGHTS,
+      new Map([[player.id, new Set(["secureBall" as const])]])
+    );
+    const plans = secureBallActivations(c, player);
+    expect(plans).toHaveLength(1);
+    // 5/6 secure success, 2/3 fed scoring chance, 1/6 failed roll cost,
+    // plus 1/3 unfed turnover/own-down/ball-loss cost.
+    expect(plans[0].value).toBeCloseTo(
+      (5 / 6) * (2 / 3) * 100 -
+        (1 / 6) * (c.turnover + c.w.ownDown) -
+        (1 / 3) * (c.turnover + c.w.ownDown + c.w.ballLoss)
+    );
+  });
+
   it("secures a hard pickup and completes the route", async () => {
     const subject = game({ turn: 1 });
     expect(await choose(subject)).toMatchObject({
