@@ -10,7 +10,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from report import analyse, build, load_games
+from report import analyse, build, load_games, roster_estimates
 
 
 class ReportTest(unittest.TestCase):
@@ -43,6 +43,35 @@ class ReportTest(unittest.TestCase):
         for g in games:
             (root / "games" / (g["id"] + ".json")).write_text(json.dumps(g))
         return manifest, games
+
+    def test_receiving_balance_and_equal_roster_interval(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            manifest, games = self.fixture(root)
+            manifest["blockSize"] = 8
+            for job, game in zip(manifest["jobs"], games):
+                job["receivingSide"] = game["receivingSide"] = 0
+                game["initialReceivingSide"] = 0
+            for job in list(manifest["jobs"]):
+                extra = copy.deepcopy(job)
+                extra.update(id=job["pair"] + "-" + str(job["leg"] + 4), leg=job["leg"] + 4, receivingSide=1)
+                game = copy.deepcopy(next(g for g in games if g["id"] == job["id"]))
+                game.update(extra, initialReceivingSide=1)
+                manifest["jobs"].append(extra)
+                games.append(game)
+            (root / "manifest.json").write_text(json.dumps(manifest))
+            for game in games:
+                (root / "games" / (game["id"] + ".json")).write_text(json.dumps(game))
+            _, _, blocks, excluded = load_games(root)
+            self.assertEqual(excluded, [])
+            self.assertEqual([len(b) for b in blocks], [8, 8])
+            result = roster_estimates(blocks, {v: {"rosterName": "One roster"} for v in ("v1", "v2")})
+            self.assertEqual(result["points"], .75)
+            self.assertEqual(result["ci"], [.5, 1.0])
+            games[0]["initialReceivingSide"] = 1
+            (root / "games" / (games[0]["id"] + ".json")).write_text(json.dumps(games[0]))
+            with self.assertRaisesRegex(ValueError, "Engine first receiver differs"):
+                load_games(root)
 
     def test_point_estimate_and_interval_exclude_the_same_incomplete_block(self):
         with tempfile.TemporaryDirectory() as name:

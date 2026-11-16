@@ -8,6 +8,8 @@ export interface StudyJob {
   seed: number;
   templates: [string, string];
   coaches: [CoachName, CoachName];
+  receivingSide?: 0 | 1;
+  persistentInjuries?: boolean;
 }
 
 export interface SkillObservation {
@@ -41,6 +43,8 @@ export interface RollTally {
 }
 
 export interface StudyGame extends StudyJob {
+  initialReceivingSide?: number;
+  playerLosses?: { deaths: number; missNextGame: number }[];
   observationVersion?: 2;
   completed: boolean;
   score: [number, number];

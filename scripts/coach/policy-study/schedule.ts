@@ -13,7 +13,8 @@ export interface PolicyJob extends StudyJob {
 export function policySchedule(
   variants: Variant[],
   smoke = false,
-  seedBase = 13_000_000
+  seedBase = 13_000_000,
+  receivingBalance = false
 ): PolicyJob[] {
   const groups = new Map<string, Variant[]>();
   for (const v of variants) {
@@ -32,7 +33,7 @@ export function policySchedule(
           groupIndex * 10000 +
           offset * 100 +
           index;
-        for (let leg = 0; leg < 4; leg++) {
+        for (let leg = 0; leg < (receivingBalance ? 8 : 4); leg++) {
           const sides: [Variant, Variant] = leg % 2 ? [b, a] : [a, b];
           jobs.push({
             id: `${pair}-${leg}`,
@@ -43,8 +44,11 @@ export function policySchedule(
             coaches: ["planner", "planner"],
             templates: [sides[0].template, sides[1].template],
             variantIds: [sides[0].id, sides[1].id],
-            candidateSide: leg === 0 || leg === 3 ? 0 : 1,
+            candidateSide: leg % 4 === 0 || leg % 4 === 3 ? 0 : 1,
             development: a.arm,
+            ...(receivingBalance
+              ? { receivingSide: leg < 4 ? (0 as const) : (1 as const) }
+              : {}),
           });
         }
       });

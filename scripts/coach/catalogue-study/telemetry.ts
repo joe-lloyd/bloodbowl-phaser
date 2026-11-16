@@ -203,7 +203,15 @@ export function createTelemetry(game: HeadlessGame) {
       return original(command);
     const context = commandContext(game, typed);
     const response = await original(command);
-    if (response.ok) observe(context, response);
+    if (response.ok) {
+      increment(counters, `accepted:${typeOf(typed)}`);
+      if (context.actor)
+        increment(
+          counters,
+          `accepted:${sideOf(game, context.actor.teamId)}:${typeOf(typed)}`
+        );
+      observe(context, response);
+    }
     return response;
   };
   const wrap = (coach: Coach): Coach => ({

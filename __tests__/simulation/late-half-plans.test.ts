@@ -131,6 +131,37 @@ describe("late-half scoring and preservation", () => {
     });
   });
 
+  it.each([
+    [1, "block"],
+    [6, "move"],
+  ] as const)(
+    "hits a Strength %i target or withdraws according to the actual matchup",
+    async (strength, action) => {
+      const game = tacticalGame(
+        {
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 9,
+              y: 5,
+              stats: { ST: 3, AG: 2, AV: 7, MA: 1 },
+              skills: [SkillType.BLOCK, SkillType.DODGE],
+            },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 10, y: 5, stats: { ST: strength, MA: 1 } },
+            { playerIndex: 1, x: 1, y: 1, hasBall: true },
+          ],
+        },
+        { league: true, opponentTurnsPlayed: 5 }
+      );
+      game.ctx.team1.players[0].cost = 600000;
+      expect(
+        (await coachStep(game, createPlannerCoach())).command
+      ).toMatchObject({ type: "declare-action", action });
+    }
+  );
+
   it("still hits an imminent opposing scorer when the defensive risk is worthwhile", async () => {
     const game = tacticalGame(
       {

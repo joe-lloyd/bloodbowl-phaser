@@ -22,6 +22,8 @@ import { policySchedule } from "./schedule";
 import type { PolicyJob } from "./schedule";
 import { processPool } from "./pool";
 import { sppValuesFor } from "../../../src/game/progression/MatchStats";
+import { createOpportunityLog } from "../policy-lab/evidence";
+import { labInventory } from "../policy-lab/teams";
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) =>
@@ -32,8 +34,18 @@ const out = resolve(flag("out", "sim-results/skill-plans"));
 const baseline = flag("baseline", "");
 if (!baseline) throw new Error("--baseline must name the frozen source root");
 const frozen = resolve(baseline);
-const variants = advancedInventory();
+const lab = args.includes("--lab");
+const labVariants = lab ? labInventory() : null;
+const variants = labVariants ?? advancedInventory();
 const byId = new Map(variants.map((v) => [v.id, v]));
+const snapshots = new Map(labVariants?.map((v) => [v.id, v.team]));
+const getTeam = (id: string) => {
+  const snapshot = snapshots.get(id);
+  return snapshot ? structuredClone(snapshot) : teamFromVariant(byId.get(id)!);
+};
+const opponent = flag("opponent", "planner");
+if (!["planner", "heuristic", "hard", "legend"].includes(opponent))
+  throw new Error("Unsupported frozen opponent");
 
 function atomic(file: string, data: unknown) {
   writeFileSync(file + ".tmp", JSON.stringify(data));
@@ -57,8 +69,10 @@ function treeDigest(base: string, paths: string[]): string {
   return hash.digest("hex");
 }
 
-function track(coach: Coach) {
+function track(coach: Coach, collectPlans = false) {
   const selected: Record<string, number> = {};
+  const opportunities = createOpportunityLog();
+  let decisions = 0;
   let milliseconds = 0;
   const tracked: Coach = {
     name: coach.name,
@@ -67,6 +81,8 @@ function track(coach: Coach) {
       const choice = await coach.choose(context);
       milliseconds += performance.now() - start;
       const command = context.point.candidates[choice.index]?.commands[0];
+      if (collectPlans) opportunities.observe(context, choice, decisions);
+      decisions++;
       if (
         command?.type === "declare-action" &&
         choice.note?.startsWith("moves to feed")
@@ -87,6 +103,7 @@ function track(coach: Coach) {
   return {
     coach: tracked,
     selected,
+    ...opportunities,
     get milliseconds() {
       return milliseconds;
     },
@@ -95,9 +112,12 @@ function track(coach: Coach) {
 
 if (args.includes("--worker")) {
   const module = await import(
-    pathToFileURL(join(frozen, "src/simulation/ai/planner.ts")).href
+    pathToFileURL(join(frozen, "src/simulation/commands/shared.ts")).href
   );
-  const legacy: Coach = { ...module.plannerCoach, name: "planner-frozen" };
+  const legacy: Coach = {
+    ...module.makeCoach(opponent, []),
+    name: "planner-frozen",
+  };
   process.on("message", async (job: PolicyJob | null) => {
     if (!job) {
       process.disconnect();
@@ -105,7 +125,8 @@ if (args.includes("--worker")) {
     }
     try {
       const candidate = track(
-        createPlannerCoach({ name: "planner-skill-plans" })
+        createPlannerCoach({ name: "planner-skill-plans" }),
+        lab
       );
       const old = track(legacy);
       const coaches: [Coach, Coach] =
@@ -115,10 +136,7 @@ if (args.includes("--worker")) {
       const result = await playStudyGame(
         job,
         out,
-        [
-          teamFromVariant(byId.get(job.variantIds[0])!),
-          teamFromVariant(byId.get(job.variantIds[1])!),
-        ],
+        [getTeam(job.variantIds[0]), getTeam(job.variantIds[1])],
         coaches
       );
       const replay = await replayStudyTrace(
@@ -141,6 +159,15 @@ if (args.includes("--worker")) {
           candidate: candidate.milliseconds,
           frozen: old.milliseconds,
         },
+        ...(lab
+          ? {
+              opportunities: {
+                legal: candidate.legal,
+                proposed: candidate.proposed,
+              },
+              receipts: candidate.receipts,
+            }
+          : {}),
       });
       process.send?.({ done: job.id });
     } catch (error) {
@@ -157,13 +184,35 @@ if (args.includes("--worker")) {
     seedBase > 4_000_000_000
   )
     throw new Error("Invalid seed base");
-  let jobs = policySchedule(variants, smoke, seedBase);
-  if (smoke) {
+  let jobs = policySchedule(variants, smoke, seedBase, lab);
+  if (lab) {
+    if (args.includes("--base-only"))
+      jobs = jobs.filter((j) => j.development === "base");
+    // Small gates preserve whole blocks. Confirmation visits every recipe.
+    const blockLimit = Number(flag("blocks", "0"));
+    if (!Number.isSafeInteger(blockLimit) || blockLimit < 0)
+      throw new Error("Invalid block limit");
+    if (blockLimit) {
+      const pairs = [...new Set(jobs.map((j) => j.pair))];
+      const chosen = new Set(
+        Array.from(
+          { length: Math.min(blockLimit, pairs.length) },
+          (_, i) => pairs[Math.floor((i * pairs.length) / blockLimit)]
+        )
+      );
+      jobs = jobs.filter((j) => chosen.has(j.pair));
+    }
+    jobs = jobs.map((j) => ({
+      ...j,
+      persistentInjuries: args.includes("--league"),
+    }));
+  }
+  if (smoke && !lab) {
     const special = new Set(
       variants
         .filter(
           (v) =>
-            teamFromVariant(v).rosterName.includes("Vampire") ||
+            getTeam(v.id).rosterName.includes("Vampire") ||
             v.allocations.some((a) => a.skill === "Multiple Block")
         )
         .map((v) => v.id)
@@ -182,6 +231,11 @@ if (args.includes("--worker")) {
     hash
       .update(file)
       .update(readFileSync(join(root, "scripts/coach/policy-study", file)));
+  if (lab)
+    for (const file of ["teams.ts", "evidence.ts"])
+      hash
+        .update(file)
+        .update(readFileSync(join(root, "scripts/coach/policy-lab", file)));
   const sourceDigest = hash.digest("hex");
   const baselineDigest = treeDigest(frozen, ["src"]);
   mkdirSync(join(out, "games"), { recursive: true });
@@ -204,6 +258,16 @@ if (args.includes("--worker")) {
     inventory,
     objectives,
     jobs,
+    ...(lab
+      ? {
+          lab: true,
+          blockSize: 8,
+          opponent,
+          context: args.includes("--league")
+            ? "persistent-fixture"
+            : "exhibition",
+        }
+      : {}),
   };
   const file = join(out, "manifest.json");
   if (existsSync(file)) {
@@ -211,6 +275,7 @@ if (args.includes("--worker")) {
     if (
       previous.sourceDigest !== sourceDigest ||
       previous.baselineDigest !== baselineDigest ||
+      previous.opponent !== manifest.opponent ||
       JSON.stringify(previous.jobs) !== JSON.stringify(jobs)
     )
       throw new Error(

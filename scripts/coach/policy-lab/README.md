@@ -1,0 +1,53 @@
+# Sevens policy lab
+
+Run the current committed AI against a frozen incumbent on Daily Driver:
+
+```sh
+scripts/coach/policy-lab/daily-driver.sh full
+```
+
+The script exports immutable Git archives and installs their locked dependencies. It does not call a model during games. It runs 49 tactical checks, a 192-game pilot, a fresh 5,184-game confirmation and 432 persistent-context fixtures. All matches use normal Sevens setup and the real command engine. There is no forced opening contact line. `pilot` runs only the contracts and first match stage.
+
+Every match saves its initial state, commands and decision notes, then immediately replays them and reconciles event counters. Eight-game blocks balance physical side, which policy uses each build and first receiver. A partial or finding-bearing block cannot enter an estimate. The quality gate stops acquisition errors; confirmation also requires a naturally selected and accepted pass. That checks an exercised gameplay path, not a pass-rate fitness bonus.
+
+## Inspect evidence before changing policy
+
+The remote path prints at completion. Its `reports/index.html` reads saved results offline. `contracts/gate.json` lists failing named contracts. Each stage has `stage-gate.json`, `summary.json`, `decision-receipts.json`, per-roster CSVs and a manifest. Raw traces stay under the acquisition's `traces/` directory. The lab page exposes all 108 catalogue entries, including open tactical gaps.
+
+Legal declarations and proposals count repeated decision-state appearances. They are diagnostic denominators. They do not independently prove a pass was worthwhile. Public-entry tactical fixtures prove the useful case and the better-alternative control. Rule scripts prove mechanics. Natural skill triggers prove occurrence. None alone estimates an individual skill's contribution to winning.
+
+The shared planner supplies movement, possession, combat and defence. `skillActivations.ts`, `gazeActivations.ts` and the feeding modules add capability proposals. Actual opponents, skills, available players and match context price those proposals. No roster-name switch makes an agile team refuse favourable hits against weak opponents.
+
+Turn-five preparation includes necessary rushes into next-turn scoring reach. Turn-six scoring attempts lose the usual future-turn penalty when no reply remains. Incomplete distance gains and generic receiver preparation lose their final-turn attack value. Persistent injuries raise the cost of unnecessary exposure. The supported scoring horizon uses geometry and immediate transfers; it does not prove every multi-player miracle impossible.
+
+## Team controls and estimates
+
+The inventory retains base recipes and one frozen coverage replicate. It adds coherent roles and genuine Random Primary progression. Four distinct players each receive a 12 SPP budget. The coherent arm selects legal Primary skills by handler, passer, receiver and hitter roles. The random arm rolls the game's two candidates, then selects the better role fit. It pays actual random costs. Unspent SPP and actual team value remain in snapshots. Equal budgets do not imply equal team values. These arms compare policies on identical builds; they are not a causal chosen-versus-random strength comparison.
+
+Reports resample whole eight-game blocks 2,000 times. They show both recipe-weighted and equal-roster estimates, plus separate build-method estimates. Persistent fixtures restart teams after each match. Their player-loss counts do not measure a whole season. Match score remains the primary policy outcome; roster-specific SPP objectives are descriptive.
+
+## Run and resume locally
+
+Export the frozen revision into a source directory with locked dependencies, then:
+
+```sh
+pnpm exec tsx scripts/coach/policy-lab/gate.ts sim-results/lab/contracts
+pnpm exec tsx scripts/coach/policy-study/run.ts --lab \
+  --baseline /path/to/frozen --baseline-revision <sha> --revision <sha> \
+  --smoke --blocks 24 --workers 8 --out sim-results/lab/pilot
+python3 scripts/coach/policy-study/report.py \
+  --run sim-results/lab/pilot --out sim-results/lab/reports/pilot
+python3 scripts/coach/policy-lab/check.py sim-results/lab/reports/pilot
+python3 scripts/coach/policy-lab/report.py sim-results/lab
+```
+
+Remove `--smoke --blocks 24` and use a fresh `--seed-base` for confirmation. Use `--league` for persistent-fixture context, `--base-only` to isolate base builds, and `--opponent heuristic|hard|legend` for frozen policy sentinels. Hard and Legend use deterministic trial counts without wall-clock cutoffs. They share planner ancestry and are not independent tactical oracles. Keep opponent acquisitions separate.
+
+Rerunning an unchanged command resumes missing games. Source, opponent, context or schedule changes reject an existing directory. Candidate engine and legal actions are shared with the frozen decision policy. Behaviour changes require fresh confirmation. Report-only changes can rebuild from saved games without replaying acquisition. Source archives live beside the run; the report records source and results digests.
+
+```sh
+pnpm exec tsc -p scripts/coach/policy-lab/tsconfig.json
+pnpm exec eslint scripts/coach/policy-lab scripts/coach/policy-study
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+  -s scripts/coach/policy-study -p 'test_*.py'
+```

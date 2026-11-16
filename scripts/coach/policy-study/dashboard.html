@@ -458,12 +458,7 @@
     <details>
       <summary>Method, integrity and limitations</summary>
       <p id="integrity"></p>
-      <p>
-        Each independent block has four games using the same seed: swap physical
-        sides, then swap which policy uses each team. Confidence intervals
-        resample whole four-game blocks 2,000 times. Point estimates and
-        intervals use the same complete, finding-free blocks.
-      </p>
+      <p id="block-method"></p>
       <ul id="limitations"></ul>
       <p id="provenance" class="muted"></p>
     </details>
@@ -727,11 +722,17 @@
       rosterTable();
       skillTable();
       $("macro").textContent =
-        "Equal-weight average across " +
-        s.rosters.length +
-        " rosters: " +
-        delta(s.macro_points_delta * 100) +
-        " percentage points compared with the previous policy (descriptive; no macro confidence interval).";
+        "Equal-roster points share: " +
+        pct(s.equal_roster.points) +
+        " · 95% interval " +
+        s.equal_roster.ci.map(pct).join(" to ") +
+        ". Whole balanced blocks are resampled before averaging rosters.";
+      $("block-method").textContent =
+        "Each block contains " +
+        (data.manifest.blockSize || 4) +
+        " games with the same seed, balancing physical side and which policy uses each roster" +
+        (data.manifest.blockSize === 8 ? ", plus first receiver" : "") +
+        ". Intervals resample complete, finding-free blocks 2,000 times.";
       $("integrity").textContent =
         num(s.saved) +
         " saved / " +

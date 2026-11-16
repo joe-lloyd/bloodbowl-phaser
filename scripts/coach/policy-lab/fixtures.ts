@@ -29,6 +29,7 @@ export function tacticalGame(
         activeTeam: "team1",
         turn: 6,
         teamRerolls: { team1: 0, team2: 0 },
+        team1Placements: [],
         team2Placements: [{ playerIndex: 0, x: 1, y: 1 }],
         ...setup,
       },
