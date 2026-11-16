@@ -127,6 +127,26 @@ describe("fumbled Throw Team-mate", () => {
     expect(response.snapshot.activeTeamId).toBe("team1");
   });
 
+  it.each([
+    { roll: 1, armour: [1, 1], status: PlayerStatus.PRONE },
+    { roll: 6, armour: [], status: PlayerStatus.ACTIVE },
+  ])(
+    "bounces a loose ball after a direct landing on $roll without a turnover",
+    async ({ roll, armour, status }) => {
+      const { game, mate, response } = await fumble(
+        [1, 2, roll, ...armour, 5],
+        { looseBall: { x: 4, y: 4 } }
+      );
+      expect(mate.gridPosition).toEqual({ x: 4, y: 4 });
+      expect(mate.status).toBe(status);
+      expect(game.ctx.gameService.getState().ballPosition).toEqual({
+        x: 5,
+        y: 4,
+      });
+      expect(response.snapshot.activeTeamId).toBe("team1");
+    }
+  );
+
   it("bounces through successive occupied squares, knocking each occupant down", async () => {
     const { mate, game, response } = await fumble(
       [1, 2, 1, 1, 2, 1, 1, 2, 1, 1],

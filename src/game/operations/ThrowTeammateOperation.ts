@@ -622,6 +622,9 @@ export class ThrowTeammateOperation extends GameOperation {
     }
 
     if (land.success) {
+      // Landing is involuntary movement, so a loose ball bounces rather
+      // than being picked up. An existing carrier keeps their own ball.
+      if (!carriesBall) this.bounceIfCarried(gameService, context, teammate);
       this.landSafely(context, thrower, teammate, superbThrow);
       return;
     }
@@ -632,10 +635,8 @@ export class ThrowTeammateOperation extends GameOperation {
       `${teammate.playerName} fails to land and is Prone!`
     );
     this.knockDown(gameService, eventBus, teammate);
-    // A downed carrier drops the ball where they land.
-    if (carriesBall) {
-      context.flowManager.add(new BounceOperation({ ...landing }), true);
-    }
+    // A failed landing also bounces a loose ball beneath the fallen player.
+    this.bounceIfCarried(gameService, context, teammate);
     context.flowManager.add(new ArmourOperation(teammate.id), true);
     this.finishLanding(
       gameService,
