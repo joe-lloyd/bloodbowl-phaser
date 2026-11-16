@@ -78,21 +78,20 @@ export function clearArea(
     }))
     .sort((a, b) => size(b) - size(a));
   const bands = padded.filter((p) => p.left <= 0 && p.right >= width);
-  for (const p of bands) {
-    if (p.top <= 0) area.top = Math.max(area.top, p.bottom);
-    if (p.bottom >= height) area.bottom = Math.min(area.bottom, p.top);
-  }
-  for (const p of padded.filter((p) => !bands.includes(p))) {
+  for (const p of [...bands, ...padded.filter((p) => !bands.includes(p))]) {
     const overlaps =
       p.left < area.right &&
       p.right > area.left &&
       p.top < area.bottom &&
       p.bottom > area.top;
     if (!overlaps) continue;
+    const touchesLeft = p.left <= area.left;
+    const touchesRight = p.right >= area.right;
+    const sideColumn = touchesLeft !== touchesRight;
     const cuts: ScreenRect[] = [
       { ...area, left: Math.max(area.left, p.right) },
       { ...area, right: Math.min(area.right, p.left) },
-      ...(bands.length
+      ...(bands.length && sideColumn
         ? []
         : [
             { ...area, top: Math.max(area.top, p.bottom) },
@@ -619,8 +618,7 @@ export class CameraController {
   }
 
   private onResize(): void {
-    if (this.manual) return;
-    if (this.framed) this.trackPoints(this.framed.points, REFRAME_MS);
+    this.refreshFraming();
   }
 
   public destroy(): void {

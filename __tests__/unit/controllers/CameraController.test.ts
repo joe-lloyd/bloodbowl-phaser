@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   CameraController,
+  clearArea,
   ScreenRect,
 } from "../../../src/game/controllers/CameraController";
 import { gridPointToPixel } from "../../../src/game/elements/GridUtils";
@@ -72,13 +73,22 @@ function setup(
         y: (y + camera.scrollY * camera.zoom - camera.y - oy) / z + oy,
       };
     }),
-    panEffect: { reset: vi.fn() },
-    zoomEffect: { reset: vi.fn() },
+    panEffect: { isRunning: false, reset: vi.fn() },
+    zoomEffect: { isRunning: false, reset: vi.fn() },
   };
   const inputHandlers: Record<string, (...args: unknown[]) => void> = {};
+  let resize = () => {};
   const scene = {
     cameras: { main: camera },
-    scale: { ...viewport, on: vi.fn(), off: vi.fn() },
+    scale: {
+      ...viewport,
+      on: vi.fn(
+        (event: string, handler: () => void, context: CameraController) => {
+          if (event === "resize") resize = () => handler.call(context);
+        }
+      ),
+      off: vi.fn(),
+    },
     time: {
       delayedCall: (_delay: number, callback: () => void) => {
         const timer = setTimeout(callback, _delay);
@@ -117,8 +127,34 @@ function setup(
     bus as never,
     hudRects
   );
-  return { camera, controller, inputHandlers, pitch, bus, render };
+  return { camera, controller, inputHandlers, pitch, bus, render, resize };
 }
+
+describe("clearArea", () => {
+  it("keeps the space above a centred movement bar below the scoreboard", () => {
+    expect(
+      clearArea(844, 390, [
+        { left: 0, top: 0, right: 844, bottom: 90 },
+        { left: 172, top: 300, right: 672, bottom: 374 },
+      ])
+    ).toEqual({ left: 24, top: 114, right: 820, bottom: 276 });
+  });
+
+  it("keeps a positive area when the score and tray overlap on a short screen", () => {
+    expect(
+      clearArea(844, 250, [
+        { left: 0, top: 0, right: 844, bottom: 140 },
+        { left: 0, top: 130, right: 844, bottom: 250 },
+      ])
+    ).toEqual({ left: 24, top: 164, right: 820, bottom: 226 });
+  });
+
+  it("skips a HUD band that covers the entire canvas", () => {
+    expect(
+      clearArea(844, 250, [{ left: 0, top: 0, right: 844, bottom: 250 }])
+    ).toEqual({ left: 24, top: 24, right: 820, bottom: 226 });
+  });
+});
 
 describe("CameraController", () => {
   afterEach(() => {
@@ -257,6 +293,22 @@ describe("CameraController", () => {
     expect(camera.pan).not.toHaveBeenCalled();
   });
 
+  it("pans clear of a taller tray without changing zoom", () => {
+    let top = 600;
+    const { controller, camera } = setup({ width: 1280, height: 720 }, () => [
+      { left: 0, top, right: 1280, bottom: 720 },
+    ]);
+    camera.zoom = 0.83;
+    controller.focusSquare(10, 5);
+    const [x, y] = camera.pan.mock.lastCall!;
+    top = 400;
+    controller.refreshFraming();
+    expect(camera.pan.mock.lastCall![0]).toBeCloseTo(x);
+    expect(camera.pan.mock.lastCall![1]).toBeCloseTo(y + 100 / 0.83);
+    expect(camera.zoom).toBe(0.83);
+    expect(camera.zoomTo).not.toHaveBeenCalled();
+  });
+
   it("lets the coach zoom out after a team fit below the overview zoom floor", () => {
     const { controller, camera } = setup({ width: 1280, height: 720 });
     controller.fitSquares([
@@ -306,6 +358,38 @@ describe("CameraController", () => {
     expect(camera.zoomTo.mock.lastCall![0]).toBeGreaterThan(wide);
   });
 
+  it.each([250, 700])(
+    "keeps the next-team handoff after a resize at %sms",
+    (at) => {
+      vi.useFakeTimers();
+      const { controller, camera, resize } = setup(undefined, () => []);
+      controller.handoff(
+        [
+          { x: 0, y: 0 },
+          { x: 19, y: 10 },
+        ],
+        [{ x: 16, y: 5 }]
+      );
+      vi.advanceTimersByTime(at);
+      resize();
+      vi.advanceTimersByTime(1250 - at);
+      expect(camera.zoomTo).toHaveBeenCalledTimes(2);
+      const [x, y] = camera.pan.mock.lastCall!;
+      expect(x).toBeCloseTo(2544.47222);
+      expect(y).toBeCloseTo(1521.97222);
+    }
+  );
+
+  it("preserves a running team zoom when the viewport resizes", () => {
+    const { controller, camera, resize } = setup();
+    controller.fitSquares([{ x: 16, y: 5 }]);
+    camera.zoomEffect.isRunning = true;
+    const resets = camera.zoomEffect.reset.mock.calls.length;
+    resize();
+    expect(camera.zoomEffect.reset).toHaveBeenCalledTimes(resets);
+    expect(camera.pan).toHaveBeenCalledTimes(1);
+  });
+
   it.each(["selection", "manual", "restore", "destroy"])(
     "cancels stale handoff work on %s",
     (reason) => {
@@ -326,8 +410,10 @@ describe("CameraController", () => {
       if (reason === "restore") controller.reset();
       if (reason === "destroy") controller.destroy();
       camera.zoomTo.mockClear();
+      camera.pan.mockClear();
       vi.advanceTimersByTime(5000);
       expect(camera.zoomTo).not.toHaveBeenCalled();
+      expect(camera.pan).not.toHaveBeenCalled();
     }
   );
 

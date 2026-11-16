@@ -17,7 +17,7 @@ async function openSpread(page: Page) {
   return app;
 }
 
-/** Check the live team's footprint against the visible React score/tray gap. */
+/** Check the live team's footprint against the visible React HUD gap. */
 async function expectTeamFits(
   page: Page,
   app: GameApp,
@@ -42,10 +42,16 @@ async function expectTeamFits(
         .querySelector('[data-hud-frame="top"]')!
         .getBoundingClientRect().bottom;
       const tray = document.querySelector('[data-hud-frame="bottom"]')!;
-      const bottom =
+      const trayTop =
         tray.getAttribute("aria-hidden") === "true"
           ? canvas.bottom
           : tray.getBoundingClientRect().top;
+      // The phone's centred movement hint also occupies the bottom of the gap.
+      const hint = document.querySelector('[data-testid="move-hint"]');
+      const bottom = Math.min(
+        trayTop,
+        hint?.getBoundingClientRect().top ?? canvas.bottom
+      );
       const bridge = (
         window as unknown as {
           __bbTestBridge: import("../../src/testing/browserBridge").BrowserTestBridge;
@@ -203,6 +209,19 @@ test("turn handoff fits both teams, pauses, then fits the new team", async ({
   });
 });
 
+for (const afterMs of [250, 900]) {
+  test(`resizing at ${afterMs}ms preserves the next-team handoff`, async ({
+    page,
+  }) => {
+    const app = await openSpread(page);
+    await app.hud.endTurn().click();
+    await page.waitForTimeout(afterMs);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.waitForTimeout(2200);
+    await expectTeamFits(page, app, 1);
+  });
+}
+
 for (const afterMs of [250, 700]) {
   test(`selection at ${afterMs}ms cancels the obsolete handoff fit`, async ({
     page,
@@ -237,11 +256,17 @@ for (const afterMs of [250, 700]) {
         return event?.data;
       })
       .toMatchObject({ player: { id: requestedId } });
+    await app.pitch.waitForCameraToSettle();
     await sampleCamera(page);
     await page.waitForTimeout(2200);
-    expectZoomHeld(
-      await finishCameraSample(page, test.info(), "cancelled-handoff-frames")
+    const samples = await finishCameraSample(
+      page,
+      test.info(),
+      "cancelled-handoff-frames"
     );
+    expectZoomHeld(samples);
+    expect(new Set(samples.map((s) => JSON.stringify(s.centre))).size).toBe(1);
+    expect(samples.some((s) => s.panning || s.zooming)).toBe(false);
   });
 }
 
@@ -255,9 +280,14 @@ test("loading another scenario during handoff cancels the obsolete destination",
   await app.pitch.waitForCameraToSettle();
   await sampleCamera(page);
   await page.waitForTimeout(2200);
-  expectZoomHeld(
-    await finishCameraSample(page, test.info(), "restored-handoff-frames")
+  const samples = await finishCameraSample(
+    page,
+    test.info(),
+    "restored-handoff-frames"
   );
+  expectZoomHeld(samples);
+  expect(new Set(samples.map((s) => JSON.stringify(s.centre))).size).toBe(1);
+  expect(samples.some((s) => s.panning || s.zooming)).toBe(false);
 });
 
 test.describe("reduced motion", () => {

@@ -26,12 +26,20 @@ test("Frenzy rolls its second block automatically and the blitzer can dodge away
     .poll(() => app.pitch.squareOf("team1:0"))
     .toEqual({ x: 10, y: 4 });
   await app.bridge.expectEvent(GameEventNames.PlayerMovedInAction);
+  await expect(page.getByTestId("dice-tray")).toHaveAttribute(
+    "data-dice",
+    "empty"
+  );
 
   await app.hud.selectActionStep("block");
   await app.pitch.clickPlayer("team2:0");
   await app.hud.rollBlockDice();
   await app.hud.chooseBlockResult("push");
   await expect(page.getByTestId("push-choice-prompt")).toBeVisible();
+  await expect(page.getByTestId("dice-tray")).toHaveAttribute(
+    "data-dice",
+    "empty"
+  );
   await app.pitch.clickSquare({ x: 12, y: 5 });
 
   // No second Roll click or follow-up confirmation should be needed.
@@ -45,6 +53,10 @@ test("Frenzy rolls its second block automatically and the blitzer can dodge away
 
   await app.hud.chooseBlockResult("push");
   await expect(page.getByTestId("push-choice-prompt")).toBeVisible();
+  await expect(page.getByTestId("dice-tray")).toHaveAttribute(
+    "data-dice",
+    "empty"
+  );
   await app.pitch.clickSquare({ x: 13, y: 5 });
   await app.bridge.expectEvent(GameEventNames.UI_ResumeBlitzMove);
   await expect
