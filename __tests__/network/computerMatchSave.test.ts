@@ -4,7 +4,7 @@ import { confirmComputerPregame } from "../utils/computerPregame";
  * the toss on, and a page that reloads picks up from that save. The human
  * side is played by the heuristic coach through the match's own `run`.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createComputerMatch } from "../../src/network/ComputerMatch";
 import { OnlineMatch } from "../../src/network/OnlineMatch";
 import { EventBus } from "../../src/services/EventBus";
@@ -151,12 +151,17 @@ async function humanStep(
 /** Plays the human's side until it is their move in open play. */
 async function playToHumanTurn(live: OnlineMatch): Promise<void> {
   const rng = createCoachRng(5);
-  while (
-    liveGame().snapshot().phase !== GamePhase.PLAY ||
-    liveGame().pendingDecision() ||
-    !live.mayAct()
-  )
+  while (true) {
+    // Open play starts before the final bounce can award a touchback.
+    await whenEngineQuiet();
+    if (
+      liveGame().snapshot().phase === GamePhase.PLAY &&
+      !liveGame().pendingDecision() &&
+      live.mayAct()
+    )
+      return;
     await humanStep(live, rng);
+  }
 }
 
 async function savedTurn(teamId: string): Promise<MatchSave> {
@@ -209,25 +214,37 @@ describe("saving a match against the computer", () => {
     expect(latest?.computer?.computerTeamId).toBe("team2");
   });
 
-  it("resumes on the same board, score and turn", async () => {
-    const live = startNew(0);
-    await confirmComputerPregame(live);
-    await live.run({ type: "start-setup", kickingTeamId: "team2" });
-    await playToHumanTurn(live);
-    await whenEngineQuiet();
-    await ms(150);
-    const save = latest!;
-    live.close();
+  it.each([
+    { landing: "touchback", seed: 510522575 },
+    { landing: "on the pitch", seed: 764218399 },
+  ])(
+    "resumes on the same board, score and turn after landing $landing",
+    async ({ seed }) => {
+      const random = vi.spyOn(Math, "random").mockReturnValue(seed / 2 ** 31);
+      const live = startNew(0);
+      random.mockRestore();
+      await confirmComputerPregame(live);
+      await live.run({ type: "start-setup", kickingTeamId: "team2" });
+      await playToHumanTurn(live);
+      const save = await vi.waitUntil(() =>
+        latest?.snapshot.phase === GamePhase.PLAY &&
+        latest.snapshot.activeTeamId === "team1"
+          ? latest
+          : null
+      );
+      live.close();
 
-    resume(save, 0);
+      resume(save, 0);
 
-    const { turnManager, ...resumed } = liveGame().snapshot();
-    const { turnManager: _saved, ...saved } = save.snapshot;
-    expect(JSON.parse(JSON.stringify(resumed))).toEqual(saved);
-    expect(turnManager).toEqual(save.turnManager);
-    expect(resumed.phase).toBe(GamePhase.PLAY);
-    expect(resumed.activeTeamId).toBe("team1");
-  }, 60_000);
+      const { turnManager, ...resumed } = liveGame().snapshot();
+      const { turnManager: _saved, ...saved } = save.snapshot;
+      expect(JSON.parse(JSON.stringify(resumed))).toEqual(saved);
+      expect(turnManager).toEqual(save.turnManager);
+      expect(resumed.phase).toBe(GamePhase.PLAY);
+      expect(resumed.activeTeamId).toBe("team1");
+    },
+    60_000
+  );
 
   it("holds the computer's turn until the board is ready", async () => {
     const live = startNew(1);
