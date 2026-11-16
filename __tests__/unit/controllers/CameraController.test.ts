@@ -127,7 +127,21 @@ function setup(
     bus as never,
     hudRects
   );
-  return { camera, controller, inputHandlers, pitch, bus, render, resize };
+  return {
+    camera,
+    controller,
+    inputHandlers,
+    pitch,
+    bus,
+    render,
+    resize: (size?: typeof viewport) => {
+      if (size) {
+        Object.assign(scene.scale, size);
+        Object.assign(camera, size);
+      }
+      resize();
+    },
+  };
 }
 
 describe("clearArea", () => {
@@ -307,6 +321,38 @@ describe("CameraController", () => {
     expect(camera.pan.mock.lastCall![1]).toBeCloseTo(y + 100 / 0.83);
     expect(camera.zoom).toBe(0.83);
     expect(camera.zoomTo).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 1])("holds the view when HUD band %s closes", (closed) => {
+    let panels: ScreenRect[] = [
+      { left: 0, top: 0, right: 1600, bottom: 170 },
+      { left: 0, top: 600, right: 1600, bottom: 900 },
+    ];
+    const { controller, camera } = setup(undefined, () => panels);
+    camera.zoom = 0.83;
+    controller.focusSquare(10, 5);
+    const before = { x: camera.scrollX, y: camera.scrollY, zoom: camera.zoom };
+    camera.pan.mockClear();
+    panels = panels.filter((_, index) => index !== closed);
+    controller.refreshFraming();
+    expect({ x: camera.scrollX, y: camera.scrollY, zoom: camera.zoom }).toEqual(
+      before
+    );
+    expect(camera.pan).not.toHaveBeenCalled();
+  });
+
+  it("keeps the tracked world centre when the viewport grows", () => {
+    const { controller, camera, resize } = setup(undefined, () => []);
+    camera.zoom = 0.83;
+    controller.focusSquare(10, 5);
+    const before = {
+      x: camera.scrollX + camera.width / 2,
+      y: camera.scrollY + camera.height / 2,
+    };
+    resize({ width: 1920, height: 1080 });
+    expect(camera.scrollX + camera.width / 2).toBeCloseTo(before.x);
+    expect(camera.scrollY + camera.height / 2).toBeCloseTo(before.y);
+    expect(camera.zoom).toBe(0.83);
   });
 
   it("lets the coach zoom out after a team fit below the overview zoom floor", () => {

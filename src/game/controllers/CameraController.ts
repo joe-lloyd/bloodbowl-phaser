@@ -434,8 +434,8 @@ export class CameraController {
     });
   }
 
-  /** Layout changes may move action clear of the HUD, but never change zoom. */
-  public refreshFraming(): void {
+  /** Pan when HUD panels cover more space; hold when they close. */
+  public refreshFraming(reason: "hud" | "resize" = "hud"): void {
     if (this.manual || this.handoffTimer || this.camera.zoomEffect.isRunning)
       return;
     if (this.following) {
@@ -445,14 +445,15 @@ export class CameraController {
     const framed = this.framed;
     if (!framed) return;
     const area = this.clearAreaNow();
-    const moved =
+    const narrowed =
       Math.max(
-        Math.abs(area.left - framed.area.left),
-        Math.abs(area.right - framed.area.right),
-        Math.abs(area.top - framed.area.top),
-        Math.abs(area.bottom - framed.area.bottom)
+        area.left - framed.area.left,
+        framed.area.right - area.right,
+        area.top - framed.area.top,
+        framed.area.bottom - area.bottom
       ) > REFRAME_TOLERANCE_PX;
-    if (moved) this.trackPoints(framed.points, REFRAME_MS);
+    if (reason === "resize" || narrowed)
+      this.trackPoints(framed.points, REFRAME_MS);
   }
 
   private clearAreaNow(): ScreenRect {
@@ -618,7 +619,7 @@ export class CameraController {
   }
 
   private onResize(): void {
-    this.refreshFraming();
+    this.refreshFraming("resize");
   }
 
   public destroy(): void {
