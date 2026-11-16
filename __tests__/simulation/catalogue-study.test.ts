@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
+import { runInNewContext } from "node:vm";
 import {
   studySchedule,
   catalogueInventory,
@@ -16,6 +17,32 @@ import { RosterName } from "../../src/types/Team";
 import { GameEventNames } from "../../src/types/events";
 
 describe("catalogue study", () => {
+  it("renders decision counts separately from points shares and rates", () => {
+    const page = readFileSync(
+      "scripts/coach/catalogue-study/report/page.html",
+      "utf8"
+    );
+    const formatter = page.slice(
+      page.indexOf("function value("),
+      page.indexOf("function render(")
+    );
+    const format = runInNewContext(`(${formatter})`) as (
+      key: string,
+      value: unknown
+    ) => string;
+    expect(format("decision_points_offered", 331614)).toBe(
+      (331614).toLocaleString()
+    );
+    expect(format("selections", 2)).toBe("2");
+    expect(format("points", 0.5)).toBe("50.0%");
+    expect(format("race_macro_points", 0.75)).toBe("75.0%");
+    expect(format("points_low", 0.25)).toBe("25.0%");
+    expect(format("turnover_rate", 0.3)).toBe("30.0%");
+    expect(format("failure_rate", 0.5)).toBe("50.0%");
+    expect(format("td_per_game", 1.25)).toBe("1.250");
+    expect(format("points_high", null)).toBe("—");
+  });
+
   it("counts each event once when decision enumeration reads the old event log", async () => {
     const rosters: [RosterName, RosterName] = [
       RosterName.OGRE,
