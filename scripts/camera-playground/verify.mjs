@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 import { createHash, X509Certificate } from "node:crypto";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { readFile, mkdir, writeFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import https from "node:https";
@@ -128,6 +128,7 @@ try {
       return after;
     };
     const viewportReport = { viewport, policies: [], screenshots: [] };
+    report.viewports.push(viewportReport);
     for (const policy of ["team", "keep", "overview"]) {
       await page.locator(`[data-policy="${policy}"]`).click();
       const cases = await page
@@ -324,6 +325,10 @@ try {
       await page.locator("#zoom-out").click();
       assert((await snapshot()).zoom < z2, "Manual zoom out failed");
       viewportReport.policies.push(policyReport);
+      await writeFile(
+        join(output, "results.partial.json"),
+        JSON.stringify(report, null, 2)
+      );
       process.stdout.write(
         `${viewport.width}px ${policy}: ${cases.length} scenarios passed\n`
       );
@@ -430,6 +435,9 @@ try {
       "Local note not saved"
     );
     await page.locator("#copy-notes").click();
+    await page.waitForFunction(() =>
+      document.querySelector("#note-status").textContent.includes("copied")
+    );
     assert(
       (await page.locator("#note-status").textContent()).includes("copied"),
       "Feedback copy failed"
@@ -451,9 +459,10 @@ try {
     );
     assert(overflow <= 1, `Horizontal page overflow ${overflow}px`);
     assert(errors.length === 0, `Browser errors: ${errors.join(", ")}`);
-    report.viewports.push(viewportReport);
     await context.close();
   }
+  await rm(join(output, "failure.txt"), { force: true });
+  await rm(join(output, "results.partial.json"), { force: true });
   await writeFile(
     join(output, "results.json"),
     JSON.stringify(report, null, 2)
@@ -467,6 +476,10 @@ try {
     .join("[private]")
     .replaceAll(url, "[HTMLify page]");
   await writeFile(join(output, "failure.txt"), message);
+  await writeFile(
+    join(output, "results.partial.json"),
+    JSON.stringify(report, null, 2)
+  );
   process.stderr.write(`${message}\n`);
   process.exitCode = 1;
 } finally {
