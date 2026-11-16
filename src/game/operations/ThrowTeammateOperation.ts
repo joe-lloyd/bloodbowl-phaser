@@ -3,6 +3,7 @@ import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus, Player } from "../../types/Player";
+import { GamePhase } from "../../types/GameState";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
@@ -203,7 +204,7 @@ export class ThrowTeammateOperation extends GameOperation {
     }
 
     if (occupant && occupant.id !== teammate.id) {
-      this.crash(context, teammate, occupant, landing, carriesBall);
+      await this.crash(context, teammate, occupant, landing, carriesBall);
       return;
     }
 
@@ -495,13 +496,13 @@ export class ThrowTeammateOperation extends GameOperation {
   }
 
   /** Each occupant is knocked down; the thrown player bounces clear and falls. */
-  private crash(
+  private async crash(
     context: FlowContext,
     teammate: Player,
     occupant: Player,
     landing: Square,
     carriesBall: boolean
-  ): void {
+  ): Promise<void> {
     const { gameService, eventBus } = context;
     let target: Player | undefined = occupant;
     let square = landing;
@@ -512,19 +513,27 @@ export class ThrowTeammateOperation extends GameOperation {
         `${teammate.playerName} crashes into ${target.playerName}!`
       );
       ownPlayerHit ||= target.teamId === gameService.getState().activeTeamId;
-      if (!carriesBall && target.status === PlayerStatus.ACTIVE) {
-        this.bounceIfCarried(gameService, context, target);
-      }
+      const ball = groundBall(gameService.getState());
+      const dropsBall =
+        !carriesBall && ball?.x === square.x && ball.y === square.y;
+      // The thrown player is still airborne during the occupant's injury
+      // and dropped-ball reactions, so cannot catch that ball themselves.
+      teammate.gridPosition = undefined;
       this.knockDown(gameService, eventBus, target);
-      context.flowManager.add(
+      // Resolve the injury before another bounce can revisit this square:
+      // a casualty has already left it and must not be injured again.
+      await context.flowManager.runToRest(
         new ArmourOperation(
           target.id,
           lethalFlight(teammate, target) ? teammate.id : undefined,
           undefined,
           "lethal-flight"
-        ),
-        true
+        )
       );
+      if (dropsBall) {
+        await context.flowManager.runToRest(new BounceOperation({ ...square }));
+        if (gameService.getPhase() !== GamePhase.PLAY) return;
+      }
       const next = gameService.getBallMovementController().bounce(square);
       target = this.fly(context, teammate, square, next, carriesBall).occupant;
       if (!isOnPitch(next)) {
@@ -534,9 +543,9 @@ export class ThrowTeammateOperation extends GameOperation {
       square = next;
     }
     this.knockDown(gameService, eventBus, teammate);
-    if (carriesBall) {
-      context.flowManager.add(new BounceOperation({ ...square }), true);
-    }
+    // Falling onto a loose ball makes it bounce too; only the original
+    // carrier flag below decides whether this fall causes a Turnover.
+    this.bounceIfCarried(gameService, context, teammate);
     context.flowManager.add(new ArmourOperation(teammate.id), true);
     // The thrown player Falls Over; "this will only cause a Turnover if the
     // thrown player was holding the ball" (p.82).

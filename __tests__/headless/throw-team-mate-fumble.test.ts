@@ -5,12 +5,14 @@ import { PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
 import { forceDice } from "../utils/test-helpers";
 import type { Scenario, PlayerPlacement } from "../../src/types/Scenario";
+import { checkInvariants } from "../../src/simulation/invariants";
 
 function scenario(options: {
   carrier?: boolean;
   troll?: boolean;
   edge?: boolean;
   throwerHasBall?: boolean;
+  looseBall?: { x: number; y: number };
   opponents?: PlayerPlacement[];
 }): Scenario {
   const y = options.edge ? 0 : 5;
@@ -45,7 +47,7 @@ function scenario(options: {
         options.throwerHasBall ||
         options.opponents?.some((p) => p.hasBall)
           ? undefined
-          : { x: 15, y: 2 },
+          : (options.looseBall ?? { x: 15, y: 2 }),
     },
   };
 }
@@ -65,6 +67,7 @@ async function fumble(
     action: "throwTeamMate",
   });
   expect(declared.ok).toBe(true);
+  const before = game.snapshot();
   const response = await game.execute({
     type: "throw-teammate",
     throwerId: thrower.id,
@@ -77,6 +80,13 @@ async function fumble(
     .filter((p) => p.gridPosition)
     .map((p) => `${p.gridPosition!.x},${p.gridPosition!.y}`);
   expect(new Set(positions).size).toBe(positions.length);
+  expect(
+    checkInvariants(
+      before,
+      response.snapshot,
+      response.pendingDecision !== null
+    )
+  ).toEqual([]);
   return { game, response, thrower, mate };
 }
 
@@ -119,7 +129,7 @@ describe("fumbled Throw Team-mate", () => {
 
   it("bounces through successive occupied squares, knocking each occupant down", async () => {
     const { mate, game, response } = await fumble(
-      [1, 2, 2, 2, 1, 1, 1, 1, 1, 1],
+      [1, 2, 1, 1, 2, 1, 1, 2, 1, 1],
       {
         opponents: [
           { playerIndex: 0, x: 4, y: 4 },
@@ -137,7 +147,7 @@ describe("fumbled Throw Team-mate", () => {
   });
 
   it("does not take an opposing carrier's ball along when bouncing off them", async () => {
-    const { mate, game } = await fumble([1, 2, 2, 1, 1, 1, 1, 5], {
+    const { mate, game } = await fumble([1, 2, 1, 1, 5, 2, 1, 1], {
       opponents: [{ playerIndex: 0, x: 4, y: 4, hasBall: true }],
     });
     expect(mate.gridPosition).toEqual({ x: 4, y: 3 });
@@ -147,9 +157,78 @@ describe("fumbled Throw Team-mate", () => {
     });
   });
 
+  it("preserves casualty state when a collision chain revisits a player", async () => {
+    await fumble([1, 2, 2, 7, 5, 1, 1, 6, 6, 6, 6, 1, 1, 6, 6, 1, 1], {
+      opponents: [
+        { playerIndex: 0, x: 4, y: 4 },
+        { playerIndex: 1, x: 4, y: 3 },
+      ],
+    });
+  });
+
+  it("resolves each casualty before bouncing back to the vacated square", async () => {
+    const { game, mate, response } = await fumble(
+      [1, 2, 6, 6, 6, 6, 2, 1, 1, 7, 1, 1],
+      {
+        opponents: [
+          { playerIndex: 0, x: 4, y: 4 },
+          { playerIndex: 1, x: 4, y: 3 },
+        ],
+      }
+    );
+    const victim = game.ctx.team2.players[0];
+    expect(victim.status).toBe(PlayerStatus.DEAD);
+    expect(victim.gridPosition).toBeUndefined();
+    expect(mate.gridPosition).toEqual({ x: 4, y: 4 });
+    expect(mate.status).toBe(PlayerStatus.PRONE);
+    const rolls = response.events
+      .filter((e) => e.name === "diceRoll")
+      .map((e) => (e.data as { description: string }).description);
+    const armour = rolls.findIndex((r) =>
+      r.startsWith(`Armour Roll (${victim.playerName})`)
+    );
+    const injury = rolls.findIndex((r) =>
+      r.startsWith(`Injury Roll (${victim.playerName})`)
+    );
+    expect(armour).toBeGreaterThan(0);
+    expect(injury).toBeGreaterThan(armour);
+    expect(rolls.indexOf("Bounce: 2", injury)).toBeGreaterThan(injury);
+  });
+
+  it("bounces a loose ball when the crashing team-mate falls onto it", async () => {
+    const { game, mate, response } = await fumble([1, 2, 1, 1, 2, 1, 1, 1], {
+      opponents: [{ playerIndex: 0, x: 4, y: 4 }],
+      looseBall: { x: 4, y: 3 },
+    });
+    expect(mate.gridPosition).toEqual({ x: 4, y: 3 });
+    expect(mate.status).toBe(PlayerStatus.PRONE);
+    expect(game.ctx.gameService.getState().ballPosition).not.toEqual(
+      mate.gridPosition
+    );
+    expect(response.snapshot.activeTeamId).toBe("team1");
+  });
+
+  it("settles a casualty's dropped ball before revisiting their square", async () => {
+    const { game, mate } = await fumble(
+      [1, 2, 6, 6, 6, 6, 5, 2, 1, 1, 7, 1, 1],
+      {
+        opponents: [
+          { playerIndex: 0, x: 4, y: 4, hasBall: true },
+          { playerIndex: 1, x: 4, y: 3 },
+        ],
+      }
+    );
+    expect(game.ctx.team2.players[0].status).toBe(PlayerStatus.DEAD);
+    expect(mate.gridPosition).toEqual({ x: 4, y: 4 });
+    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+      x: 5,
+      y: 4,
+    });
+  });
+
   it("turns over if the bouncing team-mate knocks the thrower down", async () => {
     const { mate, thrower, response } = await fumble(
-      [1, 2, 7, 4, 1, 1, 1, 1, 1, 1],
+      [1, 2, 1, 1, 7, 1, 1, 4, 1, 1],
       {
         opponents: [{ playerIndex: 0, x: 4, y: 4 }],
       }
