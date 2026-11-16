@@ -74,7 +74,7 @@ export async function probeRun(
   };
 }
 
-async function firstChoice(config: RuleConfig, seed: number) {
+export async function firstChoice(config: RuleConfig, seed: number) {
   const expected = config.script?.[0];
   if (expected?.type !== "declare-action")
     return { status: "not an opening declaration" };
@@ -90,12 +90,18 @@ async function firstChoice(config: RuleConfig, seed: number) {
     const chosen = point.candidates[choice.index]?.commands[0];
     sample = {
       expectedAction: expected.action,
+      expectedBlockReplacement: expected.blockReplacement ?? null,
       offered: point.candidates.some(
         (c) =>
           c.commands[0].type === "declare-action" &&
-          c.commands[0].action === expected.action
+          c.commands[0].action === expected.action &&
+          c.commands[0].blockReplacement === expected.blockReplacement
       ),
       chosen: chosen?.type === "declare-action" ? chosen.action : chosen?.type,
+      chosenBlockReplacement:
+        chosen?.type === "declare-action"
+          ? (chosen.blockReplacement ?? null)
+          : null,
       note: choice.note,
     };
   });

@@ -15,11 +15,15 @@ import {
 } from "../../scripts/coach/advanced-study/teams";
 import { advancedSchedule } from "../../scripts/coach/advanced-study/schedule";
 import { acquisitionDigest } from "../../scripts/coach/advanced-study/fingerprint";
-import { probeRun } from "../../scripts/coach/advanced-study/probes";
+import {
+  firstChoice,
+  probeRun,
+} from "../../scripts/coach/advanced-study/probes";
 import { playStudyGame } from "../../scripts/coach/catalogue-study/play";
 import { replayStudyTrace } from "../../scripts/coach/catalogue-study/replay";
 import { SKILL_DEFINITIONS, SkillType } from "../../src/types/Skills";
 import { findRuleConfig } from "../../src/data/ruleScenarios";
+import { RosterName } from "../../src/types/Team";
 
 describe("advanced skill study", () => {
   const variants = advancedInventory();
@@ -129,6 +133,32 @@ describe("advanced skill study", () => {
     expect((await probeRun(config, SkillType.HORNS, 1, false)).triggers).toBe(
       withSkill.triggers
     );
+  });
+  it("distinguishes an ordinary Blitz from a special Blitz in opening diagnostics", async () => {
+    const { config } = findRuleConfig("projectile-vomit-blitz")!;
+    expect(await firstChoice(config, 71)).toMatchObject({
+      expectedAction: "blitz",
+      expectedBlockReplacement: "vomit",
+      offered: true,
+      chosen: "blitz",
+      chosenBlockReplacement: null,
+    });
+    expect(
+      await firstChoice(
+        {
+          ...config,
+          setup: {
+            ...config.setup,
+          team1Roster: RosterName.HUMAN,
+          },
+        },
+        71
+      )
+    ).toMatchObject({
+      expectedAction: "blitz",
+      expectedBlockReplacement: "vomit",
+      offered: false,
+    });
   });
   it("preserves advanced players and prices in the actual saved replay", async () => {
     const out = mkdtempSync(join(tmpdir(), "bb7-advanced-"));
