@@ -469,7 +469,7 @@ function metrics() {
   element("metric-area").textContent =
     `${Math.round(area.right - area.left)} × ${Math.round(area.bottom - area.top)}`;
   element("zoom-lock").textContent =
-    phase !== "idle"
+    phase !== "idle" || (tween !== null && tween.from.zoom !== tween.to.zoom)
       ? "Camera transition"
       : delta !== null && Math.abs(delta) > 0.000001
         ? "Zoom changed"
