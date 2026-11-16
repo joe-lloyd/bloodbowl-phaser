@@ -201,6 +201,7 @@ function declarableActions({
   const actions = allowed([
     ["move", availability.move],
     ["block", canBlock],
+    ["multipleBlock", availability.multipleBlock],
     ["blitz", !hasBlitzed],
     ["pass", carriesBall && availability.pass],
     ["handoff", availability.handoff],

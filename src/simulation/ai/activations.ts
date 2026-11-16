@@ -29,9 +29,15 @@ import {
   blockActivations,
 } from "./blockActivations";
 import { repositionActivation, roleSquares } from "./repositionActivations";
+import { SKILL_PLANS } from "./skillActivations";
+import {
+  feedingSupportActivations,
+  holdsFeedingSupport,
+} from "./feedingSupport";
 
 /** Botbowl's turn order: the earlier a tier, the safer its actions. */
 export const TIERS = [
+  "prepare",
   "score",
   "handoff",
   "carrier",
@@ -44,12 +50,22 @@ export const TIERS = [
 ] as const;
 export type Tier = (typeof TIERS)[number];
 
-export type Role = "cage" | "receiver" | "mark" | "screen" | "chase" | "stall";
+export type Role =
+  | "cage"
+  | "receiver"
+  | "mark"
+  | "screen"
+  | "chase"
+  | "stall"
+  | "feed";
 
 export type Intent =
   | { kind: "score"; route: Route }
   | { kind: "carrier"; route: Route }
   | { kind: "pickup"; route: Route }
+  | { kind: "secure-ball"; route: Route }
+  | { kind: "gaze"; target: Player; route: Route | null }
+  | { kind: "multiple-block"; targets: [Player, Player] }
   | { kind: "handoff"; to: Player; route: Route | null }
   | { kind: "pass"; to: Player; route: Route | null }
   | { kind: "block"; target: Player }
@@ -112,6 +128,12 @@ function fieldOptions(
       }))
     );
   if (actions.has("block")) out.push(...blockActivations(c, player));
+  if (c.skillPlans) {
+    for (const action of actions) {
+      const propose = SKILL_PLANS[action];
+      if (propose) out.push(...propose(c, player));
+    }
+  }
   if (actions.has("blitz")) out.push(...blitzActivations(c, player));
   if (actions.has("move") || actions.has("standUp"))
     out.push(...repositionActivation(c, player, roleSquares(c)));
@@ -135,9 +157,10 @@ function forPlayer(
 export function activations(
   board: Board,
   w: Weights,
-  available: Available
+  available: Available,
+  skillPlans = true
 ): Activation[] {
-  const c = context(board, w, available);
+  const c = context(board, w, available, skillPlans);
   const out: Activation[] = [];
   for (const player of board.ours) {
     const actions = available.get(player.id);
@@ -147,6 +170,7 @@ export function activations(
   if (carrier?.teamId === board.us && scoreChanceOf(c, carrier) < w.safeScore)
     out.push(...deepReceiverActivations(c, carrier));
   out.push(...assistActivations(c, out));
+  out.push(...feedingSupportActivations(c));
   return sortActivations(out);
 }
 
@@ -154,56 +178,77 @@ export function activations(
  * What the active player should keep doing under the action it declared,
  * or null to end its activation.
  */
+function movementContinuation(c: Context, player: Player): Activation[] {
+  if (holdsFeedingSupport(c, player)) return [];
+  if (carrierOf(c.board)?.id === player.id)
+    return carrierActivations(c, player);
+  return [
+    ...pickupActivation(c, player),
+    ...repositionActivation(c, player, roleSquares(c)),
+    ...feedingSupportActivations(c).filter((a) => a.player.id === player.id),
+  ];
+}
+
+function blitzContinuation(
+  c: Context,
+  player: Player,
+  used: boolean
+): Activation[] {
+  if (!used)
+    return [...blitzActivations(c, player), ...pickupActivation(c, player)];
+  if (carrierOf(c.board)?.id === player.id)
+    return carrierActivations(c, player);
+  return [
+    ...pickupActivation(c, player),
+    ...repositionActivation(c, player, roleSquares(c)),
+  ].filter((a) => a.tier !== "risky");
+}
+
+function continuationOptions(
+  c: Context,
+  player: Player,
+  action: ActionType,
+  blitzBlockUsed: boolean
+): Activation[] {
+  const capability = c.skillPlans ? SKILL_PLANS[action] : undefined;
+  if (capability) return capability(c, player);
+  const carrying = carrierOf(c.board)?.id === player.id;
+  switch (action) {
+    case "move":
+    case "standUp":
+      return movementContinuation(c, player);
+    case "block":
+      return blockActivations(c, player);
+    case "blitz":
+      return blitzContinuation(c, player, blitzBlockUsed);
+    case "handoff":
+      return carrying
+        ? handoffActivations(c, player)
+        : pickupActivation(c, player);
+    case "pass":
+      return carrying
+        ? passActivations(c, player)
+        : pickupActivation(c, player);
+    default:
+      return [];
+  }
+}
+
 export function continuation(
   board: Board,
   w: Weights,
   player: Player,
   action: ActionType,
   blitzBlockUsed: boolean,
-  available: Available
+  available: Available,
+  skillPlans = true
 ): Activation | null {
   const c = context(
     board,
     w,
-    new Map([...available, [player.id, new Set<ActionType>([action])]])
+    new Map([...available, [player.id, new Set<ActionType>([action])]]),
+    skillPlans
   );
-  const carrying = carrierOf(board)?.id === player.id;
-  let options: Activation[] = [];
-  switch (action) {
-    case "move":
-    case "standUp":
-      options = carrying
-        ? carrierActivations(c, player)
-        : [
-            ...pickupActivation(c, player),
-            ...repositionActivation(c, player, roleSquares(c)),
-          ];
-      break;
-    case "block":
-      options = blockActivations(c, player);
-      break;
-    case "blitz":
-      options = blitzBlockUsed
-        ? carrying
-          ? carrierActivations(c, player)
-          : [
-              ...pickupActivation(c, player),
-              ...repositionActivation(c, player, roleSquares(c)),
-            ].filter((a) => a.tier !== "risky")
-        : [...blitzActivations(c, player), ...pickupActivation(c, player)];
-      break;
-    case "handoff":
-      options = carrying
-        ? handoffActivations(c, player)
-        : pickupActivation(c, player);
-      break;
-    case "pass":
-      options = carrying
-        ? passActivations(c, player)
-        : pickupActivation(c, player);
-      break;
-    default:
-      return null;
-  }
+  const options = continuationOptions(c, player, action, blitzBlockUsed);
   return sortActivations(options.filter((a) => a.value > 0))[0] ?? null;
 }

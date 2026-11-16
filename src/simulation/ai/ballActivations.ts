@@ -35,6 +35,7 @@ import {
   tierFor,
 } from "./activationContext";
 import type { Activation } from "./activations";
+import { feedingCost, unfedChance } from "./feeding";
 
 /** The four corners of a square, in the order a cage is counted. */
 export const CORNERS = [
@@ -95,7 +96,8 @@ function carrierSquare(c: Context, at: Square, carrier: Player): number {
     board.marks[key(at)] * w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner -
-    (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0)
+    (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0) -
+    feedingCost(c, carrier, "move", at, true)
   );
 }
 
@@ -107,12 +109,19 @@ function scoreActivation(
 ): Activation | null {
   const { board, w } = c;
   const scoring = [...routes.values()].filter((r) => toGoal(board, r.to) === 0);
-  const bestScore = scoring.sort((a, b) => b.chance - a.chance)[0];
+  const success = (r: Route) =>
+    r.chance * (1 - unfedChance(c, carrier, "move", r.to));
+  const bestScore = scoring.sort((a, b) => success(b) - success(a))[0];
   if (!bestScore) return null;
   const late = board.turnsLeft === 0;
   const value =
-    gamble(c, bestScore.chance, w.touchdown) -
-    (1 - bestScore.chance) * w.ballLoss;
+    gamble(
+      c,
+      bestScore.chance,
+      (1 - unfedChance(c, carrier, "move", bestScore.to)) * w.touchdown
+    ) -
+    (1 - bestScore.chance) * w.ballLoss -
+    feedingCost(c, carrier, "move", bestScore.to, true);
   // A carrier already on its way keeps running while the run is worth
   // it: an opening dodge that spent the re-roll must not turn the rest
   // of the run into a reason to step back.

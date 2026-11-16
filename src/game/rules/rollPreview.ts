@@ -51,6 +51,21 @@ export function pickupTarget(
   );
 }
 
+/** Secure the Ball uses an ordinary D6; Extra Arms does not modify it. */
+export function secureBallTarget(
+  player: Player,
+  square: Square,
+  opponents: Player[],
+  weather: Weather
+): number {
+  const marking = markingPlayers(square, opponents).length;
+  const rain = weatherEffects(weather).ballHandling;
+  const modifier = has(player, SkillType.BIG_HAND)
+    ? Math.max(0, rain)
+    : rain - marking;
+  return requiredRoll(2, modifier);
+}
+
 export function catchTarget(
   player: Player,
   opponents: Player[],

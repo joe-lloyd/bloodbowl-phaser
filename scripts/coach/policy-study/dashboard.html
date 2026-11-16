@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Skill-aware AI comparison</title>
+    <style>
+      :root {
+        color-scheme: dark light;
+        font-family: var(--font-sans, system-ui, sans-serif);
+        color: var(--foreground, #e8edf5);
+        --study-card: var(--card, #182230);
+        --study-border: var(--border, #354355);
+        --study-muted: var(--muted-foreground, #aebdd0);
+        --study-blue: var(--chart-1, #6eafff);
+        --study-green: var(--chart-2, #62d7b2);
+        --study-orange: var(--chart-3, #ffb667);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      h1 {
+        font-size: 1.6rem;
+        margin: 0.4rem 0;
+      }
+      h2 {
+        font-size: 1.1rem;
+        margin: 0 0 12px;
+      }
+      h3 {
+        font-size: 1rem;
+        margin: 0 0 8px;
+      }
+      p {
+        line-height: 1.55;
+        margin: 0.5rem 0;
+      }
+      .muted,
+      small {
+        color: var(--study-muted);
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin: 18px 0;
+      }
+      .card,
+      section,
+      details {
+        background: var(--study-card);
+        border: 1px solid var(--study-border);
+        border-radius: var(--radius, 12px);
+        padding: 16px;
+        margin: 16px 0;
+      }
+      .cards .card {
+        margin: 0;
+      }
+      td details {
+        background: transparent;
+        border: 0;
+        padding: 0;
+        margin: 0;
+        text-align: left;
+        min-width: 180px;
+      }
+      .big {
+        font-size: 1.6rem;
+        line-height: 1.4;
+        font-variant-numeric: tabular-nums;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      .split section {
+        margin: 0;
+      }
+      .chart {
+        height: 225px;
+        width: 100%;
+      }
+      svg text {
+        fill: currentColor;
+        font: 12px system-ui;
+      }
+      .scroll {
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        padding: 9px 8px;
+        border-bottom: 1px solid var(--study-border);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        color: var(--study-muted);
+        font-weight: 500;
+      }
+      caption {
+        text-align: left;
+        margin-bottom: 10px;
+        color: var(--study-muted);
+      }
+      input,
+      button,
+      select {
+        font: inherit;
+        color: inherit;
+        background: var(--secondary, #233249);
+        border: 1px solid var(--study-border);
+        border-radius: 6px;
+        padding: 8px;
+      }
+      input {
+        max-width: 100%;
+        margin: 8px 0 14px;
+      }
+      button {
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      a {
+        color: var(--study-blue);
+      }
+      .links {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .pill {
+        font-size: 0.8rem;
+        color: var(--study-green);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .progress {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+        gap: 14px;
+      }
+      code {
+        overflow-wrap: anywhere;
+        font-size: 0.8rem;
+      }
+      li {
+        margin: 8px 0;
+        line-height: 1.5;
+      }
+      :focus-visible {
+        outline: 2px solid var(--study-blue);
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pill">Daily Driver · policy generation comparison</div>
+    <h1>Does using more skills make the AI stronger?</h1>
+    <p id="verdict"></p>
+    <p class="muted">
+      A frozen previous planner plays the new modular planner. Both use the same
+      teams, advanced builds and game engine.
+    </p>
+    <div class="cards" id="cards"></div>
+    <div class="split">
+      <section>
+        <h2>Results by team development</h2>
+        <p class="muted">
+          Points share: win = 1, draw = ½. The line shows a 95% interval.
+        </p>
+        <svg
+          class="chart"
+          id="cohorts"
+          viewBox="0 0 430 225"
+          role="img"
+          aria-label="Candidate points share and uncertainty by development group"
+        ></svg>
+      </section>
+      <section>
+        <h2>What changed on the pitch?</h2>
+        <div class="scroll">
+          <table>
+            <caption>
+              Total outcomes in the same included games
+            </caption>
+            <thead>
+              <tr>
+                <th>Outcome</th>
+                <th>New</th>
+                <th>Previous</th>
+              </tr>
+            </thead>
+            <tbody id="totals"></tbody>
+          </table>
+        </div>
+        <p class="muted">
+          The SPP objective uses each roster’s existing targets: bash teams earn
+          2 per touchdown and 3 per casualty; other teams earn 3 and 2.
+        </p>
+      </section>
+    </div>
+    <section>
+      <h2>Where the new plans were used</h2>
+      <div class="scroll">
+        <table>
+          <caption>
+            Selected declarations and commands; these counts are not estimates
+            of skill effectiveness.
+          </caption>
+          <thead>
+            <tr>
+              <th>Plan or command</th>
+              <th>New</th>
+              <th>Previous</th>
+            </tr>
+          </thead>
+          <tbody id="actions"></tbody>
+        </table>
+      </div>
+      <p id="feeding" class="muted"></p>
+      <p id="interpretation"></p>
+    </section>
+    <section>
+      <h2>Which rosters gained or lost?</h2>
+      <p class="muted">
+        Each row compares the same roster under both policies. Deltas are per
+        team-game. Small roster samples are exploratory; they are not 30
+        separate proof-of-improvement claims.
+      </p>
+      <label for="roster-search">Find a roster</label><br /><input
+        id="roster-search"
+        type="search"
+        placeholder="For example, Vampire"
+      />
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Roster</th>
+              <th>Games / policy</th>
+              <th>New points</th>
+              <th>Previous points</th>
+              <th>Δ points</th>
+              <th>Δ TD</th>
+              <th>Δ CAS</th>
+              <th>Δ turnovers</th>
+              <th>Δ SPP</th>
+            </tr>
+          </thead>
+          <tbody id="rosters"></tbody>
+        </table>
+      </div>
+      <p id="macro" class="muted"></p>
+      <button id="more-rosters" type="button">Show all 30 rosters</button>
+    </section>
+    <section>
+      <h2>Every skill and trait</h2>
+      <p class="muted">
+        Natural engine SkillTriggered events, including passive effects and
+        reactions. Some effects emit several events. A zero means no recorded
+        trigger in this run; it does not establish that a rule is absent.
+      </p>
+      <label for="skill-search">Find a skill or trait</label><br /><input
+        id="skill-search"
+        type="search"
+        placeholder="For example, Lethal Flight"
+      />
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Skill / trait</th>
+              <th>New events</th>
+              <th>Previous events</th>
+              <th>Context rows</th>
+              <th>Use and next test</th>
+            </tr>
+          </thead>
+          <tbody id="skills"></tbody>
+        </table>
+      </div>
+      <button id="more" type="button">Show all skills</button>
+      <p id="skill-count" class="muted" aria-live="polite"></p>
+    </section>
+    <section>
+      <h2>What to test next</h2>
+      <div class="progress">
+        <div>
+          <h3>1. Tactical module gates</h3>
+          <p>
+            Secure the Ball, Gaze, Multiple Block and feeding support now have
+            explicit plans. Require useful, harmful and neutral boards, legal
+            continuations and repeatable outcomes for every additional module.
+          </p>
+        </div>
+        <div>
+          <h3>2. Throwing and landing</h3>
+          <p>
+            Test Right Stuff, Lethal Flight, Strong Arm and Bullseye together in
+            legal throwing teams. Compare scoring throws with damaging throws,
+            landing failure, lost possession and the thrower’s alternative
+            action.
+          </p>
+        </div>
+        <div>
+          <h3>3. Weapons and disruption</h3>
+          <p>
+            Separate foul, Chainsaw, Stab, Vomit, Fire and Bomb plans. Price
+            armour, injury, ejection, bribes, allies in danger and better
+            ordinary blocks.
+          </p>
+        </div>
+        <div>
+          <h3>4. Generalisation</h3>
+          <p>
+            Then add punt, jump and reaction modules; Vampire opponent counters;
+            new Hard/Legend opponents and exploiters. Keep tuning seeds separate
+            from fresh confirmation seeds.
+          </p>
+        </div>
+      </div>
+    </section>
+    <details>
+      <summary>Method, integrity and limitations</summary>
+      <p id="integrity"></p>
+      <p>
+        Each independent block has four games using the same seed: swap physical
+        sides, then swap which policy uses each team. Confidence intervals
+        resample whole four-game blocks 2,000 times. Point estimates and
+        intervals use the same complete, finding-free blocks.
+      </p>
+      <ul id="limitations"></ul>
+      <p id="provenance" class="muted"></p>
+    </details>
+    <section>
+      <h2>Download the evidence</h2>
+      <p class="links">
+        <a href="policy-study-data.zip" download>All data ZIP</a
+        ><a href="team-games.csv" download>Team-game spreadsheet</a
+        ><a href="rosters.csv" download>Rosters</a
+        ><a href="skill-usage.csv" download>All skills</a
+        ><a href="selected-commands.csv" download>Actions</a
+        ><a href="skill-contexts.csv" download>Skill contexts</a
+        ><a href="roll-contexts.csv" download>Roll contexts</a
+        ><a href="provenance.json" download>Provenance</a>
+      </p>
+    </section>
+    <script type="application/json" id="study">
+      __STUDY_DATA__
+    </script>
+    <script>
+      const data = JSON.parse(document.getElementById("study").textContent),
+        s = data.summary,
+        c = s.comparisons.overall;
+      const $ = (id) => document.getElementById(id),
+        num = (x) => Number(x).toLocaleString("en-GB"),
+        pct = (x) => (x === null ? "—" : (x * 100).toFixed(1) + "%"),
+        delta = (x) => (x > 0 ? "+" : "") + x.toFixed(2),
+        esc = (x) =>
+          String(x).replace(
+            /[&<>"']/g,
+            (ch) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              })[ch]
+          );
+      const ci = c.ci,
+        verdict = s.engine_findings
+          ? "Integrity findings block promotion."
+          : ci[0] > 0.5
+            ? "The new planner has a positive result against this frozen opponent."
+            : ci[1] < 0.5
+              ? "The new planner regressed against this frozen opponent."
+              : "The result is inconclusive: the interval still includes an even match.";
+      $("verdict").textContent =
+        (data.manifest.smoke ? "Smoke test only. " : "") +
+        verdict +
+        " New points share " +
+        pct(c.points) +
+        " (95% interval " +
+        pct(ci[0]) +
+        "–" +
+        pct(ci[1]) +
+        ").";
+      $("cards").innerHTML = [
+        ["Included games", num(s.included)],
+        ["Independent blocks", num(c.blocks)],
+        [
+          "New W / D / L",
+          num(c.wins) + " / " + num(c.draws) + " / " + num(c.losses),
+        ],
+        ["Replay-verified results", num(s.saved)],
+      ]
+        .map(
+          ([k, v]) =>
+            '<div class="card"><div class="muted">' +
+            k +
+            '</div><div class="big">' +
+            v +
+            "</div></div>"
+        )
+        .join("");
+      let svg =
+        '<line x1="260" x2="260" y1="14" y2="200" stroke="var(--study-border)" stroke-dasharray="4 4"/>';
+      Object.entries(s.comparisons).forEach(([name, row], i) => {
+        const y = 35 + i * 43,
+          x = (p) => 110 + p * 300;
+        svg += '<text x="0" y="' + (y + 4) + '">' + esc(name) + "</text>";
+        if (row.ci)
+          svg +=
+            '<line x1="' +
+            x(row.ci[0]) +
+            '" x2="' +
+            x(row.ci[1]) +
+            '" y1="' +
+            y +
+            '" y2="' +
+            y +
+            '" stroke="var(--study-blue)" stroke-width="4"/><circle cx="' +
+            x(row.points) +
+            '" cy="' +
+            y +
+            '" r="5" fill="var(--study-green)"/><text x="420" y="' +
+            (y + 18) +
+            '" text-anchor="end">' +
+            pct(row.points) +
+            " · " +
+            num(row.games) +
+            " games</text>";
+      });
+      svg +=
+        '<text x="110" y="219">0%</text><text x="260" y="219" text-anchor="middle">50%</text><text x="410" y="219" text-anchor="end">100%</text>';
+      $("cohorts").innerHTML = svg;
+      $("totals").innerHTML = [
+        ["Touchdowns", "touchdowns"],
+        ["SPP casualties", "casualties"],
+        ["Turnovers", "turnovers"],
+        ["Roster SPP objective", "spp_objective"],
+      ]
+        .map(
+          ([label, key]) =>
+            "<tr><td>" +
+            label +
+            "</td><td>" +
+            num(s.totals.candidate[key]) +
+            "</td><td>" +
+            num(s.totals.frozen[key]) +
+            "</td></tr>"
+        )
+        .join("");
+      const plans = [
+        ["Secure the Ball declarations", "declare:secureBall"],
+        ["Gaze declarations", "declare:gaze"],
+        ["Gaze commands", "special:gaze"],
+        ["Multiple Block declarations", "declare:multipleBlock"],
+        ["Multiple Block commands", "multiple-block"],
+        ["Thrall support declarations", "feedingSupport"],
+      ];
+      $("actions").innerHTML = plans
+        .map(
+          ([label, key]) =>
+            "<tr><td>" +
+            label +
+            "</td><td>" +
+            num(s.actions.candidate[key] || 0) +
+            "</td><td>" +
+            num(s.actions.frozen[key] || 0) +
+            "</td></tr>"
+        )
+        .join("");
+      $("feeding").textContent =
+        "Unfed Bloodlust events: " +
+        num(s.feeding.candidate.unfed_events) +
+        " new / " +
+        num(s.feeding.frozen.unfed_events) +
+        " previous. Bite events: " +
+        num(s.feeding.candidate.bite_events) +
+        " / " +
+        num(s.feeding.frozen.bite_events) +
+        ". These are event counts, not matched feeding success rates. Thrall support counts selected plans, not guaranteed feeds.";
+      $("interpretation").textContent =
+        "The new planner selected " +
+        num(s.actions.candidate["declare:secureBall"] || 0) +
+        " securing actions, " +
+        num(s.actions.candidate["special:gaze"] || 0) +
+        " gaze commands and " +
+        num(s.actions.candidate["multiple-block"] || 0) +
+        " double blocks. Multiple Block needs more targeted evidence before judging its value. " +
+        "Feeding trades fewer unfed endings for more bites on friendly Thralls; measure their resulting attrition next. " +
+        "Use separate module ablations to identify which changes caused any team-level gains.";
+      let showAllRosters = false;
+      function rosterTable() {
+        const q = $("roster-search").value.toLowerCase();
+        $("rosters").innerHTML = s.rosters
+          .filter((r) => r.roster.toLowerCase().includes(q))
+          .sort((a, b) => Math.abs(b.points_delta) - Math.abs(a.points_delta))
+          .slice(0, q || showAllRosters ? s.rosters.length : 10)
+          .map(
+            (r) =>
+              "<tr><td>" +
+              esc(r.roster) +
+              "</td><td>" +
+              num(r.games_per_policy) +
+              "</td><td>" +
+              pct(r.points) +
+              "</td><td>" +
+              pct(r.frozen_points) +
+              "</td><td>" +
+              delta(r.points_delta * 100) +
+              " pp" +
+              "</td><td>" +
+              delta(r.touchdowns_delta) +
+              "</td><td>" +
+              delta(r.casualties_delta) +
+              "</td><td>" +
+              delta(r.turnovers_delta) +
+              "</td><td>" +
+              delta(r.spp_objective_delta) +
+              "</td></tr>"
+          )
+          .join("");
+      }
+      let showAll = false;
+      const skillPlans = new Map(s.skill_plan.map((p) => [p.skill, p]));
+      function guidance(skill) {
+        const p = skillPlans.get(skill);
+        if (!p) return "—";
+        const status = [
+          "Hypnotic Gaze",
+          "Multiple Block",
+          "Bloodlust",
+        ].includes(skill)
+          ? "First tactical module implemented; broader contexts remain to validate."
+          : p.status + ": " + p.module;
+        return (
+          "<details><summary>" +
+          esc(status) +
+          "</summary><p>Use hypothesis: " +
+          esc(p.use_when) +
+          "</p><p>Avoid: " +
+          esc(p.avoid_when) +
+          "</p><p>Next: " +
+          esc(p.next_test) +
+          "</p></details>"
+        );
+      }
+      function skillTable() {
+        const q = $("skill-search").value.toLowerCase(),
+          all = s.skills
+            .filter((r) => r.skill.toLowerCase().includes(q))
+            .sort((a, b) => b.candidate + b.frozen - (a.candidate + a.frozen)),
+          shown = showAll || q ? all : all.slice(0, 12);
+        $("skills").innerHTML = shown
+          .map(
+            (r) =>
+              "<tr><td>" +
+              esc(r.skill) +
+              "</td><td>" +
+              num(r.candidate) +
+              "</td><td>" +
+              num(r.frozen) +
+              "</td><td>" +
+              num(r.contexts) +
+              "</td><td>" +
+              guidance(r.skill) +
+              "</td></tr>"
+          )
+          .join("");
+        $("skill-count").textContent =
+          "Showing " +
+          shown.length +
+          " of " +
+          all.length +
+          " matching skills and traits.";
+        $("more").hidden = shown.length === all.length;
+      }
+      $("roster-search").addEventListener("input", rosterTable);
+      $("more-rosters").addEventListener("click", () => {
+        showAllRosters = true;
+        rosterTable();
+        $("more-rosters").hidden = true;
+      });
+      $("skill-search").addEventListener("input", skillTable);
+      $("more").addEventListener("click", () => {
+        showAll = true;
+        skillTable();
+      });
+      rosterTable();
+      skillTable();
+      $("macro").textContent =
+        "Equal-weight average across " +
+        s.rosters.length +
+        " rosters: " +
+        delta(s.macro_points_delta * 100) +
+        " percentage points compared with the previous policy (descriptive; no macro confidence interval).";
+      $("integrity").textContent =
+        num(s.saved) +
+        " saved / " +
+        num(s.scheduled) +
+        " scheduled; " +
+        num(s.engine_findings) +
+        " engine findings; " +
+        num(s.excluded_blocks.length) +
+        " blocks excluded from performance estimates.";
+      $("limitations").innerHTML = data.limitations
+        .map((x) => "<li>" + esc(x) + "</li>")
+        .join("");
+      $("provenance").textContent =
+        "Host: " +
+        data.manifest.host +
+        ". Frozen revision: " +
+        data.manifest.baselineRevision +
+        ". Candidate acquisition SHA-256: " +
+        data.manifest.sourceDigest +
+        ".";
+    </script>
+  </body>
+</html>

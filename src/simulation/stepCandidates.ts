@@ -87,6 +87,7 @@ function moveSteps({ gs, player, at, action, step }: StepContext): void {
   // must stand first.
   if (
     action === "block" ||
+    action === "multipleBlock" ||
     (action === "standUp" && player.status === PlayerStatus.PRONE) ||
     action === "ballAndChain" ||
     isDirectReplacement(action)
@@ -158,6 +159,56 @@ function blockSteps(ctx: StepContext): void {
     step(
       { type: "block", attackerId: player.id, defenderId: target.id },
       `${describePlayer(player)} blocks ${describePlayer(target)}`
+    );
+  }
+}
+
+function multipleBlockSteps({
+  player,
+  action,
+  adjacent,
+  step,
+}: StepContext): void {
+  if (
+    action !== "multipleBlock" ||
+    player.status !== PlayerStatus.ACTIVE ||
+    !hasSkill(player.skills, SkillType.MULTIPLE_BLOCK)
+  )
+    return;
+  const targets = adjacent.filter((p) => p.status === PlayerStatus.ACTIVE);
+  for (let i = 0; i < targets.length; i++) {
+    for (let j = i + 1; j < targets.length; j++) {
+      step(
+        {
+          type: "multiple-block",
+          attackerId: player.id,
+          defender1Id: targets[i].id,
+          defender2Id: targets[j].id,
+        },
+        `${describePlayer(player)} blocks ${describePlayer(targets[i])} and ${describePlayer(targets[j])}`
+      );
+    }
+  }
+}
+
+function gazeSteps({ player, action, adjacent, step }: StepContext): void {
+  if (
+    action !== "gaze" ||
+    player.status !== PlayerStatus.ACTIVE ||
+    !hasSkill(player.skills, SkillType.HYPNOTIC_GAZE)
+  )
+    return;
+  for (const target of adjacent.filter(
+    (p) => p.status === PlayerStatus.ACTIVE
+  )) {
+    step(
+      {
+        type: "special-action",
+        action: "gaze",
+        attackerId: player.id,
+        defenderId: target.id,
+      },
+      `${describePlayer(player)} gazes at ${describePlayer(target)}`
     );
   }
 }
@@ -256,6 +307,8 @@ const STEP_PASSES = [
   moveSteps,
   jumpSteps,
   blockSteps,
+  multipleBlockSteps,
+  gazeSteps,
   replacementSteps,
   passSteps,
   handoffSteps,

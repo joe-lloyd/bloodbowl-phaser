@@ -18,6 +18,7 @@ import { Route } from "./routes";
 import { Context, gamble, tierFor } from "./activationContext";
 import { CORNERS } from "./ballActivations";
 import type { Activation, Role } from "./activations";
+import { feedingCost } from "./feeding";
 
 export interface RoleSquare {
   role: Role;
@@ -115,7 +116,11 @@ function roleRoute(
     );
     const marked = board.marks[key(at)];
     const role = squares.find((s) => s.at.x === at.x && s.at.y === at.y)?.role;
-    return base - (role === "mark" ? 0 : marked * w.endInContact);
+    return (
+      base -
+      (role === "mark" ? 0 : marked * w.endInContact) -
+      feedingCost(c, player, "move", at)
+    );
   };
   const here =
     player.status === PlayerStatus.PRONE

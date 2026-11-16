@@ -173,6 +173,9 @@ export class FrenzySecondBlockOperation extends GameOperation {
   async execute(context: FlowContext): Promise<void> {
     // A carrier following up into the end zone has just scored.
     if (driveOver(context.gameService.getPhase())) return;
+    // A forced follow-up can fail a pickup. Its queued turnover must end
+    // the turn before another block can open a decision on the old drive.
+    if (context.gameService.isTurnoverInProgress()) return;
     // Or found no Thrall to bite: Distracted, the ball dropped, the turn over.
     const attacker = context.gameService.getPlayerById(this.attackerId);
     if (attacker && hasCondition(attacker, PlayerCondition.DISTRACTED)) return;

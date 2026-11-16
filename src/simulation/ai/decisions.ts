@@ -9,6 +9,7 @@ import { BlockResultType } from "../../services/BlockResolutionService";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { Candidate } from "../candidates";
 import { Board, carrierOf, distance, key, onPitch, toGoal } from "./board";
+import { hasBiteSupport } from "./feeding";
 
 /** Traits that can stop a player acting on its turn. */
 const UNRELIABLE = [
@@ -188,48 +189,87 @@ function touchbackChoice(
   });
 }
 
+function rerollChoice(
+  pending: PendingOf<"reroll">,
+  candidates: readonly Candidate[],
+  skillPlans: boolean
+): number | null {
+  const find = (test: (c: Candidate) => boolean) => first(candidates, test);
+  if (skillPlans && pending.rollKind === "gaze")
+    return find(
+      (c) => c.commands[0].type === "use-reroll" && !c.commands[0].accept
+    );
+  return (
+    find(
+      (c) =>
+        c.commands[0].type === "use-reroll" &&
+        c.commands[0].accept &&
+        c.commands[0].source !== "team"
+    ) ??
+    find((c) => c.commands[0].type === "use-reroll" && c.commands[0].accept)
+  );
+}
+
+function biteChoice(
+  board: Board,
+  candidates: readonly Candidate[]
+): number | null {
+  const carrier = carrierOf(board)?.id;
+  const bitten = (c: Candidate) =>
+    c.commands[0].type === "choose-bite-target"
+      ? c.commands[0].playerId
+      : undefined;
+  return (
+    first(candidates, (c) => !!bitten(c) && bitten(c) !== carrier) ??
+    first(candidates, (c) => !!bitten(c))
+  );
+}
+
+function skillReactionChoice(
+  board: Board,
+  pending: PendingOf<"reaction">,
+  candidates: readonly Candidate[],
+  skillPlans: boolean
+): number | null {
+  const active = board.gs.getState().activePlayer;
+  const player = active ? board.gs.getPlayerById(active.id) : undefined;
+  if (
+    skillPlans &&
+    pending.skill === SkillType.BLOODLUST &&
+    pending.prompt.includes("change the declared action") &&
+    active?.action === "gaze" &&
+    player?.gridPosition &&
+    hasBiteSupport(board, player, player.gridPosition)
+  )
+    return first(
+      candidates,
+      (c) => c.commands[0].type === "use-reaction" && !c.commands[0].accept
+    );
+  return null;
+}
+
 export function decide(
   board: Board,
   pending: PendingDecision,
-  candidates: readonly Candidate[]
+  candidates: readonly Candidate[],
+  skillPlans = true
 ): number | null {
   const find = (test: (c: Candidate) => boolean) => first(candidates, test);
   switch (pending.type) {
     case "block-dice":
       return blockDiceChoice(board, pending, candidates);
-    case "reroll": {
-      // A failed roll here is almost always a turnover: take any re-roll,
-      // a skill's before the team's.
-      return (
-        find(
-          (c) =>
-            c.commands[0].type === "use-reroll" &&
-            c.commands[0].accept &&
-            c.commands[0].source !== "team"
-        ) ??
-        find((c) => c.commands[0].type === "use-reroll" && c.commands[0].accept)
-      );
-    }
+    case "reroll":
+      return rerollChoice(pending, candidates, skillPlans);
     case "push-direction":
       return pushChoice(board, pending, candidates);
     case "follow-up":
       return followUpChoice(board, candidates);
     case "touchback":
       return touchbackChoice(board, candidates);
-    case "bite-target": {
-      // Always bite: biting nobody costs a Turnover (or the Pass/Hand-off).
-      // Not the ball carrier while another Thrall is in reach (a bitten
-      // carrier drops the ball: a Turnover), then the first in board order.
-      const carrier = carrierOf(board)?.id;
-      const bitten = (c: Candidate) =>
-        c.commands[0].type === "choose-bite-target"
-          ? c.commands[0].playerId
-          : undefined;
-      return (
-        find((c) => !!bitten(c) && bitten(c) !== carrier) ??
-        find((c) => !!bitten(c))
-      );
-    }
+    case "bite-target":
+      return biteChoice(board, candidates);
+    case "reaction":
+      return skillReactionChoice(board, pending, candidates, skillPlans);
     case "interception":
       return find(
         (c) =>

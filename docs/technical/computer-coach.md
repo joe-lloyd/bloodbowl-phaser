@@ -22,26 +22,31 @@ The coach sits behind the simulator's `Coach` seam
 offers and never builds a command itself. Its code is in
 `src/simulation/ai/`:
 
-| File                       | What it owns                                                         |
-| -------------------------- | -------------------------------------------------------------------- |
-| `board.ts`                 | One read of the engine per decision: players, ball, tackle zones     |
-| `chance.ts`                | Dice maths: rolls, re-rolls, block dice                              |
-| `routes.ts`                | The safest path to every reachable square                            |
-| `activations.ts`           | Whole activations in risk order, and what an acting player does next |
-| `activationContext.ts`     | What every activation is judged against: routes, turnover cost       |
-| `ballActivations.ts`       | Scoring, carrying, hand-offs, passes, receivers and pick-ups         |
-| `blockActivations.ts`      | Blocks, blitzes and the assists for a hit on their carrier           |
-| `repositionActivations.ts` | Role squares around the ball, chasing it, and standing up            |
-| `decisions.ts`             | Block dice, re-rolls, push squares, follow-ups and other decisions   |
-| `weights.ts`               | Every number its judgement rests on, as one plain object             |
-| `planner.ts`               | The `Coach`: maps the best activation onto a candidate               |
-| `evaluate.ts`              | The trained score of an end position, for the lookahead              |
-| `search.ts`                | The lookahead: tries the planner's choices against others on copies  |
-| `difficulty.ts`            | The levels on the team selection page and the competition builder    |
+| File                              | What it owns                                                         |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `board.ts`                        | One read of the engine per decision: players, ball, tackle zones     |
+| `chance.ts`                       | Dice maths: rolls, re-rolls, block dice                              |
+| `routes.ts`                       | The safest path to every reachable square                            |
+| `activations.ts`                  | Whole activations in risk order, and what an acting player does next |
+| `activationContext.ts`            | What every activation is judged against: routes, turnover cost       |
+| `ballActivations.ts`              | Scoring, carrying, hand-offs, passes, receivers and pick-ups         |
+| `blockActivations.ts`             | Blocks, blitzes and the assists for a hit on their carrier           |
+| `repositionActivations.ts`        | Role squares around the ball, chasing it, and standing up            |
+| `skillActivations.ts`             | Capability registry, Secure the Ball and Multiple Block plans        |
+| `gazeActivations.ts`              | Gaze targets that improve an available teammate's follow-up          |
+| `feeding.ts`, `feedingSupport.ts` | Vampire endpoints and native Thrall support preparation              |
+| `decisions.ts`                    | Block dice, re-rolls, push squares, follow-ups and other decisions   |
+| `weights.ts`                      | Every number its judgement rests on, as one plain object             |
+| `planner.ts`                      | The `Coach`: maps the best activation onto a candidate               |
+| `evaluate.ts`                     | The trained score of an end position, for the lookahead              |
+| `search.ts`                       | The lookahead: tries the planner's choices against others on copies  |
+| `difficulty.ts`                   | The levels on the team selection page and the competition builder    |
 
 At each decision the coach re-reads the board and lists whole activations:
 which player, which action, the target square, the full path and its value.
-It sorts them in the order the scripted Bot Bowl winners play a turn:
+It first considers useful preparation: a Gaze that improves a teammate's
+scoring or carrier-hit line, or a Thrall moving into a Vampire's future
+feeding range. It then uses the scripted Bot Bowl turn order:
 
 1. Score, when the safest path is likely enough to succeed.
 2. Hand off or pass to a team-mate who can score or carry the ball further.
@@ -53,6 +58,16 @@ It sorts them in the order the scripted Bot Bowl winners play a turn:
 8. Cage corners, receivers, markers, the screen and chasers.
 9. Risky actions, if they are still worth it.
 10. End the turn.
+
+Small capability modules propose the same activation objects for declarations
+and continuations. Secure the Ball uses its ordinary D6 and excludes Sure Hands
+rerolls; an actual scoring route after a normal pickup remains an alternative.
+Multiple Block prices both targets with the Strength reduction and combined
+attacker-down risk. Vampire movement prices feeding at its endpoint, keeps the
+ball holder out of preferred bite targets, and can prepare native Thrall support
+before moving the carrier. These bounded plans do not implement every skill's
+best multi-turn use. The [policy study](../../scripts/coach/policy-study/README.md)
+describes the frozen-generation comparison and remaining tactical modules.
 
 Nothing is stored between decisions. A player already acting continues
 with the best activation its declared action still allows, re-planned from
