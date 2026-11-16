@@ -6,77 +6,105 @@
     <title>Skill-aware AI comparison</title>
     <style>
       :root {
-        color-scheme: dark light;
-        font-family: var(--font-sans, system-ui, sans-serif);
-        color: var(--foreground, #e8edf5);
-        --study-card: var(--card, #182230);
-        --study-border: var(--border, #354355);
-        --study-muted: var(--muted-foreground, #aebdd0);
-        --study-blue: var(--chart-1, #6eafff);
-        --study-green: var(--chart-2, #62d7b2);
-        --study-orange: var(--chart-3, #ffb667);
+        color-scheme: dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        color: #edf2f8;
+        background: #0c121d;
+        --study-card: #151f2e;
+        --study-border: #3c4c63;
+        --study-muted: #bdcadd;
+        --study-blue: #8fc6ff;
+        --study-green: #8ae4c3;
+        --study-orange: #ffc58a;
       }
       * {
         box-sizing: border-box;
       }
+      html {
+        background: #0c121d;
+        scroll-behavior: smooth;
+      }
       body {
-        margin: 0;
+        margin: 0 auto;
+        max-width: 1240px;
+        padding: 48px 32px 64px;
+        background: #0c121d;
+        color: #edf2f8;
+        font-size: 17px;
+        line-height: 1.65;
+        overflow-wrap: anywhere;
       }
       h1 {
-        font-size: 1.6rem;
-        margin: 0.4rem 0;
+        font-size: clamp(1.9rem, 4vw, 2.8rem);
+        line-height: 1.2;
+        margin: 16px 0 24px;
+        max-width: 850px;
+        letter-spacing: -0.025em;
       }
       h2 {
-        font-size: 1.1rem;
-        margin: 0 0 12px;
+        font-size: 1.3rem;
+        line-height: 1.35;
+        margin: 0 0 18px;
       }
       h3 {
-        font-size: 1rem;
-        margin: 0 0 8px;
+        font-size: 1.05rem;
+        margin: 0 0 12px;
       }
       p {
-        line-height: 1.55;
-        margin: 0.5rem 0;
+        margin: 12px 0;
+        max-width: 85ch;
       }
       .muted,
       small {
         color: var(--study-muted);
       }
+      #verdict {
+        font-size: 1.12rem;
+        border-left: 4px solid var(--study-orange);
+        background: #252332;
+        padding: 18px 22px;
+        margin: 0 0 20px;
+        border-radius: 0 10px 10px 0;
+      }
       .cards {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 12px;
-        margin: 18px 0;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin: 28px 0;
       }
       .card,
       section,
       details {
         background: var(--study-card);
+        color: #edf2f8;
         border: 1px solid var(--study-border);
-        border-radius: var(--radius, 12px);
-        padding: 16px;
-        margin: 16px 0;
+        border-radius: 14px;
+        padding: 26px;
+        margin: 24px 0;
       }
       .cards .card {
         margin: 0;
+        padding: 20px;
       }
-      td details {
-        background: transparent;
-        border: 0;
-        padding: 0;
-        margin: 0;
-        text-align: left;
-        min-width: 180px;
+      .cards .muted {
+        font-size: 0.85rem;
       }
       .big {
-        font-size: 1.6rem;
+        font-size: clamp(1.25rem, 2.2vw, 1.8rem);
         line-height: 1.4;
+        font-weight: 650;
+        margin-top: 8px;
         font-variant-numeric: tabular-nums;
       }
       .split {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
       }
       .split section {
         margin: 0;
@@ -84,91 +112,178 @@
       .chart {
         height: 225px;
         width: 100%;
+        color: #edf2f8;
       }
       svg text {
-        fill: currentColor;
-        font: 12px system-ui;
+        fill: #edf2f8;
+        font: 13px system-ui;
       }
       .scroll {
         overflow: auto;
+        max-width: 100%;
+        margin: 18px 0;
+        border: 1px solid var(--study-border);
+        border-radius: 10px;
       }
       table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.9rem;
+        font-size: 0.94rem;
+        color: #edf2f8;
       }
       th,
       td {
-        padding: 9px 8px;
-        border-bottom: 1px solid var(--study-border);
+        padding: 14px 12px;
+        border-bottom: 1px solid #344258;
         text-align: right;
         font-variant-numeric: tabular-nums;
+        vertical-align: top;
+        white-space: nowrap;
+        overflow-wrap: normal;
       }
       th:first-child,
       td:first-child {
         text-align: left;
       }
       th {
-        color: var(--study-muted);
-        font-weight: 500;
+        background: #202e42;
+        color: #d9e5f4;
+        font-weight: 650;
+        white-space: nowrap;
+      }
+      tbody tr:nth-child(even) {
+        background: #192537;
+      }
+      tbody tr:hover {
+        background: #24344b;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
       }
       caption {
         text-align: left;
-        margin-bottom: 10px;
+        padding: 12px;
         color: var(--study-muted);
+      }
+      td details {
+        background: transparent;
+        border: 0;
+        padding: 0;
+        margin: 0;
+        text-align: left;
+        min-width: 220px;
+        max-width: 48ch;
+        white-space: normal;
+        border-radius: 0;
       }
       input,
       button,
       select {
         font: inherit;
-        color: inherit;
-        background: var(--secondary, #233249);
-        border: 1px solid var(--study-border);
-        border-radius: 6px;
-        padding: 8px;
+        color: #edf2f8;
+        background: #223249;
+        border: 1px solid #667b98;
+        border-radius: 8px;
+        padding: 11px 14px;
+        min-height: 46px;
       }
       input {
         max-width: 100%;
-        margin: 8px 0 14px;
+        width: 340px;
+        margin: 8px 0 6px;
+      }
+      input::placeholder {
+        color: #b8c7db;
+        opacity: 1;
       }
       button {
         cursor: pointer;
         margin-top: 10px;
       }
+      button:hover {
+        background: #304560;
+      }
       a {
         color: var(--study-blue);
+        text-underline-offset: 4px;
+      }
+      a:hover {
+        color: #c4e2ff;
       }
       .links {
         display: flex;
-        gap: 14px;
+        gap: 12px;
         flex-wrap: wrap;
+        max-width: none;
+      }
+      .links a {
+        padding: 10px 14px;
+        background: #223249;
+        border: 1px solid #536b8c;
+        border-radius: 8px;
       }
       .pill {
-        font-size: 0.8rem;
+        font-size: 0.82rem;
         color: var(--study-green);
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
       summary {
         cursor: pointer;
-        font-weight: 600;
+        font-weight: 650;
+        line-height: 1.5;
       }
       .progress {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
-        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+      .progress > div {
+        border-top: 2px solid #456184;
+        padding-top: 18px;
       }
       code {
         overflow-wrap: anywhere;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
+        color: #d0e5ff;
       }
       li {
-        margin: 8px 0;
-        line-height: 1.5;
+        margin: 10px 0;
       }
       :focus-visible {
-        outline: 2px solid var(--study-blue);
-        outline-offset: 3px;
+        outline: 3px solid var(--study-blue);
+        outline-offset: 4px;
+      }
+      @media (max-width: 850px) {
+        .split {
+          grid-template-columns: 1fr;
+        }
+        .cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          padding: 28px 16px 40px;
+          font-size: 16px;
+        }
+        section,
+        details {
+          padding: 20px 16px;
+        }
+        .progress {
+          grid-template-columns: 1fr;
+        }
+        .cards {
+          gap: 10px;
+        }
+        .cards .card {
+          padding: 16px 12px;
+        }
+        th,
+        td {
+          padding: 12px 10px;
+        }
       }
     </style>
   </head>
