@@ -203,6 +203,15 @@ describe("the waiting coach's decision dock", () => {
     expect(line()).toBe("Orc Founders: Foul armour 8+");
   });
 
+  it("shows Secure the Ball by name over the online prompt channel", async () => {
+    const orc = game.ctx.team2.players[0];
+    await fromGuest({
+      playerId: orc.id,
+      rolls: [{ type: "secureBall", target: 2 }],
+    });
+    expect(line()).toBe("Orc Founders: Secure the Ball 2+");
+  });
+
   it("shows the pass the other coach is aiming, with the catch", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({

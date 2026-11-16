@@ -180,7 +180,7 @@ export function blockPreviewLines(
 }
 
 export type RouteRoll = {
-  type: "dodge" | "rush" | "pickup";
+  type: "dodge" | "rush" | "pickup" | "secureBall";
   target: number;
   square: Square;
 };

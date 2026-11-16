@@ -12,8 +12,13 @@ type MovementRisk =
 
 export type StepRisk =
   | MovementRisk
-  | { kind: "pickup"; pickupNeed: number }
-  | { kind: "ball-step"; movement: MovementRisk; pickupNeed: number };
+  | { kind: "pickup" | "secureBall"; pickupNeed: number }
+  | {
+      kind: "ball-step";
+      movement: MovementRisk;
+      pickupNeed: number;
+      securing?: boolean;
+    };
 
 export function stepRolls(risk: StepRisk, square: Square): RouteRoll[] {
   switch (risk.kind) {
@@ -27,11 +32,16 @@ export function stepRolls(risk: StepRisk, square: Square): RouteRoll[] {
         { type: "dodge", target: risk.dodgeNeed, square },
       ];
     case "pickup":
-      return [{ type: "pickup", target: risk.pickupNeed, square }];
+    case "secureBall":
+      return [{ type: risk.kind, target: risk.pickupNeed, square }];
     case "ball-step":
       return [
         ...stepRolls(risk.movement, square),
-        { type: "pickup", target: risk.pickupNeed, square },
+        {
+          type: risk.securing ? "secureBall" : "pickup",
+          target: risk.pickupNeed,
+          square,
+        },
       ];
   }
 }
@@ -53,7 +63,7 @@ export interface LegContext {
   used: number;
   /** Weather and inducement modifier on Rush rolls (0 normally). */
   rushModifier: number;
-  pickup?: { square: Square; target: number };
+  pickup?: { square: Square; target: number; securing?: boolean };
 }
 
 /** A natural 1 always fails and a natural 6 always passes. */
@@ -73,12 +83,20 @@ function movementRisk(
 
 function stepRisk(
   movement: MovementRisk | null,
-  ball: { target: number } | null
+  ball: { target: number; securing?: boolean } | null
 ): StepRisk | null {
   if (!ball) return movement;
   return movement
-    ? { kind: "ball-step", movement, pickupNeed: ball.target }
-    : { kind: "pickup", pickupNeed: ball.target };
+    ? {
+        kind: "ball-step",
+        movement,
+        pickupNeed: ball.target,
+        ...(ball.securing ? { securing: true } : {}),
+      }
+    : {
+        kind: ball.securing ? "secureBall" : "pickup",
+        pickupNeed: ball.target,
+      };
 }
 
 /**

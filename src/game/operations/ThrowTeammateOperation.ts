@@ -26,6 +26,7 @@ import { BounceOperation } from "./BounceOperation";
 import { CrowdInjuryOperation } from "./CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
 import { weatherEffects } from "../rules/weather";
+import { isOnPitch } from "../controllers/BallMovementController";
 
 /**
  * Ends the thrower's activation once the Throw / Kick Team-mate (and any
@@ -66,16 +67,16 @@ class FinishThrowTeammateOperation extends GameOperation {
  * Right-Stuff, Strength-3-or-less team-mate and throws them like the ball:
  *   1. Always Hungry (if present) rolls to eat the team-mate first.
  *   2. A Passing Ability Test is made (Strong Arm adds +1 to a THROW only).
- *   3. On a Fumble: a THROW drops the team-mate Prone in the thrower's square
- *      and injures them; a KICK removes the team-mate and injures them. Both
- *      cause a Turnover.
+ *   3. A fumbled THROW bounces from the thrower's square and attempts to
+ *      land at -1; a fumbled KICK removes the team-mate and injures them.
  *   4. On a success the team-mate scatters from the aim square (a Swooping
  *      team-mate may travel by the Throw-in Template instead, and re-roll the
  *      landing) and makes a Right Stuff landing roll: success = land
  *      Standing, failure = land Prone. Landing on an occupied square knocks
- *      BOTH players down (a crash).
- *   5. A Throw Team-mate ending with the thrown player Prone / injured / off
- *      the pitch causes a Turnover; landing Standing in an empty square does not.
+ *      the occupant down, then bounces until it reaches an empty square.
+ *   5. A failed landing causes a Turnover only if the thrown player held the
+ *      ball. Leaving the pitch or knocking down another active-team player
+ *      also causes a Turnover.
  *
  * The eat roll and Strong Arm are read directly off the thrower's
  * skills here (like BallManager reads Kick) rather than via a fold — only the
@@ -143,18 +144,26 @@ export class ThrowTeammateOperation extends GameOperation {
         : this.passingTest(context, thrower, thrower.gridPosition);
 
     // 3. Fumble handling.
-    if (fumbled) {
-      this.fumble(context, thrower.gridPosition, teammate);
+    if (fumbled && this.mode === "kick") {
+      this.fumbleKick(context, teammate);
       return;
+    }
+    if (fumbled) {
+      context.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `Fumbled throw! ${teammate.playerName} is dropped and bounces.`
+      );
     }
 
     // 4. Scatter the thrown player from the aim square, then land them.
-    const { landing, swooped } = this.landingSquare(
-      context,
-      thrower,
-      teammate,
-      bullseye
-    );
+    const { landing, swooped } = fumbled
+      ? {
+          landing: gameService
+            .getBallMovementController()
+            .bounce(thrower.gridPosition),
+          swooped: false,
+        }
+      : this.landingSquare(context, thrower, teammate, bullseye);
     const { carriesBall, occupant } = this.fly(
       context,
       teammate,
@@ -162,8 +171,36 @@ export class ThrowTeammateOperation extends GameOperation {
       landing
     );
 
+    await this.resolveLanding(context, thrower, teammate, {
+      landing,
+      carriesBall,
+      occupant,
+      superbThrow,
+      swooped,
+    });
+  }
+
+  private async resolveLanding(
+    context: FlowContext,
+    thrower: Player,
+    teammate: Player,
+    flight: {
+      landing: Square;
+      carriesBall: boolean;
+      occupant: Player | undefined;
+      superbThrow: boolean;
+      swooped: boolean;
+    }
+  ): Promise<void> {
+    const { gameService } = context;
+    const { landing, carriesBall, occupant, superbThrow, swooped } = flight;
     // Give the flight time to play before the landing resolves.
     await context.delay(600);
+
+    if (!isOnPitch(landing)) {
+      this.landInCrowd(context, teammate, thrower.gridPosition!, carriesBall);
+      return;
+    }
 
     if (occupant && occupant.id !== teammate.id) {
       this.crash(context, teammate, occupant, landing, carriesBall);
@@ -351,35 +388,17 @@ export class ThrowTeammateOperation extends GameOperation {
     };
   }
 
-  private fumble(context: FlowContext, from: Square, teammate: Player): void {
+  private fumbleKick(context: FlowContext, teammate: Player): void {
     const { gameService, eventBus } = context;
-    if (this.mode === "kick") {
-      // A fumbled kick removes the player from play and injures them.
-      eventBus.emit(
-        GameEventNames.UI_Notification,
-        `Fumbled kick! ${teammate.playerName} is removed and injured.`
-      );
-      this.bounceIfCarried(gameService, context, teammate);
-      teammate.gridPosition = undefined;
-      teammate.status = PlayerStatus.PRONE;
-      context.flowManager.add(new InjuryOperation(teammate.id), true);
-      gameService.triggerTurnover("Fumbled Kick Team-mate");
-      return;
-    }
-    // A fumbled throw drops the team-mate Prone in the thrower's square.
     eventBus.emit(
       GameEventNames.UI_Notification,
-      `Fumbled throw! ${teammate.playerName} is dropped.`
+      `Fumbled kick! ${teammate.playerName} is removed and injured.`
     );
     this.bounceIfCarried(gameService, context, teammate);
-    teammate.gridPosition = { ...from };
+    teammate.gridPosition = undefined;
     teammate.status = PlayerStatus.PRONE;
-    eventBus.emit(GameEventNames.PlayerKnockedDown, {
-      playerId: teammate.id,
-    });
-    eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
     context.flowManager.add(new InjuryOperation(teammate.id), true);
-    gameService.triggerTurnover("Fumbled Throw Team-mate");
+    gameService.triggerTurnover("Fumbled Kick Team-mate");
   }
 
   /**
@@ -444,12 +463,14 @@ export class ThrowTeammateOperation extends GameOperation {
     context: FlowContext,
     teammate: Player,
     from: Square,
-    landing: Square
+    landing: Square,
+    carriedBall?: boolean
   ): { carriesBall: boolean; occupant: Player | undefined } {
     const { gameService, eventBus } = context;
     // A thrown team-mate carrying the ball takes it with them through the air.
     const ball = groundBall(gameService.getState());
-    const carriesBall = !!ball && ball.x === from.x && ball.y === from.y;
+    const carriesBall =
+      carriedBall ?? (!!ball && ball.x === from.x && ball.y === from.y);
 
     const occupant = gameService.getPlayerAt(landing.x, landing.y);
 
@@ -473,7 +494,7 @@ export class ThrowTeammateOperation extends GameOperation {
     return { carriesBall, occupant };
   }
 
-  /** Crash: both players are knocked down and take an Armour Roll. */
+  /** Each occupant is knocked down; the thrown player bounces clear and falls. */
   private crash(
     context: FlowContext,
     teammate: Player,
@@ -482,33 +503,69 @@ export class ThrowTeammateOperation extends GameOperation {
     carriesBall: boolean
   ): void {
     const { gameService, eventBus } = context;
-    eventBus.emit(
-      GameEventNames.UI_Notification,
-      `${teammate.playerName} crashes into ${occupant.playerName}!`
-    );
+    let target: Player | undefined = occupant;
+    let square = landing;
+    let ownPlayerHit = false;
+    while (target && target.id !== teammate.id) {
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${teammate.playerName} crashes into ${target.playerName}!`
+      );
+      ownPlayerHit ||= target.teamId === gameService.getState().activeTeamId;
+      if (!carriesBall && target.status === PlayerStatus.ACTIVE) {
+        this.bounceIfCarried(gameService, context, target);
+      }
+      this.knockDown(gameService, eventBus, target);
+      context.flowManager.add(
+        new ArmourOperation(
+          target.id,
+          lethalFlight(teammate, target) ? teammate.id : undefined,
+          undefined,
+          "lethal-flight"
+        ),
+        true
+      );
+      const next = gameService.getBallMovementController().bounce(square);
+      target = this.fly(context, teammate, square, next, carriesBall).occupant;
+      if (!isOnPitch(next)) {
+        this.landInCrowd(context, teammate, square, carriesBall);
+        return;
+      }
+      square = next;
+    }
     this.knockDown(gameService, eventBus, teammate);
-    this.knockDown(gameService, eventBus, occupant);
-    // A knocked-down carrier drops the ball where they land.
     if (carriesBall) {
-      context.flowManager.add(new BounceOperation({ ...landing }), true);
+      context.flowManager.add(new BounceOperation({ ...square }), true);
     }
     context.flowManager.add(new ArmourOperation(teammate.id), true);
-    context.flowManager.add(
-      new ArmourOperation(
-        occupant.id,
-        lethalFlight(teammate, occupant) ? teammate.id : undefined,
-        undefined,
-        "lethal-flight"
-      ),
-      true
-    );
     // The thrown player Falls Over; "this will only cause a Turnover if the
     // thrown player was holding the ball" (p.82).
     this.finishLanding(
       gameService,
       context,
-      carriesBall,
+      carriesBall || ownPlayerHit,
       "Thrown player crashed"
+    );
+  }
+
+  private landInCrowd(
+    context: FlowContext,
+    teammate: Player,
+    exitSquare: Square,
+    carriesBall: boolean
+  ): void {
+    teammate.gridPosition = undefined;
+    if (carriesBall)
+      context.gameService.setBallPosition(exitSquare.x, exitSquare.y);
+    context.flowManager.add(
+      new CrowdInjuryOperation(
+        teammate.id,
+        { ...exitSquare },
+        true,
+        undefined,
+        carriesBall
+      ),
+      true
     );
   }
 

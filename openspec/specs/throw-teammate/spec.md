@@ -60,19 +60,19 @@ Resolving a Throw Team-mate Action SHALL make a Passing Ability Test for the thr
 
 ### Requirement: Thrown-player scatter and Right Stuff landing
 
-After a successful (non-fumbled) throw, the thrown player SHALL be scattered from the aim square and then make a Right Stuff landing roll to determine how they arrive. By default the scatter SHALL use the standard Scatter template; a thrower with the Swoop trait SHALL instead scatter the thrown player using the Throw-in template. The landing roll SHALL be a D6 with a +1 modifier when the thrower has Swoop; on a success the thrown player lands Standing, otherwise they land Prone. If the final square is occupied, the thrown player and the occupying player SHALL both be knocked down (a crash).
+After a successful (non-fumbled) throw, the thrown player SHALL be scattered from the aim square and then make a Right Stuff landing roll to determine how they arrive. By default the scatter SHALL use the standard Scatter template. A thrown player with Swoop MAY choose the Throw-in template and may re-roll a failed Landing when using it. Landing SHALL use an Agility Test, with -1 for a Subpar or Fumbled Throw and -1 for each opponent Marking the landing square; on a success the thrown player lands Standing, otherwise they Fall Over. If the final square is occupied, the occupant SHALL be knocked down and the thrown player SHALL Bounce from that square. This SHALL repeat until reaching an empty square, where the thrown player Falls Over, or leaving the pitch for Injury by the Crowd. The thrown player SHALL NOT finish in another player's square.
 
 #### Scenario: Standard scatter without Swoop
-- **WHEN** a thrown player is scattered and the thrower does not have Swoop
+- **WHEN** a thrown player is scattered and the thrown player does not use Swoop
 - **THEN** the standard Scatter template is used for the thrown player's displacement
 
-#### Scenario: Swoop uses the Throw-in template and boosts landing
-- **WHEN** a thrower with Swoop throws a team-mate
-- **THEN** the thrown player scatters using the Throw-in template and the Right Stuff landing roll gets +1
+#### Scenario: Swoop uses the Throw-in template and permits a landing re-roll
+- **WHEN** a thrown player with Swoop chooses the Throw-in template
+- **THEN** the thrown player travels using the Throw-in template and may re-roll a failed Landing
 
 #### Scenario: Landing on an occupied square is a crash
 - **WHEN** a thrown player's final square is occupied by another player
-- **THEN** both the thrown player and the occupant are knocked down
+- **THEN** the occupant is knocked down and the thrown player Bounces until reaching an empty square, where they Fall Over
 
 #### Scenario: Failed landing leaves the thrown player Prone
 - **WHEN** the Right Stuff landing roll fails
@@ -80,11 +80,11 @@ After a successful (non-fumbled) throw, the thrown player SHALL be scattered fro
 
 ### Requirement: Throw Team-mate fumble handling
 
-A Fumbled Throw of a Throw Team-mate Action SHALL drop the thrown team-mate Prone in the thrower's square and make an Injury Roll for them, and SHALL cause a Turnover. If the thrower was carrying the ball, the ball SHALL bounce from the thrower's square.
+A Fumbled Throw of a Throw Team-mate Action SHALL Bounce the thrown team-mate from the thrower's square and require a Landing Agility Test at -1. A successful Landing SHALL leave them Standing; a failed Landing SHALL make them Fall Over and take an Armour Roll. A fumble alone SHALL NOT cause a Turnover. A thrown ball carrier SHALL keep the ball while Bouncing, and SHALL drop it from their final landing square only if they fail to land. Landing on an occupied square SHALL use the same collision and Bounce rules as any other throw.
 
-#### Scenario: Fumbled throw drops and injures the team-mate
+#### Scenario: Fumbled throw bounces and attempts to land
 - **WHEN** a Throw Team-mate Action is a Fumbled Throw
-- **THEN** the thrown team-mate is placed Prone in the thrower's square, an Injury Roll is made for them, and a Turnover is caused
+- **THEN** the thrown team-mate Bounces from the thrower's square and attempts to land at -1, without an automatic Injury Roll or Turnover
 
 ### Requirement: Kick Team-mate Action
 
@@ -100,7 +100,7 @@ The Kick Team-mate trait SHALL allow a player to perform a Kick Team-mate Action
 
 ### Requirement: Always Hungry eat roll
 
-When a player with the Always Hungry trait performs a Throw Team-mate (or Kick Team-mate) Action, before completing the throw the system SHALL roll a D6 for the thrower. On a 2+ the Action continues normally. On a 1 the thrower attempts to eat the team-mate and rolls a further D6: on a 2+ the team-mate squirms free and the Action becomes a Fumbled Throw; on a 1 the team-mate is eaten and immediately removed from the Team Draft List with no Apothecary and no Regeneration allowed. If an eaten team-mate was carrying the ball, it SHALL bounce from the thrower's square. Eating a team-mate SHALL cause a Turnover.
+When a player with the Always Hungry trait performs a Throw Team-mate (or Kick Team-mate) Action, before completing the throw the system SHALL roll a D6 for the thrower. On a 2+ the Action continues normally. On a 1 the thrower attempts to eat the team-mate and rolls a further D6: on a 2+ the team-mate squirms free and the Action becomes a Fumbled Throw; on a 1 the team-mate is eaten and immediately removed from the Team Draft List with no Apothecary and no Regeneration allowed. If an eaten team-mate was carrying the ball, it SHALL bounce from the thrower's square. Eating a team-mate SHALL cause a Turnover only if that team-mate held the ball.
 
 #### Scenario: Hungry roll of 2+ proceeds normally
 - **WHEN** an Always Hungry thrower rolls 2+ on the eat check
@@ -112,16 +112,20 @@ When a player with the Always Hungry trait performs a Throw Team-mate (or Kick T
 
 #### Scenario: Eaten team-mate is removed without saves
 - **WHEN** the Always Hungry eat check rolls a 1 and the follow-up roll is also a 1
-- **THEN** the team-mate is removed from the draft list with no Apothecary or Regeneration, any carried ball bounces, and a Turnover is caused
+- **THEN** the team-mate is removed from the draft list with no Apothecary or Regeneration, any carried ball bounces, and a Turnover is caused only if the eaten player held the ball
 
 ### Requirement: Throw Team-mate turnover conditions
 
-A Throw Team-mate or Kick Team-mate Action SHALL cause a Turnover when the thrown player ends the Action Prone, is injured or removed from play, is eaten, or the throw is fumbled. The Action SHALL NOT cause a Turnover solely because the thrown player lands Standing in an empty square.
+A failed Landing or collision SHALL cause a Turnover if the thrown player held the ball. Leaving the pitch or knocking down another player on the active team SHALL also cause a Turnover. A failed Landing without the ball, or a fumbled Throw Team-mate Action alone, SHALL NOT cause a Turnover. A fumbled Kick Team-mate Action SHALL retain its separate removal and injury rules.
 
 #### Scenario: Standing landing is not a turnover
 - **WHEN** a thrown player lands Standing in an empty square
 - **THEN** no Turnover is caused by the Throw Team-mate Action
 
-#### Scenario: Prone landing is a turnover
-- **WHEN** a thrown player ends the Action Prone
-- **THEN** a Turnover is caused
+#### Scenario: Failed landing without the ball is not a turnover
+- **WHEN** a thrown player without the ball fails to land without knocking down another active-team player
+- **THEN** they Fall Over without causing a Turnover
+
+#### Scenario: Failed landing with the ball is a turnover
+- **WHEN** a thrown ball carrier fails to land
+- **THEN** the ball Bounces from their final square and a Turnover is caused

@@ -48,8 +48,8 @@ const ACTION_STEPS: Partial<Record<ActionType, ActionStep[]>> = {
   // Move first (optional), then throw: in the throw step the first click
   // picks the adjacent Right-Stuff team-mate, the second aims.
   throwTeamMate: [MOVE, { id: "throw", label: "Throw Team-mate" }],
-  // Secure Ball logic? Usually automatic, but stepper requested.
-  secureBall: [MOVE, { id: "secure", label: "Secure Ball" }],
+  // Moving onto the ball performs the Secure the Ball roll automatically.
+  secureBall: [{ id: "move", label: "Move to secure the ball" }],
 };
 
 /**

@@ -1011,8 +1011,13 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               ),
             verify: (r) =>
               assert(
-                turnoverHappened(r),
-                "a squirm-free Fumbled Throw is a turnover"
+                !turnoverHappened(r) &&
+                  sawEvent(
+                    r,
+                    GameEventNames.DiceRoll,
+                    (d) => (d as { rollType?: string }).rollType === "Bounce"
+                  ),
+                "a squirm-free Fumbled Throw bounces with no automatic turnover"
               ),
           },
           {

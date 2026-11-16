@@ -8,7 +8,12 @@ import { useEventBus } from "../../hooks/useEventBus";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
 
-const ROLL_NAMES = { dodge: "Dodge", rush: "Rush", pickup: "Pick up" };
+const ROLL_NAMES = {
+  dodge: "Dodge",
+  rush: "Rush",
+  pickup: "Pick up",
+  secureBall: "Secure the Ball",
+};
 
 /**
  * The phone's bottom bar. With a route plotted it sums it up (squares and
