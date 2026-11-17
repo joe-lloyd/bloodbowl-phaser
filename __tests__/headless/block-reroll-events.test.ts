@@ -107,4 +107,30 @@ describe("a Team Re-roll on block dice", () => {
       ["pow-dodge", "skull"],
     ]);
   });
+
+  it("names both rolls' faces when Pro re-rolls a die", async () => {
+    const game = new HeadlessGame({ scenario: proScenario, seed: PRO_SEED });
+    const rerolls: unknown[] = [];
+    game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => rerolls.push(d));
+    const attackerId = game.ctx.team1.players[0].id;
+    const defenderId = game.ctx.team2.players[0].id;
+
+    await game.execute({
+      type: "declare-action",
+      playerId: attackerId,
+      action: "block",
+    });
+    await game.execute({ type: "block", attackerId, defenderId });
+    await game.execute({ type: "pro-reroll-block", attackerId, dieIndex: 0 });
+
+    expect(rerolls).toEqual([
+      {
+        playerId: attackerId,
+        source: "pro",
+        rollKind: "block",
+        before: ["Push", "Attacker Down"],
+        after: ["POW!/Dodge", "Attacker Down"],
+      },
+    ]);
+  });
 });
