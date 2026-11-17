@@ -6,14 +6,11 @@
 
 import * as fs from "node:fs";
 import { EmittedEvent } from "../headless/protocol";
+import type { HeadlessGame } from "../headless/HeadlessGame";
 import { GameSnapshot } from "../headless/serialization";
 import { GameEventNames } from "../types/events";
 import { PlayerStatus } from "../types/Player";
-import {
-  MatchRecording,
-  createSimGame,
-  grantSimInducements,
-} from "./runMatch";
+import { MatchRecording, createSimGame, grantSimInducements } from "./runMatch";
 import { createRuleMonitor } from "./invariants";
 
 /** Status codes kept short: the page holds one frame per step. */
@@ -137,17 +134,24 @@ function frameOf(
   };
 }
 
-/** Replay the recording and capture the board after every step. */
+/**
+ * Replay the recording and capture the board after every step. A recording
+ * whose teams the sim did not build, such as a study's, passes its game
+ * loaded at the recording's start.
+ */
 export async function buildMatchDump(
-  recording: MatchRecording
+  recording: MatchRecording,
+  initial?: HeadlessGame
 ): Promise<MatchDump> {
-  const game = createSimGame(
-    recording.seed,
-    recording.rosters,
-    recording.rerolls,
-    recording.lineup
-  );
-  if (recording.inducements) await grantSimInducements(game);
+  const game =
+    initial ??
+    createSimGame(
+      recording.seed,
+      recording.rosters,
+      recording.rerolls,
+      recording.lineup
+    );
+  if (!initial && recording.inducements) await grantSimInducements(game);
   const start = game.snapshot();
   const players: DumpPlayer[] = start.teams.flatMap((team, t) =>
     team.players.map((p) => ({

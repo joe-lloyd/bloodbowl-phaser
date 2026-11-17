@@ -8,7 +8,7 @@
 
 import { Player } from "../../types/Player";
 import { ActionType } from "../../types/events";
-import { Board, carrierOf } from "./board";
+import { Board, Square, carrierOf } from "./board";
 import { RollTarget } from "./chance";
 import { Route } from "./routes";
 import { Weights } from "./weights";
@@ -55,7 +55,9 @@ export type Role =
   | "chase"
   | "stall"
   | "safety"
-  | "feed";
+  | "feed"
+  | "throw"
+  | "flank";
 
 export type Intent =
   | { kind: "score"; route: Route }
@@ -66,6 +68,7 @@ export type Intent =
   | { kind: "multiple-block"; targets: [Player, Player] }
   | { kind: "handoff"; to: Player; route: Route | null }
   | { kind: "pass"; to: Player; route: Route | null }
+  | { kind: "throw-teammate"; mate: Player; aim: Square; carrying: boolean }
   | { kind: "block"; target: Player }
   | { kind: "blitz"; target: Player; route: Route | null }
   | { kind: "reposition"; role: Role; route: Route }
@@ -99,6 +102,8 @@ export function planIdentity(plan: Activation): string {
     case "pass":
     case "handoff":
       return `${prefix}/${intent.to.id}`;
+    case "throw-teammate":
+      return `${prefix}/${intent.mate.id}/${intent.aim.x},${intent.aim.y}`;
     case "block":
     case "blitz":
     case "gaze":

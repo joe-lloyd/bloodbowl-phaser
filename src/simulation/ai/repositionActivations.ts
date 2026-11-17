@@ -4,8 +4,10 @@
  */
 
 import { Player, PlayerStatus } from "../../types/Player";
+import { isRightStuffEligible } from "../../game/rules/throwTeammate";
 import {
   Board,
+  HEIGHT,
   Square,
   carrierOf,
   distance,
@@ -13,25 +15,108 @@ import {
   neighbours,
   onPitch,
   standing,
+  toGoal,
 } from "./board";
 import { Route } from "./routes";
-import { Context, gamble, tierFor } from "./activationContext";
+import { PassController } from "../../game/controllers/PassController";
+import { Context, crowd, gamble, tierFor } from "./activationContext";
 import { CORNERS } from "./ballActivations";
 import type { Activation, Role } from "./activations";
 import { moveFeedingCost } from "./feeding";
-import { exposureCost, injuryRiskValue, opponentCanScore } from "./latePlans";
+import { THROW_REACH, throwersFor } from "./teammateActivations";
+import {
+  exposureCost,
+  injuryRiskValue,
+  nextTurnReach,
+  opponentCanScore,
+} from "./latePlans";
 
 export interface RoleSquare {
   role: Role;
   at: Square;
   value: number;
+  /** The one player the square is worth this to, when not everyone. */
+  only?: string;
 }
 
-type AddSquare = (role: Role, at: Square, value: number) => void;
+type AddSquare = (role: Role, at: Square, value: number, only?: string) => void;
+
+/**
+ * Beside a Right Stuff carrier on the turn before the last: a thrower there
+ * can launch it on the last turn.
+ */
+function launchSquares(c: Context, carrier: Player, add: AddSquare): void {
+  const { board, w } = c;
+  const at = carrier.gridPosition!;
+  if (
+    board.turnsLeft !== 1 ||
+    !isRightStuffEligible(carrier) ||
+    toGoal(board, at) > THROW_REACH + nextTurnReach(carrier)
+  )
+    return;
+  for (const thrower of throwersFor(board, carrier))
+    for (const s of neighbours(at)) add("throw", s, w.launch, thrower.id);
+}
+
+/**
+ * The one team-mate who runs wide: the fastest standing player without the
+ * ball, one already wide first. A flank is a runner's job, not the team's.
+ */
+function flankRunner(c: Context, carrier: Player): Player | undefined {
+  const at = carrier.gridPosition!;
+  const wide = (p: Player) => Math.abs(p.gridPosition!.y - at.y) >= 3;
+  return c.board.ours
+    .filter((p) => p.id !== carrier.id && standing(p))
+    .sort(
+      (a, b) =>
+        b.stats.MA - a.stats.MA ||
+        Number(wide(b)) - Number(wide(a)) ||
+        a.id.localeCompare(b.id)
+    )[0];
+}
+
+/**
+ * Next turn the carrier can get the ball to `s`, by a Quick or Short Pass or
+ * by walking up for a hand-off, and the runner can score from there.
+ */
+function flankPays(
+  board: Board,
+  carrier: Player,
+  runner: Player,
+  s: Square
+): boolean {
+  const at = carrier.gridPosition!;
+  const range = PassController.rangeValue(at, s);
+  const reached =
+    (carrier.stats.PA > 0 && range !== null && range <= 1) ||
+    distance(at, s) <= carrier.stats.MA;
+  return reached && toGoal(board, s) <= nextTurnReach(runner);
+}
+
+/**
+ * Wide of our carrier, on the side the defence has left: a runner there
+ * takes a sideways ball next turn, scores and splits the defence. Not on a
+ * sideline, where a push puts it in the crowd.
+ */
+function flankSquares(c: Context, carrier: Player, add: AddSquare): void {
+  const { board, w } = c;
+  const at = carrier.gridPosition!;
+  const pressed = crowd(board, at);
+  const runner = pressed > 0 ? flankRunner(c, carrier) : undefined;
+  if (!runner) return;
+  for (const ahead of [0, 1, 2, 3])
+    for (let y = 1; y < HEIGHT - 1; y++) {
+      if (Math.abs(y - at.y) < 3) continue;
+      const s = { x: at.x + board.dir * ahead, y };
+      if (onPitch(s) && flankPays(board, carrier, runner, s))
+        add("flank", s, w.flank * (pressed - crowd(board, s)), runner.id);
+    }
+}
 
 /** Our carrier: a cage around it and receivers ahead of it. */
-function ownCarrierSquares(c: Context, at: Square, add: AddSquare): void {
+function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
+  const at = carrier.gridPosition!;
   for (const [dx, dy] of CORNERS)
     add("cage", { x: at.x + dx, y: at.y + dy }, w.cageCorner);
   // Final-turn receiver preparation must lead to a score. End-zone runs
@@ -44,6 +129,8 @@ function ownCarrierSquares(c: Context, at: Square, add: AddSquare): void {
         { x: at.x + board.dir * ahead, y: at.y + dy },
         w.receiver
       );
+  launchSquares(c, carrier, add);
+  flankSquares(c, carrier, add);
 }
 
 /** Beside the walls of their carrier's cage: assists for the hits that break it. */
@@ -93,12 +180,13 @@ function theirCarrierSquares(c: Context, at: Square, add: AddSquare): void {
 export function roleSquares(c: Context): RoleSquare[] {
   const { board, w } = c;
   const out: RoleSquare[] = [];
-  const add: AddSquare = (role, at, value) => {
-    if (onPitch(at)) out.push({ role, at, value });
+  const add: AddSquare = (role, at, value, only) => {
+    if (onPitch(at) && value > 0)
+      out.push(only ? { role, at, value, only } : { role, at, value });
   };
   const ball = board.ball;
   if (ball.kind === "carried" && ball.carrier.teamId === board.us) {
-    ownCarrierSquares(c, ball.at, add);
+    ownCarrierSquares(c, ball.carrier, add);
   } else if (ball.kind === "carried") {
     theirCarrierSquares(c, ball.at, add);
   } else if (ball.kind === "loose") {
@@ -117,18 +205,21 @@ function roleRoute(
   routes: Map<number, Route>
 ): Reposition | null {
   const { board, w } = c;
+  // Each square counts for the most this player can make of it there. A
+  // square that marks their carrier or its cage is meant to be in contact.
+  const top = new Map<number, RoleSquare>();
+  const marking = new Set<number>();
+  for (const s of squares) {
+    if (s.only && s.only !== player.id) continue;
+    const best = top.get(key(s.at));
+    if (!best || s.value > best.value) top.set(key(s.at), s);
+    if (s.role === "mark") marking.add(key(s.at));
+  }
   const worth = (at: Square) => {
-    const base = Math.max(
-      0,
-      ...squares
-        .filter((s) => s.at.x === at.x && s.at.y === at.y)
-        .map((s) => s.value)
-    );
-    const marked = board.marks[key(at)];
-    const role = squares.find((s) => s.at.x === at.x && s.at.y === at.y)?.role;
+    const marked = marking.has(key(at)) ? 0 : board.marks[key(at)];
     return (
-      base -
-      (role === "mark" ? 0 : marked * w.endInContact) -
+      Math.max(0, top.get(key(at))?.value ?? 0) -
+      marked * w.endInContact -
       exposureCost(c, player, at)
     );
   };
@@ -137,7 +228,7 @@ function roleRoute(
       ? -w.standUp
       : worth(player.gridPosition!);
   let best: Reposition | null = null;
-  for (const s of squares) {
+  for (const s of top.values()) {
     const route = routes.get(key(s.at));
     if (!route || route.chance < w.safeMove) continue;
     const gain =

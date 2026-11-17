@@ -231,9 +231,18 @@ export abstract class BlockActivation extends BlockRerolls {
     const knockedDown = this.pileDriverTargets.get(attackerId);
     this.pileDriverTargets.delete(attackerId);
     if (knockedDown) state.pileDriverTargetIds.push(knockedDown);
-    // A push that scored ends the drive, and the second Block with it.
+    // A push that scored ends the drive, and the second Block with it. A
+    // blocker knocked down by the first Block is a Turnover: its activation
+    // ends, and a target no longer Standing on the pitch cannot be blocked.
     const scored = driveOver(this.state.phase);
-    if (!scored && state.nextIndex < state.defenderIds.length) {
+    const blocker = this.getPlayerById(attackerId);
+    const next = this.getPlayerById(state.defenderIds[state.nextIndex] ?? "");
+    const canBlock =
+      blocker?.status === PlayerStatus.ACTIVE &&
+      !!blocker.gridPosition &&
+      next?.status === PlayerStatus.ACTIVE &&
+      !!next.gridPosition;
+    if (!scored && canBlock && state.nextIndex < state.defenderIds.length) {
       const defenderId = state.defenderIds[state.nextIndex++];
       await this.startBlock(attackerId, defenderId);
       return;

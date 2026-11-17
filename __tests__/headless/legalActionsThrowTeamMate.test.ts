@@ -41,4 +41,40 @@ describe("legal actions", () => {
   it("leave it out with nobody to throw", async () => {
     expect(await legalFor([])).not.toContain("throwTeamMate");
   });
+
+  it("leave it out once the team has thrown a team-mate this turn", async () => {
+    const game = new HeadlessGame({
+      scenario: scenario([SkillType.RIGHT_STUFF]),
+      seed: 1,
+    });
+    game.ctx.gameService.getState().turn.hasThrownTeamMate = true;
+    const response = await game.execute({ type: "legal-actions" });
+    const thrower = game.ctx.team1.players[0];
+    expect(
+      response.legalActions?.players.find((p) => p.playerId === thrower.id)
+        ?.actions
+    ).not.toContain("throwTeamMate");
+  });
+
+  it("include it for a Kick Team-mate player", async () => {
+    const game = new HeadlessGame({
+      scenario: {
+        ...scenario([SkillType.RIGHT_STUFF]),
+        setup: {
+          ...scenario([SkillType.RIGHT_STUFF]).setup,
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.KICK_TEAM_MATE] },
+            { playerIndex: 1, x: 5, y: 5, skills: [SkillType.RIGHT_STUFF] },
+          ],
+        },
+      },
+      seed: 1,
+    });
+    const response = await game.execute({ type: "legal-actions" });
+    const kicker = game.ctx.team1.players[0];
+    expect(
+      response.legalActions?.players.find((p) => p.playerId === kicker.id)
+        ?.actions
+    ).toContain("throwTeamMate");
+  });
 });

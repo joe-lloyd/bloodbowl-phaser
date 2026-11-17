@@ -12,6 +12,19 @@ Every match saves its initial state, commands and decision notes, then immediate
 
 See the [first measured results](../../../docs/technical/sevens-policy-lab-results.md) for the final source, passing outcomes and unresolved survival tradeoffs.
 
+The frozen incumbent is `main` before the current branch, set in the script; `BB7_BASELINE=<full sha>` compares another. A `standard` stage plays the confirmation schedule with `--candidate standard`: the shipped Standard level, with its per-match game plan and close-call variety. It measures what players meet, while confirmation measures the planner at its best.
+
+## Plays and moments
+
+After confirmation, Standard and the pilot, `usage.ts` replays every saved game and names each declaration by its coach note: a carrier throw, a pass, a flank run, a launch setup and so on. For each play and policy it counts uses, scores that turn or the next, and turnovers during the activation. `moments.ts` writes `moments/index.html` with that table and the candidate's scoring moments, rarest plays first. Each moment links to a playback of its match opened at the declaration. Run them by hand on any stage:
+
+```sh
+pnpm exec tsx scripts/coach/policy-lab/usage.ts <stage directory>
+pnpm exec tsx scripts/coach/policy-lab/moments.ts <stage directory>
+```
+
+A play's scores and turnovers describe what followed it, not what it was worth.
+
 ## Inspect evidence before changing policy
 
 The remote path prints at completion. Its `reports/index.html` reads saved results offline. `contracts/gate.json` lists failing named contracts. Each stage has `stage-gate.json`, `summary.json`, `decision-receipts.json`, per-roster CSVs and a manifest. Raw traces stay under the acquisition's `traces/` directory. The lab page exposes all 108 catalogue entries, including open tactical gaps.

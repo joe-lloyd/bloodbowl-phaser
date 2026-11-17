@@ -2,8 +2,9 @@ import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { PlayerStatus, Player } from "../../types/Player";
+import { InjuryType, PlayerStatus, Player } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
+import { movePlayerToBox } from "../rules/playerLocation";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
@@ -146,7 +147,7 @@ export class ThrowTeammateOperation extends GameOperation {
 
     // 3. Fumble handling.
     if (fumbled && this.mode === "kick") {
-      this.fumbleKick(context, teammate);
+      await this.fumbleKick(context, teammate);
       return;
     }
     if (fumbled) {
@@ -321,10 +322,8 @@ export class ThrowTeammateOperation extends GameOperation {
         `${thrower.playerName} EATS ${teammate.playerName}!`
       );
       const hadBall = this.bounceIfCarried(gameService, context, teammate);
-      teammate.gridPosition = undefined;
-      teammate.status = PlayerStatus.DEAD;
-      gameService.removePlayer(teammate.id);
-      eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
+      teammate.injuries.push(InjuryType.DEAD);
+      movePlayerToBox(teammate, { box: "casualty", dead: true }, eventBus);
       // A Turnover "only if that eaten player was in possession of the
       // ball" (FAQ); the activation ends either way.
       this.finishLanding(gameService, context, hadBall, "Ate Team-mate");
@@ -389,7 +388,10 @@ export class ThrowTeammateOperation extends GameOperation {
     };
   }
 
-  private fumbleKick(context: FlowContext, teammate: Player): void {
+  private async fumbleKick(
+    context: FlowContext,
+    teammate: Player
+  ): Promise<void> {
     const { gameService, eventBus } = context;
     eventBus.emit(
       GameEventNames.UI_Notification,
@@ -398,7 +400,11 @@ export class ThrowTeammateOperation extends GameOperation {
     this.bounceIfCarried(gameService, context, teammate);
     teammate.gridPosition = undefined;
     teammate.status = PlayerStatus.PRONE;
-    context.flowManager.add(new InjuryOperation(teammate.id), true);
+    await context.flowManager.runToRest(new InjuryOperation(teammate.id));
+    // Removed from play, a Stunned player goes to the Reserves box, as a
+    // Stunned player in the crowd does.
+    if (gameService.getPlayerById(teammate.id)?.status === PlayerStatus.STUNNED)
+      movePlayerToBox(teammate, { box: "reserves" }, eventBus);
     gameService.triggerTurnover("Fumbled Kick Team-mate");
   }
 
@@ -634,7 +640,7 @@ export class ThrowTeammateOperation extends GameOperation {
       // Landing is involuntary movement, so a loose ball bounces rather
       // than being picked up. An existing carrier keeps their own ball.
       if (!carriesBall) this.bounceIfCarried(gameService, context, teammate);
-      this.landSafely(context, thrower, teammate, superbThrow);
+      this.landSafely(context, thrower, teammate, superbThrow, carriesBall);
       return;
     }
 
@@ -660,7 +666,8 @@ export class ThrowTeammateOperation extends GameOperation {
     context: FlowContext,
     thrower: Player,
     teammate: Player,
-    superbThrow: boolean
+    superbThrow: boolean,
+    carriesBall: boolean
   ): void {
     const { eventBus } = context;
     eventBus.emit(
@@ -676,6 +683,10 @@ export class ThrowTeammateOperation extends GameOperation {
       });
     }
     eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
+    // A carrier landing Standing in the End Zone they score in scores. A
+    // player who lands on a loose ball there does not: it bounces away.
+    if (carriesBall && context.gameService.checkForTouchdown(teammate.id))
+      return;
     context.flowManager.add(new FinishThrowTeammateOperation(this.throwerId));
   }
 

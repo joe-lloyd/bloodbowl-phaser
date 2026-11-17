@@ -70,6 +70,7 @@ const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "vomit",
   "secureBall",
   "gaze",
+  "throwTeamMate",
 ]);
 
 /**

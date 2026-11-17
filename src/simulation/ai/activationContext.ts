@@ -125,6 +125,14 @@ export function threats(board: Board, at: Square): number {
   ).length;
 }
 
+/** Standing opponents within three squares: who can close on a square. */
+export function crowd(board: Board, at: Square): number {
+  return board.theirs.filter(
+    (o) =>
+      o.status === PlayerStatus.ACTIVE && distance(o.gridPosition!, at) <= 3
+  ).length;
+}
+
 /** The best chance a player has of running in a touchdown from here. */
 export function scoreChanceOf(c: Context, player: Player): number {
   let best = 0;

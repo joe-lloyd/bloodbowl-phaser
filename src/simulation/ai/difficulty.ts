@@ -4,7 +4,8 @@
  */
 
 import { Coach } from "../coach";
-import { plannerCoach } from "./planner";
+import { createPlannerCoach } from "./planner";
+import { STANDARD_VARIETY } from "./gamePlans";
 import { BUDGETS } from "./search";
 import { createWorkerSearchCoach } from "./workerSearchCoach";
 
@@ -12,7 +13,8 @@ export const DIFFICULTIES = [
   {
     id: "standard",
     label: "Standard",
-    detail: "Plans each turn and takes the safest actions first.",
+    detail:
+      "Plans each turn with a game plan of its own, and sometimes takes a close second-best play.",
   },
   {
     id: "hard",
@@ -34,7 +36,11 @@ export type Difficulty = (typeof DIFFICULTIES)[number]["id"];
 const MAX_WORKERS = 8;
 
 export function coachFor(difficulty: Difficulty): Coach & { close?(): void } {
-  if (difficulty === "standard") return plannerCoach;
+  if (difficulty === "standard")
+    return createPlannerCoach({
+      name: "standard",
+      variety: STANDARD_VARIETY,
+    });
   const cores = globalThis.navigator?.hardwareConcurrency ?? 2;
   return createWorkerSearchCoach({
     budget: BUDGETS[difficulty],

@@ -30,6 +30,8 @@ import { enumerateLegalActions } from "../../headless/legalActions";
 import type { HeadlessGame } from "../../headless/HeadlessGame";
 import { context as activationContext } from "./activationContext";
 import { key } from "./board";
+import { GAME_PLANS, GamePlan, Variety, choosePlan } from "./gamePlans";
+import type { CoachRng } from "../rng";
 
 const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   dodge: "Dodge",
@@ -38,6 +40,8 @@ const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   secure: "Secure the Ball",
   catch: "Catch",
   pass: "Pass",
+  throw: "Throw Team-mate",
+  landing: "Landing",
 };
 
 /** What the coach did and the rolls it needed, never how likely they were. */
@@ -51,6 +55,10 @@ export function noteFor(a: Activation): string {
     "multiple-block": "blocks two opponents",
     handoff: "hands off",
     pass: "throws a pass",
+    "throw-teammate":
+      a.intent.kind === "throw-teammate" && a.intent.carrying
+        ? "throws the ball carrier"
+        : "throws a team-mate",
     block: "blocks",
     blitz: "blitzes",
     reposition:
@@ -151,6 +159,18 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
           (c) =>
             c.type === "handoff" && c.playerId === id && c.targetId === target
         )
+      );
+    }
+    case "throw-teammate": {
+      const { mate, aim } = a.intent;
+      return match(
+        (c) =>
+          c.type === "throw-teammate" &&
+          c.throwerId === id &&
+          c.teammateId === mate.id &&
+          c.x === aim.x &&
+          c.y === aim.y &&
+          !c.swoopFacing
       );
     }
     case "pass": {
@@ -256,11 +276,32 @@ function retainedStep(
   return index < 0 ? null : { index, note: noteFor(resumed) };
 }
 
+/** How a varied coach declares: its game plan for this match and its margin. */
+interface Choosing {
+  plan: GamePlan;
+  variety: Variety;
+  rng: CoachRng;
+}
+
 export function createPlannerCoach(
-  options: { weights?: Weights; name?: string; skillPlans?: boolean } = {}
+  options: {
+    weights?: Weights;
+    name?: string;
+    skillPlans?: boolean;
+    /** Vary close declarations and draw a game plan for each match. */
+    variety?: Variety;
+  } = {}
 ): PlannerCoach {
   const w = options.weights ?? DEFAULT_WEIGHTS;
   const memory = new WeakMap<HeadlessGame, RetainedPlan>();
+  const plans = new WeakMap<HeadlessGame, GamePlan>();
+  const choosing = (context: CoachContext): Choosing | null => {
+    const variety = options.variety;
+    if (!variety) return null;
+    let plan = plans.get(context.game);
+    if (!plan) plans.set(context.game, (plan = context.rng.pick(GAME_PLANS)));
+    return { plan, variety, rng: context.rng };
+  };
   const remember = (game: HeadlessGame, activation: Activation) => {
     const board = readBoard(game, activation.player.teamId);
     memory.set(game, {
@@ -273,9 +314,19 @@ export function createPlannerCoach(
     name: options.name ?? "planner",
     remember,
     async choose(context: CoachContext): Promise<CoachChoice> {
+      const chosen = choosing(context);
+      const weights = chosen?.plan.weights
+        ? { ...w, ...chosen.plan.weights }
+        : w;
       return (
-        planChoice(context, w, options.skillPlans ?? true, memory, remember) ??
-        heuristicCoach.choose(context)
+        planChoice(
+          context,
+          weights,
+          options.skillPlans ?? true,
+          memory,
+          remember,
+          () => chosen
+        ) ?? heuristicCoach.choose(context)
       );
     },
   };
@@ -326,7 +377,8 @@ function planChoice(
   w: Weights,
   skillPlans: boolean,
   memory: WeakMap<HeadlessGame, RetainedPlan>,
-  remember: (game: HeadlessGame, activation: Activation) => void
+  remember: (game: HeadlessGame, activation: Activation) => void,
+  choosing: (context: CoachContext) => Choosing | null
 ): CoachChoice | null {
   const { game, point } = context;
   const candidates = point.candidates;
@@ -375,8 +427,13 @@ function planChoice(
     );
   }
   memory.delete(game);
-  return declareChoice(board, w, candidates, skillPlans, (activation) =>
-    remember(game, activation)
+  return declareChoice(
+    board,
+    w,
+    candidates,
+    skillPlans,
+    (activation) => remember(game, activation),
+    choosing(context)
   );
 }
 
@@ -415,32 +472,43 @@ function continueChoice(
   return end >= 0 ? { index: end } : null;
 }
 
-/** Declare the first planned activation on offer, else end the turn. */
+/**
+ * Declare the best planned activation on offer, or, for a varied coach, one
+ * close to it; else end the turn.
+ */
 function declareChoice(
   board: Board,
   w: Weights,
   candidates: readonly Candidate[],
   skillPlans: boolean,
-  selected: (activation: Activation) => void
+  selected: (activation: Activation) => void,
+  choosing: Choosing | null
 ): CoachChoice | null {
   const plan = activations(board, w, availableActions(candidates), skillPlans);
-  for (const a of plan) {
+  const options: { activation: Activation; index: number }[] = [];
+  for (const activation of plan) {
     const index = candidates.findIndex((c) => {
       const command = c.commands[0];
       return (
         command.type === "declare-action" &&
         !command.blockReplacement &&
-        command.playerId === a.player.id &&
-        command.action === a.action
+        command.playerId === activation.player.id &&
+        command.action === activation.action
       );
     });
-    if (index >= 0) {
-      selected(a);
-      return { index, note: noteFor(a) };
-    }
+    if (index < 0) continue;
+    options.push({ activation, index });
+    if (!choosing) break;
   }
-  const end = candidates.findIndex((c) => c.kind === "end-turn");
-  return end >= 0 ? { index: end } : null;
+  if (options.length === 0) {
+    const end = candidates.findIndex((c) => c.kind === "end-turn");
+    return end >= 0 ? { index: end } : null;
+  }
+  const pick = choosing
+    ? choosePlan(options, choosing.plan, choosing.variety, choosing.rng)
+    : options[0];
+  selected(pick.activation);
+  return { index: pick.index, note: noteFor(pick.activation) };
 }
 
 export const plannerCoach = createPlannerCoach();
