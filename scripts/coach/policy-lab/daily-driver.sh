@@ -50,10 +50,11 @@ run_stage() {
 }
 persistent_seed=$((confirmation_seed + 1000000))
 standard_seed=$((confirmation_seed + 3000000))
-# Which plays each policy chose and what followed, with watchable moments.
+# Which plays each policy chose and what followed, with watchable moments and fouls.
 plays() {
   pnpm exec tsx scripts/coach/policy-lab/usage.ts "$lab_root/$1"
   pnpm exec tsx scripts/coach/policy-lab/moments.ts "$lab_root/$1"
+  pnpm exec tsx scripts/coach/policy-lab/fouls.ts "$lab_root/$1"
   rm -rf "$lab_root/reports/$1/moments"
   cp -R "$lab_root/$1/moments" "$lab_root/reports/$1/moments"
 }
