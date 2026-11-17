@@ -87,7 +87,7 @@ function lean(plan: GamePlan, a: Activation): number {
  * One of `options`: the best plus the game plan's lean when there is no
  * margin, else any within the margin of it, the closer the likelier. A
  * close call never puts a risky plan, one whose failure is a Turnover,
- * ahead of a safe best plan.
+ * ahead of a safe best plan, and never passes up a best run in to score.
  */
 export function choosePlan<T extends { activation: Activation }>(
   options: readonly T[],
@@ -98,6 +98,12 @@ export function choosePlan<T extends { activation: Activation }>(
   // Safety is judged on the plans' own values, before any lean: when the
   // best of them is safe, no risky plan may be chosen at all.
   const best = Math.max(...options.map((o) => o.activation.value));
+  // A run in to score that is already the best plan is taken: a transfer
+  // close to it in value still has rolls that can fail.
+  const scoring = options.find(
+    (o) => o.activation.value === best && o.activation.intent.kind === "score"
+  );
+  if (scoring) return scoring;
   const safe = options.some(
     (o) => o.activation.value === best && o.activation.tier !== "risky"
   );

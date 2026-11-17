@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
+import { SkillType } from "../../src/types/Skills";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { createCoachRng } from "../../src/simulation/rng";
@@ -165,6 +166,56 @@ describe("game plans", () => {
               { playerIndex: 0, x: 4, y: 5 },
               { playerIndex: 1, x: 13, y: 3 },
             ],
+          },
+        },
+      });
+      const coach = createPlannerCoach({ variety: { margin: 8 } });
+      const point = await enumerateDecision(game, null);
+      const { note } = await coach.choose({
+        game,
+        snapshot: game.snapshot(),
+        point,
+        rng: createCoachRng(seed),
+      });
+      notes.add(note ?? "");
+    }
+    expect([...notes]).toEqual(["runs in to score"]);
+  });
+
+  it("runs in a certain score rather than pass it to a skilled receiver", async () => {
+    // A rolled pass or hand-off can fail; the run needs no rolls.
+    const notes = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const game = new HeadlessGame({
+        seed: 7,
+        scenario: {
+          id: "variety-certain-score",
+          name: "Varied coach beside a scoring receiver",
+          description: "",
+          setup: {
+            phase: GamePhase.PLAY,
+            subPhase: SubPhase.TURN_RECEIVING,
+            activeTeam: "team1",
+            turn: 6,
+            teamRerolls: { team1: 0, team2: 0 },
+            team1Placements: [
+              {
+                playerIndex: 0,
+                x: 17,
+                y: 5,
+                hasBall: true,
+                skills: [SkillType.PASS],
+                stats: { MA: 6, PA: 2 },
+              },
+              {
+                playerIndex: 1,
+                x: 19,
+                y: 4,
+                skills: [SkillType.CATCH],
+                stats: { AG: 2 },
+              },
+            ],
+            team2Placements: [{ playerIndex: 0, x: 1, y: 1 }],
           },
         },
       });
