@@ -100,6 +100,50 @@ async function setupTurn(carrier: Partial<PlayerPlacement> = {}) {
   return subject;
 }
 
+/**
+ * Turn 4, the throwing turn. Two defenders mark the carrier, so keeping
+ * the ball means dodging away; the catcher waits deep and unmarked.
+ */
+function pressedTurn() {
+  return new HeadlessGame({
+    seed: 1,
+    scenario: {
+      id: "pressed-deep-pass",
+      name: "Get the ball out of a press",
+      description: "",
+      setup: {
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        activeTeam: "team1",
+        turn: 4,
+        teamRerolls: { team1: 1, team2: 1 },
+        team1Placements: [
+          {
+            playerIndex: 0,
+            x: 8,
+            y: 5,
+            hasBall: true,
+            stats: { MA: 6, PA: 2 },
+            skills: [SkillType.PASS],
+          },
+          {
+            playerIndex: 1,
+            x: 13,
+            y: 2,
+            stats: { MA: 8, AG: 2 },
+            skills: [SkillType.CATCH],
+          },
+        ],
+        team2Placements: [
+          { playerIndex: 0, x: 9, y: 4 },
+          { playerIndex: 1, x: 9, y: 6 },
+          { playerIndex: 2, x: 7, y: 5 },
+        ],
+      },
+    },
+  });
+}
+
 describe("two-step pass", () => {
   it("sends the catcher deep on the setup turn, in range of a pass and a run in", async () => {
     const subject = await setupTurn();
@@ -153,6 +197,19 @@ describe("two-step pass", () => {
     );
     expect(declared).toEqual([
       `${thrower.id}: throws a pass (Pass: 2+, Catch: 2+)`,
+      `${catcher.id}: runs in to score`,
+    ]);
+    expect(subject.ctx.gameService.getState().score?.team1).toBe(1);
+  });
+
+  it("gets the ball out of a press to the deep catcher, who runs it in", async () => {
+    const subject = pressedTurn();
+    const [thrower, catcher] = subject.ctx.team1.players;
+
+    const { declared } = await playTurn(subject);
+
+    expect(declared).toEqual([
+      `${thrower.id}: hands off (Dodge: 4+, Dodge: 3+, Rush: 2+, Catch: 2+)`,
       `${catcher.id}: runs in to score`,
     ]);
     expect(subject.ctx.gameService.getState().score?.team1).toBe(1);
