@@ -120,6 +120,22 @@ The release also measured the attrition weight, which makes a casualty worth mor
 
 Published report: [Sevens press escape](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-press-escape-2026-11-17%2Findex.html), Blood Bowl, `sevens-press-escape-2026-11-17/`. The acquisition, with the attrition run in `attrition/`, stays at `/Users/joelloyd/tmp/bb7-policy-lab-f25c6fcac812-vs-5f3da3859ed5` on Daily Driver.
 
+## Review fixes, 18 November
+
+Review of the release found two faults. On the setup turn, a receiver that had gone deep lost its Move, so the next declaration sent another, and with three catchers all three went deep. The receiver is now the surest hands among team-mates that can still move or already stand deep, and once it has gone nobody else goes. The Foul odds also gave Lone Fouler its re-roll when one assist on each side cancelled out, which the engine never allows. Candidate source `849cac0a0b57` played `f25c6fcac812`, the press-escape release. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   49.99% | 49.76% to 50.22%     |
+| Standard, against the frozen planner | 5,184 |                   48.54% | 47.56% to 49.52%     |
+| Persistent fixtures                  | 1,296 |                   49.81% | 49.31% to 50.27%     |
+| Heuristic control                    |   432 |                   92.94% | 90.97% to 94.56%     |
+| Hard sentinels                       |    16 | 28.13%, descriptive only | No strength estimate |
+
+The best planner is level: 3,620 touchdowns against 3,625. Deep runs fell from 1,152 to 836 once the extra receivers stopped going, and no strength went with them. Standard plays the stronger press-escape planner here, and sits 1.45 points behind the best planner of its own release. An earlier version of the deep fix stopped the setup turn whenever any team-mate that had acted stood deep. It held the best planner level but put Standard at 47.50%, so it was replaced.
+
+Published report: [Sevens review fixes](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-review-fixes-2026-11-18%2Findex.html), Blood Bowl, `sevens-review-fixes-2026-11-18/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-849cac0a0b57-vs-f25c6fcac812` on Daily Driver.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
