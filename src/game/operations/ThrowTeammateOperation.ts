@@ -640,7 +640,7 @@ export class ThrowTeammateOperation extends GameOperation {
       // Landing is involuntary movement, so a loose ball bounces rather
       // than being picked up. An existing carrier keeps their own ball.
       if (!carriesBall) this.bounceIfCarried(gameService, context, teammate);
-      this.landSafely(context, thrower, teammate, superbThrow);
+      this.landSafely(context, thrower, teammate, superbThrow, carriesBall);
       return;
     }
 
@@ -666,7 +666,8 @@ export class ThrowTeammateOperation extends GameOperation {
     context: FlowContext,
     thrower: Player,
     teammate: Player,
-    superbThrow: boolean
+    superbThrow: boolean,
+    carriesBall: boolean
   ): void {
     const { eventBus } = context;
     eventBus.emit(
@@ -682,8 +683,10 @@ export class ThrowTeammateOperation extends GameOperation {
       });
     }
     eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
-    // A carrier landing Standing in the End Zone they score in scores.
-    if (context.gameService.checkForTouchdown(teammate.id)) return;
+    // A carrier landing Standing in the End Zone they score in scores. A
+    // player who lands on a loose ball there does not: it bounces away.
+    if (carriesBall && context.gameService.checkForTouchdown(teammate.id))
+      return;
     context.flowManager.add(new FinishThrowTeammateOperation(this.throwerId));
   }
 

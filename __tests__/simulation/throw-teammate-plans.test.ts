@@ -9,7 +9,13 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
-import { createPlannerCoach } from "../../src/simulation/ai/planner";
+import {
+  availableActions,
+  createPlannerCoach,
+} from "../../src/simulation/ai/planner";
+import { activations } from "../../src/simulation/ai/activations";
+import { readBoard } from "../../src/simulation/ai/board";
+import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import { createCoachRng } from "../../src/simulation/rng";
 import type { Coach } from "../../src/simulation/coach";
 
@@ -114,6 +120,35 @@ describe("Throw Team-mate plans", () => {
       "runs in to score (Rush: 2+)",
     ]);
     expect(subject.snapshot().score).toEqual({ team1: 1, team2: 0 });
+  });
+
+  it("prices a kick below a throw, since a fumbled kick cannot land", async () => {
+    // A fumbled throw bounces and may still land; a fumbled kick removes
+    // and injures the carrier, and the turn is over.
+    const launchValue = async (skill: SkillType) => {
+      const subject = game({
+        team1Placements: [
+          {
+            ...troll(15, 5),
+            skills: [skill],
+            stats: { MA: 4, ST: 5, AG: 5, PA: 5, AV: 10 },
+          },
+          goblin(14, 5, 2),
+        ],
+      });
+      const point = await enumerateDecision(subject, null);
+      const plans = activations(
+        readBoard(subject, "team1"),
+        DEFAULT_WEIGHTS,
+        availableActions(point.candidates)
+      ).filter((a) => a.action === "throwTeamMate");
+      return plans[0]?.value ?? -Infinity;
+    };
+    const thrown = await launchValue(SkillType.THROW_TEAM_MATE);
+    const kicked = await launchValue(SkillType.KICK_TEAM_MATE);
+
+    expect(thrown).toBeGreaterThan(0);
+    expect(kicked).toBeLessThan(thrown);
   });
 
   it("runs a carrier in rather than throwing it when the run is safe", async () => {

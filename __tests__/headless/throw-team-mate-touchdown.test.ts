@@ -10,7 +10,7 @@ import type { CommandResponse } from "../../src/headless/protocol";
  * score in scores a Touchdown, the same as a ball-carrier who moves there.
  * Team 1 scores at x = 19. Seeds are committed, never searched.
  */
-function scenario(): Scenario {
+function scenario(ball = { x: 16, y: 5 }): Scenario {
   return {
     id: "ttm-touchdown",
     name: "Throw Team-mate touchdown",
@@ -30,7 +30,7 @@ function scenario(): Scenario {
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 16, y: 5 },
+      ballPosition: ball,
     },
   };
 }
@@ -42,8 +42,12 @@ const LANDS_SHORT_SEED = 5;
 /** Aimed at x = 18: scatters into the end zone and lands Prone. */
 const FALLS_IN_END_ZONE_SEED = 12;
 
-async function throwCarrier(aimX: number, seed = LANDS_ON_TARGET_SEED) {
-  const game = new HeadlessGame({ scenario: scenario(), seed });
+async function throwCarrier(
+  aimX: number,
+  seed = LANDS_ON_TARGET_SEED,
+  ball?: { x: number; y: number }
+) {
+  const game = new HeadlessGame({ scenario: scenario(ball), seed });
   const throwerId = game.ctx.team1.players[0].id;
   const teammateId = game.ctx.team1.players[1].id;
   await game.execute({
@@ -85,5 +89,16 @@ describe("Throw Team-mate touchdown", () => {
     expect(snapshot.teams[0].players[1].position).toEqual({ x: 19, y: 5 });
     expect(snapshot.score).toEqual({ team1: 0, team2: 0 });
     expect(snapshot.activeTeamId).toBe("team2");
+  });
+
+  it("does not score for a player without the ball who lands on it in the end zone", async () => {
+    // Landing is involuntary movement: the loose ball bounces away.
+    const snapshot = await throwCarrier(19, LANDS_ON_TARGET_SEED, {
+      x: 19,
+      y: 5,
+    });
+
+    expect(snapshot.score).toEqual({ team1: 0, team2: 0 });
+    expect(snapshot.ballPosition).not.toEqual({ x: 19, y: 5 });
   });
 });

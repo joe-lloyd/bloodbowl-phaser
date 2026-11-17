@@ -127,6 +127,8 @@ interface ThrowOdds {
   eaten: number;
   /** The face the test needs, for the coach's note. */
   needed: number;
+  /** A kick: a fumble removes and injures the player, with no landing. */
+  kick: boolean;
 }
 
 /** The engine's Throw Team-mate test, die face by die face. */
@@ -155,6 +157,7 @@ function throwOdds(board: Board, thrower: Player, aim: Square): ThrowOdds {
     fumble: (thrown * fumble) / 6 + (hungry * 5) / 6,
     eaten: hungry / 6,
     needed: Math.max(2, Math.min(6, PA - modifier)),
+    kick,
   };
 }
 
@@ -279,8 +282,9 @@ interface Descent {
 
 /**
  * Every way a throw at `aim` comes down. A Superb or Subpar Throw scatters
- * three times, or a Bullseye lands on the aim. A fumble bounces once from
- * the thrower's square and lands as after a Subpar Throw.
+ * three times, or a Bullseye lands on the aim. A fumbled throw bounces once
+ * from the thrower's square and lands as after a Subpar Throw. A fumbled kick
+ * removes the player, priced like the crowd: an injury and a Turnover.
  */
 function comingDown(
   aim: Square,
@@ -293,14 +297,16 @@ function comingDown(
     x: cell % WIDTH,
     y: Math.floor(cell / WIDTH),
   });
-  for (const [dx, dy] of DIRECTIONS) {
-    const at = { x: from.x + dx, y: from.y + dy };
-    out.push({
-      at: onPitch(at) ? at : null,
-      p: odds.fumble / 8,
-      superb: false,
-    });
-  }
+  if (odds.kick) out.push({ at: null, p: odds.fumble, superb: false });
+  else
+    for (const [dx, dy] of DIRECTIONS) {
+      const at = { x: from.x + dx, y: from.y + dy };
+      out.push({
+        at: onPitch(at) ? at : null,
+        p: odds.fumble / 8,
+        superb: false,
+      });
+    }
   for (const [superb, p] of [
     [true, odds.superb],
     [false, odds.subpar],
