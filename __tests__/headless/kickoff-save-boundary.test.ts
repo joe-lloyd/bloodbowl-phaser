@@ -6,7 +6,11 @@
  */
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { DelayProvider } from "../../src/game/core/GameFlowManager";
+import {
+  DelayProvider,
+  realTimeDelay,
+  whenEngineQuiet,
+} from "../../src/game/core/GameFlowManager";
 import { MatchAutosave } from "../../src/game/persistence/MatchAutosave";
 import {
   MatchSaveDescription,
@@ -101,5 +105,29 @@ describe("saving across the kick-off", () => {
     expect(writes.held.length).toBeGreaterThan(0);
     expect(new Set(writes.held)).toEqual(new Set([event]));
     autosave.dispose();
+  }, 30_000);
+
+  it("is not engine work while the table waits for Roll", async () => {
+    // A match closed at the prompt must leave nothing counted: the next
+    // match on the page, its computer coach and its autosave all wait for
+    // the engine to go quiet
+    const game = new HeadlessGame({
+      scenario: kickoffScenario,
+      seed: 4,
+      delay: realTimeDelay,
+    });
+    game.ctx.gameService.seedTurnCounts(2);
+    const ready = presentation(game, GameEventNames.KickoffTableReady);
+    void game.execute({
+      type: "kick-ball",
+      playerId: game.ctx.team1.players[0].id,
+      x: 14,
+      y: 5,
+    });
+    await ready;
+
+    const started = Date.now();
+    await whenEngineQuiet(5_000);
+    expect(Date.now() - started).toBeLessThan(1_000);
   }, 30_000);
 });

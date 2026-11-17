@@ -17,6 +17,7 @@ import {
 } from "./kickoffMoment";
 import { DelayProvider, waitAtMost } from "../core/GameFlowManager";
 import {
+  awaitCoach,
   awaitPresentation,
   nextPresentationId,
 } from "../presentation/presentationGate";
@@ -78,9 +79,10 @@ export interface KickoffEventStepState {
 }
 
 /**
- * How long the Kick-off Table waits for its coach to press Roll. Only a
- * screen with a coach waits: headless play and a replay never do, and an
- * online page answers at once (KickoffTableDialog).
+ * The Roll prompt's guard for a non-real-time delay provider. A live screen
+ * waits on its coach for as long as they like, and that wait is not engine
+ * work; headless play and a replay never wait, and an online page answers
+ * at once (KickoffTableDialog).
  */
 const ROLL_READY_GUARD_MS = 30 * 60_000;
 /** The table dialog shows its dice and the result row, at the most. */
@@ -188,7 +190,7 @@ export class KickoffEventManager {
     // one after the roll would hold the dice without the event
     this.resolving = true;
     const readyId = nextPresentationId("kickoff-ready");
-    const rolled = awaitPresentation(
+    const rolled = awaitCoach(
       this.eventBus,
       this.delay,
       readyId,

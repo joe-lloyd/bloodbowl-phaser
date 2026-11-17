@@ -114,6 +114,23 @@ export function waitAtMost(
   );
 }
 
+/**
+ * Wait on a coach rather than on the engine, such as for Roll. Under
+ * real-time pacing it is not engine work and has no guard: the engine is
+ * idle, as it is with a decision open, and a closed match leaves nothing
+ * counted. Headless play and replays pass straight through; any other
+ * provider runs `ms` as its guard.
+ */
+export function waitForCoach(
+  delay: DelayProvider,
+  answered: Promise<void>,
+  ms: number
+): Promise<void> {
+  if (delay !== realTimeDelay) return Promise.race([answered, delay(ms)]);
+  if (!paced) return Promise.resolve();
+  return answered;
+}
+
 export interface FlowContext {
   gameService: import("@/services/interfaces/IGameService").IGameService;
   eventBus: import("@/services/EventBus").IEventBus;
