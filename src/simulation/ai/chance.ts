@@ -22,6 +22,8 @@ export type RollKind =
   | "secure"
   | "pass"
   | "catch"
+  | "throw"
+  | "landing"
   | "block";
 
 /** A roll a plan needs, as a coach would read it: the kind and its N+. */
@@ -52,6 +54,8 @@ const KINDS: readonly RollTarget["kind"][] = [
   "catch",
   "secure",
   "pass",
+  "throw",
+  "landing",
 ];
 
 const REROLL_SKILL: Record<RollTarget["kind"], SkillType | null> = {
@@ -61,6 +65,9 @@ const REROLL_SKILL: Record<RollTarget["kind"], SkillType | null> = {
   catch: SkillType.CATCH,
   secure: null,
   pass: SkillType.PASS,
+  // Neither the Throw Team-mate roll nor the Landing offers a re-roll.
+  throw: null,
+  landing: null,
 };
 
 /** The skill that re-rolls a failed roll of this kind, if the player has it. */

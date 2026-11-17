@@ -21,6 +21,11 @@ import { jumpTargets } from "../game/rules/jump";
 import { moveAllowance } from "../game/skills/movement";
 import { withDriveModifiers } from "../game/kickoff/driveEffects";
 import { hasSkill, SkillType } from "../types/Skills";
+import {
+  SWOOP_FACINGS,
+  isRightStuffEligible,
+  throwTeammateAims,
+} from "../game/rules/throwTeammate";
 import type { Candidate } from "./candidates";
 
 const chebyshev = (a: GridPosition, b: GridPosition) =>
@@ -302,6 +307,58 @@ function foulSteps({ player, action, adjacent, step }: StepContext): void {
   }
 }
 
+/** Standing Right Stuff team-mates next to `at` that a thrower may throw. */
+function throwableMates(
+  gs: StepContext["gs"],
+  player: Player,
+  at: GridPosition
+): Player[] {
+  return gs
+    .getTeammates(player.id)
+    .filter(
+      (m) =>
+        m.status === PlayerStatus.ACTIVE &&
+        m.gridPosition &&
+        chebyshev(m.gridPosition, at) === 1 &&
+        isRightStuffEligible(m)
+    );
+}
+
+/** A plain Scatter, and each Swoop facing for a team-mate with Swoop. */
+const swoopFacings = (mate: Player) =>
+  hasSkill(mate.skills, SkillType.SWOOP)
+    ? [undefined, ...SWOOP_FACINGS]
+    : [undefined];
+
+/**
+ * Throw (or Kick) a standing Right Stuff team-mate next to the thrower at any
+ * Quick or Short square. A Swooping team-mate may also take each facing.
+ */
+function throwTeammateSteps({
+  gs,
+  player,
+  at,
+  action,
+  step,
+}: StepContext): void {
+  if (action !== "throwTeamMate" || player.status !== PlayerStatus.ACTIVE)
+    return;
+  const aims = throwTeammateAims(at);
+  for (const mate of throwableMates(gs, player, at))
+    for (const swoopFacing of swoopFacings(mate))
+      for (const aim of aims)
+        step(
+          {
+            type: "throw-teammate",
+            throwerId: player.id,
+            teammateId: mate.id,
+            ...aim,
+            ...(swoopFacing ? { swoopFacing } : {}),
+          },
+          `${describePlayer(player)} throws ${describePlayer(mate)} at ${square(aim)}${swoopFacing ? `, swooping ${swoopFacing}` : ""}`
+        );
+}
+
 /** Run in this order: candidate order breaks ties between equal scores. */
 const STEP_PASSES = [
   ballAndChainSteps,
@@ -315,6 +372,7 @@ const STEP_PASSES = [
   passSteps,
   handoffSteps,
   foulSteps,
+  throwTeammateSteps,
 ];
 
 export function stepCandidates(

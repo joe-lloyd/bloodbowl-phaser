@@ -12,6 +12,7 @@
 import { Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { PassController } from "../controllers/PassController";
+import { GameConfig } from "../../config/GameConfig";
 
 /** Right Stuff trait present and Strength 3 or less. */
 export function isRightStuffEligible(player: Player): boolean {
@@ -30,6 +31,22 @@ export function isThrowTeammateInRange(
 ): boolean {
   const value = PassController.rangeValue(from, to);
   return value === 0 || value === 1;
+}
+
+/** Every pitch square a team-mate may be thrown at from `from`. */
+export function throwTeammateAims(from: {
+  x: number;
+  y: number;
+}): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = [];
+  for (let x = 0; x < GameConfig.PITCH_WIDTH; x++)
+    for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++)
+      if (
+        (x !== from.x || y !== from.y) &&
+        isThrowTeammateInRange(from, { x, y })
+      )
+        out.push({ x, y });
+  return out;
 }
 
 /**

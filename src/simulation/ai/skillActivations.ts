@@ -9,6 +9,7 @@ import { distance, key, standing, toGoal } from "./board";
 import { feedingCost, unfedChance } from "./feeding";
 import { movesLeft, routesFor, withTeamReroll } from "./routes";
 import { gazeActivations } from "./gazeActivations";
+import { throwTeammateActivations } from "./teammateActivations";
 import type { ActionType } from "../../types/events";
 import { standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
@@ -22,6 +23,7 @@ export const SKILL_PLANS: Partial<
   secureBall: secureBallActivations,
   gaze: gazeActivations,
   multipleBlock: multipleBlockActivations,
+  throwTeamMate: throwTeammateActivations,
 };
 
 /** A normal pickup may keep moving. Price a real scoring route, sharing rerolls. */

@@ -135,6 +135,38 @@ export function exposureCost(c: Context, player: Player, at: Square): number {
   return worst * injuryRiskValue(c, player);
 }
 
+/**
+ * On our last turn a ball dropped at `at` costs only an opposing reply that
+ * could collect it, score and change the result.
+ */
+export function finalBallLoss(
+  c: Context,
+  at: Square,
+  ballLoss: number
+): number {
+  const { board } = c;
+  const canCollect = board.theirs.some(
+    (opponent) =>
+      hasTackleZone(opponent) &&
+      distance(opponent.gridPosition!, at) <= nextTurnReach(opponent)
+  );
+  const canReply = board.theirs.some((opponent) => {
+    if (!hasTackleZone(opponent)) return false;
+    const goal =
+      board.dir === 1
+        ? opponent.gridPosition!.x
+        : WIDTH - 1 - opponent.gridPosition!.x;
+    return goal <= nextTurnReach(opponent);
+  });
+  const concedingChangesResult = !board.half2 || board.lead >= 0;
+  return board.opponentTurnsLeft > 0 &&
+    canCollect &&
+    canReply &&
+    concedingChangesResult
+    ? ballLoss
+    : 0;
+}
+
 /** Final-turn failure does not automatically lose a future possession or turn. */
 export function scoringValue(
   c: Context,
@@ -150,29 +182,8 @@ export function scoringValue(
     );
   }
   const { board } = c;
-  const carrier = carrierOf(board);
-  const at = carrier?.gridPosition ?? player.gridPosition!;
-  const canCollect = board.theirs.some(
-    (opponent) =>
-      hasTackleZone(opponent) &&
-      distance(opponent.gridPosition!, at) <= nextTurnReach(opponent)
-  );
-  const canReply = board.theirs.some((opponent) => {
-    if (!hasTackleZone(opponent)) return false;
-    const goal =
-      board.dir === 1
-        ? opponent.gridPosition!.x
-        : WIDTH - 1 - opponent.gridPosition!.x;
-    return goal <= nextTurnReach(opponent);
-  });
-  const concedingChangesResult = !board.half2 || board.lead >= 0;
-  const replyCost =
-    board.opponentTurnsLeft > 0 &&
-    canCollect &&
-    canReply &&
-    concedingChangesResult
-      ? ballLoss
-      : 0;
+  const at = carrierOf(board)?.gridPosition ?? player.gridPosition!;
+  const replyCost = finalBallLoss(c, at, ballLoss);
   const fallCasualty =
     twoD6(player.stats.AV) *
     twoD6(hasSkill(player.skills, SkillType.STUNTY) ? 9 : 10) *

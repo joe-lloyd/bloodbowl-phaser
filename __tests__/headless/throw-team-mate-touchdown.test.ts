@@ -10,7 +10,7 @@ import type { CommandResponse } from "../../src/headless/protocol";
  * score in scores a Touchdown, the same as a ball-carrier who moves there.
  * Team 1 scores at x = 19. Seeds are committed, never searched.
  */
-function scenario(aimX: number): Scenario {
+function scenario(): Scenario {
   return {
     id: "ttm-touchdown",
     name: "Throw Team-mate touchdown",
@@ -43,7 +43,7 @@ const LANDS_SHORT_SEED = 5;
 const FALLS_IN_END_ZONE_SEED = 12;
 
 async function throwCarrier(aimX: number, seed = LANDS_ON_TARGET_SEED) {
-  const game = new HeadlessGame({ scenario: scenario(aimX), seed });
+  const game = new HeadlessGame({ scenario: scenario(), seed });
   const throwerId = game.ctx.team1.players[0].id;
   const teammateId = game.ctx.team1.players[1].id;
   await game.execute({

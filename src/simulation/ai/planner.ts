@@ -38,6 +38,8 @@ const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   secure: "Secure the Ball",
   catch: "Catch",
   pass: "Pass",
+  throw: "Throw Team-mate",
+  landing: "Landing",
 };
 
 /** What the coach did and the rolls it needed, never how likely they were. */
@@ -51,6 +53,10 @@ export function noteFor(a: Activation): string {
     "multiple-block": "blocks two opponents",
     handoff: "hands off",
     pass: "throws a pass",
+    "throw-teammate":
+      a.intent.kind === "throw-teammate" && a.intent.carrying
+        ? "throws the ball carrier"
+        : "throws a team-mate",
     block: "blocks",
     blitz: "blitzes",
     reposition:
@@ -151,6 +157,18 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
           (c) =>
             c.type === "handoff" && c.playerId === id && c.targetId === target
         )
+      );
+    }
+    case "throw-teammate": {
+      const { mate, aim } = a.intent;
+      return match(
+        (c) =>
+          c.type === "throw-teammate" &&
+          c.throwerId === id &&
+          c.teammateId === mate.id &&
+          c.x === aim.x &&
+          c.y === aim.y &&
+          !c.swoopFacing
       );
     }
     case "pass": {
