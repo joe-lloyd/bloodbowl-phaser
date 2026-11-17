@@ -87,22 +87,21 @@ export function writeDiceLog(
 ): void {
   if (!storage) return;
   const ids = [...readIndex(storage).filter((id) => id !== log.id), log.id];
-  const drop = (count: number) => {
+  const dropOldest = (count: number) =>
     ids.splice(0, count).forEach((id) => storage.removeItem(KEY_PREFIX + id));
-    storage.setItem(INDEX_KEY, JSON.stringify(ids));
-  };
-  drop(Math.max(0, ids.length - KEEP_LOCAL));
+  dropOldest(Math.max(0, ids.length - KEEP_LOCAL));
   const raw = JSON.stringify(log);
   for (;;) {
     try {
       storage.setItem(KEY_PREFIX + log.id, raw);
+      storage.setItem(INDEX_KEY, JSON.stringify(ids));
       return;
     } catch (error) {
       if (ids.length <= 1) {
         console.warn("Could not keep the dice log in browser storage:", error);
         return;
       }
-      drop(1);
+      dropOldest(1);
     }
   }
 }

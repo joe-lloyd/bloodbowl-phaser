@@ -1,4 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -203,4 +207,61 @@ describe("the dice log", () => {
 
     expect(listDiceLogs(storage).map((log) => log.id)).toEqual(["b", "c"]);
   });
+
+  it("drops an older log when the longer index alone would not fit", () => {
+    const old = (id: string) => ({
+      ...createDiceLog({ id, mode: "local", seed: 1, teams: [] }),
+      padding: "x".repeat(400),
+    });
+    const filled = new MemoryStorage();
+    writeDiceLog(old("a"), filled);
+    writeDiceLog(old("b"), filled);
+    const used = [...filled.items.values()].reduce((n, v) => n + v.length, 0);
+    const storage = new MemoryStorage(used);
+    filled.items.forEach((value, key) => storage.items.set(key, value));
+
+    writeDiceLog(old("c"), storage);
+
+    expect(listDiceLogs(storage).map((log) => log.id)).toEqual(["b", "c"]);
+  });
+
+  it("audits both coaches' copies of one online match as one match", async () => {
+    const game = new HeadlessGame({ scenario, seed: SEED });
+    game.ctx.team1.rerolls = 3;
+    const log = createDiceLog({
+      id: "host",
+      mode: "online",
+      seed: SEED,
+      teams: [game.ctx.team1, game.ctx.team2],
+    });
+    const recorder = new DiceLogRecorder(
+      game.ctx.eventBus,
+      () => game.ctx.gameService.getState(),
+      log
+    );
+    const attackerId = game.ctx.team1.players[0].id;
+    const defenderId = game.ctx.team2.players[0].id;
+    await game.execute({
+      type: "declare-action",
+      playerId: attackerId,
+      action: "block",
+    });
+    await game.execute({ type: "block", attackerId, defenderId });
+    await game.execute({ type: "team-reroll-block", attackerId });
+    recorder.dispose();
+
+    const file = join(mkdtempSync(join(tmpdir(), "dice-audit-")), "logs.json");
+    writeFileSync(file, JSON.stringify([log, { ...log, id: "guest" }]));
+    const report = execFileSync(
+      "npx",
+      ["tsx", "scripts/dice-audit/audit.ts", file],
+      { encoding: "utf8" }
+    );
+
+    expect(report).toContain("2 throws appear in more than one log");
+    expect(report).toMatch(/Block: 2 dice, skull:1 both-down:0 push:1/);
+    expect(report).toContain("D6: 0 dice");
+    expect(report).toContain("no dice to judge");
+    expect(report).toContain("1-dice block, same faces same order: 0 of 1");
+  }, 30_000);
 });

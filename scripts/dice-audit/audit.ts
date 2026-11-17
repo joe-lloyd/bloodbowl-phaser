@@ -44,28 +44,54 @@ function chiSquared(counts: Map<string, number>, shares: Map<string, number>) {
 /** The 5% critical value for 4 and 5 degrees of freedom. */
 const CRITICAL: Record<number, number> = { 4: 9.49, 5: 11.07 };
 
-function verdict(chi: number, df: number): string {
+function verdict(total: number, chi: number, df: number): string {
+  if (total === 0) return "no dice to judge";
   return chi <= CRITICAL[df] ? "fair" : "CHECK: unlikely by chance (5% level)";
+}
+
+// --- Each throw once ------------------------------------------------------
+
+/**
+ * Both coaches of an online match log the same throws, and a resumed match
+ * can arrive in overlapping pieces. The generator's state after a throw,
+ * under the match's seed, names that throw: the statistics count it once.
+ * A re-roll belongs to the throw just before it.
+ */
+const seen = new Set<string>();
+const throws: Roll[] = [];
+const rerollsOnce: { log: DiceLog; reroll: Reroll }[] = [];
+let duplicates = 0;
+for (const log of logs) {
+  let lastIsNew = true;
+  for (const entry of log.entries) {
+    if (entry.kind === "reroll") {
+      if (lastIsNew) rerollsOnce.push({ log, reroll: entry });
+      continue;
+    }
+    const key = entry.rng === null ? null : `${log.seed}:${entry.rng}`;
+    lastIsNew = key === null || !seen.has(key);
+    if (key) seen.add(key);
+    if (lastIsNew) throws.push(entry);
+    else duplicates++;
+  }
 }
 
 // --- Faces ---------------------------------------------------------------
 
 const d6 = new Map<string, number>();
 const block = new Map<string, number>();
-for (const log of logs) {
-  for (const roll of rolls(log)) {
-    // No die was thrown, so it says nothing about the dice
-    if (roll.automatic) continue;
-    const values = Array.isArray(roll.value) ? roll.value : [roll.value];
-    const counts = /^\d+d6$/.test(roll.diceType)
-      ? d6
-      : roll.diceType.endsWith("D Block")
-        ? block
-        : null;
-    if (!counts) continue;
-    for (const value of values) {
-      counts.set(String(value), (counts.get(String(value)) ?? 0) + 1);
-    }
+for (const roll of throws) {
+  // No die was thrown, so it says nothing about the dice
+  if (roll.automatic) continue;
+  const values = Array.isArray(roll.value) ? roll.value : [roll.value];
+  const counts = /^\d+d6$/.test(roll.diceType)
+    ? d6
+    : roll.diceType.endsWith("D Block")
+      ? block
+      : null;
+  if (!counts) continue;
+  for (const value of values) {
+    counts.set(String(value), (counts.get(String(value)) ?? 0) + 1);
   }
 }
 const sixth = 1 / 6;
@@ -167,28 +193,26 @@ const blockExact = new Map<number, Tally>();
 const blockAnyOrder = new Map<number, Tally>();
 const d6Repeat = tally();
 const repeated: string[] = [];
-for (const log of logs) {
-  for (const r of rerolls(log)) {
-    if (r.repeated) {
-      repeated.push(
-        `${log.id} #${r.seq} half ${r.half} turn ${r.turn}: ` +
-          `${r.source}${r.skill ? ` (${r.skill})` : ""} ${r.rollKind} ` +
-          `${JSON.stringify(r.before)} again`
-      );
-    }
-    if (Array.isArray(r.before) && Array.isArray(r.after)) {
-      const n = r.before.length;
-      // Pro and Brawler re-roll one die, so only whole-roll re-rolls compare
-      if (r.source !== "team" && r.source !== "veteran") continue;
-      add(tallyFor(blockExact, n), r.repeated, exactChance(r.before));
-      add(
-        tallyFor(blockAnyOrder, n),
-        sameAnyOrder(r.before, r.after),
-        anyOrderChance(r.before)
-      );
-    } else {
-      add(d6Repeat, r.repeated, sixth);
-    }
+for (const { log, reroll: r } of rerollsOnce) {
+  if (r.repeated) {
+    repeated.push(
+      `${log.id} #${r.seq} half ${r.half} turn ${r.turn}: ` +
+        `${r.source}${r.skill ? ` (${r.skill})` : ""} ${r.rollKind} ` +
+        `${JSON.stringify(r.before)} again`
+    );
+  }
+  if (Array.isArray(r.before) && Array.isArray(r.after)) {
+    const n = r.before.length;
+    // Pro and Brawler re-roll one die, so only whole-roll re-rolls compare
+    if (r.source !== "team" && r.source !== "veteran") continue;
+    add(tallyFor(blockExact, n), r.repeated, exactChance(r.before));
+    add(
+      tallyFor(blockAnyOrder, n),
+      sameAnyOrder(r.before, r.after),
+      anyOrderChance(r.before)
+    );
+  } else {
+    add(d6Repeat, r.repeated, sixth);
   }
 }
 
@@ -207,14 +231,20 @@ for (const log of logs) {
 
 const d6Chi = chiSquared(d6, d6Shares);
 const blockChi = chiSquared(block, blockShares);
+console.log(
+  duplicates > 0
+    ? `\n${duplicates} throws appear in more than one log, such as both ` +
+        `coaches' copies of an online match; each is counted once below.`
+    : ""
+);
 console.log(`\nFaces`);
 console.log(
   `  D6: ${d6Chi.total} dice, ${[...d6Shares.keys()].map((f) => `${f}:${d6.get(f) ?? 0}`).join(" ")}` +
-    `, chi² ${d6Chi.chi.toFixed(2)}: ${verdict(d6Chi.chi, 5)}`
+    `, chi² ${d6Chi.chi.toFixed(2)}: ${verdict(d6Chi.total, d6Chi.chi, 5)}`
 );
 console.log(
   `  Block: ${blockChi.total} dice, ${[...blockShares.keys()].map((f) => `${f}:${block.get(f) ?? 0}`).join(" ")}` +
-    `, chi² ${blockChi.chi.toFixed(2)}: ${verdict(blockChi.chi, 4)}`
+    `, chi² ${blockChi.chi.toFixed(2)}: ${verdict(blockChi.total, blockChi.chi, 4)}`
 );
 
 console.log(`\nFresh numbers`);
