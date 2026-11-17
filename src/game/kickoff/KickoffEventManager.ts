@@ -10,7 +10,21 @@
  * variant; UI and online coaches act through GameService methods.
  */
 
-import { kickoffMomentDetail } from "./kickoffMoment";
+import {
+  kickoffMomentDetail,
+  kickoffOutcomeLine,
+  kickoffRevealLine,
+} from "./kickoffMoment";
+import { DelayProvider, waitAtMost } from "../core/GameFlowManager";
+import {
+  awaitPresentation,
+  nextPresentationId,
+} from "../presentation/presentationGate";
+import { whenMomentsComplete } from "../presentation/momentQueue";
+import {
+  DIE_LANDING_TIMEOUT_MS,
+  DiceWatch,
+} from "../presentation/diceWatch";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames, ActionType } from "../../types/events";
 import { GameState } from "@/types/GameState";
@@ -24,6 +38,7 @@ import {
   INTERACTIVE_KICKOFF_EVENTS,
   KICKOFF_EVENT_MEANING,
   KICKOFF_TABLE,
+  KICKOFF_TABLE_ROLL,
   KickoffEvent,
   KickoffEventOutcome,
   grantEffect,
@@ -62,6 +77,17 @@ export interface KickoffEventStepState {
   };
 }
 
+/**
+ * How long the Kick-off Table waits for its coach to press Roll. Only a
+ * screen with a coach waits: headless play and a replay never do, and an
+ * online page answers at once (KickoffTableDialog).
+ */
+const ROLL_READY_GUARD_MS = 30 * 60_000;
+/** The table dialog shows its dice and the result row, at the most. */
+const TABLE_SHOWN_GUARD_MS = DIE_LANDING_TIMEOUT_MS + 4000;
+/** How long each of an event's own rolls reads before the next one. */
+const STEP_READ_MS = 900;
+
 interface StepResolver {
   (skipped: boolean): void;
 }
@@ -87,7 +113,8 @@ export class KickoffEventManager {
     callbacks: {
       getTurnNumber: (teamId: string) => number;
       moveTurnMarkers: (delta: number) => void;
-    }
+    },
+    private readonly delay: DelayProvider
   ) {
     this.resolvers = kickoffEventResolvers({
       eventBus,
@@ -99,7 +126,22 @@ export class KickoffEventManager {
       onWeatherScatter: () => {
         this.weatherScatterPending = true;
       },
+      diceShown: () => this.diceShown(),
     });
+  }
+
+  /**
+   * A visual barrier between one kick-off roll and the next: the dice
+   * thrown so far land and their result reads. Never changes state or
+   * RNG order; headless and replays pass straight through.
+   */
+  private async diceShown(): Promise<void> {
+    await waitAtMost(
+      this.delay,
+      DiceWatch.shared(this.eventBus).landed(),
+      TABLE_SHOWN_GUARD_MS
+    );
+    await this.delay(STEP_READ_MS);
   }
 
   // ===== Roll orchestration =====
@@ -135,17 +177,56 @@ export class KickoffEventManager {
     }
 
     const kickingTeam = isTeam1Kicking ? this.team1 : this.team2;
-    const roll = this.diceController.roll2D6("Kickoff Event", kickingTeam.id);
+    const receivingTeam = isTeam1Kicking ? this.team2 : this.team1;
+
+    // The coach rolls when ready, in the table dialog, which shows the
+    // dice land and the result row before the event's own banner
+    const readyId = nextPresentationId("kickoff-ready");
+    const rolled = awaitPresentation(
+      this.eventBus,
+      this.delay,
+      readyId,
+      ROLL_READY_GUARD_MS
+    );
+    this.eventBus.emit(GameEventNames.KickoffTableReady, {
+      presentationId: readyId,
+      kickingTeamId: kickingTeam.id,
+    });
+    await rolled;
+    const roll = this.diceController.roll2D6(
+      KICKOFF_TABLE_ROLL,
+      kickingTeam.id
+    );
     const event = KICKOFF_TABLE[roll];
     this.lastEvent = event;
+    const shownId = nextPresentationId("kickoff-table");
+    const shown = awaitPresentation(
+      this.eventBus,
+      this.delay,
+      shownId,
+      TABLE_SHOWN_GUARD_MS
+    );
+    this.eventBus.emit(GameEventNames.KickoffTableRolled, {
+      presentationId: shownId,
+      roll,
+      event,
+    });
+    await shown;
 
-    const receivingTeam = isTeam1Kicking ? this.team2 : this.team1;
+    // The event's name first, and what its next dice decide
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "kickoff-result",
+      headline: event,
+      subtitle: kickoffRevealLine(event, kickingTeam, receivingTeam),
+    });
+    await whenMomentsComplete(this.eventBus);
+
     const outcome: KickoffEventOutcome = {
       event,
       meaning: KICKOFF_EVENT_MEANING[event],
       perTeam: {},
     };
-    this.resolvers[event]({
+    await this.resolvers[event]({
       isTeam1Kicking,
       kickingTeam,
       receivingTeam,
@@ -169,7 +250,15 @@ export class KickoffEventManager {
       outcome,
     });
 
-    this.announceMoment(outcome, isTeam1Kicking);
+    // Then what the event's own dice decided
+    const decided = kickoffOutcomeLine(outcome, kickingTeam, receivingTeam);
+    if (decided) {
+      this.eventBus.emit(GameEventNames.UI_Announce, {
+        kind: "kickoff-result",
+        headline: event,
+        subtitle: decided,
+      });
+    }
 
     if (
       INTERACTIVE_KICKOFF_EVENTS.has(event) &&
@@ -180,7 +269,11 @@ export class KickoffEventManager {
         kickingTeam.id,
         receivingTeam.id
       );
-      const selectionLimit = this.diceController.rollD3(`${event} limit`) + 1;
+      const selectionLimit =
+        this.diceController.rollD3(
+          `${event}: D3 + 1 players`,
+          ownerTeamId
+        ) + 1;
       await this.openStep(event, ownerTeamId, selectionLimit);
     }
   }

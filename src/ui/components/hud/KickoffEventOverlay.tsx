@@ -99,6 +99,11 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
           <p className="mt-1 text-hud-sm text-hud-bone/75">
             {KICKOFF_EVENT_MEANING[step.event]}
           </p>
+          {step.event !== KickoffEvent.HIGH_KICK && (
+            <p className="mt-1 text-hud-sm text-hud-gold">
+              D3 rolled {limit - 1}, plus one: up to {limit} players.
+            </p>
+          )}
         </div>
         <Chip tone="gold" className="shrink-0 !text-hud-sm">
           {count}

@@ -212,7 +212,8 @@ export function createGameParts({
     {
       getTurnNumber: (teamId) => turnManager.getTurnNumber(teamId),
       moveTurnMarkers: (delta) => turnManager.moveTurnMarkers(delta),
-    }
+    },
+    delay
   );
 
   // Conditions expire on engine events, not in rules: Rooted ends when

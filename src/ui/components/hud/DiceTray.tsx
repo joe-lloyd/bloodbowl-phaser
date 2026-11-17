@@ -9,6 +9,7 @@ import type { BlockRollData } from "../../../services/BlockResolutionService";
 import { isBlockDice, isD6, isD16 } from "../../dice/thrownDice";
 import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
 import { kitOf } from "../../../game/presentation/kits";
+import { KICKOFF_TABLE_ROLL } from "../../../game/kickoff/kickoffEvents";
 
 type RollEvent = GameEventMap[GameEventNames.DiceRoll];
 
@@ -329,6 +330,8 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
       // Block dice come from BlockDiceRolled, which has the whole set even
       // when a Pro re-roll rolls only one of them
       if (!dice || dice.kind === "block" || !team) return;
+      // The Kick-off Table dialog throws its own 2D6
+      if (event.rollType === KICKOFF_TABLE_ROLL) return;
       enqueue({
         roll: { ...dice, team },
         title: event.rollType,
@@ -489,7 +492,7 @@ function DiceTrayHeader({
         {current?.teamName}
       </span>
       <span
-        className={`truncate font-hud-label text-hud-sm font-semibold uppercase tracking-[0.05em] ${
+        className={`line-clamp-2 text-right font-hud-label text-hud-sm font-semibold uppercase tracking-[0.05em] ${
           current?.settled ? "text-hud-bone" : "text-hud-dim"
         }`}
       >

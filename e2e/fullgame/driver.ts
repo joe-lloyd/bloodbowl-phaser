@@ -259,6 +259,7 @@ export async function perform(
         });
         await page.waitForTimeout(300);
         await clickIf(page, /KICK|CONFIRM/i);
+        await app.rollKickoff();
         await brainCall(page, "noteKicker", next.teamId);
         await page.waitForTimeout(2500);
         break;

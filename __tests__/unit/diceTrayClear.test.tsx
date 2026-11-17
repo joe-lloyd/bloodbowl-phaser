@@ -94,11 +94,11 @@ describe("dice tray with a die that never settles", () => {
         description: "Kickoff Deviate Distance: 2, 1 (lower: 1)",
       });
       bus.emit(GameEventNames.DiceRoll, {
-        rollType: "Kickoff Event",
+        rollType: "Armour Roll",
         diceType: "2d6",
         value: [5, 6],
         total: 11,
-        description: "Kickoff Event: 5 + 6 = 11",
+        description: "Armour Roll: 5 + 6 = 11",
       });
     });
     expect(tray?.textContent).toContain("Kickoff Deviate Distance");
@@ -111,9 +111,9 @@ describe("dice tray with a die that never settles", () => {
     expect(trays.at(-1)).toEqual({ count: 1, thrown: 2, landedThrough: 1 });
 
     await act(async () => vi.advanceTimersByTimeAsync(1800));
-    expect(tray?.textContent).toContain("Kickoff Event");
+    expect(tray?.textContent).toContain("Armour Roll");
     await act(async () => vi.advanceTimersByTimeAsync(6000));
-    expect(tray?.textContent).toContain("Kickoff Event: 5 + 6 = 11");
+    expect(tray?.textContent).toContain("Armour Roll: 5 + 6 = 11");
     expect(trays.at(-1)).toEqual({ count: 0, thrown: 2, landedThrough: 2 });
 
     await act(async () => root.unmount());

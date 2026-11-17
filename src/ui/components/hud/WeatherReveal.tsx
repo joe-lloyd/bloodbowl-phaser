@@ -18,8 +18,9 @@ const RESULT_BEAT_MS = 700;
 export type WeatherStep = "waiting" | "rolling" | "shown";
 
 /**
- * Throws the opening weather's 2D6 into the dialog when the engine rolls
- * it, in the home team's colours, and reports when the result may show.
+ * Throws a table roll's 2D6 into its dialog when the engine rolls it, in
+ * the given team's colours, and reports when the result may show: the
+ * opening weather (the home team's) and the Kick-off Table (the kicker's).
  * A dialog opened after the roll (a resumed match), or whose engine is
  * restored to a rolled state, shows the result at once: no dice event
  * comes then.
@@ -27,7 +28,8 @@ export type WeatherStep = "waiting" | "rolling" | "shown";
 export function useWeatherThrow(
   eventBus: IEventBus,
   teamId: string,
-  rolled: () => boolean
+  rolled: () => boolean,
+  rollType = "Weather"
 ) {
   const stage = useRef<HTMLDivElement>(null);
   const throwing = useRef<DiceThrow | null>(null);
@@ -42,7 +44,7 @@ export function useWeatherThrow(
   });
 
   useEventBus(eventBus, GameEventNames.DiceRoll, (roll) => {
-    if (roll.rollType !== "Weather" || step !== "waiting") return;
+    if (roll.rollType !== rollType || step !== "waiting") return;
     const values = ([] as (number | string)[]).concat(roll.value).map(Number);
     setStep("rolling");
     void (async () => {

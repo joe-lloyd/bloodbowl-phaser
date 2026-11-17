@@ -18,6 +18,7 @@ import { GameEventNames } from "../../../types/events";
 import { CoinFlipOverlay } from "./CoinFlipOverlay";
 import { WeatherOverlay } from "./WeatherOverlay";
 import { RollBanner } from "./RollBanner";
+import { KickoffTableDialog } from "./KickoffTableDialog";
 import { SetupControls } from "./SetupControls";
 import { TargetRollPreview } from "./RollPreviews";
 import { ConfirmationModal } from "./ConfirmationModal";
@@ -316,6 +317,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       {/* Full-screen overlays */}
       <WeatherOverlay eventBus={eventBus} />
+      <KickoffTableDialog eventBus={eventBus} />
       <CoinFlipOverlay eventBus={eventBus} />
       {/* A hover read-out; a phone has no hover, and aims in its plan bar */}
       {!phone && <TargetRollPreview eventBus={eventBus} />}

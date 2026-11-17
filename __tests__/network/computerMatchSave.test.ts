@@ -1,4 +1,7 @@
-import { confirmComputerPregame } from "../utils/computerPregame";
+import {
+  confirmComputerPregame,
+  rollKickoffsAtOnce,
+} from "../utils/computerPregame";
 /**
  * Coming back to a match against the computer: the match saves itself from
  * the toss on, and a page that reloads picks up from that save. The human
@@ -90,6 +93,7 @@ function startNew(
 function resume(save: MatchSave, pace: number) {
   const restored = restoreMatchSave(save);
   const eventBus = new EventBus();
+  rollKickoffsAtOnce(eventBus);
   match = createComputerMatch({
     eventBus,
     team1: restored.teams[0],

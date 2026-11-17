@@ -19,6 +19,9 @@ export enum KickoffEvent {
   PITCH_INVASION = "Pitch Invasion",
 }
 
+/** The roll type of the table's 2D6, which its dialog throws. */
+export const KICKOFF_TABLE_ROLL = "Kickoff Event";
+
 export const KICKOFF_TABLE: Record<number, KickoffEvent> = {
   2: KickoffEvent.GET_THE_REF,
   3: KickoffEvent.TIME_OUT,
