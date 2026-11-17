@@ -2,8 +2,9 @@ import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { PlayerStatus, Player } from "../../types/Player";
+import { InjuryType, PlayerStatus, Player } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
+import { movePlayerToBox } from "../rules/playerLocation";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
@@ -321,10 +322,8 @@ export class ThrowTeammateOperation extends GameOperation {
         `${thrower.playerName} EATS ${teammate.playerName}!`
       );
       const hadBall = this.bounceIfCarried(gameService, context, teammate);
-      teammate.gridPosition = undefined;
-      teammate.status = PlayerStatus.DEAD;
-      gameService.removePlayer(teammate.id);
-      eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
+      teammate.injuries.push(InjuryType.DEAD);
+      movePlayerToBox(teammate, { box: "casualty", dead: true }, eventBus);
       // A Turnover "only if that eaten player was in possession of the
       // ball" (FAQ); the activation ends either way.
       this.finishLanding(gameService, context, hadBall, "Ate Team-mate");

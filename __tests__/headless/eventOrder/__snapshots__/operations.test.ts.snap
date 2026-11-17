@@ -2447,7 +2447,6 @@ exports[`operation events keep their order > Throw Team-mate: an Always Hungry t
     "skillTriggered: Human Lineman #1 tries to eat Human Lineman #2! | playerId=team1-player-1 skill=Always Hungry",
     "diceRoll: Always Hungry (Eat) | Always Hungry (Eat): 1 | teamId=team1",
     "ui:notification: Human Lineman #1 EATS Human Lineman #2!",
-    "ui:notification: Only the team currently setting up may remove players.",
     "playerStatusChanged: id=team1-player-2 teamId=team1 status=Dead",
     "ui:logEntry: teamId=team1",
     "turnover: teamId=team1",

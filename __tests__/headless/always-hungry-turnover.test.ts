@@ -3,7 +3,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
-import { PlayerStatus } from "../../src/types/Player";
+import { InjuryType, PlayerStatus } from "../../src/types/Player";
 
 /**
  * FAQ (May 2026): "If my player with the Always Hungry Trait eats another
@@ -81,4 +81,17 @@ describe("Always Hungry eating a team-mate", () => {
     expect(game.ctx.team1.players[1].status).toBe(PlayerStatus.DEAD);
     expect(response.snapshot.activeTeamId).toBe(game.ctx.team2.id);
   });
+
+  it("records the eaten player as Dead, without a setup refusal", async () => {
+    const { game, response } = await eatMate(false);
+    const notes = response.events
+      .filter((e) => e.name === "ui:notification")
+      .map((e) => e.data);
+
+    expect(game.ctx.team1.players[1].injuries).toContain(InjuryType.DEAD);
+    expect(notes).not.toContain(
+      "Only the team currently setting up may remove players."
+    );
+  });
 });
+
