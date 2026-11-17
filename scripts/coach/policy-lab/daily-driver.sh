@@ -19,7 +19,7 @@ revision="$(git rev-parse HEAD)"
 # The incumbent: main before this branch. Override to compare another frozen policy.
 baseline="${BB7_BASELINE:-3741e12c644ef1b64a24df7d62f5c4d3333a056f}"
 case "$baseline" in *[!0-9a-f]*) echo 'BB7_BASELINE must be a full commit hash' >&2; exit 2;; esac
-remote_root="/Users/joelloyd/tmp/bb7-policy-lab-${revision:0:12}"
+remote_root="/Users/joelloyd/tmp/bb7-policy-lab-${revision:0:12}-vs-${baseline:0:12}"
 ssh -o BatchMode=yes daily-driver mkdir -p "$remote_root/candidate" "$remote_root/frozen"
 git archive --format=tar.gz HEAD | ssh daily-driver "tee '$remote_root/candidate-source.tar.gz' | tar -xz -C '$remote_root/candidate'"
 git archive --format=tar.gz "$baseline" | ssh daily-driver "tee '$remote_root/frozen-source.tar.gz' | tar -xz -C '$remote_root/frozen'"

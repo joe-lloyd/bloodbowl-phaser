@@ -212,7 +212,11 @@ function carrierLanding(c: Context, mate: Player, at: Square): number {
   let run = -Infinity;
   for (const route of routes.values())
     if (toGoal(board, route.to) === 0)
-      run = Math.max(run, scoringValue(c, route.chance, landed, w.ballLoss));
+      // A failed run drops the ball near the landing, not the old square.
+      run = Math.max(
+        run,
+        scoringValue({ ...c, board: after }, route.chance, landed, w.ballLoss)
+      );
   return Math.max(stand, run);
 }
 
@@ -296,7 +300,8 @@ function throwAt(
   };
   const from = thrower.gridPosition!;
   let value =
-    -odds.fumble * (turnover + hurt + dropped(from)) -
+    // A carrier's Turnover is part of dropping the ball.
+    -odds.fumble * (hurt + (carrying ? dropped(from) : turnover)) -
     odds.eaten * (hurt * 5 + dropped(from));
   let good = 0;
   for (const [superb, p] of [

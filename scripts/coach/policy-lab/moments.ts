@@ -47,8 +47,11 @@ function usageRows(summary: Summary): string {
 
 function momentList(moments: Moment[]): string {
   const byPlay = new Map<string, Moment[]>();
-  for (const m of moments)
-    byPlay.set(m.play, [...(byPlay.get(m.play) ?? []), m]);
+  for (const m of moments) {
+    const list = byPlay.get(m.play);
+    if (list) list.push(m);
+    else byPlay.set(m.play, [m]);
+  }
   return [...byPlay]
     .map(
       ([play, list]) =>

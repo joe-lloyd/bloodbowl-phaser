@@ -177,7 +177,11 @@ const add = (into: Record<string, Tally>, from: Record<string, Tally>) => {
 /** Rarer plays first in the moment list: they are the ones worth watching. */
 function pickMoments(all: Moment[], perPlay: number): Moment[] {
   const byPlay = new Map<string, Moment[]>();
-  for (const m of all) byPlay.set(m.play, [...(byPlay.get(m.play) ?? []), m]);
+  for (const m of all) {
+    const list = byPlay.get(m.play);
+    if (list) list.push(m);
+    else byPlay.set(m.play, [m]);
+  }
   return [...byPlay.values()]
     .sort((a, b) => a.length - b.length)
     .flatMap((list) =>

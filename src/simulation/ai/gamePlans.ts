@@ -92,8 +92,9 @@ export function choosePlan<T extends { activation: Activation }>(
   }));
   const top = Math.max(...scored.map((s) => s.score));
   if (variety.margin <= 0) return scored.find((s) => s.score === top)!.o;
-  const best = scored.find((s) => s.score === top)!;
-  const safe = best.o.activation.tier !== "risky";
+  const safe = scored.some(
+    (s) => s.score === top && s.o.activation.tier !== "risky"
+  );
   const floor = top - variety.margin;
   const close = scored.filter(
     (s) => s.score > floor && (!safe || s.o.activation.tier !== "risky")

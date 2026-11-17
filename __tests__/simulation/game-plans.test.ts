@@ -68,6 +68,19 @@ describe("game plans", () => {
     expect([...picks]).toEqual(["safe"]);
   });
 
+  it("treats a tie for best as safe when any tied plan is safe", () => {
+    const options = [
+      option("risky", 30, "block", "risky"),
+      option("safe", 30, "block"),
+      option("close-risky", 28, "block", "risky"),
+    ];
+    const rng = createCoachRng(5);
+    const picks = new Set<string>();
+    for (let i = 0; i < 500; i++)
+      picks.add(choosePlan(options, plan("balanced"), { margin: 8 }, rng).id);
+    expect([...picks]).toEqual(["safe"]);
+  });
+
   it("ends a varied coach's turn in different places on the same board", async () => {
     const openings = new Set<string>();
     for (let seed = 1; seed <= 12; seed++) {
