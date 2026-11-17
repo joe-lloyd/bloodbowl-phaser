@@ -255,20 +255,25 @@ describe("the dice log", () => {
     expect(listDiceLogs(storage).map((log) => log.id)).toEqual(["b", "c"]);
   });
 
-  it("drops an older log when the longer index alone would not fit", () => {
-    const old = (id: string) => ({
-      ...createDiceLog({ id, mode: "local", seed: 1, teams: [] }),
-      padding: "x".repeat(400),
-    });
-    const filled = new MemoryStorage();
-    writeDiceLog(old("a"), filled);
-    writeDiceLog(old("b"), filled);
-    const used = [...filled.items.values()].reduce((n, v) => n + v.length, 0);
-    const storage = new MemoryStorage(used);
-    filled.items.forEach((value, key) => storage.items.set(key, value));
+  it("drops an older log when the index write is refused", () => {
+    const old = (id: string) =>
+      createDiceLog({ id, mode: "local", seed: 1, teams: [] });
+    const storage = new MemoryStorage();
+    writeDiceLog(old("a"), storage);
+    writeDiceLog(old("b"), storage);
+    const refused: string[] = [];
+    const setItem = storage.setItem.bind(storage);
+    storage.setItem = (key: string, value: string) => {
+      if (key === "bloodbowl_dice_logs" && refused.length === 0) {
+        refused.push(value);
+        throw new Error("QuotaExceeded");
+      }
+      setItem(key, value);
+    };
 
     writeDiceLog(old("c"), storage);
 
+    expect(refused).toEqual(['["a","b","c"]']);
     expect(listDiceLogs(storage).map((log) => log.id)).toEqual(["b", "c"]);
   });
 
