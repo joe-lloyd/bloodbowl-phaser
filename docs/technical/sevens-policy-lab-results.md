@@ -6,38 +6,38 @@ The lab runs normal Sevens matches through the command engine. It balances both 
 
 ## Advanced plays, 17 November
 
-The second release lets the coach throw team-mates, sets up a last-turn throw and gives Standard a game plan per match. Candidate source `bc44d9565124` played `main` at `53a1c8dd611832f3dc8221664ad07e277ecb87dd`, the same frozen-policy design as below. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
+The second release lets the coach throw team-mates, sets up a last-turn throw and gives Standard a game plan per match. Candidate source `c928db14d0da` played `main` at `53a1c8dd611832f3dc8221664ad07e277ecb87dd`, the same frozen-policy design as below. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
 
 | Stage                                | Games |   Candidate points share | 95% interval         |
 | ------------------------------------ | ----: | -----------------------: | -------------------- |
-| Confirmation, best planner           | 5,184 |                   50.16% | 49.97% to 50.35%     |
-| Standard, game plans and close calls | 5,184 |                   49.34% | 48.36% to 50.35%     |
-| Persistent fixtures                  | 1,296 |                   49.88% | 49.69% to 50.08%     |
-| Heuristic control                    |   432 |                   90.74% | 88.43% to 92.94%     |
+| Confirmation, best planner           | 5,184 |                   50.09% | 49.92% to 50.25%     |
+| Standard, game plans and close calls | 5,184 |                   48.77% | 47.75% to 49.75%     |
+| Persistent fixtures                  | 1,296 |                   50.12% | 49.92% to 50.31%     |
+| Heuristic control                    |   432 |                   92.71% | 90.63% to 94.68%     |
 | Hard sentinels                       |    16 | 28.13%, descriptive only | No strength estimate |
 
-The best planner is level with `main`: its interval includes parity, and its equal-roster share is 50.37%, 49.67% to 51.08%. It scored 3,447 touchdowns against 3,429 and suffered 671 deaths against 662. No roster lost more than half a point of points share. Standard gives up a little under a point for its variety. It also suffered 712 deaths against 594, so its close calls take more risky contact. Players who face Standard in a league will see that.
+The best planner is level with `main`: its interval includes parity, and its equal-roster share is 50.49%, 49.72% to 51.24%. It scored 3,432 touchdowns against 3,430 and suffered 710 deaths against 694. No roster lost more than 1.2 points of points share. Standard gives up about 1.2 points for its variety and suffered 722 deaths against 698.
 
 What each policy chose, counted from saved commands by the coach's note:
 
-| Play in 5,184 games                         |            Best planner |               Standard |   `main` |
-| ------------------------------------------- | ----------------------: | ---------------------: | -------: |
-| Carrier thrown by a team-mate               | 41, 10 scored that turn | 43, 9 scored that turn |        0 |
-| Team-mate thrown without the ball           |                      42 |                     42 |        0 |
-| Passes, Pass command accepted               |                      48 |                     67 | 48 to 49 |
-| Receiver touchdowns after a completion      |                      18 |                     20 | 17 to 19 |
-| Flank runner sent wide                      |                       0 |                    316 |        0 |
-| Thrower set up beside a Right Stuff carrier |                     138 |                    125 |        0 |
+| Play in 5,184 games                         |           Best planner |               Standard |   `main` |
+| ------------------------------------------- | ---------------------: | ---------------------: | -------: |
+| Carrier thrown by a team-mate               | 40, 9 scored that turn | 39, 6 scored that turn |        0 |
+| Team-mate thrown without the ball           |                     40 |                     34 |        0 |
+| Passes, Pass command accepted               |                     31 |                     51 | 30 to 33 |
+| Receiver touchdowns after a completion      |                     12 |                     13 | 10 to 12 |
+| Flank runner sent wide                      |                      0 |                    360 |        0 |
+| Thrower set up beside a Right Stuff carrier |                    116 |                    137 |        0 |
 
-The planner prices every Quick or Short aim over the engine's dice. A fumble bounces once from the thrower's square and lands as after a Subpar Throw. A PA 5+ Trained Troll fumbles about a third of its throws, so carrier throws mostly come on the last turn of a half, when nothing safer can score.
+The planner prices every Quick or Short aim over the engine's dice. A fumbled throw bounces once from the thrower's square and lands as after a Subpar Throw; a fumbled kick removes and injures the player. A PA 5+ Trained Troll fumbles about a third of its throws, so carrier throws mostly come on the last turn of a half, when nothing safer can score.
 
 Paired ablations on the same 5,184 seeds, against `3741e12c`, found what the first version cost. The launch setup ran all half and lost 13.3 points of points share on Snotling. A flank runner cost 0.75 points even when only one went wide. Throw Team-mate itself and sideways transfers made no difference. The launch setup now runs only on turn five, and only Standard's flank game plan sends a runner wide.
 
-The lab found five engine faults on the way, each fixed with a test. A thrown carrier landing in the end zone did not score. An eaten team-mate was not recorded as dead. A Multiple Block rolled its second block after the blocker fell. A spent team-mate throw was still offered, and Kick Team-mate was never offered. A fumbled kick left a Stunned player off the pitch. `main` fixed crashed and fumbled thrown players in the meantime.
+The lab and its reviews found six engine faults on the way, each fixed with a test. A thrown carrier landing in the end zone did not score, and the first fix also let a player without the ball score by landing on it. An eaten team-mate was not recorded as dead. A Multiple Block rolled its second block after the blocker fell. A spent team-mate throw was still offered, and Kick Team-mate was never offered. A fumbled kick left a Stunned player off the pitch. `main` fixed crashed and fumbled thrown players in the meantime.
 
 Passing is still rare because a dropped ball is priced at 60 points plus the turnover. Changing that price is the next tuning study. Counts of plays describe what followed them, not their causal value.
 
-Published report: [Sevens advanced plays](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-advanced-plays-2026-11-17%2Findex.html), Blood Bowl, `sevens-advanced-plays-2026-11-17/`. Each stage links its plays and moments page, whose scoring moments open the match viewer at the declaration. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-bc44d9565124-vs-53a1c8dd6118` on Daily Driver.
+Published report: [Sevens advanced plays](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-advanced-plays-2026-11-17%2Findex.html), Blood Bowl, `sevens-advanced-plays-2026-11-17/`. Each stage links its plays and moments page, whose scoring moments open the match viewer at the declaration. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-c928db14d0da-vs-53a1c8dd6118` on Daily Driver.
 
 ## Frozen acquisition
 
