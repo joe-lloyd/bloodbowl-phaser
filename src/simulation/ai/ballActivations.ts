@@ -446,7 +446,7 @@ const PASS_TYPES: readonly PassType[] = [
 ];
 
 /** The pass range from one square to another, or null out of range. */
-function passRange(from: Square, to: Square): PassRange | null {
+export function passRange(from: Square, to: Square): PassRange | null {
   const value = PassController.rangeValue(from, to);
   if (value === null) return null;
   return {
@@ -578,8 +578,9 @@ function passTo(
 
 /**
  * Throw to a team-mate who has not acted yet: one who can then score, or
- * one well downfield. The thrower may first walk, safely, to a better
- * square to throw from.
+ * one well downfield. The thrower may first walk to a better square to
+ * throw from, dodging out of a marked cage if it must: the walk's rolls are
+ * priced into the pass. Walks likelier to fail than a safe score are left.
  */
 export function passActivations(c: Context, carrier: Player): Activation[] {
   const { board, w } = c;
@@ -587,7 +588,7 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
   const throwFrom: (Route | null)[] = [
     null,
     ...[...c.plainRoutes(carrier).values()].filter(
-      (r) => r.chance >= w.safeMove
+      (r) => r.chance >= w.safeScore
     ),
   ];
   const carrierReach = bestReach(c, carrier);

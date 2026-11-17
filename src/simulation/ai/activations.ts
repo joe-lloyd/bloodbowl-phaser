@@ -58,7 +58,8 @@ export type Role =
   | "safety"
   | "feed"
   | "throw"
-  | "flank";
+  | "flank"
+  | "deep";
 
 export type Intent =
   | { kind: "score"; route: Route }

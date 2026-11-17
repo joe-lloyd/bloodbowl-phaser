@@ -28,6 +28,7 @@ const PLAYS: readonly [string, string][] = [
   ["moves to flank", "flank"],
   ["moves to throw", "launch-setup"],
   ["moves to receiver", "receiver"],
+  ["moves to deep", "deep-receiver"],
   ["moves to feed", "feed"],
   ["moves to", "reposition"],
   ["moves the ball carrier", "carrier"],

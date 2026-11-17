@@ -35,6 +35,7 @@ export const GAME_PLANS: readonly GamePlan[] = [
       "throw-teammate": 6,
       handoff: 3,
       "reposition:receiver": 3,
+      "reposition:deep": 4,
       "reposition:throw": 4,
     },
   },

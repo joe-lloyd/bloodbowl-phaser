@@ -27,6 +27,13 @@ export const DEFAULT_WEIGHTS = {
   cageCorner: 8,
   /** Open team-mate a few squares ahead of the carrier. */
   receiver: 6,
+  /**
+   * A receiver gone deep on the setup turn of a two-step pass, where the
+   * carrier cannot run the ball in next turn, times the throw's chance.
+   */
+  deep: 20,
+  /** Per standing opponent within three squares of the deep square. */
+  deepCrowd: 2,
   /** A thrower beside a Right Stuff carrier, ready to launch it. */
   launch: 10,
   /**

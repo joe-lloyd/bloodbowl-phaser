@@ -4,11 +4,13 @@
  */
 
 import { Player, PlayerStatus } from "../../types/Player";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "../../game/rules/throwTeammate";
 import {
   Board,
   HEIGHT,
   Square,
+  WIDTH,
   carrierOf,
   distance,
   key,
@@ -20,7 +22,9 @@ import {
 import { Route } from "./routes";
 import { PassController } from "../../game/controllers/PassController";
 import { Context, crowd, gamble, tierFor } from "./activationContext";
-import { CORNERS } from "./ballActivations";
+import { CORNERS, passRange } from "./ballActivations";
+import { passTarget } from "../../game/rules/rollPreview";
+import { d6, withReroll } from "./chance";
 import type { Activation, Role } from "./activations";
 import { moveFeedingCost } from "./feeding";
 import { THROW_REACH, throwersFor } from "./teammateActivations";
@@ -113,6 +117,61 @@ function flankSquares(c: Context, carrier: Player, add: AddSquare): void {
     }
 }
 
+/**
+ * The one team-mate who goes deep: the surest hands, then the fastest.
+ * One receiver splits the defence; the rest keep the cage.
+ */
+function deepReceiver(c: Context, carrier: Player): Player | undefined {
+  const hands = (p: Player) =>
+    p.stats.AG - (hasSkill(p.skills, SkillType.CATCH) ? 1 : 0);
+  return c.board.ours
+    .filter(
+      (p) =>
+        p.id !== carrier.id && standing(p) && c.available.get(p.id)?.has("move")
+    )
+    .sort(
+      (a, b) =>
+        hands(a) - hands(b) ||
+        b.stats.MA - a.stats.MA ||
+        a.id.localeCompare(b.id)
+    )[0];
+}
+
+/**
+ * The setup turn of a two-step pass. The carrier cannot run the ball in
+ * next turn, so one receiver goes deep: within a Long Pass of the carrier,
+ * near enough to catch and score next turn without a Rush, away from the
+ * defence and off the sidelines. Each square is worth the carrier's chance
+ * of completing that throw unmarked, so a lineman's Long Pass sends nobody.
+ * Next turn the pass prices the score.
+ */
+function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
+  const { board, w } = c;
+  const at = carrier.gridPosition!;
+  if (carrier.stats.PA <= 0 || toGoal(board, at) <= nextTurnReach(carrier))
+    return;
+  const receiver = deepReceiver(c, carrier);
+  if (!receiver) return;
+  for (let x = 0; x < WIDTH; x++)
+    for (let y = 1; y < HEIGHT - 1; y++) {
+      const s = { x, y };
+      const run = toGoal(board, s);
+      const range = passRange(at, s);
+      if (run === 0 || run > receiver.stats.MA) continue;
+      if (!range || range.type === "Long Bomb") continue;
+      const target = passTarget(carrier, [], board.weather, range);
+      const throws = hasSkill(carrier.skills, SkillType.PASS)
+        ? withReroll(d6(target))
+        : d6(target);
+      add(
+        "deep",
+        s,
+        w.deep * throws - w.deepCrowd * crowd(board, s),
+        receiver.id
+      );
+    }
+}
+
 /** Our carrier: a cage around it and receivers ahead of it. */
 function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
@@ -131,6 +190,7 @@ function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
       );
   launchSquares(c, carrier, add);
   flankSquares(c, carrier, add);
+  deepSquares(c, carrier, add);
 }
 
 /** Beside the walls of their carrier's cage: assists for the hits that break it. */
