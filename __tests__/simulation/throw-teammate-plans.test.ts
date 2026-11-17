@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
+import type { MatchSave } from "../../src/headless/serialization";
+import type { MatchRecording } from "../../src/simulation/runMatch";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
@@ -178,5 +183,40 @@ describe("Throw Team-mate plans", () => {
       await step(subject, coach);
     const at = troller.gridPosition!;
     expect(Math.max(Math.abs(at.x - 9), Math.abs(at.y - 5))).toBe(1);
+  });
+});
+
+describe("Throw Team-mate from a recorded match", () => {
+  it("does not throw the carrier when a fumble is likelier than a score", async () => {
+    // Policy-lab pilot: a Trained Troll, PA 5+ and Always Hungry, beside a
+    // Goblin carrier nine squares out on turn 3. The throw needs a 6+.
+    const trace = JSON.parse(
+      gunzipSync(
+        readFileSync(
+          join(
+            __dirname,
+            "../fixtures/policy-lab/fumbled-carrier-throw.json.gz"
+          )
+        )
+      ).toString()
+    ) as { initial: MatchSave; recording: MatchRecording };
+    const subject = new HeadlessGame({ matchSave: trace.initial });
+    const THROW_STEP = 201;
+    for (const step of trace.recording.steps.slice(0, THROW_STEP))
+      await subject.execute(step.command);
+    const point = await enumerateDecision(subject, null);
+    const choice = await createPlannerCoach().choose({
+      game: subject,
+      snapshot: subject.snapshot(),
+      point,
+      rng: createCoachRng(1),
+    });
+
+    expect(trace.recording.steps[THROW_STEP].command).toMatchObject({
+      action: "throwTeamMate",
+    });
+    expect(point.candidates[choice.index].commands[0]).not.toMatchObject({
+      action: "throwTeamMate",
+    });
   });
 });

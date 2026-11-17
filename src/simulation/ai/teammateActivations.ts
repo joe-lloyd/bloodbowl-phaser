@@ -198,7 +198,10 @@ function carrierStanding(c: Context, at: Square): number {
 function carrierLanding(c: Context, mate: Player, at: Square): number {
   const { board, w } = c;
   if (toGoal(board, at) === 0) return w.touchdown;
-  const stand = carrierStanding(c, at);
+  // Like a carrier move, a landing that does not score is worth what it
+  // gains on the square the carrier left; a score is worth the touchdown.
+  const stand =
+    carrierStanding(c, at) - carrierStanding(c, mate.gridPosition!);
   if (!c.available.has(mate.id)) return stand;
   const { after, landed } = landedBoard(board, mate, at, true);
   const plain = routesFor(after, landed);
@@ -311,7 +314,6 @@ function throwAt(
       if (worth > 0) good += p * q * lands;
     }
   }
-  if (carrying) value -= carrierStanding(c, mate.gridPosition!);
   const rolls: RollTarget[] = [
     { kind: "throw", target: odds.needed },
     { kind: "landing", target: mate.stats.AG + board.marks[key(aim)] },
