@@ -46,7 +46,10 @@
     "e2e:coverage": "tsx scripts/e2e-coverage.ts",
     "e2e:coverage:baseline": "tsx scripts/e2e-coverage.ts --write-baseline",
     "e2e:coverage:diff": "tsx scripts/e2e-coverage.ts --compare-baseline",
-    "docs:check": "node scripts/check-docs.mjs"
+    "docs:check": "node scripts/check-docs.mjs",
+    "dice:simulate": "tsx scripts/dice-audit/simulate.ts",
+    "dice:audit": "tsx scripts/dice-audit/audit.ts",
+    "dice:fetch": "tsx scripts/dice-audit/fetch.ts"
   },
   "dependencies": {
     "cannon-es": "0.20.0",
