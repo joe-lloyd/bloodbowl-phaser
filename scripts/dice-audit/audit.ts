@@ -150,6 +150,10 @@ function anyOrderChance(faces: string[]): number {
   return orders * exactChance(faces);
 }
 
+/** Block dice name their faces; D6 rolls are numbers. */
+const isFaces = (dice: Reroll["before"]): dice is string[] =>
+  Array.isArray(dice) && dice.every((d) => typeof d === "string");
+
 const sameAnyOrder = (a: string[], b: string[]) =>
   [...a].sort().join() === [...b].sort().join();
 
@@ -201,18 +205,21 @@ for (const { log, reroll: r } of rerollsOnce) {
         `${JSON.stringify(r.before)} again`
     );
   }
-  if (Array.isArray(r.before) && Array.isArray(r.after)) {
-    const n = r.before.length;
-    // Pro and Brawler re-roll one die, so only whole-roll re-rolls compare
+  const { before, after } = r;
+  if (isFaces(before) && isFaces(after)) {
+    const n = before.length;
+    // Pro, Brawler and Hatred re-roll one die, so only whole-roll re-rolls compare
     if (r.source !== "team" && r.source !== "veteran") continue;
-    add(tallyFor(blockExact, n), r.repeated, exactChance(r.before));
+    add(tallyFor(blockExact, n), r.repeated, exactChance(before));
     add(
       tallyFor(blockAnyOrder, n),
-      sameAnyOrder(r.before, r.after),
-      anyOrderChance(r.before)
+      sameAnyOrder(before, after),
+      anyOrderChance(before)
     );
   } else {
-    add(d6Repeat, r.repeated, sixth);
+    // A D6 roll, or several D6 such as an Armour Roll: each die 1 in 6
+    const dice = Array.isArray(before) ? before.length : 1;
+    add(d6Repeat, r.repeated, sixth ** dice);
   }
 }
 
@@ -263,7 +270,7 @@ for (const n of [...blockExact.keys()].sort()) {
     line(`${n}-dice block, same faces any order`, tallyFor(blockAnyOrder, n))
   );
 }
-console.log(line(`D6 re-roll, same number`, d6Repeat));
+console.log(line(`D6 re-roll, same dice`, d6Repeat));
 if (repeated.length > 0 && repeated.length <= 50) {
   console.log(`\nEvery repeated re-roll`);
   repeated.forEach((r) => console.log(`  ${r}`));

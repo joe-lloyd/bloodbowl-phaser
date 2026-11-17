@@ -305,7 +305,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     });
   });
   useEventBus(eventBus, GameEventNames.RerollUsed, (data) => {
-    const roll = (dice: number | string[]) =>
+    const roll = (dice: number | number[] | string[]) =>
       Array.isArray(dice) ? dice.join(", ") : String(dice);
     pushLogEntry({
       category: "reroll",

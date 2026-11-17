@@ -19,6 +19,7 @@ export const RegenerationRule: SkillRule = {
       `Regeneration (${self.playerName})`,
       self.teamId
     );
+    ctx.regenerationRoll = roll;
     if (roll >= 4) {
       ctx.regenerated = true;
       ctx.triggers.push({

@@ -81,7 +81,12 @@ export class CasualtyOperation extends GameOperation {
     );
     if (
       preCtx.regenerated ||
-      rerollFailedRegeneration(gameService, eventBus, player)
+      rerollFailedRegeneration(
+        gameService,
+        eventBus,
+        player,
+        preCtx.regenerationRoll
+      )
     ) {
       eventBus.emit(
         GameEventNames.UI_Notification,

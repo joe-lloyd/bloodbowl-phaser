@@ -106,6 +106,21 @@ export function writeDiceLog(
   }
 }
 
+/**
+ * Free room for something that matters more, such as the resumable match
+ * save: drop the oldest dice log. False when there is none left to drop.
+ */
+export function dropOldestDiceLog(
+  storage: StorageLike | null = browserStorage()
+): boolean {
+  if (!storage) return false;
+  const [oldest, ...rest] = readIndex(storage);
+  if (oldest === undefined) return false;
+  storage.removeItem(KEY_PREFIX + oldest);
+  storage.setItem(INDEX_KEY, JSON.stringify(rest));
+  return true;
+}
+
 type Uploader = (log: DiceLog) => Promise<void>;
 let uploader: Uploader | null = null;
 

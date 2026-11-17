@@ -94,11 +94,12 @@ export interface MatchGameEvents {
     rollKind: string;
     skill?: string;
     /**
-     * The roll before and after the reroll: a D6's value, or each block
-     * die's face, e.g. ["Push"] → ["Attacker Down"]
+     * The roll before and after the reroll: a D6's value, each D6 of a
+     * multi-dice roll (an Armour Roll's [5, 2]), or each block die's face,
+     * e.g. ["Push"] → ["Attacker Down"]
      */
-    before: number | string[];
-    after: number | string[];
+    before: number | number[] | string[];
+    after: number | number[] | string[];
   };
 
   [GameEventNames.DecisionRequested]: import("../decisions").DecisionRequest;

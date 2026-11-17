@@ -160,7 +160,10 @@ export class ClearPitchOperation extends GameOperation {
     // the pitch, so choose them before the pitch is cleared.
     const fainted =
       this.anotherDrive && gameService.getState().weather === "Sweltering Heat"
-        ? swelteringHeat(gameService.getTeams(), gameService.getDiceController())
+        ? swelteringHeat(
+            gameService.getTeams(),
+            gameService.getDiceController()
+          )
         : [];
 
     if (this.anotherDrive) youDopeCollapse(context);

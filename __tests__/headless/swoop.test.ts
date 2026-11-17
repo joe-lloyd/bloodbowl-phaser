@@ -86,7 +86,15 @@ async function throwMate(
   const dice = events
     .filter((e) => e.name === "diceRoll")
     .map((e) => (e.data as { description: string }).description);
-  return { response, dice, mate: response.snapshot.teams[0].players[1] };
+  const rerolls = events
+    .filter((e) => e.name === "rerollUsed")
+    .map((e) => e.data);
+  return {
+    response,
+    dice,
+    rerolls,
+    mate: response.snapshot.teams[0].players[1],
+  };
 }
 
 describe("Swoop", () => {
@@ -119,6 +127,21 @@ describe("Swoop", () => {
     ]);
     expect(mate.position).toEqual({ x: 11, y: 2 });
     expect(mate.status).toBe("Active");
+  });
+
+  it("reports the landing re-roll with both rolls", async () => {
+    const { rerolls } = await throwMate("thrown", LANDING_REROLL_SEED, "east");
+
+    expect(rerolls).toEqual([
+      {
+        playerId: "team1-player-2",
+        source: "skill",
+        skill: SkillType.SWOOP,
+        rollKind: "landing",
+        before: 1,
+        after: 5,
+      },
+    ]);
   });
 
   it("is not used unless the coach picks a facing", async () => {

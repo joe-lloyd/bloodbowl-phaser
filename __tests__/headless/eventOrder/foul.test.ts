@@ -5,12 +5,18 @@ import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType } from "../../../src/types/Skills";
 import { forceDice } from "../../utils/test-helpers";
 import { eventOrder } from "./eventOrder";
+import { GameEventNames } from "../../../src/types/events";
+import { RosterName, TeamSpecialRule } from "../../../src/types/Team";
 
 /**
  * The literal events of a Foul, so a refactor of FoulOperation that moves a
  * roll, an emit or a queued operation fails here.
  */
-function foulGame(skills: SkillType[], withAssist: boolean) {
+function foulGame(
+  skills: SkillType[],
+  withAssist: boolean,
+  roster?: RosterName
+) {
   const game = new HeadlessGame({
     seed: 1,
     scenario: {
@@ -18,8 +24,10 @@ function foulGame(skills: SkillType[], withAssist: boolean) {
       name: "foul-event-order",
       description: "",
       setup: {
+        ...(roster ? { team1Roster: roster } : {}),
         team1Placements: [
-          { playerIndex: 0, x: 10, y: 5, skills },
+          // A Goblin roster's first player is its Trained Troll; foul with a Lineman
+          { playerIndex: roster ? 1 : 0, x: 10, y: 5, skills },
           ...(withAssist ? [{ playerIndex: 1, x: 11, y: 4 }] : []),
         ],
         team2Placements: [
@@ -40,7 +48,26 @@ function foulGame(skills: SkillType[], withAssist: boolean) {
   });
   // Argue the Call fails, so a spotted fouler is Sent-off
   vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(1);
-  return { game, fouler: game.ctx.team1.players[0] };
+  return { game, fouler: game.ctx.team1.players[roster ? 1 : 0] };
+}
+
+/** Foul with these dice; every re-roll the engine reports goes in `rerolls`. */
+async function foulReporting(
+  skills: SkillType[],
+  dice: number[],
+  roster?: RosterName
+): Promise<unknown[]> {
+  const { game, fouler } = foulGame(skills, false, roster);
+  forceDice(game.ctx.rng, dice);
+  const rerolls: unknown[] = [];
+  game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => rerolls.push(d));
+  await game.execute({
+    type: "declare-action",
+    playerId: fouler.id,
+    action: "foul",
+  });
+  await game.execute({ type: "foul", playerId: fouler.id, x: 11, y: 5 });
+  return rerolls;
 }
 
 async function foul(
@@ -121,6 +148,7 @@ describe("a Foul's events keep their order", () => {
         "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 2 + 3 = 5 (AV 9+) | teamId=team2",
         "skillTriggered: Lone Fouler: re-roll the failed Armour Roll | playerId=team1-player-1 skill=Lone Fouler",
         "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 4 + 4 = 8 (AV 9+) | teamId=team2",
+        "rerollUsed: playerId=team1-player-1 skill=Lone Fouler",
         "skillTriggered: Dirty Player: +1 to the Armour Roll | playerId=team1-player-1 skill=Dirty Player",
         "ui:notification: ARMOUR BROKEN!",
         "diceRoll: Injury Roll (Human Lineman #1) | Injury Roll (Human Lineman #1): 3 + 2 = 5 | teamId=team2",
@@ -163,5 +191,34 @@ describe("a Foul's events keep their order", () => {
         "skillTriggered: Quick Foul: the activation continues after the Foul | playerId=team1-player-1 skill=Quick Foul",
       ]
     `);
+  });
+
+  it("reports Lone Fouler's re-roll with both Armour Rolls", async () => {
+    expect(
+      await foulReporting([SkillType.LONE_FOULER], [2, 3, 4, 4, 3, 2])
+    ).toEqual([
+      {
+        playerId: "team1-player-1",
+        source: "skill",
+        skill: SkillType.LONE_FOULER,
+        rollKind: "armour",
+        before: [2, 3],
+        after: [4, 4],
+      },
+    ]);
+  });
+
+  it("reports Bribery and Corruption's re-roll of the Argue the Call 1", async () => {
+    // Armour 5+5 breaks AV 9 and is spotted; Argue the Call rolls 1, then 1
+    expect(await foulReporting([], [5, 5, 4, 4], RosterName.GOBLIN)).toEqual([
+      {
+        playerId: "team1-player-2",
+        source: "skill",
+        skill: TeamSpecialRule.BRIBERY_AND_CORRUPTION,
+        rollKind: "argue-the-call",
+        before: 1,
+        after: 1,
+      },
+    ]);
   });
 });

@@ -25,7 +25,9 @@ const REGENERATION_REROLLS = [
 export function rerollFailedRegeneration(
   gameService: IGameService,
   eventBus: IEventBus,
-  player: Player
+  player: Player,
+  /** The failed Regeneration roll this re-rolls. */
+  failedRoll: number | undefined
 ): boolean {
   if (!hasSkill(player.skills, SkillType.REGENERATION)) return false;
   const state = gameService.getState();
@@ -37,6 +39,16 @@ export function rerollFailedRegeneration(
   const roll = gameService
     .getDiceController()
     .rollD6(`Regeneration re-roll (${helper})`, player.teamId);
+  if (failedRoll !== undefined) {
+    eventBus.emit(GameEventNames.RerollUsed, {
+      playerId: player.id,
+      source: "skill",
+      skill: helper,
+      rollKind: "regeneration",
+      before: failedRoll,
+      after: roll,
+    });
+  }
   eventBus.emit(GameEventNames.SkillTriggered, {
     playerId: player.id,
     skill: SkillType.REGENERATION,

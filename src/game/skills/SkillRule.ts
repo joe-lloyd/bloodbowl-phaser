@@ -392,6 +392,8 @@ export interface CasualtyContext extends TriggerContextBase {
   cause?: CasualtyCause;
   /** Set true to ignore the casualty and go to Reserves (Regeneration) */
   regenerated?: boolean;
+  /** The Regeneration roll, for an inducement that re-rolls a failed one. */
+  regenerationRoll?: number;
 }
 
 /**
