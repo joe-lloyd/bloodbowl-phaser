@@ -55,24 +55,31 @@ function verdict(total: number, chi: number, df: number): string {
  * Both coaches of an online match log the same throws, and a resumed match
  * can arrive in overlapping pieces. The generator's state after a throw,
  * under the match's seed, names that throw: the statistics count it once.
- * A re-roll belongs to the throw just before it.
+ * A re-roll is named by the throw just before it and its place after that
+ * throw, so a re-roll only one copy holds still counts.
  */
 const seen = new Set<string>();
+const seenRerolls = new Set<string>();
 const throws: Roll[] = [];
 const rerollsOnce: { log: DiceLog; reroll: Reroll }[] = [];
 let duplicates = 0;
 for (const log of logs) {
-  let lastIsNew = true;
+  let lastKey: string | null = null;
+  let rerollsSince = 0;
   for (const entry of log.entries) {
     if (entry.kind === "reroll") {
-      if (lastIsNew) rerollsOnce.push({ log, reroll: entry });
+      const key = lastKey === null ? null : `${lastKey}#${rerollsSince++}`;
+      if (key === null || !seenRerolls.has(key)) {
+        rerollsOnce.push({ log, reroll: entry });
+      }
+      if (key) seenRerolls.add(key);
       continue;
     }
-    const key = entry.rng === null ? null : `${log.seed}:${entry.rng}`;
-    lastIsNew = key === null || !seen.has(key);
-    if (key) seen.add(key);
-    if (lastIsNew) throws.push(entry);
+    lastKey = entry.rng === null ? null : `${log.seed}:${entry.rng}`;
+    rerollsSince = 0;
+    if (lastKey === null || !seen.has(lastKey)) throws.push(entry);
     else duplicates++;
+    if (lastKey) seen.add(lastKey);
   }
 }
 
@@ -120,7 +127,7 @@ for (const log of logs) {
           `from ${last.rng} to ${roll.rng} (after #${last.seq} ${last.rollType})`
       );
     }
-    last = roll;
+    if (roll.rng != null) last = roll;
   }
 }
 

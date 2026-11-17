@@ -8,6 +8,8 @@ import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import {
   createDiceLog,
+  DiceLog,
+  DiceLogEntry,
   DiceLogRecorder,
 } from "../../src/game/persistence/DiceLog";
 import {
@@ -49,6 +51,51 @@ const noBallScenario: Scenario = {
     ballPosition: { x: 6, y: 5 },
   },
 };
+
+/** Runs the audit CLI on these logs and returns its report. */
+function audit(logs: DiceLog[]): string {
+  const file = join(mkdtempSync(join(tmpdir(), "dice-audit-")), "logs.json");
+  writeFileSync(file, JSON.stringify(logs));
+  return execFileSync("npx", ["tsx", "scripts/dice-audit/audit.ts", file], {
+    encoding: "utf8",
+  });
+}
+
+const moment = { at: 0, phase: "play", half: 1, turn: 1, activeTeamId: null };
+
+/** A one-die block that left the generator at `rng`. */
+const blockRoll = (seq: number, rng: number | null): DiceLogEntry => ({
+  ...moment,
+  seq,
+  kind: "roll",
+  rollType: "Block",
+  diceType: "1D Block",
+  value: ["push"],
+  total: 1,
+  resultState: "none",
+  teamId: null,
+  rng,
+  automatic: false,
+});
+
+/** A Team Re-roll of a one-die block that came up Push again. */
+const pushAgain = (seq: number): DiceLogEntry => ({
+  ...moment,
+  seq,
+  kind: "reroll",
+  playerId: "p1",
+  source: "team",
+  rollKind: "block",
+  skill: null,
+  before: ["Push"],
+  after: ["Push"],
+  repeated: true,
+});
+
+const logOf = (id: string, entries: DiceLogEntry[]): DiceLog => ({
+  ...createDiceLog({ id, mode: "online", seed: 5, teams: [] }),
+  entries,
+});
 
 /** Browser storage that refuses to hold more than `limit` characters. */
 class MemoryStorage {
@@ -264,4 +311,48 @@ describe("the dice log", () => {
     expect(report).toContain("no dice to judge");
     expect(report).toContain("1-dice block, same faces same order: 0 of 1");
   }, 30_000);
+
+  it("counts a re-roll that only the later of two copies holds", () => {
+    const report = audit([
+      logOf("host", [blockRoll(0, 100)]),
+      logOf("guest", [blockRoll(0, 100), pushAgain(1)]),
+    ]);
+
+    expect(report).toContain("1-dice block, same faces same order: 1 of 1");
+  }, 30_000);
+
+  it("catches a repeated generator state across a roll with no state", () => {
+    const report = audit([
+      logOf("host", [blockRoll(0, 100), blockRoll(1, null), blockRoll(2, 100)]),
+    ]);
+
+    expect(report).toContain("CHECK: 1 rolls reused numbers");
+  }, 30_000);
+
+  it("times a resumed log's rolls from when the match started", () => {
+    const hourAgo = Date.now() - 3_600_000;
+    const log = {
+      ...createDiceLog({ id: "r", mode: "local", seed: 1, teams: [] }),
+      startedAt: hourAgo,
+      updatedAt: hourAgo + 60_000,
+    };
+    const game = new HeadlessGame({ scenario, seed: SEED });
+    const recorder = new DiceLogRecorder(
+      game.ctx.eventBus,
+      () => game.ctx.gameService.getState(),
+      log
+    );
+
+    game.ctx.eventBus.emit(GameEventNames.DiceRoll, {
+      rollType: "Test",
+      diceType: "1d6",
+      value: 4,
+      total: 4,
+      description: "Test: 4",
+    });
+    recorder.dispose();
+
+    expect(log.entries[0].at).toBeGreaterThanOrEqual(3_600_000);
+    expect(log.updatedAt).toBe(hourAgo + log.entries[0].at);
+  });
 });

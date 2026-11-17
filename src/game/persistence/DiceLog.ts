@@ -96,15 +96,12 @@ const sameDice = (a: RerollEvent["before"], b: RerollEvent["after"]) =>
  * `onChange` after each one. Stop it with `dispose()`.
  */
 export class DiceLogRecorder {
-  private readonly startedAt: number;
-
   constructor(
     private readonly eventBus: IEventBus,
     private readonly getState: () => GameState,
     readonly log: DiceLog,
     private readonly onChange: (log: DiceLog) => void = () => {}
   ) {
-    this.startedAt = Date.now() - (log.updatedAt - log.startedAt);
     eventBus.on(GameEventNames.DiceRoll, this.onRoll);
     eventBus.on(GameEventNames.RerollUsed, this.onReroll);
   }
@@ -118,7 +115,7 @@ export class DiceLogRecorder {
     const state = this.getState();
     return {
       seq: this.log.entries.length,
-      at: Date.now() - this.startedAt,
+      at: Date.now() - this.log.startedAt,
       phase: state.phase,
       half: state.turn.extraTime ? "extra" : state.turn.isHalf2 ? 2 : 1,
       turn: state.turn.turnNumber,
@@ -128,7 +125,7 @@ export class DiceLogRecorder {
 
   private append(entry: DiceLogEntry): void {
     this.log.entries.push(entry);
-    this.log.updatedAt = this.startedAt + entry.at;
+    this.log.updatedAt = this.log.startedAt + entry.at;
     this.onChange(this.log);
   }
 

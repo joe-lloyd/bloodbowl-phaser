@@ -29,7 +29,7 @@ const logs: DiceLog[] = [];
 for (let i = 0; i < Number(matchArg); i++) {
   const seed = Number(seedArg) + i;
   const game = createSimGame(seed, rosters, 3, "sevens-lineup");
-  await grantSimInducements(game);
+  // Before the inducements, so the pregame table rolls are logged too
   const recorder = new DiceLogRecorder(
     game.ctx.eventBus,
     () => game.ctx.gameService.getState(),
@@ -40,6 +40,7 @@ for (let i = 0; i < Number(matchArg); i++) {
       teams: [game.ctx.team1, game.ctx.team2],
     })
   );
+  await grantSimInducements(game);
   await runMatch({
     seed,
     rosters,
