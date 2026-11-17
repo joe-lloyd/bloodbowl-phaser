@@ -33,7 +33,13 @@ export const HatredRule: SkillRule = {
       if (!answer.accept) return;
     }
 
+    const before = ctx.results.map((r) => r.label);
     ctx.results[index] = ctx.dice.rollBlockDice(1, self.teamId)[0];
+    ctx.rerolls.push({
+      skill: SkillType.HATRED,
+      before,
+      after: ctx.results.map((r) => r.label),
+    });
     ctx.triggers.push({
       playerId: self.id,
       skill: SkillType.HATRED,

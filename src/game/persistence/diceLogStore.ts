@@ -77,20 +77,33 @@ export function listDiceLogs(
   return readIndex(storage).flatMap((id) => readDiceLog(id, storage) ?? []);
 }
 
-/** Keep `log` and drop the oldest past the newest KEEP_LOCAL. */
+/**
+ * Keep `log` and drop the oldest past the newest KEEP_LOCAL. When storage is
+ * full, older logs go first, one at a time, until this one fits.
+ */
 export function writeDiceLog(
   log: DiceLog,
   storage: StorageLike | null = browserStorage()
 ): void {
   if (!storage) return;
   const ids = [...readIndex(storage).filter((id) => id !== log.id), log.id];
-  const dropped = ids.splice(0, Math.max(0, ids.length - KEEP_LOCAL));
-  try {
-    dropped.forEach((id) => storage.removeItem(KEY_PREFIX + id));
-    storage.setItem(KEY_PREFIX + log.id, JSON.stringify(log));
+  const drop = (count: number) => {
+    ids.splice(0, count).forEach((id) => storage.removeItem(KEY_PREFIX + id));
     storage.setItem(INDEX_KEY, JSON.stringify(ids));
-  } catch (error) {
-    console.warn("Could not keep the dice log in browser storage:", error);
+  };
+  drop(Math.max(0, ids.length - KEEP_LOCAL));
+  const raw = JSON.stringify(log);
+  for (;;) {
+    try {
+      storage.setItem(KEY_PREFIX + log.id, raw);
+      return;
+    } catch (error) {
+      if (ids.length <= 1) {
+        console.warn("Could not keep the dice log in browser storage:", error);
+        return;
+      }
+      drop(1);
+    }
   }
 }
 
@@ -114,10 +127,11 @@ function logFor(input: {
   resumed: boolean;
 }): DiceLog {
   const id = String(input.seed);
-  const kept = readDiceLog(id);
-  if (kept && input.resumed) return kept;
-  const fresh = kept || input.resumed;
-  return createDiceLog({ ...input, id: fresh ? `${id}-${Date.now()}` : id });
+  const kept = listDiceLogs().filter((log) => log.seed === input.seed);
+  const newest = kept[kept.length - 1];
+  if (newest && input.resumed) return newest;
+  const taken = kept.length > 0 || input.resumed;
+  return createDiceLog({ ...input, id: taken ? `${id}-${Date.now()}` : id });
 }
 
 /**

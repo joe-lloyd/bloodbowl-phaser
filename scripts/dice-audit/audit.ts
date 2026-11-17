@@ -54,6 +54,8 @@ const d6 = new Map<string, number>();
 const block = new Map<string, number>();
 for (const log of logs) {
   for (const roll of rolls(log)) {
+    // No die was thrown, so it says nothing about the dice
+    if (roll.automatic) continue;
     const values = Array.isArray(roll.value) ? roll.value : [roll.value];
     const counts = /^\d+d6$/.test(roll.diceType)
       ? d6

@@ -9,8 +9,11 @@ import {
 import {
   listDiceLogs,
   readDiceLog,
+  startMatchDiceLog,
   writeDiceLog,
 } from "../../src/game/persistence/diceLogStore";
+import { SkillType } from "../../src/types/Skills";
+import { GameEventNames } from "../../src/types/events";
 
 const scenario: Scenario = {
   id: "dice-log",
@@ -29,12 +32,32 @@ const scenario: Scenario = {
 /** Block rolls Push; the Team Re-roll gives Attacker Down. */
 const SEED = 1;
 
+/** A team1 No Ball player beside the loose ball, to step onto it. */
+const noBallScenario: Scenario = {
+  ...scenario,
+  id: "dice-log-no-ball",
+  setup: {
+    ...scenario.setup,
+    team1Placements: [
+      { playerIndex: 0, x: 5, y: 5, skills: [SkillType.NO_BALL] },
+    ],
+    team2Placements: [{ playerIndex: 0, x: 15, y: 9 }],
+    ballPosition: { x: 6, y: 5 },
+  },
+};
+
+/** Browser storage that refuses to hold more than `limit` characters. */
 class MemoryStorage {
+  constructor(private readonly limit = Infinity) {}
   readonly items = new Map<string, string>();
   getItem(key: string) {
     return this.items.get(key) ?? null;
   }
   setItem(key: string, value: string) {
+    const others = [...this.items]
+      .filter(([k]) => k !== key)
+      .reduce((size, [, v]) => size + v.length, 0);
+    if (others + value.length > this.limit) throw new Error("QuotaExceeded");
     this.items.set(key, value);
   }
   removeItem(key: string) {
@@ -109,5 +132,75 @@ describe("the dice log", () => {
     expect(ids[0]).toBe("m2");
     expect(ids[19]).toBe("m21");
     expect(readDiceLog("m0", storage)).toBeNull();
+  });
+
+  it("marks No Ball's pick-up as decided with no die thrown", async () => {
+    const game = new HeadlessGame({ scenario: noBallScenario, seed: SEED });
+    const log = createDiceLog({
+      id: "t",
+      mode: "local",
+      seed: SEED,
+      teams: [],
+    });
+    const recorder = new DiceLogRecorder(
+      game.ctx.eventBus,
+      () => game.ctx.gameService.getState(),
+      log
+    );
+    const playerId = game.ctx.team1.players[0].id;
+
+    await game.execute({ type: "declare-action", playerId, action: "move" });
+    await game.execute({ type: "move", playerId, path: [{ x: 6, y: 5 }] });
+    recorder.dispose();
+
+    const pickup = log.entries.find(
+      (e) => e.kind === "roll" && e.rollType.startsWith("Pickup")
+    );
+    expect(pickup).toMatchObject({ value: 1, automatic: true });
+  });
+
+  it("keeps adding to one log across resumes it did not start", () => {
+    localStorage.clear();
+    const game = new HeadlessGame({ scenario, seed: SEED });
+    const resume = () =>
+      startMatchDiceLog({
+        eventBus: game.ctx.eventBus,
+        getState: () => game.ctx.gameService.getState(),
+        mode: "computer",
+        seed: 77,
+        teams: [],
+        resumed: true,
+      });
+
+    for (const value of [3, 4]) {
+      const session = resume();
+      game.ctx.eventBus.emit(GameEventNames.DiceRoll, {
+        rollType: "Test",
+        diceType: "1d6",
+        value,
+        total: value,
+        description: `Test: ${value}`,
+      });
+      session.dispose();
+    }
+
+    const logs = listDiceLogs();
+    expect(logs).toHaveLength(1);
+    expect(logs[0].entries).toHaveLength(2);
+  });
+
+  it("drops older logs, not this one, when storage is full", () => {
+    const old = (id: string) => ({
+      ...createDiceLog({ id, mode: "local", seed: 1, teams: [] }),
+      entries: [],
+      padding: "x".repeat(400),
+    });
+    const storage = new MemoryStorage(1200);
+    writeDiceLog(old("a"), storage);
+    writeDiceLog(old("b"), storage);
+
+    writeDiceLog(old("c"), storage);
+
+    expect(listDiceLogs(storage).map((log) => log.id)).toEqual(["b", "c"]);
   });
 });

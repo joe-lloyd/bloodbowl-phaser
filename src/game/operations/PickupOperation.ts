@@ -104,6 +104,8 @@ export class PickupOperation extends GameOperation {
         description: `Pickup (${player.playerName}): auto-fail`,
         resultState: "failure",
         teamId: player.teamId,
+        // Shown as a failed roll, but no die was thrown
+        context: { automatic: true },
       });
       this.success = false;
       roll = 1;

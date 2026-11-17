@@ -132,6 +132,8 @@ export interface BlockDiceRolledContext extends TriggerContextBase {
   /** The rolled results; a rule may reroll dice in place (Hatred). */
   results: BlockResult[];
   isAttackerChoice: boolean;
+  /** Each re-roll a rule made, by skill, for the RerollUsed event. */
+  rerolls: { skill: string; before: string[]; after: string[] }[];
 }
 
 /** A player is about to be pushed back. */

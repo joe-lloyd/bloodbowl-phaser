@@ -37,6 +37,8 @@ export type DiceLogEntry =
       teamId: string | null;
       /** The generator's state after this roll. */
       rng: number | null;
+      /** A result the rules decided with no die thrown (No Ball's pick-up). */
+      automatic: boolean;
     })
   | (Moment & {
       kind: "reroll";
@@ -141,6 +143,7 @@ export class DiceLogRecorder {
       resultState: roll.resultState ?? "none",
       teamId: roll.teamId ?? null,
       rng: roll.seed ?? null,
+      automatic: roll.context?.automatic === true,
     });
   };
 

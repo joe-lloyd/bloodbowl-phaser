@@ -187,6 +187,7 @@ export class BlockManager extends BlockPushChain {
         flow: this.callbacks.getFlowManager?.(),
         dice: this.diceController,
         triggers: [],
+        rerolls: [],
       };
       await foldTrigger(
         "onBlockDiceRolled",
@@ -194,6 +195,16 @@ export class BlockManager extends BlockPushChain {
         ctx
       );
       this.announce(ctx.triggers);
+      ctx.rerolls.forEach(({ skill, before, after }) =>
+        this.eventBus.emit(GameEventNames.RerollUsed, {
+          playerId: attacker.id,
+          source: "skill",
+          skill,
+          rollKind: "block",
+          before,
+          after,
+        })
+      );
     }
 
     const rollData: BlockRollData = {
