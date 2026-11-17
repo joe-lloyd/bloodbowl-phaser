@@ -270,6 +270,51 @@ function supportLanding(c: Context, mate: Player, at: Square): number {
   return marks(at) && !marks(mate.gridPosition!) ? w.markCarrier : 0;
 }
 
+/** A square the thrown player comes down on, or null for the crowd. */
+interface Descent {
+  at: Square | null;
+  p: number;
+  superb: boolean;
+}
+
+/**
+ * Every way a throw at `aim` comes down. A Superb or Subpar Throw scatters
+ * three times, or a Bullseye lands on the aim. A fumble bounces once from
+ * the thrower's square and lands as after a Subpar Throw.
+ */
+function comingDown(
+  aim: Square,
+  from: Square,
+  odds: ThrowOdds,
+  bullseye: boolean
+): Descent[] {
+  const out: Descent[] = [];
+  const cellAt = (cell: number) => ({
+    x: cell % WIDTH,
+    y: Math.floor(cell / WIDTH),
+  });
+  for (const [dx, dy] of DIRECTIONS) {
+    const at = { x: from.x + dx, y: from.y + dy };
+    out.push({
+      at: onPitch(at) ? at : null,
+      p: odds.fumble / 8,
+      superb: false,
+    });
+  }
+  for (const [superb, p] of [
+    [true, odds.superb],
+    [false, odds.subpar],
+  ] as const) {
+    if (superb && bullseye) {
+      out.push({ at: clamp(aim), p, superb });
+      continue;
+    }
+    for (const [cell, q] of scatterFrom(aim))
+      out.push({ at: cellAt(cell), p: p * q, superb });
+  }
+  return out.filter((d) => d.p > 0);
+}
+
 /** One thrown player at one aim square, priced over every way it can land. */
 function throwAt(
   c: Context,
@@ -294,12 +339,13 @@ function throwAt(
   const comesDown = (at: Square, superb: boolean): [number, number] => {
     const occupant = board.occupant[key(at)];
     if (occupant && occupant.id !== mate.id) {
-      // A crash knocks both players down; the opposing carrier drops the ball.
+      // A crash knocks both players down; the opposing carrier drops the
+      // ball, and knocking down our own player is a Turnover.
       const theirs = occupant.teamId !== board.us;
       const hit = theirs
         ? w.knockdown +
           (carrierOf(board)?.id === occupant.id ? w.carrierKnockdown : 0)
-        : -w.ownDown;
+        : -w.ownDown - (carrying ? 0 : turnover);
       return [0, hit - hurt - dropped(at)];
     }
     const needed = mate.stats.AG + (superb ? 0 : 1) + board.marks[key(at)];
@@ -307,24 +353,15 @@ function throwAt(
     return [lands, lands * landing(at) - (1 - lands) * (hurt + dropped(at))];
   };
   const from = thrower.gridPosition!;
-  let value =
-    // A carrier's Turnover is part of dropping the ball.
-    -odds.fumble * (hurt + (carrying ? dropped(from) : turnover)) -
-    odds.eaten * (hurt * 5 + dropped(from));
+  let value = -odds.eaten * (hurt * 5 + dropped(from));
   let good = 0;
-  for (const [superb, p] of [
-    [true, odds.superb],
-    [false, odds.subpar],
-  ] as const) {
-    if (p === 0) continue;
-    const spread =
-      superb && bullseye ? new Map([[key(clamp(aim)), 1]]) : scatterFrom(aim);
-    for (const [cell, q] of spread) {
-      const at = { x: cell % WIDTH, y: Math.floor(cell / WIDTH) };
-      const [lands, worth] = comesDown(at, superb);
-      value += p * q * worth;
-      if (worth > 0) good += p * q * lands;
-    }
+  for (const { at, p, superb } of comingDown(aim, from, odds, bullseye)) {
+    // Off the pitch the crowd injures the thrown player.
+    const [lands, worth] = at
+      ? comesDown(at, superb)
+      : [0, -(hurt * 2 + (carrying ? dropped(from) : turnover))];
+    value += p * worth;
+    if (worth > 0) good += p * lands;
   }
   const rolls: RollTarget[] = [
     { kind: "throw", target: odds.needed },

@@ -95,19 +95,19 @@ export function choosePlan<T extends { activation: Activation }>(
   variety: Variety,
   rng: CoachRng
 ): T {
-  const scored = options.map((o) => ({
-    o,
-    score: o.activation.value + lean(plan, o.activation),
-  }));
+  // Safety is judged on the plans' own values, before any lean: when the
+  // best of them is safe, no risky plan may be chosen at all.
+  const best = Math.max(...options.map((o) => o.activation.value));
+  const safe = options.some(
+    (o) => o.activation.value === best && o.activation.tier !== "risky"
+  );
+  const scored = options
+    .filter((o) => !safe || o.activation.tier !== "risky")
+    .map((o) => ({ o, score: o.activation.value + lean(plan, o.activation) }));
   const top = Math.max(...scored.map((s) => s.score));
   if (variety.margin <= 0) return scored.find((s) => s.score === top)!.o;
-  const safe = scored.some(
-    (s) => s.score === top && s.o.activation.tier !== "risky"
-  );
   const floor = top - variety.margin;
-  const close = scored.filter(
-    (s) => s.score > floor && (!safe || s.o.activation.tier !== "risky")
-  );
+  const close = scored.filter((s) => s.score > floor);
   const total = close.reduce((sum, s) => sum + (s.score - floor), 0);
   let roll = rng.next() * total;
   for (const s of close) {

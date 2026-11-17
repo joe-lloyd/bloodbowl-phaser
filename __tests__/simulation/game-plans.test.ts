@@ -68,6 +68,18 @@ describe("game plans", () => {
     expect([...picks]).toEqual(["safe"]);
   });
 
+  it("never lets a game plan's lean put a risky plan ahead of a safe best one", () => {
+    const options = [
+      option("safe", 30, "block"),
+      option("risky-pass", 29, "pass", "risky"),
+    ];
+    const rng = createCoachRng(3);
+    const picks = new Set<string>();
+    for (let i = 0; i < 1000; i++)
+      picks.add(choosePlan(options, plan("aerial"), { margin: 8 }, rng).id);
+    expect([...picks]).toEqual(["safe"]);
+  });
+
   it("treats a tie for best as safe when any tied plan is safe", () => {
     const options = [
       option("risky", 30, "block", "risky"),
