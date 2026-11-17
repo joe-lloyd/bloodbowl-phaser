@@ -37,6 +37,9 @@ export function KickoffTableDialog({ eventBus }: { eventBus: IEventBus }) {
       kickingTeamId: data.kickingTeamId,
     });
   });
+  // The kick-off is resolved, whether or not this dialog saw it rolled: an
+  // online page catching up replays the whole kick before it mounts
+  useEventBus(eventBus, GameEventNames.KickoffResult, () => setOpened(null));
 
   if (!opened) return null;
   return (

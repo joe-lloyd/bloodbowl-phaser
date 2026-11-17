@@ -98,6 +98,8 @@ export class KickoffEventManager {
   /** Changing Weather → Perfect Conditions: the kick scatters in the air. */
   private weatherScatterPending = false;
   private lastEvent: KickoffEvent | null = null;
+  /** From the table roll until its outcome is stored: never save then. */
+  private resolving = false;
   private chargePreviousActiveTeamId: string | null = null;
   private readonly setupValidator = new SetupValidator();
 
@@ -193,6 +195,7 @@ export class KickoffEventManager {
       kickingTeamId: kickingTeam.id,
     });
     await rolled;
+    this.resolving = true;
     const roll = this.diceController.roll2D6(
       KICKOFF_TABLE_ROLL,
       kickingTeam.id
@@ -242,6 +245,7 @@ export class KickoffEventManager {
     }
 
     this.state.kickoffResolution = { roll, event, meaning: outcome.meaning, outcome };
+    this.resolving = false;
 
     this.eventBus.emit(GameEventNames.KickoffResult, {
       roll,
@@ -297,6 +301,11 @@ export class KickoffEventManager {
         isTeam1Kicking ? this.team2 : this.team1
       ),
     });
+  }
+
+  /** The table is rolled and its outcome not yet stored. */
+  public isResolving(): boolean {
+    return this.resolving;
   }
 
   /** The event rolled for the in-flight kick (null outside kickoff). */

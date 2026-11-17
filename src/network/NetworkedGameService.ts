@@ -270,6 +270,9 @@ export class NetworkedGameService implements IGameService {
   isTouchbackPending(): boolean {
     return this.inner.isTouchbackPending();
   }
+  isKickoffTableResolving(): boolean {
+    return this.inner.isKickoffTableResolving();
+  }
   getKickoffEventStep(): KickoffEventStepState | null {
     const pending = this.pendingDecision();
     if (pending?.type !== "kickoff-event") return this.kickoffStepInFlight;

@@ -349,6 +349,10 @@ export class GameService implements IGameService {
     return this.parts.ballManager.kickoffBounceTouchback(to);
   }
 
+  isKickoffTableResolving(): boolean {
+    return this.parts.kickoffEventManager.isResolving();
+  }
+
   getKickoffEventStep():
     | import("@/game/kickoff/KickoffEventManager").KickoffEventStepState
     | null {
