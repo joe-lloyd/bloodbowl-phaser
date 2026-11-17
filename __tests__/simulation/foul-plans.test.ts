@@ -21,12 +21,13 @@ describe("foul odds", () => {
   const [target] = game.ctx.team2.players;
   const av9 = { ...target, stats: { ...target.stats, AV: 9 }, skills: [] };
   const plain = { ...fouler, skills: [] };
+  const alone = { modifier: 0, none: true };
 
   it("prices an unassisted foul on AV 9+ face by face", () => {
     // Armour breaks on 9+, 10 faces. A casualty then needs 10+ (6 faces), a
     // KO 8 or 9 (9 faces). Spotted: 4 unbroken doubles, 2 broken doubles,
     // and an Injury double after the other 8 breaks.
-    const odds = foulOdds(plain, av9, 0);
+    const odds = foulOdds(plain, av9, alone);
     expect(odds.casualty).toBeCloseTo(of1296(60), 12);
     expect(odds.ko).toBeCloseTo(of1296(90), 12);
     expect(odds.sentOff).toBeCloseTo(of1296(144 + 72 + 48), 12);
@@ -37,13 +38,23 @@ describe("foul odds", () => {
       ...plain,
       skills: [{ type: SkillType.SNEAKY_GIT }],
     } as typeof plain;
-    expect(foulOdds(git, av9, 0).sentOff).toBeCloseTo(of1296(72 + 48), 12);
+    expect(foulOdds(git, av9, alone).sentOff).toBeCloseTo(of1296(72 + 48), 12);
+  });
+
+  it("gives Lone Fouler its re-roll only with no assists on either side", () => {
+    const lone = {
+      ...plain,
+      skills: [{ type: SkillType.LONE_FOULER }],
+    } as typeof plain;
+    const cancelled = { modifier: 0, none: false };
+    expect(foulOdds(lone, av9, cancelled).casualty).toBeCloseTo(of1296(60), 12);
+    expect(foulOdds(lone, av9, alone).casualty).toBeGreaterThan(of1296(60));
   });
 
   it("breaks more armour with each assist", () => {
-    expect(foulOdds(plain, av9, 2).casualty).toBeGreaterThan(
-      foulOdds(plain, av9, 0).casualty
-    );
+    expect(
+      foulOdds(plain, av9, { modifier: 2, none: false }).casualty
+    ).toBeGreaterThan(foulOdds(plain, av9, alone).casualty);
   });
 });
 

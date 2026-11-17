@@ -51,7 +51,10 @@ async function playTurn(subject: HeadlessGame) {
  * Turn 3. The carrier, with a thrower's PA, has acted and stands deep in
  * our half, pressed by the defence. A catcher waits behind it.
  */
-async function setupTurn(carrier: Partial<PlayerPlacement> = {}) {
+async function setupTurn(
+  carrier: Partial<PlayerPlacement> = {},
+  more: PlayerPlacement[] = []
+) {
   const subject = new HeadlessGame({
     seed: 1,
     scenario: {
@@ -81,6 +84,7 @@ async function setupTurn(carrier: Partial<PlayerPlacement> = {}) {
             stats: { MA: 8, AG: 2 },
             skills: [SkillType.CATCH],
           },
+          ...more,
         ],
         team2Placements: [
           { playerIndex: 0, x: 7, y: 4 },
@@ -158,6 +162,26 @@ describe("two-step pass", () => {
     expect(
       PassController.rangeValue(thrower.gridPosition!, at)
     ).toBeLessThanOrEqual(2);
+  });
+
+  it("sends one receiver deep when several could go", async () => {
+    const catcher = (playerIndex: number, y: number): PlayerPlacement => ({
+      playerIndex,
+      x: 6,
+      y,
+      stats: { MA: 8, AG: 2 },
+      skills: [SkillType.CATCH],
+    });
+    const subject = await setupTurn({}, [catcher(2, 3), catcher(3, 7)]);
+    const [, first, second, third] = subject.ctx.team1.players;
+
+    const { declared } = await playTurn(subject);
+
+    expect(declared).toEqual([
+      `${first.id}: moves to deep`,
+      `${second.id}: blitzes (Dodge: 2+)`,
+      `${third.id}: moves to cage`,
+    ]);
   });
 
   it("keeps the catcher home when the carrier can run the ball in next turn", async () => {

@@ -46,18 +46,27 @@ function eachPair(p: number, roll: (a: number, b: number, q: number) => void) {
   for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) roll(a, b, p / 36);
 }
 
+/**
+ * A Foul's assists: their net modifier, and whether neither side has any.
+ * Assists that cancel out still deny Lone Fouler.
+ */
+export interface FoulAssists {
+  modifier: number;
+  none: boolean;
+}
+
 /** Every Armour and Injury Roll of one Foul, die face by die face. */
 export function foulOdds(
   fouler: Player,
   target: Player,
-  assists: number
+  assists: FoulAssists
 ): FoulOdds {
   const locked = has(target, SkillType.IRON_HARD_SKIN);
-  const modifier = locked ? 0 : assists;
+  const modifier = locked ? 0 : assists.modifier;
   const dirty = has(fouler, SkillType.DIRTY_PLAYER);
   const dirtyOnArmourAllowed = dirty && !locked;
   const sneaky = has(fouler, SkillType.SNEAKY_GIT);
-  const lone = has(fouler, SkillType.LONE_FOULER) && assists === 0;
+  const lone = has(fouler, SkillType.LONE_FOULER) && assists.none;
   const [stunnedUpTo, koUpTo] = injuryBands(target);
   const regenerates = has(target, SkillType.REGENERATION) ? 0.5 : 1;
   const AV = target.stats.AV;
@@ -103,8 +112,12 @@ function foulAt(c: Context, fouler: Player, target: Player, at: Square) {
   const everyone = c.board.everyone.map((p) =>
     p.id === fouler.id ? moved : p
   );
-  const { modifier } = validator.analyzeFoul(moved, target, everyone);
-  const odds = foulOdds(fouler, target, modifier);
+  const { offensiveAssists, defensiveAssists, modifier } =
+    validator.analyzeFoul(moved, target, everyone);
+  const odds = foulOdds(fouler, target, {
+    modifier,
+    none: offensiveAssists.length === 0 && defensiveAssists.length === 0,
+  });
   return (
     odds.casualty * c.casualty +
     odds.ko * c.w.foulKnockOut -

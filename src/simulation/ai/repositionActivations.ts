@@ -150,15 +150,20 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
   const at = carrier.gridPosition!;
   if (carrier.stats.PA <= 0 || toGoal(board, at) <= nextTurnReach(carrier))
     return;
+  // One receiver deep is enough: once one has gone, the rest keep the cage.
+  const wentDeep = (p: Player) =>
+    p.id !== carrier.id &&
+    standing(p) &&
+    !c.available.get(p.id)?.has("move") &&
+    isDeep(c, at, p.gridPosition!, p);
+  if (board.ours.some(wentDeep)) return;
   const receiver = deepReceiver(c, carrier);
   if (!receiver) return;
   for (let x = 0; x < WIDTH; x++)
     for (let y = 1; y < HEIGHT - 1; y++) {
       const s = { x, y };
-      const run = toGoal(board, s);
-      const range = passRange(at, s);
-      if (run === 0 || run > receiver.stats.MA) continue;
-      if (!range || range.type === "Long Bomb") continue;
+      if (!isDeep(c, at, s, receiver)) continue;
+      const range = passRange(at, s)!;
       const target = passTarget(carrier, [], board.weather, range);
       const throws = hasSkill(carrier.skills, SkillType.PASS)
         ? withReroll(d6(target))
@@ -170,6 +175,24 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
         receiver.id
       );
     }
+}
+
+/**
+ * A deep square for `receiver`: off the sidelines, short of the end zone
+ * but no further than its Movement from it, and in range of a throw from
+ * `from` short of a Long Bomb.
+ */
+function isDeep(c: Context, from: Square, s: Square, receiver: Player) {
+  const run = toGoal(c.board, s);
+  const range = passRange(from, s);
+  return (
+    s.y > 0 &&
+    s.y < HEIGHT - 1 &&
+    run > 0 &&
+    run <= receiver.stats.MA &&
+    !!range &&
+    range.type !== "Long Bomb"
+  );
 }
 
 /** Our carrier: a cage around it and receivers ahead of it. */
