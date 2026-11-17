@@ -39,6 +39,7 @@ export type PromptRollType =
   | "dodge"
   | "rush"
   | "pickup"
+  | "secureBall"
   | "pass"
   | "catch"
   | "armour";

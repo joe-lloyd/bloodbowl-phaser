@@ -9,6 +9,7 @@ const ROLL_NAMES: Record<StepPrompt["rolls"][number]["type"], string> = {
   dodge: "Dodge",
   rush: "Rush",
   pickup: "Pick up",
+  secureBall: "Secure the Ball",
   pass: "Pass",
   catch: "Catch",
   armour: "Foul armour",

@@ -36,7 +36,9 @@ export class CrowdInjuryOperation extends GameOperation {
      * Treacherous Trapdoor (L12): the player fell through the Trapdoor at
      * `exitSquare` instead, so a ball they carried Bounces from it.
      */
-    private trapdoor?: { carriedBall: boolean }
+    private trapdoor?: { carriedBall: boolean },
+    /** A thrown player may exit from a square holding someone else's ball. */
+    private carriedBallOverride?: boolean
   ) {
     super();
   }
@@ -109,6 +111,7 @@ export class CrowdInjuryOperation extends GameOperation {
   }
 
   private carriedBall(state: GameState): boolean {
+    if (this.carriedBallOverride !== undefined) return this.carriedBallOverride;
     if (this.trapdoor) return this.trapdoor.carriedBall;
     return ballOnSquare(state, this.exitSquare);
   }

@@ -59,7 +59,13 @@ export class Confirmations {
 }
 
 const rollName = (kind: RouteRoll["type"]) =>
-  kind === "pickup" ? "Pick up" : kind === "dodge" ? "Dodge" : "Rush";
+  kind === "secureBall"
+    ? "Secure the Ball"
+    : kind === "pickup"
+      ? "Pick up"
+      : kind === "dodge"
+        ? "Dodge"
+        : "Rush";
 
 type RerollArbiter = ReturnType<IGameService["getRerollArbiter"]>;
 
@@ -144,7 +150,8 @@ export function riskyStepRequest(
     offer: availableRerolls(
       { gameService: deps.gameService, eventBus: deps.eventBus },
       player,
-      roll.type
+      roll.type === "secureBall" ? "pickup" : roll.type,
+      roll.type !== "secureBall"
     ),
   }));
   const rerolls = offers.flatMap(({ type, target, offer }) => {
@@ -165,8 +172,9 @@ export function riskyStepRequest(
       });
     });
   });
-  const title =
-    risk.kind === "dodge"
+  const title = rolls.some((roll) => roll.type === "secureBall")
+    ? "Secure the Ball"
+    : risk.kind === "dodge"
       ? "Dodge"
       : risk.kind === "rush"
         ? "Rush"
@@ -181,7 +189,7 @@ export function riskyStepRequest(
       rolls: rolls.map(({ type, target }) => ({ type, target })),
     },
     message:
-      `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
+      `${rollText}. ${rolls.some((roll) => roll.type === "pickup" || roll.type === "secureBall") ? "A fail" : "A fall"} is a turnover.\n` +
       (rerolls.length
         ? `Re-rolls: ${rerolls.join(", ")}.`
         : "No re-roll available."),

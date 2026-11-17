@@ -21,6 +21,7 @@ const ROLL_LETTER: Record<RouteRoll["type"], string> = {
   dodge: "D",
   rush: "R",
   pickup: "P",
+  secureBall: "S",
 };
 
 /**

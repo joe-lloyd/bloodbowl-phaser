@@ -164,6 +164,7 @@ const STEP_ROLLS = new Set<string>([
   "dodge",
   "rush",
   "pickup",
+  "secureBall",
   "pass",
   "catch",
   "armour",

@@ -205,7 +205,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "ttm-throw",
         name: "Throw Team-mate — short throw",
         description:
-          "An Ogre Blocker throws a Gnoblar at a nearby square: it scatters and makes a Right Stuff landing roll (Standing = no turnover, Prone = turnover); a fumble drops and injures it",
+          "An Ogre Blocker throws a Gnoblar at a nearby square: it scatters and attempts to land; a fumble bounces from the Ogre and attempts to land at -1",
         setup: ttm({ mode: "throw" }),
         script: script("throw", 14, 5),
         seedSearch: { from: 1, limit: 800 },
@@ -241,16 +241,25 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
           {
             id: "fumbled-throw",
-            name: "Fumbled throw — dropped and injured",
+            name: "Fumbled throw — bounces and attempts to land",
             matches: (r) =>
               skillTriggered(r, SkillType.THROW_TEAM_MATE) &&
               saw(r, "Fumbled throw"),
             verify: (r) => {
               assert(
-                injuryOf(r, MATE),
-                "a fumbled throw injures the dropped Gnoblar"
+                rolled(r, "Bounce") && landingRolls(r) === 1,
+                "a fumbled throw bounces and makes a Landing roll"
               );
-              assert(turnoverHappened(r), "a fumbled throw is a turnover");
+              assert(
+                !turnoverHappened(r),
+                "a fumble without the ball is no automatic turnover"
+              );
+              const mate = playerOf(r, MATE).gridPosition!;
+              const thrower = playerOf(r, "team1:0").gridPosition!;
+              assert(
+                mate.x !== thrower.x || mate.y !== thrower.y,
+                "the dropped player must not share the thrower's square"
+              );
             },
           },
           {
@@ -349,7 +358,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "ttm-carrier-fumble",
         name: "Throw Team-mate — a ball-carrying Gnoblar is fumbled",
         description:
-          "When a fumbled throw drops a Gnoblar carrying the ball, the ball bounces from the square it was dropped from",
+          "A fumbled ball carrier bounces with the ball; if they fail to land, the ball bounces from their landing square",
         setup: ttm({
           mode: "throw",
           ball: { x: 11, y: 5 }, // on the Gnoblar being thrown
@@ -359,12 +368,35 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         outcomes: [
           {
             id: "carried-ball-bounces",
-            name: "The carried ball bounces on a fumble",
+            name: "The carried ball bounces after a failed fumble landing",
             matches: (r) =>
               saw(r, "Fumbled throw") && rolled(r, "Bounce Direction"),
             verify: (r) => {
-              assert(injuryOf(r, MATE), "the dropped Gnoblar is injured");
-              assert(turnoverHappened(r), "a fumbled throw is a turnover");
+              assert(
+                !playerStanding(r, MATE),
+                "the ball carrier failed to land"
+              );
+              assert(
+                turnoverHappened(r),
+                "a failed landing with the ball is a turnover"
+              );
+            },
+          },
+          {
+            id: "carried-ball-kept",
+            name: "A fumbled carrier lands safely and keeps the ball",
+            matches: (r) => saw(r, "Fumbled throw") && saw(r, "lands safely"),
+            verify: (r) => {
+              const mate = playerOf(r, MATE).gridPosition!;
+              const ball = r.game.ctx.gameService.getState().ballPosition;
+              assert(
+                ball?.x === mate.x && ball?.y === mate.y,
+                "the safely landed carrier keeps the ball"
+              );
+              assert(
+                !turnoverHappened(r),
+                "a safe fumble landing is not a turnover"
+              );
             },
           },
         ],

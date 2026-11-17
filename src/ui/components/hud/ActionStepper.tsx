@@ -44,6 +44,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
   const handleStepClick = (stepId: string) => {
     eventBus.emit(GameEventNames.UI_StepSelected, { stepId });
   };
+  const singleMove = steps.length === 1 && steps[0].id === "move";
 
   return (
     <div
@@ -54,7 +55,11 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
       }
     >
       {/* Header */}
-      {!compact && <div className="hud-label mb-2 px-1">Action Sequence</div>}
+      {!compact && (
+        <div className="hud-label mb-2 px-1">
+          {singleMove ? "Action" : "Action Sequence"}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         {steps.map((step, index) => {
@@ -69,6 +74,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
               isActive={isActive}
               isPast={isPast}
               compact={compact}
+              numbered={!singleMove}
               onSelect={handleStepClick}
             />
           );
@@ -119,6 +125,7 @@ function StepButton({
   isActive,
   isPast,
   compact,
+  numbered,
   onSelect,
 }: {
   step: { id: string; label: string };
@@ -126,11 +133,12 @@ function StepButton({
   isActive: boolean;
   isPast: boolean;
   compact: boolean;
+  numbered: boolean;
   onSelect: (stepId: string) => void;
 }) {
   const button = useRef<HTMLButtonElement>(null);
   useHotkey(
-    index < 9 ? String(index + 1) : undefined,
+    numbered && index < 9 ? String(index + 1) : undefined,
     () => onSelect(step.id),
     true,
     button
@@ -153,17 +161,19 @@ function StepButton({
       }`}
     >
       {/* The step's number is also its key */}
-      <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-hud font-hud-display text-hud-base leading-none ${
-          isActive
-            ? "bg-hud-gold text-hud-ink"
-            : isPast
-              ? "bg-hud-good text-hud-ink"
-              : "border border-white/15 text-hud-dim"
-        }`}
-      >
-        {isPast ? <CheckIcon /> : index + 1}
-      </span>
+      {numbered && (
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-hud font-hud-display text-hud-base leading-none ${
+            isActive
+              ? "bg-hud-gold text-hud-ink"
+              : isPast
+                ? "bg-hud-good text-hud-ink"
+                : "border border-white/15 text-hud-dim"
+          }`}
+        >
+          {isPast ? <CheckIcon /> : index + 1}
+        </span>
+      )}
 
       <span
         className={`flex-grow font-hud-label font-bold uppercase tracking-[0.05em] ${compact ? "text-hud-sm leading-tight" : "text-hud-base"}`}

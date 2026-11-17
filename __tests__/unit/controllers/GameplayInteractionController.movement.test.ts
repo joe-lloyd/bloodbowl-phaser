@@ -12,6 +12,7 @@ import {
   answerStepPrompt,
   team1Id,
   player1,
+  player2,
   createController,
 } from "./GameplayInteractionController.setup";
 
@@ -211,6 +212,54 @@ describe("GameplayInteractionController", () => {
       });
       expect(mockGameService.movePlayer).not.toHaveBeenCalled();
       expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();
+    });
+
+    it("shows Rush 2+ and Dodge 3+ for a Stunty player in three tackle zones", async () => {
+      const goblin = {
+        ...player1,
+        playerName: "Goblin",
+        skills: [getSkill(SkillType.STUNTY), getSkill(SkillType.DODGE)],
+      };
+      mockGameService.getPlayerById.mockReturnValue(goblin);
+      mockGameService.getMovementUsed.mockReturnValue(6);
+      mockScene.team2.players = [
+        { ...player2, id: "gnome1", gridPosition: { x: 5, y: 6 } },
+        { ...player2, id: "gnome2", gridPosition: { x: 6, y: 6 } },
+        { ...player2, id: "gnome3", gridPosition: { x: 7, y: 6 } },
+      ];
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      try {
+        await controller.onSquareClicked(6, 5);
+        const rolls = [
+          { type: "rush", target: 2, square: { x: 6, y: 5 } },
+          { type: "dodge", target: 3, square: { x: 6, y: 5 } },
+        ];
+        expect(mockPitch.drawMovementPath).toHaveBeenLastCalledWith(
+          [{ x: 5, y: 5 }, { x: 6, y: 5 }],
+          rolls,
+          0
+        );
+        expect(mockEventBus.emit).toHaveBeenCalledWith(
+          GameEventNames.UI_RoutePreview,
+          expect.objectContaining({ rolls })
+        );
+
+        void controller.onSquareClicked(6, 5);
+        const prompt = await answerStepPrompt(false);
+        expect(prompt.message).toContain("Rush: 2+");
+        expect(prompt.message).toContain("Dodge: 3+");
+        expect(prompt.step.rolls).toEqual([
+          { type: "rush", target: 2 },
+          { type: "dodge", target: 3 },
+        ]);
+        expect(mockGameService.movePlayer).not.toHaveBeenCalled();
+      } finally {
+        mockGameService.getMovementUsed.mockReturnValue(0);
+      }
     });
 
     it("lists the team re-roll once for a dodge onto the ball", async () => {

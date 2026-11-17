@@ -16,7 +16,13 @@ import { moveAllowance, standUpCost } from "../../skills/movement";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { planMoveLegs, stepRolls } from "../../rules/moveLegs";
 import { rushModifier } from "../../inducements/matchInducements";
-import { pickupTarget, RoutePreview } from "../../rules/rollPreview";
+import {
+  pickupTarget,
+  secureBallTarget,
+  RoutePreview,
+  RouteRoll,
+} from "../../rules/rollPreview";
+import { isSecuringBall } from "../../rules/secureBall";
 import { ballInTheAir } from "../../rules/ballInTheAir";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { riskyStepRequest } from "./Confirmations";
@@ -99,17 +105,19 @@ export function executeMove(c: GameplayInteractionController): void {
 function rerollSources(
   c: GameplayInteractionController,
   player: Player,
-  kinds: ("dodge" | "rush" | "pickup")[]
+  kinds: RouteRoll["type"][]
 ): string[] {
   const arbiter = c.gameService.getRerollArbiter();
   const skills = new Set(
-    kinds.map((kind) =>
-      kind === "dodge"
-        ? SkillType.DODGE
-        : kind === "rush"
-          ? SkillType.SURE_FEET
-          : SkillType.SURE_HANDS
-    )
+    kinds
+      .filter((kind) => kind !== "secureBall")
+      .map((kind) =>
+        kind === "dodge"
+          ? SkillType.DODGE
+          : kind === "rush"
+            ? SkillType.SURE_FEET
+            : SkillType.SURE_HANDS
+      )
   );
   const sources: string[] = [];
   for (const skill of skills) {
@@ -140,9 +148,10 @@ export function planLegs(
 ) {
   const state = c.gameService.getState();
   const mover = withDriveModifiers(player, state);
+  const securing = isSecuringBall(state, player.id);
   return planMoveLegs(player.gridPosition!, route, {
     opponents: c.getOpposingPlayers(player.teamId),
-    ag: mover.stats.AG,
+    player: mover,
     ma: mover.stats.MA,
     used:
       c.gameService.getMovementUsed(player.id) +
@@ -156,12 +165,13 @@ export function planLegs(
       !c.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
         ? {
             square: state.ballPosition,
-            target: pickupTarget(
+            target: (securing ? secureBallTarget : pickupTarget)(
               mover,
               state.ballPosition,
               c.getOpposingPlayers(player.teamId),
               state.weather
             ),
+            ...(securing ? { securing: true } : {}),
           }
         : undefined,
   });
@@ -349,7 +359,12 @@ function routesClosed(c: GameplayInteractionController): boolean {
     !!c.gameService.getKickoffEventStep()?.charge?.activePlayerId;
   if (state.phase !== GamePhase.PLAY && !charging) return true;
   const mode = c.currentActionMode;
-  return mode !== null && mode !== "move" && mode !== "blitz";
+  return (
+    mode !== null &&
+    mode !== "move" &&
+    mode !== "blitz" &&
+    mode !== "secureBall"
+  );
 }
 
 /** The player whose route a drag from this square would draw, if any. */

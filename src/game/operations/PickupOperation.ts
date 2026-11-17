@@ -14,6 +14,11 @@ import {
 } from "../skills";
 import { isSecuringBall } from "../rules/secureBall";
 
+function pickupNotification(securing: boolean, success: boolean): string {
+  if (securing) return success ? "Ball secured!" : "Failed to secure the ball!";
+  return success ? "Pickup Successful!" : "Pickup Failed!";
+}
+
 /**
  * PickupOperation
  *
@@ -119,7 +124,7 @@ export class PickupOperation extends GameOperation {
               pickupCtx.modifiers,
               player.playerName
             ),
-        { skillAllowed: false }
+        { skillAllowed: false, rollName: "Secure the Ball" }
       );
       this.success = check.success;
       roll = check.roll;
@@ -141,7 +146,10 @@ export class PickupOperation extends GameOperation {
 
     if (this.success) {
       // PICKUP SUCCESS
-      eventBus.emit(GameEventNames.UI_Notification, "Pickup Successful!");
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        pickupNotification(securing, true)
+      );
 
       // Update possession
       gameService.setBallPosition(player.gridPosition.x, player.gridPosition.y);
@@ -151,28 +159,33 @@ export class PickupOperation extends GameOperation {
         playerId: this.playerId,
         success: true,
         roll,
-        target: player.stats.AG,
+        target: securing ? 2 : player.stats.AG,
       });
 
       // Picking the ball up while standing in the scoring end zone is a TD
       gameService.checkForTouchdown(this.playerId);
     } else {
       // PICKUP FAIL
-      eventBus.emit(GameEventNames.UI_Notification, "Pickup Failed!");
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        pickupNotification(securing, false)
+      );
 
       // Emit legacy event for compatibility
       eventBus.emit(GameEventNames.BallPickup, {
         playerId: this.playerId,
         success: false,
         roll,
-        target: player.stats.AG,
+        target: securing ? 2 : player.stats.AG,
       });
 
       // Bounce ball from the current square
       flowManager.add(new BounceOperation(player.gridPosition), true);
 
       // Turnover!
-      gameService.triggerTurnover("Failed Pickup");
+      gameService.triggerTurnover(
+        securing ? "Failed Secure the Ball" : "Failed Pickup"
+      );
     }
   }
 }
