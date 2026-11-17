@@ -147,7 +147,7 @@ export class ThrowTeammateOperation extends GameOperation {
 
     // 3. Fumble handling.
     if (fumbled && this.mode === "kick") {
-      this.fumbleKick(context, teammate);
+      await this.fumbleKick(context, teammate);
       return;
     }
     if (fumbled) {
@@ -388,7 +388,10 @@ export class ThrowTeammateOperation extends GameOperation {
     };
   }
 
-  private fumbleKick(context: FlowContext, teammate: Player): void {
+  private async fumbleKick(
+    context: FlowContext,
+    teammate: Player
+  ): Promise<void> {
     const { gameService, eventBus } = context;
     eventBus.emit(
       GameEventNames.UI_Notification,
@@ -397,7 +400,11 @@ export class ThrowTeammateOperation extends GameOperation {
     this.bounceIfCarried(gameService, context, teammate);
     teammate.gridPosition = undefined;
     teammate.status = PlayerStatus.PRONE;
-    context.flowManager.add(new InjuryOperation(teammate.id), true);
+    await context.flowManager.runToRest(new InjuryOperation(teammate.id));
+    // Removed from play, a Stunned player goes to the Reserves box, as a
+    // Stunned player in the crowd does.
+    if (gameService.getPlayerById(teammate.id)?.status === PlayerStatus.STUNNED)
+      movePlayerToBox(teammate, { box: "reserves" }, eventBus);
     gameService.triggerTurnover("Fumbled Kick Team-mate");
   }
 
