@@ -129,7 +129,6 @@ function playerActions({
       canFoul: !foulSpent(state, teamId),
       carriesBall: ballOnSquare(state, square),
       canBlock: adjacentStanding.length > 0,
-      canFoulAdjacent: adjacentDown.length > 0,
     })
   );
   if (actions.length === 0) return null;
@@ -172,7 +171,6 @@ function declarableActions({
   canFoul,
   carriesBall,
   canBlock,
-  canFoulAdjacent,
 }: {
   player: Player;
   availability: ActionAvailability;
@@ -180,7 +178,6 @@ function declarableActions({
   canFoul: boolean;
   carriesBall: boolean;
   canBlock: boolean;
-  canFoulAdjacent: boolean;
 }): ActionType[] {
   // A Standing Fanatic may declare nothing but Ball & Chain.
   if (availability.ballAndChain) return ["ballAndChain"];
@@ -209,7 +206,9 @@ function declarableActions({
     ["throwTeamMate", availability.throwTeammate || availability.kickTeammate],
     ["punt", availability.punt],
     ["gaze", availability.gaze],
-    ["foul", canFoul && canFoulAdjacent],
+    // A Foul may move first: the engine already requires a reachable downed
+    // opponent, not one standing beside the fouler now.
+    ["foul", canFoul && availability.foul],
   ]);
   for (const replacement of availability.directBlockReplacements) {
     if (!actions.includes(replacement)) actions.push(replacement);

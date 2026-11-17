@@ -36,6 +36,7 @@ const PLAYS: readonly [string, string][] = [
   ["secures the ball", "secure-ball"],
   ["goes for the ball", "pickup"],
   ["blitzes", "blitz"],
+  ["fouls", "foul"],
   ["blocks", "block"],
   ["stands up", "stand-up"],
 ];

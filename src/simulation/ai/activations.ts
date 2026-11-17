@@ -27,6 +27,7 @@ import {
 } from "./blockActivations";
 import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
+import { foulActivations } from "./foulActivations";
 import {
   feedingSupportActivations,
   holdsFeedingSupport,
@@ -70,6 +71,7 @@ export type Intent =
   | { kind: "pass"; to: Player; route: Route | null }
   | { kind: "throw-teammate"; mate: Player; aim: Square; carrying: boolean }
   | { kind: "block"; target: Player }
+  | { kind: "foul"; target: Player; route: Route | null }
   | { kind: "blitz"; target: Player; route: Route | null }
   | { kind: "reposition"; role: Role; route: Route }
   | { kind: "stand-up" };
@@ -107,6 +109,7 @@ export function planIdentity(plan: Activation): string {
     case "block":
     case "blitz":
     case "gaze":
+    case "foul":
       return `${prefix}/${intent.target.id}`;
     case "multiple-block":
       return `${prefix}/${intent.targets
@@ -166,6 +169,7 @@ function fieldOptions(
     }
   }
   if (actions.has("blitz")) out.push(...blitzActivations(c, player));
+  if (actions.has("foul")) out.push(...foulActivations(c, player));
   if (actions.has("move") || actions.has("standUp"))
     out.push(...repositionActivation(c, player, roleSquares(c)));
   return out;
@@ -260,6 +264,8 @@ function continuationOptions(
       return carrying
         ? passActivations(c, player)
         : pickupActivation(c, player);
+    case "foul":
+      return foulActivations(c, player);
     default:
       return [];
   }

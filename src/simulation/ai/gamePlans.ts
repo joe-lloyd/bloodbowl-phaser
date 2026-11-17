@@ -60,6 +60,7 @@ export const GAME_PLANS: readonly GamePlan[] = [
       block: 4,
       blitz: 4,
       "multiple-block": 4,
+      foul: 4,
       "reposition:mark": 2,
     },
   },

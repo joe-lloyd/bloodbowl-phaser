@@ -60,6 +60,7 @@ export function noteFor(a: Activation): string {
         ? "throws the ball carrier"
         : "throws a team-mate",
     block: "blocks",
+    foul: "fouls",
     blitz: "blitzes",
     reposition:
       a.intent.kind === "reposition" ? `moves to ${a.intent.role}` : "moves",
@@ -140,6 +141,18 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
             c.action === "gaze" &&
             c.attackerId === id &&
             c.defenderId === target
+        )
+      );
+    }
+    case "foul": {
+      const at = a.intent.target.gridPosition!;
+      return walkThen(a.intent.route, () =>
+        match(
+          (c) =>
+            c.type === "foul" &&
+            c.playerId === id &&
+            c.x === at.x &&
+            c.y === at.y
         )
       );
     }

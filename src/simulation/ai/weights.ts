@@ -58,6 +58,18 @@ export const DEFAULT_WEIGHTS = {
   turnoverPerPlayer: 6,
   /** Our carrier falls and the ball comes loose. */
   ballLoss: 60,
+  /**
+   * A lineman Sent-off for fouling, for the rest of the game; a player's
+   * cost scales it, so a Gnoblar is cheap to lose and a big guy is not.
+   */
+  sentOff: 40,
+  /** A Foul that Knocks Out its target, gone for the drive. */
+  foulKnockOut: 12,
+  /**
+   * How much more a casualty counts with the whole game left: a player
+   * removed early is missing for every turn after. 0 counts it the same.
+   */
+  attrition: 0,
   /** Our player ends on the ground: out of position, maybe hurt. */
   ownDown: 12,
   /** Residual positioning value when late progress cannot set up a touchdown. */
