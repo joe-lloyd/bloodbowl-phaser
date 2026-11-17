@@ -674,15 +674,10 @@ export function TeamBuilder() {
         waitingForDevelopment={waitingForDevelopment}
       />
       {captainVacancyCandidates(team).length > 0 && (
-        <Notice
-          tone="info"
-          title="No Team Captain"
-          role="status"
-          className="mb-4"
-        >
-          Your Team Captain has left the roster. You appoint a new one in the
-          pre-game of your next league fixture, after both coaches confirm
-          their inducements. Any player except a Big Guy may take the title.
+        <Notice tone="info" title="No Team Captain" className="mb-4">
+          This team has no Team Captain. You may appoint one in the pre-game of
+          your next league fixture, after both coaches confirm their
+          inducements. Any player except a Big Guy may take the title.
         </Notice>
       )}
       {saveError && (
