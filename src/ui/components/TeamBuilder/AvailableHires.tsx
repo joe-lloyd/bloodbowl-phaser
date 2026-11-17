@@ -6,6 +6,7 @@ import { PlayerStats } from "../../../types/Player";
 import { HudButton } from "../componentWarehouse/HudKit";
 import { Tooltip } from "../componentWarehouse/Tooltip";
 import { BloodBowlTable } from "../componentWarehouse/BloodBowlTable";
+import type { PositionAllowance } from "../../../game/rules/teamPricing";
 
 interface AvailableHiresProps {
   roster: TeamRoster;
@@ -15,6 +16,8 @@ interface AvailableHiresProps {
   onHirePlayer: (positionName: string) => void;
   /** Why a position cannot be hired now (roster limits), if it cannot. */
   hireRefusal?: (template: PlayerTemplate) => string | undefined;
+  /** How many of each position the team has and may have. */
+  allowance?: (template: PlayerTemplate) => PositionAllowance;
 }
 
 export function AvailableHires({
@@ -23,6 +26,7 @@ export function AvailableHires({
   treasury,
   onHirePlayer,
   hireRefusal,
+  allowance,
 }: AvailableHiresProps) {
   const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
 
@@ -38,6 +42,7 @@ export function AvailableHires({
         { label: "PA", className: "num" },
         { label: "AV", className: "num" },
         { label: "Skills", width: "30%" },
+        { label: "Allowed", className: "num" },
         { label: "Cost", className: "num" },
         { label: "", width: "96px" },
       ]}
@@ -65,6 +70,14 @@ export function AvailableHires({
             <td>
               <SkillList skills={template.skills} />
             </td>
+            <AllowedCell
+              allowance={
+                allowance?.(template) ?? {
+                  hired: 0,
+                  max: template.maxAllowed ?? 0,
+                }
+              }
+            />
             <td className="num font-hud-label text-base font-bold text-hud-gold">
               {formatGold(template.cost)}
             </td>
@@ -84,6 +97,22 @@ export function AvailableHires({
         );
       })}
     </BloodBowlTable>
+  );
+}
+
+/** "2 / 4": how many of the position are hired, of the most allowed. */
+function AllowedCell({ allowance }: { allowance: PositionAllowance }) {
+  const full = allowance.hired >= allowance.max;
+  return (
+    <td
+      className={`num font-hud-label text-base font-bold tabular-nums ${
+        full ? "text-hud-mute" : "text-hud-bone"
+      }`}
+      data-testid="hire-allowance"
+      title={`${allowance.hired} hired of ${allowance.max} allowed`}
+    >
+      {allowance.hired} / {allowance.max}
+    </td>
   );
 }
 
