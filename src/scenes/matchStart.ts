@@ -11,6 +11,8 @@ import {
 import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { fixturePaysWinnings } from "../game/rules/winnings";
+import { startMatchDiceLog } from "../game/persistence/diceLogStore";
+import { getActiveOnlineMatch } from "../network/OnlineMatch";
 
 /** What the page hands GameScene.init. */
 export interface GameSceneData {
@@ -121,4 +123,21 @@ export function startAutosave(scene: GameScene): MatchAutosave {
   );
   autosave.start();
   return autosave;
+}
+
+/** Record every die a real match rolls, for a later audit. Not the sandbox. */
+export function startDiceLog(
+  start: MatchStart,
+  sceneKey: string
+): { dispose(): void } | null {
+  if (sceneKey !== "GameScene") return null;
+  const container = ServiceContainer.getInstance();
+  return startMatchDiceLog({
+    eventBus: container.eventBus,
+    getState: () => container.gameService.getState(),
+    mode: getActiveOnlineMatch()?.kind ?? "local",
+    seed: container.rngService.getInitialSeed(),
+    teams: [start.team1, start.team2],
+    resumed: start.resumed,
+  });
 }

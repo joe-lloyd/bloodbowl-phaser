@@ -618,7 +618,16 @@ export class ThrowTeammateOperation extends GameOperation {
         skill: SkillType.SWOOP,
         effect: "Swoop: re-rolls the landing",
       });
+      const before = land.roll;
       land = rollLanding();
+      eventBus.emit(GameEventNames.RerollUsed, {
+        playerId: teammate.id,
+        source: "skill",
+        skill: SkillType.SWOOP,
+        rollKind: "landing",
+        before,
+        after: land.roll,
+      });
     }
 
     if (land.success) {

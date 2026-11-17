@@ -196,10 +196,18 @@ export abstract class BlockRerolls extends BlockManagerBase {
       attacker.playerName
     );
     if (gate.success) {
+      const before = faces(pending.results);
       pending.results[dieIndex] = this.diceController.rollBlockDice(
         1,
         attacker.teamId
       )[0];
+      this.eventBus.emit(GameEventNames.RerollUsed, {
+        playerId: attackerId,
+        source: "pro",
+        rollKind: "block",
+        before,
+        after: faces(pending.results),
+      });
       this.eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: attackerId,
         skill: SkillType.PRO,
@@ -238,10 +246,19 @@ export abstract class BlockRerolls extends BlockManagerBase {
       ?.context.gameService.getRerollArbiter()
       .consumeOnce(attacker, SkillType.BRAWLER);
 
+    const before = faces(pending.results);
     pending.results[index] = this.diceController.rollBlockDice(
       1,
       attacker.teamId
     )[0];
+    this.eventBus.emit(GameEventNames.RerollUsed, {
+      playerId: attackerId,
+      source: "skill",
+      skill: SkillType.BRAWLER,
+      rollKind: "block",
+      before,
+      after: faces(pending.results),
+    });
     this.eventBus.emit(GameEventNames.SkillTriggered, {
       playerId: attackerId,
       skill: SkillType.BRAWLER,

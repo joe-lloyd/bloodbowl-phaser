@@ -11,10 +11,17 @@ import {
   LocalStorageMatchSaveRepository,
   MATCH_SAVE_FALLBACK_KEY,
 } from "../../src/game/persistence/MatchSaveRepository";
+import { createDiceLog } from "../../src/game/persistence/DiceLog";
+import {
+  listDiceLogs,
+  writeDiceLog,
+} from "../../src/game/persistence/diceLogStore";
 
 class MemoryStorage {
   readonly values = new Map<string, string>();
   failFullWrite = false;
+  /** Characters the store holds at most. */
+  limit = Infinity;
 
   getItem(key: string): string | null {
     return this.values.get(key) ?? null;
@@ -22,6 +29,12 @@ class MemoryStorage {
 
   setItem(key: string, value: string): void {
     if (this.failFullWrite && !key.includes("fallback")) {
+      throw new DOMException("quota", "QuotaExceededError");
+    }
+    const others = [...this.values]
+      .filter(([k]) => k !== key)
+      .reduce((size, [, v]) => size + v.length, 0);
+    if (others + value.length > this.limit) {
       throw new DOMException("quota", "QuotaExceededError");
     }
     this.values.set(key, value);
@@ -96,6 +109,30 @@ describe("match save repository", () => {
     );
     expect(warning).toHaveBeenCalled();
     warning.mockRestore();
+  });
+
+  it("drops old dice logs before giving up the resumable save", () => {
+    const storage = new MemoryStorage();
+    for (const id of ["old", "older"]) {
+      writeDiceLog(
+        {
+          ...createDiceLog({ id, mode: "computer", seed: 1, teams: [] }),
+          padding: "x".repeat(2000),
+        },
+        storage
+      );
+    }
+    const save = matchSave(10);
+    const used = [...storage.values.values()].reduce((n, v) => n + v.length, 0);
+    // Room for the save only once one 2,000-character log is gone
+    storage.limit = used + JSON.stringify(save).length - 1000;
+    const repository = new LocalStorageMatchSaveRepository(storage);
+
+    repository.write(save);
+
+    expect(repository.read()?.savedAt).toBe(10);
+    expect(storage.getItem(MATCH_SAVE_FALLBACK_KEY)).toBeNull();
+    expect(listDiceLogs(storage).length).toBeLessThan(2);
   });
 
   it("round-trips the match termination reason through a save/resume cycle", () => {

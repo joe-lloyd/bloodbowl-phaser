@@ -132,6 +132,8 @@ export interface BlockDiceRolledContext extends TriggerContextBase {
   /** The rolled results; a rule may reroll dice in place (Hatred). */
   results: BlockResult[];
   isAttackerChoice: boolean;
+  /** Each re-roll a rule made, by skill, for the RerollUsed event. */
+  rerolls: { skill: string; before: string[]; after: string[] }[];
 }
 
 /** A player is about to be pushed back. */
@@ -390,6 +392,8 @@ export interface CasualtyContext extends TriggerContextBase {
   cause?: CasualtyCause;
   /** Set true to ignore the casualty and go to Reserves (Regeneration) */
   regenerated?: boolean;
+  /** The Regeneration roll, for an inducement that re-rolls a failed one. */
+  regenerationRoll?: number;
 }
 
 /**

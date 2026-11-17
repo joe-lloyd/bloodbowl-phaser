@@ -65,7 +65,9 @@ export class HandoffOperation extends GameOperation {
       triggers: [],
     };
     await foldTrigger("onHandoffDeclared", [passer], ctx);
-    ctx.triggers.forEach((t) => eventBus.emit(GameEventNames.SkillTriggered, t));
+    ctx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
 
     if (ctx.refused) {
       eventBus.emit(

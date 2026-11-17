@@ -123,6 +123,14 @@ function argueTheCall(context: FlowContext, player: Player): number[] {
       effect: "Bribery and Corruption: re-roll the Argue the Call 1",
     });
     rolls.push(diceController.rollD6("Argue the Call (re-roll)", teamId));
+    context.eventBus.emit(GameEventNames.RerollUsed, {
+      playerId: player.id,
+      source: "skill",
+      skill: TeamSpecialRule.BRIBERY_AND_CORRUPTION,
+      rollKind: "argue-the-call",
+      before: rolls[0],
+      after: rolls[1],
+    });
   }
   return rolls;
 }

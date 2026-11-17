@@ -116,8 +116,17 @@ function rerollAndDirtyPlayer(
       SkillType.LONE_FOULER,
       "Lone Fouler: re-roll the failed Armour Roll"
     );
+    const before = rolls;
     rolls = armour.reroll();
     broken = breaks(0);
+    context.eventBus.emit(GameEventNames.RerollUsed, {
+      playerId: fouler.id,
+      source: "skill",
+      skill: SkillType.LONE_FOULER,
+      rollKind: "armour",
+      before,
+      after: rolls,
+    });
   }
 
   // Dirty Player: +1 after the roll, to Armour OR Injury. Prefer Armour

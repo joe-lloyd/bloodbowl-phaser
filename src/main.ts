@@ -4,6 +4,7 @@ import { App } from "./ui/App";
 import { EventBus } from "./services/EventBus";
 import { connectTeamPersistenceToAuth } from "./firebase/cloudTeamRepository";
 import { connectMatchSavePersistenceToAuth } from "./firebase/cloudMatchSaveRepository";
+import { connectDiceLogsToAuth } from "./firebase/cloudDiceLog";
 import { signInHouseBot } from "./firebase/houseBot";
 
 /**
@@ -18,6 +19,7 @@ const eventBus = new EventBus();
 // Signed-in users get a cloud team library; inert without Firebase config
 connectTeamPersistenceToAuth();
 connectMatchSavePersistenceToAuth();
+connectDiceLogsToAuth();
 // Only the house bot's browser has an account to sign in with here
 void signInHouseBot().catch((error) =>
   console.error("[HouseBot] sign-in failed:", error)

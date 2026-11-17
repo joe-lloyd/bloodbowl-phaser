@@ -1,3 +1,4 @@
+import { dropOldestDiceLog } from "./diceLogStore";
 import {
   deserializeMatchSave,
   MatchSave,
@@ -75,31 +76,44 @@ export class LocalStorageMatchSaveRepository implements MatchSaveRepository {
   }
 
   write(save: MatchSave): void {
-    if (!this.storage) return;
-    try {
-      this.storage.setItem(this.key, serializeMatchSave(save));
-      this.storage.removeItem(MATCH_SAVE_FALLBACK_KEY);
-    } catch (error) {
-      console.warn(
-        "Full local match save exceeded browser storage; retaining a snapshot-only fallback:",
-        error
-      );
-      const fallback = {
-        kind: "snapshot-only",
-        version: MATCH_SAVE_VERSION,
-        savedAt: save.savedAt,
-        snapshot: save.snapshot,
-        drive: save.drive,
-      };
+    const storage = this.storage;
+    if (!storage) return;
+    const raw = serializeMatchSave(save);
+    let failure: unknown = null;
+    const fits = () => {
       try {
-        this.storage.removeItem(this.key);
-        this.storage.setItem(MATCH_SAVE_FALLBACK_KEY, JSON.stringify(fallback));
-      } catch (fallbackError) {
-        console.warn(
-          "Failed to write snapshot-only match fallback:",
-          fallbackError
-        );
+        storage.setItem(this.key, raw);
+        storage.removeItem(MATCH_SAVE_FALLBACK_KEY);
+        return true;
+      } catch (error) {
+        failure = error;
+        return false;
       }
+    };
+    // Old dice logs make room before the resumable save is given up
+    let saved = fits();
+    while (!saved && dropOldestDiceLog(storage)) saved = fits();
+    if (saved) return;
+
+    console.warn(
+      "Full local match save exceeded browser storage; retaining a snapshot-only fallback:",
+      failure
+    );
+    const fallback = {
+      kind: "snapshot-only",
+      version: MATCH_SAVE_VERSION,
+      savedAt: save.savedAt,
+      snapshot: save.snapshot,
+      drive: save.drive,
+    };
+    try {
+      storage.removeItem(this.key);
+      storage.setItem(MATCH_SAVE_FALLBACK_KEY, JSON.stringify(fallback));
+    } catch (fallbackError) {
+      console.warn(
+        "Failed to write snapshot-only match fallback:",
+        fallbackError
+      );
     }
   }
 

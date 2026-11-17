@@ -31,6 +31,7 @@ import {
   GameSceneData,
   resolveMatchStart,
   startAutosave,
+  startDiceLog,
 } from "./matchStart";
 import { followMatchWithCamera } from "./matchCamera";
 import * as board from "./boardSprites";
@@ -96,6 +97,7 @@ export class GameScene extends Phaser.Scene {
   protected ballSprite: BallSprite | null = null;
   private competitionContext?: CompetitionContext;
   private autosave: MatchAutosave | null = null;
+  private diceLog: { dispose(): void } | null = null;
   private resumedMatch = false;
   private autosaveEnabled = false;
 
@@ -221,6 +223,8 @@ export class GameScene extends Phaser.Scene {
     this.receivingTeam = start.receivingTeam;
 
     ensureMatchServices(start, data.progressionEnabled);
+    this.diceLog?.dispose();
+    this.diceLog = startDiceLog(start, this.sys.settings.key);
 
     const container = ServiceContainer.getInstance();
     this.gameService = container.gameService;
@@ -347,6 +351,8 @@ export class GameScene extends Phaser.Scene {
     this.stadium?.destroy();
     this.autosave?.dispose();
     this.autosave = null;
+    this.diceLog?.dispose();
+    this.diceLog = null;
     // Remove all listeners attached by this scene
     this.busSubscriptions.forEach((unsubscribe) => unsubscribe());
     this.busSubscriptions = [];

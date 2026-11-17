@@ -87,6 +87,20 @@ describe.each([RosterName.DWARF, RosterName.OLD_WORLD_ALLIANCE])(
           ? rerolled.pendingDecision.options.map((o) => o.type)
           : undefined
       ).toEqual(["push", "push"]);
+      expect(
+        rerolled.events
+          .filter((e) => e.name === "rerollUsed")
+          .map((e) => e.data)
+      ).toEqual([
+        {
+          playerId: attackerId,
+          source: "skill",
+          skill: SkillType.HATRED,
+          rollKind: "block",
+          before: ["Push", "Attacker Down"],
+          after: ["Push", "Push"],
+        },
+      ]);
     });
   }
 );
