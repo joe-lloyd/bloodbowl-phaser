@@ -133,6 +133,16 @@ export interface CommonUIEvents {
     landedThrough: number;
   };
 
+  [GameEventNames.UI_DiceThrow]: {
+    /** The roll's type, as the engine named it ("Armour Roll (name)"). */
+    rollType: string;
+    teamId?: string;
+    /** The dice total, when the roll has one. */
+    total?: number;
+    /** Thrown, landed, or its read is over and the tray moves on. */
+    stage: "thrown" | "landed" | "done";
+  };
+
   [GameEventNames.UI_RerollResponse]: import("../decisions").RerollDecisionAnswer;
   [GameEventNames.UI_ReactionResponse]: import("../decisions").ReactionDecisionAnswer;
   [GameEventNames.UI_ApothecaryResponse]: import("../decisions").ApothecaryDecisionAnswer;

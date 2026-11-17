@@ -190,6 +190,14 @@ export class ArmourOperation extends GameOperation {
       armourSkipped
     );
     const isBroken = armourSkipped || armourBroken(ctx, roll, gameService);
+    if (!armourSkipped) {
+      eventBus.emit(GameEventNames.ArmorRolled, {
+        playerId: player.id,
+        roll: roll + ctx.armourModifier,
+        armor: effectiveAV(player, gameService.getState()),
+        broken: isBroken,
+      });
+    }
 
     this.resolveBreak(context, isBroken, armourSkipped, ctx.injuryModifier);
   }

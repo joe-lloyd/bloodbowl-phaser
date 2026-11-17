@@ -41,7 +41,10 @@ export enum GameEventNames {
   Turnover = "turnover",
   BlockDiceKept = "blockDiceKept",
   BlockDiceRolled = "blockDiceRolled",
+  /** An Armour Roll's outcome, once the rules acting on it have folded. */
   ArmorRolled = "armorRolled",
+  /** An Injury Roll's result, once the rules acting on it have folded. */
+  InjuryRolled = "injuryRolled",
   PlayerKnockedDown = "playerKnockedDown",
   PlayerCasualtyInflicted = "playerCasualtyInflicted",
   /** A casualty's injury result was Dead — emitted once the result is known,
@@ -233,6 +236,8 @@ export enum GameEventNames {
   UI_BlockDieClicked = "ui:blockDieClicked",
   /** The dice tray: how many shown rolls have not landed yet. */
   UI_DiceInAir = "ui:diceInAir",
+  /** The dice tray started, landed or finished showing one throw. */
+  UI_DiceThrow = "ui:diceThrow",
   UI_SelectPushDirection = "ui:selectPushDirection",
   UI_PushDirectionSelected = "ui:pushDirectionSelected",
   UI_FollowUpPrompt = "ui:followUpPrompt",

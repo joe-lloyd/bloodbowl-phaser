@@ -123,6 +123,10 @@ export class InjuryOperation extends GameOperation {
     if (this.opts.stunnedIsKnockedOut && ctx.result === InjuryResult.STUNNED) {
       ctx.result = InjuryResult.KO;
     }
+    eventBus.emit(GameEventNames.InjuryRolled, {
+      playerId: player.id,
+      result: ctx.result,
+    });
     switch (ctx.result) {
       case InjuryResult.STUNNED:
         eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");

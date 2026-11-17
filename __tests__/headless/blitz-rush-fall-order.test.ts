@@ -67,6 +67,7 @@ const FALL_AND_TURNOVER = [
   "ballPlaced",
   "ui:notification",
   "diceRoll",
+  "armorRolled",
   "ui:notification",
   "ui:turnover",
   "turnEnded",

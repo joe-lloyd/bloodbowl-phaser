@@ -13,9 +13,15 @@ export interface BlockGameEvents {
 
   [GameEventNames.ArmorRolled]: {
     playerId: string;
+    /** The roll with its modifiers. */
     roll: number;
+    /** The player's Armour Value this drive. */
     armor: number;
     broken: boolean;
+  };
+  [GameEventNames.InjuryRolled]: {
+    playerId: string;
+    result: import("../../game/controllers/InjuryController").InjuryResult;
   };
 
   [GameEventNames.PlayerKnockedDown]: {

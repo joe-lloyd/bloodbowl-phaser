@@ -380,6 +380,12 @@ export class FoulOperation extends GameOperation {
     rolls = armourResult.rolls;
     // Dirty Player is decided here, before the waits below, and held.
     const { broken, dirtyPlayer, dirtyUsedOnArmour } = armourResult;
+    eventBus.emit(GameEventNames.ArmorRolled, {
+      playerId: target.id,
+      roll: rolls[0] + rolls[1] + armourCtx.armourModifier,
+      armor: av,
+      broken,
+    });
 
     const isNaturalDouble = rolls[0] === rolls[1];
     let spotted = isNaturalDouble;
