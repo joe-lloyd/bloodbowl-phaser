@@ -676,6 +676,8 @@ export class ThrowTeammateOperation extends GameOperation {
       });
     }
     eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
+    // A carrier landing Standing in the End Zone they score in scores.
+    if (context.gameService.checkForTouchdown(teammate.id)) return;
     context.flowManager.add(new FinishThrowTeammateOperation(this.throwerId));
   }
 
