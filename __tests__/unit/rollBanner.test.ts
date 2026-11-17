@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  RollBook,
   readRoll,
   rollBannerText,
 } from "../../src/ui/components/hud/RollBanner";
@@ -68,8 +69,56 @@ describe("roll banner text", () => {
       rollBannerText(roll, "landed", outcome(InjuryResult.DEAD))
     ).toEqual({
       headline: "Casualty",
-      subtitle: "Grimgor · casualty roll next",
+      subtitle: "Grimgor · Dead",
       result: true,
     });
+  });
+});
+
+/** Pairing each outcome with its own throw, by the tray's number for it. */
+describe("RollBook", () => {
+  const armour = (name: string, roll: number, broken: boolean) => ({
+    kind: "armour" as const,
+    playerName: name,
+    playerId: name,
+    roll,
+    armor: 9,
+    broken,
+  });
+
+  it("gives a Lone Fouler re-roll the outcome, and marks the first throw re-rolled", () => {
+    const book = new RollBook();
+    book.queued(1, "Foul Armour Roll (Grimgor)", "team2");
+    book.queued(2, "Foul Armour Roll (Grimgor)", "team2");
+    book.decided(armour("Grimgor", 10, true), "team2");
+
+    expect(book.text(1, "landed")).toEqual({
+      headline: "Armour Roll",
+      subtitle: "Grimgor · re-rolled",
+      result: false,
+    });
+    expect(book.text(2, "landed")?.headline).toBe("Armour Broken");
+  });
+
+  it("drops a throw's outcome with it, so later throws keep their own", () => {
+    const book = new RollBook();
+    book.queued(1, "Armour Roll (Grimgor)", "team2");
+    book.decided(armour("Grimgor", 3, false), "team2");
+    book.queued(2, "Armour Roll (Grimgor)", "team2");
+    book.decided(armour("Grimgor", 4, false), "team2");
+    book.forget(1);
+
+    expect(book.text(1, "landed")).toBeNull();
+    expect(book.text(2, "landed")?.subtitle).toBe("Grimgor · 4 against AV 9+");
+  });
+
+  it("never gives one team's outcome to a same-named player on the other", () => {
+    const book = new RollBook();
+    book.queued(1, "Armour Roll (Lineman #1)", "team1");
+    book.queued(2, "Armour Roll (Lineman #1)", "team2");
+    book.decided(armour("Lineman #1", 10, true), "team2");
+
+    expect(book.text(1, "landed")?.subtitle).toBe("Lineman #1");
+    expect(book.text(2, "landed")?.headline).toBe("Armour Broken");
   });
 });

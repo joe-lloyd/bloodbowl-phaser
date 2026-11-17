@@ -175,6 +175,7 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
     ) => {
       if (!item.rollType) return;
       eventBus.emit(GameEventNames.UI_DiceThrow, {
+        seq: item.seq,
         rollType: item.rollType,
         teamId: item.teamId,
         total: item.total,
@@ -303,14 +304,18 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
         waiting.title = `${waiting.title} · ${item.title}`;
         waiting.result = `${waiting.result} · ${item.result}`;
         waiting.closed = item.closed;
-      } else if (first) queue.current.unshift(item);
-      else queue.current.push(item);
+      } else {
+        if (first) queue.current.unshift(item);
+        else queue.current.push(item);
+        throwStage(item, "queued");
+      }
       // Never fall far behind the game: drop the oldest waiting D6s and
       // keep the latest few. Block dice wait on a pick, so they stay.
       while (queue.current.length > MAX_QUEUE) {
         const oldest = queue.current.findIndex((q) => !q.block);
         if (oldest < 0) break;
-        queue.current.splice(oldest, 1);
+        const [dropped] = queue.current.splice(oldest, 1);
+        throwStage(dropped, "dropped");
       }
       if (!playing.current) void playNext();
       else if (shown && !shown.settled && !shown.block) throwing?.hurry();
@@ -416,6 +421,9 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
       eventBus.off(GameEventNames.BlockDiceRolled, onBlockRolled);
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
       eventBus.off(GameEventNames.UI_BlockRollCancelled, onCancelled);
+      // A closed tray reports nothing more: the bus outlives this match
+      generation++;
+      release?.();
       throwing?.stop();
     };
   }, [eventBus]);

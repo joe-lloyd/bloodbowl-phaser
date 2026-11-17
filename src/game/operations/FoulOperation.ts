@@ -382,7 +382,11 @@ export class FoulOperation extends GameOperation {
     const { broken, dirtyPlayer, dirtyUsedOnArmour } = armourResult;
     eventBus.emit(GameEventNames.ArmorRolled, {
       playerId: target.id,
-      roll: rolls[0] + rolls[1] + armourCtx.armourModifier,
+      roll:
+        rolls[0] +
+        rolls[1] +
+        armourCtx.armourModifier +
+        (dirtyUsedOnArmour ? 1 : 0),
       armor: av,
       broken,
     });

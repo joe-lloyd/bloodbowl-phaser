@@ -134,13 +134,18 @@ export interface CommonUIEvents {
   };
 
   [GameEventNames.UI_DiceThrow]: {
+    /** The throw's number in this tray, from 1: its identity. */
+    seq: number;
     /** The roll's type, as the engine named it ("Armour Roll (name)"). */
     rollType: string;
     teamId?: string;
     /** The dice total, when the roll has one. */
     total?: number;
-    /** Thrown, landed, or its read is over and the tray moves on. */
-    stage: "thrown" | "landed" | "done";
+    /**
+     * Queued behind other throws, thrown, landed, its read over (done), or
+     * dropped from a full queue without being shown.
+     */
+    stage: "queued" | "thrown" | "landed" | "done" | "dropped";
   };
 
   [GameEventNames.UI_RerollResponse]: import("../decisions").RerollDecisionAnswer;

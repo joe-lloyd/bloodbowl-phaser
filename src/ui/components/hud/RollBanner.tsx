@@ -43,18 +43,31 @@ const INJURY_HEADLINE: Record<InjuryResult, string> = {
 };
 
 /**
+ * What one throw decided: the engine's outcome, "superseded" when a later
+ * throw of the same roll re-rolled it (Lone Fouler), or nothing yet.
+ */
+export type ThrowOutcome = RollOutcome | "superseded" | undefined;
+
+/**
  * The banner for one Armour or Injury throw: what is rolled while the dice
- * are in the air, then what it decided once they land. `outcome` is the
- * engine's result for that roll, when it has come.
+ * are in the air, then what it decided once they land.
  */
 export function rollBannerText(
   roll: { kind: RollOutcome["kind"]; playerName: string },
   stage: "thrown" | "landed",
-  outcome: RollOutcome | undefined
+  outcome: ThrowOutcome
 ): RollBannerText {
   const name = roll.playerName;
+  if (stage === "landed" && outcome === "superseded") {
+    return {
+      headline: roll.kind === "armour" ? "Armour Roll" : "Injury Roll",
+      subtitle: `${name} · re-rolled`,
+      result: false,
+    };
+  }
+  const decided = outcome === "superseded" ? undefined : outcome;
   if (roll.kind === "armour") {
-    const armour = outcome?.kind === "armour" ? outcome : undefined;
+    const armour = decided?.kind === "armour" ? decided : undefined;
     const against = armour ? `AV ${armour.armor}+` : "";
     if (stage === "thrown" || !armour) {
       return {
@@ -75,22 +88,77 @@ export function rollBannerText(
           result: true,
         };
   }
-  const injury = outcome?.kind === "injury" ? outcome : undefined;
+  const injury = decided?.kind === "injury" ? decided : undefined;
   if (stage === "thrown" || !injury) {
     return { headline: "Injury Roll", subtitle: name, result: false };
   }
-  const casualty = INJURY_HEADLINE[injury.result] === "Casualty";
+  const headline = INJURY_HEADLINE[injury.result];
   return {
-    headline: INJURY_HEADLINE[injury.result],
-    subtitle: casualty ? `${name} · casualty roll next` : name,
+    headline,
+    // Sevens reads the casualty off the injury dice: say which it is
+    subtitle: headline === "Casualty" ? `${name} · ${injury.result}` : name,
     result: true,
   };
 }
 
-function playerName(playerId: string): string | undefined {
+interface Tracked {
+  seq: number;
+  kind: RollOutcome["kind"];
+  playerName: string;
+  teamId?: string;
+  outcome: ThrowOutcome;
+}
+
+/**
+ * The Armour and Injury throws the tray holds, each paired with the
+ * outcome the engine decided for it. A throw is known by the tray's number
+ * for it, so a dropped throw takes its outcome with it and a same-named
+ * player on the other team never shares one. An outcome goes to the newest
+ * open throw of that roll for that player; any older open one was re-rolled.
+ */
+export class RollBook {
+  private throws: Tracked[] = [];
+
+  queued(seq: number, rollType: string, teamId?: string): void {
+    const roll = readRoll(rollType);
+    if (roll) this.throws.push({ seq, ...roll, teamId, outcome: undefined });
+  }
+
+  decided(outcome: RollOutcome, teamId?: string): void {
+    const open = this.throws.filter(
+      (t) =>
+        t.outcome === undefined &&
+        t.kind === outcome.kind &&
+        t.playerName === outcome.playerName &&
+        (!t.teamId || !teamId || t.teamId === teamId)
+    );
+    const latest = open.pop();
+    if (!latest) return;
+    latest.outcome = outcome;
+    open.forEach((t) => (t.outcome = "superseded"));
+  }
+
+  /** The banner for a throw going up or landing, if it is one of ours. */
+  text(seq: number, stage: "thrown" | "landed"): RollBannerText | null {
+    const tracked = this.throws.find((t) => t.seq === seq);
+    return tracked ? rollBannerText(tracked, stage, tracked.outcome) : null;
+  }
+
+  /** The throw is done with, read or dropped. */
+  forget(seq: number): void {
+    this.throws = this.throws.filter((t) => t.seq !== seq);
+  }
+
+  clear(): void {
+    this.throws = [];
+  }
+}
+
+function playerOf(
+  playerId: string
+): { playerName: string; teamId: string } | undefined {
   if (!ServiceContainer.isInitialized()) return undefined;
-  return ServiceContainer.getInstance().gameService.getPlayerById(playerId)
-    ?.playerName;
+  return ServiceContainer.getInstance().gameService.getPlayerById(playerId);
 }
 
 /**
@@ -101,45 +169,53 @@ function playerName(playerId: string): string | undefined {
  */
 export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
   const [banner, setBanner] = useState<RollBannerText | null>(null);
-  /** Outcomes the engine has decided whose dice have not landed yet. */
-  const outcomes = useRef<RollOutcome[]>([]);
+  const book = useRef(new RollBook());
   /** The throw the banner shows, so only its own end clears it. */
-  const showing = useRef<string | null>(null);
+  const showing = useRef<number | null>(null);
 
-  const remember = (outcome: RollOutcome) => {
-    outcomes.current.push(outcome);
-    // A long burst never keeps stale results
-    if (outcomes.current.length > 8) outcomes.current.shift();
-  };
   useEventBus(eventBus, GameEventNames.ArmorRolled, (data) => {
-    const name = playerName(data.playerId);
-    if (name) remember({ kind: "armour", playerName: name, ...data });
+    const player = playerOf(data.playerId);
+    if (player)
+      book.current.decided(
+        { kind: "armour", playerName: player.playerName, ...data },
+        player.teamId
+      );
   });
   useEventBus(eventBus, GameEventNames.InjuryRolled, (data) => {
-    const name = playerName(data.playerId);
-    if (name) remember({ kind: "injury", playerName: name, ...data });
+    const player = playerOf(data.playerId);
+    if (player)
+      book.current.decided(
+        { kind: "injury", playerName: player.playerName, ...data },
+        player.teamId
+      );
   });
 
   useEventBus(eventBus, GameEventNames.UI_DiceThrow, (data: Throw) => {
-    const roll = readRoll(data.rollType);
-    if (!roll) return;
-    const matches = (o: RollOutcome) =>
-      o.kind === roll.kind && o.playerName === roll.playerName;
-    if (data.stage === "done") {
-      if (showing.current === data.rollType) {
-        showing.current = null;
-        setBanner(null);
+    switch (data.stage) {
+      case "queued":
+        book.current.queued(data.seq, data.rollType, data.teamId);
+        return;
+      case "dropped":
+      case "done":
+        book.current.forget(data.seq);
+        if (showing.current === data.seq) {
+          showing.current = null;
+          setBanner(null);
+        }
+        return;
+      case "thrown":
+      case "landed": {
+        const text = book.current.text(data.seq, data.stage);
+        if (!text) return;
+        showing.current = data.seq;
+        setBanner(text);
+        return;
       }
-      return;
+      default: {
+        const unreachable: never = data.stage;
+        return unreachable;
+      }
     }
-    const index = outcomes.current.findIndex(matches);
-    const outcome = index >= 0 ? outcomes.current[index] : undefined;
-    // A landed roll uses its outcome up; the next one of its kind is its own
-    if (data.stage === "landed" && index >= 0) {
-      outcomes.current.splice(index, 1);
-    }
-    showing.current = data.rollType;
-    setBanner(rollBannerText(roll, data.stage, outcome));
   });
 
   useEventBus(eventBus, GameEventNames.UI_PresentMoment, (moment) => {
@@ -147,7 +223,8 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
   });
   useEventBus(eventBus, GameEventNames.PhaseChanged, ({ phase }) => {
     if (phase !== GamePhase.SETUP) return;
-    outcomes.current = [];
+    book.current.clear();
+    showing.current = null;
     setBanner(null);
   });
 

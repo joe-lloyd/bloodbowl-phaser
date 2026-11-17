@@ -75,6 +75,15 @@ async function foul(
   dice: number[],
   withAssist = false
 ): Promise<string[]> {
+  return eventOrder(await foulEvents(skills, dice, withAssist));
+}
+
+/** Every event a Foul emits, in order. */
+async function foulEvents(
+  skills: SkillType[],
+  dice: number[],
+  withAssist = false
+) {
   const { game, fouler } = foulGame(skills, withAssist);
   forceDice(game.ctx.rng, dice);
   await game.execute({
@@ -93,7 +102,7 @@ async function foul(
     response = await game.execute({ type: "choose-foul-assists", count: 1 });
     events.push(...response.events);
   }
-  return eventOrder(events);
+  return events;
 }
 
 describe("a Foul's events keep their order", () => {
@@ -180,6 +189,21 @@ describe("a Foul's events keep their order", () => {
         "ui:announce: kind=turn-started",
       ]
     `);
+  });
+
+  it("counts Dirty Player's +1 in the Armour Roll it reports", async () => {
+    // Armour 2+3 holds, Lone Fouler re-rolls 4+4: 8 + Dirty Player's 1
+    const events = await foulEvents(
+      [SkillType.LONE_FOULER, SkillType.DIRTY_PLAYER],
+      [2, 3, 4, 4, 3, 2]
+    );
+    expect(
+      events
+        .filter((e) => e.name === GameEventNames.ArmorRolled)
+        .map((e) => e.data)
+    ).toEqual([
+      { playerId: "team2-player-1", roll: 9, armor: 9, broken: true },
+    ]);
   });
 
   it("keeps a Sneaky Git on when a double holds", async () => {

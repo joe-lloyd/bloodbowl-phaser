@@ -121,3 +121,39 @@ describe("dice tray with a die that never settles", () => {
     vi.useRealTimers();
   });
 });
+
+describe("dice tray closed during a read", () => {
+  it("reports each stage of a throw, and nothing once it is gone", async () => {
+    vi.useFakeTimers();
+    const bus = new EventBus();
+    const stages: string[] = [];
+    bus.on(GameEventNames.UI_DiceThrow, ({ seq, stage }) =>
+      stages.push(`${seq} ${stage}`)
+    );
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(<DiceTray eventBus={bus} />));
+
+    await act(async () => {
+      bus.emit(GameEventNames.DiceRoll, {
+        rollType: "Armour Roll (Grimgor)",
+        diceType: "2d6",
+        value: [4, 6],
+        total: 10,
+        description: "Armour Roll (Grimgor): 4 + 6 = 10",
+      });
+    });
+    // This die never settles, so it counts as landed after a few seconds
+    await act(async () => vi.advanceTimersByTimeAsync(6000));
+    expect(stages).toEqual(["1 queued", "1 thrown", "1 landed"]);
+
+    // The match closes mid-read; the page's bus lives on for the next one
+    await act(async () => root.unmount());
+    await act(async () => vi.advanceTimersByTimeAsync(5000));
+    expect(stages).toEqual(["1 queued", "1 thrown", "1 landed"]);
+
+    container.remove();
+    vi.useRealTimers();
+  });
+});
