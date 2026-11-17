@@ -173,8 +173,10 @@ describe("Throw Team-mate plans", () => {
     });
     await subject.execute({ type: "end-activation", playerId: gob.id });
     const declare = await step(subject, coach);
-    while (subject.ctx.gameService.getState().activePlayer?.id === troller.id)
-      await step(subject, coach);
+    const acting = () =>
+      subject.ctx.gameService.getState().activePlayer?.id === troller.id;
+    for (let i = 0; i < 12 && acting(); i++) await step(subject, coach);
+    expect(acting()).toBe(false);
     return { declare, troller };
   }
 

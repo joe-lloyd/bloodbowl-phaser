@@ -73,6 +73,7 @@ describe("Throw Team-mate crash and fumble", () => {
     const mate = everyone.find((p) => p.id === "team1-player-2")!;
     const carrier = everyone.find((p) => p.id === "team2-player-1")!;
 
+    expect(response.ok).toBe(true);
     expect(new Set(squares).size).toBe(squares.length);
     expect(carrier.status).not.toBe("Active");
     expect(mate.status).not.toBe("Active");
@@ -82,11 +83,23 @@ describe("Throw Team-mate crash and fumble", () => {
     expect(response.snapshot.ballPosition).not.toEqual({ x: 14, y: 5 });
   });
 
-  it("drops a fumbled player off the thrower's square", async () => {
-    const { everyone, squares } = await throwAtCarrier(FUMBLE_SEED, []);
+  it("bounces a fumbled player off the thrower's square to land", async () => {
+    const { response, everyone, squares } = await throwAtCarrier(
+      FUMBLE_SEED,
+      []
+    );
     const mate = everyone.find((p) => p.id === "team1-player-2")!;
+    const dice = response.events
+      .filter((e) => e.name === "diceRoll")
+      .map((e) => (e.data as { description: string }).description);
 
+    expect(response.ok).toBe(true);
+    expect(dice).toEqual([
+      "Throw Team-mate (Human Lineman #1): 1, needs 5+",
+      "Bounce: 1",
+      "Landing (Human Lineman #2): 6, needs 4+",
+    ]);
+    expect(mate.position).toEqual({ x: 9, y: 4 });
     expect(new Set(squares).size).toBe(squares.length);
-    expect(mate.position).not.toEqual({ x: 10, y: 5 });
   });
 });

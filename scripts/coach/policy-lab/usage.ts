@@ -103,7 +103,10 @@ export async function usageOfTrace(file: string, id: string) {
 
   game.ctx.eventBus.on(GameEventNames.Touchdown, ({ teamId }) => {
     const side = sides.get(teamId);
-    for (const p of open) {
+    // A score in the other team's turn, say from a push, follows none of
+    // this team's plays. The drive still ends, so nothing claims it later.
+    const ownTurn = game.ctx.gameService.getState().activeTeamId === teamId;
+    for (const p of ownTurn ? open : []) {
       if (p.side !== side || p.turnsSince > 1) continue;
       const scored = p.turnsSince === 0 ? "this-turn" : "next-turn";
       count(p)[scored === "this-turn" ? "scoredThisTurn" : "scoredNextTurn"]++;
