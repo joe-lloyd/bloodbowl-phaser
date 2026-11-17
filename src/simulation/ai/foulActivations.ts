@@ -41,6 +41,11 @@ function injuryBands(target: Player): [number, number] {
   return [stunnedUpTo + thick, stunty ? 8 : 9];
 }
 
+/** Every pair of dice faces, each with its share of chance `p`. */
+function eachPair(p: number, roll: (a: number, b: number, q: number) => void) {
+  for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) roll(a, b, p / 36);
+}
+
 /** Every Armour and Injury Roll of one Foul, die face by die face. */
 export function foulOdds(
   fouler: Player,
@@ -50,40 +55,32 @@ export function foulOdds(
   const locked = has(target, SkillType.IRON_HARD_SKIN);
   const modifier = locked ? 0 : assists;
   const dirty = has(fouler, SkillType.DIRTY_PLAYER);
+  const dirtyOnArmourAllowed = dirty && !locked;
   const sneaky = has(fouler, SkillType.SNEAKY_GIT);
   const lone = has(fouler, SkillType.LONE_FOULER) && assists === 0;
   const [stunnedUpTo, koUpTo] = injuryBands(target);
   const regenerates = has(target, SkillType.REGENERATION) ? 0.5 : 1;
   const AV = target.stats.AV;
   const out: FoulOdds = { casualty: 0, ko: 0, sentOff: 0 };
+  /** The Injury Roll; a double on it or on the armour is spotted. */
+  const injury = (p: number, bonus: number, armourDouble: boolean) =>
+    eachPair(p, (c, d, q) => {
+      const total = c + d + bonus;
+      if (armourDouble || c === d) out.sentOff += q;
+      if (total > koUpTo) out.casualty += q * regenerates;
+      else if (total > stunnedUpTo) out.ko += q;
+    });
   /** One Armour Roll, then the Injury Roll if it breaks. */
   const armour = (a: number, b: number, p: number, rerolled: boolean) => {
     const total = a + b + modifier;
-    let broken = total >= AV;
-    if (!broken && lone && !rerolled) {
-      for (let c = 1; c <= 6; c++)
-        for (let d = 1; d <= 6; d++) armour(c, d, p / 36, true);
-      return;
-    }
-    const dirtyOnArmour = dirty && !broken && !locked && total + 1 >= AV;
-    broken ||= dirtyOnArmour;
-    const double = a === b;
-    if (!broken) {
-      if (double && !sneaky) out.sentOff += p;
-      return;
-    }
-    const bonus = dirty && !dirtyOnArmour ? 1 : 0;
-    for (let c = 1; c <= 6; c++)
-      for (let d = 1; d <= 6; d++) {
-        const q = p / 36;
-        const injury = c + d + bonus;
-        if (double || c === d) out.sentOff += q;
-        if (injury > koUpTo) out.casualty += q * regenerates;
-        else if (injury > stunnedUpTo) out.ko += q;
-      }
+    if (total >= AV) return injury(p, dirty ? 1 : 0, a === b);
+    if (lone && !rerolled)
+      return eachPair(p, (c, d, q) => armour(c, d, q, true));
+    // Dirty Player's +1 goes on the armour when that alone breaks it.
+    if (dirtyOnArmourAllowed && total + 1 >= AV) return injury(p, 0, a === b);
+    if (a === b && !sneaky) out.sentOff += p;
   };
-  for (let a = 1; a <= 6; a++)
-    for (let b = 1; b <= 6; b++) armour(a, b, 1 / 36, false);
+  eachPair(1, (a, b, q) => armour(a, b, q, false));
   return out;
 }
 
@@ -118,39 +115,48 @@ function foulAt(c: Context, fouler: Player, target: Player, at: Square) {
 const down = (p: Player) =>
   p.status === PlayerStatus.PRONE || p.status === PlayerStatus.STUNNED;
 
+/** A Foul on `target` from `at`, or null when the walk there is unsafe. */
+function foulFrom(
+  c: Context,
+  fouler: Player,
+  target: Player,
+  at: Square,
+  routes: ReadonlyMap<number, Route>
+): Activation | null {
+  const here = distance(at, fouler.gridPosition!) === 0;
+  const route = here ? null : (routes.get(key(at)) ?? null);
+  if (!here && (!route || route.chance < c.w.safeMove)) return null;
+  const chance = route?.chance ?? 1;
+  return {
+    player: fouler,
+    action: "foul",
+    intent: { kind: "foul", target, route },
+    // A Send-off is a Turnover, so a Foul is always a risk.
+    tier: "risky",
+    value:
+      chance * foulAt(c, fouler, target, at) -
+      (1 - chance) * (c.turnover + c.w.ownDown),
+    rolls: route?.rolls ?? [],
+  };
+}
+
 /**
  * The best Foul this player can walk to: each downed opponent, from the
  * reachable empty square beside it with the most assists. Only safe walks.
  */
 export function foulActivations(c: Context, fouler: Player): Activation[] {
-  const { board, w } = c;
+  const { board } = c;
   if (!standing(fouler) || !c.available.get(fouler.id)?.has("foul")) return [];
   const routes = c.routes(fouler);
+  const free = (s: Square) => {
+    const occupant = board.occupant[key(s)];
+    return !occupant || occupant.id === fouler.id;
+  };
   let best: Activation | null = null;
-  for (const target of board.theirs) {
-    if (!down(target)) continue;
-    const squares = neighbours(target.gridPosition!).filter(
-      (s) => !board.occupant[key(s)] || board.occupant[key(s)]!.id === fouler.id
-    );
-    for (const at of squares) {
-      const here = distance(at, fouler.gridPosition!) === 0;
-      const route: Route | null = here ? null : (routes.get(key(at)) ?? null);
-      if (!here && (!route || route.chance < w.safeMove)) continue;
-      const chance = route?.chance ?? 1;
-      const value =
-        chance * foulAt(c, fouler, target, at) -
-        (1 - chance) * (c.turnover + w.ownDown);
-      if (!best || value > best.value)
-        best = {
-          player: fouler,
-          action: "foul",
-          intent: { kind: "foul", target, route },
-          // A Send-off is a Turnover, so a Foul is always a risk.
-          tier: "risky",
-          value,
-          rolls: route?.rolls ?? [],
-        };
+  for (const target of board.theirs.filter(down))
+    for (const at of neighbours(target.gridPosition!).filter(free)) {
+      const foul = foulFrom(c, fouler, target, at, routes);
+      if (foul && (!best || foul.value > best.value)) best = foul;
     }
-  }
   return best ? [best] : [];
 }
