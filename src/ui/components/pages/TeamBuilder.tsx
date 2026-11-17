@@ -13,11 +13,13 @@ import {
   StaffItem,
   hirePlayer,
   hireRefusal,
+  positionAllowance,
   purchase,
 } from "../../../game/rules/teamPricing";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
 import { chooseVeteran } from "../../../game/rules/veteran";
 import {
+  captainVacancyCandidates,
   chooseTeamCaptain,
   hasTeamCaptainRule,
 } from "../../../game/rules/teamCaptain";
@@ -671,6 +673,18 @@ export function TeamBuilder() {
         matchWinnings={matchWinnings}
         waitingForDevelopment={waitingForDevelopment}
       />
+      {captainVacancyCandidates(team).length > 0 && (
+        <Notice
+          tone="info"
+          title="No Team Captain"
+          role="status"
+          className="mb-4"
+        >
+          Your Team Captain has left the roster. You appoint a new one in the
+          pre-game of your next league fixture, after both coaches confirm
+          their inducements. Any player except a Big Guy may take the title.
+        </Notice>
+      )}
       {saveError && (
         <Notice tone="bad" role="alert" className="mb-4">
           {saveError}
@@ -735,6 +749,7 @@ export function TeamBuilder() {
             treasury={team.treasury}
             onHirePlayer={handleHirePlayer}
             hireRefusal={(template) => hireRefusal(team, template)}
+            allowance={(template) => positionAllowance(team, template)}
           />
         </div>
 

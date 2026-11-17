@@ -102,7 +102,7 @@ describe("between league fixtures", () => {
     ]);
     expect(hirePlayer(team, position("Human Blitzer"))).toEqual({
       amount: null,
-      reason: "A Human team may have at most 2 Human Blitzer.",
+      reason: "Human Blitzer: the Human roster allows 0-2, and this team has 2.",
     });
     expect(team.treasury).toBe(500_000);
   });

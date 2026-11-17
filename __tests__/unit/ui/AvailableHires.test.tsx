@@ -3,7 +3,11 @@ import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AvailableHires } from "../../../src/ui/components/TeamBuilder/AvailableHires";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
-import { RosterName } from "../../../src/types/Team";
+import { RosterName, createTeam } from "../../../src/types/Team";
+import {
+  hirePlayer,
+  positionAllowance,
+} from "../../../src/game/rules/teamPricing";
 import { SkillType, SKILL_DEFINITIONS } from "../../../src/types/Skills";
 
 /**
@@ -179,5 +183,42 @@ describe("AvailableHires skill tooltips", () => {
     });
     expect(panelOf(second).className).not.toContain("hidden");
     expect(panelOf(first).className).toContain("hidden");
+  });
+
+  it("shows how many of each position the team has and may have", async () => {
+    const team = createTeam(
+      "Orcs",
+      RosterName.ORC,
+      { primary: 0, secondary: 0 },
+      0,
+      2_000_000
+    );
+    const roster = getRosterByRosterName(RosterName.ORC);
+    hirePlayer(team, roster.playerTemplates[1]); // Goblin Lineman
+    await act(async () => {
+      root.render(
+        <AvailableHires
+          roster={roster}
+          treasury={team.treasury}
+          onHirePlayer={() => {}}
+          allowance={(template) => positionAllowance(team, template)}
+        />
+      );
+    });
+    const rows = Array.from(container.querySelectorAll("tbody tr")).map(
+      (row) => [
+        row.querySelector("td")!.textContent,
+        row.querySelector('[data-testid="hire-allowance"]')!.textContent,
+      ]
+    );
+
+    expect(rows).toEqual([
+      ["Orc Lineman", "0 / 11"],
+      ["Goblin Lineman", "1 / 4"],
+      ["Orc Thrower", "0 / 2"],
+      ["Orc Blitzer", "0 / 2"],
+      ["Big Un Blocker", "0 / 2"],
+      ["Untrained Troll", "0 / 1"],
+    ]);
   });
 });

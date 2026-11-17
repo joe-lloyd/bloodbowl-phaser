@@ -216,6 +216,36 @@ export function draftListPlayers(team: Team): Player[] {
   );
 }
 
+/** How many of one position a team has, and the most it may have. */
+export interface PositionAllowance {
+  hired: number;
+  max: number;
+}
+
+/**
+ * The position's own QTY, capped by the Sevens roster limit of 11 and, for
+ * a position without the Lineman keyword, by the limit of 4 such players
+ * (D3). The shared limits still apply across positions; `hireRefusal`
+ * names the one that blocks a hire.
+ */
+export function positionAllowance(
+  team: Team,
+  template: PlayerTemplate
+): PositionAllowance {
+  const rosterLimit = Math.min(
+    team.maxRosterSize ?? MAX_ROSTER_PLAYERS,
+    MAX_ROSTER_PLAYERS
+  );
+  const caps = [template.maxAllowed ?? rosterLimit, rosterLimit];
+  if (!isLinemanPosition(template.keywords)) caps.push(MAX_NON_LINEMEN);
+  return {
+    hired: draftListPlayers(team).filter(
+      (player) => player.positionName === template.positionName
+    ).length,
+    max: Math.min(...caps),
+  };
+}
+
 /**
  * Why `template` cannot join the Team Draft List now, or undefined when it
  * can. Sevens: "No Blood Bowl Sevens team may ever have more than 11
@@ -268,7 +298,7 @@ function compositionRefusal(
     (player) => player.positionName === template.positionName
   ).length;
   if (template.maxAllowed !== undefined && ofPosition >= template.maxAllowed) {
-    return `A ${team.rosterName} team may have at most ${template.maxAllowed} ${template.positionName}.`;
+    return `${template.positionName}: the ${team.rosterName} roster allows 0-${template.maxAllowed}, and this team has ${ofPosition}.`;
   }
   const { maxBigGuys } = getRosterByRosterName(team.rosterName);
   if (
