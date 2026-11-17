@@ -34,6 +34,8 @@ offers and never builds a command itself. Its code is in
 | `repositionActivations.ts`        | Role squares around the ball, chasing it, and standing up           |
 | `skillActivations.ts`             | Capability registry, Secure the Ball and Multiple Block plans       |
 | `gazeActivations.ts`              | Gaze targets that improve an available teammate's follow-up         |
+| `teammateActivations.ts`          | Throw Team-mate aims, landings and launch readiness                 |
+| `gamePlans.ts`                    | Per-match game plans and close-call variety for Standard            |
 | `feeding.ts`, `feedingSupport.ts` | Vampire endpoints and native Thrall support preparation             |
 | `latePlans.ts`                    | Sevens scoring horizon, opponent replies and persistent player loss |
 | `decisions.ts`                    | Block dice, re-rolls, push squares, follow-ups and other decisions  |
@@ -61,6 +63,19 @@ ball holder out of preferred bite targets, and can prepare native Thrall support
 before moving the carrier. These bounded plans do not implement every skill's
 best multi-turn use. The [policy study](../../scripts/coach/policy-study/README.md)
 describes the frozen-generation comparison and remaining tactical modules.
+
+Throw Team-mate prices every Quick or Short aim over the engine's own dice:
+the Passing Ability Test, three Scatter rolls or a Bullseye, the Landing roll,
+crashes and Always Hungry. A thrown carrier who lands in the end zone scores.
+One who lands short and has not acted may run in, so a goblin thrown from ten
+squares out can still score that turn. On the last turn a dropped ball costs
+only an opposing reply that changes the result, as for a final scoring run.
+
+Two plays set up the next turn. A thrower walks beside a Right Stuff carrier
+within a throw and a run of the end zone, and that carrier values standing
+next to one. A runner goes wide of a pressed carrier, to the side with fewer
+defenders near it. Passes and hand-offs count escaping that pressure as gain,
+so a sideways ball to the open flank competes with forward progress.
 
 The coach keeps the chosen activation's target per game. Continuation rebuilds
 the remaining route from the observed square and ends preparation at its target.
@@ -114,6 +129,17 @@ characteristics that set the odds of each roll:
 - A Brawlin' Brutes team earns 3 SPP for a Casualty and 2 for a Touchdown,
   so it values a casualty 2.25 times as much as other teams do.
 
+### Game plans and variety
+
+Standard draws a game plan for each match: balanced, aerial, flank, grind or
+bash. A plan adds a few points to the kinds of activation it favours, such as
+passes and throws for aerial or blocks for bash. At each declaration Standard
+may take any plan within 8 points of the best, where a touchdown is 100. The
+closer plan is the likelier pick. A close call never puts an action whose
+failure is a Turnover ahead of a safe best plan. The coach's own random stream
+makes these picks, so the game's dice and replays are unchanged. Hard and
+Legend search for the best play and draw no game plan.
+
 ## The lookahead
 
 Hard and Legend run the planner, but check its next activation first. At each
@@ -166,7 +192,7 @@ declaration.
 
 | Level    | Options | Samples | Deadline | Measured over mirrored games                               |
 | -------- | ------- | ------- | -------- | ---------------------------------------------------------- |
-| Standard | none    | none    | none     | The planner                                                |
+| Standard | none    | none    | none     | The planner, with a game plan and close-call variety       |
 | Hard     | 4       | 8       | 1.5 s    | Against Hard with 2 samples: 54.7% ±3.8 over 400, +0.16 TD |
 | Legend   | 4       | 16      | 4 s      | Against Hard with 8 samples: 52.7% ±5.1 over 200, +0.10 TD |
 
