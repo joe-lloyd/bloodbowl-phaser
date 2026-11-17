@@ -206,7 +206,7 @@ function declarableActions({
     ["pass", carriesBall && availability.pass],
     ["handoff", availability.handoff],
     ["secureBall", availability.secureBall],
-    ["throwTeamMate", availability.throwTeammate],
+    ["throwTeamMate", availability.throwTeammate || availability.kickTeammate],
     ["punt", availability.punt],
     ["gaze", availability.gaze],
     ["foul", canFoul && canFoulAdjacent],

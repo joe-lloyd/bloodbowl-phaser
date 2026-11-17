@@ -638,6 +638,13 @@ function menuTurnFlags(
       : !!turnData.hasBlitzed,
     hasPassed: !!turnData.hasPassed,
     hasHandedOff: !!turnData.hasHandedOff,
+    // Charge! has its own team-mate throws, as it has its own Blitz.
+    hasThrownTeamMate: activeCharge?.charge
+      ? activeCharge.charge.budget.throwTeammate <= 0
+      : state.turn.hasThrownTeamMate,
+    hasKickedTeamMate: activeCharge?.charge
+      ? activeCharge.charge.budget.kickTeammate <= 0
+      : state.turn.hasKickedTeamMate,
     // Grudge Match (L24) allows a second Foul this turn.
     hasFouled:
       !!turnData.hasFouled &&

@@ -100,8 +100,8 @@ Journeymen and firing now follow it. Still open there:
 
 - A Jump may land on any square next to the jumped player that is not next
   to the jumper, which is five squares on a diagonal; the engine offers three.
-- The action menu still offers Throw Team-mate or Throw Bomb after the
-  once-per-turn limit is spent; the engine refuses the declaration.
+- The action menu still offers Throw Bomb after the once-per-turn limit is
+  spent; the engine refuses the declaration.
 - Dump-off skips interception and the pass skills.
 - The browser has no Hail Mary toggle or Swoop direction choice yet: it
   throws a Hail Mary only beyond the Range Ruler, and Swoop scatters normally.

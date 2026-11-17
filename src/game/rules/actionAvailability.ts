@@ -71,6 +71,9 @@ export interface TurnFlags {
   hasPassed: boolean;
   hasHandedOff: boolean;
   hasFouled: boolean;
+  /** Each is once per Turn (p.55, p.131). */
+  hasThrownTeamMate: boolean;
+  hasKickedTeamMate: boolean;
 }
 
 export interface ActionAvailabilityInput {
@@ -390,9 +393,13 @@ function skillActions(board: ActingBoard) {
     (t) => chebyshev(here, t.gridPosition!) === 1 && isRightStuffEligible(t)
   );
   const throwTeammate =
-    hasSkill(player.skills, SkillType.THROW_TEAM_MATE) && adjacentEligibleMate;
+    hasSkill(player.skills, SkillType.THROW_TEAM_MATE) &&
+    !input.turn.hasThrownTeamMate &&
+    adjacentEligibleMate;
   const kickTeammate =
-    hasSkill(player.skills, SkillType.KICK_TEAM_MATE) && adjacentEligibleMate;
+    hasSkill(player.skills, SkillType.KICK_TEAM_MATE) &&
+    !input.turn.hasKickedTeamMate &&
+    adjacentEligibleMate;
 
   // Throw Bomb: like a Pass, it may not follow a Move, and targets any square.
   const throwBomb =
