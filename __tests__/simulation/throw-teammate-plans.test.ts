@@ -146,4 +146,37 @@ describe("Throw Team-mate plans", () => {
       action: "throwTeamMate",
     });
   });
+
+  it("walks the thrower beside a Right Stuff carrier to set up next turn's throw", async () => {
+    // Ten squares out: too far for the goblin to run in next turn on its own,
+    // close enough for a throw and a run.
+    const subject = game({
+      turn: 3,
+      team1Placements: [troll(6, 2), goblin(9, 5, 6)],
+      team2Placements: [
+        { playerIndex: 0, x: 13, y: 4 },
+        { playerIndex: 1, x: 13, y: 6 },
+      ],
+    });
+    const coach = createPlannerCoach();
+    const [troller, gob] = subject.ctx.team1.players;
+    await subject.execute({
+      type: "declare-action",
+      playerId: gob.id,
+      action: "move",
+    });
+    await subject.execute({ type: "end-activation", playerId: gob.id });
+
+    const declare = await step(subject, coach);
+    expect(declare.command).toEqual({
+      type: "declare-action",
+      playerId: troller.id,
+      action: "move",
+    });
+    expect(declare.note).toBe("moves to throw");
+    while (subject.ctx.gameService.getState().activePlayer?.id === troller.id)
+      await step(subject, coach);
+    const at = troller.gridPosition!;
+    expect(Math.max(Math.abs(at.x - 9), Math.abs(at.y - 5))).toBe(1);
+  });
 });

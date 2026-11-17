@@ -4,8 +4,10 @@
  */
 
 import { Player, PlayerStatus } from "../../types/Player";
+import { isRightStuffEligible } from "../../game/rules/throwTeammate";
 import {
   Board,
+  HEIGHT,
   Square,
   carrierOf,
   distance,
@@ -13,25 +15,64 @@ import {
   neighbours,
   onPitch,
   standing,
+  toGoal,
 } from "./board";
 import { Route } from "./routes";
-import { Context, gamble, tierFor } from "./activationContext";
+import { Context, crowd, gamble, tierFor } from "./activationContext";
 import { CORNERS } from "./ballActivations";
 import type { Activation, Role } from "./activations";
 import { moveFeedingCost } from "./feeding";
-import { exposureCost, injuryRiskValue, opponentCanScore } from "./latePlans";
+import { THROW_REACH, throwersFor } from "./teammateActivations";
+import {
+  exposureCost,
+  injuryRiskValue,
+  nextTurnReach,
+  opponentCanScore,
+} from "./latePlans";
 
 export interface RoleSquare {
   role: Role;
   at: Square;
   value: number;
+  /** The one player the square is worth this to, when not everyone. */
+  only?: string;
 }
 
-type AddSquare = (role: Role, at: Square, value: number) => void;
+type AddSquare = (role: Role, at: Square, value: number, only?: string) => void;
+
+/** Beside a Right Stuff carrier: a thrower there can launch it next turn. */
+function launchSquares(c: Context, carrier: Player, add: AddSquare): void {
+  const { board, w } = c;
+  const at = carrier.gridPosition!;
+  if (
+    !isRightStuffEligible(carrier) ||
+    toGoal(board, at) > THROW_REACH + nextTurnReach(carrier)
+  )
+    return;
+  for (const thrower of throwersFor(board, carrier))
+    for (const s of neighbours(at)) add("throw", s, w.launch, thrower.id);
+}
+
+/**
+ * Wide of our carrier, on the side the defence has left: a runner there
+ * takes a sideways ball and splits the defence.
+ */
+function flankSquares(c: Context, at: Square, add: AddSquare): void {
+  const { board, w } = c;
+  const pressed = crowd(board, at);
+  if (pressed === 0) return;
+  for (const ahead of [0, 1, 2, 3])
+    for (let y = 0; y < HEIGHT; y++) {
+      if (Math.abs(y - at.y) < 3) continue;
+      const s = { x: at.x + board.dir * ahead, y };
+      if (onPitch(s)) add("flank", s, w.flank * (pressed - crowd(board, s)));
+    }
+}
 
 /** Our carrier: a cage around it and receivers ahead of it. */
-function ownCarrierSquares(c: Context, at: Square, add: AddSquare): void {
+function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
+  const at = carrier.gridPosition!;
   for (const [dx, dy] of CORNERS)
     add("cage", { x: at.x + dx, y: at.y + dy }, w.cageCorner);
   // Final-turn receiver preparation must lead to a score. End-zone runs
@@ -44,6 +85,8 @@ function ownCarrierSquares(c: Context, at: Square, add: AddSquare): void {
         { x: at.x + board.dir * ahead, y: at.y + dy },
         w.receiver
       );
+  launchSquares(c, carrier, add);
+  flankSquares(c, at, add);
 }
 
 /** Beside the walls of their carrier's cage: assists for the hits that break it. */
@@ -93,12 +136,13 @@ function theirCarrierSquares(c: Context, at: Square, add: AddSquare): void {
 export function roleSquares(c: Context): RoleSquare[] {
   const { board, w } = c;
   const out: RoleSquare[] = [];
-  const add: AddSquare = (role, at, value) => {
-    if (onPitch(at)) out.push({ role, at, value });
+  const add: AddSquare = (role, at, value, only) => {
+    if (onPitch(at) && value > 0)
+      out.push(only ? { role, at, value, only } : { role, at, value });
   };
   const ball = board.ball;
   if (ball.kind === "carried" && ball.carrier.teamId === board.us) {
-    ownCarrierSquares(c, ball.at, add);
+    ownCarrierSquares(c, ball.carrier, add);
   } else if (ball.kind === "carried") {
     theirCarrierSquares(c, ball.at, add);
   } else if (ball.kind === "loose") {
@@ -117,18 +161,19 @@ function roleRoute(
   routes: Map<number, Route>
 ): Reposition | null {
   const { board, w } = c;
+  // Each square counts for the most this player can make of it there.
+  const top = new Map<number, RoleSquare>();
+  for (const s of squares) {
+    if (s.only && s.only !== player.id) continue;
+    const best = top.get(key(s.at));
+    if (!best || s.value > best.value) top.set(key(s.at), s);
+  }
   const worth = (at: Square) => {
-    const base = Math.max(
-      0,
-      ...squares
-        .filter((s) => s.at.x === at.x && s.at.y === at.y)
-        .map((s) => s.value)
-    );
+    const square = top.get(key(at));
     const marked = board.marks[key(at)];
-    const role = squares.find((s) => s.at.x === at.x && s.at.y === at.y)?.role;
     return (
-      base -
-      (role === "mark" ? 0 : marked * w.endInContact) -
+      Math.max(0, square?.value ?? 0) -
+      (square?.role === "mark" ? 0 : marked * w.endInContact) -
       exposureCost(c, player, at)
     );
   };
@@ -137,7 +182,7 @@ function roleRoute(
       ? -w.standUp
       : worth(player.gridPosition!);
   let best: Reposition | null = null;
-  for (const s of squares) {
+  for (const s of top.values()) {
     const route = routes.get(key(s.at));
     if (!route || route.chance < w.safeMove) continue;
     const gain =

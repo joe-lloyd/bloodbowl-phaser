@@ -29,11 +29,13 @@ import { Route } from "./routes";
 import {
   Context,
   bestReach,
+  crowd,
   gamble,
   scoreChanceOf,
   threats,
   tierFor,
 } from "./activationContext";
+import { launchReady } from "./teammateActivations";
 import type { Activation } from "./activations";
 import { feedingCost, moveFeedingCost, unfedChance } from "./feeding";
 import { exposureCost, lateMoveValue, scoringValue } from "./latePlans";
@@ -100,8 +102,19 @@ function carrierSquare(c: Context, at: Square, carrier: Player): number {
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner -
     (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0) -
-    exposureCost(c, carrier, at)
+    exposureCost(c, carrier, at) +
+    launchReady(c, carrier, at)
   );
+}
+
+/**
+ * Moving the ball to a team-mate with fewer defenders near it: a sideways
+ * ball that splits the defence. Worth nothing on the last turn.
+ */
+function spaceGain(c: Context, carrier: Player, mate: Player): number {
+  if (c.board.turnsLeft === 0) return 0;
+  const pressed = crowd(c.board, carrier.gridPosition!);
+  return Math.max(0, pressed - crowd(c.board, mate.gridPosition!)) * c.w.flank;
 }
 
 /** The carrier's most likely run into the end zone, worth its risk. */
@@ -376,7 +389,9 @@ function handoffTo(
 ): Activation | null {
   const { board, w } = c;
   const scoreChance = scoreChanceOf(c, mate);
-  const progress = (carrierReach - bestReach(c, mate)) * w.advance * c.urgency;
+  const progress =
+    (carrierReach - bestReach(c, mate)) * w.advance * c.urgency +
+    spaceGain(c, carrier, mate);
   if (scoreChance === 0 && (board.turnsLeft === 0 || progress < w.advance * 2))
     return null;
   const target = catchTarget(mate, board.theirs, board.weather, "handoff");
@@ -532,7 +547,9 @@ function passTo(
   const inEndZone = toGoal(board, mate.gridPosition!) === 0;
   if (!inEndZone && !c.available.has(mate.id)) return null;
   const scoreChance = inEndZone ? 1 : scoreChanceOf(c, mate);
-  const progress = (carrierReach - bestReach(c, mate)) * w.advance * c.urgency;
+  const progress =
+    (carrierReach - bestReach(c, mate)) * w.advance * c.urgency +
+    spaceGain(c, carrier, mate);
   if (scoreChance === 0 && (board.turnsLeft === 0 || progress < w.advance * 4))
     return null;
   const catchRoll = catchTarget(mate, board.theirs, board.weather, "pass");

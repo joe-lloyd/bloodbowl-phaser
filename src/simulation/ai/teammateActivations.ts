@@ -30,7 +30,43 @@ import { Chance, RollTarget, d6 } from "./chance";
 import { routesFor, withTeamReroll } from "./routes";
 import { Context, threats, tierFor } from "./activationContext";
 import type { Activation } from "./activations";
-import { finalBallLoss, injuryRiskValue, scoringValue } from "./latePlans";
+import {
+  finalBallLoss,
+  injuryRiskValue,
+  nextTurnReach,
+  scoringValue,
+} from "./latePlans";
+
+/** How far a thrown team-mate travels, at most: the Short Pass band. */
+export const THROW_REACH = 6;
+
+const canThrowTeammates = (p: Player) =>
+  hasSkill(p.skills, SkillType.THROW_TEAM_MATE) ||
+  hasSkill(p.skills, SkillType.KICK_TEAM_MATE);
+
+/** Our standing players who could throw `carrier`, other than itself. */
+export function throwersFor(board: Board, carrier: Player): Player[] {
+  return board.ours.filter(
+    (p) => p.id !== carrier.id && standing(p) && canThrowTeammates(p)
+  );
+}
+
+/**
+ * A Right Stuff carrier standing at `at` beside a thrower: a launch this
+ * turn, by a thrower still to act, or next turn, within reach of a score.
+ */
+export function launchReady(c: Context, carrier: Player, at: Square): number {
+  const { board, w } = c;
+  if (!isRightStuffEligible(carrier)) return 0;
+  const goal = toGoal(board, at);
+  const ready = throwersFor(board, carrier).some(
+    (t) =>
+      distance(t.gridPosition!, at) === 1 &&
+      ((c.available.has(t.id) && goal <= THROW_REACH) ||
+        (board.turnsLeft > 0 && goal <= THROW_REACH + nextTurnReach(carrier)))
+  );
+  return ready ? w.launch : 0;
+}
 
 /** The eight Scatter directions, each one face of the D8. */
 const DIRECTIONS = [

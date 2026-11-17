@@ -189,3 +189,29 @@ describe("retained turn plans", () => {
     });
   });
 });
+
+describe("flank setup", () => {
+  it("sends a runner wide of a pressed carrier, to the side the defence left", async () => {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, hasBall: true },
+        { playerIndex: 1, x: 7, y: 6, stats: { MA: 8 } },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 4 },
+        { playerIndex: 1, x: 10, y: 6 },
+        { playerIndex: 2, x: 11, y: 5 },
+        { playerIndex: 3, x: 12, y: 3 },
+      ],
+    });
+    const coach = createPlannerCoach();
+    const runner = subject.ctx.team1.players[1];
+    const notes: string[] = [];
+    while (subject.snapshot().activeTeamId === "team1" && notes.length < 20)
+      notes.push((await step(subject, coach)).note ?? "");
+
+    expect(notes).toContain("moves to flank");
+    expect(runner.gridPosition!.y).toBeGreaterThanOrEqual(8);
+  });
+});
