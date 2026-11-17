@@ -136,9 +136,10 @@ export interface IGameService {
   /** A loose kick-off ball bounced out of the receiving half: Touchback. */
   kickoffBounceTouchback(to: { x: number; y: number }): boolean;
   /**
-   * The Kick-off Table has been rolled and its result is not stored yet. A
-   * save now would hold the advanced dice without the event, so a restore
-   * would roll a different one.
+   * The Kick-off Table waits for Roll, or has been rolled and its result is
+   * not stored yet. A save while it waits restores a kick whose dialog never
+   * reopens; one after the roll holds the advanced dice without the event,
+   * so a restore would roll a different one.
    */
   isKickoffTableResolving(): boolean;
   /** Interactive Sevens kickoff event currently awaiting its owning coach. */

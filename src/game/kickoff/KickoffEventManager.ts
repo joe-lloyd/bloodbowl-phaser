@@ -98,7 +98,7 @@ export class KickoffEventManager {
   /** Changing Weather → Perfect Conditions: the kick scatters in the air. */
   private weatherScatterPending = false;
   private lastEvent: KickoffEvent | null = null;
-  /** From the table roll until its outcome is stored: never save then. */
+  /** From the table's Roll prompt until its outcome is stored: never save then. */
   private resolving = false;
   private chargePreviousActiveTeamId: string | null = null;
   private readonly setupValidator = new SetupValidator();
@@ -183,6 +183,10 @@ export class KickoffEventManager {
 
     // The coach rolls when ready, in the table dialog, which shows the
     // dice land and the result row before the event's own banner
+    // No save from here until the outcome is stored: a save while the
+    // table waits would restore a kick that never reopens its dialog, and
+    // one after the roll would hold the dice without the event
+    this.resolving = true;
     const readyId = nextPresentationId("kickoff-ready");
     const rolled = awaitPresentation(
       this.eventBus,
@@ -195,7 +199,6 @@ export class KickoffEventManager {
       kickingTeamId: kickingTeam.id,
     });
     await rolled;
-    this.resolving = true;
     const roll = this.diceController.roll2D6(
       KICKOFF_TABLE_ROLL,
       kickingTeam.id
@@ -303,7 +306,7 @@ export class KickoffEventManager {
     });
   }
 
-  /** The table is rolled and its outcome not yet stored. */
+  /** The table waits for Roll, or is rolled and its outcome not yet stored. */
   public isResolving(): boolean {
     return this.resolving;
   }

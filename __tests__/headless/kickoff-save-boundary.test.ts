@@ -1,7 +1,8 @@
 /**
- * A save never lands between the Kick-off Table's roll and its stored
- * result. The roll advances the dice; a save then would hold no event, and
- * a restore would roll a different one.
+ * A save never lands from the Kick-off Table's Roll prompt until its result
+ * is stored. A save at the prompt restores a kick whose dialog never
+ * reopens, so a match against the computer stalls. A save after the roll
+ * holds the advanced dice without the event, so a restore rolls another.
  */
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -49,7 +50,7 @@ const presentation = (game: HeadlessGame, name: GameEventNames) =>
   );
 
 describe("saving across the kick-off", () => {
-  it("holds the save while the rolled table waits on its dialog", async () => {
+  it("holds the save from the Roll prompt until the event is stored", async () => {
     const game = new HeadlessGame({
       scenario: kickoffScenario,
       seed: 4,
@@ -79,8 +80,12 @@ describe("saving across the kick-off", () => {
       y: 5,
     });
 
-    // Waiting for Roll: nothing is rolled yet, and the save is safe
-    ack(await ready);
+    // Waiting for Roll: a restore could not reopen the dialog, so no save
+    const readyId = await ready;
+    expect(gameService.isKickoffTableResolving()).toBe(true);
+    expect(await autosave.flushNow()).toBe(false);
+    expect(writes.held).toEqual([]);
+    ack(readyId);
     // Rolled, its dialog still open: no save
     const shownId = await rolled;
     expect(gameService.isKickoffTableResolving()).toBe(true);
