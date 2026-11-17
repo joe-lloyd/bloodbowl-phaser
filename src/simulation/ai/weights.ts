@@ -29,8 +29,11 @@ export const DEFAULT_WEIGHTS = {
   receiver: 6,
   /** A thrower beside a Right Stuff carrier, ready to launch it. */
   launch: 10,
-  /** Per defender fewer near a square than near our carrier: the open side. */
-  flank: 3,
+  /**
+   * Per defender fewer near a square than near our carrier: the open side.
+   * Off for the best planner; Standard's flank game plan turns it on.
+   */
+  flank: 0,
   /** Per defender fewer near the team-mate a pass or hand-off goes to. */
   sideways: 3,
   /** Put a tackle zone on the opposing carrier. */

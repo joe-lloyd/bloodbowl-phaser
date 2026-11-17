@@ -314,14 +314,18 @@ export function createPlannerCoach(
     name: options.name ?? "planner",
     remember,
     async choose(context: CoachContext): Promise<CoachChoice> {
+      const chosen = choosing(context);
+      const weights = chosen?.plan.weights
+        ? { ...w, ...chosen.plan.weights }
+        : w;
       return (
         planChoice(
           context,
-          w,
+          weights,
           options.skillPlans ?? true,
           memory,
           remember,
-          choosing
+          () => chosen
         ) ?? heuristicCoach.choose(context)
       );
     },

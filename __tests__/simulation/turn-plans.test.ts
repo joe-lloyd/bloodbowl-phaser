@@ -5,6 +5,11 @@ import { SkillType } from "../../src/types/Skills";
 import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
+import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
+import {
+  GAME_PLANS,
+  STANDARD_VARIETY,
+} from "../../src/simulation/ai/gamePlans";
 import { createCoachRng } from "../../src/simulation/rng";
 import type { Coach } from "../../src/simulation/coach";
 import { sequenceChance } from "../../src/simulation/ai/chance";
@@ -29,13 +34,13 @@ function game(setup: Partial<ScenarioSetup>) {
   });
 }
 
-async function step(subject: HeadlessGame, coach: Coach) {
+async function step(subject: HeadlessGame, coach: Coach, seed = 1) {
   const point = await enumerateDecision(subject, null);
   const choice = await coach.choose({
     game: subject,
     snapshot: subject.snapshot(),
     point,
-    rng: createCoachRng(1),
+    rng: createCoachRng(seed),
   });
   const command = point.candidates[choice.index].commands[0];
   const result = await subject.execute(command);
@@ -190,8 +195,18 @@ describe("retained turn plans", () => {
   });
 });
 
+/** The weights Standard plays with when it draws its flank game plan. */
+const FLANK_PLAN = {
+  ...DEFAULT_WEIGHTS,
+  ...GAME_PLANS.find((p) => p.name === "flank")!.weights,
+};
+
 /** The carrier has acted and stayed put, pressed by the defence. */
-async function pressedCarrier(extra: PlayerPlacement[]) {
+async function pressedCarrier(
+  extra: PlayerPlacement[],
+  coach: Coach = createPlannerCoach({ weights: FLANK_PLAN }),
+  seed = 1
+) {
   const subject = game({
     turn: 3,
     team1Placements: [
@@ -213,23 +228,45 @@ async function pressedCarrier(extra: PlayerPlacement[]) {
     action: "move",
   });
   await subject.execute({ type: "end-activation", playerId: carrier.id });
-  const coach = createPlannerCoach();
   const declared: string[] = [];
   for (let i = 0; i < 40 && subject.snapshot().activeTeamId === "team1"; i++) {
-    const { command, note } = await step(subject, coach);
+    const { command, note } = await step(subject, coach, seed);
     if (command.type === "declare-action")
       declared.push(`${command.playerId}: ${note}`);
   }
   return { subject, declared };
 }
 
-describe("flank setup", () => {
+describe("flank setup, under Standard's flank game plan", () => {
   it("sends a runner wide of a pressed carrier, to the side the defence left", async () => {
     const { subject, declared } = await pressedCarrier([]);
     const runner = subject.ctx.team1.players[1];
 
     expect(declared).toEqual([`${runner.id}: moves to flank`]);
     expect(runner.gridPosition!.y).toBeGreaterThanOrEqual(8);
+  });
+
+  it("keeps the runner home for the best planner, which a flank costs", async () => {
+    const { declared } = await pressedCarrier([], createPlannerCoach());
+
+    expect(declared.filter((d) => d.endsWith("moves to flank"))).toEqual([]);
+  });
+
+  it("sends the runner wide when Standard draws its flank game plan", async () => {
+    // Coach seed 6 draws the flank plan, the third of the five.
+    const FLANK_SEED = 6;
+    const { subject, declared } = await pressedCarrier(
+      [],
+      createPlannerCoach({ variety: STANDARD_VARIETY }),
+      FLANK_SEED
+    );
+
+    expect(
+      GAME_PLANS[createCoachRng(FLANK_SEED).int(GAME_PLANS.length)].name
+    ).toBe("flank");
+    expect(declared).toEqual([
+      `${subject.ctx.team1.players[1].id}: moves to flank`,
+    ]);
   });
 
   it("sends one runner wide, not the cage", async () => {

@@ -74,8 +74,11 @@ only an opposing reply that changes the result, as for a final scoring run.
 Two plays set up the next turn. A throw is worth its fumbles only when
 nothing safer can score, so on turn five a thrower walks beside a Right Stuff
 carrier within a throw and a run of the end zone, and that carrier values
-standing next to one. One runner, the fastest player without the ball, goes
-wide of a pressed carrier, to the side with fewer defenders near it. It takes
+standing next to one. Under Standard's flank game plan, one runner, the
+fastest player without the ball, goes wide of a pressed carrier, to the side
+with fewer defenders near it. It cost the best planner 0.75 points of points
+share over 5,184 paired games, so the planner and the search levels do not
+send one. It takes
 only squares off the sideline that the carrier can reach next turn by a Quick
 or Short Pass or a hand-off, and that the runner can score from. Passes and
 hand-offs count escaping that pressure as gain, so a sideways ball to the open
@@ -137,7 +140,8 @@ characteristics that set the odds of each roll:
 
 Standard draws a game plan for each match: balanced, aerial, flank, grind or
 bash. A plan adds a few points to the kinds of activation it favours, such as
-passes and throws for aerial or blocks for bash. At each declaration Standard
+passes and throws for aerial or blocks for bash. The flank plan also turns on
+the wide runner. At each declaration Standard
 may take any plan within 8 points of the best, where a touchdown is 100. The
 closer plan is the likelier pick. A close call never puts an action whose
 failure is a Turnover ahead of a safe best plan. The coach's own random stream

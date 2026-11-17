@@ -8,6 +8,7 @@
 
 import type { CoachRng } from "../rng";
 import type { Activation } from "./activations";
+import type { Weights } from "./weights";
 
 /** What a game plan leans towards: an intent kind, or a positioning role. */
 type Lean =
@@ -18,6 +19,11 @@ export interface GamePlan {
   name: string;
   /** Points added to a plan's value when choosing between close plans. */
   leans: Partial<Record<Lean, number>>;
+  /**
+   * Weights this game plan plays with instead: plays that cost the best
+   * planner a little, kept for the variety they bring.
+   */
+  weights?: Partial<Weights>;
 }
 
 export const GAME_PLANS: readonly GamePlan[] = [
@@ -34,6 +40,9 @@ export const GAME_PLANS: readonly GamePlan[] = [
   },
   {
     name: "flank",
+    // A runner sent wide cost the best planner 0.75 points of points share
+    // over 5,184 paired games, so only this game plan sends one.
+    weights: { flank: 3 },
     leans: {
       "reposition:flank": 5,
       "reposition:receiver": 2,
