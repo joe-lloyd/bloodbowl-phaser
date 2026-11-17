@@ -118,16 +118,21 @@ function flankSquares(c: Context, carrier: Player, add: AddSquare): void {
 }
 
 /**
- * The one team-mate who goes deep: the surest hands, then the fastest.
- * One receiver splits the defence; the rest keep the cage.
+ * The one team-mate who goes deep: the surest hands, then the fastest, of
+ * those who can still move or already stand deep. It stays the receiver
+ * for the turn once it has gone, so the rest keep the cage.
  */
 function deepReceiver(c: Context, carrier: Player): Player | undefined {
+  const at = carrier.gridPosition!;
   const hands = (p: Player) =>
     p.stats.AG - (hasSkill(p.skills, SkillType.CATCH) ? 1 : 0);
   return c.board.ours
     .filter(
       (p) =>
-        p.id !== carrier.id && standing(p) && c.available.get(p.id)?.has("move")
+        p.id !== carrier.id &&
+        standing(p) &&
+        (c.available.get(p.id)?.has("move") ||
+          isDeep(c, at, p.gridPosition!, p))
     )
     .sort(
       (a, b) =>
@@ -150,15 +155,9 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
   const at = carrier.gridPosition!;
   if (carrier.stats.PA <= 0 || toGoal(board, at) <= nextTurnReach(carrier))
     return;
-  // One receiver deep is enough: once one has gone, the rest keep the cage.
-  const wentDeep = (p: Player) =>
-    p.id !== carrier.id &&
-    standing(p) &&
-    !c.available.get(p.id)?.has("move") &&
-    isDeep(c, at, p.gridPosition!, p);
-  if (board.ours.some(wentDeep)) return;
   const receiver = deepReceiver(c, carrier);
-  if (!receiver) return;
+  // Once the receiver has gone deep, nobody else goes.
+  if (!receiver || !c.available.get(receiver.id)?.has("move")) return;
   for (let x = 0; x < WIDTH; x++)
     for (let y = 1; y < HEIGHT - 1; y++) {
       const s = { x, y };
