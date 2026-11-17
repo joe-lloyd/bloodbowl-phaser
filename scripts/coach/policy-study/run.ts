@@ -18,6 +18,10 @@ import { playStudyGame } from "../catalogue-study/play";
 import { replayStudyTrace } from "../catalogue-study/replay";
 import { createPlannerCoach } from "../../../src/simulation/ai/planner";
 import { STANDARD_VARIETY } from "../../../src/simulation/ai/gamePlans";
+import {
+  DEFAULT_WEIGHTS,
+  parseWeights,
+} from "../../../src/simulation/ai/weights";
 import type { Coach } from "../../../src/simulation/coach";
 import { policySchedule, limitPolicyBlocks } from "./schedule";
 import type { PolicyJob } from "./schedule";
@@ -51,10 +55,22 @@ if (!["planner", "heuristic", "hard", "legend"].includes(opponent))
 const candidateKind = flag("candidate", "planner");
 if (!["planner", "standard"].includes(candidateKind))
   throw new Error("Unsupported candidate");
+/** Candidate weights for an ablation: a JSON file of overrides. */
+const weightsFile = flag("weights", "");
+const candidateWeights = weightsFile
+  ? parseWeights(JSON.parse(readFileSync(resolve(weightsFile), "utf8")))
+  : DEFAULT_WEIGHTS;
 const candidateCoach = () =>
   candidateKind === "standard"
-    ? createPlannerCoach({ name: "standard", variety: STANDARD_VARIETY })
-    : createPlannerCoach({ name: "planner-skill-plans" });
+    ? createPlannerCoach({
+        name: "standard",
+        variety: STANDARD_VARIETY,
+        weights: candidateWeights,
+      })
+    : createPlannerCoach({
+        name: "planner-skill-plans",
+        weights: candidateWeights,
+      });
 
 function atomic(file: string, data: unknown) {
   writeFileSync(file + ".tmp", JSON.stringify(data));
@@ -240,6 +256,7 @@ if (args.includes("--worker")) {
     smoke,
     opponent,
     candidate: candidateKind,
+    candidateWeights,
     workers,
     variants,
     inventory,
@@ -264,6 +281,8 @@ if (args.includes("--worker")) {
       previous.node !== manifest.node ||
       previous.opponent !== manifest.opponent ||
       (previous.candidate ?? "planner") !== manifest.candidate ||
+      JSON.stringify(previous.candidateWeights ?? DEFAULT_WEIGHTS) !==
+        JSON.stringify(candidateWeights) ||
       JSON.stringify(previous.jobs) !== JSON.stringify(jobs)
     )
       throw new Error(

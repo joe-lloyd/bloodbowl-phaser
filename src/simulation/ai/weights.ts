@@ -31,6 +31,8 @@ export const DEFAULT_WEIGHTS = {
   launch: 10,
   /** Per defender fewer near a square than near our carrier: the open side. */
   flank: 3,
+  /** Per defender fewer near the team-mate a pass or hand-off goes to. */
+  sideways: 3,
   /** Put a tackle zone on the opposing carrier. */
   markCarrier: 16,
   /** More for a square beside the carrier that would give an assist. */

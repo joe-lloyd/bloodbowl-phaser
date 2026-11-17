@@ -18,6 +18,7 @@ import {
   toGoal,
 } from "./board";
 import { Route } from "./routes";
+import { PassController } from "../../game/controllers/PassController";
 import { Context, crowd, gamble, tierFor } from "./activationContext";
 import { CORNERS } from "./ballActivations";
 import type { Activation, Role } from "./activations";
@@ -54,18 +55,57 @@ function launchSquares(c: Context, carrier: Player, add: AddSquare): void {
 }
 
 /**
- * Wide of our carrier, on the side the defence has left: a runner there
- * takes a sideways ball and splits the defence.
+ * The one team-mate who runs wide: the fastest standing player without the
+ * ball, one already wide first. A flank is a runner's job, not the team's.
  */
-function flankSquares(c: Context, at: Square, add: AddSquare): void {
+function flankRunner(c: Context, carrier: Player): Player | undefined {
+  const at = carrier.gridPosition!;
+  const wide = (p: Player) => Math.abs(p.gridPosition!.y - at.y) >= 3;
+  return c.board.ours
+    .filter((p) => p.id !== carrier.id && standing(p))
+    .sort(
+      (a, b) =>
+        b.stats.MA - a.stats.MA ||
+        Number(wide(b)) - Number(wide(a)) ||
+        a.id.localeCompare(b.id)
+    )[0];
+}
+
+/**
+ * Next turn the carrier can get the ball to `s`, by a Quick or Short Pass or
+ * by walking up for a hand-off, and the runner can score from there.
+ */
+function flankPays(
+  board: Board,
+  carrier: Player,
+  runner: Player,
+  s: Square
+): boolean {
+  const at = carrier.gridPosition!;
+  const range = PassController.rangeValue(at, s);
+  const reached =
+    (carrier.stats.PA > 0 && range !== null && range <= 1) ||
+    distance(at, s) <= carrier.stats.MA;
+  return reached && toGoal(board, s) <= nextTurnReach(runner);
+}
+
+/**
+ * Wide of our carrier, on the side the defence has left: a runner there
+ * takes a sideways ball next turn, scores and splits the defence. Not on a
+ * sideline, where a push puts it in the crowd.
+ */
+function flankSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
+  const at = carrier.gridPosition!;
   const pressed = crowd(board, at);
-  if (pressed === 0) return;
+  const runner = pressed > 0 ? flankRunner(c, carrier) : undefined;
+  if (!runner) return;
   for (const ahead of [0, 1, 2, 3])
-    for (let y = 0; y < HEIGHT; y++) {
+    for (let y = 1; y < HEIGHT - 1; y++) {
       if (Math.abs(y - at.y) < 3) continue;
       const s = { x: at.x + board.dir * ahead, y };
-      if (onPitch(s)) add("flank", s, w.flank * (pressed - crowd(board, s)));
+      if (onPitch(s) && flankPays(board, carrier, runner, s))
+        add("flank", s, w.flank * (pressed - crowd(board, s)), runner.id);
     }
 }
 
@@ -86,7 +126,7 @@ function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
         w.receiver
       );
   launchSquares(c, carrier, add);
-  flankSquares(c, at, add);
+  flankSquares(c, carrier, add);
 }
 
 /** Beside the walls of their carrier's cage: assists for the hits that break it. */
@@ -161,19 +201,21 @@ function roleRoute(
   routes: Map<number, Route>
 ): Reposition | null {
   const { board, w } = c;
-  // Each square counts for the most this player can make of it there.
+  // Each square counts for the most this player can make of it there. A
+  // square that marks their carrier or its cage is meant to be in contact.
   const top = new Map<number, RoleSquare>();
+  const marking = new Set<number>();
   for (const s of squares) {
     if (s.only && s.only !== player.id) continue;
     const best = top.get(key(s.at));
     if (!best || s.value > best.value) top.set(key(s.at), s);
+    if (s.role === "mark") marking.add(key(s.at));
   }
   const worth = (at: Square) => {
-    const square = top.get(key(at));
-    const marked = board.marks[key(at)];
+    const marked = marking.has(key(at)) ? 0 : board.marks[key(at)];
     return (
-      Math.max(0, square?.value ?? 0) -
-      (square?.role === "mark" ? 0 : marked * w.endInContact) -
+      Math.max(0, top.get(key(at))?.value ?? 0) -
+      marked * w.endInContact -
       exposureCost(c, player, at)
     );
   };

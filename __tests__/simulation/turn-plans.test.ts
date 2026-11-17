@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
-import type { ScenarioSetup } from "../../src/types/Scenario";
+import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { createCoachRng } from "../../src/simulation/rng";
@@ -190,28 +190,56 @@ describe("retained turn plans", () => {
   });
 });
 
+/** The carrier has acted and stayed put, pressed by the defence. */
+async function pressedCarrier(extra: PlayerPlacement[]) {
+  const subject = game({
+    turn: 3,
+    team1Placements: [
+      { playerIndex: 0, x: 8, y: 5, hasBall: true },
+      { playerIndex: 1, x: 4, y: 7, stats: { MA: 8 } },
+      ...extra,
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 10, y: 4 },
+      { playerIndex: 1, x: 10, y: 6 },
+      { playerIndex: 2, x: 11, y: 5 },
+      { playerIndex: 3, x: 11, y: 3 },
+    ],
+  });
+  const carrier = subject.ctx.team1.players[0];
+  await subject.execute({
+    type: "declare-action",
+    playerId: carrier.id,
+    action: "move",
+  });
+  await subject.execute({ type: "end-activation", playerId: carrier.id });
+  const coach = createPlannerCoach();
+  const declared: string[] = [];
+  for (let i = 0; i < 40 && subject.snapshot().activeTeamId === "team1"; i++) {
+    const { command, note } = await step(subject, coach);
+    if (command.type === "declare-action")
+      declared.push(`${command.playerId}: ${note}`);
+  }
+  return { subject, declared };
+}
+
 describe("flank setup", () => {
   it("sends a runner wide of a pressed carrier, to the side the defence left", async () => {
-    const subject = game({
-      turn: 3,
-      team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, hasBall: true },
-        { playerIndex: 1, x: 7, y: 6, stats: { MA: 8 } },
-      ],
-      team2Placements: [
-        { playerIndex: 0, x: 10, y: 4 },
-        { playerIndex: 1, x: 10, y: 6 },
-        { playerIndex: 2, x: 11, y: 5 },
-        { playerIndex: 3, x: 12, y: 3 },
-      ],
-    });
-    const coach = createPlannerCoach();
+    const { subject, declared } = await pressedCarrier([]);
     const runner = subject.ctx.team1.players[1];
-    const notes: string[] = [];
-    while (subject.snapshot().activeTeamId === "team1" && notes.length < 20)
-      notes.push((await step(subject, coach)).note ?? "");
 
-    expect(notes).toContain("moves to flank");
+    expect(declared).toEqual([`${runner.id}: moves to flank`]);
     expect(runner.gridPosition!.y).toBeGreaterThanOrEqual(8);
+  });
+
+  it("sends one runner wide, not the cage", async () => {
+    const { subject, declared } = await pressedCarrier([
+      { playerIndex: 2, x: 7, y: 4, stats: { MA: 7 } },
+      { playerIndex: 3, x: 7, y: 6, stats: { MA: 7 } },
+    ]);
+
+    expect(declared.filter((d) => d.endsWith("moves to flank"))).toEqual([
+      `${subject.ctx.team1.players[1].id}: moves to flank`,
+    ]);
   });
 });

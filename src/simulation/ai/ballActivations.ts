@@ -114,7 +114,9 @@ function carrierSquare(c: Context, at: Square, carrier: Player): number {
 function spaceGain(c: Context, carrier: Player, mate: Player): number {
   if (c.board.turnsLeft === 0) return 0;
   const pressed = crowd(c.board, carrier.gridPosition!);
-  return Math.max(0, pressed - crowd(c.board, mate.gridPosition!)) * c.w.flank;
+  return (
+    Math.max(0, pressed - crowd(c.board, mate.gridPosition!)) * c.w.sideways
+  );
 }
 
 /** The carrier's most likely run into the end zone, worth its risk. */

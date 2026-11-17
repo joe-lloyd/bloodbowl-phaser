@@ -200,8 +200,7 @@ function carrierLanding(c: Context, mate: Player, at: Square): number {
   if (toGoal(board, at) === 0) return w.touchdown;
   // Like a carrier move, a landing that does not score is worth what it
   // gains on the square the carrier left; a score is worth the touchdown.
-  const stand =
-    carrierStanding(c, at) - carrierStanding(c, mate.gridPosition!);
+  const stand = carrierStanding(c, at) - carrierStanding(c, mate.gridPosition!);
   if (!c.available.has(mate.id)) return stand;
   const { after, landed } = landedBoard(board, mate, at, true);
   const plain = routesFor(after, landed);
