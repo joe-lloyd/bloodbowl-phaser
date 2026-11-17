@@ -39,6 +39,32 @@ Passing is still rare because a dropped ball is priced at 60 points plus the tur
 
 Published report: [Sevens advanced plays](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-advanced-plays-2026-11-17%2Findex.html), Blood Bowl, `sevens-advanced-plays-2026-11-17/`. Each stage links its plays and moments page, whose scoring moments open the match viewer at the declaration. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-c928db14d0da-vs-53a1c8dd6118` on Daily Driver.
 
+## Two-step passes, 17 November
+
+The third release sets up a pass a turn ahead. When our carrier cannot run the ball in next turn, one receiver goes deep: in Long Pass range, close enough to catch and score next turn without a Rush, and away from the defence. Each square is worth the carrier's chance of completing that throw, so a lineman's Long Pass sends nobody. On the throwing turn a marked carrier may now dodge out before it throws, with the dodge priced into the pass. Candidate source `01e8b45c8750` played `0a474e067fe0`, the same branch without these two changes. Both include coach fouls. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   50.19% | 49.79% to 50.61%     |
+| Standard, game plans and close calls | 5,184 |                   49.25% | 48.29% to 50.26%     |
+| Persistent fixtures                  | 1,296 |                   50.50% | 49.69% to 51.31%     |
+| Heuristic control                    |   432 |                   89.70% | 87.27% to 91.90%     |
+| Hard sentinels                       |    16 | 34.38%, descriptive only | No strength estimate |
+
+The best planner is level: 3,449 touchdowns against 3,434, and 631 deaths against 638. Its equal-roster share is 50.11%, 49.31% to 50.94%. Standard's interval includes parity, but it leans 0.75 points behind, with 3,352 touchdowns against 3,441 and 752 deaths against 713. The 192-game pilot, on fixed diagnostic seeds, came out at 46.61%, 44.27% to 48.70%. The pilot is not the estimate, but it is the one stage below parity.
+
+| Play in 5,184 games                    | Best planner | Frozen | Standard | Frozen |
+| -------------------------------------- | -----------: | -----: | -------: | -----: |
+| Receiver sent deep                     |        1,100 |      0 |      949 |      0 |
+| Team scored the turn after a deep run  |          107 |      0 |      169 |      0 |
+| Passes, Pass command accepted          |           60 |     33 |       83 |     29 |
+| Completions                            |           20 |     14 |       44 |     13 |
+| Receiver touchdowns after a completion |           17 |     13 |       38 |     11 |
+
+Most deep runs end without a pass. On the next turn the defence has often marked the receiver or taken the ball, and a receiver in walking range takes a hand-off, which needs no Pass roll. Throws after a dodge fail often: 42 of the best planner's 66 Pass declarations ended in a turnover, against 19 of 37 for the frozen policy. Counts of plays describe what followed them, not their causal value.
+
+Published report: [Sevens two-step passes](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-two-step-pass-2026-11-17%2Findex.html), Blood Bowl, `sevens-two-step-pass-2026-11-17/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-01e8b45c8750-vs-0a474e067fe0` on Daily Driver.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
