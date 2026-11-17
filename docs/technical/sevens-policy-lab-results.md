@@ -51,7 +51,7 @@ The third release sets up a pass a turn ahead. When our carrier cannot run the b
 | Heuristic control                    |   432 |                   89.70% | 87.27% to 91.90%     |
 | Hard sentinels                       |    16 | 34.38%, descriptive only | No strength estimate |
 
-The best planner is level: 3,449 touchdowns against 3,434, and 631 deaths against 638. Its equal-roster share is 50.11%, 49.31% to 50.94%. Standard's interval includes parity, but it leans 0.75 points behind, with 3,352 touchdowns against 3,441 and 752 deaths against 713. The 192-game pilot, on fixed diagnostic seeds, came out at 46.61%, 44.27% to 48.70%. The pilot is not the estimate, but it is the one stage below parity.
+The best planner is level: 3,449 touchdowns against 3,434, and 631 deaths against 638. Its equal-roster share is 50.11%, 49.31% to 50.94%. The Standard stage plays the candidate's Standard coach against the frozen best planner, so its share is the cost of variety, not a change from the old Standard. It is 0.75 points behind, with 3,352 touchdowns against 3,441 and 752 deaths against 713. Every Standard stage since game plans landed has come out between 48.6% and 49.3%. The 192-game pilot, on fixed diagnostic seeds, came out at 46.61%, 44.27% to 48.70%. The pilot is not the estimate, but it is the one stage below parity.
 
 | Play in 5,184 games                    | Best planner | Frozen | Standard | Frozen |
 | -------------------------------------- | -----------: | -----: | -------: | -----: |
@@ -64,6 +64,61 @@ The best planner is level: 3,449 touchdowns against 3,434, and 631 deaths agains
 Most deep runs end without a pass. On the next turn the defence has often marked the receiver or taken the ball, and a receiver in walking range takes a hand-off, which needs no Pass roll. Throws after a dodge fail often: 42 of the best planner's 66 Pass declarations ended in a turnover, against 19 of 37 for the frozen policy. Counts of plays describe what followed them, not their causal value.
 
 Published report: [Sevens two-step passes](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-two-step-pass-2026-11-17%2Findex.html), Blood Bowl, `sevens-two-step-pass-2026-11-17/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-01e8b45c8750-vs-0a474e067fe0` on Daily Driver.
+
+## Coach fouls, 17 November
+
+The fouling release lets the coach Foul a downed opponent. Each Foul is priced by its armour, injury and referee dice, and by what the fouler is worth: a Gnoblar is cheap to lose, a big guy is not. Candidate source `2a158236dcc9` played `cc193d113529`, the same branch without fouls. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   50.05% | 49.71% to 50.38%     |
+| Standard, against the frozen planner | 5,184 |                   49.11% | 48.07% to 50.15%     |
+| Persistent fixtures                  | 1,296 |                   50.00% | 49.15% to 50.89%     |
+| Heuristic control                    |   432 |                   90.05% | 87.85% to 92.01%     |
+| Hard sentinels                       |    16 | 31.25%, descriptive only | No strength estimate |
+
+Fouls cost the best planner nothing: 3,502 touchdowns against 3,504, 3,510 casualties inflicted against 3,443, and 653 deaths suffered against 692. Standard's share sits in its usual band. Its shortfall comes from rosters that never foul, such as Skaven and Dwarf, so it is not the fouls.
+
+`fouls.ts` counted every accepted Foul. The best planner fouled 802 times in 5,184 games, and Standard 689 times. Cheap linemen did all of it: Gnoblars 242 times, Rotters 76, Tomb Kings Skeletons 75, Goblins 64 and Snotlings 57. No big guy fouled. The dearest foulers were Dwarf Linemen and Khorngors at 70k, with five Fouls between them. Few lineups field Sneaky Git, so it shows only in a handful of Standard games.
+
+| Outcome of the best planner's 802 Fouls | Count |
+| --------------------------------------- | ----: |
+| Fouler Sent-off                         |   132 |
+| Target Stunned                          |   280 |
+| Target out of the drive, KO or worse    |   242 |
+| Target a casualty                       |   117 |
+
+Published report: [Sevens coach fouls](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-fouls-2026-11-17%2Findex.html), Blood Bowl, `sevens-fouls-2026-11-17/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-2a158236dcc9-vs-cc193d113529` on Daily Driver.
+
+## Getting the ball out of a press, 17 November
+
+After a deep setup the carrier mostly kept the ball and ran. A carrier move was valued as its gain over the carrier's square, so a carrier marked by three defenders earned up to 120 for dodging away. A scoring run, pass or hand-off was valued on its touchdown chance alone, with no credit for taking the ball out of that press. Each scoring play now adds its chance times the press: the marks, threats and exposure at the carrier's square. Candidate source `f25c6fcac812` played `5f3da3859ed5`, the two-step pass release. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   51.26% | 50.86% to 51.66%     |
+| Standard, against the frozen planner | 5,184 |                   50.11% | 49.02% to 51.14%     |
+| Persistent fixtures                  | 1,296 |                   51.12% | 50.27% to 52.01%     |
+| Heuristic control                    |   432 |                   91.32% | 89.35% to 93.29%     |
+| Hard sentinels                       |    16 | 28.13%, descriptive only | No strength estimate |
+
+The best planner gains 1.26 points, with the whole interval above parity: 3,727 touchdowns against 3,498, and 691 deaths suffered against 672. Standard now plays level with the frozen best planner, where every earlier Standard stage was about a point behind.
+
+| Play in 5,184 confirmation games       | Candidate | Frozen |
+| -------------------------------------- | --------: | -----: |
+| Runs in to score                       |     3,986 |  3,535 |
+| Hand-offs                              |     1,878 |  1,598 |
+| Hand-offs scored that turn             |       839 |    634 |
+| Receiver sent deep                     |     1,034 |  1,090 |
+| Team scored the turn after a deep run  |       185 |    113 |
+| Passes, Pass command accepted          |        70 |     61 |
+| Receiver touchdowns after a completion |        30 |     22 |
+
+Most rescued deep setups end in a hand-off, which needs no Pass roll. Standard's aerial plan throws more: 105 passes against 63, and 47 receiver touchdowns against 26.
+
+The release also measured the attrition weight, which makes a casualty worth more early in the game. The same source with `attrition: 1` played itself with `attrition: 0` over 5,184 games. It scored 49.66%, 48.83% to 50.46%, with 3,431 casualties inflicted against 3,411. Bash rosters split: Khorne and Black Orc gained about 3 points, Dwarf lost 4. Per-roster results at 128 to 256 games are noise, so attrition stays off.
+
+Published report: [Sevens press escape](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-press-escape-2026-11-17%2Findex.html), Blood Bowl, `sevens-press-escape-2026-11-17/`. The acquisition, with the attrition run in `attrition/`, stays at `/Users/joelloyd/tmp/bb7-policy-lab-f25c6fcac812-vs-5f3da3859ed5` on Daily Driver.
 
 ## Frozen acquisition
 
