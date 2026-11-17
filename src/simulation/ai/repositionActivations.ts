@@ -119,20 +119,25 @@ function flankSquares(c: Context, carrier: Player, add: AddSquare): void {
 
 /**
  * The one team-mate who goes deep: the surest hands, then the fastest, of
- * those who can still move or already stand deep. It stays the receiver
- * for the turn once it has gone, so the rest keep the cage.
+ * those who already stand deep or can still reach a deep square safely.
+ * It stays the receiver for the turn once it has gone, so the rest keep
+ * the cage.
  */
 function deepReceiver(c: Context, carrier: Player): Player | undefined {
   const at = carrier.gridPosition!;
   const hands = (p: Player) =>
     p.stats.AG - (hasSkill(p.skills, SkillType.CATCH) ? 1 : 0);
+  const canGo = (p: Player) =>
+    !!c.available.get(p.id)?.has("move") &&
+    [...c.plainRoutes(p).values()].some(
+      (r) => r.chance >= c.w.safeMove && isDeep(c, at, r.to, p)
+    );
   return c.board.ours
     .filter(
       (p) =>
         p.id !== carrier.id &&
         standing(p) &&
-        (c.available.get(p.id)?.has("move") ||
-          isDeep(c, at, p.gridPosition!, p))
+        (isDeep(c, at, p.gridPosition!, p) || canGo(p))
     )
     .sort(
       (a, b) =>

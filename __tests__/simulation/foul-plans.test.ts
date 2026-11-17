@@ -30,7 +30,7 @@ describe("foul odds", () => {
     const odds = foulOdds(plain, av9, alone);
     expect(odds.casualty).toBeCloseTo(of1296(60), 12);
     expect(odds.ko).toBeCloseTo(of1296(90), 12);
-    expect(odds.sentOff).toBeCloseTo(of1296(144 + 72 + 48), 12);
+    expect(odds.spotted).toBeCloseTo(of1296(144 + 72 + 48), 12);
   });
 
   it("lets a Sneaky Git off an unbroken double", () => {
@@ -38,7 +38,7 @@ describe("foul odds", () => {
       ...plain,
       skills: [{ type: SkillType.SNEAKY_GIT }],
     } as typeof plain;
-    expect(foulOdds(git, av9, alone).sentOff).toBeCloseTo(of1296(72 + 48), 12);
+    expect(foulOdds(git, av9, alone).spotted).toBeCloseTo(of1296(72 + 48), 12);
   });
 
   it("gives Lone Fouler its re-roll only with no assists on either side", () => {
@@ -109,5 +109,48 @@ describe("who fouls", () => {
     expect(gnoblar!).toBeGreaterThan(0);
     // A big guy Sent-off is far too costly to risk: no foul worth offering.
     expect(ogre).toBeNull();
+  });
+
+  it("fouls alone with an Orc Lineman, since an argued call often keeps it on the pitch", async () => {
+    // No assists, a skill-free AV 8 target. A spotted Foul still costs the
+    // turn, but the 5+ argument keeps the Lineman a third of the time.
+    const subject = new HeadlessGame({
+      seed: 1,
+      scenario: {
+        id: "lone-foul",
+        name: "A lone foul",
+        description: "",
+        setup: {
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+          activeTeam: "team1",
+          turn: 2,
+          team1Roster: RosterName.ORC,
+          teamRerolls: { team1: 0, team2: 0 },
+          team1Placements: [{ playerIndex: 0, x: 9, y: 5 }],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              status: PlayerStatus.PRONE,
+              stats: { AV: 8 },
+              skills: [],
+            },
+            { playerIndex: 1, x: 16, y: 2, hasBall: true },
+          ],
+        },
+      },
+    });
+    const point = await enumerateDecision(subject, null);
+
+    const fouls = activations(
+      readBoard(subject, "team1"),
+      DEFAULT_WEIGHTS,
+      availableActions(point.candidates)
+    ).filter((a) => a.action === "foul");
+
+    expect(fouls).toHaveLength(1);
+    expect(fouls[0].value).toBeCloseTo(1.574, 3);
   });
 });

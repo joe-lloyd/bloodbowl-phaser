@@ -184,6 +184,27 @@ describe("two-step pass", () => {
     ]);
   });
 
+  it("sends the catcher who can get there, not the surer hands that cannot", async () => {
+    // A slower catcher with surer hands stands in the cage; every deep
+    // square is beyond its reach, Rushes and all.
+    const slow: PlayerPlacement = {
+      playerIndex: 2,
+      x: 4,
+      y: 4,
+      stats: { MA: 6, AG: 1 },
+      skills: [SkillType.CATCH],
+    };
+    const subject = await setupTurn({}, [slow]);
+    const [, catcher, surer] = subject.ctx.team1.players;
+
+    const { declared } = await playTurn(subject);
+
+    expect(declared).toEqual([
+      `${catcher.id}: moves to deep`,
+      `${surer.id}: blitzes`,
+    ]);
+  });
+
   it("keeps the catcher home when the carrier can run the ball in next turn", async () => {
     const subject = await setupTurn({ stats: { MA: 8, PA: 2 }, x: 11 });
 

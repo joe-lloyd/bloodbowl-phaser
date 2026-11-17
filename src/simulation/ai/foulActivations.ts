@@ -2,14 +2,17 @@
  * Fouls: kick an opponent who is already down. The engine's dice are priced
  * exactly: the Armour Roll with assists, Dirty Player and Lone Fouler, the
  * Injury Roll on the target's table, and the referee spotting a double,
- * which Sneaky Git escapes on unbroken armour. A Send-off costs what the
- * fouler is worth to the team for the rest of the game, so cheap players
- * foul and big guys do not.
+ * which Sneaky Git escapes on unbroken armour. A spotted Foul is a
+ * Turnover; a Send-off, unless the call is argued or bribed away, costs
+ * what the fouler is worth to the team for the rest of the game, so cheap
+ * players foul and big guys do not.
  */
 
 import { Player, PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { playerValue } from "../../types/Team";
+import { TeamSpecialRule, playerValue } from "../../types/Team";
+import { hasTeamSpecialRule } from "../../game/rules/teamAllegiance";
+import { bribesLeft } from "../../game/inducements/bribes";
 import { FoulValidator } from "../../game/validators/FoulValidator";
 import { Square, distance, key, neighbours, standing } from "./board";
 import type { Route } from "./routes";
@@ -26,8 +29,11 @@ export interface FoulOdds {
   casualty: number;
   /** The target leaves the drive. */
   ko: number;
-  /** The referee Sends-off the fouler: a Turnover. */
-  sentOff: number;
+  /**
+   * The referee spots the Foul: always a Turnover, and a Send-off unless
+   * the call is argued or bribed away.
+   */
+  spotted: number;
 }
 
 const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
@@ -70,12 +76,12 @@ export function foulOdds(
   const [stunnedUpTo, koUpTo] = injuryBands(target);
   const regenerates = has(target, SkillType.REGENERATION) ? 0.5 : 1;
   const AV = target.stats.AV;
-  const out: FoulOdds = { casualty: 0, ko: 0, sentOff: 0 };
+  const out: FoulOdds = { casualty: 0, ko: 0, spotted: 0 };
   /** The Injury Roll; a double on it or on the armour is spotted. */
   const injury = (p: number, bonus: number, armourDouble: boolean) =>
     eachPair(p, (c, d, q) => {
       const total = c + d + bonus;
-      if (armourDouble || c === d) out.sentOff += q;
+      if (armourDouble || c === d) out.spotted += q;
       if (total > koUpTo) out.casualty += q * regenerates;
       else if (total > stunnedUpTo) out.ko += q;
     });
@@ -87,7 +93,7 @@ export function foulOdds(
       return eachPair(p, (c, d, q) => armour(c, d, q, true));
     // Dirty Player's +1 goes on the armour when that alone breaks it.
     if (dirtyOnArmourAllowed && total + 1 >= AV) return injury(p, 0, a === b);
-    if (a === b && !sneaky) out.sentOff += p;
+    if (a === b && !sneaky) out.spotted += p;
   };
   eachPair(1, (a, b, q) => armour(a, b, q, false));
   return out;
@@ -102,7 +108,24 @@ function sendOffCost(c: Context, fouler: Player): number {
   return c.w.sentOff * (playerValue(fouler) / LINEMAN_VALUE) ** 2;
 }
 
-/** A Send-off ends the turn: the activations still to come are lost. */
+/**
+ * The chance a spotted fouler leaves the pitch. Arguing the Call sways the
+ * referee on a 5 or 6, and Bribery and Corruption re-rolls a first 1 once
+ * a game. A Bribe, when the team holds one, then keeps the player on a 2+.
+ */
+function sendOffChance(c: Context, fouler: Player): number {
+  const state = c.board.gs.getState();
+  const team = c.board.gs.getTeam(fouler.teamId);
+  const corrupt =
+    !!team &&
+    hasTeamSpecialRule(team, TeamSpecialRule.BRIBERY_AND_CORRUPTION) &&
+    !state.briberyRerollsUsed?.includes(fouler.teamId);
+  const swayed = corrupt ? 1 / 3 + (1 / 6) * (1 / 3) : 1 / 3;
+  const bribed = bribesLeft(state, fouler.teamId) > 0 ? 5 / 6 : 0;
+  return (1 - swayed) * (1 - bribed);
+}
+
+/** A spotted Foul ends the turn: the activations still to come are lost. */
 const lostActivations = (c: Context) =>
   c.w.turnoverPerPlayer * Math.max(0, c.available.size - 1);
 
@@ -121,7 +144,8 @@ function foulAt(c: Context, fouler: Player, target: Player, at: Square) {
   return (
     odds.casualty * c.casualty +
     odds.ko * c.w.foulKnockOut -
-    odds.sentOff * (sendOffCost(c, fouler) + lostActivations(c))
+    odds.spotted *
+      (sendOffChance(c, fouler) * sendOffCost(c, fouler) + lostActivations(c))
   );
 }
 
