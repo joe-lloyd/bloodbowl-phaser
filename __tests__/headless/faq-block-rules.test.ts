@@ -9,7 +9,10 @@ import {
   hasCondition,
 } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
-import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
+import type {
+  CommandResponse,
+  EmittedEvent,
+} from "../../src/headless/protocol";
 import { forceDice } from "../utils/test-helpers";
 
 /**
@@ -75,7 +78,11 @@ describe("Brawler", () => {
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "blitz" });
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
     const roll = await run({
       type: "block",
       attackerId: attacker.id,
@@ -111,8 +118,16 @@ describe("Brawler", () => {
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "block" });
-    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
     await run({ type: "brawler-reroll-block", attackerId: attacker.id });
     await run({ type: "choose-block-result", index: 0 });
     const second = await run({ type: "choose-push-direction", x: 12, y: 5 });
@@ -249,8 +264,16 @@ describe("Eye Gouge", () => {
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "block" });
-    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
     const reaction = await run({ type: "choose-block-result", index: 0 });
     expect(reaction.pendingDecision).toMatchObject({
       type: "reaction",
@@ -281,8 +304,16 @@ describe("Eye Gouge", () => {
     const attacker = game.ctx.team1.players[0];
     const [defender, , chained] = game.ctx.team2.players;
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "block" });
-    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
     await run({ type: "choose-block-result", index: 0 });
     await run({ type: "choose-push-direction", x: 11, y: 5 });
     await run({ type: "choose-push-direction", x: 12, y: 5 });
@@ -475,5 +506,22 @@ describe("Multiple Block", () => {
       playerId: attacker.id,
       skill: SkillType.PILE_DRIVER,
     });
+  });
+
+  it("skips the second Block once the first knocks the blocker down", async () => {
+    // Both Down without Block: the blocker falls, a Turnover, and its
+    // activation ends with the second target unblocked.
+    const { start, run, rolled, attacker, second } = multipleBlock([
+      2, 1, 1, 1, 1, 1,
+    ]);
+
+    await start();
+    const next = await run({ type: "choose-block-result", index: 0 });
+
+    expect(rolled()[0]).toBe("Rolled 1 block dice: both-down");
+    expect(rolled().filter((r) => r.startsWith("Rolled"))).toHaveLength(1);
+    expect(attacker.status).not.toBe(PlayerStatus.ACTIVE);
+    expect(second.status).toBe(PlayerStatus.ACTIVE);
+    expect(next.pendingDecision?.type).not.toBe("block-dice");
   });
 });
