@@ -41,11 +41,15 @@ export interface RoleSquare {
 
 type AddSquare = (role: Role, at: Square, value: number, only?: string) => void;
 
-/** Beside a Right Stuff carrier: a thrower there can launch it next turn. */
+/**
+ * Beside a Right Stuff carrier on the turn before the last: a thrower there
+ * can launch it on the last turn.
+ */
 function launchSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
   const at = carrier.gridPosition!;
   if (
+    board.turnsLeft !== 1 ||
     !isRightStuffEligible(carrier) ||
     toGoal(board, at) > THROW_REACH + nextTurnReach(carrier)
   )

@@ -152,11 +152,12 @@ describe("Throw Team-mate plans", () => {
     });
   });
 
-  it("walks the thrower beside a Right Stuff carrier to set up next turn's throw", async () => {
-    // Ten squares out: too far for the goblin to run in next turn on its own,
-    // close enough for a throw and a run.
+  /** The goblin has acted ten squares out; the troll declares next. */
+  async function trollAfterGoblin(turn: number) {
+    // Too far for the goblin to run in next turn on its own, close enough
+    // for a throw and a run.
     const subject = game({
-      turn: 3,
+      turn,
       team1Placements: [troll(6, 2), goblin(9, 5, 6)],
       team2Placements: [
         { playerIndex: 0, x: 13, y: 4 },
@@ -171,18 +172,29 @@ describe("Throw Team-mate plans", () => {
       action: "move",
     });
     await subject.execute({ type: "end-activation", playerId: gob.id });
-
     const declare = await step(subject, coach);
+    while (subject.ctx.gameService.getState().activePlayer?.id === troller.id)
+      await step(subject, coach);
+    return { declare, troller };
+  }
+
+  it("walks the thrower beside the goblin on turn five, for a last-turn throw", async () => {
+    const { declare, troller } = await trollAfterGoblin(5);
+
     expect(declare.command).toEqual({
       type: "declare-action",
       playerId: troller.id,
       action: "move",
     });
     expect(declare.note).toBe("moves to throw");
-    while (subject.ctx.gameService.getState().activePlayer?.id === troller.id)
-      await step(subject, coach);
     const at = troller.gridPosition!;
     expect(Math.max(Math.abs(at.x - 9), Math.abs(at.y - 5))).toBe(1);
+  });
+
+  it("does not set up a throw earlier in the half, when the throw does not pay", async () => {
+    const { declare } = await trollAfterGoblin(3);
+
+    expect(declare.note).not.toBe("moves to throw");
   });
 });
 

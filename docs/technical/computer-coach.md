@@ -71,11 +71,15 @@ One who lands short and has not acted may run in, so a goblin thrown from ten
 squares out can still score that turn. On the last turn a dropped ball costs
 only an opposing reply that changes the result, as for a final scoring run.
 
-Two plays set up the next turn. A thrower walks beside a Right Stuff carrier
-within a throw and a run of the end zone, and that carrier values standing
-next to one. A runner goes wide of a pressed carrier, to the side with fewer
-defenders near it. Passes and hand-offs count escaping that pressure as gain,
-so a sideways ball to the open flank competes with forward progress.
+Two plays set up the next turn. A throw is worth its fumbles only when
+nothing safer can score, so on turn five a thrower walks beside a Right Stuff
+carrier within a throw and a run of the end zone, and that carrier values
+standing next to one. One runner, the fastest player without the ball, goes
+wide of a pressed carrier, to the side with fewer defenders near it. It takes
+only squares off the sideline that the carrier can reach next turn by a Quick
+or Short Pass or a hand-off, and that the runner can score from. Passes and
+hand-offs count escaping that pressure as gain, so a sideways ball to the open
+flank competes with forward progress.
 
 The coach keeps the chosen activation's target per game. Continuation rebuilds
 the remaining route from the observed square and ends preparation at its target.

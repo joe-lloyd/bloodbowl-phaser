@@ -52,18 +52,26 @@ export function throwersFor(board: Board, carrier: Player): Player[] {
 }
 
 /**
+ * A throw pays when nothing safer can score: on the last turn of a half. A
+ * launch is set up the turn before it, and taken on the last turn.
+ */
+export const launchTurn = (board: Board) => board.turnsLeft <= 1;
+
+/**
  * A Right Stuff carrier standing at `at` beside a thrower: a launch this
- * turn, by a thrower still to act, or next turn, within reach of a score.
+ * last turn, by a thrower still to act, or next turn, the last, within reach
+ * of a score.
  */
 export function launchReady(c: Context, carrier: Player, at: Square): number {
   const { board, w } = c;
-  if (!isRightStuffEligible(carrier)) return 0;
+  if (!isRightStuffEligible(carrier) || !launchTurn(board)) return 0;
   const goal = toGoal(board, at);
   const ready = throwersFor(board, carrier).some(
     (t) =>
       distance(t.gridPosition!, at) === 1 &&
-      ((c.available.has(t.id) && goal <= THROW_REACH) ||
-        (board.turnsLeft > 0 && goal <= THROW_REACH + nextTurnReach(carrier)))
+      (board.turnsLeft === 0
+        ? c.available.has(t.id) && goal <= THROW_REACH
+        : goal <= THROW_REACH + nextTurnReach(carrier))
   );
   return ready ? w.launch : 0;
 }
