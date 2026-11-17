@@ -61,6 +61,12 @@ export interface Variety {
   margin: number;
 }
 
+/**
+ * Standard takes any plan within 8 points of the best, where a touchdown is
+ * 100: close calls, never a throw-away.
+ */
+export const STANDARD_VARIETY: Variety = { margin: 8 };
+
 function lean(plan: GamePlan, a: Activation): number {
   const intent = a.intent;
   const kind: Lean =

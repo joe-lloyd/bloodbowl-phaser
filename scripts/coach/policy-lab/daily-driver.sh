@@ -16,7 +16,9 @@ for seed in "$confirmation_override" "$heuristic_override"; do
   case "$seed" in *[!0-9]*) echo 'Seed overrides must be nonnegative integers' >&2; exit 2;; esac
 done
 revision="$(git rev-parse HEAD)"
-baseline=7bde4654aa80c1d4e42bb2f54804a39675962550
+# The incumbent: main before this branch. Override to compare another frozen policy.
+baseline="${BB7_BASELINE:-3741e12c644ef1b64a24df7d62f5c4d3333a056f}"
+case "$baseline" in *[!0-9a-f]*) echo 'BB7_BASELINE must be a full commit hash' >&2; exit 2;; esac
 remote_root="/Users/joelloyd/tmp/bb7-policy-lab-${revision:0:12}"
 ssh -o BatchMode=yes daily-driver mkdir -p "$remote_root/candidate" "$remote_root/frozen"
 git archive --format=tar.gz HEAD | ssh daily-driver "tee '$remote_root/candidate-source.tar.gz' | tar -xz -C '$remote_root/candidate'"
@@ -47,11 +49,20 @@ run_stage() {
   fi
 }
 persistent_seed=$((confirmation_seed + 1000000))
+standard_seed=$((confirmation_seed + 3000000))
+# Which plays each policy chose and what followed, with watchable moments.
+plays() {
+  pnpm exec tsx scripts/coach/policy-lab/usage.ts "$lab_root/$1"
+  pnpm exec tsx scripts/coach/policy-lab/moments.ts "$lab_root/$1"
+  rm -rf "$lab_root/reports/$1/moments"
+  cp -R "$lab_root/$1/moments" "$lab_root/reports/$1/moments"
+}
 common=(--lab --baseline "$lab_root/frozen" --baseline-revision "$baseline" --revision "$revision" --workers 8)
 run_stage pilot --smoke --blocks 24 --out "$lab_root/pilot"
 python3 scripts/coach/policy-study/report.py --run "$lab_root/pilot" --out "$lab_root/reports/pilot"
 # Acquisition quality is a gate. Strength is measured, never required to be positive.
 python3 scripts/coach/policy-lab/check.py "$lab_root/reports/pilot"
+plays pilot
 python3 scripts/coach/policy-lab/report.py "$lab_root"
 if test "$mode" = full; then
   run_stage confirmation --seed-base "$confirmation_seed" --out "$lab_root/confirmation"
@@ -60,6 +71,13 @@ if test "$mode" = full; then
   python3 scripts/coach/policy-study/report.py --run "$lab_root/confirmation" --out "$lab_root/reports/confirmation"
   python3 scripts/coach/policy-lab/check.py "$lab_root/reports/confirmation" --require-natural-pass
   pnpm exec tsx scripts/coach/policy-lab/outcomes.ts "$lab_root/confirmation"
+  plays confirmation
+  # Standard plays the same schedule with its game plans and close-call variety.
+  run_stage standard --candidate standard --seed-base "$standard_seed" --out "$lab_root/standard"
+  python3 scripts/coach/policy-study/report.py --run "$lab_root/standard" --out "$lab_root/reports/standard"
+  python3 scripts/coach/policy-lab/check.py "$lab_root/reports/standard"
+  pnpm exec tsx scripts/coach/policy-lab/outcomes.ts "$lab_root/standard"
+  plays standard
   # Persistent fixtures test preservation without claiming to simulate a career.
   run_stage persistent --league --base-only --seed-base "$persistent_seed" --out "$lab_root/persistent"
   python3 scripts/coach/policy-study/report.py --run "$lab_root/persistent" --out "$lab_root/reports/persistent"

@@ -5,6 +5,7 @@
 
 import { Coach } from "../coach";
 import { createPlannerCoach } from "./planner";
+import { STANDARD_VARIETY } from "./gamePlans";
 import { BUDGETS } from "./search";
 import { createWorkerSearchCoach } from "./workerSearchCoach";
 
@@ -31,12 +32,6 @@ export const DIFFICULTIES = [
 
 export type Difficulty = (typeof DIFFICULTIES)[number]["id"];
 
-/**
- * Standard takes any plan within this many points of the best, where a
- * touchdown is 100: close calls, never a throw-away.
- */
-const STANDARD_MARGIN = 8;
-
 /** Most workers to share a search over; one core stays with the page. */
 const MAX_WORKERS = 8;
 
@@ -44,7 +39,7 @@ export function coachFor(difficulty: Difficulty): Coach & { close?(): void } {
   if (difficulty === "standard")
     return createPlannerCoach({
       name: "standard",
-      variety: { margin: STANDARD_MARGIN },
+      variety: STANDARD_VARIETY,
     });
   const cores = globalThis.navigator?.hardwareConcurrency ?? 2;
   return createWorkerSearchCoach({
