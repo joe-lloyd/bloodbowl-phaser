@@ -150,6 +150,36 @@ describe("policy-lab team scorecard", () => {
     expect(high).toBeGreaterThan(0.53);
   });
 
+  it("publishes no interval when resampling often drops a roster", () => {
+    // Halfling appears in one block of forty: most draws leave it out.
+    const legs = (a: string, b: string, points: number, block: string) => [
+      { roster: a, opponent: b, policy: "candidate" as const, points, block },
+      {
+        roster: b,
+        opponent: a,
+        policy: "frozen" as const,
+        points: 1 - points,
+        block,
+      },
+      { roster: a, opponent: b, policy: "frozen" as const, points, block },
+      {
+        roster: b,
+        opponent: a,
+        policy: "candidate" as const,
+        points: 1 - points,
+        block,
+      },
+    ];
+    const games = [
+      ...Array.from({ length: 39 }, (_, i) =>
+        legs("Dwarf", "Skaven", i % 2, `d${i}`)
+      ).flat(),
+      ...legs("Halfling", "Skaven", 0.5, "h"),
+    ];
+    expect(strengths(games)).not.toBeNull();
+    expect(strengthIntervals(games, 200)).toBeNull();
+  });
+
   it("judges raw points when the schedule never connects two groups", () => {
     // Dwarf beat Skaven and Human beat Orc, both legs each: nothing links
     // the two pairs, so no strength across them can be fitted.

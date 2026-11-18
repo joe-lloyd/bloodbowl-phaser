@@ -222,7 +222,8 @@ function eliminate(m: number[][], col: number, tiny: number): boolean {
 /**
  * A 95% interval for each roster's strength: refit on whole schedule
  * blocks drawn with replacement, so the opponents' uncertainty counts too.
- * Null when more than one draw in twenty cannot be fitted.
+ * Null when more than one draw in twenty cannot be fitted or leaves a
+ * roster out.
  */
 export function strengthIntervals(
   games: (FitGame & { block: string })[],
@@ -232,6 +233,7 @@ export function strengthIntervals(
   for (const g of games)
     blocks.set(g.block, [...(blocks.get(g.block) ?? []), g]);
   const groups = [...blocks.values()];
+  const field = new Set(games.flatMap((g) => [g.roster, g.opponent])).size;
   let seed = 1;
   const random = () => {
     seed = (seed * 1664525 + 1013904223) % 4294967296;
@@ -243,14 +245,15 @@ export function strengthIntervals(
     const drawn = groups.flatMap(
       () => groups[Math.floor(random() * groups.length)]
     );
+    // A draw that leaves a roster out compares against a different field,
+    // so it counts as one that could not be fitted.
     const fit = strengths(drawn);
-    if (!fit) {
+    if (!fit || fit.strength.size < field) {
       unfitted++;
       continue;
     }
     for (const [r, s] of fit.strength)
-      if (drawn.some((g) => g.roster === r))
-        samples.set(r, [...(samples.get(r) ?? []), s]);
+      samples.set(r, [...(samples.get(r) ?? []), s]);
   }
   if (unfitted > draws / 20) return null;
   const at = (xs: number[], q: number) => xs[Math.floor(q * (xs.length - 1))];
