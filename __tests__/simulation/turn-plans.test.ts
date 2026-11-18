@@ -470,6 +470,40 @@ describe("carrier pace", () => {
     expect(values.every(Number.isFinite)).toBe(true);
   });
 
+  it("measures a picker only against team-mates who can carry", () => {
+    // A quick No Ball team-mate cannot take the ball, so the slow picker
+    // is the quickest carrier and pays no pace.
+    const subject = game({
+      turn: 2,
+      ballPosition: { x: 6, y: 5 },
+      team1Placements: [
+        { playerIndex: 0, x: 5, y: 5, stats: { MA: 3 } },
+        {
+          playerIndex: 1,
+          x: 9,
+          y: 9,
+          stats: { MA: 8 },
+          skills: [SkillType.NO_BALL],
+        },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
+    });
+    const [picker, noBall] = subject.ctx.team1.players;
+    const priced = (carrierPace: number) =>
+      pickupActivation(
+        context(
+          readBoard(subject, picker.teamId),
+          { ...DEFAULT_WEIGHTS, carrierPace },
+          new Map([
+            [picker.id, new Set(["move" as const])],
+            [noBall.id, new Set(["move" as const])],
+          ])
+        ),
+        picker
+      )[0].value;
+    expect(priced(4)).toBe(priced(0));
+  });
+
   it("charges a My Ball picker for every turn it will keep the ball", () => {
     // Reach 3+2 against 8+2: five squares a turn short. A picker who can
     // hand off pays one turn of that; My Ball pays all three.

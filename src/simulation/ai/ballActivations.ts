@@ -658,10 +658,13 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
  */
 export function pickupPace(c: Context, player: Player): number {
   // The picker counts too: a prone picker with nobody else standing is
-  // its own quickest carrier, never short of an empty team.
+  // its own quickest carrier, never short of an empty team. A No Ball
+  // player cannot carry, so it sets no benchmark.
   const quickest = Math.max(
     nextTurnReach(player),
-    ...c.board.ours.filter(standing).map((p) => nextTurnReach(p))
+    ...c.board.ours
+      .filter((p) => standing(p) && !hasSkill(p.skills, SkillType.NO_BALL))
+      .map((p) => nextTurnReach(p))
   );
   return paceWorth(
     c,
