@@ -10,6 +10,7 @@ import { InjuryOperation } from "./InjuryOperation";
 import {
   ArmourOperation,
   armourBroken,
+  announceArmour,
   foldArmourRoll,
 } from "./ArmourOperation";
 import { gatherParticipants } from "../skills";
@@ -128,7 +129,16 @@ export class ChainsawAttackOperation extends GameOperation {
       }
     );
 
-    if (armourBroken(armourCtx, armour.roll, gameService)) {
+    const broken = armourBroken(armourCtx, armour.roll, gameService);
+    announceArmour(eventBus, {
+      playerId: target.id,
+      roll: armour.roll + armourCtx.armourModifier,
+      armor: effectiveAV(target, gameService.getState()),
+      broken,
+      rollType: "Armor Check",
+      diceTeamId: attacker.teamId,
+    });
+    if (broken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
       target.status = PlayerStatus.PRONE;
       eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: target.id });

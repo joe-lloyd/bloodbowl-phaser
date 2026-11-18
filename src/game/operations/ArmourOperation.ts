@@ -1,6 +1,7 @@
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
+import type { GameEventMap } from "../../services/EventBus";
 import { IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryOperation } from "./InjuryOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
@@ -89,6 +90,17 @@ function placeMightyBlow(
       ? `Mighty Blow: +${blow.bonus} to the armour roll`
       : `Mighty Blow: +${blow.bonus} saved for the injury roll`,
   });
+}
+
+/**
+ * Announce what an Armour Roll decided, for the HUD's roll banner. Every
+ * operation that rolls armour calls it once its result is final.
+ */
+export function announceArmour(
+  eventBus: FlowContext["eventBus"],
+  outcome: GameEventMap[GameEventNames.ArmorRolled]
+): void {
+  eventBus.emit(GameEventNames.ArmorRolled, outcome);
 }
 
 /** Whether a natural Armour Roll breaks armour once the fold has run. */
@@ -191,11 +203,13 @@ export class ArmourOperation extends GameOperation {
     );
     const isBroken = armourSkipped || armourBroken(ctx, roll, gameService);
     if (!armourSkipped) {
-      eventBus.emit(GameEventNames.ArmorRolled, {
+      announceArmour(eventBus, {
         playerId: player.id,
         roll: roll + ctx.armourModifier,
         armor: effectiveAV(player, gameService.getState()),
         broken: isBroken,
+        rollType: `Armour Roll (${player.playerName})`,
+        diceTeamId: player.teamId,
       });
     }
 

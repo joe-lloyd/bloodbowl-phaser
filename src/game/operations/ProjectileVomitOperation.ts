@@ -9,7 +9,7 @@ import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
 import { adjacentStandingRefusal } from "./specialActionTarget";
-import { foldArmourRoll } from "./ArmourOperation";
+import { announceArmour, foldArmourRoll } from "./ArmourOperation";
 import { gatherParticipants } from "../skills";
 
 /** Ends the vomiter's activation once everything has settled. */
@@ -107,6 +107,14 @@ export class ProjectileVomitOperation extends GameOperation {
         armourModifier: 0,
       }
     );
+    announceArmour(eventBus, {
+      playerId: victim.id,
+      roll: armour.roll,
+      armor: effectiveAV(victim, gameService.getState()),
+      broken: armourCtx.broken,
+      rollType: "Armor Check",
+      diceTeamId: attacker.teamId,
+    });
     if (armourCtx.broken) {
       this.knockDown(context, victim, causedBy, armourCtx.injuryModifier);
       if (selfHit) {

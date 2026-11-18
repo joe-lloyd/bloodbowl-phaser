@@ -8,7 +8,7 @@ import { FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
-import { foldArmourRoll } from "./ArmourOperation";
+import { announceArmour, foldArmourRoll } from "./ArmourOperation";
 import { gatherParticipants } from "../skills";
 
 /**
@@ -103,6 +103,14 @@ export class StabOperation extends GameOperation {
         armourModifier: 0,
       }
     );
+    announceArmour(eventBus, {
+      playerId: target.id,
+      roll: armour.roll,
+      armor: effectiveAV(target, gameService.getState()),
+      broken: armourCtx.broken,
+      rollType: "Armor Check",
+      diceTeamId: attacker.teamId,
+    });
 
     if (armourCtx.broken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");

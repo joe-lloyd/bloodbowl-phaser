@@ -16,6 +16,7 @@ describe("roll banner text", () => {
     roll: 10,
     armor: 9,
     broken: true,
+    rollType: "Armour Roll (Grimgor)",
   };
 
   it("reads armour, foul armour and injury rolls by the engine's names", () => {
@@ -25,6 +26,12 @@ describe("roll banner text", () => {
       kind: "injury",
       playerName: "Grimgor",
     });
+    expect(readRoll("Injury by the Crowd (Grimgor)")).toEqual({
+      kind: "injury",
+      playerName: "Grimgor",
+    });
+    // A Stab, Chainsaw or Projectile Vomit: the outcome names the player
+    expect(readRoll("Armor Check")).toEqual({ kind: "armour", playerName: "" });
     expect(readRoll("Dodge Roll (Grimgor)")).toBeNull();
   });
 
@@ -55,6 +62,7 @@ describe("roll banner text", () => {
       playerName: "Grimgor",
       playerId: "p1",
       result,
+      rollType: "Injury Roll (Grimgor)",
     });
     expect(rollBannerText(roll, "thrown", outcome(InjuryResult.KO))).toEqual(
       { headline: "Injury Roll", subtitle: "Grimgor", result: false }
@@ -77,20 +85,30 @@ describe("roll banner text", () => {
 
 /** Pairing each outcome with its own throw, by the tray's number for it. */
 describe("RollBook", () => {
-  const armour = (name: string, roll: number, broken: boolean) => ({
+  const armour = (
+    name: string,
+    roll: number,
+    broken: boolean,
+    diceTeamId = "team2",
+    rollType = `Armour Roll (${name})`
+  ) => ({
     kind: "armour" as const,
     playerName: name,
     playerId: name,
     roll,
     armor: 9,
     broken,
+    rollType,
+    diceTeamId,
   });
 
   it("gives a Lone Fouler re-roll the outcome, and marks the first throw re-rolled", () => {
     const book = new RollBook();
     book.queued(1, "Foul Armour Roll (Grimgor)", "team2");
     book.queued(2, "Foul Armour Roll (Grimgor)", "team2");
-    book.decided(armour("Grimgor", 10, true), "team2");
+    book.decided(
+      armour("Grimgor", 10, true, "team2", "Foul Armour Roll (Grimgor)")
+    );
 
     expect(book.text(1, "landed")).toEqual({
       headline: "Armour Roll",
@@ -103,9 +121,9 @@ describe("RollBook", () => {
   it("drops a throw's outcome with it, so later throws keep their own", () => {
     const book = new RollBook();
     book.queued(1, "Armour Roll (Grimgor)", "team2");
-    book.decided(armour("Grimgor", 3, false), "team2");
+    book.decided(armour("Grimgor", 3, false));
     book.queued(2, "Armour Roll (Grimgor)", "team2");
-    book.decided(armour("Grimgor", 4, false), "team2");
+    book.decided(armour("Grimgor", 4, false));
     book.forget(1);
 
     expect(book.text(1, "landed")).toBeNull();
@@ -116,9 +134,42 @@ describe("RollBook", () => {
     const book = new RollBook();
     book.queued(1, "Armour Roll (Lineman #1)", "team1");
     book.queued(2, "Armour Roll (Lineman #1)", "team2");
-    book.decided(armour("Lineman #1", 10, true), "team2");
+    book.decided(armour("Lineman #1", 10, true));
 
     expect(book.text(1, "landed")?.subtitle).toBe("Lineman #1");
     expect(book.text(2, "landed")?.headline).toBe("Armour Broken");
+  });
+
+  it("names a Stab's unnamed Armor Check from its outcome", () => {
+    const book = new RollBook();
+    // The attacker's dice, against the other team's player
+    book.queued(1, "Armor Check", "team1");
+    book.decided(armour("Grimgor", 11, true, "team1", "Armor Check"));
+
+    expect(book.text(1, "thrown")).toEqual({
+      headline: "Armour Roll",
+      subtitle: "Grimgor · AV 9+",
+      result: false,
+    });
+    expect(book.text(1, "landed")?.headline).toBe("Armour Broken");
+  });
+
+  it("sends a player Stunned by the crowd to the Reserves", () => {
+    const book = new RollBook();
+    book.queued(1, "Injury by the Crowd (Grimgor)");
+    book.decided({
+      kind: "injury",
+      playerName: "Grimgor",
+      playerId: "p1",
+      result: InjuryResult.STUNNED,
+      rollType: "Injury by the Crowd (Grimgor)",
+      crowd: true,
+    });
+
+    expect(book.text(1, "landed")).toEqual({
+      headline: "Into the Reserves",
+      subtitle: "Grimgor",
+      result: true,
+    });
   });
 });

@@ -115,11 +115,11 @@ describe("a Foul's events keep their order", () => {
         "decisionResolved: type=foul-assists",
         "ui:notification: Assists: +1 Offensive, -0 Defensive. Mod: +1",
         "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 5 + 5 +1 = 11 (AV 9+) | teamId=team2",
-        "armorRolled: playerId=team2-player-1",
+        "armorRolled: Foul Armour Roll (Human Lineman #1) | playerId=team2-player-1",
         "ui:notification: ARMOUR BROKEN!",
         "diceRoll: Injury Roll (Human Lineman #1) | Injury Roll (Human Lineman #1): 4 + 4 = 8 | teamId=team2",
         "ui:notification: Injury Roll for Human Lineman #1",
-        "injuryRolled: playerId=team2-player-1 result=KO",
+        "injuryRolled: Injury Roll (Human Lineman #1) | playerId=team2-player-1 result=KO",
         "ui:notification: KNOCKED OUT!",
         "playerStatusChanged: id=team2-player-1 teamId=team2 status=KO",
         "turnDataUpdated",
@@ -161,11 +161,11 @@ describe("a Foul's events keep their order", () => {
         "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 4 + 4 = 8 (AV 9+) | teamId=team2",
         "rerollUsed: playerId=team1-player-1 skill=Lone Fouler",
         "skillTriggered: Dirty Player: +1 to the Armour Roll | playerId=team1-player-1 skill=Dirty Player",
-        "armorRolled: playerId=team2-player-1",
+        "armorRolled: Foul Armour Roll (Human Lineman #1) | playerId=team2-player-1",
         "ui:notification: ARMOUR BROKEN!",
         "diceRoll: Injury Roll (Human Lineman #1) | Injury Roll (Human Lineman #1): 3 + 2 = 5 | teamId=team2",
         "ui:notification: Injury Roll for Human Lineman #1",
-        "injuryRolled: playerId=team2-player-1 result=Stunned",
+        "injuryRolled: Injury Roll (Human Lineman #1) | playerId=team2-player-1 result=Stunned",
         "ui:notification: STUNNED!",
         "playerStatusChanged: id=team2-player-1 teamId=team2 status=Stunned gridPosition=11,5",
         "turnDataUpdated",
@@ -202,7 +202,14 @@ describe("a Foul's events keep their order", () => {
         .filter((e) => e.name === GameEventNames.ArmorRolled)
         .map((e) => e.data)
     ).toEqual([
-      { playerId: "team2-player-1", roll: 9, armor: 9, broken: true },
+      {
+        playerId: "team2-player-1",
+        roll: 9,
+        armor: 9,
+        broken: true,
+        rollType: "Foul Armour Roll (Human Lineman #1)",
+        diceTeamId: "team2",
+      },
     ]);
   });
 
@@ -213,7 +220,7 @@ describe("a Foul's events keep their order", () => {
           "ui:notification: Human Lineman #1 is fouling Human Lineman #1!",
           "ui:notification: Assists: +0 Offensive, -0 Defensive. Mod: +0",
           "diceRoll: Foul Armour Roll (Human Lineman #1) | Foul Armour Roll (Human Lineman #1): 2 + 2 = 4 (AV 9+) | teamId=team2",
-          "armorRolled: playerId=team2-player-1",
+          "armorRolled: Foul Armour Roll (Human Lineman #1) | playerId=team2-player-1",
           "ui:notification: Armour Holds.",
           "skillTriggered: Sneaky Git: not Sent-off on an unbroken double | playerId=team1-player-1 skill=Sneaky Git",
           "turnDataUpdated",

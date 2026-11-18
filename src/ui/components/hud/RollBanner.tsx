@@ -23,13 +23,20 @@ export interface RollBannerText {
   result: boolean;
 }
 
-/** An Armour or Injury Roll, read from the engine's roll name. */
+/**
+ * An Armour or Injury Roll, read from the engine's roll name. A Stab,
+ * Chainsaw or Projectile Vomit rolls an unnamed "Armor Check": its player
+ * comes with the outcome.
+ */
 export function readRoll(
   rollType: string
 ): { kind: RollOutcome["kind"]; playerName: string } | null {
+  if (rollType === "Armor Check") return { kind: "armour", playerName: "" };
   const armour = /^(?:Foul )?Armour Roll \((.+)\)$/.exec(rollType);
   if (armour) return { kind: "armour", playerName: armour[1] };
-  const injury = /^Injury Roll \((.+)\)$/.exec(rollType);
+  const injury = /^(?:Injury Roll|Injury by the Crowd) \((.+)\)$/.exec(
+    rollType
+  );
   if (injury) return { kind: "injury", playerName: injury[1] };
   return null;
 }
@@ -57,7 +64,9 @@ export function rollBannerText(
   stage: "thrown" | "landed",
   outcome: ThrowOutcome
 ): RollBannerText {
-  const name = roll.playerName;
+  const name =
+    roll.playerName ||
+    (outcome && outcome !== "superseded" ? outcome.playerName : "");
   if (stage === "landed" && outcome === "superseded") {
     return {
       headline: roll.kind === "armour" ? "Armour Roll" : "Injury Roll",
@@ -106,7 +115,11 @@ function injuryText(
   if (!landed || !injury) {
     return { headline: "Injury Roll", subtitle: name, result: false };
   }
-  const headline = INJURY_HEADLINE[injury.result];
+  // A player Stunned by the crowd goes to the Reserves instead
+  const headline =
+    injury.crowd && injury.result === InjuryResult.STUNNED
+      ? "Into the Reserves"
+      : INJURY_HEADLINE[injury.result];
   return {
     headline,
     // Sevens reads the casualty off the injury dice: say which it is
@@ -118,7 +131,9 @@ function injuryText(
 interface Tracked {
   seq: number;
   kind: RollOutcome["kind"];
+  /** Empty for an unnamed "Armor Check": the outcome names the player. */
   playerName: string;
+  rollType: string;
   teamId?: string;
   outcome: ThrowOutcome;
 }
@@ -126,24 +141,27 @@ interface Tracked {
 /**
  * The Armour and Injury throws the tray holds, each paired with the
  * outcome the engine decided for it. A throw is known by the tray's number
- * for it, so a dropped throw takes its outcome with it and a same-named
- * player on the other team never shares one. An outcome goes to the newest
- * open throw of that roll for that player; any older open one was re-rolled.
+ * for it, so a dropped throw takes its outcome with it. An outcome names
+ * the dice roll it decides and whose dice they were, so a same-named player
+ * on the other team never shares one. It goes to the newest open throw of
+ * that roll; any older open one was re-rolled.
  */
 export class RollBook {
   private throws: Tracked[] = [];
 
   queued(seq: number, rollType: string, teamId?: string): void {
     const roll = readRoll(rollType);
-    if (roll) this.throws.push({ seq, ...roll, teamId, outcome: undefined });
+    if (roll)
+      this.throws.push({ seq, ...roll, rollType, teamId, outcome: undefined });
   }
 
-  decided(outcome: RollOutcome, teamId?: string): void {
+  decided(outcome: RollOutcome): void {
+    const teamId = outcome.diceTeamId;
     const open = this.throws.filter(
       (t) =>
         t.outcome === undefined &&
         t.kind === outcome.kind &&
-        t.playerName === outcome.playerName &&
+        t.rollType === outcome.rollType &&
         (!t.teamId || !teamId || t.teamId === teamId)
     );
     const latest = open.pop();
@@ -170,7 +188,7 @@ export class RollBook {
 
 function playerOf(
   playerId: string
-): { playerName: string; teamId: string } | undefined {
+): { playerName: string } | undefined {
   if (!ServiceContainer.isInitialized()) return undefined;
   return ServiceContainer.getInstance().gameService.getPlayerById(playerId);
 }
@@ -190,18 +208,20 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
   useEventBus(eventBus, GameEventNames.ArmorRolled, (data) => {
     const player = playerOf(data.playerId);
     if (player)
-      book.current.decided(
-        { kind: "armour", playerName: player.playerName, ...data },
-        player.teamId
-      );
+      book.current.decided({
+        kind: "armour",
+        playerName: player.playerName,
+        ...data,
+      });
   });
   useEventBus(eventBus, GameEventNames.InjuryRolled, (data) => {
     const player = playerOf(data.playerId);
     if (player)
-      book.current.decided(
-        { kind: "injury", playerName: player.playerName, ...data },
-        player.teamId
-      );
+      book.current.decided({
+        kind: "injury",
+        playerName: player.playerName,
+        ...data,
+      });
   });
 
   useEventBus(eventBus, GameEventNames.UI_DiceThrow, (data: Throw) => {

@@ -66,6 +66,14 @@ export async function resolveInjuryRoll(
  * - Update Player Status (STUNNED, KO, or a Casualty)
  * - On a Casualty, trigger CasualtyOperation with the table's result
  */
+function isCasualty(result: InjuryResult): result is CasualtyType {
+  return (
+    result === InjuryResult.BADLY_HURT ||
+    result === InjuryResult.SERIOUSLY_HURT ||
+    result === InjuryResult.DEAD
+  );
+}
+
 export class InjuryOperation extends GameOperation {
   public readonly name = "InjuryOperation";
 
@@ -123,9 +131,15 @@ export class InjuryOperation extends GameOperation {
     if (this.opts.stunnedIsKnockedOut && ctx.result === InjuryResult.STUNNED) {
       ctx.result = InjuryResult.KO;
     }
+    // A Bloodlust bite's casualty is always Badly Hurt
+    if (this.opts.casualtyIsBadlyHurt && isCasualty(ctx.result)) {
+      ctx.result = InjuryResult.BADLY_HURT;
+    }
     eventBus.emit(GameEventNames.InjuryRolled, {
       playerId: player.id,
       result: ctx.result,
+      rollType: `Injury Roll (${player.playerName})`,
+      diceTeamId: player.teamId,
     });
     switch (ctx.result) {
       case InjuryResult.STUNNED:
@@ -188,7 +202,7 @@ export class InjuryOperation extends GameOperation {
     flowManager.add(
       new CasualtyOperation(
         this.playerId,
-        this.opts.casualtyIsBadlyHurt ? InjuryResult.BADLY_HURT : result,
+        result,
         this.opts.causedById,
         this.opts.cause
       ),
