@@ -356,7 +356,8 @@ describe("cage walk", () => {
   // x=10 is in contact with one defender, every square at x=9 is clear.
   async function carrierEnd(
     skills: SkillType[],
-    w: Partial<typeof DEFAULT_WEIGHTS>
+    w: Partial<typeof DEFAULT_WEIGHTS>,
+    wall: SkillType[] = []
   ) {
     const subject = game({
       turn: 2,
@@ -364,9 +365,9 @@ describe("cage walk", () => {
         { playerIndex: 0, x: 8, y: 5, hasBall: true, skills, stats: { ST: 4 } },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 11, y: 2 },
-        { playerIndex: 1, x: 11, y: 5 },
-        { playerIndex: 2, x: 11, y: 8 },
+        { playerIndex: 0, x: 11, y: 2, skills: wall },
+        { playerIndex: 1, x: 11, y: 5, skills: wall },
+        { playerIndex: 2, x: 11, y: 8, skills: wall },
       ],
     });
     const coach = createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
@@ -384,6 +385,13 @@ describe("cage walk", () => {
 
   it("stops the same carrier short when every mark costs the same", async () => {
     expect(await carrierEnd([SkillType.BLOCK], { cageWalk: 0 })).toBe(9);
+  });
+
+  it("stops a carrier with Block short of a wall that has Wrestle", async () => {
+    // Wrestle puts a Block carrier down on Both Down, and the ball with it.
+    expect(
+      await carrierEnd([SkillType.BLOCK], { cageWalk: 1 }, [SkillType.WRESTLE])
+    ).toBe(9);
   });
 
   it("stops a carrier without Block short even on the walk", async () => {

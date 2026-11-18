@@ -128,9 +128,12 @@ export function markRisk(c: Context, carrier: Player, at: Square): number {
       everyone,
       opponent.teamId
     );
-    const dodges =
-      has(SkillType.DODGE) && !hasSkill(opponent.skills, SkillType.TACKLE);
-    const perDie = (1 + (dodges ? 0 : 1) + (has(SkillType.BLOCK) ? 0 : 1)) / 6;
+    const theirs = (s: SkillType) => hasSkill(opponent.skills, s);
+    // Tackle cancels Dodge on a stumble; Wrestle puts a Block carrier down
+    // on Both Down, and a carrier put down loses the ball.
+    const dodges = has(SkillType.DODGE) && !theirs(SkillType.TACKLE);
+    const blocks = has(SkillType.BLOCK) && !theirs(SkillType.WRESTLE);
+    const perDie = (1 + (dodges ? 0 : 1) + (blocks ? 0 : 1)) / 6;
     const down = hit.isUphill
       ? perDie ** hit.diceCount
       : 1 - (1 - perDie) ** hit.diceCount;
