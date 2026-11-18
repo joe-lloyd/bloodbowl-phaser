@@ -104,7 +104,13 @@ export interface RosterCard {
   roster: string;
   tier: Tier;
   games: number;
+  /** Raw points share, against whoever the schedule paired it with. */
   points: number;
+  /**
+   * Points share against an average opponent: the lab pairs each roster
+   * with a handful of others, so raw points carry schedule luck.
+   */
+  adjusted: number;
   pointsCi: [number, number];
   wins: number;
   draws: number;
@@ -124,6 +130,26 @@ export interface RosterCard {
 }
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+/**
+ * Each roster's strength s, fitted so a game between rosters a and b
+ * scores about 0.5 + s(a) - s(b) for a, with strengths averaging zero.
+ */
+export function strengths(
+  games: { roster: string; opponent: string; points: number }[]
+): Map<string, number> {
+  const rosters = [...new Set(games.map((g) => g.roster))];
+  const s = new Map(rosters.map((r) => [r, 0]));
+  for (let round = 0; round < 500; round++) {
+    for (const r of rosters) {
+      const own = games.filter((g) => g.roster === r);
+      s.set(r, mean(own.map((g) => g.points - 0.5 + (s.get(g.opponent) ?? 0))));
+    }
+    const centre = mean([...s.values()]);
+    for (const r of rosters) s.set(r, s.get(r)! - centre);
+  }
+  return s;
+}
 
 /** Plays that show what a roster does more than the field does. */
 function signaturesOf(
@@ -173,17 +199,26 @@ export function scorecard(
           f.turnovers += t.turnovers;
         }
 
+  const opponentOf = (r: TeamGame) => {
+    const other = byGame.get(r.game)!.find((o) => o !== r);
+    if (!other) throw new Error(`${r.game} has one side`);
+    return other;
+  };
+  const fitted = strengths(
+    counted.map((r) => ({
+      roster: r.roster,
+      opponent: opponentOf(r).roster,
+      points: r.points,
+    }))
+  );
   const rosters = [...new Set(counted.map((r) => r.roster))];
   return rosters
     .map((roster): RosterCard => {
       const rows = counted.filter((r) => r.roster === roster);
-      const opponents = rows.map((r) => {
-        const other = byGame.get(r.game)!.find((o) => o !== r);
-        if (!other) throw new Error(`${r.game} has one side`);
-        return other;
-      });
+      const opponents = rows.map(opponentOf);
       const games = rows.length;
       const points = mean(rows.map((r) => r.points));
+      const adjusted = 0.5 + fitted.get(roster)!;
       const spread = Math.sqrt(
         mean(rows.map((r) => (r.points - points) ** 2)) / games
       );
@@ -220,8 +255,8 @@ export function scorecard(
       const scores = rows.filter((r) => r.touchdowns > 0).length / games;
       const standard = STANDARDS[tier];
       const misses = [
-        points < standard.points
-          ? `points ${pct(points)} under ${pct(standard.points)}`
+        adjusted < standard.points
+          ? `points ${pct(adjusted)} under ${pct(standard.points)}`
           : "",
         scores < standard.scores
           ? `scores in ${pct(scores)} of games, under ${pct(standard.scores)}`
@@ -232,7 +267,8 @@ export function scorecard(
         tier,
         games,
         points,
-        pointsCi: [points - 1.96 * spread, points + 1.96 * spread],
+        adjusted,
+        pointsCi: [adjusted - 1.96 * spread, adjusted + 1.96 * spread],
         wins: rows.filter((r) => r.points === 1).length,
         draws: rows.filter((r) => r.points === 0.5).length,
         losses: rows.filter((r) => r.points === 0).length,
@@ -249,14 +285,14 @@ export function scorecard(
         topFouler,
         signatures: signaturesOf(own, field, games),
         verdict:
-          points > CEILING ? "ceiling" : misses.length ? "below" : "meets",
+          adjusted > CEILING ? "ceiling" : misses.length ? "below" : "meets",
         misses:
-          points > CEILING
-            ? [`points ${pct(points)} over the ${pct(CEILING)} ceiling`]
+          adjusted > CEILING
+            ? [`points ${pct(adjusted)} over the ${pct(CEILING)} ceiling`]
             : misses,
       };
     })
-    .sort((a, b) => a.tier - b.tier || b.points - a.points);
+    .sort((a, b) => a.tier - b.tier || b.adjusted - a.adjusted);
 }
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
@@ -271,7 +307,7 @@ function html(cards: RosterCard[], stage: string, revision: string): string {
   const below = cards.filter((c) => c.verdict !== "meets");
   const row = (c: RosterCard) => `<tr class="${c.verdict}">
 <td>${esc(c.roster)}</td><td class="n">${c.tier}</td><td class="n">${c.games}</td>
-<td class="n">${pct(c.points)} <span class="ci">${pct(c.pointsCi[0])}–${pct(c.pointsCi[1])}</span></td>
+<td class="n">${pct(c.adjusted)} <span class="ci">${pct(c.pointsCi[0])}–${pct(c.pointsCi[1])}</span></td><td class="n">${pct(c.points)}</td>
 <td class="n">${pct(c.scores)}</td><td class="n">${num(c.touchdownsFor)}</td><td class="n">${num(c.touchdownsAgainst)}</td>
 <td class="n">${num(c.casualtiesFor)}</td><td class="n">${num(c.casualtiesAgainst)}</td>
 <td class="n">${num(c.foulsPerGame)}</td>
@@ -299,11 +335,11 @@ tr.below td:last-child{color:#ef8a7a}tr.ceiling td:last-child{color:#e0b24a}tr.m
 <h1>Team scorecard</h1>
 <p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${below.length} of ${cards.length} rosters miss their tier's standard.</p>
 <h2>Rosters</h2>
-<div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Points, 95%</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th>Standard</th></tr>
+<div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Strength, 95%</th><th class="n">Raw points</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th>Standard</th></tr>
 ${cards.map(row).join("\n")}</table></div>
 <h2>Standards</h2>
 <div class="wrap"><table style="width:auto"><tr><th>Tier</th><th class="n">Points at least</th><th class="n">Scores in at least</th></tr>${standards}</table></div>
-<p>Points share is against the field of the same planner, so the average roster gets 50%. Scores is the share of games with at least one touchdown. A roster over ${pct(CEILING)} is flagged so its lineup and rules are checked before the AI is changed. Per-game figures count each roster's own games. The interval is a normal approximation over games.</p>`;
+<p>Strength is the points share a roster would take from an average opponent of the same planner, so the average roster gets 50%. The lab pairs each roster with only a few others, so it is fitted from every game: a game between two rosters is taken to score about 50% plus the difference in their strengths. Raw points is the plain share against whoever the schedule chose. Scores is the share of games with at least one touchdown. A roster over ${pct(CEILING)} is flagged so its lineup and rules are checked before the AI is changed. Per-game figures count each roster's own games. The interval is a normal approximation over games.</p>`;
 }
 
 function main() {

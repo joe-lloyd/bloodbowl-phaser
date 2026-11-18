@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scorecard } from "../../scripts/coach/policy-lab/scorecard";
+import { scorecard, strengths } from "../../scripts/coach/policy-lab/scorecard";
 
 const row = (
   game: string,
@@ -56,15 +56,16 @@ describe("policy-lab team scorecard", () => {
         c.tier,
         c.games,
         c.points,
+        c.adjusted,
         c.scores,
         c.verdict,
       ])
     ).toEqual([
-      ["Skaven", 1, 2, 0.75, 1, "meets"],
-      ["Dwarf", 2, 2, 0.25, 0.5, "below"],
+      ["Skaven", 1, 2, 0.75, 0.625, 1, "meets"],
+      ["Dwarf", 2, 2, 0.25, 0.375, 0.5, "below"],
     ]);
     const dwarf = cards[1];
-    expect(dwarf.misses).toEqual(["points 25% under 45%"]);
+    expect(dwarf.misses).toEqual(["points 38% under 45%"]);
     expect(dwarf.touchdownsAgainst).toBe(1);
     expect(dwarf.foulsPerGame).toBe(1.5);
     expect(dwarf.sentOff).toBeCloseTo(1 / 3);
@@ -74,6 +75,22 @@ describe("policy-lab team scorecard", () => {
     ]);
     expect(cards[0].signatures.map((s) => [s.play, s.lift])).toEqual([
       ["run-in", 1.75],
+    ]);
+  });
+
+  it("judges a roster against an average opponent, not its schedule", () => {
+    // A beats B and B beats C by the same margin: A is the strongest,
+    // though C never met A.
+    const fit = strengths([
+      { roster: "A", opponent: "B", points: 0.75 },
+      { roster: "B", opponent: "A", points: 0.25 },
+      { roster: "B", opponent: "C", points: 0.75 },
+      { roster: "C", opponent: "B", points: 0.25 },
+    ]);
+    expect([...fit].map(([r, s]) => [r, Number(s.toFixed(3))])).toEqual([
+      ["A", 0.25],
+      ["B", 0],
+      ["C", -0.25],
     ]);
   });
 
