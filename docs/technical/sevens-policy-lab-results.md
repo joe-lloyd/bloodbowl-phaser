@@ -212,6 +212,28 @@ Confirmation agrees with the three focused seeds, though on its own it cannot ru
 
 The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-056ff8c8c10a-vs-0f9a59492628` on Daily Driver. The focused runs stay under `/Users/joelloyd/tmp/bb7-tactics*`.
 
+## Quick ball carriers, 18 November
+
+Human results from 379,170 FUMBBL Competitive matches, 2020 to 2024, put Dwarfs at 53.7% of points, so their tier-two standard of 45% is not too high. Our planner played them about 13 points below people, and it leaned towards fast teams across the field: its roster order matched the human one with a rank correlation of only 0.49. Replays showed why for slow teams. The Sevens Veteran, a Lineman with one less movement and a re-roll for a pick-up, catch or pass, carried the ball in 30% of all turns with it. It carried in 52% for Chaos Dwarf, 41% for Nurgle and 26% for Dwarf, whose movement-6 Runner carried in only a third. The Veteran's re-roll made it the safest picker, and nothing paid for handing the ball on.
+
+`carrierPace` now prices who holds the ball on a spectrum. A hand-off or pass gains 4 points for each square a turn the receiver reaches beyond the carrier, rushes and Sprint included, over the next three turns, and loses the same for a slower receiver. A pick-up is charged against the team's quickest standing player: one turn for a picker who can hand the ball on, all three for a My Ball picker, who must run it in. Pace 2, 4 and 8 took 51.20%, 51.24% and 51.03% of points against main on one seed of 5,184 paired games; pace 4 repeated at 50.60% and 50.70%.
+
+The lab on this branch also found two faults. Sweltering Heat sent every player a team had left to the Reserves, and the team was still offered to play on, so the kick-off had nobody to kick; the team now concedes. And a prone picker with nobody else standing priced its pace against an empty team, which made a plan's value NaN and stopped Standard's close-call choice.
+
+Candidate source `b2ffa9a92193` played main, `783399bdc3fe`. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 83-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   51.62% | 50.80% to 52.40%     |
+| Standard, against the frozen planner | 5,184 |                   50.37% | 49.31% to 51.33%     |
+| Persistent fixtures                  | 1,296 |                   51.58% | 49.88% to 53.28%     |
+| Heuristic control                    |   432 |                   93.06% | 91.20% to 94.79%     |
+| Hard sentinels                       |    16 | 34.38%, descriptive only | No strength estimate |
+
+Over every roster, the Veteran's share of carrying fell from 30% to 8%, the team's quickest standing player carried in 70% of turns with the ball instead of 42%, and the carrier's reach rose from 7.77 to 8.25 squares a turn. For Dwarfs the Veteran fell from 26% to 9% and reach rose from 6.83 to 7.30. Standard, which plays the frozen best planner, drew level with it for the first time. Twenty-two rosters meet their standard, against 21. In the same games Nurgle gained 7.8 points, Chaos Dwarf 3.5, Dwarf, Tomb Kings and Vampire 2.1, and Halfling 1.2, against about 3 for the average roster. Quick carriers help every team, so the slow ones are still short: Dwarf scores in 37.5% of games and Nurgle in 39.3%, against a standard of 50%.
+
+The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-b2ffa9a92193-vs-783399bdc3fe` on Daily Driver. The pace sweep stays at `/Users/joelloyd/tmp/bb7-pace`.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
