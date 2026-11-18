@@ -212,6 +212,23 @@ if (args.includes("--worker")) {
         : [];
       jobs = limitPolicyBlocks(jobs, blockLimit, sentinels);
     }
+    // A roster study keeps the games where either side plays one of them.
+    if (args.includes("--rosters")) {
+      const listed = args[args.indexOf("--rosters") + 1] ?? "";
+      const wanted = new Set(listed.split(",").map((name) => name.trim()));
+      const known = new Set<string>(
+        variants.map((v) => getTeam(v.id).rosterName)
+      );
+      const unknown = [...wanted].filter((name) => !known.has(name));
+      if (!listed || listed.startsWith("--") || unknown.length)
+        throw new Error(
+          `--rosters needs a comma-separated list of lab rosters; unknown: ${unknown.join(", ") || "none given"}`
+        );
+      jobs = jobs.filter((j) =>
+        j.variantIds.some((id) => wanted.has(getTeam(id).rosterName))
+      );
+      if (!jobs.length) throw new Error(`No lab games for ${listed}`);
+    }
     jobs = jobs.map((j) => ({
       ...j,
       persistentInjuries: args.includes("--league"),

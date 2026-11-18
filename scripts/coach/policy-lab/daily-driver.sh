@@ -55,6 +55,8 @@ plays() {
   pnpm exec tsx scripts/coach/policy-lab/usage.ts "$lab_root/$1"
   pnpm exec tsx scripts/coach/policy-lab/moments.ts "$lab_root/$1"
   pnpm exec tsx scripts/coach/policy-lab/fouls.ts "$lab_root/$1"
+  # Confirmation pools both sides, which play the same planner. Standard scores only itself.
+  pnpm exec tsx scripts/coach/policy-lab/scorecard.ts "$lab_root" "$1" ${2:-}
   rm -rf "$lab_root/reports/$1/moments"
   cp -R "$lab_root/$1/moments" "$lab_root/reports/$1/moments"
 }
@@ -78,7 +80,7 @@ if test "$mode" = full; then
   python3 scripts/coach/policy-study/report.py --run "$lab_root/standard" --out "$lab_root/reports/standard"
   python3 scripts/coach/policy-lab/check.py "$lab_root/reports/standard"
   pnpm exec tsx scripts/coach/policy-lab/outcomes.ts "$lab_root/standard"
-  plays standard
+  plays standard --candidate-only
   # Persistent fixtures test preservation without claiming to simulate a career.
   run_stage persistent --league --base-only --seed-base "$persistent_seed" --out "$lab_root/persistent"
   python3 scripts/coach/policy-study/report.py --run "$lab_root/persistent" --out "$lab_root/reports/persistent"

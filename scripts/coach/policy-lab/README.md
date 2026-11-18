@@ -16,15 +16,27 @@ The frozen incumbent is `main` before the current branch, set in the script; `BB
 
 ## Plays and moments
 
-After confirmation, Standard and the pilot, `usage.ts` replays every saved game and names each declaration by its coach note: a carrier throw, a pass, a flank run, a launch setup and so on. For each play and policy it counts uses, scores that turn or the next, and turnovers during the activation. `moments.ts` writes `moments/index.html` with that table and the candidate's scoring moments, rarest plays first. Each moment links to a playback of its match opened at the declaration. `fouls.ts` writes `fouls-summary.json`, which counts each policy's Fouls by roster and fouler position. For each group it counts send-offs and how the target ended the activation: Stunned, out of the drive, or a casualty. Run them by hand on any stage:
+After confirmation, Standard and the pilot, `usage.ts` replays every saved game and names each declaration by its coach note: a carrier throw, a pass, a flank run, a launch setup and so on. For each play and policy it counts uses, scores that turn or the next, and turnovers during the activation. `moments.ts` writes `moments/index.html` with that table and the candidate's scoring moments, rarest plays first. Each moment links to a playback of its match opened at the declaration. `fouls.ts` writes `fouls-summary.json`, which counts each policy's Fouls by roster and fouler position. For each group it counts send-offs and how the target ended the activation: Stunned, out of the drive, or a casualty. `scorecard.ts` then writes `scorecard.html` and `scorecard.json` in the stage's report. It gives each roster its strength, how often it scores, touchdowns and casualties each way, Fouls, and the plays it makes more than the field. Strength is the points share it would take from an average opponent. The schedule pairs each roster with only a few others, so strength is fitted from all its games, and the raw share is shown beside it. When the schedule splits the rosters into groups that never meet, as the pilot's can, no strength can be fitted and rosters are judged on raw points. It holds each roster to the standard of its tier, set in `STANDARDS`. Confirmation pools both sides, because both play the best planner. Standard passes `--candidate-only`. Run them by hand on any stage:
 
 ```sh
 pnpm exec tsx scripts/coach/policy-lab/usage.ts <stage directory>
 pnpm exec tsx scripts/coach/policy-lab/moments.ts <stage directory>
 pnpm exec tsx scripts/coach/policy-lab/fouls.ts <stage directory>
+pnpm exec tsx scripts/coach/policy-lab/scorecard.ts <lab root> <stage> [--candidate-only]
 ```
 
 A play's scores and turnovers describe what followed it, not what it was worth.
+
+## Study one team
+
+`drives.ts` replays a stage and counts each roster's turns with the ball: how far the ball went, and whether the turn scored, kept the ball or lost it. It splits them by whether the carrier started the turn marked, and counts halves that ended with the team still holding the ball. Pass `--shard i/n` to run shards side by side. A run filtered to one roster or one shard writes its own file, such as `drives-summary-dwarf-2-of-8.json`, and leaves `drives-summary.json` alone.
+
+`run.ts --rosters "Dwarf,Nurgle"` keeps only the games where either side plays a named roster. A candidate `--weights` file against the same source then measures a change on those teams in a few minutes. Read `rosters.csv` in the stage report for each roster's points under each policy.
+
+```sh
+pnpm exec tsx scripts/coach/policy-lab/drives.ts <stage directory> [roster] [--shard i/n]
+pnpm exec tsx scripts/coach/policy-study/run.ts --lab --baseline <frozen tree> --rosters "Dwarf,Nurgle" --weights <file.json> --out <run>
+```
 
 ## Inspect evidence before changing policy
 

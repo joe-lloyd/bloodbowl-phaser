@@ -23,8 +23,11 @@ export const DEFAULT_WEIGHTS = {
   carrierThreat: 4,
   /** A carrier on the sideline, where a push goes into the crowd. */
   sideline: 30,
-  /** Per team-mate on a corner of the carrier's square. */
-  cageCorner: 8,
+  /**
+   * Per team-mate on a corner of the carrier's square. At 8 a slow team
+   * held its carrier in the cage instead of marching it up the pitch.
+   */
+  cageCorner: 4,
   /** Open team-mate a few squares ahead of the carrier. */
   receiver: 6,
   /**
