@@ -133,11 +133,15 @@ function clickKickAim(
     return;
   }
 
+  // A team with nobody on the pitch kicks without a kicker.
+  const nobodyOnPitch = !c.scene.kickingTeam.players.some(
+    (p) => p.gridPosition
+  );
   // If we have a selected kicker and clicked opponent half -> KICK!
-  if (c.selectedPlayerId) {
+  if (c.selectedPlayerId || nobodyOnPitch) {
     c.isBusy = true;
     try {
-      c.gameService.kickBall(isTeam1Kicking, c.selectedPlayerId, x, y);
+      c.gameService.kickBall(isTeam1Kicking, c.selectedPlayerId ?? null, x, y);
       c.selectedPlayerId = null; // Clear selection after kick
     } finally {
       c.isBusy = false;

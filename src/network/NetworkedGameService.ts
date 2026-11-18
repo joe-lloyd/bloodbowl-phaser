@@ -433,17 +433,21 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "select-kicker", playerId });
   }
   async kickBall(
-    _isTeam1Kicking: boolean,
-    playerId: string,
+    isTeam1Kicking: boolean,
+    playerId: string | null,
     targetX: number,
     targetY: number
   ): Promise<void> {
-    await this.run({
-      type: "kick-ball",
-      playerId,
-      x: targetX,
-      y: targetY,
-    });
+    await this.run(
+      playerId
+        ? { type: "kick-ball", playerId, x: targetX, y: targetY }
+        : {
+            type: "kick-ball",
+            teamId: this.getTeams()[isTeam1Kicking ? 0 : 1].id,
+            x: targetX,
+            y: targetY,
+          }
+    );
   }
   awardTouchback(playerId: string): boolean {
     this.send({ type: "touchback", playerId });

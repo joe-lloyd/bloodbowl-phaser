@@ -125,7 +125,7 @@ export interface IGameService {
   selectKicker(playerId: string): void;
   kickBall(
     isTeam1Kicking: boolean,
-    playerId: string,
+    playerId: string | null,
     targetX: number,
     targetY: number
   ): Promise<void>;

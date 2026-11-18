@@ -21,7 +21,8 @@ export interface KickoffGameEvents {
   // Ball
   [GameEventNames.BallPlaced]: { x: number; y: number };
   [GameEventNames.BallKicked]: {
-    playerId: string;
+    /** Null when the kicking team had nobody on the pitch. */
+    playerId: string | null;
     targetX: number;
     targetY: number;
     direction: number;

@@ -544,12 +544,6 @@ export class SetupManager {
       );
     }
 
-    // Nobody left to field: there is no drive to play on into.
-    if (!concede && status.availablePlayerCount === 0)
-      return this.refuse(
-        "A team with no available players cannot play on; it must concede."
-      );
-
     status.concessionDecision = concede ? "conceded" : "continue";
     if (concede) {
       this.state.phase = GamePhase.GAME_OVER;

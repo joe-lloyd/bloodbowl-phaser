@@ -85,7 +85,7 @@ export class BallManager {
 
   public async kickBall(
     isTeam1Kicking: boolean,
-    playerId: string,
+    playerId: string | null,
     targetX: number,
     targetY: number
   ): Promise<void> {
@@ -141,9 +141,9 @@ export class BallManager {
       (p) => p.id === playerId
     );
     const useKickD3 = !!kicker && hasSkill(kicker.skills ?? [], SkillType.KICK);
-    if (useKickD3) {
+    if (kicker && useKickD3) {
       this.eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId,
+        playerId: kicker.id,
         skill: SkillType.KICK,
         effect: "Kick: the ball Deviates only D3 squares",
       });

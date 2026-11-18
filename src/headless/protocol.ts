@@ -47,7 +47,9 @@ export type HeadlessCommand =
   | { type: "confirm-setup"; teamId: string }
   // Kickoff
   | { type: "select-kicker"; playerId: string }
+  /** A kick by a named kicker, or by a team with nobody on the pitch. */
   | { type: "kick-ball"; playerId: string; x: number; y: number }
+  | { type: "kick-ball"; teamId: string; x: number; y: number }
   | { type: "kickoff-select-player"; playerId: string }
   | { type: "kickoff-move-player"; playerId: string; x: number; y: number }
   | { type: "kickoff-place-player"; playerId: string; x: number; y: number }

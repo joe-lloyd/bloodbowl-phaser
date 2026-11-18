@@ -372,15 +372,11 @@ async function setupCandidates(
   const legal = (await game.execute({ type: "legal-actions" })).legalActions;
   const setup = legal?.setup;
   if (setup?.canChooseConcession) {
-    // A team with nobody to field cannot play on, so it concedes.
-    const nobody = setup.status.availablePlayerCount === 0;
     return [
       {
         kind: "setup",
-        commands: [{ type: "setup-concession", teamId, concede: nobody }],
-        label: nobody
-          ? "Concede with no available players"
-          : "Play on with fewer than three players",
+        commands: [{ type: "setup-concession", teamId, concede: false }],
+        label: "Play on with fewer than three players",
       },
     ];
   }
@@ -509,10 +505,12 @@ function kickoffCandidates(
   kickingTeamId: string
 ): Candidate[] {
   const team = snapshot.teams.find((t) => t.id === kickingTeamId);
-  const kicker = team?.players.find(
+  if (!team) return [];
+  const kicker = team.players.find(
     (p) => p.position && p.status === PlayerStatus.ACTIVE
   );
-  if (!kicker) return [];
+  // A team with nobody on the pitch still kicks off, with no kicker.
+  if (!kicker && team.players.some((p) => p.position)) return [];
   const kicksRight = kickingTeamId === game.ctx.team1.id;
   const out: Candidate[] = [];
   for (const depth of [2, 4, 6]) {
@@ -520,7 +518,11 @@ function kickoffCandidates(
       const x = kicksRight ? GameConfig.PITCH_WIDTH - 1 - depth : depth;
       out.push({
         kind: "kickoff",
-        commands: [{ type: "kick-ball", playerId: kicker.id, x, y }],
+        commands: [
+          kicker
+            ? { type: "kick-ball", playerId: kicker.id, x, y }
+            : { type: "kick-ball", teamId: team.id, x, y },
+        ],
         label: `Kick to ${square({ x, y })}`,
       });
     }

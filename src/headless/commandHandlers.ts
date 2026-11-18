@@ -314,12 +314,18 @@ const COMMAND_HANDLERS: CommandHandlers = {
     ctx.gameService.selectKicker(cmd.playerId);
   },
   "kick-ball": async (host, cmd) => {
-    const kicker = requirePlayer(host.ctx, cmd.playerId);
-    const isTeam1Kicking = kicker.teamId === host.ctx.team1.id;
-    host.setKickingTeam(kicker.teamId);
+    const kicker =
+      "playerId" in cmd ? requirePlayer(host.ctx, cmd.playerId) : null;
+    const teamId = kicker?.teamId ?? ("teamId" in cmd ? cmd.teamId : undefined);
+    const team = [host.ctx.team1, host.ctx.team2].find((t) => t.id === teamId);
+    if (!team) throw new Error("invalid-kicking-team");
+    // Only a team with nobody on the pitch kicks without a kicker.
+    if (!kicker && team.players.some((p) => p.gridPosition))
+      throw new Error("kick-needs-kicker");
+    host.setKickingTeam(team.id);
     await host.ctx.gameService.kickBall(
-      isTeam1Kicking,
-      cmd.playerId,
+      team.id === host.ctx.team1.id,
+      kicker?.id ?? null,
       cmd.x,
       cmd.y
     );

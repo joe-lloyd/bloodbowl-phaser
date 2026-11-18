@@ -29,7 +29,12 @@ const COMMAND_SHAPES: Record<string, CommandShape> = {
   "setup-concession": { teamId: "string", concede: "boolean" },
   "confirm-setup": { teamId: "string" },
   "select-kicker": { playerId: "string" },
-  "kick-ball": { playerId: "string", x: "integer", y: "integer" },
+  "kick-ball": {
+    playerId: "string?",
+    teamId: "string?",
+    x: "integer",
+    y: "integer",
+  },
   "kickoff-select-player": { playerId: "string" },
   "kickoff-move-player": { playerId: "string", x: "integer", y: "integer" },
   "kickoff-place-player": { playerId: "string", x: "integer", y: "integer" },
