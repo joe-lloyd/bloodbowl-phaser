@@ -65,6 +65,10 @@ export const DEFAULT_WEIGHTS = {
   casualtyHit: 40,
   /** Knocking down a player next to the opposing carrier. */
   cageBreak: 20,
+  /** Knocking down a player who marks our carrier, so it can move. */
+  freeCarrier: 12,
+  /** Knocking down a player in the lane ahead of our carrier. */
+  lane: 0,
   /** What a turnover costs before counting the players left to act. */
   turnoverBase: 12,
   turnoverPerPlayer: 6,

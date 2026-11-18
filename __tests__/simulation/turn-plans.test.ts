@@ -304,3 +304,49 @@ describe("flank setup, under Standard's flank game plan", () => {
     ]);
   });
 });
+
+describe("blocks that open the way for our carrier", () => {
+  // Our carrier at (8,5) has acted, marked by one defender at (9,5). Our
+  // player at (10,4) can hit that marker, or a defender at (11,3) standing
+  // in the carrier's lane, three squares ahead.
+  async function hitOn(coach: Coach) {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, hasBall: true },
+        { playerIndex: 1, x: 10, y: 4 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 11, y: 3 },
+      ],
+    });
+    const carrier = subject.ctx.team1.players[0];
+    await subject.execute({
+      type: "declare-action",
+      playerId: carrier.id,
+      action: "move",
+    });
+    await subject.execute({ type: "end-activation", playerId: carrier.id });
+    for (let i = 0; i < 6; i++) {
+      const { command } = await step(subject, coach);
+      if (command.type === "block") return command.defenderId;
+    }
+    return null;
+  }
+  const [marker, inLane] = ["team2-player-1", "team2-player-2"];
+  const coach = (w: Partial<typeof DEFAULT_WEIGHTS>) =>
+    createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
+
+  it("hits the defender marking the carrier by default", async () => {
+    expect(await hitOn(createPlannerCoach())).toBe(marker);
+  });
+
+  it("hits the defender in the carrier's lane when the lane is worth more", async () => {
+    expect(await hitOn(coach({ lane: 60 }))).toBe(inLane);
+  });
+
+  it("goes back to the marker when freeing the carrier is worth more still", async () => {
+    expect(await hitOn(coach({ lane: 60, freeCarrier: 90 }))).toBe(marker);
+  });
+});
