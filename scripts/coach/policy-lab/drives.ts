@@ -24,7 +24,7 @@ export interface DriveTally {
   lost: number;
   /** Squares gained toward the end zone over kept turns. */
   gained: number;
-  /** Turns, in either half, whose end left the carrier holding the ball. */
+  /** Halves that ended with this team's standing carrier holding the ball. */
   heldAtHalf: number;
   /** Squares to go at the start of each turn with the ball. */
   toGo: number;
@@ -53,72 +53,64 @@ const empty = (): DriveTally => ({
   stalledMarked: 0,
 });
 
+/** Replays one saved game and tallies both teams' turns with the ball. */
 export async function drivesOfTrace(file: string) {
   const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
     initial: MatchSave;
     recording: MatchRecording;
   };
   const game = new HeadlessGame({ matchSave: trace.initial });
+  const tallies: [DriveTally, DriveTally] = [empty(), empty()];
+  const watch = watchDrives(game, tallies);
+  for (const [index, step] of trace.recording.steps.entries()) {
+    const response = await game.execute(step.command);
+    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
+  }
+  watch.finish();
+  return {
+    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName],
+    tallies,
+  };
+}
+
+interface Open {
+  side: 0 | 1;
+  toGo: number;
+  marked: boolean;
+}
+
+/**
+ * Tallies turns with the ball as the game plays. A turn settles when it
+ * ends, before half time clears the pitch. The last turn to end before the
+ * half changes, or before the game finishes, credits the team then holding
+ * the ball with a half held.
+ */
+export function watchDrives(
+  game: HeadlessGame,
+  tallies: [DriveTally, DriveTally]
+) {
   const teams = [game.ctx.team1, game.ctx.team2];
   const sideOf = new Map(teams.map((t, i) => [t.id, i as 0 | 1]));
-  const tallies: [DriveTally, DriveTally] = [empty(), empty()];
-  /** Squares to go for side's carrier, or null when side has no carrier. */
-  const holding = (side: 0 | 1): number | null => {
-    const at = game.ctx.gameService.getState().ballPosition;
+  const state = () => game.ctx.gameService.getState();
+  /** The side whose standing player holds the ball, and its squares to go. */
+  const holder = (): { side: 0 | 1; toGo: number } | null => {
+    const at = state().ballPosition;
     if (!at) return null;
-    const holder = teams[side].players.find(
-      (p) =>
-        p.gridPosition?.x === at.x &&
-        p.gridPosition?.y === at.y &&
-        p.status === PlayerStatus.ACTIVE
-    );
-    if (!holder) return null;
-    return side === 0 ? WIDTH - 1 - at.x : at.x;
+    for (const side of [0, 1] as const)
+      if (
+        teams[side].players.some(
+          (p) =>
+            p.gridPosition?.x === at.x &&
+            p.gridPosition?.y === at.y &&
+            p.status === PlayerStatus.ACTIVE
+        )
+      )
+        return { side, toGo: side === 0 ? WIDTH - 1 - at.x : at.x };
+    return null;
   };
-  let open: {
-    side: 0 | 1;
-    toGo: number;
-    last: boolean;
-    marked: boolean;
-  } | null = null;
-  const kept = (
-    t: DriveTally,
-    start: NonNullable<typeof open>,
-    now: number
-  ) => {
-    const gain = start.toGo - now;
-    t.kept++;
-    t.gained += gain;
-    if (start.marked) {
-      t.keptMarked++;
-      t.gainedMarked += gain;
-    }
-    if (gain <= 0) t[start.marked ? "stalledMarked" : "stalledFree"]++;
-    if (start.last) t.heldAtHalf++;
-  };
-  const close = (scored: boolean) => {
-    if (!open) return;
-    const t = tallies[open.side];
-    const now = scored ? null : holding(open.side);
-    if (scored) t.scored++;
-    else if (now === null) t.lost++;
-    else kept(t, open, now);
-    open = null;
-  };
-  game.ctx.eventBus.on(GameEventNames.Touchdown, ({ teamId }) => {
-    if (open && sideOf.get(teamId) === open.side) close(true);
-  });
-  game.ctx.eventBus.on(GameEventNames.TurnStarted, () => {
-    close(false);
-    const state = game.ctx.gameService.getState();
-    const side = sideOf.get(state.activeTeamId ?? "");
-    if (side === undefined) return;
-    const toGo = holding(side);
-    if (toGo === null) return;
-    tallies[side].turns++;
-    tallies[side].toGo += toGo;
-    const at = state.ballPosition!;
-    const marked = teams[1 - side].players.some(
+  const markedAt = (side: 0 | 1) => {
+    const at = state().ballPosition!;
+    return teams[1 - side].players.some(
       (p) =>
         p.status === PlayerStatus.ACTIVE &&
         p.gridPosition &&
@@ -127,20 +119,71 @@ export async function drivesOfTrace(file: string) {
           Math.abs(p.gridPosition.y - at.y)
         ) === 1
     );
-    if (marked) tallies[side].marked++;
-    open = {
-      side,
-      toGo,
-      last: state.turn.turnNumber >= GameConfig.TURNS_PER_HALF,
-      marked,
-    };
+  };
+  let open: Open | null = null;
+  let scored = false;
+  /** Who held the ball as the last turn ended, and in which half. */
+  let ended: { holder: 0 | 1 | null; half2: boolean } | null = null;
+
+  const settle = () => {
+    if (!open) return;
+    const t = tallies[open.side];
+    const now = holder();
+    if (scored) t.scored++;
+    else if (now?.side !== open.side) t.lost++;
+    else {
+      const gain = open.toGo - now.toGo;
+      t.kept++;
+      t.gained += gain;
+      if (open.marked) {
+        t.keptMarked++;
+        t.gainedMarked += gain;
+      }
+      if (gain <= 0) t[open.marked ? "stalledMarked" : "stalledFree"]++;
+    }
+    open = null;
+  };
+  const halfOver = () => {
+    if (ended?.holder != null) tallies[ended.holder].heldAtHalf++;
+    ended = null;
+  };
+
+  game.ctx.eventBus.on(GameEventNames.Touchdown, ({ teamId }) => {
+    // A score ends the drive: no half is held, and only the scoring team's
+    // open turn counts it.
+    if (open && sideOf.get(teamId) === open.side) scored = true;
+    else settle();
+    ended = null;
   });
-  for (const [index, step] of trace.recording.steps.entries()) {
-    const response = await game.execute(step.command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
-  }
-  close(false);
-  return { rosters: teams.map((t) => t.rosterName), tallies };
+  game.ctx.eventBus.on(GameEventNames.TurnEnded, () => {
+    settle();
+    const held = scored ? null : holder();
+    scored = false;
+    ended = { holder: held?.side ?? null, half2: !!state().turn.isHalf2 };
+  });
+  game.ctx.eventBus.on(GameEventNames.TurnStarted, () => {
+    settle();
+    const now = state();
+    if (ended && ended.half2 !== !!now.turn.isHalf2) halfOver();
+    ended = null;
+    scored = false;
+    const side = sideOf.get(now.activeTeamId ?? "");
+    const held = holder();
+    if (side === undefined || held?.side !== side) return;
+    const t = tallies[side];
+    const marked = markedAt(side);
+    t.turns++;
+    t.toGo += held.toGo;
+    if (marked) t.marked++;
+    open = { side, toGo: held.toGo, marked };
+  });
+  return {
+    /** The recording is over: the last half ended with its last turn. */
+    finish() {
+      settle();
+      halfOver();
+    },
+  };
 }
 
 async function main() {

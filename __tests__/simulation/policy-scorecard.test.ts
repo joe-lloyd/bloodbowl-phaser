@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { scorecard, strengths } from "../../scripts/coach/policy-lab/scorecard";
+import {
+  scorecard,
+  strengthIntervals,
+  strengths,
+} from "../../scripts/coach/policy-lab/scorecard";
+import type { FitGame } from "../../scripts/coach/policy-lab/scorecard";
 
 const row = (
   game: string,
@@ -9,6 +14,7 @@ const row = (
   touchdowns: number
 ) => ({
   game,
+  block: game,
   policy,
   roster,
   points,
@@ -79,19 +85,59 @@ describe("policy-lab team scorecard", () => {
   });
 
   it("judges a roster against an average opponent, not its schedule", () => {
-    // A beats B and B beats C by the same margin: A is the strongest,
-    // though C never met A.
-    const fit = strengths([
-      { roster: "A", opponent: "B", points: 0.75 },
-      { roster: "B", opponent: "A", points: 0.25 },
-      { roster: "B", opponent: "C", points: 0.75 },
-      { roster: "C", opponent: "B", points: 0.25 },
-    ]);
-    expect([...fit].map(([r, s]) => [r, Number(s.toFixed(3))])).toEqual([
+    // A beats B and B beats C by the same margin, whichever policy plays
+    // which side: A is the strongest, though C never met A.
+    const legs = (a: string, b: string, points: number): FitGame[] => [
+      { roster: a, opponent: b, policy: "candidate", points },
+      { roster: b, opponent: a, policy: "frozen", points: 1 - points },
+      { roster: a, opponent: b, policy: "frozen", points },
+      { roster: b, opponent: a, policy: "candidate", points: 1 - points },
+    ];
+    const fit = strengths([...legs("A", "B", 0.75), ...legs("B", "C", 0.75)]);
+    expect(
+      [...fit.strength].map(([r, s]) => [r, Number(s.toFixed(3))])
+    ).toEqual([
       ["A", 0.25],
       ["B", 0],
       ["C", -0.25],
     ]);
+    expect(fit.edge).toBeCloseTo(0);
+  });
+
+  it("credits a candidate that wins both legs to the policy, not a roster", () => {
+    const games: FitGame[] = [
+      { roster: "Dwarf", opponent: "Skaven", policy: "candidate", points: 1 },
+      { roster: "Skaven", opponent: "Dwarf", policy: "candidate", points: 1 },
+    ];
+    const forward = strengths(games);
+    const backward = strengths([...games].reverse());
+    expect([...forward.strength].map(([r, s]) => [r, s + 0])).toEqual([
+      ["Dwarf", 0],
+      ["Skaven", 0],
+    ]);
+    expect(forward.edge).toBeCloseTo(0.5);
+    expect([...backward.strength]).toEqual([...forward.strength]);
+  });
+
+  it("widens a roster's interval for its opponents' uncertainty", () => {
+    // Dwarf drew all 64 games with Skaven. Skaven split 64 with Human, so
+    // Skaven's strength, and with it Dwarf's, is uncertain.
+    const games = [
+      ...Array.from({ length: 64 }, () => [
+        { roster: "Dwarf", opponent: "Skaven", points: 0.5 },
+        { roster: "Skaven", opponent: "Dwarf", points: 0.5 },
+      ]).flatMap((pair, i) => pair.map((g) => ({ ...g, block: `d${i}` }))),
+      ...Array.from({ length: 64 }, (_, i) => [
+        { roster: "Skaven", opponent: "Human", points: i % 2 },
+        { roster: "Human", opponent: "Skaven", points: 1 - (i % 2) },
+      ]).flatMap((pair, i) => pair.map((g) => ({ ...g, block: `h${i}` }))),
+    ].map((g, i) => ({
+      ...g,
+      policy: i % 2 ? ("frozen" as const) : ("candidate" as const),
+    }));
+    const [low, high] = strengthIntervals(games, 200).get("Dwarf")!;
+    expect(low).toBeLessThan(0.47);
+    expect(high).toBeGreaterThan(0.53);
   });
 
   it("scores only the candidate when asked", () => {

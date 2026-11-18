@@ -41,6 +41,7 @@ function tierOf(roster: string): Tier {
 
 interface TeamGame {
   game: string;
+  block: string;
   policy: "candidate" | "frozen";
   roster: string;
   points: number;
@@ -59,6 +60,7 @@ function parseTeamGames(text: string): TeamGame[] {
   };
   const c = {
     game: at("game"),
+    block: at("block"),
     policy: at("policy"),
     roster: at("roster"),
     points: at("points"),
@@ -73,6 +75,7 @@ function parseTeamGames(text: string): TeamGame[] {
       throw new Error(`Unknown policy ${policy}`);
     return {
       game: f[c.game],
+      block: f[c.block],
       policy,
       roster: f[c.roster],
       points: Number(f[c.points]),
@@ -131,24 +134,113 @@ export interface RosterCard {
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
+export interface FitGame {
+  roster: string;
+  opponent: string;
+  /** The policy playing `roster`; its opponent plays the other one. */
+  policy: "candidate" | "frozen";
+  points: number;
+}
+
 /**
- * Each roster's strength s, fitted so a game between rosters a and b
- * scores about 0.5 + s(a) - s(b) for a, with strengths averaging zero.
+ * Each roster's strength s, the least-squares fit of
+ * points = 0.5 + s(roster) - s(opponent) ± edge, with strengths averaging
+ * zero. The edge is what the candidate policy gains over the frozen one, so
+ * a candidate that wins both legs of a pairing leaves both rosters level.
  */
-export function strengths(
-  games: { roster: string; opponent: string; points: number }[]
-): Map<string, number> {
-  const rosters = [...new Set(games.map((g) => g.roster))];
-  const s = new Map(rosters.map((r) => [r, 0]));
-  for (let round = 0; round < 500; round++) {
-    for (const r of rosters) {
-      const own = games.filter((g) => g.roster === r);
-      s.set(r, mean(own.map((g) => g.points - 0.5 + (s.get(g.opponent) ?? 0))));
+export function strengths(games: FitGame[]): {
+  strength: Map<string, number>;
+  edge: number;
+} {
+  const rosters = [
+    ...new Set(games.flatMap((g) => [g.roster, g.opponent])),
+  ].sort();
+  const index = new Map(rosters.map((r, i) => [r, i]));
+  const n = rosters.length + 1;
+  const a = Array.from({ length: n }, () => new Array<number>(n).fill(0));
+  const b = new Array<number>(n).fill(0);
+  const add = (terms: [number, number][], y: number) => {
+    for (const [i, xi] of terms) {
+      b[i] += xi * y;
+      for (const [j, xj] of terms) a[i][j] += xi * xj;
     }
-    const centre = mean([...s.values()]);
-    for (const r of rosters) s.set(r, s.get(r)! - centre);
+  };
+  for (const g of games)
+    add(
+      [
+        [index.get(g.roster)!, 1],
+        [index.get(g.opponent)!, -1],
+        [n - 1, g.policy === "candidate" ? 1 : -1],
+      ],
+      g.points - 0.5
+    );
+  // Strengths are only known up to a shift: pin their sum to zero.
+  add(
+    rosters.map((_, i): [number, number] => [i, 1]),
+    0
+  );
+  const x = solve(a, b);
+  return {
+    strength: new Map(rosters.map((r, i) => [r, x[i]])),
+    edge: x[n - 1],
+  };
+}
+
+/** Gaussian elimination with partial pivoting. */
+function solve(a: number[][], b: number[]): number[] {
+  const n = b.length;
+  const m = a.map((row, i) => [...row, b[i]]);
+  for (let col = 0; col < n; col++) eliminate(m, col);
+  return m.map((row, i) => (Math.abs(row[i]) < 1e-12 ? 0 : row[n] / row[i]));
+}
+
+/** Pivot on `col` and clear it from every other row. */
+function eliminate(m: number[][], col: number): void {
+  let pivot = col;
+  for (let r = col + 1; r < m.length; r++)
+    if (Math.abs(m[r][col]) > Math.abs(m[pivot][col])) pivot = r;
+  [m[col], m[pivot]] = [m[pivot], m[col]];
+  if (Math.abs(m[col][col]) < 1e-12) return;
+  for (let r = 0; r < m.length; r++) {
+    if (r === col) continue;
+    const f = m[r][col] / m[col][col];
+    for (let k = col; k < m[r].length; k++) m[r][k] -= f * m[col][k];
   }
-  return s;
+}
+
+/**
+ * A 95% interval for each roster's strength: refit on whole schedule
+ * blocks drawn with replacement, so the opponents' uncertainty counts too.
+ */
+export function strengthIntervals(
+  games: (FitGame & { block: string })[],
+  draws = 1000
+): Map<string, [number, number]> {
+  const blocks = new Map<string, FitGame[]>();
+  for (const g of games)
+    blocks.set(g.block, [...(blocks.get(g.block) ?? []), g]);
+  const groups = [...blocks.values()];
+  let seed = 1;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+  const samples = new Map<string, number[]>();
+  for (let d = 0; d < draws; d++) {
+    const drawn = groups.flatMap(
+      () => groups[Math.floor(random() * groups.length)]
+    );
+    for (const [r, s] of strengths(drawn).strength)
+      if (drawn.some((g) => g.roster === r))
+        samples.set(r, [...(samples.get(r) ?? []), s]);
+  }
+  const at = (xs: number[], q: number) => xs[Math.floor(q * (xs.length - 1))];
+  return new Map(
+    [...samples].map(([r, xs]) => {
+      xs.sort((p, q) => p - q);
+      return [r, [0.5 + at(xs, 0.025), 0.5 + at(xs, 0.975)]];
+    })
+  );
 }
 
 /** Plays that show what a roster does more than the field does. */
@@ -204,13 +296,15 @@ export function scorecard(
     if (!other) throw new Error(`${r.game} has one side`);
     return other;
   };
-  const fitted = strengths(
-    counted.map((r) => ({
-      roster: r.roster,
-      opponent: opponentOf(r).roster,
-      points: r.points,
-    }))
-  );
+  const fitGames = counted.map((r) => ({
+    roster: r.roster,
+    opponent: opponentOf(r).roster,
+    policy: r.policy,
+    points: r.points,
+    block: r.block,
+  }));
+  const fitted = strengths(fitGames).strength;
+  const intervals = strengthIntervals(fitGames);
   const rosters = [...new Set(counted.map((r) => r.roster))];
   return rosters
     .map((roster): RosterCard => {
@@ -219,9 +313,6 @@ export function scorecard(
       const games = rows.length;
       const points = mean(rows.map((r) => r.points));
       const adjusted = 0.5 + fitted.get(roster)!;
-      const spread = Math.sqrt(
-        mean(rows.map((r) => (r.points - points) ** 2)) / games
-      );
       const own: Record<string, PlayTally> = {};
       for (const policy of policies)
         for (const [play, t] of Object.entries(
@@ -268,7 +359,7 @@ export function scorecard(
         games,
         points,
         adjusted,
-        pointsCi: [adjusted - 1.96 * spread, adjusted + 1.96 * spread],
+        pointsCi: intervals.get(roster)!,
         wins: rows.filter((r) => r.points === 1).length,
         draws: rows.filter((r) => r.points === 0.5).length,
         losses: rows.filter((r) => r.points === 0).length,
@@ -339,7 +430,7 @@ tr.below td:last-child{color:#ef8a7a}tr.ceiling td:last-child{color:#e0b24a}tr.m
 ${cards.map(row).join("\n")}</table></div>
 <h2>Standards</h2>
 <div class="wrap"><table style="width:auto"><tr><th>Tier</th><th class="n">Points at least</th><th class="n">Scores in at least</th></tr>${standards}</table></div>
-<p>Strength is the points share a roster would take from an average opponent of the same planner, so the average roster gets 50%. The lab pairs each roster with only a few others, so it is fitted from every game: a game between two rosters is taken to score about 50% plus the difference in their strengths. Raw points is the plain share against whoever the schedule chose. Scores is the share of games with at least one touchdown. A roster over ${pct(CEILING)} is flagged so its lineup and rules are checked before the AI is changed. Per-game figures count each roster's own games. The interval is a normal approximation over games.</p>`;
+<p>Strength is the points share a roster would take from an average opponent of the same planner, so the average roster gets 50%. The lab pairs each roster with only a few others, so it is fitted from every game: a game between two rosters is taken to score about 50% plus the difference in their strengths, plus any edge one policy has over the other. Raw points is the plain share against whoever the schedule chose. Scores is the share of games with at least one touchdown. A roster over ${pct(CEILING)} is flagged so its lineup and rules are checked before the AI is changed. Per-game figures count each roster's own games. The interval refits strengths on whole schedule blocks drawn with replacement, a thousand times.</p>`;
 }
 
 function main() {
