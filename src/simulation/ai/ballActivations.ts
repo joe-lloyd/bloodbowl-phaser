@@ -657,7 +657,10 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
  * ball on loses a turn of pace; one with My Ball keeps it to the end.
  */
 export function pickupPace(c: Context, player: Player): number {
+  // The picker counts too: a prone picker with nobody else standing is
+  // its own quickest carrier, never short of an empty team.
   const quickest = Math.max(
+    nextTurnReach(player),
     ...c.board.ours.filter(standing).map((p) => nextTurnReach(p))
   );
   return paceWorth(

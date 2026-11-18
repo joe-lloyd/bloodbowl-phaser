@@ -9,6 +9,8 @@ import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { context } from "../../src/simulation/ai/activationContext";
 import { readBoard } from "../../src/simulation/ai/board";
 import { secureBallActivations } from "../../src/simulation/ai/skillActivations";
+import { pickupActivation } from "../../src/simulation/ai/ballActivations";
+import { PlayerStatus } from "../../src/types/Player";
 
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import type { Weights } from "../../src/simulation/ai/weights";
@@ -441,6 +443,31 @@ describe("carrier pace", () => {
     expect(command).toMatchObject({
       playerId: subject.ctx.team1.players[1].id,
     });
+  });
+
+  it("prices a pick-up by a prone player with nobody else standing", () => {
+    // Pace against an empty team was unbounded, and a zero-chance route
+    // made the plan's value NaN.
+    const subject = game({
+      turn: 2,
+      ballPosition: { x: 6, y: 5 },
+      team1Placements: [
+        { playerIndex: 0, x: 5, y: 5, status: PlayerStatus.PRONE },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
+    });
+    const [picker] = subject.ctx.team1.players;
+    const c = context(
+      readBoard(subject, picker.teamId),
+      { ...DEFAULT_WEIGHTS, carrierPace: 4 },
+      new Map([[picker.id, new Set(["move" as const, "secureBall" as const])]])
+    );
+    const values = [
+      ...pickupActivation(c, picker),
+      ...secureBallActivations(c, picker),
+    ].map((a) => a.value);
+    expect(values.length).toBeGreaterThan(0);
+    expect(values.every(Number.isFinite)).toBe(true);
   });
 
   it("charges a My Ball picker for every turn it will keep the ball", () => {
