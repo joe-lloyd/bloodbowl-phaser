@@ -154,6 +154,22 @@ Fouls rose from 816 to 2,038 in the confirmation stage, and 270 of them got the 
 
 Published report: [Sevens argued calls](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-argued-calls-2026-11-18%2Findex.html), Blood Bowl, `sevens-argued-calls-2026-11-18/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-b0f7458e07c4-vs-849cac0a0b57` on Daily Driver.
 
+## Third review fixes, 18 November
+
+A third review found two more faults. A receiver that had gone deep and spent its Move no longer counted as the receiver, so the next declaration sent a second one. The first deep receiver now holds the setup turn. A held Bribe also priced a spotted Foul as a lost turn even when the Bribe worked. A Bribe that works now keeps the turn. Candidate source `441f69a31378` played `b0f7458e07c4`, the second review fixes. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   50.16% | 49.99% to 50.34%     |
+| Standard, against the frozen planner | 5,184 |                   48.10% | 47.04% to 49.08%     |
+| Persistent fixtures                  | 1,296 |                   50.00% | 49.65% to 50.35%     |
+| Heuristic control                    |   432 |                   89.47% | 87.04% to 91.67%     |
+| Hard sentinels                       |    16 | 34.38%, descriptive only | No strength estimate |
+
+The best planner is level, with 3,794 touchdowns against 3,774. It made 1,959 Fouls, and 303 got the fouler sent off. No big guy fouled. Standard sits 1.9 points behind the best planner of its own release, inside the 0.6 to 2.4 point range of earlier releases. The likely cause is Standard's flank runner: when its run ends on a deep square, it counts as the deep receiver and holds the others back. That fix belongs to the team work that follows.
+
+Published report: [Sevens third review](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-third-review-2026-11-18%2Findex.html), Blood Bowl, `sevens-third-review-2026-11-18/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-441f69a31378-vs-b0f7458e07c4` on Daily Driver.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
