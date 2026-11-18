@@ -7,6 +7,7 @@ import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
+import type { Weights } from "../../src/simulation/ai/weights";
 import {
   GAME_PLANS,
   STANDARD_VARIETY,
@@ -335,7 +336,7 @@ describe("blocks that open the way for our carrier", () => {
     return null;
   }
   const [marker, inLane] = ["team2-player-1", "team2-player-2"];
-  const coach = (w: Partial<typeof DEFAULT_WEIGHTS>) =>
+  const coach = (w: Partial<Weights>) =>
     createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
 
   it("hits the defender marking the carrier by default", async () => {
@@ -356,7 +357,7 @@ describe("cage walk", () => {
   // x=10 is in contact with one defender, every square at x=9 is clear.
   async function carrierEnd(
     skills: SkillType[],
-    w: Partial<typeof DEFAULT_WEIGHTS>,
+    w: Partial<Weights>,
     wall: SkillType[] = []
   ) {
     const subject = game({
