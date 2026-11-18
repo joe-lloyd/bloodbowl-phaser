@@ -118,6 +118,12 @@ export interface RosterCard {
   pointsCi: [number, number] | null;
   /** What the points standard was judged on: strength, or raw points. */
   judged: "strength" | "raw points";
+  /**
+   * The roster's points under the candidate minus under the frozen policy,
+   * in the same games: what the change did for this roster. A strength
+   * moves with each run's schedule; this does not.
+   */
+  change: number | null;
   wins: number;
   draws: number;
   losses: number;
@@ -378,6 +384,17 @@ export function scorecard(
   const fitted = strengths(fitGames)?.strength ?? null;
   const intervals = fitted ? strengthIntervals(fitGames) : null;
   const rosters = [...new Set(counted.map((r) => r.roster))];
+  const pointsUnder = (roster: string, policy: TeamGame["policy"]) => {
+    const xs = teamGames
+      .filter((r) => r.roster === roster && r.policy === policy)
+      .map((r) => r.points);
+    return xs.length ? mean(xs) : null;
+  };
+  const changeOf = (roster: string) => {
+    const candidate = pointsUnder(roster, "candidate");
+    const frozen = pointsUnder(roster, "frozen");
+    return candidate === null || frozen === null ? null : candidate - frozen;
+  };
   return rosters
     .map((roster): RosterCard => {
       const rows = counted.filter((r) => r.roster === roster);
@@ -414,6 +431,7 @@ export function scorecard(
         adjusted,
         pointsCi: intervals?.get(roster) ?? null,
         judged,
+        change: changeOf(roster),
         wins: rows.filter((r) => r.points === 1).length,
         draws: rows.filter((r) => r.points === 0.5).length,
         losses: rows.filter((r) => r.points === 0).length,
@@ -438,6 +456,8 @@ export function scorecard(
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 const num = (x: number) => x.toFixed(2);
+/** A change in points share, in points: +2.1 or -0.5. */
+const signed = (x: number) => `${x >= 0 ? "+" : ""}${(100 * x).toFixed(1)}`;
 const esc = (s: string) =>
   s.replace(
     /[&<>"]/g,
@@ -448,7 +468,7 @@ function html(cards: RosterCard[], stage: string, revision: string): string {
   const below = cards.filter((c) => c.verdict !== "meets");
   const row = (c: RosterCard) => `<tr class="${c.verdict}">
 <td>${esc(c.roster)}</td><td class="n">${c.tier}</td><td class="n">${c.games}</td>
-<td class="n">${c.adjusted === null ? "n/a" : pct(c.adjusted)} <span class="ci">${c.pointsCi ? `${pct(c.pointsCi[0])}–${pct(c.pointsCi[1])}` : ""}</span></td><td class="n">${pct(c.points)}</td>
+<td class="n">${c.adjusted === null ? "n/a" : pct(c.adjusted)} <span class="ci">${c.pointsCi ? `${pct(c.pointsCi[0])}–${pct(c.pointsCi[1])}` : ""}</span></td><td class="n">${pct(c.points)}</td><td class="n">${c.change === null ? "n/a" : signed(c.change)}</td>
 <td class="n">${pct(c.scores)}</td><td class="n">${num(c.touchdownsFor)}</td><td class="n">${num(c.touchdownsAgainst)}</td>
 <td class="n">${num(c.casualtiesFor)}</td><td class="n">${num(c.casualtiesAgainst)}</td>
 <td class="n">${num(c.foulsPerGame)}</td>
@@ -468,7 +488,7 @@ function html(cards: RosterCard[], stage: string, revision: string): string {
 :root{color-scheme:dark}
 body{margin:0;background:#0b0f1e;color:#e8e4d6;font:14px/1.5 system-ui,-apple-system,sans-serif;padding:20px 16px;max-width:1200px}
 h1{color:#e0b24a;font-size:20px;margin:0 0 4px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#8d93a8;margin:24px 0 8px}
-p{color:#8d93a8}.wrap{overflow-x:auto}table{border-collapse:collapse;font-size:13px;width:100%}
+p{color:#8d93a8}.wrap{overflow-x:auto}table{border-collapse:collapse;font-size:13px;width:100%;min-width:1000px}
 td,th{padding:5px 8px;border-bottom:1px solid #2a3352;text-align:left;vertical-align:top}th{color:#8d93a8;font-weight:500}
 .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.ci{color:#8d93a8;font-size:12px}
 tr.below td:last-child{color:#ef8a7a}tr.ceiling td:last-child{color:#e0b24a}tr.meets td:last-child{color:#8fd19e}
@@ -476,7 +496,7 @@ tr.below td:last-child{color:#ef8a7a}tr.ceiling td:last-child{color:#e0b24a}tr.m
 <h1>Team scorecard</h1>
 <p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${below.length} of ${cards.length} rosters miss their tier's standard.${cards.some((c) => c.adjusted === null) ? " This schedule splits the rosters into groups that never meet, so no strength can be fitted and each roster is judged on raw points." : ""}</p>
 <h2>Rosters</h2>
-<div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Strength, 95%</th><th class="n">Raw points</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th>Standard</th></tr>
+<div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Strength, 95%</th><th class="n">Raw points</th><th class="n">Change vs frozen</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th>Standard</th></tr>
 ${cards.map(row).join("\n")}</table></div>
 <h2>Standards</h2>
 <div class="wrap"><table style="width:auto"><tr><th>Tier</th><th class="n">Points at least</th><th class="n">Scores in at least</th></tr>${standards}</table></div>
