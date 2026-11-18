@@ -212,6 +212,15 @@ if (args.includes("--worker")) {
         : [];
       jobs = limitPolicyBlocks(jobs, blockLimit, sentinels);
     }
+    // A roster study keeps the games where either side plays one of them.
+    const rosters = flag("rosters", "");
+    if (rosters) {
+      const wanted = new Set(rosters.split(","));
+      jobs = jobs.filter((j) =>
+        j.variantIds.some((id) => wanted.has(getTeam(id).rosterName))
+      );
+      if (!jobs.length) throw new Error(`No games for ${rosters}`);
+    }
     jobs = jobs.map((j) => ({
       ...j,
       persistentInjuries: args.includes("--league"),
