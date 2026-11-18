@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
+import { RosterName } from "../../src/types/Team";
 import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
@@ -236,6 +237,29 @@ async function pressedCarrier(
   }
   return { subject, declared };
 }
+
+describe("a roster's own weights", () => {
+  // Scenario teams are both Human.
+  it("plays them for that roster", async () => {
+    const { subject, declared } = await pressedCarrier(
+      [],
+      createPlannerCoach({ rosters: { [RosterName.HUMAN]: { flank: 3 } } })
+    );
+
+    expect(declared).toEqual([
+      `${subject.ctx.team1.players[1].id}: moves to flank`,
+    ]);
+  });
+
+  it("leaves every other roster on the defaults", async () => {
+    const { declared } = await pressedCarrier(
+      [],
+      createPlannerCoach({ rosters: { [RosterName.ORC]: { flank: 3 } } })
+    );
+
+    expect(declared.filter((d) => d.endsWith("moves to flank"))).toEqual([]);
+  });
+});
 
 describe("flank setup, under Standard's flank game plan", () => {
   it("sends a runner wide of a pressed carrier, to the side the defence left", async () => {

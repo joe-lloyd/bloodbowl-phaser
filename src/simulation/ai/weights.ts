@@ -1,3 +1,5 @@
+import { RosterName } from "../../types/Team";
+
 /**
  * Every number the planner's judgement rests on, in one plain object, so a
  * tuner can evolve them and a run can load a set from JSON. Values are in
@@ -100,18 +102,60 @@ export const DEFAULT_WEIGHTS = {
 
 export type Weights = { readonly [K in keyof typeof DEFAULT_WEIGHTS]: number };
 
-/** Read a weight set from untrusted JSON; missing keys keep their default. */
-export function parseWeights(raw: unknown): Weights {
-  if (typeof raw !== "object" || raw === null)
-    throw new Error("weights must be a JSON object");
-  const out: Record<string, number> = { ...DEFAULT_WEIGHTS };
-  for (const [name, value] of Object.entries(raw)) {
+/** Weights a roster plays with instead of the defaults. */
+export type RosterWeights = Partial<Record<RosterName, Partial<Weights>>>;
+
+/**
+ * Each roster's own tweaks on top of the defaults, kept only where the lab
+ * measured that roster doing better with them.
+ */
+export const ROSTER_WEIGHTS: RosterWeights = {};
+
+const ROSTERS = new Set<string>(Object.values(RosterName));
+
+function object(raw: unknown, where: string): Record<string, unknown> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    throw new Error(`${where} must be a JSON object`);
+  return Object.fromEntries(Object.entries(raw));
+}
+
+function overrides(raw: unknown, where: string): Partial<Weights> {
+  const out: Record<string, number> = {};
+  for (const [name, value] of Object.entries(object(raw, where))) {
     if (!(name in DEFAULT_WEIGHTS)) throw new Error(`unknown weight "${name}"`);
     if (typeof value !== "number" || !Number.isFinite(value))
       throw new Error(`weight "${name}" must be a finite number`);
     out[name] = value;
   }
-  return out as Weights;
+  return out;
+}
+
+/** Read a weight set from untrusted JSON; missing keys keep their default. */
+export function parseWeights(raw: unknown): Weights {
+  return { ...DEFAULT_WEIGHTS, ...overrides(raw, "weights") };
+}
+
+/**
+ * Read a weights file: overrides for every roster, plus an optional
+ * `rosters` object of overrides for named rosters. A file with `rosters`
+ * replaces `ROSTER_WEIGHTS`; a file without it keeps them.
+ */
+export function parseWeightFile(raw: unknown): {
+  weights: Weights;
+  rosters: RosterWeights;
+} {
+  const { rosters, ...rest } = object(raw, "weights");
+  if (rosters === undefined)
+    return { weights: parseWeights(rest), rosters: ROSTER_WEIGHTS };
+  return {
+    weights: parseWeights(rest),
+    rosters: Object.fromEntries(
+      Object.entries(object(rosters, "rosters")).map(([roster, value]) => {
+        if (!ROSTERS.has(roster)) throw new Error(`unknown roster "${roster}"`);
+        return [roster, overrides(value, roster)];
+      })
+    ),
+  };
 }
 
 /** What a tuner may try: the range for each weight, thresholds kept sane. */
