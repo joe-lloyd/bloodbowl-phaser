@@ -119,16 +119,14 @@ function flankSquares(c: Context, carrier: Player, add: AddSquare): void {
 
 /**
  * The one team-mate who goes deep: the surest hands, then the fastest, of
- * those who already stand deep or can still reach a deep square safely.
- * It stays the receiver for the turn once it has gone, so the rest keep
- * the cage.
+ * those still to act that stand deep or can reach a deep square safely.
  */
 function deepReceiver(c: Context, carrier: Player): Player | undefined {
   const at = carrier.gridPosition!;
   const hands = (p: Player) =>
     p.stats.AG - (hasSkill(p.skills, SkillType.CATCH) ? 1 : 0);
   const canGo = (p: Player) =>
-    !!c.available.get(p.id)?.has("move") &&
+    isDeep(c, at, p.gridPosition!, p) ||
     [...c.plainRoutes(p).values()].some(
       (r) => r.chance >= c.w.safeMove && isDeep(c, at, r.to, p)
     );
@@ -137,7 +135,8 @@ function deepReceiver(c: Context, carrier: Player): Player | undefined {
       (p) =>
         p.id !== carrier.id &&
         standing(p) &&
-        (isDeep(c, at, p.gridPosition!, p) || canGo(p))
+        !!c.available.get(p.id)?.has("move") &&
+        canGo(p)
     )
     .sort(
       (a, b) =>
@@ -160,9 +159,16 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
   const at = carrier.gridPosition!;
   if (carrier.stats.PA <= 0 || toGoal(board, at) <= nextTurnReach(carrier))
     return;
+  // One receiver deep is enough: once a team-mate that has acted stands
+  // deep, nobody else goes, though its run opens a route for another.
+  const wentDeep = (p: Player) =>
+    p.id !== carrier.id &&
+    standing(p) &&
+    !c.available.get(p.id)?.has("move") &&
+    isDeep(c, at, p.gridPosition!, p);
+  if (board.ours.some(wentDeep)) return;
   const receiver = deepReceiver(c, carrier);
-  // Once the receiver has gone deep, nobody else goes.
-  if (!receiver || !c.available.get(receiver.id)?.has("move")) return;
+  if (!receiver) return;
   for (let x = 0; x < WIDTH; x++)
     for (let y = 1; y < HEIGHT - 1; y++) {
       const s = { x, y };

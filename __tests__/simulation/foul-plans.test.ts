@@ -176,4 +176,54 @@ describe("who fouls", () => {
     expect(fouls).toHaveLength(1);
     expect(fouls[0].value).toBeCloseTo(1.574, 3);
   });
+
+  it("fouls with a held Bribe, which keeps both the player and the turn", async () => {
+    // Three team-mates still to act would be lost to a Turnover, but a
+    // Bribe that works after a failed argument costs no Turnover.
+    const subject = new HeadlessGame({
+      seed: 1,
+      scenario: {
+        id: "bribed-foul",
+        name: "A bribed foul",
+        description: "",
+        setup: {
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+          activeTeam: "team1",
+          turn: 2,
+          team1Roster: RosterName.HUMAN,
+          teamRerolls: { team1: 0, team2: 0 },
+          bribes: { team1: 1 },
+          team1Placements: [
+            { playerIndex: 0, x: 9, y: 5 },
+            { playerIndex: 1, x: 1, y: 1 },
+            { playerIndex: 2, x: 1, y: 3 },
+            { playerIndex: 3, x: 1, y: 7 },
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              status: PlayerStatus.PRONE,
+              stats: { AV: 9 },
+              skills: [],
+            },
+            { playerIndex: 1, x: 16, y: 2, hasBall: true },
+          ],
+        },
+      },
+    });
+    const point = await enumerateDecision(subject, null);
+    const [fouler] = subject.ctx.team1.players;
+
+    const fouls = activations(
+      readBoard(subject, "team1"),
+      DEFAULT_WEIGHTS,
+      availableActions(point.candidates)
+    ).filter((a) => a.action === "foul" && a.player.id === fouler.id);
+
+    expect(fouls).toHaveLength(1);
+    expect(fouls[0].value).toBeCloseTo(0.1502, 4);
+  });
 });

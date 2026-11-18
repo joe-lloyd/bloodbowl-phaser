@@ -2,10 +2,10 @@
  * Fouls: kick an opponent who is already down. The engine's dice are priced
  * exactly: the Armour Roll with assists, Dirty Player and Lone Fouler, the
  * Injury Roll on the target's table, and the referee spotting a double,
- * which Sneaky Git escapes on unbroken armour. A spotted Foul is a
- * Turnover; a Send-off, unless the call is argued or bribed away, costs
- * what the fouler is worth to the team for the rest of the game, so cheap
- * players foul and big guys do not.
+ * which Sneaky Git escapes on unbroken armour. A spotted Foul ends the
+ * turn unless a Bribe works, and a Send-off, unless the call is argued or
+ * bribed away, costs what the fouler is worth to the team for the rest of
+ * the game. So cheap players foul, and big guys never do.
  */
 
 import { Player, PlayerStatus } from "../../types/Player";
@@ -31,8 +31,8 @@ export interface FoulOdds {
   /** The target leaves the drive. */
   ko: number;
   /**
-   * The referee spots the Foul: always a Turnover, and a Send-off unless
-   * the call is argued or bribed away.
+   * The referee spots the Foul: a Send-off and a Turnover, unless the
+   * call is argued away, which still ends the turn, or bribed away.
    */
   spotted: number;
 }
@@ -110,11 +110,13 @@ function sendOffCost(c: Context, fouler: Player): number {
 }
 
 /**
- * The chance a spotted fouler leaves the pitch. Arguing the Call sways the
+ * What a spotted Foul costs, chance by chance. Arguing the Call sways the
  * referee on a 5 or 6, and Bribery and Corruption re-rolls a first 1 once
- * a game. A Bribe, when the team holds one, then keeps the player on a 2+.
+ * a game: the player stays, but the turn still ends. Otherwise a held
+ * Bribe works on a 2+, keeping the player and the turn. Failing both, the
+ * player is Sent-off and the turn ends.
  */
-function sendOffChance(c: Context, fouler: Player): number {
+function spottedChances(c: Context, fouler: Player) {
   const state = c.board.gs.getState();
   const team = c.board.gs.getTeam(fouler.teamId);
   const corrupt =
@@ -123,10 +125,11 @@ function sendOffChance(c: Context, fouler: Player): number {
     !state.briberyRerollsUsed?.includes(fouler.teamId);
   const swayed = corrupt ? 1 / 3 + (1 / 6) * (1 / 3) : 1 / 3;
   const bribed = bribesLeft(state, fouler.teamId) > 0 ? 5 / 6 : 0;
-  return (1 - swayed) * (1 - bribed);
+  const sentOff = (1 - swayed) * (1 - bribed);
+  return { sentOff, turnover: swayed + sentOff };
 }
 
-/** A spotted Foul ends the turn: the activations still to come are lost. */
+/** A Turnover loses the activations still to come. */
 const lostActivations = (c: Context) =>
   c.w.turnoverPerPlayer * Math.max(0, c.available.size - 1);
 
@@ -142,11 +145,13 @@ function foulAt(c: Context, fouler: Player, target: Player, at: Square) {
     modifier,
     none: offensiveAssists.length === 0 && defensiveAssists.length === 0,
   });
+  const spotted = spottedChances(c, fouler);
   return (
     odds.casualty * c.casualty +
     odds.ko * c.w.foulKnockOut -
     odds.spotted *
-      (sendOffChance(c, fouler) * sendOffCost(c, fouler) + lostActivations(c))
+      (spotted.sentOff * sendOffCost(c, fouler) +
+        spotted.turnover * lostActivations(c))
   );
 }
 

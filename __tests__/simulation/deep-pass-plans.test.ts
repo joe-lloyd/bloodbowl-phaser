@@ -205,6 +205,70 @@ describe("two-step pass", () => {
     ]);
   });
 
+  it("sends nobody else once the receiver's run opens a route for surer hands", async () => {
+    // A boxed-in catcher with surer hands at (5,0) has no way out until the
+    // first catcher leaves (6,1). Four team-mates have acted around them.
+    const subject = new HeadlessGame({
+      seed: 1,
+      scenario: {
+        id: "boxed-deep",
+        name: "A run opens a route",
+        description: "",
+        setup: {
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+          activeTeam: "team1",
+          turn: 3,
+          teamRerolls: { team1: 0, team2: 0 },
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 5,
+              y: 5,
+              hasBall: true,
+              stats: { MA: 6, PA: 2 },
+              skills: [SkillType.PASS],
+            },
+            {
+              playerIndex: 1,
+              x: 6,
+              y: 1,
+              stats: { MA: 8, AG: 2 },
+              skills: [SkillType.CATCH],
+            },
+            {
+              playerIndex: 2,
+              x: 5,
+              y: 0,
+              stats: { MA: 8, AG: 1 },
+              skills: [SkillType.CATCH],
+            },
+            { playerIndex: 3, x: 4, y: 0 },
+            { playerIndex: 4, x: 6, y: 0 },
+            { playerIndex: 5, x: 4, y: 1 },
+            { playerIndex: 6, x: 5, y: 1 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 1, y: 9 }],
+        },
+      },
+    });
+    const players = subject.ctx.team1.players;
+    for (const p of [0, 3, 4, 5, 6].map((i) => players[i])) {
+      await subject.execute({
+        type: "declare-action",
+        playerId: p.id,
+        action: "move",
+      });
+      await subject.execute({ type: "end-activation", playerId: p.id });
+    }
+
+    const { declared } = await playTurn(subject);
+
+    expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
+      `${players[1].id}: moves to deep`,
+    ]);
+  });
+
   it("keeps the catcher home when the carrier can run the ball in next turn", async () => {
     const subject = await setupTurn({ stats: { MA: 8, PA: 2 }, x: 11 });
 
