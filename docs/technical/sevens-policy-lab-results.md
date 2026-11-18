@@ -198,7 +198,19 @@ A roster can now play with its own weights, `ROSTER_WEIGHTS`, and a lab weights 
 
 The cage walk prices each mark on the carrier by the chance that defender's block knocks it down, with actual skills and assists, against an even one-die block. A carrier with Block that a hit rarely downs can step into contact; a fragile one still keeps clear. Over three seeds of 5,184 paired games it took 50.53% of points against the planner without it. Halfling gained 4.0 points, Tomb Kings 2.5, Dwarf 2.3, Chaos Dwarf 2.0 and Vampire 1.8. Skaven lost 0.8. It does not finish the job for Dwarfs: by the time the carrier could step forward, the players who would hold its new corners have often spent their activation on blocks.
 
-The full lab on this branch against main, `0f9a59492628`, is running on Daily Driver; its results follow here.
+Candidate source `056ff8c8c10a` played main, `0f9a59492628`. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 77-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   50.37% | 49.78% to 50.98%     |
+| Standard, against the frozen planner | 5,184 |                   48.41% | 47.43% to 49.35%     |
+| Persistent fixtures                  | 1,296 |                   49.81% | 48.65% to 51.00%     |
+| Heuristic control                    |   432 |                   93.40% | 91.32% to 95.25%     |
+| Hard sentinels                       |    16 | 25.00%, descriptive only | No strength estimate |
+
+Confirmation agrees with the three focused seeds, though on its own it cannot rule out parity. In the same games, Halfling gained 9.0 points, Snotling 3.1, Vampire 2.1, Black Orc 1.6 and Dwarf 1.0. Tomb Kings lost 1.8 and Nurgle 1.0. Twenty-one rosters meet their standard, against 22 on `549cc320f9d6`. Shambling Undead and Snotling now meet theirs; Norse, Orc and Black Orc fell under. Their change against the frozen AI in the same games was 0.0, -0.5 and +1.6, so the schedule moved them, not the policy. Each run draws a fresh schedule, and a roster's strength interval spans about 12 points, so one scorecard cannot show a two-point gain. The scorecard now prints each roster's change against the frozen policy in the same games beside its strength.
+
+The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-056ff8c8c10a-vs-0f9a59492628` on Daily Driver. The focused runs stay under `/Users/joelloyd/tmp/bb7-tactics*`.
 
 ## Frozen acquisition
 
