@@ -117,7 +117,7 @@ function injuryText(
   }
   // A player Stunned by the crowd goes to the Reserves instead
   const headline =
-    injury.crowd && injury.result === InjuryResult.STUNNED
+    injury.stunnedToReserves && injury.result === InjuryResult.STUNNED
       ? "Into the Reserves"
       : INJURY_HEADLINE[injury.result];
   return {
@@ -202,8 +202,10 @@ function playerOf(
 export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
   const [banner, setBanner] = useState<RollBannerText | null>(null);
   const book = useRef(new RollBook());
-  /** The throw the banner shows, so only its own end clears it. */
-  const showing = useRef<number | null>(null);
+  /** The throw the banner shows and its stage, so only its end clears it. */
+  const showing = useRef<{ seq: number; stage: "thrown" | "landed" } | null>(
+    null
+  );
   /** Its text, held back while a match moment owns the spot. */
   const held = useRef<RollBannerText | null>(null);
   /** A match moment banner (not the turnover) is on screen. */
@@ -213,23 +215,22 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
     if (!momentOn.current) setBanner(text);
   };
 
+  /** An outcome can come while its dice are already up: refresh them. */
+  const decided = (outcome: RollOutcome) => {
+    book.current.decided(outcome);
+    const current = showing.current;
+    const text = current && book.current.text(current.seq, current.stage);
+    if (text) show(text);
+  };
   useEventBus(eventBus, GameEventNames.ArmorRolled, (data) => {
     const player = playerOf(data.playerId);
     if (player)
-      book.current.decided({
-        kind: "armour",
-        playerName: player.playerName,
-        ...data,
-      });
+      decided({ kind: "armour", playerName: player.playerName, ...data });
   });
   useEventBus(eventBus, GameEventNames.InjuryRolled, (data) => {
     const player = playerOf(data.playerId);
     if (player)
-      book.current.decided({
-        kind: "injury",
-        playerName: player.playerName,
-        ...data,
-      });
+      decided({ kind: "injury", playerName: player.playerName, ...data });
   });
 
   useEventBus(eventBus, GameEventNames.UI_DiceThrow, (data: Throw) => {
@@ -240,7 +241,7 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
       case "dropped":
       case "done":
         book.current.forget(data.seq);
-        if (showing.current === data.seq) {
+        if (showing.current?.seq === data.seq) {
           showing.current = null;
           show(null);
         }
@@ -249,7 +250,7 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
       case "landed": {
         const text = book.current.text(data.seq, data.stage);
         if (!text) return;
-        showing.current = data.seq;
+        showing.current = { seq: data.seq, stage: data.stage };
         show(text);
         return;
       }

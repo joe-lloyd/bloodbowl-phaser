@@ -16,7 +16,7 @@ import { GameState } from "../../types/GameState";
 import { InjuryResult } from "../controllers/InjuryController";
 import { CasualtyOperation } from "./CasualtyOperation";
 import { BounceOperation } from "./BounceOperation";
-import { resolveInjuryRoll } from "./InjuryOperation";
+import { reportedInjury, resolveInjuryRoll } from "./InjuryOperation";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { offerApothecary } from "../inducements/apothecary";
 
@@ -66,9 +66,9 @@ export class CrowdInjuryOperation extends GameOperation {
     const { result } = await resolveInjuryRoll(context, player, roll, 0);
     eventBus.emit(GameEventNames.InjuryRolled, {
       playerId: player.id,
-      result,
+      result: reportedInjury(gameService, player.id, result),
       rollType,
-      crowd: true,
+      stunnedToReserves: true,
     });
 
     // A player in the crowd is off the pitch whatever the result — every

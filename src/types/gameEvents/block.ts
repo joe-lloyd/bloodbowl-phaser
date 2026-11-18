@@ -30,8 +30,11 @@ export interface BlockGameEvents {
     rollType: string;
     /** The team whose dice they were. */
     diceTeamId?: string;
-    /** Injury by the Crowd: a Stunned player goes to the Reserves. */
-    crowd?: true;
+    /**
+     * The player is off the pitch, so a Stunned result sends them to the
+     * Reserves: the crowd, a trapdoor, a fumbled Kick Team-mate.
+     */
+    stunnedToReserves?: true;
   };
 
   [GameEventNames.PlayerKnockedDown]: {

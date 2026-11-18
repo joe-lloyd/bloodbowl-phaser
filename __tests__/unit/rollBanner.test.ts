@@ -163,7 +163,7 @@ describe("RollBook", () => {
       playerId: "p1",
       result: InjuryResult.STUNNED,
       rollType: "Injury by the Crowd (Grimgor)",
-      crowd: true,
+      stunnedToReserves: true,
     });
 
     expect(book.text(1, "landed")).toEqual({
