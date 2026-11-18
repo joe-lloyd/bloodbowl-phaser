@@ -25,6 +25,7 @@ test("a charger under the airborne ball rolls no Pick up, then Catches it", asyn
   await app.pitch.waitForCameraToSettle();
   await app.pitch.clickPlayer("team1:0");
   await app.pitch.clickSquare(TARGET);
+  await app.rollKickoff();
   const charge = page.getByRole("button", { name: /charge!/i });
   await expect(charge).toBeVisible({ timeout: 30_000 });
 

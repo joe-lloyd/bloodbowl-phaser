@@ -254,10 +254,48 @@ describe("Sevens kickoff events (seeded headless)", () => {
         subtitle: "Both turn markers move by one. Favours neither team.",
       },
     ]);
-    // An interactive event is presented by its step's overlay instead.
+    // An interactive event is named first, with the D3 that comes next;
+    // its step's overlay presents the rest.
+    expect(banners.get(KickoffEvent.CHARGE)).toEqual([
+      {
+        kind: "kickoff-result",
+        headline: KickoffEvent.CHARGE,
+        subtitle: expect.stringMatching(/^Next, a D3: .* Favours /),
+      },
+    ]);
     for (const event of INTERACTIVE_KICKOFF_EVENTS) {
-      expect(banners.get(event)).toEqual([]);
+      expect(banners.get(event)).toHaveLength(1);
     }
+  });
+
+  it("names a rolled-off event first, then what its dice decided", async () => {
+    const found = await findEveryEvent();
+    const run = found.get(KickoffEvent.DODGY_SNACK)!;
+    const names = run.response.events
+      .filter((e) =>
+        ["ui:announce", "diceRoll"].includes(e.name)
+      )
+      .map((e) =>
+        e.name === "diceRoll"
+          ? `roll: ${(e.data as { rollType: string }).rollType}`
+          : `banner: ${(e.data as { subtitle: string }).subtitle}`
+      );
+    const reveal = names.indexOf(
+      "banner: Next, each team rolls a D6. The lower roll has a random player eat something bad."
+    );
+    const rollOff = names.findIndex((n) =>
+      n.startsWith("roll: Dodgy Snack: D6 for ")
+    );
+    const decided = names.findIndex(
+      (n, i) => i > reveal && n.startsWith("banner: ") && n !== names[reveal]
+    );
+
+    expect(reveal).toBeGreaterThan(names.indexOf("roll: Kickoff Event"));
+    expect(names.indexOf("roll: Kickoff Event")).toBeGreaterThan(-1);
+    expect(rollOff).toBeGreaterThan(reveal);
+    expect(names[rollOff]).toMatch(/, lower roll eats the snack$/);
+    expect(decided).toBeGreaterThan(rollOff);
+    expect(names[decided]).toMatch(/for the drive|Nobody on the pitch/);
   });
 
   it("resolves High Kick before landing", async () => {

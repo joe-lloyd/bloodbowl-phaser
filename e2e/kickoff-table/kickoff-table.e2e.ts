@@ -294,6 +294,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
     await app.pitch.clickPlayer(KICKER);
     await page.waitForTimeout(600);
     await app.pitch.clickSquare(TARGET);
+    await app.rollKickoff();
     const result = await kickoffResult(app);
     expect(result.event).toBe(clip.event);
     expect(result.roll).toBe(clip.roll);

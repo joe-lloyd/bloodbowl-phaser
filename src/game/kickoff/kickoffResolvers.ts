@@ -29,7 +29,9 @@ export interface KickoffEventResolverContext {
   outcome: KickoffEventOutcome;
 }
 
-type KickoffEventResolver = (ctx: KickoffEventResolverContext) => void;
+type KickoffEventResolver = (
+  ctx: KickoffEventResolverContext
+) => void | Promise<void>;
 
 /** Weather-table results 4-10 are Perfect Conditions (logged as "Nice"). */
 export const PERFECT_CONDITIONS = "Nice";
@@ -43,6 +45,11 @@ interface ResolverDeps {
   moveTurnMarkers: (delta: number) => void;
   /** Changing Weather → Perfect Conditions: the kick scatters in the air. */
   onWeatherScatter: () => void;
+  /**
+   * Waits while the dice rolled so far land and read, so each roll is shown
+   * on its own with its label. A visual barrier only.
+   */
+  diceShown: () => Promise<void>;
 }
 
 /** One resolver per kickoff event; interactive events resolve nothing here. */
@@ -98,21 +105,37 @@ function resolveTimeOut(
   }
 }
 
+/** What a roll-off adds to each team's D6, and what decides it. */
+interface RollOffRule {
+  label: string;
+  /** What is added, such as "Cheerleaders"; none for a bare D6. */
+  modifierName?: string;
+  modifierOf: (team: Team) => number;
+  pick: "highest" | "lowest";
+  /** What the roll decides, shown on each die: "higher total gets…". */
+  stakes: string;
+}
+
 /**
  * Shared D6 + modifier roll-off: each team rolls in turn, and `pick` names
- * the side that wins it. Both teams are returned on a tie.
+ * the side that wins it. Both teams are returned on a tie. Each die says
+ * what it is for, and lands before the next is thrown.
  */
-function rollOff(
-  { diceController, eventBus }: ResolverDeps,
-  label: string,
-  modifierOf: (team: Team) => number,
-  teams: Team[],
-  pick: "highest" | "lowest"
-): Team[] {
+async function rollOff(
+  { diceController, eventBus, diceShown }: ResolverDeps,
+  { label, modifierName, modifierOf, pick, stakes }: RollOffRule,
+  teams: Team[]
+): Promise<Team[]> {
   const totals: Record<string, number> = {};
   for (const team of teams) {
     const modifier = modifierOf(team);
-    const roll = diceController.rollD6(`${label} — ${team.name}`, team.id);
+    const adds =
+      modifierName && modifier > 0 ? ` + ${modifier} ${modifierName}` : "";
+    const roll = diceController.rollD6(
+      `${label}: D6${adds} for ${team.name}, ${stakes}`,
+      team.id
+    );
+    await diceShown();
     totals[team.id] = roll + modifier;
     eventBus.emit(
       GameEventNames.UI_GameLog,
@@ -128,19 +151,23 @@ function rollOff(
   return [aWins ? a : b];
 }
 
-function resolveCheeringFans(
+async function resolveCheeringFans(
   deps: ResolverDeps,
   ctx: KickoffEventResolverContext
-): void {
+): Promise<void> {
   const { state, eventBus } = deps;
-  const winners = rollOff(
+  const winners = await rollOff(
     deps,
-    "Cheering Fans",
-    (team) =>
-      team.cheerleaders +
-      inducementCount(state, team.id, Inducement.TEMP_AGENCY_CHEERLEADER),
-    [ctx.kickingTeam, ctx.receivingTeam],
-    "highest"
+    {
+      label: "Cheering Fans",
+      modifierName: "Cheerleaders",
+      stakes: "higher total gets an extra assist",
+      modifierOf: (team) =>
+        team.cheerleaders +
+        inducementCount(state, team.id, Inducement.TEMP_AGENCY_CHEERLEADER),
+      pick: "highest",
+    },
+    [ctx.kickingTeam, ctx.receivingTeam]
   );
   for (const team of winners) {
     getDriveEffects(state).owedAssists[team.id] = {
@@ -160,19 +187,23 @@ function resolveCheeringFans(
   }
 }
 
-function resolveBrilliantCoaching(
+async function resolveBrilliantCoaching(
   deps: ResolverDeps,
   ctx: KickoffEventResolverContext
-): void {
+): Promise<void> {
   const { state, eventBus } = deps;
-  const winners = rollOff(
+  const winners = await rollOff(
     deps,
-    "Brilliant Coaching",
-    (team) =>
-      team.coaches +
-      inducementCount(state, team.id, Inducement.PART_TIME_ASSISTANT_COACH),
-    [ctx.kickingTeam, ctx.receivingTeam],
-    "highest"
+    {
+      label: "Brilliant Coaching",
+      modifierName: "Assistant Coaches",
+      stakes: "higher total gets a free re-roll",
+      modifierOf: (team) =>
+        team.coaches +
+        inducementCount(state, team.id, Inducement.PART_TIME_ASSISTANT_COACH),
+      pick: "highest",
+    },
+    [ctx.kickingTeam, ctx.receivingTeam]
   );
   for (const team of winners) {
     const effects = getDriveEffects(state);
@@ -190,11 +221,12 @@ function resolveBrilliantCoaching(
   }
 }
 
-function resolveChangingWeather(
-  { weatherManager, onWeatherScatter }: ResolverDeps,
+async function resolveChangingWeather(
+  { weatherManager, onWeatherScatter, diceShown }: ResolverDeps,
   ctx: KickoffEventResolverContext
-): void {
+): Promise<void> {
   const weather = weatherManager.rollWeather();
+  await diceShown();
   const note =
     weather === PERFECT_CONDITIONS
       ? "weather becomes Perfect Conditions — the kick Scatters (3) in the air"
@@ -207,47 +239,51 @@ function resolveChangingWeather(
   }
 }
 
-/** Random player of `team` currently on the pitch (D6-indexed, logged). */
-function randomPitchPlayer(
-  diceController: DiceController,
+/** Random player of `team` currently on the pitch (D16-indexed, logged). */
+async function randomPitchPlayer(
+  { diceController, diceShown }: ResolverDeps,
   team: Team,
-  label: string
-): Player | undefined {
+  event: string
+): Promise<Player | undefined> {
   const onPitch = team.players.filter((player) => !!player.gridPosition);
   if (onPitch.length === 0) return undefined;
   // Rejection sampling over a D16 keeps every roster slot equally likely.
   const acceptedRange = Math.floor(16 / onPitch.length) * onPitch.length;
   let roll: number;
   do {
-    roll = diceController.rollD16(`${label} — ${team.name}`, team.id);
+    roll = diceController.rollD16(
+      `${event}: D16 picks which ${team.name} player`,
+      team.id
+    );
+    await diceShown();
   } while (roll > acceptedRange);
   const index = (roll - 1) % onPitch.length;
   return onPitch[index];
 }
 
-function resolveDodgySnack(
+async function resolveDodgySnack(
   deps: ResolverDeps,
   ctx: KickoffEventResolverContext
-): void {
-  const { state, eventBus, diceController } = deps;
-  const afflicted = rollOff(
+): Promise<void> {
+  const { state, eventBus, diceController, diceShown } = deps;
+  const afflicted = await rollOff(
     deps,
-    "Dodgy Snack",
-    () => 0,
-    [ctx.kickingTeam, ctx.receivingTeam],
-    "lowest"
+    {
+      label: "Dodgy Snack",
+      modifierOf: () => 0,
+      pick: "lowest",
+      stakes: "lower roll eats the snack",
+    },
+    [ctx.kickingTeam, ctx.receivingTeam]
   );
   for (const team of afflicted) {
-    const player = randomPitchPlayer(
-      diceController,
-      team,
-      "Dodgy Snack player"
-    );
+    const player = await randomPitchPlayer(deps, team, "Dodgy Snack");
     if (!player) continue;
     const roll = diceController.rollD6(
-      `Dodgy Snack — ${team.name}: ${player.playerName}`,
+      `Dodgy Snack: D6 for ${player.playerName}, a 1 sends them to the Reserves`,
       team.id
     );
+    await diceShown();
     if (roll === 1) {
       getDriveEffects(state).playerModifiers[player.id] = {
         confinedToReserves: true,
@@ -281,24 +317,24 @@ function resolveDodgySnack(
   }
 }
 
-function resolvePitchInvasion(
+async function resolvePitchInvasion(
   deps: ResolverDeps,
   ctx: KickoffEventResolverContext
-): void {
-  const { eventBus, diceController } = deps;
-  const afflicted = rollOff(
+): Promise<void> {
+  const { eventBus } = deps;
+  const afflicted = await rollOff(
     deps,
-    "Pitch Invasion",
-    (team) => team.dedicatedFans,
-    [ctx.kickingTeam, ctx.receivingTeam],
-    "lowest"
+    {
+      label: "Pitch Invasion",
+      modifierName: "Dedicated Fans",
+      stakes: "lower total has a player Stunned",
+      modifierOf: (team) => team.dedicatedFans,
+      pick: "lowest",
+    },
+    [ctx.kickingTeam, ctx.receivingTeam]
   );
   for (const team of afflicted) {
-    const player = randomPitchPlayer(
-      diceController,
-      team,
-      "Pitch Invasion player"
-    );
+    const player = await randomPitchPlayer(deps, team, "Pitch Invasion");
     if (!player) continue;
     // Placed Stunned: rolls over at the end of that team's next turn.
     player.status = PlayerStatus.STUNNED;

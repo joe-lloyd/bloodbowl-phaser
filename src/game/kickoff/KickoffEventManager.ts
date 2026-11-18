@@ -10,7 +10,22 @@
  * variant; UI and online coaches act through GameService methods.
  */
 
-import { kickoffMomentDetail } from "./kickoffMoment";
+import {
+  kickoffMomentDetail,
+  kickoffOutcomeLine,
+  kickoffRevealLine,
+} from "./kickoffMoment";
+import { DelayProvider, waitAtMost } from "../core/GameFlowManager";
+import {
+  awaitCoach,
+  awaitPresentation,
+  nextPresentationId,
+} from "../presentation/presentationGate";
+import { whenMomentsComplete } from "../presentation/momentQueue";
+import {
+  DIE_LANDING_TIMEOUT_MS,
+  DiceWatch,
+} from "../presentation/diceWatch";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames, ActionType } from "../../types/events";
 import { GameState } from "@/types/GameState";
@@ -24,6 +39,7 @@ import {
   INTERACTIVE_KICKOFF_EVENTS,
   KICKOFF_EVENT_MEANING,
   KICKOFF_TABLE,
+  KICKOFF_TABLE_ROLL,
   KickoffEvent,
   KickoffEventOutcome,
   grantEffect,
@@ -62,6 +78,18 @@ export interface KickoffEventStepState {
   };
 }
 
+/**
+ * The Roll prompt's guard for a non-real-time delay provider. A live screen
+ * waits on its coach for as long as they like, and that wait is not engine
+ * work; headless play and a replay never wait, and an online page answers
+ * at once (KickoffTableDialog).
+ */
+const ROLL_READY_GUARD_MS = 30 * 60_000;
+/** The table dialog shows its dice and the result row, at the most. */
+const TABLE_SHOWN_GUARD_MS = DIE_LANDING_TIMEOUT_MS + 4000;
+/** How long each of an event's own rolls reads before the next one. */
+const STEP_READ_MS = 900;
+
 interface StepResolver {
   (skipped: boolean): void;
 }
@@ -72,6 +100,8 @@ export class KickoffEventManager {
   /** Changing Weather → Perfect Conditions: the kick scatters in the air. */
   private weatherScatterPending = false;
   private lastEvent: KickoffEvent | null = null;
+  /** From the table's Roll prompt until its outcome is stored: never save then. */
+  private resolving = false;
   private chargePreviousActiveTeamId: string | null = null;
   private readonly setupValidator = new SetupValidator();
 
@@ -87,7 +117,8 @@ export class KickoffEventManager {
     callbacks: {
       getTurnNumber: (teamId: string) => number;
       moveTurnMarkers: (delta: number) => void;
-    }
+    },
+    private readonly delay: DelayProvider
   ) {
     this.resolvers = kickoffEventResolvers({
       eventBus,
@@ -99,7 +130,22 @@ export class KickoffEventManager {
       onWeatherScatter: () => {
         this.weatherScatterPending = true;
       },
+      diceShown: () => this.diceShown(),
     });
+  }
+
+  /**
+   * A visual barrier between one kick-off roll and the next: the dice
+   * thrown so far land and their result reads. Never changes state or
+   * RNG order; headless and replays pass straight through.
+   */
+  private async diceShown(): Promise<void> {
+    await waitAtMost(
+      this.delay,
+      DiceWatch.shared(this.eventBus).landed(),
+      TABLE_SHOWN_GUARD_MS
+    );
+    await this.delay(STEP_READ_MS);
   }
 
   // ===== Roll orchestration =====
@@ -135,17 +181,60 @@ export class KickoffEventManager {
     }
 
     const kickingTeam = isTeam1Kicking ? this.team1 : this.team2;
-    const roll = this.diceController.roll2D6("Kickoff Event", kickingTeam.id);
+    const receivingTeam = isTeam1Kicking ? this.team2 : this.team1;
+
+    // The coach rolls when ready, in the table dialog, which shows the
+    // dice land and the result row before the event's own banner
+    // No save from here until the outcome is stored: a save while the
+    // table waits would restore a kick that never reopens its dialog, and
+    // one after the roll would hold the dice without the event
+    this.resolving = true;
+    const readyId = nextPresentationId("kickoff-ready");
+    const rolled = awaitCoach(
+      this.eventBus,
+      this.delay,
+      readyId,
+      ROLL_READY_GUARD_MS
+    );
+    this.eventBus.emit(GameEventNames.KickoffTableReady, {
+      presentationId: readyId,
+      kickingTeamId: kickingTeam.id,
+    });
+    await rolled;
+    const roll = this.diceController.roll2D6(
+      KICKOFF_TABLE_ROLL,
+      kickingTeam.id
+    );
     const event = KICKOFF_TABLE[roll];
     this.lastEvent = event;
+    const shownId = nextPresentationId("kickoff-table");
+    const shown = awaitPresentation(
+      this.eventBus,
+      this.delay,
+      shownId,
+      TABLE_SHOWN_GUARD_MS
+    );
+    this.eventBus.emit(GameEventNames.KickoffTableRolled, {
+      presentationId: shownId,
+      roll,
+      event,
+    });
+    await shown;
 
-    const receivingTeam = isTeam1Kicking ? this.team2 : this.team1;
+    // The event's name first, and what its next dice decide
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "kickoff-result",
+      headline: event,
+      subtitle: kickoffRevealLine(event, kickingTeam, receivingTeam),
+    });
+    await whenMomentsComplete(this.eventBus);
+
     const outcome: KickoffEventOutcome = {
       event,
       meaning: KICKOFF_EVENT_MEANING[event],
       perTeam: {},
     };
-    this.resolvers[event]({
+    await this.resolvers[event]({
       isTeam1Kicking,
       kickingTeam,
       receivingTeam,
@@ -161,6 +250,7 @@ export class KickoffEventManager {
     }
 
     this.state.kickoffResolution = { roll, event, meaning: outcome.meaning, outcome };
+    this.resolving = false;
 
     this.eventBus.emit(GameEventNames.KickoffResult, {
       roll,
@@ -169,7 +259,15 @@ export class KickoffEventManager {
       outcome,
     });
 
-    this.announceMoment(outcome, isTeam1Kicking);
+    // Then what the event's own dice decided
+    const decided = kickoffOutcomeLine(outcome, kickingTeam, receivingTeam);
+    if (decided) {
+      this.eventBus.emit(GameEventNames.UI_Announce, {
+        kind: "kickoff-result",
+        headline: event,
+        subtitle: decided,
+      });
+    }
 
     if (
       INTERACTIVE_KICKOFF_EVENTS.has(event) &&
@@ -180,7 +278,11 @@ export class KickoffEventManager {
         kickingTeam.id,
         receivingTeam.id
       );
-      const selectionLimit = this.diceController.rollD3(`${event} limit`) + 1;
+      const selectionLimit =
+        this.diceController.rollD3(
+          `${event}: D3 + 1 players`,
+          ownerTeamId
+        ) + 1;
       await this.openStep(event, ownerTeamId, selectionLimit);
     }
   }
@@ -204,6 +306,11 @@ export class KickoffEventManager {
         isTeam1Kicking ? this.team2 : this.team1
       ),
     });
+  }
+
+  /** The table waits for Roll, or is rolled and its outcome not yet stored. */
+  public isResolving(): boolean {
+    return this.resolving;
   }
 
   /** The event rolled for the in-flight kick (null outside kickoff). */

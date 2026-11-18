@@ -314,4 +314,16 @@ export class GameApp {
       .getByRole("button", { name: "ON TO THE COIN TOSS" })
       .click({ timeout: 15_000 });
   }
+
+  /**
+   * The Kick-off Table dialog that opens once the kick is in the air: roll
+   * the 2D6 and wait for the dialog to hand over to the event's banner.
+   */
+  async rollKickoff(timeout = 30_000): Promise<void> {
+    const roll = this.page.getByRole("button", { name: "ROLL KICK-OFF" });
+    await roll.click({ timeout });
+    await this.page
+      .getByTestId("kickoff-table-dialog")
+      .waitFor({ state: "detached", timeout: 20_000 });
+  }
 }

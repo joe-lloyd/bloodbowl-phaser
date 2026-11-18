@@ -11,7 +11,7 @@ import { GameService } from "../services/GameService";
 import { RNGService, IRNGService, RNGState } from "../services/rng/RNGService";
 import { BlockResolutionService } from "../services/BlockResolutionService";
 import { applyScenario } from "../game/applyScenario";
-import { noDelay } from "../game/core/GameFlowManager";
+import { DelayProvider, noDelay } from "../game/core/GameFlowManager";
 import { TeamFactory } from "../game/TeamFactory";
 import { Team, RosterName } from "../types/Team";
 import { GameState, GamePhase, SubPhase } from "../types/GameState";
@@ -47,6 +47,11 @@ export interface HeadlessGameOptions {
    * copies of a game, such as a lookahead's playouts.
    */
   lazySnapshots?: boolean;
+  /**
+   * Pacing delays. Headless play skips them (noDelay); a test of the
+   * presentation barriers passes realTimeDelay.
+   */
+  delay?: DelayProvider;
   /** Start phase when no scenario given (defaults to SETUP for a full match) */
   startingPhase?: GamePhase;
   startingSubPhase?: SubPhase;
@@ -209,7 +214,7 @@ export function createHeadlessGame(
     rng,
     blockResolutionService,
     initialState,
-    noDelay
+    options.delay ?? noDelay
   );
   if (options.knockout) gameService.getState().knockout = true;
   if (options.paysWinnings) gameService.getState().paysWinnings = true;

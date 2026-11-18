@@ -53,6 +53,11 @@ export async function withoutPacing<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
+/** False while a replay skips pacing: visual waits resolve at once. */
+export function isPaced(): boolean {
+  return paced;
+}
+
 export const realTimeDelay: DelayProvider = (ms) => {
   if (!paced) return Promise.resolve();
   runningDelays++;
@@ -112,6 +117,23 @@ export function waitAtMost(
   return trackEngineWork(
     Promise.race([shown, guard]).finally(() => clearTimeout(timer))
   );
+}
+
+/**
+ * Wait on a coach rather than on the engine, such as for Roll. Under
+ * real-time pacing it is not engine work and has no guard: the engine is
+ * idle, as it is with a decision open, and a closed match leaves nothing
+ * counted. Headless play and replays pass straight through; any other
+ * provider runs `ms` as its guard.
+ */
+export function waitForCoach(
+  delay: DelayProvider,
+  answered: Promise<void>,
+  ms: number
+): Promise<void> {
+  if (delay !== realTimeDelay) return Promise.race([answered, delay(ms)]);
+  if (!paced) return Promise.resolve();
+  return answered;
 }
 
 export interface FlowContext {

@@ -42,6 +42,17 @@ export interface KickoffGameEvents {
   [GameEventNames.KickoffSequenceCompleted]: {
     isTouchback: boolean;
   };
+  [GameEventNames.KickoffTableReady]: {
+    /** Answered with UI_PresentationAcknowledged when the coach rolls. */
+    presentationId: string;
+    kickingTeamId: string;
+  };
+  [GameEventNames.KickoffTableRolled]: {
+    /** Answered once the dice have landed and the result row has shown. */
+    presentationId: string;
+    roll: number;
+    event: import("../../game/kickoff/kickoffEvents").KickoffEvent;
+  };
   [GameEventNames.KickoffResult]: {
     roll: number;
     /** The resolved Sevens kickoff-table event. */

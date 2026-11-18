@@ -101,9 +101,8 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
   await page.screenshot({
     path: `${process.env.SHOTS ?? test.info().outputDir}/later-drive-kickoff-tray.png`,
   });
-  await landed(
-    new RegExp(`^${humans.name} \\| Kickoff Event: \\d \\+ \\d = \\d+`)
-  );
+  // The Kick-off Table rolls in its own dialog, when the coach asks
+  await app.rollKickoff();
 
   await page.waitForFunction(() => window.__handover?.bannerAt > 0, null, {
     timeout: 30_000,

@@ -24,7 +24,90 @@ const summary: Record<KickoffEvent, string> = {
     "The team that loses the roll has a player Stunned by the crowd.",
 };
 
+/**
+ * The banner that names the event as soon as the table is rolled: what it
+ * does, and which dice come next, so the coach knows what each roll after
+ * it decides.
+ */
+const reveal: Record<KickoffEvent, string> = {
+  [KickoffEvent.GET_THE_REF]: "Both teams gain a Bribe.",
+  [KickoffEvent.TIME_OUT]: "Both turn markers move by one.",
+  [KickoffEvent.ALERT_DEFENCE]:
+    "Next, a D3: the kicking coach may move that many Open players, plus one, one square each.",
+  [KickoffEvent.HIGH_KICK]:
+    "The receiving coach may put one player under the ball if it lands in their half.",
+  [KickoffEvent.CHEERING_FANS]:
+    "Next, each team rolls a D6 and adds its Cheerleaders. The higher total gets an extra assist.",
+  [KickoffEvent.BRILLIANT_COACHING]:
+    "Next, each team rolls a D6 and adds its Assistant Coaches. The higher total gets a free re-roll.",
+  [KickoffEvent.CHANGING_WEATHER]: "Next, 2D6 on the Weather Table again.",
+  [KickoffEvent.QUICK_SNAP]:
+    "Next, a D3: the receiving coach may move that many Open players, plus one, one square each.",
+  [KickoffEvent.CHARGE]:
+    "Next, a D3: the kicking coach may activate that many Open players, plus one, for free.",
+  [KickoffEvent.DODGY_SNACK]:
+    "Next, each team rolls a D6. The lower roll has a random player eat something bad.",
+  [KickoffEvent.PITCH_INVASION]:
+    "Next, each team rolls a D6 and adds its Dedicated Fans. The lower total has a random player Stunned.",
+};
+
+/** Events whose result waits on more dice, told once those have landed. */
+const ROLLS_FOR_ITS_RESULT = new Set<KickoffEvent>([
+  KickoffEvent.CHEERING_FANS,
+  KickoffEvent.BRILLIANT_COACHING,
+  KickoffEvent.CHANGING_WEATHER,
+  KickoffEvent.DODGY_SNACK,
+  KickoffEvent.PITCH_INVASION,
+]);
+
+/** The reveal banner's line for an event, before any of its own dice. */
+export function kickoffRevealLine(
+  event: KickoffEvent,
+  kicking: Team,
+  receiving: Team
+): string {
+  if (ROLLS_FOR_ITS_RESULT.has(event)) return reveal[event];
+  // Nothing more to roll for the result: say who it favours now
+  return `${reveal[event]} ${favoursLine({ event, meaning: "", perTeam: {} }, kicking, receiving)}`;
+}
+
+/**
+ * What the event's dice decided, team by team, for the banner that follows
+ * them. Null when the reveal already said it all.
+ */
+export function kickoffOutcomeLine(
+  outcome: KickoffEventOutcome,
+  kicking: Team,
+  receiving: Team
+): string | null {
+  if (!ROLLS_FOR_ITS_RESULT.has(outcome.event)) return null;
+  const lines = [kicking, receiving].flatMap((team) =>
+    (outcome.perTeam[team.id] ?? []).map((effect) => `${team.name}: ${effect}`)
+  );
+  if (outcome.event === KickoffEvent.CHANGING_WEATHER) {
+    // The same weather line is granted to both teams
+    return outcome.perTeam[kicking.id]?.[0] ?? null;
+  }
+  return lines.length > 0
+    ? lines.join(" · ")
+    : "Nobody on the pitch to take it.";
+}
+
+/** One short line on what an event does, for the Kick-off Table. */
+export function kickoffEventSummary(event: KickoffEvent): string {
+  return summary[event];
+}
+
 export function kickoffMomentDetail(
+  outcome: KickoffEventOutcome,
+  kicking: Team,
+  receiving: Team
+): string {
+  return `${summary[outcome.event]} ${favoursLine(outcome, kicking, receiving)}`;
+}
+
+/** Who the event helps, once its roll-off (if any) is known. */
+function favoursLine(
   outcome: KickoffEventOutcome,
   kicking: Team,
   receiving: Team
@@ -68,5 +151,5 @@ export function kickoffMomentDetail(
       return unreachable;
     }
   }
-  return `${summary[outcome.event]} ${favours}`;
+  return favours;
 }

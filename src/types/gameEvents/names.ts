@@ -72,6 +72,10 @@ export enum GameEventNames {
   /** Landing hand-off is complete; camera/preview state may be cleared. */
   KickoffSequenceCompleted = "kickoffSequenceCompleted",
   KickoffResult = "kickoffResult",
+  /** The kick has landed: the Kick-off Table waits for its coach to roll. */
+  KickoffTableReady = "kickoffTableReady",
+  /** The Kick-off Table was rolled; the dialog shows it, then acknowledges. */
+  KickoffTableRolled = "kickoffTableRolled",
   /** An interactive kickoff-event step opened for its owning coach. */
   KickoffEventStepStarted = "kickoffEventStepStarted",
   /** The kickoff-event step ended (confirmed or skipped); kick resumes. */

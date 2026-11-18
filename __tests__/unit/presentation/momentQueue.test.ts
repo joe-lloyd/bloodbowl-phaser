@@ -5,6 +5,10 @@ import {
   MomentQueue,
   whenMomentsComplete,
 } from "../../../src/game/presentation/momentQueue";
+import {
+  whenEngineQuiet,
+  withoutPacing,
+} from "../../../src/game/core/GameFlowManager";
 
 describe("moment queue through the event bus", () => {
   afterEach(() => vi.useRealTimers());
@@ -57,6 +61,48 @@ describe("moment queue through the event bus", () => {
     await vi.runAllTimersAsync();
     expect(shown).toEqual(["turnover", "casualty", "turn-started"]);
     expect(complete).toBe(true);
+    queue.dispose();
+  });
+
+  it("lets a replay run past a banner while pacing is off", async () => {
+    vi.useFakeTimers();
+    const bus = new EventBus();
+    const queue = new MomentQueue(bus);
+    const shown: string[] = [];
+    bus.on(GameEventNames.UI_PresentMoment, (moment) => {
+      if (moment) shown.push(moment.kind);
+    });
+    const announceKickoff = () =>
+      bus.emit(GameEventNames.UI_Announce, {
+        kind: "kickoff-result",
+        headline: "Time-out",
+      });
+
+    // An online page catching up: the engine and lockstep do not wait for
+    // the 4.6 s kick-off banner, though the banner still plays
+    let replayed = false;
+    void withoutPacing(async () => {
+      announceKickoff();
+      await whenMomentsComplete(bus);
+      await whenEngineQuiet();
+    }).then(() => {
+      replayed = true;
+    });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(replayed).toBe(true);
+    expect(shown).toEqual(["kickoff-result"]);
+    await vi.runAllTimersAsync();
+
+    // Coached play still waits for it
+    announceKickoff();
+    let paced = false;
+    void whenMomentsComplete(bus).then(() => {
+      paced = true;
+    });
+    await vi.advanceTimersByTimeAsync(4500);
+    expect(paced).toBe(false);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(paced).toBe(true);
     queue.dispose();
   });
 

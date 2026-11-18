@@ -39,6 +39,7 @@ describe("MatchAutosave", () => {
       }),
       getDecisionService: () => ({ pending: () => null }),
       captureTurnManagerState: () => ({ turnoverInProgress: false }),
+      isKickoffTableResolving: () => false,
     } as unknown as IGameService;
     const repository = new MemoryRepository();
     const autosave = new MatchAutosave(
@@ -64,6 +65,7 @@ describe("MatchAutosave", () => {
       }),
       getDecisionService: () => ({ pending: () => ({ type: "reroll" }) }),
       captureTurnManagerState: () => ({ turnoverInProgress: false }),
+      isKickoffTableResolving: () => false,
     } as unknown as IGameService;
     const repository = new MemoryRepository();
     const autosave = new MatchAutosave(
@@ -104,6 +106,7 @@ describe("MatchAutosave", () => {
       }),
       getDecisionService: () => ({ pending: () => null }),
       captureTurnManagerState: () => ({ turnoverInProgress: false }),
+      isKickoffTableResolving: () => false,
     } as unknown as IGameService;
     const repository = new MemoryRepository();
     const autosave = new MatchAutosave(
@@ -127,6 +130,7 @@ describe("MatchAutosave", () => {
       }),
       getDecisionService: () => ({ pending: () => null }),
       captureTurnManagerState: () => ({ turnoverInProgress: false }),
+      isKickoffTableResolving: () => false,
     } as unknown as IGameService;
     const repository = new MemoryRepository();
     const autosave = new MatchAutosave(

@@ -268,6 +268,9 @@ test("the coin toss, setup and kickoff all work by touch", async ({ page }) => {
     "Kicker Selected"
   );
   await tapSquare(page, app, { x: 15, y: 5 });
+  await page
+    .getByRole("button", { name: "ROLL KICK-OFF" })
+    .tap({ timeout: 20_000 });
   await expect
     .poll(async () => (await app.bridge.snapshot()).phase, { timeout: 20_000 })
     .toBe("PLAY");

@@ -21,6 +21,7 @@ test("a lone charger gets the action menu, then the receiving team plays", async
   await app.pitch.waitForCameraToSettle();
   await app.pitch.clickPlayer("team1:0");
   await app.pitch.clickSquare({ x: 14, y: 5 });
+  await app.rollKickoff();
   const charge = page.getByRole("button", { name: /charge!/i });
   await expect(charge).toBeVisible({ timeout: 30_000 });
 

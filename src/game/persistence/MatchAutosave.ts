@@ -81,6 +81,7 @@ export class MatchAutosave {
     if (
       this.gameService.getDecisionService().pending() ||
       this.gameService.captureTurnManagerState().turnoverInProgress ||
+      this.gameService.isKickoffTableResolving() ||
       this.options.choiceOpen?.()
     ) {
       this.schedule();
