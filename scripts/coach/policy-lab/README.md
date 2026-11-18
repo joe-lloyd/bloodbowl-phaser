@@ -31,7 +31,7 @@ A play's scores and turnovers describe what followed it, not what it was worth.
 
 `drives.ts` replays a stage and counts each roster's turns with the ball: how far the ball went, and whether the turn scored, kept the ball or lost it. It splits them by whether the carrier started the turn marked, and counts halves that ended with the team still holding the ball. Pass `--shard i/n` to run shards side by side. A run filtered to one roster or one shard writes its own file, such as `drives-summary-dwarf-2-of-8.json`, and leaves `drives-summary.json` alone.
 
-`run.ts --rosters "Dwarf,Nurgle"` keeps only the games where either side plays a named roster. A candidate `--weights` file against the same source then measures a change on those teams in a few minutes. Read `rosters.csv` in the stage report for each roster's points under each policy.
+`run.ts --rosters "Dwarf,Nurgle"` keeps only the games where either side plays a named roster. A candidate `--weights` file against the same source then measures a change on those teams in a few minutes. The file may hold a `rosters` object, such as `{"rosters": {"Dwarf": {"safeMove": 0.82}}}`, which replaces `ROSTER_WEIGHTS` for the candidate. Read `rosters.csv` in the stage report for each roster's points under each policy. With no change at all the candidate and frozen AIs play identical games, so any difference comes from the change.
 
 ```sh
 pnpm exec tsx scripts/coach/policy-lab/drives.ts <stage directory> [roster] [--shard i/n]
@@ -44,7 +44,7 @@ The remote path prints at completion. Its `reports/index.html` reads saved resul
 
 Legal declarations and proposals count repeated decision-state appearances. They are diagnostic denominators. They do not independently prove a pass was worthwhile. Public-entry tactical fixtures prove the useful case and the better-alternative control. Rule scripts prove mechanics. Natural skill triggers prove occurrence. None alone estimates an individual skill's contribution to winning.
 
-The shared planner supplies movement, possession, combat and defence. `skillActivations.ts`, `gazeActivations.ts` and the feeding modules add capability proposals. Actual opponents, skills, available players and match context price those proposals. No roster-name switch makes an agile team refuse favourable hits against weak opponents.
+The shared planner supplies movement, possession, combat and defence. `skillActivations.ts`, `gazeActivations.ts` and the feeding modules add capability proposals. Actual opponents, skills, available players and match context price those proposals. `ROSTER_WEIGHTS` in `weights.ts` gives a roster its own weight tweaks on top of the defaults. Each entry is kept only where a focused study measured that roster doing better with it.
 
 Turn-five preparation includes necessary rushes into next-turn scoring reach. Turn-six scoring attempts lose the usual future-turn penalty when no reply remains. Incomplete distance gains and generic receiver preparation lose their final-turn attack value. Persistent injuries raise the cost of unnecessary exposure. The supported scoring horizon uses geometry and immediate transfers; it does not prove every multi-player miracle impossible.
 
