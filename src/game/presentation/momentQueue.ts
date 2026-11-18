@@ -1,7 +1,7 @@
 import { IEventBus } from "../../services/EventBus";
 import { rootEventBus } from "../../services/scopedEventBus";
 import { GameEventNames, MatchMoment, AllEvents } from "../../types/events";
-import { trackEngineWork } from "../core/GameFlowManager";
+import { isPaced, trackEngineWork } from "../core/GameFlowManager";
 import { DiceWatch } from "./diceWatch";
 
 /** How long landed dice show their result before the moment covers them. */
@@ -27,10 +27,12 @@ export function hasPendingMoments(eventBus: IEventBus): boolean {
 /**
  * Resolves once every queued moment has played. A visual barrier only: it
  * never changes engine state or RNG order, and with no HUD (headless runs,
- * unit tests) there is no queue, so it resolves at once. Counted as engine
+ * unit tests) there is no queue, so it resolves at once. A replay without
+ * pacing does not wait either; its banners still play. Counted as engine
  * work so online lockstep checks only settled state.
  */
 export function whenMomentsComplete(eventBus: IEventBus): Promise<void> {
+  if (!isPaced()) return Promise.resolve();
   return trackEngineWork(
     queues.get(rootEventBus(eventBus))?.whenIdle() ?? Promise.resolve()
   );

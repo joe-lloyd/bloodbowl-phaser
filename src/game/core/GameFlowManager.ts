@@ -53,6 +53,11 @@ export async function withoutPacing<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
+/** False while a replay skips pacing: visual waits resolve at once. */
+export function isPaced(): boolean {
+  return paced;
+}
+
 export const realTimeDelay: DelayProvider = (ms) => {
   if (!paced) return Promise.resolve();
   runningDelays++;

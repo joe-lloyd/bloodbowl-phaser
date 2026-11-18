@@ -40,6 +40,11 @@ export function KickoffTableDialog({ eventBus }: { eventBus: IEventBus }) {
   // The kick-off is resolved, whether or not this dialog saw it rolled: an
   // online page catching up replays the whole kick before it mounts
   useEventBus(eventBus, GameEventNames.KickoffResult, () => setOpened(null));
+  // A snapshot can replace the state past the table with no result event.
+  // A kick the engine still rolls keeps its dialog; a new one opens its own
+  useEventBus(eventBus, GameEventNames.GameStateRestored, () => {
+    if (!tableResolving()) setOpened(null);
+  });
 
   if (!opened) return null;
   return (
@@ -49,6 +54,13 @@ export function KickoffTableDialog({ eventBus }: { eventBus: IEventBus }) {
       opened={opened}
       onDone={() => setOpened(null)}
     />
+  );
+}
+
+function tableResolving(): boolean {
+  return (
+    ServiceContainer.isInitialized() &&
+    ServiceContainer.getInstance().gameService.isKickoffTableResolving()
   );
 }
 

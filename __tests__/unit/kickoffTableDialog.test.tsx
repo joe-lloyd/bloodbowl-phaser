@@ -1,10 +1,33 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { KickoffTableDialog } from "../../src/ui/components/hud/KickoffTableDialog";
+import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
+import { SCENARIOS } from "../../src/data/scenarios";
+
+/** A whole match state, as a snapshot restore hands the HUD. */
+function restoredState() {
+  const scenario = SCENARIOS.find(({ id }) => id === "basic-scrimmage");
+  if (!scenario) throw new Error("no basic-scrimmage scenario");
+  return createHeadlessGame({ scenario, seed: 1 }).gameService.getState();
+}
+
+/** Whether the engine is still rolling the table, as a restore leaves it. */
+let tableResolving = false;
+vi.mock("../../src/services/ServiceContainer", () => ({
+  ServiceContainer: {
+    isInitialized: () => true,
+    getInstance: () => ({
+      gameService: {
+        getTeam: () => undefined,
+        isKickoffTableResolving: () => tableResolving,
+      },
+    }),
+  },
+}));
 
 /** The Kick-off Table dialog, mounted on its own bus. */
 describe("KickoffTableDialog", () => {
@@ -15,6 +38,7 @@ describe("KickoffTableDialog", () => {
     container.querySelector('[data-testid="kickoff-table-dialog"]');
 
   beforeEach(async () => {
+    tableResolving = false;
     bus = new EventBus();
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -76,5 +100,33 @@ describe("KickoffTableDialog", () => {
     });
 
     expect(dialog()).toBeNull();
+  });
+
+  it("closes when a restored state has moved past the table", async () => {
+    await act(async () => {
+      bus.emit(GameEventNames.KickoffTableReady, {
+        presentationId: "kickoff-ready-3",
+        kickingTeamId: "team1",
+      });
+    });
+    expect(dialog()).not.toBeNull();
+
+    // A snapshot replaces the state: no roll or result event comes after
+    await act(async () => {
+      bus.emit(GameEventNames.GameStateRestored, restoredState());
+    });
+    expect(dialog()).toBeNull();
+  });
+
+  it("stays open over a restore while the engine still waits at the table", async () => {
+    tableResolving = true;
+    await act(async () => {
+      bus.emit(GameEventNames.KickoffTableReady, {
+        presentationId: "kickoff-ready-4",
+        kickingTeamId: "team1",
+      });
+      bus.emit(GameEventNames.GameStateRestored, restoredState());
+    });
+    expect(dialog()).not.toBeNull();
   });
 });
