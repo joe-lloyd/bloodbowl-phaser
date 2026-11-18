@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import {
+  driveArgs,
   watchDrives,
   type DriveTally,
 } from "../../scripts/coach/policy-lab/drives";
@@ -59,5 +60,26 @@ describe("policy-lab drives", () => {
       heldAtHalf: 1,
     });
     expect(tallies[1]).toMatchObject({ turns: 0, heldAtHalf: 0 });
+  });
+
+  it("keeps filtered and sharded probes off the stage summary", () => {
+    const file = (argv: string[]) => driveArgs(argv).out;
+    expect(file(["run"])).toBe("drives-summary.json");
+    expect(file(["run", "Dwarf"])).toBe("drives-summary-dwarf.json");
+    expect(file(["run", "Tomb Kings", "--shard", "2/8"])).toBe(
+      "drives-summary-tomb-kings-2-of-8.json"
+    );
+    expect(file(["run", "--shard", "0/8"])).toBe("drives-summary-0-of-8.json");
+  });
+
+  it("refuses a bad shard or roster before touching any file", () => {
+    for (const argv of [
+      ["run", "--shard", "1/0"],
+      ["run", "--shard", "8/8"],
+      ["run", "--shard"],
+      ["run", "Dwarff"],
+      [],
+    ])
+      expect(() => driveArgs(argv), argv.join(" ")).toThrow(/Usage/);
   });
 });

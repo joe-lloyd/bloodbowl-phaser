@@ -71,7 +71,7 @@ describe("policy-lab team scorecard", () => {
       ["Dwarf", 2, 2, 0.25, 0.375, 0.5, "below"],
     ]);
     const dwarf = cards[1];
-    expect(dwarf.misses).toEqual(["points 38% under 45%"]);
+    expect(dwarf.misses).toEqual(["strength 38% under 45%"]);
     expect(dwarf.touchdownsAgainst).toBe(1);
     expect(dwarf.foulsPerGame).toBe(1.5);
     expect(dwarf.sentOff).toBeCloseTo(1 / 3);
@@ -122,22 +122,56 @@ describe("policy-lab team scorecard", () => {
   it("widens a roster's interval for its opponents' uncertainty", () => {
     // Dwarf drew all 64 games with Skaven. Skaven split 64 with Human, so
     // Skaven's strength, and with it Dwarf's, is uncertain.
+    // Each block plays both legs, with the candidate on either side.
+    const block = (a: string, b: string, points: number, id: string) =>
+      (["candidate", "frozen"] as const).flatMap((policy) => {
+        const other = policy === "candidate" ? "frozen" : "candidate";
+        return [
+          { roster: a, opponent: b, policy, points, block: id },
+          {
+            roster: b,
+            opponent: a,
+            policy: other,
+            points: 1 - points,
+            block: id,
+          },
+        ];
+      });
     const games = [
-      ...Array.from({ length: 64 }, () => [
-        { roster: "Dwarf", opponent: "Skaven", points: 0.5 },
-        { roster: "Skaven", opponent: "Dwarf", points: 0.5 },
-      ]).flatMap((pair, i) => pair.map((g) => ({ ...g, block: `d${i}` }))),
-      ...Array.from({ length: 64 }, (_, i) => [
-        { roster: "Skaven", opponent: "Human", points: i % 2 },
-        { roster: "Human", opponent: "Skaven", points: 1 - (i % 2) },
-      ]).flatMap((pair, i) => pair.map((g) => ({ ...g, block: `h${i}` }))),
-    ].map((g, i) => ({
-      ...g,
-      policy: i % 2 ? ("frozen" as const) : ("candidate" as const),
-    }));
+      ...Array.from({ length: 64 }, (_, i) =>
+        block("Dwarf", "Skaven", 0.5, `d${i}`)
+      ),
+      ...Array.from({ length: 64 }, (_, i) =>
+        block("Skaven", "Human", i % 2, `h${i}`)
+      ),
+    ].flat();
     const [low, high] = strengthIntervals(games, 200).get("Dwarf")!;
     expect(low).toBeLessThan(0.47);
     expect(high).toBeGreaterThan(0.53);
+  });
+
+  it("judges raw points when the schedule never connects two groups", () => {
+    // Dwarf beat Skaven and Human beat Orc, both legs each: nothing links
+    // the two pairs, so no strength across them can be fitted.
+    const split = [
+      row("a1", "candidate", "Dwarf", 1, 2),
+      row("a1", "frozen", "Skaven", 0, 0),
+      row("a2", "frozen", "Dwarf", 1, 2),
+      row("a2", "candidate", "Skaven", 0, 0),
+      row("b1", "candidate", "Human", 1, 2),
+      row("b1", "frozen", "Orc", 0, 0),
+      row("b2", "frozen", "Human", 1, 2),
+      row("b2", "candidate", "Orc", 0, 0),
+    ];
+    const cards = scorecard(split, {}, fouls, ["candidate", "frozen"]);
+    expect(
+      cards.map((c) => [c.roster, c.adjusted, c.pointsCi, c.judged, c.verdict])
+    ).toEqual([
+      ["Human", null, null, "raw points", "ceiling"],
+      ["Skaven", null, null, "raw points", "below"],
+      ["Dwarf", null, null, "raw points", "ceiling"],
+      ["Orc", null, null, "raw points", "below"],
+    ]);
   });
 
   it("scores only the candidate when asked", () => {

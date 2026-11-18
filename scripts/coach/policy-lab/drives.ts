@@ -13,8 +13,10 @@ import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
 import { GameConfig } from "../../../src/config/GameConfig";
+import { RosterName } from "../../../src/types/Team";
 
 const WIDTH = GameConfig.PITCH_WIDTH;
+const ROSTERS = new Set<string>(Object.values(RosterName));
 
 export interface DriveTally {
   /** Team turns that started with the team's own standing carrier. */
@@ -186,13 +188,42 @@ export function watchDrives(
   };
 }
 
+const USAGE =
+  "Usage: drives.ts <stage directory> [roster] [--shard i/n], with 0 <= i < n";
+
+/** Reads and checks the arguments before any file is read or written. */
+export function driveArgs(argv: string[]) {
+  const [dir, ...rest] = argv;
+  if (!dir) throw new Error(USAGE);
+  const at = rest.indexOf("--shard");
+  let shard: [number, number] = [0, 1];
+  if (at >= 0) {
+    const match = /^(\d+)\/(\d+)$/.exec(rest[at + 1] ?? "");
+    const [i, n] = match ? [Number(match[1]), Number(match[2])] : [-1, 0];
+    if (!(n > 0 && i >= 0 && i < n)) throw new Error(USAGE);
+    shard = [i, n];
+  }
+  const roster = rest.find(
+    (a, k) => !a.startsWith("--") && (at < 0 || k !== at + 1)
+  );
+  if (roster !== undefined && !ROSTERS.has(roster))
+    throw new Error(`${roster} is not a roster. ${USAGE}`);
+  // A filtered or sharded run writes its own file, never the stage summary.
+  const scope = [
+    roster ? roster.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "",
+    shard[1] > 1 ? `${shard[0]}-of-${shard[1]}` : "",
+  ].filter(Boolean);
+  return {
+    run: resolve(dir),
+    roster,
+    shard,
+    out: `drives-summary${scope.map((p) => "-" + p).join("")}.json`,
+  };
+}
+
 async function main() {
-  const run = resolve(process.argv[2]);
-  const only = process.argv[3]?.startsWith("--") ? undefined : process.argv[3];
+  const { run, roster: only, shard, out } = driveArgs(process.argv.slice(2));
   // --shard i/n replays every nth game, so shards can run side by side.
-  const shard = process.argv.includes("--shard")
-    ? process.argv[process.argv.indexOf("--shard") + 1].split("/").map(Number)
-    : [0, 1];
   const files = readdirSync(join(run, "traces"))
     .filter((f) => f.endsWith(".json.gz"))
     .filter((_, i) => i % shard[1] === shard[0]);
@@ -206,10 +237,7 @@ async function main() {
         into[k] += tallies[side][k];
     }
   }
-  writeFileSync(
-    join(run, `drives-summary${shard[1] > 1 ? `-${shard[0]}` : ""}.json`),
-    JSON.stringify(byRoster, null, 2)
-  );
+  writeFileSync(join(run, out), JSON.stringify(byRoster, null, 2));
   for (const [roster, t] of Object.entries(byRoster).sort(
     (a, b) => b[1].scored / b[1].turns - a[1].scored / a[1].turns
   ))

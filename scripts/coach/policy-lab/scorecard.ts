@@ -113,8 +113,11 @@ export interface RosterCard {
    * Points share against an average opponent: the lab pairs each roster
    * with a handful of others, so raw points carry schedule luck.
    */
-  adjusted: number;
-  pointsCi: [number, number];
+  adjusted: number | null;
+  /** A 95% interval for `adjusted`, or null when it cannot be estimated. */
+  pointsCi: [number, number] | null;
+  /** What the points standard was judged on: strength, or raw points. */
+  judged: "strength" | "raw points";
   wins: number;
   draws: number;
   losses: number;
@@ -151,7 +154,7 @@ export interface FitGame {
 export function strengths(games: FitGame[]): {
   strength: Map<string, number>;
   edge: number;
-} {
+} | null {
   const rosters = [
     ...new Set(games.flatMap((g) => [g.roster, g.opponent])),
   ].sort();
@@ -180,42 +183,51 @@ export function strengths(games: FitGame[]): {
     0
   );
   const x = solve(a, b);
+  if (!x) return null;
   return {
     strength: new Map(rosters.map((r, i) => [r, x[i]])),
     edge: x[n - 1],
   };
 }
 
-/** Gaussian elimination with partial pivoting. */
-function solve(a: number[][], b: number[]): number[] {
+/**
+ * Gaussian elimination with partial pivoting, or null when the system has
+ * no single solution. That happens when the schedule splits the rosters
+ * into groups that never meet, or when one policy always plays one side.
+ */
+function solve(a: number[][], b: number[]): number[] | null {
   const n = b.length;
   const m = a.map((row, i) => [...row, b[i]]);
-  for (let col = 0; col < n; col++) eliminate(m, col);
-  return m.map((row, i) => (Math.abs(row[i]) < 1e-12 ? 0 : row[n] / row[i]));
+  const scale = Math.max(...a.map((row, i) => Math.abs(row[i])), 1);
+  for (let col = 0; col < n; col++)
+    if (!eliminate(m, col, scale * 1e-9)) return null;
+  return m.map((row, i) => row[n] / row[i]);
 }
 
-/** Pivot on `col` and clear it from every other row. */
-function eliminate(m: number[][], col: number): void {
+/** Pivot on `col` and clear it from every other row; false if singular. */
+function eliminate(m: number[][], col: number, tiny: number): boolean {
   let pivot = col;
   for (let r = col + 1; r < m.length; r++)
     if (Math.abs(m[r][col]) > Math.abs(m[pivot][col])) pivot = r;
   [m[col], m[pivot]] = [m[pivot], m[col]];
-  if (Math.abs(m[col][col]) < 1e-12) return;
+  if (Math.abs(m[col][col]) < tiny) return false;
   for (let r = 0; r < m.length; r++) {
     if (r === col) continue;
     const f = m[r][col] / m[col][col];
     for (let k = col; k < m[r].length; k++) m[r][k] -= f * m[col][k];
   }
+  return true;
 }
 
 /**
  * A 95% interval for each roster's strength: refit on whole schedule
  * blocks drawn with replacement, so the opponents' uncertainty counts too.
+ * Null when more than one draw in twenty cannot be fitted.
  */
 export function strengthIntervals(
   games: (FitGame & { block: string })[],
   draws = 1000
-): Map<string, [number, number]> {
+): Map<string, [number, number]> | null {
   const blocks = new Map<string, FitGame[]>();
   for (const g of games)
     blocks.set(g.block, [...(blocks.get(g.block) ?? []), g]);
@@ -226,14 +238,21 @@ export function strengthIntervals(
     return seed / 4294967296;
   };
   const samples = new Map<string, number[]>();
+  let unfitted = 0;
   for (let d = 0; d < draws; d++) {
     const drawn = groups.flatMap(
       () => groups[Math.floor(random() * groups.length)]
     );
-    for (const [r, s] of strengths(drawn).strength)
+    const fit = strengths(drawn);
+    if (!fit) {
+      unfitted++;
+      continue;
+    }
+    for (const [r, s] of fit.strength)
       if (drawn.some((g) => g.roster === r))
         samples.set(r, [...(samples.get(r) ?? []), s]);
   }
+  if (unfitted > draws / 20) return null;
   const at = (xs: number[], q: number) => xs[Math.floor(q * (xs.length - 1))];
   return new Map(
     [...samples].map(([r, xs]) => {
@@ -262,6 +281,51 @@ function signaturesOf(
     .filter((s) => s.lift >= 1.25)
     .sort((a, b) => b.lift - a.lift)
     .slice(0, 3);
+}
+
+/** Whether a roster meets its tier's standard, and what it misses by. */
+function verdictOf(
+  tier: Tier,
+  share: number,
+  scores: number,
+  judged: RosterCard["judged"]
+): Pick<RosterCard, "verdict" | "misses"> {
+  if (share > CEILING)
+    return {
+      verdict: "ceiling",
+      misses: [`${judged} ${pct(share)} over the ${pct(CEILING)} ceiling`],
+    };
+  const standard = STANDARDS[tier];
+  const misses = [
+    share < standard.points
+      ? `${judged} ${pct(share)} under ${pct(standard.points)}`
+      : "",
+    scores < standard.scores
+      ? `scores in ${pct(scores)} of games, under ${pct(standard.scores)}`
+      : "",
+  ].filter(Boolean);
+  return { verdict: misses.length ? "below" : "meets", misses };
+}
+
+/** A roster's Fouls under the counted policies, and its busiest fouler. */
+function foulsOf(
+  fouls: Record<"candidate" | "frozen", Record<string, FoulTally>>,
+  policies: ("candidate" | "frozen")[],
+  roster: string
+) {
+  const groups = policies.flatMap((p) =>
+    Object.entries(fouls[p]).filter(([key]) => key.startsWith(roster + " / "))
+  );
+  const byFouler = new Map<string, number>();
+  for (const [key, t] of groups) {
+    const position = key.slice(roster.length + 3);
+    byFouler.set(position, (byFouler.get(position) ?? 0) + t.fouls);
+  }
+  return {
+    count: groups.reduce((a, [, t]) => a + t.fouls, 0),
+    sentOff: groups.reduce((a, [, t]) => a + t.sentOff, 0),
+    topFouler: [...byFouler].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+  };
 }
 
 export function scorecard(
@@ -303,8 +367,10 @@ export function scorecard(
     points: r.points,
     block: r.block,
   }));
-  const fitted = strengths(fitGames).strength;
-  const intervals = strengthIntervals(fitGames);
+  // A schedule whose rosters split into groups that never meet has no
+  // field-wide strength: then rosters are judged on raw points.
+  const fitted = strengths(fitGames)?.strength ?? null;
+  const intervals = fitted ? strengthIntervals(fitGames) : null;
   const rosters = [...new Set(counted.map((r) => r.roster))];
   return rosters
     .map((roster): RosterCard => {
@@ -312,7 +378,9 @@ export function scorecard(
       const opponents = rows.map(opponentOf);
       const games = rows.length;
       const points = mean(rows.map((r) => r.points));
-      const adjusted = 0.5 + fitted.get(roster)!;
+      const adjusted = fitted ? 0.5 + fitted.get(roster)! : null;
+      const share = adjusted ?? points;
+      const judged = adjusted === null ? "raw points" : "strength";
       const own: Record<string, PlayTally> = {};
       for (const policy of policies)
         for (const [play, t] of Object.entries(
@@ -329,37 +397,17 @@ export function scorecard(
           o.scoredNextTurn += t.scoredNextTurn;
           o.turnovers += t.turnovers;
         }
-      const foulGroups = policies.flatMap((p) =>
-        Object.entries(fouls[p]).filter(([key]) =>
-          key.startsWith(roster + " / ")
-        )
-      );
-      const foulCount = foulGroups.reduce((a, [, t]) => a + t.fouls, 0);
-      const byFouler = new Map<string, number>();
-      for (const [key, t] of foulGroups) {
-        const position = key.slice(roster.length + 3);
-        byFouler.set(position, (byFouler.get(position) ?? 0) + t.fouls);
-      }
-      const topFouler =
-        [...byFouler].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      const foul = foulsOf(fouls, policies, roster);
       const tier = tierOf(roster);
       const scores = rows.filter((r) => r.touchdowns > 0).length / games;
-      const standard = STANDARDS[tier];
-      const misses = [
-        adjusted < standard.points
-          ? `points ${pct(adjusted)} under ${pct(standard.points)}`
-          : "",
-        scores < standard.scores
-          ? `scores in ${pct(scores)} of games, under ${pct(standard.scores)}`
-          : "",
-      ].filter(Boolean);
       return {
         roster,
         tier,
         games,
         points,
         adjusted,
-        pointsCi: intervals.get(roster)!,
+        pointsCi: intervals?.get(roster) ?? null,
+        judged,
         wins: rows.filter((r) => r.points === 1).length,
         draws: rows.filter((r) => r.points === 0.5).length,
         losses: rows.filter((r) => r.points === 0).length,
@@ -369,21 +417,17 @@ export function scorecard(
         casualtiesFor: mean(rows.map((r) => r.casualties)),
         casualtiesAgainst: mean(opponents.map((r) => r.casualties)),
         turnovers: mean(rows.map((r) => r.turnovers)),
-        foulsPerGame: foulCount / games,
-        sentOff:
-          foulCount &&
-          foulGroups.reduce((a, [, t]) => a + t.sentOff, 0) / foulCount,
-        topFouler,
+        foulsPerGame: foul.count / games,
+        sentOff: foul.count && foul.sentOff / foul.count,
+        topFouler: foul.topFouler,
         signatures: signaturesOf(own, field, games),
-        verdict:
-          adjusted > CEILING ? "ceiling" : misses.length ? "below" : "meets",
-        misses:
-          adjusted > CEILING
-            ? [`points ${pct(adjusted)} over the ${pct(CEILING)} ceiling`]
-            : misses,
+        ...verdictOf(tier, share, scores, judged),
       };
     })
-    .sort((a, b) => a.tier - b.tier || b.adjusted - a.adjusted);
+    .sort(
+      (a, b) =>
+        a.tier - b.tier || (b.adjusted ?? b.points) - (a.adjusted ?? a.points)
+    );
 }
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
@@ -398,7 +442,7 @@ function html(cards: RosterCard[], stage: string, revision: string): string {
   const below = cards.filter((c) => c.verdict !== "meets");
   const row = (c: RosterCard) => `<tr class="${c.verdict}">
 <td>${esc(c.roster)}</td><td class="n">${c.tier}</td><td class="n">${c.games}</td>
-<td class="n">${pct(c.adjusted)} <span class="ci">${pct(c.pointsCi[0])}–${pct(c.pointsCi[1])}</span></td><td class="n">${pct(c.points)}</td>
+<td class="n">${c.adjusted === null ? "n/a" : pct(c.adjusted)} <span class="ci">${c.pointsCi ? `${pct(c.pointsCi[0])}–${pct(c.pointsCi[1])}` : ""}</span></td><td class="n">${pct(c.points)}</td>
 <td class="n">${pct(c.scores)}</td><td class="n">${num(c.touchdownsFor)}</td><td class="n">${num(c.touchdownsAgainst)}</td>
 <td class="n">${num(c.casualtiesFor)}</td><td class="n">${num(c.casualtiesAgainst)}</td>
 <td class="n">${num(c.foulsPerGame)}</td>
@@ -424,7 +468,7 @@ td,th{padding:5px 8px;border-bottom:1px solid #2a3352;text-align:left;vertical-a
 tr.below td:last-child{color:#ef8a7a}tr.ceiling td:last-child{color:#e0b24a}tr.meets td:last-child{color:#8fd19e}
 </style>
 <h1>Team scorecard</h1>
-<p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${below.length} of ${cards.length} rosters miss their tier's standard.</p>
+<p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${below.length} of ${cards.length} rosters miss their tier's standard.${cards.some((c) => c.adjusted === null) ? " This schedule splits the rosters into groups that never meet, so no strength can be fitted and each roster is judged on raw points." : ""}</p>
 <h2>Rosters</h2>
 <div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Strength, 95%</th><th class="n">Raw points</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th>Standard</th></tr>
 ${cards.map(row).join("\n")}</table></div>
