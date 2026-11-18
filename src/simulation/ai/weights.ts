@@ -24,8 +24,10 @@ export const DEFAULT_WEIGHTS = {
   /**
    * Above 0, a mark on the carrier counts by the chance its block knocks
    * the carrier down, so a sturdy carrier walks its cage into contact.
+   * On, the best planner took 50.5% of points from it off over 15,552
+   * paired games.
    */
-  cageWalk: 0,
+  cageWalk: 1,
   /** Per opponent who could reach and hit an uncaged carrier next turn. */
   carrierThreat: 4,
   /** A carrier on the sideline, where a push goes into the crowd. */

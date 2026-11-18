@@ -350,3 +350,43 @@ describe("blocks that open the way for our carrier", () => {
     expect(await hitOn(coach({ lane: 60, freeCarrier: 90 }))).toBe(marker);
   });
 });
+
+describe("cage walk", () => {
+  // A strength 4 carrier at (8,5) faces a wall at x=11: every square at
+  // x=10 is in contact with one defender, every square at x=9 is clear.
+  async function carrierEnd(
+    skills: SkillType[],
+    w: Partial<typeof DEFAULT_WEIGHTS>
+  ) {
+    const subject = game({
+      turn: 2,
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, hasBall: true, skills, stats: { ST: 4 } },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 2 },
+        { playerIndex: 1, x: 11, y: 5 },
+        { playerIndex: 2, x: 11, y: 8 },
+      ],
+    });
+    const coach = createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
+    for (let i = 0; i < 6; i++) {
+      const { command } = await step(subject, coach);
+      if (command.type === "end-activation" || command.type === "end-turn")
+        break;
+    }
+    return subject.ctx.team1.players[0].gridPosition!.x;
+  }
+
+  it("steps a carrier with Block up to the wall, which a one-die hit rarely downs", async () => {
+    expect(await carrierEnd([SkillType.BLOCK], { cageWalk: 1 })).toBe(10);
+  });
+
+  it("stops the same carrier short when every mark costs the same", async () => {
+    expect(await carrierEnd([SkillType.BLOCK], { cageWalk: 0 })).toBe(9);
+  });
+
+  it("stops a carrier without Block short even on the walk", async () => {
+    expect(await carrierEnd([], { cageWalk: 1 })).toBe(9);
+  });
+});
