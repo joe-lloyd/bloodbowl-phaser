@@ -65,31 +65,45 @@ export function rollBannerText(
       result: false,
     };
   }
+  const landed = stage === "landed";
   const decided = outcome === "superseded" ? undefined : outcome;
-  if (roll.kind === "armour") {
-    const armour = decided?.kind === "armour" ? decided : undefined;
-    const against = armour ? `AV ${armour.armor}+` : "";
-    if (stage === "thrown" || !armour) {
-      return {
-        headline: "Armour Roll",
-        subtitle: [name, against].filter(Boolean).join(" · "),
-        result: false,
-      };
-    }
-    return armour.broken
-      ? {
-          headline: "Armour Broken",
-          subtitle: `${name} · ${armour.roll} against ${against}, injury roll next`,
-          result: true,
-        }
-      : {
-          headline: "Armour Holds",
-          subtitle: `${name} · ${armour.roll} against ${against}`,
-          result: true,
-        };
+  return roll.kind === "armour"
+    ? armourText(name, landed, decided?.kind === "armour" ? decided : undefined)
+    : injuryText(name, landed, decided?.kind === "injury" ? decided : undefined);
+}
+
+function armourText(
+  name: string,
+  landed: boolean,
+  armour: ArmourOutcome | undefined
+): RollBannerText {
+  const against = armour ? `AV ${armour.armor}+` : "";
+  if (!landed || !armour) {
+    return {
+      headline: "Armour Roll",
+      subtitle: [name, against].filter(Boolean).join(" · "),
+      result: false,
+    };
   }
-  const injury = decided?.kind === "injury" ? decided : undefined;
-  if (stage === "thrown" || !injury) {
+  return armour.broken
+    ? {
+        headline: "Armour Broken",
+        subtitle: `${name} · ${armour.roll} against ${against}, injury roll next`,
+        result: true,
+      }
+    : {
+        headline: "Armour Holds",
+        subtitle: `${name} · ${armour.roll} against ${against}`,
+        result: true,
+      };
+}
+
+function injuryText(
+  name: string,
+  landed: boolean,
+  injury: InjuryOutcome | undefined
+): RollBannerText {
+  if (!landed || !injury) {
     return { headline: "Injury Roll", subtitle: name, result: false };
   }
   const headline = INJURY_HEADLINE[injury.result];
