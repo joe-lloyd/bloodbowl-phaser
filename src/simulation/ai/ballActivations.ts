@@ -89,16 +89,30 @@ function cageCorners(c: Context, at: Square, carrier: Player): number {
  */
 function carrierSquare(c: Context, at: Square, carrier: Player): number {
   const { board, w } = c;
+  const progress =
+    board.turnsLeft === 0 || c.goal === "protect" ? 0 : w.advance * c.urgency;
+  return -toGoal(board, at) * progress + carrierCover(c, at, carrier);
+}
+
+/**
+ * What a carrier loses by keeping the ball where it stands: the marks,
+ * threats and exposure a carrier move is paid for escaping. A play that
+ * scores takes the ball out of them too, so it earns the same escape.
+ */
+function pressure(c: Context, carrier: Player): number {
+  return Math.max(0, -carrierCover(c, carrier.gridPosition!, carrier));
+}
+
+/** The square's cover for the carrier, apart from its distance to go. */
+function carrierCover(c: Context, at: Square, carrier: Player): number {
+  const { board, w } = c;
   const cage = cageCorners(c, at, carrier);
   // A cage covers the carrier: corners block four of the eight squares
   // next to it and put tackle zones on the other four.
   const exposed = cage >= 3 ? 0 : 1 - cage / 4;
   const edge = Math.min(at.y, HEIGHT - 1 - at.y);
-  const progress =
-    board.turnsLeft === 0 || c.goal === "protect" ? 0 : w.advance * c.urgency;
   return (
-    -toGoal(board, at) * progress -
-    board.marks[key(at)] * w.carrierMarked -
+    -board.marks[key(at)] * w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner -
     (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0) -
@@ -141,7 +155,9 @@ function scoreActivation(
       carrier,
       w.ballLoss,
       1 - bestScore.chance
-    ) - feedingCost(c, carrier, "move", bestScore.to, true);
+    ) +
+    success(bestScore) * pressure(c, carrier) -
+    feedingCost(c, carrier, "move", bestScore.to, true);
   // A carrier already on its way keeps running while the run is worth
   // it: an opening dodge that spent the re-roll must not turn the rest
   // of the run into a reason to step back.
@@ -387,7 +403,8 @@ function handoffTo(
   carrier: Player,
   mate: Player,
   routes: Map<number, Route>,
-  carrierReach: number
+  carrierReach: number,
+  escape: number
 ): Activation | null {
   const { board, w } = c;
   const scoreChance = scoreChanceOf(c, mate);
@@ -413,7 +430,7 @@ function handoffTo(
     tier: tierFor(chance, scoring ? w.safeScore : w.safeMove, "handoff"),
     value:
       (scoring
-        ? scoringValue(c, chance, carrier, w.ballLoss)
+        ? scoringValue(c, chance, carrier, w.ballLoss) + chance * escape
         : gamble(c, chance, gain) - (1 - reach) * w.ballLoss) - 1,
     rolls: [...(approach?.rolls ?? []), { kind: "catch", target }],
   };
@@ -429,10 +446,11 @@ export function handoffActivations(c: Context, carrier: Player): Activation[] {
   const out: Activation[] = [];
   const routes = c.routes(carrier);
   const carrierReach = bestReach(c, carrier);
+  const escape = pressure(c, carrier);
   for (const mate of board.ours) {
     if (mate.id === carrier.id || !standing(mate) || !c.available.has(mate.id))
       continue;
-    const handoff = handoffTo(c, carrier, mate, routes, carrierReach);
+    const handoff = handoffTo(c, carrier, mate, routes, carrierReach, escape);
     if (handoff) out.push(handoff);
   }
   return out;
@@ -446,7 +464,7 @@ const PASS_TYPES: readonly PassType[] = [
 ];
 
 /** The pass range from one square to another, or null out of range. */
-function passRange(from: Square, to: Square): PassRange | null {
+export function passRange(from: Square, to: Square): PassRange | null {
   const value = PassController.rangeValue(from, to);
   if (value === null) return null;
   return {
@@ -541,7 +559,8 @@ function passTo(
   carrier: Player,
   mate: Player,
   throwFrom: (Route | null)[],
-  carrierReach: number
+  carrierReach: number,
+  escape: number
 ): Activation | null {
   const { board, w } = c;
   // A catch in the end zone scores; elsewhere the receiver must still
@@ -570,7 +589,7 @@ function passTo(
     ),
     value:
       (scoring
-        ? scoringValue(c, chance, carrier, w.ballLoss)
+        ? scoringValue(c, chance, carrier, w.ballLoss) + chance * escape
         : gamble(c, chance, progress) - (1 - best.chance) * w.ballLoss) - 2,
     rolls: best.rolls,
   };
@@ -578,8 +597,9 @@ function passTo(
 
 /**
  * Throw to a team-mate who has not acted yet: one who can then score, or
- * one well downfield. The thrower may first walk, safely, to a better
- * square to throw from.
+ * one well downfield. The thrower may first walk to a better square to
+ * throw from, dodging out of a marked cage if it must: the walk's rolls are
+ * priced into the pass. Walks likelier to fail than a safe score are left.
  */
 export function passActivations(c: Context, carrier: Player): Activation[] {
   const { board, w } = c;
@@ -587,14 +607,15 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
   const throwFrom: (Route | null)[] = [
     null,
     ...[...c.plainRoutes(carrier).values()].filter(
-      (r) => r.chance >= w.safeMove
+      (r) => r.chance >= w.safeScore
     ),
   ];
   const carrierReach = bestReach(c, carrier);
+  const escape = pressure(c, carrier);
   const out: Activation[] = [];
   for (const mate of board.ours) {
     if (mate.id === carrier.id || !standing(mate)) continue;
-    const pass = passTo(c, carrier, mate, throwFrom, carrierReach);
+    const pass = passTo(c, carrier, mate, throwFrom, carrierReach, escape);
     if (pass) out.push(pass);
   }
   return out;

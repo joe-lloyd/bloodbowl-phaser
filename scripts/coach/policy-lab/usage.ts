@@ -28,6 +28,7 @@ const PLAYS: readonly [string, string][] = [
   ["moves to flank", "flank"],
   ["moves to throw", "launch-setup"],
   ["moves to receiver", "receiver"],
+  ["moves to deep", "deep-receiver"],
   ["moves to feed", "feed"],
   ["moves to", "reposition"],
   ["moves the ball carrier", "carrier"],
@@ -36,6 +37,7 @@ const PLAYS: readonly [string, string][] = [
   ["secures the ball", "secure-ball"],
   ["goes for the ball", "pickup"],
   ["blitzes", "blitz"],
+  ["fouls", "foul"],
   ["blocks", "block"],
   ["stands up", "stand-up"],
 ];

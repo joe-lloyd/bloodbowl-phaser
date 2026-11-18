@@ -93,7 +93,9 @@ describe("a knockout tie", () => {
       penalties: 0,
       rerollsCarried: 0,
     };
-    for (let seed = 1; seed <= 16; seed++) {
+    // Few ties are won in Extra Time: of the first 40 seeds only 34 is, so it
+    // joins the first 16. Any change to the coaches' choices reshuffles this.
+    for (const seed of [...Array.from({ length: 16 }, (_, i) => i + 1), 34]) {
       const game = await play(seed, true);
       const { state, home, away } = game;
       expect(game.recording.findings, `seed ${seed}`).toEqual([]);

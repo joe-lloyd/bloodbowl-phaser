@@ -16,11 +16,12 @@ The frozen incumbent is `main` before the current branch, set in the script; `BB
 
 ## Plays and moments
 
-After confirmation, Standard and the pilot, `usage.ts` replays every saved game and names each declaration by its coach note: a carrier throw, a pass, a flank run, a launch setup and so on. For each play and policy it counts uses, scores that turn or the next, and turnovers during the activation. `moments.ts` writes `moments/index.html` with that table and the candidate's scoring moments, rarest plays first. Each moment links to a playback of its match opened at the declaration. Run them by hand on any stage:
+After confirmation, Standard and the pilot, `usage.ts` replays every saved game and names each declaration by its coach note: a carrier throw, a pass, a flank run, a launch setup and so on. For each play and policy it counts uses, scores that turn or the next, and turnovers during the activation. `moments.ts` writes `moments/index.html` with that table and the candidate's scoring moments, rarest plays first. Each moment links to a playback of its match opened at the declaration. `fouls.ts` writes `fouls-summary.json`, which counts each policy's Fouls by roster and fouler position. For each group it counts send-offs and how the target ended the activation: Stunned, out of the drive, or a casualty. Run them by hand on any stage:
 
 ```sh
 pnpm exec tsx scripts/coach/policy-lab/usage.ts <stage directory>
 pnpm exec tsx scripts/coach/policy-lab/moments.ts <stage directory>
+pnpm exec tsx scripts/coach/policy-lab/fouls.ts <stage directory>
 ```
 
 A play's scores and turnovers describe what followed it, not what it was worth.

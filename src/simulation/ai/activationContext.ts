@@ -84,12 +84,20 @@ export function context(
     available,
     teamReroll,
     urgency: (Math.min(3, Math.max(1, pace / 4)) * 6) / Math.max(3, speed),
-    casualty: w.casualtyHit * casualtyWorth(board),
+    casualty:
+      w.casualtyHit *
+      casualtyWorth(board) *
+      (1 + w.attrition * gameLeft(board)),
     turnover:
       w.turnoverBase + w.turnoverPerPlayer * Math.max(0, available.size - 1),
     routes: teamReroll ? rerollRoutes : plainRoutes,
     plainRoutes,
   };
+}
+
+/** The share of the game still to play: 1 at kick-off, 0 on its last turn. */
+function gameLeft(board: Board): number {
+  return (board.turnsLeft + (board.half2 ? 0 : 6)) / 11;
 }
 
 /**

@@ -27,6 +27,13 @@ export const DEFAULT_WEIGHTS = {
   cageCorner: 8,
   /** Open team-mate a few squares ahead of the carrier. */
   receiver: 6,
+  /**
+   * A receiver gone deep on the setup turn of a two-step pass, where the
+   * carrier cannot run the ball in next turn, times the throw's chance.
+   */
+  deep: 20,
+  /** Per standing opponent within three squares of the deep square. */
+  deepCrowd: 2,
   /** A thrower beside a Right Stuff carrier, ready to launch it. */
   launch: 10,
   /**
@@ -58,6 +65,18 @@ export const DEFAULT_WEIGHTS = {
   turnoverPerPlayer: 6,
   /** Our carrier falls and the ball comes loose. */
   ballLoss: 60,
+  /**
+   * A lineman Sent-off for fouling, for the rest of the game; a player's
+   * cost scales it, so a Gnoblar is cheap to lose and a big guy is not.
+   */
+  sentOff: 40,
+  /** A Foul that Knocks Out its target, gone for the drive. */
+  foulKnockOut: 12,
+  /**
+   * How much more a casualty counts with the whole game left: a player
+   * removed early is missing for every turn after. 0 counts it the same.
+   */
+  attrition: 0,
   /** Our player ends on the ground: out of position, maybe hurt. */
   ownDown: 12,
   /** Residual positioning value when late progress cannot set up a touchdown. */
