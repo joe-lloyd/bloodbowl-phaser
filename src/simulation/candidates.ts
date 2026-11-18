@@ -372,11 +372,15 @@ async function setupCandidates(
   const legal = (await game.execute({ type: "legal-actions" })).legalActions;
   const setup = legal?.setup;
   if (setup?.canChooseConcession) {
+    // A team with nobody to field cannot play on, so it concedes.
+    const nobody = setup.status.availablePlayerCount === 0;
     return [
       {
         kind: "setup",
-        commands: [{ type: "setup-concession", teamId, concede: false }],
-        label: "Play on with fewer than three players",
+        commands: [{ type: "setup-concession", teamId, concede: nobody }],
+        label: nobody
+          ? "Concede with no available players"
+          : "Play on with fewer than three players",
       },
     ];
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FormationManager } from "../../src/game/managers/FormationManager";
+import { enumerateDecision } from "../../src/simulation/candidates";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import {
   deserializeGameState,
@@ -191,6 +192,29 @@ describe("Sevens setup through the headless protocol", () => {
     );
   });
 
+  it("makes a team with no available players concede", async () => {
+    const game = new HeadlessGame({ seed: 77 });
+    game.ctx.team1.players.forEach(
+      (player) => (player.status = PlayerStatus.REMOVED)
+    );
+    await begin(game);
+
+    const playOn = await game.execute({
+      type: "setup-concession",
+      teamId: game.ctx.team1.id,
+      concede: false,
+    });
+    expect(playOn.ok).toBe(false);
+    expect(playOn.reason).toContain("must concede");
+
+    const point = await enumerateDecision(game, game.ctx.team1.id);
+    expect(point.candidates.map((c) => c.commands)).toEqual([
+      [{ type: "setup-concession", teamId: game.ctx.team1.id, concede: true }],
+    ]);
+    const conceded = await game.execute(point.candidates[0].commands[0]);
+    expect(conceded.snapshot.phase).toBe(GamePhase.GAME_OVER);
+  });
+
   it("ends the match on a penalty-free pre-setup concession", async () => {
     const game = new HeadlessGame({ seed: 75 });
     game.ctx.team1.players
@@ -221,9 +245,9 @@ describe("Sevens setup through the headless protocol", () => {
     });
     expect(response.snapshot.score[game.ctx.team1.id] ?? 0).toBe(0);
     expect(response.snapshot.score[game.ctx.team2.id] ?? 0).toBe(0);
-    expect(
-      response.events.some((event) => event.name === "touchdown")
-    ).toBe(false);
+    expect(response.events.some((event) => event.name === "touchdown")).toBe(
+      false
+    );
   });
 
   it("serializes setup phase, placements, decisions and restriction state", async () => {

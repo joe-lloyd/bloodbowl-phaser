@@ -223,22 +223,27 @@ function ConcessionOffer({
   status: SetupTeamStatus | null;
   onAction: SetupAction;
 }) {
+  const available = status?.availablePlayerCount ?? 0;
+  const nobody = available === 0;
   return (
     <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 p-2.5 text-hud-sm text-hud-bone">
       <div className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] text-hud-bad-soft">
         Short-handed team
       </div>
       <p className="my-1.5">
-        Only {status?.availablePlayerCount ?? 0} players are available. You may
-        concede now without an additional penalty, or play on.
+        {nobody
+          ? "No players are available, so the team must concede. It takes no additional penalty."
+          : `Only ${available} players are available. You may concede now without an additional penalty, or play on.`}
       </p>
       <div className="flex gap-2">
-        <SetupActionButton
-          onAction={onAction}
-          action="continue"
-          label="PLAY ON"
-          color="green"
-        />
+        {!nobody && (
+          <SetupActionButton
+            onAction={onAction}
+            action="continue"
+            label="PLAY ON"
+            color="green"
+          />
+        )}
         <SetupActionButton
           onAction={onAction}
           action="concede"
