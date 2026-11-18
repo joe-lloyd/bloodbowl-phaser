@@ -105,6 +105,9 @@ function selectKicker(c: GameplayInteractionController, kicker: Player): void {
   );
 }
 
+/** Controllers whose kick is still resolving. */
+const kicking = new WeakSet<GameplayInteractionController>();
+
 function clickKickAim(
   c: GameplayInteractionController,
   x: number,
@@ -139,13 +142,15 @@ function clickKickAim(
   );
   // If we have a selected kicker and clicked opponent half -> KICK!
   if (c.selectedPlayerId || nobodyOnPitch) {
-    c.isBusy = true;
-    try {
-      c.gameService.kickBall(isTeam1Kicking, c.selectedPlayerId ?? null, x, y);
-      c.selectedPlayerId = null; // Clear selection after kick
-    } finally {
-      c.isBusy = false;
-    }
+    // One kick at a time: a kicker-less kick stays available after the
+    // first click, so a second click must not start another sequence.
+    if (kicking.has(c)) return;
+    kicking.add(c);
+    const kicker = c.selectedPlayerId ?? null;
+    c.selectedPlayerId = null; // Clear selection after kick
+    void Promise.resolve(
+      c.gameService.kickBall(isTeam1Kicking, kicker, x, y)
+    ).finally(() => kicking.delete(c));
   } else {
     c.eventBus.emit(GameEventNames.UI_Notification, "Select a Kicker first!");
   }
