@@ -505,12 +505,10 @@ function kickoffCandidates(
   kickingTeamId: string
 ): Candidate[] {
   const team = snapshot.teams.find((t) => t.id === kickingTeamId);
-  if (!team) return [];
-  const kicker = team.players.find(
+  const kicker = team?.players.find(
     (p) => p.position && p.status === PlayerStatus.ACTIVE
   );
-  // A team with nobody on the pitch still kicks off, with no kicker.
-  if (!kicker && team.players.some((p) => p.position)) return [];
+  if (!kicker) return [];
   const kicksRight = kickingTeamId === game.ctx.team1.id;
   const out: Candidate[] = [];
   for (const depth of [2, 4, 6]) {
@@ -518,11 +516,7 @@ function kickoffCandidates(
       const x = kicksRight ? GameConfig.PITCH_WIDTH - 1 - depth : depth;
       out.push({
         kind: "kickoff",
-        commands: [
-          kicker
-            ? { type: "kick-ball", playerId: kicker.id, x, y }
-            : { type: "kick-ball", teamId: team.id, x, y },
-        ],
+        commands: [{ type: "kick-ball", playerId: kicker.id, x, y }],
         label: `Kick to ${square({ x, y })}`,
       });
     }

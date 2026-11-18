@@ -152,24 +152,6 @@ const sameTeam = (
   reason: GateRejectReason
 ): GateVerdict => (teamId === senderTeamId ? allow : deny(reason));
 
-/**
- * Kickoff: the kicking team's coach acts through their own player, or as
- * the team when it has nobody on the pitch. During KICKOFF the kicking team
- * is the NON-active team (active is the receiving team, set last during
- * SETUP_RECEIVING), so the active team can't kick.
- */
-function kickOwner(
-  ctx: GateContext,
-  senderTeamId: string,
-  command: Extract<HeadlessCommand, { type: "select-kicker" | "kick-ball" }>
-): GateVerdict {
-  if (ctx.phase === GamePhase.KICKOFF && ctx.activeTeamId === senderTeamId)
-    return deny("not-your-turn");
-  return "playerId" in command
-    ? ownsPlayer(ctx, senderTeamId, command.playerId)
-    : sameTeam(command.teamId, senderTeamId, "not-your-player");
-}
-
 const BLOCK_REROLL_COMMANDS = new Set<HeadlessCommand["type"]>([
   "team-reroll-block",
   "pro-reroll-block",
@@ -282,9 +264,18 @@ function checkMatchCommand(
       if (ctx.phase !== GamePhase.GAME_OVER) return deny("not-your-turn");
       return ownsPlayer(ctx, senderTeamId, command.playerId);
 
+    // Kickoff: the kicking team's coach acts through their own player. During
+    // KICKOFF the kicking team is the NON-active team (active is the receiving
+    // team, set last during SETUP_RECEIVING), so the active team can't kick.
     case "select-kicker":
     case "kick-ball":
-      return kickOwner(ctx, senderTeamId, command);
+      if (
+        ctx.phase === GamePhase.KICKOFF &&
+        ctx.activeTeamId === senderTeamId
+      ) {
+        return deny("not-your-turn");
+      }
+      return ownsPlayer(ctx, senderTeamId, command.playerId);
     default:
       return undefined;
   }

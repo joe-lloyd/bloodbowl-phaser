@@ -316,7 +316,7 @@ export class GameService implements IGameService {
 
   async kickBall(
     isTeam1Kicking: boolean,
-    playerId: string | null,
+    playerId: string,
     targetX: number,
     targetY: number
   ): Promise<void> {

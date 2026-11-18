@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FormationManager } from "../../src/game/managers/FormationManager";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { enumerateDecision } from "../../src/simulation/candidates";
 import {
   deserializeGameState,
   serializeGameState,
@@ -192,15 +191,16 @@ describe("Sevens setup through the headless protocol", () => {
     );
   });
 
-  it("kicks off with no kicker when the kicking team plays on with nobody", async () => {
+  it("gives the receivers a touchback when the kicking team has nobody on the pitch", async () => {
     // Sweltering Heat can keep every player a team has left in the Reserves
-    // for a drive. The team may still play on, and the drive goes ahead.
+    // for a drive. The team may still play on: no kicker is picked, and the
+    // drive starts with a Touchback, without a kick or the Kick-off table.
     const game = new HeadlessGame({ seed: 77 });
     game.ctx.team1.players.forEach(
       (player) => (player.status = PlayerStatus.REMOVED)
     );
     await begin(game);
-    const team1 = game.ctx.team1.id;
+    const [team1, team2] = [game.ctx.team1.id, game.ctx.team2.id];
     expect(
       (
         await game.execute({
@@ -213,52 +213,31 @@ describe("Sevens setup through the headless protocol", () => {
     expect(
       (await game.execute({ type: "confirm-setup", teamId: team1 })).ok
     ).toBe(true);
-    const team2 = game.ctx.team2.id;
     await game.execute({
       type: "apply-formation",
       teamId: team2,
       formation: preset(false),
     });
-    expect(
-      (await game.execute({ type: "confirm-setup", teamId: team2 })).ok
-    ).toBe(true);
-
-    const point = await enumerateDecision(game, team1);
-    expect(point.candidates.length).toBe(9);
-    expect(point.candidates[0].commands).toEqual([
-      { type: "kick-ball", teamId: team1, x: 17, y: 2 },
-    ]);
-    const kicked = await game.execute(point.candidates[0].commands[0]);
-    expect(kicked.ok).toBe(true);
-    expect(kicked.snapshot.phase).not.toBe(GamePhase.SETUP);
-    expect(kicked.snapshot.result ?? null).toBeNull();
-  });
-
-  it("still needs a kicker while the kicking team has players on the pitch", async () => {
-    const game = new HeadlessGame({ seed: 78 });
-    await begin(game);
-    const [team1, team2] = [game.ctx.team1.id, game.ctx.team2.id];
-    await game.execute({
-      type: "apply-formation",
-      teamId: team1,
-      formation: preset(true),
-    });
-    await game.execute({ type: "confirm-setup", teamId: team1 });
-    await game.execute({
-      type: "apply-formation",
+    const confirmed = await game.execute({
+      type: "confirm-setup",
       teamId: team2,
-      formation: preset(false),
     });
-    await game.execute({ type: "confirm-setup", teamId: team2 });
+    expect(confirmed.ok).toBe(true);
 
-    const kicked = await game.execute({
-      type: "kick-ball",
-      teamId: team1,
-      x: 17,
-      y: 5,
+    const names = confirmed.events.map((e) => e.name);
+    expect(names).not.toContain("ballKicked");
+    expect(names).not.toContain("kickoffResult");
+    expect(confirmed.snapshot.phase).toBe(GamePhase.PLAY);
+    expect(confirmed.snapshot.activeTeamId).toBe(team2);
+    expect(game.ctx.gameService.isTouchbackPending()).toBe(true);
+
+    const taker = game.ctx.team2.players.find((p) => p.gridPosition)!;
+    const awarded = await game.execute({
+      type: "touchback",
+      playerId: taker.id,
     });
-    expect(kicked.ok).toBe(false);
-    expect(kicked.reason).toContain("kick-needs-kicker");
+    expect(awarded.ok).toBe(true);
+    expect(awarded.snapshot.ballPosition).toEqual(taker.gridPosition);
   });
 
   it("ends the match on a penalty-free pre-setup concession", async () => {
