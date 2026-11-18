@@ -114,15 +114,11 @@ export type RosterWeights = Partial<Record<RosterName, Partial<Weights>>>;
  * measured that roster doing better with them.
  */
 export const ROSTER_WEIGHTS: RosterWeights = {
-  // A carrier that stands marked stalls the drive. These teams gained by
-  // taking dodges a team re-roll makes likely, at 82% instead of 92%.
-  [RosterName.DWARF]: { safeMove: 0.82, carrierMarked: 15 },
+  // Halflings gained about 5 points of points share by taking dodges a
+  // team re-roll makes likely, at 82% instead of 92%, over 640 games a
+  // side on seeds that did not pick it. Dwarf, Nurgle, Snotling and
+  // Vampire tweaks that looked as good on their first seed did not hold up.
   [RosterName.HALFLING]: { safeMove: 0.82 },
-  [RosterName.SNOTLING]: { safeMove: 0.82 },
-  [RosterName.VAMPIRE]: { safeMove: 0.82 },
-  // Nurgle lost points with riskier moves; it gained by standing in
-  // contact and by knocking down defenders in its carrier's way.
-  [RosterName.NURGLE]: { endInContact: 0, ownDown: 6, lane: 15 },
 };
 
 const ROSTERS = new Set<string>(Object.values(RosterName));
