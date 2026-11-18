@@ -15,6 +15,7 @@ import { isDeepStrictEqual } from "node:util";
 import { policySourceDigest, treeDigest } from "../policy-study/fingerprint";
 import { replayStudyTrace } from "../catalogue-study/replay";
 import type { PolicyJob } from "../policy-study/schedule";
+import { DEFAULT_WEIGHTS } from "../../../src/simulation/ai/weights";
 
 interface Inputs {
   sourceDigest: string;
@@ -24,15 +25,29 @@ interface Inputs {
   opponent?: string;
   jobs: PolicyJob[];
   variants: unknown[];
+  candidate?: string;
+  candidateWeights?: unknown;
+  candidateRosters?: unknown;
 }
 const atomic = (file: string, data: unknown) => {
   writeFileSync(file + ".tmp", JSON.stringify(data));
   renameSync(file + ".tmp", file);
 };
+/**
+ * The candidate a run played: its kind and weights, which come from a
+ * weights file rather than the source. A manifest written before a field
+ * existed played its default, as `run.ts` assumes when it resumes.
+ */
+const candidateOf = (m: Inputs) => ({
+  kind: m.candidate ?? "planner",
+  weights: m.candidateWeights ?? DEFAULT_WEIGHTS,
+  rosters: m.candidateRosters ?? {},
+});
 const sameInput = (a: Inputs, b: Inputs) =>
   a.node === b.node &&
   a.baselineDigest === b.baselineDigest &&
   a.opponent === b.opponent &&
+  isDeepStrictEqual(candidateOf(a), candidateOf(b)) &&
   isDeepStrictEqual(a.jobs, b.jobs) &&
   isDeepStrictEqual(a.variants, b.variants);
 
@@ -65,7 +80,7 @@ export function validateRecovery(
   }
   if (!sameInput(old, current))
     throw new Error(
-      "Recovery requires identical runtime, builds, schedule and frozen opponent"
+      "Recovery requires identical runtime, candidate weights, builds, schedule and frozen opponent"
     );
   return policyDigest;
 }
