@@ -21,6 +21,11 @@ export const DEFAULT_WEIGHTS = {
   advance: 8,
   /** Per tackle zone on the carrier's square. */
   carrierMarked: 30,
+  /**
+   * Above 0, a mark on the carrier counts by the chance its block knocks
+   * the carrier down, so a sturdy carrier walks its cage into contact.
+   */
+  cageWalk: 0,
   /** Per opponent who could reach and hit an uncaged carrier next turn. */
   carrierThreat: 4,
   /** A carrier on the sideline, where a push goes into the crowd. */
