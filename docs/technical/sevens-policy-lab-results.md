@@ -170,6 +170,26 @@ The best planner is level, with 3,794 touchdowns against 3,774. It made 1,959 Fo
 
 Published report: [Sevens third review](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-third-review-2026-11-18%2Findex.html), Blood Bowl, `sevens-third-review-2026-11-18/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-441f69a31378-vs-b0f7458e07c4` on Daily Driver.
 
+## Team scorecard and the cage march, 18 November
+
+Each lab stage now writes a team scorecard. It holds each roster to the standard of its tier: a tier-one team should take at least 50% of points from an average opponent and score in at least 55% of its games. The scorecard fits that strength from all of a roster's games. The schedule pairs each roster with five to eight others, only 103 of 465 pairings. Skaven met only rosters the AI plays badly, so its raw 81% carried eight points of schedule. Fitted, it is 73%, under the 75% ceiling, and its profile follows the 2025 roster. Its AI was left alone.
+
+On the release before this change, ten rosters missed their standard. The slow, strong ones failed the same way. Dwarfs, Nurgle and Tomb Kings lost the ball no more often than anyone else, but gained 1.6 to 1.75 squares a turn with it, against 2.3 to 3.5 for teams that score. Each still held the ball at the end of about 120 halves. Two turns in three started with the carrier marked, and those turns gained nothing six times in ten. Grinder-only runs of 1,920 games tried four weights. A cage corner worth 4 instead of 8 took 51.5% against the default, and the grinders' points rose from 39.4% to 42.5%. Corners worth 2 or 0 gave the gain back.
+
+Candidate source `549cc320f9d6` played main, `e9a8e8036887`. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   51.16% | 50.16% to 52.15%     |
+| Standard, against the frozen planner | 5,184 |                   48.28% | 47.34% to 49.25%     |
+| Persistent fixtures                  | 1,296 |                   49.46% | 47.53% to 51.47%     |
+| Heuristic control                    |   432 |                   92.25% | 90.05% to 94.10%     |
+| Hard sentinels                       |    16 | 25.00%, descriptive only | No strength estimate |
+
+The best planner gains, with 3,977 touchdowns against 3,889. Black Orc gained 8.3 points, Chaos Dwarf 5.5, Orc 5.2 and Nurgle 3.4. Dwarf moved 0.8 and Tomb Kings lost 3.4. Each roster plays 128 to 256 games a policy, so a single roster's figure can be off by about five points. Eight rosters still miss their standard. Dwarf and Nurgle score in under a third of their games, so the cage march is only part of their fix.
+
+The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-549cc320f9d6-vs-e9a8e8036887` on Daily Driver. The grinder runs stay at `/Users/joelloyd/tmp/bb7-grind-fa117137085a`.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
