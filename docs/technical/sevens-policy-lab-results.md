@@ -136,6 +136,24 @@ The best planner is level: 3,620 touchdowns against 3,625. Deep runs fell from 1
 
 Published report: [Sevens review fixes](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-review-fixes-2026-11-18%2Findex.html), Blood Bowl, `sevens-review-fixes-2026-11-18/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-849cac0a0b57-vs-f25c6fcac812` on Daily Driver.
 
+## Second review fixes, 18 November
+
+A second review found two more faults. The deep receiver was ranked before anyone checked it could reach a deep square, so a slow catcher in the cage kept a faster one home. Only team-mates that already stand deep or can safely reach a deep square are ranked now. A spotted Foul was also priced as losing the fouler every time. The engine always Argues the Call, and a 5 or 6 keeps the player on the pitch. Bribery and Corruption re-rolls a first 1, and a held Bribe keeps the player on a 2+. A spotted Foul still costs the turn. Candidate source `b0f7458e07c4` played `849cac0a0b57`, the first review fixes. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 69-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   50.38% | 49.87% to 50.88%     |
+| Standard, against the frozen planner | 5,184 |                   49.80% | 48.78% to 50.85%     |
+| Persistent fixtures                  | 1,296 |                   49.92% | 49.04% to 50.77%     |
+| Heuristic control                    |   432 |                   92.71% | 90.62% to 94.56%     |
+| Hard sentinels                       |    16 | 28.13%, descriptive only | No strength estimate |
+
+The best planner is level, with 3,706 touchdowns against 3,663. Standard comes within 0.6 points of the best planner, its closest result so far. Deep runs rose from 782 to 1,026.
+
+Fouls rose from 816 to 2,038 in the confirmation stage, and 270 of them got the fouler sent off. Players of 50k or less made 91% of them: Gnoblars 318 times, Tomb Kings Skeletons 168 and Rotters 151. In Standard, a Tomb Guardian and an Underworld Troll fouled four times between them. Cheaper Send-offs let a big guy's Foul come out just above zero: an Ogre whose team holds a Bribe prices one at 3.69 against soft armour. The bash lean then picked it. `50e16175` stops a big guy fouling at all. It touches only those Fouls, so this acquisition stands for the rest.
+
+Published report: [Sevens argued calls](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-argued-calls-2026-11-18%2Findex.html), Blood Bowl, `sevens-argued-calls-2026-11-18/`. The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-b0f7458e07c4-vs-849cac0a0b57` on Daily Driver.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
