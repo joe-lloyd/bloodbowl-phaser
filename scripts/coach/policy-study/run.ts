@@ -20,7 +20,8 @@ import { createPlannerCoach } from "../../../src/simulation/ai/planner";
 import { STANDARD_VARIETY } from "../../../src/simulation/ai/gamePlans";
 import {
   DEFAULT_WEIGHTS,
-  parseWeights,
+  ROSTER_WEIGHTS,
+  parseWeightFile,
 } from "../../../src/simulation/ai/weights";
 import type { Coach } from "../../../src/simulation/coach";
 import { policySchedule, limitPolicyBlocks } from "./schedule";
@@ -57,19 +58,21 @@ if (!["planner", "standard"].includes(candidateKind))
   throw new Error("Unsupported candidate");
 /** Candidate weights for an ablation: a JSON file of overrides. */
 const weightsFile = flag("weights", "");
-const candidateWeights = weightsFile
-  ? parseWeights(JSON.parse(readFileSync(resolve(weightsFile), "utf8")))
-  : DEFAULT_WEIGHTS;
+const { weights: candidateWeights, rosters: candidateRosters } = weightsFile
+  ? parseWeightFile(JSON.parse(readFileSync(resolve(weightsFile), "utf8")))
+  : { weights: DEFAULT_WEIGHTS, rosters: ROSTER_WEIGHTS };
 const candidateCoach = () =>
   candidateKind === "standard"
     ? createPlannerCoach({
         name: "standard",
         variety: STANDARD_VARIETY,
         weights: candidateWeights,
+        rosters: candidateRosters,
       })
     : createPlannerCoach({
         name: "planner-skill-plans",
         weights: candidateWeights,
+        rosters: candidateRosters,
       });
 
 function atomic(file: string, data: unknown) {
@@ -274,6 +277,7 @@ if (args.includes("--worker")) {
     opponent,
     candidate: candidateKind,
     candidateWeights,
+    candidateRosters,
     workers,
     variants,
     inventory,
@@ -300,6 +304,8 @@ if (args.includes("--worker")) {
       (previous.candidate ?? "planner") !== manifest.candidate ||
       JSON.stringify(previous.candidateWeights ?? DEFAULT_WEIGHTS) !==
         JSON.stringify(candidateWeights) ||
+      JSON.stringify(previous.candidateRosters ?? {}) !==
+        JSON.stringify(candidateRosters) ||
       JSON.stringify(previous.jobs) !== JSON.stringify(jobs)
     )
       throw new Error(

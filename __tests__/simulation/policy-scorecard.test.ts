@@ -70,8 +70,13 @@ describe("policy-lab team scorecard", () => {
       ["Skaven", 1, 2, 0.75, 0.625, 1, "meets"],
       ["Dwarf", 2, 2, 0.25, 0.375, 0.5, "below"],
     ]);
+    // Dwarf took 0 under the candidate and 0.5 under the frozen policy.
+    expect(cards.map((c) => [c.roster, c.change])).toEqual([
+      ["Skaven", -0.5],
+      ["Dwarf", -0.5],
+    ]);
     const dwarf = cards[1];
-    expect(dwarf.misses).toEqual(["strength 38% under 45%"]);
+    expect(dwarf.misses).toEqual(["strength 37.5% under 45%"]);
     expect(dwarf.touchdownsAgainst).toBe(1);
     expect(dwarf.foulsPerGame).toBe(1.5);
     expect(dwarf.sentOff).toBeCloseTo(1 / 3);

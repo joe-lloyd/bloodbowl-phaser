@@ -38,7 +38,12 @@ import {
 import { launchReady } from "./teammateActivations";
 import type { Activation } from "./activations";
 import { feedingCost, moveFeedingCost, unfedChance } from "./feeding";
-import { exposureCost, lateMoveValue, scoringValue } from "./latePlans";
+import {
+  exposureCost,
+  lateMoveValue,
+  markRisk,
+  scoringValue,
+} from "./latePlans";
 
 /** The four corners of a square, in the order a cage is counted. */
 export const CORNERS = [
@@ -112,7 +117,8 @@ function carrierCover(c: Context, at: Square, carrier: Player): number {
   const exposed = cage >= 3 ? 0 : 1 - cage / 4;
   const edge = Math.min(at.y, HEIGHT - 1 - at.y);
   return (
-    -board.marks[key(at)] * w.carrierMarked -
+    -(w.cageWalk > 0 ? markRisk(c, carrier, at) : board.marks[key(at)]) *
+      w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner -
     (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0) -

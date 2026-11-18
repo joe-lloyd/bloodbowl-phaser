@@ -14,6 +14,7 @@ import {
   key,
   neighbours,
   standing,
+  toGoal,
 } from "./board";
 import { BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
 import { Route, movesLeft } from "./routes";
@@ -21,6 +22,26 @@ import { Context, gamble } from "./activationContext";
 import type { Activation } from "./activations";
 
 const blockValidator = new BlockValidator();
+
+/**
+ * Knocking down an opponent beside our carrier frees it to move; one
+ * standing in the lane ahead of it, within its move, opens the way.
+ */
+function ourCarrierBonus(
+  c: Context,
+  carrier: Player,
+  target: Player,
+  near: number
+): number {
+  const { board, w } = c;
+  if (near === 1) return w.freeCarrier;
+  const from = carrier.gridPosition!;
+  const at = target.gridPosition!;
+  const ahead = toGoal(board, from) - toGoal(board, at);
+  const lane =
+    ahead > 0 && ahead <= carrier.stats.MA + 2 && Math.abs(at.y - from.y) <= 2;
+  return (near <= 2 ? w.knockdown : 0) + (lane ? w.lane : 0);
+}
 
 /** How much `attacker` knocking this opponent down is worth. */
 export function targetValue(
@@ -35,13 +56,11 @@ export function targetValue(
   const near = carrier
     ? distance(target.gridPosition!, carrier.gridPosition!)
     : 99;
-  // Near our carrier: a threat to it. Next to theirs: a cage wall that,
-  // once down, opens the carrier to the next hit.
+  // Near our carrier: a threat to it, or in its way. Next to theirs: a cage
+  // wall that, once down, opens the carrier to the next hit.
   const bonus =
     carrier?.teamId === board.us
-      ? near <= 2
-        ? w.knockdown
-        : 0
+      ? ourCarrierBonus(c, carrier, target, near)
       : near === 1
         ? w.cageBreak
         : 0;

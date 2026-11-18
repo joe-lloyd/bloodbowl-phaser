@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { labInventory } from "../../scripts/coach/policy-lab/teams";
 import { validateRecovery } from "../../scripts/coach/policy-lab/recover";
+import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import { policySourceDigest } from "../../scripts/coach/policy-study/fingerprint";
 import { coverageInventory } from "../../scripts/coach/policy-lab/gate";
 import {
@@ -128,6 +129,34 @@ describe("repeatable Sevens policy lab", () => {
           current
         )
       ).toThrow("identical");
+      // Candidate weights come from a file, not the source, so the
+      // manifest must match them too.
+      for (const candidate of [
+        { candidateRosters: { Halfling: { safeMove: 0.82 } } },
+        { candidateWeights: { ...DEFAULT_WEIGHTS, cageWalk: 0 } },
+        { candidate: "standard" },
+      ])
+        expect(() =>
+          validateRecovery(
+            manifest,
+            { ...manifest, ...candidate },
+            old,
+            current
+          )
+        ).toThrow("identical");
+      expect(
+        validateRecovery(
+          manifest,
+          {
+            ...manifest,
+            candidate: "planner",
+            candidateWeights: DEFAULT_WEIGHTS,
+            candidateRosters: {},
+          },
+          old,
+          current
+        )
+      ).toHaveLength(64);
       const changed = { ...manifest, jobs: [policySchedule(variants)[0]] };
       expect(() => validateRecovery(manifest, changed, old, current)).toThrow(
         "schedule"

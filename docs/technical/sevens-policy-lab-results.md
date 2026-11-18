@@ -190,6 +190,28 @@ The best planner gains, with 3,977 touchdowns against 3,889. Black Orc gained 8.
 
 The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-549cc320f9d6-vs-e9a8e8036887` on Daily Driver. The grinder runs stay at `/Users/joelloyd/tmp/bb7-grind-fa117137085a`.
 
+## Team tactics and the cage walk, 18 November
+
+Replays of the 5,184 confirmation games on `549cc320f9d6` showed why the slow teams fall short. Dwarfs ended about 40% of their halves holding the ball without scoring. On turn six their carrier was out of scoring reach 74% of the time, against 20% for Skaven. In reach, Dwarfs scored 67% of the time. Their average distance to go fell only from 10.9 to 10.4 squares between turns three and five. On 95 of 95 Dwarf end-of-turns with an idle carrier, the planner had offered the carrier no move at all: every square ahead was next to a defender, and each mark cost a flat 30 points.
+
+A roster can now play with its own weights, `ROSTER_WEIGHTS`, and a lab weights file can carry a `rosters` object. Focused runs of 2,432 games played the eight rosters below their standard, each change against main. With no change, both policies play identical games, so every difference comes from the change. Twenty-one weight sets, including two new block weights, `freeCarrier` and `lane`, mostly moved a roster by about two points either way on their first seed. The best of them did not hold up on fresh seeds: Dwarf, Nurgle, Vampire and Snotling tweaks came out at -0.8, -0.8, -0.3 and -3.9 points over 576 to 768 games a roster. Only Halfling kept a gain. Taking dodges at 82% instead of 92% gained it about five points over 640 games a side on seeds that did not pick it, and it is the one roster tweak shipped. The two block weights ship at values that reproduce the old play.
+
+The cage walk prices each mark on the carrier by the chance that defender's block knocks it down, with actual skills and assists, against an even one-die block. A carrier with Block that a hit rarely downs can step into contact; a fragile one still keeps clear. Over three seeds of 5,184 paired games it took 50.53% of points against the planner without it. Halfling gained 4.0 points, Tomb Kings 2.5, Dwarf 2.3, Chaos Dwarf 2.0 and Vampire 1.8. Skaven lost 0.8. It does not finish the job for Dwarfs: by the time the carrier could step forward, the players who would hold its new corners have often spent their activation on blocks.
+
+Candidate source `056ff8c8c10a` played main, `0f9a59492628`. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 77-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   50.37% | 49.78% to 50.98%     |
+| Standard, against the frozen planner | 5,184 |                   48.41% | 47.43% to 49.35%     |
+| Persistent fixtures                  | 1,296 |                   49.81% | 48.65% to 51.00%     |
+| Heuristic control                    |   432 |                   93.40% | 91.32% to 95.25%     |
+| Hard sentinels                       |    16 | 25.00%, descriptive only | No strength estimate |
+
+Confirmation agrees with the three focused seeds, though on its own it cannot rule out parity. In the same games, Halfling gained 9.0 points, Snotling 3.1, Vampire 2.1, Black Orc 1.6 and Dwarf 1.0. Tomb Kings lost 1.8 and Nurgle 1.0. Twenty-one rosters meet their standard, against 22 on `549cc320f9d6`. Shambling Undead and Snotling now meet theirs; Norse, Orc and Black Orc fell under. Their change against the frozen AI in the same games was 0.0, -0.5 and +1.6, so the schedule moved them, not the policy. Each run draws a fresh schedule, and a roster's strength interval spans about 12 points, so one scorecard cannot show a two-point gain. The scorecard now prints each roster's change against the frozen policy in the same games beside its strength.
+
+The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-056ff8c8c10a-vs-0f9a59492628` on Daily Driver. The focused runs stay under `/Users/joelloyd/tmp/bb7-tactics*`.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.

@@ -24,7 +24,12 @@ import {
 } from "./activations";
 import { Board, WIDTH, readBoard } from "./board";
 import { decide } from "./decisions";
-import { DEFAULT_WEIGHTS, Weights } from "./weights";
+import {
+  DEFAULT_WEIGHTS,
+  ROSTER_WEIGHTS,
+  RosterWeights,
+  Weights,
+} from "./weights";
 import { RollTarget } from "./chance";
 import { enumerateLegalActions } from "../../headless/legalActions";
 import type { HeadlessGame } from "../../headless/HeadlessGame";
@@ -299,6 +304,8 @@ interface Choosing {
 export function createPlannerCoach(
   options: {
     weights?: Weights;
+    /** Each roster's tweaks on top of `weights`. */
+    rosters?: RosterWeights;
     name?: string;
     skillPlans?: boolean;
     /** Vary close declarations and draw a game plan for each match. */
@@ -328,9 +335,13 @@ export function createPlannerCoach(
     remember,
     async choose(context: CoachContext): Promise<CoachChoice> {
       const chosen = choosing(context);
-      const weights = chosen?.plan.weights
-        ? { ...w, ...chosen.plan.weights }
-        : w;
+      const { team1, team2 } = context.game.ctx;
+      const team = team1.id === context.point.teamId ? team1 : team2;
+      const own = (options.rosters ?? ROSTER_WEIGHTS)[team.rosterName];
+      const weights =
+        own || chosen?.plan.weights
+          ? { ...w, ...own, ...chosen?.plan.weights }
+          : w;
       return (
         planChoice(
           context,

@@ -107,6 +107,41 @@ export function lateMoveValue(
   return ordinary + route.chance * c.w.touchdown;
 }
 
+/**
+ * How many plain marks the opponents beside `at` amount to for our
+ * carrier: each counts by the chance its block knocks the carrier down,
+ * with actual skills and assists, against the even chance of a one-die
+ * block on a carrier with neither Block nor Dodge.
+ */
+export function markRisk(c: Context, carrier: Player, at: Square): number {
+  const { board } = c;
+  const moved = { ...carrier, gridPosition: at };
+  const everyone = board.everyone.map((p) => (p.id === carrier.id ? moved : p));
+  const has = (s: SkillType) => hasSkill(carrier.skills, s);
+  let marks = 0;
+  for (const opponent of board.theirs) {
+    if (!hasTackleZone(opponent) || distance(opponent.gridPosition!, at) !== 1)
+      continue;
+    const hit = validator.analyzeBlock(
+      opponent,
+      moved,
+      everyone,
+      opponent.teamId
+    );
+    const theirs = (s: SkillType) => hasSkill(opponent.skills, s);
+    // Tackle cancels Dodge on a stumble; Wrestle puts a Block carrier down
+    // on Both Down, and a carrier put down loses the ball.
+    const dodges = has(SkillType.DODGE) && !theirs(SkillType.TACKLE);
+    const blocks = has(SkillType.BLOCK) && !theirs(SkillType.WRESTLE);
+    const perDie = (1 + (dodges ? 0 : 1) + (blocks ? 0 : 1)) / 6;
+    const down = hit.isUphill
+      ? perDie ** hit.diceCount
+      : 1 - (1 - perDie) ** hit.diceCount;
+    marks += down / 0.5;
+  }
+  return marks;
+}
+
 /** The most damaging adjacent reply, including actual strength and assists. */
 export function exposureCost(c: Context, player: Player, at: Square): number {
   const { board } = c;

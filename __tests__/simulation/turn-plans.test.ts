@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
+import { RosterName } from "../../src/types/Team";
 import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
+import type { Weights } from "../../src/simulation/ai/weights";
 import {
   GAME_PLANS,
   STANDARD_VARIETY,
@@ -237,6 +239,29 @@ async function pressedCarrier(
   return { subject, declared };
 }
 
+describe("a roster's own weights", () => {
+  // Scenario teams are both Human.
+  it("plays them for that roster", async () => {
+    const { subject, declared } = await pressedCarrier(
+      [],
+      createPlannerCoach({ rosters: { [RosterName.HUMAN]: { flank: 3 } } })
+    );
+
+    expect(declared).toEqual([
+      `${subject.ctx.team1.players[1].id}: moves to flank`,
+    ]);
+  });
+
+  it("leaves every other roster on the defaults", async () => {
+    const { declared } = await pressedCarrier(
+      [],
+      createPlannerCoach({ rosters: { [RosterName.ORC]: { flank: 3 } } })
+    );
+
+    expect(declared.filter((d) => d.endsWith("moves to flank"))).toEqual([]);
+  });
+});
+
 describe("flank setup, under Standard's flank game plan", () => {
   it("sends a runner wide of a pressed carrier, to the side the defence left", async () => {
     const { subject, declared } = await pressedCarrier([]);
@@ -278,5 +303,99 @@ describe("flank setup, under Standard's flank game plan", () => {
     expect(declared.filter((d) => d.endsWith("moves to flank"))).toEqual([
       `${subject.ctx.team1.players[1].id}: moves to flank`,
     ]);
+  });
+});
+
+describe("blocks that open the way for our carrier", () => {
+  // Our carrier at (8,5) has acted, marked by one defender at (9,5). Our
+  // player at (10,4) can hit that marker, or a defender at (11,3) standing
+  // in the carrier's lane, three squares ahead.
+  async function hitOn(coach: Coach) {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, hasBall: true },
+        { playerIndex: 1, x: 10, y: 4 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 11, y: 3 },
+      ],
+    });
+    const carrier = subject.ctx.team1.players[0];
+    await subject.execute({
+      type: "declare-action",
+      playerId: carrier.id,
+      action: "move",
+    });
+    await subject.execute({ type: "end-activation", playerId: carrier.id });
+    for (let i = 0; i < 6; i++) {
+      const { command } = await step(subject, coach);
+      if (command.type === "block") return command.defenderId;
+    }
+    return null;
+  }
+  const [marker, inLane] = ["team2-player-1", "team2-player-2"];
+  const coach = (w: Partial<Weights>) =>
+    createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
+
+  it("hits the defender marking the carrier by default", async () => {
+    expect(await hitOn(createPlannerCoach())).toBe(marker);
+  });
+
+  it("hits the defender in the carrier's lane when the lane is worth more", async () => {
+    expect(await hitOn(coach({ lane: 60 }))).toBe(inLane);
+  });
+
+  it("goes back to the marker when freeing the carrier is worth more still", async () => {
+    expect(await hitOn(coach({ lane: 60, freeCarrier: 90 }))).toBe(marker);
+  });
+});
+
+describe("cage walk", () => {
+  // A strength 4 carrier at (8,5) faces a wall at x=11: every square at
+  // x=10 is in contact with one defender, every square at x=9 is clear.
+  async function carrierEnd(
+    skills: SkillType[],
+    w: Partial<Weights>,
+    wall: SkillType[] = []
+  ) {
+    const subject = game({
+      turn: 2,
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, hasBall: true, skills, stats: { ST: 4 } },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 2, skills: wall },
+        { playerIndex: 1, x: 11, y: 5, skills: wall },
+        { playerIndex: 2, x: 11, y: 8, skills: wall },
+      ],
+    });
+    const coach = createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
+    for (let i = 0; i < 6; i++) {
+      const { command } = await step(subject, coach);
+      if (command.type === "end-activation" || command.type === "end-turn")
+        break;
+    }
+    return subject.ctx.team1.players[0].gridPosition!.x;
+  }
+
+  it("steps a carrier with Block up to the wall, which a one-die hit rarely downs", async () => {
+    expect(await carrierEnd([SkillType.BLOCK], { cageWalk: 1 })).toBe(10);
+  });
+
+  it("stops the same carrier short when every mark costs the same", async () => {
+    expect(await carrierEnd([SkillType.BLOCK], { cageWalk: 0 })).toBe(9);
+  });
+
+  it("stops a carrier with Block short of a wall that has Wrestle", async () => {
+    // Wrestle puts a Block carrier down on Both Down, and the ball with it.
+    expect(
+      await carrierEnd([SkillType.BLOCK], { cageWalk: 1 }, [SkillType.WRESTLE])
+    ).toBe(9);
+  });
+
+  it("stops a carrier without Block short even on the walk", async () => {
+    expect(await carrierEnd([], { cageWalk: 1 })).toBe(9);
   });
 });
