@@ -13,6 +13,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { TeamSpecialRule, playerValue } from "../../types/Team";
 import { hasTeamSpecialRule } from "../../game/rules/teamAllegiance";
 import { bribesLeft } from "../../game/inducements/bribes";
+import { isBigGuy } from "../../game/rules/rosterLegality";
 import { FoulValidator } from "../../game/validators/FoulValidator";
 import { Square, distance, key, neighbours, standing } from "./board";
 import type { Route } from "./routes";
@@ -180,10 +181,16 @@ function foulFrom(
 /**
  * The best Foul this player can walk to: each downed opponent, from the
  * reachable empty square beside it with the most assists. Only safe walks.
+ * A big guy never fouls: a game plan's lean could otherwise tip one in.
  */
 export function foulActivations(c: Context, fouler: Player): Activation[] {
   const { board } = c;
-  if (!standing(fouler) || !c.available.get(fouler.id)?.has("foul")) return [];
+  if (
+    !standing(fouler) ||
+    isBigGuy(fouler.keywords) ||
+    !c.available.get(fouler.id)?.has("foul")
+  )
+    return [];
   const routes = c.routes(fouler);
   const free = (s: Square) => {
     const occupant = board.occupant[key(s)];

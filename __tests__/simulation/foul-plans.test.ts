@@ -59,7 +59,11 @@ describe("foul odds", () => {
 });
 
 /** An Ogre team beside a Prone opponent, with the ball far away. */
-async function foulValues(fouler: PlayerPlacement) {
+async function foulValues(
+  fouler: PlayerPlacement,
+  target: Partial<PlayerPlacement> = {},
+  bribes = 0
+) {
   const subject = new HeadlessGame({
     seed: 1,
     scenario: {
@@ -73,6 +77,7 @@ async function foulValues(fouler: PlayerPlacement) {
         turn: 2,
         team1Roster: RosterName.OGRE,
         teamRerolls: { team1: 0, team2: 0 },
+        bribes: { team1: bribes },
         team1Placements: [
           fouler,
           // Two Ogres beside the target give the Foul its assists.
@@ -80,7 +85,13 @@ async function foulValues(fouler: PlayerPlacement) {
           { playerIndex: 2, x: 11, y: 6 },
         ],
         team2Placements: [
-          { playerIndex: 0, x: 10, y: 5, status: PlayerStatus.PRONE },
+          {
+            playerIndex: 0,
+            x: 10,
+            y: 5,
+            status: PlayerStatus.PRONE,
+            ...target,
+          },
           { playerIndex: 1, x: 16, y: 2, hasBall: true },
         ],
       },
@@ -108,6 +119,18 @@ describe("who fouls", () => {
     expect(gnoblar).not.toBeNull();
     expect(gnoblar!).toBeGreaterThan(0);
     // A big guy Sent-off is far too costly to risk: no foul worth offering.
+    expect(ogre).toBeNull();
+  });
+
+  it("never offers a big guy a Foul, even with a Bribe and soft armour", async () => {
+    // A held Bribe makes a Send-off unlikely and the armour always breaks,
+    // so the Gnoblar's Foul is worth a lot. The Ogre still gets none, so no
+    // game plan's lean can tip a big guy into fouling.
+    const soft = { stats: { AV: 3 }, skills: [] };
+    const gnoblar = await foulValues({ playerIndex: 3, x: 9, y: 5 }, soft, 1);
+    const ogre = await foulValues({ playerIndex: 0, x: 9, y: 5 }, soft, 1);
+
+    expect(gnoblar).toBeGreaterThan(10);
     expect(ogre).toBeNull();
   });
 
