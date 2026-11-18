@@ -204,6 +204,14 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
   const book = useRef(new RollBook());
   /** The throw the banner shows, so only its own end clears it. */
   const showing = useRef<number | null>(null);
+  /** Its text, held back while a match moment owns the spot. */
+  const held = useRef<RollBannerText | null>(null);
+  /** A match moment banner (not the turnover) is on screen. */
+  const momentOn = useRef(false);
+  const show = (text: RollBannerText | null) => {
+    held.current = text;
+    if (!momentOn.current) setBanner(text);
+  };
 
   useEventBus(eventBus, GameEventNames.ArmorRolled, (data) => {
     const player = playerOf(data.playerId);
@@ -234,7 +242,7 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
         book.current.forget(data.seq);
         if (showing.current === data.seq) {
           showing.current = null;
-          setBanner(null);
+          show(null);
         }
         return;
       case "thrown":
@@ -242,7 +250,7 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
         const text = book.current.text(data.seq, data.stage);
         if (!text) return;
         showing.current = data.seq;
-        setBanner(text);
+        show(text);
         return;
       }
       default: {
@@ -252,14 +260,17 @@ export function RollBanner({ eventBus }: { eventBus: IEventBus }) {
     }
   });
 
+  // A match moment owns the spot while it plays; the throw it covered
+  // shows again once it ends, if the dice are still up
   useEventBus(eventBus, GameEventNames.UI_PresentMoment, (moment) => {
-    if (moment && moment.kind !== "turnover") setBanner(null);
+    momentOn.current = !!moment && moment.kind !== "turnover";
+    setBanner(momentOn.current ? null : held.current);
   });
   useEventBus(eventBus, GameEventNames.PhaseChanged, ({ phase }) => {
     if (phase !== GamePhase.SETUP) return;
     book.current.clear();
     showing.current = null;
-    setBanner(null);
+    show(null);
   });
 
   if (!banner) return null;
