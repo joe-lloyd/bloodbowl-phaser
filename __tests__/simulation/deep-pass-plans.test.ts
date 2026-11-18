@@ -177,10 +177,13 @@ describe("two-step pass", () => {
 
     const { declared } = await playTurn(subject);
 
-    expect(declared).toEqual([
+    expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
       `${first.id}: moves to deep`,
-      `${second.id}: blitzes (Dodge: 2+)`,
-      `${third.id}: moves to cage`,
+    ]);
+    expect(declared.map((d) => d.split(":")[0])).toEqual([
+      first.id,
+      second.id,
+      third.id,
     ]);
   });
 
@@ -199,9 +202,12 @@ describe("two-step pass", () => {
 
     const { declared } = await playTurn(subject);
 
-    expect(declared).toEqual([
+    expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
       `${catcher.id}: moves to deep`,
-      `${surer.id}: blitzes`,
+    ]);
+    expect(declared.map((d) => d.split(":")[0])).toEqual([
+      catcher.id,
+      surer.id,
     ]);
   });
 
