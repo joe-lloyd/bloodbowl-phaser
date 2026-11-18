@@ -71,7 +71,7 @@ describe("policy-lab team scorecard", () => {
       ["Dwarf", 2, 2, 0.25, 0.375, 0.5, "below"],
     ]);
     const dwarf = cards[1];
-    expect(dwarf.misses).toEqual(["strength 38% under 45%"]);
+    expect(dwarf.misses).toEqual(["strength 37.5% under 45%"]);
     expect(dwarf.touchdownsAgainst).toBe(1);
     expect(dwarf.foulsPerGame).toBe(1.5);
     expect(dwarf.sentOff).toBeCloseTo(1 / 3);

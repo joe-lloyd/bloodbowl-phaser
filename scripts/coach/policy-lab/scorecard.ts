@@ -286,6 +286,9 @@ function signaturesOf(
     .slice(0, 3);
 }
 
+/** A share to a tenth of a percent, so a near miss never reads as a tie. */
+const tenth = (n: number) => `${(100 * n).toFixed(1)}%`;
+
 /** Whether a roster meets its tier's standard, and what it misses by. */
 function verdictOf(
   tier: Tier,
@@ -301,10 +304,10 @@ function verdictOf(
   const standard = STANDARDS[tier];
   const misses = [
     share < standard.points
-      ? `${judged} ${pct(share)} under ${pct(standard.points)}`
+      ? `${judged} ${tenth(share)} under ${pct(standard.points)}`
       : "",
     scores < standard.scores
-      ? `scores in ${pct(scores)} of games, under ${pct(standard.scores)}`
+      ? `scores in ${tenth(scores)} of games, under ${pct(standard.scores)}`
       : "",
   ].filter(Boolean);
   return { verdict: misses.length ? "below" : "meets", misses };
