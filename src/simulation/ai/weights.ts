@@ -113,7 +113,17 @@ export type RosterWeights = Partial<Record<RosterName, Partial<Weights>>>;
  * Each roster's own tweaks on top of the defaults, kept only where the lab
  * measured that roster doing better with them.
  */
-export const ROSTER_WEIGHTS: RosterWeights = {};
+export const ROSTER_WEIGHTS: RosterWeights = {
+  // A carrier that stands marked stalls the drive. These teams gained by
+  // taking dodges a team re-roll makes likely, at 82% instead of 92%.
+  [RosterName.DWARF]: { safeMove: 0.82, carrierMarked: 15 },
+  [RosterName.HALFLING]: { safeMove: 0.82 },
+  [RosterName.SNOTLING]: { safeMove: 0.82 },
+  [RosterName.VAMPIRE]: { safeMove: 0.82 },
+  // Nurgle lost points with riskier moves; it gained by standing in
+  // contact and by knocking down defenders in its carrier's way.
+  [RosterName.NURGLE]: { endInContact: 0, ownDown: 6, lane: 15 },
+};
 
 const ROSTERS = new Set<string>(Object.values(RosterName));
 
