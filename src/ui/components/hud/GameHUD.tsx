@@ -17,6 +17,7 @@ import { GameEventNames } from "../../../types/events";
 
 import { CoinFlipOverlay } from "./CoinFlipOverlay";
 import { WeatherOverlay } from "./WeatherOverlay";
+import { RollBanner } from "./RollBanner";
 import { SetupControls } from "./SetupControls";
 import { TargetRollPreview } from "./RollPreviews";
 import { ConfirmationModal } from "./ConfirmationModal";
@@ -311,6 +312,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const takeovers = (
     <>
       <DiceTray eventBus={eventBus} />
+      <RollBanner eventBus={eventBus} />
 
       {/* Full-screen overlays */}
       <WeatherOverlay eventBus={eventBus} />

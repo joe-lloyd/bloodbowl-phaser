@@ -6,7 +6,11 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { SendOffOperation } from "./SendOffOperation";
 import { InjuryOperation } from "./InjuryOperation";
-import { armourBroken, foldArmourRoll } from "./ArmourOperation";
+import {
+  announceArmour,
+  armourBroken,
+  foldArmourRoll,
+} from "./ArmourOperation";
 import { effectiveAV } from "../kickoff/driveEffects";
 import {
   holdsMeasure,
@@ -380,6 +384,18 @@ export class FoulOperation extends GameOperation {
     rolls = armourResult.rolls;
     // Dirty Player is decided here, before the waits below, and held.
     const { broken, dirtyPlayer, dirtyUsedOnArmour } = armourResult;
+    announceArmour(eventBus, {
+      playerId: target.id,
+      rollType: foulArmourRoll,
+      diceTeamId: target.teamId,
+      roll:
+        rolls[0] +
+        rolls[1] +
+        armourCtx.armourModifier +
+        (dirtyUsedOnArmour ? 1 : 0),
+      armor: av,
+      broken,
+    });
 
     const isNaturalDouble = rolls[0] === rolls[1];
     let spotted = isNaturalDouble;

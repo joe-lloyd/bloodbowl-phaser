@@ -400,7 +400,9 @@ export class ThrowTeammateOperation extends GameOperation {
     this.bounceIfCarried(gameService, context, teammate);
     teammate.gridPosition = undefined;
     teammate.status = PlayerStatus.PRONE;
-    await context.flowManager.runToRest(new InjuryOperation(teammate.id));
+    await context.flowManager.runToRest(
+      new InjuryOperation(teammate.id, { stunnedToReserves: true })
+    );
     // Removed from play, a Stunned player goes to the Reserves box, as a
     // Stunned player in the crowd does.
     if (gameService.getPlayerById(teammate.id)?.status === PlayerStatus.STUNNED)

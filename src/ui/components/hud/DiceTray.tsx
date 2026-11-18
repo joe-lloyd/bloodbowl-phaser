@@ -86,6 +86,10 @@ interface Queued {
   settled: boolean;
   /** Order thrown, from 1. */
   seq: number;
+  /** The roll's type and total, for UI_DiceThrow. Block dice have none. */
+  rollType?: string;
+  teamId?: string;
+  total?: number;
   /**
    * The throw ends in a 2D6 roll, such as armour or injury. It is read as a
    * total that decides what comes next, so no later roll joins it.
@@ -164,6 +168,20 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
     let thrown = 0;
     // Bumped when setup clears the tray, so a throw from before is dropped.
     let generation = 0;
+    /** Tell the HUD where one throw is, for banners that follow the dice. */
+    const throwStage = (
+      item: Queued,
+      stage: GameEventMap[GameEventNames.UI_DiceThrow]["stage"]
+    ) => {
+      if (!item.rollType) return;
+      eventBus.emit(GameEventNames.UI_DiceThrow, {
+        seq: item.seq,
+        rollType: item.rollType,
+        teamId: item.teamId,
+        total: item.total,
+        stage,
+      });
+    };
     const reportInAir = () => {
       const pending = [
         ...queue.current,
@@ -191,6 +209,7 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
       playing.current = true;
       shown = next;
       setCurrent(next);
+      throwStage(next, "thrown");
       try {
         const scene = await import("../../dice/diceScene");
         const handle = scene.playRoll(host.current, next.roll, {
@@ -231,6 +250,7 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
       next.settled = true;
       reportInAir();
       setCurrent({ ...next });
+      throwStage(next, "landed");
       inBurst = queue.current.length > 0;
       await new Promise<void>((resolve) => {
         release = resolve;
@@ -250,6 +270,7 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
       release = null;
       cutHold = null;
       if (round !== generation) return;
+      throwStage(next, "done");
       void playNext();
     };
 
@@ -257,6 +278,7 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
     // from the drive before is not this drive's roll.
     const onPhase = ({ phase }: { phase: GamePhase }) => {
       if (phase !== GamePhase.SETUP) return;
+      if (shown) throwStage(shown, "done");
       generation++;
       queue.current = [];
       throwing?.stop();
@@ -282,14 +304,18 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
         waiting.title = `${waiting.title} · ${item.title}`;
         waiting.result = `${waiting.result} · ${item.result}`;
         waiting.closed = item.closed;
-      } else if (first) queue.current.unshift(item);
-      else queue.current.push(item);
+      } else {
+        if (first) queue.current.unshift(item);
+        else queue.current.push(item);
+        throwStage(item, "queued");
+      }
       // Never fall far behind the game: drop the oldest waiting D6s and
       // keep the latest few. Block dice wait on a pick, so they stay.
       while (queue.current.length > MAX_QUEUE) {
         const oldest = queue.current.findIndex((q) => !q.block);
         if (oldest < 0) break;
-        queue.current.splice(oldest, 1);
+        const [dropped] = queue.current.splice(oldest, 1);
+        throwStage(dropped, "dropped");
       }
       if (!playing.current) void playNext();
       else if (shown && !shown.settled && !shown.block) throwing?.hurry();
@@ -307,6 +333,9 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
         roll: { ...dice, team },
         title: event.rollType,
         result: event.description || event.rollType,
+        rollType: event.rollType,
+        teamId: event.teamId,
+        total: event.total,
         teamName: teamName(team.key),
         settled: false,
         closed: dice.values.length > 1,
@@ -392,6 +421,9 @@ export function DiceTray({ eventBus }: { eventBus: EventBus }) {
       eventBus.off(GameEventNames.BlockDiceRolled, onBlockRolled);
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
       eventBus.off(GameEventNames.UI_BlockRollCancelled, onCancelled);
+      // A closed tray reports nothing more: the bus outlives this match
+      generation++;
+      release?.();
       throwing?.stop();
     };
   }, [eventBus]);

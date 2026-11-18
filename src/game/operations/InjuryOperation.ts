@@ -8,6 +8,7 @@ import { CasualtyCause } from "../rules/plagueRidden";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { foldTrigger, InjuryRollContext } from "../skills";
 import { offerApothecary } from "../inducements/apothecary";
+import { isFrog } from "../inducements/matchInducements";
 import { FlowContext } from "../core/GameFlowManager";
 
 /**
@@ -66,6 +67,28 @@ export async function resolveInjuryRoll(
  * - Update Player Status (STUNNED, KO, or a Casualty)
  * - On a Casualty, trigger CasualtyOperation with the table's result
  */
+/**
+ * The result the player suffers, for InjuryRolled: Zap! turns any
+ * casualty into Badly Hurt, as CasualtyOperation applies it.
+ */
+export function reportedInjury(
+  gameService: IGameService,
+  playerId: string,
+  result: InjuryResult
+): InjuryResult {
+  return isCasualty(result) && isFrog(gameService.getState(), playerId)
+    ? InjuryResult.BADLY_HURT
+    : result;
+}
+
+function isCasualty(result: InjuryResult): result is CasualtyType {
+  return (
+    result === InjuryResult.BADLY_HURT ||
+    result === InjuryResult.SERIOUSLY_HURT ||
+    result === InjuryResult.DEAD
+  );
+}
+
 export class InjuryOperation extends GameOperation {
   public readonly name = "InjuryOperation";
 
@@ -82,6 +105,8 @@ export class InjuryOperation extends GameOperation {
       casualtyIsBadlyHurt?: boolean;
       /** Stunned counts as Knocked-out (Ball & Chain, on the pitch). */
       stunnedIsKnockedOut?: boolean;
+      /** Off the pitch: the caller sends a Stunned player to the Reserves. */
+      stunnedToReserves?: boolean;
     } = {}
   ) {
     super();
@@ -120,9 +145,8 @@ export class InjuryOperation extends GameOperation {
     );
 
     // 3. Apply status
-    if (this.opts.stunnedIsKnockedOut && ctx.result === InjuryResult.STUNNED) {
-      ctx.result = InjuryResult.KO;
-    }
+    ctx.result = this.overridden(ctx.result);
+    this.report(gameService, eventBus, player, ctx.result);
     switch (ctx.result) {
       case InjuryResult.STUNNED:
         eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
@@ -162,6 +186,33 @@ export class InjuryOperation extends GameOperation {
     // Assuming service or managers handle the actual removal from pitch if status is KO/INJURED
   }
 
+  /** The caller's overrides: Ball & Chain's Stun, a Bloodlust bite's casualty. */
+  private overridden(result: InjuryResult): InjuryResult {
+    if (this.opts.stunnedIsKnockedOut && result === InjuryResult.STUNNED) {
+      return InjuryResult.KO;
+    }
+    if (this.opts.casualtyIsBadlyHurt && isCasualty(result)) {
+      return InjuryResult.BADLY_HURT;
+    }
+    return result;
+  }
+
+  /** Tell the HUD's roll banner what the player suffers. */
+  private report(
+    gameService: IGameService,
+    eventBus: FlowContext["eventBus"],
+    player: Player,
+    result: InjuryResult
+  ): void {
+    eventBus.emit(GameEventNames.InjuryRolled, {
+      playerId: player.id,
+      result: reportedInjury(gameService, player.id, result),
+      rollType: `Injury Roll (${player.playerName})`,
+      diceTeamId: player.teamId,
+      ...(this.opts.stunnedToReserves ? { stunnedToReserves: true } : {}),
+    });
+  }
+
   /** A Casualty leaves the pitch now; its Casualty Roll is queued next. */
   private casualty(
     context: FlowContext,
@@ -184,7 +235,7 @@ export class InjuryOperation extends GameOperation {
     flowManager.add(
       new CasualtyOperation(
         this.playerId,
-        this.opts.casualtyIsBadlyHurt ? InjuryResult.BADLY_HURT : result,
+        result,
         this.opts.causedById,
         this.opts.cause
       ),

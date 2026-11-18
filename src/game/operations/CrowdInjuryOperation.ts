@@ -16,7 +16,7 @@ import { GameState } from "../../types/GameState";
 import { InjuryResult } from "../controllers/InjuryController";
 import { CasualtyOperation } from "./CasualtyOperation";
 import { BounceOperation } from "./BounceOperation";
-import { resolveInjuryRoll } from "./InjuryOperation";
+import { reportedInjury, resolveInjuryRoll } from "./InjuryOperation";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { offerApothecary } from "../inducements/apothecary";
 
@@ -61,10 +61,15 @@ export class CrowdInjuryOperation extends GameOperation {
     await context.delay(800);
 
     // Injury by the Crowd: straight to the injury roll, no armour roll
-    const roll = gameService
-      .getDiceController()
-      .roll2D6(`Injury by the Crowd (${player.playerName})`);
+    const rollType = `Injury by the Crowd (${player.playerName})`;
+    const roll = gameService.getDiceController().roll2D6(rollType);
     const { result } = await resolveInjuryRoll(context, player, roll, 0);
+    eventBus.emit(GameEventNames.InjuryRolled, {
+      playerId: player.id,
+      result: reportedInjury(gameService, player.id, result),
+      rollType,
+      stunnedToReserves: true,
+    });
 
     // A player in the crowd is off the pitch whatever the result — every
     // branch moves them through the one location seam (the trailing

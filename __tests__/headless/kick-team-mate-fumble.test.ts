@@ -57,6 +57,20 @@ describe("Kick Team-mate fumble", () => {
     ]);
     expect(mate.gridPosition).toBeUndefined();
     expect(mate.status).toBe(PlayerStatus.RESERVE);
+    // The roll banner says where they went, not just Stunned
+    expect(
+      response.events
+        .filter((e) => e.name === "injuryRolled")
+        .map((e) => e.data)
+    ).toEqual([
+      {
+        playerId: mate.id,
+        result: "Stunned",
+        rollType: "Injury Roll (Human Lineman #2)",
+        diceTeamId: mate.teamId,
+        stunnedToReserves: true,
+      },
+    ]);
     expect(response.snapshot.activeTeamId).toBe("team2");
   });
 });

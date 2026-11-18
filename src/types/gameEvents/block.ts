@@ -13,9 +13,28 @@ export interface BlockGameEvents {
 
   [GameEventNames.ArmorRolled]: {
     playerId: string;
+    /** The roll with its modifiers. */
     roll: number;
+    /** The player's Armour Value this drive. */
     armor: number;
     broken: boolean;
+    /** The dice roll this decides, as named ("Armor Check" for a Stab). */
+    rollType: string;
+    /** The team whose dice they were. */
+    diceTeamId?: string;
+  };
+  [GameEventNames.InjuryRolled]: {
+    playerId: string;
+    result: import("../../game/controllers/InjuryController").InjuryResult;
+    /** The dice roll this decides, as named. */
+    rollType: string;
+    /** The team whose dice they were. */
+    diceTeamId?: string;
+    /**
+     * The player is off the pitch, so a Stunned result sends them to the
+     * Reserves: the crowd, a trapdoor, a fumbled Kick Team-mate.
+     */
+    stunnedToReserves?: true;
   };
 
   [GameEventNames.PlayerKnockedDown]: {
