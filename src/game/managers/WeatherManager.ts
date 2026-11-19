@@ -1,10 +1,9 @@
-import { IEventBus } from "../../services/EventBus";
-import { GameState } from "@/types/GameState";
+import { type IEventBus } from "../../services/EventBus";
+import { type GameState } from "@/types/GameState";
 import { GameEventNames } from "../../types/events";
 import { DiceController } from "../controllers/DiceController";
 import { weatherForRoll, type Weather } from "../rules/weather";
 
-/** Plain rulebook statement of what each weather result does (for the match log). */
 const WEATHER_EFFECT: Record<Weather, string> = {
   "Sweltering Heat":
     "At the end of each drive, roll a D3: each coach picks that many of their players on the pitch at random, and they miss the next drive in the Reserves.",
@@ -17,11 +16,18 @@ const WEATHER_EFFECT: Record<Weather, string> = {
 };
 
 export class WeatherManager {
+  private eventBus: IEventBus;
+  private state: GameState;
+  private diceController: DiceController;
   constructor(
-    private eventBus: IEventBus,
-    private state: GameState,
-    private diceController: DiceController
-  ) {}
+    eventBus: IEventBus,
+    state: GameState,
+    diceController: DiceController
+  ) {
+    this.eventBus = eventBus;
+    this.state = state;
+    this.diceController = diceController;
+  }
 
   public rollWeather(): Weather {
     const roll = this.diceController.roll2D6("Weather");

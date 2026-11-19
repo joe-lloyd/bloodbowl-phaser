@@ -1,8 +1,4 @@
-/**
- * A whole league season with every result reported by score only. The
- * computer spends its own teams' Treasuries after each fixture
- * (purchasePlanner.ts); a team a person coaches is left to them.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/firebase/config", () => ({
@@ -10,7 +6,7 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-import { createComputerTeam } from "../../src/competition/computerTeams";
+import { createComputerTeam } from "../fixtures/computerTeam";
 import {
   computeStandings,
   generateRoundRobin,
@@ -20,7 +16,10 @@ import {
   saveCompetition,
 } from "../../src/competition/repository";
 import { recordCompetitionFixture } from "../../src/competition/resultRecording";
-import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
+import {
+  type CompetitionEntrant,
+  type LeagueDoc,
+} from "../../src/competition/types";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import {
   getTeamById,
@@ -33,7 +32,7 @@ import { validateRosterLegality } from "../../src/game/rules/rosterLegality";
 import { draftListPlayers } from "../../src/game/rules/teamPricing";
 import { RNGService } from "../../src/services/rng/RNGService";
 import { InjuryType } from "../../src/types/Player";
-import { RosterName, Team } from "../../src/types/Team";
+import { RosterName, type Team } from "../../src/types/Team";
 
 function team(
   roster: RosterName,
@@ -42,8 +41,8 @@ function team(
   treasury: number,
   computer = true
 ): Team {
-  const built = createComputerTeam(roster, name, 0x335577, "advanced-league");
-  // Already playing: a league team below 7 got there through casualties
+  const built = createComputerTeam({ rosterName: roster, name: name, primaryColour: 0x335577, advancementMode: "advanced-league" });
+
   built.firstMatchPlayedAt = 1;
   built.players = built.players.slice(0, players);
   built.treasury = treasury;
@@ -88,7 +87,6 @@ async function league(teams: Team[]): Promise<LeagueDoc> {
   return doc;
 }
 
-/** Everything that makes a stored team illegal, or an empty list. */
 function illegal(stored: Team): string[] {
   const problems = validateRosterLegality(
     stored,
@@ -96,7 +94,7 @@ function illegal(stored: Team): string[] {
   ).map((violation) => violation.detail);
   const insignificant = validateInsignificant(draftListPlayers(stored));
   if (insignificant) problems.push(insignificant);
-  if (stored.treasury < 0) problems.push(`Treasury ${stored.treasury}`);
+  if (stored.treasury < 0) problems.push(`Treasury ${String(stored.treasury)}`);
   if (draftListPlayers(stored).length > 11) problems.push("over 11 players");
   const numbers = stored.players.map((player) => player.number);
   if (new Set(numbers).size !== numbers.length) problems.push("shared numbers");
@@ -115,8 +113,8 @@ beforeEach(() => {
 describe("a league season reported by score only", () => {
   it("leaves every computer team legal, solvent and able to field 7", async () => {
     const injured = team(RosterName.DWARF, "Karak Varn Hammers", 7, 100_000);
-    injured.players[0].injuries = [InjuryType.MISS_NEXT_GAME];
-    injured.players[1].injuries = [InjuryType.MISS_NEXT_GAME];
+    fixtureValue(injured.players[0]).injuries = [InjuryType.MISS_NEXT_GAME];
+    fixtureValue(injured.players[1]).injuries = [InjuryType.MISS_NEXT_GAME];
     const computerTeams = [
       team(RosterName.HUMAN, "Altdorf Avengers", 5, 150_000),
       team(RosterName.ORC, "Nuln Butchers", 4, 0),
@@ -134,19 +132,15 @@ describe("a league season reported by score only", () => {
       for (const fixture of doc.fixtures.filter((f) => f.round === round)) {
         if (!fixture.homeEntrantId || !fixture.awayEntrantId) continue;
         await recordCompetitionFixture(
-          {
+        {
+          context: {
             competitionType: "league",
             competitionId: doc.id,
             fixtureId: fixture.id,
-          },
-          rng.rollDie(4) - 1,
-          rng.rollDie(4) - 1,
-          undefined,
-          undefined,
-          { rng }
-        );
+          },homeScore: rng.rollDie(4)-1,awayScore: rng.rollDie(4)-1,progressedTeams: undefined,penalties: undefined,options: { rng }
+        }        );
         for (const built of computerTeams) {
-          const stored = getTeamById(built.id)!;
+          const stored = fixtureValue(getTeamById(built.id));
           expect(illegal(stored), `${stored.name} after ${fixture.id}`).toEqual(
             []
           );
@@ -157,21 +151,20 @@ describe("a league season reported by score only", () => {
     const finished = await getCompetition("league", doc.id);
     expect(finished?.status).toBe("complete");
     for (const built of computerTeams) {
-      const stored = getTeamById(built.id)!;
+      const stored = fixtureValue(getTeamById(built.id));
       expect(illegal(stored), stored.name).toEqual([]);
-      // Every computer team earned winnings, so none is left short
+
       expect(fitPlayers(stored).length, stored.name).toBeGreaterThanOrEqual(7);
-      // Its Expensive Mistakes were rolled after its own hiring
+
       expect(
         (stored.pendingDevelopment ?? []).map((entry) => entry.kind),
         stored.name
       ).not.toContain("expensive-mistakes");
     }
-    // The broke Orcs bought players with their winnings
-    expect(getTeamById(computerTeams[1].id)!.players.length).toBeGreaterThan(4);
 
-    // The team a person coaches: paid, but nothing bought or rolled for it
-    const stored = getTeamById(person.id)!;
+    expect(fixtureValue(getTeamById(fixtureValue(computerTeams[1]).id)).players.length).toBeGreaterThan(4);
+
+    const stored = fixtureValue(getTeamById(person.id));
     expect(stored.players).toEqual(personBefore.players);
     expect(stored.rerolls).toBe(personBefore.rerolls);
     expect(stored.apothecary).toBe(personBefore.apothecary);

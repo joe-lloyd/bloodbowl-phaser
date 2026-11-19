@@ -1,11 +1,4 @@
-/**
- * Host/guest sessions over an in-memory transport: the same scripted match
- * the headless suite plays, but with every command routed through the
- * network layer — host commands via HostSession.executeLocal, guest commands
- * via GuestSession.sendCommand. Ownership is in sessionsOwnership.test.ts and
- * the regressions in sessionsSync.test.ts.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase } from "../../src/types/GameState";
@@ -28,7 +21,7 @@ describe("networked sessions", () => {
       });
       const response = await probe.execute({
         type: "kick-ball",
-        playerId: probe.ctx.team1.players[0].id,
+        playerId: fixtureValue(probe.ctx.team1.players[0]).id,
         x: 14,
         y: 5,
       });
@@ -52,7 +45,7 @@ describe("networked sessions", () => {
     });
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
-      playerId: match.game.ctx.team1.players[0].id,
+      playerId: fixtureValue(match.game.ctx.team1.players[0]).id,
       x: 14,
       y: 5,
     });
@@ -65,35 +58,35 @@ describe("networked sessions", () => {
     const receiver = match.game.ctx.team2.players[0];
     const selected = await match.guest.sendCommand({
       type: "kickoff-select-player",
-      playerId: receiver.id,
+      playerId: fixtureValue(receiver).id,
     });
     expect(selected.ok).toBe(true);
     expect(selected.pendingDecision).toMatchObject({
-      selectedPlayerIds: [receiver.id],
+      selectedPlayerIds: [fixtureValue(receiver).id],
     });
 
     const moved = await match.guest.sendCommand({
       type: "kickoff-move-player",
-      playerId: receiver.id,
+      playerId: fixtureValue(receiver).id,
       x: 13,
-      y: receiver.gridPosition!.y,
+      y: fixtureValue(fixtureValue(receiver).gridPosition).y,
     });
     expect(moved.ok).toBe(true);
-    expect(receiver.gridPosition?.x).toBe(13);
+    expect(fixtureValue(receiver).gridPosition?.x).toBe(13);
     expect(
       moved.snapshot.teams
         .find((team) => team.id === match.guestTeamId)
-        ?.players.find((player) => player.id === receiver.id)?.position?.x
+        ?.players.find((player) => player.id === fixtureValue(receiver).id)?.position?.x
     ).toBe(13);
     expect(
       match.game
         .snapshot()
         .teams.find((team) => team.id === match.guestTeamId)
-        ?.players.find((player) => player.id === receiver.id)?.position
+        ?.players.find((player) => player.id === fixtureValue(receiver).id)?.position
     ).toEqual(
       moved.snapshot.teams
         .find((team) => team.id === match.guestTeamId)
-        ?.players.find((player) => player.id === receiver.id)?.position
+        ?.players.find((player) => player.id === fixtureValue(receiver).id)?.position
     );
 
     await match.guest.sendCommand({ type: "kickoff-confirm" });
@@ -106,23 +99,20 @@ describe("networked sessions", () => {
 
     const declared = await match.guest.sendCommand({
       type: "declare-action",
-      playerId: hander.id,
+      playerId: fixtureValue(hander).id,
       action: "handoff",
     });
     expect(declared.ok).toBe(true);
 
-    // The wire command carries a target player id, never a square.
     let response = await match.guest.sendCommand({
       type: "handoff",
-      playerId: hander.id,
-      targetId: receiver.id,
+      playerId: fixtureValue(hander).id,
+      targetId: fixtureValue(receiver).id,
     });
     expect(response.ok).toBe(true);
-    // A Hand-off is never intercepted — the only decision it can raise is
-    // the receiver's own Catch reroll, never an interception choice.
+
     expect(response.pendingDecision?.type).not.toBe("interception");
 
-    // Resolve any reroll the receiving Catch offers so the ball settles.
     for (let guard = 0; response.pendingDecision && guard < 5; guard++) {
       expect(response.pendingDecision.type).toBe("reroll");
       response = await match.guest.sendCommand({
@@ -131,8 +121,6 @@ describe("networked sessions", () => {
       });
     }
 
-    // The host's authoritative state and the response the guest received
-    // agree on where the ball landed — proxied by target id, not aimed.
     expect(response.snapshot.ballPosition).toEqual(
       match.game.snapshot().ballPosition
     );
@@ -149,7 +137,7 @@ describe("networked sessions", () => {
       });
       const response = await probe.execute({
         type: "kick-ball",
-        playerId: probe.ctx.team1.players[0].id,
+        playerId: fixtureValue(probe.ctx.team1.players[0]).id,
         x: 14,
         y: 5,
       });
@@ -173,12 +161,12 @@ describe("networked sessions", () => {
       scenario: kickoffInteractionScenario,
       seed: 1,
     });
-    // Deviates east 2 squares to the empty (16,5), then High Kick (2 + 3).
+
     for (const engine of [match.game, match.guestGame])
       forceDice(engine.ctx.rng, [5, 2, 2, 2, 3]);
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
-      playerId: match.game.ctx.team1.players[0].id,
+      playerId: fixtureValue(match.game.ctx.team1.players[0]).id,
       x: 14,
       y: 5,
     });
@@ -193,12 +181,12 @@ describe("networked sessions", () => {
         : undefined;
     expect(landing).toBeDefined();
 
-    const receiver = match.game.ctx.team2.players.find(
+    const receiver = fixtureValue(match.game.ctx.team2.players.find(
       (player) =>
         player.gridPosition &&
-        (player.gridPosition.x !== landing!.x ||
-          player.gridPosition.y !== landing!.y)
-    )!;
+        (player.gridPosition.x !== fixtureValue(landing).x ||
+          player.gridPosition.y !== fixtureValue(landing).y)
+    ));
 
     const selected = await match.guest.sendCommand({
       type: "kickoff-select-player",
@@ -209,8 +197,8 @@ describe("networked sessions", () => {
     const placed = await match.guest.sendCommand({
       type: "kickoff-place-player",
       playerId: receiver.id,
-      x: landing!.x,
-      y: landing!.y,
+      x: fixtureValue(landing).x,
+      y: fixtureValue(landing).y,
     });
     expect(placed.ok).toBe(true);
     expect(receiver.gridPosition).toEqual(landing);
@@ -228,7 +216,7 @@ describe("networked sessions", () => {
     const match = createMatch({ scenario: kickoffInteractionScenario, seed });
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
-      playerId: match.game.ctx.team1.players[0].id,
+      playerId: fixtureValue(match.game.ctx.team1.players[0]).id,
       x: 14,
       y: 5,
     });
@@ -239,30 +227,28 @@ describe("networked sessions", () => {
     });
 
     const kicker = match.game.ctx.team1.players[0];
-    expect(kicker.gridPosition).toEqual({ x: 5, y: 2 });
+    expect(fixtureValue(kicker).gridPosition).toEqual({ x: 5, y: 2 });
 
-    // The guest does not own this decision — its attempt to pick the
-    // kicking team's player must be rejected without mutating state.
     const denied = await match.guest.sendCommand({
       type: "kickoff-select-player",
-      playerId: kicker.id,
+      playerId: fixtureValue(kicker).id,
     });
     expect(denied.ok).toBe(false);
     expect(denied.reason).toBe("not-your-decision");
 
     const selected = await match.host.executeLocal({
       type: "kickoff-select-player",
-      playerId: kicker.id,
+      playerId: fixtureValue(kicker).id,
     });
     expect(selected.ok).toBe(true);
     const moved = await match.host.executeLocal({
       type: "kickoff-move-player",
-      playerId: kicker.id,
+      playerId: fixtureValue(kicker).id,
       x: 6,
       y: 1,
     });
     expect(moved.ok).toBe(true);
-    expect(kicker.gridPosition).toEqual({ x: 6, y: 1 });
+    expect(fixtureValue(kicker).gridPosition).toEqual({ x: 6, y: 1 });
 
     await match.host.executeLocal({ type: "kickoff-confirm" });
     expect(match.broadcasts.length).toBeGreaterThan(0);
@@ -273,7 +259,7 @@ describe("networked sessions", () => {
     const match = createMatch({ scenario: kickoffInteractionScenario, seed });
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
-      playerId: match.game.ctx.team1.players[0].id,
+      playerId: fixtureValue(match.game.ctx.team1.players[0]).id,
       x: 14,
       y: 5,
     });
@@ -296,14 +282,12 @@ describe("networked sessions", () => {
     });
     expect(confirmed.pendingDecision).toMatchObject({
       type: "kickoff-event",
-      charge: { activePlayerId: chargers[0].id },
+      charge: { activePlayerId: fixtureValue(chargers[0]).id },
     });
 
-    // The kicking (host) team owns every Charge activation — the guest may
-    // not act in its place even by naming one of the host's own players.
     const deniedDeclare = await match.guest.sendCommand({
       type: "declare-action",
-      playerId: chargers[0].id,
+      playerId: fixtureValue(chargers[0]).id,
       action: "move",
     });
     expect(deniedDeclare.ok).toBe(false);
@@ -311,17 +295,17 @@ describe("networked sessions", () => {
 
     const declared = await match.host.executeLocal({
       type: "declare-action",
-      playerId: chargers[0].id,
+      playerId: fixtureValue(chargers[0]).id,
       action: "move",
     });
     expect(declared.ok).toBe(true);
     const ended = await match.host.executeLocal({
       type: "end-activation",
-      playerId: chargers[0].id,
+      playerId: fixtureValue(chargers[0]).id,
     });
     expect(ended.pendingDecision).toMatchObject({
       type: "kickoff-event",
-      charge: { activePlayerId: chargers[1].id },
+      charge: { activePlayerId: fixtureValue(chargers[1]).id },
     });
   });
 
@@ -340,9 +324,9 @@ describe("networked sessions", () => {
       })
     ).toBe(GamePhase.GAME_OVER);
     expect(commandCount).toBeLessThan(600);
-    // The guest spectated the host's play via broadcasts
+
     expect(match.broadcasts.length).toBeGreaterThan(0);
-    // Nothing forced a resync during a clean match
+
     expect(match.resyncs).toBe(0);
   }, 60_000);
 });

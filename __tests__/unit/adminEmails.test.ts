@@ -1,8 +1,3 @@
-/**
- * The e2e-online lane makes every emulator account an admin with
- * VITE_ADMIN_EMAILS=*, so its tests can open /sand-box. The wildcard only
- * counts against the local emulators: a deployed build keeps its list.
- */
 import { describe, expect, it } from "vitest";
 import { isAdminEmail } from "../../src/firebase/admin";
 
@@ -42,7 +37,7 @@ describe("admin emails", () => {
   it("never trusts an address nobody has proven, since anyone can sign up with it", () => {
     expect(isAdminEmail("joe.lloyd.22.24@gmail.com", {}, false)).toBe(false);
     expect(isAdminEmail("joe.lloyd.22.24@gmail.com", {}, true)).toBe(true);
-    // The emulator lane's wildcard still opens the tools to any test account
+
     expect(isAdminEmail("ostrich.lion.428@example.com", EMULATOR, false)).toBe(
       true
     );

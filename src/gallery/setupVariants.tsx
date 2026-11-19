@@ -1,7 +1,3 @@
-/**
- * Gallery variants for the setup panel: the checklist, placing players and a
- * short squad.
- */
 import { GameEventNames } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { HUDLayout } from "../ui/components/hud/HUDLayout";
@@ -21,15 +17,11 @@ export const SETUP_VARIANTS: Variant[] = [
     ),
     drive: (fx) =>
       later(30, () => {
-        const restrictions = new SetupValidator().validateFormation(
-          [
+        const restrictions = new SetupValidator().validateFormation({ positions: [
             { playerId: fx.player(1, 0).id, x: 6, y: 3 },
             { playerId: fx.player(1, 1).id, x: 6, y: 5 },
             { playerId: fx.player(1, 2).id, x: 4, y: 0 },
-          ],
-          true,
-          7
-        ).restrictions;
+          ], isTeam1: true, availablePlayerCount: 7 }).restrictions;
         fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
           subPhase: SubPhase.SETUP_KICKING,
           activeTeam: fx.team1,
@@ -49,7 +41,6 @@ export const SETUP_VARIANTS: Variant[] = [
       }),
   },
 
-  // ---- Setup
   {
     id: "setup-incomplete",
     section: "Setup panel",

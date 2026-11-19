@@ -1,4 +1,3 @@
-/** Budgeted role packages and genuine two-roll Random Primary development. */
 import { advancedInventory, teamFromVariant } from "../advanced-study/teams";
 import type { Variant } from "../advanced-study/teams";
 import {
@@ -24,7 +23,6 @@ export interface LabVariant extends Variant {
   developmentBudget: number;
 }
 
-/** Local role fit has no global coverage bonus or catalogue-order dependency. */
 type Role = "handler" | "passer" | "receiver" | "hitter";
 function preference(player: Player, skill: SkillType, role: Role): number {
   const carrier = [SkillType.SURE_HANDS, SkillType.DODGE, SkillType.BLOCK];
@@ -87,7 +85,7 @@ function chooseSkill(
     });
     if (roll.kind !== "random-primary")
       throw new Error("Unexpected advancement roll");
-    // The game offers two rolls. Choose the better role fit, with stable ties.
+
     skill = [...roll.candidates].sort(
       (a, b) => preference(p, b.skill, role) - preference(p, a.skill, role)
     )[0].skill;
@@ -127,7 +125,7 @@ function developPlayer(
 function develop(template: string, index: number, random: boolean): LabVariant {
   const team = stabilizeIds(createComputerTeamFromTemplate(template), template);
   const rng = createCoachRng(24_000_000 + index);
-  // Four distinct useful players, each given the same 12 SPP budget in both arms.
+
   const players = rolePlayers(team);
   const allocations: Variant["allocations"] = [];
   let sppSpent = 0;

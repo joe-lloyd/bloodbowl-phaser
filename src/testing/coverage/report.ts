@@ -1,29 +1,23 @@
-/**
- * The coverage report.
- *
- * Maps every inventory entry to the scenario cases that claim it, per
- * execution layer, and reports covered / excluded / missing separately per
- * layer — never as one blended percentage. A case with exhaustive engine
- * variants and no browser checkpoint is *engine-complete and browser-absent*,
- * and saying so is the whole point.
- */
-
 import {
-  ExecutionLayer,
+  type ExecutionLayer,
   EXECUTION_LAYERS,
-  ScenarioCase,
+  type ScenarioCase,
 } from "../scenarioCase/types";
 import {
   validateScenarioCases,
-  LayerSupport,
-  ValidationIssue,
+  type LayerSupport,
+  type ValidationIssue,
 } from "../scenarioCase/validate";
 import { auditSetupFixtures } from "../fixtures/validateFixtures";
-import { buildInventory, DECISION_REPLY_COMMANDS, InventoryEntry } from "./inventory";
+import {
+  buildInventory,
+  DECISION_REPLY_COMMANDS,
+  type InventoryEntry,
+} from "./inventory";
 import type { CoverageFragment } from "./observed";
 import {
   COVERAGE_EXCLUSIONS,
-  CoverageExclusion,
+  type CoverageExclusion,
   exclusionFor,
   isExcluded,
   validateExclusions,
@@ -34,9 +28,9 @@ export type EntryStatus = "covered" | "excluded" | "missing" | "not-required";
 export interface EntryLayerResult {
   layer: ExecutionLayer;
   status: EntryStatus;
-  /** Case ids covering this entry at this layer. */
+
   cases: string[];
-  /** Present when `status` is "excluded". */
+
   exclusion?: CoverageExclusion;
 }
 
@@ -75,14 +69,6 @@ export interface CoverageResult {
   }[];
 }
 
-/**
- * Every inventory id a case claims — declared plus derived.
- *
- * Declaring `interactions` by hand is how a case states intent; deriving the
- * rest from its script and source keeps the report honest when someone
- * forgets to. Both matter: derivation alone cannot express "this case is the
- * representative for the hand-off interaction".
- */
 export function claimsOf(scenarioCase: ScenarioCase): Set<string> {
   const claims = new Set<string>(scenarioCase.interactions);
 
@@ -98,7 +84,7 @@ export function claimsOf(scenarioCase: ScenarioCase): Set<string> {
 
   for (const step of scenarioCase.steps) {
     claims.add(`protocol-command:${step.command.type}`);
-    // A step that answers a decision proves that decision was reachable.
+
     for (const [decision, replies] of Object.entries(DECISION_REPLY_COMMANDS)) {
       if (replies.includes(step.command.type)) {
         claims.add(`decision:${decision}`);
@@ -115,11 +101,7 @@ export interface BuildCoverageOptions {
   exclusions?: CoverageExclusion[];
   support?: LayerSupport;
   generatedAt?: string;
-  /**
-   * Claims recorded by actual runs (see `coverage/observed.ts`). Decisions
-   * answered by a decision policy, and phases a run reached rather than
-   * started in, can only be known this way.
-   */
+
   fragments?: CoverageFragment[];
 }
 
@@ -131,7 +113,6 @@ function caseIssueKind(issue: ValidationIssue): CoverageIssue["kind"] {
   return "schema";
 }
 
-/** What a case's set-up fixture audit found, as coverage issues. */
 function fixtureIssues(scenarioCase: ScenarioCase): CoverageIssue[] {
   const audit = auditSetupFixtures(
     scenarioCase.id,
@@ -151,7 +132,6 @@ function fixtureIssues(scenarioCase: ScenarioCase): CoverageIssue[] {
   }));
 }
 
-/** Claims runs recorded, keyed by "caseId|layer". */
 function observedClaims(
   fragments: CoverageFragment[]
 ): Map<string, Set<string>> {
@@ -184,7 +164,6 @@ export function buildCoverage(
   const exclusions = options.exclusions ?? COVERAGE_EXCLUSIONS;
   const issues: CoverageIssue[] = [];
 
-  // ----- Case-level validity -----
   for (const issue of validateScenarioCases(cases, options.support)) {
     issues.push({
       kind: caseIssueKind(issue),
@@ -201,10 +180,6 @@ export function buildCoverage(
     });
   }
 
-  // ----- Entry × layer coverage -----
-  // Static claims (what a case declares and its script implies) plus
-  // observed claims (what its runs actually did), keyed per case AND layer:
-  // an engine run proving a decision says nothing about the browser.
   const claimsByCase = new Map(
     cases.map((scenarioCase) => [scenarioCase.id, claimsOf(scenarioCase)])
   );
@@ -215,7 +190,8 @@ export function buildCoverage(
     entryId: string
   ): boolean =>
     claimsByCase.get(scenarioCase.id)?.has(entryId) === true ||
-    observedByCaseLayer.get(`${scenarioCase.id}|${layer}`)?.has(entryId) === true;
+    observedByCaseLayer.get(`${scenarioCase.id}|${layer}`)?.has(entryId) ===
+      true;
 
   const entries: EntryResult[] = inventory.map((entry) => ({
     entry,
@@ -249,7 +225,6 @@ export function buildCoverage(
 
   issues.push(...entries.flatMap(missingCoverageIssues));
 
-  // ----- Totals, per layer, never blended -----
   const totals = Object.fromEntries(
     EXECUTION_LAYERS.map((layer) => {
       const relevant = entries.flatMap((result) =>
@@ -289,7 +264,6 @@ export function buildCoverage(
   };
 }
 
-/** A concise, human-readable report grouped by inventory kind. */
 export function renderCoverageReport(result: CoverageResult): string {
   const lines: string[] = [];
   lines.push("E2E coverage");
@@ -305,8 +279,8 @@ export function renderCoverageReport(result: CoverageResult): string {
     }
     const percent = Math.round((totals.covered / totals.required) * 100);
     lines.push(
-      `${layer.padEnd(8)} ${totals.covered}/${totals.required} covered (${percent}%), ` +
-        `${totals.excluded} excluded, ${totals.missing} missing`
+      `${layer.padEnd(8)} ${String(totals.covered)}/${String(totals.required)} covered (${String(percent)}%), ` +
+        `${String(totals.excluded)} excluded, ${String(totals.missing)} missing`
     );
   }
   lines.push("");
@@ -326,15 +300,17 @@ export function renderCoverageReport(result: CoverageResult): string {
       entry.layers.some((layer) => layer.status === "excluded")
     );
     lines.push(
-      `${kind}: ${group.length - missing.length}/${group.length} complete` +
-        (excluded.length ? `, ${excluded.length} excluded` : "")
+      `${kind}: ${String(group.length - missing.length)}/${String(group.length)} complete` +
+        (excluded.length ? `, ${String(excluded.length)} excluded` : "")
     );
     for (const entry of missing) {
       const layers = entry.layers
         .filter((layer) => layer.status === "missing")
         .map((layer) => layer.layer)
         .join(", ");
-      lines.push(`    MISSING [${layers}] ${entry.entry.id} — ${entry.entry.label}`);
+      lines.push(
+        `    MISSING [${layers}] ${entry.entry.id} — ${entry.entry.label}`
+      );
     }
     for (const entry of excluded) {
       lines.push(
@@ -347,7 +323,7 @@ export function renderCoverageReport(result: CoverageResult): string {
 
   if (result.issues.length > 0) {
     lines.push("");
-    lines.push(`${result.issues.length} issue(s):`);
+    lines.push(`${String(result.issues.length)} issue(s):`);
     for (const issue of result.issues) {
       lines.push(`    [${issue.kind}] ${issue.message}`);
     }

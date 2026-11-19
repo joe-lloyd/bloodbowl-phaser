@@ -1,16 +1,10 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 
-/**
- * "A player with this Trait may not willingly give up the ball when in
- * possession of it, and so may not declare Pass Actions, Hand-off Actions"
- * (2025 rulebook, My Ball). Found by the simulation harness: legal-actions
- * offered a My Ball carrier a Hand-off the engine then refused, and a My Ball
- * player away from the ball could declare one and pick the ball up.
- */
 function scenario(ball: { x: number; y: number }): Scenario {
   return {
     id: "my-ball",
@@ -32,11 +26,11 @@ function scenario(ball: { x: number; y: number }): Scenario {
 
 async function optionsFor(ball: { x: number; y: number }) {
   const game = new HeadlessGame({ scenario: scenario(ball), seed: 1 });
-  const id = game.ctx.team1.players[0].id;
+  const id = fixtureValue(game.ctx.team1.players[0]).id;
   const legal = await game.execute({ type: "legal-actions", playerId: id });
-  const actions = legal.legalActions!.players.find(
-    (p) => p.playerId === id
-  )!.actions;
+  const actions = fixtureValue(
+    fixtureValue(legal.legalActions).players.find((p) => p.playerId === id)
+  ).actions;
   const handoff = await game.execute({
     type: "declare-action",
     playerId: id,

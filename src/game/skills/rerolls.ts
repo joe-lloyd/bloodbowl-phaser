@@ -1,20 +1,14 @@
-/**
- * withRerollOffer - the single fold point every rerollable roll goes
- * through. Roll once; on a failure, gather the player's reroll sources
- * (a skill rule declaring this roll kind, and/or the team reroll), pause on
- * a reroll decision, and reroll through the same seeded dice path when the
- * coach accepts. A declined offer consumes nothing — the original failure
- * stands and dice determinism is preserved.
- */
-
-import { Player } from "../../types/Player";
+import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
-import { RerollableRollKind, RerollSource } from "../../types/decisions";
+import {
+  type RerollableRollKind,
+  type RerollSource,
+} from "../../types/decisions";
 import { SkillRegistry } from "./SkillRegistry";
-import { TeamRerollGateContext } from "./SkillRule";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type TeamRerollGateContext } from "./SkillRule";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import { VETERAN_REROLL_KINDS } from "../rules/veteran";
 import { teamCaptain } from "../rules/teamCaptain";
 import { requiredRoll } from "../rules/rollTargets";
@@ -32,7 +26,6 @@ export interface RerollDeps {
   eventBus: IEventBus;
 }
 
-/** First of the player's skills whose rule can reroll this kind and is unspent. */
 function findSkillSource(
   deps: RerollDeps,
   player: Player,
@@ -51,7 +44,6 @@ function findSkillSource(
   return undefined;
 }
 
-/** Legal sources shared by the failed-roll offer and the step preview. */
 export function availableRerolls(
   deps: RerollDeps,
   player: Player,
@@ -65,11 +57,7 @@ export function availableRerolls(
   const sources: RerollSource[] = [];
   if (skillSource) sources.push("skill");
   if (arbiter.teamRerollAvailable(player.teamId)) sources.push("team");
-  // Pro: a die-level reroll during the player's OWN activation only. Every
-  // rollKind offered through this seam qualifies (Armour/Injury/Casualty
-  // rolls never come through here); the active-player check excludes rolls
-  // made on the player's behalf outside their activation (e.g. catching an
-  // opponent's pass on the opponent's turn). Once per activation, 3+ to use.
+
   if (
     SkillRegistry.has(SkillType.PRO) &&
     hasSkill(player.skills, SkillType.PRO) &&
@@ -87,11 +75,6 @@ export function availableRerolls(
   return { sources, skillSource };
 }
 
-/**
- * Spend the chosen re-roll source. False when the dice may not be
- * re-rolled after all: a failed Pro attempt, or a Team Re-roll a Loner
- * rule kept.
- */
 function spendReroll(
   deps: RerollDeps,
   arbiter: ReturnType<IGameService["getRerollArbiter"]>,
@@ -104,11 +87,10 @@ function spendReroll(
 ): boolean {
   const { chosen, skillSource, rollKind } = choice;
   if (chosen === "pro") {
-    // Book: once attempted, the roll is locked against every other source
     arbiter.consumeOnce(player, SkillType.PRO);
     const gate = deps.gameService
       .getDiceController()
-      .rollSkillCheck("Pro", 3, 0, player.playerName);
+      .rollSkillCheck({ reason: "Pro",target: 3,modifier: 0,playerName: player.playerName });
     if (!gate.success) {
       deps.eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: player.id,
@@ -137,7 +119,6 @@ function spendReroll(
   return true;
 }
 
-/** The roll the coach needs, for the re-roll prompt. */
 function neededFor(first: RollLike): number | undefined {
   return (
     first.needed ??
@@ -153,9 +134,8 @@ export async function withRerollOffer<T extends RollLike>(
   rollKind: RerollableRollKind,
   doRoll: () => T,
   opts?: {
-    /** A trigger may deny the skill reroll (Tackle vs Dodge) */
     skillAllowed?: boolean;
-    /** The roll's own name for the coach, e.g. "Bone Head". */
+
     rollName?: string;
   }
 ): Promise<T> {
@@ -204,11 +184,6 @@ export async function withRerollOffer<T extends RollLike>(
   return second;
 }
 
-/**
- * Spend the player's team's Team Re-roll. Loner-class rules may gate the
- * spend; the re-roll is lost either way. Returns whether the dice may be
- * re-rolled.
- */
 export function spendTeamReroll(deps: RerollDeps, player: Player): boolean {
   const gateCtx: TeamRerollGateContext = {
     player,
@@ -231,10 +206,6 @@ export function spendTeamReroll(deps: RerollDeps, player: Player): boolean {
   return gateCtx.allowed;
 }
 
-/**
- * Team Captain (2025 rulebook p.155): while the Captain is on the pitch,
- * a Team Re-roll the team uses rolls a D6 and is free on a natural 6.
- */
 function teamCaptainFreesReroll(deps: RerollDeps, teamId: string): boolean {
   const team = deps.gameService.getTeam(teamId);
   const captain = team && teamCaptain(team);
@@ -248,7 +219,7 @@ function teamCaptainFreesReroll(deps: RerollDeps, teamId: string): boolean {
     effect:
       roll === 6
         ? "Team Captain: a natural 6, the Team Re-roll is free"
-        : `Team Captain: rolled ${roll}, the Team Re-roll is spent`,
+        : `Team Captain: rolled ${String(roll)}, the Team Re-roll is spent`,
   });
   return roll === 6;
 }

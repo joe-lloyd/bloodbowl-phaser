@@ -1,39 +1,34 @@
-/**
- * LockstepSession - one side of an online match where both browsers run
- * the full engine.
- *
- * The coach who may act runs each command on their own engine at once, then
- * sends only the command with a checksum of the state before and after. The
- * other side runs the same command and compares. Engines that start from the
- * same state and seed and run the same commands stay identical (see
- * __tests__/simulation/lockstep-determinism.test.ts), so the only things
- * that cross the wire during play are commands. A mismatch asks for the
- * full state, which travels only then and on (re)joining.
- */
+type EnvelopeBody = Envelope extends infer Variant
+  ? Variant extends Envelope ? Omit<Variant, "seq" | "from" | "ts"> : never
+  : never;
 
 import { HeadlessGame } from "../headless/HeadlessGame";
-import { CommandResponse, HeadlessCommand } from "../headless/protocol";
+import {
+  type CommandResponse,
+  type HeadlessCommand,
+} from "../headless/protocol";
 import { stateChecksum } from "../headless/checksum";
 import { whenEngineQuiet, withoutPacing } from "../game/core/GameFlowManager";
 import {
   applySnapshotToTeams,
   deserializeGameState,
   restoreTeam,
+  replaceFields,
 } from "../headless/serialization";
 import {
-  CatchUpPayload,
-  ChatPayload,
-  Envelope,
-  HelloPayload,
-  LockstepState,
+  type CatchUpPayload,
+  type ChatPayload,
+  type Envelope,
+  type HelloPayload,
+  type LockstepState,
   PROTOCOL_VERSION,
-  SelectionPayload,
-  PromptPayload,
+  type SelectionPayload,
+  type PromptPayload,
   SequenceTracker,
-  SettledPayload,
+  type SettledPayload,
 } from "./envelope";
-import { Transport } from "./transport";
-import { StepPrompt } from "../types/events";
+import { type Transport } from "./transport";
+import { type StepPrompt } from "../types/events";
 import {
   checkOwnership,
   gateContextOf,
@@ -43,59 +38,54 @@ import {
 export interface LockstepSessionOptions {
   transport: Transport;
   game: HeadlessGame;
-  /** Sender id stamped on outgoing envelopes (the coach's uid) */
+
   selfId: string;
   myTeamId: string;
   peerTeamId: string;
   hostTeamId: string;
-  /** Commands applied before this session started (a resumed save). */
+
   appliedCommands?: number;
   onHello?: (payload: HelloPayload, from: string) => void;
   onChat?: (payload: ChatPayload, from: string) => void;
   onSelection?: (payload: SelectionPayload, from: string) => void;
   onPrompt?: (payload: PromptPayload, from: string) => void;
-  /** The other coach's command is about to run on this engine. */
+
   onPeerCommand?: (command: HeadlessCommand) => void;
-  /** After any command ran on this engine, this coach's or the other's. */
+
   onApplied?: (command: HeadlessCommand, own: boolean) => void;
-  /** The engine was rebuilt from the other side's full state. */
+
   onResynced?: () => void;
-  /** A command after which the two engines disagreed. */
+
   onDesync?: (detail: string) => void;
 }
 
 export class LockstepSession {
   private readonly seq = new SequenceTracker();
   private readonly unsubscribe: () => void;
-  /** Local and peer commands never interleave on the engine. */
+
   private queue: Promise<unknown> = Promise.resolve();
-  /** Commands this engine has run since the match began. */
+
   private applied: number;
-  /** Set after a mismatch: peer commands wait for the resync. */
+
   private awaitingResync = false;
-  /**
-   * Set by this page's hello: what the other side sends next already holds
-   * any command that arrives before it.
-   */
+
   private awaitingCatchUp = false;
-  /**
-   * Every command run here since `logFrom` commands, with the state's
-   * checksum before it, so a page that comes back behind can replay them.
-   */
+
   private log: { before: string; command: HeadlessCommand }[] = [];
   private logFrom: number;
-  /** The latest state with no roll path paused, for a resync to start from. */
+
   private atRest: LockstepState | null = null;
 
-  constructor(private readonly options: LockstepSessionOptions) {
+  private readonly options: LockstepSessionOptions;
+  constructor(options: LockstepSessionOptions) {
+    this.options = options;
     this.applied = options.appliedCommands ?? 0;
     this.logFrom = this.applied;
-    this.unsubscribe = options.transport.subscribe((envelope) =>
-      this.receive(envelope)
-    );
+    this.unsubscribe = options.transport.subscribe((envelope) => {
+      this.receive(envelope);
+    });
   }
 
-  /** Resolves once every queued command has run. */
   async whenIdle(): Promise<void> {
     let seen: Promise<unknown>;
     do {
@@ -104,22 +94,10 @@ export class LockstepSession {
     } while (seen !== this.queue);
   }
 
-  /** Commands this engine has run since the match began. */
   appliedCommands(): number {
     return this.applied;
   }
 
-  /**
-   * Send one of this coach's commands, then run it here. Refused locally,
-   * without sending, when it is not this coach's to make.
-   *
-   * The command goes out before this engine runs it. Running it plays out
-   * this screen's dice, falls and banners, which can take seconds; sending
-   * after that left the other coach watching the same thing up to 10 s late.
-   * Both engines run it from the same state, so a refusal here is the same
-   * refusal there, and neither side counts it. Once the flow here has
-   * played out, a settled envelope carries the checksum it led to.
-   */
   run(command: HeadlessCommand): Promise<CommandResponse> {
     return this.enqueue(async () => {
       const { game, myTeamId, hostTeamId } = this.options;
@@ -130,15 +108,14 @@ export class LockstepSession {
         hostTeamId,
       });
       if (refusal) return refusal;
-      // Stamped now, so it is ordered before anything this side sends later
+
       const before = this.aboutToRun();
       void this.send({ kind: "command", payload: { command, before } });
       const response = await game.execute(command);
       if (!response.ok) return response;
       this.record(before, command);
       this.options.onApplied?.(command, true);
-      // The state after the command's own paced flow, which is what the
-      // other engine will also reach
+
       await whenEngineQuiet();
       void this.send({
         kind: "settled",
@@ -164,12 +141,10 @@ export class LockstepSession {
     await this.send({ kind: "chat", payload: { text, senderName } });
   }
 
-  /** Broadcast this coach's current selection (cosmetic; fire-and-forget). */
   async sendSelection(playerId: string | null): Promise<void> {
     await this.send({ kind: "selection", payload: { playerId } });
   }
 
-  /** Broadcast the step prompt this coach has open (cosmetic). */
   async sendPrompt(prompt: StepPrompt | null): Promise<void> {
     await this.send({ kind: "prompt", payload: { prompt } });
   }
@@ -180,7 +155,6 @@ export class LockstepSession {
     await this.send({ kind: "resync-request", payload: {} });
   }
 
-  /** The full state, for a peer that is behind or has diverged. */
   captureState(): LockstepState {
     const { game } = this.options;
     if (game.isSuspended() && this.atRest) {
@@ -208,12 +182,7 @@ export class LockstepSession {
     this.unsubscribe();
   }
 
-  // ===== Incoming =====
-
   private receive(envelope: Envelope): void {
-    // A hello opens a new page on the other side, whose seq starts at 1.
-    // Whichever side has run more commands holds the newer state and sends
-    // it: a reloaded page resumes from its last save, which may be behind.
     if (envelope.kind === "hello") {
       this.receiveHello(envelope);
       return;
@@ -241,13 +210,13 @@ export class LockstepSession {
   private receiveHello(envelope: Extract<Envelope, { kind: "hello" }>): void {
     this.seq.acceptFrom(envelope.from, envelope.seq);
     this.options.onHello?.(envelope.payload, envelope.from);
-    // A page on another version speaks shapes this engine cannot read
+
     if (envelope.payload.protocolVersion !== PROTOCOL_VERSION) {
       this.close();
       return;
     }
     const { applied, checksum } = envelope.payload;
-    // The other page is new, so this side answers for both
+
     this.awaitingCatchUp = false;
     void this.enqueue(async () => {
       if (this.applied < applied) await this.requestResync();
@@ -255,45 +224,36 @@ export class LockstepSession {
     });
   }
 
-  /** An envelope that arrived in sequence: run or hand on what it carries. */
   private dispatch(envelope: Envelope): void {
-    switch (envelope.kind) {
-      case "command": {
-        const { command, before } = envelope.payload;
-        void this.enqueue(() => this.applyPeerCommand(command, before));
-        break;
-      }
-      case "settled": {
-        const settled = envelope.payload;
-        void this.enqueue(() => this.checkSettled(settled));
-        break;
-      }
-      case "resync-request":
-        void this.enqueue(() => this.sendResync());
-        break;
-      case "chat":
-        this.options.onChat?.(envelope.payload, envelope.from);
-        break;
-      case "selection":
-        this.options.onSelection?.(envelope.payload, envelope.from);
-        break;
-      case "prompt":
-        this.options.onPrompt?.(envelope.payload, envelope.from);
-        break;
-      case "heartbeat":
-        break;
+    if (envelope.kind === "command") {
+      const { command, before } = envelope.payload;
+      void this.enqueue(() => this.applyPeerCommand(command, before));
+      return;
     }
+    if (envelope.kind === "settled") {
+      void this.enqueue(() => this.checkSettled(envelope.payload));
+      return;
+    }
+    if (envelope.kind === "resync-request") {
+      void this.enqueue(() => this.sendResync());
+      return;
+    }
+    this.deliverSignal(envelope);
+  }
+
+  private deliverSignal(envelope: Exclude<Envelope, { kind: "command" | "settled" | "resync-request" }>): void {
+    if (envelope.kind === "chat") this.options.onChat?.(envelope.payload, envelope.from);
+    if (envelope.kind === "selection") this.options.onSelection?.(envelope.payload, envelope.from);
+    if (envelope.kind === "prompt") this.options.onPrompt?.(envelope.payload, envelope.from);
   }
 
   private async applyPeerCommand(
     command: HeadlessCommand,
     before: string
   ): Promise<void> {
-    // The resync or catch-up replaces it
     if (this.awaitingResync || this.awaitingCatchUp) return;
     const { game } = this.options;
-    // This engine may still be playing out the previous command's paced
-    // flow (a turnover, the half-time sequence); let it finish first
+
     await whenEngineQuiet();
     const mine = this.aboutToRun();
     if (mine !== before) {
@@ -311,9 +271,7 @@ export class LockstepSession {
     }
     this.options.onPeerCommand?.(command);
     const response = await game.execute(command);
-    // The sender ran it from the same state, so it was refused there too
-    // and was not counted. If it was not, its settled count says so and
-    // asks for a resync; the reason is logged here so the cause is known.
+
     if (!response.ok) {
       console.warn(
         `[Lockstep] peer ${command.type} refused here: ${response.reason ?? "no reason"}`
@@ -324,11 +282,6 @@ export class LockstepSession {
     this.options.onApplied?.(command, false);
   }
 
-  /**
-   * The other engine has played out its command. Compare once this one has
-   * too. A count above theirs means this coach has acted since, and that
-   * command's own checksum does the comparing.
-   */
   private async checkSettled({
     applied,
     checksum,
@@ -336,19 +289,29 @@ export class LockstepSession {
     if (this.awaitingResync || this.awaitingCatchUp) return;
     await whenEngineQuiet();
     if (this.applied < applied) {
-      this.desync(`ran ${this.applied} commands here, ${applied} there`);
+      this.desync(
+        `ran ${String(this.applied)} commands here, ${String(applied)} there`
+      );
       return;
     }
     if (this.applied > applied) return;
     const now = stateChecksum(this.options.game);
     if (now !== checksum) {
-      this.desync(`after command ${applied}: ${now} here, ${checksum} there`);
+      this.desync(
+        `after command ${String(applied)}: ${now} here, ${checksum} there`
+      );
     }
   }
 
   private desync(detail: string): void {
     console.warn(`[Lockstep] desync ${detail}`);
-    // With network tracing on, show what this side holds, to compare
+
+    this.logDesyncState();
+    this.options.onDesync?.(detail);
+    void this.requestResync();
+  }
+
+  private logDesyncState(): void {
     try {
       if (localStorage.getItem("bb_debug_net") === "1") {
         const s = this.options.game.snapshot();
@@ -366,24 +329,17 @@ export class LockstepSession {
         );
       }
     } catch {
-      // no storage in tests
+      return;
     }
-    this.options.onDesync?.(detail);
-    void this.requestResync();
   }
 
   private async sendResync(): Promise<void> {
-    // Never send a state caught halfway through a paced chain
     await whenEngineQuiet();
-    // This side's state wins, so nothing is coming that holds the next command
+
     this.awaitingCatchUp = false;
     await this.send({ kind: "resync", payload: this.captureState() });
   }
 
-  /**
-   * A page that came back at `from` commands: send what it missed when this
-   * side ran it from the same state, or the full state when not.
-   */
   private async sendCatchUp(from: number, checksum: string): Promise<void> {
     await whenEngineQuiet();
     const start = from - this.logFrom;
@@ -401,15 +357,15 @@ export class LockstepSession {
     });
   }
 
-  /** Run the commands this page missed, as the other engine ran them. */
   private async replay({ from, commands }: CatchUpPayload): Promise<void> {
     await whenEngineQuiet();
-    // Both pages opened together and each answered the other's hello: this
-    // side already answered for both, so the other's answer is not needed
+
     if (!this.awaitingCatchUp) return;
     this.awaitingCatchUp = false;
     if (this.applied !== from) {
-      this.desync(`catch-up from ${from}, ${this.applied} run here`);
+      this.desync(
+        `catch-up from ${String(from)}, ${String(this.applied)} run here`
+      );
       return;
     }
     await this.runMissed(commands);
@@ -437,7 +393,6 @@ export class LockstepSession {
     }
     const now = stateChecksum(game);
     if (expected && now !== expected) {
-      // The next command's checksum asks again, at most once per command
       console.warn(`[Lockstep] resync led to ${now}, ${expected} there`);
       this.options.onDesync?.(`resync led to ${now}, ${expected} there`);
       return;
@@ -445,9 +400,7 @@ export class LockstepSession {
     this.options.onResynced?.();
   }
 
-  /** Rebuild this engine from the other side's full state. */
   private async restore(state: LockstepState): Promise<void> {
-    // A chain still pacing here would fire after the restore and undo it
     await whenEngineQuiet();
     const { game } = this.options;
     if (
@@ -455,39 +408,38 @@ export class LockstepSession {
       state.applied + state.replay.length === this.applied &&
       state.checksum === stateChecksum(game)
     ) {
-      // Rebuilding would throw away a paused roll path that is still good
       this.awaitingResync = false;
       this.awaitingCatchUp = false;
       this.options.onResynced?.();
       return;
     }
     const { team1, team2, gameService, rng, matchStats } = game.ctx;
-    // Copy into the existing objects: the board holds references to them
-    [team1, team2].forEach((team, index) => {
-      restoreTeam(team, state.teams[index]);
-    });
+
+    restoreTeam(team1, state.teams[0]);
+    restoreTeam(team2, state.teams[1]);
     applySnapshotToTeams(state.snapshot, [team1, team2]);
-    Object.assign(gameService.getState(), deserializeGameState(state.snapshot));
+    replaceFields(gameService.getState(), deserializeGameState(state.snapshot));
     if (state.snapshot.turnManager) {
       gameService.restoreTurnManagerState(state.snapshot.turnManager);
     }
-    // Setup keeps its own record of placed squares and confirmed teams
+
     gameService.resyncSetupFromTeams();
     rng.restoreState(state.rng);
     matchStats.restoreState(state.matchStats);
     game.adoptPending(state.pending);
-    this.applied = state.applied;
-    this.log = [];
-    this.logFrom = state.applied;
-    this.atRest = null;
-    this.awaitingResync = false;
-    this.awaitingCatchUp = false;
+    this.resetAppliedState(state.applied);
     await this.runMissed(state.replay, state.checksum);
   }
 
-  // ===== Helpers =====
+  private resetAppliedState(applied: number): void {
+    this.applied = applied;
+    this.log = [];
+    this.logFrom = applied;
+    this.atRest = null;
+    this.awaitingResync = false;
+    this.awaitingCatchUp = false;
+  }
 
-  /** The checksum a command starts from; keeps the latest state at rest. */
   private aboutToRun(): string {
     const { game } = this.options;
     if (!game.isSuspended()) this.atRest = structuredClone(this.captureState());
@@ -506,12 +458,12 @@ export class LockstepSession {
   }
 
   private async send(
-    partial: Omit<Envelope, "seq" | "from" | "ts">
+    partial: EnvelopeBody
   ): Promise<void> {
     await this.options.transport.send({
       ...partial,
       ...this.seq.stamp(),
       from: this.options.selfId,
-    } as Envelope);
+    });
   }
 }

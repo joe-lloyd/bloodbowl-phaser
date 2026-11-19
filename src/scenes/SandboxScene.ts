@@ -2,36 +2,29 @@ import { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
 import { TeamFactory } from "../game/TeamFactory";
 import { RosterName } from "../types/Team";
-import { Team } from "../types/Team";
+import { type Team } from "../types/Team";
 
 import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
 import { ScenarioLoader } from "../services/ScenarioLoader";
-import { IEventBus } from "../services/EventBus";
+import { type IEventBus } from "../services/EventBus";
 import { SCENARIOS } from "../data/scenarios";
 import { findRuleConfig } from "../data/ruleScenarios";
 import { findKickoffConfig, KICKOFF_TOPIC } from "../data/kickoffScenarios";
 import { SCENARIO_CASES } from "../testing/cases";
 import { findScenarioCase } from "../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
-import { Scenario } from "../types/Scenario";
+import { type Scenario } from "../types/Scenario";
 import {
   SANDBOX_DEFAULT_TEAM1_ROSTER,
   SANDBOX_DEFAULT_TEAM2_ROSTER,
 } from "./sandboxDefaultTeams";
 
-/** A scenario the sandbox can load, with the outcome it is written for. */
 interface SandboxScenario {
   scenario: Scenario;
   expectedOutcome?: string;
 }
 
-/**
- * A core scenario, a scenario case or a rule-catalog config, by id.
- * Scenario cases are the E2E unit: the sandbox loads the exact setup,
- * roster fixture and committed seed a failing CI run used, so a reported
- * "case/variant" is reproducible by pasting it into the URL.
- */
 function findSandboxScenario(
   scenarioId: string,
   outcomeId: string | undefined
@@ -57,7 +50,7 @@ function scenarioFromCase(
       description: scenarioCase.description,
       setup: {
         ...scenarioCase.setup,
-        // Pin the rosters the case ran with; see the rule-config note below.
+
         team1Roster: scenarioCase.setup.team1Roster ?? RosterName.HUMAN,
         team2Roster: scenarioCase.setup.team2Roster ?? RosterName.HUMAN,
       },
@@ -79,10 +72,7 @@ function scenarioFromConfig(
       id: config.id,
       name: `${ruleConfig?.skill ?? KICKOFF_TOPIC}: ${config.name}`,
       description: config.description,
-      // Pin the rosters the seed finder runs with (createHeadlessGame
-      // defaults to Human): a found seed only reproduces if the replay
-      // uses identical teams — different ST/AV changes the dice count
-      // and RNG draw order, so the same seed rolls different results.
+
       setup: {
         ...config.setup,
         team1Roster: config.setup.team1Roster ?? RosterName.HUMAN,
@@ -103,25 +93,12 @@ export class SandboxScene extends GameScene {
   }
 
   init(data: { team1?: Team; team2?: Team }): void {
-    // If teams are passed, use them. Otherwise generate Mock Teams.
-    if (data && data.team1 && data.team2) {
-      // Need to initialize ServiceContainer before GameScene uses it
-      const initialState = GameService.createInitialState(
-        data.team1,
-        data.team2,
-        GamePhase.SANDBOX_IDLE
+    if (data?.team1 && data.team2) {
+      const initialState = GameService.createInitialState({ team1: data.team1, team2: data.team2, startingPhase: GamePhase.SANDBOX_IDLE }
       );
-      ServiceContainer.initialize(
-        this.getBrowserEventBus(),
-        data.team1,
-        data.team2,
-        initialState
-      );
+      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), team1: data.team1, team2: data.team2, initialState: initialState });
       super.init(data as { team1: Team; team2: Team });
     } else {
-      // Default to two different rosters (never a mirror-match) so the two
-      // sides are visually distinguishable at a glance without hovering
-      // over individual players.
       const team1 = TeamFactory.createTestTeam(
         SANDBOX_DEFAULT_TEAM1_ROSTER,
         "Test Humans",
@@ -133,8 +110,6 @@ export class SandboxScene extends GameScene {
         0xdc143c
       );
 
-      // Keep the visual sandbox representative of league play so stadium and
-      // dugout presentation changes can be reviewed without extra setup.
       team1.coaches = 2;
       team1.cheerleaders = 3;
       team1.apothecary = true;
@@ -143,23 +118,13 @@ export class SandboxScene extends GameScene {
       team2.cheerleaders = 2;
       team2.dedicatedFans = 1;
 
-      // Initialize ServiceContainer MANUALLY since we skipped TeamSelectScene
-      const initialState = GameService.createInitialState(
-        team1,
-        team2,
-        GamePhase.SANDBOX_IDLE
+      const initialState = GameService.createInitialState({ team1: team1, team2: team2, startingPhase: GamePhase.SANDBOX_IDLE }
       );
-      ServiceContainer.initialize(
-        this.getBrowserEventBus(),
-        team1,
-        team2,
-        initialState
-      );
+      ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), team1: team1, team2: team2, initialState: initialState });
 
       super.init({ team1, team2 });
     }
 
-    // Listen for shutdown to clean up custom listeners
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.cleanupSandbox, this);
     this.events.on(Phaser.Scenes.Events.DESTROY, this.cleanupSandbox, this);
   }
@@ -172,7 +137,6 @@ export class SandboxScene extends GameScene {
   create(): void {
     super.create();
 
-    // Add sandbox specific listeners
     this.loadScenarioHandler = (data: {
       scenarioId: string;
       seed?: number;
@@ -188,16 +152,12 @@ export class SandboxScene extends GameScene {
     };
     this.eventBus.on(GameEventNames.RefreshBoard, this.refreshBoardHandler);
 
-    // Sandbox-specific: Allow unlimited player movement for testing
-    // Clear activation status after each move so players can be moved multiple times
     this.playerMovedHandler = () => {
       const state = this.gameService.getState();
       state.turn.activatedPlayerIds.clear();
     };
     this.eventBus.on(GameEventNames.PlayerMoved, this.playerMovedHandler);
 
-    // Restore the last load from the URL (scenario + seed + outcome), so a
-    // refresh reproduces the exact board the user was looking at
     const urlParams = new URLSearchParams(window.location.search);
     const scenarioId = urlParams.get("scenario");
     if (scenarioId) {
@@ -207,7 +167,7 @@ export class SandboxScene extends GameScene {
           ? Number(seedParam)
           : undefined;
       const outcomeId = urlParams.get("outcome") ?? undefined;
-      // Delay slightly to ensure everything is ready
+
       this.time.delayedCall(100, () => {
         this.loadScenario(scenarioId, seed, outcomeId);
       });
@@ -219,7 +179,6 @@ export class SandboxScene extends GameScene {
     seedOverride?: number,
     outcomeId?: string
   ): void {
-    // A core scenario id, a scenario-case id, or a rule-catalog config id.
     const found = findSandboxScenario(scenarioId, outcomeId);
     if (!found) {
       console.warn(`Scenario not found: ${scenarioId}`);
@@ -230,8 +189,7 @@ export class SandboxScene extends GameScene {
       return;
     }
     const { expectedOutcome } = found;
-    // The seed a scenario's expected outcome was written for. A rule
-    // config has none: its outcome comes with the seed the search found.
+
     const promisedSeed = found.scenario.seed;
     const scenario =
       seedOverride === undefined
@@ -239,26 +197,17 @@ export class SandboxScene extends GameScene {
         : { ...found.scenario, seed: seedOverride };
     this.swapRosters(scenario);
 
-    // CRITICAL: Destroy old ball sprite BEFORE loading new scenario
-    // This prevents duplicate balls when loading multiple scenarios
     if (this.ballSprite) {
       this.ballSprite.destroy();
       this.ballSprite = null;
     }
 
-    // 2. Load Scenario Logic
     const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
     loader.load(scenario);
 
-    // 3. Refresh Scene State
-    // reloadState(false) is safe here as ScenarioLoader already called ServiceContainer.initialize
     this.reloadState(false);
     this.placePlayersOnPitch();
 
-    // A KICKOFF-phase scenario needs the kicking/receiving teams wired so
-    // the kicker can be selected — handleKickoffClick matches the clicked
-    // player against scene.kickingTeam (default team1 is otherwise stale,
-    // and a roster swap replaces the team objects).
     if (scenario.setup.phase === GamePhase.KICKOFF) {
       const team1Kicks = scenario.setup.activeTeam !== "team2";
       this.kickingTeam = team1Kicks ? this.team1 : this.team2;
@@ -270,23 +219,18 @@ export class SandboxScene extends GameScene {
       `Loaded Scenario: ${scenario.name}`
     );
 
-    // Always surface the effective seed (the scenario's own, or the
-    // random one the container fell back to) so any game is reproducible
     const effectiveSeed =
       ServiceContainer.getInstance().rngService.getInitialSeed();
     this.eventBus.emit(GameEventNames.ScenarioLoaded, {
       name: scenario.name,
       seed: effectiveSeed,
-      // An expected outcome holds only for the seed it was written for
+
       expectedOutcome:
         promisedSeed === undefined || effectiveSeed === promisedSeed
           ? (expectedOutcome ?? scenario.expectedOutcome)
           : undefined,
     });
 
-    // Mirror the load into the URL so a refresh reproduces it exactly.
-    // Scenario id + seed + outcome is the full state: the explorer's
-    // topic/rule selects are derivable from the config id via the catalog
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set("scenario", scenarioId);
     newUrl.searchParams.set("seed", String(effectiveSeed));
@@ -298,7 +242,6 @@ export class SandboxScene extends GameScene {
     window.history.replaceState({ path: newUrl.href }, "", newUrl.href);
   }
 
-  /** Handle Team/Roster changes if specified. */
   private swapRosters(scenario: Scenario): void {
     if (
       scenario.setup.team1Roster &&
@@ -341,14 +284,10 @@ export class SandboxScene extends GameScene {
       this.eventBus.off(GameEventNames.PlayerMoved, this.playerMovedHandler);
       this.playerMovedHandler = null;
     }
-    // ballPlacedHandler removed - no longer needed
   }
 
-  // Override standard setup to skip coin flip in sandbox mode
   public startSetupPhase(): void {
-    // In sandbox mode, skip the coin flip and just wait for user to load a scenario
-    // Don't auto-load any scenario - let user choose via UI
-    this.isSetupActive = false; // Don't show setup controls
+    this.isSetupActive = false;
     this.eventBus.emit(
       GameEventNames.UI_Notification,
       "Sandbox Mode - Load a scenario to begin"

@@ -1,17 +1,5 @@
-/**
- * Post-build invariant validator for development seed data. Fails loudly
- * (SeedValidationError) with entity-specific reasons whenever a generated
- * record breaks the rules — roster legality, finances, history totals,
- * competition lifecycle, or the one-active-competition membership rule.
- *
- * Player checks cover advancement legality and roster skill access (the
- * primary/secondary categories on the player). Advancement-MODE validation
- * is pending the add-team-advancement-modes change and will extend
- * validatePlayerProgression once teams carry a mode.
- */
-
 import {
-  Team,
+  type Team,
   calculateTeamValue,
   startingDedicatedFans,
 } from "../types/Team";
@@ -22,7 +10,7 @@ import {
   DEDICATED_FAN_COST,
   TEAM_REROLL_COST,
 } from "../game/rules/sevensPrices";
-import { InjuryType, Player, PlayerStats } from "../types/Player";
+import { InjuryType, type Player, type PlayerStats } from "../types/Player";
 import { SKILL_DEFINITIONS, SkillType } from "../types/Skills";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
 import { validateInsignificant } from "../game/rules/insignificant";
@@ -31,30 +19,31 @@ import {
   advancementCount,
 } from "../game/progression/progression";
 import {
-  CompetitionDoc,
-  Standing,
-  TournamentDoc,
+  type CompetitionDoc,
+  type Standing,
+  type TournamentDoc,
 } from "../competition/types";
 import { computeStandings } from "../competition/logic";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { isSeedOwned } from "./seedMeta";
 
 export interface SeedViolation {
-  /** Invariant area: "roster" | "finances" | "progression" | "competition" | "membership". */
   area: string;
-  /** The fixture key, team id, player id, or competition id at fault. */
+
   subject: string;
   detail: string;
 }
 
 export class SeedValidationError extends Error {
-  constructor(public readonly violations: SeedViolation[]) {
+  public readonly violations: SeedViolation[];
+  constructor(violations: SeedViolation[]) {
     super(
-      `development seed data is invalid (${violations.length}):\n` +
+      `development seed data is invalid (${String(violations.length)}):\n` +
         violations
           .map((v) => `  [${v.area}] ${v.subject}: ${v.detail}`)
           .join("\n")
     );
+    this.violations = violations;
     this.name = "SeedValidationError";
   }
 }
@@ -74,7 +63,6 @@ const STAT_DECREASE_INJURIES: Partial<Record<InjuryType, keyof PlayerStats>> = {
   [InjuryType.STAT_DECREASE_AV]: "AV",
 };
 
-/** Improved by characteristic advances (AG/PA invert: lower is better). */
 function improvementDirection(stat: keyof PlayerStats): 1 | -1 {
   return stat === "AG" || stat === "PA" ? -1 : 1;
 }
@@ -95,8 +83,8 @@ function validateTeamFinances(team: Team): SeedViolation[] {
       area: "finances",
       subject: team.id,
       detail:
-        `treasury ${team.treasury} !== budget ${team.startingTreasury} ` +
-        `- purchases ${spent}`,
+        `treasury ${String(team.treasury)} !== budget ${String(team.startingTreasury)} ` +
+        `- purchases ${String(spent)}`,
     });
   }
   const expectedValue = calculateTeamValue(team);
@@ -104,16 +92,12 @@ function validateTeamFinances(team: Team): SeedViolation[] {
     violations.push({
       area: "finances",
       subject: team.id,
-      detail: `team value ${team.teamValue} !== derived ${expectedValue}`,
+      detail: `team value ${String(team.teamValue)} !== derived ${String(expectedValue)}`,
     });
   }
   return violations;
 }
 
-/**
- * Skill access: primary-skill advancements must come from primary
- * categories, secondary-skill from secondary (roster access on the player).
- */
 function skillAccessViolations(
   player: Player,
   subject: string
@@ -154,10 +138,6 @@ function duplicateSkillViolations(
   return violations;
 }
 
-/**
- * Characteristic advances: at most 2 per stat, within maximums, and the
- * current stat equals base + advances - injury decreases.
- */
 function statViolations(
   player: Player,
   stat: keyof PlayerStats,
@@ -169,13 +149,13 @@ function statViolations(
     violations.push({
       area: "progression",
       subject,
-      detail: `${stat} advanced ${advances} times (max 2)`,
+      detail: `${stat} advanced ${String(advances)} times (max 2)`,
     });
   }
   const decreases = player.injuries.filter(
     (injury) => STAT_DECREASE_INJURIES[injury] === stat
   ).length;
-  // The Veteran (D8) plays at MA -1.
+
   const veteranPenalty = stat === "MA" && player.veteran ? 1 : 0;
   const expected =
     player.baseStats[stat] +
@@ -186,7 +166,7 @@ function statViolations(
     violations.push({
       area: "progression",
       subject,
-      detail: `${stat} ${player.stats[stat]} !== base ${player.baseStats[stat]} +${advances} advances -${decreases} injuries -${veteranPenalty} Veteran`,
+      detail: `${stat} ${String(player.stats[stat])} !== base ${String(player.baseStats[stat])} +${String(advances)} advances -${String(decreases)} injuries -${String(veteranPenalty)} Veteran`,
     });
   }
   const maximum = CHARACTERISTIC_MAXIMUMS[stat];
@@ -198,13 +178,12 @@ function statViolations(
     violations.push({
       area: "progression",
       subject,
-      detail: `${stat} ${player.stats[stat]} beyond maximum ${maximum}`,
+      detail: `${stat} ${String(player.stats[stat])} beyond maximum ${String(maximum)}`,
     });
   }
   return violations;
 }
 
-/** History totals reproduce stored SPP and progression. */
 function historyViolations(player: Player, subject: string): SeedViolation[] {
   const violations: SeedViolation[] = [];
   const advancements = player.advancements ?? [];
@@ -215,7 +194,7 @@ function historyViolations(player: Player, subject: string): SeedViolation[] {
       violations.push({
         area: "progression",
         subject,
-        detail: `progression without career history (spp ${player.spp}, ${advancements.length} advancements)`,
+        detail: `progression without career history (spp ${String(player.spp)}, ${String(advancements.length)} advancements)`,
       });
     }
     return violations;
@@ -230,21 +209,21 @@ function historyViolations(player: Player, subject: string): SeedViolation[] {
     violations.push({
       area: "progression",
       subject,
-      detail: `career sppEarned ${career.sppEarned} !== stat lines worth ${statSpp}`,
+      detail: `career sppEarned ${String(career.sppEarned)} !== stat lines worth ${String(statSpp)}`,
     });
   }
   if (career.sppEarned !== player.spp + spent) {
     violations.push({
       area: "progression",
       subject,
-      detail: `career sppEarned ${career.sppEarned} !== unspent ${player.spp} + advancement spending ${spent}`,
+      detail: `career sppEarned ${String(career.sppEarned)} !== unspent ${String(player.spp)} + advancement spending ${String(spent)}`,
     });
   }
   if (career.mvps > career.matches) {
     violations.push({
       area: "progression",
       subject,
-      detail: `${career.mvps} MVPs in ${career.matches} matches`,
+      detail: `${String(career.mvps)} MVPs in ${String(career.matches)} matches`,
     });
   }
   return violations;
@@ -255,11 +234,14 @@ function validatePlayerProgression(player: Player): SeedViolation[] {
   const subject = `${player.teamId}/${player.id}`;
   const advancements = player.advancements ?? [];
 
-  if (advancementCount(player) > 6 || player.level !== Math.min(6, advancements.length)) {
+  if (
+    advancementCount(player) > 6 ||
+    player.level !== Math.min(6, advancements.length)
+  ) {
     violations.push({
       area: "progression",
       subject,
-      detail: `level ${player.level} inconsistent with ${advancements.length} advancements (cap 6)`,
+      detail: `level ${String(player.level)} inconsistent with ${String(advancements.length)} advancements (cap 6)`,
     });
   }
   violations.push(...skillAccessViolations(player, subject));
@@ -312,7 +294,6 @@ function competitionViolation(
   return { area: "competition", subject: doc.id, detail };
 }
 
-/** Lifecycle coherence: a status agrees with how many fixtures are done. */
 function lifecycleViolations(
   doc: CompetitionDoc,
   completed: number,
@@ -321,36 +302,41 @@ function lifecycleViolations(
   const violations: SeedViolation[] = [];
   if (doc.status === "draft" && completed > 0) {
     violations.push(
-      competitionViolation(doc, `draft has ${completed} completed fixtures`)
+      competitionViolation(
+        doc,
+        `draft has ${String(completed)} completed fixtures`
+      )
     );
   }
   if (doc.status === "active" && (completed === 0 || incomplete === 0)) {
     violations.push(
       competitionViolation(
         doc,
-        `active needs both completed (${completed}) and open (${incomplete}) fixtures`
+        `active needs both completed (${String(completed)}) and open (${String(incomplete)}) fixtures`
       )
     );
   }
   if (doc.status === "complete" && incomplete > 0) {
     violations.push(
-      competitionViolation(doc, `complete but ${incomplete} fixtures unfinished`)
+      competitionViolation(
+        doc,
+        `complete but ${String(incomplete)} fixtures unfinished`
+      )
     );
   }
   return violations;
 }
 
-/**
- * Results exist exactly where fixtures are complete; elimination games
- * always have a winner.
- */
 function resultViolations(doc: CompetitionDoc): SeedViolation[] {
   const violations: SeedViolation[] = [];
   const elimination = isElimination(doc);
   for (const fixture of doc.fixtures) {
     if (fixture.status === "complete" && !fixture.result) {
       violations.push(
-        competitionViolation(doc, `fixture ${fixture.id} complete without a result`)
+        competitionViolation(
+          doc,
+          `fixture ${fixture.id} complete without a result`
+        )
       );
     }
     if (fixture.status !== "complete" && fixture.result) {
@@ -368,7 +354,10 @@ function resultViolations(doc: CompetitionDoc): SeedViolation[] {
       !fixture.result.winnerEntrantId
     ) {
       violations.push(
-        competitionViolation(doc, `elimination fixture ${fixture.id} has no winner`)
+        competitionViolation(
+          doc,
+          `elimination fixture ${fixture.id} has no winner`
+        )
       );
     }
   }
@@ -379,10 +368,6 @@ function isElimination(doc: CompetitionDoc): doc is TournamentDoc {
   return doc.type === "tournament" && doc.format === "single-elimination";
 }
 
-/**
- * Bracket progression: winners occupy their next slot; the final's winner
- * is the recorded champion.
- */
 function bracketViolations(
   doc: TournamentDoc,
   completed: CompetitionDoc["fixtures"]
@@ -397,7 +382,7 @@ function bracketViolations(
       violations.push(
         competitionViolation(
           doc,
-          `winner of ${fixture.id} not advanced to ${fixture.nextFixtureId} (${fixture.nextSlot})`
+          `winner of ${fixture.id} not advanced to ${fixture.nextFixtureId} (${String(fixture.nextSlot)})`
         )
       );
     }
@@ -410,7 +395,10 @@ function championViolations(doc: TournamentDoc): SeedViolation[] {
   const final = doc.fixtures.find((f) => !f.nextFixtureId);
   if (doc.status === "complete" && !doc.championEntrantId) {
     return [
-      competitionViolation(doc, "completed tournament has no champion recorded"),
+      competitionViolation(
+        doc,
+        "completed tournament has no champion recorded"
+      ),
     ];
   }
   if (
@@ -420,22 +408,21 @@ function championViolations(doc: TournamentDoc): SeedViolation[] {
     return [
       competitionViolation(
         doc,
-        `champion ${doc.championEntrantId} did not win the final`
+        `champion ${String(doc.championEntrantId)} did not win the final`
       ),
     ];
   }
   if (doc.status === "active" && doc.championEntrantId) {
     return [
-      competitionViolation(doc, "champion recorded before the bracket completed"),
+      competitionViolation(
+        doc,
+        "champion recorded before the bracket completed"
+      ),
     ];
   }
   return [];
 }
 
-/**
- * Standings reproduce the results (and a completed league's table leader
- * is its recorded champion).
- */
 function standingsViolations(doc: CompetitionDoc): SeedViolation[] {
   const violations: SeedViolation[] = [];
   const expectedStandings = computeStandings(
@@ -473,7 +460,7 @@ function validateCompetition(doc: CompetitionDoc): SeedViolation[] {
   }
   if (doc.entrants.length < 2) {
     violations.push(
-      competitionViolation(doc, `only ${doc.entrants.length} entrants`)
+      competitionViolation(doc, `only ${String(doc.entrants.length)} entrants`)
     );
   }
   violations.push(...fixturesReferenceEntrants(doc));
@@ -489,11 +476,6 @@ function validateCompetition(doc: CompetitionDoc): SeedViolation[] {
   return violations;
 }
 
-/**
- * The one-active-competition membership rule, across all seed docs: no team
- * is active in more than one competition, and every team active in one
- * records that competition's id on `Team.activeCompetitionId`.
- */
 function validateMembership(
   docs: CompetitionDoc[],
   teams: Team[]
@@ -514,7 +496,7 @@ function validateMembership(
       violations.push({
         area: "membership",
         subject: teamId,
-        detail: `active in ${competitions.length} competitions: ${competitions.join(", ")}`,
+        detail: `active in ${String(competitions.length)} competitions: ${competitions.join(", ")}`,
       });
     }
     const team = teamsById.get(teamId);
@@ -524,17 +506,13 @@ function validateMembership(
         subject: teamId,
         detail:
           `activeCompetitionId ${team.activeCompetitionId ?? "(unset)"} ` +
-          `!== active competition ${competitions[0]}`,
+          `!== active competition ${String(competitions[0])}`,
       });
     }
   }
   return violations;
 }
 
-/**
- * Validate a generated seed catalog (teams + competition docs). Returns
- * every violation found; empty means the catalog is coherent.
- */
 export function validateDevelopmentSeedData(
   teams: Team[],
   competitions: CompetitionDoc[]
@@ -556,7 +534,7 @@ export function validateDevelopmentSeedData(
       violations.push({
         area: "roster",
         subject,
-        detail: `unknown roster ${team.rosterName}: ${error}`,
+        detail: `unknown roster ${team.rosterName}: ${String(error)}`,
       });
     }
     const insignificantError = validateInsignificant(team.players);
@@ -579,7 +557,6 @@ export function validateDevelopmentSeedData(
   return violations;
 }
 
-/** Throw a SeedValidationError if the catalog has any violation. */
 export function assertValidDevelopmentSeedData(
   teams: Team[],
   competitions: CompetitionDoc[]

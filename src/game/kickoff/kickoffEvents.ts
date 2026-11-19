@@ -1,25 +1,19 @@
-/**
- * The Blood Bowl Sevens kickoff table (2D6, 2-12). Replaces the standard
- * Blood Bowl table: Perfect Defence, Blitz! and Throw a Rock do not exist
- * in Sevens, and Brilliant Coaching sits on 7 where the standard table put
- * Changing Weather.
- */
+import { type Player, PlayerStatus } from "../../types/Player";
+export const KickoffEvent = {
+  GET_THE_REF: "Get the Ref",
+  TIME_OUT: "Time-Out",
+  ALERT_DEFENCE: "Alert Defence",
+  HIGH_KICK: "High Kick",
+  CHEERING_FANS: "Cheering Fans",
+  BRILLIANT_COACHING: "Brilliant Coaching",
+  CHANGING_WEATHER: "Changing Weather",
+  QUICK_SNAP: "Quick Snap",
+  CHARGE: "Charge!",
+  DODGY_SNACK: "Dodgy Snack",
+  PITCH_INVASION: "Pitch Invasion",
+} as const;
+export type KickoffEvent = (typeof KickoffEvent)[keyof typeof KickoffEvent];
 
-export enum KickoffEvent {
-  GET_THE_REF = "Get the Ref",
-  TIME_OUT = "Time-Out",
-  ALERT_DEFENCE = "Alert Defence",
-  HIGH_KICK = "High Kick",
-  CHEERING_FANS = "Cheering Fans",
-  BRILLIANT_COACHING = "Brilliant Coaching",
-  CHANGING_WEATHER = "Changing Weather",
-  QUICK_SNAP = "Quick Snap",
-  CHARGE = "Charge!",
-  DODGY_SNACK = "Dodgy Snack",
-  PITCH_INVASION = "Pitch Invasion",
-}
-
-/** The roll type of the table's 2D6, which its dialog throws. */
 export const KICKOFF_TABLE_ROLL = "Kickoff Event";
 
 export const KICKOFF_TABLE: Record<number, KickoffEvent> = {
@@ -36,7 +30,6 @@ export const KICKOFF_TABLE: Record<number, KickoffEvent> = {
   12: KickoffEvent.PITCH_INVASION,
 };
 
-/** Plain rulebook statement of what an event does (for the match log). */
 export const KICKOFF_EVENT_MEANING: Record<KickoffEvent, string> = {
   [KickoffEvent.GET_THE_REF]:
     "Each team gains one Bribe, usable until the end of the match.",
@@ -62,7 +55,6 @@ export const KICKOFF_EVENT_MEANING: Record<KickoffEvent, string> = {
     "D6 + Fan Factor per coach; the lowest (or both on a tie) has a random player on the pitch Placed Prone and Stunned.",
 };
 
-/** Events that open an interactive step for a coach before play resumes. */
 export const INTERACTIVE_KICKOFF_EVENTS = new Set<KickoffEvent>([
   KickoffEvent.ALERT_DEFENCE,
   KickoffEvent.HIGH_KICK,
@@ -70,15 +62,6 @@ export const INTERACTIVE_KICKOFF_EVENTS = new Set<KickoffEvent>([
   KickoffEvent.CHARGE,
 ]);
 
-/**
- * Alert Defence (kicking coach) and Quick Snap (receiving coach) both move
- * chosen Open players exactly one square each.
- */
-/**
- * Alert Defence / Quick Snap: who a square click moves, the latest pick
- * still to step. The board marks squares around them alone, and the panel
- * names them.
- */
 export function steppingPlayerId(step: {
   selectedPlayerIds: string[];
   movedPlayerIds: string[];
@@ -95,41 +78,41 @@ export function isOneSquareMoveEvent(event: KickoffEvent): boolean {
   );
 }
 
-/** Which coach an interactive event belongs to. */
 export function kickoffEventOwner(
   event: KickoffEvent,
   kickingTeamId: string,
   receivingTeamId: string
 ): string {
-  switch (event) {
-    case KickoffEvent.ALERT_DEFENCE:
-    case KickoffEvent.CHARGE:
-      return kickingTeamId;
-    case KickoffEvent.HIGH_KICK:
-    case KickoffEvent.QUICK_SNAP:
-      return receivingTeamId;
-    default:
-      throw new Error(`${event} is not an interactive kickoff event`);
-  }
+  if (event === KickoffEvent.ALERT_DEFENCE || event === KickoffEvent.CHARGE) return kickingTeamId;
+  if (event === KickoffEvent.HIGH_KICK || event === KickoffEvent.QUICK_SNAP) return receivingTeamId;
+  throw new Error(`${event} is not an interactive kickoff event`);
 }
 
-/**
- * A structured account of what a resolved kickoff event gave each team —
- * read by the match log, the HUD, and the online mirror alike.
- */
 export interface KickoffEventOutcome {
   event: KickoffEvent;
-  /** Plain rulebook statement of the event. */
+
   meaning: string;
-  /** teamId -> legible effects the team received (may be empty). */
+
   perTeam: Record<string, string[]>;
 }
 
-/** Merges effect lines into an outcome under construction. */
 export function grantEffect(
   outcome: KickoffEventOutcome,
   teamId: string,
   effect: string
 ): void {
   (outcome.perTeam[teamId] ??= []).push(effect);
+}
+
+export function kickoffEventForRoll(roll: number): KickoffEvent {
+  const event = KICKOFF_TABLE[roll];
+  if (event === undefined) throw new Error(`Invalid kickoff table roll: ${String(roll)}`);
+  return event;
+}
+
+export function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolean {
+  const position = player.gridPosition;
+  if (!position || player.status !== PlayerStatus.ACTIVE) return false;
+  return !opponents.some((opponent) => opponent.status === PlayerStatus.ACTIVE && opponent.gridPosition
+    && Math.max(Math.abs(opponent.gridPosition.x - position.x), Math.abs(opponent.gridPosition.y - position.y)) === 1);
 }

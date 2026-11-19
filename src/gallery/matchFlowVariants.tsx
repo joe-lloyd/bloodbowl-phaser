@@ -1,11 +1,7 @@
-/**
- * Gallery variants for the kickoff step, match options, announcements and the
- * coin toss.
- */
 import { GameEventNames } from "../types/events";
 import { KickoffEvent } from "../game/kickoff/kickoffEvents";
 import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager";
-import { MatchFixture } from "./fixtures";
+import { type MatchFixture } from "./fixtures";
 import { HUDLayout } from "../ui/components/hud/HUDLayout";
 import { KickoffEventOverlay } from "../ui/components/hud/KickoffEventOverlay";
 import { MatchOptionsMenu } from "../ui/components/hud/MatchOptionsMenu";
@@ -28,12 +24,11 @@ function kickoffStep(fx: MatchFixture, step: Partial<KickoffEventStepState>) {
     movedPlayerIds: [],
     awaitingPlacement: [],
     ...step,
-  } as KickoffEventStepState;
+  };
   fx.services.gameService.getKickoffEventStep = () => full;
 }
 
 export const MATCH_FLOW_VARIANTS: Variant[] = [
-  // ---- Kickoff
   {
     id: "kickoff-blitz",
     section: "Kickoff step",
@@ -76,7 +71,6 @@ export const MATCH_FLOW_VARIANTS: Variant[] = [
       }),
   },
 
-  // ---- Match options
   {
     id: "options-closed",
     section: "Match options",
@@ -115,7 +109,10 @@ export const MATCH_FLOW_VARIANTS: Variant[] = [
         />
       </div>
     ),
-    drive: () => later(60, () => click('[aria-haspopup="menu"]')),
+    drive: () =>
+      later(60, () => {
+        click('[aria-haspopup="menu"]');
+      }),
   },
   {
     id: "options-confirm",
@@ -152,20 +149,19 @@ export const MATCH_FLOW_VARIANTS: Variant[] = [
       }),
   },
 
-  // ---- Banners
   {
     id: "announce-turn",
     section: "Announcements",
     title: "Turn started (replays every 3s)",
     view: (fx) => <Announcer eventBus={fx.bus} />,
     drive: (fx) =>
-      every(3000, () =>
+      every(3000, () => {
         fx.bus.emit(GameEventNames.UI_Announce, {
           kind: "turn-started",
           headline: "Turn 3",
           subtitle: "Reikland Reavers",
-        })
-      ),
+        });
+      }),
   },
   {
     id: "announce-time-up",
@@ -203,13 +199,13 @@ export const MATCH_FLOW_VARIANTS: Variant[] = [
       </>
     ),
     drive: (fx) =>
-      every(4000, () =>
+      every(4000, () => {
         fx.bus.emit(GameEventNames.UI_Announce, {
           kind: "touchdown",
           headline: "Touchdown!",
           subtitle: "Gouged Eye score. Reikland Reavers 0 - 1 Gouged Eye",
-        })
-      ),
+        });
+      }),
   },
   {
     id: "announce-half",
@@ -217,13 +213,13 @@ export const MATCH_FLOW_VARIANTS: Variant[] = [
     title: "Halftime (replays every 3s)",
     view: (fx) => <Announcer eventBus={fx.bus} />,
     drive: (fx) =>
-      every(3000, () =>
+      every(3000, () => {
         fx.bus.emit(GameEventNames.UI_Announce, {
           kind: "halftime",
           headline: "Halftime",
           subtitle: "Reikland Reavers 1 - 0 Gouged Eye",
-        })
-      ),
+        });
+      }),
   },
   {
     id: "turnover",
@@ -231,27 +227,26 @@ export const MATCH_FLOW_VARIANTS: Variant[] = [
     title: "Turnover (replays every 3.5s)",
     view: (fx) => <TurnoverOverlay eventBus={fx.bus} />,
     drive: (fx) =>
-      every(3500, () =>
+      every(3500, () => {
         fx.bus.emit(
           "ui:turnover" as never,
           { teamId: fx.team1.id, reason: "Failed Dodge" } as never
-        )
-      ),
+        );
+      }),
   },
 
-  // ---- Coin toss
   {
     id: "coin-start",
     section: "Coin toss",
     title: "Local: before the flip",
     view: (fx) => <CoinFlipOverlay eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.UI_StartCoinFlip, {
           team1: fx.team1,
           team2: fx.team2,
-        })
-      ),
+        });
+      }),
   },
   {
     id: "coin-result",
@@ -264,7 +259,9 @@ export const MATCH_FLOW_VARIANTS: Variant[] = [
           team1: fx.team1,
           team2: fx.team2,
         });
-        setTimeout(() => click("button", "FLIP COIN"), 80);
+        setTimeout(() => {
+          click("button", "FLIP COIN");
+        }, 80);
       }),
   },
   {

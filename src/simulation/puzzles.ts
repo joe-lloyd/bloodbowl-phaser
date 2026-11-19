@@ -1,51 +1,42 @@
-/**
- * Coaching puzzles: one-turn positions with a known right answer, played by
- * a coach over many seeds. Each puzzle is a rules-lab scenario where team1
- * (all Human Linemen, MA 6, ST 3, AG 3, scoring at x = 19) has the turn.
- *
- * The match benchmark says whether a coach wins; the puzzles say why. A
- * coach that scores in games but cannot blitz a lone carrier is lucky, not
- * good.
- */
-
 import { HeadlessGame } from "../headless/HeadlessGame";
-import { EmittedEvent } from "../headless/protocol";
-import { GameSnapshot } from "../headless/serialization";
+import { type EmittedEvent } from "../headless/protocol";
+import { type GameSnapshot } from "../headless/serialization";
 import { playSetup } from "../game/rules-lab/factories";
 import { GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
-import { ScenarioSetup } from "../types/Scenario";
+import { type ScenarioSetup } from "../types/Scenario";
 import { GameEventNames } from "../types/events";
 import { enumerateDecision } from "./candidates";
-import { Coach } from "./coach";
+import { type Coach } from "./coach";
 import { heuristicCoach } from "./coaches/heuristic";
 import { createCoachRng } from "./rng";
 
 export interface PuzzleResult {
-  /** team1's touchdowns this turn. */
   scored: boolean;
   turnover: boolean;
-  /** The state when team1's turn ended (or when it scored). */
+
   end: GameSnapshot;
 }
 
 export interface Puzzle {
   id: string;
-  /** What the right answer is, in a sentence. */
+
   goal: string;
   setup: ScenarioSetup;
   rerolls: number;
   solved(result: PuzzleResult): boolean;
 }
 
-type Square = { x: number; y: number };
+interface Square {
+  x: number;
+  y: number;
+}
 const lineman = (playerIndex: number, x: number, y: number) => ({
   playerIndex,
   x,
   y,
 });
 
-/** The standing player on `square`, if any, with the side they play for. */
 function standingAt(end: GameSnapshot, square: Square) {
   return end.teams
     .flatMap((t, i) =>
@@ -62,7 +53,6 @@ function standingAt(end: GameSnapshot, square: Square) {
     );
 }
 
-/** The side whose standing player holds the ball, or null if it is loose. */
 function holder(end: GameSnapshot): "team1" | "team2" | null {
   return end.ballPosition
     ? (standingAt(end, end.ballPosition)?.side ?? null)
@@ -178,7 +168,6 @@ export const PUZZLES: readonly Puzzle[] = [
   },
 ];
 
-/** Play has stopped, or it is the other side's turn with nothing to answer. */
 function turnPassed(
   snapshot: GameSnapshot,
   pending: boolean,
@@ -190,7 +179,6 @@ function turnPassed(
   );
 }
 
-/** Whether any of `events` is a `name` event for `teamId`. */
 function hasTeamEvent(
   events: EmittedEvent[],
   name: string,
@@ -202,11 +190,6 @@ function hasTeamEvent(
   });
 }
 
-/**
- * Play team1's turn of a puzzle with `coach`. Team2 only ever answers
- * decisions (block dice it picks, its own re-rolls), and the heuristic
- * coach answers those.
- */
 export async function playPuzzle(
   puzzle: Puzzle,
   coach: Coach,
@@ -252,7 +235,6 @@ export async function playPuzzle(
   return { scored, turnover, end: game.snapshot() };
 }
 
-/** How often `coach` solves each puzzle over `seeds` seeds from 1. */
 export async function solveRates(
   coach: Coach,
   seeds: number

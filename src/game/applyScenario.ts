@@ -1,20 +1,12 @@
-/**
- * Apply a scenario to a pair of teams (mutating their placements/statuses)
- * and build the matching initial GameState.
- *
- * Pure with respect to services: no ServiceContainer, no events, no sound —
- * usable by both the browser ScenarioLoader and the headless engine.
- */
-
-import { Scenario, PlayerPlacement } from "../types/Scenario";
-import { Team } from "../types/Team";
-import { GameState, GamePhase } from "../types/GameState";
+import { type Scenario, type PlayerPlacement } from "../types/Scenario";
+import { type Team } from "../types/Team";
+import { type GameState, GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { SkillType, getSkill, hasSkill } from "../types/Skills";
 import { SetupManager } from "./managers/SetupManager";
 import { DesperateMeasure } from "./inducements/desperateMeasures";
 import {
-  MatchInducementsState,
+  type MatchInducementsState,
   emptyMatchInducements,
 } from "./inducements/matchInducements";
 
@@ -38,8 +30,7 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
     player.conditions = p.conditions?.length
       ? p.conditions.map((type) => ({ type }))
       : undefined;
-    // Scenario-granted skills: additive to roster skills, marked so the
-    // next scenario load strips them again
+
     p.skills?.forEach((entry) => {
       const type = typeof entry === "object" ? entry.type : entry;
       const parameter = typeof entry === "object" ? entry.parameter : undefined;
@@ -52,7 +43,6 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
   });
 }
 
-/** The scenario's Desperate Measures, already rolled; none when omitted. */
 function scenarioMeasures(
   scenario: Scenario,
   team1: Team,
@@ -76,7 +66,6 @@ function scenarioMeasures(
   return state;
 }
 
-/** Where the ball starts: in a carrier's hands, on the ground, or nowhere. */
 function ballSquare(scenario: Scenario): { x: number; y: number } | null {
   const { team1Placements, team2Placements, ballPosition } = scenario.setup;
   const carriers = [...team1Placements, ...team2Placements].filter(
@@ -99,13 +88,12 @@ export function applyScenario(
   SetupManager.sanitizeTeam(team1);
   SetupManager.sanitizeTeam(team2);
 
-  // Skills and titles granted by a previous scenario must not leak into this one
-  [team1, team2].forEach((team) =>
+  [team1, team2].forEach((team) => {
     team.players.forEach((player) => {
       player.skills = player.skills.filter((s) => !s.scenarioGranted);
       delete player.teamCaptain;
-    })
-  );
+    });
+  });
   const { teamRerolls } = scenario.setup;
   if (teamRerolls?.team1 !== undefined) team1.rerolls = teamRerolls.team1;
   if (teamRerolls?.team2 !== undefined) team2.rerolls = teamRerolls.team2;
@@ -116,9 +104,6 @@ export function applyScenario(
   const activeTeamId =
     scenario.setup.activeTeam === "team1" ? team1.id : team2.id;
 
-  // A kickoff happens BEFORE the first turn, so it sits at turn 0; every
-  // other scenario is a mid-drive situation, so it defaults to turn 2 rather
-  // than making it look like the opening turn. A scenario may pin its own turn.
   const turnNumber =
     scenario.setup.turn ?? (scenario.setup.phase === GamePhase.KICKOFF ? 0 : 2);
 

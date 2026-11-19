@@ -1,21 +1,8 @@
 import Phaser from "phaser";
 
-/**
- * Skip Phaser's render on steps where nothing on screen changed.
- *
- * Phaser redraws the whole canvas every step, 60 times a second, even when
- * the board is still. After each update this reads what the frame would
- * draw: every visible object's transform, frame, tint, text and shape, and
- * every camera. When that matches the last frame drawn, the clear and the
- * draw are skipped and the canvas keeps showing the last frame. Updates,
- * input, tweens and timers still run every step.
- *
- * Install with the game config's `callbacks.postBoot`, which runs just
- * before the loop starts.
- */
 export function renderOnlyOnChange(game: Phaser.Game): void {
   const { renderer, scene: scenes } = game;
-  // Two buffers, swapped, so a step allocates nothing
+
   let drawn: unknown[] = [];
   let next: unknown[] = [];
   let skip = false;
@@ -47,7 +34,6 @@ function sameValues(a: unknown[], b: unknown[]): boolean {
   return true;
 }
 
-/** Everything a render reads, flattened to primitives in draw order. */
 function frameState(game: Phaser.Game, out: unknown[]): void {
   out.push(game.scale.width, game.scale.height);
   for (const scene of game.scene.getScenes(true)) {
@@ -71,7 +57,7 @@ function frameState(game: Phaser.Game, out: unknown[]): void {
         camera.flashEffect.isRunning,
         camera.flashEffect.progress,
         camera.shakeEffect.isRunning,
-        // A shake moves the camera every frame it runs
+
         camera.shakeEffect.progress
       );
     }
@@ -80,7 +66,6 @@ function frameState(game: Phaser.Game, out: unknown[]): void {
 }
 
 function pushObject(object: Phaser.GameObjects.GameObject, out: unknown[]) {
-  // Identity first: an object swapped for another always redraws
   out.push(object);
   if (object instanceof Phaser.GameObjects.Container) {
     pushTransform(object, out);
@@ -142,12 +127,12 @@ function pushObject(object: Phaser.GameObjects.GameObject, out: unknown[]) {
       object.strokeAlpha,
       object.lineWidth,
       object.mask,
-      // Phaser builds a new path array whenever a shape's geometry changes
+
       object.pathData
     );
     return;
   }
-  // A kind not read here: draw every frame, as Phaser would
+
   out.push(NaN);
 }
 

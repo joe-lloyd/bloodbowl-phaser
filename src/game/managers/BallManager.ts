@@ -1,10 +1,10 @@
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { whenMomentsComplete } from "../presentation/momentQueue";
 import { realTimeDelay } from "../core/GameFlowManager";
-import { IEventBus } from "../../services/EventBus";
-import { GameState, GamePhase, SubPhase } from "@/types/GameState";
-import { Team } from "@/types/Team";
-import { Player, PlayerStatus } from "@/types/Player";
+import { type IEventBus } from "../../services/EventBus";
+import { type GameState, GamePhase, SubPhase } from "@/types/GameState";
+import { type Team } from "@/types/Team";
+import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { GameEventNames } from "../../types/events";
 
@@ -23,65 +23,80 @@ import {
   throwInDirections,
 } from "./ballPaths";
 import { BounceOperation } from "../operations/BounceOperation";
-import { ReactionDecisionAnswer } from "../../types/decisions";
+import { type ReactionDecisionAnswer } from "../../types/decisions";
 import {
   KICKOFF_EVENT_MEANING,
-  KickoffEventOutcome,
+  type KickoffEventOutcome,
 } from "../kickoff/kickoffEvents";
 
-/**
- * BallManager
- *
- * Purpose: The central authority for the Ball's state and lifecycle.
- * It maintians the "Single Source of Truth" for where the ball is and who has it.
- * It orchestrates high-level sequences but delegates specific rule calculations to controllers.
- */
 export class BallManager {
-  public movementController: BallMovementController; // Public so GameService can inject it into PassController
+  public movementController: BallMovementController;
   public kickoffController: KickoffController;
   public pickupController: PickupController;
 
-  /** Kick landed out of bounds / short: resolve as a touchback once play starts */
-  private pendingTouchback: boolean = false;
-  /** Waiting for the receiving coach to hand the ball to one of their players */
+  private pendingTouchback = false;
+
   private touchbackTeamId: string | null = null;
-  /** Team orientation for the kickoff currently in flight. */
+
   private isTeam1Kicking = true;
 
+  private eventBus: IEventBus;
+  private state: GameState;
+  private team1: Team;
+  private team2: Team;
+  private diceController: DiceController;
+  private callbacks: {
+    onTurnover: (reason: string) => void;
+    onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
+    onBallPlaced: (x: number, y: number) => void;
+    getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
+
+    resolveKickoffEvent?: (isTeam1Kicking: boolean) => Promise<void>;
+
+    resolveHighKickStep?: (
+      isTeam1Kicking: boolean,
+      landingSquare: { x: number; y: number }
+    ) => Promise<void>;
+
+    consumeWeatherScatterPending?: () => boolean;
+  };
+  private delay: import("../core/GameFlowManager").DelayProvider;
   constructor(
-    private eventBus: IEventBus,
-    private state: GameState,
-    private team1: Team,
-    private team2: Team,
+    eventBus: IEventBus,
+    state: GameState,
+    team1: Team,
+    team2: Team,
     _weatherService: WeatherManager,
-    private diceController: DiceController,
-    private callbacks: {
+    diceController: DiceController,
+    callbacks: {
       onTurnover: (reason: string) => void;
       onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
       onBallPlaced: (x: number, y: number) => void;
       getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
-      /** Resolve the Sevens event, pausing while an interactive step is open. */
+
       resolveKickoffEvent?: (isTeam1Kicking: boolean) => Promise<void>;
-      /** High Kick is offered after deviation, before the ball lands. */
+
       resolveHighKickStep?: (
         isTeam1Kicking: boolean,
         landingSquare: { x: number; y: number }
       ) => Promise<void>;
-      /** Changing Weather / Perfect Conditions adds Scatter (3). */
+
       consumeWeatherScatterPending?: () => boolean;
     },
-    private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
+    delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
-    // Instantiate controllers with DiceController
+    this.eventBus = eventBus;
+    this.state = state;
+    this.team1 = team1;
+    this.team2 = team2;
+    this.diceController = diceController;
+    this.callbacks = callbacks;
+    this.delay = delay;
+
     this.movementController = new BallMovementController(this.diceController);
-    this.kickoffController = new KickoffController(
-      this.movementController,
-      this.diceController
-    );
+    this.kickoffController = new KickoffController({ movementController: this.movementController, diceController: this.diceController });
     this.pickupController = new PickupController(eventBus, this.diceController);
   }
-
-  // --- KICKOFF ORCHESTRATION ---
 
   public async kickBall(
     isTeam1Kicking: boolean,
@@ -90,27 +105,10 @@ export class BallManager {
     targetY: number
   ): Promise<void> {
     this.isTeam1Kicking = isTeam1Kicking;
-    // 1. Transition State
+
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.ROLL_KICKOFF);
 
-    // A drive's kickoff resolves exactly once. `subPhase` stays
-    // ROLL_KICKOFF for the whole kickoff sequence (see
-    // GameState.kickoffKickResolved), so a refresh/restore — or any other
-    // stale re-entry into the KICKOFF phase — can re-offer "Select Kicker &
-    // Target" no matter how far the original kick had progressed. If this
-    // drive's deviation has already been resolved, do not recompute it (or
-    // re-ask the On the Ball reaction): replay from the already-restored
-    // `ballPosition` instead. `resolveKickoffEvent()` below has its own,
-    // separate guard for the table roll.
     if (this.state.kickoffKickResolved) {
-      // Trust the drive's already-resolved kicking side, not this call's
-      // parameter: a stale re-entrant command could in principle name a
-      // kicker from the opposing team (the browser can't produce this —
-      // isTeam1Kicking there is derived from the fixed kicking team — but
-      // the headless/online kick-ball command path takes it as a raw
-      // parameter). Getting this wrong wouldn't cause a re-deviation/re-roll
-      // (both guards check state, not isTeam1Kicking), but could misdirect
-      // the High Kick step or the Changing Weather scatter's touchback check.
       this.isTeam1Kicking = this.state.kickoffKickResolved.isTeam1Kicking;
       this.pendingTouchback = this.state.ballPosition === null;
       if (this.pendingTouchback) {
@@ -133,10 +131,6 @@ export class BallManager {
       return;
     }
 
-    // Kick (p.130): a nominated kicker with the Kick skill lets their coach
-    // halve the deviation to D3. The reduced deviation is always the safer
-    // choice (the ball lands nearer the aim), so it is applied whenever the
-    // kicker has the skill.
     const kicker = [...this.team1.players, ...this.team2.players].find(
       (p) => p.id === playerId
     );
@@ -149,18 +143,9 @@ export class BallManager {
       });
     }
 
-    // 2. Calculate Deviation (using Controller)
     const result = this.kickoffController.calculateKickDestination(
-      targetX,
-      targetY,
-      isTeam1Kicking,
-      useKickD3,
-      isTeam1Kicking ? this.team1.id : this.team2.id
-    );
+      { targetX,targetY,isTeam1Kicking,useKickD3,kickingTeamId: isTeam1Kicking? this.team1.id:this.team2.id }    );
 
-    // 3. Update State. A kick landing out of bounds or in the kicking
-    // team's own third is a Touchback (p.71): the ball never lands — the
-    // receiving coach hands it to any of their players once play starts.
     this.pendingTouchback = result.isTouchback;
     if (result.isTouchback) {
       this.state.ballPosition = null;
@@ -168,19 +153,13 @@ export class BallManager {
     } else {
       this.state.ballPosition = { x: result.finalX, y: result.finalY };
     }
-    // This drive's deviation is now resolved — see the guard at the top of
-    // this method and GameState.kickoffKickResolved.
+
     this.state.kickoffKickResolved = { isTeam1Kicking };
 
-    // On the Ball's kick-off clause sits exactly here: deviation is known,
-    // but no Kick-off Event has been rolled yet. Touchbacks suppress it.
     if (!result.isTouchback) {
       await this.resolveKickoffOnTheBall(isTeam1Kicking);
     }
 
-    // 4. Put the ball in the air before resolving the table. The browser
-    // keeps the real ball airborne and shows a translucent landing preview
-    // while any interactive kickoff step is open.
     this.eventBus.emit(GameEventNames.BallKicked, {
       playerId,
       targetX,
@@ -192,11 +171,6 @@ export class BallManager {
       isTouchback: result.isTouchback,
     });
 
-    // 5. Resolve the Event Table. Awaiting here is what lets interactive
-    // kickoff steps suspend browser/headless/online execution consistently
-    // while the ball remains visibly airborne.
-    // The browser's airborne tween is 800ms. Do not roll the table until
-    // the enlarged ball has reached its deviated square.
     await this.delay(900);
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.RESOLVE_KICKOFF);
     await this.resolveKickoffEvent();
@@ -204,11 +178,6 @@ export class BallManager {
     await this.finishKickoffResolution();
   }
 
-  /**
-   * A kicking team with nobody on the pitch picks no kicker: the drive is
-   * an automatic Touchback, with no kick, no deviation and no Kick-off
-   * table, and play starts with the receiving coach choosing the carrier.
-   */
   public async automaticTouchback(isTeam1Kicking: boolean): Promise<void> {
     this.isTeam1Kicking = isTeam1Kicking;
     this.state.kickoffKickResolved = { isTeam1Kicking };
@@ -222,12 +191,6 @@ export class BallManager {
     await this.resolveBallPlacement();
   }
 
-  /**
-   * One Open receiving player may make a legal, no-Rush move of up to three
-   * squares. The engine's deterministic policy chooses the first eligible
-   * player and a safe route toward the deviated ball; the reaction decision
-   * still belongs to the receiving coach.
-   */
   private async resolveKickoffOnTheBall(
     isTeam1Kicking: boolean
   ): Promise<void> {
@@ -255,14 +218,15 @@ export class BallManager {
         [...this.team1.players, ...this.team2.players]
           .filter((player) => player.id !== reactor.id && player.gridPosition)
           .map(
-            (player) => `${player.gridPosition!.x},${player.gridPosition!.y}`
+            (player) =>
+              `${String(player.gridPosition!.x)},${String(player.gridPosition!.y)}`
           )
       );
       const next = kickoffOnTheBallStep(reactor.gridPosition, {
         occupied,
         opponents,
         isTeam1Kicking,
-        ball: this.state.ballPosition!,
+        ball: this.state.ballPosition,
       });
       if (!next) break;
       reactor.gridPosition = { ...next };
@@ -295,7 +259,6 @@ export class BallManager {
     if (this.callbacks.resolveKickoffEvent) {
       await this.callbacks.resolveKickoffEvent(this.isTeam1Kicking);
     } else {
-      // Lightweight/unit-test fallback when BallManager is constructed alone.
       const { roll, event } = this.kickoffController.rollKickoffEvent();
       const outcome: KickoffEventOutcome = {
         event,
@@ -342,8 +305,7 @@ export class BallManager {
         this.eventBus.emit(GameEventNames.KickoffAirbornePositionChanged, {
           ...this.state.ballPosition,
         });
-        // Let the same enlarged ball finish moving to the weather-adjusted
-        // square before starting its landing tween.
+
         await this.delay(800);
       }
     }
@@ -364,15 +326,11 @@ export class BallManager {
     await this.delay(200);
     await whenMomentsComplete(this.eventBus);
 
-    // This must precede ReadyToStart: that event changes phase
-    // synchronously and removes the kickoff handler's listeners.
     this.eventBus.emit(GameEventNames.KickoffSequenceCompleted, {
       isTouchback: this.pendingTouchback,
     });
 
-    // ReadyToStart handlers call startGame synchronously, so once emit
-    // returns the receiving team is the active team.
-    this.eventBus.emit(GameEventNames.ReadyToStart);
+    this.eventBus.emit(GameEventNames.ReadyToStart, undefined);
 
     if (this.pendingTouchback) {
       this.pendingTouchback = false;
@@ -392,8 +350,6 @@ export class BallManager {
           true
         );
       } else {
-        // A kickoff landing in an empty square bounces once. This happens
-        // only after the airborne animation and kickoff table resolution.
         this.callbacks
           .getFlowManager?.()
           ?.add(new BounceOperation(landing, true), true);
@@ -401,11 +357,6 @@ export class BallManager {
     }
   }
 
-  /**
-   * The kick-off ball is still loose after landing: a bounce that leaves
-   * the pitch or crosses into the kicking team's half is a Touchback.
-   * Returns true when it was, with the receiving coach now to choose.
-   */
   public kickoffBounceTouchback(to: { x: number; y: number }): boolean {
     const offPitch =
       to.x < 0 ||
@@ -420,7 +371,6 @@ export class BallManager {
     return true;
   }
 
-  /** Play has started, so the active team is the receiving team. */
   private awardTouchbackToReceivers(): void {
     const team = [this.team1, this.team2].find(
       (t) => t.id === this.state.activeTeamId
@@ -440,11 +390,6 @@ export class BallManager {
     );
   }
 
-  /**
-   * Touchback resolution (p.71): the receiving coach gives the ball to any
-   * of their standing players on the pitch. Returns false while no
-   * touchback is pending or for an invalid choice.
-   */
   public awardTouchback(playerId: string): boolean {
     if (!this.touchbackTeamId) return false;
 
@@ -470,20 +415,11 @@ export class BallManager {
     return true;
   }
 
-  /** True while a touchback waits for the receiving coach's choice. */
   public isTouchbackPending(): boolean {
     return this.touchbackTeamId !== null;
   }
 
-  /**
-   * Throw-in (rulebook p.73): the crowd throws the ball back from the last
-   * square it occupied. D6 picks one of the three infield directions from
-   * the exit edge; the ball travels D6+2 squares (Sevens rule M5; exit
-   * square counts as the first). Leaves the pitch again → repeat. Lands occupied → catch attempt;
-   * lands empty → ball rests there.
-   */
   public throwIn(from: { x: number; y: number }): void {
-    // Infield directions for the edge the ball left from
     const dirs = throwInDirections(from);
 
     const directionRoll = this.diceController.rollD6("Throw-in Direction");
@@ -491,14 +427,12 @@ export class BallManager {
 
     const distance = this.diceController.rollD6("Throw-in Distance") + 2;
 
-    // Exit square counts as the first square travelled
     const landing = {
       x: from.x + dir.x * (distance - 1),
       y: from.y + dir.y * (distance - 1),
     };
 
     if (isOffPitch(landing)) {
-      // Left the pitch again: repeat from the last on-pitch square along dir
       const lastIn = lastSquareIn(from, dir, distance - 1);
       this.eventBus.emit(GameEventNames.UI_Notification, "Thrown out again!");
       this.throwIn(lastIn);
@@ -520,7 +454,6 @@ export class BallManager {
         p.gridPosition.y === landing.y
     );
     if (occupant) {
-      // A dropped throw-in is not a turnover
       this.callbacks
         .getFlowManager?.()
         ?.add(new CatchOperation(occupant.id, { origin: "throw-in" }), true);
@@ -569,13 +502,10 @@ export class BallManager {
       )[0];
   }
 
-  // --- PICKUP ORCHESTRATION ---
-
   public attemptPickup(
     player: Player,
     position: { x: number; y: number }
   ): boolean {
-    // 1. Calculate Modifiers (State dependent)
     const oppTeam = player.teamId === this.team1.id ? this.team2 : this.team1;
     let standingEnemies = 0;
 
@@ -589,16 +519,9 @@ export class BallManager {
       }
     });
 
-    // 2. Delegate to Controller
     const result = this.pickupController.attemptPickup(player, standingEnemies);
 
-    // 3. Handle Result
     if (!result.success) {
-      // Bounce Logic handled by GameService usually for turn end?
-      // Or should Manager do it?
-      // The original code returned false and triggered turnover.
-      // We should bounce the ball here too if we want MANAGER to manage ball.
-
       const bouncePos = this.movementController.bounce(position);
       this.state.ballPosition = bouncePos;
       this.callbacks.onBallPlaced(bouncePos.x, bouncePos.y);
@@ -617,18 +540,10 @@ export class BallManager {
   }
 
   public hasBall(playerId: string): boolean {
-    // We don't have direct access to players list here trivially unless we search teams
-    // But we usually call this from GameService which passes player ID.
-    // Actually, checking if a player has the ball requires checking their position vs ball position.
-    // We need to find the player first.
-
-    // Optimization: If we trust the caller to check valid player, we just need coordinates.
-    // But we only have ID.
     const p1 = this.team1.players.find((p) => p.id === playerId);
     const p2 = this.team2.players.find((p) => p.id === playerId);
     const player = p1 || p2;
 
-    // A kick still in the air is held by nobody under it
     return !!player && ballOnSquare(this.state, player.gridPosition);
   }
 }

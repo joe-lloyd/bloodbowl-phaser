@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   turnProgress,
@@ -78,14 +79,14 @@ describe("match strip text", () => {
   it("hides consumed assists and names modified players on the owning team", () => {
     const team = TeamFactory.createTestTeam(RosterName.HUMAN, "Home");
     const other = TeamFactory.createTestTeam(RosterName.ORC, "Away");
-    const state = GameService.createInitialState(team, other);
+    const state = GameService.createInitialState({ team1: team, team2: other });
     state.driveEffects = {
       freeRerolls: {},
       owedAssists: { [team.id]: { turn: 1, used: true } },
-      playerModifiers: { [team.players[0].id]: { confinedToReserves: true } },
+      playerModifiers: { [fixtureValue(team.players[0]).id]: { confinedToReserves: true } },
     };
     expect(driveEffectText(state, team)).toEqual([
-      `Dodgy Snack #${team.players[0].number}: reserves this drive`,
+      `Dodgy Snack #${String(fixtureValue(team.players[0]).number)}: reserves this drive`,
     ]);
     expect(driveEffectText(state, other)).toEqual([]);
   });

@@ -1,42 +1,37 @@
 import { GamePhase, SubPhase } from "./GameState";
-import { PlayerStatus, PlayerStats, PlayerCondition } from "./Player";
+import { PlayerStatus, type PlayerStats, PlayerCondition } from "./Player";
 import { RosterName } from "./Team";
 import { SkillType } from "./Skills";
 import type { Weather } from "../game/rules/weather";
 import type { DesperateMeasure } from "../game/inducements/desperateMeasures";
 
-/**
- * A skill to grant a placement — either the bare type, or a type plus its
- * parameter value for a parameterized family (Loner "4+", Animosity a
- * keyword, Bloodlust "2+").
- */
-export type PlacementSkill =
+type PlacementSkill =
   | SkillType
   | { type: SkillType; parameter: string | number };
 
 export interface PlayerPlacement {
-  playerIndex: number; // Index in the team.players array
-  x: number; // Grid X
-  y: number; // Grid Y
-  status?: PlayerStatus; // Optional status override
-  /** Skills granted for this scenario, additive to the player's roster skills */
+  playerIndex: number;
+  x: number;
+  y: number;
+  status?: PlayerStatus;
+
   skills?: PlacementSkill[];
-  /** Stat overrides for this scenario (e.g. ST 4 for a Break Tackle demo) */
+
   stats?: Partial<PlayerStats>;
-  /** Named conditions to seed (e.g. Distracted, to test a lost Tackle Zone) */
+
   conditions?: PlayerCondition[];
-  /** Make this player the team's Sevens Veteran (D8) for the scenario. */
+
   veteran?: true;
-  /** Make this player the team's Team Captain, with its Pro, for the scenario. */
+
   teamCaptain?: true;
-  /** This player starts holding the ball (instead of a `ballPosition`). */
+
   hasBall?: true;
 }
 
 export interface ScenarioSetup {
   team1Placements: PlayerPlacement[];
   team2Placements: PlayerPlacement[];
-  /** A ball on the ground; a carried ball is a placement's `hasBall`. */
+
   ballPosition?: { x: number; y: number };
   activeTeam: "team1" | "team2";
   turn?: number;
@@ -44,16 +39,13 @@ export interface ScenarioSetup {
   subPhase: SubPhase;
   team1Roster?: RosterName;
   team2Roster?: RosterName;
-  /** Weather in effect; Perfect Conditions ("Nice") when omitted. */
+
   weather?: Weather;
-  /** Team Re-rolls each team holds; the team's own count when omitted. */
+
   teamRerolls?: { team1?: number; team2?: number };
-  /**
-   * Desperate Measures each team holds, as if rolled before the game. A
-   * Magic Scroll is read at once, so that team starts with its Sports-Wizard.
-   */
+
   measures?: { team1?: DesperateMeasure[]; team2?: DesperateMeasure[] };
-  /** Bribes each team holds, as Get the Ref leaves them; none when omitted. */
+
   bribes?: { team1?: number; team2?: number };
 }
 
@@ -62,6 +54,6 @@ export interface Scenario {
   name: string;
   description: string;
   setup: ScenarioSetup;
-  seed?: number; // Optional RNG seed for deterministic outcomes
-  expectedOutcome?: string; // Optional description of what this seed produces
+  seed?: number;
+  expectedOutcome?: string;
 }

@@ -1,7 +1,3 @@
-/**
- * Gallery variants for the online turn clock, connection banners and the
- * waiting states.
- */
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { ConnectionBanner } from "../ui/pages/ConnectionBanner";
@@ -24,7 +20,6 @@ const USER = {
 } satisfies AuthUser;
 
 export const ONLINE_VARIANTS: Variant[] = [
-  // ---- Turn clock
   {
     id: "clock-running",
     section: "Online turn clock",
@@ -134,12 +129,12 @@ export const ONLINE_VARIANTS: Variant[] = [
       </>
     ),
     drive: (fx) =>
-      later(60, () =>
+      later(60, () => {
         fx.bus.emit(GameEventNames.NetworkCommandRejected, {
           commandType: "move",
           reason: "not-your-turn",
-        })
-      ),
+        });
+      }),
   },
   {
     id: "clock-low",

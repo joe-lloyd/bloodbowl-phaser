@@ -1,9 +1,5 @@
-/**
- * Shared setup for the MatchResultsScreen tests: a fresh React root per
- * test, a two-team match at full time, and a league to record it in.
- */
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, vi } from "vitest";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
@@ -16,17 +12,16 @@ import {
   generateRoundRobin,
 } from "../../src/competition/logic";
 import { saveCompetition } from "../../src/competition/repository";
-import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
+import {
+  type CompetitionEntrant,
+  type LeagueDoc,
+} from "../../src/competition/types";
 import {
   saveTeams,
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
-import { Team } from "../../src/types/Team";
+import { type Team } from "../../src/types/Team";
 
-/**
- * Mounts a root in a fresh container before each test, and unmounts it and
- * resets the game after. A test may replace `root` to mount the screen anew.
- */
 export function resultsHarness() {
   let container: HTMLDivElement;
   let root: Root;
@@ -40,7 +35,9 @@ export function resultsHarness() {
   afterEach(async () => {
     vi.restoreAllMocks();
     setTeamRepository(null);
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     ServiceContainer.reset();
   });
@@ -79,24 +76,15 @@ export function setup(progressionEnabled: boolean) {
     .withPlayers(2)
     .build();
   [...team1.players, ...team2.players].forEach((p) => {
-    p.playerName = `Player ${p.number}`;
+    p.playerName = `Player ${String(p.number)}`;
   });
   const eventBus = new EventBus();
-  const services = ServiceContainer.initialize(
-    eventBus,
-    team1,
-    team2,
-    undefined,
-    undefined,
-    undefined,
-    progressionEnabled
-  );
+  const services = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2, progressionEnabled: progressionEnabled });
   const state = services.gameService.getState();
   state.phase = GamePhase.GAME_OVER;
   return { services, state, team1, team2 };
 }
 
-/** A league of the two teams, stored with them, as the coach left it at kick-off. */
 export async function leagueOf(teams: Team[]): Promise<LeagueDoc> {
   const entrants: CompetitionEntrant[] = teams.map((team, index) => ({
     id: `local:${team.id}`,

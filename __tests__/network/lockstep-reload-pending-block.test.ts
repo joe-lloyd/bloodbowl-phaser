@@ -1,12 +1,4 @@
-/**
- * A coach's page closes while they owe a block-dice choice, then comes
- * back. The returning page starts from an older save and the hello catches
- * it up by resync. The coach must still be able to pick the die. In the
- * round 5 two-machine match (3 November 2026) the host's tab closed while
- * its Blitz dice were in the air. On return the engine held the pending
- * choice but could not resolve it, and the match froze for 23 minutes on
- * "Time up".
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import {
   createSimGame,
@@ -69,7 +61,6 @@ describe.each([
       const guest = session(guestGame, guestEnd, "guest");
       const guestTeam = guestGame.ctx.team2.id;
 
-      // Play until the guest owes the decision
       let answer = null;
       for (const [index, step] of recording.steps.entries()) {
         if (!(await host.run(step.command)).ok) await guest.run(step.command);
@@ -88,7 +79,6 @@ describe.each([
       expect(answer).not.toBeNull();
       expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
 
-      // The guest's tab closes and reopens on a page from the start of the match
       guest.close();
       const reloaded = await build();
       const after = new LockstepSession({
@@ -103,7 +93,7 @@ describe.each([
       await settle(host, after);
       expect(reloaded.pendingDecision()?.type).toBe(decision);
 
-      const picked = await after.run(answer!);
+      const picked = await after.run(fixtureValue(answer));
       await settle(host, after);
       expect(picked.reason).toBeUndefined();
       expect(picked.ok).toBe(true);

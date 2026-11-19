@@ -1,10 +1,10 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
-import { Player, PlayerStatus } from "../../types/Player";
+import { type IGameService } from "../../services/interfaces/IGameService";
+import { type Player, PlayerStatus } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
@@ -12,12 +12,13 @@ import { adjacentStandingRefusal } from "./specialActionTarget";
 import { announceArmour, foldArmourRoll } from "./ArmourOperation";
 import { gatherParticipants } from "../skills";
 
-/** Ends the vomiter's activation once everything has settled. */
 class FinishVomitOperation extends GameOperation {
   public readonly name = "FinishProjectileVomit";
 
-  constructor(private attackerId: string) {
+  private attackerId: string;
+  constructor(attackerId: string) {
     super();
+    this.attackerId = attackerId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -25,28 +26,19 @@ class FinishVomitOperation extends GameOperation {
   }
 }
 
-/**
- * ProjectileVomitOperation (2025 rulebook p.133, Projectile Vomit trait)
- *
- * Against an adjacent Standing opposition player: roll a D6. On a 2+, an
- * UNMODIFIABLE Armour Roll against the target; if broken, an Injury Roll,
- * otherwise nothing. On a 1, the player covers themselves in acidic bile —
- * the same unmodifiable Armour Roll against THIS player (broken armour
- * knocks them down: an active-team Knocked Down is a turnover). May replace
- * the Block Action of a Blitz. The activation ends once resolved.
- */
 export class ProjectileVomitOperation extends GameOperation {
   public readonly name = "ProjectileVomitOperation";
 
-  constructor(
-    private attackerId: string,
-    private targetId: string
-  ) {
+  private attackerId: string;
+  private targetId: string;
+  constructor(attackerId: string, targetId: string) {
     super();
+    this.attackerId = attackerId;
+    this.targetId = targetId;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     const dice = gameService.getDiceController();
 
@@ -73,12 +65,7 @@ export class ProjectileVomitOperation extends GameOperation {
     await context.delay(600);
 
     const aim = dice.rollSkillCheck(
-      "Projectile Vomit",
-      2,
-      0,
-      attacker.playerName,
-      attacker.teamId
-    );
+      { reason: "Projectile Vomit",target: 2,modifier: 0,playerName: attacker.playerName,teamId: attacker.teamId }    );
     const victim = aim.success ? target : attacker;
     const selfHit = victim.id === attacker.id;
     eventBus.emit(
@@ -89,18 +76,15 @@ export class ProjectileVomitOperation extends GameOperation {
     );
 
     const armour = dice.rollArmorCheck(
-      effectiveAV(victim, gameService.getState()),
-      victim.playerName,
-      attacker.teamId
-    );
-    // Unmodifiable: the fold runs, but only the natural roll vs AV counts.
+      { av: effectiveAV(victim,gameService.getState()),playerName: victim.playerName,teamId: attacker.teamId }    );
+
     const causedBy = selfHit ? undefined : attacker;
     const armourCtx = await foldArmourRoll(
       context,
       gatherParticipants(causedBy ?? victim, causedBy ? victim : undefined, []),
       {
         player: victim,
-        causedBy,
+        ...(causedBy === undefined ? {} : { causedBy: causedBy }),
         cause: "special",
         knockedDown: false,
         roll: armour.roll,
@@ -133,7 +117,7 @@ export class ProjectileVomitOperation extends GameOperation {
     causedBy: Player | undefined,
     injuryModifier: number
   ): void {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     victim.status = PlayerStatus.PRONE;
     eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: victim.id });

@@ -1,13 +1,9 @@
-/**
- * Gallery variants for the decision dialogs: confirmations, block dice,
- * re-rolls and the rest.
- */
 import { GameEventNames } from "../types/events";
 import type { RerollSource } from "../types/decisions";
 import { setActiveOnlineMatch } from "../network/OnlineMatch";
 import { getSkill, SkillType } from "../types/Skills";
 import type { BlockRollData } from "../services/BlockResolutionService";
-import { MatchFixture } from "./fixtures";
+import { type MatchFixture } from "./fixtures";
 import { HUDLayout } from "../ui/components/hud/HUDLayout";
 import { DiceTray } from "../ui/components/hud/DiceTray";
 import { ConfirmationModal } from "../ui/components/hud/ConfirmationModal";
@@ -77,8 +73,6 @@ function reroll(
   skill?: string,
   needed?: number
 ) {
-  // The engine offers "team" only when a re-roll can be spent: give team 1
-  // the turn and two to spend
   fx.team1.rerolls = 2;
   fx.services.gameService.getState().turn.teamId = fx.team1.id;
   fx.bus.emit(GameEventNames.DecisionRequested, {
@@ -94,14 +88,13 @@ function reroll(
 }
 
 export const DIALOG_VARIANTS: Variant[] = [
-  // ---- Confirmations
   {
     id: "confirm-dodge",
     section: "Decision dialogs",
     title: "Dodge, no re-roll (risky)",
     view: (fx) => <ConfirmationModal eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         confirm(
           fx,
           "Blitzer: Dodge",
@@ -109,8 +102,8 @@ export const DIALOG_VARIANTS: Variant[] = [
           "Dodge!",
           "Stop here",
           true
-        )
-      ),
+        );
+      }),
   },
   {
     id: "confirm-rush",
@@ -118,7 +111,7 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "Rush with a team re-roll",
     view: (fx) => <ConfirmationModal eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         confirm(
           fx,
           "Blitzer: Rush",
@@ -126,8 +119,8 @@ export const DIALOG_VARIANTS: Variant[] = [
           "Rush!",
           "Stop here",
           true
-        )
-      ),
+        );
+      }),
   },
   {
     id: "confirm-both",
@@ -135,7 +128,7 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "Rush and Dodge in one step",
     view: (fx) => <ConfirmationModal eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         confirm(
           fx,
           "Human Blitzer #5: Rush & Dodge",
@@ -143,8 +136,8 @@ export const DIALOG_VARIANTS: Variant[] = [
           "Rush & Dodge!",
           "Stop here",
           true
-        )
-      ),
+        );
+      }),
   },
   {
     id: "confirm-safe",
@@ -152,7 +145,7 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "A plain confirmation (not risky)",
     view: (fx) => <ConfirmationModal eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         confirm(
           fx,
           "End your turn?",
@@ -160,29 +153,38 @@ export const DIALOG_VARIANTS: Variant[] = [
           "End Turn",
           "Keep playing",
           false
-        )
-      ),
+        );
+      }),
   },
   {
     id: "block-1",
     section: "Decision dialogs",
     title: "Block: 1 die",
     view: (fx) => <BlockDiceDialog eventBus={fx.bus} />,
-    drive: (fx) => later(30, () => openBlock(fx, 1, false, [3, 3])),
+    drive: (fx) =>
+      later(30, () => {
+        openBlock(fx, 1, false, [3, 3]);
+      }),
   },
   {
     id: "block-2",
     section: "Decision dialogs",
     title: "Block: 2 dice",
     view: (fx) => <BlockDiceDialog eventBus={fx.bus} />,
-    drive: (fx) => later(30, () => openBlock(fx, 2, false, [4, 3])),
+    drive: (fx) =>
+      later(30, () => {
+        openBlock(fx, 2, false, [4, 3]);
+      }),
   },
   {
     id: "block-3-uphill",
     section: "Decision dialogs",
     title: "Block: 3 dice uphill, defender chooses",
     view: (fx) => <BlockDiceDialog eventBus={fx.bus} />,
-    drive: (fx) => later(30, () => openBlock(fx, 3, true, [2, 6])),
+    drive: (fx) =>
+      later(30, () => {
+        openBlock(fx, 3, true, [2, 6]);
+      }),
   },
   {
     id: "block-defender",
@@ -191,7 +193,6 @@ export const DIALOG_VARIANTS: Variant[] = [
     view: (fx) => <BlockDiceDialog eventBus={fx.bus} />,
     drive: (fx) =>
       later(30, () => {
-        // This coach owns the defender, player 1 of team 1
         setActiveOnlineMatch(onlineMatch(fx, { myTeamId: fx.team1.id }));
         fx.player(1, 0).skills.push(getSkill(SkillType.BLOCK));
         openBlock(fx, 2, true, [3, 4]);
@@ -210,7 +211,7 @@ export const DIALOG_VARIANTS: Variant[] = [
     drive: (fx) =>
       later(30, () => {
         openBlock(fx, 2, false, [4, 3]);
-        // The engine sends the full BlockRollData, re-roll offers included
+
         const rolled: BlockRollData = {
           attackerId: fx.player(2, 0).id,
           defenderId: fx.player(1, 0).id,
@@ -221,10 +222,9 @@ export const DIALOG_VARIANTS: Variant[] = [
           proAvailable: true,
           brawlerAvailable: true,
         };
-        setTimeout(
-          () => fx.bus.emit(GameEventNames.BlockDiceRolled, rolled),
-          50
-        );
+        setTimeout(() => {
+          fx.bus.emit(GameEventNames.BlockDiceRolled, rolled);
+        }, 50);
       }),
   },
   {
@@ -232,21 +232,30 @@ export const DIALOG_VARIANTS: Variant[] = [
     section: "Decision dialogs",
     title: "Re-roll: skill or team",
     view: (fx) => <RerollDialog eventBus={fx.bus} />,
-    drive: (fx) => later(30, () => reroll(fx, ["skill", "team"], "Dodge", 3)),
+    drive: (fx) =>
+      later(30, () => {
+        reroll(fx, ["skill", "team"], "Dodge", 3);
+      }),
   },
   {
     id: "reroll-pro",
     section: "Decision dialogs",
     title: "Re-roll: Pro or team",
     view: (fx) => <RerollDialog eventBus={fx.bus} />,
-    drive: (fx) => later(30, () => reroll(fx, ["pro", "team"], undefined, 4)),
+    drive: (fx) =>
+      later(30, () => {
+        reroll(fx, ["pro", "team"], undefined, 4);
+      }),
   },
   {
     id: "reroll-team",
     section: "Decision dialogs",
     title: "Re-roll: veteran, with no team re-rolls left",
     view: (fx) => <RerollDialog eventBus={fx.bus} />,
-    drive: (fx) => later(30, () => reroll(fx, ["veteran"])),
+    drive: (fx) =>
+      later(30, () => {
+        reroll(fx, ["veteran"]);
+      }),
   },
   {
     id: "follow-up",
@@ -254,12 +263,12 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "Follow up",
     view: (fx) => <FollowUpDialog eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.UI_FollowUpPrompt, {
           attackerId: fx.player(2, 0).id,
           targetSquare: { x: 10, y: 7 },
-        })
-      ),
+        });
+      }),
   },
   {
     id: "reaction",
@@ -267,15 +276,15 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "A reactive skill (Stand Firm)",
     view: (fx) => <ReactionDialog eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.DecisionRequested, {
           type: "reaction",
           playerId: fx.player(1, 0).id,
           chooserTeamId: fx.team1.id,
           skill: "Stand Firm",
           prompt: "Use Stand Firm to refuse the push and stay in place?",
-        })
-      ),
+        });
+      }),
   },
   {
     id: "foul-assists",
@@ -283,7 +292,7 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "Foul: how many Offensive Assists to add",
     view: (fx) => <FoulAssistsDialog eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.DecisionRequested, {
           type: "foul-assists",
           playerId: fx.player(1, 0).id,
@@ -291,8 +300,8 @@ export const DIALOG_VARIANTS: Variant[] = [
           chooserTeamId: fx.team1.id,
           available: 2,
           defensive: 1,
-        })
-      ),
+        });
+      }),
   },
   {
     id: "bite-target",
@@ -300,14 +309,14 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "Bloodlust: click the Thrall Lineman to bite",
     view: (fx) => <BiteTargetPrompt eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.DecisionRequested, {
           type: "bite-target",
           playerId: fx.player(1, 0).id,
           chooserTeamId: fx.team1.id,
           targetIds: [fx.player(1, 1).id, fx.player(1, 2).id],
-        })
-      ),
+        });
+      }),
   },
   {
     id: "interception",
@@ -323,22 +332,22 @@ export const DIALOG_VARIANTS: Variant[] = [
       />
     ),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.DecisionRequested, {
           type: "interception",
           chooserTeamId: fx.team2.id,
           passerId: fx.player(1, 0).id,
           candidates: [
             { playerId: "a", playerName: "Orc Blitzer #5", modifier: -2 },
-            // Long enough to cut: the number stays whole
+
             {
               playerId: "b",
               playerName: "Orc Big Un Blocker Lineman #12",
               modifier: -3,
             },
           ],
-        })
-      ),
+        });
+      }),
   },
   {
     id: "apothecary",
@@ -346,7 +355,7 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "Apothecary after a casualty",
     view: (fx) => <ApothecaryDialog eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.DecisionRequested, {
           type: "apothecary",
           id: "x",
@@ -354,8 +363,8 @@ export const DIALOG_VARIANTS: Variant[] = [
           playerId: fx.player(1, 4).id,
           resultKind: "casualty",
           casualtyType: "seriously-hurt",
-        })
-      ),
+        });
+      }),
   },
   {
     id: "inducement-choice",
@@ -363,7 +372,7 @@ export const DIALOG_VARIANTS: Variant[] = [
     title: "Inducement choice: Intensive Training",
     view: (fx) => <InducementChoiceDialog eventBus={fx.bus} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.DecisionRequested, {
           type: "inducement-choice",
           kind: "intensive-training",
@@ -371,8 +380,8 @@ export const DIALOG_VARIANTS: Variant[] = [
           playerIds: [fx.player(1, 4).id, fx.player(1, 5).id],
           skills: ["Block", "Dodge", "Sure Hands"],
           optional: true,
-        })
-      ),
+        });
+      }),
   },
   {
     id: "inducement-panel",

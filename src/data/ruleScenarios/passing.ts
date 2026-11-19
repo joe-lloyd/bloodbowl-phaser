@@ -1,16 +1,15 @@
-/**
- * Rule scenarios — Passing skills (Pass, Sure Hands).
- * Assertions migrated from skill-rerolls.test.ts.
- */
-
+import { diceRollSchema } from "../../boundary/diceRoll";
+import type { ScriptResult } from "../../game/rules-lab";
+import { z } from "zod";
+import { fixtureValue } from "../../testing/fixtureValue";
 import { SkillType } from "../../types/Skills";
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { PlayerCondition } from "../../types/Player";
 import {
-  RuleScenarioEntry,
-  RuleConfig,
+  type RuleScenarioEntry,
+  type RuleConfig,
   playSetup,
   skillRerollConfig,
   assert,
@@ -25,7 +24,6 @@ import {
 } from "../../game/rules-lab";
 import { appendBallRoll } from "../../ui/components/hud/ballMovementLog";
 
-/** Passer at (4,5) holding the ball throws to (targetX, 5). */
 function passModifierConfig(opts: {
   id: string;
   name: string;
@@ -42,7 +40,7 @@ function passModifierConfig(opts: {
     setup: playSetup({
       team1Placements: [
         { playerIndex: 0, x: 4, y: 5, skills: [opts.skill] },
-        { playerIndex: 1, x: opts.targetX, y: 5 }, // catcher
+        { playerIndex: 1, x: opts.targetX, y: 5 },
       ],
       team2Placements: [
         opts.markerAt
@@ -62,26 +60,17 @@ function passModifierConfig(opts: {
         matches: (r) =>
           skillTriggered(r, opts.skill) &&
           skillCheckDiff(r, "Pass") === opts.expectedDiff,
-        verify: (r) =>
+        verify: (r) => {
           assert(
             skillCheckDiff(r, "Pass") === opts.expectedDiff,
-            `net pass modifier must be ${opts.expectedDiff}`
-          ),
+            `net pass modifier must be ${String(opts.expectedDiff)}`
+          );
+        },
       },
     ],
   };
 }
 
-/**
- * Interception is a CORE rule, not a skill. This standalone config pins the
- * Range Ruler geometry and outcome via findSeed in the headless interception
- * tests. It is intentionally NOT part of PASSING_RULE_SCENARIOS, so the
- * skill-coverage gate snapshot is unaffected.
- *
- * Layout — passer (4,5) with the ball throws a Short Pass to the catcher at
- * (10,5). The interceptor stands on the pass line at (7,5); a decoy sits off
- * the line at (7,8) and must never be offered.
- */
 export const INTERCEPTION_SCENARIO: RuleConfig = {
   id: "interception-short-pass",
   name: "Intercept a short pass",
@@ -89,12 +78,12 @@ export const INTERCEPTION_SCENARIO: RuleConfig = {
     "A standing defender on the pass line may intercept; success steals the ball and causes a turnover",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // passer (holds the ball)
-      { playerIndex: 1, x: 10, y: 5 }, // catcher
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 10, y: 5 },
     ],
     team2Placements: [
-      { playerIndex: 0, x: 7, y: 5 }, // interceptor — on the ruler
-      { playerIndex: 1, x: 7, y: 8 }, // decoy — off the ruler
+      { playerIndex: 0, x: 7, y: 5 },
+      { playerIndex: 1, x: 7, y: 8 },
     ],
     ballPosition: { x: 4, y: 5 },
   }),
@@ -115,8 +104,8 @@ export const INTERCEPTION_SCENARIO: RuleConfig = {
         ),
       verify: (r) => {
         const d = r.decisions.find((x) => x.type === "interception");
-        assert(!!d && d.type === "interception", "an interception is raised");
-        if (!d || d.type !== "interception") return;
+        assert(d !== undefined, "an interception is raised");
+
         assert(
           d.chooserTeamId === r.game.ctx.team2.id,
           "the defending team chooses the interceptor"
@@ -126,11 +115,12 @@ export const INTERCEPTION_SCENARIO: RuleConfig = {
           "only the on-ruler standing defender is eligible (decoy excluded)"
         );
         assert(
-          d.candidates[0].playerId === r.game.ctx.team2.players[0].id,
+          fixtureValue(d.candidates[0]).playerId ===
+            fixtureValue(r.game.ctx.team2.players[0]).id,
           "the eligible interceptor is the defender on the pass line"
         );
         assert(
-          d.candidates[0].modifier === -3,
+          fixtureValue(d.candidates[0]).modifier === -3,
           "an accurate pass gives the interceptor a -3 modifier"
         );
       },
@@ -145,12 +135,14 @@ export const INTERCEPTION_SCENARIO: RuleConfig = {
           (e) => e.name === GameEventNames.PassIntercepted
         );
         assert(!!ev, "a PassIntercepted event is emitted");
-        const data = ev!.data as {
-          interceptorId: string;
-          position: { x: number; y: number };
-        };
+        const data = z
+          .object({
+            interceptorId: z.string(),
+            position: z.object({ x: z.number(), y: z.number() }),
+          })
+          .parse(ev.data);
         assert(
-          data.interceptorId === r.game.ctx.team2.players[0].id,
+          data.interceptorId === fixtureValue(r.game.ctx.team2.players[0]).id,
           "the on-ruler defender is the interceptor"
         );
         assert(turnoverHappened(r), "an interception causes a turnover");
@@ -164,51 +156,45 @@ export const INTERCEPTION_SCENARIO: RuleConfig = {
   ],
 };
 
-/** Reusable "an interception is offered" outcome check. */
 function interceptionOffered(expectedModifier: number, candidateCount: number) {
   return {
-    matches: (r: import("../../game/rules-lab").ScriptResult) =>
+    matches: (r: ScriptResult) =>
       r.decisions.some(
         (d) =>
           d.type === "interception" &&
           d.candidates.length === candidateCount &&
           d.candidates.some((c) => c.modifier === expectedModifier)
       ),
-    verify: (r: import("../../game/rules-lab").ScriptResult) => {
+    verify: (r: ScriptResult) => {
       const d = r.decisions.find((x) => x.type === "interception");
-      assert(!!d && d.type === "interception", "an interception is raised");
-      if (!d || d.type !== "interception") return;
+      assert(d !== undefined, "an interception is raised");
+
       assert(
         d.chooserTeamId === r.game.ctx.team2.id,
         "the defending team chooses the interceptor"
       );
       assert(
         d.candidates.length === candidateCount,
-        `expected ${candidateCount} eligible interceptor(s)`
+        `expected ${String(candidateCount)} eligible interceptor(s)`
       );
       assert(
         d.candidates.some((c) => c.modifier === expectedModifier),
-        `a candidate at modifier ${expectedModifier}`
+        `a candidate at modifier ${String(expectedModifier)}`
       );
     },
   };
 }
 
-/**
- * Interceptor marked by a passing-team player: the catcher stands on the
- * target square (8,5), adjacent to the interceptor at (7,5), so an accurate
- * pass gives the interceptor -3 (accurate) -1 (marked) = -4.
- */
-export const INTERCEPTION_MARKED_SCENARIO: RuleConfig = {
+const INTERCEPTION_MARKED_SCENARIO: RuleConfig = {
   id: "interception-marked",
   name: "Marking stacks onto the interception penalty",
   description: "An accurate pass past a marked interceptor is a -4 attempt",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // passer
-      { playerIndex: 1, x: 8, y: 5 }, // catcher, marks (7,5)
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 8, y: 5 },
     ],
-    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // interceptor
+    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }],
     ballPosition: { x: 4, y: 5 },
   }),
   script: [
@@ -225,22 +211,18 @@ export const INTERCEPTION_MARKED_SCENARIO: RuleConfig = {
   ],
 };
 
-/**
- * Two standing defenders on the pass line: the defending coach is offered
- * both and picks one.
- */
-export const INTERCEPTION_MULTI_SCENARIO: RuleConfig = {
+const INTERCEPTION_MULTI_SCENARIO: RuleConfig = {
   id: "interception-multi",
   name: "Coach chooses among several interceptors",
   description: "Two defenders under the ruler are both offered",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // passer
-      { playerIndex: 1, x: 10, y: 5 }, // catcher
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 10, y: 5 },
     ],
     team2Placements: [
-      { playerIndex: 0, x: 6, y: 5 }, // interceptor A
-      { playerIndex: 1, x: 8, y: 5 }, // interceptor B
+      { playerIndex: 0, x: 6, y: 5 },
+      { playerIndex: 1, x: 8, y: 5 },
     ],
     ballPosition: { x: 4, y: 5 },
   }),
@@ -259,12 +241,12 @@ export const INTERCEPTION_MULTI_SCENARIO: RuleConfig = {
         ),
       verify: (r) => {
         const d = r.decisions.find((x) => x.type === "interception");
-        assert(!!d && d.type === "interception", "an interception is raised");
-        if (!d || d.type !== "interception") return;
+        assert(d !== undefined, "an interception is raised");
+
         const ids = new Set(d.candidates.map((c) => c.playerId));
         assert(
-          ids.has(r.game.ctx.team2.players[0].id) &&
-            ids.has(r.game.ctx.team2.players[1].id),
+          ids.has(fixtureValue(r.game.ctx.team2.players[0]).id) &&
+            ids.has(fixtureValue(r.game.ctx.team2.players[1]).id),
           "both defenders on the pass line are offered"
         );
       },
@@ -272,20 +254,16 @@ export const INTERCEPTION_MULTI_SCENARIO: RuleConfig = {
   ],
 };
 
-/**
- * Declining the interception lets the pass carry on to its landing square —
- * the interceptor never gains the ball.
- */
-export const INTERCEPTION_DECLINE_SCENARIO: RuleConfig = {
+const INTERCEPTION_DECLINE_SCENARIO: RuleConfig = {
   id: "interception-decline",
   name: "Declining leaves the pass to resolve normally",
   description: "A declined interception does not steal the ball",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // passer
-      { playerIndex: 1, x: 10, y: 5 }, // catcher
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 10, y: 5 },
     ],
-    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // interceptor
+    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }],
     ballPosition: { x: 4, y: 5 },
   }),
   script: [
@@ -316,20 +294,16 @@ export const INTERCEPTION_DECLINE_SCENARIO: RuleConfig = {
   ],
 };
 
-/**
- * No opponent under the ruler → no interception is offered at all (negative
- * case; the lone defender sits well off the pass line).
- */
-export const INTERCEPTION_NONE_SCENARIO: RuleConfig = {
+const INTERCEPTION_NONE_SCENARIO: RuleConfig = {
   id: "interception-none",
   name: "No interception when nobody is under the ruler",
   description: "A clear lane raises no interception decision",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // passer
-      { playerIndex: 1, x: 7, y: 5 }, // catcher
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 7, y: 5 },
     ],
-    team2Placements: [{ playerIndex: 0, x: 4, y: 12 }], // far off the lane
+    team2Placements: [{ playerIndex: 0, x: 4, y: 12 }],
     ballPosition: { x: 4, y: 5 },
   }),
   script: [
@@ -354,50 +328,39 @@ export const INTERCEPTION_NONE_SCENARIO: RuleConfig = {
   ],
 };
 
-/**
- * Rolls of one kind, as indexes into the run's event stream. A skill check
- * names its roller, as in "Interception (Name)", so match the leading word.
- */
 function rollIndexes(
-  r: import("../../game/rules-lab").ScriptResult,
+  r: ScriptResult,
   rollKind: "Interception" | "Scatter"
 ): number[] {
   return r.events.flatMap((e, i) =>
     e.name === GameEventNames.DiceRoll &&
     new RegExp(`^${rollKind}( \\(|$)`).test(
-      (e.data as { rollType?: string }).rollType ?? ""
+      z.object({ rollType: z.string().exactOptional() }).parse(e.data)
+        .rollType ?? ""
     )
       ? [i]
       : []
   );
 }
 
-/** The run raised an interception at the inaccurate-pass penalty (-2). */
-function inaccurateInterceptionOffered(
-  r: import("../../game/rules-lab").ScriptResult
-): boolean {
+function inaccurateInterceptionOffered(r: ScriptResult): boolean {
   return r.decisions.some(
     (d) =>
       d.type === "interception" && d.candidates.some((c) => c.modifier === -2)
   );
 }
 
-/**
- * Interference comes after the Passing Ability Test and BEFORE an inaccurate
- * pass scatters. The scatter is never rolled for an intercepted pass, and the
- * Range Ruler runs to the declared target, not to a scattered landing.
- */
-export const INTERCEPTION_BEFORE_SCATTER_SCENARIO: RuleConfig = {
+const INTERCEPTION_BEFORE_SCATTER_SCENARIO: RuleConfig = {
   id: "interception-before-scatter",
   name: "Interception resolves before an inaccurate pass scatters",
   description:
     "An inaccurate pass is offered for interception first; the scatter is rolled only if the ball gets through",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // passer (holds the ball)
-      { playerIndex: 1, x: 10, y: 5 }, // catcher
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 10, y: 5 },
     ],
-    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // interceptor
+    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }],
     ballPosition: { x: 4, y: 5 },
   }),
   script: [
@@ -421,16 +384,14 @@ export const INTERCEPTION_BEFORE_SCATTER_SCENARIO: RuleConfig = {
           !r.events.some(
             (e) =>
               e.name === GameEventNames.DiceRoll &&
-              appendBallRoll(
-                null,
-                e.data as Parameters<typeof appendBallRoll>[1]
-              )?.movement === "scattered"
+              appendBallRoll(null, diceRollSchema.parse(e.data))?.movement ===
+                "scattered"
           ),
           "the log never reports the ball as scattered"
         );
         const ball = r.snapshot.ballPosition;
         assert(
-          ball?.x === 7 && ball?.y === 5,
+          ball?.x === 7 && ball.y === 5,
           "the interceptor holds the ball in their own square"
         );
         assert(turnoverHappened(r), "an interception causes a turnover");
@@ -448,7 +409,7 @@ export const INTERCEPTION_BEFORE_SCATTER_SCENARIO: RuleConfig = {
         assert(interception.length === 1, "one interception roll");
         assert(scatter.length === 1, "one scatter roll");
         assert(
-          interception[0] < scatter[0],
+          fixtureValue(interception[0]) < fixtureValue(scatter[0]),
           "the interception is rolled before the scatter"
         );
       },
@@ -456,7 +417,6 @@ export const INTERCEPTION_BEFORE_SCATTER_SCENARIO: RuleConfig = {
   ],
 };
 
-/** All seeded interception scenarios, for the headless interception suite. */
 export const INTERCEPTION_SCENARIOS: RuleConfig[] = [
   INTERCEPTION_SCENARIO,
   INTERCEPTION_MARKED_SCENARIO,
@@ -466,25 +426,18 @@ export const INTERCEPTION_SCENARIOS: RuleConfig[] = [
   INTERCEPTION_BEFORE_SCATTER_SCENARIO,
 ];
 
-/**
- * A Hand-off Action is a CORE rule, not a skill (like interception, above),
- * so this catalog lives outside PASSING_RULE_SCENARIOS and is driven by its
- * own headless suite (see __tests__/headless/handoff.test.ts).
- */
-
-/** Declared without the ball, picked up mid-move, handed off — no PA test. */
-export const HANDOFF_NO_PA_TEST_SCENARIO: RuleConfig = {
+const HANDOFF_NO_PA_TEST_SCENARIO: RuleConfig = {
   id: "handoff-no-pa-test",
   name: "Hand-off without the ball rolls no Passing Ability Test",
   description:
     "Declaring a Hand-off without the ball, picking it up mid-move, then handing off performs no PA test — only the receiving Catch",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // hander-off, starts without the ball
-      { playerIndex: 1, x: 6, y: 5 }, // receiver
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 6, y: 5 },
     ],
     team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
-    ballPosition: { x: 5, y: 5 }, // loose, on the hander-off's path
+    ballPosition: { x: 5, y: 5 },
   }),
   script: [
     { type: "declare-action", playerId: "team1:0", action: "handoff" },
@@ -500,13 +453,14 @@ export const HANDOFF_NO_PA_TEST_SCENARIO: RuleConfig = {
         !turnoverHappened(r) &&
         playerAt(r, "team1:1", { x: 6, y: 5 }) &&
         r.snapshot.ballPosition?.x === 6 &&
-        r.snapshot.ballPosition?.y === 5,
+        r.snapshot.ballPosition.y === 5,
       verify: (r) => {
         assert(
           !r.events.some(
             (e) =>
               e.name === GameEventNames.DiceRoll &&
-              (e.data as { rollType?: string })?.rollType === "Pass"
+              z.object({ rollType: z.string().exactOptional() }).parse(e.data)
+                .rollType === "Pass"
           ),
           "a Hand-off must never roll a Passing Ability Test"
         );
@@ -523,18 +477,17 @@ export const HANDOFF_NO_PA_TEST_SCENARIO: RuleConfig = {
   ],
 };
 
-/** An adjacent eligible opponent gets no interception opportunity. */
-export const HANDOFF_NO_INTERCEPTION_SCENARIO: RuleConfig = {
+const HANDOFF_NO_INTERCEPTION_SCENARIO: RuleConfig = {
   id: "handoff-no-interception",
   name: "A Hand-off cannot be intercepted",
   description:
     "An eligible opponent standing beside both the hander-off and the receiver gets no interception opportunity",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // hander-off, holds the ball
-      { playerIndex: 1, x: 5, y: 5 }, // receiver, adjacent
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 5, y: 5 },
     ],
-    team2Placements: [{ playerIndex: 0, x: 4, y: 4 }], // adjacent to both
+    team2Placements: [{ playerIndex: 0, x: 4, y: 4 }],
     ballPosition: { x: 4, y: 5 },
   }),
   script: [
@@ -556,15 +509,14 @@ export const HANDOFF_NO_INTERCEPTION_SCENARIO: RuleConfig = {
   ],
 };
 
-/** A Distracted team-mate has lost its Tackle Zone — an illegal target. */
-export const HANDOFF_DISTRACTED_TARGET_SCENARIO: RuleConfig = {
+const HANDOFF_DISTRACTED_TARGET_SCENARIO: RuleConfig = {
   id: "handoff-distracted-target-refused",
   name: "A Distracted team-mate is not a legal Hand-off target",
   description:
     "The only adjacent team-mate is Distracted (has lost their Tackle Zone): the Hand-off is refused and the ball does not move",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // hander-off, holds the ball
+      { playerIndex: 0, x: 4, y: 5 },
       {
         playerIndex: 1,
         x: 5,
@@ -590,7 +542,7 @@ export const HANDOFF_DISTRACTED_TARGET_SCENARIO: RuleConfig = {
           "the hand-off command must be refused"
         );
         assert(
-          r.snapshot.ballPosition?.x === 4 && r.snapshot.ballPosition?.y === 5,
+          r.snapshot.ballPosition?.x === 4 && r.snapshot.ballPosition.y === 5,
           "a refused hand-off must leave the ball with the hander-off"
         );
       },
@@ -598,16 +550,15 @@ export const HANDOFF_DISTRACTED_TARGET_SCENARIO: RuleConfig = {
   ],
 };
 
-/** A dropped Hand-off bounces and is a Turnover, same as a dropped Pass. */
-export const HANDOFF_DROP_TURNOVER_SCENARIO: RuleConfig = {
+const HANDOFF_DROP_TURNOVER_SCENARIO: RuleConfig = {
   id: "handoff-drop-turnover",
   name: "A dropped Hand-off bounces and causes a Turnover",
   description:
     "When the receiving team-mate fails their Catch, the ball bounces from their square and the team suffers a Turnover",
   setup: playSetup({
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // hander-off, holds the ball
-      { playerIndex: 1, x: 5, y: 5 }, // receiver
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 5, y: 5 },
     ],
     team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
     ballPosition: { x: 4, y: 5 },
@@ -633,7 +584,6 @@ export const HANDOFF_DROP_TURNOVER_SCENARIO: RuleConfig = {
   ],
 };
 
-/** All seeded Hand-off scenarios, for the headless hand-off suite. */
 export const HANDOFF_ACTION_SCENARIOS: RuleConfig[] = [
   HANDOFF_NO_PA_TEST_SCENARIO,
   HANDOFF_NO_INTERCEPTION_SCENARIO,
@@ -651,12 +601,12 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description: "A failed pass offers the Pass skill re-roll",
         skill: SkillType.PASS,
         rollKind: "pass",
-        // The Amazon Python Warrior (index 1) is a roster Thrower with Pass.
+
         setup: playSetup({
           team1Roster: RosterName.AMAZON,
           team1Placements: [
             { playerIndex: 1, x: 4, y: 5 },
-            { playerIndex: 2, x: 7, y: 5 }, // catcher
+            { playerIndex: 2, x: 7, y: 5 },
           ],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
           ballPosition: { x: 4, y: 5 },
@@ -676,7 +626,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Quick Pass with Accurate",
         description: "+1 to the PA test on a Quick Pass",
         skill: SkillType.ACCURATE,
-        targetX: 7, // distance 3 = Quick Pass (base 0) → net +1
+        targetX: 7,
         expectedDiff: 1,
       }),
     ],
@@ -689,7 +639,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Long Pass with Cannoneer",
         description: "+1 to the PA test on a Long Pass",
         skill: SkillType.CANNONEER,
-        targetX: 12, // distance 8 = Long Pass (base -2) → net -1
+        targetX: 12,
         expectedDiff: -1,
       }),
     ],
@@ -703,8 +653,8 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description: "The marking modifier is ignored on the pass",
         skill: SkillType.NERVES_OF_STEEL,
         targetX: 7,
-        markerAt: { x: 5, y: 6 }, // marks the passer at (4,5)... adjacent
-        expectedDiff: 0, // base 0, marker −1, NoS +1
+        markerAt: { x: 5, y: 6 },
+        expectedDiff: 0,
       }),
     ],
   },
@@ -715,7 +665,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "safe-pass-natural-one",
         name: "Natural 1 with Safe Pass",
         description: "No fumble: ball held, activation ends, no turnover",
-        // The Amazon Python Warrior (index 1) starts with Safe Pass.
+
         setup: playSetup({
           team1Roster: RosterName.AMAZON,
           team1Placements: [
@@ -729,7 +679,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
           { type: "declare-action", playerId: "team1:1", action: "pass" },
           { type: "pass", playerId: "team1:1", x: 7, y: 5 },
         ],
-        decisionPolicy: { acceptRerolls: false }, // keep the natural 1
+        decisionPolicy: { acceptRerolls: false },
         outcomes: [
           {
             id: "fumble-cancelled",
@@ -759,9 +709,9 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         setup: playSetup({
           team1Placements: [
             { playerIndex: 0, x: 4, y: 5, skills: [SkillType.CLOUD_BURSTER] },
-            { playerIndex: 1, x: 10, y: 5 }, // catcher
+            { playerIndex: 1, x: 10, y: 5 },
           ],
-          team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // on the ruler
+          team2Placements: [{ playerIndex: 0, x: 7, y: 5 }],
           ballPosition: { x: 4, y: 5 },
         }),
         script: [
@@ -798,9 +748,9 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         setup: playSetup({
           team1Placements: [
             { playerIndex: 0, x: 4, y: 5, skills: [SkillType.HAIL_MARY_PASS] },
-            { playerIndex: 1, x: 10, y: 5 }, // catcher
+            { playerIndex: 1, x: 10, y: 5 },
           ],
-          team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // on the ruler
+          team2Placements: [{ playerIndex: 0, x: 7, y: 5 }],
           ballPosition: { x: 4, y: 5 },
         }),
         script: [
@@ -815,11 +765,12 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.HAIL_MARY_PASS) &&
               !r.decisions.some((d) => d.type === "interception"),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !r.decisions.some((d) => d.type === "interception"),
                 "Hail Mary Pass must suppress interception"
-              ),
+              );
+            },
           },
         ],
       },
@@ -831,7 +782,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         setup: playSetup({
           team1Placements: [
             { playerIndex: 0, x: 4, y: 5, skills: [SkillType.HAIL_MARY_PASS] },
-            { playerIndex: 1, x: 8, y: 5 }, // catcher
+            { playerIndex: 1, x: 8, y: 5 },
           ],
           team2Placements: [{ playerIndex: 0, x: 20, y: 12 }],
           ballPosition: { x: 4, y: 5 },
@@ -851,25 +802,33 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               r.events.some(
                 (e) =>
                   e.name === GameEventNames.DiceRoll &&
-                  !!(e.data as { rollType?: string }).rollType?.startsWith(
-                    "Pass"
-                  ) &&
-                  (e.data as { resultState?: string }).resultState === "success"
+                  !!z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(e.data)
+                    .rollType?.startsWith("Pass") &&
+                  z
+                    .object({ resultState: z.string().exactOptional() })
+                    .parse(e.data).resultState === "success"
               ) &&
               r.events.some(
                 (e) =>
                   e.name === GameEventNames.PassAttempted &&
-                  (e.data as { accurate?: boolean }).accurate === false
+                  z
+                    .object({ accurate: z.boolean().exactOptional() })
+                    .parse(e.data).accurate === false
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 r.events.some(
                   (e) =>
                     e.name === GameEventNames.PassAttempted &&
-                    (e.data as { accurate?: boolean }).accurate === false
+                    z
+                      .object({ accurate: z.boolean().exactOptional() })
+                      .parse(e.data).accurate === false
                 ),
                 "an accurate Hail Mary must be reported inaccurate (scatter)"
-              ),
+              );
+            },
           },
         ],
       },
@@ -1093,13 +1052,14 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               skillTriggered(r, SkillType.DIVING_CATCH) &&
               !turnoverHappened(r) &&
               r.snapshot.ballPosition?.x === 7 &&
-              r.snapshot.ballPosition?.y === 6,
-            verify: (r) =>
+              r.snapshot.ballPosition.y === 6,
+            verify: (r) => {
               assert(
                 r.snapshot.ballPosition?.x === 7 &&
-                  r.snapshot.ballPosition?.y === 6,
+                  r.snapshot.ballPosition.y === 6,
                 "the caught ball must move onto the Diving Catch player"
-              ),
+              );
+            },
           },
         ],
       },
@@ -1133,11 +1093,12 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.DIVING_CATCH) &&
               skillCheckDiff(r, "Catch") === 1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Catch") === 1,
                 "Diving Catch must add exactly +1 in the Pass target square"
-              ),
+              );
+            },
           },
         ],
       },
@@ -1211,8 +1172,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Quick Pass to an empty square before Stab",
         description:
           "A lone carrier may use Dump-Off against a directly targeting Special Action even when no team-mate is available",
-        // The Dark Elf Assassin (index 0) brings Stab from the roster; only
-        // Dump-Off, which no fielded Sevens position starts with, is granted.
+
         setup: playSetup({
           team1Roster: RosterName.DARK_ELF,
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
@@ -1244,8 +1204,9 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               r.events.some(
                 (event) =>
                   event.name === GameEventNames.DiceRoll &&
-                  (event.data as { rollType?: string }).rollType ===
-                    "Armor Check"
+                  z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(event.data).rollType === "Armor Check"
               ),
             verify: (r) => {
               const passIndex = r.events.findIndex(
@@ -1254,8 +1215,9 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               const stabIndex = r.events.findIndex(
                 (event) =>
                   event.name === GameEventNames.DiceRoll &&
-                  (event.data as { rollType?: string }).rollType ===
-                    "Armor Check"
+                  z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(event.data).rollType === "Armor Check"
               );
               assert(
                 passIndex >= 0,
@@ -1343,7 +1305,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             { playerIndex: 0, x: 4, y: 5 },
             { playerIndex: 1, x: 8, y: 5 },
           ],
-          // The Amazon Python Warrior (index 1) has On the Ball natively.
+
           team2Roster: RosterName.AMAZON,
           team2Placements: [{ playerIndex: 1, x: 12, y: 5 }],
           ballPosition: { x: 4, y: 5 },
@@ -1365,8 +1327,10 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               r.events.filter(
                 (e) =>
                   e.name === GameEventNames.PlayerMoved &&
-                  (e.data as { playerId?: string }).playerId ===
-                    r.game.ctx.team2.players[1].id
+                  z
+                    .object({ playerId: z.string().exactOptional() })
+                    .parse(e.data).playerId ===
+                    fixtureValue(r.game.ctx.team2.players[1]).id
               ).length === 3,
             verify: (r) => {
               const moves = r.events
@@ -1374,15 +1338,18 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 .filter(
                   ({ event }) =>
                     event.name === GameEventNames.PlayerMoved &&
-                    (event.data as { playerId?: string }).playerId ===
-                      r.game.ctx.team2.players[1].id
+                    z
+                      .object({ playerId: z.string().exactOptional() })
+                      .parse(event.data).playerId ===
+                      fixtureValue(r.game.ctx.team2.players[1]).id
                 );
               const passRoll = r.events.findIndex(
                 (event) =>
                   event.name === GameEventNames.DiceRoll &&
-                  (event.data as { rollType?: string }).rollType?.startsWith(
-                    "Pass"
-                  )
+                  z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(event.data)
+                    .rollType?.startsWith("Pass")
               );
               assert(moves.length === 3, "On the Ball may move three squares");
               assert(
@@ -1405,7 +1372,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             { playerIndex: 2, x: 6, y: 5 },
             { playerIndex: 3, x: 6, y: 6 },
           ],
-          // The Amazon Python Warrior (index 1) has On the Ball natively.
+
           team2Roster: RosterName.AMAZON,
           team2Placements: [
             { playerIndex: 1, x: 18, y: 8 },
@@ -1428,24 +1395,32 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               r.events.some(
                 (event) =>
                   event.name === GameEventNames.SkillTriggered &&
-                  (event.data as { skill?: string; effect?: string }).skill ===
-                    SkillType.ON_THE_BALL &&
-                  (event.data as { effect?: string }).effect?.includes(
-                    "Kick-off Event"
-                  )
+                  z
+                    .object({
+                      skill: z.string().exactOptional(),
+                      effect: z.string().exactOptional(),
+                    })
+                    .parse(event.data).skill === SkillType.ON_THE_BALL &&
+                  z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(event.data)
+                    .effect?.includes("Kick-off Event")
               ),
             verify: (r) => {
               const moveIndex = r.events.findIndex(
                 (event) =>
                   event.name === GameEventNames.PlayerMoved &&
-                  (event.data as { playerId?: string }).playerId ===
-                    r.game.ctx.team2.players[1].id
+                  z
+                    .object({ playerId: z.string().exactOptional() })
+                    .parse(event.data).playerId ===
+                    fixtureValue(r.game.ctx.team2.players[1]).id
               );
               const eventIndex = r.events.findIndex(
                 (event) =>
                   event.name === GameEventNames.DiceRoll &&
-                  (event.data as { rollType?: string }).rollType ===
-                    "Kickoff Event"
+                  z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(event.data).rollType === "Kickoff Event"
               );
               assert(moveIndex >= 0, "the receiving player must move");
               assert(
@@ -1453,7 +1428,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the move must happen before the Kick-off Event roll"
               );
               assert(
-                playerOf(r, "team2:1").gridPosition!.x >= 13,
+                fixtureValue(playerOf(r, "team2:1").gridPosition).x >= 13,
                 "the receiving player may not enter the opposition half"
               );
             },

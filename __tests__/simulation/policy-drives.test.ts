@@ -24,7 +24,6 @@ const empty = (): DriveTally => ({
 
 describe("policy-lab drives", () => {
   it("keeps the ball through the last turn of a half and holds the half", async () => {
-    // Turn 5: team 1's carrier stands at (5,5), 14 squares out, alone.
     const game = new HeadlessGame({
       seed: 1,
       scenario: {
@@ -44,7 +43,7 @@ describe("policy-lab drives", () => {
     game.ctx.gameService.seedTurnCounts(5);
     const tallies: [DriveTally, DriveTally] = [empty(), empty()];
     const watch = watchDrives(game, tallies);
-    // Team 1 ends turn 5, team 2 plays its sixth, then team 1 its sixth.
+
     for (let i = 0; i < 3; i++)
       expect((await game.execute({ type: "end-turn" })).ok).toBe(true);
     expect(game.ctx.gameService.getState().ballPosition).toBeNull();

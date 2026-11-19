@@ -1,15 +1,11 @@
 import Phaser from "phaser";
 
-/**
- * Boot Scene - Initial loading and setup
- */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super({ key: "BootScene" });
   }
 
   preload(): void {
-    // Create a simple loading bar
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
@@ -28,13 +24,7 @@ export class BootScene extends Phaser.Scene {
       progressBar.destroy();
       progressBox.destroy();
     });
-
-    // Future: Load assets here
-    // this.load.image('ball', 'assets/sprites/ball.png');
   }
 
-  create(): void {
-    // Optional: Add a subtle background animation or effect here while waiting
-    // For now, just a static color or the last frame of the loading bar
-  }
+  create(): void {}
 }

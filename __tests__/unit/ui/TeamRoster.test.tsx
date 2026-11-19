@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamRoster } from "../../../src/ui/components/TeamBuilder/TeamRoster";
@@ -15,15 +16,6 @@ import {
 import { InjuryType } from "../../../src/types/Player";
 import { calculateTeamValue } from "../../../src/types/Team";
 
-/**
- * Team Builder readability (overhaul-team-lifecycle-management,
- * team-lifecycle-modes: "Team-builder roster information remains
- * readable"). jsdom has no real layout engine, so this checks the things
- * that are actually verifiable in a component test: no miniature
- * (10px-class) text is rendered for critical roster information, and the
- * table is wrapped for horizontal scrolling rather than assuming every
- * column fits — the narrow-viewport fallback this requirement calls for.
- */
 describe("TeamRoster readability", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -35,7 +27,9 @@ describe("TeamRoster readability", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -54,13 +48,11 @@ describe("TeamRoster readability", () => {
       );
     });
 
-    // No element uses an arbitrary sub-body text size (e.g. text-[10px]).
     const miniature = container.querySelectorAll('[class*="text-[10px]"]');
     expect(miniature.length).toBe(0);
     const microscopic = container.querySelectorAll('[class*="text-[9px]"]');
     expect(microscopic.length).toBe(0);
 
-    // Player names render at the normal body scale, not a shrunk one.
     const firstPlayerName = container.querySelector(
       `button[title="View player development page"]`
     );
@@ -70,8 +62,8 @@ describe("TeamRoster readability", () => {
 
   it("shows a retained player wearing a number above 11", async () => {
     const team = new TeamTestBuilder().withPlayers(7).build();
-    team.players[6].number = 12;
-    team.players[6].playerName = "Late Journeyman";
+    fixtureValue(team.players[6]).number = 12;
+    fixtureValue(team.players[6]).playerName = "Late Journeyman";
 
     await act(async () => {
       root.render(
@@ -108,18 +100,12 @@ describe("TeamRoster readability", () => {
     expect(scrollWrapper).toBeTruthy();
     expect(scrollWrapper?.querySelector("table")).toBeTruthy();
 
-    // Header and row cell counts share the same column tracks (colgroup).
     const cols = container.querySelectorAll("colgroup col");
     const headerCells = container.querySelectorAll("thead th");
     expect(cols.length).toBe(headerCells.length);
   });
 });
 
-/**
- * team-management-layout: "Per-player career statistics are shown on the
- * team detail page, not the overview" — the roster table on the team
- * detail page carries each player's career stats as trailing columns.
- */
 describe("TeamRoster career-stat columns", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -131,13 +117,15 @@ describe("TeamRoster career-stat columns", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
   it("renders GP/TD/CMP/CAS/Kills/MVP headers and a player's career totals", async () => {
     const team = new TeamTestBuilder().withPlayers(2).build();
-    team.players[0].careerStats = {
+    fixtureValue(team.players[0]).careerStats = {
       matches: 5,
       completions: 4,
       interceptions: 1,
@@ -180,7 +168,7 @@ describe("TeamRoster career-stat columns", () => {
 
   it("shows zero for a player who has never played a match", async () => {
     const team = new TeamTestBuilder().withPlayers(1).build();
-    team.players[0].careerStats = undefined;
+    delete fixtureValue(team.players[0]).careerStats;
 
     await act(async () => {
       root.render(
@@ -198,19 +186,12 @@ describe("TeamRoster career-stat columns", () => {
     const cellTexts = Array.from(firstRow?.querySelectorAll("td") ?? []).map(
       (td) => td.textContent
     );
-    // SPP column plus six zeroed career-stat columns for a never-played
-    // player. The value column reads "0k", not "0".
+
     const zeroCells = cellTexts.filter((text) => text === "0");
     expect(zeroCells.length).toBe(7);
   });
 });
 
-/**
- * team-builder-rule-tooltips: "Hovering a rostered player's skill shows its
- * description" / "Multiple skills are each independently hoverable" — each
- * skill on a drafted player is its own hover target carrying only that
- * skill's own description.
- */
 describe("TeamRoster skill tooltips", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -222,7 +203,9 @@ describe("TeamRoster skill tooltips", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -252,16 +235,12 @@ describe("TeamRoster skill tooltips", () => {
 
     expect(tooltipPanels).toContain(blockText);
     expect(tooltipPanels).toContain(dodgeText);
-    // Independent per-skill tooltips, not a single combined joined string.
+
     expect(tooltipPanels.some((t) => t === `${blockText} ${dodgeText}`)).toBe(
       false
     );
   });
 
-  /**
-   * team-builder-rule-tooltips: "Tabbing to a skill reveals its description"
-   * — the tooltip is keyboard-reachable, not mouse-only.
-   */
   it("makes each skill's tooltip reachable and revealed by keyboard focus, not just mouse hover", async () => {
     const player = new PlayerBuilder().withNumber(1).build();
     player.skills = [getSkill(SkillType.BLOCK), getSkill(SkillType.DODGE)];
@@ -285,11 +264,9 @@ describe("TeamRoster skill tooltips", () => {
     expect(triggers.length).toBe(2);
 
     triggers.forEach((trigger) => {
-      // Each trigger owns an aria-describedby pointing at its own
-      // role="tooltip" panel, so screen readers announce the right rule.
       const describedBy = trigger.getAttribute("aria-describedby");
       expect(describedBy).toBeTruthy();
-      const panel = document.getElementById(describedBy!);
+      const panel = document.getElementById(fixtureValue(describedBy));
       expect(panel).toBeTruthy();
       expect(panel?.getAttribute("role")).toBe("tooltip");
 
@@ -297,7 +274,7 @@ describe("TeamRoster skill tooltips", () => {
         (trigger as HTMLElement).focus();
       });
       expect(document.activeElement).toBe(trigger);
-      // Focus, not just hover, reveals the panel
+
       expect(panel?.className).toContain("block");
       expect(panel?.className).not.toContain("hidden");
       act(() => {
@@ -308,11 +285,6 @@ describe("TeamRoster skill tooltips", () => {
   });
 });
 
-/**
- * Player rows open on click; reordering starts only from the ≡ handle.
- * A whole-row `draggable` swallowed clicks, so coaches could not open a
- * player to see their stats or advance them.
- */
 describe("TeamRoster row click and drag handle", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -324,7 +296,9 @@ describe("TeamRoster row click and drag handle", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -400,20 +374,20 @@ describe("TeamRoster row click and drag handle", () => {
     const positionCell = container.querySelectorAll(
       '[data-testid="roster-row-2"] td'
     )[2];
-    click(positionCell);
+    click(fixtureValue(positionCell));
     const page = container.querySelector('[data-testid="player-page"]');
-    const player = team.players.find((p) => p.number === 2)!;
+    const player = fixtureValue(team.players.find((p) => p.number === 2));
     expect(page?.textContent).toBe(player.id);
   });
 
   it("does not open the player when the handle or Fire button is clicked", async () => {
     const fired: string[] = [];
     const team = await renderRoster({ onFirePlayer: (id) => fired.push(id) });
-    const row = container.querySelector('[data-testid="roster-row-1"]')!;
-    click(row.querySelector('[data-testid="drag-handle"]')!);
-    click(row.querySelector('button[title="Fire Player"]')!);
+    const row = fixtureValue(container.querySelector('[data-testid="roster-row-1"]'));
+    click(fixtureValue(row.querySelector('[data-testid="drag-handle"]')));
+    click(fixtureValue(row.querySelector('button[title="Fire Player"]')));
     expect(container.querySelector('[data-testid="player-page"]')).toBeNull();
-    expect(fired).toEqual([team.players.find((p) => p.number === 1)!.id]);
+    expect(fired).toEqual([fixtureValue(team.players.find((p) => p.number === 1)).id]);
   });
 
   it("reorders when the handle is dragged onto another row, including an empty slot", async () => {
@@ -422,13 +396,13 @@ describe("TeamRoster row click and drag handle", () => {
       onReorderPlayers: (source, target) => moves.push([source, target]),
     });
     const data = new Map<string, string>();
-    const handle = container.querySelector(
+    const handle = fixtureValue(container.querySelector(
       '[data-testid="roster-row-1"] [data-testid="drag-handle"]'
-    )!;
+    ));
     act(() => {
       handle.dispatchEvent(dragEvent("dragstart", data));
     });
-    const emptyRow = container.querySelector('[data-testid="roster-row-9"]')!;
+    const emptyRow = fixtureValue(container.querySelector('[data-testid="roster-row-9"]'));
     act(() => {
       emptyRow.dispatchEvent(dragEvent("drop", data));
     });
@@ -436,12 +410,6 @@ describe("TeamRoster row click and drag handle", () => {
   });
 });
 
-/**
- * Manage Team shows each player's SPP and current value, never their hire
- * cost. Value is cost plus value gained since (playerValue); a player who
- * misses the next game is left out of team value (playsNextGame), and the
- * total row agrees with calculateTeamValue.
- */
 describe("TeamRoster SPP and value", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -453,7 +421,9 @@ describe("TeamRoster SPP and value", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -461,16 +431,16 @@ describe("TeamRoster SPP and value", () => {
     const team = new TeamTestBuilder().withPlayers(3).withRerolls(1).build();
     team.advancementMode = "advanced-league";
     const [skilled, injured, fresh] = team.players;
-    skilled.cost = 85_000;
-    skilled.teamValue = 20_000; // one Primary skill advancement
-    skilled.spp = 4;
-    injured.cost = 50_000;
-    injured.teamValue = 0;
-    injured.spp = 7;
-    injured.injuries = [InjuryType.MISS_NEXT_GAME];
-    fresh.cost = 50_000;
-    fresh.teamValue = 0;
-    fresh.spp = 0;
+    fixtureValue(skilled).cost = 85_000;
+    fixtureValue(skilled).teamValue = 20_000;
+    fixtureValue(skilled).spp = 4;
+    fixtureValue(injured).cost = 50_000;
+    fixtureValue(injured).teamValue = 0;
+    fixtureValue(injured).spp = 7;
+    fixtureValue(injured).injuries = [InjuryType.MISS_NEXT_GAME];
+    fixtureValue(fresh).cost = 50_000;
+    fixtureValue(fresh).teamValue = 0;
+    fixtureValue(fresh).spp = 0;
 
     await act(async () => {
       root.render(
@@ -488,7 +458,7 @@ describe("TeamRoster SPP and value", () => {
 
   const cell = (slot: number, testId: string) =>
     container.querySelector(
-      `[data-testid="roster-row-${slot}"] [data-testid="${testId}"]`
+      `[data-testid="roster-row-${String(slot)}"] [data-testid="${testId}"]`
     );
 
   it("has SPP and Value columns and no Cost column", async () => {
@@ -515,7 +485,7 @@ describe("TeamRoster SPP and value", () => {
 
   it("marks a player who misses the next game as not counted in team value", async () => {
     await renderLeagueTeam();
-    const value = cell(2, "player-value")!;
+    const value = fixtureValue(cell(2, "player-value"));
     expect(value.querySelector("s")?.textContent).toBe("50k");
     expect(value.textContent).toContain("Not in TV");
     expect(value.querySelector("[title]")?.getAttribute("title")).toBe(
@@ -526,7 +496,7 @@ describe("TeamRoster SPP and value", () => {
   it("totals the counted player values to the team value", async () => {
     const team = await renderLeagueTeam();
     const total = container.querySelector('[data-testid="roster-value-total"]');
-    // 105k + 50k (the injured player is left out) + one 100k re-roll.
+
     expect(calculateTeamValue(team)).toBe(255_000);
     expect(total?.textContent).toBe(
       "Players 155k + re-rolls & staff 100k = TV 255k"

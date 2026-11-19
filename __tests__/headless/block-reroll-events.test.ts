@@ -1,18 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { SkillType } from "../../src/types/Skills";
-import { BlockRollData } from "../../src/services/BlockResolutionService";
+import { type BlockRollData } from "../../src/services/BlockResolutionService";
 
-/**
- * A block-dice Team Re-roll changed the roll the engine had already sent
- * and sent the same object again. The block dialog kept that object, saw
- * nothing new and stayed on the first roll's dice with the re-roll buttons
- * still up, while the tray threw the new dice. The dice log read
- * "block: 0 → 0" for every block re-roll, as if nothing had changed.
- */
 const scenario: Scenario = {
   id: "block-reroll-events",
   name: "Block, then a Team Re-roll",
@@ -27,13 +21,8 @@ const scenario: Scenario = {
   },
 };
 
-/** Block rolls Push; the Team Re-roll gives Attacker Down. */
 const SEED = 1;
 
-/**
- * A Pro attacker at ST 4 against ST 2 rolls two dice. Pro re-rolls one of
- * them by replacing it in the roll's list of dice, not the whole list.
- */
 const proScenario: Scenario = {
   ...scenario,
   id: "pro-block-reroll-events",
@@ -46,7 +35,6 @@ const proScenario: Scenario = {
   },
 };
 
-/** Block rolls Push and Attacker Down; Pro rolls 4 and re-rolls the Push into POW!/Dodge. */
 const PRO_SEED = 1;
 
 describe("a Team Re-roll on block dice", () => {
@@ -57,8 +45,8 @@ describe("a Team Re-roll on block dice", () => {
     const rerolls: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (d) => rolls.push(d));
     game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => rerolls.push(d));
-    const attackerId = game.ctx.team1.players[0].id;
-    const defenderId = game.ctx.team2.players[0].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -91,8 +79,8 @@ describe("a Team Re-roll on block dice", () => {
     const game = new HeadlessGame({ scenario: proScenario, seed: PRO_SEED });
     const rolls: BlockRollData[] = [];
     game.ctx.eventBus.on(GameEventNames.BlockDiceRolled, (d) => rolls.push(d));
-    const attackerId = game.ctx.team1.players[0].id;
-    const defenderId = game.ctx.team2.players[0].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -112,8 +100,8 @@ describe("a Team Re-roll on block dice", () => {
     const game = new HeadlessGame({ scenario: proScenario, seed: PRO_SEED });
     const rerolls: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => rerolls.push(d));
-    const attackerId = game.ctx.team1.players[0].id;
-    const defenderId = game.ctx.team2.players[0].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
 
     await game.execute({
       type: "declare-action",

@@ -1,24 +1,11 @@
-/**
- * Writes src/simulation/ai/evaluationWeights.ts: a linear position score
- * fitted to the touchdowns each side went on to score, from the rows that
- * scripts/coach/positions.ts writes.
- *
- *     pnpm exec tsx scripts/coach/fit-evaluation.ts positions-*.jsonl > weights.ts
- *
- * Every fifth seed is held out. stderr compares the new fit with the
- * committed one on those games; copy weights.ts over the committed file
- * only when the new fit ranks them better, then bench Hard against main.
- */
-
 import fs from "node:fs";
 import {
-  EvaluationWeights,
+  type EvaluationWeights,
   FEATURES,
-  Feature,
+  type Feature,
 } from "../../src/simulation/ai/evaluate";
 import { EVALUATION_WEIGHTS } from "../../src/simulation/ai/evaluationWeights";
 
-/** Ridge penalty; the bias is left unpenalised. */
 const LAMBDA = 1;
 
 interface Row {
@@ -27,7 +14,6 @@ interface Row {
   f: Record<Feature, number>;
 }
 
-/** Every row of the given files, refusing one without every feature. */
 function readRows(files: string[]): Row[] {
   return files.flatMap((file) =>
     fs
@@ -43,7 +29,7 @@ function readRows(files: string[]): Row[] {
           missing
         )
           throw new Error(
-            `${file}:${i + 1}: not a position row${missing ? ` (no ${missing})` : ""}; collect again after changing the features`
+            `${file}:${String(i + 1)}: not a position row${missing ? ` (no ${missing})` : ""}; collect again after changing the features`
           );
         return row as Row;
       })
@@ -52,7 +38,6 @@ function readRows(files: string[]): Row[] {
 
 const vector = (row: Row) => [1, ...FEATURES.map((n) => row.f[n])];
 
-/** Ridge regression by the normal equations and Gauss-Jordan elimination. */
 function fit(xs: number[][], ys: number[]): number[] {
   const k = xs[0].length;
   const a = Array.from({ length: k }, () => new Array<number>(k + 1).fill(0));
@@ -77,11 +62,9 @@ function fit(xs: number[][], ys: number[]): number[] {
   return a.map((row, i) => row[k] / row[i]);
 }
 
-/** The touchdown difference still to come, as weights `w` see a row. */
 const predict = (w: EvaluationWeights, row: Row) =>
   FEATURES.reduce((sum, n) => sum + w[n] * row.f[n], w.bias);
 
-/** Share of the outcome's variance the prediction explains. */
 function r2(predicted: number[], rows: Row[]): number {
   const mean = rows.reduce((s, r) => s + r.y, 0) / rows.length;
   const total = rows.reduce((s, r) => s + (r.y - mean) ** 2, 0);
@@ -89,10 +72,6 @@ function r2(predicted: number[], rows: Row[]): number {
   return 1 - left / total;
 }
 
-/**
- * How often, of two positions from the same game that went on differently,
- * the one valued higher went on better. The search only ever compares.
- */
 function ranked(predicted: number[], rows: Row[]): number {
   const bySeed = new Map<number, number[]>();
   rows.forEach((r, i) =>
@@ -112,7 +91,6 @@ function ranked(predicted: number[], rows: Row[]): number {
   return right / pairs;
 }
 
-/** Fit, report on the held-out games, and print the weights file. */
 function main() {
   const files = process.argv.slice(2);
   if (files.length === 0)
@@ -135,15 +113,15 @@ function main() {
     return `${name}: R2 ${r2(predicted, test).toFixed(3)}, pairs ranked right ${ranked(predicted, test).toFixed(3)}`;
   };
   process.stderr.write(
-    `${train.length} positions to fit, ${test.length} held out\n` +
+    `${String(train.length)} positions to fit, ${String(test.length)} held out\n` +
       `${report("new fit  ", weights)}\n${report("committed", EVALUATION_WEIGHTS)}\n`
   );
 
   const lines = (["bias", ...FEATURES] as const).map(
-    (n) => `  ${n}: ${Number(weights[n].toPrecision(4))},`
+    (n) => `  ${n}: ${String(Number(weights[n].toPrecision(4)))},`
   );
   process.stdout.write(
-    `// Written by scripts/coach/fit-evaluation.ts from ${rows.length} positions of\n` +
+    `// Written by scripts/coach/fit-evaluation.ts from ${String(rows.length)} positions of\n` +
       `// planner self-play. Refit rather than edit.\n\n` +
       `import type { EvaluationWeights } from "./evaluate";\n\n` +
       `export const EVALUATION_WEIGHTS: EvaluationWeights = {\n${lines.join("\n")}\n};\n`

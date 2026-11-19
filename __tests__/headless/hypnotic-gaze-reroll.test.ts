@@ -1,18 +1,12 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition } from "../../src/types/Player";
 
-/**
- * Hypnotic Gaze, 2025 rulebook p.129: "they select a Standing opposition
- * player adjacent to them and roll a D6. On a 1-2, nothing happens and this
- * player's activation immediately ends." The D6 is an ordinary roll, so a
- * Team Re-roll may be spent on it like any other. The gaze rolled straight
- * through without the offer. Seed 8 rolls a 1, then a 4 (committed, never
- * searched).
- */
 const GAZE_FAILS_SEED = 8;
 
 const scenario: Scenario = {
@@ -31,10 +25,12 @@ const scenario: Scenario = {
   },
 };
 
-const diceOf = (r: { events: { name: string; data: unknown }[] }) =>
+const diceOf = (r: { events: { name: string; data?: unknown }[] }) =>
   r.events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
 
 describe("Hypnotic Gaze re-roll", () => {
   it("offers a Team Re-roll on a failed gaze and the re-roll can land it", async () => {
@@ -44,14 +40,14 @@ describe("Hypnotic Gaze re-roll", () => {
     const target = game.ctx.team2.players[0];
     await game.execute({
       type: "declare-action",
-      playerId: gazer.id,
+      playerId: fixtureValue(gazer).id,
       action: "gaze",
     });
     const gazed = await game.execute({
       type: "special-action",
       action: "gaze",
-      attackerId: gazer.id,
-      defenderId: target.id,
+      attackerId: fixtureValue(gazer).id,
+      defenderId: fixtureValue(target).id,
     });
 
     expect(diceOf(gazed)).toEqual([
@@ -71,9 +67,9 @@ describe("Hypnotic Gaze re-roll", () => {
     expect(diceOf(rerolled)).toEqual([
       "Hypnotic Gaze (Human Lineman #1): 4, needs 3+",
     ]);
-    expect(target.conditions?.map((c) => c.type)).toEqual([
+    expect(fixtureValue(target).conditions?.map((c) => c.type)).toEqual([
       PlayerCondition.DISTRACTED,
     ]);
-    expect(game.snapshot().teams[0].rerolls).toBe(1);
+    expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(1);
   });
 });

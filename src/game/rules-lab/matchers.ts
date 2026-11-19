@@ -1,14 +1,9 @@
-/**
- * Predicate helpers for rule outcomes: small composable checks over a
- * ScriptResult so catalog entries read declaratively.
- */
-
+import { z } from "zod";
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
-import { ScriptResult } from "./types";
+import { type ScriptResult } from "./types";
 import { resolveRef } from "./runner";
 
-/** A reroll decision was offered (optionally narrowed). */
 export function rerollOffered(
   result: ScriptResult,
   opts?: { rollKind?: string; source?: "skill" | "team"; skill?: string }
@@ -22,7 +17,6 @@ export function rerollOffered(
   );
 }
 
-/** A reaction decision was offered (optionally for a specific skill). */
 export function reactionOffered(
   result: ScriptResult,
   opts?: { skill?: string; chooser?: "team1" | "team2" }
@@ -36,7 +30,6 @@ export function reactionOffered(
   );
 }
 
-/** An event with this name was emitted (optionally matching its data). */
 export function sawEvent(
   result: ScriptResult,
   name: string,
@@ -51,7 +44,7 @@ export function skillTriggered(result: ScriptResult, skill?: string): boolean {
   return sawEvent(
     result,
     GameEventNames.SkillTriggered,
-    (d) => !skill || (d as { skill: string }).skill === skill
+    (d) => !skill || z.object({ skill: z.string() }).parse(d).skill === skill
   );
 }
 
@@ -62,7 +55,8 @@ export function rerollUsed(
   return sawEvent(
     result,
     GameEventNames.RerollUsed,
-    (d) => !source || (d as { source: string }).source === source
+    (d) =>
+      !source || z.object({ source: z.string() }).parse(d).source === source
   );
 }
 
@@ -70,7 +64,6 @@ export function turnoverHappened(result: ScriptResult): boolean {
   return sawEvent(result, GameEventNames.Turnover);
 }
 
-/** Resolve a placement ref to the live Player of this run. */
 export function playerOf(result: ScriptResult, ref: string) {
   const id = resolveRef(result.game, ref);
   const player = result.game.ctx.gameService.getPlayerById(id);
@@ -95,10 +88,6 @@ export function playerAt(
   return !!pos && pos.x === square.x && pos.y === square.y;
 }
 
-/**
- * The net modifier applied to the FIRST skill-check dice event whose
- * rollType starts with the prefix.
- */
 export function skillCheckDiff(
   result: ScriptResult,
   rollTypePrefix: string
@@ -106,42 +95,40 @@ export function skillCheckDiff(
   const event = result.events.find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
-      (e.data as { rollType?: string })?.rollType?.startsWith(rollTypePrefix)
+      z
+        .object({ rollType: z.string().exactOptional() })
+        .parse(e.data)
+        .rollType?.startsWith(rollTypePrefix)
   );
   if (!event) return undefined;
-  const data = event.data as {
-    value: number;
-    total: number;
-    context?: { modifier?: number };
-  };
-  // The applied modifier, not total - roll: a total is capped at 6
-  // (errata p.33), which would hide part of a large modifier
+  const data = z
+    .object({
+      value: z.number(),
+      total: z.number(),
+      context: z
+        .object({ modifier: z.number().exactOptional() })
+        .exactOptional(),
+    })
+    .parse(event.data);
+
   return data.context?.modifier ?? data.total - data.value;
 }
 
-/**
- * Dice the block actually rolled with — the observable for strength/assist
- * skills (Guard, Defensive, Horns, Dauntless, …).
- */
 export function blockDiceCount(result: ScriptResult): number | undefined {
   const event = result.events.find(
     (e) => e.name === GameEventNames.BlockDiceRolled
   );
-  return event ? (event.data as { numDice: number }).numDice : undefined;
+  return event
+    ? z.object({ numDice: z.number() }).parse(event.data).numDice
+    : undefined;
 }
 
-/**
- * Count armour rolls seen in the run (for no-armour outcomes).
- *
- * The engine labels these "Armor Check" (American spelling); matching only
- * "Armour" made this always return 0, so every `armourRolls(r) === 0`
- * assertion passed vacuously. Both spellings are accepted so the assertion
- * can actually fail.
- */
 export function armourRolls(result: ScriptResult): number {
   return result.events.filter((e) => {
     if (e.name !== GameEventNames.DiceRoll) return false;
-    const rollType = (e.data as { rollType?: string })?.rollType ?? "";
+    const rollType =
+      z.object({ rollType: z.string().exactOptional() }).parse(e.data)
+        .rollType ?? "";
     return rollType.includes("Armor") || rollType.includes("Armour");
   }).length;
 }

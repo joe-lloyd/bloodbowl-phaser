@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
@@ -8,10 +9,6 @@ import { eventOrder } from "./eventOrder";
 import { GameEventNames } from "../../../src/types/events";
 import { RosterName, TeamSpecialRule } from "../../../src/types/Team";
 
-/**
- * The literal events of a Foul, so a refactor of FoulOperation that moves a
- * roll, an emit or a queued operation fails here.
- */
 function foulGame(
   skills: SkillType[],
   withAssist: boolean,
@@ -26,7 +23,6 @@ function foulGame(
       setup: {
         ...(roster ? { team1Roster: roster } : {}),
         team1Placements: [
-          // A Goblin roster's first player is its Trained Troll; foul with a Lineman
           { playerIndex: roster ? 1 : 0, x: 10, y: 5, skills },
           ...(withAssist ? [{ playerIndex: 1, x: 11, y: 4 }] : []),
         ],
@@ -46,12 +42,11 @@ function foulGame(
       },
     },
   });
-  // Argue the Call fails, so a spotted fouler is Sent-off
+
   vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(1);
   return { game, fouler: game.ctx.team1.players[roster ? 1 : 0] };
 }
 
-/** Foul with these dice; every re-roll the engine reports goes in `rerolls`. */
 async function foulReporting(
   skills: SkillType[],
   dice: number[],
@@ -63,10 +58,15 @@ async function foulReporting(
   game.ctx.eventBus.on(GameEventNames.RerollUsed, (d) => rerolls.push(d));
   await game.execute({
     type: "declare-action",
-    playerId: fouler.id,
+    playerId: fixtureValue(fouler).id,
     action: "foul",
   });
-  await game.execute({ type: "foul", playerId: fouler.id, x: 11, y: 5 });
+  await game.execute({
+    type: "foul",
+    playerId: fixtureValue(fouler).id,
+    x: 11,
+    y: 5,
+  });
   return rerolls;
 }
 
@@ -78,7 +78,6 @@ async function foul(
   return eventOrder(await foulEvents(skills, dice, withAssist));
 }
 
-/** Every event a Foul emits, in order. */
 async function foulEvents(
   skills: SkillType[],
   dice: number[],
@@ -88,12 +87,12 @@ async function foulEvents(
   forceDice(game.ctx.rng, dice);
   await game.execute({
     type: "declare-action",
-    playerId: fouler.id,
+    playerId: fixtureValue(fouler).id,
     action: "foul",
   });
   let response = await game.execute({
     type: "foul",
-    playerId: fouler.id,
+    playerId: fixtureValue(fouler).id,
     x: 11,
     y: 5,
   });
@@ -107,7 +106,6 @@ async function foulEvents(
 
 describe("a Foul's events keep their order", () => {
   it("breaks armour on a double, injures, and sends the fouler off", async () => {
-    // Armour 5+5 breaks AV 9; Injury 4+4 Stunned; spotted on the double
     expect(await foul([], [5, 5, 4, 4], true)).toMatchInlineSnapshot(`
       [
         "ui:notification: Human Lineman #1 is fouling Human Lineman #1!",
@@ -146,7 +144,6 @@ describe("a Foul's events keep their order", () => {
   });
 
   it("re-rolls with Lone Fouler and holds the +1 of Dirty Player", async () => {
-    // Armour 2+3 holds, Lone Fouler re-rolls 4+4: Dirty Player +1 breaks it
     expect(
       await foul(
         [SkillType.LONE_FOULER, SkillType.DIRTY_PLAYER],
@@ -192,7 +189,6 @@ describe("a Foul's events keep their order", () => {
   });
 
   it("counts Dirty Player's +1 in the Armour Roll it reports", async () => {
-    // Armour 2+3 holds, Lone Fouler re-rolls 4+4: 8 + Dirty Player's 1
     const events = await foulEvents(
       [SkillType.LONE_FOULER, SkillType.DIRTY_PLAYER],
       [2, 3, 4, 4, 3, 2]
@@ -245,7 +241,6 @@ describe("a Foul's events keep their order", () => {
   });
 
   it("reports Bribery and Corruption's re-roll of the Argue the Call 1", async () => {
-    // Armour 5+5 breaks AV 9 and is spotted; Argue the Call rolls 1, then 1
     expect(await foulReporting([], [5, 5, 4, 4], RosterName.GOBLIN)).toEqual([
       {
         playerId: "team1-player-2",

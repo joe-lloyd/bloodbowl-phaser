@@ -1,34 +1,11 @@
-/**
- * Competition lifecycle fixtures: one league and one tournament in each of
- * draft, active, and completed states, built through the normal competition
- * services (generateRoundRobin / generateSingleElimination /
- * recordLeagueResult / recordTournamentResult / computeStandings) with
- * deterministic, named-RNG results.
- *
- * Membership index: a team appears in at most one ACTIVE competition.
- * Draft and completed memberships may overlap freely — draft is not yet
- * participation and completed memberships are history.
- *
- *   league-draft      Human, Orc, Dwarf, Skaven        (round-robin, unplayed)
- *   league-active     Dark Elf, Wood Elf, Necro, Goblin (round-robin, mid-way)
- *   league-complete   Human, Orc, Dwarf, Skaven        (round-robin, final)
- *   tournament-draft  Amazon, Khorne, Nurgle, Vampire  (single-elim, unplayed)
- *   tournament-active High Elf, Chaos Chosen, Norse, Lizardmen (semis done)
- *   tournament-complete Human, Orc, Dwarf, Skaven      (champion recorded)
- *
- * Team records (wins/draws/losses) fold the results of the completed
- * competitions back onto the library teams, mirroring updateTeamRecord.
- * All timestamps are normalized to SEED_EPOCH offsets so runs converge.
- */
-
-import { RosterName, Team } from "../types/Team";
+import { RosterName, type Team } from "../types/Team";
 import {
-  CompetitionDoc,
-  CompetitionEntrant,
-  CompetitionFixture,
+  type CompetitionDoc,
+  type CompetitionEntrant,
+  type CompetitionFixture,
   DEFAULT_LEAGUE_POINTS,
-  LeagueDoc,
-  TournamentDoc,
+  type LeagueDoc,
+  type TournamentDoc,
 } from "../competition/types";
 import {
   computeStandings,
@@ -53,11 +30,11 @@ interface CompetitionPlan {
   type: "league" | "tournament";
   state: "draft" | "active" | "complete";
   rosters: RosterName[];
-  /** For active competitions: how many fixtures (in id order) to complete. */
+
   completeFixtures?: number;
 }
 
-export const COMPETITION_PLANS: CompetitionPlan[] = [
+const COMPETITION_PLANS: CompetitionPlan[] = [
   {
     fixtureKey: "founders-league",
     name: "Founders League",
@@ -112,7 +89,7 @@ export const COMPETITION_PLANS: CompetitionPlan[] = [
     name: "Winter Gauntlet",
     type: "tournament",
     state: "active",
-    completeFixtures: 2, // both semi-finals; the final stays playable
+    completeFixtures: 2,
     rosters: [
       RosterName.HIGH_ELF,
       RosterName.CHAOS_CHOSEN,
@@ -147,11 +124,10 @@ function toEntrant(
     coachName: "Seed Coach",
     coachUid: null,
     rosterName: team.rosterName,
-    seed: 0, // reassigned by seedEntrants in plan order
+    seed: 0,
   };
 }
 
-/** Deterministic scoreline; elimination fixtures never draw. */
 function scoreFor(
   plan: CompetitionPlan,
   fixture: CompetitionFixture
@@ -159,7 +135,7 @@ function scoreFor(
   const rng = rngFor(`match:${plan.fixtureKey}:${fixture.id}`);
   let homeScore = rng.nextInt(0, 3);
   let awayScore = rng.nextInt(0, 3);
-  // Every seeded tournament is single-elimination: no draws allowed.
+
   if (plan.type === "tournament" && homeScore === awayScore) {
     if (rng.nextInt(0, 1) === 0) homeScore += 1;
     else awayScore += 1;
@@ -167,33 +143,24 @@ function scoreFor(
   return { homeScore, awayScore };
 }
 
-/** Record results for the first `count` fixtures (id order), deterministically. */
 function playFixtures(
   plan: CompetitionPlan,
   doc: LeagueDoc | TournamentDoc,
   count: number
 ): LeagueDoc | TournamentDoc {
   let current = doc;
-  const fixtures = [...doc.fixtures].sort((a, b) =>
-    a.id.localeCompare(b.id)
-  );
+  const fixtures = [...doc.fixtures].sort((a, b) => a.id.localeCompare(b.id));
   for (const fixture of fixtures.slice(0, count)) {
     if (fixture.status === "complete") continue;
     const { homeScore, awayScore } = scoreFor(plan, fixture);
     current =
       current.type === "league"
-        ? recordLeagueResult(current as LeagueDoc, fixture.id, homeScore, awayScore)
-        : recordTournamentResult(
-            current as TournamentDoc,
-            fixture.id,
-            homeScore,
-            awayScore
-          );
+        ? recordLeagueResult({ league: current,fixtureId: fixture.id,homeScore,awayScore })
+        : recordTournamentResult({ tournament: current,fixtureId: fixture.id,homeScore,awayScore });
   }
   return current;
 }
 
-/** Fix every timestamp to SEED_EPOCH offsets so repeated runs converge. */
 function normalizeTimestamps(doc: CompetitionDoc): void {
   doc.createdAt = SEED_EPOCH;
   const sorted = [...doc.fixtures].sort((a, b) => a.id.localeCompare(b.id));
@@ -226,7 +193,7 @@ function buildCompetition(
     id,
     name: plan.name,
     organizerUid: null,
-    participantUids: [] as string[],
+    participantUids: new Array<string>(),
     entrants,
     seedMetadata: seedMetadata(plan.fixtureKey),
     createdAt: SEED_EPOCH,
@@ -260,17 +227,12 @@ function buildCompetition(
     doc = playFixtures(plan, doc, toPlay);
   }
   if (plan.state === "draft") {
-    doc.status = "draft"; // playFixtures never ran; keep the lifecycle state
+    doc.status = "draft";
   }
   normalizeTimestamps(doc);
   return doc;
 }
 
-/**
- * A team belongs to at most one ACTIVE competition (design.md decision 4).
- * Draft and completed memberships may freely overlap the same team across
- * plans (see the module docstring), so only "active" plans set the field.
- */
 function markActiveMembership(
   docs: CompetitionDoc[],
   teamsByRoster: Map<RosterName, Team>
@@ -286,7 +248,6 @@ function markActiveMembership(
   }
 }
 
-/** All six lifecycle competitions, plus folded team records for history. */
 export function buildSeedCompetitions(teams: Team[]): CompetitionDoc[] {
   const teamsByRoster = new Map(teams.map((team) => [team.rosterName, team]));
   const docs = COMPETITION_PLANS.map((plan) =>
@@ -297,10 +258,6 @@ export function buildSeedCompetitions(teams: Team[]): CompetitionDoc[] {
   return docs;
 }
 
-/**
- * Mirror updateTeamRecord: completed fixtures fold W/D/L onto the library
- * teams, so a team's history links agree with its completed memberships.
- */
 function foldCompletedRecords(
   docs: CompetitionDoc[],
   teamsByRoster: Map<RosterName, Team>
@@ -326,7 +283,6 @@ function foldCompletedRecords(
   }
 }
 
-/** The library team behind each entrant of a completed competition. */
 function completedEntrantTeams(
   docs: CompetitionDoc[],
   teamsByRoster: Map<RosterName, Team>
@@ -345,7 +301,6 @@ function completedEntrantTeams(
   return teamByEntrant;
 }
 
-/** A win, a loss or a draw each, onto the two teams' records. */
 function foldResult(
   home: Team,
   away: Team,

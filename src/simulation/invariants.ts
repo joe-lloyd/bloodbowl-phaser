@@ -1,12 +1,8 @@
-/**
- * Rules that must hold after every accepted command, whatever the dice did.
- *
- * Each check reads only the serialized snapshot, so a violation can be
- * reproduced from a recording without the coach that caused it.
- */
-
-import { GameSnapshot, PlayerSnapshot } from "../headless/serialization";
-import { HeadlessCommand } from "../headless/protocol";
+import {
+  type GameSnapshot,
+  type PlayerSnapshot,
+} from "../headless/serialization";
+import { type HeadlessCommand } from "../headless/protocol";
 import { GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { GameConfig } from "../config/GameConfig";
@@ -29,18 +25,17 @@ const inBounds = (p: { x: number; y: number }) =>
   p.y < GameConfig.PITCH_HEIGHT;
 
 const where = (p: PlayerSnapshot) =>
-  `${p.id} (${p.positionName}) at (${p.position?.x},${p.position?.y})`;
+  `${p.id} (${p.positionName}) at (${String(p.position?.x)},${String(p.position?.y)})`;
 
 type Fail = (rule: string, message: string) => void;
 
-/** One player per square, on the grid, standing or down. Returns who is where. */
 function squareChecks(
   onPitch: PlayerSnapshot[],
   fail: Fail
 ): Map<string, PlayerSnapshot> {
   const occupied = new Map<string, PlayerSnapshot>();
   for (const p of onPitch) {
-    const key = `${p.position!.x},${p.position!.y}`;
+    const key = `${String(p.position!.x)},${String(p.position!.y)}`;
     const other = occupied.get(key);
     if (other)
       fail(
@@ -84,24 +79,30 @@ function teamChecks(
 ): void {
   for (const team of after.teams) {
     const count = team.players.filter((p) => p.position).length;
-    // Swarming adds up to the drive's D3 roll of Linemen after set-up
+
     const swarmed = after.setup?.swarming?.teams[team.id]?.roll ?? 0;
     if (count > 7 + swarmed)
-      fail("seven-a-side", `${team.name} has ${count} players on the pitch`);
+      fail(
+        "seven-a-side",
+        `${team.name} has ${String(count)} players on the pitch`
+      );
     if (team.rerolls < 0)
-      fail("rerolls-non-negative", `${team.name} has ${team.rerolls} re-rolls`);
+      fail(
+        "rerolls-non-negative",
+        `${team.name} has ${String(team.rerolls)} re-rolls`
+      );
     const scoreBefore = before.score[team.id] ?? 0;
     const scoreAfter = after.score[team.id] ?? 0;
     if (scoreAfter < scoreBefore) {
       fail(
         "score-monotonic",
-        `${team.name}'s score fell from ${scoreBefore} to ${scoreAfter}`
+        `${team.name}'s score fell from ${String(scoreBefore)} to ${String(scoreAfter)}`
       );
     }
     if (scoreAfter > scoreBefore + 1) {
       fail(
         "one-touchdown-per-command",
-        `${team.name}'s score jumped from ${scoreBefore} to ${scoreAfter}`
+        `${team.name}'s score jumped from ${String(scoreBefore)} to ${String(scoreAfter)}`
       );
     }
   }
@@ -116,19 +117,17 @@ function ballChecks(
   if (after.ballPosition && !inBounds(after.ballPosition)) {
     fail(
       "ball-in-bounds",
-      `ball at (${after.ballPosition.x},${after.ballPosition.y})`
+      `ball at (${String(after.ballPosition.x)},${String(after.ballPosition.y)})`
     );
   }
 
-  // A downed player cannot hold the ball: it must have bounced. Mid-decision
-  // the bounce may still be queued, so only check settled states.
   if (
     after.phase === GamePhase.PLAY &&
     after.ballPosition &&
     !decisionPending
   ) {
     const holder = occupied.get(
-      `${after.ballPosition.x},${after.ballPosition.y}`
+      `${String(after.ballPosition.x)},${String(after.ballPosition.y)}`
     );
     if (holder && holder.status !== PlayerStatus.ACTIVE) {
       fail(
@@ -150,7 +149,7 @@ function turnChecks(
     if (owner && owner.teamId !== after.activeTeamId) {
       fail(
         "active-player-on-active-team",
-        `${owner.id} is still the active player during ${after.activeTeamId}'s turn`
+        `${owner.id} is still the active player during ${String(after.activeTeamId)}'s turn`
       );
     }
   }
@@ -158,7 +157,7 @@ function turnChecks(
   if (after.turn.turnNumber > GameConfig.TURNS_PER_HALF) {
     fail(
       "turn-limit",
-      `turn ${after.turn.turnNumber} exceeds ${GameConfig.TURNS_PER_HALF} per half`
+      `turn ${String(after.turn.turnNumber)} exceeds ${String(GameConfig.TURNS_PER_HALF)} per half`
     );
   }
   if (
@@ -192,12 +191,6 @@ export function checkInvariants(
   return out;
 }
 
-/**
- * Rules that need to know which command ran, or what happened over several
- * commands: one Block per Blitz, a pass the passing team does not end up
- * holding is a turnover, and nobody moves further than MA plus Rushes.
- * Wraps checkInvariants, so a caller needs only this.
- */
 export interface RuleMonitor {
   observe(
     command: HeadlessCommand,
@@ -207,7 +200,6 @@ export interface RuleMonitor {
   ): InvariantViolation[];
 }
 
-/** Counted per declaration: a Time-Out can repeat a turn number. */
 function blitzBlockCheck(
   command: HeadlessCommand,
   before: GameSnapshot,
@@ -222,12 +214,11 @@ function blitzBlockCheck(
   if (blocks > 1) {
     fail(
       "one-block-per-blitz",
-      `${command.attackerId} made block ${blocks} in one Blitz`
+      `${command.attackerId} made block ${String(blocks)} in one Blitz`
     );
   }
 }
 
-/** A pass the passing team does not end up holding ends their turn. */
 function passTurnoverCheck(
   command: HeadlessCommand,
   team: string,
@@ -254,7 +245,6 @@ function passTurnoverCheck(
   }
 }
 
-/** Nobody moves further than MA plus Rushes. */
 function movementChecks(
   before: GameSnapshot,
   after: GameSnapshot,
@@ -262,9 +252,7 @@ function movementChecks(
 ): void {
   for (const player of after.teams.flatMap((t) => t.players)) {
     const used = after.turn.movementUsed[player.id] ?? 0;
-    // Judged when it is spent, against the player as they were before
-    // the command: a skill can lapse at the end of a drive, even in the
-    // command that spent the squares it allowed.
+
     if (used <= (before.turn.movementUsed[player.id] ?? 0)) continue;
     const mover =
       before.teams.flatMap((t) => t.players).find((p) => p.id === player.id) ??
@@ -274,7 +262,7 @@ function movementChecks(
     if (used > allowance) {
       fail(
         "movement-allowance",
-        `${player.id} has moved ${used} squares, allowance ${allowance}`
+        `${player.id} has moved ${String(used)} squares, allowance ${String(allowance)}`
       );
     }
   }
@@ -282,7 +270,7 @@ function movementChecks(
 
 export function createRuleMonitor(): RuleMonitor {
   const blitzBlocks = new Map<string, number>();
-  /** The passing team while a Pass or Hand-off is still resolving. */
+
   let passingTeam: string | null = null;
 
   return {

@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { TurnManager } from "../../../src/game/managers/TurnManager";
-import { GameState, GamePhase, SubPhase } from "../../../src/types/GameState";
-import { Team } from "../../../src/types/Team";
+import {
+  type GameState,
+  GamePhase,
+  SubPhase,
+} from "../../../src/types/GameState";
+import { type Team } from "../../../src/types/Team";
 import { GameEventNames } from "../../../src/types/events";
 
 describe("TurnManager", () => {
@@ -65,15 +69,15 @@ describe("TurnManager", () => {
     });
 
     it("should set receiving team as active", () => {
-      manager.startGame("team1"); // Team1 kicks
+      manager.startGame("team1");
 
-      expect(mockState.activeTeamId).toBe("team2"); // Team2 receives
+      expect(mockState.activeTeamId).toBe("team2");
     });
 
     it("should set kicking team as active", () => {
-      manager.startGame("team2"); // Team2 kicks
+      manager.startGame("team2");
 
-      expect(mockState.activeTeamId).toBe("team1"); // Team1 receives
+      expect(mockState.activeTeamId).toBe("team1");
     });
 
     it("should emit TurnStarted event", () => {
@@ -156,7 +160,6 @@ describe("TurnManager", () => {
     });
 
     it("should end half after 6 turns per team", () => {
-      // Simulate 6 turns for each team
       for (let i = 0; i < 6; i++) {
         manager.startTurn("team1");
         manager.startTurn("team2");
@@ -168,7 +171,6 @@ describe("TurnManager", () => {
     });
 
     it("should call onPhaseChanged on half-time", () => {
-      // Simulate 6 turns for each team
       for (let i = 0; i < 6; i++) {
         manager.startTurn("team1");
         manager.startTurn("team2");
@@ -213,7 +215,7 @@ describe("TurnManager", () => {
 
       manager.finishActivation("p1");
 
-      expect(mockEventBus.emit).toHaveBeenCalledTimes(emitCallCount); // No new call
+      expect(mockEventBus.emit).toHaveBeenCalledTimes(emitCallCount);
     });
   });
 
@@ -231,11 +233,10 @@ describe("TurnManager", () => {
             ? new Promise<void>((resolve) => (autoEnd = resolve))
             : new Promise<void>(() => {})
       );
-      manual.startGame("team1"); // team2 receives
+      manual.startGame("team1");
 
-      // Last player done: the turn will end itself in 500 ms...
       manual.finishActivation("p1");
-      // ...but the coach presses End Turn first.
+
       manual.endTurn();
       expect(mockState.activeTeamId).toBe("team1");
 
@@ -249,7 +250,6 @@ describe("TurnManager", () => {
     it("emits Turnover and hands back the banner for later", () => {
       mockState.activeTeamId = "team1";
 
-      // The banner waits for the fall's dice: the caller raises it
       expect(manager.checkTurnover("Failed Dodge")).toEqual(
         expect.objectContaining({ teamId: "team1", reason: "Failed Dodge" })
       );

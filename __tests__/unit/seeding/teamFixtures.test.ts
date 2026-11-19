@@ -108,7 +108,10 @@ describe("teamFixtures", () => {
 
   it("fails with fixture-specific diagnostics", () => {
     const error = new SeedFixtureError("test-fixture", [
-      { rule: "lineman-limit", detail: "5 players without the Lineman keyword" },
+      {
+        rule: "lineman-limit",
+        detail: "5 players without the Lineman keyword",
+      },
     ]);
     expect(error.message).toContain("test-fixture");
     expect(error.message).toContain("lineman-limit");

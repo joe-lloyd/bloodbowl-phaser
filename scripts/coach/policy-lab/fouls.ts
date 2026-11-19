@@ -1,8 +1,3 @@
-/**
- * Who fouls, and what comes of it. Replays saved commands and, for every
- * Foul, records the fouler's roster, position, cost and Sneaky Git, whether
- * the referee sent it off, and how the target ended the activation.
- */
 import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
@@ -22,10 +17,10 @@ import type { PolicyJob } from "../policy-study/schedule";
 interface Tally {
   fouls: number;
   sentOff: number;
-  /** Fouls that left the target KO, Injured or Dead. */
+
   removed: number;
   casualties: number;
-  /** Fouls that left the target Stunned, and no worse. */
+
   stunned: number;
 }
 
@@ -44,14 +39,13 @@ interface Foul {
   sentOff: boolean;
 }
 
-/** The fouler's group: roster, position, and what sets it apart. */
 function groupOf(roster: string, p: Player): string {
   const marks = [
     isBigGuy(p.keywords ?? []) ? "big guy" : "",
     hasSkill(p.skills, SkillType.SNEAKY_GIT) ? "Sneaky Git" : "",
   ].filter(Boolean);
   const cost = Math.round(p.cost / 1000);
-  return `${roster} / ${p.positionName} (${cost}k${marks.map((m) => ", " + m).join("")})`;
+  return `${roster} / ${p.positionName} (${String(cost)}k${marks.map((m) => ", " + m).join("")})`;
 }
 
 export async function foulsOfTrace(file: string) {
@@ -112,7 +106,8 @@ export async function foulsOfTrace(file: string) {
         };
     }
     const response = await game.execute(command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
+    if (response.ok !== step.ok)
+      throw new Error(`Replay diverged at ${String(index)}`);
   }
   settle();
   if (snapshotHash(game.snapshot()) !== trace.recording.final.hash)
@@ -150,7 +145,7 @@ async function main() {
         );
         process.send?.({ done: job.id });
       } catch (error) {
-        process.send?.({ error: `${job.id}: ${error}` });
+        process.send?.({ error: `${job.id}: ${String(error)}` });
       }
     });
     process.send?.({ ready: true });

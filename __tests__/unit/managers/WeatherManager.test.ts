@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { WeatherManager } from "../../../src/game/managers/WeatherManager";
 import { GameEventNames } from "../../../src/types/events";
-import { GameState, GamePhase } from "../../../src/types/GameState";
+import { type GameState, GamePhase } from "../../../src/types/GameState";
 
 describe("WeatherManager", () => {
   let manager: WeatherManager;

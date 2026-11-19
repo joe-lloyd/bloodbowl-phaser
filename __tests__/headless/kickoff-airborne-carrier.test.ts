@@ -1,23 +1,13 @@
-/**
- * Nobody holds a kick that is still in the air. While the Kick-off Event
- * runs (a Charge! Blitz), the ball hangs over its landing square: a player
- * standing under it does not carry it on a follow-up or a push, and does
- * not drop it when knocked down or pushed into the crowd. It lands where
- * it was kicked, and whoever stands there then Catches it.
- *
- * Review on #201: following up off the landing square carried the kick to
- * the follow-up square, changing where it would land.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { GameEventNames } from "../../src/types/events";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 
 const LANDING = { x: 7, y: 3 };
 
-/** A blocker and a target, then the kick put in the air over `landing`. */
 async function charge(
   blocker: { x: number; y: number },
   target: { x: number; y: number },
@@ -42,16 +32,16 @@ async function charge(
   const defender = game.ctx.team2.players[0];
   await game.execute({
     type: "declare-action",
-    playerId: attacker.id,
+    playerId: fixtureValue(attacker).id,
     action: "blitz",
   });
-  // The kick has deviated and is still in the air while Charge! runs
+
   const state = game.ctx.gameService.getState();
   state.phase = GamePhase.KICKOFF;
   state.kickoffKickResolved = { isTeam1Kicking: true };
   state.ballPosition = { ...landing };
   const ballEvents: string[] = [];
-  // Anything that moves, bounces, throws in or hands over the ball
+
   for (const name of [
     GameEventNames.BallPlaced,
     GameEventNames.BallScattered,
@@ -71,10 +61,10 @@ describe("a kick still in the air during a Charge! Blitz", () => {
   it("stays over its landing square when the blocker under it follows up", async () => {
     const { gs, attacker, ballEvents } = await charge(LANDING, { x: 9, y: 3 });
 
-    await gs.followUpPush(attacker.id, { x: 8, y: 3 });
+    await gs.followUpPush(fixtureValue(attacker).id, { x: 8, y: 3 });
     await settle();
 
-    expect(attacker.gridPosition).toEqual({ x: 8, y: 3 });
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 8, y: 3 });
     expect(gs.getState().ballPosition).toEqual(LANDING);
     expect(ballEvents).toEqual([]);
   });
@@ -85,21 +75,25 @@ describe("a kick still in the air during a Charge! Blitz", () => {
       LANDING
     );
 
-    await gs.resolveBlock(attacker.id, defender.id, {
-      type: "push",
-      icon: "",
-      label: "Push",
-    });
-    await gs.executePush(
-      attacker.id,
-      defender.id,
-      { x: 8, y: 3 },
-      "push",
-      false
+    await gs.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      {
+        type: "push",
+        icon: "",
+        label: "Push",
+      }
     );
+    await gs.executePush({
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
+      direction: { x: 8, y: 3 },
+      resultType: "push",
+      followUp: false,
+    });
     await settle();
 
-    expect(defender.gridPosition).toEqual({ x: 8, y: 3 });
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 8, y: 3 });
     expect(gs.getState().ballPosition).toEqual(LANDING);
     expect(ballEvents).toEqual([]);
   });
@@ -110,21 +104,25 @@ describe("a kick still in the air during a Charge! Blitz", () => {
       LANDING
     );
 
-    await gs.resolveBlock(attacker.id, defender.id, {
-      type: "pow",
-      icon: "",
-      label: "Pow",
-    });
-    await gs.executePush(
-      attacker.id,
-      defender.id,
-      { x: 8, y: 3 },
-      "pow",
-      false
+    await gs.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      {
+        type: "pow",
+        icon: "",
+        label: "Pow",
+      }
     );
+    await gs.executePush({
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
+      direction: { x: 8, y: 3 },
+      resultType: "pow",
+      followUp: false,
+    });
     await settle();
 
-    expect(defender.status).not.toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(defender).status).not.toBe(PlayerStatus.ACTIVE);
     expect(gs.getState().ballPosition).toEqual(LANDING);
     expect(ballEvents).toEqual([]);
   });
@@ -135,14 +133,18 @@ describe("a kick still in the air during a Charge! Blitz", () => {
       y: 3,
     });
 
-    await gs.resolveBlock(attacker.id, defender.id, {
-      type: "both-down",
-      icon: "",
-      label: "Both Down",
-    });
+    await gs.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      {
+        type: "both-down",
+        icon: "",
+        label: "Both Down",
+      }
+    );
     await settle();
 
-    expect(attacker.status).not.toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(attacker).status).not.toBe(PlayerStatus.ACTIVE);
     expect(gs.getState().ballPosition).toEqual(LANDING);
     expect(ballEvents).toEqual([]);
   });
@@ -155,21 +157,25 @@ describe("a kick still in the air during a Charge! Blitz", () => {
       sideline
     );
 
-    await gs.resolveBlock(attacker.id, defender.id, {
-      type: "push",
-      icon: "",
-      label: "Push",
-    });
-    await gs.executePush(
-      attacker.id,
-      defender.id,
-      { x: 7, y: -1 },
-      "push",
-      false
+    await gs.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      {
+        type: "push",
+        icon: "",
+        label: "Push",
+      }
     );
+    await gs.executePush({
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
+      direction: { x: 7, y: -1 },
+      resultType: "push",
+      followUp: false,
+    });
     await settle();
 
-    expect(defender.gridPosition).toBeFalsy();
+    expect(fixtureValue(defender).gridPosition).toBeFalsy();
     expect(gs.getState().ballPosition).toEqual(sideline);
     expect(ballEvents).toEqual([]);
   });

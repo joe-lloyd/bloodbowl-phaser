@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, afterEach } from "vitest";
 import {
   SkillType,
@@ -13,7 +14,7 @@ import {
   loadTeams,
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
-import { Team } from "../../src/types/Team";
+import { type Team } from "../../src/types/Team";
 
 describe("public skill catalog", () => {
   it("contains 72 skills and 36 traits with unique family names", () => {
@@ -103,7 +104,7 @@ describe("legacy skill name migration", () => {
   });
 
   it("no legacy name collides with a current catalog name", () => {
-    const current = new Set(Object.values(SkillType) as string[]);
+    const current = new Set(Object.values(SkillType));
     const collisions = Object.keys(LEGACY_SKILL_NAMES).filter((n) =>
       current.has(n)
     );
@@ -121,7 +122,7 @@ describe("legacy skill name migration", () => {
     expect(migrateSkill({ type: "Piling On" })).toMatchObject({
       type: SkillType.PILE_DRIVER,
     });
-    // Removed entries drop without throwing
+
     expect(migrateSkill({ type: "Portal Navigator" })).toBeNull();
   });
 
@@ -138,18 +139,6 @@ describe("round-trip: a pre-reconciliation saved team loads intact", () => {
     localStorage.clear();
   });
 
-  /**
-   * Since normalize-cloud-data-model, a player's skills are never the
-   * persisted source of truth — they are rehydrated from the roster
-   * template plus `advancements` (src/data/persistence/teamPersistence.ts).
-   * A gained skill's legacy name now lives in `advancements[].name`, so
-   * that is where migration is exercised: a "Human Lineman" template
-   * carries no base skills, so everything below comes from advancement.
-   * Written directly to localStorage (rather than a stub TeamRepository)
-   * so the real hydration path — the localStorage backend's `loadTeams` —
-   * is what performs the migration, exactly as it would for a real legacy
-   * document.
-   */
   it("loads all gained skills as current families with parameters", () => {
     const savedTeam = {
       id: "fixture-team",
@@ -223,7 +212,7 @@ describe("round-trip: a pre-reconciliation saved team loads intact", () => {
     localStorage.setItem("bloodbowl_teams", JSON.stringify([savedTeam]));
 
     const [team] = loadTeams();
-    const p1 = team.players[0].skills.map((s) => [s.type, s.parameter]);
+    const p1 = fixtureValue(fixtureValue(team).players[0]).skills.map((s) => [s.type, s.parameter]);
     expect(p1).toEqual([
       [SkillType.LONER, "4+"],
       [SkillType.THROW_TEAM_MATE, undefined],
@@ -231,14 +220,13 @@ describe("round-trip: a pre-reconciliation saved team loads intact", () => {
       [SkillType.UNCHANNELLED_FURY, undefined],
     ]);
 
-    // Fumblerooski migrated; the removed Portal Navigator dropped
-    const p2 = team.players[1].skills.map((s) => s.type);
+    const p2 = fixtureValue(fixtureValue(team).players[1]).skills.map((s) => s.type);
     expect(p2).toEqual([SkillType.FUMBLEROOSKI]);
   });
 
   it("migrated skills carry current catalog descriptions", () => {
     const skill = migrateSkills([{ type: "Loner 4+" }])[0];
-    expect(skill.description).toBe(getSkill(SkillType.LONER).description);
-    expect(skill.description.length).toBeGreaterThan(10);
+    expect(fixtureValue(skill).description).toBe(getSkill(SkillType.LONER).description);
+    expect(fixtureValue(skill).description.length).toBeGreaterThan(10);
   });
 });

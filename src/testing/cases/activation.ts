@@ -1,16 +1,6 @@
-/**
- * Activation scenario cases: declaring, cancelling and re-declaring an
- * action, and the legality checks around whose turn it is and who may act.
- *
- * No single `__tests__/headless/*.test.ts` file owns "activation" by name —
- * the nearest headless coverage is spread across `HeadlessGame.test.ts` and
- * `defer-action-commitment.test.ts` — so this is the section's own home
- * (see docs/E2E_TESTING.md's case-organization note).
- */
-
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
-import { ScenarioCase, step } from "../scenarioCase/types";
+import { type ScenarioCase, step } from "../scenarioCase/types";
 import {
   playSetup,
   stepRejected,
@@ -20,7 +10,6 @@ import {
   playerIn,
 } from "./helpers";
 
-/** A shared two-player board: team1 mover, a distant team2 opponent. */
 const openField = () =>
   playSetup({
     team1Placements: [
@@ -58,9 +47,6 @@ const wrongTeam: ScenarioCase = {
     },
   ],
   checkpoints: [
-    // The engine refuses this as an illegal declaration rather than with a
-    // team-specific reason; asserting the actual reason keeps the case
-    // honest about which rule did the refusing.
     stepRejected(0, "illegal-action-declaration"),
     {
       id: "no-active-player",
@@ -69,7 +55,7 @@ const wrongTeam: ScenarioCase = {
       assert(observed) {
         checkpointAssert(
           observed.snapshot.activePlayer === null,
-          `no player should be activated, but ${observed.snapshot.activePlayer?.id} is`
+          `no player should be activated, but ${String(observed.snapshot.activePlayer?.id)} is`
         );
       },
     },
@@ -182,10 +168,6 @@ const alreadyActivated: ScenarioCase = {
   ],
 };
 
-/**
- * A declared action can be taken back until something has happened. This is
- * the "I misclicked" path, and it must leave no trace.
- */
 const cancelAction: ScenarioCase = {
   id: "activation-cancel-declared-action",
   name: "Cancelling a declared action",
@@ -230,7 +212,7 @@ const cancelAction: ScenarioCase = {
         checkpointAssert(
           observed.snapshot.activePlayer?.action === "pass",
           `expected the re-declared 'pass' action, got ` +
-            `${observed.snapshot.activePlayer?.action ?? "none"}`
+            (observed.snapshot.activePlayer?.action ?? "none")
         );
       },
     },

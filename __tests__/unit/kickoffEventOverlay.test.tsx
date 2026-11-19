@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { EventBus } from "../../src/services/EventBus";
@@ -23,7 +24,9 @@ describe("KickoffEventOverlay", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.restoreAllMocks();
   });
@@ -86,13 +89,13 @@ describe("KickoffEventOverlay", () => {
       event: KickoffEvent.QUICK_SNAP,
       teamId: "team1",
       selectionLimit: 3,
-      selectedPlayerIds: [] as string[],
-      movedPlayerIds: [] as string[],
+      selectedPlayerIds: new Array<string>(),
+      movedPlayerIds: new Array<string>(),
       awaitingPlacement: [],
     };
     const gameService = {
       getMovementUsed: vi.fn(() => 0),
-      // The engine hands out a copy each time, as getStep does
+
       getKickoffEventStep: vi.fn(() => ({
         ...step,
         selectedPlayerIds: [...step.selectedPlayerIds],
@@ -111,9 +114,9 @@ describe("KickoffEventOverlay", () => {
       gameService,
     } as any);
     const done = () =>
-      [...container.querySelectorAll("button")].find(
+      fixtureValue([...container.querySelectorAll("button")].find(
         (button) => button.textContent?.trim() === "Done"
-      ) as HTMLButtonElement;
+      ));
     const refresh = () =>
       act(async () => {
         eventBus.emit(GameEventNames.KickoffEventStepStarted, {
@@ -130,11 +133,9 @@ describe("KickoffEventOverlay", () => {
     expect(container.textContent).toContain("0/3 moved");
     expect(done().disabled).toBe(true);
 
-    // Picking a player is not a move yet: the next click is their square.
-    // Over the network the pick lands after the click, and is announced.
     step.selectedPlayerIds = ["p1"];
     await act(async () => {
-      eventBus.emit(GameEventNames.KickoffEventStepChanged);
+      eventBus.emit(GameEventNames.KickoffEventStepChanged, undefined);
     });
     expect(container.textContent).toContain(
       "Now click a green square next to Griff to move them there."
@@ -215,7 +216,7 @@ describe("KickoffEventOverlay", () => {
       const player = createPlayerOnPitch("team1", 1, 5, 5);
       const defender = createPlayerOnPitch("team2", 1, 7, 5);
       const gameService = {
-      getMovementUsed: vi.fn(() => 0),
+        getMovementUsed: vi.fn(() => 0),
         getKickoffEventStep: () => ({
           event: KickoffEvent.CHARGE,
           teamId: "team1",
@@ -245,35 +246,34 @@ describe("KickoffEventOverlay", () => {
         hasHandedOff: false,
         hasFouled: false,
       };
-      await act(async () =>
+      await act(async () => {
         root.render(
           <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
-        )
-      );
-      await act(async () =>
-        eventBus.emit(GameEventNames.PlayerSelected, { player })
-      );
+        );
+      });
+      await act(async () => {
+        eventBus.emit(GameEventNames.PlayerSelected, { player });
+      });
 
       const blitz = container.querySelector<HTMLButtonElement>(
         '[data-testid="action-blitz"]'
       );
       expect(!!blitz).toBe(offered);
       if (blitz) {
-        await act(async () => blitz.click());
+        await act(async () => {
+          blitz.click();
+        });
         expect(selected).toHaveBeenCalledWith({
           playerId: player.id,
           action: "blitz",
         });
       }
-      // Showing a Charge option must not reset the previous turn's ledger.
+
       expect(turnData.hasBlitzed).toBe(hasBlitzed);
     }
   );
 
   it("opens the menu when the Charge starts with the player the coach just picked", async () => {
-    // Live site: the coach picked one charger and confirmed. The Charge
-    // re-selected that same player, the menu ignored it as a repeat, and
-    // nobody could act.
     const player = createPlayerOnPitch("team1", 1, 5, 5);
     const step: {
       event: KickoffEvent;
@@ -325,14 +325,13 @@ describe("KickoffEventOverlay", () => {
         />
       );
     });
-    // Picking the charger selects them; no menu yet
+
     step.selectedPlayerIds = [player.id];
     await act(async () => {
       eventBus.emit(GameEventNames.PlayerSelected, { player });
     });
     expect(container.textContent).not.toContain("MOVE");
 
-    // Confirm: the Charge begins and selects the same player again
     step.charge = {
       queue: [],
       budget: { blitz: 1, throwTeammate: 1, kickTeammate: 1 },

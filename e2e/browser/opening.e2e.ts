@@ -1,13 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { confirmPregame } from "../support/pregame";
-/**
- * The opening of a real match, in order: both teams are introduced, the
- * coach rolls the weather in its dialog and reads the result off the
- * Weather Table, and only then does the coin toss come up. The coin is
- * tossed on the engine's seeded RNG and named only after it lands. Once
- * both teams are set up, no setup zone is left glowing.
- *
- * SHOTS=<dir> also saves a screenshot of each beat, for a walkthrough page.
- */
+
 import { test, expect } from "@playwright/test";
 import { sampleCamera, finishCameraSample } from "../support/camera";
 import { GameApp } from "../support/pages/game";
@@ -16,28 +9,26 @@ import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 
 test.use({ contextOptions: { reducedMotion: "no-preference" } });
-if (process.env.SHOTS) test.use({ video: "on" });
+if (process.env["SHOTS"]) test.use({ video: "on" });
 
 test("introductions, then the coin, then setup with no zone left glowing", async ({
   page,
 }) => {
-  // A real match from the menu, slow under a full parallel run
   test.setTimeout(240_000);
   await page.setViewportSize({ width: 1280, height: 720 });
   const app = new GameApp(page);
   let beat = 0;
   const shot = async (name: string) => {
-    const path = process.env.SHOTS
-      ? `${process.env.SHOTS}/${String(++beat).padStart(2, "0")}-${name}.png`
+    const path = process.env["SHOTS"]
+      ? `${process.env["SHOTS"]}/${String(++beat).padStart(2, "0")}-${name}.png`
       : test.info().outputPath(`${name}.png`);
     await page.screenshot({ path });
   };
   const flip = page.getByRole("button", { name: "FLIP COIN" });
   const banner = page.getByTestId("announcement");
 
-  // Two seed teams, then a match between them
   page.on("dialog", (dialog) => void dialog.accept());
-  // Every seed team at full strength: this is about setting up 7
+
   await seedAllRosters(page, { fullStrength: true });
   await page.goto("/select-team");
   await page
@@ -52,13 +43,12 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
 
-  // Each team is introduced in turn, with no coin on screen
   for (const name of ["Human Founders", "Orc Founders"]) {
     await expect(banner).toContainText(name, {
       timeout: 15_000,
     });
     await expect(flip).toHaveCount(0);
-    await shot(`intro-${name.split(" ")[0].toLowerCase()}`);
+    await shot(`intro-${fixtureValue(name.split(" ")[0]).toLowerCase()}`);
   }
   const cameraFrames = await finishCameraSample(
     page,
@@ -74,7 +64,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   expect(Math.max(...opening.map((s) => s.zoom))).toBeGreaterThan(
     Math.min(...opening.map((s) => s.zoom))
   );
-  // The weather waits for the coach, with the table to read it off
+
   const weather = page.getByTestId("weather-dialog");
   await expect(weather).toBeVisible({ timeout: 15_000 });
   await expect(flip).toHaveCount(0);
@@ -94,11 +84,9 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   );
   const total = (rolled?.data as { total: number }).total;
   const state = await app.bridge.snapshot();
+  await expect(page.getByTestId("weather-result")).toContainText(state.weather);
   await expect(page.getByTestId("weather-result")).toContainText(
-    `${state.weather}`
-  );
-  await expect(page.getByTestId("weather-result")).toContainText(
-    `Rolled ${total}`
+    `Rolled ${String(total)}`
   );
   await expect(
     page.getByTestId("weather-table").locator("li[data-current]")
@@ -109,7 +97,6 @@ test("introductions, then the coin, then setup with no zone left glowing", async
 
   await confirmPregame(page);
 
-  // The toss comes up after the weather and confirmed purchases
   await expect(flip).toBeVisible({ timeout: 15_000 });
   const announced = (await app.bridge.events())
     .filter(
@@ -134,13 +121,11 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   );
   await shot("coin-sides");
 
-  // The winner is named only once the coin has landed: no sooner than the
-  // flip itself takes
   await page.evaluate(() => {
     const w = window as unknown as { flippedAt: number; namedAt: number };
     w.flippedAt = performance.now();
     new MutationObserver((_, observer) => {
-      if (/Wins!/.test(document.body.textContent ?? "")) {
+      if ((document.body.textContent ?? "").includes("Wins!")) {
         w.namedAt = performance.now();
         observer.disconnect();
       }
@@ -163,7 +148,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   const winner = (await app.bridge.teams()).find(
     (t) => t.id === (toss?.data as { teamId: string }).teamId
   );
-  await expect(page.getByText(`${winner?.name} Wins!`)).toBeVisible();
+  await expect(page.getByText(`${String(winner?.name)} Wins!`)).toBeVisible();
   await shot("coin-result");
   await page
     .getByRole("button", {
@@ -171,13 +156,12 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     })
     .click();
 
-  // Both teams set up from a preset; the zone glows while one deploys
   for (let team = 0; team < 2; team++) {
     const select = page
       .locator("select")
       .filter({ has: page.locator("optgroup[label=Presets]") });
     await expect(select).toBeVisible({ timeout: 15_000 });
-    // The zones are shaded, not labelled; the checklist carries the rules
+
     expect(
       (await app.bridge.pitchLayers())
         .filter((name) => name.startsWith("setup_zone_"))
@@ -193,7 +177,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
       .locator("optgroup[label=Presets] option")
       .allTextContents();
     await select.selectOption(
-      options.find((o) => /balanced/i.test(o)) ?? options[0]
+      fixtureValue(options.find((o) => /balanced/i.test(o)) ?? options[0])
     );
     await page.getByRole("button", { name: /LOAD/ }).click();
     await expect(page.getByTestId("setup-checklist")).toContainText(
@@ -219,7 +203,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
               document.documentElement.scrollHeight <= innerHeight
           )
         ).toBe(true);
-        await shot(`setup-${viewport.width}`);
+        await shot(`setup-${String(viewport.width)}`);
       }
       await page.setViewportSize({ width: 1280, height: 720 });
     }

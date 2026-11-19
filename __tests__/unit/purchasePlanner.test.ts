@@ -1,9 +1,4 @@
-/**
- * What a team with no human coach buys from its Treasury between league
- * fixtures (openspec/specs/league-treasury, purchasePlanner.ts). Making room
- * for a fit player is in purchasePlannerAfterFixture.test.ts.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { manageComputerTeam } from "../../src/competition/computerTeams";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
@@ -37,15 +32,16 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe("the purchase plan of a team with no human coach", () => {
   it("first brings a short team up to 7 fit players with the cheapest players", () => {
-    // 4 on the list and one of them misses the next game: 3 fit
     const team = leagueTeam(RosterName.ORC, { players: 4, treasury: 160_000 });
-    team.players[0].injuries = [InjuryType.MISS_NEXT_GAME];
+    fixtureValue(team.players[0]).injuries = [InjuryType.MISS_NEXT_GAME];
     const plan = planPurchases(team);
-    // Goblin Linemen are the cheapest Orcs, at 40,000 gp each
+
     expect(plan.slice(0, 4)).toEqual(
       Array(4).fill({
         kind: "player",
@@ -85,7 +81,7 @@ describe("the purchase plan of a team with no human coach", () => {
     offerJourneyman(team, 9);
     offerJourneyman(team, 10);
     const plan = planPurchases(team);
-    // Two at 50,000 each; the third cannot be paid for
+
     expect(reasons(plan)).toEqual(["journeyman", "journeyman"]);
     expect(team.treasury).toBe(120_000);
   });
@@ -103,7 +99,7 @@ describe("the purchase plan of a team with no human coach", () => {
       price: 100_000,
       reason: "reroll",
     });
-    // Then the cheapest Humans: Halfling Hopefuls at 30,000 gp
+
     expect(plan.slice(1)).toEqual(
       Array(2).fill({
         kind: "player",
@@ -124,7 +120,7 @@ describe("the purchase plan of a team with no human coach", () => {
     applyAll(team, plan);
     expect(draftListPlayers(team)).toHaveLength(11);
     expect(reasons(plan).every((reason) => reason === "roster")).toBe(true);
-    // Halfling Hopefuls are allowed 3; the fourth is a Lineman
+
     expect(
       plan.map((item) => item.kind === "player" && item.positionName)
     ).toEqual([
@@ -161,11 +157,11 @@ describe("the purchase plan of a team with no human coach", () => {
       rerolls: 0,
     });
     team.advancementMode = "sevens-skill-selection";
-    // A player with an added skill a pro team may draft: worth 105,000 gp
+
     const star = team.players[0];
-    star.cost = 85_000;
-    star.teamValue = 20_000;
-    star.advancements = [
+    fixtureValue(star).cost = 85_000;
+    fixtureValue(star).teamValue = 20_000;
+    fixtureValue(star).advancements = [
       {
         id: "adv-1",
         type: "primary-skill",
@@ -177,21 +173,18 @@ describe("the purchase plan of a team with no human coach", () => {
     ];
     expect(draftReserve(team)).toBe(105_000);
     const plan = planPurchases(team);
-    // No 100,000 gp re-roll: it would leave 100,000 gp, under the reserve.
-    // Three 30,000 gp Halfling Hopefuls leave 110,000 gp; a Lineman would
-    // leave 60,000 gp, too little to keep the star.
+
     expect(plan.map((item) => item.reason)).toEqual([
       "roster",
       "roster",
       "roster",
     ]);
     expect(200_000 - spent(plan)).toBe(110_000);
-    // An Advanced League team has no Drafted Players to pay for
+
     team.advancementMode = "advanced-league";
     expect(draftReserve(team)).toBe(0);
     expect(spent(planPurchases(team))).toBeGreaterThan(90_000);
 
-    // Nor does a spare Journeyman come out of the reserve
     team.advancementMode = "sevens-skill-selection";
     team.treasury = 140_000;
     offerJourneyman(team, 8);
@@ -211,8 +204,8 @@ describe("the purchase plan of a team with no human coach", () => {
       treasury: 110_000,
     });
     team.advancementMode = "sevens-skill-selection";
-    team.players[0].teamValue = 60_000;
-    team.players[0].advancements = [
+    fixtureValue(team.players[0]).teamValue = 60_000;
+    fixtureValue(team.players[0]).advancements = [
       {
         id: "adv-1",
         type: "primary-skill",
@@ -235,7 +228,7 @@ describe("the purchase plan of a team with no human coach", () => {
     });
     const lineman = getRosterByRosterName(RosterName.HUMAN).playerTemplates[0];
     for (let number = 8; number <= 11; number++)
-      team.players.push(createPlayer(lineman, team.id, number));
+      team.players.push(createPlayer(fixtureValue(lineman), team.id, number));
     team.apothecary = true;
     team.coaches = 3;
     team.cheerleaders = 3;
@@ -287,7 +280,7 @@ describe("the purchase plan of a team with no human coach", () => {
             treasury,
             rerolls: players % 2,
           });
-          // Only a legal team to start from
+
           if (
             team.players.length !== players ||
             validateRosterLegality(team, getRosterByRosterName(roster)).length >
@@ -299,7 +292,7 @@ describe("the purchase plan of a team with no human coach", () => {
           const plan = planPurchases(team);
           expect(spent(plan)).toBeLessThanOrEqual(treasury);
           applyAll(team, plan);
-          const label = `${roster} ${players} players ${treasury} gp`;
+          const label = `${roster} ${String(players)} players ${String(treasury)} gp`;
           expect(team.treasury, label).toBeGreaterThanOrEqual(0);
           expect(team.treasury, label).toBe(treasury - spent(plan));
           expect(draftListPlayers(team).length, label).toBeLessThanOrEqual(11);
@@ -334,18 +327,18 @@ describe("the Insignificant limit between fixtures", () => {
   it("stops a coach hiring one past it too, Journeyman or new player", () => {
     const team = snotlingsAtTheLimit();
     const offerId = offerJourneyman(team, 9);
-    const offer = team.pendingDevelopment!.find(
+    const offer = fixtureValue(fixtureValue(team.pendingDevelopment).find(
       (entry) => entry.id === offerId
-    )!;
+    ));
     expect(journeymanHireRefusal(team, offer as never)).toMatch(
       /Insignificant/
     );
     expect(() => hireJourneyman(team, offer as never)).toThrow(/Insignificant/);
-    const snotling = getRosterByRosterName(
+    const snotling = fixtureValue(getRosterByRosterName(
       RosterName.SNOTLING
     ).playerTemplates.find(
       (template) => template.positionName === "Snotling Lineman"
-    )!;
+    ));
     expect(hirePlayer(team, snotling)).toMatchObject({ amount: null });
     expect(team.treasury).toBe(300_000);
   });

@@ -1,20 +1,17 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { foulAddingAllAssists } from "../utils/test-helpers";
 import { SkillType } from "../../src/types/Skills";
 import { playerBoxOf } from "../../src/game/rules/playerLocation";
-import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
-
-/**
- * Fouls and crowd pushes roll their own Armour and Injury dice, and used to
- * read the standard Injury Table directly, skipping the rules that act on
- * those rolls: Thick Skull, Stunty and Iron Hard Skin. Seeds are committed,
- * never searched (see docs/E2E_TESTING.md); each test first asserts the dice
- * its seed rolls, so a dice-order change fails loudly.
- */
+import type {
+  CommandResponse,
+  EmittedEvent,
+} from "../../src/headless/protocol";
 
 function foulScenario(
   targetSkill: SkillType,
@@ -27,7 +24,7 @@ function foulScenario(
     setup: {
       team1Placements: [
         { playerIndex: 0, x: 10, y: 5, skills: fouler.skills ?? [] },
-        // A spare player keeps team1's turn open after the foul.
+
         { playerIndex: 2, x: 2, y: 12 },
         ...(fouler.assist ? [{ playerIndex: 1, x: 12, y: 5 }] : []),
       ],
@@ -48,21 +45,41 @@ function foulScenario(
   };
 }
 
-function diceOf(events: EmittedEvent[], rollType: string): number[] | undefined {
+function diceOf(
+  events: EmittedEvent[],
+  rollType: string
+): (number[] | string[]) | undefined {
   const found = events.find(
     (e) =>
       e.name === "diceRoll" &&
-      String((e.data as { rollType: string }).rollType).startsWith(rollType)
+      z
+        .object({ rollType: z.string() })
+        .parse(e.data)
+        .rollType.startsWith(rollType)
   );
-  return (found?.data as { value: number[] } | undefined)?.value;
+  return z
+    .union([
+      z.object({ value: z.union([z.number().array(), z.string().array()]) }),
+      z.undefined(),
+    ])
+    .parse(found?.data)?.value;
 }
 
 async function foul(scenario: Scenario, seed: number) {
   const game = new HeadlessGame({ scenario, seed });
   const fouler = game.ctx.team1.players[0];
   const target = game.ctx.team2.players[0];
-  await game.execute({ type: "declare-action", playerId: fouler.id, action: "foul" });
-  const response = await foulAddingAllAssists(game, { type: "foul", playerId: fouler.id, x: 11, y: 5 });
+  await game.execute({
+    type: "declare-action",
+    playerId: fixtureValue(fouler).id,
+    action: "foul",
+  });
+  const response = await foulAddingAllAssists(game, {
+    type: "foul",
+    playerId: fixtureValue(fouler).id,
+    x: 11,
+    y: 5,
+  });
   return {
     target,
     armour: diceOf(response.events, "Foul Armour Roll"),
@@ -70,13 +87,12 @@ async function foul(scenario: Scenario, seed: number) {
   };
 }
 
-/** Armour 5+6 breaks AV 9; injury 6+2 = 8, Thick Skull's Stunned. */
 const THICK_SKULL_FOUL_SEED = 73;
-/** Armour 6+3 breaks AV 9; injury 4+3 = 7, a KO on the Stunty table. */
+
 const STUNTY_FOUL_SEED = 67;
-/** Armour 5+2 = 7 against AV 9: breaks only with the assist and Dirty Player. */
+
 const IRON_HARD_SKIN_FOUL_SEED = 2;
-/** Push into the crowd; injury 5+2 = 7, a KO on the Stunty table. */
+
 const STUNTY_CROWD_SEED = 5;
 
 describe("a foul's injury roll", () => {
@@ -88,8 +104,8 @@ describe("a foul's injury roll", () => {
 
     expect(armour).toEqual([5, 6]);
     expect(injury).toEqual([6, 2]);
-    expect(target.status).toBe(PlayerStatus.STUNNED);
-    expect(playerBoxOf(target)).toBe("pitch");
+    expect(fixtureValue(target).status).toBe(PlayerStatus.STUNNED);
+    expect(playerBoxOf(fixtureValue(target))).toBe("pitch");
   });
 
   it("rolls on the Stunty Injury Table", async () => {
@@ -100,7 +116,7 @@ describe("a foul's injury roll", () => {
 
     expect(armour).toEqual([6, 3]);
     expect(injury).toEqual([4, 3]);
-    expect(playerBoxOf(target)).toBe("ko");
+    expect(playerBoxOf(fixtureValue(target))).toBe("ko");
   });
 });
 
@@ -114,10 +130,10 @@ describe("a foul's armour roll against Iron Hard Skin", () => {
       IRON_HARD_SKIN_FOUL_SEED
     );
 
-    expect(target.stats.AV).toBe(9);
+    expect(fixtureValue(target).stats.AV).toBe(9);
     expect(armour).toEqual([5, 2]);
     expect(injury).toBeUndefined();
-    expect(target.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(target).status).toBe(PlayerStatus.PRONE);
   });
 });
 
@@ -141,7 +157,10 @@ describe("Injury by the Crowd", () => {
         ballPosition: { x: 1, y: 10 },
       },
     };
-    const game = new HeadlessGame({ scenario: scenario, seed: STUNTY_CROWD_SEED });
+    const game = new HeadlessGame({
+      scenario: scenario,
+      seed: STUNTY_CROWD_SEED,
+    });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
     const events: EmittedEvent[] = [];
@@ -151,8 +170,16 @@ describe("Injury by the Crowd", () => {
       return response;
     };
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "block" });
-    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({
+      type: "declare-action",
+      playerId: fixtureValue(attacker).id,
+      action: "block",
+    });
+    await run({
+      type: "block",
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
+    });
     await run({ type: "choose-block-result", index: 0 });
     let response = await run({ type: "choose-push-direction", x: 5, y: -1 });
     while (response.pendingDecision) {
@@ -168,6 +195,6 @@ describe("Injury by the Crowd", () => {
 
     expect(diceOf(events, "Block Roll")).toEqual(["pow"]);
     expect(diceOf(events, "Injury by the Crowd")).toEqual([5, 2]);
-    expect(playerBoxOf(defender)).toBe("ko");
+    expect(playerBoxOf(fixtureValue(defender))).toBe("ko");
   });
 });

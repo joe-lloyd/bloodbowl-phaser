@@ -1,20 +1,17 @@
-/**
- * A Dump-Off caught in the end zone scores at once, in the blocker's turn.
- * The touchdown ends the drive, so the block that provoked the pass must
- * not go on to roll its dice.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { PASSING_RULE_SCENARIOS } from "../../src/data/ruleScenarios/passing";
 import { runRuleConfig } from "../../src/game/rules-lab/runner";
-import { RuleConfig } from "../../src/game/rules-lab/types";
+import { type RuleConfig } from "../../src/game/rules-lab/types";
 import { GameEventNames } from "../../src/types/events";
 import { SkillType } from "../../src/types/Skills";
 
-const base = PASSING_RULE_SCENARIOS.find(
-  (entry) => entry.skill === SkillType.DUMP_OFF
-)!.configs.find((c) => c.id === "dump-off-before-block")!;
+const base = fixtureValue(
+  fixtureValue(
+    PASSING_RULE_SCENARIOS.find((entry) => entry.skill === SkillType.DUMP_OFF)
+  ).configs.find((c) => c.id === "dump-off-before-block")
+);
 
-// Team 2 scores at x = 0: the carrier passes to a team-mate standing there.
 const intoTheEndZone: RuleConfig = {
   ...base,
   id: "dump-off-into-the-end-zone",
@@ -41,7 +38,7 @@ describe("a Dump-Off caught in the end zone", () => {
       scored++;
       expect(
         events.some((e) => e.name === GameEventNames.BlockDiceRolled),
-        `seed ${seed}`
+        `seed ${String(seed)}`
       ).toBe(false);
     }
     expect(scored).toBeGreaterThanOrEqual(3);

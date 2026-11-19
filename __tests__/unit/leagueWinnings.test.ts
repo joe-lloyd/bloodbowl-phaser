@@ -1,7 +1,4 @@
-/**
- * League winnings (openspec/specs/league-winnings): Fan Factor, Fan
- * Attendance and the Treasury payment after a recorded league fixture.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   computeStandings,
@@ -14,10 +11,10 @@ import {
   recordCompetitionFixture,
 } from "../../src/competition/resultRecording";
 import {
-  CompetitionContext,
-  CompetitionEntrant,
-  LeagueDoc,
-  TournamentDoc,
+  type CompetitionContext,
+  type CompetitionEntrant,
+  type LeagueDoc,
+  type TournamentDoc,
 } from "../../src/competition/types";
 import {
   getTeamById,
@@ -35,7 +32,7 @@ import { GameService } from "../../src/services/GameService";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
-import { Team, TeamAdvancementMode } from "../../src/types/Team";
+import { type Team, type TeamAdvancementMode } from "../../src/types/Team";
 import { TeamBuilder } from "../utils/test-builders";
 
 vi.mock("../../src/firebase/config", () => ({
@@ -43,14 +40,14 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-/** Dice that come up in the given order: the game's dice source, fixed. */
 function fixedDice(...rolls: number[]) {
   const queue = [...rolls];
   return {
     rollDie: vi.fn((sides: number) => {
       const roll = queue.shift();
       if (roll === undefined) throw new Error("No fixed roll left.");
-      if (roll < 1 || roll > sides) throw new Error(`Bad d${sides}: ${roll}`);
+      if (roll < 1 || roll > sides)
+        throw new Error(`Bad d${String(sides)}: ${String(roll)}`);
       return roll;
     }),
     rollMultipleDice: vi.fn(),
@@ -105,10 +102,10 @@ async function league(id: string, teams: Team[]): Promise<CompetitionContext> {
     updatedAt: 1,
   };
   await saveCompetition(doc);
-  // The first fixture has team 0 at home
-  const first = fixtures.find(
-    (fixture) => fixture.homeEntrantId === entrants[0].id
-  )!;
+
+  const first = fixtureValue(fixtures.find(
+    (fixture) => fixture.homeEntrantId === fixtureValue(entrants[0]).id
+  ));
   return {
     competitionType: "league",
     competitionId: id,
@@ -161,23 +158,16 @@ describe("the winnings formula", () => {
 
 describe("league winnings in the Treasury", () => {
   it("pays the worked example from a played game: 70,000 and 60,000", async () => {
-    // Team A: 2 Dedicated Fans, rolls a 2. Team B: 1, rolls a 3.
     const home = libraryTeam("team-a", 2, 100_000);
     const away = libraryTeam("team-b", 1, 50_000);
     const context = await league("worked", [home, away]);
 
-    // Full time in the engine rolls The Fans on the game's dice
     const eventBus = new EventBus();
-    const dice = fixedDice(4, 6, 1, 6); // D3 2, D3 3, then Dedicated Fans
-    const engine = new GameService(
-      eventBus,
-      structuredClone(home),
-      structuredClone(away),
-      dice as never,
-      {} as never
+    const dice = fixedDice(4, 6, 1, 6);
+    const engine = new GameService({ eventBus: eventBus, team1: structuredClone(home), team2: structuredClone(away), rngService: dice as never, blockResolutionService: {} as never }
     );
     const state = engine.getState();
-    // Set from the competition context when a league fixture starts
+
     state.paysWinnings = true;
     state.score[home.id] = 2;
     state.score[away.id] = 1;
@@ -185,18 +175,14 @@ describe("league winnings in the Treasury", () => {
     expect(state.fanFactors).toEqual({ "team-a": 4, "team-b": 4 });
 
     const competition = await recordCompetitionFixture(
-      context,
-      2,
-      1,
-      { home: engine.getTeam(home.id)!, away: engine.getTeam(away.id)! },
-      undefined,
       {
-        fanFactors: {
-          home: state.fanFactors![home.id],
-          away: state.fanFactors![away.id],
-        },
-      }
-    );
+        context,homeScore: 2,awayScore: 1,progressedTeams: { home: fixtureValue(engine.getTeam(home.id)),away: fixtureValue(engine.getTeam(away.id)) },penalties: undefined,options: {
+          fanFactors: {
+            home: fixtureValue(fixtureValue(state.fanFactors)[home.id]),
+            away: fixtureValue(fixtureValue(state.fanFactors)[away.id]),
+          },
+        }
+      }    );
 
     expect(treasuryOf("team-a")).toBe(170_000);
     expect(treasuryOf("team-b")).toBe(110_000);
@@ -216,16 +202,12 @@ describe("league winnings in the Treasury", () => {
     const context = await league("stall", [home, away]);
 
     await recordCompetitionFixture(
-      context,
-      1,
-      0,
-      { home: structuredClone(home), away: structuredClone(away) },
-      undefined,
       {
-        fanFactors: { home: 2, away: 2 },
-        stalled: { home: true, away: false },
-      }
-    );
+        context,homeScore: 1,awayScore: 0,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },penalties: undefined,options: {
+          fanFactors: { home: 2,away: 2 },
+          stalled: { home: true,away: false },
+        }
+      }    );
 
     expect(treasuryOf("stall-a")).toBe(30_000);
     expect(treasuryOf("stall-b")).toBe(30_000);
@@ -236,9 +218,11 @@ describe("league winnings in the Treasury", () => {
     const away = libraryTeam("score-b", 1, 50_000);
     const context = await league("score-only", [home, away]);
 
-    await recordCompetitionFixture(context, 2, 1, undefined, undefined, {
-      rng: fixedDice(4, 6), // D3 2 for Team A, D3 3 for Team B
-    });
+    await recordCompetitionFixture({
+        context,homeScore: 2,awayScore: 1,progressedTeams: undefined,penalties: undefined,options: {
+          rng: fixedDice(4,6),
+        }
+      });
 
     expect(treasuryOf("score-a")).toBe(170_000);
     expect(treasuryOf("score-b")).toBe(110_000);
@@ -253,16 +237,22 @@ describe("league winnings in the Treasury", () => {
       away: structuredClone(away),
     };
 
-    await recordCompetitionFixture(context, 2, 1, played, undefined, {
-      fanFactors: { home: 4, away: 4 },
-    });
-    // The other coach reports, then a reload reports again with new rolls
-    await recordCompetitionFixture(context, 2, 1, played, undefined, {
-      fanFactors: { home: 6, away: 6 },
-    });
-    await recordCompetitionFixture(context, 2, 1, undefined, undefined, {
-      rng: fixedDice(6, 6),
-    });
+    await recordCompetitionFixture({
+        context,homeScore: 2,awayScore: 1,progressedTeams: played,penalties: undefined,options: {
+          fanFactors: { home: 4,away: 4 },
+        }
+      });
+
+    await recordCompetitionFixture({
+        context,homeScore: 2,awayScore: 1,progressedTeams: played,penalties: undefined,options: {
+          fanFactors: { home: 6,away: 6 },
+        }
+      });
+    await recordCompetitionFixture({
+        context,homeScore: 2,awayScore: 1,progressedTeams: undefined,penalties: undefined,options: {
+          rng: fixedDice(6,6),
+        }
+      });
 
     expect(treasuryOf("once-a")).toBe(170_000);
     expect(treasuryOf("once-b")).toBe(110_000);
@@ -275,14 +265,8 @@ describe("league winnings in the Treasury", () => {
     const matchCopy = structuredClone(home);
 
     await recordCompetitionFixture(
-      context,
-      2,
-      1,
-      { home: structuredClone(home), away: structuredClone(away) },
-      undefined,
-      { fanFactors: { home: 4, away: 4 } }
-    );
-    // MatchResultsScreen: confirm SPP, keep the recorded result, save
+      { context,homeScore: 2,awayScore: 1,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },penalties: undefined,options: { fanFactors: { home: 4,away: 4 } } }    );
+
     keepRecordedResult(matchCopy);
     saveTeam(matchCopy);
 
@@ -294,15 +278,8 @@ describe("league winnings in the Treasury", () => {
     const away = libraryTeam("concede-b", 1, 0);
     const context = await league("concede", [home, away]);
 
-    // The played score stands: 0-0, nobody's touchdowns are moved
     await recordCompetitionFixture(
-      context,
-      0,
-      0,
-      { home: structuredClone(home), away: structuredClone(away) },
-      undefined,
-      { fanFactors: { home: 2, away: 3 } }
-    );
+      { context,homeScore: 0,awayScore: 0,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },penalties: undefined,options: { fanFactors: { home: 2,away: 3 } } }    );
 
     expect(treasuryOf("concede-a")).toBe(35_000);
     expect(treasuryOf("concede-b")).toBe(35_000);
@@ -336,44 +313,31 @@ describe("games that pay nothing", () => {
     const context: CompetitionContext = {
       competitionType: "tournament",
       competitionId: cup.id,
-      fixtureId: fixtures[0].id,
+      fixtureId: fixtureValue(fixtures[0]).id,
     };
 
-    // Full time of a cup tie between league teams rolls no Fan Factor: the
-    // only dice are the Dedicated Fans update (a win on a 2 at 2 fans, a
-    // loss on a 1 at 1 fan), exactly as before winnings existed
     const eventBus = new EventBus();
     const dice = fixedDice(2, 1);
-    const engine = new GameService(
-      eventBus,
-      structuredClone(teams[0]),
-      structuredClone(teams[1]),
-      dice as never,
-      {} as never
+    const engine = new GameService({ eventBus: eventBus, team1: fixtureValue(structuredClone(teams[0])), team2: fixtureValue(structuredClone(teams[1])), rngService: dice as never, blockResolutionService: {} as never }
     );
     const state = engine.getState();
     state.knockout = true;
-    state.score[teams[0].id] = 2;
-    state.score[teams[1].id] = 1;
+    state.score[fixtureValue(teams[0]).id] = 2;
+    state.score[fixtureValue(teams[1]).id] = 1;
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
     expect(state.fanFactors).toBeUndefined();
     expect(dice.rollDie).toHaveBeenCalledTimes(2);
-    expect(engine.getTeam(teams[0].id)?.dedicatedFans).toBe(3);
-    expect(engine.getTeam(teams[1].id)?.dedicatedFans).toBe(1);
+    expect(engine.getTeam(fixtureValue(teams[0]).id)?.dedicatedFans).toBe(3);
+    expect(engine.getTeam(fixtureValue(teams[1]).id)?.dedicatedFans).toBe(1);
 
     const updated = await recordCompetitionFixture(
-      context,
-      2,
-      1,
       {
-        home: engine.getTeam(teams[0].id)!,
-        away: engine.getTeam(teams[1].id)!,
-      },
-      undefined,
-      // A caller passing Fan Factors anyway still pays nothing
-      { fanFactors: { home: 4, away: 4 } }
-    );
-    expect(updated.fixtures[0].result?.winnings).toBeUndefined();
+        context,homeScore: 2,awayScore: 1,progressedTeams: {
+          home: fixtureValue(engine.getTeam(fixtureValue(teams[0]).id)),
+          away: fixtureValue(engine.getTeam(fixtureValue(teams[1]).id)),
+        },penalties: undefined,options: { fanFactors: { home: 4,away: 4 } }
+      }    );
+    expect(fixtureValue(updated.fixtures[0]).result?.winnings).toBeUndefined();
     expect(treasuryOf("cup-a")).toBe(100_000);
     expect(treasuryOf("cup-b")).toBe(50_000);
   });
@@ -401,20 +365,16 @@ describe("games that pay nothing", () => {
       updatedAt: 1,
     };
     await saveCompetition(pool);
-    const dice = fixedDice(); // throws if anything is rolled
+    const dice = fixedDice();
 
     await recordCompetitionFixture(
-      {
+    {
+      context: {
         competitionType: "tournament",
         competitionId: pool.id,
-        fixtureId: fixtures[0].id,
-      },
-      2,
-      1,
-      undefined,
-      undefined,
-      { rng: dice }
-    );
+        fixtureId: fixtureValue(fixtures[0]).id,
+      },homeScore: 2,awayScore: 1,progressedTeams: undefined,penalties: undefined,options: { rng: dice }
+    }    );
 
     expect(dice.rollDie).not.toHaveBeenCalled();
     expect(treasuryOf("pool-a")).toBe(100_000);
@@ -426,9 +386,11 @@ describe("games that pay nothing", () => {
     const away = libraryTeam("mp-b", 0, 50_000, "matched-play");
     const context = await league("matched", [home, away]);
 
-    await recordCompetitionFixture(context, 2, 1, undefined, undefined, {
-      rng: fixedDice(6, 6),
-    });
+    await recordCompetitionFixture({
+        context,homeScore: 2,awayScore: 1,progressedTeams: undefined,penalties: undefined,options: {
+          rng: fixedDice(6,6),
+        }
+      });
 
     expect(treasuryOf("mp-a")).toBe(100_000);
     expect(treasuryOf("mp-b")).toBe(50_000);
@@ -439,12 +401,7 @@ describe("games that pay nothing", () => {
     const away = libraryTeam("friendly-b", 0, 50_000, "matched-play");
     const eventBus = new EventBus();
     const dice = fixedDice();
-    const engine = new GameService(
-      eventBus,
-      home,
-      away,
-      dice as never,
-      {} as never
+    const engine = new GameService({ eventBus: eventBus, team1: home, team2: away, rngService: dice as never, blockResolutionService: {} as never }
     );
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
 
@@ -453,25 +410,18 @@ describe("games that pay nothing", () => {
   });
 
   it("a league team's friendly match leaves its stored Treasury unchanged", () => {
-    // Quick, computer and online friendly games never record a fixture: the
-    // results screen only keeps the stored record and saves the team.
     const stored = libraryTeam("friendly-league", 2, 70_000);
     saveTeams([stored]);
     const eventBus = new EventBus();
     const dice = fixedDice(6, 6, 6, 6);
-    const engine = new GameService(
-      eventBus,
-      structuredClone(stored),
-      libraryTeam("visitor", 1, 0),
-      dice as never,
-      {} as never
+    const engine = new GameService({ eventBus: eventBus, team1: structuredClone(stored), team2: libraryTeam("visitor", 1, 0), rngService: dice as never, blockResolutionService: {} as never }
     );
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
-    // Not a fixture: no Fan Factor, and a 0-0 draw rolls no Dedicated Fans
+
     expect(engine.getState().fanFactors).toBeUndefined();
     expect(dice.rollDie).not.toHaveBeenCalled();
 
-    const matchCopy = engine.getTeam(stored.id)!;
+    const matchCopy = fixtureValue(engine.getTeam(stored.id));
     keepRecordedResult(matchCopy);
     saveTeam(matchCopy);
     expect(getTeamById("friendly-league")?.treasury).toBe(70_000);

@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { Team, calculateTeamValue } from "../../../types/Team";
+import { type ReactNode } from "react";
+import { type Team, calculateTeamValue } from "../../../types/Team";
 import { draftListPlayers } from "../../../game/rules/teamPricing";
 import { HudButton } from "../componentWarehouse/HudKit";
 import { formatGold } from "../TeamManagement/TeamStatsOverview";
@@ -7,16 +7,16 @@ import { formatGold } from "../TeamManagement/TeamStatsOverview";
 interface Props {
   team: Team;
   postMatch: boolean;
-  /** The Expensive Mistakes outcome once Finish post-match has rolled it. */
+
   completion: string;
   saving: boolean;
   saveError: string;
   waitingForDevelopment: boolean;
   pendingMistakes: boolean;
-  /** The roster is not yet legal, so a save keeps it as a draft. */
+
   incomplete: boolean;
   hasNextTeam: boolean;
-  /** Opened from a league, so leaving goes back to it. */
+
   returnsToLeague: boolean;
   onBack: () => void;
   onSave: () => void;
@@ -42,7 +42,6 @@ function saveButtonLabel({
   return <>Save Team {incomplete && "(saved as incomplete draft)"}</>;
 }
 
-/** The team builder's footer: Cancel, the player count and TV, and Save. */
 export function TeamBuilderActionBar(props: Props) {
   const {
     team,

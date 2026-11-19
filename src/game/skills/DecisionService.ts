@@ -1,21 +1,10 @@
-/**
- * DecisionService - the one channel for mid-action coach decisions that
- * pause a roll path (reroll offers now; reactions next).
- *
- * A roll path awaits request(); the engine emits DecisionRequested so a
- * front end can surface it (browser dialog, headless pendingDecision); the
- * answer — from the dialog or a protocol reply — resolves the promise and
- * the paused path resumes. One decision at a time, matching the existing
- * pendingDecision gating.
- */
-
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import {
-  DecisionRequest,
-  DecisionAnswer,
-  RerollDecisionRequest,
-  RerollDecisionAnswer,
+  type DecisionRequest,
+  type DecisionAnswer,
+  type RerollDecisionRequest,
+  type RerollDecisionAnswer,
 } from "../../types/decisions";
 
 export class DecisionService {
@@ -24,15 +13,13 @@ export class DecisionService {
     resolve: (answer: DecisionAnswer) => void;
   } | null = null;
 
-  /** Told whether the open decision was answered (true) or abandoned. */
   private closers: ((answered: boolean) => void)[] = [];
 
-  constructor(private eventBus: IEventBus) {}
+  private eventBus: IEventBus;
+  constructor(eventBus: IEventBus) {
+    this.eventBus = eventBus;
+  }
 
-  /**
-   * Resolves true once the open decision is answered, false if it is
-   * abandoned instead, as a resync does. True at once when none is open.
-   */
   public whenClosed(): Promise<boolean> {
     if (!this.current) return Promise.resolve(true);
     return new Promise((resolve) => this.closers.push(resolve));
@@ -41,7 +28,9 @@ export class DecisionService {
   private close(answered: boolean): void {
     const closers = this.closers;
     this.closers = [];
-    closers.forEach((close) => close(answered));
+    closers.forEach((close) => {
+      close(answered);
+    });
   }
 
   public pending(): DecisionRequest | null {
@@ -52,7 +41,6 @@ export class DecisionService {
   public request(request: DecisionRequest): Promise<DecisionAnswer>;
   public request(request: DecisionRequest): Promise<DecisionAnswer> {
     if (this.current) {
-      // Roll paths pause on their decision, so two at once is a bug upstream
       return Promise.reject(
         new Error(`decision-already-pending:${this.current.request.type}`)
       );
@@ -64,16 +52,6 @@ export class DecisionService {
     return promise;
   }
 
-  /**
-   * Re-arm a decision that was already requested and persisted before a
-   * cold restore (a save/resume mid-Apothecary-decision, say). Unlike
-   * `request`, this does not await anything upstream — the original
-   * operation's call stack is gone after a reload, so `onAnswer` performs
-   * the decision's whole resolution directly rather than unblocking a
-   * suspended `await`. Does not re-emit DecisionRequested: the front end
-   * reconstructs the same pending state from the restored snapshot instead
-   * of reacting to a fresh event.
-   */
   public seed(
     request: DecisionRequest,
     onAnswer: (answer: DecisionAnswer) => void
@@ -81,22 +59,16 @@ export class DecisionService {
     this.current = { request, resolve: onAnswer };
   }
 
-  /**
-   * Forget the pending decision without answering it: the state it belonged
-   * to has been replaced (an online resync), so its roll path never resumes.
-   */
   public abandon(): void {
     this.current = null;
     this.close(false);
   }
 
-  /** Resolve the pending decision; false when nothing is pending. */
   public answer(answer: DecisionAnswer): boolean {
     if (!this.current) return false;
     const { request, resolve } = this.current;
     this.current = null;
-    // Before resolving: the resumed path may request the next decision, and
-    // a dialog must close on this one before it opens on that one.
+
     this.eventBus.emit(GameEventNames.DecisionResolved, { type: request.type });
     resolve(answer);
     this.close(true);

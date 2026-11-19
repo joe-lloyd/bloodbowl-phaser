@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
@@ -5,9 +6,7 @@ import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 
-// A dice scene that cannot draw: a throw fails, as when the browser refuses
-// the 3D renderer, or never lands, as when nothing draws its frames.
-const scene = vi.hoisted(() => ({ throws: "fail" as "fail" | "hang" }));
+const scene = vi.hoisted(() => ({ throws: "fail" }));
 vi.mock("../../src/ui/dice/diceScene", () => ({
   playRoll: () => ({
     landed:
@@ -21,7 +20,6 @@ vi.mock("../../src/ui/dice/diceScene", () => ({
   }),
 }));
 
-// A short wait for a die that never lands
 vi.mock("../../src/game/presentation/diceWatch", async (original) => ({
   ...(await original<object>()),
   DIE_LANDING_TIMEOUT_MS: 30,
@@ -54,19 +52,21 @@ const mount = async (throws: "fail" | "hang" = "fail") => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () => root.render(<DiceTray eventBus={bus} />));
+  await act(async () => {
+    root.render(<DiceTray eventBus={bus} />);
+  });
   return {
     bus,
-    tray: () =>
-      container.querySelector('[data-testid="dice-tray"]') as HTMLElement,
+    tray: () => fixtureValue(container.querySelector('[data-testid="dice-tray"]')),
     unmount: async () => {
-      await act(async () => root.unmount());
+      await act(async () => {
+        root.unmount();
+      });
       container.remove();
     },
   };
 };
 
-/** Lets the tray load the scene and find the throw has failed. */
 const settle = () =>
   act(() => new Promise((resolve) => setTimeout(resolve, 50)));
 
@@ -115,7 +115,9 @@ describe("dice tray when the 3D dice cannot be drawn", () => {
       ...tray().querySelectorAll<HTMLButtonElement>("button[data-flat-die]"),
     ];
     expect(faces.map((face) => face.textContent)).toEqual(["POW!", "Push"]);
-    await act(async () => faces[1].click());
+    await act(async () => {
+      fixtureValue(faces[1]).click();
+    });
     expect(picks).toEqual([1]);
     await unmount();
   });
@@ -147,7 +149,9 @@ describe("dice tray when the 3D dice cannot be drawn", () => {
       "POW!",
     ]);
     expect(tray().textContent).toContain("the dice did not land");
-    await act(async () => faces[1].click());
+    await act(async () => {
+      fixtureValue(faces[1]).click();
+    });
     expect(picks).toEqual([1]);
     await unmount();
   });

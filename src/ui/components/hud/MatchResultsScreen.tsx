@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { Team } from "../../../types/Team";
+import { type Team } from "../../../types/Team";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
@@ -11,7 +11,7 @@ import { getTeamById, saveTeam } from "../../../game/managers/TeamManager";
 import { recordPendingDevelopment } from "../../../game/progression/postMatch";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import {
-  PlayedGame,
+  type PlayedGame,
   playedGameFor,
   withPlayedGame,
 } from "../../../game/progression/matchHistory";
@@ -23,25 +23,20 @@ import { earnsWinnings, stalledSides } from "../../../game/rules/winnings";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import {
   LeaveControls,
-  MatchWinnings,
+  type MatchWinnings,
   ResultHeader,
   StatsTables,
 } from "./MatchResultsSections";
 import { MvpAwardCard } from "./MvpAwardCard";
-import { CompetitionContext } from "../../../competition/types";
+import { type CompetitionContext } from "../../../competition/types";
 
 interface Props {
   visible: boolean;
-  /** Where Leave goes; a competition game returns to its competition. */
+
   leaveTo?: string;
   fixtureContext?: CompetitionContext;
 }
 
-/**
- * The coach is done with this match: drop the local save and, online, the
- * home screen's pointer to it. The lobby stays as it is, so the other coach
- * can finish their own post-match steps.
- */
 function finishWithMatch(): void {
   clearMatchSave();
   const user = getCurrentUser();
@@ -50,11 +45,6 @@ function finishWithMatch(): void {
   }
 }
 
-/**
- * One name for this match that survives a reload, so the history and the
- * post-game development record it once: the fixture, the online lobby, or
- * the dice seed it started from with the two teams.
- */
 function matchKey(
   container: ServiceContainer | null,
   teamIds: string[],
@@ -65,7 +55,7 @@ function matchKey(
   const online = getActiveOnlineMatch();
   if (online?.kind === "online") return `online:${online.code}`;
   const seed = container?.rngService.getInitialSeed() ?? 0;
-  return `match:${seed}:${[...teamIds].sort().join(":")}`;
+  return `match:${String(seed)}:${[...teamIds].sort().join(":")}`;
 }
 
 function ownedTeams(teams: Team[]): Team[] {
@@ -73,17 +63,12 @@ function ownedTeams(teams: Team[]): Team[] {
   return online ? teams.filter((team) => team.id === online.myTeamId) : teams;
 }
 
-/**
- * The teams this page saves. Against the computer, every team in this
- * coach's library: in a competition the computer's team is the organizer's.
- */
 function savedTeams(teams: Team[]): Team[] {
   return getActiveOnlineMatch()?.kind === "computer"
     ? teams.filter((team) => !!getTeamById(team.id))
     : ownedTeams(teams);
 }
 
-/** A per-team record as the fixture's home and away values. */
 function homeAndAway(
   values: Record<string, number>,
   homeId: string,
@@ -123,23 +108,21 @@ export function MatchResultsScreen({
     Record<string, string>
   >({});
   const [competitionRecorded, setCompetitionRecorded] = useState(false);
-  /** League winnings the recorded fixture paid, by team id. */
+
   const [winnings, setWinnings] = useState<MatchWinnings | null>(null);
   const [, refresh] = useState(0);
   const [error, setError] = useState("");
   const computerMvpRolled = useRef(new Set<string>());
-  /** Computer teams whose MVP did not roll by itself: the coach rolls it. */
+
   const [computerMvpFailed, setComputerMvpFailed] = useState<string[]>([]);
   const [recordingAttempt, setRecordingAttempt] = useState(0);
   const [recordingError, setRecordingError] = useState("");
   const [savingTeams, setSavingTeams] = useState(false);
   const savingTeamsRef = useRef(false);
   const developmentRecorded = useRef(false);
-  // Each team's played-game entry, built once (see playedGameEntries)
+
   const playedGames = useRef<Map<string, PlayedGame> | null>(null);
 
-  // The results screen owns recording and retry, including on resume.
-  // A complete fixture alone does not mean this client's teams were saved.
   useEffect(() => {
     if (!visible || !fixtureContext || !container || teamIds.length < 2) return;
     let cancelled = false;
@@ -148,22 +131,25 @@ export function MatchResultsScreen({
     const game = container.gameService;
     const state = game.getState();
     const [homeId, awayId] = teamIds;
+    if (homeId === undefined || awayId === undefined) return;
     const home = game.getTeam(homeId);
     const away = game.getTeam(awayId);
     if (!home || !away) return;
-    void recordCompetitionFixture(
-      fixtureContext,
-      state.score[homeId] ?? 0,
-      state.score[awayId] ?? 0,
-      { home, away },
-      state.result?.penalties &&
-        homeAndAway(state.result.penalties, homeId, awayId),
-      {
-        fanFactors:
-          state.fanFactors && homeAndAway(state.fanFactors, homeId, awayId),
+    void recordCompetitionFixture({
+      context: fixtureContext,
+      homeScore: state.score[homeId] ?? 0,
+      awayScore: state.score[awayId] ?? 0,
+      progressedTeams: { home, away },
+      ...(state.result?.penalties
+        ? { penalties: homeAndAway(state.result.penalties, homeId, awayId) }
+        : {}),
+      options: {
+        ...(state.fanFactors
+          ? { fanFactors: homeAndAway(state.fanFactors, homeId, awayId) }
+          : {}),
         stalled: stalledSides(state.stallingPlayerIds, home, away),
-      }
-    )
+      },
+    })
       .then((competition) => {
         if (cancelled) return;
         const fixture = competition.fixtures.find(
@@ -202,17 +188,12 @@ export function MatchResultsScreen({
     };
   }, [visible, fixtureContext, container, teamIds, recordingAttempt]);
 
-  // Idempotency across rerender/resume/reconnect: seed from the tracker's
-  // own persisted state instead of only from live events, so a remount never
-  // re-offers a confirm/roll step that has already happened.
   useEffect(() => {
     if (!container || !tracker) return;
     if (tracker.applied) setConfirmed(true);
     const summary = tracker.summary();
     const seeded: Record<string, { playerId: string; roll: number }> = {};
     summary.players.forEach((stats) => {
-      // -1 is a "already awarded, roll unknown" sentinel — the roll itself
-      // isn't persisted, only that MVP was already assigned this match.
       if (stats.mvps > 0)
         seeded[stats.teamId] = { playerId: stats.playerId, roll: -1 };
     });
@@ -234,7 +215,9 @@ export function MatchResultsScreen({
       }));
       refresh((value) => value + 1);
     };
-    const onTouchdown = () => refresh((value) => value + 1);
+    const onTouchdown = () => {
+      refresh((value) => value + 1);
+    };
     const onCompetitionRecorded = (recorded?: {
       winnings?: Record<string, number>;
       fanFactors?: Record<string, number>;
@@ -266,7 +249,6 @@ export function MatchResultsScreen({
     };
   }, [container, fixtureContext]);
 
-  // The computer names its own MVP nominees: the first six who took part.
   useEffect(() => {
     const online = getActiveOnlineMatch();
     if (!visible || !tracker?.progressionEnabled || tracker.applied) return;
@@ -401,7 +383,6 @@ export function MatchResultsScreen({
           matchKey(container, teamIds, fixtureContext),
           gameState?.raisedDead?.[team.id],
           {
-            // A league fixture's Journeymen who played wait on a hiring decision
             leagueFixture: !!gameState?.paysWinnings,
             playedIds: new Set(tracker.getEligibleMvpPlayers(team.id)),
           }
@@ -413,10 +394,6 @@ export function MatchResultsScreen({
     for (const team of managed) await saveTeam(team);
   };
 
-  /**
-   * Each team's entry in its played games, built once from the match's own
-   * roster: the post-game development may yet remove a player who died.
-   */
   const playedGameEntries = (): Map<string, PlayedGame> => {
     if (playedGames.current) return playedGames.current;
     const entries = new Map<string, PlayedGame>();
@@ -432,7 +409,10 @@ export function MatchResultsScreen({
           playedGameFor(
             team,
             opponent,
-            { score: state.score, result: state.result },
+            {
+              score: state.score,
+              ...(state.result === undefined ? {} : { result: state.result }),
+            },
             stats,
             {
               id,
@@ -448,23 +428,17 @@ export function MatchResultsScreen({
     return entries;
   };
 
-  /**
-   * The match's copy of each team carries the game, so every save of it
-   * from here on, the development save included, keeps it.
-   */
   const notePlayedGames = () => {
     for (const team of savedTeams(teams)) {
       const game = playedGameEntries().get(team.id);
-      if (game) team.playedGames = withPlayedGame(team, game).playedGames;
+      if (game) {
+        const played = withPlayedGame(team, game).playedGames;
+        if (played) team.playedGames = played;
+        else delete team.playedGames;
+      }
     }
   };
 
-  /**
-   * A stored team that no development save wrote, as in a friendly with
-   * progression off, gets the game too. The save is not waited for:
-   * offline, a cloud write never settles, and the history must not hold
-   * the coach on this screen.
-   */
   const recordPlayedGames = () => {
     notePlayedGames();
     for (const team of savedTeams(teams)) {
@@ -473,9 +447,9 @@ export function MatchResultsScreen({
       if (!stored || !game) continue;
       const updated = withPlayedGame(stored, game);
       if (updated !== stored)
-        void saveTeam(updated).catch((cause) =>
-          console.warn("[MatchResults] played game not saved:", cause)
-        );
+        void saveTeam(updated).catch((cause) => {
+          console.warn("[MatchResults] played game not saved:", cause);
+        });
     }
   };
 
@@ -488,7 +462,9 @@ export function MatchResultsScreen({
     const [first, ...next] = managed;
     if (!first) return false;
     const params = new URLSearchParams({ postMatch: "1", returnTo: leaveTo });
-    next.forEach((team) => params.append("nextTeam", team.id));
+    next.forEach((team) => {
+      params.append("nextTeam", team.id);
+    });
     managed.forEach((team) => {
       const gold = winnings?.gold[team.id];
       if (gold !== undefined) params.set(`winnings-${team.id}`, String(gold));
@@ -542,16 +518,14 @@ export function MatchResultsScreen({
         data-testid="match-results"
         className="mx-auto max-w-6xl p-6 animate-hud-pop"
       >
-        {/* ---- Result ---- */}
         <ResultHeader
           teams={teams}
           score={state.score}
-          result={result}
+          {...(result === undefined ? {} : { result: result })}
           competitionRecorded={competitionRecorded}
           winnings={winnings}
         />
 
-        {/* ---- Statistics ---- */}
         <StatsTables
           teams={teams}
           summary={statsSummary}
@@ -568,7 +542,6 @@ export function MatchResultsScreen({
             <strong>Manage Team</strong>.
           </p>
         ) : (
-          // ---- Awards (eligible matches only) ----
           <>
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               {mvpTeams.map((team) => (
@@ -579,14 +552,16 @@ export function MatchResultsScreen({
                   nominees={nomineesFor(team)}
                   mvpResult={mvpResults[team.id]}
                   touchdownRecipient={touchdownRecipients[team.id]}
-                  onToggleNominee={(playerId) => toggleNominee(team, playerId)}
+                  onToggleNominee={(playerId) => {
+                    toggleNominee(team, playerId);
+                  }}
                   onRollMvp={() => void rollMvp(team)}
-                  onChooseTouchdownRecipient={(playerId) =>
+                  onChooseTouchdownRecipient={(playerId) => {
                     setTouchdownRecipients((previous) => ({
                       ...previous,
                       [team.id]: playerId,
-                    }))
-                  }
+                    }));
+                  }}
                   onAssignTouchdown={() => void assignAwardedTouchdown(team)}
                 />
               ))}
@@ -601,7 +576,6 @@ export function MatchResultsScreen({
           </>
         )}
 
-        {/* ---- Exit ---- */}
         <LeaveControls
           canExit={canExit}
           savingTeams={savingTeams}
@@ -612,7 +586,9 @@ export function MatchResultsScreen({
           recordingPending={recordingPending}
           recordingError={recordingError}
           onLeave={leave}
-          onRetryRecording={() => setRecordingAttempt((attempt) => attempt + 1)}
+          onRetryRecording={() => {
+            setRecordingAttempt((attempt) => attempt + 1);
+          }}
         />
       </Panel>
     </div>

@@ -1,21 +1,8 @@
-/**
- * The gameplay inventory: what "covered" is measured against.
- *
- * Line coverage says how much code ran, not whether a rule was proved. So
- * the inventory is generated from the things the game actually declares it
- * can do — registered sandbox scenarios, rule configurations and their named
- * outcomes, action-protocol commands, decision types, and the phase
- * transitions a drive passes through.
- *
- * Because it is generated, adding a rule config or a protocol command makes
- * a gap appear in the next report instead of quietly widening the blind spot.
- */
-
 import { SCENARIOS } from "../../data/scenarios";
 import { RULE_SCENARIOS } from "../../data/ruleScenarios";
 import { GamePhase } from "../../types/GameState";
-import { HeadlessCommand } from "../../headless/protocol";
-import { ExecutionLayer } from "../scenarioCase/types";
+import { type HeadlessCommand } from "../../headless/protocol";
+import { type ExecutionLayer } from "../scenarioCase/types";
 
 export type InventoryKind =
   | "sandbox-scenario"
@@ -26,15 +13,13 @@ export type InventoryKind =
   | "phase";
 
 export interface InventoryEntry {
-  /** `<kind>:<local id>` — stable, and what a case's `interactions` claim. */
   id: string;
   kind: InventoryKind;
   label: string;
-  /** Layers this entry must be covered in to count as complete. */
+
   requiredLayers: ExecutionLayer[];
 }
 
-/** Commands an external agent can send that represent a real interaction. */
 export const INTERACTION_COMMANDS: HeadlessCommand["type"][] = [
   "coin-flip",
   "ready-weather",
@@ -86,7 +71,6 @@ export const INTERACTION_COMMANDS: HeadlessCommand["type"][] = [
   "touchback",
 ];
 
-/** Every decision the engine can pause on. */
 export const DECISION_TYPES = [
   "kickoff-event",
   "block-dice",
@@ -98,10 +82,6 @@ export const DECISION_TYPES = [
   "interception",
 ] as const;
 
-/**
- * Which command answers which decision. Used both to derive decision
- * coverage from a case's script and to keep the two lists honest.
- */
 export const DECISION_REPLY_COMMANDS: Record<
   string,
   HeadlessCommand["type"][]
@@ -128,11 +108,6 @@ export const DECISION_REPLY_COMMANDS: Record<
   interception: ["choose-interception"],
 };
 
-/**
- * Phases a drive passes through that a case can start in or reach.
- * SANDBOX_IDLE is excluded: it is the explorer's resting state, not a phase
- * of a game.
- */
 export const COVERED_PHASES: GamePhase[] = [
   GamePhase.SETUP,
   GamePhase.KICKOFF,
@@ -142,11 +117,6 @@ export const COVERED_PHASES: GamePhase[] = [
   GamePhase.GAME_OVER,
 ];
 
-/**
- * Interactions that must also be proved through the UI, not just the
- * protocol. These are the ones where the browser genuinely adds information:
- * canvas input mapping, the action menu, and the decision dialogs.
- */
 const BROWSER_REQUIRED: ReadonlySet<string> = new Set([
   "protocol-command:declare-action",
   "protocol-command:move",
@@ -161,7 +131,6 @@ function layersFor(id: string): ExecutionLayer[] {
   return BROWSER_REQUIRED.has(id) ? ["engine", "browser"] : ["engine"];
 }
 
-/** Build the whole inventory, in stable id order. */
 export function buildInventory(): InventoryEntry[] {
   const entries: InventoryEntry[] = [];
 

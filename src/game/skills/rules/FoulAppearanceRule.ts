@@ -1,18 +1,5 @@
-/**
- * Foul Appearance (2025 rulebook p.129) — "Whenever an opposition player
- * attempts to perform a Block Action against this player, or a Special Action
- * that targets this player directly, they must roll a D6 before any other
- * dice are rolled. On a 2+, the Block Action continues as normal. On a 1, the
- * Block Action is immediately cancelled and the opposition player's activation
- * immediately ends."
- *
- * `self` is the target (defender); the roll is made in the attacker's name.
- * (The Special-Action clause lands with the special-action batch.) A Ball &
- * Chain collision "will ignore the Foul Appearance Skill" (p.124).
- */
-
 import { SkillType, hasSkill } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const FoulAppearanceRule: SkillRule = {
   onBlockDeclared(ctx, self) {

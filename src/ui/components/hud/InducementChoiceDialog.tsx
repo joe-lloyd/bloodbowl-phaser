@@ -1,13 +1,13 @@
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useEffect, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { DecisionRequest } from "@/types/decisions";
+import type { EventBus } from "../../../services/EventBus";
+import { type DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import {
-  InducementChoiceDecisionAnswer,
-  InducementChoiceDecisionRequest,
-  InducementChoiceKind,
-  WizardSpell,
+  type InducementChoiceDecisionAnswer,
+  type InducementChoiceDecisionRequest,
+  type InducementChoiceKind,
+  type WizardSpell,
 } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
@@ -27,7 +27,6 @@ const TITLES: Record<InducementChoiceKind, string> = {
   "sports-wizard": "Sports-Wizard: cast a spell?",
 };
 
-/** What each spell does, in a line, and what the pitch picks for it. */
 const SPELLS: Record<
   WizardSpell,
   { label: string; hint: string; aim: string }
@@ -44,17 +43,12 @@ const SPELLS: Record<
   },
 };
 
-/**
- * A Prayer to Nuffle or Desperate Measure waiting on its coach's pick. The
- * engine is paused on this decision; each button answers it through
- * gameService.answerInducementChoice.
- */
 export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
   eventBus,
 }) => {
   const [request, setRequest] =
     useState<InducementChoiceDecisionRequest | null>(null);
-  // Sports-Wizard: the spell picked, whose target the pitch is choosing
+
   const [spell, setSpell] = useState<WizardSpell | null>(null);
   const aim = (next: WizardSpell | null) => {
     setSpell(next);
@@ -68,7 +62,7 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
         setSpell(null);
       }
     };
-    // The other coach may be the one who answers
+
     const onResolved = ({ type }: { type: string }) => {
       if (type !== "inducement-choice") return;
       setRequest(null);
@@ -83,8 +77,6 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
     };
   }, [eventBus]);
 
-  // Online, only the coach who owns the decision sees it; the other
-  // coach has the "Waiting for…" banner
   if (
     !request ||
     !ServiceContainer.isInitialized() ||
@@ -95,7 +87,6 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
   const name = (id: string) => gameService.getPlayerById(id)?.playerName ?? id;
 
   const answer = (choice: InducementChoiceDecisionAnswer) => {
-    // Online: only the choosing coach may answer
     if (getActiveOnlineMatch()?.mayAct() === false) return;
     if (gameService.answerInducementChoice(choice)) setRequest(null);
   };
@@ -110,11 +101,23 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
         width="w-[520px]"
         actions={
           spell ? (
-            <HudButton variant="ghost" block onClick={() => aim(null)}>
+            <HudButton
+              variant="ghost"
+              block
+              onClick={() => {
+                aim(null);
+              }}
+            >
               Back
             </HudButton>
           ) : (
-            <HudButton variant="ghost" block onClick={() => answer({})}>
+            <HudButton
+              variant="ghost"
+              block
+              onClick={() => {
+                answer({});
+              }}
+            >
               Keep it for later
             </HudButton>
           )
@@ -128,7 +131,9 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
                 data-testid={`spell-${option}`}
                 variant="secondary"
                 className="!h-auto !py-2 !normal-case !tracking-normal text-left"
-                onClick={() => aim(option)}
+                onClick={() => {
+                  aim(option);
+                }}
               >
                 <span className="flex flex-col gap-0.5">
                   <span className="font-bold">{SPELLS[option].label}</span>
@@ -162,6 +167,25 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
     });
 
   return (
+    <InducementChoiceDialogView
+      request={request}
+      answer={answer}
+      options={options}
+    />
+  );
+};
+
+interface InducementChoiceDialogViewProps {
+  request: InducementChoiceDecisionRequest;
+  answer: (choice: InducementChoiceDecisionAnswer) => void;
+  options: { label: string; choice: InducementChoiceDecisionAnswer }[];
+}
+function InducementChoiceDialogView({
+  request,
+  answer,
+  options,
+}: InducementChoiceDialogViewProps) {
+  return (
     <DialogShell
       placement="dock"
       eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
@@ -171,7 +195,13 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
       className="max-h-[80vh] overflow-y-auto hud-scroll"
       actions={
         request.optional && (
-          <HudButton variant="ghost" block onClick={() => answer({})}>
+          <HudButton
+            variant="ghost"
+            block
+            onClick={() => {
+              answer({});
+            }}
+          >
             {request.kind === "team-captain"
               ? "Appoint nobody"
               : "Keep it for later"}
@@ -185,7 +215,9 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
             key={option.label}
             variant="secondary"
             className="!h-auto !py-2 !normal-case !tracking-normal text-left"
-            onClick={() => answer(option.choice)}
+            onClick={() => {
+              answer(option.choice);
+            }}
           >
             {option.label}
           </HudButton>
@@ -193,4 +225,4 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
       </div>
     </DialogShell>
   );
-};
+}

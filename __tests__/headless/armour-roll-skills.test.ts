@@ -1,17 +1,16 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario, PlayerPlacement } from "../../src/types/Scenario";
+import { type Scenario, type PlayerPlacement } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { playerBoxOf } from "../../src/game/rules/playerLocation";
-import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
-
-/**
- * Skills that act on an Armour Roll, and which knockdowns they act on.
- * Seeds are committed, never searched (docs/E2E_TESTING.md); each test
- * asserts the dice its seed rolls first, so a dice-order change fails loudly.
- */
+import type {
+  CommandResponse,
+  EmittedEvent,
+} from "../../src/headless/protocol";
 
 function scenario(
   attacker: Partial<PlayerPlacement>,
@@ -24,7 +23,7 @@ function scenario(
     setup: {
       team1Placements: [
         { playerIndex: 0, x: 10, y: 5, ...attacker },
-        // A spare player keeps team1's turn open after the activation.
+
         { playerIndex: 1, x: 2, y: 12 },
       ],
       team2Placements: [{ playerIndex: 0, x: 11, y: 5, ...target }],
@@ -44,22 +43,25 @@ function session(scenario: Scenario, seed: number) {
     events.push(...response.events);
     return response;
   };
-  const dataOf = <T>(name: string) =>
-    events.filter((e) => e.name === name).map((e) => e.data as T);
+  const dataOf = <T>(name: string, schema: z.ZodType<T>) =>
+    events.filter((e) => e.name === name).map((e) => schema.parse(e.data));
   return {
     run,
     dice: () =>
-      dataOf<{ description: string }>("diceRoll").map((d) => d.description),
+      dataOf("diceRoll", z.object({ description: z.string() })).map(
+        (d) => d.description
+      ),
     skills: () =>
-      dataOf<{ effect: string }>("skillTriggered").map((d) => d.effect),
+      dataOf("skillTriggered", z.object({ effect: z.string() })).map(
+        (d) => d.effect
+      ),
     attacker: game.ctx.team1.players[0],
     target: game.ctx.team2.players[0],
   };
 }
 
-/** Breathe Fire rolls a natural 6, then armour 6+3 = 9 against AV 10. */
 const BREATHE_FIRE_SEED = 30;
-/** A POW, then armour 3+6 = 9 against AV 10 and injury 5+2 = 7. */
+
 const POW_SEED = 150;
 
 describe("Mighty Blow and Claws", () => {
@@ -80,14 +82,14 @@ describe("Mighty Blow and Claws", () => {
 
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "breatheFire",
     });
     await run({
       type: "special-action",
       action: "breatheFire",
-      attackerId: attacker.id,
-      defenderId: target.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(target).id,
     });
 
     expect(dice()).toEqual([
@@ -97,7 +99,7 @@ describe("Mighty Blow and Claws", () => {
     expect(skills()).toEqual([
       "Breathe Fire: a gout of flame at Human Lineman #1",
     ]);
-    expect(target.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(target).status).toBe(PlayerStatus.PRONE);
   });
 
   for (const order of [
@@ -110,8 +112,16 @@ describe("Mighty Blow and Claws", () => {
         POW_SEED
       );
 
-      await run({ type: "declare-action", playerId: attacker.id, action: "block" });
-      await run({ type: "block", attackerId: attacker.id, defenderId: target.id });
+      await run({
+        type: "declare-action",
+        playerId: fixtureValue(attacker).id,
+        action: "block",
+      });
+      await run({
+        type: "block",
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(target).id,
+      });
       await run({ type: "choose-block-result", index: 0 });
       await run({ type: "choose-push-direction", x: 12, y: 5 });
       await run({ type: "choose-follow-up", followUp: false });
@@ -127,13 +137,12 @@ describe("Mighty Blow and Claws", () => {
           "Mighty Blow: +1 saved for the injury roll",
         ])
       );
-      // 7 + 1 = 8: Knocked Out
-      expect(playerBoxOf(target)).toBe("ko");
+
+      expect(playerBoxOf(fixtureValue(target))).toBe("ko");
     });
   }
 });
 
-/** Kick-back 5, then armour 5+2 = 7 against AV 10 (the dice log shows 10 - 3). */
 const CHAINSAW_SEED = 5;
 
 describe("a Chainsaw Attack's armour roll", () => {
@@ -146,12 +155,16 @@ describe("a Chainsaw Attack's armour roll", () => {
       CHAINSAW_SEED
     );
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "chainsaw" });
+    await run({
+      type: "declare-action",
+      playerId: fixtureValue(attacker).id,
+      action: "chainsaw",
+    });
     await run({
       type: "special-action",
       action: "chainsaw",
-      attackerId: attacker.id,
-      defenderId: target.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(target).id,
     });
 
     expect(dice()).toEqual([
@@ -161,11 +174,10 @@ describe("a Chainsaw Attack's armour roll", () => {
     expect(skills()).toContain(
       "Iron Hard Skin: armour roll modifiers cancelled"
     );
-    expect(target.status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(target).status).toBe(PlayerStatus.ACTIVE);
   });
 });
 
-/** Foul armour 5+2 = 7 against AV 9. */
 const FOUL_SEED = 2;
 
 describe("a Chainsaw owner's own armour", () => {
@@ -178,13 +190,22 @@ describe("a Chainsaw owner's own armour", () => {
       FOUL_SEED
     );
 
-    await run({ type: "declare-action", playerId: attacker.id, action: "foul" });
-    await run({ type: "foul", playerId: attacker.id, x: 11, y: 5 });
+    await run({
+      type: "declare-action",
+      playerId: fixtureValue(attacker).id,
+      action: "foul",
+    });
+    await run({
+      type: "foul",
+      playerId: fixtureValue(attacker).id,
+      x: 11,
+      y: 5,
+    });
 
     expect(dice()).toEqual([
       "Foul Armour Roll (Human Lineman #1): 5 + 2 = 7 (AV 9+)",
     ]);
     expect(skills()).toEqual([]);
-    expect(target.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(target).status).toBe(PlayerStatus.PRONE);
   });
 });

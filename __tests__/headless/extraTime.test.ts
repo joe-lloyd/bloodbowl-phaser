@@ -1,9 +1,5 @@
-/**
- * Extra Time and Penalties (2025 rulebook, p.87): a knockout tie level after
- * the second half plays Extra Time, a further half with the Team Re-rolls
- * left over, after a roll-off whose winner chooses who kicks. If it is
- * still level after that, five roll-offs decide it.
- */
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { createSimGame, runMatch } from "../../src/simulation/runMatch";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
@@ -32,7 +28,7 @@ async function play(seed: number, knockout: boolean) {
     if (phase === GamePhase.HALFTIME && state().turn.extraTime)
       rerollsInExtraTime = { ...state().teamRerollsUsed };
   });
-  // The first and last turn each team started in Extra Time
+
   const extraTimeTurns: Record<string, [number, number]> = {};
   let extraTimeOpeningKickoff: KickoffEvent | undefined;
   eventBus.on(GameEventNames.KickoffResult, ({ event }) => {
@@ -48,10 +44,10 @@ async function play(seed: number, knockout: boolean) {
   });
   let fullTime = "";
   eventBus.on(GameEventNames.UI_GameLog, (line) => {
-    if (String(line).startsWith("FULL TIME")) fullTime = String(line);
+    if (line.startsWith("FULL TIME")) fullTime = line;
   });
   const rollOff: Record<string, number>[] = [];
-  // A Time-Out kick-off (3) moves both turn markers forward one
+
   let extraTimeKickoff: number | undefined;
   eventBus.on(GameEventNames.DiceRoll, (roll) => {
     if (state().turn.extraTime && roll.rollType === "Kickoff Event")
@@ -59,8 +55,12 @@ async function play(seed: number, knockout: boolean) {
   });
   eventBus.on(GameEventNames.DiceRoll, (roll) => {
     if (!roll.rollType.startsWith("Extra Time roll-off")) return;
-    if (roll.teamId === home) rollOff.push({ [home]: roll.value });
-    else rollOff[rollOff.length - 1][away] = roll.value;
+    if (roll.teamId === home)
+      rollOff.push({ [home]: z.number().parse(roll.value) });
+    else
+      fixtureValue(rollOff[rollOff.length - 1])[away] = z
+        .number()
+        .parse(roll.value);
   });
 
   const recording = await runMatch({
@@ -80,7 +80,8 @@ async function play(seed: number, knockout: boolean) {
     extraTimeTurns,
     extraTimeOpeningKickoff,
     fullTime,
-    rollOffWinner: last && (last[home] > last[away] ? 0 : 1),
+    rollOffWinner:
+      last && (fixtureValue(last[home]) > fixtureValue(last[away]) ? 0 : 1),
     kickChoice: recording.steps.find((step) => step.label === "Use Extra Time"),
   };
 }
@@ -93,47 +94,61 @@ describe("a knockout tie", () => {
       penalties: 0,
       rerollsCarried: 0,
     };
-    // Few ties are won in Extra Time: of the first 40 seeds only 34 is, so it
-    // joins the first 16. Any change to the coaches' choices reshuffles this.
+
     for (const seed of [...Array.from({ length: 16 }, (_, i) => i + 1), 34]) {
       const game = await play(seed, true);
       const { state, home, away } = game;
-      expect(game.recording.findings, `seed ${seed}`).toEqual([]);
-      expect(state.phase, `seed ${seed}`).toBe(GamePhase.GAME_OVER);
+      expect(game.recording.findings, `seed ${String(seed)}`).toEqual([]);
+      expect(state.phase, `seed ${String(seed)}`).toBe(GamePhase.GAME_OVER);
       const level = state.score[home] === state.score[away];
       if (!game.rerollsInExtraTime) {
-        expect(level, `seed ${seed}`).toBe(false);
+        expect(level, `seed ${String(seed)}`).toBe(false);
         seen.noExtraTime++;
         continue;
       }
-      // The roll-off's winner chose who kicks
-      expect(game.kickChoice?.team, `seed ${seed}`).toBe(game.rollOffWinner);
-      // Re-rolls spent in the second half stay spent
-      expect(game.rerollsInExtraTime, `seed ${seed}`).toEqual(
+
+      expect(game.kickChoice?.team, `seed ${String(seed)}`).toBe(
+        game.rollOffWinner
+      );
+
+      expect(game.rerollsInExtraTime, `seed ${String(seed)}`).toEqual(
         game.rerollsAtFullTime
       );
       if (Object.values(game.rerollsInExtraTime).some((used) => used > 0))
         seen.rerollsCarried++;
       const penalties = state.result?.penalties;
       if (!level) {
-        expect(penalties, `seed ${seed}`).toBeUndefined();
+        expect(penalties, `seed ${String(seed)}`).toBeUndefined();
         seen.wonInExtraTime++;
         continue;
       }
-      expect(penalties![home] + penalties![away], `seed ${seed}`).toBe(5);
-      // Extra Time has six turn markers; an opening Time-Out advances both.
+      expect(
+        fixtureValue(fixtureValue(penalties)[home]) +
+          fixtureValue(fixtureValue(penalties)[away]),
+        `seed ${String(seed)}`
+      ).toBe(5);
+
       const firstTurn =
         game.extraTimeOpeningKickoff === KickoffEvent.TIME_OUT ? 2 : 1;
       const fullHalf = [firstTurn, GameConfig.TURNS_PER_HALF];
-      expect(game.extraTimeTurns, `seed ${seed}`).toEqual({
+      expect(game.extraTimeTurns, `seed ${String(seed)}`).toEqual({
         [home]: fullHalf,
         [away]: fullHalf,
       });
-      // Full time names the winner, not a draw
-      const [won, lost] = [penalties![home], penalties![away]].sort().reverse();
-      const winner = penalties![home] > penalties![away] ? "Home" : "Away";
-      expect(game.fullTime, `seed ${seed}`).toMatch(
-        `(${winner} win on Penalties, ${won}–${lost})`
+
+      const [won, lost] = [
+        fixtureValue(penalties)[home],
+        fixtureValue(penalties)[away],
+      ]
+        .sort()
+        .reverse();
+      const winner =
+        fixtureValue(fixtureValue(penalties)[home]) >
+        fixtureValue(fixtureValue(penalties)[away])
+          ? "Home"
+          : "Away";
+      expect(game.fullTime, `seed ${String(seed)}`).toMatch(
+        `(${winner} win on Penalties, ${String(won)}–${String(lost)})`
       );
       seen.penalties++;
     }
@@ -142,7 +157,6 @@ describe("a knockout tie", () => {
   }, 120_000);
 
   it("ends a game level after the second half as a draw when it is not a knockout", async () => {
-    // Seed 2 is level at full time, and goes to Penalties as a knockout
     const knockout = await play(2, true);
     expect(knockout.state.result?.penalties).toBeDefined();
     const friendly = await play(2, false);

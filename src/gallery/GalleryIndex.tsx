@@ -1,3 +1,4 @@
+import { Link } from "../ui/components/common/NativeControls";
 import { SECTIONS, VARIANTS } from "./variants";
 import { PAGES_NAV, PagesReview } from "./PagesReview";
 import {
@@ -27,7 +28,6 @@ const SKETCHES = [
   },
 ];
 
-/** Real-game captures, before (646081f) and after this redesign. */
 const SHOTS = [
   { file: "setup", title: "Setup" },
   { file: "coin-toss", title: "Coin toss" },
@@ -70,7 +70,7 @@ function Frame({
         width={1280}
         height={height}
         className="origin-top-left border-0"
-        style={{ transform: `scale(${scale})` }}
+        style={{ transform: `scale(${String(scale)})` }}
       />
     </div>
   );
@@ -105,18 +105,16 @@ export function GalleryIndex() {
             ...PAGES_NAV,
             ...SECTIONS,
             "Not shown",
-          ].map(
-            (name) => (
-              <li key={name}>
-                <a
-                  className="block rounded-hud px-2 py-1 text-hud-dim hover:bg-white/5 hover:text-hud-gold"
-                  href={`#${slug(name)}`}
-                >
-                  {name}
-                </a>
-              </li>
-            )
-          )}
+          ].map((name) => (
+            <li key={name}>
+              <Link
+                className="block rounded-hud px-2 py-1 text-hud-dim hover:bg-white/5 hover:text-hud-gold"
+                href={`#${slug(name)}`}
+              >
+                {name}
+              </Link>
+            </li>
+          ))}
         </ul>
       </nav>
 
@@ -127,11 +125,10 @@ export function GalleryIndex() {
             HUD and pages gallery
           </h1>
           <p className="mt-3 max-w-3xl text-hud-base text-hud-dim">
-            Every floating React element in the match, and every page around
-            it, on one design system. The
-            variants below are the real components, rendered with fixture data
-            and a real event bus over a pitch backdrop. Each frame is a live
-            page: hover and click work.
+            Every floating React element in the match, and every page around it,
+            on one design system. The variants below are the real components,
+            rendered with fixture data and a real event bus over a pitch
+            backdrop. Each frame is a live page: hover and click work.
           </p>
         </header>
 
@@ -161,12 +158,12 @@ export function GalleryIndex() {
                 />
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <a
+                <Link
                   href={`./sketches/${sketch.file}.html`}
                   className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] hover:text-hud-gold"
                 >
                   {sketch.name}
-                </a>
+                </Link>
                 {sketch.chosen && <Chip tone="gold">Chosen</Chip>}
               </div>
               <p className="mt-1 text-hud-sm text-hud-dim">{sketch.note}</p>
@@ -210,7 +207,7 @@ export function GalleryIndex() {
               </figcaption>
               <div className="grid gap-3 lg:grid-cols-2">
                 {(["before", "after"] as const).map((when) => (
-                  <a
+                  <Link
                     key={when}
                     href={`./shots/${when}/${shot.file}.jpg`}
                     className="group relative block"
@@ -227,7 +224,7 @@ export function GalleryIndex() {
                     >
                       {when}
                     </Chip>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </figure>
@@ -247,12 +244,12 @@ export function GalleryIndex() {
                     <span className="font-hud-label text-[15px] font-bold uppercase tracking-[0.04em]">
                       {v.title}
                     </span>
-                    <a
+                    <Link
                       href={`?v=${v.id}`}
                       className="hud-label hover:text-hud-gold"
                     >
                       open
-                    </a>
+                    </Link>
                   </figcaption>
                 </figure>
               ))}

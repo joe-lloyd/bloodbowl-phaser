@@ -1,16 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { IEventBus } from "../../src/services/EventBus";
 
-// Sound settings persist to localStorage; clear it before every test in this
-// file so one test's mute/volume state can never leak into the next.
 beforeEach(() => {
   try {
     localStorage.clear();
-  } catch {
-    // Storage unavailable — nothing to clear.
-  }
-  // SoundManager.init() preloads every catalog sample. Serve each URL's own
-  // name as its body so FakeAudioContext.decodeAudioData can tag the buffer.
+  } catch {}
+
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => new Response(url))
@@ -21,22 +17,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/**
- * Covers the sound engine's structural fix for the "stuck repeating one
- * sound forever" bug (see openspec/changes/overhaul-sound-effects-library):
- * `@strudel/web`'s shared global pattern scheduler is gone; every trigger
- * now builds its own independent Web Audio node graph against a shared
- * `AudioContext`/master `GainNode`, so concurrent triggers can never race or
- * strand each other. This file also keeps the pre-existing teardown and
- * dice-roll-variation coverage from the prior `overhaul-sound-system`
- * change, adapted to the new engine.
- */
-
-// jsdom has no real Web Audio implementation, and the production code only
-// ever touches a small, well-defined surface of AudioContext/AudioNode APIs
-// (see src/ui/sound/synth.ts and SoundManager.ts) — a thin fake reproducing
-// just that surface keeps these tests about SoundManager/synth's own
-// lifecycle logic rather than real audio rendering.
 class FakeAudioParam {
   value = 0;
   setValueAtTime = vi.fn((v: number) => {
@@ -68,7 +48,6 @@ class FakeBiquadFilterNode extends FakeAudioNode {
   Q = new FakeAudioParam();
 }
 
-/** Shared by oscillator + buffer-source fakes: both are AudioScheduledSourceNodes with start()/stop()/onended. */
 class FakeScheduledSourceNode extends FakeAudioNode {
   onended: (() => void) | null = null;
   started = false;
@@ -76,7 +55,7 @@ class FakeScheduledSourceNode extends FakeAudioNode {
   start = vi.fn(() => {
     this.started = true;
   });
-  /** Synchronous for test determinism: real playback fires `onended` asynchronously once the node actually finishes; nothing here depends on timing. */
+
   stop = vi.fn(() => {
     if (this.stopped) return;
     this.stopped = true;
@@ -106,7 +85,7 @@ class FakeAudioContext {
   createBuffer = vi.fn((_channels: number, length: number) => ({
     getChannelData: () => new Float32Array(length),
   }));
-  /** Hands back a fake buffer tagged with the URL that was fetched. */
+
   decodeAudioData = vi.fn(async (data: ArrayBuffer) => ({
     url: new TextDecoder().decode(data),
     duration: 0.4,
@@ -131,7 +110,9 @@ describe("SoundManager", () => {
     const { SoundManager } = await import("../../src/ui/sound/SoundManager");
     const manager = new SoundManager(() => new FakeAudioContext() as never);
 
-    expect(() => manager.stop()).not.toThrow();
+    expect(() => {
+      manager.stop();
+    }).not.toThrow();
   });
 
   it("init() creates a shared AudioContext + master GainNode connected to destination", async () => {
@@ -186,7 +167,9 @@ describe("SoundManager", () => {
     const second = new SoundManager(() => secondCtx as never);
     await expect(second.init()).resolves.toBeUndefined();
     expect(second.isReady()).toBe(true);
-    expect(() => second.stop()).not.toThrow();
+    expect(() => {
+      second.stop();
+    }).not.toThrow();
   });
 
   it("dispose() removes the document-level gesture-unlock listeners init() attached — no leak across repeated page mounts", async () => {
@@ -256,7 +239,6 @@ describe("SoundManager mute/volume apply live", () => {
     const manager = new SoundManager(() => ctx as never);
     await manager.init();
 
-    // Simulate a sound already playing when the coach hits mute.
     manager.play(() => ({ stop: vi.fn() }), 1000);
 
     soundSettings.setMuted(true);
@@ -301,15 +283,12 @@ describe("SoundManager: concurrent triggers cannot strand or replace each other"
     const buildA = vi.fn(() => unitA);
     const buildB = vi.fn(() => unitB);
 
-    // Fire two triggers back-to-back, the way rapid dice rolls do.
     manager.play(buildA, 300);
     manager.play(buildB, 300);
 
     expect(buildA).toHaveBeenCalledTimes(1);
     expect(buildB).toHaveBeenCalledTimes(1);
 
-    // Stopping everything must stop both — neither trigger silently
-    // replaced or stranded the other's unit.
     manager.stop();
     expect(unitA.stop).toHaveBeenCalledTimes(1);
     expect(unitB.stop).toHaveBeenCalledTimes(1);
@@ -336,8 +315,7 @@ describe("SoundManager: concurrent triggers cannot strand or replace each other"
       manager.stop();
       manager.stop();
     }).not.toThrow();
-    // The unit is dropped from tracking after the first stop() sweep, so a
-    // second manager.stop() has nothing left to call again.
+
     expect(calls).toBe(1);
   });
 });
@@ -349,10 +327,8 @@ describe("SoundSuite plays recorded samples", () => {
     emit: vi.fn(),
   } as any;
 
-  /** Lets fetch() and decodeAudioData() promises settle. */
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-  /** Decoded samples handed to buffer sources; the synth's noise buffers carry no url. */
   const playedBuffers = (ctx: FakeAudioContext) =>
     ctx.createBufferSource.mock.results
       .map((result) => result.value.buffer)
@@ -457,7 +433,7 @@ describe("SoundSuite plays recorded samples", () => {
 
     suite.play("touchdown");
     await settle();
-    const source = ctx.createBufferSource.mock.results[0]
+    const source = fixtureValue(ctx.createBufferSource.mock.results[0])
       .value as FakeBufferSourceNode;
     expect(source.stopped).toBe(false);
 
@@ -473,7 +449,7 @@ describe("SoundSuite plays recorded samples", () => {
     const { GameEventNames } = await import("../../src/types/events");
     const bus = new EventBus();
     new SoundSuite(bus, manager).mount();
-    const roll = (diceType: string, value: number) =>
+    const roll = (diceType: string, value: number) => {
       bus.emit(GameEventNames.DiceRoll, {
         rollType: "Test",
         diceType,
@@ -481,15 +457,14 @@ describe("SoundSuite plays recorded samples", () => {
         total: value,
         description: "",
       });
+    };
     const rattles = () =>
       playedBuffers(ctx).filter((b) => b.url.includes("dice-roll")).length;
 
-    // A D6 lands in the 3D tray, which knocks as it lands
     roll("1d6", 4);
     await settle();
     expect(rattles()).toBe(0);
 
-    // A D8 has no 3D die, so the rattle plays
     roll("1d8", 5);
     await settle();
     expect(rattles()).toBe(1);
@@ -522,9 +497,7 @@ describe("dice-roll sound variation", () => {
     const results = new Set(
       Array.from({ length: 50 }, () => pickDiceRollTapCount())
     );
-    // 3 possible values (3, 4, or 5 taps); 50 draws landing on just one
-    // value is vanishingly unlikely — a randomization smoke test, not a
-    // determinism guarantee for any single pair of rolls.
+
     expect(results.size).toBeGreaterThan(1);
   });
 
@@ -537,9 +510,7 @@ describe("dice-roll sound variation", () => {
     const unitTwo = CATALOG.diceRoll.build(ctx as never, destination as never);
 
     expect(unitOne).not.toBe(unitTwo);
-    // Each independently allocates its own oscillator/noise nodes on the
-    // shared context — proof there's no single "current pattern" slot for
-    // the two calls to race over.
+
     expect(ctx.createOscillator.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });

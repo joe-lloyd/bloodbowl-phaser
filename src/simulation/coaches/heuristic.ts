@@ -1,19 +1,13 @@
-/**
- * A coach that plays recognisable Blood Bowl: carry the ball forward, pick
- * it up when it is loose, throw good blocks, chase the opposing carrier,
- * and avoid needless dodges and rushes.
- *
- * It is not trying to win tournaments. It exists so full matches reach the
- * situations real coaches create (touchdowns, turnovers, cage breaks, deep
- * injuries) far more often than the random fuzzer does.
- */
-
-import { HeadlessCommand, GridPosition } from "../../headless/protocol";
-import { Player, PlayerStatus } from "../../types/Player";
-import { BlockResultType } from "../../services/BlockResolutionService";
+import { type FieldPlayer, onField } from "../ai/board";
+import {
+  type HeadlessCommand,
+  type GridPosition,
+} from "../../headless/protocol";
+import { type Player, PlayerStatus } from "../../types/Player";
+import { type BlockResultType } from "../../services/BlockResolutionService";
 import { GameService } from "../../services/GameService";
-import { Candidate } from "../candidates";
-import { Coach, CoachContext } from "../coach";
+import { type Candidate } from "../candidates";
+import { type Coach, type CoachContext } from "../coach";
 import { GameConfig } from "../../config/GameConfig";
 
 const BLOCK_RANK: Record<BlockResultType, number> = {
@@ -27,17 +21,16 @@ const BLOCK_RANK: Record<BlockResultType, number> = {
 const chebyshev = (a: GridPosition, b: GridPosition) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
-/** Board facts every candidate is scored against, read once per decision. */
 interface Board {
   gs: GameService;
   teamId: string;
   team1Id: string;
   ball: GridPosition | null;
-  /** The player standing on the ball, if any. */
-  carrier: Player | undefined;
+
+  carrier: FieldPlayer | undefined;
 }
 
-export function scoreCandidate(candidate: Candidate, board: Board): number {
+function scoreCandidate(candidate: Candidate, board: Board): number {
   const command = candidate.commands[0];
   switch (candidate.kind) {
     case "end-turn":
@@ -47,19 +40,18 @@ export function scoreCandidate(candidate: Candidate, board: Board): number {
     case "setup":
       return candidate.label.includes("Balanced") ? 10 : 5;
     case "kickoff":
-      return command.type === "kick-ball" && command.y === 5
-        ? 10 - Math.abs(command.x - 10) / 10
-        : 5;
+      return kickoffValue(command);
     case "declare":
       return scoreDeclaration(command, board);
     case "step":
-      return scoreStep(command, board);
+      return hasCommandType(command, STEP_TYPES)
+        ? scoreStep(command, board)
+        : 0;
     case "decision":
       return scoreDecision(command, board);
   }
 }
 
-/** Squares from this team's scoring end zone (team1 scores at the far right). */
 function distanceToGoal(
   board: Board,
   teamId: string,
@@ -84,7 +76,6 @@ type CommandOf<T extends HeadlessCommand["type"]> = Extract<
   { type: T }
 >;
 
-/** Squares a player can cover this turn, rushing twice. */
 const reachOf = (player: Player) => player.stats.MA + 2;
 
 function moveDeclarationValue(
@@ -103,15 +94,14 @@ function moveDeclarationValue(
   return 20 - (board.ball ? chebyshev(at, board.ball) : 0);
 }
 
-/** A Blitz is worth most when the opposing carrier is in reach. */
 function blitzDeclarationValue(
-  player: Player,
+  player: FieldPlayer,
   at: GridPosition,
   board: Board
 ): number {
   const carrier = board.carrier;
   const theirs = !!carrier && carrier.teamId !== board.teamId;
-  return theirs && chebyshev(at, carrier.gridPosition!) <= reachOf(player)
+  return theirs && chebyshev(at, carrier.gridPosition) <= reachOf(player)
     ? 90
     : 10;
 }
@@ -119,76 +109,72 @@ function blitzDeclarationValue(
 function scoreDeclaration(command: HeadlessCommand, board: Board): number {
   if (command.type !== "declare-action") return 0;
   const player = board.gs.getPlayerById(command.playerId);
-  if (!player?.gridPosition) return 0;
-  const at = player.gridPosition;
-  const isCarrier = board.carrier?.id === player.id;
-
+  if (!player || !onField(player)) return 0;
   if (command.blockReplacement) return 25;
-  switch (command.action) {
-    case "move":
-      return moveDeclarationValue(player, at, board);
-    case "block":
-      return bestBlockValue(player, board);
-    case "blitz":
-      return blitzDeclarationValue(player, at, board);
-    case "standUp":
-      return 15;
-    case "pass":
-    case "handoff":
-      return isCarrier ? 30 : 0;
-    case "foul":
-      return 8;
-    default:
-      return 3;
-  }
+  return declarationValue(command, player, board);
 }
 
-function bestBlockValue(player: Player, board: Board): number {
-  const at = player.gridPosition!;
+function declarationValue(
+  command: CommandOf<"declare-action">,
+  player: FieldPlayer,
+  board: Board
+): number {
+  if (command.action === "move")
+    return moveDeclarationValue(player, player.gridPosition, board);
+  if (command.action === "block") return bestBlockValue(player, board);
+  if (command.action === "blitz")
+    return blitzDeclarationValue(player, player.gridPosition, board);
+  const transfer = board.carrier?.id === player.id ? 30 : 0;
+  const values: Partial<Record<CommandOf<"declare-action">["action"], number>> =
+    {
+      standUp: 15,
+      pass: transfer,
+      handoff: transfer,
+      foul: 8,
+    };
+  return values[command.action] ?? 3;
+}
+
+function bestBlockValue(player: FieldPlayer, board: Board): number {
+  const at = player.gridPosition;
   let best = 0;
   for (const target of board.gs.getOpponents(player.teamId)) {
     if (!target.gridPosition || target.status !== PlayerStatus.ACTIVE) continue;
     if (chebyshev(target.gridPosition, at) !== 1) continue;
     const diff = player.stats.ST - target.stats.ST;
-    let value = diff > 0 ? 60 : diff === 0 ? 30 : 5;
+    let value = strengthValue(diff, [60, 30, 5]);
     if (board.carrier?.id === target.id) value += 40;
     best = Math.max(best, value);
   }
   return best;
 }
 
-/** How good it is to stand on `at`, for the active player's plan. */
 function squareValue(player: Player, at: GridPosition, board: Board): number {
-  const isCarrier = board.carrier?.id === player.id;
-  const action = board.gs.getState().activePlayer?.action;
-  if (isCarrier) return -distanceToGoal(board, player.teamId, at) * 10;
-  if (board.ball && !board.carrier) return -chebyshev(at, board.ball) * 10;
-  if (board.carrier && board.carrier.teamId !== player.teamId) {
-    return (
-      -chebyshev(at, board.carrier.gridPosition!) *
-      (action === "blitz" ? 12 : 6)
-    );
+  const carrier = board.carrier;
+  if (!carrier) return board.ball ? -chebyshev(at, board.ball) * 10 : 0;
+  if (carrier.id === player.id)
+    return -distanceToGoal(board, player.teamId, at) * 10;
+  if (carrier.teamId !== player.teamId) {
+    const action = board.gs.getState().activePlayer?.action;
+    return -chebyshev(at, carrier.gridPosition) * (action === "blitz" ? 12 : 6);
   }
-  if (board.carrier) {
-    // Support: get one square ahead of our own carrier.
-    const goal = board.carrier.gridPosition!;
-    const ahead = {
-      x: goal.x + (player.teamId === board.team1Id ? 1 : -1),
-      y: goal.y,
-    };
-    return -chebyshev(at, ahead) * 4;
-  }
-  return 0;
+  const goal = carrier.gridPosition;
+  const ahead = {
+    x: goal.x + (player.teamId === board.team1Id ? 1 : -1),
+    y: goal.y,
+  };
+  return -chebyshev(at, ahead) * 4;
 }
 
 function moveStepValue(command: CommandOf<"move">, board: Board): number {
-  const player = board.gs.getPlayerById(command.playerId)!;
-  const from = player.gridPosition!;
+  const player = fieldPlayer(board, command.playerId);
+  const from = player.gridPosition;
   const to = command.path[command.path.length - 1];
+  if (!to) throw new RangeError("Move candidate requires a destination");
   let value = squareValue(player, to, board) - squareValue(player, from, board);
-  if (tackleZonesOn(board, player.teamId, from) > 0) value -= 15; // a dodge
+  if (tackleZonesOn(board, player.teamId, from) > 0) value -= 15;
   value -= tackleZonesOn(board, player.teamId, to) * 3;
-  if (board.gs.getMovementUsed(player.id) >= player.stats.MA) value -= 20; // a rush
+  if (board.gs.getMovementUsed(player.id) >= player.stats.MA) value -= 20;
   const scores =
     board.carrier?.id === player.id &&
     distanceToGoal(board, player.teamId, to) === 0;
@@ -196,11 +182,11 @@ function moveStepValue(command: CommandOf<"move">, board: Board): number {
 }
 
 function blockStepValue(command: CommandOf<"block">, board: Board): number {
-  const attacker = board.gs.getPlayerById(command.attackerId)!;
-  const defender = board.gs.getPlayerById(command.defenderId)!;
+  const attacker = fieldPlayer(board, command.attackerId);
+  const defender = fieldPlayer(board, command.defenderId);
   const diff = attacker.stats.ST - defender.stats.ST;
   const carrierBonus = board.carrier?.id === defender.id ? 40 : 0;
-  return (diff > 0 ? 50 : diff === 0 ? 20 : -5) + carrierBonus;
+  return strengthValue(diff, [50, 20, -5]) + carrierBonus;
 }
 
 function passStepValue(
@@ -208,21 +194,21 @@ function passStepValue(
   board: Board
 ): number {
   const gs = board.gs;
-  const passer = gs.getPlayerById(command.playerId)!;
+  const passer = fieldPlayer(board, command.playerId);
   const target =
     command.type === "handoff"
-      ? gs.getPlayerById(command.targetId)!.gridPosition!
+      ? fieldPlayer(board, command.targetId).gridPosition
       : { x: command.x, y: command.y };
   const gain =
-    distanceToGoal(board, passer.teamId, passer.gridPosition!) -
+    distanceToGoal(board, passer.teamId, passer.gridPosition) -
     distanceToGoal(board, passer.teamId, target);
   const receiver = [
     ...gs.getTeammates(passer.id),
     ...gs.getOpponents(passer.teamId),
   ].find(
-    (p) => p.gridPosition?.x === target.x && p.gridPosition?.y === target.y
+    (p) => p.gridPosition?.x === target.x && p.gridPosition.y === target.y
   );
-  // Only ever aim at a standing team-mate; anything else gives the ball away.
+
   const aimPenalty =
     receiver?.teamId === passer.teamId &&
     receiver.status === PlayerStatus.ACTIVE
@@ -233,8 +219,22 @@ function passStepValue(
   );
 }
 
-function scoreStep(command: HeadlessCommand, board: Board): number {
-  const gs = board.gs;
+const STEP_TYPES = [
+  "move",
+  "block",
+  "stab",
+  "special-action",
+  "pass",
+  "handoff",
+  "jump",
+  "foul",
+  "stand-up",
+] as const;
+
+function scoreStep(
+  command: CommandOf<(typeof STEP_TYPES)[number]>,
+  board: Board
+): number {
   switch (command.type) {
     case "move":
       return moveStepValue(command, board);
@@ -247,12 +247,11 @@ function scoreStep(command: HeadlessCommand, board: Board): number {
     case "handoff":
       return passStepValue(command, board);
     case "jump": {
-      // A Jump is an Agility test: worth it only to make real progress.
-      const player = gs.getPlayerById(command.playerId)!;
+      const player = fieldPlayer(board, command.playerId);
       const to = { x: command.x, y: command.y };
       return (
         squareValue(player, to, board) -
-        squareValue(player, player.gridPosition!, board) -
+        squareValue(player, player.gridPosition, board) -
         25
       );
     }
@@ -260,15 +259,9 @@ function scoreStep(command: HeadlessCommand, board: Board): number {
       return 10;
     case "stand-up":
       return 15;
-    default:
-      return 0;
   }
 }
 
-/**
- * Always bite, not the ball carrier if another Thrall is in reach, then in
- * board order (as the planner). Steps of 1 outweigh the noise.
- */
 function biteTargetValue(
   command: CommandOf<"choose-bite-target">,
   board: Board
@@ -281,92 +274,113 @@ function biteTargetValue(
   return (carrier ? 1 : 2 + targets.length) + (targets.length - order);
 }
 
+const BLOCK_OFFERS = [
+  "choose-block-result",
+  "team-reroll-block",
+  "pro-reroll-block",
+  "brawler-reroll-block",
+  "veteran-reroll-block",
+] as const;
+const DECISION_TYPES = [
+  "choose-push-direction",
+  "choose-follow-up",
+  "choose-bite-target",
+  "touchback",
+  "kickoff-skip",
+] as const;
+const OFFER_TYPES = [
+  "use-reroll",
+  "use-reaction",
+  "use-apothecary",
+  "choose-inducement",
+  "choose-interception",
+  "choose-foul-assists",
+] as const;
+
 function scoreDecision(command: HeadlessCommand, board: Board): number {
-  const gs = board.gs;
+  if (hasCommandType(command, BLOCK_OFFERS)) return -1;
+  if (hasCommandType(command, DECISION_TYPES))
+    return decisionValue(command, board);
+  return hasCommandType(command, OFFER_TYPES) ? scoreOffer(command) : 0;
+}
+
+function decisionValue(
+  command: CommandOf<(typeof DECISION_TYPES)[number]>,
+  board: Board
+): number {
   switch (command.type) {
-    case "choose-block-result": // ranked in blockDieScores
-    case "team-reroll-block":
-    case "pro-reroll-block":
-    case "brawler-reroll-block":
-    case "veteran-reroll-block":
-      return -1;
-    case "choose-push-direction": {
-      // Push towards the sideline: crowd pushes injure.
+    case "choose-push-direction":
       return Math.abs(command.y - (GameConfig.PITCH_HEIGHT - 1) / 2);
-    }
     case "choose-follow-up":
       return command.followUp ? 1 : 0;
     case "choose-bite-target":
       return biteTargetValue(command, board);
     case "touchback": {
-      const player = gs.getPlayerById(command.playerId)!;
-      return -tackleZonesOn(board, player.teamId, player.gridPosition!);
+      const player = fieldPlayer(board, command.playerId);
+      return -tackleZonesOn(board, player.teamId, player.gridPosition);
     }
     case "kickoff-skip":
       return 1;
-    default:
-      return scoreOffer(command);
   }
 }
 
-/** Offers the coach may take or turn down: taking one is worth more. */
-function scoreOffer(command: HeadlessCommand): number {
+function scoreOffer(command: CommandOf<(typeof OFFER_TYPES)[number]>): number {
   switch (command.type) {
     case "use-reroll":
-      return command.accept ? (command.source === "skill" ? 3 : 2) : 0;
+      return rerollOffer(command);
     case "use-reaction":
     case "use-apothecary":
       return command.accept ? 1 : 0;
     case "choose-inducement":
-      // Use a Desperate Measure as soon as it is offered.
-      return command.playerId ? 1 : 0;
     case "choose-interception":
       return command.playerId ? 1 : 0;
     case "choose-foul-assists":
-      // Every assist: more +1s break more armour (steps of 1 beat the noise)
       return command.count;
-    default:
-      return 0;
   }
 }
 
-/** Block dice need the pending options, so they are ranked separately. */
-function blockDieScores(context: CoachContext, board: Board): number[] | null {
+function rerollOffer(command: CommandOf<"use-reroll">): number {
+  if (!command.accept) return 0;
+  return command.source === "skill" ? 3 : 2;
+}
+
+function blockDieScore(
+  candidate: Candidate,
+  context: CoachContext,
+  board: Board
+): number | null {
   const pending = context.point.pending;
   if (pending?.type !== "block-dice") return null;
   const attacker = board.gs.getPlayerById(pending.attackerId);
   const attackerChooses = attacker?.teamId === pending.chooserTeamId;
-  const best = Math.max(...pending.options.map((o) => BLOCK_RANK[o.type]));
-  return context.point.candidates.map((candidate) => {
-    const command = candidate.commands[0];
-    if (command.type === "choose-block-result") {
-      const rank = BLOCK_RANK[pending.options[command.index].type];
-      return attackerChooses ? rank : 5 - rank;
-    }
-    // Re-roll only a block that would otherwise turn over.
-    if (command.type === "team-reroll-block") return best <= 1 ? 2 : -1;
-    // The Veteran's re-roll is only offered when the block would knock them
-    // down, so it is always worth more than a Team Re-roll.
-    if (command.type === "veteran-reroll-block") return 3;
-    return -1;
-  });
+  const best = Math.max(
+    ...pending.options.map((option) => BLOCK_RANK[option.type])
+  );
+  const command = candidate.commands[0];
+  if (command.type === "choose-block-result") {
+    const option = pending.options[command.index];
+    if (!option) return -1;
+    const rank = BLOCK_RANK[option.type];
+    return attackerChooses ? rank : 5 - rank;
+  }
+  if (command.type === "team-reroll-block") return best <= 1 ? 2 : -1;
+  if (command.type === "veteran-reroll-block") return 3;
+  return -1;
 }
 
-export function readBoard(context: CoachContext): Board {
+function readBoard(context: CoachContext): Board {
   const gs = context.game.ctx.gameService;
   const state = gs.getState();
   const ball = state.ballPosition ? { ...state.ballPosition } : null;
   const carrier = ball
-    ? [
-        ...context.game.ctx.team1.players,
-        ...context.game.ctx.team2.players,
-      ].find(
-        (p) =>
-          p.gridPosition &&
-          p.status === PlayerStatus.ACTIVE &&
-          p.gridPosition.x === ball.x &&
-          p.gridPosition.y === ball.y
-      )
+    ? [...context.game.ctx.team1.players, ...context.game.ctx.team2.players]
+        .filter(onField)
+        .find(
+          (p) =>
+            p.status === PlayerStatus.ACTIVE &&
+            p.gridPosition.x === ball.x &&
+            p.gridPosition.y === ball.y
+        )
     : undefined;
   return {
     gs,
@@ -377,23 +391,55 @@ export function readBoard(context: CoachContext): Board {
   };
 }
 
-/** Candidate scores with a little noise so equal options do not always tie the same way. */
-export function rankCandidates(context: CoachContext): number[] {
+export function rankCandidates(context: CoachContext) {
   const board = readBoard(context);
-  const scores =
-    blockDieScores(context, board) ??
-    context.point.candidates.map((c) => scoreCandidate(c, board));
-  return scores.map((score) => score + context.rng.next() * 0.5);
+  return context.point.candidates.map((candidate, index) => ({
+    candidate,
+    index,
+    score:
+      (blockDieScore(candidate, context, board) ??
+        scoreCandidate(candidate, board)) +
+      context.rng.next() * 0.5,
+  }));
 }
 
 export const heuristicCoach: Coach = {
   name: "heuristic",
-  async choose(context) {
+  choose(context) {
     const scores = rankCandidates(context);
-    let index = 0;
-    scores.forEach((score, i) => {
-      if (score > scores[index]) index = i;
-    });
-    return { index };
+    const best = scores.reduce(
+      (chosen, candidate) =>
+        candidate.score > chosen.score ? candidate : chosen,
+      { index: 0, score: -Infinity }
+    );
+    return Promise.resolve({ index: best.index });
   },
 };
+
+function kickoffValue(command: HeadlessCommand): number {
+  return command.type === "kick-ball" && command.y === 5
+    ? 10 - Math.abs(command.x - 10) / 10
+    : 5;
+}
+
+function fieldPlayer(board: Board, id: string): FieldPlayer {
+  const player = board.gs.getPlayerById(id);
+  if (!player || !onField(player))
+    throw new RangeError(`Command references player outside the pitch: ${id}`);
+  return player;
+}
+
+function hasCommandType<T extends HeadlessCommand["type"]>(
+  command: HeadlessCommand,
+  types: readonly T[]
+): command is CommandOf<T> {
+  return types.some((type) => command.type === type);
+}
+
+function strengthValue(
+  difference: number,
+  values: readonly [number, number, number]
+): number {
+  if (difference > 0) return values[0];
+  return difference === 0 ? values[1] : values[2];
+}

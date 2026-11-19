@@ -1,31 +1,12 @@
-/**
- * Promotes the existing sandbox `Scenario` list into scenario cases.
- *
- * Nothing about `Scenario` changes: it stays the pitch/setup payload the
- * loader and sandbox already use, and scenarios without E2E metadata keep
- * loading exactly as before. This adapter simply makes the seeded ones
- * visible to the E2E registry and the coverage report, so a legacy scenario
- * is a gap the report can name rather than an invisible omission.
- *
- * Every scenario is promoted, seeded or not. The checkpoint below asserts
- * that the declared placements, ball and phase actually materialise, which
- * needs no dice at all — so an unseeded scenario still has something real to
- * prove. Unseeded scenarios simply run on a pinned default seed, which is
- * recorded on the variant like any other committed seed.
- */
-
-/**
- * The seed an unseeded scenario runs on. Any fixed value works — the
- * promoted case asserts setup, not outcome — but it must be *fixed*, so the
- * run is reproducible and the sandbox URL in a bug report reloads the same
- * board.
- */
 export const DEFAULT_LEGACY_SEED = 1;
 
-import { Scenario } from "../../types/Scenario";
-import { ObservedRun, ScenarioCase, ExpectedCheckpoint } from "./types";
+import { type Scenario } from "../../types/Scenario";
+import {
+  type ObservedRun,
+  type ScenarioCase,
+  type ExpectedCheckpoint,
+} from "./types";
 
-/** The setup a legacy scenario asked for actually materialised on the pitch. */
 function setupLoadedCheckpoint(scenario: Scenario): ExpectedCheckpoint {
   const { team1Placements, team2Placements, ballPosition } = scenario.setup;
   return {
@@ -39,10 +20,11 @@ function setupLoadedCheckpoint(scenario: Scenario): ExpectedCheckpoint {
         placements: typeof team1Placements
       ) => {
         for (const placement of placements) {
-          const player = snapshot.teams[teamIndex].players[placement.playerIndex];
+          const player =
+            snapshot.teams[teamIndex].players[placement.playerIndex];
           if (!player) {
             throw new Error(
-              `${scenario.id}: no player at index ${placement.playerIndex} of team${teamIndex + 1}`
+              `${scenario.id}: no player at index ${String(placement.playerIndex)} of team${String(teamIndex + 1)}`
             );
           }
           if (
@@ -51,8 +33,10 @@ function setupLoadedCheckpoint(scenario: Scenario): ExpectedCheckpoint {
           ) {
             throw new Error(
               `${scenario.id}: ${player.name} should start at ` +
-                `(${placement.x},${placement.y}) but is at ` +
-                `${player.position ? `(${player.position.x},${player.position.y})` : "off-pitch"}`
+                `(${String(placement.x)},${String(placement.y)}) but is at ` +
+                (player.position
+                  ? `(${String(player.position.x)},${String(player.position.y)})`
+                  : "off-pitch")
             );
           }
         }
@@ -64,8 +48,8 @@ function setupLoadedCheckpoint(scenario: Scenario): ExpectedCheckpoint {
         const ball = snapshot.ballPosition;
         if (ball?.x !== ballPosition.x || ball?.y !== ballPosition.y) {
           throw new Error(
-            `${scenario.id}: ball should start at (${ballPosition.x},${ballPosition.y}) ` +
-              `but is at ${ball ? `(${ball.x},${ball.y})` : "nowhere"}`
+            `${scenario.id}: ball should start at (${String(ballPosition.x)},${String(ballPosition.y)}) ` +
+              `but is at ${ball ? `(${String(ball.x)},${String(ball.y)})` : "nowhere"}`
           );
         }
       }
@@ -78,20 +62,13 @@ function setupLoadedCheckpoint(scenario: Scenario): ExpectedCheckpoint {
   };
 }
 
-/** Does this legacy scenario carry its own committed seed? */
 export function isSeededScenario(scenario: Scenario): boolean {
   return typeof scenario.seed === "number" && Number.isFinite(scenario.seed);
 }
 
-/**
- * Wrap a legacy scenario as a scenario case. The case has no steps: it
- * proves the scenario still loads as advertised on its committed seed, which
- * is exactly the guarantee the sandbox relies on. Hand-written cases add the
- * interaction steps on top.
- */
 export function scenarioCaseFromLegacy(scenario: Scenario): ScenarioCase {
   const seed = isSeededScenario(scenario)
-    ? (scenario.seed as number)
+    ? scenario.seed!
     : DEFAULT_LEGACY_SEED;
 
   return {
@@ -120,9 +97,6 @@ export function scenarioCaseFromLegacy(scenario: Scenario): ScenarioCase {
   };
 }
 
-/** Every legacy scenario, in the order the sandbox lists them. */
-export function scenarioCasesFromLegacy(
-  scenarios: Scenario[]
-): ScenarioCase[] {
+export function scenarioCasesFromLegacy(scenarios: Scenario[]): ScenarioCase[] {
   return scenarios.map(scenarioCaseFromLegacy);
 }

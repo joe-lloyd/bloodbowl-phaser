@@ -1,16 +1,9 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
-
-/**
- * Covers the sound debug dashboard's "Back to Main Menu" fix: it used to
- * emit `GameEventNames.UI_SceneChange`, an event nothing in the app ever
- * subscribed to. It now navigates via
- * react-router's `useNavigate()`, the same mechanism every other page uses
- * (see GameHUD's own "Return to Main Menu").
- */
 
 const navigateMock = vi.fn();
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -34,7 +27,9 @@ describe("SoundTest page — Back to Main Menu", () => {
   });
 
   afterEach(() => {
-    act(() => root.unmount());
+    act(() => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -53,7 +48,7 @@ describe("SoundTest page — Back to Main Menu", () => {
     expect(backButton).toBeTruthy();
 
     await act(async () => {
-      backButton!.dispatchEvent(
+      fixtureValue(backButton).dispatchEvent(
         new MouseEvent("click", { bubbles: true, cancelable: true })
       );
     });

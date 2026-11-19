@@ -1,11 +1,5 @@
-/**
- * Big Hand (2025 p.124) — "This player ignores all negative modifiers when
- * attempting to pick up the ball." That cancels marking (-1 per opponent)
- * and Pouring Rain's -1.
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const BigHandRule: SkillRule = {
   onPickup(ctx, self) {
@@ -15,7 +9,7 @@ export const BigHandRule: SkillRule = {
     ctx.triggers.push({
       playerId: self.id,
       skill: SkillType.BIG_HAND,
-      effect: `Big Hand: ignores ${ignored} negative pick-up modifier(s)`,
+      effect: `Big Hand: ignores ${String(ignored)} negative pick-up modifier(s)`,
     });
   },
 };

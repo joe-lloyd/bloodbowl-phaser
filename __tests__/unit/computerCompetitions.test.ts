@@ -1,8 +1,4 @@
-/**
- * Computer teams in leagues and cups: built legal, entered like any team,
- * and a game between two of them is a whole simulated match whose result,
- * injuries and SPP are recorded the way a played game's are.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/firebase/config", () => ({
@@ -11,10 +7,8 @@ vi.mock("../../src/firebase/config", () => ({
 }));
 
 import { createCompetition } from "../../src/competition/create";
-import {
-  createComputerTeam,
-  manageComputerTeam,
-} from "../../src/competition/computerTeams";
+import { manageComputerTeam } from "../../src/competition/computerTeams";
+import { createComputerTeam } from "../fixtures/computerTeam";
 import { getCompetition } from "../../src/competition/repository";
 import {
   checkTeamCompatibility,
@@ -24,13 +18,17 @@ import {
   simulatableFixtures,
   simulateFixture,
 } from "../../src/competition/simulateFixture";
-import { CompetitionDoc } from "../../src/competition/types";
+import { type CompetitionDoc } from "../../src/competition/types";
 import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
 import { RNGService } from "../../src/services/rng/RNGService";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
 import { createReadyMadeTeam } from "../../src/simulation/lineups";
-import { RosterName, Team, TeamAdvancementMode } from "../../src/types/Team";
+import {
+  RosterName,
+  type Team,
+  type TeamAdvancementMode,
+} from "../../src/types/Team";
 
 const MODES: TeamAdvancementMode[] = [
   "advanced-league",
@@ -43,10 +41,9 @@ function computerTeam(
   name: string,
   mode: TeamAdvancementMode = "advanced-league"
 ): Team {
-  return createComputerTeam(roster, name, 0x335577, mode);
+  return createComputerTeam({ rosterName: roster, name: name, primaryColour: 0x335577, advancementMode: mode });
 }
 
-/** A person's team, as Team Builder leaves it. */
 function coachTeam(name: string): Team {
   const team = createReadyMadeTeam(RosterName.HUMAN, name, 0xaa2222);
   team.advancementMode = "advanced-league";
@@ -54,9 +51,10 @@ function coachTeam(name: string): Team {
   return team;
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
-/** Fan Factor D3s the simulated match rolled (league-winnings). */
 function fanFactorRolls(game: HeadlessGame): number {
   return game
     .events()
@@ -98,19 +96,19 @@ describe("computer teams", () => {
   it("spend SPP and their Treasury between games", () => {
     const team = computerTeam(RosterName.HUMAN, "Altdorf Avengers");
     team.firstMatchPlayedAt = 1;
-    team.players[0].spp = 6;
+    fixtureValue(team.players[0]).spp = 6;
     team.players.splice(5);
     team.treasury = 200_000;
     const report = manageComputerTeam(team, new RNGService(7));
-    // purchasePlanner.ts: back to 7, then toward 11 with the cheapest
+
     expect(team.players.length).toBeGreaterThanOrEqual(7);
     expect(team.treasury).toBeGreaterThanOrEqual(0);
     expect(team.treasury).toBeLessThan(30_000);
-    expect(team.players[0].advancements).toHaveLength(1);
+    expect(fixtureValue(team.players[0]).advancements).toHaveLength(1);
     expect(report.refused).toEqual([]);
-    expect(report.done.filter((line) => / hired a /.test(line))).toHaveLength(
-      team.players.length - 5
-    );
+    expect(
+      report.done.filter((line) => line.includes(" hired a "))
+    ).toHaveLength(team.players.length - 5);
   });
 
   it("keep their Treasury before their first game", () => {
@@ -153,7 +151,7 @@ describe("creating a competition with computer teams", () => {
         computerCoached: true,
         activeCompetitionId: league.id,
       });
-    // Three of six games are between two computer teams
+
     expect(simulatableFixtures(league)).toHaveLength(3);
   });
 
@@ -193,26 +191,26 @@ describe("simulating a game between two computer teams", () => {
     });
     const [fixture] = simulatableFixtures(league);
     let game: HeadlessGame | undefined;
-    const outcome = await simulateFixture(league, fixture.id, {
+    const outcome = await simulateFixture(league, fixtureValue(fixture).id, {
       seed: 11,
       inspect: (inspected) => (game = inspected),
     });
 
-    const result = outcome.fixture.result!;
-    // A league fixture pays winnings: full time rolled both Fan Factors
-    expect(fanFactorRolls(game!)).toBe(2);
+    const result = fixtureValue(outcome.fixture.result);
+
+    expect(fanFactorRolls(fixtureValue(game))).toBe(2);
     expect(result.winnings?.fanFactor).toEqual({
-      home: game!.ctx.gameService.getState().fanFactors?.[orcs.id],
-      away: game!.ctx.gameService.getState().fanFactors?.[dwarfs.id],
+      home: fixtureValue(game).ctx.gameService.getState().fanFactors?.[orcs.id],
+      away: fixtureValue(game).ctx.gameService.getState().fanFactors?.[dwarfs.id],
     });
     expect(outcome.recording.findings).toEqual([]);
     expect(outcome.fixture.status).toBe("complete");
-    const stored = (await getCompetition("league", league.id))!;
+    const stored = fixtureValue((await getCompetition("league", league.id)));
     expect(stored.status).toBe("complete");
-    expect(stored.fixtures[0].result).toEqual(result);
+    expect(fixtureValue(stored.fixtures[0]).result).toEqual(result);
 
-    const home = getTeamById(stored.entrants[0].teamId)!;
-    const away = getTeamById(stored.entrants[1].teamId)!;
+    const home = fixtureValue(getTeamById(fixtureValue(stored.entrants[0]).teamId));
+    const away = fixtureValue(getTeamById(fixtureValue(stored.entrants[1]).teamId));
     expect([home.touchdowns, away.touchdowns]).toEqual([
       result.homeScore,
       result.awayScore,
@@ -222,14 +220,14 @@ describe("simulating a game between two computer teams", () => {
       lead > 0 ? [1, 0, 0] : lead < 0 ? [0, 0, 1] : [0, 1, 0]
     );
     for (const team of [home, away]) {
-      expect(team.recordedFixtureIds).toEqual([`${league.id}:${fixture.id}`]);
+      expect(team.recordedFixtureIds).toEqual([`${league.id}:${fixtureValue(fixture).id}`]);
       expect(team.firstMatchPlayedAt).toBeTypeOf("number");
-      // The league is over, so both teams are free to enter another
+
       expect(team.activeCompetitionId).toBeUndefined();
-      // The computer made every development choice the match left
+
       expect(team.pendingDevelopment ?? []).toEqual([]);
     }
-    // Every SPP earned was kept or spent on an advancement
+
     const earned = Object.values(outcome.sppEarned).reduce((a, b) => a + b, 0);
     expect(earned).toBeGreaterThan(0);
     const advanced = [home, away]
@@ -252,7 +250,7 @@ describe("simulating a game between two computer teams", () => {
       ],
     });
     await expect(
-      simulateFixture(league, league.fixtures[0].id)
+      simulateFixture(league, fixtureValue(league.fixtures[0]).id)
     ).rejects.toThrow(
       "Only a ready game between two computer teams is simulated."
     );
@@ -304,20 +302,20 @@ describe("simulating a game between two computer teams", () => {
     let game: HeadlessGame | undefined;
     const outcome = await simulateFixture(
       pool,
-      simulatableFixtures(pool)[0].id,
+      fixtureValue(simulatableFixtures(pool)[0]).id,
       {
         seed: 11,
         inspect: (inspected) => (game = inspected),
       }
     );
 
-    const state = game!.ctx.gameService.getState();
+    const state = fixtureValue(game).ctx.gameService.getState();
     expect(state.paysWinnings).toBeUndefined();
     expect(state.fanFactors).toBeUndefined();
-    expect(fanFactorRolls(game!)).toBe(0);
+    expect(fanFactorRolls(fixtureValue(game))).toBe(0);
     expect(outcome.fixture.result?.winnings).toBeUndefined();
-    // No winnings came in; the computer may only spend between games
-    expect(getTeamById(orcs.id)!.treasury).toBeLessThanOrEqual(before[0]);
-    expect(getTeamById(dwarfs.id)!.treasury).toBeLessThanOrEqual(before[1]);
+
+    expect(fixtureValue(getTeamById(orcs.id)).treasury).toBeLessThanOrEqual(fixtureValue(before[0]));
+    expect(fixtureValue(getTeamById(dwarfs.id)).treasury).toBeLessThanOrEqual(fixtureValue(before[1]));
   }, 60_000);
 });

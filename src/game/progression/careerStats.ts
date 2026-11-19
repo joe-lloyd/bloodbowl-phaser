@@ -1,21 +1,7 @@
-/**
- * Fold a confirmed match's stats summary into each participating player's
- * lifetime `careerStats`. Called once, from the post-match confirmation flow
- * (MatchResultsScreen.confirmSpp), after `MatchStats.applySpp` — which
- * itself refuses to run twice for the same match instance
- * (`this.applied`), so a re-render or re-confirmation cannot fold twice.
- * An abandoned match never calls this, so it contributes nothing.
- */
+import { EMPTY_CAREER_STATS, type Player } from "../../types/Player";
+import { type Team } from "../../types/Team";
+import { type MatchStatsSummary, type PlayerMatchStats } from "./MatchStats";
 
-import { EMPTY_CAREER_STATS, Player } from "../../types/Player";
-import { Team } from "../../types/Team";
-import { MatchStatsSummary, PlayerMatchStats } from "./MatchStats";
-
-/**
- * A player who never took the field (`participated === false`) gets no
- * games-played increment and no other totals — the whole point of the
- * "games played" line is to count matches actually played.
- */
 export function foldMatchStatsIntoCareer(
   player: Player,
   stats: PlayerMatchStats
@@ -37,7 +23,6 @@ export function foldMatchStatsIntoCareer(
   player.careerStats = career;
 }
 
-/** Fold every participating player across both teams into their career totals. */
 export function foldMatchSummaryIntoCareers(
   teams: Team[],
   summary: MatchStatsSummary

@@ -1,4 +1,3 @@
-/** Small display pieces: chips, stat cells, die faces, swatches, the coin. */
 import React from "react";
 import { cx, toneText, type HudTone } from "./hudTone";
 
@@ -13,7 +12,6 @@ const TONE_CHIP: Record<HudTone, string> = {
   neutral: "border-white/15 text-hud-dim",
 };
 
-/** A small outlined tag: a modifier, a count, a status. */
 export function Chip({
   tone = "neutral",
   children,
@@ -39,7 +37,6 @@ export function Chip({
   );
 }
 
-/** A statline cell: small label over a big number. */
 export function Stat({
   label,
   value,
@@ -69,7 +66,6 @@ export function Stat({
   );
 }
 
-/** A bone-coloured die face for a rolled value. */
 export function DieFace({
   children,
   className,
@@ -89,7 +85,6 @@ export function DieFace({
   );
 }
 
-/** A team colour swatch. */
 export function TeamSwatch({
   color,
   className,
@@ -109,13 +104,12 @@ export function TeamSwatch({
   );
 }
 
-/** A gold coin for the toss, turned on its vertical axis by `spin` degrees. */
 export function HudCoin({ spin }: { spin: number }) {
   return (
     <div
       aria-hidden
       className="flex h-20 w-20 select-none items-center justify-center rounded-full border-4 border-hud-gold-hi bg-[radial-gradient(circle_at_35%_30%,#ffe9a8,#e3b448_45%,#8a6a22)] font-hud-display text-hud-2xl text-hud-ink shadow-[0_8px_20px_rgba(0,0,0,0.6)] transition-transform"
-      style={{ transform: `rotateY(${spin}deg)` }}
+      style={{ transform: `rotateY(${String(spin)}deg)` }}
     >
       BB
     </div>

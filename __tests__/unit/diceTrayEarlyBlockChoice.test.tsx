@@ -5,8 +5,6 @@ import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 
-// The real dice scene and physics, drawn by a renderer that draws nothing:
-// jsdom has no WebGL and no 2D canvas.
 vi.mock("three", async (importOriginal) => {
   const real = await importOriginal<typeof import("three")>();
   class SilentRenderer {
@@ -50,9 +48,13 @@ beforeAll(() => {
   const spy = vi
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => pen as never);
-  restoreContext = () => spy.mockRestore();
+  restoreContext = () => {
+    spy.mockRestore();
+  };
 });
-afterAll(() => restoreContext());
+afterAll(() => {
+  restoreContext();
+});
 
 const until = async (check: () => boolean, ms: number) => {
   const end = Date.now() + ms;
@@ -66,12 +68,12 @@ describe("block dice chosen before they land", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceTray eventBus={bus} />);
+    });
     const tray = () =>
       container.querySelector('[data-testid="dice-tray"]')?.textContent ?? "";
 
-    // The block dice are thrown, and the result is chosen while they are
-    // still tumbling: a fast coach, or a page drawing frames quickly.
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
@@ -89,7 +91,6 @@ describe("block dice chosen before they land", () => {
       });
     });
 
-    // The push knocks the defender down, and armour is rolled
     await act(async () => {
       bus.emit(GameEventNames.DiceRoll, {
         rollType: "Armour",
@@ -102,7 +103,9 @@ describe("block dice chosen before they land", () => {
     await until(() => tray().includes("broken"), 8_000);
     expect(tray()).toContain("Armour: 5 + 6 = 11, broken");
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   }, 20_000);
 });

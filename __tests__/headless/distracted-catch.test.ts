@@ -1,16 +1,12 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerCondition } from "../../src/types/Player";
 import type { CommandResponse } from "../../src/headless/protocol";
 
-/**
- * "If a Prone or Stunned player, or a player that is Distracted, is
- * required to Catch a ball, they will automatically fail the Agility Test
- * and the ball will Bounce" (2025 rulebook p.76). Seeds are committed,
- * never searched.
- */
 const scenario: Scenario = {
   id: "distracted-catch",
   name: "Pass to a Distracted team-mate",
@@ -33,13 +29,12 @@ const scenario: Scenario = {
   },
 };
 
-/** "Pass (Human Lineman #1): 5 +0 = 5": an Accurate Pass. */
 const ACCURATE_SEED = 2;
 
 describe("a Distracted pass target", () => {
   it("cannot catch: the ball bounces with no Catch roll", async () => {
     const game = new HeadlessGame({ scenario, seed: ACCURATE_SEED });
-    const passerId = game.ctx.team1.players[0].id;
+    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,
@@ -58,7 +53,9 @@ describe("a Distracted pass target", () => {
     }
     const dice = events
       .filter((e) => e.name === "diceRoll")
-      .map((e) => (e.data as { description: string }).description);
+      .map(
+        (e) => z.object({ description: z.string() }).parse(e.data).description
+      );
 
     expect(dice[0]).toBe("Pass (Human Lineman #1): 5, needs 4+");
     expect(dice[1]).toMatch(/^Bounce Direction: /);

@@ -1,6 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { Inducement } from "../../src/types/Inducements";
@@ -9,19 +10,12 @@ import { teamRerollsLeft } from "../../src/game/teamRerolls";
 import { forceDice } from "../utils/test-helpers";
 import { bought, commit, settle } from "../utils/inducement-helpers";
 
-/**
- * Sevens Desperate Measures (L5, rules L21 to L28): each one bought rolls a
- * D8, duplicates re-rolled, and each result is used once per game at its
- * trigger point. Every die is forced.
- */
-
 const play = {
   activeTeam: "team1" as const,
   phase: GamePhase.PLAY,
   subPhase: SubPhase.TURN_RECEIVING,
 };
 
-/** Hold one measure for a team: its D8 result is forced. */
 async function hold(
   game: HeadlessGame,
   teamId: string,
@@ -39,7 +33,7 @@ describe("rolling Desperate Measures", () => {
   it("re-rolls a duplicate, and reads a Magic Scroll at once", async () => {
     const game = new HeadlessGame({ seed: 1, startingPhase: GamePhase.SETUP });
     const team1 = game.ctx.team1;
-    // 8 = Magic Scroll; 8 again is re-rolled into 6 = Sports Espionage.
+
     forceDice(game.ctx.rng, [8, 8, 6]);
     await commit(game, [bought(team1.id, Inducement.DESPERATE_MEASURES, 2)]);
 
@@ -65,7 +59,10 @@ describe("Hangover", () => {
       optional: true,
     });
     const hungOver = team2.players[0];
-    await game.execute({ type: "choose-inducement", playerId: hungOver.id });
+    await game.execute({
+      type: "choose-inducement",
+      playerId: fixtureValue(hungOver).id,
+    });
     expect(measuresOf(game, team1.id)).toEqual([
       { measure: DesperateMeasure.HANGOVER, used: true },
     ]);
@@ -73,14 +70,14 @@ describe("Hangover", () => {
     await game.execute({ type: "start-setup", kickingTeamId: team2.id });
     const refused = await game.execute({
       type: "place-player",
-      playerId: hungOver.id,
+      playerId: fixtureValue(hungOver).id,
       x: 15,
       y: 5,
     });
     expect(refused.ok).toBe(false);
     const placed = await game.execute({
       type: "place-player",
-      playerId: team2.players[1].id,
+      playerId: fixtureValue(team2.players[1]).id,
       x: 15,
       y: 5,
     });
@@ -119,7 +116,7 @@ describe("You Dope!", () => {
     const game = new HeadlessGame({ scenario: lineUp, seed: 1 });
     const team1 = game.ctx.team1;
     const doped = team1.players[0];
-    const st = doped.stats.ST;
+    const st = fixtureValue(doped).stats.ST;
     await hold(game, team1.id, 1);
     expect(game.pendingDecision()).toBeNull();
 
@@ -133,24 +130,22 @@ describe("You Dope!", () => {
     });
     const noStat = await game.execute({
       type: "choose-inducement",
-      playerId: doped.id,
+      playerId: fixtureValue(doped).id,
     });
     expect(noStat.ok).toBe(false);
     await game.execute({
       type: "choose-inducement",
-      playerId: doped.id,
+      playerId: fixtureValue(doped).id,
       stat: "ST",
     });
-    expect(doped.stats.ST).toBe(st + 1);
+    expect(fixtureValue(doped).stats.ST).toBe(st + 1);
 
-    // End of drive: You Dope! rolls 2, so Knocked-out. Were KO recovery
-    // rolled for them, the 6 would bring them back.
     forceDice(game.ctx.rng, [2, 6, 6]);
     game.ctx.gameService.endDrive("touchdown", {
       kickingTeamId: game.ctx.team2.id,
     });
     await settle();
-    expect(doped.status).toBe(PlayerStatus.KO);
+    expect(fixtureValue(doped).status).toBe(PlayerStatus.KO);
   });
 });
 
@@ -172,12 +167,17 @@ const foulers: Scenario = {
   },
 };
 
-async function foul(
-  game: HeadlessGame,
-  playerId: string,
-  x: number,
-  y: number
-) {
+async function foul({
+  game,
+  playerId,
+  x,
+  y,
+}: {
+  game: HeadlessGame;
+  playerId: string;
+  x: number;
+  y: number;
+}) {
   const declared = await game.execute({
     type: "declare-action",
     playerId,
@@ -193,21 +193,29 @@ describe("Grudge Match", () => {
     const [first, second] = game.ctx.team1.players;
     await hold(game, game.ctx.team1.id, 4);
 
-    // The first Foul: armour 2+3 holds. Grudge Match is offered and kept.
     forceDice(game.ctx.rng, [2, 3]);
-    const offered = await foul(game, first.id, 11, 3);
+    const offered = await foul({
+      game: game,
+      playerId: fixtureValue(first).id,
+      x: 11,
+      y: 3,
+    });
     expect(offered.pendingDecision).toMatchObject({
       type: "reaction",
       skill: DesperateMeasure.GRUDGE_MATCH,
     });
     await game.execute({ type: "use-reaction", accept: false });
 
-    // The second Foul rolls a double 4: spotted, but not Sent-off.
     forceDice(game.ctx.rng, [4, 4]);
-    const second2 = await foul(game, second.id, 11, 7);
+    const second2 = await foul({
+      game: game,
+      playerId: fixtureValue(second).id,
+      x: 11,
+      y: 7,
+    });
     expect(second2.ok).toBe(true);
-    expect(second.status).toBe(PlayerStatus.ACTIVE);
-    expect(second.gridPosition).toEqual({ x: 10, y: 7 });
+    expect(fixtureValue(second).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(second).gridPosition).toEqual({ x: 10, y: 7 });
     expect(measuresOf(game, game.ctx.team1.id)).toEqual([
       { measure: DesperateMeasure.GRUDGE_MATCH, used: true },
     ]);
@@ -217,8 +225,13 @@ describe("Grudge Match", () => {
     const game = new HeadlessGame({ scenario: foulers, seed: 1 });
     const [first, second] = game.ctx.team1.players;
     forceDice(game.ctx.rng, [2, 3]);
-    await foul(game, first.id, 11, 3);
-    const refused = await foul(game, second.id, 11, 7);
+    await foul({ game: game, playerId: fixtureValue(first).id, x: 11, y: 3 });
+    const refused = await foul({
+      game: game,
+      playerId: fixtureValue(second).id,
+      x: 11,
+      y: 7,
+    });
     expect(refused.ok).toBe(false);
   });
 });
@@ -246,12 +259,12 @@ describe("Discarded Banana Skin", () => {
 
     await game.execute({
       type: "declare-action",
-      playerId: mover.id,
+      playerId: fixtureValue(mover).id,
       action: "move",
     });
     const moved = await game.execute({
       type: "move",
-      playerId: mover.id,
+      playerId: fixtureValue(mover).id,
       path: [
         { x: 3, y: 5 },
         { x: 4, y: 5 },
@@ -265,9 +278,11 @@ describe("Discarded Banana Skin", () => {
     });
     await game.execute({ type: "use-reaction", accept: true });
 
-    expect(mover.gridPosition).toEqual({ x: 5, y: 4 });
-    expect(mover.status).toBe(PlayerStatus.PRONE);
-    expect(game.ctx.gameService.hasPlayerActed(mover.id)).toBe(true);
+    expect(fixtureValue(mover).gridPosition).toEqual({ x: 5, y: 4 });
+    expect(fixtureValue(mover).status).toBe(PlayerStatus.PRONE);
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(mover).id)).toBe(
+      true
+    );
     expect(game.ctx.gameService.getState().activeTeamId).toBe(
       game.ctx.team1.id
     );
@@ -286,23 +301,23 @@ describe("Discarded Banana Skin on a loose ball", () => {
 
     await game.execute({
       type: "declare-action",
-      playerId: mover.id,
+      playerId: fixtureValue(mover).id,
       action: "move",
     });
     await game.execute({
       type: "move",
-      playerId: mover.id,
+      playerId: fixtureValue(mover).id,
       path: [
         { x: 3, y: 5 },
         { x: 4, y: 5 },
         { x: 5, y: 4 },
       ],
     });
-    // The bounce D8 1 sends the ball up and left, to (4,3).
+
     forceDice(game.ctx.rng, [1]);
     await game.execute({ type: "use-reaction", accept: true });
 
-    expect(mover.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(mover).status).toBe(PlayerStatus.PRONE);
     expect(game.ctx.gameService.getState().ballPosition).toEqual({
       x: 4,
       y: 3,
@@ -321,20 +336,22 @@ describe("Sports Espionage", () => {
     team1.rerolls = 0;
     await hold(game, team1.id, 6);
 
-    // A Rush of 1 fails: Turnover. Armour 1+1 holds.
     forceDice(game.ctx.rng, [1, 1, 1]);
     await game.execute({
       type: "declare-action",
-      playerId: mover.id,
+      playerId: fixtureValue(mover).id,
       action: "move",
     });
-    const path = Array.from({ length: mover.stats.MA + 1 }, (_, i) => ({
-      x: 2 + i,
-      y: 4,
-    }));
+    const path = Array.from(
+      { length: fixtureValue(mover).stats.MA + 1 },
+      (_, i) => ({
+        x: 2 + i,
+        y: 4,
+      })
+    );
     const moved = await game.execute({
       type: "move",
-      playerId: mover.id,
+      playerId: fixtureValue(mover).id,
       path,
     });
     expect(moved.pendingDecision).toMatchObject({
@@ -353,15 +370,13 @@ describe("Sports Espionage", () => {
 
 describe("Sports Espionage after a Turnover with a choice still open", () => {
   it("waits for the open choice instead of asking a second question", async () => {
-    // A roll outside the flow, such as a re-roll offer, can still be waiting
-    // for an answer when the flow empties and the Turnover chain moves on.
     const game = new HeadlessGame({ scenario: runner, seed: 1 });
     const team1 = game.ctx.team1;
     const gs = game.ctx.gameService;
     await hold(game, team1.id, 6);
     const open = gs.getDecisionService().request({
       type: "reaction",
-      playerId: team1.players[0].id,
+      playerId: fixtureValue(team1.players[0]).id,
       chooserTeamId: team1.id,
       skill: DesperateMeasure.GRUDGE_MATCH,
       prompt: "an earlier question",
@@ -390,7 +405,7 @@ describe("Sports Espionage after a Turnover with a choice still open", () => {
     await hold(game, team1.id, 6);
     const reaction = {
       type: "reaction" as const,
-      playerId: team1.players[0].id,
+      playerId: fixtureValue(team1.players[0]).id,
       chooserTeamId: team1.id,
       skill: DesperateMeasure.GRUDGE_MATCH,
       prompt: "an earlier question",
@@ -399,14 +414,12 @@ describe("Sports Espionage after a Turnover with a choice still open", () => {
     gs.triggerTurnover("a test Turnover");
     await settle();
 
-    // A restore abandons the choice; a later one is asked and answered.
     gs.getDecisionService().abandon();
     const later = gs.getDecisionService().request(reaction);
     gs.getDecisionService().answer({ accept: false });
     await later;
     await settle();
 
-    // The engine's own record: the game's cached copy keeps the abandoned one.
     expect(gs.getDecisionService().pending()).toBeNull();
   });
 });
@@ -435,13 +448,13 @@ describe("Set Piece", () => {
 
     await game.execute({
       type: "declare-action",
-      playerId: passer.id,
+      playerId: fixtureValue(passer).id,
       action: "pass",
     });
     forceDice(game.ctx.rng, [2, 2]);
     const passed = await game.execute({
       type: "pass",
-      playerId: passer.id,
+      playerId: fixtureValue(passer).id,
       x: 8,
       y: 5,
     });
@@ -452,7 +465,7 @@ describe("Set Piece", () => {
     await game.execute({ type: "use-reaction", accept: true });
 
     expect(game.ctx.gameService.getState().ballPosition).toEqual(
-      receiver.gridPosition
+      fixtureValue(receiver).gridPosition
     );
     expect(game.ctx.gameService.getState().activeTeamId).toBe(
       game.ctx.team1.id

@@ -1,3 +1,6 @@
+import { parseJson } from "../../src/boundary/json";
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
@@ -21,7 +24,7 @@ import { LockstepSession } from "../../src/network/LockstepSession";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { stateChecksum } from "../../src/headless/checksum";
 
-function newGame(roster = RosterName.TOMB_KINGS) {
+function newGame(roster: RosterName = RosterName.TOMB_KINGS) {
   return new HeadlessGame({
     seed: 1,
     progressionEnabled: true,
@@ -49,7 +52,7 @@ async function injure(game: HeadlessGame, playerId: string, total = 12) {
   vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(
     total
   );
-  let decisionRaised: () => void = () => {};
+  let decisionRaised: () => void = () => undefined;
   const decision = new Promise<void>((resolve) => {
     decisionRaised = resolve;
   });
@@ -63,9 +66,9 @@ describe("Masters of Undeath in Sevens", () => {
   it("raises a Skeleton in Reserves even when the death has no killer", async () => {
     const game = newGame();
     const size = game.ctx.team1.players.length;
-    await injure(game, game.ctx.team2.players[0].id);
+    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
     expect(game.ctx.team1.players).toHaveLength(size + 1);
-    const raised = game.ctx.team1.players.at(-1)!;
+    const raised = fixtureValue(game.ctx.team1.players.at(-1));
     expect(raised.positionName).toBe("Skeleton Lineman");
     expect(raised.status).toBe(PlayerStatus.RESERVE);
     expect(raised.gridPosition).toBeUndefined();
@@ -77,7 +80,7 @@ describe("Masters of Undeath in Sevens", () => {
     async (total) => {
       const game = newGame();
       const size = game.ctx.team1.players.length;
-      await injure(game, game.ctx.team2.players[0].id, total);
+      await injure(game, fixtureValue(game.ctx.team2.players[0]).id, total);
       expect(game.ctx.team1.players).toHaveLength(size);
     }
   );
@@ -92,11 +95,12 @@ describe("Masters of Undeath in Sevens", () => {
         reason === "own team"
           ? game.ctx.team1.players[0]
           : game.ctx.team2.players[0];
-      if (reason === "strength") victim.stats.ST = 5;
-      if (reason === "stunty") victim.skills.push(getSkill(SkillType.STUNTY));
-      if (reason === "own team") victim.skills = [];
+      if (reason === "strength") fixtureValue(victim).stats.ST = 5;
+      if (reason === "stunty")
+        fixtureValue(victim).skills.push(getSkill(SkillType.STUNTY));
+      if (reason === "own team") fixtureValue(victim).skills = [];
       const size = game.ctx.team1.players.length;
-      await injure(game, victim.id);
+      await injure(game, fixtureValue(victim).id);
       expect(game.ctx.team1.players).toHaveLength(size);
     }
   );
@@ -104,7 +108,7 @@ describe("Masters of Undeath in Sevens", () => {
   it("preserves the once-per-game limit through a saved match", async () => {
     const game = newGame();
     const size = game.ctx.team1.players.length;
-    await injure(game, game.ctx.team2.players[0].id);
+    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
       teams: [game.ctx.team1, game.ctx.team2],
@@ -116,7 +120,7 @@ describe("Masters of Undeath in Sevens", () => {
       matchStats: game.ctx.matchStats.captureState(),
     });
     const resumed = new HeadlessGame({ matchSave: save });
-    await injure(resumed, resumed.ctx.team2.players[1].id);
+    await injure(resumed, fixtureValue(resumed.ctx.team2.players[1]).id);
     expect(resumed.ctx.team1.players).toHaveLength(size + 1);
   });
 
@@ -126,7 +130,7 @@ describe("Masters of Undeath in Sevens", () => {
       const game = newGame();
       const size = game.ctx.team1.players.length;
       game.ctx.team2.apothecary = true;
-      await injure(game, game.ctx.team2.players[0].id);
+      await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
       expect(game.pendingDecision()?.type).toBe("apothecary");
       expect(game.ctx.team1.players).toHaveLength(size);
       vi.spyOn(
@@ -146,22 +150,22 @@ describe("Masters of Undeath in Sevens", () => {
     const game = newGame();
     const size = game.ctx.team1.players.length;
     const victim = game.ctx.team2.players[0];
-    victim.skills.push(getSkill(SkillType.REGENERATION));
+    fixtureValue(victim).skills.push(getSkill(SkillType.REGENERATION));
     vi.spyOn(
       game.ctx.gameService.getDiceController(),
       "rollD6"
     ).mockReturnValue(4);
-    await injure(game, victim.id);
-    expect(victim.injuries).not.toContain(InjuryType.DEAD);
+    await injure(game, fixtureValue(victim).id);
+    expect(fixtureValue(victim).injuries).not.toContain(InjuryType.DEAD);
     expect(game.ctx.team1.players).toHaveLength(size);
   });
 
   it("records a raised player's subsequent participation and touchdown", async () => {
     const game = newGame();
     const size = game.ctx.team1.players.length;
-    await injure(game, game.ctx.team2.players[0].id);
+    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
     expect(game.ctx.team1.players).toHaveLength(size + 1);
-    const raised = game.ctx.team1.players.at(-1)!;
+    const raised = fixtureValue(game.ctx.team1.players.at(-1));
     game.ctx.eventBus.emit(GameEventNames.PlayerPlaced, {
       playerId: raised.id,
       x: 3,
@@ -170,6 +174,7 @@ describe("Masters of Undeath in Sevens", () => {
     game.ctx.eventBus.emit(GameEventNames.Touchdown, {
       teamId: raised.teamId,
       scorerId: raised.id,
+      score: 1,
     });
     expect(
       game.ctx.matchStats
@@ -186,13 +191,13 @@ describe("Masters of Undeath in Sevens", () => {
     const game = newGame();
     const size = game.ctx.team1.players.length;
     const victim = game.ctx.team2.players[0];
-    victim.stats.ST = 4;
-    victim.skills.push(getSkill(SkillType.REGENERATION));
+    fixtureValue(victim).stats.ST = 4;
+    fixtureValue(victim).skills.push(getSkill(SkillType.REGENERATION));
     vi.spyOn(
       game.ctx.gameService.getDiceController(),
       "rollD6"
     ).mockReturnValue(3);
-    await injure(game, victim.id);
+    await injure(game, fixtureValue(victim).id);
     expect(game.ctx.team1.players).toHaveLength(size + 1);
   });
 
@@ -200,7 +205,7 @@ describe("Masters of Undeath in Sevens", () => {
     const game = newGame();
     const size = game.ctx.team1.players.length;
     game.ctx.team1.maxRosterSize = size;
-    await injure(game, game.ctx.team2.players[0].id);
+    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
     expect(game.ctx.team1.players).toHaveLength(size + 1);
   });
 
@@ -209,10 +214,10 @@ describe("Masters of Undeath in Sevens", () => {
     const guest = newGame();
     const original = guest.ctx.team1.players[0];
     const originalRoster = guest.ctx.team1.players;
-    await injure(host, host.ctx.team2.players[0].id);
-    const raised = host.ctx.team1.players.at(-1)!;
+    await injure(host, fixtureValue(host.ctx.team2.players[0]).id);
+    const raised = fixtureValue(host.ctx.team1.players.at(-1));
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
-    let restored: () => void = () => {};
+    let restored: () => void = () => undefined;
     const done = new Promise<void>((resolve) => {
       restored = resolve;
     });
@@ -255,14 +260,14 @@ describe("Raised Lineman post-match recruitment", () => {
     const game = newGame();
     const team = game.ctx.team1;
     team.advancementMode = "advanced-league";
-    await injure(game, game.ctx.team2.players[0].id);
-    const raised = team.players.at(-1)!;
+    await injure(game, fixtureValue(game.ctx.team2.players[0]).id);
+    const raised = fixtureValue(team.players.at(-1));
     expect(raised.positionName).toBe("Skeleton Lineman");
     offerRaisedDeadRecruit(team, raised.id);
     const pending = team.pendingDevelopment?.find(
       (entry) => entry.kind === "raised-dead-recruit"
     );
-    if (!pending || pending.kind !== "raised-dead-recruit")
+    if (pending?.kind !== "raised-dead-recruit")
       throw new Error("No recruitment offer");
     return { team, raised, pending };
   }
@@ -271,12 +276,15 @@ describe("Raised Lineman post-match recruitment", () => {
     const { team, raised, pending } = await offer();
     const treasury = team.treasury;
     const loaded = readStoredTeam(
-      JSON.parse(JSON.stringify(dehydrateTeam(team)))
+      parseJson(
+        JSON.stringify(dehydrateTeam(team)),
+        z.record(z.string(), z.unknown())
+      )
     ).team;
     expect(loaded.pendingDevelopment).toContainEqual(pending);
     resolveRaisedDeadRecruit(loaded, pending, true);
     expect(loaded.treasury).toBe(treasury);
-    const hired = loaded.players.find((p) => p.id === raised.id)!;
+    const hired = fixtureValue(loaded.players.find((p) => p.id === raised.id));
     expect(hired.cost + hired.teamValue).toBe(40_000);
     expect(loaded.teamValue).toBe(320_000);
     expect(loaded.pendingDevelopment).toEqual([]);
@@ -296,9 +304,9 @@ describe("Raised Lineman post-match recruitment", () => {
     const { team, raised, pending } = await offer();
     team.maxRosterSize = team.players.length - 1;
     expect(canKeepRaisedDead(team, raised.id)).toBe(false);
-    expect(() => resolveRaisedDeadRecruit(team, pending, true)).toThrow(
-      "no room"
-    );
+    expect(() => {
+      resolveRaisedDeadRecruit(team, pending, true);
+    }).toThrow("no room");
     expect(team.pendingDevelopment).toContainEqual(pending);
     resolveRaisedDeadRecruit(team, pending, false);
     expect(team.players).toHaveLength(team.maxRosterSize);
@@ -307,12 +315,15 @@ describe("Raised Lineman post-match recruitment", () => {
   it("does not count departing Journeymen or dead players against hiring space", async () => {
     const { team, raised, pending } = await offer();
     team.maxRosterSize = team.players.length - 2;
-    team.players[0].injuries.push(InjuryType.DEAD);
-    team.players[1].playerKind = "journeyman";
+    fixtureValue(team.players[0]).injuries.push(InjuryType.DEAD);
+    fixtureValue(team.players[1]).playerKind = "journeyman";
     expect(canKeepRaisedDead(team, raised.id)).toBe(true);
     resolveRaisedDeadRecruit(team, pending, true);
     const loaded = readStoredTeam(
-      JSON.parse(JSON.stringify(dehydrateTeam(team)))
+      parseJson(
+        JSON.stringify(dehydrateTeam(team)),
+        z.record(z.string(), z.unknown())
+      )
     ).team;
     expect(loaded.players).toHaveLength(team.maxRosterSize);
     expect(loaded.players.map((p) => p.id)).toContain(raised.id);
@@ -346,7 +357,7 @@ describe("Raised Lineman post-match recruitment", () => {
 
   it("clears any advancement work for a declined recruit", async () => {
     const { team, raised, pending } = await offer();
-    team.pendingDevelopment!.push({
+    fixtureValue(team.pendingDevelopment).push({
       id: "raised-advancement",
       kind: "advanced-league-advancement",
       playerId: raised.id,
@@ -374,7 +385,10 @@ describe("Raised Lineman post-match recruitment", () => {
     const { team, pending } = await offer();
     expect(calculateTeamValue(team)).toBe(280_000);
     const loaded = readStoredTeam(
-      JSON.parse(JSON.stringify(dehydrateTeam(team)))
+      parseJson(
+        JSON.stringify(dehydrateTeam(team)),
+        z.record(z.string(), z.unknown())
+      )
     ).team;
     expect(loaded.teamValue).toBe(280_000);
     resolveRaisedDeadRecruit(loaded, pending, true);
@@ -414,7 +428,7 @@ describe("Raised Lineman post-match recruitment", () => {
       team1: team,
       team2: newGame().ctx.team2,
       seed: 1,
-      // Journeymen join for league fixtures only
+
       paysWinnings: true,
     });
     await game.execute({

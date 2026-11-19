@@ -1,17 +1,15 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
+import Phaser from "phaser";
+import type { CameraScene, CameraLens } from "../../../src/game/controllers/cameraPorts";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import {
   CameraController,
   clearArea,
-  ScreenRect,
+  type ScreenRect,
 } from "../../../src/game/controllers/CameraController";
 import { gridPointToPixel } from "../../../src/game/elements/GridUtils";
 
-/**
- * The match camera, against a fake Phaser camera that records where it was
- * asked to go. The pitch stand-in uses the real isometric projection with
- * its origin at (2000, 1000).
- */
 function setup(
   viewport = { width: 1600, height: 900 },
   hudRects?: () => ScreenRect[]
@@ -28,7 +26,7 @@ function setup(
     roundPixels: false,
     originX: 0.5,
     originY: 0.5,
-    /** The zoom Phaser built its matrix with, at the last frame. */
+
     renderedZoom: 1,
     setBackgroundColor: vi.fn(),
     setBounds: vi.fn(),
@@ -40,7 +38,7 @@ function setup(
       right: 5000,
       bottom: 3500,
     }),
-    setZoom: vi.fn(function (this: { zoom: number }, z: number) {
+    setZoom: vi.fn(function (this: { zoom: number }, z = 1) {
       this.zoom = z;
     }),
     centerOn: vi.fn(function (
@@ -51,7 +49,7 @@ function setup(
       this.scrollX = x - this.width / 2;
       this.scrollY = y - this.height / 2;
     }),
-    zoomTo: vi.fn(),
+    zoomTo: vi.fn<Parameters<CameraLens["zoomTo"]>, unknown>(),
     once: (event: string, callback: () => void) =>
       cameraEvents.once(event, callback),
     off: (event: string, callback: () => void) =>
@@ -68,9 +66,8 @@ function setup(
     setFollowOffset: vi.fn(),
     stopFollow: vi.fn(),
     shake: vi.fn(),
-    // As Phaser does it: the matrix is rebuilt once a frame, while the zoom
-    // and scroll it is combined with are read live.
-    getWorldPoint: vi.fn((x: number, y: number) => {
+
+    getWorldPoint: vi.fn((x: number, y: number): { x: number; y: number } => {
       const z = camera.renderedZoom;
       const ox = camera.width * camera.originX;
       const oy = camera.height * camera.originY;
@@ -83,14 +80,18 @@ function setup(
     zoomEffect: { isRunning: false, reset: vi.fn() },
   };
   const inputHandlers: Record<string, (...args: unknown[]) => void> = {};
-  let resize = () => {};
+  let resize = () => undefined;
   const scene = {
+    events: new Phaser.Events.EventEmitter(),
     cameras: { main: camera },
     scale: {
       ...viewport,
-      on: vi.fn(
-        (event: string, handler: () => void, context: CameraController) => {
-          if (event === "resize") resize = () => handler.call(context);
+      on: vi.fn<Parameters<CameraScene["scale"]["on"]>, unknown>(
+        (event, handler, context) => {
+          if (event === "resize")
+            resize = () => {
+              Reflect.apply(handler, context, []);
+            };
         }
       ),
       off: vi.fn(),
@@ -98,12 +99,16 @@ function setup(
     time: {
       delayedCall: (_delay: number, callback: () => void) => {
         const timer = setTimeout(callback, _delay);
-        return { remove: () => clearTimeout(timer) };
+        return {
+          remove: () => {
+            clearTimeout(timer);
+          },
+        };
       },
     },
     input: {
-      on: vi.fn((event: string, fn: (...args: unknown[]) => void) => {
-        inputHandlers[event] = fn;
+      on: vi.fn<Parameters<CameraScene["input"]["on"]>, unknown>((event, fn) => {
+        inputHandlers[String(event)] = (...args: unknown[]) => { Reflect.apply(fn, undefined, args); };
       }),
       off: vi.fn(),
       mouse: { disableContextMenu: vi.fn() },
@@ -121,18 +126,12 @@ function setup(
     },
   };
   const bus = { emit: vi.fn() };
-  /** Phaser draws a frame: the matrix catches up with the zoom. */
+
   const render = () => {
     camera.renderedZoom = camera.zoom;
   };
   const controller = new CameraController(
-    scene as never,
-    pitch as never,
-    { width: 5000, height: 3500 },
-    [pitch.getPointPosition(0, -4), pitch.getPointPosition(21, 15)],
-    bus as never,
-    hudRects
-  );
+    { scene,pitch,world: { width: 5000,height: 3500 },dugoutPoints: [pitch.getPointPosition(0,-4),pitch.getPointPosition(21,15)],eventBus: bus,...(hudRects ? {hudRects} : {}) }  );
   return {
     camera,
     controller,
@@ -140,7 +139,7 @@ function setup(
     pitch,
     bus,
     render,
-    finishZoom: (zoom = camera.zoomTo.mock.lastCall![0]) => {
+    finishZoom: (zoom = fixtureValue(camera.zoomTo.mock.lastCall)[0]) => {
       camera.zoom = zoom;
       camera.zoomEffect.isRunning = false;
       cameraEvents.emit("camerazoomcomplete");
@@ -204,7 +203,7 @@ describe("CameraController", () => {
     render();
     const before = camera.getWorldPoint(1200, 300);
     for (const dy of [-100, -100, 100, -100]) {
-      inputHandlers.wheel({ x: 1200, y: 300 }, [], 0, dy);
+      fixtureValue(inputHandlers["wheel"])({ x: 1200, y: 300 }, [], 0, dy);
       render();
     }
     const after = camera.getWorldPoint(1200, 300);
@@ -215,13 +214,13 @@ describe("CameraController", () => {
   it("zooms by how far the wheel turns, not by how many events it sends", () => {
     const notch = setup();
     const start = notch.camera.zoom;
-    notch.inputHandlers.wheel({ x: 800, y: 450 }, [], 0, -100);
-    // A trackpad sends the same scroll as many small steps.
+    fixtureValue(notch.inputHandlers["wheel"])({ x: 800, y: 450 }, [], 0, -100);
+
     const pad = setup();
     for (let i = 0; i < 25; i++)
-      pad.inputHandlers.wheel({ x: 800, y: 450 }, [], 0, -4);
+      fixtureValue(pad.inputHandlers["wheel"])({ x: 800, y: 450 }, [], 0, -4);
     expect(pad.camera.zoom).toBeCloseTo(notch.camera.zoom);
-    // One notch of a mouse wheel zooms in by about a tenth.
+
     expect(notch.camera.zoom / start).toBeGreaterThan(1.05);
     expect(notch.camera.zoom / start).toBeLessThan(1.15);
   });
@@ -239,7 +238,7 @@ describe("CameraController", () => {
     controller.focusSquares([{ x: 3, y: 3 }]);
     panels = [{ left: 0, top: 0, right: 1600, bottom: 170 }];
     controller.refreshFraming();
-    controller.follow({} as never);
+    controller.follow(new Phaser.GameObjects.Zone(new Phaser.Scene(), 0, 0));
     expect(camera.zoom).toBe(0.83);
     expect(camera.zoomTo).not.toHaveBeenCalled();
     expect(camera.setFollowOffset).toHaveBeenLastCalledWith(
@@ -271,7 +270,7 @@ describe("CameraController", () => {
     ];
     const { camera, controller, resize } = setup(undefined, () => panels);
     camera.zoom = 1;
-    controller.follow({} as never);
+    controller.follow(new Phaser.GameObjects.Zone(new Phaser.Scene(), 0, 0));
     expect(camera.setFollowOffset.mock.lastCall).toEqual([0, -10]);
     panels = [];
     controller.refreshFraming();
@@ -293,7 +292,7 @@ describe("CameraController", () => {
     const { controller, camera } = setup();
     camera.roundPixels = true;
     controller.intro();
-    const [x, y] = camera.centerOn.mock.lastCall!;
+    const [x, y] = fixtureValue(camera.centerOn.mock.lastCall);
     expect(x - camera.width / 2).toBe(Math.floor(x - camera.width / 2));
     expect(y - camera.height / 2).toBe(Math.floor(y - camera.height / 2));
   });
@@ -303,7 +302,7 @@ describe("CameraController", () => {
     { width: 1920, height: 1080 },
     { width: 844, height: 390 },
   ]) {
-    it(`fits every widely spread teammate in the HUD gap at ${viewport.width}`, () => {
+    it(`fits every widely spread teammate in the HUD gap at ${String(viewport.width)}`, () => {
       const panels = [
         { left: 0, top: 0, right: viewport.width, bottom: 90 },
         {
@@ -321,8 +320,8 @@ describe("CameraController", () => {
         { x: 19, y: 0 },
       ];
       controller.fitSquares(squares);
-      const [cx, cy] = camera.pan.mock.lastCall!;
-      const zoom = camera.zoomTo.mock.lastCall![0];
+      const [cx, cy] = fixtureValue(camera.pan.mock.lastCall);
+      const zoom = fixtureValue(camera.zoomTo.mock.lastCall)[0];
       for (const s of squares) {
         const p = pitch.getPixelPosition(s.x, s.y);
         const x = viewport.width / 2 + (p.x - cx) * zoom;
@@ -350,11 +349,11 @@ describe("CameraController", () => {
     ]);
     camera.zoom = 0.83;
     controller.focusSquare(10, 5);
-    const [x, y] = camera.pan.mock.lastCall!;
+    const [x, y] = fixtureValue(camera.pan.mock.lastCall);
     top = 400;
     controller.refreshFraming();
-    expect(camera.pan.mock.lastCall![0]).toBeCloseTo(x);
-    expect(camera.pan.mock.lastCall![1]).toBeCloseTo(y + 100 / 0.83);
+    expect(fixtureValue(camera.pan.mock.lastCall)[0]).toBeCloseTo(x);
+    expect(fixtureValue(camera.pan.mock.lastCall)[1]).toBeCloseTo(y + 100 / 0.83);
     expect(camera.zoom).toBe(0.83);
     expect(camera.zoomTo).not.toHaveBeenCalled();
   });
@@ -399,7 +398,7 @@ describe("CameraController", () => {
       { x: 0, y: 10 },
       { x: 19, y: 10 },
     ]);
-    const fitted = camera.zoomTo.mock.lastCall![0];
+    const fitted = fixtureValue(camera.zoomTo.mock.lastCall)[0];
     camera.zoom = fitted;
     controller.zoomAt(640, 360, 0.9);
     expect(camera.zoom).toBeCloseTo(fitted * 0.9);
@@ -432,12 +431,12 @@ describe("CameraController", () => {
       [{ x: 16, y: 5 }]
     );
     expect(camera.zoomTo).toHaveBeenCalledTimes(1);
-    const wide = camera.zoomTo.mock.lastCall![0];
+    const wide = fixtureValue(camera.zoomTo.mock.lastCall)[0];
     vi.advanceTimersByTime(1249);
     expect(camera.zoomTo).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(1);
     expect(camera.zoomTo).toHaveBeenCalledTimes(2);
-    expect(camera.zoomTo.mock.lastCall![0]).toBeGreaterThan(wide);
+    expect(fixtureValue(camera.zoomTo.mock.lastCall)[0]).toBeGreaterThan(wide);
   });
 
   it.each([250, 700])(
@@ -456,7 +455,7 @@ describe("CameraController", () => {
       resize();
       vi.advanceTimersByTime(1250 - at);
       expect(camera.zoomTo).toHaveBeenCalledTimes(2);
-      const [x, y] = camera.pan.mock.lastCall!;
+      const [x, y] = fixtureValue(camera.pan.mock.lastCall);
       expect(x).toBeCloseTo(2544.47222);
       expect(y).toBeCloseTo(1521.97222);
     }
@@ -496,7 +495,7 @@ describe("CameraController", () => {
     finishZoom();
     finishZoom();
 
-    const [cx, cy] = camera.pan.mock.lastCall!;
+    const [cx, cy] = fixtureValue(camera.pan.mock.lastCall);
     for (const square of next) {
       const p = pitch.getPixelPosition(square.x, square.y);
       const x = 422 + (p.x - cx) * camera.zoom;
@@ -527,7 +526,7 @@ describe("CameraController", () => {
       if (reason === "destroy") controller.destroy();
       camera.zoomTo.mockClear();
       camera.pan.mockClear();
-      // A later effect's completion must not revive the cancelled team fit.
+
       camera.zoomEffect.isRunning = false;
       finishZoom(camera.zoom);
       expect(camera.zoomTo).not.toHaveBeenCalled();
@@ -572,7 +571,7 @@ describe("CameraController", () => {
     vi.advanceTimersByTime(1250);
     expect(vi.getTimerCount()).toBe(0);
     const expected = pitch.getPixelPosition(2, 3);
-    const [x, y] = camera.pan.mock.lastCall!;
+    const [x, y] = fixtureValue(camera.pan.mock.lastCall);
     expect(x).toBe(expected.x);
     expect(y).toBe(expected.y - 22.5);
   });
@@ -591,7 +590,7 @@ describe("CameraController", () => {
     vi.advanceTimersByTime(2000);
     expect(camera.pan).not.toHaveBeenCalled();
     controller.handoff([], []);
-    expect(camera.zoomTo.mock.lastCall![0]).toBeGreaterThan(0);
+    expect(fixtureValue(camera.zoomTo.mock.lastCall)[0]).toBeGreaterThan(0);
   });
 
   it("cuts straight to the new team under reduced motion with no delayed work", () => {

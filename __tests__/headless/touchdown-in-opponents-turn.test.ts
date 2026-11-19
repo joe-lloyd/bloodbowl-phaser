@@ -1,19 +1,15 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 
-/**
- * A touchdown scored during the opposing team's Turn ends that Turn, and
- * the scoring team skips its next Turn celebrating (2025 rulebook, "Scoring
- * during your opponent's Turn"). The engine never skipped it, so the turn
- * counts drifted apart and the conceding team was handed a seventh Turn.
- */
 const scenario: Scenario = {
   id: "touchdown-in-opponents-turn",
   name: "Touchdown in the opponent's turn",
-  description: "team1 pushes team2's ball carrier into team2's scoring end zone",
+  description:
+    "team1 pushes team2's ball carrier into team2's scoring end zone",
   setup: {
     team1Placements: [
       { playerIndex: 0, x: 2, y: 5, stats: { ST: 3 } },
@@ -30,10 +26,9 @@ const scenario: Scenario = {
   },
 };
 
-/** Seed 1 rolls a Push on the single block die; committed, never searched. */
 const PUSH_SEED = 1;
 
-type TurnLog = Array<{ teamId: string; turnNumber: number }>;
+type TurnLog = { teamId: string; turnNumber: number }[];
 
 function logTurns(game: HeadlessGame): TurnLog {
   const turns: TurnLog = [];
@@ -49,24 +44,23 @@ describe("touchdown in the opponent's turn", () => {
     const gs = game.ctx.gameService;
     const turns = logTurns(game);
 
-    // team2 kicks; team1 receives. Play up to team1's turn 3.
     gs.startGame("team2");
     for (let i = 0; i < 4; i++) await game.execute({ type: "end-turn" });
     expect(turns.at(-1)).toEqual({ teamId: "team1", turnNumber: 3 });
 
-    const attacker = game.snapshot().teams[0].players[0];
-    const carrier = game.snapshot().teams[1].players[0];
+    const attacker = fixtureValue(game.snapshot().teams[0]).players[0];
+    const carrier = fixtureValue(game.snapshot().teams[1]).players[0];
     await game.execute({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "block",
     });
     const rolled = await game.execute({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: carrier.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(carrier).id,
     });
-    // The seed must still roll a Push, or this test proves nothing.
+
     expect(
       rolled.pendingDecision?.type === "block-dice" &&
         rolled.pendingDecision.options.map((o) => o.type)
@@ -78,14 +72,15 @@ describe("touchdown in the opponent's turn", () => {
       y: 5,
     });
     if (response.pendingDecision?.type === "follow-up") {
-      response = await game.execute({ type: "choose-follow-up", followUp: false });
+      response = await game.execute({
+        type: "choose-follow-up",
+        followUp: false,
+      });
     }
     expect(response.snapshot.score).toEqual({ team1: 0, team2: 1 });
 
-    // team2 skipped the turn it would have played next.
     expect(gs.getTurnNumber("team2")).toBe(3);
 
-    // The scorer kicks the next drive; the conceding team receives.
     turns.length = 0;
     gs.startGame("team2");
     while (!game.snapshot().turn.isHalf2) {

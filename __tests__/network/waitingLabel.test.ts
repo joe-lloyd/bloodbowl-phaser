@@ -1,7 +1,3 @@
-/**
- * The waiting coach's banner says what the other coach is doing. During
- * setup it said "<coach>'s turn", as if a turn had started.
- */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOnlineMatch } from "../../src/network/OnlineMatch";
 import { createInMemoryTransportPair } from "../../src/network/transport";
@@ -9,8 +5,8 @@ import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { LobbyDoc, DEFAULT_SETTINGS } from "../../src/firebase/lobby";
-import { Scenario } from "../../src/types/Scenario";
+import { type LobbyDoc, DEFAULT_SETTINGS } from "../../src/firebase/lobby";
+import { type Scenario } from "../../src/types/Scenario";
 
 vi.mock("../../src/firebase/lobby", async (load) => ({
   ...(await load<typeof import("../../src/firebase/lobby")>()),
@@ -30,7 +26,9 @@ const guestSettingUp: Scenario = {
   },
 };
 
-afterEach(() => ServiceContainer.reset());
+afterEach(() => {
+  ServiceContainer.reset();
+});
 
 const hostPlaying: Scenario = {
   id: "online-host-plays",
@@ -117,8 +115,6 @@ describe("online waiting label at the kick-off", () => {
   };
 
   it("stops asking for the kick once the ball is in the air", () => {
-    // Round 3, 3:53: "Waiting for Coach-CAAG to kick off" stayed up after
-    // the kick, through the kick-off event
     const match = hostMatch(guestKicks);
     expect(match.mayAct()).toBe(false);
     expect(match.waitingLabel()).toBe("Waiting for Guest to kick off…");

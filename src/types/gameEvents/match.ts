@@ -1,27 +1,21 @@
-/**
- * Event payloads for the match's own flow: phases, turns, players on the
- * pitch, rolls, decisions, scoring and the camera.
- */
-
+import type { DiceRollData } from "../../boundary/diceRoll";
 import { GameEventNames } from "./names";
-import { GamePhase, GameState, SubPhase } from "../GameState";
-import { Player } from "../Player";
+import { GamePhase, type GameState, SubPhase } from "../GameState";
+import { type Player } from "../Player";
 
 export interface MatchGameEvents {
-  // Phase Management
   [GameEventNames.PhaseChanged]: {
     phase: GamePhase;
     subPhase?: SubPhase;
     activeTeamId?: string;
   };
-  [GameEventNames.SetupConfirmed]: string; // teamId
+  [GameEventNames.SetupConfirmed]: string;
   [GameEventNames.ReadyToStart]: void;
 
-  // Turn Management
   [GameEventNames.TurnStarted]: {
     teamId: string;
     turnNumber: number;
-    isHalf2?: boolean; // Optional if not always present
+    isHalf2?: boolean;
   };
   [GameEventNames.TurnEnded]: { teamId: string };
   [GameEventNames.ActionResolved]: { playerId: string };
@@ -33,9 +27,8 @@ export interface MatchGameEvents {
     hasFouled: boolean;
   };
 
-  // Player Actions
   [GameEventNames.PlayerPlaced]: { playerId: string; x: number; y: number };
-  [GameEventNames.PlayerRemoved]: string; // playerId
+  [GameEventNames.PlayerRemoved]: string;
   [GameEventNames.PlayersSwapped]: { player1Id: string; player2Id: string };
   [GameEventNames.PlacementInvalid]: {
     playerId: string;
@@ -57,25 +50,23 @@ export interface MatchGameEvents {
     playerId: string;
     from: { x: number; y: number };
     to: { x: number; y: number };
-    path?: { x: number; y: number }[]; // Optional depending on usage, but GameService seems to emit it?
+    path?: { x: number; y: number }[];
     followUpData?: {
-      // Optional follow-up data for blocks
       attackerId: string;
       targetSquare: { x: number; y: number };
     };
-    /** Where the ball visual starts when the mover carries it (their start
-     * square, or the pickup square for a mid-path pickup) */
+
     ballFrom?: { x: number; y: number };
-    /** Squares the ball travels with the carrier (tail of `path`) */
+
     ballPath?: { x: number; y: number }[];
-    /** Player steps walked before the ball joins (0 = carried from start) */
+
     ballJoinStep?: number;
-    /** The player is being thrown (Throw Team-mate): animate an arc, not a walk. */
+
     thrown?: boolean;
-    /** The engine waits for the walk to be shown before it goes on. */
+
     presentationId?: string;
   };
-  [GameEventNames.PlayerActivated]: string; // playerId
+  [GameEventNames.PlayerActivated]: string;
   [GameEventNames.PlayerSelected]: { player: Player | null };
   [GameEventNames.PlayerStatusChanged]: Player;
   [GameEventNames.Turnover]: { teamId: string };
@@ -93,11 +84,7 @@ export interface MatchGameEvents {
     source: import("../decisions").RerollSource;
     rollKind: string;
     skill?: string;
-    /**
-     * The roll before and after the reroll: a D6's value, each D6 of a
-     * multi-dice roll (an Armour Roll's [5, 2]), or each block die's face,
-     * e.g. ["Push"] → ["Attacker Down"]
-     */
+
     before: number | number[] | string[];
     after: number | number[] | string[];
   };
@@ -109,7 +96,7 @@ export interface MatchGameEvents {
       | "block-dice"
       | "push-direction"
       | "follow-up";
-    /** Block dice: the face that was chosen, for the other coach's screen */
+
     result?: string;
   };
 
@@ -118,11 +105,10 @@ export interface MatchGameEvents {
     cost: number;
   };
 
-  // Scoring
   [GameEventNames.Touchdown]: {
     teamId: string;
     score: number;
-    /** Absent for a touchdown awarded by a post-match/concession rule. */
+
     scorerId?: string;
   };
   [GameEventNames.DriveEnded]: {
@@ -141,13 +127,12 @@ export interface MatchGameEvents {
   [GameEventNames.MatchSppApplied]: void;
   [GameEventNames.CompetitionResultRecorded]: {
     fixtureId: string;
-    /** League winnings in gold pieces by team id; absent when none. */
+
     winnings?: Record<string, number>;
-    /** Each team's Fan Factor behind the winnings, by team id. */
+
     fanFactors?: Record<string, number>;
   };
 
-  // Action Mode Events
   [GameEventNames.ActionModeChanged]: {
     playerId: string;
     action: ActionType;
@@ -158,24 +143,11 @@ export interface MatchGameEvents {
     playerId: string;
   };
 
-  // Game Flow
-  [GameEventNames.DiceRoll]: {
-    rollType: string; // e.g. "Weather", "Kickoff", "Armor Break", "Agility"
-    diceType: string; // e.g. "2d6", "d6", "Block"
-    teamId?: string; // The team performing the roll (for coloring)
-    value: number | number[] | string | string[]; // Raw dice result(s)
-    total: number; // Sum or relevant total
-    description: string; // Text outcome e.g. "Nice Weather", "Scatter"
-    resultState?: "none" | "success" | "failure" | "fumble"; // For tests (Armor, Agility, Dodge, Pass)
-    seed?: number; // For deterministic replay tracking
-    context?: Record<string, unknown>; // Additional metadata
-  };
+  [GameEventNames.DiceRoll]: DiceRollData;
 
-  // Sandbox
   [GameEventNames.GameStateRestored]: GameState;
   [GameEventNames.RefreshBoard]: void;
-  /** Board text (dugout section headers, sideline crew, end-zone team names)
-   *  positioned in canvas design space for the React overlay to draw crisply. */
+
   [GameEventNames.UI_LoadProgress]: { progress: number };
   [GameEventNames.ScenarioLoaded]: {
     name: string;
@@ -183,49 +155,37 @@ export interface MatchGameEvents {
     expectedOutcome?: string;
   };
 
-  // Camera
   [GameEventNames.Camera_ChooseNextPlayer]: {
     teamId: string;
     playerId: string;
   };
   [GameEventNames.Camera_TrackBall]: {
-    /** Follow this player, or the ball when absent. Plain data: every bus
-     *  event is recorded and cloned, so it must not carry display objects. */
     playerId?: string;
-    animationDuration: number; // How long to track
+    animationDuration: number;
   };
   [GameEventNames.Camera_Reset]: {
-    duration?: number; // Optional reset duration
+    duration?: number;
   };
   [GameEventNames.Camera_StateChanged]: {
     state: "neutral" | "active";
-    /** The camera's own transition duration, so consumers animate in step. */
+
     duration: number;
   };
 }
 
-/**
- * Action types available in the game
- */
-/**
- * One step of a Sent-off, for the card both coaches watch. Every step names
- * the player and why they were Sent-off. The outcome is last; the engine
- * waits until the card has shown it.
- */
 export type RefereeCallStep = {
   playerId: string;
   teamId: string;
-  /** A spotted Foul causes a Turnover; a Secret Weapon at the drive's end does not. */
+
   cause: "foul" | "secret-weapon";
 } & (
   | { step: "called" }
   | {
       step: "argued";
-      /** Every Argue the Call die, in order: a 1 re-rolled by Bribery and Corruption shows both. */
+
       rolls: number[];
       swayed: boolean;
     }
-  /** A Bribe was used; `works` on a 2+. */
   | { step: "bribed"; roll: number; works: boolean }
   | {
       step: "outcome";

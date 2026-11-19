@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Team, RosterName, createTeam } from "../../../types/Team";
+import { type Team, RosterName, createTeam } from "../../../types/Team";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import {
-  TeamMode,
+  type TeamMode,
   getTeamMode,
   isActiveTeam,
 } from "../../../game/rules/teamLifecycle";
 import { canEdit } from "../../../game/rules/teamEditLegality";
 import {
-  StaffItem,
+  type StaffItem,
   hirePlayer,
   hireRefusal,
   positionAllowance,
@@ -50,7 +50,7 @@ import {
   SidelineStaffSection,
 } from "../TeamBuilder/SidelineStaffSection";
 import {
-  FavouredOfRule,
+  type FavouredOfRule,
   League,
   lockAdvancementMode,
 } from "../../../types/Team";
@@ -68,8 +68,6 @@ import { PlayedGames } from "../TeamManagement/PlayedGames";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { TeamLibraryUnavailable } from "../TeamManagement/TeamLibraryUnavailable";
 
-// interface TeamBuilderProps {}
-
 const MODE_EYEBROWS: Record<TeamMode, string> = {
   active: "Active team",
   draft: "Draft team",
@@ -82,24 +80,16 @@ const MODE_SUBTITLES: Record<TeamMode, string> = {
     "Draft teams may be edited freely and saved even while incomplete, but must pass roster legality before they can be selected for a match or entered in a competition.",
 };
 
-/** A comparable copy of what storage would hold for this team. */
 function snapshotOf(team: Team): string {
   return JSON.stringify(dehydrateTeam(team));
 }
 
-/** Whether storage already holds exactly this team. */
 function isStored(current: Team): boolean {
   const stored = TeamManager.loadTeams().find((t) => t.id === current.id);
   return !!stored && snapshotOf(stored) === snapshotOf(current);
 }
 
-/** Write the team to storage (shared by Save and opening a player). */
 function persistTeam(toSave: Team) {
-  // Draft work may be persisted incomplete or illegal — only play and
-  // competition entry require a valid roster (team-lifecycle-modes).
-  // Locking is a no-op until a mode has actually been chosen, so this is
-  // safe to call unconditionally on every save (team-advancement-modes:
-  // the mode is immutable from the moment it's first set).
   lockAdvancementMode(toSave);
 
   const teams = TeamManager.loadTeams();
@@ -114,7 +104,6 @@ function persistTeam(toSave: Team) {
   return TeamManager.saveTeams(teams);
 }
 
-/** Saving locks a chosen mode; an unsaved team must stay changeable. */
 function restoreAdvancementLock(
   team: Team,
   wasLocked: Team["advancementModeLocked"]
@@ -123,7 +112,6 @@ function restoreAdvancementLock(
   else delete team.advancementModeLocked;
 }
 
-/** Development a coach must finish before Finish post-match can save. */
 function developmentPending(team: Team): boolean {
   return (
     stepsBeforeExpensiveMistakes(team) > 0 || team.players.some(mustAdvance)
@@ -138,7 +126,6 @@ function hasPendingExpensiveMistakes(team: Team): boolean {
   );
 }
 
-/** Roll every pending Expensive Mistakes entry once nothing else waits. */
 function rollExpensiveMistakes(team: Team): string[] {
   const results: string[] = [];
   if (stepsBeforeExpensiveMistakes(team) > 0) return results;
@@ -152,7 +139,6 @@ function rollExpensiveMistakes(team: Team): string[] {
   return results;
 }
 
-/** What the URL says about a post-match visit and where it returns to. */
 function readSearch(search: string, teamId: string | undefined) {
   const searchParams = new URLSearchParams(search);
   const returnTo = searchParams.get("returnTo") ?? "";
@@ -166,15 +152,8 @@ function readSearch(search: string, teamId: string | undefined) {
   };
 }
 
-/** Why a team's page has no team to show yet. */
 type TeamPendingView = "loading" | "missing" | "failed";
 
-/**
- * What a team's page shows before it has the team: loading while the
- * library may still arrive, "not found" once it has settled without it,
- * and a retry when the coach's library failed to load. Never another team
- * (or an older local copy of this one) in its place.
- */
 function TeamPending({
   view,
   onBack,
@@ -224,13 +203,13 @@ function TeamPending({
 
 export function TeamBuilder() {
   const [team, setTeam] = useState<Team | null>(null);
-  /** Why the route's team is not shown yet. */
+
   const [pendingView, setPendingView] = useState<TeamPendingView>("loading");
   const [selectedRace, setSelectedRace] = useState<RosterName>(
     RosterName.AMAZON
   );
   const [selectedColor, setSelectedColor] = useState<number>(0x8e1b1b);
-  /** A new team picks its roster before anything else. */
+
   const [rosterChosen, setRosterChosen] = useState(true);
   const navigate = useNavigate();
   const { teamId } = useParams<{ teamId: string }>();
@@ -239,15 +218,13 @@ export function TeamBuilder() {
     search,
     teamId
   );
-  // Opened from a league (after a game, or its Progress team action)
+
   const fromLeague = destination !== "/build-team";
   const [completion, setCompletion] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const saveInFlight = useRef(false);
-  // What storage held when this team was loaded or last saved from here.
-  // Kept as a string because a cloud repository hands out its cached team
-  // objects, which this page then edits in place.
+
   const savedSnapshot = useRef<string | null>(null);
 
   useEffect(() => {
@@ -255,11 +232,6 @@ export function TeamBuilder() {
     setSaveError("");
     setPendingView("loading");
     if (teamId) {
-      // A team's page only ever shows that team, read from the coach's
-      // settled library. After a refresh a signed-in coach's cloud library
-      // arrives a moment after this page mounts; until then the active
-      // library is localStorage, which may hold nothing or an older copy of
-      // this team. Nothing is shown (or can be saved) until it settles.
       savedSnapshot.current = null;
       setTeam(null);
       const loadRequestedTeam = (): boolean => {
@@ -289,7 +261,6 @@ export function TeamBuilder() {
       return stopWaiting;
     }
 
-    // No team in the route: start a new one
     savedSnapshot.current = null;
     setRosterChosen(false);
     const newTeam = createTeam(
@@ -364,8 +335,6 @@ export function TeamBuilder() {
     );
     if (!template) return;
 
-    // The roster limits and the Treasury decide, at the draft and between
-    // league fixtures alike (teamPricing.ts)
     const hired = hirePlayer(team, template);
     if (hired.amount == null) {
       alert(hired.reason ?? "This player cannot be hired.");
@@ -386,9 +355,6 @@ export function TeamBuilder() {
     const player = team.players.find((p) => p.id === playerId);
     if (!player) return;
 
-    // Only a draft team may let a player go (L6), and it gets a full refund
-    // since the roster is still being assembled. An active team may only
-    // release a player above a corrected roster limit, for nothing back.
     team.players = team.players.filter((p) => p.id !== playerId);
     if (!isActiveTeam(team)) team.treasury += Math.floor(player.cost);
     setTeam({ ...team });
@@ -439,14 +405,13 @@ export function TeamBuilder() {
   const handleReorderPlayers = (sourceSlot: number, targetSlot: number) => {
     if (!team) return;
 
-    // Deep copy players for safe state mutation
     const newPlayers = team.players.map((p) => ({ ...p }));
     const sourcePlayer = newPlayers.find((p) => p.number === sourceSlot);
     const targetPlayer = newPlayers.find((p) => p.number === targetSlot);
 
     if (sourcePlayer) {
       sourcePlayer.number = targetSlot;
-      // Swap if target exists
+
       if (targetPlayer) {
         targetPlayer.number = sourceSlot;
       }
@@ -468,13 +433,6 @@ export function TeamBuilder() {
     setTeam({ ...team });
   };
 
-  /**
-   * Shared roster legality (roster size, Lineman rule, positional limits,
-   * budget), plus the whole-list Insignificant check — the same validator
-   * the development seeds and match/competition entry are checked against.
-   * A draft may be saved while this is non-empty (1.6): it is only a gate
-   * on finalizing for play or competition entry, never on persistence.
-   */
   const rosterViolations = (): string[] => {
     if (!team) return [];
     const messages: string[] = [];
@@ -488,12 +446,13 @@ export function TeamBuilder() {
     return messages;
   };
 
-  /** Leave after a save: the next team to manage, the league, or the list. */
   const leaveAfterSave = () => {
     const [nextTeam, ...remaining] = searchParams.getAll("nextTeam");
     if (postMatch && nextTeam) {
       searchParams.delete("nextTeam");
-      remaining.forEach((id) => searchParams.append("nextTeam", id));
+      remaining.forEach((id) => {
+        searchParams.append("nextTeam", id);
+      });
       navigate(`/build-team/${encodeURIComponent(nextTeam)}?${searchParams}`, {
         replace: true,
       });
@@ -532,7 +491,6 @@ export function TeamBuilder() {
     }
   };
 
-  /** Save unsaved edits before the player page; false keeps them here. */
   const saveBeforeOpeningPlayer = async (current: Team): Promise<boolean> => {
     if (
       !postMatch &&
@@ -556,8 +514,7 @@ export function TeamBuilder() {
       saveInFlight.current = false;
       setSaving(false);
     }
-    // The repository logs a failed write instead of throwing (a full
-    // localStorage, say), so read it back before leaving these edits.
+
     if (!isStored(current)) {
       restoreAdvancementLock(current, wasLocked);
       setTeam({ ...current });
@@ -570,11 +527,6 @@ export function TeamBuilder() {
     return true;
   };
 
-  /**
-   * The player page reads the team from storage, so unsaved edits here
-   * (a hire, a reorder, a brand-new team) would be missing there. Offer to
-   * save them first; cancelling stays on this page with the edits intact.
-   */
   const handleOpenPlayer = async (playerId: string) => {
     if (!team || saveInFlight.current) return;
     if (
@@ -596,7 +548,7 @@ export function TeamBuilder() {
       handleBuy({ type: "apothecary" });
       return;
     }
-    // A draft team may still change its mind and get the gold back.
+
     if (isActiveTeam(team)) return;
     team.treasury += APOTHECARY_COST;
     team.apothecary = false;
@@ -734,7 +686,9 @@ export function TeamBuilder() {
         <AdvancementModePanel
           team={team}
           roster={roster}
-          onChange={(next) => setTeam(next)}
+          onChange={(next) => {
+            setTeam(next);
+          }}
         />
 
         <div className="mb-6">

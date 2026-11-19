@@ -1,22 +1,13 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario, PlayerPlacement } from "../../src/types/Scenario";
+import { type Scenario, type PlayerPlacement } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus, TraitKeyWord } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import type { Weather } from "../../src/game/rules/weather";
 
-/**
- * Secure the Ball (2025 rulebook, Performing a Secure the Ball Action):
- * "A player may only declare a Secure the Ball Action if the ball is loose
- * on the ground and is not within 2 squares of any Standing opposition
- * players that are not Distracted." The free Move "must finish on a square
- * containing a ball otherwise a Turnover is caused". The pick-up is "a D6
- * and on a 2+ they will automatically pick up the ball and their
- * activation immediately ends. On a 1, the player fails to pick up the
- * ball and a Turnover is caused". Sure Hands does not help (skills.json).
- * The engine ran it as a plain Move with an Agility Test pick-up.
- */
 function scenario(opts: {
   securer?: Partial<PlayerPlacement>;
   opponent?: Partial<PlayerPlacement>;
@@ -36,19 +27,21 @@ function scenario(opts: {
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
       ballPosition: { x: 7, y: 5 },
-      weather: opts.weather,
+      ...(opts.weather === undefined ? {} : { weather: opts.weather }),
     },
   };
 }
 
-function diceOf(events: { name: string; data: unknown }[]): string[] {
+function diceOf(events: { name: string; data?: unknown }[]): string[] {
   return events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
 }
 
 async function secure(game: HeadlessGame, path: { x: number; y: number }[]) {
-  const id = game.ctx.team1.players[0].id;
+  const id = fixtureValue(game.ctx.team1.players[0]).id;
   const declared = await game.execute({
     type: "declare-action",
     playerId: id,
@@ -71,13 +64,15 @@ describe("a Secure the Ball pick-up", () => {
       "Secure the Ball (Human Lineman #1): 4, needs 2+",
     ]);
     const securer = game.ctx.team1.players[0];
-    expect(securer.gridPosition).toEqual({ x: 7, y: 5 });
+    expect(fixtureValue(securer).gridPosition).toEqual({ x: 7, y: 5 });
     expect(game.ctx.gameService.getState().ballPosition).toEqual({
       x: 7,
       y: 5,
     });
     expect(
-      game.ctx.gameService.getState().turn.activatedPlayerIds.has(securer.id)
+      game.ctx.gameService
+        .getState()
+        .turn.activatedPlayerIds.has(fixtureValue(securer).id)
     ).toBe(true);
     expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
   });
@@ -96,7 +91,7 @@ describe("a Secure the Ball pick-up", () => {
     expect(diceOf(failed.events)).toEqual([
       "Secure the Ball (Human Lineman #1): 1, needs 2+",
     ]);
-    // Only the team re-roll is offered; Sure Hands is not a source.
+
     expect(failed.pendingDecision).toMatchObject({
       type: "reroll",
       rollKind: "pickup",
@@ -109,11 +104,6 @@ describe("a Secure the Ball pick-up", () => {
   });
 });
 
-/**
- * FAQ (May 2026): "Do modifiers that apply to picking up a ball, such as
- * Pouring Rain, apply to a Secure the Ball Action? Yes". The 2+ was rolled
- * with no modifier. Seed 9 rolls a 2 (committed, never searched).
- */
 describe("a Secure the Ball pick-up in Pouring Rain", () => {
   it("takes the pick-up modifier, so a 2 fails", async () => {
     const game = new HeadlessGame({
@@ -133,8 +123,6 @@ describe("a Secure the Ball pick-up in Pouring Rain", () => {
     expect(failed.snapshot.activeTeamId).toBe(game.ctx.team2.id);
   });
 
-  // Big Hand "ignores all negative modifiers when attempting to pick up the
-  // ball", the rain's -1 included
   it("lets Big Hand ignore the rain, so a 2 succeeds", async () => {
     const game = new HeadlessGame({
       scenario: scenario({
@@ -157,7 +145,6 @@ describe("a Secure the Ball pick-up in Pouring Rain", () => {
     });
   });
 
-  // Extra Arms modifies "the Agility Test", and this pick-up is not one
   it("gives Extra Arms no bonus, so a 2 still fails", async () => {
     const game = new HeadlessGame({
       scenario: scenario({
@@ -188,7 +175,7 @@ describe("a Big Hand pick-up in Pouring Rain", () => {
       }),
       seed: 1,
     });
-    const id = game.ctx.team1.players[0].id;
+    const id = fixtureValue(game.ctx.team1.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: id,
@@ -215,7 +202,7 @@ describe("declaring Secure the Ball", () => {
     });
     const declared = await game.execute({
       type: "declare-action",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       action: "secureBall",
     });
 
@@ -231,7 +218,7 @@ describe("declaring Secure the Ball", () => {
     });
     const declared = await game.execute({
       type: "declare-action",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       action: "secureBall",
     });
 
@@ -240,12 +227,15 @@ describe("declaring Secure the Ball", () => {
 
   it("is refused to a Big Guy", async () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
-    // A fresh array: roster players share their template's keywords list.
+
     const securer = game.ctx.team1.players[0];
-    securer.keywords = [...securer.keywords, TraitKeyWord.BIG_GUY];
+    fixtureValue(securer).keywords = [
+      ...fixtureValue(securer).keywords,
+      TraitKeyWord.BIG_GUY,
+    ];
     const declared = await game.execute({
       type: "declare-action",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       action: "secureBall",
     });
 
@@ -256,7 +246,7 @@ describe("declaring Secure the Ball", () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
     const legal = await game.execute({ type: "legal-actions" });
     const securer = legal.legalActions?.players.find(
-      (p) => p.playerId === game.ctx.team1.players[0].id
+      (p) => p.playerId === fixtureValue(game.ctx.team1.players[0]).id
     );
 
     expect(securer?.actions).toContain("secureBall");
@@ -269,7 +259,7 @@ describe("a Secure the Ball move that ends off the ball", () => {
     await secure(game, [{ x: 6, y: 5 }]);
     const ended = await game.execute({
       type: "end-activation",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
     });
 
     expect(ended.snapshot.activeTeamId).toBe(game.ctx.team2.id);

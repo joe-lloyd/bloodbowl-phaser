@@ -1,14 +1,11 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
 
-/**
- * Standing up in place is a Move Action. A player with a negatrait rolls
- * for it just as they would for any other declared Move.
- */
 const proneWith = (skill: SkillType, id: string): Scenario => ({
   id,
   name: id,
@@ -36,13 +33,13 @@ const proneWith = (skill: SkillType, id: string): Scenario => ({
 async function standUpUntilDistracted(skill: SkillType) {
   for (let seed = 1; seed <= 300; seed++) {
     const game = new HeadlessGame({
-      scenario: proneWith(skill, `stand-${skill}-${seed}`),
+      scenario: proneWith(skill, `stand-${skill}-${String(seed)}`),
       seed,
     });
-    const playerId = game.ctx.team1.players[0].id;
+    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
     const response = await game.execute({ type: "stand-up", playerId });
-    const player = response.snapshot.teams[0].players[0];
-    const distracted = player.conditions?.some(
+    const player = fixtureValue(response.snapshot.teams[0]).players[0];
+    const distracted = fixtureValue(player).conditions.some(
       (c) => c.type === PlayerCondition.DISTRACTED
     );
     if (distracted) return { response, player };
@@ -56,20 +53,25 @@ describe("standing up rolls the activation gate", () => {
     async (skill) => {
       const found = await standUpUntilDistracted(skill);
       expect(found).not.toBeNull();
-      expect(found!.player.status).toBe(PlayerStatus.PRONE);
-      expect(found!.response.snapshot.activePlayer).toBeNull();
+      expect(fixtureValue(fixtureValue(found).player).status).toBe(
+        PlayerStatus.PRONE
+      );
+      expect(fixtureValue(found).response.snapshot.activePlayer).toBeNull();
     }
   );
 
   it("a passed roll stands the player up as a declared Move", async () => {
     for (let seed = 1; seed <= 50; seed++) {
       const game = new HeadlessGame({
-        scenario: proneWith(SkillType.BONE_HEAD, `stand-pass-${seed}`),
+        scenario: proneWith(SkillType.BONE_HEAD, `stand-pass-${String(seed)}`),
         seed,
       });
-      const playerId = game.ctx.team1.players[0].id;
+      const playerId = fixtureValue(game.ctx.team1.players[0]).id;
       const response = await game.execute({ type: "stand-up", playerId });
-      if (response.snapshot.teams[0].players[0].status !== PlayerStatus.ACTIVE)
+      if (
+        fixtureValue(fixtureValue(response.snapshot.teams[0]).players[0])
+          .status !== PlayerStatus.ACTIVE
+      )
         continue;
       expect(response.snapshot.activePlayer).toMatchObject({
         id: playerId,
@@ -83,26 +85,29 @@ describe("standing up rolls the activation gate", () => {
   it("a failed Bloodlust roll waits for the coach, then stands the player up", async () => {
     for (let seed = 1; seed <= 300; seed++) {
       const game = new HeadlessGame({
-        scenario: proneWith(SkillType.BLOODLUST, `stand-bloodlust-${seed}`),
+        scenario: proneWith(
+          SkillType.BLOODLUST,
+          `stand-bloodlust-${String(seed)}`
+        ),
         seed,
       });
-      const playerId = game.ctx.team1.players[0].id;
+      const playerId = fixtureValue(game.ctx.team1.players[0]).id;
       const response = await game.execute({ type: "stand-up", playerId });
       if (response.pendingDecision?.type !== "reaction") continue;
       expect(response.pendingDecision).toMatchObject({
         skill: SkillType.BLOODLUST,
       });
-      // Nothing stands until the coach answers
-      expect(response.snapshot.teams[0].players[0].status).toBe(
-        PlayerStatus.PRONE
-      );
+
+      expect(
+        fixtureValue(fixtureValue(response.snapshot.teams[0]).players[0]).status
+      ).toBe(PlayerStatus.PRONE);
       const answered = await game.execute({
         type: "use-reaction",
         accept: true,
       });
-      expect(answered.snapshot.teams[0].players[0].status).toBe(
-        PlayerStatus.ACTIVE
-      );
+      expect(
+        fixtureValue(fixtureValue(answered.snapshot.teams[0]).players[0]).status
+      ).toBe(PlayerStatus.ACTIVE);
       expect(answered.snapshot.activePlayer).toMatchObject({
         id: playerId,
         action: "move",
@@ -117,7 +122,7 @@ describe("standing up rolls the activation gate", () => {
     for (let seed = 1; seed <= 300; seed++) {
       const game = new HeadlessGame({
         scenario: {
-          id: `stand-savage-${seed}`,
+          id: `stand-savage-${String(seed)}`,
           name: "stand-savage",
           description: "stand-savage",
           setup: {
@@ -129,7 +134,7 @@ describe("standing up rolls the activation gate", () => {
                 skills: [SkillType.ANIMAL_SAVAGERY],
                 status: PlayerStatus.PRONE,
               },
-              // The only team-mate in reach, holding the ball
+
               { playerIndex: 1, x: 11, y: 5, hasBall: true },
             ],
             team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
@@ -141,14 +146,14 @@ describe("standing up rolls the activation gate", () => {
         },
         seed,
       });
-      const playerId = game.ctx.team1.players[0].id;
+      const playerId = fixtureValue(game.ctx.team1.players[0]).id;
       const response = await game.execute({ type: "stand-up", playerId });
       if (response.pendingDecision) continue;
-      const carrier = response.snapshot.teams[0].players[1];
-      if (carrier.status === PlayerStatus.ACTIVE) continue;
-      expect(response.snapshot.teams[0].players[0].status).toBe(
-        PlayerStatus.PRONE
-      );
+      const carrier = fixtureValue(response.snapshot.teams[0]).players[1];
+      if (fixtureValue(carrier).status === PlayerStatus.ACTIVE) continue;
+      expect(
+        fixtureValue(fixtureValue(response.snapshot.teams[0]).players[0]).status
+      ).toBe(PlayerStatus.PRONE);
       return;
     }
     throw new Error("no seed made the lash-out hit the carrier");

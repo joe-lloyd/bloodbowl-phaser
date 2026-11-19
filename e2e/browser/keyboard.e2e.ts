@@ -2,10 +2,6 @@ import { test, expect } from "@playwright/test";
 import { GameEventNames } from "../../src/types/events";
 import { GameApp } from "../support/pages/game";
 
-/**
- * A coach on a trackpad keeps one hand on the keys: WASD or the arrows
- * slide the camera, and the keys on the buttons' badges play the turn.
- */
 test("WASD and the arrow keys slide the camera while held", async ({
   page,
 }) => {
@@ -15,7 +11,6 @@ test("WASD and the arrow keys slide the camera while held", async ({
   const square = { x: 10, y: 5 };
   const start = await app.pitch.viewportPoint(square);
 
-  // The view moves right, so the pitch slides left
   await page.keyboard.down("d");
   await page.waitForTimeout(400);
   await page.keyboard.up("d");
@@ -44,7 +39,7 @@ test("a foul is declared and confirmed from the keyboard", async ({ page }) => {
   await expect(page.getByTestId("confirmation-modal")).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("confirmation-modal")).toBeHidden();
-  // The one Offensive Assist is chosen from the keyboard too
+
   await expect(page.getByTestId("foul-assists-dialog")).toBeVisible();
   await page.keyboard.press("1");
   await expect(page.getByTestId("foul-assists-dialog")).toBeHidden();
@@ -86,7 +81,6 @@ test("the menu's keys wait while a decision is open, and Enter presses the focus
   const confirm = page.getByTestId("confirmation-modal");
   await expect(confirm).toBeVisible();
 
-  // The dialog hides End Activation and End Turn, so their keys do nothing
   await page.keyboard.press("e");
   await page.keyboard.press("Shift+E");
   await expect(confirm).toBeVisible();
@@ -94,7 +88,6 @@ test("the menu's keys wait while a decision is open, and Enter presses the focus
     await app.bridge.resolveRef("team1")
   );
 
-  // Tabbed to Cancel, Enter cancels instead of fouling
   await confirm.getByRole("button", { name: "Cancel", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(confirm).toBeHidden();

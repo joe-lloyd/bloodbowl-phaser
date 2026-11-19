@@ -1,4 +1,3 @@
-/** Reproducible, resumable headless study using the public computer recipes. */
 import { fork } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -66,7 +65,6 @@ async function worker(out: string) {
         completed: result.completed,
       });
     } catch (error) {
-      // Infrastructure failures are never quietly dropped from the denominator.
       process.send?.({ error: String(error), id: job.id });
     }
   });
@@ -158,7 +156,7 @@ async function run() {
                 completed?: boolean;
               }) => {
                 if (message.error) {
-                  reject(new Error(`${message.id}: ${message.error}`));
+                  reject(new Error(`${String(message.id)}: ${message.error}`));
                   return;
                 }
                 if (message.id) {
@@ -184,7 +182,7 @@ async function run() {
               if (current || code !== 0)
                 reject(
                   new Error(
-                    `Worker exited ${signal ?? code} during ${current?.id}`
+                    `Worker exited ${String(signal ?? code)} during ${String(current?.id)}`
                   )
                 );
               else resolveWorker();
@@ -205,7 +203,9 @@ async function run() {
       seconds: (Date.now() - started) / 1000,
     })
   );
-  console.log(`Completed ${done}/${jobs.length} games. Results: ${out}`);
+  console.log(
+    `Completed ${String(done)}/${String(jobs.length)} games. Results: ${out}`
+  );
 }
 
 await run();

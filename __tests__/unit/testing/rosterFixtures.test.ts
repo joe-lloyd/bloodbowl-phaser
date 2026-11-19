@@ -1,12 +1,4 @@
-/**
- * The fixture-authenticity gate.
- *
- * Two jobs: prove the priority policy picks the right roster slot, and hold
- * the production catalogs to it — no scenario may quietly field a player who
- * could not exist, and Throw/Kick Team-mate must use the Ogre roster rather
- * than granting the traits to unrelated Humans.
- */
-
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { SkillType } from "../../../src/types/Skills";
 import { RosterName } from "../../../src/types/Team";
@@ -28,57 +20,62 @@ import {
 import {
   auditSetupFixtures,
   formatFixtureIssues,
-  FixtureIssue,
+  type FixtureIssue,
 } from "../../../src/testing/fixtures/validateFixtures";
 
 describe("fixture priority policy", () => {
   it("prefers a position that starts with the skill", () => {
-    const fixture = preferredFixture(SkillType.THROW_TEAM_MATE)!;
+    const fixture = fixtureValue(preferredFixture(SkillType.THROW_TEAM_MATE));
     expect(fixture.source).toBe("native");
-    expect(ownsNatively(fixture.roster, fixture.playerIndex, SkillType.THROW_TEAM_MATE)).toBe(
-      true
-    );
+    expect(
+      ownsNatively(
+        fixture.roster,
+        fixture.playerIndex,
+        SkillType.THROW_TEAM_MATE
+      )
+    ).toBe(true);
   });
 
   it("falls back to a rules-valid advancement when nobody starts with it", () => {
-    // Fend is a General skill no fielded Sevens position begins with, but
-    // plenty of positions have General access.
     const natives = nativeFixtures(SkillType.SHADOWING);
     const advancements = advancementFixtures(SkillType.SHADOWING);
     expect(advancements.length).toBeGreaterThan(0);
     expect(advancements.every((f) => f.source === "advancement")).toBe(true);
-    // Whatever exists, native still wins when it exists.
+
     if (natives.length > 0) {
       expect(preferredFixture(SkillType.SHADOWING)?.source).toBe("native");
     }
   });
 
   it("honours a caller's roster preference when that roster can supply it", () => {
-    const ogre = resolveSkillFixture(SkillType.RIGHT_STUFF, {
+    const ogre = fixtureValue(resolveSkillFixture(SkillType.RIGHT_STUFF, {
       preferRoster: RosterName.OGRE,
-    })!;
+    }));
     expect(ogre.roster).toBe(RosterName.OGRE);
     expect(ogre.positionName).toBe("Gnoblar Lineman");
   });
 
   it("ignores an impossible roster preference and returns the global best", () => {
-    const fixture = resolveSkillFixture(SkillType.BALL_AND_CHAIN, {
+    const fixture = fixtureValue(resolveSkillFixture(SkillType.BALL_AND_CHAIN, {
       preferRoster: RosterName.HUMAN,
-    })!;
+    }));
     expect(fixture.roster).toBe(RosterName.GOBLIN);
     expect(fixture.positionName).toBe("Fanatic");
   });
 
   it("returns null when a skill has no native or advancement fixture", () => {
-    // Right Stuff is a trait: never an advancement, so only native counts.
     const natives = nativeFixtures(SkillType.RIGHT_STUFF);
     expect(natives.length).toBeGreaterThan(0);
     expect(advancementFixtures(SkillType.RIGHT_STUFF)).toEqual([]);
   });
 
   it("is deterministic across calls", () => {
-    const first = nativeFixtures(SkillType.STUNTY).map((f) => `${f.roster}/${f.positionName}`);
-    const second = nativeFixtures(SkillType.STUNTY).map((f) => `${f.roster}/${f.positionName}`);
+    const first = nativeFixtures(SkillType.STUNTY).map(
+      (f) => `${f.roster}/${f.positionName}`
+    );
+    const second = nativeFixtures(SkillType.STUNTY).map(
+      (f) => `${f.roster}/${f.positionName}`
+    );
     expect(second).toEqual(first);
   });
 
@@ -91,12 +88,12 @@ describe("fixture priority policy", () => {
 
 describe("grant legality", () => {
   it("reports native ownership", () => {
-    // Ogre index 0 is an Ogre Blocker: Bone Head, Throw Team-mate.
-    expect(grantLegality(RosterName.OGRE, 0, SkillType.BONE_HEAD)).toBe("native");
+    expect(grantLegality(RosterName.OGRE, 0, SkillType.BONE_HEAD)).toBe(
+      "native"
+    );
   });
 
   it("allows a skill the position has primary access to", () => {
-    // Human Linemen take General skills as a primary advancement.
     expect(grantLegality(RosterName.HUMAN, 0, SkillType.BLOCK)).toBe(
       "primary-advancement"
     );
@@ -147,11 +144,11 @@ describe("fixture audit", () => {
       ],
       team2Placements: [],
       activeTeam: "team1",
-      phase: "PLAY" as never,
-      subPhase: "TURN_RECEIVING" as never,
+      phase: "PLAY",
+      subPhase: "TURN_RECEIVING",
     });
     expect(issues).toHaveLength(1);
-    expect(issues[0].kind).toBe("redundant-grant");
+    expect(fixtureValue(issues[0]).kind).toBe("redundant-grant");
   });
 
   it("names the preferred native fixture for an implausible grant", () => {
@@ -161,12 +158,12 @@ describe("fixture audit", () => {
       ],
       team2Placements: [],
       activeTeam: "team1",
-      phase: "PLAY" as never,
-      subPhase: "TURN_RECEIVING" as never,
+      phase: "PLAY",
+      subPhase: "TURN_RECEIVING",
     });
     expect(issues).toHaveLength(1);
-    expect(issues[0].kind).toBe("implausible-grant");
-    expect(issues[0].message).toContain('Goblin "Fanatic"');
+    expect(fixtureValue(issues[0]).kind).toBe("implausible-grant");
+    expect(fixtureValue(issues[0]).message).toContain('Goblin "Fanatic"');
   });
 
   it("accepts an implausible grant that carries an isolation reason", () => {
@@ -178,8 +175,8 @@ describe("fixture audit", () => {
         ],
         team2Placements: [],
         activeTeam: "team1",
-        phase: "PLAY" as never,
-        subPhase: "TURN_RECEIVING" as never,
+        phase: "PLAY",
+        subPhase: "TURN_RECEIVING",
       },
       [
         {
@@ -190,7 +187,7 @@ describe("fixture audit", () => {
       ]
     );
     expect(issues).toEqual([]);
-    expect(grants[0].justification).toBe("declared");
+    expect(fixtureValue(grants[0]).justification).toBe("declared");
   });
 
   it("treats a grant with no fielded native holder as forced, not a defect", () => {
@@ -200,11 +197,11 @@ describe("fixture audit", () => {
       ],
       team2Placements: [],
       activeTeam: "team1",
-      phase: "PLAY" as never,
-      subPhase: "TURN_RECEIVING" as never,
+      phase: "PLAY",
+      subPhase: "TURN_RECEIVING",
     });
     expect(issues).toEqual([]);
-    expect(grants[0].justification).toBe("forced");
+    expect(fixtureValue(grants[0]).justification).toBe("forced");
   });
 
   it("ignores an empty reason", () => {
@@ -216,8 +213,8 @@ describe("fixture audit", () => {
         ],
         team2Placements: [],
         activeTeam: "team1",
-        phase: "PLAY" as never,
-        subPhase: "TURN_RECEIVING" as never,
+        phase: "PLAY",
+        subPhase: "TURN_RECEIVING",
       },
       [{ player: "team1:0", skill: SkillType.BALL_AND_CHAIN, reason: "   " }]
     );
@@ -255,13 +252,13 @@ describe("production catalogs are fixture-authentic", () => {
   });
 
   it("Throw Team-mate uses an Ogre thrower and an eligible Gnoblar", () => {
-    const entry = RULE_SCENARIOS.find(
+    const entry = fixtureValue(RULE_SCENARIOS.find(
       (candidate) => candidate.skill === SkillType.THROW_TEAM_MATE
-    )!;
+    ));
     expect(entry.configs.length).toBeGreaterThan(0);
     for (const config of entry.configs) {
       expect(config.setup.team1Roster, config.id).toBe(RosterName.OGRE);
-      // The thrower placement is an Ogre Blocker (0/1); the mate is a Gnoblar.
+
       const throwers = config.setup.team1Placements.filter((placement) =>
         nativeSkillsAt(RosterName.OGRE, placement.playerIndex).includes(
           SkillType.THROW_TEAM_MATE
@@ -272,15 +269,18 @@ describe("production catalogs are fixture-authentic", () => {
           SkillType.RIGHT_STUFF
         )
       );
-      expect(throwers.length, `${config.id} needs an Ogre thrower`).toBeGreaterThan(0);
+      expect(
+        throwers.length,
+        `${config.id} needs an Ogre thrower`
+      ).toBeGreaterThan(0);
       expect(mates.length, `${config.id} needs a Gnoblar`).toBeGreaterThan(0);
     }
   });
 
   it("Kick Team-mate uses the Ogre Runt Punter", () => {
-    const entry = RULE_SCENARIOS.find(
+    const entry = fixtureValue(RULE_SCENARIOS.find(
       (candidate) => candidate.skill === SkillType.KICK_TEAM_MATE
-    )!;
+    ));
     for (const config of entry.configs) {
       expect(config.setup.team1Roster, config.id).toBe(RosterName.OGRE);
       const punters = config.setup.team1Placements.filter((placement) =>
@@ -288,9 +288,10 @@ describe("production catalogs are fixture-authentic", () => {
           SkillType.KICK_TEAM_MATE
         )
       );
-      expect(punters.length, `${config.id} needs the Runt Punter`).toBeGreaterThan(
-        0
-      );
+      expect(
+        punters.length,
+        `${config.id} needs the Runt Punter`
+      ).toBeGreaterThan(0);
     }
   });
 

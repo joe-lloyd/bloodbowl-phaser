@@ -1,33 +1,16 @@
-/**
- * A team's League and "Favoured of" alignment, both chosen when drafting
- * (2025 rulebook pp.154 and 159).
- *
- * A roster with several Leagues must pick one for its Team Draft List. The
- * choice decides which Star Players and Inducements the team may buy, and
- * some choices add special rules: a Norse team in the Chaos Clash gains
- * Favoured of Khorne. A roster with "Favoured of (...)" picks one of the
- * bracketed alignments and "cannot change it later on". Chaos Chosen may
- * choose any; Chaos Renegades every one but Hashut.
- *
- * Sevens sells no Star Players (L3), so the League only matters through the
- * special rules it adds. Favoured of Nurgle unlocks the Plague Doctor.
- */
-
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import {
-  FavouredOfRule,
+  type FavouredOfRule,
   League,
   RosterName,
-  Team,
+  type Team,
   TeamSpecialRule,
 } from "../../types/Team";
-import { EditDecision } from "./teamEditLegality";
+import { type EditDecision } from "./teamEditLegality";
 import { isActiveTeam } from "./teamLifecycle";
 
-/** What the allegiance rules read from a team. */
 export type TeamAllegiance = Pick<Team, "rosterName" | "league" | "favouredOf">;
 
-/** "If a team has a choice of any alignment" (p.154). */
 const ANY_ALIGNMENT: readonly FavouredOfRule[] = [
   TeamSpecialRule.FAVOURED_OF_HASHUT,
   TeamSpecialRule.FAVOURED_OF_KHORNE,
@@ -37,7 +20,6 @@ const ANY_ALIGNMENT: readonly FavouredOfRule[] = [
   TeamSpecialRule.FAVOURED_OF_UNDIVIDED,
 ];
 
-/** Rosters whose brackets list fewer than every alignment. */
 const NAMED_ALIGNMENTS: Partial<Record<RosterName, readonly FavouredOfRule[]>> =
   {
     [RosterName.CHAOS_RENEGADE]: ANY_ALIGNMENT.filter(
@@ -45,7 +27,6 @@ const NAMED_ALIGNMENTS: Partial<Record<RosterName, readonly FavouredOfRule[]>> =
     ),
   };
 
-/** Special rules a League adds to a roster (p.159). */
 const LEAGUE_RULES: Partial<
   Record<RosterName, Partial<Record<League, readonly TeamSpecialRule[]>>>
 > = {
@@ -60,7 +41,6 @@ export function leagueChoices(rosterName: RosterName): readonly League[] {
   return getRosterByRosterName(rosterName).leagues;
 }
 
-/** The alignments the roster may pick; empty when it has no choice. */
 export function favouredOfChoices(
   rosterName: RosterName
 ): readonly FavouredOfRule[] {
@@ -73,7 +53,6 @@ export function teamLeague(team: TeamAllegiance): League {
   return team.league ?? leagueChoices(team.rosterName)[0];
 }
 
-/** The chosen alignment, or undefined for a roster without the choice. */
 export function teamFavouredOf(
   team: TeamAllegiance
 ): FavouredOfRule | undefined {
@@ -81,10 +60,6 @@ export function teamFavouredOf(
   return team.favouredOf ?? DEFAULT_ALIGNMENT;
 }
 
-/**
- * The team's special rules: the roster's, with "Favoured of" resolved to
- * the chosen alignment, plus any its League adds.
- */
 export function teamSpecialRules(team: TeamAllegiance): TeamSpecialRule[] {
   const roster = getRosterByRosterName(team.rosterName);
   const favouredOf = teamFavouredOf(team);
@@ -136,11 +111,6 @@ export function chooseFavouredOf(
   return { allowed: true };
 }
 
-/**
- * Persistence boundary: keep a stored League or alignment only when the
- * roster offers it, so an unknown or foreign value falls back to the
- * default instead of granting a rule the roster never had.
- */
 export function parseAllegiance(
   rosterName: RosterName,
   raw: { league?: unknown; favouredOf?: unknown }

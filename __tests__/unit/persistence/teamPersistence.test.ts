@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   dehydratePlayer,
@@ -11,13 +12,17 @@ import {
   getAvailableRosterNames,
   getRosterByRosterName,
 } from "../../../src/data/RosterTemplates";
-import { createPlayer, InjuryType, Player } from "../../../src/types/Player";
+import {
+  createPlayer,
+  InjuryType,
+  type Player,
+} from "../../../src/types/Player";
 import { Inducement } from "../../../src/types/Inducements";
 import {
   calculateTeamValue,
   createTeam,
   RosterName,
-  Team,
+  type Team,
 } from "../../../src/types/Team";
 import {
   applyAdvancement,
@@ -26,10 +31,15 @@ import {
 
 function buildTeam(rosterName: RosterName): Team {
   const roster = getRosterByRosterName(rosterName);
-  const team = createTeam(`${rosterName} Test`, rosterName, {
-    primary: 0,
-    secondary: 0,
-  }, roster.rerollCost);
+  const team = createTeam(
+    `${rosterName} Test`,
+    rosterName,
+    {
+      primary: 0,
+      secondary: 0,
+    },
+    roster.rerollCost
+  );
   team.players = roster.playerTemplates.map((template, index) =>
     createPlayer(template, team.id, index + 1)
   );
@@ -44,7 +54,7 @@ describe("dehydrate/hydrate round trip", () => {
       for (const player of team.players) {
         const stored = dehydratePlayer(player);
         const warnings: string[] = [];
-        const hydrated = hydratePlayer(stored, team.id, rosterName, warnings);
+        const hydrated = hydratePlayer({ stored,teamId: team.id,rosterName,warnings });
         expect(warnings).toEqual([]);
         expect(hydrated.stats).toEqual(player.stats);
         expect(hydrated.baseStats).toEqual(player.baseStats);
@@ -64,10 +74,10 @@ describe("dehydrate/hydrate round trip", () => {
   }
 
   it("round-trips a progressed and injured player exactly", () => {
-    const team = buildTeam(getAvailableRosterNames()[0]);
-    const player = team.players.find(
+    const team = buildTeam(fixtureValue(getAvailableRosterNames()[0]));
+    const player = fixtureValue(team.players.find(
       (candidate) => candidate.primary && candidate.primary.length > 0
-    )!;
+    ));
     player.spp = 1000;
     const [skill] = eligibleSkills(player, player.primary ?? []);
     applyAdvancement(player, { kind: "chosen-primary", skill });
@@ -78,7 +88,7 @@ describe("dehydrate/hydrate round trip", () => {
 
     const stored = dehydratePlayer(player);
     const warnings: string[] = [];
-    const hydrated = hydratePlayer(stored, team.id, team.rosterName, warnings);
+    const hydrated = hydratePlayer({ stored,teamId: team.id,rosterName: team.rosterName,warnings });
     expect(warnings).toEqual([]);
     expect(hydrated.stats).toEqual(player.stats);
     expect(hydrated.advancements).toEqual(player.advancements);
@@ -90,26 +100,26 @@ describe("dehydrate/hydrate round trip", () => {
   });
 
   it("degrades an unknown position to a marked placeholder without losing progression", () => {
-    const team = buildTeam(getAvailableRosterNames()[0]);
+    const team = buildTeam(fixtureValue(getAvailableRosterNames()[0]));
     const player = team.players[0];
-    player.spp = 12;
-    player.injuries.push(InjuryType.NIGGLING_INJURY);
-    const stored = dehydratePlayer(player);
+    fixtureValue(player).spp = 12;
+    fixtureValue(player).injuries.push(InjuryType.NIGGLING_INJURY);
+    const stored = dehydratePlayer(fixtureValue(player));
     stored.positionName = "Not A Real Position";
 
     const warnings: string[] = [];
-    const hydrated = hydratePlayer(stored, team.id, team.rosterName, warnings);
+    const hydrated = hydratePlayer({ stored,teamId: team.id,rosterName: team.rosterName,warnings });
 
     expect(warnings.length).toBe(1);
     expect(hydrated.hydrationWarning).toBeTruthy();
     expect(hydrated.spp).toBe(12);
-    expect(hydrated.injuries).toEqual(player.injuries);
-    expect(hydrated.id).toBe(player.id);
+    expect(hydrated.injuries).toEqual(fixtureValue(player).injuries);
+    expect(hydrated.id).toBe(fixtureValue(player).id);
   });
 
   it("never persists derivable fields on a dehydrated player", () => {
-    const team = buildTeam(getAvailableRosterNames()[0]);
-    const stored = dehydratePlayer(team.players[0]);
+    const team = buildTeam(fixtureValue(getAvailableRosterNames()[0]));
+    const stored = dehydratePlayer(fixtureValue(team.players[0]));
     expect(stored).not.toHaveProperty("stats");
     expect(stored).not.toHaveProperty("baseStats");
     expect(stored).not.toHaveProperty("skills");
@@ -124,7 +134,7 @@ describe("dehydrate/hydrate round trip", () => {
 
 describe("team hydration and the tolerant reader", () => {
   it("recomputes team value on load rather than trusting the stored value", () => {
-    const team = buildTeam(getAvailableRosterNames()[0]);
+    const team = buildTeam(fixtureValue(getAvailableRosterNames()[0]));
     const stored = dehydrateTeam(team);
     const raw = JSON.parse(JSON.stringify(stored));
     const { team: reloaded } = hydrateStoredTeam(raw);
@@ -133,14 +143,14 @@ describe("team hydration and the tolerant reader", () => {
   });
 
   it("writes the current schema version", () => {
-    const team = buildTeam(getAvailableRosterNames()[0]);
+    const team = buildTeam(fixtureValue(getAvailableRosterNames()[0]));
     const stored = dehydrateTeam(team);
     expect(stored.schemaVersion).toBe(TEAM_SCHEMA_VERSION);
   });
 
   it("reads a legacy full-object document (no schemaVersion) and hydrates it fresh", () => {
-    const team = buildTeam(getAvailableRosterNames()[0]);
-    // The previous shape: the entire runtime Team, JSON round-tripped.
+    const team = buildTeam(fixtureValue(getAvailableRosterNames()[0]));
+
     const legacyDoc = JSON.parse(JSON.stringify(team));
     expect(legacyDoc.schemaVersion).toBeUndefined();
 
@@ -150,15 +160,15 @@ describe("team hydration and the tolerant reader", () => {
     expect(reloaded.players).toHaveLength(team.players.length);
     expect(reloaded.teamValue).toBe(calculateTeamValue(reloaded));
     reloaded.players.forEach((player: Player, index: number) => {
-      expect(player.stats).toEqual(team.players[index].stats);
+      expect(player.stats).toEqual(fixtureValue(team.players[index]).stats);
       expect(player.skills.map((s) => s.type).sort()).toEqual(
-        team.players[index].skills.map((s) => s.type).sort()
+        fixtureValue(team.players[index]).skills.map((s) => s.type).sort()
       );
     });
   });
 
   it("re-saves a converted legacy document in the normalized shape", () => {
-    const team = buildTeam(getAvailableRosterNames()[0]);
+    const team = buildTeam(fixtureValue(getAvailableRosterNames()[0]));
     const legacyDoc = JSON.parse(JSON.stringify(team));
     const { team: reloaded } = readStoredTeam(legacyDoc);
     const resaved = dehydrateTeam(reloaded);

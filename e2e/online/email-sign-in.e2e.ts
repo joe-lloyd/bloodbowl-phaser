@@ -1,10 +1,3 @@
-/**
- * Email sign-in against the auth emulator. @online
- *
- * A coach without a Google account creates one with an email and a
- * password, plays signed in straight away, and signs back in later. A
- * wrong password is refused in plain words.
- */
 import { test, expect } from "@playwright/test";
 
 test.describe.configure({ mode: "serial", timeout: 120_000 });
@@ -12,7 +5,7 @@ test.describe.configure({ mode: "serial", timeout: 120_000 });
 test("a coach creates an email account, signs out and back in @online", async ({
   page,
 }) => {
-  const email = `coach-${Date.now()}@example.com`;
+  const email = `coach-${String(Date.now())}@example.com`;
   const dialog = page.getByTestId("sign-in-dialog");
   const signOut = page.getByRole("button", { name: /sign out/i });
   const openSignIn = () =>

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getAvailableRosterNames, getRosterByRosterName } from "./RosterTemplates";
+import {
+  getAvailableRosterNames,
+  getRosterByRosterName,
+} from "./RosterTemplates";
 
 describe("Sevens roster tiers (MP4)", () => {
   it("matches the Spike! Journal 22 tier list for all 30 rosters", () => {

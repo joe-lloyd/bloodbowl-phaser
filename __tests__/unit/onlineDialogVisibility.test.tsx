@@ -1,24 +1,21 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import React, { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
 import {
-  OnlineMatch,
+  type OnlineMatch,
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
-import { PendingDecision } from "../../src/headless/protocol";
+import { type PendingDecision } from "../../src/headless/protocol";
 import { FollowUpDialog } from "../../src/ui/components/hud/FollowUpDialog";
 import { RerollDialog } from "../../src/ui/components/hud/RerollDialog";
 import { BlockDiceDialog } from "../../src/ui/components/hud/BlockDiceDialog";
-import { BlockRollData } from "../../src/services/BlockResolutionService";
+import { type BlockRollData } from "../../src/services/BlockResolutionService";
 
-/**
- * Online, a decision prompt belongs on its owner's screen only; the block
- * dice belong on both, so the other coach sees the roll and the pick.
- */
 describe("online dialogs", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -31,7 +28,7 @@ describe("online dialogs", () => {
   beforeEach(() => {
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize(eventBus, game.ctx.team1, game.ctx.team2);
+    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
     team1Ids = game.ctx.team1.players.map((p) => p.id);
     team2Ids = game.ctx.team2.players.map((p) => p.id);
     setActiveOnlineMatch({
@@ -44,14 +41,16 @@ describe("online dialogs", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     setActiveOnlineMatch(null);
     ServiceContainer.reset();
     vi.useRealTimers();
   });
 
-  const askReroll = () =>
+  const askReroll = () => {
     eventBus.emit(GameEventNames.DecisionRequested, {
       type: "reroll",
       playerId: team1Ids[0],
@@ -60,20 +59,26 @@ describe("online dialogs", () => {
       sources: ["team"],
       roll: 1,
     } as never);
+  };
 
   it("shows a re-roll prompt to the coach who rolled it", async () => {
     mayAct = true;
-    await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
-    await act(async () => askReroll());
+    await act(async () => {
+      root.render(<RerollDialog eventBus={eventBus} />);
+    });
+    await act(async () => {
+      askReroll();
+    });
     expect(container.textContent).toContain("Re-roll");
   });
 
   it("does not show a follow-up the computer has already answered", async () => {
     mayAct = true;
     pending = null;
-    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
     await act(async () => {
-      // The push animation ends after the answer; the board repeats the offer.
+      root.render(<FollowUpDialog eventBus={eventBus} />);
+    });
+    await act(async () => {
       eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
         attackerId: "team2-player-1",
         targetSquare: { x: 5, y: 5 },
@@ -91,7 +96,9 @@ describe("online dialogs", () => {
       attackerId: "team1-player-2",
       targetSquare: { x: 6, y: 6 },
     };
-    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<FollowUpDialog eventBus={eventBus} />);
+    });
     await act(async () => {
       eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
         attackerId: "team1-player-2",
@@ -120,7 +127,9 @@ describe("online dialogs", () => {
       rollKind: "catch",
       sources: ["skill"],
     } as PendingDecision;
-    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<FollowUpDialog eventBus={eventBus} />);
+    });
     await act(async () => {
       eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
         attackerId: "team1-player-2",
@@ -146,7 +155,9 @@ describe("online dialogs", () => {
   it("waits for a new follow-up's own prompt after an old repeat", async () => {
     mayAct = true;
     pending = null;
-    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<FollowUpDialog eventBus={eventBus} />);
+    });
     await act(async () => {
       eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
         attackerId: "team1-player-1",
@@ -155,7 +166,7 @@ describe("online dialogs", () => {
       });
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
-    // A later block is pending, its dice still in the air.
+
     pending = {
       type: "follow-up",
       attackerId: "team1-player-2",
@@ -183,7 +194,9 @@ describe("online dialogs", () => {
       rollKind: "catch",
       sources: ["skill"],
     } as PendingDecision;
-    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<FollowUpDialog eventBus={eventBus} />);
+    });
     await act(async () => {
       eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
         attackerId: "team1-player-1",
@@ -206,18 +219,24 @@ describe("online dialogs", () => {
 
   it("does not show it on the other coach's screen", async () => {
     mayAct = false;
-    await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
-    await act(async () => askReroll());
+    await act(async () => {
+      root.render(<RerollDialog eventBus={eventBus} />);
+    });
+    await act(async () => {
+      askReroll();
+    });
     expect(container.innerHTML).toBe("");
   });
 
   it("keeps Frenzy's second dice visible after the first result's hold timer expires", async () => {
     vi.useFakeTimers();
     mayAct = true;
-    await act(async () => root.render(<BlockDiceDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<BlockDiceDialog eventBus={eventBus} />);
+    });
     const roll = {
-      attackerId: team1Ids[0],
-      defenderId: team2Ids[0],
+      attackerId: fixtureValue(team1Ids[0]),
+      defenderId: fixtureValue(team2Ids[0]),
       numDice: 1,
       isAttackerChoice: true,
       results: [{ type: "push", label: "Push", icon: "" }],
@@ -225,18 +244,20 @@ describe("online dialogs", () => {
       proAvailable: false,
       brawlerAvailable: false,
     } satisfies BlockRollData;
-    await act(async () => eventBus.emit(GameEventNames.BlockDiceRolled, roll));
-    await act(async () =>
+    await act(async () => {
+      eventBus.emit(GameEventNames.BlockDiceRolled, roll);
+    });
+    await act(async () => {
       eventBus.emit(GameEventNames.DecisionResolved, {
         type: "block-dice",
         result: "push",
-      })
-    );
+      });
+    });
     expect(container.textContent).toContain("Chosen: PUSH");
     await act(async () => vi.advanceTimersByTime(500));
-    await act(async () =>
-      eventBus.emit(GameEventNames.BlockDiceRolled, { ...roll })
-    );
+    await act(async () => {
+      eventBus.emit(GameEventNames.BlockDiceRolled, { ...roll });
+    });
     await act(async () => vi.advanceTimersByTime(1500));
 
     expect(
@@ -250,7 +271,9 @@ describe("online dialogs", () => {
 
   it("shows the other coach's block dice and then the face they picked", async () => {
     mayAct = false;
-    await act(async () => root.render(<BlockDiceDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<BlockDiceDialog eventBus={eventBus} />);
+    });
     const roll = {
       attackerId: team1Ids[0],
       defenderId: team2Ids[0],
@@ -258,10 +281,11 @@ describe("online dialogs", () => {
       isAttackerChoice: true,
       results: [{ type: "pow" }, { type: "skull" }],
     } as unknown as BlockRollData;
-    await act(async () => eventBus.emit(GameEventNames.BlockDiceRolled, roll));
+    await act(async () => {
+      eventBus.emit(GameEventNames.BlockDiceRolled, roll);
+    });
     expect(container.innerHTML).toContain("block-dice-dialog");
-    // The dice are thrown first; the faces follow once they come to rest
-    // (here at once, as the test page has no WebGL to throw them with)
+
     for (
       let i = 0;
       i < 60 && !container.textContent?.includes("The other coach is choosing");
@@ -271,12 +295,12 @@ describe("online dialogs", () => {
     }
     expect(container.textContent).toContain("The other coach is choosing");
 
-    await act(async () =>
+    await act(async () => {
       eventBus.emit(GameEventNames.DecisionResolved, {
         type: "block-dice",
         result: "pow",
-      })
-    );
+      });
+    });
     expect(container.textContent).toContain("Chosen: POW");
 
     await act(async () => new Promise((resolve) => setTimeout(resolve, 1600)));

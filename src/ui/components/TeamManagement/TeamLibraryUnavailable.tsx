@@ -1,12 +1,7 @@
-import { ReactNode } from "react";
+import { type ReactNode } from "react";
 import { retryTeamLibrary } from "../../../game/managers/TeamManager";
 import { EmptyState, HudButton } from "../componentWarehouse/HudKit";
 
-/**
- * A signed-in coach's team library failed to load. Their teams live in
- * their account, so the localStorage library is not shown or saved to in
- * their place; Retry loads the account library again.
- */
 export function TeamLibraryUnavailable({ action }: { action?: ReactNode }) {
   return (
     <EmptyState

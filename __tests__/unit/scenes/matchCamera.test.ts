@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { NetworkedGameService } from "../../../src/network/NetworkedGameService";
@@ -15,14 +16,10 @@ function setup() {
   const gate = new Promise<void>((resolve) => {
     acknowledge = resolve;
   });
-  const service = new NetworkedGameService(
-    game.ctx.gameService,
-    async (command) => {
+  const service = new NetworkedGameService({ inner: game.ctx.gameService, dispatch: async (command) => {
       await gate;
       return game.execute(command);
-    },
-    () => game.pendingDecision()
-  );
+    }, pendingDecision: () => game.pendingDecision() });
   const camera = {
     release: vi.fn(),
     fitSquares: vi.fn(),
@@ -39,21 +36,21 @@ function setup() {
   };
   followMatchWithCamera(scene as unknown as GameScene);
   const player = game.ctx.team1.players[0];
-  game.ctx.gameService.declareAction(player.id, "move");
+  game.ctx.gameService.declareAction({ playerId: fixtureValue(player).id, action: "move" });
   return { game, service, camera, player, acknowledge };
 }
 
 describe("queued End activation camera intent", () => {
   it("waits for the queued engine completion, then fits only eligible teammates", async () => {
     const { game, service, camera, player, acknowledge } = setup();
-    service.finishActivation(player.id);
+    service.finishActivation(fixtureValue(player).id);
     game.ctx.eventBus.emit(GameEventNames.Camera_ChooseNextPlayer, {
-      teamId: player.teamId,
-      playerId: player.id,
+      teamId: fixtureValue(player).teamId,
+      playerId: fixtureValue(player).id,
     });
     expect(camera.fitSquares).not.toHaveBeenCalled();
     acknowledge();
-    await vi.waitFor(() =>
+    await vi.waitFor(() => {
       expect(camera.fitSquares).toHaveBeenCalledWith(
         [
           { x: 9, y: 5 },
@@ -63,24 +60,24 @@ describe("queued End activation camera intent", () => {
           { x: 19, y: 0 },
         ],
         420
-      )
-    );
+      );
+    });
   });
 
   it("drops the pending fit when the coach selects a teammate before acknowledgement", async () => {
     const { game, service, camera, player, acknowledge } = setup();
-    service.finishActivation(player.id);
+    service.finishActivation(fixtureValue(player).id);
     game.ctx.eventBus.emit(GameEventNames.Camera_ChooseNextPlayer, {
-      teamId: player.teamId,
-      playerId: player.id,
+      teamId: fixtureValue(player).teamId,
+      playerId: fixtureValue(player).id,
     });
     game.ctx.eventBus.emit(GameEventNames.PlayerSelected, {
-      player: game.ctx.team1.players[1],
+      player: fixtureValue(game.ctx.team1.players[1]),
     });
     acknowledge();
-    await vi.waitFor(() =>
-      expect(game.ctx.gameService.hasPlayerActed(player.id)).toBe(true)
-    );
+    await vi.waitFor(() => {
+      expect(game.ctx.gameService.hasPlayerActed(fixtureValue(player).id)).toBe(true);
+    });
     expect(camera.fitSquares).not.toHaveBeenCalled();
     expect(camera.focusSquares).toHaveBeenCalledWith(
       expect.arrayContaining([{ x: 9, y: 5 }]),

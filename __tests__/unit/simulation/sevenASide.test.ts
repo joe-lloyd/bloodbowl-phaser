@@ -1,24 +1,24 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { checkInvariants } from "../../../src/simulation/invariants";
 import type { GameSnapshot } from "../../../src/headless/serialization";
 
-/** A snapshot with `count` of team one's players on the pitch. */
 function fielding(count: number, swarmingRoll?: number): GameSnapshot {
   const snapshot = structuredClone(new HeadlessGame({ seed: 1 }).snapshot());
   const team = snapshot.teams[0];
-  // A Sevens team carries up to 11, but the default fixture has 7
-  while (team.players.length < count) {
-    team.players.push({
-      ...team.players[0],
-      id: `${team.id}-extra-${team.players.length}`,
+
+  while (fixtureValue(team).players.length < count) {
+    fixtureValue(team).players.push({
+      ...fixtureValue(team).players[0],
+      id: `${fixtureValue(team).id}-extra-${String(fixtureValue(team).players.length)}`,
     });
   }
-  team.players.forEach((player, index) => {
-    player.position = index < count ? { x: 1, y: index } : undefined;
+  fixtureValue(team).players.forEach((player, index) => {
+    player.position = index < count ? { x: 1, y: index } : null;
   });
-  snapshot.teams[1].players.forEach((player) => {
-    player.position = undefined;
+  fixtureValue(snapshot.teams[1]).players.forEach((player) => {
+    player.position = null;
   });
   if (swarmingRoll !== undefined) {
     snapshot.setup = {
@@ -31,7 +31,7 @@ function fielding(count: number, swarmingRoll?: number): GameSnapshot {
       }),
       swarming: {
         pendingTeamIds: [],
-        teams: { [team.id]: { roll: swarmingRoll, basePlayerIds: [] } },
+        teams: { [fixtureValue(team).id]: { roll: swarmingRoll, basePlayerIds: [] } },
       },
     };
   }

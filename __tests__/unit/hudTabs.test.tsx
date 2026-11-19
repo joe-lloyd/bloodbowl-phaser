@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import React, { act, useState } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { HudTabs } from "../../src/ui/components/componentWarehouse/HudKit";
 
@@ -34,21 +35,25 @@ describe("HudTabs", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () => root.render(<Switch />));
+    await act(async () => {
+      root.render(<Switch />);
+    });
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
   const tab = (name: string) =>
-    [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+    fixtureValue([...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
       (t) => t.textContent === name
-    )!;
+    ));
   const press = (key: string) =>
     act(async () => {
-      document.activeElement!.dispatchEvent(
+      fixtureValue(document.activeElement).dispatchEvent(
         new KeyboardEvent("keydown", { key, bubbles: true })
       );
     });
@@ -59,7 +64,9 @@ describe("HudTabs", () => {
     expect(tab("Dice").tabIndex).toBe(0);
     expect(tab("Chat").tabIndex).toBe(-1);
     expect(
-      container.querySelector('[role="tabpanel"]')!.getAttribute("aria-labelledby")
+      fixtureValue(container
+        .querySelector('[role="tabpanel"]'))
+        .getAttribute("aria-labelledby")
     ).toBe(tab("Dice").id);
   });
 
@@ -68,7 +75,9 @@ describe("HudTabs", () => {
     await press("ArrowRight");
     expect(document.activeElement?.textContent).toBe("Chat");
     expect(tab("Chat").getAttribute("aria-selected")).toBe("true");
-    expect(container.querySelector('[role="tabpanel"]')!.textContent).toBe("chat");
+    expect(fixtureValue(container.querySelector('[role="tabpanel"]')).textContent).toBe(
+      "chat"
+    );
     await press("ArrowRight");
     expect(document.activeElement?.textContent).toBe("Dice");
     await press("End");

@@ -1,17 +1,6 @@
-/**
- * Kickoff scenario cases, mirroring `__tests__/headless/kickoff-events.test.ts`.
- *
- * Note that a scenario-loaded SETUP is already *past* the coin flip: the
- * loader assigns the drive from the setup's `activeTeam`, so `coin-flip` is
- * refused here with `coin-flip-only-before-first-drive`. The flip is proved
- * instead by the bot-driven full match (`e2e/engine/full-match.e2e.ts`),
- * which starts a real match from scratch. What these cases own is everything
- * after it: both setups, the kick, and what happens when it lands or misses.
- */
-
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { GameEventNames } from "../../types/events";
-import { ScenarioCase, step } from "../scenarioCase/types";
+import { type ScenarioCase, step } from "../scenarioCase/types";
 import {
   checkpointAssert,
   endsInPhase,
@@ -22,10 +11,6 @@ import {
   teamIsSetUp,
 } from "./helpers";
 
-/**
- * The whole opening: coin flip, both setups, the kick, and the kickoff event
- * the runner's decision policy skips.
- */
 const opening: ScenarioCase = {
   id: "match-opening-to-kickoff",
   name: "Setup through kickoff",
@@ -42,9 +27,7 @@ const opening: ScenarioCase = {
     "phase:SETUP",
     "phase:KICKOFF",
   ],
-  // An empty SETUP board: nobody is placed, so the case really does drive
-  // the opening rather than inheriting it. `activeTeam: team1` with
-  // SETUP_KICKING makes team1 the kicking team, which sets up first.
+
   setup: {
     team1Placements: [],
     team2Placements: [],
@@ -54,9 +37,15 @@ const opening: ScenarioCase = {
   },
   steps: [
     ...placeSeven("team1"),
-    step({ type: "confirm-setup", teamId: "team1" }, "the kicking team confirms"),
+    step(
+      { type: "confirm-setup", teamId: "team1" },
+      "the kicking team confirms"
+    ),
     ...placeSeven("team2"),
-    step({ type: "confirm-setup", teamId: "team2" }, "the receiving team confirms"),
+    step(
+      { type: "confirm-setup", teamId: "team2" },
+      "the receiving team confirms"
+    ),
     step({ type: "select-kicker", playerId: "team1:0" }, "nominate the kicker"),
     step(
       { type: "kick-ball", playerId: "team1:0", x: 15, y: 5 },
@@ -70,9 +59,7 @@ const opening: ScenarioCase = {
     {
       id: "team1-kicks",
       name: "team1 kicks off",
-      // This seed lands the kick on target and rolls an interactive event;
-      // a kick that deviates out would raise a touchback instead, which
-      // `match-touchback-award` owns.
+
       seed: 2,
       expectedOutcome:
         "both teams set up legally, team1 kicks on target, and the kickoff event resolves",
@@ -113,10 +100,6 @@ const opening: ScenarioCase = {
   ],
 };
 
-/**
- * A kick that leaves the pitch is a touchback: the receiving coach chooses
- * who picks the ball up, and play starts with them holding it.
- */
 const touchback: ScenarioCase = {
   id: "match-touchback-award",
   name: "Touchback after a kick out of bounds",
@@ -130,9 +113,7 @@ const touchback: ScenarioCase = {
     "decision:touchback",
     "phase:KICKOFF",
   ],
-  // A full legal kickoff formation, mirroring the `touchback-test` sandbox
-  // scenario: a sparse board changes the deviation maths, so this reuses the
-  // arrangement whose seed is known to send the ball out.
+
   setup: {
     team1Placements: [
       { playerIndex: 0, x: 6, y: 2 },
@@ -156,12 +137,9 @@ const touchback: ScenarioCase = {
     phase: GamePhase.KICKOFF,
     subPhase: SubPhase.ROLL_KICKOFF,
   },
-  // One step: the touchback reply is issued by the run's decision policy,
-  // exactly as a coach's choice would be, and is recorded against the case
-  // like any other executed command.
+
   steps: [
     step(
-      // Aimed at the receiving corner, so the deviation carries it out.
       { type: "kick-ball", playerId: "team1:0", x: 18, y: 1 },
       "kick towards the receiving corner"
     ),
@@ -181,8 +159,7 @@ const touchback: ScenarioCase = {
   checkpoints: [
     raisedDecision("touchback"),
     emitted(GameEventNames.TouchbackAwarded),
-    // The policy hands the ball to the receiving team's first standing
-    // player, who is set up on (13,2).
+
     ballEndsAt({ x: 13, y: 2 }),
     endsInPhase(GamePhase.PLAY),
   ],

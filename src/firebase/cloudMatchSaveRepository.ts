@@ -1,3 +1,4 @@
+import { firebaseDocument } from "../boundary/firebaseJson";
 import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { subscribeToAuth } from "./auth";
 import { getDb, getFirebaseAuth } from "./config";
@@ -5,13 +6,13 @@ import {
   chooseNewestMatchSave,
   describeMatchSave,
   getLocalMatchSaveRepository,
-  MatchSaveDescription,
-  MatchSaveRepository,
+  type MatchSaveDescription,
+  type MatchSaveRepository,
   setMatchSaveRepository,
 } from "../game/persistence/MatchSaveRepository";
 import {
   deserializeMatchSave,
-  MatchSave,
+  type MatchSave,
   serializeMatchSave,
 } from "../headless/serialization";
 
@@ -22,12 +23,10 @@ function savedMatchDoc(uid: string) {
 }
 
 function toPlainDoc(save: MatchSave): Record<string, unknown> {
-  return JSON.parse(serializeMatchSave(save)) as Record<string, unknown>;
+  return firebaseDocument(save);
 }
 
-export async function fetchCloudMatchSave(
-  uid: string
-): Promise<MatchSave | null> {
+async function fetchCloudMatchSave(uid: string): Promise<MatchSave | null> {
   const snapshot = await getDoc(savedMatchDoc(uid));
   if (!snapshot.exists()) return null;
   try {
@@ -43,48 +42,22 @@ const RECOVERABLE_PERMISSION_ERROR_CODES = new Set([
   "unauthenticated",
 ]);
 
-/**
- * True for the Firestore error codes that can result from the auth-state
- * restoration race (session restored but the ID token isn't attached to the
- * outgoing request yet), as opposed to a genuine authorization failure.
- */
 function isRecoverablePermissionError(error: unknown): boolean {
   return (
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    typeof (error as { code: unknown }).code === "string" &&
-    RECOVERABLE_PERMISSION_ERROR_CODES.has(
-      (error as { code: string }).code
-    )
+    typeof error.code === "string" &&
+    RECOVERABLE_PERMISSION_ERROR_CODES.has(error.code)
   );
 }
 
-/**
- * Refreshes the current Firebase user's ID token. A no-op (cheap, cached)
- * call when the token is already fresh; `forceRefresh` requests a new one
- * from the server, used as the belt-and-suspenders retry below.
- */
 async function refreshIdToken(forceRefresh = false): Promise<void> {
   const user = getFirebaseAuth().currentUser;
   if (!user) return;
   await user.getIdToken(forceRefresh);
 }
 
-/**
- * Loads the signed-in user's cloud match save, tolerating the transient
- * permission-denied/unauthenticated race between auth-state restoration and
- * the ID token being attached to outgoing Firestore requests:
- *
- * 1. Refresh the ID token before the first read (closes the race at its
- *    source for the common case).
- * 2. If the read is still rejected as a permission error, warn (not error)
- *    and retry once after forcing a fresh token.
- * 3. If the retry also fails, log once and signal the caller to fall back
- *    to the local-only save instead of losing the resumable match.
- *
- * Any other error (non-permission) propagates to the caller unchanged.
- */
 async function fetchCloudMatchSaveResilient(
   uid: string
 ): Promise<{ save: MatchSave | null; usedLocalFallback: boolean }> {
@@ -122,13 +95,19 @@ async function clearCloudMatchSave(uid: string): Promise<void> {
   await deleteDoc(savedMatchDoc(uid));
 }
 
-/** Synchronous cache with local + Firestore write-through. */
-export class CloudMatchSaveRepository implements MatchSaveRepository {
+class CloudMatchSaveRepository implements MatchSaveRepository {
+  private readonly uid: string;
+  private cache: MatchSave | null;
+  private readonly local: MatchSaveRepository;
   constructor(
-    private readonly uid: string,
-    private cache: MatchSave | null,
-    private readonly local: MatchSaveRepository
-  ) {}
+    uid: string,
+    cache: MatchSave | null,
+    local: MatchSaveRepository
+  ) {
+    this.uid = uid;
+    this.cache = cache;
+    this.local = local;
+  }
 
   read(): MatchSave | null {
     return this.cache;
@@ -137,17 +116,17 @@ export class CloudMatchSaveRepository implements MatchSaveRepository {
   write(save: MatchSave): void {
     this.cache = save;
     this.local.write(save);
-    void writeCloudMatchSave(this.uid, save).catch((error) =>
-      console.error("Failed to sync local match save to cloud:", error)
-    );
+    void writeCloudMatchSave(this.uid, save).catch((error: unknown) => {
+      console.error("Failed to sync local match save to cloud:", error);
+    });
   }
 
   clear(): void {
     this.cache = null;
     this.local.clear();
-    void clearCloudMatchSave(this.uid).catch((error) =>
-      console.error("Failed to clear cloud match save:", error)
-    );
+    void clearCloudMatchSave(this.uid).catch((error: unknown) => {
+      console.error("Failed to clear cloud match save:", error);
+    });
   }
 
   describe(): MatchSaveDescription | null {
@@ -169,10 +148,6 @@ function retainConflict(uid: string, conflict: MatchSave): void {
   }
 }
 
-/**
- * Signed in: choose the newest local/cloud save, preserve the loser for this
- * session, then write through to both stores. Signed out: restore local-only.
- */
 export function connectMatchSavePersistenceToAuth(): void {
   let authRevision = 0;
   subscribeToAuth((user) => {

@@ -1,13 +1,18 @@
+import { indexBracket } from "./bracketIndex";
 import {
-  CompetitionEntrant,
-  CompetitionFixture,
-  FixtureResult,
-  LeagueDoc,
-  LeaguePoints,
-  PenaltyShootout,
-  Standing,
-  TournamentDoc,
+  type CompetitionEntrant,
+  type CompetitionFixture,
+  type CompetitionDoc,
+  type CompetitionStatus,
+  type FixtureResult,
+  type LeagueDoc,
+  type LeaguePoints,
+  type PenaltyShootout,
+  type Standing,
+  type TournamentDoc,
 } from "./types";
+
+const SINGLE_ELIMINATION = "single-elimination";
 
 function seeded(entrants: CompetitionEntrant[]): CompetitionEntrant[] {
   return [...entrants].sort(
@@ -56,24 +61,32 @@ function advanceWinner(
   next.status = fixtureState(next.homeEntrantId, next.awayEntrantId);
 }
 
+function byeWinner(
+  fixture: CompetitionFixture,
+  fixtures: CompetitionFixture[]
+): string | undefined {
+  const entrantId = fixture.homeEntrantId ?? fixture.awayEntrantId;
+  if (
+    fixture.status === "complete" ||
+    !entrantId ||
+    (fixture.homeEntrantId && fixture.awayEntrantId)
+  )
+    return undefined;
+  const sourcesComplete = (fixture.sourceFixtureIds ?? []).every(
+    (sourceId) =>
+      fixtures.find((candidate) => candidate.id === sourceId)?.status ===
+      "complete"
+  );
+  return sourcesComplete ? entrantId : undefined;
+}
+
 function resolveByes(fixtures: CompetitionFixture[]): void {
   let changed = true;
   while (changed) {
     changed = false;
     for (const fixture of fixtures) {
-      if (fixture.status === "complete") continue;
-      const entrantId = fixture.homeEntrantId ?? fixture.awayEntrantId;
-      if (!entrantId || (fixture.homeEntrantId && fixture.awayEntrantId))
-        continue;
-      const sourcesComplete =
-        !fixture.sourceFixtureIds?.length ||
-        fixture.sourceFixtureIds.every(
-          (sourceId) =>
-            fixtures.find((candidate) => candidate.id === sourceId)?.status ===
-            "complete"
-        );
-      if (!sourcesComplete) continue;
-
+      const entrantId = byeWinner(fixture, fixtures);
+      if (!entrantId) continue;
       fixture.status = "complete";
       fixture.result = {
         homeScore: 0,
@@ -88,22 +101,27 @@ function resolveByes(fixtures: CompetitionFixture[]): void {
   }
 }
 
-/** Round `round`, match `order` of a bracket; round 1 takes its seeds. */
-function bracketFixture(
-  round: number,
-  order: number,
-  rounds: number,
-  slots: (string | null)[]
-): CompetitionFixture {
-  const id = `round-${round}-match-${order}`;
-  const homeEntrantId = round === 1 ? slots[(order - 1) * 2] : null;
-  const awayEntrantId = round === 1 ? slots[(order - 1) * 2 + 1] : null;
+function bracketFixture({
+  round,
+  order,
+  rounds,
+  slots,
+}: {
+  round: number;
+  order: number;
+  rounds: number;
+  slots: (string | null)[];
+}): CompetitionFixture {
+  const id = `round-${String(round)}-match-${String(order)}`;
+  const homeEntrantId = round === 1 ? (slots[(order - 1) * 2] ?? null) : null;
+  const awayEntrantId =
+    round === 1 ? (slots[(order - 1) * 2 + 1] ?? null) : null;
   const sourceFixtureIds =
     round === 1
       ? undefined
       : [
-          `round-${round - 1}-match-${order * 2 - 1}`,
-          `round-${round - 1}-match-${order * 2}`,
+          `round-${String(round - 1)}-match-${String(order * 2 - 1)}`,
+          `round-${String(round - 1)}-match-${String(order * 2)}`,
         ];
   return {
     id,
@@ -112,12 +130,15 @@ function bracketFixture(
     homeEntrantId,
     awayEntrantId,
     status: fixtureState(homeEntrantId, awayEntrantId),
-    sourceFixtureIds,
-    nextFixtureId:
-      round < rounds
-        ? `round-${round + 1}-match-${Math.ceil(order / 2)}`
-        : undefined,
-    nextSlot: round < rounds ? (order % 2 ? "home" : "away") : undefined,
+    ...(sourceFixtureIds === undefined
+      ? {}
+      : { sourceFixtureIds: sourceFixtureIds }),
+    ...(round < rounds
+      ? {
+          nextFixtureId: `round-${String(round + 1)}-match-${String(Math.ceil(order / 2))}`,
+          nextSlot: order % 2 ? "home" : "away",
+        }
+      : {}),
   };
 }
 
@@ -141,7 +162,7 @@ export function generateSingleElimination(
     const matchCount = bracketSize / 2 ** round;
     const matches: CompetitionFixture[] = [];
     for (let order = 1; order <= matchCount; order++) {
-      matches.push(bracketFixture(round, order, rounds, slots));
+      matches.push(bracketFixture({ round, order, rounds, slots }));
     }
     roundFixtures.push(matches);
     fixtures.push(...matches);
@@ -151,25 +172,10 @@ export function generateSingleElimination(
   return fixtures;
 }
 
-/**
- * Fill in bracket linkage missing from tournaments generated before it was
- * recorded, derived from the round/order convention: round r order o is fed by
- * round r-1 orders 2o-1 and 2o, and advances into round r+1 order ceil(o/2).
- *
- * This is not only cosmetic. `advanceWinner` returns early without a
- * `nextFixtureId`, so a bracket lacking the linkage could never progress past
- * its first round. Mutates in place; returns true when anything was repaired.
- */
 export function repairBracketLinkage(fixtures: CompetitionFixture[]): boolean {
-  const rounds = [...new Set(fixtures.map((f) => f.round))].sort(
-    (a, b) => a - b
-  );
-  if (rounds.length === 0) return false;
-  const firstRound = rounds[0];
-  const lastRound = rounds[rounds.length - 1];
-  const byRoundOrder = new Map(
-    fixtures.map((f) => [`${f.round}:${f.order}`, f])
-  );
+  const index = indexBracket(fixtures);
+  if (!index) return false;
+  const { firstRound, lastRound, byRoundOrder } = index;
   let repaired = false;
 
   for (const fixture of fixtures) {
@@ -181,34 +187,43 @@ export function repairBracketLinkage(fixtures: CompetitionFixture[]): boolean {
   return repaired;
 }
 
-/** Link a later-round fixture to the two fixtures that feed it. */
 function repairSources(
   fixture: CompetitionFixture,
   byRoundOrder: Map<string, CompetitionFixture>
 ): boolean {
   if (fixture.sourceFixtureIds?.length) return false;
   const sources = [
-    byRoundOrder.get(`${fixture.round - 1}:${fixture.order * 2 - 1}`),
-    byRoundOrder.get(`${fixture.round - 1}:${fixture.order * 2}`),
+    byRoundOrder.get(
+      `${String(fixture.round - 1)}:${String(fixture.order * 2 - 1)}`
+    ),
+    byRoundOrder.get(
+      `${String(fixture.round - 1)}:${String(fixture.order * 2)}`
+    ),
   ].filter((f): f is CompetitionFixture => !!f);
   if (!sources.length) return false;
   fixture.sourceFixtureIds = sources.map((source) => source.id);
   return true;
 }
 
-/** Link a fixture to the next-round fixture its winner goes on to. */
 function repairNext(
   fixture: CompetitionFixture,
   byRoundOrder: Map<string, CompetitionFixture>
 ): boolean {
   if (fixture.nextFixtureId) return false;
   const next = byRoundOrder.get(
-    `${fixture.round + 1}:${Math.ceil(fixture.order / 2)}`
+    `${String(fixture.round + 1)}:${String(Math.ceil(fixture.order / 2))}`
   );
   if (!next) return false;
   fixture.nextFixtureId = next.id;
   fixture.nextSlot = fixture.order % 2 ? "home" : "away";
   return true;
+}
+
+function rotateRoundRobin(rotation: (string | null)[]): (string | null)[] {
+  const [fixed, ...moving] = rotation;
+  if (fixed === undefined) return [];
+  const last = moving.pop();
+  return [fixed, ...(last === undefined ? [] : [last]), ...moving];
 }
 
 export function generateRoundRobin(
@@ -218,9 +233,7 @@ export function generateRoundRobin(
     throw new Error("A competition needs at least two entrants.");
   }
 
-  const ids: Array<string | null> = seeded(entrants).map(
-    (entrant) => entrant.id
-  );
+  const ids: (string | null)[] = seeded(entrants).map((entrant) => entrant.id);
   if (ids.length % 2) ids.push(null);
   const rounds = ids.length - 1;
   const fixtures: CompetitionFixture[] = [];
@@ -234,7 +247,7 @@ export function generateRoundRobin(
       if (!home || !away) continue;
       if ((round + i) % 2 === 0) [home, away] = [away, home];
       fixtures.push({
-        id: `round-${round}-match-${order}`,
+        id: `round-${String(round)}-match-${String(order)}`,
         round,
         order,
         homeEntrantId: home,
@@ -243,14 +256,94 @@ export function generateRoundRobin(
       });
       order++;
     }
-    rotation = [
-      rotation[0],
-      rotation[rotation.length - 1],
-      ...rotation.slice(1, -1),
-    ];
+    rotation = rotateRoundRobin(rotation);
   }
 
   return fixtures;
+}
+
+function emptyStanding(entrantId: string): Standing {
+  return {
+    entrantId,
+    played: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+    scoreFor: 0,
+    scoreAgainst: 0,
+    scoreDifference: 0,
+    points: 0,
+  };
+}
+
+function isPlayedFixture(
+  fixture: CompetitionFixture
+): fixture is CompetitionFixture & {
+  homeEntrantId: string;
+  awayEntrantId: string;
+  result: FixtureResult;
+} {
+  return (
+    fixture.status === "complete" &&
+    fixture.result !== undefined &&
+    !fixture.result.bye &&
+    !fixture.result.walkover &&
+    Boolean(fixture.homeEntrantId && fixture.awayEntrantId)
+  );
+}
+
+function recordScore(
+  standing: Standing,
+  scored: number,
+  conceded: number
+): void {
+  standing.played++;
+  standing.scoreFor += scored;
+  standing.scoreAgainst += conceded;
+}
+
+function recordWin(
+  winner: Standing,
+  loser: Standing,
+  points: LeaguePoints
+): void {
+  winner.wins++;
+  loser.losses++;
+  winner.points += points.win;
+  loser.points += points.loss;
+}
+
+function recordDraw(
+  home: Standing,
+  away: Standing,
+  points: LeaguePoints
+): void {
+  for (const standing of [home, away]) {
+    standing.draws++;
+    standing.points += points.draw;
+  }
+}
+
+function recordScoreline({
+  home,
+  away,
+  result,
+  points,
+}: {
+  home: Standing;
+  away: Standing;
+  result: FixtureResult;
+  points: LeaguePoints;
+}): void {
+  recordScore(home, result.homeScore, result.awayScore);
+  recordScore(away, result.awayScore, result.homeScore);
+  const lead = homeLead(result);
+  if (lead === 0) {
+    recordDraw(home, away, points);
+    return;
+  }
+  if (lead > 0) recordWin(home, away, points);
+  else recordWin(away, home, points);
 }
 
 export function computeStandings(
@@ -259,65 +352,17 @@ export function computeStandings(
   points: LeaguePoints = { win: 3, draw: 1, loss: 0 }
 ): Standing[] {
   const table = new Map<string, Standing>(
-    entrants.map((entrant) => [
-      entrant.id,
-      {
-        entrantId: entrant.id,
-        played: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        scoreFor: 0,
-        scoreAgainst: 0,
-        scoreDifference: 0,
-        points: 0,
-      },
-    ])
+    entrants.map((entrant) => [entrant.id, emptyStanding(entrant.id)])
   );
-
   for (const fixture of fixtures) {
-    if (
-      fixture.status !== "complete" ||
-      !fixture.result ||
-      fixture.result.bye ||
-      fixture.result.walkover ||
-      !fixture.homeEntrantId ||
-      !fixture.awayEntrantId
-    ) {
-      continue;
-    }
+    if (!isPlayedFixture(fixture)) continue;
     const home = table.get(fixture.homeEntrantId);
     const away = table.get(fixture.awayEntrantId);
     if (!home || !away) continue;
-    home.played++;
-    away.played++;
-    home.scoreFor += fixture.result.homeScore;
-    home.scoreAgainst += fixture.result.awayScore;
-    away.scoreFor += fixture.result.awayScore;
-    away.scoreAgainst += fixture.result.homeScore;
-
-    const lead = homeLead(fixture.result);
-    if (lead > 0) {
-      home.wins++;
-      away.losses++;
-      home.points += points.win;
-      away.points += points.loss;
-    } else if (lead < 0) {
-      away.wins++;
-      home.losses++;
-      away.points += points.win;
-      home.points += points.loss;
-    } else {
-      home.draws++;
-      away.draws++;
-      home.points += points.draw;
-      away.points += points.draw;
-    }
+    recordScoreline({ home, away, result: fixture.result, points });
   }
-
-  for (const standing of table.values()) {
+  for (const standing of table.values())
     standing.scoreDifference = standing.scoreFor - standing.scoreAgainst;
-  }
   const names = new Map(entrants.map((entrant) => [entrant.id, entrant.name]));
   return [...table.values()].sort(
     (a, b) =>
@@ -328,7 +373,6 @@ export function computeStandings(
   );
 }
 
-/** Positive when home won, negative when away won, 0 for a draw. */
 function homeLead(result: Omit<FixtureResult, "completedAt">): number {
   const { homeScore, awayScore, penalties } = result;
   return (
@@ -339,8 +383,7 @@ function homeLead(result: Omit<FixtureResult, "completedAt">): number {
 const SHOOTOUT_ROLL_OFFS = 5;
 
 function checkPenalties(
-  homeScore: number,
-  awayScore: number,
+  { homeScore, awayScore }: Pick<FixtureResult, "homeScore" | "awayScore">,
   allowDraw: boolean,
   { home, away }: PenaltyShootout
 ): void {
@@ -360,22 +403,33 @@ function checkPenalties(
   }
 }
 
-function completedResult(
-  homeEntrantId: string,
-  awayEntrantId: string,
-  homeScore: number,
-  awayScore: number,
-  allowDraw: boolean,
-  penalties?: PenaltyShootout
-): FixtureResult {
+function checkScores(homeScore: number, awayScore: number): void {
   if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore)) {
     throw new Error("Scores must be whole numbers.");
   }
   if (homeScore < 0 || awayScore < 0) {
     throw new Error("Scores cannot be negative.");
   }
+}
+
+function completedResult({
+  homeEntrantId,
+  awayEntrantId,
+  homeScore,
+  awayScore,
+  allowDraw,
+  penalties,
+}: {
+  homeEntrantId: string;
+  awayEntrantId: string;
+  homeScore: number;
+  awayScore: number;
+  allowDraw: boolean;
+  penalties?: PenaltyShootout;
+}): FixtureResult {
+  checkScores(homeScore, awayScore);
   if (penalties) {
-    checkPenalties(homeScore, awayScore, allowDraw, penalties);
+    checkPenalties({ homeScore, awayScore }, allowDraw, penalties);
   } else if (!allowDraw && homeScore === awayScore) {
     throw new Error(
       "A knockout game left level is decided on Penalties: enter the shoot-out."
@@ -385,20 +439,35 @@ function completedResult(
   const lead = homeLead(result);
   return {
     ...result,
-    winnerEntrantId:
-      lead === 0 ? undefined : lead > 0 ? homeEntrantId : awayEntrantId,
+    ...(lead === 0
+      ? {}
+      : { winnerEntrantId: lead > 0 ? homeEntrantId : awayEntrantId }),
     completedAt: Date.now(),
   };
 }
 
-/**
- * Standings, status and the champion follow from the fixtures. They are
- * stored too, but rules cannot check a whole table, so a reader trusts only
- * the fixtures, which firestore.rules does protect.
- */
-export function withResultsFromFixtures<T extends LeagueDoc | TournamentDoc>(
-  competition: T
-): T {
+function competitionStatus(
+  current: CompetitionStatus,
+  allComplete: boolean
+): CompetitionStatus {
+  if (current === "draft") return "draft";
+  return allComplete ? "complete" : "active";
+}
+
+function tournamentChampion(
+  tournament: TournamentDoc,
+  standings: Standing[],
+  allComplete: boolean
+): string | undefined {
+  if (tournament.format === SINGLE_ELIMINATION)
+    return tournament.fixtures.find((fixture) => !fixture.nextFixtureId)?.result
+      ?.winnerEntrantId;
+  return allComplete ? standings[0]?.entrantId : undefined;
+}
+
+export function withResultsFromFixtures(
+  competition: CompetitionDoc
+): CompetitionDoc {
   const standings = computeStandings(
     competition.entrants,
     competition.fixtures,
@@ -407,44 +476,28 @@ export function withResultsFromFixtures<T extends LeagueDoc | TournamentDoc>(
   const allComplete =
     competition.fixtures.length > 0 &&
     competition.fixtures.every((fixture) => fixture.status === "complete");
-  const status =
-    competition.status === "draft"
-      ? "draft"
-      : allComplete
-        ? "complete"
-        : "active";
-  if (competition.type === "league") {
-    return { ...competition, standings, status };
-  }
-  const champion =
-    competition.format === "single-elimination"
-      ? competition.fixtures.find((fixture) => !fixture.nextFixtureId)?.result
-          ?.winnerEntrantId
-      : allComplete
-        ? standings[0]?.entrantId
-        : undefined;
-  const { championEntrantId: _stored, ...rest } = competition;
-  return {
-    ...rest,
+  const next = {
+    ...competition,
     standings,
-    status,
-    ...(champion ? { championEntrantId: champion } : {}),
-  } as T;
+    status: competitionStatus(competition.status, allComplete),
+  };
+  if (next.type === "tournament") {
+    const champion = tournamentChampion(next, standings, allComplete);
+    if (champion) next.championEntrantId = champion;
+    else delete next.championEntrantId;
+  }
+  return next;
 }
 
-/**
- * Close the next open game a withdrawn entrant would play as a walkover: the
- * other side wins it unplayed, and in a knockout goes through. Null when no
- * such game is left. One game at a time, so a caller can save in steps.
- */
-export function walkOverNext<T extends LeagueDoc | TournamentDoc>(
-  competition: T
-): T | null {
+export function walkOverNext(
+  competition: CompetitionDoc
+): CompetitionDoc | null {
+  const next = structuredClone(competition);
   const withdrawnIndex = (entrantId: string | null) =>
     competition.entrants.findIndex(
       (entrant) => entrant.id === entrantId && entrant.withdrawn
     );
-  const open = competition.fixtures
+  const open = next.fixtures
     .filter(
       (fixture) =>
         fixture.status !== "complete" &&
@@ -456,10 +509,9 @@ export function walkOverNext<T extends LeagueDoc | TournamentDoc>(
     .sort((a, b) => a.round - b.round || a.order - b.order)[0];
   if (!open?.homeEntrantId || !open.awayEntrantId) return null;
 
-  const next = structuredClone(competition);
-  const fixture = next.fixtures.find((candidate) => candidate.id === open.id)!;
+  const fixture = open;
   const homeOut = withdrawnIndex(open.homeEntrantId);
-  // Both withdrawn: the away side goes through, to walk over its next game
+
   const loserIndex =
     homeOut >= 0 ? homeOut : withdrawnIndex(open.awayEntrantId);
   const winner = homeOut >= 0 ? open.awayEntrantId : open.homeEntrantId;
@@ -471,83 +523,97 @@ export function walkOverNext<T extends LeagueDoc | TournamentDoc>(
     completedAt: Date.now(),
     walkover: { withdrawnEntrantIndex: loserIndex },
   };
-  if (next.type === "tournament" && next.format === "single-elimination") {
+  if (next.type === "tournament" && next.format === SINGLE_ELIMINATION) {
     advanceWinner(next.fixtures, fixture, winner);
     resolveByes(next.fixtures);
   }
   return { ...withResultsFromFixtures(next), updatedAt: Date.now() };
 }
 
-export function recordTournamentResult(
+function advanceTournament(
   tournament: TournamentDoc,
-  fixtureId: string,
-  homeScore: number,
-  awayScore: number,
-  penalties?: PenaltyShootout
-): TournamentDoc {
+  fixture: CompetitionFixture,
+  result: FixtureResult
+): void {
+  if (tournament.format !== SINGLE_ELIMINATION || !result.winnerEntrantId)
+    return;
+  advanceWinner(tournament.fixtures, fixture, result.winnerEntrantId);
+  resolveByes(tournament.fixtures);
+  if (!fixture.nextFixtureId)
+    tournament.championEntrantId = result.winnerEntrantId;
+}
+
+export function recordTournamentResult({
+  tournament,
+  fixtureId,
+  homeScore,
+  awayScore,
+  penalties,
+}: {
+  tournament: TournamentDoc;
+  fixtureId: string;
+  homeScore: number;
+  awayScore: number;
+  penalties?: PenaltyShootout;
+}): TournamentDoc {
   const next: TournamentDoc = structuredClone(tournament);
   const fixture = next.fixtures.find((candidate) => candidate.id === fixtureId);
-  if (!fixture || !fixture.homeEntrantId || !fixture.awayEntrantId) {
+  if (!fixture?.homeEntrantId || !fixture.awayEntrantId) {
     throw new Error("Fixture is not ready.");
   }
   if (fixture.status === "complete")
     throw new Error("Fixture is already complete.");
 
-  fixture.result = completedResult(
-    fixture.homeEntrantId,
-    fixture.awayEntrantId,
+  fixture.result = completedResult({
+    homeEntrantId: fixture.homeEntrantId,
+    awayEntrantId: fixture.awayEntrantId,
     homeScore,
     awayScore,
-    next.format === "round-robin",
-    penalties
-  );
+    allowDraw: next.format === "round-robin",
+    ...(penalties === undefined ? {} : { penalties }),
+  });
   fixture.status = "complete";
 
-  if (next.format === "single-elimination" && fixture.result.winnerEntrantId) {
-    advanceWinner(next.fixtures, fixture, fixture.result.winnerEntrantId);
-    resolveByes(next.fixtures);
-    if (!fixture.nextFixtureId) {
-      next.championEntrantId = fixture.result.winnerEntrantId;
-    }
-  }
+  advanceTournament(next, fixture, fixture.result);
 
   next.standings = computeStandings(next.entrants, next.fixtures);
   const allComplete = next.fixtures.every(
     (candidate) => candidate.status === "complete"
   );
   next.status = allComplete ? "complete" : "active";
-  if (
-    allComplete &&
-    next.format === "round-robin" &&
-    next.standings.length > 0
-  ) {
-    next.championEntrantId = next.standings[0].entrantId;
-  }
+  const [leader] = next.standings;
+  if (allComplete && next.format === "round-robin" && leader)
+    next.championEntrantId = leader.entrantId;
   next.updatedAt = Date.now();
   return next;
 }
 
-export function recordLeagueResult(
-  league: LeagueDoc,
-  fixtureId: string,
-  homeScore: number,
-  awayScore: number
-): LeagueDoc {
+export function recordLeagueResult({
+  league,
+  fixtureId,
+  homeScore,
+  awayScore,
+}: {
+  league: LeagueDoc;
+  fixtureId: string;
+  homeScore: number;
+  awayScore: number;
+}): LeagueDoc {
   const next: LeagueDoc = structuredClone(league);
   const fixture = next.fixtures.find((candidate) => candidate.id === fixtureId);
-  if (!fixture || !fixture.homeEntrantId || !fixture.awayEntrantId) {
+  if (!fixture?.homeEntrantId || !fixture.awayEntrantId) {
     throw new Error("Fixture is not ready.");
   }
   if (fixture.status === "complete")
     throw new Error("Fixture is already complete.");
 
-  fixture.result = completedResult(
-    fixture.homeEntrantId,
-    fixture.awayEntrantId,
+  fixture.result = completedResult({
+    homeEntrantId: fixture.homeEntrantId,
+    awayEntrantId: fixture.awayEntrantId,
     homeScore,
     awayScore,
-    true
-  );
+    allowDraw: true,
+  });
   fixture.status = "complete";
   next.standings = computeStandings(next.entrants, next.fixtures, next.points);
   next.status = next.fixtures.every(

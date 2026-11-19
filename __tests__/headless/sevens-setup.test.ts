@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { FormationManager } from "../../src/game/managers/FormationManager";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -17,9 +19,11 @@ async function begin(game: HeadlessGame, kickingTeamId = game.ctx.team1.id) {
 }
 
 function preset(isTeam1: boolean, name = "Balanced") {
-  return new FormationManager()
-    .getBuiltInFormations(isTeam1)
-    .find((formation) => formation.name === name)!.positions;
+  return fixtureValue(
+    new FormationManager()
+      .getBuiltInFormations(isTeam1)
+      .find((formation) => formation.name === name)
+  ).positions;
 }
 
 describe("Sevens setup through the headless protocol", () => {
@@ -30,7 +34,7 @@ describe("Sevens setup through the headless protocol", () => {
     const waitingPlayer = game.ctx.team2.players[0];
     const waiting = await game.execute({
       type: "place-player",
-      playerId: waitingPlayer.id,
+      playerId: fixtureValue(waitingPlayer).id,
       x: 13,
       y: 4,
     });
@@ -61,11 +65,13 @@ describe("Sevens setup through the headless protocol", () => {
     expect(confirmed.snapshot.subPhase).toBe(SubPhase.SETUP_RECEIVING);
     expect(confirmed.snapshot.activeTeamId).toBe(game.ctx.team2.id);
     expect(
-      confirmed.snapshot.teams[0].players.filter((player) => player.position)
+      fixtureValue(confirmed.snapshot.teams[0]).players.filter(
+        (player) => player.position
+      )
     ).toHaveLength(7);
     expect(
-      confirmed.snapshot.teams[0].players
-        .filter((player) => !player.position)
+      fixtureValue(confirmed.snapshot.teams[0])
+        .players.filter((player) => !player.position)
         .every((player) => player.status === PlayerStatus.RESERVE)
     ).toBe(true);
   });
@@ -77,7 +83,7 @@ describe("Sevens setup through the headless protocol", () => {
 
     const neutral = await game.execute({
       type: "place-player",
-      playerId: first.id,
+      playerId: fixtureValue(first).id,
       x: 7,
       y: 5,
     });
@@ -88,7 +94,7 @@ describe("Sevens setup through the headless protocol", () => {
       (
         await game.execute({
           type: "place-player",
-          playerId: first.id,
+          playerId: fixtureValue(first).id,
           x: 5,
           y: 0,
         })
@@ -96,7 +102,7 @@ describe("Sevens setup through the headless protocol", () => {
     ).toBe(true);
     const wide = await game.execute({
       type: "place-player",
-      playerId: second.id,
+      playerId: fixtureValue(second).id,
       x: 5,
       y: 1,
     });
@@ -107,10 +113,10 @@ describe("Sevens setup through the headless protocol", () => {
   it("rejects an eighth player and an under-manned Line of Scrimmage", async () => {
     const game = new HeadlessGame({ seed: 73 });
     game.ctx.team1.players.push({
-      ...structuredClone(game.ctx.team1.players[0]),
+      ...structuredClone(fixtureValue(game.ctx.team1.players[0])),
       id: "team1-extra-player",
       number: 8,
-      gridPosition: undefined,
+
       status: PlayerStatus.RESERVE,
     });
     await begin(game);
@@ -129,7 +135,7 @@ describe("Sevens setup through the headless protocol", () => {
 
     const eighth = await game.execute({
       type: "place-player",
-      playerId: game.ctx.team1.players[7].id,
+      playerId: fixtureValue(game.ctx.team1.players[7]).id,
       x: 4,
       y: 5,
     });
@@ -160,7 +166,7 @@ describe("Sevens setup through the headless protocol", () => {
       (
         await game.execute({
           type: "place-player",
-          playerId: game.ctx.team1.players[0].id,
+          playerId: fixtureValue(game.ctx.team1.players[0]).id,
           x: 6,
           y: 4,
         })
@@ -182,13 +188,13 @@ describe("Sevens setup through the headless protocol", () => {
       formation: preset(true),
     });
     expect(applied.ok).toBe(true);
-    const lineRule = applied.snapshot.setup?.teams[
-      game.ctx.team1.id
-    ].restrictions.find((rule) => rule.id === "line-of-scrimmage");
+    const lineRule = fixtureValue(
+      applied.snapshot.setup?.teams[game.ctx.team1.id]
+    ).restrictions.find((rule) => rule.id === "line-of-scrimmage");
     expect(lineRule).toMatchObject({ satisfied: false, satisfiable: false });
-    expect(applied.snapshot.setup?.teams[game.ctx.team1.id].canConfirm).toBe(
-      true
-    );
+    expect(
+      fixtureValue(applied.snapshot.setup?.teams[game.ctx.team1.id]).canConfirm
+    ).toBe(true);
   });
 
   it("gives the receivers a touchback when the kicking team has nobody on the pitch", async () => {
@@ -258,12 +264,12 @@ describe("Sevens setup through the headless protocol", () => {
       response.events.some(
         (event) =>
           event.name === "setupConcessionResolved" &&
-          (event.data as { penaltyFree?: boolean }).penaltyFree
+          z
+            .object({ penaltyFree: z.boolean().exactOptional() })
+            .parse(event.data).penaltyFree
       )
     ).toBe(true);
 
-    // The termination reason is tracked separately from the played score:
-    // a concession never invents a touchdown or mutates the scoreline.
     expect(response.snapshot.result).toEqual({
       reason: "concession",
       concedingTeamId: game.ctx.team1.id,
@@ -280,14 +286,16 @@ describe("Sevens setup through the headless protocol", () => {
     await begin(game);
     await game.execute({
       type: "place-player",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       x: 6,
       y: 4,
     });
 
     const snapshot = game.snapshot();
     expect(snapshot.setup?.currentTeamId).toBe(game.ctx.team1.id);
-    expect(snapshot.setup?.teams[game.ctx.team1.id].placedPlayerCount).toBe(1);
+    expect(
+      fixtureValue(snapshot.setup?.teams[game.ctx.team1.id]).placedPlayerCount
+    ).toBe(1);
 
     const restored = deserializeGameState(snapshot);
     const roundTrip = serializeGameState(restored, [

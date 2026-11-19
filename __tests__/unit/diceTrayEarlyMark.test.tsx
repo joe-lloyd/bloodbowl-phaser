@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
@@ -5,14 +6,12 @@ import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 
-// A dice scene whose throws land when the test says so, and record the die
-// marked as picked.
 const throws = vi.hoisted(
   () =>
-    [] as {
+    new Array<{
       land: () => void;
       mark: ReturnType<typeof import("vitest").vi.fn>;
-    }[]
+    }>()
 );
 vi.mock("../../src/ui/dice/diceScene", () => ({
   playRoll: () => {
@@ -57,17 +56,20 @@ const mount = async () => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () => root.render(<DiceTray eventBus={bus} />));
+  await act(async () => {
+    root.render(<DiceTray eventBus={bus} />);
+  });
   return {
     bus,
     unmount: async () => {
-      await act(async () => root.unmount());
+      await act(async () => {
+        root.unmount();
+      });
       container.remove();
     },
   };
 };
 
-/** Waits until the tray has thrown `count` sets of dice. */
 const thrown = async (count: number) => {
   const end = Date.now() + 4000;
   while (throws.length < count && Date.now() < end)
@@ -77,7 +79,7 @@ const thrown = async (count: number) => {
 
 const land = (n: number) =>
   act(async () => {
-    throws[n].land();
+    fixtureValue(throws[n]).land();
     await new Promise((resolve) => setTimeout(resolve, 20));
   });
 
@@ -87,10 +89,10 @@ describe("block dice picked before the tray has thrown them", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceTray eventBus={bus} />);
+    });
 
-    // The pick comes in the same breath as the roll, before the dice scene
-    // has loaded and thrown them.
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
@@ -110,12 +112,14 @@ describe("block dice picked before the tray has thrown them", () => {
     expect(throws.length).toBe(1);
 
     await act(async () => {
-      throws[0].land();
+      fixtureValue(throws[0]).land();
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
-    expect(throws[0].mark).toHaveBeenCalledWith(1);
+    expect(fixtureValue(throws[0]).mark).toHaveBeenCalledWith(1);
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -131,7 +135,7 @@ describe("block dice picked before the tray has thrown them", () => {
       });
     });
     await thrown(1);
-    // The block is rolled and picked while the dodge is still tumbling
+
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
@@ -148,7 +152,7 @@ describe("block dice picked before the tray has thrown them", () => {
     await land(0);
     await thrown(2);
     await land(1);
-    expect(throws[1].mark).toHaveBeenCalledWith(1);
+    expect(fixtureValue(throws[1]).mark).toHaveBeenCalledWith(1);
     await unmount();
   });
 
@@ -161,7 +165,7 @@ describe("block dice picked before the tray has thrown them", () => {
       });
     });
     await thrown(1);
-    // A team re-roll while the first throw tumbles, and a pick from it
+
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
@@ -176,12 +180,12 @@ describe("block dice picked before the tray has thrown them", () => {
       });
     });
     await land(0);
-    expect(throws[0].mark).not.toHaveBeenCalled();
+    expect(fixtureValue(throws[0]).mark).not.toHaveBeenCalled();
     await thrown(2);
     await land(1);
-    expect(throws[1].mark).toHaveBeenCalledWith(1);
-    // Nor once the re-rolled dice have come to rest
-    expect(throws[0].mark).not.toHaveBeenCalled();
+    expect(fixtureValue(throws[1]).mark).toHaveBeenCalledWith(1);
+
+    expect(fixtureValue(throws[0]).mark).not.toHaveBeenCalled();
     await unmount();
   });
 });

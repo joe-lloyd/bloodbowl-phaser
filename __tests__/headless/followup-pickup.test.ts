@@ -1,14 +1,10 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 
-/**
- * Following up onto a loose ball must trigger a pickup roll — entering the
- * ball's square is entering the ball's square, follow-up or not. Regression
- * for: "the follow up lands the player on the ball but there's no pickup roll".
- */
 const followUpOntoBall: Scenario = {
   id: "followup-onto-ball",
   name: "Follow-up onto loose ball",
@@ -19,7 +15,7 @@ const followUpOntoBall: Scenario = {
     activeTeam: "team1",
     phase: GamePhase.PLAY,
     subPhase: SubPhase.TURN_RECEIVING,
-    ballPosition: { x: 11, y: 5 }, // loose ball adjacent to the attacker
+    ballPosition: { x: 11, y: 5 },
   },
 };
 
@@ -33,10 +29,11 @@ describe("follow-up onto a loose ball", () => {
       pickups.push(data)
     );
 
-    // The follow-up moves the attacker onto (11,5), where the ball sits.
-    await game.ctx.gameService.followUpPush(attacker.id, { x: 11, y: 5 });
+    await game.ctx.gameService.followUpPush(fixtureValue(attacker).id, {
+      x: 11,
+      y: 5,
+    });
 
-    // A pickup roll must have happened (previously it was silently skipped).
     expect(pickups).toHaveLength(1);
   });
 
@@ -53,7 +50,10 @@ describe("follow-up onto a loose ball", () => {
       pickups.push(data)
     );
 
-    await game.ctx.gameService.followUpPush(attacker.id, { x: 11, y: 5 });
+    await game.ctx.gameService.followUpPush(fixtureValue(attacker).id, {
+      x: 11,
+      y: 5,
+    });
 
     expect(pickups).toHaveLength(0);
   });

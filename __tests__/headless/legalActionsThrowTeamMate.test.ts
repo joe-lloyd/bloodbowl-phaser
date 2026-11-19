@@ -1,11 +1,7 @@
-/**
- * The engine's legal-action list offers Throw Team-mate when a thrower
- * stands next to a team-mate it can throw, so an automated driver can
- * choose it like any other action.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 
@@ -29,8 +25,9 @@ async function legalFor(mateSkills: SkillType[]) {
   const game = new HeadlessGame({ scenario: scenario(mateSkills), seed: 1 });
   const response = await game.execute({ type: "legal-actions" });
   const thrower = game.ctx.team1.players[0];
-  return response.legalActions?.players.find((p) => p.playerId === thrower.id)
-    ?.actions;
+  return response.legalActions?.players.find(
+    (p) => p.playerId === fixtureValue(thrower).id
+  )?.actions;
 }
 
 describe("legal actions", () => {
@@ -51,8 +48,9 @@ describe("legal actions", () => {
     const response = await game.execute({ type: "legal-actions" });
     const thrower = game.ctx.team1.players[0];
     expect(
-      response.legalActions?.players.find((p) => p.playerId === thrower.id)
-        ?.actions
+      response.legalActions?.players.find(
+        (p) => p.playerId === fixtureValue(thrower).id
+      )?.actions
     ).not.toContain("throwTeamMate");
   });
 
@@ -73,8 +71,9 @@ describe("legal actions", () => {
     const response = await game.execute({ type: "legal-actions" });
     const kicker = game.ctx.team1.players[0];
     expect(
-      response.legalActions?.players.find((p) => p.playerId === kicker.id)
-        ?.actions
+      response.legalActions?.players.find(
+        (p) => p.playerId === fixtureValue(kicker).id
+      )?.actions
     ).toContain("throwTeamMate");
   });
 });

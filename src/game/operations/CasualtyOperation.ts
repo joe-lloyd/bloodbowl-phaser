@@ -1,17 +1,20 @@
 import { GameOperation } from "../core/GameOperation";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService.js";
+import { type IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryType, PlayerStatus } from "../../types/Player.js";
-import { CasualtyType, InjuryResult } from "../controllers/InjuryController.js";
 import {
-  CasualtyCause,
+  type CasualtyType,
+  InjuryResult,
+} from "../controllers/InjuryController.js";
+import {
+  type CasualtyCause,
   confirmKill,
   plagueRiddenApplies,
 } from "../rules/plagueRidden";
-import { foldTrigger, CasualtyContext } from "../skills";
+import { foldTrigger, type CasualtyContext } from "../skills";
 import { movePlayerToBox } from "../rules/playerLocation";
-import { ApothecaryCasualtyType } from "../../types/decisions";
+import { type ApothecaryCasualtyType } from "../../types/decisions";
 import { offerApothecary } from "../inducements/apothecary";
 import { isFrog } from "../inducements/matchInducements";
 import { rerollFailedRegeneration } from "../inducements/regeneration";
@@ -27,32 +30,30 @@ function apothecaryCasualtyType(result: CasualtyType): ApothecaryCasualtyType {
   }
 }
 
-/**
- * CasualtyOperation
- *
- * Responsibility:
- * - Offer saves (Regeneration) via the casualty trigger
- * - Apply the Sevens injury table's casualty result (I3-I5). There is no
- *   Casualty Roll and no Lasting Injury.
- * - Offer the Apothecary before the player leaves for the Casualty box
- */
 export class CasualtyOperation extends GameOperation {
   public readonly name = "CasualtyOperation";
 
+  private playerId: string;
+  private result: CasualtyType;
+  private causedById: (string) | undefined;
+  private cause: (CasualtyCause) | undefined;
   constructor(
-    private playerId: string,
-    private result: CasualtyType,
-    private causedById?: string,
-    /** What inflicted the casualty — "block" can arm Plague Ridden. */
-    private cause?: CasualtyCause
+    playerId: string,
+    result: CasualtyType,
+    causedById?: string,
+
+    cause?: CasualtyCause
   ) {
     super();
+    this.playerId = playerId;
+    this.result = result;
+    this.causedById = causedById;
+    this.cause = cause;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
-    const eventBus =
-      context.eventBus as import("../../services/EventBus").IEventBus;
+    const gameService = context.gameService;
+    const eventBus = context.eventBus;
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
@@ -60,11 +61,10 @@ export class CasualtyOperation extends GameOperation {
       ? gameService.getPlayerById(this.causedById)
       : undefined;
 
-    // Trigger point: a rule may save the player before the result applies
     const preCtx: CasualtyContext = {
       player,
-      causedBy,
-      cause: this.cause,
+      ...(causedBy === undefined ? {} : { causedBy: causedBy }),
+      ...(this.cause === undefined ? {} : { cause: this.cause }),
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -76,9 +76,9 @@ export class CasualtyOperation extends GameOperation {
       causedBy ? [causedBy, player] : [player],
       preCtx
     );
-    preCtx.triggers.forEach((t) =>
-      eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
+    preCtx.triggers.forEach((t) => {
+      eventBus.emit(GameEventNames.SkillTriggered, t);
+    });
     if (
       preCtx.regenerated ||
       rerollFailedRegeneration(
@@ -96,7 +96,6 @@ export class CasualtyOperation extends GameOperation {
       return;
     }
 
-    // Zap!: every casualty route, including crowd and trapdoors, is Badly Hurt.
     const result = isFrog(gameService.getState(), player.id)
       ? InjuryResult.BADLY_HURT
       : this.result;
@@ -115,8 +114,6 @@ export class CasualtyOperation extends GameOperation {
       teamId: player.teamId,
     });
 
-    // Record the result on the player: Badly Hurt is out for this game only,
-    // Seriously Hurt also misses the next league game, Dead leaves the roster.
     switch (result) {
       case InjuryResult.BADLY_HURT:
         player.injuries.push(InjuryType.BADLY_HURT);
@@ -130,11 +127,6 @@ export class CasualtyOperation extends GameOperation {
         break;
     }
 
-    // Every casualty gets first say from an owned, unused Apothecary. A
-    // successful patch-up strikes the record above, and Plague Ridden counts
-    // only a kill the Apothecary did not save, so the kill is confirmed after
-    // that say: by the Apothecary resolution when one is offered, here when
-    // none is.
     const kill =
       result === InjuryResult.DEAD
         ? {
@@ -150,8 +142,6 @@ export class CasualtyOperation extends GameOperation {
     });
     if (offered) return;
 
-    // Off to the Casualty box through the one location seam, so the pitch
-    // square is released as the Casualty-box entry is created.
     movePlayerToBox(
       player,
       { box: "casualty", dead: result === InjuryResult.DEAD },

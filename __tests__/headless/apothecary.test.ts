@@ -1,8 +1,10 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
 import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOperation";
-import { GameOperation } from "../../src/game/core/GameOperation";
+import type { GameOperation } from "../../src/game/core/GameOperation";
 import { SCENARIOS } from "../../src/data/scenarios";
 import { InjuryType, PlayerStatus } from "../../src/types/Player";
 import { SkillType, getSkill } from "../../src/types/Skills";
@@ -10,21 +12,14 @@ import { GameEventNames } from "../../src/types/events";
 import { createMatchSave } from "../../src/headless/serialization";
 import { forceDice } from "../utils/test-helpers";
 
-/**
- * Sevens Apothecary: the once-per-match, owner-only patch-up decision
- * (tasks.md 4.1-4.6, 5.2, 5.3). Injury/casualty operations are triggered
- * directly against the flow manager (bypassing the block/armour chain,
- * which is exercised elsewhere) so the injury result itself is fully
- * controlled via stubbed dice rolls.
- */
-
-const scrimmage = SCENARIOS.find((s) => s.id === "basic-scrimmage")!;
+const scrimmage = fixtureValue(
+  SCENARIOS.find((s) => s.id === "basic-scrimmage")
+);
 
 function newGame(seed = 1): HeadlessGame {
   return new HeadlessGame({ scenario: scrimmage, seed });
 }
 
-/** Run an operation and wait until either it settles or a decision pauses it. */
 async function runUntilSettledOrDecision(
   game: HeadlessGame,
   op: GameOperation
@@ -46,20 +41,32 @@ describe("Sevens Apothecary decision", () => {
   it("offers no decision when the team has no Apothecary", async () => {
     const game = newGame();
     const player = game.ctx.team1.players[0];
-    vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(9); // KO
-    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    vi.spyOn(
+      game.ctx.gameService.getDiceController(),
+      "roll2D6"
+    ).mockReturnValue(9);
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(fixtureValue(player).id)
+    );
 
     expect(game.pendingDecision()).toBeNull();
-    expect(player.status).toBe(PlayerStatus.KO);
+    expect(fixtureValue(player).status).toBe(PlayerStatus.KO);
   });
 
   it("declining leaves the Apothecary unused and applies the original KO", async () => {
     const game = newGame();
     game.ctx.team1.apothecary = true;
     const player = game.ctx.team1.players[0];
-    vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(9); // KO
+    vi.spyOn(
+      game.ctx.gameService.getDiceController(),
+      "roll2D6"
+    ).mockReturnValue(9);
 
-    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(fixtureValue(player).id)
+    );
     const pending = game.pendingDecision();
     expect(pending?.type).toBe("apothecary");
     if (pending?.type !== "apothecary") return;
@@ -68,8 +75,8 @@ describe("Sevens Apothecary decision", () => {
     expect(pending.location).toBe("pitch");
 
     await answer(game, false);
-    expect(player.status).toBe(PlayerStatus.KO);
-    expect(player.gridPosition).toBeUndefined();
+    expect(fixtureValue(player).status).toBe(PlayerStatus.KO);
+    expect(fixtureValue(player).gridPosition).toBeUndefined();
     expect(
       game.ctx.gameService.getState().inducements?.apothecaryUsed[
         game.ctx.team1.id
@@ -81,14 +88,20 @@ describe("Sevens Apothecary decision", () => {
     const game = newGame();
     game.ctx.team1.apothecary = true;
     const player = game.ctx.team1.players[0];
-    const square = { ...player.gridPosition! };
-    vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(9); // KO
+    const square = { ...fixtureValue(fixtureValue(player).gridPosition) };
+    vi.spyOn(
+      game.ctx.gameService.getDiceController(),
+      "roll2D6"
+    ).mockReturnValue(9);
 
-    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(fixtureValue(player).id)
+    );
     await answer(game, true);
 
-    expect(player.status).toBe(PlayerStatus.STUNNED);
-    expect(player.gridPosition).toEqual(square);
+    expect(fixtureValue(player).status).toBe(PlayerStatus.STUNNED);
+    expect(fixtureValue(player).gridPosition).toEqual(square);
     expect(
       game.ctx.gameService.getState().inducements?.apothecaryUsed[
         game.ctx.team1.id
@@ -100,22 +113,24 @@ describe("Sevens Apothecary decision", () => {
     const game = newGame();
     game.ctx.team1.apothecary = true;
     const player = game.ctx.team1.players[0];
-    vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(9); // KO
+    vi.spyOn(
+      game.ctx.gameService.getDiceController(),
+      "roll2D6"
+    ).mockReturnValue(9);
 
     await runUntilSettledOrDecision(
       game,
-      new CrowdInjuryOperation(player.id, { x: 0, y: 0 }, false)
+      new CrowdInjuryOperation(fixtureValue(player).id, { x: 0, y: 0 }, false)
     );
     const pending = game.pendingDecision();
     expect(pending?.type).toBe("apothecary");
     if (pending?.type === "apothecary") expect(pending.location).toBe("crowd");
 
     await answer(game, true);
-    expect(player.status).toBe(PlayerStatus.RESERVE);
-    expect(player.gridPosition).toBeUndefined();
+    expect(fixtureValue(player).status).toBe(PlayerStatus.RESERVE);
+    expect(fixtureValue(player).gridPosition).toBeUndefined();
   });
 
-  // Sevens injury table totals (docs/SEVENS_RULES.md I3-I5).
   for (const [rollTotal, label, casualtyType, initialStatus] of [
     [10, "Badly Hurt", "badly-hurt", PlayerStatus.INJURED],
     [11, "Seriously Hurt", "seriously-hurt", PlayerStatus.INJURED],
@@ -129,9 +144,15 @@ describe("Sevens Apothecary decision", () => {
         game.ctx.gameService.getDiceController(),
         "roll2D6"
       ).mockReturnValue(rollTotal);
-      vi.spyOn(game.ctx.gameService.getDiceController(), "rollD6").mockReturnValue(4); // success
+      vi.spyOn(
+        game.ctx.gameService.getDiceController(),
+        "rollD6"
+      ).mockReturnValue(4);
 
-      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+      await runUntilSettledOrDecision(
+        game,
+        new InjuryOperation(fixtureValue(player).id)
+      );
       const pending = game.pendingDecision();
       expect(pending?.type).toBe("apothecary");
       if (pending?.type === "apothecary") {
@@ -140,7 +161,7 @@ describe("Sevens Apothecary decision", () => {
       }
 
       await answer(game, true);
-      expect(player.status).toBe(PlayerStatus.RESERVE);
+      expect(fixtureValue(player).status).toBe(PlayerStatus.RESERVE);
     });
 
     it(`a failed patch-up (1-3) for ${label} keeps the original result`, async () => {
@@ -151,13 +172,19 @@ describe("Sevens Apothecary decision", () => {
         game.ctx.gameService.getDiceController(),
         "roll2D6"
       ).mockReturnValue(rollTotal);
-      vi.spyOn(game.ctx.gameService.getDiceController(), "rollD6").mockReturnValue(2); // fail
+      vi.spyOn(
+        game.ctx.gameService.getDiceController(),
+        "rollD6"
+      ).mockReturnValue(2);
 
-      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+      await runUntilSettledOrDecision(
+        game,
+        new InjuryOperation(fixtureValue(player).id)
+      );
       await answer(game, true);
 
-      expect(player.status).toBe(initialStatus);
-      // The Apothecary is still consumed even on a failed patch-up.
+      expect(fixtureValue(player).status).toBe(initialStatus);
+
       expect(
         game.ctx.gameService.getState().inducements?.apothecaryUsed[
           game.ctx.team1.id
@@ -171,30 +198,48 @@ describe("Sevens Apothecary decision", () => {
     game.ctx.team1.apothecary = true;
     const first = game.ctx.team1.players[0];
     const second = game.ctx.team1.players[1];
-    vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(9); // KO
+    vi.spyOn(
+      game.ctx.gameService.getDiceController(),
+      "roll2D6"
+    ).mockReturnValue(9);
 
-    await runUntilSettledOrDecision(game, new InjuryOperation(first.id));
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(fixtureValue(first).id)
+    );
     expect(game.pendingDecision()?.type).toBe("apothecary");
     await answer(game, true);
 
-    await runUntilSettledOrDecision(game, new InjuryOperation(second.id));
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(fixtureValue(second).id)
+    );
     expect(game.pendingDecision()).toBeNull();
-    expect(second.status).toBe(PlayerStatus.KO);
+    expect(fixtureValue(second).status).toBe(PlayerStatus.KO);
   });
 
   it("resolving the decision a second time has no effect (idempotent)", async () => {
     const game = newGame();
     game.ctx.team1.apothecary = true;
     const player = game.ctx.team1.players[0];
-    vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(9);
+    vi.spyOn(
+      game.ctx.gameService.getDiceController(),
+      "roll2D6"
+    ).mockReturnValue(9);
 
-    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(fixtureValue(player).id)
+    );
     await answer(game, true);
-    expect(player.status).toBe(PlayerStatus.STUNNED);
+    expect(fixtureValue(player).status).toBe(PlayerStatus.STUNNED);
 
-    const repeat = await game.execute({ type: "use-apothecary", accept: false });
+    const repeat = await game.execute({
+      type: "use-apothecary",
+      accept: false,
+    });
     expect(repeat.ok).toBe(false);
-    expect(player.status).toBe(PlayerStatus.STUNNED); // untouched by the repeat
+    expect(fixtureValue(player).status).toBe(PlayerStatus.STUNNED);
   });
 
   it("determinism: identical seed + answer produce identical outcomes", async () => {
@@ -206,7 +251,10 @@ describe("Sevens Apothecary decision", () => {
         game.ctx.gameService.getDiceController(),
         "roll2D6"
       ).mockReturnValue(10);
-      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+      await runUntilSettledOrDecision(
+        game,
+        new InjuryOperation(fixtureValue(player).id)
+      );
       const response = await answer(game, true);
       return JSON.stringify(response.snapshot);
     };
@@ -221,9 +269,15 @@ describe("Sevens Apothecary decision — save and resume", () => {
     const game = newGame();
     game.ctx.team1.apothecary = true;
     const player = game.ctx.team1.players[0];
-    vi.spyOn(game.ctx.gameService.getDiceController(), "roll2D6").mockReturnValue(9); // KO
+    vi.spyOn(
+      game.ctx.gameService.getDiceController(),
+      "roll2D6"
+    ).mockReturnValue(9);
 
-    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(fixtureValue(player).id)
+    );
     const original = game.pendingDecision();
     expect(original?.type).toBe("apothecary");
 
@@ -247,33 +301,40 @@ describe("Sevens Apothecary decision — save and resume", () => {
       accept: true,
     });
     expect(response.ok).toBe(true);
-    // No fresh Injury Roll happened on resume — only the resolution itself.
+
     expect(
       response.events.some(
         (e) =>
           e.name === GameEventNames.DiceRoll &&
-          typeof (e.data as { rollType?: string })?.rollType === "string" &&
-          (e.data as { rollType: string }).rollType.startsWith("Injury Roll")
+          typeof z
+            .object({ rollType: z.string().exactOptional() })
+            .parse(e.data).rollType === "string" &&
+          z
+            .object({ rollType: z.string() })
+            .parse(e.data)
+            .rollType.startsWith("Injury Roll")
       )
     ).toBe(false);
-    const resumedPlayer = resumed.ctx.team1.players.find(
-      (p) => p.id === player.id
-    )!;
+    const resumedPlayer = fixtureValue(
+      resumed.ctx.team1.players.find((p) => p.id === fixtureValue(player).id)
+    );
     expect(resumedPlayer.status).toBe(PlayerStatus.STUNNED);
     expect(diceBefore.phase).toBe(response.snapshot.phase);
   });
 });
 
 describe("Sevens Apothecary decision — what a patch-up undoes", () => {
-  /** A Block by a Plague Ridden player of team2 against team1's first player. */
   async function blockByPlagueRidden(game: HeadlessGame) {
     game.ctx.team1.apothecary = true;
     const victim = game.ctx.team1.players[0];
     const killer = game.ctx.team2.players[0];
-    killer.skills.push(getSkill(SkillType.PLAGUE_RIDDEN));
+    fixtureValue(killer).skills.push(getSkill(SkillType.PLAGUE_RIDDEN));
     await runUntilSettledOrDecision(
       game,
-      new InjuryOperation(victim.id, { causedById: killer.id, cause: "block" })
+      new InjuryOperation(fixtureValue(victim).id, {
+        causedById: fixtureValue(killer).id,
+        cause: "block",
+      })
     );
     return { victim, killer };
   }
@@ -287,18 +348,21 @@ describe("Sevens Apothecary decision — what a patch-up undoes", () => {
     const game = newGame();
     game.ctx.team1.apothecary = true;
     const player = game.ctx.team1.players[0];
-    forceDice(game.ctx.rng, [5, 6, 4]); // 11 Seriously Hurt, patch-up 4
+    forceDice(game.ctx.rng, [5, 6, 4]);
 
-    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(fixtureValue(player).id)
+    );
     await answer(game, true);
 
-    expect(player.status).toBe(PlayerStatus.RESERVE);
-    expect(player.injuries).toEqual([]);
+    expect(fixtureValue(player).status).toBe(PlayerStatus.RESERVE);
+    expect(fixtureValue(player).injuries).toEqual([]);
   });
 
   it("announces no kill before the Apothecary decides, and none after a save", async () => {
     const game = newGame();
-    forceDice(game.ctx.rng, [6, 6, 4]); // 12 Dead, patch-up 4
+    forceDice(game.ctx.rng, [6, 6, 4]);
     const { victim, killer } = await blockByPlagueRidden(game);
     const rosterSize = game.ctx.team2.players.length;
 
@@ -307,31 +371,31 @@ describe("Sevens Apothecary decision — what a patch-up undoes", () => {
 
     const response = await answer(game, true);
     expect(kills(response.events)).toEqual([]);
-    expect(victim.status).toBe(PlayerStatus.RESERVE);
-    expect(victim.injuries).toEqual([]);
-    expect(killer.plagueRiddenUsed).toBeUndefined();
+    expect(fixtureValue(victim).status).toBe(PlayerStatus.RESERVE);
+    expect(fixtureValue(victim).injuries).toEqual([]);
+    expect(fixtureValue(killer).plagueRiddenUsed).toBeUndefined();
     expect(game.ctx.team2.players.length).toBe(rosterSize);
   });
 
   it("a failed patch-up on a Dead result is a kill that arms Plague Ridden", async () => {
     const game = newGame();
-    forceDice(game.ctx.rng, [6, 6, 3]); // 12 Dead, patch-up 3
+    forceDice(game.ctx.rng, [6, 6, 3]);
     const { victim, killer } = await blockByPlagueRidden(game);
     const rosterSize = game.ctx.team2.players.length;
 
     const response = await answer(game, true);
     expect(kills(response.events)).toEqual([
-      { causerId: killer.id, victimId: victim.id },
+      { causerId: fixtureValue(killer).id, victimId: fixtureValue(victim).id },
     ]);
-    expect(victim.status).toBe(PlayerStatus.DEAD);
-    expect(victim.injuries).toEqual([InjuryType.DEAD]);
-    expect(killer.plagueRiddenUsed).toBe(true);
+    expect(fixtureValue(victim).status).toBe(PlayerStatus.DEAD);
+    expect(fixtureValue(victim).injuries).toEqual([InjuryType.DEAD]);
+    expect(fixtureValue(killer).plagueRiddenUsed).toBe(true);
     expect(game.ctx.team2.players.length).toBe(rosterSize + 1);
   });
 
   it("a Dead decision resumed from a save still counts the kill when declined", async () => {
     const game = newGame();
-    forceDice(game.ctx.rng, [6, 6]); // 12 Dead
+    forceDice(game.ctx.rng, [6, 6]);
     const { victim, killer } = await blockByPlagueRidden(game);
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
@@ -352,10 +416,10 @@ describe("Sevens Apothecary decision — what a patch-up undoes", () => {
     });
 
     expect(kills(response.events)).toEqual([
-      { causerId: killer.id, victimId: victim.id },
+      { causerId: fixtureValue(killer).id, victimId: fixtureValue(victim).id },
     ]);
     const resumedKiller = resumed.ctx.team2.players.find(
-      (p) => p.id === killer.id
+      (p) => p.id === fixtureValue(killer).id
     );
     expect(resumedKiller?.plagueRiddenUsed).toBe(true);
     expect(resumed.ctx.team2.players.length).toBe(rosterSize + 1);

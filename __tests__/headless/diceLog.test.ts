@@ -1,15 +1,16 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import {
   createDiceLog,
-  DiceLog,
-  DiceLogEntry,
+  type DiceLog,
+  type DiceLogEntry,
   DiceLogRecorder,
 } from "../../src/game/persistence/DiceLog";
 import {
@@ -35,10 +36,8 @@ const scenario: Scenario = {
   },
 };
 
-/** Block rolls Push; the Team Re-roll gives Attacker Down. */
 const SEED = 1;
 
-/** A team1 No Ball player beside the loose ball, to step onto it. */
 const noBallScenario: Scenario = {
   ...scenario,
   id: "dice-log-no-ball",
@@ -52,18 +51,26 @@ const noBallScenario: Scenario = {
   },
 };
 
-/** Runs the audit CLI on these logs and returns its report. */
 function audit(logs: DiceLog[]): string {
   const file = join(mkdtempSync(join(tmpdir(), "dice-audit-")), "logs.json");
   writeFileSync(file, JSON.stringify(logs));
-  return execFileSync("npx", ["tsx", "scripts/dice-audit/audit.ts", file], {
-    encoding: "utf8",
-  });
+  return execFileSync(
+    "pnpm",
+    ["exec", "tsx", "scripts/dice-audit/audit.ts", file],
+    {
+      encoding: "utf8",
+    }
+  );
 }
 
-const moment = { at: 0, phase: "play", half: 1, turn: 1, activeTeamId: null };
+const moment = {
+  at: 0,
+  phase: "play",
+  half: 1 as const,
+  turn: 1,
+  activeTeamId: null,
+};
 
-/** A one-die block that left the generator at `rng`. */
 const blockRoll = (seq: number, rng: number | null): DiceLogEntry => ({
   ...moment,
   seq,
@@ -78,7 +85,6 @@ const blockRoll = (seq: number, rng: number | null): DiceLogEntry => ({
   automatic: false,
 });
 
-/** A Team Re-roll of a one-die block that came up Push again. */
 const pushAgain = (seq: number): DiceLogEntry => ({
   ...moment,
   seq,
@@ -97,9 +103,11 @@ const logOf = (id: string, entries: DiceLogEntry[]): DiceLog => ({
   entries,
 });
 
-/** Browser storage that refuses to hold more than `limit` characters. */
 class MemoryStorage {
-  constructor(private readonly limit = Infinity) {}
+  private readonly limit: number;
+  constructor(limit = Infinity) {
+    this.limit = limit;
+  }
   readonly items = new Map<string, string>();
   getItem(key: string) {
     return this.items.get(key) ?? null;
@@ -131,8 +139,8 @@ describe("the dice log", () => {
       () => game.ctx.gameService.getState(),
       log
     );
-    const attackerId = game.ctx.team1.players[0].id;
-    const defenderId = game.ctx.team2.players[0].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -173,7 +181,12 @@ describe("the dice log", () => {
     const storage = new MemoryStorage();
     for (let i = 0; i < 22; i++) {
       writeDiceLog(
-        createDiceLog({ id: `m${i}`, mode: "computer", seed: i, teams: [] }),
+        createDiceLog({
+          id: `m${String(i)}`,
+          mode: "computer",
+          seed: i,
+          teams: [],
+        }),
         storage
       );
     }
@@ -198,7 +211,7 @@ describe("the dice log", () => {
       () => game.ctx.gameService.getState(),
       log
     );
-    const playerId = game.ctx.team1.players[0].id;
+    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
 
     await game.execute({ type: "declare-action", playerId, action: "move" });
     await game.execute({ type: "move", playerId, path: [{ x: 6, y: 5 }] });
@@ -230,14 +243,14 @@ describe("the dice log", () => {
         diceType: "1d6",
         value,
         total: value,
-        description: `Test: ${value}`,
+        description: `Test: ${String(value)}`,
       });
       session.dispose();
     }
 
     const logs = listDiceLogs();
     expect(logs).toHaveLength(1);
-    expect(logs[0].entries).toHaveLength(2);
+    expect(fixtureValue(logs[0]).entries).toHaveLength(2);
   });
 
   it("drops older logs, not this one, when storage is full", () => {
@@ -291,8 +304,8 @@ describe("the dice log", () => {
       () => game.ctx.gameService.getState(),
       log
     );
-    const attackerId = game.ctx.team1.players[0].id;
-    const defenderId = game.ctx.team2.players[0].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: attackerId,
@@ -305,8 +318,8 @@ describe("the dice log", () => {
     const file = join(mkdtempSync(join(tmpdir(), "dice-audit-")), "logs.json");
     writeFileSync(file, JSON.stringify([log, { ...log, id: "guest" }]));
     const report = execFileSync(
-      "npx",
-      ["tsx", "scripts/dice-audit/audit.ts", file],
+      "pnpm",
+      ["exec", "tsx", "scripts/dice-audit/audit.ts", file],
       { encoding: "utf8" }
     );
 
@@ -357,7 +370,7 @@ describe("the dice log", () => {
     });
     recorder.dispose();
 
-    expect(log.entries[0].at).toBeGreaterThanOrEqual(3_600_000);
-    expect(log.updatedAt).toBe(hourAgo + log.entries[0].at);
+    expect(fixtureValue(log.entries[0]).at).toBeGreaterThanOrEqual(3_600_000);
+    expect(log.updatedAt).toBe(hourAgo + fixtureValue(log.entries[0]).at);
   });
 });

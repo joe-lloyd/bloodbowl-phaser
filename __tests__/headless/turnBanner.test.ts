@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { possessive } from "../../src/game/managers/TurnManager";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GameEventNames } from "../../src/types/events";
 
 const scenario: Scenario = {
@@ -26,11 +26,12 @@ describe("turn change banner", () => {
     const banners = response.events
       .filter((event) => event.name === GameEventNames.UI_Announce)
       .map((event) => event.data);
+    const expectedSubtitle: unknown = expect.stringMatching(/^Turn \d$/);
     expect(banners).toEqual([
       {
         kind: "turn-started",
         headline: `${possessive(game.ctx.team2.name)} Turn`,
-        subtitle: expect.stringMatching(/^Turn \d$/),
+        subtitle: expectedSubtitle,
       },
     ]);
   });

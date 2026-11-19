@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -9,7 +10,6 @@ import type { HeadlessCommand } from "../../src/headless/protocol";
 import { snapshotHash } from "../../src/simulation/runMatch";
 import { usageOfTrace } from "../../scripts/coach/policy-lab/usage";
 
-/** "Block Roll" offers a push; the push puts team 1's carrier in its end zone. */
 const PUSH_SEED = 1;
 
 describe("policy-lab play usage", () => {
@@ -37,8 +37,8 @@ describe("policy-lab play usage", () => {
       },
     });
     const initial = game.matchSave();
-    const carrier = game.ctx.team1.players[0].id;
-    const blocker = game.ctx.team2.players[0].id;
+    const carrier = fixtureValue(game.ctx.team1.players[0]).id;
+    const blocker = fixtureValue(game.ctx.team2.players[0]).id;
     const steps: {
       command: HeadlessCommand;
       ok: boolean;
@@ -52,7 +52,13 @@ describe("policy-lab play usage", () => {
       note?: string
     ) => {
       const response = await game.execute(command);
-      steps.push({ command, ok: response.ok, team, label: command.type, note });
+      steps.push({
+        command,
+        ok: response.ok,
+        team,
+        label: command.type,
+        ...(note === undefined ? {} : { note: note }),
+      });
       return response;
     };
     await play(
@@ -100,7 +106,7 @@ describe("policy-lab play usage", () => {
       );
       const usage = await usageOfTrace(file, "usage-opponent-turn-score");
 
-      expect(usage.byPlay[0].carrier).toEqual({
+      expect(usage.byPlay[0]["carrier"]).toEqual({
         plays: 1,
         scoredThisTurn: 0,
         scoredNextTurn: 0,

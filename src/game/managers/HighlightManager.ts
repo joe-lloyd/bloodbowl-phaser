@@ -1,35 +1,35 @@
-import { Pitch, SquareMarker } from "../elements/Pitch";
+import type { Pitch } from "../elements/Pitch";
 
-/**
- * HighlightManager - tracks the push-direction squares it draws, so one call
- * clears them along with the pitch's own highlights, path and hover.
- */
+export interface HighlightMarker {
+  readonly scene?: unknown;
+  destroy(): void;
+  setName(name: string): HighlightMarker;
+}
+
+export type HighlightPitch = Pick<Pitch, "clearHighlights" | "clearPath" | "clearHover"> & {
+  highlightSquare(...args: Parameters<Pitch["highlightSquare"]>): HighlightMarker;
+};
+
 export class HighlightManager {
-  private pushSquares: SquareMarker[] = [];
+  private pushSquares: HighlightMarker[] = [];
 
-  constructor(private pitch: Pitch) {}
+  private pitch: HighlightPitch;
+  constructor(pitch: HighlightPitch) {
+    this.pitch = pitch;
+  }
 
-  /**
-   * Add a push direction highlight (yellow squares for block push selection).
-   * A push into the crowd is chosen one square off the pitch, so push
-   * highlights may be drawn in that ring.
-   */
   public addPushHighlight(
     gridX: number,
     gridY: number,
-    color: number = 0xffff00
-  ): SquareMarker {
-    const square = this.pitch.highlightSquare(gridX, gridY, color, {
+    color = 0xffff00
+  ): HighlightMarker {
+    const square = this.pitch.highlightSquare({ x: gridX, y: gridY }, color, {
       crowd: true,
     });
     this.pushSquares.push(square);
     return square;
   }
 
-  /**
-   * Clear the push squares and the pitch-managed highlights (tackle zones,
-   * overlays, path, hover).
-   */
   public clearAllHighlights(): void {
     this.clearPushSquares();
     this.pitch.clearHighlights();
@@ -37,15 +37,11 @@ export class HighlightManager {
     this.pitch.clearHover();
   }
 
-  /**
-   * Cleanup on scene destruction
-   */
   public destroy(): void {
     this.clearPushSquares();
   }
 
   private clearPushSquares(): void {
-    // A square the scene already tore down has no scene left to leave.
     for (const square of this.pushSquares) if (square.scene) square.destroy();
     this.pushSquares = [];
   }

@@ -1,11 +1,5 @@
-/**
- * Rule scenarios — Negatraits & activation traits (Bone Head, Really
- * Stupid, Unchannelled Fury, Take Root, Timmm-ber!, Drunkard, Loner, Pro,
- * Animal Savagery, Bloodlust, Animosity, Hatred, Pick-Me-Up, Trickster,
- * Always Hungry, My Ball) and the special activation actions (Hypnotic
- * Gaze, Breathe Fire, Projectile Vomit, Chomp).
- */
-
+import { z } from "zod";
+import { fixtureValue } from "../../testing/fixtureValue";
 import { SkillType, hasSkill } from "../../types/Skills";
 import {
   PlayerCondition,
@@ -15,7 +9,7 @@ import {
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
-  RuleScenarioEntry,
+  type RuleScenarioEntry,
   playSetup,
   blockConfig,
   assert,
@@ -26,30 +20,31 @@ import {
   playerAt,
   resolveRef,
   skillCheckDiff,
-  ScriptResult,
+  type ScriptResult,
 } from "../../game/rules-lab";
 
 type R = ScriptResult;
 
-/** A gate/roll of the named kind was made (rollType begins with `name`). */
 const rolled = (r: R, name: string): boolean =>
   sawEvent(
     r,
     GameEventNames.DiceRoll,
-    (d) => !!(d as { rollType?: string }).rollType?.startsWith(name)
+    (d) =>
+      !!z
+        .object({ rollType: z.string().exactOptional() })
+        .parse(d)
+        .rollType?.startsWith(name)
   );
 
-/** This player holds the named condition in the final snapshot. */
 const hasCondition = (r: R, ref: string, cond: PlayerCondition): boolean => {
   const id = resolveRef(r.game, ref);
   return r.snapshot.teams.some((t) =>
     t.players.some(
-      (p) => p.id === id && (p.conditions ?? []).some((c) => c.type === cond)
+      (p) => p.id === id && p.conditions.some((c) => c.type === cond)
     )
   );
 };
 
-/** The player's activation ended (finishActivation emits PlayerActivated). */
 const activationOver = (r: R, ref: string): boolean =>
   sawEvent(
     r,
@@ -66,7 +61,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Bone Head roll on activation",
         description:
           "After declaring an Action, a D6: 2+ acts as normal, 1 becomes Distracted and the activation ends",
-        // An Ogre Blocker is Bone Head on the roster.
+
         setup: playSetup({
           team1Roster: RosterName.OGRE,
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
@@ -116,7 +111,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "really-stupid-alone",
         name: "Really Stupid with no help",
         description: "Unassisted the target is 4+; 1-3 becomes Distracted",
-        // The Goblin roster's Trained Troll (index 0) is Really Stupid.
+
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
@@ -132,11 +127,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "distracted",
             name: "Rolls 1-3 — Distracted",
             matches: (r) => skillTriggered(r, SkillType.REALLY_STUPID),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 hasCondition(r, "team1:0", PlayerCondition.DISTRACTED),
                 "the player becomes Distracted"
-              ),
+              );
+            },
           },
           {
             id: "acts",
@@ -152,8 +148,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Really Stupid with a team-mate",
         description:
           "A Standing, non-Really-Stupid team-mate adjacent grants +2 to the roll",
-        // Trained Troll (index 0) helped by a Goblin Lineman (index 1), who
-        // is not Really Stupid and so qualifies as an assist.
+
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [
@@ -171,11 +166,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "plus-two",
             name: "The roll is made at +2",
             matches: (r) => rolled(r, "Really Stupid"),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Really Stupid") === 2,
                 "an adjacent helper grants +2"
-              ),
+              );
+            },
           },
         ],
       },
@@ -210,11 +206,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "rages",
             name: "Rolls 1-3 — nothing happens, activation ends",
             matches: (r) => skillTriggered(r, SkillType.UNCHANNELLED_FURY),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 activationOver(r, "team1:0"),
                 "a failed Unchannelled Fury ends the activation"
-              ),
+              );
+            },
           },
           {
             id: "acts",
@@ -286,7 +283,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               playerIndex: 0,
               x: 10,
               y: 5,
-              status: "Prone" as never,
+              status: "Prone",
               skills: [SkillType.TIMMM_BER],
               stats: { MA: 2 },
             },
@@ -304,11 +301,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "gets-bonus",
             name: "The stand-up roll is aided",
             matches: (r) => skillTriggered(r, SkillType.TIMMM_BER),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 (skillCheckDiff(r, "Stand Up") ?? 0) >= 1,
                 "at least +1 to the stand-up roll"
-              ),
+              );
+            },
           },
         ],
       },
@@ -321,8 +319,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "drunkard-rush",
         name: "Drunkard fumbles a Rush",
         description: "A -1 modifier applies to every Rush test",
-        // A Norse Raider Lineman is a Drunkard on the roster; MA is pinned
-        // low so the second square is always a Rush.
+
         setup: playSetup({
           team1Roster: RosterName.NORSE,
           team1Placements: [
@@ -352,11 +349,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "minus-one",
             name: "The Rush is rolled at -1",
             matches: (r) => skillTriggered(r, SkillType.DRUNKARD),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 (skillCheckDiff(r, "Rush") ?? 0) <= -1,
                 "the Rush test is worsened by Drunkard"
-              ),
+              );
+            },
           },
         ],
       },
@@ -370,15 +368,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Loner may waste a Team Re-roll",
         description:
           "Using a Team Re-roll needs a D6 roll; below the threshold the re-roll is lost unused",
-        // The Underworld Troll carries Loner (4+) on the roster. It is also
-        // Really Stupid, so the activation gate rolls first and the seed
-        // search covers both dice.
+
         setup: playSetup({
           team1Roster: RosterName.UNDERWORLD_DENIZENS,
           team1Placements: [
             { playerIndex: 0, x: 10, y: 5 },
-            // A non-Really-Stupid neighbour assists the activation gate, so
-            // the run reaches the dodge this config is actually about.
+
             { playerIndex: 1, x: 10, y: 6 },
           ],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
@@ -429,7 +424,9 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               sawEvent(
                 r,
                 GameEventNames.RerollUsed,
-                (d) => (d as { source?: string }).source === "pro"
+                (d) =>
+                  z.object({ source: z.string().exactOptional() }).parse(d)
+                    .source === "pro"
               ),
           },
           {
@@ -440,8 +437,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill === SkillType.PRO &&
-                  !!(d as { effect?: string }).effect?.includes("fails")
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.PRO &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("fails")
               ),
           },
         ],
@@ -472,8 +473,10 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.RerollUsed,
                 (d) =>
-                  (d as { source?: string }).source === "pro" &&
-                  (d as { rollKind?: string }).rollKind === "pickup"
+                  z.object({ source: z.string().exactOptional() }).parse(d)
+                    .source === "pro" &&
+                  z.object({ rollKind: z.string().exactOptional() }).parse(d)
+                    .rollKind === "pickup"
               ),
           },
         ],
@@ -505,29 +508,40 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               (sawEvent(
                 r,
                 GameEventNames.RerollUsed,
-                (d) => (d as { source?: string }).source === "pro"
+                (d) =>
+                  z.object({ source: z.string().exactOptional() }).parse(d)
+                    .source === "pro"
               ) ||
                 sawEvent(
                   r,
                   GameEventNames.SkillTriggered,
                   (d) =>
-                    (d as { skill?: string }).skill === SkillType.PRO &&
-                    !!(d as { effect?: string }).effect?.includes("fails")
+                    z.object({ skill: z.string().exactOptional() }).parse(d)
+                      .skill === SkillType.PRO &&
+                    !!z
+                      .object({ effect: z.string().exactOptional() })
+                      .parse(d)
+                      .effect?.includes("fails")
                 )) &&
               !sawEvent(
                 r,
                 GameEventNames.RerollUsed,
-                (d) => (d as { source?: string }).source === "team"
+                (d) =>
+                  z.object({ source: z.string().exactOptional() }).parse(d)
+                    .source === "team"
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !sawEvent(
                   r,
                   GameEventNames.RerollUsed,
-                  (d) => (d as { source?: string }).source === "team"
+                  (d) =>
+                    z.object({ source: z.string().exactOptional() }).parse(d)
+                      .source === "team"
                 ),
                 "the Team Re-roll must not be spent once Pro is attempted"
-              ),
+              );
+            },
           },
         ],
       },
@@ -550,8 +564,6 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           ballPosition: { x: 1, y: 1 },
         }),
         decisionPolicy: {
-          // On the block-dice choice, spend Pro on the first die once, then
-          // pick a result; other decisions (push, follow-up) fall through.
           custom: (pending, game) => {
             if (pending.type !== "block-dice") return undefined;
             const gs = game.ctx.gameService;
@@ -584,10 +596,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill === SkillType.PRO &&
-                  !!(d as { effect?: string }).effect?.includes(
-                    "re-rolled a block die"
-                  )
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.PRO &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("re-rolled a block die")
               ),
           },
           {
@@ -598,8 +612,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill === SkillType.PRO &&
-                  !!(d as { effect?: string }).effect?.includes("fails")
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.PRO &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("fails")
               ),
           },
         ],
@@ -640,15 +658,19 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill ===
-                    SkillType.ANIMAL_SAVAGERY &&
-                  !!(d as { effect?: string }).effect?.includes("lashes out")
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.ANIMAL_SAVAGERY &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("lashes out")
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 playerDown(r, "team1:1"),
                 "the chosen team-mate is Knocked Down"
-              ),
+              );
+            },
           },
           {
             id: "acts",
@@ -714,7 +736,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               skills: [{ type: SkillType.BLOODLUST, parameter: "2+" }],
             },
             { playerIndex: 1, x: 11, y: 5 },
-            // Someone left to activate, so the bite does not end the turn
+
             { playerIndex: 2, x: 3, y: 9 },
           ],
           team2Placements: [{ playerIndex: 0, x: 20, y: 2 }],
@@ -748,7 +770,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             },
             { playerIndex: 1, x: 11, y: 5 },
             { playerIndex: 2, x: 10, y: 6 },
-            // Someone left to activate, so the bite does not end the turn
+
             { playerIndex: 3, x: 3, y: 9 },
           ],
           team2Placements: [{ playerIndex: 0, x: 20, y: 2 }],
@@ -877,7 +899,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         setup: playSetup({
           team1Placements: [
             { playerIndex: 0, x: 10, y: 5, skills: [SkillType.PICK_ME_UP] },
-            { playerIndex: 1, x: 11, y: 5, status: "Prone" as never },
+            { playerIndex: 1, x: 11, y: 5, status: "Prone" },
           ],
           team2Placements: [{ playerIndex: 0, x: 2, y: 2 }],
           activeTeam: "team2",
@@ -890,11 +912,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "stands",
             name: "The Prone team-mate stands up",
             matches: (r) => skillTriggered(r, SkillType.PICK_ME_UP),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !playerDown(r, "team1:1"),
                 "the Prone team-mate is Standing again"
-              ),
+              );
+            },
           },
           {
             id: "stays-down",
@@ -935,11 +958,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "slips",
             name: "The defender relocates before the dice",
             matches: (r) => skillTriggered(r, SkillType.TRICKSTER),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !playerAt(r, "team2:0", { x: 11, y: 5 }),
                 "the Trickster left their original square"
-              ),
+              );
+            },
           },
         ],
       },
@@ -956,9 +980,8 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [
-            // Trained Troll — Always Hungry + Throw Team-mate, both native.
             { playerIndex: 0, x: 10, y: 5 },
-            // Goblin Lineman (Right Stuff) — the meal / the throw.
+
             { playerIndex: 1, x: 11, y: 5 },
           ],
           team2Placements: [{ playerIndex: 0, x: 1, y: 1 }],
@@ -991,13 +1014,13 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 GameEventNames.UI_Notification,
                 (d) => typeof d === "string" && d.includes("EATS")
               ),
-            // FAQ (May 2026): a Turnover "only if that eaten player was in
-            // possession of the ball"
-            verify: (r) =>
+
+            verify: (r) => {
               assert(
                 !turnoverHappened(r),
                 "eating a team-mate without the ball is no turnover"
-              ),
+              );
+            },
           },
           {
             id: "squirms-free",
@@ -1009,16 +1032,20 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 GameEventNames.UI_Notification,
                 (d) => typeof d === "string" && d.includes("squirms free")
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !turnoverHappened(r) &&
                   sawEvent(
                     r,
                     GameEventNames.DiceRoll,
-                    (d) => (d as { rollType?: string }).rollType === "Bounce"
+                    (d) =>
+                      z
+                        .object({ rollType: z.string().exactOptional() })
+                        .parse(d).rollType === "Bounce"
                   ),
                 "a squirm-free Fumbled Throw bounces with no automatic turnover"
-              ),
+              );
+            },
           },
           {
             id: "proceeds-normally",
@@ -1058,12 +1085,13 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   !resp.ok &&
                   !!resp.reason?.includes("illegal-action-declaration")
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 r.game.ctx.gameService.getState().activePlayer?.id !==
                   resolveRef(r.game, "team1:0"),
                 "no Pass Action may be declared for the My Ball carrier"
-              ),
+              );
+            },
           },
         ],
       },
@@ -1103,14 +1131,19 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill === SkillType.HYPNOTIC_GAZE &&
-                  !!(d as { effect?: string }).effect?.includes("Distracted")
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.HYPNOTIC_GAZE &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("Distracted")
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 hasCondition(r, "team2:0", PlayerCondition.DISTRACTED),
                 "the target becomes Distracted"
-              ),
+              );
+            },
           },
           {
             id: "resisted",
@@ -1278,7 +1311,9 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               sawEvent(
                 r,
                 GameEventNames.DiceRoll,
-                (d) => (d as { rollType?: string }).rollType === "Armor Check"
+                (d) =>
+                  z.object({ rollType: z.string().exactOptional() }).parse(d)
+                    .rollType === "Armor Check"
               ),
           },
         ],
@@ -1391,15 +1426,19 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill ===
-                    SkillType.MONSTROUS_MOUTH &&
-                  !!(d as { effect?: string }).effect?.includes("Chomped")
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.MONSTROUS_MOUTH &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("Chomped")
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 hasCondition(r, "team2:0", PlayerCondition.CHOMPED),
                 "the target is Chomped"
-              ),
+              );
+            },
           },
           {
             id: "missed",
@@ -1482,8 +1521,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Plague Ridden — reinforcement on a Block kill",
         description:
           "When a Plague Ridden Nurgle player kills an eligible opponent (not Big Guy / Decay / Regeneration / Stunty) with a Block, their coach adds one Lineman to the Reserves Box — once per game",
-        // Nurgle Rotter (Plague Ridden) vs a fragile Human Lineman with low
-        // Armour so the block reaches a Casualty; seed-hunted to a Dead roll.
+
         setup: playSetup({
           team1Roster: RosterName.NURGLE,
           team2Roster: RosterName.HUMAN,
@@ -1518,17 +1556,19 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               );
               const added = team1.players[team1.players.length - 1];
               assert(
-                added.status === PlayerStatus.RESERVE && !added.gridPosition,
+                fixtureValue(added).status === PlayerStatus.RESERVE &&
+                  !fixtureValue(added).gridPosition,
                 "the reinforcement waits in the Reserves Box"
               );
               assert(
-                added.keywords.includes(PositionKeyWord.LINEMAN),
+                fixtureValue(added).keywords.includes(PositionKeyWord.LINEMAN),
                 "the reinforcement is a Lineman"
               );
-              // The killed player leaves the pitch for the Casualty box.
+
               const victim = team2.players[0];
               assert(
-                victim.status === PlayerStatus.DEAD && !victim.gridPosition,
+                fixtureValue(victim).status === PlayerStatus.DEAD &&
+                  !fixtureValue(victim).gridPosition,
                 "the dead player is removed from the pitch"
               );
             },

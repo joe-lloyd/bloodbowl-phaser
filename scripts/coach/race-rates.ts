@@ -1,19 +1,3 @@
-/**
- * Writes src/simulation/raceRates.ts: how each roster plays in real Blood
- * Bowl, from the public FUMBBL match dataset (CC0, BB2020 rules, 2020-2024).
- *
- * Source: https://github.com/gsverhoeven/fumbbl_datasets, datasets/v0.8.
- * Unzip both parts into one folder, then:
- *
- *     pnpm exec tsx scripts/coach/race-rates.ts <folder> > src/simulation/raceRates.ts
- *     pnpm exec prettier --write src/simulation/raceRates.ts
- *
- * Conceded games are dropped, because a concession ends a game early and
- * drags every rate down. So are mirror matches, which measure a race against
- * itself, and teams above 1300k, whose league skills a Sevens draft never
- * reaches.
- */
-
 import fs from "node:fs";
 import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
@@ -23,22 +7,19 @@ const MAX_TEAM_VALUE = 1300;
 const DIVISIONS = new Set(["Competitive", "Blackbox", "Ranked", "League"]);
 const MIN_GAMES = 500;
 
-/** FUMBBL's race names, where they differ from ours. */
 const FUMBBL_NAMES: Partial<Record<RosterName, string>> = {
   [RosterName.BRETONIAN]: "Bretonnian",
   [RosterName.SHAMBLING_UNDEAD]: "Shambling Undead",
 };
 
-/** Where a CSV parse has got to. */
 interface CsvState {
   row: string[];
   field: string;
   quoted: boolean;
-  /** A quote inside a quoted field: an escaped quote or the field's end. */
+
   pendingQuote: boolean;
 }
 
-/** Feed one character to the parse; returns the row a line end finishes. */
 function feedChar(state: CsvState, char: string): string[] | null {
   if (state.pendingQuote) {
     state.pendingQuote = false;
@@ -65,11 +46,10 @@ function feedChar(state: CsvState, char: string): string[] | null {
   return null;
 }
 
-/** One row at a time from a CSV file, quoted fields and all. */
 function* csvRows(file: string): Generator<string[]> {
   const fd = fs.openSync(file, "r");
   const buffer = Buffer.alloc(1 << 20);
-  // A chunk can end inside a multi-byte character; the decoder holds it over.
+
   const decoder = new StringDecoder("utf8");
   const state: CsvState = {
     row: [],
@@ -106,8 +86,8 @@ if (!folder) {
 
 const conceded = new Set<string>();
 for (const match of records(path.join(folder, "df_matches.csv")))
-  if (match.match_conceded && match.match_conceded !== "None")
-    conceded.add(match.match_id);
+  if (match["match_conceded"] && match["match_conceded"] !== "None")
+    conceded.add(match["match_id"]);
 
 const COLUMNS = {
   wins: "wins",
@@ -120,10 +100,11 @@ type Rate = keyof typeof COLUMNS;
 
 const totals = new Map<string, { games: number } & Record<Rate, number>>();
 for (const row of records(path.join(folder, "df_mbt.csv"))) {
-  if (conceded.has(row.match_id) || !DIVISIONS.has(row.division_name)) continue;
-  if (row.mirror_match === "1" || Number(row.team_value) > MAX_TEAM_VALUE)
+  if (conceded.has(row["match_id"]) || !DIVISIONS.has(row["division_name"]))
     continue;
-  const bucket = totals.get(row.race_name) ?? {
+  if (row["mirror_match"] === "1" || Number(row["team_value"]) > MAX_TEAM_VALUE)
+    continue;
+  const bucket = totals.get(row["race_name"]) ?? {
     games: 0,
     wins: 0,
     touchdowns: 0,
@@ -134,11 +115,11 @@ for (const row of records(path.join(folder, "df_mbt.csv"))) {
   bucket.games++;
   for (const [rate, column] of Object.entries(COLUMNS) as [Rate, string][])
     bucket[rate] += Number(row[column]) || 0;
-  totals.set(row.race_name, bucket);
+  totals.set(row["race_name"], bucket);
 }
 
 const round = (x: number) => Math.round(x * 1000) / 1000;
-const entries = (Object.entries(RosterName) as [string, RosterName][]).map(
+const entries = (Object.entries(RosterName)).map(
   ([key, roster]) => {
     const name = FUMBBL_NAMES[roster] ?? roster;
     const bucket = totals.get(name);
@@ -146,9 +127,9 @@ const entries = (Object.entries(RosterName) as [string, RosterName][]).map(
       throw new Error(`no FUMBBL rates for ${roster} (looked for "${name}")`);
     const per = (rate: Rate) => round(bucket[rate] / bucket.games);
     return (
-      `  [RosterName.${key}]: { games: ${bucket.games}, wins: ${per("wins")}, ` +
-      `touchdowns: ${per("touchdowns")}, casualties: ${per("casualties")}, ` +
-      `completions: ${per("completions")}, blocks: ${per("blocks")} },`
+      `  [RosterName.${key}]: { games: ${String(bucket.games)}, wins: ${String(per("wins"))}, ` +
+      `touchdowns: ${String(per("touchdowns"))}, casualties: ${String(per("casualties"))}, ` +
+      `completions: ${String(per("completions"))}, blocks: ${String(per("blocks"))} },`
     );
   }
 );

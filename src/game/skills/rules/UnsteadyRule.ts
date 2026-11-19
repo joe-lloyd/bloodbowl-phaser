@@ -1,10 +1,5 @@
-/**
- * Unsteady (2025 p.138, trait) - "This player may not declare Secure the
- * Ball Actions."
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const UnsteadyRule: SkillRule = {
   onActionDeclared(ctx, self) {

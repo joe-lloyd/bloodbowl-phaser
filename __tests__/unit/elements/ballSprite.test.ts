@@ -1,14 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { EventEmitter } from "node:events";
 
-/**
- * A pass that scatters off the pitch flies the ball toward the square it
- * went out from, and the crowd's throw-in places it back on the pitch while
- * that flight is still running. The old flight used to finish anyway and
- * leave the ball drawn one square off the pitch, out of every player's
- * reach, while the engine had it somewhere else.
- */
-
 vi.mock("phaser", () => {
   class Container {
     x: number;
@@ -39,13 +31,12 @@ vi.mock("phaser", () => {
 
 import { BallSprite } from "../../../src/game/elements/BallSprite";
 
-type Counter = {
+interface Counter {
   onUpdate: (tween: { getValue(): number }) => void;
   onComplete: () => void;
   stopped: boolean;
-};
+}
 
-/** Phaser keeps running every counter tween until it ends or is stopped. */
 function fakeScene() {
   const counters: Counter[] = [];
   const shape = () => ({
@@ -102,7 +93,7 @@ describe("BallSprite", () => {
     const ball = new BallSprite(scene as never, 100, 100);
 
     const pass = ball.flyTo({ x: 300, y: 400 }, { duration: 1200, apex: 3 });
-    // The throw-in lands while the pass is still in the air
+
     ball.stopFlight();
     ball.setPosition(180, 220);
     runToEnd();

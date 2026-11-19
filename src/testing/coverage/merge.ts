@@ -1,21 +1,9 @@
-/**
- * Merging sharded coverage results.
- *
- * CI splits the matrix across workers or jobs, and each shard can only see
- * the cases it ran. Merging must therefore be a *union* over entry × layer:
- * an entry covered in any shard is covered, and one that is missing
- * everywhere stays missing. Case lists are de-duplicated so a case that ran
- * in two shards is not counted twice, and totals are recomputed from the
- * merged entries rather than summed — summing is exactly how shard merging
- * usually goes wrong.
- */
-
-import { EXECUTION_LAYERS, ExecutionLayer } from "../scenarioCase/types";
+import { EXECUTION_LAYERS, type ExecutionLayer } from "../scenarioCase/types";
 import {
-  CoverageIssue,
-  CoverageResult,
-  EntryLayerResult,
-  EntryResult,
+  type CoverageIssue,
+  type CoverageResult,
+  type EntryLayerResult,
+  type EntryResult,
 } from "./report";
 
 function mergeLayer(
@@ -39,7 +27,7 @@ function mergeLayer(
       ...(excluded.exclusion ? { exclusion: excluded.exclusion } : {}),
     };
   }
-  // Only "not required everywhere" survives as not-required.
+
   return relevant.every((result) => result.status === "not-required")
     ? { layer, status: "not-required", cases: [] }
     : { layer, status: "missing", cases: [] };
@@ -53,7 +41,6 @@ export function mergeCoverageResults(
   }
   if (results.length === 1) return results[0];
 
-  // Union of entries across shards, keyed by inventory id.
   const byEntryId = new Map<string, EntryResult[]>();
   for (const result of results) {
     for (const entry of result.entries) {
@@ -95,8 +82,6 @@ export function mergeCoverageResults(
     })
   ) as CoverageResult["totals"];
 
-  // Issues are de-duplicated by message: the same schema problem is reported
-  // by every shard that loaded the registry.
   const seenIssues = new Set<string>();
   const issues: CoverageIssue[] = [];
   for (const result of results) {
@@ -107,8 +92,7 @@ export function mergeCoverageResults(
       issues.push(issue);
     }
   }
-  // A "missing" recorded by one shard is resolved if another shard covered
-  // it, so drop stale gap issues that the merge has closed.
+
   const stillMissing = new Set(
     entries.flatMap((entry) =>
       entry.layers

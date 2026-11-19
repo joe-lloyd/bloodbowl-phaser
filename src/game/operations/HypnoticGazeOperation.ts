@@ -1,21 +1,22 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import {
   PlayerStatus,
   PlayerCondition,
   addCondition,
 } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { withRerollOffer } from "../skills";
 
-/** Ends the gazer's activation once the gaze has resolved. */
 class FinishGazeOperation extends GameOperation {
   public readonly name = "FinishHypnoticGaze";
 
-  constructor(private attackerId: string) {
+  private attackerId: string;
+  constructor(attackerId: string) {
     super();
+    this.attackerId = attackerId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -23,27 +24,19 @@ class FinishGazeOperation extends GameOperation {
   }
 }
 
-/**
- * HypnoticGazeOperation (2025 rulebook p.129, Hypnotic Gaze trait)
- *
- * Declared as its own Special Action ("gaze"); the player may move first
- * but never after the gaze — the activation ends either way. Against an
- * adjacent Standing opposition player: roll a D6. On a 1-2 nothing
- * happens; on a 3+ the target becomes Distracted (no Tackle Zone until
- * next activated). Never a turnover. A failed roll may be re-rolled.
- */
 export class HypnoticGazeOperation extends GameOperation {
   public readonly name = "HypnoticGazeOperation";
 
-  constructor(
-    private attackerId: string,
-    private targetId: string
-  ) {
+  private attackerId: string;
+  private targetId: string;
+  constructor(attackerId: string, targetId: string) {
     super();
+    this.attackerId = attackerId;
+    this.targetId = targetId;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     const dice = gameService.getDiceController();
 
@@ -69,19 +62,13 @@ export class HypnoticGazeOperation extends GameOperation {
     });
     await context.delay(600);
 
-    // An ordinary D6, so the coach may spend a re-roll on a 1-2.
     const check = await withRerollOffer(
       { gameService, eventBus },
       attacker,
       "gaze",
       () =>
         dice.rollSkillCheck(
-          "Hypnotic Gaze",
-          3,
-          0,
-          attacker.playerName,
-          attacker.teamId
-        )
+          { reason: "Hypnotic Gaze",target: 3,modifier: 0,playerName: attacker.playerName,teamId: attacker.teamId }        )
     );
     if (check.success) {
       addCondition(target, PlayerCondition.DISTRACTED);

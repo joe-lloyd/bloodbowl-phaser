@@ -1,28 +1,31 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EventBus } from "../../services/EventBus";
-import { Team } from "../../types/Team";
+import { type Team } from "../../types/Team";
 import { GamePage } from "./GamePage";
-import { OnlineMatch, setActiveOnlineMatch } from "../../network/OnlineMatch";
+import {
+  type OnlineMatch,
+  setActiveOnlineMatch,
+} from "../../network/OnlineMatch";
 import { createComputerMatch } from "../../network/ComputerMatch";
 import {
   DIFFICULTIES,
-  Difficulty,
+  type Difficulty,
   coachFor,
 } from "../../simulation/ai/difficulty";
 import { HudButton, Notice } from "../components/componentWarehouse/HudKit";
 import { readMatchSave } from "../../game/persistence/MatchSaveRepository";
 import { restoreMatchSave } from "../../headless/serialization";
-import { CompetitionContext } from "../../competition/types";
+import { type CompetitionContext } from "../../competition/types";
 
 export interface ComputerPlayState {
   team1: Team;
   team2: Team;
-  /** The team the computer coaches. */
+
   computerTeamId: string;
   difficulty?: Difficulty;
   progressionEnabled?: boolean;
-  /** The league or cup fixture this match plays. */
+
   competitionContext?: CompetitionContext;
 }
 
@@ -30,10 +33,6 @@ function difficultyOf(id: string | undefined): Difficulty {
   return DIFFICULTIES.find((level) => level.id === id)?.id ?? "standard";
 }
 
-/**
- * Team selection clears the save before it opens a new match, so a save found
- * here is this page's own match, reloaded or picked up from the menu.
- */
 function startFrom(state: ComputerPlayState | null) {
   const save = readMatchSave();
   if (save?.computer) {
@@ -78,15 +77,10 @@ function startFrom(state: ComputerPlayState | null) {
   };
 }
 
-/**
- * A local match against the computer coach. Like online play, the match
- * seeds the engine before the board mounts; the computer then plays its
- * side from inside this page.
- */
 export function ComputerPlayPage({ eventBus }: { eventBus: EventBus }) {
   const location = useLocation();
   const navigate = useNavigate();
-  // Fixed for the life of the page.
+
   const [start] = useState(() =>
     startFrom(location.state as ComputerPlayState | null)
   );

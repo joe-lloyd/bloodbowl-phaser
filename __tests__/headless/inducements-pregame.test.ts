@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { SCENARIOS } from "../../src/data/scenarios";
@@ -7,13 +8,9 @@ import { stabilizeIds } from "../../src/headless/createHeadlessGame";
 import { TeamFactory } from "../../src/game/TeamFactory";
 import { RosterName } from "../../src/types/Team";
 
-/**
- * Sevens pregame inducement selection over the headless protocol (tasks.md
- * 2.1-2.6): offer/select/remove/confirm commands, authoritative budget and
- * catalog enforcement, and commit into match state once both teams confirm.
- */
-
-const scrimmage = SCENARIOS.find((s) => s.id === "basic-scrimmage")!;
+const scrimmage = fixtureValue(
+  SCENARIOS.find((s) => s.id === "basic-scrimmage")
+);
 
 function newGame(seed = 1): HeadlessGame {
   return new HeadlessGame({ scenario: scrimmage, seed });
@@ -24,9 +21,9 @@ describe("headless pregame inducement commands", () => {
     const game = newGame();
     const response = await game.execute({ type: "offer-inducements" });
     expect(response.ok).toBe(true);
-    const offer = response.inducementOffer!;
+    const offer = fixtureValue(response.inducementOffer);
     expect(
-      offer.catalogs[game.ctx.team1.id].map((e) => e.inducement)
+      fixtureValue(offer.catalogs[game.ctx.team1.id]).map((e) => e.inducement)
     ).toEqual([
       Inducement.TEMP_AGENCY_CHEERLEADER,
       Inducement.PART_TIME_ASSISTANT_COACH,
@@ -39,7 +36,7 @@ describe("headless pregame inducement commands", () => {
       Inducement.DESPERATE_MEASURES,
     ]);
     expect(
-      offer.catalogs[game.ctx.team1.id].find(
+      fixtureValue(offer.catalogs[game.ctx.team1.id]).find(
         (e) => e.inducement === Inducement.EXTRA_TEAM_TRAINING
       )
     ).toEqual({
@@ -51,7 +48,7 @@ describe("headless pregame inducement commands", () => {
 
   it("selecting a legal quantity within budget succeeds and is reflected in the offer", async () => {
     const game = newGame();
-    game.ctx.team2.rerolls = 6; // gives team1 a petty-cash budget
+    game.ctx.team2.rerolls = 6;
     const response = await game.execute({
       type: "select-inducement",
       teamId: game.ctx.team1.id,
@@ -60,15 +57,16 @@ describe("headless pregame inducement commands", () => {
     });
     expect(response.ok).toBe(true);
 
-    const offer = (await game.execute({ type: "offer-inducements" }))
-      .inducementOffer!;
+    const offer = fixtureValue(
+      (await game.execute({ type: "offer-inducements" })).inducementOffer
+    );
     expect(offer.selections[game.ctx.team1.id]).toEqual([
       { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 1 },
     ]);
   });
 
   it("a selection exceeding the resolved budget is rejected", async () => {
-    const game = newGame(); // both teams start at equal TV: budget 0 each
+    const game = newGame();
     const response = await game.execute({
       type: "select-inducement",
       teamId: game.ctx.team1.id,
@@ -81,7 +79,7 @@ describe("headless pregame inducement commands", () => {
 
   it("a seventh Extra Team Training is rejected even with a large budget", async () => {
     const game = newGame();
-    // Force a budget by inflating team2's treasury-independent TV (rerolls).
+
     game.ctx.team2.rerolls = 12;
     const response = await game.execute({
       type: "select-inducement",
@@ -95,7 +93,7 @@ describe("headless pregame inducement commands", () => {
 
   it("a forged Star Player selection is rejected", async () => {
     const game = newGame();
-    game.ctx.team2.rerolls = 6; // give team1 a budget
+    game.ctx.team2.rerolls = 6;
     const response = await game.execute({
       type: "select-inducement",
       teamId: game.ctx.team1.id,
@@ -122,15 +120,16 @@ describe("headless pregame inducement commands", () => {
     });
     expect(removed.ok).toBe(true);
     const offer = removed.inducementOffer;
-    expect(offer).toBeUndefined(); // remove-inducement is a mutation, not a query
-    const check = (await game.execute({ type: "offer-inducements" }))
-      .inducementOffer!;
+    expect(offer).toBeUndefined();
+    const check = fixtureValue(
+      (await game.execute({ type: "offer-inducements" })).inducementOffer
+    );
     expect(check.selections[game.ctx.team1.id]).toEqual([]);
   });
 
   it("commits inventory into match state only once both teams confirm", async () => {
     const game = newGame();
-    game.ctx.team2.rerolls = 6; // team1 gets a budget
+    game.ctx.team2.rerolls = 6;
     await game.execute({
       type: "select-inducement",
       teamId: game.ctx.team1.id,
@@ -143,16 +142,18 @@ describe("headless pregame inducement commands", () => {
       teamId: game.ctx.team1.id,
     });
     expect(firstConfirm.ok).toBe(true);
-    expect(game.ctx.gameService.getState().inducements?.inventory ?? []).toEqual(
-      []
-    );
+    expect(
+      game.ctx.gameService.getState().inducements?.inventory ?? []
+    ).toEqual([]);
 
     const secondConfirm = await game.execute({
       type: "confirm-inducements",
       teamId: game.ctx.team2.id,
     });
     expect(secondConfirm.ok).toBe(true);
-    const inventory = game.ctx.gameService.getState().inducements!.inventory;
+    const inventory = fixtureValue(
+      game.ctx.gameService.getState().inducements
+    ).inventory;
     expect(inventory).toHaveLength(1);
     expect(inventory[0]).toMatchObject({
       inducement: Inducement.EXTRA_TEAM_TRAINING,
@@ -172,8 +173,14 @@ describe("headless pregame inducement commands", () => {
       inducement: Inducement.EXTRA_TEAM_TRAINING,
       quantity: 1,
     });
-    await game.execute({ type: "confirm-inducements", teamId: game.ctx.team1.id });
-    await game.execute({ type: "confirm-inducements", teamId: game.ctx.team2.id });
+    await game.execute({
+      type: "confirm-inducements",
+      teamId: game.ctx.team1.id,
+    });
+    await game.execute({
+      type: "confirm-inducements",
+      teamId: game.ctx.team2.id,
+    });
 
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
@@ -187,10 +194,12 @@ describe("headless pregame inducement commands", () => {
     });
 
     const resumed = new HeadlessGame({ matchSave: save });
-    const inventory = resumed.ctx.gameService.getState().inducements!.inventory;
+    const inventory = fixtureValue(
+      resumed.ctx.gameService.getState().inducements
+    ).inventory;
     expect(inventory).toHaveLength(1);
-    expect(inventory[0].remainingUses).toBe(1);
-    expect(inventory[0].ownerTeamId).toBe(game.ctx.team1.id);
+    expect(fixtureValue(inventory[0]).remainingUses).toBe(1);
+    expect(fixtureValue(inventory[0]).ownerTeamId).toBe(game.ctx.team1.id);
   });
 });
 
@@ -206,9 +215,7 @@ describe("Matched Play inducements (MP2)", () => {
 
   it("brings the draft list's inducements into the match with no pregame step", () => {
     const team1 = matchedPlayTeam("team1");
-    team1.draftInducements = [
-      { inducement: Inducement.BRIBE, quantity: 2 },
-    ];
+    team1.draftInducements = [{ inducement: Inducement.BRIBE, quantity: 2 }];
     const game = new HeadlessGame({
       scenario: scrimmage,
       seed: 1,

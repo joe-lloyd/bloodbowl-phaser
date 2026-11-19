@@ -1,7 +1,3 @@
-/**
- * True while the focused element takes keys for itself: the coach typing,
- * when letters are words, not commands, or stepping through a menu.
- */
 export function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return (

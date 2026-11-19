@@ -1,33 +1,18 @@
-import { Formation, FormationPosition } from "../../types/SetupTypes";
+import { type Formation, type FormationPosition } from "../../types/SetupTypes";
 import { getLineOfScrimmageX, SEVENS_GEOMETRY } from "../../config/GameConfig";
 
-/** A formation as shown in the setup dropdown */
 export interface FormationEntry {
   name: string;
-  /** Built-in presets can be loaded but not overwritten or deleted */
+
   builtIn: boolean;
 }
 
-/**
- * FormationManager - Pure logic for managing formations (save/load)
- * No Phaser dependencies - 100% unit testable
- *
- * Two sources: a few built-in generic presets (generated per pitch side)
- * and named custom formations saved to localStorage per team key.
- * Positions store the player's roster index in `playerId` so a layout
- * survives fresh team instances between matches.
- */
 export class FormationManager {
   private storageKey = "bloodbowl_formations";
 
-  /**
-   * Built-in presets, mirrored for the pitch side. LOS is x=6 (team 1) /
-   * x=13 (team 2); the setup zone is 7 columns deep and y 0-10.
-   */
   getBuiltInFormations(
     isTeam1: boolean
   ): { name: string; positions: FormationPosition[] }[] {
-    // depth(n) = n squares behind the line of scrimmage
     const los = getLineOfScrimmageX(isTeam1);
     const depth = (n: number) => (isTeam1 ? los - n : los + n);
     const at = (index: number, x: number, y: number): FormationPosition => ({
@@ -38,7 +23,6 @@ export class FormationManager {
 
     return [
       {
-        // 3 on the line, 2 mid wings, 2 deep
         name: "Balanced",
         positions: [
           at(0, los, 4),
@@ -51,7 +35,6 @@ export class FormationManager {
         ],
       },
       {
-        // wide line + sideline wings for coverage
         name: "Spread",
         positions: [
           at(0, los, 3),
@@ -64,7 +47,6 @@ export class FormationManager {
         ],
       },
       {
-        // tight cage around the middle, one deep safety
         name: "Bunker",
         positions: [
           at(0, los, 4),
@@ -79,7 +61,6 @@ export class FormationManager {
     ];
   }
 
-  /** Everything pickable in the dropdown: built-ins first, then customs. */
   listAllFormations(teamKey: string, isTeam1: boolean): FormationEntry[] {
     return [
       ...this.getBuiltInFormations(isTeam1).map((f) => ({
@@ -93,7 +74,6 @@ export class FormationManager {
     ];
   }
 
-  /** Resolve a formation by name: custom saves win over built-in presets. */
   getFormation(
     teamKey: string,
     name: string,
@@ -111,9 +91,6 @@ export class FormationManager {
     return this.getBuiltInFormations(true).some((f) => f.name === name);
   }
 
-  /**
-   * Save a formation to localStorage
-   */
   saveFormation(
     teamId: string,
     positions: FormationPosition[],
@@ -125,21 +102,16 @@ export class FormationManager {
       formations[teamId] = [];
     }
 
-    // Remove existing formation with same name
     formations[teamId] = formations[teamId].filter((f) => f.name !== name);
 
-    // Add new formation
     formations[teamId].push({
       name,
-      positions: positions.map((p) => ({ ...p })), // Deep copy
+      positions: positions.map((p) => ({ ...p })),
     });
 
     this.saveToStorage(formations);
   }
 
-  /**
-   * Load a formation from localStorage
-   */
   loadFormation(teamId: string, name: string): FormationPosition[] | null {
     const formations = this.getAllFormations();
 
@@ -151,17 +123,11 @@ export class FormationManager {
     return formation ? formation.positions.map((p) => ({ ...p })) : null;
   }
 
-  /**
-   * List all formation names for a team
-   */
   listFormations(teamId: string): string[] {
     const formations = this.getAllFormations();
     return formations[teamId]?.map((f) => f.name) || [];
   }
 
-  /**
-   * Delete a formation
-   */
   deleteFormation(teamId: string, name: string): boolean {
     const formations = this.getAllFormations();
 
@@ -180,10 +146,6 @@ export class FormationManager {
     return false;
   }
 
-  /**
-   * Get default formation for a team
-   * Simple 3-4 setup: 3 on line of scrimmage, 4 in backfield
-   */
   getDefaultFormation(isTeam1: boolean): FormationPosition[] {
     const losX = getLineOfScrimmageX(isTeam1);
     const backX = isTeam1
@@ -191,29 +153,22 @@ export class FormationManager {
       : Math.min(SEVENS_GEOMETRY.END_ZONE_X.team2, losX + 3);
 
     return [
-      // 3 on LOS (vertical line, spread across y-axis)
-      { playerId: "0", x: losX, y: 4 }, // Center
+      { playerId: "0", x: losX, y: 4 },
       { playerId: "1", x: losX, y: SEVENS_GEOMETRY.CENTRE_FIELD_ROWS.min },
-      { playerId: "2", x: losX, y: 6 }, // Bottom
+      { playerId: "2", x: losX, y: 6 },
 
-      // 4 in backfield/wide zones
-      { playerId: "3", x: losX, y: 5 }, // Center back
-      { playerId: "4", x: backX, y: 1 }, // Top wide
-      { playerId: "5", x: backX, y: 9 }, // Bottom wide
-      { playerId: "6", x: losX - (isTeam1 ? 1 : -1), y: 5 }, // Support
+      { playerId: "3", x: losX, y: 5 },
+      { playerId: "4", x: backX, y: 1 },
+      { playerId: "5", x: backX, y: 9 },
+      { playerId: "6", x: losX - (isTeam1 ? 1 : -1), y: 5 },
     ];
   }
 
-  /**
-   * Clear all formations for a team
-   */
   clearFormations(teamId: string): void {
     const formations = this.getAllFormations();
     delete formations[teamId];
     this.saveToStorage(formations);
   }
-
-  // Private helper methods
 
   private getAllFormations(): Record<string, Formation[]> {
     try {

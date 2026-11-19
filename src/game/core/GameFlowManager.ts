@@ -1,49 +1,25 @@
 import { GameOperation } from "./GameOperation";
 
-/**
- * GameFlowManager - Orchestrator of Recursive Reactions
- *
- * Responsibility:
- * - Manage a Queue of Operations.
- * - Execute them sequentially.
- * - Allow Operations to add NEW Operations to the front of the queue (Reaction).
- * - Listen for "AnimationComplete" signals if running visually.
- *
- * DOES NOT:
- * - Know about specific valid game rules (that's the Operation's job).
- */
-/**
- * DelayProvider - Injectable pacing strategy.
- *
- * Browser: real timers so animations can play out.
- * Headless: resolves immediately so games run at full speed.
- */
 export type DelayProvider = (ms: number) => Promise<void>;
 
-/** Engine pacing delays still running, for whenEngineQuiet. */
 let runningDelays = 0;
 const quietWaiters: (() => void)[] = [];
 
-/** Count visual barriers too, so lockstep checks only settled engine state. */
 export async function trackEngineWork(work: Promise<void>): Promise<void> {
   runningDelays++;
   try {
     await work;
   } finally {
     runningDelays--;
-    if (runningDelays === 0) quietWaiters.splice(0).forEach((wake) => wake());
+    if (runningDelays === 0)
+      quietWaiters.splice(0).forEach((wake) => {
+        wake();
+      });
   }
 }
 
-/** False while an online page replays commands it missed. */
 let paced = true;
 
-/**
- * Run engine work with every real-time delay skipped. A page that comes
- * back to an online match replays the commands it missed; pacing them
- * would make the coach watch the whole turn again. Delays never change
- * engine state, so the result is the same.
- */
 export async function withoutPacing<T>(work: () => Promise<T>): Promise<T> {
   paced = false;
   try {
@@ -53,7 +29,6 @@ export async function withoutPacing<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
-/** False while a replay skips pacing: visual waits resolve at once. */
 export function isPaced(): boolean {
   return paced;
 }
@@ -65,20 +40,14 @@ export const realTimeDelay: DelayProvider = (ms) => {
     setTimeout(() => {
       runningDelays--;
       resolve();
-      if (runningDelays === 0) quietWaiters.splice(0).forEach((wake) => wake());
+      if (runningDelays === 0)
+        quietWaiters.splice(0).forEach((wake) => {
+          wake();
+        });
     }, ms)
   );
 };
 
-/**
- * Resolves once no engine pacing delay is running and the code after the
- * last one has run: the state will not change again until something new
- * happens. Online lockstep waits for this before checking or running a
- * command, because the two machines run the same delays at different
- * moments. A decision the engine is paused on is not a delay, so this
- * does not wait for it. Gives up after `maxMs`, which must outlast the
- * longest chain of dice, queued moments and end-of-drive operations.
- */
 export async function whenEngineQuiet(maxMs = 30_000): Promise<void> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
@@ -88,21 +57,15 @@ export async function whenEngineQuiet(maxMs = 30_000): Promise<void> {
         new Promise((resolve) => setTimeout(resolve, deadline - Date.now())),
       ]);
     }
-    // Let the code that follows the last delay run
+
     await new Promise((resolve) => setTimeout(resolve, 0));
     if (runningDelays === 0) return;
   }
-  console.warn(`[Engine] still pacing after ${maxMs} ms; carrying on`);
+  console.warn(`[Engine] still pacing after ${String(maxMs)} ms; carrying on`);
 }
 
 export const noDelay: DelayProvider = () => Promise.resolve();
 
-/**
- * Resolve when `shown` does, or after `ms` at the latest. Under real-time
- * pacing the wait counts as engine work only until it resolves, so an early
- * answer frees whenEngineQuiet at once instead of at the end of the guard.
- * Any other provider runs the guard itself: headless resolves at once.
- */
 export function waitAtMost(
   delay: DelayProvider,
   shown: Promise<void>,
@@ -115,17 +78,12 @@ export function waitAtMost(
     timer = setTimeout(resolve, ms);
   });
   return trackEngineWork(
-    Promise.race([shown, guard]).finally(() => clearTimeout(timer))
+    Promise.race([shown, guard]).finally(() => {
+      clearTimeout(timer);
+    })
   );
 }
 
-/**
- * Wait on a coach rather than on the engine, such as for Roll. Under
- * real-time pacing it is not engine work and has no guard: the engine is
- * idle, as it is with a decision open, and a closed match leaves nothing
- * counted. Headless play and replays pass straight through; any other
- * provider runs `ms` as its guard.
- */
 export function waitForCoach(
   delay: DelayProvider,
   answered: Promise<void>,
@@ -141,16 +99,16 @@ export interface FlowContext {
   eventBus: import("@/services/EventBus").IEventBus;
   flowManager: GameFlowManager;
   delay: DelayProvider;
-  [key: string]: unknown; // Allow for dynamic context data (use with caution)
+  [key: string]: unknown;
 }
 
 export class GameFlowManager {
   private queue: GameOperation[] = [];
-  private isProcessing: boolean = false;
+  private isProcessing = false;
   private idleResolvers: (() => void)[] = [];
-  /** Counts abandons: a run from before one must not touch the flow after. */
+
   private epoch = 0;
-  /** Counts clears: what a chain set aside before one is dropped with it. */
+
   private clears = 0;
   public readonly context: FlowContext;
 
@@ -164,10 +122,7 @@ export class GameFlowManager {
     this.context.delay = context.delay ?? realTimeDelay;
   }
 
-  /**
-   * Add an operation to the end of the queue (or front if 'next' is true)
-   */
-  public add(operation: GameOperation, next: boolean = false): void {
+  public add(operation: GameOperation, next = false): void {
     if (next) {
       this.queue.unshift(operation);
     } else {
@@ -176,29 +131,17 @@ export class GameFlowManager {
     this.process();
   }
 
-  /**
-   * Clear all pending operations (e.g. on Turnover or Reset)
-   */
   public clear(): void {
     this.queue = [];
     this.clears++;
   }
 
-  /**
-   * Forget everything, including an operation paused on a decision that was
-   * abandoned: it never resumes, and must not hold up what runs next.
-   */
   public abandon(): void {
     this.queue = [];
     this.isProcessing = false;
     this.epoch++;
   }
 
-  /**
-   * Resolves once the queue has fully drained (the current reaction chain —
-   * bounces, catches, armour rolls — has come to rest). Resolves immediately
-   * when nothing is running.
-   */
   public whenIdle(): Promise<void> {
     if (!this.isProcessing && this.queue.length === 0) {
       return Promise.resolve();
@@ -206,13 +149,6 @@ export class GameFlowManager {
     return new Promise((resolve) => this.idleResolvers.push(resolve));
   }
 
-  /**
-   * Run an operation and everything it queues, such as a bounce and the
-   * catch it lands on, before returning. A chain started in the middle of
-   * another step, like a Dump-Off before the block that provoked it, must
-   * come to rest before that step goes on. Waiting for idle cannot do it:
-   * that step may itself be running inside the queue.
-   */
   public async runToRest(operation: GameOperation): Promise<void> {
     const { epoch, clears } = this;
     const later = this.queue;
@@ -236,7 +172,9 @@ export class GameFlowManager {
 
     const resolvers = this.idleResolvers;
     this.idleResolvers = [];
-    resolvers.forEach((resolve) => resolve());
+    resolvers.forEach((resolve) => {
+      resolve();
+    });
   }
 
   private async drain(epoch: number): Promise<void> {
@@ -245,14 +183,10 @@ export class GameFlowManager {
       if (op) {
         console.log(`[Flow] Executing: ${op.name}`);
         try {
-          // Execute deeply - The Operation determines when it is "done"
-          // This allows animations to finish before the next logical step occurs
           await op.execute(this.context);
         } catch (err) {
           console.error(`[Flow] Error in ${op.name}:`, err);
-          // Stop flow on error? Or turnover?
-          // Ideally operations handle their own errors and trigger turnovers via context
-          // An abandoned run failing late must not clear the flow after it
+
           if (this.epoch === epoch) this.clear();
         }
       }

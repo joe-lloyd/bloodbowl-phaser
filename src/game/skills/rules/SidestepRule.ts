@@ -1,22 +1,6 @@
-/**
- * Sidestep (2025 rulebook p.135) — "Whenever this player is Pushed Back for
- * any reason, then instead of the opposing Coach choosing where this player
- * is Pushed Back to, this player's Coach may choose any adjacent unoccupied
- * square for this player to be Pushed Back into instead. If there are no
- * adjacent unoccupied squares, then this Skill cannot be used."
- *
- * Grab (p.129) cancels it: "when this player performs a Block Action,
- * opposition players cannot use the Sidestep Skill." The May 2026 FAQ limits
- * that to the Block's target, and to a declared Block Action, so a
- * chain-pushed player or a Blitz's target may still Sidestep. Accepting
- * transfers the push-square choice to the pushed player's coach; the push
- * machinery falls back to the normal push when no adjacent square is
- * unoccupied.
- */
-
 import { SkillType, hasSkill } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
-import { ReactionDecisionAnswer } from "../../../types/decisions";
+import { type SkillRule } from "../SkillRule";
+import { type ReactionDecisionAnswer } from "../../../types/decisions";
 
 export const SidestepRule: SkillRule = {
   async onPush(ctx, self) {

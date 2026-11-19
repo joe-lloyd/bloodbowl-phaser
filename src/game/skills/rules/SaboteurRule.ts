@@ -1,6 +1,6 @@
 import { SkillType } from "../../../types/Skills";
 import { PlayerStatus } from "../../../types/Player";
-import { BlockResultContext, SkillRule } from "../SkillRule";
+import { type BlockResultContext, type SkillRule } from "../SkillRule";
 
 export const SaboteurRule: SkillRule = {
   onBlockResult(ctx: BlockResultContext, self) {
@@ -10,7 +10,7 @@ export const SaboteurRule: SkillRule = {
     const roll = ctx.dice.rollD6(`Saboteur (${self.playerName})`);
     if (roll < 4) return;
     self.status = PlayerStatus.KO;
-    self.gridPosition = undefined;
+    delete self.gridPosition;
     ctx.defenderKnockedDown = false;
     ctx.attackerKnockedDown = true;
     ctx.saboteurExploded = true;

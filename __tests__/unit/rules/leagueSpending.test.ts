@@ -1,12 +1,8 @@
-/**
- * Spending the Treasury between league fixtures (openspec/specs/
- * league-treasury): players at their Hiring Fee, re-rolls at the Sevens
- * price, refused beyond the Treasury or the roster limits.
- */
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
-import { createPlayer, PlayerTemplate } from "../../../src/types/Player";
-import { RosterName, Team, createTeam } from "../../../src/types/Team";
+import { createPlayer, type PlayerTemplate } from "../../../src/types/Player";
+import { RosterName, type Team, createTeam } from "../../../src/types/Team";
 import {
   draftListPlayers,
   hirePlayer,
@@ -19,9 +15,8 @@ import { Inducement } from "../../../src/types/Inducements";
 
 const human = getRosterByRosterName(RosterName.HUMAN);
 const position = (name: string): PlayerTemplate =>
-  human.playerTemplates.find((template) => template.positionName === name)!;
+  fixtureValue(human.playerTemplates.find((template) => template.positionName === name));
 
-/** A Human league team that has played, holding these positions. */
 function leagueTeam(treasury: number, positions: string[]): Team {
   const team = createTeam(
     "League",
@@ -102,7 +97,8 @@ describe("between league fixtures", () => {
     ]);
     expect(hirePlayer(team, position("Human Blitzer"))).toEqual({
       amount: null,
-      reason: "Human Blitzer: the Human roster allows 0-2, and this team has 2.",
+      reason:
+        "Human Blitzer: the Human roster allows 0-2, and this team has 2.",
     });
     expect(team.treasury).toBe(500_000);
   });
@@ -120,21 +116,21 @@ describe("between league fixtures", () => {
       reason:
         "A Sevens team may have at most 4 players without the Lineman keyword.",
     });
-    // A Lineman still fits
+
     expect(hirePlayer(team, position("Human Lineman")).amount).toBe(50_000);
     expect(team.treasury).toBe(450_000);
   });
 
   it("does not count a dead player; a Journeyman waiting on an offer holds a slot but is off the Team Draft List", () => {
     const team = leagueTeam(500_000, LINEMEN(11));
-    team.players[0].injuries.push("Dead" as never);
+    fixtureValue(team.players[0]).injuries.push("Dead");
     const journeyman = team.players[1];
-    journeyman.playerKind = "journeyman";
+    fixtureValue(journeyman).playerKind = "journeyman";
     team.pendingDevelopment = [
       {
         id: "journeyman-m-1",
         kind: "journeyman-offer",
-        playerId: journeyman.id,
+        playerId: fixtureValue(journeyman).id,
         matchId: "m",
         createdAt: 1,
       },
@@ -146,7 +142,7 @@ describe("between league fixtures", () => {
   it("still refuses firing a player after a game (Sevens)", () => {
     const team = leagueTeam(100_000, LINEMEN(7));
     expect(
-      canEdit(team, { type: "fire-player", playerId: team.players[0].id })
+      canEdit(team, { type: "fire-player", playerId: fixtureValue(team.players[0]).id })
     ).toEqual({
       allowed: false,
       reason: "Sevens teams cannot fire players after a game.",
@@ -184,8 +180,8 @@ describe("roster slots and player identity", () => {
 
   it("gives a hire an id no player has, after a player moved to another number", () => {
     const team = leagueTeam(500_000, LINEMEN(6));
-    // The Team Builder moves #1 to the empty slot 9; the player keeps their id
-    team.players[0].number = 9;
+
+    fixtureValue(team.players[0]).number = 9;
     const hired = hirePlayer(team, position("Human Lineman"));
     expect(hired.player?.number).toBe(1);
     const ids = team.players.map((p) => p.id);

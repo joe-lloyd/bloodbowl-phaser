@@ -1,26 +1,11 @@
-/**
- * One online Sevens match between two browsers, each played by its own
- * coach through the real UI, with the connection cut and pages reloaded
- * along the way.
- *
- * The host's browser runs here. The guest's runs wherever GUEST_WS points
- * (a `playwright launch-server` on another machine), or locally without it.
- * Both load APP_URL and talk only through the Firestore emulator that the
- * app was started against, so everything one sees of the other crossed the
- * network.
- *
- * After every move both sides are captured: the engine state each page
- * holds and where each canvas draws the players and the ball. Anything that
- * still differs after a grace period is written to divergences.jsonl with a
- * screenshot from each side.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import {
   expect,
   test,
   chromium,
-  Browser,
-  BrowserContext,
-  Page,
+  type Browser,
+  type BrowserContext,
+  type Page,
 } from "@playwright/test";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { GameApp } from "../support/pages/game";
@@ -32,15 +17,15 @@ import {
   buildTeam,
   clickIf,
   perform,
-  Recorder,
+  type Recorder,
   riskyMoveConfirm,
 } from "../fullgame/driver";
 
-const OUT = process.env.ONLINE_OUT ?? "e2e-results/online-match";
-const APP_URL = process.env.APP_URL ?? "http://127.0.0.1:5199";
-const MAX_ITER = Number(process.env.MAX_ITER ?? 6000);
-/** Disruptions, by the number of moves played when each one fires. */
-const PLAN = (process.env.DISRUPT ?? "")
+const OUT = process.env["ONLINE_OUT"] ?? "e2e-results/online-match";
+const APP_URL = process.env["APP_URL"] ?? "http://127.0.0.1:5199";
+const MAX_ITER = Number(process.env["MAX_ITER"] ?? 6000);
+
+const PLAN = (process.env["DISRUPT"] ?? "")
   .split(",")
   .filter(Boolean)
   .map((entry) => {
@@ -61,27 +46,37 @@ interface Coach {
 
 const t0 = Date.now();
 const stamp = () => ((Date.now() - t0) / 1000).toFixed(1).padStart(7);
-const mainLog = (line: string) =>
+const mainLog = (line: string) => {
   appendFileSync(`${OUT}/match.log`, `${stamp()} ${line}\n`);
+};
 
 function recorder(side: Side): Recorder {
   return {
-    log: (line) => mainLog(`[${side}] ${line}`),
+    log: (line) => {
+      mainLog(`[${side}] ${line}`);
+    },
     shot: (page, name) =>
       page.screenshot({ path: `${OUT}/${side}-${name}.png` }).catch(() => {}),
   };
 }
 
-/** Log what a coach's page reports, and accept its dialogs. */
 function watch(page: Page, side: Side, rec: Recorder) {
   page.on("dialog", (dialog) => dialog.accept());
-  page.on("pageerror", (error) => rec.log(`PAGEERROR ${error.message}`));
+  page.on("pageerror", (error) => {
+    rec.log(`PAGEERROR ${error.message}`);
+  });
   page.on("console", (message) => {
     const text = message.text();
-    if (/\[Lockstep\]/.test(text))
-      appendFileSync(`${OUT}/lockstep-${side}.log`, `${Date.now()} ${text}\n`);
-    if (/\[Net\]/.test(text)) {
-      appendFileSync(`${OUT}/net-${side}.log`, `${Date.now()} ${text}\n`);
+    if (text.includes("[Lockstep]"))
+      appendFileSync(
+        `${OUT}/lockstep-${side}.log`,
+        `${String(Date.now())} ${text}\n`
+      );
+    if (text.includes("[Net]")) {
+      appendFileSync(
+        `${OUT}/net-${side}.log`,
+        `${String(Date.now())} ${text}\n`
+      );
       return;
     }
     if (
@@ -94,34 +89,33 @@ function watch(page: Page, side: Side, rec: Recorder) {
 }
 
 async function openCoach(side: Side): Promise<Coach> {
-  const remote = side === "guest" ? process.env.GUEST_WS : undefined;
+  const remote = side === "guest" ? process.env["GUEST_WS"] : undefined;
   const browser = remote
     ? await chromium.connect(remote)
     : await chromium.launch({
-        executablePath: process.env.PW_CHROMIUM || undefined,
+        executablePath: process.env["PW_CHROMIUM"] || undefined,
       });
   const context = await browser.newContext({
-    // The guest's machine reaches the app at its own address
     baseURL:
-      side === "guest" ? (process.env.GUEST_APP_URL ?? APP_URL) : APP_URL,
+      side === "guest" ? (process.env["GUEST_APP_URL"] ?? APP_URL) : APP_URL,
     viewport: { width: 1440, height: 900 },
     recordVideo: {
       dir: `${OUT}/video-${side}`,
       size: { width: 1440, height: 900 },
     },
   });
-  // Time every envelope on both sides (see FirestoreTransport)
+
   await context.addInitScript(() => {
-    // Also runs in the sign-in popup, where storage is off limits
     try {
       localStorage.setItem("bb_debug_net", "1");
-    } catch {
-      // not the app's page
-    }
+    } catch {}
   });
   const page = await context.newPage();
-  // One clock (this machine's) for when each recording starts
-  appendFileSync(`${OUT}/video-starts.log`, `${side} 0 ${Date.now()}\n`);
+
+  appendFileSync(
+    `${OUT}/video-starts.log`,
+    `${side} 0 ${String(Date.now())}\n`
+  );
   const rec = recorder(side);
   watch(page, side, rec);
   return {
@@ -135,12 +129,12 @@ async function openCoach(side: Side): Promise<Coach> {
   };
 }
 
-/** The engine state a page holds, reduced to what both sides must agree on. */
 async function engineView(page: Page) {
   return page
     .evaluate(() => {
-      const bridge = (window as unknown as Record<string, unknown>)
-        .__bbTestBridge as { snapshot(): Record<string, unknown> } | undefined;
+      const bridge = (window as unknown as Record<string, unknown>)[
+        "__bbTestBridge"
+      ] as { snapshot(): Record<string, unknown> } | undefined;
       const s = bridge?.snapshot() as
         | {
             phase: string;
@@ -180,13 +174,8 @@ async function engineView(page: Page) {
 }
 
 const canvasView = (page: Page) =>
-  brainCall(page, "view").catch(() => null) as Promise<{
-    players: Record<string, string>;
-    ball: string;
-    hud: string;
-  } | null>;
+  brainCall(page, "view").catch(() => null);
 
-/** Paths where two JSON values differ, for a readable divergence record. */
 function diffPaths(a: unknown, b: unknown, path = ""): string[] {
   if (JSON.stringify(a) === JSON.stringify(b)) return [];
   if (
@@ -196,7 +185,7 @@ function diffPaths(a: unknown, b: unknown, path = ""): string[] {
     typeof b === "object" &&
     !Array.isArray(a)
   ) {
-    const keys = new Set([...Object.keys(a), ...Object.keys(b as object)]);
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
     return [...keys].flatMap((k) =>
       diffPaths(
         (a as Record<string, unknown>)[k],
@@ -208,7 +197,6 @@ function diffPaths(a: unknown, b: unknown, path = ""): string[] {
   return [`${path}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`];
 }
 
-/** Does the canvas draw every on-pitch player where the engine has them? */
 function canvasMismatches(
   engine: NonNullable<Awaited<ReturnType<typeof engineView>>>,
   canvas: NonNullable<Awaited<ReturnType<typeof canvasView>>>
@@ -220,7 +208,7 @@ function canvasMismatches(
   ][]) {
     const drawn = canvas.players[id];
     if (drawn === undefined) continue;
-    const want = pos ? `${pos.x},${pos.y}` : "off";
+    const want = pos ? `${String(pos.x)},${String(pos.y)}` : "off";
     const where = drawn.split(" ")[0];
     if (where !== want)
       out.push(`${id} engine ${want} ${status}, drawn ${drawn}`);
@@ -231,11 +219,6 @@ function canvasMismatches(
 let checks = 0;
 let divergences = 0;
 
-/**
- * Wait for both sides to settle, then compare. Animations and the network
- * both take time, so only a difference that outlasts the grace period
- * counts.
- */
 async function compare(
   host: Coach,
   guest: Coach,
@@ -261,7 +244,7 @@ async function compare(
       problems.push(
         ...canvasMismatches(ge, gc).map((d) => `guest canvas ${d}`)
       );
-    // Each side marks its own coach "(you)"
+
     const board = (hud: string) => hud.replace(" (you)", "");
     if (hc && gc && board(hc.hud) !== board(gc.hud))
       problems.push(`scoreboard host "${hc.hud}" vs guest "${gc.hud}"`);
@@ -286,20 +269,15 @@ async function compare(
 }
 
 const mayAct = (coach: Coach) =>
-  brainCall(coach.page, "mayAct").catch(() => false) as Promise<boolean>;
+  brainCall(coach.page, "mayAct").catch(() => false);
 
-/**
- * Wait until this coach's page shows the result of what it just did. The
- * guest's moves make a round trip to the host first; without this the
- * coach would plan its next move from the board before the last one.
- */
 async function settled(coach: Coach, before: string, ms = 6000) {
   const start = Date.now();
   while (Date.now() - start < ms) {
     if (JSON.stringify(await engineView(coach.page)) !== before) {
       appendFileSync(
         `${OUT}/latency.log`,
-        `${coach.side} ${Date.now() - start}\n`
+        `${coach.side} ${String(Date.now() - start)}\n`
       );
       return;
     }
@@ -311,7 +289,6 @@ const MACHINE = { host: "HOST · old-mac", guest: "GUEST · Hasaki" };
 const overlay = (coach: Coach) =>
   brainCall(coach.page, "installOverlay", MACHINE[coach.side]).catch(() => {});
 
-/** The weather and the coin toss before kick-off. Returns what it did. */
 async function openingPrompt(page: Page): Promise<string | null> {
   if (await clickIf(page, /^READY — ROLL WEATHER$/))
     return "ready for the weather";
@@ -322,13 +299,12 @@ async function openingPrompt(page: Page): Promise<string | null> {
   return null;
 }
 
-/** One move by this coach, if it is theirs to make. Returns what it did. */
 async function step(coach: Coach, i: number): Promise<string | null> {
   const { page, app, rec } = coach;
   const opening = await openingPrompt(page);
   if (opening) return opening;
   if (await clickIf(page, /^RECEIVE$/)) return "chose to receive";
-  // At full time nobody may act, so look for it before asking that
+
   if ((await brainNext(page).catch(() => null))?.over) return "over";
   if (!(await mayAct(coach))) return null;
   const before = JSON.stringify(await engineView(page));
@@ -346,13 +322,13 @@ async function step(coach: Coach, i: number): Promise<string | null> {
   if ((next as { waiting?: boolean }).waiting) return null;
   const c = next.candidate;
   if (!c) return null;
-  if (c.commands[0]?.type === "kick-ball") {
+  if (fixtureValue(c.commands[0])?.["type"] === "kick-ball") {
     if (coach.kicked) return null;
     coach.kicked = true;
   }
   if (next.phase === "PLAY") coach.kicked = false;
   rec.log(
-    `${i} ${next.phase}/${next.subPhase ?? "-"} ${next.pending?.type ?? ""} :: ${c.label}`
+    `${String(i)} ${String(next.phase)}/${next.subPhase ?? "-"} ${next.pending?.type ?? ""} :: ${c.label}`
   );
   const board = JSON.stringify(await engineView(page));
   await perform(page, app, c.commands, next, rec);
@@ -374,18 +350,19 @@ async function disrupt(what: string, host: Coach, guest: Coach, code: string) {
   } else if (kind === "reload") {
     await coach.page.reload();
   } else if (kind === "away") {
-    // The tab closes; the coach comes back to the match later
     const before = coach.page.video();
     await coach.page.close();
     await before
       ?.saveAs(`${OUT}/${coach.side}-before-${what}.webm`)
-      .catch((error: Error) => mainLog(`video not saved: ${error.message}`));
-    // Not a page wait: the page that would wait may be the one just closed
+      .catch((error: Error) => {
+        mainLog(`video not saved: ${error.message}`);
+      });
+
     await new Promise((resolve) => setTimeout(resolve, ms));
     coach.page = await coach.context.newPage();
     appendFileSync(
       `${OUT}/video-starts.log`,
-      `${coach.side} ${what} ${Date.now()}\n`
+      `${coach.side} ${what} ${String(Date.now())}\n`
     );
     coach.app = new GameApp(coach.page);
     watch(coach.page, coach.side, coach.rec);
@@ -404,7 +381,9 @@ async function advanceCoaches(
   let moves = 0;
   for (const coach of [host, guest]) {
     const did = await step(coach, i).catch((error: Error) => {
-      coach.rec.log(`${i} step failed: ${error.message.split("\n")[0]}`);
+      coach.rec.log(
+        `${String(i)} step failed: ${String(error.message.split("\n")[0])}`
+      );
       return null;
     });
     if (did === "over") return null;
@@ -422,11 +401,11 @@ async function reportStall(
   i: number
 ): Promise<void> {
   mainLog(`STALL: nobody can act for ~15 s`);
-  await host.rec.shot(host.page, `stall-${i}`);
-  await guest.rec.shot(guest.page, `stall-${i}`);
+  await host.rec.shot(host.page, `stall-${String(i)}`);
+  await guest.rec.shot(guest.page, `stall-${String(i)}`);
   for (const coach of [host, guest]) {
     coach.rec.log(
-      `stall view: mayAct=${await mayAct(coach)} next=${JSON.stringify(await brainNext(coach.page).catch((e) => String(e))).slice(0, 400)}`
+      `stall view: mayAct=${String(await mayAct(coach))} next=${JSON.stringify(await brainNext(coach.page).catch((e) => String(e))).slice(0, 400)}`
     );
   }
 }
@@ -441,16 +420,16 @@ async function playMatch(
   const plan = [...PLAN];
   for (let i = 0; i < MAX_ITER; i++) {
     await host.page.waitForTimeout(150);
-    if (plan.length && moves >= plan[0].at) {
-      const { what } = plan.shift()!;
-      await disrupt(what, host, guest, code);
-      await compare(host, guest, `after ${what}`, 30_000);
+    if (plan.length && moves >= fixtureValue(plan[0]).at) {
+      const { what } = fixtureValue(plan.shift());
+      await disrupt(fixtureValue(what), host, guest, code);
+      await compare(host, guest, `after ${String(what)}`, 30_000);
       idle = 0;
       continue;
     }
     const progress = await advanceCoaches(host, guest, i);
     if (progress === null) {
-      mainLog(`GAME OVER after ${moves} moves`);
+      mainLog(`GAME OVER after ${String(moves)} moves`);
       break;
     }
     moves += progress;
@@ -478,16 +457,15 @@ test("an online match between two machines stays in sync", async () => {
   const host = await openCoach("host");
   const guest = await openCoach("guest");
   mainLog(
-    `app ${APP_URL}, guest app ${process.env.GUEST_APP_URL ?? APP_URL}, guest browser ${process.env.GUEST_WS ? "remote" : "local"}`
+    `app ${APP_URL}, guest app ${process.env["GUEST_APP_URL"] ?? APP_URL}, guest browser ${process.env["GUEST_WS"] ? "remote" : "local"}`
   );
   mainLog(
     `guest user agent: ${await guest.page.evaluate(() => navigator.userAgent)}`
   );
 
-  // ---- Sign in and draft a team each ----
   for (const coach of [host, guest]) {
     await coach.page.goto("/");
-    // A dev server reached over a tunnel takes a while to serve every module
+
     await coach.page
       .getByRole("button", { name: "Sign in", exact: true })
       .waitFor({ timeout: 120_000 });
@@ -524,11 +502,8 @@ test("an online match between two machines stays in sync", async () => {
     guest.rec
   );
 
-  // A saved team reaches the cloud in the background; a reload any sooner
-  // would lose it
   await host.page.waitForTimeout(3000);
 
-  // ---- Lobby ----
   const signedIn = (coach: Coach) =>
     coach.page
       .getByRole("button", { name: /sign out/i })
@@ -542,7 +517,6 @@ test("an online match between two machines stays in sync", async () => {
   await new OnlinePage(guest.page).joinGame(code);
   await new OnlinePage(guest.page).expectInLobby(code);
   for (const coach of [host, guest]) {
-    // The coach's own team picker, not the pitch picker beside it
     const team = coach === host ? "Reikland Reavers" : "Gouged Eye";
     const select = coach.page
       .locator("select")
@@ -555,7 +529,7 @@ test("an online match between two machines stays in sync", async () => {
       throw error;
     });
     await select.selectOption({ index: 1 });
-    // Ready unlocks once the pick has made the round trip through Firestore
+
     const ready = coach.page.getByRole("button", { name: "Ready!" });
     await expect(ready).toBeEnabled({ timeout: 30_000 });
     await ready.click();
@@ -567,13 +541,13 @@ test("an online match between two machines stays in sync", async () => {
   await start.click();
   await host.page.waitForURL(/\/online\/play\//, { timeout: 30_000 });
   await guest.page.waitForURL(/\/online\/play\//, { timeout: 30_000 });
-  // Only the host may read the seed; the lobby both read must not carry it
+
   for (const coach of [host, guest])
     mainLog(
       `SEED ${coach.side} sees ${JSON.stringify(await brainCall(coach.page, "probeSeed", code))}`
     );
   for (const coach of [host, guest]) await overlay(coach);
-  // Both engines must start identical; record any difference
+
   {
     const [h, g] = await Promise.all(
       [host, guest].map((coach) => brainCall(coach.page, "stateDump"))
@@ -590,17 +564,16 @@ test("an online match between two machines stays in sync", async () => {
   await compare(host, guest, "full time", 15_000);
   await host.rec.shot(host.page, "end");
   await guest.rec.shot(guest.page, "end");
-  mainLog(`moves=${moves} checks=${checks} divergences=${divergences}`);
+  mainLog(
+    `moves=${String(moves)} checks=${String(checks)} divergences=${String(divergences)}`
+  );
 
   for (const coach of [host, guest]) {
-    // A remote browser's video only reaches this machine through saveAs
     const video = coach.page.video();
     await coach.context.close();
-    await video
-      ?.saveAs(`${OUT}/${coach.side}.webm`)
-      .catch((error: Error) =>
-        mainLog(`video ${coach.side} not saved: ${error.message}`)
-      );
+    await video?.saveAs(`${OUT}/${coach.side}.webm`).catch((error: Error) => {
+      mainLog(`video ${coach.side} not saved: ${error.message}`);
+    });
     await coach.browser.close();
   }
 });

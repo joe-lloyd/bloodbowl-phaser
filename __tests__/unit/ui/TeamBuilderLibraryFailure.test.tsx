@@ -1,26 +1,21 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dehydrateTeam } from "../../../src/data/persistence/teamPersistence";
-import { Team } from "../../../src/types/Team";
+import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
-/**
- * A signed-in coach refreshes Edit Team and their cloud library fails to
- * load. localStorage may hold an older copy of the same team; the page must
- * not open or save it as theirs, and Retry must load their library.
- */
-
 const auth = vi.hoisted(() => ({
-  listener: null as null | ((user: unknown) => void),
+  listener: null,
 }));
 const fetches = vi.hoisted(
   () =>
-    [] as {
+    new Array<{
       resolve: (snapshot: unknown) => void;
       reject: (error: unknown) => void;
-    }[]
+    }>()
 );
 
 vi.mock("../../../src/firebase/auth", () => ({
@@ -85,20 +80,21 @@ describe("Edit Team when the signed-in library fails to load", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     setTeamRepository(null);
     vi.restoreAllMocks();
     localStorage.clear();
   });
 
-  /** An older local copy, then a signed-in refresh whose fetch fails. */
   async function failSignedInLoad() {
     getLocalRepository().saveTeams([humans("Stale Local Humans", 2)]);
     connectTeamPersistenceToAuth(() => false);
-    auth.listener!({ uid: "coach-1" });
+    fixtureValue(auth.listener)({ uid: "coach-1" });
     await act(async () => {
-      fetches[0].reject(new Error("offline"));
+      fixtureValue(fetches[0]).reject(new Error("offline"));
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     return localStorage.getItem("bloodbowl_teams");
@@ -132,15 +128,14 @@ describe("Edit Team when the signed-in library fails to load", () => {
     });
   }
 
-  /** Type into a controlled input the way a coach would. */
   async function editTeamName(from: string, to: string) {
-    const input = [...container.querySelectorAll("input")].find(
+    const input = fixtureValue([...container.querySelectorAll("input")].find(
       (candidate) => candidate.value === from
-    )!;
-    const setValue = Object.getOwnPropertyDescriptor(
+    ));
+    const setValue = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
       "value"
-    )!.set!;
+    )).set);
     await act(async () => {
       setValue.call(input, to);
       input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -155,8 +150,8 @@ describe("Edit Team when the signed-in library fails to load", () => {
     const match = [...container.querySelectorAll("button")].find((b) =>
       label.test(b.textContent ?? "")
     );
-    expect(match, `Missing button ${label}`).toBeDefined();
-    return match!;
+    expect(match, `Missing button ${String(label)}`).toBeDefined();
+    return fixtureValue(match);
   }
 
   it("does not open or save an older local copy with the same ID", async () => {
@@ -174,12 +169,14 @@ describe("Edit Team when the signed-in library fails to load", () => {
     const localBefore = await failSignedInLoad();
     await render("/build-team/cloud-humans");
 
-    await act(async () => button(/^Retry$/).click());
+    await act(async () => {
+      button(/^Retry$/).click();
+    });
     expect(container.textContent).toContain("Loading your teams");
     expect(inputValues()).not.toContain("Stale Local Humans");
     expect(fetches).toHaveLength(2);
     await act(async () => {
-      fetches[1].resolve({
+      fixtureValue(fetches[1]).resolve({
         docs: [{ data: () => dehydrateTeam(humans("Cloud Humans", 4)) }],
       });
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -189,11 +186,13 @@ describe("Edit Team when the signed-in library fails to load", () => {
     expect(container.textContent).toContain("4/11");
     await editTeamName("Cloud Humans", "Cloud Humans edited");
     vi.mocked(setDoc).mockClear();
-    await act(async () => button(/Save Team/).click());
+    await act(async () => {
+      button(/Save Team/).click();
+    });
 
     const cloudWrites = vi
       .mocked(setDoc)
-      .mock.calls.map(([, data]) => data as { id?: string; name?: string });
+      .mock.calls.map(([, data]) => data);
     expect(cloudWrites).toContainEqual(
       expect.objectContaining({
         id: "cloud-humans",
@@ -219,7 +218,9 @@ describe("Edit Team when the signed-in library fails to load", () => {
     await failSignedInLoad();
     await render("/build-team");
 
-    await act(async () => button(/^Retry$/).click());
+    await act(async () => {
+      button(/^Retry$/).click();
+    });
 
     expect(container.textContent).toContain("Loading your teams");
     expect(container.textContent).not.toContain("Stale Local Humans");
@@ -239,7 +240,9 @@ describe("Team Management seed actions while the library is not loaded", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     setTeamRepository(null);
     vi.restoreAllMocks();
@@ -259,18 +262,20 @@ describe("Team Management seed actions while the library is not loaded", () => {
         </MemoryRouter>
       );
     });
-    // The library stops being loaded while the page is open.
-    await act(async () =>
-      setTeamLibraryStatus(label === "Seed All Rosters" ? "loading" : "failed")
-    );
+
+    await act(async () => {
+      setTeamLibraryStatus(label === "Seed All Rosters" ? "loading" : "failed");
+    });
     const before = JSON.stringify({ ...localStorage });
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
 
-    const seedButton = [...container.querySelectorAll("button")].find(
+    const seedButton = fixtureValue([...container.querySelectorAll("button")].find(
       (b) => b.textContent === label
-    )!;
-    await act(async () => seedButton.click());
+    ));
+    await act(async () => {
+      seedButton.click();
+    });
 
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(alertSpy).toHaveBeenCalledWith(expect.stringMatching(message));

@@ -2,7 +2,6 @@ import type { DugoutSquares } from "../elements/Stadium";
 import type { SidelineStaffMember } from "./sidelineStaff";
 import type { BoardPoint } from "./sidelineRoutes";
 
-/** A six-square extension beside the reserve box; the exit lane stays clear. */
 export interface StaffTerraceLayout {
   x: number;
   y: number;
@@ -26,7 +25,6 @@ export function staffTerraceLayout(squares: DugoutSquares): StaffTerraceLayout {
   };
 }
 
-/** Cheerleaders at the front, fans in the middle, seated staff at the back. */
 export function staffTerraceSlot(
   layout: StaffTerraceLayout,
   member: Pick<SidelineStaffMember, "type" | "index">

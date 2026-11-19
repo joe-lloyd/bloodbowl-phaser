@@ -1,9 +1,3 @@
-/**
- * How close each saved game was: its scoring timeline, lead changes, late
- * scores, comebacks, casualties and team-mate throws. Replays the saved
- * commands and writes `drama.json` with one row per game, closest first, for
- * picking games worth watching.
- */
 import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
@@ -29,15 +23,15 @@ export interface Drama {
   final: [number, number];
   scores: Score[];
   leadChanges: number;
-  /** A side that trailed at some point and still won. */
+
   comeback: boolean;
-  /** Touchdowns in a half's last two team turns. */
+
   lateScores: number;
-  /** The winning or levelling score came in the last turn of the game. */
+
   lastGasp: boolean;
   casualties: number;
   throws: number;
-  /** Higher is closer and more eventful. */
+
   drama: number;
 }
 
@@ -83,11 +77,9 @@ export async function dramaOfTrace(file: string, id: string, side: number) {
   } satisfies Drama;
 }
 
-/** Who leads after each score: 0, 1, or -1 when level. */
 const leaderOf = (t: [number, number]) =>
   t[0] === t[1] ? -1 : t[0] > t[1] ? 0 : 1;
 
-/** The running score's lead changes, and which sides ever trailed. */
 function leads(scores: Score[]) {
   const final: [number, number] = [0, 0];
   let leader = -1;
@@ -104,7 +96,6 @@ function leads(scores: Score[]) {
   return { final, leadChanges, trailed };
 }
 
-/** Lead changes, comebacks, late scores and a closeness score, from a timeline. */
 export function closeness(scores: Score[], casualties: number, throws: number) {
   const { final, leadChanges, trailed } = leads(scores);
   const margin = Math.abs(final[0] - final[1]);
@@ -146,7 +137,7 @@ async function main() {
         writeFileSync(join(out, job.id + ".json"), JSON.stringify(row));
         process.send?.({ done: job.id });
       } catch (error) {
-        process.send?.({ error: `${job.id}: ${error}` });
+        process.send?.({ error: `${job.id}: ${String(error)}` });
       }
     });
     process.send?.({ ready: true });

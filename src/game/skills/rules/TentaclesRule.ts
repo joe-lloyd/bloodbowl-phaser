@@ -1,45 +1,23 @@
-/**
- * Tentacles (2025 rulebook p.137) — "When an opposition player attempts to
- * Dodge, Jump or Leap away from a square in this player's Tackle Zone, this
- * player may use this Skill. When a player uses this Skill they roll a D6
- * and add their Strength Characteristic to the roll; they then subtract the
- * Strength Characteristic of the opposition player from the result. If the
- * result is 6 or higher, or the roll is a natural 6, then the opposition
- * player does not leave the square they attempted to leave and their
- * activation comes to an end. If the result is 5 or lower, or the roll is a
- * natural 1, this Skill has no effect. If a player tries to leave the
- * Tackle Zone of multiple players with this Skill at the same time, only
- * one of those players may use this Skill."
- *
- * `self` is a marker of the vacated square. Fires before the Agility Test:
- * a hold means no dodge or Jump is rolled at all.
- */
-
 import { SkillType } from "../../../types/Skills";
-import { Player, PlayerStatus } from "../../../types/Player";
-import { SkillRule, DodgeDeclaredContext } from "../SkillRule";
-import { ReactionDecisionAnswer } from "../../../types/decisions";
+import { type Player, PlayerStatus } from "../../../types/Player";
+import { type SkillRule, type DodgeDeclaredContext } from "../SkillRule";
+import { type ReactionDecisionAnswer } from "../../../types/decisions";
 
-/** The parts of a Dodge or a Jump that Tentacles reads and writes. */
 type Escape = Pick<
   DodgeDeclaredContext,
   "player" | "from" | "escapeCancelled" | "triggers" | "decisions" | "dice"
 >;
 
-/**
- * Whether `self` may try to grip: a Standing opponent who marks the square
- * being left, before anyone else has held or tried to hold the dodger.
- */
 function mayGrip(ctx: Escape, self: Player): boolean {
   if (self.id === ctx.player.id) return false;
   if (self.teamId === ctx.player.teamId) return false;
   if (self.status !== PlayerStatus.ACTIVE || !self.gridPosition) return false;
   if (ctx.escapeCancelled) return false;
-  // Only a marker of the VACATED square may grip the dodger
+
   const dx = Math.abs(self.gridPosition.x - ctx.from.x);
   const dy = Math.abs(self.gridPosition.y - ctx.from.y);
   if (dx > 1 || dy > 1 || dx + dy === 0) return false;
-  // Only one set of tentacles may try, even when several mark the square
+
   return !ctx.triggers.some((t) => t.skill === SkillType.TENTACLES);
 }
 

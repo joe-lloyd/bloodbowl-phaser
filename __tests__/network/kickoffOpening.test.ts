@@ -1,18 +1,10 @@
-/**
- * The opening sequence through every Sevens kick-off event, to the first
- * normal turn: the kick, the event, any step the event opens, then the
- * receiving coach moves a player. Played on one engine, as hotseat and the
- * sandbox play it, and on two engines in lockstep, as an online match
- * plays it with each command sent by the coach who owns it.
- *
- * Live site, protocol 8: after Charge! a coach could move nobody.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import {
-  CommandResponse,
-  HeadlessCommand,
-  PendingDecision,
+  type CommandResponse,
+  type HeadlessCommand,
+  type PendingDecision,
 } from "../../src/headless/protocol";
 import { stateChecksum } from "../../src/headless/checksum";
 import { LockstepSession } from "../../src/network/LockstepSession";
@@ -24,7 +16,7 @@ import {
 } from "../../src/game/kickoff/kickoffEvents";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 
 const scenario: Scenario = {
   id: "opening-kickoff",
@@ -49,12 +41,11 @@ const scenario: Scenario = {
 
 const kick = (game: HeadlessGame): HeadlessCommand => ({
   type: "kick-ball",
-  playerId: game.ctx.team1.players[0].id,
+  playerId: fixtureValue(game.ctx.team1.players[0]).id,
   x: 14,
   y: 5,
 });
 
-/** A seed whose kick-off rolls this event. */
 async function seedFor(event: KickoffEvent): Promise<number> {
   for (let seed = 1; seed < 800; seed++) {
     const probe = new HeadlessGame({ scenario, seed });
@@ -66,17 +57,15 @@ async function seedFor(event: KickoffEvent): Promise<number> {
   throw new Error(`no seed rolls ${event}`);
 }
 
-/** Runs a command as the coach of the given team. */
 type Play = (
   team: string,
   command: HeadlessCommand
 ) => Promise<CommandResponse>;
 
 interface Table {
-  /** The board both coaches read; online, the host's engine. */
   game: HeadlessGame;
   play: Play;
-  /** Every engine in the match agrees on the board. */
+
   agreed(): void;
 }
 
@@ -141,12 +130,12 @@ function online(seed: number): Table {
 }
 
 const ownerOf = (game: HeadlessGame, pending: PendingDecision) =>
-  decisionOwner(pending, {
+  fixtureValue(decisionOwner(pending, {
     activeTeamId: game.ctx.gameService.getState().activeTeamId,
     pendingDecision: pending,
     teamIdOfPlayer: (id) => game.ctx.gameService.getPlayerById(id)?.teamId,
     hostTeamId: game.ctx.team1.id,
-  })!;
+  }));
 
 const isFree = (game: HeadlessGame, x: number, y: number) =>
   x >= 0 &&
@@ -155,9 +144,8 @@ const isFree = (game: HeadlessGame, x: number, y: number) =>
   y < 11 &&
   !game.ctx.gameService.getPlayerAt(x, y);
 
-/** A Standing player of the team with a free square beside them. */
 function mover(game: HeadlessGame, teamId: string, skip: string[] = []) {
-  for (const player of game.ctx.gameService.getTeam(teamId)!.players) {
+  for (const player of fixtureValue(game.ctx.gameService.getTeam(teamId)).players) {
     const at = player.gridPosition;
     if (!at || player.status !== PlayerStatus.ACTIVE) continue;
     if (skip.includes(player.id)) continue;
@@ -167,14 +155,13 @@ function mover(game: HeadlessGame, teamId: string, skip: string[] = []) {
       [0, -1],
       [0, 1],
     ]) {
-      if (isFree(game, at.x + dx, at.y + dy))
-        return { player, to: { x: at.x + dx, y: at.y + dy } };
+      if (isFree(game, at.x + fixtureValue(dx), at.y + fixtureValue(dy)))
+        return { player, to: { x: at.x + fixtureValue(dx), y: at.y + fixtureValue(dy) } };
     }
   }
   throw new Error("nobody can move");
 }
 
-/** Answer whatever the kick-off left open, as its coach would. */
 async function resolveOpening(table: Table) {
   const { game, play } = table;
   for (let guard = 0; guard < 30; guard++) {
@@ -190,9 +177,8 @@ async function resolveOpening(table: Table) {
       throw new Error(`unexpected ${pending.type} in the opening`);
     }
     if (pending.charge?.activePlayerId) {
-      // Each charger takes one step, as a coach would
       const playerId = pending.charge.activePlayerId;
-      const at = game.ctx.gameService.getPlayerById(playerId)!.gridPosition!;
+      const at = fixtureValue(fixtureValue(game.ctx.gameService.getPlayerById(playerId)).gridPosition);
       expect(
         (
           await play(owner, {
@@ -202,20 +188,20 @@ async function resolveOpening(table: Table) {
           })
         ).ok
       ).toBe(true);
-      const to = [
+      const to = fixtureValue([
         [1, 0],
         [-1, 0],
         [0, 1],
         [0, -1],
       ]
-        .map(([dx, dy]) => ({ x: at.x + dx, y: at.y + dy }))
-        .find((s) => isFree(game, s.x, s.y))!;
+        .map(([dx, dy]) => ({ x: at.x + fixtureValue(dx), y: at.y + fixtureValue(dy) }))
+        .find((s) => isFree(game, s.x, s.y)));
       expect(
         (await play(owner, { type: "move", playerId, path: [to] })).ok
       ).toBe(true);
-      // An accepted command that left the charger standing still is the bug
+
       expect(
-        game.ctx.gameService.getPlayerById(playerId)!.gridPosition
+        fixtureValue(game.ctx.gameService.getPlayerById(playerId)).gridPosition
       ).toEqual(to);
       await play(owner, { type: "end-activation", playerId });
       continue;
@@ -288,7 +274,7 @@ describe.each([
       });
       expect(moved.ok, moved.reason).toBe(true);
       expect(
-        game.ctx.gameService.getPlayerById(player.id)!.gridPosition
+        fixtureValue(game.ctx.gameService.getPlayerById(player.id)).gridPosition
       ).toEqual(to);
       table.agreed();
     }

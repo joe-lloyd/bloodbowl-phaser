@@ -1,9 +1,10 @@
-import { IEventBus } from "../../services/EventBus";
-import { Player, hasTackleZone } from "@/types/Player";
+import type { RerollDeps } from "../skills";
+import { type IEventBus } from "../../services/EventBus";
+import { type Player, hasTackleZone } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { BallMovementController } from "./BallMovementController";
-import { DiceController } from "./DiceController";
+import type { BallMovementController } from "./BallMovementController";
+import type { DiceController } from "./DiceController";
 import { withRerollOffer } from "../skills";
 
 export type PassType = "Quick Pass" | "Short Pass" | "Long Pass" | "Long Bomb";
@@ -31,20 +32,14 @@ export interface InterceptionAttempt {
   modifier: number;
 }
 
-/** Out-of-range marker in PASSING_ARRAY (mirrors the rulebook range ruler). */
+type PassBand = 0 | 1 | 2 | 3;
+
 const X = null;
-/** Range-ruler reach in squares: the array spans [-13, +13] on each axis. */
+
 const RULER_RADIUS = 13;
-/**
- * The Blood Bowl range ruler, as the negative-modifier magnitude applied to
- * the Passing Ability test for a throw of a given offset. Indexed
- * `[dy + RULER_RADIUS][dx + RULER_RADIUS]`; the centre (the passer's own
- * square) and every `X` are out of range. 0 = Quick, 1 = Short (-1),
- * 2 = Long (-2), 3 = Long Bomb (-3). The ruler is radial (roughly circular),
- * NOT square Chebyshev bands, so diagonal throws reach further than they did.
- */
+
 // prettier-ignore
-const PASSING_ARRAY: (number | null)[][] = [
+const PASSING_ARRAY: readonly (readonly (PassBand | null)[])[] = [
   [X, X, X, X, X, X, X, X, X, X, X, 3, 3, 3, 3, 3, X, X, X, X, X, X, X, X, X, X, X],
   [X, X, X, X, X, X, X, X, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, X, X, X, X, X, X, X, X],
   [X, X, X, X, X, X, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, X, X, X, X, X, X],
@@ -75,43 +70,45 @@ const PASSING_ARRAY: (number | null)[][] = [
 ];
 
 export class PassController {
-  private static readonly PASS_RANGES: PassRange[] = [
+  private static readonly PASS_RANGES: [PassRange, PassRange, PassRange, PassRange] = [
     { type: "Quick Pass", modifier: 0, minDistance: 0, maxDistance: 3 },
     { type: "Short Pass", modifier: -1, minDistance: 4, maxDistance: 6 },
     { type: "Long Pass", modifier: -2, minDistance: 7, maxDistance: 10 },
     { type: "Long Bomb", modifier: -3, minDistance: 11, maxDistance: 999 },
   ];
 
+  private eventBus: IEventBus;
+  private movementController: BallMovementController;
+  private diceController: DiceController;
   constructor(
-    private eventBus: IEventBus,
-    private movementController: BallMovementController,
-    private diceController: DiceController
-  ) {}
+    eventBus: IEventBus,
+    movementController: BallMovementController,
+    diceController: DiceController
+  ) {
+    this.eventBus = eventBus;
+    this.movementController = movementController;
+    this.diceController = diceController;
+  }
 
-  /**
-   * The negative-modifier magnitude (0–3) for a throw of this offset per the
-   * range ruler, or null if the target is out of range. PASS_RANGES is
-   * indexed by this value, so 0→Quick … 3→Long Bomb.
-   */
   public static rangeValue(
     from: { x: number; y: number },
     to: { x: number; y: number }
-  ): number | null {
+  ): PassBand | null {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     if (Math.abs(dx) > RULER_RADIUS || Math.abs(dy) > RULER_RADIUS) return null;
-    return PASSING_ARRAY[dy + RULER_RADIUS][dx + RULER_RADIUS];
+    return PASSING_ARRAY[dy + RULER_RADIUS]?.[dx + RULER_RADIUS] ?? null;
   }
 
   public measureRange(
     from: { x: number; y: number },
     to: { x: number; y: number },
-    /** Hail Mary Pass: "treating the throw as a Long Bomb" at any range. */
+
     hailMary = false
   ): PassRange {
     if (hailMary) return PassController.PASS_RANGES[3];
     const value = PassController.rangeValue(from, to);
-    // Out of range → treat as the hardest throw for the PA test.
+
     return PassController.PASS_RANGES[value ?? 3];
   }
 
@@ -125,13 +122,7 @@ export class PassController {
   }
 
   public testAccuracy(
-    player: Player,
-    passRange: PassRange,
-    markingOpponents: number,
-    extraModifier: number = 0,
-    /** What the dice tray and the log call the roll. */
-    rollName: "Pass" | "Throw Team-mate" | "Kick Team-mate" = "Pass"
-  ): {
+{ player,passRange,markingOpponents,extraModifier=0,rollName="Pass" }: { player: Player; passRange: PassRange; markingOpponents: number; extraModifier?: number; rollName?: "Pass"|"Throw Team-mate"|"Kick Team-mate"; }  ): {
     success: boolean;
     accurate: boolean;
     fumbled: boolean;
@@ -142,16 +133,10 @@ export class PassController {
     const modifiers =
       this.calculatePassModifiers(passRange, markingOpponents) + extraModifier;
 
-    // Use DiceController for the roll
     const check = this.diceController.rollSkillCheck(
-      rollName,
-      target,
-      modifiers,
-      player.playerName
-    );
+      { reason: rollName,target,modifier: modifiers,playerName: player.playerName }    );
     const roll = check.roll;
 
-    // Fumble on natural 1 or modified <= 1
     const fumbled = roll === 1 || (roll !== 6 && roll + modifiers <= 1);
 
     return {
@@ -167,14 +152,14 @@ export class PassController {
     x: number;
     y: number;
   } {
-    return this.movementController!.bounce(position);
+    return this.movementController.bounce(position);
   }
 
   public bounceBall(position: { x: number; y: number }): {
     x: number;
     y: number;
   } {
-    return this.movementController!.bounce(position);
+    return this.movementController.bounce(position);
   }
 
   public attemptCatch(
@@ -185,39 +170,19 @@ export class PassController {
     const target = player.stats.AG;
     const modifier = (isAccuratePass ? 1 : 0) - markingOpponents;
     const check = this.diceController.rollSkillCheck(
-      "Catch",
-      target,
-      modifier,
-      player.playerName
-    );
+      { reason: "Catch",target,modifier,playerName: player.playerName }    );
 
     return { success: check.success, roll: check.roll };
   }
 
   public async attemptPass(
-    player: Player,
-    from: { x: number; y: number },
-    to: { x: number; y: number },
-    markingOpponents: number,
-    rerollDeps?: import("../skills").RerollDeps,
-    /** Skill-trigger modifier (Accurate, Nerves of Steel, …) */
-    extraModifier: number = 0,
-    /** Hail Mary Pass: a Long Bomb whose Accurate result is Inaccurate. */
-    hailMary: boolean = false,
-    /** Set Piece (L25): Accurate on any 2+, whatever the PA and modifiers. */
-    setPiece: boolean = false
-  ): Promise<PassResult> {
+{ player,from,to,markingOpponents,rerollDeps,extraModifier=0,hailMary=false,setPiece=false }: { player: Player; from: { x: number; y: number; }; to: { x: number; y: number; }; markingOpponents: number; rerollDeps?: RerollDeps; extraModifier?: number; hailMary?: boolean; setPiece?: boolean; }  ): Promise<PassResult> {
     const passRange = this.measureRange(from, to, hailMary);
-    // An inaccurate or fumbled pass is a failed PA test: offer the reroll
-    // BEFORE the interception, scatter or fumble so a rerolled pass flies fresh
+
     const rollAccuracy = () => {
       if (setPiece) {
         const check = this.diceController.rollSkillCheck(
-          "Pass (Set Piece)",
-          2,
-          0,
-          player.playerName
-        );
+          { reason: "Pass (Set Piece)",target: 2,modifier: 0,playerName: player.playerName }        );
         return {
           success: check.success,
           accurate: check.success,
@@ -227,24 +192,17 @@ export class PassController {
         };
       }
       const test = this.testAccuracy(
-        player,
-        passRange,
-        markingOpponents,
-        extraModifier
-      );
+        { player,passRange,markingOpponents,extraModifier }      );
       return { ...test, success: test.accurate };
     };
     const accuracyTest = rerollDeps
       ? await withRerollOffer(rerollDeps, player, "pass", rollAccuracy)
       : rollAccuracy();
-    // Hail Mary Pass: an Accurate result becomes Inaccurate (it still flies,
-    // but scatters from the target square).
+
     const effectiveAccurate = accuracyTest.accurate && !hailMary;
     const target = player.stats.PA;
     const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
 
-    // The caller resolves where the ball goes. An inaccurate pass may be
-    // intercepted before it scatters, so the scatter is not rolled here.
     if (accuracyTest.fumbled) {
       this.eventBus.emit(GameEventNames.PassFumbled, {
         playerId: player.id,
@@ -264,12 +222,6 @@ export class PassController {
     };
   }
 
-  /**
-   * Scatter an inaccurate pass from its target square: three steps, stopping
-   * at the first square off the pitch. Returns the whole flight, target first,
-   * so the last square is where the ball comes down. Roll it only after any
-   * interception has failed: an intercepted pass never scatters.
-   */
   public scatterPass(target: { x: number; y: number }): {
     x: number;
     y: number;
@@ -277,33 +229,10 @@ export class PassController {
     return [{ ...target }, ...this.movementController.scatter(target)];
   }
 
-  /**
-   * Half-width of the interception corridor, in squares. The range ruler is
-   * ~1.75 squares wide, so a player can intercept from up to 0.875 squares
-   * either side of the pass line.
-   */
   public static readonly INTERCEPT_HALF_WIDTH = 0.875;
 
-  /**
-   * Minimum overlap (in squares) the ruler must have with a cell before it
-   * counts. On an exact diagonal the ruler's end-corner clips the cells
-   * diagonally behind/beyond the line with only a shallow sliver (~0.12 sq)
-   * and wrongly flags them; genuine flanking cells overlap far more (~0.375
-   * for a straight pass, ~0.875 on a diagonal), so this margin sits in the
-   * gap — it drops the corner grazes without losing real interception squares.
-   */
   public static readonly INTERCEPT_TOUCH_MARGIN = 0.01;
 
-  /**
-   * Range Ruler overlap test. The ruler is a RECTANGLE running from the centre
-   * of the passer's square (`from`) to the centre of the ball's landing square
-   * (`landing`), INTERCEPT_HALF_WIDTH squares to each side of the pass line. A
-   * candidate square is overlapped if the ruler touches ANY part of that
-   * square's 1×1 cell — not just its centre. Implemented as an oriented-box vs
-   * axis-aligned-cell overlap (Separating Axis Theorem), so it matches exactly
-   * the band drawn in the pass-setup preview. Both the preview and the pass
-   * resolution call this on integer square centres, so they always agree.
-   */
   public static rulerOverlaps(
     from: { x: number; y: number },
     landing: { x: number; y: number },
@@ -315,48 +244,33 @@ export class PassController {
     if (lenSq === 0) return square.x === from.x && square.y === from.y;
     const len = Math.sqrt(lenSq);
 
-    // Ruler rectangle: centred on the segment midpoint, half-length len/2 along
-    // the pass line, half-width INTERCEPT_HALF_WIDTH across it.
-    const dirX = ux / len;
-    const dirY = uy / len;
-    const perpX = -dirY;
-    const perpY = dirX;
-    const midX = (from.x + landing.x) / 2;
-    const midY = (from.y + landing.y) / 2;
+    const direction = { x: ux / len, y: uy / len };
+    const perpendicular = { x: -direction.y, y: direction.x };
+    const midpoint = { x: (from.x + landing.x) / 2, y: (from.y + landing.y) / 2 };
     const halfLen = len / 2;
     const halfWid = PassController.INTERCEPT_HALF_WIDTH;
 
-    const cdx = square.x - midX;
-    const cdy = square.y - midY;
+    const offset = { x: square.x - midpoint.x, y: square.y - midpoint.y };
 
-    // Separating Axis Theorem over the ruler's 2 axes and the cell's 2 axes.
-    // Touching (equality) counts as an overlap.
     const axes: [number, number][] = [
-      [dirX, dirY],
-      [perpX, perpY],
+      [direction.x, direction.y],
+      [perpendicular.x, perpendicular.y],
       [1, 0],
       [0, 1],
     ];
     const margin = PassController.INTERCEPT_TOUCH_MARGIN;
     for (const [ax, ay] of axes) {
-      const centreDist = Math.abs(cdx * ax + cdy * ay);
+      const centreDist = Math.abs(offset.x * ax + offset.y * ay);
       const rulerReach =
-        halfLen * Math.abs(dirX * ax + dirY * ay) +
-        halfWid * Math.abs(perpX * ax + perpY * ay);
+        halfLen * Math.abs(direction.x * ax + direction.y * ay) +
+        halfWid * Math.abs(perpendicular.x * ax + perpendicular.y * ay);
       const cellReach = 0.5 * Math.abs(ax) + 0.5 * Math.abs(ay);
-      // Require more than a pixel-thin overlap: subtract the touch margin so a
-      // grazing corner/edge contact is treated as separated.
+
       if (centreDist > rulerReach + cellReach - margin) return false;
     }
     return true;
   }
 
-  /**
-   * Every board square the passer→target Range Ruler corridor passes over —
-   * i.e. the squares a player could intercept from — excluding the passer's
-   * own square and the target square. Used to preview the interception zone
-   * during pass setup; shares its geometry with checkInterceptions.
-   */
   public getInterceptionSquares(
     from: { x: number; y: number },
     to: { x: number; y: number }
@@ -364,8 +278,7 @@ export class PassController {
     const squares: { x: number; y: number }[] = [];
     for (let x = 0; x < 26; x++) {
       for (let y = 0; y < 15; y++) {
-        if (x === from.x && y === from.y) continue;
-        if (x === to.x && y === to.y) continue;
+        if (PassController.isEndpoint({ x, y }, from, to)) continue;
         if (PassController.rulerOverlaps(from, to, { x, y })) {
           squares.push({ x, y });
         }
@@ -374,47 +287,22 @@ export class PassController {
     return squares;
   }
 
-  /**
-   * Standing opposition players (with their Tackle Zone) whose square the
-   * passer→target Range Ruler overlaps. Interference is resolved before an
-   * inaccurate pass scatters, so the ruler always runs to the declared target.
-   */
-  public checkInterceptions(
-    from: { x: number; y: number },
-    target: { x: number; y: number },
-    opponents: Player[],
-    isAccurate: boolean
-  ): InterceptionAttempt[] {
-    const interceptors: InterceptionAttempt[] = [];
-    const modifier = isAccurate ? -3 : -2;
-
-    for (const opponent of opponents) {
-      const pos = opponent.gridPosition;
-      // A player that has lost its Tackle Zone (Prone/Stunned/Distracted)
-      // may not intercept.
-      if (!pos || !hasTackleZone(opponent)) continue;
-      // No Ball: "may not attempt to Intercept a Pass" (p.132).
-      if (hasSkill(opponent.skills, SkillType.NO_BALL)) continue;
-      // The passer's own square and the target square never intercept.
-      if (pos.x === from.x && pos.y === from.y) continue;
-      if (pos.x === target.x && pos.y === target.y) continue;
-
-      if (PassController.rulerOverlaps(from, target, pos)) {
-        interceptors.push({
-          playerId: opponent.id,
-          position: pos,
-          modifier,
-        });
-      }
-    }
-    return interceptors;
+  private static isEndpoint(position: { x: number; y: number }, from: { x: number; y: number }, to: { x: number; y: number }): boolean {
+    return (position.x === from.x && position.y === from.y) || (position.x === to.x && position.y === to.y);
   }
 
-  /**
-   * Resolve an interception Agility Test. `baseModifier` is -3 (accurate) or
-   * -2 (inaccurate); `markingOpponents` adds -1 each. A natural 6 always
-   * intercepts and a natural 1 always fails (handled by rollSkillCheck).
-   */
+  private isEligibleInterceptor(opponent: Player, from: { x: number; y: number }, target: { x: number; y: number }): opponent is Player & { gridPosition: { x: number; y: number } } {
+    const position = opponent.gridPosition;
+    return position !== undefined && hasTackleZone(opponent) && !hasSkill(opponent.skills, SkillType.NO_BALL)
+      && !PassController.isEndpoint(position, from, target) && PassController.rulerOverlaps(from, target, position);
+  }
+
+  public checkInterceptions({ from, target, opponents, isAccurate }: { from: { x: number; y: number }; target: { x: number; y: number }; opponents: Player[]; isAccurate: boolean }): InterceptionAttempt[] {
+    const modifier = isAccurate ? -3 : -2;
+    return opponents.flatMap((opponent) => this.isEligibleInterceptor(opponent, from, target)
+      ? [{ playerId: opponent.id, position: opponent.gridPosition, modifier }] : []);
+  }
+
   public attemptInterception(
     player: Player,
     baseModifier: number,
@@ -423,12 +311,7 @@ export class PassController {
     const target = player.stats.AG;
     const totalModifier = baseModifier - markingOpponents;
     const check = this.diceController.rollSkillCheck(
-      "Interception",
-      target,
-      totalModifier,
-      player.playerName,
-      player.teamId
-    );
+      { reason: "Interception",target,modifier: totalModifier,playerName: player.playerName,teamId: player.teamId }    );
 
     return { success: check.success, roll: check.roll };
   }
@@ -438,7 +321,7 @@ export class PassController {
     passType: PassType
   ): { x: number; y: number }[] {
     const squares: { x: number; y: number }[] = [];
-    // PASS_RANGES is ordered by range-ruler value (0=Quick … 3=Long Bomb).
+
     const value = PassController.PASS_RANGES.findIndex(
       (r) => r.type === passType
     );
@@ -456,7 +339,7 @@ export class PassController {
 
   public getAllRanges(
     from: { x: number; y: number },
-    /** The ranges the weather allows (Blizzard: Quick and Short only). */
+
     allowed?: readonly PassType[]
   ): Map<PassType, { x: number; y: number }[]> {
     const ranges = new Map<PassType, { x: number; y: number }[]>();

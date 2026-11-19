@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   dehydrateTeam,
@@ -9,24 +10,22 @@ import {
   rollPendingRandomPrimary,
   SKILL_ROLL_TABLE,
 } from "../../../src/game/progression/progression";
-import { createPlayer, Player } from "../../../src/types/Player";
+import { createPlayer, type Player } from "../../../src/types/Player";
 import { getSkill, SkillCategory, SkillType } from "../../../src/types/Skills";
 import {
   calculateTeamValue,
   createTeam,
   RosterName,
-  Team,
+  type Team,
 } from "../../../src/types/Team";
 
-/** Teach `skill` as an earlier advancement, as the app records it, so it
- *  survives a save and reload. */
 function learn(player: Player, skill: SkillType): void {
   if (player.skills.some((owned) => owned.type === skill)) return;
   player.skills.push(getSkill(skill));
   player.advancements = [
     ...(player.advancements ?? []),
     {
-      id: `adv-${(player.advancements?.length ?? 0) + 1}`,
+      id: `adv-${String((player.advancements?.length ?? 0) + 1)}`,
       type: "primary-skill",
       name: skill,
       sppCost: 0,
@@ -35,7 +34,6 @@ function learn(player: Player, skill: SkillType): void {
   ];
 }
 
-/** Human Blitzer (General and Strength Primary) who also learned `extra`. */
 function blitzerWith(...extra: SkillType[]): { team: Team; player: Player } {
   const roster = getRosterByRosterName(RosterName.HUMAN);
   const team = createTeam(
@@ -59,7 +57,6 @@ function blitzerWith(...extra: SkillType[]): { team: Team; player: Player } {
   return { team, player };
 }
 
-/** Dice that give exactly `values`, in order, and record what was rolled. */
 function scriptedDice(...values: number[]) {
   const rolled: number[] = [];
   return {
@@ -68,7 +65,7 @@ function scriptedDice(...values: number[]) {
       if (rolled.length >= values.length) {
         throw new Error("The scripted dice ran out");
       }
-      rolled.push(values[rolled.length]);
+      rolled.push(fixtureValue(values[rolled.length]));
       return rolled[rolled.length - 1];
     },
   };
@@ -76,20 +73,13 @@ function scriptedDice(...values: number[]) {
 
 const owned = (player: Player) => player.skills.map((skill) => skill.type);
 
-/**
- * Rulebook: a random skill is rolled again "if the player already has that
- * Skill or if they roll a Skill they cannot have". The repeat happens
- * before the roll is saved, so a saved or shown candidate is always one
- * the player can take.
- */
 describe("random skill rolls repeat until the player can take the skill", () => {
   it("rolls again when the first roll lands on a skill the player already has", () => {
     const { player } = blitzerWith(SkillType.BLOCK, SkillType.DAUNTLESS);
     expect(owned(player)).toEqual(
       expect.arrayContaining([SkillType.BLOCK, SkillType.DAUNTLESS])
     );
-    // General 1,1 Block (owned) -> 4,1 Steady Footing;
-    // 1,2 Dauntless (owned) -> 1,3 Fend.
+
     const dice = scriptedDice(1, 1, 4, 1, 1, 2, 1, 3);
 
     const roll = rollPendingRandomPrimary(player, SkillCategory.GENERAL, dice);
@@ -108,7 +98,7 @@ describe("random skill rolls repeat until the player can take the skill", () => 
 
   it("rolls again when the roll lands on a skill the player cannot have", () => {
     const { player } = blitzerWith(SkillType.FRENZY);
-    // Strength 1,5 Grab and 4,3 Multiple Block both clash with Frenzy.
+
     const dice = scriptedDice(1, 5, 2, 1, 4, 3, 2, 6);
 
     const roll = rollPendingRandomPrimary(player, SkillCategory.STRENGTH, dice);
@@ -138,8 +128,6 @@ describe("random skill rolls repeat until the player can take the skill", () => 
   });
 
   it("rolls no dice and saves nothing when no skill in the table can be taken", () => {
-    // SPP advancement cannot get a player this far (six advancements make a
-    // Legend), so the skills are given directly: this checks the guard.
     const { player } = blitzerWith();
     for (const skill of SKILL_ROLL_TABLE[SkillCategory.GENERAL]) {
       if (!owned(player).includes(skill)) player.skills.push(getSkill(skill));
@@ -164,7 +152,7 @@ describe("random skill rolls repeat until the player can take the skill", () => 
     const { team: reloaded } = hydrateStoredTeam(
       JSON.parse(JSON.stringify(dehydrateTeam(team)))
     );
-    const again = reloaded.players.find((p) => p.id === player.id)!;
+    const again = fixtureValue(reloaded.players.find((p) => p.id === player.id));
     expect(owned(again)).toEqual(
       expect.arrayContaining([SkillType.BLOCK, SkillType.DAUNTLESS])
     );

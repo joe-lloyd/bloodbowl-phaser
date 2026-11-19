@@ -1,17 +1,6 @@
-/**
- * Hatred (X) (2025 rulebook p.129, trait) — "Whenever this player performs
- * a Block Action against a player with the same keyword as that shown in
- * brackets, this player may re-roll a single Player Down result."
- *
- * After the block dice land, the attacker's coach may re-roll exactly one
- * "skull" (Player Down) die in place. (Brawler's Both Down re-roll used to
- * work the same way via this hook; it is now a button on the block-dice
- * decision instead — see BlockManager.brawlerRerollBlockDie.)
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
-import { ReactionDecisionAnswer } from "../../../types/decisions";
+import { type SkillRule } from "../SkillRule";
+import { type ReactionDecisionAnswer } from "../../../types/decisions";
 import { matchesKeyword } from "./keywords";
 
 export const HatredRule: SkillRule = {

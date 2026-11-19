@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
@@ -20,7 +21,9 @@ beforeEach(() => {
   bus = new EventBus();
 });
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   host.remove();
   ServiceContainer.reset();
   vi.useRealTimers();
@@ -34,50 +37,52 @@ async function setup() {
   teams
     .flatMap((team) => team.players)
     .forEach((p) => {
-      p.playerName = `Player ${p.number}`;
+      p.playerName = `Player ${String(p.number)}`;
     });
-  const services = ServiceContainer.initialize(bus, teams[0], teams[1]);
+  const services = ServiceContainer.initialize({ eventBus: bus, team1: fixtureValue(teams[0]), team2: fixtureValue(teams[1]) });
   services.gameService.getState().phase = GamePhase.PLAY;
   services.gameService.getState().activeTeamId = "away";
-  await act(async () => root.render(<TurnCatchUpCard eventBus={bus} />));
+  await act(async () => {
+    root.render(<TurnCatchUpCard eventBus={bus} />);
+  });
   return { teams, services };
 }
 
 it("shows final injuries from an opponent's knockdown and keeps them until the coach acts after five seconds", async () => {
   vi.useFakeTimers();
   const { teams } = await setup();
-  const p = teams[0].players[0];
+  const p = fixtureValue(teams[0]).players[0];
   await act(async () => {
-    p.status = PlayerStatus.PRONE;
-    bus.emit(GameEventNames.PlayerKnockedDown, { playerId: p.id });
-    // Injury resolution need not emit another knockdown.
-    p.status = PlayerStatus.STUNNED;
+    fixtureValue(p).status = PlayerStatus.PRONE;
+    bus.emit(GameEventNames.PlayerKnockedDown, { playerId: fixtureValue(p).id });
+
+    fixtureValue(p).status = PlayerStatus.STUNNED;
     bus.emit(GameEventNames.TurnStarted, { teamId: "home", turnNumber: 2 });
   });
   expect(host.textContent).toContain("Since your last turn");
-  expect(host.textContent).toContain(`${p.playerName} #1: Stunned`);
+  expect(host.textContent).toContain(`${fixtureValue(p).playerName} #1: Stunned`);
   await act(async () => vi.advanceTimersByTime(6000));
   expect(host.textContent).toContain("Since your last turn");
-  await act(async () =>
+  await act(async () => {
     bus.emit(GameEventNames.UI_ActionSelected, {
-      playerId: p.id,
+      playerId: fixtureValue(p).id,
       action: "move",
-    })
-  );
+    });
+  });
   expect(host.textContent).toBe("");
 });
 
 it("does not dismiss on hover or before the minimum reading time", async () => {
   vi.useFakeTimers();
   const { teams } = await setup();
-  const p = teams[0].players[0];
+  const p = fixtureValue(teams[0]).players[0];
   await act(async () => {
-    p.status = PlayerStatus.KO;
+    fixtureValue(p).status = PlayerStatus.KO;
     bus.emit(GameEventNames.PlayerStatusChanged, p);
     bus.emit(GameEventNames.TurnStarted, { teamId: "home", turnNumber: 2 });
     bus.emit(GameEventNames.UI_ShowPlayerInfo, p);
     bus.emit(GameEventNames.UI_ActionSelected, {
-      playerId: p.id,
+      playerId: fixtureValue(p).id,
       action: "move",
     });
   });
@@ -88,35 +93,35 @@ it("does not dismiss on hover or before the minimum reading time", async () => {
 
 it("skips quiet turns, clears on restore and does not replay the previous opponent turn", async () => {
   const { teams, services } = await setup();
-  await act(async () =>
-    bus.emit(GameEventNames.TurnStarted, { teamId: "home", turnNumber: 1 })
-  );
+  await act(async () => {
+    bus.emit(GameEventNames.TurnStarted, { teamId: "home", turnNumber: 1 });
+  });
   expect(host.textContent).toBe("");
   await act(async () => {
     bus.emit(GameEventNames.TurnStarted, { teamId: "away", turnNumber: 1 });
-    teams[0].players[0].status = PlayerStatus.REMOVED;
-    bus.emit(GameEventNames.PlayerStatusChanged, teams[0].players[0]);
+    fixtureValue(fixtureValue(teams[0]).players[0]).status = PlayerStatus.REMOVED;
+    bus.emit(GameEventNames.PlayerStatusChanged, fixtureValue(teams[0]).players[0]);
     bus.emit(GameEventNames.TurnStarted, { teamId: "home", turnNumber: 2 });
   });
   expect(host.textContent).toContain("Sent off");
-  await act(async () =>
-    bus.emit(GameEventNames.GameStateRestored, services.gameService.getState())
-  );
+  await act(async () => {
+    bus.emit(GameEventNames.GameStateRestored, services.gameService.getState());
+  });
   expect(host.textContent).toBe("");
 });
 
 it("waits for the dice in the tray to land before naming an injury", async () => {
   const { teams } = await setup();
-  const p = teams[0].players[0];
+  const p = fixtureValue(teams[0]).players[0];
   await act(async () => {
     bus.emit(GameEventNames.UI_DiceInAir, { thrown: 3, landedThrough: 2 });
-    p.status = PlayerStatus.KO;
+    fixtureValue(p).status = PlayerStatus.KO;
     bus.emit(GameEventNames.PlayerStatusChanged, p);
     bus.emit(GameEventNames.TurnStarted, { teamId: "home", turnNumber: 2 });
   });
   expect(host.textContent).toBe("");
-  await act(async () =>
-    bus.emit(GameEventNames.UI_DiceInAir, { thrown: 3, landedThrough: 3 })
-  );
-  expect(host.textContent).toContain(`${p.playerName} #1: Knocked out`);
+  await act(async () => {
+    bus.emit(GameEventNames.UI_DiceInAir, { thrown: 3, landedThrough: 3 });
+  });
+  expect(host.textContent).toContain(`${fixtureValue(p).playerName} #1: Knocked out`);
 });

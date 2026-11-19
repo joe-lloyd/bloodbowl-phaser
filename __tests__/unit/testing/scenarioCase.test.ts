@@ -1,18 +1,12 @@
-/**
- * The scenario-case schema is the contract every E2E lane depends on, so its
- * failure modes are worth pinning: a case that asserts nothing, a variant
- * with no seed, a ref to a player the setup never placed, and a required
- * layer with no adapter must all be rejected by name.
- */
-
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
-import { Scenario } from "../../../src/types/Scenario";
+import { type Scenario } from "../../../src/types/Scenario";
 import { SCENARIOS } from "../../../src/data/scenarios";
 import {
-  ScenarioCase,
-  SemanticStep,
-  ExecutionLayer,
+  type ScenarioCase,
+  type SemanticStep,
+  type ExecutionLayer,
   step,
   checkpointsForLayer,
   validateScenarioCase,
@@ -114,14 +108,12 @@ describe("scenario-case schema", () => {
         ],
       })
     );
-    expect(issues[0].message).toMatch(
+    expect(fixtureValue(issues[0]).message).toMatch(
       /ref 'team1:4' names a player who is not on the pitch at this point/
     );
   });
 
   it("accepts a ref to a player an earlier step placed", () => {
-    // Setup-driving cases start from an empty board and place their own
-    // players; a `place-player` step is exactly where an unplaced ref belongs.
     const issues = validateScenarioCase(
       baseCase({
         steps: [
@@ -139,18 +131,18 @@ describe("scenario-case schema", () => {
         steps: [step({ type: "pass", playerId: "team1:0", x: 25, y: 5 })],
       })
     );
-    expect(issues.some((i) => /outside the 20x11 pitch/.test(i.message))).toBe(
-      true
-    );
+    expect(
+      issues.some((i) => i.message.includes("outside the 20x11 pitch"))
+    ).toBe(true);
   });
 
   it("rejects a query command posing as an interaction step", () => {
     const issues = validateScenarioCase(
       baseCase({ steps: [step({ type: "state" })] })
     );
-    expect(issues.some((i) => /is a query, not an interaction/.test(i.message))).toBe(
-      true
-    );
+    expect(
+      issues.some((i) => i.message.includes("is a query, not an interaction"))
+    ).toBe(true);
   });
 
   it("names the case and step when a required layer has no adapter", () => {
@@ -172,7 +164,7 @@ describe("scenario-case schema", () => {
       engineOnly
     );
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toBe(
+    expect(fixtureValue(issues[0]).message).toBe(
       "case requires the 'browser' layer but step 'declare a Move' has no browser adapter"
     );
   });
@@ -197,7 +189,9 @@ describe("scenario-case schema", () => {
       })
     );
     expect(
-      issues.some((i) => /must also require the 'browser' layer/.test(i.message))
+      issues.some((i) =>
+        i.message.includes("must also require the 'browser' layer")
+      )
     ).toBe(true);
   });
 
@@ -222,20 +216,25 @@ describe("scenario-case schema", () => {
       "duplicate case id — two cases cannot share an id"
     );
     expect(
-      issues.some((i) => /duplicate regression id 'BUG-1'/.test(i.message))
+      issues.some((i) => i.message.includes("duplicate regression id 'BUG-1'"))
     ).toBe(true);
   });
 
   it("assertValidScenarioCases lists every problem at once", () => {
-    expect(() =>
-      assertValidScenarioCases([baseCase({ checkpoints: [], interactions: [] })])
-    ).toThrow(/2 scenario-case validation issue\(s\)/);
+    expect(() => {
+      assertValidScenarioCases([
+        baseCase({ checkpoints: [], interactions: [] }),
+      ]);
+    }).toThrow(/2 scenario-case validation issue\(s\)/);
   });
 });
 
 describe("stable references", () => {
   const ctx = {
-    team1: { id: "team1", players: [{ id: "team1-player-1" }, { id: "team1-player-2" }] },
+    team1: {
+      id: "team1",
+      players: [{ id: "team1-player-1" }, { id: "team1-player-2" }],
+    },
     team2: { id: "team2", players: [{ id: "team2-player-1" }] },
   };
 
@@ -311,7 +310,7 @@ describe("registry ordering and selection", () => {
   it("orders cases and their variants by id", () => {
     const sorted = sortScenarioCases(cases);
     expect(sorted.map((c) => c.id)).toEqual(["a-case", "b-case"]);
-    expect(sorted[1].variants.map((v) => v.id)).toEqual(["a", "z"]);
+    expect(fixtureValue(sorted[1]).variants.map((v) => v.id)).toEqual(["a", "z"]);
   });
 
   it("does not mutate the input array", () => {
@@ -387,10 +386,10 @@ describe("checkpoint layer filtering", () => {
     });
     const variant = scenarioCase.variants[0];
     expect(
-      checkpointsForLayer(scenarioCase, variant, "engine").map((c) => c.id)
+      checkpointsForLayer(scenarioCase, fixtureValue(variant), "engine").map((c) => c.id)
     ).toEqual(["both", "engine-only"]);
     expect(
-      checkpointsForLayer(scenarioCase, variant, "browser").map((c) => c.id)
+      checkpointsForLayer(scenarioCase, fixtureValue(variant), "browser").map((c) => c.id)
     ).toEqual(["both", "browser-only"]);
   });
 });
@@ -419,18 +418,16 @@ describe("legacy scenario compatibility", () => {
       kind: "legacy-scenario",
       id: "legacy-demo",
     });
-    expect(promoted.variants[0].seed).toBe(42);
+    expect(fixtureValue(promoted.variants[0]).seed).toBe(42);
     expect(validateScenarioCase(promoted)).toEqual([]);
   });
 
   it("promotes an unseeded scenario on the pinned default seed", () => {
     const { seed: _seed, ...unseeded } = seeded;
-    expect(isSeededScenario(unseeded as Scenario)).toBe(false);
-    // The setup-loaded checkpoint needs no dice, so an unseeded scenario
-    // still has something real to assert — it just needs a fixed seed so the
-    // run is reproducible.
-    const promoted = scenarioCaseFromLegacy(unseeded as Scenario);
-    expect(promoted.variants[0].seed).toBe(DEFAULT_LEGACY_SEED);
+    expect(isSeededScenario(unseeded)).toBe(false);
+
+    const promoted = scenarioCaseFromLegacy(unseeded);
+    expect(fixtureValue(promoted.variants[0]).seed).toBe(DEFAULT_LEGACY_SEED);
     expect(validateScenarioCase(promoted)).toEqual([]);
   });
 
@@ -451,9 +448,9 @@ describe("legacy scenario compatibility", () => {
       decisions: [],
       responses: [],
     } as never;
-    expect(() => promoted.checkpoints[0].assert(observed)).toThrow(
-      /ball should start at \(10,7\)/
-    );
+    expect(() => {
+      fixtureValue(promoted.checkpoints[0]).assert(observed);
+    }).toThrow(/ball should start at \(10,7\)/);
   });
 
   it("every promoted production scenario passes validation", () => {

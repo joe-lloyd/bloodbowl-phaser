@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames } from "../../../types/events";
 import { GamePhase } from "../../../types/GameState";
@@ -8,22 +8,20 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useEventBus } from "../../hooks/useEventBus";
 import { DiceWatch } from "../../../game/presentation/diceWatch";
 import { Panel, PanelHeader } from "../componentWarehouse/HudKit";
-import { summarizeTurn, TurnIncident, TurnSummary } from "./turnSummary";
+import {
+  summarizeTurn,
+  type TurnIncident,
+  type TurnSummary,
+} from "./turnSummary";
 
 const MIN_READ_MS = 5000;
 
-/**
- * "Since your last turn": when a team's turn starts, lists what the
- * opponent's turn did to its players and where the ball ended up. It stays
- * at least five seconds and until the coach acts. Online, only the local
- * coach's team gets one. It only reads state, so lockstep play is untouched.
- */
 export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
   const [summary, setSummary] = useState<TurnSummary | null>(null);
   const incidents = useRef<TurnIncident[]>([]);
   const activeTeam = useRef<string | null>(null);
   const shownAt = useRef(0);
-  /** Counts turns and resets, so a late dice wait can tell it is stale. */
+
   const shown = useRef(0);
   const actedEarly = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,8 +35,7 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
     setSummary(null);
     if (timer.current) clearTimeout(timer.current);
   };
-  // The card waits for the dice the tray has thrown, so it never names an
-  // injury before its roll has landed. With no tray it shows at once.
+
   const watch = useRef<DiceWatch | null>(null);
   useEffect(() => {
     activeTeam.current = service()?.getState().activeTeamId ?? null;
@@ -66,11 +63,10 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
     if (service()?.getPhase() === GamePhase.PLAY)
       incidents.current.push({ kind: "ball" });
   };
-  useEventBus(eventBus, GameEventNames.PlayerKnockedDown, ({ playerId }) =>
-    recordPlayer(playerId)
-  );
+  useEventBus(eventBus, GameEventNames.PlayerKnockedDown, ({ playerId }) => {
+    recordPlayer(playerId);
+  });
   useEventBus(eventBus, GameEventNames.PlayerStatusChanged, (player) => {
-    // Standing updates and turn reset are not new injuries.
     if (
       player.status !== PlayerStatus.ACTIVE &&
       player.status !== PlayerStatus.RESERVE
@@ -80,11 +76,13 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
   useEventBus(
     eventBus,
     GameEventNames.PlayerCasualtyInflicted,
-    ({ victimId }) => recordPlayer(victimId)
+    ({ victimId }) => {
+      recordPlayer(victimId);
+    }
   );
-  useEventBus(eventBus, GameEventNames.PlayerKilled, ({ victimId }) =>
-    recordPlayer(victimId)
-  );
+  useEventBus(eventBus, GameEventNames.PlayerKilled, ({ victimId }) => {
+    recordPlayer(victimId);
+  });
   useEventBus(eventBus, GameEventNames.BallPlaced, recordBall);
   useEventBus(eventBus, GameEventNames.BallScattered, recordBall);
   useEventBus(eventBus, GameEventNames.BallThrownIn, recordBall);
@@ -101,12 +99,12 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
     const match = getActiveOnlineMatch();
     const next =
       game && (!match || match.myTeamId === teamId)
-        ? summarizeTurn(
-            incidents.current,
-            teamId,
-            game.getTeams().flatMap((team) => team.players),
-            game.getState().ballPosition
-          )
+        ? summarizeTurn({
+            incidents: incidents.current,
+            teamId: teamId,
+            players: game.getTeams().flatMap((team) => team.players),
+            ball: game.getState().ballPosition,
+          })
         : null;
     clear();
     activeTeam.current = teamId;
@@ -114,7 +112,6 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
     shownAt.current = 0;
     const turn = ++shown.current;
     void (watch.current?.landed() ?? Promise.resolve()).then(() => {
-      // A later turn or a reset replaced this one while the dice rolled.
       if (turn !== shown.current) return;
       shownAt.current = Date.now();
       setSummary(next);
@@ -135,8 +132,6 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
   });
 
   function acted() {
-    // Hover and selection do not count as acting. Engine state is untouched.
-    // Acting while the card waits on dice dismisses it once it has been read.
     if (!shownAt.current) {
       actedEarly.current = true;
       return;
@@ -144,7 +139,10 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
     if (timer.current) clearTimeout(timer.current);
     const remaining = MIN_READ_MS - (Date.now() - shownAt.current);
     if (remaining <= 0) setSummary(null);
-    else timer.current = setTimeout(() => setSummary(null), remaining);
+    else
+      timer.current = setTimeout(() => {
+        setSummary(null);
+      }, remaining);
   }
   useEventBus(eventBus, GameEventNames.UI_ActionSelected, acted);
   useEventBus(eventBus, GameEventNames.UI_EndActivation, acted);
@@ -152,6 +150,13 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
   useEventBus(eventBus, GameEventNames.ActionModeChanged, acted);
 
   if (!summary) return null;
+  return <TurnCatchUpCardView summary={summary} />;
+}
+
+interface TurnCatchUpCardViewProps {
+  summary: TurnSummary;
+}
+function TurnCatchUpCardView({ summary }: TurnCatchUpCardViewProps) {
   return (
     <Panel
       as="section"

@@ -1,11 +1,5 @@
-/**
- * When this coach's own connection drops, the other coach's heartbeat stops
- * arriving too, so it looks as if the other coach left. The page must check
- * its own connection first: the offline coach reads "You are offline,
- * reconnecting", and is never offered to end the match for the other coach.
- */
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type SnapshotListener = (snapshot: {
@@ -39,7 +33,7 @@ vi.mock("../../src/firebase/config", () => ({ getDb: vi.fn(() => ({})) }));
 
 import {
   describeConnection,
-  LobbyDoc,
+  type LobbyDoc,
   OPPONENT_ABANDON_MS,
   subscribeMatchLobby,
 } from "../../src/firebase/lobby";
@@ -56,10 +50,10 @@ const lobby = {
 
 describe("this coach's own connection comes first", () => {
   it("reads as offline, not as the other coach leaving", () => {
-    expect(describeConnection(lobby, "opponent", "offline", NOW)).toBe(
+    expect(describeConnection({ lobby,opponentUid: "opponent",link: "offline",now: NOW })).toBe(
       "offline"
     );
-    expect(describeConnection(lobby, "opponent", "online", NOW)).toBe(
+    expect(describeConnection({ lobby,opponentUid: "opponent",link: "online",now: NOW })).toBe(
       "abandonable"
     );
   });
@@ -85,16 +79,20 @@ describe("this coach's own connection comes first", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () =>
+    await act(async () => {
       root.render(
         <ConnectionBanner opponentName="Coach-KWAZ" connection="offline" />
-      )
-    );
+      );
+    });
     expect(
       container.querySelector('[data-testid="connection-banner"]')?.textContent
-    ).toBe("⚠ You are offline, reconnecting…Your moves send once you are back.");
+    ).toBe(
+      "⚠ You are offline, reconnecting…Your moves send once you are back."
+    );
     expect(container.textContent).not.toContain("disconnected");
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 });
@@ -105,16 +103,16 @@ describe("subscribeMatchLobby's own link", () => {
   beforeEach(() => {
     seen = [];
     stop = subscribeMatchLobby(
-      "ABCD",
-      "me",
-      () => {},
-      (link) => {
-        const online = link.state !== "offline";
-        if (seen.at(-1) !== online) seen.push(online);
-      }
-    );
+      {
+        code: "ABCD",uid: "me",onLobby: () => { },onLink: (link) => {
+          const online=link.state!=="offline";
+          if(seen.at(-1)!==online) seen.push(online);
+        }
+      }    );
   });
-  afterEach(() => stop());
+  afterEach(() => {
+    stop();
+  });
 
   it("follows the browser going offline and back", () => {
     window.dispatchEvent(new Event("offline"));

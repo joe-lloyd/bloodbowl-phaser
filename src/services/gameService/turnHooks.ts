@@ -1,8 +1,4 @@
-/**
- * What GameService does on engine events and at the end of a turn:
- * conditions that expire, Sports-Wizard spells and Pick-Me-Up.
- */
-
+import type { Player } from "@/types/Player";
 import { GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
 import {
@@ -12,14 +8,13 @@ import {
   removeCondition,
   hasTackleZone,
 } from "@/types/Player";
-import { foldTurnEnding, TurnEndingContext } from "@/game/skills";
+import { foldTurnEnding, type TurnEndingContext } from "@/game/skills";
 import { holdsSportsWizard } from "@/game/inducements/matchInducements";
 import { CastSportsWizardOperation } from "@/game/inducements/sportsWizard";
 import { getDriveEffects } from "@/game/kickoff/driveEffects";
 import type { GameParts } from "./parts";
 import { whenSettled } from "./activation";
 
-/** Rooted ends when its player is Knocked Down or Placed Prone. */
 export function onPlayerDowned(parts: GameParts, playerId: string): void {
   const player = parts.game.getPlayerById(playerId);
   if (player && hasCondition(player, PlayerCondition.ROOTED)) {
@@ -28,7 +23,6 @@ export function onPlayerDowned(parts: GameParts, playerId: string): void {
   }
 }
 
-/** Chomped ends the moment the chomper is no longer Marking the victim. */
 export function sweepChomped(parts: GameParts): void {
   for (const player of [...parts.team1.players, ...parts.team2.players]) {
     const chomp = (player.conditions ?? []).find(
@@ -38,16 +32,7 @@ export function sweepChomped(parts: GameParts): void {
     const chomper = chomp.byPlayerId
       ? parts.game.getPlayerById(chomp.byPlayerId)
       : undefined;
-    const marking =
-      !!chomper?.gridPosition &&
-      !!player.gridPosition &&
-      hasTackleZone(chomper) &&
-      Math.abs(chomper.gridPosition.x - player.gridPosition.x) <= 1 &&
-      Math.abs(chomper.gridPosition.y - player.gridPosition.y) <= 1 &&
-      !(
-        chomper.gridPosition.x === player.gridPosition.x &&
-        chomper.gridPosition.y === player.gridPosition.y
-      );
+    const marking = isChompMarking(chomper, player);
     if (!marking) {
       removeCondition(player, PlayerCondition.CHOMPED);
       parts.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
@@ -55,11 +40,6 @@ export function sweepChomped(parts: GameParts): void {
   }
 }
 
-/**
- * Sports-Wizards cast "at the end of any Turn, before the next Turn
- * begins" (2025 rulebook p.149): the coach whose turn ended is asked
- * first. Null when neither team has a spell left.
- */
 export function castSportsWizards(
   parts: GameParts,
   endingTeamId: string
@@ -77,12 +57,13 @@ export function castSportsWizards(
   return whenSettled(parts).then(() => undefined);
 }
 
-/** End-of-opposition-turn trigger: fold the reacting team (Pick-Me-Up). */
 export function handleTurnEnding(parts: GameParts, endingTeamId: string): void {
-  // Cheering Fans: an unused owed Offensive Assist dies with its turn.
   const owed = getDriveEffects(parts.state).owedAssists[endingTeamId];
-  if (owed && owed.turn === parts.turnManager.getTurnNumber(endingTeamId)) {
-    delete getDriveEffects(parts.state).owedAssists[endingTeamId];
+  if (owed?.turn === parts.turnManager.getTurnNumber(endingTeamId)) {
+    Reflect.deleteProperty(
+      getDriveEffects(parts.state).owedAssists,
+      endingTeamId
+    );
     parts.eventBus.emit(GameEventNames.DriveEffectExpired, {
       teamId: endingTeamId,
       effect: "offensive-assist",
@@ -103,7 +84,7 @@ export function handleTurnEnding(parts: GameParts, endingTeamId: string): void {
   foldTurnEnding(ctx, players);
   for (const id of ctx.standUp) {
     const p = parts.game.getPlayerById(id);
-    if (p && p.status === PlayerStatus.PRONE) {
+    if (p?.status === PlayerStatus.PRONE) {
       p.status = PlayerStatus.ACTIVE;
       parts.eventBus.emit(GameEventNames.PlayerStoodUp, {
         playerId: id,
@@ -115,4 +96,18 @@ export function handleTurnEnding(parts: GameParts, endingTeamId: string): void {
   for (const t of ctx.triggers) {
     parts.eventBus.emit(GameEventNames.SkillTriggered, t);
   }
+}
+
+function isChompMarking(chomper: Player | undefined, player: Player): boolean {
+  return (
+    !!chomper?.gridPosition &&
+    !!player.gridPosition &&
+    hasTackleZone(chomper) &&
+    Math.abs(chomper.gridPosition.x - player.gridPosition.x) <= 1 &&
+    Math.abs(chomper.gridPosition.y - player.gridPosition.y) <= 1 &&
+    !(
+      chomper.gridPosition.x === player.gridPosition.x &&
+      chomper.gridPosition.y === player.gridPosition.y
+    )
+  );
 }

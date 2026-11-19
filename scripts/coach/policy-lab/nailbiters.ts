@@ -1,8 +1,3 @@
-/**
- * A page of chosen close games: each one's playback, opened at the deciding
- * score. Reads `drama.json` for each game's timeline and a picks file of
- * `[game id, why it is worth watching]`.
- */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
@@ -16,7 +11,6 @@ import {
 } from "../../../src/simulation/viewer";
 import type { Drama } from "./drama";
 
-/** The declaration that began the activation ending in the step `step`. */
 function activationStart(recording: MatchRecording, step: number): number {
   for (let i = step; i >= 0; i--)
     if (recording.steps[i].command.type === "declare-action") return i;
@@ -50,12 +44,12 @@ async function main() {
     const decider = d.scores.at(-1)!;
     const start = activationStart(trace.recording, decider.step);
     const timeline = d.scores
-      .map((s) => `${d.rosters[s.side]} H${s.half} T${s.turn}`)
+      .map((s) => `${d.rosters[s.side]} H${String(s.half)} T${String(s.turn)}`)
       .join(", ");
-    items.push(`<li><h3>${escapeHtml(d.rosters[0])} ${d.final[0]}–${d.final[1]} ${escapeHtml(d.rosters[1])}</h3>
+    items.push(`<li><h3>${escapeHtml(d.rosters[0])} ${String(d.final[0])}–${String(d.final[1])} ${escapeHtml(d.rosters[1])}</h3>
 <p>${escapeHtml(why)}</p>
 <p class="quiet">Scores: ${escapeHtml(timeline)}.</p>
-<p><a href="${escapeHtml(id)}.html#step=${start + 1}">Watch the deciding score</a> · <a href="${escapeHtml(id)}.html#step=${activationStart(trace.recording, d.scores[0].step) + 1}">from the first score</a> · <a href="${escapeHtml(id)}.html">whole match</a></p></li>`);
+<p><a href="${escapeHtml(id)}.html#step=${String(start + 1)}">Watch the deciding score</a> · <a href="${escapeHtml(id)}.html#step=${String(activationStart(trace.recording, d.scores[0].step) + 1)}">from the first score</a> · <a href="${escapeHtml(id)}.html">whole match</a></p></li>`);
   }
   writeFileSync(
     join(out, "index.html"),

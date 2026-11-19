@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, vi } from "vitest";
 import Phaser from "phaser";
 import {
@@ -12,14 +13,6 @@ import {
   pixelToGrid,
 } from "../../../src/game/elements/GridUtils";
 
-/**
- * Setup drags pick a player by the square they stand on, not their figure.
- * Phaser tests a hit in the container's local space shifted by its
- * displayOrigin, so these helpers do the same: a world point is turned into
- * local space by subtracting the feet and adding the displayOrigin.
- */
-
-/** A PlayerSprite-sized container: 56x80, so displayOrigin is (28, 40). */
 const container = {
   displayOriginX: 28,
   displayOriginY: 40,
@@ -49,15 +42,15 @@ describe("squareHitArea", () => {
   });
 
   it("hits exactly the points a drop would put in the player's square", () => {
-    // Sweep well beyond the square, including where a big figure reaches up
-    // over the squares behind
     for (let dy = -140; dy <= 40; dy += 3) {
       for (let dx = -110; dx <= 110; dx += 3) {
         const world = { x: feet.x + dx, y: feet.y + dy };
         const dropSquare = pixelToGrid(world.x, world.y);
         const inSquare = dropSquare.x === square.x && dropSquare.y === square.y;
         const at = local(world, feet);
-        expect(hits(at.x, at.y), `offset (${dx}, ${dy})`).toBe(inSquare);
+        expect(hits(at.x, at.y), `offset (${String(dx)}, ${String(dy)})`).toBe(
+          inSquare
+        );
       }
     }
   });
@@ -67,8 +60,6 @@ describe("squareHitArea", () => {
     const at = local(behind, feet);
     expect(hits(at.x, at.y)).toBe(false);
 
-    // The figure box reaches 70px above the feet, over the centre of the
-    // square behind: why a big player in front used to be picked there
     const figure = playerHitArea(container);
     expect(at.y).toBeGreaterThanOrEqual(figure.y);
     expect(at.x).toBeGreaterThanOrEqual(figure.x);
@@ -80,7 +71,9 @@ describe("squareHitArea", () => {
       for (let gy = -1; gy <= 1; gy++) {
         const centre = gridToPixel(square.x + gx, square.y + gy);
         const at = local(centre, feet);
-        expect(hits(at.x, at.y), `(${gx}, ${gy})`).toBe(gx === 0 && gy === 0);
+        expect(hits(at.x, at.y), `(${String(gx)}, ${String(gy)})`).toBe(
+          gx === 0 && gy === 0
+        );
       }
     }
   });
@@ -97,14 +90,14 @@ describe("setHitArea", () => {
     } as unknown as Phaser.GameObjects.Container;
     const area = squareHitArea(sprite);
 
-    setHitArea(sprite, area, squareHitAreaContains, true);
+    setHitArea(sprite, area, { contains: squareHitAreaContains, draggable: true });
 
     expect(sprite.setInteractive).toHaveBeenCalledWith({
       hitArea: area,
       hitAreaCallback: squareHitAreaContains,
       draggable: true,
     });
-    expect(sprite.input!.hitArea).toBe(area);
-    expect(sprite.input!.hitAreaCallback).toBe(squareHitAreaContains);
+    expect(fixtureValue(sprite.input).hitArea).toBe(area);
+    expect(fixtureValue(sprite.input).hitAreaCallback).toBe(squareHitAreaContains);
   });
 });

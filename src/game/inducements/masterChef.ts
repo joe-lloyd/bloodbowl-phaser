@@ -1,18 +1,8 @@
-/**
- * Halfling Master Chef (2025 rulebook p.149): at the start of each half,
- * before the Kick-off, the team rolls three D6. For each 4+ it gains a
- * Team Re-roll for the half and the opposition loses one.
- *
- * The swing is stored on the match state for the current half, and
- * teamRerolls.ts applies it to each team's allowance. Rolled at most once
- * per half, and only once a team actually holds a chef.
- */
-
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
-import { GameState } from "../../types/GameState";
+import { type GameState } from "../../types/GameState";
 import { Inducement } from "../../types/Inducements";
-import { Team } from "../../types/Team";
+import { type Team } from "../../types/Team";
 import { DiceController } from "../controllers/DiceController";
 import { currentHalf } from "../teamRerolls";
 import { inducementCount } from "./inventory";
@@ -45,7 +35,7 @@ export function rollMasterChefs(
     rerolls[opponent.id] -= stolen;
     eventBus.emit(
       GameEventNames.UI_GameLog,
-      `Halfling Master Chef — ${team.name} takes ${stolen} team re-roll(s) from ${opponent.name} this half`
+      `Halfling Master Chef — ${team.name} takes ${String(stolen)} team re-roll(s) from ${opponent.name} this half`
     );
   }
   inducements.masterChef = { half, rerolls };

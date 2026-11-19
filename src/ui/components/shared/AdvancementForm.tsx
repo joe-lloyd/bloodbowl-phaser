@@ -1,7 +1,10 @@
-import { PendingAdvancementRoll, Player } from "../../../types/Player";
+import {
+  type PendingAdvancementRoll,
+  type Player,
+} from "../../../types/Player";
 import { SkillCategory, SkillType } from "../../../types/Skills";
 import {
-  AdvancementChoice,
+  type AdvancementChoice,
   characteristicChoices,
   nextAdvancementCosts,
 } from "../../../game/progression/progression";
@@ -30,11 +33,6 @@ const OPTION_HELP: Record<
     "Roll a D8 to see which characteristics can improve, or take a chosen skill instead.",
 };
 
-/**
- * The SPP advancement view (state and saving live in PlayerDevelopment).
- * Only advancements the player can afford can be picked, nothing else is
- * shown until one is, and a saved roll locks the form to that roll.
- */
 export function AdvancementForm({
   player,
   savedRoll,
@@ -122,18 +120,20 @@ export function AdvancementForm({
               aria-pressed={kind === option.kind}
               title={
                 short > 0
-                  ? `Needs ${short} more SPP`
+                  ? `Needs ${String(short)} more SPP`
                   : lockedByRoll
                     ? "Finish the saved roll first"
                     : OPTION_HELP[option.kind]
               }
-              onClick={() => setKind(option.kind)}
+              onClick={() => {
+                setKind(option.kind);
+              }}
               className={cx(hudChoiceClass(kind === option.kind), CHOICE_TEXT)}
             >
               <span className="block">{option.label}</span>
               <span className="block font-hud-body font-normal normal-case tracking-normal text-hud-dim">
                 {option.cost} SPP
-                {short > 0 ? ` · needs ${short} more` : ""}
+                {short > 0 ? ` · needs ${String(short)} more` : ""}
               </span>
             </button>
           );
@@ -198,12 +198,12 @@ export function AdvancementForm({
                     type="button"
                     key={candidate.skill}
                     data-testid="random-candidate"
-                    onClick={() =>
+                    onClick={() => {
                       applyChoice({
                         kind: "random-primary",
                         skill: candidate.skill,
-                      })
-                    }
+                      });
+                    }}
                     className={cx(hudChoiceClass(false), CHOICE_TEXT)}
                   >
                     {candidate.firstD6}, {candidate.secondD6}: {candidate.skill}
@@ -287,7 +287,9 @@ function CharacteristicStep({
           <button
             type="button"
             key={stat}
-            onClick={() => applyChoice({ kind: "characteristic", roll, stat })}
+            onClick={() => {
+              applyChoice({ kind: "characteristic", roll, stat });
+            }}
             className={cx(hudChoiceClass(false), CHOICE_TEXT)}
           >
             Improve {stat}
@@ -331,7 +333,7 @@ function CharacteristicStep({
   );
 }
 
-export function SkillSelectors({
+function SkillSelectors({
   access,
   setAccess,
   lockAccess = false,
@@ -362,7 +364,9 @@ export function SkillSelectors({
         <select
           aria-label="Skill access"
           value={access}
-          onChange={(event) => setAccess(event.target.value as SkillAccess)}
+          onChange={(event) => {
+            setAccess(event.target.value as SkillAccess);
+          }}
           className="hud-field w-auto max-w-full"
         >
           <option value="primary">Primary</option>
@@ -373,9 +377,9 @@ export function SkillSelectors({
         aria-label="Skill category"
         value={category}
         disabled={categoryLocked}
-        onChange={(event) =>
-          setCategory(event.target.value as SkillCategory | "")
-        }
+        onChange={(event) => {
+          setCategory(event.target.value as SkillCategory | "");
+        }}
         className="hud-field w-auto max-w-full disabled:opacity-60"
       >
         <option value="">Choose category</option>
@@ -393,7 +397,9 @@ export function SkillSelectors({
           aria-label="Skill"
           value={skill}
           disabled={!category}
-          onChange={(event) => setSkill(event.target.value as SkillType | "")}
+          onChange={(event) => {
+            setSkill(event.target.value as SkillType | "");
+          }}
           className="hud-field w-auto max-w-full disabled:opacity-40"
         >
           <option value="">Choose skill</option>

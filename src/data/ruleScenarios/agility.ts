@@ -1,12 +1,9 @@
-/**
- * Rule scenarios — Agility skills (Dodge, Catch).
- * Assertions migrated from skill-rerolls.test.ts / skill-triggers.test.ts.
- */
-
+import { z } from "zod";
+import { fixtureValue } from "../../testing/fixtureValue";
 import { SkillType } from "../../types/Skills";
 import {
-  RuleScenarioEntry,
-  RuleConfig,
+  type RuleScenarioEntry,
+  type RuleConfig,
   playSetup,
   skillRerollConfig,
   blockConfig,
@@ -25,13 +22,10 @@ import {
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
 
-/** Straight path of `steps` squares heading right from (fromX, y). */
 const straightPath = (fromX: number, y: number, steps: number) =>
   Array.from({ length: steps }, (_, i) => ({ x: fromX + 1 + i, y }));
 
 export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
-  // Jump-over-players mechanic (2025 p.56). Leap/Pogo/Very Long Legs modify
-  // the Jump Agility Test; the base mechanic runs inside each config.
   {
     skill: SkillType.LEAP,
     configs: [
@@ -45,9 +39,9 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             { playerIndex: 0, x: 10, y: 5, skills: [SkillType.LEAP] },
           ],
           team2Placements: [
-            { playerIndex: 0, x: 10, y: 4, status: PlayerStatus.PRONE }, // jumped over
-            { playerIndex: 1, x: 9, y: 3 }, // marks the target (10,3)
-            { playerIndex: 2, x: 11, y: 3 }, // marks the target (10,3)
+            { playerIndex: 0, x: 10, y: 4, status: PlayerStatus.PRONE },
+            { playerIndex: 1, x: 9, y: 3 },
+            { playerIndex: 2, x: 11, y: 3 },
           ],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -63,11 +57,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.LEAP) &&
               skillCheckDiff(r, "Jump") === -1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Jump") === -1,
                 "Leap must reduce the -2 marking penalty to -1"
-              ),
+              );
+            },
           },
         ],
       },
@@ -80,9 +75,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
           team1Placements: [
             { playerIndex: 0, x: 10, y: 5, skills: [SkillType.LEAP] },
           ],
-          team2Placements: [
-            { playerIndex: 0, x: 11, y: 5 }, // STANDING — only Leap may clear it
-          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
           ballPosition: { x: 1, y: 1 },
         }),
         script: [
@@ -94,27 +87,29 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "jump-resolved",
             name: "The Jump over a Standing player is rolled",
-            // The Jump Agility Test only happens if the Jump was allowed — base
-            // Jump would have been refused with no roll.
+
             matches: (r) =>
               r.events.some(
                 (e) =>
                   e.name === GameEventNames.DiceRoll &&
-                  !!(e.data as { rollType?: string }).rollType?.startsWith(
-                    "Jump"
-                  )
+                  !!z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(e.data)
+                    .rollType?.startsWith("Jump")
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 r.events.some(
                   (e) =>
                     e.name === GameEventNames.DiceRoll &&
-                    !!(e.data as { rollType?: string }).rollType?.startsWith(
-                      "Jump"
-                    )
+                    !!z
+                      .object({ rollType: z.string().exactOptional() })
+                      .parse(e.data)
+                      .rollType?.startsWith("Jump")
                 ),
                 "Leap must allow the Jump over a Standing player to resolve"
-              ),
+              );
+            },
           },
         ],
       },
@@ -150,11 +145,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.POGO) &&
               skillCheckDiff(r, "Jump") === 0,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Jump") === 0,
                 "Pogo must ignore the -2 marking penalty"
-              ),
+              );
+            },
           },
         ],
       },
@@ -178,7 +174,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             },
           ],
           team2Placements: [
-            { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE }, // jumped over
+            { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE },
           ],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -194,11 +190,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.VERY_LONG_LEGS) &&
               skillCheckDiff(r, "Jump") === 1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Jump") === 1,
                 "Very Long Legs must add +1 to the Jump Agility Test"
-              ),
+              );
+            },
           },
           {
             id: "lands-standing",
@@ -226,8 +223,8 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
           "A Very Long Legs defender on the pass line intercepts at +2 (accurate -3 → -1)",
         setup: playSetup({
           team1Placements: [
-            { playerIndex: 0, x: 4, y: 5 }, // passer with the ball
-            { playerIndex: 1, x: 10, y: 5 }, // catcher
+            { playerIndex: 0, x: 4, y: 5 },
+            { playerIndex: 1, x: 10, y: 5 },
           ],
           team2Placements: [
             {
@@ -235,7 +232,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               x: 7,
               y: 5,
               skills: [SkillType.VERY_LONG_LEGS],
-            }, // interceptor on the ruler
+            },
           ],
           ballPosition: { x: 4, y: 5 },
         }),
@@ -258,11 +255,8 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               ),
             verify: (r) => {
               const d = r.decisions.find((x) => x.type === "interception");
-              assert(
-                !!d && d.type === "interception",
-                "an interception is raised"
-              );
-              if (!d || d.type !== "interception") return;
+              assert(d !== undefined, "an interception is raised");
+
               assert(
                 d.candidates.some((c) => c.modifier === -1),
                 "Very Long Legs must turn the -3 accurate interception into -1"
@@ -279,7 +273,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
         setup: playSetup({
           team1Placements: [
             { playerIndex: 0, x: 4, y: 5, skills: [SkillType.CLOUD_BURSTER] },
-            { playerIndex: 1, x: 10, y: 5 }, // catcher
+            { playerIndex: 1, x: 10, y: 5 },
           ],
           team2Placements: [
             {
@@ -287,7 +281,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               x: 7,
               y: 5,
               skills: [SkillType.VERY_LONG_LEGS],
-            }, // on the ruler
+            },
           ],
           ballPosition: { x: 4, y: 5 },
         }),
@@ -334,7 +328,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               skills: [SkillType.SAFE_PAIR_OF_HANDS],
             },
           ],
-          ballPosition: { x: 11, y: 5 }, // the defender carries the ball
+          ballPosition: { x: 11, y: 5 },
         }),
         attacker: "team1:0",
         defender: "team2:0",
@@ -355,8 +349,8 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               return dx <= 1 && dy <= 1 && dx + dy > 0;
             },
             verify: (r) => {
-              const ball = r.snapshot.ballPosition!;
-              const dp = playerOf(r, "team2:0").gridPosition!;
+              const ball = fixtureValue(r.snapshot.ballPosition);
+              const dp = fixtureValue(playerOf(r, "team2:0").gridPosition);
               assert(
                 !(ball.x === dp.x && ball.y === dp.y),
                 "the ball must not stay on the downed carrier's square"
@@ -401,7 +395,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               !playerAt(r, "team1:0", { x: 10, y: 5 }) &&
               playerStanding(r, "team1:0"),
             verify: (r) => {
-              const pos = playerOf(r, "team1:0").gridPosition!;
+              const pos = fixtureValue(playerOf(r, "team1:0").gridPosition);
               assert(
                 !(pos.x === 10 && pos.y === 5),
                 "the Hit and Run blocker must leave its block square"
@@ -410,7 +404,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 playerStanding(r, "team1:0"),
                 "the Hit and Run move keeps the player Standing"
               );
-              // The free square must leave them adjacent to their old square.
+
               assert(
                 Math.abs(pos.x - 10) <= 1 && Math.abs(pos.y - 5) <= 1,
                 "Hit and Run is a single free square"
@@ -465,11 +459,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 (d) =>
                   d.type === "push-direction" && d.resultType === "pow-dodge"
               ) && skillTriggered(r, SkillType.DODGE),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 playerStanding(r, "team2:0"),
                 "the dodger must stay on their feet"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -493,7 +488,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         script: [
           { type: "declare-action", playerId: "team1:0", action: "move" },
-          // MA 6 + 1 rush = 7 squares
+
           { type: "move", playerId: "team1:0", path: straightPath(2, 5, 7) },
         ],
       }),
@@ -515,7 +510,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         script: [
           { type: "declare-action", playerId: "team1:0", action: "move" },
-          // MA 6 + 3 rushes = 9 squares — rejected without Sprint
+
           { type: "move", playerId: "team1:0", path: straightPath(2, 5, 9) },
         ],
         outcomes: [
@@ -525,11 +520,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               r.responses.every((resp) => resp.ok) &&
               playerAt(r, "team1:0", { x: 11, y: 5 }),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 playerAt(r, "team1:0", { x: 11, y: 5 }),
                 "player must reach MA+3 squares"
-              ),
+              );
+            },
           },
         ],
       },
@@ -567,12 +563,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               sawEvent(
                 r,
                 GameEventNames.PlayerStoodUp,
-                (d) => (d as { cost: number }).cost === 0
+                (d) => z.object({ cost: z.number() }).parse(d).cost === 0
               ),
             verify: (r) => {
-              const mover = r.snapshot.teams[0].players[0];
+              const mover = fixtureValue(r.snapshot.teams[0]).players[0];
               assert(
-                mover.movementUsed === 1,
+                fixtureValue(mover).movementUsed === 1,
                 "one square moved must cost exactly 1 movement"
               );
             },
@@ -601,7 +597,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               skills: [SkillType.JUMP_UP],
               stats: { AG: 4, ST: 3 },
             },
-            // Idle team-mate: proof that a failed stand-up is not a Turnover.
+
             { playerIndex: 1, x: 3, y: 8 },
           ],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { ST: 3 } }],
@@ -616,7 +612,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             defenderId: "team2:0",
           },
         ],
-        // Stay put after a push so the blocker's square is a stable assertion.
+
         decisionPolicy: { followUp: false },
         outcomes: [
           {
@@ -630,9 +626,10 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   r,
                   GameEventNames.DiceRoll,
                   (d) =>
-                    (d as { rollType?: string }).rollType?.startsWith(
-                      "Jump Up"
-                    ) ?? false
+                    z
+                      .object({ rollType: z.string().exactOptional() })
+                      .parse(d)
+                      .rollType?.startsWith("Jump Up") ?? false
                 ),
                 "the Jump Up stand-up test was rolled"
               );
@@ -648,8 +645,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 !turnoverHappened(r),
                 "a failed Jump Up stand-up is NOT a Turnover"
               );
-              // The proof: the team still holds the turn and the team-mate
-              // at (3,8) is still free to act.
+
               assert(
                 r.snapshot.activeTeamId === r.game.ctx.team1.id,
                 "the blocking team still holds the turn"
@@ -679,7 +675,8 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the defender was pushed out of their square"
               );
               assert(
-                r.snapshot.teams[0].players[0].movementUsed === 0,
+                fixtureValue(fixtureValue(r.snapshot.teams[0]).players[0])
+                  .movementUsed === 0,
                 "standing up via Jump Up spends no movement"
               );
               assert(!turnoverHappened(r), "a push is not a Turnover");
@@ -739,12 +736,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
           "On the assister's Turn, a Defensive marker denies their Guard (back to 1 die)",
         setup: playSetup({
           team1Placements: [
-            { playerIndex: 0, x: 10, y: 5 }, // attacker
-            { playerIndex: 1, x: 11, y: 6, skills: [SkillType.GUARD] }, // Guard assister
+            { playerIndex: 0, x: 10, y: 5 },
+            { playerIndex: 1, x: 11, y: 6, skills: [SkillType.GUARD] },
           ],
           team2Placements: [
-            { playerIndex: 0, x: 11, y: 5 }, // defender
-            { playerIndex: 1, x: 10, y: 7, skills: [SkillType.DEFENSIVE] }, // Defensive marker
+            { playerIndex: 0, x: 11, y: 5 },
+            { playerIndex: 1, x: 10, y: 7, skills: [SkillType.DEFENSIVE] },
           ],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -756,11 +753,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "guard-denied",
             name: "Guard denied — no extra die",
             matches: (r) => blockDiceCount(r) === 1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 blockDiceCount(r) === 1,
                 "Defensive must cancel the Guard assist, leaving a single die"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -777,7 +775,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
         rollKind: "catch",
         setup: playSetup({
           team1Placements: [
-            { playerIndex: 0, x: 4, y: 5 }, // passer, holding the ball
+            { playerIndex: 0, x: 4, y: 5 },
             { playerIndex: 1, x: 7, y: 5, skills: [SkillType.CATCH] },
           ],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
@@ -869,20 +867,20 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 chooser: "team2",
               }),
             verify: (r) => {
-              const push = r.decisions.find(
-                (d) => d.type === "push-direction"
-              ) as
+              const push:
                 | {
                     options: { x: number; y: number }[];
                     chooserTeamId?: string;
                   }
-                | undefined;
+                | undefined = r.decisions.find(
+                (d) => d.type === "push-direction"
+              );
               assert(!!push, "a push-direction decision must be raised");
               assert(
-                push!.chooserTeamId === r.game.ctx.team2.id,
+                push.chooserTeamId === r.game.ctx.team2.id,
                 "the PUSHED player's coach must choose the square"
               );
-              const opts = push!.options;
+              const opts = push.options;
               assert(
                 opts.some((o) => o.x === 11 && o.y === 4) &&
                   opts.some((o) => o.x === 11 && o.y === 6),
@@ -918,11 +916,12 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "no-sidestep",
             name: "No Sidestep reaction is offered",
             matches: (r) => skillTriggered(r, SkillType.GRAB),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !reactionOffered(r, { skill: SkillType.SIDESTEP }),
                 "Sidestep cannot be used against a Grab block"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -961,7 +960,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               skillTriggered(r, SkillType.FUMBLEROOSKI) &&
               !turnoverHappened(r) &&
               r.snapshot.ballPosition?.x === 4 &&
-              r.snapshot.ballPosition?.y === 5 &&
+              r.snapshot.ballPosition.y === 5 &&
               playerAt(r, "team1:0", { x: 5, y: 5 }),
             verify: (r) => {
               assert(
@@ -970,7 +969,7 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               );
               assert(
                 r.snapshot.ballPosition?.x === 4 &&
-                  r.snapshot.ballPosition?.y === 5,
+                  r.snapshot.ballPosition.y === 5,
                 "the ball must be left in the vacated square"
               );
             },
@@ -981,28 +980,15 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
   },
 ];
 
-/**
- * Core Jump-over-a-Prone-player scenario (2025 p.56). This is a CORE Move
- * mechanic, not a skill, so — like INTERCEPTION_SCENARIOS — it lives outside
- * AGILITY_RULE_SCENARIOS (it must not affect the skill-coverage gate) and is
- * driven by the dedicated headless jump suite.
- *
- * Layout — an AG 4+ jumper at (10,5) Jumps over a Prone opponent at (11,5)
- * into the empty square (12,5). No opponents Mark either square, so the Agility
- * Test is unmodified: a 4+ succeeds (Stand in the target), a 2–3 Falls Over in
- * the target (Turnover), and a natural 1 Falls Over where it stands (10,5).
- */
 export const JUMP_OVER_PRONE_SCENARIO: RuleConfig = {
   id: "jump-over-prone",
   name: "Jump over a Prone player",
   description:
     "The basic Jump: cross an adjacent Prone player into the empty square beyond",
   setup: playSetup({
-    team1Placements: [
-      { playerIndex: 0, x: 10, y: 5, stats: { AG: 4 } }, // jumper (no skills)
-    ],
+    team1Placements: [{ playerIndex: 0, x: 10, y: 5, stats: { AG: 4 } }],
     team2Placements: [
-      { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE }, // jumped over
+      { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE },
     ],
     ballPosition: { x: 1, y: 1 },
   }),
@@ -1060,5 +1046,4 @@ export const JUMP_OVER_PRONE_SCENARIO: RuleConfig = {
   ],
 };
 
-/** All core Jump scenarios, for the dedicated headless jump suite. */
 export const JUMP_SCENARIOS: RuleConfig[] = [JUMP_OVER_PRONE_SCENARIO];

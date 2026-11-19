@@ -1,19 +1,13 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { Inducement } from "../../src/types/Inducements";
 import { TRAPDOOR_SQUARES } from "../../src/config/GameConfig";
 import { forceDice } from "../utils/test-helpers";
 import { bought, commit } from "../utils/inducement-helpers";
-
-/**
- * P3 and L12: one Trapdoor per half, at (5,1) and (14,9). Under Treacherous
- * Trapdoor a player entering one rolls a D6 and falls through on a 1:
- * injured as if Pushed into the Crowd, a carried ball Bouncing from the
- * Trapdoor. Every die is forced.
- */
 
 const nearTrapdoor: Scenario = {
   id: "trapdoor",
@@ -47,12 +41,12 @@ async function walkOntoTrapdoor(game: HeadlessGame) {
   const carrier = game.ctx.team1.players[0];
   await game.execute({
     type: "declare-action",
-    playerId: carrier.id,
+    playerId: fixtureValue(carrier).id,
     action: "move",
   });
   const response = await game.execute({
     type: "move",
-    playerId: carrier.id,
+    playerId: fixtureValue(carrier).id,
     path: [
       { x: 4, y: 1 },
       { x: 5, y: 1 },
@@ -74,7 +68,7 @@ describe("Trapdoors", () => {
     const game = new HeadlessGame({ scenario: nearTrapdoor, seed: 5 });
     forceDice(game.ctx.rng, [1, 1, 1]);
     const { carrier } = await walkOntoTrapdoor(game);
-    expect(carrier.gridPosition).toEqual({ x: 6, y: 1 });
+    expect(fixtureValue(carrier).gridPosition).toEqual({ x: 6, y: 1 });
     expect(game.ctx.gameService.getState().ballPosition).toEqual({
       x: 6,
       y: 1,
@@ -86,19 +80,18 @@ describe("Trapdoors", () => {
     await prayForTrapdoor(game);
     forceDice(game.ctx.rng, [2]);
     const { carrier } = await walkOntoTrapdoor(game);
-    expect(carrier.gridPosition).toEqual({ x: 6, y: 1 });
+    expect(fixtureValue(carrier).gridPosition).toEqual({ x: 6, y: 1 });
   });
 
   it("swallow a carrier on a 1: crowd injury, the ball bounces from the Trapdoor, Turnover", async () => {
     const game = new HeadlessGame({ scenario: nearTrapdoor, seed: 5 });
     await prayForTrapdoor(game);
-    // Trapdoor 1; Injury by the Crowd 1+2 = Stunned, so to the Reserves;
-    // the bounce D8 7 sends the ball straight down to (5,2).
+
     forceDice(game.ctx.rng, [1, 1, 2, 7]);
     const { carrier } = await walkOntoTrapdoor(game);
 
-    expect(carrier.gridPosition).toBeUndefined();
-    expect(carrier.status).toBe(PlayerStatus.RESERVE);
+    expect(fixtureValue(carrier).gridPosition).toBeUndefined();
+    expect(fixtureValue(carrier).status).toBe(PlayerStatus.RESERVE);
     expect(game.ctx.gameService.getState().ballPosition).toEqual({
       x: 5,
       y: 2,
@@ -113,8 +106,8 @@ describe("Trapdoors", () => {
     await prayForTrapdoor(game);
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    await block(game, attacker.id, defender.id);
-    // Pushed onto (14,9): Trapdoor 1; Injury by the Crowd 4+4 = KO.
+    await block(game, fixtureValue(attacker).id, fixtureValue(defender).id);
+
     forceDice(game.ctx.rng, [1, 4, 4]);
     const pushed = await game.execute({
       type: "choose-push-direction",
@@ -122,8 +115,8 @@ describe("Trapdoors", () => {
       y: 9,
     });
     expect(pushed.ok).toBe(true);
-    expect(defender.gridPosition).toBeUndefined();
-    expect(defender.status).toBe(PlayerStatus.KO);
+    expect(fixtureValue(defender).gridPosition).toBeUndefined();
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.KO);
     expect(pushed.pendingDecision?.type).toBe("follow-up");
   });
 
@@ -132,13 +125,13 @@ describe("Trapdoors", () => {
     await prayForTrapdoor(game);
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    await block(game, attacker.id, defender.id);
+    await block(game, fixtureValue(attacker).id, fixtureValue(defender).id);
     await game.execute({ type: "choose-push-direction", x: 14, y: 8 });
-    // Follow-up onto (14,9): Trapdoor 1; Injury by the Crowd 1+2 Stunned.
+
     forceDice(game.ctx.rng, [1, 1, 2]);
     await game.execute({ type: "choose-follow-up", followUp: true });
-    expect(attacker.gridPosition).toBeUndefined();
-    expect(attacker.status).toBe(PlayerStatus.RESERVE);
+    expect(fixtureValue(attacker).gridPosition).toBeUndefined();
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.RESERVE);
     expect(game.ctx.gameService.getState().activeTeamId).toBe(
       game.ctx.team2.id
     );
@@ -173,7 +166,6 @@ const onTheOtherTrapdoor: Scenario = {
   },
 };
 
-/** A one-die Block whose die is forced to a Push. */
 async function block(
   game: HeadlessGame,
   attackerId: string,

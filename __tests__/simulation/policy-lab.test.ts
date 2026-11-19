@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,11 +20,15 @@ describe("repeatable Sevens policy lab", () => {
   const variants = labInventory();
   it("rebuilds identical teams with actual budget and random progression prices", () => {
     expect(labInventory()).toEqual(variants);
-    const coherent = variants.find((v) => v.buildMethod === "coherent")!;
-    const random = variants.find(
-      (v) =>
-        v.buildMethod === "random-primary" && v.template === coherent.template
-    )!;
+    const coherent = fixtureValue(
+      variants.find((v) => v.buildMethod === "coherent")
+    );
+    const random = fixtureValue(
+      variants.find(
+        (v) =>
+          v.buildMethod === "random-primary" && v.template === coherent.template
+      )
+    );
     expect(coherent.developmentBudget).toBe(48);
     expect(random.developmentBudget).toBe(48);
     expect(coherent.sppSpent).toBe(24);
@@ -63,7 +68,7 @@ describe("repeatable Sevens policy lab", () => {
       ).toHaveLength(4);
       const assignments = block.map(
         (j) =>
-          `${j.variantIds[j.candidateSide]}/${j.candidateSide}/${j.receivingSide === j.candidateSide}`
+          `${j.variantIds[j.candidateSide]}/${String(j.candidateSide)}/${String(j.receivingSide === j.candidateSide)}`
       );
       expect(new Set(assignments).size).toBe(8);
     }
@@ -129,8 +134,7 @@ describe("repeatable Sevens policy lab", () => {
           current
         )
       ).toThrow("identical");
-      // Candidate weights come from a file, not the source, so the
-      // manifest must match them too.
+
       for (const candidate of [
         { candidateRosters: { Halfling: { safeMove: 0.82 } } },
         { candidateWeights: { ...DEFAULT_WEIGHTS, cageWalk: 0 } },
@@ -157,7 +161,10 @@ describe("repeatable Sevens policy lab", () => {
           current
         )
       ).toHaveLength(64);
-      const changed = { ...manifest, jobs: [policySchedule(variants)[0]] };
+      const changed = {
+        ...manifest,
+        jobs: [fixtureValue(policySchedule(variants)[0])],
+      };
       expect(() => validateRecovery(manifest, changed, old, current)).toThrow(
         "schedule"
       );
@@ -175,9 +182,9 @@ describe("repeatable Sevens policy lab", () => {
 
   it("retains a required Vampire sentinel in a bounded pilot", () => {
     const jobs = policySchedule(variants, true, 30000000, true);
-    const vampire = variants.find((v) =>
-      v.team.rosterName.includes("Vampire")
-    )!;
+    const vampire = fixtureValue(
+      variants.find((v) => v.team.rosterName.includes("Vampire"))
+    );
     const pilot = limitPolicyBlocks(jobs, 24, [vampire.id]);
     expect(pilot).toHaveLength(192);
     expect(pilot.some((j) => j.variantIds.includes(vampire.id))).toBe(true);
@@ -188,7 +195,7 @@ describe("repeatable Sevens policy lab", () => {
     const out = mkdtempSync(join(tmpdir(), "bb7-lab-receive-"));
     try {
       const job = policySchedule(variants, false, 30_000_000, true)[4];
-      const result = await playStudyGame(job, out, undefined, [
+      const result = await playStudyGame(fixtureValue(job), out, undefined, [
         createPlannerCoach(),
         createPlannerCoach(),
       ]);
@@ -196,7 +203,7 @@ describe("repeatable Sevens policy lab", () => {
       expect(result.completed).toBe(true);
       expect(result.findings).toEqual([]);
       const replay = await replayStudyTrace(
-        join(out, "traces", job.id + ".json.gz")
+        join(out, "traces", fixtureValue(job).id + ".json.gz")
       );
       expect(replay.observations.counters).toEqual(result.counters);
     } finally {

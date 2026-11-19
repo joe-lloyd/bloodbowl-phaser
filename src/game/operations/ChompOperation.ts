@@ -1,20 +1,21 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import {
   PlayerStatus,
   PlayerCondition,
   addCondition,
 } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 
-/** Ends the chomper's activation once the bite has resolved. */
 class FinishChompOperation extends GameOperation {
   public readonly name = "FinishChomp";
 
-  constructor(private attackerId: string) {
+  private attackerId: string;
+  constructor(attackerId: string) {
     super();
+    this.attackerId = attackerId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -22,28 +23,19 @@ class FinishChompOperation extends GameOperation {
   }
 }
 
-/**
- * ChompOperation (2025 rulebook p.131, Monstrous Mouth's Chomp Special
- * Action)
- *
- * Against a Standing opposition player this player is Marking: roll a D6.
- * On a 1-2 nothing happens; on a 3+ the target is Chomped — they cannot
- * leave their square while this player remains Marking them (the condition
- * and its expiry live in the engine: see PlayerCondition.CHOMPED). May
- * replace the Block Action of a Blitz. Never a turnover.
- */
 export class ChompOperation extends GameOperation {
   public readonly name = "ChompOperation";
 
-  constructor(
-    private attackerId: string,
-    private targetId: string
-  ) {
+  private attackerId: string;
+  private targetId: string;
+  constructor(attackerId: string, targetId: string) {
     super();
+    this.attackerId = attackerId;
+    this.targetId = targetId;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     const dice = gameService.getDiceController();
 
@@ -73,12 +65,7 @@ export class ChompOperation extends GameOperation {
     await context.delay(600);
 
     const check = dice.rollSkillCheck(
-      "Chomp",
-      3,
-      0,
-      attacker.playerName,
-      attacker.teamId
-    );
+      { reason: "Chomp",target: 3,modifier: 0,playerName: attacker.playerName,teamId: attacker.teamId }    );
     if (check.success) {
       addCondition(target, PlayerCondition.CHOMPED, attacker.id);
       eventBus.emit(GameEventNames.SkillTriggered, {

@@ -1,9 +1,5 @@
-/**
- * The pages half of the gallery: the layout sketches behind the team select
- * and roster designs, and before and after captures of every page from the
- * real app. Captures come from scripts/page-shots into shots/pages, with a
- * manifest.json listing what exists; they are not committed.
- */
+import { loadPageManifest, type PageManifest } from "../boundary/pageManifest";
+import { Link } from "../ui/components/common/NativeControls";
 import React, { useEffect, useState } from "react";
 import {
   Chip,
@@ -32,7 +28,6 @@ const SKETCH_GROUPS = [
   },
 ];
 
-/** Every page capture, in the order a coach meets them. */
 const PAGE_SHOTS = [
   ["menu", "Main menu"],
   ["menu-resume", "Main menu with a saved local match"],
@@ -61,7 +56,7 @@ const PAGE_SHOTS = [
   ["sound-test", "Sound test"],
 ] as const;
 
-type Manifest = Record<"before" | "after" | "after-1920", string[]>;
+
 
 export const PAGES_NAV = ["Pages: direction", "Pages: before and after"];
 
@@ -75,14 +70,15 @@ export function PagesReview({
   }) => React.ReactElement;
   slug: (text: string) => string;
 }) {
-  const [manifest, setManifest] = useState<Manifest | null>(null);
+  const [manifest, setManifest] = useState<PageManifest | null>(null);
   useEffect(() => {
-    fetch("./shots/pages/manifest.json")
-      .then((r) => (r.ok ? r.json() : null))
+    loadPageManifest()
       .then(setManifest)
-      .catch(() => setManifest(null));
+      .catch(() => {
+        setManifest(null);
+      });
   }, []);
-  const has = (side: keyof Manifest, name: string) =>
+  const has = (side: keyof PageManifest, name: string) =>
     manifest?.[side].includes(`${name}.jpg`) ?? false;
 
   return (
@@ -119,12 +115,12 @@ export function PagesReview({
                   />
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  <a
+                  <Link
                     href={`./sketches/${sketch.file}.html`}
                     className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] hover:text-hud-gold"
                   >
                     {sketch.name}
-                  </a>
+                  </Link>
                   {sketch.chosen && <Chip tone="gold">Chosen</Chip>}
                 </div>
               </Panel>
@@ -163,28 +159,28 @@ export function PagesReview({
               {(["before", "after"] as const).map(
                 (side) =>
                   has(side, `${name}-full`) && (
-                    <a
+                    <Link
                       key={side}
                       href={`./shots/pages/${side}/${name}-full.jpg`}
                       className="hud-label hover:text-hud-gold"
                     >
                       Whole page, {side}
-                    </a>
+                    </Link>
                   )
               )}
               {has("after-1920", name) && (
-                <a
+                <Link
                   href={`./shots/pages/after-1920/${name}.jpg`}
                   className="hud-label hover:text-hud-gold"
                 >
                   After at 1920 by 1080
-                </a>
+                </Link>
               )}
             </figcaption>
             <div className="grid gap-3 lg:grid-cols-2">
               {(["before", "after"] as const).map((side) =>
                 has(side, name) ? (
-                  <a
+                  <Link
                     key={side}
                     href={`./shots/pages/${side}/${name}.jpg`}
                     className="group relative block"
@@ -201,7 +197,7 @@ export function PagesReview({
                     >
                       {side}
                     </Chip>
-                  </a>
+                  </Link>
                 ) : (
                   <div
                     key={side}

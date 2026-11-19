@@ -1,6 +1,6 @@
 import {
-  PlayedGame,
-  PlayedGamePlayer,
+  type PlayedGame,
+  type PlayedGamePlayer,
 } from "../../../game/progression/matchHistory";
 import { cx, Section } from "../componentWarehouse/HudKit";
 
@@ -24,17 +24,16 @@ const ENDING_LABEL: Record<NonNullable<PlayedGame["ending"]>, string> = {
 
 function playerLine(player: PlayedGamePlayer): string {
   const parts = [
-    player.touchdowns && `${player.touchdowns} TD`,
-    player.casualties && `${player.casualties} CAS`,
-    player.completions && `${player.completions} COMP`,
-    player.interceptions && `${player.interceptions} INT`,
+    player.touchdowns && `${String(player.touchdowns)} TD`,
+    player.casualties && `${String(player.casualties)} CAS`,
+    player.completions && `${String(player.completions)} COMP`,
+    player.interceptions && `${String(player.interceptions)} INT`,
     player.mvp && "MVP",
     player.injured && "hurt",
   ].filter(Boolean);
-  return `#${player.number} ${player.name}: ${parts.join(", ")}`;
+  return `#${String(player.number)} ${player.name}: ${parts.join(", ")}`;
 }
 
-/** Every game the team has played, newest first, each one opening to its players. */
 export function PlayedGames({ games }: { games: PlayedGame[] }) {
   if (games.length === 0) return null;
   return (

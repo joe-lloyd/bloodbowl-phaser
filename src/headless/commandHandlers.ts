@@ -1,20 +1,19 @@
 import { assertPregamePurchasesComplete } from "../game/inducements/pregame";
-/**
- * Command handlers - one per command type, run by HeadlessGame.execute once a
- * command has passed its shape check and the pending-decision gate.
- */
 
-import { HeadlessGameContext } from "./createHeadlessGame";
-import { EmittedEvent, HeadlessCommand, PendingDecision } from "./protocol";
+import { type HeadlessGameContext } from "./createHeadlessGame";
+import {
+  type EmittedEvent,
+  type HeadlessCommand,
+  type PendingDecision,
+} from "./protocol";
 import { playersAdjacent } from "./legalActions";
 import { GameEventNames } from "../types/events";
-import { GamePhase, GameState } from "../types/GameState";
-import { Player, PlayerStatus } from "../types/Player";
+import { GamePhase, type GameState } from "../types/GameState";
+import { type Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
 import { isBlockReplacement } from "../types/BlockReplacement";
 import { Inducement } from "../types/Inducements";
 
-/** Queries answer from state in execute and never reach a handler. */
 type QueryCommand = Extract<
   HeadlessCommand,
   { type: "state" | "legal-actions" | "offer-inducements" }
@@ -29,23 +28,18 @@ type PendingOf<T extends PendingDecision["type"]> = Extract<
   { type: T }
 >;
 
-/** What a handler may read and change on the game it runs in. */
 export interface CommandHost {
   readonly ctx: HeadlessGameContext;
-  /** Take the decision a reply answers; throws unless it is the one pending. */
+
   takePending<T extends PendingDecision["type"]>(type: T): PendingOf<T>;
-  /** Put back a decision whose reply was refused, so it can be answered again. */
+
   restorePending(pending: PendingDecision): void;
-  /** Forget a follow-up held back while another decision was answered. */
+
   dropHeldFollowUp(): void;
   setKickingTeam(teamId: string): void;
   logEvent(event: EmittedEvent): void;
 }
 
-/**
- * Every playable command type has a handler, so a new one fails the build
- * until it is handled. Handlers are async so a refusal always rejects.
- */
 type CommandHandlers = {
   [T in PlayCommand["type"]]: (
     host: CommandHost,
@@ -76,7 +70,6 @@ function assertTeam(ctx: HeadlessGameContext, teamId: string): void {
   }
 }
 
-/** Fail a refused reply, keeping its decision pending. */
 function refuseUnless(
   host: CommandHost,
   pending: PendingDecision,
@@ -88,7 +81,6 @@ function refuseUnless(
   throw new Error(error);
 }
 
-/** Fail with the engine's own setup error when it refuses a command. */
 function requireSetup(
   host: CommandHost,
   accepted: boolean,
@@ -103,7 +95,6 @@ function requireOk(result: { ok: boolean; errors: string[] }): void {
   if (!result.ok) throw new Error(result.errors.join(","));
 }
 
-/** The attacker was declared for a plain Block or Blitz block and may throw it now. */
 function isDeclaredBlock(
   declaration: GameState["activePlayer"],
   attackerId: string
@@ -133,17 +124,13 @@ async function block(
   const attacker = requirePlayer(ctx, cmd.attackerId);
   const defender = requirePlayer(ctx, cmd.defenderId);
   if (!isDeclaredBlock(gs.getState().activePlayer, attacker.id)) {
-    // Keep the established cancellation-event contract for a downed
-    // player's direct Block attempt. Other undeclared/forged commands
-    // remain protocol failures.
     if (attacker.status !== PlayerStatus.ACTIVE) {
-      await gs.rollBlockDice(cmd.attackerId, cmd.defenderId, 0, false);
+      await gs.rollBlockDice({ attackerId: cmd.attackerId, defenderId: cmd.defenderId, numDice: 0, isAttackerChoice: false });
       return;
     }
     throw new Error("block-not-declared");
   }
-  // A Blitz allows only one block; report that invariant before target
-  // legality because the first block may have pushed the defender away.
+
   if (gs.hasUsedBlitzBlock(cmd.attackerId)) {
     throw new Error("blitz-block-already-used");
   }
@@ -151,17 +138,8 @@ async function block(
     throw new Error("illegal-block-target");
   }
   const allPlayers = [...ctx.team1.players, ...ctx.team2.players];
-  const analysis = blockValidator.analyzeBlock(
-    attacker,
-    defender,
-    allPlayers,
-    gs.getActiveTeamId()
-  );
-  await gs.rollBlockDice(
-    cmd.attackerId,
-    cmd.defenderId,
-    analysis.diceCount,
-    !analysis.isUphill
+  const analysis = blockValidator.analyzeBlock({ attacker: attacker, defender: defender, allPlayers: allPlayers, activeTeamId: gs.getActiveTeamId() });
+  await gs.rollBlockDice({ attackerId: cmd.attackerId, defenderId: cmd.defenderId, numDice: analysis.diceCount, isAttackerChoice: !analysis.isUphill }
   );
 }
 
@@ -172,8 +150,7 @@ async function coinFlip({
 }: CommandHost): Promise<void> {
   const gs = ctx.gameService;
   assertPregamePurchasesComplete(gs.getState());
-  // Coin flip lives UI-side in the browser; headless resolves it with
-  // the seeded RNG so it stays deterministic and replayable.
+
   if (!gs.canCoinFlip()) {
     throw new Error("coin-flip-only-before-first-drive");
   }
@@ -183,7 +160,7 @@ async function coinFlip({
     name: "headless:coinFlip",
     data: { kickingTeamId: kickingTeam.id },
   });
-  // A coin is a d2 — log it like every other roll
+
   ctx.eventBus.emit(GameEventNames.DiceRoll, {
     rollType: "Coin Toss",
     diceType: "1d2",
@@ -197,7 +174,6 @@ async function coinFlip({
   gs.startSetup(kickingTeam.id);
 }
 
-/** Answer the pending kickoff step; the engine refuses what the step forbids. */
 async function answerKickoffStep(
   host: CommandHost,
   error: string,
@@ -226,10 +202,10 @@ async function chooseInducement(
     validStat &&
       validSpell &&
       host.ctx.gameService.answerInducementChoice({
-        playerId: cmd.playerId,
-        skill: cmd.skill,
-        stat,
-        spell,
+        ...(cmd.playerId === undefined ? {} : { playerId: cmd.playerId }),
+        ...(cmd.skill === undefined ? {} : { skill: cmd.skill }),
+        ...(stat === undefined ? {} : { stat: stat }),
+        ...(spell === undefined ? {} : { spell: spell }),
         ...square,
       }),
     "invalid-inducement-choice"
@@ -240,7 +216,6 @@ async function specialAction(
   { ctx }: CommandHost,
   cmd: PlayCommandOf<"special-action">
 ): Promise<void> {
-  // The protocol type rules these out; a raw command may still carry them.
   const action: string = cmd.action;
   if (action !== "gaze" && !isBlockReplacement(action)) {
     throw new Error("invalid-special-action");
@@ -269,21 +244,23 @@ const COMMAND_HANDLERS: CommandHandlers = {
     host.setKickingTeam(cmd.kickingTeamId);
     host.ctx.gameService.startSetup(cmd.kickingTeamId);
   },
-  "place-player": async (host, cmd) =>
+  "place-player": async (host, cmd) => {
     requireSetup(
       host,
       host.ctx.gameService.placePlayer(cmd.playerId, cmd.x, cmd.y),
       "illegal-placement"
-    ),
+    );
+  },
   "remove-player": async ({ ctx }, cmd) => {
     ctx.gameService.removePlayer(cmd.playerId);
   },
-  "swap-players": async (host, cmd) =>
+  "swap-players": async (host, cmd) => {
     requireSetup(
       host,
       host.ctx.gameService.swapPlayers(cmd.player1Id, cmd.player2Id),
       "illegal-swap"
-    ),
+    );
+  },
   "apply-formation": async ({ ctx }, cmd) => {
     assertTeam(ctx, cmd.teamId);
     const result = ctx.gameService.applySetupFormation(
@@ -317,11 +294,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     const kicker = requirePlayer(host.ctx, cmd.playerId);
     const isTeam1Kicking = kicker.teamId === host.ctx.team1.id;
     host.setKickingTeam(kicker.teamId);
-    await host.ctx.gameService.kickBall(
-      isTeam1Kicking,
-      cmd.playerId,
-      cmd.x,
-      cmd.y
+    await host.ctx.gameService.kickBall({ isTeam1Kicking: isTeam1Kicking, playerId: cmd.playerId, targetX: cmd.x, targetY: cmd.y }
     );
   },
   "kickoff-select-player": (host, cmd) =>
@@ -351,11 +324,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     ) {
       throw new Error("invalid-block-replacement");
     }
-    const declared = ctx.gameService.declareAction(
-      cmd.playerId,
-      cmd.action,
-      cmd.blockReplacement,
-      { razzleDazzle: cmd.razzleDazzle }
+    const declared = ctx.gameService.declareAction({ playerId: cmd.playerId, action: cmd.action, ...(cmd.blockReplacement === undefined ? {} : { blockReplacement: cmd.blockReplacement }), options: { razzleDazzle: cmd.razzleDazzle } }
     );
     if (!declared) throw new Error("illegal-action-declaration");
   },
@@ -388,11 +357,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     await ctx.gameService.jumpPlayer(cmd.playerId, { x: cmd.x, y: cmd.y });
   },
   pass: async ({ ctx }, cmd) => {
-    const result = await ctx.gameService.throwBall(
-      cmd.playerId,
-      cmd.x,
-      cmd.y,
-      cmd.hailMary ?? false
+    const result = await ctx.gameService.throwBall({ passerId: cmd.playerId, targetX: cmd.x, targetY: cmd.y, hailMary: cmd.hailMary ?? false }
     );
     if (!result.success) {
       throw new Error(result.result || "pass-failed");
@@ -419,13 +384,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     }
   },
   "throw-teammate": async ({ ctx }, cmd) => {
-    await ctx.gameService.throwTeammate(
-      cmd.throwerId,
-      cmd.teammateId,
-      cmd.x,
-      cmd.y,
-      cmd.mode,
-      cmd.swoopFacing
+    await ctx.gameService.throwTeammate({ throwerId: cmd.throwerId, teammateId: cmd.teammateId, x: cmd.x, y: cmd.y, ...(cmd.mode === undefined ? {} : { mode: cmd.mode }), ...(cmd.swoopFacing === undefined ? {} : { swoopFacing: cmd.swoopFacing }) }
     );
   },
   "throw-bomb": async ({ ctx }, cmd) => {
@@ -457,7 +416,6 @@ const COMMAND_HANDLERS: CommandHandlers = {
     ctx.matchStats.assignAwardedTouchdown(cmd.playerId);
   },
 
-  // --- Decision replies ---
   "keep-block-dice": async ({ ctx }, cmd) => {
     ctx.gameService.keepBlockDice(cmd.attackerId);
   },
@@ -495,26 +453,19 @@ const COMMAND_HANDLERS: CommandHandlers = {
       pending.options.some((d) => d.x === cmd.x && d.y === cmd.y),
       "invalid-push-direction"
     );
-    await host.ctx.gameService.executePush(
-      pending.attackerId,
-      pending.defenderId,
-      { x: cmd.x, y: cmd.y },
-      pending.resultType,
-      false
+    await host.ctx.gameService.executePush({ attackerId: pending.attackerId, defenderId: pending.defenderId, direction: { x: cmd.x, y: cmd.y }, resultType: pending.resultType, followUp: false }
     );
   },
   "choose-follow-up": async (host, cmd) => {
     const pending = host.takePending("follow-up");
     host.dropHeldFollowUp();
     if (cmd.followUp) {
-      // Free move: no movement cost, no dice (rush/dodge already paid)
       await host.ctx.gameService.followUpPush(
         pending.attackerId,
         pending.targetSquare
       );
     }
-    // A Blitz block leaves the player active to continue moving; a plain
-    // block ends the activation here.
+
     host.ctx.gameService.finishBlockActivation(pending.attackerId);
   },
   "use-reroll": async (host, cmd) => {
@@ -601,7 +552,6 @@ const COMMAND_HANDLERS: CommandHandlers = {
     );
   },
 
-  // --- Sevens pregame inducements ---
   "select-inducement": async ({ ctx }, cmd) => {
     assertTeam(ctx, cmd.teamId);
     requireOk(

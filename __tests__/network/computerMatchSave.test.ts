@@ -1,15 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import {
   confirmComputerPregame,
   rollKickoffsAtOnce,
 } from "../utils/computerPregame";
-/**
- * Coming back to a match against the computer: the match saves itself from
- * the toss on, and a page that reloads picks up from that save. The human
- * side is played by the heuristic coach through the match's own `run`.
- */
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createComputerMatch } from "../../src/network/ComputerMatch";
-import { OnlineMatch } from "../../src/network/OnlineMatch";
+import { type OnlineMatch } from "../../src/network/OnlineMatch";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { createLineupTeam } from "../../src/simulation/lineups";
@@ -18,24 +15,27 @@ import { enumerateDecision } from "../../src/simulation/candidates";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { createCoachRng } from "../../src/simulation/rng";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { MatchSave, restoreMatchSave } from "../../src/headless/serialization";
+import {
+  type MatchSave,
+  restoreMatchSave,
+} from "../../src/headless/serialization";
 import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
 import {
-  MatchSaveRepository,
+  type MatchSaveRepository,
   describeMatchSave,
   setMatchSaveRepository,
 } from "../../src/game/persistence/MatchSaveRepository";
 import { GamePhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { RosterName } from "../../src/types/Team";
-import { CompetitionContext } from "../../src/competition/types";
+import { type CompetitionContext } from "../../src/competition/types";
 
 const autosave = { difficulty: "standard" };
 const ms = (time: number) =>
   new Promise((resolve) => setTimeout(resolve, time));
 
 let latest: MatchSave | null = null;
-/** The choice each save was written over, if one was open. */
+
 let writtenOver: (string | null)[] = [];
 const repository: MatchSaveRepository = {
   read: () => latest,
@@ -72,7 +72,7 @@ function startNew(
 ): OnlineMatch {
   setMatchSaveRepository(repository);
   match = createComputerMatch({
-    competitionContext,
+    ...(competitionContext === undefined ? {} : { competitionContext: competitionContext }),
     eventBus: new EventBus(),
     team1: stabilizeIds(
       createLineupTeam(RosterName.DARK_ELF, "Poin", 0xcc0000),
@@ -89,7 +89,6 @@ function startNew(
   return match;
 }
 
-/** What a reloaded page does; the board's GameStateRestored is left to the caller. */
 function resume(save: MatchSave, pace: number) {
   const restored = restoreMatchSave(save);
   const eventBus = new EventBus();
@@ -98,22 +97,22 @@ function resume(save: MatchSave, pace: number) {
     eventBus,
     team1: restored.teams[0],
     team2: restored.teams[1],
-    computerTeamId: save.computer!.computerTeamId,
+    computerTeamId: fixtureValue(save.computer).computerTeamId,
     pace,
     resume: restored,
     autosave,
   });
   return {
     live: match,
-    boardReady: () =>
+    boardReady: () => {
       eventBus.emit(
         GameEventNames.GameStateRestored,
         liveGame().ctx.gameService.getState()
-      ),
+      );
+    },
   };
 }
 
-/** One human decision, if there is one to make; the commands it took. */
 async function humanStep(
   live: OnlineMatch,
   rng: ReturnType<typeof createCoachRng>
@@ -144,7 +143,7 @@ async function humanStep(
     rng,
   });
   let commands = 0;
-  for (const command of point.candidates[index].commands) {
+  for (const command of fixtureValue(point.candidates[index]).commands) {
     const response = await live.run(command);
     expect(response.reason).toBeUndefined();
     commands++;
@@ -152,11 +151,9 @@ async function humanStep(
   return commands;
 }
 
-/** Plays the human's side until it is their move in open play. */
 async function playToHumanTurn(live: OnlineMatch): Promise<void> {
   const rng = createCoachRng(5);
   while (true) {
-    // Open play starts before the final bounce can award a touchback.
     await whenEngineQuiet();
     if (
       liveGame().snapshot().phase === GamePhase.PLAY &&
@@ -177,7 +174,7 @@ describe("saving a match against the computer", () => {
   it("saves readiness before the toss and keeps the match resumable", async () => {
     const live = startNew(0);
     await ms(150);
-    expect(latest?.snapshot.pregameInducements?.ready.team2).toBe(true);
+    expect(latest?.snapshot.pregameInducements?.ready["team2"]).toBe(true);
 
     await confirmComputerPregame(live);
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
@@ -187,7 +184,7 @@ describe("saving a match against the computer", () => {
       computerTeamId: "team2",
       difficulty: "standard",
     });
-    // The match look is not saved: there is only one
+
     expect(latest).not.toHaveProperty("presentation");
   });
 
@@ -199,7 +196,7 @@ describe("saving a match against the computer", () => {
       knockout: true,
     };
     const live = startNew(0, tie);
-    // A draw goes to Extra Time, then Penalties
+
     expect(liveGame().ctx.gameService.getState().knockout).toBe(true);
 
     await confirmComputerPregame(live);
@@ -274,12 +271,10 @@ describe("saving a match against the computer", () => {
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
     const rng = createCoachRng(11);
     while (!liveGame().snapshot().turn.isHalf2) {
-      // A person takes a moment over each action and each choice
       if (live.mayAct()) await ms(100);
       await humanStep(live, rng);
     }
 
-    // A resume restores the board, not the prompt for a choice half-made.
     expect(writtenOver.length).toBeGreaterThan(10);
     expect(writtenOver.filter((open) => open !== null)).toEqual([]);
   }, 120_000);
@@ -298,14 +293,10 @@ describe("saving a match against the computer", () => {
       if (sinceReload < 25) continue;
       await whenEngineQuiet();
       await ms(100);
-      const save = latest!;
-      // Coming back to the save last resumed from replays the same stretch,
-      // and a fast drive (set-up, kick-off) can outrun the autosave every
-      // time: reload once there is something newer to come back to.
+      const save = fixtureValue(latest);
+
       const saved = JSON.stringify(save.snapshot);
       if (saved === resumedFrom) {
-        // Saves land after each action; only set-up and the kick-off run
-        // long without one. An autosave that stopped would show here.
         expect(sinceReload, "human commands with no newer save").toBeLessThan(
           150
         );

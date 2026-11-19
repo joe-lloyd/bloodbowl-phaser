@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { expect, test } from "@playwright/test";
 import { dehydrateTeam } from "../../src/data/persistence/teamPersistence";
 import { FormationManager } from "../../src/game/managers/FormationManager";
@@ -33,11 +34,11 @@ for (const type of ["leagues", "tournaments"]) {
         exact: false,
       })
     ).toBeVisible();
-    const id = new URL(page.url()).pathname.split("/").pop()!;
+    const id = fixtureValue(new URL(page.url()).pathname.split("/").pop());
     expect(
       await page.evaluate(
         ({ type, id }) =>
-          JSON.parse(localStorage.getItem("bloodbowl_competitions")!)[
+          JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_competitions")))[
             `${type === "leagues" ? "league" : "tournament"}:${id}`
           ].ruleset,
         { type, id }
@@ -63,16 +64,16 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
     await game.execute({
       type: "apply-formation",
       teamId: team.id,
-      formation: new FormationManager().getBuiltInFormations(side)[0].positions,
+      formation: fixtureValue(new FormationManager().getBuiltInFormations(side)[0]).positions,
     });
     expect(
       (await game.execute({ type: "confirm-setup", teamId: team.id })).ok
     ).toBe(true);
   }
   const save = game.matchSave();
-  const reserve = home.players.find((player) => !player.gridPosition)!;
+  const reserve = fixtureValue(home.players.find((player) => !player.gridPosition));
   expect(
-    save.snapshot.setup?.teams[home.id].swarming?.maximumAdditionalPlayers
+    fixtureValue(save.snapshot.setup?.teams[home.id]).swarming?.maximumAdditionalPlayers
   ).toBe(1);
   await page.addInitScript((saved) => {
     if (!localStorage.getItem("bloodbowl_local_match_save"))
@@ -86,12 +87,12 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
   ).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("optgroup[label=Presets]")).toHaveCount(0);
   const square = await page.evaluate((id) => {
-    const scene = window.game.scene
+    const scene = fixtureValue(window.game).scene
       .getScenes(true)
       .find((scene) => scene.scene.key === "GameScene");
     if (!scene || !("dugouts" in scene) || !("getPitch" in scene))
       throw new Error("Missing match scene");
-    // Read the live sprite's slot; all state changes below use pointer input.
+
     const board = scene as unknown as {
       dugouts: Map<
         string,
@@ -116,7 +117,7 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
   await expect
     .poll(
       async () =>
-        (await app.bridge.snapshot()).teams[0].players.filter(
+        fixtureValue((await app.bridge.snapshot()).teams[0]).players.filter(
           (player) => player.position
         ).length
     )

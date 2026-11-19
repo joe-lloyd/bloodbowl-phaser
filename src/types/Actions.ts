@@ -1,127 +1,93 @@
-/**
- * Action types for player actions in Blood Bowl
- */
+import { type Player } from "./Player";
 
-import { Player } from "./Player";
+const ActionType = {
+  MOVE: "Move",
+  BLOCK: "Block",
+  BLITZ: "Blitz",
+  PASS: "Pass",
+  HANDOFF: "Handoff",
+  FOUL: "Foul",
+  STANDUP: "StandUp",
+} as const;
+type ActionType = (typeof ActionType)[keyof typeof ActionType];
 
-/**
- * Available player actions
- */
-export enum ActionType {
-  MOVE = "Move",
-  BLOCK = "Block",
-  BLITZ = "Blitz",
-  PASS = "Pass",
-  HANDOFF = "Handoff",
-  FOUL = "Foul",
-  STANDUP = "StandUp",
-}
-
-/**
- * Block dice results
- */
 export interface BlockAnalysis {
-  diceCount: number; // 1, 2, or 3
-  isUphill: boolean; // If true, Defender chooses result (Red Dice)
+  diceCount: number;
+  isUphill: boolean;
   attackerST: number;
   defenderST: number;
   attackerAssists: Player[];
   defenderAssists: Player[];
 }
 
-export enum BlockResult {
-  ATTACKER_DOWN = "Attacker Down",
-  BOTH_DOWN = "Both Down",
-  PUSH = "Push",
-  DEFENDER_STUMBLES = "Defender Stumbles",
-  DEFENDER_DOWN = "Defender Down",
-}
+const BlockResult = {
+  ATTACKER_DOWN: "Attacker Down",
+  BOTH_DOWN: "Both Down",
+  PUSH: "Push",
+  DEFENDER_STUMBLES: "Defender Stumbles",
+  DEFENDER_DOWN: "Defender Down",
+} as const;
+type BlockResult = (typeof BlockResult)[keyof typeof BlockResult];
 
-/**
- * Pass distance categories
- */
-export enum PassDistance {
-  QUICK = "Quick", // 1-3 squares, no modifier
-  SHORT = "Short", // 4-6 squares, -1
-  LONG = "Long", // 7-10 squares, -2
-  BOMB = "Bomb", // 11+ squares, -3
-}
+const PassDistance = {
+  QUICK: "Quick",
+  SHORT: "Short",
+  LONG: "Long",
+  BOMB: "Bomb",
+} as const;
+type PassDistance = (typeof PassDistance)[keyof typeof PassDistance];
 
-/**
- * Move action
- */
-export interface MoveAction {
-  type: ActionType.MOVE;
+interface MoveAction {
+  type: typeof ActionType.MOVE;
   player: Player;
-  path: { x: number; y: number }[]; // Squares to move through
-  requiresDodge: boolean[]; // Which squares need dodge rolls
+  path: { x: number; y: number }[];
+  requiresDodge: boolean[];
 }
 
-/**
- * Block action
- */
-export interface BlockAction {
-  type: ActionType.BLOCK;
+interface BlockAction {
+  type: typeof ActionType.BLOCK;
   attacker: Player;
   defender: Player;
-  diceCount: number; // 1-3 based on ST comparison
-  results: BlockResult[]; // Dice results
-  chosenResult?: BlockResult; // Player's choice (if multiple dice)
+  diceCount: number;
+  results: BlockResult[];
+  chosenResult?: BlockResult;
 }
 
-/**
- * Blitz action (move + block)
- */
-export interface BlitzAction {
-  type: ActionType.BLITZ;
+interface BlitzAction {
+  type: typeof ActionType.BLITZ;
   player: Player;
   movePath: { x: number; y: number }[];
   blockTarget: Player;
-  blockPosition: { x: number; y: number }; // Where block occurs
+  blockPosition: { x: number; y: number };
 }
 
-/**
- * Pass action
- */
-export interface PassAction {
-  type: ActionType.PASS;
+interface PassAction {
+  type: typeof ActionType.PASS;
   thrower: Player;
   target: { x: number; y: number };
   distance: PassDistance;
-  receiver?: Player; // If targeting a player
+  receiver?: Player;
 }
 
-/**
- * Hand-off action
- */
-export interface HandoffAction {
-  type: ActionType.HANDOFF;
+interface HandoffAction {
+  type: typeof ActionType.HANDOFF;
   giver: Player;
   receiver: Player;
 }
 
-/**
- * Foul action
- */
-export interface FoulAction {
-  type: ActionType.FOUL;
+interface FoulAction {
+  type: typeof ActionType.FOUL;
   fouler: Player;
   target: Player;
-  assists: number; // Number of assisting players
+  assists: number;
 }
 
-/**
- * Stand up action
- */
-export interface StandupAction {
-  type: ActionType.STANDUP;
+interface StandupAction {
+  type: typeof ActionType.STANDUP;
   player: Player;
 }
 
-/**
- * Union type for all actions
- */
-export type PlayerAction =
+type PlayerAction =
   | MoveAction
   | BlockAction
   | BlitzAction
@@ -130,19 +96,12 @@ export type PlayerAction =
   | FoulAction
   | StandupAction;
 
-/**
- * Action validation result
- */
-export interface ActionValidation {
+interface ActionValidation {
   valid: boolean;
   reason?: string;
 }
 
-/**
- * Check if action is valid
- */
-export function validateAction(action: PlayerAction): ActionValidation {
-  // Basic validation - will be expanded in implementation
+function validateAction(action: PlayerAction): ActionValidation {
   switch (action.type) {
     case ActionType.MOVE:
       if (action.path.length === 0) {
@@ -182,22 +141,16 @@ function notYetActed(player: Pick<Player, "hasActed">): ActionValidation {
     : { valid: true };
 }
 
-/**
- * Calculate block dice count based on strength comparison
- */
-export function calculateBlockDice(
+function calculateBlockDice(
   attackerST: number,
   defenderST: number
 ): number {
   if (attackerST > defenderST) return 2;
   if (attackerST < defenderST) return 1;
-  return 1; // Equal strength
+  return 1;
 }
 
-/**
- * Calculate pass distance category
- */
-export function calculatePassDistance(
+function calculatePassDistance(
   from: { x: number; y: number },
   to: { x: number; y: number }
 ): PassDistance {
@@ -211,10 +164,7 @@ export function calculatePassDistance(
   return PassDistance.BOMB;
 }
 
-/**
- * Get pass modifier based on distance
- */
-export function getPassModifier(distance: PassDistance): number {
+function getPassModifier(distance: PassDistance): number {
   switch (distance) {
     case PassDistance.QUICK:
       return 0;

@@ -11,7 +11,9 @@ async function render(phase: GamePhase, turnNumber: number | null) {
     root.render(<TurnIndicator phase={phase} turnNumber={turnNumber} />);
   });
   const text = container.textContent;
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   return text;
 }
 

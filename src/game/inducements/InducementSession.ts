@@ -1,24 +1,8 @@
-/**
- * InducementSession - the pregame inducement negotiation for one match.
- *
- * Runs before the engine's own phase machine starts (there is no
- * GamePhase for it — see design.md: inducements are a pregame step shared
- * by local, competition, online, and headless matches, not an in-match
- * decision). Both coaches select against the same authoritative catalog and
- * budget; each selection and the final confirmation are revalidated here,
- * so a forged over-budget or Star Player submission is rejected regardless
- * of what a client's own UI would have allowed.
- *
- * Once every team has confirmed, `toInventory()` produces the match-scoped
- * inventory the caller commits into GameState via
- * `IGameService.commitInducements`.
- */
-
 import {
   Inducement,
-  InducementCatalogEntry,
-  InducementRuleProfile,
-  InducementSelectionLine,
+  type InducementCatalogEntry,
+  type InducementRuleProfile,
+  type InducementSelectionLine,
 } from "../../types/Inducements";
 import { toInventoryEntries, validateInducementSelection } from "./rules";
 
@@ -31,15 +15,21 @@ export class InducementSession {
   private selections = new Map<string, InducementSelectionLine[]>();
   private confirmed = new Set<string>();
 
+  private readonly profile: InducementRuleProfile;
+  private readonly budgets: Record<string, number>;
+  private readonly catalogs: Record<string, InducementCatalogEntry[]>;
   constructor(
-    private readonly profile: InducementRuleProfile,
-    private readonly budgets: Record<string, number>,
-    private readonly catalogs: Record<string, InducementCatalogEntry[]>,
+    profile: InducementRuleProfile,
+    budgets: Record<string, number>,
+    catalogs: Record<string, InducementCatalogEntry[]>,
     saved?: {
       selections: Record<string, InducementSelectionLine[]>;
       confirmed: Record<string, boolean>;
     }
   ) {
+    this.profile = profile;
+    this.budgets = budgets;
+    this.catalogs = catalogs;
     for (const [id, selection] of Object.entries(saved?.selections ?? {}))
       this.selections.set(
         id,
@@ -81,7 +71,6 @@ export class InducementSession {
     return teamIds.every((id) => this.confirmed.has(id));
   }
 
-  /** Set (or clear, at quantity 0) one line of a team's pending selection. */
   select(
     teamId: string,
     inducement: Inducement,
@@ -113,7 +102,6 @@ export class InducementSession {
     return this.select(teamId, inducement, 0);
   }
 
-  /** Re-validate and lock in a team's current selection. */
   confirm(teamId: string): InducementCommandResult {
     if (!(teamId in this.catalogs))
       return { ok: false, errors: ["unknown-team"] };
@@ -129,7 +117,6 @@ export class InducementSession {
     return { ok: true, errors: [] };
   }
 
-  /** Every confirmed team's purchases, ready to commit into match state. */
   toInventory() {
     return [...this.confirmed].flatMap((teamId) =>
       toInventoryEntries(

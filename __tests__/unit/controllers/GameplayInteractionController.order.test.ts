@@ -1,58 +1,52 @@
+import { serviceSpies } from "./GameplayInteractionController.setup";
+import { eventHandler } from "./GameplayInteractionController.setup";
+import { playerWith } from "./controllerFixtures";
+import { stateWith } from "./GameplayInteractionController.setup";
+import { eventBusSpies } from "./GameplayInteractionController.setup";
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
-import { GamePhase, GameState } from "../../../src/types/GameState";
+import type { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
+import { GamePhase } from "../../../src/types/GameState";
 import { GameEventNames } from "../../../src/types/events";
 import { getSkill, SkillType } from "../../../src/types/Skills";
-import {
-  mockScene,
-  mockPitch,
-  mockEventBus,
-  mockGameService,
-  mockMovementValidator,
-  answerStepPrompt,
-  team1Id,
-  player1,
-  createController,
-} from "./GameplayInteractionController.setup";
+import { mockScene, mockPitch, mockGameService, mockMovementValidator, answerStepPrompt, team1Id, player1, createController } from "./GameplayInteractionController.setup";
 
-/**
- * Online play runs in lockstep, so the board must send its commands and
- * events in the order it always has. These follow a click from the
- * board's public entry points and read back that order.
- */
+interface Entry {
+  order: number;
+  call: string;
+}
 
-type Entry = { order: number; call: string };
-
-/** The engine commands and bus events named here, in the order they ran. */
-function sent(commands: string[], events: string[]): string[] {
+function sent(commands: (keyof typeof serviceSpies)[], events: string[]): string[] {
   const entries: Entry[] = [];
   for (const name of commands) {
-    const mock = mockGameService[name];
+    const mock = serviceSpies[name];
     mock.mock.calls.forEach((args: unknown[], i: number) =>
       entries.push({
-        order: mock.mock.invocationCallOrder[i],
+        order: fixtureValue(mock.mock.invocationCallOrder[i]),
         call: `${name}(${args.map((a) => JSON.stringify(a)).join(", ")})`,
       })
     );
   }
-  mockEventBus.emit.mock.calls.forEach((args: unknown[], i: number) => {
+  eventBusSpies.emit.mock.calls.forEach((args: unknown[], i: number) => {
     const [event, payload] = args;
     if (typeof event === "string" && events.includes(event))
       entries.push({
-        order: mockEventBus.emit.mock.invocationCallOrder[i],
+        order: fixtureValue(eventBusSpies.emit.mock.invocationCallOrder[i]),
         call: `${event} ${JSON.stringify(payload ?? null)}`,
       });
   });
   return entries.sort((a, b) => a.order - b.order).map((e) => e.call);
 }
 
-/** Point the next board click at this square. */
 function clickAt(
   controller: GameplayInteractionController,
   x: number,
   y: number
 ) {
-  (mockPitch as Record<string, unknown>).worldToGrid = vi.fn(() => ({ x, y }));
+  mockPitch.worldToGrid.mockImplementation(() => ({
+    x,
+    y,
+  }));
   controller.handlePointerDown({ worldX: 0, worldY: 0 }, false);
 }
 
@@ -61,18 +55,18 @@ describe("GameplayInteractionController", () => {
 
   beforeEach(() => {
     controller = createController();
-    mockGameService.getState.mockReturnValue({
+    mockGameService.getState.mockReturnValue(stateWith({
       activeTeamId: team1Id,
       phase: GamePhase.PLAY,
       weather: "Nice",
       activePlayer: null,
-    } as unknown as GameState);
+    }));
     mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
     mockGameService.getPlayerById.mockImplementation(
       (id: string) =>
         [...mockScene.team1.players, ...mockScene.team2.players].find(
           (p: { id: string }) => p.id === id
-        ) ?? null
+        ) ?? undefined
     );
     mockGameService.declareAction.mockReturnValue(true);
   });
@@ -84,11 +78,10 @@ describe("GameplayInteractionController", () => {
 
       clickAt(controller, 6, 6);
 
-      // Nothing awaited: all three went out before the click returned
       expect(
         sent(["declareAction", "previewBlock"], [GameEventNames.PlayerSelected])
       ).toEqual([
-        'declareAction("p1", "block")',
+        "declareAction({\"playerId\":\"p1\",\"action\":\"block\"})",
         "playerSelected " + JSON.stringify({ player: null }),
         'previewBlock("p1", "p2")',
       ]);
@@ -101,7 +94,7 @@ describe("GameplayInteractionController", () => {
       vi.clearAllMocks();
 
       clickAt(controller, 6, 6);
-      expect(mockGameService.declareAction).not.toHaveBeenCalled();
+      expect(serviceSpies.declareAction).not.toHaveBeenCalled();
       await answerStepPrompt(true);
 
       expect(
@@ -111,14 +104,14 @@ describe("GameplayInteractionController", () => {
         ).map((call) => call.split(" {")[0])
       ).toEqual([
         "ui:requestConfirmation",
-        'declareAction("p1", "block")',
+        "declareAction({\"playerId\":\"p1\",\"action\":\"block\"})",
         "playerSelected",
         'previewBlock("p1", "p2")',
       ]);
     });
 
     it("declares a Move and plots the square in the click's own tick", () => {
-      mockMovementValidator.findPath.mockReturnValue({
+      mockMovementValidator.findPath.mockReturnValue({ rolls: [],  cost: 0,
         valid: true,
         path: [{ x: 6, y: 5 }],
       });
@@ -131,65 +124,65 @@ describe("GameplayInteractionController", () => {
         sent(["declareAction"], [GameEventNames.UI_MovePlan]).map(
           (call) => call.split(" {")[0]
         )
-      ).toEqual(['declareAction("p1", "move")', "ui:movePlan"]);
+      ).toEqual(["declareAction({\"playerId\":\"p1\",\"action\":\"move\"})", "ui:movePlan"]);
       expect(mockMovementValidator.findPath).toHaveBeenCalledTimes(1);
     });
 
     it("aims Hypnotic Gaze at an adjacent opponent, and lets the gazer go once it resolves", async () => {
       let resolveGaze: (ok: boolean) => void = () => {};
-      mockGameService.performSpecialAction = vi.fn(
+      mockGameService.performSpecialAction.mockImplementation(
         () => new Promise<boolean>((resolve) => (resolveGaze = resolve))
       );
       controller.selectPlayer("p1");
-      controller["currentActionMode"] = "gaze";
-      controller["currentStepId"] = "target";
+      controller.currentActionMode = "gaze";
+      controller.currentStepId = "target";
       vi.clearAllMocks();
 
       clickAt(controller, 6, 6);
 
-      expect(mockGameService.performSpecialAction).toHaveBeenCalledWith(
+      expect(serviceSpies.performSpecialAction).toHaveBeenCalledWith(
         "gaze",
         "p1",
         "p2"
       );
-      expect(controller["isBusy"]).toBe(true);
+      expect(controller.isBusy).toBe(true);
       expect(controller.hasSelection()).toBe(true);
 
       resolveGaze(true);
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(controller["isBusy"]).toBe(false);
+      expect(controller.isBusy).toBe(false);
       expect(controller.hasSelection()).toBe(false);
     });
 
     it("keeps the board busy through a Hand-off and lets the player go once it resolves", async () => {
-      const mate = {
+      const mate = playerWith({
         ...player1,
         id: "p3",
         gridPosition: { x: 6, y: 5 },
         playerName: "Catcher",
-      };
+      });
       mockScene.team1.players = [player1, mate];
       mockGameService.getTeammates.mockReturnValue([mate]);
       let resolveHandoff: () => void = () => {};
       mockGameService.handOffBall.mockImplementation(
-        () => new Promise<void>((resolve) => (resolveHandoff = resolve))
+        () => new Promise<{ success: boolean }>((resolve) => { resolveHandoff = () => { resolve({ success: true }); }; })
       );
       controller.selectPlayer("p1");
-      controller["currentActionMode"] = "handoff";
-      controller["currentStepId"] = "handoff";
+      controller.currentActionMode = "handoff";
+      controller.currentStepId = "handoff";
       vi.clearAllMocks();
 
       controller.handlePlayerClick("p3");
 
-      expect(mockGameService.handOffBall).toHaveBeenCalledWith("p1", "p3");
-      expect(controller["isBusy"]).toBe(true);
+      expect(serviceSpies.handOffBall).toHaveBeenCalledWith("p1", "p3");
+      expect(controller.isBusy).toBe(true);
       expect(sent([], [GameEventNames.PlayerSelected])).toEqual([]);
 
       resolveHandoff();
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(controller["isBusy"]).toBe(false);
+      expect(controller.isBusy).toBe(false);
       expect(sent(["handOffBall"], [GameEventNames.PlayerSelected])).toEqual([
         'handOffBall("p1", "p3")',
         "playerSelected " + JSON.stringify({ player: null }),
@@ -197,20 +190,18 @@ describe("GameplayInteractionController", () => {
     });
 
     it("takes a chain push's next decision while the first push is still being sent", () => {
-      const handler = mockEventBus.on.mock.calls.find(
-        ([event]: [string]) => event === GameEventNames.UI_SelectPushDirection
-      )?.[1];
+      const handler = eventHandler(GameEventNames.UI_SelectPushDirection);
       handler({
-        validDirections: [{ x: 7, y: 7 }],
+        canFollowUp: false, validDirections: [{ x: 7, y: 7 }],
         defenderId: "p2",
         attackerId: "p1",
         resultType: "push",
         pushTier: "chain",
       });
-      // The first push shoves a second player: its squares open at once
+
       mockGameService.executePush.mockImplementationOnce(() => {
         handler({
-          validDirections: [{ x: 8, y: 8 }],
+          canFollowUp: false, validDirections: [{ x: 8, y: 8 }],
           defenderId: "p4",
           attackerId: "p2",
           resultType: "push",
@@ -222,8 +213,8 @@ describe("GameplayInteractionController", () => {
       clickAt(controller, 8, 8);
 
       expect(sent(["executePush"], [])).toEqual([
-        'executePush("p1", "p2", {"x":7,"y":7}, "push", false)',
-        'executePush("p2", "p4", {"x":8,"y":8}, "push", false)',
+        "executePush({\"attackerId\":\"p1\",\"defenderId\":\"p2\",\"direction\":{\"x\":7,\"y\":7},\"resultType\":\"push\",\"followUp\":false})",
+        "executePush({\"attackerId\":\"p2\",\"defenderId\":\"p4\",\"direction\":{\"x\":8,\"y\":8},\"resultType\":\"push\",\"followUp\":false})",
       ]);
     });
   });

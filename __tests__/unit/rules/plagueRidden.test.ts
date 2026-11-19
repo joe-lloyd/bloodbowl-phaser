@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import {
   isPlagueRiddenEligibleTarget,
@@ -5,7 +6,7 @@ import {
 } from "../../../src/game/rules/plagueRidden";
 import { addReserveLineman } from "../../../src/game/rules/raiseDead";
 import {
-  Player,
+  type Player,
   PlayerStatus,
   PositionKeyWord,
   TraitKeyWord,
@@ -31,7 +32,6 @@ const P = (over: Partial<Player>): Player =>
     ...over,
   }) as Player;
 
-/** A Nurgle killer holding Plague Ridden (unused). */
 const killer = (over: Partial<Player> = {}): Player =>
   P({
     id: "killer",
@@ -40,7 +40,6 @@ const killer = (over: Partial<Player> = {}): Player =>
     ...over,
   });
 
-/** A plain opposition victim with no immunity. */
 const victim = (over: Partial<Player> = {}): Player =>
   P({ id: "victim", teamId: "team2", ...over });
 
@@ -99,9 +98,9 @@ describe("Plague Ridden — trigger conditions", () => {
   });
 
   it("does not fire without the trait", () => {
-    expect(
-      plagueRiddenApplies(killer({ skills: [] }), victim(), "block")
-    ).toBe(false);
+    expect(plagueRiddenApplies(killer({ skills: [] }), victim(), "block")).toBe(
+      false
+    );
   });
 
   it("does not fire against a team-mate", () => {
@@ -123,16 +122,20 @@ describe("Plague Ridden — trigger conditions", () => {
 
 describe("Plague Ridden — reinforcement", () => {
   it("adds one Lineman to the team's Reserves", () => {
-    const team = TeamFactory.createTestTeam(RosterName.NURGLE, "Nurgle", 0x556b2f);
+    const team = TeamFactory.createTestTeam(
+      RosterName.NURGLE,
+      "Nurgle",
+      0x556b2f
+    );
     const before = team.players.length;
     const added = addReserveLineman(team);
 
     expect(added).not.toBeNull();
     expect(team.players.length).toBe(before + 1);
-    expect(added!.status).toBe(PlayerStatus.RESERVE);
-    expect(added!.gridPosition).toBeUndefined();
-    expect(added!.keywords).toContain(PositionKeyWord.LINEMAN);
-    // A unique jersey number, so the new player's id does not collide
-    expect(team.players.filter((p) => p.id === added!.id)).toHaveLength(1);
+    expect(fixtureValue(added).status).toBe(PlayerStatus.RESERVE);
+    expect(fixtureValue(added).gridPosition).toBeUndefined();
+    expect(fixtureValue(added).keywords).toContain(PositionKeyWord.LINEMAN);
+
+    expect(team.players.filter((p) => p.id === fixtureValue(added).id)).toHaveLength(1);
   });
 });

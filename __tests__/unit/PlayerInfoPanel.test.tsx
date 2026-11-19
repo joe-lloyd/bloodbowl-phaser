@@ -1,11 +1,11 @@
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerInfoPanel } from "../../src/ui/components/hud/PlayerInfoPanel";
 import { getSidelineCrewInfo } from "../../src/game/presentation/sidelineStaff";
-import { Team } from "../../src/types/Team";
+import { type Team } from "../../src/types/Team";
 
 describe("PlayerInfoPanel: sideline crew subject", () => {
   let container: HTMLDivElement;
@@ -20,7 +20,9 @@ describe("PlayerInfoPanel: sideline crew subject", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -49,7 +51,6 @@ describe("PlayerInfoPanel: sideline crew subject", () => {
     expect(html).toContain("2 on this team");
     expect(html).toContain(crew.effect);
 
-    // No player-shaped fields: no statline labels, no Skills section.
     expect(html).not.toContain(">MA<");
     expect(html).not.toContain(">AV<");
     expect(html).not.toContain("Skills");
@@ -76,7 +77,7 @@ describe("PlayerInfoPanel: sideline crew subject", () => {
     expect(container.innerHTML).toContain("Cheerleader");
 
     await act(async () => {
-      eventBus.emit(GameEventNames.UI_HidePlayerInfo);
+      eventBus.emit(GameEventNames.UI_HidePlayerInfo, undefined);
     });
     expect(container.textContent).toBe("");
   });
@@ -117,7 +118,6 @@ describe("PlayerInfoPanel: sideline crew subject", () => {
       });
     });
 
-    // Selected player panel remains, crew panel is shown alongside it.
     expect(container.innerHTML).toContain("Griff");
     expect(container.innerHTML).toContain("Apothecary");
   });

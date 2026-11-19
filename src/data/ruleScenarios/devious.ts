@@ -1,7 +1,5 @@
-/**
- * Rule scenarios — Devious skills (Shadowing).
- */
-
+import { z } from "zod";
+import { fixtureValue } from "../../testing/fixtureValue";
 import { SkillType } from "../../types/Skills";
 import { RosterName } from "../../types/Team";
 import {
@@ -11,8 +9,8 @@ import {
 } from "../../types/Player";
 import { GameEventNames } from "../../types/events";
 import {
-  RuleScenarioEntry,
-  ScriptResult,
+  type RuleScenarioEntry,
+  type ScriptResult,
   playSetup,
   blockConfig,
   assert,
@@ -25,14 +23,14 @@ import {
   turnoverHappened,
 } from "../../game/rules-lab";
 
-/** How many foul Armour Rolls were rolled in the run (Lone Fouler's re-roll). */
 const armourCheckCount = (r: ScriptResult): number =>
   r.events.filter(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
-      ((e.data as { rollType?: string }).rollType ?? "").startsWith(
-        "Foul Armour Roll"
-      )
+      (
+        z.object({ rollType: z.string().exactOptional() }).parse(e.data)
+          .rollType ?? ""
+      ).startsWith("Foul Armour Roll")
   ).length;
 
 export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
@@ -56,7 +54,7 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
         script: [
           { type: "declare-action", playerId: "team1:0", action: "foul" },
           { type: "foul", playerId: "team1:0", x: 11, y: 5 },
-          // Only legal because the Foul did not end the activation.
+
           { type: "move", playerId: "team1:0", path: [{ x: 9, y: 5 }] },
         ],
         seedSearch: { from: 1, limit: 500 },
@@ -67,11 +65,12 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.QUICK_FOUL) &&
               playerAt(r, "team1:0", { x: 9, y: 5 }),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 playerAt(r, "team1:0", { x: 9, y: 5 }),
                 "Quick Foul must let the fouler keep moving after the Foul"
-              ),
+              );
+            },
           },
         ],
       },
@@ -87,17 +86,17 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
           "A marked team-mate still lends an offensive assist to the Foul",
         setup: playSetup({
           team1Placements: [
-            { playerIndex: 0, x: 10, y: 5 }, // fouler
+            { playerIndex: 0, x: 10, y: 5 },
             {
               playerIndex: 1,
               x: 12,
               y: 5,
               skills: [SkillType.PUT_THE_BOOT_IN],
-            }, // marked assister
+            },
           ],
           team2Placements: [
-            { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE }, // target
-            { playerIndex: 1, x: 12, y: 4 }, // marks the assister
+            { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE },
+            { playerIndex: 1, x: 12, y: 4 },
           ],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -109,16 +108,14 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "assist-counts",
             name: "The marked assister still counts",
-            // Assist counting mutates `negated`, not the event log, so the
-            // observable is the Foul's assist tally: the marked assister is
-            // negated without Put the Boot In (0 offensive), counted with it.
+
             matches: (r) =>
               sawEvent(
                 r,
                 GameEventNames.UI_Notification,
                 (d) => typeof d === "string" && d.includes("+1 Offensive")
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 sawEvent(
                   r,
@@ -126,7 +123,8 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   (d) => typeof d === "string" && d.includes("+1 Offensive")
                 ),
                 "Put the Boot In must let the marked player assist the Foul"
-              ),
+              );
+            },
           },
         ],
       },
@@ -158,14 +156,15 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.EYE_GOUGE) &&
               hasCondition(playerOf(r, "team2:0"), PlayerCondition.EYE_GOUGED),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 hasCondition(
                   playerOf(r, "team2:0"),
                   PlayerCondition.EYE_GOUGED
                 ),
                 "the pushed opponent must be marked unable to assist"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -203,11 +202,12 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "modifier-applied",
             name: "Dirty Player's +1 is applied",
             matches: (r) => skillTriggered(r, SkillType.DIRTY_PLAYER),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillTriggered(r, SkillType.DIRTY_PLAYER),
                 "Dirty Player must contribute a +1 to a Foul roll"
-              ),
+              );
+            },
           },
         ],
       },
@@ -231,7 +231,7 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
               x: 11,
               y: 5,
               status: PlayerStatus.PRONE,
-              stats: { AV: 11 }, // high AV → the first roll usually fails
+              stats: { AV: 11 },
             },
           ],
           ballPosition: { x: 1, y: 1 },
@@ -248,11 +248,12 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.LONE_FOULER) &&
               armourCheckCount(r) >= 2,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 armourCheckCount(r) >= 2,
                 "Lone Fouler must re-roll the failed Armour Roll"
-              ),
+              );
+            },
           },
         ],
       },
@@ -276,7 +277,7 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
               x: 11,
               y: 5,
               status: PlayerStatus.PRONE,
-              stats: { AV: 11 }, // most doubles (2..10) do not break AV 11
+              stats: { AV: 11 },
             },
           ],
           ballPosition: { x: 1, y: 1 },
@@ -303,7 +304,8 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   .flatMap((t) => t.players)
                   .find(
                     (p) =>
-                      p.id === r.game.ctx.team1.players[0].id && !!p.position
+                      p.id === fixtureValue(r.game.ctx.team1.players[0]).id &&
+                      !!p.position
                   ),
                 "the fouler stays on the pitch (not Sent-off)"
               );
@@ -342,8 +344,12 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill === SkillType.SHADOWING &&
-                  !!(d as { effect?: string }).effect?.includes("follows")
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.SHADOWING &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("follows")
               ) &&
               playerStanding(r, "team1:0"),
             verify: (r) => {
@@ -370,14 +376,19 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill === SkillType.SHADOWING &&
-                  !!(d as { effect?: string }).effect?.includes("fails")
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.SHADOWING &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("fails")
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 playerAt(r, "team2:0", { x: 16, y: 5 }),
                 "the shadower must stay where they were"
-              ),
+              );
+            },
           },
         ],
       },

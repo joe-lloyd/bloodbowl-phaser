@@ -1,8 +1,9 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { stateChecksum } from "../../../src/headless/checksum";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
-import { Scenario } from "../../../src/types/Scenario";
+import { type Scenario } from "../../../src/types/Scenario";
 import { GameEventNames } from "../../../src/types/events";
 import { MomentQueue } from "../../../src/game/presentation/momentQueue";
 import { whenEngineQuiet } from "../../../src/game/core/GameFlowManager";
@@ -41,7 +42,7 @@ describe("engine boundaries wait for visual moments", () => {
       if (entry.headline === "TURNOVER") rows.push(entry.detail ?? "");
     });
     for (const game of [visual, headless]) {
-      game.ctx.gameService.declareAction(game.ctx.team1.players[0].id, "move");
+      game.ctx.gameService.declareAction({ playerId: fixtureValue(game.ctx.team1.players[0]).id, action: "move" });
     }
     bus.emit(GameEventNames.UI_DiceInAir, {
       count: 1,
@@ -71,7 +72,7 @@ describe("engine boundaries wait for visual moments", () => {
     await vi.runAllTimersAsync();
     expect(shown).toEqual(["turnover", "turn-started"]);
     expect(rows).toEqual([
-      `${visual.ctx.team1.players[0].playerName}: Failed Rush`,
+      `${fixtureValue(visual.ctx.team1.players[0]).playerName}: Failed Rush`,
     ]);
     expect(stateChecksum(visual)).toBe(stateChecksum(headless));
     queue.dispose();
@@ -90,15 +91,15 @@ describe("engine boundaries wait for visual moments", () => {
     for (const game of [visual, headless]) {
       game.ctx.gameService.addTouchdown(
         game.ctx.team1.id,
-        game.ctx.team1.players[0].id
+        fixtureValue(game.ctx.team1.players[0]).id
       );
     }
     await vi.advanceTimersByTimeAsync(1000);
-    bus.emit(GameEventNames.UI_SkipDriveSequence);
+    bus.emit(GameEventNames.UI_SkipDriveSequence, undefined);
     await vi.advanceTimersByTimeAsync(1499);
     expect(shown).toEqual(["touchdown"]);
     expect(visual.snapshot().phase).toBe(GamePhase.TOUCHDOWN);
-    expect(visual.ctx.team1.players[0].gridPosition).toEqual({ x: 18, y: 5 });
+    expect(fixtureValue(visual.ctx.team1.players[0]).gridPosition).toEqual({ x: 18, y: 5 });
     expect(headless.snapshot().phase).toBe(GamePhase.SETUP);
     await vi.runAllTimersAsync();
     expect(shown).toEqual(["touchdown", "next-kicker"]);

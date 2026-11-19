@@ -1,9 +1,3 @@
-/**
- * The HUD gallery: a second Vite entry that renders the real HUD components
- * with fixture data (src/gallery). `pnpm gallery` serves it; `pnpm
- * gallery:build` writes static files to dist-gallery with relative asset
- * paths, so the folder works from anywhere, including HTMLify.
- */
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "tailwindcss";

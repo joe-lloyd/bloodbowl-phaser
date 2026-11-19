@@ -1,4 +1,3 @@
-/** Replay saved commands without coach search; verify hashes and recount events. */
 import { fork } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -78,11 +77,11 @@ if (process.argv.includes("--worker")) {
           });
           child.stderr?.on("data", (data) => process.stderr.write(data));
           child.on("error", reject);
-          child.on("exit", (code) =>
+          child.on("exit", (code) => {
             code === 0
               ? done()
-              : reject(new Error(`Repair worker exited ${code}`))
-          );
+              : reject(new Error(`Repair worker exited ${String(code)}`));
+          });
           child.send(jobs.filter((_, index) => index % workers === i));
         })
     )

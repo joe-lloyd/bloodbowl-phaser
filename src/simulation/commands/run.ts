@@ -1,17 +1,17 @@
-/**
- * `pnpm sim`: a batch of matches between two coaches, with a summary and a
- * recording of every match that broke something.
- */
-
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { RosterName } from "../../types/Team";
-import { Coach } from "../coach";
-import { JevStats } from "../coaches/jev";
-import { Finding, FindingKind, MatchRecording, runMatch } from "../runMatch";
+import { type Coach } from "../coach";
+import { type JevStats } from "../coaches/jev";
+import {
+  type Finding,
+  type FindingKind,
+  type MatchRecording,
+  runMatch,
+} from "../runMatch";
 import { createCoachRng } from "../rng";
 import { buildMatchDump, renderIndexHtml, renderMatchHtml } from "../viewer";
-import { CoachName, makeCoach } from "./shared";
+import { type CoachName, makeCoach } from "./shared";
 
 const BLOCKING: ReadonlySet<FindingKind> = new Set([
   "invariant",
@@ -31,7 +31,7 @@ export interface RunOptions {
   record: "all" | "failures" | "none";
   concurrency: number;
   strict: boolean;
-  /** Write a playback page next to every recording, plus an index. */
+
   html: boolean;
 }
 
@@ -56,7 +56,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
   const pairing = createCoachRng(options.seed);
   const plan = Array.from({ length: options.games }, (_, i) => ({
     seed: options.seed + i,
-    rosters: [pairing.pick(options.rosters), pairing.pick(options.rosters)] as [
+    rosters: [pairing.pick(options.rosters), pairing.pick(options.rosters)] satisfies [
       RosterName,
       RosterName,
     ],
@@ -79,7 +79,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
           seed,
           rosters,
           coaches,
-          maxCommands: options.maxCommands,
+          ...(options.maxCommands === undefined ? {} : { maxCommands: options.maxCommands }),
         });
       } catch (error) {
         findings.push(runnerThrew(error, seed));
@@ -103,7 +103,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
       });
       done++;
       process.stderr.write(
-        `\r${done}/${plan.length} matches, ${findings.length} findings, ${((Date.now() - started) / 1000).toFixed(0)}s`
+        `\r${String(done)}/${String(plan.length)} matches, ${String(findings.length)} findings, ${((Date.now() - started) / 1000).toFixed(0)}s`
       );
     }
   };
@@ -174,7 +174,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
     fs.writeFileSync(
       path.join(options.out, "index.html"),
       renderIndexHtml({
-        title: `Simulation: ${options.home} vs ${options.away}, ${options.games} matches from seed ${options.seed}`,
+        title: `Simulation: ${options.home} vs ${options.away}, ${String(options.games)} matches from seed ${String(options.seed)}`,
         coaches: [options.home, options.away],
         matches: matches.flatMap((m) =>
           m.file
@@ -203,7 +203,6 @@ export async function runBatch(options: RunOptions): Promise<number> {
   return blocking ? 1 : 0;
 }
 
-/** The runner itself threw: report it like any other finding. */
 function runnerThrew(
   error: unknown,
   seed: number
@@ -221,7 +220,6 @@ function runnerThrew(
   };
 }
 
-/** Write the recording, and its playback page, if the run keeps it. */
 async function keepRecording(
   options: RunOptions,
   seed: number,
@@ -234,7 +232,7 @@ async function keepRecording(
   if (!keep) return null;
   const file = path.join(
     options.out,
-    `${seed}-${slug(rosters[0])}-vs-${slug(rosters[1])}.json`
+    `${String(seed)}-${slug(rosters[0])}-vs-${slug(rosters[1])}.json`
   );
   fs.writeFileSync(file, JSON.stringify(recording));
   if (options.html) {
@@ -276,17 +274,17 @@ function printSummary(
   options: RunOptions
 ): void {
   const lines = [
-    `${summary.completed}/${summary.matches} matches reached full time, ${summary.touchdowns} touchdowns, ` +
-      `${summary.averageCommands} commands and ${summary.averageMs} ms per match on average.`,
+    `${String(summary.completed)}/${String(summary.matches)} matches reached full time, ${String(summary.touchdowns)} touchdowns, ` +
+      `${String(summary.averageCommands)} commands and ${String(summary.averageMs)} ms per match on average.`,
     `Commands exercised: ${Object.entries(summary.commandCoverage)
       .sort((a, b) => b[1] - a[1])
-      .map(([k, v]) => `${k} ${v}`)
+      .map(([k, v]) => `${k} ${String(v)}`)
       .join(", ")}`,
   ];
   for (const stats of summary.jev ?? []) {
     lines.push(
-      `Jev: ${stats.calls} calls, ${stats.failures} failed, ${stats.calls ? Math.round(stats.totalMs / stats.calls) : 0} ms average, ` +
-        `${stats.inputTokens} input and ${stats.outputTokens} output tokens.`
+      `Jev: ${String(stats.calls)} calls, ${String(stats.failures)} failed, ${String(stats.calls ? Math.round(stats.totalMs / stats.calls) : 0)} ms average, ` +
+        `${String(stats.inputTokens)} input and ${String(stats.outputTokens)} output tokens.`
     );
   }
   lines.push(
@@ -295,12 +293,12 @@ function printSummary(
   );
   for (const g of grouped) {
     lines.push(
-      `  ${g.blocking ? "FAIL" : "warn"} ${g.key}: ${g.count}x in ${g.matches} matches`
+      `  ${g.blocking ? "FAIL" : "warn"} ${g.key}: ${String(g.count)}x in ${String(g.matches)} matches`
     );
     lines.push(`       ${g.example.message}`);
     if (g.example.file)
       lines.push(
-        `       pnpm sim:replay ${g.example.file} --step ${g.example.step}`
+        `       pnpm sim:replay ${g.example.file} --step ${String(g.example.step)}`
       );
   }
   lines.push("", `Summary: ${path.join(options.out, "summary.json")}`);

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import {
   setAdvancementMode,
-  Team,
-  TeamAdvancementMode,
-  TeamRoster,
+  type Team,
+  type TeamAdvancementMode,
+  type TeamRoster,
 } from "../../../types/Team";
 import {
   allocateMatchedPlaySkill,
@@ -23,15 +23,16 @@ import {
   Section,
 } from "../componentWarehouse/HudKit";
 
-export const MODE_LABELS: Record<TeamAdvancementMode, string> = {
+const MODE_LABELS: Record<TeamAdvancementMode, string> = {
   "matched-play": "Matched Play (tier Skill Points)",
   "advanced-league": "Advanced League (SPP)",
   "sevens-skill-selection": "Sevens Skill Selection (one skill per game)",
 };
 
-/** Compact labels for badges/pills (e.g. the Team Management overview card)
- *  where `MODE_LABELS`' parenthetical detail is too long. */
-export const ADVANCEMENT_MODE_SHORT_LABELS: Record<TeamAdvancementMode, string> = {
+export const ADVANCEMENT_MODE_SHORT_LABELS: Record<
+  TeamAdvancementMode,
+  string
+> = {
   "matched-play": "Matched Play",
   "advanced-league": "Advanced League",
   "sevens-skill-selection": "Skill Selection",
@@ -43,12 +44,6 @@ interface Props {
   onChange: (team: Team) => void;
 }
 
-/**
- * Owns the advancement-mode choice (try/catch around `setAdvancementMode`
- * plus its error message) so `TeamBuilder.tsx` can render the mode-selector
- * button row directly under the Team Colours block, visually grouped with
- * it, while this file still owns the mode-specific package UI below.
- */
 export function AdvancementModeSelector({
   team,
   onChange,
@@ -142,14 +137,14 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
 
   return (
     <Section
-      title={`Skill Points: ${status.remaining} of ${status.points} left`}
+      title={`Skill Points: ${String(status.remaining)} of ${String(status.points)} left`}
       aside="Matched Play"
       accent="skill"
     >
       <p className="mb-3 text-hud-sm text-hud-dim">
         A Primary skill costs 1 point and a Secondary skill 2. At most one
-        Secondary skill and two Elite skills per team, and one skill per
-        player. These skills do not raise team value.
+        Secondary skill and two Elite skills per team, and one skill per player.
+        These skills do not raise team value.
       </p>
 
       <ul className="mb-3 text-hud-sm">
@@ -167,7 +162,9 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
               <HudButton
                 variant="danger"
                 size="sm"
-                onClick={() => remove(allocation.playerId)}
+                onClick={() => {
+                  remove(allocation.playerId);
+                }}
               >
                 Remove
               </HudButton>
@@ -231,7 +228,9 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
             aria-label="Package skill"
             value={skill}
             disabled={!category}
-            onChange={(e) => setSkill(e.target.value as SkillType | "")}
+            onChange={(e) => {
+              setSkill(e.target.value as SkillType | "");
+            }}
             className="hud-field disabled:opacity-40"
           >
             <option value="">Skill</option>
@@ -261,7 +260,7 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
   );
 }
 
-export function ModeSelector({
+function ModeSelector({
   mode,
   locked,
   onChoose,
@@ -271,7 +270,11 @@ export function ModeSelector({
   onChoose: (mode: TeamAdvancementMode) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1.5" role="group" aria-label="Advancement Mode">
+    <div
+      className="flex flex-col gap-1.5"
+      role="group"
+      aria-label="Advancement Mode"
+    >
       <span className="hud-label">Advancement Mode</span>
       <div className="flex flex-wrap gap-2">
         {(Object.keys(MODE_LABELS) as TeamAdvancementMode[]).map((key) => (
@@ -279,7 +282,9 @@ export function ModeSelector({
             key={key}
             type="button"
             disabled={locked}
-            onClick={() => onChoose(key)}
+            onClick={() => {
+              onChoose(key);
+            }}
             title={MODE_LABELS[key]}
             aria-pressed={mode === key}
             className={cx(

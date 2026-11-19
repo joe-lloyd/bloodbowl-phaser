@@ -1,28 +1,12 @@
-/**
- * Per-case diagnostic bundles.
- *
- * A CI failure is only useful if it can be reproduced locally, and a stack
- * trace pointing at a checkpoint does not do that. Every failing run writes
- * a JSON bundle containing the whole story: the setup, the roster fixture,
- * the committed seed, the semantic steps as executed, which checkpoint
- * failed, the response stream, the events, and the initial and final
- * snapshots — plus the exact command to replay it.
- *
- * The browser lane writes the same bundle; Playwright's own trace,
- * screenshot, console output and retry video sit beside it in the same
- * artifact directory.
- */
-
 import {
-  ExecutionLayer,
-  ObservedRun,
-  ScenarioCase,
-  SeededVariant,
+  type ExecutionLayer,
+  type ObservedRun,
+  type ScenarioCase,
+  type SeededVariant,
 } from "../scenarioCase/types";
 import type { EngineObservedRun } from "../adapters/engineAdapter";
 
 export interface DiagnosticBundle {
-  /** `case-id/variant-id` — the stable name for filters and artifacts. */
   key: string;
   layer: ExecutionLayer;
   capturedAt: string;
@@ -64,7 +48,7 @@ export interface DiagnosticBundle {
   responses: unknown[];
   initialSnapshot: unknown;
   finalSnapshot: unknown;
-  /** Copy-pasteable commands to reproduce this exact run. */
+
   replay: {
     engine: string;
     browser: string;
@@ -82,7 +66,7 @@ export interface BundleInput {
     checkpointDescription: string;
     message: string;
   };
-  /** Overrides `new Date()`, so bundle fixtures can be compared in tests. */
+
   capturedAt?: string;
 }
 
@@ -117,8 +101,8 @@ export function buildDiagnosticBundle({
       expectedOutcome: variant.expectedOutcome,
     },
     fixture: {
-      team1Roster: scenarioCase.setup.team1Roster,
-      team2Roster: scenarioCase.setup.team2Roster,
+      ...(scenarioCase.setup.team1Roster === undefined ? {} : { team1Roster: scenarioCase.setup.team1Roster }),
+      ...(scenarioCase.setup.team2Roster === undefined ? {} : { team2Roster: scenarioCase.setup.team2Roster }),
       syntheticGrants: (scenarioCase.syntheticGrants ?? []).map((grant) => ({
         player: grant.player,
         ...(grant.skill ? { skill: String(grant.skill) } : {}),
@@ -126,8 +110,7 @@ export function buildDiagnosticBundle({
       })),
     },
     setup: scenarioCase.setup,
-    // Prefer the engine adapter's per-step record (it knows whether each
-    // command was accepted); fall back to the declared script otherwise.
+
     steps:
       engineRun.stepLog?.map((record) => ({
         index: record.index,
@@ -157,10 +140,6 @@ export function buildDiagnosticBundle({
   };
 }
 
-/**
- * The sandbox URL that reproduces this run. Deliberately free of runtime
- * player ids: only the stable case id, the committed seed, and the variant.
- */
 export function sandboxUrlFor(
   scenarioCase: ScenarioCase,
   variant: SeededVariant
@@ -173,7 +152,6 @@ export function sandboxUrlFor(
   return `/sand-box?${query.toString()}`;
 }
 
-/** A filesystem-safe name for a bundle file. */
 export function bundleFileName(
   scenarioCase: ScenarioCase,
   variant: SeededVariant,

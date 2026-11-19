@@ -1,6 +1,13 @@
+import { pendingDecisionSpy } from "./GameplayInteractionController.setup";
+import { serviceSpies } from "./GameplayInteractionController.setup";
+import { eventHandler } from "./GameplayInteractionController.setup";
+import { playerWith } from "./controllerFixtures";
+import { stateWith } from "./GameplayInteractionController.setup";
+import { eventBusSpies } from "./GameplayInteractionController.setup";
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
-import { GamePhase, GameState } from "../../../src/types/GameState";
+import type { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
+import { GamePhase, type GameState } from "../../../src/types/GameState";
 import { GameEventNames } from "../../../src/types/events";
 import {
   mockScene,
@@ -25,16 +32,16 @@ describe("GameplayInteractionController", () => {
 
   describe("after a reload or resync", () => {
     const restoreHandler = () =>
-      mockEventBus.on.mock.calls.find(
+      fixtureValue(eventBusSpies.on.mock.calls.find(
         ([event]) => event === GameEventNames.GameStateRestored
-      )![1] as () => void;
+      ))[1];
 
     it("selects this coach's player the engine has mid-move, so the coach can carry on moving", async () => {
-      mockGameService.getState.mockReturnValue({
+      mockGameService.getState.mockReturnValue(stateWith({
         activeTeamId: team1Id,
         weather: "Nice",
         activePlayer: { id: "p1", action: "move", committed: true },
-      } as unknown as GameState);
+      }));
       mockGameService.getActiveTeamId = vi.fn().mockReturnValue(team1Id);
       mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.hasPlayerActed.mockReturnValue(false);
@@ -49,54 +56,53 @@ describe("GameplayInteractionController", () => {
       restoreHandler()();
 
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
+      expect(eventBusSpies.emit).toHaveBeenCalledWith(
         "ui:updateActionSteps",
         expect.objectContaining({ currentStepId: "move" })
       );
-      mockMovementValidator.findPath.mockReturnValue({
+      mockMovementValidator.findPath.mockReturnValue({ cost: 0,
         valid: true,
         path: [{ x: 6, y: 5 }],
         rolls: [],
       });
-      // Plan the step, then confirm it on the same square
-      await (controller as any).onSquareClicked(6, 5);
-      await (controller as any).onSquareClicked(6, 5);
+
+      await (controller).onSquareClicked(6, 5);
+      await (controller).onSquareClicked(6, 5);
       await answerStepPrompt(true);
-      expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
+      expect(serviceSpies.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
       ]);
     });
 
     it("leaves the board alone when the active player is the other team's", () => {
-      mockGameService.getState.mockReturnValue({
+      mockGameService.getState.mockReturnValue(stateWith({
         activeTeamId: team2Id,
         weather: "Nice",
         activePlayer: { id: "p2", action: "move", committed: true },
-      } as unknown as GameState);
+      }));
       mockGameService.getActiveTeamId = vi.fn().mockReturnValue(team2Id);
       mockGameService.getPlayerById.mockReturnValue(player2);
       mockGameService.hasPlayerActed.mockReturnValue(false);
 
       restoreHandler()();
 
-      // Locally the board drives whichever team is active; online only its own
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p2");
     });
   });
 
   describe("a Bloodlust bite with a choice of Thralls", () => {
-    const handler = (name: string) =>
-      mockEventBus.on.mock.calls.find(([event]) => event === name)?.[1];
-    const restored = () =>
-      mockEventBus.on.mock.calls
+    const handler = eventHandler;
+    const restored = () => {
+      eventBusSpies.on.mock.calls
         .filter(([event]) => event === GameEventNames.GameStateRestored)
-        .forEach(([, h]) => h());
+        .forEach(([, h]) => { h(); });
+    };
     const thralls: Record<string, { x: number; y: number }> = {
       t1: { x: 6, y: 5 },
       t2: { x: 5, y: 6 },
     };
     const request = {
-      type: "bite-target",
+      type: "bite-target" as const,
       playerId: "p1",
       chooserTeamId: team1Id,
       targetIds: ["t1", "t2"],
@@ -105,23 +111,14 @@ describe("GameplayInteractionController", () => {
 
     beforeEach(() => {
       pending = request;
-      Object.assign(mockGameService, {
-        getDecisionService: vi.fn(() => ({ pending: () => pending })),
-        answerBiteTarget: vi.fn(() => {
-          pending = null;
-          return true;
-        }),
-      });
-      mockGameService.getState.mockReturnValue({
+      pendingDecisionSpy.mockImplementation(() => pending);
+      mockGameService.answerBiteTarget.mockImplementation(() => { pending = null; return true; });
+      mockGameService.getState.mockReturnValue(stateWith({
         activeTeamId: team1Id,
-      } as GameState);
+      }));
       mockGameService.getAvailableMovements.mockReturnValue([]);
       mockGameService.getPlayerById.mockImplementation((id: string) =>
-        thralls[id]
-          ? { id, teamId: team1Id, gridPosition: thralls[id] }
-          : id === "p1"
-            ? player1
-            : player2
+        { if (thralls[id]) { return playerWith({ id, teamId: team1Id, gridPosition: thralls[id] }); } if (id === "p1") { return player1; } return player2; }
       );
       mockPitch.highlightSquare.mockImplementation(function () {
         const marker = {
@@ -137,26 +134,26 @@ describe("GameplayInteractionController", () => {
     it("marks every Thrall on the pitch", () => {
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("t1", 0xef4444);
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("t2", 0xef4444);
-      expect(mockPitch.highlightSquare).toHaveBeenCalledWith(6, 5, 0xef4444);
-      expect(mockPitch.highlightSquare).toHaveBeenCalledWith(5, 6, 0xef4444);
+      expect(mockPitch.highlightSquare).toHaveBeenCalledWith({ x: 6, y: 5 }, 0xef4444);
+      expect(mockPitch.highlightSquare).toHaveBeenCalledWith({ x: 5, y: 6 }, 0xef4444);
     });
 
     it("ignores clicks on anyone else, and on empty squares", async () => {
       controller.handlePlayerClick("p2");
       controller.handlePlayerClick("p1");
-      await (controller as any).onSquareClicked(10, 10);
+      await (controller).onSquareClicked(10, 10);
 
-      expect(mockGameService.answerBiteTarget).not.toHaveBeenCalled();
+      expect(serviceSpies.answerBiteTarget).not.toHaveBeenCalled();
       expect(mockScene.highlightPlayer).not.toHaveBeenCalledWith("p1");
-      expect(mockGameService.getAvailableMovements).not.toHaveBeenCalled();
+      expect(serviceSpies.getAvailableMovements).not.toHaveBeenCalled();
     });
 
     it("bites the clicked Thrall, once, even if the click is reported twice", async () => {
       controller.handlePlayerClick("t2");
-      await (controller as any).onSquareClicked(5, 6);
+      await (controller).onSquareClicked(5, 6);
 
-      expect(mockGameService.answerBiteTarget).toHaveBeenCalledTimes(1);
-      expect(mockGameService.answerBiteTarget).toHaveBeenCalledWith("t2");
+      expect(serviceSpies.answerBiteTarget).toHaveBeenCalledTimes(1);
+      expect(serviceSpies.answerBiteTarget).toHaveBeenCalledWith("t2");
       expect(mockScene.unhighlightPlayer).toHaveBeenCalledWith("t1");
       expect(mockScene.unhighlightPlayer).toHaveBeenCalledWith("t2");
     });
@@ -166,7 +163,7 @@ describe("GameplayInteractionController", () => {
       handler(GameEventNames.DecisionResolved)({ type: "bite-target" });
       controller.handlePlayerClick("p1");
 
-      expect(mockGameService.answerBiteTarget).not.toHaveBeenCalled();
+      expect(serviceSpies.answerBiteTarget).not.toHaveBeenCalled();
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
     });
 
@@ -175,13 +172,12 @@ describe("GameplayInteractionController", () => {
       restored();
       controller.handlePlayerClick("p1");
 
-      expect(mockGameService.answerBiteTarget).not.toHaveBeenCalled();
+      expect(serviceSpies.answerBiteTarget).not.toHaveBeenCalled();
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
     });
 
     it("marks the Thralls again when the host refuses the bite, and a Thrall click still bites", () => {
-      // Online the answer is only sent: the bite stays pending until it returns
-      (mockGameService.answerBiteTarget as any).mockImplementation(() => true);
+      mockGameService.answerBiteTarget.mockImplementation(() => true);
       controller.handlePlayerClick("t1");
       mockScene.highlightPlayer.mockClear();
       mockPitch.highlightSquare.mockClear();
@@ -196,9 +192,9 @@ describe("GameplayInteractionController", () => {
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("t2", 0xef4444);
       expect(mockPitch.highlightSquare).toHaveBeenCalledTimes(2);
       controller.handlePlayerClick("t2");
-      expect(mockGameService.answerBiteTarget).toHaveBeenLastCalledWith("t2");
-      expect(mockGameService.answerBiteTarget).toHaveBeenCalledTimes(2);
-      expect(mockGameService.getAvailableMovements).not.toHaveBeenCalled();
+      expect(serviceSpies.answerBiteTarget).toHaveBeenLastCalledWith("t2");
+      expect(serviceSpies.answerBiteTarget).toHaveBeenCalledTimes(2);
+      expect(serviceSpies.getAvailableMovements).not.toHaveBeenCalled();
     });
 
     it("leaves the board free when a refused bite is no longer pending", () => {
@@ -225,27 +221,27 @@ describe("GameplayInteractionController", () => {
 
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("t1", 0xef4444);
       controller.handlePlayerClick("t1");
-      expect(mockGameService.answerBiteTarget).toHaveBeenCalledWith("t1");
+      expect(serviceSpies.answerBiteTarget).toHaveBeenCalledWith("t1");
     });
   });
 
   describe("switching players mid-activation", () => {
-    const teammate = {
+    const teammate = playerWith({
       id: "p3",
       teamId: team1Id,
       gridPosition: { x: 2, y: 2 },
       stats: { MA: 6 },
       status: "Active",
       skills: [],
-    };
+    });
     const byId = (id: string) =>
-      ({ p1: player1, p2: player2, p3: teammate })[id as "p1"];
-    const stateWith = (active: object | null) =>
-      mockGameService.getState.mockReturnValue({
+      new Map([["p1", player1], ["p2", player2], ["p3", teammate]]).get(id);
+    const setActive = (active: GameState["activePlayer"]) =>
+      mockGameService.getState.mockReturnValue(stateWith({
         activeTeamId: team1Id,
         weather: "Nice",
         activePlayer: active,
-      } as unknown as GameState);
+      }));
 
     beforeEach(() => {
       mockGameService.getPlayerById.mockImplementation(byId);
@@ -258,30 +254,30 @@ describe("GameplayInteractionController", () => {
     });
 
     it("ends the moving player's activation when the coach picks another of theirs", () => {
-      stateWith({ id: "p1", action: "move", committed: true });
+      setActive({ id: "p1", action: "move", committed: true });
       controller.handlePlayerClick("p3");
-      expect(mockGameService.finishActivation).toHaveBeenCalledWith("p1");
+      expect(serviceSpies.finishActivation).toHaveBeenCalledWith("p1");
       expect(mockScene.highlightPlayer).toHaveBeenLastCalledWith("p3");
     });
 
     it("releases a declaration nothing has happened on yet", () => {
-      stateWith({ id: "p1", action: "blitz", committed: false });
+      setActive({ id: "p1", action: "blitz", committed: false });
       controller.handlePlayerClick("p3");
-      expect(mockGameService.cancelAction).toHaveBeenCalledWith("p1");
-      expect(mockGameService.finishActivation).not.toHaveBeenCalled();
+      expect(serviceSpies.cancelAction).toHaveBeenCalledWith("p1");
+      expect(serviceSpies.finishActivation).not.toHaveBeenCalled();
     });
 
     it("leaves the activation alone when the coach looks at an opponent", () => {
-      stateWith({ id: "p1", action: "move", committed: true });
+      setActive({ id: "p1", action: "move", committed: true });
       controller.selectPlayer("p2");
-      expect(mockGameService.finishActivation).not.toHaveBeenCalled();
-      expect(mockGameService.cancelAction).not.toHaveBeenCalled();
+      expect(serviceSpies.finishActivation).not.toHaveBeenCalled();
+      expect(serviceSpies.cancelAction).not.toHaveBeenCalled();
     });
 
     it("carries on with the player who moved when they are clicked again", async () => {
-      stateWith({ id: "p1", action: "move", committed: true });
+      setActive({ id: "p1", action: "move", committed: true });
       controller.handlePlayerClick("p1");
-      mockMovementValidator.findPath.mockReturnValue({
+      mockMovementValidator.findPath.mockReturnValue({ cost: 0,
         valid: true,
         path: [{ x: 6, y: 5 }],
         rolls: [],
@@ -289,13 +285,13 @@ describe("GameplayInteractionController", () => {
       mockMovementValidator.analyzePath.mockReturnValue({
         requiresDodge: false,
       });
-      await (controller as any).onSquareClicked(6, 5);
-      await (controller as any).onSquareClicked(6, 5);
+      await (controller).onSquareClicked(6, 5);
+      await (controller).onSquareClicked(6, 5);
       await answerStepPrompt(true);
-      expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
+      expect(serviceSpies.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
       ]);
-      expect(mockGameService.declareAction).not.toHaveBeenCalled();
+      expect(serviceSpies.declareAction).not.toHaveBeenCalled();
     });
   });
 });

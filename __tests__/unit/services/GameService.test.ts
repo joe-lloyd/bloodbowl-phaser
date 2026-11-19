@@ -1,6 +1,7 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameService } from "../../../src/services/GameService.js";
-import { IGameService } from "../../../src/services/interfaces/IGameService.js";
+import { type IGameService } from "../../../src/services/interfaces/IGameService.js";
 import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
 import { GamePhase } from "../../../src/types/GameState.js";
@@ -43,15 +44,9 @@ describe("GameService", () => {
       allowsFollowUp: vi.fn().mockReturnValue(true),
     } as any;
 
-    gameService = new GameService(
-      eventBus,
-      team1,
-      team2,
-      mockRngService,
-      mockBlockResolutionService
+    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: mockRngService, blockResolutionService: mockBlockResolutionService }
     );
 
-    // Fix: Transition to SETUP phase explicitly
     gameService.startSetup();
   });
 
@@ -105,7 +100,7 @@ describe("GameService", () => {
     const notificationsOf = () => {
       const notifications: string[] = [];
       eventBus.on(GameEventNames.UI_Notification, (msg) =>
-        notifications.push(msg as string)
+        notifications.push(msg)
       );
       const gameLog: string[] = [];
       eventBus.on(GameEventNames.UI_GameLog, (msg) => gameLog.push(msg));
@@ -138,12 +133,12 @@ describe("GameService", () => {
         phase: GamePhase.GAME_OVER,
       });
 
-      expect(notifications[0].toLowerCase()).toContain("draw");
+      expect(fixtureValue(notifications[0]).toLowerCase()).toContain("draw");
     });
 
     it("labels a concession by the conceding team without inventing a score", () => {
       const { notifications } = notificationsOf();
-      // A concession never touches the played score — it stays 0-0.
+
       gameService.getState().result = {
         reason: "concession",
         concedingTeamId: "team-1",

@@ -1,17 +1,3 @@
-/**
- * Proves that skipping unchanged frames never leaves a stale picture:
- * `pnpm exec tsx scripts/perf/verifyRender.ts`.
- *
- * Phaser draws only when the board changed (renderOnChange.ts). With reduced
- * motion on, a still board does not animate, so at each checkpoint this
- * screenshots what is on screen, forces two real draws by nudging the
- * stadium's alpha and putting it back, and screenshots again. Any
- * difference means a change was on the board but not on screen.
- *
- * `--control` crops the stadium, which the change check does not read, to
- * show that this check catches a stale frame.
- */
-
 import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { chromium, type Browser, type Page } from "@playwright/test";
@@ -50,10 +36,9 @@ let page: Page;
 let app: GameApp;
 let stale = 0;
 
-// Strings, because tsx would wrap functions in helpers the page lacks
 const frames = (n: number) =>
   page.evaluate(
-    `new Promise((done) => { let left = ${n}; const f = () => (--left <= 0 ? done(0) : requestAnimationFrame(f)); requestAnimationFrame(f); })`
+    `new Promise((done) => { let left = ${String(n)}; const f = () => (--left <= 0 ? done(0) : requestAnimationFrame(f)); requestAnimationFrame(f); })`
   );
 const stadium = `window.game.scene.getScenes(true).at(-1).children.list.find((o) => o.type === "Image")`;
 
@@ -65,7 +50,10 @@ async function check(name: string) {
   await page.evaluate(`${stadium}.alpha = 1`);
   await frames(3);
   const fresh = await page.screenshot({ animations: "disabled" });
-  if (shown.equals(fresh)) return console.log(`${name}: same`);
+  if (shown.equals(fresh)) {
+    console.log(`${name}: same`);
+    return;
+  }
   stale++;
   mkdirSync(OUT, { recursive: true });
   writeFileSync(`${OUT}/${name}-shown.png`, shown);
@@ -74,9 +62,8 @@ async function check(name: string) {
 }
 
 try {
-  // Ready when the preview answers, so a slow build machine does not race it
   for (let tries = 0; ; tries++) {
-    const up = await fetch(`http://127.0.0.1:${PORT}/`).then(
+    const up = await fetch(`http://127.0.0.1:${String(PORT)}/`).then(
       (res) => res.ok,
       () => false
     );
@@ -86,7 +73,7 @@ try {
   }
   browser = await chromium.launch();
   page = await browser.newPage({
-    baseURL: `http://127.0.0.1:${PORT}`,
+    baseURL: `http://127.0.0.1:${String(PORT)}`,
     viewport: { width: 1440, height: 900 },
     reducedMotion: "reduce",
   });
@@ -124,5 +111,7 @@ try {
   await browser?.close();
   preview.kill();
 }
-console.log(stale ? `${stale} stale checkpoint(s)` : "every checkpoint fresh");
+console.log(
+  stale ? `${String(stale)} stale checkpoint(s)` : "every checkpoint fresh"
+);
 process.exitCode = control ? (stale ? 0 : 1) : stale ? 1 : 0;

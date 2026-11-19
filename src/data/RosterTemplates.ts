@@ -1,16 +1,15 @@
-/**
- * Roster templates for different Blood Bowl races
- * Based on the 2025 rulebook (Third Season) roster pages, the March 2026
- * High Elf release and the May 2026 errata
- */
-
 import {
   RaceKeyWord,
   PositionKeyWord,
   TraitKeyWord,
-  PlayerTemplate,
+  type PlayerTemplate,
 } from "../types/Player";
-import { League, TeamRoster, TeamSpecialRule, RosterName } from "../types/Team";
+import {
+  League,
+  type TeamRoster,
+  TeamSpecialRule,
+  RosterName,
+} from "../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../types/Skills";
 
 const AMAZON_ROSTER: TeamRoster = {
@@ -73,9 +72,6 @@ const AMAZON_ROSTER: TeamRoster = {
   ],
 };
 
-/**
- * Black Orc Team Roster
- */
 const BLACK_ORC_ROSTER: TeamRoster = {
   rosterName: RosterName.BLACK_ORC,
   rerollCost: 60_000,
@@ -140,9 +136,6 @@ const BLACK_ORC_ROSTER: TeamRoster = {
   ],
 };
 
-/**
- * Bretonian Team Roster
- */
 const BRETONIAN_ROSTER: TeamRoster = {
   rosterName: RosterName.BRETONIAN,
   rerollCost: 60_000,
@@ -558,7 +551,6 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
       ],
     },
     {
-      // @TODO check stats
       positionName: "Renegade Rat Ogre",
       keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.SKAVEN],
       cost: 150_000,
@@ -602,9 +594,6 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
   ],
 };
 
-/**
- * Dark Elf Team Roster
- */
 const DARK_ELF_ROSTER: TeamRoster = {
   rosterName: RosterName.DARK_ELF,
   rerollCost: 50_000,
@@ -682,9 +671,6 @@ const DARK_ELF_ROSTER: TeamRoster = {
   ],
 };
 
-/**
- * Dwarf Team Roster
- */
 const DWARF_ROSTER: TeamRoster = {
   rosterName: RosterName.DWARF,
   rerollCost: 60_000,
@@ -781,9 +767,6 @@ const DWARF_ROSTER: TeamRoster = {
   ],
 };
 
-/**
- * Elven Union Team Roster
- */
 const ELVEN_UNION_ROSTER: TeamRoster = {
   rosterName: RosterName.ELVEN_UNION,
   rerollCost: 50_000,
@@ -843,9 +826,6 @@ const ELVEN_UNION_ROSTER: TeamRoster = {
   ],
 };
 
-/**
- * High Elf Team Roster
- */
 const HIGH_ELF_ROSTER: TeamRoster = {
   rosterName: RosterName.HIGH_ELF,
   rerollCost: 50_000,
@@ -2991,10 +2971,6 @@ const WOOD_ELF_ROSTER: TeamRoster = {
   ],
 };
 
-/**
- * Get roster template by race
- */
-
 export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
   switch (rosterName) {
     case RosterName.AMAZON:
@@ -3058,13 +3034,10 @@ export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
     case RosterName.WOOD_ELF:
       return WOOD_ELF_ROSTER;
     default:
-      throw new Error(`Invalid roster name: ${rosterName}`);
+      throw new Error(`Invalid roster name: ${String(rosterName)}`);
   }
 }
 
-/**
- * Get all available roster names
- */
 export function getAvailableRosterNames(): RosterName[] {
   return [
     RosterName.AMAZON,
@@ -3100,10 +3073,7 @@ export function getAvailableRosterNames(): RosterName[] {
   ];
 }
 
-/**
- * Get player template by position from roster
- */
-export function getPlayerTemplate(
+function getPlayerTemplate(
   roster: TeamRoster,
   position: PositionKeyWord
 ): PlayerTemplate | undefined {

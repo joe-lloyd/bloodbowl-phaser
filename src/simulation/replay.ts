@@ -1,27 +1,22 @@
-/**
- * Replays a recording against a fresh engine. No coach runs: the recorded
- * commands are the whole input, so a replay needs no API key and no luck.
- */
-
 import { HeadlessGame } from "../headless/HeadlessGame";
 import {
-  MatchRecording,
+  type MatchRecording,
   RECORDING_FORMAT,
   createSimGame,
   grantSimInducements,
   summarize,
 } from "./runMatch";
-import { createRuleMonitor, InvariantViolation } from "./invariants";
+import { createRuleMonitor, type InvariantViolation } from "./invariants";
 
 export interface ReplayResult {
   game: HeadlessGame;
-  /** Steps executed (all of them unless `untilStep` stopped early). */
+
   executed: number;
-  /** First step whose accept/reject differed from the recording, if any. */
+
   divergedAt: number | null;
-  /** Final state matches the recording; only meaningful for a full replay. */
+
   matches: boolean;
-  /** Invariants broken during the replay, with the step that broke them. */
+
   violations: (InvariantViolation & { step: number })[];
 }
 
@@ -47,7 +42,6 @@ export function parseRecording(text: string): MatchRecording {
   return value as MatchRecording;
 }
 
-/** Replay up to and including `untilStep` (default: every step). */
 export async function replayRecording(
   recording: MatchRecording,
   untilStep = recording.steps.length - 1
@@ -88,11 +82,6 @@ export async function replayRecording(
   return { game, executed, divergedAt, matches, violations };
 }
 
-/**
- * The first `steps` steps of a recording, as a recording of its own: how a
- * failing match becomes a committed regression fixture. The `final` block is
- * the original's and is not meaningful for the trimmed copy.
- */
 export function trimRecording(
   recording: MatchRecording,
   steps: number

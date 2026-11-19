@@ -1,6 +1,11 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { computeActionAvailability } from "../../../src/game/rules/actionAvailability";
-import { Player, PlayerStatus, PlayerCondition } from "../../../src/types/Player";
+import {
+  type Player,
+  PlayerStatus,
+  PlayerCondition,
+} from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 
 const P = (over: Partial<Player>): Player =>
@@ -25,10 +30,10 @@ const noTurn = {
 
 const base = () => ({
   player: P({ gridPosition: { x: 5, y: 5 } }),
-  ballPosition: null as { x: number; y: number } | null,
-  opponents: [] as Player[],
-  teammates: [] as Player[],
-  reachable: [] as { x: number; y: number; cost?: number }[],
+  ballPosition: null,
+  opponents: new Array<Player>(),
+  teammates: new Array<Player>(),
+  reachable: new Array<{ x: number; y: number; cost?: number }>(),
   turn: { ...noTurn },
   hasMovedInAction: false,
 });
@@ -40,7 +45,7 @@ describe("computeActionAvailability", () => {
       P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }),
     ];
     expect(computeActionAvailability(input).block).toBe(true);
-    // Once the player has moved, a Block needs a Blitz instead.
+
     input.hasMovedInAction = true;
     expect(computeActionAvailability(input).block).toBe(false);
   });
@@ -60,7 +65,7 @@ describe("computeActionAvailability", () => {
 
   it("offers Jump over an adjacent Prone player with an empty landing square", () => {
     const input = base();
-    // Prone player directly to the right; (7,5) is the empty landing square.
+
     input.opponents = [
       P({
         id: "e",
@@ -75,7 +80,7 @@ describe("computeActionAvailability", () => {
   it("hides Jump when the only adjacent player is Standing (needs Leap/Pogo)", () => {
     const input = base();
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }), // Standing
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }),
     ];
     expect(computeActionAvailability(input).jump).toBe(false);
   });
@@ -87,7 +92,7 @@ describe("computeActionAvailability", () => {
       skills: [getSkill(SkillType.LEAP)],
     });
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }), // Standing
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }),
     ];
     expect(computeActionAvailability(input).jump).toBe(true);
   });
@@ -101,7 +106,7 @@ describe("computeActionAvailability", () => {
         gridPosition: { x: 6, y: 5 },
         status: PlayerStatus.PRONE,
       }),
-      // Push-back squares of (6,5) from (5,5) are (7,5)/(7,4)/(7,6) — fill them.
+
       P({ id: "e2", teamId: "team2", gridPosition: { x: 7, y: 5 } }),
       P({ id: "e3", teamId: "team2", gridPosition: { x: 7, y: 4 } }),
       P({ id: "e4", teamId: "team2", gridPosition: { x: 7, y: 6 } }),
@@ -111,8 +116,7 @@ describe("computeActionAvailability", () => {
 
   it("offers Jump over a diagonally-adjacent downed player (push-back squares)", () => {
     const input = base();
-    // Prone player at (6,6) diagonal to the jumper at (5,5): push-back squares
-    // (7,7)/(7,6)/(6,7) are empty, so a Jump is offered.
+
     input.opponents = [
       P({
         id: "e",
@@ -152,7 +156,7 @@ describe("computeActionAvailability", () => {
 
   it("hides Pass/Hand-off when the player neither holds nor can reach the ball", () => {
     const input = base();
-    input.ballPosition = { x: 1, y: 1 }; // far, not in reachable
+    input.ballPosition = { x: 1, y: 1 };
     const a = computeActionAvailability(input);
     expect(a.pass).toBe(false);
     expect(a.handoff).toBe(false);
@@ -160,8 +164,8 @@ describe("computeActionAvailability", () => {
 
   it("shows Pass when holding the ball, but Hand-off only with a reachable team-mate", () => {
     const input = base();
-    input.ballPosition = { x: 5, y: 5 }; // on the player
-    // no team-mates yet
+    input.ballPosition = { x: 5, y: 5 };
+
     expect(computeActionAvailability(input).pass).toBe(true);
     expect(computeActionAvailability(input).handoff).toBe(false);
 
@@ -173,7 +177,7 @@ describe("computeActionAvailability", () => {
 
   it("hides Hand-off when the only adjacent team-mate is Distracted (lost its Tackle Zone)", () => {
     const input = base();
-    input.ballPosition = { x: 5, y: 5 }; // on the player
+    input.ballPosition = { x: 5, y: 5 };
     input.teammates = [
       P({
         id: "m",
@@ -182,8 +186,7 @@ describe("computeActionAvailability", () => {
         conditions: [{ type: PlayerCondition.DISTRACTED }],
       }),
     ];
-    // A Distracted team-mate is "Standing" but has lost its Tackle Zone, so
-    // it is not a legal Hand-off target even though Pass is unaffected.
+
     expect(computeActionAvailability(input).pass).toBe(true);
     expect(computeActionAvailability(input).handoff).toBe(false);
   });
@@ -207,7 +210,7 @@ describe("computeActionAvailability", () => {
       }),
     ];
     expect(computeActionAvailability(input).blitz).toBe(false);
-    input.reachable = [{ x: 8, y: 5, cost: 3 }]; // adjacent to the enemy
+    input.reachable = [{ x: 8, y: 5, cost: 3 }];
     expect(computeActionAvailability(input).blitz).toBe(true);
   });
 
@@ -217,7 +220,7 @@ describe("computeActionAvailability", () => {
       gridPosition: { x: 5, y: 5 },
       skills: [getSkill(SkillType.HYPNOTIC_GAZE)],
     });
-    // no enemy adjacent yet
+
     expect(computeActionAvailability(input).gaze).toBe(false);
     input.opponents = [
       P({
@@ -228,13 +231,11 @@ describe("computeActionAvailability", () => {
       }),
     ];
     expect(computeActionAvailability(input).gaze).toBe(true);
-    // a player without the skill never sees it
+
     input.player = P({ gridPosition: { x: 5, y: 5 } });
     expect(computeActionAvailability(input).gaze).toBe(false);
   });
 
-  // Errata (May 2026, p.122/125): a Prone player may still declare a Special
-  // Action that lets them first make a free Move Action: Punt and Gaze.
   it("offers a Prone player Hypnotic Gaze against a reachable opponent", () => {
     const input = base();
     input.player = P({
@@ -351,7 +352,7 @@ describe("computeActionAvailability", () => {
       gridPosition: { x: 5, y: 5 },
       skills: [getSkill(SkillType.THROW_TEAM_MATE)],
     });
-    // A Right-Stuff, ST 2 team-mate standing adjacent — eligible target.
+
     input.teammates = [
       P({
         id: "m",
@@ -363,13 +364,11 @@ describe("computeActionAvailability", () => {
     ];
     expect(computeActionAvailability(input).throwTeammate).toBe(true);
 
-    // Same mate but Strength 4 — no longer a legal target.
-    input.teammates[0].stats.ST = 4;
+    fixtureValue(input.teammates[0]).stats.ST = 4;
     expect(computeActionAvailability(input).throwTeammate).toBe(false);
 
-    // Reset to ST 2 but strip Right Stuff — still not a target.
-    input.teammates[0].stats.ST = 2;
-    input.teammates[0].skills = [];
+    fixtureValue(input.teammates[0]).stats.ST = 2;
+    fixtureValue(input.teammates[0]).skills = [];
     expect(computeActionAvailability(input).throwTeammate).toBe(false);
   });
 

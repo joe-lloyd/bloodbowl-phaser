@@ -1,13 +1,14 @@
-import { dodgeTarget, markingPlayers, RouteRoll } from "./rollPreview";
-import { Player } from "../../types/Player";
+import { dodgeTarget, markingPlayers, type RouteRoll } from "./rollPreview";
+import { type Player } from "../../types/Player";
 
-type Square = { x: number; y: number };
+interface Square {
+  x: number;
+  y: number;
+}
 
-/** The roll a step needs, as the number the coach must reach on a D6. */
 type MovementRisk =
   | { kind: "dodge"; dodgeNeed: number }
   | { kind: "rush"; rushNeed: number }
-  /** Both: the Rush is rolled first (rulebook p.62). */
   | { kind: "rush-dodge"; rushNeed: number; dodgeNeed: number };
 
 export type StepRisk =
@@ -46,35 +47,34 @@ export function stepRolls(risk: StepRisk, square: Square): RouteRoll[] {
   }
 }
 
-/**
- * One piece of a planned route. A risky leg is a single step whose roll the
- * coach confirms first; a safe leg is a run of steps that roll nothing.
- */
 export type MoveLeg =
-  | { risk: null; path: Square[] }
+  | { risk: null; path: [Square, ...Square[]] }
   | { risk: StepRisk; path: [Square] };
 
 export interface LegContext {
-  /** Opponents on the pitch; only those with a Tackle Zone mark squares. */
   opponents: Player[];
   player: Player;
   ma: number;
-  /** Squares already spent this activation, stand-up cost included. */
+
   used: number;
-  /** Weather and inducement modifier on Rush rolls (0 normally). */
+
   rushModifier: number;
   pickup?: { square: Square; target: number; securing?: boolean };
 }
 
-/** A natural 1 always fails and a natural 6 always passes. */
 const need = (target: number) => Math.min(6, Math.max(2, target));
 
-function movementRisk(
-  rush: boolean,
-  dodge: boolean,
-  rushNeed: number,
-  dodgeNeed: number
-): MovementRisk | null {
+function movementRisk({
+  rush,
+  dodge,
+  rushNeed,
+  dodgeNeed,
+}: {
+  rush: boolean;
+  dodge: boolean;
+  rushNeed: number;
+  dodgeNeed: number;
+}): MovementRisk | null {
   if (rush && dodge) return { kind: "rush-dodge", rushNeed, dodgeNeed };
   if (rush) return { kind: "rush", rushNeed };
   if (dodge) return { kind: "dodge", dodgeNeed };
@@ -99,40 +99,57 @@ function stepRisk(
       };
 }
 
-/**
- * Split a route into legs at every step that needs a roll, so the board can
- * walk the safe part, stop, and ask before each Dodge or Rush.
- */
+function pickupAt(pickup: LegContext["pickup"], step: Square) {
+  return pickup && pickup.square.x === step.x && pickup.square.y === step.y
+    ? pickup
+    : null;
+}
+
+function riskAt({
+  from,
+  step,
+  ctx,
+  index,
+  pickup,
+}: {
+  from: Square;
+  step: Square;
+  ctx: LegContext;
+  index: number;
+  pickup: LegContext["pickup"];
+}) {
+  const ball = pickupAt(pickup, step);
+  const movement = movementRisk({
+    rush: ctx.used + index + 1 > ctx.ma,
+    dodge: markingPlayers(from, ctx.opponents).length > 0,
+    rushNeed: need(2 - ctx.rushModifier),
+    dodgeNeed: dodgeTarget(ctx.player, from, step, ctx.opponents),
+  });
+  return { risk: stepRisk(movement, ball), pickedUp: ball !== null };
+}
+
 export function planMoveLegs(
   start: Square,
   path: Square[],
   ctx: LegContext
 ): MoveLeg[] {
   const legs: MoveLeg[] = [];
-  let safe: Square[] = [];
+  let safe: [Square, ...Square[]] | null = null;
   let from = start;
   let pickup = ctx.pickup;
-  path.forEach((step, i) => {
-    const rush = ctx.used + i + 1 > ctx.ma;
-    const dodge = markingPlayers(from, ctx.opponents).length > 0;
-    const dodgeNeed = dodgeTarget(ctx.player, from, step, ctx.opponents);
+  for (const [index, step] of path.entries()) {
+    const { risk, pickedUp } = riskAt({ from, step, ctx, index, pickup });
     from = step;
-    const ball =
-      pickup && pickup.square.x === step.x && pickup.square.y === step.y
-        ? pickup
-        : null;
-    if (ball) pickup = undefined;
-    if (!rush && !dodge && !ball) {
-      safe.push(step);
-      return;
+    if (pickedUp) pickup = undefined;
+    if (!risk) {
+      if (safe) safe.push(step);
+      else safe = [step];
+      continue;
     }
-    if (safe.length) legs.push({ risk: null, path: safe });
-    safe = [];
-    const rushNeed = need(2 - ctx.rushModifier);
-    const movement = movementRisk(rush, dodge, rushNeed, dodgeNeed);
-    const risk = stepRisk(movement, ball);
-    if (risk) legs.push({ risk, path: [step] });
-  });
-  if (safe.length) legs.push({ risk: null, path: safe });
+    if (safe) legs.push({ risk: null, path: safe });
+    safe = null;
+    legs.push({ risk, path: [step] });
+  }
+  if (safe) legs.push({ risk: null, path: safe });
   return legs;
 }

@@ -1,16 +1,6 @@
 import type { ReactNode } from "react";
 import type { ConnectionState } from "../../../firebase/lobby";
 
-/**
- * In-match options menu — context-derived descriptors.
- *
- * The menu never hides entries with ad hoc CSS: it always renders exactly
- * the entries this function returns for the given context, so both local
- * and online coverage can assert precisely what a coach can do at any
- * moment (see design.md, "Use one menu trigger with context-derived
- * entries").
- */
-
 export type MatchOptionsMenuActionId =
   | "exit-sandbox"
   | "return-to-menu"
@@ -24,7 +14,7 @@ export type MatchOptionsMenuActionId =
   | "reconnect"
   | "force-abandon";
 
-export interface MatchOptionsMenuConfirm {
+interface MatchOptionsMenuConfirm {
   title: string;
   message: string;
   confirmLabel: string;
@@ -32,27 +22,21 @@ export interface MatchOptionsMenuConfirm {
 }
 
 export interface MatchOptionsMenuActionEntry {
-  /** Defaults to "action" — a plain labelled/selectable row. */
   type?: "action";
   id: MatchOptionsMenuActionId;
   label: string;
   description?: string;
-  /** Ends or discards something irreversible; rendered with a confirm step. */
+
   destructive?: boolean;
-  /** Present only on destructive entries — the confirm step's copy. */
+
   confirm?: MatchOptionsMenuConfirm;
-  /** Informational or currently unavailable — not selectable. */
+
   disabled?: boolean;
 }
 
-/**
- * An entry that hosts an inline interactive control (e.g. the mute
- * checkbox + volume slider) instead of a simple labelled action. Rendered
- * directly inside the open menu — no nested popup, no `onSelect` routing.
- */
-export interface MatchOptionsMenuPanelEntry {
+interface MatchOptionsMenuPanelEntry {
   type: "panel";
-  /** Unique among this menu's entries; not one of MatchOptionsMenuActionId since it's never "selected". */
+
   id: string;
   render: () => ReactNode;
 }
@@ -69,7 +53,7 @@ export type MatchOptionsMenuContext =
       role: "host" | "guest";
       opponentName: string;
       connection: ConnectionState;
-      /** Who (if anyone) has proposed ending the match. */
+
       endRequest: "none" | "mine" | "theirs";
     };
 
@@ -131,13 +115,6 @@ function onlineEntries(context: {
   const { role, opponentName, connection, endRequest } = context;
   const entries: MatchOptionsMenuEntry[] = [];
 
-  // Saving is host-authoritative — the guest holds no engine of its own to
-  // flush. Rather than silently no-op a "Save & Exit" click for the guest,
-  // the host-only action stays visible but disabled with the reason (design
-  // decision: "Actions that only the host may perform are disabled or
-  // omitted for guests with an explanation"), and the guest gets its own,
-  // always-available way to leave — the host's periodic autosave already
-  // keeps the match resumable regardless of who clicks what.
   if (role === "host") {
     entries.push({
       id: "save-and-exit",
@@ -173,7 +150,6 @@ function onlineEntries(context: {
       disabled: true,
     });
   } else if (connection !== "offline") {
-    // An offline coach's proposal could not reach the other coach
     entries.push({
       id: "request-end-match",
       label: "End Match",
@@ -194,9 +170,6 @@ function onlineEntries(context: {
     disabled: true,
   });
 
-  // Reconnection itself is automatic (heartbeat + realtime sync) — this
-  // nudges it rather than opening a new protocol/authority path, staying
-  // inside design.md's non-goal of not changing reconnect policy.
   if (connection !== "online") {
     entries.push({
       id: "reconnect",

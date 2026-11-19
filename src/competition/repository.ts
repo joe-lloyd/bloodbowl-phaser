@@ -1,4 +1,9 @@
 import {
+  readCompetition,
+  readCompetitionStore,
+} from "../boundary/competitionRepository";
+import { firebaseDocument } from "../boundary/firebaseJson";
+import {
   collection,
   doc,
   getDoc,
@@ -8,31 +13,8 @@ import {
 } from "firebase/firestore";
 import { isFirebaseConfigured, getDb } from "../firebase/config";
 import { readSevensRuleset } from "../game/rules/sevensRuleset";
-import { CompetitionDoc, CompetitionType } from "./types";
+import { type CompetitionDoc, type CompetitionType } from "./types";
 import { repairBracketLinkage, withResultsFromFixtures } from "./logic";
-
-/**
- * Before this change, a `CompetitionEntrant` embedded a full roster snapshot
- * (`entrant.team`). The reader accepts that shape and converts it on read —
- * dropping the embedded snapshot and filling the reference fields it
- * predates — so a legacy document displays correctly and is written back in
- * the reference-only shape the next time it saves (nothing here re-adds
- * `team`, so it cannot resurface).
- */
-function convertLegacyEntrants(competition: CompetitionDoc): CompetitionDoc {
-  let changed = false;
-  const entrants = competition.entrants.map((entrant) => {
-    const legacy = entrant as unknown as Record<string, unknown>;
-    if (!("team" in legacy) && "ownerUid" in legacy) return entrant;
-    changed = true;
-    const { team: _team, ...rest } = legacy;
-    return {
-      ...rest,
-      ownerUid: (legacy.ownerUid as string | null | undefined) ?? null,
-    } as CompetitionDoc["entrants"][number];
-  });
-  return changed ? { ...competition, entrants } : competition;
-}
 
 const LOCAL_STORAGE_KEY = "bloodbowl_competitions";
 
@@ -45,7 +27,7 @@ function storageKey(type: CompetitionType, id: string): string {
 function readLocal(): LocalStore {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as LocalStore) : {};
+    return raw ? readCompetitionStore(raw) : {};
   } catch {
     return {};
   }
@@ -57,10 +39,6 @@ function writeLocal(store: LocalStore): void {
 
 function collectionName(type: CompetitionType): "leagues" | "tournaments" {
   return type === "league" ? "leagues" : "tournaments";
-}
-
-function plain<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value));
 }
 
 function assertRulesetKept(
@@ -80,7 +58,7 @@ export async function saveCompetition(
   if (competition.organizerUid && isFirebaseConfigured()) {
     await setDoc(
       doc(getDb(), collectionName(competition.type), competition.id),
-      plain(competition)
+      firebaseDocument(competition)
     );
     return;
   }
@@ -92,18 +70,10 @@ export async function saveCompetition(
   writeLocal(store);
 }
 
-/**
- * Development-seed maintenance: every locally stored competition document,
- * unfiltered by uid. Normal flows should use listCompetitions instead.
- */
 export function readLocalCompetitions(): CompetitionDoc[] {
   return Object.values(readLocal());
 }
 
-/**
- * Development-seed maintenance: remove local documents by id. Coach-created
- * records are only removed if their ids are passed explicitly.
- */
 export function removeLocalCompetitions(ids: string[]): void {
   if (ids.length === 0) return;
   const store = readLocal();
@@ -115,33 +85,10 @@ export function removeLocalCompetitions(ids: string[]): void {
   writeLocal(next);
 }
 
-/**
- * Repair bracket linkage on read, for tournaments saved before it was
- * recorded. Cheap, idempotent, and it keeps both the bracket view and
- * winner-advancement working on legacy documents.
- */
-function withRepairedLinkage(
-  competition: CompetitionDoc | null
-): CompetitionDoc | null {
-  if (
-    competition?.type === "tournament" &&
-    competition.format === "single-elimination"
-  ) {
-    repairBracketLinkage(competition.fixtures);
-  }
-  return competition;
-}
-
-/** Every read-time conversion a stored competition document may need. */
 function normalizeOnRead(
   competition: CompetitionDoc | null
 ): CompetitionDoc | null {
-  const repaired = withRepairedLinkage(
-    competition ? convertLegacyEntrants(competition) : null
-  );
-  // Preserve absent legacy metadata: participants may only edit results and entrants.
-  if (repaired?.ruleset !== undefined) readSevensRuleset(repaired.ruleset);
-  return repaired && withResultsFromFixtures(repaired);
+  return competition ? normalizeCompetition(competition) : null;
 }
 
 export async function getCompetition(
@@ -152,29 +99,20 @@ export async function getCompetition(
     try {
       const snapshot = await getDoc(doc(getDb(), collectionName(type), id));
       if (snapshot.exists()) {
-        return normalizeOnRead(snapshot.data() as CompetitionDoc);
+        return normalizeOnRead(readCompetition(snapshot.data()));
       }
     } catch {
-      // A signed-out or offline competition may still exist locally.
+      return normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
     }
   }
   return normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
 }
 
-/** Stored on this machine and never online: it has no organizer. */
 function localOnly(type: CompetitionType, id: string): boolean {
   const local = readLocal()[storageKey(type, id)];
   return !!local && !local.organizerUid;
 }
 
-/**
- * Apply `change` to the latest stored copy and save what it returns. Online
- * this is a transaction: a write that lands between the read and the save
- * makes it read again and apply `change` again, rather than saving a stale
- * copy over it. So `change` may run more than once and must not have side
- * effects. It returns null to leave the document as it is. Resolves with
- * the document as stored afterwards.
- */
 export async function updateCompetition(
   type: CompetitionType,
   id: string,
@@ -187,22 +125,19 @@ export async function updateCompetition(
       const snapshot = await tx.get(ref);
       if (!snapshot.exists()) return null;
       foundRemote = true;
-      const latest = normalizeOnRead(snapshot.data() as CompetitionDoc)!;
+      const latest = normalizeCompetition(readCompetition(snapshot.data()));
       const ruleset = latest.ruleset;
       const next = change(latest);
       if (!next) return latest;
       assertRulesetKept(ruleset, next);
-      tx.set(ref, plain(next));
+      tx.set(ref, firebaseDocument(next));
       return next;
     }).catch((reason: unknown) => {
-      // Signed out or offline, a competition that was only ever local is
-      // still here. Once the online one was read, its refusal stands.
       if (!foundRemote && localOnly(type, id)) return null;
       throw reason;
     });
     if (remote) return remote;
-    // One with an organizer lives online: a copy of it left on this
-    // machine must not take a result the server never gets
+
     if (!localOnly(type, id)) throw new Error("Competition not found.");
   }
   const latest = normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
@@ -217,38 +152,12 @@ export async function updateCompetition(
   return next;
 }
 
-/**
- * Look up a competition by id without knowing its type in advance — used to
- * name the competition a team is already committed to (single
- * active-competition enforcement, src/ui/components/pages/CompetitionBuilder.tsx).
- */
 export async function findCompetitionById(
   id: string
 ): Promise<CompetitionDoc | null> {
   return (
     (await getCompetition("league", id)) ?? getCompetition("tournament", id)
   );
-}
-
-/**
- * Optional backfill: force every competition this uid can see through the
- * reader (converting legacy embedded-roster entrants) and writer once, for
- * a document that might otherwise sit untouched indefinitely. Safe to run
- * repeatedly. Only organizer-writable documents are actually re-saved —
- * see firestore.rules; a participant-only view is read-only here.
- */
-export async function backfillCompetitions(
-  type: CompetitionType,
-  uid: string | null
-): Promise<number> {
-  const competitions = await listCompetitions(type, uid);
-  const organized = competitions.filter(
-    (competition) => !uid || competition.organizerUid === uid
-  );
-  await Promise.all(
-    organized.map((competition) => saveCompetition(competition))
-  );
-  return organized.length;
 }
 
 export async function listCompetitions(
@@ -262,7 +171,7 @@ export async function listCompetitions(
   if (uid && isFirebaseConfigured()) {
     const snapshot = await getDocs(collection(getDb(), collectionName(type)));
     remote = snapshot.docs
-      .map((item) => item.data() as CompetitionDoc)
+      .map((item) => readCompetition(item.data()))
       .filter(
         (competition) =>
           competition.organizerUid === uid ||
@@ -274,6 +183,16 @@ export async function listCompetitions(
     combined.set(storageKey(competition.type, competition.id), competition)
   );
   return [...combined.values()]
-    .map((competition) => normalizeOnRead(competition)!)
+    .map(normalizeCompetition)
     .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function normalizeCompetition(competition: CompetitionDoc): CompetitionDoc {
+  if (
+    competition.type === "tournament" &&
+    competition.format === "single-elimination"
+  )
+    repairBracketLinkage(competition.fixtures);
+  if (competition.ruleset !== undefined) readSevensRuleset(competition.ruleset);
+  return withResultsFromFixtures(competition);
 }

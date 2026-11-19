@@ -1,26 +1,23 @@
-/**
- * Expensive Mistakes (openspec/specs/league-treasury): the last money step
- * after a league fixture. Every roll comes from fixed dice.
- */
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import {
-  ExpensiveMistake,
+  type ExpensiveMistake,
   expensiveMistakeFor,
   queueExpensiveMistakes,
   resolveExpensiveMistakes,
   rollExpensiveMistakes,
 } from "../../../src/game/rules/expensiveMistakes";
-import { Team } from "../../../src/types/Team";
+import { type Team } from "../../../src/types/Team";
 import { TeamBuilder } from "../../utils/test-builders";
 
-/** Dice that come up in the given order; any extra roll fails the test. */
 function fixedDice(...rolls: number[]) {
   const queue = [...rolls];
   return {
     rollDie: vi.fn((sides: number) => {
       const roll = queue.shift();
       if (roll === undefined) throw new Error("No fixed roll left.");
-      if (roll < 1 || roll > sides) throw new Error(`Bad d${sides}: ${roll}`);
+      if (roll < 1 || roll > sides)
+        throw new Error(`Bad d${String(sides)}: ${String(roll)}`);
       return roll;
     }),
   };
@@ -49,7 +46,6 @@ describe("each outcome, on fixed dice", () => {
   });
 
   it("Minor Incident loses D3 x 10,000: 150,000 on a 1 with a D3 of 2 leaves 130,000", () => {
-    // The D3 is a D6 halved, rounding up: a 3 is a 2
     const result = rollExpensiveMistakes(150_000, fixedDice(1, 3));
     expect(result.outcome).toBe("minor-incident");
     expect(result.extraDice).toEqual([2]);
@@ -69,7 +65,6 @@ describe("each outcome, on fixed dice", () => {
   });
 
   it("Major Incident rounds the half lost down to 5,000: 305,000 on a 1 leaves 155,000", () => {
-    // Half is 152,500; the 150,000 lost is that rounded down to 5,000
     const result = rollExpensiveMistakes(305_000, fixedDice(1));
     expect(result.outcome).toBe("major-incident");
     expect(result.treasuryAfter).toBe(155_000);
@@ -101,7 +96,7 @@ describe("the Expensive Mistakes table", () => {
   const MI: ExpensiveMistake = "minor-incident";
   const MA: ExpensiveMistake = "major-incident";
   const C: ExpensiveMistake = "catastrophe";
-  // Each column for a D6 of 1 to 6, as the rulebook prints it
+
   const columns: [number, ExpensiveMistake[]][] = [
     [100_000, [MI, A, A, A, A, A]],
     [195_000, [MI, A, A, A, A, A]],
@@ -149,14 +144,14 @@ describe("the post-game step", () => {
   it("waits for the team's other post-game choices, then rolls and clears", () => {
     const team = leagueTeam(350_000);
     queueExpensiveMistakes(team, "league:f1");
-    const entry = team.pendingDevelopment![0] as Extract<
+    const entry = fixtureValue(team.pendingDevelopment)[0] as Extract<
       NonNullable<Team["pendingDevelopment"]>[number],
       { kind: "expensive-mistakes" }
     >;
-    team.pendingDevelopment!.unshift({
+    fixtureValue(team.pendingDevelopment).unshift({
       id: "journeyman-m-1",
       kind: "journeyman-offer",
-      playerId: team.players[0].id,
+      playerId: fixtureValue(team.players[0]).id,
       matchId: "m",
       createdAt: 1,
     });
@@ -167,7 +162,7 @@ describe("the post-game step", () => {
     expect(dice.rollDie).not.toHaveBeenCalled();
     expect(team.treasury).toBe(350_000);
 
-    team.pendingDevelopment!.shift();
+    fixtureValue(team.pendingDevelopment).shift();
     const result = resolveExpensiveMistakes(team, entry, dice);
     expect(result.outcome).toBe("major-incident");
     expect(team.treasury).toBe(175_000);
@@ -180,11 +175,11 @@ describe("the post-game step", () => {
   it("rolls nothing when the coach spent the Treasury under 100,000 first", () => {
     const team = leagueTeam(150_000);
     queueExpensiveMistakes(team, "league:f1");
-    const entry = team.pendingDevelopment![0] as Extract<
+    const entry = fixtureValue(team.pendingDevelopment)[0] as Extract<
       NonNullable<Team["pendingDevelopment"]>[number],
       { kind: "expensive-mistakes" }
     >;
-    team.treasury = 50_000; // a re-roll bought in the Team Builder
+    team.treasury = 50_000;
     const dice = fixedDice();
     expect(resolveExpensiveMistakes(team, entry, dice).roll).toBeNull();
     expect(team.treasury).toBe(50_000);

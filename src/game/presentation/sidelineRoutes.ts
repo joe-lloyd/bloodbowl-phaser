@@ -5,10 +5,8 @@ export interface BoardPoint {
   y: number;
 }
 
-/** The projection accepts continuous grid coordinates, including off-pitch points. */
 export type BoardProjection = (x: number, y: number) => BoardPoint;
 
-/** A carrier turns in the board plane, preserving the isometric foreshortening. */
 export function carrierProjection(
   from: BoardPoint,
   to: BoardPoint
@@ -25,7 +23,6 @@ export function carrierProjection(
   });
 }
 
-/** Invert the board projection without rounding away a player's row. */
 export function worldToBoard(
   point: BoardPoint,
   project: BoardProjection
@@ -36,11 +33,6 @@ export function worldToBoard(
   return { x: (u + v) / 2, y: (v - u) / 2 };
 }
 
-/**
- * Leave by the team's touchline, follow the clear lane outside the pitch,
- * then enter the destination box. Reversing this route brings a medical
- * crew to the patient without crossing the pitch diagonally.
- */
 export function pitchExitRoute(
   from: BoardPoint,
   to: BoardPoint,
@@ -57,7 +49,6 @@ export function pitchExitRoute(
   );
 }
 
-/** Subdivide each leg independently, preserving every corner of the route. */
 export function walkingSteps(route: readonly BoardPoint[]): BoardPoint[] {
   return route.slice(1).flatMap((to, i) => {
     const from = route[i];

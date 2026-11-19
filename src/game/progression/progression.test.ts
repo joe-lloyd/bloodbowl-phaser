@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { EventBus } from "../../services/EventBus";
-import { Player, PlayerStatus, PlayerStats } from "../../types/Player";
+import {
+  type Player,
+  PlayerStatus,
+  type PlayerStats,
+} from "../../types/Player";
 import { SkillCategory, SkillType } from "../../types/Skills";
-import { RosterName, Team } from "../../types/Team";
+import { RosterName, type Team } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
   ADVANCEMENT_COSTS,
@@ -10,7 +14,11 @@ import {
   characteristicChoices,
   rollSkill,
 } from "./progression";
-import { MatchStats, PlayerMatchStats, sppFromMatchStats } from "./MatchStats";
+import {
+  MatchStats,
+  type PlayerMatchStats,
+  sppFromMatchStats,
+} from "./MatchStats";
 
 const baseStats: PlayerStats = { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 };
 
@@ -212,13 +220,13 @@ describe("match SPP tracking", () => {
     const journeyman = player("p2", "team-1", "journeyman");
     const roster = team("team-1", [star, journeyman]);
     const tracker = new MatchStats(bus, [roster], true);
-    [star, journeyman].forEach((subject) =>
+    [star, journeyman].forEach((subject) => {
       bus.emit(GameEventNames.Touchdown, {
         teamId: roster.id,
         score: 1,
         scorerId: subject.id,
-      })
-    );
+      });
+    });
 
     tracker.applySpp([roster]);
     expect(star.spp).toBe(0);

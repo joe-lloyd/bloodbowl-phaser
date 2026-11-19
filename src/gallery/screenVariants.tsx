@@ -1,6 +1,3 @@
-/**
- * Gallery variants for the sandbox explorer and the full-screen moments.
- */
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { HUDLayout } from "../ui/components/hud/HUDLayout";
@@ -11,23 +8,21 @@ import { later, routed, setScore } from "./variantHelpers";
 import type { Variant } from "./variants";
 
 export const SCREEN_VARIANTS: Variant[] = [
-  // ---- Sandbox
   {
     id: "sandbox",
     section: "Sandbox explorer",
     title: "Core scenario loaded, with its seed",
     view: (fx) => <HUDLayout topRight={<SandboxOverlay eventBus={fx.bus} />} />,
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.ScenarioLoaded, {
           name: "Block & Injury Test",
           seed: 10,
           expectedOutcome: "Defender will be stunned",
-        })
-      ),
+        });
+      }),
   },
 
-  // ---- Full screens
   {
     id: "results",
     section: "Full-screen moments",
@@ -35,7 +30,10 @@ export const SCREEN_VARIANTS: Variant[] = [
     fixture: { phase: GamePhase.GAME_OVER },
     view: () => routed(<MatchResultsScreen visible />),
     prepare: () => {},
-    drive: (fx) => later(10, () => setScore(fx, 2, 1, true)),
+    drive: (fx) =>
+      later(10, () => {
+        setScore(fx, 2, 1, true);
+      }),
   },
   {
     id: "results-progression",
@@ -58,8 +56,8 @@ export const SCREEN_VARIANTS: Variant[] = [
       />
     ),
     drive: (fx) =>
-      later(30, () =>
-        fx.bus.emit(GameEventNames.UI_LoadProgress, { progress: 0.62 })
-      ),
+      later(30, () => {
+        fx.bus.emit(GameEventNames.UI_LoadProgress, { progress: 0.62 });
+      }),
   },
 ];

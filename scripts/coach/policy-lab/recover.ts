@@ -1,4 +1,3 @@
-/** Re-observe verified commands when only acquisition instrumentation changed. */
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -33,11 +32,7 @@ const atomic = (file: string, data: unknown) => {
   writeFileSync(file + ".tmp", JSON.stringify(data));
   renameSync(file + ".tmp", file);
 };
-/**
- * The candidate a run played: its kind and weights, which come from a
- * weights file rather than the source. A manifest written before a field
- * existed played its default, as `run.ts` assumes when it resumes.
- */
+
 const candidateOf = (m: Inputs) => ({
   kind: m.candidate ?? "planner",
   weights: m.candidateWeights ?? DEFAULT_WEIGHTS,
@@ -194,7 +189,7 @@ if (
       await recoverGame(job, oldRun, out, previous);
       process.send?.({ done: job.id });
     } catch (error) {
-      process.send?.({ error: `${job.id}: ${error}` });
+      process.send?.({ error: `${job.id}: ${String(error)}` });
     }
   });
   process.send?.({ ready: true });

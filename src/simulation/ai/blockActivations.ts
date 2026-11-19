@@ -1,14 +1,9 @@
-/**
- * Activations that hit: a block from where the player stands, a blitz to a
- * square beside the target, and free moves that assist the best hit on
- * their carrier.
- */
+import { type FieldPlayer as Player } from "./board";
 
-import { Player } from "../../types/Player";
 import { BlockValidator } from "../../game/validators/BlockValidator";
 import {
-  Board,
-  Square,
+  type Board,
+  type Square,
   carrierOf,
   distance,
   key,
@@ -16,34 +11,36 @@ import {
   standing,
   toGoal,
 } from "./board";
-import { BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
-import { Route, movesLeft } from "./routes";
-import { Context, gamble } from "./activationContext";
+import { type BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
+import { type Route, movesLeft } from "./routes";
+import { type Context, gamble } from "./activationContext";
 import type { Activation } from "./activations";
 
 const blockValidator = new BlockValidator();
 
-/**
- * Knocking down an opponent beside our carrier frees it to move; one
- * standing in the lane ahead of it, within its move, opens the way.
- */
-function ourCarrierBonus(
-  c: Context,
-  carrier: Player,
-  target: Player,
-  near: number
-): number {
+interface OurCarrierBonusArgs {
+  c: Context;
+  carrier: Player;
+  target: Player;
+  near: number;
+}
+
+function ourCarrierBonus({
+  c,
+  carrier,
+  target,
+  near,
+}: OurCarrierBonusArgs): number {
   const { board, w } = c;
   if (near === 1) return w.freeCarrier;
-  const from = carrier.gridPosition!;
-  const at = target.gridPosition!;
+  const from = carrier.gridPosition;
+  const at = target.gridPosition;
   const ahead = toGoal(board, from) - toGoal(board, at);
   const lane =
     ahead > 0 && ahead <= carrier.stats.MA + 2 && Math.abs(at.y - from.y) <= 2;
   return (near <= 2 ? w.knockdown : 0) + (lane ? w.lane : 0);
 }
 
-/** How much `attacker` knocking this opponent down is worth. */
 export function targetValue(
   c: Context,
   attacker: Player,
@@ -54,16 +51,12 @@ export function targetValue(
   if (carrier?.id === target.id)
     return w.carrierKnockdown + casualtyChance(attacker, target) * c.casualty;
   const near = carrier
-    ? distance(target.gridPosition!, carrier.gridPosition!)
+    ? distance(target.gridPosition, carrier.gridPosition)
     : 99;
-  // Near our carrier: a threat to it, or in its way. Next to theirs: a cage
-  // wall that, once down, opens the carrier to the next hit.
-  const bonus =
-    carrier?.teamId === board.us
-      ? ourCarrierBonus(c, carrier, target, near)
-      : near === 1
-        ? w.cageBreak
-        : 0;
+
+  let bonus = near === 1 ? w.cageBreak : 0;
+  if (carrier?.teamId === board.us)
+    bonus = ourCarrierBonus({ c, carrier, target, near });
   return (
     w.knockdown +
     bonus +
@@ -72,40 +65,40 @@ export function targetValue(
   );
 }
 
-/**
- * The odds of `attacker` blocking `target` from square `from`. Only a hit
- * on the ball carrier is worth the team re-roll; other blocks are judged
- * on the dice alone.
- */
-export function blockFrom(
-  c: Context,
-  attacker: Player,
-  target: Player,
-  from: Square,
-  helper?: { player: Player; at: Square }
-): BlockOdds {
+interface BlockFromArgs {
+  c: Context;
+  attacker: Player;
+  target: Player;
+  from: Square;
+  helper?: { player: Player; at: Square };
+}
+
+export function blockFrom({
+  c,
+  attacker,
+  target,
+  from,
+  helper,
+}: BlockFromArgs): BlockOdds {
   const moved = { ...attacker, gridPosition: from };
-  const players = c.board.everyone.map((p) =>
-    p.id === attacker.id
-      ? moved
-      : p.id === helper?.player.id
-        ? { ...p, gridPosition: helper.at }
-        : p
-  );
-  const analysis = blockValidator.analyzeBlock(
-    moved,
-    target,
-    players,
-    c.board.us
-  );
+  const players = c.board.everyone.map((p) => {
+    if (p.id === attacker.id) return moved;
+    return p.id === helper?.player.id ? { ...p, gridPosition: helper.at } : p;
+  });
+  const analysis = blockValidator.analyzeBlock({
+    attacker: moved,
+    defender: target,
+    allPlayers: players,
+    activeTeamId: c.board.us,
+  });
   const reroll = c.teamReroll && carrierOf(c.board)?.id === target.id;
-  return blockOdds(
-    moved,
-    target,
-    analysis.diceCount,
-    !analysis.isUphill,
-    reroll
-  );
+  return blockOdds({
+    attacker: moved,
+    defender: target,
+    dice: analysis.diceCount,
+    attackerPicks: !analysis.isUphill,
+    teamReroll: reroll,
+  });
 }
 
 export function blockActivations(c: Context, player: Player): Activation[] {
@@ -115,10 +108,15 @@ export function blockActivations(c: Context, player: Player): Activation[] {
   for (const target of board.theirs) {
     if (
       !standing(target) ||
-      distance(target.gridPosition!, player.gridPosition!) !== 1
+      distance(target.gridPosition, player.gridPosition) !== 1
     )
       continue;
-    const odds = blockFrom(c, player, target, player.gridPosition!);
+    const odds = blockFrom({
+      c: c,
+      attacker: player,
+      target: target,
+      from: player.gridPosition,
+    });
     const value =
       odds.knockdown * targetValue(c, player, target) -
       odds.attackerDown * (c.turnover + w.ownDown);
@@ -135,56 +133,79 @@ export function blockActivations(c: Context, player: Player): Activation[] {
   return out;
 }
 
-/** A player beside the opposing carrier is a wall of its cage. */
 function isCageWall(board: Board, target: Player): boolean {
   const carrier = carrierOf(board);
   return (
     !!carrier &&
     carrier.teamId !== board.us &&
     carrier.id !== target.id &&
-    distance(target.gridPosition!, carrier.gridPosition!) === 1
+    distance(target.gridPosition, carrier.gridPosition) === 1
   );
 }
 
-/** Where the blitzer can throw the block from: here, or a reachable square beside the target. */
-function blitzSquares(
-  player: Player,
-  target: Player,
-  routes: Map<number, Route>,
-  moves: number
-): (Route | null)[] {
-  const adjacentNow =
-    distance(target.gridPosition!, player.gridPosition!) === 1;
+interface BlitzSquaresArgs {
+  player: Player;
+  target: Player;
+  routes: Map<number, Route>;
+  moves: number;
+}
+
+function blitzSquares({
+  player,
+  target,
+  routes,
+  moves,
+}: BlitzSquaresArgs): (Route | null)[] {
+  const adjacentNow = distance(target.gridPosition, player.gridPosition) === 1;
   const froms: (Route | null)[] = adjacentNow ? [null] : [];
-  for (const s of neighbours(target.gridPosition!)) {
+  for (const s of neighbours(target.gridPosition)) {
     const route = routes.get(key(s));
-    // The block itself costs a square of movement.
+
     if (route && route.path.length < moves) froms.push(route);
   }
   return froms;
 }
 
-/** What the blitzer has to move with: its routes and squares left. */
 interface Moves {
   routes: Map<number, Route>;
   normal: number;
   rushes: number;
 }
 
-type Blitz = { route: Route | null; value: number; chance: number };
+interface Blitz {
+  route: Route | null;
+  value: number;
+  chance: number;
+}
 
-/** The square to blitz `target` from that is worth most. */
-function bestBlitz(
-  c: Context,
-  player: Player,
-  target: Player,
-  { routes, normal, rushes }: Moves
-): Blitz | null {
+interface BestBlitzArgs {
+  c: Context;
+  player: Player;
+  target: Player;
+  moves: Moves;
+}
+
+function bestBlitz({
+  c,
+  player,
+  target,
+  moves: { routes, normal, rushes },
+}: BestBlitzArgs): Blitz | null {
   const { w } = c;
   let best: Blitz | null = null;
-  for (const route of blitzSquares(player, target, routes, normal + rushes)) {
-    const from = route?.to ?? player.gridPosition!;
-    const odds = blockFrom(c, player, target, from);
+  for (const route of blitzSquares({
+    player: player,
+    target: target,
+    routes: routes,
+    moves: normal + rushes,
+  })) {
+    const from = route?.to ?? player.gridPosition;
+    const odds = blockFrom({
+      c: c,
+      attacker: player,
+      target: target,
+      from: from,
+    });
     const reach =
       (route?.chance ?? 1) * (route && route.path.length >= normal ? d6(2) : 1);
     const chance = reach * (1 - odds.attackerDown);
@@ -196,15 +217,21 @@ function bestBlitz(
   return best;
 }
 
-/** The best way to blitz `target`, or null if no blitz on it is worth throwing. */
-function blitzOn(
-  c: Context,
-  player: Player,
-  target: Player,
-  moves: Moves
-): Activation | null {
+interface BlitzOnArgs {
+  c: Context;
+  player: Player;
+  target: Player;
+  moves: Moves;
+}
+
+function blitzOn({ c, player, target, moves }: BlitzOnArgs): Activation | null {
   const { board, w } = c;
-  const best = bestBlitz(c, player, target, moves);
+  const best = bestBlitz({
+    c: c,
+    player: player,
+    target: target,
+    moves: moves,
+  });
   if (!best || best.value <= 0) return null;
   const sure =
     carrierOf(board)?.id === target.id ||
@@ -225,12 +252,16 @@ export function blitzActivations(c: Context, player: Player): Activation[] {
   const [normal, rushes] = movesLeft(c.board, player);
   return c.board.theirs.flatMap((target) => {
     if (!standing(target)) return [];
-    const blitz = blitzOn(c, player, target, { routes, normal, rushes });
+    const blitz = blitzOn({
+      c: c,
+      player: player,
+      target: target,
+      moves: { routes, normal, rushes },
+    });
     return blitz ? [blitz] : [];
   });
 }
 
-/** The most valuable block or blitz aimed at `carrier`, or null. */
 function bestHitOn(hits: Activation[], carrier: Player): Activation | null {
   let hit: Activation | null = null;
   for (const a of hits) {
@@ -243,23 +274,38 @@ function bestHitOn(hits: Activation[], carrier: Player): Activation | null {
   return hit;
 }
 
-/** The square beside the carrier where `player` adds most to the hit. */
-function assistRoute(
-  c: Context,
-  player: Player,
-  hit: { player: Player; from: Square; before: BlockOdds },
-  carrier: Player
-): { route: Route; gain: number } | null {
+interface AssistRouteArgs {
+  c: Context;
+  player: Player;
+  hit: { player: Player; from: Square; before: BlockOdds };
+  carrier: Player;
+}
+
+function assistRoute({
+  c,
+  player,
+  hit,
+  carrier,
+}: AssistRouteArgs): { route: Route; gain: number } | null {
   const { board, w } = c;
   const { from, before } = hit;
   const routes = c.plainRoutes(player);
   let best: { route: Route; gain: number } | null = null;
-  for (const at of neighbours(carrier.gridPosition!)) {
-    if (board.marks[key(at)] !== 1 || (at.x === from.x && at.y === from.y))
+  for (const at of neighbours(carrier.gridPosition)) {
+    if (
+      board.marks.getUint8(key(at)) !== 1 ||
+      (at.x === from.x && at.y === from.y)
+    )
       continue;
     const route = routes.get(key(at));
     if (!route || route.chance < w.safeMove) continue;
-    const odds = blockFrom(c, hit.player, carrier, from, { player, at });
+    const odds = blockFrom({
+      c: c,
+      attacker: hit.player,
+      target: carrier,
+      from: from,
+      helper: { player, at },
+    });
     const gain =
       (odds.knockdown - before.knockdown) * w.carrierKnockdown +
       (before.attackerDown - odds.attackerDown) * c.turnover;
@@ -268,11 +314,6 @@ function assistRoute(
   return best;
 }
 
-/**
- * Free moves that give the best hit on their carrier a better die, made
- * before it is thrown. A square beside the carrier only assists if nobody
- * else marks it.
- */
 export function assistActivations(
   c: Context,
   hits: Activation[]
@@ -281,21 +322,32 @@ export function assistActivations(
   const carrier = carrierOf(board);
   if (!carrier || carrier.teamId === board.us) return [];
   const hit = bestHitOn(hits, carrier);
-  if (!hit || (hit.intent.kind !== "block" && hit.intent.kind !== "blitz"))
-    return [];
+  if (!hit) return [];
   const from =
     (hit.intent.kind === "blitz" ? hit.intent.route?.to : null) ??
-    hit.player.gridPosition!;
+    hit.player.gridPosition;
   const thrown = {
     player: hit.player,
     from,
-    before: blockFrom(c, hit.player, carrier, from),
+    before: blockFrom({
+      c: c,
+      attacker: hit.player,
+      target: carrier,
+      from: from,
+    }),
   };
   const out: Activation[] = [];
-  for (const player of board.ours) {
-    if (player.id === hit.player.id || !c.available.get(player.id)?.has("move"))
-      continue;
-    const best = assistRoute(c, player, thrown, carrier);
+  const helpers = board.ours.filter(
+    (player) =>
+      player.id !== hit.player.id && c.available.get(player.id)?.has("move")
+  );
+  for (const player of helpers) {
+    const best = assistRoute({
+      c: c,
+      player: player,
+      hit: thrown,
+      carrier: carrier,
+    });
     if (best)
       out.push({
         player,

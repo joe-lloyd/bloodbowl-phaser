@@ -1,10 +1,3 @@
-/**
- * Computer-coached teams. The computer builds them for a competition, plays
- * them, and between games makes the choices a keen coach would make from
- * Manage Team, so their development and injuries carry from game to game
- * the way a person's team does.
- */
-
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import {
   chooseSecondarySkill,
@@ -19,7 +12,7 @@ import {
   startSecondarySelection,
 } from "../game/progression/advancementModes";
 import {
-  AdvancementChoice,
+  type AdvancementChoice,
   applyAdvancement,
   canAdvance,
   characteristicChoices,
@@ -46,59 +39,28 @@ import {
   describeExpensiveMistakes,
   resolveExpensiveMistakes,
 } from "../game/rules/expensiveMistakes";
-import { IRNGService } from "../services/rng/RNGService";
-import {
-  createComputerTeamFromTemplate,
-  getComputerTeamTemplates,
-} from "./computerTeamTemplates";
+import { type IRNGService } from "../services/rng/RNGService";
 export { COMPUTER_COACH } from "./computerTeamTemplates";
-import { Player } from "../types/Player";
+import { type Player } from "../types/Player";
 import {
   calculateTeamValue,
   isLeagueMode,
   isPendingRecruit,
-  PendingDevelopment,
-  RosterName,
-  Team,
-  TeamAdvancementMode,
+  type PendingDevelopment,
+  type Team,
 } from "../types/Team";
-import { CompetitionDoc } from "./types";
+import { type CompetitionDoc } from "./types";
 
 type Rng = Pick<IRNGService, "rollDie">;
 
-/** A ready-made legal team for the computer to coach. */
-export function createComputerTeam(
-  rosterName: RosterName,
-  name: string,
-  primaryColour: number,
-  advancementMode: TeamAdvancementMode
-): Team {
-  const template = getComputerTeamTemplates().find(
-    (candidate) => candidate.rosterName === rosterName
-  );
-  if (!template)
-    throw new Error(`No legal computer template for ${rosterName}.`);
-  const team = createComputerTeamFromTemplate(template.id, { advancementMode });
-  team.name = name;
-  team.colors.primary = primaryColour;
-  return team;
-}
-
 export interface ManagementReport {
-  /** What the computer did, in order. */
   done: string[];
-  /** Within the rules, but a loss: drafted players, a roster left short. */
+
   setbacks: { rule: "drafted-away" | "cannot-refill"; detail: string }[];
-  /** A choice the rules refused. The computer skipped it. */
+
   refused: { rule: string; detail: string }[];
 }
 
-/**
- * Resolve every development choice waiting on a computer team, spend its
- * SPP, spend its Treasury (purchasePlanner.ts), and last roll any Expensive
- * Mistakes, the post-game sequence's final money step. Changes `team` in
- * place; the caller saves it. A team a person coaches is never touched.
- */
 export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
   const report: ManagementReport = { done: [], setbacks: [], refused: [] };
   if (!team.computerCoached) return report;
@@ -111,11 +73,11 @@ export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
   for (let guard = 0; guard < 40 && waiting(); guard++) {
     const entry = waiting()!;
     try {
-      resolveEntry(team, entry, rng, report);
+      resolveEntry({ team, entry, rng, report });
     } catch (cause) {
       report.refused.push({
         rule: `development-${entry.kind}`,
-        detail: `${team.name}: ${cause}`,
+        detail: `${team.name}: ${String(cause)}`,
       });
       team.pendingDevelopment = team.pendingDevelopment!.filter(
         (candidate) => candidate.id !== entry.id
@@ -134,7 +96,7 @@ export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
     } catch (cause) {
       report.refused.push({
         rule: "development-expensive-mistakes",
-        detail: `${team.name}: ${cause}`,
+        detail: `${team.name}: ${String(cause)}`,
       });
     }
   }
@@ -142,10 +104,6 @@ export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
   return report;
 }
 
-/**
- * Manage every computer team of a competition held in this coach's
- * library, or only those of `entrantIds`, and save those that changed.
- */
 export function manageComputerTeams(
   competition: CompetitionDoc,
   rng: Rng,
@@ -163,12 +121,17 @@ export function manageComputerTeams(
   });
 }
 
-function resolveEntry(
-  team: Team,
-  entry: PendingDevelopment,
-  rng: Rng,
-  report: ManagementReport
-): void {
+function resolveEntry({
+  team,
+  entry,
+  rng,
+  report,
+}: {
+  team: Team;
+  entry: PendingDevelopment;
+  rng: Rng;
+  report: ManagementReport;
+}): void {
   switch (entry.kind) {
     case "raised-dead-recruit": {
       const keep = canKeepRaisedDead(team, entry.playerId);
@@ -179,16 +142,14 @@ function resolveEntry(
       return;
     }
     case "advanced-league-advancement":
-      resolveLeagueAdvancement(team, entry, rng, report);
+      resolveLeagueAdvancement({ team, entry, rng, report });
       return;
     case "sevens-skill-selection":
-      resolveSkillSelection(team, entry, rng, report);
+      resolveSkillSelection({ team, entry, rng, report });
       return;
     case "journeyman-offer":
-      // Hired or let go with the Treasury, by spendTreasury
       return;
     case "expensive-mistakes":
-      // Rolled after hiring, by manageComputerTeam
       return;
     case "drafted-player-offer":
       resolveDraftedOffer(team, entry, report);
@@ -196,12 +157,17 @@ function resolveEntry(
   }
 }
 
-function resolveLeagueAdvancement(
-  team: Team,
-  entry: Extract<PendingDevelopment, { kind: "advanced-league-advancement" }>,
-  rng: Rng,
-  report: ManagementReport
-): void {
+function resolveLeagueAdvancement({
+  team,
+  entry,
+  rng,
+  report,
+}: {
+  team: Team;
+  entry: Extract<PendingDevelopment, { kind: "advanced-league-advancement" }>;
+  rng: Rng;
+  report: ManagementReport;
+}): void {
   const player = team.players.find((p) => p.id === entry.playerId);
   const choice =
     player && advancementChoice(player, nextAdvancementCosts(player)!, rng);
@@ -228,7 +194,7 @@ function resolveDraftedOffer(
   report: ManagementReport
 ): void {
   const player = team.players.find((p) => p.id === entry.playerId)!;
-  // Keep every drafted player the Treasury can pay for
+
   const keep = draftedPlayerPrice(player) <= team.treasury;
   if (keep) keepDraftedPlayer(team, entry);
   else releaseDraftedPlayer(team, entry);
@@ -237,24 +203,26 @@ function resolveDraftedOffer(
   );
 }
 
-/** Spend what each player has earned, as a keen coach would. */
 function spendSpp(team: Team, rng: Rng, report: ManagementReport): void {
   for (const player of team.players) {
-    // A Journeyman's SPP waits until they are hired
     if (isPendingRecruit(team, player.id)) continue;
     for (let guard = 0; guard < 10 && canAdvance(player); guard++) {
-      if (!advanceOnce(team, player, rng, report)) break;
+      if (!advanceOnce({ team, player, rng, report })) break;
     }
   }
 }
 
-/** Take one advancement; false when there is none or it was refused. */
-function advanceOnce(
-  team: Team,
-  player: Player,
-  rng: Rng,
-  report: ManagementReport
-): boolean {
+function advanceOnce({
+  team,
+  player,
+  rng,
+  report,
+}: {
+  team: Team;
+  player: Player;
+  rng: Rng;
+  report: ManagementReport;
+}): boolean {
   let choice: AdvancementChoice | null = null;
   try {
     choice = advancementChoice(player, nextAdvancementCosts(player)!, rng);
@@ -267,7 +235,7 @@ function advanceOnce(
   } catch (cause) {
     report.refused.push({
       rule: "advancement-refused",
-      detail: `${team.name} ${player.playerName}${choice ? ` ${describeChoice(choice)}` : ""}: ${cause}`,
+      detail: `${team.name} ${player.playerName}${choice ? ` ${describeChoice(choice)}` : ""}: ${String(cause)}`,
     });
     return false;
   }
@@ -279,7 +247,6 @@ function describeChoice(choice: AdvancementChoice): string {
     : `${choice.kind} ${choice.skill}`;
 }
 
-/** Roll for a characteristic, falling back to a Primary skill. */
 function characteristicAdvancement(
   player: Player,
   rng: Rng
@@ -293,7 +260,6 @@ function characteristicAdvancement(
     : null;
 }
 
-/** Save for a characteristic once close; otherwise take what is affordable. */
 function advancementChoice(
   player: Player,
   costs: NonNullable<ReturnType<typeof nextAdvancementCosts>>,
@@ -320,13 +286,6 @@ function advancementChoice(
   return { kind: "random-primary", skill: first.skill };
 }
 
-/**
- * Between league fixtures, buy what the purchase planner chooses through
- * the same code a coach's purchase runs, then let go every Journeyman not
- * hired, so no offer is left to hold up the next fixture. A team still at
- * its draft, or one outside a league (Matched Play), keeps its Treasury as
- * it is.
- */
 function spendTreasury(team: Team, report: ManagementReport): void {
   const spends = isLeagueMode(team.advancementMode) && isActiveTeam(team);
   for (const item of spends ? planPurchases(team) : []) {
@@ -336,7 +295,7 @@ function spendTreasury(team: Team, report: ManagementReport): void {
     } catch (cause) {
       report.refused.push({
         rule: "purchase-refused",
-        detail: `${team.name} ${describePurchase(item)}: ${cause}`,
+        detail: `${team.name} ${describePurchase(item)}: ${String(cause)}`,
       });
     }
   }
@@ -351,21 +310,26 @@ function spendTreasury(team: Team, report: ManagementReport): void {
   if (spends && fit < MIN_ROSTER_PLAYERS)
     report.setbacks.push({
       rule: "cannot-refill",
-      detail: `${team.name}: ${fit} fit players, ${team.treasury} in the Treasury`,
+      detail: `${team.name}: ${String(fit)} fit players, ${String(team.treasury)} in the Treasury`,
     });
 }
 
-function resolveSkillSelection(
-  team: Team,
-  entry: Extract<PendingDevelopment, { kind: "sevens-skill-selection" }>,
-  rng: Rng,
-  report: ManagementReport
-): void {
+function resolveSkillSelection({
+  team,
+  entry,
+  rng,
+  report,
+}: {
+  team: Team;
+  entry: Extract<PendingDevelopment, { kind: "sevens-skill-selection" }>;
+  rng: Rng;
+  report: ManagementReport;
+}): void {
   const draftedAway = (released: { playerName: string }[]) => {
     for (const record of released)
       report.setbacks.push({
         rule: "drafted-away",
-        detail: `${team.name}: ${record.playerName}, Treasury ${team.treasury}`,
+        detail: `${team.name}: ${record.playerName}, Treasury ${String(team.treasury)}`,
       });
   };
   const wantSecondary = rng.rollDie(3) === 1;
@@ -406,7 +370,7 @@ function resolveSkillSelection(
       case "roll-primary-d3": {
         const result = rollPrimarySelection(team, entry, rng);
         report.done.push(
-          `${team.name}: Skill Selection primary ${result.skill} (D3 ${result.d3})`
+          `${team.name}: Skill Selection primary ${result.skill} (D3 ${String(result.d3)})`
         );
         draftedAway(result.draft.released);
         return;

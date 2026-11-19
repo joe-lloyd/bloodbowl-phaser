@@ -1,21 +1,8 @@
-/**
- * A coach that asks Jev, TypeSafe's System One model, for the strategic
- * call: which player acts next, and how, or whether to end the turn.
- *
- * Code still owns the rules. The heuristic coach shortlists legal
- * candidates and handles every low-level step and dice decision; Jev only
- * picks between options that are already legal, as a typed Choice. Any API
- * failure falls back to the heuristic so a batch never stalls on the network.
- *
- * Recordings store the commands, not Jev's answers, so replaying a Jev
- * match needs no API key.
- */
-
-import { PlayerStatus } from "../../types/Player";
-import { Coach, CoachContext } from "../coach";
+import { requestCoachChoice } from "../../boundary/jev";
+import { type Coach, type CoachContext } from "../coach";
+import { describeBoard } from "./jevBoard";
 import { heuristicCoach, rankCandidates } from "./heuristic";
 
-const ENDPOINT = "https://api.typesafe.ai/v1/systemone";
 const SHORTLIST = 8;
 
 export interface JevStats {
@@ -32,16 +19,57 @@ export interface JevCoachOptions {
   timeoutMs?: number;
 }
 
-interface ChoiceAnswer {
-  type: "choice";
-  choice: string;
-  confidence: number;
-  probabilities: Record<string, number>;
+type RankedCandidate = ReturnType<typeof rankCandidates>[number];
+type RequestOptions = Required<JevCoachOptions>;
+
+function shortlistFor(context: CoachContext): RankedCandidate[] {
+  const ranked = rankCandidates(context).sort((a, b) => b.score - a.score);
+  const shortlist = ranked.slice(0, SHORTLIST);
+  const endTurn = ranked.find((entry) => entry.candidate.kind === "end-turn");
+  if (endTurn && !shortlist.includes(endTurn)) shortlist.push(endTurn);
+  return shortlist;
 }
 
-interface SystemOneResponse {
-  answers: Record<string, ChoiceAnswer>;
-  usage?: { input_tokens: number; output_tokens: number };
+async function ask(request: {
+  context: CoachContext;
+  shortlist: RankedCandidate[];
+  options: RequestOptions;
+  stats: JevStats;
+}) {
+  const { context, shortlist, options, stats } = request;
+  const criteria = Object.fromEntries(
+    shortlist.map((entry, index) => [
+      `option_${String(index + 1)}`,
+      entry.candidate.label,
+    ])
+  );
+  const started = Date.now();
+  stats.calls++;
+  const answer = await requestCoachChoice({
+    ...options,
+    state: describeBoard(context),
+    criteria,
+  });
+  stats.totalMs += Date.now() - started;
+  stats.inputTokens += answer.inputTokens;
+  stats.outputTokens += answer.outputTokens;
+  const picked = Number(answer.choice.replace("option_", "")) - 1;
+  const candidate = shortlist[picked];
+  if (!candidate) throw new Error(`unexpected choice ${answer.choice}`);
+  return {
+    index: candidate.index,
+    note: `jev p=${answer.probability.toFixed(2)} confidence=${answer.confidence.toFixed(2)}`,
+  };
+}
+
+function usesModel(context: CoachContext): boolean {
+  return (
+    context.point.candidates.length >= 2 &&
+    context.point.candidates.some(
+      (candidate) =>
+        candidate.kind === "declare" || candidate.kind === "end-turn"
+    )
+  );
 }
 
 export function createJevCoach(
@@ -55,133 +83,26 @@ export function createJevCoach(
     outputTokens: 0,
   };
   const model = options.model ?? "jev-latest";
-  const timeoutMs = options.timeoutMs ?? 15000;
-
-  async function ask(context: CoachContext, shortlist: number[]) {
-    const criteria: Record<string, string> = {};
-    shortlist.forEach((candidateIndex, i) => {
-      criteria[`option_${i + 1}`] =
-        context.point.candidates[candidateIndex].label;
-    });
-    const started = Date.now();
-    stats.calls++;
-    const response = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${options.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      signal: AbortSignal.timeout(timeoutMs),
-      body: JSON.stringify({
-        model,
-        state: describeBoard(context),
-        questions: {
-          next: {
-            type: "choice",
-            instructions:
-              "You coach `coaching` in a game of Blood Bowl Sevens (20x11 pitch, 6 turns per half). " +
-              "Pick the next action that best improves your chance of scoring or stopping the opponent scoring, " +
-              "while avoiding a turnover. In Blood Bowl a coach usually makes safe actions (blocks with more dice, " +
-              "moves without dodges) before risky ones, and protects the ball carrier.",
-            criteria,
-          },
-        },
-      }),
-    });
-    stats.totalMs += Date.now() - started;
-    if (!response.ok) {
-      throw new Error(
-        `TypeSafe API ${response.status}: ${(await response.text()).slice(0, 200)}`
-      );
-    }
-    const body = (await response.json()) as SystemOneResponse;
-    stats.inputTokens += body.usage?.input_tokens ?? 0;
-    stats.outputTokens += body.usage?.output_tokens ?? 0;
-    const answer = body.answers.next;
-    const picked = Number(answer?.choice?.replace("option_", "")) - 1;
-    if (!(picked >= 0 && picked < shortlist.length)) {
-      throw new Error(`unexpected choice ${answer?.choice}`);
-    }
-    return {
-      index: shortlist[picked],
-      confidence: answer.confidence,
-      p: answer.probabilities[answer.choice],
-    };
-  }
-
+  const settings = {
+    apiKey: options.apiKey,
+    model,
+    timeoutMs: options.timeoutMs ?? 15000,
+  };
   return {
     name: `jev:${model}`,
     stats,
     async choose(context) {
-      const declaring = context.point.candidates.some(
-        (c) => c.kind === "declare" || c.kind === "end-turn"
-      );
-      if (!declaring || context.point.candidates.length < 2) {
-        return heuristicCoach.choose(context);
-      }
-      const scores = rankCandidates(context);
-      const order = scores
-        .map((_, i) => i)
-        .sort((a, b) => scores[b] - scores[a]);
-      const shortlist = order.slice(0, SHORTLIST);
-      const endTurn = context.point.candidates.findIndex(
-        (c) => c.kind === "end-turn"
-      );
-      if (endTurn >= 0 && !shortlist.includes(endTurn)) shortlist.push(endTurn);
+      if (!usesModel(context)) return heuristicCoach.choose(context);
+      const shortlist = shortlistFor(context);
       try {
-        const { index, confidence, p } = await ask(context, shortlist);
-        return {
-          index,
-          note: `jev p=${p.toFixed(2)} confidence=${confidence.toFixed(2)}`,
-        };
+        return await ask({ context, shortlist, options: settings, stats });
       } catch (error) {
         stats.failures++;
         return {
-          index: order[0],
+          index: shortlist[0]?.index ?? 0,
           note: `jev failed, heuristic used: ${error instanceof Error ? error.message : String(error)}`,
         };
       }
     },
-  };
-}
-
-/** The board as named JSON fields, from the deciding coach's side. */
-function describeBoard({ snapshot, point }: CoachContext) {
-  const ball = snapshot.ballPosition;
-  const describeTeam = (teamIndex: number) => {
-    const team = snapshot.teams[teamIndex];
-    return {
-      name: team.name,
-      scores_at_x: teamIndex === 0 ? 19 : 0,
-      score: snapshot.score[team.id] ?? 0,
-      team_rerolls: team.rerolls,
-      players: team.players
-        .filter((p) => p.position)
-        .map((p) => ({
-          player: `${p.positionName} #${p.number}`,
-          square: `(${p.position!.x},${p.position!.y})`,
-          status:
-            p.status === PlayerStatus.ACTIVE
-              ? "standing"
-              : p.status.toLowerCase(),
-          has_ball:
-            !!ball && ball.x === p.position!.x && ball.y === p.position!.y,
-          already_acted: snapshot.turn.activatedPlayerIds.includes(p.id),
-          MA: p.stats.MA,
-          ST: p.stats.ST,
-          AG: `${p.stats.AG}+`,
-          skills: p.skills,
-        })),
-    };
-  };
-  const mine = snapshot.teams.findIndex((t) => t.id === point.teamId);
-  return {
-    coaching: snapshot.teams[mine].name,
-    turn: `${snapshot.turn.isHalf2 ? "second" : "first"} half, turn ${snapshot.turn.turnNumber} of 6`,
-    ball: ball ? `(${ball.x},${ball.y})` : "off the pitch",
-    blitz_used_this_turn: snapshot.turn.hasBlitzed,
-    pass_used_this_turn: snapshot.turn.hasPassed,
-    my_team: describeTeam(mine),
-    opponents: describeTeam(1 - mine),
   };
 }

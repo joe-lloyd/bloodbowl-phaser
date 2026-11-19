@@ -1,4 +1,3 @@
-/** Annotate saved commands without asking a coach to choose again. */
 import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
@@ -27,7 +26,10 @@ const eventId = (data: unknown, key: string): string | undefined => {
 };
 
 type Step = MatchRecording["steps"][number];
-type TurnContext = { turn: string; late: boolean };
+interface TurnContext {
+  turn: string;
+  late: boolean;
+}
 function outcomeTracker(game: HeadlessGame) {
   const totals: [Outcomes, Outcomes] = [empty(), empty()];
   const sides = new Map([
@@ -44,7 +46,7 @@ function outcomeTracker(game: HeadlessGame) {
   const contextNow = (): TurnContext => {
     const state = game.ctx.gameService.getState();
     return {
-      turn: `${state.turn.isHalf2}/${state.turn.turnNumber}/${state.activeTeamId}`,
+      turn: `${String(state.turn.isHalf2)}/${String(state.turn.turnNumber)}/${String(state.activeTeamId)}`,
       late: state.turn.turnNumber >= 5,
     };
   };
@@ -76,8 +78,7 @@ function outcomeTracker(game: HeadlessGame) {
   }
   function completion(data: unknown, context: TurnContext) {
     const passerId = eventId(data, "playerId") ?? "";
-    // The engine also emits PassCompleted for a handoff. Credit only a
-    // recorded Pass command, including completions resolved by later reactions.
+
     if (throws.get(passerId) !== context.turn) return;
     const catcher = eventId(data, "catcherId");
     const passer = game.ctx.gameService.getPlayerById(passerId);
@@ -108,12 +109,12 @@ function outcomeTracker(game: HeadlessGame) {
   game.ctx.eventBus.on(GameEventNames.PlayerMoved, ({ playerId, to }) =>
     moves.set(playerId, to)
   );
-  game.ctx.eventBus.on(GameEventNames.PassCompleted, (data) =>
-    completion(data, contextNow())
-  );
-  game.ctx.eventBus.on(GameEventNames.Touchdown, (data) =>
-    touchdown(data, contextNow())
-  );
+  game.ctx.eventBus.on(GameEventNames.PassCompleted, (data) => {
+    completion(data, contextNow());
+  });
+  game.ctx.eventBus.on(GameEventNames.Touchdown, (data) => {
+    touchdown(data, contextNow());
+  });
   return { totals, before };
 }
 
@@ -127,7 +128,8 @@ export async function annotateTrace(file: string) {
   for (const [index, step] of trace.recording.steps.entries()) {
     tracker.before(step);
     const response = await game.execute(step.command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
+    if (response.ok !== step.ok)
+      throw new Error(`Replay diverged at ${String(index)}`);
   }
   const hash = snapshotHash(game.snapshot());
   if (hash !== trace.recording.final.hash)
@@ -160,7 +162,7 @@ async function main() {
         );
         process.send?.({ done: job.id });
       } catch (error) {
-        process.send?.({ error: `${job.id}: ${error}` });
+        process.send?.({ error: `${job.id}: ${String(error)}` });
       }
     });
     process.send?.({ ready: true });

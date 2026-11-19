@@ -1,43 +1,44 @@
+import type { ActionCommandService } from "./actionCommands";
+import type { PlayScene } from "./scenePorts";
 import Phaser from "phaser";
-import { PhaseHandler } from "./PhaseHandler";
-import { GameScene } from "../../../scenes/GameScene";
-import { IGameService } from "../../../services/interfaces/IGameService";
-import { GameEventMap, IEventBus } from "../../../services/EventBus";
+import { type PhaseHandler } from "./PhaseHandler";
+import { type GameEventMap, type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { registerActionCommands } from "./actionCommands";
-import { BombSprite } from "../../elements/BombSprite";
-import { BallSprite, CARRIED_HEIGHT } from "../../elements/BallSprite";
+import { CARRIED_HEIGHT } from "../../elements/BallSprite";
 import { ISO } from "../../elements/GridUtils";
 import { PLAYER_DEPTH } from "../../elements/PlayerSprite";
 import { DiceWatch } from "../../presentation/diceWatch";
 
-/**
- * PlayPhaseHandler
- *
- * Handles Gameplay Events:
- * - Turn Start
- * - Player Movement (Animation trigger)
- * - Actions (Pass, Block)
- *
- * Note: Actual logic is in GameService/FlowManager. This handler connects UI/Visuals to that logic.
- */
+function facingDirection(dx: number): number {
+  const direction = Math.sign(dx);
+  return direction === 0 || Number.isNaN(direction) ? 1 : direction;
+}
+
 export class PlayPhaseHandler implements PhaseHandler {
   private unsubscribes: (() => void)[] = [];
   private dice: DiceWatch | null = null;
-  /** Counts the ball's moves and this handler's exits (see PassFumbled). */
+
   private ballMoves = 0;
 
+  private scene: PlayScene;
+  private gameService: ActionCommandService;
+  private eventBus: IEventBus;
   constructor(
-    private scene: GameScene,
-    private gameService: IGameService,
-    private eventBus: IEventBus
-  ) {}
+    scene: PlayScene,
+    gameService: ActionCommandService,
+    eventBus: IEventBus
+  ) {
+    this.scene = scene;
+    this.gameService = gameService;
+    this.eventBus = eventBus;
+  }
 
   enter(): void {
     console.log("[PlayPhaseHandler] Entering Play Phase");
     this.dice = new DiceWatch(this.eventBus);
     this.setupListeners();
-    this.scene["startPlayPhase"](); // Trigger scene visual state
+    this.scene.startPlayPhase();
   }
 
   exit(): void {
@@ -52,11 +53,15 @@ export class PlayPhaseHandler implements PhaseHandler {
     handler: (data: GameEventMap[K]) => void
   ): void {
     this.eventBus.on(event, handler);
-    this.unsubscribes.push(() => this.eventBus.off(event, handler));
+    this.unsubscribes.push(() => {
+      this.eventBus.off(event, handler);
+    });
   }
 
   private removeListeners(): void {
-    this.unsubscribes.forEach((unsubscribe) => unsubscribe());
+    this.unsubscribes.forEach((unsubscribe) => {
+      unsubscribe();
+    });
     this.unsubscribes = [];
   }
 
@@ -65,170 +70,74 @@ export class PlayPhaseHandler implements PhaseHandler {
       this.scene.refreshDugouts();
       this.eventBus.emit(
         GameEventNames.UI_Notification,
-        `Turn ${turn.turnNumber}`
+        `Turn ${String(turn.turnNumber)}`
       );
     });
 
-    this.register(GameEventNames.PlayerMoved, (data) =>
-      this.handlePlayerMove(data)
-    );
-
-    // Throw / Kick Team-mate: the thrower leans into a throw or swings a kick.
-    this.register(GameEventNames.PlayerThrowGesture, (data) => {
-      const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (!sprite) return;
-      if (data.mode === "kick") {
-        sprite.animateKickGesture(data.dir);
-      } else {
-        sprite.animateThrowGesture(data.dir);
-      }
+    this.register(GameEventNames.PlayerMoved, (data) => {
+      this.handlePlayerMove(data);
     });
 
-    // Pass Declaration - Zoom In
+    this.register(GameEventNames.PlayerThrowGesture, this.handlePlayerThrowGesture0);
+
     this.register(GameEventNames.PassDeclared, (data) => {
-      // Logic moved from SceneOrchestrator
       this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-        playerId: data.playerId, // the passer, until the ball is thrown
+        playerId: data.playerId,
         animationDuration: 800,
       });
     });
 
-    // Pass Attempted - Animate Ball
-    this.register(GameEventNames.PassAttempted, (data) =>
-      this.handlePassAnimation(data)
-    );
+    this.register(GameEventNames.PassAttempted, (data) => {
+      this.handlePassAnimation(data);
+    });
 
-    // Punt Declared - kick gesture + ball flight, then acknowledge so the
-    // paused PuntOperation resolves the (already rolled) outcome.
-    this.register(GameEventNames.PuntDeclared, (data) =>
-      this.handlePuntDeclaration(data)
-    );
+    this.register(GameEventNames.PuntDeclared, (data) => {
+      this.handlePuntDeclaration(data);
+    });
 
-    // Bombardier: arc a bomb to its landing square, then blow it up.
-    this.register(GameEventNames.BombThrown, (data) =>
-      this.handleBombThrow(data)
-    );
-    this.register(GameEventNames.BombExploded, (data) =>
-      this.handleBombExplosion(data)
-    );
-
-    // --- MISSING HANDLERS RESTORED ---
-
-    // --- MISSING HANDLERS RESTORED ---
-    // Kickoff logic moved to KickoffPhaseHandler
-
-    // Ready To Start (Kickoff -> Play)
-    // REMOVED from PlayPhase, handled in KickoffPhase transition
+    this.register(GameEventNames.BombThrown, (data) => {
+      this.handleBombThrow(data);
+    });
+    this.register(GameEventNames.BombExploded, (data) => {
+      this.handleBombExplosion(data);
+    });
 
     this.unsubscribes.push(
       registerActionCommands(this.gameService, this.eventBus)
     );
 
-    // The attacker throws the block once the dice are kept.
-    this.register(GameEventNames.BlockDiceKept, (data) => {
-      const sprites = this.scene["playerSprites"];
-      const defender = sprites.get(data.defenderId);
-      sprites
-        .get(data.attackerId)
-        ?.playAction(
-          "block",
-          defender ? { x: defender.x, y: defender.y } : undefined
-        );
-    });
+    this.register(GameEventNames.BlockDiceKept, this.handleBlockDiceKept1);
 
-    // Status Updates
-    // A fall shows once its dice land and the step into the square plays.
     this.register(GameEventNames.PlayerKnockedDown, (data) => {
-      const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (sprite) void this.afterStep(sprite).then(() => sprite.updateStatus());
+      const sprite = this.scene.playerSprites.get(data.playerId);
+      if (sprite)
+        void this.afterStep(sprite).then(() => {
+          sprite.updateStatus();
+        });
     });
 
-    // Crowd surf: the surfed player must leave the pitch NOW. Their sprite
-    // used to disappear only via the turn-end dugout refresh, but the
-    // follow-up prompt keeps the activation (and turn) open, so without
-    // this the "pushed out" player visibly stayed on their square.
-    this.register(GameEventNames.PlayerPushedIntoCrowd, (data) => {
-      const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (!sprite) return;
-      this.scene.tweens.add({
-        targets: sprite,
-        alpha: 0,
-        duration: 350,
-        onComplete: () => {
-          sprite.setVisible(false);
-          sprite.setAlpha(1); // ready for re-use next drive
-          this.scene.refreshDugouts();
-        },
-      });
-    });
+    this.register(GameEventNames.PlayerPushedIntoCrowd, this.handlePlayerPushedIntoCrowd2);
 
-    // Keep the sprite's look in sync with any status flip (stunned → prone
-    // at turn start, crowd-injury results, …). Off-pitch changes also move
-    // the player between dugout boxes — but only those trigger the full
-    // refresh: refreshing on on-pitch changes would snap every sprite to
-    // its grid square and teleport a mid-animation mover.
-    this.register(GameEventNames.PlayerStatusChanged, (player) => {
-      // One owner decides whether this player is still represented on the
-      // pitch or belongs to a dugout box (KO, casualty, sent off).
-      const reconcile = () => {
-        this.scene.reconcilePlayerLocation(player.id);
-        // A player who just left the pitch may have been standing on the ball.
-        this.scene.reconcileBallVisual();
-      };
-      const sprite = this.scene["playerSprites"].get(player.id);
-      // Someone still on the pitch changes look after their step plays.
-      if (sprite && player.gridPosition)
-        void this.afterStep(sprite).then(reconcile);
-      else reconcile();
-    });
+    this.register(GameEventNames.PlayerStatusChanged, this.handlePlayerStatusChanged3);
 
     this.register(GameEventNames.PlayerStoodUp, (data) => {
-      const sprite = this.scene["playerSprites"].get(data.playerId);
+      const sprite = this.scene.playerSprites.get(data.playerId);
       if (sprite) sprite.updateStatus();
     });
 
-    // Ball possession is one mutually exclusive visual state: reconcile from
-    // canonical state instead of imperatively moving a sprite per event.
     this.register(GameEventNames.BallPlaced, () => {
       this.ballMoves++;
       this.scene.reconcileBallVisual();
     });
 
-    // A mid-route pickup (success or failure) decides possession before the
-    // rest of the route resolves — re-derive the loose ball / carrier marker.
     this.register(GameEventNames.BallPickup, () => {
       this.ballMoves++;
       this.scene.reconcileBallVisual();
     });
 
-    // Fumble / Bounce: the hop waits for the dice before it, so a failed
-    // catch is read before the ball moves on, and holds where it lands
-    this.register(GameEventNames.PassFumbled, (data) => {
-      const acknowledge = () => this.acknowledge(data.presentationId);
-      if (!this.scene["ballSprite"]) {
-        acknowledge();
-        return;
-      }
-      const target = this.scene["pitch"].getPixelPosition(
-        data.bouncePosition.x,
-        data.bouncePosition.y
-      );
-      // The engine moved the ball on, or the board left, while the dice
-      // flew: this hop is history and must not move the ball back
-      const moves = this.ballMoves;
-      void (this.dice?.landed() ?? Promise.resolve())
-        .then(() => {
-          if (this.ballMoves !== moves) return;
-          this.scene["placeBallVisual"](data.position.x, data.position.y, 1);
-          const ball = this.scene["ballSprite"] as BallSprite | null;
-          return ball?.flyTo(target, { duration: 380, apex: 0.9 });
-        })
-        .then(() => new Promise((resolve) => setTimeout(resolve, 150)))
-        .finally(acknowledge);
-    });
+    this.register(GameEventNames.PassFumbled, this.handlePassFumbled4);
   }
 
-  /** Tell the engine the board has shown what it was waiting on. */
   private acknowledge(presentationId: string | undefined): void {
     if (presentationId)
       this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
@@ -236,22 +145,19 @@ export class PlayPhaseHandler implements PhaseHandler {
       });
   }
 
-  /**
-   * Walk the mover along the path once the dice deciding the step have
-   * landed, after any walk still playing. The engine may wait on this.
-   */
   private handlePlayerMove(
-    data: GameEventMap[GameEventNames.PlayerMoved]
+    data: GameEventMap[typeof GameEventNames.PlayerMoved]
   ): void {
-    const acknowledge = () => this.acknowledge(data.presentationId);
-    const sprite = this.scene["playerSprites"].get(data.playerId);
+    const acknowledge = () => {
+      this.acknowledge(data.presentationId);
+    };
+    const sprite = this.scene.playerSprites.get(data.playerId);
     if (!sprite) {
       this.scene.refreshDugouts();
       acknowledge();
       return;
     }
     if (!data.path?.length) {
-      // The walk went out in an earlier piece: done once that has played
       sprite.motion = sprite.motion.finally(() => {
         this.scene.refreshDugouts();
         acknowledge();
@@ -259,21 +165,16 @@ export class PlayPhaseHandler implements PhaseHandler {
       return;
     }
     const pixelPath = data.path.map((step) =>
-      this.scene["pitch"].getPixelPosition(step.x, step.y)
+      this.scene.pitch.getPixelPosition(step.x, step.y)
     );
     sprite.motion = sprite.motion
       .then(() => this.dice?.landed())
       .then(async () => {
-        // If the mover carries the ball, walk it along with them instead of
-        // letting the BallPlaced teleport leave it at the destination. The
-        // engine says exactly where the ball joined (start square, or the
-        // pickup square mid-path) so the ball never jumps to a square it
-        // was never on.
         if (data.ballFrom && data.ballPath && data.ballPath.length > 0) {
           this.scene.animateBallAlong(
             data.ballFrom,
             data.ballPath,
-            (data.ballJoinStep || 0) * 180
+            (data.ballJoinStep ?? 0) * 180
           );
         }
         await (data.thrown
@@ -290,27 +191,25 @@ export class PlayPhaseHandler implements PhaseHandler {
       .finally(acknowledge);
   }
 
-  /** The dice have landed and the step that led here has played. */
   private async afterStep(sprite: { motion: Promise<void> }): Promise<void> {
     await this.dice?.landed();
-    // Read after the dice: the move that carries the fall is announced last
+
     await sprite.motion;
   }
 
-  /** A pass: an arc from the thrower's hands, higher the longer the throw. */
   private handlePassAnimation(
-    data: GameEventMap[GameEventNames.PassAttempted]
+    data: GameEventMap[typeof GameEventNames.PassAttempted]
   ): void {
-    const thrower = this.scene["playerSprites"].get(data.playerId);
+    const thrower = this.scene.playerSprites.get(data.playerId);
     if (thrower) {
-      const target = this.scene["pitch"].getPixelPosition(data.to.x, data.to.y);
-      thrower.playAction("pass", target, () =>
-        thrower.animateThrowGesture(Math.sign(target.x - thrower.x) || 1)
-      );
+      const target = this.scene.pitch.getPixelPosition(data.to.x, data.to.y);
+      thrower.playAction("pass", target, () => {
+        thrower.animateThrowGesture(facingDirection(target.x - thrower.x));
+      });
     }
-    if (!this.scene["ballSprite"]) return;
-    this.scene["placeBallVisual"](data.from.x, data.from.y, CARRIED_HEIGHT);
-    const ball = this.scene["ballSprite"] as BallSprite;
+    if (!this.scene.ballSprite) return;
+    this.scene.placeBallVisual(data.from.x, data.from.y, CARRIED_HEIGHT);
+    const ball = this.scene.ballSprite;
     const squares = Math.hypot(
       data.finalPosition.x - data.from.x,
       data.finalPosition.y - data.from.y
@@ -319,7 +218,7 @@ export class PlayPhaseHandler implements PhaseHandler {
       animationDuration: 1000,
     });
     void ball.flyTo(
-      this.scene["pitch"].getPixelPosition(
+      this.scene.pitch.getPixelPosition(
         data.finalPosition.x,
         data.finalPosition.y
       ),
@@ -332,47 +231,39 @@ export class PlayPhaseHandler implements PhaseHandler {
     );
   }
 
-  /**
-   * Present a declared Punt: the punter swings a kick and the ball flies to
-   * the resolved landing square. The operation is parked on this animation, so
-   * the acknowledgement must fire on every path (including "no sprite yet").
-   */
   private handlePuntDeclaration(
-    data: GameEventMap[GameEventNames.PuntDeclared]
+    data: GameEventMap[typeof GameEventNames.PuntDeclared]
   ): void {
-    const acknowledge = () =>
+    const acknowledge = () => {
       this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
         id: data.presentationId,
       });
+    };
 
-    this.scene["playerSprites"]
+    this.scene.playerSprites
       .get(data.playerId)
-      ?.animateKickGesture(Math.sign(data.direction.x) || 1);
+      ?.animateKickGesture(facingDirection(data.direction.x));
 
-    const ballSprite = this.scene["ballSprite"];
-    const pitch = this.scene["pitch"];
-    if (!ballSprite || !pitch) {
+    const ballSprite = this.scene.ballSprite;
+    const pitch = this.scene.pitch;
+    if (!ballSprite) {
       acknowledge();
       return;
     }
 
     const target = pitch.getPixelPosition(data.landing.x, data.landing.y);
-    void (ballSprite as BallSprite)
-      .flyTo(target, { duration: 900, apex: 7 })
-      .then(acknowledge);
+    void ballSprite.flyTo(target, { duration: 900, apex: 7 }).then(acknowledge);
   }
 
-  /** Arc a transient BombSprite from the Bomber's square to where it lands. */
   private handleBombThrow(data: {
     from: { x: number; y: number };
     to: { x: number; y: number };
   }): void {
-    const pitch = this.scene["pitch"];
-    if (!pitch) return;
+    const pitch = this.scene.pitch;
     const p0 = pitch.getPixelPosition(data.from.x, data.from.y);
     const p1 = pitch.getPixelPosition(data.to.x, data.to.y);
 
-    const bomb = new BombSprite(this.scene, p0.x, p0.y);
+    const bomb = this.scene.createBombSprite(p0.x, p0.y);
     const dist = Phaser.Math.Distance.Between(p0.x, p0.y, p1.x, p1.y);
     const arc = Math.min(160, 50 + dist * 0.25);
 
@@ -388,31 +279,24 @@ export class PlayPhaseHandler implements PhaseHandler {
           Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
         bomb.rotation += 0.18;
       },
-      onComplete: () => bomb.destroy(),
+      onComplete: () => {
+        bomb.destroy();
+      },
     });
   }
 
-  /**
-   * A blast over the landing square and its eight neighbours: a translucent
-   * 3×3 flash plus an expanding fireball that fades out.
-   */
-  private handleBombExplosion(data: { x: number; y: number }): void {
-    const pitch = this.scene["pitch"];
-    if (!pitch) return;
-    const centre = pitch.getPixelPosition(data.x, data.y);
-    const s = ISO.tileHeight;
-
-    // 3×3 area flash — literally the square and its neighbours.
+  private showExplosionArea(data: { x: number; y: number }, centre: { x: number; y: number }): void {
+    const pitch = this.scene.pitch;
     const area = this.scene.add.graphics();
     area.setDepth(PLAYER_DEPTH + centre.y + 50);
     area.fillStyle(0xff7722, 0.35);
     area.fillPoints(
-      [
+      ([
         [data.x - 1, data.y - 1],
         [data.x + 2, data.y - 1],
         [data.x + 2, data.y + 2],
         [data.x - 1, data.y + 2],
-      ].map(([gx, gy]) => {
+      ] as const).map(([gx, gy]) => {
         const p = pitch.getPointPosition(gx, gy);
         return new Phaser.Math.Vector2(p.x, p.y);
       }),
@@ -423,10 +307,20 @@ export class PlayPhaseHandler implements PhaseHandler {
       alpha: 0,
       duration: 550,
       ease: "Quad.easeOut",
-      onComplete: () => area.destroy(),
+      onComplete: () => {
+        area.destroy();
+      },
     });
 
-    // Expanding fireball, layered hot-to-cool.
+  }
+
+  private handleBombExplosion(data: { x: number; y: number }): void {
+    const pitch = this.scene.pitch;
+    const centre = pitch.getPixelPosition(data.x, data.y);
+    const s = ISO.tileHeight;
+
+    this.showExplosionArea(data, centre);
+
     const fireball = this.scene.add.graphics();
     fireball.setDepth(PLAYER_DEPTH + centre.y + 60);
     fireball.fillStyle(0xff4400, 0.55);
@@ -443,11 +337,85 @@ export class PlayPhaseHandler implements PhaseHandler {
       alpha: 0,
       duration: 500,
       ease: "Quad.easeOut",
-      onComplete: () => fireball.destroy(),
+      onComplete: () => {
+        fireball.destroy();
+      },
     });
 
-    if (this.scene.cameras?.main) {
-      this.scene.cameras.main.shake(220, 0.006);
-    }
+    this.scene.cameras.main.shake(220, 0.006);
   }
+
+  private readonly handlePlayerThrowGesture0 = (data: GameEventMap[typeof GameEventNames.PlayerThrowGesture]) => {
+      const sprite = this.scene.playerSprites.get(data.playerId);
+      if (!sprite) return;
+      if (data.mode === "kick") {
+        sprite.animateKickGesture(data.dir);
+      } else {
+        sprite.animateThrowGesture(data.dir);
+      }
+    };
+
+  private readonly handleBlockDiceKept1 = (data: GameEventMap[typeof GameEventNames.BlockDiceKept]) => {
+      const sprites = this.scene.playerSprites;
+      const defender = sprites.get(data.defenderId);
+      sprites
+        .get(data.attackerId)
+        ?.playAction(
+          "block",
+          defender ? { x: defender.x, y: defender.y } : undefined
+        );
+    };
+
+  private readonly handlePlayerPushedIntoCrowd2 = (data: GameEventMap[typeof GameEventNames.PlayerPushedIntoCrowd]) => {
+      const sprite = this.scene.playerSprites.get(data.playerId);
+      if (!sprite) return;
+      this.scene.tweens.add({
+        targets: sprite,
+        alpha: 0,
+        duration: 350,
+        onComplete: () => {
+          sprite.setVisible(false);
+          sprite.setAlpha(1);
+          this.scene.refreshDugouts();
+        },
+      });
+    };
+
+  private readonly handlePlayerStatusChanged3 = (player: GameEventMap[typeof GameEventNames.PlayerStatusChanged]) => {
+      const reconcile = () => {
+        this.scene.reconcilePlayerLocation(player.id);
+
+        this.scene.reconcileBallVisual();
+      };
+      const sprite = this.scene.playerSprites.get(player.id);
+
+      if (sprite && player.gridPosition)
+        void this.afterStep(sprite).then(reconcile);
+      else reconcile();
+    };
+
+  private readonly handlePassFumbled4 = (data: GameEventMap[typeof GameEventNames.PassFumbled]) => {
+      const acknowledge = () => {
+        this.acknowledge(data.presentationId);
+      };
+      if (!this.scene.ballSprite) {
+        acknowledge();
+        return;
+      }
+      const target = this.scene.pitch.getPixelPosition(
+        data.bouncePosition.x,
+        data.bouncePosition.y
+      );
+
+      const moves = this.ballMoves;
+      void (this.dice?.landed() ?? Promise.resolve())
+        .then(() => {
+          if (this.ballMoves !== moves) return;
+          this.scene.placeBallVisual(data.position.x, data.position.y, 1);
+          const ball = this.scene.ballSprite;
+          return ball?.flyTo(target, { duration: 380, apex: 0.9 });
+        })
+        .then(() => new Promise((resolve) => setTimeout(resolve, 150)))
+        .finally(acknowledge);
+    };
 }

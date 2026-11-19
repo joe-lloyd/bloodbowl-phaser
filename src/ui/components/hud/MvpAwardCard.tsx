@@ -1,4 +1,4 @@
-import { Team } from "../../../types/Team";
+import { type Team } from "../../../types/Team";
 import { sppValuesFor } from "../../../game/progression/MatchStats";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
 
@@ -6,7 +6,7 @@ interface Props {
   team: Team;
   eligibleIds: string[];
   nominees: string[];
-  /** A roll of -1 means the MVP was awarded before this screen loaded. */
+
   mvpResult: { playerId: string; roll: number } | undefined;
   touchdownRecipient: string | undefined;
   onToggleNominee: (playerId: string) => void;
@@ -15,7 +15,6 @@ interface Props {
   onAssignTouchdown: () => void;
 }
 
-/** One team's MVP nominations and roll, and any awarded touchdown's SPP. */
 export function MvpAwardCard({
   team,
   eligibleIds,
@@ -45,14 +44,16 @@ export function MvpAwardCard({
             <button
               key={playerId}
               disabled={!!mvpResult}
-              onClick={() => onToggleNominee(playerId)}
+              onClick={() => {
+                onToggleNominee(playerId);
+              }}
               className={`min-h-[40px] rounded-hud border px-3 py-2 text-left font-hud-label text-hud-base font-bold transition-colors disabled:cursor-default ${
                 slot >= 0
                   ? "border-hud-gold bg-hud-blood text-white"
                   : "border-white/10 bg-hud-raise text-hud-bone hover:border-hud-gold/60"
               }`}
             >
-              {slot >= 0 ? `${slot + 1}. ` : ""}#{player.number}{" "}
+              {slot >= 0 ? `${String(slot + 1)}. ` : ""}#{player.number}{" "}
               {player.playerName}
             </button>
           );
@@ -60,7 +61,7 @@ export function MvpAwardCard({
       </div>
       {mvpResult ? (
         <p className="mt-3 font-hud-label text-hud-xl font-bold uppercase text-hud-gold">
-          {mvpResult.roll >= 1 ? `Rolled ${mvpResult.roll}: ` : ""}
+          {mvpResult.roll >= 1 ? `Rolled ${String(mvpResult.roll)}: ` : ""}
           {
             team.players.find((player) => player.id === mvpResult.playerId)
               ?.playerName
@@ -78,15 +79,17 @@ export function MvpAwardCard({
       )}
       <div className="mt-5 border-t border-white/10 pt-4">
         <p className="mb-2 text-hud-sm text-hud-dim">
-          If this team was awarded a touchdown after a concession,
-          assign its {sppValuesFor(team.rosterName).touchdown} SPP
-          here. Repeat for each awarded touchdown.
+          If this team was awarded a touchdown after a concession, assign its{" "}
+          {sppValuesFor(team.rosterName).touchdown} SPP here. Repeat for each
+          awarded touchdown.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <select
             aria-label={`${team.name} awarded touchdown recipient`}
             value={touchdownRecipient ?? ""}
-            onChange={(event) => onChooseTouchdownRecipient(event.target.value)}
+            onChange={(event) => {
+              onChooseTouchdownRecipient(event.target.value);
+            }}
             className="hud-field min-w-0 flex-1"
           >
             <option value="">Choose a player</option>

@@ -1,6 +1,6 @@
-import { Team } from "../../../types/Team";
+import { type Team } from "../../../types/Team";
 import {
-  StaffItem,
+  type StaffItem,
   draftInducementCount,
   priceOf,
 } from "../../../game/rules/teamPricing";
@@ -9,7 +9,6 @@ import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
 import { HudButton, Section } from "../componentWarehouse/HudKit";
 import { formatGold } from "../TeamManagement/TeamStatsOverview";
 
-/** Re-rolls, the Apothecary, Dedicated Fans, coaches and cheerleaders. */
 export function SidelineStaffSection({
   team,
   active,
@@ -80,7 +79,6 @@ export function SidelineStaffSection({
   );
 }
 
-/** Matched Play buys inducements from the draft budget (MP2). */
 export function DraftInducementsSection({
   team,
   onBuy,
@@ -107,9 +105,6 @@ export function DraftInducementsSection({
   );
 }
 
-/** A team asset bought one at a time, with its price and a "+" button. The
- *  price and any refusal come from priceOf, so a reached limit shows as a
- *  disabled button whose tooltip names it. */
 function StaffCounter({
   label,
   count,
@@ -125,7 +120,7 @@ function StaffCounter({
 }) {
   const price = priceOf(team, item);
   const affordable = price.amount != null && team.treasury >= price.amount;
-  // The fullgame e2e driver finds a counter by this wrapper and its label.
+
   return (
     <div className="flex flex-col gap-1">
       <span className="hud-label">
@@ -138,7 +133,9 @@ function StaffCounter({
           size="sm"
           variant="secondary"
           className="w-9 !px-0"
-          onClick={() => onBuy(item)}
+          onClick={() => {
+            onBuy(item);
+          }}
           disabled={!affordable}
           title={price.reason}
         >

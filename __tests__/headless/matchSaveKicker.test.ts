@@ -1,12 +1,7 @@
-/**
- * A save names the drive's kicking team, and a game restored from it kicks
- * off with that team. During the set-up between drives the coming drive's
- * kicker is the one that counts.
- */
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
-import { Coach } from "../../src/simulation/coach";
+import { type Coach } from "../../src/simulation/coach";
 import { runMatch } from "../../src/simulation/runMatch";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { RosterName } from "../../src/types/Team";
@@ -35,7 +30,6 @@ describe("the kicking team in a match save", () => {
       coaches: [watching, watching],
     });
 
-    // More than one drive, so the kicker changes at least once
     expect(new Set(seen.map((s) => s.setUp)).size).toBe(2);
     expect(seen.filter((s) => s.saved !== s.setUp)).toEqual([]);
   });

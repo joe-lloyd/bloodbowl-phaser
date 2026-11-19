@@ -1,21 +1,16 @@
-/**
- * The computer league teams the purchase planner tests share, and the way
- * they apply a plan.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { expect } from "vitest";
-import { createComputerTeam } from "../../src/competition/computerTeams";
+import { createComputerTeam } from "../fixtures/computerTeam";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import {
-  PlannedPurchase,
+  type PlannedPurchase,
   applyPurchase,
 } from "../../src/game/rules/purchasePlanner";
 import { validateInsignificant } from "../../src/game/rules/insignificant";
 import { SkillType } from "../../src/types/Skills";
 import { PositionKeyWord, createPlayer } from "../../src/types/Player";
-import { RosterName, Team } from "../../src/types/Team";
+import { RosterName, type Team } from "../../src/types/Team";
 
-/** A computer league team after its first fixture. */
 export function leagueTeam(
   roster: RosterName,
   {
@@ -24,15 +19,10 @@ export function leagueTeam(
     rerolls,
   }: { players?: number; treasury?: number; rerolls?: number } = {}
 ): Team {
-  const team = createComputerTeam(
-    roster,
-    `${roster} XI`,
-    0x335577,
-    "advanced-league"
-  );
+  const team = createComputerTeam({ rosterName: roster, name: `${roster} XI`, primaryColour: 0x335577, advancementMode: "advanced-league" });
   team.firstMatchPlayedAt = 1;
   team.players = team.players.slice(0, players);
-  // More than the ready-made 7: Linemen in the next numbers
+
   const lineman = getRosterByRosterName(roster).playerTemplates.find(
     (template) => template.keywords.includes(PositionKeyWord.LINEMAN)
   );
@@ -47,20 +37,19 @@ export function leagueTeam(
   return team;
 }
 
-/** A Journeyman who played and waits on a hiring decision. */
 export function offerJourneyman(team: Team, number: number, spp = 0): string {
   const lineman = getRosterByRosterName(team.rosterName).playerTemplates[0];
   const journeyman = createPlayer(
-    lineman,
+    fixtureValue(lineman),
     team.id,
     number,
-    `Journeyman #${number}`
+    `Journeyman #${String(number)}`
   );
-  journeyman.id = `${team.id}-journeyman-${number}`;
+  journeyman.id = `${team.id}-journeyman-${String(number)}`;
   journeyman.playerKind = "journeyman";
   journeyman.spp = spp;
   team.players.push(journeyman);
-  const offerId = `journeyman-m-${number}`;
+  const offerId = `journeyman-m-${String(number)}`;
   (team.pendingDevelopment ??= []).push({
     id: offerId,
     kind: "journeyman-offer",
@@ -76,15 +65,10 @@ export const reasons = (plan: PlannedPurchase[]) =>
 export const spent = (plan: PlannedPurchase[]) =>
   plan.reduce((sum, item) => sum + item.price, 0);
 
-/** Apply a plan the way the computer does, through the coach's code. */
 export function applyAll(team: Team, plan: PlannedPurchase[]): void {
   for (const item of plan) applyPurchase(team, item);
 }
 
-/**
- * An active Snotling team whose list holds as many Insignificant Snotling
- * Linemen as other players, 4 and 4, with gold to spare.
- */
 export function snotlingsAtTheLimit(): Team {
   const team = leagueTeam(RosterName.SNOTLING, {
     players: 0,
@@ -94,7 +78,7 @@ export function snotlingsAtTheLimit(): Team {
   const insignificant = (template: (typeof templates)[number]) =>
     template.skills.some((skill) => skill.type === SkillType.INSIGNIFICANT);
   const significant = templates.filter((template) => !insignificant(template));
-  const snotling = templates.find(insignificant)!;
+  const snotling = fixtureValue(templates.find(insignificant));
   const picks = significant.flatMap((template) =>
     Array(template.maxAllowed ?? 1).fill(template)
   );

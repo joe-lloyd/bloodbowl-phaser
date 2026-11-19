@@ -19,8 +19,7 @@ export function DecisionTeam({
       : service.getState().activeTeamId);
   const team = id ? service.getTeam(id) : undefined;
   if (!team) return null;
-  // Bone text beside a colour swatch: a dark team colour is unreadable as
-  // text on the dark panel.
+
   return (
     <span
       data-testid="decision-team"

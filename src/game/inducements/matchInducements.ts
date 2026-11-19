@@ -1,38 +1,27 @@
-/**
- * What a team's Prayers to Nuffle and Desperate Measures do in a match
- * (Spike! Journal 22, rules L12 to L28).
- *
- * Both are rolled once, before the first set-up, from the purchased counts in
- * the inducement inventory. The results live on `GameState.matchInducements`
- * so saves and online snapshots carry them. Skills and characteristics a
- * result grants are written onto the player for the game and recorded here,
- * then taken back at full time so they never reach the roster.
- */
-
-import { GameState } from "@/types/GameState";
+import { type GameState } from "@/types/GameState";
 import { Inducement, PrayerToNuffle } from "@/types/Inducements";
 import {
-  Player,
+  type Player,
   PlayerCondition,
-  PlayerStats,
+  type PlayerStats,
   PlayerStatus,
   addCondition,
   hasCondition,
   hasTackleZone,
   removeCondition,
 } from "@/types/Player";
-import { Skill, SkillType, getSkill, hasSkill } from "@/types/Skills";
-import { Team } from "@/types/Team";
+import { type Skill, SkillType, getSkill, hasSkill } from "@/types/Skills";
+import { type Team } from "@/types/Team";
 import {
-  DopeStat,
-  InducementChoiceDecisionAnswer,
-  InducementChoiceDecisionRequest,
-  ReactionDecisionAnswer,
+  type DopeStat,
+  type InducementChoiceDecisionAnswer,
+  type InducementChoiceDecisionRequest,
+  type ReactionDecisionAnswer,
 } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { GameConfig, isTrapdoorSquare } from "@/config/GameConfig";
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { DiceController } from "../controllers/DiceController";
 import { weatherEffects } from "../rules/weather";
 import { getDriveEffects } from "../kickoff/driveEffects";
@@ -49,12 +38,10 @@ export interface HeldMeasure {
   used: boolean;
 }
 
-/** Something a result gave a player for this game only. */
 export type MatchGrant =
   | { kind: "skill"; playerId: string; skill: SkillType }
   | { kind: "stat"; playerId: string; stat: "AV" | DopeStat; delta: number };
 
-/** A player Zap! turned into a Frog, and what they were before. */
 export interface FrogRecord {
   playerId: string;
   stats: PlayerStats;
@@ -62,18 +49,17 @@ export interface FrogRecord {
 }
 
 export interface MatchInducementsState {
-  /** Set once both teams' prayers and measures have been rolled. */
   rolled: boolean;
   prayers: Record<string, PrayerToNuffle[]>;
   measures: Record<string, HeldMeasure[]>;
   grants: MatchGrant[];
-  /** You Dope! players, who roll at the end of every drive they play. */
+
   dopedPlayerIds: string[];
-  /** Knocked out by You Dope! this end of drive: they skip KO recovery. */
+
   noRecoveryPlayerIds: string[];
-  /** Teams holding a Sports-Wizard that has not cast yet (Magic Scroll). */
+
   sportsWizards?: string[];
-  /** Zap!'s Frogs, who are themselves again at the end of the drive. */
+
   frogs?: FrogRecord[];
 }
 
@@ -93,7 +79,7 @@ export function getMatchInducements(state: GameState): MatchInducementsState {
   return state.matchInducements;
 }
 
-export function hasPrayer(
+function hasPrayer(
   state: GameState,
   teamId: string,
   prayer: PrayerToNuffle
@@ -101,7 +87,6 @@ export function hasPrayer(
   return state.matchInducements?.prayers[teamId]?.includes(prayer) ?? false;
 }
 
-/** Prayers such as Treacherous Trapdoor affect both teams. */
 export function prayerInPlay(
   state: GameState,
   prayer: PrayerToNuffle
@@ -111,7 +96,6 @@ export function prayerInPlay(
   );
 }
 
-/** True when the team rolled this measure and has not used it yet. */
 export function holdsMeasure(
   state: GameState,
   teamId: string,
@@ -124,7 +108,6 @@ export function holdsMeasure(
   );
 }
 
-/** Use a held measure once; false when the team has none left. */
 export function spendMeasure(
   state: GameState,
   teamId: string,
@@ -138,10 +121,6 @@ export function spendMeasure(
   return true;
 }
 
-/**
- * Whether the team's Foul for this turn is spent. Grudge Match (L24) lets a
- * player Foul even when the team already has.
- */
 export function foulSpent(state: GameState, teamId: string): boolean {
   return (
     state.turn.hasFouled &&
@@ -149,7 +128,6 @@ export function foulSpent(state: GameState, teamId: string): boolean {
   );
 }
 
-/** Rush modifiers: the weather, and -1 under the opposition's Moles. */
 export function rushModifier(state: GameState, player: Player): number {
   const moles = Object.entries(state.matchInducements?.prayers ?? {}).some(
     ([teamId, held]) =>
@@ -159,7 +137,6 @@ export function rushModifier(state: GameState, player: Player): number {
   return weatherEffects(state.weather).rush - (moles ? 1 : 0);
 }
 
-/** Under Scrutiny: the fouled player's team holds the prayer. */
 export function underScrutiny(state: GameState, foulerTeamId: string): boolean {
   return Object.entries(state.matchInducements?.prayers ?? {}).some(
     ([teamId, held]) =>
@@ -167,10 +144,6 @@ export function underScrutiny(state: GameState, foulerTeamId: string): boolean {
   );
 }
 
-/**
- * Treacherous Trapdoor (L12): a player entering a Trapdoor square rolls a
- * D6 and falls through on a 1. False when no team prayed for it.
- */
 export function trapdoorOpens(
   state: GameState,
   dice: DiceController,
@@ -182,10 +155,6 @@ export function trapdoorOpens(
   return dice.rollD6(`Trapdoor (${player.playerName})`, player.teamId) === 1;
 }
 
-/**
- * Discarded Banana Skin (L27): the team whose Tackle Zone a moving opponent
- * just entered, when it still holds the measure. Null otherwise.
- */
 export function bananaSkinTeam(
   state: GameState,
   square: { x: number; y: number },
@@ -210,7 +179,6 @@ export function bananaSkinTeam(
     : null;
 }
 
-/** Ask a team's coach yes or no about one of their held measures. */
 export async function offerMeasure(
   context: Pick<FlowContext, "gameService">,
   teamId: string,
@@ -261,8 +229,7 @@ function grantStat(
   });
 }
 
-/** Magic Scroll (L28): the team gains a Sports-Wizard for free. */
-export function grantSportsWizard(state: GameState, teamId: string): void {
+function grantSportsWizard(state: GameState, teamId: string): void {
   const mi = getMatchInducements(state);
   mi.sportsWizards = [...(mi.sportsWizards ?? []), teamId];
 }
@@ -271,17 +238,11 @@ export function holdsSportsWizard(state: GameState, teamId: string): boolean {
   return state.matchInducements?.sportsWizards?.includes(teamId) ?? false;
 }
 
-/** The Sports-Wizard casts once per game: spend it. */
 export function spendSportsWizard(state: GameState, teamId: string): void {
   const mi = getMatchInducements(state);
   mi.sportsWizards = (mi.sportsWizards ?? []).filter((id) => id !== teamId);
 }
 
-/**
- * Zap! (2025 rulebook p.149): the player takes the Frog's profile, MA 5,
- * ST 1, AG 2+, PA -, AV 5+, with Dodge, Leap, No Ball, Stunty, Titchy and
- * Very Long Legs, until the end of the drive.
- */
 export function turnIntoFrog(state: GameState, player: Player): void {
   const mi = getMatchInducements(state);
   if (hasCondition(player, PlayerCondition.FROG)) return;
@@ -289,7 +250,7 @@ export function turnIntoFrog(state: GameState, player: Player): void {
     ...(mi.frogs ?? []),
     { playerId: player.id, stats: { ...player.stats }, skills: player.skills },
   ];
-  // PA 0 shows as "-"; No Ball keeps a Frog from ever passing
+
   player.stats = { MA: 5, ST: 1, AG: 2, PA: 0, AV: 5 };
   player.skills = [
     SkillType.DODGE,
@@ -308,7 +269,6 @@ export function isFrog(state: GameState, playerId: string): boolean {
   );
 }
 
-/** End of the drive: every Frog returns to normal with no ill effects. */
 export function restoreFrogs(state: GameState, players: Player[]): void {
   const mi = state.matchInducements;
   for (const frog of mi?.frogs ?? []) {
@@ -321,7 +281,6 @@ export function restoreFrogs(state: GameState, players: Player[]): void {
   if (mi) mi.frogs = [];
 }
 
-/** Full time: take back every skill and characteristic granted for the game. */
 export function revokeMatchGrants(state: GameState, players: Player[]): void {
   const mi = state.matchInducements;
   if (!mi) return;
@@ -343,7 +302,6 @@ export function revokeMatchGrants(state: GameState, players: Player[]): void {
   mi.grants = [];
 }
 
-/** Players "on your team that are playing this game". */
 function availablePlayers(team: Team): Player[] {
   return team.players.filter(
     (p) =>
@@ -354,7 +312,6 @@ function availablePlayers(team: Team): Player[] {
   );
 }
 
-/** One of `pool` at random: a D16, re-rolled outside a whole multiple. */
 function randomPlayer(
   dice: DiceController,
   pool: Player[],
@@ -394,12 +351,13 @@ function announce(context: FlowContext, text: string): void {
   context.eventBus.emit(GameEventNames.UI_GameLog, text);
 }
 
-/** Stiletto grants Stab, Blessing of Nuffle Pro, to a random player. */
 function blessRandomPlayer(
   context: FlowContext,
   team: Team,
   pool: Player[],
-  prayer: PrayerToNuffle.STILETTO | PrayerToNuffle.BLESSING_OF_NUFFLE
+  prayer:
+    | typeof PrayerToNuffle.STILETTO
+    | typeof PrayerToNuffle.BLESSING_OF_NUFFLE
 ): void {
   const state = context.gameService.getState();
   const dice = context.gameService.getDiceController();
@@ -411,7 +369,6 @@ function blessRandomPlayer(
   }
 }
 
-/** Grant the chosen player a prayer's skill, and say so if it took. */
 function grantChosenSkill(
   context: FlowContext,
   state: GameState,
@@ -503,11 +460,6 @@ async function applyPrayer(
   }
 }
 
-/**
- * Hangover (L23), before the first set-up: one chosen opposition player
- * misses the first drive. Declining keeps nothing: this is the only drive
- * the measure can affect.
- */
 async function offerHangover(context: FlowContext, team: Team): Promise<void> {
   const state = context.gameService.getState();
   if (!holdsMeasure(state, team.id, DesperateMeasure.HANGOVER)) return;
@@ -533,10 +485,6 @@ async function offerHangover(context: FlowContext, team: Team): Promise<void> {
   announce(context, `Hangover: ${player.playerName} misses the first drive`);
 }
 
-/**
- * Before the first set-up: roll every bought prayer and measure, apply the
- * prayers, then offer Hangover. Runs once per match.
- */
 export class ResolvePregameInducementsOperation extends GameOperation {
   public readonly name = "ResolvePregameInducements";
 
@@ -574,8 +522,7 @@ export class ResolvePregameInducementsOperation extends GameOperation {
     for (const team of teams) {
       await offerHangover(context, team);
     }
-    // Magic Scroll is used before set-up too. Nothing is gained by keeping
-    // it, so it is read at once.
+
     for (const team of teams) {
       if (spendMeasure(state, team.id, DesperateMeasure.MAGIC_SCROLL)) {
         grantSportsWizard(state, team.id);
@@ -585,12 +532,6 @@ export class ResolvePregameInducementsOperation extends GameOperation {
   }
 }
 
-/**
- * Team Captain, May 2026 errata to p.155: a team whose Captain has left
- * its roster may appoint a new one "during the Pre-game Sequence of your
- * next League Fixture". Runs once both coaches confirm their inducements,
- * before any Prayer is rolled; declining leaves the team without one.
- */
 export class AppointTeamCaptainOperation extends GameOperation {
   public readonly name = "AppointTeamCaptain";
 
@@ -615,11 +556,6 @@ export class AppointTeamCaptainOperation extends GameOperation {
   }
 }
 
-/**
- * You Dope! (L21), after both set-ups and before the kick: one player of
- * the team on the pitch gets +1 ST or +1 AG for the game. Declining keeps
- * the measure for a later drive.
- */
 export class OfferYouDopeOperation extends GameOperation {
   public readonly name = "OfferYouDope";
 
@@ -641,7 +577,7 @@ export class OfferYouDopeOperation extends GameOperation {
       const player = options.find((p) => p.id === answer.playerId);
       const stat = answer.stat;
       if (!player || !stat) continue;
-      // +1 AG improves the target number by one, down to 1+.
+
       const delta = stat === "ST" ? 1 : -1;
       const capped =
         stat === "ST" ? player.stats.ST >= 8 : player.stats.AG <= 1;
@@ -655,10 +591,6 @@ export class OfferYouDopeOperation extends GameOperation {
   }
 }
 
-/**
- * You Dope! at the end of each drive the player played: a D6, and on 1 or 2
- * they are Knocked-out and cannot recover this end of drive.
- */
 export function rollYouDopeCollapse(
   state: GameState,
   dice: DiceController,
@@ -676,7 +608,6 @@ export function rollYouDopeCollapse(
   return collapsed;
 }
 
-/** Validate a choice answer against its request; null when it is illegal. */
 export function validChoiceAnswer(
   request: InducementChoiceDecisionRequest,
   answer: InducementChoiceDecisionAnswer
@@ -697,12 +628,10 @@ export function validChoiceAnswer(
   }
 }
 
-/** The answer names one of the request's options. */
 function offered<T>(choice: T | undefined, options: T[] | undefined): boolean {
   return choice !== undefined && !!options?.includes(choice);
 }
 
-/** No spell keeps the wizard; Zap! names an offered player, Fireball a square. */
 function validSpell(
   request: InducementChoiceDecisionRequest,
   answer: InducementChoiceDecisionAnswer

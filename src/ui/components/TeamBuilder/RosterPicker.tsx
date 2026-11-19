@@ -5,11 +5,6 @@ import {
 } from "../../../data/RosterTemplates";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 
-/**
- * The first question for a new team: which roster. Each card names the
- * roster's tier, its team special rules and its positions, which is what
- * a coach compares before choosing.
- */
 export function RosterPicker({
   onChoose,
 }: {
@@ -23,7 +18,7 @@ export function RosterPicker({
     >
       {getAvailableRosterNames().map((name) => {
         const roster = getRosterByRosterName(name);
-        // "Human Blitzer" reads as "Blitzer" on the Human card
+
         const positions = [
           ...new Set(
             roster.playerTemplates.map((p) =>
@@ -38,7 +33,9 @@ export function RosterPicker({
             <button
               type="button"
               data-testid={`roster-choice-${name}`}
-              onClick={() => onChoose(name)}
+              onClick={() => {
+                onChoose(name);
+              }}
               className={cx(
                 hudChoiceClass(false),
                 "flex h-full w-full flex-col gap-2 p-3"
@@ -54,7 +51,6 @@ export function RosterPicker({
                 <span className="text-hud-sm text-hud-gold">
                   {roster.specialRules
                     .map((rule) =>
-                      // The god is chosen on the team sheet
                       rule === TeamSpecialRule.FAVOURED_OF
                         ? "Favoured of a Chaos god"
                         : rule

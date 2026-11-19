@@ -1,6 +1,8 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
@@ -10,21 +12,11 @@ import { enumerateDecision } from "../../src/simulation/candidates";
 import { plannerCoach } from "../../src/simulation/ai/planner";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { createCoachRng } from "../../src/simulation/rng";
-import { Coach } from "../../src/simulation/coach";
+import { type Coach } from "../../src/simulation/coach";
 import { defaultAnswer } from "../../src/network/decisionTimeouts";
 
-/**
- * Bloodlust (X+), 2025 rulebook p.125: "this player may bite an adjacent
- * Thrall Lineman team-mate". With two or more in reach the coach chooses
- * which: the game asks once, offering every Thrall, and bites the one
- * picked. Nothing picks for the coach (the old flow offered them one at a
- * time in board order, so the first was all the coach ever saw).
- *
- * Seed 7 rolls a natural 1 on the Bloodlust die (committed, never searched).
- */
 const BLOODLUST_FAILS_SEED = 7;
 
-/** The biter at (10,5); Thralls at (11,5) and (10,6), in that board order. */
 function scenario(ball: { x: number; y: number } = { x: 1, y: 1 }): Scenario {
   return {
     id: "bloodlust-bite-target",
@@ -41,7 +33,7 @@ function scenario(ball: { x: number; y: number } = { x: 1, y: 1 }): Scenario {
         },
         { playerIndex: 1, x: 11, y: 5 },
         { playerIndex: 2, x: 10, y: 6 },
-        // Someone left to activate, so the turn does not simply run out.
+
         { playerIndex: 3, x: 3, y: 9 },
       ],
       team2Placements: [{ playerIndex: 0, x: 20, y: 2 }],
@@ -63,10 +55,10 @@ async function failBloodlust(ball?: { x: number; y: number }) {
   game.ctx.eventBus.on(GameEventNames.Turnover, () => turnovers++);
   await game.execute({
     type: "declare-action",
-    playerId: vampire.id,
+    playerId: fixtureValue(vampire).id,
     action: "move",
   });
-  // Keep the declared Move; the downgrade question is not the point here.
+
   await game.execute({ type: "use-reaction", accept: false });
   return { game, vampire, first, second, turnovers: () => turnovers };
 }
@@ -74,7 +66,7 @@ async function failBloodlust(ball?: { x: number; y: number }) {
 const injuryRolls = (r: { events: { name: string; data?: unknown }[] }) =>
   r.events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description)
+    .map((e) => z.object({ description: z.string() }).parse(e.data).description)
     .filter((d) => d.startsWith("Injury Roll"));
 
 describe("Bloodlust with two or more Thrall Linemen in reach", () => {
@@ -82,64 +74,73 @@ describe("Bloodlust with two or more Thrall Linemen in reach", () => {
     const r = await failBloodlust();
     const ended = await r.game.execute({
       type: "end-activation",
-      playerId: r.vampire.id,
+      playerId: fixtureValue(r.vampire).id,
     });
 
     expect(ended.pendingDecision).toEqual({
       type: "bite-target",
-      playerId: r.vampire.id,
-      chooserTeamId: r.vampire.teamId,
-      targetIds: [r.first.id, r.second.id],
+      playerId: fixtureValue(r.vampire).id,
+      chooserTeamId: fixtureValue(r.vampire).teamId,
+      targetIds: [fixtureValue(r.first).id, fixtureValue(r.second).id],
     });
   });
 
   it("bites the Thrall the coach picks, even the last in board order", async () => {
     const r = await failBloodlust();
-    await r.game.execute({ type: "end-activation", playerId: r.vampire.id });
+    await r.game.execute({
+      type: "end-activation",
+      playerId: fixtureValue(r.vampire).id,
+    });
 
     const bitten = await r.game.execute({
       type: "choose-bite-target",
-      playerId: r.second.id,
+      playerId: fixtureValue(r.second).id,
     });
 
     expect(bitten.ok).toBe(true);
     expect(injuryRolls(bitten)).toEqual([
-      expect.stringContaining(`(${r.second.playerName})`),
+      expect.stringContaining(`(${fixtureValue(r.second).playerName})`),
     ]);
-    expect(r.second.status).not.toBe(PlayerStatus.ACTIVE);
-    expect(r.first.status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(r.second).status).not.toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(r.first).status).toBe(PlayerStatus.ACTIVE);
     expect(r.turnovers()).toBe(0);
-    expect(r.vampire.conditions ?? []).toEqual([]);
+    expect(fixtureValue(r.vampire).conditions ?? []).toEqual([]);
     expect(bitten.pendingDecision).toBeNull();
   });
 
   it("refuses a player who is not one of the offered Thralls", async () => {
     const r = await failBloodlust();
-    await r.game.execute({ type: "end-activation", playerId: r.vampire.id });
+    await r.game.execute({
+      type: "end-activation",
+      playerId: fixtureValue(r.vampire).id,
+    });
     const bystander = r.game.ctx.team1.players[3];
 
     const refused = await r.game.execute({
       type: "choose-bite-target",
-      playerId: bystander.id,
+      playerId: fixtureValue(bystander).id,
     });
 
     expect(refused.ok).toBe(false);
     expect(refused.reason).toBe("command-failed: invalid-bite-target");
     expect(refused.pendingDecision).toMatchObject({ type: "bite-target" });
-    expect(bystander.status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(bystander).status).toBe(PlayerStatus.ACTIVE);
     expect(r.turnovers()).toBe(0);
   });
 
   it("biting nobody is a Turnover and Distracted, as before", async () => {
     const r = await failBloodlust();
-    await r.game.execute({ type: "end-activation", playerId: r.vampire.id });
+    await r.game.execute({
+      type: "end-activation",
+      playerId: fixtureValue(r.vampire).id,
+    });
 
     await r.game.execute({ type: "choose-bite-target" });
 
     expect(r.turnovers()).toBe(1);
-    expect(r.first.status).toBe(PlayerStatus.ACTIVE);
-    expect(r.second.status).toBe(PlayerStatus.ACTIVE);
-    expect(r.vampire.conditions?.map((c) => c.type)).toEqual([
+    expect(fixtureValue(r.first).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(r.second).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(r.vampire).conditions?.map((c) => c.type)).toEqual([
       PlayerCondition.DISTRACTED,
     ]);
   });
@@ -151,18 +152,18 @@ describe("Bloodlust with two or more Thrall Linemen in reach", () => {
     const ended = await r.game.execute({ type: "end-turn" });
     expect(ended.pendingDecision).toMatchObject({
       type: "bite-target",
-      targetIds: [r.first.id, r.second.id],
+      targetIds: [fixtureValue(r.first).id, fixtureValue(r.second).id],
     });
 
     const bitten = await r.game.execute({
       type: "choose-bite-target",
-      playerId: r.second.id,
+      playerId: fixtureValue(r.second).id,
     });
     expect(injuryRolls(bitten)).toEqual([
-      expect.stringContaining(`(${r.second.playerName})`),
+      expect.stringContaining(`(${fixtureValue(r.second).playerName})`),
     ]);
-    expect(r.first.status).toBe(PlayerStatus.ACTIVE);
-    expect(r.vampire.conditions ?? []).toEqual([]);
+    expect(fixtureValue(r.first).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(r.vampire).conditions ?? []).toEqual([]);
     expect(r.game.snapshot().activeTeamId).toBe(team2);
   });
 });
@@ -170,9 +171,12 @@ describe("Bloodlust with two or more Thrall Linemen in reach", () => {
 describe("the computer coach picks a bite target by rule", () => {
   async function pick(coach: Coach, ball?: { x: number; y: number }) {
     const r = await failBloodlust(ball);
-    await r.game.execute({ type: "end-activation", playerId: r.vampire.id });
+    await r.game.execute({
+      type: "end-activation",
+      playerId: fixtureValue(r.vampire).id,
+    });
     const picks = new Set<string | undefined>();
-    // Different noise each time: the pick must not change with it
+
     for (let seed = 1; seed <= 20; seed++) {
       const point = await enumerateDecision(r.game, null);
       const { index } = await coach.choose({
@@ -181,7 +185,7 @@ describe("the computer coach picks a bite target by rule", () => {
         point,
         rng: createCoachRng(seed),
       });
-      const command = point.candidates[index].commands[0];
+      const command = fixtureValue(point.candidates[index]).commands[0];
       picks.add(
         command.type === "choose-bite-target" ? command.playerId : "other"
       );
@@ -192,12 +196,12 @@ describe("the computer coach picks a bite target by rule", () => {
   for (const coach of [plannerCoach, heuristicCoach]) {
     it(`${coach.name}: always bites, the first Thrall in board order`, async () => {
       const { r, picks } = await pick(coach);
-      expect(picks).toEqual([r.first.id]);
+      expect(picks).toEqual([fixtureValue(r.first).id]);
     });
 
     it(`${coach.name}: not the Thrall holding the ball while another is in reach`, async () => {
       const { r, picks } = await pick(coach, { x: 11, y: 5 });
-      expect(picks).toEqual([r.second.id]);
+      expect(picks).toEqual([fixtureValue(r.second).id]);
     });
   }
 });
@@ -207,14 +211,14 @@ describe("an unanswered bite choice", () => {
     const r = await failBloodlust();
     const ended = await r.game.execute({
       type: "end-activation",
-      playerId: r.vampire.id,
+      playerId: fixtureValue(r.vampire).id,
     });
 
-    const answer = defaultAnswer(ended.pendingDecision!);
+    const answer = defaultAnswer(fixtureValue(ended.pendingDecision));
     expect(answer).toEqual({ type: "choose-bite-target" });
-    await r.game.execute(answer!);
-    expect(r.first.status).toBe(PlayerStatus.ACTIVE);
-    expect(r.second.status).toBe(PlayerStatus.ACTIVE);
+    await r.game.execute(fixtureValue(answer));
+    expect(fixtureValue(r.first).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(r.second).status).toBe(PlayerStatus.ACTIVE);
     expect(r.turnovers()).toBe(1);
   });
 });

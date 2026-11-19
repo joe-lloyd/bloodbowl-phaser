@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
-import { InducementCommandResponse } from "../../../types/Inducements";
+import { type InducementCommandResponse } from "../../../types/Inducements";
 
-/** Read the accepted state again after local commands, replay or resync. */
 export function usePregameInducements(eventBus: EventBus) {
   const [revision, refresh] = useState(0);
   const [settled, setSettled] = useState(false);
   useEffect(() => {
-    const update = () => refresh((value) => value + 1);
+    const update = () => {
+      refresh((value) => value + 1);
+    };
     const events = [
       GameEventNames.UI_SyncBoard,
       GameEventNames.GameStateRestored,
@@ -18,8 +19,14 @@ export function usePregameInducements(eventBus: EventBus) {
       GameEventNames.DecisionResolved,
       GameEventNames.PhaseChanged,
     ] as const;
-    events.forEach((event) => eventBus.on(event, update));
-    return () => events.forEach((event) => eventBus.off(event, update));
+    events.forEach((event) => {
+      eventBus.on(event, update);
+    });
+    return () => {
+      events.forEach((event) => {
+        eventBus.off(event, update);
+      });
+    };
   }, [eventBus]);
   const service = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance().gameService
@@ -46,11 +53,12 @@ export function usePregameInducements(eventBus: EventBus) {
     pregame,
     pending: !!pregame && (!settled || !!decision),
     decision,
-    refresh: () => refresh((value) => value + 1),
+    refresh: () => {
+      refresh((value) => value + 1);
+    },
   };
 }
 
-/** Await acknowledgment; a refused network purchase never advances this screen. */
 export function usePregameCommand(onChanged: () => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,78 +1,61 @@
-/**
- * createHeadlessGame - Bootstrap a complete game engine in plain Node.
- *
- * No Phaser, no DOM, no ServiceContainer singleton: every call returns an
- * independent game so multiple games can run in one process (tests, AI
- * self-play). All pacing delays resolve immediately via the noDelay provider.
- */
-
-import { EventBus, IEventBus } from "../services/EventBus";
+import { EventBus, type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
-import { RNGService, IRNGService, RNGState } from "../services/rng/RNGService";
+import {
+  RNGService,
+  type IRNGService,
+  type RNGState,
+} from "../services/rng/RNGService";
 import { BlockResolutionService } from "../services/BlockResolutionService";
 import { applyScenario } from "../game/applyScenario";
-import { DelayProvider, noDelay } from "../game/core/GameFlowManager";
+import { type DelayProvider, noDelay } from "../game/core/GameFlowManager";
 import { TeamFactory } from "../game/TeamFactory";
-import { Team, RosterName } from "../types/Team";
-import { GameState, GamePhase, SubPhase } from "../types/GameState";
-import { Scenario } from "../types/Scenario";
-import { MatchStats, MatchStatsSnapshot } from "../game/progression/MatchStats";
-import { MatchSave, restoreMatchSave } from "./serialization";
-import { TurnManagerState } from "../game/managers/TurnManager";
+import { type Team, RosterName } from "../types/Team";
+import { type GameState, GamePhase, SubPhase } from "../types/GameState";
+import { type Scenario } from "../types/Scenario";
+import {
+  MatchStats,
+  type MatchStatsSnapshot,
+} from "../game/progression/MatchStats";
+import { type MatchSave, restoreMatchSave } from "./serialization";
+import { type TurnManagerState } from "../game/managers/TurnManager";
 
 export interface HeadlessGameOptions {
-  /**
-   * Adopt an already-running engine (e.g. the browser's ServiceContainer)
-   * instead of constructing one — used by online play, where HeadlessGame
-   * executes the remote coach's protocol commands against the live game.
-   * When set, every other option is ignored.
-   */
   ctx?: HeadlessGameContext;
-  /**
-   * Start play automatically on the ReadyToStart signal (default true).
-   * The browser passes false: KickoffPhaseHandler already does this.
-   */
+
   autoStartOnReady?: boolean;
-  /** Provide teams, or omit to get two generated default teams */
+
   team1?: Team;
   team2?: Team;
-  /** RNG seed; defaults to Date.now(). Same seed + same commands = same game. */
+
   seed?: number;
-  /** Start from a scenario definition (placements, phase, ball). Scenario seed is used unless `seed` is set. */
+
   scenario?: Scenario;
-  /** Resume from an explicit state (e.g. a deserialized snapshot). Takes precedence over scenario/startingPhase. */
+
   initialState?: GameState;
-  /**
-   * Build a command response's snapshot only if it is read. For throwaway
-   * copies of a game, such as a lookahead's playouts.
-   */
+
   lazySnapshots?: boolean;
-  /**
-   * Pacing delays. Headless play skips them (noDelay); a test of the
-   * presentation barriers passes realTimeDelay.
-   */
+
   delay?: DelayProvider;
-  /** Start phase when no scenario given (defaults to SETUP for a full match) */
+
   startingPhase?: GamePhase;
   startingSubPhase?: SubPhase;
-  /** Roster used for generated default teams */
+
   defaultRoster?: RosterName;
-  /** League fixture progression; friendlies default to false. */
+
   progressionEnabled?: boolean;
-  /** A knockout tie: a draw goes to Extra Time, then Penalties. */
+
   knockout?: boolean;
-  /** A league fixture (one that pays winnings): kick-off takes on
-   *  Journeymen and full time rolls the Fan Factors. */
+
   paysWinnings?: boolean;
-  /** Exact running RNG state when restoring a saved match. */
+
   rngState?: RNGState;
-  /** Accumulated statistics when restoring a saved match. */
+
   matchStatsState?: MatchStatsSnapshot;
-  /** Turn counters and drive lifecycle state when restoring a saved match. */
+
   turnManagerState?: TurnManagerState;
-  /** Restore every cold-start dependency from a persisted match payload. */
+
   matchSave?: MatchSave;
-  /** The current drive's kicking team, for a match resumed mid-drive. */
+
   kickingTeamId?: string | null;
 }
 
@@ -86,27 +69,17 @@ export interface HeadlessGameContext {
   matchStats: MatchStats;
 }
 
-/**
- * Generated team/player ids embed Date.now(), which breaks recorded command
- * scripts and cross-run comparisons. Headless default teams get stable ids
- * (team1-player-3 etc.) so the same script replays on any machine.
- */
 export function stabilizeIds(team: Team, stableId: string): Team {
   team.id = stableId;
   team.players.forEach((p) => {
     p.teamId = stableId;
-    p.id = `${stableId}-player-${p.number}`;
+    p.id = `${stableId}-player-${String(p.number)}`;
   });
   return team;
 }
 
 type RestoredSave = ReturnType<typeof restoreMatchSave> | null;
 
-/**
- * The two teams: a saved match's, the caller's, or default test teams. A
- * scenario may pin specific rosters (as the browser sandbox does);
- * explicit options still win over the scenario's choice.
- */
 function matchTeams(
   options: HeadlessGameOptions,
   restored: RestoredSave
@@ -131,7 +104,6 @@ function matchTeams(
   return { team1, team2 };
 }
 
-/** The RNG and statistics to resume, a save's first, and the seed. */
 function savedInputs(options: HeadlessGameOptions, restored: RestoredSave) {
   const rngState = restored?.save.rng ?? options.rngState;
   const matchStatsState = restored?.save.matchStats ?? options.matchStatsState;
@@ -148,7 +120,6 @@ const savedTurnManager = (
   restored: RestoredSave
 ) => restored?.save.turnManager ?? options.turnManagerState;
 
-/** The state the engine starts from; undefined lets it ready a fresh game. */
 function startingState(
   options: HeadlessGameOptions,
   restored: RestoredSave,
@@ -160,22 +131,11 @@ function startingState(
   if (initialState) return initialState;
   if (options.scenario) return applyScenario(options.scenario, team1, team2);
   if (options.startingPhase) {
-    return GameService.createMatchState(
-      team1,
-      team2,
-      options.startingPhase,
-      options.startingSubPhase,
-      { paysWinnings: options.paysWinnings }
+    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: { paysWinnings: options.paysWinnings } }
     );
   }
   if (options.paysWinnings) {
-    // As the engine readies a fresh game itself, but for a league fixture
-    return GameService.createMatchState(
-      team1,
-      team2,
-      GamePhase.SANDBOX_IDLE,
-      undefined,
-      { paysWinnings: true }
+    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SANDBOX_IDLE, fixture: { paysWinnings: true } }
     );
   }
   return undefined;
@@ -207,14 +167,7 @@ export function createHeadlessGame(
 
   const initialState = startingState(options, restored, team1, team2);
 
-  const gameService = new GameService(
-    eventBus,
-    team1,
-    team2,
-    rng,
-    blockResolutionService,
-    initialState,
-    options.delay ?? noDelay
+  const gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: rng, blockResolutionService: blockResolutionService, ...(initialState === undefined ? {} : { initialState: initialState }), delay: options.delay ?? noDelay }
   );
   if (options.knockout) gameService.getState().knockout = true;
   if (options.paysWinnings) gameService.getState().paysWinnings = true;

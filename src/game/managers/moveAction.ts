@@ -1,22 +1,9 @@
-/**
- * The Move action: walk a player along a validated route one square at a
- * time. Each step rolls what it needs in rulebook order (Rush, then Dodge),
- * then resolves what entering the square does (Trapdoor, Banana Skin,
- * Pick-up, Touchdown). The first step that ends the route stops the walk.
- *
- * Every await sits in movePlayer itself, where the old MovementManager
- * method had it, and the work between awaits is in synchronous helpers.
- * A fall starts its Bounce on the flow queue at once, so an extra await
- * between a fall and finishMove would let the Bounce run before the move
- * is finished. Online play runs in lockstep, so the order must not change.
- */
-
-import { Player, PlayerStatus } from "@/types/Player";
+import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { PickupOperation } from "../operations/PickupOperation";
 import { BounceOperation } from "../operations/BounceOperation";
-import { IGameService } from "@/services/interfaces/IGameService";
-import { FlowContext } from "../core/GameFlowManager";
+import { type IGameService } from "@/services/interfaces/IGameService";
+import { type FlowContext } from "../core/GameFlowManager";
 import { steadyFootingSaves } from "../rules/steadyFooting";
 import { isInEndZone } from "../elements/GridUtils";
 import { GameConfig } from "../../config/GameConfig";
@@ -25,8 +12,8 @@ import {
   foldTrigger,
   gatherParticipants,
   adjacentStanding,
-  DodgeDeclaredContext,
-  DodgeResolvedContext,
+  type DodgeDeclaredContext,
+  type DodgeResolvedContext,
 } from "../skills";
 import { moveAllowance, standUpCost } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
@@ -42,8 +29,8 @@ import {
   nextPresentationId,
 } from "../presentation/presentationGate";
 import {
-  MovementDeps,
-  Square,
+  type MovementDeps,
+  type Square,
   diveIntoVacated,
   dropThroughTrapdoor,
   fallOver,
@@ -56,13 +43,8 @@ import {
   teamsOf,
 } from "./movementShared";
 
-/** Longest wait on the dice and the walk before a run scores, plus 200 ms a square. */
 const SCORE_RUN_WAIT_MS = 3500;
 
-/**
- * How a route ended. "failed" is a failed Rush, Dodge or Pick-up; it and
- * "walked" end the activation only once the movement is spent.
- */
 type MoveEnd =
   | "walked"
   | "failed"
@@ -71,20 +53,18 @@ type MoveEnd =
   | "fellThrough"
   | "slipped";
 
-/** A validated Move, before any dice. */
 type PreparedMove =
   | {
       ok: true;
       player: Player;
-      /** The drive-modified MA view (Dodgy Snack -1 MA). */
+
       maView: Player;
-      /** Standing opponents on the pitch: they mark squares and react to dodges. */
+
       opponents: Player[];
       preUsed: number;
     }
   | { ok: false; reason: string };
 
-/** The state of one Move action while its route resolves. */
 interface MoveRun {
   deps: MovementDeps;
   player: Player;
@@ -97,13 +77,10 @@ interface MoveRun {
   currentPos: Square;
   completedPath: Square[];
   holdingBall: boolean;
-  /**
-   * Where the ball visual starts travelling with the mover and after how
-   * many walked squares it joins (0 = carried from the start)
-   */
+
   ballFrom: Square | null;
   ballJoinStep: number;
-  /** How much of the walk the board has been shown, and where it ended. */
+
   shownSteps: number;
   shownFrom: Square;
 }
@@ -123,7 +100,6 @@ export async function movePlayer(
   if (player.status === PlayerStatus.PRONE) {
     standingCost = standUpCost(maView);
     if (!(await rollToStand(deps, maView))) {
-      // Failed the stand-up roll: still Prone, movement spent, activation over
       deps.state.turn.movementUsed.set(playerId, preUsed + standingCost);
       deps.callbacks.onActivationFinished(playerId);
       return;
@@ -135,8 +111,6 @@ export async function movePlayer(
   const { gameService } = run;
   let end: MoveEnd = "walked";
   for (const step of path) {
-    // A step that needs both a Rush and a Dodge rolls the Rush first
-    // (rulebook p.62), so a fall on the Rush never reaches the Dodge.
     if (run.preUsed + run.stepsTaken + 1 > maView.stats.MA) {
       showWalk(run);
       const check = await rollRush(deps, player, gameService);
@@ -152,8 +126,6 @@ export async function movePlayer(
         end = fallOnRush(run, step);
         break;
       }
-      // A failed Rush that Steady Footing saved keeps the player Standing:
-      // they move into the square and may keep going, no fall and no Turnover.
     }
 
     if (deps.dodgeController.isDodgeRequired(run.currentPos, run.opponents)) {
@@ -167,11 +139,10 @@ export async function movePlayer(
         ]),
         dodgeCtx
       );
-      dodgeCtx.triggers.forEach((t) =>
-        eventBus.emit(GameEventNames.SkillTriggered, t)
-      );
-      // Tentacles held the dodger: no Agility Test, no move, and the
-      // activation ends — not a turnover
+      dodgeCtx.triggers.forEach((t) => {
+        eventBus.emit(GameEventNames.SkillTriggered, t);
+      });
+
       if (dodgeCtx.escapeCancelled) {
         end = "heldFast";
         break;
@@ -179,13 +150,8 @@ export async function movePlayer(
 
       const rollDodge = () =>
         deps.dodgeController.attemptDodge(
-          player,
-          step,
-          run.opponents,
-          dodgeCtx.modifiers
-        );
-      // A failed dodge may be rerolled (Dodge skill / team reroll); the
-      // move pauses on the coach's decision
+          { player,to: step,opponents: run.opponents,modifiersOverride: dodgeCtx.modifiers }        );
+
       const dodgeResult = gameService
         ? await withRerollOffer(
             { gameService, eventBus },
@@ -198,23 +164,16 @@ export async function movePlayer(
           )
         : rollDodge();
 
-      // Trigger point: dodge resolved — markers of the vacated square
-      // react after any re-rolls (Diving Tackle)
       const resolvedCtx = dodgeResolvedContext(run, step, dodgeResult);
       await foldTrigger("onDodgeResolved", vacatedMarkers(run), resolvedCtx);
-      // Trigger point: the dodge stood, so markers of the vacated square
-      // may Shadow into it — only once Diving Tackle has had its say
-      // (FAQ May 2026), so a dive never shares the square with a shadower
+
       if (resolvedCtx.success) {
         await foldTrigger("onDodgeSucceeded", vacatedMarkers(run), resolvedCtx);
       }
-      resolvedCtx.triggers.forEach((t) =>
-        eventBus.emit(GameEventNames.SkillTriggered, t)
-      );
+      resolvedCtx.triggers.forEach((t) => {
+        eventBus.emit(GameEventNames.SkillTriggered, t);
+      });
 
-      // Diving Tackle: the dodger has left the square, whatever its fate: it
-      // stands or falls in the one it dodged into, so it never shares the
-      // diver's while a Steady Footing re-roll is open.
       diveIntoVacated(eventBus, {
         diverId: resolvedCtx.proneInVacated,
         opponents: run.opponents,
@@ -235,17 +194,12 @@ export async function movePlayer(
         end = fallOnDodge(run, step);
         break;
       }
-      // A failed dodge that Steady Footing saved keeps the player Standing:
-      // fall through as if it had succeeded — they move on and continue their
-      // activation, no Armour Roll and no Turnover. It is still no
-      // successful dodge, so nobody Shadowed it.
+
       shadowFollow(run, resolvedCtx);
     }
 
     enterSquare(run, step);
 
-    // Treacherous Trapdoor (L12): entering the square may drop the player
-    // through it, before any pick-up on that square.
     if (trapdoorOpens(deps.state, diceController, player, step)) {
       end = "fellThrough";
       break;
@@ -279,7 +233,7 @@ export async function movePlayer(
     }
 
     const presentationId = carryBall(run);
-    // Nothing follows the touchdown, so this tail call adds no await.
+
     if (presentationId) return scoreRun(run, presentationId);
     if (picked === "secured") {
       end = "securedBall";
@@ -290,7 +244,6 @@ export async function movePlayer(
   finishMove(run, end);
 }
 
-/** Finds the mover and checks the route before any dice are rolled. */
 function prepareMove(
   deps: MovementDeps,
   playerId: string,
@@ -299,8 +252,7 @@ function prepareMove(
   const { state, eventBus } = deps;
   const player = findPlayer(deps, playerId);
   if (!player) return { ok: false, reason: "Player not found!" };
-  // Validate against the drive-modified MA view (Dodgy Snack -1 MA);
-  // state mutations below still land on the real player.
+
   const maView = withDriveModifiers(player, state);
 
   if (heldInSquare(eventBus, player))
@@ -311,15 +263,7 @@ function prepareMove(
     (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
   );
 
-  // Occupancy needs every player on the pitch, Prone ones included;
-  // tackle zones inside validatePath still count Standing opponents only.
-  const result = deps.movementValidator.validatePath(
-    maView,
-    [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path],
-    opp.players.filter((p) => p.gridPosition),
-    own.players.filter((p) => p.gridPosition && p.id !== player.id),
-    movementUsed(state, playerId)
-  );
+  const result = deps.movementValidator.validatePath({ player: maView, path: [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path], opponents: opp.players.filter((p) => p.gridPosition), teammates: own.players.filter((p) => p.gridPosition && p.id !== player.id), movementUsed: movementUsed(state, playerId) });
   if (!result.valid) {
     console.warn(`Invalid move attempted for player ${playerId}`);
     return { ok: false, reason: "Invalid Move" };
@@ -333,7 +277,6 @@ function prepareMove(
   };
 }
 
-/** A Prone mover who passed the stand-up roll stands before moving. */
 function standUpToMove(deps: MovementDeps, player: Player, cost: number): void {
   player.status = PlayerStatus.ACTIVE;
   deps.eventBus.emit(GameEventNames.PlayerStoodUp, {
@@ -343,7 +286,6 @@ function standUpToMove(deps: MovementDeps, player: Player, cost: number): void {
   deps.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 }
 
-/** The route's state once the mover is Standing, before the first step. */
 function beginRoute(
   deps: MovementDeps,
   prepared: Extract<PreparedMove, { ok: true }>,
@@ -372,14 +314,9 @@ function beginRoute(
   };
 }
 
-/**
- * The board is told about the walk in pieces: everything walked so far
- * goes out before any roll that may stop for a choice, so the board
- * never draws the mover short of their square while a coach decides.
- */
 function walk(run: MoveRun, presentationId?: string) {
   const steps = run.completedPath.slice(run.shownSteps);
-  // A pick-up follows a showWalk, so the ball joins at a piece's start
+
   const carried = run.ballFrom !== null && run.ballJoinStep <= run.shownSteps;
   const piece = {
     playerId: run.player.id,
@@ -401,7 +338,6 @@ function showWalk(run: MoveRun): void {
     run.deps.eventBus.emit(GameEventNames.PlayerMoved, walk(run));
 }
 
-/** A failed Rush: the mover Falls Over in the square they rushed into. */
 function fallOnRush(run: MoveRun, step: Square): MoveEnd {
   const { deps, player } = run;
   run.currentPos = step;
@@ -419,11 +355,6 @@ function fallOnRush(run: MoveRun, step: Square): MoveEnd {
   return "failed";
 }
 
-/**
- * Trigger point: dodge declared — rules from the dodger AND the opponents
- * marking the vacated or destination square may adjust the roll
- * (Prehensile Tail, Titchy) or deny the skill reroll (Tackle)
- */
 function dodgeDeclaredContext(
   run: MoveRun,
   step: Square
@@ -441,7 +372,7 @@ function dodgeDeclaredContext(
     markingPenalty,
     skillRerollAllowed: true,
     decisions: gameService?.getDecisionService(),
-    flow: context?.flowManager,
+    ...(context?.flowManager === undefined ? {} : { flow: context?.flowManager }),
     arbiter: gameService?.getRerollArbiter(),
     dice: deps.diceController,
     triggers: [],
@@ -468,14 +399,13 @@ function dodgeResolvedContext(
     modifiers: dodgeResult.modifiers,
     success: dodgeResult.success,
     decisions: gameService?.getDecisionService(),
-    flow: context?.flowManager,
+    ...(context?.flowManager === undefined ? {} : { flow: context?.flowManager }),
     arbiter: gameService?.getRerollArbiter(),
     dice: run.deps.diceController,
     triggers: [],
   };
 }
 
-/** The dodger and the Standing opponents marking the square being left. */
 function vacatedMarkers(run: MoveRun): Player[] {
   return gatherParticipants(
     run.player,
@@ -484,10 +414,9 @@ function vacatedMarkers(run: MoveRun): Player[] {
   );
 }
 
-/** A failed Dodge: the mover Falls Over in the square they dodged into. */
 function fallOnDodge(run: MoveRun, step: Square): MoveEnd {
   const { deps, player } = run;
-  // The square the dodger was leaving — Arm Bar markers of it react.
+
   const vacatedSquare = { ...run.currentPos };
   run.currentPos = step;
   player.gridPosition = run.currentPos;
@@ -504,10 +433,6 @@ function fallOnDodge(run: MoveRun, step: Square): MoveEnd {
   return "failed";
 }
 
-/**
- * Shadowing: the chaser steps into the square being vacated — free,
- * Standing, no dice for them
- */
 function shadowFollow(run: MoveRun, resolvedCtx: DodgeResolvedContext): void {
   if (!resolvedCtx.followInto) return;
   const shadower = run.opponents.find((p) => p.id === resolvedCtx.followInto);
@@ -531,10 +456,6 @@ function enterSquare(run: MoveRun, step: Square): void {
   run.completedPath.push(step);
 }
 
-/**
- * Discarded Banana Skin (L27): an opponent entering a Tackle Zone of a
- * team holding it may be Placed Prone there. Returns who may throw it down.
- */
 function bananaSkinOffer(
   run: MoveRun,
   step: Square
@@ -547,7 +468,6 @@ function bananaSkinOffer(
   return { gameService, teamId };
 }
 
-/** The mover slipped: a ball they carried stays on the square. */
 function slipOnBananaSkin(run: MoveRun, step: Square): MoveEnd {
   if (run.holdingBall) {
     run.deps.state.ballPosition = { ...step };
@@ -556,7 +476,6 @@ function slipOnBananaSkin(run: MoveRun, step: Square): MoveEnd {
   return "slipped";
 }
 
-/** The flow context for a Pick-up of the loose ball on the mover's square. */
 function pickupDue(run: MoveRun): FlowContext | undefined {
   const { context } = run;
   if (run.holdingBall || !isBallAt(run.deps.state, run.currentPos)) {
@@ -566,45 +485,25 @@ function pickupDue(run: MoveRun): FlowContext | undefined {
   return context;
 }
 
-/**
- * The Pick-up's result. "failed" ends the route; "secured" ends the
- * activation once the step resolves.
- */
 function takeBall(
   run: MoveRun,
   success: boolean
 ): "failed" | "secured" | undefined {
   const { deps, currentPos } = run;
-  // Read the operation's own result: on a failure the bounce runs
-  // asynchronously, so the ball can still be on this square right
-  // now — checking positions here used to let the mover walk on
-  // with a ball they never picked up.
+
   run.holdingBall = success;
 
   if (!run.holdingBall) {
-    // A failed pickup ends the route here. The mover is NOT the
-    // carrier; the loose ball's square is decided by the queued
-    // bounce. PickupOperation has already announced the failure, so
-    // presentation reconciles from that event.
     return "failed";
   }
 
-  // Commit carrier state AT THE PICKUP STEP, before any remaining
-  // route step resolves: the ball is now on the mover's square and
-  // travels with them from here. Every later step, touchdown check
-  // and presentation listener observes the completed possession
-  // rather than the pre-pickup one.
   deps.state.ballPosition = { x: currentPos.x, y: currentPos.y };
   run.ballFrom = { ...currentPos };
   run.ballJoinStep = run.completedPath.length;
-  // Secure the Ball: the activation ends on the pick-up.
+
   return isSecuringBall(deps.state, run.player.id) ? "secured" : undefined;
 }
 
-/**
- * The ball moves with its carrier. When the step reaches the End Zone,
- * shows the run and returns the presentation the touchdown waits on.
- */
 function carryBall(run: MoveRun): string | undefined {
   const { deps, player, currentPos } = run;
   if (!run.holdingBall) return undefined;
@@ -618,8 +517,7 @@ function carryBall(run: MoveRun): string | undefined {
   if (!isInEndZone(currentPos, GameConfig.PITCH_WIDTH, side)) return undefined;
   player.gridPosition = currentPos;
   deps.state.turn.movementUsed.set(player.id, run.preUsed + run.stepsTaken);
-  // The touchdown waits until the scorer is seen standing in the
-  // End Zone, not when the dice for the run are rolled.
+
   const presentationId = nextPresentationId("score-run");
   deps.eventBus.emit(GameEventNames.PlayerMoved, walk(run, presentationId));
   return presentationId;
@@ -638,7 +536,6 @@ async function scoreRun(run: MoveRun, presentationId: string): Promise<void> {
   deps.callbacks.onTouchdown?.(player.teamId, player.id);
 }
 
-/** Settles the mover where the route stopped and ends the activation if due. */
 function finishMove(run: MoveRun, end: MoveEnd): void {
   const { deps, player, currentPos } = run;
   player.gridPosition = currentPos;
@@ -657,9 +554,6 @@ function finishMove(run: MoveRun, end: MoveEnd): void {
     return;
   }
   if (end === "slipped") {
-    // Placed Prone: no Armour Roll. The activation ends, and it is a
-    // Turnover only when the player held the ball. A loose ball on the
-    // square (not yet picked up) Bounces as well, but is no Turnover.
     player.status = PlayerStatus.PRONE;
     deps.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
     if (isBallAt(deps.state, currentPos)) {
@@ -678,7 +572,6 @@ function finishMove(run: MoveRun, end: MoveEnd): void {
     end === "securedBall" ||
     run.preUsed + run.stepsTaken >= moveAllowance(run.maView)
   ) {
-    // Tentacles ends the activation where the player stands (no turnover)
     deps.callbacks.onActivationFinished(player.id);
   }
 }

@@ -1,11 +1,3 @@
-/**
- * SandboxScene's no-args default matchup (no teams passed, no scenario
- * loaded yet) must be Human vs. Orc — never a mirror-match, and never
- * Black Orc, whose default Grab widens push options and made basic
- * chain-push behavior hard to see without hovering to check the roster.
- * openspec/specs/sandbox-rule-explorer: "Default sandbox matchup is never
- * a mirror-match".
- */
 import { describe, it, expect } from "vitest";
 import { RosterName } from "../../src/types/Team";
 import {

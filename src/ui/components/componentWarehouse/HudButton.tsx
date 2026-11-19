@@ -1,6 +1,5 @@
-/** Buttons and the key badge that shows a button's hotkey. */
 import React, { forwardRef, useRef } from "react";
-import { Hotkey, hotkeyLabel, useHotkey } from "../../hotkeys";
+import { type Hotkey, hotkeyLabel, useHotkey } from "../../hotkeys";
 import { cx } from "./hudTone";
 
 export type HudButtonVariant =
@@ -13,7 +12,6 @@ export type HudButtonVariant =
 export type HudButtonSize = "xs" | "sm" | "md" | "lg";
 
 const VARIANT: Record<HudButtonVariant, string> = {
-  // The main call to action: blood red, with a pressed edge.
   primary:
     "bg-hud-blood text-white border-hud-blood-edge/70 shadow-hud-press-blood hover:bg-hud-blood-hot",
   gold: "bg-hud-gold text-hud-ink border-hud-gold-hi shadow-hud-press-gold hover:bg-[#f0c45a]",
@@ -28,15 +26,12 @@ const VARIANT: Record<HudButtonVariant, string> = {
 };
 
 const SIZE: Record<HudButtonSize, string> = {
-  // A control inside a PanelHeader, which has 24px of height to give. The
-  // text matches HudTabs so a header row keeps one size.
   xs: "min-h-[24px] min-w-[24px] px-1.5 text-hud-sm",
   sm: "min-h-[32px] px-3 text-hud-sm",
   md: "min-h-[44px] px-5 text-[16px]",
   lg: "min-h-[52px] px-7 text-[20px]",
 };
 
-/** Button classes, for the few places that cannot use HudButton itself. */
 export const hudButtonClass = (
   variant: HudButtonVariant = "secondary",
   size: HudButtonSize = "md",
@@ -59,7 +54,7 @@ export const HudButton = forwardRef<
     variant?: HudButtonVariant;
     size?: HudButtonSize;
     block?: boolean;
-    /** Presses the button from the keyboard, shown on a badge. */
+
     hotkey?: Hotkey;
     "data-testid"?: string;
   }
@@ -95,10 +90,6 @@ export const HudButton = forwardRef<
   );
 });
 
-/**
- * The key that presses a control. Shown only with a mouse or trackpad: a
- * phone has no keyboard to press it with.
- */
 export function KeyBadge({ hotkey }: { hotkey: Hotkey }) {
   return (
     <kbd

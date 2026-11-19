@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-/** Frozen process-pool acquisition. Every full match is replayed before saving. */
+
 import { fork } from "node:child_process";
 import {
   existsSync,
@@ -147,11 +147,11 @@ if (args.includes("--worker")) {
                 child.send(current ?? null);
               }
             );
-            child.on("exit", (code) =>
+            child.on("exit", (code) => {
               current || code !== 0
                 ? no(new Error("Worker exited during " + current?.id))
-                : yes()
-            );
+                : yes();
+            });
           })
       )
     );

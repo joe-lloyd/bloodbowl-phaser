@@ -1,8 +1,4 @@
-/**
- * Integration: seed refresh is idempotent and cleanup is safe beside
- * coach-created records (teams in localStorage, competitions in the local
- * competition store).
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach } from "vitest";
 import { RosterName, createTeam } from "../../src/types/Team";
 import {
@@ -15,7 +11,7 @@ import {
   readLocalCompetitions,
   saveCompetition,
 } from "../../src/competition/repository";
-import { LeagueDoc } from "../../src/competition/types";
+import { type LeagueDoc } from "../../src/competition/types";
 import {
   cleanupDevelopmentSeedData,
   seedDevelopmentData,
@@ -65,7 +61,6 @@ describe("development seed integration", () => {
     expect(secondTeams).toHaveLength(firstTeams.length);
     expect(readLocalCompetitions()).toHaveLength(firstCompetitions);
 
-    // No duplicate ids anywhere
     expect(new Set(firstIds).size).toBe(firstIds.length);
   });
 
@@ -81,7 +76,7 @@ describe("development seed integration", () => {
   it("seed teams saved before the Veteran rule get one when loaded", () => {
     seedDevelopmentData();
     const fresh = loadTeams();
-    // A save from before the rule: no Veteran, and their Lineman's full MA
+
     const old = fresh.map((team) => ({
       ...team,
       players: team.players.map(({ veteran, ...player }) => ({
@@ -93,23 +88,22 @@ describe("development seed integration", () => {
 
     const loaded = loadTeams();
     for (const team of fresh) {
-      const vets = loaded
-        .find((t) => t.id === team.id)!
+      const vets = fixtureValue(loaded
+        .find((t) => t.id === team.id))
         .players.filter((p) => p.veteran)
-        .map((p) => `${p.id} MA${p.stats.MA}`);
+        .map((p) => `${p.id} MA${String(p.stats.MA)}`);
       const expected = team.players
         .filter((p) => p.veteran)
-        .map((p) => `${p.id} MA${p.stats.MA}`);
+        .map((p) => `${p.id} MA${String(p.stats.MA)}`);
       expect(vets, team.name).toEqual(expected);
       expect(vets, team.name).toHaveLength(1);
     }
-    // A coach's own draft is theirs to choose
-    const coach = loaded.find((t) => t.name === "Coach Draft")!;
+
+    const coach = fixtureValue(loaded.find((t) => t.name === "Coach Draft"));
     expect(coach.players.some((p) => p.veteran)).toBe(false);
   });
 
   it("cleanup removes only seed-owned records, keeping coach records", () => {
-    // Coach-created records sit beside the seeds
     const mine = coachTeam("My Custom Team");
     saveTeams([mine]);
     void saveCompetition(coachLeague("coach-league-1"));
@@ -123,12 +117,12 @@ describe("development seed integration", () => {
 
     const remainingTeams = loadTeams();
     expect(remainingTeams).toHaveLength(1);
-    expect(remainingTeams[0].id).toBe(mine.id);
+    expect(fixtureValue(remainingTeams[0]).id).toBe(mine.id);
     expect(isSeedOwned(remainingTeams[0])).toBe(false);
 
     const remainingCompetitions = readLocalCompetitions();
     expect(remainingCompetitions).toHaveLength(1);
-    expect(remainingCompetitions[0].id).toBe("coach-league-1");
+    expect(fixtureValue(remainingCompetitions[0]).id).toBe("coach-league-1");
   });
 
   it("a refresh replaces legacy ' Sample' teams but not coach teams", () => {
@@ -149,7 +143,7 @@ describe("development seed integration", () => {
 
   it("version-targeted cleanup removes only that seed version", () => {
     seedDevelopmentData();
-    // Pretend a stray record from an older version exists
+
     const teams = loadTeams();
     const stray = {
       ...coachTeam("Stray Old Seed"),
@@ -163,7 +157,7 @@ describe("development seed integration", () => {
 
     const result = cleanupDevelopmentSeedData(999);
     expect(result.removedTeams).toBe(1);
-    // Current-version seeds untouched
+
     expect(loadTeams().filter(isSeedOwned).length).toBe(teams.length);
   });
 

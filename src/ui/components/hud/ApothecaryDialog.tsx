@@ -1,10 +1,10 @@
 import { DecisionTeam } from "./DecisionTeam";
 import { useAfterDice } from "../../hooks/useAfterDice";
 import React, { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { DecisionRequest } from "@/types/decisions";
+import type { EventBus } from "../../../services/EventBus";
+import { type DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
-import { ApothecaryDecisionRequest } from "@/types/decisions";
+import { type ApothecaryDecisionRequest } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
@@ -17,12 +17,6 @@ interface ApothecaryDialogProps {
   eventBus: EventBus;
 }
 
-/**
- * Offers an owned, unused Apothecary immediately after an eligible Knocked
- * Out or casualty result, before the player's final placement. The engine is
- * paused on this decision; both buttons resolve it via
- * UI_ApothecaryResponse → gameService.answerApothecary.
- */
 export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
   eventBus,
 }) => {
@@ -36,7 +30,7 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
         setRequest(data);
       }
     };
-    // The other coach may be the one who answers
+
     const onResolved = ({ type }: { type: string }) => {
       if (type === "apothecary") setRequest(null);
     };
@@ -48,15 +42,11 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
     };
   }, [eventBus]);
 
-  // Hold the decision until the die it follows has landed in the tray
   const request = useAfterDice(eventBus, pending);
 
-  // Online, only the coach who owns the decision sees it; the other
-  // coach has the "Waiting for…" banner
   if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
 
   const answer = (accept: boolean) => {
-    // Online: only the injured player's own coach may answer
     if (getActiveOnlineMatch()?.mayAct() === false) return;
     eventBus.emit(GameEventNames.UI_ApothecaryResponse, { accept });
     setRequest(null);
@@ -67,24 +57,20 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
     : null;
   const player = container?.gameService.getPlayerById(request.playerId);
 
-  const resultLabel =
-    request.resultKind === "ko"
-      ? request.location === "crowd"
-        ? "Knocked Out (crowd)"
-        : "Knocked Out"
-      : request.casualtyType === "dead"
-        ? "Dead"
-        : request.casualtyType === "seriously-hurt"
-          ? "Seriously Hurt"
-          : "Badly Hurt";
+  const playerName = player?.playerName ?? "Player";
+  return (
+    <ApothecaryView request={request} answer={answer} playerName={playerName} />
+  );
+};
 
-  const outcomeDescription =
-    request.resultKind === "ko"
-      ? request.location === "crowd"
-        ? "moves straight to the Reserves"
-        : "stays on their square, Stunned"
-      : "rolls a D6 — 4+ moves them to the Reserves, 1-3 leaves the result unchanged";
-
+interface ApothecaryViewProps {
+  request: ApothecaryDecisionRequest;
+  answer: (accept: boolean) => void;
+  playerName: string;
+}
+function ApothecaryView({ request, answer, playerName }: ApothecaryViewProps) {
+  const resultLabel = apothecaryResultLabel(request);
+  const outcomeDescription = apothecaryOutcomeDescription(request);
   return (
     <DialogShell
       placement="dock"
@@ -92,19 +78,10 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
       testId="apothecary-dialog"
       title="Use the Apothecary?"
       width="w-[460px]"
-      actions={
-        <DialogActions>
-          <HudButton variant="ghost" hotkey="n" onClick={() => answer(false)}>
-            DECLINE
-          </HudButton>
-          <HudButton variant="gold" hotkey="y" onClick={() => answer(true)}>
-            USE APOTHECARY
-          </HudButton>
-        </DialogActions>
-      }
+      actions={<ApothecaryActions answer={answer} />}
     >
       <p className="font-hud-label text-hud-lg font-bold text-hud-bone">
-        {player?.playerName ?? "Player"} — {resultLabel}
+        {playerName} — {resultLabel}
       </p>
       <p className="mt-2 text-hud-sm text-hud-dim">
         If used: {outcomeDescription}. The Apothecary is consumed either way
@@ -112,4 +89,46 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
       </p>
     </DialogShell>
   );
-};
+}
+function ApothecaryActions({ answer }: { answer: (accept: boolean) => void }) {
+  return (
+    <DialogActions>
+      <HudButton
+        variant="ghost"
+        hotkey="n"
+        onClick={() => {
+          answer(false);
+        }}
+      >
+        DECLINE
+      </HudButton>
+      <HudButton
+        variant="gold"
+        hotkey="y"
+        onClick={() => {
+          answer(true);
+        }}
+      >
+        USE APOTHECARY
+      </HudButton>
+    </DialogActions>
+  );
+}
+
+function apothecaryResultLabel(request: ApothecaryDecisionRequest): string {
+  if (request.resultKind === "ko")
+    return request.location === "crowd" ? "Knocked Out (crowd)" : "Knocked Out";
+  if (request.casualtyType === "dead") return "Dead";
+  return request.casualtyType === "seriously-hurt"
+    ? "Seriously Hurt"
+    : "Badly Hurt";
+}
+function apothecaryOutcomeDescription(
+  request: ApothecaryDecisionRequest
+): string {
+  if (request.resultKind !== "ko")
+    return "rolls a D6 — 4+ moves them to the Reserves, 1-3 leaves the result unchanged";
+  return request.location === "crowd"
+    ? "moves straight to the Reserves"
+    : "stays on their square, Stunned";
+}

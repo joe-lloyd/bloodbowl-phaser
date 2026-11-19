@@ -1,15 +1,9 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
-/**
- * Round 3, 1:21:16: the waiting guest's tray drew two block dice on top of
- * each other while the host showed them side by side. The guest drew few
- * frames, so its throw was stopped before it landed and stayed as thrown,
- * the dice stacked. A throw stopped early now shows its dice at rest,
- * lifted side by side with their result faces forward.
- */
 const drawn = vi.hoisted(() => ({
-  scenes: [] as unknown[],
-  cameras: [] as unknown[],
+  scenes: new Array<unknown>(),
+  cameras: new Array<unknown>(),
 }));
 vi.mock("three", async (importOriginal) => {
   const real = await importOriginal<typeof import("three")>();
@@ -59,14 +53,14 @@ it.each([1, 6, 9, 16])(
       (child) => child instanceof THREE.Mesh && child.castShadow
     ) as InstanceType<typeof THREE.Mesh>;
     expect(die.geometry.groups).toHaveLength(16);
-    // Raycast the actual visible triangle, rather than trusting the returned value.
+
     die.updateMatrixWorld(true);
     const ray = new THREE.Raycaster(
       camera.position,
       die.position.clone().sub(camera.position).normalize()
     );
-    const face = ray.intersectObject(die)[0].face!.materialIndex;
-    expect(die.userData.labels[face]).toBe(value);
+    const face = fixtureValue(fixtureValue(ray.intersectObject(die)[0]).face).materialIndex;
+    expect(die.userData["labels"][face]).toBe(value);
   }
 );
 
@@ -79,7 +73,7 @@ beforeAll(() => {
   const context = vi
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => pen as never);
-  // The page draws no more frames, like a busy or hidden tab
+
   const frames = vi
     .spyOn(window, "requestAnimationFrame")
     .mockImplementation(() => 0);
@@ -88,7 +82,9 @@ beforeAll(() => {
     frames.mockRestore();
   };
 });
-afterAll(() => restore());
+afterAll(() => {
+  restore();
+});
 
 it("shows two block dice side by side when their throw is stopped before it lands", async () => {
   const THREE = await import("three");
@@ -121,7 +117,7 @@ it("shows two block dice side by side when their throw is stopped before it land
   );
   expect(dice).toHaveLength(2);
   const [a, b] = dice.map((die) => die.position);
-  expect(Math.round((b.x - a.x) * 100) / 100).toBe(1.35);
-  expect(b.y).toBeCloseTo(a.y);
-  expect(b.z).toBeCloseTo(a.z);
+  expect(Math.round((fixtureValue(b).x - fixtureValue(a).x) * 100) / 100).toBe(1.35);
+  expect(fixtureValue(b).y).toBeCloseTo(fixtureValue(a).y);
+  expect(fixtureValue(b).z).toBeCloseTo(fixtureValue(a).z);
 });

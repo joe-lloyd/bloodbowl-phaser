@@ -5,21 +5,8 @@ import { GameEventNames } from "../../../src/types/events";
 import { GamePhase } from "../../../src/types/GameState";
 import { NetworkedGameService } from "../../../src/network/NetworkedGameService";
 
-/**
- * A dropped player goes straight to where they were dropped. Against the
- * computer and online the engine runs the placement a moment after the drop,
- * and until then the record still has the player on the square they left.
- * The board used to redraw from that record at once, drawing the player back
- * on their old square for a frame before they jumped to the new one.
- *
- * Drives GameScene's real event wiring with stand-ins for the service, the
- * placement controller and the sprites, so it runs without a browser.
- * e2e/browser/setup-drop-no-flashback.e2e.ts checks the frames in the app.
- */
-
 type Handler = (...args: unknown[]) => void;
 
-/** Records listeners like an event emitter, so a test can fire them. */
 function emitterStub() {
   const handlers = new Map<string, Handler>();
   return {
@@ -73,10 +60,10 @@ describe("a drop waits for the engine before redrawing", () => {
       placePlayersOnPitch: vi.fn(),
       checkSetupCompleteness: vi.fn(),
     });
-    scene["initializeControllers"]();
+    scene.initializeControllers();
     controller = Object.assign(emitterStub(), { syncFromTeam: vi.fn() });
     scene.placementController = controller;
-    scene["setupSceneSpecificListeners"]();
+    scene.setupSceneSpecificListeners();
   };
 
   afterEach(() => {
@@ -84,7 +71,9 @@ describe("a drop waits for the engine before redrawing", () => {
   });
 
   describe("in a hot-seat match the engine has already answered", () => {
-    beforeEach(() => build(false));
+    beforeEach(() => {
+      build(false);
+    });
 
     it("redraws a placement at once", () => {
       controller.fire(GameEventNames.PlayerPlaced, {
@@ -103,7 +92,9 @@ describe("a drop waits for the engine before redrawing", () => {
   });
 
   describe("against the computer or online", () => {
-    beforeEach(() => build(true));
+    beforeEach(() => {
+      build(true);
+    });
 
     it("leaves a placement as dropped until the engine's answer redraws", () => {
       controller.fire(GameEventNames.PlayerPlaced, {
@@ -114,8 +105,7 @@ describe("a drop waits for the engine before redrawing", () => {
       expect(service.placePlayer).toHaveBeenCalledWith("p1", 1, 3);
       expect(scene.refreshDugouts).not.toHaveBeenCalled();
 
-      // ComputerMatch / OnlineMatch once the command has run
-      eventBus.emit(GameEventNames.UI_SyncBoard);
+      eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
       expect(scene.refreshDugouts).toHaveBeenCalledTimes(1);
     });
 
@@ -163,7 +153,7 @@ describe("a drop waits for the engine before redrawing", () => {
   describe("the engine's answer", () => {
     it("brings the placement controller's map up to date", () => {
       build(true);
-      // The real redraw, not the stand-in
+
       scene.refreshDugouts = GameScene.prototype.refreshDugouts;
       Object.assign(scene, { dugouts: new Map() });
       Object.assign(controller, { applySetupHitAreas: vi.fn() });
@@ -172,24 +162,17 @@ describe("a drop waits for the engine before redrawing", () => {
         x: 1,
         y: 3,
       });
-      // Synced at the drop, while the record still has the old square
-      expect(controller.syncFromTeam).toHaveBeenCalledTimes(1);
 
-      // ComputerMatch / OnlineMatch once the placement has run
-      eventBus.emit(GameEventNames.UI_SyncBoard);
-      expect(controller.syncFromTeam).toHaveBeenCalledTimes(2);
+      expect(controller["syncFromTeam"]).toHaveBeenCalledTimes(1);
+
+      eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
+      expect(controller["syncFromTeam"]).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("a drop whose command never reaches the engine", () => {
-    /** The real networked service, over a dispatch that fails outright. */
     const offline = () =>
-      new NetworkedGameService(
-        {} as never,
-        () => Promise.reject(new Error("connection lost")),
-        () => null,
-        eventBus
-      );
+      new NetworkedGameService({ inner: {} as never, dispatch: () => Promise.reject(new Error("connection lost")), pendingDecision: () => null, eventBus: eventBus });
     const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
     it("redraws a placement, putting the player back on their old square", async () => {

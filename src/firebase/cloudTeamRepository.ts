@@ -1,12 +1,5 @@
-/**
- * Cloud team library - Firestore-backed TeamRepository.
- *
- * Teams live at users/{uid}/teams/{teamId}, readable/writable only by their
- * owner (firestore.rules). The repository is a synchronous write-through
- * cache: reads come from memory (primed at sign-in), writes update the cache
- * immediately. Saves resolve after Firestore acknowledges every write.
- */
-
+import { readCloudTeam } from "../boundary/firebaseTeam";
+import { firebaseDocument } from "../boundary/firebaseJson";
 import {
   collection,
   collectionGroup,
@@ -17,13 +10,10 @@ import {
 } from "firebase/firestore";
 import { getDb } from "./config";
 import { isAuthResolved, subscribeToAuth } from "./auth";
-import { Team } from "../types/Team";
+import { type Team } from "../types/Team";
+import { dehydrateTeam } from "../data/persistence/teamPersistence";
 import {
-  dehydrateTeam,
-  readStoredTeam,
-} from "../data/persistence/teamPersistence";
-import {
-  TeamRepository,
+  type TeamRepository,
   setTeamRepository,
   setTeamLibraryRetry,
   setTeamLibraryStatus,
@@ -37,27 +27,17 @@ function teamsCollection(uid: string) {
   return collection(getDb(), "users", uid, "teams");
 }
 
-/**
- * Firestore rejects `undefined` fields; a JSON round-trip strips them. The
- * document written is the normalized `StoredTeam` shape — see
- * src/data/persistence/teamPersistence.ts.
- */
 function toPlainDoc(team: Team): Record<string, unknown> {
-  return JSON.parse(JSON.stringify(dehydrateTeam(team)));
+  return firebaseDocument(dehydrateTeam(team));
 }
 
-/**
- * Reads tolerate both the normalized shape and the previous full-object
- * shape; either way the result is a freshly hydrated `Team`, and the next
- * save writes it back normalized.
- */
-export async function fetchCloudTeams(uid: string): Promise<Team[]> {
+async function fetchCloudTeams(uid: string): Promise<Team[]> {
   const snapshot = await getDocs(teamsCollection(uid));
   return snapshot.docs.map((d) => {
-    const { team, warnings } = readStoredTeam(d.data());
-    warnings.forEach((warning) =>
-      console.warn(`[cloudTeamRepository] ${warning}`)
-    );
+    const { team, warnings } = readCloudTeam(d.data());
+    warnings.forEach((warning) => {
+      console.warn(`[cloudTeamRepository] ${warning}`);
+    });
     return team;
   });
 }
@@ -67,20 +47,11 @@ export interface OwnedTeam {
   team: Team;
 }
 
-/**
- * Every coach's live team library, read directly — no publish step and no
- * separate copy (shared-team-library: "A coach's teams are directly
- * readable by other coaches"). Backed by a `teams` collection-group query,
- * authorized document-by-document by the same rule that already governs
- * `users/{uid}/teams/{teamId}` (any authenticated coach may read).
- */
 export async function fetchAllCoachTeams(): Promise<OwnedTeam[]> {
   const snapshot = await getDocs(collectionGroup(getDb(), "teams"));
   return snapshot.docs.map((document) => ({
-    // users/{uid}/teams/{teamId} — the owner uid is the team doc's
-    // grandparent segment.
     ownerUid: document.ref.parent.parent?.id ?? "",
-    team: document.data() as unknown as Team,
+    team: readCloudTeam(document.data()).team,
   }));
 }
 
@@ -93,7 +64,7 @@ async function deleteCloudTeam(uid: string, teamId: string): Promise<void> {
   await runTransaction(getDb(), async (transaction) => {
     const snapshot = await transaction.get(reference);
     if (!snapshot.exists()) return;
-    const { team } = readStoredTeam(snapshot.data());
+    const { team } = readCloudTeam(snapshot.data());
     if (team.computerCoached && team.activeCompetitionId) {
       throw new Error(
         "This computer team is still playing in a competition. Delete it once the competition is over."
@@ -106,10 +77,9 @@ async function deleteCloudTeam(uid: string, teamId: string): Promise<void> {
 export class CloudTeamRepository implements TeamRepository {
   private cache: Team[];
 
-  constructor(
-    private readonly uid: string,
-    initialTeams: Team[]
-  ) {
+  private readonly uid: string;
+  constructor(uid: string, initialTeams: Team[]) {
+    this.uid = uid;
     this.cache = [...initialTeams];
   }
 
@@ -117,7 +87,6 @@ export class CloudTeamRepository implements TeamRepository {
     return [...this.cache];
   }
 
-  /** Check membership and delete atomically, without rewriting other teams. */
   async deleteTeam(teamId: string): Promise<void> {
     await deleteCloudTeam(this.uid, teamId);
     this.cache = this.cache.filter((team) => team.id !== teamId);
@@ -138,25 +107,6 @@ export class CloudTeamRepository implements TeamRepository {
   }
 }
 
-/**
- * Optional backfill: force every one of a coach's cloud team documents
- * through the reader and writer once, so a document that would otherwise
- * sit untouched (and so never get the lazy on-next-save upgrade) is
- * normalized without waiting for the coach to edit it. Safe to run
- * repeatedly — an already-normalized document round-trips to itself.
- */
-export async function backfillCloudTeams(uid: string): Promise<number> {
-  const teams = await fetchCloudTeams(uid);
-  await Promise.all(teams.map((team) => writeCloudTeam(uid, team)));
-  return teams.length;
-}
-
-/**
- * First-sign-in migration: offer to copy localStorage teams into the cloud
- * library. Never overwrites a cloud team (id-deduplicated), never deletes
- * locals, and asks at most once per uid on this machine.
- * Returns the teams that were uploaded.
- */
 export async function migrateLocalTeams(
   uid: string,
   cloudTeams: Team[],
@@ -182,23 +132,10 @@ export async function migrateLocalTeams(
   return candidates;
 }
 
-/**
- * Wire team persistence to auth state. Call once at app startup (safe to
- * call when Firebase is unconfigured — subscribeToAuth is inert then).
- * Signed in: prime the cache from Firestore (after offering migration) and
- * swap in the cloud repository. Signed out: restore localStorage.
- *
- * The library is `loading` while the session restores or the cloud library
- * loads, and `failed` when the signed-in coach's library could not be
- * loaded; the localStorage library is never treated as theirs meanwhile.
- * Each auth change or retry starts a new library load, and only the latest
- * one may install a library or settle its status, so a slow fetch from an
- * earlier sign-in can neither end a newer load nor outlive a sign-out.
- */
 export function connectTeamPersistenceToAuth(
   confirmMigration: (count: number) => boolean = (count) =>
     window.confirm(
-      `You have ${count} locally saved team${count === 1 ? "" : "s"}. ` +
+      `You have ${String(count)} locally saved team${count === 1 ? "" : "s"}. ` +
         `Upload ${count === 1 ? "it" : "them"} to your cloud team library?`
     )
 ): void {
@@ -224,7 +161,7 @@ export function connectTeamPersistenceToAuth(
         );
       } catch (error) {
         console.error("Failed to load cloud team library:", error);
-        // Failed is not settled: the coach's library is still elsewhere.
+
         if (isCurrent()) setTeamLibraryStatus("failed");
       }
     })();
@@ -235,16 +172,12 @@ export function connectTeamPersistenceToAuth(
   });
 
   subscribeToAuth((user) => {
-    // Subscribers also hear auth updates that keep the same account (an
-    // email link sent, say). Only a change of account loads the library
-    // again; a failed load is retried with Retry, not by such updates.
-    if (user && user.uid === signedInUid) return;
+    if (user?.uid === signedInUid) return;
     if (!user) {
       const wasSignedIn = signedInUid !== null;
       signedInUid = null;
       latestLoad++;
-      // A null user before Firebase has reported may be a session that is
-      // still restoring, whose cloud library is yet to arrive.
+
       if (!isAuthResolved()) setTeamLibraryStatus("loading");
       else if (wasSignedIn || getTeamLibraryStatus() !== "loaded") {
         setTeamRepository(null);

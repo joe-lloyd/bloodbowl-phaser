@@ -1,9 +1,9 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import {
-  Player,
+  type Player,
   PlayerCondition,
   PositionKeyWord,
   TraitKeyWord,
@@ -11,18 +11,19 @@ import {
 } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
 import {
-  BiteTargetDecisionAnswer,
-  ReactionDecisionAnswer,
+  type BiteTargetDecisionAnswer,
+  type ReactionDecisionAnswer,
 } from "../../types/decisions";
 import { BounceOperation } from "./BounceOperation";
 import { InjuryOperation } from "./InjuryOperation";
 
-/** Runs a continuation once the operations queued ahead of it resolve. */
 class ThenOperation extends GameOperation {
   public readonly name = "BloodlustThen";
 
-  constructor(private run: () => void) {
+  private run: () => void;
+  constructor(run: () => void) {
     super();
+    this.run = run;
   }
 
   async execute(): Promise<void> {
@@ -30,41 +31,27 @@ class ThenOperation extends GameOperation {
   }
 }
 
-/**
- * BloodlustBiteOperation (2025 rulebook p.125, Bloodlust (X+)) settles a
- * failed Bloodlust roll: "this player may bite an adjacent Thrall Lineman
- * team-mate regardless of the status of the Thrall Lineman. If they do,
- * immediately make an Injury Roll for the Thrall Lineman, treating any
- * Casualty result as Badly Hurt; this will not cause a Turnover unless the
- * Thrall Lineman was holding the ball. If this player does not bite a
- * Thrall Lineman for any reason, then a Turnover is caused, this player
- * becomes Distracted, and will immediately drop the ball if they were
- * holding it."
- *
- * The coach chooses who to bite: a lone adjacent Thrall Lineman is offered
- * as a yes/no question, and two or more raise a "bite-target" decision the
- * coach answers by clicking the Thrall on the pitch (or by biting nobody).
- * Nothing picks the Thrall for them. `unsated` decides what refusing costs: the
- * full penalty at the end of the activation or on reaching the End Zone
- * ("consequences"), or only the refused Pass or Hand-off ("refuse").
- * `then` runs after the bite (or the penalty) has resolved.
- */
 export class BloodlustBiteOperation extends GameOperation {
   public readonly name = "BloodlustBite";
 
+  private playerId: string;
+  private unsated: "consequences" | "refuse";
+  private then: (sated: boolean) => void;
   constructor(
-    private playerId: string,
-    private unsated: "consequences" | "refuse",
-    private then: (sated: boolean) => void
+    playerId: string,
+    unsated: "consequences" | "refuse",
+    then: (sated: boolean) => void
   ) {
     super();
+    this.playerId = playerId;
+    this.unsated = unsated;
+    this.then = then;
   }
 
   async execute(context: FlowContext): Promise<void> {
     const { gameService, eventBus, flowManager } = context;
     const player = gameService.getPlayerById(this.playerId);
     if (!player?.gridPosition) {
-      // Off the pitch (a Knocked Out carrier, say): nobody left to bite.
       this.then(false);
       return;
     }
@@ -88,13 +75,21 @@ export class BloodlustBiteOperation extends GameOperation {
         followUps.push(new BounceOperation({ ...thrall.gridPosition }));
         gameService.triggerTurnover("A bitten Thrall dropped the ball");
       }
-      followUps.push(new ThenOperation(() => this.then(true)));
+      followUps.push(
+        new ThenOperation(() => {
+          this.then(true);
+        })
+      );
     } else if (this.unsated === "refuse") {
       eventBus.emit(
         GameEventNames.UI_Notification,
         `${player.playerName} must bite a Thrall Lineman first`
       );
-      followUps.push(new ThenOperation(() => this.then(false)));
+      followUps.push(
+        new ThenOperation(() => {
+          this.then(false);
+        })
+      );
     } else {
       addCondition(player, PlayerCondition.DISTRACTED);
       eventBus.emit(GameEventNames.SkillTriggered, {
@@ -107,9 +102,13 @@ export class BloodlustBiteOperation extends GameOperation {
         followUps.push(new BounceOperation({ ...player.gridPosition }));
       }
       gameService.triggerTurnover("Bloodlust: no Thrall Lineman bitten");
-      followUps.push(new ThenOperation(() => this.then(false)));
+      followUps.push(
+        new ThenOperation(() => {
+          this.then(false);
+        })
+      );
     }
-    // Front of the queue, in order: injury, bounce, then the continuation.
+
     for (const op of followUps.reverse()) flowManager.add(op, true);
   }
 
@@ -148,7 +147,7 @@ export class BloodlustBiteOperation extends GameOperation {
       })) as ReactionDecisionAnswer;
       return answer.accept ? thrall : undefined;
     }
-    // More than one in reach: the coach picks which, on the pitch.
+
     const answer = (await decisions.request({
       type: "bite-target",
       playerId: player.id,

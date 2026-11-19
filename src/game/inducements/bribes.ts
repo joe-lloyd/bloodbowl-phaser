@@ -1,21 +1,9 @@
-/**
- * Bribes (2025 rulebook p.148): when a player is Sent-off, after any
- * attempt to Argue the Call, the coach may use a Bribe. Roll a D6: on a 2+
- * the player is not Sent-off and no Turnover is caused; on a natural 1 the
- * Bribe is lost and the player is Sent-off anyway.
- *
- * A team's Bribes are the free ones from Get the Ref (`state.bribes`,
- * spent first because they are lost at full time anyway) plus the ones it
- * bought. The coach is asked through a yes/no reaction decision with the
- * skill name "Bribe", so every surface that answers reactions answers it.
- */
-
-import { IEventBus } from "../../services/EventBus";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type IEventBus } from "../../services/EventBus";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import { GameEventNames } from "../../types/events";
-import { GameState } from "../../types/GameState";
+import { type GameState } from "../../types/GameState";
 import { Inducement } from "../../types/Inducements";
-import { Player } from "../../types/Player";
+import { type Player } from "../../types/Player";
 import { inducementUsesLeft, spendInducement } from "./inventory";
 
 export const BRIBE_DECISION = "Bribe";
@@ -36,11 +24,6 @@ function spendBribe(state: GameState, teamId: string): void {
   spendInducement(state, teamId, Inducement.BRIBE);
 }
 
-/**
- * Offer a Bribe for a player about to be Sent-off. Returns the Bribe's roll
- * when one is used, and whether it works (2+: the player stays); null when
- * no Bribe is held or the coach declines.
- */
 export async function offerBribe(
   gameService: IGameService,
   eventBus: IEventBus,
@@ -55,7 +38,7 @@ export async function offerBribe(
     playerId: player.id,
     chooserTeamId: player.teamId,
     skill: BRIBE_DECISION,
-    prompt: `${player.playerName} is being Sent-off. Use a Bribe (${held} left)? A 2+ keeps them on the pitch.`,
+    prompt: `${player.playerName} is being Sent-off. Use a Bribe (${String(held)} left)? A 2+ keeps them on the pitch.`,
   });
   if (!("accept" in answer) || !answer.accept) return null;
 
@@ -67,8 +50,8 @@ export async function offerBribe(
   eventBus.emit(
     GameEventNames.UI_Notification,
     works
-      ? `Bribe accepted (${roll}): ${player.playerName} stays on the pitch.`
-      : `The referee pockets the Bribe (${roll}): ${player.playerName} is Sent-off anyway.`
+      ? `Bribe accepted (${String(roll)}): ${player.playerName} stays on the pitch.`
+      : `The referee pockets the Bribe (${String(roll)}): ${player.playerName} is Sent-off anyway.`
   );
   return { roll, works };
 }

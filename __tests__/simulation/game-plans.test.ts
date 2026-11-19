@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -8,35 +9,61 @@ import { createCoachRng } from "../../src/simulation/rng";
 import { GAME_PLANS, choosePlan } from "../../src/simulation/ai/gamePlans";
 import type { Activation } from "../../src/simulation/ai/activations";
 
-const plan = (name: string) => GAME_PLANS.find((p) => p.name === name)!;
+const plan = (name: string) =>
+  fixtureValue(GAME_PLANS.find((p) => p.name === name));
 
 const [us, them] = new HeadlessGame({ seed: 1 }).ctx.team1.players;
 
-/** A plan worth `value`: a pass to a team-mate, or a block on an opponent. */
-function option(
-  id: string,
-  value: number,
-  kind: "pass" | "block",
-  tier: Activation["tier"] = "support"
-): { id: string; activation: Activation } {
+function option({
+  id,
+  value,
+  kind,
+  tier = "support",
+}: {
+  id: string;
+  value: number;
+  kind: "pass" | "block";
+  tier?: Activation["tier"];
+}): { id: string; activation: Activation } {
   const intent: Activation["intent"] =
-    kind === "pass" ? { kind, to: them, route: null } : { kind, target: them };
+    kind === "pass"
+      ? {
+          kind,
+          to: { ...fixtureValue(them), gridPosition: { x: 1, y: 0 } },
+          route: null,
+        }
+      : {
+          kind,
+          target: { ...fixtureValue(them), gridPosition: { x: 1, y: 0 } },
+        };
   return {
     id,
-    activation: { player: us, action: kind, intent, tier, value, rolls: [] },
+    activation: {
+      player: { ...fixtureValue(us), gridPosition: { x: 0, y: 0 } },
+      action: kind,
+      intent,
+      tier,
+      value,
+      rolls: [],
+    },
   };
 }
 
 function counts(margin: number, name: string, draws = 2000) {
   const options = [
-    option("best", 30, "block"),
-    option("close", 25, "pass"),
-    option("poor", 10, "block"),
+    option({ id: "best", value: 30, kind: "block" }),
+    option({ id: "close", value: 25, kind: "pass" }),
+    option({ id: "poor", value: 10, kind: "block" }),
   ];
   const rng = createCoachRng(7);
   const out: Record<string, number> = {};
   for (let i = 0; i < draws; i++) {
-    const { id } = choosePlan(options, plan(name), { margin }, rng);
+    const { id } = choosePlan({
+      options: options,
+      plan: plan(name),
+      variety: { margin },
+      rng: rng,
+    });
     out[id] = (out[id] ?? 0) + 1;
   }
   return out;
@@ -54,43 +81,64 @@ describe("game plans", () => {
   it("varies between close plans, the closer the likelier, never a poor one", () => {
     const seen = counts(8, "balanced");
     expect(Object.keys(seen).sort()).toEqual(["best", "close"]);
-    expect(seen.best).toBeGreaterThan(seen.close);
+    expect(seen["best"]).toBeGreaterThan(fixtureValue(seen["close"]));
   });
 
   it("never puts a risky close plan ahead of a safe best one", () => {
     const options = [
-      option("safe", 30, "block"),
-      option("risky", 29, "block", "risky"),
+      option({ id: "safe", value: 30, kind: "block" }),
+      option({ id: "risky", value: 29, kind: "block", tier: "risky" }),
     ];
     const rng = createCoachRng(3);
     const picks = new Set<string>();
     for (let i = 0; i < 500; i++)
-      picks.add(choosePlan(options, plan("balanced"), { margin: 8 }, rng).id);
+      picks.add(
+        choosePlan({
+          options: options,
+          plan: plan("balanced"),
+          variety: { margin: 8 },
+          rng: rng,
+        }).id
+      );
     expect([...picks]).toEqual(["safe"]);
   });
 
   it("never lets a game plan's lean put a risky plan ahead of a safe best one", () => {
     const options = [
-      option("safe", 30, "block"),
-      option("risky-pass", 29, "pass", "risky"),
+      option({ id: "safe", value: 30, kind: "block" }),
+      option({ id: "risky-pass", value: 29, kind: "pass", tier: "risky" }),
     ];
     const rng = createCoachRng(3);
     const picks = new Set<string>();
     for (let i = 0; i < 1000; i++)
-      picks.add(choosePlan(options, plan("aerial"), { margin: 8 }, rng).id);
+      picks.add(
+        choosePlan({
+          options: options,
+          plan: plan("aerial"),
+          variety: { margin: 8 },
+          rng: rng,
+        }).id
+      );
     expect([...picks]).toEqual(["safe"]);
   });
 
   it("treats a tie for best as safe when any tied plan is safe", () => {
     const options = [
-      option("risky", 30, "block", "risky"),
-      option("safe", 30, "block"),
-      option("close-risky", 28, "block", "risky"),
+      option({ id: "risky", value: 30, kind: "block", tier: "risky" }),
+      option({ id: "safe", value: 30, kind: "block" }),
+      option({ id: "close-risky", value: 28, kind: "block", tier: "risky" }),
     ];
     const rng = createCoachRng(5);
     const picks = new Set<string>();
     for (let i = 0; i < 500; i++)
-      picks.add(choosePlan(options, plan("balanced"), { margin: 8 }, rng).id);
+      picks.add(
+        choosePlan({
+          options: options,
+          plan: plan("balanced"),
+          variety: { margin: 8 },
+          rng: rng,
+        }).id
+      );
     expect([...picks]).toEqual(["safe"]);
   });
 
@@ -134,12 +182,12 @@ describe("game plans", () => {
           point,
           rng,
         });
-        await game.execute(point.candidates[index].commands[0]);
+        await game.execute(fixtureValue(point.candidates[index]).commands[0]);
       }
-      const carrier = game.ctx.team1.players[0].gridPosition;
-      openings.add(`${carrier?.x},${carrier?.y}`);
+      const carrier = fixtureValue(game.ctx.team1.players[0]).gridPosition;
+      openings.add(`${String(carrier?.x)},${String(carrier?.y)}`);
     }
-    // The same board and dice: only the coach's own choices differ.
+
     expect(openings.size).toBeGreaterThan(1);
   });
 
@@ -183,7 +231,6 @@ describe("game plans", () => {
   });
 
   it("runs in a certain score rather than pass it to a skilled receiver", async () => {
-    // A rolled pass or hand-off can fail; the run needs no rolls.
     const notes = new Set<string>();
     for (let seed = 1; seed <= 40; seed++) {
       const game = new HeadlessGame({

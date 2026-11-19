@@ -1,6 +1,6 @@
 import {
   COMPUTER_TEAM_CATALOGUE,
-  ComputerTeamTemplate,
+  type ComputerTeamTemplate,
 } from "../data/computerTeamCatalogue";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { createPlayer } from "../types/Player";
@@ -9,8 +9,8 @@ import {
   calculateTeamValue,
   createTeam,
   lockAdvancementMode,
-  Team,
-  TeamAdvancementMode,
+  type Team,
+  type TeamAdvancementMode,
 } from "../types/Team";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
 import { validateInsignificant } from "../game/rules/insignificant";
@@ -18,7 +18,7 @@ import { chooseFirstLinemanAsVeteran } from "../game/rules/veteran";
 import { purchase } from "../game/rules/teamPricing";
 import {
   DEFAULT_SEVENS_RULESET,
-  SevensRuleset,
+  type SevensRuleset,
 } from "../game/rules/sevensRuleset";
 import { allocateMatchedPlaySkill } from "../game/progression/advancementModes";
 import { eligibleSkills } from "../game/progression/progression";
@@ -89,12 +89,10 @@ function draftIssues(team: Team): string[] {
   ].filter((issue): issue is string => issue !== null);
 }
 
-/** Bundled defaults for every coach. Nothing is written to their library. */
 export function getComputerTeamTemplates(
   ruleset: SevensRuleset = DEFAULT_SEVENS_RULESET
 ): readonly ComputerTeamTemplate[] {
   return COMPUTER_TEAM_CATALOGUE.filter((template) => {
-    // A price or positional-rule change can make an older recipe unavailable.
     try {
       const team = buildTemplate(template, { ruleset });
       return draftIssues(team).length === 0;
@@ -104,7 +102,6 @@ export function getComputerTeamTemplates(
   });
 }
 
-/** A fresh roster, including fresh player ids, for one match or competition. */
 export function createComputerTeamFromTemplate(
   templateId: string,
   options: TemplateOptions = {}

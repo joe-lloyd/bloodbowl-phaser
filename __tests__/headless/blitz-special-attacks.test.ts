@@ -1,6 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { RosterName } from "../../src/types/Team";
 import { SkillType } from "../../src/types/Skills";
@@ -39,16 +40,18 @@ describe("typed block-replacement declarations", () => {
       scenario: scenario("stab-discovery", [SkillType.STAB]),
       seed: 1,
     });
-    const attackerId = game.ctx.team1.players[0].id;
-    const defenderId = game.ctx.team2.players[0].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
 
     const legal = await game.execute({
       type: "legal-actions",
       playerId: attackerId,
     });
-    const player = legal.legalActions!.players.find(
-      (entry) => entry.playerId === attackerId
-    )!;
+    const player = fixtureValue(
+      fixtureValue(legal.legalActions).players.find(
+        (entry) => entry.playerId === attackerId
+      )
+    );
     expect(player.replacementActions).toContainEqual(
       expect.objectContaining({
         blockReplacement: "stab",
@@ -101,7 +104,7 @@ describe("typed block-replacement declarations", () => {
       scenario: scenario("cancel-replacement", [SkillType.STAB]),
       seed: 2,
     });
-    const attackerId = game.ctx.team1.players[0].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -109,8 +112,7 @@ describe("typed block-replacement declarations", () => {
       action: "blitz",
       blockReplacement: "stab",
     });
-    // Declaring alone is provisional — nothing has moved or rolled yet, so
-    // the team's Blitz is not spent until the declaration commits.
+
     expect(game.snapshot().turn.hasBlitzed).toBe(false);
 
     const cancelled = await game.execute({
@@ -146,7 +148,7 @@ describe("typed block-replacement declarations", () => {
       scenario: scenario("no-skill", [], 11),
       seed: 3,
     });
-    const noSkillId = noSkill.ctx.team1.players[0].id;
+    const noSkillId = fixtureValue(noSkill.ctx.team1.players[0]).id;
     const beforeSkill = JSON.stringify(noSkill.snapshot());
     const forgedSkill = await noSkill.execute({
       type: "declare-action",
@@ -161,7 +163,7 @@ describe("typed block-replacement declarations", () => {
       scenario: scenario("no-direct-target", [SkillType.STAB], 15),
       seed: 4,
     });
-    const noTargetId = noTarget.ctx.team1.players[0].id;
+    const noTargetId = fixtureValue(noTarget.ctx.team1.players[0]).id;
     const direct = await noTarget.execute({
       type: "declare-action",
       playerId: noTargetId,
@@ -175,7 +177,7 @@ describe("typed block-replacement declarations", () => {
       seed: 5,
     });
     spent.ctx.gameService.getState().turn.hasBlitzed = true;
-    const spentId = spent.ctx.team1.players[0].id;
+    const spentId = fixtureValue(spent.ctx.team1.players[0]).id;
     const beforeSpent = JSON.stringify(spent.snapshot());
     const declaration = await spent.execute({
       type: "declare-action",
@@ -191,9 +193,9 @@ describe("typed block-replacement declarations", () => {
     const base = scenario("forged-targets", [SkillType.STAB]);
     base.setup.team2Placements.push({ playerIndex: 2, x: 18, y: 5 });
     const game = new HeadlessGame({ scenario: base, seed: 6 });
-    const attackerId = game.ctx.team1.players[0].id;
-    const legalTargetId = game.ctx.team2.players[0].id;
-    const farTargetId = game.ctx.team2.players[2].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const legalTargetId = fixtureValue(game.ctx.team2.players[0]).id;
+    const farTargetId = fixtureValue(game.ctx.team2.players[2]).id;
 
     await game.execute({
       type: "declare-action",

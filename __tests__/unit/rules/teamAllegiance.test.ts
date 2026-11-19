@@ -20,12 +20,6 @@ import {
   readStoredTeam,
 } from "../../../src/data/persistence/teamPersistence";
 
-/**
- * Leagues and Favoured of, 2025 rulebook pp.154 and 159: a multi-League
- * roster picks one League when drafting, and a Norse team in the Chaos
- * Clash gains Favoured of Khorne. A "Favoured of (...)" roster picks one
- * bracketed alignment and keeps it.
- */
 const teamOf = (rosterName: RosterName) =>
   createTeam("Test", rosterName, { primary: 0, secondary: 0 }, 0);
 

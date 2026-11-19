@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
@@ -6,19 +8,13 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import {
   findBoardStateConflicts,
   isActivatedThisTurn,
   resolveBallRepresentation,
   resolvePlayerLocation,
 } from "../../src/game/presentation/boardState";
-
-/**
- * Deterministic regressions for `match-state-visual-sync`: the ball, dugout
- * placement, activation styling and the Punt declaration must all be derivable
- * from canonical state alone, with no ambiguity for the board to render.
- */
 
 const allPlayers = (game: HeadlessGame) => [
   ...game.ctx.team1.players,
@@ -36,7 +32,6 @@ const boardOf = (game: HeadlessGame) => ({
   ),
 });
 
-/** A lone runner three squares short of a loose ball, with room to run past. */
 function midRoutePickupScenario(): Scenario {
   return {
     id: "mid-route-pickup",
@@ -53,7 +48,6 @@ function midRoutePickupScenario(): Scenario {
   };
 }
 
-/** Route: two squares onto the ball, then two more squares beyond it. */
 const MID_ROUTE_PATH = [
   { x: 9, y: 5 },
   { x: 10, y: 5 },
@@ -66,33 +60,37 @@ async function runMidRoutePickup(seed: number) {
   const runner = game.ctx.team1.players[0];
   await game.execute({
     type: "declare-action",
-    playerId: runner.id,
+    playerId: fixtureValue(runner).id,
     action: "move",
   });
   let response = await game.execute({
     type: "move",
-    playerId: runner.id,
+    playerId: fixtureValue(runner).id,
     path: MID_ROUTE_PATH,
   });
-  // Decline every reroll so the seeded outcome stands.
+
   for (let guard = 0; response.pendingDecision && guard < 5; guard++) {
     response = await game.execute({ type: "use-reroll", accept: false });
   }
   return { game, runner, response };
 }
 
-/** First seed whose mid-route pickup succeeds / fails. */
 async function seedFor(success: boolean): Promise<number> {
   for (let seed = 1; seed <= 60; seed++) {
     const { response } = await runMidRoutePickup(seed);
     const pickup = response.events.find(
       (event) => event.name === GameEventNames.BallPickup
     );
-    if (pickup && (pickup.data as { success: boolean }).success === success) {
+    if (
+      pickup &&
+      z.object({ success: z.boolean() }).parse(pickup.data).success === success
+    ) {
       return seed;
     }
   }
-  throw new Error(`no seed in [1,60] produced a ${success} mid-route pickup`);
+  throw new Error(
+    `no seed in [1,60] produced a ${String(success)} mid-route pickup`
+  );
 }
 
 describe("ball possession has one synchronized representation", () => {
@@ -102,13 +100,12 @@ describe("ball possession has one synchronized representation", () => {
 
     const { ball, conflicts } = boardOf(game);
     expect(conflicts).toEqual([]);
-    // Exactly one representation, and it is "carried by the runner".
+
     expect(ball.kind).toBe("carried");
     if (ball.kind !== "carried") throw new Error("unreachable");
-    expect(ball.playerId).toBe(runner.id);
+    expect(ball.playerId).toBe(fixtureValue(runner).id);
 
-    // The route continued past the pickup square with the ball attached.
-    expect(runner.gridPosition).toEqual({ x: 12, y: 5 });
+    expect(fixtureValue(runner).gridPosition).toEqual({ x: 12, y: 5 });
     expect(ball.square).toEqual({ x: 12, y: 5 });
     expect(game.ctx.gameService.getState().ballPosition).toEqual({
       x: 12,
@@ -124,14 +121,12 @@ describe("ball possession has one synchronized representation", () => {
     expect(conflicts).toEqual([]);
     expect(ball.kind).toBe("loose");
 
-    // The route stopped at the pickup square — the mover did not walk on
-    // with a ball they never picked up.
-    expect(runner.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(fixtureValue(runner).gridPosition).toEqual({ x: 10, y: 5 });
     const state = game.ctx.gameService.getState();
-    expect(state.ballPosition).not.toEqual(runner.gridPosition);
-    expect(
-      resolveBallRepresentation(state, allPlayers(game)).kind
-    ).not.toBe("carried");
+    expect(state.ballPosition).not.toEqual(fixtureValue(runner).gridPosition);
+    expect(resolveBallRepresentation(state, allPlayers(game)).kind).not.toBe(
+      "carried"
+    );
   });
 
   it("resolves the same single representation however often it is reconciled", async () => {
@@ -147,7 +142,6 @@ describe("ball possession has one synchronized representation", () => {
   });
 });
 
-/** A ST-1 victim who can be blocked repeatedly until an injury lands. */
 function koScenario(): Scenario {
   return {
     id: "ko-leaves-pitch",
@@ -166,18 +160,16 @@ function koScenario(): Scenario {
   };
 }
 
-/** Drive an injury roll directly so the KO branch is exercised deterministically. */
 async function knockOut(seed: number) {
   const game = new HeadlessGame({ scenario: koScenario(), seed });
   const victim = game.ctx.team2.players[0];
-  const square = { ...victim.gridPosition! };
+  const square = { ...fixtureValue(fixtureValue(victim).gridPosition) };
 
-  const { InjuryOperation } = await import(
-    "../../src/game/operations/InjuryOperation"
-  );
-  // A big positive modifier forces the injury table into its KO band.
+  const { InjuryOperation } =
+    await import("../../src/game/operations/InjuryOperation");
+
   const flow = game.ctx.gameService.getFlowContext().flowManager;
-  flow.add(new InjuryOperation(victim.id, { modifier: 4 }));
+  flow.add(new InjuryOperation(fixtureValue(victim).id, { modifier: 4 }));
   await flow.whenIdle();
   return { game, victim, square };
 }
@@ -187,32 +179,34 @@ describe("knocked-out players leave the pitch immediately", () => {
     let koed: Awaited<ReturnType<typeof knockOut>> | null = null;
     for (let seed = 1; seed <= 60 && !koed; seed++) {
       const attempt = await knockOut(seed);
-      if (attempt.victim.status === PlayerStatus.KO) koed = attempt;
+      if (fixtureValue(attempt.victim).status === PlayerStatus.KO)
+        koed = attempt;
     }
     expect(koed).not.toBeNull();
-    const { game, victim, square } = koed!;
+    const { game, victim, square } = fixtureValue(koed);
 
-    // One location, and it is the KO box.
-    expect(resolvePlayerLocation(victim)).toEqual({
+    expect(resolvePlayerLocation(fixtureValue(victim))).toEqual({
       kind: "dugout",
       box: "ko",
     });
-    expect(victim.gridPosition).toBeUndefined();
-    expect(findBoardStateConflicts(game.ctx.gameService.getState(), allPlayers(game))).toEqual([]);
+    expect(fixtureValue(victim).gridPosition).toBeUndefined();
+    expect(
+      findBoardStateConflicts(game.ctx.gameService.getState(), allPlayers(game))
+    ).toEqual([]);
 
-    // Subsequent play treats the vacated square as empty: no occupant, and it
-    // is offered as a move target for the attacker.
     expect(game.ctx.gameService.getPlayerAt(square.x, square.y)).toBeFalsy();
 
     const attacker = game.ctx.team1.players[0];
     const legal = await game.execute({
       type: "legal-actions",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
     });
-    const actions = legal.legalActions!.players.find(
-      (p) => p.playerId === attacker.id
-    )!;
-    expect(actions.blockTargets ?? []).not.toContain(victim.id);
+    const actions = fixtureValue(
+      fixtureValue(legal.legalActions).players.find(
+        (p) => p.playerId === fixtureValue(attacker).id
+      )
+    );
+    expect(actions.blockTargets ?? []).not.toContain(fixtureValue(victim).id);
     expect(
       (actions.moveTargets ?? []).some(
         (target) => target.x === square.x && target.y === square.y
@@ -225,24 +219,26 @@ describe("knocked-out players leave the pitch immediately", () => {
     const victim = game.ctx.team2.players[0];
     const announced: string[] = [];
     game.ctx.eventBus.on(GameEventNames.PlayerStatusChanged, (player) => {
-      if (player.id === victim.id && player.status === PlayerStatus.KO) {
+      if (
+        player.id === fixtureValue(victim).id &&
+        player.status === PlayerStatus.KO
+      ) {
         announced.push(player.id);
       }
     });
 
-    const { InjuryOperation } = await import(
-      "../../src/game/operations/InjuryOperation"
-    );
+    const { InjuryOperation } =
+      await import("../../src/game/operations/InjuryOperation");
     const flow = game.ctx.gameService.getFlowContext().flowManager;
     for (let attempt = 0; attempt < 40 && !announced.length; attempt++) {
-      flow.add(new InjuryOperation(victim.id, { modifier: 4 }));
+      flow.add(new InjuryOperation(fixtureValue(victim).id, { modifier: 4 }));
       await flow.whenIdle();
-      if (victim.status !== PlayerStatus.KO) {
-        victim.status = PlayerStatus.ACTIVE;
-        victim.gridPosition = { x: 11, y: 5 };
+      if (fixtureValue(victim).status !== PlayerStatus.KO) {
+        fixtureValue(victim).status = PlayerStatus.ACTIVE;
+        fixtureValue(victim).gridPosition = { x: 11, y: 5 };
       }
     }
-    expect(announced).toContain(victim.id);
+    expect(announced).toContain(fixtureValue(victim).id);
   });
 });
 
@@ -270,15 +266,18 @@ describe("restored activation state is visibly reconciled", () => {
 
     await game.execute({
       type: "declare-action",
-      playerId: used.id,
+      playerId: fixtureValue(used).id,
       action: "move",
     });
     await game.execute({
       type: "move",
-      playerId: used.id,
+      playerId: fixtureValue(used).id,
       path: [{ x: 9, y: 5 }],
     });
-    await game.execute({ type: "end-activation", playerId: used.id });
+    await game.execute({
+      type: "end-activation",
+      playerId: fixtureValue(used).id,
+    });
 
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),
@@ -295,14 +294,17 @@ describe("restored activation state is visibly reconciled", () => {
     const resumed = createHeadlessGame({ matchSave: save });
     const state = resumed.gameService.getState();
 
-    // The activated player keeps their used treatment and cannot activate again…
-    expect(isActivatedThisTurn(state, used.id)).toBe(true);
-    expect(resumed.gameService.hasPlayerActed(used.id)).toBe(true);
-    expect(resumed.gameService.canActivate(used.id)).toBe(false);
-    // …while the untouched team-mate stays available and selectable.
-    expect(isActivatedThisTurn(state, spare.id)).toBe(false);
-    expect(resumed.gameService.hasPlayerActed(spare.id)).toBe(false);
-    expect(resumed.gameService.canActivate(spare.id)).toBe(true);
+    expect(isActivatedThisTurn(state, fixtureValue(used).id)).toBe(true);
+    expect(resumed.gameService.hasPlayerActed(fixtureValue(used).id)).toBe(
+      true
+    );
+    expect(resumed.gameService.canActivate(fixtureValue(used).id)).toBe(false);
+
+    expect(isActivatedThisTurn(state, fixtureValue(spare).id)).toBe(false);
+    expect(resumed.gameService.hasPlayerActed(fixtureValue(spare).id)).toBe(
+      false
+    );
+    expect(resumed.gameService.canActivate(fixtureValue(spare).id)).toBe(true);
   });
 });
 
@@ -328,12 +330,12 @@ describe("Punt declares a kick presentation event", () => {
     const punter = game.ctx.team1.players[0];
     await game.execute({
       type: "declare-action",
-      playerId: punter.id,
+      playerId: fixtureValue(punter).id,
       action: "punt",
     });
     const response = await game.execute({
       type: "punt",
-      playerId: punter.id,
+      playerId: fixtureValue(punter).id,
       x: 16,
       y: 5,
     });
@@ -347,7 +349,6 @@ describe("Punt declares a kick presentation event", () => {
     const declaredAt = names.indexOf(GameEventNames.PuntDeclared);
     expect(declaredAt).toBeGreaterThanOrEqual(0);
 
-    // Nothing may move the ball before the declaration.
     const firstMovement = names.findIndex(
       (name, index) =>
         index > 0 &&
@@ -357,41 +358,56 @@ describe("Punt declares a kick presentation event", () => {
     );
     if (firstMovement >= 0) expect(declaredAt).toBeLessThan(firstMovement);
 
-    // The declaration already carries its resolved outcome.
-    const declared = response.events[declaredAt].data as {
-      presentationId: string;
-      distance: number;
-      landing: { x: number; y: number };
-    };
+    const declared = z
+      .object({
+        presentationId: z.string(),
+        distance: z.number(),
+        landing: z.object({ x: z.number(), y: z.number() }),
+      })
+      .parse(fixtureValue(response.events[declaredAt]).data);
     expect(declared.presentationId).toMatch(/^punt-\d+$/);
     expect(declared.distance).toBeGreaterThanOrEqual(1);
     expect(declared.distance).toBeLessThanOrEqual(6);
 
-    // Headless runs to completion without any client rendering or replying.
     expect(response.ok).toBe(true);
   });
 
   it("reaches the same seeded outcome the declaration announced", async () => {
     const { game, response } = await punt(11);
-    const declared = response.events.find(
-      (event) => event.name === GameEventNames.PuntDeclared
-    )!.data as { landing: { x: number; y: number }; intoCrowd: boolean };
+    const declared = z
+      .object({
+        landing: z.object({ x: z.number(), y: z.number() }),
+        intoCrowd: z.boolean(),
+      })
+      .parse(
+        fixtureValue(
+          response.events.find(
+            (event) => event.name === GameEventNames.PuntDeclared
+          )
+        ).data
+      );
 
     if (!declared.intoCrowd) {
-      // The ball ends up where the declaration said (possibly after a bounce
-      // from that square), and the board stays unambiguous.
       const { conflicts } = boardOf(game);
       expect(conflicts).toEqual([]);
-      const ball = game.ctx.gameService.getState().ballPosition!;
+      const ball = fixtureValue(game.ctx.gameService.getState().ballPosition);
       expect(Math.abs(ball.x - declared.landing.x)).toBeLessThanOrEqual(1);
       expect(Math.abs(ball.y - declared.landing.y)).toBeLessThanOrEqual(1);
     }
 
-    // Determinism: the same seed re-runs to the identical declaration.
     const rerun = await punt(11);
-    const again = rerun.response.events.find(
-      (event) => event.name === GameEventNames.PuntDeclared
-    )!.data as { landing: { x: number; y: number }; distance: number };
+    const again = z
+      .object({
+        landing: z.object({ x: z.number(), y: z.number() }),
+        distance: z.number(),
+      })
+      .parse(
+        fixtureValue(
+          rerun.response.events.find(
+            (event) => event.name === GameEventNames.PuntDeclared
+          )
+        ).data
+      );
     expect(again.landing).toEqual(declared.landing);
   });
 
@@ -400,19 +416,18 @@ describe("Punt declares a kick presentation event", () => {
     const puntRolls = response.events.filter(
       (event) =>
         event.name === GameEventNames.DiceRoll &&
-        String((event.data as { rollType?: string }).rollType ?? "").startsWith(
-          "Punt "
-        )
+        (
+          z.object({ rollType: z.string().exactOptional() }).parse(event.data)
+            .rollType ?? ""
+        ).startsWith("Punt ")
     );
-    // Direction + distance, and no re-roll (this punter has no Kick skill).
+
     expect(puntRolls).toHaveLength(2);
   });
 
   it("takes a save either side of the Punt, never mid-presentation", async () => {
     const { game } = await punt(11);
-    // The presentation wait lives inside the flow operation, and every save
-    // path drains the flow queue first — so a save can only ever observe the
-    // fully resolved Punt, with no pending presentation state to serialize.
+
     await game.ctx.gameService.getFlowContext().flowManager.whenIdle();
     const save = createMatchSave({
       state: game.ctx.gameService.getState(),

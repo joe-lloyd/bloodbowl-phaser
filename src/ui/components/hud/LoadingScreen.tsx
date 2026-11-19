@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { IEventBus } from "../../../services/EventBus";
+import { type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { MATCH_STYLE } from "../../../game/presentation/matchStyle";
-import { Team } from "../../../types/Team";
+import { type Team, type TeamColors } from "../../../types/Team";
 import { matchKits } from "../../../game/presentation/kits";
 
 interface LoadingScreenProps {
@@ -12,31 +12,55 @@ interface LoadingScreenProps {
 
 const css = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 
-/**
- * Covers the window while the stadium and both rosters' sprites load, then
- * fades away. GameScene reports loader progress, and 1 once the board is
- * built.
- */
 export function LoadingScreen({ eventBus, teams }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
   const [gone, setGone] = useState(false);
   const kits = teams && matchKits(teams.team1.colors, teams.team2.colors);
 
   useEffect(() => {
-    const onProgress = ({ progress: p }: { progress: number }) =>
+    const onProgress = ({ progress: p }: { progress: number }) => {
       setProgress((prev) => Math.max(prev, p));
+    };
     eventBus.on(GameEventNames.UI_LoadProgress, onProgress);
-    return () => eventBus.off(GameEventNames.UI_LoadProgress, onProgress);
+    return () => {
+      eventBus.off(GameEventNames.UI_LoadProgress, onProgress);
+    };
   }, [eventBus]);
 
   const done = progress >= 1;
   useEffect(() => {
     if (!done) return;
-    const t = setTimeout(() => setGone(true), 700);
-    return () => clearTimeout(t);
+    const t = setTimeout(() => {
+      setGone(true);
+    }, 700);
+    return () => {
+      clearTimeout(t);
+    };
   }, [done]);
 
   if (gone) return null;
+  return (
+    <LoadingScreenView
+      done={done}
+      teams={teams}
+      kits={kits}
+      progress={progress}
+    />
+  );
+}
+
+interface LoadingScreenViewProps {
+  done: boolean;
+  teams: { team1: Team; team2: Team } | undefined;
+  kits: { home: TeamColors; away: TeamColors } | undefined;
+  progress: number;
+}
+function LoadingScreenView({
+  done,
+  teams,
+  kits,
+  progress,
+}: LoadingScreenViewProps) {
   return (
     <div
       data-testid="match-loading"
@@ -71,7 +95,7 @@ export function LoadingScreen({ eventBus, teams }: LoadingScreenProps) {
         <div className="h-2.5 -skew-x-12 overflow-hidden border border-hud-gold/50 bg-black/70">
           <div
             className="h-full bg-gradient-to-r from-hud-blood via-hud-blood-hot to-hud-gold transition-[width] duration-300"
-            style={{ width: `${Math.round(progress * 100)}%` }}
+            style={{ width: `${String(Math.round(progress * 100))}%` }}
           />
         </div>
         <p className="mt-3 text-center font-hud-label text-hud-sm font-bold uppercase tracking-[0.3em] text-hud-gold/90">

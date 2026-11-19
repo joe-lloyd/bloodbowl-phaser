@@ -14,15 +14,7 @@ export {
   resolveCommandReferences,
   referencesInCommand,
   parsePlayerRef,
-  isPlayerRef,
-  isTeamRef,
-  REFERENCE_FIELDS,
 } from "./references";
 export type { RefContext } from "./references";
 export * from "./matchers";
-export {
-  assert,
-  playSetup,
-  skillRerollConfig,
-  blockConfig,
-} from "./factories";
+export { assert, playSetup, skillRerollConfig, blockConfig } from "./factories";

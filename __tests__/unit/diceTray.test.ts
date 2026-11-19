@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
-import { toDice } from "../../src/ui/components/hud/DiceTray";
+import { toDice } from "../../src/ui/components/hud/diceTrayData";
 import { BLOCK_FACES, labelling } from "../../src/ui/dice/diceScene";
 import { isThrownIn3D } from "../../src/ui/dice/thrownDice";
 
@@ -46,7 +47,7 @@ describe("dice tray", () => {
   it("throws block dice on the face for each result", () => {
     const dice = toDice(roll("2D Block", ["pow", "both-down"]));
     expect(dice).toEqual({ kind: "block", values: [6, 2] });
-    expect(dice!.values.map((v) => BLOCK_FACES[v - 1])).toEqual([
+    expect(fixtureValue(dice).values.map((v) => BLOCK_FACES[v - 1])).toEqual([
       "pow",
       "both-down",
     ]);
@@ -61,15 +62,14 @@ describe("dice tray", () => {
 
 describe("die relabelling", () => {
   it("puts any value on any face, as a real die with opposites summing to 7", () => {
-    // Face order: +x, -x, +y, -y, +z, -z, so opposite pairs are (0,1) (2,3) (4,5).
     for (let up = 0; up < 6; up++)
       for (let value = 1; value <= 6; value++) {
         const labels = labelling(up, value);
         expect(labels[up]).toBe(value);
         expect([...labels].sort()).toEqual([1, 2, 3, 4, 5, 6]);
-        expect(labels[0] + labels[1]).toBe(7);
-        expect(labels[2] + labels[3]).toBe(7);
-        expect(labels[4] + labels[5]).toBe(7);
+        expect(fixtureValue(labels[0]) + fixtureValue(labels[1])).toBe(7);
+        expect(fixtureValue(labels[2]) + fixtureValue(labels[3])).toBe(7);
+        expect(fixtureValue(labels[4]) + fixtureValue(labels[5])).toBe(7);
       }
   });
 });

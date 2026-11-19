@@ -6,7 +6,6 @@ import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 
-// A die that is thrown and never lands, as on a stalled renderer.
 vi.mock("../../src/ui/dice/diceScene", () => ({
   playRoll: () => ({
     landed: new Promise(() => {}),
@@ -46,7 +45,9 @@ describe("dice tray at the start of setup", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceTray eventBus={bus} />);
+    });
 
     await act(async () => {
       bus.emit(GameEventNames.DiceRoll, {
@@ -68,7 +69,9 @@ describe("dice tray at the start of setup", () => {
     expect(tray?.className).toContain("opacity-0");
     expect(trays.at(-1)).toEqual({ count: 0, thrown: 1, landedThrough: 1 });
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 });
@@ -82,7 +85,9 @@ describe("dice tray with a die that never settles", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceTray eventBus={bus} />);
+    });
     const tray = container.querySelector('[data-testid="dice-tray"]');
 
     await act(async () => {
@@ -116,7 +121,9 @@ describe("dice tray with a die that never settles", () => {
     expect(tray?.textContent).toContain("Armour Roll: 5 + 6 = 11");
     expect(trays.at(-1)).toEqual({ count: 0, thrown: 2, landedThrough: 2 });
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.useRealTimers();
   });
@@ -128,12 +135,14 @@ describe("dice tray closed during a read", () => {
     const bus = new EventBus();
     const stages: string[] = [];
     bus.on(GameEventNames.UI_DiceThrow, ({ seq, stage }) =>
-      stages.push(`${seq} ${stage}`)
+      stages.push(`${String(seq)} ${stage}`)
     );
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceTray eventBus={bus} />);
+    });
 
     await act(async () => {
       bus.emit(GameEventNames.DiceRoll, {
@@ -144,12 +153,13 @@ describe("dice tray closed during a read", () => {
         description: "Armour Roll (Grimgor): 4 + 6 = 10",
       });
     });
-    // This die never settles, so it counts as landed after a few seconds
+
     await act(async () => vi.advanceTimersByTimeAsync(6000));
     expect(stages).toEqual(["1 queued", "1 thrown", "1 landed"]);
 
-    // The match closes mid-read; the page's bus lives on for the next one
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     await act(async () => vi.advanceTimersByTimeAsync(5000));
     expect(stages).toEqual(["1 queued", "1 thrown", "1 landed"]);
 

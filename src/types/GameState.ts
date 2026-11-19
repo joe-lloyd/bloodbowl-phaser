@@ -1,69 +1,56 @@
+import type { ActionType } from "./events";
 import type { Weather } from "../game/rules/weather";
-export enum SubPhase {
-  // SETUP Sub-Phases
-  INTRO = "INTRO",
-  WEATHER = "WEATHER",
-  COIN_FLIP = "COIN_FLIP",
-  SETUP_KICKING = "SETUP_KICKING",
-  SETUP_RECEIVING = "SETUP_RECEIVING",
+export const SubPhase = {
+  INTRO: "INTRO",
+  WEATHER: "WEATHER",
+  COIN_FLIP: "COIN_FLIP",
+  SETUP_KICKING: "SETUP_KICKING",
+  SETUP_RECEIVING: "SETUP_RECEIVING",
+  SETUP_KICKOFF: "SETUP_KICKOFF",
+  ROLL_KICKOFF: "ROLL_KICKOFF",
+  RESOLVE_KICKOFF: "RESOLVE_KICKOFF",
+  PLACE_BALL: "PLACE_BALL",
+  TURN_RECEIVING: "TURN_RECEIVING",
+  TURN_KICKING: "TURN_KICKING",
+  SCORING: "SCORING",
+  RECOVER_KO: "RECOVER_KO",
+  SECRET_WEAPONS: "SECRET_WEAPONS",
+} as const;
+export type SubPhase = (typeof SubPhase)[keyof typeof SubPhase];
 
-  // KICKOFF Sub-Phases
-  SETUP_KICKOFF = "SETUP_KICKOFF",
-  ROLL_KICKOFF = "ROLL_KICKOFF",
-  RESOLVE_KICKOFF = "RESOLVE_KICKOFF",
-  PLACE_BALL = "PLACE_BALL",
+export const GamePhase = {
+  SANDBOX_IDLE: "SANDBOX_IDLE",
+  SETUP: "SETUP",
+  KICKOFF: "KICKOFF",
+  PLAY: "PLAY",
+  TOUCHDOWN: "TOUCHDOWN",
+  HALFTIME: "HALFTIME",
+  GAME_OVER: "GAME_OVER",
+} as const;
+export type GamePhase = (typeof GamePhase)[keyof typeof GamePhase];
 
-  // PLAY Sub-Phases
-  TURN_RECEIVING = "TURN_RECEIVING",
-  TURN_KICKING = "TURN_KICKING",
-
-  // END OF DRIVE Sub-Phases
-  SCORING = "SCORING",
-  RECOVER_KO = "RECOVER_KO",
-  SECRET_WEAPONS = "SECRET_WEAPONS",
-}
-
-export enum GamePhase {
-  SANDBOX_IDLE = "SANDBOX_IDLE",
-  SETUP = "SETUP",
-  KICKOFF = "KICKOFF",
-  PLAY = "PLAY",
-  TOUCHDOWN = "TOUCHDOWN",
-  HALFTIME = "HALFTIME",
-  GAME_OVER = "GAME_OVER",
-}
-
-/**
- * How a match reached GAME_OVER. Kept separate from the played score
- * (`GameState.score`) so a concession or forfeit can never be confused with
- * an extra scored touchdown: the score reflects only what was actually
- * played, and this reason explains why the match ended.
- */
 export type MatchTerminationReason = "completed" | "concession" | "forfeit";
 
 export interface MatchResult {
   reason: MatchTerminationReason;
-  /** Present for "concession"/"forfeit"; absent for a normally completed match. */
+
   concedingTeamId?: string;
-  /**
-   * Roll-offs each team won in a Penalty Shoot-out, by team id: a knockout
-   * game still level after Extra Time. The score stays as played.
-   */
+
   penalties?: Record<string, number>;
 }
 
 export interface TurnData {
   teamId: string;
-  turnNumber: number; // 1-8 (or 1-6 for Sevens)
+  turnNumber: number;
   isHalf2: boolean;
-  /** The period after a knockout game's second half ended level. */
+
   extraTime?: boolean;
   activatedPlayerIds: Set<string>;
   hasBlitzed: boolean;
   hasPassed: boolean;
   hasHandedOff: boolean;
   hasFouled: boolean;
-  /** Each special throw is declared once per Turn, apart from the Pass. */
+
   hasThrownTeamMate: boolean;
   hasKickedTeamMate: boolean;
   hasThrownBomb: boolean;
@@ -72,19 +59,13 @@ export interface TurnData {
 
 export type TurnState = TurnData;
 
-/**
- * A team turn's once-a-turn spending: its Team Re-roll, each skill's re-roll
- * or once-only use, and counted uses such as Shadowing. It lives in the state
- * so a save, an online snapshot or a lookahead's copy of the turn carries it.
- */
 export interface TurnUsage {
-  /** The team turn it belongs to: team, turn number and half. */
   turn: string;
-  /** Teams that have spent their Team Re-roll. */
+
   teams: string[];
-  /** `playerId|skill` used once. */
+
   once: string[];
-  /** `playerId|skill` to the times used. */
+
   uses: Record<string, number>;
 }
 
@@ -94,131 +75,77 @@ export interface GameState {
   subPhase?: SubPhase;
   activeTeamId: string | null;
   turn: TurnData;
-  score: { [key: string]: number };
-  /**
-   * A game that must have a winner, such as a knockout cup tie: a draw goes
-   * to Extra Time and then Penalties (2025 rulebook, p.87).
-   */
+  score: Record<string, number>;
+
   knockout?: boolean;
-  /**
-   * A fixture that pays winnings (a league fixture, fixturePaysWinnings):
-   * full time rolls the Fan Factors. Absent for every other game.
-   */
+
   paysWinnings?: boolean;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
     id: string;
-    action: string | null; // ActionType
-    /** Explicit attack selected for a direct action or Blitz replacement. */
+    action: ActionType | null;
+
     blockReplacement?: BlockReplacement;
-    /** Set atomically when the accepted target command commits the attack. */
+
     blockReplacementUsed?: boolean;
-    /** Set once the declaration has become binding (see PlayerActionManager). */
+
     committed?: boolean;
-    /** Failed Bloodlust: must bite a Thrall Lineman (BloodlustBiteOperation). */
+
     bloodlustUnsated?: boolean;
-    /** A second Foul this turn, declared on the team's Grudge Match. */
+
     grudgeMatch?: boolean;
-    /**
-     * Razzle-Dazzle (L22): two Actions in this activation. `actions` holds
-     * those declared so far; `awaitingSecond` is set once the first ends.
-     * `movementBefore` is the movement the first Action spent, which the
-     * second one's commitment does not count.
-     */
+
     razzleDazzle?: {
-      actions: string[]; // ActionType
+      actions: ActionType[];
       awaitingSecond?: boolean;
       movementBefore?: number;
     };
-    /** Held the ball and could score without dice when activated (p.80). */
+
     stalling?: boolean;
   } | null;
-  /**
-   * Players deemed to be Stalling this match (2025 rulebook p.80); a team
-   * with none earns +1 to its Winnings. Absent = nobody has stalled.
-   */
+
   stallingPlayerIds?: string[];
-  /** Kickoff-event effects scoped to the current drive; absent = none. */
+
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
-  /** Bribes held per team (Get the Ref); match-scoped, lost at full time. */
+
   bribes?: Record<string, number>;
-  /**
-   * Teams whose coach is ready for the opening weather roll; absent = none.
-   * Both ready means the weather has been rolled.
-   */
+
   weatherReady?: string[];
-  /**
-   * Team Re-rolls each team has spent this half; absent = none. The roster's
-   * purchased count is never spent (see game/teamRerolls.ts).
-   */
+
   teamRerollsUsed?: Record<string, number>;
-  /**
-   * Leader Re-rolls granted for `half` and not yet spent, by team id;
-   * absent until the first half begins (see skills/RerollArbiter.ts).
-   */
+
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
-  /** Veterans (D8) who have spent their once-per-game re-roll; absent = none. */
+
   veteranRerollsUsed?: string[];
-  /** Teams that spent Bribery and Corruption's Argue the Call re-roll; absent = none. */
+
   briberyRerollsUsed?: string[];
-  /**
-   * What this team turn has spent of its once-a-turn allowances; absent or
-   * from an earlier turn = none (see skills/RerollArbiter.ts).
-   */
+
   turnUsage?: TurnUsage;
-  /**
-   * The team taking a Charge! kick-off sequence while it runs; absent
-   * otherwise. Its Team Re-roll and once-a-turn uses go on a ledger of their
-   * own (FAQ May 2026: Team Re-rolls may be used during Charge!).
-   */
+
   chargeTeamId?: string;
-  /** Masters of Undeath spent this game: team id to its raised Lineman id. */
+
   raisedDead?: Record<string, string>;
-  /**
-   * Each team's Fan Factor (Dedicated Fans + D3) by team id, rolled at full
-   * time for league winnings (src/game/rules/winnings.ts); absent = none.
-   */
+
   fanFactors?: Record<string, number>;
-  /** Present during/after setup so saves and online snapshots preserve it. */
+
   setup?: import("./SetupTypes").SetupState;
-  /** Sevens inducements/Apothecary state; absent = no inducements this match. */
+
   inducements?: import("./Inducements").InducementsMatchState;
-  /** Rolled Prayers to Nuffle and Desperate Measures; absent = none. */
+
   matchInducements?: import("../game/inducements/matchInducements").MatchInducementsState;
-  /** Set once the match reaches GAME_OVER; absent beforehand. */
+
   result?: MatchResult;
-  /**
-   * The kickoff table result already resolved for the current drive, if
-   * any. Guards against rolling the table a second time for the same drive
-   * on a stale re-entry into ROLL_KICKOFF (page refresh, restore, or the
-   * KICKOFF phase being re-entered) — see
-   * `KickoffEventManager.rollAndResolve`. Cleared by `resetDriveState()` at
-   * the same end-of-drive teardown that clears `driveEffects`.
-   */
+
   kickoffResolution?: {
     roll: number;
     event: import("../game/kickoff/kickoffEvents").KickoffEvent;
     meaning: string;
     outcome: import("../game/kickoff/kickoffEvents").KickoffEventOutcome;
   };
-  /**
-   * Set the moment the current drive's kickoff deviation has been computed
-   * (before the kickoff table even rolls). `subPhase` stays `ROLL_KICKOFF`
-   * for the *entire* kickoff sequence — deviation, table roll, any
-   * interactive step (which can suspend indefinitely awaiting a coach), ball
-   * landing, placement — it only advances once play resumes. That means a
-   * refresh/restore or any other stale re-entry into the KICKOFF phase can
-   * land back on "Select Kicker & Target" no matter how far the original
-   * kick had progressed. This flag guards `BallManager.kickBall()` against
-   * recomputing deviation (and re-asking the On the Ball reaction) a second
-   * time for the same drive; `ballPosition` is already restored from the
-   * snapshot, so a re-entrant `kickBall()` replays from it instead of
-   * rolling fresh. Cleared by `resetDriveState()` alongside
-   * `kickoffResolution`.
-   */
+
   kickoffKickResolved?: {
     isTeam1Kicking: boolean;
   };
 }
-import { BlockReplacement } from "./BlockReplacement";
+import { type BlockReplacement } from "./BlockReplacement";

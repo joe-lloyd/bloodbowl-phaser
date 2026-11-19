@@ -2,21 +2,12 @@ import { vi } from "vitest";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import type { HeadlessCommand } from "../../src/headless/protocol";
 
-/**
- * Wait for a specified amount of time (for async operations)
- */
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Flush promises to ensure all pending microtasks are completed
- */
 export const flushPromises = () =>
   new Promise((resolve) => setImmediate(resolve));
 
-/**
- * Mock Request Animation Frame for Phaser updates
- */
 export const mockRaf = () => {
   let lastTime = 0;
   vi.spyOn(window, "requestAnimationFrame").mockImplementation(
@@ -32,10 +23,6 @@ export const mockRaf = () => {
   );
 };
 
-/**
- * Force the next die results a headless game rolls, in order, then fall back
- * to its seeded RNG. Every die in the engine comes off `rollMultipleDice`.
- */
 export const forceDice = (
   rng: { rollMultipleDice(count: number, sides: number): number[] },
   values: number[]
@@ -47,18 +34,15 @@ export const forceDice = (
   );
 };
 
-/** A button's words, without the key badge that presses it. */
 export const buttonLabel = (button: Element | null | undefined) => {
   if (!button) return undefined;
   const words = button.cloneNode(true) as Element;
-  words.querySelectorAll("kbd").forEach((badge) => badge.remove());
+  words.querySelectorAll("kbd").forEach((badge) => {
+    badge.remove();
+  });
   return words.textContent;
 };
 
-/**
- * Run a Foul and add every Offensive Assist it offers, as Fouls did before
- * the coach could choose. The response carries both commands' events.
- */
 export const foulAddingAllAssists = async (
   game: HeadlessGame,
   command: Extract<HeadlessCommand, { type: "foul" }>

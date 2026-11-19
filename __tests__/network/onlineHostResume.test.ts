@@ -1,9 +1,4 @@
-/**
- * A coach whose page reloads rebuilds the match from the last save. Without
- * its dice state the RNG would start again from the match seed and replay
- * the opening rolls; without its match stats the SPP earned so far would
- * vanish.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOnlineMatch } from "../../src/network/OnlineMatch";
 import { createInMemoryTransportPair } from "../../src/network/transport";
@@ -12,18 +7,18 @@ import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import {
-  LobbyDoc,
+  type LobbyDoc,
   DEFAULT_SETTINGS,
-  MatchResume,
+  type MatchResume,
 } from "../../src/firebase/lobby";
-import { Team, RosterName } from "../../src/types/Team";
+import { type Team, RosterName } from "../../src/types/Team";
 import { InjuryType, PlayerStatus } from "../../src/types/Player";
 import { CasualtyOperation } from "../../src/game/operations/CasualtyOperation";
 import { InjuryResult } from "../../src/game/controllers/InjuryController";
 
 const saves = vi.hoisted(() => {
   const turns: number[] = [];
-  const teams: Array<[Team, Team] | undefined> = [];
+  const teams: ([Team, Team] | undefined)[] = [];
   return { turns, teams };
 });
 vi.mock("../../src/firebase/lobby", async (load) => ({
@@ -37,7 +32,7 @@ vi.mock("../../src/firebase/lobby", async (load) => ({
     saves.teams.push(resume.teams);
   },
 }));
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 
 const midMatch: Scenario = {
   id: "online-host-resume",
@@ -53,7 +48,9 @@ const midMatch: Scenario = {
   },
 };
 
-afterEach(() => ServiceContainer.reset());
+afterEach(() => {
+  ServiceContainer.reset();
+});
 
 describe("online host resume", () => {
   it("restores and persists a complete raised player beyond the original lobby roster", async () => {
@@ -69,10 +66,10 @@ describe("online host resume", () => {
     const { team1, team2 } = before.ctx;
     const originalTeams = structuredClone([team1, team2]);
     before.ctx.gameService.flowManager.add(
-      new CasualtyOperation(team2.players[0].id, InjuryResult.DEAD)
+      new CasualtyOperation(fixtureValue(team2.players[0]).id, InjuryResult.DEAD)
     );
     await before.ctx.gameService.flowManager.whenIdle();
-    const raised = team1.players.at(-1)!;
+    const raised = fixtureValue(team1.players.at(-1));
     expect(raised.positionName).toBe("Skeleton Lineman");
     raised.status = PlayerStatus.INJURED;
     raised.injuries.push(InjuryType.MISS_NEXT_GAME);
@@ -93,13 +90,13 @@ describe("online host resume", () => {
         "host-uid": {
           uid: "host-uid",
           displayName: "Host",
-          team: originalTeams[0],
+          team: fixtureValue(originalTeams[0]),
           ready: true,
         },
         "guest-uid": {
           uid: "guest-uid",
           displayName: "Guest",
-          team: originalTeams[1],
+          team: fixtureValue(originalTeams[1]),
           ready: true,
         },
       },
@@ -135,11 +132,10 @@ describe("online host resume", () => {
     }
   });
   it("a reloaded coach carries on with the saved dice, match stats and turn counts", () => {
-    // The match as the host last saved it
     const before = new HeadlessGame({ scenario: midMatch, seed: 11 });
     const { team1, team2 } = before.ctx;
     before.ctx.rng.rollMultipleDice(5, 6);
-    before.ctx.matchStats.assignAwardedTouchdown(team1.players[0].id);
+    before.ctx.matchStats.assignAwardedTouchdown(fixtureValue(team1.players[0]).id);
     const snapshot = {
       ...before.snapshot(),
       turnManager: {
@@ -245,9 +241,9 @@ describe("online host resume", () => {
     const flushed = () => new Promise((resolve) => setTimeout(resolve, 200));
 
     saves.turns.length = 0;
-    // The host's turn (team1 is active): ending it is the host's command
+
     gameService.endTurn();
-    // The command waits for the engine's paced flow before it runs
+
     for (let i = 0; i < 25 && saves.turns.length === 0; i++) await flushed();
 
     expect(saves.turns.length).toBe(1);

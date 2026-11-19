@@ -1,16 +1,5 @@
-/**
- * Regeneration (2025 p.135) — "Whenever this player suffers a Casualty,
- * before making the Casualty Roll for them, roll a D6. On a 1-3, this
- * player suffers the Casualty; make the Casualty Roll as normal. On a 4+,
- * this player regenerates and ignores the Casualty ... and is instead
- * placed in their team's Reserves Box."
- *
- * Sevens has no Casualty Roll: the save comes before the injury table's
- * casualty result is applied.
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const RegenerationRule: SkillRule = {
   onCasualty(ctx, self) {
@@ -25,7 +14,7 @@ export const RegenerationRule: SkillRule = {
       ctx.triggers.push({
         playerId: self.id,
         skill: SkillType.REGENERATION,
-        effect: `Regeneration: ${roll} — the casualty is ignored`,
+        effect: `Regeneration: ${String(roll)} — the casualty is ignored`,
       });
     }
   },

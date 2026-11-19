@@ -13,7 +13,6 @@ describe("GameService Movement Integration", () => {
     const team1 = new TeamBuilder().withId("t1").withName("Humans").build();
     const team2 = new TeamBuilder().withId("t2").withName("Orcs").build();
 
-    // Add players BEFORE creating GameService
     const p1 = new PlayerBuilder()
       .withId("p1")
       .withTeamId("t1")
@@ -23,10 +22,9 @@ describe("GameService Movement Integration", () => {
       .build();
     team1.players.push(p1);
 
-    // Create initial state with active team
     const initialState = {
-      phase: 2, // PLAY phase
-      subPhase: 12, // KICK_OFF (approx, or just ignore for movement)
+      phase: 2,
+      subPhase: 12,
       activeTeamId: "t1",
       turn: {
         teamId: "t1",
@@ -43,7 +41,7 @@ describe("GameService Movement Integration", () => {
       weather: "Nice",
       ballPosition: null,
       activePlayer: null,
-    }; // Cast or partial GameState if needed, or better use GameStateBuilder if available
+    };
 
     const mockRngService = {
       rollDie: vi.fn().mockReturnValue(1),
@@ -57,27 +55,21 @@ describe("GameService Movement Integration", () => {
       rollBlockDice: vi.fn().mockReturnValue([]),
     } as any;
 
-    gameService = new GameService(
-      eventBus,
-      team1,
-      team2,
-      mockRngService as any,
-      mockBlockService,
-      initialState as any
+    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: mockRngService as any, blockResolutionService: mockBlockService, initialState: initialState as any }
     );
   });
 
   it("should calculate available movements for a player", () => {
     const moves = gameService.getAvailableMovements("p1");
     expect(moves.length).toBeGreaterThan(0);
-    // Movements include cost property, so use .some() to check
-    expect(moves.some((m: any) => m.x === 6 && m.y === 5)).toBe(true); // Adjacent
-    expect(moves.some((m: any) => m.x === 8 && m.y === 5)).toBe(true); // 3 steps
+
+    expect(moves.some((m: any) => m.x === 6 && m.y === 5)).toBe(true);
+    expect(moves.some((m: any) => m.x === 8 && m.y === 5)).toBe(true);
   });
 
   it("should move a player and emit event", async () => {
     const emitSpy = vi.spyOn(eventBus, "emit");
-    const path = [{ x: 6, y: 5 }]; // 1 step move
+    const path = [{ x: 6, y: 5 }];
 
     await gameService.movePlayer("p1", path);
 

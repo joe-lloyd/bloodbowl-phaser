@@ -45,16 +45,15 @@ export function catalogueInventory() {
   };
 }
 
-/** Every available recipe plays every other recipe, at home and away. */
 function leagueSchedule(ids: string[]): StudyJob[] {
   const jobs: StudyJob[] = [];
   let pair = 0;
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
-      const pairId = `league-${pair}`;
+      const pairId = `league-${String(pair)}`;
       for (const reverse of [false, true]) {
         jobs.push({
-          id: `${pairId}-${Number(reverse)}`,
+          id: `${pairId}-${String(Number(reverse))}`,
           cohort: "league",
           pair: pairId,
           seed: 1_000_000 + pair,
@@ -71,8 +70,7 @@ function leagueSchedule(ids: string[]): StudyJob[] {
 export function studySchedule(): StudyJob[] {
   const ids = getComputerTeamTemplates().map((t) => t.id);
   const jobs = leagueSchedule(ids);
-  // Odd-sized catalogue: each cyclic opponent offset visits every team at
-  // home and away. Swapping coaches within each seed balances roster strength.
+
   for (const [cohort, offsets, firstSeed, opponent] of [
     ["calibration", [1, 7, 17, 29, 37, 40], 2_000_000, "heuristic"],
     ["hard", [23], 3_000_000, "hard"],
@@ -80,10 +78,10 @@ export function studySchedule(): StudyJob[] {
   ] as const) {
     for (const [round, offset] of offsets.entries()) {
       for (let i = 0; i < ids.length; i++) {
-        const pairId = `${cohort}-${round}-${i}`;
+        const pairId = `${cohort}-${String(round)}-${String(i)}`;
         for (const swap of [false, true]) {
           jobs.push({
-            id: `${pairId}-${Number(swap)}`,
+            id: `${pairId}-${String(Number(swap))}`,
             cohort,
             pair: pairId,
             seed: firstSeed + round * ids.length + i,

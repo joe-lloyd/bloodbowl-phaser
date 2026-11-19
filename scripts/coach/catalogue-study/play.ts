@@ -23,7 +23,7 @@ export async function playStudyGame(
   const [team1, team2] = job.templates.map((id, i) =>
     stabilizeIds(
       suppliedTeams?.[i] ?? createComputerTeamFromTemplate(id),
-      `team${i + 1}`
+      `team${String(i + 1)}`
     )
   );
   const game = new HeadlessGame({
@@ -52,8 +52,7 @@ export async function playStudyGame(
     inducements: false,
   });
   const observed = telemetry.snapshot();
-  // The initial save is essential: runMatch's generic recording does not
-  // serialize supplied catalogue teams or their unequal reroll banks.
+
   mkdirSync(join(out, "traces"), { recursive: true });
   writeFileSync(
     join(out, "traces", `${job.id}.json.gz`),

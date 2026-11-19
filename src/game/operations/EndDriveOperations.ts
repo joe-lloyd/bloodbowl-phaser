@@ -1,27 +1,14 @@
-/**
- * End of Drive Sequence (rulebook p.83), queued in order by
- * GameService.addTouchdown / GameService.endDrive:
- *
- *   0. TouchdownCelebrationOperation - the celebration window, then endDrive
- *   1. ClearPitchOperation   - announce drive end, everyone to the dugouts
- *   2. KORecoveryOperation   - D6 per KO'd player, 4+ recovers to Reserves
- *   3. StartNextDriveOperation - setup for the next drive (no coin flip)
- *
- * ClearPitchOperation also sends off Secret Weapons and, before a further
- * drive, resolves Sweltering Heat (the only End of Drive weather effect).
- */
-
 import {
   whenMomentsComplete,
   hasPendingMoments,
 } from "../presentation/momentQueue";
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SubPhase } from "../../types/GameState";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { Player, PlayerStatus } from "../../types/Player";
-import { Team } from "../../types/Team";
+import { type Player, PlayerStatus } from "../../types/Player";
+import { type Team } from "../../types/Team";
 import { getDriveEffects } from "../kickoff/driveEffects";
 import { resolveSendOff } from "./refereeCall";
 import { DiceController } from "../controllers/DiceController";
@@ -32,18 +19,11 @@ import {
   movePlayerToBox,
 } from "../rules/playerLocation";
 
-/** How long the coaches watch the score before the pitch is cleared. */
-export const TOUCHDOWN_CELEBRATION_MS = 2000;
-/** How long each KO recovery roll is shown before the next player rolls. */
-export const KO_RECOVERY_BEAT_MS = 500;
+const TOUCHDOWN_CELEBRATION_MS = 2000;
 
-/**
- * A pacing beat the local coach can cut short by emitting
- * `UI_SkipDriveSequence`. That event is a UI intent and never crosses the
- * wire, so an online match always plays the full fixed-length sequence and
- * both coaches stay in step.
- */
-export function skippableBeat(context: FlowContext, ms: number): Promise<void> {
+const KO_RECOVERY_BEAT_MS = 500;
+
+function skippableBeat(context: FlowContext, ms: number): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = () => {
@@ -57,7 +37,6 @@ export function skippableBeat(context: FlowContext, ms: number): Promise<void> {
   });
 }
 
-/** Both teams' players, the active team's first; none between drives. */
 function activeTeamFirst(gameService: FlowContext["gameService"]): Player[] {
   const activeTeamId = gameService.getActiveTeamId();
   const activeTeam = activeTeamId
@@ -73,10 +52,6 @@ const secretWeaponInPlay = (player: Player): boolean =>
   player.status !== PlayerStatus.RESERVE &&
   player.status !== PlayerStatus.REMOVED;
 
-/**
- * You Dope! (L21): each doped player who played the drive rolls a D6; on 1
- * or 2 they are Knocked-out and skip this KO recovery.
- */
 function youDopeCollapse(context: FlowContext): void {
   const { gameService, eventBus } = context;
   const collapsed = rollYouDopeCollapse(
@@ -93,18 +68,13 @@ function youDopeCollapse(context: FlowContext): void {
   }
 }
 
-/**
- * The celebration window after a touchdown. The TOUCHDOWN phase handler owns
- * the scene while this runs; when the window ends this operation hands off
- * into the end-of-drive sequence. Queued rather than chained off a bare
- * timer so the hand-off is ordered against everything else in flight and
- * runs identically headless.
- */
 export class TouchdownCelebrationOperation extends GameOperation {
   public readonly name = "TouchdownCelebration";
 
-  constructor(private scoringTeamId: string) {
+  private scoringTeamId: string;
+  constructor(scoringTeamId: string) {
     super();
+    this.scoringTeamId = scoringTeamId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -113,7 +83,7 @@ export class TouchdownCelebrationOperation extends GameOperation {
     } else {
       await skippableBeat(context, TOUCHDOWN_CELEBRATION_MS);
     }
-    // Rulebook: the team that scored becomes the kicking team next drive.
+
     context.gameService.endDrive("touchdown", {
       kickingTeamId: this.scoringTeamId,
     });
@@ -123,14 +93,20 @@ export class TouchdownCelebrationOperation extends GameOperation {
 export class ClearPitchOperation extends GameOperation {
   public readonly name = "ClearPitch";
 
+  private reason: "touchdown" | "halftime";
+  private nextKickingTeamId: string | null;
+  private anotherDrive: boolean;
   constructor(
-    private reason: "touchdown" | "halftime",
-    /** Null when a roll-off decides it (Extra Time), or at full time. */
-    private nextKickingTeamId: string | null,
-    /** False at full time: End of Drive effects only prepare a next drive. */
-    private anotherDrive: boolean
+    reason: "touchdown" | "halftime",
+
+    nextKickingTeamId: string | null,
+
+    anotherDrive: boolean
   ) {
     super();
+    this.reason = reason;
+    this.nextKickingTeamId = nextKickingTeamId;
+    this.anotherDrive = anotherDrive;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -150,14 +126,11 @@ export class ClearPitchOperation extends GameOperation {
           skill: SkillType.SECRET_WEAPON,
           effect: "Secret Weapon: Sent-off at the end of the Drive",
         });
-        // Sent-off "as if they had committed a Foul Action" and "may still
-        // Argue the Call as usual" (2025 rulebook p.87), then Bribe.
+
         await resolveSendOff(context, player, "secret-weapon");
       }
     }
 
-    // End of Drive Effects: Sweltering Heat picks from the players still on
-    // the pitch, so choose them before the pitch is cleared.
     const fainted =
       this.anotherDrive && gameService.getState().weather === "Sweltering Heat"
         ? swelteringHeat(
@@ -171,8 +144,7 @@ export class ClearPitchOperation extends GameOperation {
     await context.delay(800);
 
     gameService.resetDriveState();
-    // Marked after the reset, which clears the ending drive's effects; this
-    // one lasts through the next drive.
+
     const effects = getDriveEffects(gameService.getState());
     for (const player of fainted) {
       effects.playerModifiers[player.id] = { confinedToReserves: true };
@@ -186,11 +158,6 @@ export class ClearPitchOperation extends GameOperation {
   }
 }
 
-/**
- * Sweltering Heat: one coach rolls a D3, then each coach randomly selects
- * that many of their players on the pitch. Each pick is a D16, rerolled when
- * it falls outside a whole multiple of the pool so every player is as likely.
- */
 function swelteringHeat(teams: Team[], dice: DiceController): Player[] {
   const count = dice.rollD3("Sweltering Heat");
   return teams.flatMap((team) => {
@@ -220,8 +187,6 @@ export class KORecoveryOperation extends GameOperation {
       subPhase: SubPhase.RECOVER_KO,
     });
 
-    // One player at a time: roll, show it, beat, then apply. Awaited, so
-    // StartNextDriveOperation cannot begin until the sequence has settled.
     await gameService.rollKORecovery(() =>
       skippableBeat(context, KO_RECOVERY_BEAT_MS)
     );
@@ -231,14 +196,15 @@ export class KORecoveryOperation extends GameOperation {
 export class StartNextDriveOperation extends GameOperation {
   public readonly name = "StartNextDrive";
 
-  constructor(private kickingTeamId: string) {
+  private kickingTeamId: string;
+  constructor(kickingTeamId: string) {
     super();
+    this.kickingTeamId = kickingTeamId;
   }
 
   async execute(context: FlowContext): Promise<void> {
     await context.delay(400);
-    // No coin flip after drive one: setup starts directly with the
-    // predetermined kicking team (scorer, or halftime swap).
+
     context.gameService.startSetup(this.kickingTeamId);
     context.eventBus.emit(GameEventNames.UI_Announce, {
       kind: "next-kicker",
@@ -248,11 +214,6 @@ export class StartNextDriveOperation extends GameOperation {
   }
 }
 
-/**
- * The start of Extra Time (2025 rulebook, p.87): the coaches roll off, and
- * the winner chooses whether their team kicks. Then setup begins as for
- * any other drive.
- */
 export class ExtraTimeKickoffOperation extends GameOperation {
   public readonly name = "ExtraTimeKickoff";
 

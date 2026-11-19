@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { RosterName } from "../../../src/types/Team";
 import { InjuryType, PlayerStatus } from "../../../src/types/Player";
@@ -20,52 +21,56 @@ const careerSpp = (p: {
   touchdowns: number;
   mvps: number;
 }) =>
-  p.completions + p.interceptions * 2 + p.casualties * 2 + p.touchdowns * 3 + p.mvps * 4;
+  p.completions +
+  p.interceptions * 2 +
+  p.casualties * 2 +
+  p.touchdowns * 3 +
+  p.mvps * 4;
 
 describe("playerLifecycle", () => {
   it("produces a capped Legend through the progression services", () => {
-    const orc = decorated().find((t) => t.rosterName === RosterName.ORC)!;
-    const legend = orc.players.find((p) => p.careerStats)!;
+    const orc = fixtureValue(decorated().find((t) => t.rosterName === RosterName.ORC));
+    const legend = fixtureValue(orc.players.find((p) => p.careerStats));
     expect(legend.advancements).toHaveLength(6);
     expect(legend.level).toBe(6);
-    expect(legend.careerStats!.sppEarned).toBe(
-      legend.advancements!.reduce((s, a) => s + a.sppCost, 0)
+    expect(fixtureValue(legend.careerStats).sppEarned).toBe(
+      fixtureValue(legend.advancements).reduce((s, a) => s + a.sppCost, 0)
     );
-    expect(careerSpp(legend.careerStats!)).toBe(legend.careerStats!.sppEarned);
-    // Value increases accumulated on the player
+    expect(careerSpp(fixtureValue(legend.careerStats))).toBe(fixtureValue(legend.careerStats).sppEarned);
+
     expect(legend.teamValue).toBeGreaterThan(0);
   });
 
   it("produces an SPP-earning player with no advancements", () => {
-    const human = decorated().find((t) => t.rosterName === RosterName.HUMAN)!;
-    const earner = human.players.find(
+    const human = fixtureValue(decorated().find((t) => t.rosterName === RosterName.HUMAN));
+    const earner = fixtureValue(human.players.find(
       (p) => p.careerStats && (p.advancements ?? []).length === 0 && p.spp > 0
-    )!;
-    expect(earner.careerStats!.sppEarned).toBe(earner.spp);
-    expect(careerSpp(earner.careerStats!)).toBe(earner.spp);
+    ));
+    expect(fixtureValue(earner.careerStats).sppEarned).toBe(earner.spp);
+    expect(careerSpp(fixtureValue(earner.careerStats))).toBe(earner.spp);
   });
 
   it("produces a multi-advancement player with coherent history", () => {
-    const human = decorated().find((t) => t.rosterName === RosterName.HUMAN)!;
-    const veteran = human.players.find(
+    const human = fixtureValue(decorated().find((t) => t.rosterName === RosterName.HUMAN));
+    const veteran = fixtureValue(human.players.find(
       (p) => (p.advancements ?? []).length === 3
-    )!;
-    const spent = veteran.advancements!.reduce((s, a) => s + a.sppCost, 0);
-    expect(veteran.careerStats!.sppEarned).toBe(spent + veteran.spp);
+    ));
+    const spent = fixtureValue(veteran.advancements).reduce((s, a) => s + a.sppCost, 0);
+    expect(fixtureValue(veteran.careerStats).sppEarned).toBe(spent + veteran.spp);
     expect(veteran.level).toBe(3);
   });
 
   it("produces injured players, including stat decreases", () => {
-    const human = decorated().find((t) => t.rosterName === RosterName.HUMAN)!;
-    const hurt = human.players.find((p) =>
+    const human = fixtureValue(decorated().find((t) => t.rosterName === RosterName.HUMAN));
+    const hurt = fixtureValue(human.players.find((p) =>
       p.injuries.includes(InjuryType.MISS_NEXT_GAME)
-    )!;
+    ));
     expect(hurt.status).toBe(PlayerStatus.RESERVE);
 
-    const dwarf = decorated().find((t) => t.rosterName === RosterName.DWARF)!;
-    const decreased = dwarf.players.find((p) =>
+    const dwarf = fixtureValue(decorated().find((t) => t.rosterName === RosterName.DWARF));
+    const decreased = fixtureValue(dwarf.players.find((p) =>
       p.injuries.includes(InjuryType.STAT_DECREASE_MA)
-    )!;
+    ));
     expect(decreased.stats.MA).toBe(decreased.baseStats.MA - 1);
   });
 
@@ -88,34 +93,33 @@ describe("playerLifecycle", () => {
 
   it("gives the seeded Matched Play team one Skill Point purchase", () => {
     const teams = decorated();
-    const matchedPlayTeam = teams.find(
+    const matchedPlayTeam = fixtureValue(teams.find(
       (t) => t.advancementMode === "matched-play"
-    )!;
+    ));
     expect(matchedPlayTeam).toBeDefined();
 
-    const recipient = matchedPlayTeam.players.find((p) =>
+    const recipient = fixtureValue(matchedPlayTeam.players.find((p) =>
       (p.advancements ?? []).some((a) => a.source === "matched-play-package")
-    )!;
+    ));
     expect(recipient).toBeDefined();
     expect(recipient.careerStats?.sppEarned).toBe(0);
     expect(recipient.spp).toBe(0);
 
-    // One Primary skill: one of the tier's Skill Points.
     const allocations = matchedPlayTeam.matchedPlayAllocations ?? [];
     expect(allocations.map((a) => a.access)).toEqual(["primary"]);
   });
 
   it("gives the seeded Sevens Skill Selection team a pending award", () => {
     const teams = decorated();
-    const skillSelectionTeam = teams.find(
+    const skillSelectionTeam = fixtureValue(teams.find(
       (t) => t.advancementMode === "sevens-skill-selection"
-    )!;
+    ));
     expect(skillSelectionTeam).toBeDefined();
 
     const pending = (skillSelectionTeam.pendingDevelopment ?? []).find(
       (entry) => entry.kind === "sevens-skill-selection"
     );
     expect(pending).toBeDefined();
-    expect(pending!.eligibleParticipantIds.length).toBeGreaterThan(0);
+    expect(fixtureValue(pending).eligibleParticipantIds.length).toBeGreaterThan(0);
   });
 });

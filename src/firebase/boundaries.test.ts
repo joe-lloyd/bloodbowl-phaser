@@ -1,0 +1,111 @@
+import { describe, expect, it } from "vitest";
+import { readCompetition } from "../boundary/competitionRepository";
+import { readLobby, readAppliedCommandCount } from "../boundary/firebaseLobby";
+import { readCloudTeam } from "../boundary/firebaseTeam";
+import { dehydrateTeam } from "../data/persistence/teamPersistence";
+import { TeamBuilder } from "../../__tests__/utils/test-builders";
+
+function legacyLeague() {
+  return {
+    id: "legacy-league",
+    type: "league",
+    name: "Legacy League",
+    organizerUid: null,
+    participantUids: [],
+    status: "active",
+    entrants: [
+      {
+        id: "entry",
+        teamId: "team",
+        name: "Team",
+        rosterName: "Human",
+        seed: 1,
+        team: { old: "embedded" },
+      },
+    ],
+    fixtures: [],
+    standings: [],
+    points: { win: 3, draw: 1, loss: 0 },
+    createdAt: 1,
+    updatedAt: 2,
+  };
+}
+
+function lobby() {
+  return {
+    code: "ABC123",
+    hostUid: "coach",
+    guestUid: null,
+    status: "lobby",
+    settings: {
+      turnSeconds: 120,
+      timeoutBankMs: 300000,
+      progressionEnabled: false,
+    },
+    players: {
+      coach: { uid: "coach", displayName: "Coach", team: null, ready: false },
+    },
+    createdAt: null,
+  };
+}
+
+describe("Firebase data boundaries", () => {
+  it("migrates embedded legacy entrants before validating a competition", () => {
+    const parsed = readCompetition(legacyLeague());
+    expect(parsed.entrants).toEqual([
+      {
+        id: "entry",
+        teamId: "team",
+        name: "Team",
+        rosterName: "Human",
+        seed: 1,
+        ownerUid: null,
+      },
+    ]);
+  });
+  it("rejects malformed nested competition points", () => {
+    expect(() =>
+      readCompetition({
+        ...legacyLeague(),
+        points: { win: "three", draw: 1, loss: 0 },
+      })
+    ).toThrow();
+  });
+  it("validates nested lobby players before subscription callbacks receive them", () => {
+    expect(readLobby(lobby()).players["coach"]?.ready).toBe(false);
+    expect(() =>
+      readLobby({
+        ...lobby(),
+        players: {
+          coach: {
+            uid: "coach",
+            displayName: "Coach",
+            team: null,
+            ready: "yes",
+          },
+        },
+      })
+    ).toThrow();
+  });
+  it("reads the applied command count without requiring unrelated lobby fields", () => {
+    expect(readAppliedCommandCount({ resume: { applied: 9 } })).toBe(9);
+    expect(readAppliedCommandCount(undefined)).toBeUndefined();
+    expect(() =>
+      readAppliedCommandCount({ resume: { applied: "nine" } })
+    ).toThrow();
+  });
+  it("keeps legacy team defaults while validating hydrated team data", () => {
+    const stored = dehydrateTeam(
+      new TeamBuilder().withId("legacy-team").build()
+    );
+    Reflect.deleteProperty(stored, "schemaVersion");
+    Reflect.deleteProperty(stored, "coaches");
+    Reflect.deleteProperty(stored, "cheerleaders");
+    const { team } = readCloudTeam(stored);
+    expect({
+      id: team.id,
+      coaches: team.coaches,
+      cheerleaders: team.cheerleaders,
+    }).toEqual({ id: "legacy-team", coaches: 0, cheerleaders: 0 });
+  });
+});

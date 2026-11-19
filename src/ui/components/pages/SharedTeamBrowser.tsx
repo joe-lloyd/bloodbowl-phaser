@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   fetchAllCoachTeams,
-  OwnedTeam,
+  type OwnedTeam,
 } from "../../../firebase/cloudTeamRepository";
 import { getTeamMode } from "../../../game/rules/teamLifecycle";
 import { useAuth } from "../../hooks/useAuth";
@@ -16,12 +16,6 @@ import {
   Panel,
 } from "../componentWarehouse/HudKit";
 
-/**
- * Browse every coach's live teams directly — there is no publish step and
- * no separate copy (shared-team-library: "A coach's teams are directly
- * readable by other coaches"; "What a reader sees is current"). Reads
- * always reflect the owner's team as it stands right now.
- */
 export function SharedTeamBrowser() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -32,9 +26,9 @@ export function SharedTeamBrowser() {
     if (!user) return;
     void fetchAllCoachTeams()
       .then(setTeams)
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : String(reason))
-      );
+      .catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      });
   }, [user]);
 
   const others = teams.filter((owned) => owned.ownerUid !== user?.uid);

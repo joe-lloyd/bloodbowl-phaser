@@ -1,29 +1,19 @@
-/**
- * Pitch clicks that no aiming step claims: the Touchback, a Jump, the
- * Blitz's Block, and the plain rules of the pitch, where clicking a player
- * selects or blocks them and clicking a square plots a move.
- *
- * Every await sits where onSquareClicked had it before the split. With no
- * negatrait to ask about, a Block or a Move is declared in the same tick
- * as the click, as before.
- */
-
+import { isOwnActor, activeActionFor } from "./players";
+import { withinOneSquare } from "./squares";
 import { GameEventNames } from "@/types/events";
-import { GameState } from "@/types/GameState";
-import { Player, PlayerStatus } from "@/types/Player";
+import { type GameState } from "@/types/GameState";
+import { type Player, PlayerStatus } from "@/types/Player";
 import {
-  BlockReplacement,
+  type BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
 } from "@/types/BlockReplacement";
 import { legalBlockReplacementTargets } from "../../rules/blockReplacements";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
-import { attack, SquareClick, stepClickFor } from "./stepClicks";
+import { attack, type SquareClick, stepClickFor } from "./stepClicks";
 import { computeJumpTargets } from "./previews";
 import { addWaypoint, executeMove, refreshPlayerVisualization } from "./routes";
 import { askGates, enterActionMode } from "./actionModes";
 
-// TOUCHBACK: the receiving coach must hand the ball to one of their
-// players before anything else happens
 export function clickTouchback(
   c: GameplayInteractionController,
   playerAtSquare: Player | null
@@ -37,18 +27,8 @@ export function clickTouchback(
   );
 }
 
-/**
- * Resolve a Jump-targeting click: leap over the adjacent player into the
- * clicked push-back square. A Jump does not end the Move — if the player is
- * still Standing with an activation left they stay selected and can move or
- * Jump again (the Move step is never marked complete).
- */
 export async function handleJumpClick(
-  c: GameplayInteractionController,
-  playerId: string,
-  x: number,
-  y: number
-): Promise<void> {
+{ c,playerId,x,y }: { c: GameplayInteractionController; playerId: string; x: number; y: number; }): Promise<void> {
   const player = c.gameService.getPlayerById(playerId);
   if (!player?.gridPosition) return;
   const landing = computeJumpTargets(c, player).some(
@@ -66,15 +46,16 @@ export async function handleJumpClick(
   try {
     await c.gameService.jumpPlayer(player.id, { x, y });
   } catch (err) {
-    c.eventBus.emit(GameEventNames.UI_Notification, `Cannot Jump: ${err}`);
+    c.eventBus.emit(
+      GameEventNames.UI_Notification,
+      `Cannot Jump: ${String(err)}`
+    );
   }
   const after = c.gameService.getPlayerById(player.id);
   if (
     after?.status === PlayerStatus.ACTIVE &&
     c.gameService.canActivate(player.id)
   ) {
-    // Keep the player selected and in Move mode so they can keep moving or
-    // Jump again; refresh the movement overlay for the new square.
     refreshPlayerVisualization(c, player.id);
   } else {
     c.deselectPlayer();
@@ -96,32 +77,21 @@ function isDownedOpponent(
   );
 }
 
-/**
- * A downed opponent can never be Blocked, only Fouled. A click on one
- * declares the Foul in place of whatever is still uncommitted and hands
- * the click to the Foul step, whose confirm lets the coach back out.
- */
 async function foulInsteadOfBlock(
-  c: GameplayInteractionController,
-  playerId: string,
-  x: number,
-  y: number
-): Promise<void> {
+{ c,playerId,x,y }: { c: GameplayInteractionController; playerId: string; x: number; y: number; }): Promise<void> {
   const asked = askGates(c, playerId, "foul");
   if (asked && !(await asked)) return;
-  if (!c.gameService.declareAction(playerId, "foul")) {
+  if (!c.gameService.declareAction({ playerId: playerId, action: "foul" })) {
     c.eventBus.emit(
       GameEventNames.UI_Notification,
       "A downed player can only be Fouled, and this player cannot Foul now."
     );
     return;
   }
-  enterActionMode(c, playerId, "foul", null);
+  enterActionMode({ c,playerId,action: "foul",blockReplacement: null });
   await c.onSquareClicked(x, y);
 }
 
-// BLITZ Execution (Block Step). An empty square, or the blitzer, is left
-// to the plain pitch rules.
 function clickBlitzBlock(
   c: GameplayInteractionController,
   click: SquareClick
@@ -142,49 +112,24 @@ function clickBlitzBlock(
       Math.abs(blitzer.gridPosition.y - y)
     ) === 1;
   if (inReach && isDownedOpponent(c, playerAtSquare)) {
-    return foulInsteadOfBlock(c, c.selectedPlayerId, x, y);
+    return foulInsteadOfBlock({ c,playerId: c.selectedPlayerId,x,y });
   }
-  // Initiate Block
+
   c.isBusy = true;
-  // Don't wait for preview? Preview is sync usually?
-  // Actually previewBlock just emits an event for UI to show dialog.
-  // It doesn't need a lock usually, but deselectPlayer does cleanup.
+
   c.gameService.previewBlock(c.selectedPlayerId, playerAtSquare.id);
 
   c.deselectPlayer();
   c.isBusy = false;
 }
 
-/**
- * The selected player when they may Block the clicked opponent from where
- * they stand: their team's turn, free to act, and next to them.
- */
 function adjacentBlocker(
-  c: GameplayInteractionController,
-  selectedPlayer: Player | undefined,
-  target: Player,
-  state: GameState,
-  { x, y }: { x: number; y: number }
+  { c, selectedPlayer, target, state, x, y }: { c: GameplayInteractionController; selectedPlayer: Player | undefined; target: Player; state: GameState; x: number; y: number }
 ): Player | null {
-  if (
-    !selectedPlayer ||
-    state.activeTeamId !== selectedPlayer.teamId ||
-    !c.gameService.canActivate(selectedPlayer.id) ||
-    selectedPlayer.teamId === target.teamId
-  ) {
-    return null;
-  }
-  // Check Adjacency
-  const dx = Math.abs((selectedPlayer.gridPosition?.x || 0) - x);
-  const dy = Math.abs((selectedPlayer.gridPosition?.y || 0) - y);
-  return dx <= 1 && dy <= 1 ? selectedPlayer : null;
+  if (!isOwnActor(c, selectedPlayer, state.activeTeamId) || selectedPlayer.teamId === target.teamId) return null;
+  return withinOneSquare(selectedPlayer.gridPosition, { x, y }) ? selectedPlayer : null;
 }
 
-/**
- * This player's own declaration, read from the authoritative state (not the
- * local step), so a re-selected player, a guest and the host all take the
- * same path. A Razzle-Dazzle player between Actions has none.
- */
 function declarationOf(
   state: GameState,
   playerId: string
@@ -193,31 +138,16 @@ function declarationOf(
   if (active?.id !== playerId || active.razzleDazzle?.awaitingSecond) {
     return {};
   }
-  return {
-    action: active.action,
-    replacement: active.blockReplacementUsed
-      ? undefined
-      : active.blockReplacement,
-  };
+  const replacement = active.blockReplacementUsed ? undefined : active.blockReplacement;
+  return { action: active.action, ...(replacement === undefined ? {} : { replacement }) };
 }
 
-/**
- * A declared, unspent block-replacing attack is what a target click
- * resolves — never a Block.
- */
 async function attackInsteadOfBlock(
-  c: GameplayInteractionController,
-  attacker: Player,
-  target: Player,
-  replacement: BlockReplacement
-): Promise<void> {
+{ c,attacker,target,replacement }: { c: GameplayInteractionController; attacker: Player; target: Player; replacement: BlockReplacement; }): Promise<void> {
   const label = BLOCK_REPLACEMENT_DEFINITIONS[replacement].label;
   const legalTarget =
     legalBlockReplacementTargets(attacker, [target], replacement).length > 0;
   if (!legalTarget) {
-    // Refuse by name: downgrading to a Block would spend the
-    // one attack on something the coach did not choose. The
-    // declaration and the remaining movement are untouched.
     c.eventBus.emit(
       GameEventNames.UI_Notification,
       `${label} cannot target ${target.playerName} — keep moving or end the activation.`
@@ -226,32 +156,24 @@ async function attackInsteadOfBlock(
   }
   c.isBusy = true;
   try {
-    await attack(c.gameService, replacement, attacker.id, target.id);
+    await attack({ gameService: c.gameService,kind: replacement,attackerId: attacker.id,targetId: target.id });
   } finally {
     c.isBusy = false;
     c.deselectPlayer();
   }
 }
 
-/** IT'S A BLOCK: a click on an adjacent opponent, declared if need be. */
 async function blockFromClick(
-  c: GameplayInteractionController,
-  blocker: Player,
-  target: Player,
-  state: GameState,
-  { x, y }: { x: number; y: number }
+  { c, blocker, target, state, x, y }: { c: GameplayInteractionController; blocker: Player; target: Player; state: GameState; x: number; y: number }
 ): Promise<void> {
   if (isDownedOpponent(c, target)) {
-    await foulInsteadOfBlock(c, blocker.id, x, y);
+    await foulInsteadOfBlock({ c,playerId: blocker.id,x,y });
     return;
   }
 
-  // Implicit Action Declaration
-  // Only check current action if it's for THIS player
   const declared = declarationOf(state, blocker.id);
   const currentAction = declared.action;
 
-  // A Blitz allows only one Block; after it, further clicks move.
   if (c.gameService.hasUsedBlitzBlock(blocker.id)) {
     c.eventBus.emit(
       GameEventNames.UI_Notification,
@@ -261,15 +183,14 @@ async function blockFromClick(
   }
 
   if (declared.replacement) {
-    return attackInsteadOfBlock(c, blocker, target, declared.replacement);
+    return attackInsteadOfBlock({ c,attacker: blocker,target,replacement: declared.replacement });
   }
 
   if (!currentAction) {
     const asked = askGates(c, blocker.id, "block");
     if (asked && !(await asked)) return;
-    // If no action declared for this player, implicitly declare
-    // BLOCK — refused e.g. for a prone/stunned blocker
-    if (!c.gameService.declareAction(blocker.id, "block")) {
+
+    if (!c.gameService.declareAction({ playerId: blocker.id, action: "block" })) {
       c.eventBus.emit(
         GameEventNames.UI_Notification,
         "This player cannot Block (down players must Blitz)."
@@ -277,7 +198,6 @@ async function blockFromClick(
       return;
     }
   } else if (currentAction === "move") {
-    // Cannot block if Move declared (unless Blitz, handled below)
     c.eventBus.emit(
       GameEventNames.UI_Notification,
       "Cannot Block during Move action (need Blitz)"
@@ -285,23 +205,16 @@ async function blockFromClick(
     return;
   }
 
-  // Deselect player to clear movement path/highlights
   c.deselectPlayer();
-  // Trigger Block Preview
+
   c.gameService.previewBlock(blocker.id, target.id);
 }
 
-// Clicking ANOTHER player
 function clickOtherPlayer(
   c: GameplayInteractionController,
   playerAtSquare: Player,
   click: SquareClick
 ): Promise<void> | void {
-  // BLOCK CHECK — only for modes that actually mean to Block: nothing
-  // declared (the implicit shortcut), a declared standalone Block, or a
-  // Blitz still in its move. Every other action mode must have claimed
-  // this click already; letting them reach here is how a declared Foul
-  // (and any future targeted action) decayed into a block dice dialog.
   const mayBlockFromHere =
     c.currentActionMode === null ||
     c.currentActionMode === "block" ||
@@ -310,21 +223,12 @@ function clickOtherPlayer(
   if (c.selectedPlayerId && mayBlockFromHere) {
     const selectedPlayer = c.gameService.getPlayerById(c.selectedPlayerId);
     const state = c.gameService.getState();
-    const blocker = adjacentBlocker(
-      c,
-      selectedPlayer,
-      playerAtSquare,
-      state,
-      click
+    const blocker = adjacentBlocker({ c: c, selectedPlayer: selectedPlayer, target: playerAtSquare, state: state, ...click }
     );
     if (blocker)
-      return blockFromClick(c, blocker, playerAtSquare, state, click);
+      return blockFromClick({ c: c, blocker: blocker, target: playerAtSquare, state: state, ...click });
   }
 
-  // If not a block, select them (inspection) — but never while a
-  // targeted action is mid-declaration. Reaching here means the click
-  // was not a valid target for that action; abandoning the action and
-  // reselecting the clicked player is never what the coach meant.
   if (
     c.currentActionMode !== null &&
     !mayBlockFromHere &&
@@ -343,79 +247,56 @@ function clickOtherPlayer(
   c.selectPlayer(playerAtSquare.id);
 }
 
-// Empty Square Click: plot a route, or walk it when the click lands on
-// the last waypoint (or the player's own square with none).
 async function clickEmptySquare(
-  c: GameplayInteractionController,
-  selectedId: string,
-  x: number,
-  y: number
-): Promise<void> {
+{ c,selectedId,x,y }: { c: GameplayInteractionController; selectedId: string; x: number; y: number; }): Promise<void> {
   const player = c.gameService.getPlayerById(selectedId);
   const state = c.gameService.getState();
 
-  // Only allow movement planning if active team and player can activate
   if (
-    !player ||
-    state.activeTeamId !== player.teamId ||
-    !c.gameService.canActivate(player.id)
+    !isOwnActor(c, player, state.activeTeamId)
   ) {
     c.deselectPlayer();
     return;
   }
-  // Implicit Action Declaration
-  // Only check current action if it's for THIS player
-  const currentAction =
-    state.activePlayer?.id === player.id
-      ? state.activePlayer?.action
-      : undefined;
+
+  const currentAction = activeActionFor(state, player.id);
 
   const asked = currentAction ? null : askGates(c, player.id, "move");
   if (asked && !(await asked)) return;
   if (!c.declareMoveIfNone(player.id, currentAction)) return;
 
-  // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
-  const lastPos =
-    c.waypoints.length > 0
-      ? c.waypoints[c.waypoints.length - 1]
-      : player.gridPosition;
+  const lastPos = c.waypoints.at(-1) ?? player.gridPosition;
 
-  if (lastPos && lastPos.x === x && lastPos.y === y) {
-    // CONFIRM MOVE
+  if (lastPos?.x === x && lastPos.y === y) {
     executeMove(c);
   } else {
-    // ADD WAYPOINT
     addWaypoint(c, x, y);
   }
 }
 
-// PLAY PHASE: a player is selected or blocked, an empty square plots a move.
 function clickPitch(
   c: GameplayInteractionController,
   click: SquareClick
 ): Promise<void> | void {
   const playerAtSquare = click.player;
   if (playerAtSquare) {
-    // Clicking SELF does nothing
     if (playerAtSquare.id !== c.selectedPlayerId) {
       return clickOtherPlayer(c, playerAtSquare, click);
     }
   } else if (c.selectedPlayerId) {
-    return clickEmptySquare(c, c.selectedPlayerId, click.x, click.y);
+    return clickEmptySquare({ c,selectedId: c.selectedPlayerId,x: click.x,y: click.y });
   } else {
-    c.deselectPlayer(); // Clicking empty space with no selection
+    c.deselectPlayer();
   }
 }
 
-/** A pitch click in play, once the bite, spell, push and Jump have passed. */
 export function clickInPlay(
   c: GameplayInteractionController,
   click: SquareClick
 ): Promise<void> | void {
-  // PASS Execution (if in pass aiming mode)
   if (c.currentActionMode === "pass") {
     console.log(
-      `[Interaction] onSquareClicked: Pass Mode Detected. Step: ${c.currentStepId}, Selected: ${c.selectedPlayerId}`
+      `[Interaction] onSquareClicked: Pass Mode Detected. Step: ${String(c.currentStepId)}, Selected: ${String(c.selectedPlayerId)}`
     );
   }
   const stepClick = stepClickFor(c, click);

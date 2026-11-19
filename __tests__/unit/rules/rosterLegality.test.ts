@@ -1,17 +1,18 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { RosterName, createTeam } from "../../../src/types/Team";
-import { createPlayer, PlayerTemplate } from "../../../src/types/Player";
+import { createPlayer, type PlayerTemplate } from "../../../src/types/Player";
 import { validateRosterLegality } from "../../../src/game/rules/rosterLegality";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { chooseVeteran } from "../../../src/game/rules/veteran";
 
 const humanRoster = getRosterByRosterName(RosterName.HUMAN);
-const lineman = humanRoster.playerTemplates.find((t) =>
-  t.keywords.includes("Lineman" as never)
-)!;
-const blitzer: PlayerTemplate = humanRoster.playerTemplates.find((t) =>
-  t.keywords.includes("Blitzer" as never)
-)!;
+const lineman = fixtureValue(humanRoster.playerTemplates.find((t) =>
+  t.keywords.includes("Lineman")
+));
+const blitzer: PlayerTemplate = fixtureValue(humanRoster.playerTemplates.find((t) =>
+  t.keywords.includes("Blitzer")
+));
 
 function teamWith(templates: PlayerTemplate[]) {
   const team = createTeam("Test", RosterName.HUMAN, {
@@ -33,7 +34,7 @@ describe("rosterLegality", () => {
       ...repeat(blitzer, 2),
       ...repeat(lineman, 2),
     ]);
-    chooseVeteran(team, team.players[0].id);
+    chooseVeteran(team, fixtureValue(team.players[0]).id);
     expect(validateRosterLegality(team, humanRoster)).toEqual([]);
   });
 
@@ -47,7 +48,6 @@ describe("rosterLegality", () => {
   });
 
   it("keeps a league team legal after injuries take it below 7 (D2)", () => {
-    // Journeymen make up the numbers at kick-off (L2)
     const team = teamWith(repeat(lineman, 6));
     team.advancementMode = "advanced-league";
     team.firstMatchPlayedAt = 1;
@@ -79,9 +79,7 @@ describe("rosterLegality", () => {
     const team = teamWith(repeat(lineman, 7));
     team.treasury = -1;
     expect(
-      validateRosterLegality(team, humanRoster).some(
-        (v) => v.rule === "budget"
-      )
+      validateRosterLegality(team, humanRoster).some((v) => v.rule === "budget")
     ).toBe(true);
   });
 

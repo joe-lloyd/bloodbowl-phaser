@@ -5,8 +5,6 @@ import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 
-// The real dice scene and physics, drawn by a renderer that draws nothing:
-// jsdom has no WebGL and no 2D canvas.
 vi.mock("three", async (importOriginal) => {
   const real = await importOriginal<typeof import("three")>();
   class SilentRenderer {
@@ -50,9 +48,13 @@ beforeAll(() => {
   const spy = vi
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => pen as never);
-  restoreContext = () => spy.mockRestore();
+  restoreContext = () => {
+    spy.mockRestore();
+  };
 });
-afterAll(() => restoreContext());
+afterAll(() => {
+  restoreContext();
+});
 
 const until = async (check: () => boolean, ms: number) => {
   const end = Date.now() + ms;
@@ -66,12 +68,12 @@ describe("block dice chosen while an earlier roll still shows", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceTray eventBus={bus} />);
+    });
     const tray = () =>
       container.querySelector('[data-testid="dice-tray"]')?.textContent ?? "";
 
-    // A dodge is still tumbling when the block is rolled, and a fast coach
-    // picks the block result before the tray has shown the block dice.
     await act(async () => {
       bus.emit(GameEventNames.DiceRoll, {
         rollType: "Dodge",
@@ -96,7 +98,6 @@ describe("block dice chosen while an earlier roll still shows", () => {
       });
     });
 
-    // The defender is pushed into the crowd, and injury is rolled
     await act(async () => {
       bus.emit(GameEventNames.DiceRoll, {
         rollType: "Injury",
@@ -109,7 +110,9 @@ describe("block dice chosen while an earlier roll still shows", () => {
     await until(() => tray().includes("stunned"), 12_000);
     expect(tray()).toContain("Injury: 2 + 3 = 5, stunned");
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   }, 25_000);
 });
@@ -120,12 +123,12 @@ describe("block dice re-rolled while the first throw still tumbles", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceTray eventBus={bus} />);
+    });
     const tray = () =>
       container.querySelector('[data-testid="dice-tray"]')?.textContent ?? "";
 
-    // A team re-roll replaces the dice before the first throw has landed,
-    // and the coach picks from the new dice at once.
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
@@ -153,7 +156,9 @@ describe("block dice re-rolled while the first throw still tumbles", () => {
     await until(() => tray().includes("stunned"), 14_000);
     expect(tray()).toContain("Injury: 2 + 3 = 5, stunned");
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   }, 25_000);
 });

@@ -1,6 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { CatchOperation } from "./CatchOperation";
 import { GameConfig } from "@/config/GameConfig";
 import {
@@ -8,40 +8,39 @@ import {
   nextPresentationId,
 } from "../presentation/presentationGate";
 
-/**
- * Longest the engine waits for the board to show a bounce: the dice before
- * it land, the ball hops one square, and it holds there to be read.
- */
 const BOUNCE_PRESENTATION_TIMEOUT_MS = 6000;
 
 export class BounceOperation extends GameOperation {
   public readonly name = "BounceOperation";
 
+  private startPosition: { x: number; y: number };
+  private kickoff: boolean;
   constructor(
-    private startPosition: { x: number; y: number },
-    /** The ball is still the kick-off: it has not yet been caught or come to rest. */
-    private kickoff: boolean = false
+    startPosition: { x: number; y: number },
+
+    kickoff = false
   ) {
     super();
+    this.startPosition = startPosition;
+    this.kickoff = kickoff;
   }
 
   async execute(context: FlowContext): Promise<void> {
     const { gameService, eventBus, flowManager } = context;
 
-    // 1. Roll Scatter (d8)
     const direction = gameService
       .getDiceController()
       .rollD8("Bounce Direction");
 
-    const scatterTemplate: { [key: number]: { x: number; y: number } } = {
-      1: { x: -1, y: -1 }, // Top-Left
-      2: { x: 0, y: -1 }, // Top
-      3: { x: 1, y: -1 }, // Top-Right
-      4: { x: -1, y: 0 }, // Left
-      5: { x: 1, y: 0 }, // Right
-      6: { x: -1, y: 1 }, // Bottom-Left
-      7: { x: 0, y: 1 }, // Bottom
-      8: { x: 1, y: 1 }, // Bottom-Right
+    const scatterTemplate: Record<number, { x: number; y: number }> = {
+      1: { x: -1, y: -1 },
+      2: { x: 0, y: -1 },
+      3: { x: 1, y: -1 },
+      4: { x: -1, y: 0 },
+      5: { x: 1, y: 0 },
+      6: { x: -1, y: 1 },
+      7: { x: 0, y: 1 },
+      8: { x: 1, y: 1 },
     };
 
     const offset = scatterTemplate[direction];
@@ -49,14 +48,11 @@ export class BounceOperation extends GameOperation {
     const newY = this.startPosition.y + offset.y;
 
     console.log(
-      `[BounceOperation] Bouncing from ${this.startPosition.x},${this.startPosition.y} to ${newX},${newY}`
+      `[BounceOperation] Bouncing from ${String(this.startPosition.x)},${String(this.startPosition.y)} to ${String(newX)},${String(newY)}`
     );
 
-    // 2. Animate Bounce: one hop at a time, so a chain of bounces and the
-    // catch rolls between them can be followed
     const presentationId = nextPresentationId("bounce");
-    // Listening before the hop is announced, so a board that answers at
-    // once is still heard
+
     const shown = awaitPresentation(
       eventBus,
       context.delay,
@@ -64,43 +60,36 @@ export class BounceOperation extends GameOperation {
       BOUNCE_PRESENTATION_TIMEOUT_MS
     );
     eventBus.emit(GameEventNames.PassFumbled, {
-      playerId: "bounce", // Dummy
+      playerId: "bounce",
       position: this.startPosition,
       bouncePosition: { x: newX, y: newY },
       presentationId,
     });
     await shown;
 
-    // 3. Validation
-    // A kick-off bounce out of the receiving half is a Touchback (p.52).
     if (
       this.kickoff &&
       gameService.kickoffBounceTouchback({ x: newX, y: newY })
     ) {
       return;
     }
-    // Check constraints (Out of bounds?)
+
     if (
       newX < 0 ||
       newX >= GameConfig.PITCH_WIDTH ||
       newY < 0 ||
       newY >= GameConfig.PITCH_HEIGHT
     ) {
-      // The crowd throws a bounced-out ball back in from the square it
-      // left (p.73); bouncing out is not itself a turnover
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
       gameService.throwInBall(this.startPosition);
       return;
     }
 
-    // 4. Update Ball Position
     gameService.setBallPosition(newX, newY);
 
-    // 5. Landing Conflict?
     const playerAtSquare = gameService.getPlayerAt(newX, newY);
 
     if (playerAtSquare) {
-      // Attempt Catch (a dropped bounce is not a turnover by itself)
       eventBus.emit(GameEventNames.UI_Notification, "Ball hits player!");
       flowManager.add(
         new CatchOperation(playerAtSquare.id, {
@@ -110,17 +99,11 @@ export class BounceOperation extends GameOperation {
         true
       );
     } else {
-      // Land in empty square
       eventBus.emit(
         GameEventNames.UI_Notification,
         "Ball lands in empty square."
       );
       eventBus.emit(GameEventNames.BallPlaced, { x: newX, y: newY });
-
-      // End of chain.
-      // If this was a dropped pass turnover, the turn ends.
-      // If it was kickoff, maybe touchback or play starts?
-      // Context matters.
     }
   }
 }

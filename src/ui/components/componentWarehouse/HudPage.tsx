@@ -1,4 +1,3 @@
-/** The pages around the match: shell, header, sections and form pieces. */
 import React from "react";
 import { Link } from "react-router-dom";
 import { cx, toneText, type HudTone } from "./hudTone";
@@ -10,11 +9,6 @@ const PAGE_WIDTH = {
   wide: "max-w-[1240px]",
 } as const;
 
-/**
- * A full-screen page outside the match: the floodlit stadium backdrop, a
- * centred column that scrolls, and an optional bar pinned to the bottom
- * for the page's main action.
- */
 export function PageShell({
   children,
   width = "wide",
@@ -23,7 +17,7 @@ export function PageShell({
 }: {
   children: React.ReactNode;
   width?: keyof typeof PAGE_WIDTH;
-  /** Sticky bottom bar: Back on the left, the main action on the right. */
+
   actionBar?: React.ReactNode;
   className?: string;
 }) {
@@ -54,10 +48,6 @@ export function PageShell({
   );
 }
 
-/**
- * A page's title block: eyebrow, display-face h1, one line of context, and
- * the page's actions on the right. A blood-to-gold rule closes it off.
- */
 export function PageHeader({
   eyebrow,
   title,
@@ -68,10 +58,7 @@ export function PageHeader({
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
-  /**
-   * A small back link above the title. `to` makes it a real link to that
-   * route; `onClick` is for a back step that depends on where you came from.
-   */
+
   back?: BackTarget;
   actions?: React.ReactNode;
 }) {
@@ -102,17 +89,11 @@ export function PageHeader({
   );
 }
 
-/** Where a back link goes: a route, or a handler. */
 export type BackTarget =
   | { label: string; to: string; onClick?: never }
   | { label: string; onClick: () => void; to?: never };
 
-/**
- * A small "← Back" text control. With `to` it is a link to that route, so
- * it goes to the same page however you arrived, after a reload, and in a
- * new tab. With `onClick` it is a button.
- */
-export function BackLink({
+function BackLink({
   label,
   className,
   ...target
@@ -141,7 +122,6 @@ export function BackLink({
   );
 }
 
-/** A titled slab for one block of a page. */
 export function Section({
   title,
   aside,
@@ -165,7 +145,6 @@ export function Section({
   );
 }
 
-/** A labelled form control. The label wraps the control. */
 export function Field({
   label,
   hint,
@@ -197,7 +176,6 @@ const NOTICE_EDGE: Record<HudTone, string> = {
   neutral: "border-l-hud-edge",
 };
 
-/** A boxed message with a rule down the left in the tone's colour. */
 export function Notice({
   tone = "neutral",
   title,
@@ -235,7 +213,6 @@ export function Notice({
   );
 }
 
-/** What a list shows when it is empty, with the way forward. */
 export function EmptyState({
   title,
   titleAs: Heading = "h2",
@@ -269,10 +246,6 @@ export function EmptyState({
   );
 }
 
-/**
- * Classes for a selectable tile or row (a team, an entrant, a pitch): dark
- * at rest, gold edge on hover, gold edge and glow when chosen.
- */
 export const hudChoiceClass = (selected: boolean) =>
   cx(
     "rounded-hud border text-left transition-[background-color,border-color,box-shadow] duration-150 ease-bb",

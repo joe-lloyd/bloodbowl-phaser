@@ -1,0 +1,9 @@
+packages:
+  - functions
+strictDepBuilds: true
+minimumReleaseAge: 4320
+minimumReleaseAgeStrict: true
+allowBuilds:
+  "@firebase/util": false
+  esbuild: false
+  protobufjs: false

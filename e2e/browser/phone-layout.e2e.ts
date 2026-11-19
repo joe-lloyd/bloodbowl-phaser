@@ -1,21 +1,19 @@
-import { test, expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { test, expect, type Page } from "@playwright/test";
 import { cameraState } from "../support/camera";
 import { GameApp } from "../support/pages/game";
 
-/**
- * The match on a phone: thumb rails in landscape, a prompt to turn the
- * phone in portrait, and fingers in place of the mouse. An iPhone 14's
- * screen, 844 by 390 CSS px, with touch, so `(pointer: coarse)` matches.
- */
 test.use({
   viewport: { width: 844, height: 390 },
   hasTouch: true,
   isMobile: true,
 });
 
-type Point = { x: number; y: number };
+interface Point {
+  x: number;
+  y: number;
+}
 
-/** Raw touches, for the gestures Playwright has no helper for. */
 async function touches(page: Page) {
   const cdp = await page.context().newCDPSession(page);
   const send = (type: string, points: (Point & { id?: number })[]) =>
@@ -29,15 +27,15 @@ async function touches(page: Page) {
       await page.waitForTimeout(ms);
       await send("touchEnd", []);
     },
-    /** One finger along these points, a few moves between each. */
+
     async drag(path: Point[]) {
-      await send("touchStart", [path[0]]);
+      await send("touchStart", [fixtureValue(path[0])]);
       for (let i = 1; i < path.length; i++) {
         for (let k = 1; k <= 4; k++) {
           const a = path[i - 1];
           const b = path[i];
           await send("touchMove", [
-            { x: a.x + ((b.x - a.x) * k) / 4, y: a.y + ((b.y - a.y) * k) / 4 },
+            { x: fixtureValue(a).x + ((fixtureValue(b).x - fixtureValue(a).x) * k) / 4, y: fixtureValue(a).y + ((fixtureValue(b).y - fixtureValue(a).y) * k) / 4 },
           ]);
         }
       }
@@ -93,7 +91,7 @@ test("a tap selects at the current zoom, a tap plans, Go walks", async ({
   await tapSquare(page, app, start);
   await expect(page.getByTestId("player-chip")).toBeVisible();
   await expect(page.getByTestId("action-move")).toBeVisible();
-  // The chip opens the full card and closes it again
+
   await page.getByTestId("player-chip").tap();
   await expect(page.getByTestId("player-card")).toBeVisible();
   await page.getByTestId("player-chip").tap();
@@ -104,7 +102,7 @@ test("a tap selects at the current zoom, a tap plans, Go walks", async ({
   const target = { x: start.x + 2, y: start.y };
   await tapSquare(page, app, target);
   await expect(page.getByTestId("move-plan")).toContainText("2 sq");
-  // Nothing moves until Go
+
   expect(await app.pitch.squareOf("team1:0")).toEqual(start);
   await page.getByTestId("move-plan-go").tap();
   await expect
@@ -137,8 +135,7 @@ test("a drag from the player draws a route under a magnifier", async ({
   await expect(page.getByTestId("route-loupe")).toBeHidden();
   await expect(page.getByTestId("move-plan")).toContainText("3 sq");
 
-  // Back over the route cuts it
-  await finger.drag([points[3], points[1]]);
+  await finger.drag([fixtureValue(points[3]), fixtureValue(points[1])]);
   await finger.end();
   await expect(page.getByTestId("move-plan")).toContainText("1 sq");
   await page.getByTestId("move-plan-clear").tap();
@@ -157,7 +154,7 @@ test("press and hold shows the player card, a tap puts it away", async ({
   await finger.hold(await app.pitch.viewportPoint(square), 700);
   await expect(page.getByTestId("player-card")).toBeVisible();
   await expect(page.getByTestId("player-card")).toContainText("Skills");
-  // The hold opened the card and did not select
+
   await expect(page.getByTestId("player-chip")).toBeHidden();
   await page.touchscreen.tap(420, 380);
   await expect(page.getByTestId("player-card")).toBeHidden();
@@ -198,7 +195,7 @@ test("End Turn ends the turn only after a hold", async ({ page }) => {
   await expect(page.getByText("Hold to end the turn")).toBeVisible();
   expect((await app.bridge.snapshot()).activeTeamId).toBe(first);
 
-  const box = (await button.boundingBox())!;
+  const box = fixtureValue((await button.boundingBox()));
   const finger = await touches(page);
   await finger.hold(
     { x: box.x + box.width / 2, y: box.y + box.height / 2 },
@@ -220,7 +217,6 @@ test("a pass aims on the first tap, shows its rolls, and throws on Throw", async
   await page.getByTestId("action-step-pass").tap();
   await app.pitch.waitForCameraToSettle();
 
-  // Leaving the pass step drops the aim
   await tapSquare(page, app, receiver);
   await expect(page.getByTestId("move-plan")).toContainText("Short Pass");
   await page.getByTestId("action-step-move").tap();
@@ -234,7 +230,7 @@ test("a pass aims on the first tap, shows its rolls, and throws on Throw", async
   expect((await app.bridge.snapshot()).ballPosition).toEqual(thrower);
 
   await page.getByTestId("move-plan-go").tap();
-  // The ball is in the air: the markers may try for it first
+
   await page.getByRole("button", { name: "Decline" }).tap();
   await expect
     .poll(async () => (await app.bridge.snapshot()).ballPosition, {
@@ -249,7 +245,7 @@ test("the coin toss, setup and kickoff all work by touch", async ({ page }) => {
   await app.pitch.waitForCanvas();
   await page.getByRole("button", { name: /flip coin/i }).tap();
   await page.getByRole("button", { name: "RECEIVE" }).tap();
-  // The kicking side sets up first, then the receiving side
+
   for (const side of ["Setup Defense", "Setup Offense"]) {
     await expect(page.getByText(side)).toBeVisible();
     await page.getByRole("button", { name: "LOAD" }).tap();
@@ -259,11 +255,11 @@ test("the coin toss, setup and kickoff all work by touch", async ({ page }) => {
     "Tap your kicker, then a square in their half"
   );
   const snapshot = await app.bridge.snapshot();
-  const kickingTeam = snapshot.teams.find((team) =>
+  const kickingTeam = fixtureValue(snapshot.teams.find((team) =>
     team.players.some((p) => p.position && p.position.x < 10)
-  )!;
-  const kicker = kickingTeam.players.find((p) => p.position)!;
-  await tapSquare(page, app, kicker.position!);
+  ));
+  const kicker = fixtureValue(kickingTeam.players.find((p) => p.position));
+  await tapSquare(page, app, fixtureValue(kicker.position));
   await expect(page.getByTestId("phone-notice")).toContainText(
     "Kicker Selected"
   );

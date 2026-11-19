@@ -1,15 +1,11 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
 
-/**
- * A Foul's Injury Roll ends with its Casualty Roll, and the player leaves
- * the pitch, before the referee sends the fouler off. The Casualty used to
- * wait behind the Send-off, so a Bribe or Argue the Call choice opened
- * while the victim still lay on the pitch, Injured.
- */
 async function foul(seed: number) {
   const game = new HeadlessGame({
     seed,
@@ -32,24 +28,30 @@ async function foul(seed: number) {
   const fouler = game.ctx.team1.players[0];
   await game.execute({
     type: "declare-action",
-    playerId: fouler.id,
+    playerId: fixtureValue(fouler).id,
     action: "foul",
   });
   const response = await game.execute({
     type: "foul",
-    playerId: fouler.id,
+    playerId: fixtureValue(fouler).id,
     x: 11,
     y: 5,
   });
   const leaving = response.events
     .filter((e) => e.name === GameEventNames.PlayerStatusChanged)
     .map((e) =>
-      (e.data as { id: string }).id === fouler.id ? "fouler" : "victim"
+      z.object({ id: z.string() }).parse(e.data).id === fixtureValue(fouler).id
+        ? "fouler"
+        : "victim"
     );
   const casualty = response.events.some(
     (e) => e.name === GameEventNames.PlayerCasualtyInflicted
   );
-  return { casualty, sentOff: fouler.status !== PlayerStatus.ACTIVE, leaving };
+  return {
+    casualty,
+    sentOff: fixtureValue(fouler).status !== PlayerStatus.ACTIVE,
+    leaving,
+  };
 }
 
 describe("a Foul that causes a Casualty and is spotted", () => {
@@ -59,11 +61,12 @@ describe("a Foul that causes a Casualty and is spotted", () => {
       const { casualty, sentOff, leaving } = await foul(seed);
       if (!casualty || !sentOff) continue;
       seen++;
-      expect(leaving, `seed ${seed}`).toContain("victim");
-      expect(leaving, `seed ${seed}`).toContain("fouler");
-      expect(leaving.lastIndexOf("victim"), `seed ${seed}`).toBeLessThan(
-        leaving.indexOf("fouler")
-      );
+      expect(leaving, `seed ${String(seed)}`).toContain("victim");
+      expect(leaving, `seed ${String(seed)}`).toContain("fouler");
+      expect(
+        leaving.lastIndexOf("victim"),
+        `seed ${String(seed)}`
+      ).toBeLessThan(leaving.indexOf("fouler"));
     }
     expect(seen).toBeGreaterThanOrEqual(3);
   });

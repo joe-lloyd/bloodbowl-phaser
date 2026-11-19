@@ -6,16 +6,7 @@ import { GameEventNames } from "../../src/types/events";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 import { DiceWatch } from "../../src/game/presentation/diceWatch";
 
-/**
- * A block that broke armour threw the armour 2D6 and the injury 2D6 as one
- * throw of four dice, so neither total could be read and the injury showed
- * before armour was known to be broken. The armour dice now land and are
- * read first, then the injury dice go up as a throw of their own. Both
- * coaches render their own tray from the same events, so this sequence is
- * what each screen shows.
- */
-
-const log = vi.hoisted(() => ({ entries: [] as string[] }));
+const log = vi.hoisted(() => ({ entries: new Array<string>() }));
 vi.mock("../../src/ui/dice/diceScene", () => ({
   playRoll: (_host: HTMLElement, roll: { values: number[] }) => {
     log.entries.push(`throw ${roll.values.join(",")}`);
@@ -66,19 +57,20 @@ it("throws a broken armour roll and its injury roll as two throws, armour landin
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () => root.render(<DiceTray eventBus={bus} />));
+  await act(async () => {
+    root.render(<DiceTray eventBus={bus} />);
+  });
 
-  const roll = (rollType: string, value: number[]) =>
+  const roll = (rollType: string, value: number[]) => {
     bus.emit(GameEventNames.DiceRoll, {
       rollType,
-      diceType: `${value.length}d6`,
+      diceType: `${String(value.length)}d6`,
       value,
       total: value.reduce((a, b) => a + b, 0),
       description: `${rollType}: ${value.join(" + ")}`,
     });
+  };
 
-  // A failed Dodge is still tumbling when the engine raises the fall's
-  // rolls in one step: armour, then the injury it unlocked
   let allLanded = false;
   await act(async () => {
     roll("Dodge (Human Lineman #1)", [1]);
@@ -99,7 +91,9 @@ it("throws a broken armour roll and its injury roll as two throws, armour landin
   ]);
   expect(allLanded).toBe(true);
 
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   watch.dispose();
 });

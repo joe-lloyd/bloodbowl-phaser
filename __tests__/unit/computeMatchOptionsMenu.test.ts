@@ -1,22 +1,15 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   computeMatchOptionsMenu,
-  MatchOptionsMenuContext,
+  type MatchOptionsMenuContext,
 } from "../../src/ui/components/hud/computeMatchOptionsMenu";
 
-/**
- * The in-match options menu never hides entries with ad hoc CSS — every
- * context this function can see must produce exactly the entries a coach
- * is allowed to act on (design.md, "Use one menu trigger with
- * context-derived entries"). These tests are the assertion surface for
- * that guarantee across local, sandbox, resumed(local-active), host and
- * guest, and every connection/end-request combination.
- */
 describe("computeMatchOptionsMenu", () => {
   it("sandbox: offers only a plain exit", () => {
     const entries = computeMatchOptionsMenu({ kind: "sandbox" });
     expect(entries.map((e) => e.id)).toEqual(["exit-sandbox"]);
-    expect(entries[0].destructive).toBeFalsy();
+    expect(fixtureValue(entries[0]).destructive).toBeFalsy();
   });
 
   it("local, active/resumed match: Return is safe, Abandon is destructive and confirmed", () => {
@@ -30,14 +23,14 @@ describe("computeMatchOptionsMenu", () => {
     ]);
 
     const returnEntry = entries[0];
-    expect(returnEntry.destructive).toBeFalsy();
-    expect(returnEntry.confirm).toBeUndefined();
-    expect(returnEntry.label).toBe("Return to Main Menu");
+    expect(fixtureValue(returnEntry).destructive).toBeFalsy();
+    expect(fixtureValue(returnEntry).confirm).toBeUndefined();
+    expect(fixtureValue(returnEntry).label).toBe("Return to Main Menu");
 
     const abandonEntry = entries[1];
-    expect(abandonEntry.destructive).toBe(true);
-    expect(abandonEntry.confirm).toBeDefined();
-    expect(abandonEntry.confirm?.confirmLabel).toMatch(/abandon/i);
+    expect(fixtureValue(abandonEntry).destructive).toBe(true);
+    expect(fixtureValue(abandonEntry).confirm).toBeDefined();
+    expect(fixtureValue(abandonEntry).confirm?.confirmLabel).toMatch(/abandon/i);
   });
 
   it("local, game over: only a non-destructive leave, no abandon", () => {
@@ -46,8 +39,8 @@ describe("computeMatchOptionsMenu", () => {
       matchOver: true,
     });
     expect(entries.map((e) => e.id)).toEqual(["return-to-menu"]);
-    expect(entries[0].label).toBe("Leave Results");
-    expect(entries[0].destructive).toBeFalsy();
+    expect(fixtureValue(entries[0]).label).toBe("Leave Results");
+    expect(fixtureValue(entries[0]).destructive).toBeFalsy();
   });
 
   const ONLINE_ONLY_IDS = new Set([
@@ -82,7 +75,7 @@ describe("computeMatchOptionsMenu", () => {
 
     it("host: Save & Exit is a live, enabled action", () => {
       const hostEntries = computeMatchOptionsMenu({ ...base, role: "host" });
-      const hostSave = hostEntries.find((e) => e.id === "save-and-exit")!;
+      const hostSave = fixtureValue(hostEntries.find((e) => e.id === "save-and-exit"));
       expect(hostSave.label).toBe("Save & Exit");
       expect(hostSave.disabled).toBeFalsy();
       expect(hostSave.destructive).toBeFalsy();
@@ -92,11 +85,11 @@ describe("computeMatchOptionsMenu", () => {
     it("guest cannot invoke the host-only Save & Exit; the restriction is communicated, and Leave Match covers actually leaving (spec: guest cannot invoke a host-only action)", () => {
       const guestEntries = computeMatchOptionsMenu({ ...base, role: "guest" });
 
-      const guestSave = guestEntries.find((e) => e.id === "save-and-exit")!;
+      const guestSave = fixtureValue(guestEntries.find((e) => e.id === "save-and-exit"));
       expect(guestSave.disabled).toBe(true);
       expect(guestSave.description).toMatch(/host/i);
 
-      const leave = guestEntries.find((e) => e.id === "leave-match")!;
+      const leave = fixtureValue(guestEntries.find((e) => e.id === "leave-match"));
       expect(leave).toBeDefined();
       expect(leave.disabled).toBeFalsy();
       expect(leave.destructive).toBeFalsy();
@@ -105,7 +98,7 @@ describe("computeMatchOptionsMenu", () => {
 
     it("no end request: offers to propose ending, with a confirm step", () => {
       const entries = computeMatchOptionsMenu({ ...base, role: "host" });
-      const request = entries.find((e) => e.id === "request-end-match")!;
+      const request = fixtureValue(entries.find((e) => e.id === "request-end-match"));
       expect(request).toBeDefined();
       expect(request.destructive).toBe(true);
       expect(request.confirm).toBeDefined();
@@ -121,7 +114,7 @@ describe("computeMatchOptionsMenu", () => {
       });
       expect(entries.some((e) => e.id === "request-end-match")).toBe(false);
       expect(entries.some((e) => e.id === "respond-end-match")).toBe(false);
-      const cancel = entries.find((e) => e.id === "cancel-end-match")!;
+      const cancel = fixtureValue(entries.find((e) => e.id === "cancel-end-match"));
       expect(cancel).toBeDefined();
       expect(cancel.disabled).toBeFalsy();
     });
@@ -134,14 +127,14 @@ describe("computeMatchOptionsMenu", () => {
       });
       expect(entries.some((e) => e.id === "request-end-match")).toBe(false);
       expect(entries.some((e) => e.id === "cancel-end-match")).toBe(false);
-      const respond = entries.find((e) => e.id === "respond-end-match")!;
+      const respond = fixtureValue(entries.find((e) => e.id === "respond-end-match"));
       expect(respond).toBeDefined();
       expect(respond.disabled).toBe(true);
     });
 
     it("connection: online shows status only, no reconnect, no force-abandon", () => {
       const entries = computeMatchOptionsMenu({ ...base, role: "host" });
-      const status = entries.find((e) => e.id === "connection-status")!;
+      const status = fixtureValue(entries.find((e) => e.id === "connection-status"));
       expect(status.disabled).toBe(true);
       expect(status.label).toMatch(/connected/i);
       expect(entries.some((e) => e.id === "reconnect")).toBe(false);
@@ -154,9 +147,9 @@ describe("computeMatchOptionsMenu", () => {
         role: "host",
         connection: "reconnecting",
       });
-      const status = entries.find((e) => e.id === "connection-status")!;
+      const status = fixtureValue(entries.find((e) => e.id === "connection-status"));
       expect(status.label).toMatch(/reconnect/i);
-      const reconnect = entries.find((e) => e.id === "reconnect")!;
+      const reconnect = fixtureValue(entries.find((e) => e.id === "reconnect"));
       expect(reconnect).toBeDefined();
       expect(reconnect.disabled).toBeFalsy();
       expect(reconnect.destructive).toBeFalsy();
@@ -179,7 +172,7 @@ describe("computeMatchOptionsMenu", () => {
         role: "host",
         connection: "abandonable",
       });
-      const forceAbandon = entries.find((e) => e.id === "force-abandon")!;
+      const forceAbandon = fixtureValue(entries.find((e) => e.id === "force-abandon"));
       expect(forceAbandon).toBeDefined();
       expect(forceAbandon.destructive).toBe(true);
       expect(forceAbandon.confirm).toBeDefined();

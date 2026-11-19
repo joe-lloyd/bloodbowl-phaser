@@ -1,10 +1,6 @@
-/**
- * Round 2 wording slips: a bare "R 2+" at the end of the route summary, a
- * thrown team-mate logged as "Ball scattered", "1 seconds left" for screen
- * readers, and a re-roll button that broke inside "RE-ROLL".
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
@@ -31,14 +27,18 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   ServiceContainer.reset();
 });
 
 it("names each roll of the route in words", async () => {
-  await act(async () => root.render(<RouteSummary eventBus={bus} />));
-  await act(async () =>
+  await act(async () => {
+    root.render(<RouteSummary eventBus={bus} />);
+  });
+  await act(async () => {
     bus.emit(GameEventNames.UI_RoutePreview, {
       movementLeft: 0,
       riskySteps: 2,
@@ -47,8 +47,8 @@ it("names each roll of the route in words", async () => {
         { type: "rush", target: 2, square: { x: 5, y: 4 } },
       ],
       rerolls: [],
-    })
-  );
+    });
+  });
   expect(
     container.querySelector('[data-testid="route-rolls"]')?.textContent
   ).toBe("Dodge 3+Rush 2+");
@@ -74,21 +74,23 @@ it("says one second, not one seconds", () => {
 
 it("keeps RE-ROLL whole on the re-roll button", async () => {
   const game = new HeadlessGame({ seed: 1 });
-  ServiceContainer.initialize(bus, game.ctx.team1, game.ctx.team2);
+  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
   game.ctx.team1.rerolls = 2;
   ServiceContainer.getInstance().gameService.getState().turn.teamId =
     game.ctx.team1.id;
-  await act(async () => root.render(<RerollDialog eventBus={bus} />));
-  await act(async () =>
+  await act(async () => {
+    root.render(<RerollDialog eventBus={bus} />);
+  });
+  await act(async () => {
     bus.emit(GameEventNames.DecisionRequested, {
       type: "reroll",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       chooserTeamId: game.ctx.team1.id,
       rollKind: "dodge",
       sources: ["team"],
       roll: 1,
-    })
-  );
+    });
+  });
   const button = container.querySelector('[data-testid="reroll-use-team"]');
   expect(buttonLabel(button)).toBe("USE TEAM RE-ROLL (2 left)");
   expect(button?.querySelector(".whitespace-nowrap")?.textContent).toBe(

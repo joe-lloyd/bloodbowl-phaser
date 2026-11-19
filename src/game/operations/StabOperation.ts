@@ -1,26 +1,23 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
 import { announceArmour, foldArmourRoll } from "./ArmourOperation";
 import { gatherParticipants } from "../skills";
 
-/**
- * Ends the stabber's activation once the stab (and any injury/casualty it
- * queued) has fully settled — queued at the BACK of the flow. Hit and Run
- * may take its free square first.
- */
 class FinishStabOperation extends GameOperation {
   public readonly name = "FinishStab";
 
-  constructor(private attackerId: string) {
+  private attackerId: string;
+  constructor(attackerId: string) {
     super();
+    this.attackerId = attackerId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -28,33 +25,19 @@ class FinishStabOperation extends GameOperation {
   }
 }
 
-/**
- * StabOperation (2025 rulebook p.136, Stab trait)
- *
- * "Select a Standing opposition player adjacent to this player and make an
- * Armour Roll for the selected player. This Armour Roll cannot be modified
- * in any way. If the player's armour is broken, make an Injury Roll for
- * them, otherwise nothing happens." The activation ends as soon as the
- * Stab has been performed — including when it replaced the Block of a
- * Blitz Action. Never a turnover.
- *
- * The Armour Roll goes through the shared armour fold like any other, but
- * only its unmodified outcome counts: no armour modifier, Mighty Blow or
- * Claws ever applies. The Injury Roll is a normal one — injury-side rules
- * (Stunty table, Thick Skull, Regeneration) work as usual.
- */
 export class StabOperation extends GameOperation {
   public readonly name = "StabOperation";
 
-  constructor(
-    private attackerId: string,
-    private targetId: string
-  ) {
+  private attackerId: string;
+  private targetId: string;
+  constructor(attackerId: string, targetId: string) {
     super();
+    this.attackerId = attackerId;
+    this.targetId = targetId;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     const diceController = gameService.getDiceController();
 
@@ -86,11 +69,8 @@ export class StabOperation extends GameOperation {
     await context.delay(800);
 
     const armour = diceController.rollArmorCheck(
-      effectiveAV(target, gameService.getState()),
-      target.playerName,
-      attacker.teamId
-    );
-    // Unmodifiable: the fold runs, but only the natural roll vs AV counts.
+      { av: effectiveAV(target,gameService.getState()),playerName: target.playerName,teamId: attacker.teamId }    );
+
     const armourCtx = await foldArmourRoll(
       context,
       gatherParticipants(attacker, target, []),
@@ -117,7 +97,7 @@ export class StabOperation extends GameOperation {
       target.status = PlayerStatus.PRONE;
       eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: target.id });
       eventBus.emit(GameEventNames.PlayerStatusChanged, target);
-      // A downed carrier drops the ball (bounce resolves after the injury)
+
       const ball = groundBall(gameService.getState());
       if (
         ball &&
@@ -141,8 +121,6 @@ export class StabOperation extends GameOperation {
       eventBus.emit(GameEventNames.UI_Notification, "Armour Holds.");
     }
 
-    // The activation ends as soon as the Stab is performed — after the
-    // injury (if any) settles, never a turnover
     context.flowManager.add(new FinishStabOperation(this.attackerId));
   }
 }

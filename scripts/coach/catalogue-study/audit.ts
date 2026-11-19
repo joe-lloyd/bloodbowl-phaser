@@ -1,4 +1,3 @@
-/** Compare engine-legal declarations with the simulation candidate seam. */
 import { writeFileSync } from "node:fs";
 import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";

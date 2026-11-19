@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { pregameGame } from "../utils/pregameGame";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -5,14 +6,13 @@ import { deserializeGameState } from "../../src/headless/serialization";
 import { SubPhase } from "../../src/types/GameState";
 import { Inducement } from "../../src/types/Inducements";
 
-/** Both coaches ready up for the weather, which readies them for the match. */
 async function ready(game: HeadlessGame) {
   for (const team of [game.ctx.team2, game.ctx.team1])
     expect(
       (await game.execute({ type: "ready-weather", teamId: team.id })).ok
     ).toBe(true);
 }
-/** Team 2 has the higher team value here, so it buys first. */
+
 const team2Confirms = { type: "confirm-inducements", teamId: "team2" } as const;
 const buyTraining = {
   type: "select-inducement",
@@ -35,7 +35,7 @@ describe("graphical match pregame through the protocol", () => {
     ).toBe(false);
     expect(game.driveKickingTeamId()).toBeNull();
     await ready(game);
-    // The teams buy in turn, the higher team value first
+
     expect((await game.execute(buyTraining)).reason).toContain(
       "not-your-turn-to-buy"
     );
@@ -73,16 +73,20 @@ describe("graphical match pregame through the protocol", () => {
     expect(game.ctx.gameService.getInducementOffer()).toEqual(
       original.ctx.gameService.getInducementOffer()
     );
-    // Team 2 has confirmed: its turn to buy is over
+
     expect(
       (await game.execute({ ...buyTraining, teamId: "team2" })).reason
     ).toContain("not-your-turn-to-buy");
     await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().pregameInducements?.complete).toBe(true);
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
-    game.ctx.gameService.getState().inducements!.inventory[0].remainingUses = 0;
+    fixtureValue(
+      fixtureValue(game.ctx.gameService.getState().inducements).inventory[0]
+    ).remainingUses = 0;
     await game.execute({ type: "confirm-inducements", teamId: "team1" });
-    expect(game.snapshot().inducements?.inventory[0].remainingUses).toBe(0);
+    expect(
+      fixtureValue(game.snapshot().inducements?.inventory[0]).remainingUses
+    ).toBe(0);
     expect((await game.execute(buyTraining)).ok).toBe(false);
   });
 
@@ -90,9 +94,9 @@ describe("graphical match pregame through the protocol", () => {
     const game = pregameGame(true);
     expect(game.snapshot().inducements).toBeUndefined();
     await ready(game);
-    expect(game.ctx.gameService.getInducementOffer().budgets.team1).toBe(0);
-    // Neither has petty cash: the higher team value still buys first
-    expect(game.ctx.gameService.getInducementOffer().budgets.team2).toBe(0);
+    expect(game.ctx.gameService.getInducementOffer().budgets["team1"]).toBe(0);
+
+    expect(game.ctx.gameService.getInducementOffer().budgets["team2"]).toBe(0);
     expect(game.snapshot().pregameInducements?.buyOrder).toEqual([
       "team2",
       "team1",
@@ -103,7 +107,9 @@ describe("graphical match pregame through the protocol", () => {
     );
     await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
-    expect(game.snapshot().inducements?.inventory[0].quantity).toBe(1);
+    expect(
+      fixtureValue(game.snapshot().inducements?.inventory[0]).quantity
+    ).toBe(1);
     await game.execute({ type: "confirm-inducements", teamId: "team1" });
     expect(game.snapshot().inducements?.inventory).toHaveLength(1);
   });
@@ -112,7 +118,7 @@ describe("graphical match pregame through the protocol", () => {
     const game = pregameGame();
     await ready(game);
     await game.execute(team2Confirms);
-    vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(3); // Iron Man
+    vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(3);
     await game.execute({
       ...buyTraining,
       inducement: Inducement.PRAYERS_TO_NUFFLE,
@@ -124,7 +130,7 @@ describe("graphical match pregame through the protocol", () => {
           inducement: Inducement.DESPERATE_MEASURES,
         })
       ).ok
-    ).toBe(true); // The same roll of 3 gives Hangover after Iron Man.
+    ).toBe(true);
     const confirmed = await game.execute({
       type: "confirm-inducements",
       teamId: "team1",
@@ -133,12 +139,11 @@ describe("graphical match pregame through the protocol", () => {
     const service = game.ctx.gameService;
     const before = game.snapshot();
     const rng = game.ctx.rng.captureState();
-    // Graphical callers also reach these methods directly, without the
-    // protocol's pending-decision gate.
+
     expect(() => service.tossCoin()).toThrow("inducements-not-confirmed");
-    expect(() => service.startSetup("team2")).toThrow(
-      "inducements-not-confirmed"
-    );
+    expect(() => {
+      service.startSetup("team2");
+    }).toThrow("inducements-not-confirmed");
     expect(game.ctx.rng.captureState()).toEqual(rng);
     expect(game.snapshot()).toEqual(before);
     expect(() => game.matchSave()).toThrow("Finish pregame choices");
@@ -149,11 +154,14 @@ describe("graphical match pregame through the protocol", () => {
     if (pending?.type !== "inducement-choice")
       throw new Error("missing prayer choice");
     const playerId = pending.playerIds[0];
-    const armour = game.ctx.gameService.getPlayerById(playerId)!.stats.AV;
+    const armour = fixtureValue(
+      game.ctx.gameService.getPlayerById(fixtureValue(playerId))
+    ).stats.AV;
     await game.execute({ type: "choose-inducement", playerId });
-    expect(game.ctx.gameService.getPlayerById(playerId)!.stats.AV).toBe(
-      armour + 1
-    );
+    expect(
+      fixtureValue(game.ctx.gameService.getPlayerById(fixtureValue(playerId)))
+        .stats.AV
+    ).toBe(armour + 1);
     const hangover = game.pendingDecision();
     if (hangover?.type !== "inducement-choice" || hangover.kind !== "hangover")
       throw new Error("missing Hangover choice");
@@ -167,7 +175,7 @@ describe("graphical match pregame through the protocol", () => {
     expect(game.matchSave().snapshot.pregameInducements?.resolving).toBe(false);
     expect(
       game.matchSave().snapshot.driveEffects?.playerModifiers[
-        hangover.playerIds[0]
+        fixtureValue(hangover.playerIds[0])
       ]?.confinedToReserves
     ).toBe(true);
     expect(

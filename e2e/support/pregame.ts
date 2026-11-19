@@ -1,10 +1,6 @@
-import { expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { expect, type Page } from "@playwright/test";
 
-/**
- * Buy nothing on each inducement turn this screen owns, then wait for the
- * toss. The weather ready-up has already readied both teams. Teams buy in
- * turn: hotseat confirms twice, and the computer buys its own.
- */
 export async function confirmPregame(page: Page): Promise<void> {
   const confirm = page.getByRole("button", {
     name: "Confirm — no purchases",
@@ -16,7 +12,7 @@ export async function confirmPregame(page: Page): Promise<void> {
     .textContent();
   await confirm.click();
   await expect(
-    page.getByRole("heading", { name: firstCoach!, exact: true })
+    page.getByRole("heading", { name: fixtureValue(firstCoach), exact: true })
   ).toHaveCount(0);
   if (await confirm.isVisible()) await confirm.click();
   await expect(

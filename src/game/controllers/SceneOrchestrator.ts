@@ -1,26 +1,14 @@
-import { GameScene } from "../../scenes/GameScene";
-import { IGameService } from "../../services/interfaces/IGameService";
-import { IEventBus } from "../../services/EventBus";
+import type { OrchestratorService } from "./handlers/servicePorts";
+import type { OrchestratorScene } from "./handlers/scenePorts";
+import { showSetupPlacement } from "./handlers/setupPlacement";
+import { type IEventBus } from "../../services/EventBus";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { GameEventNames } from "../../types/events";
-import { PhaseHandler } from "./handlers/PhaseHandler";
+import { type PhaseHandler } from "./handlers/PhaseHandler";
 import { SetupPhaseHandler } from "./handlers/SetupPhaseHandler";
 import { PlayPhaseHandler } from "./handlers/PlayPhaseHandler";
 import { KickoffPhaseHandler } from "./handlers/KickoffPhaseHandler";
 import { TouchdownPhaseHandler } from "./handlers/TouchdownPhaseHandler";
-import { getActiveOnlineMatch } from "../../network/OnlineMatch";
-
-/**
- * SceneOrchestrator - Manages Phase Transitions and Delegates Logic
- *
- * Responsibility:
- * - Listen for Global Phase Changes.
- * - Load/Unload the appropriate PhaseHandler.
- * - Manage High-Level Scene Lifecycles.
- *
- * DOES NOT:
- * - Implement specific phase logic (Placement, Passing, etc.) -> Delegated to Handler.
- */
 
 interface SceneOrchestratorConfig {
   skipCoinFlip?: boolean;
@@ -33,16 +21,19 @@ export class SceneOrchestrator {
   private enteredHandler: PhaseHandler | null = null;
   private currentPhase: GamePhase | null = null;
 
+  private scene: OrchestratorScene;
+  private gameService: OrchestratorService;
+  private eventBus: IEventBus;
+  private config: SceneOrchestratorConfig;
   constructor(
-    private scene: GameScene,
-    private gameService: IGameService,
-    private eventBus: IEventBus,
-    private config: SceneOrchestratorConfig = {}
-  ) {
+{ scene,gameService,eventBus,config={} }: { scene: OrchestratorScene; gameService: OrchestratorService; eventBus: IEventBus; config?: SceneOrchestratorConfig; }  ) {
+    this.scene = scene;
+    this.gameService = gameService;
+    this.eventBus = eventBus;
+    this.config = config;
     this.setupGlobalListeners();
   }
 
-  // Phase Change Listener (Always Active)
   private onPhaseChanged = (data: {
     phase: GamePhase;
     subPhase?: SubPhase;
@@ -57,31 +48,45 @@ export class SceneOrchestrator {
   public initialize(): void {
     const state = this.gameService.getState();
 
-    // Determine starting phase
-    let phase = state.phase;
-    let subPhase = state.subPhase;
-
-    if (this.config.startingPhase) {
-      phase = this.config.startingPhase;
-      subPhase = this.config.startingSubPhase;
-    } else if (phase === undefined) {
-      phase = GamePhase.SETUP; // Default
-    }
+    const phase = this.config.startingPhase ?? state.phase;
+    const subPhase = this.config.startingPhase ? this.config.startingSubPhase : state.subPhase;
 
     this.handlePhaseChange(phase, subPhase);
   }
 
   private handlePhaseChange(phase: GamePhase, subPhase?: SubPhase): void {
-    // 2. Instantiate new handler ONLY if phase actually changed
     if (!this.currentHandler || this.currentPhase !== phase) {
       this.currentPhase = phase;
 
-      // Exit current phase
       if (this.currentHandler) {
         this.currentHandler.exit();
         this.currentHandler = null;
       }
 
+      this.installHandler(phase, subPhase);
+    }
+
+    if (this.currentHandler && this.enteredHandler !== this.currentHandler) {
+      this.currentHandler.enter();
+      this.enteredHandler = this.currentHandler;
+    }
+
+    this.applySetupSubPhase(phase, subPhase);
+  }
+
+  private applySetupSubPhase(phase: GamePhase, subPhase?: SubPhase): void {
+    if (phase === GamePhase.SETUP) {
+      if (subPhase === SubPhase.SETUP_KICKING) {
+        this.startPlacement(SubPhase.SETUP_KICKING);
+      } else if (subPhase === SubPhase.SETUP_RECEIVING) {
+        this.startPlacement(SubPhase.SETUP_RECEIVING);
+      } else if (subPhase === SubPhase.COIN_FLIP) {
+        this.startSetupPhase();
+      }
+    }
+  }
+
+  private installHandler(phase: GamePhase, subPhase?: SubPhase): void {
       switch (phase) {
         case GamePhase.SETUP:
           this.currentHandler = new SetupPhaseHandler(
@@ -107,8 +112,6 @@ export class SceneOrchestrator {
           break;
         case GamePhase.HALFTIME:
         case GamePhase.TOUCHDOWN:
-          // The celebration window has an owner: without one the scene was
-          // unmanaged exactly while the pitch was being cleared underneath it.
           this.currentHandler = new TouchdownPhaseHandler(
             this.scene,
             this.gameService,
@@ -122,64 +125,21 @@ export class SceneOrchestrator {
           this.currentHandler = null;
           break;
         case GamePhase.GAME_OVER:
-          // The match has ended. There is no active handler; GameService
-          // already announced full time (screen + match log) from the
-          // engine level, so there is nothing left to do but stop routing
-          // to a phase handler instead of falling through to the
-          // unhandled-phase warning.
           this.currentHandler = null;
           console.log("[Orchestrator] Match complete.");
           break;
         default:
-          console.warn(`[Orchestrator] No handler for phase: ${phase}`);
+          console.warn(`[Orchestrator] No handler for phase: ${String(phase)}`);
           break;
       }
-    }
-
-    // 3. Enter new phase
-    if (this.currentHandler && this.enteredHandler !== this.currentHandler) {
-      this.currentHandler.enter();
-      this.enteredHandler = this.currentHandler;
-    }
-
-    // Legacy mapping for direct control if needed
-    if (phase === GamePhase.SETUP) {
-      if (subPhase === SubPhase.SETUP_KICKING) {
-        this.startPlacement(SubPhase.SETUP_KICKING);
-      } else if (subPhase === SubPhase.SETUP_RECEIVING) {
-        this.startPlacement(SubPhase.SETUP_RECEIVING);
-      } else if (subPhase === SubPhase.COIN_FLIP) {
-        this.startSetupPhase();
-      }
-    }
   }
 
-  /**
-   * Start placement - Exposed for Scene/Tests to manually trigger if needed
-   * (Though ideally this is triggered by Phase Events now)
-   */
   public startPlacement(subPhase: SubPhase): void {
-    // Delegate to scene directly if handler doesn't cover it?
-    // Or move this logic INTO SetupPhaseHandler entirely?
-    // For backward compatibility, we can keep using Scene methods for now
-    // but managed by the handler?
-
-    // Let's call the Scene methods directly as the 'Handler' would.
-    // Derive the active team from live game state — scene.kickingTeam is
-    // only the coin-flip result and goes stale once later drives swap the
-    // kicking team (scorer kicks, halves swap).
     const isKicking = subPhase === SubPhase.SETUP_KICKING;
     const activeTeamId = this.gameService.getActiveTeamId();
-    const activeTeam =
-      activeTeamId === this.scene.team1.id
-        ? this.scene.team1
-        : activeTeamId === this.scene.team2.id
-          ? this.scene.team2
-          : null;
+    const activeTeam = [this.scene.team1, this.scene.team2].find((team) => team.id === activeTeamId);
     if (!activeTeam) return;
 
-    // Keep the scene's drive bookkeeping current for downstream users
-    // (KickoffPhaseHandler reads scene.kickingTeam at kickoff)
     if (isKicking) {
       const otherTeam =
         activeTeam.id === this.scene.team1.id
@@ -189,27 +149,7 @@ export class SceneOrchestrator {
       this.scene.receivingTeam = otherTeam;
     }
 
-    const isTeam1 = activeTeam.id === this.scene.team1.id;
-
-    // Online: only the active team's coach interacts with placement; the
-    // opponent watches the board update read-only (UI_SyncBoard renders it)
-    // with the setup panel hidden and no drag.
-    const match = getActiveOnlineMatch();
-    if (match && activeTeam.id !== match.myTeamId) {
-      this.eventBus.emit(GameEventNames.UI_HideSetupControls);
-      this.scene.disableSetupInteraction();
-      this.eventBus.emit(GameEventNames.UI_SyncBoard);
-      return;
-    }
-
-    this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
-      subPhase,
-      activeTeam,
-      status: this.gameService.getSetupStatus(activeTeam.id),
-    });
-
-    this.scene.highlightSetupZone(isTeam1);
-    this.scene.enablePlacement(activeTeam, isTeam1);
+    showSetupPlacement({ scene: this.scene, gameService: this.gameService, eventBus: this.eventBus }, { subPhase, team: activeTeam });
   }
 
   public startSetupPhase(): void {
@@ -217,16 +157,11 @@ export class SceneOrchestrator {
   }
 
   public checkSetupCompleteness(): void {
-    // Helper proxy
     if (!this.scene.isSetupActive) return;
     const state = this.gameService.getState();
     if (!state.activeTeamId) return;
     const isComplete = this.gameService.isSetupComplete(state.activeTeamId);
     this.eventBus.emit(GameEventNames.UI_SetupComplete, isComplete);
-  }
-
-  public setupEventListeners(): void {
-    // Deprecated - kept empty for interface compatibility if any
   }
 
   public destroy(): void {

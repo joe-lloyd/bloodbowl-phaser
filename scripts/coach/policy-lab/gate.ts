@@ -1,4 +1,3 @@
-/** Run named coach contracts and inventory honest tactical gaps. */
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";

@@ -1,31 +1,28 @@
 import { whenEngineQuiet } from "../core/GameFlowManager";
-import { IEventBus } from "../../services/EventBus";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type IEventBus } from "../../services/EventBus";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import { GameEventNames } from "../../types/events";
-import { MatchSave } from "../../headless/serialization";
-import { MatchSaveRepository, writeMatchSave } from "./MatchSaveRepository";
+import { type MatchSave } from "../../headless/serialization";
+import {
+  type MatchSaveRepository,
+  writeMatchSave,
+} from "./MatchSaveRepository";
 
 export interface MatchAutosaveOptions {
   enabled?: boolean;
   debounceMs?: number;
   repository?: MatchSaveRepository;
-  /**
-   * A choice held outside the engine's decisions is open, such as a
-   * headless match's block dice. A save cannot carry its prompt either.
-   */
+
   choiceOpen?: () => boolean;
 }
 
-/**
- * One boundary observer for local play. It waits for the operation queue to
- * drain and the engine to settle, and refuses to persist while a decision or
- * a turnover is open: nothing that resumes the match could finish either.
- */
 export class MatchAutosave {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private disposed = false;
   private revision = 0;
-  private readonly boundaryHandler = () => this.schedule();
+  private readonly boundaryHandler = () => {
+    this.schedule();
+  };
   private readonly watchedEvents = [
     GameEventNames.GameStateChanged,
     GameEventNames.UI_SyncBoard,
@@ -33,23 +30,32 @@ export class MatchAutosave {
     GameEventNames.TurnEnded,
     GameEventNames.PhaseChanged,
     GameEventNames.DriveEnded,
-    // The results screen's steps, so a reload never offers one again
+
     GameEventNames.MvpAwarded,
     GameEventNames.AwardedTouchdownAssigned,
     GameEventNames.MatchSppApplied,
   ] as const;
 
+  private readonly eventBus: IEventBus;
+  private readonly gameService: IGameService;
+  private readonly buildSave: () => MatchSave;
+  private readonly options: MatchAutosaveOptions;
   constructor(
-    private readonly eventBus: IEventBus,
-    private readonly gameService: IGameService,
-    private readonly buildSave: () => MatchSave,
-    private readonly options: MatchAutosaveOptions = {}
-  ) {}
+    eventBus: IEventBus,
+    gameService: IGameService,
+    buildSave: () => MatchSave,
+    options: MatchAutosaveOptions = {}
+  ) {
+    this.eventBus = eventBus;
+    this.gameService = gameService;
+    this.buildSave = buildSave;
+    this.options = options;
+  }
 
   start(): void {
     if (this.options.enabled === false || this.disposed) return;
     this.watchedEvents.forEach((event) => {
-      this.eventBus.on(event, this.boundaryHandler as never);
+      this.eventBus.on(event, this.boundaryHandler);
     });
     this.schedule();
   }
@@ -101,7 +107,7 @@ export class MatchAutosave {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.watchedEvents.forEach((event) => {
-      this.eventBus.off(event, this.boundaryHandler as never);
+      this.eventBus.off(event, this.boundaryHandler);
     });
   }
 }

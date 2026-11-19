@@ -1,12 +1,5 @@
 import { SkillType } from "./Skills";
 
-/**
- * Special Actions that may replace the Block made during a Blitz.
- *
- * These stable wire identifiers are deliberately separate from display
- * labels and SkillType values so declarations can survive movement,
- * snapshots, and online/headless command serialization.
- */
 export const BLOCK_REPLACEMENTS = [
   "stab",
   "chainsaw",
@@ -57,7 +50,7 @@ export const BLOCK_REPLACEMENT_DEFINITIONS: Record<
 export function isBlockReplacement(value: unknown): value is BlockReplacement {
   return (
     typeof value === "string" &&
-    (BLOCK_REPLACEMENTS as readonly string[]).includes(value)
+    (BLOCK_REPLACEMENTS).includes(value)
   );
 }
 

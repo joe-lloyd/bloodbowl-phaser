@@ -42,7 +42,6 @@ test("Frenzy rolls its second block automatically and the blitzer can dodge away
   );
   await app.pitch.clickSquare({ x: 12, y: 5 });
 
-  // No second Roll click or follow-up confirmation should be needed.
   await expect(page.getByTestId("block-die-0")).toBeVisible();
   await expect(page.getByTestId("block-roll-dice")).toBeHidden();
   await expect(app.hud.followUpDialog()).toBeHidden();

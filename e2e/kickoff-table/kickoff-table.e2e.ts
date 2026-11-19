@@ -1,16 +1,5 @@
-/**
- * Every Sevens kick-off table result, in the sandbox's Kickoff Table
- * scenarios, recorded as one video: Time-Out twice, for its two branches.
- *
- * Each result loads on its curated seed, the kick is made by clicking the
- * kicker and the target, any coach step is answered through the HUD, and the
- * drive plays on until the receiving team's turn begins. A caption names the
- * roll and result, then states what the engine did and what this test
- * checked; the check is an assertion, so a result that goes wrong fails the
- * run instead of reaching the video. Chapter times land in
- * `${KICKOFF_VIDEO_OUT}/chapters.json`.
- */
-import { expect, Page, test } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { GameApp } from "../support/pages/game";
 import {
@@ -20,8 +9,8 @@ import {
 } from "../../src/game/kickoff/kickoffEvents";
 import { KICKOFF_EXAMPLE_SEEDS } from "../../src/data/kickoffScenarios";
 
-const OUT = process.env.KICKOFF_VIDEO_OUT ?? "e2e-results/kickoff-video-out";
-/** The kick: team 1's first player aims at the receivers' middle. */
+const OUT = process.env["KICKOFF_VIDEO_OUT"] ?? "e2e-results/kickoff-video-out";
+
 const KICKER = "team1:0";
 const TARGET = { x: 14, y: 5 };
 
@@ -31,8 +20,7 @@ interface Clip {
   scenario: "kickoff-table-standard" | "kickoff-table-late-half";
 }
 
-/** KICKOFF_ONLY=5,10 records just those rolls, for working on one result. */
-const ONLY = process.env.KICKOFF_ONLY?.split(",").map((roll) => {
+const ONLY = process.env["KICKOFF_ONLY"]?.split(",").map((roll) => {
   const n = Number(roll.trim());
   if (!KICKOFF_TABLE[n]) throw new Error(`KICKOFF_ONLY: no roll "${roll}"`);
   return n;
@@ -50,14 +38,12 @@ const CLIPS: Clip[] = Object.entries(KICKOFF_TABLE)
       : [{ ...clip, scenario: "kickoff-table-standard" }];
   });
 
-/** The sandbox's outcome id for a result, as kickoffScenarios builds it. */
 const outcomeId = (event: KickoffEvent) =>
   event
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-/** What the engine knows right now, read from the page. */
 interface EngineView {
   phase: string;
   activeTeamId: string | null;
@@ -131,7 +117,6 @@ function engine(page: Page): Promise<EngineView> {
   });
 }
 
-/** The caption in the top-left corner, or a full-screen title card. */
 async function caption(
   page: Page,
   lines: { title: string; body?: string[]; checked?: string[] },
@@ -153,10 +138,10 @@ async function caption(
       const escape = (s: string) =>
         s.replace(
           /[&<>]/g,
-          (c) => `&${{ "&": "amp", "<": "lt", ">": "gt" }[c]};`
+          (c) => `&${String({ "&": "amp", "<": "lt", ">": "gt" }[c])};`
         );
       box.innerHTML =
-        `<div style="font-weight:700;font-size:${card ? 44 : 17}px;color:#d6b25e">${escape(lines.title)}</div>` +
+        `<div style="font-weight:700;font-size:${String(card ? 44 : 17)}px;color:#d6b25e">${escape(lines.title)}</div>` +
         (lines.body ?? [])
           .map((l) => `<div style="color:#c9d1d9">${escape(l)}</div>`)
           .join("") +
@@ -171,7 +156,6 @@ async function caption(
   );
 }
 
-/** The KickoffResult the page has emitted, once it has. */
 async function kickoffResult(app: GameApp) {
   let found:
     | {
@@ -192,10 +176,9 @@ async function kickoffResult(app: GameApp) {
       { timeout: 30_000 }
     )
     .toBe(true);
-  return found!;
+  return fixtureValue(found);
 }
 
-/** A square one step from `at`, the way given, as long as nobody holds it. */
 function stepFrom(
   view: EngineView,
   at: { x: number; y: number },
@@ -205,23 +188,19 @@ function stepFrom(
   const taken = view.players.some(
     (p) => p.at && p.at.x === to.x && p.at.y === to.y
   );
-  if (taken) throw new Error(`(${to.x},${to.y}) is taken`);
+  if (taken) throw new Error(`(${String(to.x)},${String(to.y)}) is taken`);
   return to;
 }
 
-/**
- * Alert Defence and Quick Snap: two players step one square each, the
- * kicking side forward, the receivers back, then Done.
- */
 async function stepTwo(page: Page, app: GameApp, dx: number) {
   const before = await engine(page);
-  const team = before.step!.teamId;
+  const team = fixtureValue(before.step).teamId;
   const movers = before.players
     .filter((p) => p.teamId === team && p.at)
-    .slice(1, 1 + Math.min(2, before.step!.selectionLimit));
+    .slice(1, 1 + Math.min(2, fixtureValue(before.step).selectionLimit));
   for (const mover of movers) {
     const view = await engine(page);
-    const from = view.players.find((p) => p.id === mover.id)!.at!;
+    const from = fixtureValue(fixtureValue(view.players.find((p) => p.id === mover.id)).at);
     await app.pitch.clickSquare(from);
     await page.waitForTimeout(700);
     await app.pitch.clickSquare(stepFrom(view, from, dx));
@@ -233,10 +212,10 @@ async function stepTwo(page: Page, app: GameApp, dx: number) {
   await page.getByRole("button", { name: "Done" }).click();
   const after = await engine(page);
   return movers.map((mover) => {
-    const from = mover.at!;
-    const to = after.players.find((p) => p.id === mover.id)!.at!;
+    const from = fixtureValue(mover.at);
+    const to = fixtureValue(fixtureValue(after.players.find((p) => p.id === mover.id)).at);
     expect(Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y))).toBe(1);
-    return `${mover.name} (${before.teamNames[team]}) stepped (${from.x},${from.y}) → (${to.x},${to.y})`;
+    return `${mover.name} (${String(before.teamNames[team])}) stepped (${String(from.x)},${String(from.y)}) → (${String(to.x)},${String(to.y)})`;
   });
 }
 
@@ -275,7 +254,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
     });
     const at = Date.now() - start;
     const late = clip.scenario === "kickoff-table-late-half";
-    const title = `${clip.roll} · ${clip.event}${clip.event === KickoffEvent.TIME_OUT ? (late ? " (turn 5)" : " (turn 2)") : ""}`;
+    const title = `${String(clip.roll)} · ${clip.event}${clip.event === KickoffEvent.TIME_OUT ? (late ? " (turn 5)" : " (turn 2)") : ""}`;
     await caption(
       page,
       { title, body: [KICKOFF_EVENT_MEANING[clip.event]] },
@@ -290,7 +269,6 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
     const before = await engine(page);
     const [kicking, receiving] = Object.keys(before.teamNames);
 
-    // The kick, as a coach makes it
     await app.pitch.clickPlayer(KICKER);
     await page.waitForTimeout(600);
     await app.pitch.clickSquare(TARGET);
@@ -319,29 +297,29 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         const confirm = page.getByRole("button", { name: "Confirm" });
         await expect(confirm).toBeVisible({ timeout: 30_000 });
         const view = await engine(page);
-        const landing = view.step!.landingSquare!;
-        // The receiver nearest the landing square
+        const landing = fixtureValue(fixtureValue(view.step).landingSquare);
+
         const gap = (p: EngineView["players"][number]) =>
           Math.max(
-            Math.abs(p.at!.x - landing.x),
-            Math.abs(p.at!.y - landing.y)
+            Math.abs(fixtureValue(p.at).x - landing.x),
+            Math.abs(fixtureValue(p.at).y - landing.y)
           );
         const receiver = view.players
           .filter((p) => p.teamId === receiving && p.at)
           .sort((a, b) => gap(a) - gap(b))[0];
         await page.waitForTimeout(1200);
-        await app.pitch.clickSquare(receiver.at!);
+        await app.pitch.clickSquare(fixtureValue(fixtureValue(receiver).at));
         await expect
           .poll(
             async () =>
-              (await engine(page)).players.find((p) => p.id === receiver.id)!.at
+              fixtureValue((await engine(page)).players.find((p) => p.id === fixtureValue(receiver).id)).at
           )
           .toEqual(landing);
         await page.waitForTimeout(1200);
-        // Placing the receiver may close the step by itself
+
         if (await confirm.isVisible()) await confirm.click();
         checked.push(
-          `${receiver.name} (${view.teamNames[receiving]}) placed under the ball at (${landing.x},${landing.y})`
+          `${fixtureValue(receiver).name} (${String(view.teamNames[fixtureValue(receiving)])}) placed under the ball at (${String(landing.x)},${String(landing.y)})`
         );
         break;
       }
@@ -349,39 +327,38 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         const charge = page.getByRole("button", { name: /charge!/i });
         await expect(charge).toBeVisible({ timeout: 30_000 });
         const charger = before.players.filter((p) => p.teamId === kicking)[2];
-        await app.pitch.clickSquare(charger.at!);
+        await app.pitch.clickSquare(fixtureValue(fixtureValue(charger).at));
         await page.waitForTimeout(800);
         await charge.click();
         await expect(app.hud.actionMenu()).toBeVisible({ timeout: 10_000 });
         await app.hud.actionButton("move").click();
-        const to = { x: charger.at!.x + 1, y: charger.at!.y };
+        const to = { x: fixtureValue(fixtureValue(charger).at).x + 1, y: fixtureValue(fixtureValue(charger).at).y };
         await app.pitch.clickSquare(to);
         await app.pitch.clickSquare(to);
         await expect
           .poll(
             async () =>
-              (await engine(page)).players.find((p) => p.id === charger.id)!.at
+              fixtureValue((await engine(page)).players.find((p) => p.id === fixtureValue(charger).id)).at
           )
           .toEqual(to);
         await page.waitForTimeout(800);
         await page.getByRole("button", { name: /end activation/i }).click();
         checked.push(
-          `${charger.name} (${before.teamNames[kicking]}) took a free Move before the drive: (${charger.at!.x},${charger.at!.y}) → (${to.x},${to.y})`
+          `${fixtureValue(charger).name} (${String(before.teamNames[fixtureValue(kicking)])}) took a free Move before the drive: (${String(fixtureValue(fixtureValue(charger).at).x)},${String(fixtureValue(fixtureValue(charger).at).y)}) → (${String(to.x)},${String(to.y)})`
         );
         break;
       }
     }
 
-    // The drive starts on the receivers' turn
     await expect
       .poll(async () => (await engine(page)).phase, { timeout: 60_000 })
       .toBe("PLAY");
     await page.waitForTimeout(1500);
     const after = await engine(page);
     const name = (teamId: string) => after.teamNames[teamId];
-    /** Both sides can share player names, so a player comes with a team. */
+
     const who = (p: { name: string; teamId: string }) =>
-      `${p.name} (${name(p.teamId)})`;
+      `${p.name} (${String(name(p.teamId))})`;
 
     switch (clip.event) {
       case KickoffEvent.GET_THE_REF:
@@ -389,11 +366,11 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         checked.push("Each team now holds one Bribe");
         break;
       case KickoffEvent.TIME_OUT: {
-        const was = before.turns[kicking];
-        const now = after.turns[kicking];
-        expect(now).toBe(late ? was - 1 : was + 1);
+        const was = before.turns[fixtureValue(kicking)];
+        const now = after.turns[fixtureValue(kicking)];
+        expect(now).toBe(late ? fixtureValue(was) - 1 : fixtureValue(was) + 1);
         checked.push(
-          `Kicking team's marker on turn ${was}, so both markers moved ${late ? "back" : "forward"}: ${was} → ${now}`
+          `Kicking team's marker on turn ${String(was)}, so both markers moved ${late ? "back" : "forward"}: ${String(was)} → ${String(now)}`
         );
         break;
       }
@@ -410,7 +387,8 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         expect(free.length).toBeGreaterThan(0);
         checked.push(
           ...free.map(
-            ([team, n]) => `${name(team)}: ${n} free re-roll this drive`
+            ([team, n]) =>
+              `${String(name(team))}: ${String(n)} free re-roll this drive`
           )
         );
         break;
@@ -419,7 +397,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         const events = await app.bridge.events();
         expect(events.some((e) => e.name === "weatherChanged")).toBe(true);
         checked.push(`Weather re-rolled: ${before.weather} → ${after.weather}`);
-        // Perfect Conditions ("Nice") makes the ball Scatter (3) in the air
+
         const scatter = events.find(
           (e) =>
             e.name === "ballScattered" &&
@@ -432,7 +410,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         expect(!!scatter).toBe(after.weather === "Nice");
         if (scatter)
           checked.push(
-            `Perfect Conditions, so the ball scattered in the air: (${scatter.from.x},${scatter.from.y}) → (${scatter.to.x},${scatter.to.y})`
+            `Perfect Conditions, so the ball scattered in the air: (${String(scatter.from.x)},${String(scatter.from.y)}) → (${String(scatter.to.x)},${String(scatter.to.y)})`
           );
         break;
       }
@@ -440,14 +418,14 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
         const hit = Object.entries(after.modifiers);
         expect(hit.length).toBeGreaterThan(0);
         for (const [id, modifier] of hit) {
-          const p = after.players.find((q) => q.id === id)!;
+          const p = fixtureValue(after.players.find((q) => q.id === id));
           if (modifier.confinedToReserves) {
             expect(p.at).toBeNull();
             checked.push(`${who(p)} sent to the Reserves for the drive`);
           } else {
             expect([p.ma, p.av]).toEqual([p.baseMa - 1, p.baseAv - 1]);
             checked.push(
-              `${who(p)}: MA ${p.baseMa} → ${p.ma}, AV ${p.baseAv} → ${p.av} for the drive`
+              `${who(p)}: MA ${String(p.baseMa)} → ${String(p.ma)}, AV ${String(p.baseAv)} → ${String(p.av)} for the drive`
             );
           }
         }
@@ -463,10 +441,10 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
       }
     }
     expect(after.activeTeamId).toBe(receiving);
-    checked.push(`${name(receiving)}'s turn begins`);
+    checked.push(`${String(name(fixtureValue(receiving)))}'s turn begins`);
 
     const got = Object.entries(result.outcome.perTeam).flatMap(
-      ([team, lines]) => lines.map((line) => `${name(team)}: ${line}`)
+      ([team, lines]) => lines.map((line) => `${String(name(team))}: ${line}`)
     );
     await caption(page, { title, body: got, checked });
     chapters.push({
@@ -483,9 +461,9 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
     page,
     {
       title: ONLY
-        ? `${new Set(CLIPS.map((c) => c.event)).size} of eleven results checked`
+        ? `${String(new Set(CLIPS.map((c) => c.event)).size)} of eleven results checked`
         : "All eleven results checked",
-      body: CLIPS.map((c) => `${c.roll} · ${c.event}`).filter(
+      body: CLIPS.map((c) => `${String(c.roll)} · ${c.event}`).filter(
         (l, i, all) => all.indexOf(l) === i
       ),
     },

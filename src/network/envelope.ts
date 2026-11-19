@@ -1,43 +1,24 @@
-/**
- * Network envelope - one wrapper for everything that crosses the wire.
- *
- * Payloads reuse the headless action protocol (HeadlessCommand /
- * CommandResponse / GameSnapshot): the network speaks exactly the language
- * the AI and CLI already exercise, so no rules or message shapes are
- * duplicated here.
- */
+import { type HeadlessCommand, type PendingDecision } from "../headless/protocol";
+import { type Team } from "../types/Team";
+import { type GameSnapshot } from "../headless/serialization";
+import { type RNGState } from "../services/rng/RNGService";
+import { type MatchStatsSnapshot } from "../game/progression/MatchStats";
+import { type StepPrompt } from "../types/events";
 
-import { HeadlessCommand, PendingDecision } from "../headless/protocol";
-import { Team } from "../types/Team";
-import { GameSnapshot } from "../headless/serialization";
-import { RNGState } from "../services/rng/RNGService";
-import { MatchStatsSnapshot } from "../game/progression/MatchStats";
-import { StepPrompt } from "../types/events";
-
-/** Bumped whenever commands/snapshots change incompatibly. */
 export const PROTOCOL_VERSION = 15;
 
 export interface HelloPayload {
   protocolVersion: number;
-  /** Commands the sender's engine has run; the side with more is ahead. */
+
   applied: number;
   checksum: string;
 }
 
-/**
- * One coach's command, with the checksum of their state before it. It goes
- * out before the sender's own screen plays it, so both screens show it at
- * about the same time.
- */
 export interface CommandPayload {
   command: HeadlessCommand;
   before: string;
 }
 
-/**
- * Sent once the sender's engine has played out its own command: how many
- * commands it has now run, and the checksum of the state they led to.
- */
 export interface SettledPayload {
   applied: number;
   checksum: string;
@@ -48,51 +29,29 @@ export interface ChatPayload {
   senderName: string;
 }
 
-/**
- * The commands a page that came back missed, from its own count on. It
- * replays them on its engine, which rebuilds any roll path paused on a
- * decision, such as a re-roll. A full state cannot carry that.
- */
 export interface CatchUpPayload {
   from: number;
   commands: HeadlessCommand[];
 }
 
-/** Everything a side needs to rebuild the other's engine exactly. */
 export interface LockstepState {
   snapshot: GameSnapshot;
-  /** Players' stats and skills can change mid-match (inducements). */
+
   teams: [Team, Team];
   pending: PendingDecision | null;
   rng: RNGState;
   matchStats: MatchStatsSnapshot;
   applied: number;
-  /**
-   * Commands to run on top of this state. A roll path paused on a decision
-   * cannot travel in a state, so while one is open the state is from before
-   * it, and these commands rebuild the path.
-   */
+
   replay: HeadlessCommand[];
-  /** The state after `replay`: a side already there has nothing to rebuild. */
+
   checksum: string;
 }
 
-/**
- * Cosmetic-only: "the player I currently have selected on my own team is
- * X (or none)". Never mutates game state and is not part of the ordered/
- * deduplicated command sequencing guarantees — the receiver just adopts the
- * latest value it sees.
- */
 export interface SelectionPayload {
   playerId: string | null;
 }
 
-/**
- * Cosmetic-only: "I have this Dodge, Rush or Pick up prompt open (or none)".
- * The prompt is asked before its command is sent, so without this the
- * other coach sees nothing while it is open. Never touches game state;
- * the receiver shows the latest value it sees.
- */
 export interface PromptPayload {
   prompt: StepPrompt | null;
 }
@@ -110,23 +69,12 @@ export type Envelope = { seq: number; from: string; ts: number } & (
   | { kind: "prompt"; payload: PromptPayload }
 );
 
-export type EnvelopeKind = Envelope["kind"];
 
-/**
- * Per-sender ordering: assigns outgoing seq numbers and classifies incoming
- * ones. A duplicate is dropped; a gap means messages were missed and the
- * receiver must resync rather than continue from inconsistent state.
- */
 export class SequenceTracker {
   private nextOut = 1;
   private lastTs = 0;
   private lastIn = new Map<string, number>();
 
-  /**
-   * The next outgoing seq and send time. Firestore orders the log by `ts`
-   * and breaks ties by random doc id, so two sends in one millisecond could
-   * swap; each stamp is at least 1 ms after the previous one.
-   */
   stamp(): { seq: number; ts: number } {
     this.lastTs = Math.max(Date.now(), this.lastTs + 1);
     return { seq: this.nextOut++, ts: this.lastTs };
@@ -140,8 +88,6 @@ export class SequenceTracker {
     return kind;
   }
 
-  /** After a resync, or a hello opening a new session on the other side
-   *  (a page load restarts its seq at 1), accept the stream from here. */
   acceptFrom(from: string, seq: number): void {
     this.lastIn.set(from, seq);
   }

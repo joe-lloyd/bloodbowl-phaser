@@ -1,8 +1,8 @@
 import Phaser from "phaser";
-import { TeamColors } from "../../types/Team";
+import { type TeamColors } from "../../types/Team";
 import {
-  Animation,
-  Facing,
+  type Animation,
+  type Facing,
   frameName,
   hasModelArt,
   LAYERS,
@@ -23,16 +23,10 @@ const MODELS: Record<CrewRole, string> = {
   medic: "sideline_medic",
 };
 
-/** Only the crew already rendered: a model not in the manifest has no files. */
 export function preloadSidelineArt(scene: Phaser.Scene): void {
   preloadModels(scene, Object.values(MODELS).filter(hasModelArt));
 }
 
-/**
- * A kit-tinted, animated miniature without a player's number or hit square.
- * Until its model is rendered it draws nothing, shadow included, so a
- * stretcher moves on its own and a terrace shows only its benches.
- */
 export class SidelineStaffSprite extends Phaser.GameObjects.Container {
   private layers: Phaser.GameObjects.Sprite[] = [];
   private model: string;
@@ -42,15 +36,16 @@ export class SidelineStaffSprite extends Phaser.GameObjects.Container {
   private shown = "";
   private still = prefersReducedMotion();
 
-  constructor(
-    scene: Phaser.Scene,
-    x: number,
-    y: number,
-    role: CrewRole,
-    kit: TeamColors,
-    facing: Facing,
-    index = 0
-  ) {
+  constructor(options: {
+    scene: Phaser.Scene;
+    x: number;
+    y: number;
+    role: CrewRole;
+    kit: TeamColors;
+    facing: Facing;
+    index?: number;
+  }) {
+    const { scene, x, y, role, kit, facing, index = 0 } = options;
     super(scene, x, y);
     this.model = MODELS[role];
     this.animation = role === "cheerleader" ? "cheer" : "idle";
@@ -58,6 +53,19 @@ export class SidelineStaffSprite extends Phaser.GameObjects.Container {
     this.phase = index * 137;
     if (hasModelArt(this.model))
       this.add(scene.add.ellipse(0, 1, 32, 13, 0x000000, 0.25));
+    this.buildFigure(kit, facing);
+    this.setName(`sideline:${role}:${String(index)}`);
+    this.setSize(38, 60);
+    scene.add.existing(this);
+    scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
+    this.once(Phaser.GameObjects.Events.DESTROY, () => {
+      scene.events.off(Phaser.Scenes.Events.UPDATE, this.tick, this);
+    });
+    this.tick(0);
+  }
+
+  private buildFigure(kit: TeamColors, facing: Facing): void {
+    const scene = this.scene;
     const art = modelArt(this.model);
     const tints = [null, kit.primary, kit.secondary];
     for (const [i, layer] of LAYERS.entries()) {
@@ -69,18 +77,11 @@ export class SidelineStaffSprite extends Phaser.GameObjects.Container {
         frameName("idle", facing, 0)
       );
       sprite.setOrigin(art.anchor[0] / art.frame, art.anchor[1] / art.frame);
-      if (tints[i] !== null) sprite.setTint(tints[i]!);
+      const tint = tints[i];
+      if (tint !== null && tint !== undefined) sprite.setTint(tint);
       this.layers.push(sprite);
       this.add(sprite);
     }
-    this.setName(`sideline:${role}:${index}`);
-    this.setSize(38, 60);
-    scene.add.existing(this);
-    scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
-    this.once(Phaser.GameObjects.Events.DESTROY, () => {
-      scene.events.off(Phaser.Scenes.Events.UPDATE, this.tick, this);
-    });
-    this.tick(0);
   }
 
   public walk(facing: Facing): void {
@@ -92,9 +93,9 @@ export class SidelineStaffSprite extends Phaser.GameObjects.Container {
     this.animation = "idle";
   }
 
-  private tick(time: number): void {
+  private tick = (time: number): void => {
     this.setDepth(PLAYER_DEPTH + this.y);
-    const count = modelArt(this.model).animations[this.animation] ?? 1;
+    const count = modelArt(this.model).animations[this.animation];
     const fps = this.animation === "run" ? 12 : 8;
     const step =
       this.still && this.animation !== "run"
@@ -104,5 +105,5 @@ export class SidelineStaffSprite extends Phaser.GameObjects.Container {
     if (name === this.shown) return;
     this.shown = name;
     for (const layer of this.layers) layer.setFrame(name);
-  }
+  };
 }

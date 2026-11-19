@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { checkOwnership } from "../../src/network/OwnershipGate";
 
 const scenario: Scenario = {
@@ -20,8 +21,8 @@ const scenario: Scenario = {
 async function block() {
   const game = new HeadlessGame({ scenario, seed: 1 });
   game.ctx.team1.rerolls = 2;
-  const attackerId = game.ctx.team1.players[0].id;
-  const defenderId = game.ctx.team2.players[0].id;
+  const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: attackerId,
@@ -66,7 +67,7 @@ describe("uphill block re-roll window", () => {
       choiceStage: "pick",
       chooserTeamId: game.ctx.team2.id,
     });
-    expect(game.snapshot().teams[0].rerolls).toBe(2);
+    expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(2);
     expect(
       kept.pendingDecision?.type === "block-dice" &&
         kept.pendingDecision.options
@@ -85,6 +86,6 @@ describe("uphill block re-roll window", () => {
       choiceStage: "pick",
       chooserTeamId: game.ctx.team2.id,
     });
-    expect(game.snapshot().teams[0].rerolls).toBe(1);
+    expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(1);
   });
 });

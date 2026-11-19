@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
-import { GameEventNames, RefereeCallStep } from "../../../types/events";
-import { ReactionDecisionRequest } from "../../../types/decisions";
+import { GameEventNames, type RefereeCallStep } from "../../../types/events";
+import { type ReactionDecisionRequest } from "../../../types/decisions";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { DiceWatch } from "../../../game/presentation/diceWatch";
 import { BRIBE_DECISION, bribesLeft } from "../../../game/inducements/bribes";
@@ -24,7 +24,6 @@ import {
   outcomeLine,
 } from "./sentOffText";
 
-/** How long the outcome stays up before the game carries on by itself. */
 const OUTCOME_READ_MS = 2600;
 
 type Step = RefereeCallStep;
@@ -39,26 +38,22 @@ interface Card {
   argued?: Argued;
   bribed?: Bribed;
   outcome?: Outcome;
-  /** The Bribe the coach is being asked about, until it is answered. */
+
   bribeAsk?: ReactionDecisionRequest;
 }
 
-/**
- * A Sent-off, told one step at a time to both coaches: the referee's call,
- * the Argue the Call roll and what the referee made of it, the Bribe offer
- * and its roll, and whether the player stays. Each step shows once the dice
- * thrown before it have landed in the tray. The coach answers the Bribe
- * here, so the plain reaction dialog leaves it alone. The engine waits for
- * the outcome to be read, or for CONTINUE.
- */
 export const SentOffCard: React.FC<{ eventBus: EventBus }> = ({ eventBus }) => {
   const [card, setCard] = useState<Card | null>(null);
   const dice = DiceWatch.shared(eventBus);
-  // Steps show in order, each after the dice thrown before it
+
   const chain = useRef<Promise<void>>(Promise.resolve());
   const later = (apply: (card: Card | null) => Card | null) => {
     const landed = dice.landed();
-    chain.current = chain.current.then(() => landed).then(() => setCard(apply));
+    chain.current = chain.current
+      .then(() => landed)
+      .then(() => {
+        setCard(apply);
+      });
   };
 
   useEventBus(eventBus, GameEventNames.RefereeCall, (step) => {
@@ -74,7 +69,7 @@ export const SentOffCard: React.FC<{ eventBus: EventBus }> = ({ eventBus }) => {
         case "argued":
           return { ...current, argued: step };
         case "bribed":
-          return { ...current, bribed: step, bribeAsk: undefined };
+          return withoutBribeAsk({ ...current, bribed: step });
         case "outcome":
           return { ...current, outcome: step };
       }
@@ -89,12 +84,11 @@ export const SentOffCard: React.FC<{ eventBus: EventBus }> = ({ eventBus }) => {
         : current
     );
   });
-  // In the same order as the offer: a Bribe the other coach answers while
-  // this screen's dice still roll must not be offered again after it
+
   useEventBus(eventBus, GameEventNames.DecisionResolved, ({ type }) => {
     if (type !== "reaction") return;
     later((current) =>
-      current?.bribeAsk ? { ...current, bribeAsk: undefined } : current
+      current?.bribeAsk ? withoutBribeAsk(current) : current
     );
   });
 
@@ -109,8 +103,9 @@ export const SentOffCard: React.FC<{ eventBus: EventBus }> = ({ eventBus }) => {
   useEffect(() => {
     if (!outcomeId) return;
     const timer = setTimeout(finish, OUTCOME_READ_MS);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      clearTimeout(timer);
+    };
   }, [outcomeId]);
 
   if (!card || !ServiceContainer.isInitialized()) return null;
@@ -131,7 +126,6 @@ export const SentOffCard: React.FC<{ eventBus: EventBus }> = ({ eventBus }) => {
   );
 };
 
-/** The Bribe question while it is open, then CONTINUE once the outcome shows. */
 function CardActions({
   card,
   eventBus,
@@ -164,7 +158,6 @@ function CardActions({
   );
 }
 
-/** The call, each roll as it lands, and the outcome. */
 function CardSteps({ card }: { card: Card }) {
   const { gameService } = ServiceContainer.getInstance();
   const name =
@@ -185,17 +178,18 @@ function CardSteps({ card }: { card: Card }) {
           testId="sent-off-argue"
           label="Argue the Call"
           target={ARGUE_TARGET}
-          dice={argued && argueDice(argued)}
-          good={argued?.swayed}
-          line={argued && arguedLine(name, argued)}
+          {...(argued
+            ? { dice: argueDice(argued), line: arguedLine(name, argued) }
+            : {})}
+          {...(argued?.swayed === undefined ? {} : { good: argued?.swayed })}
         />
         {(card.bribeAsk || bribed) && (
           <RollRow
             testId="sent-off-bribe"
             label="Bribe"
             target={BRIBE_TARGET}
-            dice={bribed && String(bribed.roll)}
-            good={bribed?.works}
+            {...(bribed ? { dice: String(bribed.roll) } : {})}
+            {...(bribed?.works === undefined ? {} : { good: bribed?.works })}
             line={bribeLine}
           />
         )}
@@ -216,7 +210,6 @@ function CardSteps({ card }: { card: Card }) {
   );
 }
 
-/** One roll on the card: its target, then its dice and what they meant. */
 function RollRow({
   testId,
   label,
@@ -258,10 +251,6 @@ function RollRow({
   );
 }
 
-/**
- * The Bribe question, for the coach who holds it. Online, the other coach
- * sees who is deciding instead.
- */
 function BribeChoice({
   eventBus,
   teamName,
@@ -275,15 +264,18 @@ function BribeChoice({
         {teamName} is deciding on a Bribe…
       </p>
     );
-  const answer = (accept: boolean) =>
+  const answer = (accept: boolean) => {
     eventBus.emit(GameEventNames.UI_ReactionResponse, { accept });
+  };
   return (
     <DialogActions>
       <HudButton
         data-testid="bribe-no"
         variant="ghost"
         hotkey="n"
-        onClick={() => answer(false)}
+        onClick={() => {
+          answer(false);
+        }}
       >
         NO BRIBE
       </HudButton>
@@ -291,10 +283,18 @@ function BribeChoice({
         data-testid="bribe-yes"
         variant="gold"
         hotkey="y"
-        onClick={() => answer(true)}
+        onClick={() => {
+          answer(true);
+        }}
       >
         USE A BRIBE
       </HudButton>
     </DialogActions>
   );
+}
+
+function withoutBribeAsk(card: Card): Card {
+  const next = { ...card };
+  delete next.bribeAsk;
+  return next;
 }

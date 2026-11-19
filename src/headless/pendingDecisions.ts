@@ -1,18 +1,9 @@
-/**
- * Pending decisions - the protocol shape of each choice the engine pauses on,
- * built from the event that announces it.
- */
-
-import { PendingDecision } from "./protocol";
+import { type PendingDecision } from "./protocol";
 import { GameEventNames } from "../types/events";
-import { DecisionRequest } from "../types/decisions";
-import { Player } from "../types/Player";
-import { BlockRollData } from "../services/BlockResolutionService";
+import { type DecisionRequest } from "../types/decisions";
+import { type Player } from "../types/Player";
+import { type BlockRollData } from "../services/BlockResolutionService";
 
-/**
- * An awaitable decision: the engine is paused on its promise until the reply.
- * Null for a request headless does not surface.
- */
 export function requestedDecision(
   request: DecisionRequest | undefined
 ): PendingDecision | null {
@@ -88,7 +79,6 @@ export function requestedDecision(
   }
 }
 
-/** A request type added later fails the build here until it is surfaced. */
 function unsurfaced(_request: never): null {
   return null;
 }
@@ -112,14 +102,9 @@ function blockDiceDecision(
   };
 }
 
-/**
- * A choice inside a block or kick-off, announced by an ordinary engine event
- * rather than awaited. Null for any other event.
- */
 export function engineDecision(
   name: string,
-  // The event bus delivers every payload untyped; each case reads its own.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   data: any,
   findPlayer: (playerId: string) => Player | undefined
 ): PendingDecision | null {
@@ -147,8 +132,6 @@ export function engineDecision(
     case GameEventNames.TouchbackAwarded:
       return { type: "touchback", teamId: data.teamId };
     case GameEventNames.UI_FollowUpPrompt:
-      // Crowd surf: the engine prompts the follow-up directly (there is no
-      // PlayerMoved for the surfed defender)
       return data.repeat
         ? null
         : {

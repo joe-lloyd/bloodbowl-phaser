@@ -13,13 +13,11 @@ describe("awaitPresentation", () => {
     const bus = new EventBus();
     const started = Date.now();
     const shown = awaitPresentation(bus, realTimeDelay, "bounce-1", 5_000);
-    setTimeout(
-      () =>
-        bus.emit(GameEventNames.UI_PresentationAcknowledged, {
-          id: "bounce-1",
-        }),
-      20
-    );
+    setTimeout(() => {
+      bus.emit(GameEventNames.UI_PresentationAcknowledged, {
+        id: "bounce-1",
+      });
+    }, 20);
     await shown;
     await whenEngineQuiet(5_000);
     expect(Date.now() - started).toBeLessThan(1_000);

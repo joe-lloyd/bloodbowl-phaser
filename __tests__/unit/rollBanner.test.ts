@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  RollBook,
-  readRoll,
-  rollBannerText,
-} from "../../src/ui/components/hud/RollBanner";
+import { RollBook, readRoll, rollBannerText } from "../../src/ui/components/hud/rollBannerState";
 import { InjuryResult } from "../../src/game/controllers/InjuryController";
 
-/** What the Armour and Injury Roll banner says at each stage. */
 describe("roll banner text", () => {
   const orc = { kind: "armour" as const, playerName: "Grimgor" };
   const broken = {
@@ -30,7 +25,7 @@ describe("roll banner text", () => {
       kind: "injury",
       playerName: "Grimgor",
     });
-    // A Stab, Chainsaw or Projectile Vomit: the outcome names the player
+
     expect(readRoll("Armor Check")).toEqual({ kind: "armour", playerName: "" });
     expect(readRoll("Dodge Roll (Grimgor)")).toBeNull();
   });
@@ -64,18 +59,18 @@ describe("roll banner text", () => {
       result,
       rollType: "Injury Roll (Grimgor)",
     });
-    expect(rollBannerText(roll, "thrown", outcome(InjuryResult.KO))).toEqual(
-      { headline: "Injury Roll", subtitle: "Grimgor", result: false }
-    );
+    expect(rollBannerText(roll, "thrown", outcome(InjuryResult.KO))).toEqual({
+      headline: "Injury Roll",
+      subtitle: "Grimgor",
+      result: false,
+    });
     expect(
       rollBannerText(roll, "landed", outcome(InjuryResult.KO)).headline
     ).toBe("Knocked Out");
     expect(
       rollBannerText(roll, "landed", outcome(InjuryResult.STUNNED)).headline
     ).toBe("Stunned");
-    expect(
-      rollBannerText(roll, "landed", outcome(InjuryResult.DEAD))
-    ).toEqual({
+    expect(rollBannerText(roll, "landed", outcome(InjuryResult.DEAD))).toEqual({
       headline: "Casualty",
       subtitle: "Grimgor · Dead",
       result: true,
@@ -83,7 +78,6 @@ describe("roll banner text", () => {
   });
 });
 
-/** Pairing each outcome with its own throw, by the tray's number for it. */
 describe("RollBook", () => {
   const armour = (
     name: string,
@@ -142,7 +136,7 @@ describe("RollBook", () => {
 
   it("names a Stab's unnamed Armor Check from its outcome", () => {
     const book = new RollBook();
-    // The attacker's dice, against the other team's player
+
     book.queued(1, "Armor Check", "team1");
     book.decided(armour("Grimgor", 11, true, "team1", "Armor Check"));
 

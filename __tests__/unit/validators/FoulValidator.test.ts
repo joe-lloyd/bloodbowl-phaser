@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { FoulValidator } from "@/game/validators/FoulValidator";
-import { Player, PlayerStatus } from "@/types/Player";
+import { type Player, PlayerStatus } from "@/types/Player";
 
 describe("FoulValidator", () => {
   const validator = new FoulValidator();
@@ -22,7 +22,7 @@ describe("FoulValidator", () => {
   it("should calculate positive modifier for offensive assists", () => {
     const fouler = mockPlayer("fouler", "T1", 5, 5);
     const target = mockPlayer("target", "T2", 6, 5);
-    const assister = mockPlayer("assist", "T1", 6, 6); // Adjacent to target
+    const assister = mockPlayer("assist", "T1", 6, 6);
 
     const analysis = validator.analyzeFoul(fouler, target, [
       fouler,
@@ -36,7 +36,7 @@ describe("FoulValidator", () => {
   it("should calculate negative modifier for defensive assists", () => {
     const fouler = mockPlayer("fouler", "T1", 5, 5);
     const target = mockPlayer("target", "T2", 6, 5);
-    const defAssister = mockPlayer("assist", "T2", 5, 6); // Adjacent to fouler
+    const defAssister = mockPlayer("assist", "T2", 5, 6);
 
     const analysis = validator.analyzeFoul(fouler, target, [
       fouler,
@@ -51,7 +51,7 @@ describe("FoulValidator", () => {
     const fouler = mockPlayer("fouler", "T1", 5, 5);
     const target = mockPlayer("target", "T2", 6, 5);
     const assister = mockPlayer("assist", "T1", 6, 6);
-    const marker = mockPlayer("marker", "T2", 7, 6); // Adjacent to assister
+    const marker = mockPlayer("marker", "T2", 7, 6);
 
     const analysis = validator.analyzeFoul(fouler, target, [
       fouler,

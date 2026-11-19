@@ -1,9 +1,10 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameplayInteractionController } from "../../src/game/controllers/GameplayInteractionController";
 import { MovementValidator } from "../../src/game/validators/MovementValidator";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { GameEventNames, AllEvents } from "../../src/types/events";
+import { GameEventNames, type AllEvents } from "../../src/types/events";
 import { SkillType } from "../../src/types/Skills";
 import { forceDice } from "../utils/test-helpers";
 import type { Weather } from "../../src/game/rules/weather";
@@ -33,36 +34,33 @@ function board(weather: Weather, skills: SkillType[]) {
     {
       worldToGrid: (x: number, y: number) => ({ x, y }),
       highlightSquare: () => ({ destroy: vi.fn() }),
-    } as Record<string, unknown>,
+    },
     { get: (target, key: string) => (target[key] ??= vi.fn()) }
   );
   const controller = new GameplayInteractionController(
-    {
+  {
+    scene: {
       team1: game.ctx.team1,
       team2: game.ctx.team2,
-      events: { on: vi.fn(), off: vi.fn() },
+      events: { on: vi.fn(),off: vi.fn() },
       highlightPlayer: vi.fn(),
       unhighlightPlayer: vi.fn(),
-    } as never,
-    game.ctx.gameService,
-    game.ctx.eventBus,
-    pitch as never,
-    new MovementValidator()
-  );
+    } as never,gameService: game.ctx.gameService,eventBus: game.ctx.eventBus,pitch: pitch as never,movementValidator: new MovementValidator()
+  }  );
   return { game, controller, pitch };
 }
 
 describe("Secure the Ball on the board", () => {
   it.each([
-    { weather: "Nice" as Weather, skills: [], target: 2 },
-    { weather: "Pouring Rain" as Weather, skills: [], target: 3 },
+    { weather: "Nice", skills: [], target: 2 },
+    { weather: "Pouring Rain", skills: [], target: 3 },
     {
-      weather: "Pouring Rain" as Weather,
+      weather: "Pouring Rain",
       skills: [SkillType.BIG_HAND],
       target: 2,
     },
     {
-      weather: "Pouring Rain" as Weather,
+      weather: "Pouring Rain",
       skills: [SkillType.EXTRA_ARMS],
       target: 3,
     },
@@ -75,9 +73,11 @@ describe("Secure the Ball on the board", () => {
       ]);
       const { gameService, eventBus, team1 } = game.ctx;
       const player = team1.players[0];
-      let prompt: AllEvents[GameEventNames.UI_RequestConfirmation] | undefined;
+      let prompt:
+        | AllEvents[typeof GameEventNames.UI_RequestConfirmation]
+        | undefined;
       const dice: string[] = [];
-      let route: AllEvents[GameEventNames.UI_RoutePreview];
+      let route: AllEvents[typeof GameEventNames.UI_RoutePreview];
       eventBus.on(GameEventNames.UI_RequestConfirmation, (request) => {
         prompt = request;
       });
@@ -89,9 +89,9 @@ describe("Secure the Ball on the board", () => {
       );
       forceDice(game.ctx.rng, [target]);
       try {
-        controller.handlePlayerClick(player.id);
+        controller.handlePlayerClick(fixtureValue(player).id);
         eventBus.emit(GameEventNames.UI_ActionSelected, {
-          playerId: player.id,
+          playerId: fixtureValue(player).id,
           action: "secureBall",
         });
         expect(gameService.getState().activePlayer?.action).toBe("secureBall");
@@ -101,37 +101,41 @@ describe("Secure the Ball on the board", () => {
         expect(controller.startRouteDrag({ worldX: 5, worldY: 5 })).toBe(true);
 
         await controller.onSquareClicked(7, 5);
-        expect(route!.rolls).toEqual([
+        expect(fixtureValue(route).rolls).toEqual([
           { type: "secureBall", target, square: { x: 7, y: 5 } },
         ]);
-        expect(route!.rerolls).not.toContain("Sure Hands");
+        expect(fixtureValue(route).rerolls).not.toContain("Sure Hands");
         expect(pitch.drawMovementPath).toHaveBeenCalledWith(
           [
             { x: 5, y: 5 },
             { x: 6, y: 5 },
             { x: 7, y: 5 },
           ],
-          route!.rolls,
+          fixtureValue(route).rolls,
           6
         );
         await controller.onSquareClicked(7, 5);
-        await vi.waitFor(() => expect(prompt).toBeDefined());
-        expect(player.gridPosition).toEqual({ x: 6, y: 5 });
-        expect(prompt!.title).toBe("Human Lineman #1: Secure the Ball");
-        expect(prompt!.message).toContain(`Secure the Ball: ${target}+`);
-        expect(prompt!.message).not.toContain("Sure Hands");
+        await vi.waitFor(() => {
+          expect(prompt).toBeDefined();
+        });
+        expect(fixtureValue(player).gridPosition).toEqual({ x: 6, y: 5 });
+        expect(fixtureValue(prompt).title).toBe("Human Lineman #1: Secure the Ball");
+        expect(fixtureValue(prompt).message).toContain(
+          `Secure the Ball: ${String(target)}+`
+        );
+        expect(fixtureValue(prompt).message).not.toContain("Sure Hands");
         eventBus.emit(GameEventNames.UI_ConfirmationResult, {
-          actionId: prompt!.actionId,
+          actionId: fixtureValue(prompt).actionId,
           confirmed: true,
         });
 
-        await vi.waitFor(() =>
-          expect(gameService.hasPlayerActed(player.id)).toBe(true)
-        );
-        expect(player.gridPosition).toEqual({ x: 7, y: 5 });
+        await vi.waitFor(() => {
+          expect(gameService.hasPlayerActed(fixtureValue(player).id)).toBe(true);
+        });
+        expect(fixtureValue(player).gridPosition).toEqual({ x: 7, y: 5 });
         expect(gameService.getState().ballPosition).toEqual({ x: 7, y: 5 });
         expect(dice).toEqual([
-          `Secure the Ball (Human Lineman #1): ${target}, needs ${target}+`,
+          `Secure the Ball (Human Lineman #1): ${String(target)}, needs ${String(target)}+`,
         ]);
         expect(controller.selectedPlayerId).toBeNull();
       } finally {

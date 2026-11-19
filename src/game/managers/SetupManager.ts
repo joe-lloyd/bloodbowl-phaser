@@ -1,22 +1,22 @@
 import { realTimeDelay } from "../core/GameFlowManager";
-import { IEventBus } from "../../services/EventBus";
-import { GameState, GamePhase, SubPhase } from "@/types/GameState";
+import { type IEventBus } from "../../services/EventBus";
+import { type GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
-import { Team, TeamSpecialRule, isPendingRecruit } from "@/types/Team";
-import { Player, PlayerStatus, PositionKeyWord } from "@/types/Player";
+import { type Team, TeamSpecialRule, isPendingRecruit } from "@/types/Team";
+import { type Player, PlayerStatus, PositionKeyWord } from "@/types/Player";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import {
-  FormationPosition,
-  SetupFormationResult,
-  SetupState,
-  SetupTeamStatus,
-  SetupZone,
+  type FormationPosition,
+  type SetupFormationResult,
+  type SetupState,
+  type SetupTeamStatus,
+  type SetupZone,
 } from "@/types/SetupTypes";
 import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
 import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
 import { isConfinedToReserves } from "../kickoff/driveEffects";
-import { GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
+import { type GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
 import { teamCaptain } from "../rules/teamCaptain";
 import {
   emptySetupStatus,
@@ -25,33 +25,45 @@ import {
 } from "./setupStatus";
 
 export class SetupManager {
-  private placedPlayers: Map<string, { x: number; y: number }> = new Map();
-  private setupReady: Set<string> = new Set();
+  private placedPlayers = new Map<string, { x: number; y: number }>();
+  private setupReady = new Set<string>();
   private validator = new SetupValidator();
   private lastError: string | null = null;
-  /** Teams already told they have nobody left to field, this setup. */
-  private reportedNoAvailablePlayers: Set<string> = new Set();
 
+  private reportedNoAvailablePlayers = new Set<string>();
+
+  private eventBus: IEventBus;
+  private state: GameState;
+  private team1: Team;
+  private team2: Team;
+  private weatherService: WeatherManager;
+  private callbacks: {
+    onKickoffRequested: () => void;
+    rollSwarming: (teamId: string) => number;
+  };
+  private delay: import("../core/GameFlowManager").DelayProvider;
   constructor(
-    private eventBus: IEventBus,
-    private state: GameState,
-    private team1: Team,
-    private team2: Team,
-    private weatherService: WeatherManager,
-    private callbacks: {
+    eventBus: IEventBus,
+    state: GameState,
+    team1: Team,
+    team2: Team,
+    weatherService: WeatherManager,
+    callbacks: {
       onKickoffRequested: () => void;
       rollSwarming: (teamId: string) => number;
     },
-    private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
+    delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
+    this.eventBus = eventBus;
+    this.state = state;
+    this.team1 = team1;
+    this.team2 = team2;
+    this.weatherService = weatherService;
+    this.callbacks = callbacks;
+    this.delay = delay;
     this.resyncFromTeams();
   }
 
-  /**
-   * Rebuild what this manager tracks, the placed squares and the confirmed
-   * teams, from the players and the setup state. Called on construction and
-   * after a lockstep resync copies a whole state over this one.
-   */
   public resyncFromTeams(): void {
     this.placedPlayers.clear();
     this.setupReady.clear();
@@ -76,17 +88,11 @@ export class SetupManager {
     readyForLeagueGame(team, readiness);
   }
 
-  /**
-   * The players a team can actually field this drive: everyone not knocked
-   * out, not a casualty and not sent off. This — not the seven-player roster
-   * minimum — is what decides whether a team can complete its setup.
-   */
   public availablePlayers(teamId: string): Player[] {
     const team = this.getTeam(teamId);
     return team ? this.getEligiblePlayers(team) : [];
   }
 
-  /** Whether a player may be placed this drive: one of {@link availablePlayers}. */
   public isAvailable(playerId: string): boolean {
     const player = this.getPlayerById(playerId);
     if (!player || !this.isEligible(player)) return false;
@@ -98,18 +104,12 @@ export class SetupManager {
     );
   }
 
-  /** Convenience count of {@link availablePlayers}. */
   public availablePlayerCount(teamId: string): number {
     return this.availablePlayers(teamId).length;
   }
 
-  /**
-   * Take a player off the pitch through the one location seam: the square is
-   * released, an available player lands in Reserves and a knocked-out or
-   * injured one in the box their status already names.
-   */
   private returnToDugout(player: Player): void {
-    player.gridPosition = undefined;
+    delete player.gridPosition;
     movePlayerToBox(player, {
       box: this.isEligible(player) ? "reserves" : playerBoxOf(player),
     });
@@ -199,13 +199,7 @@ export class SetupManager {
       (position) => position.playerId !== playerId
     );
     const eligible = this.getEligiblePlayers(team);
-    const validation = this.validator.validatePlacement(
-      { playerId, x, y },
-      positions,
-      player.teamId === this.team1.id,
-      eligible.length,
-      swarmPlayerLimits(this.state.setup, team.id, eligible)
-    );
+    const validation = this.validator.validatePlacement({ candidate: { playerId, x, y }, currentPositions: positions, isTeam1: player.teamId === this.team1.id, availablePlayerCount: eligible.length, limits: swarmPlayerLimits(this.state.setup, team.id, eligible) });
     if (!validation.valid) {
       return this.refuse(validation.errors[0] ?? "Illegal setup placement.", {
         playerId,
@@ -285,7 +279,6 @@ export class SetupManager {
       );
     }
 
-    // Each takes the other's square; one that had none leaves the pitch.
     const exchanged = [
       [player1Id, pos2],
       [player2Id, pos1],
@@ -371,8 +364,7 @@ export class SetupManager {
       if (player) used.add(player.id);
       return player;
     });
-    // An available Team Captain must be fielded (p.155): they take the
-    // last preset square from whoever the preset put there.
+
     const captain = teamCaptain(team);
     if (captain && this.isEligible(captain) && !used.has(captain.id)) {
       for (let index = picks.length - 1; index >= 0; index--) {
@@ -478,7 +470,6 @@ export class SetupManager {
     return true;
   }
 
-  /** 2025 Swarming happens after both setups and before the kick. */
   private advanceSwarming(): void {
     const setup = this.ensureSetupState();
     const swarming = setup.swarming;
@@ -514,7 +505,7 @@ export class SetupManager {
       this.updateStatus(teamId);
       this.eventBus.emit(
         GameEventNames.UI_GameLog,
-        `${team.name}: Swarming rolled ${roll}. Up to ${Math.min(roll, reserves.length)} reserve Linemen may join the pitch.`
+        `${team.name}: Swarming rolled ${String(roll)}. Up to ${String(Math.min(roll, reserves.length))} reserve Linemen may join the pitch.`
       );
       this.eventBus.emit(GameEventNames.PhaseChanged, {
         phase: GamePhase.SETUP,
@@ -525,7 +516,7 @@ export class SetupManager {
       return;
     }
     setup.currentTeamId = null;
-    // Kickoff ownership expects the receiving team to be active.
+
     this.state.activeTeamId = setup.receivingTeamId;
     this.callbacks.onKickoffRequested();
   }
@@ -571,10 +562,6 @@ export class SetupManager {
     return true;
   }
 
-  /**
-   * Normal setup fields min(7, available). Swarming can then add its rolled
-   * allowance without moving the confirmed formation.
-   */
   public isSetupComplete(teamId: string): boolean {
     return this.updateStatus(teamId).canConfirm;
   }
@@ -608,19 +595,18 @@ export class SetupManager {
     this.placedPlayers.clear();
     this.setupReady.clear();
     this.reportedNoAvailablePlayers.clear();
-    this.state.setup = undefined;
+    delete this.state.setup;
   }
 
   public resetForNewDrive(): void {
     this.placedPlayers.clear();
     this.setupReady.clear();
     this.reportedNoAvailablePlayers.clear();
-    this.state.setup = undefined;
+    delete this.state.setup;
     [this.team1, this.team2].forEach((team) => {
       team.players.forEach((player) => {
         player.hasActed = false;
-        // Everyone leaves the pitch: available players to Reserves, the
-        // knocked out / injured / sent off stay in their own box.
+
         this.returnToDugout(player);
       });
     });
@@ -683,8 +669,7 @@ export class SetupManager {
   private emitStatus(teamId: string): void {
     const status = this.updateStatus(teamId);
     this.eventBus.emit(GameEventNames.SetupRestrictionsUpdated, status);
-    // A team with nobody left to field is a distinct condition, not an
-    // incomplete setup — say so once instead of stalling silently.
+
     if (
       status.availablePlayerCount === 0 &&
       !this.reportedNoAvailablePlayers.has(teamId)

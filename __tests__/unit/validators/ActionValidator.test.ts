@@ -25,7 +25,7 @@ describe("ActionValidator", () => {
 
     it("should prevent block on non-adjacent player", () => {
       attacker.gridPosition = { x: 5, y: 5 };
-      defender.gridPosition = { x: 7, y: 5 }; // Gap of 1
+      defender.gridPosition = { x: 7, y: 5 };
       const result = validator.validateAction("block", attacker, defender);
       expect(result.valid).toBe(false);
       expect(result.reason).toContain("adjacent");

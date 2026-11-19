@@ -1,11 +1,10 @@
 import React, { useRef } from "react";
 import { RouteSummary } from "./RollPreviews";
 import { GameEventNames } from "../../../types/events";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { HudButton } from "../componentWarehouse/HudKit";
 import { useHotkey } from "../../hotkeys";
 
-// Icons (simple SVGs for now, or just text)
 const CheckIcon = () => (
   <svg
     className="w-4 h-4"
@@ -27,9 +26,9 @@ interface ActionStepperProps {
   currentStepId: string;
   eventBus: EventBus;
   hasMovedInAction: boolean;
-  /** A narrow thumb rail, as on a phone: the plan bar sums up the route. */
+
   compact?: boolean;
-  /** Razzle-Dazzle: this is the first of two Actions, so ending it goes on. */
+
   firstOfTwo?: boolean;
 }
 
@@ -44,7 +43,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
   const handleStepClick = (stepId: string) => {
     eventBus.emit(GameEventNames.UI_StepSelected, { stepId });
   };
-  const singleMove = steps.length === 1 && steps[0].id === "move";
+  const singleMove = steps.length === 1 && steps[0]?.id === "move";
 
   return (
     <div
@@ -54,71 +53,31 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
           : "flex min-w-[220px] flex-col p-2"
       }
     >
-      {/* Header */}
       {!compact && (
         <div className="hud-label mb-2 px-1">
           {singleMove ? "Action" : "Action Sequence"}
         </div>
       )}
 
-      <div className="flex flex-col gap-1.5">
-        {steps.map((step, index) => {
-          const isActive = step.id === currentStepId;
-          const isPast = steps.findIndex((s) => s.id === currentStepId) > index;
-
-          return (
-            <StepButton
-              key={step.id}
-              step={step}
-              index={index}
-              isActive={isActive}
-              isPast={isPast}
-              compact={compact}
-              numbered={!singleMove}
-              onSelect={handleStepClick}
-            />
-          );
-        })}
-      </div>
+      <ActionSteps
+        steps={steps}
+        currentStepId={currentStepId}
+        compact={compact}
+        singleMove={singleMove}
+        onSelect={handleStepClick}
+      />
 
       {!compact && <RouteSummary eventBus={eventBus} />}
 
-      {/* Control Buttons */}
-      <div className="mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-2">
-        {/* Back / Cancel - Only if NOT MOVED */}
-        {!hasMovedInAction && (
-          <HudButton
-            variant="ghost"
-            size="sm"
-            block
-            onClick={(e) => {
-              e.stopPropagation();
-              eventBus.emit(GameEventNames.UI_CancelAction);
-            }}
-          >
-            ← Back
-          </HudButton>
-        )}
-
-        {/* End Activation - Always available */}
-        <HudButton
-          data-testid="action-end-activation"
-          variant="danger"
-          size="sm"
-          block
-          onClick={(e) => {
-            e.stopPropagation();
-            eventBus.emit(GameEventNames.UI_EndActivation);
-          }}
-        >
-          {firstOfTwo ? "End First Action" : "End Activation"}
-        </HudButton>
-      </div>
+      <ActionFooter
+        eventBus={eventBus}
+        hasMovedInAction={hasMovedInAction}
+        firstOfTwo={firstOfTwo}
+      />
     </div>
   );
 };
 
-/** One step of the action. Its number key selects it, as a click does. */
 function StepButton({
   step,
   index,
@@ -139,7 +98,9 @@ function StepButton({
   const button = useRef<HTMLButtonElement>(null);
   useHotkey(
     numbered && index < 9 ? String(index + 1) : undefined,
-    () => onSelect(step.id),
+    () => {
+      onSelect(step.id);
+    },
     true,
     button
   );
@@ -152,28 +113,17 @@ function StepButton({
         e.stopPropagation();
         onSelect(step.id);
       }}
-      className={`relative flex min-h-[44px] w-full items-center ${compact ? "gap-1.5" : "gap-3"} rounded-hud border px-2 text-left transition-[background-color,border-color] duration-150 ease-bb ${
-        isActive
-          ? "border-hud-gold bg-hud-gold/15 text-hud-bone shadow-hud-glow"
-          : isPast
-            ? "border-hud-good/40 bg-hud-good/10 text-hud-bone/85 hover:border-hud-good"
-            : "border-white/10 bg-hud-raise/70 text-hud-dim hover:border-hud-gold/50 hover:text-hud-bone"
-      }`}
+      className={`relative flex min-h-[44px] w-full items-center ${compact ? "gap-1.5" : "gap-3"} rounded-hud border px-2 text-left transition-[background-color,border-color] duration-150 ease-bb ${stepButtonColors(
+        isActive,
+        isPast
+      )}`}
     >
-      {/* The step's number is also its key */}
-      {numbered && (
-        <span
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-hud font-hud-display text-hud-base leading-none ${
-            isActive
-              ? "bg-hud-gold text-hud-ink"
-              : isPast
-                ? "bg-hud-good text-hud-ink"
-                : "border border-white/15 text-hud-dim"
-          }`}
-        >
-          {isPast ? <CheckIcon /> : index + 1}
-        </span>
-      )}
+      <StepNumber
+        numbered={numbered}
+        index={index}
+        isActive={isActive}
+        isPast={isPast}
+      />
 
       <span
         className={`flex-grow font-hud-label font-bold uppercase tracking-[0.05em] ${compact ? "text-hud-sm leading-tight" : "text-hud-base"}`}
@@ -186,4 +136,117 @@ function StepButton({
       )}
     </button>
   );
+}
+
+function ActionFooter({
+  eventBus,
+  hasMovedInAction,
+  firstOfTwo,
+}: Pick<ActionStepperProps, "eventBus" | "hasMovedInAction"> & {
+  firstOfTwo: boolean;
+}) {
+  return (
+    <div className="mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-2">
+      {!hasMovedInAction && (
+        <HudButton
+          variant="ghost"
+          size="sm"
+          block
+          onClick={(e) => {
+            e.stopPropagation();
+            eventBus.emit(GameEventNames.UI_CancelAction, undefined);
+          }}
+        >
+          ← Back
+        </HudButton>
+      )}
+
+      <HudButton
+        data-testid="action-end-activation"
+        variant="danger"
+        size="sm"
+        block
+        onClick={(e) => {
+          e.stopPropagation();
+          eventBus.emit(GameEventNames.UI_EndActivation, undefined);
+        }}
+      >
+        {firstOfTwo ? "End First Action" : "End Activation"}
+      </HudButton>
+    </div>
+  );
+}
+function ActionSteps({
+  steps,
+  currentStepId,
+  compact,
+  singleMove,
+  onSelect,
+}: Pick<ActionStepperProps, "steps" | "currentStepId"> & {
+  compact: boolean;
+  singleMove: boolean;
+  onSelect: (stepId: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {steps.map((step, index) => {
+        const isActive = step.id === currentStepId;
+        const isPast = steps.findIndex((s) => s.id === currentStepId) > index;
+
+        return (
+          <StepButton
+            key={step.id}
+            step={step}
+            index={index}
+            isActive={isActive}
+            isPast={isPast}
+            compact={compact}
+            numbered={!singleMove}
+            onSelect={onSelect}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function StepNumber({
+  numbered,
+  index,
+  isActive,
+  isPast,
+}: {
+  numbered: boolean;
+  index: number;
+  isActive: boolean;
+  isPast: boolean;
+}) {
+  return (
+    <>
+      {numbered && (
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-hud font-hud-display text-hud-base leading-none ${stepNumberColors(
+            isActive,
+            isPast
+          )}`}
+        >
+          {isPast ? <CheckIcon /> : index + 1}
+        </span>
+      )}
+    </>
+  );
+}
+
+function stepButtonColors(active: boolean, past: boolean): string {
+  if (active)
+    return "border-hud-gold bg-hud-gold/15 text-hud-bone shadow-hud-glow";
+  return past
+    ? "border-hud-good/40 bg-hud-good/10 text-hud-bone/85 hover:border-hud-good"
+    : "border-white/10 bg-hud-raise/70 text-hud-dim hover:border-hud-gold/50 hover:text-hud-bone";
+}
+function stepNumberColors(active: boolean, past: boolean): string {
+  if (active) return "bg-hud-gold text-hud-ink";
+  return past
+    ? "bg-hud-good text-hud-ink"
+    : "border border-white/15 text-hud-dim";
 }

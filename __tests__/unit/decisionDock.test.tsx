@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { MemoryRouter } from "react-router-dom";
 import { GameHUD } from "../../src/ui/components/hud/GameHUD";
 import React, { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
@@ -29,33 +30,35 @@ describe("decision dock", () => {
     online.waiting = false;
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize(eventBus, game.ctx.team1, game.ctx.team2);
-    playerId = game.ctx.team1.players[0].id;
-    defenderId = game.ctx.team2.players[0].id;
+    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
+    playerId = fixtureValue(game.ctx.team1.players[0]).id;
+    defenderId = fixtureValue(game.ctx.team2.players[0]).id;
     teamId = game.ctx.team1.id;
     const service = ServiceContainer.getInstance().gameService;
     service.getState().turn.teamId = teamId;
-    service.getTeam(teamId)!.rerolls = 2;
+    fixtureValue(service.getTeam(teamId)).rerolls = 2;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     ServiceContainer.reset();
   });
 
   it("prompts for a push square while the board offers its highlights", async () => {
-    await act(async () =>
+    await act(async () => {
       root.render(
         <MemoryRouter>
           <GameHUD eventBus={eventBus} />
         </MemoryRouter>
-      )
-    );
-    await act(async () =>
+      );
+    });
+    await act(async () => {
       eventBus.emit(GameEventNames.UI_SelectPushDirection, {
         attackerId: playerId,
         defenderId,
@@ -65,24 +68,26 @@ describe("decision dock", () => {
           { x: 5, y: 4 },
           { x: 6, y: 5 },
         ],
-      })
-    );
+      });
+    });
     expect(container.textContent).toContain("Choose a push square");
-    await act(async () =>
+    await act(async () => {
       eventBus.emit(GameEventNames.UI_PushDirectionSelected, {
         defenderId,
         direction: { x: 5, y: 4 },
         canFollowUp: true,
-      })
-    );
+      });
+    });
     expect(container.textContent).not.toContain("Choose a push square");
   });
 
   it("offers Pro and sends the pro source to the engine", async () => {
-    await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<RerollDialog eventBus={eventBus} />);
+    });
     const answer = vi.fn();
     eventBus.on(GameEventNames.UI_RerollResponse, answer);
-    await act(async () =>
+    await act(async () => {
       eventBus.emit(GameEventNames.DecisionRequested, {
         type: "reroll",
         playerId,
@@ -90,8 +95,8 @@ describe("decision dock", () => {
         rollKind: "dodge",
         sources: ["pro"],
         roll: 2,
-      })
-    );
+      });
+    });
     const button = container.querySelector<HTMLButtonElement>(
       '[data-testid="reroll-use-pro"]'
     );
@@ -101,8 +106,10 @@ describe("decision dock", () => {
   });
 
   it("shows the failed target and what each offered source needs", async () => {
-    await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
-    await act(async () =>
+    await act(async () => {
+      root.render(<RerollDialog eventBus={eventBus} />);
+    });
+    await act(async () => {
       eventBus.emit(GameEventNames.DecisionRequested, {
         type: "reroll",
         playerId,
@@ -112,12 +119,12 @@ describe("decision dock", () => {
         skill: "Dodge",
         roll: 2,
         needed: 3,
-      })
-    );
+      });
+    });
     expect(
       container.querySelector('[data-testid="reroll-odds"]')?.textContent
     ).toBe("Needed 3+, rolled 2.");
-    // What each option needs, the target and no odds
+
     const needs = [
       ...container.querySelectorAll('[data-testid^="reroll-need-"]'),
     ].map((line) => [line.getAttribute("data-testid"), line.textContent]);
@@ -137,8 +144,10 @@ describe("decision dock", () => {
   });
 
   it("names the roll a Bone Head player failed", async () => {
-    await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
-    await act(async () =>
+    await act(async () => {
+      root.render(<RerollDialog eventBus={eventBus} />);
+    });
+    await act(async () => {
       eventBus.emit(GameEventNames.DecisionRequested, {
         type: "reroll",
         playerId,
@@ -148,28 +157,28 @@ describe("decision dock", () => {
         sources: ["team"],
         roll: 1,
         needed: 2,
-      })
-    );
+      });
+    });
     expect(container.textContent).toContain("failed the Bone Head roll.");
     expect(container.textContent).not.toContain("activation");
   });
 
   it("closes a step prompt when the turn ends", async () => {
-    await act(async () =>
-      root.render(<ConfirmationModal eventBus={eventBus} />)
-    );
-    await act(async () =>
+    await act(async () => {
+      root.render(<ConfirmationModal eventBus={eventBus} />);
+    });
+    await act(async () => {
       eventBus.emit(GameEventNames.UI_RequestConfirmation, {
         actionId: "risky-step-1",
         title: "Dodge",
         message: "Dodge: 3+",
         confirmLabel: "Dodge!",
-      })
-    );
+      });
+    });
     expect(container.textContent).toContain("Dodge!");
     const answer = vi.fn();
     eventBus.on(GameEventNames.UI_ConfirmationResult, answer);
-    // The turn clock ends the turn through the service, as End Turn does
+
     const service = ServiceContainer.getInstance().gameService;
     await act(async () => {
       service.startTurn(teamId);
@@ -183,7 +192,9 @@ describe("decision dock", () => {
   });
 
   it("waits for armour and bounce dice before offering follow-up", async () => {
-    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<FollowUpDialog eventBus={eventBus} />);
+    });
     await act(async () => {
       eventBus.emit(GameEventNames.UI_DiceInAir, {
         count: 2,
@@ -196,19 +207,21 @@ describe("decision dock", () => {
       });
     });
     expect(container.innerHTML).toBe("");
-    await act(async () =>
+    await act(async () => {
       eventBus.emit(GameEventNames.UI_DiceInAir, {
         count: 0,
         thrown: 2,
         landedThrough: 2,
-      })
-    );
+      });
+    });
     expect(container.textContent).toContain("Follow Up?");
   });
 
   it("asks the attacker about re-rolls before showing the defender pick header", async () => {
-    await act(async () => root.render(<BlockDiceDialog eventBus={eventBus} />));
-    await act(async () =>
+    await act(async () => {
+      root.render(<BlockDiceDialog eventBus={eventBus} />);
+    });
+    await act(async () => {
       eventBus.emit(GameEventNames.UI_BlockDialog, {
         attackerId: playerId,
         defenderId,
@@ -220,8 +233,8 @@ describe("decision dock", () => {
           attackerAssists: [],
           defenderAssists: [],
         },
-      })
-    );
+      });
+    });
     const roll = {
       attackerId: playerId,
       defenderId,
@@ -230,12 +243,12 @@ describe("decision dock", () => {
       results: [{ type: "push", label: "Push", icon: "" }],
       teamRerollAvailable: true,
     } satisfies import("../../src/services/BlockResolutionService").BlockRollData;
-    await act(async () =>
+    await act(async () => {
       eventBus.emit(GameEventNames.BlockDiceRolled, {
         ...roll,
         choiceStage: "attacker-reroll",
-      })
-    );
+      });
+    });
     expect(container.textContent).toContain("Home Team: re-roll first?");
     expect(container.querySelector('[data-testid="block-die-0"]')).toBeNull();
     const keep = container.querySelector<HTMLButtonElement>(
@@ -246,24 +259,24 @@ describe("decision dock", () => {
     eventBus.on(GameEventNames.UI_KeepBlockDice, answer);
     await act(async () => keep?.click());
     expect(answer).toHaveBeenCalledWith({ attackerId: playerId });
-    await act(async () =>
+    await act(async () => {
       eventBus.emit(GameEventNames.BlockDiceRolled, {
         ...roll,
         choiceStage: "pick",
         teamRerollAvailable: false,
-      })
-    );
+      });
+    });
     expect(
       container.querySelector('[data-testid="decision-team"]')?.textContent
     ).toBe("Away Team PICK");
-    await act(async () =>
+    await act(async () => {
       eventBus.emit(GameEventNames.BlockDiceRolled, {
         ...roll,
         isAttackerChoice: true,
         choiceStage: "pick",
         teamRerollAvailable: false,
-      })
-    );
+      });
+    });
     expect(
       container.querySelector('[data-testid="decision-team"]')?.textContent
     ).toBe("Home Team");
@@ -271,8 +284,10 @@ describe("decision dock", () => {
   });
 
   it("shows waiting coaches a block without action buttons", async () => {
-    await act(async () => root.render(<BlockDiceDialog eventBus={eventBus} />));
-    await act(async () =>
+    await act(async () => {
+      root.render(<BlockDiceDialog eventBus={eventBus} />);
+    });
+    await act(async () => {
       eventBus.emit(GameEventNames.UI_BlockDialog, {
         attackerId: playerId,
         defenderId,
@@ -284,10 +299,10 @@ describe("decision dock", () => {
           attackerAssists: [],
           defenderAssists: [],
         },
-      })
-    );
+      });
+    });
     online.waiting = true;
-    await act(async () =>
+    await act(async () => {
       eventBus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: playerId,
         defenderId,
@@ -295,8 +310,8 @@ describe("decision dock", () => {
         isAttackerChoice: true,
         results: [{ type: "push", label: "Push", icon: "" }],
         teamRerollAvailable: true,
-      })
-    );
+      });
+    });
     expect(container.textContent).toContain("The other coach is choosing");
     expect(container.querySelectorAll("button")).toHaveLength(0);
   });

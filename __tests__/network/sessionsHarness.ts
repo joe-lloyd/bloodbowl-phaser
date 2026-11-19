@@ -1,22 +1,18 @@
-/**
- * The match harness the networked session tests share: two engines in
- * lockstep over an in-memory transport, and the scenarios they start from.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import {
-  HeadlessCommand,
-  CommandResponse,
-  PendingDecision,
+  type HeadlessCommand,
+  type CommandResponse,
+  type PendingDecision,
 } from "../../src/headless/protocol";
-import { GameSnapshot } from "../../src/headless/serialization";
+import { type GameSnapshot } from "../../src/headless/serialization";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { LockstepSession } from "../../src/network/LockstepSession";
 import {
   createInMemoryTransportPair,
-  Transport,
+  type Transport,
 } from "../../src/network/transport";
 import { decisionOwner } from "../../src/network/OwnershipGate";
 
@@ -27,28 +23,22 @@ export interface Side {
 }
 
 export interface Match {
-  /** The host's engine; the guest's is `guestGame`, kept in lockstep. */
   game: HeadlessGame;
   guestGame: HeadlessGame;
   host: Side;
   guest: Side;
   hostTeamId: string;
   guestTeamId: string;
-  /** The host's commands the guest's engine replayed. */
+
   broadcasts: HeadlessCommand[];
   resyncs: number;
 }
 
-/**
- * Two coaches, each with their own engine, over lockstep sessions: a
- * command runs on its coach's engine and is replayed on the other one.
- * Every helper waits until both engines have caught up.
- */
 export function createMatch(
   options: ConstructorParameters<typeof HeadlessGame>[0]
 ) {
   const game = new HeadlessGame(options);
-  // The same teams, as the lobby hands both coaches
+
   const guestGame = new HeadlessGame({
     ...options,
     team1: structuredClone(game.ctx.team1),
@@ -109,22 +99,26 @@ export function createMatch(
       const response = await own.run(command);
       if (isHost && response.ok) match.broadcasts.push(command);
       await settled();
-      // The coach's own engine answered; the response reflects the host's
-      // engine so assertions read one board
+
       return {
         ...response,
         snapshot: game.snapshot(),
         pendingDecision: game.pendingDecision(),
       };
     };
-    return { executeLocal: run, sendCommand: run, close: () => own.close() };
+    return {
+      executeLocal: run,
+      sendCommand: run,
+      close: () => {
+        own.close();
+      },
+    };
   };
   match.host = side(hostSession, true);
   match.guest = side(guestSession, false);
   return match;
 }
 
-/** Which side owns this command (test routing mirrors the gate's rules). */
 export function senderSide(
   match: Match,
   command: HeadlessCommand,
@@ -170,7 +164,7 @@ export async function run(
   command: HeadlessCommand
 ): Promise<CommandResponse> {
   const pending = match.game.pendingDecision();
-  // Queries route through the host directly (both sides may query)
+
   if (command.type === "state" || command.type === "legal-actions") {
     return match.host.executeLocal(command);
   }
@@ -179,7 +173,6 @@ export async function run(
     : match.host.executeLocal(command);
 }
 
-/** The fullGame.test.ts bot, with commands routed through the sessions. */
 export async function playNetworkedMatch(seed: number): Promise<{
   match: Match;
   finalSnapshot: GameSnapshot;
@@ -208,11 +201,11 @@ export async function playNetworkedMatch(seed: number): Promise<{
         await exec({ type: "choose-block-result", index: 0 });
       } else if (pending.type === "push-direction") {
         const dir = pending.options[0];
-        await exec({ type: "choose-push-direction", x: dir.x, y: dir.y });
+        await exec({ type: "choose-push-direction", x: fixtureValue(dir).x, y: fixtureValue(dir).y });
       } else if (pending.type === "touchback") {
-        const receiver = snap.teams
-          .find((t) => t.id === pending.teamId)!
-          .players.find((p) => p.position && p.status === "Active")!;
+        const receiver = fixtureValue(fixtureValue(snap.teams
+          .find((t) => t.id === pending.teamId))
+          .players.find((p) => p.position && p.status === "Active"));
         await exec({ type: "touchback", playerId: receiver.id });
       } else if (pending.type === "reroll") {
         await exec({ type: "use-reroll", accept: false });
@@ -234,7 +227,7 @@ export async function playNetworkedMatch(seed: number): Promise<{
         if (snap.subPhase === SubPhase.SETUP_KICKING) {
           kickingTeamId = snap.activeTeamId;
         }
-        const teamId = snap.activeTeamId!;
+        const teamId = fixtureValue(snap.activeTeamId);
         await placeTeam(match, exec, snap, teamId);
         await exec({ type: "confirm-setup", teamId });
       } else {
@@ -244,9 +237,9 @@ export async function playNetworkedMatch(seed: number): Promise<{
     }
 
     if (snap.phase === GamePhase.KICKOFF) {
-      const kickerTeam = snap.teams.find((t) => t.id === kickingTeamId)!;
-      const kicker = kickerTeam.players.find((p) => p.position)!;
-      const isTeam1 = kickerTeam.id === snap.teams[0].id;
+      const kickerTeam = fixtureValue(snap.teams.find((t) => t.id === kickingTeamId));
+      const kicker = fixtureValue(kickerTeam.players.find((p) => p.position));
+      const isTeam1 = kickerTeam.id === fixtureValue(snap.teams[0]).id;
       const target = isTeam1 ? { x: 15, y: 5 } : { x: 4, y: 5 };
       const kicked = await exec({
         type: "kick-ball",
@@ -254,13 +247,13 @@ export async function playNetworkedMatch(seed: number): Promise<{
         x: target.x,
         y: target.y,
       });
-      if (!kicked.ok) throw new Error(`kick failed: ${kicked.reason}`);
+      if (!kicked.ok) throw new Error(`kick failed: ${String(kicked.reason)}`);
       continue;
     }
 
     if (snap.phase === GamePhase.PLAY) {
       const legal = await exec({ type: "legal-actions" });
-      const candidates = legal.legalActions!.players.filter((p) =>
+      const candidates = fixtureValue(legal.legalActions).players.filter((p) =>
         p.actions.includes("move")
       );
       if (candidates.length === 0) {
@@ -271,47 +264,49 @@ export async function playNetworkedMatch(seed: number): Promise<{
       const actor = candidates[0];
       const detailed = await exec({
         type: "legal-actions",
-        playerId: actor.playerId,
+        playerId: fixtureValue(actor).playerId,
       });
       const targets =
-        detailed.legalActions!.players.find(
-          (p) => p.playerId === actor.playerId
+        fixtureValue(detailed.legalActions).players.find(
+          (p) => p.playerId === fixtureValue(actor).playerId
         )?.moveTargets ?? [];
 
-      const me = snap.teams
+      const me = fixtureValue(snap.teams
         .flatMap((t) => t.players)
-        .find((p) => p.id === actor.playerId)!;
-      const goalRight = me.teamId === snap.teams[0].id;
+        .find((p) => p.id === fixtureValue(actor).playerId));
+      const goalRight = me.teamId === fixtureValue(snap.teams[0]).id;
       const adjacent = targets
         .filter(
           (t) =>
-            Math.abs(t.x - me.position!.x) <= 1 &&
-            Math.abs(t.y - me.position!.y) <= 1
+            Math.abs(t.x - fixtureValue(me.position).x) <= 1 &&
+            Math.abs(t.y - fixtureValue(me.position).y) <= 1
         )
         .sort((a, b) => (goalRight ? b.x - a.x : a.x - b.x));
 
       if (adjacent.length === 0) {
-        await exec({ type: "end-activation", playerId: actor.playerId });
+        await exec({ type: "end-activation", playerId: fixtureValue(actor).playerId });
         await exec({ type: "end-turn" });
         continue;
       }
 
       await exec({
         type: "declare-action",
-        playerId: actor.playerId,
+        playerId: fixtureValue(actor).playerId,
         action: "move",
       });
       await exec({
         type: "move",
-        playerId: actor.playerId,
-        path: [adjacent[0]],
+        playerId: fixtureValue(actor).playerId,
+        path: [fixtureValue(adjacent[0])],
       });
-      await exec({ type: "end-activation", playerId: actor.playerId });
+      await exec({ type: "end-activation", playerId: fixtureValue(actor).playerId });
       await exec({ type: "end-turn" });
       continue;
     }
 
-    throw new Error(`Bot stuck in phase ${snap.phase}/${snap.subPhase}`);
+    throw new Error(
+      `Bot stuck in phase ${snap.phase}/${String(snap.subPhase)}`
+    );
   }
 
   return { match, finalSnapshot: game.snapshot(), commandCount };
@@ -323,8 +318,8 @@ export async function placeTeam(
   snap: GameSnapshot,
   teamId: string
 ): Promise<void> {
-  const zone = match.game.ctx.gameService.getSetupZone(teamId)!;
-  const team = snap.teams.find((t) => t.id === teamId)!;
+  const zone = fixtureValue(match.game.ctx.gameService.getSetupZone(teamId));
+  const team = fixtureValue(snap.teams.find((t) => t.id === teamId));
   const eligible = team.players.filter(
     (p) => p.status === "Active" || p.status === "Reserve"
   );
@@ -337,35 +332,34 @@ export async function placeTeam(
     snap.teams
       .flatMap((t) => t.players)
       .filter((p) => p.position)
-      .map((p) => `${p.position!.x},${p.position!.y}`)
+      .map((p) => `${String(fixtureValue(p.position).x)},${String(fixtureValue(p.position).y)}`)
   );
 
-  const lineX = teamId === snap.teams[0].id ? zone.maxX : zone.minX;
+  const lineX = teamId === fixtureValue(snap.teams[0]).id ? zone.maxX : zone.minX;
   let placed = 0;
   outer: for (
     let x = lineX;
     x >= zone.minX && x <= zone.maxX;
-    x += teamId === snap.teams[0].id ? -1 : 1
+    x += teamId === fixtureValue(snap.teams[0]).id ? -1 : 1
   ) {
     for (let y = 2; y <= 8; y++) {
       if (placed >= toPlace.length) break outer;
-      if (occupied.has(`${x},${y}`)) continue;
+      if (occupied.has(`${String(x)},${String(y)}`)) continue;
       const player = toPlace[placed];
       const response = await exec({
         type: "place-player",
-        playerId: player.id,
+        playerId: fixtureValue(player).id,
         x,
         y,
       });
       if (response.ok) {
-        occupied.add(`${x},${y}`);
+        occupied.add(`${String(x)},${String(y)}`);
         placed++;
       }
     }
   }
 }
 
-/** Attacker adjacent to a defender who has an assist → uphill, defender picks. */
 export const uphillScenario: Scenario = {
   id: "uphill-test",
   name: "Uphill block",
@@ -383,7 +377,6 @@ export const uphillScenario: Scenario = {
   },
 };
 
-/** Team2 (the guest) is active; player0 holds the ball, adjacent to player1. */
 export const handoffScenario: Scenario = {
   id: "online-handoff",
   name: "Online hand-off",
@@ -401,7 +394,6 @@ export const handoffScenario: Scenario = {
   },
 };
 
-/** Team2 (the guest) is active; player0 has Bloodlust. */
 export const bloodlustDesyncScenario: Scenario = {
   id: "online-bloodlust-desync",
   name: "Online Bloodlust desync",

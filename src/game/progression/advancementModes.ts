@@ -1,32 +1,21 @@
-/**
- * Team advancement modes: Matched Play Skill Points, Sevens Skill Selection,
- * and the post-game Drafted Players roll, per Spike! Journal 22 (see
- * docs/SEVENS_RULES.md, rules A1-A6 and MP5-MP6). Advanced League continues
- * to use the plain SPP flow in progression.ts; this module covers everything
- * mode-specific.
- *
- * All functions here are pure/mutate-the-passed-object, mirroring
- * progression.ts, so they work identically in the browser UI, the headless
- * harness, and unit tests.
- */
 import {
   DRAFT_KEEP_VALUE_INCREASE,
   InjuryType,
-  Player,
-  PlayerAdvancement,
+  type Player,
+  type PlayerAdvancement,
   PlayerStatus,
 } from "../../types/Player";
 import {
-  DraftRecord,
-  MatchedPlayAllocation,
-  PendingDevelopment,
-  SkillRollCandidate,
-  Team,
-  TeamRoster,
+  type DraftRecord,
+  type MatchedPlayAllocation,
+  type PendingDevelopment,
+  type SkillRollCandidate,
+  type Team,
+  type TeamRoster,
   isPendingRecruit,
 } from "../../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../../types/Skills";
-import { IRNGService } from "../../services/rng/RNGService";
+import { type IRNGService } from "../../services/rng/RNGService";
 import {
   ELITE_SKILLS,
   SKILL_ROLL_TABLE,
@@ -62,10 +51,7 @@ function learnSkill(
   player.teamValue = (player.teamValue ?? 0) + record.valueIncrease;
 }
 
-// ===== Matched Play (MP5, MP6) =====
-
 export interface MatchedPlaySkillStatus {
-  /** MP5: one Skill Point per tier number. */
   points: number;
   spent: number;
   remaining: number;
@@ -93,7 +79,6 @@ export function matchedPlaySkillStatus(
   };
 }
 
-/** Problems with a team's Matched Play skills, for competition entry. */
 export function matchedPlaySkillViolations(
   team: Team,
   roster: Pick<TeamRoster, "tier">
@@ -102,7 +87,7 @@ export function matchedPlaySkillViolations(
   const playerIds = (team.matchedPlayAllocations ?? []).map((a) => a.playerId);
   return [
     status.remaining < 0 &&
-      `Matched Play skills cost ${status.spent} Skill Points but the team has ${status.points}.`,
+      `Matched Play skills cost ${String(status.spent)} Skill Points but the team has ${String(status.points)}.`,
     status.secondaryCount > 1 && "A team may take only one Secondary skill.",
     status.eliteCount > 2 && "A team may take at most two Elite skills.",
     new Set(playerIds).size !== playerIds.length &&
@@ -110,12 +95,6 @@ export function matchedPlaySkillViolations(
   ].filter((reason): reason is string => !!reason);
 }
 
-/**
- * Buy one Matched Play skill with Skill Points (MP6): a Primary skill costs
- * 1 point and a Secondary skill 2, with at most one Secondary skill and two
- * Elite skills per team and one added skill per player. Purchased skills do
- * not raise the player's value.
- */
 export function allocateMatchedPlaySkill(
   team: Team,
   roster: Pick<TeamRoster, "tier">,
@@ -131,7 +110,7 @@ export function allocateMatchedPlaySkill(
   const cost = MATCHED_PLAY_COST[access];
   if (cost > status.remaining) {
     throw new Error(
-      `Not enough Skill Points: ${skill} costs ${cost} and ${status.remaining} remain.`
+      `Not enough Skill Points: ${skill} costs ${String(cost)} and ${String(status.remaining)} remain.`
     );
   }
   if (access === "secondary" && status.secondaryCount >= 1) {
@@ -142,14 +121,16 @@ export function allocateMatchedPlaySkill(
     throw new Error("A team may take at most two Elite skills.");
   }
   if (!categoriesFor(player, access).includes(getSkill(skill).category)) {
-    throw new Error(`${skill} is not a legal ${access} choice for this player.`);
+    throw new Error(
+      `${skill} is not a legal ${access} choice for this player.`
+    );
   }
   if (!isSkillLegal(player, skill)) {
     throw new Error(`${skill} is not legal (duplicate or incompatible).`);
   }
 
   learnSkill(player, skill, {
-    id: `adv-${advancementCount(player) + 1}`,
+    id: `adv-${String(advancementCount(player) + 1)}`,
     type: access === "primary" ? "primary-skill" : "secondary-skill",
     name: skill,
     sppCost: 0,
@@ -157,12 +138,15 @@ export function allocateMatchedPlaySkill(
     elite,
     source: "matched-play-package",
   });
-  const allocation: MatchedPlayAllocation = { playerId: player.id, skill, access };
+  const allocation: MatchedPlayAllocation = {
+    playerId: player.id,
+    skill,
+    access,
+  };
   allocations.push(allocation);
   return allocation;
 }
 
-/** Remove a Matched Play allocation (and its skill) before finalization. */
 export function removeMatchedPlayAllocation(
   team: Team,
   player: Player,
@@ -182,17 +166,15 @@ export function removeMatchedPlayAllocation(
   player.skills = player.skills.filter(
     (skill) => skill.type !== allocation.skill
   );
-  player.teamValue = Math.max(0, (player.teamValue ?? 0) - removed.valueIncrease);
+  player.teamValue = Math.max(
+    0,
+    (player.teamValue ?? 0) - removed.valueIncrease
+  );
   player.level = Math.min(6, advancements.length);
 }
 
-// ===== Sevens Skill Selection (A1-A5) =====
-
-/** A4: these can never be gained through Sevens Skill Selection. */
 const NEVER_GAINED = new Set<SkillType>([SkillType.LEADER, SkillType.PRO]);
 
-/** Players who did not end the game as a Casualty (A2, A3). Temporary
- *  players who have not been hired are not offered. */
 export function eligibleSkillSelectionPlayers(team: Team): string[] {
   return team.players
     .filter(
@@ -206,7 +188,6 @@ export function eligibleSkillSelectionPlayers(team: Team): string[] {
     .map((player) => player.id);
 }
 
-/** Record this game's Skill Selection for Manage Team to resolve. */
 export function createPendingSkillSelection(
   team: Team,
   matchId: string,
@@ -227,18 +208,9 @@ export function createPendingSkillSelection(
   return entry;
 }
 
-/** A2: who names each of the three candidate Primary skills. */
 export type Nominator = "coach" | "opponent";
 const NOMINATION_ORDER: readonly Nominator[] = ["coach", "opponent", "coach"];
 
-/**
- * The next choice a Skill Selection is waiting on. The UI renders this and a
- * headless caller answers it with the matching function:
- * choose-route → startPrimarySelection or startSecondarySelection;
- * name-primary-skill → nominatePrimarySkill; roll-primary-d3 →
- * rollPrimarySelection; choose-secondary-category → rollSecondaryCandidates;
- * choose-secondary-skill → chooseSecondarySkill.
- */
 export type SkillSelectionDecision =
   | {
       type: "choose-route";
@@ -283,7 +255,6 @@ function eligiblePlayer(
   return player;
 }
 
-/** Skills that may still be named for the player, in skill-table order. */
 function nameableSkills(
   player: Player,
   category: SkillCategory,
@@ -297,7 +268,6 @@ function nameableSkills(
   );
 }
 
-/** Primary categories with enough skills left for three different names. */
 function nameableCategories(player: Player): SkillCategory[] {
   return categoriesFor(player, "primary").filter(
     (category) => nameableSkills(player, category, []).length >= 3
@@ -325,7 +295,8 @@ export function skillSelectionDecision(
     };
   }
   const player = team.players.find((p) => p.id === progress.playerId);
-  if (!player) throw new Error(`${progress.playerId} is no longer on the team.`);
+  if (!player)
+    throw new Error(`${progress.playerId} is no longer on the team.`);
   switch (progress.route) {
     case "primary": {
       const chooser = NOMINATION_ORDER[progress.named.length];
@@ -364,7 +335,6 @@ function requireNoRoute(entry: SkillSelectionEntry): void {
   if (entry.progress) throw new Error("This game's route is already chosen.");
 }
 
-/** A2: the coach picks the player and one of their Primary categories. */
 export function startPrimarySelection(
   team: Team,
   entry: SkillSelectionEntry,
@@ -374,12 +344,13 @@ export function startPrimarySelection(
   requireNoRoute(entry);
   const player = eligiblePlayer(team, entry, playerId);
   if (!nameableCategories(player).includes(category)) {
-    throw new Error(`${category} is not a Primary category for ${player.playerName}.`);
+    throw new Error(
+      `${category} is not a Primary category for ${player.playerName}.`
+    );
   }
   entry.progress = { route: "primary", playerId, category, named: [] };
 }
 
-/** A2: the coach, then the opponent, then the coach names a skill. */
 export function nominatePrimarySkill(
   team: Team,
   entry: SkillSelectionEntry,
@@ -387,7 +358,10 @@ export function nominatePrimarySkill(
   skill: SkillType
 ): void {
   const decision = skillSelectionDecision(team, entry);
-  if (decision.type !== "name-primary-skill" || entry.progress?.route !== "primary") {
+  if (
+    decision.type !== "name-primary-skill" ||
+    entry.progress?.route !== "primary"
+  ) {
     throw new Error("No skill is waiting to be named.");
   }
   if (decision.chooser !== nominator) {
@@ -395,7 +369,9 @@ export function nominatePrimarySkill(
   }
   if (!decision.options.includes(skill)) {
     const player = team.players.find((p) => p.id === decision.playerId);
-    throw new Error(`${skill} cannot be named for ${player?.playerName}.`);
+    throw new Error(
+      `${skill} cannot be named for ${String(player?.playerName)}.`
+    );
   }
   entry.progress.named.push(skill);
 }
@@ -403,12 +379,11 @@ export function nominatePrimarySkill(
 export interface SkillSelectionResult {
   playerId: string;
   skill: SkillType;
-  /** The D3 that picked among the three named skills (Primary only). */
+
   d3?: number;
   draft: DraftOutcome;
 }
 
-/** A2: a D3 decides which of the three named skills the player learns. */
 export function rollPrimarySelection(
   team: Team,
   entry: SkillSelectionEntry,
@@ -420,10 +395,12 @@ export function rollPrimarySelection(
   }
   const d3 = rng.rollDie(3);
   const skill = decision.named[d3 - 1];
-  return { ...finishSelection(team, entry, decision.playerId, skill, "primary", rng), d3 };
+  return {
+    ...finishSelection(team, entry, decision.playerId, skill, "primary", rng),
+    d3,
+  };
 }
 
-/** A3: the player is picked at random from those who can gain a skill. */
 export function startSecondarySelection(
   team: Team,
   entry: SkillSelectionEntry,
@@ -440,8 +417,6 @@ export function startSecondarySelection(
   entry.progress = { route: "secondary", playerId: player.id };
 }
 
-/** A3 with rulebook page 97: in a category the coach picks, roll on the
- *  skill table twice, re-rolling skills the player cannot take (A4). */
 export function rollSecondaryCandidates(
   team: Team,
   entry: SkillSelectionEntry,
@@ -454,7 +429,9 @@ export function rollSecondaryCandidates(
   }
   const player = eligiblePlayer(team, entry, progress.playerId);
   if (!categoriesFor(player, "secondary").includes(category)) {
-    throw new Error(`${category} is not a Secondary category for ${player.playerName}.`);
+    throw new Error(
+      `${category} is not a Secondary category for ${player.playerName}.`
+    );
   }
   const canTake = (skill: SkillType) =>
     !NEVER_GAINED.has(skill) && isSkillLegal(player, skill);
@@ -465,7 +442,6 @@ export function rollSecondaryCandidates(
   progress.rolled = { category, candidates };
 }
 
-/** A3: the coach chooses one of the two rolled skills. */
 export function chooseSecondarySkill(
   team: Team,
   entry: SkillSelectionEntry,
@@ -479,11 +455,16 @@ export function chooseSecondarySkill(
   ) {
     throw new Error(`${skill} was not rolled for this Skill Selection.`);
   }
-  return finishSelection(team, entry, decision.playerId, skill, "secondary", rng);
+  return finishSelection(
+    team,
+    entry,
+    decision.playerId,
+    skill,
+    "secondary",
+    rng
+  );
 }
 
-/** A5: Primary adds 10,000 for the player's first added skill and 20,000
- *  after; Secondary adds 20,000 then 30,000. */
 function skillSelectionValue(player: Player, access: Access): number {
   const first = addedSkillCount(player) === 0;
   switch (access) {
@@ -494,7 +475,6 @@ function skillSelectionValue(player: Player, access: Access): number {
   }
 }
 
-/** Teach the skill, close the entry, then roll for Drafted Players (A6). */
 function finishSelection(
   team: Team,
   entry: SkillSelectionEntry,
@@ -505,9 +485,11 @@ function finishSelection(
 ): SkillSelectionResult {
   const player = eligiblePlayer(team, entry, playerId);
   const candidates =
-    entry.progress?.route === "secondary" ? entry.progress.rolled?.candidates : undefined;
+    entry.progress?.route === "secondary"
+      ? entry.progress.rolled?.candidates
+      : undefined;
   learnSkill(player, skill, {
-    id: `adv-${advancementCount(player) + 1}`,
+    id: `adv-${String(advancementCount(player) + 1)}`,
     type: access === "primary" ? "primary-skill" : "secondary-skill",
     name: skill,
     sppCost: 0,
@@ -515,7 +497,9 @@ function finishSelection(
     elite: ELITE_SKILLS.has(skill),
     source: "sevens-skill-selection",
     sourceMatchId: entry.matchId,
-    ...(candidates ? { candidateRolls: candidates.map((c) => ({ ...c })) } : {}),
+    ...(candidates
+      ? { candidateRolls: candidates.map((c) => ({ ...c })) }
+      : {}),
   });
   team.pendingDevelopment = (team.pendingDevelopment ?? []).filter(
     (pending) => pending.id !== entry.id
@@ -523,10 +507,6 @@ function finishSelection(
   return { playerId, skill, draft: rollDraftOffers(team, rng, entry.matchId) };
 }
 
-// ===== Drafted Players (A6) =====
-
-/** Number of skills a player has gained from any advancement pipeline —
- *  Advanced League SPP, Matched Play, or Skill Selection. */
 export function addedSkillCount(player: Player): number {
   return (player.advancements ?? []).filter(
     (advancement) =>
@@ -535,15 +515,13 @@ export function addedSkillCount(player: Player): number {
   ).length;
 }
 
-/** What keeping a drafted player costs: their current value. */
 export function draftedPlayerPrice(player: Player): number {
   return player.cost + (player.teamValue ?? 0);
 }
 
 export interface DraftOutcome {
-  /** Offers the coach must answer with keepDraftedPlayer or releaseDraftedPlayer. */
   offers: DraftOfferEntry[];
-  /** Players the Treasury could not keep, removed at once. */
+
   released: DraftRecord[];
 }
 
@@ -555,7 +533,7 @@ function release(
   matchId: string
 ): DraftRecord {
   const record: DraftRecord = {
-    id: `draft-${player.id}-${Date.now()}`,
+    id: `draft-${player.id}-${String(Date.now())}`,
     playerId: player.id,
     playerName: player.playerName,
     roll,
@@ -569,12 +547,6 @@ function release(
   return record;
 }
 
-/**
- * A6: after advancement, roll a D6 for every living player with added
- * skills. At or under their added-skill count, a pro team makes an offer.
- * An offer the Treasury can pay becomes a pending coach decision; one it
- * cannot pay releases the player straight away.
- */
 export function rollDraftOffers(
   team: Team,
   rng: Rng,
@@ -622,9 +594,6 @@ function closeOffer(team: Team, offer: DraftOfferEntry): void {
   );
 }
 
-/** A6: pay the player's current value from the Treasury to keep them; their
- *  value then rises by 15,000. The count persists so the rise survives a
- *  reload, which rebuilds value from stored data. */
 export function keepDraftedPlayer(team: Team, offer: DraftOfferEntry): void {
   const player = offeredPlayer(team, offer);
   const price = draftedPlayerPrice(player);
@@ -639,9 +608,17 @@ export function keepDraftedPlayer(team: Team, offer: DraftOfferEntry): void {
   closeOffer(team, offer);
 }
 
-/** A6: let the player go to the pro team. The team receives nothing. */
-export function releaseDraftedPlayer(team: Team, offer: DraftOfferEntry): DraftRecord {
+export function releaseDraftedPlayer(
+  team: Team,
+  offer: DraftOfferEntry
+): DraftRecord {
   const player = offeredPlayer(team, offer);
   closeOffer(team, offer);
-  return release(team, player, offer.roll, offer.addedSkillCount, offer.matchId);
+  return release(
+    team,
+    player,
+    offer.roll,
+    offer.addedSkillCount,
+    offer.matchId
+  );
 }

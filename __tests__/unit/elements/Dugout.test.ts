@@ -1,14 +1,7 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, vi } from "vitest";
 import { PlayerStatus } from "../../../src/types/Player";
 import { movePlayerToBox } from "../../../src/game/rules/playerLocation";
-
-/**
- * The dugout places each player on a square of their box in the stadium's
- * baked dugout (reserves, KO, injured, sent off), and marks a sent-off
- * player with a red card. The shared vitest-setup.ts stubs Phaser to bare
- * classes, so this suite installs a small working fake Container and Scene
- * for Dugout and PlayerSprite to run their constructors against.
- */
 
 class FakeGameObject {
   x = 0;
@@ -124,20 +117,12 @@ function makeFakeScene() {
   };
 }
 
-/** Each exit to a box finishes when the test says so. */
 const exits = vi.hoisted(() => ({
-  finish: [] as (() => void)[],
-  signals: [] as AbortSignal[],
+  finish: new Array<(() => void)>(),
+  signals: new Array<AbortSignal>(),
 }));
 vi.mock("../../../src/game/elements/pitchExits", () => ({
-  playPitchExit: (
-    _scene: unknown,
-    _sprite: unknown,
-    _route: unknown,
-    _exit: unknown,
-    _kit: unknown,
-    signal: AbortSignal
-  ) => {
+  playPitchExit: ({ signal }: { signal: AbortSignal }) => {
     exits.signals.push(signal);
     return new Promise<void>((resolve) => exits.finish.push(resolve));
   },
@@ -150,12 +135,16 @@ vi.mock("phaser", () => ({
     Geom: {
       Rectangle: class {
         static Contains = vi.fn();
-        constructor(
-          public x: number,
-          public y: number,
-          public width: number,
-          public height: number
-        ) {}
+        public x: number;
+        public y: number;
+        public width: number;
+        public height: number;
+        constructor(x: number, y: number, width: number, height: number) {
+          this.x = x;
+          this.y = y;
+          this.width = width;
+          this.height = height;
+        }
       },
     },
   },
@@ -184,7 +173,7 @@ const SQUARES = {
   injured: [[8.5, -1.5]],
   "sent off": [[9.5, -1.5]],
 };
-/** A stand-in projection: ten pixels per grid unit. */
+
 const toWorld = (gx: number, gy: number) => ({ x: gx * 10, y: gy * 10 });
 
 function player(id: string, status: PlayerStatus) {
@@ -208,14 +197,7 @@ async function build(players: unknown[]) {
     arriveFrom(id: string, from: { x: number; y: number }, exit: string): void;
   };
   const team = makeTeam(players);
-  const dugout = new DugoutCtor(
-    scene,
-    team,
-    team.colors,
-    SQUARES,
-    toWorld,
-    "s",
-    11
+  const dugout = new DugoutCtor({ scene: scene, team: team, kit: team.colors, squares: SQUARES, toWorld: toWorld, facing: "s", rows: 11 }
   );
   return { scene, dugout, sprites: dugout.getSprites() };
 }
@@ -229,7 +211,7 @@ describe("Dugout", () => {
       player("hurt", PlayerStatus.INJURED),
       player("off", PlayerStatus.REMOVED),
     ]);
-    const at = (id: string) => [sprites.get(id)!.x, sprites.get(id)!.y];
+    const at = (id: string) => [fixtureValue(sprites.get(id)).x, fixtureValue(sprites.get(id)).y];
     expect(at("bench1")).toEqual([15, -15]);
     expect(at("bench2")).toEqual([25, -15]);
     expect(at("ko")).toEqual([55, -15]);
@@ -245,7 +227,7 @@ describe("Dugout", () => {
       (r) => (r.value as FakeGameObject).angle === -10
     );
     expect(card).toBeDefined();
-    expect(sprites.get("off")!.list).toContain(card!.value);
+    expect(fixtureValue(sprites.get("off")).list).toContain(fixtureValue(card).value);
   });
 
   it("gives the red card to a player sent off after the match began", async () => {
@@ -258,7 +240,7 @@ describe("Dugout", () => {
       (r) => (r.value as FakeGameObject).angle === -10
     );
     expect(cards).toHaveLength(1);
-    expect(sprites.get("late")!.list).toContain(cards[0].value);
+    expect(fixtureValue(sprites.get("late")).list).toContain(fixtureValue(cards[0]).value);
   });
 
   it("does not draw a player again when their exit ends after the dugout is gone", async () => {
@@ -272,7 +254,7 @@ describe("Dugout", () => {
       ): void;
       destroy(): void;
     };
-    // The team list is the dugout's own: add the player as they leave
+
     (dugout as unknown as { team: { players: unknown[] } }).team.players.push(
       knocked
     );
@@ -280,9 +262,10 @@ describe("Dugout", () => {
     dugout.refresh();
     expect(sprites.size).toBe(1);
 
-    // A scenario reload tears the dugout down mid-carry
     withArrivals.destroy();
-    exits.finish.forEach((finish) => finish());
+    exits.finish.forEach((finish) => {
+      finish();
+    });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(sprites.size).toBe(0);
   });
@@ -303,17 +286,17 @@ describe("Dugout", () => {
     dugout.refresh();
     const finish = exits.finish[exits.finish.length - 1];
     const signal = exits.signals[exits.signals.length - 1];
-    expect(signal.aborted).toBe(false);
+    expect(fixtureValue(signal).aborted).toBe(false);
     movePlayerToBox(knocked as never, {
       box: "pitch",
       position: { x: 3, y: 5 },
     });
     dugout.refresh();
-    expect(signal.aborted).toBe(true);
-    expect(sprites.get(knocked.id)!.visible).toBe(false);
-    finish();
+    expect(fixtureValue(signal).aborted).toBe(true);
+    expect(fixtureValue(sprites.get(knocked.id)).visible).toBe(false);
+    fixtureValue(finish)();
     await Promise.resolve();
-    expect(sprites.get(knocked.id)!.visible).toBe(false);
+    expect(fixtureValue(sprites.get(knocked.id)).visible).toBe(false);
   });
 });
 
@@ -329,33 +312,25 @@ describe("pitch visibility after a crowd push", () => {
       const { scene, dugout, sprites } = await build([ogre]);
       const { PlayerSprite } =
         await import("../../../src/game/elements/PlayerSprite");
-      const pitchSprite = new PlayerSprite(
-        scene as never,
-        110,
-        0,
-        ogre as never,
-        {
+      const pitchSprite = new PlayerSprite({ scene: scene as never, x: 110, y: 0, player: ogre as never, look: {
           rosterName: "Human",
           colors: makeTeam([]).colors,
           facing: "w",
-        }
+        } }
       );
       expect(pitchSprite.visible).toBe(true);
 
-      // A non-injuring crowd result puts the player in reserves. The crowd
-      // animation hides their old pitch sprite, which is kept for next drive.
       movePlayerToBox(ogre as never, { box: "reserves" });
       pitchSprite.setVisible(false);
 
       if (order === "before") pitchSprite.setActivated(false);
       dugout.refresh();
-      // GameScene resets activation on every pitch sprite at TurnStarted.
+
       if (order === "after") pitchSprite.setActivated(false);
 
       expect(pitchSprite.visible).toBe(false);
-      expect(sprites.get(ogre.id)!.visible).toBe(true);
+      expect(fixtureValue(sprites.get(ogre.id)).visible).toBe(true);
 
-      // The retained pitch sprite is usable when placed in a later drive.
       movePlayerToBox(ogre as never, {
         box: "pitch",
         position: { x: 10, y: 5 },
@@ -363,7 +338,7 @@ describe("pitch visibility after a crowd push", () => {
       dugout.refresh();
       pitchSprite.updateStatus();
       expect(pitchSprite.visible).toBe(true);
-      expect(sprites.get(ogre.id)!.visible).toBe(false);
+      expect(fixtureValue(sprites.get(ogre.id)).visible).toBe(false);
     }
   );
 });

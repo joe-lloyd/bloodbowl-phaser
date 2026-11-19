@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AvailableHires } from "../../../src/ui/components/TeamBuilder/AvailableHires";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
@@ -10,12 +11,6 @@ import {
 } from "../../../src/game/rules/teamPricing";
 import { SkillType, SKILL_DEFINITIONS } from "../../../src/types/Skills";
 
-/**
- * team-builder-rule-tooltips: "Hovering an available hire's skill shows its
- * description" — each skill listed for a hireable player template is its own
- * hoverable element carrying that skill's project-written hint, rather than a
- * single joined string with a redundant repeated title.
- */
 describe("AvailableHires skill tooltips", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -27,13 +22,15 @@ describe("AvailableHires skill tooltips", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
   it("renders each hire's skill as its own tooltip trigger with the skill's description", async () => {
     const roster = getRosterByRosterName(RosterName.AMAZON);
-    // Eagle Warrior is the Amazon Lineman, carrying Dodge (RosterTemplates.ts).
+
     const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].description;
 
     await act(async () => {
@@ -61,7 +58,6 @@ describe("AvailableHires skill tooltips", () => {
 
   it("gives a template with multiple skills one independent tooltip per skill", async () => {
     const roster = getRosterByRosterName(RosterName.AMAZON);
-    // Jaguar Warrior carries Defensive + Dodge (RosterTemplates.ts).
 
     await act(async () => {
       root.render(
@@ -82,16 +78,12 @@ describe("AvailableHires skill tooltips", () => {
 
     expect(tooltipPanels).toContain(defensiveText);
     expect(tooltipPanels).toContain(dodgeText);
-    // Independent tooltips, not one combined blob repeating both texts.
+
     expect(
       tooltipPanels.some((t) => t === `${defensiveText} ${dodgeText}`)
     ).toBe(false);
   });
 
-  /**
-   * team-builder-rule-tooltips: "Tabbing to a skill reveals its description"
-   * — the tooltip is keyboard-reachable, not mouse-only.
-   */
   it("makes each hire's skill tooltip reachable and revealed by keyboard focus, not just mouse hover", async () => {
     const roster = getRosterByRosterName(RosterName.AMAZON);
 
@@ -111,9 +103,9 @@ describe("AvailableHires skill tooltips", () => {
     expect(triggers.length).toBeGreaterThan(0);
 
     const [firstTrigger] = triggers;
-    const describedBy = firstTrigger.getAttribute("aria-describedby");
+    const describedBy = fixtureValue(firstTrigger).getAttribute("aria-describedby");
     expect(describedBy).toBeTruthy();
-    const panel = document.getElementById(describedBy!);
+    const panel = document.getElementById(fixtureValue(describedBy));
     expect(panel).toBeTruthy();
     expect(panel?.getAttribute("role")).toBe("tooltip");
 
@@ -121,7 +113,7 @@ describe("AvailableHires skill tooltips", () => {
       (firstTrigger as HTMLElement).focus();
     });
     expect(document.activeElement).toBe(firstTrigger);
-    // Focus, not just hover, reveals the panel
+
     expect(panel?.className).toContain("block");
     expect(panel?.className).not.toContain("hidden");
     act(() => {
@@ -140,11 +132,13 @@ describe("AvailableHires skill tooltips", () => {
         />
       );
     });
-    const trigger = container.querySelector<HTMLElement>('span[tabindex="0"]')!;
-    const panel = document.getElementById(
-      trigger.getAttribute("aria-describedby")!
-    )!;
-    act(() => trigger.focus());
+    const trigger = fixtureValue(container.querySelector<HTMLElement>('span[tabindex="0"]'));
+    const panel = fixtureValue(document.getElementById(
+      fixtureValue(trigger.getAttribute("aria-describedby"))
+    ));
+    act(() => {
+      trigger.focus();
+    });
     expect(panel.className).not.toContain("hidden");
     act(() => {
       trigger.dispatchEvent(
@@ -171,18 +165,20 @@ describe("AvailableHires skill tooltips", () => {
       container.querySelectorAll<HTMLElement>('span[tabindex="0"]')
     );
     const panelOf = (trigger: HTMLElement) =>
-      document.getElementById(trigger.getAttribute("aria-describedby")!)!;
-    act(() => first.focus());
+      fixtureValue(document.getElementById(fixtureValue(trigger.getAttribute("aria-describedby"))));
     act(() => {
-      second.dispatchEvent(
+      fixtureValue(first).focus();
+    });
+    act(() => {
+      fixtureValue(second).dispatchEvent(
         new MouseEvent("mouseover", {
           bubbles: true,
           relatedTarget: document.body,
         })
       );
     });
-    expect(panelOf(second).className).not.toContain("hidden");
-    expect(panelOf(first).className).toContain("hidden");
+    expect(panelOf(fixtureValue(second)).className).not.toContain("hidden");
+    expect(panelOf(fixtureValue(first)).className).toContain("hidden");
   });
 
   it("shows how many of each position the team has and may have", async () => {
@@ -194,7 +190,7 @@ describe("AvailableHires skill tooltips", () => {
       2_000_000
     );
     const roster = getRosterByRosterName(RosterName.ORC);
-    hirePlayer(team, roster.playerTemplates[1]); // Goblin Lineman
+    hirePlayer(team, fixtureValue(roster.playerTemplates[1]));
     await act(async () => {
       root.render(
         <AvailableHires
@@ -207,8 +203,8 @@ describe("AvailableHires skill tooltips", () => {
     });
     const rows = Array.from(container.querySelectorAll("tbody tr")).map(
       (row) => [
-        row.querySelector("td")!.textContent,
-        row.querySelector('[data-testid="hire-allowance"]')!.textContent,
+        fixtureValue(row.querySelector("td")).textContent,
+        fixtureValue(row.querySelector('[data-testid="hire-allowance"]')).textContent,
       ]
     );
 

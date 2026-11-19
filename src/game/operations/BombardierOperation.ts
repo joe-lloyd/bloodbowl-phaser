@@ -1,23 +1,24 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
-import { PlayerStatus, Player } from "../../types/Player";
+import { type IGameService } from "../../services/interfaces/IGameService";
+import { PlayerStatus, type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 import { catchRoll } from "./CatchOperation";
 import { weatherEffects } from "../rules/weather";
-import { InterceptionDecisionAnswer } from "../../types/decisions";
+import { type InterceptionDecisionAnswer } from "../../types/decisions";
 
-/** Ends the Bomber's activation once the bomb (and its blast) has settled. */
 class FinishBombOperation extends GameOperation {
   public readonly name = "FinishBomb";
 
-  constructor(private throwerId: string) {
+  private throwerId: string;
+  constructor(throwerId: string) {
     super();
+    this.throwerId = throwerId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -25,43 +26,23 @@ class FinishBombOperation extends GameOperation {
   }
 }
 
-/**
- * Bombardier — Throw Bomb Special Action (2025 rulebook, Bombardier trait)
- *
- * "They throw a bomb in the same manner as when a player performs a Pass
- * Action, following all the usual rules for a Pass Action." The bomb is NOT
- * the ball — it is a separate projectile that never Bounces:
- *   1. A Passing Ability Test is made from the thrower's square to the target.
- *   2. On a Fumble the bomb explodes in the thrower's own square (a Turnover).
- *   3. Otherwise a player under the Range Ruler to the target may Intercept
- *      it before an Inaccurate bomb scatters. A caught or intercepted
- *      bomb must be thrown again immediately, following all the same rules.
- *   4. When the bomb comes to rest it explodes: the player in that square is
- *      hit, and each adjacent player is hit on a 4+. Standing players hit are
- *      Knocked Down; an Armour Roll is made for every player hit (including
- *      already Prone / Stunned ones).
- *
- * NOT modelled yet: the "only one Throw Bomb per team Turn" declaration limit;
- * a bomb scattering into the crowd (it is clamped to the pitch and explodes at
- * the edge); Pass-side skills that would fold onto the Passing Ability Test
- * (Accurate, Cannoneer, …) — the bomb rolls a plain PA test for now.
- */
 export class BombardierOperation extends GameOperation {
   public readonly name = "BombardierOperation";
 
-  /** Safety cap on catch/intercept re-throw chains. */
   private static readonly MAX_RETHROWS = 5;
 
-  constructor(
-    private throwerId: string,
-    private targetX: number,
-    private targetY: number
-  ) {
+  private throwerId: string;
+  private targetX: number;
+  private targetY: number;
+  constructor(throwerId: string, targetX: number, targetY: number) {
     super();
+    this.throwerId = throwerId;
+    this.targetX = targetX;
+    this.targetY = targetY;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
 
     const thrower = gameService.getPlayerById(this.throwerId);
@@ -92,22 +73,16 @@ export class BombardierOperation extends GameOperation {
       0
     );
 
-    // The activation ends once the bomb and any blast it queued have settled.
     context.flowManager.add(new FinishBombOperation(this.throwerId));
   }
 
-  /**
-   * Throw the bomb from `throwerId` at `target`, resolving the flight, any
-   * interception/catch (which triggers an immediate re-throw), and the
-   * explosion. Recurses for re-throws up to MAX_RETHROWS.
-   */
   private async resolveThrow(
     context: FlowContext,
     throwerId: string,
     target: { x: number; y: number },
     depth: number
   ): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     const passController = gameService.getPassController();
     const catchController = gameService.getCatchController();
@@ -117,7 +92,6 @@ export class BombardierOperation extends GameOperation {
 
     await context.delay(600);
 
-    // 1. Passing Ability Test (a plain test — bomb-side skill folds deferred).
     const opponents = gameService.getOpponents(thrower.teamId);
     const marking = catchController.countMarkingOpponents(
       thrower.gridPosition,
@@ -125,13 +99,8 @@ export class BombardierOperation extends GameOperation {
     );
     const range = passController.measureRange(thrower.gridPosition, target);
     const test = passController.testAccuracy(
-      thrower,
-      range,
-      marking,
-      weatherEffects(gameService.getState().weather).passingAbility
-    );
+      { player: thrower,passRange: range,markingOpponents: marking,extraModifier: weatherEffects(gameService.getState().weather).passingAbility }    );
 
-    // 2. Fumble — the bomb explodes in the thrower's own square, no Bounce.
     if (test.fumbled) {
       eventBus.emit(
         GameEventNames.UI_Notification,
@@ -142,9 +111,6 @@ export class BombardierOperation extends GameOperation {
       return;
     }
 
-    // 3. Interception comes before an inaccurate bomb scatters: a player
-    //    under the Range Ruler to the target may catch the bomb in flight,
-    //    and must then immediately throw it again.
     const interceptorId = await this.resolveInterception(
       context,
       thrower,
@@ -165,7 +131,6 @@ export class BombardierOperation extends GameOperation {
       return;
     }
 
-    // 4. The bomb got through: only now does an inaccurate one scatter.
     let landing = test.accurate
       ? { ...target }
       : this.scatterFrom(gameService, target);
@@ -175,7 +140,6 @@ export class BombardierOperation extends GameOperation {
       test.accurate ? "The bomb is on target!" : "The bomb scatters!"
     );
 
-    // Animate the bomb arcing from the thrower to its landing square.
     eventBus.emit(GameEventNames.BombThrown, {
       playerId: thrower.id,
       from: { ...thrower.gridPosition },
@@ -184,11 +148,8 @@ export class BombardierOperation extends GameOperation {
 
     await context.delay(600);
 
-    // 5. Landing square.
     const occupant = gameService.getPlayerAt(landing.x, landing.y);
     if (occupant) {
-      // The player in the square must try to Catch the bomb, as they would
-      // a ball: it is thrown "following all the usual rules for a Pass".
       const caught = await catchRoll(context, occupant, {
         origin: "pass",
         isPassTarget: test.accurate,
@@ -201,7 +162,7 @@ export class BombardierOperation extends GameOperation {
         await this.rethrow(context, occupant.id, depth);
         return;
       }
-      // Dropped — the bomb does not Bounce; it explodes in that square.
+
       eventBus.emit(
         GameEventNames.UI_Notification,
         `${occupant.playerName} drops the bomb — it explodes!`
@@ -210,22 +171,19 @@ export class BombardierOperation extends GameOperation {
       return;
     }
 
-    // 6. Comes to rest on empty ground — it explodes there.
     this.explode(context, landing);
   }
 
-  /** Throw the bomb again from a catcher/interceptor at an auto-chosen target. */
   private async rethrow(
     context: FlowContext,
     newThrowerId: string,
     depth: number
   ): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const newThrower = gameService.getPlayerById(newThrowerId);
     if (!newThrower?.gridPosition) return;
 
     if (depth + 1 >= BombardierOperation.MAX_RETHROWS) {
-      // Runaway chain — drop it where it is so it resolves.
       context.eventBus.emit(
         GameEventNames.UI_Notification,
         "The bomb is dropped and explodes!"
@@ -242,11 +200,6 @@ export class BombardierOperation extends GameOperation {
     );
   }
 
-  /**
-   * A player forced to re-throw a caught bomb lobs it at the nearest
-   * opposition player; with no opponents on the pitch, they drop it at their
-   * feet (it explodes on them).
-   */
   private autoRethrowTarget(
     gameService: IGameService,
     thrower: Player
@@ -270,7 +223,6 @@ export class BombardierOperation extends GameOperation {
     return best ?? { ...here };
   }
 
-  /** Inaccurate scatter — three steps of the ball's scatter template. */
   private scatterFrom(
     gameService: IGameService,
     target: { x: number; y: number }
@@ -279,28 +231,22 @@ export class BombardierOperation extends GameOperation {
     return path.length ? path[path.length - 1] : { ...target };
   }
 
-  /**
-   * Resolve the bomb's explosion in `square`: the player in that square is
-   * hit; each adjacent player is hit on a 4+. Standing players hit are Knocked
-   * Down, and an Armour Roll is queued for every player hit.
-   */
   private explode(
     context: FlowContext,
     square: { x: number; y: number }
   ): void {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     const dice = gameService.getDiceController();
 
     eventBus.emit(GameEventNames.UI_Notification, "BOOM! The bomb explodes!");
-    // Visual blast covering the square and its eight neighbours.
+
     eventBus.emit(GameEventNames.BombExploded, { x: square.x, y: square.y });
 
     const hits: Player[] = [];
     const direct = gameService.getPlayerAt(square.x, square.y);
     if (direct) hits.push(direct);
 
-    // Every on-pitch player adjacent to the blast: hit on a 4+.
     const candidates = this.adjacentPlayers(gameService, square, direct?.id);
     for (const p of candidates) {
       const roll = dice.rollD6("Bomb Blast", p.teamId);
@@ -309,7 +255,6 @@ export class BombardierOperation extends GameOperation {
 
     for (const player of hits) {
       if (player.status === PlayerStatus.ACTIVE) {
-        // Standing → Knocked Down, then an Armour Roll.
         player.status = PlayerStatus.PRONE;
         eventBus.emit(GameEventNames.PlayerKnockedDown, {
           playerId: player.id,
@@ -317,9 +262,7 @@ export class BombardierOperation extends GameOperation {
         eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         this.dropBallIfCarried(gameService, context, player);
       }
-      // A downed player (already Prone/Stunned, or just knocked down) still
-      // takes an Armour Roll from the blast. cause "special" so it never arms
-      // block-only traits like Plague Ridden.
+
       context.flowManager.add(
         new ArmourOperation(player.id, undefined, undefined, "special"),
         true
@@ -327,7 +270,6 @@ export class BombardierOperation extends GameOperation {
     }
   }
 
-  /** On-pitch players in the eight squares around `square` (excluding one id). */
   private adjacentPlayers(
     gameService: IGameService,
     square: { x: number; y: number },
@@ -344,7 +286,6 @@ export class BombardierOperation extends GameOperation {
     return found;
   }
 
-  /** A knocked-down carrier drops the ball where they stand. */
   private dropBallIfCarried(
     gameService: IGameService,
     context: FlowContext,
@@ -364,18 +305,13 @@ export class BombardierOperation extends GameOperation {
     }
   }
 
-  /**
-   * Offer the defending coach an interception of the bomb in flight. Returns
-   * the interceptor's id when the bomb was caught mid-air (it must then be
-   * re-thrown), otherwise undefined.
-   */
   private async resolveInterception(
     context: FlowContext,
     thrower: Player,
     target: { x: number; y: number },
     accurate: boolean
   ): Promise<string | undefined> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     if (!thrower.gridPosition) return undefined;
 
@@ -384,11 +320,7 @@ export class BombardierOperation extends GameOperation {
     const opponents = gameService.getOpponents(thrower.teamId);
 
     const eligible = passController.checkInterceptions(
-      thrower.gridPosition,
-      target,
-      opponents,
-      accurate
-    );
+      { from: thrower.gridPosition,target,opponents,isAccurate: accurate }    );
     if (eligible.length === 0) return undefined;
 
     const passingTeam = [thrower, ...gameService.getTeammates(thrower.id)];
@@ -440,7 +372,6 @@ export class BombardierOperation extends GameOperation {
     return interceptor.id;
   }
 
-  /** Keep a scattered landing on the pitch (crowd handling deferred). */
   private clampToPitch(pos: { x: number; y: number }): {
     x: number;
     y: number;

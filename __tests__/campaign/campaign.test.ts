@@ -1,15 +1,4 @@
-/**
- * A campaign: computer teams in each advancement mode play several league
- * seasons and then a tournament, through the code the app runs for a league
- * the computer plays by itself. createCompetition builds each competition,
- * and simulateFixture plays every fixture as a full match, records it, awards
- * the MVPs and SPP, and makes each team's development choices. The harness
- * checks every team before and after each game.
- *
- * Slow, so it runs only on request:
- *   CAMPAIGN=1 pnpm exec vitest run __tests__/campaign
- * CAMPAIGN_SEASONS and CAMPAIGN_OUT (a JSON report) shape the run.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { writeFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
@@ -18,18 +7,18 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-import { createComputerTeam } from "../../src/competition/computerTeams";
+import { createComputerTeam } from "../fixtures/computerTeam";
 import { createCompetition as enterCompetition } from "../../src/competition/create";
 import { getCompetition } from "../../src/competition/repository";
 import {
   createRosterRuleProfile,
-  RosterRuleProfile,
+  type RosterRuleProfile,
 } from "../../src/competition/rosterRules";
 import { simulateFixture } from "../../src/competition/simulateFixture";
 import {
-  CompetitionDoc,
-  CompetitionFixture,
-  TournamentFormat,
+  type CompetitionDoc,
+  type CompetitionFixture,
+  type TournamentFormat,
 } from "../../src/competition/types";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
@@ -41,13 +30,12 @@ import {
   isLeagueMode,
   isPendingRaisedDeadRecruit,
   RosterName,
-  Team,
-  TeamAdvancementMode,
+  type Team,
+  type TeamAdvancementMode,
 } from "../../src/types/Team";
 
-/** League seasons before the cups; a typo must not quietly run none. */
 function seasons(): number {
-  const raw = process.env.CAMPAIGN_SEASONS ?? "3";
+  const raw = process.env["CAMPAIGN_SEASONS"] ?? "3";
   const count = Number(raw);
   if (!Number.isSafeInteger(count) || count < 1) {
     throw new Error(
@@ -97,9 +85,8 @@ interface FixtureLog {
   development: string[];
 }
 
-/** Broken invariants: the run fails on any. */
 const findings: Finding[] = [];
-/** Worth reading, but within the rules: shoot-outs, short rosters. */
+
 const happenings: Finding[] = [];
 const fixtures: FixtureLog[] = [];
 const seasonsLog: {
@@ -115,7 +102,6 @@ function happened(where: string, rule: string, detail: string): void {
   happenings.push({ where, rule, detail });
 }
 
-/** The stored shape, as written, before loading tidies it. */
 function storedTeam(teamId: string): Record<string, unknown> | undefined {
   const raw = JSON.parse(localStorage.getItem("bloodbowl_teams") ?? "[]") as {
     id: string;
@@ -131,8 +117,6 @@ function mustLoad(teamId: string): Team {
   return team;
 }
 
-// ===== Team Builder and CompetitionBuilder =====
-
 function buildTeams(
   mode: TeamAdvancementMode,
   rosters: RosterName[],
@@ -140,12 +124,7 @@ function buildTeams(
 ): string[] {
   return rosters.map((roster, index) => {
     const name = tag ? `${roster} ${tag}` : roster;
-    const team = createComputerTeam(
-      roster,
-      name,
-      0x224488 + index * 0x331100,
-      mode
-    );
+    const team = createComputerTeam({ rosterName: roster, name: name, primaryColour: 0x224488 + index * 0x331100, advancementMode: mode });
     saveTeam(team);
     return team.id;
   });
@@ -173,17 +152,15 @@ async function createCompetition(
   }
 }
 
-// ===== A simulated fixture =====
-
 let nextSeed = 1;
 async function playFixture(
   competitionId: string,
   type: "league" | "tournament",
   fixture: CompetitionFixture
 ): Promise<"recorded" | "unrecorded"> {
-  const competition = (await getCompetition(type, competitionId))!;
+  const competition = fixtureValue((await getCompetition(type, competitionId)));
   const entrant = (id: string | null) =>
-    competition.entrants.find((e) => e.id === id)!;
+    fixtureValue(competition.entrants.find((e) => e.id === id));
   const where = `${competition.name} ${fixture.id}`;
   const home = mustLoad(entrant(fixture.homeEntrantId).teamId);
   const away = mustLoad(entrant(fixture.awayEntrantId).teamId);
@@ -192,7 +169,7 @@ async function playFixture(
       note(
         where,
         "launch-blocked",
-        `${team.name} still has ${team.pendingDevelopment!.map((e) => e.kind).join(", ")}`
+        `${team.name} still has ${fixtureValue(team.pendingDevelopment).map((e) => e.kind).join(", ")}`
       );
   }
   const before = new Map(
@@ -205,7 +182,9 @@ async function playFixture(
     outcome = await simulateFixture(competition, fixture.id, {
       seed,
       rng: coachRng,
-      inspect: (game) => checkKickoff(where, game, before, type === "league"),
+      inspect: (game) => {
+        checkKickoff(where, game, before, type === "league");
+      },
     });
   } catch (cause) {
     note(where, "simulation-failed", String(cause));
@@ -219,12 +198,12 @@ async function playFixture(
     for (const setback of report.setbacks)
       happened(where, setback.rule, setback.detail);
   }
-  const result = outcome.fixture.result!;
+  const result = fixtureValue(outcome.fixture.result);
   if (result.penalties)
     happened(
       where,
       "penalties",
-      `${result.homeScore}-${result.awayScore}, shoot-out ${result.penalties.home}-${result.penalties.away}`
+      `${String(result.homeScore)}-${String(result.awayScore)}, shoot-out ${String(result.penalties.home)}-${String(result.penalties.away)}`
     );
   const winnerTeamId = competition.entrants.find(
     (e) => e.id === result.winnerEntrantId
@@ -267,13 +246,6 @@ async function playFixture(
   return "recorded";
 }
 
-// ===== Invariants =====
-
-/**
- * A league team at kick-off (I4, L2): a Miss Next Game player sits in the
- * Casualty box, and in a league fixture Journeymen bring the available
- * players up to 7. A tournament game takes on none.
- */
 function checkKickoff(
   where: string,
   game: HeadlessGame,
@@ -282,8 +254,8 @@ function checkKickoff(
 ): void {
   for (const team of [game.ctx.team1, game.ctx.team2]) {
     if (!isLeagueMode(team.advancementMode)) continue;
-    const owed = before
-      .get(team.id)!
+    const owed = fixtureValue(before
+      .get(team.id))
       .players.filter((p) => p.injuries.includes(InjuryType.MISS_NEXT_GAME));
     for (const player of owed) {
       const inMatch = team.players.find((p) => p.id === player.id);
@@ -291,7 +263,7 @@ function checkKickoff(
         note(
           where,
           "miss-next-game-played",
-          `${team.name} ${player.playerName} is ${inMatch?.status}`
+          `${team.name} ${player.playerName} is ${String(inMatch?.status)}`
         );
     }
     const journeymen = team.players.filter(
@@ -307,7 +279,7 @@ function checkKickoff(
       note(
         where,
         "journeymen",
-        `${team.name}: ${available} available, ${journeymen} Journeymen`
+        `${team.name}: ${String(available)} available, ${String(journeymen)} Journeymen`
       );
   }
 }
@@ -329,7 +301,7 @@ function checkAfterMatch(
       note(
         where,
         "winner",
-        `${now.name}: ${own}-${other} recorded without a winner`
+        `${now.name}: ${String(own)}-${String(other)} recorded without a winner`
       );
     const expect = {
       wins: (previous.wins ?? 0) + (winnerTeamId === teamId ? 1 : 0),
@@ -344,7 +316,7 @@ function checkAfterMatch(
         note(
           where,
           `record-${field}`,
-          `${now.name}: ${now[field]}, expected ${expect[field]}`
+          `${now.name}: ${String(now[field])}, expected ${String(expect[field])}`
         );
     }
     const ids = now.recordedFixtureIds ?? [];
@@ -352,9 +324,9 @@ function checkAfterMatch(
       note(
         where,
         "recorded-fixture-id",
-        `${now.name} holds ${key} ${ids.filter((id) => id === key).length} times`
+        `${now.name} holds ${key} ${String(ids.filter((id) => id === key).length)} times`
       );
-    // Every SPP earned is still held, or was spent on a new advancement
+
     for (const player of previous.players) {
       const stored = now.players.find((p) => p.id === player.id);
       if (!stored) continue;
@@ -367,7 +339,7 @@ function checkAfterMatch(
         note(
           where,
           "spp-persisted",
-          `${now.name} ${player.playerName}: ${stored.spp} held + ${spent} spent, expected ${expected}`
+          `${now.name} ${player.playerName}: ${String(stored.spp)} held + ${String(spent)} spent, expected ${String(expected)}`
         );
     }
     if (competition.status === "active" && now.firstMatchPlayedAt == null)
@@ -380,7 +352,7 @@ function checkAfterMatch(
       note(
         where,
         "development-left",
-        `${now.name}: ${now.pendingDevelopment!.map((e) => e.kind).join(", ")}`
+        `${now.name}: ${fixtureValue(now.pendingDevelopment).map((e) => e.kind).join(", ")}`
       );
   }
 }
@@ -397,14 +369,18 @@ function checkTeam(where: string, team: Team): void {
     note(
       where,
       "roster-size",
-      `${team.name} has ${team.players.length} of ${team.maxRosterSize}`
+      `${team.name} has ${String(team.players.length)} of ${String(team.maxRosterSize)}`
     );
   if (
     isLeagueMode(team.advancementMode)
       ? team.dedicatedFans < 1 || team.dedicatedFans > 5
       : team.dedicatedFans !== 0
   )
-    note(where, "dedicated-fans", `${team.name} has ${team.dedicatedFans}`);
+    note(
+      where,
+      "dedicated-fans",
+      `${team.name} has ${String(team.dedicatedFans)}`
+    );
   const roster = getRosterByRosterName(team.rosterName);
   const illegal = validateRosterLegality(team, roster);
   if (illegal.length > 0)
@@ -430,7 +406,7 @@ function checkTeam(where: string, team: Team): void {
       note(
         where,
         "level",
-        `${team.name} ${player.playerName} level ${player.level} with ${player.advancements?.length} advancements`
+        `${team.name} ${player.playerName} level ${String(player.level)} with ${String(player.advancements?.length)} advancements`
       );
     if (
       team.advancementMode !== "matched-play" &&
@@ -451,7 +427,7 @@ function checkTeam(where: string, team: Team): void {
       note(
         where,
         "spp-outside-advanced-league",
-        `${team.name} ${player.playerName}: ${player.spp}`
+        `${team.name} ${player.playerName}: ${String(player.spp)}`
       );
   }
 }
@@ -460,7 +436,7 @@ async function finishCompetition(
   competition: CompetitionDoc,
   teamIds: string[]
 ): Promise<void> {
-  const latest = (await getCompetition(competition.type, competition.id))!;
+  const latest = fixtureValue((await getCompetition(competition.type, competition.id)));
   if (latest.status !== "complete")
     note(
       latest.name,
@@ -490,7 +466,7 @@ async function finishCompetition(
       note(
         latest.name,
         "standings-played",
-        `${standing.entrantId}: ${standing.wins}/${standing.draws}/${standing.losses} over ${played} games`
+        `${standing.entrantId}: ${String(standing.wins)}/${String(standing.draws)}/${String(standing.losses)} over ${String(played)} games`
       );
   }
   seasonsLog.push({
@@ -506,10 +482,9 @@ async function finishCompetition(
   });
 }
 
-/** Play every fixture that is ready, round by round, until none are left. */
 async function playCompetition(competition: CompetitionDoc): Promise<void> {
   for (let guard = 0; guard < 200; guard++) {
-    const latest = (await getCompetition(competition.type, competition.id))!;
+    const latest = fixtureValue((await getCompetition(competition.type, competition.id)));
     const next = latest.fixtures.find(
       (f) => f.status !== "complete" && f.homeEntrantId && f.awayEntrantId
     );
@@ -523,109 +498,114 @@ async function playCompetition(competition: CompetitionDoc): Promise<void> {
   }
 }
 
-describe.runIf(process.env.CAMPAIGN === "1")("a three-season campaign", () => {
-  it("plays seasons and a tournament in every advancement mode", async () => {
-    const seasonCount = seasons();
-    localStorage.clear();
-    const modes = Object.keys(SIDES) as TeamAdvancementMode[];
-    const teamsByMode = new Map(
-      modes.map((mode) => [mode, buildTeams(mode, SIDES[mode], "")])
-    );
-    const profiles = new Map(
-      modes.map((mode) => [
-        mode,
-        createRosterRuleProfile({ advancementMode: mode }),
-      ])
-    );
-
-    for (let season = 1; season <= seasonCount; season++) {
-      for (const mode of modes) {
-        const teamIds = teamsByMode.get(mode)!;
-        const league = await createCompetition(
-          "league",
-          `${mode} season ${season}`,
-          teamIds,
-          profiles.get(mode)!
-        );
-        if (!league) continue;
-        await playCompetition(league);
-        await finishCompetition(league, teamIds);
-      }
-    }
-
-    // The tournament: a bracket of six, the veterans and two new teams
-    for (const mode of modes) {
-      const newcomers = buildTeams(
-        mode,
-        mode === "advanced-league"
-          ? [RosterName.DARK_ELF, RosterName.OGRE]
-          : mode === "sevens-skill-selection"
-            ? [RosterName.AMAZON, RosterName.VAMPIRE]
-            : [RosterName.HALFLING, RosterName.BLACK_ORC],
-        "Rookies"
+describe.runIf(process.env["CAMPAIGN"] === "1")(
+  "a three-season campaign",
+  () => {
+    it("plays seasons and a tournament in every advancement mode", async () => {
+      const seasonCount = seasons();
+      localStorage.clear();
+      const modes = Object.keys(SIDES) as TeamAdvancementMode[];
+      const teamsByMode = new Map(
+        modes.map((mode) => [mode, buildTeams(mode, SIDES[mode], "")])
       );
-      const teamIds = [...teamsByMode.get(mode)!, ...newcomers];
-      const cup = await createCompetition(
-        "tournament",
-        `${mode} cup`,
-        teamIds,
-        profiles.get(mode)!,
-        mode === "matched-play" ? "round-robin" : "single-elimination"
-      );
-      if (!cup) continue;
-      await playCompetition(cup);
-      await finishCompetition(cup, teamIds);
-    }
-
-    const finalTeams = [...teamsByMode.values()]
-      .flat()
-      .map(mustLoad)
-      .map((team) => ({
-        name: team.name,
-        mode: team.advancementMode,
-        record: `${team.wins}-${team.draws}-${team.losses}`,
-        touchdowns: team.touchdowns,
-        teamValue: team.teamValue,
-        treasury: team.treasury,
-        fans: team.dedicatedFans,
-        drafted: (team.draftHistory ?? []).length,
-        players: team.players.map((p) => ({
-          name: p.playerName,
-          spp: p.spp,
-          level: p.level,
-          skills: p.skills.map((s) => s.type),
-          injuries: p.injuries,
-          advancements: (p.advancements ?? []).map(
-            (a) => `${a.type}:${a.name}`
-          ),
-        })),
-      }));
-
-    if (process.env.CAMPAIGN_OUT) {
-      writeFileSync(
-        process.env.CAMPAIGN_OUT,
-        JSON.stringify(
-          {
-            findings,
-            happenings,
-            fixtures,
-            seasons: seasonsLog,
-            teams: finalTeams,
-          },
-          null,
-          2
-        )
-      );
-    }
-    const byRule = (list: Finding[]) =>
-      Object.fromEntries(
-        [...new Set(list.map((f) => f.rule))].map((rule) => [
-          rule,
-          list.filter((f) => f.rule === rule).length,
+      const profiles = new Map(
+        modes.map((mode) => [
+          mode,
+          createRosterRuleProfile({ advancementMode: mode }),
         ])
       );
-    console.log(`campaign: ${fixtures.length} fixtures`, byRule(happenings));
-    expect(fixtures.length).toBeGreaterThan(0);
-    expect(findings).toEqual([]);
-  }, 3_600_000);
-});
+
+      for (let season = 1; season <= seasonCount; season++) {
+        for (const mode of modes) {
+          const teamIds = fixtureValue(teamsByMode.get(mode));
+          const league = await createCompetition(
+            "league",
+            `${mode} season ${String(season)}`,
+            teamIds,
+            fixtureValue(profiles.get(mode))
+          );
+          if (!league) continue;
+          await playCompetition(league);
+          await finishCompetition(league, teamIds);
+        }
+      }
+
+      for (const mode of modes) {
+        const newcomers = buildTeams(
+          mode,
+          mode === "advanced-league"
+            ? [RosterName.DARK_ELF, RosterName.OGRE]
+            : mode === "sevens-skill-selection"
+              ? [RosterName.AMAZON, RosterName.VAMPIRE]
+              : [RosterName.HALFLING, RosterName.BLACK_ORC],
+          "Rookies"
+        );
+        const teamIds = [...fixtureValue(teamsByMode.get(mode)), ...newcomers];
+        const cup = await createCompetition(
+          "tournament",
+          `${mode} cup`,
+          teamIds,
+          fixtureValue(profiles.get(mode)),
+          mode === "matched-play" ? "round-robin" : "single-elimination"
+        );
+        if (!cup) continue;
+        await playCompetition(cup);
+        await finishCompetition(cup, teamIds);
+      }
+
+      const finalTeams = [...teamsByMode.values()]
+        .flat()
+        .map(mustLoad)
+        .map((team) => ({
+          name: team.name,
+          mode: team.advancementMode,
+          record: `${String(team.wins)}-${String(team.draws)}-${String(team.losses)}`,
+          touchdowns: team.touchdowns,
+          teamValue: team.teamValue,
+          treasury: team.treasury,
+          fans: team.dedicatedFans,
+          drafted: (team.draftHistory ?? []).length,
+          players: team.players.map((p) => ({
+            name: p.playerName,
+            spp: p.spp,
+            level: p.level,
+            skills: p.skills.map((s) => s.type),
+            injuries: p.injuries,
+            advancements: (p.advancements ?? []).map(
+              (a) => `${a.type}:${a.name}`
+            ),
+          })),
+        }));
+
+      if (process.env["CAMPAIGN_OUT"]) {
+        writeFileSync(
+          process.env["CAMPAIGN_OUT"],
+          JSON.stringify(
+            {
+              findings,
+              happenings,
+              fixtures,
+              seasons: seasonsLog,
+              teams: finalTeams,
+            },
+            null,
+            2
+          )
+        );
+      }
+      const byRule = (list: Finding[]) =>
+        Object.fromEntries(
+          [...new Set(list.map((f) => f.rule))].map((rule) => [
+            rule,
+            list.filter((f) => f.rule === rule).length,
+          ])
+        );
+      console.log(
+        `campaign: ${String(fixtures.length)} fixtures`,
+        byRule(happenings)
+      );
+      expect(fixtures.length).toBeGreaterThan(0);
+      expect(findings).toEqual([]);
+    }, 3_600_000);
+  }
+);

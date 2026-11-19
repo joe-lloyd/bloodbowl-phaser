@@ -1,5 +1,5 @@
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
@@ -20,7 +20,9 @@ describe("Announcer", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.useRealTimers();
   });
@@ -82,8 +84,8 @@ describe("Announcer", () => {
 
   it("keeps announcement kinds in a closed type union", () => {
     // @ts-expect-error "kickoff" is not a structural transition and must
-    // never be able to raise an announcement.
+
     const invalidKind: AnnouncementKind = "kickoff";
-    void invalidKind;
+    invalidKind;
   });
 });

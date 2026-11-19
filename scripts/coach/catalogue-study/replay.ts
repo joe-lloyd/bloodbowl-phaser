@@ -16,7 +16,9 @@ export async function replayStudyTrace(file: string) {
   for (const [index, step] of trace.recording.steps.entries()) {
     const response = await game.execute(step.command);
     if (response.ok !== step.ok)
-      throw new Error(`Replay diverged at step ${index}: ${response.reason}`);
+      throw new Error(
+        `Replay diverged at step ${String(index)}: ${String(response.reason)}`
+      );
   }
   const actual = snapshotHash(game.snapshot());
   if (actual !== trace.recording.final.hash)

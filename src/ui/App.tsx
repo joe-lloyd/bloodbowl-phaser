@@ -13,7 +13,7 @@ import { CompetitionView } from "./components/pages/CompetitionView";
 import { GamePage } from "./pages/GamePage";
 import { ComputerPlayPage } from "./pages/ComputerPlayPage";
 import { OnlinePlayPage } from "./pages/OnlinePlayPage";
-import { ReactElement } from "react";
+import { type ReactElement } from "react";
 import { EventBus } from "../services/EventBus";
 import { useAuth } from "./hooks/useAuth";
 import { TeamLibraryGate } from "./components/TeamManagement/TeamLibraryGate";
@@ -24,22 +24,12 @@ interface AppProps {
   eventBus: EventBus;
 }
 
-/**
- * Admin-only pages (the Extras dev tools). Non-admins landing on the URL
- * are sent back to the main menu; nothing renders until the initial auth
- * state is known, so a restoring session isn't misredirected.
- */
 function AdminRoute({ children }: { children: ReactElement }) {
   const { user, ready } = useAuth();
   if (!ready) return null;
   return isAdminUser(user) ? children : <Navigate to="/" replace />;
 }
 
-/**
- * Root React component with client-side routing
- * Phaser only boots when entering /play or /sand-box routes
- */
-/** A page that shows or changes the coach's teams waits for their library. */
 function withTeamLibrary(page: ReactElement): ReactElement {
   return <TeamLibraryGate>{page}</TeamLibraryGate>;
 }

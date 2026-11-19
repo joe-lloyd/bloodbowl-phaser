@@ -1,20 +1,8 @@
-/**
- * Blood Bowl headless console runner.
- *
- *   pnpm headless                          interactive text mode, default teams
- *   pnpm headless --scenario basic-scrimmage --seed 42
- *   pnpm headless --json                   JSON-lines protocol on stdin/stdout (AI mode)
- *   pnpm headless --script moves.jsonl     replay a command script, exit non-zero on failure
- *
- * JSON mode contract: one JSON command per stdin line, exactly one JSON
- * response per stdout line. All diagnostics go to stderr.
- */
-
 import * as readline from "node:readline";
 import * as fs from "node:fs";
 import { HeadlessGame } from "./HeadlessGame";
-import { CommandResponse } from "./protocol";
-import { GameSnapshot, PlayerSnapshot } from "./serialization";
+import { type CommandResponse } from "./protocol";
+import { type GameSnapshot, type PlayerSnapshot } from "./serialization";
 import { SCENARIOS } from "../data/scenarios";
 import { GamePhase } from "../types/GameState";
 import { GameConfig } from "../config/GameConfig";
@@ -87,8 +75,6 @@ function printHelp(): void {
   );
 }
 
-// ===== Text rendering =====
-
 const PITCH_WIDTH = GameConfig.PITCH_WIDTH;
 const PITCH_HEIGHT = GameConfig.PITCH_HEIGHT;
 
@@ -104,7 +90,7 @@ function renderPitch(snapshot: GameSnapshot): string {
       const { x, y } = p.position;
       if (y < 0 || y >= PITCH_HEIGHT || x < 0 || x >= PITCH_WIDTH) return;
       const downed = p.status === "Prone" || p.status === "Stunned" ? "*" : "";
-      const cell = `${mark}${p.number}${downed}`;
+      const cell = `${mark}${String(p.number)}${downed}`;
       grid[y][x] = cell.length > 2 ? cell.slice(0, 3) : ` ${cell}`;
     });
   });
@@ -133,11 +119,11 @@ function renderPitch(snapshot: GameSnapshot): string {
 
 function renderStatus(snapshot: GameSnapshot): string {
   const scores = snapshot.teams
-    .map((t) => `${t.name}: ${snapshot.score[t.id] ?? 0}`)
+    .map((t) => `${t.name}: ${String(snapshot.score[t.id] ?? 0)}`)
     .join("  |  ");
   const active =
     snapshot.teams.find((t) => t.id === snapshot.activeTeamId)?.name ?? "-";
-  return `[${snapshot.phase}${snapshot.subPhase ? "/" + snapshot.subPhase : ""}] turn ${snapshot.turn.turnNumber}${snapshot.turn.isHalf2 ? " (H2)" : ""}  active: ${active}  weather: ${snapshot.weather}  |  ${scores}`;
+  return `[${snapshot.phase}${snapshot.subPhase ? "/" + snapshot.subPhase : ""}] turn ${String(snapshot.turn.turnNumber)}${snapshot.turn.isHalf2 ? " (H2)" : ""}  active: ${active}  weather: ${snapshot.weather}  |  ${scores}`;
 }
 
 function renderEvents(response: CommandResponse): string {
@@ -155,8 +141,6 @@ function safeJson(data: unknown): string {
     return "<unserializable>";
   }
 }
-
-// ===== Command handling =====
 
 function parseTextCommand(line: string): unknown | null {
   const trimmed = line.trim();
@@ -185,8 +169,6 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // In JSON/rule mode nothing but results may reach stdout: reroute
-  // console.* (engine diagnostics like "[Flow] Executing:") to stderr.
   if (options.json || options.script || options.rule) {
     const toStderr =
       (label: string) =>
@@ -212,7 +194,7 @@ async function main(): Promise<void> {
   });
 
   process.stderr.write(
-    `Headless game ready (seed ${game.ctx.seed}${scenario ? `, scenario ${scenario.id}` : ""})\n`
+    `Headless game ready (seed ${String(game.ctx.seed)}${scenario ? `, scenario ${scenario.id}` : ""})\n`
   );
 
   if (options.script) {
@@ -228,12 +210,9 @@ async function main(): Promise<void> {
   await runTextMode(game);
 }
 
-// ===== Rule runner mode =====
-
 type RuleEntry =
   (typeof import("../data/ruleScenarios"))["RULE_SCENARIOS"][number];
 
-/** The catalog entry and configurations asked for; exits when there are none. */
 function ruleConfigs(
   options: CliOptions,
   entries: readonly RuleEntry[]
@@ -244,7 +223,7 @@ function ruleConfigs(
   if (!entry) {
     const covered = entries.map((e) => e.skill).join(", ");
     process.stderr.write(
-      `No catalog entry for rule '${options.rule}'. Covered rules: ${covered}\n`
+      `No catalog entry for rule '${String(options.rule)}'. Covered rules: ${covered}\n`
     );
     process.exit(1);
   }
@@ -252,7 +231,7 @@ function ruleConfigs(
   const configs = selected(entry.configs, options.config);
   if (configs.length === 0) {
     process.stderr.write(
-      `No configuration '${options.config}' for ${entry.skill}. ` +
+      `No configuration '${String(options.config)}' for ${entry.skill}. ` +
         `Available: ${entry.configs.map((c) => c.id).join(", ")}\n`
     );
     process.exit(1);
@@ -260,7 +239,6 @@ function ruleConfigs(
   return { entry, configs };
 }
 
-/** The items with the given id, or every item when none is given. */
 function selected<T extends { id: string }>(
   items: T[],
   id: string | undefined
@@ -275,7 +253,6 @@ function skillEventLines(result: ScriptResult, names: string[]): string {
     .join("\n");
 }
 
-/** Fixed seed: report which outcome(s) it produced. */
 function reportSeed(
   config: RuleConfig,
   seed: number,
@@ -284,7 +261,7 @@ function reportSeed(
 ): void {
   for (const outcome of config.outcomes) {
     out(
-      `  seed ${seed} → ${outcome.id}: ${
+      `  seed ${String(seed)} → ${outcome.id}: ${
         outcome.matches(result) ? "MATCHED" : "not matched"
       }`
     );
@@ -315,7 +292,6 @@ async function runRuleMode(options: CliOptions): Promise<void> {
       ]);
 
     if (options.seed !== undefined) {
-      // Fixed seed: run it once, report which outcome(s) it produced
       const result = await runRuleConfig(config, options.seed);
       reportSeed(config, options.seed, result, out);
       const events = skillEvents(result);
@@ -327,7 +303,7 @@ async function runRuleMode(options: CliOptions): Promise<void> {
       try {
         const found = await findSeed(config, outcome.id);
         outcome.verify?.(found.result);
-        out(`  ✓ ${outcome.id}: seed ${found.seed} — ${outcome.name}`);
+        out(`  ✓ ${outcome.id}: seed ${String(found.seed)} — ${outcome.name}`);
         const events = skillEvents(found.result);
         if (events) out(events);
       } catch (error) {
@@ -352,26 +328,30 @@ async function runScript(game: HeadlessGame, file: string): Promise<void> {
     try {
       command = JSON.parse(lines[i]);
     } catch {
-      process.stderr.write(`Line ${i + 1}: invalid JSON\n`);
+      process.stderr.write(`Line ${String(i + 1)}: invalid JSON\n`);
       process.exit(1);
     }
 
     const response = await Promise.race([
       game.execute(command),
       new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), WATCHDOG_MS)
+        setTimeout(() => {
+          resolve(null);
+        }, WATCHDOG_MS)
       ),
     ]);
 
     if (response === null) {
       process.stderr.write(
-        `Line ${i + 1}: stalled (watchdog ${WATCHDOG_MS}ms)\n`
+        `Line ${String(i + 1)}: stalled (watchdog ${String(WATCHDOG_MS)}ms)\n`
       );
       process.exit(1);
     }
     process.stdout.write(JSON.stringify(response) + "\n");
     if (!response.ok) {
-      process.stderr.write(`Line ${i + 1}: rejected — ${response.reason}\n`);
+      process.stderr.write(
+        `Line ${String(i + 1)}: rejected — ${String(response.reason)}\n`
+      );
       process.exit(1);
     }
   }
@@ -445,7 +425,7 @@ function printResponse(
   print: (text: string) => void
 ): void {
   if (!response.ok) {
-    print(`✗ ${response.reason}`);
+    print(`✗ ${String(response.reason)}`);
     return;
   }
   const events = renderEvents(response);
@@ -467,6 +447,6 @@ function safeJsonPretty(data: unknown): string {
 }
 
 main().catch((err) => {
-  process.stderr.write(`Fatal: ${err?.stack ?? err}\n`);
+  process.stderr.write(`Fatal: ${String(err?.stack ?? err)}\n`);
   process.exit(1);
 });

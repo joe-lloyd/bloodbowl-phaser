@@ -4,10 +4,6 @@ import type { OnlineMatch } from "../../network/OnlineMatch";
 import { WaitingBanner } from "./WaitingBanner";
 import { Panel } from "../components/componentWarehouse/HudKit";
 
-/**
- * The one banner under the turn clock: what is wrong with the connection
- * if anything is, otherwise whose turn or decision the game waits on.
- */
 export function MatchBanner({
   match,
   eventBus,
@@ -26,14 +22,6 @@ export function MatchBanner({
   );
 }
 
-/**
- * The match's connection, when it is not simply up. This coach's own drop
- * comes first: offline, they are told so and offered nothing against the
- * other coach. Late messages, on either side, show as a slow connection
- * and play goes on. A longer silence from the other coach shows as
- * "disconnected", and after a longer grace still the options menu's "End
- * Match (Opponent Left)" entry becomes available.
- */
 export function ConnectionBanner({
   opponentName,
   connection,

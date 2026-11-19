@@ -9,9 +9,9 @@ export interface RNGState {
 export interface IRNGService {
   rollDie(sides: number): number;
   rollMultipleDice(count: number, sides: number): number[];
-  /** Current internal RNG state (advances with every roll) */
+
   getSeed(): number;
-  /** The seed the game was started with — replaying it reproduces the game */
+
   getInitialSeed(): number;
   captureState(): RNGState;
   restoreState(state: RNGState): void;
@@ -20,7 +20,9 @@ export interface IRNGService {
 export class RNGService implements IRNGService {
   private rng: DeterministicRNG;
 
-  constructor(private initialSeed: number) {
+  private initialSeed: number;
+  constructor(initialSeed: number) {
+    this.initialSeed = initialSeed;
     this.rng = new DeterministicRNG(initialSeed);
   }
 

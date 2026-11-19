@@ -1,14 +1,9 @@
-/**
- * Razzle-Dazzle (Spike! Journal 22, L22) in the browser: the coach switches
- * it on as the Lineman is activated, moves, ends the first Action, and the
- * action menu comes back for the second. A Block is offered there; a second
- * Move, a Blitz or a Pass is not, as only one Action may contain a Move.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
 const shot = (name: string) =>
-  `${process.env.SHOTS ?? test.info().outputDir}/${name}.png`;
+  `${process.env["SHOTS"] ?? test.info().outputDir}/${name}.png`;
 
 test("Razzle-Dazzle: a Move, then a Block in the same activation", async ({
   page,
@@ -36,7 +31,6 @@ test("Razzle-Dazzle: a Move, then a Block in the same activation", async ({
   await expect(end).toHaveText("End First Action");
   await end.click();
 
-  // The board picks the Lineman up again for the second Action
   await expect(app.hud.actionMenu()).toContainText(
     "Razzle-Dazzle: 2nd Action",
     {
@@ -56,8 +50,7 @@ test("Razzle-Dazzle: a Move, then a Block in the same activation", async ({
   await app.hud.rollBlockDice();
   await page.screenshot({ path: shot("razzle-dazzle-block") });
   await app.hud.chooseBlockDie(0);
-  // Settle whatever the die asks, a push square and the follow-up, until
-  // the activation is over: the Lineman's two Actions are spent
+
   const finished = async () => {
     const s = await app.bridge.snapshot();
     return s.activePlayer === null || s.activeTeamId !== home;
@@ -65,7 +58,7 @@ test("Razzle-Dazzle: a Move, then a Block in the same activation", async ({
   for (let i = 0; i < 60 && !(await finished()); i++) {
     const pending = await app.bridge.pendingDecision();
     if (pending?.type === "push-direction") {
-      await app.pitch.clickSquare(pending.options[0]);
+      await app.pitch.clickSquare(fixtureValue(pending.options[0]));
     } else if (await app.hud.followUpDialog().isVisible()) {
       await app.hud.answerFollowUp(false);
     }

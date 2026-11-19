@@ -1,15 +1,13 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import type { Weather } from "../../src/game/rules/weather";
 import { PassController } from "../../src/game/controllers/PassController";
 import { enumerateDecision } from "../../src/simulation/candidates";
 
-/**
- * In a Blizzard a Pass Action may only be a Quick or a Short Pass (2025
- * rulebook, Weather Table). The engine let a Long Pass fly in any weather.
- */
 function scenario(weather: Weather): Scenario {
   return {
     id: `blizzard-pass-${weather}`,
@@ -18,8 +16,8 @@ function scenario(weather: Weather): Scenario {
     setup: {
       team1Placements: [
         { playerIndex: 0, x: 4, y: 5 },
-        { playerIndex: 1, x: 10, y: 5 }, // Short Pass
-        { playerIndex: 2, x: 13, y: 5 }, // Long Pass
+        { playerIndex: 1, x: 10, y: 5 },
+        { playerIndex: 2, x: 13, y: 5 },
       ],
       team2Placements: [{ playerIndex: 0, x: 18, y: 12 }],
       activeTeam: "team1",
@@ -33,7 +31,7 @@ function scenario(weather: Weather): Scenario {
 
 async function passTo(weather: Weather, x: number, seed: number) {
   const game = new HeadlessGame({ scenario: scenario(weather), seed });
-  const passer = game.ctx.team1.players[0].id;
+  const passer = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passer,
@@ -42,7 +40,9 @@ async function passTo(weather: Weather, x: number, seed: number) {
   const res = await game.execute({ type: "pass", playerId: passer, x, y: 5 });
   const dice = res.events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
   return { res, dice };
 }
 
@@ -70,7 +70,7 @@ describe("passing in a Blizzard", () => {
 
   it("offers the computer no pass the Blizzard refuses", async () => {
     const game = new HeadlessGame({ scenario: scenario("Blizzard"), seed: 5 });
-    const passer = game.ctx.team1.players[0].id;
+    const passer = fixtureValue(game.ctx.team1.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passer,
@@ -83,7 +83,6 @@ describe("passing in a Blizzard", () => {
         : []
     );
 
-    // 0 is a Quick Pass and 1 a Short Pass
     expect(ranges.length).toBeGreaterThan(0);
     expect(new Set(ranges)).toEqual(new Set([0, 1]));
   });

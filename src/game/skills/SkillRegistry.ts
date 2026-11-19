@@ -1,13 +1,5 @@
-/**
- * SkillRegistry - maps a SkillType to its rule object.
- *
- * Central lookup so managers/controllers never `switch` over skills. Absent
- * rules mean the skill is inert. `coverage()` reports implemented vs. the
- * full catalog so rulebook fidelity is measurable in tests/docs.
- */
-
 import { SkillType } from "../../types/Skills";
-import { SkillRule } from "./SkillRule";
+import { type SkillRule } from "./SkillRule";
 
 const rules = new Map<SkillType, SkillRule>();
 
@@ -24,14 +16,12 @@ export const SkillRegistry = {
     return rules.has(type);
   },
 
-  /** Remove one rule (tests use this to clean up stubs). */
   unregister(type: SkillType): void {
     rules.delete(type);
   },
 
-  /** Implemented vs. the full SkillType catalog. */
   coverage(): { implemented: number; total: number; missing: string[] } {
-    const all = Object.values(SkillType) as SkillType[];
+    const all: SkillType[] = Object.values(SkillType);
     const missing = all.filter((t) => !rules.has(t)).map((t) => String(t));
     return {
       implemented: all.length - missing.length,
@@ -40,7 +30,6 @@ export const SkillRegistry = {
     };
   },
 
-  /** Test-only: wipe registrations. */
   _reset(): void {
     rules.clear();
   },

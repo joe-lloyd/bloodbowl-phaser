@@ -1,452 +1,185 @@
-import { Player, PlayerStatus } from "@/types/Player";
+import { type Player, PlayerStatus } from "@/types/Player";
 import { moveAllowance, standUpCost } from "../skills/movement";
 import { GameConfig } from "@/config/GameConfig";
+import { MovementPathSearch } from "./MovementPathSearch";
+import {
+  adjacentPathSteps,
+  inPitchBounds,
+  movementTackleZones,
+  occupiedSquare,
+} from "./movementSquares";
+import type { MovementSquare } from "./movementSquares";
 
 export interface MovementResult {
   valid: boolean;
-  path: { x: number; y: number }[];
+  path: MovementSquare[];
   rolls: MovementRoll[];
   cost: number;
 }
 
-export interface MovementRoll {
+interface MovementRoll {
   type: "dodge" | "gfi" | "rush";
   target: number;
   modifiers: number;
-  square: { x: number; y: number };
+  square: MovementSquare;
+}
+
+interface PathInput {
+  player: Player;
+  path: MovementSquare[];
+  opponents: Player[];
+  teammates?: Player[] | undefined;
+  movementUsed?: number | undefined;
+}
+
+type ReachableSquare = MovementSquare & { cost: number };
+
+function invalidResult(): MovementResult {
+  return { valid: false, path: [], rolls: [], cost: 0 };
+}
+
+function pitchSquare(square: MovementSquare): boolean {
+  return (
+    Number.isInteger(square.x) &&
+    Number.isInteger(square.y) &&
+    inPitchBounds(square)
+  );
+}
+
+function validStep(
+  from: MovementSquare,
+  to: MovementSquare,
+  occupants: Player[]
+): boolean {
+  return (
+    Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y)) === 1 &&
+    inPitchBounds(to) &&
+    !occupiedSquare(to, occupants)
+  );
+}
+
+function stepRolls(input: {
+  from: MovementSquare;
+  to: MovementSquare;
+  player: Player;
+  opponents: Player[];
+  steps: number;
+}): MovementRoll[] {
+  const { from, to, player, opponents, steps } = input;
+  const rolls: MovementRoll[] = [];
+  if (movementTackleZones(from, opponents) > 0) {
+    const zonesInto = movementTackleZones(to, opponents);
+    rolls.push({
+      type: "dodge",
+      target: player.stats.AG,
+      modifiers: zonesInto === 0 ? 0 : -zonesInto,
+      square: to,
+    });
+  }
+  if (steps > player.stats.MA)
+    rolls.push({ type: "rush", target: 2, modifiers: 0, square: to });
+  return rolls;
 }
 
 export class MovementValidator {
-  private readonly WIDTH = GameConfig.PITCH_WIDTH;
-  private readonly HEIGHT = GameConfig.PITCH_HEIGHT;
-
-  /**
-   * Find the optimal path for a player to a target square, within the
-   * squares left after `movementUsed` (earlier moves and planned legs).
-   */
-  findPath(
-    player: Player,
-    targetX: number,
-    targetY: number,
-    opponents: Player[],
-    teammates: Player[],
-    movementUsed = 0
-  ): MovementResult {
-    if (!player.gridPosition) {
-      return this.invalidResult();
-    }
-
-    // 1. Basic validation
-    if (!this.isInBounds(targetX, targetY)) {
-      return this.invalidResult();
-    }
-
-    // 2. A move never enters an occupied square, whatever the occupant's
-    // status. Getting past a Prone player is a Jump, a separate action.
-    if (this.isOccupied(targetX, targetY, [...opponents, ...teammates])) {
-      return this.invalidResult();
-    }
-
-    // 3. A* Pathfinding — safe route first; if avoiding tackle zones makes
-    // the target unreachable within the step budget, take the direct route
-    // through them (dodging is the player's choice to risk)
-    const startNode = { x: player.gridPosition.x, y: player.gridPosition.y };
-    const endNode = { x: targetX, y: targetY };
-
-    let path = this.calculateAStarPath(
-      startNode,
-      endNode,
+  findPath(input: {
+    player: Player;
+    targetX: number;
+    targetY: number;
+    opponents: Player[];
+    teammates: Player[];
+    movementUsed?: number | undefined;
+  }): MovementResult {
+    const {
       player,
+      targetX,
+      targetY,
       opponents,
       teammates,
-      "safe",
-      movementUsed
-    );
-
-    if (path.length === 0) {
-      path = this.calculateAStarPath(
-        startNode,
-        endNode,
-        player,
-        opponents,
-        teammates,
-        "direct",
-        movementUsed
-      );
-    }
-
-    if (path.length === 0) {
-      return this.invalidResult();
-    }
-
-    // 4. Calculate rolls and validation
-    return this.validatePath(player, path, opponents, teammates, movementUsed);
+      movementUsed = 0,
+    } = input;
+    if (!player.gridPosition) return invalidResult();
+    const end = { x: targetX, y: targetY };
+    if (
+      !inPitchBounds(end) ||
+      occupiedSquare(end, [...opponents, ...teammates])
+    )
+      return invalidResult();
+    const start = { x: player.gridPosition.x, y: player.gridPosition.y };
+    const search = { start, end, player, opponents, teammates, movementUsed };
+    let path = new MovementPathSearch({ ...search, mode: "safe" }).find();
+    if (path.length === 0)
+      path = new MovementPathSearch({ ...search, mode: "direct" }).find();
+    if (path.length === 0) return invalidResult();
+    return this.validatePath({
+      player,
+      path,
+      opponents,
+      teammates,
+      movementUsed,
+    });
   }
 
-  /**
-   * Find all reachable squares for a player
-   */
   findReachableSquares(
     player: Player,
     opponents: Player[],
     teammates: Player[]
-  ): { x: number; y: number; cost: number }[] {
+  ): ReachableSquare[] {
     const start = player.gridPosition;
-    // Only a square on the pitch has neighbours to step to. Off the grid,
-    // the flood would wander between fractions without end.
-    if (!start || !this.isPitchSquare(start)) return [];
-
-    const reachable: { x: number; y: number; cost: number }[] = [];
+    if (!start || !pitchSquare(start)) return [];
+    const reachable: ReachableSquare[] = [];
     const maxMovement = moveAllowance(player);
-    const width = this.WIDTH;
-
-    // Prone and Stunned players block too: getting past one is a Jump, a
-    // separate action, never a plain step. A grid, because the lookahead
-    // asks this for every player after every command.
-    const blocked = new Uint8Array(width * this.HEIGHT);
-    for (const p of [...opponents, ...teammates]) {
-      const at = p.gridPosition;
-      if (at && this.isInBounds(at.x, at.y)) blocked[at.y * width + at.x] = 1;
+    const width = GameConfig.PITCH_WIDTH;
+    const blocked = new Uint8Array(width * GameConfig.PITCH_HEIGHT);
+    for (const occupant of [...opponents, ...teammates]) {
+      const at = occupant.gridPosition;
+      if (at && inPitchBounds(at)) blocked[at.y * width + at.x] = 1;
     }
     blocked[start.y * width + start.x] = 1;
-
-    const queue: { x: number; y: number; cost: number }[] = [
-      { x: start.x, y: start.y, cost: 0 },
-    ];
-    for (let head = 0; head < queue.length; head++) {
-      const current = queue[head];
-
-      // Add to reachable if not start
-      if (current.cost > 0) {
-        reachable.push({ x: current.x, y: current.y, cost: current.cost });
-      }
-
+    const queue: ReachableSquare[] = [{ x: start.x, y: start.y, cost: 0 }];
+    for (const current of queue) {
+      if (current.cost > 0) reachable.push({ ...current });
       if (current.cost < maxMovement) this.flood(current, blocked, queue);
     }
-
     return reachable;
   }
 
-  private isPitchSquare(square: { x: number; y: number }): boolean {
-    return (
-      Number.isInteger(square.x) &&
-      Number.isInteger(square.y) &&
-      this.isInBounds(square.x, square.y)
-    );
-  }
-
-  /** Queue every free square around `current`, one step further on. */
   private flood(
-    current: { x: number; y: number; cost: number },
+    current: ReachableSquare,
     blocked: Uint8Array,
-    queue: { x: number; y: number; cost: number }[]
+    queue: ReachableSquare[]
   ): void {
-    const width = this.WIDTH;
+    const width = GameConfig.PITCH_WIDTH;
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
         const x = current.x + dx;
         const y = current.y + dy;
-        if (!this.isInBounds(x, y) || blocked[y * width + x]) continue;
+        if (!inPitchBounds({ x, y }) || blocked[y * width + x]) continue;
         blocked[y * width + x] = 1;
         queue.push({ x, y, cost: current.cost + 1 });
       }
     }
   }
 
-  getTackleZones(x: number, y: number, opponents: Player[]): number {
-    let count = 0;
-    const neighbors = this.getNeighbors(x, y);
-    for (const n of neighbors) {
-      const opp = opponents.find(
-        (p) =>
-          p.gridPosition && p.gridPosition.x === n.x && p.gridPosition.y === n.y
-      );
-      if (opp && opp.status === PlayerStatus.ACTIVE) {
-        count++;
-      }
-    }
-    return count;
-  }
-
-  /**
-   * @param mode "safe" prefers tackle-zone-free detours (pretty preview
-   * path); "direct" minimizes steps with TZs only as a tiebreak. The safe
-   * weighting can exhaust the MA+2 step budget on detours and find nothing —
-   * callers should fall back to "direct" so any step-reachable square always
-   * gets a path (the player may choose to dodge).
-   */
-  private calculateAStarPath(
-    start: { x: number; y: number },
-    end: { x: number; y: number },
-    player: Player,
-    opponents: Player[],
-    teammates: Player[],
-    mode: "safe" | "direct" = "safe",
-    movementUsed = 0
-  ): { x: number; y: number }[] {
-    const openSet: { x: number; y: number }[] = [];
-    const closedSet: Set<string> = new Set();
-    const cameFrom: Map<string, { x: number; y: number }> = new Map();
-
-    // gScore now represents "Weighted Safety Cost", NOT just distance
-    const gScore: Map<string, number> = new Map();
-    // stepsMap tracks actual movement steps (MA limit)
-    const stepsMap: Map<string, number> = new Map();
-
-    const fScore: Map<string, number> = new Map();
-
-    const startKey = `${start.x},${start.y}`;
-
-    // Squares spent before this leg, standing up included: they limit the
-    // range, and decide which steps are Rushes, but cost no safety.
-    const stepsInternal =
+  validatePath({
+    player,
+    path,
+    opponents,
+    teammates = [],
+    movementUsed = 0,
+  }: PathInput): MovementResult {
+    const rolls: MovementRoll[] = [];
+    let valid = true;
+    let steps =
       movementUsed +
       (player.status === PlayerStatus.PRONE ? standUpCost(player) : 0);
-
-    gScore.set(startKey, 0);
-    stepsMap.set(startKey, stepsInternal);
-    fScore.set(startKey, this.heuristic(start, end, start, end)); // Pass start/end for tie-breaker calc
-
-    openSet.push(start);
-
-    const maxSteps = moveAllowance(player); // GFI limit
-
-    while (openSet.length > 0) {
-      // Sort by fScore (lowest first)
-      openSet.sort((a, b) => {
-        const fa = fScore.get(`${a.x},${a.y}`) || Infinity;
-        const fb = fScore.get(`${b.x},${b.y}`) || Infinity;
-        return fa - fb;
-      });
-
-      const current = openSet.shift()!;
-      const currentKey = `${current.x},${current.y}`;
-
-      if (current.x === end.x && current.y === end.y) {
-        return this.reconstructPath(cameFrom, current);
-      }
-
-      closedSet.add(currentKey);
-
-      const currentSteps = stepsMap.get(currentKey) || 0;
-      if (currentSteps >= maxSteps) continue; // Stop exploring if max MA reached
-
-      const occupants = [...opponents, ...teammates];
-      for (const neighbor of this.getNeighbors(current.x, current.y)) {
-        // Every occupied square is impassable, Prone or Stunned included
-        if (
-          closedSet.has(`${neighbor.x},${neighbor.y}`) ||
-          this.isOccupied(neighbor.x, neighbor.y, occupants)
-        ) {
-          continue;
-        }
-
-        const tentativeGScore =
-          (gScore.get(currentKey) || 0) +
-          this.stepCost(neighbor, currentSteps, player, opponents, mode);
-        this.relax(
-          { openSet, cameFrom, gScore, stepsMap, fScore },
-          { current, neighbor, tentativeGScore, steps: currentSteps + 1 },
-          start,
-          end
-        );
-      }
-    }
-
-    return [];
-  }
-
-  /** Record `neighbor` as reached through `current` when that is cheaper. */
-  private relax(
-    search: {
-      openSet: { x: number; y: number }[];
-      cameFrom: Map<string, { x: number; y: number }>;
-      gScore: Map<string, number>;
-      stepsMap: Map<string, number>;
-      fScore: Map<string, number>;
-    },
-    step: {
-      current: { x: number; y: number };
-      neighbor: { x: number; y: number };
-      tentativeGScore: number;
-      steps: number;
-    },
-    start: { x: number; y: number },
-    end: { x: number; y: number }
-  ): void {
-    const { current, neighbor, tentativeGScore } = step;
-    const neighborKey = `${neighbor.x},${neighbor.y}`;
-    if (tentativeGScore >= (search.gScore.get(neighborKey) || Infinity)) return;
-    search.cameFrom.set(neighborKey, current);
-    search.gScore.set(neighborKey, tentativeGScore);
-    search.stepsMap.set(neighborKey, step.steps);
-
-    // Add heuristic with tie-breaker
-    search.fScore.set(
-      neighborKey,
-      tentativeGScore + this.heuristic(neighbor, end, start, end)
-    );
-
-    if (!search.openSet.some((n) => n.x === neighbor.x && n.y === neighbor.y)) {
-      search.openSet.push(neighbor);
-    }
-  }
-
-  /**
-   * The weight of one step onto `square`.
-   * safe: base 1, + 10 per TZ on the target square and + 4 for a step
-   *       past MA, so the pathfinder detours around tackle zones and
-   *       avoids Rushes when it can, and takes a Rush over a Dodge.
-   * direct: steps dominate, TZ count only breaks ties — guarantees a
-   *         path to anything reachable within MA+2 steps.
-   */
-  private stepCost(
-    square: { x: number; y: number },
-    currentSteps: number,
-    player: Player,
-    opponents: Player[],
-    mode: "safe" | "direct"
-  ): number {
-    const tackleZones = this.getTackleZones(square.x, square.y, opponents);
-    const rush = currentSteps + 1 > player.stats.MA ? 4 : 0;
-    return mode === "safe" ? 1 + tackleZones * 10 + rush : 100 + tackleZones;
-  }
-
-  public validatePath(
-    player: Player,
-    path: { x: number; y: number }[],
-    opponents: Player[],
-    teammates: Player[] = [],
-    /** Squares already spent this activation, by earlier commands */
-    movementUsed = 0
-  ): MovementResult {
-    const rolls: MovementRoll[] = [];
-    const ma = player.stats.MA;
-    let valid = true;
-
-    // MA and Rushes are per activation, so count from what earlier move
-    // commands spent, plus the stand-up cost if the player starts Prone.
-    let stepsAccumulator = movementUsed;
-    if (player.status === PlayerStatus.PRONE) {
-      stepsAccumulator += standUpCost(player);
-    }
-
-    for (let i = 0; i < path.length - 1; i++) {
-      const from = path[i];
-      const to = path[i + 1];
-
-      // Every step is to an adjacent, on-pitch, empty square; a step may
-      // never skip squares. A Prone or Stunned player's square is occupied
-      // too: crossing one is the separate Jump action, with its own roll.
-      if (
-        Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y)) !== 1 ||
-        !this.isInBounds(to.x, to.y) ||
-        this.isOccupied(to.x, to.y, [...opponents, ...teammates])
-      ) {
+    const occupants = [...opponents, ...teammates];
+    for (const { from, to } of adjacentPathSteps(path)) {
+      steps++;
+      if (!validStep(from, to, occupants) || steps > moveAllowance(player))
         valid = false;
-      }
-
-      stepsAccumulator += 1;
-
-      // Leaving a marked square is a Dodge
-      const tackleZones = this.getTackleZones(from.x, from.y, opponents);
-      if (tackleZones > 0) {
-        const zonesInto = this.getTackleZones(to.x, to.y, opponents);
-        const dodgeMods = zonesInto === 0 ? 0 : -zonesInto; // Avoid -0
-        rolls.push({
-          type: "dodge",
-          target: player.stats.AG,
-          modifiers: dodgeMods,
-          square: to,
-        });
-      }
-
-      if (stepsAccumulator > ma) {
-        if (stepsAccumulator > moveAllowance(player)) {
-          valid = false;
-        }
-        rolls.push({
-          type: "rush",
-          target: 2,
-          modifiers: 0,
-          square: to,
-        });
-      }
+      rolls.push(...stepRolls({ from, to, player, opponents, steps }));
     }
-
-    return {
-      valid,
-      path: path.slice(1),
-      rolls,
-      cost: path.length - 1,
-    };
-  }
-
-  private reconstructPath(
-    cameFrom: Map<string, { x: number; y: number }>,
-    current: { x: number; y: number }
-  ): { x: number; y: number }[] {
-    const totalPath = [current];
-    let currKey = `${current.x},${current.y}`;
-
-    while (cameFrom.has(currKey)) {
-      const prev = cameFrom.get(currKey)!;
-      totalPath.unshift(prev);
-      currKey = `${prev.x},${prev.y}`;
-    }
-    return totalPath;
-  }
-
-  private getNeighbors(x: number, y: number): { x: number; y: number }[] {
-    const neighbors = [];
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        if (this.isInBounds(x + dx, y + dy)) {
-          neighbors.push({ x: x + dx, y: y + dy });
-        }
-      }
-    }
-    return neighbors;
-  }
-
-  private isInBounds(x: number, y: number): boolean {
-    return x >= 0 && x < this.WIDTH && y >= 0 && y < this.HEIGHT;
-  }
-
-  /** Any player on the square blocks it, whatever their status. */
-  private isOccupied(x: number, y: number, players: Player[]): boolean {
-    return players.some(
-      (p) => p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
-    );
-  }
-
-  private heuristic(
-    node: { x: number; y: number },
-    end: { x: number; y: number },
-    pathStart: { x: number; y: number },
-    pathEnd: { x: number; y: number }
-  ): number {
-    // Base: Chebyshev distance (diagonal = 1)
-    const dXx = Math.abs(node.x - end.x);
-    const dYy = Math.abs(node.y - end.y);
-    const D = 1;
-    const D2 = 1;
-
-    const h = D * (dXx + dYy) + (D2 - 2 * D) * Math.min(dXx, dYy);
-
-    // Tie-Breaker: Nudge towards straight line
-    // Cross-product magnitude of vector (start->end) vs (start->node)
-    const dx1 = node.x - pathEnd.x;
-    const dy1 = node.y - pathEnd.y;
-    const dx2 = pathStart.x - pathEnd.x;
-    const dy2 = pathStart.y - pathEnd.y;
-    const cross = Math.abs(dx1 * dy2 - dx2 * dy1);
-
-    return h + cross * 0.001;
-  }
-
-  private invalidResult(): MovementResult {
-    return { valid: false, path: [], rolls: [], cost: 0 };
+    return { valid, path: path.slice(1), rolls, cost: path.length - 1 };
   }
 }

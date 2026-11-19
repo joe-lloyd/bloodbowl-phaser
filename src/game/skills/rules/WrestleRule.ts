@@ -1,25 +1,14 @@
-/**
- * Wrestle (2025 rulebook p.141) — "When this player performs a Block
- * Action, or is the target of a Block Action, if the Both Down result is
- * selected then this player can choose to use this Skill. If they do, both
- * players in the Block Action are Placed Prone, regardless of any other
- * Skills they may possess."
- *
- * Placed Prone (p.42): no armour rolls; the ball bounces from a prone
- * carrier; a turnover only if the active player carried the ball.
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
-import { ReactionDecisionAnswer } from "../../../types/decisions";
+import { type SkillRule } from "../SkillRule";
+import { type ReactionDecisionAnswer } from "../../../types/decisions";
 
 export const WrestleRule: SkillRule = {
   async onBlockResult(ctx, self) {
     if (ctx.resultType !== "both-down") return;
-    // Only the two players in the block may wrestle, one use per block
+
     if (self.id !== ctx.attacker.id && self.id !== ctx.defender.id) return;
     if (ctx.placedProne) return;
-    // Juggernaut on a Blitz bars the opposition's Wrestle, not the blitzer's
+
     if (ctx.suppressReactions && self.id !== ctx.attacker.id) return;
     if (!ctx.decisions) return;
 
@@ -32,7 +21,6 @@ export const WrestleRule: SkillRule = {
     })) as ReactionDecisionAnswer;
     if (!answer.accept) return;
 
-    // "Regardless of any other Skills" — overrides Block's stay-up
     ctx.attackerKnockedDown = true;
     ctx.defenderKnockedDown = true;
     ctx.placedProne = true;

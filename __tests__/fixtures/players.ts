@@ -1,29 +1,16 @@
-/**
- * Player test fixtures - Pre-configured players for testing
- */
-
 import {
-  Player,
+  type Player,
   PositionKeyWord,
   PlayerStatus,
 } from "../../src/types/Player.js";
 import { PlayerBuilder } from "../utils/test-builders";
 
-/**
- * Create a basic test player with default values
- */
 export function createTestPlayer(overrides?: Partial<Player>): Player {
   const player = new PlayerBuilder().build();
   return { ...player, ...overrides };
 }
 
-/**
- * Create a Lineman (basic player)
- */
-export function createLineman(
-  teamId: string = "test-team",
-  number: number = 1
-): Player {
+export function createLineman(teamId = "test-team", number = 1): Player {
   return new PlayerBuilder()
     .withTeamId(teamId)
     .withNumber(number)
@@ -33,13 +20,7 @@ export function createLineman(
     .build();
 }
 
-/**
- * Create a Blitzer (fast, good at blocking)
- */
-export function createBlitzer(
-  teamId: string = "test-team",
-  number: number = 1
-): Player {
+export function createBlitzer(teamId = "test-team", number = 1): Player {
   return new PlayerBuilder()
     .withTeamId(teamId)
     .withNumber(number)
@@ -49,13 +30,7 @@ export function createBlitzer(
     .build();
 }
 
-/**
- * Create a Catcher (very fast, agile)
- */
-export function createCatcher(
-  teamId: string = "test-team",
-  number: number = 1
-): Player {
+export function createCatcher(teamId = "test-team", number = 1): Player {
   return new PlayerBuilder()
     .withTeamId(teamId)
     .withNumber(number)
@@ -65,13 +40,7 @@ export function createCatcher(
     .build();
 }
 
-/**
- * Create a Thrower (good passer)
- */
-export function createThrower(
-  teamId: string = "test-team",
-  number: number = 1
-): Player {
+export function createThrower(teamId = "test-team", number = 1): Player {
   return new PlayerBuilder()
     .withTeamId(teamId)
     .withNumber(number)
@@ -81,9 +50,6 @@ export function createThrower(
     .build();
 }
 
-/**
- * Create a player on the pitch at a specific position
- */
 export function createPlayerOnPitch(
   teamId: string,
   number: number,
@@ -98,13 +64,7 @@ export function createPlayerOnPitch(
     .build();
 }
 
-/**
- * Create a knocked down (prone) player
- */
-export function createPronePlayer(
-  teamId: string = "test-team",
-  number: number = 1
-): Player {
+export function createPronePlayer(teamId = "test-team", number = 1): Player {
   return new PlayerBuilder()
     .withTeamId(teamId)
     .withNumber(number)
@@ -112,13 +72,7 @@ export function createPronePlayer(
     .build();
 }
 
-/**
- * Create a stunned player
- */
-export function createStunnedPlayer(
-  teamId: string = "test-team",
-  number: number = 1
-): Player {
+export function createStunnedPlayer(teamId = "test-team", number = 1): Player {
   return new PlayerBuilder()
     .withTeamId(teamId)
     .withNumber(number)
@@ -126,13 +80,7 @@ export function createStunnedPlayer(
     .build();
 }
 
-/**
- * Create a KO'd player
- */
-export function createKOPlayer(
-  teamId: string = "test-team",
-  number: number = 1
-): Player {
+export function createKOPlayer(teamId = "test-team", number = 1): Player {
   return new PlayerBuilder()
     .withTeamId(teamId)
     .withNumber(number)

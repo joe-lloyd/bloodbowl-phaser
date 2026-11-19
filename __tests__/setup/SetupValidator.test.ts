@@ -8,7 +8,7 @@ import {
   SEVENS_GEOMETRY,
 } from "../../src/config/GameConfig";
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
-import { FormationPosition } from "../../src/types/SetupTypes";
+import { type FormationPosition } from "../../src/types/SetupTypes";
 
 const validator = new SetupValidator();
 
@@ -53,15 +53,11 @@ describe("shared Sevens setup geometry", () => {
 
 describe("SetupValidator", () => {
   it("includes live counts for the checklist and pitch labels", () => {
-    const result = validator.validateFormation(
-      [
+    const result = validator.validateFormation({ positions: [
         { playerId: "a", x: 6, y: 3 },
         { playerId: "b", x: 6, y: 5 },
         { playerId: "c", x: 4, y: 0 },
-      ],
-      true,
-      7
-    );
+      ], isTeam1: true, availablePlayerCount: 7 });
     expect(
       result.restrictions.find((rule) => rule.id === "line-of-scrimmage")
         ?.summary
@@ -74,10 +70,10 @@ describe("SetupValidator", () => {
   });
   it("accepts legal mirrored seven-player formations", () => {
     expect(
-      validator.validateFormation(legalFormation(true), true, 11).valid
+      validator.validateFormation({ positions: legalFormation(true), isTeam1: true, availablePlayerCount: 11 }).valid
     ).toBe(true);
     expect(
-      validator.validateFormation(legalFormation(false), false, 11).valid
+      validator.validateFormation({ positions: legalFormation(false), isTeam1: false, availablePlayerCount: 11 }).valid
     ).toBe(true);
   });
 
@@ -93,31 +89,16 @@ describe("SetupValidator", () => {
   });
 
   it("names neutral-zone and opponent-side placement refusals", () => {
-    const neutral = validator.validatePlacement(
-      { playerId: "1", x: 7, y: 5 },
-      [],
-      true,
-      7
-    );
+    const neutral = validator.validatePlacement({ candidate: { playerId: "1", x: 7, y: 5 }, currentPositions: [], isTeam1: true, availablePlayerCount: 7 });
     expect(neutral.valid).toBe(false);
     expect(neutral.errors[0]).toContain("between the Lines of Scrimmage");
 
-    const opponent = validator.validatePlacement(
-      { playerId: "1", x: 15, y: 5 },
-      [],
-      true,
-      7
-    );
+    const opponent = validator.validatePlacement({ candidate: { playerId: "1", x: 15, y: 5 }, currentPositions: [], isTeam1: true, availablePlayerCount: 7 });
     expect(opponent.errors[0]).toContain("own End Zone");
   });
 
   it("refuses an eighth player with the seven-player maximum message", () => {
-    const result = validator.validatePlacement(
-      { playerId: "8", x: 4, y: 5 },
-      legalFormation(true),
-      true,
-      11
-    );
+    const result = validator.validatePlacement({ candidate: { playerId: "8", x: 4, y: 5 }, currentPositions: legalFormation(true), isTeam1: true, availablePlayerCount: 11 });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain("A maximum of 7 players may be set up.");
   });
@@ -126,12 +107,12 @@ describe("SetupValidator", () => {
     const oneEach = legalFormation(true);
     oneEach[3] = { playerId: "4", x: 4, y: 0 };
     oneEach[4] = { playerId: "5", x: 4, y: 10 };
-    expect(validator.validateFormation(oneEach, true, 7).valid).toBe(true);
+    expect(validator.validateFormation({ positions: oneEach, isTeam1: true, availablePlayerCount: 7 }).valid).toBe(true);
 
     const sameWide = legalFormation(true);
     sameWide[3] = { playerId: "4", x: 4, y: 0 };
     sameWide[4] = { playerId: "5", x: 4, y: 1 };
-    const result = validator.validateFormation(sameWide, true, 7);
+    const result = validator.validateFormation({ positions: sameWide, isTeam1: true, availablePlayerCount: 7 });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain(
       "Only one player may be set up in each Wide Zone."
@@ -141,7 +122,7 @@ describe("SetupValidator", () => {
   it("counts only Centre Field squares on the Line of Scrimmage", () => {
     const positions = legalFormation(true);
     positions[2] = { playerId: "3", x: 6, y: 0 };
-    const result = validator.validateFormation(positions, true, 7);
+    const result = validator.validateFormation({ positions: positions, isTeam1: true, availablePlayerCount: 7 });
     expect(result.valid).toBe(false);
     expect(
       result.restrictions.find((rule) => rule.id === "line-of-scrimmage")
@@ -151,20 +132,16 @@ describe("SetupValidator", () => {
 
   it("requires every available player up to seven and leaves extras out", () => {
     expect(
-      validator.validateFormation(legalFormation(true).slice(0, 6), true, 11)
+      validator.validateFormation({ positions: legalFormation(true).slice(0, 6), isTeam1: true, availablePlayerCount: 11 })
         .valid
     ).toBe(false);
     expect(
-      validator.validateFormation(legalFormation(true), true, 11).valid
+      validator.validateFormation({ positions: legalFormation(true), isTeam1: true, availablePlayerCount: 11 }).valid
     ).toBe(true);
   });
 
   it("requires exactly the available players for a short team without Swarming", () => {
-    const result = validator.validateFormation(
-      legalFormation(true).slice(0, 6),
-      true,
-      6
-    );
+    const result = validator.validateFormation({ positions: legalFormation(true).slice(0, 6), isTeam1: true, availablePlayerCount: 6 });
     expect(result.valid).toBe(true);
     expect(
       result.restrictions.find((rule) => rule.id === "required-player-count")
@@ -173,7 +150,7 @@ describe("SetupValidator", () => {
       message: "Set up all 6 available players.",
     });
     expect(
-      validator.validateFormation(legalFormation(true), true, 6).valid
+      validator.validateFormation({ positions: legalFormation(true), isTeam1: true, availablePlayerCount: 6 }).valid
     ).toBe(false);
   });
 
@@ -182,7 +159,7 @@ describe("SetupValidator", () => {
       { playerId: "1", x: 6, y: 4 },
       { playerId: "2", x: 6, y: 6 },
     ];
-    const valid = validator.validateFormation(onLine, true, 2);
+    const valid = validator.validateFormation({ positions: onLine, isTeam1: true, availablePlayerCount: 2 });
     expect(valid.valid).toBe(true);
     expect(
       valid.restrictions.find((rule) => rule.id === "line-of-scrimmage")
@@ -190,7 +167,7 @@ describe("SetupValidator", () => {
     ).toBe(false);
 
     const offLine = [onLine[0], { playerId: "2", x: 5, y: 6 }];
-    const invalid = validator.validateFormation(offLine, true, 2);
+    const invalid = validator.validateFormation({ positions: offLine, isTeam1: true, availablePlayerCount: 2 });
     expect(invalid.valid).toBe(false);
     expect(
       invalid.restrictions.find((rule) => rule.id === "short-handed-line")
@@ -201,7 +178,7 @@ describe("SetupValidator", () => {
   it("returns structured duplicate-square feedback", () => {
     const positions = legalFormation(true);
     positions[6] = { ...positions[5], playerId: "7" };
-    const result = validator.validateFormation(positions, true, 7);
+    const result = validator.validateFormation({ positions: positions, isTeam1: true, availablePlayerCount: 7 });
     expect(result.valid).toBe(false);
     expect(
       result.restrictions.find((rule) => rule.id === "duplicate-square")

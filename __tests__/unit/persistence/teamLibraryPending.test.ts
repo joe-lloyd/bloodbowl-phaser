@@ -1,27 +1,20 @@
-/**
- * The team library is "pending" while a signed-in coach's cloud teams may
- * still replace the localStorage library: while the session restores after
- * a refresh, and while the cloud fetch is in flight. Pages that look a team
- * up by ID wait on it instead of deciding the team does not exist. Only the
- * latest auth change's load may install a library or settle the state.
- */
-
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dehydrateTeam } from "../../../src/data/persistence/teamPersistence";
-import { Team } from "../../../src/types/Team";
+import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
 const auth = vi.hoisted(() => ({
   resolved: false,
-  listener: null as null | ((user: unknown) => void),
+  listener: null,
 }));
-/** Every cloud fetch, in the order they started, each settled by hand. */
+
 const fetches = vi.hoisted(
   () =>
-    [] as {
+    new Array<{
       resolve: (snapshot: unknown) => void;
       reject: (error: unknown) => void;
-    }[]
+    }>()
 );
 
 vi.mock("../../../src/firebase/auth", () => ({
@@ -72,7 +65,6 @@ function snapshotOf(...teams: Team[]) {
   return { docs: teams.map((team) => ({ data: () => dehydrateTeam(team) })) };
 }
 
-/** Let the awaited fetch and migration callbacks run. */
 function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -93,12 +85,12 @@ describe("team library pending", () => {
 
   function signIn(uid: string) {
     auth.resolved = true;
-    auth.listener!({ uid });
+    fixtureValue(auth.listener)({ uid });
   }
 
   function signOut() {
     auth.resolved = true;
-    auth.listener!(null);
+    fixtureValue(auth.listener)(null);
   }
 
   it("is pending while the session restores, and settles signed out", () => {
@@ -114,8 +106,10 @@ describe("team library pending", () => {
     signIn("coach-1");
     expect(isTeamLibraryPending()).toBe(true);
 
-    fetches[0].resolve(snapshotOf(cloudTeam("cloud-team")));
-    await vi.waitFor(() => expect(isTeamLibraryPending()).toBe(false));
+    fixtureValue(fetches[0]).resolve(snapshotOf(cloudTeam("cloud-team")));
+    await vi.waitFor(() => {
+      expect(isTeamLibraryPending()).toBe(false);
+    });
     expect(loadTeams().map((t) => t.id)).toEqual(["cloud-team"]);
   });
 
@@ -125,8 +119,10 @@ describe("team library pending", () => {
     signIn("coach-1");
     expect(getTeamLibraryStatus()).toBe("loading");
 
-    fetches[0].reject(new Error("offline"));
-    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("failed"));
+    fixtureValue(fetches[0]).reject(new Error("offline"));
+    await vi.waitFor(() => {
+      expect(getTeamLibraryStatus()).toBe("failed");
+    });
     expect(isTeamLibraryPending()).toBe(false);
   });
 
@@ -136,8 +132,10 @@ describe("team library pending", () => {
     const localBefore = localStorage.getItem("bloodbowl_teams");
     connectTeamPersistenceToAuth(() => false);
     signIn("coach-1");
-    fetches[0].reject(new Error("offline"));
-    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("failed"));
+    fixtureValue(fetches[0]).reject(new Error("offline"));
+    await vi.waitFor(() => {
+      expect(getTeamLibraryStatus()).toBe("failed");
+    });
 
     expect(loadTeams()).toEqual([]);
     await expect(saveTeams([cloudTeam("same-id")])).rejects.toBeInstanceOf(
@@ -150,24 +148,29 @@ describe("team library pending", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     connectTeamPersistenceToAuth(() => false);
     signIn("coach-1");
-    fetches[0].reject(new Error("offline"));
-    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("failed"));
+    fixtureValue(fetches[0]).reject(new Error("offline"));
+    await vi.waitFor(() => {
+      expect(getTeamLibraryStatus()).toBe("failed");
+    });
 
     retryTeamLibrary();
     expect(getTeamLibraryStatus()).toBe("loading");
     expect(fetches).toHaveLength(2);
-    fetches[1].resolve(snapshotOf(cloudTeam("cloud-team")));
-    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("loaded"));
+    fixtureValue(fetches[1]).resolve(snapshotOf(cloudTeam("cloud-team")));
+    await vi.waitFor(() => {
+      expect(getTeamLibraryStatus()).toBe("loaded");
+    });
     expect(loadTeams().map((t) => t.id)).toEqual(["cloud-team"]);
   });
 
   it("does not reload the library when auth reports the same account again", async () => {
     connectTeamPersistenceToAuth(() => false);
     signIn("coach-1");
-    fetches[0].resolve(snapshotOf(cloudTeam("cloud-team")));
-    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("loaded"));
+    fixtureValue(fetches[0]).resolve(snapshotOf(cloudTeam("cloud-team")));
+    await vi.waitFor(() => {
+      expect(getTeamLibraryStatus()).toBe("loaded");
+    });
 
-    // e.g. an email confirmation link was sent for the signed-in account
     signIn("coach-1");
 
     expect(getTeamLibraryStatus()).toBe("loaded");
@@ -181,8 +184,10 @@ describe("team library pending", () => {
     signIn("coach-1");
     expect(fetches).toHaveLength(1);
 
-    fetches[0].resolve(snapshotOf(cloudTeam("cloud-team")));
-    await vi.waitFor(() => expect(getTeamLibraryStatus()).toBe("loaded"));
+    fixtureValue(fetches[0]).resolve(snapshotOf(cloudTeam("cloud-team")));
+    await vi.waitFor(() => {
+      expect(getTeamLibraryStatus()).toBe("loaded");
+    });
   });
 
   it("has nothing to retry once signed out", () => {
@@ -201,12 +206,14 @@ describe("team library pending", () => {
     signIn("coach-b");
     expect(fetches).toHaveLength(2);
 
-    fetches[0].reject(new Error("coach A's fetch failed late"));
+    fixtureValue(fetches[0]).reject(new Error("coach A's fetch failed late"));
     await settle();
     expect(isTeamLibraryPending()).toBe(true);
 
-    fetches[1].resolve(snapshotOf(cloudTeam("b-team")));
-    await vi.waitFor(() => expect(isTeamLibraryPending()).toBe(false));
+    fixtureValue(fetches[1]).resolve(snapshotOf(cloudTeam("b-team")));
+    await vi.waitFor(() => {
+      expect(isTeamLibraryPending()).toBe(false);
+    });
     expect(loadTeams().map((t) => t.id)).toEqual(["b-team"]);
   });
 
@@ -216,9 +223,11 @@ describe("team library pending", () => {
     signOut();
     signIn("coach-b");
 
-    fetches[1].resolve(snapshotOf(cloudTeam("b-team")));
-    await vi.waitFor(() => expect(isTeamLibraryPending()).toBe(false));
-    fetches[0].resolve(snapshotOf(cloudTeam("a-team")));
+    fixtureValue(fetches[1]).resolve(snapshotOf(cloudTeam("b-team")));
+    await vi.waitFor(() => {
+      expect(isTeamLibraryPending()).toBe(false);
+    });
+    fixtureValue(fetches[0]).resolve(snapshotOf(cloudTeam("a-team")));
     await settle();
 
     expect(loadTeams().map((t) => t.id)).toEqual(["b-team"]);
@@ -230,7 +239,7 @@ describe("team library pending", () => {
     signOut();
     expect(isTeamLibraryPending()).toBe(false);
 
-    fetches[0].resolve(snapshotOf(cloudTeam("a-team")));
+    fixtureValue(fetches[0]).resolve(snapshotOf(cloudTeam("a-team")));
     await settle();
 
     expect(isTeamLibraryPending()).toBe(false);

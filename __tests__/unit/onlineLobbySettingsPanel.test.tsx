@@ -1,18 +1,10 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPanel } from "../../src/ui/components/pages/OnlineLobby";
-import { DEFAULT_SETTINGS, LobbySettings } from "../../src/firebase/lobby";
+import { DEFAULT_SETTINGS, type LobbySettings } from "../../src/firebase/lobby";
 
-/**
- * Host-facing match settings panel — covers the "No time limit" turn-timer
- * option added alongside the existing durations (see
- * openspec/changes/add-multiplayer-no-time-limit-option). The synced-clock
- * behavior itself (deadline math) is covered by TurnClock.test.ts.
- *
- * The turn-timer <select> is the first <select> in the panel and the
- * timeout-bank <select> the second.
- */
 describe("OnlineLobby SettingsPanel — turn timer", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -24,27 +16,43 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.restoreAllMocks();
   });
 
-  const turnTimerSelect = () =>
-    container.querySelectorAll("select")[0] as HTMLSelectElement;
+  const turnTimerSelect = () => fixtureValue(container.querySelectorAll("select")[0]);
 
-  const render = (settings: LobbySettings, onChange: (s: LobbySettings) => void) =>
+  const render = (
+    settings: LobbySettings,
+    onChange: (s: LobbySettings) => void
+  ) => {
     act(() => {
       root.render(
-        <SettingsPanel settings={settings} readOnly={false} onChange={onChange} />
+        <SettingsPanel
+          settings={settings}
+          readOnly={false}
+          onChange={onChange}
+        />
       );
     });
+  };
 
   it("offers a 'No time limit' option alongside the existing durations", async () => {
     await render(DEFAULT_SETTINGS, () => {});
     const labels = Array.from(turnTimerSelect().querySelectorAll("option")).map(
       (o) => o.textContent
     );
-    expect(labels).toEqual(["1 min", "1.5 min", "2 min", "3 min", "4 min", "No time limit"]);
+    expect(labels).toEqual([
+      "1 min",
+      "1.5 min",
+      "2 min",
+      "3 min",
+      "4 min",
+      "No time limit",
+    ]);
   });
 
   it("selecting 'No time limit' reports turnSeconds: 0", async () => {
@@ -55,10 +63,10 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
 
     const select = turnTimerSelect();
     await act(async () => {
-      const nativeSetter = Object.getOwnPropertyDescriptor(
+      const nativeSetter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
         window.HTMLSelectElement.prototype,
         "value"
-      )!.set!;
+      )).set);
       nativeSetter.call(select, "0");
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
@@ -79,7 +87,7 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
 
   it("offers no match style choice, even for a lobby that saved Neon", async () => {
     const legacy = { ...DEFAULT_SETTINGS, pitchThemeId: "neon" };
-    await render(legacy as LobbySettings, () => {});
+    await render(legacy, () => {});
     expect(container.querySelector('[aria-label="Match style"]')).toBeNull();
     expect(container.textContent).not.toMatch(/neon/i);
     expect(DEFAULT_SETTINGS).not.toHaveProperty("pitchThemeId");

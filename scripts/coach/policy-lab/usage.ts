@@ -1,10 +1,3 @@
-/**
- * Which plays each policy chose, and what came of them. Replays saved
- * commands, classifies every declaration by the coach's note, and credits a
- * play when its team scores that turn or its next one, or turns the ball over
- * during the activation. Scoring moments are kept with their game and turn,
- * so a replay can be watched. Sequence attribution, not a skill's causal value.
- */
 import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
@@ -18,7 +11,6 @@ import { GameEventNames } from "../../../src/types/events";
 import { processPool } from "../policy-study/pool";
 import type { PolicyJob } from "../policy-study/schedule";
 
-/** Note prefixes, most specific first, and the play each names. */
 const PLAYS: readonly [string, string][] = [
   ["throws the ball carrier", "throw-carrier"],
   ["throws a team-mate", "throw-teammate"],
@@ -68,9 +60,9 @@ export interface Moment {
   note: string;
   half: 1 | 2;
   turn: number;
-  /** The declaration's index among the recording's steps. */
+
   step: number;
-  /** Scored in the same team turn, or only in its next one. */
+
   scored: "this-turn" | "next-turn";
 }
 
@@ -81,11 +73,10 @@ interface Pending {
   half: 1 | 2;
   turn: number;
   step: number;
-  /** Our team turns since the play: 0 is its own. */
+
   turnsSince: number;
 }
 
-/** Plays by side and roster, from one saved game. */
 export async function usageOfTrace(file: string, id: string) {
   const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
     initial: MatchSave;
@@ -105,8 +96,7 @@ export async function usageOfTrace(file: string, id: string) {
 
   game.ctx.eventBus.on(GameEventNames.Touchdown, ({ teamId }) => {
     const side = sides.get(teamId);
-    // A score in the other team's turn, say from a push, follows none of
-    // this team's plays. The drive still ends, so nothing claims it later.
+
     const ownTurn = game.ctx.gameService.getState().activeTeamId === teamId;
     for (const p of ownTurn ? open : []) {
       if (p.side !== side || p.turnsSince > 1) continue;
@@ -124,7 +114,7 @@ export async function usageOfTrace(file: string, id: string) {
         scored,
       });
     }
-    // A drive ends with the score: nothing earlier can claim it again.
+
     open = [];
   });
   game.ctx.eventBus.on(GameEventNames.Turnover, ({ teamId }) => {
@@ -159,7 +149,8 @@ export async function usageOfTrace(file: string, id: string) {
       active = pending;
     }
     const response = await game.execute(command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
+    if (response.ok !== step.ok)
+      throw new Error(`Replay diverged at ${String(index)}`);
   }
   const hash = snapshotHash(game.snapshot());
   if (hash !== trace.recording.final.hash)
@@ -179,7 +170,6 @@ const add = (into: Record<string, Tally>, from: Record<string, Tally>) => {
   }
 };
 
-/** Rarer plays first in the moment list: they are the ones worth watching. */
 function pickMoments(all: Moment[], perPlay: number): Moment[] {
   const byPlay = new Map<string, Moment[]>();
   for (const m of all) {
@@ -229,7 +219,7 @@ async function main() {
         );
         process.send?.({ done: job.id });
       } catch (error) {
-        process.send?.({ error: `${job.id}: ${error}` });
+        process.send?.({ error: `${job.id}: ${String(error)}` });
       }
     });
     process.send?.({ ready: true });
@@ -242,10 +232,10 @@ async function main() {
   const files = readdirSync(out).filter((name) => name.endsWith(".json"));
   if (files.length !== manifest.jobs.length)
     throw new Error("Incomplete or foreign usage files");
-  const policies = { candidate: {}, frozen: {} } as Record<
+  const policies: Record<
     "candidate" | "frozen",
     Record<string, Tally>
-  >;
+  > = { candidate: {}, frozen: {} };
   const rosters: Record<string, Record<string, Tally>> = {};
   const moments: Moment[] = [];
   for (const file of files) {
@@ -254,7 +244,7 @@ async function main() {
       const policy = side === game.candidateSide ? "candidate" : "frozen";
       add(policies[policy], game.byPlay[side]);
       add(
-        (rosters[`${policy}/${game.rosters[side]}`] ??= {}),
+        (rosters[`${policy}/${String(game.rosters[side])}`] ??= {}),
         game.byPlay[side]
       );
     }

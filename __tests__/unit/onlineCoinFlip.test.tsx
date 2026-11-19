@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
@@ -7,15 +8,17 @@ import { OnlineCoinFlip } from "../../src/ui/pages/OnlineCoinFlip";
 import type { LobbyDoc } from "../../src/firebase/lobby";
 import type { OnlineMatch } from "../../src/network/OnlineMatch";
 
-// A coin that lands when the test says so, and the side it was thrown on
 const coins = vi.hoisted(
-  () => [] as { side: number; land: () => void; stop: () => void }[]
+  () => new Array<{ side: number; land: () => void; stop: () => void }>()
 );
 vi.mock("../../src/ui/dice/diceScene", () => ({
   playRoll: (_host: HTMLElement, roll: { side: number }) => {
     let land = () => {};
     const landed = new Promise<number[]>(
-      (resolve) => (land = () => resolve([roll.side]))
+      (resolve) =>
+        (land = () => {
+          resolve([roll.side]);
+        })
     );
     const stop = vi.fn();
     coins.push({ side: roll.side, land, stop });
@@ -23,7 +26,6 @@ vi.mock("../../src/ui/dice/diceScene", () => ({
   },
 }));
 
-// A short wait for a coin that never lands
 vi.mock("../../src/game/presentation/diceWatch", async (original) => ({
   ...(await original<object>()),
   DIE_LANDING_TIMEOUT_MS: 300,
@@ -35,14 +37,9 @@ vi.mock("../../src/firebase/lobby", () => ({
   setCoinFlipChoice: vi.fn(),
 }));
 
-// The guest's engine at the opening: who has readied up, the weather, and
-// any pregame purchases
 const engine = vi.hoisted(() => ({
-  state: { weather: "Nice", weatherReady: [] as string[] } as Record<
-    string,
-    unknown
-  >,
-  readied: [] as string[],
+  state: { weather: "Nice", weatherReady: new Array<string>() },
+  readied: new Array<string>(),
 }));
 
 vi.mock("../../src/services/ServiceContainer", () => {
@@ -105,7 +102,7 @@ const mount = async (first: LobbyDoc, side: OnlineMatch = match) => {
   document.body.appendChild(container);
   const root = createRoot(container);
   const render = (next: LobbyDoc) =>
-    act(async () =>
+    act(async () => {
       root.render(
         <OnlineCoinFlip
           code="ABC123"
@@ -113,14 +110,16 @@ const mount = async (first: LobbyDoc, side: OnlineMatch = match) => {
           match={side}
           eventBus={bus}
         />
-      )
-    );
+      );
+    });
   await render(first);
   return {
     render,
     text: () => container.textContent ?? "",
     unmount: async () => {
-      await act(async () => root.unmount());
+      await act(async () => {
+        root.unmount();
+      });
       container.remove();
     },
   };
@@ -129,7 +128,6 @@ const mount = async (first: LobbyDoc, side: OnlineMatch = match) => {
 const tick = (ms: number) =>
   act(() => new Promise((resolve) => setTimeout(resolve, ms)));
 
-/** The opening dialog before the weather, for this coach. */
 const mountWeather = async (coach: OnlineMatch) => {
   engine.state = { weather: "Nice", weatherReady: [] };
   engine.readied = [];
@@ -138,7 +136,7 @@ const mountWeather = async (coach: OnlineMatch) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () =>
+  await act(async () => {
     root.render(
       <OnlineCoinFlip
         code="ABC123"
@@ -146,8 +144,8 @@ const mountWeather = async (coach: OnlineMatch) => {
         match={coach}
         eventBus={bus}
       />
-    )
-  );
+    );
+  });
   return {
     bus,
     text: () => container.textContent ?? "",
@@ -156,7 +154,9 @@ const mountWeather = async (coach: OnlineMatch) => {
         b.textContent?.includes(name)
       ),
     unmount: async () => {
-      await act(async () => root.unmount());
+      await act(async () => {
+        root.unmount();
+      });
       container.remove();
     },
   };
@@ -172,32 +172,38 @@ const host = {
 describe("online weather", () => {
   it("holds a host's ready until the guest's has arrived", async () => {
     const dialog = await mountWeather(host);
-    await act(async () => dialog.button("READY — ROLL WEATHER")!.click());
-    // Sending now could cross the guest's ready on the wire
+    await act(async () => {
+      fixtureValue(dialog.button("READY — ROLL WEATHER")).click();
+    });
+
     expect(engine.readied).toEqual([]);
     expect(dialog.text()).toContain("Waiting for Coach-GUEST to ready up");
 
     engine.state = { weather: "Nice", weatherReady: ["away"] };
-    await act(async () =>
-      dialog.bus.emit(GameEventNames.WeatherReady, { teamIds: ["away"] })
-    );
+    await act(async () => {
+      dialog.bus.emit(GameEventNames.WeatherReady, { teamIds: ["away"] });
+    });
     expect(engine.readied).toEqual(["home"]);
     await dialog.unmount();
   });
 
   it("gives a refused ready back, so the coach can try again", async () => {
     const dialog = await mountWeather(match);
-    await act(async () => dialog.button("READY — ROLL WEATHER")!.click());
+    await act(async () => {
+      fixtureValue(dialog.button("READY — ROLL WEATHER")).click();
+    });
     expect(engine.readied).toEqual(["away"]);
     expect(dialog.button("READY — ROLL WEATHER")).toBeUndefined();
 
-    await act(async () =>
+    await act(async () => {
       dialog.bus.emit(GameEventNames.NetworkCommandRejected, {
         commandType: "ready-weather",
         reason: "not-your-turn",
-      })
-    );
-    await act(async () => dialog.button("READY — ROLL WEATHER")!.click());
+      });
+    });
+    await act(async () => {
+      fixtureValue(dialog.button("READY — ROLL WEATHER")).click();
+    });
     expect(engine.readied).toEqual(["away", "away"]);
     await dialog.unmount();
   });
@@ -206,15 +212,16 @@ describe("online weather", () => {
     const dialog = await mountWeather(match);
     expect(dialog.button("READY — ROLL WEATHER")).toBeDefined();
 
-    // The other engine's state arrives whole, already rolled
     engine.state = { weather: "Blizzard", weatherReady: ["away", "home"] };
-    await act(async () =>
-      dialog.bus.emit(GameEventNames.GameStateRestored, engine.state as never)
-    );
+    await act(async () => {
+      dialog.bus.emit(GameEventNames.GameStateRestored, engine.state as never);
+    });
 
     expect(dialog.text()).toContain("Blizzard");
     expect(dialog.button("READY — ROLL WEATHER")).toBeUndefined();
-    await act(async () => dialog.button("ON TO THE COIN TOSS")!.click());
+    await act(async () => {
+      fixtureValue(dialog.button("ON TO THE COIN TOSS")).click();
+    });
     expect(dialog.text()).toContain("COIN TOSS");
     await dialog.unmount();
   });
@@ -227,7 +234,7 @@ describe("online weather", () => {
     document.body.appendChild(container);
     const root = createRoot(container);
     coins.length = 0;
-    await act(async () =>
+    await act(async () => {
       root.render(
         <OnlineCoinFlip
           code="ABC123"
@@ -235,8 +242,8 @@ describe("online weather", () => {
           match={match}
           eventBus={bus}
         />
-      )
-    );
+      );
+    });
     const text = () => container.textContent ?? "";
     const button = (name: string) =>
       [...container.querySelectorAll("button")].find((b) =>
@@ -245,15 +252,15 @@ describe("online weather", () => {
     expect(text()).toContain("WEATHER");
     expect(text()).not.toContain("COIN TOSS");
 
-    // This coach readies their own team only
-    await act(async () => button("READY — ROLL WEATHER")!.click());
+    await act(async () => {
+      fixtureValue(button("READY — ROLL WEATHER")).click();
+    });
     expect(engine.readied).toEqual(["away"]);
-    await act(async () =>
-      bus.emit(GameEventNames.WeatherReady, { teamIds: ["away"] })
-    );
+    await act(async () => {
+      bus.emit(GameEventNames.WeatherReady, { teamIds: ["away"] });
+    });
     expect(text()).toContain("Waiting for Coach-HOST to ready up");
 
-    // The host readies: both engines roll the 2D6
     engine.state = { weather: "Pouring Rain", weatherReady: ["away", "home"] };
     await act(async () => {
       bus.emit(GameEventNames.WeatherReady, { teamIds: ["away", "home"] });
@@ -268,7 +275,9 @@ describe("online weather", () => {
     await tick(20);
     expect(coins.length).toBe(1);
     expect(text()).not.toContain("Rolled 11");
-    await act(async () => coins[0].land());
+    await act(async () => {
+      fixtureValue(coins[0]).land();
+    });
     await tick(800);
     expect(text()).toContain("Pouring Rain");
     expect(text()).toContain("Rolled 11");
@@ -276,10 +285,14 @@ describe("online weather", () => {
       "Pouring Rain"
     );
 
-    await act(async () => button("ON TO THE COIN TOSS")!.click());
+    await act(async () => {
+      fixtureValue(button("ON TO THE COIN TOSS")).click();
+    });
     expect(text()).toContain("COIN TOSS");
     expect(button("READY — FLIP COIN")).toBeDefined();
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 });
@@ -289,7 +302,6 @@ describe("online coin toss", () => {
     const card = await mount(lobby({ hostReady: true, guestReady: true }));
     expect(card.text()).toContain("Flipping");
 
-    // The host's result arrives from the lobby
     await card.render(
       lobby({ hostReady: true, guestReady: true, winnerTeamId: "home" })
     );
@@ -297,7 +309,9 @@ describe("online coin toss", () => {
     expect(coins.map((coin) => coin.side)).toEqual([1]);
     expect(card.text()).not.toContain("wins the toss");
 
-    await act(async () => coins[0].land());
+    await act(async () => {
+      fixtureValue(coins[0]).land();
+    });
     await tick(800);
     expect(card.text()).toContain("Reikland Reavers wins the toss!");
     expect(card.text()).toContain("Coach-HOST is choosing to kick or receive");
@@ -317,7 +331,7 @@ describe("online coin toss", () => {
 
   it("names the winner and offers the choice when the coin never lands", async () => {
     const card = await mount(lobby({ hostReady: true, guestReady: true }));
-    // The guest wins, and their tab stops drawing frames mid-flip
+
     await card.render(
       lobby({ hostReady: true, guestReady: true, winnerTeamId: "away" })
     );
@@ -325,7 +339,7 @@ describe("online coin toss", () => {
     expect(coins.length).toBe(1);
 
     await tick(1100);
-    expect(coins[0].stop).toHaveBeenCalled();
+    expect(fixtureValue(coins[0]).stop).toHaveBeenCalled();
     expect(card.text()).toContain("Gouged Eye wins the toss!");
     expect(card.text()).toContain("KICK");
     expect(card.text()).toContain("RECEIVE");
@@ -341,30 +355,31 @@ describe("online coin toss", () => {
     const { setCoinFlipReady, setCoinFlipWinner } =
       await import("../../src/firebase/lobby");
     vi.mocked(setCoinFlipWinner).mockClear();
-    const view = await mount(
-      { coinFlip: {} } as LobbyDoc,
-      {
-        ...match,
-        role: "host",
-        myTeamId: "home",
-      } as OnlineMatch
-    );
+    const view = await mount({ coinFlip: {} } as LobbyDoc, {
+      ...match,
+      role: "host",
+      myTeamId: "home",
+    });
     try {
       await tick(20);
-      // The weather was read before the reload; then the toss ready-up
+
       expect(view.text()).toContain("ON TO THE COIN TOSS");
-      const on = [...document.querySelectorAll("button")].find((b) =>
+      const on = fixtureValue([...document.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("ON TO THE COIN TOSS")
-      )!;
-      await act(async () => on.click());
+      ));
+      await act(async () => {
+        on.click();
+      });
       await tick(20);
-      // The lobby rules need both flags first: shopping alone is not enough
+
       expect(view.text()).toContain("READY — FLIP COIN");
       expect(setCoinFlipWinner).not.toHaveBeenCalled();
-      const ready = [...document.querySelectorAll("button")].find((b) =>
+      const ready = fixtureValue([...document.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("READY — FLIP COIN")
-      )!;
-      await act(async () => ready.click());
+      ));
+      await act(async () => {
+        ready.click();
+      });
       expect(setCoinFlipReady).toHaveBeenCalledWith("ABC123", true);
 
       await view.render({

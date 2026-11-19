@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import meta from "../../public/stadium/bloodbowl/meta.json";
 import {
@@ -44,7 +45,7 @@ describe("staff terrace space", () => {
       for (let i = 0; i < slots.length; i++) {
         for (const other of slots.slice(i + 1)) {
           expect(
-            Math.hypot(slots[i].x - other.x, slots[i].y - other.y)
+            Math.hypot(fixtureValue(slots[i]).x - other.x, fixtureValue(slots[i]).y - other.y)
           ).toBeGreaterThan(0.8);
         }
       }

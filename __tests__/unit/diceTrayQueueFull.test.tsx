@@ -6,14 +6,7 @@ import { GameEventNames } from "../../src/types/events";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 import { DiceWatch } from "../../src/game/presentation/diceWatch";
 
-/**
- * The tray keeps a short queue so it never falls far behind the game. When
- * the queue overflowed it dropped the roll that had just arrived, so the
- * newest dice, such as a re-roll, never went up while older ones did. It
- * now drops the oldest waiting throw and keeps the latest.
- */
-
-const log = vi.hoisted(() => ({ entries: [] as string[] }));
+const log = vi.hoisted(() => ({ entries: new Array<string>() }));
 vi.mock("../../src/ui/dice/diceScene", () => ({
   playRoll: (_host: HTMLElement, roll: { values: number[] }) => {
     log.entries.push(`throw ${roll.values.join(",")}`);
@@ -64,19 +57,20 @@ it("drops the oldest waiting throw when the queue is full, keeping the newest", 
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () => root.render(<DiceTray eventBus={bus} />));
+  await act(async () => {
+    root.render(<DiceTray eventBus={bus} />);
+  });
 
-  const roll = (value: number[]) =>
+  const roll = (value: number[]) => {
     bus.emit(GameEventNames.DiceRoll, {
       rollType: "Armour Roll",
-      diceType: `${value.length}d6`,
+      diceType: `${String(value.length)}d6`,
       value,
       total: value.reduce((a, b) => a + b, 0),
       description: `Armour Roll: ${value.join(" + ")}`,
     });
+  };
 
-  // One throw in the air, then six 2D6 throws behind it: one more than
-  // the queue holds
   let allLanded = false;
   await act(async () => {
     roll([1, 1]);
@@ -97,7 +91,9 @@ it("drops the oldest waiting throw when the queue is full, keeping the newest", 
   ]);
   expect(allLanded).toBe(true);
 
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   watch.dispose();
 });

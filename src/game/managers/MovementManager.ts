@@ -1,8 +1,8 @@
-import { IEventBus } from "../../services/EventBus";
-import { GameState } from "@/types/GameState";
-import { Team } from "@/types/Team";
+import { type IEventBus } from "../../services/EventBus";
+import { type GameState } from "@/types/GameState";
+import { type Team } from "@/types/Team";
 import {
-  Player,
+  type Player,
   PlayerStatus,
   PlayerCondition,
   hasCondition,
@@ -11,7 +11,7 @@ import { MovementValidator } from "../validators/MovementValidator";
 import { GameEventNames } from "../../types/events";
 import { DodgeController } from "../controllers/DodgeController";
 import { DiceController } from "../controllers/DiceController";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { moveAllowance, standUpCost } from "../skills/movement";
 import {
   effectiveMA as driveEffectiveMA,
@@ -19,7 +19,7 @@ import {
 } from "../kickoff/driveEffects";
 import { SkillType, hasSkill } from "../../types/Skills";
 import {
-  MovementDeps,
+  type MovementDeps,
   findPlayer,
   movementUsed,
   rollToStand,
@@ -31,18 +31,34 @@ export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
   private readonly deps: MovementDeps;
 
+  private eventBus: IEventBus;
+  private state: GameState;
+  private team1: Team;
+  private team2: Team;
+  private diceController: DiceController;
+  private callbacks: {
+    onTurnover: (reason: string) => void;
+    onActivationFinished: (playerId: string) => void;
+    onTouchdown?: (teamId: string, scorerId: string) => void;
+  };
   constructor(
-    private eventBus: IEventBus,
-    private state: GameState,
-    private team1: Team,
-    private team2: Team,
-    private diceController: DiceController,
-    private callbacks: {
+    eventBus: IEventBus,
+    state: GameState,
+    team1: Team,
+    team2: Team,
+    diceController: DiceController,
+    callbacks: {
       onTurnover: (reason: string) => void;
       onActivationFinished: (playerId: string) => void;
       onTouchdown?: (teamId: string, scorerId: string) => void;
     }
   ) {
+    this.eventBus = eventBus;
+    this.state = state;
+    this.team1 = team1;
+    this.team2 = team2;
+    this.diceController = diceController;
+    this.callbacks = callbacks;
     this.deps = {
       eventBus,
       state,
@@ -64,7 +80,7 @@ export class MovementManager {
   ): { x: number; y: number; cost?: number }[] {
     const player = findPlayer(this.deps, playerId);
     if (!player || player.teamId !== this.state.activeTeamId) return [];
-    // Rooted and Chomped players may not leave their square.
+
     if (
       hasCondition(player, PlayerCondition.ROOTED) ||
       hasCondition(player, PlayerCondition.CHOMPED)
@@ -82,7 +98,6 @@ export class MovementManager {
     const opponentTeam =
       player.teamId === this.team1.id ? this.team2 : this.team1;
 
-    // Every positioned player blocks a square, whatever their status.
     const opponents = opponentTeam.players.filter((p) => p.gridPosition);
     const teammates = team.players.filter(
       (p) => p.gridPosition && p.id !== player.id
@@ -102,7 +117,7 @@ export class MovementManager {
     };
 
     return this.movementValidator.findReachableSquares(
-      proxyPlayer as Player,
+      proxyPlayer,
       opponents,
       teammates
     );
@@ -113,26 +128,16 @@ export class MovementManager {
     if (!player || player.status !== PlayerStatus.PRONE) {
       return Promise.reject("Player is not prone");
     }
-    // Drive modifiers (Dodgy Snack) apply to stand-up MA costs/rolls
+
     const maView = withDriveModifiers(player, this.state);
 
-    // Jump Up (2025 p.130), SECOND clause: standing up to make a declared
-    // Block is gated on an Agility test with a +1 modifier — this is not the
-    // free stand-up the first clause grants during a movement Action. A
-    // failed test leaves the player Prone and wastes the Action, but is NOT
-    // a Turnover.
     if (
       this.state.activePlayer?.id === playerId &&
       this.state.activePlayer?.action === "block" &&
       hasSkill(player.skills ?? [], SkillType.JUMP_UP)
     ) {
       const check = this.diceController.rollSkillCheck(
-        "Jump Up (stand to Block)",
-        player.stats.AG,
-        1,
-        player.playerName,
-        player.teamId
-      );
+        { reason: "Jump Up (stand to Block)",target: player.stats.AG,modifier: 1,playerName: player.playerName,teamId: player.teamId }      );
       this.eventBus.emit(GameEventNames.SkillTriggered, {
         playerId,
         skill: SkillType.JUMP_UP,
@@ -141,7 +146,6 @@ export class MovementManager {
           : "Jump Up: failed the stand-up test — Action wasted",
       });
       if (!check.success) {
-        // Action wasted. No movement is spent and possession does not change.
         this.callbacks.onActivationFinished(playerId);
         return;
       }
@@ -159,7 +163,6 @@ export class MovementManager {
     }
 
     if (!(await rollToStand(this.deps, maView))) {
-      // Failed the stand-up roll: still Prone, movement spent, activation over
       this.state.turn.movementUsed.set(playerId, used + cost);
       this.callbacks.onActivationFinished(playerId);
       return;
@@ -181,7 +184,6 @@ export class MovementManager {
     return Promise.resolve();
   }
 
-  // Not async: callers get the action's own promise, with no extra await.
   public movePlayer(
     playerId: string,
     path: { x: number; y: number }[],

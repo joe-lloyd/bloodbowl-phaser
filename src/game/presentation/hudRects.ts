@@ -1,20 +1,9 @@
 import type { ScreenRect } from "../controllers/CameraController";
 
-/**
- * Marks a container whose children are HUD panels over the board: the
- * corner stacks, the score bug, the connection banner. The camera keeps the
- * squares it frames clear of each child's box.
- */
 export const HUD_PANELS_ATTRIBUTE = "data-hud-panels";
-/** Top and bottom HUD edges that bound the middle of gameplay. */
-export const HUD_FRAME_ATTRIBUTE = "data-hud-frame";
 
-/**
- * The boxes of the HUD panels on screen now, in the canvas's pixels. Read
- * when the camera frames, so a panel that grew, opened or closed counts as
- * it is. Undefined with no page or no HUD, so the camera falls back to its
- * default layout.
- */
+const HUD_FRAME_ATTRIBUTE = "data-hud-frame";
+
 export function measureHudRects(
   canvas: HTMLCanvasElement | undefined,
   gameWidth: number,
@@ -41,8 +30,7 @@ export function measureHudRects(
       });
     }
   });
-  // Full-width bands preserve the vertical gap before the corner panels
-  // trim its sides. An empty tray leaves its space available for gameplay.
+
   edges.forEach((edge) => {
     if (edge.getAttribute("aria-hidden") === "true") return;
     const box = edge.getBoundingClientRect();
@@ -58,11 +46,6 @@ export function measureHudRects(
   return rects;
 }
 
-/**
- * Calls back when a HUD panel stack changes size, such as when the action
- * menu opens after the camera has framed a player's reach. `watch` picks up
- * the stacks on the page now, so call it whenever the panels are measured.
- */
 export function watchHudPanels(onChange: () => void): {
   watch(): void;
   stop(): void;
@@ -71,15 +54,17 @@ export function watchHudPanels(onChange: () => void): {
     return { watch() {}, stop() {} };
   const watched = new WeakSet<Element>();
   const frames = new Set<Element>();
-  const observer = new ResizeObserver(() => onChange());
-  const visibility = new MutationObserver(() => onChange());
+  const observer = new ResizeObserver(() => {
+    onChange();
+  });
+  const visibility = new MutationObserver(() => {
+    onChange();
+  });
   return {
     watch() {
       document
         .querySelectorAll(`[${HUD_PANELS_ATTRIBUTE}], [${HUD_FRAME_ATTRIBUTE}]`)
         .forEach((stack) => {
-          // A stack held to the space left can keep its size while a panel
-          // inside it grows, so each panel is watched too
           for (const box of [stack, ...Array.from(stack.children)]) {
             if (watched.has(box)) continue;
             watched.add(box);
@@ -98,9 +83,9 @@ export function watchHudPanels(onChange: () => void): {
     stop() {
       observer.disconnect();
       visibility.disconnect();
-      frames.forEach((frame) =>
-        frame.removeEventListener("transitionend", onChange)
-      );
+      frames.forEach((frame) => {
+        frame.removeEventListener("transitionend", onChange);
+      });
       frames.clear();
     },
   };

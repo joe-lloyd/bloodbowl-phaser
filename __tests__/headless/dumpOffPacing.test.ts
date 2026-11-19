@@ -1,10 +1,5 @@
-/**
- * Dump-Off's Quick Pass comes to rest before the Block that provoked it
- * rolls its dice. The browser paces a bounce with a real delay; headless
- * runs do not, which hid a race: in the browser the block went on while the
- * ball was still in the air, so a catch and its re-roll could land in the
- * middle of the block. Pacing must never change what happens.
- */
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { PASSING_RULE_SCENARIOS } from "../../src/data/ruleScenarios/passing";
@@ -14,11 +9,12 @@ import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
 import { GameEventNames } from "../../src/types/events";
 import { SkillType } from "../../src/types/Skills";
 
-const config = PASSING_RULE_SCENARIOS.find(
-  (entry) => entry.skill === SkillType.DUMP_OFF
-)!.configs.find((c) => c.id === "dump-off-before-block")!;
+const config = fixtureValue(
+  fixtureValue(
+    PASSING_RULE_SCENARIOS.find((entry) => entry.skill === SkillType.DUMP_OFF)
+  ).configs.find((c) => c.id === "dump-off-before-block")
+);
 
-/** The events up to the block's dice, the pass's accuracy, the final board. */
 async function play(seed: number, paced: boolean) {
   const game = new HeadlessGame({
     scenario: {
@@ -33,15 +29,20 @@ async function play(seed: number, paced: boolean) {
     game.ctx.gameService.getFlowContext().delay = () =>
       new Promise((resolve) => setTimeout(resolve, 2));
   const seen: string[] = [];
-  let accurate: boolean | null = null;
+  const result: { accurate: boolean | null } = { accurate: null };
   const emit = game.ctx.eventBus.emit.bind(game.ctx.eventBus);
-  game.ctx.eventBus.emit = ((name: string, data?: any) => {
+  game.ctx.eventBus.emit = (name, data) => {
     seen.push(
-      name === GameEventNames.DiceRoll ? `roll ${data.rollType}` : name
+      name === GameEventNames.DiceRoll
+        ? `roll ${z.object({ rollType: z.string() }).parse(data).rollType}`
+        : name
     );
-    if (name === GameEventNames.PassAttempted) accurate = data.accurate;
-    return emit(name, data);
-  }) as typeof game.ctx.eventBus.emit;
+    if (name === GameEventNames.PassAttempted)
+      result.accurate = z
+        .object({ accurate: z.boolean() })
+        .parse(data).accurate;
+    emit(name, data);
+  };
 
   for (const step of config.script ?? []) {
     let response = await game.execute(resolveCommandReferences(game.ctx, step));
@@ -60,7 +61,7 @@ async function play(seed: number, paced: boolean) {
 
   const blockDice = seen.indexOf(GameEventNames.BlockDiceRolled);
   return {
-    accurate,
+    accurate: result.accurate,
     beforeBlock: seen.slice(0, blockDice + 1),
     board: JSON.stringify(game.snapshot()),
   };
@@ -74,8 +75,10 @@ describe("a Dump-Off in a paced match", () => {
       if (unpaced.accurate !== false) continue;
       bounced++;
       const paced = await play(seed, true);
-      expect(paced.beforeBlock, `seed ${seed}`).toEqual(unpaced.beforeBlock);
-      expect(paced.board, `seed ${seed}`).toBe(unpaced.board);
+      expect(paced.beforeBlock, `seed ${String(seed)}`).toEqual(
+        unpaced.beforeBlock
+      );
+      expect(paced.board, `seed ${String(seed)}`).toBe(unpaced.board);
     }
     expect(bounced).toBeGreaterThanOrEqual(3);
   }, 60_000);

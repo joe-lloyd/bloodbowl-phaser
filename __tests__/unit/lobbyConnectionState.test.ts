@@ -1,17 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   describeOpponentConnection,
-  LobbyDoc,
+  type LobbyDoc,
   OPPONENT_ABANDON_MS,
   OPPONENT_DISCONNECT_MS,
 } from "../../src/firebase/lobby";
 
-/**
- * Single source of truth for the online options menu's connection-status
- * row and force-abandon gating (see src/ui/components/hud/computeMatchOptionsMenu.ts).
- * Mirrors the presence thresholds previously duplicated in
- * OnlinePlayPage's DisconnectBanner.
- */
 describe("describeOpponentConnection", () => {
   const lobbyWith = (lastSeen: number | undefined): LobbyDoc =>
     ({
@@ -47,8 +41,8 @@ describe("describeOpponentConnection", () => {
   });
 
   it("treats a player with no heartbeat yet as online (not a false drop)", () => {
-    expect(describeOpponentConnection(lobbyWith(undefined), "opponent", NOW)).toBe(
-      "online"
-    );
+    expect(
+      describeOpponentConnection(lobbyWith(undefined), "opponent", NOW)
+    ).toBe("online");
   });
 });

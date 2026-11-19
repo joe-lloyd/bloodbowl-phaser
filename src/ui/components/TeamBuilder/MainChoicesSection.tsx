@@ -1,4 +1,4 @@
-import { RosterName, Team } from "../../../types/Team";
+import { RosterName, type Team } from "../../../types/Team";
 import { getAvailableRosterNames } from "../../../data/RosterTemplates";
 import { Field, Section } from "../componentWarehouse/HudKit";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
@@ -13,7 +13,6 @@ interface Props {
   onChange: (team: Team) => void;
 }
 
-/** What a coach decides first; nothing here changes after a match. */
 export function MainChoicesSection({
   team,
   selectedRace,
@@ -33,7 +32,9 @@ export function MainChoicesSection({
             title={
               active ? "Active teams cannot change roster type" : undefined
             }
-            onChange={(e) => onRaceChange(e.target.value as RosterName)}
+            onChange={(e) => {
+              onRaceChange(e.target.value as RosterName);
+            }}
           >
             {getAvailableRosterNames().map((race) => (
               <option key={race} value={race}>
@@ -46,7 +47,9 @@ export function MainChoicesSection({
           <SevensRulesetSelector
             value={team.draftRuleset}
             disabled={saving || active || !!team.activeCompetitionId}
-            onChange={(draftRuleset) => onChange({ ...team, draftRuleset })}
+            onChange={(draftRuleset) => {
+              onChange({ ...team, draftRuleset });
+            }}
           />
           <p className="mt-2 font-hud-body text-hud-sm text-hud-dim">
             Prepare a roster for these rules. Tournament and league entry use

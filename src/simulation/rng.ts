@@ -1,15 +1,9 @@
-/**
- * Coach randomness. Kept apart from the engine's RNGService so a coach's
- * choices never consume game dice: the same game seed plus the same command
- * list replays identically whether or not the coach that chose them runs.
- */
 export interface CoachRng {
   next(): number;
   int(maxExclusive: number): number;
   pick<T>(items: readonly T[]): T;
 }
 
-/** mulberry32: tiny, fast, good enough for picking moves. */
 export function createCoachRng(seed: number): CoachRng {
   let state = seed >>> 0;
   const next = () => {

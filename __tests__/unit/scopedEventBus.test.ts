@@ -43,8 +43,6 @@ describe("a scoped event bus", () => {
   });
 
   it("once detached, keeps its own listeners and tells the page nothing", () => {
-    // A closed online match still has lockstep work queued: its match stats
-    // must hear that work, and the page, already on the next match, must not.
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);
     const heard: string[] = [];

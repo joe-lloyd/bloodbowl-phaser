@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   dehydrateTeam,
@@ -10,12 +11,12 @@ import {
   rollPendingCharacteristic,
   rollPendingRandomPrimary,
 } from "../../../src/game/progression/progression";
-import { createPlayer, Player } from "../../../src/types/Player";
+import { createPlayer, type Player } from "../../../src/types/Player";
 import {
   calculateTeamValue,
   createTeam,
   RosterName,
-  Team,
+  type Team,
 } from "../../../src/types/Team";
 
 function buildTeam(): Team {
@@ -34,7 +35,7 @@ function buildTeam(): Team {
 }
 
 function advancer(team: Team, spp: number): Player {
-  const player = team.players.find((p) => (p.primary ?? []).length > 0)!;
+  const player = fixtureValue(team.players.find((p) => (p.primary ?? []).length > 0));
   player.spp = spp;
   return player;
 }
@@ -44,19 +45,15 @@ function dice(...values: number[]) {
   return { rollDie: () => values[index++ % values.length] };
 }
 
-/**
- * SPP advancement rolls are stored on the player as soon as they are made,
- * so a coach cannot escape a bad roll by reloading and rolling again.
- */
 describe("saved SPP advancement rolls", () => {
   it("stores Random Primary candidates and refuses a second roll", () => {
     const player = advancer(buildTeam(), 20);
-    const category = player.primary![0];
-    const roll = rollPendingRandomPrimary(player, category, dice(1, 2, 4, 5));
+    const category = fixtureValue(player.primary)[0];
+    const roll = rollPendingRandomPrimary(player, fixtureValue(category), dice(1, 2, 4, 5));
     expect(player.pendingAdvancementRoll).toEqual(roll);
     expect(roll.kind).toBe("random-primary");
     expect(() =>
-      rollPendingRandomPrimary(player, category, dice(6, 6))
+      rollPendingRandomPrimary(player, fixtureValue(category), dice(6, 6))
     ).toThrow(/saved roll/);
     expect(() => rollPendingCharacteristic(player, dice(8))).toThrow(
       /saved roll/
@@ -68,14 +65,14 @@ describe("saved SPP advancement rolls", () => {
     const player = advancer(buildTeam(), 20);
     const roll = rollPendingRandomPrimary(
       player,
-      player.primary![0],
+      fixtureValue(fixtureValue(player.primary)[0]),
       dice(1, 2, 4, 5)
     );
     if (roll.kind !== "random-primary") throw new Error("unexpected roll");
     const rolled = roll.candidates.map((candidate) => candidate.skill);
-    const other = eligibleSkills(player, player.primary!).find(
+    const other = fixtureValue(eligibleSkills(player, fixtureValue(player.primary)).find(
       (skill) => !rolled.includes(skill)
-    )!;
+    ));
 
     expect(() =>
       applyAdvancement(player, { kind: "random-primary", skill: other })
@@ -84,9 +81,9 @@ describe("saved SPP advancement rolls", () => {
       applyAdvancement(player, { kind: "chosen-primary", skill: other })
     ).toThrow(/rolled skills/);
 
-    applyAdvancement(player, { kind: "random-primary", skill: rolled[0] });
+    applyAdvancement(player, { kind: "random-primary", skill: fixtureValue(rolled[0]) });
     expect(player.pendingAdvancementRoll).toBeUndefined();
-    expect(player.advancements?.[0].name).toBe(rolled[0]);
+    expect(fixtureValue(player.advancements?.[0]).name).toBe(rolled[0]);
     expect(player.spp).toBe(17);
   });
 
@@ -101,7 +98,7 @@ describe("saved SPP advancement rolls", () => {
       applyAdvancement(player, { kind: "characteristic", roll: 8, stat: "ST" })
     ).toThrow(/saved Characteristic roll of 1/);
 
-    const [skill] = eligibleSkills(player, player.primary!);
+    const [skill] = eligibleSkills(player, fixtureValue(player.primary));
     applyAdvancement(player, {
       kind: "characteristic-fallback",
       roll: 1,
@@ -124,13 +121,13 @@ describe("saved SPP advancement rolls", () => {
     const player = advancer(team, 20);
     const roll = rollPendingRandomPrimary(
       player,
-      player.primary![0],
+      fixtureValue(fixtureValue(player.primary)[0]),
       dice(3, 6, 4, 1)
     );
     const { team: reloaded } = hydrateStoredTeam(
       JSON.parse(JSON.stringify(dehydrateTeam(team)))
     );
-    const again = reloaded.players.find((p) => p.id === player.id)!;
+    const again = fixtureValue(reloaded.players.find((p) => p.id === player.id));
     expect(again.pendingAdvancementRoll).toEqual(roll);
   });
 });

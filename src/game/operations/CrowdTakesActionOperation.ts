@@ -1,6 +1,6 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
 import { crowdHits } from "../rules/stalling";
@@ -8,22 +8,15 @@ import { steadyFootingSaves } from "../rules/steadyFooting";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 
-/**
- * The Crowd Takes Action (2025 rulebook p.80): "roll a D6 at the end of the
- * Stalling player's activation. If the score on the D6 is equal to or
- * greater than the team's current Turn number, then the Stalling player is
- * hit by some form of projectile thrown by the crowd and is immediately
- * Knocked Down. This will cause a Turnover." `then` finishes the
- * activation, or the turn, the roll came at the end of.
- */
 export class CrowdTakesActionOperation extends GameOperation {
   public readonly name = "CrowdTakesAction";
 
-  constructor(
-    private playerId: string,
-    private then: () => void
-  ) {
+  private playerId: string;
+  private then: () => void;
+  constructor(playerId: string, then: () => void) {
     super();
+    this.playerId = playerId;
+    this.then = then;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -34,7 +27,7 @@ export class CrowdTakesActionOperation extends GameOperation {
       const turn = gameService.getState().turn.turnNumber;
       eventBus.emit(
         GameEventNames.UI_Notification,
-        `${player.playerName} is Stalling! The crowd hits on a ${turn}+`
+        `${player.playerName} is Stalling! The crowd hits on a ${String(turn)}+`
       );
       const roll = gameService
         .getDiceController()
@@ -62,7 +55,7 @@ export class CrowdTakesActionOperation extends GameOperation {
           playerId: player.id,
         });
         eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-        // Knocked Down: the Armour Roll, then the carried ball Bounces
+
         await flowManager.runToRest(
           new ArmourOperation(player.id, undefined, undefined, "special")
         );

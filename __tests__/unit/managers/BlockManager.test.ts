@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { BlockManager } from "../../../src/game/managers/BlockManager";
-import { GameState } from "../../../src/types/GameState";
-import { Team } from "../../../src/types/Team";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import { type GameState } from "../../../src/types/GameState";
+import { type Team } from "../../../src/types/Team";
+import { type Player, PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
 
 describe("BlockManager", () => {

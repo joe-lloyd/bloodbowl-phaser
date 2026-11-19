@@ -1,5 +1,5 @@
 import { SkillType } from "../../../types/Skills";
-import { CasualtyContext, SkillRule } from "../SkillRule";
+import { type CasualtyContext, type SkillRule } from "../SkillRule";
 
 export const ViolentInnovatorRule: SkillRule = {
   onCasualty(ctx: CasualtyContext, self) {

@@ -1,3 +1,6 @@
+import { fieldPlayer } from "./fixtures";
+import type { ActionType } from "../../src/types/events";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { tacticalGame } from "../../scripts/coach/policy-lab/fixtures";
 import { readBoard, key } from "../../src/simulation/ai/board";
@@ -13,8 +16,6 @@ import { enumerateDecision } from "../../src/simulation/candidates";
 import { createCoachRng } from "../../src/simulation/rng";
 import { SkillType } from "../../src/types/Skills";
 
-// Literal route alternatives isolate pricing from the path search. The public
-// activation builder must price the catch and finish from one shared reroll.
 describe("policy review controls", () => {
   it("prices each scoring finish with the catch before choosing its route", () => {
     const game = tacticalGame(
@@ -34,14 +35,14 @@ describe("policy review controls", () => {
       { opponentTurnsPlayed: 6 }
     );
     const [carrier, receiver] = game.ctx.team1.players;
-    const c = context(
-      readBoard(game, carrier.teamId),
-      DEFAULT_WEIGHTS,
-      new Map([
-        [carrier.id, new Set(["handoff" as const])],
-        [receiver.id, new Set(["move" as const])],
-      ])
-    );
+    const c = context({
+      board: readBoard(game, fieldPlayer(carrier).teamId),
+      w: DEFAULT_WEIGHTS,
+      available: new Map<string, Set<ActionType>>([
+        [fieldPlayer(carrier).id, new Set(["handoff" as const])],
+        [fixtureValue(receiver).id, new Set(["move" as const])],
+      ]),
+    });
     const routes = new Map<number, Route>([
       [
         key({ x: 19, y: 4 }),
@@ -49,7 +50,11 @@ describe("policy review controls", () => {
           to: { x: 19, y: 4 },
           path: [{ x: 19, y: 4 }],
           rolls: [{ kind: "rush", target: 2 }],
-          chance: chain(receiver, [{ kind: "rush", target: 2 }], true),
+          chance: chain({
+            player: fixtureValue(receiver),
+            rolls: [{ kind: "rush", target: 2 }],
+            teamReroll: true,
+          }),
         },
       ],
       [
@@ -58,17 +63,20 @@ describe("policy review controls", () => {
           to: { x: 19, y: 5 },
           path: [{ x: 19, y: 5 }],
           rolls: [{ kind: "dodge", target: 2 }],
-          chance: chain(receiver, [{ kind: "dodge", target: 2 }], true),
+          chance: chain({
+            player: fixtureValue(receiver),
+            rolls: [{ kind: "dodge", target: 2 }],
+            teamReroll: true,
+          }),
         },
       ],
     ]);
     const lookup = c.routes;
     c.routes = (player) =>
-      player.id === receiver.id ? routes : lookup(player);
-    expect(handoffActivations(c, carrier)[0].value).toBeCloseTo(
-      (385 / 1296) * 100 - 1,
-      10
-    );
+      player.id === fixtureValue(receiver).id ? routes : lookup(player);
+    expect(
+      fixtureValue(handoffActivations(c, fieldPlayer(carrier))[0]).value
+    ).toBeCloseTo((385 / 1296) * 100 - 1, 10);
   });
 
   it("does not invent a final-turn transfer from an already activated carrier", async () => {
@@ -81,12 +89,17 @@ describe("policy review controls", () => {
     const [carrier, receiver] = game.ctx.team1.players;
     await game.execute({
       type: "declare-action",
-      playerId: carrier.id,
+      playerId: fieldPlayer(carrier).id,
       action: "move",
     });
-    await game.execute({ type: "end-activation", playerId: carrier.id });
-    const board = readBoard(game, carrier.teamId);
-    const available = new Map([[receiver.id, new Set(["move" as const])]]);
+    await game.execute({
+      type: "end-activation",
+      playerId: fieldPlayer(carrier).id,
+    });
+    const board = readBoard(game, fieldPlayer(carrier).teamId);
+    const available = new Map([
+      [fixtureValue(receiver).id, new Set(["move" as const])],
+    ]);
     expect(canStillScore(board, available)).toBe(false);
     expect(canStillScore({ ...board, turnsLeft: 1 }, available)).toBe(true);
   });
@@ -115,18 +128,21 @@ describe("policy review controls", () => {
       if (spent)
         game.ctx.gameService
           .getRerollArbiter()
-          .consumeSkillReroll(player, SkillType.DODGE);
-      const c = context(
-        readBoard(game, player.teamId),
-        DEFAULT_WEIGHTS,
-        new Map([[player.id, new Set(["secureBall" as const])]])
-      );
-      const plans = secureBallActivations(c, player);
+          .consumeSkillReroll(fixtureValue(player), SkillType.DODGE);
+      const c = context({
+        board: readBoard(game, fixtureValue(player).teamId),
+        w: DEFAULT_WEIGHTS,
+        available: new Map([
+          [fixtureValue(player).id, new Set(["secureBall" as const])],
+        ]),
+      });
+      const plans = secureBallActivations(c, fieldPlayer(player));
       expect(plans).toHaveLength(1);
-      expect(plans[0].intent.kind).toBe("secure-ball");
-      if (plans[0].intent.kind !== "secure-ball")
+      expect(fixtureValue(plans[0]).intent.kind).toBe("secure-ball");
+      const intent = fixtureValue(plans[0]).intent;
+      if (intent.kind !== "secure-ball")
         throw new Error("Expected securing route");
-      expect(plans[0].intent.route.chance).toBeCloseTo(expected, 12);
+      expect(intent.route.chance).toBeCloseTo(expected, 12);
     }
   );
 
@@ -157,16 +173,20 @@ describe("policy review controls", () => {
         { x: 9, y: 5 },
       ],
       rolls,
-      chance: chain(player, rolls, false),
+      chance: chain({
+        player: fixtureValue(player),
+        rolls: rolls,
+        teamReroll: false,
+      }),
     };
     const coach = createPlannerCoach();
     await game.execute({
       type: "declare-action",
-      playerId: player.id,
+      playerId: fixtureValue(player).id,
       action: "move",
     });
     coach.remember(game, {
-      player,
+      player: fieldPlayer(player),
       action: "move",
       intent: { kind: "reposition", role: "receiver", route },
       tier: "support",
@@ -175,7 +195,7 @@ describe("policy review controls", () => {
     });
     game.ctx.gameService
       .getRerollArbiter()
-      .consumeSkillReroll(player, SkillType.DODGE);
+      .consumeSkillReroll(fixtureValue(player), SkillType.DODGE);
     const point = await enumerateDecision(game, null);
     const choice = await coach.choose({
       game,
@@ -183,9 +203,9 @@ describe("policy review controls", () => {
       point,
       rng: createCoachRng(1),
     });
-    expect(point.candidates[choice.index].commands[0]).toEqual({
+    expect(fixtureValue(point.candidates[choice.index]).commands[0]).toEqual({
       type: "end-activation",
-      playerId: player.id,
+      playerId: fixtureValue(player).id,
     });
   });
 });

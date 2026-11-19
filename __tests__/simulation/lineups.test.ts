@@ -11,10 +11,6 @@ import {
 } from "../../src/game/rules/rosterLegality";
 import { validateInsignificant } from "../../src/game/rules/insignificant";
 
-/**
- * Simulated matches field these line-ups, so each must be a team a coach
- * could legally draft, and should show off the roster's positionals.
- */
 describe("simulation line-ups", () => {
   it.each(Object.values(RosterName))("%s is a legal Sevens draft", (roster) => {
     const team = createLineupTeam(roster, "Lineup", 0);
@@ -28,10 +24,6 @@ describe("simulation line-ups", () => {
   });
 });
 
-/**
- * A ready-made team lets a coach play without drafting first, so it must be
- * a legal draft that can afford its re-rolls.
- */
 describe("ready-made teams", () => {
   it.each(Object.values(RosterName))(
     "%s buys team re-rolls and a legal line-up",

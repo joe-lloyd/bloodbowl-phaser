@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameService } from "../../../src/services/GameService";
-import { IEventBus } from "../../../src/services/EventBus";
-import { Team } from "../../../src/types/Team";
+import { type IEventBus } from "../../../src/services/EventBus";
+import { type Team } from "../../../src/types/Team";
 import { PlayerStatus } from "../../../src/types/Player";
 
 describe("GameService Setup Flow", () => {
@@ -29,7 +30,7 @@ describe("GameService Setup Flow", () => {
       colors: { primary: 0xff0000, secondary: 0x000000 },
     };
 
-    gameService = new GameService(eventBus, team1, team2);
+    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2 });
   });
 
   it("should set active team on startSetup", () => {
@@ -45,25 +46,19 @@ describe("GameService Setup Flow", () => {
 
   it("should return correct setup zone based on active team", () => {
     gameService.startSetup("team1");
-    // Mimic SetupUIController logic: query zone for active team
+
     let activeId = gameService.getActiveTeamId();
-    let zone = gameService.getSetupZone(activeId!);
+    let zone = gameService.getSetupZone(fixtureValue(activeId));
 
-    expect(zone?.minX).toBe(0); // Team 1 is Left
+    expect(zone?.minX).toBe(0);
 
-    // Manually switch phase/team (simulating GameScene logic)
-    // BUG REPRODUCTION: If we can't switch active team, UI stays on Team 1
-
-    // We expect a method to exist or be added, e.g., setActiveTeam
-    // For now, let's assume we invoke startSetup again or a new method
-    // If we call startSetup('team2'), it should switch
     gameService.startSetup("team2");
 
     activeId = gameService.getActiveTeamId();
     expect(activeId).toBe("team2");
 
-    zone = gameService.getSetupZone(activeId!);
-    expect(zone?.minX).toBe(13); // Team 2 is Right
+    zone = gameService.getSetupZone(fixtureValue(activeId));
+    expect(zone?.minX).toBe(13);
   });
 
   it("answers who may be placed this drive from the setup rule", () => {
@@ -71,9 +66,9 @@ describe("GameService Setup Flow", () => {
       { id: "fit", teamId: "team1", status: "Active" } as never,
       { id: "ko", teamId: "team1", status: "Active" } as never
     );
-    gameService = new GameService(eventBus, team1, team2);
-    // Knocked out during the drive (a new match starts everyone fit)
-    gameService.getPlayerById("ko")!.status = PlayerStatus.KO;
+    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2 });
+
+    fixtureValue(gameService.getPlayerById("ko")).status = PlayerStatus.KO;
     expect(gameService.isSetupEligible("fit")).toBe(true);
     expect(gameService.isSetupEligible("ko")).toBe(false);
     expect(gameService.isSetupEligible("nobody")).toBe(false);

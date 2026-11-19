@@ -1,18 +1,18 @@
 import {
-  Player,
+  type Player,
   PlayerCondition,
   addCondition,
   hasCondition,
 } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { BlockResultType } from "../../services/BlockResolutionService";
+import { type BlockResultType } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
 import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
 import { GameConfig } from "../../config/GameConfig";
-import { PushContext, foldTrigger } from "../skills";
+import { type PushContext, foldTrigger } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
 import {
   FinishBlockOperation,
@@ -21,63 +21,52 @@ import {
 } from "./BlockOperations";
 import { BlockActivation } from "./BlockActivation";
 
-type Square = { x: number; y: number };
+interface Square {
+  x: number;
+  y: number;
+}
 
-/** One pushed player in a chain push. */
-type PushLink = {
+interface PushLink {
   playerId: string;
   from: Square;
-  to: Square | null; // null = pushed into the crowd
-};
+  to: Square | null;
+}
 
-/** Pending chain-push state between push-direction decisions */
-type PushChain = {
+interface PushChain {
   attackerId: string;
   resultType: BlockResultType;
-  /** Whether the original defender goes down (skills may have cancelled) */
+
   knockDownDefender?: boolean;
-  /** Fend denied the blocker their follow-up */
+
   preventFollowUp?: boolean;
-  /** Strip Ball: the pushed carrier drops the ball where they land */
+
   stripBall?: boolean;
-  /** Eye Gouge: the Block's target is Eye Gouged once pushed */
+
   eyeGouge?: boolean;
-  /** Grab: the blocker picks any unoccupied square adjacent to the target */
+
   grabPush?: boolean;
-  /** Sidestep: the player pushed in the current link picks the square */
+
   sideStepPush?: boolean;
-  /** Juggernaut on a Blitz: Stand Firm is cancelled down the whole chain */
+
   blockerIgnoresReactions?: boolean;
-  /** Taunt / Frenzy: the blocker must follow up — no follow-up choice offered */
+
   forceFollowUp?: boolean;
-  /** Frenzy's FIRST block: force follow-up + a mandatory second block. */
+
   frenzy?: boolean;
   links: PushLink[];
-};
+}
 
-/** Who left the board or landed on a loose ball while the chain applied. */
-type ChainLanding = {
-  /** Treacherous Trapdoor (L12): pushed players who fell through. */
+interface ChainLanding {
   fellThrough: Set<string>;
   landedOnLooseBall: Set<string>;
-};
+}
 
 const isPow = (resultType: string): boolean =>
   resultType === "pow" || resultType === "pow-dodge";
 
-/**
- * The Push Back: the push reactions, the chain of pushed players decided
- * link by link, then the moves, knockdown and follow-up once it is chosen.
- */
 export abstract class BlockPushChain extends BlockActivation {
-  /** Pending chain-push state between push-direction decisions */
   protected chain: PushChain | null = null;
 
-  /**
-   * Fold the push reactions (Stand Firm / Fend / Strip Ball / Grab) and start
-   * the (possibly chained) push, or resolve it in place if refused. Shared by
-   * plain push/POW results and by Juggernaut converting a Both Down.
-   */
   protected async beginPush(
     attacker: Player,
     defender: Player,
@@ -110,17 +99,13 @@ export abstract class BlockPushChain extends BlockActivation {
     this.announce(pushCtx.triggers);
     this.constrainPush(pushCtx);
 
-    // Frenzy: the blocker MUST follow up a Push Back, and — on the first block
-    // only — must throw a second Block at the same player if they are still
-    // Standing. `frenzyExtraFor` marks the second (extra) block so it doesn't
-    // spawn a third.
     const frenzyFollowUp =
       hasSkill(attacker.skills, SkillType.FRENZY) &&
       this.multipleBlockState?.attackerId !== attacker.id &&
       !pushCtx.preventFollowUp;
     const frenzy = frenzyFollowUp && this.frenzyExtraFor !== attacker.id;
     if (frenzyFollowUp) {
-      pushCtx.forceFollowUp = true; // both the first and the extra block
+      pushCtx.forceFollowUp = true;
     }
 
     if (pushCtx.refused) {
@@ -133,8 +118,6 @@ export abstract class BlockPushChain extends BlockActivation {
       return;
     }
 
-    // Start a (possibly chained) push: the chain is decided link by link,
-    // applied only once fully chosen (rulebook p.55)
     this.chain = {
       attackerId: attacker.id,
       resultType,
@@ -152,11 +135,9 @@ export abstract class BlockPushChain extends BlockActivation {
     this.requestPushDecision(this.chain, attacker.gridPosition!, defender);
   }
 
-  /** Conditions and compound actions that overrule the push reactions. */
   private constrainPush(pushCtx: PushContext): void {
     const { attacker, pushed: defender } = pushCtx;
-    // Rooted players cannot be Pushed Back for any reason — a condition,
-    // not a skill reaction, so Juggernaut's cancel does not apply
+
     if (hasCondition(defender, PlayerCondition.ROOTED)) {
       pushCtx.refused = true;
       this.announce([
@@ -167,30 +148,21 @@ export abstract class BlockPushChain extends BlockActivation {
         },
       ]);
     }
-    // A Rooted attacker may never follow up
+
     if (hasCondition(attacker, PlayerCondition.ROOTED)) {
       pushCtx.preventFollowUp = true;
     }
     if (this.multipleBlockState?.attackerId === attacker.id) {
-      // Multiple Block never permits a Follow-up and cannot combine with
-      // Frenzy's forced follow-up/extra block.
       pushCtx.preventFollowUp = true;
       pushCtx.forceFollowUp = false;
     }
-    // Ball & Chain: the Fanatic is moving into the square, not following
-    // up, so it always enters a square the push empties (Fend included)
+
     if (this.isBallAndChain(attacker)) {
       pushCtx.preventFollowUp = false;
       pushCtx.forceFollowUp = true;
     }
   }
 
-  /**
-   * A refused push (Stand Firm): nobody moves, so there is no chain and no
-   * follow-up. POW results still knock the defender down — in place. Stand
-   * Firm "will not prevent a player with the Frenzy Skill from performing a
-   * second Block Action, so long as this player is still Standing" (p.136).
-   */
   private async resolveRefusedPush(
     attacker: Player,
     defender: Player,
@@ -221,17 +193,9 @@ export abstract class BlockPushChain extends BlockActivation {
       return;
     }
 
-    // No square was vacated, so no follow-up prompt will complete the Block.
     flowManager?.add(new FinishBlockOperation(attacker.id));
   }
 
-  /**
-   * Ball & Chain into a Prone or Stunned player: "that player is Pushed Back
-   * and an Armour Roll is made against them". The push uses the normal
-   * engine, chain pushes included, but it is not a Block Action, so the
-   * pushed player's own push reactions do not apply. FinishBallAndChainSquare
-   * makes the Armour Roll once the push has landed.
-   */
   public async startBallAndChainPush(
     attackerId: string,
     pushedId: string
@@ -257,10 +221,6 @@ export abstract class BlockPushChain extends BlockActivation {
     const isOccupied = (x: number, y: number) =>
       this.getPlayerAt(x, y) !== undefined;
 
-    // Grab (first push only) / Sidestep (any link): any unoccupied square
-    // adjacent to the pushed player — Grab hands the choice to the blocker,
-    // Sidestep to the PUSHED player's coach. Both fall back to the normal
-    // push if the target is fully boxed in (the skill "cannot be used").
     const grabApplies = !!chain.grabPush && chain.links.length === 0;
     const anyAdjacent =
       grabApplies || chain.sideStepPush
@@ -282,9 +242,6 @@ export abstract class BlockPushChain extends BlockActivation {
     const sideStepApplies = !!chain.sideStepPush && anyAdjacent.length > 0;
     const attacker = this.getPlayerById(chain.attackerId);
 
-    // The wider Grab/Sidestep square set is what's in play for THIS push
-    // decision — name the skill in the match log so a square outside the
-    // usual three doesn't look arbitrary (rulebook p.135).
     if (anyAdjacent.length > 0) {
       this.announceOpenPush(sideStepApplies ? pushed : attacker, {
         sideStep: sideStepApplies,
@@ -299,14 +256,12 @@ export abstract class BlockPushChain extends BlockActivation {
         !chain.preventFollowUp,
       resultType: chain.resultType,
       attackerId: chain.attackerId,
-      // The blocker's coach chooses — except a Sidestep push, which the
-      // pushed player's coach places
+
       chooserTeamId: sideStepApplies ? pushed.teamId : attacker?.teamId,
       pushTier: tier,
     });
   }
 
-  /** Names Grab or Sidestep when it opens every adjacent square to a push. */
   private announceOpenPush(
     holder: Player | undefined,
     { sideStep }: { sideStep: boolean }
@@ -320,12 +275,6 @@ export abstract class BlockPushChain extends BlockActivation {
     });
   }
 
-  /**
-   * Record the chosen push direction for the currently awaited player.
-   * Occupied target: the occupant is pushed onward (chain, rulebook p.55).
-   * Off-pitch target: pushed into the crowd. Otherwise the chain is
-   * complete and all links apply, innermost first.
-   */
   public async executePush(
     attackerId: string,
     defenderId: string,
@@ -334,10 +283,9 @@ export abstract class BlockPushChain extends BlockActivation {
     followUp: boolean
   ): Promise<void> {
     const defender = this.getPlayerById(defenderId);
-    if (!defender || !defender.gridPosition) return;
+    if (!defender?.gridPosition) return;
 
     if (!this.chain) {
-      // Direct call without resolveBlock (tests/tools): start a chain now
       this.chain = {
         attackerId,
         resultType: resultType as BlockResultType,
@@ -354,7 +302,6 @@ export abstract class BlockPushChain extends BlockActivation {
       direction.y < GameConfig.PITCH_HEIGHT;
 
     if (!onPitch) {
-      // Pushed into the crowd: chain ends at this link
       this.chain.links.push({ playerId: defenderId, from, to: null });
       await this.applyChain(followUp);
       return;
@@ -364,10 +311,6 @@ export abstract class BlockPushChain extends BlockActivation {
 
     const occupant = this.getPlayerAt(direction.x, direction.y);
     if (occupant && occupant.id !== defenderId) {
-      // Chain push: the occupant is pushed as if by the incoming player;
-      // the blocking coach keeps choosing directions. The occupant's own
-      // push reactions apply: Stand Firm "including during a Chain Push"
-      // (p.136) and Sidestep "for any reason" (p.135).
       const reaction = await this.foldChainPush(occupant);
       if (!this.chain) return;
       if (reaction.refused) {
@@ -382,11 +325,6 @@ export abstract class BlockPushChain extends BlockActivation {
     await this.applyChain(followUp);
   }
 
-  /**
-   * Fold the chain-pushed player's own push reactions. Only their rules run:
-   * the blocker's (Grab, Strip Ball, Eye Gouge) act on the Block's target,
-   * and Taunt reacts to a Block "performed against them".
-   */
   private async foldChainPush(
     pushed: Player
   ): Promise<Pick<PushContext, "refused" | "sideStepPush">> {
@@ -416,11 +354,6 @@ export abstract class BlockPushChain extends BlockActivation {
     return ctx;
   }
 
-  /**
-   * A chain-pushed player stood firm: the player pushed into them cannot
-   * move, so nobody in the chain moves. The Block's target is treated as
-   * having refused the push itself (a POW still knocks them down in place).
-   */
   private async refuseChain(): Promise<void> {
     const chain = this.chain!;
     this.chain = null;
@@ -435,7 +368,6 @@ export abstract class BlockPushChain extends BlockActivation {
     );
   }
 
-  /** Apply all chain links innermost-first, then knockdown/follow-up. */
   private async applyChain(followUp: boolean): Promise<void> {
     const chain = this.chain;
     if (!chain) return;
@@ -448,18 +380,13 @@ export abstract class BlockPushChain extends BlockActivation {
 
     const landing = this.landLinks(chain, { knockDownDefender, followUp });
 
-    // Knockdown applies only to the original defender on POW results
     const first = chain.links[0];
     if (!first) return;
     if (first.to === null) {
       this.followUpCrowdSurf(chain.attackerId, first.from);
       return;
     }
-    // Steady Footing is the only wait. It comes before the original target's
-    // knockdown and the Frenzy continuation are queued (landLinks may already
-    // have queued a loose-ball Bounce or a crowd or trapdoor injury): the
-    // knockdown's InOrderOperation must start in the same run that queues
-    // Frenzy behind it, or Frenzy's follow-up overtakes the dropped ball.
+
     const defender =
       knockDownDefender && !landing.fellThrough.has(first.playerId)
         ? this.getPlayerById(first.playerId)
@@ -480,7 +407,6 @@ export abstract class BlockPushChain extends BlockActivation {
     });
   }
 
-  /** Eye Gouge: only the Block's target, and only now it is Pushed Back. */
   private eyeGouge(attackerId: string, target: Player): void {
     addCondition(target, PlayerCondition.EYE_GOUGED);
     this.announce([
@@ -492,7 +418,6 @@ export abstract class BlockPushChain extends BlockActivation {
     ]);
   }
 
-  /** Moves every pushed player, innermost link first. */
   private landLinks(
     chain: PushChain,
     {
@@ -522,7 +447,6 @@ export abstract class BlockPushChain extends BlockActivation {
     return landing;
   }
 
-  /** Moves one pushed player to the square they were pushed into. */
   private landLink(
     link: PushLink,
     player: Player,
@@ -531,7 +455,6 @@ export abstract class BlockPushChain extends BlockActivation {
       falls,
       followUpData,
     }: {
-      /** The Block's target, going down once the chain has moved. */
       falls: boolean;
       followUpData: { attackerId: string; targetSquare: Square } | undefined;
     }
@@ -545,9 +468,6 @@ export abstract class BlockPushChain extends BlockActivation {
     player.gridPosition = { ...to };
     const carriedBall = this.carryBall(link.from, to);
 
-    // Pushed onto a loose ball: it bounces, and a pushed player cannot
-    // score with it. A fallen defender's bounce is queued with the
-    // knockdown, or there too if Steady Footing keeps them up.
     const onLooseBall = !carriedBall && this.ballAt(to);
     if (onLooseBall) landing.landedOnLooseBall.add(link.playerId);
     if (onLooseBall && !falls) {
@@ -567,7 +487,7 @@ export abstract class BlockPushChain extends BlockActivation {
     if (
       this.fallThroughTrapdoor(player, to, {
         carriedBall,
-        // The fallen defender's deferred bounce would be skipped.
+
         bounceLooseBall: onLooseBall && falls,
       })
     ) {
@@ -575,19 +495,13 @@ export abstract class BlockPushChain extends BlockActivation {
       return;
     }
 
-    // A standing carrier pushed into their scoring end zone still scores
-    // (the original defender falls on POW, so no score for them)
     if (!falls && !onLooseBall) {
       flowManager?.context.gameService.checkForTouchdown(link.playerId);
     }
   }
 
-  /**
-   * Crowd surf: off the pitch; injury without armour, ball throw-in and
-   * turnover handled by the operation.
-   */
   private pushIntoCrowd(player: Player, exitSquare: Square): void {
-    player.gridPosition = undefined;
+    delete player.gridPosition;
     this.eventBus.emit(GameEventNames.PlayerPushedIntoCrowd, {
       playerId: player.id,
       exitSquare,
@@ -595,7 +509,6 @@ export abstract class BlockPushChain extends BlockActivation {
     this.queueCrowdInjury(player, exitSquare);
   }
 
-  /** A pushed player keeps hold of the ball. Returns whether they had it. */
   private carryBall(from: Square, to: Square): boolean {
     if (!this.ballAt(from)) return false;
     this.state.ballPosition = { ...to };
@@ -603,11 +516,6 @@ export abstract class BlockPushChain extends BlockActivation {
     return true;
   }
 
-  /**
-   * Pushed onto a Trapdoor: fall through it, injured as if Pushed into
-   * the Crowd, a carried ball Bouncing from the Trapdoor. Returns whether
-   * the Trapdoor opened.
-   */
   private fallThroughTrapdoor(
     player: Player,
     square: Square,
@@ -619,7 +527,7 @@ export abstract class BlockPushChain extends BlockActivation {
     if (!trapdoorOpens(this.state, this.diceController, player, square)) {
       return false;
     }
-    player.gridPosition = undefined;
+    delete player.gridPosition;
     if (bounceLooseBall) {
       this.callbacks.getFlowManager?.()?.add(new BounceOperation(square), true);
     }
@@ -627,11 +535,6 @@ export abstract class BlockPushChain extends BlockActivation {
     return true;
   }
 
-  /**
-   * Injury for a player who left the pitch. Whether it's a turnover is
-   * decided NOW — by the time the operation runs the turn may have ended
-   * (auto end-turn on the blocker's last activation)
-   */
   private queueCrowdInjury(
     player: Player,
     square: Square,
@@ -647,10 +550,6 @@ export abstract class BlockPushChain extends BlockActivation {
     );
   }
 
-  /**
-   * The pushed target goes down where they landed on a POW, or drops the
-   * ball to Strip Ball, then the follow-up.
-   */
   private settlePushedTarget(
     chain: PushChain,
     first: PushLink,
@@ -661,9 +560,8 @@ export abstract class BlockPushChain extends BlockActivation {
       knockDownDefender,
       landing,
     }: {
-      /** The target, when a POW knocks them down and they are still here. */
       defender: Player | undefined;
-      /** Steady Footing kept them up. */
+
       saved: boolean;
       knockDownDefender: boolean;
       landing: ChainLanding;
@@ -672,8 +570,6 @@ export abstract class BlockPushChain extends BlockActivation {
     if (defender) this.landPushedTarget(chain, defender, to, saved, landing);
     const standing = !knockDownDefender || saved;
 
-    // Strip Ball: a still-standing carrier who was Pushed Back drops the ball
-    // where they land, which then bounces (a POW carrier drops it above).
     if (
       chain.stripBall &&
       standing &&
@@ -685,10 +581,6 @@ export abstract class BlockPushChain extends BlockActivation {
     this.endPushedBlock(chain, first, standing);
   }
 
-  /**
-   * The POW'd target where they landed: knocked down there, or kept up by
-   * Steady Footing, when the ball they landed on Bounces or they may score.
-   */
   private landPushedTarget(
     chain: PushChain,
     defender: Player,
@@ -707,11 +599,6 @@ export abstract class BlockPushChain extends BlockActivation {
       flowManager?.context.gameService.checkForTouchdown(defender.id);
   }
 
-  /**
-   * Knock the Block's target down on the square they ended on: the Armour
-   * Roll, then a carried ball Bounces from there (p.44). Pile Driver may
-   * Foul them once the Block resolves.
-   */
   private knockDownOnSquare(
     attackerId: string,
     defender: Player,

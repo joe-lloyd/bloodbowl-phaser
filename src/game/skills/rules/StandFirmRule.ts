@@ -1,19 +1,12 @@
-/**
- * Stand Firm (2025 rulebook p.139) — "When this player would be Pushed
- * Back during a Block Action, including during a Chain Push, they can
- * choose to not be Pushed Back and instead remain in their current
- * square." On a POW the refusing player is still knocked down — in place.
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
-import { ReactionDecisionAnswer } from "../../../types/decisions";
+import { type SkillRule } from "../SkillRule";
+import { type ReactionDecisionAnswer } from "../../../types/decisions";
 
 export const StandFirmRule: SkillRule = {
   async onPush(ctx, self) {
     if (self.id !== ctx.pushed.id) return;
     if (ctx.refused) return;
-    if (ctx.blockerIgnoresReactions) return; // Juggernaut on a Blitz
+    if (ctx.blockerIgnoresReactions) return;
     if (!ctx.decisions) return;
 
     const answer = (await ctx.decisions.request({

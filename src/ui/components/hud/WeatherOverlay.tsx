@@ -1,25 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { GameEventNames } from "../../../types/events";
-import { Team } from "../../../types/Team";
+import { type Team } from "../../../types/Team";
 import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { weatherRolled } from "../../../services/gameService/matchStart";
-import {
-  WeatherResult,
-  WeatherStage,
-  WeatherTable,
-  useWeatherThrow,
-} from "./WeatherReveal";
+import { WeatherResult, WeatherStage, WeatherTable } from "./WeatherReveal";
+import { useWeatherThrow } from "./weatherThrow";
 
-/**
- * The opening weather in a local match or one against the computer: the
- * coach rolls the 2D6 when ready, reads the result off the Weather Table,
- * and carries on to the coin toss. Online matches roll it in OnlineCoinFlip,
- * where both coaches ready up.
- */
 export const WeatherOverlay: React.FC<{ eventBus: EventBus }> = ({
   eventBus,
 }) => {
@@ -31,13 +21,13 @@ export const WeatherOverlay: React.FC<{ eventBus: EventBus }> = ({
     setTeams({ team1: data.team1, team2: data.team2 });
   });
 
-  // The intro may have asked before this dialog mounted
   useEffect(() => {
-    const timer = setTimeout(
-      () => eventBus.emit(GameEventNames.UI_RequestWeatherState),
-      100
-    );
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => {
+      eventBus.emit(GameEventNames.UI_RequestWeatherState, undefined);
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [eventBus]);
 
   if (!teams) return null;
@@ -47,7 +37,7 @@ export const WeatherOverlay: React.FC<{ eventBus: EventBus }> = ({
       teams={teams}
       onDone={() => {
         setTeams(null);
-        eventBus.emit(GameEventNames.UI_WeatherComplete);
+        eventBus.emit(GameEventNames.UI_WeatherComplete, undefined);
       }}
     />
   );
@@ -63,12 +53,13 @@ function WeatherDialog({
   onDone: () => void;
 }) {
   const { gameService } = ServiceContainer.getInstance();
-  const { stage, step, total } = useWeatherThrow(eventBus, teams.team1.id, () =>
-    weatherRolled(gameService.getState())
-  );
+  const { stage, step, total } = useWeatherThrow({
+    eventBus: eventBus,
+    teamId: teams.team1.id,
+    rolled: () => weatherRolled(gameService.getState()),
+  });
   const weather = gameService.getState().weather;
 
-  // One screen, so the one coach readies both teams
   const roll = () => {
     for (const team of [teams.team1, teams.team2])
       gameService.readyForWeather(team.id);

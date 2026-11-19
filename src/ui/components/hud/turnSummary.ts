@@ -1,6 +1,6 @@
 import { GameConfig } from "../../../config/GameConfig";
-import { InjuryType, Player, PlayerStatus } from "../../../types/Player";
-import { Team } from "../../../types/Team";
+import { InjuryType, type Player, PlayerStatus } from "../../../types/Player";
+import { type Team } from "../../../types/Team";
 
 export type TurnIncident =
   | { kind: "player"; playerId: string }
@@ -8,15 +8,14 @@ export type TurnIncident =
 
 export interface TurnSummary {
   players: string[];
-  /** Where the ball is now; null when it is not on the pitch. */
+
   ball: string | null;
 }
 
 export function playerLabel(player: Player): string {
-  return `${player.playerName.replace(/ #\d+$/, "")} #${player.number}`;
+  return `${player.playerName.replace(/ #\d+$/, "")} #${String(player.number)}`;
 }
 
-/** Only current match casualties belong here, not old permanent injuries. */
 export function injuryLabel(player: Player): string | null {
   if (player.status === PlayerStatus.DEAD) return "Dead";
   if (player.status !== PlayerStatus.INJURED) return null;
@@ -70,16 +69,20 @@ export function describeBall(
           : x >= GameConfig.PITCH_WIDTH - 2
             ? "near the right end zone"
             : "in midfield";
-  return `Ball loose ${location} at ${x},${y}`;
+  return `Ball loose ${location} at ${String(x)},${String(y)}`;
 }
 
-/** Reads final player state after the opponent's entire resolution has settled. */
-export function summarizeTurn(
-  incidents: readonly TurnIncident[],
-  teamId: string,
-  players: readonly Player[],
-  ball: { x: number; y: number } | null
-): TurnSummary | null {
+export function summarizeTurn({
+  incidents,
+  teamId,
+  players,
+  ball,
+}: {
+  incidents: readonly TurnIncident[];
+  teamId: string;
+  players: readonly Player[];
+  ball: { x: number; y: number } | null;
+}): TurnSummary | null {
   const affected = new Set<string>();
   let ballChanged = false;
   for (const incident of incidents) {
@@ -112,14 +115,19 @@ export interface HalfTimeSummary {
   out: string[];
 }
 
-/** Everything a coach needs to read at half time, from the settled state. */
-export function summarizeHalfTime(
-  teams: readonly [Team, Team],
-  score: Readonly<Record<string, number>>,
-  rerollsLeft: (team: Team) => number,
-  recoveries: readonly KoRecovery[],
-  kickerId: string | null
-): HalfTimeSummary {
+export function summarizeHalfTime({
+  teams,
+  score,
+  rerollsLeft,
+  recoveries,
+  kickerId,
+}: {
+  teams: readonly [Team, Team];
+  score: Readonly<Record<string, number>>;
+  rerollsLeft: (team: Team) => number;
+  recoveries: readonly KoRecovery[];
+  kickerId: string | null;
+}): HalfTimeSummary {
   const [home, away] = teams;
   const players = teams.flatMap((team) => team.players);
   const label = (playerId: string) => {
@@ -127,11 +135,11 @@ export function summarizeHalfTime(
     return player ? playerLabel(player) : null;
   };
   return {
-    score: `${home.name} ${score[home.id] ?? 0} : ${score[away.id] ?? 0} ${away.name}`,
+    score: `${home.name} ${String(score[home.id] ?? 0)} : ${String(score[away.id] ?? 0)} ${away.name}`,
     kicker: `${teams.find((t) => t.id === kickerId)?.name ?? "Next team"} kick next`,
     rerolls: teams.map((team) => {
       const count = rerollsLeft(team);
-      return `${team.name}: ${count} ${count === 1 ? "re-roll" : "re-rolls"}`;
+      return `${team.name}: ${String(count)} ${count === 1 ? "re-roll" : "re-rolls"}`;
     }),
     recovery: recoveries.flatMap((result) => {
       const name = label(result.playerId);

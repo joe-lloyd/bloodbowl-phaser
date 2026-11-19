@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import {
   computeStandings,
@@ -5,7 +6,10 @@ import {
   generateSingleElimination,
   recordTournamentResult,
 } from "../../src/competition/logic";
-import { CompetitionEntrant, TournamentDoc } from "../../src/competition/types";
+import {
+  type CompetitionEntrant,
+  type TournamentDoc,
+} from "../../src/competition/types";
 
 function entrant(id: string, seed: number): CompetitionEntrant {
   return {
@@ -48,14 +52,14 @@ describe("single-elimination brackets", () => {
       createdAt: 1,
       updatedAt: 1,
     };
-    tournament = recordTournamentResult(tournament, "round-1-match-1", 2, 0);
-    tournament = recordTournamentResult(tournament, "round-1-match-2", 1, 3);
+    tournament = recordTournamentResult({ tournament,fixtureId: "round-1-match-1",homeScore: 2,awayScore: 0 });
+    tournament = recordTournamentResult({ tournament,fixtureId: "round-1-match-2",homeScore: 1,awayScore: 3 });
     expect(tournament.fixtures[2]).toMatchObject({
       homeEntrantId: "one",
       awayEntrantId: "three",
       status: "ready",
     });
-    tournament = recordTournamentResult(tournament, "round-2-match-1", 1, 2);
+    tournament = recordTournamentResult({ tournament,fixtureId: "round-2-match-1",homeScore: 1,awayScore: 2 });
     expect(tournament.status).toBe("complete");
     expect(tournament.championEntrantId).toBe("three");
   });
@@ -79,13 +83,14 @@ describe("single-elimination brackets", () => {
   }
 
   it("sends a level game's Penalty Shoot-out winner through", () => {
-    // Five roll-offs, so 2-3 means the away side won three of them
     let cup = cupOf(["one", "two"]);
-    cup = recordTournamentResult(cup, "round-1-match-1", 1, 1, {
-      home: 2,
-      away: 3,
-    });
-    expect(cup.fixtures[0].result).toMatchObject({
+    cup = recordTournamentResult({
+        tournament: cup,fixtureId: "round-1-match-1",homeScore: 1,awayScore: 1,penalties: {
+          home: 2,
+          away: 3,
+        }
+      });
+    expect(fixtureValue(cup.fixtures[0]).result).toMatchObject({
       homeScore: 1,
       awayScore: 1,
       penalties: { home: 2, away: 3 },
@@ -100,7 +105,7 @@ describe("single-elimination brackets", () => {
 
   it("refuses a level knockout game without a Penalty Shoot-out", () => {
     expect(() =>
-      recordTournamentResult(cupOf(["one", "two"]), "round-1-match-1", 2, 2)
+      recordTournamentResult({ tournament: cupOf(["one","two"]),fixtureId: "round-1-match-1",homeScore: 2,awayScore: 2 })
     ).toThrow(/Penalties/);
   });
 
@@ -110,21 +115,18 @@ describe("single-elimination brackets", () => {
   ])("refuses %o, %s", (penalties) => {
     expect(() =>
       recordTournamentResult(
-        cupOf(["one", "two"]),
-        "round-1-match-1",
-        0,
-        0,
-        penalties
-      )
+        { tournament: cupOf(["one","two"]),fixtureId: "round-1-match-1",homeScore: 0,awayScore: 0,penalties }      )
     ).toThrow(/five roll-offs/);
   });
 
   it("refuses Penalties after a game someone won", () => {
     expect(() =>
-      recordTournamentResult(cupOf(["one", "two"]), "round-1-match-1", 2, 1, {
-        home: 3,
-        away: 2,
-      })
+      recordTournamentResult({
+          tournament: cupOf(["one","two"]),fixtureId: "round-1-match-1",homeScore: 2,awayScore: 1,penalties: {
+            home: 3,
+            away: 2,
+          }
+        })
     ).toThrow(/level/);
   });
 
@@ -164,15 +166,15 @@ describe("round robin and standings", () => {
       entrant("three", 3),
     ];
     const fixtures = generateRoundRobin(entrants);
-    fixtures[0].status = "complete";
-    fixtures[0].result = {
+    fixtureValue(fixtures[0]).status = "complete";
+    fixtureValue(fixtures[0]).result = {
       homeScore: 2,
       awayScore: 0,
-      winnerEntrantId: fixtures[0].homeEntrantId!,
+      winnerEntrantId: fixtureValue(fixtureValue(fixtures[0]).homeEntrantId),
       completedAt: 1,
     };
-    fixtures[1].status = "complete";
-    fixtures[1].result = {
+    fixtureValue(fixtures[1]).status = "complete";
+    fixtureValue(fixtures[1]).result = {
       homeScore: 1,
       awayScore: 1,
       completedAt: 1,

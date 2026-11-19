@@ -1,20 +1,10 @@
 import type { CompetitionFixture } from "./types";
 
-/**
- * How a league page orders its rounds: the round to play next first, the
- * rest of the season after it, and the rounds already played as history.
- * Round numbers are the fixtures' own; nothing is renumbered.
- */
 export interface RoundPlan {
-  /**
-   * The earliest round with a game still to play (the same rule as
-   * `currentRound` in simulateFixture.ts). A partly played round stays here
-   * until its last game is in. Undefined once every game is complete.
-   */
   next?: number;
-  /** Rounds after `next` with a game still to play, earliest first. */
+
   upcoming: number[];
-  /** Rounds whose games are all complete, earliest first. */
+
   completed: number[];
 }
 
@@ -34,7 +24,6 @@ export function roundPlan(fixtures: CompetitionFixture[]): RoundPlan {
   };
 }
 
-/** A round's games in the order the schedule lists them. */
 export function roundFixtures(
   fixtures: CompetitionFixture[],
   round: number

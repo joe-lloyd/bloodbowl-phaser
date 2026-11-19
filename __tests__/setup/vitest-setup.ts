@@ -1,8 +1,6 @@
 import { vi, beforeAll, afterEach } from "vitest";
 
-// Global mocks
 beforeAll(() => {
-  // Mock window properties if missing (JSDOM handles most, but some Phaser needs might be missing)
   global.ResizeObserver = vi.fn().mockImplementation(() => ({
     observe: vi.fn(),
     unobserve: vi.fn(),
@@ -10,14 +8,10 @@ beforeAll(() => {
   }));
 });
 
-// Reset mocks after each test
 afterEach(() => {
   vi.clearAllMocks();
 });
 
-// Mock Phaser Global
-// We don't necessarily need to mock the entire global Phaser object if we inject dependencies,
-// but it helps for static access if any class directly uses Phaser.Math, etc.
 vi.mock("phaser", () => {
   return {
     default: {
@@ -42,12 +36,16 @@ vi.mock("phaser", () => {
       Geom: {
         Rectangle: class {
           static Contains = vi.fn();
-          constructor(
-            public x: number,
-            public y: number,
-            public width: number,
-            public height: number
-          ) {}
+          public x: number;
+          public y: number;
+          public width: number;
+          public height: number;
+          constructor(x: number, y: number, width: number, height: number) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+          }
         },
       },
       GameObjects: {

@@ -1,35 +1,28 @@
 import { useId, useMemo, useState } from "react";
 import { roundFixtures, roundPlan } from "../../../competition/roundPlan";
 import {
-  CompetitionDoc,
-  CompetitionEntrant,
-  CompetitionFixture,
+  type CompetitionDoc,
+  type CompetitionEntrant,
+  type CompetitionFixture,
 } from "../../../competition/types";
-import { TeamColors } from "../../../types/Team";
+import { type TeamColors } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
 import { TeamCrest } from "../common/TeamCrest";
 import { cx, Section } from "../componentWarehouse/HudKit";
-import { BracketFixtureContext, walkoverLine } from "./TournamentBracket";
+import { type BracketFixtureContext, walkoverLine } from "./TournamentBracket";
 
-/** A team's kit colours, when this browser's library has the team. */
 type Kits = (entrant?: CompetitionEntrant) => TeamColors | undefined;
 
 interface LeagueRoundsProps {
   competition: CompetitionDoc;
-  /** A fixture's match actions; the same ones the round list shows. */
+
   renderActions: (context: BracketFixtureContext) => React.ReactNode;
-  /** A fixture in the compact card the schedule has always used. */
+
   renderCompactFixture: (fixture: CompetitionFixture) => React.ReactNode;
-  /** Round-wide tools (Simulate round) shown with the next round. */
+
   nextRoundTools?: React.ReactNode;
 }
 
-/**
- * A league's schedule, ordered for the coach: the round to play next first
- * and in full, the rest of the season after it, and the rounds already
- * played folded away as history. Called with the page's render functions
- * rather than mounting them, so score inputs keep focus while typing.
- */
 export function LeagueRounds({
   competition,
   renderActions,
@@ -39,8 +32,7 @@ export function LeagueRounds({
   const plan = roundPlan(competition.fixtures);
   const entrant = (entrantId: string | null) =>
     competition.entrants.find((candidate) => candidate.id === entrantId);
-  // The library is read once per entrant list, not once per crest: score
-  // fields re-render the round on every keystroke.
+
   const { entrants } = competition;
   const kits = useMemo<Kits>(() => {
     const library = new Map(loadTeams().map((team) => [team.id, team.colors]));
@@ -196,14 +188,13 @@ function FeaturedFixture({
       <ResultNotes fixture={fixture} entrants={entrants} />
       {ready && (
         <div className="mt-4 border-t border-white/10 pt-4">
-          {renderActions({ fixture, home, away, ready })}
+          {renderActions({ fixture, ...(home === undefined ? {} : { home: home }), ...(away === undefined ? {} : { away: away }), ready })}
         </div>
       )}
     </article>
   );
 }
 
-/** The score once played ("—" for a walkover), "v" before. */
 function FixtureScore({ fixture }: { fixture: CompetitionFixture }) {
   if (fixture.status !== "complete") {
     return <span className="hud-label text-center text-hud-dim">v</span>;
@@ -219,14 +210,13 @@ function FixtureScore({ fixture }: { fixture: CompetitionFixture }) {
       >
         {result?.walkover
           ? "—"
-          : `${result?.homeScore ?? "—"}–${result?.awayScore ?? "—"}`}
+          : `${String(result?.homeScore ?? "—")}–${String(result?.awayScore ?? "—")}`}
       </strong>
       <span className="hud-label block text-hud-2xs text-hud-mute">Result</span>
     </div>
   );
 }
 
-/** A walkover's or a Penalty Shoot-out's line under the score. */
 function ResultNotes({
   fixture: { result },
   entrants,
@@ -250,7 +240,6 @@ function ResultNotes({
   );
 }
 
-/** One side of a featured fixture: crest and name, stacked on a phone. */
 function FixtureSide({
   entrant,
   colors,
@@ -289,11 +278,6 @@ function FixtureSide({
   );
 }
 
-/**
- * A played round, folded away until the coach opens it. A plain button
- * drives it, so Enter, Space and a tap all toggle it, and aria-expanded
- * says which way it is.
- */
 function CompletedRound({
   round,
   children,
@@ -316,7 +300,9 @@ function CompletedRound({
           id={toggleId}
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => setOpen((shown) => !shown)}
+          onClick={() => {
+            setOpen((shown) => !shown);
+          }}
           className="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 py-3 text-left hud-label text-hud-gold hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
         >
           <span>Round {round}</span>
@@ -340,8 +326,6 @@ function CompletedRound({
         </button>
       </h3>
       <div id={panelId} role="region" aria-labelledby={toggleId} hidden={!open}>
-        {/* The grid inside: a display utility on the region itself would
-            override `hidden` and show a collapsed round. */}
         <div className="grid gap-3 border-t border-white/10 p-4 md:grid-cols-2">
           {children}
         </div>

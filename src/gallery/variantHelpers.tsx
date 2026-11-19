@@ -1,25 +1,26 @@
-/**
- * Fixtures and helpers that more than one family of gallery variants uses.
- */
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import type { OnlineMatch } from "../network/OnlineMatch";
 import type { LobbyDoc } from "../firebase/lobby";
-import { MatchFixture } from "./fixtures";
+import { type MatchFixture } from "./fixtures";
 import { ScoreBoard } from "../ui/components/hud/ScoreBoard";
 import { TurnIndicator } from "../ui/components/hud/TurnIndicator";
 
 export const later = (ms: number, fn: () => void) => {
   const t = setTimeout(fn, ms);
-  return () => clearTimeout(t);
+  return () => {
+    clearTimeout(t);
+  };
 };
 
 export const every = (ms: number, fn: () => void) => {
   fn();
   const t = setInterval(fn, ms);
-  return () => clearInterval(t);
+  return () => {
+    clearInterval(t);
+  };
 };
 
 export const click = (selector: string, text?: string) => {
@@ -54,7 +55,7 @@ export const score = (fx: MatchFixture) => (
   </div>
 );
 
-export const LOG_ROWS: [
+const LOG_ROWS: [
   string,
   string,
   number | number[] | string[],
@@ -156,8 +157,6 @@ export const BLOCK_FACES = {
   pow: { type: "pow" as const, icon: "", label: "POW!" },
 };
 
-// The online-only widgets take a live OnlineMatch and lobby; these stubs
-// carry just the fields those widgets read.
 export function onlineMatch(
   fx: MatchFixture,
   overrides: Record<string, unknown> = {}
@@ -189,7 +188,7 @@ export function lobby(fx: MatchFixture, patch: Partial<LobbyDoc>): LobbyDoc {
     createdAt: null,
     timer: {
       deadline: Date.now() + 94_000,
-      turn: `${turn.teamId}:${turn.isHalf2 ? 2 : 1}:${turn.turnNumber}`,
+      turn: `${turn.teamId}:${String(turn.isHalf2 ? 2 : 1)}:${String(turn.turnNumber)}`,
       pausedBy: null,
       pausedAt: null,
       banks: { me: 120_000 },

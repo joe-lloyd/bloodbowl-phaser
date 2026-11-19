@@ -5,7 +5,7 @@ import {
   getVisibleSidelineStaff,
   SIDELINE_STAFF_CAPS,
 } from "../../src/game/presentation/sidelineStaff";
-import { Team } from "../../src/types/Team";
+import { type Team } from "../../src/types/Team";
 
 function teamWith(overrides: Partial<Team>): Team {
   return {
@@ -28,19 +28,19 @@ describe("sideline crew projection: names and effect text", () => {
     const staff = getVisibleSidelineStaff(team);
 
     const byType = Object.fromEntries(staff.map((m) => [m.type, m]));
-    expect(byType.coach).toMatchObject({
+    expect(byType["coach"]).toMatchObject({
       name: "Assistant Coach",
       effect: expect.stringContaining("Brilliant Coaching"),
     });
-    expect(byType.cheerleader).toMatchObject({
+    expect(byType["cheerleader"]).toMatchObject({
       name: "Cheerleader",
       effect: expect.stringContaining("Cheering Fans"),
     });
-    expect(byType.apothecary).toMatchObject({
+    expect(byType["apothecary"]).toMatchObject({
       name: "Apothecary",
       effect: expect.stringContaining("Knocked Out"),
     });
-    expect(byType.fan).toMatchObject({
+    expect(byType["fan"]).toMatchObject({
       name: "Dedicated Fan",
       effect: expect.stringContaining("Pitch Invasion"),
     });
@@ -49,7 +49,9 @@ describe("sideline crew projection: names and effect text", () => {
 
 describe("sideline crew projection: real vs. drawn counts", () => {
   it("reports the team's real count even when it exceeds the rail's cap", () => {
-    const team = teamWith({ cheerleaders: SIDELINE_STAFF_CAPS.cheerleader + 3 });
+    const team = teamWith({
+      cheerleaders: SIDELINE_STAFF_CAPS.cheerleader + 3,
+    });
 
     const drawn = getVisibleSidelineStaff(team).filter(
       (m) => m.type === "cheerleader"

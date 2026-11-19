@@ -9,7 +9,12 @@ import {
 } from "../../../src/game/rules/teamLifecycle";
 
 function team() {
-  return createTeam("Test", RosterName.HUMAN, { primary: 0, secondary: 0 }, 50000);
+  return createTeam(
+    "Test",
+    RosterName.HUMAN,
+    { primary: 0, secondary: 0 },
+    50000
+  );
 }
 
 describe("teamLifecycle", () => {
@@ -37,8 +42,7 @@ describe("teamLifecycle", () => {
 
   it("an abandoned match (never stamped) leaves the team in draft", () => {
     const t = team();
-    // Simulates a match that never reached confirmation — nothing calls
-    // stampFirstCompletedMatch.
+
     expect(getTeamMode(t)).toBe("draft");
   });
 

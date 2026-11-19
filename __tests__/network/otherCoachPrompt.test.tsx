@@ -1,25 +1,23 @@
-/**
- * A Dodge, Rush or Pick up prompt opens before its command is sent, so the
- * waiting coach used to see nothing while the acting coach decided. The
- * acting side now sends the open prompt on a cosmetic channel, and the
- * waiting coach's decision dock shows it read-only.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createOnlineMatch, OnlineMatch } from "../../src/network/OnlineMatch";
-import { Envelope } from "../../src/network/envelope";
+import {
+  createOnlineMatch,
+  type OnlineMatch,
+} from "../../src/network/OnlineMatch";
+import { type Envelope } from "../../src/network/envelope";
 import {
   createInMemoryTransportPair,
-  Transport,
+  type Transport,
 } from "../../src/network/transport";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
-import { GameEventNames, StepPrompt } from "../../src/types/events";
+import { GameEventNames, type StepPrompt } from "../../src/types/events";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { LobbyDoc, DEFAULT_SETTINGS } from "../../src/firebase/lobby";
+import { type LobbyDoc, DEFAULT_SETTINGS } from "../../src/firebase/lobby";
 import { OtherCoachPrompt } from "../../src/ui/components/hud/OtherCoachPrompt";
 
 vi.mock("../../src/firebase/lobby", async (load) => ({
@@ -46,7 +44,7 @@ let root: Root;
 let bus: EventBus;
 let match: OnlineMatch;
 let game: HeadlessGame;
-/** The guest's end of the wire, played by the test. */
+
 let guestEnd: Transport;
 let fromHost: Envelope[];
 let guestSeq: number;
@@ -94,11 +92,15 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
-  await act(async () => root.render(<OtherCoachPrompt eventBus={bus} />));
+  await act(async () => {
+    root.render(<OtherCoachPrompt eventBus={bus} />);
+  });
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   host.remove();
   match.close();
   ServiceContainer.reset();
@@ -130,14 +132,14 @@ describe("the acting coach's step prompt", () => {
   it("is sent to the other coach while it is open, and cleared when answered", async () => {
     const mover = game.ctx.team1.players[0];
     const step: StepPrompt = {
-      playerId: mover.id,
+      playerId: fixtureValue(mover).id,
       rolls: [{ type: "dodge", target: 3 }],
     };
     bus.emit(GameEventNames.UI_RequestConfirmation, {
       actionId: "risky-step-1",
       title: "Dodge",
       message: "",
-      chooserTeamId: mover.teamId,
+      chooserTeamId: fixtureValue(mover).teamId,
       step,
     });
     await flush();
@@ -154,7 +156,7 @@ describe("the acting coach's step prompt", () => {
   it("sends the pass being aimed, and clears it when aiming stops", async () => {
     const passer = game.ctx.team1.players[0];
     const aim: StepPrompt = {
-      playerId: passer.id,
+      playerId: fixtureValue(passer).id,
       rolls: [
         { type: "pass", target: 3 },
         { type: "catch", target: 4 },
@@ -183,7 +185,7 @@ describe("the waiting coach's decision dock", () => {
   it("shows what the other coach is deciding, read-only, until they answer", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({
-      playerId: orc.id,
+      playerId: fixtureValue(orc).id,
       rolls: [{ type: "rush", target: 2 }],
     });
     expect(line()).toBe("Orc Founders: Rush 2+");
@@ -194,10 +196,9 @@ describe("the waiting coach's decision dock", () => {
   });
 
   it("shows the other coach's foul, read-only, with its armour roll", async () => {
-    // Round 2, 13:20: a foul or a pass gave the waiting coach no line
     const orc = game.ctx.team2.players[0];
     await fromGuest({
-      playerId: orc.id,
+      playerId: fixtureValue(orc).id,
       rolls: [{ type: "armour", target: 8 }],
     });
     expect(line()).toBe("Orc Founders: Foul armour 8+");
@@ -206,7 +207,7 @@ describe("the waiting coach's decision dock", () => {
   it("shows Secure the Ball by name over the online prompt channel", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({
-      playerId: orc.id,
+      playerId: fixtureValue(orc).id,
       rolls: [{ type: "secureBall", target: 2 }],
     });
     expect(line()).toBe("Orc Founders: Secure the Ball 2+");
@@ -215,7 +216,7 @@ describe("the waiting coach's decision dock", () => {
   it("shows the pass the other coach is aiming, with the catch", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({
-      playerId: orc.id,
+      playerId: fixtureValue(orc).id,
       rolls: [
         { type: "pass", target: 3 },
         { type: "catch", target: 4 },
@@ -227,7 +228,7 @@ describe("the waiting coach's decision dock", () => {
   it("names both rolls of a Rush and Dodge without their odds", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({
-      playerId: orc.id,
+      playerId: fixtureValue(orc).id,
       rolls: [
         { type: "rush", target: 2 },
         { type: "dodge", target: 3 },
@@ -239,7 +240,7 @@ describe("the waiting coach's decision dock", () => {
   it("ignores a prompt that claims a player from the wrong team", async () => {
     const human = game.ctx.team1.players[0];
     await fromGuest({
-      playerId: human.id,
+      playerId: fixtureValue(human).id,
       rolls: [{ type: "rush", target: 2 }],
     });
     expect(line()).toBeNull();
@@ -248,49 +249,49 @@ describe("the waiting coach's decision dock", () => {
   it("clears when the turn passes", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({
-      playerId: orc.id,
+      playerId: fixtureValue(orc).id,
       rolls: [{ type: "pickup", target: 3 }],
     });
     expect(line()).toContain("Pick up 3+");
-    await act(async () =>
+    await act(async () => {
       bus.emit(GameEventNames.TurnStarted, {
         teamId: game.ctx.team1.id,
         turnNumber: 2,
-      })
-    );
+      });
+    });
     expect(line()).toBeNull();
   });
 
   it("gives way to the re-roll choice when the roll fails", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({
-      playerId: orc.id,
+      playerId: fixtureValue(orc).id,
       rolls: [{ type: "dodge", target: 4 }],
     });
     expect(line()).toBe("Orc Founders: Dodge 4+");
-    await act(async () =>
+    await act(async () => {
       bus.emit(GameEventNames.DecisionRequested, {
         type: "reroll",
-        playerId: orc.id,
-        chooserTeamId: orc.teamId,
+        playerId: fixtureValue(orc).id,
+        chooserTeamId: fixtureValue(orc).teamId,
         rollKind: "dodge",
         sources: ["team"],
         roll: 2,
         needed: 4,
-      })
-    );
+      });
+    });
     expect(line()).toBeNull();
   });
 
   it("clears once the other coach's move has run here", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({
-      playerId: orc.id,
+      playerId: fixtureValue(orc).id,
       rolls: [{ type: "dodge", target: 4 }],
     });
-    await act(async () =>
-      bus.emit(GameEventNames.UI_OtherCoachMoveResolved, { playerId: orc.id })
-    );
+    await act(async () => {
+      bus.emit(GameEventNames.UI_OtherCoachMoveResolved, { playerId: fixtureValue(orc).id });
+    });
     expect(line()).toBeNull();
   });
 });

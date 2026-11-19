@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/firebase/config", () => ({
@@ -24,11 +25,13 @@ import {
   DEFAULT_SEVENS_RULESET,
   NAF_SEVENS_RULESET,
 } from "../../src/game/rules/sevensRuleset";
-import { RosterName, TeamAdvancementMode } from "../../src/types/Team";
+import { RosterName, type TeamAdvancementMode } from "../../src/types/Team";
 import { manageComputerTeam } from "../../src/competition/computerTeams";
 import { RNGService } from "../../src/services/rng/RNGService";
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe("computer team templates", () => {
   it("is available without seeding or saving teams, with distinct identities", () => {
@@ -138,8 +141,8 @@ describe("computer team templates", () => {
         advancementMode: "sevens-skill-selection",
       }),
     });
-    const oldTeam = getTeamById(first.entrants[0].teamId)!;
-    const newTeam = getTeamById(second.entrants[0].teamId)!;
+    const oldTeam = fixtureValue(getTeamById(fixtureValue(first.entrants[0]).teamId));
+    const newTeam = fixtureValue(getTeamById(fixtureValue(second.entrants[0]).teamId));
     expect(oldTeam.id).not.toBe(newTeam.id);
     expect(
       new Set(
@@ -152,13 +155,13 @@ describe("computer team templates", () => {
     expect(newTeam.activeCompetitionId).toBe(second.id);
     expect(newTeam.computerTemplateId).toBe("human-reroll-mix-roster");
     oldTeam.firstMatchPlayedAt = 1;
-    oldTeam.players[0].spp = 6;
+    fixtureValue(oldTeam.players[0]).spp = 6;
     manageComputerTeam(oldTeam, new RNGService(7));
     saveTeam(oldTeam);
-    expect(getTeamById(oldTeam.id)!.players[0].advancements).toHaveLength(1);
-    expect(getTeamById(newTeam.id)!.players[0].advancements).toEqual([]);
+    expect(fixtureValue(fixtureValue(getTeamById(oldTeam.id)).players[0]).advancements).toHaveLength(1);
+    expect(fixtureValue(fixtureValue(getTeamById(newTeam.id)).players[0]).advancements).toEqual([]);
     expect(
-      createComputerTeamFromTemplate("human-reroll-mix-roster").players[0]
+      fixtureValue(createComputerTeamFromTemplate("human-reroll-mix-roster").players[0])
         .advancements
     ).toEqual([]);
     expect(loadTeams()).toHaveLength(4);
@@ -167,15 +170,15 @@ describe("computer team templates", () => {
   it("does not share mutable player data between copies or roster definitions", () => {
     const first = createComputerTeamFromTemplate("human-reroll-mix-roster");
     const second = createComputerTeamFromTemplate("human-reroll-mix-roster");
-    first.players[0].stats.ST = 1;
-    first.players[0].keywords.length = 0;
+    fixtureValue(first.players[0]).stats.ST = 1;
+    fixtureValue(first.players[0]).keywords.length = 0;
     first.colors.primary = 0;
-    expect(second.players[0].stats.ST).toBe(3);
-    expect(second.players[0].keywords.length).toBeGreaterThan(0);
+    expect(fixtureValue(second.players[0]).stats.ST).toBe(3);
+    expect(fixtureValue(second.players[0]).keywords.length).toBeGreaterThan(0);
     const fresh = createComputerTeamFromTemplate("human-reroll-mix-roster");
     expect(fresh.rosterName).toBe(RosterName.HUMAN);
-    expect(fresh.players[0].stats.ST).toBe(3);
-    expect(fresh.players[0].keywords.length).toBeGreaterThan(0);
+    expect(fixtureValue(fresh.players[0]).stats.ST).toBe(3);
+    expect(fixtureValue(fresh.players[0]).keywords.length).toBeGreaterThan(0);
     expect(fresh.colors.primary).not.toBe(0);
   });
 });

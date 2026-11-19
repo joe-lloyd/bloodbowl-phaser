@@ -1,26 +1,20 @@
-/**
- * Skill rules entry point. Importing this module registers the built-in
- * rules with the SkillRegistry and exposes the fold helpers that roll paths
- * call. Add a rule by creating one file under rules/ and registering it here.
- */
-
 import { SKILL_DEFINITIONS, SkillType } from "../../types/Skills";
 import {
-  Player,
+  type Player,
   PlayerCondition,
   PlayerStatus,
   hasCondition,
   hasTackleZone,
 } from "../../types/Player";
 import { SkillRegistry } from "./SkillRegistry";
-import { ActionType } from "../../types/events";
+import { type ActionType } from "../../types/events";
 import {
-  ActionDeclaredContext,
-  ActivationDeclaredContext,
-  ActivationGate,
-  BlockResultContext,
-  CountAssistContext,
-  TurnEndingContext,
+  type ActionDeclaredContext,
+  type ActivationDeclaredContext,
+  type ActivationGate,
+  type BlockResultContext,
+  type CountAssistContext,
+  type TurnEndingContext,
 } from "./SkillRule";
 import { BlockRule } from "./rules/BlockRule";
 import { DodgeRule } from "./rules/DodgeRule";
@@ -131,8 +125,7 @@ import { LethalFlightRule } from "./rules/LethalFlightRule";
 
 let registered = false;
 
-/** Register every built-in skill rule (idempotent). */
-export function registerBuiltinSkills(): void {
+function registerBuiltinSkills(): void {
   if (registered) return;
   registered = true;
   SkillRegistry.register(SkillType.BLOCK, BlockRule);
@@ -243,10 +236,8 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.LETHAL_FLIGHT, LethalFlightRule);
 }
 
-// Register on first import so any consumer of the fold helpers is covered.
 registerBuiltinSkills();
 
-/** Trigger points a rule can hook (see SkillRule). */
 export type TriggerHook =
   | "onDodgeDeclared"
   | "onDodgeResolved"
@@ -269,12 +260,6 @@ export type TriggerHook =
   | "onJumpResolved"
   | "onStandUpRoll";
 
-/**
- * Deterministic all-participant gather: actor first, then target, then the
- * remaining relevant players (typically adjacents) ordered by board position
- * (top-to-bottom, left-to-right). Duplicates collapse to first appearance,
- * so multi-skill interactions replay identically.
- */
 export function gatherParticipants(
   actor: Player,
   target?: Player,
@@ -298,10 +283,6 @@ export function gatherParticipants(
   return participants;
 }
 
-/**
- * On-pitch players within `range` squares (Chebyshev) of a square, any
- * status — aura skills like Disturbing Presence work even while down.
- */
 export function playersWithin(
   square: { x: number; y: number },
   players: Player[],
@@ -315,10 +296,6 @@ export function playersWithin(
   });
 }
 
-/**
- * Players with a Tackle Zone adjacent to a square — the usual "others" for
- * a gather (Distracted players have no Tackle Zone and never mark).
- */
 export function adjacentStanding(
   square: { x: number; y: number },
   players: Player[]
@@ -331,29 +308,14 @@ export function adjacentStanding(
   });
 }
 
-/**
- * Active skills whose text says they work while the holder is down: Mighty
- * Blow "even if this player is also Knocked Down", and Lethal Flight for a
- * player thrown into an opponent. Neither works while Distracted.
- */
 const IN_EFFECT_WHILE_DOWN = new Set<SkillType>([
   SkillType.MIGHTY_BLOW,
   SkillType.LETHAL_FLIGHT,
 ]);
 
-/**
- * Chainsaw's +3 against its downed wielder "must always be applied", so it
- * holds whatever the wielder's status, Distracted or not.
- */
 const ALWAYS_IN_EFFECT = new Set<SkillType>([SkillType.CHAINSAW]);
 
-/**
- * Rulebook p.125: an Active skill or trait works only while its holder is
- * Standing and not Distracted, unless its text says otherwise; a Passive
- * one is always in effect. So a Distracted player has no Dodge against a
- * Stumble, no Block on a Both Down and no Pick-me-up (FAQ May 2026).
- */
-export function skillInEffect(player: Player, type: SkillType): boolean {
+function skillInEffect(player: Player, type: SkillType): boolean {
   if (SKILL_DEFINITIONS[type].usage === "passive") return true;
   if (ALWAYS_IN_EFFECT.has(type)) return true;
   if (hasCondition(player, PlayerCondition.DISTRACTED)) return false;
@@ -362,12 +324,6 @@ export function skillInEffect(player: Player, type: SkillType): boolean {
   );
 }
 
-/**
- * Fold every participant's registered rules over a trigger context, in
- * gather order. Async because a reaction hook may pause on a decision.
- * A rule without the hook is skipped; unregistered skills are inert, and
- * so are skills not in effect for their holder (skillInEffect).
- */
 export async function foldTrigger(
   hook: TriggerHook,
   participants: Player[],
@@ -387,10 +343,6 @@ export async function foldTrigger(
   }
 }
 
-/**
- * The negatrait rolls declaring `action` would make, in the order they are
- * rolled. Nothing is rolled: the coach can be told before committing.
- */
 export function activationGates(
   player: Player,
   action: ActionType,
@@ -409,10 +361,6 @@ export function activationGates(
   return ctx.gates;
 }
 
-/**
- * Fold rules over a block result. Participants: attacker, defender, then
- * players adjacent to either (deterministic order via gatherParticipants).
- */
 export async function foldBlockResult(
   ctx: BlockResultContext,
   allPlayers: Player[] = []
@@ -432,11 +380,6 @@ export async function foldBlockResult(
   );
 }
 
-/**
- * Fold assist-eligibility rules over the participants (assister first, then
- * markers). Synchronous — assist counting is passive and runs during preview,
- * so it never awaits a decision.
- */
 export function foldCountAssists(
   ctx: CountAssistContext,
   participants: Player[]
@@ -449,11 +392,6 @@ export function foldCountAssists(
   }
 }
 
-/**
- * Fold end-of-opposition-turn rules over the reacting team's players
- * (Pick-Me-Up). Synchronous — runs inside endTurn before the next turn
- * starts, so stood players are up when it begins.
- */
 export function foldTurnEnding(
   ctx: TurnEndingContext,
   participants: Player[]
@@ -466,11 +404,6 @@ export function foldTurnEnding(
   }
 }
 
-/**
- * Fold declaration-gating rules for the declaring player. Synchronous -
- * declaration gating is passive and never awaits a decision (see
- * onActionDeclared).
- */
 export function foldActionDeclared(ctx: ActionDeclaredContext): void {
   for (const skill of ctx.player.skills) {
     if (!skillInEffect(ctx.player, skill.type)) continue;
@@ -485,8 +418,6 @@ export { withRerollOffer, spendTeamReroll } from "./rerolls";
 export type { RollLike, RerollDeps } from "./rerolls";
 export type {
   SkillRule,
-  SkillTriggerRecord,
-  FlowLike,
   BlockResultContext,
   DodgeDeclaredContext,
   DodgeResolvedContext,
@@ -506,7 +437,6 @@ export type {
   ActionDeclaredContext,
   ActivationDeclaredContext,
   ActivationGate,
-  ActivationGateFailure,
   RushDeclaredContext,
   StandUpRollContext,
   TurnEndingContext,

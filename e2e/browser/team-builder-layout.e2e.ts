@@ -1,7 +1,4 @@
-/**
- * The team builder scrolls as one page. The hire list sizes to its rows,
- * so the wheel never lands in a second scroll box full of empty space.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 
 test("the available hires list has no inner vertical scroll at 1440x900", async ({
@@ -19,7 +16,10 @@ test("the available hires list has no inner vertical scroll at 1440x900", async 
     [panel, ...panel.querySelectorAll<HTMLElement>("*")]
       .filter((el) => el.scrollHeight > el.clientHeight + 1)
       .filter((el) => /(auto|scroll)/.test(getComputedStyle(el).overflowY))
-      .map((el) => `${el.className}: ${el.scrollHeight} > ${el.clientHeight}`)
+      .map(
+        (el) =>
+          `${String(el.className)}: ${String(el.scrollHeight)} > ${String(el.clientHeight)}`
+      )
   );
   expect(scrollBoxes).toEqual([]);
 });
@@ -41,11 +41,11 @@ test("a skill tooltip on the last hire opens whole, outside the table", async ({
   await trigger.scrollIntoViewIfNeeded();
   await trigger.hover();
   const tip = page.locator(
-    `[id="${await trigger.getAttribute("aria-describedby")}"]`
+    `[id="${String(await trigger.getAttribute("aria-describedby"))}"]`
   );
   await expect(tip).toBeVisible();
-  const box = (await tip.boundingBox())!;
-  // Fully on screen, and no scroll box grew to fit it
+  const box = fixtureValue((await tip.boundingBox()));
+
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(900);
   const scrollBoxes = await hires.evaluate(
@@ -58,7 +58,7 @@ test("a skill tooltip on the last hire opens whole, outside the table", async ({
   );
   expect(scrollBoxes).toBe(0);
   await page.screenshot({
-    path: `${process.env.SHOTS ?? test.info().outputDir}/last-hire-tooltip.png`,
+    path: `${process.env["SHOTS"] ?? test.info().outputDir}/last-hire-tooltip.png`,
   });
 });
 

@@ -1,28 +1,14 @@
-/**
- * Reviewed coverage exclusions.
- *
- * A gap that nobody intends to close is still a gap, and hiding it makes the
- * report a lie. An exclusion is therefore a written decision: what is
- * excluded, why, who owns it, and where the follow-up is tracked. Coverage
- * validation rejects an exclusion missing any of that, so "excluded" can
- * never quietly mean "forgotten".
- *
- * Exclusions live here, in one file, rather than beside each scenario family:
- * the whole point is that they are reviewable together.
- */
-
-import { ExecutionLayer } from "../scenarioCase/types";
+import { type ExecutionLayer } from "../scenarioCase/types";
 
 export interface CoverageExclusion {
-  /** The inventory entry id this excuses. */
   entryId: string;
-  /** Which layers are excused; omit to excuse the entry entirely. */
+
   layers?: ExecutionLayer[];
-  /** Why this is not covered. Required, and read by humans. */
+
   reason: string;
-  /** Who decided. A name or a team, not "we". */
+
   owner: string;
-  /** Issue, change id, or task reference where the follow-up lives. */
+
   tracking: string;
 }
 
@@ -44,15 +30,7 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
     owner: "bloodbowl-phaser maintainers",
     tracking: "openspec/changes/add-comprehensive-e2e-scenario-testing",
   },
-  // ----- Kick-off events -----
-  // Which kick-off event fires is a 2D6 roll, and only some of them ask the
-  // coach to select, move or place a player. A *scripted* case cannot
-  // contain those commands without first pinning a seed that produces that
-  // specific event — and pinning one per command makes the script a
-  // statement about the dice rather than about the rule. The event
-  // resolution itself is covered (`decision:kickoff-event`, via
-  // `match-opening-to-kickoff`), and the per-event mechanics are covered by
-  // the kickoff scenario catalog and __tests__/headless/kickoff-events.
+
   ...(
     [
       "kickoff-select-player",
@@ -69,7 +47,8 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
       "individual events by the kickoff catalog and " +
       "__tests__/headless/kickoff-events.test.ts.",
     owner: "bloodbowl-phaser maintainers",
-    tracking: "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
+    tracking:
+      "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
   })),
   {
     entryId: "protocol-command:start-setup",
@@ -79,7 +58,8 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
       "reaches it (e2e/engine/full-match.e2e.ts drives real setups), but it " +
       "arrives via the coin flip rather than as an explicit command.",
     owner: "bloodbowl-phaser maintainers",
-    tracking: "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
+    tracking:
+      "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
   },
   {
     entryId: "protocol-command:team-reroll-block",
@@ -89,7 +69,8 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
       "rule catalog covers through the Pro and Brawler configs instead " +
       "(pro-rerolls-a-block-die, brawler-rerolls-both-down).",
     owner: "bloodbowl-phaser maintainers",
-    tracking: "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
+    tracking:
+      "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
   },
   {
     entryId: "phase:HALFTIME",
@@ -99,7 +80,8 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
       "halves are played is asserted directly by the full-match spec " +
       "(`sawHalftime`), which is the property that actually matters.",
     owner: "bloodbowl-phaser maintainers",
-    tracking: "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
+    tracking:
+      "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
   },
   {
     entryId: "decision:follow-up",
@@ -111,7 +93,8 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
       "seed — see the decision:reroll note below for why seeds do not carry " +
       "across lanes. The engine lane covers both follow-up branches.",
     owner: "bloodbowl-phaser maintainers",
-    tracking: "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
+    tracking:
+      "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
   },
   {
     entryId: "decision:reroll",
@@ -125,7 +108,8 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
       "covers every re-roll branch; closing this properly means making " +
       "scenario loading RNG-neutral, which is an engine change.",
     owner: "bloodbowl-phaser maintainers",
-    tracking: "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
+    tracking:
+      "openspec/changes/add-comprehensive-e2e-scenario-testing (follow-up)",
   },
   {
     entryId: "protocol-command:setup-concession",
@@ -142,7 +126,6 @@ export interface ExclusionIssue {
   message: string;
 }
 
-/** Reject an exclusion that does not actually explain itself. */
 export function validateExclusions(
   exclusions: CoverageExclusion[] = COVERAGE_EXCLUSIONS,
   knownEntryIds?: ReadonlySet<string>
@@ -182,7 +165,6 @@ export function validateExclusions(
   return issues;
 }
 
-/** Is this entry excused for this layer? */
 export function isExcluded(
   entryId: string,
   layer: ExecutionLayer,
@@ -195,7 +177,6 @@ export function isExcluded(
   );
 }
 
-/** The exclusion covering an entry, for the report's "why" column. */
 export function exclusionFor(
   entryId: string,
   exclusions: CoverageExclusion[] = COVERAGE_EXCLUSIONS

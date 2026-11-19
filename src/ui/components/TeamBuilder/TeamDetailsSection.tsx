@@ -1,4 +1,4 @@
-import { FavouredOfRule, League, Team } from "../../../types/Team";
+import { type FavouredOfRule, League, type Team } from "../../../types/Team";
 import {
   favouredOfChoices,
   leagueChoices,
@@ -13,16 +13,8 @@ import {
 } from "../TeamManagement/TeamStatsOverview";
 
 const TEAM_COLORS = [
-  0x8e1b1b, // Blood Red
-  0x1e3a5f, // Ink Blue
-  0x556b2f, // Pitch Green
-  0xd6b25e, // Gold
-  0x2a1f1a, // Text Dark
-  0xb32020, // Deep Crimson
-  0xe8ddc4, // Warm Paper
-  0x6b5e54, // Muted Text
-  0xffffff, // White
-  0x000000, // Black
+  0x8e1b1b, 0x1e3a5f, 0x556b2f, 0xd6b25e, 0x2a1f1a, 0xb32020, 0xe8ddc4,
+  0x6b5e54, 0xffffff, 0x000000,
 ];
 
 interface Props {
@@ -35,7 +27,6 @@ interface Props {
   onChooseFavouredOf: (alignment: FavouredOfRule) => void;
 }
 
-/** Name, allegiance, coach, Treasury and colours. */
 export function TeamDetailsSection({
   team,
   active,
@@ -59,7 +50,9 @@ export function TeamDetailsSection({
             type="text"
             className="hud-field font-hud-label text-base font-bold uppercase tracking-[0.03em]"
             value={team.name}
-            onChange={(e) => onChange({ ...team, name: e.target.value })}
+            onChange={(e) => {
+              onChange({ ...team, name: e.target.value });
+            }}
             placeholder="Enter Team Name"
           />
         </Field>
@@ -76,7 +69,9 @@ export function TeamDetailsSection({
             className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             value={teamLeague(team)}
             disabled={active || leagueChoices(team.rosterName).length < 2}
-            onChange={(e) => onChooseLeague(e.target.value as League)}
+            onChange={(e) => {
+              onChooseLeague(e.target.value as League);
+            }}
           >
             {leagueChoices(team.rosterName).map((league) => (
               <option key={league} value={league}>
@@ -99,9 +94,9 @@ export function TeamDetailsSection({
               className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
               value={teamFavouredOf(team)}
               disabled={active}
-              onChange={(e) =>
-                onChooseFavouredOf(e.target.value as FavouredOfRule)
-              }
+              onChange={(e) => {
+                onChooseFavouredOf(e.target.value as FavouredOfRule);
+              }}
             >
               {favouredOfChoices(team.rosterName).map((alignment) => (
                 <option key={alignment} value={alignment}>
@@ -125,7 +120,9 @@ export function TeamDetailsSection({
             type="text"
             className="hud-field"
             value={team.coachName || ""}
-            onChange={(e) => onChange({ ...team, coachName: e.target.value })}
+            onChange={(e) => {
+              onChange({ ...team, coachName: e.target.value });
+            }}
             placeholder="Coach Name"
           />
         </Field>
@@ -141,7 +138,7 @@ export function TeamDetailsSection({
               onChange({
                 ...team,
                 startingTreasury: newVal,
-                treasury: newVal, // synchronise current treasury as long as we are in drafting mode and no players bought
+                treasury: newVal,
               });
             }}
           />
@@ -160,7 +157,9 @@ export function TeamDetailsSection({
                     : "border-white/30"
                 )}
                 style={{ backgroundColor: numToHex(color) }}
-                onClick={() => onColorChange(color)}
+                onClick={() => {
+                  onColorChange(color);
+                }}
                 title={numToHex(color)}
               />
             ))}

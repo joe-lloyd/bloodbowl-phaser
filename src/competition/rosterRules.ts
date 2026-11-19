@@ -1,30 +1,21 @@
-/**
- * Competition roster rule profiles: every league/tournament declares a
- * versioned advancement mode, draft budget and roster constraints. A single compatibility validator is shared by
- * the entry UI (CompetitionBuilder) and the authoritative save path, so a
- * forged/bypassed entry is rejected the same way a UI attempt would be.
- */
 import { matchedPlaySkillViolations } from "../game/progression/advancementModes";
 import { validateInsignificant } from "../game/rules/insignificant";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
-import { SevensRuleset } from "../game/rules/sevensRuleset";
+import { type SevensRuleset } from "../game/rules/sevensRuleset";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import {
   calculateTeamValue,
   hasBlockingPendingDevelopment,
-  Team,
-  TeamAdvancementMode,
+  type Team,
+  type TeamAdvancementMode,
 } from "../types/Team";
 
 export interface RosterRuleProfile {
-  /** Bumped whenever an organizer edits the profile after creation. */
   version: number;
   advancementMode: TeamAdvancementMode;
-  /** Maximum team value (gold) a legal entrant may have. */
+
   draftBudget: number;
-  /** When true (the default), a team with unresolved pending development
-   *  (Skill Selection award, required Advanced League advancement) may not
-   *  enter or launch a fixture until it is resolved from Manage Team. */
+
   requireDevelopmentComplete: boolean;
 }
 
@@ -46,7 +37,6 @@ export interface CompatibilityResult {
   reasons: string[];
 }
 
-/** The advancement mode and draft budget a roster profile demands. */
 function profileReasons(team: Team, profile: RosterRuleProfile): string[] {
   const reasons: string[] = [];
   if (!team.advancementMode) {
@@ -69,15 +59,8 @@ function profileReasons(team: Team, profile: RosterRuleProfile): string[] {
 }
 
 const developmentBlocks = (team: Team, profile: RosterRuleProfile) =>
-  profile.requireDevelopmentComplete &&
-  hasBlockingPendingDevelopment(team);
+  profile.requireDevelopmentComplete && hasBlockingPendingDevelopment(team);
 
-/**
- * The single validator used by both the competition-entry UI and the
- * authoritative save path (CompetitionBuilder.create / addEntrantToCompetition).
- * With neither a roster profile nor a ruleset, preserve legacy unrestricted
- * entry. New competitions always declare a ruleset and enforce roster legality.
- */
 export function checkTeamCompatibility(
   team: Team,
   profile: RosterRuleProfile | undefined,
@@ -111,11 +94,6 @@ export function checkTeamCompatibility(
   return { compatible: reasons.length === 0, reasons };
 }
 
-/**
- * Authoritative gate: throws (rather than silently dropping the entrant) so
- * every save path — UI-driven or a forged/bypassed client submission — is
- * rejected identically without mutating competition membership.
- */
 export function assertEntrantsCompatible(
   teams: readonly Team[],
   profile: RosterRuleProfile | undefined,

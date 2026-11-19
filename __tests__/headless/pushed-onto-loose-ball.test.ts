@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -6,11 +7,6 @@ import { GameEventNames } from "../../src/types/events";
 import { SkillType } from "../../src/types/Skills";
 import { forceDice } from "../utils/test-helpers";
 
-/**
- * A player pushed onto a loose ball does not get to pick it up: it bounces.
- * The simulator's rule monitor caught a chain push leaving a Prone player
- * lying on the ball for the rest of the drive.
- */
 describe("a player pushed onto a loose ball", () => {
   async function pushOnto(status: PlayerStatus) {
     for (let seed = 1; seed < 80; seed++) {
@@ -26,8 +22,7 @@ describe("a player pushed onto a loose ball", () => {
             ],
             team2Placements: [
               { playerIndex: 0, x: 8, y: 5, stats: { ST: 2 } },
-              // In the push's way, with the ball behind it. The two beside
-              // it leave the push no empty square, so it must chain.
+
               { playerIndex: 1, x: 9, y: 5, status },
               { playerIndex: 2, x: 9, y: 4 },
               { playerIndex: 3, x: 9, y: 6 },
@@ -43,13 +38,13 @@ describe("a player pushed onto a loose ball", () => {
       const attacker = game.ctx.team1.players[0];
       await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       let response = await game.execute({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: game.ctx.team2.players[0].id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(game.ctx.team2.players[0]).id,
       });
       if (response.pendingDecision?.type !== "block-dice") continue;
       const push = response.pendingDecision.options.findIndex(
@@ -113,13 +108,13 @@ describe("a player pushed onto a loose ball", () => {
       const attacker = game.ctx.team1.players[0];
       await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       const rolled = await game.execute({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: game.ctx.team2.players[0].id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(game.ctx.team2.players[0]).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const push = rolled.pendingDecision.options.findIndex(
@@ -140,12 +135,17 @@ describe("a player pushed onto a loose ball", () => {
 });
 
 describe("a push onto a loose ball, further cases", () => {
-  async function pushDefender(
-    defenderAt: { x: number; y: number },
-    ball: { x: number; y: number },
-    result: "push" | "pow",
-    skills: SkillType[] = []
-  ) {
+  async function pushDefender({
+    defenderAt,
+    ball,
+    result,
+    skills = [],
+  }: {
+    defenderAt: { x: number; y: number };
+    ball: { x: number; y: number };
+    result: "push" | "pow";
+    skills?: SkillType[];
+  }) {
     for (let seed = 1; seed < 200; seed++) {
       const game = new HeadlessGame({
         scenario: {
@@ -176,13 +176,13 @@ describe("a push onto a loose ball, further cases", () => {
       const attacker = game.ctx.team1.players[0];
       await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       const rolled = await game.execute({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: game.ctx.team2.players[0].id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(game.ctx.team2.players[0]).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const index = rolled.pendingDecision.options.findIndex(
@@ -202,22 +202,24 @@ describe("a push onto a loose ball, further cases", () => {
   }
 
   it("bounces it when Steady Footing keeps a POW defender standing", async () => {
-    const { events, game } = await pushDefender(
-      { x: 8, y: 5 },
-      { x: 7, y: 5 },
-      "pow",
-      [SkillType.STEADY_FOOTING]
+    const { events, game } = await pushDefender({
+      defenderAt: { x: 8, y: 5 },
+      ball: { x: 7, y: 5 },
+      result: "pow",
+      skills: [SkillType.STEADY_FOOTING],
+    });
+    expect(fixtureValue(game.ctx.team2.players[0]).status).toBe(
+      PlayerStatus.ACTIVE
     );
-    expect(game.ctx.team2.players[0].status).toBe(PlayerStatus.ACTIVE);
     expect(events).toContain("Bounce Direction");
   });
 
   it("does not score for a player pushed onto it in their end zone", async () => {
-    const { game, events } = await pushDefender(
-      { x: 1, y: 5 },
-      { x: 0, y: 5 },
-      "push"
-    );
+    const { game, events } = await pushDefender({
+      defenderAt: { x: 1, y: 5 },
+      ball: { x: 0, y: 5 },
+      result: "push",
+    });
     expect(events).toContain("Bounce Direction");
     expect(game.snapshot().score[game.ctx.team2.id] ?? 0).toBe(0);
   });

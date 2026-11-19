@@ -22,7 +22,7 @@ test("the half time card sums up the break when the first half ends", async ({
     { timeout: 15_000 }
   );
   await page.screenshot({
-    path: `${process.env.SHOTS ?? test.info().outputDir}/half-time-card.png`,
+    path: `${process.env["SHOTS"] ?? test.info().outputDir}/half-time-card.png`,
   });
   const box = await card.boundingBox();
   expect(box && box.y + box.height).toBeLessThanOrEqual(720);

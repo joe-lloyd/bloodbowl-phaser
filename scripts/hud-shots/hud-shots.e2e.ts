@@ -1,16 +1,7 @@
-/**
- * Screenshots of the in-match HUD in the real game, for the HUD gallery.
- *
- *   SHOTS=gallery/public/shots/after pnpm exec playwright test -c scripts/hud-shots/playwright.config.ts
- *
- * Each test drives a sandbox scenario the way a coach does and saves the
- * moments the gallery shows: the coin toss, setup, a decision dialog, the
- * dice tray with a roll up, and a block with its dice.
- */
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../../e2e/support/pages/game";
 
-const DIR = process.env.SHOTS ?? "gallery/public/shots/after";
+const DIR = process.env["SHOTS"] ?? "gallery/public/shots/after";
 
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: `${DIR}/${name}.png` });
@@ -42,7 +33,7 @@ test("a dodge prompt, then the dice tray", async ({ page }) => {
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: 2 });
   await app.pitch.waitForCameraToSettle();
-  // The bare pitch, for the gallery's stage backdrop
+
   await page.evaluate(() => {
     document.getElementById("react-root")!.style.visibility = "hidden";
   });

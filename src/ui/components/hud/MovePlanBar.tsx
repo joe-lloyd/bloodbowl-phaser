@@ -1,9 +1,9 @@
-import { ReactNode, useEffect, useRef, useState } from "react";
-import { IEventBus } from "../../../services/EventBus";
-import { GameEventNames, UIEvents } from "../../../types/events";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type IEventBus } from "../../../services/EventBus";
+import { GameEventNames, type UIEvents } from "../../../types/events";
 import { GamePhase, SubPhase } from "../../../types/GameState";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { Player } from "../../../types/Player";
+import { type Player } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
@@ -15,13 +15,6 @@ const ROLL_NAMES = {
   secureBall: "Secure the Ball",
 };
 
-/**
- * The phone's bottom bar. With a route plotted it sums it up (squares and
- * the target of each roll, never the odds) beside Go and a clear button;
- * Go walks it, as tapping its last square again does. A throw aimed with
- * a first tap shows its rolls the same way, beside Throw. With nothing
- * plotted it says what a tap does next on the coach's own turn.
- */
 export function MovePlanBar({
   eventBus,
   phase,
@@ -31,22 +24,26 @@ export function MovePlanBar({
   phase: GamePhase;
   activeTeamId: string | null;
 }) {
-  const [plan, setPlan] = useState<UIEvents[GameEventNames.UI_MovePlan]>(null);
-  const [aim, setAim] = useState<UIEvents[GameEventNames.UI_ThrowAim]>(null);
+  const [plan, setPlan] =
+    useState<UIEvents[typeof GameEventNames.UI_MovePlan]>(null);
+  const [aim, setAim] =
+    useState<UIEvents[typeof GameEventNames.UI_ThrowAim]>(null);
   const [selected, setSelected] = useState<Player | null>(null);
   useEventBus(eventBus, GameEventNames.UI_MovePlan, setPlan);
   useEventBus(eventBus, GameEventNames.UI_ThrowAim, setAim);
-  useEventBus(eventBus, GameEventNames.PlayerSelected, ({ player }) =>
-    setSelected(player)
-  );
+  useEventBus(eventBus, GameEventNames.PlayerSelected, ({ player }) => {
+    setSelected(player);
+  });
   useEventBus(eventBus, GameEventNames.TurnStarted, () => {
     setPlan(null);
     setAim(null);
     setSelected(null);
   });
-  // The kick and a kickoff event's own steps change what a tap does
+
   const [, setKickoffTick] = useState(0);
-  const bump = () => setKickoffTick((tick) => tick + 1);
+  const bump = () => {
+    setKickoffTick((tick) => tick + 1);
+  };
   useEventBus(eventBus, GameEventNames.BallKicked, bump);
   useEventBus(eventBus, GameEventNames.KickoffEventStepStarted, bump);
   useEventBus(eventBus, GameEventNames.KickoffEventStepResolved, bump);
@@ -60,7 +57,9 @@ export function MovePlanBar({
       type="button"
       data-testid="move-plan-clear"
       aria-label={aim ? "Clear the aim" : "Clear the route"}
-      onClick={() => eventBus.emit(GameEventNames.UI_ClearMovePlan)}
+      onClick={() => {
+        eventBus.emit(GameEventNames.UI_ClearMovePlan, undefined);
+      }}
       className={`${hudButtonClass("ghost", "md")} h-11 w-11 !px-0 text-hud-lg`}
     >
       ✕
@@ -70,7 +69,9 @@ export function MovePlanBar({
     <button
       type="button"
       data-testid="move-plan-go"
-      onClick={() => eventBus.emit(GameEventNames.UI_GoMovePlan)}
+      onClick={() => {
+        eventBus.emit(GameEventNames.UI_GoMovePlan, undefined);
+      }}
       className={`${hudButtonClass("gold", "md")} h-11 min-w-[78px] font-hud-display !text-hud-lg !font-normal`}
     >
       {label}
@@ -105,7 +106,9 @@ export function MovePlanBar({
   }
 
   if (plan) {
-    const rolls = plan.rolls.map((r) => `${ROLL_NAMES[r.type]} ${r.target}+`);
+    const rolls = plan.rolls.map(
+      (r) => `${ROLL_NAMES[r.type]} ${String(r.target)}+`
+    );
     return (
       <div
         data-testid="move-plan"
@@ -126,16 +129,9 @@ export function MovePlanBar({
   const online = getActiveOnlineMatch();
   const mine = online ? online.myTeamId === activeTeamId : true;
   if (!mine) return null;
-  return (
-    <MoveHint>
-      {selected?.teamId === activeTeamId
-        ? "Tap a square or drag a route"
-        : "Your turn · tap a player"}
-    </MoveHint>
-  );
+  return <MovePlanBarView selected={selected} activeTeamId={activeTeamId} />;
 }
 
-/** Whether the kicking coach is choosing where to kick. */
 function isAimingKick(phase: GamePhase): boolean {
   if (phase !== GamePhase.KICKOFF || !ServiceContainer.isInitialized())
     return false;
@@ -156,14 +152,8 @@ function MoveHint({ children }: { children: ReactNode }) {
   );
 }
 
-/** How long a notice from the game stays up on a phone. */
 const NOTICE_MS = 2500;
 
-/**
- * The game's short notices ("Kick to opponent's half!", "Finish your Blitz
- * Action first!") on a phone, where the dice log that also lists them is
- * shut. The latest one shows for a moment above the bottom bar.
- */
 export function PhoneNotice({ eventBus }: { eventBus: IEventBus }) {
   const [text, setText] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,7 +166,9 @@ export function PhoneNotice({ eventBus }: { eventBus: IEventBus }) {
   useEventBus(eventBus, GameEventNames.UI_Notification, (notice) => {
     setText(notice);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setText(null), NOTICE_MS);
+    timer.current = setTimeout(() => {
+      setText(null);
+    }, NOTICE_MS);
   });
   if (!text) return null;
   return (
@@ -187,5 +179,19 @@ export function PhoneNotice({ eventBus }: { eventBus: IEventBus }) {
     >
       {text}
     </div>
+  );
+}
+
+interface MovePlanBarViewProps {
+  selected: Player | null;
+  activeTeamId: string | null;
+}
+function MovePlanBarView({ selected, activeTeamId }: MovePlanBarViewProps) {
+  return (
+    <MoveHint>
+      {selected?.teamId === activeTeamId
+        ? "Tap a square or drag a route"
+        : "Your turn · tap a player"}
+    </MoveHint>
   );
 }

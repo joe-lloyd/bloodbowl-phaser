@@ -1,50 +1,39 @@
-/**
- * OnlineMatch - boots an online match in the browser, the same way for both
- * coaches.
- *
- * Each browser runs the full engine from the same starting state and the
- * jointly generated seed. The board drives a NetworkedGameService whose
- * every action becomes an action-protocol command. The coach who may act
- * runs it on their own engine at once (no network wait) and the
- * LockstepSession sends just the command and checksums; the other browser
- * runs the same command and its engine produces the same result. A
- * HeadlessGame over the engine runs the game's own flow (weather, kickoff,
- * turns) as each command plays out, so the board only ever renders.
- */
-
 import { assertPregameSaveable } from "../game/inducements/pregame";
-import { IEventBus } from "../services/EventBus";
+import { type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
-import { IGameService } from "../services/interfaces/IGameService";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { scopeEventBus } from "../services/scopedEventBus";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import {
-  CommandResponse,
-  HeadlessCommand,
-  PendingDecision,
+  type CommandResponse,
+  type HeadlessCommand,
+  type PendingDecision,
 } from "../headless/protocol";
 import {
   applySnapshotToTeams,
   deserializeGameState,
   restoreTeam,
 } from "../headless/serialization";
-import { AllEvents, GameEventNames, StepPrompt } from "../types/events";
+import {
+  type AllEvents,
+  GameEventNames,
+  type StepPrompt,
+} from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
-import { Team } from "../types/Team";
-import { Player } from "../types/Player";
+import { type Team } from "../types/Team";
+import { type Player } from "../types/Player";
 import { LockstepSession } from "./LockstepSession";
 import { FirestoreTransport } from "./FirestoreTransport";
-import { Transport } from "./transport";
+import { type Transport } from "./transport";
 import { NetworkedGameService } from "./NetworkedGameService";
 import { decisionOwner } from "./OwnershipGate";
 import { possessive } from "../game/managers/TurnManager";
 import { PROTOCOL_VERSION } from "./envelope";
-import { LobbyDoc, persistMatch } from "../firebase/lobby";
-import { AuthUser } from "../firebase/auth";
+import { type LobbyDoc, persistMatch } from "../firebase/lobby";
+import { type AuthUser } from "../firebase/auth";
 import { fixturePaysWinnings } from "../game/rules/winnings";
 import {
-  ComputerCoachOptions,
+  type ComputerCoachOptions,
   createComputerCoach,
   computerOwnsDecision,
 } from "./computerCoach";
@@ -56,56 +45,45 @@ export interface ChatMessage {
   ts: number;
 }
 
-export type ProgressionCommand = Extract<
+type ProgressionCommand = Extract<
   HeadlessCommand,
   { type: "award-mvp" | "assign-awarded-touchdown" }
 >;
 
 export interface OnlineMatch {
-  /**
-   * "online": the other coach is in another browser. "computer": the
-   * computer coach plays in this page (ComputerMatch); there is no lobby,
-   * chat, clock or coin-toss handshake.
-   */
   kind: "online" | "computer";
   role: "host" | "guest";
   code: string;
   myTeamId: string;
   opponentName: string;
-  /** Coach display name controlling the given team (privacy-safe, not Google) */
+
   coachName(teamId: string): string | undefined;
   teams: { team1: Team; team2: Team };
-  /** May this player act right now (their turn, or their pending decision)? */
+
   mayAct(): boolean;
-  /** Human label for the waiting overlay when mayAct() is false */
+
   waitingLabel(): string;
   pendingDecision(): PendingDecision | null;
-  /** The team that owns the pending decision, if one is open. */
+
   decidingTeamId(): string | null;
-  /** Run one of this coach's commands (e.g. a decision's default answer). */
+
   run(command: HeadlessCommand): Promise<CommandResponse>;
   sendChat(text: string): void;
   onChatMessage(listener: (message: ChatMessage) => void): () => void;
   chatHistory(): ChatMessage[];
-  /** Version-mismatch or transport error the UI should surface */
+
   onFatalError(listener: (message: string) => void): () => void;
-  /** Persist the current authoritative state so the match can resume later
-   *  (host only; a no-op for the guest, which holds no engine). */
+
   saveState(): void;
-  /** Freeze all input, and say why, while the turn clock is stopped. */
+
   setClockPaused(hold: InputHold): void;
-  /** Run a post-match choice on the authoritative host engine. */
+
   runProgressionCommand(command: ProgressionCommand): Promise<CommandResponse>;
   close(): void;
 }
 
-/**
- * Why nobody may act for now: the other coach's connection dropped, or a
- * coach is spending a timeout. Null when play runs.
- */
-export type InputHold = "opponent-away" | "timeout" | null;
+type InputHold = "opponent-away" | "timeout" | null;
 
-/** The match the current page is playing, if any (UI gating hooks). */
 let activeMatch: OnlineMatch | null = null;
 export function getActiveOnlineMatch(): OnlineMatch | null {
   return activeMatch;
@@ -114,21 +92,8 @@ export function setActiveOnlineMatch(match: OnlineMatch | null): void {
   activeMatch = match;
 }
 
-/** Sentinel: this `PlayerSelected` event does not change what should be
- *  broadcast as "my current selection" — either it's not my own team's
- *  player (pure local inspection of the opponent) or it repeats the value
- *  already sent. Distinct from `null`, which is itself a real value meaning
- *  "I have nothing selected". */
 export const NO_CHANGE = Symbol("selection-no-change");
 
-/**
- * Decide whether a local `PlayerSelected` event should be forwarded to the
- * other coach as this coach's live selection indicator, and with what value.
- * Pure and independently testable: only a coach's own controlled team's
- * selection is ever meaningful to the other side (selecting an opponent's
- * player to inspect it locally is not "my selection" and must never be
- * broadcast), and repeats of the last forwarded value are suppressed.
- */
 export function nextSelectionToForward(
   myTeamId: string,
   lastSent: string | null,
@@ -140,14 +105,6 @@ export function nextSelectionToForward(
   return playerId;
 }
 
-/**
- * Receiver-side guard for an incoming "selection" envelope: the claimed
- * player must actually belong to the team the sender is expected to
- * control. A peer's claims about its own state are never taken at face
- * value — mirrors the trust model `OwnershipGate.checkOwnership` applies to
- * `HeadlessCommand`s, just for this cosmetic-only channel instead of an
- * engine mutation. `null` (a deselection) is always valid.
- */
 export function isValidSelectionClaim(
   playerId: string | null,
   senderTeamId: string,
@@ -170,12 +127,7 @@ const STEP_ROLLS = new Set<string>([
   "armour",
 ]);
 
-/**
- * Receiver-side guard for an incoming "prompt" envelope: the player must be
- * on the sender's team, and the rolls must be ones a prompt can
- * show. `null` (the prompt was answered) is always valid.
- */
-export function isValidStepPrompt(
+function isValidStepPrompt(
   prompt: StepPrompt | null,
   senderTeamId: string,
   teams: Team[]
@@ -191,7 +143,6 @@ export function isValidStepPrompt(
         STEP_ROLLS.has(roll.type) &&
         Number.isInteger(roll.target) &&
         roll.target >= 2 &&
-        // A foul's armour is a 2D6 roll; the rest are one D6
         roll.target <= (roll.type === "armour" ? 12 : 6)
     )
   );
@@ -201,54 +152,28 @@ interface CreateMatchOptions {
   lobby: LobbyDoc;
   user: AuthUser;
   eventBus: IEventBus;
-  /** The seed both coaches made together (see firebase/lobby seedFor). */
+
   seed: number;
-  /** Override for tests (defaults to FirestoreTransport on the lobby code) */
+
   transport?: Transport;
-  /** Use the local computer's planner for this browser's own online team. */
+
   computer?: Pick<ComputerCoachOptions, "coach" | "pace">;
 }
 
-/** What a pending decision has its deciding coach doing, for the banner. */
+const DECISION_ACTIVITIES: Record<Exclude<PendingDecision["type"], "block-dice" | "reaction">, string> = {
+  reroll: "choosing a re-roll", "push-direction": "choosing a push square",
+  "follow-up": "deciding whether to follow up", interception: "choosing an interceptor",
+  "bite-target": "choosing who to bite", apothecary: "deciding whether to use the apothecary",
+  "inducement-choice": "choosing an inducement", "foul-assists": "choosing the foul's assists",
+  touchback: "choosing who takes the ball", "kickoff-event": "resolving the kick-off",
+};
+
 function decisionActivity(pending: PendingDecision): string {
-  switch (pending.type) {
-    case "block-dice":
-      return pending.choiceStage === "attacker-reroll"
-        ? "choosing a block re-roll"
-        : "picking a block die";
-    case "reroll":
-      return "choosing a re-roll";
-    case "push-direction":
-      return "choosing a push square";
-    case "follow-up":
-      return "deciding whether to follow up";
-    case "interception":
-      return "choosing an interceptor";
-    case "bite-target":
-      return "choosing who to bite";
-    case "reaction":
-      return `deciding whether to use ${pending.skill}`;
-    case "apothecary":
-      return "deciding whether to use the apothecary";
-    case "inducement-choice":
-      return "choosing an inducement";
-    case "foul-assists":
-      return "choosing the foul's assists";
-    case "touchback":
-      return "choosing who takes the ball";
-    case "kickoff-event":
-      return "resolving the kick-off";
-    default: {
-      const exhaustive: never = pending;
-      return exhaustive;
-    }
-  }
+  if (pending.type === "block-dice") return pending.choiceStage === "attacker-reroll" ? "choosing a block re-roll" : "picking a block die";
+  if (pending.type === "reaction") return `deciding whether to use ${pending.skill}`;
+  return DECISION_ACTIVITIES[pending.type];
 }
 
-/**
- * Which side of the lobby this page plays. Same construction order on both
- * machines: team1 = host's team.
- */
 function lobbySides(lobby: LobbyDoc, user: AuthUser) {
   const isHost = user.uid === lobby.hostUid;
   const hostPlayer = lobby.players[lobby.hostUid];
@@ -264,7 +189,7 @@ function lobbySides(lobby: LobbyDoc, user: AuthUser) {
     team2,
     myTeamId: isHost ? team1.id : team2.id,
     opponentName: isHost ? guestPlayer.displayName : hostPlayer.displayName,
-    // Coach names (privacy-safe) keyed by the team each controls
+
     coachNames: {
       [team1.id]: hostPlayer.displayName,
       [team2.id]: guestPlayer.displayName,
@@ -273,71 +198,51 @@ function lobbySides(lobby: LobbyDoc, user: AuthUser) {
   };
 }
 
-/**
- * A resumed match rebuilds the last saved state; a fresh one boots into
- * SETUP/INTRO like local play so the opening sequence runs.
- */
-function startingState(lobby: LobbyDoc, team1: Team, team2: Team) {
-  const saved = lobby.snapshot ? lobby : null;
-  if (saved?.snapshot) {
-    for (const team of [team1, team2]) {
+function restoreLobbyTeams(saved: LobbyDoc, teams: Team[]): void {
+    for (const team of teams) {
       const roster = saved.resume?.teams?.find(
         (record) => record.id === team.id
       );
       if (roster) restoreTeam(team, roster);
     }
+ }
+
+function startingState(lobby: LobbyDoc, team1: Team, team2: Team) {
+  const saved = lobby.snapshot ? lobby : null;
+  if (saved?.snapshot) {
+    restoreLobbyTeams(saved, [team1, team2]);
     applySnapshotToTeams(saved.snapshot, [team1, team2]);
     return { saved, initialState: deserializeGameState(saved.snapshot) };
   }
-  const initialState = GameService.createMatchState(
-    team1,
-    team2,
-    GamePhase.SETUP,
-    SubPhase.INTRO,
-    {
+  const initialState = GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
       paysWinnings: fixturePaysWinnings(
         lobby.competitionContext?.competitionType
       ),
       pregameInducements: true,
-    }
+    } }
   );
   if (lobby.competitionContext?.knockout) initialState.knockout = true;
   return { saved, initialState };
 }
 
-/** What a saved match resumes with; empty for a fresh one. */
 function resumeParts(saved: ReturnType<typeof startingState>["saved"]) {
+  const resume = saved?.resume;
+  const turnManager = saved?.snapshot?.turnManager;
   return {
-    rng: saved?.resume?.rng,
-    matchStats: saved?.resume?.matchStats,
-    turnManager: saved?.snapshot?.turnManager,
-    kickingTeamId: saved?.snapshot?.turnManager?.driveKickingTeamId ?? null,
-    applied: saved?.resume?.applied ?? 0,
+    rng: resume?.rng,
+    matchStats: resume?.matchStats,
+    turnManager,
+    kickingTeamId: turnManager?.driveKickingTeamId ?? null,
+    applied: resume?.applied ?? 0,
   };
 }
 
-export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
-  const { lobby, user, eventBus: pageBus, seed } = options;
-  // Everything this match does on the page's bus ends when it closes.
-  const eventBus = scopeEventBus(pageBus);
-  const { isHost, team1, team2, myTeamId, opponentName, coachNames, myName } =
-    lobbySides(lobby, user);
-  // While the turn clock is stopped, all input is frozen for both players.
-  let hold: InputHold = null;
 
-  const transport =
-    options.transport ?? new FirestoreTransport(lobby.code, user.uid);
-
-  /**
-   * Forward local selections of MY OWN controlled team's players to the
-   * other coach, deduped against the last value actually sent (decision
-   * logic lives in the pure, independently-testable `nextSelectionToForward`
-   * above). Selecting an opponent's player (pure local inspection) is never
-   * forwarded.
-   */
-  const subscribeSelectionForwarding = (
+function subscribeSelectionForwarding(
+    eventBus: IEventBus,
+    myTeamId: string,
     send: (playerId: string | null) => void
-  ): (() => void) => {
+  ): (() => void) {
     let lastSent: string | null = null;
     const handler = ({ player }: { player: Player | null }) => {
       const next = nextSelectionToForward(myTeamId, lastSent, player);
@@ -346,20 +251,19 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       send(next);
     };
     eventBus.on(GameEventNames.PlayerSelected, handler);
-    return () => eventBus.off(GameEventNames.PlayerSelected, handler);
-  };
+    return () => {
+      eventBus.off(GameEventNames.PlayerSelected, handler);
+    };
+  }
 
-  /**
-   * Forward this coach's open Dodge, Rush or Pick up prompt, and its
-   * answer, so the other coach can see what is being decided. The prompt
-   * comes before its command, so the engine has nothing to show yet.
-   */
-  const subscribePromptForwarding = (
+function subscribePromptForwarding(
+    eventBus: IEventBus,
+    myTeamId: string,
     send: (prompt: StepPrompt | null) => void
-  ): (() => void) => {
+  ): (() => void) {
     let open: string | null = null;
     const onRequest = (
-      request: AllEvents[GameEventNames.UI_RequestConfirmation]
+      request: AllEvents[typeof GameEventNames.UI_RequestConfirmation]
     ) => {
       if (!request.step || request.chooserTeamId !== myTeamId) return;
       open = request.actionId;
@@ -370,7 +274,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       open = null;
       send(null);
     };
-    // The pass being aimed: sent as it changes, not on every hover
+
     let aimed = "null";
     const onAim = (aim: StepPrompt | null) => {
       const key = JSON.stringify(aim);
@@ -386,399 +290,276 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
       eventBus.off(GameEventNames.UI_PassAimed, onAim);
     };
-  };
+  }
 
-  // Shared bits
-  const chatLog: ChatMessage[] = [];
-  const chatListeners = new Set<(message: ChatMessage) => void>();
-  const errorListeners = new Set<(message: string) => void>();
-  const pushChat = (message: ChatMessage) => {
-    chatLog.push(message);
-    chatListeners.forEach((listener) => listener(message));
-  };
-  const fatal = (message: string) =>
-    errorListeners.forEach((listener) => listener(message));
-  const checkHello = (payload: { protocolVersion: number }) => {
-    if (payload.protocolVersion !== PROTOCOL_VERSION) {
-      fatal(
-        `Incompatible game versions (you: ${PROTOCOL_VERSION}, opponent: ${payload.protocolVersion}). Both players must update.`
-      );
-    }
-  };
+class OnlineSession {
+  readonly match: OnlineMatch;
+  private readonly options: CreateMatchOptions;
+  private readonly eventBus: ReturnType<typeof scopeEventBus>;
+  private readonly sides: ReturnType<typeof lobbySides>;
+  private readonly transport: Transport;
+  private readonly container: ServiceContainer;
+  private readonly engine: GameService;
+  private readonly game: HeadlessGame;
+  private readonly session: LockstepSession;
+  private readonly subscriptions: (() => void)[];
+  private computerCoach: ReturnType<typeof createComputerCoach> | null = null;
+  private hold: InputHold = null;
+  private savedTurn = "";
+  private readonly chatLog: ChatMessage[] = [];
+  private readonly chatListeners = new Set<(message: ChatMessage) => void>();
+  private readonly errorListeners = new Set<(message: string) => void>();
 
-  const teamName = (teamId: string) =>
-    (teamId === team1.id ? team1 : team2).name;
+  constructor(options: CreateMatchOptions) {
+    this.options = options;
+    this.eventBus = scopeEventBus(options.eventBus);
+    this.sides = lobbySides(options.lobby, options.user);
+    this.transport = options.transport ?? new FirestoreTransport(options.lobby.code, options.user.uid);
+    const { team1, team2 } = this.sides;
+    const { saved, initialState } = startingState(options.lobby, team1, team2);
+    const resume = resumeParts(saved);
+    this.container = this.initializeServices(initialState, resume);
+    this.engine = this.container.engineGameService;
+    this.game = new HeadlessGame({
+      ctx: { eventBus: this.eventBus, gameService: this.engine, rng: this.container.rngService,
+        team1, team2, seed: options.seed, matchStats: this.container.matchStats },
+      kickingTeamId: resume.kickingTeamId,
+    });
+    this.session = this.createSession(resume.applied);
+    void this.session.sendHello();
+    this.subscriptions = [
+      subscribeSelectionForwarding(this.eventBus, this.sides.myTeamId, (playerId) => void this.session.sendSelection(playerId)),
+      subscribePromptForwarding(this.eventBus, this.sides.myTeamId, (prompt) => void this.session.sendPrompt(prompt)),
+    ];
+    this.match = this.finishMatch();
+    this.startComputer(saved !== null);
+  }
 
-  const { saved, initialState } = startingState(lobby, team1, team2);
-  const resume = resumeParts(saved);
+  private initializeServices(initialState: ReturnType<typeof startingState>["initialState"], resume: ReturnType<typeof resumeParts>) {
+    const { team1, team2 } = this.sides;
+    return ServiceContainer.initialize({
+      eventBus: this.eventBus, team1, team2, initialState, seed: this.options.seed,
+      gameServiceFactory: (inner) => new NetworkedGameService({ inner,
+        dispatch: (command) => this.runOwn(command), pendingDecision: () => this.game.pendingDecision(), eventBus: this.eventBus }),
+      progressionEnabled: this.options.lobby.settings.progressionEnabled,
+      ...(resume.rng === undefined ? {} : { rngState: resume.rng }),
+      ...(resume.matchStats === undefined ? {} : { matchStatsState: resume.matchStats }),
+      ...(resume.turnManager === undefined ? {} : { turnManagerState: resume.turnManager }),
+    });
+  }
 
-  let session: LockstepSession | null = null;
-  const dispatch = (command: HeadlessCommand): Promise<CommandResponse> =>
-    runOwn(command);
+  private pushChat(message: ChatMessage): void {
+    this.chatLog.push(message);
+    this.chatListeners.forEach((listener) => { listener(message); });
+  }
 
-  let engine: GameService | null = null;
-  const container = ServiceContainer.initialize(
-    eventBus,
-    team1,
-    team2,
-    initialState,
-    seed,
-    (inner: GameService): IGameService => {
-      engine = inner;
-      return new NetworkedGameService(
-        inner,
-        dispatch,
-        () => game.pendingDecision(),
-        eventBus
-      );
-    },
-    lobby.settings.progressionEnabled ?? false,
-    resume.rng,
-    resume.matchStats,
-    resume.turnManager
-  );
-  const game: HeadlessGame = new HeadlessGame({
-    ctx: {
-      eventBus,
-      gameService: engine!,
-      rng: container.rngService,
-      team1,
-      team2,
-      seed,
-      matchStats: container.matchStats,
-    },
-    kickingTeamId: resume.kickingTeamId,
-  });
+  private checkHello(payload: { protocolVersion: number }): void {
+    if (payload.protocolVersion === PROTOCOL_VERSION) return;
+    const message = `Incompatible game versions (you: ${String(PROTOCOL_VERSION)}, opponent: ${String(payload.protocolVersion)}). Both players must update.`;
+    this.errorListeners.forEach((listener) => { listener(message); });
+  }
 
-  // Save at every change of turn, by the coach whose command changed it:
-  // a reload resumes from here, and the other side catches it up.
-  let savedTurn = "";
-  const saveIfTurnChanged = () => {
-    const { phase, turn } = engine!.getState();
-    const key = `${phase}:${turn.teamId}:${turn.turnNumber}`;
-    if (key === savedTurn) return;
-    savedTurn = key;
-    saveNow();
-  };
-  const saveNow = () => {
-    if (engine!.getState().pregameInducements?.resolving) return;
-    void persistMatch(lobby.code, game.snapshot(), {
-      teams: structuredClone([team1, team2]),
-      rng: container.rngService.captureState(),
-      matchStats: container.matchStats.captureState(),
-      applied: session!.appliedCommands(),
-    }).catch((error) => console.warn("[Online] save failed:", error));
-  };
+  private saveNow(): void {
+    if (this.engine.getState().pregameInducements?.resolving) return;
+    void persistMatch(this.options.lobby.code, this.game.snapshot(), {
+      teams: structuredClone([this.sides.team1, this.sides.team2]),
+      rng: this.container.rngService.captureState(), matchStats: this.container.matchStats.captureState(),
+      applied: this.session.appliedCommands(),
+    }).catch((error: unknown) => { console.warn("[Online] save failed:", error); });
+  }
 
-  session = new LockstepSession({
-    transport,
-    game,
-    selfId: user.uid,
-    myTeamId,
-    peerTeamId: isHost ? team2.id : team1.id,
-    hostTeamId: team1.id,
-    appliedCommands: resume.applied,
-    onHello: checkHello,
-    onChat: (payload) =>
-      pushChat({
-        text: payload.text,
-        senderName: payload.senderName,
-        fromSelf: false,
-        ts: Date.now(),
-      }),
-    // The other coach's own-team selection changed — mirror it as a local
-    // "remote selection" indicator, never as engine state, and only for a
-    // player that really is on their team.
-    onSelection: (payload) => {
-      const theirTeamId = isHost ? team2.id : team1.id;
-      if (
-        !isValidSelectionClaim(payload.playerId, theirTeamId, [team1, team2])
-      ) {
-        console.warn(
-          "[Online] rejected selection envelope: player is not on the sender's team"
-        );
-        return;
-      }
-      eventBus.emit(GameEventNames.RemoteSelectionChanged, {
-        playerId: payload.playerId,
-      });
-    },
-    // The other coach's open step prompt, shown read-only in the dock
-    onPrompt: ({ prompt }) => {
-      const theirTeamId = isHost ? team2.id : team1.id;
-      if (!isValidStepPrompt(prompt, theirTeamId, [team1, team2])) {
-        console.warn("[Online] rejected prompt envelope");
-        return;
-      }
-      eventBus.emit(GameEventNames.RemotePromptChanged, prompt);
-    },
-    // Show where the other coach's player is running, the whole way
-    onPeerCommand: (command) => {
-      if (command.type !== "move") return;
-      const player = engine!.getPlayerById(command.playerId);
-      if (!player?.gridPosition) return;
-      eventBus.emit(GameEventNames.UI_ShowOtherCoachMove, {
-        from: { ...player.gridPosition },
-        path: command.path,
-        ma: player.stats.MA,
-      });
-    },
-    // The board does not draw the other coach's setup placements by
-    // itself; redraw it after each setup command. The other coach's move
-    // has resolved, so its drawn path can go once the walk has played.
-    onApplied: (command, own) => {
-      if (engine!.getPhase() === GamePhase.SETUP)
-        eventBus.emit(GameEventNames.UI_SyncBoard);
-      if (!own && command.type === "move")
-        eventBus.emit(GameEventNames.UI_OtherCoachMoveResolved, {
-          playerId: command.playerId,
-        });
-    },
-    // The state was replaced or replayed: redraw where everyone stands, the
-    // turn and score, and show the block dice it is waiting on, if any.
-    // Without that card the coach who owes the pick cannot make it.
-    onResynced: () => {
-      eventBus.emit(GameEventNames.PhaseChanged, {
-        phase: engine!.getPhase(),
-        subPhase: engine!.getSubPhase(),
-      });
-      eventBus.emit(GameEventNames.GameStateRestored, engine!.getState());
-      const pending = game.pendingDecision();
-      if (pending?.type === "block-dice") {
-        const attacker = engine!.getPlayerById(pending.attackerId);
-        eventBus.emit(GameEventNames.BlockDiceRolled, {
-          attackerId: pending.attackerId,
-          defenderId: pending.defenderId,
-          numDice: pending.options.length,
-          isAttackerChoice: pending.chooserTeamId === attacker?.teamId,
-          results: pending.options,
-          choiceStage: pending.choiceStage,
-          teamRerollAvailable: pending.teamRerollAvailable,
-          proAvailable: pending.proAvailable,
-          brawlerAvailable: pending.brawlerAvailable,
-          veteranRerollAvailable: pending.veteranRerollAvailable,
-        });
-      } else {
-        eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-      }
-      eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });
-    },
-  });
-  const runOwn = async (command: HeadlessCommand) => {
-    const response = await session!.run(command);
-    if (response.ok) {
-      const state = engine!.getState();
-      if (state.pregameInducements && state.turn.turnNumber === 0) {
-        // Keep a resumable boundary; an awaited prayer/captain choice must
-        // finish before persisting its final confirmation and outcomes.
-        if (!game.isSuspended() && !game.pendingDecision()) saveNow();
-      } else saveIfTurnChanged();
-    }
+  private saveIfTurnChanged(): void {
+    const { phase, turn } = this.engine.getState();
+    const key = `${phase}:${turn.teamId}:${String(turn.turnNumber)}`;
+    if (key === this.savedTurn) return;
+    this.savedTurn = key;
+    this.saveNow();
+  }
+
+  private async runOwn(command: HeadlessCommand): Promise<CommandResponse> {
+    const response = await this.session.run(command);
+    if (!response.ok) return response;
+    const state = this.engine.getState();
+    if (state.pregameInducements && state.turn.turnNumber === 0) {
+      if (!this.game.isSuspended() && !this.game.pendingDecision()) this.saveNow();
+    } else this.saveIfTurnChanged();
     return response;
-  };
-  void session.sendHello();
-  const unsubscribeSelectionForwarding = subscribeSelectionForwarding(
-    (playerId) => void session!.sendSelection(playerId)
-  );
-  const unsubscribePromptForwarding = subscribePromptForwarding(
-    (prompt) => void session!.sendPrompt(prompt)
-  );
-
-  const match = finishMatch({
-    role: isHost ? "host" : "guest",
-    pendingDecision: () => game.pendingDecision(),
-    sendChatRaw: (text) => void session!.sendChat(text, myName),
-    activeTeamId: () => engine!.getActiveTeamId(),
-    phase: () => engine!.getPhase(),
-    kicked: () => engine!.getState().kickoffKickResolved != null,
-    runProgressionCommand: runOwn,
-    run: runOwn,
-    saveState: () => {
-      assertPregameSaveable(engine!.getState());
-      saveNow();
-    },
-    close: () => {
-      computerCoach?.close();
-      unsubscribeSelectionForwarding();
-      unsubscribePromptForwarding();
-      // Queued lockstep work still runs. It keeps the match's listeners, so
-      // its match stats stay right, but the page, perhaps already showing the
-      // next match, hears none of it.
-      eventBus.detach();
-      session!.close();
-      transport.close();
-      void session!.whenIdle().finally(() => eventBus.dispose());
-    },
-  });
-
-  const computerCoach = options.computer
-    ? createComputerCoach({
-        ...options.computer,
-        game,
-        eventBus,
-        computerTeamId: myTeamId,
-        mayAct: () =>
-          match.mayAct() && computerOwnsDecision(game, myTeamId, team1.id),
-        run: (command) => {
-          if (command.type === "declare-action")
-            void session!.sendSelection(command.playerId);
-          if (command.type === "end-activation" || command.type === "end-turn")
-            void session!.sendSelection(null);
-          return runOwn(command);
-        },
-      })
-    : null;
-  if (computerCoach) {
-    if (saved)
-      eventBus.once(GameEventNames.GameStateRestored, computerCoach.start);
-    else computerCoach.start();
   }
-  return match;
 
-  // ===== Shared assembly =====
-
-  function finishMatch(parts: {
-    role: "host" | "guest";
-    pendingDecision: () => PendingDecision | null;
-    sendChatRaw: (text: string) => void;
-    activeTeamId: () => string | null;
-    phase: () => GamePhase;
-    /** This drive's kick has been made; the kick-off is resolving. */
-    kicked: () => boolean;
-    runProgressionCommand(
-      command: ProgressionCommand
-    ): Promise<CommandResponse>;
-    run(command: HeadlessCommand): Promise<CommandResponse>;
-    saveState: () => void;
-    close: () => void;
-  }): OnlineMatch {
-    const teamOf = (playerId: string): string | undefined => {
-      const all = [...team1.players, ...team2.players];
-      return all.find((p) => p.id === playerId)?.teamId;
-    };
-
-    // During KICKOFF the kicking team acts (select kicker, kick). It is the
-    // NON-active team — active is the receiving team, set last in setup — so
-    // the actor is whoever isn't currently active.
-    const isKickoffActor = (): boolean => {
-      const active = parts.activeTeamId();
-      return (
-        parts.phase() === GamePhase.KICKOFF &&
-        active != null &&
-        active !== myTeamId
-      );
-    };
-
-    const match: OnlineMatch = {
-      kind: "online",
-      role: parts.role,
-      code: lobby.code,
-      myTeamId,
-      opponentName,
-      coachName: (teamId: string) => coachNames[teamId],
-      teams: { team1, team2 },
-      pendingDecision: parts.pendingDecision,
-      decidingTeamId(): string | null {
-        const pending = parts.pendingDecision();
-        if (!pending) return null;
-        return (
-          decisionOwner(pending, {
-            activeTeamId: parts.activeTeamId(),
-            pendingDecision: pending,
-            teamIdOfPlayer: teamOf,
-            hostTeamId: team1.id,
-          }) ?? null
-        );
-      },
-      run: parts.run,
-      mayAct(): boolean {
-        if (hold) return false; // clock stopped: nobody acts
-        const pending = parts.pendingDecision();
-        if (pending) {
-          const owner = decisionOwner(pending, {
-            activeTeamId: parts.activeTeamId(),
-            pendingDecision: pending,
-            teamIdOfPlayer: teamOf,
-            hostTeamId: team1.id,
-          });
-          return owner === myTeamId;
-        }
-        const pregame = engine!.getState().pregameInducements;
-        if (pregame && !pregame.complete)
-          return !pregame.offer?.confirmed[myTeamId];
-        // Kickoff belongs to the kicking (non-active) team; otherwise the
-        // active team acts.
-        if (parts.phase() === GamePhase.KICKOFF) return isKickoffActor();
-        return parts.activeTeamId() === myTeamId;
-      },
-      waitingLabel(): string {
-        switch (hold) {
-          case "opponent-away":
-            return `Reconnecting to ${opponentName}…`;
-          case "timeout":
-            return "Game paused for a timeout";
-          case null:
-            break;
-          default: {
-            const exhaustive: never = hold;
-            return exhaustive;
-          }
-        }
-        const pending = parts.pendingDecision();
-        if (pending) {
-          const owner = decisionOwner(pending, {
-            activeTeamId: parts.activeTeamId(),
-            pendingDecision: pending,
-            teamIdOfPlayer: teamOf,
-            hostTeamId: team1.id,
-          });
-          const team = owner ? teamName(owner) : opponentName;
-          return `${team} is ${decisionActivity(pending)}`;
-        }
-        if (parts.phase() === GamePhase.KICKOFF && parts.kicked()) {
-          return "The kick-off is landing…";
-        }
-        if (parts.phase() === GamePhase.KICKOFF && !isKickoffActor()) {
-          return `Waiting for ${opponentName} to kick off…`;
-        }
-        if (parts.phase() === GamePhase.SETUP) {
-          return `Waiting for ${opponentName} to set up…`;
-        }
-        const active = parts.activeTeamId();
-        return active && active !== myTeamId
-          ? `${possessive(opponentName)} turn (${teamName(active)})…`
-          : "Waiting…";
-      },
-      sendChat(text: string): void {
-        const trimmed = text.trim();
-        if (!trimmed) return;
-        parts.sendChatRaw(trimmed);
-        pushChat({
-          text: trimmed,
-          senderName: myName,
-          fromSelf: true,
-          ts: Date.now(),
-        });
-      },
-      onChatMessage(listener) {
-        chatListeners.add(listener);
-        return () => chatListeners.delete(listener);
-      },
-      chatHistory: () => [...chatLog],
-      onFatalError(listener) {
-        errorListeners.add(listener);
-        return () => errorListeners.delete(listener);
-      },
-      saveState: parts.saveState,
-      setClockPaused: (next: InputHold) => {
-        hold = next;
-      },
-      runProgressionCommand: parts.runProgressionCommand,
-      close(): void {
-        parts.close();
-        if (activeMatch === match) setActiveOnlineMatch(null);
-      },
-    };
-    return match;
+  private createSession(appliedCommands: number): LockstepSession {
+    return new LockstepSession({
+      transport: this.transport, game: this.game, selfId: this.options.user.uid,
+      myTeamId: this.sides.myTeamId, peerTeamId: this.sides.isHost ? this.sides.team2.id : this.sides.team1.id,
+      hostTeamId: this.sides.team1.id, appliedCommands,
+      onHello: (payload) => { this.checkHello(payload); },
+      onChat: (payload) => { this.pushChat({ ...payload, fromSelf: false, ts: Date.now() }); },
+      onSelection: (payload) => { this.receiveSelection(payload.playerId); },
+      onPrompt: ({ prompt }) => { this.receivePrompt(prompt); },
+      onPeerCommand: (command) => { this.showPeerCommand(command); },
+      onApplied: (command, own) => { this.onApplied(command, own); },
+      onResynced: () => { this.onResynced(); },
+    });
   }
+
+  private receiveSelection(playerId: string | null): void {
+    const { isHost, team1, team2 } = this.sides;
+    if (!isValidSelectionClaim(playerId, isHost ? team2.id : team1.id, [team1, team2])) {
+      console.warn("[Online] rejected selection envelope: player is not on the sender's team");
+      return;
+    }
+    this.eventBus.emit(GameEventNames.RemoteSelectionChanged, { playerId });
+  }
+
+  private receivePrompt(prompt: StepPrompt | null): void {
+    const { isHost, team1, team2 } = this.sides;
+    if (!isValidStepPrompt(prompt, isHost ? team2.id : team1.id, [team1, team2])) {
+      console.warn("[Online] rejected prompt envelope");
+      return;
+    }
+    this.eventBus.emit(GameEventNames.RemotePromptChanged, prompt);
+  }
+
+  private showPeerCommand(command: HeadlessCommand): void {
+    if (command.type !== "move") return;
+    const player = this.engine.getPlayerById(command.playerId);
+    if (player?.gridPosition) this.eventBus.emit(GameEventNames.UI_ShowOtherCoachMove, {
+      from: { ...player.gridPosition }, path: command.path, ma: player.stats.MA,
+    });
+  }
+
+  private onApplied(command: HeadlessCommand, own: boolean): void {
+    if (this.engine.getPhase() === GamePhase.SETUP) this.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
+    if (!own && command.type === "move") this.eventBus.emit(GameEventNames.UI_OtherCoachMoveResolved, { playerId: command.playerId });
+  }
+
+  private onResynced(): void {
+    const subPhase = this.engine.getSubPhase();
+    this.eventBus.emit(GameEventNames.PhaseChanged, { phase: this.engine.getPhase(), ...(subPhase === undefined ? {} : { subPhase }) });
+    this.eventBus.emit(GameEventNames.GameStateRestored, this.engine.getState());
+    const pending = this.game.pendingDecision();
+    if (pending?.type === "block-dice") this.restoreBlockDice(pending);
+    else this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
+    this.eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });
+  }
+
+  private restoreBlockDice(pending: Extract<PendingDecision, { type: "block-dice" }>): void {
+    const attacker = this.engine.getPlayerById(pending.attackerId);
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, {
+      attackerId: pending.attackerId, defenderId: pending.defenderId,
+      numDice: pending.options.length, isAttackerChoice: pending.chooserTeamId === attacker?.teamId,
+      results: pending.options,
+      ...(pending.choiceStage === undefined ? {} : { choiceStage: pending.choiceStage }),
+      ...(pending.teamRerollAvailable === undefined ? {} : { teamRerollAvailable: pending.teamRerollAvailable }),
+      ...(pending.proAvailable === undefined ? {} : { proAvailable: pending.proAvailable }),
+      ...(pending.brawlerAvailable === undefined ? {} : { brawlerAvailable: pending.brawlerAvailable }),
+      ...(pending.veteranRerollAvailable === undefined ? {} : { veteranRerollAvailable: pending.veteranRerollAvailable }),
+    });
+  }
+
+  private startComputer(resuming: boolean): void {
+    if (!this.options.computer) return;
+    const { myTeamId, team1 } = this.sides;
+    this.computerCoach = createComputerCoach({
+      ...this.options.computer, game: this.game, eventBus: this.eventBus, computerTeamId: myTeamId,
+      mayAct: () => this.match.mayAct() && computerOwnsDecision(this.game, myTeamId, team1.id),
+      run: (command) => {
+        if (command.type === "declare-action") void this.session.sendSelection(command.playerId);
+        if (command.type === "end-activation" || command.type === "end-turn") void this.session.sendSelection(null);
+        return this.runOwn(command);
+      },
+    });
+    if (resuming) this.eventBus.once(GameEventNames.GameStateRestored, this.computerCoach.start);
+    else this.computerCoach.start();
+  }
+
+  private teamOf(playerId: string): string | undefined {
+    return [...this.sides.team1.players, ...this.sides.team2.players].find((player) => player.id === playerId)?.teamId;
+  }
+
+  private decidingTeamId(): string | null {
+    const pending = this.game.pendingDecision();
+    if (!pending) return null;
+    return decisionOwner(pending, {
+      activeTeamId: this.engine.getActiveTeamId(), pendingDecision: pending,
+      teamIdOfPlayer: (id) => this.teamOf(id), hostTeamId: this.sides.team1.id,
+    }) ?? null;
+  }
+
+  private isKickoffActor(): boolean {
+    const active = this.engine.getActiveTeamId();
+    return this.engine.getPhase() === GamePhase.KICKOFF && active !== null && active !== this.sides.myTeamId;
+  }
+
+  private mayAct(): boolean {
+    if (this.hold) return false;
+    if (this.game.pendingDecision()) return this.decidingTeamId() === this.sides.myTeamId;
+    const pregame = this.engine.getState().pregameInducements;
+    if (pregame && !pregame.complete) return !pregame.offer?.confirmed[this.sides.myTeamId];
+    if (this.engine.getPhase() === GamePhase.KICKOFF) return this.isKickoffActor();
+    return this.engine.getActiveTeamId() === this.sides.myTeamId;
+  }
+
+  private waitingLabel(): string {
+    if (this.hold === "opponent-away") return `Reconnecting to ${this.sides.opponentName}…`;
+    if (this.hold === "timeout") return "Game paused for a timeout";
+    const pending = this.game.pendingDecision();
+    if (pending) {
+      const owner = this.decidingTeamId();
+      const team = owner ? this.teamName(owner) : this.sides.opponentName;
+      return `${team} is ${decisionActivity(pending)}`;
+    }
+    return this.phaseWaitingLabel();
+  }
+
+  private teamName(teamId: string): string {
+    return (teamId === this.sides.team1.id ? this.sides.team1 : this.sides.team2).name;
+  }
+
+  private phaseWaitingLabel(): string {
+    if (this.engine.getPhase() === GamePhase.KICKOFF) {
+      if (this.engine.getState().kickoffKickResolved != null) return "The kick-off is landing…";
+      if (!this.isKickoffActor()) return `Waiting for ${this.sides.opponentName} to kick off…`;
+    }
+    if (this.engine.getPhase() === GamePhase.SETUP) return `Waiting for ${this.sides.opponentName} to set up…`;
+    const active = this.engine.getActiveTeamId();
+    return active && active !== this.sides.myTeamId
+      ? `${possessive(this.sides.opponentName)} turn (${this.teamName(active)})…` : "Waiting…";
+  }
+
+  private sendChat(text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    void this.session.sendChat(trimmed, this.sides.myName);
+    this.pushChat({ text: trimmed, senderName: this.sides.myName, fromSelf: true, ts: Date.now() });
+  }
+
+  private close(): void {
+    this.computerCoach?.close();
+    this.subscriptions.forEach((unsubscribe) => { unsubscribe(); });
+    this.eventBus.detach();
+    this.session.close();
+    this.transport.close();
+    void this.session.whenIdle().finally(() => { this.eventBus.dispose(); });
+    if (activeMatch === this.match) setActiveOnlineMatch(null);
+  }
+
+  private finishMatch(): OnlineMatch {
+    const { isHost, myTeamId, opponentName, team1, team2, coachNames } = this.sides;
+    return {
+      kind: "online", role: isHost ? "host" : "guest", code: this.options.lobby.code,
+      myTeamId, opponentName, coachName: (id) => coachNames[id], teams: { team1, team2 },
+      pendingDecision: () => this.game.pendingDecision(), decidingTeamId: () => this.decidingTeamId(),
+      run: (command) => this.runOwn(command), mayAct: () => this.mayAct(), waitingLabel: () => this.waitingLabel(),
+      sendChat: (text) => { this.sendChat(text); }, chatHistory: () => [...this.chatLog],
+      onChatMessage: (listener) => { this.chatListeners.add(listener); return () => this.chatListeners.delete(listener); },
+      onFatalError: (listener) => { this.errorListeners.add(listener); return () => this.errorListeners.delete(listener); },
+      saveState: () => { assertPregameSaveable(this.engine.getState()); this.saveNow(); },
+      setClockPaused: (hold) => { this.hold = hold; },
+      runProgressionCommand: (command) => this.runOwn(command), close: () => { this.close(); },
+    };
+  }
+}
+
+export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
+  return new OnlineSession(options).match;
 }

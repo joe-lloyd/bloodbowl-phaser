@@ -1,7 +1,7 @@
-import { Player, PlayerStatus } from "../../types/Player";
+import { type Player, PlayerStatus } from "../../types/Player";
 import { hasSkill } from "../../types/Skills";
 import {
-  BlockReplacement,
+  type BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
 } from "../../types/BlockReplacement";
 
@@ -10,7 +10,6 @@ const chebyshev = (
   b: { x: number; y: number }
 ): number => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
-/** Shared skill-specific target contract for the five block replacements. */
 export function isLegalBlockReplacementTarget(
   attacker: Player,
   target: Player,
@@ -38,10 +37,6 @@ export function legalBlockReplacementTargets(
   );
 }
 
-/**
- * A Blitz declaration is meaningful only if the player can remain in place
- * or finish a legal route adjacent to at least one Standing opponent.
- */
 export function hasReachableBlockReplacementTarget(
   attacker: Player,
   opponents: Player[],

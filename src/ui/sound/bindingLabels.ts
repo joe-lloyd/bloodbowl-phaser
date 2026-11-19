@@ -1,9 +1,5 @@
-import { SoundName } from "./catalog";
+import { type SoundName } from "./catalog";
 
-/**
- * Human-readable description of the EventBus events that trigger each sound.
- * Display-only for the audition board — keep in sync with SoundSuite.mount().
- */
 export const BINDING_LABELS: Record<SoundName, string[]> = {
   diceRoll: ["DiceRoll"],
   blockImpact: ["BlockDiceRolled"],

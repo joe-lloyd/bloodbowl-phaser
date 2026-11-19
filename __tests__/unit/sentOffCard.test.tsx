@@ -34,7 +34,6 @@ vi.mock("../../src/services/ServiceContainer", () => {
   };
 });
 
-// This screen watches: the other coach holds the Bribe
 vi.mock("../../src/network/OnlineMatch", () => ({
   getActiveOnlineMatch: () => ({ mayAct: () => false }),
 }));
@@ -47,17 +46,18 @@ describe("the Sent-off card", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<SentOffCard eventBus={bus} />));
+    await act(async () => {
+      root.render(<SentOffCard eventBus={bus} />);
+    });
     const text = () => container.textContent ?? "";
-    const tray = (thrown: number, landedThrough: number) =>
+    const tray = (thrown: number, landedThrough: number) => {
       bus.emit(GameEventNames.UI_DiceInAir, {
         count: thrown - landedThrough,
         thrown,
         landedThrough,
       });
+    };
 
-    // This screen's Argue the Call die is still tumbling while the other
-    // coach is asked and declines the Bribe
     await act(async () => {
       tray(1, 0);
       bus.emit(GameEventNames.RefereeCall, { ...call, step: "called" });
@@ -84,14 +84,18 @@ describe("the Sent-off card", () => {
     });
     expect(text()).toBe("");
 
-    await act(async () => tray(1, 1));
+    await act(async () => {
+      tray(1, 1);
+    });
     await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
 
     expect(text()).toContain("The referee ignores the argument.");
     expect(text()).toContain("Lineman #1 is Sent-off");
     expect(text()).not.toContain("deciding on a Bribe");
     expect(text()).toContain("CONTINUE");
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 });

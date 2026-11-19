@@ -19,9 +19,9 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import {
-  LobbyDoc,
-  LobbyPlayer,
-  LobbySettings,
+  type LobbyDoc,
+  type LobbyPlayer,
+  type LobbySettings,
   canStart,
   commitSeed,
   createLobby,
@@ -36,16 +36,11 @@ import {
   fetchLobby,
   resolveCoachName,
 } from "../../../firebase/lobby";
-import { Team } from "../../../types/Team";
-import { CompetitionContext } from "../../../competition/types";
+import { type Team } from "../../../types/Team";
+import { type CompetitionContext } from "../../../competition/types";
 
 type Mode = "host" | "join";
 
-/**
- * Online lobby: host creates a match code, guest joins by code; each player
- * picks a team from their own library and readies up. The host controls the
- * match settings and the game starts only when everyone is ready.
- */
 export function OnlineLobby({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -67,12 +62,9 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   )?.competitionFixture;
 
   const [library] = useTeamLibrary();
-  // The computer's teams are the computer's to coach
+
   const myTeams = user ? library.filter((team) => !team.computerCoached) : [];
 
-  // Host mode: resume the user's existing match if any, else create one.
-  // A player may only have one active match at a time, so we never spawn a
-  // second lobby doc — we reattach to the current one.
   useEffect(() => {
     if (mode !== "host" || code || !user) return;
     let cancelled = false;
@@ -84,14 +76,14 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         const doc = existing ? await fetchLobby(existing) : null;
         if (cancelled) return;
         if (doc?.status === "active") {
-          navigate(`/online/play/${existing}`, { replace: true });
+          navigate(`/online/play/${String(existing)}`, { replace: true });
           return;
         }
         if (doc?.status === "lobby") {
-          setCode(existing); // reattach to the open lobby
+          setCode(existing);
           return;
         }
-        // No pointer, or a stale/finished one: make a fresh lobby
+
         const coachName = await resolveCoachName(user.uid);
         const created = await createLobby(
           user.uid,
@@ -110,21 +102,17 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     };
   }, [mode, code, user, navigate, competitionFixture]);
 
-  // Live lobby subscription
   useEffect(() => {
     if (!code) return;
     return subscribeLobby(code, setLobby);
   }, [code]);
 
-  // The seed both coaches make: commit to a secret once the opponent is
-  // here, reveal it once both have committed (see firebase/lobby).
   const myUid = user?.uid;
   const { committed, revealed, bothCommitted } = seedProgress(lobby, myUid);
   useEffect(() => {
     if (!lobby || !myUid || lobby.status !== "lobby" || !lobby.guestUid) return;
     if (!committed) void commitSeed(lobby.code, myUid);
     else if (bothCommitted && !revealed) void revealSeed(lobby.code, myUid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     lobby?.code,
     lobby?.status,
@@ -135,7 +123,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     revealed,
   ]);
 
-  // The house bot says where it waits, until a guest arrives
   const botWaitingIn = houseBotWaitingIn(lobby, myUid);
   useEffect(() => {
     if (!myUid || !isHouseBotBrowser()) return;
@@ -144,10 +131,11 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     announce();
     if (!botWaitingIn) return;
     const id = setInterval(announce, 60_000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+    };
   }, [myUid, botWaitingIn]);
 
-  // Both ready + host started → everyone moves to the match
   useEffect(() => {
     if (lobby?.status === "active" && code) {
       navigate(`/online/play/${code}`);
@@ -170,7 +158,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     );
   }
 
-  // Join mode: enter a code first
   if (!code) {
     const join = async () => {
       setError(null);
@@ -241,7 +228,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
 
       <LobbyPlayers lobby={lobby} isHost={isHost} />
 
-      {/* Your team picker — your own library only */}
       <Section title="Your team">
         <TeamPicker
           me={me}
@@ -262,7 +248,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   );
 }
 
-/** How far this coach is with the shared seed (see firebase/lobby). */
 function seedProgress(lobby: LobbyDoc | null, myUid: string | undefined) {
   const commits = lobby?.seedCommits ?? {};
   const reveals = lobby?.seedReveals ?? {};
@@ -276,7 +261,6 @@ function seedProgress(lobby: LobbyDoc | null, myUid: string | undefined) {
   };
 }
 
-/** The lobby the house bot hosts while no guest has joined, if any. */
 function houseBotWaitingIn(
   lobby: LobbyDoc | null,
   myUid: string | undefined
@@ -289,7 +273,6 @@ function houseBotWaitingIn(
     : null;
 }
 
-/** What the match still waits for, in the order the coaches do it. */
 function lobbyWaitingOn(
   lobby: LobbyDoc,
   me: LobbyPlayer | undefined,
@@ -337,7 +320,9 @@ function JoinByCode({
         </div>
         <input
           value={joinInput}
-          onChange={(e) => onJoinInput(e.target.value.toUpperCase())}
+          onChange={(e) => {
+            onJoinInput(e.target.value.toUpperCase());
+          }}
           placeholder="MATCH CODE"
           maxLength={6}
           aria-label="Match code"
@@ -381,7 +366,6 @@ function LobbyLoading({
   );
 }
 
-/** Leave, what the match waits for, Ready and, for the host, Start. */
 function LobbyActions({
   lobby,
   isHost,
@@ -423,11 +407,7 @@ function LobbyActions({
             disabled={!canStart(lobby)}
             onClick={() =>
               void startMatch(
-                lobby.code,
-                lobby.settings,
-                lobby.hostUid,
-                lobby.guestUid!
-              )
+                { code: lobby.code,settings: lobby.settings,hostUid: lobby.hostUid,guestUid: lobby.guestUid! }              )
             }
           >
             Start Match
@@ -454,10 +434,6 @@ function LobbyPlayers({ lobby, isHost }: { lobby: LobbyDoc; isHost: boolean }) {
   );
 }
 
-/**
- * A fixture's team is locked; otherwise the coach picks from their own
- * library.
- */
 function TeamPicker({
   me,
   fixture,
@@ -542,8 +518,6 @@ function PlayerCard({
   );
 }
 
-/** Exported for direct testing of the turn-timer / timeout-bank / progression
- *  controls (see __tests__/unit/onlineLobbySettingsPanel.test.tsx). */
 export function SettingsPanel({
   settings,
   readOnly,
@@ -566,9 +540,9 @@ export function SettingsPanel({
           <select
             disabled={readOnly}
             value={settings.turnSeconds}
-            onChange={(e) =>
-              onChange({ ...settings, turnSeconds: Number(e.target.value) })
-            }
+            onChange={(e) => {
+              onChange({ ...settings, turnSeconds: Number(e.target.value) });
+            }}
             className="hud-field"
           >
             {[60, 90, 120, 180, 240].map((s) => (
@@ -576,7 +550,7 @@ export function SettingsPanel({
                 {s / 60} min
               </option>
             ))}
-            {/* 0 is the "no time limit" sentinel — see LobbySettings.turnSeconds */}
+
             <option value={0}>No time limit</option>
           </select>
         </Field>
@@ -584,9 +558,9 @@ export function SettingsPanel({
           <select
             disabled={readOnly}
             value={settings.timeoutBankMs}
-            onChange={(e) =>
-              onChange({ ...settings, timeoutBankMs: Number(e.target.value) })
-            }
+            onChange={(e) => {
+              onChange({ ...settings, timeoutBankMs: Number(e.target.value) });
+            }}
             className="hud-field"
           >
             {[0, 2, 5, 10].map((minutes) => (
@@ -604,12 +578,12 @@ export function SettingsPanel({
           className="hud-check"
           disabled={readOnly}
           checked={settings.progressionEnabled ?? false}
-          onChange={(event) =>
+          onChange={(event) => {
             onChange({
               ...settings,
               progressionEnabled: event.target.checked,
-            })
-          }
+            });
+          }}
         />
       </label>
     </Section>

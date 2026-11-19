@@ -5,11 +5,10 @@ import {
   eligibleSkills,
   rollPendingRandomPrimary,
 } from "../../../src/game/progression/progression";
-import { createPlayer, Player } from "../../../src/types/Player";
+import { createPlayer, type Player } from "../../../src/types/Player";
 import { SkillCategory, SkillType } from "../../../src/types/Skills";
 import { RosterName } from "../../../src/types/Team";
 
-/** A fresh Goblin player of `position` with SPP to spend. */
 function goblin(position: string): Player {
   const roster = getRosterByRosterName(RosterName.GOBLIN);
   const template = roster.playerTemplates.find(
@@ -21,7 +20,6 @@ function goblin(position: string): Player {
   return player;
 }
 
-/** Dice that give exactly `values`, in order. */
 function scriptedDice(...values: number[]) {
   let next = 0;
   return {
@@ -34,11 +32,6 @@ function scriptedDice(...values: number[]) {
 
 const owned = (player: Player) => player.skills.map((skill) => skill.type);
 
-/**
- * Rulebook, Saboteur: "A player without the Secret Weapon Trait cannot have
- * this Skill." FAQ (May 2026): a Ball & Chain player may have it "so long as
- * they also have the Secret Weapon Trait".
- */
 describe("Saboteur needs the Secret Weapon Trait", () => {
   it("is not offered to a Goblin Lineman, who lacks Secret Weapon", () => {
     const lineman = goblin("Goblin Lineman");
@@ -57,7 +50,7 @@ describe("Saboteur needs the Secret Weapon Trait", () => {
 
   it("re-rolls a random Saboteur for a player without Secret Weapon", () => {
     const lineman = goblin("Goblin Lineman");
-    // Devious 4,3 Saboteur -> 4,5 Sneaky Git; 1,1 Dirty Player.
+
     const roll = rollPendingRandomPrimary(
       lineman,
       SkillCategory.DEVIOUS,
@@ -77,7 +70,10 @@ describe("Saboteur needs the Secret Weapon Trait", () => {
   it("lets a Fanatic, with Ball & Chain and Secret Weapon, take Saboteur", () => {
     const fanatic = goblin("Fanatic");
     expect(owned(fanatic)).toEqual(
-      expect.arrayContaining([SkillType.BALL_AND_CHAIN, SkillType.SECRET_WEAPON])
+      expect.arrayContaining([
+        SkillType.BALL_AND_CHAIN,
+        SkillType.SECRET_WEAPON,
+      ])
     );
     expect(eligibleSkills(fanatic, [SkillCategory.DEVIOUS])).toContain(
       SkillType.SABOTEUR

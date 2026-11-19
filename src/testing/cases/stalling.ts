@@ -1,14 +1,11 @@
-/**
- * Stalling cases (2025 rulebook p.80), mirroring
- * `__tests__/headless/stalling.test.ts`: a ball carrier who could walk in
- * without rolling any dice ends the activation instead, and the crowd rolls
- * a D6 against the team's Turn number.
- */
-
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
 import { RosterName } from "../../types/Team";
-import { ExpectedCheckpoint, ScenarioCase, step } from "../scenarioCase/types";
+import {
+  type ExpectedCheckpoint,
+  type ScenarioCase,
+  step,
+} from "../scenarioCase/types";
 import {
   checkpointAssert,
   endsWithStatus,
@@ -18,7 +15,6 @@ import {
   playerIn,
 } from "./helpers";
 
-/** Exactly one Crowd Takes Action roll, recorded against `team1:0`. */
 const crowdRolledOnce: ExpectedCheckpoint = {
   id: "crowd-rolled-once",
   description: "the crowd rolls once, and the carrier is recorded as Stalling",
@@ -32,7 +28,7 @@ const crowdRolledOnce: ExpectedCheckpoint = {
     );
     checkpointAssert(
       rolls.length === 1,
-      `expected one Crowd Takes Action roll, saw ${rolls.length}`
+      `expected one Crowd Takes Action roll, saw ${String(rolls.length)}`
     );
     const carrier = playerIn(observed, "team1:0");
     checkpointAssert(
@@ -42,7 +38,6 @@ const crowdRolledOnce: ExpectedCheckpoint = {
   },
 };
 
-/** Turn 5: the carrier stands four empty squares from the End Zone. */
 const crowdTakesAction: ScenarioCase = {
   id: "stalling-crowd-takes-action",
   name: "Stalling: the Crowd Takes Action",
@@ -65,7 +60,10 @@ const crowdTakesAction: ScenarioCase = {
     ],
     team2Placements: [{ playerIndex: 0, x: 2, y: 1 }],
   }),
-  fixture: { team1: { roster: RosterName.HUMAN }, team2: { roster: RosterName.HUMAN } },
+  fixture: {
+    team1: { roster: RosterName.HUMAN },
+    team2: { roster: RosterName.HUMAN },
+  },
   steps: [
     step(
       { type: "declare-action", playerId: "team1:0", action: "move" },
@@ -105,7 +103,6 @@ const crowdTakesAction: ScenarioCase = {
   checkpoints: [crowdRolledOnce],
 };
 
-/** Putting the ball down with Fumblerooski is still Stalling (May 2026 FAQ). */
 const fumblerooski: ScenarioCase = {
   id: "stalling-fumblerooski",
   name: "Stalling: Fumblerooski still counts",

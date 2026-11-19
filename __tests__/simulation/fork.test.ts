@@ -1,13 +1,9 @@
-/**
- * The decision search copies a match at a choice inside an action, where no
- * save can hold it, by replaying the commands played since the last save
- * between activations. The copy must be the live game, dice and all.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
-import { GameFork, HeadlessGame } from "../../src/headless/HeadlessGame";
+import { type GameFork, HeadlessGame } from "../../src/headless/HeadlessGame";
 import { stateChecksum } from "../../src/headless/checksum";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
-import { Coach } from "../../src/simulation/coach";
+import { type Coach } from "../../src/simulation/coach";
 import { runMatch } from "../../src/simulation/runMatch";
 import { GamePhase } from "../../src/types/GameState";
 import { RosterName } from "../../src/types/Team";
@@ -18,7 +14,6 @@ async function replay(fork: GameFork): Promise<HeadlessGame> {
   return copy;
 }
 
-/** The planner, checking a fork at every choice inside an action. */
 function checking(seen: { forks: number; diverged: string[] }): Coach {
   const planner = createPlannerCoach();
   return {
@@ -46,13 +41,13 @@ describe("a fork of a match inside an action", () => {
   it.each([0, 1, 2, 3, 4, 5])(
     "pairing %i: every choice replays to the live game",
     async (pairing) => {
-      const seen = { forks: 0, diverged: [] as string[] };
+      const seen = { forks: 0, diverged: new Array<string>() };
       const coach = checking(seen);
       await runMatch({
         seed: 300 + pairing,
         rosters: [
-          rosters[(pairing * 5) % rosters.length],
-          rosters[(pairing * 5 + 13) % rosters.length],
+          fixtureValue(rosters[(pairing * 5) % rosters.length]),
+          fixtureValue(rosters[(pairing * 5 + 13) % rosters.length]),
         ],
         coaches: [coach, coach],
       });

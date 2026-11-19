@@ -1,6 +1,7 @@
+import { playerWith } from "./controllerFixtures";
 import { describe, it, expect, beforeEach } from "vitest";
 import { FoulController } from "@/game/controllers/FoulController";
-import { Player, PlayerStatus } from "@/types/Player";
+import { type Player, PlayerStatus } from "@/types/Player";
 
 describe("FoulController", () => {
   let foulController: FoulController;
@@ -10,14 +11,14 @@ describe("FoulController", () => {
   });
 
   const mockPlayer = (id: string, st: number, av: number): Player =>
-    ({
+    (playerWith({
       id,
       playerName: `Player ${id}`,
       stats: { MA: 6, ST: st, AG: 3, PA: 4, AV: av },
       status: PlayerStatus.ACTIVE,
       teamId: "team-1",
       skills: [],
-    }) as any;
+    }));
 
   describe("analyzeFoul", () => {
     it("should calculate correct assists and modifier", () => {
@@ -43,7 +44,7 @@ describe("FoulController", () => {
   describe("resolveArmourRoll", () => {
     it("should break armour when total + modifier >= AV", () => {
       const target = mockPlayer("target", 3, 8);
-      const rolls = [4, 4]; // 8
+      const rolls = [4, 4];
       const result = foulController.resolveArmourRoll(target, rolls, 0);
       expect(result.broken).toBe(true);
       expect(result.isNaturalDouble).toBe(true);
@@ -51,7 +52,7 @@ describe("FoulController", () => {
 
     it("should not break armour when total + modifier < AV", () => {
       const target = mockPlayer("target", 3, 8);
-      const rolls = [3, 4]; // 7
+      const rolls = [3, 4];
       const result = foulController.resolveArmourRoll(target, rolls, 0);
       expect(result.broken).toBe(false);
       expect(result.isNaturalDouble).toBe(false);

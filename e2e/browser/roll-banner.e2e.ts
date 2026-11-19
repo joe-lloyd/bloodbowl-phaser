@@ -1,12 +1,3 @@
-/**
- * Armour and Injury Rolls get a banner that follows the dice: it names the
- * roll while the dice tumble, says what it decided when they land, and adds
- * no time. Seed 1 of the block-injury scene: a Skull, the Orc falls, its
- * armour breaks, and the injury roll decides the result before the
- * turnover hands over.
- *
- * ROLL_BANNER_SHOTS=<dir> saves each stage.
- */
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
@@ -19,7 +10,7 @@ declare global {
   }
 }
 
-const SHOTS = process.env.ROLL_BANNER_SHOTS;
+const SHOTS = process.env["ROLL_BANNER_SHOTS"];
 
 test("the armour and injury rolls each get a banner, then the result", async ({
   page,
@@ -29,7 +20,7 @@ test("the armour and injury rolls each get a banner, then the result", async ({
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` });
   };
   await app.sandbox.open({ scenario: "block-injury-test", seed: 1 });
-  // Every banner line in order, and the armour-to-next-turn time
+
   await page.evaluate(
     (names) => {
       const log: Window["__banner"] = { seen: [], armourAt: 0, bannerAt: 0 };
@@ -79,9 +70,9 @@ test("the armour and injury rolls each get a banner, then the result", async ({
   const log = await page.evaluate(() => window.__banner);
   console.log(log.seen.join("\n"));
   console.log(
-    `armour dice to turn banner: ${Math.round(log.bannerAt - log.armourAt)} ms`
+    `armour dice to turn banner: ${String(Math.round(log.bannerAt - log.armourAt))} ms`
   );
-  // In order: the armour roll, its result, the injury roll, its result
+
   const at = (pattern: RegExp) => log.seen.findIndex((s) => pattern.test(s));
   expect(at(/^Armour Roll/)).toBe(0);
   expect(at(/^Armour Broken/)).toBeGreaterThan(at(/^Armour Roll/));
@@ -89,6 +80,6 @@ test("the armour and injury rolls each get a banner, then the result", async ({
   expect(at(/^(Stunned|Knocked Out|Casualty)/)).toBeGreaterThan(
     at(/^Injury Roll/)
   );
-  // The same budget armour-injury-throws holds the tray to
+
   expect(log.bannerAt - log.armourAt).toBeLessThan(7_000);
 });

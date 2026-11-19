@@ -1,20 +1,19 @@
 import type { GameScene } from "./GameScene";
-import { Team } from "../types/Team";
+import { type Team } from "../types/Team";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
 import {
   createMatchSave,
-  MatchSave,
+  type MatchSave,
   restoreMatchSave,
 } from "../headless/serialization";
-import { CompetitionContext } from "../competition/types";
+import { type CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { fixturePaysWinnings } from "../game/rules/winnings";
 import { startMatchDiceLog } from "../game/persistence/diceLogStore";
 import { getActiveOnlineMatch } from "../network/OnlineMatch";
 
-/** What the page hands GameScene.init. */
 export interface GameSceneData {
   team1: Team;
   team2: Team;
@@ -22,16 +21,12 @@ export interface GameSceneData {
   competitionContext?: CompetitionContext;
   resumeSave?: MatchSave;
   autosaveEnabled?: boolean;
-  /** The match seeded the engine from a save before the board mounted. */
+
   resumed?: boolean;
 }
 
 export type MatchStart = ReturnType<typeof resolveMatchStart>;
 
-/**
- * The teams, pitch and drive a scene starts with: the save's when it resumes
- * one, otherwise what the page passed.
- */
 export function resolveMatchStart(data: GameSceneData, sceneKey: string) {
   const restored = data.resumeSave ? restoreMatchSave(data.resumeSave) : null;
   const save = restored?.save;
@@ -47,7 +42,6 @@ export function resolveMatchStart(data: GameSceneData, sceneKey: string) {
   };
 }
 
-/** The saved drive's kicking and receiving teams, or a default the coin flip sets. */
 function driveTeams(
   drive: MatchSave["drive"] | undefined,
   team1: Team,
@@ -59,10 +53,6 @@ function driveTeams(
   };
 }
 
-/**
- * Start the match engine for this scene, unless the page already started
- * one (a computer or online match does, before the board mounts).
- */
 export function ensureMatchServices(
   start: MatchStart,
   progressionEnabled: boolean | undefined
@@ -71,44 +61,25 @@ export function ensureMatchServices(
   const { restored, team1, team2, competitionContext } = start;
   const initialState =
     restored?.state ??
-    GameService.createMatchState(
-      team1,
-      team2,
-      GamePhase.SETUP,
-      SubPhase.INTRO,
-      // A league fixture takes on Journeymen at kick-off and rolls the
-      // Fan Factors for its winnings at full time
-      {
+    GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
         paysWinnings: fixturePaysWinnings(competitionContext?.competitionType),
         pregameInducements: true,
-      }
+      } }
     );
   if (!restored && competitionContext?.knockout) {
     initialState.knockout = true;
   }
-  ServiceContainer.initialize(
-    window.eventBus,
-    team1,
-    team2,
-    initialState,
-    undefined,
-    undefined,
-    restored?.save.matchStats.progressionEnabled ?? progressionEnabled ?? false,
-    restored?.save.rng,
-    restored?.save.matchStats,
-    restored?.save.turnManager
-  );
+  ServiceContainer.initialize({ eventBus: window.eventBus, team1: team1, team2: team2, initialState: initialState, progressionEnabled: restored?.save.matchStats.progressionEnabled ?? progressionEnabled ?? false, rngState: restored?.save.rng, matchStatsState: restored?.save.matchStats, turnManagerState: restored?.save.turnManager });
 }
 
-/** Save the match as it is played, so it can be resumed. */
 export function startAutosave(scene: GameScene): MatchAutosave {
   const container = ServiceContainer.getInstance();
   const autosave = new MatchAutosave(
-    scene["eventBus"],
-    scene["gameService"],
+    scene.eventBus,
+    scene.gameService,
     () =>
       createMatchSave({
-        state: scene["gameService"].getState(),
+        state: scene.gameService.getState(),
         teams: [scene.team1, scene.team2],
         drive: {
           kickingTeamId: scene.kickingTeam.id,
@@ -116,8 +87,8 @@ export function startAutosave(scene: GameScene): MatchAutosave {
         },
         rng: container.rngService.captureState(),
         matchStats: container.matchStats.captureState(),
-        turnManager: scene["gameService"].captureTurnManagerState(),
-        competition: scene["competitionContext"],
+        turnManager: scene.gameService.captureTurnManagerState(),
+        ...(scene.competitionContext === undefined ? {} : { competition: scene.competitionContext }),
       }),
     { enabled: true }
   );
@@ -125,7 +96,6 @@ export function startAutosave(scene: GameScene): MatchAutosave {
   return autosave;
 }
 
-/** Record every die a real match rolls, for a later audit. Not the sandbox. */
 export function startDiceLog(
   start: MatchStart,
   sceneKey: string

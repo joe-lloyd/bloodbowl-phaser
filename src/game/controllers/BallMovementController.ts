@@ -1,4 +1,4 @@
-import { DiceController } from "./DiceController";
+import type { DiceController } from "./DiceController";
 import { GameConfig } from "@/config/GameConfig";
 
 export function isOnPitch(square: { x: number; y: number }): boolean {
@@ -10,55 +10,29 @@ export function isOnPitch(square: { x: number; y: number }): boolean {
   );
 }
 
-/**
- * BallMovementController
- *
- * Purpose: A stateless physics engine for the ball. Provides pure functions to calculate
- * where the ball goes when it moves unpredictably.
- *
- * IN_SCOPE:
- * - scatter(startPos): 3x d8 logic (Inaccurate Pass). Returns path.
- * - bounce(startPos): 1x d8 logic (Fumble, Failed Catch). Returns new pos.
- * - deviate(startPos): d8 dir + lower of 2D6 dist (Kickoff). Returns new pos.
- *
- * OUT_OF_SCOPE:
- * - Knowing *why* the ball is moving.
- * - Managing game state.
- * - Triggering turnovers.
- */
-export class BallMovementController {
-  constructor(private diceController: DiceController) {}
+type MovementDice = Pick<DiceController, "rollD8" | "rollMultipleD8" | "rollD3" | "rollLowerOf2D6">;
 
-  /**
-   * Calculate a scatter (1 square in random direction)
-   * used for Bounce.
-   * @param position Starting position
-   * @returns New position
-   */
+export class BallMovementController {
+  private diceController: MovementDice;
+  constructor(diceController: MovementDice) {
+    this.diceController = diceController;
+  }
+
   public bounce(position: { x: number; y: number }): { x: number; y: number } {
     return this.calculateScatterStep(position, "Bounce");
   }
 
-  /**
-   * Calculate a scatter path (3 squares in random directions)
-   * used for Inaccurate Pass. The path stops at the first square off the
-   * pitch: the ball leaves play there and is thrown in from the square
-   * before it (p.77), so it can never scatter back on.
-   * @param position Starting position
-   * @returns Array of positions (the path)
-   */
   public scatter(
     position: {
       x: number;
       y: number;
     },
-    /** What scatters, as the log names it: the ball, or a thrown team-mate */
+
     rollType: "Scatter" | "Team-mate Scatter" = "Scatter"
   ): { x: number; y: number }[] {
     const path: { x: number; y: number }[] = [];
     let currentPos = { ...position };
 
-    // Roll 3 d8s at once for a single log entry
     const rolls = this.diceController.rollMultipleD8(rollType, 3);
 
     for (const direction of rolls) {
@@ -70,26 +44,18 @@ export class BallMovementController {
     return path;
   }
 
-  /**
-   * Calculate deviation (d8 direction + the lower of 2D6 distance, Sevens
-   * rule M3) used for Kickoff.
-   * @param position Starting position (target square)
-   * @returns New position (landing square)
-   */
   public deviate(
     position: { x: number; y: number },
-    /** Kick skill: the kicking coach halves the deviation to D3 (p.130). */
+
     useKickD3 = false,
-    /** The kicking team, whose dice these are. */
+
     teamId?: string
   ): { x: number; y: number } {
-    // 1. Roll Direction (d8)
     const direction = this.diceController.rollD8(
       "Kickoff Deviate Direction",
       teamId
     );
 
-    // 2. Roll Distance (lower of 2D6, or D3 with the Kick skill)
     const distance = useKickD3
       ? this.diceController.rollD3("Kickoff Deviate Distance (Kick)", teamId)
       : this.diceController.rollLowerOf2D6("Kickoff Deviate Distance", teamId);
@@ -97,9 +63,6 @@ export class BallMovementController {
     return this.calculateOffsetPosition(position, direction, distance);
   }
 
-  /**
-   * Helper to calculate a single weighted step (1 sq) based on d8
-   */
   private calculateScatterStep(
     position: { x: number; y: number },
     reason: string
@@ -108,9 +71,6 @@ export class BallMovementController {
     return this.calculateOffsetPosition(position, direction, 1);
   }
 
-  /**
-   * Helper to apply vector math based on direction (1-8)
-   */
   private calculateOffsetPosition(
     start: { x: number; y: number },
     direction: number,
@@ -119,42 +79,36 @@ export class BallMovementController {
     let dx = 0;
     let dy = 0;
 
-    // Directions (1: TL, 2: T, 3: TR, 4: L, 5: R, 6: BL, 7: B, 8: BR)
-    // Note: This mapping matches standard numpad/Blood Bowl template usually.
-    // 1(TL) 2(T) 3(TR)
-    // 4(L)       5(R)
-    // 6(BL) 7(B) 8(BR)
-
     switch (direction) {
-      case 1: // TL
+      case 1:
         dx = -1;
         dy = -1;
         break;
-      case 2: // T
+      case 2:
         dx = 0;
         dy = -1;
         break;
-      case 3: // TR
+      case 3:
         dx = 1;
         dy = -1;
         break;
-      case 4: // L
+      case 4:
         dx = -1;
         dy = 0;
         break;
-      case 5: // R
+      case 5:
         dx = 1;
         dy = 0;
         break;
-      case 6: // BL
+      case 6:
         dx = -1;
         dy = 1;
         break;
-      case 7: // B
+      case 7:
         dx = 0;
         dy = 1;
         break;
-      case 8: // BR
+      case 8:
         dx = 1;
         dy = 1;
         break;

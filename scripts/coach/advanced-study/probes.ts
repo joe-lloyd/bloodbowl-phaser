@@ -1,4 +1,3 @@
-/** Mechanical skill ablations. Scripted actions are never counted as AI use. */
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve, join } from "node:path";

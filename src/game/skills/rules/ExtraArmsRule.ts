@@ -1,12 +1,6 @@
-/**
- * Extra Arms (2025 p.128) — "This player applies a +1 modifier to the
- * Agility Test whenever they attempt to Catch, Pick Up or Intercept the
- * ball." (The Intercept clause becomes live when interception is wired.)
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule, PickupContext, CatchContext } from "../SkillRule";
-import { Player } from "../../../types/Player";
+import { type SkillRule, type PickupContext, type CatchContext } from "../SkillRule";
+import { type Player } from "../../../types/Player";
 
 function apply(ctx: PickupContext | CatchContext, self: Player, what: string) {
   if (self.id !== ctx.player.id) return;
@@ -20,7 +14,6 @@ function apply(ctx: PickupContext | CatchContext, self: Player, what: string) {
 
 export const ExtraArmsRule: SkillRule = {
   onPickup(ctx, self) {
-    // Its +1 is to the Agility Test, which Secure the Ball does not take
     if (ctx.agilityTest) apply(ctx, self, "pick-up");
   },
   onCatch(ctx, self) {

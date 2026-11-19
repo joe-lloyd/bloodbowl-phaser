@@ -1,12 +1,11 @@
 import { shoppingTeamId } from "./pregame";
 import {
   Inducement,
-  InducementOffer,
-  InducementSelectionLine,
+  type InducementOffer,
+  type InducementSelectionLine,
 } from "../../types/Inducements";
 
-/** A repeatable pregame plan: team re-rolls, KO recovery, then kick-off support. */
-export function computerInducementPurchases(
+function computerInducementPurchases(
   offer: InducementOffer,
   teamId: string
 ): InducementSelectionLine[] {
@@ -34,13 +33,11 @@ export function computerInducementPurchases(
   return purchases;
 }
 
-/** The next owned command, based entirely on accepted pregame state. */
 export function nextComputerPregameCommand(
   pregame: import("../../types/Inducements").PregameInducementsState,
   teamId: string,
   teamIds: readonly [string, string]
 ): import("../../headless/protocol").HeadlessCommand | null {
-  // Ready for the weather is ready for the match
   if (!pregame.ready[teamId]) return { type: "ready-weather", teamId };
   const offer = pregame.offer;
   if (!offer || shoppingTeamId(pregame, teamIds) !== teamId) return null;

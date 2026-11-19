@@ -1,13 +1,9 @@
-/**
- * Rule scenarios — Mutation skills (Two Heads, Big Hand, Extra Arms,
- * Disturbing Presence).
- */
-
+import { z } from "zod";
 import { SkillType } from "../../types/Skills";
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
-  RuleScenarioEntry,
+  type RuleScenarioEntry,
   playSetup,
   blockConfig,
   assert,
@@ -22,7 +18,11 @@ const injuryRolled = (r: Parameters<typeof skillTriggered>[0]) =>
   sawEvent(
     r,
     GameEventNames.DiceRoll,
-    (d) => !!(d as { rollType?: string }).rollType?.startsWith("Injury Roll")
+    (d) =>
+      !!z
+        .object({ rollType: z.string().exactOptional() })
+        .parse(d)
+        .rollType?.startsWith("Injury Roll")
   );
 
 export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
@@ -33,7 +33,7 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "horns-blitz-strength",
         name: "Horns on a Blitz block",
         description: "+1 Strength on the Blitz block yields a second die",
-        // Chaos Chosen Beastmen carry Horns on the roster.
+
         setup: playSetup({
           team1Roster: RosterName.CHAOS_CHOSEN,
           team1Placements: [{ playerIndex: 0, x: 10, y: 7 }],
@@ -52,11 +52,12 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "Blitz block rolls 2 dice",
             matches: (r) =>
               skillTriggered(r, SkillType.HORNS) && blockDiceCount(r) === 2,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 blockDiceCount(r) === 2,
                 "Horns' +1 ST gives the ST-3 blitzer 2 dice vs ST 3"
-              ),
+              );
+            },
           },
         ],
       },
@@ -136,11 +137,12 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.PREHENSILE_TAIL) &&
               skillCheckDiff(r, "Dodge") === -1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Dodge") === -1,
                 "dodge total must be roll - 1"
-              ),
+              );
+            },
           },
         ],
       },
@@ -168,8 +170,9 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "claws-break",
             name: "8 or 9 breaks the AV 10 armour",
             matches: (r) => skillTriggered(r, SkillType.CLAWS),
-            verify: (r) =>
-              assert(injuryRolled(r), "the forced break must reach injury"),
+            verify: (r) => {
+              assert(injuryRolled(r), "the forced break must reach injury");
+            },
           },
         ],
       }),
@@ -204,11 +207,12 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "modifier-cancelled",
             name: "Mighty Blow's armour bonus is cancelled",
             matches: (r) => skillTriggered(r, SkillType.IRON_HARD_SKIN),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !injuryRolled(r),
                 "the cancelled modifier means the armour holds"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -230,7 +234,7 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
               x: 16,
               y: 5,
               skills: [SkillType.TENTACLES],
-              stats: { ST: 5 }, // holds on a 4+ vs ST 3
+              stats: { ST: 5 },
             },
           ],
           ballPosition: { x: 1, y: 1 },
@@ -248,8 +252,12 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.SkillTriggered,
                 (d) =>
-                  (d as { skill?: string }).skill === SkillType.TENTACLES &&
-                  !!(d as { effect?: string }).effect?.includes("held fast")
+                  z.object({ skill: z.string().exactOptional() }).parse(d)
+                    .skill === SkillType.TENTACLES &&
+                  !!z
+                    .object({ effect: z.string().exactOptional() })
+                    .parse(d)
+                    .effect?.includes("held fast")
               ),
             verify: (r) => {
               assert(
@@ -295,11 +303,12 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.TWO_HEADS) &&
               skillCheckDiff(r, "Dodge") === 1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Dodge") === 1,
                 "dodge total must be roll + 1"
-              ),
+              );
+            },
           },
         ],
       },
@@ -316,7 +325,7 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
           team1Placements: [
             { playerIndex: 0, x: 4, y: 5, skills: [SkillType.BIG_HAND] },
           ],
-          team2Placements: [{ playerIndex: 0, x: 6, y: 5 }], // marks (5,5)
+          team2Placements: [{ playerIndex: 0, x: 6, y: 5 }],
           ballPosition: { x: 5, y: 5 },
         }),
         script: [
@@ -330,11 +339,12 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.BIG_HAND) &&
               skillCheckDiff(r, "Pickup") === 0,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Pickup") === 0,
                 "net modifier must be 0 (marker cancelled)"
-              ),
+              );
+            },
           },
         ],
       },
@@ -350,16 +360,16 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
           "-1 to the PA test for the aura player 3 squares away (not marking)",
         setup: playSetup({
           team1Placements: [
-            { playerIndex: 0, x: 4, y: 5 }, // passer
-            { playerIndex: 1, x: 7, y: 5 }, // catcher (Quick Pass)
+            { playerIndex: 0, x: 4, y: 5 },
+            { playerIndex: 1, x: 7, y: 5 },
           ],
-          // A Chaos Dwarf Flamesmith has Disturbing Presence on the roster.
+
           team2Roster: RosterName.CHAOS_DWARF,
           team2Placements: [
             {
               playerIndex: 0,
               x: 4,
-              y: 8, // 3 squares from the passer — inside the aura, no marking
+              y: 8,
             },
           ],
           ballPosition: { x: 4, y: 5 },
@@ -375,11 +385,12 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.DISTURBING_PRESENCE) &&
               skillCheckDiff(r, "Pass") === -1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Pass") === -1,
                 "PA test must carry the aura's -1 (Quick Pass base 0)"
-              ),
+              );
+            },
           },
         ],
       },
@@ -410,11 +421,12 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.EXTRA_ARMS) &&
               skillCheckDiff(r, "Pickup") === 1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Pickup") === 1,
                 "net modifier must be +1"
-              ),
+              );
+            },
           },
         ],
       },

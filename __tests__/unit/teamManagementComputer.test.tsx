@@ -1,11 +1,6 @@
-/**
- * A computer team still playing in a competition cannot be deleted: its
- * games could no longer be played or simulated. The check reads the stored
- * team before and after the confirmation, so an entry made in another tab
- * counts.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -14,7 +9,7 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-import { createComputerTeam } from "../../src/competition/computerTeams";
+import { createComputerTeam } from "../fixtures/computerTeam";
 import { loadTeams, saveTeam } from "../../src/game/managers/TeamManager";
 import { RosterName } from "../../src/types/Team";
 import { TeamManagement } from "../../src/ui/components/pages/TeamManagement";
@@ -30,22 +25,18 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   vi.restoreAllMocks();
 });
 
-/** Team Management with one computer team, and its Delete button. */
 async function showTeam(): Promise<{
   team: ReturnType<typeof createComputerTeam>;
   remove: () => Promise<void>;
 }> {
-  const team = createComputerTeam(
-    RosterName.ORC,
-    "Nuln Hammers",
-    0x335577,
-    "advanced-league"
-  );
+  const team = createComputerTeam({ rosterName: RosterName.ORC, name: "Nuln Hammers", primaryColour: 0x335577, advancementMode: "advanced-league" });
   saveTeam(team);
   await act(async () => {
     root.render(
@@ -55,17 +46,17 @@ async function showTeam(): Promise<{
     );
   });
   await act(async () => {
-    container.querySelector<HTMLButtonElement>('#computer-tab')!.click();
+    fixtureValue(container.querySelector<HTMLButtonElement>("#computer-tab")).click();
   });
   expect(container.textContent).toContain("Computer");
   return {
     team,
     remove: () =>
-      act(async () =>
-        container
-          .querySelector<HTMLButtonElement>('button[aria-label="Delete team"]')!
-          .click()
-      ),
+      act(async () => {
+        fixtureValue(container
+          .querySelector<HTMLButtonElement>('button[aria-label="Delete team"]'))
+          .click();
+      }),
   };
 }
 

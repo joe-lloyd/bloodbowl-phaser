@@ -1,10 +1,10 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import {
@@ -16,12 +16,13 @@ import {
 import { gatherParticipants } from "../skills";
 import { BounceOperation } from "./BounceOperation";
 
-/** Ends the wielder's activation once the Chainsaw Attack has settled. */
 class FinishChainsawOperation extends GameOperation {
   public readonly name = "FinishChainsaw";
 
-  constructor(private attackerId: string) {
+  private attackerId: string;
+  constructor(attackerId: string) {
     super();
+    this.attackerId = attackerId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -29,31 +30,19 @@ class FinishChainsawOperation extends GameOperation {
   }
 }
 
-/**
- * Chainsaw Attack (2025 rulebook p.122, Chainsaw trait)
- *
- * "Roll a D6. On a 2+, this player may immediately make an Armour Roll against
- * one adjacent Standing opposition player, applying a +3 modifier to the Armour
- * Roll. On a 1, the Chainsaw will Kick-back and this player is Knocked Down
- * instead." The activation ends as soon as the Chainsaw Attack is performed.
- *
- * The always-on "+3 to Armour Rolls made against a knocked-down Chainsaw
- * player" clause lives in ChainsawRule (onArmourBreak), so it applies to the
- * Kick-back knock-down here and to any other knockdown. NOT modelled yet: the
- * Foul-with-chainsaw (+3) and the Blitz block replacement clauses.
- */
 export class ChainsawAttackOperation extends GameOperation {
   public readonly name = "ChainsawAttackOperation";
 
-  constructor(
-    private attackerId: string,
-    private targetId: string
-  ) {
+  private attackerId: string;
+  private targetId: string;
+  constructor(attackerId: string, targetId: string) {
     super();
+    this.attackerId = attackerId;
+    this.targetId = targetId;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     const dice = gameService.getDiceController();
 
@@ -84,17 +73,10 @@ export class ChainsawAttackOperation extends GameOperation {
 
     await context.delay(600);
 
-    // Kick-back die: a natural 1 kicks back and Knocks the wielder Down.
     const kick = dice.rollSkillCheck(
-      "Chainsaw Kick-back",
-      2,
-      0,
-      attacker.playerName
-    );
+      { reason: "Chainsaw Kick-back",target: 2,modifier: 0,playerName: attacker.playerName }    );
 
     if (!kick.success) {
-      // Kick-back: the wielder is Knocked Down (a Turnover). The +3 armour
-      // modifier for a downed Chainsaw player is applied by ChainsawRule.
       eventBus.emit(GameEventNames.UI_Notification, "KICK-BACK!");
       attacker.status = PlayerStatus.PRONE;
       eventBus.emit(GameEventNames.PlayerKnockedDown, {
@@ -108,14 +90,8 @@ export class ChainsawAttackOperation extends GameOperation {
       return;
     }
 
-    // 2+: an Armour Roll against the target with a +3 modifier. It is an
-    // opposition modifier, so the shared fold lets Iron Hard Skin cancel it.
     const armour = dice.rollArmorCheck(
-      effectiveAV(target, gameService.getState()),
-      target.playerName,
-      attacker.teamId,
-      3
-    );
+      { av: effectiveAV(target,gameService.getState()),playerName: target.playerName,teamId: attacker.teamId,modifier: 3 }    );
     const armourCtx = await foldArmourRoll(
       context,
       gatherParticipants(attacker, target, []),

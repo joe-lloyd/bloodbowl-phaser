@@ -9,11 +9,6 @@ import { sevensInducementCatalog } from "../../../src/game/inducements/catalog";
 import { TeamFactory } from "../../../src/game/TeamFactory";
 import { RosterName } from "../../../src/types/Team";
 
-/**
- * Sevens inducement budgeting and the L3 catalogue
- * (docs/SEVENS_RULES.md). Pure functions, no engine dependency.
- */
-
 describe("calculateInducementBudgets", () => {
   it("gives the lower-TV team petty cash equal to the gap", () => {
     const cheap = TeamFactory.createTestTeam(
@@ -22,7 +17,7 @@ describe("calculateInducementBudgets", () => {
       0xff0000
     );
     const rich = TeamFactory.createTestTeam(RosterName.HUMAN, "Rich", 0x0000ff);
-    rich.rerolls = cheap.rerolls + 4; // inflate TV 400,000 above `cheap`
+    rich.rerolls = cheap.rerolls + 4;
 
     const budgets = calculateInducementBudgets(cheap, rich);
     expect(budgets[rich.id]).toBe(0);
@@ -55,7 +50,7 @@ function catalogFor(rosterName: RosterName) {
 
 function table(rosterName: RosterName) {
   return catalogFor(rosterName).map(
-    (e) => `${e.maxCount} ${e.inducement} ${e.price}`
+    (e) => `${String(e.maxCount)} ${e.inducement} ${String(e.price)}`
   );
 }
 
@@ -102,12 +97,12 @@ describe("the Sevens inducement catalogue (L3)", () => {
   });
 
   it("offers a Plague Doctor to Favoured of Nurgle teams only", () => {
-    expect(
-      catalogFor(RosterName.NURGLE).map((e) => e.inducement)
-    ).toContain(Inducement.PLAGUE_DOCTOR);
-    expect(
-      catalogFor(RosterName.HUMAN).map((e) => e.inducement)
-    ).not.toContain(Inducement.PLAGUE_DOCTOR);
+    expect(catalogFor(RosterName.NURGLE).map((e) => e.inducement)).toContain(
+      Inducement.PLAGUE_DOCTOR
+    );
+    expect(catalogFor(RosterName.HUMAN).map((e) => e.inducement)).not.toContain(
+      Inducement.PLAGUE_DOCTOR
+    );
   });
 
   it("never offers a Star Player or Riotous Rookies", () => {

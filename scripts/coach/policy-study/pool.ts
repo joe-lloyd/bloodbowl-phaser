@@ -1,7 +1,6 @@
 import { fork } from "node:child_process";
 import type { PolicyJob } from "./schedule";
 
-/** Fail and terminate the pool if any job fails or a worker exits mid-game. */
 export async function processPool(
   entry: string,
   args: string[],
@@ -48,11 +47,11 @@ export async function processPool(
                 child.send(current ?? null);
               }
             );
-            child.on("exit", (code) =>
+            child.on("exit", (code) => {
               current || code !== 0
                 ? no(new Error("Worker exited during a job"))
-                : yes()
-            );
+                : yes();
+            });
           })
       )
     );

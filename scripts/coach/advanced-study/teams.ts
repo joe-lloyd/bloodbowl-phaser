@@ -1,4 +1,3 @@
-/** Frozen advanced builds: legal skill access and actual progression pricing. */
 import {
   createComputerTeamFromTemplate,
   getComputerTeamTemplates,
@@ -75,7 +74,6 @@ function specializedFit(p: Player, skill: SkillType): number | undefined {
   return undefined;
 }
 
-/** Plausible tactical role score; coverage packages are not claimed optimal. */
 function fit(p: Player, skill: SkillType): number {
   const specific = specializedFit(p, skill);
   if (specific !== undefined) return specific;
@@ -200,7 +198,7 @@ function developedVariants(
   ] as const) {
     const developed = arm === "focused" ? team : randomTeam;
     variants.push({
-      id: `${templateId}--${arm}-${replicate}`,
+      id: `${templateId}--${arm}-${String(replicate)}`,
       template: templateId,
       arm,
       replicate,

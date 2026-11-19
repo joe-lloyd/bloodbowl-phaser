@@ -1,7 +1,10 @@
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useEffect, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { DecisionRequest, FoulAssistsDecisionRequest } from "@/types/decisions";
+import type { EventBus } from "../../../services/EventBus";
+import {
+  type DecisionRequest,
+  type FoulAssistsDecisionRequest,
+} from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
@@ -15,12 +18,6 @@ interface FoulAssistsDialogProps {
   eventBus: EventBus;
 }
 
-/**
- * The fouling coach declares how many Offensive Assists add +1 to the
- * Armour Roll, before it is rolled (FAQ, May 2026). Fewer assists keep a
- * Sneaky Git fouler's double from breaking armour. The engine is paused on
- * this decision; each button answers it through gameService.answerFoulAssists.
- */
 export const FoulAssistsDialog: React.FC<FoulAssistsDialogProps> = ({
   eventBus,
 }) => {
@@ -32,7 +29,7 @@ export const FoulAssistsDialog: React.FC<FoulAssistsDialogProps> = ({
     const onRequested = (data: DecisionRequest) => {
       if (data.type === "foul-assists") setRequest(data);
     };
-    // The other coach may be the one who answers
+
     const onResolved = ({ type }: { type: string }) => {
       if (type === "foul-assists") setRequest(null);
     };
@@ -44,8 +41,6 @@ export const FoulAssistsDialog: React.FC<FoulAssistsDialogProps> = ({
     };
   }, [eventBus]);
 
-  // Online, only the fouling coach sees it; the other coach has the
-  // "Waiting for…" banner
   if (
     !request ||
     !ServiceContainer.isInitialized() ||
@@ -63,6 +58,28 @@ export const FoulAssistsDialog: React.FC<FoulAssistsDialogProps> = ({
   const counts = Array.from({ length: request.available + 1 }, (_, i) => i);
 
   return (
+    <FoulAssistsDialogView
+      request={request}
+      counts={counts}
+      answer={answer}
+      name={name}
+    />
+  );
+};
+
+interface FoulAssistsDialogViewProps {
+  request: FoulAssistsDecisionRequest;
+  counts: number[];
+  answer: (count: number) => void;
+  name: (id: string) => string;
+}
+function FoulAssistsDialogView({
+  request,
+  counts,
+  answer,
+  name,
+}: FoulAssistsDialogViewProps) {
+  return (
     <DialogShell
       placement="dock"
       eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
@@ -73,10 +90,12 @@ export const FoulAssistsDialog: React.FC<FoulAssistsDialogProps> = ({
           {counts.map((count) => (
             <HudButton
               key={count}
-              data-testid={`foul-assists-${count}`}
+              data-testid={`foul-assists-${String(count)}`}
               variant={count === request.available ? "gold" : "ghost"}
-              hotkey={count <= 9 ? String(count) : undefined}
-              onClick={() => answer(count)}
+              {...(count <= 9 ? { hotkey: String(count) } : {})}
+              onClick={() => {
+                answer(count);
+              }}
             >
               +{count}
             </HudButton>
@@ -85,16 +104,16 @@ export const FoulAssistsDialog: React.FC<FoulAssistsDialogProps> = ({
       }
     >
       <p>
-        {name(request.playerId)} fouls {name(request.targetId)}. Add how many
-        of the {request.available} Offensive Assists to the Armour Roll?
+        {name(request.playerId)} fouls {name(request.targetId)}. Add how many of
+        the {request.available} Offensive Assists to the Armour Roll?
       </p>
       {request.defensive > 0 && (
         <p>
           {request.defensive === 1
             ? "The 1 Defensive Assist always applies."
-            : `The ${request.defensive} Defensive Assists always apply.`}
+            : `The ${String(request.defensive)} Defensive Assists always apply.`}
         </p>
       )}
     </DialogShell>
   );
-};
+}

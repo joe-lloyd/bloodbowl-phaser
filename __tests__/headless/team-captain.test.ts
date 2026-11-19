@@ -1,12 +1,14 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { FormationManager } from "../../src/game/managers/FormationManager";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { createPlayer } from "../../src/types/Player";
 import { SkillType, hasSkill } from "../../src/types/Skills";
-import { RosterName, Team } from "../../src/types/Team";
+import { RosterName, type Team } from "../../src/types/Team";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { TeamFactory } from "../../src/game/TeamFactory";
 import { stabilizeIds } from "../../src/headless/createHeadlessGame";
@@ -16,14 +18,6 @@ import { teamRerollsLeft } from "../../src/game/teamRerolls";
 import { movePlayerToBox } from "../../src/game/rules/playerLocation";
 import { forceDice } from "../utils/test-helpers";
 
-/**
- * Team Captain, 2025 rulebook p.155: "while your Team Captain is on the
- * pitch, whenever you use a Team Re-roll you may roll a D6; on the roll of
- * a natural 6 the Team Re-roll is free." "When setting up at the start of a
- * Drive, you must choose to field your Team Captain if able." May 2026
- * errata: a Captain who leaves the roster is replaced "during the Pre-game
- * Sequence of your next League Fixture".
- */
 const scenario: Scenario = {
   id: "team-captain-reroll",
   name: "Team Captain re-roll",
@@ -44,18 +38,17 @@ const scenario: Scenario = {
   },
 };
 
-/** The pick-up fails on a 1; the team re-rolls it; `after` are the next dice. */
 async function rerollFailedPickup(game: HeadlessGame, after: number[]) {
   const mover = game.ctx.team1.players[0];
   forceDice(game.ctx.rng, [1, ...after]);
   await game.execute({
     type: "declare-action",
-    playerId: mover.id,
+    playerId: fixtureValue(mover).id,
     action: "move",
   });
   const moved = await game.execute({
     type: "move",
-    playerId: mover.id,
+    playerId: fixtureValue(mover).id,
     path: [{ x: 5, y: 5 }],
   });
   expect(moved.pendingDecision).toMatchObject({
@@ -69,7 +62,9 @@ async function rerollFailedPickup(game: HeadlessGame, after: number[]) {
   });
   const captainRolls = rerolled.events
     .filter((e) => e.name === GameEventNames.DiceRoll)
-    .map((e) => e.data as { rollType: string; total: number })
+    .map((e) =>
+      z.object({ rollType: z.string(), total: z.number() }).parse(e.data)
+    )
     .filter((roll) => roll.rollType === "Team Captain")
     .map((roll) => roll.total);
   return { captainRolls, rerolled };
@@ -81,9 +76,9 @@ const rerollsLeft = (game: HeadlessGame) =>
 describe("the Team Captain's free Team Re-roll", () => {
   it("gives the Captain Pro for the game", () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    expect(hasSkill(game.ctx.team1.players[1].skills, SkillType.PRO)).toBe(
-      true
-    );
+    expect(
+      hasSkill(fixtureValue(game.ctx.team1.players[1]).skills, SkillType.PRO)
+    ).toBe(true);
   });
 
   it("keeps the Team Re-roll on a natural 6", async () => {
@@ -92,7 +87,7 @@ describe("the Team Captain's free Team Re-roll", () => {
 
     expect(captainRolls).toEqual([6]);
     expect(rerollsLeft(game)).toBe(1);
-    // It was still this turn's Team Re-roll
+
     expect(
       game.ctx.gameService.getRerollArbiter().teamRerollAvailable("team1")
     ).toBe(false);
@@ -108,7 +103,9 @@ describe("the Team Captain's free Team Re-roll", () => {
 
   it("rolls nothing while the Captain is off the pitch", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    movePlayerToBox(game.ctx.team1.players[1], { box: "reserves" });
+    movePlayerToBox(fixtureValue(game.ctx.team1.players[1]), {
+      box: "reserves",
+    });
     const { captainRolls } = await rerollFailedPickup(game, [6]);
 
     expect(captainRolls).toEqual([]);
@@ -124,19 +121,20 @@ describe("the Team Captain's free Team Re-roll", () => {
     expect(
       teamRerollsLeft(resumed.ctx.gameService.getState(), resumed.ctx.team1)
     ).toBe(1);
-    expect(resumed.ctx.team1.players[1].teamCaptain).toBe(true);
+    expect(fixtureValue(resumed.ctx.team1.players[1]).teamCaptain).toBe(true);
   });
 });
 
-/** A Human team of eight, so set-up can leave one player out. */
 function eightManHumans(stableId: string): Team {
   const team = stabilizeIds(
     TeamFactory.createTestTeam(RosterName.HUMAN, stableId, 0xcc0000),
     stableId
   );
-  const blitzer = getRosterByRosterName(RosterName.HUMAN).playerTemplates.find(
-    (t) => t.positionName === "Human Blitzer"
-  )!;
+  const blitzer = fixtureValue(
+    getRosterByRosterName(RosterName.HUMAN).playerTemplates.find(
+      (t) => t.positionName === "Human Blitzer"
+    )
+  );
   const extra = createPlayer(blitzer, team.id, 8);
   extra.id = `${stableId}-player-8`;
   team.players.push(extra);
@@ -144,15 +142,17 @@ function eightManHumans(stableId: string): Team {
 }
 
 function preset(isTeam1: boolean) {
-  return new FormationManager()
-    .getBuiltInFormations(isTeam1)
-    .find((formation) => formation.name === "Balanced")!.positions;
+  return fixtureValue(
+    new FormationManager()
+      .getBuiltInFormations(isTeam1)
+      .find((formation) => formation.name === "Balanced")
+  ).positions;
 }
 
 describe("fielding the Team Captain", () => {
   async function settingUp() {
     const team1 = eightManHumans("team1");
-    chooseTeamCaptain(team1, team1.players[7].id);
+    chooseTeamCaptain(team1, fixtureValue(team1.players[7]).id);
     const game = new HeadlessGame({
       seed: 3,
       team1,
@@ -169,7 +169,7 @@ describe("fielding the Team Captain", () => {
     for (const [index, position] of positions.entries()) {
       await game.execute({
         type: "place-player",
-        playerId: game.ctx.team1.players[index].id,
+        playerId: fixtureValue(game.ctx.team1.players[index]).id,
         x: position.x,
         y: position.y,
       });
@@ -194,7 +194,7 @@ describe("fielding the Team Captain", () => {
       formation: preset(true),
     });
 
-    expect(game.ctx.team1.players[7].gridPosition).toBeDefined();
+    expect(fixtureValue(game.ctx.team1.players[7]).gridPosition).toBeDefined();
     expect(
       (await game.execute({ type: "confirm-setup", teamId: "team1" })).ok
     ).toBe(true);
@@ -202,7 +202,7 @@ describe("fielding the Team Captain", () => {
 
   it("allows a set-up without a Captain who cannot play", async () => {
     const game = await settingUp();
-    movePlayerToBox(game.ctx.team1.players[7], { box: "ko" });
+    movePlayerToBox(fixtureValue(game.ctx.team1.players[7]), { box: "ko" });
     await game.execute({
       type: "apply-formation",
       teamId: "team1",
@@ -250,11 +250,11 @@ describe("appointing a new Team Captain before a League Fixture", () => {
     const appointed = game.ctx.team1.players[2];
     const next = await game.execute({
       type: "choose-inducement",
-      playerId: appointed.id,
+      playerId: fixtureValue(appointed).id,
     });
 
-    expect(appointed.teamCaptain).toBe(true);
-    expect(hasSkill(appointed.skills, SkillType.PRO)).toBe(true);
+    expect(fixtureValue(appointed).teamCaptain).toBe(true);
+    expect(hasSkill(fixtureValue(appointed).skills, SkillType.PRO)).toBe(true);
     expect(next.pendingDecision).toMatchObject({
       kind: "team-captain",
       chooserTeamId: "team2",

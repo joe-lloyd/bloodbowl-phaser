@@ -1,16 +1,13 @@
-/**
- * Rule scenarios — General skills (Block, Wrestle, Stand Firm, Tackle).
- * Assertions migrated from skill-block.test.ts / skill-triggers.test.ts.
- */
-
+import { z } from "zod";
+import { fixtureValue } from "../../testing/fixtureValue";
 import { SkillType } from "../../types/Skills";
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { GamePhase, SubPhase } from "../../types/GameState";
-import { PendingDecision } from "../../headless/protocol";
+import { type PendingDecision } from "../../headless/protocol";
 import {
-  RuleScenarioEntry,
-  ScriptResult,
+  type RuleScenarioEntry,
+  type ScriptResult,
   playSetup,
   blockConfig,
   assert,
@@ -26,23 +23,25 @@ import {
   blockDiceCount,
 } from "../../game/rules-lab";
 
-/** A Steady Footing D6 was rolled (i.e. the player was about to fall). */
 const steadyFootingRolled = (r: ScriptResult): boolean =>
   sawEvent(
     r,
     GameEventNames.DiceRoll,
-    (d) => !!(d as { rollType?: string }).rollType?.startsWith("Steady Footing")
+    (d) =>
+      !!z
+        .object({ rollType: z.string().exactOptional() })
+        .parse(d)
+        .rollType?.startsWith("Steady Footing")
   );
 
-/** How many block-dice rolls happened (a Brawler re-roll adds a second). */
 const blockRollCount = (r: ScriptResult): number =>
   r.events.filter(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
-      (e.data as { rollType?: string }).rollType === "Block Roll"
+      z.object({ rollType: z.string().exactOptional() }).parse(e.data)
+        .rollType === "Block Roll"
   ).length;
 
-/** Every `block-dice` pending decision the run raised, in order. */
 const blockDiceDecisions = (
   r: ScriptResult
 ): Extract<PendingDecision, { type: "block-dice" }>[] =>
@@ -51,11 +50,7 @@ const blockDiceDecisions = (
       d.type === "block-dice"
   );
 
-/** Attacker team1:0 at (10,5) faces defender team2:0 at (11,5). */
-const faceOff = (
-  attackerSkills: SkillType[],
-  defenderSkills: SkillType[]
-) =>
+const faceOff = (attackerSkills: SkillType[], defenderSkills: SkillType[]) =>
   playSetup({
     team1Placements: [{ playerIndex: 0, x: 10, y: 5, skills: attackerSkills }],
     team2Placements: [{ playerIndex: 0, x: 11, y: 5, skills: defenderSkills }],
@@ -86,13 +81,13 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "strength-matched",
             name: "Strength matched — a single even die",
             matches: (r) =>
-              skillTriggered(r, SkillType.DAUNTLESS) &&
-              blockDiceCount(r) === 1,
-            verify: (r) =>
+              skillTriggered(r, SkillType.DAUNTLESS) && blockDiceCount(r) === 1,
+            verify: (r) => {
               assert(
                 blockDiceCount(r) === 1,
                 "matching ST 4 makes the ST-3 blocker even (1 die)"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -145,7 +140,7 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
             { playerIndex: 0, x: 10, y: 5, skills: [SkillType.STRIP_BALL] },
           ],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
-          ballPosition: { x: 11, y: 5 }, // the defender is holding it
+          ballPosition: { x: 11, y: 5 },
         }),
         attacker: "team1:0",
         defender: "team2:0",
@@ -181,19 +176,18 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
           "The block popup offers a Brawler button whenever a die reads " +
           "Both Down; clicking it re-rolls that single die once in place " +
           "(no separate yes/no popup — see BlockManager.brawlerRerollBlockDie).",
-        setup: faceOff([SkillType.BRAWLER], []), // ST 3 v 3 → one die
+        setup: faceOff([SkillType.BRAWLER], []),
         attacker: "team1:0",
         defender: "team2:0",
         preferBlockResult: "both-down",
-        // Brawler is no longer an auto-offered reaction: the block-dice
-        // decision itself carries `brawlerAvailable`, and the coach spends it
-        // with an explicit "brawler-reroll-block" command (the popup button
-        // in the browser). Answer that first; the default handler then picks
-        // the (possibly re-rolled) result via preferBlockResult as usual.
+
         decisionPolicy: {
           custom: (pending) => {
             if (pending.type === "block-dice" && pending.brawlerAvailable) {
-              return { type: "brawler-reroll-block", attackerId: pending.attackerId };
+              return {
+                type: "brawler-reroll-block",
+                attackerId: pending.attackerId,
+              };
             }
             return undefined;
           },
@@ -203,11 +197,12 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "both-down-rerolled",
             name: "The Both Down die is re-rolled",
             matches: (r) => skillTriggered(r, SkillType.BRAWLER),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 blockRollCount(r) === 2,
                 "Brawler must roll a second block die"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -232,14 +227,17 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
           ],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { ST: 2 } }],
           ballPosition: { x: 1, y: 1 },
-        }), // ST 4 v 2 → two dice, attacker chooses
+        }),
         attacker: "team1:0",
         defender: "team2:0",
         preferBlockResult: "both-down",
         decisionPolicy: {
           custom: (pending) => {
             if (pending.type === "block-dice" && pending.brawlerAvailable) {
-              return { type: "brawler-reroll-block", attackerId: pending.attackerId };
+              return {
+                type: "brawler-reroll-block",
+                attackerId: pending.attackerId,
+              };
             }
             return undefined;
           },
@@ -248,8 +246,7 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "only-first-both-down-rerolled",
             name: "Both dice start Both Down; only the first is re-rolled",
-            // The seed search needs BOTH initial dice to read Both Down —
-            // narrow to that exact shape so the outcome is unambiguous.
+
             matches: (r) => {
               const decisions = blockDiceDecisions(r);
               const first = decisions[0];
@@ -268,30 +265,28 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
               );
               const [before, after] = decisions;
               assert(
-                before.options[0].type === "both-down" &&
-                  before.options[1].type === "both-down",
+                fixtureValue(fixtureValue(before).options[0]).type ===
+                  "both-down" &&
+                  fixtureValue(fixtureValue(before).options[1]).type ===
+                    "both-down",
                 "both dice must start Both Down for this outcome"
               );
-              // The SECOND die is untouched by BlockManager.brawlerRerollBlockDie
-              // (it re-rolls only the first index findIndex finds) — still
-              // exactly the same result it started as.
+
               assert(
-                after.options[1].type === "both-down" &&
-                  after.options[1].icon === before.options[1].icon,
+                fixtureValue(fixtureValue(after).options[1]).type ===
+                  "both-down" &&
+                  fixtureValue(fixtureValue(after).options[1]).icon ===
+                    fixtureValue(fixtureValue(before).options[1]).icon,
                 "the second Both Down die must be left exactly as rolled"
               );
-              // rollBlockDice() emits exactly one "Block Roll" event per
-              // call regardless of numDice, so blockRollCount counts
-              // roll-calls, not individual dice: 1 for the initial 2-dice
-              // roll + 1 for the single-die Brawler re-roll = 2.
+
               assert(
                 blockRollCount(r) === 2,
                 "Brawler must make exactly one extra block-dice roll call, not two"
               );
-              // Spent — no longer offered even though the untouched second
-              // die still legitimately reads Both Down.
+
               assert(
-                after.brawlerAvailable === false,
+                fixtureValue(after).brawlerAvailable === false,
                 "Brawler must not be offered again after its one use per block"
               );
             },
@@ -344,8 +339,9 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
               skillTriggered(r, SkillType.BLOCK) &&
               playerStanding(r, "team1:0") &&
               playerStanding(r, "team2:0"),
-            verify: (r) =>
-              assert(!turnoverHappened(r), "no turnover when nobody falls"),
+            verify: (r) => {
+              assert(!turnoverHappened(r), "no turnover when nobody falls");
+            },
           },
         ],
       }),
@@ -459,11 +455,12 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               reactionOffered(r, { skill: SkillType.STAND_FIRM }) &&
               !skillTriggered(r, SkillType.STAND_FIRM),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !playerAt(r, "team2:0", { x: 11, y: 5 }),
                 "defender must have left the square"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -496,11 +493,12 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "Failed dodge gets no re-roll offer",
             matches: (r) =>
               skillTriggered(r, SkillType.TACKLE) && playerDown(r, "team1:0"),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 r.decisions.length === 0,
                 "no reroll decision may be offered"
-              ),
+              );
+            },
           },
         ],
       },
@@ -521,11 +519,12 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 (d) =>
                   d.type === "push-direction" && d.resultType === "pow-dodge"
               ) && !skillTriggered(r, SkillType.DODGE),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 playerDown(r, "team2:0"),
                 "Tackle cancels the Dodge conversion"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -576,9 +575,6 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "A nominated kicker with Kick deviates the ball only D3 squares instead of the lower of 2D6",
         setup: {
-          // Team 1's line of scrimmage is x=6; the kicker must stand at
-          // least one square back from it (here x=4), with team-mates on
-          // the line, or the kick is illegal.
           team1Placements: [
             { playerIndex: 0, x: 4, y: 5, skills: [SkillType.KICK] },
             { playerIndex: 1, x: 6, y: 4 },
@@ -606,12 +602,14 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
               const roll = r.events.find(
                 (e) =>
                   e.name === GameEventNames.DiceRoll &&
-                  (e.data as { rollType?: string }).rollType ===
+                  z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(e.data).rollType ===
                     "Kickoff Deviate Distance (Kick)"
               );
               assert(!!roll, "the deviation distance is rolled as a Kick D3");
               assert(
-                (roll!.data as { value: number }).value <= 3,
+                z.object({ value: z.number() }).parse(roll.data).value <= 3,
                 "a D3 deviation never exceeds 3 squares"
               );
             },
@@ -630,8 +628,7 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
           "A Bretonnian Grail Knight (Steady Footing) who fails a Dodge rolls a D6: on a 6 they keep their feet and move on with no Turnover; on 1-5 they Fall Over as usual",
         setup: playSetup({
           team1Roster: RosterName.BRETONIAN,
-          // Grail Knight (index 0) has Steady Footing natively; an opponent
-          // marks it so leaving the square needs a Dodge.
+
           team1Placements: [{ playerIndex: 0, x: 16, y: 4 }],
           team2Placements: [{ playerIndex: 0, x: 16, y: 5 }],
           ballPosition: { x: 1, y: 1 },

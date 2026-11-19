@@ -1,7 +1,3 @@
-/**
- * Gallery variants for the player card, the action menu and the action
- * sequence.
- */
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { PlayerCondition, PlayerStatus, InjuryType } from "../types/Player";
@@ -15,7 +11,6 @@ import { later } from "./variantHelpers";
 import type { Variant } from "./variants";
 
 export const PLAYER_VARIANTS: Variant[] = [
-  // ---- Player card
   {
     id: "card-selected",
     section: "Player card",
@@ -71,15 +66,14 @@ export const PLAYER_VARIANTS: Variant[] = [
       <HUDLayout bottomLeft={<PlayerInfoPanel eventBus={fx.bus} />} />
     ),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.UI_ShowInfo, {
           kind: "sidelineCrew",
           crew: getSidelineCrewInfo("coach", fx.team1),
-        })
-      ),
+        });
+      }),
   },
 
-  // ---- Action menu
   {
     id: "menu-block",
     section: "Action menu and sequence",
@@ -103,11 +97,11 @@ export const PLAYER_VARIANTS: Variant[] = [
       />
     ),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.PlayerSelected, {
           player: fx.services.gameService.getPlayerById(fx.player(2, 0).id)!,
-        })
-      ),
+        });
+      }),
   },
   {
     id: "other-coach-prompt",
@@ -124,12 +118,12 @@ export const PLAYER_VARIANTS: Variant[] = [
       />
     ),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.RemotePromptChanged, {
           playerId: fx.player(2, 0).id,
           rolls: [{ type: "rush", target: 2 }],
-        })
-      ),
+        });
+      }),
   },
   {
     id: "menu-special",
@@ -147,11 +141,11 @@ export const PLAYER_VARIANTS: Variant[] = [
       />
     ),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.PlayerSelected, {
           player: fx.services.gameService.getPlayerById(fx.player(1, 4).id)!,
-        })
-      ),
+        });
+      }),
   },
   {
     id: "menu-sequence",
@@ -211,8 +205,8 @@ export const PLAYER_VARIANTS: Variant[] = [
           steps: [{ id: "move", label: "Move" }],
         });
       });
-      // The summary mounts with the action sequence, a render later
-      const route = later(90, () =>
+
+      const route = later(90, () => {
         fx.bus.emit(GameEventNames.UI_RoutePreview, {
           movementLeft: 0,
           riskySteps: 3,
@@ -222,8 +216,8 @@ export const PLAYER_VARIANTS: Variant[] = [
             { type: "rush", target: 2, square: { x: 10, y: 3 } },
           ],
           rerolls: ["Dodge", "team 2 left"],
-        })
-      );
+        });
+      });
       return () => {
         select();
         route();

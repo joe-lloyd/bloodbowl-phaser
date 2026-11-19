@@ -1,23 +1,18 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TeamBuilder } from "../../../src/ui/components/pages/TeamBuilder";
 import {
-  TeamRepository,
+  type TeamRepository,
   saveTeams,
   setTeamLibraryStatus,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
-import { Team } from "../../../src/types/Team";
+import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
-/**
- * Edit Team after a refresh: a signed-in coach's cloud library arrives a
- * moment after the page mounts. The page used to read the library once,
- * miss the team, and start a brand-new (Amazon, later roster-picker) team
- * in its place, with a fresh ID.
- */
 describe("TeamBuilder loading a team from its route", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -31,7 +26,9 @@ describe("TeamBuilder loading a team from its route", () => {
 
   afterEach(async () => {
     setTeamRepository(null);
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.restoreAllMocks();
     localStorage.clear();
@@ -45,9 +42,8 @@ describe("TeamBuilder loading a team from its route", () => {
       .build();
   }
 
-  /** A cloud library: a cache that answers synchronously once primed. */
   function cloudLibrary(teams: Team[]) {
-    const library = { teams, saves: [] as Team[][] };
+    const library = { teams, saves: new Array<Team[]>() };
     const repository: TeamRepository = {
       loadTeams: () => library.teams,
       saveTeams: (next) => {
@@ -83,15 +79,17 @@ describe("TeamBuilder loading a team from its route", () => {
     const match = [...container.querySelectorAll("button")].find((b) =>
       label.test(b.textContent ?? "")
     );
-    expect(match, `Missing button ${label}`).toBeDefined();
-    return match!;
+    expect(match, `Missing button ${String(label)}`).toBeDefined();
+    return fixtureValue(match);
   }
 
   it("shows the requested team when the cloud library arrives after the page mounted", async () => {
     await renderRoute("/build-team/cloud-humans");
 
     const { repository } = cloudLibrary([savedHumans()]);
-    await act(async () => setTeamRepository(repository));
+    await act(async () => {
+      setTeamRepository(repository);
+    });
 
     expect(container.textContent).not.toContain("CHOOSE YOUR TEAM");
     expect(container.textContent).toContain("Draft team · Human");
@@ -117,7 +115,9 @@ describe("TeamBuilder loading a team from its route", () => {
     expect(container.textContent).not.toContain("Amazon");
     expect(localStorage.getItem("bloodbowl_teams")).toBeNull();
 
-    await act(async () => button(/Back to Teams/).click());
+    await act(async () => {
+      button(/Back to Teams/).click();
+    });
     expect(container.textContent).toContain("Team management");
   });
 
@@ -125,13 +125,17 @@ describe("TeamBuilder loading a team from its route", () => {
     setTeamLibraryStatus("loading");
     await renderRoute("/build-team/cloud-humans");
     const { library, repository } = cloudLibrary([savedHumans()]);
-    await act(async () => setTeamRepository(repository));
+    await act(async () => {
+      setTeamRepository(repository);
+    });
 
-    await act(async () => button(/Save Team/).click());
+    await act(async () => {
+      button(/Save Team/).click();
+    });
 
     expect(library.saves).toHaveLength(1);
-    expect(library.saves[0].map((team) => team.id)).toEqual(["cloud-humans"]);
-    expect(library.saves[0][0].name).toBe("Cloud Humans");
+    expect(fixtureValue(library.saves[0]).map((team) => team.id)).toEqual(["cloud-humans"]);
+    expect(fixtureValue(fixtureValue(library.saves[0])[0]).name).toBe("Cloud Humans");
     expect(container.textContent).toContain("Team management");
   });
 
@@ -154,14 +158,18 @@ describe("TeamBuilder loading a team from its route", () => {
     expect(container.textContent).not.toContain("Save Team");
 
     const { library, repository } = cloudLibrary([savedHumans()]);
-    await act(async () => setTeamRepository(repository));
+    await act(async () => {
+      setTeamRepository(repository);
+    });
     expect(teamNameField()).toBeDefined();
     expect(container.textContent).toContain("4/11");
 
-    await act(async () => button(/Save Team/).click());
+    await act(async () => {
+      button(/Save Team/).click();
+    });
     expect(library.saves).toHaveLength(1);
     expect(
-      library.saves[0].map((team) => [team.id, team.name, team.players.length])
+      fixtureValue(library.saves[0]).map((team) => [team.id, team.name, team.players.length])
     ).toEqual([["cloud-humans", "Cloud Humans", 4]]);
   });
 

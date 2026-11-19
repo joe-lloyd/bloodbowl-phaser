@@ -1,12 +1,7 @@
 import { GameConfig } from "../../../config/GameConfig";
 import { SkillType, hasSkill } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
-/**
- * Lethal Flight applies only when a Right Stuff player crashes into and
- * knocks down an opponent. Like Mighty Blow, the post-roll +1 is optimized:
- * use it on Armour when it creates a break, otherwise carry it to Injury.
- */
 export const LethalFlightRule: SkillRule = {
   onArmourBreak(ctx, self) {
     if (
@@ -52,7 +47,7 @@ export const LethalFlightRule: SkillRule = {
     ctx.triggers.push({
       playerId: self.id,
       skill: SkillType.LETHAL_FLIGHT,
-      effect: `Lethal Flight: credited with the crash Casualty (+${GameConfig.SPP_CASUALTY} SPP)`,
+      effect: `Lethal Flight: credited with the crash Casualty (+${String(GameConfig.SPP_CASUALTY)} SPP)`,
     });
   },
 };

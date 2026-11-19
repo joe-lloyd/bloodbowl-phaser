@@ -126,11 +126,7 @@ describe("March 2026 High Elf recruits", () => {
       stored.characteristicAdvances = { AV: 1 };
       const warnings: string[] = [];
       const player = hydratePlayer(
-        stored,
-        "test-team",
-        RosterName.HIGH_ELF,
-        warnings
-      );
+        { stored,teamId: "test-team",rosterName: RosterName.HIGH_ELF,warnings }      );
       const fresh = recruit(RosterName.HIGH_ELF, newName);
       expect(player.positionName).toBe(newName);
       expect(player.stats).toEqual({
@@ -159,7 +155,7 @@ describe("saved High Elf roster limits", () => {
       );
       stored.number = number;
       stored.positionName = "High Elf Catcher";
-      return hydratePlayer(stored, team.id, team.rosterName, []);
+      return hydratePlayer({ stored,teamId: team.id,rosterName: team.rosterName,warnings: [] });
     });
     const violations = validateRosterLegality(
       team,

@@ -1,5 +1,5 @@
 import React, { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   setTeamLibraryStatus,
@@ -9,14 +9,9 @@ import {
   useTeamLibrary,
   useTeamLibraryStatus,
 } from "../../src/ui/hooks/useTeamLibrary";
-import { Team } from "../../src/types/Team";
+import { type Team } from "../../src/types/Team";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 
-/**
- * A signed-in coach's teams arrive from the cloud a moment after the app
- * loads. A page that read the library before then, the online lobby for
- * one, showed "No saved teams" for as long as it stayed open.
- */
 function Names() {
   const [teams] = useTeamLibrary();
   return <p>{teams.map((team) => team.name).join(",")}</p>;
@@ -26,10 +21,6 @@ function Status() {
   return <p data-testid="status">{useTeamLibraryStatus()}</p>;
 }
 
-/**
- * Changes the library while React renders the tree, after the hooks above
- * it have read their first value but before their effects subscribe.
- */
 function ChangeWhileRendering({ change }: { change: () => void }) {
   const done = React.useRef(false);
   if (!done.current) {
@@ -55,61 +46,69 @@ describe("useTeamLibrary", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     setTeamRepository(null);
   });
 
   it("shows the cloud library when it arrives after the page mounted", async () => {
-    await act(async () => root.render(<Names />));
+    await act(async () => {
+      root.render(<Names />);
+    });
     expect(container.textContent).toBe("");
 
     const team: Team = {
       ...new HeadlessGame({ seed: 1 }).ctx.team1,
       name: "Cloud Team",
     };
-    await act(async () =>
+    await act(async () => {
       setTeamRepository({
         loadTeams: () => [team],
         saveTeams: () => {},
         deleteTeam: () => {},
-      })
-    );
+      });
+    });
 
     expect(container.textContent).toBe("Cloud Team");
   });
 
   it("does not miss a library that arrives between render and subscribing", async () => {
     const team = cloudTeam();
-    await act(async () =>
+    await act(async () => {
       root.render(
         <>
           <Names />
           <ChangeWhileRendering
-            change={() =>
+            change={() => {
               setTeamRepository({
                 loadTeams: () => [team],
                 saveTeams: () => {},
                 deleteTeam: () => {},
-              })
-            }
+              });
+            }}
           />
         </>
-      )
-    );
+      );
+    });
 
     expect(container.textContent).toBe("Cloud Team");
   });
 
   it("does not miss a status change between render and subscribing", async () => {
-    await act(async () =>
+    await act(async () => {
       root.render(
         <>
           <Status />
-          <ChangeWhileRendering change={() => setTeamLibraryStatus("failed")} />
+          <ChangeWhileRendering
+            change={() => {
+              setTeamLibraryStatus("failed");
+            }}
+          />
         </>
-      )
-    );
+      );
+    });
 
     expect(container.textContent).toBe("failed");
   });

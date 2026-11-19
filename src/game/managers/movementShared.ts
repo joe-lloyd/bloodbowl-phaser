@@ -1,9 +1,9 @@
-import { IEventBus } from "../../services/EventBus";
-import { GameState } from "@/types/GameState";
+import { type IEventBus } from "../../services/EventBus";
+import { type GameState } from "@/types/GameState";
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
-import { Team } from "@/types/Team";
+import { type Team } from "@/types/Team";
 import {
-  Player,
+  type Player,
   PlayerStatus,
   PlayerCondition,
   hasCondition,
@@ -15,15 +15,20 @@ import { MovementValidator } from "../validators/MovementValidator";
 import { BounceOperation } from "../operations/BounceOperation";
 import { ArmourOperation } from "../operations/ArmourOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
-import { IGameService } from "@/services/interfaces/IGameService";
-import { FlowContext, GameFlowManager } from "../core/GameFlowManager";
+import { type IGameService } from "@/services/interfaces/IGameService";
+import { type FlowContext, GameFlowManager } from "../core/GameFlowManager";
 import { withRerollOffer, foldTrigger } from "../skills";
-import { RushDeclaredContext, StandUpRollContext } from "../skills/SkillRule";
+import {
+  type RushDeclaredContext,
+  type StandUpRollContext,
+} from "../skills/SkillRule";
 import { rushModifier } from "../inducements/matchInducements";
 
-export type Square = { x: number; y: number };
+export interface Square {
+  x: number;
+  y: number;
+}
 
-/** What the Move and Jump actions share with MovementManager. */
 export interface MovementDeps {
   eventBus: IEventBus;
   state: GameState;
@@ -53,7 +58,6 @@ export function findPlayer(
   );
 }
 
-/** The player's own team and the one they play against. */
 export function teamsOf(
   { team1, team2 }: MovementDeps,
   player: Player
@@ -63,10 +67,6 @@ export function teamsOf(
     : { own: team2, opp: team1 };
 }
 
-/**
- * Rooted and Chomped players may not leave their square (2025 conditions).
- * Tells the coach so and returns true when the player is held.
- */
 export function heldInSquare(eventBus: IEventBus, player: Player): boolean {
   if (
     !hasCondition(player, PlayerCondition.ROOTED) &&
@@ -81,21 +81,10 @@ export function heldInSquare(eventBus: IEventBus, player: Player): boolean {
   return true;
 }
 
-/**
- * The ball is on this square: loose or held. A player who falls onto the
- * loose ball's square knocks it loose too. A kick still in the air is on
- * no square until it lands, so entering or falling under it does nothing.
- */
 export function isBallAt(state: GameState, square: Square): boolean {
   return ballOnSquare(state, square);
 }
 
-/**
- * 2025: a player with MA less than 3 must roll to stand up (4+, natural
- * 1 fails; Timmm-ber! adds +1 per Open Standing adjacent team-mate). A
- * failed attempt keeps them Prone, spends the movement, and ends the
- * activation. Returns true when the player may stand.
- */
 export async function rollToStand(
   deps: MovementDeps,
   player: Player
@@ -114,18 +103,10 @@ export async function rollToStand(
     deps.eventBus.emit(GameEventNames.SkillTriggered, t);
   }
   const check = deps.diceController.rollSkillCheck(
-    "Stand Up",
-    4,
-    ctx.modifiers,
-    player.playerName
-  );
+    { reason: "Stand Up",target: 4,modifier: ctx.modifiers,playerName: player.playerName }  );
   return check.success;
 }
 
-/**
- * Declares a Rush, lets rules modify it (Drunkard), and rolls it. A failed
- * Rush may be rerolled (Sure Feet, team reroll).
- */
 export async function rollRush(
   { state, eventBus, diceController }: MovementDeps,
   player: Player,
@@ -142,20 +123,12 @@ export async function rollRush(
   }
   const roll = () =>
     diceController.rollSkillCheck(
-      "Rush",
-      2,
-      rushCtx.modifiers,
-      player.playerName
-    );
+      { reason: "Rush",target: 2,modifier: rushCtx.modifiers,playerName: player.playerName }    );
   return gameService
     ? withRerollOffer({ gameService, eventBus }, player, "rush", roll)
     : roll();
 }
 
-/**
- * The mover, already Prone, has Fallen Over: a ball on their square
- * Bounces, they roll Armour, and it is a Turnover.
- */
 export function fallOver(
   { eventBus, callbacks }: MovementDeps,
   fall: {
@@ -163,7 +136,7 @@ export function fallOver(
     square: Square;
     ballBounces: boolean;
     context: FlowContext | undefined;
-    /** For a failed Dodge, the square left, so Arm Bar markers react. */
+
     vacatedSquare?: Square;
     reason: string;
   }
@@ -189,11 +162,6 @@ export function fallOver(
   callbacks.onTurnover(fall.reason);
 }
 
-/**
- * Diving Tackle: the diver is placed Prone in the square the mover left
- * (no Armour Roll, placed rather than Knocked Down). The mover must be in
- * `landing` before the diver takes `vacated`, so the two never share it.
- */
 export function diveIntoVacated(
   eventBus: IEventBus,
   dive: {
@@ -221,11 +189,6 @@ export function diveIntoVacated(
   eventBus.emit(GameEventNames.PlayerStatusChanged, diver);
 }
 
-/**
- * Treacherous Trapdoor (L12): the player falls through and is injured
- * exactly as if Pushed into the Crowd; a ball they carried Bounces from
- * the Trapdoor. As with a crowd push, it is a Turnover.
- */
 export function dropThroughTrapdoor(
   { state, eventBus, callbacks }: MovementDeps,
   player: Player,
@@ -237,7 +200,7 @@ export function dropThroughTrapdoor(
     state.ballPosition = { ...square };
     eventBus.emit(GameEventNames.BallPlaced, { ...square });
   }
-  player.gridPosition = undefined;
+  delete player.gridPosition;
   flowManager?.add(
     new CrowdInjuryOperation(player.id, { ...square }, false, {
       carriedBall: holdingBall,

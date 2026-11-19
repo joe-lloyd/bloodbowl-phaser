@@ -1,4 +1,4 @@
-import { combine, noiseBurst, noiseSweep, tone, PlaybackUnit } from "./synth";
+import { combine, noiseBurst, noiseSweep, tone, type PlaybackUnit } from "./synth";
 
 export type SoundName =
   | "diceRoll"
@@ -19,22 +19,21 @@ export type SoundName =
 
 export interface SoundCatalogEntry {
   name: SoundName;
-  /** Human label for the audition board. */
+
   label: string;
-  /** Recorded variants in public/assets/sounds/; each trigger plays one at random. See CREDITS.md there. */
+
   samples: SampleUrls;
-  /** Synthesized stand-in, played only when the chosen sample failed to load or decode. Every call allocates its own node graph, see synth.ts. */
+
   build: (ctx: AudioContext, dest: AudioNode) => PlaybackUnit;
-  /** How long the synthesized fallback takes to fully decay, used only for bookkeeping cleanup, never to force-stop playback (each unit stops itself on the AudioContext's own clock). */
+
   durationMs: number;
-  /** Higher priority sounds interrupt/suppress lower-priority ones that land in the same instant. */
+
   priority: number;
-  /** Minimum time between two triggers of this same sound. */
+
   minRetriggerMs: number;
 }
 
-/** At least one sample URL. */
-export type SampleUrls = readonly [string, ...string[]];
+type SampleUrls = readonly [string, ...string[]];
 
 const sounds = (name: string, ...more: string[]): SampleUrls => [
   `/assets/sounds/${name}.mp3`,
@@ -49,7 +48,6 @@ const entry = (
   ...partial,
 });
 
-/** Randomized 3-5 rattling taps so consecutive dice rolls never sound identical. Exported for tests. */
 export const pickDiceRollTapCount = (): number =>
   3 + Math.floor(Math.random() * 3);
 
@@ -288,8 +286,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
     priority: 80,
     minRetriggerMs: 800,
     durationMs: 550,
-    // Not actually a whistle — a sustained dissonant detuned pair (a "bad
-    // note") signaling something went wrong, per the user's explicit ask.
+
     build: (ctx, dest) =>
       combine([
         tone(ctx, dest, {
@@ -402,8 +399,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
     priority: 90,
     minRetriggerMs: 800,
     durationMs: 950,
-    // A longer, louder single whistle blast than endOfHalf — "the ref blew
-    // the whistle" hard, per the user's ask.
+
     build: (ctx, dest) =>
       tone(ctx, dest, {
         type: "triangle",
@@ -437,7 +433,6 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
 
 export const CATALOG_ENTRIES: SoundCatalogEntry[] = Object.values(CATALOG);
 
-/** Every recorded sample the catalog can play, for preloading. */
 export const SAMPLE_URLS: readonly string[] = CATALOG_ENTRIES.flatMap(
   (entry) => entry.samples
 );

@@ -1,7 +1,3 @@
-/**
- * Shared types for setup controllers
- */
-
 export interface FormationPosition {
   playerId: string;
   x: number;
@@ -26,7 +22,7 @@ export interface ValidationResult {
   restrictions: SetupRestriction[];
 }
 
-export type SetupPhase = "coinflip" | "kicking" | "receiving" | "complete";
+type SetupPhase = "coinflip" | "kicking" | "receiving" | "complete";
 
 export type SetupRestrictionId =
   | "setup-area"
@@ -44,11 +40,11 @@ export interface SetupRestriction {
   id: SetupRestrictionId;
   satisfied: boolean;
   message: string;
-  /** Compact live count for setup feedback. */
+
   summary?: string;
-  /** Players in each wide zone; set on the wide-zone-limit rule. */
+
   wideZones?: { top: number; bottom: number };
-  /** False means the team lacks enough available players to meet this rule. */
+
   satisfiable: boolean;
 }
 
@@ -66,7 +62,7 @@ export interface SetupTeamStatus {
   restrictions: SetupRestriction[];
   canConfirm: boolean;
   concessionDecision: SetupConcessionDecision;
-  /** Optional extra Linemen after both normal formations are confirmed. */
+
   swarming?: {
     roll: number;
     maximumAdditionalPlayers: number;
@@ -80,7 +76,7 @@ export interface SetupState {
   currentTeamId: string | null;
   confirmedTeamIds: string[];
   teams: Record<string, SetupTeamStatus>;
-  /** Rolled once per drive, persisted for save/resume and lockstep replay. */
+
   swarming?: {
     pendingTeamIds: string[];
     teams: Record<string, { roll: number; basePlayerIds: string[] }>;
@@ -99,8 +95,8 @@ export interface SetupFormationResult {
 }
 
 export interface SetupConfig {
-  minPlayers: number; // Players used when the team can field a full setup
-  maxPlayers?: number; // Sevens cap (defaults to minPlayers)
-  pitchWidth: number; // Grid width (20)
-  pitchHeight: number; // Grid height (11)
+  minPlayers: number;
+  maxPlayers?: number;
+  pitchWidth: number;
+  pitchHeight: number;
 }

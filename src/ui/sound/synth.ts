@@ -1,68 +1,47 @@
-/**
- * Native Web Audio synthesis primitives — replaces the old `@strudel/web`
- * pattern-based one-shot playback. Every call here allocates its own
- * independent node graph and schedules its own `stop()` time on the
- * `AudioContext`'s sample-accurate clock; nothing shares a single "current
- * pattern" slot, so concurrent/rapid triggers can never race or strand each
- * other (see design.md for the bug this replaces).
- *
- * Every primitive returns a `PlaybackUnit`: an idempotent `stop()` that can
- * be called early (e.g. on scene teardown) or after natural completion
- * (harmless no-op, guarded by an internal flag) plus an `onEnded` hook fired
- * once the node has actually finished, used by `SoundManager` purely for
- * bookkeeping (never for correctness — the node's own scheduled stop time
- * is what actually silences it).
- */
-
 export interface PlaybackUnit {
   stop(): void;
 }
 
-/** Oscillator waveform shapes available to every primitive below. */
-export type OscType = OscillatorType; // "sine" | "square" | "sawtooth" | "triangle"
-
 interface EnvelopeOpts {
-  /** Seconds from "now" before this unit starts (for staggering layered taps). */
   delay?: number;
-  /** Seconds to ramp up from silence to peak gain. */
+
   attack?: number;
-  /** Seconds to decay from peak back to silence after the attack. */
+
   decay?: number;
-  /** Peak linear gain (pre master-volume). */
+
   gain?: number;
   onEnded?: () => void;
 }
 
-export interface ToneOpts extends EnvelopeOpts {
-  type?: OscType;
-  /** Starting frequency (Hz). */
+interface ToneOpts extends EnvelopeOpts {
+  type?: OscillatorType;
+
   freq: number;
-  /** If set, frequency glides from `freq` to `endFreq` over `decay` seconds — used for pitch-bends (fumble "boing", KO thump). */
+
   endFreq?: number;
-  /** Optional vibrato: a second oscillator modulating frequency — used for whistles. */
+
   vibratoRate?: number;
   vibratoDepth?: number;
 }
 
-export interface NoiseBurstOpts extends EnvelopeOpts {
+interface NoiseBurstOpts extends EnvelopeOpts {
   filterType?: BiquadFilterType;
-  /** Filter center/cutoff frequency (Hz). */
+
   freq?: number;
   Q?: number;
 }
 
-export interface NoiseSweepOpts extends EnvelopeOpts {
+interface NoiseSweepOpts extends EnvelopeOpts {
   filterType?: BiquadFilterType;
   fromFreq: number;
   toFreq: number;
-  /** Total sweep duration in seconds (overrides decay as the sweep length). */
+
   duration: number;
   Q?: number;
 }
 
 const noiseBufferCache = new WeakMap<AudioContext, AudioBuffer>();
 
-/** A shared 1-second white-noise buffer per AudioContext — cheap to reuse across every noise-based effect. */
 function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
   const cached = noiseBufferCache.get(ctx);
   if (cached) return cached;
@@ -75,110 +54,154 @@ function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
   return buffer;
 }
 
-/** Combine several independently-scheduled units into one trackable handle. */
 export function combine(units: PlaybackUnit[]): PlaybackUnit {
   return {
-    stop: () => units.forEach((unit) => unit.stop()),
+    stop: () => {
+      units.forEach((unit) => {
+        unit.stop();
+      });
+    },
   };
 }
 
-/**
- * A single oscillator voice with an attack/decay gain envelope. Supports an
- * optional frequency glide (`endFreq`) for pitch-bend effects and an
- * optional vibrato LFO for whistle-style sustained tones.
- */
-export function tone(
+function toneOscillator(
   ctx: AudioContext,
-  dest: AudioNode,
-  opts: ToneOpts
-): PlaybackUnit {
-  const {
-    type = "sine",
-    freq,
-    endFreq,
-    attack = 0.005,
-    decay = 0.2,
-    gain = 1,
-    delay = 0,
-    vibratoRate,
-    vibratoDepth,
-    onEnded,
-  } = opts;
-
-  const start = ctx.currentTime + Math.max(0, delay);
+  opts: ToneOpts,
+  start: number
+): OscillatorNode {
   const osc = ctx.createOscillator();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, start);
-  if (endFreq !== undefined && endFreq !== freq) {
-    osc.frequency.setValueAtTime(freq, start);
+  osc.type = opts.type ?? "sine";
+  osc.frequency.setValueAtTime(opts.freq, start);
+  if (opts.endFreq !== undefined && opts.endFreq !== opts.freq) {
+    osc.frequency.setValueAtTime(opts.freq, start);
     osc.frequency.exponentialRampToValueAtTime(
-      Math.max(endFreq, 1),
-      start + Math.max(decay, 0.01)
+      Math.max(opts.endFreq, 1),
+      start + Math.max(opts.decay ?? 0.2, 0.01)
     );
   }
+  return osc;
+}
 
+function decayingGain(
+  ctx: AudioContext,
+  opts: { start: number; attack: number; decay: number; gain: number }
+): GainNode {
   const gainNode = ctx.createGain();
-  gainNode.gain.setValueAtTime(0, start);
-  gainNode.gain.linearRampToValueAtTime(gain, start + attack);
+  gainNode.gain.setValueAtTime(0, opts.start);
+  gainNode.gain.linearRampToValueAtTime(opts.gain, opts.start + opts.attack);
   gainNode.gain.exponentialRampToValueAtTime(
     0.0001,
-    start + attack + Math.max(decay, 0.01)
+    opts.start + opts.attack + Math.max(opts.decay, 0.01)
   );
+  return gainNode;
+}
 
-  osc.connect(gainNode);
-  gainNode.connect(dest);
-
-  let lfo: OscillatorNode | null = null;
-  let lfoGain: GainNode | null = null;
-  if (vibratoRate && vibratoDepth) {
-    lfo = ctx.createOscillator();
-    lfo.frequency.setValueAtTime(vibratoRate, start);
-    lfoGain = ctx.createGain();
-    lfoGain.gain.setValueAtTime(vibratoDepth, start);
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc.frequency);
-    lfo.start(start);
+function vibrato(
+  ctx: AudioContext,
+  opts: {
+    osc: OscillatorNode;
+    start: number;
+    rate: number | undefined;
+    depth: number | undefined;
   }
+) {
+  if (!opts.rate || !opts.depth) return null;
+  const osc = ctx.createOscillator();
+  osc.frequency.setValueAtTime(opts.rate, opts.start);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(opts.depth, opts.start);
+  osc.connect(gain);
+  gain.connect(opts.osc.frequency);
+  osc.start(opts.start);
+  return { osc, gain };
+}
 
-  const stopAt = start + attack + Math.max(decay, 0.01) + 0.03;
-  osc.start(start);
-  osc.stop(stopAt);
-  lfo?.stop(stopAt);
-
-  let stopped = false;
-  const cleanup = () => {
-    if (stopped) return;
-    stopped = true;
+function cleanup(
+  nodes: AudioNode[],
+  onEnded: (() => void) | undefined
+): () => void {
+  return () => {
     try {
-      osc.disconnect();
-      gainNode.disconnect();
-      lfo?.disconnect();
-      lfoGain?.disconnect();
+      nodes.forEach((node) => {
+        node.disconnect();
+      });
     } catch {
-      // Already disconnected — harmless.
+      onEnded?.();
+      return;
     }
     onEnded?.();
   };
-  osc.onended = cleanup;
+}
 
+function playback(input: {
+  ctx: AudioContext;
+  source: AudioScheduledSourceNode;
+  secondary: OscillatorNode | null;
+  onEnded: () => void;
+}): PlaybackUnit {
+  let stopped = false;
+  input.source.onended = () => {
+    if (stopped) return;
+    stopped = true;
+    input.onEnded();
+  };
   return {
     stop: () => {
       if (stopped) return;
       try {
-        const now = ctx.currentTime;
-        osc.stop(now);
-        lfo?.stop(now);
+        const now = input.ctx.currentTime;
+        input.source.stop(now);
+        input.secondary?.stop(now);
       } catch {
-        // Already stopped/scheduled — harmless.
+        return;
       }
     },
   };
 }
 
-/**
- * A short burst of filtered white noise with an attack/decay envelope —
- * used for percussive transients (dice taps, crack/snap layers).
- */
+export function tone(
+  ctx: AudioContext,
+  dest: AudioNode,
+  opts: ToneOpts
+): PlaybackUnit {
+  const { attack = 0.005, decay = 0.2, gain = 1, delay = 0, onEnded } = opts;
+  const start = ctx.currentTime + Math.max(0, delay);
+  const osc = toneOscillator(ctx, opts, start);
+  const gainNode = decayingGain(ctx, { start, attack, decay, gain });
+  osc.connect(gainNode);
+  gainNode.connect(dest);
+  const modulation = vibrato(ctx, {
+    osc,
+    start,
+    rate: opts.vibratoRate,
+    depth: opts.vibratoDepth,
+  });
+  const stopAt = start + attack + Math.max(decay, 0.01) + 0.03;
+  osc.start(start);
+  osc.stop(stopAt);
+  modulation?.osc.stop(stopAt);
+  const nodes = [
+    osc,
+    gainNode,
+    ...(modulation ? [modulation.osc, modulation.gain] : []),
+  ];
+  return playback({
+    ctx,
+    source: osc,
+    secondary: modulation?.osc ?? null,
+    onEnded: cleanup(nodes, onEnded),
+  });
+}
+
+function noiseNodes(ctx: AudioContext, filterType: BiquadFilterType) {
+  const source = ctx.createBufferSource();
+  source.buffer = getNoiseBuffer(ctx);
+  source.loop = true;
+  const filter = ctx.createBiquadFilter();
+  filter.type = filterType;
+  return { source, filter };
+}
+
 export function noiseBurst(
   ctx: AudioContext,
   dest: AudioNode,
@@ -196,40 +219,24 @@ export function noiseBurst(
   } = opts;
 
   const start = ctx.currentTime + Math.max(0, delay);
-  const source = ctx.createBufferSource();
-  source.buffer = getNoiseBuffer(ctx);
-  source.loop = true;
-
-  const filter = ctx.createBiquadFilter();
-  filter.type = filterType;
+  const { source, filter } = noiseNodes(ctx, filterType);
   filter.frequency.setValueAtTime(freq, start);
   filter.Q.setValueAtTime(Q, start);
 
-  const gainNode = ctx.createGain();
-  gainNode.gain.setValueAtTime(0, start);
-  gainNode.gain.linearRampToValueAtTime(gain, start + attack);
-  gainNode.gain.exponentialRampToValueAtTime(
-    0.0001,
-    start + attack + Math.max(decay, 0.01)
-  );
+  const gainNode = decayingGain(ctx, { start, attack, decay, gain });
 
   const stopAt = start + attack + Math.max(decay, 0.01) + 0.03;
-  return playFiltered(
-    ctx,
+  return playFiltered(ctx, {
     source,
     filter,
     gainNode,
     dest,
     start,
     stopAt,
-    onEnded
-  );
+    onEnded,
+  });
 }
 
-/**
- * Filtered noise whose bandpass/lowpass center frequency ramps across the
- * effect's duration — a "whoosh" (pass) or a swelling "roar" (touchdown).
- */
 export function noiseSweep(
   ctx: AudioContext,
   dest: AudioNode,
@@ -248,12 +255,7 @@ export function noiseSweep(
   } = opts;
 
   const start = ctx.currentTime + Math.max(0, delay);
-  const source = ctx.createBufferSource();
-  source.buffer = getNoiseBuffer(ctx);
-  source.loop = true;
-
-  const filter = ctx.createBiquadFilter();
-  filter.type = filterType;
+  const { source, filter } = noiseNodes(ctx, filterType);
   filter.Q.setValueAtTime(Q, start);
   filter.frequency.setValueAtTime(fromFreq, start);
   filter.frequency.exponentialRampToValueAtTime(
@@ -271,67 +273,43 @@ export function noiseSweep(
   );
 
   const stopAt = start + Math.max(duration, 0.02) + 0.03;
-  return playFiltered(
-    ctx,
+  return playFiltered(ctx, {
     source,
     filter,
     gainNode,
     dest,
     start,
     stopAt,
-    onEnded
-  );
+    onEnded,
+  });
 }
 
-/**
- * Wires noise through its filter and gain, plays it from `start` to `stopAt`,
- * and disconnects everything once it ends.
- */
 function playFiltered(
   ctx: AudioContext,
-  source: AudioBufferSourceNode,
-  filter: BiquadFilterNode,
-  gainNode: GainNode,
-  dest: AudioNode,
-  start: number,
-  stopAt: number,
-  onEnded: (() => void) | undefined
+  input: {
+    source: AudioBufferSourceNode;
+    filter: BiquadFilterNode;
+    gainNode: GainNode;
+    dest: AudioNode;
+    start: number;
+    stopAt: number;
+    onEnded: (() => void) | undefined;
+  }
 ): PlaybackUnit {
+  const { source, filter, gainNode, dest, start, stopAt, onEnded } = input;
   source.connect(filter);
   filter.connect(gainNode);
   gainNode.connect(dest);
-
   source.start(start);
   source.stop(stopAt);
-
-  let stopped = false;
-  const cleanup = () => {
-    if (stopped) return;
-    stopped = true;
-    try {
-      source.disconnect();
-      filter.disconnect();
-      gainNode.disconnect();
-    } catch {
-      // Already disconnected — harmless.
-    }
-    onEnded?.();
-  };
-  source.onended = cleanup;
-
-  return {
-    stop: () => {
-      if (stopped) return;
-      try {
-        source.stop(ctx.currentTime);
-      } catch {
-        // Already stopped/scheduled — harmless.
-      }
-    },
-  };
+  return playback({
+    ctx,
+    source,
+    secondary: null,
+    onEnded: cleanup([source, filter, gainNode], onEnded),
+  });
 }
 
-/** Plays a decoded recorded sample once, straight into `dest`. */
 export function sample(
   ctx: AudioContext,
   dest: AudioNode,
@@ -341,21 +319,12 @@ export function sample(
   source.buffer = buffer;
   source.connect(dest);
   source.start(ctx.currentTime);
-
-  let stopped = false;
-  source.onended = () => {
-    stopped = true;
-    source.disconnect();
-  };
-
-  return {
-    stop: () => {
-      if (stopped) return;
-      try {
-        source.stop(ctx.currentTime);
-      } catch {
-        // Already stopped — harmless.
-      }
+  return playback({
+    ctx,
+    source,
+    secondary: null,
+    onEnded: () => {
+      source.disconnect();
     },
-  };
+  });
 }

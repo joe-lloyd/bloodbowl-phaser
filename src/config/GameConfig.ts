@@ -1,14 +1,7 @@
-/**
- * Blood Bowl Sevens Game Configuration (2020 Rules)
- * Contains all game constants and rules
- */
+const PITCH_WIDTH = 20;
+const PITCH_HEIGHT = 11;
+const SQUARE_SIZE = 60;
 
-// Pitch dimensions (Sevens rotated: 20 wide × 11 high - HORIZONTAL orientation)
-const PITCH_WIDTH = 20; // 20 columns
-const PITCH_HEIGHT = 11; // 11 rows
-const SQUARE_SIZE = 60; // Grid square size in pixels
-
-/** Shared Sevens pitch geometry (all values are zero-based grid squares). */
 export const SEVENS_GEOMETRY = {
   END_ZONE_X: { team1: 0, team2: PITCH_WIDTH - 1 },
   LINE_OF_SCRIMMAGE_X: { team1: 6, team2: 13 },
@@ -35,11 +28,6 @@ export function getLineOfScrimmageX(isTeam1: boolean): number {
     : SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2;
 }
 
-/**
- * A kick-off that comes down on or behind the kicking team's Line of
- * Scrimmage is in the kicking team's own territory: a Touchback. A kick
- * target must lie beyond it.
- */
 export function isKickingTeamTerritory(
   x: number,
   isTeam1Kicking: boolean
@@ -49,12 +37,6 @@ export function isKickingTeamTerritory(
     : x >= SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2;
 }
 
-/**
- * Trapdoors (P3): one in a Wide Zone of each half, placed from the pitch
- * photo in Spike! Journal 22. Each sits on the inner Wide Zone row: the top
- * Wide Zone of team 1's half and the bottom Wide Zone of team 2's half.
- * They only matter under the Treacherous Trapdoor prayer.
- */
 export const TRAPDOOR_SQUARES: readonly { x: number; y: number }[] = [
   { x: 5, y: 1 },
   { x: 14, y: 9 },
@@ -81,66 +63,50 @@ export function isNeutralZoneX(x: number): boolean {
   return x >= min && x <= max;
 }
 
-const PITCH_PIXEL_WIDTH = PITCH_WIDTH * SQUARE_SIZE; // 1200
-const PITCH_PIXEL_HEIGHT = PITCH_HEIGHT * SQUARE_SIZE; // 660
+const PITCH_PIXEL_WIDTH = PITCH_WIDTH * SQUARE_SIZE;
+const PITCH_PIXEL_HEIGHT = PITCH_HEIGHT * SQUARE_SIZE;
 
-const PADDING_X = 20; // Reduced padding
-const TOP_UI_HEIGHT = 160; // 150px Dugout + 10px Padding
-const BOTTOM_UI_HEIGHT = 160; // 10px Padding + 150px Dugout
+const PADDING_X = 20;
+const TOP_UI_HEIGHT = 160;
+const BOTTOM_UI_HEIGHT = 160;
 
-const CANVAS_WIDTH = PITCH_PIXEL_WIDTH + PADDING_X; // 1300
-const CANVAS_HEIGHT = PITCH_PIXEL_HEIGHT + TOP_UI_HEIGHT + BOTTOM_UI_HEIGHT; // 1000
+const CANVAS_WIDTH = PITCH_PIXEL_WIDTH + PADDING_X;
+const CANVAS_HEIGHT = PITCH_PIXEL_HEIGHT + TOP_UI_HEIGHT + BOTTOM_UI_HEIGHT;
 
 export const GameConfig = {
-  // Grid Dimensions
   PITCH_WIDTH,
   PITCH_HEIGHT,
   SQUARE_SIZE,
 
-  // Sevens pitch geometry
   SEVENS_GEOMETRY,
 
-  // Pixel Dimensions (Derived)
   PITCH_PIXEL_WIDTH,
   PITCH_PIXEL_HEIGHT,
 
-  // Canvas Dimensions (Derived)
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
 
-  // UI Layout Constants
   TOP_UI_HEIGHT,
   BOTTOM_UI_HEIGHT,
 
-  // Game structure
   TURNS_PER_HALF: 6,
   TOTAL_HALVES: 2,
 
-  // Team building
   STARTING_GOLD: 600000,
-  /**
-   * Team-building minimum ONLY: a roster may not be created or saved below
-   * seven players. It is deliberately not consulted when deciding whether a
-   * team can field a drive — that is `min(7, availablePlayers)`, so a squad
-   * depleted by KOs and casualties fields what it has and plays on.
-   */
+
   MIN_PLAYERS: 7,
   MAX_ROSTER_SIZE: 11,
 
-  // SPP (Star Player Points) thresholds
   SPP_THRESHOLDS: [6, 16, 31, 51, 76, 176],
 
-  // SPP awards
   SPP_TOUCHDOWN: 3,
   SPP_CASUALTY: 2,
   SPP_COMPLETION: 1,
   SPP_MVP: 4,
 
-  // Dice
   D6_SIDES: 6,
   BLOCK_DICE_MAX: 3,
 
-  // Colors
   COLORS: {
     PITCH_GREEN: 0x2d5016,
     PITCH_LINE: 0xffffff,
@@ -152,4 +118,4 @@ export const GameConfig = {
   },
 } as const;
 
-export type GameConfigType = typeof GameConfig;
+type GameConfigType = typeof GameConfig;

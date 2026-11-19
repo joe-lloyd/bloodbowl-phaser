@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { IEventBus } from "../../../services/EventBus";
+import { type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -16,24 +16,19 @@ interface TeamRow {
   rerolls: number;
   freeRerolls: number;
   bribes: number;
-  /** Coach controlling this team (online only) */
-  coach?: string;
+
+  coach: string | undefined;
   isMe?: boolean;
 }
 
 const hexColor = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 
-/**
- * Match tracker, as a broadcast score bug at the top centre: score,
- * per-team turn (of 6), half, re-rolls and bribes. The turn tab
- * (TurnIndicator) hangs below it.
- */
 export function ScoreBoard({
   eventBus,
   compact = false,
 }: {
   eventBus: IEventBus;
-  /** One slim strip for a phone: name, re-rolls and score, half between. */
+
   compact?: boolean;
 }) {
   const [rows, setRows] = useState<TeamRow[]>([]);
@@ -80,14 +75,17 @@ export function ScoreBoard({
       GameEventNames.RerollUsed,
       GameEventNames.DriveEffectGranted,
       GameEventNames.DriveEffectExpired,
-      // A Bribe spent on a Sent-off
+
       GameEventNames.RefereeCall,
     ] as const;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    events.forEach((e) => eventBus.on(e as any, refresh));
+
+    events.forEach((e) => {
+      eventBus.on(e, refresh);
+    });
     return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      events.forEach((e) => eventBus.off(e as any, refresh));
+      events.forEach((e) => {
+        eventBus.off(e, refresh);
+      });
     };
   }, [eventBus]);
 
@@ -112,7 +110,7 @@ export function ScoreBoard({
           className="whitespace-nowrap font-hud-display text-hud-sm leading-none text-hud-gold"
         >
           RR {row.rerolls}
-          {row.freeRerolls > 0 ? `+${row.freeRerolls}` : ""}
+          {row.freeRerolls > 0 ? `+${String(row.freeRerolls)}` : ""}
         </span>
         <span className="font-hud-display text-hud-2xl leading-none text-hud-bone">
           {row.score}
@@ -142,7 +140,6 @@ export function ScoreBoard({
     );
   }
 
-  // Broadcast score bug: home team left, away team right, the half between.
   const side = (row: TeamRow, mirrored: boolean) => {
     const active = row.id === activeTeamId;
     return (
@@ -153,7 +150,7 @@ export function ScoreBoard({
         }`}
         style={{
           [mirrored ? "borderRight" : "borderLeft"]: `5px solid ${row.color}`,
-          backgroundImage: `linear-gradient(${mirrored ? 270 : 90}deg, ${row.color}38, transparent 75%)`,
+          backgroundImage: `linear-gradient(${String(mirrored ? 270 : 90)}deg, ${row.color}38, transparent 75%)`,
         }}
       >
         <div className="min-w-0 flex-1">
@@ -177,7 +174,7 @@ export function ScoreBoard({
               {row.isMe && <span className="text-hud-dim"> (you)</span>}
             </span>
           )}
-          {/* Turn track: number + six pips, like the board's track */}
+
           <div
             className={`mt-0.5 flex items-center gap-2 ${
               mirrored ? "flex-row-reverse" : ""
@@ -210,8 +207,8 @@ export function ScoreBoard({
               className="whitespace-nowrap font-hud-display text-hud-lg leading-none text-hud-gold"
             >
               RR {row.rerolls}
-              {row.freeRerolls > 0 ? ` +${row.freeRerolls}` : ""}
-              {row.bribes > 0 ? ` · Bribe ${row.bribes}` : ""}
+              {row.freeRerolls > 0 ? ` +${String(row.freeRerolls)}` : ""}
+              {row.bribes > 0 ? ` · Bribe ${String(row.bribes)}` : ""}
             </span>
           </div>
         </div>

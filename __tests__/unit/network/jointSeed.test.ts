@@ -1,12 +1,8 @@
-/**
- * The seed both coaches make: each publishes a hash of a secret, then the
- * secret. Both derive the same seed, and a secret that does not match its
- * hash is refused.
- */
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { webcrypto } from "node:crypto";
 import {
-  LobbyDoc,
+  type LobbyDoc,
   DEFAULT_SETTINGS,
   seedFor,
   seedReady,
@@ -39,7 +35,7 @@ async function lobbyWith(
       guest: await sha256(guestSecret),
     },
     seedReveals: { host: hostSecret, guest: revealGuest },
-  } as LobbyDoc;
+  } satisfies LobbyDoc;
 }
 
 describe("joint seed", () => {
@@ -50,7 +46,7 @@ describe("joint seed", () => {
     expect(seed).toBe(await seedFor(structuredClone(lobby)));
     expect(Number.isInteger(seed)).toBe(true);
     expect(seed).toBeGreaterThanOrEqual(0);
-    // Either secret changes the seed
+
     expect(await seedFor(await lobbyWith("aaaa", "cccc"))).not.toBe(seed);
   });
 
@@ -61,7 +57,7 @@ describe("joint seed", () => {
 
   it("is not ready until both coaches have revealed", async () => {
     const lobby = await lobbyWith("aaaa", "bbbb");
-    delete lobby.seedReveals!.guest;
+    delete fixtureValue(lobby.seedReveals)["guest"];
     expect(seedReady(lobby)).toBe(false);
   });
 });

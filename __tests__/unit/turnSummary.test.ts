@@ -13,9 +13,9 @@ const player = () =>
 describe("turn summaries", () => {
   it("skips quiet turns and changes to the other team's players", () => {
     const p = player();
-    expect(summarizeTurn([], "home", [p], null)).toBeNull();
+    expect(summarizeTurn({ incidents: [], teamId: "home", players: [p], ball: null })).toBeNull();
     expect(
-      summarizeTurn([{ kind: "player", playerId: p.id }], "away", [p], null)
+      summarizeTurn({ incidents: [{ kind: "player", playerId: p.id }], teamId: "away", players: [p], ball: null })
     ).toBeNull();
   });
 
@@ -28,14 +28,10 @@ describe("turn summaries", () => {
     [PlayerStatus.REMOVED, "Sent off"],
   ])("names a %s player once with their number", (status, label) => {
     const p = { ...player(), status };
-    const summary = summarizeTurn(
-      [
+    const summary = summarizeTurn({ incidents: [
         { kind: "player", playerId: p.id },
         { kind: "player", playerId: p.id },
-      ],
-      "home",
-      [p],
-      null
+      ], teamId: "home", players: [p], ball: null }
     );
     expect(summary?.players).toEqual([`${p.playerName} #4: ${label}`]);
   });
@@ -47,7 +43,7 @@ describe("turn summaries", () => {
       gridPosition: { x: 8, y: 5 },
     };
     expect(
-      summarizeTurn([{ kind: "ball" }], "home", [p], p.gridPosition)?.ball
+      summarizeTurn({ incidents: [{ kind: "ball" }], teamId: "home", players: [p], ball: p.gridPosition })?.ball
     ).toBe("Ball held by Ada #4");
   });
 
@@ -66,7 +62,7 @@ describe("turn summaries", () => {
   it("leaves the ball out when it is not on the pitch", () => {
     const p = { ...player(), status: PlayerStatus.PRONE };
     expect(
-      summarizeTurn([{ kind: "player", playerId: p.id }], "home", [p], null)
+      summarizeTurn({ incidents: [{ kind: "player", playerId: p.id }], teamId: "home", players: [p], ball: null })
     ).toEqual({ players: ["Ada #4: Knocked down"], ball: null });
   });
 
@@ -92,7 +88,7 @@ describe("turn summaries", () => {
 it("does not repeat a jersey number already included in the player name", () => {
   const p = { ...player(), playerName: "Ada #4", status: PlayerStatus.PRONE };
   expect(
-    summarizeTurn([{ kind: "player", playerId: p.id }], "home", [p], null)
+    summarizeTurn({ incidents: [{ kind: "player", playerId: p.id }], teamId: "home", players: [p], ball: null })
       ?.players
   ).toEqual(["Ada #4: Knocked down"]);
 });

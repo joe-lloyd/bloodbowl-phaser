@@ -1,58 +1,48 @@
-import { Team } from "../../../types/Team";
-import { PhaseHandler } from "./PhaseHandler";
-import { GameScene } from "../../../scenes/GameScene";
-import { IGameService } from "../../../services/interfaces/IGameService";
-import { GameEventMap, IEventBus } from "../../../services/EventBus";
+import type { SetupService } from "./servicePorts";
+import type { SetupScene } from "./scenePorts";
+import { showSetupPlacement } from "./setupPlacement";
+import { type Team } from "../../../types/Team";
+import { type PhaseHandler } from "./PhaseHandler";
+import { type GameEventMap, type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { SubPhase } from "../../../types/GameState";
-import { PlayerPlacementController } from "../PlayerPlacementController";
-import { FormationManager } from "@/game/managers/FormationManager";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { CAMERA_INTRO_MS } from "../CameraController";
 
-/** How long an announcement banner is up: the Announcer's enter, hold and exit. */
 const BANNER_MS = 2300;
 
-/**
- * SetupPhaseHandler
- *
- * Handles events for the Setup Phase:
- * - Coin Flip
- * - Player Placement (Delegated to Scene placement controller)
- * - Setup Actions (Confirm, Clear, Load)
- */
 export class SetupPhaseHandler implements PhaseHandler {
   private unsubscribes: (() => void)[] = [];
   private isIntroSequence = false;
 
+  private scene: SetupScene;
+  private gameService: SetupService;
+  private eventBus: IEventBus;
   constructor(
-    private scene: GameScene,
-    private gameService: IGameService,
-    private eventBus: IEventBus
-  ) {}
+    scene: SetupScene,
+    gameService: SetupService,
+    eventBus: IEventBus
+  ) {
+    this.scene = scene;
+    this.gameService = gameService;
+    this.eventBus = eventBus;
+  }
 
   enter(): void {
     console.log("[SetupPhaseHandler] Entering Setup Phase");
     this.setupListeners();
 
-    // Check SubPhase to trigger correct startup events
     const subPhase = this.gameService.getSubPhase();
-    console.log(`[SetupPhaseHandler] Current SubPhase: ${subPhase}`);
+    console.log(`[SetupPhaseHandler] Current SubPhase: ${String(subPhase)}`);
 
-    // Online: the opening (intro/weather/coin flip) is a shared,
-    // host-authoritative sequence handled outside the engine (OnlineCoinFlip
-    // over the lobby doc). Neither side runs the local intro or the in-HUD
-    // coin flip — the host applies the toss result via UI_CoinFlipComplete.
-    // A match against the computer runs the local opening.
     const match = getActiveOnlineMatch();
     const isOnline = !!match && match.kind !== "computer";
 
     if (subPhase === SubPhase.INTRO) {
-      if (!isOnline) this.runIntroSequence();
+      if (!isOnline) void this.runIntroSequence();
     } else if (subPhase === SubPhase.WEATHER) {
       this.resumeWeather(isOnline);
     } else if (subPhase === SubPhase.COIN_FLIP) {
-      // Only show if NOT mid-intro and NOT online (online toss is external).
       if (!this.isIntroSequence && !isOnline) {
         this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
           team1: this.scene.team1,
@@ -63,36 +53,18 @@ export class SetupPhaseHandler implements PhaseHandler {
       subPhase === SubPhase.SETUP_KICKING ||
       subPhase === SubPhase.SETUP_RECEIVING
     ) {
-      // Legacy "Start Placement" logic
-      const state = this.gameService.getState();
-      if (state.activeTeamId) {
-        const activeTeam =
-          state.activeTeamId === this.scene.team1.id
-            ? this.scene.team1
-            : this.scene.team2;
-        const isTeam1 = activeTeam.id === this.scene.team1.id;
-        // Online: only the active team's coach places; the other watches the
-        // board update read-only (UI_SyncBoard), no controls or drag.
-        const isMySetup = !match || activeTeam.id === match.myTeamId;
-        if (isMySetup) {
-          this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
-            subPhase,
-            activeTeam,
-            status: this.gameService.getSetupStatus(activeTeam.id),
-          });
-          this.scene.highlightSetupZone(isTeam1);
-          this.scene.enablePlacement(activeTeam, isTeam1);
-        } else {
-          this.eventBus.emit(GameEventNames.UI_HideSetupControls);
-          this.scene.disableSetupInteraction();
-          this.eventBus.emit(GameEventNames.UI_SyncBoard);
-        }
-      }
+      this.enterPlacement(subPhase);
     }
   }
 
+  private enterPlacement(subPhase: SubPhase): void {
+    const activeTeamId = this.gameService.getState().activeTeamId;
+    if (!activeTeamId) return;
+    const activeTeam = activeTeamId === this.scene.team1.id ? this.scene.team1 : this.scene.team2;
+    showSetupPlacement({ scene: this.scene, gameService: this.gameService, eventBus: this.eventBus }, { subPhase, team: activeTeam });
+  }
+
   private resumeWeather(isOnline: boolean): void {
-    // A saved weather roll needs no second roll or intro sequence.
     if (isOnline || this.isIntroSequence) return;
     this.gameService.beginCoinFlip();
     this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
@@ -107,18 +79,16 @@ export class SetupPhaseHandler implements PhaseHandler {
   }
 
   private setupListeners(): void {
-    // Coin Flip
     this.register(GameEventNames.UI_CoinFlipComplete, (data) => {
       this.scene.kickingTeam = data.kickingTeam;
       this.scene.receivingTeam = data.receivingTeam;
-      // The weather is rolled before the toss, so setup only starts here
+
       this.gameService.startSetup(data.kickingTeam.id);
     });
 
-    // Setup Actions
-    this.register(GameEventNames.UI_SetupAction, (data) =>
-      this.handleSetupAction(data)
-    );
+    this.register(GameEventNames.UI_SetupAction, (data) => {
+      this.handleSetupAction(data);
+    });
   }
 
   private register<K extends keyof GameEventMap>(
@@ -126,76 +96,77 @@ export class SetupPhaseHandler implements PhaseHandler {
     handler: (data: GameEventMap[K]) => void
   ): () => void {
     this.eventBus.on(event, handler);
-    const off = () => this.eventBus.off(event, handler);
+    const off = () => {
+      this.eventBus.off(event, handler);
+    };
     this.unsubscribes.push(off);
     return off;
   }
 
   private removeListeners(): void {
-    this.unsubscribes.forEach((unsubscribe) => unsubscribe());
+    this.unsubscribes.forEach((unsubscribe) => {
+      unsubscribe();
+    });
     this.unsubscribes = [];
+  }
+
+  private handleSetupDecision(action: string, teamId: string): boolean {
+    if (action === "confirm") { this.gameService.confirmSetup(teamId); return true; }
+    if (action === "continue" || action === "concede") {
+      this.gameService.resolveSetupConcession(teamId, action === "concede");
+      return true;
+    }
+    return false;
   }
 
   private handleSetupAction(data: { action: string; name?: string }): void {
     const state = this.gameService.getState();
-    const activeTeamId = state.activeTeamId || this.scene.team1.id;
+    const activeTeamId = state.activeTeamId ?? this.scene.team1.id;
     const activeTeam =
       activeTeamId === this.scene.team1.id
         ? this.scene.team1
         : this.scene.team2;
     const isTeam1 = activeTeam.id === this.scene.team1.id;
-    const formationManager: FormationManager = this.scene["formationManager"];
-    const placementController: PlayerPlacementController =
-      this.scene["placementController"];
+    const placementController =
+      this.scene.placementController;
     const key = this.formationKey(activeTeam, isTeam1);
 
+    if (this.handleSetupDecision(data.action, activeTeam.id)) return;
     switch (data.action) {
-      case "confirm":
-        this.gameService.confirmSetup(activeTeam.id);
-        break;
-      case "continue":
-        this.gameService.resolveSetupConcession(activeTeam.id, false);
-        break;
-      case "concede":
-        this.gameService.resolveSetupConcession(activeTeam.id, true);
-        break;
       case "clear":
-        placementController?.clearPlacements();
+        placementController.clearPlacements();
         this.scene.refreshDugouts();
         break;
       case "list":
         this.emitFormationList(key, isTeam1);
         break;
       case "save":
-        this.saveFormation(data.name, activeTeam, key, isTeam1);
+        this.saveFormation({ rawName: data.name,activeTeam,key,isTeam1 });
         break;
       case "default":
       case "load":
-        this.loadFormation(data.name, activeTeam, key, isTeam1);
+        this.loadFormation({ rawName: data.name,activeTeam,key,isTeam1 });
         break;
-      case "delete": {
-        const name = data.name;
-        if (!name || formationManager.isBuiltIn(name)) break;
-        if (formationManager.deleteFormation(key, name)) {
-          this.emitFormationList(key, isTeam1);
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            `Formation "${name}" deleted.`
-          );
-        }
+      case "delete":
+        this.deleteFormation(data.name, key, isTeam1);
         break;
-      }
     }
   }
 
-  /**
-   * Show the weather dialog and wait until the coach has read the result.
-   * A dialog that mounts late asks for it again.
-   */
+  private deleteFormation(name: string | undefined, key: string, isTeam1: boolean): void {
+    const manager = this.scene.formationManager;
+    if (!name || manager.isBuiltIn(name)) return;
+    if (manager.deleteFormation(key, name)) {
+      this.emitFormationList(key, isTeam1);
+      this.eventBus.emit(GameEventNames.UI_Notification, `Formation "${name}" deleted.`);
+    }
+  }
+
   private weatherRead(): Promise<void> {
     const { team1, team2 } = this.scene;
-    const show = () =>
+    const show = () => {
       this.eventBus.emit(GameEventNames.UI_StartWeather, { team1, team2 });
+    };
     return new Promise((resolve) => {
       const offRequest = this.register(
         GameEventNames.UI_RequestWeatherState,
@@ -214,12 +185,7 @@ export class SetupPhaseHandler implements PhaseHandler {
   }
 
   private saveFormation(
-    rawName: string | undefined,
-    activeTeam: Team,
-    key: string,
-    isTeam1: boolean
-  ): void {
-    const formationManager: FormationManager = this.scene["formationManager"];
+{ rawName,activeTeam,key,isTeam1 }: { rawName: string|undefined; activeTeam: Team; key: string; isTeam1: boolean; }  ): void {
     const name = rawName?.trim();
     if (!name) {
       this.eventBus.emit(
@@ -228,16 +194,14 @@ export class SetupPhaseHandler implements PhaseHandler {
       );
       return;
     }
-    if (formationManager.isBuiltIn(name)) {
+    if (this.scene.formationManager.isBuiltIn(name)) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         `"${name}" is a built-in formation — pick another name.`
       );
       return;
     }
-    // Read positions straight off the team so anything on the pitch is
-    // captured, stored by roster index so the layout survives new team
-    // instances (next drive, next match)
+
     const positions = activeTeam.players.flatMap((player, index) =>
       player.gridPosition
         ? [
@@ -256,7 +220,7 @@ export class SetupPhaseHandler implements PhaseHandler {
       );
       return;
     }
-    formationManager.saveFormation(key, positions, name);
+    this.scene.formationManager.saveFormation(key, positions, name);
     this.emitFormationList(key, isTeam1);
     this.eventBus.emit(
       GameEventNames.UI_Notification,
@@ -265,16 +229,11 @@ export class SetupPhaseHandler implements PhaseHandler {
   }
 
   private loadFormation(
-    rawName: string | undefined,
-    activeTeam: Team,
-    key: string,
-    isTeam1: boolean
-  ): void {
-    const formationManager: FormationManager = this.scene["formationManager"];
-    const placementController: PlayerPlacementController =
-      this.scene["placementController"];
+{ rawName,activeTeam,key,isTeam1 }: { rawName: string|undefined; activeTeam: Team; key: string; isTeam1: boolean; }  ): void {
+    const placementController =
+      this.scene.placementController;
     const name = rawName ?? "Balanced";
-    const positions = formationManager.getFormation(key, name, isTeam1);
+    const positions = this.scene.formationManager.getFormation(key, name, isTeam1);
     if (!positions || positions.length === 0) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
@@ -286,7 +245,7 @@ export class SetupPhaseHandler implements PhaseHandler {
       activeTeam.id,
       positions
     );
-    placementController?.syncFromTeam();
+    placementController.syncFromTeam();
     this.scene.refreshDugouts();
     const outstanding = result.status.restrictions.filter(
       (restriction) => !restriction.satisfied
@@ -309,14 +268,11 @@ export class SetupPhaseHandler implements PhaseHandler {
   }
 
   private emitFormationList(key: string, isTeam1: boolean): void {
-    const formationManager: FormationManager = this.scene["formationManager"];
     this.eventBus.emit(GameEventNames.UI_FormationsUpdated, {
-      formations: formationManager.listAllFormations(key, isTeam1),
+      formations: this.scene.formationManager.listAllFormations(key, isTeam1),
     });
   }
 
-  /** Formations are keyed by roster and pitch side, not by the (per-match)
-   * team id, so saved layouts survive across games. */
   private formationKey(
     team: { rosterName?: string; name: string },
     isTeam1: boolean
@@ -324,11 +280,6 @@ export class SetupPhaseHandler implements PhaseHandler {
     return `${team.rosterName ?? team.name}:${isTeam1 ? "left" : "right"}`;
   }
 
-  /**
-   * The opening, one beat after another: the camera sweeps in, each team is
-   * announced while its dugout cheers, the coaches roll the weather in its
-   * dialog, and only then does the coin toss come up.
-   */
   private async runIntroSequence(): Promise<void> {
     this.isIntroSequence = true;
     const pause = (ms: number) =>
@@ -351,7 +302,6 @@ export class SetupPhaseHandler implements PhaseHandler {
       ]);
     }
 
-    // The coaches roll the weather themselves, in its own dialog
     await this.weatherRead();
 
     this.isIntroSequence = false;

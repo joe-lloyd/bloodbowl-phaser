@@ -1,6 +1,5 @@
 import Phaser from "phaser";
 
-/** Over the players, under a ball in flight (see BallSprite.setHeight). */
 const TRAIL_DEPTH = 4000;
 const TAIL_COLOR = 0xedcd8f;
 const POINT_SPACING = 9;
@@ -8,37 +7,37 @@ const BALL_CLEARANCE = 9;
 const LIFETIME_MS = 420;
 const FADE_MS = LIFETIME_MS * 0.4;
 
-type TrailPoint = { x: number; y: number; at: number };
+interface TrailPoint {
+  x: number;
+  y: number;
+  at: number;
+}
 
-/**
- * A short, warm tail follows the ball through the air. Each segment thins
- * and fades on its own timer, oldest first. Nothing marks the turf.
- */
 export class BallTrail {
   private graphics: Phaser.GameObjects.Graphics;
-  /** One list of points per flight, in world pixels. */
-  private flights: TrailPoint[][] = [];
-  /** Where the ball is while a flight is still in the air. */
+
+  private flights: [TrailPoint, ...TrailPoint[]][] = [];
+
   private ballAt: { x: number; y: number } | null = null;
 
-  constructor(private scene: Phaser.Scene) {
+  private scene: Phaser.Scene;
+  constructor(scene: Phaser.Scene) {
+    this.scene = scene;
     this.graphics = scene.add.graphics().setDepth(TRAIL_DEPTH);
     scene.events.on("update", this.update);
   }
 
-  /** A new flight starts here. */
   public startFlight(x: number, y: number): void {
     this.flights.push([{ x, y, at: this.scene.time.now }]);
     this.ballAt = { x, y };
     this.draw();
   }
 
-  /** The ball, seen in the air at this point of the current flight. */
   public addPoint(x: number, y: number): void {
     const flight = this.flights[this.flights.length - 1];
     if (!flight) return;
     this.ballAt = { x, y };
-    const last = flight[flight.length - 1];
+    const last = flight[flight.length - 1] ?? flight[0];
     if (Math.hypot(x - last.x, y - last.y) >= POINT_SPACING)
       flight.push({ x, y, at: this.scene.time.now });
     this.draw();
@@ -61,7 +60,7 @@ export class BallTrail {
 
   private update = (): void => {
     if (this.flights.length === 0) return;
-    // Keep the current flight's anchor, even if it has expired in mid-air.
+
     const current = this.ballAt ? this.flights[this.flights.length - 1] : null;
     this.flights = this.flights.filter(
       (flight) => flight === current || flight.some((p) => this.opacity(p) > 0)
@@ -72,34 +71,41 @@ export class BallTrail {
   private draw(): void {
     const g = this.graphics;
     g.clear();
-    const ball = this.ballAt;
     for (const flight of this.flights) {
-      for (let i = 1; i < flight.length; i++) {
-        const from = flight[i - 1];
-        const point = flight[i];
-        const opacity = this.opacity(point);
-        if (opacity === 0) continue;
-        // Keep the entire segment clear of the ball, including on a return hop.
-        if (ball) {
-          const dx = point.x - from.x;
-          const dy = point.y - from.y;
-          const t = Math.max(
-            0,
-            Math.min(
-              1,
-              ((ball.x - from.x) * dx + (ball.y - from.y) * dy) /
-                (dx * dx + dy * dy)
-            )
-          );
-          if (
-            Math.hypot(from.x + t * dx - ball.x, from.y + t * dy - ball.y) <
-            BALL_CLEARANCE
-          )
-            continue;
-        }
-        g.lineStyle(Math.max(0.6, opacity * 4), TAIL_COLOR, opacity * 0.8);
-        g.lineBetween(from.x, from.y, point.x, point.y);
+      let from = flight[0];
+      for (const point of flight.slice(1)) {
+        this.drawSegment(from, point);
+        from = point;
       }
     }
+  }
+
+  private drawSegment(from: TrailPoint, point: TrailPoint): void {
+    const opacity = this.opacity(point);
+    if (opacity === 0 || this.touchesBall(from, point)) return;
+    this.graphics.lineStyle(
+      Math.max(0.6, opacity * 4),
+      TAIL_COLOR,
+      opacity * 0.8
+    );
+    this.graphics.lineBetween(from.x, from.y, point.x, point.y);
+  }
+
+  private touchesBall(from: TrailPoint, point: TrailPoint): boolean {
+    const ball = this.ballAt;
+    if (!ball) return false;
+    const dx = point.x - from.x;
+    const dy = point.y - from.y;
+    const t = Math.max(
+      0,
+      Math.min(
+        1,
+        ((ball.x - from.x) * dx + (ball.y - from.y) * dy) / (dx * dx + dy * dy)
+      )
+    );
+    return (
+      Math.hypot(from.x + t * dx - ball.x, from.y + t * dy - ball.y) <
+      BALL_CLEARANCE
+    );
   }
 }

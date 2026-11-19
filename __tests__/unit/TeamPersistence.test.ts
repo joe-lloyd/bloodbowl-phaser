@@ -1,15 +1,9 @@
-/**
- * Team persistence backends: signed-out localStorage, signed-in cloud
- * write-through cache, and the one-time local→cloud migration.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { RosterName, Team } from "../../src/types/Team";
+import { RosterName, type Team } from "../../src/types/Team";
 
 const cloudDocuments = vi.hoisted(() => new Map<string, unknown>());
 
-// Mock the Firestore SDK surface used by cloudTeamRepository. Refs encode
-// their path so assertions can check which user's library was touched.
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn((_db: unknown, ...path: string[]) => ({
     path: path.join("/"),
@@ -56,7 +50,7 @@ import {
   setTeamRepository,
   deleteTeam,
 } from "../../src/game/managers/TeamManager";
-import { createComputerTeam } from "../../src/competition/computerTeams";
+import { createComputerTeam } from "../fixtures/computerTeam";
 import {
   CloudTeamRepository,
   migrateLocalTeams,
@@ -68,7 +62,6 @@ function makeTeam(id: string, name = id): Team {
   return { id, name, players: [] } as unknown as Team;
 }
 
-/** Let the repository's fire-and-forget Firestore writes settle. */
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => {
@@ -80,12 +73,7 @@ beforeEach(() => {
 
 describe("signed-out persistence", () => {
   it("reports a failed deletion and keeps the local team", () => {
-    const team = createComputerTeam(
-      RosterName.ORC,
-      "Local team",
-      0x224488,
-      "advanced-league"
-    );
+    const team = createComputerTeam({ rosterName: RosterName.ORC, name: "Local team", primaryColour: 0x224488, advancementMode: "advanced-league" });
     saveTeams([team]);
     const write = vi
       .spyOn(Storage.prototype, "setItem")
@@ -103,28 +91,23 @@ describe("signed-out persistence", () => {
   it("saves and loads through localStorage", () => {
     saveTeams([makeTeam("t1", "Locals")]);
 
-    const stored = JSON.parse(localStorage.getItem("bloodbowl_teams")!);
+    const stored = JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_teams")));
     expect(stored).toHaveLength(1);
     expect(stored[0].name).toBe("Locals");
-    expect(loadTeams()[0].id).toBe("t1");
+    expect(fixtureValue(loadTeams()[0]).id).toBe("t1");
     expect(setDocMock).not.toHaveBeenCalled();
   });
 });
 
 describe("signed-in cloud repository", () => {
   it("refuses deletion when another repository entered the computer team", async () => {
-    const team = createComputerTeam(
-      RosterName.ORC,
-      "Nuln Hammers",
-      0x224488,
-      "advanced-league"
-    );
+    const team = createComputerTeam({ rosterName: RosterName.ORC, name: "Nuln Hammers", primaryColour: 0x224488, advancementMode: "advanced-league" });
     const staleTab = new CloudTeamRepository("user-a", [structuredClone(team)]);
     const otherTab = new CloudTeamRepository("user-a", [structuredClone(team)]);
     otherTab.saveTeams([{ ...team, activeCompetitionId: "league-1" }]);
     await flush();
     setTeamRepository(staleTab);
-    expect(loadTeams()[0].activeCompetitionId).toBeUndefined();
+    expect(fixtureValue(loadTeams()[0]).activeCompetitionId).toBeUndefined();
 
     await expect(
       Promise.resolve().then(() => deleteTeam(team.id))
@@ -138,18 +121,8 @@ describe("signed-in cloud repository", () => {
   });
 
   it("deletes a free team without overwriting another tab's changes to other teams", async () => {
-    const team = createComputerTeam(
-      RosterName.ORC,
-      "Free team",
-      0x224488,
-      "advanced-league"
-    );
-    const keep = createComputerTeam(
-      RosterName.HUMAN,
-      "Keep me",
-      0x224488,
-      "advanced-league"
-    );
+    const team = createComputerTeam({ rosterName: RosterName.ORC, name: "Free team", primaryColour: 0x224488, advancementMode: "advanced-league" });
+    const keep = createComputerTeam({ rosterName: RosterName.HUMAN, name: "Keep me", primaryColour: 0x224488, advancementMode: "advanced-league" });
     const staleTab = new CloudTeamRepository("user-a", [team, keep]);
     const otherTab = new CloudTeamRepository("user-a", [
       structuredClone(team),
@@ -175,9 +148,8 @@ describe("signed-in cloud repository", () => {
     saveTeams([makeTeam("cloud1"), makeTeam("cloud2")]);
     await flush();
 
-    // Cache serves reads synchronously
     expect(loadTeams().map((t) => t.id)).toEqual(["cloud1", "cloud2"]);
-    // Every write lands under this user's path
+
     const paths = setDocMock.mock.calls.map(
       (call) => (call[0] as unknown as { path: string }).path
     );
@@ -185,7 +157,7 @@ describe("signed-in cloud repository", () => {
       "users/user-a/teams/cloud1",
       "users/user-a/teams/cloud2",
     ]);
-    // Nothing touched localStorage
+
     expect(localStorage.getItem("bloodbowl_teams")).toBeNull();
   });
 
@@ -213,17 +185,16 @@ describe("local→cloud migration", () => {
 
     const uploaded = await migrateLocalTeams(
       "user-a",
-      [makeTeam("shared")], // already in cloud — must not be overwritten
+      [makeTeam("shared")],
       () => true
     );
 
     expect(uploaded.map((t) => t.id)).toEqual(["local1"]);
     expect(setDocMock).toHaveBeenCalledTimes(1);
     expect(
-      (setDocMock.mock.calls[0][0] as unknown as { path: string }).path
+      (fixtureValue(setDocMock.mock.calls[0])[0] as unknown as { path: string }).path
     ).toBe("users/user-a/teams/local1");
 
-    // Second sign-in: flag set, nothing re-offered — idempotent
     const again = await migrateLocalTeams("user-a", [], () => true);
     expect(again).toEqual([]);
     expect(setDocMock).toHaveBeenCalledTimes(1);
@@ -239,7 +210,7 @@ describe("local→cloud migration", () => {
 
     expect(uploaded).toEqual([]);
     expect(setDocMock).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem("bloodbowl_teams")!)).toHaveLength(
+    expect(JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_teams")))).toHaveLength(
       1
     );
   });

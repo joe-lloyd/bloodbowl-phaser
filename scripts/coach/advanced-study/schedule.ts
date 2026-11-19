@@ -37,8 +37,8 @@ function comparisonJobs(
     ["random", "base"],
     ["focused", "random"],
   ] as const) {
-    const pair = `advanced-${replicate}-${offset}-${index}-${arm}-${other}`;
-    const a = `${id}--${arm}-${replicate}`;
+    const pair = `advanced-${String(replicate)}-${String(offset)}-${String(index)}-${arm}-${other}`;
+    const a = `${id}--${arm}-${String(replicate)}`;
     const b = `${opponent}--${other}${other === "base" ? "" : "-" + replicate}`;
     for (const reverse of [false, true])
       jobs.push({

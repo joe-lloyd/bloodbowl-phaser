@@ -1,3 +1,6 @@
+import { parseJson } from "../../src/boundary/json";
+import { gameSnapshotSchema } from "../../src/boundary/schemas/GameSnapshot";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
@@ -7,16 +10,13 @@ import {
   applySnapshotToTeams,
 } from "../../src/headless/serialization";
 import { NetworkedGameService } from "../../src/network/NetworkedGameService";
-import { CommandResponse } from "../../src/headless/protocol";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition } from "../../src/types/Player";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 
-/** Flush the microtask queue past NetworkedGameService's fire-and-forget
- *  `dispatch(...).then(...)` — a macrotask boundary guarantees it settled. */
 const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
 
 const scenario = (id: string): Scenario => ({
@@ -62,8 +62,7 @@ const boneHeadScenario = (id: string): Scenario => ({
   setup: {
     team1Placements: [
       { playerIndex: 0, x: 10, y: 5, skills: [SkillType.BONE_HEAD] },
-      // A second player so ending the Bone Head player's activation does not
-      // also end team1's whole turn (which would reset the turn flags).
+
       { playerIndex: 1, x: 3, y: 8 },
     ],
     team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
@@ -81,8 +80,8 @@ describe("defer-action-commitment", () => {
       scenario: scenario("declare-only"),
       seed: 1,
     });
-    const blitzerId = game.ctx.team1.players[0].id;
-    const otherId = game.ctx.team1.players[1].id;
+    const blitzerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const otherId = fixtureValue(game.ctx.team1.players[1]).id;
 
     await game.execute({
       type: "declare-action",
@@ -92,7 +91,6 @@ describe("defer-action-commitment", () => {
     expect(game.snapshot().turn.hasBlitzed).toBe(false);
     expect(game.snapshot().activePlayer?.id).toBe(blitzerId);
 
-    // Activating someone else instead releases the uncommitted Blitz.
     const declared = await game.execute({
       type: "declare-action",
       playerId: otherId,
@@ -101,9 +99,7 @@ describe("defer-action-commitment", () => {
     expect(declared.ok).toBe(true);
     expect(declared.snapshot.turn.hasBlitzed).toBe(false);
     expect(declared.snapshot.activePlayer?.id).toBe(otherId);
-    expect(declared.snapshot.turn.activatedPlayerIds).not.toContain(
-      blitzerId
-    );
+    expect(declared.snapshot.turn.activatedPlayerIds).not.toContain(blitzerId);
   });
 
   it("moving commits the Blitz — a later declaration for someone else is refused (5.2)", async () => {
@@ -111,8 +107,8 @@ describe("defer-action-commitment", () => {
       scenario: scenario("commit-on-move"),
       seed: 1,
     });
-    const blitzerId = game.ctx.team1.players[0].id;
-    const otherId = game.ctx.team1.players[1].id;
+    const blitzerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const otherId = fixtureValue(game.ctx.team1.players[1]).id;
 
     await game.execute({
       type: "declare-action",
@@ -124,7 +120,7 @@ describe("defer-action-commitment", () => {
       playerId: blitzerId,
       path: [{ x: 11, y: 5 }],
     });
-    // The first square moved commits the declaration.
+
     expect(game.snapshot().turn.hasBlitzed).toBe(true);
 
     const refused = await game.execute({
@@ -137,23 +133,12 @@ describe("defer-action-commitment", () => {
     expect(refused.snapshot.activePlayer?.id).toBe(blitzerId);
   });
 
-  // Follow-up from a PR review of fix-multiplayer-infinite-block-desync: the
-  // once-per-turn commit guard above only fires when the EXISTING declared
-  // action carries a team allowance (blitz/pass/handoff/foul/throwTeamMate).
-  // A player with an activation-gate skill (Bone Head, Bloodlust, …) commits
-  // their declaration the instant the gate fires — "before the die is even
-  // thrown" — regardless of which action they declared. Previously, if that
-  // action was Move/Block/a special action (none of which are once-per-turn),
-  // a same-player redeclare silently overwrote the committed declaration
-  // with NO refusal at all — worse than a rejection, since there's nothing
-  // to reconcile against. This closes that gap without touching the
-  // intentional Move-then-Block carve-out (see the next test).
   it("a gate-committed declaration refuses ANY redeclare, not just once-per-turn ones", async () => {
     const game = new HeadlessGame({
       scenario: bloodlustScenario("gate-blocks-any-redeclare"),
       seed: 1,
     });
-    const playerId = game.ctx.team1.players[0].id;
+    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
 
     let response = await game.execute({
       type: "declare-action",
@@ -162,8 +147,6 @@ describe("defer-action-commitment", () => {
     });
     expect(response.ok).toBe(true);
 
-    // Decline Bloodlust's downgrade-to-Move if offered, so the committed
-    // action is deterministically still "block".
     if (response.pendingDecision?.type === "reaction") {
       response = await game.execute({ type: "use-reaction", accept: false });
     }
@@ -173,15 +156,13 @@ describe("defer-action-commitment", () => {
       committed: true,
     });
 
-    // A stale/duplicate declare-action for the SAME player, arriving after
-    // the gate has committed, must be refused.
     const redeclared = await game.execute({
       type: "declare-action",
       playerId,
       action: "move",
     });
     expect(redeclared.ok).toBe(false);
-    // The original committed declaration survives untouched.
+
     expect(game.snapshot().activePlayer).toMatchObject({
       id: playerId,
       action: "block",
@@ -194,7 +175,7 @@ describe("defer-action-commitment", () => {
       scenario: scenario("move-then-block-refused"),
       seed: 1,
     });
-    const playerId = game.ctx.team1.players[0].id;
+    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
 
     await game.execute({ type: "declare-action", playerId, action: "move" });
     await game.execute({
@@ -221,32 +202,32 @@ describe("defer-action-commitment", () => {
     let playerId = "";
     for (let seed = 1; seed <= 300 && !found; seed++) {
       const game = new HeadlessGame({
-        scenario: boneHeadScenario(`bone-head-${seed}`),
+        scenario: boneHeadScenario(`bone-head-${String(seed)}`),
         seed,
       });
-      playerId = game.ctx.team1.players[0].id;
+      playerId = fixtureValue(game.ctx.team1.players[0]).id;
       await game.execute({
         type: "declare-action",
         playerId,
         action: "blitz",
       });
       const snap = game.snapshot();
-      const distracted = snap.teams[0].players[0].conditions?.some(
-        (c) => c.type === PlayerCondition.DISTRACTED
-      );
+      const distracted = fixtureValue(
+        fixtureValue(snap.teams[0]).players[0]
+      ).conditions.some((c) => c.type === PlayerCondition.DISTRACTED);
       if (distracted) {
         found = { ok: true, events: [], snapshot: snap, pendingDecision: null };
       }
     }
     expect(found).not.toBeNull();
-    const snap = found!.snapshot;
+    const snap = fixtureValue(found).snapshot;
     expect(
-      snap.teams[0].players[0].conditions?.some(
+      fixtureValue(fixtureValue(snap.teams[0]).players[0]).conditions.some(
         (c) => c.type === PlayerCondition.DISTRACTED
       )
     ).toBe(true);
     expect(snap.activePlayer).toBeNull();
-    // A failed Bone Head still spends the team's Blitz for the turn.
+
     expect(snap.turn.hasBlitzed).toBe(true);
   });
 
@@ -255,7 +236,7 @@ describe("defer-action-commitment", () => {
       scenario: scenario("resume-mid-declaration"),
       seed: 1,
     });
-    const blitzerId = game.ctx.team1.players[0].id;
+    const blitzerId = fixtureValue(game.ctx.team1.players[0]).id;
 
     await game.execute({
       type: "declare-action",
@@ -269,13 +250,14 @@ describe("defer-action-commitment", () => {
       game.ctx.team1,
       game.ctx.team2,
     ]);
-    const roundTripped = JSON.parse(JSON.stringify(snapshot));
+    const roundTripped = parseJson(
+      JSON.stringify(snapshot),
+      gameSnapshotSchema
+    );
 
     const restoredState = deserializeGameState(roundTripped);
     applySnapshotToTeams(roundTripped, [game.ctx.team1, game.ctx.team2]);
 
-    // The saved flag was never set (the declaration was uncommitted), and
-    // the restored state still shows a live, releasable declaration.
     expect(restoredState.turn.hasBlitzed).toBe(false);
     expect(restoredState.activePlayer?.id).toBe(blitzerId);
     expect(restoredState.activePlayer?.committed).toBeFalsy();
@@ -290,21 +272,19 @@ describe("defer-action-commitment", () => {
     expect(resumed.gameService.getState().activePlayer).toBeNull();
   });
 
-  it("a guest's release is proxied to the host as cancel-action (5.5)", async () => {
+  it("a guest's release is proxied to the host as cancel-action (5.5)", () => {
     const local = createHeadlessGame({
       scenario: scenario("network-release"),
       seed: 1,
     });
-    const dispatch = vi
-      .fn()
-      .mockResolvedValue({ ok: true } as CommandResponse);
-    const networked = new NetworkedGameService(
-      local.gameService,
-      dispatch,
-      () => null
-    );
+    const dispatch = vi.fn().mockResolvedValue({ ok: true });
+    const networked = new NetworkedGameService({
+      inner: local.gameService,
+      dispatch: dispatch,
+      pendingDecision: () => null,
+    });
 
-    const playerId = local.team1.players[0].id;
+    const playerId = fixtureValue(local.team1.players[0]).id;
     const released = networked.cancelAction(playerId);
 
     expect(released).toBe(true);
@@ -314,37 +294,24 @@ describe("defer-action-commitment", () => {
     });
   });
 
-  // Regression for the captured "infinite roll on a block, Bloodlust
-  // skipped" bug report: NetworkedGameService.declareAction()/cancelAction()
-  // always answer their caller "true" the instant they're called — the real
-  // host verdict only arrives later, asynchronously. GameplayInteractionController
-  // builds its local action-mode/step-machine state directly off that
-  // optimistic "true", so when the host's real answer is a rejection
-  // (exactly what the log showed: cancel-action → action-already-committed,
-  // then declare-action → illegal-action-declaration, then block →
-  // block-not-declared), nothing told the controller its local state was
-  // now wrong — it kept believing a Block had been declared and every
-  // subsequent block attempt bounced off the host forever. The fix routes
-  // every rejection through NetworkCommandRejected so the controller can
-  // reconcile instead of drifting.
   it("a rejected declare-action/cancel-action is surfaced via NetworkCommandRejected (regression: infinite-block desync)", async () => {
     const local = createHeadlessGame({
       scenario: scenario("network-rejection-reconcile"),
       seed: 1,
     });
-    const playerId = local.team1.players[0].id;
+    const playerId = fixtureValue(local.team1.players[0]).id;
 
     const dispatch = vi
       .fn()
       .mockResolvedValueOnce({
         ok: false,
         reason: "command-failed: action-already-committed",
-      } as CommandResponse)
+      })
       .mockResolvedValueOnce({
         ok: false,
         reason: "command-failed: illegal-action-declaration",
-      } as CommandResponse)
-      .mockResolvedValueOnce({ ok: true } as CommandResponse);
+      })
+      .mockResolvedValueOnce({ ok: true });
 
     const eventBus = new EventBus();
     const rejections: unknown[] = [];
@@ -352,18 +319,16 @@ describe("defer-action-commitment", () => {
       rejections.push(data)
     );
 
-    const networked = new NetworkedGameService(
-      local.gameService,
-      dispatch,
-      () => null,
-      eventBus
-    );
+    const networked = new NetworkedGameService({
+      inner: local.gameService,
+      dispatch: dispatch,
+      pendingDecision: () => null,
+      eventBus: eventBus,
+    });
 
-    // The guest's stale "Back" attempt: optimistically reports success...
     expect(networked.cancelAction(playerId)).toBe(true);
     await flushMicrotasks();
-    // ...but the host says the declaration was already committed (e.g. a
-    // Bloodlust gate fired first) — that must not be silently swallowed.
+
     expect(rejections).toEqual([
       {
         commandType: "cancel-action",
@@ -373,11 +338,11 @@ describe("defer-action-commitment", () => {
       },
     ]);
 
-    // The guest then tries to redeclare as if the cancel had gone through —
-    // again optimistically "true"...
-    expect(networked.declareAction(playerId, "blitz")).toBe(true);
+    expect(
+      networked.declareAction({ playerId: playerId, action: "blitz" })
+    ).toBe(true);
     await flushMicrotasks();
-    // ...and again the host refuses, this time distinctly.
+
     expect(rejections).toEqual([
       expect.anything(),
       {
@@ -388,8 +353,9 @@ describe("defer-action-commitment", () => {
       },
     ]);
 
-    // A command the host actually accepts raises nothing new.
-    expect(networked.declareAction(playerId, "move")).toBe(true);
+    expect(
+      networked.declareAction({ playerId: playerId, action: "move" })
+    ).toBe(true);
     await flushMicrotasks();
     expect(rejections).toHaveLength(2);
   });

@@ -97,18 +97,18 @@ function observeSkill(
   step: number,
   skills: Map<string, SkillObservation>
 ) {
-  const player = context.players.find((p) => p.id === data.playerId);
+  const player = context.players.find((p) => p.id === data["playerId"]);
   if (!player) return;
   const side = sideOf(game, player.teamId);
   const adjacent = nearby(context, player);
   const effect = context.players.reduce(
     (s, p) => s.replaceAll(p.name, `<${p.id}>`),
-    String(data.effect)
+    String(data["effect"])
   );
   const observation: SkillObservation = {
     side,
     playerId: player.id,
-    skill: String(data.skill),
+    skill: String(data["skill"]),
     effect,
     action: context.action,
     phase: context.phase,
@@ -137,10 +137,10 @@ function observeRoll(
   turnover: Set<string>,
   rolls: Map<string, RollTally>
 ) {
-  const roll = String(data.rollType).replace(/\s*\(.*/, "");
+  const roll = String(data["rollType"]).replace(/\s*\(.*/, "");
   const side = sideOf(
     game,
-    typeof data.teamId === "string" ? data.teamId : context.actor?.teamId
+    typeof data["teamId"] === "string" ? data["teamId"] : context.actor?.teamId
   );
   const adjacent = context.actor ? nearby(context, context.actor) : [];
   const sample = {
@@ -159,7 +159,7 @@ function observeRoll(
     turnoversInCommand: 0,
   };
   tally.attempts++;
-  if (data.resultState === "failure" || data.resultState === "fumble")
+  if (data["resultState"] === "failure" || data["resultState"] === "fumble")
     tally.failures++;
   if (turnover.has(side === 0 ? game.ctx.team1.id : game.ctx.team2.id))
     tally.turnoversInCommand++;
@@ -188,15 +188,18 @@ export function createTelemetry(game: HeadlessGame) {
       if (event.name === GameEventNames.DiceRoll)
         observeRoll(game, context, data, turnover, rolls);
       if (event.name === GameEventNames.DecisionRequested)
-        increment(decisions, String(data.type));
+        increment(decisions, String(data["type"]));
       increment(counters, event.name);
       if (event.name === GameEventNames.PlayerCasualtyInflicted)
-        increment(counters, `casualty:${data.cause}:${data.sppEligible}`);
+        increment(
+          counters,
+          `casualty:${String(data["cause"])}:${String(data["sppEligible"])}`
+        );
     }
   };
   let batch: { context: Context; events: CommandResponse["events"] } | null =
     null;
-  // Gameplay measurements come from live emissions, not historical reply logs.
+
   const measuredEvents = [
     GameEventNames.SkillTriggered,
     GameEventNames.DiceRoll,
@@ -223,13 +226,12 @@ export function createTelemetry(game: HeadlessGame) {
   }
   game.execute = async (command: unknown) => {
     const typed = command as HeadlessCommand;
-    // Read replies contain historical events. The bus records only new emissions,
-    // including suspended engine work that completes between command replies.
+
     if (["state", "legal-actions", "offer-inducements"].includes(typed.type))
       return original(command);
     const context = commandContext(game, typed);
     const previous = batch;
-    const current = { context, events: [] as CommandResponse["events"] };
+    const current = { context, events: [] satisfies CommandResponse["events"] };
     batch = current;
     let response: CommandResponse;
     try {
@@ -242,7 +244,7 @@ export function createTelemetry(game: HeadlessGame) {
       if (context.actor)
         increment(
           counters,
-          `accepted:${sideOf(game, context.actor.teamId)}:${typeOf(typed)}`
+          `accepted:${String(sideOf(game, context.actor.teamId))}:${typeOf(typed)}`
         );
     }
     observe(context, current.events);
@@ -255,7 +257,9 @@ export function createTelemetry(game: HeadlessGame) {
       const types = new Set(
         context.point.candidates.map((c) => typeOf(c.commands[0]))
       );
-      types.forEach((type) => increment(offered, type));
+      types.forEach((type) => {
+        increment(offered, type);
+      });
       const choice = await coach.choose(context);
       const command = context.point.candidates[choice.index]?.commands[0];
       if (command) increment(selected, typeOf(command));

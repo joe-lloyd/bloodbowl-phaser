@@ -1,15 +1,8 @@
-/**
- * Downloads every coach's dice logs from Firestore (users/{uid}/dice-logs)
- * into one file for audit.ts. Needs a Google bearer token for the project:
- *
- *   FIRESTORE_TOKEN=$(ssh vault token bloodbowl-sevens/firestore-key) \
- *     pnpm dice:fetch <out.json> [since YYYY-MM-DD]
- */
 import { writeFileSync } from "node:fs";
 
 const PROJECT = "bloodbowl-web";
 const [out, since] = process.argv.slice(2);
-const token = process.env.FIRESTORE_TOKEN;
+const token = process.env["FIRESTORE_TOKEN"];
 if (!out || !token) {
   console.error(
     "usage: FIRESTORE_TOKEN=... pnpm dice:fetch <out.json> [since YYYY-MM-DD]"
@@ -17,7 +10,6 @@ if (!out || !token) {
   process.exit(1);
 }
 
-/** Firestore's typed JSON, as the REST API sends documents. */
 type Value =
   | { nullValue: null }
   | { booleanValue: boolean }
@@ -60,7 +52,9 @@ const response = await fetch(
   }
 );
 if (!response.ok) {
-  console.error(`Firestore said ${response.status}: ${await response.text()}`);
+  console.error(
+    `Firestore said ${String(response.status)}: ${await response.text()}`
+  );
   process.exit(1);
 }
 interface Row {
@@ -69,12 +63,12 @@ interface Row {
 const rows: unknown = await response.json();
 const isRow = (row: unknown): row is Row =>
   typeof row === "object" && row !== null;
-// A collection-group filter would need its own index; filter here instead
+
 const logs = (Array.isArray(rows) ? rows.filter(isRow) : []).flatMap((row) => {
   if (!row.document) return [];
   const log = decodeFields(row.document.fields);
-  const started = typeof log.startedAt === "number" ? log.startedAt : 0;
+  const started = typeof log["startedAt"] === "number" ? log["startedAt"] : 0;
   return started >= startedAfter ? [{ ...log, path: row.document.name }] : [];
 });
 writeFileSync(out, JSON.stringify(logs));
-console.log(`wrote ${logs.length} dice logs to ${out}`);
+console.log(`wrote ${String(logs.length)} dice logs to ${out}`);

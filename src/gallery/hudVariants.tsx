@@ -1,7 +1,3 @@
-/**
- * Gallery variants for the whole HUD, and the score bug and turn tab above the
- * pitch.
- */
 import { GameEventNames } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
@@ -20,7 +16,6 @@ import {
 import type { Variant } from "./variants";
 
 export const HUD_VARIANTS: Variant[] = [
-  // ---- Whole HUD
   {
     id: "hud-play",
     section: "Whole HUD",
@@ -146,7 +141,6 @@ export const HUD_VARIANTS: Variant[] = [
       }),
   },
 
-  // ---- Score bug
   {
     id: "score-typical",
     section: "Score bug and turn tab",

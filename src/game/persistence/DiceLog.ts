@@ -1,24 +1,18 @@
-import { IEventBus } from "../../services/EventBus";
-import { AllEvents, GameEventNames } from "../../types/events";
-import { GameState } from "../../types/GameState";
-import { Team } from "../../types/Team";
+import { type IEventBus } from "../../services/EventBus";
+import { type AllEvents, GameEventNames } from "../../types/events";
+import { type GameState } from "../../types/GameState";
+import { type Team } from "../../types/Team";
 
-/**
- * Every die a match rolls, kept so the dice can be audited after the match:
- * each roll as the engine made it, and each re-roll with the dice before
- * and after. `scripts/dice-audit/audit.ts` reads these.
- */
 export const DICE_LOG_VERSION = 1;
 
 export type DiceLogMode = "computer" | "local" | "online";
 
-type DiceRollEvent = AllEvents[GameEventNames.DiceRoll];
-type RerollEvent = AllEvents[GameEventNames.RerollUsed];
+type DiceRollEvent = AllEvents[typeof GameEventNames.DiceRoll];
+type RerollEvent = AllEvents[typeof GameEventNames.RerollUsed];
 
-/** Where in the match a roll happened. */
 interface Moment {
   seq: number;
-  /** Milliseconds since the log started. */
+
   at: number;
   phase: string;
   half: 1 | 2 | "extra";
@@ -35,9 +29,9 @@ export type DiceLogEntry =
       total: number;
       resultState: string;
       teamId: string | null;
-      /** The generator's state after this roll. */
+
       rng: number | null;
-      /** A result the rules decided with no die thrown (No Ball's pick-up). */
+
       automatic: boolean;
     })
   | (Moment & {
@@ -48,7 +42,7 @@ export type DiceLogEntry =
       skill: string | null;
       before: RerollEvent["before"];
       after: RerollEvent["after"];
-      /** The re-roll came up exactly as the roll it replaced. */
+
       repeated: boolean;
     });
 
@@ -56,7 +50,7 @@ export interface DiceLog {
   version: typeof DICE_LOG_VERSION;
   id: string;
   mode: DiceLogMode;
-  /** The seed the match started from: replaying it reproduces the dice. */
+
   seed: number;
   startedAt: number;
   updatedAt: number;
@@ -91,17 +85,21 @@ export function createDiceLog(input: {
 const sameDice = (a: RerollEvent["before"], b: RerollEvent["after"]) =>
   JSON.stringify(a) === JSON.stringify(b);
 
-/**
- * Appends every roll and re-roll on `eventBus` to `log`, and calls
- * `onChange` after each one. Stop it with `dispose()`.
- */
 export class DiceLogRecorder {
+  private readonly eventBus: IEventBus;
+  private readonly getState: () => GameState;
+  readonly log: DiceLog;
+  private readonly onChange: (log: DiceLog) => void;
   constructor(
-    private readonly eventBus: IEventBus,
-    private readonly getState: () => GameState,
-    readonly log: DiceLog,
-    private readonly onChange: (log: DiceLog) => void = () => {}
+    eventBus: IEventBus,
+    getState: () => GameState,
+    log: DiceLog,
+    onChange: (log: DiceLog) => void = () => {}
   ) {
+    this.eventBus = eventBus;
+    this.getState = getState;
+    this.log = log;
+    this.onChange = onChange;
     eventBus.on(GameEventNames.DiceRoll, this.onRoll);
     eventBus.on(GameEventNames.RerollUsed, this.onReroll);
   }
@@ -140,7 +138,7 @@ export class DiceLogRecorder {
       resultState: roll.resultState ?? "none",
       teamId: roll.teamId ?? null,
       rng: roll.seed ?? null,
-      automatic: roll.context?.automatic === true,
+      automatic: roll.context?.["automatic"] === true,
     });
   };
 

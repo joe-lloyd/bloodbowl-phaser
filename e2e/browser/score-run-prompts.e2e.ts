@@ -1,12 +1,5 @@
-/**
- * A run to the End Zone is walked leg by leg: the coach clicks the End Zone
- * once, then is asked before the Dodge out of the marked square and again
- * before the Rush onto the last square, and the touchdown comes only after
- * the runner is shown standing there.
- *
- * SHOTS=<dir> also saves a screenshot of each beat, for a walkthrough page.
- */
-import { test, expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
 import { possessive } from "../../src/game/managers/TurnManager";
@@ -34,8 +27,6 @@ declare global {
   }
 }
 
-// Observe rendered banners, rather than relying on polling that can miss a
-// short banner on a busy browser worker. All state reads use the public bridge.
 async function observeMoments(page: Page) {
   await page.evaluate(
     (names) => {
@@ -100,10 +91,9 @@ async function observeMoments(page: Page) {
   );
 }
 
-const SEED = Number(process.env.SCORE_RUN_SEED ?? 2);
+const SEED = Number(process.env["SCORE_RUN_SEED"] ?? 2);
 
-// The walkthrough also wants the run as a video
-if (process.env.SHOTS) test.use({ video: "on" });
+if (process.env["SHOTS"]) test.use({ video: "on" });
 
 test("a score run stops before the Dodge and the Rush, and scores at the end", async ({
   page,
@@ -111,13 +101,13 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   const app = new GameApp(page);
   let beat = 0;
   const shot = async (name: string) => {
-    const path = process.env.SHOTS
-      ? `${process.env.SHOTS}/${String(++beat).padStart(2, "0")}-${name}.png`
+    const path = process.env["SHOTS"]
+      ? `${process.env["SHOTS"]}/${String(++beat).padStart(2, "0")}-${name}.png`
       : test.info().outputPath(`${name}.png`);
     await page.screenshot({ path });
   };
   const carrier = async () =>
-    (await app.bridge.snapshot()).teams[0].players.find((p) => p.position)!;
+    fixtureValue(fixtureValue((await app.bridge.snapshot()).teams[0]).players.find((p) => p.position));
   const scored = async () =>
     (await app.bridge.events()).some(
       (e) => e.name === GameEventNames.Touchdown
@@ -131,12 +121,10 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   await app.pitch.waitForCameraToSettle();
   await shot("selected");
 
-  // Plot the run, then click the same square again to go
   await app.pitch.clickSquare({ x: 19, y: 5 });
   await shot("route-plotted");
   await app.pitch.clickSquare({ x: 19, y: 5 });
 
-  // Nothing has moved or rolled: the board asks before the Dodge
   await expect(page.getByRole("heading", { name: /: Dodge$/ })).toBeVisible();
   await expect(
     page.getByText(/Dodge: 3\+\. A fall is a turnover\./)
@@ -146,7 +134,6 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   await page.getByRole("button", { name: "Dodge!" }).click();
   await shot("dodge-rolling");
 
-  // The Dodge, then the safe squares; it stops before the Rush
   await expect(page.getByRole("heading", { name: /: Rush$/ })).toBeVisible({
     timeout: 15_000,
   });
@@ -157,7 +144,6 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   await page.getByRole("button", { name: "Rush!" }).click();
   await shot("rush-rolling");
 
-  // The touchdown waits for the dice and is rendered before setup.
   const touchdown = page.getByTestId("announcement");
   await expect(touchdown).toContainText("Touchdown", { timeout: 15_000 });
   await shot("touchdown");
@@ -181,7 +167,7 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   page,
 }) => {
   const app = new GameApp(page);
-  // Seed 1: the Dodge passes and the Rush rolls a 1
+
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: 1 });
   await observeMoments(page);
   await app.pitch.waitForCameraToSettle();
@@ -192,8 +178,6 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   await page.getByRole("button", { name: "Dodge!" }).click();
   await page.getByRole("button", { name: "Rush!" }).click({ timeout: 15_000 });
 
-  // The banner follows the fall's armour and injury dice too, which take a
-  // while with software rendering in a parallel run
   await expect(page.getByRole("heading", { name: "TURNOVER" })).toBeVisible({
     timeout: 20_000,
   });
@@ -206,17 +190,16 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   const { moments, thrownAtTurnover, landedAtBanner } = await page.evaluate(
     () => window.__momentProof
   );
-  // TURNOVER shows while the team that failed still has the turn; the one
-  // turn banner follows, after the hand-over
+
   expect(moments.map((moment) => moment.kind)).toEqual([
     "turnover",
     "turn-started",
   ]);
   expect(moments.every((moment) => !moment.overlap)).toBe(true);
   const [team1, team2] = await app.bridge.teams();
-  expect(moments[0].activeTeamId).toBe(team1.id);
-  expect(moments[1].activeTeamId).toBe(team2.id);
-  expect(moments[1].text).toContain(`${possessive(team2.name)} Turn`);
+  expect(fixtureValue(moments[0]).activeTeamId).toBe(team1.id);
+  expect(fixtureValue(moments[1]).activeTeamId).toBe(team2.id);
+  expect(fixtureValue(moments[1]).text).toContain(`${possessive(team2.name)} Turn`);
   expect(thrownAtTurnover).toBeGreaterThan(0);
   expect(landedAtBanner).toBeGreaterThanOrEqual(thrownAtTurnover);
 });
@@ -225,9 +208,9 @@ test("on two Rushes in a row, the second prompt waits for the first die to land"
   page,
 }) => {
   const app = new GameApp(page);
-  // The default seed: the Dodge and the first Rush both pass
+
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: SEED });
-  // Note the tray each time a Rush prompt opens
+
   await page.evaluate(() => {
     const w = window as unknown as {
       eventBus: { on(name: string, fn: (d: never) => void): void };
@@ -245,7 +228,10 @@ test("on two Rushes in a row, the second prompt waits for the first die to land"
     const seen = new WeakSet<Element>();
     new MutationObserver(() => {
       for (const heading of document.querySelectorAll("h3")) {
-        if (seen.has(heading) || !/: Rush$/.test(heading.textContent ?? ""))
+        if (
+          seen.has(heading) ||
+          !(heading.textContent ?? "").endsWith(": Rush")
+        )
           continue;
         seen.add(heading);
         w.trayAtRushPrompts.push({
@@ -258,7 +244,7 @@ test("on two Rushes in a row, the second prompt waits for the first die to land"
   await app.pitch.waitForCameraToSettle();
   await app.pitch.clickPlayer("team1:0");
   await app.hud.actionButton("move").click();
-  // Dodge out, five safe squares that use up the MA, then two Rushes
+
   await app.pitch.clickSquare({ x: 17, y: 5 });
   await app.pitch.clickSquare({ x: 18, y: 6 });
   await app.pitch.clickSquare({ x: 18, y: 7 });
@@ -269,8 +255,6 @@ test("on two Rushes in a row, the second prompt waits for the first die to land"
     timeout: 15_000,
   });
 
-  // Rolls still queued in the tray, as on a slow screen, hold the first
-  // Rush die past the 3 s the walk waits for it
   await page.evaluate(() => {
     const w = window as unknown as {
       eventBus: { emit(name: string, data: unknown): void };
@@ -305,6 +289,6 @@ test("on two Rushes in a row, the second prompt waits for the first die to land"
         }
       ).trayAtRushPrompts
   );
-  // The Dodge, the three queued rolls and the first Rush had all landed
+
   expect(second).toEqual({ thrown: 5, landedThrough: 5 });
 });

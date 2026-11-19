@@ -1,19 +1,14 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import React, { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { BlockDiceDialog } from "../../src/ui/components/hud/BlockDiceDialog";
 import { FollowUpDialog } from "../../src/ui/components/hud/FollowUpDialog";
 
-/**
- * Online, the block dice and the follow-up prompt reach both coaches, and
- * only one of them answers. On the other coach's screen these dialogs used
- * to stay open for the rest of the match. A block played by the engine must
- * close them there too.
- */
 const scenario: Scenario = {
   id: "block-dialogs-close",
   name: "Block next to a defender",
@@ -34,7 +29,10 @@ const scenario: Scenario = {
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 afterEach(async () => {
-  if (root) await act(async () => root!.unmount());
+  if (root)
+    await act(async () => {
+      fixtureValue(root).unmount();
+    });
   container?.remove();
 });
 
@@ -50,24 +48,24 @@ describe("block dialogs on the other coach's screen", () => {
       document.body.appendChild(container);
       root = createRoot(container);
       const bus = game.ctx.eventBus as never;
-      await act(async () =>
-        root!.render(
+      await act(async () => {
+        fixtureValue(root).render(
           <>
             <BlockDiceDialog eventBus={bus} />
             <FollowUpDialog eventBus={bus} />
           </>
-        )
-      );
+        );
+      });
 
       await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       const rolled = await game.execute({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: defender.id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const push = rolled.pendingDecision.options.findIndex(
@@ -75,14 +73,13 @@ describe("block dialogs on the other coach's screen", () => {
       );
       if (push < 0) continue;
 
-      // The dialog as the other coach's page shows it, from the replayed event
-      await act(async () =>
+      await act(async () => {
         game.ctx.eventBus.emit(GameEventNames.UI_BlockDialog, {
-          attackerId: attacker.id,
-          defenderId: defender.id,
+          attackerId: fixtureValue(attacker).id,
+          defenderId: fixtureValue(defender).id,
           analysis: { diceCount: 2, isUphill: false } as never,
-        })
-      );
+        });
+      });
       expect(container.innerHTML).not.toBe("");
 
       let response = await act(async () =>
@@ -98,12 +95,12 @@ describe("block dialogs on the other coach's screen", () => {
       }
       if (response.pendingDecision?.type !== "follow-up") continue;
       const { targetSquare } = response.pendingDecision;
-      await act(async () =>
+      await act(async () => {
         game.ctx.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
-          attackerId: attacker.id,
+          attackerId: fixtureValue(attacker).id,
           targetSquare,
-        })
-      );
+        });
+      });
       expect(container.innerHTML).not.toBe("");
 
       await act(async () =>
@@ -122,25 +119,25 @@ describe("block dialogs on the other coach's screen", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () =>
-      root!.render(<BlockDiceDialog eventBus={game.ctx.eventBus as never} />)
-    );
-    await act(async () =>
+    await act(async () => {
+      fixtureValue(root).render(<BlockDiceDialog eventBus={game.ctx.eventBus as never} />);
+    });
+    await act(async () => {
       game.ctx.eventBus.emit(GameEventNames.UI_BlockDialog, {
-        attackerId: attacker.id,
-        defenderId: defender.id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
         analysis: { diceCount: 2, isUphill: false } as never,
-      })
-    );
+      });
+    });
     expect(container.innerHTML).not.toBe("");
 
-    await act(async () =>
+    await act(async () => {
       game.ctx.eventBus.emit(GameEventNames.NetworkCommandRejected, {
         commandType: "block",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         reason: "command-failed: block-not-declared",
-      })
-    );
+      });
+    });
     expect(container.innerHTML).toBe("");
   });
 });

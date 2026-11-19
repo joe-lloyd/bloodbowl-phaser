@@ -17,7 +17,7 @@ const markers = [
   { x: 7, y: 6 },
 ].map((gridPosition, i) =>
   createTestPlayer({
-    id: `marker-${i}`,
+    id: `marker-${String(i)}`,
     gridPosition,
     status: PlayerStatus.ACTIVE,
     skills: [],

@@ -1,3 +1,5 @@
+import { parseMatchTrace } from "../../src/boundary/matchTrace";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import {
   mkdirSync,
@@ -45,7 +47,9 @@ describe("advanced skill study", () => {
         "pnpm-lock.yaml",
         "tsconfig.json",
       ];
-      inputs.forEach((name) => put(name));
+      inputs.forEach((name) => {
+        put(name);
+      });
       const original = acquisitionDigest(root);
       for (const file of [
         "README.md",
@@ -79,12 +83,14 @@ describe("advanced skill study", () => {
       )
     ).toEqual([]);
     for (const focused of variants.filter((v) => v.arm === "focused")) {
-      const control = variants.find(
-        (v) =>
-          v.template === focused.template &&
-          v.replicate === focused.replicate &&
-          v.arm === "random"
-      )!;
+      const control = fixtureValue(
+        variants.find(
+          (v) =>
+            v.template === focused.template &&
+            v.replicate === focused.replicate &&
+            v.arm === "random"
+        )
+      );
       expect(focused.allocations).toHaveLength(6);
       expect(control.teamValue).toBe(focused.teamValue);
       expect(control.sppSpent).toBe(focused.sppSpent);
@@ -98,9 +104,9 @@ describe("advanced skill study", () => {
       focused.allocations.forEach((a, i) => {
         const b = control.allocations[i];
         expect([
-          b.player,
-          b.access,
-          SKILL_DEFINITIONS[b.skill].category,
+          fixtureValue(b).player,
+          fixtureValue(b).access,
+          SKILL_DEFINITIONS[fixtureValue(b).skill].category,
         ]).toEqual([a.player, a.access, SKILL_DEFINITIONS[a.skill].category]);
       });
     }
@@ -110,9 +116,11 @@ describe("advanced skill study", () => {
     expect(jobs).toHaveLength(1944);
     expect(new Set(jobs.map((j) => j.id)).size).toBe(jobs.length);
     for (let i = 0; i < jobs.length; i += 2) {
-      expect(jobs[i + 1].seed).toBe(jobs[i].seed);
-      expect(jobs[i + 1].pair).toBe(jobs[i].pair);
-      expect(jobs[i + 1].variantIds).toEqual([...jobs[i].variantIds].reverse());
+      expect(fixtureValue(jobs[i + 1]).seed).toBe(fixtureValue(jobs[i]).seed);
+      expect(fixtureValue(jobs[i + 1]).pair).toBe(fixtureValue(jobs[i]).pair);
+      expect(fixtureValue(jobs[i + 1]).variantIds).toEqual(
+        [...fixtureValue(jobs[i]).variantIds].reverse()
+      );
     }
     for (const arm of [
       "focused-vs-base",
@@ -122,7 +130,7 @@ describe("advanced skill study", () => {
       expect(jobs.filter((j) => j.comparison === arm)).toHaveLength(648);
   });
   it("removes native skills before a controlled script, without mutating its fixture", async () => {
-    const { config } = findRuleConfig("horns-blitz-strength")!;
+    const { config } = fixtureValue(findRuleConfig("horns-blitz-strength"));
     const withSkill = await probeRun(config, SkillType.HORNS, 1, false);
     const withoutSkill = await probeRun(config, SkillType.HORNS, 1, true);
     expect(withSkill.holders).toBeGreaterThan(0);
@@ -135,7 +143,7 @@ describe("advanced skill study", () => {
     );
   });
   it("distinguishes an ordinary Blitz from a special Blitz in opening diagnostics", async () => {
-    const { config } = findRuleConfig("projectile-vomit-blitz")!;
+    const { config } = fixtureValue(findRuleConfig("projectile-vomit-blitz"));
     expect(await firstChoice(config, 71)).toMatchObject({
       expectedAction: "blitz",
       expectedBlockReplacement: "vomit",
@@ -149,7 +157,7 @@ describe("advanced skill study", () => {
           ...config,
           setup: {
             ...config.setup,
-          team1Roster: RosterName.HUMAN,
+            team1Roster: RosterName.HUMAN,
           },
         },
         71
@@ -164,17 +172,17 @@ describe("advanced skill study", () => {
     const out = mkdtempSync(join(tmpdir(), "bb7-advanced-"));
     try {
       const job = advancedSchedule(variants)[0];
-      const sides = job.variantIds.map(
-        (id) => variants.find((v) => v.id === id)!
+      const sides = fixtureValue(job).variantIds.map((id) =>
+        fixtureValue(variants.find((v) => v.id === id))
       );
-      const result = await playStudyGame(job, out, [
-        teamFromVariant(sides[0]),
-        teamFromVariant(sides[1]),
+      const result = await playStudyGame(fixtureValue(job), out, [
+        teamFromVariant(fixtureValue(sides[0])),
+        teamFromVariant(fixtureValue(sides[1])),
       ]);
       expect(result.completed).toBe(true);
       expect(result.findings).toEqual([]);
-      const file = join(out, "traces", job.id + ".json.gz");
-      const trace = JSON.parse(gunzipSync(readFileSync(file)).toString());
+      const file = join(out, "traces", fixtureValue(job).id + ".json.gz");
+      const trace = parseMatchTrace(gunzipSync(readFileSync(file)).toString());
       expect(
         trace.initial.teams[0].players.reduce(
           (sum: number, p: { advancements?: unknown[] }) =>

@@ -1,10 +1,10 @@
-/**
- * The safest path to every square a player can reach this activation, by
- * the chance of making every Dodge, Rush and Pick-up on the way rather than
- * by distance.
- */
-
-import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
+import { NumberTable } from "./numberTable";
+import { type FieldPlayer as Player } from "./board";
+import {
+  type Player as RosterPlayer,
+  PlayerStatus,
+  hasTackleZone,
+} from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { requiredRoll } from "../../game/rules/rollTargets";
 import { pickupTarget, secureBallTarget } from "../../game/rules/rollPreview";
@@ -12,21 +12,21 @@ import { weatherEffects } from "../../game/rules/weather";
 import { rushAllowance, standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
 import {
-  Board,
+  type Board,
   HEIGHT,
-  Square,
+  type Square,
   WIDTH,
   distance,
   key,
   neighbours,
 } from "./board";
-import { CERTAIN, Chance, RollTarget, chain } from "./chance";
+import { CERTAIN, type Chance, type RollTarget, chain } from "./chance";
 
 const NO_ROLLS: RollTarget[] = [];
 
 export interface Route {
   to: Square;
-  /** Squares to step through in order, excluding the start. */
+
   path: Square[];
   rolls: RollTarget[];
   chance: Chance;
@@ -38,37 +38,31 @@ const square = (k: number): Square => ({
   y: Math.floor(k / WIDTH),
 });
 
-/** The roll targets for one step from `from` into `to`. */
-function stepRolls(
-  board: Board,
-  player: Player,
-  from: Square,
-  to: Square,
-  rush: boolean,
-  securing: boolean
-): RollTarget[] {
+interface StepRollsArgs {
+  board: Board;
+  player: Player;
+  from: Square;
+  to: Square;
+  rush: boolean;
+  securing: boolean;
+}
+
+function stepRolls({
+  board,
+  player,
+  from,
+  to,
+  rush,
+  securing,
+}: StepRollsArgs): RollTarget[] {
   const rolls: RollTarget[] = [];
   if (rush)
     rolls.push({
       kind: "rush",
-      target: requiredRoll(2, weatherEffects(board.weather).rush ?? 0),
+      target: requiredRoll(2, weatherEffects(board.weather).rush),
     });
-  if (board.marks[key(from)] > 0) {
-    const modifier = hasSkill(player.skills, SkillType.STUNTY)
-      ? 0
-      : -board.marks[key(to)];
-    const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
-    const tackled = board.theirs.some(
-      (o) =>
-        hasTackleZone(o) &&
-        hasSkill(o.skills, SkillType.TACKLE) &&
-        distance(o.gridPosition!, from) === 1
-    );
-    rolls.push({
-      kind: "dodge",
-      target: requiredRoll(player.stats.AG, modifier + twoHeads),
-      ...(tackled ? { noSkillReroll: true as const } : {}),
-    });
+  if (board.marks.getUint8(key(from)) > 0) {
+    rolls.push(dodgeRoll(board, player, { from, to }));
   }
   if (board.ball.kind === "loose" && key(board.ball.at) === key(to))
     rolls.push({
@@ -83,10 +77,9 @@ function stepRolls(
   return rolls;
 }
 
-/** Squares left this activation: [normal steps, rushes]. */
 export function movesLeft(
   board: Board,
-  player: Player,
+  player: RosterPlayer,
   extraUsed = 0
 ): [number, number] {
   const fielded = withDriveModifiers(player, board.gs.getState());
@@ -97,18 +90,10 @@ export function movesLeft(
   return [Math.max(0, ma - used), Math.max(0, rushes)];
 }
 
-// One search's working space, reused: this runs thousands of times a game.
 const MAX_STEPS = 16;
-const bestAt = Array.from(
-  { length: MAX_STEPS + 1 },
-  () => new Float64Array(CELLS)
-);
-const parentAt = Array.from(
-  { length: MAX_STEPS + 1 },
-  () => new Int16Array(CELLS)
-);
+const bestAt = new NumberTable(MAX_STEPS + 1, CELLS);
+const parentAt = new NumberTable(MAX_STEPS + 1, CELLS);
 
-/** Each cell's neighbours by key, in the order `neighbours` gives them. */
 const NEIGHBOURS = Array.from({ length: CELLS }, (_, cell) =>
   neighbours(square(cell)).map(key)
 );
@@ -116,28 +101,30 @@ const NEIGHBOURS = Array.from({ length: CELLS }, (_, cell) =>
 const rollChance = (target: number) =>
   (7 - Math.min(6, Math.max(2, target))) / 6;
 
-/** What one search needs to price a step: fixed for the whole search. */
 interface Search {
   board: Board;
-  /** The loose ball's cell, or -1. */
+
   ballKey: number;
   rush: number;
-  /** The chance of a Dodge into a square with this many tackle zones. */
-  dodgeInto: number[];
+
+  dodgeInto: DataView;
   pickup: number;
 }
 
 function searchFor(board: Board, player: Player, securing: boolean): Search {
   const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
-  // The chance of each step, by what it depends on.
-  const rush = rollChance(
-    requiredRoll(2, weatherEffects(board.weather).rush ?? 0)
-  );
+
+  const rush = rollChance(requiredRoll(2, weatherEffects(board.weather).rush));
   const stunty = hasSkill(player.skills, SkillType.STUNTY);
   const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
-  const dodgeInto = Array.from({ length: 9 }, (_, marks) =>
-    rollChance(requiredRoll(player.stats.AG, (stunty ? 0 : -marks) + twoHeads))
-  );
+  const dodgeInto = new DataView(new ArrayBuffer(9 * 8));
+  for (let marks = 0; marks < 9; marks++)
+    dodgeInto.setFloat64(
+      marks * 8,
+      rollChance(
+        requiredRoll(player.stats.AG, (stunty ? 0 : -marks) + twoHeads)
+      )
+    );
   const pickup =
     ballKey >= 0
       ? rollChance(
@@ -152,103 +139,131 @@ function searchFor(board: Board, player: Player, securing: boolean): Search {
   return { board, ballKey, rush, dodgeInto, pickup };
 }
 
-/** Step from `cell`, reached in k steps with chance p, to each free neighbour. */
-function relax(
-  search: Search,
-  k: number,
-  cell: number,
-  p: number,
-  stepRush: number
-): void {
+interface RelaxArgs {
+  search: Search;
+  k: number;
+  cell: number;
+  p: number;
+  stepRush: number;
+  neighbours: number[];
+}
+
+function relax({ search, k, cell, p, stepRush, neighbours }: RelaxArgs): void {
   const { board, ballKey } = search;
-  const leavesZone = board.marks[cell] > 0;
-  for (const next of NEIGHBOURS[cell]) {
+  const leavesZone = board.marks.getUint8(cell) > 0;
+  for (const next of neighbours) {
     if (board.occupant[next]) continue;
     let chance = stepRush;
-    if (leavesZone) chance *= search.dodgeInto[board.marks[next]];
+    if (leavesZone)
+      chance *= search.dodgeInto.getFloat64(board.marks.getUint8(next) * 8);
     if (next === ballKey) chance *= search.pickup;
     const q = p * chance;
-    if (q > bestAt[k + 1][next]) {
-      bestAt[k + 1][next] = q;
-      parentAt[k + 1][next] = cell;
+    if (q > bestAt.get(k + 1, next)) {
+      bestAt.set(k + 1, next, q);
+      parentAt.set(k + 1, next, cell);
     }
   }
 }
 
-/**
- * Fill bestAt[k][cell], the chance of reaching cell in exactly k steps
- * (-1: never), and parentAt, the cell each best path came from.
- */
-function spread(
-  search: Search,
-  start: Square,
-  steps: number,
-  normal: number
-): void {
-  for (let k = 0; k <= steps; k++) bestAt[k].fill(-1);
-  bestAt[0][key(start)] = 1;
+interface SpreadArgs {
+  search: Search;
+  start: Square;
+  steps: number;
+  normal: number;
+}
+
+function spread({ search, start, steps, normal }: SpreadArgs): void {
+  bestAt.fillRows(steps + 1, -1);
+  bestAt.set(0, key(start), 1);
   for (let k = 0; k < steps; k++) {
     const stepRush = k >= normal ? search.rush : 1;
-    for (let cell = 0; cell < CELLS; cell++) {
-      const p = bestAt[k][cell];
+    for (const [cell, neighbours] of NEIGHBOURS.entries()) {
+      const p = bestAt.get(k, cell);
       if (p < 0 || (cell === search.ballKey && k > 0)) continue;
-      relax(search, k, cell, p, stepRush);
+      relax({
+        search: search,
+        k: k,
+        cell: cell,
+        p: p,
+        stepRush: stepRush,
+        neighbours,
+      });
     }
   }
 }
 
-/** The squares of the best k-step path to `cell`, from parentAt. */
 function pathTo(cell: number, steps: number): Square[] {
-  const path: Square[] = new Array(steps);
-  for (let k = steps, c = cell; k > 0; c = parentAt[k][c], k--)
-    path[k - 1] = square(c);
-  return path;
+  const path: Square[] = [];
+  for (let k = steps, c = cell; k > 0; c = parentAt.get(k, c), k--)
+    path.push(square(c));
+  return path.reverse();
 }
 
-/** The step count with the best chance of reaching `cell`, or -1. */
 function bestStepCount(cell: number, steps: number): number {
   let bestK = -1;
   for (let k = 1; k <= steps; k++)
-    if (bestAt[k][cell] > (bestK < 0 ? 0 : bestAt[bestK][cell] + 1e-9))
+    if (bestAt.get(k, cell) > (bestK < 0 ? 0 : bestAt.get(bestK, cell) + 1e-9))
       bestK = k;
   return bestK;
 }
 
-/** The dice on a path, step by step; a step past `normal` is a Rush. */
-function pathRolls(
-  board: Board,
-  player: Player,
-  start: Square,
-  path: Square[],
-  normal: number,
-  securing: boolean
-): RollTarget[] {
+interface PathRollsArgs {
+  board: Board;
+  player: Player;
+  start: Square;
+  path: Square[];
+  normal: number;
+  securing: boolean;
+}
+
+function pathRolls({
+  board,
+  player,
+  start,
+  path,
+  normal,
+  securing,
+}: PathRollsArgs): RollTarget[] {
   const rolls: RollTarget[] = [];
   let from = start;
-  for (let i = 0; i < path.length; i++) {
+  for (const [i, to] of path.entries()) {
     rolls.push(
-      ...stepRolls(board, player, from, path[i], i >= normal, securing)
+      ...stepRolls({
+        board: board,
+        player: player,
+        from: from,
+        to,
+        rush: i >= normal,
+        securing: securing,
+      })
     );
-    from = path[i];
+    from = to;
   }
   return rolls;
 }
 
-/**
- * Every square the player can reach, each by its safest path, judged on its
- * own dice. A loose ball square ends a path (stepping on it is a Pick-up);
- * other players block.
- */
-export function routesFor(
-  board: Board,
-  player: Player,
+interface RoutesForArgs {
+  board: Board;
+  player: Player;
+  securing?: boolean;
+  extraUsed?: number;
+}
+
+export function routesFor({
+  board,
+  player,
   securing = false,
-  extraUsed = 0
-): Map<number, Route> {
-  const start = player.gridPosition!;
+  extraUsed = 0,
+}: RoutesForArgs): Map<number, Route> {
+  const start = player.gridPosition;
   const [normal, rushes] = movesLeft(board, player, extraUsed);
   const steps = Math.min(MAX_STEPS, normal + rushes);
-  spread(searchFor(board, player, securing), start, steps, normal);
+  spread({
+    search: searchFor(board, player, securing),
+    start: start,
+    steps: steps,
+    normal: normal,
+  });
 
   const out = new Map<number, Route>();
   for (let cell = 0; cell < CELLS; cell++) {
@@ -256,29 +271,39 @@ export function routesFor(
     const bestK = bestStepCount(cell, steps);
     if (bestK < 0) continue;
     const path = pathTo(cell, bestK);
-    // A path whose chance is exactly 1 rolled nothing.
+
     const rolls =
-      bestAt[bestK][cell] === 1
+      bestAt.get(bestK, cell) === 1
         ? NO_ROLLS
-        : pathRolls(board, player, start, path, normal, securing);
+        : pathRolls({
+            board: board,
+            player: player,
+            start: start,
+            path: path,
+            normal: normal,
+            securing: securing,
+          });
     out.set(cell, {
       to: square(cell),
       path,
       rolls,
       chance: rolls.length
-        ? chain(player, rolls, false, (skill) =>
-            board.gs.getRerollArbiter().skillRerollAvailable(player, skill)
-          )
+        ? chain({
+            player: player,
+            rolls: rolls,
+            teamReroll: false,
+            available: (skill) =>
+              board.gs.getRerollArbiter().skillRerollAvailable(player, skill),
+          })
         : CERTAIN,
     });
   }
   return out;
 }
 
-/** The same paths with a team re-roll to hand for the dice on them. */
 export function withTeamReroll(
   routes: Map<number, Route>,
-  player: Player,
+  player: RosterPlayer,
   available?: (skill: SkillType) => boolean
 ): Map<number, Route> {
   const out = new Map<number, Route>();
@@ -286,8 +311,38 @@ export function withTeamReroll(
     out.set(
       cell,
       route.rolls.length
-        ? { ...route, chance: chain(player, route.rolls, true, available) }
+        ? {
+            ...route,
+            chance: chain({
+              player: player,
+              rolls: route.rolls,
+              teamReroll: true,
+              available: available,
+            }),
+          }
         : route
     );
   return out;
+}
+
+function dodgeRoll(
+  board: Board,
+  player: Player,
+  { from, to }: { from: Square; to: Square }
+): RollTarget {
+  const modifier = hasSkill(player.skills, SkillType.STUNTY)
+    ? 0
+    : -board.marks.getUint8(key(to));
+  const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
+  const tackled = board.theirs.some(
+    (o) =>
+      hasTackleZone(o) &&
+      hasSkill(o.skills, SkillType.TACKLE) &&
+      distance(o.gridPosition, from) === 1
+  );
+  return {
+    kind: "dodge",
+    target: requiredRoll(player.stats.AG, modifier + twoHeads),
+    ...(tackled ? { noSkillReroll: true as const } : {}),
+  };
 }

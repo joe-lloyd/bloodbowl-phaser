@@ -1,10 +1,5 @@
-/**
- * Two Heads (2025 p.138) — "This player may apply a +1 modifier to the
- * Agility Test whenever they attempt to Dodge."
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const TwoHeadsRule: SkillRule = {
   onDodgeDeclared(ctx, self) {

@@ -1,13 +1,7 @@
 import { mkdir } from "node:fs/promises";
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
-/**
- * Round 2, 39:21: with the action panel open, a blitzer near the far end
- * could not reach squares 18,0 to 19,1, as the panel covered them. The
- * camera frames the player's reach clear of the HUD columns, so every
- * square in that corner takes the click.
- */
 const CORNER = [
   { x: 18, y: 0 },
   { x: 19, y: 0 },
@@ -23,7 +17,10 @@ async function expectCornerClickable(page: Page, app: GameApp) {
       ([x, y, el]) => document.elementFromPoint(x, y) === el,
       [point.x, point.y, canvas] as const
     );
-    expect(onCanvas, `square ${square.x},${square.y} is covered`).toBe(true);
+    expect(
+      onCanvas,
+      `square ${String(square.x)},${String(square.y)} is covered`
+    ).toBe(true);
   }
 }
 
@@ -31,7 +28,7 @@ for (const viewport of [
   { width: 1280, height: 720 },
   { width: 1920, height: 1080 },
 ]) {
-  test.describe(`${viewport.width}x${viewport.height}`, () => {
+  test.describe(`${String(viewport.width)}x${String(viewport.height)}`, () => {
     test.use({ viewport });
     test("the action panel leaves the far corner clickable", async ({
       page,
@@ -49,7 +46,7 @@ for (const viewport of [
       const dir = "/tmp/review-loop-round2";
       await mkdir(dir, { recursive: true });
       await page.screenshot({
-        path: `${dir}/action-panel-${viewport.width}x${viewport.height}.png`,
+        path: `${dir}/action-panel-${String(viewport.width)}x${String(viewport.height)}.png`,
       });
     });
   });

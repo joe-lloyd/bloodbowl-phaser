@@ -1,21 +1,12 @@
-/**
- * The planner's dice maths. A `Chance` is how likely something is; it ranks
- * options and is folded into scores, and never leaves the planner. Coaches
- * see roll targets ("Dodge: 3+"), never odds, so nothing here is ever
- * turned into text: notes are built from `RollTarget`s alone.
- */
-
-import { Player } from "../../types/Player";
+import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 
-declare const chanceBrand: unique symbol;
-/** A probability between 0 and 1. Internal to the planner. */
-export type Chance = number & { readonly [chanceBrand]: true };
+export type Chance = number;
 
-export const CERTAIN = 1 as Chance;
-export const IMPOSSIBLE = 0 as Chance;
+export const CERTAIN = 1;
+export const IMPOSSIBLE = 0;
 
-export type RollKind =
+type RollKind =
   | "dodge"
   | "rush"
   | "pickup"
@@ -26,26 +17,21 @@ export type RollKind =
   | "landing"
   | "block";
 
-/** A roll a plan needs, as a coach would read it: the kind and its N+. */
 export interface RollTarget {
   kind: Exclude<RollKind, "block">;
   target: number;
-  /** A Tackle marks the square left: the Dodge skill may not re-roll this. */
+
   noSkillReroll?: true;
 }
 
-/** One D6 needing `target`+ (a natural 1 fails, a natural 6 passes). */
 export function d6(target: number): Chance {
   const t = Math.min(6, Math.max(2, target));
-  return ((7 - t) / 6) as Chance;
+  return (7 - t) / 6;
 }
 
-/** A roll that may be taken again once on failure. */
 export function withReroll(p: Chance): Chance {
-  return (p + (1 - p) * p) as Chance;
+  return p + (1 - p) * p;
 }
-
-export const both = (a: Chance, b: Chance) => (a * b) as Chance;
 
 const KINDS: readonly RollTarget["kind"][] = [
   "dodge",
@@ -65,36 +51,43 @@ const REROLL_SKILL: Record<RollTarget["kind"], SkillType | null> = {
   catch: SkillType.CATCH,
   secure: null,
   pass: SkillType.PASS,
-  // Neither the Throw Team-mate roll nor the Landing offers a re-roll.
+
   throw: null,
   landing: null,
 };
 
-/** The skill that re-rolls a failed roll of this kind, if the player has it. */
 function skillReroll(player: Player, kind: RollTarget["kind"]): boolean {
   const skill = REROLL_SKILL[kind];
   return skill !== null && hasSkill(player.skills, skill);
 }
 
-/**
- * The chance a sequence of rolls all succeed. A failed roll takes its skill
- * re-roll if that kind's is unspent (they are once per turn), else the team
- * re-roll if we hold one; no roll is re-rolled twice.
- */
-export function chain(
-  player: Player,
-  rolls: readonly RollTarget[],
-  teamReroll: boolean,
-  available: (skill: SkillType) => boolean = () => true
-): Chance {
+interface ChainArgs {
+  player: Player;
+  rolls: readonly RollTarget[];
+  teamReroll: boolean;
+  available?: ((skill: SkillType) => boolean) | undefined;
+}
+
+export function chain({
+  player,
+  rolls,
+  teamReroll,
+  available = () => true,
+}: ChainArgs): Chance {
   const has = KINDS.map((kind) => {
     const skill = REROLL_SKILL[kind];
     return skillReroll(player, kind) && skill !== null && available(skill);
   });
-  return chainFrom(0, 0, teamReroll, rolls, has, new Map()) as Chance;
+  return chainFrom({
+    i: 0,
+    spent: 0,
+    team: teamReroll,
+    rolls: rolls,
+    has: has,
+    seen: new Map(),
+  });
 }
 
-/** Multiple players share one team reroll while retaining their own skill uses. */
 export function sequenceChance(
   stages: readonly { player: Player; rolls: readonly RollTarget[] }[],
   teamReroll: boolean,
@@ -109,14 +102,15 @@ export function sequenceChance(
     spent: ReadonlySet<string>,
     team: boolean
   ): number => {
-    if (i === steps.length) return 1;
-    const key = `${i}/${team}/${[...spent].sort().join(",")}`;
+    const step = steps[i];
+    if (step === undefined) return 1;
+    const key = `${String(i)}/${String(team)}/${[...spent].sort().join(",")}`;
     const known = seen.get(key);
     if (known !== undefined) return known;
-    const { player, roll } = steps[i];
+    const { player, roll } = step;
     const p = d6(roll.target);
     const skill = REROLL_SKILL[roll.kind];
-    const use = `${player.id}/${skill}`;
+    const use = `${player.id}/${String(skill)}`;
     let saved = 0;
     if (
       skill !== null &&
@@ -133,63 +127,99 @@ export function sequenceChance(
     seen.set(key, value);
     return value;
   };
-  return visit(0, new Set(), teamReroll) as Chance;
+  return visit(0, new Set(), teamReroll);
 }
 
-/**
- * The chance from roll `i` on. `spent` holds a bit per kind whose skill
- * re-roll is gone; `team` is whether the team re-roll is still in hand.
- */
-function chainFrom(
-  i: number,
-  spent: number,
-  team: boolean,
-  rolls: readonly RollTarget[],
-  has: readonly boolean[],
-  seen: Map<number, number>
-): number {
-  if (i === rolls.length) return 1;
+interface ChainFromArgs {
+  i: number;
+  spent: number;
+  team: boolean;
+  rolls: readonly RollTarget[];
+  has: readonly boolean[];
+  seen: Map<number, number>;
+}
+
+function chainFrom({
+  i,
+  spent,
+  team,
+  rolls,
+  has,
+  seen,
+}: ChainFromArgs): number {
+  const roll = rolls[i];
+  if (roll === undefined) return 1;
   const id = i * (2 << KINDS.length) + spent * 2 + (team ? 1 : 0);
   const known = seen.get(id);
   if (known !== undefined) return known;
-  const { kind, target, noSkillReroll } = rolls[i];
+  const { kind, target, noSkillReroll } = roll;
   const k = KINDS.indexOf(kind);
   const p = d6(target);
   let saved = 0;
   if (!noSkillReroll && has[k] && !(spent & (1 << k)))
-    saved = p * chainFrom(i + 1, spent | (1 << k), team, rolls, has, seen);
-  else if (team) saved = p * chainFrom(i + 1, spent, false, rolls, has, seen);
+    saved =
+      p *
+      chainFrom({
+        i: i + 1,
+        spent: spent | (1 << k),
+        team: team,
+        rolls: rolls,
+        has: has,
+        seen: seen,
+      });
+  else if (team)
+    saved =
+      p *
+      chainFrom({
+        i: i + 1,
+        spent: spent,
+        team: false,
+        rolls: rolls,
+        has: has,
+        seen: seen,
+      });
   const chance =
-    p * chainFrom(i + 1, spent, team, rolls, has, seen) + (1 - p) * saved;
+    p *
+      chainFrom({
+        i: i + 1,
+        spent: spent,
+        team: team,
+        rolls: rolls,
+        has: has,
+        seen: seen,
+      }) +
+    (1 - p) * saved;
   seen.set(id, chance);
   return chance;
 }
 
-/** What a block can do, for the side that takes the result. */
 export interface BlockOdds {
-  /** The defender ends up on the ground. */
   knockdown: Chance;
-  /** The attacker ends up on the ground: a turnover. */
+
   attackerDown: Chance;
 }
 
-/**
- * Block dice by face: Skull, Both Down, Push, Push, Stumble, Pow. `dice` is
- * the count; `attackerPicks` is false for an uphill block.
- */
-export function blockOdds(
-  attacker: Player,
-  defender: Player,
-  dice: number,
-  attackerPicks: boolean,
-  teamReroll: boolean
-): BlockOdds {
+interface BlockOddsArgs {
+  attacker: Player;
+  defender: Player;
+  dice: number;
+  attackerPicks: boolean;
+  teamReroll: boolean;
+}
+
+export function blockOdds({
+  attacker,
+  defender,
+  dice,
+  attackerPicks,
+  teamReroll,
+}: BlockOddsArgs): BlockOdds {
   const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
   const aBlock = has(attacker, SkillType.BLOCK);
   const dBlock = has(defender, SkillType.BLOCK);
   const dodges =
     has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE);
-  // Per die: does it put the defender down (good) or the attacker (bad)?
+
   const good = (1 + (dodges ? 0 : 1) + (aBlock && !dBlock ? 1 : 0)) / 6;
   const bad = (1 + (aBlock ? 0 : 1)) / 6;
   let knockdown: number;
@@ -202,38 +232,29 @@ export function blockOdds(
     attackerDown = 1 - (1 - bad) ** dice;
   }
   if (teamReroll) {
-    // Re-roll only a result that knocks the attacker down.
     knockdown += attackerDown * knockdown;
     attackerDown *= attackerDown;
   }
   return {
-    knockdown: knockdown as Chance,
-    attackerDown: attackerDown as Chance,
+    knockdown: knockdown,
+    attackerDown: attackerDown,
   };
 }
 
-/** Two D6 totalling `target` or more. */
 export function twoD6(target: number): Chance {
   let hits = 0;
   for (let a = 1; a <= 6; a++)
     for (let b = 1; b <= 6; b++) if (a + b >= target) hits++;
-  return (hits / 36) as Chance;
+  return hits / 36;
 }
 
-/**
- * The chance a knockdown ends in a casualty, on the Sevens injury table:
- * 10+ to injure, 9+ on a Stunty player. Claws break armour on a natural 8+,
- * and Mighty Blow adds one to the armour roll, or to the injury roll if the
- * armour broke without it. Iron Hard Skin cancels Claws and any armour
- * modifier. Regeneration saves half of them.
- */
 export function casualtyChance(attacker: Player, defender: Player): Chance {
   const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
   const ironHard = has(defender, SkillType.IRON_HARD_SKIN);
   const claws = has(attacker, SkillType.CLAWS) && !ironHard;
   const injury = has(defender, SkillType.STUNTY) ? 9 : 10;
   const blow = has(attacker, SkillType.MIGHTY_BLOW) ? 1 : 0;
-  // The natural roll that breaks armour with `modifier` added to it.
+
   const breakAt = (modifier: number) =>
     claws
       ? Math.min(8, defender.stats.AV - modifier)
@@ -242,5 +263,5 @@ export function casualtyChance(attacker: Player, defender: Player): Chance {
   const breaksWithBlow = twoD6(breakAt(ironHard ? 0 : blow));
   const p =
     breaks * twoD6(injury - blow) + (breaksWithBlow - breaks) * twoD6(injury);
-  return (has(defender, SkillType.REGENERATION) ? p / 2 : p) as Chance;
+  return has(defender, SkillType.REGENERATION) ? p / 2 : p;
 }

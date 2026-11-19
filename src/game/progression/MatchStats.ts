@@ -1,7 +1,7 @@
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
-import { Player } from "../../types/Player";
-import { RosterName, Team, TeamSpecialRule } from "../../types/Team";
+import { type Player } from "../../types/Player";
+import { RosterName, type Team, TeamSpecialRule } from "../../types/Team";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 
 export interface PlayerMatchStats {
@@ -9,27 +9,21 @@ export interface PlayerMatchStats {
   teamId: string;
   participated: boolean;
   completions: number;
-  /** Pass attempts, completed or not — feeds `careerStats.passesAttempted`. */
+
   attempts: number;
   superbThrows: number;
   safeLandings: number;
   interceptions: number;
   casualties: number;
-  /** Casualties inflicted whose injury result was Dead — a subset of `casualties`. */
+
   kills: number;
   touchdowns: number;
   mvps: number;
   blocks: number;
-  /** Squares moved (walked or rushed) — feeds `careerStats.squaresMoved`. */
+
   yards: number;
   injuriesSuffered: number;
-  /**
-   * Count of touchdowns manually awarded for SPP purposes after a
-   * concession (rulebook: the non-conceding team is credited a touchdown's
-   * worth of SPP for the missed drive). Tracked separately from
-   * `touchdowns` so the displayed touchdown statistic only ever reflects a
-   * touchdown actually scored on the pitch.
-   */
+
   awardedTouchdownSpp?: number;
   sppEarned: number;
 }
@@ -43,7 +37,7 @@ export interface MatchStatsSnapshot {
   version: 1;
   progressionEnabled: boolean;
   applied: boolean;
-  /** The conceding team's id when SPP was applied with a concession. */
+
   concedingTeamId?: string;
   players: PlayerMatchStats[];
 }
@@ -60,14 +54,12 @@ export const SPP_VALUES = {
 
 export type SppValues = { readonly [K in keyof typeof SPP_VALUES]: number };
 
-/** Brawlin' Brutes: 3 SPP for a Casualty and 2 for a Touchdown. */
 const BRAWLIN_BRUTES_SPP_VALUES: SppValues = {
   ...SPP_VALUES,
   casualty: 3,
   touchdown: 2,
 };
 
-/** What each achievement is worth to a roster's players, by its special rules. */
 export function sppValuesFor(rosterName: RosterName): SppValues {
   return getRosterByRosterName(rosterName).specialRules.includes(
     TeamSpecialRule.BRAWLIN_BRUTES
@@ -114,33 +106,26 @@ export function sppFromMatchStats(
   );
 }
 
-/**
- * Phaser-free event observer. It can be mounted in the browser container or
- * in the plain Node headless bootstrap.
- */
 export class MatchStats {
   private readonly stats = new Map<string, PlayerMatchStats>();
   private appliedFlag = false;
-  /** Set by `applySpp` when the match ended in a concession; persisted so
-   *  every later `summary()` call (rerender, resume, reconnect) agrees that
-   *  team's SPP was zeroed instead of only zeroing a one-off copy. */
+
   private concedingTeamId: string | undefined;
 
-  /** Whether SPP has already been confirmed for this match. */
   get applied(): boolean {
     return this.appliedFlag;
   }
-  /** Only Advanced League teams earn SPP (see team-advancement-modes); a
-   *  team with no mode yet (unmigrated legacy team) defaults to earning SPP
-   *  so existing saves keep behaving as before this feature existed. */
+
   private readonly sppEligibleTeamIds: Set<string>;
   private readonly sppValues: Map<string, SppValues>;
 
-  constructor(
-    private readonly eventBus: IEventBus,
-    private readonly teams: Team[],
-    public readonly progressionEnabled = false
-  ) {
+  private readonly eventBus: IEventBus;
+  private readonly teams: Team[];
+  public readonly progressionEnabled: boolean;
+  constructor(eventBus: IEventBus, teams: Team[], progressionEnabled = false) {
+    this.eventBus = eventBus;
+    this.teams = teams;
+    this.progressionEnabled = progressionEnabled;
     this.sppEligibleTeamIds = new Set(
       teams
         .filter(
@@ -176,12 +161,12 @@ export class MatchStats {
   }
 
   private subscribe(): void {
-    this.eventBus.on(GameEventNames.PlayerPlaced, ({ playerId }) =>
-      this.participate(playerId)
-    );
-    this.eventBus.on(GameEventNames.PlayerActivated, (playerId) =>
-      this.participate(playerId)
-    );
+    this.eventBus.on(GameEventNames.PlayerPlaced, ({ playerId }) => {
+      this.participate(playerId);
+    });
+    this.eventBus.on(GameEventNames.PlayerActivated, (playerId) => {
+      this.participate(playerId);
+    });
     this.eventBus.on(GameEventNames.PassAttempted, ({ playerId }) => {
       const stats = this.get(playerId);
       if (stats) stats.attempts++;
@@ -230,10 +215,9 @@ export class MatchStats {
     this.eventBus.on(
       GameEventNames.AwardedTouchdownAssigned,
       ({ playerId }) => {
-        // A concession's SPP-only touchdown award. It must never inflate the
-        // displayed touchdown statistic — the player did not actually score.
         const stats = this.get(playerId);
-        if (stats) stats.awardedTouchdownSpp = (stats.awardedTouchdownSpp ?? 0) + 1;
+        if (stats)
+          stats.awardedTouchdownSpp = (stats.awardedTouchdownSpp ?? 0) + 1;
       }
     );
     this.eventBus.on(GameEventNames.BlockDiceRolled, ({ attackerId }) => {
@@ -265,7 +249,9 @@ export class MatchStats {
       unique.length !== required ||
       unique.some((playerId) => !eligible.has(playerId))
     ) {
-      throw new Error(`MVP requires ${required} unique participating players`);
+      throw new Error(
+        `MVP requires ${String(required)} unique participating players`
+      );
     }
     if (roll < 1 || roll > unique.length) {
       throw new Error("MVP roll is outside the nominated player slots");
@@ -291,10 +277,7 @@ export class MatchStats {
       const eligible =
         player?.playerKind !== "star" &&
         this.sppEligibleTeamIds.has(stats.teamId);
-      // Once SPP has been confirmed, a conceding team's earned SPP stays
-      // zeroed on every later summary — including after a rerender, resume,
-      // or reconnect — rather than only on the one-off value `applySpp`
-      // returned when it ran.
+
       const zeroed = this.appliedFlag && stats.teamId === this.concedingTeamId;
       return {
         ...stats,
@@ -307,18 +290,16 @@ export class MatchStats {
     return { progressionEnabled: this.progressionEnabled, players: result };
   }
 
-  /** JSON-safe accumulated state for local-match resume. */
   captureState(): MatchStatsSnapshot {
     return {
       version: 1,
       progressionEnabled: this.progressionEnabled,
       applied: this.appliedFlag,
-      concedingTeamId: this.concedingTeamId,
+      ...(this.concedingTeamId === undefined ? {} : { concedingTeamId: this.concedingTeamId }),
       players: [...this.stats.values()].map((stats) => ({ ...stats })),
     };
   }
 
-  /** Restore counters while preserving this instance's event subscriptions. */
   restoreState(snapshot: MatchStatsSnapshot): void {
     if (
       snapshot.version !== 1 ||
@@ -329,10 +310,7 @@ export class MatchStats {
     }
     this.stats.clear();
     snapshot.players.forEach((stats) => {
-      // A save captured before `attempts`/`kills`/`awardedTouchdownSpp`
-      // existed omits them at runtime even though the type says otherwise;
-      // default to zero rather than resuming into NaN counters.
-      const legacy = stats as Partial<PlayerMatchStats>;
+      const legacy: Partial<PlayerMatchStats> = stats;
       this.stats.set(stats.playerId, {
         awardedTouchdownSpp: 0,
         ...stats,
@@ -344,16 +322,9 @@ export class MatchStats {
     this.concedingTeamId = snapshot.concedingTeamId;
   }
 
-  /**
-   * Confirm SPP for the match. Idempotent by construction: a second call
-   * throws instead of re-crediting SPP, so a rerender/resume/reconnect that
-   * re-enters the confirm step can check `applied` first rather than risk a
-   * double award.
-   */
   applySpp(teams: Team[], concedingTeamId?: string): MatchStatsSummary {
     if (this.appliedFlag) throw new Error("Match SPP has already been applied");
-    // Flip state first so this call's own summary() already reflects the
-    // zeroed-for-concession figures every later call will agree on.
+
     this.concedingTeamId = concedingTeamId;
     this.appliedFlag = true;
     const players = teams.flatMap((team) => team.players);
@@ -366,7 +337,7 @@ export class MatchStats {
         player.spp = (player.spp ?? 0) + stats.sppEarned;
       });
     }
-    this.eventBus.emit(GameEventNames.MatchSppApplied);
+    this.eventBus.emit(GameEventNames.MatchSppApplied, undefined);
     return summary;
   }
 }

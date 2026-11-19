@@ -1,14 +1,9 @@
-/**
- * General decision-handling scenario cases: the protocol's rule that a
- * decision reply is only meaningful while that decision is pending.
- *
- * No `__tests__/headless/*.test.ts` file owns "decisions" generally — the
- * closest named file, `reroll-decisions.test.ts`, is specific to re-rolls
- * (see `reroll-decisions.ts` for that), so this is its own section home
- * (see docs/E2E_TESTING.md's case-organization note).
- */
-
-import { ObservedRun, ScenarioCase, step } from "../scenarioCase/types";
+import { fixtureValue } from "../fixtureValue";
+import {
+  type ObservedRun,
+  type ScenarioCase,
+  step,
+} from "../scenarioCase/types";
 import { playSetup, stepRejected, checkpointAssert, playerIn } from "./helpers";
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
@@ -24,10 +19,6 @@ const openField = () =>
     ballPosition: { x: 1, y: 1 },
   });
 
-/**
- * Decision replies are only accepted while that decision is pending; a stale
- * reply is refused rather than silently applied.
- */
 const staleDecisionReply: ScenarioCase = {
   id: "negative-reply-with-no-decision",
   name: "Answering a decision nobody asked",
@@ -74,11 +65,6 @@ const staleDecisionReply: ScenarioCase = {
 const turnedOver = (observed: ObservedRun) =>
   observed.events.some((event) => event.name === GameEventNames.Turnover);
 
-/**
- * A Bribe for a spotted fouler (2025 rulebook p.148): the Argue the Call
- * roll fails, the coach uses the Bribe Get the Ref left them, and the
- * Bribe roll decides whether the fouler stays.
- */
 const bribeForFouler: ScenarioCase = {
   id: "bribe-for-sent-off-fouler",
   name: "A Bribe for a Sent-off fouler",
@@ -144,7 +130,10 @@ const bribeForFouler: ScenarioCase = {
               playerIn(observed, "team1:0").status === PlayerStatus.REMOVED,
               "a pocketed Bribe still Sends-off the fouler"
             );
-            checkpointAssert(turnedOver(observed), "the Sent-off is a Turnover");
+            checkpointAssert(
+              turnedOver(observed),
+              "the Sent-off is a Turnover"
+            );
           },
         },
       ],
@@ -163,7 +152,7 @@ const bribeForFouler: ScenarioCase = {
           `the card must hear every step, heard ${steps.join()}`
         );
         checkpointAssert(
-          observed.snapshot.bribes?.team1 === 0,
+          fixtureValue(observed.snapshot.bribes)?.["team1"] === 0,
           "the Bribe must be spent"
         );
       },

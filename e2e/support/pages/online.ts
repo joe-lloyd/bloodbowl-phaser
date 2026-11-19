@@ -1,26 +1,12 @@
-/**
- * Page objects for the emulator-backed online lane.
- *
- * Sign-in goes through `signInWithPopup(GoogleAuthProvider)`. Against the
- * Firebase auth emulator that popup is a local page with an "Add new
- * account" flow, so a test can create a fresh coach per context without any
- * real credentials — which is exactly why this lane can run anywhere.
- */
-
-import { BrowserContext, Page, expect } from "@playwright/test";
+import { type BrowserContext, type Page, expect } from "@playwright/test";
 
 export class OnlinePage {
-  constructor(private readonly page: Page) {}
+  private readonly page: Page;
+  constructor(page: Page) {
+    this.page = page;
+  }
 
-  /**
-   * Sign in as a fresh emulator account.
-   *
-   * The emulator's popup offers existing accounts and an "Add new account"
-   * button; a new account is created with an auto-generated identity, which
-   * keeps host and guest genuinely distinct coaches.
-   */
   async signIn(): Promise<void> {
-    // Firebase talks to the auth emulator before it opens the popup
     await this.page
       .getByRole("button", { name: "Sign in", exact: true })
       .click();
@@ -32,13 +18,10 @@ export class OnlinePage {
     const popup = await popupPromise;
     await popup.waitForLoadState();
 
-    // The emulator's page renders after load, slowly when it has just
-    // started: wait for each button rather than checking once.
     await popup
       .getByRole("button", { name: /add new account/i })
       .click({ timeout: 20_000 });
-    // The emulator pre-fills a random identity; "Sign in with Google.com"
-    // completes it.
+
     await popup
       .getByRole("button", { name: /auto.?generate user information/i })
       .click({ timeout: 10_000 })
@@ -48,19 +31,11 @@ export class OnlinePage {
       .click({ timeout: 20_000 });
     await popup.waitForEvent("close").catch(() => undefined);
 
-    // The menu swaps the sign-in button for the coach editor once auth lands.
     await expect(
       this.page.getByRole("button", { name: /sign out/i })
     ).toBeVisible({ timeout: 20_000 });
   }
 
-  /**
-   * Host a game and return the lobby code the app generated.
-   *
-   * The lobby renders in place at `/online/host` rather than navigating to
-   * `/online/lobby/<code>`, so the code is read from the page — which is
-   * also where a real coach reads it from.
-   */
   async hostGame(): Promise<string> {
     await this.page.getByRole("button", { name: "Host Game" }).click();
     await expect(this.page).toHaveURL(/\/online\/(host|lobby)/);
@@ -72,7 +47,6 @@ export class OnlinePage {
     return code;
   }
 
-  /** Join an existing lobby by its code. */
   async joinGame(code: string): Promise<void> {
     await this.page.getByRole("button", { name: "Join Game" }).click();
     await expect(this.page).toHaveURL(/\/online\/join/);
@@ -83,7 +57,6 @@ export class OnlinePage {
       .click();
   }
 
-  /** True once this page is showing the lobby for `code`. */
   async expectInLobby(code: string): Promise<void> {
     await expect(this.page.getByTestId("lobby-code")).toHaveAttribute(
       "data-code",
@@ -93,7 +66,6 @@ export class OnlinePage {
   }
 }
 
-/** A fresh context is a fresh coach: no shared auth state between them. */
 export async function newCoach(
   context: BrowserContext
 ): Promise<{ page: Page; online: OnlinePage }> {

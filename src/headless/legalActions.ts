@@ -1,23 +1,18 @@
-/**
- * Legal action enumeration for the legal-actions query, built on the
- * engine's own validators so no rule is decided here.
- */
-
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
-import { HeadlessGameContext } from "./createHeadlessGame";
+import { type HeadlessGameContext } from "./createHeadlessGame";
 import {
-  GridPosition,
-  LegalActions,
-  PendingDecision,
-  PlayerActions,
+  type GridPosition,
+  type LegalActions,
+  type PendingDecision,
+  type PlayerActions,
 } from "./protocol";
-import { ActionType } from "../types/events";
-import { GamePhase, GameState } from "../types/GameState";
-import { Player, PlayerStatus } from "../types/Player";
+import { type ActionType } from "../types/events";
+import { GamePhase, type GameState } from "../types/GameState";
+import { type Player, PlayerStatus } from "../types/Player";
 import { FormationManager } from "../game/managers/FormationManager";
 import { areAdjacent } from "../game/elements/GridUtils";
 import {
-  ActionAvailability,
+  type ActionAvailability,
   computeActionAvailability,
   razzleDazzleAllows,
 } from "../game/rules/actionAvailability";
@@ -179,17 +174,14 @@ function declarableActions({
   carriesBall: boolean;
   canBlock: boolean;
 }): ActionType[] {
-  // A Standing Fanatic may declare nothing but Ball & Chain.
   if (availability.ballAndChain) return ["ballAndChain"];
   if (player.status === PlayerStatus.PRONE) {
-    // Standing up only costs movement, so every movement-based action
-    // stays available to a prone player. Only plain Block is not.
     return allowed([
       ["standUp", true],
       ["move", availability.move],
       ["blitz", !hasBlitzed],
       ["foul", canFoul],
-      // Move-first Special Actions may be declared Prone (errata p.122)
+
       ["punt", availability.punt],
       ["gaze", availability.gaze],
     ]);
@@ -206,8 +198,7 @@ function declarableActions({
     ["throwTeamMate", availability.throwTeammate || availability.kickTeammate],
     ["punt", availability.punt],
     ["gaze", availability.gaze],
-    // A Foul may move first: the engine already requires a reachable downed
-    // opponent, not one standing beside the fouler now.
+
     ["foul", canFoul && availability.foul],
   ]);
   for (const replacement of availability.directBlockReplacements) {
@@ -216,7 +207,6 @@ function declarableActions({
   return actions;
 }
 
-/** Razzle-Dazzle: the second Action, within the measure's limits. */
 function razzleDazzleSecond(
   state: GameState,
   playerId: string,
@@ -274,7 +264,6 @@ function replacementActions({
   });
 }
 
-/** A Standing opponent next to a square the blitzer can end on. */
 function canBlitzTo(target: Player, endSquares: GridPosition[]): boolean {
   const at = target.gridPosition;
   if (!at || target.status !== PlayerStatus.ACTIVE) return false;

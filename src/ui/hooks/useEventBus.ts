@@ -1,26 +1,12 @@
 import { useEffect, useRef, useCallback } from "react";
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import type { AllEvents } from "../../types/events";
 
-/**
- * React hook for subscribing to EventBus events
- * Automatically handles subscription cleanup on unmount
- *
- * @example
- * ```tsx
- * function MyComponent() {
- *   useEventBus('phaseChanged', (data) => {
- *     console.log('Phase changed to:', data.phase);
- *   });
- * }
- * ```
- */
 export function useEventBus<K extends keyof AllEvents>(
   eventBus: IEventBus,
   event: K,
   handler: (data: AllEvents[K]) => void
 ): void {
-  // Use ref to store the latest handler without re-subscribing
   const handlerRef = useRef(handler);
 
   useEffect(() => {
@@ -40,21 +26,6 @@ export function useEventBus<K extends keyof AllEvents>(
   }, [eventBus, event]);
 }
 
-/**
- * Hook for emitting events to the EventBus
- * Returns a stable emit function
- *
- * @example
- * ```tsx
- * function TeamBuilder() {
- *   const emitEvent = useEventEmit(eventBus);
- *
- *   const handleHire = (position: string) => {
- *     emitEvent('ui:playerHired', { position });
- *   };
- * }
- * ```
- */
 export function useEventEmit(eventBus: IEventBus) {
   return useCallback(
     <K extends keyof AllEvents>(event: K, data: AllEvents[K]) => {

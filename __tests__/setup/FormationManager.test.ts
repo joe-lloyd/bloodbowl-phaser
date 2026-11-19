@@ -1,6 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FormationManager } from "../../src/game/managers/FormationManager";
-import { FormationPosition } from "../../src/types/SetupTypes";
+import { type FormationPosition } from "../../src/types/SetupTypes";
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
 
 describe("FormationManager", () => {
@@ -8,7 +9,6 @@ describe("FormationManager", () => {
   let mockLocalStorage: Record<string, string>;
 
   beforeEach(() => {
-    // Mock localStorage
     mockLocalStorage = {};
 
     global.localStorage = {
@@ -24,7 +24,7 @@ describe("FormationManager", () => {
       }),
       length: 0,
       key: vi.fn(),
-    } as Storage;
+    };
 
     manager = new FormationManager();
   });
@@ -43,7 +43,7 @@ describe("FormationManager", () => {
       manager.saveFormation("team1", positions, "test-formation");
 
       expect(localStorage.setItem).toHaveBeenCalled();
-      const saved = JSON.parse(mockLocalStorage["bloodbowl_formations"]);
+      const saved = JSON.parse(fixtureValue(mockLocalStorage["bloodbowl_formations"]));
       expect(saved.team1).toHaveLength(1);
       expect(saved.team1[0].name).toBe("test-formation");
       expect(saved.team1[0].positions).toEqual(positions);
@@ -56,7 +56,7 @@ describe("FormationManager", () => {
       manager.saveFormation("team1", positions1, "test");
       manager.saveFormation("team1", positions2, "test");
 
-      const saved = JSON.parse(mockLocalStorage["bloodbowl_formations"]);
+      const saved = JSON.parse(fixtureValue(mockLocalStorage["bloodbowl_formations"]));
       expect(saved.team1).toHaveLength(1);
       expect(saved.team1[0].positions).toEqual(positions2);
     });
@@ -68,7 +68,7 @@ describe("FormationManager", () => {
       manager.saveFormation("team1", positions1, "formation1");
       manager.saveFormation("team1", positions2, "formation2");
 
-      const saved = JSON.parse(mockLocalStorage["bloodbowl_formations"]);
+      const saved = JSON.parse(fixtureValue(mockLocalStorage["bloodbowl_formations"]));
       expect(saved.team1).toHaveLength(2);
     });
 
@@ -76,10 +76,10 @@ describe("FormationManager", () => {
       const positions: FormationPosition[] = [{ playerId: "1", x: 0, y: 0 }];
 
       manager.saveFormation("team1", positions, "test");
-      positions[0].x = 999; // Modify original
+      fixtureValue(positions[0]).x = 999;
 
       const loaded = manager.loadFormation("team1", "test");
-      expect(loaded![0].x).toBe(0); // Should not be affected
+      expect(fixtureValue(fixtureValue(loaded)[0]).x).toBe(0);
     });
   });
 
@@ -111,10 +111,10 @@ describe("FormationManager", () => {
 
       manager.saveFormation("team1", positions, "test");
       const loaded = manager.loadFormation("team1", "test");
-      loaded![0].x = 999; // Modify loaded
+      fixtureValue(fixtureValue(loaded)[0]).x = 999;
 
       const loadedAgain = manager.loadFormation("team1", "test");
-      expect(loadedAgain![0].x).toBe(0); // Should not be affected
+      expect(fixtureValue(fixtureValue(loadedAgain)[0]).x).toBe(0);
     });
   });
 
@@ -178,7 +178,9 @@ describe("FormationManager", () => {
         expect(presets.length).toBeGreaterThanOrEqual(3);
         presets.forEach((preset) => {
           expect(preset.positions).toHaveLength(7);
-          const unique = new Set(preset.positions.map((p) => `${p.x},${p.y}`));
+          const unique = new Set(
+            preset.positions.map((p) => `${String(p.x)},${String(p.y)}`)
+          );
           expect(unique.size).toBe(7);
           preset.positions.forEach((p) => {
             if (isTeam1) {
@@ -192,7 +194,7 @@ describe("FormationManager", () => {
             expect(p.y).toBeLessThanOrEqual(10);
           });
           expect(
-            new SetupValidator().validateFormation(preset.positions, isTeam1, 7)
+            new SetupValidator().validateFormation({ positions: preset.positions, isTeam1: isTeam1, availablePlayerCount: 7 })
               .valid
           ).toBe(true);
         });
@@ -254,7 +256,9 @@ describe("FormationManager", () => {
 
     it("should have unique positions", () => {
       const formation = manager.getDefaultFormation(true);
-      const positionSet = new Set(formation.map((p) => `${p.x},${p.y}`));
+      const positionSet = new Set(
+        formation.map((p) => `${String(p.x)},${String(p.y)}`)
+      );
       expect(positionSet.size).toBe(7);
     });
   });
@@ -279,7 +283,9 @@ describe("FormationManager", () => {
     });
 
     it("should handle clearing non-existent team", () => {
-      expect(() => manager.clearFormations("nonexistent")).not.toThrow();
+      expect(() => {
+        manager.clearFormations("nonexistent");
+      }).not.toThrow();
     });
   });
 

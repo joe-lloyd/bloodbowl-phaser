@@ -1,7 +1,3 @@
-/**
- * A seeded scenario's expected outcome holds only for its own seed. On
- * any other seed the sandbox must not promise it.
- */
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 

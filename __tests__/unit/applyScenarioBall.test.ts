@@ -1,8 +1,9 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { applyScenario } from "../../src/game/applyScenario";
 import { SCENARIOS } from "../../src/data/scenarios";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { createTestTeam } from "../fixtures/teams";
 
 const scenario = (setup: Partial<Scenario["setup"]>): Scenario => ({
@@ -48,7 +49,7 @@ describe("where a scenario's ball starts", () => {
   });
 
   it("still sits with the score-run carrier", () => {
-    const run = SCENARIOS.find((s) => s.id === "score-run-dodge-rush")!;
+    const run = fixtureValue(SCENARIOS.find((s) => s.id === "score-run-dodge-rush"));
     expect(
       applyScenario(run, createTestTeam(), createTestTeam()).ballPosition
     ).toEqual({ x: 12, y: 5 });

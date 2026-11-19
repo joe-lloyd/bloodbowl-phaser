@@ -1,11 +1,5 @@
-/**
- * Teams, and a league team's progression from the league page
- * (league-builder spec: "The league page links the coach's teams to their
- * progression"). After a league game the coach finishes post-match, lands
- * back on the league, and opens the right team's progression from there.
- * Checked on a desktop and a phone viewport.
- */
-import { expect, Page, test } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { expect, type Page, test } from "@playwright/test";
 import {
   computeStandings,
   generateRoundRobin,
@@ -19,7 +13,6 @@ import { queueExpensiveMistakes } from "../../src/game/rules/expensiveMistakes";
 import { createReadyMadeTeam } from "../../src/simulation/lineups";
 import { RosterName } from "../../src/types/Team";
 
-/** Two of the coach's teams and a rival, round one's first game played. */
 function season() {
   const teams = (
     [
@@ -30,16 +23,15 @@ function season() {
     ] as const
   ).map(([roster, name], index) => {
     const team = createReadyMadeTeam(roster, name, 0x8e1b1b + index * 0x2040);
-    team.id = `progress-${index}`;
+    team.id = `progress-${String(index)}`;
     team.advancementMode = "advanced-league";
     team.firstMatchPlayedAt = 1;
     return team;
   });
-  // The game just played: the Reavers have post-match work waiting, and a
-  // Hammers player earned enough SPP for a random primary skill
-  teams[0]!.treasury = 150_000;
-  queueExpensiveMistakes(teams[0]!, "progress:f1");
-  teams[1]!.players[0]!.spp = 3;
+
+  fixtureValue(teams[0]).treasury = 150_000;
+  queueExpensiveMistakes(fixtureValue(teams[0]), "progress:f1");
+  fixtureValue(fixtureValue(teams[1]).players[0]).spp = 3;
   const entrants: CompetitionEntrant[] = teams.map((team, index) => ({
     id: `local:${team.id}`,
     teamId: team.id,
@@ -49,8 +41,8 @@ function season() {
     seed: index + 1,
   }));
   const fixtures = generateRoundRobin(entrants);
-  fixtures[0]!.status = "complete";
-  fixtures[0]!.result = { homeScore: 2, awayScore: 1 };
+  fixtureValue(fixtures[0]).status = "complete";
+  fixtureValue(fixtures[0]).result = { homeScore: 2, awayScore: 1 };
   const league: LeagueDoc = {
     id: "progress",
     type: "league",
@@ -65,7 +57,7 @@ function season() {
     createdAt: 1,
     updatedAt: 1,
   };
-  // Only the first two are this coach's: the rivals are not in the library
+
   return { teams: teams.slice(0, 2).map(dehydrateTeam), league };
 }
 
@@ -106,7 +98,7 @@ for (const device of [
       await expect(
         page.getByRole("heading", { name: "TEAMS", exact: true })
       ).toBeVisible();
-      // Starting a team keeps its own, specific name
+
       await expect(
         page.getByRole("button", { name: "+ Create New Team" })
       ).toBeVisible();
@@ -118,12 +110,12 @@ for (const device of [
       page,
     }) => {
       await seed(page);
-      // Where the results screen sends a coach after a league game
+
       await page.goto(
         "/build-team/progress-0?postMatch=1&returnTo=%2Fleagues%2Fprogress"
       );
       await page.getByRole("button", { name: "Finish post-match" }).click();
-      // Expensive Mistakes is rolled and shown before the way back
+
       const back = page.getByRole("button", { name: "Back to the league" });
       await expect(
         back.or(page.getByTestId("league-your-teams"))
@@ -131,7 +123,6 @@ for (const device of [
       if (await back.isVisible()) await back.click();
       await expect(page).toHaveURL(/\/leagues\/progress$/);
 
-      // The coach's two teams, each with what it is waiting on
       const yours = page.getByTestId("league-your-teams");
       await expect(yours.getByRole("listitem")).toHaveCount(2);
       const hammers = yours
@@ -141,16 +132,15 @@ for (const device of [
       await expect(
         yours.getByRole("listitem").filter({ hasText: "Gouged Eye Grinders" })
       ).toHaveCount(0);
-      // Near the top: above the standings and the next round
+
       const yoursBox = await yours.boundingBox();
       const standings = await page
         .getByRole("heading", { name: "Standings", exact: true })
         .boundingBox();
-      expect(yoursBox!.y).toBeLessThan(standings!.y);
+      expect(fixtureValue(yoursBox).y).toBeLessThan(fixtureValue(standings).y);
       await expectNoSideways(page);
       await shot(page, `${device.label}-1-league-your-teams.png`);
 
-      // Progress the second team, not the first
       await page
         .getByRole("button", { name: "Progress team: Karak Hammers" })
         .click();
@@ -162,7 +152,6 @@ for (const device of [
       await expectNoSideways(page);
       await shot(page, `${device.label}-2-team-page.png`);
 
-      // Into the player who can advance, and back with the league kept
       await page.getByTestId("roster-row-1").locator("td").nth(2).click();
       await expect(page).toHaveURL(
         /\/build-team\/progress-1\/player\/[^?]+\?returnTo=%2Fleagues%2Fprogress$/

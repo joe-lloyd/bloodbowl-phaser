@@ -2,29 +2,36 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createCompetition } from "../../../competition/create";
 import { getComputerTeamTemplates } from "../../../competition/computerTeamTemplates";
-import { ComputerTeamTemplate } from "../../../data/computerTeamCatalogue";
+import { type ComputerTeamTemplate } from "../../../data/computerTeamCatalogue";
 import {
   competitionPath,
-  CompetitionType,
-  TournamentFormat,
+  type CompetitionType,
+  type TournamentFormat,
 } from "../../../competition/types";
 import {
   checkTeamCompatibility,
   createRosterRuleProfile,
-  RosterRuleProfile,
+  type RosterRuleProfile,
 } from "../../../competition/rosterRules";
 import {
   fetchAllCoachTeams,
-  OwnedTeam,
+  type OwnedTeam,
 } from "../../../firebase/cloudTeamRepository";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
-import { DIFFICULTIES, Difficulty } from "../../../simulation/ai/difficulty";
-import { RosterName, Team, TeamAdvancementMode } from "../../../types/Team";
+import {
+  DIFFICULTIES,
+  type Difficulty,
+} from "../../../simulation/ai/difficulty";
+import {
+  RosterName,
+  type Team,
+  type TeamAdvancementMode,
+} from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import {
   DEFAULT_SEVENS_RULESET,
   NAF_SEVENS_RULESET,
-  SevensRuleset,
+  type SevensRuleset,
 } from "../../../game/rules/sevensRuleset";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
 import {
@@ -38,24 +45,18 @@ import {
   Section,
 } from "../componentWarehouse/HudKit";
 
-type Candidate = {
+interface Candidate {
   id: string;
   label: string;
   team: Team;
   ownerUid?: string;
-};
+}
 
-/** A computer team to build when the competition is generated. */
-type ComputerRow = { id: number; template: ComputerTeamTemplate };
+interface ComputerRow {
+  id: number;
+  template: ComputerTeamTemplate;
+}
 
-/**
- * Every coach's team is added to a competition the same way — as a
- * reference to a live team, whether it is the organizer's own or another
- * coach's (shared-team-library: "no distinction between a 'shared' and a
- * 'local' entrant source"). There is no publish/shared-copy step; other
- * coaches' teams are read directly. Computer recipes become separate teams
- * in the organizer's library when the competition is created.
- */
 export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -99,10 +100,12 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   useEffect(() => {
     if (!user) return;
     void fetchAllCoachTeams()
-      .then((owned) =>
-        setOtherTeams(owned.filter((entry) => entry.ownerUid !== user.uid))
-      )
-      .catch(() => setOtherTeams([]));
+      .then((owned) => {
+        setOtherTeams(owned.filter((entry) => entry.ownerUid !== user.uid));
+      })
+      .catch(() => {
+        setOtherTeams([]);
+      });
   }, [user]);
 
   const candidates: Candidate[] = [
@@ -115,7 +118,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         ownerUid: user?.uid,
       })),
     ...otherTeams
-      // Another coach's computer team plays from their library, not this one
+
       .filter(
         (owned) =>
           !owned.team.computerCoached &&
@@ -129,14 +132,14 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
       })),
   ];
 
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
     setSelected((current) =>
       current.includes(id)
         ? current.filter((candidate) => candidate !== id)
         : [...current, id]
     );
+  };
 
-  /** Fill empty places, keeping existing entrants and spreading roster types. */
   const addComputerTeams = (count: number) => {
     const ids = Array.from({ length: count }, () => nextComputerId.current++);
     setComputerRows((rows) => {
@@ -199,7 +202,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             computerTemplateId: row.template.id,
           })),
         ],
-        profile,
+        ...(profile === undefined ? {} : { profile: profile }),
         computerDifficulty: difficulty,
       });
       navigate(
@@ -221,7 +224,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           <HudButton variant="ghost" onClick={() => navigate(-1)}>
             Cancel
           </HudButton>
-          {/* In the pinned bar so the reason is visible next to the button. */}
+
           {error && (
             <Notice
               tone="bad"
@@ -245,7 +248,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             <input
               value={name}
               maxLength={60}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value);
+              }}
               className="hud-field"
             />
           </Field>
@@ -254,9 +259,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             <Field label="Format">
               <select
                 value={format}
-                onChange={(event) =>
-                  setFormat(event.target.value as TournamentFormat)
-                }
+                onChange={(event) => {
+                  setFormat(event.target.value as TournamentFormat);
+                }}
                 className="hud-field"
               >
                 <option value="single-elimination">Single elimination</option>
@@ -279,7 +284,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           <input
             type="checkbox"
             checked={useProfile}
-            onChange={(event) => setUseProfile(event.target.checked)}
+            onChange={(event) => {
+              setUseProfile(event.target.checked);
+            }}
             className="hud-check mt-0.5"
           />
           Require an advancement mode, draft budget, and roster rules for
@@ -290,11 +297,11 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             <Field label="Advancement mode">
               <select
                 value={advancementMode}
-                onChange={(event) =>
+                onChange={(event) => {
                   setAdvancementModeChoice(
                     event.target.value as TeamAdvancementMode
-                  )
-                }
+                  );
+                }}
                 className="hud-field"
               >
                 <option value="advanced-league">Advanced League</option>
@@ -309,9 +316,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                 type="number"
                 step={10000}
                 value={draftBudget}
-                onChange={(event) =>
-                  setDraftBudget(Number(event.target.value) || 0)
-                }
+                onChange={(event) => {
+                  setDraftBudget(Number(event.target.value) || 0);
+                }}
                 className="hud-field"
               />
             </Field>
@@ -327,10 +334,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         <div className="grid gap-3 md:grid-cols-2">
           {candidates.map((candidate) => {
             const seed = selected.indexOf(candidate.id) + 1;
-            // A team already in an active competition cannot be entered
-            // into another (design.md decision 4). Every candidate here
-            // carries a live team object, own or another coach's, so
-            // this is enforceable uniformly rather than owned-only.
+
             const committed = !!candidate.team.activeCompetitionId;
             const compatibility = checkTeamCompatibility(
               candidate.team,
@@ -341,7 +345,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
               <button
                 key={candidate.id}
                 disabled={committed}
-                onClick={() => toggle(candidate.id)}
+                onClick={() => {
+                  toggle(candidate.id);
+                }}
                 aria-pressed={seed > 0}
                 title={
                   committed
@@ -392,9 +398,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                   aria-label="League size"
                   className="hud-field"
                   value={leagueSize}
-                  onChange={(event) =>
-                    setLeagueSize(Number(event.target.value))
-                  }
+                  onChange={(event) => {
+                    setLeagueSize(Number(event.target.value));
+                  }}
                 >
                   {[8, 16, 32].map((size) => (
                     <option key={size} value={size}>
@@ -406,7 +412,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
               <HudButton
                 variant="primary"
                 disabled={entrantCount >= leagueSize}
-                onClick={() => addComputerTeams(leagueSize - entrantCount)}
+                onClick={() => {
+                  addComputerTeams(leagueSize - entrantCount);
+                }}
               >
                 Fill league with computer teams
               </HudButton>
@@ -504,11 +512,11 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                   variant="ghost"
                   size="sm"
                   aria-label={`Remove ${row.template.name}`}
-                  onClick={() =>
+                  onClick={() => {
                     setComputerRows((rows) =>
                       rows.filter((candidate) => candidate.id !== row.id)
-                    )
-                  }
+                    );
+                  }}
                 >
                   Remove
                 </HudButton>
@@ -516,7 +524,11 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             ))}
           </ul>
         )}
-        <HudButton onClick={() => addComputerTeams(1)}>
+        <HudButton
+          onClick={() => {
+            addComputerTeams(1);
+          }}
+        >
           + Add computer team
         </HudButton>
         {computerEntrants > 0 && (
@@ -538,7 +550,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                   hudChoiceClass(difficulty === id),
                   "px-4 py-3 text-left"
                 )}
-                onClick={() => setDifficulty(id)}
+                onClick={() => {
+                  setDifficulty(id);
+                }}
               >
                 <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
                   {label}

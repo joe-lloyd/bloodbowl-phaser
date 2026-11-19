@@ -6,8 +6,6 @@ import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 
-// The real dice scene and physics, drawn by a renderer that draws nothing:
-// jsdom has no WebGL and no 2D canvas.
 vi.mock("three", async (importOriginal) => {
   const real = await importOriginal<typeof import("three")>();
   class SilentRenderer {
@@ -50,9 +48,13 @@ beforeAll(() => {
   const spy = vi
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => pen as never);
-  restoreContext = () => spy.mockRestore();
+  restoreContext = () => {
+    spy.mockRestore();
+  };
 });
-afterAll(() => restoreContext());
+afterAll(() => {
+  restoreContext();
+});
 
 const until = async (check: () => boolean, ms: number) => {
   const end = Date.now() + ms;
@@ -66,12 +68,12 @@ describe("dice tray on a later drive", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceTray eventBus={bus} />);
+    });
     const tray = () =>
       container.querySelector('[data-testid="dice-tray"]')?.textContent ?? "";
 
-    // The drive ends: a KO recovery die is thrown and setup starts while
-    // it is still tumbling, as in round 1 before the freeze.
     await act(async () => {
       bus.emit(GameEventNames.DiceRoll, {
         rollType: "KO Recovery",
@@ -86,7 +88,6 @@ describe("dice tray on a later drive", () => {
       bus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.SETUP });
     });
 
-    // The next drive's kick-off
     await act(async () => {
       bus.emit(GameEventNames.DiceRoll, {
         rollType: "Kickoff Deviate Distance",
@@ -100,7 +101,9 @@ describe("dice tray on a later drive", () => {
     await until(() => tray().includes("(lower: 1)"), 10_000);
     expect(tray()).toContain("Kickoff Deviate Distance: 2, 1 (lower: 1)");
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   }, 20_000);
 });

@@ -1,20 +1,11 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { SkillType } from "../../src/types/Skills";
-
-/**
- * Engine-level regressions for the reported gameplay bugs whose fix lives (or
- * whose correctness must stay locked) in the shared engine:
- *
- * - Horns adds +1 Strength on a Blitz block, and the block dice are recomputed
- *   from the boosted strength (a ST-3 blitzer vs ST 3 goes from 1 die to 2).
- * - A failed Dodge offers a reroll whose sources include the Dodge skill, so
- *   the reroll dialog can render an accept ("USE DODGE RE-ROLL") control — not
- *   only a decline.
- */
 
 describe("reported gameplay bugs (engine regressions)", () => {
   it("Horns applies +1 Strength on a Blitz block and the dice reflect it", async () => {
@@ -35,40 +26,41 @@ describe("reported gameplay bugs (engine regressions)", () => {
     };
 
     const game = new HeadlessGame({ scenario, seed: 7 });
-    const attacker = game.snapshot().teams[0].players[0];
-    const defender = game.snapshot().teams[1].players[0];
+    const attacker = fixtureValue(game.snapshot().teams[0]).players[0];
+    const defender = fixtureValue(game.snapshot().teams[1]).players[0];
 
     await game.execute({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     await game.execute({
       type: "move",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       path: [{ x: 11, y: 7 }],
     });
     const blocked = await game.execute({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
 
-    // Horns announced its bonus...
     expect(
       blocked.events.some(
         (e) =>
           e.name === GameEventNames.SkillTriggered &&
-          (e.data as { skill: string }).skill === SkillType.HORNS
+          z.object({ skill: z.string() }).parse(e.data).skill ===
+            SkillType.HORNS
       )
     ).toBe(true);
 
-    // ...and the +1 ST recomputed the block to 2 dice (ST 4 vs ST 3).
     const rolled = blocked.events.find(
       (e) => e.name === GameEventNames.BlockDiceRolled
     );
     expect(rolled).toBeDefined();
-    expect((rolled!.data as { numDice: number }).numDice).toBe(2);
+    expect(
+      z.object({ numDice: z.number() }).parse(fixtureValue(rolled).data).numDice
+    ).toBe(2);
     expect(blocked.pendingDecision?.type).toBe("block-dice");
     if (blocked.pendingDecision?.type === "block-dice") {
       expect(blocked.pendingDecision.options).toHaveLength(2);
@@ -92,33 +84,30 @@ describe("reported gameplay bugs (engine regressions)", () => {
       },
     };
 
-    // Find a seed whose dodge fails and pauses on a reroll offer.
     let offered = false;
     for (let seed = 1; seed <= 100 && !offered; seed++) {
       const game = new HeadlessGame({ scenario, seed });
-      // No team rerolls: the ONLY source that can appear is the Dodge skill.
+
       game.ctx.team1.rerolls = 0;
-      const dodger = game.snapshot().teams[0].players[0];
+      const dodger = fixtureValue(game.snapshot().teams[0]).players[0];
       await game.execute({
         type: "declare-action",
-        playerId: dodger.id,
+        playerId: fixtureValue(dodger).id,
         action: "move",
       });
       const moved = await game.execute({
         type: "move",
-        playerId: dodger.id,
+        playerId: fixtureValue(dodger).id,
         path: [{ x: 15, y: 3 }],
       });
       const pending = moved.pendingDecision;
       if (pending?.type !== "reroll" || pending.rollKind !== "dodge") continue;
 
       offered = true;
-      // The accept control is source-driven: "skill" must be offered, tagged
-      // as the Dodge skill, so the dialog renders "USE DODGE RE-ROLL".
-      expect(pending.sources).toContain("skill");
-      expect(pending.skill).toBe(String(SkillType.DODGE));
 
-      // Accepting performs the reroll through the seeded dice path.
+      expect(pending.sources).toContain("skill");
+      expect(pending.skill).toBe(SkillType.DODGE);
+
       const accepted = await game.execute({
         type: "use-reroll",
         accept: true,
@@ -134,13 +123,6 @@ describe("reported gameplay bugs (engine regressions)", () => {
   });
 
   it("force-ending a turn mid-activation clears the stale declaration so the next team can act", async () => {
-    // Regression for the online report "the timer hitting zero doesn't seem
-    // to end the turn properly": GameService.endTurn() (called directly by
-    // the online clock, and by a manual End Turn click) used to leave
-    // state.activePlayer set to the just-ended team's committed declaration.
-    // The next team's very first declareAction() was then refused by the
-    // "a live once-per-turn declaration must release first" guard, making
-    // the turn look like it never actually ended.
     const scenario: Scenario = {
       id: "force-end-turn-clears-declaration",
       name: "Force end turn clears stale declaration",
@@ -156,35 +138,29 @@ describe("reported gameplay bugs (engine regressions)", () => {
     };
 
     const game = new HeadlessGame({ scenario, seed: 3 });
-    const attacker = game.snapshot().teams[0].players[0];
-    const nextMover = game.snapshot().teams[1].players[0];
+    const attacker = fixtureValue(game.snapshot().teams[0]).players[0];
+    const nextMover = fixtureValue(game.snapshot().teams[1]).players[0];
 
-    // Declare and commit a once-per-turn action (Blitz), but never finish
-    // the activation — this is exactly the state a stalled/AFK coach leaves
-    // behind when the clock runs out on them.
     const declared = await game.execute({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     expect(declared.ok).toBe(true);
     const moved = await game.execute({
       type: "move",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       path: [{ x: 11, y: 5 }],
     });
     expect(moved.ok).toBe(true);
 
-    // Force-end the turn mid-activation, as the online clock (and a manual
-    // End Turn click) do.
     const ended = await game.execute({ type: "end-turn" });
     expect(ended.ok).toBe(true);
     expect(ended.snapshot.activeTeamId).toBe(game.ctx.team2.id);
 
-    // The new active team's very first declaration must succeed.
     const nextDeclared = await game.execute({
       type: "declare-action",
-      playerId: nextMover.id,
+      playerId: fixtureValue(nextMover).id,
       action: "move",
     });
     expect(nextDeclared.ok).toBe(true);

@@ -1,21 +1,10 @@
-/**
- * Keeps the match HUD on the Stadium Broadcast kit. Every floating panel
- * takes its type sizes, faces and colours from the hud-* tokens in
- * tailwind.config.js and the primitives in HudKit.tsx. A raw size or hex
- * colour is how a header ends up with four different type sizes.
- *
- * If this fails, use the token: text-hud-xs to text-hud-4xl, font-hud-
- * display, font-hud-label or font-hud-body, and the hud colours. If no
- * token fits, add one to tailwind.config.js. Add to ALLOWED only with a
- * reason a reviewer would accept.
- */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
 const HUD_DIR = join(ROOT, "src/ui/components/hud");
-/** The online overlays that float over the match. */
+
 const HUD_PAGES = [
   "TurnClock.tsx",
   "WaitingBanner.tsx",
@@ -24,7 +13,10 @@ const HUD_PAGES = [
   "OnlineCoinFlip.tsx",
 ].map((file) => join(ROOT, "src/ui/pages", file));
 
-type Rule = { name: string; pattern: RegExp };
+interface Rule {
+  name: string;
+  pattern: RegExp;
+}
 
 const RULES: Rule[] = [
   { name: "arbitrary px text size", pattern: /\btext-\[\d+(?:\.\d+)?px\]/g },
@@ -39,21 +31,19 @@ const RULES: Rule[] = [
   { name: "raw hex colour", pattern: /#[0-9a-fA-F]{3,8}\b/g },
 ];
 
-/**
- * Justified exceptions, as "file: match". Keep each one commented.
- */
 const ALLOWED = new Set([
-  // Display-face drop shadows are pure black. Tailwind has no text-shadow
-  // token to name it.
   "src/ui/components/hud/Announcer.tsx: #000",
   "src/ui/components/hud/LoadingScreen.tsx: #000",
-  // The scenario case panel is an authoring tool. Its fields hold player
-  // references and checkpoint ids that people compare character by
-  // character.
+
   "src/ui/components/hud/ScenarioCasePanel.tsx: font-mono",
 ]);
 
-type Finding = { file: string; line: number; rule: string; match: string };
+interface Finding {
+  file: string;
+  line: number;
+  rule: string;
+  match: string;
+}
 
 function scan(file: string, source: string): Finding[] {
   const findings: Finding[] = [];
@@ -102,7 +92,8 @@ describe("HUD design tokens", () => {
       .flatMap((path) => scan(relative(ROOT, path), readFileSync(path, "utf8")))
       .filter(({ file, match }) => !ALLOWED.has(`${file}: ${match}`))
       .map(
-        ({ file, line, rule, match }) => `${file}:${line} ${rule}: ${match}`
+        ({ file, line, rule, match }) =>
+          `${file}:${String(line)} ${rule}: ${match}`
       );
     expect(drift).toEqual([]);
   });

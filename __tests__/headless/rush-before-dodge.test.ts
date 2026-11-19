@@ -1,15 +1,11 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 
-/**
- * A step that needs both a Rush and a Dodge rolls the Rush first (2025
- * rulebook, Rushing). Found by the simulation harness: the Dodge came
- * first, so a Shadowing player followed into the square while the mover
- * was still in it, waiting on the Rush, and two players shared a square.
- */
 function scenario(shadowing: boolean): Scenario {
   return {
     id: "rush-before-dodge",
@@ -40,7 +36,9 @@ function scenario(shadowing: boolean): Scenario {
 
 async function walkThenRushAway(shadowing: boolean, seed: number) {
   const game = new HeadlessGame({ scenario: scenario(shadowing), seed });
-  const mover = game.snapshot().teams[0].players[0].id;
+  const mover = fixtureValue(
+    fixtureValue(game.snapshot().teams[0]).players[0]
+  ).id;
   await game.execute({
     type: "declare-action",
     playerId: mover,
@@ -61,7 +59,9 @@ async function walkThenRushAway(shadowing: boolean, seed: number) {
   }
   const dice = events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
   return { response, dice };
 }
 
@@ -73,7 +73,9 @@ describe("a step that needs a Rush and a Dodge", () => {
       "Rush (Human Lineman #1): 5, needs 2+",
       "Dodge (Human Lineman #1): 5, needs 4+",
     ]);
-    expect(response.snapshot.teams[0].players[0].position).toEqual({
+    expect(
+      fixtureValue(fixtureValue(response.snapshot.teams[0]).players[0]).position
+    ).toEqual({
       x: 6,
       y: 6,
     });
@@ -87,11 +89,15 @@ describe("a step that needs a Rush and a Dodge", () => {
       "Dodge (Human Lineman #1): 6, needs 4+",
       "Shadowing (Human Lineman #1): 5",
     ]);
-    expect(response.snapshot.teams[0].players[0].position).toEqual({
+    expect(
+      fixtureValue(fixtureValue(response.snapshot.teams[0]).players[0]).position
+    ).toEqual({
       x: 6,
       y: 6,
     });
-    expect(response.snapshot.teams[1].players[0].position).toEqual({
+    expect(
+      fixtureValue(fixtureValue(response.snapshot.teams[1]).players[0]).position
+    ).toEqual({
       x: 6,
       y: 5,
     });
