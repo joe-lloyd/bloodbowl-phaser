@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   readCompetition,
   readCompetitionStore,
+  unreadableCompetitions,
 } from "../boundary/competitionRepository";
 import { readLobby, readAppliedCommandCount } from "../boundary/firebaseLobby";
 import { readCloudTeam } from "../boundary/firebaseTeam";
@@ -66,7 +67,15 @@ describe("Firebase data boundaries", () => {
       },
     ]);
   });
-  it("ignores the standings, status and champion a coach wrote, which reads derive from fixtures", () => {
+  it("keeps a valid competition's stored standings and status", () => {
+    const parsed = readCompetition({
+      ...legacyLeague(),
+      status: "complete",
+      standings: [],
+    });
+    expect(parsed.status).toBe("complete");
+  });
+  it("falls back to derived standings, status and champion when the stored ones are invalid", () => {
     const parsed = readCompetition({
       ...legacyLeague(),
       status: "complete",
@@ -85,6 +94,15 @@ describe("Firebase data boundaries", () => {
       })
     );
     expect(Object.keys(store)).toEqual(["league:good"]);
+  });
+  it("lists only the local competitions that fail validation, so a write can keep them", () => {
+    const unreadable = unreadableCompetitions(
+      JSON.stringify({
+        "league:good": legacyLeague(),
+        "league:bad": { ...legacyLeague(), points: { win: "three" } },
+      })
+    );
+    expect(Object.keys(unreadable)).toEqual(["league:bad"]);
   });
   it("keeps a draft competition a draft", () => {
     expect(readCompetition({ ...legacyLeague(), status: "draft" }).status).toBe("draft");

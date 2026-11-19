@@ -1,6 +1,7 @@
 import {
   readCompetition,
   readCompetitions,
+  unreadableCompetitions,
   readCompetitionStore,
 } from "../boundary/competitionRepository";
 import { firebaseDocument } from "../boundary/firebaseJson";
@@ -35,7 +36,19 @@ function readLocal(): LocalStore {
 }
 
 function writeLocal(store: LocalStore): void {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(store));
+  localStorage.setItem(
+    LOCAL_STORAGE_KEY,
+    JSON.stringify({ ...unreadableLocal(), ...store })
+  );
+}
+
+function unreadableLocal(): Record<string, unknown> {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return raw ? unreadableCompetitions(raw) : {};
+  } catch {
+    return {};
+  }
 }
 
 function collectionName(type: CompetitionType): "leagues" | "tournaments" {

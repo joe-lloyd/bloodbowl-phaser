@@ -21,6 +21,7 @@ const LEGACY_DEFAULTS = new Map([
   ["TurnSnapshot.hasKickedTeamMate", "false"],
   ["TurnSnapshot.hasThrownBomb", "false"],
 ]);
+const LENIENT_ARRAYS = new Set(["Player.keywords"]);
 
 function exportedName(type) {
   const symbol = type.aliasSymbol ?? type.symbol;
@@ -167,6 +168,10 @@ function expression(type, context, hint) {
           ? expressions[0]
           : `z.union([${expressions.join(", ")}])`;
       return `${JSON.stringify(property.name)}: ${field}.exactOptional()`;
+    }
+    if (LENIENT_ARRAYS.has(`${hint}.${property.name}`) && checker.isArrayType(value)) {
+      const item = schema(checker.getTypeArguments(value)[0], context, `${hint}.${property.name}[]`);
+      return `${JSON.stringify(property.name)}: z.unknown().array().transform((items) => items.flatMap((item) => { const known = ${item}.safeParse(item); return known.success ? [known.data] : []; }))`;
     }
     const legacy = LEGACY_DEFAULTS.get(`${hint}.${property.name}`);
     const fallback = legacy === undefined ? "" : `.default(${legacy})`;

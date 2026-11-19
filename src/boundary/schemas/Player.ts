@@ -16,7 +16,15 @@ export const playerSchema: z.ZodType<Player> = z.looseObject({
   playerName: z.string(),
   positionName: z.string(),
   number: z.number(),
-  keywords: keyWordSchema.array(),
+  keywords: z
+    .unknown()
+    .array()
+    .transform((items) =>
+      items.flatMap((item) => {
+        const known = keyWordSchema.safeParse(item);
+        return known.success ? [known.data] : [];
+      })
+    ),
   teamId: z.string(),
   stats: playerStatsSchema,
   baseStats: playerStatsSchema,

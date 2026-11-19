@@ -29,10 +29,30 @@ export function readCompetition(value: unknown) {
     Reflect.deleteProperty(result, "team");
     return result;
   });
+  const stored = competitionDocSchema.safeParse({ ...raw, entrants });
+  if (stored.success) return stored.data;
   const status = raw.status === "draft" ? "draft" : "active";
   const derived = { ...raw, entrants, status, standings: [] };
   Reflect.deleteProperty(derived, "championEntrantId");
   return competitionDocSchema.parse(derived);
+}
+
+const rawStoreSchema = z.record(z.string(), z.unknown());
+
+export function unreadableCompetitions(text: string): Record<string, unknown> {
+  const store = parseJson(text, rawStoreSchema);
+  return Object.fromEntries(
+    Object.entries(store).filter(([, value]) => !readsCleanly(value))
+  );
+}
+
+function readsCleanly(value: unknown): boolean {
+  try {
+    readCompetition(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function readCompetitionStore(text: string) {

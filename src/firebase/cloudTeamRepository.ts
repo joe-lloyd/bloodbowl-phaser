@@ -12,7 +12,10 @@ import {
 import { getDb } from "./config";
 import { isAuthResolved, subscribeToAuth } from "./auth";
 import { type Team } from "../types/Team";
-import { dehydrateTeam } from "../data/persistence/teamPersistence";
+import {
+  dehydrateTeam,
+  readStoredTeam,
+} from "../data/persistence/teamPersistence";
 import {
   type TeamRepository,
   setTeamRepository,
@@ -34,7 +37,7 @@ function toPlainDoc(team: Team): Record<string, unknown> {
 
 async function fetchCloudTeams(uid: string): Promise<Team[]> {
   const snapshot = await getDocs(teamsCollection(uid));
-  return snapshot.docs.map((d) => {
+  return readEach(snapshot.docs, (d) => {
     const { team, warnings } = readCloudTeam(d.data());
     warnings.forEach((warning) => {
       console.warn(`[cloudTeamRepository] ${warning}`);
@@ -65,7 +68,7 @@ async function deleteCloudTeam(uid: string, teamId: string): Promise<void> {
   await runTransaction(getDb(), async (transaction) => {
     const snapshot = await transaction.get(reference);
     if (!snapshot.exists()) return;
-    const { team } = readCloudTeam(snapshot.data());
+    const { team } = readStoredTeam(snapshot.data());
     if (team.computerCoached && team.activeCompetitionId) {
       throw new Error(
         "This computer team is still playing in a competition. Delete it once the competition is over."

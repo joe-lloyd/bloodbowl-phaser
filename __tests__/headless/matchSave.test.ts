@@ -72,6 +72,20 @@ describe("resumable match save", () => {
     });
   });
 
+  it("restores a save whose players carry keywords the rosters no longer use", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 21 });
+    const save = saveCurrent(game);
+    const older = structuredClone(save);
+    const player = fixtureValue(older.teams[0].players[0]);
+    Reflect.set(player, "keywords", [...player.keywords, "Skink"]);
+
+    const restored = deserializeMatchSave(serializeMatchSave(older));
+
+    expect(fixtureValue(restored.teams[0].players[0]).keywords).toEqual(
+      fixtureValue(save.teams[0].players[0]).keywords
+    );
+  });
+
   it("restores the engine's per-team turn counters", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 31 });
     game.gameService.seedTurnCounts(3);

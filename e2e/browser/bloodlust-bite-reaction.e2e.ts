@@ -26,7 +26,7 @@ async function watchThrall(page: Page, playerId: string): Promise<void> {
     interface SpriteLook {
       anim: string;
       animStart: number;
-      stunnedMarker: { visible: boolean };
+      markers: { stunnedMarker: { visible: boolean } };
       getPlayer(): { status: string };
       play(anim: string, fromStart?: boolean): void;
     }
@@ -76,7 +76,7 @@ async function watchThrall(page: Page, playerId: string): Promise<void> {
     const tick = () => {
       const look = {
         anim: sprite.anim,
-        stunnedMarker: sprite.stunnedMarker.visible,
+        stunnedMarker: sprite.markers.stunnedMarker.visible,
         status: sprite.getPlayer().status,
         activeTeamId: w.__bbTestBridge.phase().activeTeamId,
       };
