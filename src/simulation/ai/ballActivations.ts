@@ -1,6 +1,5 @@
 import { type FieldPlayer as Player } from "./board";
 
-import { SkillType, hasSkill } from "../../types/Skills";
 import {
   catchTarget,
   interceptTarget,
@@ -696,8 +695,8 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
 }
 
 /**
- * A picker short of the team's quickest carrier: one who can hand the
- * ball on loses a turn of pace; one with My Ball keeps it to the end.
+ * A picker short of the team's quickest carrier loses pace for the whole
+ * drive: lab replays showed slow pickers rarely handed the ball on.
  */
 export function pickupPace(c: Context, player: Player): number {
   // The picker counts too: a prone picker with nobody else standing is
@@ -709,11 +708,7 @@ export function pickupPace(c: Context, player: Player): number {
       .filter((p) => standing(p) && canCarry(p))
       .map((p) => nextTurnReach(p))
   );
-  return paceWorth(
-    c,
-    nextTurnReach(player) - quickest,
-    hasSkill(player.skills, SkillType.MY_BALL) ? CARRY_TURNS : 1
-  );
+  return paceWorth(c, nextTurnReach(player) - quickest);
 }
 
 export function pickupActivation(c: Context, player: Player): Activation[] {

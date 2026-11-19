@@ -394,7 +394,7 @@
   },
   "__tests__/simulation/turn-plans.test.ts": {
     "local/no-comments": {
-      "count": 13
+      "count": 10
     }
   },
   "__tests__/unit/PlayerInfoPanel.test.tsx": {
