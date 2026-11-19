@@ -125,7 +125,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       replaceHitArea(
         sprite,
         playerHitArea(sprite),
-        (area: Phaser.Geom.Rectangle, x, y) => Phaser.Geom.Rectangle.Contains(area, x, y)
+        Phaser.Geom.Rectangle.Contains
       );
     });
     this.squareSprites.clear();

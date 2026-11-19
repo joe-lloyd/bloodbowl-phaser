@@ -10,7 +10,8 @@ interface Snapshot {
 let snapshotListener: ((snapshot: Snapshot) => void) | null = null;
 const listens = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock("firebase/firestore", () => ({
+vi.mock("firebase/firestore", async (importOriginal) => ({
+  Timestamp: (await importOriginal<typeof import("firebase/firestore")>()).Timestamp,
   collection: vi.fn(),
   deleteDoc: vi.fn(),
   doc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join("/") })),
@@ -43,6 +44,7 @@ import {
 } from "../../src/firebase/lobby";
 import { updateDoc } from "firebase/firestore";
 import { ConnectionBanner } from "../../src/ui/pages/ConnectionBanner";
+import { lobbyDoc, lobbyPlayer } from "../fixtures/lobby";
 
 const NOW = 1_000_000;
 const lobbyWith = (opponentSeenAgo: number) =>
@@ -143,9 +145,7 @@ describe("subscribeMatchLobby", () => {
   let lobbies: (LobbyDoc | null)[];
   let links: OwnLink[];
   let stop: () => void;
-  const doc = (lastSeen: number) => ({
-    players: { me: { uid: "me", lastSeen } },
-  });
+  const doc = (lastSeen: number) => lobbyDoc([lobbyPlayer("me", lastSeen)]);
   const snap = (
     fromCache: boolean,
     hasPendingWrites: boolean,

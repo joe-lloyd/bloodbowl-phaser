@@ -160,12 +160,12 @@ describe("DodgeController", () => {
       const result = controller.attemptDodge(
         { player,to: { x: 6,y: 5 },opponents: opponentsAtDest }      );
 
-      expect(mockDiceController.spies.rollSkillCheck).toHaveBeenCalledWith(
-        "Dodge",
-        player.stats.AG,
-        -1,
-        player.playerName
-      );
+      expect(mockDiceController.spies.rollSkillCheck).toHaveBeenCalledWith({
+        reason: "Dodge",
+        target: player.stats.AG,
+        modifier: -1,
+        playerName: player.playerName,
+      });
       expect(result.modifiers).toBe(-1);
     });
   });

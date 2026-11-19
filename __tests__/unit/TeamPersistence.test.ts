@@ -59,7 +59,8 @@ import {
 const setDocMock = vi.mocked(setDoc);
 
 function makeTeam(id: string, name = id): Team {
-  return { id, name, players: [] } as unknown as Team;
+  const team = createComputerTeam({ rosterName: RosterName.ORC, name, primaryColour: 0x224488, advancementMode: "advanced-league" });
+  return { ...team, id };
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));

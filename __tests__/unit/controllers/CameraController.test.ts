@@ -238,7 +238,7 @@ describe("CameraController", () => {
     controller.focusSquares([{ x: 3, y: 3 }]);
     panels = [{ left: 0, top: 0, right: 1600, bottom: 170 }];
     controller.refreshFraming();
-    controller.follow(new Phaser.GameObjects.Zone(new Phaser.Scene(), 0, 0));
+    controller.follow(new Phaser.GameObjects.Container(new Phaser.Scene(), 0, 0));
     expect(camera.zoom).toBe(0.83);
     expect(camera.zoomTo).not.toHaveBeenCalled();
     expect(camera.setFollowOffset).toHaveBeenLastCalledWith(
@@ -270,7 +270,7 @@ describe("CameraController", () => {
     ];
     const { camera, controller, resize } = setup(undefined, () => panels);
     camera.zoom = 1;
-    controller.follow(new Phaser.GameObjects.Zone(new Phaser.Scene(), 0, 0));
+    controller.follow(new Phaser.GameObjects.Container(new Phaser.Scene(), 0, 0));
     expect(camera.setFollowOffset.mock.lastCall).toEqual([0, -10]);
     panels = [];
     controller.refreshFraming();

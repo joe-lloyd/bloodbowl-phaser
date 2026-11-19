@@ -9,7 +9,8 @@ type SnapshotListener = (snapshot: {
 }) => void;
 let snapshotListener: SnapshotListener | null = null;
 
-vi.mock("firebase/firestore", () => ({
+vi.mock("firebase/firestore", async (importOriginal) => ({
+  Timestamp: (await importOriginal<typeof import("firebase/firestore")>()).Timestamp,
   collection: vi.fn(),
   deleteDoc: vi.fn(),
   doc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join("/") })),
@@ -33,20 +34,18 @@ vi.mock("../../src/firebase/config", () => ({ getDb: vi.fn(() => ({})) }));
 
 import {
   describeConnection,
-  type LobbyDoc,
   OPPONENT_ABANDON_MS,
   subscribeMatchLobby,
 } from "../../src/firebase/lobby";
 import { computeMatchOptionsMenu } from "../../src/ui/components/hud/computeMatchOptionsMenu";
 import { ConnectionBanner } from "../../src/ui/pages/ConnectionBanner";
+import { lobbyDoc, lobbyPlayer } from "../fixtures/lobby";
 
 const NOW = 1_000_000;
-const lobby = {
-  players: {
-    me: { uid: "me", lastSeen: NOW },
-    opponent: { uid: "opponent", lastSeen: NOW - OPPONENT_ABANDON_MS - 1 },
-  },
-} as unknown as LobbyDoc;
+const lobby = lobbyDoc([
+  lobbyPlayer("me", NOW),
+  lobbyPlayer("opponent", NOW - OPPONENT_ABANDON_MS - 1),
+]);
 
 describe("this coach's own connection comes first", () => {
   it("reads as offline, not as the other coach leaving", () => {
@@ -124,7 +123,7 @@ describe("subscribeMatchLobby's own link", () => {
     const snapshot = (fromCache: boolean) => ({
       metadata: { fromCache, hasPendingWrites: false },
       exists: () => true,
-      data: () => ({ players: {} }),
+      data: () => lobbyDoc([]),
     });
     snapshotListener?.(snapshot(true));
     snapshotListener?.(snapshot(false));
