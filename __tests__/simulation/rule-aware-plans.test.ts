@@ -3,6 +3,7 @@ import { fieldPlayer, game, step } from "./fixtures";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
+import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import type { HeadlessCommand } from "../../src/headless/protocol";
 
@@ -19,9 +20,7 @@ async function firstActivation(subject: HeadlessGame) {
   return { commands, note: notes[0] };
 }
 
-describe("a prone player's Blitz", () => {
-  // Our only player lies prone beside their ball carrier, who is three
-  // squares from scoring.
+describe("a prone player beside the carrier, three squares from scoring", () => {
   const subject = () =>
     game({
       turn: 3,
@@ -39,9 +38,7 @@ describe("a prone player's Blitz", () => {
   });
 });
 
-describe("a No Ball player", () => {
-  // The loose ball lies beside a No Ball player. A team-mate three squares
-  // away can reach it.
+describe("a No Ball player beside a loose ball, a team-mate three squares away", () => {
   const subject = () =>
     game({
       turn: 3,
@@ -65,5 +62,44 @@ describe("a No Ball player", () => {
       },
       note: "secures the ball (Secure the Ball: 2+)",
     });
+  });
+});
+
+describe("a team-mate eight squares behind our carrier, with 82% moves allowed", () => {
+  async function chaseNotes() {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 10, y: 5, hasBall: true },
+        { playerIndex: 1, x: 2, y: 5, stats: { MA: 5 } },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 17, y: 1 },
+        { playerIndex: 1, x: 17, y: 9 },
+      ],
+    });
+    const chaser = fieldPlayer(subject.ctx.team1.players[1]);
+    const coach = createPlannerCoach({
+      weights: { ...DEFAULT_WEIGHTS, safeMove: 0.82 },
+    });
+    const notes: string[] = [];
+    for (
+      let i = 0;
+      i < 30 && subject.ctx.gameService.getState().turn.teamId === "team1";
+      i++
+    ) {
+      const { command, note } = await step(subject, coach);
+      if (
+        command.type === "declare-action" &&
+        command.playerId === chaser.id &&
+        note
+      )
+        notes.push(note);
+    }
+    return notes;
+  }
+
+  it("does not risk a turnover to close in", async () => {
+    expect(await chaseNotes()).toEqual(["moves to chase"]);
   });
 });

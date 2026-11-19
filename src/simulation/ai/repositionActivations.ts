@@ -360,7 +360,7 @@ function chaseRoute(
     if (route.chance < w.safeMove || board.marks.getUint8(key(route.to)) > 0)
       continue;
     const gain =
-      (now - distance(route.to, target)) * 0.5 -
+      gamble(c, route.chance, (now - distance(route.to, target)) * 0.5) -
       moveFeedingCost(c, player, route.to);
     if (now > 3 && gain > (best?.gain ?? 0.5))
       best = { route, gain, role: "chase" };
