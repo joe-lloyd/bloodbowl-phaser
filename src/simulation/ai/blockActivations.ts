@@ -8,11 +8,9 @@ import {
   distance,
   key,
   neighbours,
-  onPitch,
   standing,
   toGoal,
 } from "./board";
-import { SkillType, hasSkill } from "../../types/Skills";
 import { type BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
 import { type Route, movesLeft } from "./routes";
 import { type Context, gamble } from "./activationContext";
@@ -94,65 +92,13 @@ export function blockFrom({
     activeTeamId: c.board.us,
   });
   const reroll = c.teamReroll && carrierOf(c.board)?.id === target.id;
-  const first = blockOdds({
+  return blockOdds({
     attacker: moved,
     defender: target,
     dice: analysis.diceCount,
     attackerPicks: !analysis.isUphill,
     teamReroll: reroll,
   });
-  return frenzyFollowUp({ c, attacker: moved, target, players, first });
-}
-
-interface FollowUpArgs {
-  c: Context;
-  attacker: Player;
-  target: Player;
-  players: Player[];
-  first: BlockOdds;
-}
-
-function frenzyFollowUp({
-  c,
-  attacker,
-  target,
-  players,
-  first,
-}: FollowUpArgs): BlockOdds {
-  if (
-    !hasSkill(attacker.skills, SkillType.FRENZY) ||
-    hasSkill(target.skills, SkillType.STAND_FIRM)
-  )
-    return first;
-  const from = target.gridPosition;
-  const to = {
-    x: from.x + Math.sign(from.x - attacker.gridPosition.x),
-    y: from.y + Math.sign(from.y - attacker.gridPosition.y),
-  };
-  if (!onPitch(to)) return first;
-  const stepped = { ...attacker, gridPosition: from };
-  const pushed = { ...target, gridPosition: to };
-  const again = blockValidator.analyzeBlock({
-    attacker: stepped,
-    defender: pushed,
-    allPlayers: players.map((p) => {
-      if (p.id === attacker.id) return stepped;
-      return p.id === target.id ? pushed : p;
-    }),
-    activeTeamId: c.board.us,
-  });
-  const second = blockOdds({
-    attacker: stepped,
-    defender: pushed,
-    dice: again.diceCount,
-    attackerPicks: !again.isUphill,
-    teamReroll: false,
-  });
-  const push = Math.max(0, 1 - first.knockdown - first.attackerDown);
-  return {
-    knockdown: first.knockdown + push * second.knockdown,
-    attackerDown: first.attackerDown + push * second.attackerDown,
-  };
 }
 
 export function blockActivations(c: Context, player: Player): Activation[] {

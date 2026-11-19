@@ -162,45 +162,6 @@ describe("a Really Stupid player beside an opponent, a slow free team-mate three
   });
 });
 
-describe("an ST4 player beside an ST3 opponent whose push lands between two of its team-mates", () => {
-  async function firstChoice(skills: SkillType[]) {
-    const subject = game({
-      turn: 3,
-      team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, stats: { ST: 4 }, skills },
-        { playerIndex: 1, x: 1, y: 1 },
-        { playerIndex: 2, x: 1, y: 3 },
-        { playerIndex: 3, x: 1, y: 7 },
-        { playerIndex: 4, x: 1, y: 9 },
-        { playerIndex: 5, x: 2, y: 5 },
-      ],
-      team2Placements: [
-        { playerIndex: 0, x: 9, y: 5 },
-        { playerIndex: 1, x: 10, y: 4 },
-        { playerIndex: 2, x: 10, y: 6 },
-        { playerIndex: 3, x: 18, y: 1, hasBall: true },
-      ],
-    });
-    const hitter = fieldPlayer(subject.ctx.team1.players[0]);
-    const { command, note } = await step(subject, createPlannerCoach());
-    return {
-      hitter: "playerId" in command && command.playerId === hitter.id,
-      note,
-    };
-  }
-
-  it("blocks without Frenzy", async () => {
-    expect(await firstChoice([])).toEqual({ hitter: true, note: "blocks" });
-  });
-
-  it("holds back with Frenzy, whose second block would be uphill", async () => {
-    expect(await firstChoice([SkillType.FRENZY])).toEqual({
-      hitter: false,
-      note: "moves to chase",
-    });
-  });
-});
-
 describe("our ST4 carrier with Block, marked by one ST3 opponent in front", () => {
   it("blitzes the marker", async () => {
     const subject = game({
