@@ -222,17 +222,21 @@ function transferSquares(c: Context, carrier: Player): RoleSquare[] {
 /**
  * A corner of our carrier's square. A carrier that has acted counted on
  * team-mates filling its corners, so they are worth `cageKeep` more,
- * unless this turn sets up moving the ball on instead.
+ * unless a team-mate who has not finished acting is setting up moving
+ * the ball on.
  */
 function cornerWorth(c: Context, carrier: Player, transfer: RoleSquare[]) {
   const { board, w } = c;
-  const acted = new Set(board.gs.getState().turn.activatedPlayerIds ?? []).has(
-    carrier.id
-  );
+  const acted = new Set(board.gs.getState().turn.activatedPlayerIds ?? []);
+  // A plan counts only while the player it is for has not finished acting.
   const planned = transfer.some(
-    (s) => TRANSFER_ROLES.has(s.role) && s.value > 0 && onPitch(s.at)
+    (s) =>
+      TRANSFER_ROLES.has(s.role) &&
+      s.value > 0 &&
+      onPitch(s.at) &&
+      !(s.only && acted.has(s.only))
   );
-  return w.cageCorner + (acted && !planned ? w.cageKeep : 0);
+  return w.cageCorner + (acted.has(carrier.id) && !planned ? w.cageKeep : 0);
 }
 
 /** Our carrier: a cage around it and receivers ahead of it. */
