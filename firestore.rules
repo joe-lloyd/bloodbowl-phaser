@@ -133,8 +133,14 @@ service cloud.firestore {
         && areFriends(invite.fromUid, invite.toUid);
     }
 
+    // A missing invite reads as missing, so a coach can clear one that the
+    // sender has already withdrawn.
     match /invites/{inviteId} {
-      allow read: if request.auth != null
+      allow get: if request.auth != null
+        && (resource == null
+          || resource.data.toUid == request.auth.uid
+          || resource.data.fromUid == request.auth.uid);
+      allow list: if request.auth != null
         && (resource.data.toUid == request.auth.uid
           || resource.data.fromUid == request.auth.uid);
       allow create: if request.auth != null && matchInviteAllowed(inviteId);

@@ -38,12 +38,13 @@ import {
 } from "../../src/firebase/friends";
 import {
   acceptMatchInvite,
+  dismissInvite,
   inviteFriendToMatch,
   sendMatchInvite,
 } from "../../src/firebase/invites";
 import { createLobby, fetchLobby } from "../../src/firebase/lobby";
 import { friendshipKey } from "../../src/social/friends";
-import { readFriendship } from "../../src/boundary/social";
+import { readFriendship, readInvite } from "../../src/boundary/social";
 
 async function friends(): Promise<[string, string]> {
   const alice = uniqueUid("alice");
@@ -78,6 +79,19 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       expect(
         (await as(alice, () => ensureCoachProfile(alice))).friendCode
       ).toBe(profile.friendCode);
+    });
+
+    it("is made once when two pages ask for it at the same moment", async () => {
+      const alice = uniqueUid("alice");
+      const [first, second] = await Promise.all([
+        as(alice, () => ensureCoachProfile(alice)),
+        as(alice, () => ensureCoachProfile(alice)),
+      ]);
+
+      expect(second.friendCode).toBe(first.friendCode);
+      expect(
+        (await as(alice, () => ensureCoachProfile(alice))).friendCode
+      ).toBe(first.friendCode);
     });
 
     it("keeps the name a coach chose before profiles existed", async () => {
@@ -195,15 +209,9 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         expect.objectContaining({ kind: "match", fromUid: alice, code }),
       ]);
 
-      const joined = await as(bob, () =>
-        acceptMatchInvite({
-          kind: "match",
-          fromUid: alice,
-          toUid: bob,
-          code,
-          createdAt: Date.now(),
-        })
-      );
+      const invite = inbox.docs.map((entry) => readInvite(entry.data()))[0];
+      if (!invite) throw new Error("no invite");
+      const joined = await as(bob, () => acceptMatchInvite(invite));
 
       expect(joined).toBe(code);
       expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBe(bob);
@@ -229,6 +237,62 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
         inviteFriendToMatch({ fromUid: alice, toUid: carol })
       );
       expect(second).toBe(first);
+    });
+
+    it("is shared when the host invites two friends at once", async () => {
+      const [alice, bob] = await friends();
+      const carol = uniqueUid("carol");
+      await as(alice, () => requestFriend({ me: alice, other: carol }));
+      await as(carol, () => acceptFriend(friendshipKey(alice, carol)));
+
+      const codes = await as(alice, () =>
+        Promise.all([
+          inviteFriendToMatch({ fromUid: alice, toUid: bob }),
+          inviteFriendToMatch({ fromUid: alice, toUid: carol }),
+        ])
+      );
+      expect(codes[1]).toBe(codes[0]);
+    });
+
+    it("cannot pull a coach out of a match they are playing", async () => {
+      const [alice, bob] = await friends();
+      const { code } = await as(alice, () => createLobby(alice, "Alice"));
+      await setDoc(doc(dbFor(ADMIN), "users", bob), { activeMatchCode: "PLAYIN" });
+      await setDoc(doc(dbFor(ADMIN), "games", "PLAYIN"), {
+        code: "PLAYIN",
+        hostUid: bob,
+        guestUid: alice,
+        status: "active",
+        settings: { turnSeconds: 0, timeoutBankMs: 0, progressionEnabled: false },
+        players: {},
+        createdAt: null,
+      });
+
+      await expect(
+        as(bob, () =>
+          acceptMatchInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
+        )
+      ).rejects.toThrow("Finish your current match before accepting an invite.");
+      expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBeNull();
+    });
+
+    it("is cleared only if it is still the one the coach answered", async () => {
+      const [alice, bob] = await friends();
+      const first = await as(alice, () => createLobby(alice, "Alice"));
+      await as(alice, () => sendMatchInvite({ fromUid: alice, toUid: bob, code: first.code }));
+      const answered = (
+        await getDocs(query(collection(dbFor(bob), "invites"), where("toUid", "==", bob)))
+      ).docs.map((entry) => readInvite(entry.data()))[0];
+      if (!answered) throw new Error("no invite");
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await as(alice, () => sendMatchInvite({ fromUid: alice, toUid: bob, code: "NEWONE" }));
+
+      await as(bob, () => dismissInvite(answered));
+      const left = await getDocs(query(collection(dbFor(bob), "invites"), where("toUid", "==", bob)));
+      expect(left.docs.map((entry) => readInvite(entry.data()))).toEqual([
+        expect.objectContaining({ code: "NEWONE" }),
+      ]);
+      await as(bob, () => dismissInvite(answered));
     });
 
     it("goes only to friends, and only the two coaches can see it", async () => {

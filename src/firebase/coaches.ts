@@ -3,7 +3,7 @@ import {
   getDoc,
   onSnapshot,
   runTransaction,
-  setDoc,
+  type Transaction,
   updateDoc,
 } from "firebase/firestore";
 import { firebaseProfile } from "../boundary/firebaseJson";
@@ -43,19 +43,6 @@ function randomFriendCode(): FriendCode {
   return code;
 }
 
-async function claimFriendCode(uid: string): Promise<FriendCode> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = randomFriendCode();
-    const claimed = await runTransaction(getDb(), async (tx) => {
-      if ((await tx.get(friendCodeRef(code))).exists()) return false;
-      tx.set(friendCodeRef(code), { uid });
-      return true;
-    });
-    if (claimed) return code;
-  }
-  throw new Error("Could not find a free friend code. Try again.");
-}
-
 async function legacyCoachName(uid: string): Promise<string | undefined> {
   const snapshot = await getDoc(doc(getDb(), "users", uid));
   if (!snapshot.exists()) return undefined;
@@ -70,21 +57,32 @@ export async function getCoachProfile(
   return snapshot.exists() ? readCoachProfile(snapshot.data()) : null;
 }
 
-export async function ensureCoachProfile(uid: string): Promise<CoachProfile> {
-  const existing = await getCoachProfile(uid);
-  if (existing) {
-    await touchPresence(uid);
-    return existing;
+async function freeFriendCode(tx: Transaction): Promise<FriendCode> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = randomFriendCode();
+    if (!(await tx.get(friendCodeRef(candidate))).exists()) return candidate;
   }
+  throw new Error("Could not find a free friend code. Try again.");
+}
+
+export async function ensureCoachProfile(uid: string): Promise<CoachProfile> {
   const coachName = await legacyCoachName(uid);
-  const profile: CoachProfile = {
-    uid,
-    friendCode: await claimFriendCode(uid),
-    lastSeen: Date.now(),
-    ...(coachName === undefined ? {} : { coachName }),
-  };
-  await setDoc(coachRef(uid), profile);
-  return profile;
+  return runTransaction(getDb(), async (tx) => {
+    const snapshot = await tx.get(coachRef(uid));
+    if (snapshot.exists()) {
+      tx.update(coachRef(uid), { lastSeen: Date.now() });
+      return readCoachProfile(snapshot.data());
+    }
+    const profile: CoachProfile = {
+      uid,
+      friendCode: await freeFriendCode(tx),
+      lastSeen: Date.now(),
+      ...(coachName === undefined ? {} : { coachName }),
+    };
+    tx.set(friendCodeRef(profile.friendCode), { uid });
+    tx.set(coachRef(uid), profile);
+    return profile;
+  });
 }
 
 export async function touchPresence(uid: string): Promise<void> {

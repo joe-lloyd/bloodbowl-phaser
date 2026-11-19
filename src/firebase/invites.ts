@@ -1,9 +1,9 @@
 import {
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   query,
+  runTransaction,
   setDoc,
   where,
 } from "firebase/firestore";
@@ -42,7 +42,19 @@ export async function sendMatchInvite({
   await setDoc(inviteRef(invite), invite);
 }
 
-async function friendlyLobbyCode(uid: string): Promise<string> {
+const choosingLobby = new Map<string, Promise<string>>();
+
+function friendlyLobbyCode(uid: string): Promise<string> {
+  const pending = choosingLobby.get(uid);
+  if (pending) return pending;
+  const choice = chooseFriendlyLobby(uid).finally(() => {
+    choosingLobby.delete(uid);
+  });
+  choosingLobby.set(uid, choice);
+  return choice;
+}
+
+async function chooseFriendlyLobby(uid: string): Promise<string> {
   const current = await getActiveMatchCode(uid);
   const lobby = current ? await fetchLobby(current) : null;
   if (lobby?.status === "active")
@@ -69,10 +81,19 @@ export async function inviteFriendToMatch({
 }
 
 export async function dismissInvite(invite: Invite): Promise<void> {
-  await deleteDoc(inviteRef(invite));
+  const ref = inviteRef(invite);
+  await runTransaction(getDb(), async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists()) return;
+    if (readInvite(snapshot.data()).createdAt === invite.createdAt) tx.delete(ref);
+  });
 }
 
 export async function acceptMatchInvite(invite: Invite): Promise<string> {
+  const current = await getActiveMatchCode(invite.toUid);
+  const playing = current ? await fetchLobby(current) : null;
+  if (playing?.status === "active" && playing.code !== invite.code)
+    throw new Error("Finish your current match before accepting an invite.");
   const joined = await joinLobby(
     invite.code,
     invite.toUid,
