@@ -107,6 +107,19 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       expect(await as(alice, () => getCoachName(alice))).toBe("Snotling Sam");
     });
 
+    it("fits a long name saved before profiles existed, and still takes a new one", async () => {
+      const alice = uniqueUid("alice");
+      await setDoc(doc(dbFor(alice), "users", alice), {
+        coachName: "Grimgor Ironhide, Da Biggest Boss of Da Black Crag Boyz",
+      });
+
+      expect(
+        (await as(alice, () => ensureCoachProfile(alice))).coachName
+      ).toBe("Grimgor Ironhide, Da Biggest Boss of Da");
+      await as(alice, () => setCoachName(alice, "Grim"));
+      expect(await as(alice, () => getCoachName(alice))).toBe("Grim");
+    });
+
     it("is written only by its coach, and a code only claimed for yourself", async () => {
       const alice = uniqueUid("alice");
       const mallory = uniqueUid("mallory");

@@ -18,6 +18,13 @@ import {
 } from "../boundary/social";
 import { getDb } from "./config";
 
+const COACH_NAME_LIMIT = 40;
+
+function fittedName(name: string | undefined): string | undefined {
+  const fitted = name?.trim().slice(0, COACH_NAME_LIMIT).trim();
+  return fitted === "" ? undefined : fitted;
+}
+
 function coachRef(uid: string) {
   return doc(getDb(), "coaches", uid);
 }
@@ -46,8 +53,7 @@ function randomFriendCode(): FriendCode {
 async function legacyCoachName(uid: string): Promise<string | undefined> {
   const snapshot = await getDoc(doc(getDb(), "users", uid));
   if (!snapshot.exists()) return undefined;
-  const name = firebaseProfile(snapshot.data()).coachName?.trim();
-  return name === "" ? undefined : name;
+  return fittedName(firebaseProfile(snapshot.data()).coachName);
 }
 
 export async function getCoachProfile(
@@ -105,8 +111,10 @@ export function displayName(profile: CoachProfile | null | undefined): string {
 }
 
 export async function setCoachName(uid: string, name: string): Promise<void> {
+  const coachName = fittedName(name);
+  if (coachName === undefined) return;
   await ensureCoachProfile(uid);
-  await updateDoc(coachRef(uid), { coachName: name.trim() });
+  await updateDoc(coachRef(uid), { coachName });
 }
 
 export async function findCoachByFriendCode(
