@@ -105,7 +105,8 @@ function HudColumn({
   bottomSlot: ReactNode;
 }) {
   const right = side === "right";
-  const columnClass = phone ? phoneColumn : `${column} ${side}-4`;
+  const inset = right ? "right-4" : "left-4";
+  const columnClass = phone ? phoneColumn : `${column} ${inset}`;
   const slotClass = right ? " w-full items-end" : "";
   return (
     <div

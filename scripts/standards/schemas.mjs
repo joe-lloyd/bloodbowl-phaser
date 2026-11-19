@@ -16,6 +16,11 @@ const modules = new Map();
 const imports = new Map();
 const active = new Set();
 const named = new Map();
+const LEGACY_DEFAULTS = new Map([
+  ["TurnSnapshot.hasThrownTeamMate", "false"],
+  ["TurnSnapshot.hasKickedTeamMate", "false"],
+  ["TurnSnapshot.hasThrownBomb", "false"],
+]);
 
 function exportedName(type) {
   const symbol = type.aliasSymbol ?? type.symbol;
@@ -163,7 +168,9 @@ function expression(type, context, hint) {
           : `z.union([${expressions.join(", ")}])`;
       return `${JSON.stringify(property.name)}: ${field}.exactOptional()`;
     }
-    return `${JSON.stringify(property.name)}: ${schema(value, context, `${hint}.${property.name}`)}${optional ? ".exactOptional()" : ""}`;
+    const legacy = LEGACY_DEFAULTS.get(`${hint}.${property.name}`);
+    const fallback = legacy === undefined ? "" : `.default(${legacy})`;
+    return `${JSON.stringify(property.name)}: ${schema(value, context, `${hint}.${property.name}`)}${optional ? ".exactOptional()" : fallback}`;
   });
   const object = `z.looseObject({\n${fields.map((field) => `  ${field},`).join("\n")}\n})`;
   return index ? `${object}.catchall(${schema(index, context, hint)})` : object;

@@ -1,5 +1,6 @@
 import {
   readCompetition,
+  readCompetitions,
   readCompetitionStore,
 } from "../boundary/competitionRepository";
 import { firebaseDocument } from "../boundary/firebaseJson";
@@ -170,8 +171,7 @@ export async function listCompetitions(
   let remote: CompetitionDoc[] = [];
   if (uid && isFirebaseConfigured()) {
     const snapshot = await getDocs(collection(getDb(), collectionName(type)));
-    remote = snapshot.docs
-      .map((item) => readCompetition(item.data()))
+    remote = readCompetitions(snapshot.docs.map((item) => item.data()))
       .filter(
         (competition) =>
           competition.organizerUid === uid ||

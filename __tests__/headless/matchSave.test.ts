@@ -55,6 +55,23 @@ describe("resumable match save", () => {
     expect(restored.competition).toEqual(competition);
   });
 
+  it("restores a save written before the Throw Team-Mate, Kick Team-Mate and Bomb turn limits", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 21 });
+    const save = saveCurrent(game);
+    const older = structuredClone(save);
+    Reflect.deleteProperty(older.snapshot.turn, "hasThrownTeamMate");
+    Reflect.deleteProperty(older.snapshot.turn, "hasKickedTeamMate");
+    Reflect.deleteProperty(older.snapshot.turn, "hasThrownBomb");
+
+    const restored = deserializeMatchSave(serializeMatchSave(older));
+
+    expect(restored.snapshot.turn).toMatchObject({
+      hasThrownTeamMate: false,
+      hasKickedTeamMate: false,
+      hasThrownBomb: false,
+    });
+  });
+
   it("restores the engine's per-team turn counters", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 31 });
     game.gameService.seedTurnCounts(3);

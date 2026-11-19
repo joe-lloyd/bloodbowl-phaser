@@ -11,8 +11,8 @@ export const turnSnapshotSchema: z.ZodType<TurnSnapshot> = z.looseObject({
   hasPassed: z.boolean(),
   hasHandedOff: z.boolean(),
   hasFouled: z.boolean(),
-  hasThrownTeamMate: z.boolean(),
-  hasKickedTeamMate: z.boolean(),
-  hasThrownBomb: z.boolean(),
+  hasThrownTeamMate: z.boolean().default(false),
+  hasKickedTeamMate: z.boolean().default(false),
+  hasThrownBomb: z.boolean().default(false),
   movementUsed: z.record(z.string(), z.number()),
 });

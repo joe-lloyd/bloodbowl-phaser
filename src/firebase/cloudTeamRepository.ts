@@ -1,4 +1,5 @@
 import { readCloudTeam } from "../boundary/firebaseTeam";
+import { readEach } from "../boundary/readEach";
 import { firebaseDocument } from "../boundary/firebaseJson";
 import {
   collection,
@@ -49,7 +50,7 @@ export interface OwnedTeam {
 
 export async function fetchAllCoachTeams(): Promise<OwnedTeam[]> {
   const snapshot = await getDocs(collectionGroup(getDb(), "teams"));
-  return snapshot.docs.map((document) => ({
+  return readEach(snapshot.docs, (document) => ({
     ownerUid: document.ref.parent.parent?.id ?? "",
     team: readCloudTeam(document.data()).team,
   }));

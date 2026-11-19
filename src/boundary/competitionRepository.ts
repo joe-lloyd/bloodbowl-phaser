@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { competitionDocSchema } from "./schemas/CompetitionDoc";
 import { parseJson } from "./json";
+import { readEach } from "./readEach";
 
 const legacyEntrantSchema = z.looseObject({
   ownerUid: z.string().nullable().exactOptional(),
@@ -14,7 +15,10 @@ const localStoreSchema = z
   .record(z.string(), z.unknown())
   .transform((store) =>
     Object.fromEntries(
-      Object.entries(store).map(([key, value]) => [key, readCompetition(value)])
+      readEach(Object.entries(store), ([key, value]) => [
+        key,
+        readCompetition(value),
+      ])
     )
   );
 
@@ -33,4 +37,8 @@ export function readCompetition(value: unknown) {
 
 export function readCompetitionStore(text: string) {
   return parseJson(text, localStoreSchema);
+}
+
+export function readCompetitions(values: readonly unknown[]) {
+  return readEach(values, readCompetition);
 }

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { readCompetition } from "../boundary/competitionRepository";
+import {
+  readCompetition,
+  readCompetitionStore,
+} from "../boundary/competitionRepository";
 import { readLobby, readAppliedCommandCount } from "../boundary/firebaseLobby";
 import { readCloudTeam } from "../boundary/firebaseTeam";
 import { dehydrateTeam } from "../data/persistence/teamPersistence";
@@ -73,6 +76,15 @@ describe("Firebase data boundaries", () => {
     expect(parsed.status).toBe("active");
     expect(parsed.standings).toEqual([]);
     expect("championEntrantId" in parsed).toBe(false);
+  });
+  it("keeps the other local competitions when one fails validation", () => {
+    const store = readCompetitionStore(
+      JSON.stringify({
+        "league:good": legacyLeague(),
+        "league:bad": { ...legacyLeague(), points: { win: "three" } },
+      })
+    );
+    expect(Object.keys(store)).toEqual(["league:good"]);
   });
   it("keeps a draft competition a draft", () => {
     expect(readCompetition({ ...legacyLeague(), status: "draft" }).status).toBe("draft");
