@@ -23,7 +23,7 @@ import type {
   OnlineSetup,
 } from "./types";
 
-export const MAX_PLACES = 16;
+const MAX_PLACES = 16;
 
 type Random = () => number;
 

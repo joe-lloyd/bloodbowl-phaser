@@ -55,7 +55,7 @@ function simulatedRow(
   };
 }
 
-export function inOpenRound(latest: CompetitionDoc): CompetitionFixture | undefined {
+function inOpenRound(latest: CompetitionDoc): CompetitionFixture | undefined {
   const round = openRound(latest)?.round;
   return simulatableFixtures(latest).find((fixture) => fixture.round === round);
 }

@@ -4,9 +4,9 @@ import {
   competitionPath,
 } from "../../../competition/types";
 import { sendCompetitionInvite } from "../../../firebase/invites";
-import { errorText } from "../../errorText";
-import { type FriendRow, useFriends } from "../../hooks/useSocial";
-import { Chip, HudButton, Notice, Section } from "../componentWarehouse/HudKit";
+import { useFriends } from "../../hooks/useSocial";
+import { HudButton, Section } from "../componentWarehouse/HudKit";
+import { FriendInviteList } from "../social/LobbyFriends";
 
 function shareLink(competition: CompetitionDoc): string {
   return `${window.location.origin}${competitionPath({
@@ -53,46 +53,15 @@ export function CompetitionFriendInvites({
     (row) =>
       row.kind === "friend" && !competition.participantUids.includes(row.uid)
   );
-  const [invited, setInvited] = useState<ReadonlySet<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
-
-  const invite = (friend: FriendRow) => {
-    sendCompetitionInvite({ fromUid: uid, toUid: friend.uid, competition })
-      .then(() => {
-        setInvited((current) => new Set(current).add(friend.uid));
-      })
-      .catch((reason: unknown) => {
-        setError(errorText(reason));
-      });
-  };
-
   return (
     <Section title="Bring in coaches" bodyClassName="flex flex-col gap-3">
       <CopyLink competition={competition} />
-      {friends.map((friend) => (
-        <div key={friend.uid} className="flex items-center justify-between gap-3">
-          <span className="font-hud-body text-hud-base text-hud-bone">
-            {friend.name}
-          </span>
-          {invited.has(friend.uid) ? (
-            <Chip tone="good">Invited</Chip>
-          ) : (
-            <HudButton
-              size="sm"
-              onClick={() => {
-                invite(friend);
-              }}
-            >
-              Invite
-            </HudButton>
-          )}
-        </div>
-      ))}
-      {error && (
-        <Notice tone="bad" role="alert">
-          {error}
-        </Notice>
-      )}
+      <FriendInviteList
+        friends={friends}
+        send={(friend) =>
+          sendCompetitionInvite({ fromUid: uid, toUid: friend.uid, competition })
+        }
+      />
     </Section>
   );
 }
