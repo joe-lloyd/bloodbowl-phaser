@@ -252,23 +252,37 @@ Tomb Kings show the same pattern: 1.36× the blocks and 1.39× the casualties, w
 
 Focused runs then played the eight bash rosters, Dwarf, Nurgle, Tomb Kings, Chaos Dwarf, Black Orc, Khorne, Chaos Chosen and Orc, each change against main over three seeds of 2,848 games. Pooled over the eight, 4,800 games a policy:
 
-| Change for the bash rosters                     | Change vs main, points |
-| ----------------------------------------------- | ---------------------: |
-| A hit more than two squares from the ball worth nothing | -1.8 |
-| ... worth half                                  |                   -0.4 |
-| ... worth 1.5 times                             |                   -0.2 |
-| ... worth double                                |                   -2.5 |
-| Casualties worth 80 instead of 40               |                   -0.4 |
-| Early casualties worth more, attrition 1        |                   -0.3 |
-| Mark their carrier at 30, screen at 18          |                   -0.5 |
-| A free player assists any block                 |                   -0.3 |
-| ... at half its gain                            |                   +0.2 |
-| Cage corners worth 16 more once the carrier has acted | +0.8 |
-| ... 30 more                                     |                   +0.9 |
+| Change for the bash rosters                             | Change vs main, points |
+| ------------------------------------------------------- | ---------------------: |
+| A hit more than two squares from the ball worth nothing |                   -1.8 |
+| ... worth half                                          |                   -0.4 |
+| ... worth 1.5 times                                     |                   -0.2 |
+| ... worth double                                        |                   -2.5 |
+| Casualties worth 80 instead of 40                       |                   -0.4 |
+| Early casualties worth more, attrition 1                |                   -0.3 |
+| Mark their carrier at 30, screen at 18                  |                   -0.5 |
+| A free player assists any block                         |                   -0.3 |
+| ... at half its gain                                    |                   +0.2 |
+| Cage corners worth 16 more once the carrier has acted   |                   +0.8 |
+| ... 30 more                                             |                   +0.9 |
 
 Hitting, injuring and defending as they are came out best. Off-ball hits pay: worth nothing or worth double, they cost bash rosters 1.8 and 2.5 points. Assisting every block came out level because few players are still free by the time a block is thrown; unassisted blocks fell only from 34.4% to 33.0%. These weights were removed again.
 
 The one gain was on offence. A carrier's square counts corners that team-mates who have not acted can still reach, so the carrier moves expecting a cage, and those team-mates then spent their activations elsewhere. `cageKeep` makes a corner worth 20 more once the carrier has acted. It first crowded out planned plays: a catcher sent deep for a two-step pass, a runner sent wide and a thrower lining up a launch all filled corners instead. The bonus now skips a turn that sets up one of those. Ungated, it took 50.78% of points against main over three fresh seeds of 5,184 paired games; gated, 50.75% over three more.
+
+Candidate source `7bd9e5eee52b` played main, `15128db61afa`. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 86-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   50.41% | 49.45% to 51.39%     |
+| Standard, against the frozen planner | 5,184 |                   49.22% | 48.21% to 50.18%     |
+| Persistent fixtures                  | 1,296 |                   51.54% | 49.50% to 53.32%     |
+| Heuristic control                    |   432 |                   92.94% | 90.86% to 94.79%     |
+| Hard sentinels                       |    16 | 28.13%, descriptive only | No strength estimate |
+
+Confirmation on its own cannot rule out parity, but it agrees with the six focused seeds. Twenty-three rosters meet their standard, against 22. The gain is spread across the field rather than aimed at bash rosters: in the confirmation games Dwarf moved 0.5 points, Nurgle -0.8, Tomb Kings -1.3 and Chaos Dwarf -3.3, inside the five points a single roster swings between runs. Those four still miss their standard. Dwarf scores in 33% of games and Nurgle in 35%, against 50%, so their remaining gap is in scoring, and no change to how they hit closed it.
+
+The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-7bd9e5eee52b-vs-15128db61afa` on Daily Driver. The focused runs stay under `/Users/joelloyd/tmp/bb7-bash*`.
 
 ## Frozen acquisition
 
