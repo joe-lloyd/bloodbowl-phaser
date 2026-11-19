@@ -64,8 +64,10 @@ export function targetValue(
       : near === 1
         ? w.cageBreak
         : 0;
+  const knockdown =
+    carrier && near > 2 ? w.knockdown * w.farHit : w.knockdown;
   return (
-    w.knockdown +
+    knockdown +
     bonus +
     target.stats.ST +
     casualtyChance(attacker, target) * c.casualty

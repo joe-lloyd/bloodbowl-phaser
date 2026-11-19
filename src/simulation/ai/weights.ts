@@ -71,6 +71,12 @@ export const DEFAULT_WEIGHTS = {
   /** Get next to a loose ball. */
   chase: 11,
   knockdown: 12,
+  /**
+   * Scales `knockdown` for a hit more than two squares from the ball
+   * carrier, of either team, where a knockdown changes nothing about the
+   * drive. 1 counts it like any other hit.
+   */
+  farHit: 1,
   carrierKnockdown: 75,
   /**
    * Per casualty a knockdown is expected to cause, for a team paid the
