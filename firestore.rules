@@ -509,8 +509,9 @@ service cloud.firestore {
       return changed().hasOnly(['players', 'settings', 'status', 'timer',
                                 'seedCommits', 'seedReveals', 'snapshot',
                                 'resume', 'snapshotAt', 'coinFlip',
-                                'endRequestBy'])
+                                'endRequestBy', 'listed'])
         && ownPlayerEntryOnly()
+        && (!changed().hasAny(['listed']) || listingAllowed())
         && statusChangeAllowed()
         && seedWriteAllowed()
         && (!changed().hasAny(['coinFlip']) || coinFlipWriteAllowed())
@@ -521,6 +522,15 @@ service cloud.firestore {
         && (!changed().hasAny(['endRequestBy'])
           || request.resource.data.endRequestBy == null
           || request.resource.data.endRequestBy == request.auth.uid);
+    }
+
+    // Only the host lists a friendly lobby in Open games, before kick-off. A
+    // competition fixture is never listed: its seat belongs to one coach.
+    function listingAllowed() {
+      return request.auth.uid == resource.data.hostUid
+        && resource.data.status == 'lobby'
+        && !('competitionContext' in resource.data)
+        && request.resource.data.listed is bool;
     }
 
     // A stranger who knows the code may take the empty guest seat as
@@ -537,12 +547,14 @@ service cloud.firestore {
         && lastSeenBelievable();
     }
 
-    // Game/lobby docs. A code is the only way in: fetching one by its code
-    // is allowed, listing them is not. Writes are members-only, apart from
-    // claiming the empty guest seat.
+    // Game/lobby docs. A code is the way in: fetching one by its code is
+    // allowed, and only lobbies their host opened to everyone can be listed.
+    // Writes are members-only, apart from claiming the empty guest seat.
     match /games/{code} {
       allow get: if request.auth != null;
-      allow list: if false;
+      allow list: if request.auth != null
+        && resource.data.listed == true
+        && resource.data.status == 'lobby';
       allow create: if request.auth != null
         && request.resource.data.hostUid == request.auth.uid
         && request.resource.data.guestUid == null
@@ -551,7 +563,9 @@ service cloud.firestore {
         && lastSeenBelievable()
         && request.resource.data.keys().hasOnly([
           'code', 'hostUid', 'guestUid', 'status', 'settings', 'players',
-          'createdAt', 'expiresAt', 'competitionContext', 'fixtureTeams']);
+          'createdAt', 'expiresAt', 'competitionContext', 'fixtureTeams',
+          'listed'])
+        && request.resource.data.get('listed', false) == false;
       allow update: if request.auth != null
         && (((request.auth.uid == resource.data.hostUid
               || request.auth.uid == resource.data.guestUid)

@@ -1,14 +1,19 @@
 import { readLobby, readAppliedCommandCount } from "../boundary/firebaseLobby";
 import { firebaseDocument, firebaseProfile } from "../boundary/firebaseJson";
 import {
+  collection,
   doc,
   getDoc,
+  limit,
   onSnapshot,
+  query,
   runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
+import { readEach } from "../boundary/readEach";
 import { getDb } from "./config";
 import { type Team } from "../types/Team";
 import { type GameSnapshot } from "../headless/serialization";
@@ -84,6 +89,8 @@ export interface LobbyDoc {
   competitionContext?: CompetitionContext;
 
   fixtureTeams?: { home: Team; away: Team };
+
+  listed?: boolean;
 }
 
 export const DEFAULT_SETTINGS: LobbySettings = {
@@ -524,6 +531,33 @@ export async function finishMatch(
   status: Extract<LobbyStatus, "finished" | "abandoned">
 ): Promise<void> {
   await updateDoc(lobbyRef(code), { status, endRequestBy: null });
+}
+
+export async function setLobbyListed(
+  code: string,
+  listed: boolean
+): Promise<void> {
+  await updateDoc(lobbyRef(code), { listed });
+}
+
+export function subscribeOpenLobbies(
+  onChange: (lobbies: LobbyDoc[]) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(getDb(), "games"),
+      where("listed", "==", true),
+      where("status", "==", "lobby"),
+      where("guestUid", "==", null),
+      limit(30)
+    ),
+    (snapshot) => {
+      onChange(readEach(snapshot.docs, (entry) => readLobby(entry.data())));
+    },
+    (error) => {
+      console.warn("[open lobby] could not follow open games", error);
+    }
+  );
 }
 
 export async function fetchLobby(code: string): Promise<LobbyDoc | null> {

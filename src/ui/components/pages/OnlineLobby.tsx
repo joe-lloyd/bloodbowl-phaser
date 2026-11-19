@@ -39,6 +39,8 @@ import { resolveCoachName } from "../../../firebase/coaches";
 import { useFriends } from "../../hooks/useSocial";
 import { InviteInbox } from "../social/InviteInbox";
 import { FriendButton, InviteFriendsPanel } from "../social/LobbyFriends";
+import { OpenGames } from "../social/OpenGames";
+import { OpenLobbyToggle } from "../social/OpenLobbyToggle";
 import { type Team } from "../../../types/Team";
 import { type CompetitionContext } from "../../../competition/types";
 
@@ -163,12 +165,12 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   }
 
   if (!code) {
-    const join = async () => {
+    const join = async (target: string) => {
       setError(null);
       setBusy(true);
       try {
         const coachName = await resolveCoachName(user.uid);
-        const joined = await joinLobby(joinInput, user.uid, coachName);
+        const joined = await joinLobby(target, user.uid, coachName);
         setCode(joined.code);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -179,11 +181,18 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     return (
       <JoinByCode
         inbox={<InviteInbox uid={user.uid} />}
+        openGames={
+          <OpenGames
+            uid={user.uid}
+            busy={busy}
+            onJoin={(target) => void join(target)}
+          />
+        }
         joinInput={joinInput}
         onJoinInput={setJoinInput}
         busy={busy}
         error={error}
-        onJoin={join}
+        onJoin={() => void join(joinInput)}
         onBack={() => navigate("/")}
       />
     );
@@ -242,7 +251,14 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         }
       />
       {isHost && !lobby.guestUid && !lobby.competitionContext && (
-        <InviteFriendsPanel me={user.uid} code={lobby.code} friends={friends} />
+        <>
+          <OpenLobbyToggle lobby={lobby} uid={user.uid} />
+          <InviteFriendsPanel
+            me={user.uid}
+            code={lobby.code}
+            friends={friends}
+          />
+        </>
       )}
 
       <Section title="Your team">
@@ -310,6 +326,7 @@ function lobbyWaitingOn(
 
 function JoinByCode({
   inbox,
+  openGames,
   joinInput,
   onJoinInput,
   busy,
@@ -318,6 +335,7 @@ function JoinByCode({
   onBack,
 }: {
   inbox: ReactNode;
+  openGames: ReactNode;
   joinInput: string;
   onJoinInput: (value: string) => void;
   busy: boolean;
@@ -358,6 +376,7 @@ function JoinByCode({
           Join
         </HudButton>
         {error && <ErrorText text={error} />}
+        {openGames}
         <HudButton variant="ghost" onClick={onBack}>
           Back
         </HudButton>

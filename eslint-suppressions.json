@@ -6523,7 +6523,7 @@
       "count": 2
     },
     "@typescript-eslint/no-misused-promises": {
-      "count": 4
+      "count": 3
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1

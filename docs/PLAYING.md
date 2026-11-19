@@ -90,6 +90,15 @@ While you wait in a lobby for an opponent, **Invite a friend** lists your
 friends with an **Invite** button each. A green dot shows a friend who had the
 game open in the last five minutes.
 
+### Open games
+
+To play anyone who is online, host a game and tick **Who can join → Open
+game** in the lobby. **Join Game** lists open games with the host's name, team
+and turn timer, and **Join** takes the empty seat. A game leaves the list when
+someone joins it, when it starts, or when its host has had the lobby closed for
+90 seconds. Matches are still relayed through Firestore, not connected browser
+to browser.
+
 For a relaxed friendly, the host can set **Match settings → Turn timer →
 No time limit** in the lobby before starting. This applies to both coaches:
 there is no countdown, automatic end of turn or time limit on decisions.
