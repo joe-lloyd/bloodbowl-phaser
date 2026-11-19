@@ -414,3 +414,37 @@ export function assistActivations(
   }
   return out;
 }
+
+export function carrierBlitzActivations(
+  c: Context,
+  carrier: Player
+): Activation[] {
+  const { board, w } = c;
+  const out: Activation[] = [];
+  for (const marker of board.theirs) {
+    if (
+      !standing(marker) ||
+      distance(marker.gridPosition, carrier.gridPosition) !== 1
+    )
+      continue;
+    const odds = blockFrom({
+      c,
+      attacker: carrier,
+      target: marker,
+      from: carrier.gridPosition,
+    });
+    const value =
+      odds.knockdown * targetValue(c, carrier, marker) -
+      odds.attackerDown * (c.turnover + w.ownDown + w.ballLoss);
+    if (value > 0)
+      out.push({
+        player: carrier,
+        action: "blitz",
+        intent: { kind: "blitz", target: marker, route: null },
+        tier: "blitz",
+        value,
+        rolls: [],
+      });
+  }
+  return out;
+}

@@ -16,6 +16,7 @@ import {
 import {
   assistActivations,
   blitzActivations,
+  carrierBlitzActivations,
   blockActivations,
 } from "./blockActivations";
 import { repositionActivation, roleSquares } from "./repositionActivations";
@@ -119,6 +120,7 @@ function carrierOptions(
   if (actions.has("move")) out.push(...carrierActivations(c, player));
   if (actions.has("handoff")) out.push(...handoffActivations(c, player));
   if (actions.has("pass")) out.push(...passActivations(c, player));
+  if (actions.has("blitz")) out.push(...carrierBlitzActivations(c, player));
   return out;
 }
 
@@ -198,10 +200,11 @@ function blitzContinuation(
   player: Player,
   used: boolean
 ): Activation[] {
+  const carrying = carrierOf(c.board)?.id === player.id;
+  if (!used && carrying) return carrierBlitzActivations(c, player);
   if (!used)
     return [...blitzActivations(c, player), ...pickupActivation(c, player)];
-  if (carrierOf(c.board)?.id === player.id)
-    return carrierActivations(c, player);
+  if (carrying) return carrierActivations(c, player);
   return [
     ...pickupActivation(c, player),
     ...repositionActivation(c, player, roleSquares(c)),

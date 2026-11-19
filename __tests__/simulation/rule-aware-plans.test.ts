@@ -196,3 +196,29 @@ describe("an ST4 player beside an ST3 opponent whose push lands between two of i
     });
   });
 });
+
+describe("our ST4 carrier with Block, marked by one ST3 opponent in front", () => {
+  it("blitzes the marker", async () => {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 8,
+          y: 5,
+          hasBall: true,
+          stats: { ST: 4, AG: 5 },
+          skills: [SkillType.BLOCK],
+        },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 17, y: 2 },
+      ],
+    });
+    expect(await firstActivation(subject)).toEqual({
+      commands: ["declare-action", "block"],
+      note: "blitzes",
+    });
+  });
+});
