@@ -379,14 +379,16 @@ function ActionButton(props: ActionButtonContextProps) {
   );
 }
 
-function CompactActionButton({
-  button,
-  press,
-  testId,
-  tone,
-  props,
-}: ActionButtonRenderProps) {
-  const { label, disabled, sub } = props;
+function ActionButtonShell({
+  render: { button, press, testId, tone, props },
+  className,
+  children,
+}: {
+  render: ActionButtonRenderProps;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const { disabled } = props;
   return (
     <button
       ref={button}
@@ -396,12 +398,24 @@ function CompactActionButton({
         press();
       }}
       {...(disabled === undefined ? {} : { disabled: disabled })}
-      className="relative flex min-h-[44px] w-full flex-col items-start justify-center overflow-hidden rounded-hud border border-white/10 bg-hud-ink/90 py-1 pl-3 pr-1.5 text-left shadow-hud active:bg-hud-edge disabled:opacity-45"
+      className={className}
     >
       <span
         aria-hidden
         className={`absolute inset-y-0 left-0 w-[4px] ${toneBar(tone)}`}
       />
+      {children}
+    </button>
+  );
+}
+
+function CompactActionButton(rendered: ActionButtonRenderProps) {
+  const { label, disabled, sub } = rendered.props;
+  return (
+    <ActionButtonShell
+      render={rendered}
+      className="relative flex min-h-[44px] w-full flex-col items-start justify-center overflow-hidden rounded-hud border border-white/10 bg-hud-ink/90 py-1 pl-3 pr-1.5 text-left shadow-hud active:bg-hud-edge disabled:opacity-45"
+    >
       <span
         className={`font-hud-label text-hud-sm font-bold uppercase leading-tight tracking-[0.04em] ${
           disabled ? "text-hud-mute" : "text-hud-bone"
@@ -414,33 +428,18 @@ function CompactActionButton({
           {sub}
         </span>
       )}
-    </button>
+    </ActionButtonShell>
   );
 }
 
-function FullActionButton({
-  button,
-  press,
-  testId,
-  tone,
-  props,
-}: ActionButtonRenderProps) {
-  const { label, disabled, sub, hotkey } = props;
+function FullActionButton(rendered: ActionButtonRenderProps) {
+  const { label, disabled, sub, hotkey } = rendered.props;
+  const { tone } = rendered;
   return (
-    <button
-      ref={button}
-      data-testid={testId}
-      onClick={(e) => {
-        e.stopPropagation();
-        press();
-      }}
-      {...(disabled === undefined ? {} : { disabled: disabled })}
+    <ActionButtonShell
+      render={rendered}
       className="group relative flex min-h-[40px] w-full items-center justify-between gap-2 overflow-hidden rounded-hud border border-white/10 bg-hud-raise/80 py-1.5 pl-4 pr-2 text-left transition-[background-color,border-color,transform] duration-150 ease-bb hover:-translate-y-px hover:border-hud-gold/60 hover:bg-hud-edge active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-hud-raise/80"
     >
-      <span
-        aria-hidden
-        className={`absolute inset-y-0 left-0 w-[4px] ${toneBar(tone)}`}
-      />
       <span
         className={`font-hud-label text-hud-base font-bold uppercase leading-tight tracking-[0.05em] ${
           disabled ? "text-hud-mute" : "text-hud-bone"
@@ -452,6 +451,6 @@ function FullActionButton({
         {sub && <Chip tone={disabled ? "neutral" : tone}>{sub}</Chip>}
         {hotkey && <KeyBadge hotkey={hotkey} />}
       </span>
-    </button>
+    </ActionButtonShell>
   );
 }

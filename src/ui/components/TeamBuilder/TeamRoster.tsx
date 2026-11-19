@@ -1,3 +1,4 @@
+import { STAT_HEADERS } from "./statHeaders";
 import { useNavigate } from "react-router-dom";
 import {
   calculateTeamValue,
@@ -86,11 +87,7 @@ export function TeamRoster({
         { label: "#", width: "40px", className: "num" },
         { label: "Name", width: "22%" },
         { label: "Position", width: "15%" },
-        { label: "MA", className: "num" },
-        { label: "ST", className: "num" },
-        { label: "AG", className: "num" },
-        { label: "PA", className: "num" },
-        { label: "AV", className: "num" },
+        ...STAT_HEADERS,
         { label: "Skills", width: "15%" },
         { label: "SPP", className: "num" },
         { label: "Value", className: "num" },

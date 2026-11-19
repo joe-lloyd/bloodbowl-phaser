@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { apothecaryResultKindSchema } from "./ApothecaryResultKind";
+import { apothecaryLocationSchema } from "./ApothecaryLocation";
+import { apothecaryCasualtyTypeSchema } from "./ApothecaryCasualtyType";
 import type { ApothecaryDecisionRequest } from "../../types/decisions";
 
 export const apothecaryDecisionRequestSchema: z.ZodType<ApothecaryDecisionRequest> =
@@ -9,20 +11,14 @@ export const apothecaryDecisionRequestSchema: z.ZodType<ApothecaryDecisionReques
     chooserTeamId: z.string(),
     playerId: z.string(),
     resultKind: apothecaryResultKindSchema,
-    location: z.union([z.literal("pitch"), z.literal("crowd")]).exactOptional(),
+    location: apothecaryLocationSchema.exactOptional(),
     position: z
       .looseObject({
         x: z.number(),
         y: z.number(),
       })
       .exactOptional(),
-    casualtyType: z
-      .union([
-        z.literal("badly-hurt"),
-        z.literal("seriously-hurt"),
-        z.literal("dead"),
-      ])
-      .exactOptional(),
+    casualtyType: apothecaryCasualtyTypeSchema.exactOptional(),
     killerId: z.string().exactOptional(),
     armsPlagueRidden: z
       .union([z.literal(false), z.literal(true)])

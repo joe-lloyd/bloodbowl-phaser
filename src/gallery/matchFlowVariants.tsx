@@ -12,7 +12,14 @@ import { WaitingBanner } from "../ui/pages/WaitingBanner";
 import { TurnoverOverlay } from "../ui/components/hud/TurnoverOverlay";
 import { CoinFlipOverlay } from "../ui/components/hud/CoinFlipOverlay";
 import { OnlineCoinFlip } from "../ui/pages/OnlineCoinFlip";
-import { click, every, later, lobby, onlineMatch } from "./variantHelpers";
+import {
+  click,
+  every,
+  later,
+  lobby,
+  onlineMatch,
+  soon,
+} from "./variantHelpers";
 import type { Variant } from "./variants";
 
 function kickoffStep(fx: MatchFixture, step: Partial<KickoffEventStepState>) {
@@ -27,6 +34,13 @@ function kickoffStep(fx: MatchFixture, step: Partial<KickoffEventStepState>) {
   };
   fx.services.gameService.getKickoffEventStep = () => full;
 }
+
+const startCoinFlip = (fx: MatchFixture) => {
+  fx.bus.emit(GameEventNames.UI_StartCoinFlip, {
+    team1: fx.team1,
+    team2: fx.team2,
+  });
+};
 
 export const MATCH_FLOW_VARIANTS: Variant[] = [
   {
@@ -240,29 +254,19 @@ export const MATCH_FLOW_VARIANTS: Variant[] = [
     section: "Coin toss",
     title: "Local: before the flip",
     view: (fx) => <CoinFlipOverlay eventBus={fx.bus} />,
-    drive: (fx) =>
-      later(30, () => {
-        fx.bus.emit(GameEventNames.UI_StartCoinFlip, {
-          team1: fx.team1,
-          team2: fx.team2,
-        });
-      }),
+    drive: soon(startCoinFlip),
   },
   {
     id: "coin-result",
     section: "Coin toss",
     title: "Local: the winner chooses",
     view: (fx) => <CoinFlipOverlay eventBus={fx.bus} />,
-    drive: (fx) =>
-      later(30, () => {
-        fx.bus.emit(GameEventNames.UI_StartCoinFlip, {
-          team1: fx.team1,
-          team2: fx.team2,
-        });
-        setTimeout(() => {
-          click("button", "FLIP COIN");
-        }, 80);
-      }),
+    drive: soon((fx) => {
+      startCoinFlip(fx);
+      setTimeout(() => {
+        click("button", "FLIP COIN");
+      }, 80);
+    }),
   },
   {
     id: "coin-online-wait",

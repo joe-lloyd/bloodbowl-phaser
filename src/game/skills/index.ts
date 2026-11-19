@@ -14,6 +14,7 @@ import {
   type ActivationGate,
   type BlockResultContext,
   type CountAssistContext,
+  type SkillRule,
   type TurnEndingContext,
 } from "./SkillRule";
 import { BlockRule } from "./rules/BlockRule";
@@ -380,28 +381,35 @@ export async function foldBlockResult(
   );
 }
 
-export function foldCountAssists(
-  ctx: CountAssistContext,
-  participants: Player[]
+function foldEachRule(
+  participants: Player[],
+  apply: (rule: SkillRule, self: Player) => void
 ): void {
   for (const self of participants) {
     for (const skill of self.skills) {
       if (!skillInEffect(self, skill.type)) continue;
-      SkillRegistry.get(skill.type)?.onCountAssists?.(ctx, self);
+      const rule = SkillRegistry.get(skill.type);
+      if (rule) apply(rule, self);
     }
   }
+}
+
+export function foldCountAssists(
+  ctx: CountAssistContext,
+  participants: Player[]
+): void {
+  foldEachRule(participants, (rule, self) => {
+    rule.onCountAssists?.(ctx, self);
+  });
 }
 
 export function foldTurnEnding(
   ctx: TurnEndingContext,
   participants: Player[]
 ): void {
-  for (const self of participants) {
-    for (const skill of self.skills) {
-      if (!skillInEffect(self, skill.type)) continue;
-      SkillRegistry.get(skill.type)?.onTurnEnding?.(ctx, self);
-    }
-  }
+  foldEachRule(participants, (rule, self) => {
+    rule.onTurnEnding?.(ctx, self);
+  });
 }
 
 export function foldActionDeclared(ctx: ActionDeclaredContext): void {

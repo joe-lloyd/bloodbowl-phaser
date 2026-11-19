@@ -4,11 +4,15 @@ import { teamColorsSchema } from "./TeamColors";
 import { playerSchema } from "./Player";
 import { formationSchema } from "./Formation";
 import { seedMetadataSchema } from "./SeedMetadata";
+import { sevensRulesetSchema } from "./SevensRuleset";
 import { playedGameSchema } from "./PlayedGame";
+import { teamAdvancementModeSchema } from "./TeamAdvancementMode";
 import { matchedPlayAllocationSchema } from "./MatchedPlayAllocation";
 import { inducementSelectionLineSchema } from "./InducementSelectionLine";
 import { draftRecordSchema } from "./DraftRecord";
 import { pendingDevelopmentSchema } from "./PendingDevelopment";
+import { leagueSchema } from "./League";
+import { favouredOfRuleSchema } from "./FavouredOfRule";
 import type { Team } from "../../types/Team";
 
 export const teamSchema: z.ZodType<Team> = z.looseObject({
@@ -37,18 +41,10 @@ export const teamSchema: z.ZodType<Team> = z.looseObject({
   firstMatchPlayedAt: z.number().exactOptional(),
   seedMetadata: seedMetadataSchema.exactOptional(),
   activeCompetitionId: z.string().exactOptional(),
-  draftRuleset: z
-    .union([z.literal("gw-2025"), z.literal("naf-sevens-2026-09-26")])
-    .exactOptional(),
+  draftRuleset: sevensRulesetSchema.exactOptional(),
   recordedFixtureIds: z.string().array().exactOptional(),
   playedGames: playedGameSchema.array().exactOptional(),
-  advancementMode: z
-    .union([
-      z.literal("sevens-skill-selection"),
-      z.literal("matched-play"),
-      z.literal("advanced-league"),
-    ])
-    .exactOptional(),
+  advancementMode: teamAdvancementModeSchema.exactOptional(),
   advancementModeLocked: z
     .union([z.literal(false), z.literal(true)])
     .exactOptional(),
@@ -58,28 +54,6 @@ export const teamSchema: z.ZodType<Team> = z.looseObject({
   pendingDevelopment: pendingDevelopmentSchema.array().exactOptional(),
   computerCoached: z.literal(true).exactOptional(),
   computerTemplateId: z.string().exactOptional(),
-  league: z
-    .union([
-      z.literal("Badlands Brawl"),
-      z.literal("Chaos Clash"),
-      z.literal("Lustrian Superleague"),
-      z.literal("Elven Kingdoms League"),
-      z.literal("Old World Classic"),
-      z.literal("Worlds Edge Superleague"),
-      z.literal("Sylvanian Spotlight"),
-      z.literal("Underworld Challenge"),
-      z.literal("Halfling Thimble Cup"),
-      z.literal("Woodland League"),
-    ])
-    .exactOptional(),
-  favouredOf: z
-    .union([
-      z.literal("Favoured of Hashut"),
-      z.literal("Favoured of Khorne"),
-      z.literal("Favoured of Nurgle"),
-      z.literal("Favoured of Slaanesh"),
-      z.literal("Favoured of Tzeentch"),
-      z.literal("Favoured of Undivided"),
-    ])
-    .exactOptional(),
+  league: leagueSchema.exactOptional(),
+  favouredOf: favouredOfRuleSchema.exactOptional(),
 });

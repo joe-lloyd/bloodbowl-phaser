@@ -7,13 +7,12 @@ import { GamePhase } from "../../types/GameState";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type FlowContext } from "../core/GameFlowManager";
-import { GameConfig } from "../../config/GameConfig";
 import {
   type SwoopFacing,
   isRightStuffEligible,
   isThrowTeammateInRange,
 } from "../rules/throwTeammate";
-import { DIRS } from "./BallAndChainOperation";
+import { DIRS, templateOffset } from "./throwInTemplate";
 
 const FACING_INDEX: Record<SwoopFacing, number> = {
   north: 0,
@@ -24,6 +23,9 @@ const FACING_INDEX: Record<SwoopFacing, number> = {
 import { InjuryOperation } from "./InjuryOperation";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
+import { FinishActivationOperation } from "./FinishActivationOperation";
+import { bounceIfBallUnder, knockDownPlayer } from "./knockDown";
+import { clampToPitch } from "../rules/pitchBounds";
 import { CrowdInjuryOperation } from "./CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
 import { weatherEffects } from "../rules/weather";
@@ -34,29 +36,10 @@ interface Square {
   y: number;
 }
 
-function templateOffset(roll: number): number {
-  if (roll <= 2) return -1;
-  return roll <= 4 ? 0 : 1;
-}
-
 const lethalFlight = (teammate: Player, occupant: Player): boolean =>
   hasSkill(teammate.skills, SkillType.LETHAL_FLIGHT) &&
   hasSkill(teammate.skills, SkillType.RIGHT_STUFF) &&
   occupant.teamId !== teammate.teamId;
-
-class FinishThrowTeammateOperation extends GameOperation {
-  public readonly name = "FinishThrowTeammate";
-
-  private throwerId: string;
-  constructor(throwerId: string) {
-    super();
-    this.throwerId = throwerId;
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    context.gameService.finishActivation(this.throwerId);
-  }
-}
 
 export class ThrowTeammateOperation extends GameOperation {
   public readonly name = "ThrowTeammateOperation";
@@ -285,7 +268,7 @@ export class ThrowTeammateOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `${thrower.playerName} EATS ${teammate.playerName}!`
       );
-      const hadBall = this.bounceIfCarried(gameService, context, teammate);
+      const hadBall = bounceIfBallUnder(context, teammate);
       teammate.injuries.push(InjuryType.DEAD);
       movePlayerToBox(teammate, { box: "casualty", dead: true }, eventBus);
 
@@ -350,7 +333,7 @@ export class ThrowTeammateOperation extends GameOperation {
       GameEventNames.UI_Notification,
       `Fumbled kick! ${teammate.playerName} is removed and injured.`
     );
-    this.bounceIfCarried(gameService, context, teammate);
+    bounceIfBallUnder(context, teammate);
     delete teammate.gridPosition;
     teammate.status = PlayerStatus.PRONE;
     await context.flowManager.runToRest(
@@ -377,7 +360,7 @@ export class ThrowTeammateOperation extends GameOperation {
         effect: "Bullseye: a Superb Throw lands on target with no scatter",
       });
       return {
-        landing: this.clampToPitch({ x: this.aimX, y: this.aimY }),
+        landing: clampToPitch({ x: this.aimX, y: this.aimY }),
         swooped: false,
       };
     }
@@ -394,7 +377,7 @@ export class ThrowTeammateOperation extends GameOperation {
         DIRS[(FACING_INDEX[this.swoopFacing] + templateOffset(roll) + 8) % 8];
       if (!dir) throw new Error(`No Swoop direction for roll ${String(roll)}`);
       return {
-        landing: this.clampToPitch({
+        landing: clampToPitch({
           x: this.aimX + dir.x * distance,
           y: this.aimY + dir.y * distance,
         }),
@@ -407,7 +390,7 @@ export class ThrowTeammateOperation extends GameOperation {
     const scatterEnd = path[path.length - 1];
     if (!scatterEnd) throw new Error("Team-mate scatter produced no path");
     return {
-      landing: this.clampToPitch(scatterEnd),
+      landing: clampToPitch(scatterEnd),
       swooped: false,
     };
   }
@@ -467,7 +450,7 @@ export class ThrowTeammateOperation extends GameOperation {
         !carriesBall && ball?.x === square.x && ball.y === square.y;
 
       delete teammate.gridPosition;
-      this.knockDown(gameService, eventBus, target);
+      knockDownPlayer(eventBus, target);
 
       await context.flowManager.runToRest(
         new ArmourOperation(
@@ -489,9 +472,9 @@ export class ThrowTeammateOperation extends GameOperation {
       }
       square = next;
     }
-    this.knockDown(gameService, eventBus, teammate);
+    knockDownPlayer(eventBus, teammate);
 
-    this.bounceIfCarried(gameService, context, teammate);
+    bounceIfBallUnder(context, teammate);
     context.flowManager.add(new ArmourOperation(teammate.id), true);
 
     this.finishLanding(
@@ -566,7 +549,7 @@ export class ThrowTeammateOperation extends GameOperation {
     }
 
     if (land.success) {
-      if (!carriesBall) this.bounceIfCarried(gameService, context, teammate);
+      if (!carriesBall) bounceIfBallUnder(context, teammate);
       this.landSafely(context, thrower, teammate, superbThrow, carriesBall);
       return;
     }
@@ -575,9 +558,9 @@ export class ThrowTeammateOperation extends GameOperation {
       GameEventNames.UI_Notification,
       `${teammate.playerName} fails to land and is Prone!`
     );
-    this.knockDown(gameService, eventBus, teammate);
+    knockDownPlayer(eventBus, teammate);
 
-    this.bounceIfCarried(gameService, context, teammate);
+    bounceIfBallUnder(context, teammate);
     context.flowManager.add(new ArmourOperation(teammate.id), true);
     this.finishLanding(
       gameService,
@@ -611,7 +594,9 @@ export class ThrowTeammateOperation extends GameOperation {
 
     if (carriesBall && context.gameService.checkForTouchdown(teammate.id))
       return;
-    context.flowManager.add(new FinishThrowTeammateOperation(this.throwerId));
+    context.flowManager.add(
+      new FinishActivationOperation("FinishThrowTeammate", this.throwerId)
+    );
   }
 
   private finishLanding(
@@ -624,47 +609,8 @@ export class ThrowTeammateOperation extends GameOperation {
       gameService.triggerTurnover(reason);
       return;
     }
-    context.flowManager.add(new FinishThrowTeammateOperation(this.throwerId));
-  }
-
-  private knockDown(
-    _gameService: IGameService,
-    eventBus: FlowContext["eventBus"],
-    player: Player
-  ): void {
-    player.status = PlayerStatus.PRONE;
-    eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: player.id });
-    eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-  }
-
-  private bounceIfCarried(
-    gameService: IGameService,
-    context: FlowContext,
-    player: Player
-  ): boolean {
-    const ball = groundBall(gameService.getState());
-    if (
-      ball &&
-      player.gridPosition &&
-      ball.x === player.gridPosition.x &&
-      ball.y === player.gridPosition.y
-    ) {
-      context.flowManager.add(
-        new BounceOperation({ ...player.gridPosition }),
-        true
-      );
-      return true;
-    }
-    return false;
-  }
-
-  private clampToPitch(pos: { x: number; y: number }): {
-    x: number;
-    y: number;
-  } {
-    return {
-      x: Math.max(0, Math.min(GameConfig.PITCH_WIDTH - 1, pos.x)),
-      y: Math.max(0, Math.min(GameConfig.PITCH_HEIGHT - 1, pos.y)),
-    };
+    context.flowManager.add(
+      new FinishActivationOperation("FinishThrowTeammate", this.throwerId)
+    );
   }
 }

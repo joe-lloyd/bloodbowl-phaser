@@ -1,30 +1,16 @@
-import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { type IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus, type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type FlowContext } from "../core/GameFlowManager";
-import { GameConfig } from "../../config/GameConfig";
+import { clampToPitch } from "../rules/pitchBounds";
 import { ArmourOperation } from "./ArmourOperation";
-import { BounceOperation } from "./BounceOperation";
+import { FinishActivationOperation } from "./FinishActivationOperation";
+import { bounceIfBallUnder, knockDownPlayer } from "./knockDown";
+import { chooseInterceptor } from "./interceptionChoice";
 import { catchRoll } from "./CatchOperation";
 import { weatherEffects } from "../rules/weather";
-import { type InterceptionDecisionAnswer } from "../../types/decisions";
-
-class FinishBombOperation extends GameOperation {
-  public readonly name = "FinishBomb";
-
-  private throwerId: string;
-  constructor(throwerId: string) {
-    super();
-    this.throwerId = throwerId;
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    context.gameService.finishActivation(this.throwerId);
-  }
-}
 
 export class BombardierOperation extends GameOperation {
   public readonly name = "BombardierOperation";
@@ -73,7 +59,7 @@ export class BombardierOperation extends GameOperation {
       0
     );
 
-    context.flowManager.add(new FinishBombOperation(this.throwerId));
+    context.flowManager.add(new FinishActivationOperation("FinishBomb", this.throwerId));
   }
 
   private async resolveThrow(
@@ -134,7 +120,7 @@ export class BombardierOperation extends GameOperation {
     let landing = test.accurate
       ? { ...target }
       : this.scatterFrom(gameService, target);
-    landing = this.clampToPitch(landing);
+    landing = clampToPitch(landing);
     eventBus.emit(
       GameEventNames.UI_Notification,
       test.accurate ? "The bomb is on target!" : "The bomb scatters!"
@@ -255,12 +241,8 @@ export class BombardierOperation extends GameOperation {
 
     for (const player of hits) {
       if (player.status === PlayerStatus.ACTIVE) {
-        player.status = PlayerStatus.PRONE;
-        eventBus.emit(GameEventNames.PlayerKnockedDown, {
-          playerId: player.id,
-        });
-        eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-        this.dropBallIfCarried(gameService, context, player);
+        knockDownPlayer(eventBus, player);
+        bounceIfBallUnder(context, player);
       }
 
       context.flowManager.add(
@@ -284,25 +266,6 @@ export class BombardierOperation extends GameOperation {
       }
     }
     return found;
-  }
-
-  private dropBallIfCarried(
-    gameService: IGameService,
-    context: FlowContext,
-    player: Player
-  ): void {
-    const ball = groundBall(gameService.getState());
-    if (
-      ball &&
-      player.gridPosition &&
-      ball.x === player.gridPosition.x &&
-      ball.y === player.gridPosition.y
-    ) {
-      context.flowManager.add(
-        new BounceOperation({ ...player.gridPosition }),
-        true
-      );
-    }
   }
 
   private async resolveInterception(
@@ -335,26 +298,11 @@ export class BombardierOperation extends GameOperation {
         playerName: interceptor.playerName,
         base: e.modifier,
         marking,
+        modifier: e.modifier - marking,
       };
     });
 
-    const [first] = candidates;
-    if (!first) return undefined;
-    const chooserTeamId = gameService.getPlayerById(first.playerId)!.teamId;
-    const answer = (await gameService.getDecisionService().request({
-      type: "interception",
-      chooserTeamId,
-      passerId: thrower.id,
-      candidates: candidates.map((c) => ({
-        playerId: c.playerId,
-        playerName: c.playerName,
-        modifier: c.base - c.marking,
-      })),
-    })) as InterceptionDecisionAnswer;
-
-    const chosen = answer.playerId
-      ? candidates.find((c) => c.playerId === answer.playerId)
-      : undefined;
+    const chosen = await chooseInterceptor(gameService, thrower.id, candidates);
     if (!chosen) return undefined;
 
     const interceptor = gameService.getPlayerById(chosen.playerId)!;
@@ -375,15 +323,5 @@ export class BombardierOperation extends GameOperation {
       `${interceptor.playerName} intercepts the bomb!`
     );
     return interceptor.id;
-  }
-
-  private clampToPitch(pos: { x: number; y: number }): {
-    x: number;
-    y: number;
-  } {
-    return {
-      x: Math.max(0, Math.min(GameConfig.PITCH_WIDTH - 1, pos.x)),
-      y: Math.max(0, Math.min(GameConfig.PITCH_HEIGHT - 1, pos.y)),
-    };
   }
 }

@@ -5,6 +5,8 @@ import {
   type DecisionAnswer,
   type RerollDecisionRequest,
   type RerollDecisionAnswer,
+  type InterceptionDecisionRequest,
+  type InterceptionDecisionAnswer,
 } from "../../types/decisions";
 
 export class DecisionService {
@@ -38,6 +40,9 @@ export class DecisionService {
   }
 
   public request(request: RerollDecisionRequest): Promise<RerollDecisionAnswer>;
+  public request(
+    request: InterceptionDecisionRequest
+  ): Promise<InterceptionDecisionAnswer>;
   public request(request: DecisionRequest): Promise<DecisionAnswer>;
   public request(request: DecisionRequest): Promise<DecisionAnswer> {
     if (this.current) {

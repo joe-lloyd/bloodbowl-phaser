@@ -1,11 +1,8 @@
 import { loadPageManifest, type PageManifest } from "../boundary/pageManifest";
 import { Link } from "../ui/components/common/NativeControls";
 import React, { useEffect, useState } from "react";
-import {
-  Chip,
-  Eyebrow,
-  Panel,
-} from "../ui/components/componentWarehouse/HudKit";
+import { Eyebrow, Panel } from "../ui/components/componentWarehouse/HudKit";
+import { SketchCard, ShotLink } from "./GalleryKit";
 
 const SKETCH_GROUPS = [
   {
@@ -95,35 +92,7 @@ export function PagesReview({
           </h3>
           <div className="grid gap-5 xl:grid-cols-3">
             {group.sketches.map((sketch) => (
-              <Panel
-                key={sketch.file}
-                accent={sketch.chosen ? "gold" : undefined}
-                className="p-3"
-              >
-                <div
-                  className="overflow-hidden rounded-hud"
-                  style={{ width: 384, height: 216 }}
-                >
-                  <iframe
-                    title={sketch.name}
-                    src={`./sketches/${sketch.file}.html`}
-                    width={1280}
-                    height={720}
-                    loading="lazy"
-                    className="origin-top-left border-0"
-                    style={{ transform: "scale(0.3)" }}
-                  />
-                </div>
-                <div className="mt-3 flex items-center gap-2">
-                  <Link
-                    href={`./sketches/${sketch.file}.html`}
-                    className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] hover:text-hud-gold"
-                  >
-                    {sketch.name}
-                  </Link>
-                  {sketch.chosen && <Chip tone="gold">Chosen</Chip>}
-                </div>
-              </Panel>
+              <SketchCard key={sketch.file} sketch={sketch} lazy />
             ))}
           </div>
           <Panel accent="gold" className="mt-4 max-w-3xl p-4">
@@ -180,24 +149,12 @@ export function PagesReview({
             <div className="grid gap-3 lg:grid-cols-2">
               {(["before", "after"] as const).map((side) =>
                 has(side, name) ? (
-                  <Link
+                  <ShotLink
                     key={side}
-                    href={`./shots/pages/${side}/${name}.jpg`}
-                    className="group relative block"
-                  >
-                    <img
-                      src={`./shots/pages/${side}/${name}.jpg`}
-                      alt={`${title}, ${side}`}
-                      loading="lazy"
-                      className="w-full rounded-hud border border-white/10 group-hover:border-hud-gold/60"
-                    />
-                    <Chip
-                      tone={side === "after" ? "gold" : "neutral"}
-                      className="absolute left-2 top-2 !bg-black/80"
-                    >
-                      {side}
-                    </Chip>
-                  </Link>
+                    src={`./shots/pages/${side}/${name}.jpg`}
+                    alt={`${title}, ${side}`}
+                    side={side}
+                  />
                 ) : (
                   <div
                     key={side}

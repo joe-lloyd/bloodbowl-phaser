@@ -24,11 +24,7 @@ import { RESULT_BEAT_MS } from "../components/hud/CoinFlipOverlay";
 import { DIE_LANDING_TIMEOUT_MS } from "../../game/presentation/diceWatch";
 import { weatherRolled } from "../../services/gameService/matchStart";
 import { useEventBus } from "../hooks/useEventBus";
-import {
-  WeatherResult,
-  WeatherStage,
-  WeatherTable,
-} from "../components/hud/WeatherReveal";
+import { WeatherPanel } from "../components/hud/WeatherReveal";
 import { useWeatherThrow } from "../components/hud/weatherThrow";
 import type { Weather } from "../../game/rules/weather";
 
@@ -92,10 +88,14 @@ function OnlineWeather({
     if (!now.includes(myTeamId)) sent.current = false;
     setReady(now);
   });
-  const { stage, step, total } = useWeatherThrow({ eventBus: eventBus, teamId: team1.id, rolled: () => {
-    const state = engineState();
-    return !!state && weatherRolled(state);
-  } });
+  const { stage, step, total } = useWeatherThrow({
+    eventBus: eventBus,
+    teamId: team1.id,
+    rolled: () => {
+      const state = engineState();
+      return !!state && weatherRolled(state);
+    },
+  });
   const weather: Weather = engineState()?.weather ?? "Nice";
 
   const [wantReady, setWantReady] = useState(false);
@@ -124,48 +124,32 @@ function OnlineWeather({
   };
 
   return (
-    <DialogShell
+    <WeatherPanel
       zClass="z-[100]"
-      placement="center"
-      backdrop="heavy"
-      titleAs="h1"
-      title="WEATHER"
-      width="w-[480px]"
-      className="text-center"
-      testId="weather-dialog"
-    >
-      <div className="mb-4 flex items-center justify-center gap-4">
-        <TeamChip name={team1.name} me={myTeamId === team1.id} />
-        <span className="font-hud-display text-hud-lg text-hud-gold">VS</span>
-        <TeamChip name={team2.name} me={myTeamId === team2.id} />
-      </div>
-      <div className="space-y-4 [@media(max-height:500px)]:space-y-2">
-        {step === "waiting" && (
-          <p className="text-hud-dim">
-            Before kick-off the coaches roll 2D6 on the Weather Table. It sets
-            the conditions for the whole match.
+      header={
+        <div className="mb-4 flex items-center justify-center gap-4">
+          <TeamChip name={team1.name} me={myTeamId === team1.id} />
+          <span className="font-hud-display text-hud-lg text-hud-gold">VS</span>
+          <TeamChip name={team2.name} me={myTeamId === team2.id} />
+        </div>
+      }
+      stage={stage}
+      step={step}
+      weather={weather}
+      total={total}
+      onDone={onRead}
+      waiting={
+        iAmReady ? (
+          <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+            Waiting for {match.opponentName} to ready up…
           </p>
-        )}
-        <WeatherStage stage={stage} step={step} />
-        {step === "shown" && <WeatherResult weather={weather} total={total} />}
-        <WeatherTable result={step === "shown" ? weather : null} />
-        {step === "waiting" &&
-          (iAmReady ? (
-            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-              Waiting for {match.opponentName} to ready up…
-            </p>
-          ) : (
-            <HudButton variant="primary" size="lg" block onClick={readyUp}>
-              READY — ROLL WEATHER
-            </HudButton>
-          ))}
-        {step === "shown" && (
-          <HudButton variant="primary" size="lg" block onClick={onRead}>
-            ON TO THE COIN TOSS
+        ) : (
+          <HudButton variant="primary" size="lg" block onClick={readyUp}>
+            READY — ROLL WEATHER
           </HudButton>
-        )}
-      </div>
-    </DialogShell>
+        )
+      }
+    />
   );
 }
 

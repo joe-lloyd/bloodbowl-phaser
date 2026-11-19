@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { rosterNameSchema } from "./RosterName";
+import { lineupSchema } from "./Lineup";
 import { recordedStepSchema } from "./RecordedStep";
 import { findingSchema } from "./Finding";
 import { teamPlayStatsSchema } from "./TeamPlayStats";
@@ -13,9 +14,7 @@ export const matchRecordingSchema: z.ZodType<MatchRecording> = z.looseObject({
   rosters: z.tuple([rosterNameSchema, rosterNameSchema]),
   coaches: z.tuple([z.string(), z.string()]),
   rerolls: z.number(),
-  lineup: z
-    .union([z.literal("test-team"), z.literal("sevens-lineup")])
-    .exactOptional(),
+  lineup: lineupSchema.exactOptional(),
   inducements: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   steps: recordedStepSchema.array(),
   final: z.looseObject({

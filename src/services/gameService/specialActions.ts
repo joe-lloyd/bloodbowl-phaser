@@ -1,5 +1,4 @@
 import { adjacentSquare } from "./squares";
-import { steadyFootingSaves } from "@/game/rules/steadyFooting";
 import { GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
@@ -21,9 +20,7 @@ import {
   BallAndChainOperation,
   type BallAndChainSquare,
 } from "@/game/operations/BallAndChainOperation";
-import { withRerollOffer } from "@/game/skills";
 import { moveAllowance } from "@/game/skills/movement";
-import { rushModifier } from "@/game/inducements/matchInducements";
 import { withDriveModifiers } from "@/game/kickoff/driveEffects";
 import {
   type BlockReplacement,
@@ -32,6 +29,7 @@ import {
 import { isLegalBlockReplacementTarget } from "@/game/rules/blockReplacements";
 import type { GameParts } from "./parts";
 import { awaitingSecondAction, whenSettled } from "./activation";
+import { rushSucceeds } from "./rush";
 
 type SpecialAction = BlockReplacement | "gaze";
 
@@ -382,23 +380,7 @@ async function rushBeforeReplacement(
   parts: GameParts,
   attacker: Player
 ): Promise<{ accepted: boolean; proceed: boolean }> {
-  const check = await withRerollOffer(
-    { gameService: parts.game, eventBus: parts.eventBus },
-    attacker,
-    "rush",
-    () =>
-      parts.diceController.rollSkillCheck(
-        { reason: "Rush",target: 2,modifier: rushModifier(parts.state,attacker),playerName: attacker.playerName,teamId: attacker.teamId }      )
-  );
-  if (
-    check.success ||
-    (await steadyFootingSaves(
-      attacker,
-      parts.diceController,
-      parts.eventBus,
-      parts.game
-    ))
-  ) {
+  if (await rushSucceeds(parts, attacker, { teamId: attacker.teamId })) {
     return { accepted: true, proceed: true };
   }
   fallBeforeTheAttack(parts, attacker);

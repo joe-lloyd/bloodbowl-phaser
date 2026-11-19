@@ -5,6 +5,7 @@ import {
   type HeadlessCommand,
 } from "../headless/protocol";
 import { type GameSnapshot } from "../headless/serialization";
+import { fnv1a } from "../headless/checksum";
 import { TeamFactory } from "../game/TeamFactory";
 import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
@@ -450,13 +451,9 @@ export function summarize(snapshot: GameSnapshot): MatchRecording["final"] {
 }
 
 export function snapshotHash(snapshot: GameSnapshot): string {
-  const text = JSON.stringify(snapshot, (key, value) =>
-    key === "name" ? undefined : value
+  return fnv1a(
+    JSON.stringify(snapshot, (key, value) =>
+      key === "name" ? undefined : value
+    )
   );
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
 }

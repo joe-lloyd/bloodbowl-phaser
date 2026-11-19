@@ -1,17 +1,27 @@
 import { GameConfig } from "../../../config/GameConfig";
 import { SkillType, hasSkill } from "../../../types/Skills";
 import { type SkillRule } from "../SkillRule";
+import { type Player } from "../../../types/Player";
+import { type CasualtyCause } from "../../rules/plagueRidden";
+
+interface Crash {
+  cause?: CasualtyCause;
+  causedBy?: Player;
+  player: Player;
+}
+
+function creditsCrash(ctx: Crash, self: Player): boolean {
+  return (
+    ctx.cause === "lethal-flight" &&
+    ctx.causedBy?.id === self.id &&
+    ctx.player.teamId !== self.teamId &&
+    hasSkill(self.skills, SkillType.RIGHT_STUFF)
+  );
+}
 
 export const LethalFlightRule: SkillRule = {
   onArmourBreak(ctx, self) {
-    if (
-      ctx.cause !== "lethal-flight" ||
-      ctx.causedBy?.id !== self.id ||
-      ctx.player.teamId === self.teamId ||
-      !hasSkill(self.skills, SkillType.RIGHT_STUFF)
-    ) {
-      return;
-    }
+    if (!creditsCrash(ctx, self)) return;
     const breaksAlready =
       ctx.forcedBreak || ctx.roll + ctx.armourModifier >= ctx.player.stats.AV;
     if (
@@ -35,14 +45,7 @@ export const LethalFlightRule: SkillRule = {
   },
 
   onCasualty(ctx, self) {
-    if (
-      ctx.cause !== "lethal-flight" ||
-      ctx.causedBy?.id !== self.id ||
-      ctx.player.teamId === self.teamId ||
-      !hasSkill(self.skills, SkillType.RIGHT_STUFF)
-    ) {
-      return;
-    }
+    if (!creditsCrash(ctx, self)) return;
     self.spp += GameConfig.SPP_CASUALTY;
     ctx.triggers.push({
       playerId: self.id,

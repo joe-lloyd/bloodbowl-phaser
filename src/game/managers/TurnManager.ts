@@ -31,6 +31,18 @@ export function possessive(name: string): string {
   return /s$/i.test(name) ? `${name}'` : `${name}'s`;
 }
 
+interface TurnCallbacks {
+  onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
+
+  onHalfEnded?: (next: NextHalf) => void;
+
+  shootout?: () => Record<string, number>;
+
+  onTurnEnding?: (endingTeamId: string) => void;
+
+  betweenTurns?: (endingTeamId: string) => Promise<void> | null;
+}
+
 export class TurnManager {
   private handoverPending = false;
 
@@ -48,34 +60,14 @@ export class TurnManager {
   private state: GameState;
   private team1: Team;
   private team2: Team;
-  private callbacks: {
-    onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
-
-    onHalfEnded?: (next: NextHalf) => void;
-
-    shootout?: () => Record<string, number>;
-
-    onTurnEnding?: (endingTeamId: string) => void;
-
-    betweenTurns?: (endingTeamId: string) => Promise<void> | null;
-  };
+  private callbacks: TurnCallbacks;
   private delay: import("../core/GameFlowManager").DelayProvider;
   constructor(
     eventBus: IEventBus,
     state: GameState,
     team1: Team,
     team2: Team,
-    callbacks: {
-      onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
-
-      onHalfEnded?: (next: NextHalf) => void;
-
-      shootout?: () => Record<string, number>;
-
-      onTurnEnding?: (endingTeamId: string) => void;
-
-      betweenTurns?: (endingTeamId: string) => Promise<void> | null;
-    },
+    callbacks: TurnCallbacks,
     delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
     this.eventBus = eventBus;

@@ -1,73 +1,47 @@
-import { groundBall } from "@/game/rules/ballInTheAir";
-import { GameOperation } from "../core/GameOperation";
-import { GameEventNames } from "../../types/events";
-import { PlayerStatus } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
 import { type FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
-import { InjuryOperation } from "./InjuryOperation";
-import { BounceOperation } from "./BounceOperation";
 import { announceArmour, foldArmourRoll } from "./ArmourOperation";
 import { gatherParticipants } from "../skills";
+import { FinishActivationOperation } from "./FinishActivationOperation";
+import { settleSpecialArmour } from "./knockDown";
+import {
+  AdjacentTargetOperation,
+  type Duel,
+  type Opening,
+} from "./specialActionTarget";
 
-class FinishStabOperation extends GameOperation {
-  public readonly name = "FinishStab";
-
-  private attackerId: string;
-  constructor(attackerId: string) {
-    super();
-    this.attackerId = attackerId;
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    await context.gameService.finishStabActivation(this.attackerId);
+class FinishStabOperation extends FinishActivationOperation {
+  override async execute(context: FlowContext): Promise<void> {
+    await context.gameService.finishStabActivation(this.playerId);
   }
 }
 
-export class StabOperation extends GameOperation {
+export class StabOperation extends AdjacentTargetOperation {
   public readonly name = "StabOperation";
+  protected readonly notAdjacent = "Target must be adjacent!";
+  protected readonly finishName = "FinishStab";
 
-  private attackerId: string;
-  private targetId: string;
-  constructor(attackerId: string, targetId: string) {
-    super();
-    this.attackerId = attackerId;
-    this.targetId = targetId;
+  protected override finish(): FinishStabOperation {
+    return new FinishStabOperation(this.finishName, this.attackerId);
   }
 
-  async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService;
-    const eventBus = context.eventBus;
-    const diceController = gameService.getDiceController();
-
-    const attacker = gameService.getPlayerById(this.attackerId);
-    const target = gameService.getPlayerById(this.targetId);
-    if (!attacker?.gridPosition || !target?.gridPosition) return;
-
-    if (target.status !== PlayerStatus.ACTIVE) {
-      eventBus.emit(GameEventNames.UI_Notification, "Target must be Standing!");
-      return;
-    }
-    const dx = Math.abs(attacker.gridPosition.x - target.gridPosition.x);
-    const dy = Math.abs(attacker.gridPosition.y - target.gridPosition.y);
-    if (dx > 1 || dy > 1 || dx + dy === 0) {
-      eventBus.emit(GameEventNames.UI_Notification, "Target must be adjacent!");
-      return;
-    }
-
-    eventBus.emit(
-      GameEventNames.UI_Notification,
-      `${attacker.playerName} stabs ${target.playerName}!`
-    );
-    eventBus.emit(GameEventNames.SkillTriggered, {
-      playerId: attacker.id,
+  protected opening({ attacker, target }: Duel): Opening {
+    return {
+      notice: `${attacker.playerName} stabs ${target.playerName}!`,
       skill: SkillType.STAB,
       effect: `Stab: an unmodifiable Armour Roll against ${target.playerName}`,
-    });
+      pause: 800,
+    };
+  }
 
-    await context.delay(800);
+  protected async resolve(
+    context: FlowContext,
+    { attacker, target, dice }: Duel
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
 
-    const armour = diceController.rollArmorCheck(
+    const armour = dice.rollArmorCheck(
       { av: effectiveAV(target,gameService.getState()),playerName: target.playerName,teamId: attacker.teamId }    );
 
     const armourCtx = await foldArmourRoll(
@@ -91,35 +65,12 @@ export class StabOperation extends GameOperation {
       diceTeamId: attacker.teamId,
     });
 
-    if (armourCtx.broken) {
-      eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
-      target.status = PlayerStatus.PRONE;
-      eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: target.id });
-      eventBus.emit(GameEventNames.PlayerStatusChanged, target);
-
-      const ball = groundBall(gameService.getState());
-      if (
-        ball &&
-        ball.x === target.gridPosition.x &&
-        ball.y === target.gridPosition.y
-      ) {
-        context.flowManager.add(
-          new BounceOperation({ ...target.gridPosition }),
-          true
-        );
-      }
-      context.flowManager.add(
-        new InjuryOperation(target.id, {
-          modifier: armourCtx.injuryModifier,
-          causedById: attacker.id,
-          cause: "special",
-        }),
-        true
-      );
-    } else {
-      eventBus.emit(GameEventNames.UI_Notification, "Armour Holds.");
-    }
-
-    context.flowManager.add(new FinishStabOperation(this.attackerId));
+    settleSpecialArmour(context, {
+      victim: target,
+      causedBy: attacker,
+      broken: armourCtx.broken,
+      injuryModifier: armourCtx.injuryModifier,
+      announceBreak: true,
+    });
   }
 }

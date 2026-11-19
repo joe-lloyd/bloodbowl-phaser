@@ -1,4 +1,3 @@
-import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { type IGameService } from "../../services/interfaces/IGameService.js";
 import { type Player, PlayerStatus } from "../../types/Player.js";
@@ -13,6 +12,10 @@ import { foldTrigger, type InjuryRollContext } from "../skills";
 import { offerApothecary } from "../inducements/apothecary";
 import { isFrog } from "../inducements/matchInducements";
 import { type FlowContext } from "../core/GameFlowManager";
+import {
+  type InjuryParties,
+  InjuryPartiesOperation,
+} from "./injuryParties";
 
 export async function resolveInjuryRoll(
   context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,
@@ -76,10 +79,9 @@ function isCasualty(result: InjuryResult): result is CasualtyType {
   );
 }
 
-export class InjuryOperation extends GameOperation {
+export class InjuryOperation extends InjuryPartiesOperation {
   public readonly name = "InjuryOperation";
 
-  private playerId: string;
   private opts: {
     modifier?: number;
     causedById?: string;
@@ -111,20 +113,15 @@ export class InjuryOperation extends GameOperation {
       stunnedToReserves?: boolean;
     } = {}
   ) {
-    super();
-    this.playerId = playerId;
+    super(playerId, opts.causedById);
     this.opts = opts;
   }
 
-  async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService;
-    const eventBus = context.eventBus;
-
-    const player = gameService.getPlayerById(this.playerId);
-    if (!player) return;
-    const causedBy = this.opts.causedById
-      ? gameService.getPlayerById(this.opts.causedById)
-      : undefined;
+  protected async resolve(
+    context: FlowContext,
+    { player, causedBy }: InjuryParties
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
 
     eventBus.emit(
       GameEventNames.UI_Notification,

@@ -1,15 +1,16 @@
-import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
-import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import { snapshotHash } from "../../../src/simulation/runMatch";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { GameEventNames } from "../../../src/types/events";
-import { processPool } from "../policy-study/pool";
-import type { PolicyJob } from "../policy-study/schedule";
+import { openTrace } from "../catalogue-study/replay";
+import {
+  analyzerSha256,
+  annotateRun,
+  annotationFiles,
+  isEntry,
+  replaySteps,
+  verifiedHash,
+} from "./lab";
 
 const PLAYS: readonly [string, string][] = [
   ["throws the ball carrier", "throw-carrier"],
@@ -78,12 +79,11 @@ interface Pending {
 }
 
 export async function usageOfTrace(file: string, id: string) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
-  const rosters = [game.ctx.team1.rosterName, game.ctx.team2.rosterName] as const;
+  const { recording, game } = openTrace(file);
+  const rosters = [
+    game.ctx.team1.rosterName,
+    game.ctx.team2.rosterName,
+  ] as const;
   const sides = new Map([
     [game.ctx.team1.id, 0 as const],
     [game.ctx.team2.id, 1 as const],
@@ -131,9 +131,12 @@ export async function usageOfTrace(file: string, id: string) {
       .filter((p) => p.turnsSince <= 1);
   });
 
-  for (const [index, step] of trace.recording.steps.entries()) {
-    const command = step.command;
-    if (command.type === "declare-action" && step.ok) {
+  await replaySteps({
+    game,
+    recording,
+    before: (step, index) => {
+      const command = step.command;
+      if (command.type !== "declare-action" || !step.ok) return;
       const state = game.ctx.gameService.getState();
       const pending: Pending = {
         play: playOf(step.note, command.action),
@@ -147,14 +150,9 @@ export async function usageOfTrace(file: string, id: string) {
       count(pending).plays++;
       open.push(pending);
       active = pending;
-    }
-    const response = await game.execute(command);
-    if (response.ok !== step.ok)
-      throw new Error(`Replay diverged at ${String(index)}`);
-  }
-  const hash = snapshotHash(game.snapshot());
-  if (hash !== trace.recording.final.hash)
-    throw new Error("Usage replay final hash differs");
+    },
+  });
+  const hash = verifiedHash(game, recording, "Usage");
   return { rosters, byPlay, moments, hash };
 }
 
@@ -193,56 +191,25 @@ function pickMoments(all: Moment[], perPlay: number): Moment[] {
     );
 }
 
-function argument(index: number): string {
-  const value = process.argv[index];
-  if (value === undefined)
-    throw new Error(`Missing argument ${String(index - 1)}`);
-  return value;
-}
-
 async function main() {
   const entry = fileURLToPath(import.meta.url);
-  const run = resolve(argument(2));
-  const out = join(run, "usage");
-  mkdirSync(out, { recursive: true });
-  if (process.argv.includes("--worker")) {
-    process.on("message", async (job: PolicyJob | null) => {
-      if (!job) {
-        process.disconnect();
-        return;
-      }
-      try {
-        const result = await usageOfTrace(
-          join(run, "traces", job.id + ".json.gz"),
-          job.id
-        );
-        writeFileSync(
-          join(out, job.id + ".json"),
-          JSON.stringify({
-            id: job.id,
-            candidateSide: job.candidateSide,
-            ...result,
-          })
-        );
-        process.send?.({ done: job.id });
-      } catch (error) {
-        process.send?.({ error: `${job.id}: ${String(error)}` });
-      }
-    });
-    process.send?.({ ready: true });
-    return;
-  }
-  const manifest = JSON.parse(
-    readFileSync(join(run, "manifest.json"), "utf8")
-  ) as { jobs: PolicyJob[]; revision: string };
-  await processPool(entry, [run], manifest.jobs, 8);
-  const files = readdirSync(out).filter((name) => name.endsWith(".json"));
-  if (files.length !== manifest.jobs.length)
-    throw new Error("Incomplete or foreign usage files");
-  const policies: Record<
-    "candidate" | "frozen",
-    Record<string, Tally>
-  > = { candidate: {}, frozen: {} };
+  const lab = await annotateRun({
+    entry,
+    folder: "usage",
+    workers: 8,
+    annotate: async (file, job) => ({
+      id: job.id,
+      candidateSide: job.candidateSide,
+      ...(await usageOfTrace(file, job.id)),
+    }),
+  });
+  if (!lab) return;
+  const { run, out, manifest } = lab;
+  const files = annotationFiles(out, manifest.jobs.length, "usage");
+  const policies: Record<"candidate" | "frozen", Record<string, Tally>> = {
+    candidate: {},
+    frozen: {},
+  };
   const rosters: Record<string, Record<string, Tally>> = {};
   const moments: Moment[] = [];
   for (const file of files) {
@@ -259,9 +226,7 @@ async function main() {
   }
   const receipt = {
     revision: manifest.revision,
-    analyzerSha256: createHash("sha256")
-      .update(readFileSync(entry))
-      .digest("hex"),
+    analyzerSha256: analyzerSha256(entry),
     games: files.length,
     verified: true,
     policies,
@@ -276,8 +241,4 @@ async function main() {
   );
   console.log(JSON.stringify({ games: receipt.games, policies }));
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

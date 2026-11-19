@@ -15,27 +15,7 @@ import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
 import { CrowdInjuryOperation } from "./CrowdInjuryOperation";
 import { steadyFootingSaves } from "../rules/steadyFooting";
-
-export const DIRS: { x: number; y: number }[] = [
-  { x: 0, y: -1 },
-  { x: 1, y: -1 },
-  { x: 1, y: 0 },
-  { x: 1, y: 1 },
-  { x: 0, y: 1 },
-  { x: -1, y: 1 },
-  { x: -1, y: 0 },
-  { x: -1, y: -1 },
-];
-
-const sign = (v: number): number => (v > 0 ? 1 : v < 0 ? -1 : 0);
-
-function toCardinalIndex(dx: number, dy: number): number {
-  const sx = sign(dx);
-  const sy = sign(dy);
-  if (sx !== 0 && Math.abs(dx) >= Math.abs(dy)) return sx > 0 ? 2 : 6;
-  if (sy !== 0) return sy > 0 ? 4 : 0;
-  return 2;
-}
+import { DIRS, templateOffset, toCardinalIndex } from "./throwInTemplate";
 
 export interface BallAndChainSquare {
   fanaticId: string;
@@ -108,7 +88,7 @@ export class BallAndChainOperation extends GameOperation {
 
     const facing = toCardinalIndex(this.facingX, this.facingY);
     const roll = dice.rollD6("Ball & Chain Deviation", fanatic.teamId);
-    const offset = roll <= 2 ? -1 : roll <= 4 ? 0 : 1;
+    const offset = templateOffset(roll);
     const dir = DIRS[(facing + offset + 8) % 8];
     if (!dir)
       throw new Error(`No Ball & Chain direction for facing ${String(facing)}`);

@@ -33,6 +33,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import {
   type BracketFixtureContext,
+  FixtureActions,
   TournamentBracket,
   walkoverLine,
 } from "./TournamentBracket";
@@ -550,11 +551,11 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             {fixture.result.penalties.away}
           </p>
         )}
-        {ready && (
-          <div className="mt-3 border-t border-white/10 pt-3">
-            {fixtureActions({ fixture, ...(home === undefined ? {} : { home: home }), ...(away === undefined ? {} : { away: away }), ready })}
-          </div>
-        )}
+        <FixtureActions
+          className="mt-3 border-t border-white/10 pt-3"
+          context={{ fixture, home, away, ready }}
+          renderActions={fixtureActions}
+        />
       </article>
     );
   };

@@ -1,4 +1,3 @@
-import { steadyFootingSaves } from "@/game/rules/steadyFooting";
 import { isBallAt } from "@/game/managers/movementShared";
 import { GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
@@ -10,18 +9,15 @@ import {
   foldTrigger,
   gatherParticipants,
   adjacentStanding,
-  withRerollOffer,
   type FollowUpContext,
 } from "@/game/skills";
 import { moveAllowance } from "@/game/skills/movement";
-import {
-  rushModifier,
-  trapdoorOpens,
-} from "@/game/inducements/matchInducements";
+import { trapdoorOpens } from "@/game/inducements/matchInducements";
 import { withDriveModifiers } from "@/game/kickoff/driveEffects";
 import { type BlockResult } from "../BlockResolutionService";
 import type { GameParts } from "./parts";
 import { awaitingSecondAction } from "./activation";
+import { rushSucceeds } from "./rush";
 
 function isStandingOpponent(
   player: Player,
@@ -110,24 +106,7 @@ export async function chargeBlitzBlockSquare(
   parts.state.turn.movementUsed.set(attackerId, newUsed);
   if (newUsed <= effectiveAttacker.stats.MA) return true;
 
-  const check = await withRerollOffer(
-    { gameService: parts.game, eventBus: parts.eventBus },
-    attacker,
-    "rush",
-    () =>
-      parts.diceController.rollSkillCheck(
-        { reason: "Rush",target: 2,modifier: rushModifier(parts.state,attacker),playerName: attacker.playerName }      )
-  );
-  if (
-    check.success ||
-    (await steadyFootingSaves(
-      attacker,
-      parts.diceController,
-      parts.eventBus,
-      parts.game
-    ))
-  )
-    return true;
+  if (await rushSucceeds(parts, attacker)) return true;
 
   fallAfterBlitzRush(parts, attacker);
   return false;

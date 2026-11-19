@@ -1,15 +1,10 @@
-import { useAfterDice } from "../../hooks/useAfterDice";
+import { useLandedDecision } from "../../hooks/useDecisionRequest";
 import { DecisionTeam } from "./DecisionTeam";
 import type { TeamRerollKind } from "../../../game/skills/RerollArbiter";
-import React, { useState, useEffect } from "react";
+import type React from "react";
 import type { EventBus } from "../../../services/EventBus";
-import { type DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
-import {
-  type RerollDecisionRequest,
-  type RerollSource,
-} from "@/types/decisions";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { type RerollSource } from "@/types/decisions";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   DialogActions,
@@ -36,37 +31,19 @@ interface RerollDialogProps {
 }
 
 export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
-  const [pending, setRequest] = useState<RerollDecisionRequest | null>(null);
+  const { request, answer: settle } = useLandedDecision(eventBus, {
+    type: "reroll",
+  });
 
-  useEffect(() => {
-    const onRequested = (data: DecisionRequest) => {
-      if (data.type === "reroll") {
-        setRequest(data);
-      }
-    };
-
-    const onResolved = ({ type }: { type: string }) => {
-      if (type === "reroll") setRequest(null);
-    };
-    eventBus.on(GameEventNames.DecisionRequested, onRequested);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    return () => {
-      eventBus.off(GameEventNames.DecisionRequested, onRequested);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-    };
-  }, [eventBus]);
-
-  const request = useAfterDice(eventBus, pending);
-
-  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
+  if (!request) return null;
 
   const answer = (accept: boolean, source?: RerollSource) => {
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    eventBus.emit(GameEventNames.UI_RerollResponse, {
-      accept,
-      ...(source === undefined ? {} : { source: source }),
+    settle(() => {
+      eventBus.emit(GameEventNames.UI_RerollResponse, {
+        accept,
+        ...(source === undefined ? {} : { source: source }),
+      });
     });
-    setRequest(null);
   };
 
   const container = ServiceContainer.isInitialized()

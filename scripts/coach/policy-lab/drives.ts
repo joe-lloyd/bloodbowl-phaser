@@ -1,14 +1,12 @@
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
+import { readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
+import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
 import { GameConfig } from "../../../src/config/GameConfig";
 import { RosterName } from "../../../src/types/Team";
+import { openTrace } from "../catalogue-study/replay";
+import { isEntry, replaySteps } from "./lab";
 
 const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
 
@@ -52,18 +50,10 @@ const empty = (): DriveTally => ({
 });
 
 async function drivesOfTrace(file: string) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
+  const { recording, game } = openTrace(file);
   const tallies: [DriveTally, DriveTally] = [empty(), empty()];
   const watch = watchDrives(game, tallies);
-  for (const [index, step] of trace.recording.steps.entries()) {
-    const response = await game.execute(step.command);
-    if (response.ok !== step.ok)
-      throw new Error(`Replay diverged at ${String(index)}`);
-  }
+  await replaySteps({ game, recording });
   watch.finish();
   return {
     rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName] as const,
@@ -238,8 +228,4 @@ async function main() {
       `marked ${((100 * t.marked) / t.turns).toFixed(0)}%`
     );
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

@@ -3,7 +3,7 @@ import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type IGameService } from "../../services/interfaces/IGameService";
-import { type InterceptionDecisionAnswer } from "../../types/decisions";
+import { chooseInterceptor } from "./interceptionChoice";
 import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
@@ -646,24 +646,7 @@ export class PassOperation extends GameOperation {
       };
     });
 
-    const [first] = candidates;
-    if (!first) return undefined;
-    const chooserTeamId = gameService.getPlayerById(first.playerId)!.teamId;
-
-    const answer = (await gameService.getDecisionService().request({
-      type: "interception",
-      chooserTeamId,
-      passerId: passer.id,
-      candidates: candidates.map((c) => ({
-        playerId: c.playerId,
-        playerName: c.playerName,
-        modifier: c.modifier,
-      })),
-    })) as InterceptionDecisionAnswer;
-
-    const chosen = answer.playerId
-      ? candidates.find((c) => c.playerId === answer.playerId)
-      : undefined;
+    const chosen = await chooseInterceptor(gameService, passer.id, candidates);
     if (!chosen) return undefined;
 
     const interceptor = gameService.getPlayerById(chosen.playerId)!;

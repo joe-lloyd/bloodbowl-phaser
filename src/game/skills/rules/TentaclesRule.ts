@@ -1,5 +1,6 @@
 import { SkillType } from "../../../types/Skills";
 import { type Player, PlayerStatus } from "../../../types/Player";
+import { areAdjacent } from "../../elements/GridUtils";
 import { type SkillRule, type DodgeDeclaredContext } from "../SkillRule";
 import { type ReactionDecisionAnswer } from "../../../types/decisions";
 
@@ -14,9 +15,7 @@ function mayGrip(ctx: Escape, self: Player): boolean {
   if (self.status !== PlayerStatus.ACTIVE || !self.gridPosition) return false;
   if (ctx.escapeCancelled) return false;
 
-  const dx = Math.abs(self.gridPosition.x - ctx.from.x);
-  const dy = Math.abs(self.gridPosition.y - ctx.from.y);
-  if (dx > 1 || dy > 1 || dx + dy === 0) return false;
+  if (!areAdjacent(self.gridPosition, ctx.from)) return false;
 
   return !ctx.triggers.some((t) => t.skill === SkillType.TENTACLES);
 }

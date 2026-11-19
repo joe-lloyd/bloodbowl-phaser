@@ -5,6 +5,7 @@ import {
   type Feature,
 } from "../../src/simulation/ai/evaluate";
 import { EVALUATION_WEIGHTS } from "../../src/simulation/ai/evaluationWeights";
+import { nth } from "./nth";
 
 const LAMBDA = 1;
 
@@ -37,12 +38,6 @@ function readRows(files: string[]): Row[] {
 }
 
 const vector = (row: Row) => [1, ...FEATURES.map((n) => row.f[n])];
-
-function nth<T>(items: readonly T[], index: number): T {
-  const item = items[index];
-  if (item === undefined) throw new Error(`No item at ${String(index)}`);
-  return item;
-}
 
 function normalEquations(xs: number[][], ys: number[]): number[][] {
   const k = nth(xs, 0).length;

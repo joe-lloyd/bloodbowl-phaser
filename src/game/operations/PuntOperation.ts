@@ -9,45 +9,14 @@ import { type GameState } from "../../types/GameState";
 import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
+import { FinishActivationOperation } from "./FinishActivationOperation";
+import { DIRS, templateOffset, toCardinalIndex } from "./throwInTemplate";
 import {
   awaitPresentation,
   nextPresentationId,
 } from "../presentation/presentationGate";
 
 const PUNT_PRESENTATION_TIMEOUT_MS = 1500;
-
-const DIRS = [
-  { x: 0, y: -1 },
-  { x: 1, y: -1 },
-  { x: 1, y: 0 },
-  { x: 1, y: 1 },
-  { x: 0, y: 1 },
-  { x: -1, y: 1 },
-  { x: -1, y: 0 },
-  { x: -1, y: -1 },
-];
-
-const sign = (value: number) => (value > 0 ? 1 : value < 0 ? -1 : 0);
-
-function facingIndex(dx: number, dy: number): number {
-  const sx = sign(dx);
-  const sy = sign(dy);
-  if (sx !== 0 && Math.abs(dx) >= Math.abs(dy)) return sx > 0 ? 2 : 6;
-  if (sy !== 0) return sy > 0 ? 4 : 0;
-  return 2;
-}
-
-class FinishPuntOperation extends GameOperation {
-  public readonly name = "FinishPunt";
-  private playerId: string;
-  constructor(playerId: string) {
-    super();
-    this.playerId = playerId;
-  }
-  async execute(context: FlowContext): Promise<void> {
-    context.gameService.finishActivation(this.playerId);
-  }
-}
 
 class PuntPossessionCheckOperation extends GameOperation {
   public readonly name = "PuntPossessionCheck";
@@ -79,11 +48,6 @@ interface Square {
 
 function canPunt(punter: Player, at: Square, state: GameState): boolean {
   return hasSkill(punter.skills, SkillType.PUNT) && ballOnSquare(state, at);
-}
-
-function templateOffset(roll: number): number {
-  if (roll <= 2) return -1;
-  return roll <= 4 ? 0 : 1;
 }
 
 function puntFlight(
@@ -155,7 +119,7 @@ export class PuntOperation extends GameOperation {
       }
     }
 
-    const facing = facingIndex(this.facingX, this.facingY);
+    const facing = toCardinalIndex(this.facingX, this.facingY);
     const direction = DIRS[(facing + templateOffset(directionRoll) + 8) % 8];
     if (!direction)
       throw new Error(`No Punt direction for facing ${String(facing)}`);
@@ -190,7 +154,7 @@ export class PuntOperation extends GameOperation {
         x: landing.x - direction.x,
         y: landing.y - direction.y,
       });
-      flowManager.add(new FinishPuntOperation(punter.id));
+      flowManager.add(new FinishActivationOperation("FinishPunt", punter.id));
       return;
     }
 
@@ -221,6 +185,6 @@ export class PuntOperation extends GameOperation {
     } else {
       flowManager.add(new BounceOperation(landing), true);
     }
-    flowManager.add(new FinishPuntOperation(punter.id));
+    flowManager.add(new FinishActivationOperation("FinishPunt", punter.id));
   }
 }

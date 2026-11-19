@@ -6,7 +6,7 @@ import {
   mkdirSync,
   renameSync,
 } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { processPool } from "../policy-study/pool";
 import { gunzipSync, gzipSync } from "node:zlib";
@@ -15,6 +15,8 @@ import { policySourceDigest, treeDigest } from "../policy-study/fingerprint";
 import { replayStudyTrace } from "../catalogue-study/replay";
 import type { PolicyJob } from "../policy-study/schedule";
 import { DEFAULT_WEIGHTS } from "../../../src/simulation/ai/weights";
+import type { LabJob } from "../../../src/boundary/labManifest";
+import { isEntry, serveJobs } from "./lab";
 
 interface Inputs {
   sourceDigest: string;
@@ -81,7 +83,7 @@ export function validateRecovery(
 }
 
 async function recoverGame(
-  job: PolicyJob,
+  job: LabJob,
   oldRun: string,
   out: string,
   previous: Inputs
@@ -171,28 +173,12 @@ export async function recoverVerifiedGames(
   console.log(JSON.stringify(receipt));
 }
 
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url) &&
-  process.argv.includes("--worker")
-) {
+if (isEntry(import.meta.url) && process.argv.includes("--worker")) {
   const [oldRun, out] = process.argv.slice(2);
   if (oldRun === undefined || out === undefined)
     throw new Error("Usage: recover.ts <old run> <out> --worker");
   const previous = JSON.parse(
     readFileSync(join(oldRun, "manifest.json"), "utf8")
   ) as Inputs;
-  process.on("message", async (job: PolicyJob | false) => {
-    if (!job) {
-      process.disconnect();
-      return;
-    }
-    try {
-      await recoverGame(job, oldRun, out, previous);
-      process.send?.({ done: job.id });
-    } catch (error) {
-      process.send?.({ error: `${job.id}: ${String(error)}` });
-    }
-  });
-  process.send?.({ ready: true });
+  serveJobs((job) => recoverGame(job, oldRun, out, previous));
 }

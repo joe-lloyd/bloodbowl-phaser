@@ -1,13 +1,9 @@
-import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
-import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { GameEventNames } from "../../../src/types/events";
-import { processPool } from "../policy-study/pool";
-import type { PolicyJob } from "../policy-study/schedule";
+import { openTrace } from "../catalogue-study/replay";
+import { annotateRun, isEntry } from "./lab";
 
 interface Score {
   side: 0 | 1;
@@ -36,11 +32,7 @@ export interface Drama {
 }
 
 async function dramaOfTrace(file: string, id: string, side: number) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
+  const { recording, game } = openTrace(file);
   const sides = new Map([
     [game.ctx.team1.id, 0 as const],
     [game.ctx.team2.id, 1 as const],
@@ -61,7 +53,7 @@ async function dramaOfTrace(file: string, id: string, side: number) {
     casualties++;
   });
   let throws = 0;
-  for (const [index, s] of trace.recording.steps.entries()) {
+  for (const [index, s] of recording.steps.entries()) {
     step = index;
     if (s.command.type === "throw-teammate") throws++;
     await game.execute(s.command);
@@ -117,43 +109,15 @@ function closeness(scores: Score[], casualties: number, throws: number) {
   return { final, leadChanges, comeback, lateScores, lastGasp, drama };
 }
 
-function argument(index: number): string {
-  const value = process.argv[index];
-  if (value === undefined)
-    throw new Error(`Missing argument ${String(index - 1)}`);
-  return value;
-}
-
 async function main() {
-  const entry = fileURLToPath(import.meta.url);
-  const run = resolve(argument(2));
-  const out = join(run, "drama");
-  mkdirSync(out, { recursive: true });
-  if (process.argv.includes("--worker")) {
-    process.on("message", async (job: PolicyJob | null) => {
-      if (!job) {
-        process.disconnect();
-        return;
-      }
-      try {
-        const row = await dramaOfTrace(
-          join(run, "traces", job.id + ".json.gz"),
-          job.id,
-          job.candidateSide
-        );
-        writeFileSync(join(out, job.id + ".json"), JSON.stringify(row));
-        process.send?.({ done: job.id });
-      } catch (error) {
-        process.send?.({ error: `${job.id}: ${String(error)}` });
-      }
-    });
-    process.send?.({ ready: true });
-    return;
-  }
-  const manifest = JSON.parse(
-    readFileSync(join(run, "manifest.json"), "utf8")
-  ) as { jobs: PolicyJob[] };
-  await processPool(entry, [run], manifest.jobs, 10);
+  const lab = await annotateRun({
+    entry: fileURLToPath(import.meta.url),
+    folder: "drama",
+    workers: 10,
+    annotate: (file, job) => dramaOfTrace(file, job.id, job.candidateSide),
+  });
+  if (!lab) return;
+  const { run, out } = lab;
   const rows = readdirSync(out)
     .filter((f) => f.endsWith(".json"))
     .map((f) => JSON.parse(readFileSync(join(out, f), "utf8")) as Drama)
@@ -161,8 +125,4 @@ async function main() {
   writeFileSync(join(run, "drama.json"), JSON.stringify(rows));
   console.log(JSON.stringify(rows.slice(0, 5)));
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

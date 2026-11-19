@@ -1,3 +1,4 @@
+import { STAT_HEADERS } from "./statHeaders";
 import { type TeamColors, type TeamRoster } from "../../../types/Team";
 import { type PlayerTemplate } from "../../../types/Player";
 import { PlayerPortrait } from "../common/PlayerPortrait";
@@ -36,11 +37,7 @@ export function AvailableHires({
       aside={`Treasury ${formatGold(treasury)}`}
       headers={[
         { label: "Position", width: "24%" },
-        { label: "MA", className: "num" },
-        { label: "ST", className: "num" },
-        { label: "AG", className: "num" },
-        { label: "PA", className: "num" },
-        { label: "AV", className: "num" },
+        ...STAT_HEADERS,
         { label: "Skills", width: "30%" },
         { label: "Allowed", className: "num" },
         { label: "Cost", className: "num" },

@@ -5,6 +5,7 @@ import {
   MATCH_SAVE_VERSION,
   serializeMatchSave,
 } from "../../headless/serialization";
+import { type StorageLike, browserStorage } from "./browserStorage";
 
 export const MATCH_SAVE_STORAGE_KEY = "bloodbowl_local_match_save";
 export const MATCH_SAVE_FALLBACK_KEY =
@@ -26,20 +27,6 @@ export interface MatchSaveRepository {
   write(save: MatchSave): void;
   clear(): void;
   describe(): MatchSaveDescription | null;
-}
-
-interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
-function browserStorage(): StorageLike | null {
-  try {
-    return typeof localStorage === "undefined" ? null : localStorage;
-  } catch {
-    return null;
-  }
 }
 
 export function describeMatchSave(save: MatchSave): MatchSaveDescription {

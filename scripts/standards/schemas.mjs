@@ -19,9 +19,30 @@ const named = new Map();
 
 function exportedName(type) {
   const symbol = type.aliasSymbol ?? type.symbol;
-  const node = symbol?.declarations?.find(
-    (item) => ts.isInterfaceDeclaration(item) || ts.isTypeAliasDeclaration(item)
+  return declarationName(
+    symbol?.declarations?.find(
+      (item) =>
+        ts.isInterfaceDeclaration(item) || ts.isTypeAliasDeclaration(item)
+    )
   );
+}
+
+function declaredAlias(location) {
+  const node = location?.type;
+  if (!node || !ts.isTypeReferenceNode(node) || node.typeArguments) return;
+  let symbol = checker.getSymbolAtLocation(node.typeName);
+  if (symbol && symbol.flags & ts.SymbolFlags.Alias)
+    symbol = checker.getAliasedSymbol(symbol);
+  const metadata = declarationName(
+    symbol?.declarations?.find(ts.isTypeAliasDeclaration)
+  );
+  const type = checker.getTypeFromTypeNode(node);
+  if (!metadata || checker.isArrayType(type) || checker.isTupleType(type))
+    return;
+  return { type, metadata };
+}
+
+function declarationName(node) {
   if (
     !node?.modifiers?.some(
       (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
@@ -42,6 +63,13 @@ function useImport(module, name, specifier, isType = false) {
   const list = imports.get(module) ?? new Map();
   list.set(`${isType}:${name}:${specifier}`, { name, specifier, isType });
   imports.set(module, list);
+}
+
+function unionParts(type) {
+  const parts = type.origin?.isUnion() ? type.origin.types : type.types;
+  return parts.flatMap((part) =>
+    part.isUnion() && !exportedName(part) ? unionParts(part) : [part]
+  );
 }
 
 function schema(type, context, hint) {
@@ -75,7 +103,7 @@ function expression(type, context, hint) {
   if (flags & ts.TypeFlags.Number) return "z.number()";
   if (flags & ts.TypeFlags.Boolean) return "z.boolean()";
   if (type.isUnion()) {
-    const variants = type.types.map((variant) =>
+    const variants = unionParts(type).map((variant) =>
       schema(variant, context, hint)
     );
     if (
@@ -116,8 +144,14 @@ function expression(type, context, hint) {
     const location = property.valueDeclaration ?? property.declarations?.[0];
     let value = checker.getTypeOfPropertyOfType(type, property.name);
     const optional = Boolean(property.flags & ts.SymbolFlags.Optional);
+    const alias = declaredAlias(location);
+    if (alias && alias.type !== context.type) {
+      const entry = emit(alias.type, alias.metadata);
+      useImport(context.file, entry.schema, `./${entry.name}`);
+      return `${JSON.stringify(property.name)}: ${entry.schema}${optional ? ".exactOptional()" : ""}`;
+    }
     if (optional && value.isUnion()) {
-      const variants = value.types.filter(
+      const variants = (exportedName(value) ? [value] : unionParts(value)).filter(
         (variant) => !(variant.flags & ts.TypeFlags.Undefined)
       );
       const expressions = variants.map((variant) =>

@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { formationPositionSchema } from "./FormationPosition";
 import { actionTypeSchema } from "./ActionType";
+import { blockReplacementSchema } from "./BlockReplacement";
 import { gridPositionSchema } from "./GridPosition";
+import { swoopFacingSchema } from "./SwoopFacing";
+import { rerollSourceSchema } from "./RerollSource";
+import { dopeStatSchema } from "./DopeStat";
+import { wizardSpellSchema } from "./WizardSpell";
 import type { HeadlessCommand } from "../../headless/protocol";
 
 export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
@@ -81,15 +86,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     type: z.literal("declare-action"),
     playerId: z.string(),
     action: actionTypeSchema,
-    blockReplacement: z
-      .union([
-        z.literal("stab"),
-        z.literal("breatheFire"),
-        z.literal("vomit"),
-        z.literal("chomp"),
-        z.literal("chainsaw"),
-      ])
-      .exactOptional(),
+    blockReplacement: blockReplacementSchema.exactOptional(),
     razzleDazzle: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   }),
   z.looseObject({
@@ -164,14 +161,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     x: z.number(),
     y: z.number(),
     mode: z.union([z.literal("throw"), z.literal("kick")]).exactOptional(),
-    swoopFacing: z
-      .union([
-        z.literal("north"),
-        z.literal("east"),
-        z.literal("south"),
-        z.literal("west"),
-      ])
-      .exactOptional(),
+    swoopFacing: swoopFacingSchema.exactOptional(),
   }),
   z.looseObject({
     type: z.literal("throw-bomb"),
@@ -250,14 +240,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
   z.looseObject({
     type: z.literal("use-reroll"),
     accept: z.boolean(),
-    source: z
-      .union([
-        z.literal("skill"),
-        z.literal("team"),
-        z.literal("pro"),
-        z.literal("veteran"),
-      ])
-      .exactOptional(),
+    source: rerollSourceSchema.exactOptional(),
   }),
   z.looseObject({
     type: z.literal("use-reaction"),
@@ -283,8 +266,8 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
     type: z.literal("choose-inducement"),
     playerId: z.string().exactOptional(),
     skill: z.string().exactOptional(),
-    stat: z.union([z.literal("ST"), z.literal("AG")]).exactOptional(),
-    spell: z.union([z.literal("fireball"), z.literal("zap")]).exactOptional(),
+    stat: dopeStatSchema.exactOptional(),
+    spell: wizardSpellSchema.exactOptional(),
     x: z.number().exactOptional(),
     y: z.number().exactOptional(),
   }),

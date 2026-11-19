@@ -1,65 +1,31 @@
-import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import {
-  PlayerStatus,
-  PlayerCondition,
-  addCondition,
-} from "../../types/Player";
+import { PlayerCondition, addCondition } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
 import { type FlowContext } from "../core/GameFlowManager";
 import { withRerollOffer } from "../skills";
+import {
+  AdjacentTargetOperation,
+  type Duel,
+  type Opening,
+} from "./specialActionTarget";
 
-class FinishGazeOperation extends GameOperation {
-  public readonly name = "FinishHypnoticGaze";
-
-  private attackerId: string;
-  constructor(attackerId: string) {
-    super();
-    this.attackerId = attackerId;
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    context.gameService.finishActivation(this.attackerId);
-  }
-}
-
-export class HypnoticGazeOperation extends GameOperation {
+export class HypnoticGazeOperation extends AdjacentTargetOperation {
   public readonly name = "HypnoticGazeOperation";
+  protected readonly notAdjacent = "Target must be adjacent!";
+  protected readonly finishName = "FinishHypnoticGaze";
 
-  private attackerId: string;
-  private targetId: string;
-  constructor(attackerId: string, targetId: string) {
-    super();
-    this.attackerId = attackerId;
-    this.targetId = targetId;
-  }
-
-  async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService;
-    const eventBus = context.eventBus;
-    const dice = gameService.getDiceController();
-
-    const attacker = gameService.getPlayerById(this.attackerId);
-    const target = gameService.getPlayerById(this.targetId);
-    if (!attacker?.gridPosition || !target?.gridPosition) return;
-
-    if (target.status !== PlayerStatus.ACTIVE) {
-      eventBus.emit(GameEventNames.UI_Notification, "Target must be Standing!");
-      return;
-    }
-    const dx = Math.abs(attacker.gridPosition.x - target.gridPosition.x);
-    const dy = Math.abs(attacker.gridPosition.y - target.gridPosition.y);
-    if (dx > 1 || dy > 1 || dx + dy === 0) {
-      eventBus.emit(GameEventNames.UI_Notification, "Target must be adjacent!");
-      return;
-    }
-
-    eventBus.emit(GameEventNames.SkillTriggered, {
-      playerId: attacker.id,
+  protected opening({ target }: Duel): Opening {
+    return {
       skill: SkillType.HYPNOTIC_GAZE,
       effect: `Hypnotic Gaze: locking eyes with ${target.playerName}`,
-    });
-    await context.delay(600);
+    };
+  }
+
+  protected async resolve(
+    context: FlowContext,
+    { attacker, target, dice }: Duel
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
 
     const check = await withRerollOffer(
       { gameService, eventBus },
@@ -87,7 +53,5 @@ export class HypnoticGazeOperation extends GameOperation {
         `${target.playerName} shakes it off.`
       );
     }
-
-    context.flowManager.add(new FinishGazeOperation(this.attackerId));
   }
 }

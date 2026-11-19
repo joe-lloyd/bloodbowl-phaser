@@ -1,7 +1,8 @@
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
 import { GameEventNames } from "../types/events";
-import { GamePhase } from "../types/GameState";
+import { GamePhase, SubPhase } from "../types/GameState";
+import type { SetupTeamStatus } from "../types/SetupTypes";
 import type { OnlineMatch } from "../network/OnlineMatch";
 import type { LobbyDoc } from "../firebase/lobby";
 import { type MatchFixture } from "./fixtures";
@@ -14,6 +15,11 @@ export const later = (ms: number, fn: () => void) => {
     clearTimeout(t);
   };
 };
+
+export const soon = (open: (fx: MatchFixture) => void) => (fx: MatchFixture) =>
+  later(30, () => {
+    open(fx);
+  });
 
 export const every = (ms: number, fn: () => void) => {
   fn();
@@ -30,6 +36,51 @@ export const click = (selector: string, text?: string) => {
     : buttons[0];
   target?.click();
 };
+
+const BALANCED = [{ name: "Balanced", builtIn: true }];
+
+export function showSetup(
+  fx: MatchFixture,
+  {
+    subPhase,
+    activeTeam,
+    status,
+    formations = BALANCED,
+  }: {
+    subPhase: SubPhase;
+    activeTeam: { id: string; name: string };
+    status: Partial<SetupTeamStatus>;
+    formations?: { name: string; builtIn: boolean }[];
+  }
+) {
+  fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
+    subPhase,
+    activeTeam,
+    status: {
+      teamId: activeTeam.id,
+      placedPlayerCount: 0,
+      requiredPlayerCount: 7,
+      availablePlayerCount: 7,
+      restrictions: [],
+      canConfirm: false,
+      concessionDecision: "not-offered",
+      ...status,
+    },
+  });
+  fx.bus.emit(GameEventNames.UI_FormationsUpdated, { formations });
+}
+
+export function showPlacing(
+  fx: MatchFixture,
+  formations: { name: string; builtIn: boolean }[]
+) {
+  showSetup(fx, {
+    subPhase: SubPhase.SETUP_KICKING,
+    activeTeam: { id: fx.team1.id, name: fx.team1.name },
+    status: { placedPlayerCount: 4 },
+    formations,
+  });
+}
 
 export const LONG = {
   team1Name: "The Altdorf Sorcerer-Kings of Middenheim",

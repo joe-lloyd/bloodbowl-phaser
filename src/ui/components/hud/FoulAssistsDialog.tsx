@@ -1,13 +1,8 @@
+import { useGameDecision } from "../../hooks/useDecisionRequest";
 import { DecisionTeam } from "./DecisionTeam";
-import React, { useEffect, useState } from "react";
+import type React from "react";
 import type { EventBus } from "../../../services/EventBus";
-import {
-  type DecisionRequest,
-  type FoulAssistsDecisionRequest,
-} from "@/types/decisions";
-import { GameEventNames } from "@/types/events";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
-import { ServiceContainer } from "../../../services/ServiceContainer";
+import { type FoulAssistsDecisionRequest } from "@/types/decisions";
 import {
   DialogActions,
   DialogShell,
@@ -21,38 +16,12 @@ interface FoulAssistsDialogProps {
 export const FoulAssistsDialog: React.FC<FoulAssistsDialogProps> = ({
   eventBus,
 }) => {
-  const [request, setRequest] = useState<FoulAssistsDecisionRequest | null>(
-    null
-  );
-
-  useEffect(() => {
-    const onRequested = (data: DecisionRequest) => {
-      if (data.type === "foul-assists") setRequest(data);
-    };
-
-    const onResolved = ({ type }: { type: string }) => {
-      if (type === "foul-assists") setRequest(null);
-    };
-    eventBus.on(GameEventNames.DecisionRequested, onRequested);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    return () => {
-      eventBus.off(GameEventNames.DecisionRequested, onRequested);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-    };
-  }, [eventBus]);
-
-  if (
-    !request ||
-    !ServiceContainer.isInitialized() ||
-    getActiveOnlineMatch()?.mayAct() === false
-  )
-    return null;
-  const gameService = ServiceContainer.getInstance().gameService;
-  const name = (id: string) => gameService.getPlayerById(id)?.playerName ?? id;
+  const decision = useGameDecision(eventBus, { type: "foul-assists" });
+  if (!decision) return null;
+  const { request, gameService, name } = decision;
 
   const answer = (count: number) => {
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (gameService.answerFoulAssists(count)) setRequest(null);
+    decision.answer(() => gameService.answerFoulAssists(count));
   };
 
   const counts = Array.from({ length: request.available + 1 }, (_, i) => i);

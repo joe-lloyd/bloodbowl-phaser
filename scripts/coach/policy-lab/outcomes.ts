@@ -1,15 +1,18 @@
-import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
-import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import { snapshotHash } from "../../../src/simulation/runMatch";
+import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { GameEventNames } from "../../../src/types/events";
-import { processPool } from "../policy-study/pool";
-import type { PolicyJob } from "../policy-study/schedule";
+import { openTrace } from "../catalogue-study/replay";
+import {
+  analyzerSha256,
+  annotateRun,
+  annotationFiles,
+  isEntry,
+  replaySteps,
+  verifiedHash,
+} from "./lab";
 
 const empty = () => ({
   passes: 0,
@@ -119,70 +122,29 @@ function outcomeTracker(game: HeadlessGame) {
 }
 
 export async function annotateTrace(file: string) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
+  const { recording, game } = openTrace(file);
   const tracker = outcomeTracker(game);
-  for (const [index, step] of trace.recording.steps.entries()) {
-    tracker.before(step);
-    const response = await game.execute(step.command);
-    if (response.ok !== step.ok)
-      throw new Error(`Replay diverged at ${String(index)}`);
-  }
-  const hash = snapshotHash(game.snapshot());
-  if (hash !== trace.recording.final.hash)
-    throw new Error("Outcome replay final hash differs");
+  await replaySteps({ game, recording, before: tracker.before });
+  const hash = verifiedHash(game, recording, "Outcome");
   return { totals: tracker.totals, hash };
-}
-
-function argument(index: number): string {
-  const value = process.argv[index];
-  if (value === undefined)
-    throw new Error(`Missing argument ${String(index - 1)}`);
-  return value;
 }
 
 async function main() {
   const entry = fileURLToPath(import.meta.url);
-  const run = resolve(argument(2));
-  const out = join(run, "outcomes");
-  mkdirSync(out, { recursive: true });
-  if (process.argv.includes("--worker")) {
-    process.on("message", async (job: PolicyJob | null) => {
-      if (!job) {
-        process.disconnect();
-        return;
-      }
-      try {
-        const result = await annotateTrace(
-          join(run, "traces", job.id + ".json.gz")
-        );
-        writeFileSync(
-          join(out, job.id + ".json"),
-          JSON.stringify({
-            id: job.id,
-            candidateSide: job.candidateSide,
-            ...result,
-          })
-        );
-        process.send?.({ done: job.id });
-      } catch (error) {
-        process.send?.({ error: `${job.id}: ${String(error)}` });
-      }
-    });
-    process.send?.({ ready: true });
-    return;
-  }
-  const manifest = JSON.parse(
-    readFileSync(join(run, "manifest.json"), "utf8")
-  ) as { jobs: PolicyJob[]; revision: string };
-  await processPool(entry, [run], manifest.jobs, 8);
+  const lab = await annotateRun({
+    entry,
+    folder: "outcomes",
+    workers: 8,
+    annotate: async (file, job) => ({
+      id: job.id,
+      candidateSide: job.candidateSide,
+      ...(await annotateTrace(file)),
+    }),
+  });
+  if (!lab) return;
+  const { run, out, manifest } = lab;
   const summary = { candidate: empty(), frozen: empty() };
-  const files = readdirSync(out).filter((name) => name.endsWith(".json"));
-  if (files.length !== manifest.jobs.length)
-    throw new Error("Incomplete or foreign outcome files");
+  const files = annotationFiles(out, manifest.jobs.length, "outcome");
   for (const file of files) {
     const result = JSON.parse(readFileSync(join(out, file), "utf8")) as {
       candidateSide: number;
@@ -197,9 +159,7 @@ async function main() {
   }
   const receipt = {
     revision: manifest.revision,
-    analyzerSha256: createHash("sha256")
-      .update(readFileSync(entry))
-      .digest("hex"),
+    analyzerSha256: analyzerSha256(entry),
     games: files.length,
     verified: true,
     summary,
@@ -212,8 +172,4 @@ async function main() {
   );
   console.log(JSON.stringify(receipt));
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

@@ -81,25 +81,25 @@ export interface GameSnapshot {
   result?: MatchResult;
   teams: TeamSnapshot[];
 
-  driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
+  driveEffects?: GameState["driveEffects"];
 
-  bribes?: Record<string, number>;
+  bribes?: GameState["bribes"];
 
-  weatherReady?: string[];
+  weatherReady?: GameState["weatherReady"];
 
-  teamRerollsUsed?: Record<string, number>;
+  teamRerollsUsed?: GameState["teamRerollsUsed"];
 
-  leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
+  leaderRerolls?: GameState["leaderRerolls"];
 
-  veteranRerollsUsed?: string[];
+  veteranRerollsUsed?: GameState["veteranRerollsUsed"];
 
-  briberyRerollsUsed?: string[];
+  briberyRerollsUsed?: GameState["briberyRerollsUsed"];
 
-  stallingPlayerIds?: string[];
+  stallingPlayerIds?: GameState["stallingPlayerIds"];
 
   turnUsage?: GameState["turnUsage"];
 
-  chargeTeamId?: string;
+  chargeTeamId?: GameState["chargeTeamId"];
 
   raisedDead?: GameState["raisedDead"];
 

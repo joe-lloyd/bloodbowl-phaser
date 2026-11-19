@@ -491,14 +491,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   public startKickoffPhase(subPhase?: SubPhase): void {
-    this.isSetupActive = false;
-    this.repositionTeam = null;
-    applyPitchRepositioning(this);
-    this.placementController?.restoreFigureHitAreas();
-    this.pitch.clearHighlights();
-    this.eventBus.emit(GameEventNames.UI_HideSetupControls, undefined);
-
-    this.placePlayersOnPitch();
+    this.startPlayPhase();
 
     if (subPhase === SubPhase.ROLL_KICKOFF) {
       this.eventBus.emit(

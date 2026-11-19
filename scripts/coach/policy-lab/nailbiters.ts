@@ -1,14 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
-import {
-  buildMatchDump,
-  escapeHtml,
-  renderMatchHtml,
-} from "../../../src/simulation/viewer";
+import { escapeHtml } from "../../../src/simulation/viewer";
+import { argument, writeMatchViewer } from "./lab";
 import type { Drama } from "./drama";
 
 function firstScoreStep(drama: Drama): number {
@@ -21,13 +15,6 @@ function activationStart(recording: MatchRecording, step: number): number {
   for (let i = step; i >= 0; i--)
     if (recording.steps[i]?.command.type === "declare-action") return i;
   return step;
-}
-
-function argument(index: number): string {
-  const value = process.argv[index];
-  if (value === undefined)
-    throw new Error(`Missing argument ${String(index - 1)}`);
-  return value;
 }
 
 async function main() {
@@ -46,23 +33,16 @@ async function main() {
   const items: string[] = [];
   for (const [id, why] of picks) {
     const d = drama.get(id)!;
-    const trace = JSON.parse(
-      gunzipSync(readFileSync(join(run, "traces", id + ".json.gz"))).toString()
-    ) as { initial: MatchSave; recording: MatchRecording };
-    const dump = await buildMatchDump(
-      trace.recording,
-      new HeadlessGame({ matchSave: trace.initial })
-    );
-    writeFileSync(join(out, id + ".html"), renderMatchHtml(dump));
+    const recording = await writeMatchViewer(run, out, id);
     const decider = d.scores.at(-1)!;
-    const start = activationStart(trace.recording, decider.step);
+    const start = activationStart(recording, decider.step);
     const timeline = d.scores
       .map((s) => `${d.rosters[s.side]} H${String(s.half)} T${String(s.turn)}`)
       .join(", ");
     items.push(`<li><h3>${escapeHtml(d.rosters[0])} ${String(d.final[0])}–${String(d.final[1])} ${escapeHtml(d.rosters[1])}</h3>
 <p>${escapeHtml(why)}</p>
 <p class="quiet">Scores: ${escapeHtml(timeline)}.</p>
-<p><a href="${escapeHtml(id)}.html#step=${String(start + 1)}">Watch the deciding score</a> · <a href="${escapeHtml(id)}.html#step=${String(activationStart(trace.recording, firstScoreStep(d)) + 1)}">from the first score</a> · <a href="${escapeHtml(id)}.html">whole match</a></p></li>`);
+<p><a href="${escapeHtml(id)}.html#step=${String(start + 1)}">Watch the deciding score</a> · <a href="${escapeHtml(id)}.html#step=${String(activationStart(recording, firstScoreStep(d)) + 1)}">from the first score</a> · <a href="${escapeHtml(id)}.html">whole match</a></p></li>`);
   }
   writeFileSync(
     join(out, "index.html"),

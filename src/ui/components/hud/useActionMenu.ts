@@ -7,6 +7,7 @@ import { GamePhase, type GameState } from "../../../types/GameState";
 import type { ActionType, GameEventNames } from "../../../types/events";
 import {
   computeActionAvailability,
+  noActionAvailability,
   type ActionAvailability,
   type TurnFlags,
 } from "../../../game/rules/actionAvailability";
@@ -25,31 +26,7 @@ export interface MenuTurnData {
   movementUsed?: Map<string, number> | Readonly<Record<string, number>>;
 }
 
-const EMPTY_AVAILABILITY: ActionAvailability = {
-  move: false,
-  block: false,
-  multipleBlock: false,
-  jump: false,
-  blitz: false,
-  pass: false,
-  punt: false,
-  handoff: false,
-  foul: false,
-  standUp: false,
-  secureBall: false,
-  stab: false,
-  breatheFire: false,
-  vomit: false,
-  gaze: false,
-  chomp: false,
-  chainsaw: false,
-  throwTeammate: false,
-  kickTeammate: false,
-  throwBomb: false,
-  ballAndChain: false,
-  directBlockReplacements: [],
-  blitzBlockReplacements: [],
-};
+const EMPTY_AVAILABILITY: ActionAvailability = noActionAvailability();
 
 export function actingSide(
   turnData: { phase?: GamePhase; activeTeamId?: string | null } | null

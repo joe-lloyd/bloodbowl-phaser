@@ -35,6 +35,33 @@ export interface BracketFixtureContext {
   ready: boolean;
 }
 
+export function FixtureActions({
+  className,
+  context: { fixture, home, away, ready },
+  renderActions,
+}: {
+  className: string;
+  context: {
+    fixture: CompetitionFixture;
+    home: CompetitionEntrant | undefined;
+    away: CompetitionEntrant | undefined;
+    ready: boolean;
+  };
+  renderActions: (context: BracketFixtureContext) => React.ReactNode;
+}) {
+  if (!ready) return null;
+  return (
+    <div className={className}>
+      {renderActions({
+        fixture,
+        ...(home === undefined ? {} : { home: home }),
+        ...(away === undefined ? {} : { away: away }),
+        ready,
+      })}
+    </div>
+  );
+}
+
 interface TournamentBracketProps {
   fixtures: CompetitionFixture[];
   entrants: CompetitionEntrant[];
@@ -239,11 +266,11 @@ export function TournamentBracket({
                       {walkoverLine(entrants, fixture.result.walkover)}
                     </p>
                   )}
-                  {ready && (
-                    <div className="mt-2 border-t border-white/10 pt-2">
-                      {renderActions({ fixture, ...(home === undefined ? {} : { home: home }), ...(away === undefined ? {} : { away: away }), ready })}
-                    </div>
-                  )}
+                  <FixtureActions
+                    className="mt-2 border-t border-white/10 pt-2"
+                    context={{ fixture, home, away, ready }}
+                    renderActions={renderActions}
+                  />
                 </article>
               );
 

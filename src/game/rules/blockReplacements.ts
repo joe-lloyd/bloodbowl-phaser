@@ -4,11 +4,7 @@ import {
   type BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
 } from "../../types/BlockReplacement";
-
-const chebyshev = (
-  a: { x: number; y: number },
-  b: { x: number; y: number }
-): number => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+import { chebyshev } from "./chebyshev";
 
 export function isLegalBlockReplacementTarget(
   attacker: Player,

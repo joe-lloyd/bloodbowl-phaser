@@ -1,14 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
-import {
-  buildMatchDump,
-  escapeHtml,
-  renderMatchHtml,
-} from "../../../src/simulation/viewer";
+import { escapeHtml } from "../../../src/simulation/viewer";
+import { argument, writeMatchViewer } from "./lab";
 import type { Moment, Tally } from "./usage";
 
 interface Summary {
@@ -60,13 +53,6 @@ function momentList(moments: Moment[]): string {
     .join("\n");
 }
 
-function argument(index: number): string {
-  const value = process.argv[index];
-  if (value === undefined)
-    throw new Error(`Missing argument ${String(index - 1)}`);
-  return value;
-}
-
 async function main() {
   const run = resolve(argument(2));
   const out = join(run, "moments");
@@ -74,16 +60,8 @@ async function main() {
   const summary = JSON.parse(
     readFileSync(join(run, "usage-summary.json"), "utf8")
   ) as Summary;
-  for (const id of new Set(summary.moments.map((m) => m.game))) {
-    const trace = JSON.parse(
-      gunzipSync(readFileSync(join(run, "traces", id + ".json.gz"))).toString()
-    ) as { initial: MatchSave; recording: MatchRecording };
-    const dump = await buildMatchDump(
-      trace.recording,
-      new HeadlessGame({ matchSave: trace.initial })
-    );
-    writeFileSync(join(out, id + ".html"), renderMatchHtml(dump));
-  }
+  for (const id of new Set(summary.moments.map((m) => m.game)))
+    await writeMatchViewer(run, out, id);
   writeFileSync(
     join(out, "index.html"),
     `<!doctype html><html lang="en"><head><meta charset="utf-8">

@@ -1,7 +1,8 @@
+import { useGameDecision } from "../../hooks/useDecisionRequest";
 import { DecisionTeam } from "./DecisionTeam";
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useState } from "react";
 import type { EventBus } from "../../../services/EventBus";
-import { type DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import {
   type InducementChoiceDecisionAnswer,
@@ -9,8 +10,6 @@ import {
   type InducementChoiceKind,
   type WizardSpell,
 } from "@/types/decisions";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
-import { ServiceContainer } from "../../../services/ServiceContainer";
 import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 
 interface InducementChoiceDialogProps {
@@ -46,49 +45,26 @@ const SPELLS: Record<
 export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
   eventBus,
 }) => {
-  const [request, setRequest] =
-    useState<InducementChoiceDecisionRequest | null>(null);
-
   const [spell, setSpell] = useState<WizardSpell | null>(null);
   const aim = (next: WizardSpell | null) => {
     setSpell(next);
     eventBus.emit(GameEventNames.UI_WizardTargeting, { spell: next });
   };
 
-  useEffect(() => {
-    const onRequested = (data: DecisionRequest) => {
-      if (data.type === "inducement-choice") {
-        setRequest(data);
-        setSpell(null);
-      }
-    };
-
-    const onResolved = ({ type }: { type: string }) => {
-      if (type !== "inducement-choice") return;
-      setRequest(null);
+  const decision = useGameDecision(eventBus, {
+    type: "inducement-choice",
+    onChange: (next) => {
       setSpell(null);
-      eventBus.emit(GameEventNames.UI_WizardTargeting, { spell: null });
-    };
-    eventBus.on(GameEventNames.DecisionRequested, onRequested);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    return () => {
-      eventBus.off(GameEventNames.DecisionRequested, onRequested);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-    };
-  }, [eventBus]);
+      if (!next)
+        eventBus.emit(GameEventNames.UI_WizardTargeting, { spell: null });
+    },
+  });
 
-  if (
-    !request ||
-    !ServiceContainer.isInitialized() ||
-    getActiveOnlineMatch()?.mayAct() === false
-  )
-    return null;
-  const gameService = ServiceContainer.getInstance().gameService;
-  const name = (id: string) => gameService.getPlayerById(id)?.playerName ?? id;
+  if (!decision) return null;
+  const { request, gameService, name } = decision;
 
   const answer = (choice: InducementChoiceDecisionAnswer) => {
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (gameService.answerInducementChoice(choice)) setRequest(null);
+    decision.answer(() => gameService.answerInducementChoice(choice));
   };
 
   if (request.kind === "sports-wizard") {

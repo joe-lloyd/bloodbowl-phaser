@@ -4,7 +4,7 @@ import { playerStatsSchema } from "./PlayerStats";
 import { skillSchema } from "./Skill";
 import { skillCategorySchema } from "./SkillCategory";
 import { playerAdvancementSchema } from "./PlayerAdvancement";
-import { randomSkillCandidateSchema } from "./RandomSkillCandidate";
+import { pendingAdvancementRollSchema } from "./PendingAdvancementRoll";
 import { playerStatusSchema } from "./PlayerStatus";
 import { playerConditionInstanceSchema } from "./PlayerConditionInstance";
 import { injuryTypeSchema } from "./InjuryType";
@@ -38,22 +38,7 @@ export const playerSchema: z.ZodType<Player> = z.looseObject({
       PA: z.number().exactOptional(),
     })
     .exactOptional(),
-  pendingAdvancementRoll: z
-    .union([
-      z.looseObject({
-        kind: z.literal("random-primary"),
-        category: skillCategorySchema,
-        candidates: z.tuple([
-          randomSkillCandidateSchema,
-          randomSkillCandidateSchema,
-        ]),
-      }),
-      z.looseObject({
-        kind: z.literal("characteristic"),
-        roll: z.number(),
-      }),
-    ])
-    .exactOptional(),
+  pendingAdvancementRoll: pendingAdvancementRollSchema.exactOptional(),
   status: playerStatusSchema,
   conditions: playerConditionInstanceSchema.array().exactOptional(),
   injuries: injuryTypeSchema.array(),

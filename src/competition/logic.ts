@@ -543,6 +543,36 @@ function advanceTournament(
     tournament.championEntrantId = result.winnerEntrantId;
 }
 
+function completeFixture(
+  fixtures: CompetitionFixture[],
+  {
+    fixtureId,
+    ...score
+  }: {
+    fixtureId: string;
+    homeScore: number;
+    awayScore: number;
+    allowDraw: boolean;
+    penalties?: PenaltyShootout;
+  }
+): { fixture: CompetitionFixture; result: FixtureResult } {
+  const fixture = fixtures.find((candidate) => candidate.id === fixtureId);
+  if (!fixture?.homeEntrantId || !fixture.awayEntrantId) {
+    throw new Error("Fixture is not ready.");
+  }
+  if (fixture.status === "complete")
+    throw new Error("Fixture is already complete.");
+
+  const result = completedResult({
+    homeEntrantId: fixture.homeEntrantId,
+    awayEntrantId: fixture.awayEntrantId,
+    ...score,
+  });
+  fixture.result = result;
+  fixture.status = "complete";
+  return { fixture, result };
+}
+
 export function recordTournamentResult({
   tournament,
   fixtureId,
@@ -557,24 +587,15 @@ export function recordTournamentResult({
   penalties?: PenaltyShootout;
 }): TournamentDoc {
   const next: TournamentDoc = structuredClone(tournament);
-  const fixture = next.fixtures.find((candidate) => candidate.id === fixtureId);
-  if (!fixture?.homeEntrantId || !fixture.awayEntrantId) {
-    throw new Error("Fixture is not ready.");
-  }
-  if (fixture.status === "complete")
-    throw new Error("Fixture is already complete.");
-
-  fixture.result = completedResult({
-    homeEntrantId: fixture.homeEntrantId,
-    awayEntrantId: fixture.awayEntrantId,
+  const { fixture, result } = completeFixture(next.fixtures, {
+    fixtureId,
     homeScore,
     awayScore,
     allowDraw: next.format === "round-robin",
     ...(penalties === undefined ? {} : { penalties }),
   });
-  fixture.status = "complete";
 
-  advanceTournament(next, fixture, fixture.result);
+  advanceTournament(next, fixture, result);
 
   next.standings = computeStandings(next.entrants, next.fixtures);
   const allComplete = next.fixtures.every(
@@ -600,21 +621,12 @@ export function recordLeagueResult({
   awayScore: number;
 }): LeagueDoc {
   const next: LeagueDoc = structuredClone(league);
-  const fixture = next.fixtures.find((candidate) => candidate.id === fixtureId);
-  if (!fixture?.homeEntrantId || !fixture.awayEntrantId) {
-    throw new Error("Fixture is not ready.");
-  }
-  if (fixture.status === "complete")
-    throw new Error("Fixture is already complete.");
-
-  fixture.result = completedResult({
-    homeEntrantId: fixture.homeEntrantId,
-    awayEntrantId: fixture.awayEntrantId,
+  completeFixture(next.fixtures, {
+    fixtureId,
     homeScore,
     awayScore,
     allowDraw: true,
   });
-  fixture.status = "complete";
   next.standings = computeStandings(next.entrants, next.fixtures, next.points);
   next.status = next.fixtures.every(
     (candidate) => candidate.status === "complete"

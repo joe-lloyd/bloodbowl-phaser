@@ -60,6 +60,22 @@ import {
 } from "./computeMatchOptionsMenu";
 import type { ConnectionState } from "../../../firebase/lobby";
 
+const DECISION_DOCK = {
+  OtherCoachPrompt,
+  BlockDiceDialog,
+  PushChoicePrompt,
+  FollowUpDialog,
+  RerollDialog,
+  ReactionDialog,
+  SentOffCard,
+  FoulAssistsDialog,
+  BiteTargetPrompt,
+  ApothecaryDialog,
+  InducementChoiceDialog,
+  InterceptionDialog,
+  ConfirmationModal,
+};
+
 export interface OnlineMatchMenuProps {
   role: "host" | "guest";
   opponentName: string;
@@ -269,19 +285,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       data-testid="decision-dock"
       className="w-full max-h-[calc(100dvh-3rem)] overflow-y-auto hud-scroll empty:hidden [&>[data-decision-dialog]:not(:last-child)]:hidden"
     >
-      <OtherCoachPrompt eventBus={eventBus} />
-      <BlockDiceDialog eventBus={eventBus} />
-      <PushChoicePrompt eventBus={eventBus} />
-      <FollowUpDialog eventBus={eventBus} />
-      <RerollDialog eventBus={eventBus} />
-      <ReactionDialog eventBus={eventBus} />
-      <SentOffCard eventBus={eventBus} />
-      <FoulAssistsDialog eventBus={eventBus} />
-      <BiteTargetPrompt eventBus={eventBus} />
-      <ApothecaryDialog eventBus={eventBus} />
-      <InducementChoiceDialog eventBus={eventBus} />
-      <InterceptionDialog eventBus={eventBus} />
-      <ConfirmationModal eventBus={eventBus} />
+      {Object.entries(DECISION_DOCK).map(([name, Dialog]) => (
+        <Dialog key={name} eventBus={eventBus} />
+      ))}
     </div>
   );
 

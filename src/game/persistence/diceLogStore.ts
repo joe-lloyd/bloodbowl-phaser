@@ -9,24 +9,11 @@ import {
   type DiceLogMode,
   DiceLogRecorder,
 } from "./DiceLog";
+import { type StorageLike, browserStorage } from "./browserStorage";
 
 const KEY_PREFIX = "bloodbowl_dice_log_";
 const INDEX_KEY = "bloodbowl_dice_logs";
 const KEEP_LOCAL = 20;
-
-interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
-function browserStorage(): StorageLike | null {
-  try {
-    return typeof localStorage === "undefined" ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
 
 function isDiceLog(value: unknown): value is DiceLog {
   return (

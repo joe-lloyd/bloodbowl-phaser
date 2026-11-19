@@ -1,3 +1,4 @@
+import type React from "react";
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
@@ -16,6 +17,7 @@ import {
   later,
   onlineMatch,
   setScore,
+  soon,
 } from "./variantHelpers";
 import type { Variant } from "./variants";
 
@@ -54,48 +56,42 @@ function onlineChat(fx: MatchFixture, history: ChatMessage[]) {
   };
 }
 
-const diceLogIn = (fx: MatchFixture) => (
+const diceLogIn = (fx: MatchFixture, above?: React.ReactNode) => (
   <HUDLayout
     bottomLeft={
-      <div className="h-[220px] w-full">
-        <DiceLog eventBus={fx.bus} />
-      </div>
+      <>
+        {above}
+        <div className="h-[220px] w-full">
+          <DiceLog eventBus={fx.bus} />
+        </div>
+      </>
     }
   />
 );
+
+const onlineDiceLog = (fx: MatchFixture) => {
+  onlineChat(fx, CHAT);
+  return diceLogIn(fx);
+};
+
+const fillSoon = (rounds: number) =>
+  soon((fx) => {
+    fillLog(fx, rounds);
+  });
 
 export const DICE_VARIANTS: Variant[] = [
   {
     id: "log-empty",
     section: "Dice log",
     title: "Empty",
-    view: (fx) => (
-      <HUDLayout
-        bottomLeft={
-          <div className="h-[220px] w-full">
-            <DiceLog eventBus={fx.bus} />
-          </div>
-        }
-      />
-    ),
+    view: (fx) => diceLogIn(fx),
   },
   {
     id: "log-long",
     section: "Dice log",
     title: "A long log (newest on top)",
-    view: (fx) => (
-      <HUDLayout
-        bottomLeft={
-          <div className="h-[220px] w-full">
-            <DiceLog eventBus={fx.bus} />
-          </div>
-        }
-      />
-    ),
-    drive: (fx) =>
-      later(30, () => {
-        fillLog(fx, 3);
-      }),
+    view: (fx) => diceLogIn(fx),
+    drive: fillSoon(3),
   },
   {
     id: "log-large",
@@ -104,33 +100,16 @@ export const DICE_VARIANTS: Variant[] = [
     prepare: () => {
       localStorage.setItem("bb-dice-log-font-scale", "1.5");
     },
-    view: (fx) => (
-      <HUDLayout
-        bottomLeft={
-          <div className="h-[220px] w-full">
-            <DiceLog eventBus={fx.bus} />
-          </div>
-        }
-      />
-    ),
-    drive: (fx) =>
-      later(30, () => {
-        fillLog(fx, 1);
-      }),
+    view: (fx) => diceLogIn(fx),
+    drive: fillSoon(1),
   },
 
   {
     id: "log-online-dice",
     section: "Dice log",
     title: "Online: the Dice tab",
-    view: (fx) => {
-      onlineChat(fx, CHAT);
-      return diceLogIn(fx);
-    },
-    drive: (fx) =>
-      later(30, () => {
-        fillLog(fx, 1);
-      }),
+    view: onlineDiceLog,
+    drive: fillSoon(1),
   },
   {
     id: "log-online-unread",
@@ -144,19 +123,13 @@ export const DICE_VARIANTS: Variant[] = [
       });
       return diceLogIn(fx);
     },
-    drive: (fx) =>
-      later(30, () => {
-        fillLog(fx, 1);
-      }),
+    drive: fillSoon(1),
   },
   {
     id: "log-online-chat",
     section: "Dice log",
     title: "Online: the Chat tab",
-    view: (fx) => {
-      onlineChat(fx, CHAT);
-      return diceLogIn(fx);
-    },
+    view: onlineDiceLog,
     drive: () =>
       later(60, () => {
         click('[data-testid="dice-log"] [role="tab"]', "Chat");
@@ -170,18 +143,7 @@ export const DICE_VARIANTS: Variant[] = [
     fixture: { scenario: "block-injury-test", phase: GamePhase.PLAY },
     view: (fx) => {
       onlineChat(fx, []);
-      return (
-        <HUDLayout
-          bottomLeft={
-            <>
-              <TurnCatchUpCard eventBus={fx.bus} />
-              <div className="h-[220px] w-full">
-                <DiceLog eventBus={fx.bus} />
-              </div>
-            </>
-          }
-        />
-      );
+      return diceLogIn(fx, <TurnCatchUpCard eventBus={fx.bus} />);
     },
     drive: (fx) =>
       later(60, () => {
@@ -206,18 +168,7 @@ export const DICE_VARIANTS: Variant[] = [
     section: "Left column cards",
     title: "Half time, with KO recovery rolls in",
     fixture: { scenario: "block-injury-test" },
-    view: (fx) => (
-      <HUDLayout
-        bottomLeft={
-          <>
-            <HalfTimeCard eventBus={fx.bus} />
-            <div className="h-[220px] w-full">
-              <DiceLog eventBus={fx.bus} />
-            </div>
-          </>
-        }
-      />
-    ),
+    view: (fx) => diceLogIn(fx, <HalfTimeCard eventBus={fx.bus} />),
     drive: (fx) =>
       later(60, () => {
         setScore(fx, 1, 0);

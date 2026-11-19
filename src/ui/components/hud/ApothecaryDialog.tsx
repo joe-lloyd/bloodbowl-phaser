@@ -1,11 +1,9 @@
+import { useLandedDecision } from "../../hooks/useDecisionRequest";
 import { DecisionTeam } from "./DecisionTeam";
-import { useAfterDice } from "../../hooks/useAfterDice";
-import React, { useState, useEffect } from "react";
+import type React from "react";
 import type { EventBus } from "../../../services/EventBus";
-import { type DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { type ApothecaryDecisionRequest } from "@/types/decisions";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   DialogActions,
@@ -20,36 +18,16 @@ interface ApothecaryDialogProps {
 export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
   eventBus,
 }) => {
-  const [pending, setRequest] = useState<ApothecaryDecisionRequest | null>(
-    null
-  );
+  const { request, answer: settle } = useLandedDecision(eventBus, {
+    type: "apothecary",
+  });
 
-  useEffect(() => {
-    const onRequested = (data: DecisionRequest) => {
-      if (data.type === "apothecary") {
-        setRequest(data);
-      }
-    };
-
-    const onResolved = ({ type }: { type: string }) => {
-      if (type === "apothecary") setRequest(null);
-    };
-    eventBus.on(GameEventNames.DecisionRequested, onRequested);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    return () => {
-      eventBus.off(GameEventNames.DecisionRequested, onRequested);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-    };
-  }, [eventBus]);
-
-  const request = useAfterDice(eventBus, pending);
-
-  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
+  if (!request) return null;
 
   const answer = (accept: boolean) => {
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    eventBus.emit(GameEventNames.UI_ApothecaryResponse, { accept });
-    setRequest(null);
+    settle(() => {
+      eventBus.emit(GameEventNames.UI_ApothecaryResponse, { accept });
+    });
   };
 
   const container = ServiceContainer.isInitialized()

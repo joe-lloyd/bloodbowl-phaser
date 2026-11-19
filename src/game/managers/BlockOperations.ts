@@ -6,16 +6,18 @@ import { type FlowContext } from "../core/GameFlowManager";
 import { moveBallAndChain } from "../operations/BallAndChainOperation";
 import type { BlockActivation } from "./BlockActivation";
 
-export class CrowdSurfFollowUpOperation extends GameOperation {
-  public readonly name = "CrowdSurfFollowUp";
-
-  private attackerId: string;
-  private targetSquare: { x: number; y: number };
+abstract class FollowUpStepOperation extends GameOperation {
+  protected readonly attackerId: string;
+  protected readonly targetSquare: { x: number; y: number };
   constructor(attackerId: string, targetSquare: { x: number; y: number }) {
     super();
     this.attackerId = attackerId;
     this.targetSquare = targetSquare;
   }
+}
+
+export class CrowdSurfFollowUpOperation extends FollowUpStepOperation {
+  public readonly name = "CrowdSurfFollowUp";
 
   async execute(context: FlowContext): Promise<void> {
     context.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
@@ -39,16 +41,8 @@ export class FinishBlockOperation extends GameOperation {
   }
 }
 
-export class ForcedFollowUpOperation extends GameOperation {
+export class ForcedFollowUpOperation extends FollowUpStepOperation {
   public readonly name = "ForcedFollowUp";
-
-  private attackerId: string;
-  private targetSquare: { x: number; y: number };
-  constructor(attackerId: string, targetSquare: { x: number; y: number }) {
-    super();
-    this.attackerId = attackerId;
-    this.targetSquare = targetSquare;
-  }
 
   async execute(context: FlowContext): Promise<void> {
     const active = context.gameService.getState().activePlayer;
@@ -171,32 +165,26 @@ class FrenzySecondBlockOperation extends GameOperation {
   }
 }
 
-export class ContinueMultipleBlockOperation extends GameOperation {
-  public readonly name = "ContinueMultipleBlock";
-
-  private manager: BlockActivation;
-  private attackerId: string;
+abstract class AttackerStepOperation extends GameOperation {
+  protected readonly manager: BlockActivation;
+  protected readonly attackerId: string;
   constructor(manager: BlockActivation, attackerId: string) {
     super();
     this.manager = manager;
     this.attackerId = attackerId;
   }
+}
+
+export class ContinueMultipleBlockOperation extends AttackerStepOperation {
+  public readonly name = "ContinueMultipleBlock";
 
   async execute(_context: FlowContext): Promise<void> {
     await this.manager.continueMultipleBlock(this.attackerId);
   }
 }
 
-export class HitAndRunOperation extends GameOperation {
+export class HitAndRunOperation extends AttackerStepOperation {
   public readonly name = "HitAndRun";
-
-  private manager: BlockActivation;
-  private attackerId: string;
-  constructor(manager: BlockActivation, attackerId: string) {
-    super();
-    this.manager = manager;
-    this.attackerId = attackerId;
-  }
 
   async execute(_context: FlowContext): Promise<void> {
     await this.manager.resolveHitAndRun(this.attackerId);

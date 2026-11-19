@@ -1,13 +1,10 @@
 import { SkillType, hasSkill } from "../../../types/Skills";
 import { type SkillRule } from "../SkillRule";
+import { opponentWithinReach } from "./dodgeReach";
 
 export const TackleRule: SkillRule = {
   onDodgeDeclared(ctx, self) {
-    if (self.teamId === ctx.player.teamId) return;
-    if (!self.gridPosition) return;
-    const dx = Math.abs(self.gridPosition.x - ctx.from.x);
-    const dy = Math.abs(self.gridPosition.y - ctx.from.y);
-    if (dx > 1 || dy > 1) return;
+    if (!opponentWithinReach(ctx, self)) return;
     if (!ctx.skillRerollAllowed) return;
 
     ctx.skillRerollAllowed = false;

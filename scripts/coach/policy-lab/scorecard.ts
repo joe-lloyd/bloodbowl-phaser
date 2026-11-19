@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { RosterName } from "../../../src/types/Team";
 import type { Tally as PlayTally } from "./usage";
+import { nth } from "../nth";
 
 type Tier = 1 | 2 | 3 | 4;
 
@@ -34,12 +35,6 @@ interface TeamGame {
   touchdowns: number;
   casualties: number;
   turnovers: number;
-}
-
-function nth<T>(items: readonly T[], index: number): T {
-  const item = items[index];
-  if (item === undefined) throw new Error(`No item at ${String(index)}`);
-  return item;
 }
 
 function parseTeamGames(text: string): TeamGame[] {

@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { gamePhaseSchema } from "./GamePhase";
+import { subPhaseSchema } from "./SubPhase";
 import { turnSnapshotSchema } from "./TurnSnapshot";
 import { weatherSchema } from "./Weather";
 import { actionTypeSchema } from "./ActionType";
+import { blockReplacementSchema } from "./BlockReplacement";
 import { setupStateSchema } from "./SetupState";
 import { matchResultSchema } from "./MatchResult";
 import { teamSnapshotSchema } from "./TeamSnapshot";
@@ -18,23 +20,7 @@ import type { GameSnapshot } from "../../headless/serialization";
 
 export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   phase: gamePhaseSchema,
-  subPhase: z.union([
-    z.null(),
-    z.literal("INTRO"),
-    z.literal("WEATHER"),
-    z.literal("COIN_FLIP"),
-    z.literal("SETUP_KICKING"),
-    z.literal("SETUP_RECEIVING"),
-    z.literal("SETUP_KICKOFF"),
-    z.literal("ROLL_KICKOFF"),
-    z.literal("RESOLVE_KICKOFF"),
-    z.literal("PLACE_BALL"),
-    z.literal("TURN_RECEIVING"),
-    z.literal("TURN_KICKING"),
-    z.literal("SCORING"),
-    z.literal("RECOVER_KO"),
-    z.literal("SECRET_WEAPONS"),
-  ]),
+  subPhase: z.union([z.null(), subPhaseSchema]),
   activeTeamId: z.union([z.null(), z.string()]),
   turn: turnSnapshotSchema,
   score: z.record(z.string(), z.number()),
@@ -52,39 +38,8 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
     z.null(),
     z.looseObject({
       id: z.string(),
-      action: z.union([
-        z.null(),
-        z.literal("move"),
-        z.literal("block"),
-        z.literal("multipleBlock"),
-        z.literal("blitz"),
-        z.literal("pass"),
-        z.literal("punt"),
-        z.literal("handoff"),
-        z.literal("foul"),
-        z.literal("standUp"),
-        z.literal("throwTeamMate"),
-        z.literal("secureBall"),
-        z.literal("special"),
-        z.literal("stab"),
-        z.literal("breatheFire"),
-        z.literal("vomit"),
-        z.literal("gaze"),
-        z.literal("chomp"),
-        z.literal("chainsaw"),
-        z.literal("throwBomb"),
-        z.literal("ballAndChain"),
-        z.literal("forgoe"),
-      ]),
-      blockReplacement: z
-        .union([
-          z.literal("stab"),
-          z.literal("breatheFire"),
-          z.literal("vomit"),
-          z.literal("chomp"),
-          z.literal("chainsaw"),
-        ])
-        .exactOptional(),
+      action: z.union([z.null(), actionTypeSchema]),
+      blockReplacement: blockReplacementSchema.exactOptional(),
       blockReplacementUsed: z
         .union([z.literal(false), z.literal(true)])
         .exactOptional(),

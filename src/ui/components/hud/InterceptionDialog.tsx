@@ -1,14 +1,12 @@
+import { useLandedDecision } from "../../hooks/useDecisionRequest";
 import { requiredRoll } from "../../../game/rules/rollTargets";
-import { useAfterDice } from "../../hooks/useAfterDice";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { interceptNeed } from "../../../game/rules/rollPreview";
 import { DecisionTeam } from "./DecisionTeam";
-import React, { useState, useEffect } from "react";
+import type React from "react";
 import type { EventBus } from "../../../services/EventBus";
-import { type DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { type InterceptionDecisionRequest } from "@/types/decisions";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import {
   DialogActions,
   DialogShell,
@@ -22,38 +20,18 @@ interface InterceptionDialogProps {
 export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   eventBus,
 }) => {
-  const [pending, setRequest] = useState<InterceptionDecisionRequest | null>(
-    null
-  );
+  const { request, answer: settle } = useLandedDecision(eventBus, {
+    type: "interception",
+  });
 
-  useEffect(() => {
-    const onRequested = (data: DecisionRequest) => {
-      if (data.type === "interception") {
-        setRequest(data);
-      }
-    };
-
-    const onResolved = ({ type }: { type: string }) => {
-      if (type === "interception") setRequest(null);
-    };
-    eventBus.on(GameEventNames.DecisionRequested, onRequested);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    return () => {
-      eventBus.off(GameEventNames.DecisionRequested, onRequested);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-    };
-  }, [eventBus]);
-
-  const request = useAfterDice(eventBus, pending);
-
-  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
+  if (!request) return null;
 
   const respond = (playerId?: string) => {
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    eventBus.emit(GameEventNames.UI_InterceptionResponse, {
-      ...(playerId === undefined ? {} : { playerId: playerId }),
+    settle(() => {
+      eventBus.emit(GameEventNames.UI_InterceptionResponse, {
+        ...(playerId === undefined ? {} : { playerId: playerId }),
+      });
     });
-    setRequest(null);
   };
 
   const service = ServiceContainer.isInitialized()

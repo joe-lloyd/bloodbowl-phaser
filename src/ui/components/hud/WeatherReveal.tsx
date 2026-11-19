@@ -5,6 +5,59 @@ import {
   type Weather,
   weatherDescription,
 } from "../../../game/rules/weather";
+import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
+
+export function WeatherPanel({
+  zClass,
+  header,
+  stage,
+  step,
+  weather,
+  total,
+  waiting,
+  onDone,
+}: {
+  zClass: string;
+  header?: React.ReactNode;
+  stage: React.RefObject<HTMLDivElement | null>;
+  step: WeatherStep;
+  weather: Weather;
+  total: number | null;
+  waiting: React.ReactNode;
+  onDone: () => void;
+}) {
+  return (
+    <DialogShell
+      zClass={zClass}
+      placement="center"
+      backdrop="heavy"
+      titleAs="h1"
+      title="WEATHER"
+      width="w-[480px]"
+      className="text-center"
+      testId="weather-dialog"
+    >
+      {header}
+      <div className="space-y-4 [@media(max-height:500px)]:space-y-2">
+        {step === "waiting" && (
+          <p className="text-hud-dim">
+            Before kick-off the coaches roll 2D6 on the Weather Table. It sets
+            the conditions for the whole match.
+          </p>
+        )}
+        <WeatherStage stage={stage} step={step} />
+        {step === "shown" && <WeatherResult weather={weather} total={total} />}
+        <WeatherTable result={step === "shown" ? weather : null} />
+        {step === "waiting" && waiting}
+        {step === "shown" && (
+          <HudButton variant="primary" size="lg" block onClick={onDone}>
+            ON TO THE COIN TOSS
+          </HudButton>
+        )}
+      </div>
+    </DialogShell>
+  );
+}
 
 export function WeatherStage({
   stage,
@@ -24,7 +77,7 @@ export function WeatherStage({
   );
 }
 
-export function WeatherTable({ result }: { result: Weather | null }) {
+function WeatherTable({ result }: { result: Weather | null }) {
   return (
     <ul className="space-y-1 text-left" data-testid="weather-table">
       {WEATHER_TABLE.map((row) => {
@@ -59,7 +112,7 @@ export function WeatherTable({ result }: { result: Weather | null }) {
   );
 }
 
-export function WeatherResult({
+function WeatherResult({
   weather,
   total,
 }: {

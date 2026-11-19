@@ -1,4 +1,3 @@
-import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import type { GameEventMap } from "../../services/EventBus";
@@ -14,6 +13,10 @@ import {
   adjacentStanding,
   type ArmourBreakContext,
 } from "../skills";
+import {
+  type InjuryParties,
+  InjuryPartiesOperation,
+} from "./injuryParties";
 
 export async function foldArmourRoll(
   context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,
@@ -102,11 +105,9 @@ export function armourBroken(
   );
 }
 
-export class ArmourOperation extends GameOperation {
+export class ArmourOperation extends InjuryPartiesOperation {
   public readonly name = "ArmourOperation";
 
-  private playerId: string;
-  private causedById: (string) | undefined;
   private fall: ({ cause: "dodge"; vacatedSquare: { x: number; y: number } }) | undefined;
   private cause: CasualtyCause;
   private armourModifier: number;
@@ -121,23 +122,17 @@ export class ArmourOperation extends GameOperation {
 
     armourModifier = 0
   ) {
-    super();
-    this.playerId = playerId;
-    this.causedById = causedById;
+    super(playerId, causedById);
     this.fall = fall;
     this.cause = cause;
     this.armourModifier = armourModifier;
   }
 
-  async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService;
-    const eventBus = context.eventBus;
-
-    const player = gameService.getPlayerById(this.playerId);
-    if (!player) return;
-    const causedBy = this.causedById
-      ? gameService.getPlayerById(this.causedById)
-      : undefined;
+  protected async resolve(
+    context: FlowContext,
+    { player, causedBy }: InjuryParties
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
 
     const armourSkipped = hasSkill(player.skills, SkillType.BALL_AND_CHAIN);
     if (!armourSkipped) {

@@ -9,7 +9,11 @@ import { type TeamColors } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
 import { TeamCrest } from "../common/TeamCrest";
 import { cx, Section } from "../componentWarehouse/HudKit";
-import { type BracketFixtureContext, walkoverLine } from "./TournamentBracket";
+import {
+  type BracketFixtureContext,
+  FixtureActions,
+  walkoverLine,
+} from "./TournamentBracket";
 
 type Kits = (entrant?: CompetitionEntrant) => TeamColors | undefined;
 
@@ -186,11 +190,11 @@ function FeaturedFixture({
         />
       </div>
       <ResultNotes fixture={fixture} entrants={entrants} />
-      {ready && (
-        <div className="mt-4 border-t border-white/10 pt-4">
-          {renderActions({ fixture, ...(home === undefined ? {} : { home: home }), ...(away === undefined ? {} : { away: away }), ready })}
-        </div>
-      )}
+      <FixtureActions
+        className="mt-4 border-t border-white/10 pt-4"
+        context={{ fixture, home, away, ready }}
+        renderActions={renderActions}
+      />
     </article>
   );
 }

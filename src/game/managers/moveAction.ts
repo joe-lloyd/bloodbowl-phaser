@@ -337,7 +337,11 @@ function showWalk(run: MoveRun): void {
     run.deps.eventBus.emit(GameEventNames.PlayerMoved, walk(run));
 }
 
-function fallOnRush(run: MoveRun, step: Square): MoveEnd {
+function fallInto(
+  run: MoveRun,
+  step: Square,
+  fall: { reason: string; vacatedSquare?: Square }
+): void {
   const { deps, player } = run;
   run.currentPos = step;
   player.gridPosition = run.currentPos;
@@ -347,8 +351,12 @@ function fallOnRush(run: MoveRun, step: Square): MoveEnd {
     square: run.currentPos,
     ballBounces: run.holdingBall || isBallAt(deps.state, run.currentPos),
     context: run.context,
-    reason: "Failed Rush",
+    ...fall,
   });
+}
+
+function fallOnRush(run: MoveRun, step: Square): MoveEnd {
+  fallInto(run, step, { reason: "Failed Rush" });
   run.stepsTaken++;
   run.completedPath.push(step);
   return "failed";
@@ -422,20 +430,8 @@ function vacatedMarkers(run: MoveRun): Player[] {
 }
 
 function fallOnDodge(run: MoveRun, step: Square): MoveEnd {
-  const { deps, player } = run;
-
   const vacatedSquare = { ...run.currentPos };
-  run.currentPos = step;
-  player.gridPosition = run.currentPos;
-  player.status = PlayerStatus.PRONE;
-  fallOver(deps, {
-    player,
-    square: run.currentPos,
-    ballBounces: run.holdingBall || isBallAt(deps.state, run.currentPos),
-    context: run.context,
-    vacatedSquare,
-    reason: "Failed Dodge",
-  });
+  fallInto(run, step, { vacatedSquare, reason: "Failed Dodge" });
   run.completedPath.push(step);
   return "failed";
 }

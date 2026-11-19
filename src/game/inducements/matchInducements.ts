@@ -7,7 +7,6 @@ import {
   PlayerStatus,
   addCondition,
   hasCondition,
-  hasTackleZone,
   removeCondition,
 } from "@/types/Player";
 import { type Skill, SkillType, getSkill, hasSkill } from "@/types/Skills";
@@ -24,6 +23,7 @@ import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { DiceController } from "../controllers/DiceController";
 import { weatherEffects } from "../rules/weather";
+import { markingPlayers } from "../rules/rollPreview";
 import { getDriveEffects } from "../kickoff/driveEffects";
 import { eligibleSkills } from "../progression/progression";
 import { rollPrayersToNuffle } from "./prayersToNuffle";
@@ -152,15 +152,7 @@ export function bananaSkinTeam(
   square: { x: number; y: number },
   opponents: Player[]
 ): string | null {
-  const marker = opponents.find(
-    (p) =>
-      p.gridPosition &&
-      hasTackleZone(p) &&
-      Math.max(
-        Math.abs(p.gridPosition.x - square.x),
-        Math.abs(p.gridPosition.y - square.y)
-      ) === 1
-  );
+  const [marker] = markingPlayers(square, opponents);
   if (!marker) return null;
   return holdsMeasure(
     state,

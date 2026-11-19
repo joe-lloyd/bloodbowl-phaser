@@ -9,6 +9,25 @@ import { PlayerActionMenu } from "../ui/components/hud/PlayerActionMenu";
 import { OtherCoachPrompt } from "../ui/components/hud/OtherCoachPrompt";
 import { later } from "./variantHelpers";
 import type { Variant } from "./variants";
+import type { MatchFixture } from "./fixtures";
+
+const menuWithEndTurn = (fx: MatchFixture, activeTeamId: string) => (
+  <HUDLayout
+    bottomRight={
+      <>
+        <PlayerActionMenu
+          eventBus={fx.bus}
+          turnData={{ phase: GamePhase.PLAY, activeTeamId }}
+        />
+        <EndTurnButton
+          phase={GamePhase.PLAY}
+          activeTeamId={activeTeamId}
+          onClick={() => {}}
+        />
+      </>
+    }
+  />
+);
 
 export const PLAYER_VARIANTS: Variant[] = [
   {
@@ -79,23 +98,7 @@ export const PLAYER_VARIANTS: Variant[] = [
     section: "Action menu and sequence",
     title: "Next to an opponent: move, block, blitz",
     fixture: { scenario: "block-injury-test" },
-    view: (fx) => (
-      <HUDLayout
-        bottomRight={
-          <>
-            <PlayerActionMenu
-              eventBus={fx.bus}
-              turnData={{ phase: GamePhase.PLAY, activeTeamId: fx.team2.id }}
-            />
-            <EndTurnButton
-              phase={GamePhase.PLAY}
-              activeTeamId={fx.team2.id}
-              onClick={() => {}}
-            />
-          </>
-        }
-      />
-    ),
+    view: (fx) => menuWithEndTurn(fx, fx.team2.id),
     drive: (fx) =>
       later(30, () => {
         fx.bus.emit(GameEventNames.PlayerSelected, {
@@ -152,23 +155,7 @@ export const PLAYER_VARIANTS: Variant[] = [
     section: "Action menu and sequence",
     title: "Action sequence: Move, then Pass",
     fixture: { scenario: "throw-pickup-and-pass" },
-    view: (fx) => (
-      <HUDLayout
-        bottomRight={
-          <>
-            <PlayerActionMenu
-              eventBus={fx.bus}
-              turnData={{ phase: GamePhase.PLAY, activeTeamId: fx.team1.id }}
-            />
-            <EndTurnButton
-              phase={GamePhase.PLAY}
-              activeTeamId={fx.team1.id}
-              onClick={() => {}}
-            />
-          </>
-        }
-      />
-    ),
+    view: (fx) => menuWithEndTurn(fx, fx.team1.id),
     drive: (fx) =>
       later(30, () => {
         fx.bus.emit(GameEventNames.PlayerSelected, { player: fx.player(1, 0) });

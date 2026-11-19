@@ -1,12 +1,11 @@
 import { z } from "zod";
+import { sevensRulesetSchema } from "./SevensRuleset";
 import { competitionTypeSchema } from "./CompetitionType";
 import type { CompetitionContext } from "../../competition/types";
 
 export const competitionContextSchema: z.ZodType<CompetitionContext> =
   z.looseObject({
-    ruleset: z
-      .union([z.literal("gw-2025"), z.literal("naf-sevens-2026-09-26")])
-      .exactOptional(),
+    ruleset: sevensRulesetSchema.exactOptional(),
     competitionType: competitionTypeSchema,
     competitionId: z.string(),
     fixtureId: z.string(),

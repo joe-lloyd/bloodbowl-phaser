@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { skillTypeSchema } from "./SkillType";
+import { dopeStatSchema } from "./DopeStat";
 import type { MatchGrant } from "../../game/inducements/matchInducements";
 
 export const matchGrantSchema: z.ZodType<MatchGrant> = z.union([
@@ -11,7 +12,7 @@ export const matchGrantSchema: z.ZodType<MatchGrant> = z.union([
   z.looseObject({
     kind: z.literal("stat"),
     playerId: z.string(),
-    stat: z.union([z.literal("AV"), z.literal("ST"), z.literal("AG")]),
+    stat: z.union([z.literal("AV"), dopeStatSchema]),
     delta: z.number(),
   }),
 ]);

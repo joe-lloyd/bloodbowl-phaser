@@ -19,6 +19,7 @@ import {
   legalBlockReplacementTargets,
 } from "./blockReplacements";
 import { type ActionType } from "../../types/events";
+import { chebyshev } from "./chebyshev";
 
 const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "move",
@@ -101,11 +102,6 @@ export interface ActionAvailability {
   blitzBlockReplacements: BlockReplacement[];
 }
 
-const chebyshev = (
-  a: { x: number; y: number },
-  b: { x: number; y: number }
-): number => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-
 const isStanding = (p: Player): boolean => p.status === PlayerStatus.ACTIVE;
 const isDown = (p: Player): boolean =>
   p.status === PlayerStatus.PRONE || p.status === PlayerStatus.STUNNED;
@@ -185,7 +181,7 @@ function secondActionAvailability(
   };
 }
 
-const none = (): ActionAvailability => ({
+export const noActionAvailability = (): ActionAvailability => ({
   move: false,
   block: false,
   multipleBlock: false,
@@ -381,16 +377,16 @@ export function computeActionAvailability(
   if (first) return secondActionAvailability(input, first);
   const { player, ballPosition, opponents, teammates } = input;
   const here = player.gridPosition;
-  if (!here) return none();
+  if (!here) return noActionAvailability();
 
   const canAct = !player.hasActed && player.status !== PlayerStatus.STUNNED;
-  if (!canAct) return { ...none(), standUp: false };
+  if (!canAct) return { ...noActionAvailability(), standUp: false };
 
   if (
     hasSkill(player.skills, SkillType.BALL_AND_CHAIN) &&
     player.status === PlayerStatus.ACTIVE
   ) {
-    return { ...none(), ballAndChain: true };
+    return { ...noActionAvailability(), ballAndChain: true };
   }
 
   const board = actingBoard(input, here);

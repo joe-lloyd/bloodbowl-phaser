@@ -1,9 +1,5 @@
 import { type Player, hasTackleZone } from "../../types/Player";
-
-const chebyshev = (
-  a: { x: number; y: number },
-  b: { x: number; y: number }
-): number => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+import { chebyshev } from "./chebyshev";
 
 export function isLegalHandoffTarget(hander: Player, mate: Player): boolean {
   return handoffTargetRefusalReason(hander, mate) === null;

@@ -1,5 +1,6 @@
 import { SkillType } from "../../../types/Skills";
 import { type Player, PlayerStatus } from "../../../types/Player";
+import { areAdjacent } from "../../elements/GridUtils";
 import { type SkillRule } from "../SkillRule";
 import { type ReactionDecisionAnswer } from "../../../types/decisions";
 
@@ -14,9 +15,7 @@ function mayShadow(ctx: Dodge, self: Player): boolean {
 
   if (ctx.triggers.some((t) => t.skill === SkillType.SHADOWING)) return false;
 
-  const dx = Math.abs(self.gridPosition.x - ctx.from.x);
-  const dy = Math.abs(self.gridPosition.y - ctx.from.y);
-  if (dx > 1 || dy > 1 || dx + dy === 0) return false;
+  if (!areAdjacent(self.gridPosition, ctx.from)) return false;
 
   return (
     !ctx.arbiter ||

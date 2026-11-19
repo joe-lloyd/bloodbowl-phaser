@@ -1,6 +1,10 @@
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { whenMomentsComplete } from "../presentation/momentQueue";
-import { realTimeDelay } from "../core/GameFlowManager";
+import {
+  type DelayProvider,
+  type GameFlowManager,
+  realTimeDelay,
+} from "../core/GameFlowManager";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { type Team } from "@/types/Team";
@@ -29,6 +33,22 @@ import {
   type KickoffEventOutcome,
 } from "../kickoff/kickoffEvents";
 
+interface BallCallbacks {
+  onTurnover: (reason: string) => void;
+  onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
+  onBallPlaced: (x: number, y: number) => void;
+  getFlowManager?: () => GameFlowManager;
+
+  resolveKickoffEvent?: (isTeam1Kicking: boolean) => Promise<void>;
+
+  resolveHighKickStep?: (
+    isTeam1Kicking: boolean,
+    landingSquare: { x: number; y: number }
+  ) => Promise<void>;
+
+  consumeWeatherScatterPending?: () => boolean;
+}
+
 export class BallManager {
   public movementController: BallMovementController;
   public kickoffController: KickoffController;
@@ -45,22 +65,8 @@ export class BallManager {
   private team1: Team;
   private team2: Team;
   private diceController: DiceController;
-  private callbacks: {
-    onTurnover: (reason: string) => void;
-    onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
-    onBallPlaced: (x: number, y: number) => void;
-    getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
-
-    resolveKickoffEvent?: (isTeam1Kicking: boolean) => Promise<void>;
-
-    resolveHighKickStep?: (
-      isTeam1Kicking: boolean,
-      landingSquare: { x: number; y: number }
-    ) => Promise<void>;
-
-    consumeWeatherScatterPending?: () => boolean;
-  };
-  private delay: import("../core/GameFlowManager").DelayProvider;
+  private callbacks: BallCallbacks;
+  private delay: DelayProvider;
   constructor(
     eventBus: IEventBus,
     state: GameState,
@@ -68,22 +74,8 @@ export class BallManager {
     team2: Team,
     _weatherService: WeatherManager,
     diceController: DiceController,
-    callbacks: {
-      onTurnover: (reason: string) => void;
-      onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
-      onBallPlaced: (x: number, y: number) => void;
-      getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
-
-      resolveKickoffEvent?: (isTeam1Kicking: boolean) => Promise<void>;
-
-      resolveHighKickStep?: (
-        isTeam1Kicking: boolean,
-        landingSquare: { x: number; y: number }
-      ) => Promise<void>;
-
-      consumeWeatherScatterPending?: () => boolean;
-    },
-    delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
+    callbacks: BallCallbacks,
+    delay: DelayProvider = realTimeDelay
   ) {
     this.eventBus = eventBus;
     this.state = state;

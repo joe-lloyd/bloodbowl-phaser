@@ -1,20 +1,16 @@
 import { defineConfig } from "@playwright/test";
+import { localVite } from "./playwright.local-vite";
 
 const PORT = Number(process.env["FULLGAME_PORT"] ?? 5199);
+const vite = localVite(PORT, process.env["PW_CHROMIUM"]);
 
 export default defineConfig({
+  ...vite.config,
   testDir: "./e2e/fullgame",
-  testMatch: "**/*.e2e.ts",
   timeout: 60 * 60_000,
   outputDir: process.env["PW_OUT"] ?? "e2e-results/fullgame",
-  reporter: [["list"]],
-  webServer: {
-    command: `pnpm exec vite --port ${String(PORT)} --strictPort`,
-    url: `http://localhost:${String(PORT)}`,
-    reuseExistingServer: true,
-  },
   use: {
-    baseURL: `http://localhost:${String(PORT)}`,
+    ...vite.use,
     actionTimeout: 4_000,
 
     viewport: (() => {
@@ -24,8 +20,5 @@ export default defineConfig({
       return { width: Number(width), height: Number(height) };
     })(),
     video: { mode: "on", size: { width: 1440, height: 900 } },
-    launchOptions: process.env["PW_CHROMIUM"]
-      ? { executablePath: process.env["PW_CHROMIUM"] }
-      : {},
   },
 });
