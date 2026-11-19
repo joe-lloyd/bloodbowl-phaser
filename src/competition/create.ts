@@ -1,3 +1,8 @@
+import {
+  DEFAULT_GAME_TYPE,
+  readGameType,
+  type GameType,
+} from "../game/variants/gameTypes";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { loadTeams, saveTeams } from "../game/managers/TeamManager";
 import { validateInsignificant } from "../game/rules/insignificant";
@@ -45,6 +50,7 @@ interface OwnedChoice {
 
 export interface CompetitionRules {
   ruleset?: SevensRuleset;
+  gameType?: GameType;
   type: CompetitionType;
   name: string;
 
@@ -183,8 +189,10 @@ export function buildCompetition({
 }): CompetitionDoc {
   const now = Date.now();
   const fixtures = status === "active" ? competitionFixtures(rules, entrants) : [];
+  const gameType = readGameType(rules.gameType);
   const base = {
     ruleset: readSevensRuleset(rules.ruleset),
+    ...(gameType === DEFAULT_GAME_TYPE ? {} : { gameType }),
     id: `${rules.type}-${String(now)}-${Math.random().toString(36).slice(2, 8)}`,
     name: rules.name.trim(),
     organizerUid,

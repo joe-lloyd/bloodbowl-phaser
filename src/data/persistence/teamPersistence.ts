@@ -1,3 +1,4 @@
+import { readGameType, type GameType } from "../../game/variants/gameTypes";
 import {
   DRAFT_KEEP_VALUE_INCREASE,
   InjuryType,
@@ -95,6 +96,7 @@ export interface StoredTeam {
   seedMetadata?: SeedMetadata;
   activeCompetitionId?: string;
   draftRuleset?: SevensRuleset;
+  gameType?: GameType;
   recordedFixtureIds?: string[];
   playedGames?: PlayedGame[];
 
@@ -409,6 +411,9 @@ export function hydrateStoredTeam(
     ...(raw["draftRuleset"] !== undefined
       ? { draftRuleset: readSevensRuleset(raw["draftRuleset"]) }
       : {}),
+    ...(raw["gameType"] !== undefined
+      ? { gameType: readGameType(raw["gameType"]) }
+      : {}),
     ...(raw["activeCompetitionId"]
       ? { activeCompetitionId: raw["activeCompetitionId"] as string }
       : {}),
@@ -490,6 +495,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
       : {}),
     ...storedPlayedGames(team),
     ...(team.draftRuleset ? { draftRuleset: team.draftRuleset } : {}),
+    ...(team.gameType ? { gameType: team.gameType } : {}),
     ...(team.activeCompetitionId
       ? { activeCompetitionId: team.activeCompetitionId }
       : {}),

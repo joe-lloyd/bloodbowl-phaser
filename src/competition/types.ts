@@ -1,3 +1,4 @@
+import type { GameType } from "../game/variants/gameTypes";
 import type { Difficulty } from "../simulation/ai/difficulty";
 import { type SeedMetadata } from "../types/seedMetadata";
 import { type RosterRuleProfile } from "./rosterRules";
@@ -26,6 +27,7 @@ export interface OnlineSetup {
 
 export interface CompetitionContext {
   ruleset?: SevensRuleset;
+  gameType?: GameType;
   competitionType: CompetitionType;
   competitionId: string;
   fixtureId: string;
@@ -107,6 +109,7 @@ export interface LeaguePoints {
 
 export interface CompetitionBase {
   ruleset?: SevensRuleset;
+  gameType?: GameType;
   id: string;
   name: string;
   organizerUid: string | null;

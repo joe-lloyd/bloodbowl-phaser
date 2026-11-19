@@ -1,3 +1,4 @@
+import type { GameType } from "../game/variants/gameTypes";
 import {
   InjuryType,
   type Player,
@@ -225,6 +226,8 @@ export interface Team {
   activeCompetitionId?: string;
 
   draftRuleset?: SevensRuleset;
+
+  gameType?: GameType;
 
   recordedFixtureIds?: string[];
 

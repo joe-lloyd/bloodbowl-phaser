@@ -1,3 +1,4 @@
+import { gameTypeSchema } from "./GameType";
 import { z } from "zod";
 import { sevensRulesetSchema } from "./SevensRuleset";
 import { competitionStatusSchema } from "./CompetitionStatus";
@@ -12,6 +13,7 @@ import type { CompetitionBase } from "../../competition/types";
 
 export const competitionBaseSchema: z.ZodType<CompetitionBase> = z.looseObject({
   ruleset: sevensRulesetSchema.exactOptional(),
+  gameType: gameTypeSchema.exactOptional(),
   id: z.string(),
   name: z.string(),
   organizerUid: z.union([z.null(), z.string()]),

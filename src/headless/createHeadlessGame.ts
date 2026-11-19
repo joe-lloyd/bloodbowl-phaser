@@ -1,3 +1,4 @@
+import type { MatchFormat } from "../game/variants/activeMatch";
 import { EventBus, type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import {
@@ -47,6 +48,8 @@ export interface HeadlessGameOptions {
   knockout?: boolean | undefined;
 
   paysWinnings?: boolean;
+
+  format?: MatchFormat;
 
   rngState?: RNGState;
 
@@ -115,6 +118,9 @@ function savedInputs(options: HeadlessGameOptions, restored: RestoredSave) {
   return { rngState, matchStatsState, seed };
 }
 
+const formatOption = (options: HeadlessGameOptions) =>
+  options.format === undefined ? {} : { format: options.format };
+
 const savedTurnManager = (
   options: HeadlessGameOptions,
   restored: RestoredSave
@@ -131,11 +137,11 @@ function startingState(
   if (initialState) return initialState;
   if (options.scenario) return applyScenario(options.scenario, team1, team2);
   if (options.startingPhase) {
-    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: options.paysWinnings === undefined ? {} : { paysWinnings: options.paysWinnings } }
+    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: options.paysWinnings === undefined ? {} : { paysWinnings: options.paysWinnings }, ...formatOption(options) }
     );
   }
-  if (options.paysWinnings) {
-    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SANDBOX_IDLE, fixture: { paysWinnings: true } }
+  if (options.paysWinnings || options.format) {
+    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SANDBOX_IDLE, fixture: options.paysWinnings ? { paysWinnings: true } : {}, ...formatOption(options) }
     );
   }
   return undefined;
