@@ -234,6 +234,56 @@ Over every roster, the Veteran's share of carrying fell from 30% to 8%, the team
 
 The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-b2ffa9a92193-vs-783399bdc3fe` on Daily Driver. The pace sweep stays at `/Users/joelloyd/tmp/bb7-pace`.
 
+## Bash, defence and the cage after the carrier moves, 19 November
+
+The question was whether bash rosters fall short because they block, injure or defend worse than people do. Compared with the average team in each source, our Dwarfs block and injure about as much as FUMBBL's human Dwarfs, and lose fewer players:
+
+| Dwarf against the average team | Human, FUMBBL | Our planner |
+| ------------------------------ | ------------: | ----------: |
+| Blocks thrown                  |         1.25× |       1.42× |
+| Casualties caused              |         1.20× |       1.17× |
+| Casualties suffered            |         0.58× |       0.42× |
+| Touchdowns conceded            |         0.85× |       1.06× |
+| Touchdowns scored              |         0.94× |       0.55× |
+
+Tomb Kings show the same pattern: 1.36× the blocks and 1.39× the casualties, with 0.47× the touchdowns. The shortfall is mostly in scoring, and partly in defence.
+
+`defence.ts` replays a stage and counts, for each turn that starts with an opposing standing carrier, whether the turn won the ball back, whom its blocks hit, and whether the carrier's team scored next turn. It also counts every block by its dice. On `b2ffa9a92193`, Dwarfs threw 1.66 blocks in such a turn, second only to Khorne against a median of 1.29, and half of them hit players more than one square from the carrier, the highest share of any roster. They conceded on 22.5% of the turns that left the opponent with the ball, against 20.5% for all rosters. Dwarfs threw 34% of all their blocks on one die, against a median of 12%, because the planner moved a player in to assist only a hit on their carrier.
+
+Focused runs then played the eight bash rosters, Dwarf, Nurgle, Tomb Kings, Chaos Dwarf, Black Orc, Khorne, Chaos Chosen and Orc, each change against main over three seeds of 2,848 games. Pooled over the eight, 4,800 games a policy:
+
+| Change for the bash rosters                             | Change vs main, points |
+| ------------------------------------------------------- | ---------------------: |
+| A hit more than two squares from the ball worth nothing |                   -1.8 |
+| ... worth half                                          |                   -0.4 |
+| ... worth 1.5 times                                     |                   -0.2 |
+| ... worth double                                        |                   -2.5 |
+| Casualties worth 80 instead of 40                       |                   -0.4 |
+| Early casualties worth more, attrition 1                |                   -0.3 |
+| Mark their carrier at 30, screen at 18                  |                   -0.5 |
+| A free player assists any block                         |                   -0.3 |
+| ... at half its gain                                    |                   +0.2 |
+| Cage corners worth 16 more once the carrier has acted   |                   +0.8 |
+| ... 30 more                                             |                   +0.9 |
+
+Hitting, injuring and defending as they are came out best. Off-ball hits pay: worth nothing or worth double, they cost bash rosters 1.8 and 2.5 points. Assisting every block came out level because few players are still free by the time a block is thrown; unassisted blocks fell only from 34.4% to 33.0%. These weights were removed again.
+
+The one gain was on offence. A carrier's square counts corners that team-mates who have not acted can still reach, so the carrier moves expecting a cage, and those team-mates then spent their activations elsewhere. `cageKeep` makes a corner worth 20 more once the carrier has acted. It first crowded out planned plays: a catcher sent deep for a two-step pass, a runner sent wide and a thrower lining up a launch all filled corners instead. The bonus is now withheld while the team-mate a launch, flank or deep square is for has not finished acting, and applies again once that player has acted. Ungated, it took 50.78% of points against main over three fresh seeds of 5,184 paired games; gated, 50.75% over three more.
+
+Candidate source `7bd9e5eee52b` played main, `15128db61afa`. That source withheld the bonus for the whole turn once any such square existed; review then limited it to the time before that player has acted, which changes play only when a planned player has already acted: a runner under Standard's flank game plan, or a Throw Team-mate thrower late in a half. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 86-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   50.41% | 49.45% to 51.39%     |
+| Standard, against the frozen planner | 5,184 |                   49.22% | 48.21% to 50.18%     |
+| Persistent fixtures                  | 1,296 |                   51.54% | 49.50% to 53.32%     |
+| Heuristic control                    |   432 |                   92.94% | 90.86% to 94.79%     |
+| Hard sentinels                       |    16 | 28.13%, descriptive only | No strength estimate |
+
+Confirmation on its own cannot rule out parity, but it agrees with the six focused seeds. Twenty-three rosters meet their standard, against 22. The gain is spread across the field rather than aimed at bash rosters: in the confirmation games Dwarf moved 0.5 points, Nurgle -0.8, Tomb Kings -1.3 and Chaos Dwarf -3.3, inside the five points a single roster swings between runs. Those four still miss their standard. Dwarf scores in 33% of games and Nurgle in 35%, against 50%, so their remaining gap is in scoring, and no change to how they hit closed it.
+
+The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-7bd9e5eee52b-vs-15128db61afa` on Daily Driver. The focused runs stay under `/Users/joelloyd/tmp/bb7-bash*`.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.

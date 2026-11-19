@@ -358,6 +358,48 @@ describe("blocks that open the way for our carrier", () => {
   });
 });
 
+describe("keeping the cage after the carrier moves", () => {
+  // Our carrier at (8,5) has acted. A free ST4 team-mate at (6,8) can
+  // step to a corner of its square, or blitz an opponent at (4,9) who is
+  // nowhere near the ball.
+  async function firstDeclared(coach: Coach) {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, hasBall: true },
+        { playerIndex: 1, x: 6, y: 8, stats: { ST: 4 } },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 19, y: 1 },
+        { playerIndex: 1, x: 4, y: 9 },
+      ],
+    });
+    const carrier = subject.ctx.team1.players[0];
+    await subject.execute({
+      type: "declare-action",
+      playerId: carrier.id,
+      action: "move",
+    });
+    await subject.execute({ type: "end-activation", playerId: carrier.id });
+    const { command, note } = await step(subject, coach);
+    return { command: command.type, note };
+  }
+
+  it("fills a corner by default", async () => {
+    expect(await firstDeclared(createPlannerCoach())).toEqual({
+      command: "declare-action",
+      note: "moves to cage",
+    });
+  });
+
+  it("blitzes instead with cageKeep at 0", async () => {
+    const coach = createPlannerCoach({
+      weights: { ...DEFAULT_WEIGHTS, cageKeep: 0 },
+    });
+    expect((await firstDeclared(coach)).note).toMatch(/^blitzes/);
+  });
+});
+
 describe("cage walk", () => {
   // A strength 4 carrier at (8,5) faces a wall at x=11: every square at
   // x=10 is in contact with one defender, every square at x=9 is clear.

@@ -205,14 +205,50 @@ function isDeep(c: Context, from: Square, s: Square, receiver: Player) {
   );
 }
 
+/** Roles that set up moving the ball on: a launch, a flank run, a deep catch. */
+const TRANSFER_ROLES: ReadonlySet<Role> = new Set(["throw", "flank", "deep"]);
+
+/** Squares that set up moving the ball on from our carrier, in order. */
+function transferSquares(c: Context, carrier: Player): RoleSquare[] {
+  const out: RoleSquare[] = [];
+  const add: AddSquare = (role, at, value, only) =>
+    out.push(only ? { role, at, value, only } : { role, at, value });
+  launchSquares(c, carrier, add);
+  flankSquares(c, carrier, add);
+  deepSquares(c, carrier, add);
+  return out;
+}
+
+/**
+ * A corner of our carrier's square. A carrier that has acted counted on
+ * team-mates filling its corners, so they are worth `cageKeep` more,
+ * unless a team-mate who has not finished acting is setting up moving
+ * the ball on.
+ */
+function cornerWorth(c: Context, carrier: Player, transfer: RoleSquare[]) {
+  const { board, w } = c;
+  const acted = new Set(board.gs.getState().turn.activatedPlayerIds ?? []);
+  // A plan counts only while the player it is for has not finished acting.
+  const planned = transfer.some(
+    (s) =>
+      TRANSFER_ROLES.has(s.role) &&
+      s.value > 0 &&
+      onPitch(s.at) &&
+      !(s.only && acted.has(s.only))
+  );
+  return w.cageCorner + (acted.has(carrier.id) && !planned ? w.cageKeep : 0);
+}
+
 /** Our carrier: a cage around it and receivers ahead of it. */
 function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
   const at = carrier.gridPosition!;
-  for (const [dx, dy] of CORNERS)
-    add("cage", { x: at.x + dx, y: at.y + dy }, w.cageCorner);
   // Final-turn receiver preparation must lead to a score. End-zone runs
   // have their own complete transfer plan in deepReceiverActivations.
+  const transfer = board.turnsLeft === 0 ? [] : transferSquares(c, carrier);
+  const corner = cornerWorth(c, carrier, transfer);
+  for (const [dx, dy] of CORNERS)
+    add("cage", { x: at.x + dx, y: at.y + dy }, corner);
   if (board.turnsLeft === 0) return;
   for (const ahead of [2, 3, 4])
     for (const dy of [-2, 0, 2])
@@ -221,9 +257,7 @@ function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
         { x: at.x + board.dir * ahead, y: at.y + dy },
         w.receiver
       );
-  launchSquares(c, carrier, add);
-  flankSquares(c, carrier, add);
-  deepSquares(c, carrier, add);
+  for (const s of transfer) add(s.role, s.at, s.value, s.only);
 }
 
 /** Beside the walls of their carrier's cage: assists for the hits that break it. */

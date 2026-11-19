@@ -74,7 +74,9 @@ describe("catalogue study", () => {
     expect(
       observed.skills.every((s) => s.firstStep < result.steps.length)
     ).toBe(true);
-  });
+    // A full planner match: like the harness and planner-run matches, it
+    // takes seconds, and more on a loaded runner.
+  }, 60_000);
   it("balances each template, coach, and side and pairs every available recipe", () => {
     const inventory = catalogueInventory();
     const jobs = studySchedule();
@@ -127,5 +129,6 @@ describe("catalogue study", () => {
     } finally {
       rmSync(out, { recursive: true, force: true });
     }
-  });
+    // Plays a full game and replays it.
+  }, 60_000);
 });

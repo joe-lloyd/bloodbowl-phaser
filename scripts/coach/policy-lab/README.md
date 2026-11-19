@@ -31,10 +31,13 @@ A play's scores and turnovers describe what followed it, not what it was worth.
 
 `drives.ts` replays a stage and counts each roster's turns with the ball: how far the ball went, and whether the turn scored, kept the ball or lost it. It splits them by whether the carrier started the turn marked, and counts halves that ended with the team still holding the ball. Pass `--shard i/n` to run shards side by side. A run filtered to one roster or one shard writes its own file, such as `drives-summary-dwarf-2-of-8.json`, and leaves `drives-summary.json` alone.
 
+`defence.ts` replays a stage and counts each roster's turns that start with an opposing standing carrier: how often the turn won the ball back, whether its blocks hit the carrier, a player beside it or someone else, how the carrier was marked and screened when the turn ended, and whether the carrier's team scored next turn. It also counts every block by its dice, with a minus sign where the defender chooses. Its second argument, `i/n`, replays every nth game, and each shard writes `defence-i-of-n.json` in the stage directory.
+
 `run.ts --rosters "Dwarf,Nurgle"` keeps only the games where either side plays a named roster. A candidate `--weights` file against the same source then measures a change on those teams in a few minutes. The file may hold a `rosters` object, such as `{"rosters": {"Dwarf": {"safeMove": 0.82}}}`, which replaces `ROSTER_WEIGHTS` for the candidate. Read `rosters.csv` in the stage report for each roster's points under each policy. With no change at all the candidate and frozen AIs play identical games, so any difference comes from the change.
 
 ```sh
 pnpm exec tsx scripts/coach/policy-lab/drives.ts <stage directory> [roster] [--shard i/n]
+pnpm exec tsx scripts/coach/policy-lab/defence.ts <stage directory> [i/n]
 pnpm exec tsx scripts/coach/policy-study/run.ts --lab --baseline <frozen tree> --rosters "Dwarf,Nurgle" --weights <file.json> --out <run>
 ```
 
