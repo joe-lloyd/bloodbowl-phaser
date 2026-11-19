@@ -66,6 +66,12 @@ export const DEFAULT_WEIGHTS = {
   markCarrier: 16,
   /** More for a square beside the carrier that would give an assist. */
   assist: 8,
+  /**
+   * Above 0, a free player also moves in to assist the best hit on any
+   * opponent, by this share of what the assist adds, when that beats its
+   * own best hit. 0 assists only hits on their carrier.
+   */
+  assistAll: 0,
   /** Stand between the opposing carrier and our end zone. */
   screen: 9,
   /** Get next to a loose ball. */
