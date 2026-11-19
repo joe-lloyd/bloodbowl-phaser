@@ -21,6 +21,7 @@ import {
 import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
 import { foulActivations } from "./foulActivations";
+import { gatePriced } from "./gateActivations";
 import {
   feedingSupportActivations,
   holdsFeedingSupport,
@@ -51,7 +52,8 @@ export type Role =
   | "feed"
   | "throw"
   | "flank"
-  | "deep";
+  | "deep"
+  | "steady";
 
 export type Intent =
   | { kind: "score"; route: Route }
@@ -177,7 +179,7 @@ export function activations({
     out.push(...deepReceiverActivations(c, carrier));
   out.push(...assistActivations(c, out));
   out.push(...feedingSupportActivations(c));
-  return sortActivations(out);
+  return sortActivations(gatePriced(c, out));
 }
 
 function movementContinuation(c: Context, player: Player): Activation[] {

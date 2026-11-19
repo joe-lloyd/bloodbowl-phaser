@@ -103,3 +103,57 @@ describe("a team-mate eight squares behind our carrier, with 82% moves allowed",
     expect(await chaseNotes()).toEqual(["moves to chase"]);
   });
 });
+
+describe("an Unchannelled Fury player beside a loose ball, a team-mate two squares away", () => {
+  it("leaves the ball to the team-mate", async () => {
+    const subject = game({
+      turn: 3,
+      ballPosition: { x: 6, y: 5 },
+      team1Placements: [
+        { playerIndex: 0, x: 5, y: 5, skills: [SkillType.UNCHANNELLED_FURY] },
+        { playerIndex: 1, x: 4, y: 5 },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 15, y: 1 }],
+    });
+    const mate = fieldPlayer(subject.ctx.team1.players[1]);
+    const { command } = await step(subject, createPlannerCoach());
+    expect(command).toEqual({
+      type: "declare-action",
+      playerId: mate.id,
+      action: "secureBall",
+    });
+  });
+});
+
+describe("a Really Stupid player beside an opponent, a slow free team-mate three squares away", () => {
+  it("moves the team-mate beside it before it blocks", async () => {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 8,
+          y: 5,
+          skills: [SkillType.REALLY_STUPID],
+          stats: { ST: 5 },
+        },
+        { playerIndex: 1, x: 5, y: 5, stats: { MA: 2 } },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 18, y: 1, hasBall: true },
+      ],
+    });
+    const coach = createPlannerCoach();
+    const first = await step(subject, coach);
+    const notes = [first.note];
+    for (let i = 0; i < 8; i++) {
+      const next = await step(subject, coach);
+      if (next.command.type === "declare-action") {
+        notes.push(next.note);
+        break;
+      }
+    }
+    expect(notes).toEqual(["moves to steady", "blocks"]);
+  });
+});
