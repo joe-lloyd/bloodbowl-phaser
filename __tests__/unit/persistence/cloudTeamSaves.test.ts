@@ -17,7 +17,9 @@ vi.mock("../../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("cloud team save acknowledgement", () => {
   it("keeps the save pending after updating the cache until Firestore accepts it", async () => {

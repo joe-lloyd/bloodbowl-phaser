@@ -486,7 +486,7 @@ function PlayerCard({
 }: {
   label: string;
   player: LobbyPlayer | null | undefined;
-  empty?: string;
+  empty?: string | undefined;
 }) {
   return (
     <Panel accent={player?.ready ? "good" : "neutral"} className="p-4">

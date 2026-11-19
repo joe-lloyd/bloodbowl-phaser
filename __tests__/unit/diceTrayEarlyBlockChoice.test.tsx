@@ -77,9 +77,12 @@ describe("block dice chosen before they land", () => {
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
+        defenderId: "defender",
+        numDice: 2,
+        isAttackerChoice: true,
         results: [
-          { type: "pow", label: "POW!" },
-          { type: "push", label: "Push" },
+          { type: "pow", icon: "", label: "POW!" },
+          { type: "push", icon: "", label: "Push" },
         ],
       });
     });

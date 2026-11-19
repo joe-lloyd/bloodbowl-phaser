@@ -27,9 +27,11 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
         });
       }
     }
-    player.conditions = p.conditions?.length
-      ? p.conditions.map((type) => ({ type }))
-      : undefined;
+    if (p.conditions?.length) {
+      player.conditions = p.conditions.map((type) => ({ type }));
+    } else {
+      delete player.conditions;
+    }
 
     p.skills?.forEach((entry) => {
       const type = typeof entry === "object" ? entry.type : entry;
@@ -107,6 +109,8 @@ export function applyScenario(
   const turnNumber =
     scenario.setup.turn ?? (scenario.setup.phase === GamePhase.KICKOFF ? 0 : 2);
 
+  const matchInducements = scenarioMeasures(scenario, team1, team2);
+
   return {
     phase: scenario.setup.phase,
     subPhase: scenario.setup.subPhase,
@@ -132,9 +136,7 @@ export function applyScenario(
     weather: scenario.setup.weather ?? "Nice",
     ballPosition: ballSquare(scenario),
     activePlayer: null,
-    ...(scenario.setup.measures
-      ? { matchInducements: scenarioMeasures(scenario, team1, team2) }
-      : {}),
+    ...(matchInducements ? { matchInducements } : {}),
     ...(scenario.setup.bribes
       ? {
           bribes: {

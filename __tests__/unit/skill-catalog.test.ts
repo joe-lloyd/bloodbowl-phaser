@@ -104,7 +104,7 @@ describe("legacy skill name migration", () => {
   });
 
   it("no legacy name collides with a current catalog name", () => {
-    const current = new Set(Object.values(SkillType));
+    const current = new Set<string>(Object.values(SkillType));
     const collisions = Object.keys(LEGACY_SKILL_NAMES).filter((n) =>
       current.has(n)
     );

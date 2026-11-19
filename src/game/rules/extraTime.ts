@@ -31,7 +31,8 @@ export function penaltyShootout(
 ): Record<string, number> {
   const won: Record<string, number> = { [team1.id]: 0, [team2.id]: 0 };
   for (let kick = 1; kick <= SHOOTOUT_ROLL_OFFS; kick++) {
-    won[rollOff(dice, `Penalty ${String(kick)}`, team1, team2)]++;
+    const winner = rollOff(dice, `Penalty ${String(kick)}`, team1, team2);
+    won[winner] = (won[winner] ?? 0) + 1;
   }
   return won;
 }

@@ -87,9 +87,12 @@ describe("block dice chosen while an earlier roll still shows", () => {
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
+        defenderId: "defender",
+        numDice: 2,
+        isAttackerChoice: true,
         results: [
-          { type: "push", label: "Push" },
-          { type: "push", label: "Push" },
+          { type: "push", icon: "", label: "Push" },
+          { type: "push", icon: "", label: "Push" },
         ],
       });
       bus.emit(GameEventNames.DecisionResolved, {
@@ -132,11 +135,17 @@ describe("block dice re-rolled while the first throw still tumbles", () => {
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
-        results: [{ type: "skull", label: "Attacker Down" }],
+        defenderId: "defender",
+        numDice: 1,
+        isAttackerChoice: true,
+        results: [{ type: "skull", icon: "", label: "Attacker Down" }],
       });
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
-        results: [{ type: "push", label: "Push" }],
+        defenderId: "defender",
+        numDice: 1,
+        isAttackerChoice: true,
+        results: [{ type: "push", icon: "", label: "Push" }],
       });
       bus.emit(GameEventNames.DecisionResolved, {
         type: "block-dice",

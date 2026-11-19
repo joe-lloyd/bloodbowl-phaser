@@ -203,10 +203,12 @@ describe("the league page's Your teams section", () => {
         : undefined
     );
     expect(fixtureValue(row).status).toEqual({ kind: "computer" });
+    const person = { ...fixtureValue(league.entrants[0]) };
+    delete person.computerCoached;
     const [mine] = leagueTeamProgressRows(
       {
         ...league,
-        entrants: [{ ...league.entrants[0], ...(undefined === undefined ? {} : { computerCoached: undefined }) }],
+        entrants: [person],
       },
       () => ({ ...first, pendingDevelopment: [] })
     );

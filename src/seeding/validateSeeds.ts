@@ -275,6 +275,7 @@ function sameStandings(a: Standing[], b: Standing[]): boolean {
   return a.every((standing, index) => {
     const other = b[index];
     return (
+      other !== undefined &&
       standing.entrantId === other.entrantId &&
       standing.played === other.played &&
       standing.wins === other.wins &&
@@ -438,7 +439,7 @@ function standingsViolations(doc: CompetitionDoc): SeedViolation[] {
   if (
     doc.type === "league" &&
     doc.status === "complete" &&
-    (doc.standings.length === 0 || doc.standings[0].played === 0)
+    (doc.standings.length === 0 || doc.standings[0]?.played === 0)
   ) {
     violations.push(
       competitionViolation(

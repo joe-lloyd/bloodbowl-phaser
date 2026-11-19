@@ -102,8 +102,10 @@ function frameOf(
   const byId = new Map(
     snapshot.teams.flatMap((t) => t.players).map((p) => [p.id, p])
   );
+  const [home, away] = snapshot.teams;
+  if (!home || !away) throw new Error("a frame needs both teams");
   const teamIndex = (id: string | null) =>
-    id === snapshot.teams[0].id ? 0 : id === snapshot.teams[1].id ? 1 : null;
+    id === home.id ? 0 : id === away.id ? 1 : null;
   return {
     ...step,
     phase: snapshot.phase,
@@ -111,10 +113,10 @@ function frameOf(
     turn: snapshot.turn.turnNumber,
     active: teamIndex(snapshot.activeTeamId),
     score: [
-      snapshot.score[snapshot.teams[0].id] ?? 0,
-      snapshot.score[snapshot.teams[1].id] ?? 0,
+      snapshot.score[home.id] ?? 0,
+      snapshot.score[away.id] ?? 0,
     ],
-    rerolls: [snapshot.teams[0].rerolls, snapshot.teams[1].rerolls],
+    rerolls: [home.rerolls, away.rerolls],
     ball: snapshot.ballPosition
       ? [snapshot.ballPosition.x, snapshot.ballPosition.y]
       : null,

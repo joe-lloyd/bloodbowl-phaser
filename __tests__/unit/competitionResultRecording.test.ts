@@ -126,8 +126,8 @@ describe("competition result orchestration", () => {
         competitionId: league.id,
         fixtureId: fixtureValue(fixtures[0]).id,
       },homeScore: 1,awayScore: 0,progressedTeams: {
-        home: { ...teams[0],dedicatedFans: 3 },
-        away: { ...teams[1],dedicatedFans: 1 },
+        home: { ...fixtureValue(teams[0]),dedicatedFans: 3 },
+        away: { ...fixtureValue(teams[1]),dedicatedFans: 1 },
       }
     }    );
 
@@ -170,10 +170,13 @@ describe("competition result orchestration", () => {
         competitionType: "tournament",
         competitionId: cup.id,
         fixtureId: fixtureValue(fixtures[0]).id,
-      },homeScore: 1,awayScore: 1,progressedTeams: undefined,penalties: { home: 3,away: 2 }
+      },homeScore: 1,awayScore: 1,penalties: { home: 3,away: 2 }
     }    );
 
-    expect(updated.championEntrantId).toBe("local:home4");
+    expect(updated).toMatchObject({
+      type: "tournament",
+      championEntrantId: "local:home4",
+    });
     const saved = loadTeams();
     expect(saved.find((t) => t.id === "home4")).toMatchObject({
       wins: 1,
@@ -195,10 +198,10 @@ describe("competition result orchestration", () => {
     const entrants: CompetitionEntrant[] = teams.map((snapshot, index) => ({
       id: `local:${snapshot.id}`,
       teamId: snapshot.id,
+      ownerUid: null,
       name: snapshot.name,
       rosterName: snapshot.rosterName,
       seed: index + 1,
-      team: snapshot,
     }));
     const fixtures = generateRoundRobin(entrants);
     const league: LeagueDoc = {

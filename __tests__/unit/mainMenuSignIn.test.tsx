@@ -26,9 +26,15 @@ const sdk = vi.hoisted(() => {
   }
   const deferred = <T,>(list: Deferred<T>[]) =>
     new Promise<T>((resolve, reject) => list.push({ resolve, reject }));
-  const state = {
+  interface FakeAuthState {
+    current: FakeUser | null;
+    onChange: (user: FakeUser | null) => void;
+    popups: Deferred<{ user: FakeUser }>[];
+    links: Deferred<void>[];
+  }
+  const state: FakeAuthState = {
     current: null,
-    onChange: (_user: FakeUser | null) => {},
+    onChange: () => {},
     popups: new Array<Deferred<{ user: FakeUser }>>(),
     links: new Array<Deferred<void>>(),
   };
@@ -58,7 +64,7 @@ vi.mock("../../src/firebase/config", async (importOriginal) => ({
 
 vi.mock("firebase/auth", () => ({
   GoogleAuthProvider: class {},
-  onAuthStateChanged: (_auth: unknown, listener: () => void) => {
+  onAuthStateChanged: (_auth: unknown, listener: (user: unknown) => void) => {
     sdk.state.onChange = listener;
     listener(sdk.state.current);
   },

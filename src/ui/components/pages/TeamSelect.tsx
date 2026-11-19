@@ -53,16 +53,14 @@ function ReadyMadeTeamPicker({
 }) {
   const [roster, setRoster] = useState<RosterName>(RosterName.HUMAN);
   const add = () => {
+    const color = READY_MADE_COLORS[teams.length % READY_MADE_COLORS.length];
+    if (color === undefined) return;
     const taken = new Set(teams.map((team) => team.name));
     const base = `Ready-made ${roster}`;
     let name = base;
     for (let n = 2; taken.has(name); n++) name = `${base} ${String(n)}`;
     saveTeam(
-      createReadyMadeTeam(
-        roster,
-        name,
-        READY_MADE_COLORS[teams.length % READY_MADE_COLORS.length]
-      )
+      createReadyMadeTeam(roster, name, color)
     );
     onAdded();
   };

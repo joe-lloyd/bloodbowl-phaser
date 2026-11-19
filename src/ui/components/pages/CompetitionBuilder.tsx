@@ -49,7 +49,7 @@ interface Candidate {
   id: string;
   label: string;
   team: Team;
-  ownerUid?: string;
+  ownerUid?: string | undefined;
 }
 
 interface ComputerRow {
@@ -162,6 +162,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           (roster) => (rosterCounts.get(roster) ?? 0) === fewest
         );
         const roster = pool[Math.floor(Math.random() * pool.length)];
+        if (roster === undefined) continue;
         const variants = templates.filter(
           (template) => template.rosterName === roster
         );
@@ -170,6 +171,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         );
         const choices = unused.length > 0 ? unused : variants;
         const template = choices[Math.floor(Math.random() * choices.length)];
+        if (!template) continue;
         next.push({ id, template });
         rosterCounts.set(roster, (rosterCounts.get(roster) ?? 0) + 1);
       }

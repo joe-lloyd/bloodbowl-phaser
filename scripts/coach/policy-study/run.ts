@@ -33,7 +33,9 @@ import { labInventory } from "../policy-lab/teams";
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) =>
-  args.includes("--" + name) ? args[args.indexOf("--" + name) + 1] : fallback;
+  args.includes("--" + name)
+    ? (args[args.indexOf("--" + name) + 1] ?? fallback)
+    : fallback;
 const entry = fileURLToPath(import.meta.url);
 const root = resolve(dirname(entry), "../../..");
 const out = resolve(flag("out", "sim-results/skill-plans"));
@@ -128,7 +130,7 @@ if (args.includes("--worker")) {
     ...module.makeCoach(opponent, []),
     name: "planner-frozen",
   };
-  process.on("message", async (job: PolicyJob | null) => {
+  process.on("message", async (job: PolicyJob | false) => {
     if (!job) {
       process.disconnect();
       return;

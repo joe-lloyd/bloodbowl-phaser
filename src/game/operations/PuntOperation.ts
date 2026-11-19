@@ -157,6 +157,8 @@ export class PuntOperation extends GameOperation {
 
     const facing = facingIndex(this.facingX, this.facingY);
     const direction = DIRS[(facing + templateOffset(directionRoll) + 8) % 8];
+    if (!direction)
+      throw new Error(`No Punt direction for facing ${String(facing)}`);
     const from = { ...punter.gridPosition };
     const { landing, intoCrowd } = puntFlight(from, direction, distance);
 

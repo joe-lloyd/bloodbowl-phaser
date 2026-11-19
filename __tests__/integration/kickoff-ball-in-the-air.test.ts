@@ -54,18 +54,16 @@ async function kickedIntoCharge() {
 }
 
 function board(game: HeadlessGame) {
-  const pitch = new Proxy(
-    {
-      worldToGrid: (x: number, y: number) => ({ x, y }),
-      highlightSquare: () => ({ destroy: () => {} }),
+  const members: Record<string, unknown> = {
+    worldToGrid: (x: number, y: number) => ({ x, y }),
+    highlightSquare: () => ({ destroy: () => {} }),
+  };
+  const pitch = new Proxy(members, {
+    get: (target, key: string) => {
+      if (!(key in target)) target[key] = vi.fn();
+      return target[key];
     },
-    {
-      get: (target, key: string) => {
-        if (!(key in target)) target[key] = vi.fn();
-        return target[key];
-      },
-    }
-  );
+  });
   const scene = {
     team1: game.ctx.team1,
     team2: game.ctx.team2,
@@ -73,8 +71,13 @@ function board(game: HeadlessGame) {
     highlightPlayer: vi.fn(),
     unhighlightPlayer: vi.fn(),
   };
-  return new GameplayInteractionController(
-    { scene: scene as never,gameService: game.ctx.gameService,eventBus: game.ctx.eventBus,pitch: pitch as never,movementValidator: new MovementValidator() }  );
+  return new GameplayInteractionController({
+    scene: scene as never,
+    gameService: game.ctx.gameService,
+    eventBus: game.ctx.eventBus,
+    pitch: pitch as never,
+    movementValidator: new MovementValidator(),
+  });
 }
 
 const settle = async () => {
@@ -103,12 +106,14 @@ function watch(game: HeadlessGame) {
     });
   });
   eventBus.on(GameEventNames.DiceRoll, (roll) => {
-    const context: | { target?: number; modifier?: number }
-      | undefined = roll.context;
+    const context: { target?: number; modifier?: number } | undefined =
+      roll.context;
     dice.push({
       rollType: roll.rollType,
       ...(context?.target === undefined ? {} : { target: context?.target }),
-      ...(context?.modifier === undefined ? {} : { modifier: context?.modifier }),
+      ...(context?.modifier === undefined
+        ? {}
+        : { modifier: context?.modifier }),
     });
   });
   return { plannedRolls, prompts, dice };
@@ -150,7 +155,9 @@ describe("Moving under a kicked ball that is still in the air", () => {
 
     await chargeTo(game, controller, fixtureValue(charger).id, LANDING);
 
-    expect(fixtureValue(gs.getPlayerById(fixtureValue(charger).id)).gridPosition).toEqual(LANDING);
+    expect(
+      fixtureValue(gs.getPlayerById(fixtureValue(charger).id)).gridPosition
+    ).toEqual(LANDING);
     expect(gs.getPhase()).toBe(GamePhase.KICKOFF);
     expect(gs.getState().ballPosition).toEqual(LANDING);
     expect(seen.plannedRolls).not.toContain("pickup");
@@ -192,7 +199,10 @@ describe("Moving under a kicked ball that is still in the air", () => {
     const controller = board(game);
     const charger = team1.players[1];
 
-    fixtureValue(team2.players[0]).gridPosition = { x: LANDING.x + 1, y: LANDING.y };
+    fixtureValue(team2.players[0]).gridPosition = {
+      x: LANDING.x + 1,
+      y: LANDING.y,
+    };
 
     await chargeTo(game, controller, fixtureValue(charger).id, LANDING);
     expect(seen.plannedRolls).not.toContain("pickup");

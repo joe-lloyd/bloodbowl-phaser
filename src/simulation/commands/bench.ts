@@ -18,7 +18,7 @@ import {
 } from "../bench";
 import { solveRates } from "../puzzles";
 import { AVERAGE_TOUCHDOWNS } from "../standards";
-import { type CoachName, makeCoach } from "./shared";
+import { type CoachName, fail, makeCoach } from "./shared";
 
 export interface BenchOptions {
   coach: CoachName;
@@ -60,7 +60,7 @@ async function loadFrozenPlanner(
 }
 
 export async function benchWorker(argv: string[]): Promise<number> {
-  const options = JSON.parse(argv[0]) as BenchOptions;
+  const options = JSON.parse(argv[0] ?? "") as BenchOptions;
   const candidate = makeCoach(options.coach, [], options.weights);
   const baseline = options.vsModule
     ? await loadFrozenPlanner(options.vsModule, options.vsWeights)
@@ -91,7 +91,7 @@ export async function runBench(options: BenchOptions): Promise<number> {
 
   const jobs = benchJobs(options.games / 2, options.seed, () => [
     options.standards
-      ? options.rosters[pair++ % options.rosters.length]
+      ? (options.rosters[pair++ % options.rosters.length] ?? fail("no rosters"))
       : pairing.pick(options.rosters),
     pairing.pick(options.rosters),
   ]);
@@ -108,7 +108,7 @@ export async function runBench(options: BenchOptions): Promise<number> {
       () =>
         new Promise<void>((resolve, reject) => {
           const child = fork(
-            process.argv[1],
+            process.argv[1] ?? fail("no script to fork"),
             ["bench-worker", JSON.stringify(options)],
             { execArgv: process.execArgv }
           );

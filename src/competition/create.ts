@@ -35,6 +35,11 @@ type EntrantChoice =
   | { team: Team; ownerUid: string | null }
   | { computerTemplateId: string };
 
+function entrantCoach(team: Team): Pick<CompetitionEntrant, "coachName"> {
+  if (team.computerCoached) return { coachName: COMPUTER_COACH };
+  return team.coachName === undefined ? {} : { coachName: team.coachName };
+}
+
 export interface NewCompetition {
   ruleset?: SevensRuleset;
   type: CompetitionType;
@@ -114,9 +119,7 @@ export async function createCompetition(
       teamId: team.id,
       ownerUid,
       name: team.name,
-      coachName: team.computerCoached
-        ? COMPUTER_COACH
-        : (team.coachName ?? undefined),
+      ...entrantCoach(team),
       coachUid: ownerUid,
       rosterName: team.rosterName,
       ...(team.computerCoached ? { computerCoached: true as const } : {}),

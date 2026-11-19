@@ -35,7 +35,9 @@ export function hasModelArt(model: string): boolean {
 }
 
 export function modelArt(model: string): ModelArt {
-  return MODELS[model] ?? MODELS[FALLBACK_MODEL];
+  const art = MODELS[model] ?? MODELS[FALLBACK_MODEL];
+  if (!art) throw new Error(`Missing player art for ${model}`);
+  return art;
 }
 
 export function textureKey(model: string, layer: Layer): string {

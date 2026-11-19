@@ -124,7 +124,12 @@ function buildTeams(
 ): string[] {
   return rosters.map((roster, index) => {
     const name = tag ? `${roster} ${tag}` : roster;
-    const team = createComputerTeam({ rosterName: roster, name: name, primaryColour: 0x224488 + index * 0x331100, advancementMode: mode });
+    const team = createComputerTeam({
+      rosterName: roster,
+      name: name,
+      primaryColour: 0x224488 + index * 0x331100,
+      advancementMode: mode,
+    });
     saveTeam(team);
     return team.id;
   });
@@ -158,7 +163,7 @@ async function playFixture(
   type: "league" | "tournament",
   fixture: CompetitionFixture
 ): Promise<"recorded" | "unrecorded"> {
-  const competition = fixtureValue((await getCompetition(type, competitionId)));
+  const competition = fixtureValue(await getCompetition(type, competitionId));
   const entrant = (id: string | null) =>
     fixtureValue(competition.entrants.find((e) => e.id === id));
   const where = `${competition.name} ${fixture.id}`;
@@ -169,7 +174,9 @@ async function playFixture(
       note(
         where,
         "launch-blocked",
-        `${team.name} still has ${fixtureValue(team.pendingDevelopment).map((e) => e.kind).join(", ")}`
+        `${team.name} still has ${fixtureValue(team.pendingDevelopment)
+          .map((e) => e.kind)
+          .join(", ")}`
       );
   }
   const before = new Map(
@@ -254,9 +261,9 @@ function checkKickoff(
 ): void {
   for (const team of [game.ctx.team1, game.ctx.team2]) {
     if (!isLeagueMode(team.advancementMode)) continue;
-    const owed = fixtureValue(before
-      .get(team.id))
-      .players.filter((p) => p.injuries.includes(InjuryType.MISS_NEXT_GAME));
+    const owed = fixtureValue(before.get(team.id)).players.filter((p) =>
+      p.injuries.includes(InjuryType.MISS_NEXT_GAME)
+    );
     for (const player of owed) {
       const inMatch = team.players.find((p) => p.id === player.id);
       if (inMatch?.status !== PlayerStatus.INJURED)
@@ -296,7 +303,7 @@ function checkAfterMatch(
   const key = `${competition.id}:${fixture.id}`;
   for (const [teamId, previous] of before) {
     const now = mustLoad(teamId);
-    const [own, other] = scores[teamId];
+    const [own, other] = fixtureValue(scores[teamId]);
     if (own !== other && !winnerTeamId)
       note(
         where,
@@ -352,7 +359,9 @@ function checkAfterMatch(
       note(
         where,
         "development-left",
-        `${now.name}: ${fixtureValue(now.pendingDevelopment).map((e) => e.kind).join(", ")}`
+        `${now.name}: ${fixtureValue(now.pendingDevelopment)
+          .map((e) => e.kind)
+          .join(", ")}`
       );
   }
 }
@@ -436,7 +445,9 @@ async function finishCompetition(
   competition: CompetitionDoc,
   teamIds: string[]
 ): Promise<void> {
-  const latest = fixtureValue((await getCompetition(competition.type, competition.id)));
+  const latest = fixtureValue(
+    await getCompetition(competition.type, competition.id)
+  );
   if (latest.status !== "complete")
     note(
       latest.name,
@@ -484,7 +495,9 @@ async function finishCompetition(
 
 async function playCompetition(competition: CompetitionDoc): Promise<void> {
   for (let guard = 0; guard < 200; guard++) {
-    const latest = fixtureValue((await getCompetition(competition.type, competition.id)));
+    const latest = fixtureValue(
+      await getCompetition(competition.type, competition.id)
+    );
     const next = latest.fixtures.find(
       (f) => f.status !== "complete" && f.homeEntrantId && f.awayEntrantId
     );

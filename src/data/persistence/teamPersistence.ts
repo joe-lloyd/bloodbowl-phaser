@@ -185,7 +185,9 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
     injuries: Array.isArray(raw["injuries"])
       ? (raw["injuries"])
       : [],
-    careerStats: raw["careerStats"] as PlayerCareerStats | undefined,
+    ...(raw["careerStats"] === undefined
+      ? {}
+      : { careerStats: raw["careerStats"] as PlayerCareerStats }),
     ...(typeof raw["timesKeptFromDraft"] === "number"
       ? { timesKeptFromDraft: raw["timesKeptFromDraft"] }
       : {}),
@@ -371,7 +373,9 @@ export function hydrateStoredTeam(
   const team: Team = {
     id: teamId,
     name: String(raw["name"] ?? ""),
-    coachName: raw["coachName"] as string | undefined,
+    ...(typeof raw["coachName"] === "string"
+      ? { coachName: raw["coachName"] }
+      : {}),
     rosterName: rosterName!,
     colors: raw["colors"] as TeamColors,
     players,

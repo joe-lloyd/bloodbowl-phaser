@@ -1,5 +1,5 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
-import React, { act, useState } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { HudTabs } from "../../src/ui/components/componentWarehouse/HudKit";

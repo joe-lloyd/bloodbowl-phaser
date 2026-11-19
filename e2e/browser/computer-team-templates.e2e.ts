@@ -151,7 +151,7 @@ test("the same template enters two leagues as different teams with the league mo
   for (const [name, mode] of [
     ["First season", "advanced-league"],
     ["Second season", "sevens-skill-selection"],
-  ]) {
+  ] as const) {
     await openCatalogue(page, "Altdorf All Sorts");
     await page.getByRole("button", { name: "Add to a league" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill(fixtureValue(name));

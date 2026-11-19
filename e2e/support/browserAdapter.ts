@@ -79,9 +79,12 @@ export async function performStep(
       return;
 
     case "pass":
-    case "handoff":
     case "foul":
       await app.pitch.clickSquare({ x: command.x, y: command.y });
+      return;
+
+    case "handoff":
+      await app.pitch.clickPlayer(command.targetId);
       return;
 
     case "end-activation":

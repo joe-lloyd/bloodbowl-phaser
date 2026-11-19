@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
-import type { IEventBus } from "../../src/services/EventBus";
 
 interface Beat {
   at: number;
@@ -10,7 +9,6 @@ interface Beat {
 
 declare global {
   interface Window {
-    eventBus: IEventBus;
     __turnoverPace: { beats: Beat[]; failedLandedAt: number; bannerAt: number };
   }
 }

@@ -38,8 +38,8 @@ afterEach(async () => {
 
 it("closes the action panel when a turnover happens", async () => {
   const teamId = game.ctx.team1.id;
-  const player = game.ctx.team1.players[0];
-  fixtureValue(player).gridPosition = { x: 5, y: 5 };
+  const player = fixtureValue(game.ctx.team1.players[0]);
+  player.gridPosition = { x: 5, y: 5 };
   await act(async () => {
     root.render(
       <PlayerActionMenu
@@ -72,8 +72,8 @@ it("closes the action panel when a turnover happens", async () => {
 
 it("hides the action panel while an online match cannot take commands", async () => {
   const teamId = game.ctx.team1.id;
-  const player = game.ctx.team1.players[0];
-  fixtureValue(player).gridPosition = { x: 5, y: 5 };
+  const player = fixtureValue(game.ctx.team1.players[0]);
+  player.gridPosition = { x: 5, y: 5 };
   let mayAct = false;
   setActiveOnlineMatch({ mayAct: () => mayAct } as unknown as OnlineMatch);
   await act(async () => {

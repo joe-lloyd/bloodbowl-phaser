@@ -27,7 +27,10 @@ import {
 const EMULATOR = process.env["FIRESTORE_EMULATOR_HOST"];
 const PROJECT = "demo-bloodbowl-rules";
 
-const current = vi.hoisted(() => ({ db: null, uid: "" }));
+const current = vi.hoisted((): { db: Firestore | null; uid: string } => ({
+  db: null,
+  uid: "",
+}));
 vi.mock("../../src/firebase/config", () => ({
   getDb: () => current.db,
   isFirebaseConfigured: () => true,
@@ -100,6 +103,11 @@ const ADMIN = "owner";
 const BOT = HOUSE_BOT_UID;
 
 const SQUATTER = "squatter-uid";
+
+type EditableFixture = { id: string; status: string; result: unknown } & Record<
+  string,
+  unknown
+>;
 
 const apps: FirebaseApp[] = [];
 const dbs = new Map<string, Firestore>();
@@ -184,7 +192,14 @@ async function selectTeamDirectly(code: string): Promise<void> {
 
 async function activeMatch(): Promise<string> {
   const code = await seededLobby();
-  await as(HOST, () => startMatch({ code,settings: DEFAULT_SETTINGS,hostUid: HOST,guestUid: GUEST }));
+  await as(HOST, () =>
+    startMatch({
+      code,
+      settings: DEFAULT_SETTINGS,
+      hostUid: HOST,
+      guestUid: GUEST,
+    })
+  );
   return code;
 }
 
@@ -280,7 +295,14 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await as(GUEST, () => revealSeed(code, GUEST));
       await as(HOST, () => setReady(code, HOST, true));
       await as(GUEST, () => setReady(code, GUEST, true));
-      await as(HOST, () => startMatch({ code,settings: DEFAULT_SETTINGS,hostUid: HOST,guestUid: GUEST }));
+      await as(HOST, () =>
+        startMatch({
+          code,
+          settings: DEFAULT_SETTINGS,
+          hostUid: HOST,
+          guestUid: GUEST,
+        })
+      );
 
       await as(HOST, () => setCoinFlipReady(code, true));
       await as(GUEST, () => setCoinFlipReady(code, false));
@@ -291,7 +313,14 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await as(HOST, () => heartbeat(code, HOST));
       await as(GUEST, () => heartbeat(code, GUEST));
       await as(GUEST, () => pauseClock(code, GUEST));
-      await as(GUEST, () => resumeClock({ code: code, uid: GUEST, remainingBankMs: 1000, newDeadline: Date.now() }));
+      await as(GUEST, () =>
+        resumeClock({
+          code: code,
+          uid: GUEST,
+          remainingBankMs: 1000,
+          newDeadline: Date.now(),
+        })
+      );
       const resume = { rng: {}, matchStats: {}, applied: 3 } as never;
       await as(HOST, () => persistMatch(code, {} as never, resume));
       await as(GUEST, () => persistMatch(code, {} as never, resume));
@@ -439,7 +468,14 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       const code = await joinedLobby();
       await denied(as(GUEST, () => finishMatch(code, "abandoned")));
       await denied(
-        as(HOST, () => startMatch({ code,settings: DEFAULT_SETTINGS,hostUid: HOST,guestUid: GUEST }))
+        as(HOST, () =>
+          startMatch({
+            code,
+            settings: DEFAULT_SETTINGS,
+            hostUid: HOST,
+            guestUid: GUEST,
+          })
+        )
       );
     });
 
@@ -462,15 +498,38 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
     it("cannot spend the other coach's clock or pause in their name", async () => {
       const code = await activeMatch();
       await denied(as(GUEST, () => pauseClock(code, HOST)));
-      await denied(as(GUEST, () => resumeClock({ code: code, uid: HOST, remainingBankMs: 0, newDeadline: Date.now() })));
+      await denied(
+        as(GUEST, () =>
+          resumeClock({
+            code: code,
+            uid: HOST,
+            remainingBankMs: 0,
+            newDeadline: Date.now(),
+          })
+        )
+      );
       await as(GUEST, () => pauseClock(code, GUEST));
-      await as(GUEST, () => resumeClock({ code: code, uid: GUEST, remainingBankMs: 1000, newDeadline: Date.now() }));
+      await as(GUEST, () =>
+        resumeClock({
+          code: code,
+          uid: GUEST,
+          remainingBankMs: 1000,
+          newDeadline: Date.now(),
+        })
+      );
     });
 
     it("cannot start the match or change settings unless they host", async () => {
       const code = await seededLobby();
       await denied(
-        as(GUEST, () => startMatch({ code,settings: DEFAULT_SETTINGS,hostUid: HOST,guestUid: GUEST }))
+        as(GUEST, () =>
+          startMatch({
+            code,
+            settings: DEFAULT_SETTINGS,
+            hostUid: HOST,
+            guestUid: GUEST,
+          })
+        )
       );
       await denied(
         as(GUEST, () =>
@@ -613,12 +672,16 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       doc(dbFor(uid), "leagues", id);
 
     const guestsFixture = (comp: LeagueDoc) => {
-      const fixture = fixtureValue(comp.fixtures.find((f) =>
-        [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
-      ));
-      const rival = fixtureValue([fixture.homeEntrantId, fixture.awayEntrantId]
-        .find((id) => id !== `e-${GUEST}`))
-        .replace("e-", "");
+      const fixture = fixtureValue(
+        comp.fixtures.find((f) =>
+          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+        )
+      );
+      const rival = fixtureValue(
+        [fixture.homeEntrantId, fixture.awayEntrantId].find(
+          (id) => id !== `e-${GUEST}`
+        )
+      ).replace("e-", "");
       return { fixture, rival };
     };
 
@@ -628,7 +691,11 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         const comp = await league(ruleset);
         const { fixture } = guestsFixture(comp);
         const updated = await as(GUEST, () =>
-          recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+          recordCompetitionFixture({
+            context: context(comp, fixture.id),
+            homeScore: 2,
+            awayScore: 1,
+          })
         );
         expect(updated.fixtures.find((f) => f.id === fixture.id)?.status).toBe(
           "complete"
@@ -785,10 +852,16 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
 
       await expect(
         as(STRANGER, () =>
-          recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+          recordCompetitionFixture({
+            context: context(comp, fixture.id),
+            homeScore: 2,
+            awayScore: 1,
+          })
         )
       ).rejects.toMatchObject({ code: "permission-denied" });
-      const copy = JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_competitions")));
+      const copy = JSON.parse(
+        fixtureValue(localStorage.getItem("bloodbowl_competitions"))
+      );
       expect(
         copy[`league:${comp.id}`].fixtures.find(
           (f: { id: string }) => f.id === fixture.id
@@ -807,7 +880,11 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       const { fixture } = guestsFixture(comp);
       await expect(
         as(STRANGER, () =>
-          recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+          recordCompetitionFixture({
+            context: context(comp, fixture.id),
+            homeScore: 2,
+            awayScore: 1,
+          })
         )
       ).rejects.toMatchObject({ code: "permission-denied" });
     });
@@ -822,10 +899,16 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       const { fixture } = guestsFixture(comp);
       await expect(
         as(GUEST, () =>
-          recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+          recordCompetitionFixture({
+            context: context(comp, fixture.id),
+            homeScore: 2,
+            awayScore: 1,
+          })
         )
       ).rejects.toThrow("Competition not found.");
-      const copy = JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_competitions")));
+      const copy = JSON.parse(
+        fixtureValue(localStorage.getItem("bloodbowl_competitions"))
+      );
       expect(
         copy[`league:${comp.id}`].fixtures.find(
           (f: { id: string }) => f.id === fixture.id
@@ -844,13 +927,19 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       const stale = await as(ORGANIZER, () =>
         getCompetition("league", comp.id)
       );
-      const played = fixtureValue(comp.fixtures.find(
-        (f) =>
-          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`) &&
-          [f.homeEntrantId, f.awayEntrantId].includes(`e-${THIRD}`)
-      ));
+      const played = fixtureValue(
+        comp.fixtures.find(
+          (f) =>
+            [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`) &&
+            [f.homeEntrantId, f.awayEntrantId].includes(`e-${THIRD}`)
+        )
+      );
       await as(GUEST, () =>
-        recordCompetitionFixture({ context: context(comp,played.id),homeScore: 2,awayScore: 1 })
+        recordCompetitionFixture({
+          context: context(comp, played.id),
+          homeScore: 2,
+          awayScore: 1,
+        })
       );
 
       await as(ORGANIZER, () => closeWalkovers(fixtureValue(stale)));
@@ -864,11 +953,13 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
 
     it("sends a withdrawn team's knockout opponent through", async () => {
       const comp = await tournament();
-      const first = fixtureValue(comp.fixtures.find(
-        (f) =>
-          f.round === 1 &&
-          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
-      ));
+      const first = fixtureValue(
+        comp.fixtures.find(
+          (f) =>
+            f.round === 1 &&
+            [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+        )
+      );
       const rival =
         first.homeEntrantId === `e-${GUEST}`
           ? first.awayEntrantId
@@ -882,21 +973,28 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       const stored = (
         await getDoc(doc(dbFor(ADMIN), "tournaments", comp.id))
       ).data() as TournamentDoc;
-      const final = fixtureValue(stored.fixtures.find((f) => f.id === first.nextFixtureId));
+      const final = fixtureValue(
+        stored.fixtures.find((f) => f.id === first.nextFixtureId)
+      );
       expect([final.homeEntrantId, final.awayEntrantId]).toContain(rival);
     });
 
     it("walks over a knockout game whose opponent arrives after the withdrawal", async () => {
       const comp = await tournament();
-      const semi = fixtureValue(comp.fixtures.find(
-        (f) =>
-          f.round === 1 &&
-          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
-      ));
+      const semi = fixtureValue(
+        comp.fixtures.find(
+          (f) =>
+            f.round === 1 &&
+            [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+        )
+      );
       const guestHome = semi.homeEntrantId === `e-${GUEST}`;
       await as(GUEST, () =>
-        recordCompetitionFixture(
-          { context: context(comp,semi.id),homeScore: guestHome? 2:0,awayScore: guestHome? 0:2 }        )
+        recordCompetitionFixture({
+          context: context(comp, semi.id),
+          homeScore: guestHome ? 2 : 0,
+          awayScore: guestHome ? 0 : 2,
+        })
       );
       await as(GUEST, () =>
         withdrawFromCompetition(
@@ -904,17 +1002,23 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
           `e-${GUEST}`
         )
       );
-      const other = fixtureValue(comp.fixtures.find(
-        (f) => f.round === 1 && f.id !== semi.id
-      ));
+      const other = fixtureValue(
+        comp.fixtures.find((f) => f.round === 1 && f.id !== semi.id)
+      );
       const reporter = fixtureValue(other.homeEntrantId).replace("e-", "");
       await as(reporter, () =>
-        recordCompetitionFixture({ context: context(comp,other.id),homeScore: 2,awayScore: 1 })
+        recordCompetitionFixture({
+          context: context(comp, other.id),
+          homeScore: 2,
+          awayScore: 1,
+        })
       );
       const stored = (
         await getDoc(doc(dbFor(ADMIN), "tournaments", comp.id))
       ).data() as TournamentDoc;
-      const final = fixtureValue(stored.fixtures.find((f) => f.id === semi.nextFixtureId));
+      const final = fixtureValue(
+        stored.fixtures.find((f) => f.id === semi.nextFixtureId)
+      );
       expect(final.status).toBe("complete");
       expect(final.result?.walkover).toBeDefined();
       expect(final.result?.winnerEntrantId).toBe(other.homeEntrantId);
@@ -922,11 +1026,19 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
 
     it("can report a tournament match, which advances the winner", async () => {
       const comp = await tournament();
-      const first = fixtureValue(comp.fixtures.find((f) => f.status === "ready"));
-      const updated = await as(GUEST, () =>
-        recordCompetitionFixture({ context: context(comp,first.id),homeScore: 2,awayScore: 1 })
+      const first = fixtureValue(
+        comp.fixtures.find((f) => f.status === "ready")
       );
-      const next = fixtureValue(updated.fixtures.find((f) => f.id === first.nextFixtureId));
+      const updated = await as(GUEST, () =>
+        recordCompetitionFixture({
+          context: context(comp, first.id),
+          homeScore: 2,
+          awayScore: 1,
+        })
+      );
+      const next = fixtureValue(
+        updated.fixtures.find((f) => f.id === first.nextFixtureId)
+      );
       const winner = first.homeEntrantId;
       expect([next.homeEntrantId, next.awayEntrantId]).toContain(winner);
     });
@@ -935,25 +1047,34 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       "can report a knockout game won on Penalties with ruleset %s, which advances the winner",
       async (ruleset) => {
         const comp = await tournament(ruleset);
-        const mine = fixtureValue(comp.fixtures.find(
-          (f) =>
-            f.status === "ready" &&
-            [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
-        ));
+        const mine = fixtureValue(
+          comp.fixtures.find(
+            (f) =>
+              f.status === "ready" &&
+              [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+          )
+        );
         const updated = await as(GUEST, () =>
           recordCompetitionFixture({
-              context: context(comp,mine.id),homeScore: 1,awayScore: 1,progressedTeams: undefined,penalties: {
-                home: 2,
-                away: 3,
-              }
-            })
+            context: context(comp, mine.id),
+            homeScore: 1,
+            awayScore: 1,
+            penalties: {
+              home: 2,
+              away: 3,
+            },
+          })
         );
-        const next = fixtureValue(updated.fixtures.find((f) => f.id === mine.nextFixtureId));
+        const next = fixtureValue(
+          updated.fixtures.find((f) => f.id === mine.nextFixtureId)
+        );
         expect([next.homeEntrantId, next.awayEntrantId]).toContain(
           mine.awayEntrantId
         );
         const ref = doc(dbFor(GUEST), "tournaments", comp.id);
-        expect(fixtureValue((await getDoc(ref)).data())?.["ruleset"]).toBe(ruleset);
+        expect(fixtureValue((await getDoc(ref)).data())?.["ruleset"]).toBe(
+          ruleset
+        );
         await denied(
           updateDoc(ref, {
             ruleset:
@@ -967,11 +1088,13 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
 
     it("cannot name a Penalties winner the shoot-out does not support, or in a league", async () => {
       const cup = await tournament();
-      const mine = fixtureValue(cup.fixtures.find(
-        (f) =>
-          f.status === "ready" &&
-          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
-      ));
+      const mine = fixtureValue(
+        cup.fixtures.find(
+          (f) =>
+            f.status === "ready" &&
+            [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+        )
+      );
       const reporterEntrantIndex = cup.entrants.findIndex(
         (e) => e.ownerUid === GUEST
       );
@@ -1033,9 +1156,15 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
 
       const stale = structuredClone(comp);
       await as(rival, () =>
-        recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+        recordCompetitionFixture({
+          context: context(comp, fixture.id),
+          homeScore: 2,
+          awayScore: 1,
+        })
       );
-      const staleFixture = fixtureValue(stale.fixtures.find((f) => f.id === fixture.id));
+      const staleFixture = fixtureValue(
+        stale.fixtures.find((f) => f.id === fixture.id)
+      );
       staleFixture.status = "complete";
       staleFixture.result = {
         homeScore: 2,
@@ -1050,7 +1179,11 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       );
 
       const raced = await as(GUEST, () =>
-        recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+        recordCompetitionFixture({
+          context: context(comp, fixture.id),
+          homeScore: 2,
+          awayScore: 1,
+        })
       );
       expect(
         raced.fixtures.find((f) => f.id === fixture.id)?.result?.homeScore
@@ -1060,18 +1193,28 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
     it("counts the result for the later coach's team, once", async () => {
       const comp = await league();
       const { fixture, rival } = guestsFixture(comp);
-      const guestTeam = fixtureValue(comp.entrants.find((e) => e.ownerUid === GUEST));
+      const guestTeam = fixtureValue(
+        comp.entrants.find((e) => e.ownerUid === GUEST)
+      );
       const homeIsGuest = fixture.homeEntrantId === guestTeam.id;
       saveTeam(team(guestTeam.teamId));
       await as(rival, () =>
-        recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+        recordCompetitionFixture({
+          context: context(comp, fixture.id),
+          homeScore: 2,
+          awayScore: 1,
+        })
       );
       localStorage.clear();
       saveTeam(team(guestTeam.teamId));
 
       const report = () =>
         as(GUEST, () =>
-          recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+          recordCompetitionFixture({
+            context: context(comp, fixture.id),
+            homeScore: 2,
+            awayScore: 1,
+          })
         );
       await report();
       await report();
@@ -1093,12 +1236,18 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       const first = await league();
       const second = await league();
       const { fixture } = guestsFixture(first);
-      const guestTeam = fixtureValue(first.entrants.find((e) => e.ownerUid === GUEST));
+      const guestTeam = fixtureValue(
+        first.entrants.find((e) => e.ownerUid === GUEST)
+      );
       expect(second.fixtures.map((f) => f.id)).toContain(fixture.id);
       saveTeam(team(guestTeam.teamId));
       for (const comp of [first, second]) {
         await as(GUEST, () =>
-          recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+          recordCompetitionFixture({
+            context: context(comp, fixture.id),
+            homeScore: 2,
+            awayScore: 1,
+          })
         );
       }
       const counted = fixtureValue(getTeamById(guestTeam.teamId));
@@ -1144,14 +1293,20 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
     it("cannot report a fixture they are not in, even naming a team of theirs", async () => {
       const comp = await league();
       const { fixture } = guestsFixture(comp);
-      const outsider = fixtureValue([HOST, THIRD, ORGANIZER].find(
-        (uid) =>
-          uid !== ORGANIZER &&
-          ![fixture.homeEntrantId, fixture.awayEntrantId].includes(`e-${uid}`)
-      ));
+      const outsider = fixtureValue(
+        [HOST, THIRD, ORGANIZER].find(
+          (uid) =>
+            uid !== ORGANIZER &&
+            ![fixture.homeEntrantId, fixture.awayEntrantId].includes(`e-${uid}`)
+        )
+      );
       await denied(
         as(outsider, () =>
-          recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 9,awayScore: 0 })
+          recordCompetitionFixture({
+            context: context(comp, fixture.id),
+            homeScore: 9,
+            awayScore: 0,
+          })
         )
       );
       const forged = JSON.parse(JSON.stringify(comp.fixtures));
@@ -1173,11 +1328,17 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
 
     it("can be reported by the organizer, who need not play in it", async () => {
       const comp = await league();
-      const fixture = fixtureValue(comp.fixtures.find(
-        (f) => ![f.homeEntrantId, f.awayEntrantId].includes(`e-${ORGANIZER}`)
-      ));
+      const fixture = fixtureValue(
+        comp.fixtures.find(
+          (f) => ![f.homeEntrantId, f.awayEntrantId].includes(`e-${ORGANIZER}`)
+        )
+      );
       const updated = await as(ORGANIZER, () =>
-        recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 1,awayScore: 0 })
+        recordCompetitionFixture({
+          context: context(comp, fixture.id),
+          homeScore: 1,
+          awayScore: 0,
+        })
       );
       expect(updated.fixtures.find((f) => f.id === fixture.id)?.status).toBe(
         "complete"
@@ -1225,20 +1386,22 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
     it("cannot name a winner the scores do not support, or send one down the wrong branch", async () => {
       const cup = await tournament();
       const ready = cup.fixtures.filter((f) => f.status === "ready");
-      const mine = fixtureValue(ready.find((f) =>
-        [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
-      ));
+      const mine = fixtureValue(
+        ready.find((f) =>
+          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+        )
+      );
       const reporterEntrantIndex = cup.entrants.findIndex(
         (e) => e.ownerUid === GUEST
       );
       const cupRef = doc(dbFor(GUEST), "tournaments", cup.id);
-      const write = (edit: (fixtures: Record<string, never>[]) => void) => {
+      const write = (edit: (fixtures: EditableFixture[]) => void) => {
         const fixtures = JSON.parse(JSON.stringify(cup.fixtures));
         edit(fixtures);
         return updateDoc(cupRef, { fixtures, reporterEntrantIndex });
       };
       const report = (
-        fixtures: { id: string; status: string; result: unknown }[],
+        fixtures: EditableFixture[],
         winnerEntrantId: string | null,
         homeScore = 2,
         awayScore = 1
@@ -1256,17 +1419,17 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       for (const winner of [mine.awayEntrantId, `e-${THIRD}`]) {
         await denied(
           write((fixtures) => {
-            report(fixtures as never, winner);
+            report(fixtures, winner);
           })
         );
       }
 
       await denied(
         write((fixtures) => {
-          report(fixtures as never, mine.homeEntrantId);
-          const next = fixtureValue((fixtures as never).find(
-            (f) => f["id"] === mine.nextFixtureId
-          ));
+          report(fixtures, mine.homeEntrantId);
+          const next = fixtureValue(
+            fixtures.find((f) => f["id"] === mine.nextFixtureId)
+          );
           const wrong = mine.nextSlot === "home" ? "away" : "home";
           next[`${wrong}EntrantId`] = mine.homeEntrantId;
         })
@@ -1276,9 +1439,9 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
     it("cannot advance anyone from an unfinished fixture, or jam a slot", async () => {
       const cup = await tournament();
       const cupRef = doc(dbFor(GUEST), "tournaments", cup.id);
-      const source = fixtureValue(cup.fixtures.find(
-        (f) => f.status === "ready" && f.nextFixtureId
-      ));
+      const source = fixtureValue(
+        cup.fixtures.find((f) => f.status === "ready" && f.nextFixtureId)
+      );
       const slot = `${String(source.nextSlot)}EntrantId`;
       const unfinished = JSON.parse(JSON.stringify(cup.fixtures));
       unfinished.find((f: { id: string }) => f.id === source.id).result = {
@@ -1328,13 +1491,19 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       const comp = await league();
       const { fixture } = guestsFixture(comp);
       await as(GUEST, () =>
-        recordCompetitionFixture({ context: context(comp,fixture.id),homeScore: 2,awayScore: 1 })
+        recordCompetitionFixture({
+          context: context(comp, fixture.id),
+          homeScore: 2,
+          awayScore: 1,
+        })
       );
       const current_ = (
         await getDoc(leagueRef(ADMIN, comp.id))
       ).data() as LeagueDoc;
       const fixtures = structuredClone(current_.fixtures);
-      fixtureValue(fixtureValue(fixtures.find((f) => f.id === fixture.id)).result).homeScore = 9;
+      fixtureValue(
+        fixtureValue(fixtures.find((f) => f.id === fixture.id)).result
+      ).homeScore = 9;
       await denied(updateDoc(leagueRef(GUEST, comp.id), { fixtures }));
     });
 
@@ -1361,7 +1530,8 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         })
       );
       const handedOver = structuredClone(comp.entrants);
-      fixtureValue(handedOver.find((e) => e.ownerUid === GUEST)).ownerUid = HOST;
+      fixtureValue(handedOver.find((e) => e.ownerUid === GUEST)).ownerUid =
+        HOST;
       await denied(
         updateDoc(leagueRef(GUEST, comp.id), { entrants: handedOver })
       );

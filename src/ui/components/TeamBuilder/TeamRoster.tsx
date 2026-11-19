@@ -23,9 +23,9 @@ interface TeamRosterProps {
   onFirePlayer: (playerId: string) => void;
   onReorderPlayers: (sourceSlot: number, targetSlot: number) => void;
 
-  onChooseVeteran?: (playerId: string) => void;
+  onChooseVeteran?: ((playerId: string) => void) | undefined;
 
-  onChooseTeamCaptain?: (playerId: string) => void;
+  onChooseTeamCaptain?: ((playerId: string) => void) | undefined;
 
   onOpenPlayer?: (playerId: string) => void;
 }
@@ -257,8 +257,8 @@ function PlayerBadges({
   onChooseTeamCaptain,
 }: {
   player: Player;
-  onChooseVeteran?: (playerId: string) => void;
-  onChooseTeamCaptain?: (playerId: string) => void;
+  onChooseVeteran?: ((playerId: string) => void) | undefined;
+  onChooseTeamCaptain?: ((playerId: string) => void) | undefined;
 }) {
   return (
     <>

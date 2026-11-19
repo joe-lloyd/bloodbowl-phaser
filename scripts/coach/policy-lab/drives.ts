@@ -10,6 +10,8 @@ import { PlayerStatus } from "../../../src/types/Player";
 import { GameConfig } from "../../../src/config/GameConfig";
 import { RosterName } from "../../../src/types/Team";
 
+const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
+
 const WIDTH = GameConfig.PITCH_WIDTH;
 const ROSTERS = new Set<string>(Object.values(RosterName));
 
@@ -64,7 +66,7 @@ export async function drivesOfTrace(file: string) {
   }
   watch.finish();
   return {
-    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName],
+    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName] as const,
     tallies,
   };
 }
@@ -79,7 +81,7 @@ export function watchDrives(
   game: HeadlessGame,
   tallies: [DriveTally, DriveTally]
 ) {
-  const teams = [game.ctx.team1, game.ctx.team2];
+  const teams = [game.ctx.team1, game.ctx.team2] as const;
   const sideOf = new Map(teams.map((t, i) => [t.id, i as 0 | 1]));
   const state = () => game.ctx.gameService.getState();
 
@@ -100,7 +102,7 @@ export function watchDrives(
   };
   const markedAt = (side: 0 | 1) => {
     const at = state().ballPosition!;
-    return teams[1 - side].players.some(
+    return teams[otherSide(side)].players.some(
       (p) =>
         p.status === PlayerStatus.ACTIVE &&
         p.gridPosition &&

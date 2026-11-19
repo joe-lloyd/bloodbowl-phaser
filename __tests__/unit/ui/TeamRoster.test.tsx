@@ -321,7 +321,9 @@ describe("TeamRoster row click and drag handle", () => {
                   team={team}
                   onFirePlayer={overrides.onFirePlayer ?? (() => {})}
                   onReorderPlayers={overrides.onReorderPlayers ?? (() => {})}
-                  onChooseVeteran={overrides.onChooseVeteran}
+                  {...(overrides.onChooseVeteran
+                    ? { onChooseVeteran: overrides.onChooseVeteran }
+                    : {})}
                 />
               }
             />

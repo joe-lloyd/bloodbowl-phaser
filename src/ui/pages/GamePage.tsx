@@ -29,10 +29,10 @@ interface GamePageProps {
   mode?: "normal" | "sandbox";
 
   teams?: { team1: Team; team2: Team };
-  progressionEnabled?: boolean;
-  competitionContext?: CompetitionContext;
+  progressionEnabled?: boolean | undefined;
+  competitionContext?: CompetitionContext | undefined;
 
-  onlineMenu?: OnlineMatchMenuProps;
+  onlineMenu?: OnlineMatchMenuProps | undefined;
 
   resumed?: boolean;
 }
@@ -210,14 +210,18 @@ export function GamePage({
 
   return (
     <div className="w-full h-full relative">
-      <LoadingScreen eventBus={eventBus} teams={matchTeams} />
+      <LoadingScreen
+        eventBus={eventBus}
+        {...(matchTeams === undefined ? {} : { teams: matchTeams })}
+      />
 
       <GameHUD
         eventBus={eventBus}
         mode={mode}
-        onlineMenu={onlineMenu}
-        leaveTo={fixtureContext ? competitionPath(fixtureContext) : undefined}
-        fixtureContext={fixtureContext ?? undefined}
+        {...(onlineMenu === undefined ? {} : { onlineMenu })}
+        {...(fixtureContext
+          ? { leaveTo: competitionPath(fixtureContext), fixtureContext }
+          : {})}
       />
 
       <RotatePrompt />

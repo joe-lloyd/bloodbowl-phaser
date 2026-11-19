@@ -24,7 +24,7 @@ import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
 const entry = fileURLToPath(import.meta.url);
 const args = process.argv.slice(2);
 const flag = (key: string, fallback: string) =>
-  args.includes("--" + key) ? args[args.indexOf("--" + key) + 1] : fallback;
+  args.includes("--" + key) ? (args[args.indexOf("--" + key) + 1] ?? fallback) : fallback;
 const out = resolve(flag("out", "sim-results/advanced-study"));
 const variants = advancedInventory();
 const byId = new Map(variants.map((v) => [v.id, v]));
@@ -35,7 +35,7 @@ function atomic(file: string, value: unknown) {
 }
 
 if (args.includes("--worker")) {
-  process.on("message", async (job: AdvancedJob | null) => {
+  process.on("message", async (job: AdvancedJob | false) => {
     if (!job) {
       process.disconnect();
       return;
@@ -144,7 +144,7 @@ if (args.includes("--worker")) {
                     );
                 }
                 current = pending[next++];
-                child.send(current ?? null);
+                child.send(current ?? false);
               }
             );
             child.on("exit", (code) => {

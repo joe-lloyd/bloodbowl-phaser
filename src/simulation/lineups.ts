@@ -65,9 +65,10 @@ function lineupTemplates(
   const linemen = roster.playerTemplates.filter((t) =>
     isLinemanPosition(t.keywords)
   );
-  const lineman = [...linemen].sort(
+  const [lineman] = [...linemen].sort(
     (a, b) => (b.maxAllowed ?? 99) - (a.maxAllowed ?? 99) || a.cost - b.cost
-  )[0];
+  );
+  if (!lineman) throw new Error(`${rosterName} has no lineman position`);
   const positionals = roster.playerTemplates
     .filter((t) => !isLinemanPosition(t.keywords))
     .sort((a, b) => b.cost - a.cost);

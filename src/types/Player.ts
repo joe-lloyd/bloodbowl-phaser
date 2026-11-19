@@ -257,38 +257,6 @@ export function createPlayer(
   };
 }
 
-function canPlayerAct(player: Player): boolean {
-  return player.status === PlayerStatus.ACTIVE && !player.hasActed;
-}
-
-function isPlayerOnPitch(player: Player): boolean {
-  return (
-    player.status === PlayerStatus.ACTIVE ||
-    player.status === PlayerStatus.PRONE ||
-    player.status === PlayerStatus.STUNNED
-  );
-}
-
-function getPlayerMovement(player: Player): number {
-  return player.stats.MA;
-}
-
-function getPlayerStrength(player: Player): number {
-  return player.stats.ST;
-}
-
-function getPlayerAgility(player: Player): number {
-  return player.stats.AG;
-}
-
-function getPlayerPassing(player: Player): number {
-  return player.stats.PA;
-}
-
-function getPlayerArmor(player: Player): number {
-  return player.stats.AV;
-}
-
 export function hasCondition(player: Player, type: PlayerCondition): boolean {
   return (player.conditions ?? []).some((c) => c.type === type);
 }

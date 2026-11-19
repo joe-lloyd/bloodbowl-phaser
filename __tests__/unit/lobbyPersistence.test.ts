@@ -16,7 +16,9 @@ vi.mock("../../src/firebase/config", () => ({ getDb: () => ({}) }));
 
 import { persistMatch } from "../../src/firebase/lobby";
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("online match persistence", () => {
   it.each([

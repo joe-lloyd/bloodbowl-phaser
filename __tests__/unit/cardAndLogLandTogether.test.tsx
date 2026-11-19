@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -19,7 +20,7 @@ beforeEach(async () => {
   const game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
   ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
-  player = game.ctx.team1.players[0];
+  player = fixtureValue(game.ctx.team1.players[0]);
   player.gridPosition = { x: 5, y: 5 };
   player.status = PlayerStatus.ACTIVE;
   container = document.createElement("div");

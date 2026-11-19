@@ -33,12 +33,18 @@ export function rollDesperateMeasures(
   for (let i = 0; i < Math.min(count, DESPERATE_MEASURE_TABLE.length); i++) {
     let measure: DesperateMeasure;
     do {
-      measure =
-        DESPERATE_MEASURE_TABLE[
-          dice.rollD8(`Desperate Measures (${teamId})`, teamId) - 1
-        ];
+      measure = measureForRoll(
+        dice.rollD8(`Desperate Measures (${teamId})`, teamId)
+      );
     } while (measures.includes(measure));
     measures.push(measure);
   }
   return measures;
+}
+
+function measureForRoll(roll: number): DesperateMeasure {
+  const measure = DESPERATE_MEASURE_TABLE[roll - 1];
+  if (measure === undefined)
+    throw new Error(`No Desperate Measure for roll ${String(roll)}`);
+  return measure;
 }

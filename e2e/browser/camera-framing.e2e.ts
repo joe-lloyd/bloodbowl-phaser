@@ -35,13 +35,13 @@ async function expectTeamFits(
   );
   const { geometry, z, points } = await page.evaluate(
     (squares) => {
-      const canvas = fixtureValue(document
-        .querySelector("#game-container canvas"))
+      const canvas = (document
+        .querySelector("#game-container canvas"))!
         .getBoundingClientRect();
-      const top = fixtureValue(document
-        .querySelector('[data-hud-frame="top"]'))
+      const top = (document
+        .querySelector('[data-hud-frame="top"]'))!
         .getBoundingClientRect().bottom;
-      const tray = fixtureValue(document.querySelector('[data-hud-frame="bottom"]'));
+      const tray = (document.querySelector('[data-hud-frame="bottom"]'))!;
       const trayTop =
         tray.getAttribute("aria-hidden") === "true"
           ? canvas.bottom
@@ -60,9 +60,9 @@ async function expectTeamFits(
       const size = bridge.canvasSize();
       return {
         geometry: { top, bottom, left: canvas.left, right: canvas.right },
-        z: (fixtureValue(bridge.cameraState()).zoom * canvas.height) / size.height,
+        z: ((bridge.cameraState())!.zoom * canvas.height) / size.height,
         points: squares.map((s) => {
-          const p = fixtureValue(bridge.squareToCanvas(s.x, s.y));
+          const p = (bridge.squareToCanvas(s.x, s.y))!;
           return {
             x: canvas.left + (p.x * canvas.width) / size.width,
             y: canvas.top + (p.y * canvas.height) / size.height,
@@ -70,7 +70,7 @@ async function expectTeamFits(
         }),
       };
     },
-    players.map((p) => fixtureValue(p.position))
+    players.map((p) => (p.position)!)
   );
   for (const p of points) {
     expect(p.x - 50 * z).toBeGreaterThanOrEqual(geometry.left + 23);
@@ -160,7 +160,7 @@ for (const viewport of [
       const at = await app.pitch.viewportPoint({ x: 7, y: 9 });
       expect(
         await page.evaluate(
-          ([x, y]) => document.elementFromPoint(fixtureValue(x), fixtureValue(y))?.tagName,
+          ([x, y]) => document.elementFromPoint((x)!, (y)!)?.tagName,
           [at.x, at.y]
         )
       ).toBe("CANVAS");
@@ -247,11 +247,11 @@ for (const afterMs of [250, 700]) {
           __bbTestBridge: import("../../src/testing/browserBridge").BrowserTestBridge;
         }
       ).__bbTestBridge;
-      const canvas = fixtureValue(document
-        .querySelector("#game-container canvas"))
+      const canvas = (document
+        .querySelector("#game-container canvas"))!
         .getBoundingClientRect();
       const size = bridge.canvasSize();
-      const p = fixtureValue(bridge.squareToCanvas(s.x, s.y));
+      const p = (bridge.squareToCanvas(s.x, s.y))!;
       return {
         x: canvas.left + (p.x * canvas.width) / size.width,
         y: canvas.top + (p.y * canvas.height) / size.height,

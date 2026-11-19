@@ -28,15 +28,17 @@ vi.mock("../../src/firebase/config", () => ({
 }));
 
 const humanRoster = getRosterByRosterName(RosterName.HUMAN);
-const lineman: PlayerTemplate = fixtureValue(humanRoster.playerTemplates.find((t) =>
-  t.keywords.includes("Lineman")
-));
+const lineman: PlayerTemplate = fixtureValue(
+  humanRoster.playerTemplates.find((t) => t.keywords.includes("Lineman"))
+);
 
 function newDraftTeam() {
-  return createTeam("Reikland Reavers", RosterName.HUMAN, {
-    primary: 0,
-    secondary: 0,
-  });
+  return createTeam(
+    "Reikland Reavers",
+    RosterName.HUMAN,
+    { primary: 0, secondary: 0 },
+    getRosterByRosterName(RosterName.HUMAN).rerollCost
+  );
 }
 
 beforeEach(() => {
@@ -110,14 +112,21 @@ describe("post-match development resolved in Manage Team journey", () => {
     expect(fixtureValue(afterPlayer).advancements).toHaveLength(0);
 
     const [category] = fixtureValue(fixtureValue(afterPlayer).primary);
-    const [skill] = eligibleSkills(fixtureValue(afterPlayer), [fixtureValue(category)]);
-    applyAdvancement(fixtureValue(afterPlayer), { kind: "chosen-primary", skill });
+    const [skill] = eligibleSkills(fixtureValue(afterPlayer), [
+      fixtureValue(category),
+    ]);
+    applyAdvancement(fixtureValue(afterPlayer), {
+      kind: "chosen-primary",
+      skill: fixtureValue(skill),
+    });
     saveTeam(afterMatch);
 
     const resolved = fixtureValue(loadTeams().find((t) => t.id === team.id));
     const resolvedPlayer = resolved.players[0];
     expect(fixtureValue(resolvedPlayer).advancements).toHaveLength(1);
-    expect(fixtureValue(resolvedPlayer).skills.some((s) => s.type === skill)).toBe(true);
+    expect(
+      fixtureValue(resolvedPlayer).skills.some((s) => s.type === skill)
+    ).toBe(true);
     expect(fixtureValue(resolvedPlayer).spp).toBeLessThan(10);
   });
 });

@@ -84,13 +84,13 @@ function leads(scores: Score[]) {
   const final: [number, number] = [0, 0];
   let leader = -1;
   let leadChanges = 0;
-  const trailed = [false, false];
+  const trailed: [boolean, boolean] = [false, false];
   for (const s of scores) {
     final[s.side]++;
     const now = leaderOf(final);
     if (now === -1) continue;
     if (leader !== -1 && now !== leader) leadChanges++;
-    trailed[1 - now] = true;
+    trailed[now === 0 ? 1 : 0] = true;
     leader = now;
   }
   return { final, leadChanges, trailed };
@@ -117,9 +117,16 @@ export function closeness(scores: Score[], casualties: number, throws: number) {
   return { final, leadChanges, comeback, lateScores, lastGasp, drama };
 }
 
+function argument(index: number): string {
+  const value = process.argv[index];
+  if (value === undefined)
+    throw new Error(`Missing argument ${String(index - 1)}`);
+  return value;
+}
+
 async function main() {
   const entry = fileURLToPath(import.meta.url);
-  const run = resolve(process.argv[2]);
+  const run = resolve(argument(2));
   const out = join(run, "drama");
   mkdirSync(out, { recursive: true });
   if (process.argv.includes("--worker")) {

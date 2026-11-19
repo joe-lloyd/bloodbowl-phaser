@@ -42,7 +42,7 @@ function advancer(team: Team, spp: number): Player {
 
 function dice(...values: number[]) {
   let index = 0;
-  return { rollDie: () => values[index++ % values.length] };
+  return { rollDie: () => fixtureValue(values[index++ % values.length]) };
 }
 
 describe("saved SPP advancement rolls", () => {
@@ -98,7 +98,7 @@ describe("saved SPP advancement rolls", () => {
       applyAdvancement(player, { kind: "characteristic", roll: 8, stat: "ST" })
     ).toThrow(/saved Characteristic roll of 1/);
 
-    const [skill] = eligibleSkills(player, fixtureValue(player.primary));
+    const skill = fixtureValue(eligibleSkills(player, fixtureValue(player.primary))[0]);
     applyAdvancement(player, {
       kind: "characteristic-fallback",
       roll: 1,

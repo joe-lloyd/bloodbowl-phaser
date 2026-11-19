@@ -78,7 +78,13 @@ beforeEach(async () => {
   bus = new EventBus();
   match = createOnlineMatch({
     lobby,
-    user: { uid: "host-uid", displayName: "Host", email: null, photoURL: null },
+    user: {
+      uid: "host-uid",
+      displayName: "Host",
+      email: null,
+      emailVerified: false,
+      photoURL: null,
+    },
     eventBus: bus,
     transport: createInMemoryTransportPair()[0],
     seed: 3,
@@ -115,9 +121,11 @@ describe("online HUD cards", () => {
   });
 
   it("shows the waiting coach what the other turn did when their turn starts", async () => {
-    const player = fixtureValue(ServiceContainer.getInstance().gameService.getPlayerById(
-      fixtureValue(game.ctx.team1.players[0]).id
-    ));
+    const player = fixtureValue(
+      ServiceContainer.getInstance().gameService.getPlayerById(
+        fixtureValue(game.ctx.team1.players[0]).id
+      )
+    );
     await act(async () => {
       player.status = PlayerStatus.KO;
       bus.emit(GameEventNames.PlayerStatusChanged, player);
@@ -178,10 +186,10 @@ const ENGINE_ONLY = [
 ];
 
 it("NetworkedGameService offers every GameService method the HUD can call", () => {
-  const networked = new Set(
-    [...Object.getOwnPropertyNames(NetworkedGameService.prototype),
-      ...Object.getOwnPropertyNames(ServiceContainer.getInstance().gameService)]
-  );
+  const networked = new Set([
+    ...Object.getOwnPropertyNames(NetworkedGameService.prototype),
+    ...Object.getOwnPropertyNames(ServiceContainer.getInstance().gameService),
+  ]);
   const missing = Object.getOwnPropertyNames(GameService.prototype).filter(
     (name) => !networked.has(name) && !ENGINE_ONLY.includes(name)
   );

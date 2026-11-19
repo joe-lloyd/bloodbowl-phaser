@@ -35,6 +35,7 @@ export async function replay(argv: string[]): Promise<number> {
   const from = Math.max(0, until - 5);
   for (let i = from; i <= Math.min(until, recording.steps.length - 1); i++) {
     const step = recording.steps[i];
+    if (!step) continue;
     process.stdout.write(
       `  ${String(i)}: ${step.ok ? "ok  " : "FAIL"} ${step.label}${step.reason ? ` (${step.reason})` : ""}\n`
     );

@@ -104,7 +104,7 @@ describe("fetchEntrantTeam", () => {
     ));
     const player = afterRoundOne.players[0];
     fixtureValue(player).spp = 1000;
-    const [skill] = eligibleSkills(fixtureValue(player), fixtureValue(player).primary ?? []);
+    const skill = fixtureValue(eligibleSkills(fixtureValue(player), fixtureValue(player).primary ?? [])[0]);
     applyAdvancement(fixtureValue(player), { kind: "chosen-primary", skill });
     saveTeams([afterRoundOne]);
 

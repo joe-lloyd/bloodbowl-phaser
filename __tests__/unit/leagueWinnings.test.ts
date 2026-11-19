@@ -176,7 +176,7 @@ describe("league winnings in the Treasury", () => {
 
     const competition = await recordCompetitionFixture(
       {
-        context,homeScore: 2,awayScore: 1,progressedTeams: { home: fixtureValue(engine.getTeam(home.id)),away: fixtureValue(engine.getTeam(away.id)) },penalties: undefined,options: {
+        context,homeScore: 2,awayScore: 1,progressedTeams: { home: fixtureValue(engine.getTeam(home.id)),away: fixtureValue(engine.getTeam(away.id)) },options: {
           fanFactors: {
             home: fixtureValue(fixtureValue(state.fanFactors)[home.id]),
             away: fixtureValue(fixtureValue(state.fanFactors)[away.id]),
@@ -203,7 +203,7 @@ describe("league winnings in the Treasury", () => {
 
     await recordCompetitionFixture(
       {
-        context,homeScore: 1,awayScore: 0,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },penalties: undefined,options: {
+        context,homeScore: 1,awayScore: 0,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },options: {
           fanFactors: { home: 2,away: 2 },
           stalled: { home: true,away: false },
         }
@@ -219,7 +219,7 @@ describe("league winnings in the Treasury", () => {
     const context = await league("score-only", [home, away]);
 
     await recordCompetitionFixture({
-        context,homeScore: 2,awayScore: 1,progressedTeams: undefined,penalties: undefined,options: {
+        context,homeScore: 2,awayScore: 1,options: {
           rng: fixedDice(4,6),
         }
       });
@@ -238,18 +238,18 @@ describe("league winnings in the Treasury", () => {
     };
 
     await recordCompetitionFixture({
-        context,homeScore: 2,awayScore: 1,progressedTeams: played,penalties: undefined,options: {
+        context,homeScore: 2,awayScore: 1,progressedTeams: played,options: {
           fanFactors: { home: 4,away: 4 },
         }
       });
 
     await recordCompetitionFixture({
-        context,homeScore: 2,awayScore: 1,progressedTeams: played,penalties: undefined,options: {
+        context,homeScore: 2,awayScore: 1,progressedTeams: played,options: {
           fanFactors: { home: 6,away: 6 },
         }
       });
     await recordCompetitionFixture({
-        context,homeScore: 2,awayScore: 1,progressedTeams: undefined,penalties: undefined,options: {
+        context,homeScore: 2,awayScore: 1,options: {
           rng: fixedDice(6,6),
         }
       });
@@ -265,7 +265,7 @@ describe("league winnings in the Treasury", () => {
     const matchCopy = structuredClone(home);
 
     await recordCompetitionFixture(
-      { context,homeScore: 2,awayScore: 1,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },penalties: undefined,options: { fanFactors: { home: 4,away: 4 } } }    );
+      { context,homeScore: 2,awayScore: 1,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },options: { fanFactors: { home: 4,away: 4 } } }    );
 
     keepRecordedResult(matchCopy);
     saveTeam(matchCopy);
@@ -279,7 +279,7 @@ describe("league winnings in the Treasury", () => {
     const context = await league("concede", [home, away]);
 
     await recordCompetitionFixture(
-      { context,homeScore: 0,awayScore: 0,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },penalties: undefined,options: { fanFactors: { home: 2,away: 3 } } }    );
+      { context,homeScore: 0,awayScore: 0,progressedTeams: { home: structuredClone(home),away: structuredClone(away) },options: { fanFactors: { home: 2,away: 3 } } }    );
 
     expect(treasuryOf("concede-a")).toBe(35_000);
     expect(treasuryOf("concede-b")).toBe(35_000);
@@ -335,7 +335,7 @@ describe("games that pay nothing", () => {
         context,homeScore: 2,awayScore: 1,progressedTeams: {
           home: fixtureValue(engine.getTeam(fixtureValue(teams[0]).id)),
           away: fixtureValue(engine.getTeam(fixtureValue(teams[1]).id)),
-        },penalties: undefined,options: { fanFactors: { home: 4,away: 4 } }
+        },options: { fanFactors: { home: 4,away: 4 } }
       }    );
     expect(fixtureValue(updated.fixtures[0]).result?.winnings).toBeUndefined();
     expect(treasuryOf("cup-a")).toBe(100_000);
@@ -373,7 +373,7 @@ describe("games that pay nothing", () => {
         competitionType: "tournament",
         competitionId: pool.id,
         fixtureId: fixtureValue(fixtures[0]).id,
-      },homeScore: 2,awayScore: 1,progressedTeams: undefined,penalties: undefined,options: { rng: dice }
+      },homeScore: 2,awayScore: 1,options: { rng: dice }
     }    );
 
     expect(dice.rollDie).not.toHaveBeenCalled();
@@ -387,7 +387,7 @@ describe("games that pay nothing", () => {
     const context = await league("matched", [home, away]);
 
     await recordCompetitionFixture({
-        context,homeScore: 2,awayScore: 1,progressedTeams: undefined,penalties: undefined,options: {
+        context,homeScore: 2,awayScore: 1,options: {
           rng: fixedDice(6,6),
         }
       });

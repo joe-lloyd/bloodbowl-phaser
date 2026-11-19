@@ -392,6 +392,7 @@ export class ThrowTeammateOperation extends GameOperation {
       const distance = dice.rollD6("Swoop Distance", teammate.teamId);
       const dir =
         DIRS[(FACING_INDEX[this.swoopFacing] + templateOffset(roll) + 8) % 8];
+      if (!dir) throw new Error(`No Swoop direction for roll ${String(roll)}`);
       return {
         landing: this.clampToPitch({
           x: this.aimX + dir.x * distance,
@@ -403,8 +404,10 @@ export class ThrowTeammateOperation extends GameOperation {
     const path = gameService
       .getBallMovementController()
       .scatter({ x: this.aimX, y: this.aimY }, "Team-mate Scatter");
+    const scatterEnd = path[path.length - 1];
+    if (!scatterEnd) throw new Error("Team-mate scatter produced no path");
     return {
-      landing: this.clampToPitch(path[path.length - 1]),
+      landing: this.clampToPitch(scatterEnd),
       swooped: false,
     };
   }

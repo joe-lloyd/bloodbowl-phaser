@@ -21,7 +21,7 @@ export default defineConfig({
       const [width, height] = (process.env["FULLGAME_VIEWPORT"] ?? "1440x900")
         .split("x")
         .map(Number);
-      return { width, height };
+      return { width: Number(width), height: Number(height) };
     })(),
     video: { mode: "on", size: { width: 1440, height: 900 } },
     launchOptions: process.env["PW_CHROMIUM"]

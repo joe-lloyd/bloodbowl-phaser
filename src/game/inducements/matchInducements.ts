@@ -79,14 +79,6 @@ export function getMatchInducements(state: GameState): MatchInducementsState {
   return state.matchInducements;
 }
 
-function hasPrayer(
-  state: GameState,
-  teamId: string,
-  prayer: PrayerToNuffle
-): boolean {
-  return state.matchInducements?.prayers[teamId]?.includes(prayer) ?? false;
-}
-
 export function prayerInPlay(
   state: GameState,
   prayer: PrayerToNuffle
@@ -505,17 +497,18 @@ export class ResolvePregameInducementsOperation extends GameOperation {
       );
       state.inducements?.prayerLog.push(...records);
       mi.prayers[team.id] = records.map((r) => r.prayer);
-      mi.measures[team.id] = rollDesperateMeasures(
+      const held = rollDesperateMeasures(
         dice,
         team.id,
         countBought(state, team.id, Inducement.DESPERATE_MEASURES)
       ).map((measure) => ({ measure, used: false }));
-      for (const held of mi.measures[team.id]) {
-        announce(context, `${team.name} holds ${held.measure}`);
+      mi.measures[team.id] = held;
+      for (const measure of held) {
+        announce(context, `${team.name} holds ${measure.measure}`);
       }
     }
     for (const team of teams) {
-      for (const prayer of mi.prayers[team.id]) {
+      for (const prayer of mi.prayers[team.id] ?? []) {
         await applyPrayer(context, team, prayer);
       }
     }

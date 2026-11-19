@@ -97,8 +97,9 @@ function fakeRng(rolls: number[]) {
   let index = 0;
   return {
     rollDie: () => {
-      if (index >= rolls.length) throw new Error("fakeRng ran out of rolls");
-      return rolls[index++];
+      const roll = rolls[index++];
+      if (roll === undefined) throw new Error("fakeRng ran out of rolls");
+      return roll;
     },
   };
 }
@@ -118,7 +119,7 @@ function onlySelection(team: Team): SkillSelectionEntry {
       entry.kind === "sevens-skill-selection"
   );
   expect(entries).toHaveLength(1);
-  return entries[0];
+  return fixtureValue(entries[0]);
 }
 
 function draftOffers(team: Team): DraftOfferEntry[] {

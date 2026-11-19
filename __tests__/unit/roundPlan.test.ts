@@ -7,17 +7,17 @@ function fixture(
   order: number,
   status: CompetitionFixture["status"] = "ready"
 ): CompetitionFixture {
-  return {
+  const base: CompetitionFixture = {
     id: `round-${String(round)}-match-${String(order)}`,
     round,
     order,
     homeEntrantId: "a",
     awayEntrantId: "b",
     status,
-    ...(status === "complete"
-      ? { result: { homeScore: 1, awayScore: 0 } }
-      : {}),
   };
+  return status === "complete"
+    ? { ...base, result: { homeScore: 1, awayScore: 0, completedAt: 1 } }
+    : base;
 }
 
 describe("roundPlan", () => {

@@ -1,6 +1,5 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { type IGameService } from "../../services/interfaces/IGameService";
 import { type FlowContext } from "../core/GameFlowManager";
 import { resolveSendOff } from "./refereeCall";
 

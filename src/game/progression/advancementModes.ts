@@ -161,8 +161,8 @@ export function removeMatchedPlayAllocation(
       advancement.source === "matched-play-package" &&
       advancement.name === allocation.skill
   );
-  if (index === -1) return;
-  const [removed] = advancements.splice(index, 1);
+  const [removed] = index === -1 ? [] : advancements.splice(index, 1);
+  if (!removed) return;
   player.skills = player.skills.filter(
     (skill) => skill.type !== allocation.skill
   );
@@ -395,6 +395,7 @@ export function rollPrimarySelection(
   }
   const d3 = rng.rollDie(3);
   const skill = decision.named[d3 - 1];
+  if (!skill) throw new Error("The D3 roll names no skill.");
   return {
     ...finishSelection(team, entry, decision.playerId, skill, "primary", rng),
     d3,
@@ -414,6 +415,7 @@ export function startSecondarySelection(
     throw new Error("No eligible player has a Secondary category.");
   }
   const player = players[rng.rollDie(players.length) - 1];
+  if (!player) throw new Error("The roll picks no eligible player.");
   entry.progress = { route: "secondary", playerId: player.id };
 }
 

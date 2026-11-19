@@ -86,8 +86,8 @@ export async function next(dialogOpen = false) {
   const toGoal = (teamId: string, x: number) =>
     teamId === g.ctx.team1.id ? GameConfig.PITCH_WIDTH - 1 - x : x;
   const scores = rankCandidates({ game: g, snapshot, point, rng }).map(
-    (score, i) => {
-      const c = fixtureValue(point.candidates[i]).commands[0] as {
+    ({ candidate, score }) => {
+      const c = candidate.commands[0] as {
         type: string;
         action?: string;
         playerId?: string;

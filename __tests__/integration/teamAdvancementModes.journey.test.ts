@@ -51,9 +51,9 @@ function buildLegalTeam(name: string, mode: Team["advancementMode"]): Team {
     mode
   );
   const roster = getRosterByRosterName(RosterName.HUMAN);
-  const lineman = fixtureValue(roster.playerTemplates.find((t) =>
-    t.positionName.includes("Lineman")
-  ));
+  const lineman = fixtureValue(
+    roster.playerTemplates.find((t) => t.positionName.includes("Lineman"))
+  );
   for (let i = 0; i < 7; i++) {
     const player = createPlayer(lineman, team.id, i + 1);
     team.players.push(player);
@@ -107,18 +107,30 @@ describe("Advanced League journey", () => {
       advancementMode: "advanced-league",
       draftBudget: 5_000_000,
     });
-    let compatibility = checkTeamCompatibility(fixtureValue(getTeamById(team.id)), profile);
+    let compatibility = checkTeamCompatibility(
+      fixtureValue(getTeamById(team.id)),
+      profile
+    );
     expect(compatibility.compatible).toBe(false);
     expect(compatibility.reasons.join(" ")).toMatch(/unresolved development/);
 
-    const legal = fixtureValue([SkillType.BLOCK, SkillType.DODGE, SkillType.TACKLE].find(
-      (candidate) => !fixtureValue(scorer).skills.some((s) => s.type === candidate)
-    ));
-    applyAdvancement(fixtureValue(scorer), { kind: "chosen-primary", skill: legal });
+    const legal = fixtureValue(
+      [SkillType.BLOCK, SkillType.DODGE, SkillType.TACKLE].find(
+        (candidate) =>
+          !fixtureValue(scorer).skills.some((s) => s.type === candidate)
+      )
+    );
+    applyAdvancement(fixtureValue(scorer), {
+      kind: "chosen-primary",
+      skill: legal,
+    });
     team.pendingDevelopment = [];
     saveTeam(team);
 
-    compatibility = checkTeamCompatibility(fixtureValue(getTeamById(team.id)), profile);
+    compatibility = checkTeamCompatibility(
+      fixtureValue(getTeamById(team.id)),
+      profile
+    );
     expect(compatibility.compatible).toBe(true);
   });
 });
@@ -149,7 +161,8 @@ describe("Matched Play journey", () => {
     lockAdvancementMode(team);
     saveTeam(team);
     expect(
-      checkTeamCompatibility(fixtureValue(getTeamById(team.id)), profile).compatible
+      checkTeamCompatibility(fixtureValue(getTeamById(team.id)), profile)
+        .compatible
     ).toBe(true);
 
     const bus = new EventBus();
@@ -201,16 +214,23 @@ describe("Sevens Skill Selection journey", () => {
     expect(eligible).toHaveLength(7);
     createPendingSkillSelection(team, "match-1", eligible);
     saveTeam(team);
-    expect(fixtureValue(getTeamById(team.id)).pendingDevelopment).toHaveLength(1);
+    expect(fixtureValue(getTeamById(team.id)).pendingDevelopment).toHaveLength(
+      1
+    );
 
-    const [entry] = fixtureValue(team.pendingDevelopment);
-    if (fixtureValue(entry).kind !== "sevens-skill-selection") throw new Error(fixtureValue(entry).kind);
-    expect(skillSelectionDecision(team, fixtureValue(entry)).type).toBe("choose-route");
-    startPrimarySelection(team, fixtureValue(entry), fixtureValue(p1).id, SkillCategory.GENERAL);
-    nominatePrimarySkill(team, fixtureValue(entry), "coach", SkillType.BLOCK);
-    nominatePrimarySkill(team, fixtureValue(entry), "opponent", SkillType.KICK);
-    nominatePrimarySkill(team, fixtureValue(entry), "coach", SkillType.TACKLE);
-    const result = rollPrimarySelection(team, fixtureValue(entry), { rollDie: () => 3 });
+    const entry = fixtureValue(fixtureValue(team.pendingDevelopment)[0]);
+    if (entry.kind !== "sevens-skill-selection") throw new Error(entry.kind);
+    expect(skillSelectionDecision(team, entry).type).toBe("choose-route");
+    startPrimarySelection(
+      team,
+      entry,
+      fixtureValue(p1).id,
+      SkillCategory.GENERAL
+    );
+    nominatePrimarySkill(team, entry, "coach", SkillType.BLOCK);
+    nominatePrimarySkill(team, entry, "opponent", SkillType.KICK);
+    nominatePrimarySkill(team, entry, "coach", SkillType.TACKLE);
+    const result = rollPrimarySelection(team, entry, { rollDie: () => 3 });
     expect(result.skill).toBe(SkillType.TACKLE);
 
     expect(result.draft).toEqual({ offers: [], released: [] });
@@ -222,7 +242,8 @@ describe("Sevens Skill Selection journey", () => {
       draftBudget: 5_000_000,
     });
     expect(
-      checkTeamCompatibility(fixtureValue(getTeamById(team.id)), profile).compatible
+      checkTeamCompatibility(fixtureValue(getTeamById(team.id)), profile)
+        .compatible
     ).toBe(true);
   });
 
@@ -230,17 +251,26 @@ describe("Sevens Skill Selection journey", () => {
     const team = buildLegalTeam("SS Team 3", "sevens-skill-selection");
     const p1 = team.players[0];
     createPendingSkillSelection(team, "m1", [fixtureValue(p1).id]);
-    const [entry] = fixtureValue(team.pendingDevelopment);
-    if (fixtureValue(entry).kind !== "sevens-skill-selection") throw new Error(fixtureValue(entry).kind);
-    startPrimarySelection(team, fixtureValue(entry), fixtureValue(p1).id, SkillCategory.GENERAL);
-    nominatePrimarySkill(team, fixtureValue(entry), "coach", SkillType.BLOCK);
-    nominatePrimarySkill(team, fixtureValue(entry), "opponent", SkillType.KICK);
-    nominatePrimarySkill(team, fixtureValue(entry), "coach", SkillType.TACKLE);
-    const result = rollPrimarySelection(team, fixtureValue(entry), { rollDie: () => 1 });
+    const entry = fixtureValue(fixtureValue(team.pendingDevelopment)[0]);
+    if (entry.kind !== "sevens-skill-selection") throw new Error(entry.kind);
+    startPrimarySelection(
+      team,
+      entry,
+      fixtureValue(p1).id,
+      SkillCategory.GENERAL
+    );
+    nominatePrimarySkill(team, entry, "coach", SkillType.BLOCK);
+    nominatePrimarySkill(team, entry, "opponent", SkillType.KICK);
+    nominatePrimarySkill(team, entry, "coach", SkillType.TACKLE);
+    const result = rollPrimarySelection(team, entry, { rollDie: () => 1 });
     keepDraftedPlayer(team, fixtureValue(result.draft.offers[0]));
     saveTeam(team);
 
-    const reloaded = fixtureValue(fixtureValue(getTeamById(team.id)).players.find((p) => p.id === fixtureValue(p1).id));
+    const reloaded = fixtureValue(
+      fixtureValue(getTeamById(team.id)).players.find(
+        (p) => p.id === fixtureValue(p1).id
+      )
+    );
     expect(reloaded.teamValue).toBe(25_000);
   });
 
@@ -248,18 +278,25 @@ describe("Sevens Skill Selection journey", () => {
     const team = buildLegalTeam("SS Team 2", "sevens-skill-selection");
     const p1 = team.players[0];
     createPendingSkillSelection(team, "m1", [fixtureValue(p1).id]);
-    const [entry] = fixtureValue(team.pendingDevelopment);
-    if (fixtureValue(entry).kind !== "sevens-skill-selection") throw new Error(fixtureValue(entry).kind);
-    startPrimarySelection(team, fixtureValue(entry), fixtureValue(p1).id, SkillCategory.GENERAL);
-    nominatePrimarySkill(team, fixtureValue(entry), "coach", SkillType.BLOCK);
-    nominatePrimarySkill(team, fixtureValue(entry), "opponent", SkillType.KICK);
-    nominatePrimarySkill(team, fixtureValue(entry), "coach", SkillType.TACKLE);
+    const entry = fixtureValue(fixtureValue(team.pendingDevelopment)[0]);
+    if (entry.kind !== "sevens-skill-selection") throw new Error(entry.kind);
+    startPrimarySelection(
+      team,
+      entry,
+      fixtureValue(p1).id,
+      SkillCategory.GENERAL
+    );
+    nominatePrimarySkill(team, entry, "coach", SkillType.BLOCK);
+    nominatePrimarySkill(team, entry, "opponent", SkillType.KICK);
+    nominatePrimarySkill(team, entry, "coach", SkillType.TACKLE);
     const treasury = team.treasury;
-    const result = rollPrimarySelection(team, fixtureValue(entry), { rollDie: () => 1 });
+    const result = rollPrimarySelection(team, entry, { rollDie: () => 1 });
     const [offer] = result.draft.offers;
     releaseDraftedPlayer(team, fixtureValue(offer));
     expect(team.treasury).toBe(treasury);
-    expect(team.players.find((p) => p.id === fixtureValue(p1).id)).toBeUndefined();
+    expect(
+      team.players.find((p) => p.id === fixtureValue(p1).id)
+    ).toBeUndefined();
     expect(team.draftHistory).toHaveLength(1);
   });
 });
@@ -268,7 +305,9 @@ describe("Save/resume and cloud persistence round-trip", () => {
   it("preserves advancement mode, pending development, allocations and Draft history through a JSON round trip", () => {
     const team = buildLegalTeam("Cloud Team", "sevens-skill-selection");
     lockAdvancementMode(team);
-    createPendingSkillSelection(team, "match-9", [fixtureValue(team.players[0]).id]);
+    createPendingSkillSelection(team, "match-9", [
+      fixtureValue(team.players[0]).id,
+    ]);
     allocateMatchedPlaySkill(
       team,
       { tier: 1 },
@@ -305,9 +344,9 @@ describe("legacy (unmigrated) teams", () => {
 
     expect(legacy.advancementMode).toBeUndefined();
     const roster = getRosterByRosterName(RosterName.HUMAN);
-    const lineman = fixtureValue(roster.playerTemplates.find((t) =>
-      t.positionName.includes("Lineman")
-    ));
+    const lineman = fixtureValue(
+      roster.playerTemplates.find((t) => t.positionName.includes("Lineman"))
+    );
     legacy.players.push(createPlayer(lineman, legacy.id, 1));
 
     const bus = new EventBus();
@@ -335,9 +374,9 @@ describe("legacy (unmigrated) teams", () => {
       50_000
     );
     const roster = getRosterByRosterName(RosterName.HUMAN);
-    const lineman = fixtureValue(roster.playerTemplates.find((t) =>
-      t.positionName.includes("Lineman")
-    ));
+    const lineman = fixtureValue(
+      roster.playerTemplates.find((t) => t.positionName.includes("Lineman"))
+    );
     const player = createPlayer(lineman, legacy.id, 1);
     player.spp = 5;
     legacy.players.push(player);

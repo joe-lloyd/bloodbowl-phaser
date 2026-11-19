@@ -1,7 +1,7 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
-import React, { act } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -18,7 +18,7 @@ describe("the Bloodlust bite prompt", () => {
   let root: Root;
   let eventBus: EventBus;
   let pending: PendingDecision | null;
-  let answer: ReturnType<typeof vi.fn>;
+  let answer: Mock<[targetId?: string], boolean>;
   let request: PendingDecision;
 
   beforeEach(async () => {
@@ -33,7 +33,7 @@ describe("the Bloodlust bite prompt", () => {
       targetIds: [fixtureValue(ids[1]), fixtureValue(ids[2])],
     };
     pending = request;
-    answer = vi.fn(() => true);
+    answer = vi.fn<[targetId?: string], boolean>(() => true);
     ServiceContainer.getInstance().gameService.answerBiteTarget = answer;
     setActiveOnlineMatch({
       mayAct: () => true,

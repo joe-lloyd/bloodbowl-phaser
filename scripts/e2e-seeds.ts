@@ -43,7 +43,10 @@ function outcomesToSeed() {
 
 function writeSeeds(seeds: CommittedSeedMap): void {
   const ordered: CommittedSeedMap = {};
-  for (const key of Object.keys(seeds).sort()) ordered[key] = seeds[key];
+  for (const key of Object.keys(seeds).sort()) {
+    const seed = seeds[key];
+    if (seed !== undefined) ordered[key] = seed;
+  }
   writeFileSync(OUTPUT, `${JSON.stringify(ordered, null, 2)}\n`, "utf8");
 }
 

@@ -88,13 +88,16 @@ function watch(page: Page, side: Side, rec: Recorder) {
   });
 }
 
+function chromiumPath(): { executablePath?: string } {
+  const executablePath = process.env["PW_CHROMIUM"];
+  return executablePath ? { executablePath } : {};
+}
+
 async function openCoach(side: Side): Promise<Coach> {
   const remote = side === "guest" ? process.env["GUEST_WS"] : undefined;
   const browser = remote
     ? await chromium.connect(remote)
-    : await chromium.launch({
-        executablePath: process.env["PW_CHROMIUM"] || undefined,
-      });
+    : await chromium.launch(chromiumPath());
   const context = await browser.newContext({
     baseURL:
       side === "guest" ? (process.env["GUEST_APP_URL"] ?? APP_URL) : APP_URL,

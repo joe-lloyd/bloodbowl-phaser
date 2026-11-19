@@ -14,9 +14,11 @@ interface Point {
   y: number;
 }
 
+type TouchEventType = "touchStart" | "touchMove" | "touchEnd" | "touchCancel";
+
 async function touches(page: Page) {
   const cdp = await page.context().newCDPSession(page);
-  const send = (type: string, points: (Point & { id?: number })[]) =>
+  const send = (type: TouchEventType, points: (Point & { id?: number })[]) =>
     cdp.send("Input.dispatchTouchEvent", {
       type,
       touchPoints: points.map((p, i) => ({ x: p.x, y: p.y, id: p.id ?? i })),

@@ -1,7 +1,7 @@
 import { sceneWith, ballWith, visualWith, phaseServiceWith } from "./rendererFixtures";
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { playerWith } from "./controllerFixtures";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PlayPhaseHandler } from "../../../src/game/controllers/handlers/PlayPhaseHandler";
 import { EventBus } from "../../../src/services/EventBus";
 import { GameEventNames } from "../../../src/types/events";

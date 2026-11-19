@@ -11,19 +11,32 @@ import {
 } from "../../../src/simulation/viewer";
 import type { Drama } from "./drama";
 
+function firstScoreStep(drama: Drama): number {
+  const first = drama.scores[0];
+  if (!first) throw new Error(`${drama.game} has no scores`);
+  return first.step;
+}
+
 function activationStart(recording: MatchRecording, step: number): number {
   for (let i = step; i >= 0; i--)
-    if (recording.steps[i].command.type === "declare-action") return i;
+    if (recording.steps[i]?.command.type === "declare-action") return i;
   return step;
 }
 
+function argument(index: number): string {
+  const value = process.argv[index];
+  if (value === undefined)
+    throw new Error(`Missing argument ${String(index - 1)}`);
+  return value;
+}
+
 async function main() {
-  const run = resolve(process.argv[2]);
-  const picks = JSON.parse(readFileSync(resolve(process.argv[3]), "utf8")) as [
+  const run = resolve(argument(2));
+  const picks = JSON.parse(readFileSync(resolve(argument(3)), "utf8")) as [
     string,
     string,
   ][];
-  const out = resolve(process.argv[4]);
+  const out = resolve(argument(4));
   mkdirSync(out, { recursive: true });
   const drama = new Map(
     (JSON.parse(readFileSync(join(run, "drama.json"), "utf8")) as Drama[]).map(
@@ -49,7 +62,7 @@ async function main() {
     items.push(`<li><h3>${escapeHtml(d.rosters[0])} ${String(d.final[0])}–${String(d.final[1])} ${escapeHtml(d.rosters[1])}</h3>
 <p>${escapeHtml(why)}</p>
 <p class="quiet">Scores: ${escapeHtml(timeline)}.</p>
-<p><a href="${escapeHtml(id)}.html#step=${String(start + 1)}">Watch the deciding score</a> · <a href="${escapeHtml(id)}.html#step=${String(activationStart(trace.recording, d.scores[0].step) + 1)}">from the first score</a> · <a href="${escapeHtml(id)}.html">whole match</a></p></li>`);
+<p><a href="${escapeHtml(id)}.html#step=${String(start + 1)}">Watch the deciding score</a> · <a href="${escapeHtml(id)}.html#step=${String(activationStart(trace.recording, firstScoreStep(d)) + 1)}">from the first score</a> · <a href="${escapeHtml(id)}.html">whole match</a></p></li>`);
   }
   writeFileSync(
     join(out, "index.html"),

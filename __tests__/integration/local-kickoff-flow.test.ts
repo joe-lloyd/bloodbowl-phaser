@@ -107,11 +107,22 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       .withPlayers(7)
       .build();
     const rng = new RNGService(42);
-    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: rng, blockResolutionService: new BlockResolutionService(rng), initialState: GameService.createInitialState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.COIN_FLIP }
-      ), delay: noDelay }
-    );
+    gameService = new GameService({
+      eventBus: eventBus,
+      team1: team1,
+      team2: team2,
+      rngService: rng,
+      blockResolutionService: new BlockResolutionService(rng),
+      initialState: GameService.createInitialState({
+        team1: team1,
+        team2: team2,
+        startingPhase: GamePhase.SETUP,
+        startingSubPhase: SubPhase.COIN_FLIP,
+      }),
+      delay: noDelay,
+    });
     scene = makeMockScene(team1, team2);
-    orchestrator = new SceneOrchestrator({ scene,gameService,eventBus });
+    orchestrator = new SceneOrchestrator({ scene, gameService, eventBus });
     orchestrator.initialize();
   });
 
@@ -133,7 +144,7 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       gameService.getActiveTeamId()
     );
 
-    const team1Setup = [
+    const team1Setup: [number, number][] = [
       [6, 3],
       [6, 5],
       [6, 7],
@@ -143,8 +154,12 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       [4, 8],
     ];
     for (let i = 0; i < 7; i++) {
-      const [x, y] = team1Setup[i];
-      const ok = gameService.placePlayer(team1.players[i].id, x, y);
+      const [x, y] = fixtureValue(team1Setup[i]);
+      const ok = gameService.placePlayer(
+        fixtureValue(team1.players[i]).id,
+        x,
+        y
+      );
       if (!ok)
         console.log(
           `t1 place ${String(i)} at (${String(x)},${String(y)}) FAILED`
@@ -160,8 +175,13 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       gameService.getActiveTeamId()
     );
     for (let i = 0; i < 7; i++) {
-      const [x, y] = team1Setup.map(([px, py]) => [19 - fixtureValue(px), py])[i];
-      const ok = gameService.placePlayer(team2.players[i].id, x, y);
+      const [px, y] = fixtureValue(team1Setup[i]);
+      const x = 19 - px;
+      const ok = gameService.placePlayer(
+        fixtureValue(team2.players[i]).id,
+        x,
+        y
+      );
       if (!ok)
         console.log(
           `t2 place ${String(i)} at (${String(x)},${String(y)}) FAILED`
@@ -181,7 +201,12 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
     expect(scene.kickingTeam.id).toBe("t1");
 
     gameService.selectKicker(team1.players[0].id);
-    gameService.kickBall({ isTeam1Kicking: true, playerId: team1.players[0].id, targetX: 15, targetY: 7 });
+    gameService.kickBall({
+      isTeam1Kicking: true,
+      playerId: team1.players[0].id,
+      targetX: 15,
+      targetY: 7,
+    });
 
     await new Promise((r) => setTimeout(r, 50));
 
@@ -205,11 +230,26 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
         .withPlayers(7)
         .build();
       const rng = new RNGService(seed);
-      const svc = new GameService({ eventBus: bus, team1: t1, team2: t2, rngService: rng, blockResolutionService: new BlockResolutionService(rng), initialState: GameService.createInitialState({ team1: t1, team2: t2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.COIN_FLIP }
-        ), delay: noDelay }
-      );
+      const svc = new GameService({
+        eventBus: bus,
+        team1: t1,
+        team2: t2,
+        rngService: rng,
+        blockResolutionService: new BlockResolutionService(rng),
+        initialState: GameService.createInitialState({
+          team1: t1,
+          team2: t2,
+          startingPhase: GamePhase.SETUP,
+          startingSubPhase: SubPhase.COIN_FLIP,
+        }),
+        delay: noDelay,
+      });
       const mockScene = makeMockScene(t1, t2);
-      const orch = new SceneOrchestrator({ scene: mockScene,gameService: svc,eventBus: bus });
+      const orch = new SceneOrchestrator({
+        scene: mockScene,
+        gameService: svc,
+        eventBus: bus,
+      });
       orch.initialize();
 
       bus.on(GameEventNames.KickoffEventStepStarted, () =>
@@ -221,7 +261,12 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       await driveToKickoff(bus, svc, t1, t2);
       expect(svc.getPhase()).toBe(GamePhase.KICKOFF);
 
-      svc.kickBall({ isTeam1Kicking: true, playerId: fixtureValue(t1.players[0]).id, targetX: 7, targetY: 7 });
+      svc.kickBall({
+        isTeam1Kicking: true,
+        playerId: fixtureValue(t1.players[0]).id,
+        targetX: 7,
+        targetY: 7,
+      });
       await new Promise((r) => setTimeout(r, 50));
 
       expect(svc.getPhase()).toBe(GamePhase.PLAY);

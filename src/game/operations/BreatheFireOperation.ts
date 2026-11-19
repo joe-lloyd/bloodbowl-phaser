@@ -1,7 +1,6 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { type IGameService } from "../../services/interfaces/IGameService";
 import { type Player, PlayerStatus } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
 import { type FlowContext } from "../core/GameFlowManager";

@@ -160,7 +160,7 @@ export class InjuryOperation extends GameOperation {
         const patchedUp = await offerApothecary(gameService, eventBus, player, {
           resultKind: "ko",
           location: "pitch",
-          position: player.gridPosition,
+          ...(player.gridPosition ? { position: player.gridPosition } : {}),
         });
         if (!patchedUp) {
           movePlayerToBox(player, { box: "ko" }, eventBus);
@@ -209,7 +209,9 @@ export class InjuryOperation extends GameOperation {
     eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
     player.status = PlayerStatus.INJURED;
     eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
-      causerId: this.opts.causedById,
+      ...(this.opts.causedById !== undefined
+        ? { causerId: this.opts.causedById }
+        : {}),
       victimId: player.id,
       cause: this.opts.cause ?? "special",
       sppEligible:

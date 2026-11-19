@@ -2,7 +2,6 @@ import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
-import { type IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus, type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type FlowContext } from "../core/GameFlowManager";
@@ -111,6 +110,8 @@ export class BallAndChainOperation extends GameOperation {
     const roll = dice.rollD6("Ball & Chain Deviation", fanatic.teamId);
     const offset = roll <= 2 ? -1 : roll <= 4 ? 0 : 1;
     const dir = DIRS[(facing + offset + 8) % 8];
+    if (!dir)
+      throw new Error(`No Ball & Chain direction for facing ${String(facing)}`);
     const from = { ...fanatic.gridPosition };
     const next = { x: from.x + dir.x, y: from.y + dir.y };
     const square: BallAndChainSquare = { fanaticId: fanatic.id, rushFailed };

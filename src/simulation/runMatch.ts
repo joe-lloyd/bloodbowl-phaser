@@ -371,6 +371,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
       rng,
     });
     const candidate = candidates[choice.index] ?? candidates[0];
+    if (!candidate) break;
 
     for (const command of candidate.commands) {
       const before = game.snapshot();
@@ -437,11 +438,12 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
 }
 
 export function summarize(snapshot: GameSnapshot): MatchRecording["final"] {
+  const [home, away] = snapshot.teams;
   return {
     phase: snapshot.phase,
     score: [
-      snapshot.score[snapshot.teams[0].id] ?? 0,
-      snapshot.score[snapshot.teams[1].id] ?? 0,
+      (home ? snapshot.score[home.id] : undefined) ?? 0,
+      (away ? snapshot.score[away.id] : undefined) ?? 0,
     ],
     hash: snapshotHash(snapshot),
   };

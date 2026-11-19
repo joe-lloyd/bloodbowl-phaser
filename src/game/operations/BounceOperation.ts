@@ -44,6 +44,8 @@ export class BounceOperation extends GameOperation {
     };
 
     const offset = scatterTemplate[direction];
+    if (!offset)
+      throw new Error(`No bounce direction for roll ${String(direction)}`);
     const newX = this.startPosition.x + offset.x;
     const newY = this.startPosition.y + offset.y;
 

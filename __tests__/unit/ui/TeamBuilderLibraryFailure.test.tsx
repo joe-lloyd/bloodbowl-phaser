@@ -7,9 +7,10 @@ import { dehydrateTeam } from "../../../src/data/persistence/teamPersistence";
 import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
-const auth = vi.hoisted(() => ({
-  listener: null,
-}));
+const auth = vi.hoisted(() => {
+  const state: { listener: ((user: unknown) => void) | null } = { listener: null };
+  return state;
+});
 const fetches = vi.hoisted(
   () =>
     new Array<{

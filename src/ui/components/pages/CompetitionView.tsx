@@ -222,7 +222,13 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         : undefined;
     try {
       const updated = await recordCompetitionFixture(
-        { context: contextFor(fixture),homeScore: home,awayScore: away,progressedTeams: undefined,penalties }      );
+        {
+          context: contextFor(fixture),
+          homeScore: home,
+          awayScore: away,
+          ...(penalties ? { penalties } : {}),
+        }
+      );
       setCompetition(updated);
       setError(null);
     } catch (reason) {

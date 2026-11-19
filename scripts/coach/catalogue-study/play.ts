@@ -20,12 +20,13 @@ export async function playStudyGame(
   suppliedCoaches?: [Coach, Coach]
 ): Promise<StudyGame> {
   const started = Date.now();
-  const [team1, team2] = job.templates.map((id, i) =>
+  const side = (i: 0 | 1) =>
     stabilizeIds(
-      suppliedTeams?.[i] ?? createComputerTeamFromTemplate(id),
+      suppliedTeams?.[i] ?? createComputerTeamFromTemplate(job.templates[i]),
       `team${String(i + 1)}`
-    )
-  );
+    );
+  const team1 = side(0);
+  const team2 = side(1);
   const game = new HeadlessGame({
     seed: job.seed,
     team1,

@@ -177,10 +177,12 @@ if (
   process.argv.includes("--worker")
 ) {
   const [oldRun, out] = process.argv.slice(2);
+  if (oldRun === undefined || out === undefined)
+    throw new Error("Usage: recover.ts <old run> <out> --worker");
   const previous = JSON.parse(
     readFileSync(join(oldRun, "manifest.json"), "utf8")
   ) as Inputs;
-  process.on("message", async (job: PolicyJob | null) => {
+  process.on("message", async (job: PolicyJob | false) => {
     if (!job) {
       process.disconnect();
       return;

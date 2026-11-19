@@ -38,7 +38,7 @@ export interface BracketFixtureContext {
 interface TournamentBracketProps {
   fixtures: CompetitionFixture[];
   entrants: CompetitionEntrant[];
-  championEntrantId?: string;
+  championEntrantId?: string | undefined;
 
   renderActions: (context: BracketFixtureContext) => React.ReactNode;
 
@@ -300,8 +300,8 @@ function BracketSlot({
   isEliminated,
   bye,
 }: {
-  entrant?: CompetitionEntrant;
-  score?: number;
+  entrant?: CompetitionEntrant | undefined;
+  score?: number | undefined;
   isWinner: boolean;
   isEliminated: boolean;
   bye: boolean;

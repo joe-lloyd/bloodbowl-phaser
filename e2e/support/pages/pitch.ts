@@ -118,9 +118,9 @@ export class PitchPage {
 
   async canvasSize(): Promise<{ width: number; height: number }> {
     return this.page.evaluate(() =>
-      fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+      ((window as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
-      ]).canvasSize()
+      ])!.canvasSize()
     );
   }
 

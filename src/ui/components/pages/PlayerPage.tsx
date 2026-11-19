@@ -127,7 +127,7 @@ export function PlayerPage() {
                   key={stat}
                   label={STAT_LABELS[stat]}
                   value={current}
-                  tone={current !== base ? "gold" : undefined}
+                  {...(current !== base ? { tone: "gold" as const } : {})}
                 />
               ))}
             </div>

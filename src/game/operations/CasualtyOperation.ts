@@ -1,7 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
-import { type IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryType, PlayerStatus } from "../../types/Player.js";
 import {
   type CasualtyType,
@@ -130,7 +129,9 @@ export class CasualtyOperation extends GameOperation {
     const kill =
       result === InjuryResult.DEAD
         ? {
-            killerId: this.causedById,
+            ...(this.causedById !== undefined
+              ? { killerId: this.causedById }
+              : {}),
             armsPlagueRidden:
               !!causedBy && plagueRiddenApplies(causedBy, player, this.cause),
           }

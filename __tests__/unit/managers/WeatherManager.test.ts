@@ -1,23 +1,25 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { WeatherManager } from "../../../src/game/managers/WeatherManager";
 import { GameEventNames } from "../../../src/types/events";
 import { type GameState, GamePhase } from "../../../src/types/GameState";
+import { createInitialState } from "../../../src/services/gameService/matchStart";
+import { busWith, diceWith, teamWith } from "../controllers/controllerFixtures";
 
 describe("WeatherManager", () => {
   let manager: WeatherManager;
-  let mockEventBus: any;
+  let mockEventBus: ReturnType<typeof busWith>;
   let mockState: GameState;
-  let mockDiceController: any;
+  let mockDiceController: ReturnType<typeof diceWith>;
 
   beforeEach(() => {
-    mockEventBus = { emit: vi.fn() };
-    mockState = {
-      weather: undefined,
-      phase: GamePhase.SETUP,
-    } as GameState;
-    mockDiceController = {
-      roll2D6: vi.fn().mockReturnValue(7),
-    };
+    mockEventBus = busWith();
+    mockState = createInitialState({
+      team1: teamWith({ id: "team1" }),
+      team2: teamWith({ id: "team2" }),
+      startingPhase: GamePhase.SETUP,
+    });
+    mockDiceController = diceWith();
+    mockDiceController.roll2D6.mockReturnValue(7);
     manager = new WeatherManager(mockEventBus, mockState, mockDiceController);
   });
 

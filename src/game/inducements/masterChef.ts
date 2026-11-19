@@ -31,8 +31,8 @@ export function rollMasterChefs(
     const stolen = dice
       .rollMultipleD6(`Halfling Master Chef (${team.name})`, 3, team.id)
       .filter((roll) => roll >= 4).length;
-    rerolls[team.id] += stolen;
-    rerolls[opponent.id] -= stolen;
+    rerolls[team.id] = (rerolls[team.id] ?? 0) + stolen;
+    rerolls[opponent.id] = (rerolls[opponent.id] ?? 0) - stolen;
     eventBus.emit(
       GameEventNames.UI_GameLog,
       `Halfling Master Chef — ${team.name} takes ${String(stolen)} team re-roll(s) from ${opponent.name} this half`

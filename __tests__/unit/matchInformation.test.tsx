@@ -39,7 +39,7 @@ describe("match information", () => {
       fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
         subPhase: SubPhase.SETUP_KICKING,
         activeTeam: fx.team1,
-        status: gs.getSetupStatus(fx.team1.id),
+        status: fixtureValue(gs.getSetupStatus(fx.team1.id)),
       });
     });
   }
@@ -84,7 +84,7 @@ describe("match information", () => {
     await act(async () => {
       fx.bus.emit(
         GameEventNames.SetupRestrictionsUpdated,
-        fx.services.gameService.getSetupStatus(fx.team1.id)
+        fixtureValue(fx.services.gameService.getSetupStatus(fx.team1.id))
       );
     });
 

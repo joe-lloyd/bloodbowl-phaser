@@ -45,6 +45,12 @@ export function catalogueInventory() {
   };
 }
 
+function idAt(ids: string[], index: number): string {
+  const id = ids[index];
+  if (id === undefined) throw new Error("No template at " + String(index));
+  return id;
+}
+
 function leagueSchedule(ids: string[]): StudyJob[] {
   const jobs: StudyJob[] = [];
   let pair = 0;
@@ -57,7 +63,9 @@ function leagueSchedule(ids: string[]): StudyJob[] {
           cohort: "league",
           pair: pairId,
           seed: 1_000_000 + pair,
-          templates: reverse ? [ids[j], ids[i]] : [ids[i], ids[j]],
+          templates: reverse
+            ? [idAt(ids, j), idAt(ids, i)]
+            : [idAt(ids, i), idAt(ids, j)],
           coaches: ["planner", "planner"],
         });
       }
@@ -85,7 +93,7 @@ export function studySchedule(): StudyJob[] {
             cohort,
             pair: pairId,
             seed: firstSeed + round * ids.length + i,
-            templates: [ids[i], ids[(i + offset) % ids.length]],
+            templates: [idAt(ids, i), idAt(ids, (i + offset) % ids.length)],
             coaches: swap ? [opponent, "planner"] : ["planner", opponent],
           });
         }

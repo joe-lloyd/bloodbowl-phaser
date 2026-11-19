@@ -4,10 +4,13 @@ import { dehydrateTeam } from "../../../src/data/persistence/teamPersistence";
 import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
-const auth = vi.hoisted(() => ({
-  resolved: false,
-  listener: null,
-}));
+const auth = vi.hoisted(() => {
+  const state: {
+    resolved: boolean;
+    listener: ((user: unknown) => void) | null;
+  } = { resolved: false, listener: null };
+  return state;
+});
 
 const fetches = vi.hoisted(
   () =>

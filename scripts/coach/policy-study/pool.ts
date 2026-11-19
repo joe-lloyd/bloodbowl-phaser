@@ -44,7 +44,7 @@ export async function processPool(
                     );
                 }
                 current = jobs[next++];
-                child.send(current ?? null);
+                child.send(current ?? false);
               }
             );
             child.on("exit", (code) => {

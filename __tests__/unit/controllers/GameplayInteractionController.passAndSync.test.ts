@@ -11,7 +11,6 @@ import {
   mockScene,
   mockPitch,
   mockMovementValidator,
-  mockEventBus,
   mockGameService,
   team1Id,
   player1,

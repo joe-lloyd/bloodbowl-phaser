@@ -74,8 +74,9 @@ function compositionFor(
   const explicit = SEVENS_COMPOSITIONS[rosterName];
   if (explicit) return explicit;
   const roster = getRosterByRosterName(rosterName);
-  if (!roster || roster.playerTemplates.length === 0) return null;
-  return [{ position: roster.playerTemplates[0].positionName, count: 7 }];
+  const first = roster?.playerTemplates[0];
+  if (!first) return null;
+  return [{ position: first.positionName, count: 7 }];
 }
 
 export function positionByPlayerIndex(rosterName: RosterName): string[] {

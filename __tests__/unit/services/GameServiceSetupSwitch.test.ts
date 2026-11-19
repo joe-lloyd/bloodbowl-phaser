@@ -1,7 +1,10 @@
 import { fixtureValue } from "../../../src/testing/fixtureValue";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { GameService } from "../../../src/services/GameService";
-import { type IEventBus } from "../../../src/services/EventBus";
+import { EventBus, type IEventBus } from "../../../src/services/EventBus";
+import { RNGService } from "../../../src/services/rng/RNGService";
+import { BlockResolutionService } from "../../../src/services/BlockResolutionService";
+import { teamWith } from "../controllers/controllerFixtures";
 import { type Team } from "../../../src/types/Team";
 import { PlayerStatus } from "../../../src/types/Player";
 
@@ -11,26 +14,33 @@ describe("GameService Setup Flow", () => {
   let team1: Team;
   let team2: Team;
 
+  const newGameService = () => {
+    const rngService = new RNGService(1);
+    return new GameService({
+      eventBus,
+      team1,
+      team2,
+      rngService,
+      blockResolutionService: new BlockResolutionService(rngService),
+    });
+  };
+
   beforeEach(() => {
-    eventBus = {
-      emit: vi.fn(),
-      on: vi.fn(),
-      off: vi.fn(),
-    };
-    team1 = {
+    eventBus = new EventBus();
+    team1 = teamWith({
       id: "team1",
       name: "Team 1",
       players: [],
       colors: { primary: 0x0000ff, secondary: 0xffffff },
-    };
-    team2 = {
+    });
+    team2 = teamWith({
       id: "team2",
       name: "Team 2",
       players: [],
       colors: { primary: 0xff0000, secondary: 0x000000 },
-    };
+    });
 
-    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2 });
+    gameService = newGameService();
   });
 
   it("should set active team on startSetup", () => {
@@ -66,7 +76,7 @@ describe("GameService Setup Flow", () => {
       { id: "fit", teamId: "team1", status: "Active" } as never,
       { id: "ko", teamId: "team1", status: "Active" } as never
     );
-    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2 });
+    gameService = newGameService();
 
     fixtureValue(gameService.getPlayerById("ko")).status = PlayerStatus.KO;
     expect(gameService.isSetupEligible("fit")).toBe(true);

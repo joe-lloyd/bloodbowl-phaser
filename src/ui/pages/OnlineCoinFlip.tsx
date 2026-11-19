@@ -28,8 +28,8 @@ import {
   WeatherResult,
   WeatherStage,
   WeatherTable,
-  useWeatherThrow,
 } from "../components/hud/WeatherReveal";
+import { useWeatherThrow } from "../components/hud/weatherThrow";
 import type { Weather } from "../../game/rules/weather";
 
 interface Props {

@@ -113,6 +113,6 @@ describe("reporting a knockout game left level", () => {
 
     expect(container.textContent).toContain("Penalties 2–3");
     const stored = await getCompetition("tournament", "cup");
-    expect(stored?.championEntrantId).toBe("local:Badgers");
+    expect(stored).toMatchObject({ championEntrantId: "local:Badgers" });
   });
 });

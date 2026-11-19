@@ -70,8 +70,10 @@ export function startKickoff(parts: GameParts): void {
 /** The drive's kick-off when the kicking team has nobody to kick. */
 class AutomaticTouchbackOperation extends GameOperation {
   public readonly name = "AutomaticTouchback";
-  constructor(private readonly touchback: () => Promise<void>) {
+  private readonly touchback: () => Promise<void>;
+  constructor(touchback: () => Promise<void>) {
     super();
+    this.touchback = touchback;
   }
   async execute(): Promise<void> {
     await this.touchback();

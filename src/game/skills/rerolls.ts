@@ -151,6 +151,7 @@ export async function withRerollOffer<T extends RollLike>(
   );
   if (sources.length === 0) return first;
 
+  const needed = neededFor(first);
   const answer = await deps.gameService.getDecisionService().request({
     type: "reroll",
     playerId: player.id,
@@ -158,16 +159,18 @@ export async function withRerollOffer<T extends RollLike>(
     rollKind,
     ...(opts?.rollName ? { rollName: opts.rollName } : {}),
     sources,
-    skill: skillSource ? String(skillSource) : undefined,
+    ...(skillSource ? { skill: String(skillSource) } : {}),
     roll: first.roll,
-    needed: neededFor(first),
+    ...(needed !== undefined ? { needed } : {}),
   });
   if (!answer.accept) return first;
 
+  const [firstSource] = sources;
+  if (!firstSource) return first;
   const chosen: RerollSource =
     answer.source && sources.includes(answer.source)
       ? answer.source
-      : sources[0];
+      : firstSource;
   if (!spendReroll(deps, arbiter, player, { chosen, skillSource, rollKind })) {
     return first;
   }
@@ -177,7 +180,9 @@ export async function withRerollOffer<T extends RollLike>(
     playerId: player.id,
     source: chosen,
     rollKind,
-    skill: chosen === "skill" && skillSource ? String(skillSource) : undefined,
+    ...(chosen === "skill" && skillSource
+      ? { skill: String(skillSource) }
+      : {}),
     before: first.roll,
     after: second.roll,
   });

@@ -117,5 +117,3 @@ export const GameConfig = {
     HIGHLIGHT_SELECT: 0xffff44,
   },
 } as const;
-
-type GameConfigType = typeof GameConfig;

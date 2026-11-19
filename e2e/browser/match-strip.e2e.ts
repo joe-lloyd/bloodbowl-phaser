@@ -35,7 +35,7 @@ async function squaresUnderHud(app: GameApp, page: Page) {
     ];
     return edge.map((point) => ({
       point,
-      design: fixtureValue(bridge).squareToCanvas(point.x - 0.5, point.y - 0.5),
+      design: (bridge)!.squareToCanvas(point.x - 0.5, point.y - 0.5),
     }));
   });
   const covered: string[] = [];

@@ -55,6 +55,9 @@ const expiredLobby = (): LobbyDoc =>
     },
   }) as unknown as LobbyDoc;
 
+const chooserOf = (decision: PendingDecision | null | undefined): string | null =>
+  decision && "chooserTeamId" in decision ? decision.chooserTeamId ?? null : null;
+
 const blockDice: PendingDecision = {
   type: "block-dice",
   attackerId: "catcher-5",
@@ -83,7 +86,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       opponentName: "Other",
       coachName: () => "Other",
       pendingDecision: () => pending,
-      decidingTeamId: () => pending?.chooserTeamId ?? null,
+      decidingTeamId: () => chooserOf(pending),
       setClockPaused: vi.fn(),
       run,
     } as unknown as OnlineMatch;
@@ -132,7 +135,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       opponentName: "Other",
       coachName: () => "Other",
       pendingDecision: () => queue[0] ?? null,
-      decidingTeamId: () => queue[0]?.chooserTeamId ?? null,
+      decidingTeamId: () => chooserOf(queue[0]),
       setClockPaused: vi.fn(),
       run,
     } as unknown as OnlineMatch;
@@ -185,7 +188,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       opponentName: "Other",
       coachName: () => "Other",
       pendingDecision: () => pending,
-      decidingTeamId: () => pending?.chooserTeamId ?? null,
+      decidingTeamId: () => chooserOf(pending),
       setClockPaused: vi.fn(),
       run,
     } as unknown as OnlineMatch;
@@ -231,7 +234,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       opponentName: "Other",
       coachName: () => "Other",
       pendingDecision: () => pending,
-      decidingTeamId: () => pending?.chooserTeamId ?? null,
+      decidingTeamId: () => chooserOf(pending),
       setClockPaused: vi.fn(),
       run,
     } as unknown as OnlineMatch;

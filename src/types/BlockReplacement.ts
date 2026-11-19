@@ -50,7 +50,7 @@ export const BLOCK_REPLACEMENT_DEFINITIONS: Record<
 export function isBlockReplacement(value: unknown): value is BlockReplacement {
   return (
     typeof value === "string" &&
-    (BLOCK_REPLACEMENTS).includes(value)
+    BLOCK_REPLACEMENTS.some((replacement) => replacement === value)
   );
 }
 

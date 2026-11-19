@@ -30,8 +30,15 @@ export function rollPrayersToNuffle(
       teamId,
       rejectedRolls,
       result,
-      prayer: PRAYER_TABLE[result - 1],
+      prayer: prayerForRoll(result),
     });
   }
   return records;
+}
+
+function prayerForRoll(roll: number): PrayerToNuffle {
+  const prayer = PRAYER_TABLE[roll - 1];
+  if (prayer === undefined)
+    throw new Error(`No Prayer to Nuffle for roll ${String(roll)}`);
+  return prayer;
 }

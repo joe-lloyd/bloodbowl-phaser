@@ -153,8 +153,8 @@ function FeaturedFixture({
   renderActions,
 }: {
   fixture: CompetitionFixture;
-  home?: CompetitionEntrant;
-  away?: CompetitionEntrant;
+  home?: CompetitionEntrant | undefined;
+  away?: CompetitionEntrant | undefined;
   entrants: CompetitionEntrant[];
   kits: Kits;
   renderActions: (context: BracketFixtureContext) => React.ReactNode;
@@ -246,11 +246,12 @@ function FixtureSide({
   label,
   away = false,
 }: {
-  entrant?: CompetitionEntrant;
-  colors?: TeamColors;
+  entrant?: CompetitionEntrant | undefined;
+  colors?: TeamColors | undefined;
   label: string;
   away?: boolean;
 }) {
+  const name = entrant?.name;
   return (
     <div
       className={cx(
@@ -258,7 +259,11 @@ function FixtureSide({
         away ? "sm:flex-row-reverse sm:text-right" : "sm:flex-row sm:text-left"
       )}
     >
-      <TeamCrest name={entrant?.name} colors={colors} size="lg" />
+      <TeamCrest
+        {...(name === undefined ? {} : { name })}
+        {...(colors === undefined ? {} : { colors })}
+        size="lg"
+      />
       <div className="min-w-0">
         <span
           className={cx(

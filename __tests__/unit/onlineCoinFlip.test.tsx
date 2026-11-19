@@ -37,10 +37,17 @@ vi.mock("../../src/firebase/lobby", () => ({
   setCoinFlipChoice: vi.fn(),
 }));
 
-const engine = vi.hoisted(() => ({
-  state: { weather: "Nice", weatherReady: new Array<string>() },
-  readied: new Array<string>(),
-}));
+interface EngineState {
+  weather?: string;
+  weatherReady?: string[];
+  score?: Record<string, number>;
+  pregameInducements?: { ready: Record<string, boolean>; complete?: boolean };
+}
+
+const engine = vi.hoisted(() => {
+  const state: EngineState = { weather: "Nice", weatherReady: [] };
+  return { state, readied: new Array<string>() };
+});
 
 vi.mock("../../src/services/ServiceContainer", () => {
   const teams = [

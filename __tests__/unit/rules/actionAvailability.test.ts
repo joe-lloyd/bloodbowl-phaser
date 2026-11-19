@@ -1,6 +1,10 @@
 import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
-import { computeActionAvailability } from "../../../src/game/rules/actionAvailability";
+import {
+  type ActionAvailabilityInput,
+  type TurnFlags,
+  computeActionAvailability,
+} from "../../../src/game/rules/actionAvailability";
 import {
   type Player,
   PlayerStatus,
@@ -21,14 +25,16 @@ const P = (over: Partial<Player>): Player =>
     ...over,
   }) as Player;
 
-const noTurn = {
+const noTurn: TurnFlags = {
   hasBlitzed: false,
   hasPassed: false,
   hasHandedOff: false,
   hasFouled: false,
+  hasThrownTeamMate: false,
+  hasKickedTeamMate: false,
 };
 
-const base = () => ({
+const base = (): ActionAvailabilityInput => ({
   player: P({ gridPosition: { x: 5, y: 5 } }),
   ballPosition: null,
   opponents: new Array<Player>(),

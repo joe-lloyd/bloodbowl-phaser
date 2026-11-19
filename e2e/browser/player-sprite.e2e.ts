@@ -69,18 +69,18 @@ for (const viewport of VIEWPORTS) {
 
       const drawn = await sprite.evaluate((c: HTMLCanvasElement) => {
         const rect = c.getBoundingClientRect();
-        const pixels = fixtureValue(c
-          .getContext("2d"))
+        const pixels = (c
+          .getContext("2d"))!
           .getImageData(0, 0, c.width, c.height).data;
         let opaque = 0;
         let red = 0;
         let blue = 0;
         for (let i = 0; i < pixels.length; i += 4) {
-          if (fixtureValue(pixels[i + 3]) < 128) continue;
+          if ((pixels[i + 3])! < 128) continue;
           opaque++;
           const [r, g, b] = [pixels[i], pixels[i + 1], pixels[i + 2]];
-          if (fixtureValue(r) > fixtureValue(g) * 1.6 && fixtureValue(r) > fixtureValue(b) * 1.6) red++;
-          if (fixtureValue(b) > fixtureValue(r) * 1.6 && fixtureValue(b) > fixtureValue(g) * 1.2) blue++;
+          if ((r)! > (g)! * 1.6 && (r)! > (b)! * 1.6) red++;
+          if ((b)! > (r)! * 1.6 && (b)! > (g)! * 1.2) blue++;
         }
         return {
           side: c.width,

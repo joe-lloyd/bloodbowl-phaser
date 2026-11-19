@@ -45,7 +45,8 @@ export const TricksterRule: SkillRule = {
       ctx.attacker.gridPosition,
       ctx.allPlayers
     );
-    if (candidates.length === 0) return;
+    const [square] = candidates;
+    if (!square) return;
 
     const answer = (await ctx.decisions.request({
       type: "reaction",
@@ -56,11 +57,11 @@ export const TricksterRule: SkillRule = {
     })) as ReactionDecisionAnswer;
     if (!answer.accept) return;
 
-    ctx.relocateDefenderTo = candidates[0];
+    ctx.relocateDefenderTo = square;
     ctx.triggers.push({
       playerId: self.id,
       skill: SkillType.TRICKSTER,
-      effect: `Trickster: slips to (${String(candidates[0].x)}, ${String(candidates[0].y)}) before the dice are counted`,
+      effect: `Trickster: slips to (${String(square.x)}, ${String(square.y)}) before the dice are counted`,
     });
   },
 };

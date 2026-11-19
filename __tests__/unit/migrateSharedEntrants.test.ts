@@ -14,7 +14,7 @@ function legacyEntrant(overrides: Partial<LegacyEntrant> = {}): LegacyEntrant {
     name: "Da Boyz",
     rosterName: "Orc",
     seed: 1,
-    team: { id: "local-team-1", name: "Da Boyz", players: [] } as never,
+    ownerUid: null,
     ...overrides,
   };
 }

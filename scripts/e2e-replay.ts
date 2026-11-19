@@ -34,10 +34,11 @@ function parseArgs(argv: string[]): Args {
     return index >= 0 ? argv[index + 1] : undefined;
   };
   const seedRaw = flag("seed");
+  const variantId = flag("variant");
   return {
     target: positional[0] ?? "",
-    variantId: flag("variant"),
-    seed: seedRaw !== undefined ? Number(seedRaw) : undefined,
+    ...(variantId === undefined ? {} : { variantId }),
+    ...(seedRaw === undefined ? {} : { seed: Number(seedRaw) }),
     browser: argv.includes("--browser"),
     headed: argv.includes("--headed"),
   };
@@ -61,7 +62,8 @@ function resolveCase(target: string): ScenarioCase {
   const direct = findScenarioCase(SCENARIO_CASES, target);
   if (direct) return direct;
   const byRegression = findByRegressionId(SCENARIO_CASES, target);
-  if (byRegression.length === 1) return byRegression[0];
+  const [only] = byRegression;
+  if (byRegression.length === 1 && only) return only;
   if (byRegression.length > 1) {
     usage(
       `regression '${target}' has several cases: ${byRegression

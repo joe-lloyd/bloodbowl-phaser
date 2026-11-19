@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { GameScene } from "../../../src/scenes/GameScene";
 import { EventBus } from "../../../src/services/EventBus";
 import { GameEventNames } from "../../../src/types/events";
@@ -27,15 +27,15 @@ describe("a drop waits for the engine before redrawing", () => {
   let controller: ReturnType<typeof emitterStub> & Record<string, unknown>;
   let service: {
     runsCommandsLater?: boolean;
-    placePlayer: ReturnType<typeof vi.fn>;
+    placePlayer: Mock<[], boolean>;
     removePlayer: ReturnType<typeof vi.fn>;
-    placeKickoffEventPlayer: ReturnType<typeof vi.fn>;
+    placeKickoffEventPlayer: Mock<[], boolean>;
     getPhase: () => GamePhase;
   };
 
   const build = (runsCommandsLater: boolean, gameService?: unknown) => {
     service = {
-      runsCommandsLater: runsCommandsLater || undefined,
+      runsCommandsLater,
       placePlayer: vi.fn(() => true),
       removePlayer: vi.fn(),
       placeKickoffEventPlayer: vi.fn(() => true),

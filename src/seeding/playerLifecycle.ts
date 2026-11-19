@@ -216,7 +216,8 @@ function decorateMatchedPlayDemo(team: Team): void {
     (player) => (player.primary ?? []).length > 0
   );
   if (!recipient) return;
-  const category = recipient.primary![0];
+  const [category] = recipient.primary ?? [];
+  if (!category) return;
   const skill = eligibleSkills(recipient, [category])[0];
   if (!skill) return;
 

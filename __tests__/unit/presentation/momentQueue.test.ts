@@ -11,7 +11,9 @@ import {
 } from "../../../src/game/core/GameFlowManager";
 
 describe("moment queue through the event bus", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("plays turnover, casualty and turn banners one at a time after their dice", async () => {
     vi.useFakeTimers();

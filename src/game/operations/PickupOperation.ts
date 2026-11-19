@@ -1,7 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
-import { type IGameService } from "../../services/interfaces/IGameService";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
 import { weatherEffects } from "../rules/weather";

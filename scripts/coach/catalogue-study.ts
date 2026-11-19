@@ -20,7 +20,7 @@ const root = resolve(dirname(entry), "../..");
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) => {
   const index = args.indexOf(`--${name}`);
-  return index < 0 ? fallback : args[index + 1];
+  return index < 0 ? fallback : (args[index + 1] ?? fallback);
 };
 
 function sourceDigest(): string {

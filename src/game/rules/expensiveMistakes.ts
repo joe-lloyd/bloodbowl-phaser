@@ -56,7 +56,10 @@ export function expensiveMistakeFor(
     throw new Error(`A D6 roll must be 1 to 6, not ${String(d6)}.`);
   }
   const band = Math.min(TABLE.length - 1, Math.floor(treasury / 100_000) - 1);
-  return TABLE[band][d6 - 1];
+  const mistake = TABLE[band]?.[d6 - 1];
+  if (!mistake)
+    throw new Error(`No Expensive Mistake for band ${String(band)}.`);
+  return mistake;
 }
 
 const ROUNDING = 5_000;
@@ -111,7 +114,7 @@ export function rollExpensiveMistakes(
     }
     case "catastrophe": {
       const dice = [rng.rollDie(6), rng.rollDie(6)];
-      const kept = (dice[0] + dice[1]) * INCIDENT_GOLD;
+      const kept = dice.reduce((sum, die) => sum + die, 0) * INCIDENT_GOLD;
       return {
         treasuryBefore: treasury,
         treasuryAfter: Math.min(treasury, kept),

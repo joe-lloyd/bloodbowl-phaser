@@ -136,8 +136,8 @@ export class BloodlustBiteOperation extends GameOperation {
       );
     const decisions = context.gameService.getDecisionService();
     if (thralls.length === 0) return undefined;
-    if (thralls.length === 1) {
-      const [thrall] = thralls;
+    const [thrall] = thralls;
+    if (thralls.length === 1 && thrall) {
       const answer = (await decisions.request({
         type: "reaction",
         playerId: player.id,

@@ -45,7 +45,9 @@ export function MainChoicesSection({
         </Field>
         <div>
           <SevensRulesetSelector
-            value={team.draftRuleset}
+            {...(team.draftRuleset === undefined
+              ? {}
+              : { value: team.draftRuleset })}
             disabled={saving || active || !!team.activeCompetitionId}
             onChange={(draftRuleset) => {
               onChange({ ...team, draftRuleset });

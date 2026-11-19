@@ -83,7 +83,7 @@ export async function usageOfTrace(file: string, id: string) {
     recording: MatchRecording;
   };
   const game = new HeadlessGame({ matchSave: trace.initial });
-  const rosters = [game.ctx.team1.rosterName, game.ctx.team2.rosterName];
+  const rosters = [game.ctx.team1.rosterName, game.ctx.team2.rosterName] as const;
   const sides = new Map([
     [game.ctx.team1.id, 0 as const],
     [game.ctx.team2.id, 1 as const],
@@ -193,9 +193,16 @@ function pickMoments(all: Moment[], perPlay: number): Moment[] {
     );
 }
 
+function argument(index: number): string {
+  const value = process.argv[index];
+  if (value === undefined)
+    throw new Error(`Missing argument ${String(index - 1)}`);
+  return value;
+}
+
 async function main() {
   const entry = fileURLToPath(import.meta.url);
-  const run = resolve(process.argv[2]);
+  const run = resolve(argument(2));
   const out = join(run, "usage");
   mkdirSync(out, { recursive: true });
   if (process.argv.includes("--worker")) {
@@ -244,7 +251,7 @@ async function main() {
       const policy = side === game.candidateSide ? "candidate" : "frozen";
       add(policies[policy], game.byPlay[side]);
       add(
-        (rosters[`${policy}/${String(game.rosters[side])}`] ??= {}),
+        (rosters[`${policy}/${game.rosters[side]}`] ??= {}),
         game.byPlay[side]
       );
     }

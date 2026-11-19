@@ -34,7 +34,13 @@ it("names the team and decision in plain words for the waiting coach", () => {
   const [transport] = createInMemoryTransportPair();
   const match = createOnlineMatch({
     lobby,
-    user: { uid: "guest", displayName: "Coach B", email: null, photoURL: null },
+    user: {
+      uid: "guest",
+      displayName: "Coach B",
+      email: null,
+      emailVerified: false,
+      photoURL: null,
+    },
     eventBus: new EventBus(),
     transport,
     seed: 1,

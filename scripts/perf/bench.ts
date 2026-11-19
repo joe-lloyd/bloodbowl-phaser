@@ -132,10 +132,10 @@ async function startPreview(port: number): Promise<ChildProcess> {
 }
 
 function parseCpuTime(raw: string): number {
-  const [days, rest] = raw.includes("-") ? raw.split("-") : ["0", raw];
+  const [days = "0", rest = ""] = raw.includes("-") ? raw.split("-") : ["0", raw];
   const parts = rest.split(":").map(Number);
   while (parts.length < 3) parts.unshift(0);
-  const [h, m, s] = parts;
+  const [h = 0, m = 0, s = 0] = parts;
   return Number(days) * 86400 + h * 3600 + m * 60 + s;
 }
 
@@ -153,7 +153,7 @@ function processTree(rootPid: number): ProcessCpu[] {
       return {
         pid: Number(pid),
         ppid: Number(ppid),
-        seconds: parseCpuTime(time),
+        seconds: parseCpuTime(time ?? ""),
         type: cmd.includes("ffmpeg")
           ? "ffmpeg"
           : (/--type=([\w-]+)/.exec(cmd)?.[1] ?? "browser"),
@@ -263,7 +263,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+  return (
+    sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0
+  );
 }
 
 async function measure(
@@ -295,7 +297,7 @@ async function measure(
     frameMeanMs: mean,
     frameP95Ms: percentile(stats.frameMs, 0.95),
     heapMb: stats.heapMb,
-    loadAvg: loadavg()[0],
+    loadAvg: loadavg()[0] ?? 0,
   };
 }
 
@@ -391,7 +393,8 @@ async function oneRun(
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const at = (index: number) => sorted[index] ?? NaN;
+  return sorted.length % 2 ? at(mid) : (at(mid - 1) + at(mid)) / 2;
 }
 
 function summarise(results: RunResult[]) {

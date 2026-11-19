@@ -402,7 +402,7 @@ export class PassOperation extends GameOperation {
         passType: result.passType,
         accurate: result.accurate,
         finalPosition,
-        scatterPath,
+        ...(scatterPath ? { scatterPath } : {}),
       });
       await context.delay(1500);
     };
@@ -486,8 +486,10 @@ export class PassOperation extends GameOperation {
 
     if (!isOnPitch(landingPos)) {
       const path = scatterPath ?? [];
+      const lastInBounds = path[path.length - 2];
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
-      gameService.throwInBall(path[path.length - 2]);
+      if (!lastInBounds) throw new Error("Pass left the pitch without a path");
+      gameService.throwInBall(lastInBounds);
     } else {
       gameService.setBallPosition(landingPos.x, landingPos.y);
 
@@ -635,12 +637,18 @@ export class PassOperation extends GameOperation {
             "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
-      return { playerId: e.playerId, base, marking, modifier: total };
+      return {
+        playerId: e.playerId,
+        playerName: interceptor.playerName,
+        base,
+        marking,
+        modifier: total,
+      };
     });
 
-    const chooserTeamId = gameService.getPlayerById(
-      candidates[0].playerId
-    )!.teamId;
+    const [first] = candidates;
+    if (!first) return undefined;
+    const chooserTeamId = gameService.getPlayerById(first.playerId)!.teamId;
 
     const answer = (await gameService.getDecisionService().request({
       type: "interception",
@@ -648,7 +656,7 @@ export class PassOperation extends GameOperation {
       passerId: passer.id,
       candidates: candidates.map((c) => ({
         playerId: c.playerId,
-        playerName: gameService.getPlayerById(c.playerId)?.playerName,
+        playerName: c.playerName,
         modifier: c.modifier,
       })),
     })) as InterceptionDecisionAnswer;

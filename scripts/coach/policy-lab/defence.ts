@@ -15,8 +15,10 @@ import type { MatchSave } from "../../../src/headless/serialization";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
 import type { BlockRollData } from "../../../src/services/BlockResolutionService";
 import { GameEventNames } from "../../../src/types/events";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import { type Player, PlayerStatus } from "../../../src/types/Player";
 import { GameConfig } from "../../../src/config/GameConfig";
+
+const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
 
 const WIDTH = GameConfig.PITCH_WIDTH;
 
@@ -85,7 +87,7 @@ export function watchDefence(
   game: HeadlessGame,
   tallies: [DefenceTally, DefenceTally]
 ) {
-  const teams = [game.ctx.team1, game.ctx.team2];
+  const teams = [game.ctx.team1, game.ctx.team2] as const;
   const sideOf = new Map(teams.map((t, i) => [t.id, i as Side]));
   const state = () => game.ctx.gameService.getState();
   const carrier = (): { side: Side; p: Player; at: At } | null => {
@@ -120,7 +122,9 @@ export function watchDefence(
     t.dice[dice] = (t.dice[dice] ?? 0) + 1;
   };
   const countTarget = (side: Side, defenderId: string) => {
-    const target = teams[1 - side].players.find((p) => p.id === defenderId);
+    const target = teams[otherSide(side)].players.find(
+      (p) => p.id === defenderId
+    );
     if (!target?.gridPosition) return;
     const c = carrier();
     const t = tallies[side];
@@ -201,7 +205,7 @@ async function defenceOfTrace(file: string) {
     if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
   }
   return {
-    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName],
+    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName] as const,
     tallies,
   };
 }

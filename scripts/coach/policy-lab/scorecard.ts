@@ -36,8 +36,14 @@ interface TeamGame {
   turnovers: number;
 }
 
+function nth<T>(items: readonly T[], index: number): T {
+  const item = items[index];
+  if (item === undefined) throw new Error(`No item at ${String(index)}`);
+  return item;
+}
+
 function parseTeamGames(text: string): TeamGame[] {
-  const [head, ...lines] = text.trim().split("\n");
+  const [head = "", ...lines] = text.trim().split("\n");
   const columns = head.split(",");
   const at = (name: string) => {
     const i = columns.indexOf(name);
@@ -60,10 +66,10 @@ function parseTeamGames(text: string): TeamGame[] {
     if (policy !== "candidate" && policy !== "frozen")
       throw new Error(`Unknown policy ${String(policy)}`);
     return {
-      game: f[c.game],
-      block: f[c.block],
+      game: nth(f, c.game),
+      block: nth(f, c.block),
       policy,
-      roster: f[c.roster],
+      roster: nth(f, c.roster),
       points: Number(f[c.points]),
       touchdowns: Number(f[c.touchdowns]),
       casualties: Number(f[c.casualties]),
@@ -143,8 +149,9 @@ export function strengths(games: FitGame[]): {
   const b = new Array<number>(n).fill(0);
   const add = (terms: [number, number][], y: number) => {
     for (const [i, xi] of terms) {
-      b[i] += xi * y;
-      for (const [j, xj] of terms) a[i][j] += xi * xj;
+      b[i] = nth(b, i) + xi * y;
+      const row = nth(a, i);
+      for (const [j, xj] of terms) row[j] = nth(row, j) + xi * xj;
     }
   };
   for (const g of games)
@@ -164,31 +171,34 @@ export function strengths(games: FitGame[]): {
   const x = solve(a, b);
   if (!x) return null;
   return {
-    strength: new Map(rosters.map((r, i) => [r, x[i]])),
-    edge: x[n - 1],
+    strength: new Map(rosters.map((r, i) => [r, nth(x, i)])),
+    edge: nth(x, n - 1),
   };
 }
 
 function solve(a: number[][], b: number[]): number[] | null {
   const n = b.length;
-  const m = a.map((row, i) => [...row, b[i]]);
-  const scale = Math.max(...a.map((row, i) => Math.abs(row[i])), 1);
+  const m = a.map((row, i) => [...row, nth(b, i)]);
+  const scale = Math.max(...a.map((row, i) => Math.abs(nth(row, i))), 1);
   for (let col = 0; col < n; col++)
     if (!eliminate(m, col, scale * 1e-9)) return null;
-  return m.map((row, i) => row[n] / row[i]);
+  return m.map((row, i) => nth(row, n) / nth(row, i));
 }
 
 function eliminate(m: number[][], col: number, tiny: number): boolean {
   let pivot = col;
   for (let r = col + 1; r < m.length; r++)
-    if (Math.abs(m[r][col]) > Math.abs(m[pivot][col])) pivot = r;
-  [m[col], m[pivot]] = [m[pivot], m[col]];
-  if (Math.abs(m[col][col]) < tiny) return false;
-  for (let r = 0; r < m.length; r++) {
-    if (r === col) continue;
-    const f = m[r][col] / m[col][col];
-    for (let k = col; k < m[r].length; k++) m[r][k] -= f * m[col][k];
-  }
+    if (Math.abs(nth(nth(m, r), col)) > Math.abs(nth(nth(m, pivot), col)))
+      pivot = r;
+  const lead = nth(m, pivot);
+  m[pivot] = nth(m, col);
+  m[col] = lead;
+  if (Math.abs(nth(lead, col)) < tiny) return false;
+  m.forEach((row, r) => {
+    if (r === col) return;
+    const f = nth(row, col) / nth(lead, col);
+    for (let k = col; k < row.length; k++) row[k] = nth(row, k) - f * nth(lead, k);
+  });
   return true;
 }
 
@@ -210,7 +220,7 @@ export function strengthIntervals(
   let unfitted = 0;
   for (let d = 0; d < draws; d++) {
     const drawn = groups.flatMap(
-      () => groups[Math.floor(random() * groups.length)]
+      () => nth(groups, Math.floor(random() * groups.length))
     );
 
     const fit = strengths(drawn);
@@ -222,13 +232,20 @@ export function strengthIntervals(
       samples.set(r, [...(samples.get(r) ?? []), s]);
   }
   if (unfitted > draws / 20) return null;
-  const at = (xs: number[], q: number) => xs[Math.floor(q * (xs.length - 1))];
+  const at = (xs: number[], q: number) =>
+    nth(xs, Math.floor(q * (xs.length - 1)));
   return new Map(
     [...samples].map(([r, xs]) => {
       xs.sort((p, q) => p - q);
       return [r, [0.5 + at(xs, 0.025), 0.5 + at(xs, 0.975)]];
     })
   );
+}
+
+function playsIn(field: Record<string, PlayTally>, play: string): number {
+  const tally = field[play];
+  if (!tally) throw new Error(`No field tally for ${play}`);
+  return tally.plays;
 }
 
 function signaturesOf(
@@ -243,7 +260,7 @@ function signaturesOf(
     .map(([play, t]) => ({
       play,
       perGame: t.plays / games,
-      lift: t.plays / ownTotal / (field[play].plays / fieldTotal),
+      lift: t.plays / ownTotal / (playsIn(field, play) / fieldTotal),
       scored: (t.scoredThisTurn + t.scoredNextTurn) / t.plays,
     }))
     .filter((s) => s.lift >= 1.25)

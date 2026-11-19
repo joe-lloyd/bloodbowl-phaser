@@ -1,9 +1,4 @@
-import {
-  type Team,
-  createTeam,
-  RosterName,
-  type TeamColors,
-} from "../../types/Team";
+import { type Team } from "../../types/Team";
 import {
   dehydrateTeam,
   readStoredTeam,
@@ -201,17 +196,6 @@ export function deleteTeam(teamId: string): void | Promise<void> {
 export function getTeamById(teamId: string): Team | undefined {
   const teams = loadTeams();
   return teams.find((t) => t.id === teamId);
-}
-
-function createNewTeam(
-  name: string,
-  rosterName: RosterName,
-  colors: TeamColors,
-  rerollCost: number
-): Team {
-  const team = createTeam(name, rosterName, colors, rerollCost);
-  saveTeam(team);
-  return team;
 }
 
 export function seedAllRosterTeams(): void {

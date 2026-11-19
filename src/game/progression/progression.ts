@@ -13,12 +13,6 @@ import {
 } from "../../types/Skills";
 import { type IRNGService } from "../../services/rng/RNGService";
 
-type AdvancementKind =
-  | "random-primary"
-  | "chosen-primary"
-  | "chosen-secondary"
-  | "characteristic";
-
 export interface AdvancementCosts {
   randomPrimary: number;
   chosenPrimary: number;
@@ -214,7 +208,9 @@ export function rollSkill(
     throw new Error("Skill table rolls must be D6 results");
   }
   const halfOffset = firstD6 <= 3 ? 0 : 6;
-  return SKILL_ROLL_TABLE[category][halfOffset + secondD6 - 1];
+  const skill = SKILL_ROLL_TABLE[category][halfOffset + secondD6 - 1];
+  if (!skill) throw new Error(`No ${category} skill for the rolls`);
+  return skill;
 }
 
 export function isSkillLegal(player: Player, skill: SkillType): boolean {

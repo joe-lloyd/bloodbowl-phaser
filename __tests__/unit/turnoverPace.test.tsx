@@ -57,7 +57,9 @@ vi.mock("../../src/services/ServiceContainer", () => {
   };
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 it("a failed Rush with its armour roll reaches the next turn banner in under 5 s", async () => {
   vi.useFakeTimers();

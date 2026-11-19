@@ -131,14 +131,16 @@ describe("a league season reported by score only", () => {
     for (let round = 1; round <= rounds; round++) {
       for (const fixture of doc.fixtures.filter((f) => f.round === round)) {
         if (!fixture.homeEntrantId || !fixture.awayEntrantId) continue;
-        await recordCompetitionFixture(
-        {
+        await recordCompetitionFixture({
           context: {
             competitionType: "league",
             competitionId: doc.id,
             fixtureId: fixture.id,
-          },homeScore: rng.rollDie(4)-1,awayScore: rng.rollDie(4)-1,progressedTeams: undefined,penalties: undefined,options: { rng }
-        }        );
+          },
+          homeScore: rng.rollDie(4) - 1,
+          awayScore: rng.rollDie(4) - 1,
+          options: { rng },
+        });
         for (const built of computerTeams) {
           const stored = fixtureValue(getTeamById(built.id));
           expect(illegal(stored), `${stored.name} after ${fixture.id}`).toEqual(

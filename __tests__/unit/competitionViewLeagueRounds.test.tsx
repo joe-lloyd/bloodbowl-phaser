@@ -84,7 +84,7 @@ async function league(
 
 function played(game: CompetitionFixture) {
   game.status = "complete";
-  game.result = { homeScore: 2, awayScore: 1 };
+  game.result = { homeScore: 2, awayScore: 1, completedAt: 1 };
 }
 
 async function show() {

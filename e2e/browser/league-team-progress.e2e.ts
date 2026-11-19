@@ -42,7 +42,7 @@ function season() {
   }));
   const fixtures = generateRoundRobin(entrants);
   fixtureValue(fixtures[0]).status = "complete";
-  fixtureValue(fixtures[0]).result = { homeScore: 2, awayScore: 1 };
+  fixtureValue(fixtures[0]).result = { homeScore: 2, awayScore: 1, completedAt: 0 };
   const league: LeagueDoc = {
     id: "progress",
     type: "league",

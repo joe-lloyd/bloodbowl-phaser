@@ -2,6 +2,7 @@ import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { RosterName } from "../../../src/types/Team";
 import { computeStandings } from "../../../src/competition/logic";
+import type { LeagueDoc, TournamentDoc } from "../../../src/competition/types";
 import { buildAllSeedTeams } from "../../../src/seeding/teamFixtures";
 import { decorateSeedTeams } from "../../../src/seeding/playerLifecycle";
 import { buildSeedCompetitions } from "../../../src/seeding/competitionFixtures";
@@ -38,7 +39,7 @@ describe("competitionFixtures", () => {
   it("the active tournament has completed semis and an open final", () => {
     const { competitions } = build();
     const active = fixtureValue(competitions.find(
-      (d) => d.type === "tournament" && d.status === "active"
+      (d): d is TournamentDoc => d.type === "tournament" && d.status === "active"
     ));
     const final = fixtureValue(active.fixtures.find((f) => !f.nextFixtureId));
     const semis = active.fixtures.filter((f) => f.nextFixtureId === final.id);
@@ -56,7 +57,7 @@ describe("competitionFixtures", () => {
   it("the completed league is fully played with a table leader", () => {
     const { competitions } = build();
     const league = fixtureValue(competitions.find(
-      (d) => d.type === "league" && d.status === "complete"
+      (d): d is LeagueDoc => d.type === "league" && d.status === "complete"
     ));
     expect(league.fixtures.every((f) => f.status === "complete")).toBe(true);
     expect(league.standings).toEqual(
@@ -71,7 +72,7 @@ describe("competitionFixtures", () => {
   it("the completed tournament records its champion", () => {
     const { competitions } = build();
     const cup = fixtureValue(competitions.find(
-      (d) => d.type === "tournament" && d.status === "complete"
+      (d): d is TournamentDoc => d.type === "tournament" && d.status === "complete"
     ));
     const final = fixtureValue(cup.fixtures.find((f) => !f.nextFixtureId));
     expect(cup.championEntrantId).toBe(fixtureValue(final.result).winnerEntrantId);

@@ -36,10 +36,11 @@ function mergeLayer(
 export function mergeCoverageResults(
   results: CoverageResult[]
 ): CoverageResult {
-  if (results.length === 0) {
+  const [first] = results;
+  if (!first) {
     throw new Error("nothing to merge");
   }
-  if (results.length === 1) return results[0];
+  if (results.length === 1) return first;
 
   const byEntryId = new Map<string, EntryResult[]>();
   for (const result of results) {
@@ -52,15 +53,21 @@ export function mergeCoverageResults(
 
   const entries: EntryResult[] = [...byEntryId.entries()]
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([, group]) => ({
-      entry: group[0].entry,
-      layers: EXECUTION_LAYERS.map((layer) =>
-        mergeLayer(
-          group.flatMap((entry) => entry.layers),
-          layer
-        )
-      ),
-    }));
+    .flatMap(([, group]) => {
+      const [head] = group;
+      if (!head) return [];
+      return [
+        {
+          entry: head.entry,
+          layers: EXECUTION_LAYERS.map((layer) =>
+            mergeLayer(
+              group.flatMap((entry) => entry.layers),
+              layer
+            )
+          ),
+        },
+      ];
+    });
 
   const totals = Object.fromEntries(
     EXECUTION_LAYERS.map((layer) => {

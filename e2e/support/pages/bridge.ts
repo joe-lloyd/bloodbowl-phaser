@@ -1,4 +1,3 @@
-import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { type Page, expect } from "@playwright/test";
 import type { GameSnapshot } from "../../../src/headless/serialization";
 import type {
@@ -28,27 +27,27 @@ export class GameBridge {
 
   snapshot(): Promise<GameSnapshot> {
     return this.page.evaluate(() =>
-      fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+      ((window as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
-      ]).snapshot()
+      ])!.snapshot()
     );
   }
 
   events(sinceIndex = 0): Promise<EmittedEvent[]> {
     return this.page.evaluate(
       (since) =>
-        fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+        ((window as unknown as Record<string, BrowserTestBridge>)[
           "__bbTestBridge"
-        ]).events(since),
+        ])!.events(since),
       sinceIndex
     );
   }
 
   pendingDecision(): Promise<PendingDecision | null> {
     return this.page.evaluate(() =>
-      fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+      ((window as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
-      ]).pendingDecision()
+      ])!.pendingDecision()
     );
   }
 
@@ -58,41 +57,41 @@ export class GameBridge {
     activeTeamId: string | null;
   }> {
     return this.page.evaluate(() =>
-      fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+      ((window as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
-      ]).phase()
+      ])!.phase()
     );
   }
 
   scenes(): Promise<string[]> {
     return this.page.evaluate(() =>
-      fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+      ((window as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
-      ]).scenes()
+      ])!.scenes()
     );
   }
 
   pitchLayers(): Promise<string[]> {
     return this.page.evaluate(() =>
-      fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+      ((window as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
-      ]).pitchLayers()
+      ])!.pitchLayers()
     );
   }
 
   pitchHighlights(): Promise<{ x: number; y: number }[]> {
     return this.page.evaluate(() =>
-      fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+      ((window as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
-      ]).pitchHighlights()
+      ])!.pitchHighlights()
     );
   }
 
   teams(): Promise<[BridgeTeam, BridgeTeam]> {
     return this.page.evaluate(() =>
-      fixtureValue((window as unknown as Record<string, BrowserTestBridge>)[
+      ((window as unknown as Record<string, BrowserTestBridge>)[
         "__bbTestBridge"
-      ]).teams()
+      ])!.teams()
     );
   }
 

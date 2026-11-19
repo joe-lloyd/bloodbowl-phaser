@@ -65,8 +65,9 @@ function scriptedDice(...values: number[]) {
       if (rolled.length >= values.length) {
         throw new Error("The scripted dice ran out");
       }
-      rolled.push(fixtureValue(values[rolled.length]));
-      return rolled[rolled.length - 1];
+      const value = fixtureValue(values[rolled.length]);
+      rolled.push(value);
+      return value;
     },
   };
 }

@@ -396,29 +396,6 @@ export function calculateTeamValue(team: Team): number {
   return playersTeamValue(team) + staffTeamValue(team);
 }
 
-function getActivePlayers(team: Team): Player[] {
-  return team.players.filter(
-    (p) =>
-      p.status === "Active" || p.status === "Prone" || p.status === "Stunned"
-  );
-}
-
-function getReservePlayers(team: Team): Player[] {
-  return team.players.filter(
-    (p) => p.status === "Reserve" && !isPendingRecruit(team, p.id)
-  );
-}
-
-function getKOPlayers(team: Team): Player[] {
-  return team.players.filter((p) => p.status === "KO");
-}
-
-function getInjuredPlayers(team: Team): Player[] {
-  return team.players.filter(
-    (p) => p.status === "Injured" || p.status === "Dead"
-  );
-}
-
 function canAfford(team: Team, cost: number): boolean {
   return team.treasury >= cost;
 }

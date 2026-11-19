@@ -5,14 +5,15 @@ import { type IGameService } from "../../../src/services/interfaces/IGameService
 import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
 import { GamePhase } from "../../../src/types/GameState.js";
+import type { Team } from "../../../src/types/Team.js";
 import { GameEventNames } from "../../../src/types/events.js";
 import { noDelay } from "../../../src/game/core/GameFlowManager.js";
 
 describe("Kickoff Verification", () => {
   let gameService: IGameService;
   let eventBus: EventBus;
-  let team1;
-  let team2;
+  let team1: Team;
+  let team2: Team;
 
   beforeEach(async () => {
     eventBus = new EventBus();
@@ -52,7 +53,7 @@ describe("Kickoff Verification", () => {
       [4, 8],
     ];
     left.forEach(([x, y], index) =>
-      gameService.placePlayer(team1.players[index].id, fixtureValue(x), fixtureValue(y))
+      gameService.placePlayer(fixtureValue(team1.players[index]).id, fixtureValue(x), fixtureValue(y))
     );
     gameService.confirmSetup("t1");
     await Promise.resolve();
@@ -60,7 +61,7 @@ describe("Kickoff Verification", () => {
     left
       .map(([x, y]) => [19 - fixtureValue(x), y])
       .forEach(([x, y], index) =>
-        gameService.placePlayer(team2.players[index].id, fixtureValue(x), fixtureValue(y))
+        gameService.placePlayer(fixtureValue(team2.players[index]).id, fixtureValue(x), fixtureValue(y))
       );
     gameService.confirmSetup("t2");
   });

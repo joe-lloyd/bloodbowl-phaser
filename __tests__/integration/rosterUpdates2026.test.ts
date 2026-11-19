@@ -125,8 +125,12 @@ describe("March 2026 High Elf recruits", () => {
       stored.injuries = [InjuryType.STAT_DECREASE_MA];
       stored.characteristicAdvances = { AV: 1 };
       const warnings: string[] = [];
-      const player = hydratePlayer(
-        { stored,teamId: "test-team",rosterName: RosterName.HIGH_ELF,warnings }      );
+      const player = hydratePlayer({
+        stored,
+        teamId: "test-team",
+        rosterName: RosterName.HIGH_ELF,
+        warnings,
+      });
       const fresh = recruit(RosterName.HIGH_ELF, newName);
       expect(player.positionName).toBe(newName);
       expect(player.stats).toEqual({
@@ -145,17 +149,24 @@ describe("March 2026 High Elf recruits", () => {
 
 describe("saved High Elf roster limits", () => {
   it("flags three migrated Catchers against the two-White-Lion limit", () => {
-    const team = createTeam("Old High Elves", RosterName.HIGH_ELF, {
-      primary: 0,
-      secondary: 0,
-    });
+    const team = createTeam(
+      "Old High Elves",
+      RosterName.HIGH_ELF,
+      { primary: 0, secondary: 0 },
+      getRosterByRosterName(RosterName.HIGH_ELF).rerollCost
+    );
     team.players = [1, 2, 3].map((number) => {
       const stored = dehydratePlayer(
         recruit(RosterName.HIGH_ELF, "High Elf Lineman")
       );
       stored.number = number;
       stored.positionName = "High Elf Catcher";
-      return hydratePlayer({ stored,teamId: team.id,rosterName: team.rosterName,warnings: [] });
+      return hydratePlayer({
+        stored,
+        teamId: team.id,
+        rosterName: team.rosterName,
+        warnings: [],
+      });
     });
     const violations = validateRosterLegality(
       team,

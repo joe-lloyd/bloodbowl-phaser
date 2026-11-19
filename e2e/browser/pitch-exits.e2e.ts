@@ -1,4 +1,3 @@
-import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
@@ -33,8 +32,8 @@ test("a scenario reload during players' exits raises no page error", async ({
       .players.filter((player) => player.gridPosition);
     ["Removed", "KO", "Injured", "Dead"].forEach((status, i) => {
       const player = players[i + 1];
-      fixtureValue(player).status = status;
-      delete fixtureValue(player).gridPosition;
+      (player)!.status = status;
+      delete (player)!.gridPosition;
       scene.eventBus.emit("playerStatusChanged", player);
     });
   });

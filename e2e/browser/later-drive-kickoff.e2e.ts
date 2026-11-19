@@ -1,11 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
-import type { IEventBus } from "../../src/services/EventBus";
 
 declare global {
   interface Window {
-    eventBus: IEventBus;
     __handover: { turnStartedAt: number; bannerAt: number };
 
     __tray: string[];

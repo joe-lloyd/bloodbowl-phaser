@@ -43,15 +43,20 @@ export function pitchExitRoute(
   const box = worldToBoard(to, project);
   const lane = box.y < 0 ? -0.5 : rows + 0.5;
   return [from, project(player.x, lane), project(box.x, lane), to].filter(
-    (point, i, points) =>
-      i === 0 ||
-      Math.hypot(point.x - points[i - 1].x, point.y - points[i - 1].y) > 0.01
+    (point, i, points) => {
+      const previous = points[i - 1];
+      return (
+        !previous ||
+        Math.hypot(point.x - previous.x, point.y - previous.y) > 0.01
+      );
+    }
   );
 }
 
 export function walkingSteps(route: readonly BoardPoint[]): BoardPoint[] {
   return route.slice(1).flatMap((to, i) => {
     const from = route[i];
+    if (!from) return [];
     const steps = Math.max(
       1,
       Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / 55)

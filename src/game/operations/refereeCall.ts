@@ -1,5 +1,4 @@
 import { GameEventNames, type RefereeCallStep } from "../../types/events";
-import { type IGameService } from "../../services/interfaces/IGameService";
 import { type FlowContext } from "../core/GameFlowManager";
 import { type Player } from "../../types/Player";
 import { TeamSpecialRule } from "../../types/Team";
@@ -25,11 +24,10 @@ export async function resolveSendOff(
   const call = { playerId: player.id, teamId: player.teamId, cause };
   eventBus.emit(GameEventNames.RefereeCall, { ...call, step: "called" });
 
-  const rolls = argueTheCall(context, player);
+  const { rolls, finalRoll } = argueTheCall(context, player);
   const swayed =
-    gameService
-      .getFoulController()
-      .resolveArgueTheCall(rolls[rolls.length - 1]) === "swayed";
+    gameService.getFoulController().resolveArgueTheCall(finalRoll) ===
+    "swayed";
   eventBus.emit(GameEventNames.RefereeCall, {
     ...call,
     step: "argued",
@@ -80,7 +78,10 @@ export async function resolveSendOff(
   return result;
 }
 
-function argueTheCall(context: FlowContext, player: Player): number[] {
+function argueTheCall(
+  context: FlowContext,
+  player: Player
+): { rolls: number[]; finalRoll: number } {
   const gameService = context.gameService;
   const diceController = gameService.getDiceController();
   const teamId = player.teamId;
@@ -89,11 +90,11 @@ function argueTheCall(context: FlowContext, player: Player): number[] {
     GameEventNames.UI_Notification,
     "Coach is Arguing the Call..."
   );
-  const rolls = [diceController.rollD6("Argue the Call", teamId)];
+  const firstRoll = diceController.rollD6("Argue the Call", teamId);
   const state = gameService.getState();
   const team = gameService.getTeam(teamId);
   if (
-    rolls[0] === 1 &&
+    firstRoll === 1 &&
     team &&
     hasTeamSpecialRule(team, TeamSpecialRule.BRIBERY_AND_CORRUPTION) &&
     !state.briberyRerollsUsed?.includes(teamId)
@@ -104,15 +105,16 @@ function argueTheCall(context: FlowContext, player: Player): number[] {
       skill: TeamSpecialRule.BRIBERY_AND_CORRUPTION,
       effect: "Bribery and Corruption: re-roll the Argue the Call 1",
     });
-    rolls.push(diceController.rollD6("Argue the Call (re-roll)", teamId));
+    const reroll = diceController.rollD6("Argue the Call (re-roll)", teamId);
     context.eventBus.emit(GameEventNames.RerollUsed, {
       playerId: player.id,
       source: "skill",
       skill: TeamSpecialRule.BRIBERY_AND_CORRUPTION,
       rollKind: "argue-the-call",
-      before: rolls[0],
-      after: rolls[1],
+      before: firstRoll,
+      after: reroll,
     });
+    return { rolls: [firstRoll, reroll], finalRoll: reroll };
   }
-  return rolls;
+  return { rolls: [firstRoll], finalRoll: firstRoll };
 }

@@ -2,10 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ServiceContainer } from "../../../src/services/ServiceContainer.js";
 import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
+import { GameEventNames } from "../../../src/types/events.js";
+import type { Team } from "../../../src/types/Team.js";
 
 describe("ServiceContainer", () => {
-  let team1;
-  let team2;
+  let team1: Team;
+  let team2: Team;
 
   beforeEach(() => {
     team1 = new TeamBuilder()
@@ -85,11 +87,11 @@ describe("ServiceContainer", () => {
       const container = ServiceContainer.getInstance();
       let eventFired = false;
 
-      container.eventBus.on("test", () => {
+      container.eventBus.on(GameEventNames.KickoffEventStepChanged, () => {
         eventFired = true;
       });
 
-      container.eventBus.emit("test", undefined);
+      container.eventBus.emit(GameEventNames.KickoffEventStepChanged, undefined);
 
       expect(eventFired).toBe(true);
     });

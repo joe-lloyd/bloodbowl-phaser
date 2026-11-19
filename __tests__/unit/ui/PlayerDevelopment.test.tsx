@@ -38,7 +38,7 @@ function savedTeam(spp: number): { team: Team; playerId: string } {
 
 function dice(...values: number[]) {
   let index = 0;
-  return { rollDie: () => values[index++ % values.length] };
+  return { rollDie: () => fixtureValue(values[index++ % values.length]) };
 }
 
 describe("PlayerDevelopment", () => {
@@ -265,11 +265,7 @@ describe("PlayerDevelopment", () => {
       .players.find((p) => p.id === playerId));
   }
 
-  async function rollCandidatesFor(
-    teamId: string,
-    playerId: string,
-    category: string
-  ) {
+  async function rollCandidatesFor(category: string) {
     click(option("random-primary"));
     choose(
       fixtureValue(container.querySelector<HTMLSelectElement>(
@@ -293,7 +289,7 @@ describe("PlayerDevelopment", () => {
     );
     saveTeams([otherTab]);
 
-    await rollCandidatesFor(team.id, playerId, fixtureValue(category));
+    await rollCandidatesFor(fixtureValue(category));
 
     expect(storedPlayer(team.id, playerId).pendingAdvancementRoll).toEqual(
       otherRoll
@@ -320,7 +316,7 @@ describe("PlayerDevelopment", () => {
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await rollCandidatesFor(team.id, playerId, fixtureValue(category));
+    await rollCandidatesFor(fixtureValue(category));
 
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "could not be saved"
@@ -347,7 +343,7 @@ describe("PlayerDevelopment", () => {
     saveTeams([stored]);
     const category = fixtureValue(fixtureValue(team.players.find((p) => p.id === playerId)).primary)[0];
     await renderFromStorage(team.id, playerId, dice(1, 2, 4, 5));
-    await rollCandidatesFor(team.id, playerId, fixtureValue(category));
+    await rollCandidatesFor(fixtureValue(category));
 
     const writes = vi.spyOn(Storage.prototype, "setItem");
     click(fixtureValue(container.querySelector('[data-testid="random-candidate"]')));

@@ -155,10 +155,7 @@ export abstract class BlockRerolls extends BlockManagerBase {
       { reason: "Pro",target: 3,modifier: 0,playerName: attacker.playerName }    );
     if (gate.success) {
       const before = faces(pending.results);
-      pending.results[dieIndex] = this.diceController.rollBlockDice(
-        1,
-        attacker.teamId
-      )[0];
+      pending.results[dieIndex] = this.rollOneBlockDie(attacker.teamId);
       this.eventBus.emit(GameEventNames.RerollUsed, {
         playerId: attackerId,
         source: "pro",
@@ -181,6 +178,12 @@ export abstract class BlockRerolls extends BlockManagerBase {
     this.closeRerolls(pending);
   }
 
+  private rollOneBlockDie(teamId: string): BlockResult {
+    const [result] = this.diceController.rollBlockDice(1, teamId);
+    if (!result) throw new Error("Block dice roll returned no result");
+    return result;
+  }
+
   public brawlerRerollBlockDie(attackerId: string): void {
     const pending = this.pendingBlockRoll;
     if (!pending || pending.attackerId !== attackerId) return;
@@ -197,10 +200,7 @@ export abstract class BlockRerolls extends BlockManagerBase {
       .consumeOnce(attacker, SkillType.BRAWLER);
 
     const before = faces(pending.results);
-    pending.results[index] = this.diceController.rollBlockDice(
-      1,
-      attacker.teamId
-    )[0];
+    pending.results[index] = this.rollOneBlockDie(attacker.teamId);
     this.eventBus.emit(GameEventNames.RerollUsed, {
       playerId: attackerId,
       source: "skill",

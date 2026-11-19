@@ -104,7 +104,7 @@ describe("computer team templates", () => {
         advancementMode,
         draftBudget: 600_000,
       });
-      for (const ruleset of [DEFAULT_SEVENS_RULESET, NAF_SEVENS_RULESET]) {
+      for (const ruleset of [DEFAULT_SEVENS_RULESET, NAF_SEVENS_RULESET] as const) {
         const failures = getComputerTeamTemplates(ruleset).flatMap(
           (template) => {
             const team = createComputerTeamFromTemplate(template.id, {

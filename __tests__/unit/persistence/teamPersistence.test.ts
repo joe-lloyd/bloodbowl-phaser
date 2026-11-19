@@ -79,7 +79,7 @@ describe("dehydrate/hydrate round trip", () => {
       (candidate) => candidate.primary && candidate.primary.length > 0
     ));
     player.spp = 1000;
-    const [skill] = eligibleSkills(player, player.primary ?? []);
+    const skill = fixtureValue(eligibleSkills(player, player.primary ?? [])[0]);
     applyAdvancement(player, { kind: "chosen-primary", skill });
     player.characteristicAdvances = { MA: 1 };
     player.stats.MA += 1;

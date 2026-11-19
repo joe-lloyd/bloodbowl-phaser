@@ -62,10 +62,10 @@ describe("TeamSelect filtering", () => {
     expect(container.textContent).toContain("Green Bay Orcs");
     expect(container.textContent).toContain("River Vale Humans");
 
-    const filter1 = fixtureValue(container.querySelector(
+    const filter1 = fixtureValue(container.querySelector<HTMLInputElement>(
       'input[aria-label="Filter Player 1 teams"]'
     ));
-    const filter2 = fixtureValue(container.querySelector(
+    const filter2 = fixtureValue(container.querySelector<HTMLInputElement>(
       'input[aria-label="Filter Player 2 teams"]'
     ));
     expect(filter1).toBeTruthy();
@@ -117,7 +117,7 @@ describe("TeamSelect filtering", () => {
       );
     });
 
-    const filter1 = fixtureValue(container.querySelector(
+    const filter1 = fixtureValue(container.querySelector<HTMLInputElement>(
       'input[aria-label="Filter Player 1 teams"]'
     ));
 
@@ -159,7 +159,7 @@ describe("TeamSelect ready-made teams", () => {
       );
     });
     const add = async (roster: RosterName) => {
-      const select = fixtureValue(container.querySelector(
+      const select = fixtureValue(container.querySelector<HTMLSelectElement>(
         'select[aria-label="Roster for a ready-made team"]'
       ));
       await act(async () => {

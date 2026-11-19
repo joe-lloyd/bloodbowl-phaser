@@ -50,7 +50,10 @@ export function favouredOfChoices(
 }
 
 export function teamLeague(team: TeamAllegiance): League {
-  return team.league ?? leagueChoices(team.rosterName)[0];
+  if (team.league !== undefined) return team.league;
+  const [league] = leagueChoices(team.rosterName);
+  if (!league) throw new Error(`No league for ${team.rosterName}`);
+  return league;
 }
 
 export function teamFavouredOf(

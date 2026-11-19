@@ -172,7 +172,9 @@ function buildSkillDefinitions(): Record<SkillType, SkillDefinition> {
       kind: entry.kind,
       usage: entry.usage,
       compulsory: entry.compulsory,
-      parameterForm: entry.parameterForm ?? undefined,
+      ...(entry.parameterForm != null
+        ? { parameterForm: entry.parameterForm }
+        : {}),
       description: entry.description,
     };
   }
@@ -259,15 +261,15 @@ export const LEGACY_SKILL_NAMES: Record<
   Swarming: null,
 };
 
-const KNOWN_TYPES = new Set(Object.values(SkillType));
 const IS_DEV = (import.meta).env?.DEV ?? true;
 
 export function migrateSkill(raw: {
   type: string;
   parameter?: string | number;
 }): Skill | null {
-  if (KNOWN_TYPES.has(raw.type)) {
-    return getSkill(raw.type as SkillType, raw.parameter);
+  const known = Object.values(SkillType).find((type) => type === raw.type);
+  if (known) {
+    return getSkill(known, raw.parameter);
   }
   const legacy = LEGACY_SKILL_NAMES[raw.type];
   if (legacy === null) {

@@ -53,6 +53,18 @@ import { type CompetitionDoc } from "./types";
 
 type Rng = Pick<IRNGService, "rollDie">;
 
+function rollFrom<T>(items: readonly T[], rng: Rng): T {
+  const item = items[rng.rollDie(items.length) - 1];
+  if (item === undefined) throw new Error("roll fell outside the list");
+  return item;
+}
+
+function firstOf<T>(items: readonly T[]): T {
+  const [item] = items;
+  if (item === undefined) throw new Error("expected a non-empty list");
+  return item;
+}
+
 export interface ManagementReport {
   done: string[];
 
@@ -253,7 +265,8 @@ function characteristicAdvancement(
 ): AdvancementChoice | null {
   const roll = rng.rollDie(8);
   const stats = characteristicChoices(player, roll);
-  if (stats.length > 0) return { kind: "characteristic", roll, stat: stats[0] };
+  const [stat] = stats;
+  if (stat !== undefined) return { kind: "characteristic", roll, stat };
   const skill = eligibleSkills(player, player.primary ?? [])[0];
   return skill
     ? { kind: "characteristic-fallback", roll, skill, access: "primary" }
@@ -277,7 +290,7 @@ function advancementChoice(
     if (options.length > 0)
       return {
         kind: "chosen-primary",
-        skill: options[rng.rollDie(options.length) - 1],
+        skill: rollFrom(options, rng),
       };
   }
   const category = (player.primary ?? [])[0];
@@ -344,15 +357,12 @@ function resolveSkillSelection({
         ) {
           startSecondarySelection(team, entry, rng);
         } else if (decision.primaryOptions.length > 0) {
-          const option =
-            decision.primaryOptions[
-              rng.rollDie(decision.primaryOptions.length) - 1
-            ];
+          const option = rollFrom(decision.primaryOptions, rng);
           startPrimarySelection(
             team,
             entry,
             option.playerId,
-            option.categories[0]
+            firstOf(option.categories)
           );
         } else {
           throw new Error("no Skill Selection route is available");
@@ -364,7 +374,7 @@ function resolveSkillSelection({
           team,
           entry,
           decision.chooser,
-          decision.options[rng.rollDie(decision.options.length) - 1]
+          rollFrom(decision.options, rng)
         );
         break;
       case "roll-primary-d3": {
@@ -376,13 +386,13 @@ function resolveSkillSelection({
         return;
       }
       case "choose-secondary-category":
-        rollSecondaryCandidates(team, entry, decision.categories[0], rng);
+        rollSecondaryCandidates(team, entry, firstOf(decision.categories), rng);
         break;
       case "choose-secondary-skill": {
         const result = chooseSecondarySkill(
           team,
           entry,
-          decision.candidates[0].skill,
+          firstOf(decision.candidates).skill,
           rng
         );
         report.done.push(

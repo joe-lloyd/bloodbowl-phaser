@@ -101,7 +101,7 @@ function makeFakeScene() {
   return {
     add: {
       existing: vi.fn(),
-      rectangle: vi.fn(factory),
+      rectangle: vi.fn<unknown[], FakeGameObject>(factory),
       ellipse: vi.fn(factory),
       circle: vi.fn(factory),
       graphics: vi.fn(factory),

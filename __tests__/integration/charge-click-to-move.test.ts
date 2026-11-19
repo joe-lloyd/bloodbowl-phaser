@@ -48,18 +48,16 @@ async function kickedIntoCharge(activeTeam: "team1" | "team2") {
 }
 
 function board(game: HeadlessGame) {
-  const pitch = new Proxy(
-    {
-      worldToGrid: (x: number, y: number) => ({ x, y }),
-      highlightSquare: () => ({ destroy: () => {} }),
+  const members: Record<string, unknown> = {
+    worldToGrid: (x: number, y: number) => ({ x, y }),
+    highlightSquare: () => ({ destroy: () => {} }),
+  };
+  const pitch = new Proxy(members, {
+    get: (target, key: string) => {
+      if (!(key in target)) target[key] = vi.fn();
+      return target[key];
     },
-    {
-      get: (target, key: string) => {
-        if (!(key in target)) target[key] = vi.fn();
-        return target[key];
-      },
-    }
-  );
+  });
   const scene = {
     team1: game.ctx.team1,
     team2: game.ctx.team2,
@@ -67,8 +65,13 @@ function board(game: HeadlessGame) {
     highlightPlayer: vi.fn(),
     unhighlightPlayer: vi.fn(),
   };
-  return new GameplayInteractionController(
-    { scene: scene as never,gameService: game.ctx.gameService,eventBus: game.ctx.eventBus,pitch: pitch as never,movementValidator: new MovementValidator() }  );
+  return new GameplayInteractionController({
+    scene: scene as never,
+    gameService: game.ctx.gameService,
+    eventBus: game.ctx.eventBus,
+    pitch: pitch as never,
+    movementValidator: new MovementValidator(),
+  });
 }
 
 const settle = async () => {
@@ -114,7 +117,10 @@ describe("Charge! click-to-move on the board", () => {
       const gs = game.ctx.gameService;
       const { eventBus, team1, team2 } = game.ctx;
       const controller = board(game);
-      const chargers = [fixtureValue(team1.players[1]).id, fixtureValue(team1.players[3]).id];
+      const chargers = [
+        fixtureValue(team1.players[1]).id,
+        fixtureValue(team1.players[3]).id,
+      ];
       prepare(game, chargers);
 
       let menuFor: string | null = null;
@@ -181,7 +187,10 @@ describe("Charge! click-to-move on the board", () => {
     const gs = game.ctx.gameService;
     const { eventBus, team1 } = game.ctx;
     const controller = board(game);
-    const chargers = [fixtureValue(team1.players[1]).id, fixtureValue(team1.players[3]).id];
+    const chargers = [
+      fixtureValue(team1.players[1]).id,
+      fixtureValue(team1.players[3]).id,
+    ];
     for (const id of chargers) controller.handlePlayerClick(id);
     gs.confirmKickoffEventStep();
 
@@ -198,7 +207,11 @@ describe("Charge! click-to-move on the board", () => {
       (data: { playerId: string }) => movedInAction.push(data.playerId)
     );
 
-    const from = { ...fixtureValue(fixtureValue(gs.getPlayerById(fixtureValue(chargers[0]))).gridPosition) };
+    const from = {
+      ...fixtureValue(
+        fixtureValue(gs.getPlayerById(fixtureValue(chargers[0]))).gridPosition
+      ),
+    };
     const to = { x: from.x + 2, y: from.y };
     eventBus.emit(GameEventNames.UI_ActionSelected, {
       action: "move",

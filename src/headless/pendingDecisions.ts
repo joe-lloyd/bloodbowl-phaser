@@ -15,11 +15,11 @@ export function requestedDecision(
         playerId: request.playerId,
         chooserTeamId: request.chooserTeamId,
         rollKind: request.rollKind,
-        rollName: request.rollName,
+        ...(request.rollName === undefined ? {} : { rollName: request.rollName }),
         sources: request.sources,
-        skill: request.skill,
+        ...(request.skill === undefined ? {} : { skill: request.skill }),
         roll: request.roll,
-        needed: request.needed,
+        ...(request.needed === undefined ? {} : { needed: request.needed }),
       };
     case "reaction":
       return {
@@ -70,9 +70,9 @@ export function requestedDecision(
         chooserTeamId: request.chooserTeamId,
         playerId: request.playerId,
         resultKind: request.resultKind,
-        location: request.location,
-        position: request.position,
-        casualtyType: request.casualtyType,
+        ...(request.location === undefined ? {} : { location: request.location }),
+        ...(request.position === undefined ? {} : { position: request.position }),
+        ...(request.casualtyType === undefined ? {} : { casualtyType: request.casualtyType }),
       };
     default:
       return unsurfaced(request);
@@ -94,11 +94,11 @@ function blockDiceDecision(
     defenderId: data.defenderId,
     chooserTeamId: findPlayer(chooserId)?.teamId ?? "",
     options: data.results,
-    choiceStage: data.choiceStage,
-    teamRerollAvailable: data.teamRerollAvailable,
-    proAvailable: data.proAvailable,
-    brawlerAvailable: data.brawlerAvailable,
-    veteranRerollAvailable: data.veteranRerollAvailable,
+    ...(data.choiceStage === undefined ? {} : { choiceStage: data.choiceStage }),
+    ...(data.teamRerollAvailable === undefined ? {} : { teamRerollAvailable: data.teamRerollAvailable }),
+    ...(data.proAvailable === undefined ? {} : { proAvailable: data.proAvailable }),
+    ...(data.brawlerAvailable === undefined ? {} : { brawlerAvailable: data.brawlerAvailable }),
+    ...(data.veteranRerollAvailable === undefined ? {} : { veteranRerollAvailable: data.veteranRerollAvailable }),
   };
 }
 

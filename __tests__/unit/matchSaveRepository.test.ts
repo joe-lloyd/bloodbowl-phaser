@@ -115,13 +115,11 @@ describe("match save repository", () => {
   it("drops old dice logs before giving up the resumable save", () => {
     const storage = new MemoryStorage();
     for (const id of ["old", "older"]) {
-      writeDiceLog(
-        {
-          ...createDiceLog({ id, mode: "computer", seed: 1, teams: [] }),
-          padding: "x".repeat(2000),
-        },
-        storage
-      );
+      const paddedLog = {
+        ...createDiceLog({ id, mode: "computer", seed: 1, teams: [] }),
+        padding: "x".repeat(2000),
+      };
+      writeDiceLog(paddedLog, storage);
     }
     const save = matchSave(10);
     const used = [...storage.values.values()].reduce((n, v) => n + v.length, 0);

@@ -60,8 +60,15 @@ function momentList(moments: Moment[]): string {
     .join("\n");
 }
 
+function argument(index: number): string {
+  const value = process.argv[index];
+  if (value === undefined)
+    throw new Error(`Missing argument ${String(index - 1)}`);
+  return value;
+}
+
 async function main() {
-  const run = resolve(process.argv[2]);
+  const run = resolve(argument(2));
   const out = join(run, "moments");
   mkdirSync(out, { recursive: true });
   const summary = JSON.parse(

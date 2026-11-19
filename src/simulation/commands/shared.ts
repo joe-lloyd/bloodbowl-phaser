@@ -51,9 +51,10 @@ export function makeCoach(
       : plannerCoach;
   const apiKey = process.env["TYPESAFE_API_KEY"];
   if (!apiKey) fail("the jev coach needs TYPESAFE_API_KEY in the environment");
+  const model = process.env["TYPESAFE_MODEL"];
   const coach = createJevCoach({
     apiKey,
-    model: process.env["TYPESAFE_MODEL"],
+    ...(model === undefined ? {} : { model }),
   });
   jevStats.push(coach.stats);
   return coach;

@@ -81,9 +81,9 @@ function reroll(
     chooserTeamId: fx.team1.id,
     rollKind: "dodge",
     sources,
-    skill,
+    ...(skill === undefined ? {} : { skill }),
     roll: 1,
-    needed,
+    ...(needed === undefined ? {} : { needed }),
   });
 }
 

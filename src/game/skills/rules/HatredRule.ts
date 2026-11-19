@@ -23,7 +23,9 @@ export const HatredRule: SkillRule = {
     }
 
     const before = ctx.results.map((r) => r.label);
-    ctx.results[index] = ctx.dice.rollBlockDice(1, self.teamId)[0];
+    const [reroll] = ctx.dice.rollBlockDice(1, self.teamId);
+    if (!reroll) throw new Error("Block dice roll returned no result");
+    ctx.results[index] = reroll;
     ctx.rerolls.push({
       skill: SkillType.HATRED,
       before,

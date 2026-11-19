@@ -1,4 +1,3 @@
-import { fixtureValue } from "../../src/testing/fixtureValue";
 import { writeFileSync } from "node:fs";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
@@ -41,10 +40,10 @@ async function watchThrall(page: Page, playerId: string): Promise<void> {
       __biteWatch: Watch;
       __biteLog(what: SourceEntry["what"]): void;
     };
-    const scene = fixtureValue(w.game.scene
+    const scene = (w.game.scene
       .getScenes(true)
-      .find((s) => s.playerSprites?.has(id)));
-    const sprite = fixtureValue(fixtureValue(scene.playerSprites).get(id));
+      .find((s) => s.playerSprites?.has(id)))!;
+    const sprite = ((scene.playerSprites)!.get(id))!;
     const t0 = performance.now();
     const watch: Watch = { source: [], frames: [] };
     w.__biteWatch = watch;

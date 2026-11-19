@@ -27,9 +27,9 @@ export interface HeadlessGameOptions {
   team1?: Team;
   team2?: Team;
 
-  seed?: number;
+  seed?: number | undefined;
 
-  scenario?: Scenario;
+  scenario?: Scenario | undefined;
 
   initialState?: GameState;
 
@@ -37,14 +37,14 @@ export interface HeadlessGameOptions {
 
   delay?: DelayProvider;
 
-  startingPhase?: GamePhase;
+  startingPhase?: GamePhase | undefined;
   startingSubPhase?: SubPhase;
 
   defaultRoster?: RosterName;
 
   progressionEnabled?: boolean;
 
-  knockout?: boolean;
+  knockout?: boolean | undefined;
 
   paysWinnings?: boolean;
 
@@ -131,7 +131,7 @@ function startingState(
   if (initialState) return initialState;
   if (options.scenario) return applyScenario(options.scenario, team1, team2);
   if (options.startingPhase) {
-    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: { paysWinnings: options.paysWinnings } }
+    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: options.paysWinnings === undefined ? {} : { paysWinnings: options.paysWinnings } }
     );
   }
   if (options.paysWinnings) {

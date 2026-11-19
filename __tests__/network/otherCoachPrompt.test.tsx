@@ -84,7 +84,13 @@ beforeEach(async () => {
   bus = new EventBus();
   match = createOnlineMatch({
     lobby,
-    user: { uid: "host-uid", displayName: "Host", email: null, photoURL: null },
+    user: {
+      uid: "host-uid",
+      displayName: "Host",
+      email: null,
+      emailVerified: false,
+      photoURL: null,
+    },
     eventBus: bus,
     transport: hostEnd,
     seed: 3,
@@ -290,7 +296,9 @@ describe("the waiting coach's decision dock", () => {
       rolls: [{ type: "dodge", target: 4 }],
     });
     await act(async () => {
-      bus.emit(GameEventNames.UI_OtherCoachMoveResolved, { playerId: fixtureValue(orc).id });
+      bus.emit(GameEventNames.UI_OtherCoachMoveResolved, {
+        playerId: fixtureValue(orc).id,
+      });
     });
     expect(line()).toBeNull();
   });

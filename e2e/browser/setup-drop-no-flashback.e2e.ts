@@ -123,7 +123,7 @@ function at(square: Square) {
 }
 
 function lastFrame(log: FrameLog): Frame {
-  return log.frames[log.frames.length - 1];
+  return fixtureValue(log.frames[log.frames.length - 1]);
 }
 
 function framesAt(
@@ -175,15 +175,15 @@ async function dragAndRecord(
           getPixelPosition(x: number, y: number): { x: number; y: number };
         };
       }
-      const scene = fixtureValue(game.scene
+      const scene = (game.scene
         .getScenes(true)
-        .find((s) => s.playerSprites instanceof Map && s.dugouts));
+        .find((s) => s.playerSprites instanceof Map && s.dugouts))!;
       const read = (sprite: Sprite | undefined) =>
         sprite ? { x: sprite.x, y: sprite.y, visible: sprite.visible } : null;
-      const pitchSprite = () => read(fixtureValue(scene.playerSprites).get(playerId));
+      const pitchSprite = () => read((scene.playerSprites)!.get(playerId));
       const dugoutSprite = () =>
         read(
-          [...fixtureValue(scene.dugouts).values()]
+          [...(scene.dugouts)!.values()]
             .map((dugout) => dugout.getSprites().get(playerId))
             .find(Boolean)
         );
@@ -267,7 +267,7 @@ async function dugoutSquare(page: Page, playerId: string): Promise<Square> {
       x: number;
       y: number;
     }
-    const scene = fixtureValue((
+    const scene = ((
       window as unknown as {
         game: {
           scene: {
@@ -280,10 +280,10 @@ async function dugoutSquare(page: Page, playerId: string): Promise<Square> {
       }
     ).game.scene
       .getScenes(true)
-      .find((s) => s.dugouts));
-    const sprite = fixtureValue([...fixtureValue(scene.dugouts).values()]
+      .find((s) => s.dugouts))!;
+    const sprite = ([...(scene.dugouts)!.values()]
       .map((dugout) => dugout.getSprites().get(id))
-      .find(Boolean));
+      .find(Boolean))!;
     return scene.getPitch().worldToGrid(sprite.x, sprite.y);
   }, playerId);
 }

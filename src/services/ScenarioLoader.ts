@@ -32,7 +32,13 @@ export class ScenarioLoader {
       }
     }
 
-    ServiceContainer.initialize({ eventBus: this.eventBus, team1: this.team1, team2: this.team2, initialState: initialState, seed: seed });
+    ServiceContainer.initialize({
+      eventBus: this.eventBus,
+      team1: this.team1,
+      team2: this.team2,
+      initialState,
+      ...(seed !== undefined ? { seed } : {}),
+    });
 
     ServiceContainer.getInstance().gameService.seedTurnCounts(
       initialState.turn.turnNumber
@@ -42,8 +48,12 @@ export class ScenarioLoader {
 
     this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: initialState.phase,
-      subPhase: initialState.subPhase,
-      activeTeamId: initialState.activeTeamId ?? undefined,
+      ...(initialState.subPhase !== undefined
+        ? { subPhase: initialState.subPhase }
+        : {}),
+      ...(initialState.activeTeamId != null
+        ? { activeTeamId: initialState.activeTeamId }
+        : {}),
     });
 
     this.eventBus.emit(GameEventNames.TurnStarted, {

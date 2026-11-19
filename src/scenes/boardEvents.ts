@@ -87,7 +87,7 @@ export function subscribeBoardEvents(scene: GameScene): void {
         ? "Shakes it off and returns to the Reserves."
         : "Still out cold.",
       roll: data.roll,
-      teamId: player?.teamId,
+      ...(player ? { teamId: player.teamId } : {}),
     });
   });
 }

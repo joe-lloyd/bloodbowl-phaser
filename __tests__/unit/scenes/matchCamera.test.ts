@@ -9,7 +9,7 @@ import type { GameScene } from "../../../src/scenes/GameScene";
 
 function setup() {
   const game = new HeadlessGame({
-    scenario: SCENARIOS.find((s) => s.id === "camera-spread-team"),
+    scenario: fixtureValue(SCENARIOS.find((s) => s.id === "camera-spread-team")),
     seed: 1,
   });
   let acknowledge = () => {};

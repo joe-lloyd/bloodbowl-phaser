@@ -37,7 +37,10 @@ const CRITICAL: Record<number, number> = { 4: 9.49, 5: 11.07 };
 
 function verdict(total: number, chi: number, df: number): string {
   if (total === 0) return "no dice to judge";
-  return chi <= CRITICAL[df] ? "fair" : "CHECK: unlikely by chance (5% level)";
+  const critical = CRITICAL[df];
+  return critical !== undefined && chi <= critical
+    ? "fair"
+    : "CHECK: unlikely by chance (5% level)";
 }
 
 const seen = new Set<string>();

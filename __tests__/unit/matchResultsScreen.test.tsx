@@ -9,7 +9,7 @@ import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOpera
 import { GameFlowManager, noDelay } from "../../src/game/core/GameFlowManager";
 import { resultsHarness, setup } from "./matchResultsScreenHarness";
 
-const clearActiveMatchCode = vi.fn(() => Promise.resolve());
+const clearActiveMatchCode = vi.fn<[uid: string], Promise<void>>(() => Promise.resolve());
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/firebase/lobby")>()),
   clearActiveMatchCode: (uid: string) => clearActiveMatchCode(uid),

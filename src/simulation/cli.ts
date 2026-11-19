@@ -42,18 +42,19 @@ function parseFlags<T>(
   help: string
 ): T {
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--help") {
+    const arg = argv[i] ?? "";
+    if (arg === "--help") {
       process.stdout.write(`${help}\n`);
       process.exit(0);
     }
-    const flag = Object.prototype.hasOwnProperty.call(flags, argv[i])
-      ? flags[argv[i]]
+    const flag = Object.prototype.hasOwnProperty.call(flags, arg)
+      ? flags[arg]
       : undefined;
-    if (!flag) fail(`unknown option ${String(argv[i])}\n\n${help}`);
+    if (!flag) fail(`unknown option ${arg}\n\n${help}`);
     let taken = false;
     flag(options, () => {
       taken = true;
-      return argv[i + 1] ?? fail(`${String(argv[i])} needs a value`);
+      return argv[i + 1] ?? fail(`${arg} needs a value`);
     });
     if (taken) i++;
   }

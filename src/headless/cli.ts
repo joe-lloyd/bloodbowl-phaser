@@ -9,13 +9,13 @@ import { GameConfig } from "../config/GameConfig";
 import type { RuleConfig, ScriptResult } from "../game/rules-lab";
 
 interface CliOptions {
-  scenario?: string;
+  scenario?: string | undefined;
   seed?: number;
   json: boolean;
-  script?: string;
-  rule?: string;
-  config?: string;
-  outcome?: string;
+  script?: string | undefined;
+  rule?: string | undefined;
+  config?: string | undefined;
+  outcome?: string | undefined;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -91,15 +91,19 @@ function renderPitch(snapshot: GameSnapshot): string {
       if (y < 0 || y >= PITCH_HEIGHT || x < 0 || x >= PITCH_WIDTH) return;
       const downed = p.status === "Prone" || p.status === "Stunned" ? "*" : "";
       const cell = `${mark}${String(p.number)}${downed}`;
-      grid[y][x] = cell.length > 2 ? cell.slice(0, 3) : ` ${cell}`;
+      const row = grid[y];
+      if (!row) return;
+      row[x] = cell.length > 2 ? cell.slice(0, 3) : ` ${cell}`;
     });
   });
 
   if (snapshot.ballPosition) {
     const { x, y } = snapshot.ballPosition;
     if (y >= 0 && y < PITCH_HEIGHT && x >= 0 && x < PITCH_WIDTH) {
-      const existing = grid[y][x];
-      grid[y][x] = existing.trim() === "." ? " o" : existing.trim() + "o";
+      const row = grid[y];
+      const existing = row?.[x];
+      if (row && existing !== undefined)
+        row[x] = existing.trim() === "." ? " o" : existing.trim() + "o";
     }
   }
 
@@ -323,10 +327,10 @@ async function runScript(game: HeadlessGame, file: string): Promise<void> {
     .filter((l) => l.length > 0 && !l.startsWith("#"));
 
   const WATCHDOG_MS = 30_000;
-  for (let i = 0; i < lines.length; i++) {
+  for (const [i, line] of lines.entries()) {
     let command: unknown;
     try {
-      command = JSON.parse(lines[i]);
+      command = JSON.parse(line);
     } catch {
       process.stderr.write(`Line ${String(i + 1)}: invalid JSON\n`);
       process.exit(1);

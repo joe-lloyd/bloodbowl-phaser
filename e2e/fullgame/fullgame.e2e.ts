@@ -162,7 +162,7 @@ test("a full Sevens match, built and played through the UI", async ({
               };
             }
           ).game?.scene.getScene("GameScene");
-          const c = fixtureValue(scene)?.["gameplayController"] as
+          const c = (scene)!?.["gameplayController"] as
             | Record<string, unknown>
             | undefined;
           return JSON.stringify(

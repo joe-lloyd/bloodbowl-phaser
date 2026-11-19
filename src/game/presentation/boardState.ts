@@ -19,10 +19,6 @@ export function resolvePlayerLocation(player: Player): PlayerLocation {
     : { kind: "dugout", box };
 }
 
-function isOnPitch(player: Player): boolean {
-  return resolvePlayerLocation(player).kind === "pitch";
-}
-
 export type BallRepresentation =
   | { kind: "none" }
   | { kind: "loose"; square: { x: number; y: number } }

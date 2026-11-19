@@ -1,5 +1,5 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
-import React, { act } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";

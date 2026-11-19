@@ -1,7 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
-import { type IGameService } from "../../services/interfaces/IGameService";
 import { withRerollOffer } from "../skills";
 import { type RerollableRollKind } from "../../types/decisions";
 import { requiredRoll } from "../rules/rollTargets";

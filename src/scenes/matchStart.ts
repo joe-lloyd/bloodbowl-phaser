@@ -69,7 +69,17 @@ export function ensureMatchServices(
   if (!restored && competitionContext?.knockout) {
     initialState.knockout = true;
   }
-  ServiceContainer.initialize({ eventBus: window.eventBus, team1: team1, team2: team2, initialState: initialState, progressionEnabled: restored?.save.matchStats.progressionEnabled ?? progressionEnabled ?? false, rngState: restored?.save.rng, matchStatsState: restored?.save.matchStats, turnManagerState: restored?.save.turnManager });
+  const save = restored?.save;
+  ServiceContainer.initialize({
+    eventBus: window.eventBus,
+    team1,
+    team2,
+    initialState,
+    progressionEnabled:
+      save?.matchStats.progressionEnabled ?? progressionEnabled ?? false,
+    ...(save ? { rngState: save.rng, matchStatsState: save.matchStats } : {}),
+    ...(save?.turnManager ? { turnManagerState: save.turnManager } : {}),
+  });
 }
 
 export function startAutosave(scene: GameScene): MatchAutosave {

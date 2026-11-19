@@ -16,7 +16,7 @@ import {
 import { TeamBuilder as TeamBuilderPage } from "../../src/ui/components/pages/TeamBuilder";
 import { leagueOf, resultsHarness, setup } from "./matchResultsScreenHarness";
 
-const clearActiveMatchCode = vi.fn(() => Promise.resolve());
+const clearActiveMatchCode = vi.fn<[uid: string], Promise<void>>(() => Promise.resolve());
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/firebase/lobby")>()),
   clearActiveMatchCode: (uid: string) => clearActiveMatchCode(uid),
@@ -131,8 +131,8 @@ describe("MatchResultsScreen", () => {
       localStorage.clear();
       const { services, state, team1, team2 } = setup(true);
       const league = await leagueOf([team1, team2]);
-      state.score["team-1"] = score[0];
-      state.score["team-2"] = score[1];
+      state.score["team-1"] = fixtureValue(score[0]);
+      state.score["team-2"] = fixtureValue(score[1]);
       services.eventBus.emit(
         GameEventNames.PlayerActivated,
         fixtureValue(team1.players[0]).id

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { TurnManager } from "../../../src/game/managers/TurnManager";
 import {
   type GameState,
@@ -7,49 +7,33 @@ import {
 } from "../../../src/types/GameState";
 import { type Team } from "../../../src/types/Team";
 import { GameEventNames } from "../../../src/types/events";
+import { createInitialState } from "../../../src/services/gameService/matchStart";
+import { busWith, teamWith } from "../controllers/controllerFixtures";
 
 describe("TurnManager", () => {
   let manager: TurnManager;
-  let mockEventBus;
+  let mockEventBus: ReturnType<typeof busWith>;
   let mockState: GameState;
   let mockTeam1: Team;
   let mockTeam2: Team;
-  let mockCallbacks;
+  let mockCallbacks: {
+    onPhaseChanged: Mock<[phase: GamePhase, subPhase?: SubPhase], void>;
+  };
 
   beforeEach(() => {
-    mockEventBus = {
-      emit: vi.fn(),
-    };
+    mockEventBus = busWith();
 
-    mockState = {
-      phase: GamePhase.SETUP,
-      subPhase: SubPhase.NONE,
-      activeTeamId: null,
-      turn: {
-        teamId: "",
-        turnNumber: 0,
-        isHalf2: false,
-        activatedPlayerIds: new Set(),
-        hasBlitzed: false,
-        hasPassed: false,
-        hasHandedOff: false,
-        hasFouled: false,
-        movementUsed: new Map(),
-      },
-    } as GameState;
+    mockTeam1 = teamWith({ id: "team1", players: [] });
+    mockTeam2 = teamWith({ id: "team2", players: [] });
 
-    mockTeam1 = {
-      id: "team1",
-      players: [],
-    } as Team;
-
-    mockTeam2 = {
-      id: "team2",
-      players: [],
-    } as Team;
+    mockState = createInitialState({
+      team1: mockTeam1,
+      team2: mockTeam2,
+      startingPhase: GamePhase.SETUP,
+    });
 
     mockCallbacks = {
-      onPhaseChanged: vi.fn(),
+      onPhaseChanged: vi.fn<[phase: GamePhase, subPhase?: SubPhase], void>(),
     };
 
     manager = new TurnManager(

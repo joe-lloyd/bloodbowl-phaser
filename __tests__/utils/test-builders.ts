@@ -93,10 +93,10 @@ export class PlayerBuilder {
   private template: PlayerTemplate;
   private teamId: string;
   private number: number;
-  private name: (string) | undefined;
+  private name: string | undefined;
   private status: PlayerStatus;
-  private id: (string) | undefined;
-  private gridPosition: ({ x: number; y: number }) | undefined;
+  private id: string | undefined;
+  private gridPosition: { x: number; y: number } | undefined;
 
   constructor() {
     this.template = {
@@ -201,9 +201,15 @@ export class GameStateBuilder {
         hasPassed: false,
         hasHandedOff: false,
         hasFouled: false,
+        hasThrownTeamMate: false,
+        hasKickedTeamMate: false,
+        hasThrownBomb: false,
         movementUsed: new Map(),
       },
       score: {},
+      weather: "Nice",
+      ballPosition: null,
+      activePlayer: null,
     };
   }
 

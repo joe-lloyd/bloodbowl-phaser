@@ -8,7 +8,7 @@ import { GameEventNames, type AllEvents } from "../../src/types/events";
 
 it("keeps a failed dodge as the casualty cause through armour and injury", async () => {
   const game = new HeadlessGame({
-    scenario: SCENARIOS.find((s) => s.id === "basic-scrimmage"),
+    scenario: fixtureValue(SCENARIOS.find((s) => s.id === "basic-scrimmage")),
     seed: 1,
   });
   const player = game.ctx.team1.players[0];

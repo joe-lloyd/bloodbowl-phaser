@@ -75,7 +75,7 @@ function refuseUnless(
   pending: PendingDecision,
   accepted: boolean,
   error: string
-): void {
+): asserts accepted {
   if (accepted) return;
   host.restorePending(pending);
   throw new Error(error);
@@ -267,8 +267,9 @@ const COMMAND_HANDLERS: CommandHandlers = {
       cmd.teamId,
       cmd.formation
     );
-    if (result.placedPlayerIds.length === 0 && result.skipped.length > 0) {
-      throw new Error(result.skipped[0].reason);
+    const [firstSkip] = result.skipped;
+    if (result.placedPlayerIds.length === 0 && firstSkip) {
+      throw new Error(firstSkip.reason);
     }
   },
   "setup-concession": async (host, cmd) => {
@@ -324,7 +325,7 @@ const COMMAND_HANDLERS: CommandHandlers = {
     ) {
       throw new Error("invalid-block-replacement");
     }
-    const declared = ctx.gameService.declareAction({ playerId: cmd.playerId, action: cmd.action, ...(cmd.blockReplacement === undefined ? {} : { blockReplacement: cmd.blockReplacement }), options: { razzleDazzle: cmd.razzleDazzle } }
+    const declared = ctx.gameService.declareAction({ playerId: cmd.playerId, action: cmd.action, ...(cmd.blockReplacement === undefined ? {} : { blockReplacement: cmd.blockReplacement }), options: cmd.razzleDazzle === undefined ? {} : { razzleDazzle: cmd.razzleDazzle } }
     );
     if (!declared) throw new Error("illegal-action-declaration");
   },
@@ -433,16 +434,17 @@ const COMMAND_HANDLERS: CommandHandlers = {
   },
   "choose-block-result": async (host, cmd) => {
     const pending = host.takePending("block-dice");
+    const choice = pending.options[cmd.index];
     refuseUnless(
       host,
       pending,
-      cmd.index >= 0 && cmd.index < pending.options.length,
+      cmd.index >= 0 && cmd.index < pending.options.length && choice !== undefined,
       "invalid-block-result-index"
     );
     await host.ctx.gameService.resolveBlock(
       pending.attackerId,
       pending.defenderId,
-      pending.options[cmd.index]
+      choice
     );
   },
   "choose-push-direction": async (host, cmd) => {

@@ -11,7 +11,9 @@ import { SCENARIOS } from "../../src/data/scenarios";
 import { PlayerStatus } from "../../src/types/Player";
 import { forceDice } from "../utils/test-helpers";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function blitzScenario(targetX: number): Scenario {
   return {
@@ -62,7 +64,11 @@ function twoEngines(scenario: Scenario) {
     peerTeamId: hostTeamId,
     hostTeamId,
   });
-  const board = new NetworkedGameService({ inner: guest.ctx.gameService, dispatch: (command) => guestSession.run(command), pendingDecision: () => guest.pendingDecision() });
+  const board = new NetworkedGameService({
+    inner: guest.ctx.gameService,
+    dispatch: (command) => guestSession.run(command),
+    pendingDecision: () => guest.pendingDecision(),
+  });
   const settled = async () => {
     for (let i = 0; i < 4; i++) {
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -80,7 +86,9 @@ describe("board actions in an online match", () => {
     );
 
     scenario.setup.activeTeam = "team2";
-    scenario.setup.measures = { team2: fixtureValue(fixtureValue(scenario.setup.measures).team1) };
+    scenario.setup.measures = {
+      team2: fixtureValue(fixtureValue(scenario.setup.measures).team1),
+    };
     const { host, guest, board, settled } = twoEngines(scenario);
     board.endTurn();
     await settled();
@@ -99,7 +107,9 @@ describe("board actions in an online match", () => {
     await settled();
     for (const game of [host, guest]) {
       expect(game.pendingDecision()).toBeNull();
-      expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(PlayerStatus.PRONE);
+      expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+        PlayerStatus.PRONE
+      );
       expect(
         game.ctx.gameService.getState().matchInducements?.sportsWizards
       ).toEqual([]);
@@ -124,30 +134,53 @@ describe("board actions in an online match", () => {
     forceDice(host.ctx.rng, [6, 3]);
     forceDice(guest.ctx.rng, [6, 3]);
 
-    expect(board.declareAction({ playerId: fixtureValue(blitzer).id, action: "blitz" })).toBe(true);
+    expect(
+      board.declareAction({
+        playerId: fixtureValue(blitzer).id,
+        action: "blitz",
+      })
+    ).toBe(true);
     await settled();
     await board.movePlayer(fixtureValue(blitzer).id, path);
     await settled();
-    board.rollBlockDice({ attackerId: fixtureValue(blitzer).id, defenderId: fixtureValue(target).id, numDice: 1, isAttackerChoice: true });
+    board.rollBlockDice({
+      attackerId: fixtureValue(blitzer).id,
+      defenderId: fixtureValue(target).id,
+      numDice: 1,
+      isAttackerChoice: true,
+    });
     await settled();
 
-    expect(guest.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)).toBe(ma + 1);
-    expect(host.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)).toBe(ma + 1);
+    expect(
+      guest.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)
+    ).toBe(ma + 1);
+    expect(host.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)).toBe(
+      ma + 1
+    );
     expect(stateChecksum(host)).toBe(stateChecksum(guest));
   });
 
   it("the board cannot spend a blitz square on the guest's engine alone", async () => {
     const { host, guest, board, settled } = twoEngines(blitzScenario(12));
     const blitzer = guest.ctx.team2.players[0];
-    board.declareAction({ playerId: fixtureValue(blitzer).id, action: "blitz" });
+    board.declareAction({
+      playerId: fixtureValue(blitzer).id,
+      action: "blitz",
+    });
     await settled();
 
-    const allowed = await board.chargeBlitzBlockSquare(fixtureValue(blitzer).id);
+    const allowed = await board.chargeBlitzBlockSquare(
+      fixtureValue(blitzer).id
+    );
     await settled();
 
     expect(allowed).toBe(false);
-    expect(guest.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)).toBe(0);
-    expect(host.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)).toBe(0);
+    expect(
+      guest.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)
+    ).toBe(0);
+    expect(host.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)).toBe(
+      0
+    );
     expect(stateChecksum(host)).toBe(stateChecksum(guest));
   });
 

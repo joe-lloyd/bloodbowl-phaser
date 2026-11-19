@@ -14,6 +14,8 @@ import { isBigGuy } from "../../../src/game/rules/rosterLegality";
 import { processPool } from "../policy-study/pool";
 import type { PolicyJob } from "../policy-study/schedule";
 
+const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
+
 interface Tally {
   fouls: number;
   sentOff: number;
@@ -54,7 +56,7 @@ export async function foulsOfTrace(file: string) {
     recording: MatchRecording;
   };
   const game = new HeadlessGame({ matchSave: trace.initial });
-  const teams = [game.ctx.team1, game.ctx.team2];
+  const teams = [game.ctx.team1, game.ctx.team2] as const;
   const byGroup: [Record<string, Tally>, Record<string, Tally>] = [{}, {}];
   let open: Foul | null = null;
 
@@ -93,7 +95,7 @@ export async function foulsOfTrace(file: string) {
       const fouler = teams[side].players.find(
         (p) => p.id === command.playerId
       )!;
-      const target = teams[1 - side].players.find(
+      const target = teams[otherSide(side)].players.find(
         (p) =>
           p.gridPosition?.x === command.x && p.gridPosition?.y === command.y
       );
@@ -120,9 +122,16 @@ type GameFouls = Awaited<ReturnType<typeof foulsOfTrace>> & {
   candidateSide: number;
 };
 
+function argument(index: number): string {
+  const value = process.argv[index];
+  if (value === undefined)
+    throw new Error(`Missing argument ${String(index - 1)}`);
+  return value;
+}
+
 async function main() {
   const entry = fileURLToPath(import.meta.url);
-  const run = resolve(process.argv[2]);
+  const run = resolve(argument(2));
   const out = join(run, "fouls");
   mkdirSync(out, { recursive: true });
   if (process.argv.includes("--worker")) {

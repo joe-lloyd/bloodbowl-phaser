@@ -257,6 +257,8 @@ export class MatchStats {
       throw new Error("MVP roll is outside the nominated player slots");
     }
     const playerId = unique[roll - 1];
+    if (playerId === undefined)
+      throw new Error("MVP roll is outside the nominated player slots");
     this.eventBus.emit(GameEventNames.MvpAwarded, { teamId, playerId, roll });
     return playerId;
   }

@@ -87,8 +87,7 @@ export abstract class BlockPushChain extends BlockActivation {
       grabPush: false,
       sideStepPush: false,
       forceFollowUp: false,
-      decisions: this.decisions(),
-      flow: this.callbacks.getFlowManager?.(),
+      ...this.triggerServices(),
       triggers: [],
     };
     await foldTrigger(
@@ -248,6 +247,7 @@ export abstract class BlockPushChain extends BlockActivation {
       });
     }
 
+    const chooserTeamId = sideStepApplies ? pushed.teamId : attacker?.teamId;
     this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
       defenderId: pushed.id,
       validDirections: options,
@@ -256,8 +256,7 @@ export abstract class BlockPushChain extends BlockActivation {
         !chain.preventFollowUp,
       resultType: chain.resultType,
       attackerId: chain.attackerId,
-
-      chooserTeamId: sideStepApplies ? pushed.teamId : attacker?.teamId,
+      ...(chooserTeamId !== undefined ? { chooserTeamId } : {}),
       pushTier: tier,
     });
   }
@@ -345,8 +344,7 @@ export abstract class BlockPushChain extends BlockActivation {
       grabPush: false,
       sideStepPush: false,
       forceFollowUp: false,
-      decisions: this.decisions(),
-      flow: this.callbacks.getFlowManager?.(),
+      ...this.triggerServices(),
       triggers: [],
     };
     await foldTrigger("onPush", [pushed], ctx);
@@ -358,7 +356,7 @@ export abstract class BlockPushChain extends BlockActivation {
     const chain = this.chain!;
     this.chain = null;
     const attacker = this.getPlayerById(chain.attackerId);
-    const defender = this.getPlayerById(chain.links[0].playerId);
+    const defender = this.getPlayerById(chain.links[0]?.playerId ?? "");
     if (!attacker || !defender) return;
     await this.resolveRefusedPush(
       attacker,
@@ -433,15 +431,19 @@ export abstract class BlockPushChain extends BlockActivation {
       !followUp && !chain.preventFollowUp && !chain.forceFollowUp;
     for (let i = chain.links.length - 1; i >= 0; i--) {
       const link = chain.links[i];
-      const player = this.getPlayerById(link.playerId);
-      if (!player) continue;
+      const player = link && this.getPlayerById(link.playerId);
+      if (!link || !player) continue;
       const isOriginalDefender = i === 0;
       this.landLink(link, player, landing, {
         falls: isOriginalDefender && knockDownDefender,
-        followUpData:
-          isOriginalDefender && offersFollowUp
-            ? { attackerId: chain.attackerId, targetSquare: link.from }
-            : undefined,
+        ...(isOriginalDefender && offersFollowUp
+          ? {
+              followUpData: {
+                attackerId: chain.attackerId,
+                targetSquare: link.from,
+              },
+            }
+          : {}),
       });
     }
     return landing;
@@ -456,7 +458,7 @@ export abstract class BlockPushChain extends BlockActivation {
       followUpData,
     }: {
       falls: boolean;
-      followUpData: { attackerId: string; targetSquare: Square } | undefined;
+      followUpData?: { attackerId: string; targetSquare: Square };
     }
   ): void {
     if (link.to === null) {
@@ -478,10 +480,9 @@ export abstract class BlockPushChain extends BlockActivation {
       from: link.from,
       to,
       path: [link.from, to],
-      ballFrom: carriedBall ? link.from : undefined,
-      ballPath: carriedBall ? [link.from, to] : undefined,
+      ...(carriedBall ? { ballFrom: link.from, ballPath: [link.from, to] } : {}),
       ballJoinStep: 0,
-      followUpData,
+      ...(followUpData ? { followUpData } : {}),
     });
 
     if (

@@ -2,7 +2,6 @@ import {
   RaceKeyWord,
   PositionKeyWord,
   TraitKeyWord,
-  type PlayerTemplate,
 } from "../types/Player";
 import {
   League,
@@ -3073,9 +3072,3 @@ export function getAvailableRosterNames(): RosterName[] {
   ];
 }
 
-function getPlayerTemplate(
-  roster: TeamRoster,
-  position: PositionKeyWord
-): PlayerTemplate | undefined {
-  return roster.playerTemplates.find((t) => t.positionName === position);
-}

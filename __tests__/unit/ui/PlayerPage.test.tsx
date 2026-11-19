@@ -19,7 +19,7 @@ import {
 
 function dice(...values: number[]) {
   let index = 0;
-  return { rollDie: () => values[index++ % values.length] };
+  return { rollDie: () => fixtureValue(values[index++ % values.length]) };
 }
 
 describe("PlayerPage after another window spends the roll", () => {

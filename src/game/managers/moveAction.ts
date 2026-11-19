@@ -323,10 +323,9 @@ function walk(run: MoveRun, presentationId?: string) {
     from: run.shownFrom,
     to: { ...run.currentPos },
     path: steps,
-    ballFrom: carried ? run.shownFrom : undefined,
-    ballPath: carried ? steps : undefined,
+    ...(carried ? { ballFrom: run.shownFrom, ballPath: steps } : {}),
     ballJoinStep: 0,
-    presentationId,
+    ...(presentationId !== undefined ? { presentationId } : {}),
   };
   run.shownSteps = run.completedPath.length;
   run.shownFrom = { ...run.currentPos };
@@ -355,11 +354,24 @@ function fallOnRush(run: MoveRun, step: Square): MoveEnd {
   return "failed";
 }
 
+function triggerServices(
+  run: MoveRun
+): Pick<DodgeDeclaredContext, "decisions" | "flow" | "arbiter"> {
+  const decisions = run.gameService?.getDecisionService();
+  const arbiter = run.gameService?.getRerollArbiter();
+  const flow = run.context?.flowManager;
+  return {
+    ...(decisions ? { decisions } : {}),
+    ...(flow ? { flow } : {}),
+    ...(arbiter ? { arbiter } : {}),
+  };
+}
+
 function dodgeDeclaredContext(
   run: MoveRun,
   step: Square
 ): DodgeDeclaredContext {
-  const { deps, context, gameService } = run;
+  const { deps } = run;
   const markingPenalty = deps.dodgeController.calculateDodgeModifiers(
     step,
     run.opponents
@@ -371,9 +383,7 @@ function dodgeDeclaredContext(
     modifiers: markingPenalty,
     markingPenalty,
     skillRerollAllowed: true,
-    decisions: gameService?.getDecisionService(),
-    ...(context?.flowManager === undefined ? {} : { flow: context?.flowManager }),
-    arbiter: gameService?.getRerollArbiter(),
+    ...triggerServices(run),
     dice: deps.diceController,
     triggers: [],
   };
@@ -389,7 +399,6 @@ function dodgeResolvedContext(
     success: boolean;
   }
 ): DodgeResolvedContext {
-  const { context, gameService } = run;
   return {
     player: run.player,
     from: { ...run.currentPos },
@@ -398,9 +407,7 @@ function dodgeResolvedContext(
     target: dodgeResult.target,
     modifiers: dodgeResult.modifiers,
     success: dodgeResult.success,
-    decisions: gameService?.getDecisionService(),
-    ...(context?.flowManager === undefined ? {} : { flow: context?.flowManager }),
-    arbiter: gameService?.getRerollArbiter(),
+    ...triggerServices(run),
     dice: run.deps.diceController,
     triggers: [],
   };

@@ -92,9 +92,8 @@ test.describe("pitch geometry and the test bridge", () => {
 
     const surface = await page.evaluate(() =>
       Object.keys(
-        (window as unknown as Record<string, Record<string, unknown>>)[
-          "__bbTestBridge"
-        ]
+        (window as unknown as { __bbTestBridge: Record<string, unknown> })
+          .__bbTestBridge
       ).sort()
     );
     expect(surface).not.toContain("execute");
@@ -117,12 +116,13 @@ test.describe("pitch geometry and the test bridge", () => {
     const before = await app.bridge.snapshot();
     await page.evaluate(() => {
       const bridge = (
-        window as unknown as Record<
-          string,
-          { snapshot(): { ballPosition: { x: number; y: number } | null } }
-        >
-      )["__bbTestBridge"];
-      const snapshot = fixtureValue(bridge).snapshot();
+        window as unknown as {
+          __bbTestBridge: {
+            snapshot(): { ballPosition: { x: number; y: number } | null };
+          };
+        }
+      ).__bbTestBridge;
+      const snapshot = bridge.snapshot();
       if (snapshot.ballPosition) snapshot.ballPosition.x = 99;
     });
     const after = await app.bridge.snapshot();

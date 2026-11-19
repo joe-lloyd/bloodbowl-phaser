@@ -1,7 +1,7 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { MemoryRouter } from "react-router-dom";
 import { GameHUD } from "../../src/ui/components/hud/GameHUD";
-import React, { act } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";

@@ -3,7 +3,6 @@ import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
 import { possessive } from "../../src/game/managers/TurnManager";
-import type { IEventBus } from "../../src/services/EventBus";
 import type { BrowserTestBridge } from "../../src/testing/browserBridge";
 
 interface ObservedMoment {
@@ -17,7 +16,6 @@ interface ObservedMoment {
 
 declare global {
   interface Window {
-    eventBus: IEventBus;
     __bbTestBridge: BrowserTestBridge;
     __momentProof: {
       moments: ObservedMoment[];

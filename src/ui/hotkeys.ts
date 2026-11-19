@@ -27,7 +27,7 @@ function hotkeyOf(event: KeyboardEvent): Hotkey {
 const bound: {
   hotkey: Hotkey;
   press: () => void;
-  owner?: React.RefObject<HTMLElement | null>;
+  owner?: React.RefObject<HTMLElement | null> | undefined;
 }[] = [];
 
 function focusedInSameDialog(

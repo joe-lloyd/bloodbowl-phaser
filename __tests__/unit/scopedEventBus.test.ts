@@ -104,7 +104,7 @@ describe("a scoped event bus", () => {
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);
     const queue = new MomentQueue(bus);
-    bus.emit(GameEventNames.UI_Turnover, { reason: "Dropped it" });
+    bus.emit(GameEventNames.UI_Turnover, { teamId: "team1", reason: "Dropped it" });
 
     expect(hasPendingMoments(bus)).toBe(true);
     expect(hasPendingMoments(scoped)).toBe(true);

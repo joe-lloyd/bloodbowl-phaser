@@ -47,7 +47,9 @@ vi.mock("../../src/services/ServiceContainer", () => {
   };
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 it("drops the oldest waiting throw when the queue is full, keeping the newest", async () => {
   vi.useFakeTimers();

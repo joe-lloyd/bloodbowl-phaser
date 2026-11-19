@@ -221,6 +221,7 @@ export async function playPuzzle(
     const who = point.teamId === team1 ? coach : heuristicCoach;
     const { index } = await who.choose({ game, snapshot, point, rng });
     const candidate = point.candidates[index] ?? point.candidates[0];
+    if (!candidate) break;
     for (const command of candidate.commands) {
       const response = await game.execute(command);
       scored ||= hasTeamEvent(response.events, GameEventNames.Touchdown, team1);

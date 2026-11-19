@@ -26,7 +26,9 @@ import { createLobby } from "../../src/firebase/lobby";
 const setDocMock = vi.mocked(setDoc);
 const team = (id: string) => ({ id, name: id, players: [] }) as unknown as Team;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("hosted competition fixtures", () => {
   it("stores fixture context and locks both roster snapshots on the lobby", async () => {

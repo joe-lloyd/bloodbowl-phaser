@@ -33,14 +33,6 @@ export interface BlockRollData {
   veteranRerollAvailable?: boolean;
 }
 
-interface PushData {
-  defenderId: string;
-  validDirections: { x: number; y: number }[];
-  selectedDirection?: { x: number; y: number };
-  canFollowUp: boolean;
-  willFollowUp?: boolean;
-}
-
 export interface ArmorResult {
   playerId: string;
   roll: number;
@@ -68,7 +60,7 @@ export class BlockResolutionService {
 
     for (let i = 0; i < numDice; i++) {
       const roll = this.rng.rollDie(6);
-      const type = BlockResolutionService.BLOCK_DICE_FACES[roll - 1];
+      const type = BlockResolutionService.faceForRoll(roll);
       results.push(this.createBlockResult(type));
     }
 
@@ -76,8 +68,13 @@ export class BlockResolutionService {
   }
 
   public static mapRollToResult(roll: number): BlockResult {
-    const type = this.BLOCK_DICE_FACES[roll - 1];
-    return this.staticCreateBlockResult(type);
+    return this.staticCreateBlockResult(this.faceForRoll(roll));
+  }
+
+  private static faceForRoll(roll: number): BlockResultType {
+    const face = this.BLOCK_DICE_FACES[roll - 1];
+    if (!face) throw new Error(`No block dice face for roll ${String(roll)}`);
+    return face;
   }
 
   private createBlockResult(type: BlockResultType): BlockResult {
@@ -132,7 +129,9 @@ export class BlockResolutionService {
       }
     }
 
-    return results[0];
+    const [first] = results;
+    if (!first) throw new Error("No block dice results to choose from");
+    return first;
   }
 
   public getValidPushDirections(

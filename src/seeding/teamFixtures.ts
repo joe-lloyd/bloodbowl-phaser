@@ -104,7 +104,9 @@ export function seedAdvancementMode(
     return "advanced-league";
   }
   const index = Object.values(RosterName).indexOf(rosterName);
-  return ADVANCEMENT_MODE_CYCLE[index % ADVANCEMENT_MODE_CYCLE.length];
+  const mode = ADVANCEMENT_MODE_CYCLE[index % ADVANCEMENT_MODE_CYCLE.length];
+  if (!mode) throw new Error(`unknown roster ${rosterName}`);
+  return mode;
 }
 
 function isInsignificantTemplate(template: PlayerTemplate): boolean {

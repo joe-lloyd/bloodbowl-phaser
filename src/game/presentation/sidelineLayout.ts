@@ -12,7 +12,9 @@ export interface StaffTerraceLayout {
 
 export function staffTerraceLayout(squares: DugoutSquares): StaffTerraceLayout {
   const slots = Object.values(squares).flat();
-  const home = slots[0][1] < 0;
+  const first = slots[0];
+  if (!first) throw new Error("Dugout has no squares");
+  const home = first[1] < 0;
   const xs = slots.map(([x]) => x);
   return {
     x: home ? Math.max(...xs) + 0.85 : Math.min(...xs) - 6.85,

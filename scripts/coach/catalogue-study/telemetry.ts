@@ -102,7 +102,7 @@ function observeSkill(
   const side = sideOf(game, player.teamId);
   const adjacent = nearby(context, player);
   const effect = context.players.reduce(
-    (s, p) => s.replaceAll(p.name, `<${p.id}>`),
+    (s, p) => s.split(p.name).join(`<${p.id}>`),
     String(data["effect"])
   );
   const observation: SkillObservation = {

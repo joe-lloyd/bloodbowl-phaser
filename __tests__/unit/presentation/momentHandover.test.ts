@@ -25,7 +25,9 @@ const scenario: Scenario = {
 const create = () => new HeadlessGame({ scenario, seed: 7 });
 
 describe("engine boundaries wait for visual moments", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("holds the turn through TURNOVER, logs its player and cause, and reaches the headless checksum", async () => {
     vi.useFakeTimers();

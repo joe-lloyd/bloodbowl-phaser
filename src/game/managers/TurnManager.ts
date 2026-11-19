@@ -8,7 +8,6 @@ import {
   type GameState,
   GamePhase,
   SubPhase,
-  type TurnData,
 } from "@/types/GameState";
 import { type Team } from "@/types/Team";
 import { PlayerStatus } from "@/types/Player";
@@ -380,11 +379,12 @@ export class TurnManager {
       player?.playerName ??
       (this.state.activeTeamId === this.team1.id ? this.team1 : this.team2)
         .name;
+    const activeTeamId = this.state.activeTeamId;
     this.eventBus.emit(GameEventNames.UI_LogEntry, {
       category: "action",
       headline: "TURNOVER",
       detail: `${who}: ${reason}`,
-      teamId: this.state.activeTeamId ?? undefined,
+      ...(activeTeamId != null ? { teamId: activeTeamId } : {}),
     });
     this.eventBus.emit(GameEventNames.Turnover, {
       teamId: this.state.activeTeamId || "",
@@ -392,7 +392,7 @@ export class TurnManager {
     return {
       teamId: this.state.activeTeamId || "",
       reason,
-      playerName: player?.playerName,
+      ...(player ? { playerName: player.playerName } : {}),
     };
   }
 

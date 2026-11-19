@@ -38,28 +38,48 @@ function readRows(files: string[]): Row[] {
 
 const vector = (row: Row) => [1, ...FEATURES.map((n) => row.f[n])];
 
-function fit(xs: number[][], ys: number[]): number[] {
-  const k = xs[0].length;
+function nth<T>(items: readonly T[], index: number): T {
+  const item = items[index];
+  if (item === undefined) throw new Error(`No item at ${String(index)}`);
+  return item;
+}
+
+function normalEquations(xs: number[][], ys: number[]): number[][] {
+  const k = nth(xs, 0).length;
   const a = Array.from({ length: k }, () => new Array<number>(k + 1).fill(0));
   xs.forEach((x, n) => {
-    for (let i = 0; i < k; i++) {
-      for (let j = 0; j < k; j++) a[i][j] += x[i] * x[j];
-      a[i][k] += x[i] * ys[n];
-    }
+    a.forEach((row, i) => {
+      for (let j = 0; j < k; j++) row[j] = nth(row, j) + nth(x, i) * nth(x, j);
+      row[k] = nth(row, k) + nth(x, i) * nth(ys, n);
+    });
   });
-  for (let i = 1; i < k; i++) a[i][i] += LAMBDA;
-  for (let c = 0; c < k; c++) {
-    let pivot = c;
-    for (let r = c + 1; r < k; r++)
-      if (Math.abs(a[r][c]) > Math.abs(a[pivot][c])) pivot = r;
-    [a[c], a[pivot]] = [a[pivot], a[c]];
-    for (let r = 0; r < k; r++) {
-      if (r === c || a[c][c] === 0) continue;
-      const m = a[r][c] / a[c][c];
-      for (let j = c; j <= k; j++) a[r][j] -= m * a[c][j];
-    }
-  }
-  return a.map((row, i) => row[k] / row[i]);
+  a.forEach((row, i) => {
+    if (i >= 1) row[i] = nth(row, i) + LAMBDA;
+  });
+  return a;
+}
+
+function eliminate(a: number[][], c: number): void {
+  const k = a.length;
+  let pivot = c;
+  for (let r = c + 1; r < k; r++)
+    if (Math.abs(nth(nth(a, r), c)) > Math.abs(nth(nth(a, pivot), c)))
+      pivot = r;
+  const lead = nth(a, pivot);
+  a[pivot] = nth(a, c);
+  a[c] = lead;
+  a.forEach((row, r) => {
+    if (r === c || nth(lead, c) === 0) return;
+    const m = nth(row, c) / nth(lead, c);
+    for (let j = c; j <= k; j++) row[j] = nth(row, j) - m * nth(lead, j);
+  });
+}
+
+function fit(xs: number[][], ys: number[]): number[] {
+  const a = normalEquations(xs, ys);
+  const k = a.length;
+  for (let c = 0; c < k; c++) eliminate(a, c);
+  return a.map((row, i) => nth(row, k) / nth(row, i));
 }
 
 const predict = (w: EvaluationWeights, row: Row) =>
@@ -68,7 +88,7 @@ const predict = (w: EvaluationWeights, row: Row) =>
 function r2(predicted: number[], rows: Row[]): number {
   const mean = rows.reduce((s, r) => s + r.y, 0) / rows.length;
   const total = rows.reduce((s, r) => s + (r.y - mean) ** 2, 0);
-  const left = rows.reduce((s, r, i) => s + (r.y - predicted[i]) ** 2, 0);
+  const left = rows.reduce((s, r, i) => s + (r.y - nth(predicted, i)) ** 2, 0);
   return 1 - left / total;
 }
 
@@ -82,11 +102,13 @@ function ranked(predicted: number[], rows: Row[]): number {
   for (const game of bySeed.values())
     for (let a = 0; a < game.length; a++)
       for (let b = a + 1; b < game.length; b++) {
-        const [i, j] = [game[a], game[b]];
-        if (rows[i].y === rows[j].y) continue;
+        const i = nth(game, a);
+        const j = nth(game, b);
+        const yi = nth(rows, i).y;
+        const yj = nth(rows, j).y;
+        if (yi === yj) continue;
         pairs++;
-        if ((predicted[i] - predicted[j]) * (rows[i].y - rows[j].y) > 0)
-          right++;
+        if ((nth(predicted, i) - nth(predicted, j)) * (yi - yj) > 0) right++;
       }
   return right / pairs;
 }

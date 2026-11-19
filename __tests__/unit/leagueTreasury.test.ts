@@ -180,12 +180,12 @@ describe("Expensive Mistakes after a recorded fixture", () => {
     const context = await league("money", [home, away]);
 
     await recordCompetitionFixture({
-        context,homeScore: 1,awayScore: 0,progressedTeams: undefined,penalties: undefined,options: {
+        context,homeScore: 1,awayScore: 0,options: {
           rng: fixedDice(2,2),
         }
       });
     await recordCompetitionFixture({
-        context,homeScore: 1,awayScore: 0,progressedTeams: undefined,penalties: undefined,options: {
+        context,homeScore: 1,awayScore: 0,options: {
           rng: fixedDice(2,2),
         }
       });
@@ -203,7 +203,7 @@ describe("Expensive Mistakes after a recorded fixture", () => {
     const context = await league("keep", [home, away]);
     const matchCopy = structuredClone(home);
     await recordCompetitionFixture({
-        context,homeScore: 1,awayScore: 0,progressedTeams: undefined,penalties: undefined,options: {
+        context,homeScore: 1,awayScore: 0,options: {
           rng: fixedDice(2,2),
         }
       });
@@ -222,7 +222,7 @@ describe("Expensive Mistakes after a recorded fixture", () => {
       const context = await tournament(`cup-${format}`, [home, away], format);
       const dice = fixedDice();
       await recordCompetitionFixture({
-          context,homeScore: 1,awayScore: 0,progressedTeams: undefined,penalties: undefined,options: {
+          context,homeScore: 1,awayScore: 0,options: {
             rng: dice,
           }
         });

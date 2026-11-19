@@ -349,7 +349,12 @@ describe("2025 rulebook roster pages", () => {
 });
 
 function draft(rosterName: RosterName, positions: string[]): Team {
-  const team = createTeam("Audit", rosterName, { primary: 0, secondary: 0 });
+  const team = createTeam(
+    "Audit",
+    rosterName,
+    { primary: 0, secondary: 0 },
+    getRosterByRosterName(rosterName).rerollCost
+  );
   team.players = positions.map((name, index) =>
     createPlayer(template(rosterName, name), team.id, index + 1)
   );

@@ -66,7 +66,10 @@ describe("online host resume", () => {
     const { team1, team2 } = before.ctx;
     const originalTeams = structuredClone([team1, team2]);
     before.ctx.gameService.flowManager.add(
-      new CasualtyOperation(fixtureValue(team2.players[0]).id, InjuryResult.DEAD)
+      new CasualtyOperation(
+        fixtureValue(team2.players[0]).id,
+        InjuryResult.DEAD
+      )
     );
     await before.ctx.gameService.flowManager.whenIdle();
     const raised = fixtureValue(team1.players.at(-1));
@@ -109,6 +112,7 @@ describe("online host resume", () => {
         uid: "host-uid",
         displayName: "Host",
         email: null,
+        emailVerified: false,
         photoURL: null,
       },
       eventBus: new EventBus(),
@@ -135,7 +139,9 @@ describe("online host resume", () => {
     const before = new HeadlessGame({ scenario: midMatch, seed: 11 });
     const { team1, team2 } = before.ctx;
     before.ctx.rng.rollMultipleDice(5, 6);
-    before.ctx.matchStats.assignAwardedTouchdown(fixtureValue(team1.players[0]).id);
+    before.ctx.matchStats.assignAwardedTouchdown(
+      fixtureValue(team1.players[0]).id
+    );
     const snapshot = {
       ...before.snapshot(),
       turnManager: {
@@ -183,6 +189,7 @@ describe("online host resume", () => {
         uid: "host-uid",
         displayName: "Host",
         email: null,
+        emailVerified: false,
         photoURL: null,
       },
       eventBus: new EventBus(),
@@ -231,6 +238,7 @@ describe("online host resume", () => {
         uid: "host-uid",
         displayName: "Host",
         email: null,
+        emailVerified: false,
         photoURL: null,
       },
       eventBus: new EventBus(),

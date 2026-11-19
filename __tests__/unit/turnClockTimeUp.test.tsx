@@ -82,7 +82,7 @@ describe("Time up when a turn runs out", () => {
       vi.useFakeTimers();
       const eventBus = new EventBus();
       const queue = new MomentQueue(eventBus);
-      const shown: { text: string; subtitle?: string; at: number }[] = [];
+      const shown: { text: string; subtitle?: string | undefined; at: number }[] = [];
       eventBus.on(
         GameEventNames.UI_PresentMoment,
         (moment: MatchMoment | null) =>

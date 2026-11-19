@@ -171,7 +171,9 @@ describe("a full resync onto a page with nothing paused", () => {
       if (!(await host.run(step.command)).ok) await guest.run(step.command);
       await settle(host, guest);
     }
-    const owner = hostGame.pendingDecision()?.chooserTeamId;
+    const decision = hostGame.pendingDecision();
+    const owner =
+      decision?.type === "reroll" ? decision.chooserTeamId : undefined;
 
     guest.close();
     const freshGame = await build();

@@ -21,13 +21,21 @@ export function limitPolicyBlocks(
     if (pair && chosen.size < count) chosen.add(pair);
   }
   const remaining = Math.min(count, pairs.length) - chosen.size;
-  for (let i = 0; i < remaining; i++)
-    chosen.add(pairs[Math.floor((i * pairs.length) / remaining)]);
+  for (let i = 0; i < remaining; i++) {
+    const pick = pairs[Math.floor((i * pairs.length) / remaining)];
+    if (pick !== undefined) chosen.add(pick);
+  }
   for (const pair of pairs) {
     if (chosen.size >= Math.min(count, pairs.length)) break;
     chosen.add(pair);
   }
   return jobs.filter((j) => chosen.has(j.pair));
+}
+
+function opponentIn(group: Variant[], position: number): Variant {
+  const opponent = group[position % group.length];
+  if (!opponent) throw new Error("No opponent variant");
+  return opponent;
 }
 
 export function policySchedule(
@@ -46,7 +54,7 @@ export function policySchedule(
   for (const group of groups.values()) {
     for (const offset of [11, 37])
       group.forEach((a, index) => {
-        const b = group[(index + offset) % group.length];
+        const b = opponentIn(group, index + offset);
         const pair = `${smoke ? "smoke" : "confirm"}-${String(groupIndex)}-${String(offset)}-${String(index)}`;
         const seed =
           (smoke ? 12_000_000 : seedBase) +

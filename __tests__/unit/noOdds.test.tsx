@@ -53,7 +53,7 @@ describe("no odds on a coach's screen", () => {
       const root = createRoot(container);
       variant.prepare?.();
       const fx = setupMatch(variant.fixture);
-      let cleanup: void | (() => void);
+      let cleanup: void | (() => void) | undefined;
       try {
         await act(async () => {
           root.render(<>{variant.view(fx)}</>);

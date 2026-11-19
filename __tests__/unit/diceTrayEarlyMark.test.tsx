@@ -96,9 +96,12 @@ describe("block dice picked before the tray has thrown them", () => {
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
+        defenderId: "defender",
+        numDice: 2,
+        isAttackerChoice: true,
         results: [
-          { type: "pow", label: "POW!" },
-          { type: "push", label: "Push" },
+          { type: "pow", icon: "", label: "POW!" },
+          { type: "push", icon: "", label: "Push" },
         ],
       });
       bus.emit(GameEventNames.DecisionResolved, {
@@ -139,9 +142,12 @@ describe("block dice picked before the tray has thrown them", () => {
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
+        defenderId: "defender",
+        numDice: 2,
+        isAttackerChoice: true,
         results: [
-          { type: "pow", label: "POW!" },
-          { type: "push", label: "Push" },
+          { type: "pow", icon: "", label: "POW!" },
+          { type: "push", icon: "", label: "Push" },
         ],
       });
       bus.emit(GameEventNames.DecisionResolved, {
@@ -161,7 +167,10 @@ describe("block dice picked before the tray has thrown them", () => {
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
-        results: [{ type: "skull", label: "Attacker Down" }],
+        defenderId: "defender",
+        numDice: 1,
+        isAttackerChoice: true,
+        results: [{ type: "skull", icon: "", label: "Attacker Down" }],
       });
     });
     await thrown(1);
@@ -169,9 +178,12 @@ describe("block dice picked before the tray has thrown them", () => {
     await act(async () => {
       bus.emit(GameEventNames.BlockDiceRolled, {
         attackerId: "attacker",
+        defenderId: "defender",
+        numDice: 2,
+        isAttackerChoice: true,
         results: [
-          { type: "pow", label: "POW!" },
-          { type: "push", label: "Push" },
+          { type: "pow", icon: "", label: "POW!" },
+          { type: "push", icon: "", label: "Push" },
         ],
       });
       bus.emit(GameEventNames.DecisionResolved, {

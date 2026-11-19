@@ -184,11 +184,17 @@ export async function simulateFixture(
   const score = bySide(state.score, home, away);
   const updated = await recordCompetitionFixture(
     {
-      context,homeScore: score.home,awayScore: score.away,progressedTeams: teams,penalties: penalties&&bySide(penalties,home,away),options: {
-        fanFactors: fanFactors&&bySide(fanFactors,home,away),
-        stalled: stalledSides(state.stallingPlayerIds,teams.home,teams.away),
-      }
-    }  );
+      context,
+      homeScore: score.home,
+      awayScore: score.away,
+      progressedTeams: teams,
+      ...(penalties ? { penalties: bySide(penalties, home, away) } : {}),
+      options: {
+        ...(fanFactors ? { fanFactors: bySide(fanFactors, home, away) } : {}),
+        stalled: stalledSides(state.stallingPlayerIds, teams.home, teams.away),
+      },
+    }
+  );
 
   const tracker = game.ctx.matchStats;
   const both = [teams.home, teams.away];

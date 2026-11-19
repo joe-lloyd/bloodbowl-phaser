@@ -30,41 +30,50 @@ function board(weather: Weather, skills: SkillType[]) {
       },
     },
   });
-  const pitch = new Proxy(
-    {
-      worldToGrid: (x: number, y: number) => ({ x, y }),
-      highlightSquare: () => ({ destroy: vi.fn() }),
-    },
-    { get: (target, key: string) => (target[key] ??= vi.fn()) }
-  );
-  const controller = new GameplayInteractionController(
-  {
+  const members: Record<string, unknown> = {
+    worldToGrid: (x: number, y: number) => ({ x, y }),
+    highlightSquare: () => ({ destroy: vi.fn() }),
+  };
+  const pitch = new Proxy(members, {
+    get: (target, key: string) => (target[key] ??= vi.fn()),
+  });
+  const controller = new GameplayInteractionController({
     scene: {
       team1: game.ctx.team1,
       team2: game.ctx.team2,
-      events: { on: vi.fn(),off: vi.fn() },
+      events: { on: vi.fn(), off: vi.fn() },
       highlightPlayer: vi.fn(),
       unhighlightPlayer: vi.fn(),
-    } as never,gameService: game.ctx.gameService,eventBus: game.ctx.eventBus,pitch: pitch as never,movementValidator: new MovementValidator()
-  }  );
+    } as never,
+    gameService: game.ctx.gameService,
+    eventBus: game.ctx.eventBus,
+    pitch: pitch as never,
+    movementValidator: new MovementValidator(),
+  });
   return { game, controller, pitch };
 }
 
+const SECURE_CASES: {
+  weather: Weather;
+  skills: SkillType[];
+  target: number;
+}[] = [
+  { weather: "Nice", skills: [], target: 2 },
+  { weather: "Pouring Rain", skills: [], target: 3 },
+  {
+    weather: "Pouring Rain",
+    skills: [SkillType.BIG_HAND],
+    target: 2,
+  },
+  {
+    weather: "Pouring Rain",
+    skills: [SkillType.EXTRA_ARMS],
+    target: 3,
+  },
+];
+
 describe("Secure the Ball on the board", () => {
-  it.each([
-    { weather: "Nice", skills: [], target: 2 },
-    { weather: "Pouring Rain", skills: [], target: 3 },
-    {
-      weather: "Pouring Rain",
-      skills: [SkillType.BIG_HAND],
-      target: 2,
-    },
-    {
-      weather: "Pouring Rain",
-      skills: [SkillType.EXTRA_ARMS],
-      target: 3,
-    },
-  ])(
+  it.each(SECURE_CASES)(
     "moves and rolls Secure the Ball $target+ in $weather with $skills",
     async ({ weather, skills, target }) => {
       const { game, controller, pitch } = board(weather, [
@@ -77,7 +86,7 @@ describe("Secure the Ball on the board", () => {
         | AllEvents[typeof GameEventNames.UI_RequestConfirmation]
         | undefined;
       const dice: string[] = [];
-      let route: AllEvents[typeof GameEventNames.UI_RoutePreview];
+      let route: AllEvents[typeof GameEventNames.UI_RoutePreview] | undefined;
       eventBus.on(GameEventNames.UI_RequestConfirmation, (request) => {
         prompt = request;
       });
@@ -105,7 +114,7 @@ describe("Secure the Ball on the board", () => {
           { type: "secureBall", target, square: { x: 7, y: 5 } },
         ]);
         expect(fixtureValue(route).rerolls).not.toContain("Sure Hands");
-        expect(pitch.drawMovementPath).toHaveBeenCalledWith(
+        expect(pitch["drawMovementPath"]).toHaveBeenCalledWith(
           [
             { x: 5, y: 5 },
             { x: 6, y: 5 },
@@ -119,7 +128,9 @@ describe("Secure the Ball on the board", () => {
           expect(prompt).toBeDefined();
         });
         expect(fixtureValue(player).gridPosition).toEqual({ x: 6, y: 5 });
-        expect(fixtureValue(prompt).title).toBe("Human Lineman #1: Secure the Ball");
+        expect(fixtureValue(prompt).title).toBe(
+          "Human Lineman #1: Secure the Ball"
+        );
         expect(fixtureValue(prompt).message).toContain(
           `Secure the Ball: ${String(target)}+`
         );
@@ -130,7 +141,9 @@ describe("Secure the Ball on the board", () => {
         });
 
         await vi.waitFor(() => {
-          expect(gameService.hasPlayerActed(fixtureValue(player).id)).toBe(true);
+          expect(gameService.hasPlayerActed(fixtureValue(player).id)).toBe(
+            true
+          );
         });
         expect(fixtureValue(player).gridPosition).toEqual({ x: 7, y: 5 });
         expect(gameService.getState().ballPosition).toEqual({ x: 7, y: 5 });

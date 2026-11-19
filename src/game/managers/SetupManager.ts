@@ -24,6 +24,13 @@ import {
   teamSetupStatus,
 } from "./setupStatus";
 
+const UNAVAILABLE_STATUSES: readonly PlayerStatus[] = [
+  PlayerStatus.KO,
+  PlayerStatus.INJURED,
+  PlayerStatus.DEAD,
+  PlayerStatus.REMOVED,
+];
+
 export class SetupManager {
   private placedPlayers = new Map<string, { x: number; y: number }>();
   private setupReady = new Set<string>();
@@ -730,12 +737,8 @@ export class SetupManager {
     const team = this.getTeam(player.teamId);
     if (team && isPendingRecruit(team, player.id)) return false;
     return (
-      ![
-        PlayerStatus.KO,
-        PlayerStatus.INJURED,
-        PlayerStatus.DEAD,
-        PlayerStatus.REMOVED,
-      ].includes(player.status) && !isConfinedToReserves(player, this.state)
+      !UNAVAILABLE_STATUSES.includes(player.status) &&
+      !isConfinedToReserves(player, this.state)
     );
   }
 

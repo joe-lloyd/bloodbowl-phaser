@@ -47,7 +47,7 @@ function noting(seen: Seen[]): Coach {
 }
 
 async function main() {
-  const [firstSeed, games] = process.argv.slice(2).map(Number);
+  const [firstSeed = NaN, games = NaN] = process.argv.slice(2).map(Number);
   if (!Number.isInteger(firstSeed) || !Number.isInteger(games) || games < 1)
     throw new Error("usage: positions.ts <firstSeed> <games>");
   const rosters = Object.values(RosterName);

@@ -134,7 +134,10 @@ function connect(
   const service = ServiceContainer.getInstance().gameService;
   const snapshot = () =>
     serializeGameState(service.getState(), Object.values(match.teams));
-  return { match, bus, snapshot };
+  const restore = () => {
+    bus.emit(GameEventNames.GameStateRestored, service.getState());
+  };
+  return { match, bus, snapshot, restore };
 }
 
 function recordCommands(transport: Transport): HeadlessCommand[] {
@@ -186,7 +189,7 @@ describe("the online computer coach", () => {
       const sent = recordCommands(ownEnd);
       const human = connect(lobby, side === "host" ? "guest" : "host", peerEnd);
       const bot = connect(lobby, side, ownEnd, true);
-      bot.bus.emit(GameEventNames.GameStateRestored, undefined);
+      bot.restore();
       const botReady = () =>
         vi.waitFor(() => {
           expect(
@@ -256,7 +259,7 @@ describe("the online computer coach", () => {
       const sent = recordCommands(ownEnd);
       const peer = connect(lobby, side === "host" ? "guest" : "host", peerEnd);
       const bot = connect(lobby, side, ownEnd, true);
-      bot.bus.emit(GameEventNames.GameStateRestored, undefined);
+      bot.restore();
 
       await vi.waitFor(
         () => {
@@ -301,7 +304,7 @@ describe("the online computer coach", () => {
         draws++;
         return drawing;
       });
-      bot.bus.emit(GameEventNames.GameStateRestored, undefined);
+      bot.restore();
       try {
         await vi.waitFor(() => {
           expect(draws).toBeGreaterThan(0);
@@ -324,7 +327,7 @@ describe("the online computer coach", () => {
     connect(lobby, "guest", guestEnd);
     const host = connect(lobby, "host", hostEnd);
     const before = host.snapshot();
-    host.bus.emit(GameEventNames.GameStateRestored, undefined);
+    host.restore();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(host.snapshot()).toEqual(before);
   });
@@ -343,7 +346,7 @@ describe("the online computer coach", () => {
       };
       peer.bus.on(GameEventNames.PhaseChanged, onPhase);
     });
-    bot.bus.emit(GameEventNames.GameStateRestored, undefined);
+    bot.restore();
     await vi.waitFor(
       () => {
         expect(bot.snapshot().score[bot.match.myTeamId]).toBe(1);

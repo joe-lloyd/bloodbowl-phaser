@@ -254,7 +254,7 @@ export function TeamBuilder() {
         setRosterChosen(true);
         return true;
       };
-      if (loadRequestedTeam()) return;
+      if (loadRequestedTeam()) return undefined;
       const stopWaiting = TeamManager.onTeamRepositoryChanged(() => {
         if (loadRequestedTeam()) stopWaiting();
       });
@@ -270,6 +270,7 @@ export function TeamBuilder() {
       50000
     );
     setTeam(newTeam);
+    return undefined;
   }, [teamId]);
 
   const handleRaceChange = (race: RosterName) => {
@@ -292,7 +293,8 @@ export function TeamBuilder() {
       { primary: selectedColor, secondary: 0xffffff },
       team?.treasury || 50000
     );
-    newTeam.draftRuleset = team.draftRuleset;
+    if (team.draftRuleset !== undefined)
+      newTeam.draftRuleset = team.draftRuleset;
     setTeam(newTeam);
   };
 
@@ -305,7 +307,8 @@ export function TeamBuilder() {
       { primary: selectedColor, secondary: 0xffffff },
       team.treasury
     );
-    newTeam.draftRuleset = team.draftRuleset;
+    if (team.draftRuleset !== undefined)
+      newTeam.draftRuleset = team.draftRuleset;
     setTeam(newTeam);
     setRosterChosen(true);
   };

@@ -2,7 +2,6 @@ import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
 import { type Team } from "@/types/Team";
 import {
-  type Player,
   PlayerStatus,
   PlayerCondition,
   hasCondition,

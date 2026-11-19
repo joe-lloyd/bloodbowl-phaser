@@ -17,7 +17,6 @@ export function bought(
     remainingUses: quantity,
     price: 0,
     provenance: "purchased",
-    duration: "match",
   };
 }
 

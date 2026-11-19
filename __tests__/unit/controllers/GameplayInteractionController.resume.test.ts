@@ -13,7 +13,6 @@ import {
   mockScene,
   mockPitch,
   mockMovementValidator,
-  mockEventBus,
   mockGameService,
   answerStepPrompt,
   team1Id,

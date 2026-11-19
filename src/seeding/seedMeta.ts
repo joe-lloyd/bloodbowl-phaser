@@ -44,12 +44,6 @@ export function isSeedOwned(
   return record?.seedMetadata?.namespace === SEED_NAMESPACE;
 }
 
-function seedVersionOf(record: {
-  seedMetadata?: SeedMetadata;
-}): number | null {
-  return isSeedOwned(record) ? (record?.seedMetadata?.version ?? null) : null;
-}
-
 const LEGACY_SAMPLE_NAMES = new Set(
   getAvailableRosterNames().map((rosterName) => `${rosterName} Sample`)
 );

@@ -22,7 +22,7 @@ import {
 
 interface SandboxScenario {
   scenario: Scenario;
-  expectedOutcome?: string;
+  expectedOutcome?: string | undefined;
 }
 
 function findSandboxScenario(
@@ -43,6 +43,7 @@ function scenarioFromCase(
   const variant =
     scenarioCase.variants.find((candidate) => candidate.id === outcomeId) ??
     scenarioCase.variants[0];
+  if (!variant) throw new Error(`Scenario ${scenarioCase.id} has no variants`);
   return {
     scenario: {
       id: scenarioCase.id,
@@ -92,7 +93,7 @@ export class SandboxScene extends GameScene {
     return (window as unknown as { eventBus: IEventBus }).eventBus;
   }
 
-  init(data: { team1?: Team; team2?: Team }): void {
+  override init(data: { team1?: Team; team2?: Team }): void {
     if (data?.team1 && data.team2) {
       const initialState = GameService.createInitialState({ team1: data.team1, team2: data.team2, startingPhase: GamePhase.SANDBOX_IDLE }
       );
@@ -134,7 +135,7 @@ export class SandboxScene extends GameScene {
   private refreshBoardHandler: (() => void) | null = null;
   private playerMovedHandler: (() => void) | null = null;
 
-  create(): void {
+  override create(): void {
     super.create();
 
     this.loadScenarioHandler = (data: {
@@ -221,14 +222,14 @@ export class SandboxScene extends GameScene {
 
     const effectiveSeed =
       ServiceContainer.getInstance().rngService.getInitialSeed();
+    const shownOutcome =
+      promisedSeed === undefined || effectiveSeed === promisedSeed
+        ? (expectedOutcome ?? scenario.expectedOutcome)
+        : undefined;
     this.eventBus.emit(GameEventNames.ScenarioLoaded, {
       name: scenario.name,
       seed: effectiveSeed,
-
-      expectedOutcome:
-        promisedSeed === undefined || effectiveSeed === promisedSeed
-          ? (expectedOutcome ?? scenario.expectedOutcome)
-          : undefined,
+      ...(shownOutcome !== undefined ? { expectedOutcome: shownOutcome } : {}),
     });
 
     const newUrl = new URL(window.location.href);
@@ -286,7 +287,7 @@ export class SandboxScene extends GameScene {
     }
   }
 
-  public startSetupPhase(): void {
+  public override startSetupPhase(): void {
     this.isSetupActive = false;
     this.eventBus.emit(
       GameEventNames.UI_Notification,

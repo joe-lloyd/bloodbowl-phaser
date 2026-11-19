@@ -138,14 +138,21 @@ const SECOND_ACTION_TYPE: Record<GatedKey, ActionType> = {
   ballAndChain: "ballAndChain",
 };
 
+function withoutSecondAction(
+  input: ActionAvailabilityInput
+): ActionAvailabilityInput {
+  const copy = { ...input };
+  delete copy.secondActionAfter;
+  return copy;
+}
+
 function secondActionAvailability(
   input: ActionAvailabilityInput,
   first: ActionType
 ): ActionAvailability {
   const all = computeActionAvailability({
-    ...input,
+    ...withoutSecondAction(input),
     hasMovedInAction: false,
-    ...(undefined === undefined ? {} : { secondActionAfter: undefined }),
   });
   const allows = (action: ActionType) => razzleDazzleAllows(first, action);
   const gate = (key: GatedKey) => all[key] && allows(SECOND_ACTION_TYPE[key]);

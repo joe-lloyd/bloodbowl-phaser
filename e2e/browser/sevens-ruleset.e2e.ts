@@ -38,7 +38,7 @@ for (const type of ["leagues", "tournaments"]) {
     expect(
       await page.evaluate(
         ({ type, id }) =>
-          JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_competitions")))[
+          JSON.parse((localStorage.getItem("bloodbowl_competitions"))!)[
             `${type === "leagues" ? "league" : "tournament"}:${id}`
           ].ruleset,
         { type, id }
@@ -87,7 +87,7 @@ test("a coach resumes Swarming and places an eighth player through the canvas", 
   ).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("optgroup[label=Presets]")).toHaveCount(0);
   const square = await page.evaluate((id) => {
-    const scene = fixtureValue(window.game).scene
+    const scene = (window.game)!.scene
       .getScenes(true)
       .find((scene) => scene.scene.key === "GameScene");
     if (!scene || !("dugouts" in scene) || !("getPitch" in scene))

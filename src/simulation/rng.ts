@@ -19,7 +19,9 @@ export function createCoachRng(seed: number): CoachRng {
     int,
     pick: (items) => {
       if (items.length === 0) throw new Error("pick from empty list");
-      return items[int(items.length)];
+      const item = items[int(items.length)];
+      if (item === undefined) throw new Error("picked an empty slot");
+      return item;
     },
   };
 }

@@ -3,7 +3,9 @@ import { EventBus } from "../../../src/services/EventBus";
 import { GameEventNames } from "../../../src/types/events";
 import { MomentQueue } from "../../../src/game/presentation/momentQueue";
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 it("plays the first turn banner after the kick-off catch and its re-roll", async () => {
   vi.useFakeTimers();

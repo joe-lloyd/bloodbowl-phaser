@@ -42,7 +42,3 @@ interface StateEvents {
 }
 
 export type AllEvents = GameEvents & UIEvents & StateEvents;
-
-type EventHandler<K extends keyof AllEvents> = (
-  data: AllEvents[K]
-) => void;

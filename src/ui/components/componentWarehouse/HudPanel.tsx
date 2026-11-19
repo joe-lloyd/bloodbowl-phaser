@@ -18,7 +18,10 @@ const TONE_TOP: Record<HudTone, string> = {
 
 export const Panel = forwardRef<
   HTMLDivElement,
-  DivProps & { accent?: HudTone | { color: string }; as?: "div" | "section" }
+  DivProps & {
+    accent?: HudTone | { color: string } | undefined;
+    as?: "div" | "section";
+  }
 >(function Panel(
   { accent, as = "div", className, style, children, ...rest },
   ref
@@ -114,7 +117,9 @@ export function HudTabs<Id extends string>({
               : null;
     if (next === null) return;
     event.preventDefault();
-    const id = tabs[next].id;
+    const tab = tabs[next];
+    if (!tab) return;
+    const { id } = tab;
     onChange(id);
     document.getElementById(hudTabId(idBase, id))?.focus();
   };
@@ -167,7 +172,7 @@ export function Eyebrow({
   className,
 }: {
   children: React.ReactNode;
-  tone?: HudTone;
+  tone?: HudTone | undefined;
   className?: string;
 }) {
   return (

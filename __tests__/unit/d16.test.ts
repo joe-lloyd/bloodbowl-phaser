@@ -14,7 +14,7 @@ describe("a sixteen-sided die", () => {
     const geometry = d16Geometry();
     expect(geometry.groups).toHaveLength(16);
     const areas = D16_FACES.map(([a, b, c], i) => {
-      const normal = new THREE.Vector3(...D16_NORMALS[i]);
+      const normal = new THREE.Vector3(...fixtureValue(D16_NORMALS[i]));
       expect(normal.dot(fixtureValue(D16_VERTICES[fixtureValue(a)]))).toBeGreaterThan(0);
       expect(
         D16_NORMALS.some(

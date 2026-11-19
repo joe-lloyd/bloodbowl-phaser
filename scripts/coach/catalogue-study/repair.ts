@@ -13,7 +13,9 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { replayStudyTrace } from "./replay";
 
 const entry = fileURLToPath(import.meta.url);
-const directory = resolve(process.argv[2]);
+const target = process.argv[2];
+if (!target) throw new Error("Usage: repair.ts <study directory>");
+const directory = resolve(target);
 
 function atomic(file: string, data: string | Buffer) {
   writeFileSync(`${file}.tmp`, data);

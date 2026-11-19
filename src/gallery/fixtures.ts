@@ -59,7 +59,9 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
 
   const player = (team: 1 | 2, index: number) => {
     const roster = (team === 1 ? team1 : team2).players;
-    return roster[Math.min(index, roster.length - 1)];
+    const picked = roster[Math.min(index, roster.length - 1)];
+    if (!picked) throw new Error(`team ${String(team)} has no players`);
+    return picked;
   };
   return { bus, services, team1, team2, player };
 }

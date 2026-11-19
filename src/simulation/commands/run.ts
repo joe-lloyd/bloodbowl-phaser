@@ -71,7 +71,9 @@ export async function runBatch(options: RunOptions): Promise<number> {
 
   const worker = async () => {
     while (next < plan.length) {
-      const { seed, rosters } = plan[next++];
+      const job = plan[next++];
+      if (!job) break;
+      const { seed, rosters } = job;
       const t0 = Date.now();
       let recording: MatchRecording;
       try {
@@ -166,7 +168,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
       matches.reduce((s, m) => s + m.ms, 0) / Math.max(1, matches.length)
     ),
     commandCoverage: commandCounts,
-    jev: jevStats.length ? jevStats : undefined,
+    ...(jevStats.length ? { jev: jevStats } : {}),
     findings: grouped,
     perMatch: matches.sort((a, b) => a.seed - b.seed),
   };

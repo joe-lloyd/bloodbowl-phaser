@@ -31,7 +31,9 @@ export class RNGService implements IRNGService {
   }
 
   public rollDie(sides: number): number {
-    return this.rollMultipleDice(1, sides)[0];
+    const [roll] = this.rollMultipleDice(1, sides);
+    if (roll === undefined) throw new Error("Dice roll returned no result");
+    return roll;
   }
 
   public rollMultipleDice(count: number, sides: number): number[] {

@@ -1,3 +1,4 @@
+import { fieldPlayer } from "./fixtures";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -386,7 +387,7 @@ describe("keeping the cage after the carrier moves", () => {
         { playerIndex: 1, x: 4, y: 9 },
       ],
     });
-    const carrier = subject.ctx.team1.players[0];
+    const carrier = fixtureValue(subject.ctx.team1.players[0]);
     await subject.execute({
       type: "declare-action",
       playerId: carrier.id,
@@ -485,7 +486,7 @@ describe("carrier pace", () => {
     const subject = looseBall();
     const { command } = await step(subject, coach({ carrierPace: 0 }));
     expect(command).toMatchObject({
-      playerId: subject.ctx.team1.players[0].id,
+      playerId: fixtureValue(subject.ctx.team1.players[0]).id,
     });
   });
 
@@ -493,7 +494,7 @@ describe("carrier pace", () => {
     const subject = looseBall();
     const { command } = await step(subject, coach({ carrierPace: 4 }));
     expect(command).toMatchObject({
-      playerId: subject.ctx.team1.players[1].id,
+      playerId: fixtureValue(subject.ctx.team1.players[1]).id,
     });
   });
 
@@ -508,12 +509,14 @@ describe("carrier pace", () => {
       ],
       team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
     });
-    const [picker] = subject.ctx.team1.players;
-    const c = context(
-      readBoard(subject, picker.teamId),
-      { ...DEFAULT_WEIGHTS, carrierPace: 4 },
-      new Map([[picker.id, new Set(["move" as const, "secureBall" as const])]])
-    );
+    const picker = fieldPlayer(subject.ctx.team1.players[0]);
+    const c = context({
+      board: readBoard(subject, picker.teamId),
+      w: { ...DEFAULT_WEIGHTS, carrierPace: 4 },
+      available: new Map([
+        [picker.id, new Set(["move" as const, "secureBall" as const])],
+      ]),
+    });
     const values = [
       ...pickupActivation(c, picker),
       ...secureBallActivations(c, picker),
@@ -540,19 +543,22 @@ describe("carrier pace", () => {
       ],
       team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
     });
-    const [picker, noBall] = subject.ctx.team1.players;
+    const picker = fieldPlayer(subject.ctx.team1.players[0]);
+    const noBall = fieldPlayer(subject.ctx.team1.players[1]);
     const priced = (carrierPace: number) =>
-      pickupActivation(
-        context(
-          readBoard(subject, picker.teamId),
-          { ...DEFAULT_WEIGHTS, carrierPace },
-          new Map([
-            [picker.id, new Set(["move" as const])],
-            [noBall.id, new Set(["move" as const])],
-          ])
-        ),
-        picker
-      )[0].value;
+      fixtureValue(
+        pickupActivation(
+          context({
+            board: readBoard(subject, picker.teamId),
+            w: { ...DEFAULT_WEIGHTS, carrierPace },
+            available: new Map([
+              [picker.id, new Set(["move" as const])],
+              [noBall.id, new Set(["move" as const])],
+            ]),
+          }),
+          picker
+        )[0]
+      ).value;
     expect(priced(4)).toBe(priced(0));
   });
 
@@ -561,16 +567,17 @@ describe("carrier pace", () => {
     // hand off pays one turn of that; My Ball pays all three.
     const secure = (slowSkills: SkillType[]) => {
       const subject = looseBall(slowSkills);
-      const [slow, quick] = subject.ctx.team1.players;
-      const c = context(
-        readBoard(subject, slow.teamId),
-        { ...DEFAULT_WEIGHTS, carrierPace: 4 },
-        new Map([
+      const slow = fieldPlayer(subject.ctx.team1.players[0]);
+      const quick = fieldPlayer(subject.ctx.team1.players[1]);
+      const c = context({
+        board: readBoard(subject, slow.teamId),
+        w: { ...DEFAULT_WEIGHTS, carrierPace: 4 },
+        available: new Map([
           [slow.id, new Set(["move" as const, "secureBall" as const])],
           [quick.id, new Set(["move" as const])],
-        ])
-      );
-      return secureBallActivations(c, slow)[0];
+        ]),
+      });
+      return fixtureValue(secureBallActivations(c, slow)[0]);
     };
     const plain = secure([]);
     const myBall = secure([SkillType.MY_BALL]);

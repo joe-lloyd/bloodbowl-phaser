@@ -10,6 +10,8 @@ import { BounceOperation } from "../operations/BounceOperation";
 import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
+import { type GameFlowManager } from "../core/GameFlowManager";
+import { type DecisionService } from "../skills/DecisionService";
 import { gatherParticipants, adjacentStanding } from "../skills";
 
 export abstract class BlockManagerBase {
@@ -102,7 +104,7 @@ export abstract class BlockManagerBase {
         .filter((p) => p.gridPosition)
         .map((p) => `${String(p.gridPosition!.x)},${String(p.gridPosition!.y)}`)
     );
-    const dirs = [
+    const dirs: readonly (readonly [number, number])[] = [
       [0, -1],
       [1, -1],
       [1, 0],
@@ -156,6 +158,18 @@ export abstract class BlockManagerBase {
     return this.callbacks
       .getFlowManager?.()
       ?.context.gameService.getDecisionService();
+  }
+
+  protected triggerServices(): {
+    decisions?: DecisionService;
+    flow?: GameFlowManager;
+  } {
+    const flow = this.callbacks.getFlowManager?.();
+    const decisions = this.decisions();
+    return {
+      ...(decisions ? { decisions } : {}),
+      ...(flow ? { flow } : {}),
+    };
   }
 
   protected blockParticipants(attacker: Player, defender: Player): Player[] {

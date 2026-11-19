@@ -124,11 +124,14 @@ export function validateRosterLegality(
   }
 
   const veterans = players.filter((player) => player.veteran);
+  const [veteran] = veterans;
   const hasLineman = players.length > nonLinemen.length;
   if (
     isDraftTeam(team) &&
     hasLineman &&
-    (veterans.length !== 1 || !isLinemanPosition(veterans[0].keywords))
+    (veterans.length !== 1 ||
+      !veteran ||
+      !isLinemanPosition(veteran.keywords))
   ) {
     violations.push({
       rule: "veteran",

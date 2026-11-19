@@ -20,7 +20,9 @@ const tray = (bus: EventBus, thrown: number, landedThrough: number) => {
 };
 
 describe("DiceWatch", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("ends a wait at once when no dice are in the air", async () => {
     const watch = new DiceWatch(new EventBus());

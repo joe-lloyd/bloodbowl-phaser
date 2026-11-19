@@ -22,8 +22,6 @@ export interface ValidationResult {
   restrictions: SetupRestriction[];
 }
 
-type SetupPhase = "coinflip" | "kicking" | "receiving" | "complete";
-
 export type SetupRestrictionId =
   | "setup-area"
   | "neutral-zone"

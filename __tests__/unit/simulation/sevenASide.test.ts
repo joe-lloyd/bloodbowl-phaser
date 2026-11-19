@@ -6,15 +6,16 @@ import type { GameSnapshot } from "../../../src/headless/serialization";
 
 function fielding(count: number, swarmingRoll?: number): GameSnapshot {
   const snapshot = structuredClone(new HeadlessGame({ seed: 1 }).snapshot());
-  const team = snapshot.teams[0];
+  const team = fixtureValue(snapshot.teams[0]);
+  const template = fixtureValue(team.players[0]);
 
-  while (fixtureValue(team).players.length < count) {
-    fixtureValue(team).players.push({
-      ...fixtureValue(team).players[0],
-      id: `${fixtureValue(team).id}-extra-${String(fixtureValue(team).players.length)}`,
+  while (team.players.length < count) {
+    team.players.push({
+      ...template,
+      id: `${team.id}-extra-${String(team.players.length)}`,
     });
   }
-  fixtureValue(team).players.forEach((player, index) => {
+  team.players.forEach((player, index) => {
     player.position = index < count ? { x: 1, y: index } : null;
   });
   fixtureValue(snapshot.teams[1]).players.forEach((player) => {
@@ -31,7 +32,7 @@ function fielding(count: number, swarmingRoll?: number): GameSnapshot {
       }),
       swarming: {
         pendingTeamIds: [],
-        teams: { [fixtureValue(team).id]: { roll: swarmingRoll, basePlayerIds: [] } },
+        teams: { [team.id]: { roll: swarmingRoll, basePlayerIds: [] } },
       },
     };
   }

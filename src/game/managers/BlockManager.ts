@@ -152,8 +152,7 @@ export class BlockManager extends BlockPushChain {
         defender,
         results,
         isAttackerChoice,
-        decisions: this.decisions(),
-        flow: this.callbacks.getFlowManager?.(),
+        ...this.triggerServices(),
         dice: this.diceController,
         triggers: [],
         rerolls: [],
@@ -220,8 +219,7 @@ export class BlockManager extends BlockPushChain {
       isBlitz: active?.action === "blitz" && active?.id === attacker.id,
       cancelled: false,
       allPlayers: this.allPlayers(),
-      decisions: this.decisions(),
-      flow: this.callbacks.getFlowManager?.(),
+      ...this.triggerServices(),
       dice: this.diceController,
       triggers: [],
     };
@@ -357,7 +355,8 @@ export class BlockManager extends BlockPushChain {
       }
     }
     const square = emptyQuickPassSquares.sort(nearestFirst)[0];
-    return square ? { receiver, square } : null;
+    if (!square) return null;
+    return receiver ? { receiver, square } : { square };
   }
 
   private landDumpOff(
@@ -390,7 +389,7 @@ export class BlockManager extends BlockPushChain {
       passType: result.passType,
       accurate: result.accurate,
       finalPosition,
-      scatterPath,
+      ...(scatterPath ? { scatterPath } : {}),
     });
 
     gs.setBallPosition(finalPosition.x, finalPosition.y);
@@ -439,8 +438,7 @@ export class BlockManager extends BlockPushChain {
           attackerKnockedDown: false,
           defenderKnockedDown:
             result.type === "pow" || result.type === "pow-dodge",
-          decisions: this.decisions(),
-          flow: this.callbacks.getFlowManager?.(),
+          ...this.triggerServices(),
           dice: this.diceController,
           triggers: [],
         };
@@ -559,8 +557,7 @@ export class BlockManager extends BlockPushChain {
       isBlitz: this.isBlitzBlock(attacker),
       attackerKnockedDown: true,
       defenderKnockedDown: true,
-      decisions: this.decisions(),
-      flow: this.callbacks.getFlowManager?.(),
+      ...this.triggerServices(),
       triggers: [],
     };
     await foldBlockResult(ctx, this.allPlayers());

@@ -1,5 +1,4 @@
 import { RosterName } from "../../types/Team";
-import { SkillType } from "../../types/Skills";
 import { type PlayerPlacement } from "../../types/Scenario";
 import { type ScenarioCase } from "../scenarioCase/types";
 import {
@@ -59,12 +58,11 @@ function describePlacement(
       const legality = grantLegality(roster, placement.playerIndex, skill);
       const native =
         legality === "illegal" ? nativeFixtures(skill)[0] : undefined;
+      const reason = reasons.get(`${ref}|${skill}`);
       return {
         skill: String(skill),
         legality,
-        ...(reasons.has(`${ref}|${skill}`)
-          ? { reason: reasons.get(`${ref}|${skill}`) }
-          : {}),
+        ...(reason === undefined ? {} : { reason }),
         ...(native
           ? { preferredNative: `${native.roster} ${native.positionName}` }
           : {}),

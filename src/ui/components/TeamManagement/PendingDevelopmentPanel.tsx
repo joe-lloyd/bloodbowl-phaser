@@ -60,7 +60,7 @@ export function PendingDevelopmentPanel({
   onChange: (team: Team) => void;
 
   showExpensiveMistakes?: boolean;
-  onOpenPlayer?: (playerId: string) => void;
+  onOpenPlayer?: ((playerId: string) => void) | undefined;
 }) {
   const [notice, setNotice] = useState("");
 
@@ -321,7 +321,7 @@ function AdvancedLeagueEntry({
   onChange: (team: Team) => void;
 
   onNotice: (notice: string) => void;
-  onOpenPlayer?: (playerId: string) => void;
+  onOpenPlayer?: ((playerId: string) => void) | undefined;
 }) {
   const player = team.players.find(
     (candidate) => candidate.id === entry.playerId

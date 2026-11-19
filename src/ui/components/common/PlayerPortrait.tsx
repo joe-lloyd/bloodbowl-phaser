@@ -89,7 +89,7 @@ export function PlayerPortrait({
     if (!el || !layers) return;
     const art = modelArt(model);
 
-    const first = layers[0].frames[frameName("idle", "se", 0)];
+    const first = layers[0]?.frames[frameName("idle", "se", 0)];
     if (!first) return;
     const side = Math.max(first.frame.w, first.frame.h) + 4;
     const ox = first.spriteSourceSize.x + first.frame.w / 2 - side / 2;

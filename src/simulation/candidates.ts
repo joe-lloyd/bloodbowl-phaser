@@ -416,13 +416,13 @@ async function setupCandidates(
       label: `Set up in the ${formation.name} formation`,
       commands: setupCommands([
         ...clear,
-        ...formation.positions.slice(0, Math.min(eligible.length, 7)).map(
-          (pos, index): HeadlessCommand => ({
-            type: "place-player",
-            playerId: eligible[index].id,
-            x: pos.x,
-            y: pos.y,
-          })
+        ...formation.positions.slice(0, Math.min(eligible.length, 7)).flatMap(
+          (pos, index): HeadlessCommand[] => {
+            const player = eligible[index];
+            return player
+              ? [{ type: "place-player", playerId: player.id, x: pos.x, y: pos.y }]
+              : [];
+          }
         ),
       ], teamId),
     }));

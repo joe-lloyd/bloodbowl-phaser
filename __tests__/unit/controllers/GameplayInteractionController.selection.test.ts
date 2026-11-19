@@ -13,7 +13,6 @@ import { getSkill, SkillType } from "../../../src/types/Skills";
 import {
   mockScene,
   mockPitch,
-  mockEventBus,
   mockGameService,
   answerStepPrompt,
   team1Id,

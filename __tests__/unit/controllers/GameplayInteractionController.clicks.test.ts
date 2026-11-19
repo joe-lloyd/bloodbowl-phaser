@@ -9,7 +9,6 @@ import { GamePhase } from "../../../src/types/GameState";
 import { PlayerStatus } from "../../../src/types/Player";
 import {
   mockScene,
-  mockEventBus,
   mockGameService,
   answerStepPrompt,
   player1,

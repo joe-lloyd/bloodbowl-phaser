@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { GameScene } from "../../../src/scenes/GameScene";
 import { EventBus } from "../../../src/services/EventBus";
 import { GameEventNames } from "../../../src/types/events";
@@ -6,7 +6,7 @@ import { PlayerStatus } from "../../../src/types/Player";
 
 interface FakeSprite {
   carrying: boolean;
-  setCarryingBall: ReturnType<typeof vi.fn>;
+  setCarryingBall: Mock<[carrying: boolean], void>;
   setActivated: ReturnType<typeof vi.fn>;
   setTeamTurnBorder: ReturnType<typeof vi.fn>;
   resetOrientation: ReturnType<typeof vi.fn>;

@@ -174,10 +174,14 @@ export function validateShape(command: unknown): string | null {
     return "malformed-command: not an object";
   }
   const cmd = command as Record<string, unknown>;
-  if (typeof cmd["type"] !== "string" || !(cmd["type"] in COMMAND_SHAPES)) {
+  const shape =
+    typeof cmd["type"] === "string" && cmd["type"] in COMMAND_SHAPES
+      ? COMMAND_SHAPES[cmd["type"]]
+      : undefined;
+  if (!shape) {
     return `unknown-command-type: ${String(cmd["type"])}`;
   }
-  for (const [field, kind] of Object.entries(COMMAND_SHAPES[cmd["type"]])) {
+  for (const [field, kind] of Object.entries(shape)) {
     const check = FIELD_CHECKS[kind];
     if (!check.valid(cmd[field])) {
       return `malformed-command: '${field}' ${check.must}`;

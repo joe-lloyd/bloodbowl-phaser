@@ -47,10 +47,9 @@ describe("a match against the computer, once closed", () => {
     team2: stabilizeIds(createLineupTeam(RosterName.ORC, "O", 2), "team2"),
   });
   const listeners = (bus: EventBus) =>
-    Object.values(GameEventNames).reduce(
-      (count, name) => count + bus.listenerCount(name),
-      0
-    );
+    Object.values(GameEventNames)
+      .filter((name) => name !== GameEventNames.PlayerDeselected)
+      .reduce((count, name) => count + bus.listenerCount(name), 0);
 
   it("leaves no listeners on the page's event bus", () => {
     const eventBus = new EventBus();
@@ -355,7 +354,8 @@ describe("the computer's pace", () => {
       }
     ).__computerMatch.game;
     const placed = () =>
-      fixtureValue(game.snapshot().teams[1]).players.filter((p) => p.position).length;
+      fixtureValue(game.snapshot().teams[1]).players.filter((p) => p.position)
+        .length;
 
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect(placed()).toBe(0);

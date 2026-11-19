@@ -362,7 +362,7 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
 
     switch (clip.event) {
       case KickoffEvent.GET_THE_REF:
-        expect(after.bribes).toEqual({ [kicking]: 1, [receiving]: 1 });
+        expect(after.bribes).toEqual({ [fixtureValue(kicking)]: 1, [fixtureValue(receiving)]: 1 });
         checked.push("Each team now holds one Bribe");
         break;
       case KickoffEvent.TIME_OUT: {

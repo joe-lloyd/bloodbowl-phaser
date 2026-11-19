@@ -91,7 +91,7 @@ export async function runTune(options: TuneOptions): Promise<number> {
   };
   const running = new Map<ChildProcess, (game: BenchGame | null) => void>();
   const children = Array.from({ length: options.workers }, () => {
-    const child = fork(process.argv[1], ["tune-worker"], {
+    const child = fork(process.argv[1] ?? fail("no script to fork"), ["tune-worker"], {
       execArgv: process.execArgv,
     });
     child.on("message", (message: { game?: BenchGame; error?: string }) => {
@@ -119,7 +119,7 @@ export async function runTune(options: TuneOptions): Promise<number> {
     let pair = 0;
     const jobs = benchJobs(games / 2, seed, () => [
       b === "heuristic"
-        ? options.rosters[pair++ % options.rosters.length]
+        ? (options.rosters[pair++ % options.rosters.length] ?? fail("no rosters"))
         : pick.pick(options.rosters),
       pick.pick(options.rosters),
     ]);
@@ -188,13 +188,17 @@ export async function runTune(options: TuneOptions): Promise<number> {
     );
     const shares = screened.map(standards ? standardsShare : pointShare);
     const top = shares.indexOf(Math.max(...shares));
+    const topMutant = mutants[top];
+    const topShare = shares[top];
+    if (topMutant === undefined || topShare === undefined)
+      fail("no mutant to confirm");
     let share: number;
     let bar: number;
     let judged = true;
     if (standards) {
-      const [mutant, current] = common(
+      const [mutant = [], current = []] = common(
         await Promise.all(
-          [mutants[top], best].map((m) =>
+          [topMutant, best].map((m) =>
             play(m, "heuristic", options.confirmGames, nextSeed)
           )
         )
@@ -204,8 +208,8 @@ export async function runTune(options: TuneOptions): Promise<number> {
 
       judged = rosterReport(mutant).length === options.rosters.length;
     } else {
-      [share] = common([
-        await play(mutants[top], best, options.confirmGames, nextSeed),
+      [share = 0] = common([
+        await play(topMutant, best, options.confirmGames, nextSeed),
       ]).map(pointShare);
 
       bar = 0.5 + 0.75 / Math.sqrt(options.confirmGames);
@@ -213,19 +217,19 @@ export async function runTune(options: TuneOptions): Promise<number> {
     nextSeed += options.confirmGames;
     const promoted = judged && share >= bar;
     say(
-      `generation ${String(generation)}: best mutant ${shares[top].toFixed(3)}, ` +
+      `generation ${String(generation)}: best mutant ${topShare.toFixed(3)}, ` +
         `confirmed ${share.toFixed(3)} (needs ${bar.toFixed(3)})` +
         (judged ? "" : ", but not on every roster") +
         (promoted ? ", promoted" : "")
     );
     if (promoted) {
       const changed = (Object.keys(best) as (keyof Weights)[]).filter(
-        (name) => best[name] !== mutants[top][name]
+        (name) => best[name] !== topMutant[name]
       );
       say(
-        `  ${changed.map((n) => `${n} ${best[n].toFixed(2)} -> ${mutants[top][n].toFixed(2)}`).join(", ")}`
+        `  ${changed.map((n) => `${n} ${best[n].toFixed(2)} -> ${topMutant[n].toFixed(2)}`).join(", ")}`
       );
-      best = mutants[top];
+      best = topMutant;
       saveWeights(best);
     }
   }

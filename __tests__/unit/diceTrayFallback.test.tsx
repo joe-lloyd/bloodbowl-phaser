@@ -57,7 +57,7 @@ const mount = async (throws: "fail" | "hang" = "fail") => {
   });
   return {
     bus,
-    tray: () => fixtureValue(container.querySelector('[data-testid="dice-tray"]')),
+    tray: () => fixtureValue(container.querySelector<HTMLElement>('[data-testid="dice-tray"]')),
     unmount: async () => {
       await act(async () => {
         root.unmount();
@@ -84,7 +84,7 @@ describe("dice tray when the 3D dice cannot be drawn", () => {
     });
     await settle();
 
-    expect(tray().dataset.dice).toBe("landed");
+    expect(tray().dataset["dice"]).toBe("landed");
     expect(tray().textContent).toContain("Dodge: 4, needs 3+");
     const faces = [...tray().querySelectorAll("[data-flat-die]")];
     expect(faces.map((face) => face.textContent)).toEqual(["4"]);
@@ -110,7 +110,7 @@ describe("dice tray when the 3D dice cannot be drawn", () => {
     });
     await settle();
 
-    expect(tray().dataset.dice).toBe("landed");
+    expect(tray().dataset["dice"]).toBe("landed");
     const faces = [
       ...tray().querySelectorAll<HTMLButtonElement>("button[data-flat-die]"),
     ];
@@ -140,7 +140,7 @@ describe("dice tray when the 3D dice cannot be drawn", () => {
     });
     await settle();
 
-    expect(tray().dataset.dice).toBe("landed");
+    expect(tray().dataset["dice"]).toBe("landed");
     const faces = [
       ...tray().querySelectorAll<HTMLButtonElement>("button[data-flat-die]"),
     ];

@@ -55,7 +55,7 @@ function Frame({
   scale = 0.5,
 }: {
   id: string;
-  height?: number;
+  height?: number | undefined;
   scale?: number;
 }) {
   return (

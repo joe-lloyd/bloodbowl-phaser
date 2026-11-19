@@ -76,6 +76,9 @@ function* records(file: string): Generator<Record<string, string>> {
     yield Object.fromEntries(header.map((name, i) => [name, row[i] ?? ""]));
 }
 
+const cell = (record: Record<string, string>, name: string): string =>
+  record[name] ?? "";
+
 const folder = process.argv[2];
 if (!folder) {
   process.stderr.write(
@@ -87,7 +90,7 @@ if (!folder) {
 const conceded = new Set<string>();
 for (const match of records(path.join(folder, "df_matches.csv")))
   if (match["match_conceded"] && match["match_conceded"] !== "None")
-    conceded.add(match["match_id"]);
+    conceded.add(cell(match, "match_id"));
 
 const COLUMNS = {
   wins: "wins",
@@ -100,11 +103,14 @@ type Rate = keyof typeof COLUMNS;
 
 const totals = new Map<string, { games: number } & Record<Rate, number>>();
 for (const row of records(path.join(folder, "df_mbt.csv"))) {
-  if (conceded.has(row["match_id"]) || !DIVISIONS.has(row["division_name"]))
+  if (
+    conceded.has(cell(row, "match_id")) ||
+    !DIVISIONS.has(cell(row, "division_name"))
+  )
     continue;
   if (row["mirror_match"] === "1" || Number(row["team_value"]) > MAX_TEAM_VALUE)
     continue;
-  const bucket = totals.get(row["race_name"]) ?? {
+  const bucket = totals.get(cell(row, "race_name")) ?? {
     games: 0,
     wins: 0,
     touchdowns: 0,
@@ -115,7 +121,7 @@ for (const row of records(path.join(folder, "df_mbt.csv"))) {
   bucket.games++;
   for (const [rate, column] of Object.entries(COLUMNS) as [Rate, string][])
     bucket[rate] += Number(row[column]) || 0;
-  totals.set(row["race_name"], bucket);
+  totals.set(cell(row, "race_name"), bucket);
 }
 
 const round = (x: number) => Math.round(x * 1000) / 1000;

@@ -212,11 +212,12 @@ export function buildCoverage(
         return { layer, status: "covered", cases: covering };
       }
       if (isExcluded(entry.id, layer, exclusions)) {
+        const exclusion = exclusionFor(entry.id, exclusions);
         return {
           layer,
           status: "excluded",
           cases: [],
-          exclusion: exclusionFor(entry.id, exclusions),
+          ...(exclusion === undefined ? {} : { exclusion }),
         };
       }
       return { layer, status: "missing", cases: [] };

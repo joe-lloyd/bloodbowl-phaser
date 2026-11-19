@@ -1,6 +1,7 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach } from "vitest";
 import { RosterName, createTeam } from "../../src/types/Team";
+import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import {
   loadTeams,
   saveTeams,
@@ -20,10 +21,12 @@ import { validateDevelopmentSeedData } from "../../src/seeding/validateSeeds";
 import { isSeedOwned } from "../../src/seeding/seedMeta";
 
 function coachTeam(name: string) {
-  const team = createTeam(name, RosterName.HUMAN, {
-    primary: 0x123456,
-    secondary: 0x654321,
-  });
+  const team = createTeam(
+    name,
+    RosterName.HUMAN,
+    { primary: 0x123456, secondary: 0x654321 },
+    getRosterByRosterName(RosterName.HUMAN).rerollCost
+  );
   return team;
 }
 
@@ -88,8 +91,7 @@ describe("development seed integration", () => {
 
     const loaded = loadTeams();
     for (const team of fresh) {
-      const vets = fixtureValue(loaded
-        .find((t) => t.id === team.id))
+      const vets = fixtureValue(loaded.find((t) => t.id === team.id))
         .players.filter((p) => p.veteran)
         .map((p) => `${p.id} MA${String(p.stats.MA)}`);
       const expected = team.players
@@ -126,10 +128,12 @@ describe("development seed integration", () => {
   });
 
   it("a refresh replaces legacy ' Sample' teams but not coach teams", () => {
-    const legacy = createTeam("Orc Sample", RosterName.ORC, {
-      primary: 1,
-      secondary: 2,
-    });
+    const legacy = createTeam(
+      "Orc Sample",
+      RosterName.ORC,
+      { primary: 1, secondary: 2 },
+      getRosterByRosterName(RosterName.ORC).rerollCost
+    );
     const coach = coachTeam("Sample Collector XI");
     saveTeams([legacy, coach]);
 

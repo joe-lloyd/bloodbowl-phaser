@@ -3,7 +3,7 @@ import { planMoveLegs } from "../../../src/game/rules/moveLegs";
 import { PlayerStatus } from "../../../src/types/Player";
 import { createTestPlayer } from "../../fixtures/players";
 
-const opponent = (x: number, y: number, status = PlayerStatus.ACTIVE) =>
+const opponent = (x: number, y: number, status: PlayerStatus = PlayerStatus.ACTIVE) =>
   createTestPlayer({
     id: `o${String(x)}${String(y)}`,
     gridPosition: { x, y },

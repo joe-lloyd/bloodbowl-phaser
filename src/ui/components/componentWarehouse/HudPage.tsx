@@ -132,7 +132,7 @@ export function Section({
 }: {
   title: React.ReactNode;
   aside?: React.ReactNode;
-  accent?: HudTone | { color: string };
+  accent?: HudTone | { color: string } | undefined;
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;

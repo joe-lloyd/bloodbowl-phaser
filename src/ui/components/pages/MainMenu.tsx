@@ -510,7 +510,7 @@ function MenuSection({
   children,
 }: {
   title: string;
-  note?: string;
+  note?: string | undefined;
   children: React.ReactNode;
 }) {
   return (

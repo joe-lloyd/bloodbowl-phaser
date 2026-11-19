@@ -37,7 +37,7 @@ function season(allPlayed = false) {
   const fixtures = generateRoundRobin(entrants);
   const play = (game: CompetitionFixture) => {
     game.status = "complete";
-    game.result = { homeScore: 2, awayScore: 1 };
+    game.result = { homeScore: 2, awayScore: 1, completedAt: 0 };
   };
   if (allPlayed) fixtures.forEach(play);
   else play(fixtureValue(fixtures[0]));

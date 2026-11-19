@@ -21,7 +21,7 @@ async function lobbyWith(
   hostSecret: string,
   guestSecret: string,
   revealGuest = guestSecret
-) {
+): Promise<LobbyDoc> {
   return {
     code: "SEED01",
     hostUid: "host",

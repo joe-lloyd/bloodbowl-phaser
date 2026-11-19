@@ -47,7 +47,9 @@ vi.mock("../../src/services/ServiceContainer", () => {
   };
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 it("throws a broken armour roll and its injury roll as two throws, armour landing first", async () => {
   vi.useFakeTimers();

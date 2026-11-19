@@ -13,7 +13,21 @@ import {
 import {
   type CompetitionEntrant,
   type CompetitionFixture,
+  type TournamentDoc,
 } from "../../src/competition/types";
+
+function stripLinkage(fixture: CompetitionFixture): CompetitionFixture {
+  const stripped: CompetitionFixture = {
+    id: fixture.id,
+    round: fixture.round,
+    order: fixture.order,
+    homeEntrantId: fixture.homeEntrantId,
+    awayEntrantId: fixture.awayEntrantId,
+    status: fixture.status,
+  };
+  if (fixture.result) stripped.result = fixture.result;
+  return stripped;
+}
 
 function entrants(count: number): CompetitionEntrant[] {
   return seedEntrants(
@@ -200,12 +214,7 @@ describe("layoutBracket", () => {
   });
 
   it("falls back to round/order pairing when linkage is missing", () => {
-    const stripped: CompetitionFixture[] = bracketFor(8).map((f) => ({
-      ...f,
-      sourceFixtureIds: undefined,
-      nextFixtureId: undefined,
-      nextSlot: undefined,
-    }));
+    const stripped: CompetitionFixture[] = bracketFor(8).map(stripLinkage);
     const withLinkage = layoutBracket(bracketFor(8));
     const withoutLinkage = layoutBracket(stripped);
 
@@ -254,12 +263,7 @@ describe("repairBracketLinkage", () => {
 
   it("restores linkage stripped from a legacy document", () => {
     const original = bracketFor(8);
-    const stripped: CompetitionFixture[] = original.map((f) => ({
-      ...f,
-      sourceFixtureIds: undefined,
-      nextFixtureId: undefined,
-      nextSlot: undefined,
-    }));
+    const stripped: CompetitionFixture[] = original.map(stripLinkage);
 
     expect(repairBracketLinkage(stripped)).toBe(true);
     for (const fixture of stripped) {
@@ -276,15 +280,10 @@ describe("repairBracketLinkage", () => {
     const entered = entrants(8);
     const stripped: CompetitionFixture[] = generateSingleElimination(
       entered
-    ).map((f) => ({
-      ...f,
-      sourceFixtureIds: undefined,
-      nextFixtureId: undefined,
-      nextSlot: undefined,
-    }));
+    ).map(stripLinkage);
     repairBracketLinkage(stripped);
 
-    const tournament = {
+    const tournament: TournamentDoc = {
       id: "t1",
       type: "tournament" as const,
       name: "Repaired",
@@ -309,7 +308,7 @@ describe("repairBracketLinkage", () => {
 });
 
 describe("a tournament played through to a champion", () => {
-  const tournamentOf = (count: number) => {
+  const tournamentOf = (count: number): TournamentDoc => {
     const entered = entrants(count);
     return {
       id: "t1",
@@ -327,7 +326,7 @@ describe("a tournament played through to a champion", () => {
     };
   };
 
-  const playAll = (start: ReturnType<typeof tournamentOf>) => {
+  const playAll = (start: TournamentDoc) => {
     let current = start;
     for (let guard = 0; guard < 40; guard++) {
       const ready = current.fixtures.find(
@@ -369,7 +368,7 @@ describe("a tournament played through to a champion", () => {
 
     const eliminated = eliminatedEntrantIds(current.fixtures);
     expect(eliminated.size).toBe(7);
-    expect(eliminated.has(current.championEntrantId)).toBe(false);
+    expect(eliminated.has(fixtureValue(current.championEntrantId))).toBe(false);
   });
 
   it("advances a bye-containing draw correctly and still crowns a champion", () => {

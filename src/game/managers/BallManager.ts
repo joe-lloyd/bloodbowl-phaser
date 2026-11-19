@@ -288,6 +288,7 @@ export class BallManager {
       const from = { ...this.state.ballPosition };
       const path = this.movementController.scatter(from);
       const to = path[path.length - 1];
+      if (!to) throw new Error("Weather scatter produced no path");
       const offPitch =
         to.x < 0 ||
         to.x >= GameConfig.PITCH_WIDTH ||
@@ -424,6 +425,8 @@ export class BallManager {
 
     const directionRoll = this.diceController.rollD6("Throw-in Direction");
     const dir = dirs[Math.floor((directionRoll - 1) / 2)];
+    if (!dir)
+      throw new Error(`No throw-in direction for roll ${String(directionRoll)}`);
 
     const distance = this.diceController.rollD6("Throw-in Distance") + 2;
 

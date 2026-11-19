@@ -58,7 +58,7 @@ const PAGE_SHOTS = [
 
 
 
-export const PAGES_NAV = ["Pages: direction", "Pages: before and after"];
+export const PAGES_NAV = ["Pages: direction", "Pages: before and after"] as const;
 
 export function PagesReview({
   SectionTitle,

@@ -80,7 +80,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           user,
           eventBus,
           seed,
-          computer: isHouseBotBrowser() ? {} : undefined,
+          ...(isHouseBotBrowser() ? { computer: {} } : {}),
         });
         created.onFatalError((message) => {
           setError(message);

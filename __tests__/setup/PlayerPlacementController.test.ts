@@ -31,8 +31,11 @@ describe("PlayerPlacementController", () => {
   let dugoutSprites: Map<string, Phaser.GameObjects.Container>;
 
   beforeEach(() => {
-    controller = new PlayerPlacementController(
-      { _scene: mockScene,pitch: mockPitch,validator: mockValidator }    );
+    controller = new PlayerPlacementController({
+      _scene: mockScene,
+      pitch: mockPitch,
+      validator: mockValidator,
+    });
 
     team = {
       id: "team-1",
@@ -174,19 +177,26 @@ describe("PlayerPlacementController", () => {
         width: ISO.tileWidth,
         height: ISO.tileHeight,
       });
-      expect(fixtureValue(added.input).hitAreaCallback).toBe(squareHitAreaContains);
+      expect(fixtureValue(added.input).hitAreaCallback).toBe(
+        squareHitAreaContains
+      );
     });
 
     it("picks dugout sprites by their figure again once setup ends", () => {
       const reserve = figureSprite();
       dugoutSprites.set("p1", reserve);
       controller.enablePlacement(team, true, dugoutSprites);
-      expect(fixtureValue(reserve.input).hitAreaCallback).toBe(squareHitAreaContains);
+      expect(fixtureValue(reserve.input).hitAreaCallback).toBe(
+        squareHitAreaContains
+      );
       const enableCalls = vi.mocked(reserve.setInteractive).mock.calls.length;
 
       controller.restoreFigureHitAreas();
 
-      expect(fixtureValue(reserve.input).hitArea).toMatchObject({ width: 56, height: 82 });
+      expect(fixtureValue(reserve.input).hitArea).toMatchObject({
+        width: 56,
+        height: 82,
+      });
       expect(fixtureValue(reserve.input).hitAreaCallback).toBe(
         Phaser.Geom.Rectangle.Contains
       );
@@ -203,7 +213,10 @@ describe("PlayerPlacementController", () => {
 
       controller.disablePlacement();
 
-      expect(fixtureValue(reserve.input).hitArea).toMatchObject({ width: 56, height: 82 });
+      expect(fixtureValue(reserve.input).hitArea).toMatchObject({
+        width: 56,
+        height: 82,
+      });
     });
 
     it("leaves dugout sprites alone outside setup", () => {
@@ -273,7 +286,11 @@ describe("PlayerPlacementController", () => {
       expect(eventsNamed(GameEventNames.PlayerRemoved)).toHaveLength(0);
       const placedCalls = eventsNamed(GameEventNames.PlayerPlaced);
       expect(placedCalls).toHaveLength(2);
-      expect(fixtureValue(placedCalls[1])[1]).toEqual({ playerId: "p1", x: 2, y: 2 });
+      expect(fixtureValue(placedCalls[1])[1]).toEqual({
+        playerId: "p1",
+        x: 2,
+        y: 2,
+      });
     });
 
     it("removePlayer still emits PlayerRemoved for an actual off-pitch removal", () => {
@@ -341,8 +358,12 @@ describe("PlayerPlacementController dugout drops", () => {
       getContainer: () => ({ x: 0, y: 0 }),
       worldToGrid: () => square,
     } as unknown as Pitch;
-    const controller = new PlayerPlacementController(
-    { _scene: {} as Phaser.Scene,pitch,validator: new SetupValidator(),isAvailable }    );
+    const controller = new PlayerPlacementController({
+      _scene: {} as Phaser.Scene,
+      pitch,
+      validator: new SetupValidator(),
+      ...(isAvailable ? { isAvailable } : {}),
+    });
     const sprite = dugoutSprite({ x: 900, y: 40 });
     const team = {
       id: "team-1",

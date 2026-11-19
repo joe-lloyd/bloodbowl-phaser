@@ -1,6 +1,5 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { type IGameService } from "../../services/interfaces/IGameService";
 import { type Player, PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type FlowContext } from "../core/GameFlowManager";
@@ -67,6 +66,9 @@ function foulPlayers(context: FlowContext, fouler: Player): Player[] {
   return [...(team?.players || []), ...opponents];
 }
 
+const diceTotal = (rolls: readonly number[]): number =>
+  rolls.reduce((sum, roll) => sum + roll, 0);
+
 const signed = (n: number): string => `${n >= 0 ? "+" : ""}${String(n)}`;
 
 function rerollAndDirtyPlayer(
@@ -93,7 +95,7 @@ function rerollAndDirtyPlayer(
   };
   let { rolls } = armour;
   const breaks = (bonus: number) =>
-    armourBroken(armourCtx, rolls[0] + rolls[1] + bonus, context.gameService);
+    armourBroken(armourCtx, diceTotal(rolls) + bonus, context.gameService);
   let broken = breaks(0);
 
   if (
@@ -305,7 +307,7 @@ export class FoulOperation extends GameOperation {
     const armourCtx = await foldArmourRoll(context, [target], {
       player: target,
       knockedDown: false,
-      roll: rolls[0] + rolls[1],
+      roll: diceTotal(rolls),
       armourModifier: modifier,
     });
     const armourResult = rerollAndDirtyPlayer(context, fouler, armourCtx, {
@@ -323,8 +325,7 @@ export class FoulOperation extends GameOperation {
       rollType: foulArmourRoll,
       diceTeamId: target.teamId,
       roll:
-        rolls[0] +
-        rolls[1] +
+        diceTotal(rolls) +
         armourCtx.armourModifier +
         (dirtyUsedOnArmour ? 1 : 0),
       armor: av,

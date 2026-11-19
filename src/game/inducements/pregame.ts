@@ -1,13 +1,17 @@
 import { GamePhase, type GameState, SubPhase } from "../../types/GameState";
 import type { PregameInducementsState } from "../../types/Inducements";
 
+const PREGAME_OPENING_SUBPHASES: readonly SubPhase[] = [
+  SubPhase.INTRO,
+  SubPhase.WEATHER,
+  SubPhase.COIN_FLIP,
+];
+
 export function isPregameOpening(state: GameState): boolean {
   return (
     state.phase === GamePhase.SETUP &&
     state.turn.turnNumber === 0 &&
-    [SubPhase.INTRO, SubPhase.WEATHER, SubPhase.COIN_FLIP].includes(
-      state.subPhase!
-    )
+    PREGAME_OPENING_SUBPHASES.some((subPhase) => subPhase === state.subPhase)
   );
 }
 

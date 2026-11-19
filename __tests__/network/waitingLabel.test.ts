@@ -72,7 +72,13 @@ const hostMatch = (scenario: Scenario) => {
   const [hostEnd] = createInMemoryTransportPair();
   return createOnlineMatch({
     lobby,
-    user: { uid: "host-uid", displayName: "Host", email: null, photoURL: null },
+    user: {
+      uid: "host-uid",
+      displayName: "Host",
+      email: null,
+      emailVerified: false,
+      photoURL: null,
+    },
     eventBus: new EventBus(),
     transport: hostEnd,
     seed: 2,
@@ -160,6 +166,7 @@ describe("online waiting label", () => {
         uid: "host-uid",
         displayName: "Host",
         email: null,
+        emailVerified: false,
         photoURL: null,
       },
       eventBus: new EventBus(),

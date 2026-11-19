@@ -34,7 +34,7 @@ function preference(player: Player, skill: SkillType, role: Role): number {
     SkillType.MIGHTY_BLOW,
     SkillType.TACKLE,
   ];
-  const priorities =
+  const priorities: readonly SkillType[] =
     role === "passer" && player.stats.PA > 0 && player.stats.PA <= 3
       ? passer
       : role === "hitter"
@@ -68,6 +68,12 @@ function rolePlayers(team: Team) {
   return players;
 }
 
+function firstOf<T>(items: readonly T[]): T {
+  const item = items[0];
+  if (item === undefined) throw new Error("No skill to choose from");
+  return item;
+}
+
 function chooseSkill(
   p: Player,
   role: Role,
@@ -86,14 +92,18 @@ function chooseSkill(
     if (roll.kind !== "random-primary")
       throw new Error("Unexpected advancement roll");
 
-    skill = [...roll.candidates].sort(
-      (a, b) => preference(p, b.skill, role) - preference(p, a.skill, role)
-    )[0].skill;
+    skill = firstOf(
+      [...roll.candidates].sort(
+        (a, b) => preference(p, b.skill, role) - preference(p, a.skill, role)
+      )
+    ).skill;
   } else {
-    skill = [...legal].sort(
-      (a, b) =>
-        preference(p, b, role) - preference(p, a, role) || a.localeCompare(b)
-    )[0];
+    skill = firstOf(
+      [...legal].sort(
+        (a, b) =>
+          preference(p, b, role) - preference(p, a, role) || a.localeCompare(b)
+      )
+    );
   }
   return skill;
 }

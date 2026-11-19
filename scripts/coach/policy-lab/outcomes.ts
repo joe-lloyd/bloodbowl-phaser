@@ -32,7 +32,7 @@ interface TurnContext {
 }
 function outcomeTracker(game: HeadlessGame) {
   const totals: [Outcomes, Outcomes] = [empty(), empty()];
-  const sides = new Map([
+  const sides = new Map<string, 0 | 1>([
     [game.ctx.team1.id, 0],
     [game.ctx.team2.id, 1],
   ]);
@@ -137,9 +137,16 @@ export async function annotateTrace(file: string) {
   return { totals: tracker.totals, hash };
 }
 
+function argument(index: number): string {
+  const value = process.argv[index];
+  if (value === undefined)
+    throw new Error(`Missing argument ${String(index - 1)}`);
+  return value;
+}
+
 async function main() {
   const entry = fileURLToPath(import.meta.url);
-  const run = resolve(process.argv[2]);
+  const run = resolve(argument(2));
   const out = join(run, "outcomes");
   mkdirSync(out, { recursive: true });
   if (process.argv.includes("--worker")) {
@@ -181,7 +188,7 @@ async function main() {
       candidateSide: number;
       totals: [Outcomes, Outcomes];
     };
-    for (const side of [0, 1]) {
+    for (const side of [0, 1] as const) {
       const own =
         side === result.candidateSide ? summary.candidate : summary.frozen;
       for (const key of Object.keys(own) as (keyof Outcomes)[])

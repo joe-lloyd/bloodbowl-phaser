@@ -112,13 +112,14 @@ export class PlayerActionManager {
     if (this.isActionCommitted(playerId).committed) return false;
 
     const razzle = active.razzleDazzle;
-    if (razzle && razzle.actions.length === 2) {
+    const firstAction = razzle?.actions[0];
+    if (razzle && razzle.actions.length === 2 && firstAction) {
       this.state.activePlayer = {
         id: playerId,
-        action: razzle.actions[0],
+        action: firstAction,
         ...(active.bloodlustUnsated ? { bloodlustUnsated: true } : {}),
         committed: true,
-        razzleDazzle: { actions: [razzle.actions[0]], awaitingSecond: true },
+        razzleDazzle: { actions: [firstAction], awaitingSecond: true },
       };
       return true;
     }

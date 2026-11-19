@@ -34,19 +34,28 @@ async function sandboxBlockReplay(configId: string, seed: number) {
 
   const attacker = team1.players[0];
   const defender = team2.players[0];
-  const analysis = new BlockValidator().analyzeBlock({ attacker: fixtureValue(attacker), defender: fixtureValue(defender), allPlayers: [
-    ...team1.players,
-    ...team2.players,
-  ] });
+  const analysis = new BlockValidator().analyzeBlock({
+    attacker: fixtureValue(attacker),
+    defender: fixtureValue(defender),
+    allPlayers: [...team1.players, ...team2.players],
+  });
 
-  let roll: BlockRollData | null = null;
-  bus.on(GameEventNames.BlockDiceRolled, (data) => (roll = data));
+  const rolls: BlockRollData[] = [];
+  bus.on(GameEventNames.BlockDiceRolled, (data) => {
+    rolls.push(data);
+  });
 
-  expect(svc.declareAction({ playerId: fixtureValue(attacker).id, action: "block" })).toBe(true);
-  svc.rollBlockDice({ attackerId: fixtureValue(attacker).id, defenderId: fixtureValue(defender).id, numDice: analysis.diceCount, isAttackerChoice: !analysis.isUphill }
-  );
+  expect(
+    svc.declareAction({ playerId: fixtureValue(attacker).id, action: "block" })
+  ).toBe(true);
+  svc.rollBlockDice({
+    attackerId: fixtureValue(attacker).id,
+    defenderId: fixtureValue(defender).id,
+    numDice: analysis.diceCount,
+    isAttackerChoice: !analysis.isUphill,
+  });
   await new Promise((r) => setTimeout(r, 50));
-  return fixtureValue(roll);
+  return fixtureValue(rolls.at(-1));
 }
 
 describe("sandbox replay reproduces found seeds", () => {

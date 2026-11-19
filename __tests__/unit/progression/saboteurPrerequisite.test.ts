@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import {
@@ -25,7 +26,7 @@ function scriptedDice(...values: number[]) {
   return {
     rollDie: () => {
       if (next >= values.length) throw new Error("The scripted dice ran out");
-      return values[next++];
+      return fixtureValue(values[next++]);
     },
   };
 }

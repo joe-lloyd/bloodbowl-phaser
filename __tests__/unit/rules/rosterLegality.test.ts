@@ -18,7 +18,7 @@ function teamWith(templates: PlayerTemplate[]) {
   const team = createTeam("Test", RosterName.HUMAN, {
     primary: 0,
     secondary: 0,
-  });
+  }, humanRoster.rerollCost);
   templates.forEach((template, index) => {
     team.players.push(createPlayer(template, team.id, index + 1));
   });

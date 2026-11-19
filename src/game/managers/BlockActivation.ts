@@ -162,11 +162,7 @@ export abstract class BlockActivation extends BlockRerolls {
       originalStrength,
       continuationQueued: false,
       analyses,
-      board: this.allPlayers().map((p) => ({
-        ...p,
-        gridPosition: p.gridPosition && { ...p.gridPosition },
-        conditions: p.conditions && [...p.conditions],
-      })),
+      board: this.allPlayers().map(snapshotPlayer),
       pileDriverTargetIds: [],
     };
     this.eventBus.emit(GameEventNames.SkillTriggered, {
@@ -208,8 +204,9 @@ export abstract class BlockActivation extends BlockRerolls {
       !!blocker.gridPosition &&
       next?.status === PlayerStatus.ACTIVE &&
       !!next.gridPosition;
-    if (!scored && canBlock && state.nextIndex < state.defenderIds.length) {
-      const defenderId = state.defenderIds[state.nextIndex++];
+    const defenderId = state.defenderIds[state.nextIndex];
+    if (!scored && canBlock && defenderId !== undefined) {
+      state.nextIndex++;
       await this.startBlock(attackerId, defenderId);
       return;
     }
@@ -396,8 +393,9 @@ export abstract class BlockActivation extends BlockRerolls {
       use = answer.accept;
     }
 
-    if (use) {
-      this.freeMove(attacker, squares[0]);
+    const square = squares[0];
+    if (use && square) {
+      this.freeMove(attacker, square);
       this.eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: attackerId,
         skill: SkillType.HIT_AND_RUN,
@@ -420,12 +418,20 @@ export abstract class BlockActivation extends BlockRerolls {
       from,
       to: { ...to },
       path: [from, { ...to }],
-      ballFrom: carriedBall ? from : undefined,
-      ballPath: carriedBall ? [from, { ...to }] : undefined,
+      ...(carriedBall ? { ballFrom: from, ballPath: [from, { ...to }] } : {}),
       ballJoinStep: 0,
     });
     this.callbacks
       .getFlowManager?.()
       ?.context.gameService.checkForTouchdown(player.id);
   }
+}
+
+function snapshotPlayer(player: Player): Player {
+  const { gridPosition, conditions, ...rest } = player;
+  return {
+    ...rest,
+    ...(gridPosition ? { gridPosition: { ...gridPosition } } : {}),
+    ...(conditions ? { conditions: [...conditions] } : {}),
+  };
 }

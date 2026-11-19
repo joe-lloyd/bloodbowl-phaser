@@ -61,8 +61,9 @@ describe("canEdit", () => {
   });
 
   function activeRoster(rosterName: RosterName, positions: string[]) {
-    const t = createTeam("Old", rosterName, { primary: 0, secondary: 0 });
-    const templates = getRosterByRosterName(rosterName).playerTemplates;
+    const roster = getRosterByRosterName(rosterName);
+    const t = createTeam("Old", rosterName, { primary: 0, secondary: 0 }, roster.rerollCost);
+    const templates = roster.playerTemplates;
     t.players = positions.map((name, index) =>
       createPlayer(
         fixtureValue(templates.find((template) => template.positionName === name)),

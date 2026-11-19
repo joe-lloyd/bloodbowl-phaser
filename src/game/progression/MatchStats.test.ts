@@ -41,7 +41,7 @@ function player(id: string, teamId: string): Player {
 function team(
   id: string,
   players: Player[],
-  rosterName = RosterName.HUMAN
+  rosterName: RosterName = RosterName.HUMAN
 ): Team {
   return { id, players, rosterName } as Team;
 }

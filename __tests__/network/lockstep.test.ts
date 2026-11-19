@@ -300,25 +300,27 @@ describe("lockstep sessions send before they animate", () => {
 
     const realExecute = hostGame.execute.bind(hostGame);
     let stalling = false;
-    let release: (() => void) | null = null;
+    const releases: (() => void)[] = [];
     hostGame.execute = async (command: unknown) => {
-      if (stalling) await new Promise<void>((resolve) => (release = resolve));
+      if (stalling)
+        await new Promise<void>((resolve) => releases.push(resolve));
       return realExecute(command);
     };
 
     let checked = false;
     for (const step of recording.steps) {
       stalling = !checked;
-      release = null;
+      releases.length = 0;
       const guestBefore = stateChecksum(guestGame);
       const running = host.run(step.command);
       await settle(guest);
+      const release = releases[0];
       if (!checked && release) {
         expect(stateChecksum(hostGame)).toBe(guestBefore);
         expect(stateChecksum(guestGame)).not.toBe(guestBefore);
         checked = true;
         stalling = false;
-        (release)();
+        release();
       }
       const response = await running;
       if (!response.ok && /not-your|host-only/.test(response.reason ?? ""))

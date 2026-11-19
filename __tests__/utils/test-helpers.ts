@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import type { HeadlessCommand } from "../../src/headless/protocol";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,7 +31,10 @@ export const forceDice = (
   const queue = [...values];
   const real = rng.rollMultipleDice.bind(rng);
   vi.spyOn(rng, "rollMultipleDice").mockImplementation((count, sides) =>
-    Array.from({ length: count }, () => queue.shift() ?? real(1, sides)[0])
+    Array.from(
+      { length: count },
+      () => queue.shift() ?? fixtureValue(real(1, sides)[0])
+    )
   );
 };
 

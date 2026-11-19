@@ -228,7 +228,7 @@ export class BombardierOperation extends GameOperation {
     target: { x: number; y: number }
   ): { x: number; y: number } {
     const path = gameService.getBallMovementController().scatter(target);
-    return path.length ? path[path.length - 1] : { ...target };
+    return path[path.length - 1] ?? { ...target };
   }
 
   private explode(
@@ -330,19 +330,24 @@ export class BombardierOperation extends GameOperation {
         interceptor.gridPosition!,
         passingTeam
       );
-      return { playerId: e.playerId, base: e.modifier, marking };
+      return {
+        playerId: e.playerId,
+        playerName: interceptor.playerName,
+        base: e.modifier,
+        marking,
+      };
     });
 
-    const chooserTeamId = gameService.getPlayerById(
-      candidates[0].playerId
-    )!.teamId;
+    const [first] = candidates;
+    if (!first) return undefined;
+    const chooserTeamId = gameService.getPlayerById(first.playerId)!.teamId;
     const answer = (await gameService.getDecisionService().request({
       type: "interception",
       chooserTeamId,
       passerId: thrower.id,
       candidates: candidates.map((c) => ({
         playerId: c.playerId,
-        playerName: gameService.getPlayerById(c.playerId)?.playerName,
+        playerName: c.playerName,
         modifier: c.base - c.marking,
       })),
     })) as InterceptionDecisionAnswer;

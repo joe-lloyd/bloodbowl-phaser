@@ -21,7 +21,7 @@ function setupLoadedCheckpoint(scenario: Scenario): ExpectedCheckpoint {
       ) => {
         for (const placement of placements) {
           const player =
-            snapshot.teams[teamIndex].players[placement.playerIndex];
+            snapshot.teams[teamIndex]?.players[placement.playerIndex];
           if (!player) {
             throw new Error(
               `${scenario.id}: no player at index ${String(placement.playerIndex)} of team${String(teamIndex + 1)}`

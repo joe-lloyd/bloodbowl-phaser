@@ -1,8 +1,6 @@
-import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
-import type { IEventBus } from "../../src/services/EventBus";
 
 interface Beat {
   at: number;
@@ -11,7 +9,6 @@ interface Beat {
 
 declare global {
   interface Window {
-    eventBus: IEventBus;
     __throws: {
       beats: Beat[];
       throws: string[];
@@ -70,7 +67,7 @@ test("armour and injury land as two throws before the turnover hands over", asyn
         last = key;
         note(`tray ${key}`);
         if (state === "in-air") log.throws.push(text);
-      }).observe(fixtureValue(tray), {
+      }).observe((tray)!, {
         attributes: true,
         subtree: true,
         childList: true,

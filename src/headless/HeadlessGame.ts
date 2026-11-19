@@ -338,15 +338,17 @@ export class HeadlessGame {
       selectedPlayerIds: [...step.selectedPlayerIds],
       movedPlayerIds: [...step.movedPlayerIds],
       awaitingPlacement: [...step.awaitingPlacement],
-      landingSquare: step.landingSquare ? { ...step.landingSquare } : undefined,
-      charge: step.charge
+      ...(step.landingSquare ? { landingSquare: { ...step.landingSquare } } : {}),
+      ...(step.charge
         ? {
-            queue: [...step.charge.queue],
-            budget: { ...step.charge.budget },
-            activePlayerId: step.charge.activePlayerId,
-            aborted: step.charge.aborted,
+            charge: {
+              queue: [...step.charge.queue],
+              budget: { ...step.charge.budget },
+              activePlayerId: step.charge.activePlayerId,
+              aborted: step.charge.aborted,
+            },
           }
-        : undefined,
+        : {}),
     };
   }
 

@@ -15,7 +15,10 @@ import {
   REFUSAL_SHOW_MS,
 } from "../../src/ui/components/hud/RefusalNotice";
 
-const online = vi.hoisted(() => ({ myTeamId: null }));
+const online = vi.hoisted(() => {
+  const match: { myTeamId: string | null } = { myTeamId: null };
+  return match;
+});
 vi.mock("../../src/network/OnlineMatch", () => ({
   getActiveOnlineMatch: () =>
     online.myTeamId ? { myTeamId: online.myTeamId, mayAct: () => true } : null,
@@ -104,7 +107,7 @@ describe("the waiting coach's HUD", () => {
   });
 
   it("clears a hover card from the last turn when the turn passes", async () => {
-    const player = game.ctx.team1.players[0];
+    const player = fixtureValue(game.ctx.team1.players[0]);
     await act(async () => {
       root.render(<PlayerInfoPanel eventBus={bus} />);
     });
