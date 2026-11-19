@@ -26,6 +26,7 @@ export interface DraftRules {
   cheerleaders: boolean;
   apothecary: boolean;
   dedicatedFanCostMultiplier: number;
+  dedicatedFansInLeagueOnly: boolean;
   veteran: boolean;
 }
 
@@ -82,6 +83,7 @@ const SEVENS_DRAFT: DraftRules = {
   cheerleaders: true,
   apothecary: true,
   dedicatedFanCostMultiplier: 1,
+  dedicatedFansInLeagueOnly: false,
   veteran: true,
 };
 
@@ -161,6 +163,7 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
       ...SEVENS_DRAFT,
       rerolls: { kind: "double-roster" },
       apothecary: false,
+      dedicatedFansInLeagueOnly: true,
       veteran: false,
     },
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 2, maxPerWideZone: 1 },

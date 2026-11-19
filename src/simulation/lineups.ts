@@ -7,11 +7,9 @@ import {
 import { createPlayer, type PlayerTemplate } from "../types/Player";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { chooseFirstLinemanAsVeteran } from "../game/rules/veteran";
-import {
-  isBigGuy,
-  isLinemanPosition,
-  MAX_NON_LINEMEN,
-} from "../game/rules/rosterLegality";
+import { isBigGuy, isLinemanPosition } from "../game/rules/rosterLegality";
+import { draftRulesFor } from "../game/rules/draftRules";
+import { DEFAULT_GAME_TYPE } from "../game/variants/gameTypes";
 import { hasSkill, SkillType } from "../types/Skills";
 import { purchase } from "../game/rules/teamPricing";
 
@@ -19,6 +17,8 @@ const LINEUP_SIZE = 9;
 const BUDGET = 600_000;
 
 const READY_MADE_REROLLS = 2;
+
+const MAX_NON_LINEMEN = draftRulesFor(DEFAULT_GAME_TYPE).maxNonLinemen;
 
 const insignificant = (template: PlayerTemplate) =>
   hasSkill(template.skills, SkillType.INSIGNIFICANT);

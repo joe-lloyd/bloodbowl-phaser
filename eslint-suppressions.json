@@ -4569,14 +4569,6 @@
       "count": 1
     }
   },
-  "src/game/rules/rosterLegality.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/game/rules/secureBall.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
@@ -4616,14 +4608,8 @@
     "@typescript-eslint/consistent-type-imports": {
       "count": 1
     },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
     "complexity": {
-      "count": 3
-    },
-    "max-lines-per-function": {
-      "count": 1
+      "count": 2
     },
     "max-params": {
       "count": 1
