@@ -37,6 +37,13 @@ export const DEFAULT_WEIGHTS = {
    * held its carrier in the cage instead of marching it up the pitch.
    */
   cageCorner: 4,
+  /**
+   * Per square a turn a new carrier reaches beyond the old one, over the
+   * next few turns: hand-offs, passes and pick-ups favour quick carriers.
+   * At 2, 4 and 8 the best planner took 51.0% to 51.2% of points from it
+   * off over 5,184 paired games; 4 repeated at 50.6% on a fresh seed.
+   */
+  carrierPace: 4,
   /** Open team-mate a few squares ahead of the carrier. */
   receiver: 6,
   /**

@@ -205,6 +205,24 @@ export class BallManager {
   }
 
   /**
+   * A kicking team with nobody on the pitch picks no kicker: the drive is
+   * an automatic Touchback, with no kick, no deviation and no Kick-off
+   * table, and play starts with the receiving coach choosing the carrier.
+   */
+  public async automaticTouchback(isTeam1Kicking: boolean): Promise<void> {
+    this.isTeam1Kicking = isTeam1Kicking;
+    this.state.kickoffKickResolved = { isTeam1Kicking };
+    this.state.ballPosition = null;
+    this.pendingTouchback = true;
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      "No kicker on the pitch: Touchback!"
+    );
+    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
+    await this.resolveBallPlacement();
+  }
+
+  /**
    * One Open receiving player may make a legal, no-Rush move of up to three
    * squares. The engine's deterministic policy chooses the first eligible
    * player and a safe route toward the deviated ball; the reaction decision
@@ -404,7 +422,14 @@ export class BallManager {
 
   /** Play has started, so the active team is the receiving team. */
   private awardTouchbackToReceivers(): void {
-    this.touchbackTeamId = this.state.activeTeamId;
+    const team = [this.team1, this.team2].find(
+      (t) => t.id === this.state.activeTeamId
+    );
+    // Nobody standing on the pitch can take it: the ball stays out of play.
+    const taker = team?.players.some(
+      (p) => p.gridPosition && p.status === PlayerStatus.ACTIVE
+    );
+    this.touchbackTeamId = taker ? (team?.id ?? null) : null;
     if (!this.touchbackTeamId) return;
     this.eventBus.emit(GameEventNames.TouchbackAwarded, {
       teamId: this.touchbackTeamId,

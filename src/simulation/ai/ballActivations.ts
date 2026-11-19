@@ -4,6 +4,7 @@
  */
 
 import { Player } from "../../types/Player";
+import { SkillType, hasSkill } from "../../types/Skills";
 import {
   catchTarget,
   interceptTarget,
@@ -42,6 +43,7 @@ import {
   exposureCost,
   lateMoveValue,
   markRisk,
+  nextTurnReach,
   scoringValue,
 } from "./latePlans";
 
@@ -140,6 +142,27 @@ function spaceGain(c: Context, carrier: Player, mate: Player): number {
 }
 
 /** The carrier's most likely run into the end zone, worth its risk. */
+/** Own turns a new carrier is likely to keep the ball for. */
+const CARRY_TURNS = 3;
+
+/**
+ * Points for the ball moving `faster` squares a turn quicker, over the
+ * turns a carrier keeps it: a spectrum, so the quickest carrier is worth
+ * most and a slower one costs. Nothing once the half cannot be won.
+ */
+function paceWorth(c: Context, faster: number, turns = CARRY_TURNS): number {
+  if (c.goal === "protect") return 0;
+  return c.w.carrierPace * faster * Math.min(c.board.turnsLeft, turns);
+}
+
+/**
+ * What the ball gains moving from `from` to `to`: the squares a turn the
+ * new carrier reaches beyond the old one, Sprint and rushes included.
+ */
+function handoverPace(c: Context, from: Player, to: Player): number {
+  return paceWorth(c, nextTurnReach(to) - nextTurnReach(from));
+}
+
 function scoreActivation(
   c: Context,
   carrier: Player,
@@ -416,7 +439,8 @@ function handoffTo(
   const scoreChance = scoreChanceOf(c, mate);
   const progress =
     (carrierReach - bestReach(c, mate)) * w.advance * c.urgency +
-    spaceGain(c, carrier, mate);
+    spaceGain(c, carrier, mate) +
+    handoverPace(c, carrier, mate);
   if (scoreChance === 0 && (board.turnsLeft === 0 || progress < w.advance * 2))
     return null;
   const target = catchTarget(mate, board.theirs, board.weather, "handoff");
@@ -576,7 +600,8 @@ function passTo(
   const scoreChance = inEndZone ? 1 : scoreChanceOf(c, mate);
   const progress =
     (carrierReach - bestReach(c, mate)) * w.advance * c.urgency +
-    spaceGain(c, carrier, mate);
+    spaceGain(c, carrier, mate) +
+    handoverPace(c, carrier, mate);
   if (scoreChance === 0 && (board.turnsLeft === 0 || progress < w.advance * 4))
     return null;
   const catchRoll = catchTarget(mate, board.theirs, board.weather, "pass");
@@ -627,6 +652,27 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
   return out;
 }
 
+/**
+ * A picker short of the team's quickest carrier: one who can hand the
+ * ball on loses a turn of pace; one with My Ball keeps it to the end.
+ */
+export function pickupPace(c: Context, player: Player): number {
+  // The picker counts too: a prone picker with nobody else standing is
+  // its own quickest carrier, never short of an empty team. A No Ball
+  // player cannot carry, so it sets no benchmark.
+  const quickest = Math.max(
+    nextTurnReach(player),
+    ...c.board.ours
+      .filter((p) => standing(p) && !hasSkill(p.skills, SkillType.NO_BALL))
+      .map((p) => nextTurnReach(p))
+  );
+  return paceWorth(
+    c,
+    nextTurnReach(player) - quickest,
+    hasSkill(player.skills, SkillType.MY_BALL) ? CARRY_TURNS : 1
+  );
+}
+
 export function pickupActivation(c: Context, player: Player): Activation[] {
   const { board, w } = c;
   if (board.ball.kind !== "loose") return [];
@@ -638,7 +684,7 @@ export function pickupActivation(c: Context, player: Player): Activation[] {
       action: "move",
       intent: { kind: "pickup", route },
       tier: tierFor(route.chance, w.pickupMin, "pickup"),
-      value: gamble(c, route.chance, w.pickup),
+      value: gamble(c, route.chance, w.pickup + pickupPace(c, player)),
       rolls: route.rolls,
     },
   ];

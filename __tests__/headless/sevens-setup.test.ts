@@ -191,6 +191,55 @@ describe("Sevens setup through the headless protocol", () => {
     );
   });
 
+  it("gives the receivers a touchback when the kicking team has nobody on the pitch", async () => {
+    // Sweltering Heat can keep every player a team has left in the Reserves
+    // for a drive. The team may still play on: no kicker is picked, and the
+    // drive starts with a Touchback, without a kick or the Kick-off table.
+    const game = new HeadlessGame({ seed: 77 });
+    game.ctx.team1.players.forEach(
+      (player) => (player.status = PlayerStatus.REMOVED)
+    );
+    await begin(game);
+    const [team1, team2] = [game.ctx.team1.id, game.ctx.team2.id];
+    expect(
+      (
+        await game.execute({
+          type: "setup-concession",
+          teamId: team1,
+          concede: false,
+        })
+      ).ok
+    ).toBe(true);
+    expect(
+      (await game.execute({ type: "confirm-setup", teamId: team1 })).ok
+    ).toBe(true);
+    await game.execute({
+      type: "apply-formation",
+      teamId: team2,
+      formation: preset(false),
+    });
+    const confirmed = await game.execute({
+      type: "confirm-setup",
+      teamId: team2,
+    });
+    expect(confirmed.ok).toBe(true);
+
+    const names = confirmed.events.map((e) => e.name);
+    expect(names).not.toContain("ballKicked");
+    expect(names).not.toContain("kickoffResult");
+    expect(confirmed.snapshot.phase).toBe(GamePhase.PLAY);
+    expect(confirmed.snapshot.activeTeamId).toBe(team2);
+    expect(game.ctx.gameService.isTouchbackPending()).toBe(true);
+
+    const taker = game.ctx.team2.players.find((p) => p.gridPosition)!;
+    const awarded = await game.execute({
+      type: "touchback",
+      playerId: taker.id,
+    });
+    expect(awarded.ok).toBe(true);
+    expect(awarded.snapshot.ballPosition).toEqual(taker.gridPosition);
+  });
+
   it("ends the match on a penalty-free pre-setup concession", async () => {
     const game = new HeadlessGame({ seed: 75 });
     game.ctx.team1.players
@@ -221,9 +270,9 @@ describe("Sevens setup through the headless protocol", () => {
     });
     expect(response.snapshot.score[game.ctx.team1.id] ?? 0).toBe(0);
     expect(response.snapshot.score[game.ctx.team2.id] ?? 0).toBe(0);
-    expect(
-      response.events.some((event) => event.name === "touchdown")
-    ).toBe(false);
+    expect(response.events.some((event) => event.name === "touchdown")).toBe(
+      false
+    );
   });
 
   it("serializes setup phase, placements, decisions and restriction state", async () => {

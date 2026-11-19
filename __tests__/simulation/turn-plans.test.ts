@@ -6,6 +6,12 @@ import { RosterName } from "../../src/types/Team";
 import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
+import { context } from "../../src/simulation/ai/activationContext";
+import { readBoard } from "../../src/simulation/ai/board";
+import { secureBallActivations } from "../../src/simulation/ai/skillActivations";
+import { pickupActivation } from "../../src/simulation/ai/ballActivations";
+import { PlayerStatus } from "../../src/types/Player";
+
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import type { Weights } from "../../src/simulation/ai/weights";
 import {
@@ -397,5 +403,146 @@ describe("cage walk", () => {
 
   it("stops a carrier without Block short even on the walk", async () => {
     expect(await carrierEnd([], { cageWalk: 1 })).toBe(9);
+  });
+});
+
+describe("carrier pace", () => {
+  // A loose ball at (6,5) between a slow player with Sure Hands at (5,5)
+  // and a quick one at (7,5). The defence stands far off.
+  function looseBall(slowSkills: SkillType[] = []) {
+    return game({
+      turn: 2,
+      ballPosition: { x: 6, y: 5 },
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 5,
+          y: 5,
+          stats: { MA: 3 },
+          skills: [SkillType.SURE_HANDS, ...slowSkills],
+        },
+        { playerIndex: 1, x: 7, y: 5, stats: { MA: 8 } },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
+    });
+  }
+  const coach = (w: Partial<Weights>) =>
+    createPlannerCoach({ weights: { ...DEFAULT_WEIGHTS, ...w } });
+
+  it("leaves the safer pick-up to the slow player when pace counts nothing", async () => {
+    const subject = looseBall();
+    const { command } = await step(subject, coach({ carrierPace: 0 }));
+    expect(command).toMatchObject({
+      playerId: subject.ctx.team1.players[0].id,
+    });
+  });
+
+  it("sends the quick player for the ball when pace counts", async () => {
+    const subject = looseBall();
+    const { command } = await step(subject, coach({ carrierPace: 4 }));
+    expect(command).toMatchObject({
+      playerId: subject.ctx.team1.players[1].id,
+    });
+  });
+
+  it("prices a pick-up by a prone player with nobody else standing", () => {
+    // Pace against an empty team was unbounded, and a zero-chance route
+    // made the plan's value NaN.
+    const subject = game({
+      turn: 2,
+      ballPosition: { x: 6, y: 5 },
+      team1Placements: [
+        { playerIndex: 0, x: 5, y: 5, status: PlayerStatus.PRONE },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
+    });
+    const [picker] = subject.ctx.team1.players;
+    const c = context(
+      readBoard(subject, picker.teamId),
+      { ...DEFAULT_WEIGHTS, carrierPace: 4 },
+      new Map([[picker.id, new Set(["move" as const, "secureBall" as const])]])
+    );
+    const values = [
+      ...pickupActivation(c, picker),
+      ...secureBallActivations(c, picker),
+    ].map((a) => a.value);
+    expect(values.length).toBeGreaterThan(0);
+    expect(values.every(Number.isFinite)).toBe(true);
+  });
+
+  it("measures a picker only against team-mates who can carry", () => {
+    // A quick No Ball team-mate cannot take the ball, so the slow picker
+    // is the quickest carrier and pays no pace.
+    const subject = game({
+      turn: 2,
+      ballPosition: { x: 6, y: 5 },
+      team1Placements: [
+        { playerIndex: 0, x: 5, y: 5, stats: { MA: 3 } },
+        {
+          playerIndex: 1,
+          x: 9,
+          y: 9,
+          stats: { MA: 8 },
+          skills: [SkillType.NO_BALL],
+        },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
+    });
+    const [picker, noBall] = subject.ctx.team1.players;
+    const priced = (carrierPace: number) =>
+      pickupActivation(
+        context(
+          readBoard(subject, picker.teamId),
+          { ...DEFAULT_WEIGHTS, carrierPace },
+          new Map([
+            [picker.id, new Set(["move" as const])],
+            [noBall.id, new Set(["move" as const])],
+          ])
+        ),
+        picker
+      )[0].value;
+    expect(priced(4)).toBe(priced(0));
+  });
+
+  it("charges a My Ball picker for every turn it will keep the ball", () => {
+    // Reach 3+2 against 8+2: five squares a turn short. A picker who can
+    // hand off pays one turn of that; My Ball pays all three.
+    const secure = (slowSkills: SkillType[]) => {
+      const subject = looseBall(slowSkills);
+      const [slow, quick] = subject.ctx.team1.players;
+      const c = context(
+        readBoard(subject, slow.teamId),
+        { ...DEFAULT_WEIGHTS, carrierPace: 4 },
+        new Map([
+          [slow.id, new Set(["move" as const, "secureBall" as const])],
+          [quick.id, new Set(["move" as const])],
+        ])
+      );
+      return secureBallActivations(c, slow)[0];
+    };
+    const plain = secure([]);
+    const myBall = secure([SkillType.MY_BALL]);
+    const chance =
+      plain.intent.kind === "secure-ball" ? plain.intent.route.chance : NaN;
+    // Two more turns at 4 points a square, five squares short, if it works.
+    expect(plain.value - myBall.value).toBeCloseTo(4 * 5 * 2 * chance, 6);
+  });
+
+  it("hands the ball from a slow carrier to a quick team-mate when pace counts", async () => {
+    // A slow carrier at (5,5) beside a quick team-mate at (5,6).
+    const handed = async (w: Partial<Weights>) => {
+      const subject = game({
+        turn: 2,
+        team1Placements: [
+          { playerIndex: 0, x: 5, y: 5, hasBall: true, stats: { MA: 3 } },
+          { playerIndex: 1, x: 5, y: 6, stats: { MA: 8 } },
+        ],
+        team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
+      });
+      const { command } = await step(subject, coach(w));
+      return command.type === "declare-action" ? command.action : command.type;
+    };
+    expect(await handed({ carrierPace: 0 })).toBe("move");
+    expect(await handed({ carrierPace: 4 })).toBe("handoff");
   });
 });

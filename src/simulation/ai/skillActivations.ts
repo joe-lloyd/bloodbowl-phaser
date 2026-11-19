@@ -10,6 +10,7 @@ import { feedingCost, unfedChance } from "./feeding";
 import { movesLeft, routesFor, withTeamReroll } from "./routes";
 import { gazeActivations } from "./gazeActivations";
 import { throwTeammateActivations } from "./teammateActivations";
+import { pickupPace } from "./ballActivations";
 import type { ActionType } from "../../types/events";
 import { standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
@@ -111,7 +112,7 @@ export function secureBallActivations(
       route.chance,
       goal === 0
         ? (1 - unfedChance(c, player, "secureBall", route.to)) * w.touchdown
-        : w.pickup
+        : w.pickup + pickupPace(c, player)
     ) - feedingCost(c, player, "secureBall", route.to, true);
   if (pickupScoreValue(c, player) > value) return [];
   return [

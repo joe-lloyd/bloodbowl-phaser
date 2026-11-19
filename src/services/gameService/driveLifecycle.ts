@@ -38,6 +38,7 @@ import {
 import { updateDedicatedFans as updateTeamDedicatedFans } from "@/game/rules/leagueRoster";
 import { fanFactor } from "@/game/rules/winnings";
 import type { GameParts } from "./parts";
+import { GameOperation } from "@/game/core/GameOperation";
 import { takeUnsatedBloodlust } from "./activation";
 
 export function startKickoff(parts: GameParts): void {
@@ -56,6 +57,28 @@ export function startKickoff(parts: GameParts): void {
     )
   ) {
     parts.flowManager.add(new OfferYouDopeOperation());
+  }
+  // A kicking team with nobody on the pitch picks no kicker: Touchback.
+  const kicking = [parts.team1, parts.team2].find(
+    (team) => team.id === state.setup?.kickingTeamId
+  );
+  if (kicking && !kicking.players.some((p) => p.gridPosition)) {
+    parts.flowManager.add(
+      new AutomaticTouchbackOperation(() =>
+        parts.ballManager.automaticTouchback(kicking.id === parts.team1.id)
+      )
+    );
+  }
+}
+
+/** The drive's kick-off when the kicking team has nobody to kick. */
+class AutomaticTouchbackOperation extends GameOperation {
+  public readonly name = "AutomaticTouchback";
+  constructor(private readonly touchback: () => Promise<void>) {
+    super();
+  }
+  async execute(): Promise<void> {
+    await this.touchback();
   }
 }
 
