@@ -22,7 +22,12 @@ import {
 import { Route } from "./routes";
 import { PassController } from "../../game/controllers/PassController";
 import { Context, crowd, gamble, tierFor } from "./activationContext";
-import { CORNERS, inScoringRange, passRange } from "./ballActivations";
+import {
+  CORNERS,
+  inScoringRange,
+  passRange,
+  plannedCarrierSquare,
+} from "./ballActivations";
 import { passTarget } from "../../game/rules/rollPreview";
 import { d6, withReroll } from "./chance";
 import type { Activation, Role } from "./activations";
@@ -239,6 +244,22 @@ function cornerWorth(c: Context, carrier: Player, transfer: RoleSquare[]) {
   return w.cageCorner + (acted.has(carrier.id) && !planned ? w.cageKeep : 0);
 }
 
+/**
+ * Before the carrier moves, the corners of the square it would move to:
+ * team-mates who stand there first let it step into a cage that is
+ * already built.
+ */
+function cageAheadSquares(c: Context, carrier: Player, add: AddSquare) {
+  const { board, w } = c;
+  if (w.cageAhead <= 0) return;
+  const acted = new Set(board.gs.getState().turn.activatedPlayerIds ?? []);
+  if (acted.has(carrier.id)) return;
+  const to = plannedCarrierSquare(c, carrier);
+  if (!to) return;
+  for (const [dx, dy] of CORNERS)
+    add("cage", { x: to.x + dx, y: to.y + dy }, w.cageCorner + w.cageAhead);
+}
+
 /** Our carrier: a cage around it and receivers ahead of it. */
 function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
@@ -260,6 +281,7 @@ function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
     add("cage", s, corner + (others === 3 && range ? w.fullCage : 0));
   });
   if (board.turnsLeft === 0) return;
+  cageAheadSquares(c, carrier, add);
   for (const ahead of [2, 3, 4])
     for (const dy of [-2, 0, 2])
       add(

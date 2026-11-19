@@ -45,6 +45,11 @@ export const DEFAULT_WEIGHTS = {
    */
   cageKeep: 20,
   /**
+   * Added to `cageCorner` for a corner of the square the carrier would move
+   * to, before it moves: the cage is built first and the carrier steps in.
+   */
+  cageAhead: 0,
+  /**
    * Added when all four corners of the carrier's square are held and it
    * can score from there next turn. Over
    * 5,184 replayed games a turn that ended in a full cage lost the ball

@@ -255,6 +255,20 @@ function carrierMoves(
   return { safe, risky };
 }
 
+/**
+ * Where the carrier would move this turn if it moved now: the end of its
+ * best safe move, or null when it is better off where it stands.
+ */
+export function plannedCarrierSquare(c: Context, carrier: Player) {
+  const { safe } = carrierMoves(
+    c,
+    carrier,
+    c.routes(carrier),
+    c.plainRoutes(carrier)
+  );
+  return safe?.route.to ?? null;
+}
+
 export function carrierActivations(c: Context, carrier: Player): Activation[] {
   const { w } = c;
   const out: Activation[] = [];
