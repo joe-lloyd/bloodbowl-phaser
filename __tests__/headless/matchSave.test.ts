@@ -86,6 +86,25 @@ describe("resumable match save", () => {
     );
   });
 
+  it("restores a save whose drive opened with Solid Defence, now Alert Defence", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 21 });
+    const older = structuredClone(saveCurrent(game));
+    const outcome = { event: "Solid Defence", meaning: "Redeploy", perTeam: {} };
+    Reflect.set(older.snapshot, "kickoffResolution", {
+      roll: 4,
+      event: "Solid Defence",
+      meaning: "Redeploy",
+      outcome,
+    });
+
+    const restored = deserializeMatchSave(serializeMatchSave(older));
+
+    expect(restored.snapshot.kickoffResolution?.event).toBe("Alert Defence");
+    expect(restored.snapshot.kickoffResolution?.outcome.event).toBe(
+      "Alert Defence"
+    );
+  });
+
   it("restores the engine's per-team turn counters", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 31 });
     game.gameService.seedTurnCounts(3);

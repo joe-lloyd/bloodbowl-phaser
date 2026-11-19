@@ -22,6 +22,9 @@ const LEGACY_DEFAULTS = new Map([
   ["TurnSnapshot.hasThrownBomb", "false"],
 ]);
 const LENIENT_ARRAYS = new Set(["Player.keywords"]);
+const RENAMED_VALUES = new Map([
+  ["KickoffEvent", { "Solid Defence": "Alert Defence" }],
+]);
 
 function exportedName(type) {
   const symbol = type.aliasSymbol ?? type.symbol;
@@ -206,6 +209,12 @@ function emit(type, metadata = exportedName(type)) {
       ? `z.intersection(${schema(checker.getTypeFromTypeNode(intersection[0]), entry, metadata.name)}, ${schema(checker.getTypeFromTypeNode(intersection[1]), entry, metadata.name)})`
       : expression(type, entry, metadata.name);
   for (const base of bases) output = `z.intersection(${schema(base, entry, metadata.name)}, ${output})`;
+  const renamed = RENAMED_VALUES.get(metadata.name);
+  if (renamed) {
+    const table = JSON.stringify(renamed);
+    useImport(file, "renamedValue", "../renamedValue");
+    output = `z.preprocess((value) => renamedValue(value, ${table}), ${output})`;
+  }
   active.delete(type.id);
   const relative = path
     .relative(destination, metadata.filename)
