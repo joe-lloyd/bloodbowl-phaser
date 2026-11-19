@@ -137,7 +137,7 @@ function describe({ game, lines }: Narration, step: Step): void {
   );
 }
 
-export async function narrate(file: string): Promise<string> {
+async function narrate(file: string): Promise<string> {
   const { recording, game } = openTrace(file);
   const [home, away] = recording.rosters;
   const narration: Narration = {
