@@ -39,9 +39,11 @@ export const DEFAULT_WEIGHTS = {
   cageCorner: 4,
   /**
    * Added to `cageCorner` once the carrier has acted this turn: its move
-   * counted on team-mates who had not acted filling those corners.
+   * counted on team-mates who had not acted filling those corners. At 20
+   * the best planner took 50.8% of points from it at 0 over 15,552 paired
+   * games on seeds that did not pick it.
    */
-  cageKeep: 0,
+  cageKeep: 20,
   /**
    * Per square a turn a new carrier reaches beyond the old one, over the
    * next few turns: hand-offs, passes and pick-ups favour quick carriers.
