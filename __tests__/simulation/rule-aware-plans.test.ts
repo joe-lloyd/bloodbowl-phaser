@@ -4,6 +4,10 @@ import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
+import { enumerateDecision } from "../../src/simulation/candidates";
+import { activations } from "../../src/simulation/ai/activations";
+import { readBoard } from "../../src/simulation/ai/board";
+import { availableActions } from "../../src/simulation/ai/planner";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import type { HeadlessCommand } from "../../src/headless/protocol";
 
@@ -220,5 +224,46 @@ describe("our ST4 carrier with Block, marked by one ST3 opponent in front", () =
       commands: ["declare-action", "block"],
       note: "blitzes",
     });
+  });
+});
+
+describe("a Take Root player's Blitz", () => {
+  async function blitzValue(
+    target: { x: number; y: number },
+    skills: SkillType[]
+  ) {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, stats: { ST: 5 }, skills },
+      ],
+      team2Placements: [
+        { playerIndex: 0, ...target },
+        { playerIndex: 1, x: 18, y: 1, hasBall: true },
+      ],
+    });
+    const point = await enumerateDecision(subject, null);
+    const blitz = activations({
+      board: readBoard(subject, "team1"),
+      w: DEFAULT_WEIGHTS,
+      available: availableActions(point.candidates),
+    }).find((a) => a.action === "blitz");
+    return blitz?.value ?? NaN;
+  }
+
+  it("keeps full value against an opponent it already stands beside", async () => {
+    const beside = { x: 9, y: 5 };
+    expect(await blitzValue(beside, [SkillType.TAKE_ROOT])).toBeCloseTo(
+      await blitzValue(beside, []),
+      9
+    );
+  });
+
+  it("loses a sixth when it must move to reach the opponent", async () => {
+    const away = { x: 11, y: 5 };
+    expect(await blitzValue(away, [SkillType.TAKE_ROOT])).toBeCloseTo(
+      ((await blitzValue(away, [])) * 5) / 6,
+      9
+    );
   });
 });

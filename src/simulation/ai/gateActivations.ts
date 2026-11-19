@@ -9,20 +9,22 @@ import { type Context, gamble } from "./activationContext";
 import type { Activation } from "./activations";
 import { activationGates } from "../../game/skills";
 import { SkillType, hasSkill } from "../../types/Skills";
-import type { ActionType } from "../../types/events";
 import type { Player as RosterPlayer } from "../../types/Player";
 import { d6 } from "./chance";
 
+function leavesSquare(a: Pick<Activation, "intent">): boolean {
+  return "route" in a.intent && (a.intent.route?.path.length ?? 0) > 0;
+}
+
 function gateChance(
-  player: Player,
-  action: ActionType,
+  a: Pick<Activation, "player" | "action" | "intent">,
   teammates: RosterPlayer[]
 ): number {
-  return activationGates(player, action, teammates)
+  const moves = leavesSquare(a);
+  return activationGates(a.player, a.action, teammates)
     .filter(
       (g) =>
-        g.onFail.kind !== "bloodlust" &&
-        !(g.onFail.kind === "rooted" && action === "block")
+        g.onFail.kind !== "bloodlust" && (g.onFail.kind !== "rooted" || moves)
     )
     .reduce((p, g) => p * d6(g.target - g.modifier), 1);
 }
@@ -62,10 +64,10 @@ interface SteadyPlan {
 }
 
 function steadyPlans({ c, big, best, teammates }: SteadyPlan): Activation[] {
-  const alone = gateChance(big, best.action, teammates);
+  const alone = gateChance(best, teammates);
   const out: Activation[] = [];
   for (const move of steadyMoves(c, big)) {
-    const helped = gateChance(big, best.action, [
+    const helped = gateChance(best, [
       ...teammates.filter((t) => t.id !== move.helper.id),
       { ...move.helper, gridPosition: move.at },
     ]);
@@ -102,7 +104,7 @@ function steadySupport(c: Context, plans: Activation[]) {
     const teammates = gs.getTeammates(big.id);
     const moves = steadyPlans({ c, big, best, teammates });
     if (moves.length === 0) continue;
-    const alone = gateChance(big, best.action, teammates);
+    const alone = gateChance(best, teammates);
     const gain = Math.max(...moves.map((m) => m.value)) / best.value;
     wait.set(big.id, Math.max(0, alone - gain) / alone);
     support.push(...moves);
@@ -114,7 +116,7 @@ export function gatePriced(c: Context, plans: Activation[]): Activation[] {
   const gs = c.board.gs;
   const { support, wait } = steadySupport(c, plans);
   const priced = plans.map((a) => {
-    const p = gateChance(a.player, a.action, gs.getTeammates(a.player.id));
+    const p = gateChance(a, gs.getTeammates(a.player.id));
     if (p >= 1 || a.value <= 0) return a;
     return { ...a, value: a.value * p * (wait.get(a.player.id) ?? 1) };
   });
