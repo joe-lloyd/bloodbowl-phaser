@@ -18,7 +18,7 @@ import {
 import {
   setupRestrictions,
   setupValidation,
-  SHORT_HANDED_MESSAGE,
+  shortHandedMessage,
 } from "./setupRestrictions";
 
 interface FormationInput {
@@ -112,7 +112,7 @@ export class SetupValidator {
           isTeam1
         ),
         satisfiable: true,
-        message: SHORT_HANDED_MESSAGE,
+        message: shortHandedMessage(activeRules().setup.minOnLineOfScrimmage),
       });
     }
     return setupValidation(restrictions);

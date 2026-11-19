@@ -3,8 +3,11 @@ import type {
   ValidationResult,
 } from "../../types/SetupTypes";
 
-export const SHORT_HANDED_MESSAGE =
-  "A team with too few available players for the Line of Scrimmage must place every player in Centre Field on it.";
+export function shortHandedMessage(minOnLos: number): string {
+  return minOnLos === 3
+    ? "A team with fewer than three available players must place every player in Centre Field on its Line of Scrimmage."
+    : `A team with fewer than ${String(minOnLos)} available players must place every player in Centre Field on its Line of Scrimmage.`;
+}
 
 interface SetupFacts {
   placedCount: number;
@@ -94,7 +97,7 @@ function lineRestrictions(facts: SetupFacts): SetupRestriction[] {
         (facts.placedCount === facts.onCentreLos &&
           facts.onCentreLos === facts.requiredCount),
       satisfiable: shortHanded,
-      message: SHORT_HANDED_MESSAGE,
+      message: shortHandedMessage(minOnLos),
     },
   ];
 }

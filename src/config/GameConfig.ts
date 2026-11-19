@@ -1,10 +1,9 @@
 import { activeLayout, activeRules } from "../game/variants/activeMatch";
-import type { Square } from "../game/variants/pitchLayouts";
+import type { PitchLayout, Square } from "../game/variants/pitchLayouts";
 
 const SQUARE_SIZE = 60;
 
-function layoutGeometry() {
-  const layout = activeLayout();
+function geometryOf(layout: PitchLayout) {
   const { lineOfScrimmage, noMansLand } = layout;
   return {
     END_ZONE_X: { team1: 0, team2: layout.cols - 1 },
@@ -16,6 +15,17 @@ function layoutGeometry() {
     CENTRE_FIELD_ROWS: layout.centreRows,
     WIDE_ZONE_ROWS: layout.wideZoneRows,
   };
+}
+
+const geometries = new Map<PitchLayout, ReturnType<typeof geometryOf>>();
+
+function layoutGeometry() {
+  const layout = activeLayout();
+  const known = geometries.get(layout);
+  if (known) return known;
+  const geometry = geometryOf(layout);
+  geometries.set(layout, geometry);
+  return geometry;
 }
 
 export const SEVENS_GEOMETRY = {
