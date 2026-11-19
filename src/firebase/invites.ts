@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDocs,
   onSnapshot,
   query,
   runTransaction,
@@ -8,7 +9,8 @@ import {
   where,
 } from "firebase/firestore";
 import { readEach } from "../boundary/readEach";
-import { type Invite, readInvite } from "../boundary/social";
+import { type Invite, type LobbyInvite, readInvite } from "../boundary/social";
+import type { CompetitionContext, CompetitionDoc } from "../competition/types";
 import { inviteId, sameInvite } from "../social/friends";
 import { getDb } from "./config";
 import { resolveCoachName } from "./coaches";
@@ -89,7 +91,55 @@ export async function dismissInvite(invite: Invite): Promise<void> {
   });
 }
 
-export async function acceptMatchInvite(invite: Invite): Promise<string> {
+export async function sendFixtureInvite({
+  fromUid,
+  toUid,
+  code,
+  context,
+  competitionName,
+}: {
+  fromUid: string;
+  toUid: string;
+  code: string;
+  context: CompetitionContext;
+  competitionName: string;
+}): Promise<void> {
+  const invite: Invite = {
+    kind: "fixture",
+    fromUid,
+    toUid,
+    code,
+    competitionType: context.competitionType,
+    competitionId: context.competitionId,
+    competitionName: competitionName.slice(0, 60),
+    fixtureId: context.fixtureId,
+    createdAt: Date.now(),
+  };
+  await setDoc(inviteRef(invite), invite);
+}
+
+export async function sendCompetitionInvite({
+  fromUid,
+  toUid,
+  competition,
+}: {
+  fromUid: string;
+  toUid: string;
+  competition: CompetitionDoc;
+}): Promise<void> {
+  const invite: Invite = {
+    kind: "competition",
+    fromUid,
+    toUid,
+    competitionType: competition.type,
+    competitionId: competition.id,
+    competitionName: competition.name.slice(0, 60),
+    createdAt: Date.now(),
+  };
+  await setDoc(inviteRef(invite), invite);
+}
+
+export async function acceptLobbyInvite(invite: LobbyInvite): Promise<string> {
   const joined = await joinInvitedLobby(invite.code, {
     uid: invite.toUid,
     displayName: await resolveCoachName(invite.toUid),
@@ -114,5 +164,26 @@ export function subscribeInvites(
     (error) => {
       console.warn("[invites] could not follow invites", error);
     }
+  );
+}
+
+export async function dismissCompetitionInvites({
+  uid,
+  competitionId,
+}: {
+  uid: string;
+  competitionId: string;
+}): Promise<void> {
+  const snapshot = await getDocs(
+    query(collection(getDb(), "invites"), where("toUid", "==", uid))
+  );
+  const invites = readEach(snapshot.docs, (entry) => readInvite(entry.data()));
+  await Promise.all(
+    invites
+      .filter(
+        (invite) =>
+          invite.kind === "competition" && invite.competitionId === competitionId
+      )
+      .map(dismissInvite)
   );
 }

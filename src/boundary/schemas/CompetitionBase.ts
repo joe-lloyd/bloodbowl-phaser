@@ -7,6 +7,7 @@ import { standingSchema } from "./Standing";
 import { seedMetadataSchema } from "./SeedMetadata";
 import { rosterRuleProfileSchema } from "./RosterRuleProfile";
 import { difficultySchema } from "./Difficulty";
+import { onlineSetupSchema } from "./OnlineSetup";
 import type { CompetitionBase } from "../../competition/types";
 
 export const competitionBaseSchema: z.ZodType<CompetitionBase> = z.looseObject({
@@ -25,4 +26,5 @@ export const competitionBaseSchema: z.ZodType<CompetitionBase> = z.looseObject({
   seedMetadata: seedMetadataSchema.exactOptional(),
   rosterProfile: rosterRuleProfileSchema.exactOptional(),
   computerDifficulty: difficultySchema.exactOptional(),
+  online: onlineSetupSchema.exactOptional(),
 });

@@ -97,6 +97,8 @@ export interface LobbyDoc {
   fixtureTeams?: { home: Team; away: Team };
 
   listed?: boolean;
+
+  reservedFor?: string;
 }
 
 export const DEFAULT_SETTINGS: LobbySettings = {
@@ -203,16 +205,41 @@ export async function getActiveMatchCode(uid: string): Promise<string | null> {
     : null;
 }
 
+export interface LobbyFixture {
+  context: CompetitionContext;
+  homeTeam: Team;
+  awayTeam: Team;
+
+  hostSide?: "home" | "away";
+
+  reservedFor?: string;
+}
+
+function fixtureFields(fixture: LobbyFixture) {
+  return {
+    competitionContext: fixture.context,
+    fixtureTeams: { home: fixture.homeTeam, away: fixture.awayTeam },
+    ...(fixture.reservedFor === undefined
+      ? {}
+      : { reservedFor: fixture.reservedFor }),
+  };
+}
+
+export function guestFixtureTeam(lobby: LobbyDoc): Team | null {
+  const teams = lobby.fixtureTeams;
+  if (!teams) return null;
+  const hostTeamId = lobby.players[lobby.hostUid]?.team?.id;
+  return hostTeamId === teams.home.id ? teams.away : teams.home;
+}
+
 export async function createLobby(
   hostUid: string,
   displayName: string,
-  fixture?: {
-    context: CompetitionContext;
-    homeTeam: Team;
-    awayTeam: Team;
-  }
+  fixture?: LobbyFixture
 ): Promise<LobbyDoc> {
   const code = generateMatchCode();
+  const hostTeam =
+    fixture?.hostSide === "away" ? fixture.awayTeam : fixture?.homeTeam;
   const lobby: Omit<LobbyDoc, "createdAt"> = {
     code,
     hostUid,
@@ -226,19 +253,11 @@ export async function createLobby(
       [hostUid]: {
         uid: hostUid,
         displayName,
-        team: fixture?.homeTeam ?? null,
+        team: hostTeam ?? null,
         ready: false,
       },
     },
-    ...(fixture
-      ? {
-          competitionContext: fixture.context,
-          fixtureTeams: {
-            home: fixture.homeTeam,
-            away: fixture.awayTeam,
-          },
-        }
-      : {}),
+    ...(fixture ? fixtureFields(fixture) : {}),
   };
   await setDoc(lobbyRef(code), {
     ...firebaseDocument(lobby),
@@ -281,13 +300,17 @@ async function seatGuest(
   if (lobby.status !== "lobby") throw new Error("That game has already started.");
   if (lobby.guestUid && lobby.guestUid !== guest.uid)
     throw new Error("That game is already full.");
+  if (lobby.reservedFor && lobby.reservedFor !== guest.uid)
+    throw new Error(
+      "That lobby is for a competition fixture, and only the other coach in it can join."
+    );
 
   const players = {
     ...lobby.players,
     [guest.uid]: {
       uid: guest.uid,
       displayName: guest.displayName,
-      team: lobby.fixtureTeams?.away ?? null,
+      team: guestFixtureTeam(lobby),
       ready: false,
     },
   };

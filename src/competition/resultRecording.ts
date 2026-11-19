@@ -28,6 +28,7 @@ import {
 } from "./types";
 import { type Team } from "../types/Team";
 import { manageComputerTeams } from "./computerTeams";
+import { assertFixtureInOpenRound } from "./schedule";
 
 interface TeamRecordUpdate {
   entrant: CompetitionEntrant;
@@ -282,6 +283,44 @@ function markReporter(
   if (index >= 0) next.reporterEntrantIndex = index;
 }
 
+function swapped<Value>(sides: { home: Value; away: Value }) {
+  return { home: sides.away, away: sides.home };
+}
+
+function swappedOptions(options: RecordFixtureOptions): RecordFixtureOptions {
+  return {
+    ...options,
+    ...(options.fanFactors ? { fanFactors: swapped(options.fanFactors) } : {}),
+    ...(options.stalled ? { stalled: swapped(options.stalled) } : {}),
+  };
+}
+
+export function orientToFixture(
+  request: FixtureRecord,
+  homeTeamId: string | undefined
+): FixtureRecord {
+  const teams = request.progressedTeams;
+  if (!teams || teams.home.id === homeTeamId || teams.away.id !== homeTeamId)
+    return request;
+  return {
+    ...request,
+    homeScore: request.awayScore,
+    awayScore: request.homeScore,
+    progressedTeams: swapped(teams),
+    ...(request.penalties ? { penalties: swapped(request.penalties) } : {}),
+    ...(request.options ? { options: swappedOptions(request.options) } : {}),
+  };
+}
+
+function homeTeamIdOf(
+  competition: CompetitionDoc,
+  fixture: CompetitionFixture
+): string | undefined {
+  return competition.entrants.find(
+    (entrant) => entrant.id === fixture.homeEntrantId
+  )?.teamId;
+}
+
 function recordFixtureTransaction(
   latest: CompetitionDoc,
   request: FixtureRecord,
@@ -293,6 +332,7 @@ function recordFixtureTransaction(
   );
   if (!fixture) throw new Error("Fixture not found.");
   if (fixture.status === "complete" && !fixture.result?.bye) return null;
+  assertFixtureInOpenRound(latest, fixture);
   const next =
     latest.type === "league"
       ? recordLeagueResult({
@@ -309,21 +349,40 @@ function recordFixtureTransaction(
           ...(penalties === undefined ? {} : { penalties }),
         });
   applyFixtureWinnings(next, { competition: latest, fixture }, request);
+  markPlayedVia(next, context);
   markReporter(next, fixture, uid);
   return next;
 }
 
+function markPlayedVia(next: CompetitionDoc, context: CompetitionContext): void {
+  const result = next.fixtures.find(
+    (candidate) => candidate.id === context.fixtureId
+  )?.result;
+  if (result && context.playedVia) result.playedVia = context.playedVia;
+}
+
 export async function recordCompetitionFixture(
-  request: FixtureRecord
+  reported: FixtureRecord
 ): Promise<CompetitionDoc> {
-  const { context, progressedTeams } = request;
-  const options = request.options ?? {};
+  const { context } = reported;
   const uid = getCurrentUser()?.uid;
+  let request = reported;
   const updated = await updateCompetition(
     context.competitionType,
     context.competitionId,
-    (latest) => recordFixtureTransaction(latest, request, uid)
+    (latest) => {
+      const fixture = latest.fixtures.find(
+        (candidate) => candidate.id === context.fixtureId
+      );
+      request = orientToFixture(
+        reported,
+        fixture && homeTeamIdOf(latest, fixture)
+      );
+      return recordFixtureTransaction(latest, request, uid);
+    }
   );
+  const { progressedTeams } = request;
+  const options = request.options ?? {};
   const recorded = updated.fixtures.find(
     (fixture) => fixture.id === context.fixtureId
   );

@@ -8,7 +8,8 @@ export interface FriendLink {
 
 const ONLINE_WINDOW_MS = 5 * 60_000;
 export const PRESENCE_INTERVAL_MS = 2 * 60_000;
-const MATCH_INVITE_LIFETIME_MS = 2 * 60 * 60_000;
+const LOBBY_INVITE_LIFETIME_MS = 2 * 60 * 60_000;
+const COMPETITION_INVITE_LIFETIME_MS = 7 * 24 * 60 * 60_000;
 
 export function friendshipKey(a: string, b: string): string {
   return a < b ? `${a}__${b}` : `${b}__${a}`;
@@ -55,14 +56,22 @@ export function inviteId(invite: Invite): string {
   return `${invite.kind}__${invite.fromUid}__${invite.toUid}`;
 }
 
+function inviteTarget(invite: Invite): string {
+  return invite.kind === "competition" ? invite.competitionId : invite.code;
+}
+
 export function sameInvite(stored: Invite, answered: Invite): boolean {
   return (
     inviteId(stored) === inviteId(answered) &&
-    stored.code === answered.code &&
+    inviteTarget(stored) === inviteTarget(answered) &&
     stored.createdAt === answered.createdAt
   );
 }
 
 export function inviteIsFresh(invite: Invite, now: number): boolean {
-  return now - invite.createdAt < MATCH_INVITE_LIFETIME_MS;
+  const lifetime =
+    invite.kind === "competition"
+      ? COMPETITION_INVITE_LIFETIME_MS
+      : LOBBY_INVITE_LIFETIME_MS;
+  return now - invite.createdAt < lifetime;
 }

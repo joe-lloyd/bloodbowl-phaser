@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { penaltyShootoutSchema } from "./PenaltyShootout";
 import { fixtureWinningsSchema } from "./FixtureWinnings";
+import { fixturePlaySchema } from "./FixturePlay";
 import type { FixtureResult } from "../../competition/types";
 
 export const fixtureResultSchema: z.ZodType<FixtureResult> = z.looseObject({
@@ -16,4 +17,5 @@ export const fixtureResultSchema: z.ZodType<FixtureResult> = z.looseObject({
     })
     .exactOptional(),
   winnings: fixtureWinningsSchema.exactOptional(),
+  playedVia: fixturePlaySchema.exactOptional(),
 });

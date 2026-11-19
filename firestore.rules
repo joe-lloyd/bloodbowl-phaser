@@ -135,6 +135,57 @@ service cloud.firestore {
         && areFriends(invite.fromUid, invite.toUid);
     }
 
+    function inviteBasics(inviteId, kind, fields) {
+      let invite = request.resource.data;
+      return invite.keys().hasOnly(fields)
+        && invite.kind == kind
+        && invite.fromUid == request.auth.uid
+        && invite.toUid is string
+        && invite.toUid != request.auth.uid
+        && inviteId == kind + '__' + invite.fromUid + '__' + invite.toUid
+        && invite.createdAt is int;
+    }
+
+    function validCompetitionName(invite) {
+      return invite.competitionName is string
+        && invite.competitionName.size() <= 60;
+    }
+
+    function competitionOf(invite) {
+      return get(/databases/$(database)/documents/$(invite.competitionType == 'league' ? 'leagues' : 'tournaments')/$(invite.competitionId)).data;
+    }
+
+    // A coach who hosts a fixture tells the other coach in it where to join.
+    function fixtureInviteAllowed(inviteId) {
+      let invite = request.resource.data;
+      return inviteBasics(inviteId, 'fixture', ['kind', 'fromUid', 'toUid',
+          'code', 'competitionType', 'competitionId', 'competitionName',
+          'fixtureId', 'createdAt'])
+        && validCompetitionName(invite)
+        && invite.code is string && invite.code.matches('^[A-Z0-9]{6}$')
+        && invite.competitionType in ['league', 'tournament']
+        && invite.fixtureId is string
+        && competitionOf(invite).participantUids
+          .hasAll([invite.fromUid, invite.toUid]);
+    }
+
+    // A friend may be asked to sign up for a competition.
+    function competitionInviteAllowed(inviteId) {
+      let invite = request.resource.data;
+      return inviteBasics(inviteId, 'competition', ['kind', 'fromUid', 'toUid',
+          'competitionType', 'competitionId', 'competitionName', 'createdAt'])
+        && validCompetitionName(invite)
+        && invite.competitionType in ['league', 'tournament']
+        && invite.competitionId is string
+        && areFriends(invite.fromUid, invite.toUid);
+    }
+
+    function inviteAllowed(inviteId) {
+      return matchInviteAllowed(inviteId)
+        || fixtureInviteAllowed(inviteId)
+        || competitionInviteAllowed(inviteId);
+    }
+
     // A missing invite reads as missing, so a coach can clear one that the
     // sender has already withdrawn.
     match /invites/{inviteId} {
@@ -145,10 +196,10 @@ service cloud.firestore {
       allow list: if request.auth != null
         && (resource.data.toUid == request.auth.uid
           || resource.data.fromUid == request.auth.uid);
-      allow create: if request.auth != null && matchInviteAllowed(inviteId);
+      allow create: if request.auth != null && inviteAllowed(inviteId);
       allow update: if request.auth != null
         && resource.data.fromUid == request.auth.uid
-        && matchInviteAllowed(inviteId);
+        && inviteAllowed(inviteId);
       allow delete: if request.auth != null
         && (resource.data.toUid == request.auth.uid
           || resource.data.fromUid == request.auth.uid);
@@ -340,6 +391,30 @@ service cloud.firestore {
           == resource.data.get('ruleset', 'gw-2025');
     }
 
+    // While sign-ups are open any coach may add one team of their own, or take
+    // their own team back out. Standings are a cache that follows the entrants.
+    function signupChangeAllowed() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let added = after.entrants.removeAll(before.entrants);
+      let removed = before.entrants.removeAll(after.entrants);
+      let joined = after.participantUids.removeAll(before.participantUids);
+      let left = before.participantUids.removeAll(after.participantUids);
+      return before.status == 'draft'
+        && after.status == 'draft'
+        && before.get('online', null) != null
+        && after.diff(before).affectedKeys()
+          .hasOnly(['entrants', 'participantUids', 'standings', 'updatedAt'])
+        && ((added.size() == 1 && removed.size() == 0
+            && added[0].ownerUid == request.auth.uid
+            && added[0].get('computerCoached', false) == false
+            && joined == [request.auth.uid] && left.size() == 0
+            && after.entrants.size() <= before.online.places)
+          || (added.size() == 0 && removed.size() == 1
+            && removed[0].ownerUid == request.auth.uid
+            && left == [request.auth.uid] && joined.size() == 0));
+    }
+
     // Organizers control competition structure and may report any fixture. A
     // participant may report their own fixtures and change their own entrant
     // (see the functions above).
@@ -361,7 +436,8 @@ service cloud.firestore {
                         'reporterEntrantIndex', 'updatedAt'])
             && draftKept()
             && entrantsKept(resource.data.entrants, request.resource.data.entrants)
-            && fixturesKept(resource.data.fixtures, request.resource.data.fixtures)));
+            && fixturesKept(resource.data.fixtures, request.resource.data.fixtures))
+          || signupChangeAllowed());
       allow delete: if request.auth != null
         && resource.data.organizerUid == request.auth.uid;
     }
@@ -381,7 +457,8 @@ service cloud.firestore {
                         'updatedAt'])
             && draftKept()
             && entrantsKept(resource.data.entrants, request.resource.data.entrants)
-            && fixturesKept(resource.data.fixtures, request.resource.data.fixtures)));
+            && fixturesKept(resource.data.fixtures, request.resource.data.fixtures))
+          || signupChangeAllowed());
       allow delete: if request.auth != null
         && resource.data.organizerUid == request.auth.uid;
     }
@@ -534,9 +611,11 @@ service cloud.firestore {
     }
 
     // A stranger who knows the code may take the empty guest seat as
-    // themselves, and add only their own player entry while doing so.
+    // themselves, and add only their own player entry while doing so. A
+    // fixture lobby is held for the other coach in that fixture.
     function claimsGuestSeat() {
       return resource.data.guestUid == null
+        && resource.data.get('reservedFor', null) in [null, request.auth.uid]
         && resource.data.status == 'lobby'
         && request.auth.uid != resource.data.hostUid
         && request.resource.data.guestUid == request.auth.uid
@@ -576,7 +655,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'code', 'hostUid', 'guestUid', 'status', 'settings', 'players',
           'createdAt', 'expiresAt', 'competitionContext', 'fixtureTeams',
-          'listed'])
+          'listed', 'reservedFor'])
         && request.resource.data.get('listed', false) == false;
       allow update: if request.auth != null
         && (((request.auth.uid == resource.data.hostUid

@@ -5,6 +5,7 @@ import {
   collection,
   collectionGroup,
   doc,
+  getDoc,
   getDocs,
   runTransaction,
   setDoc,
@@ -57,6 +58,17 @@ export async function fetchAllCoachTeams(): Promise<OwnedTeam[]> {
     ownerUid: document.ref.parent.parent?.id ?? "",
     team: readCloudTeam(document.data()).team,
   }));
+}
+
+export async function fetchCoachTeam({
+  ownerUid,
+  teamId,
+}: {
+  ownerUid: string;
+  teamId: string;
+}): Promise<Team | null> {
+  const snapshot = await getDoc(doc(teamsCollection(ownerUid), teamId));
+  return snapshot.exists() ? readCloudTeam(snapshot.data()).team : null;
 }
 
 async function writeCloudTeam(uid: string, team: Team): Promise<void> {

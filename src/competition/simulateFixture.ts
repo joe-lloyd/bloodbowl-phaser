@@ -15,11 +15,10 @@ import {
   recordCompetitionFixture,
 } from "./resultRecording";
 import {
-  type CompetitionContext,
   type CompetitionDoc,
   type CompetitionFixture,
 } from "./types";
-import { DEFAULT_SEVENS_RULESET } from "../game/rules/sevensRuleset";
+import { fixtureContext } from "./fixtureContext";
 import { fixturePaysWinnings, stalledSides } from "../game/rules/winnings";
 
 export interface SimulatedFixture {
@@ -109,22 +108,6 @@ function awardMvps(
   }
 }
 
-function fixtureContext(
-  competition: CompetitionDoc,
-  fixtureId: string
-): CompetitionContext {
-  return {
-    ruleset: competition.ruleset ?? DEFAULT_SEVENS_RULESET,
-    competitionType: competition.type,
-    competitionId: competition.id,
-    fixtureId,
-    ...(competition.type === "tournament" &&
-    competition.format === "single-elimination"
-      ? { knockout: true }
-      : {}),
-  };
-}
-
 function bySide(
   tally: Record<string, number>,
   home: Team,
@@ -141,7 +124,7 @@ export async function simulateFixture(
   const { home, away } = fixtureTeams(competition, fixtureId);
   const seed = options.seed ?? Math.floor(Math.random() * 2 ** 31);
   const rng = options.rng ?? new RNGService(seed);
-  const context = fixtureContext(competition, fixtureId);
+  const context = fixtureContext({ competition, fixtureId, playedVia: "simulated" });
 
   const game = new HeadlessGame({
     seed,

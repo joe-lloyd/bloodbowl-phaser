@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { sevensRulesetSchema } from "./SevensRuleset";
 import { competitionTypeSchema } from "./CompetitionType";
+import { fixturePlaySchema } from "./FixturePlay";
 import type { CompetitionContext } from "../../competition/types";
 
 export const competitionContextSchema: z.ZodType<CompetitionContext> =
@@ -10,4 +11,5 @@ export const competitionContextSchema: z.ZodType<CompetitionContext> =
     competitionId: z.string(),
     fixtureId: z.string(),
     knockout: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+    playedVia: fixturePlaySchema.exactOptional(),
   });

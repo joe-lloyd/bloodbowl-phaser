@@ -1,5 +1,5 @@
 import { getTeamById, loadTeams } from "../game/managers/TeamManager";
-import { fetchAllCoachTeams } from "../firebase/cloudTeamRepository";
+import { fetchCoachTeam } from "../firebase/cloudTeamRepository";
 import { type Team } from "../types/Team";
 import { type CompetitionDoc, type CompetitionEntrant } from "./types";
 
@@ -8,11 +8,9 @@ export async function fetchEntrantTeam(
 ): Promise<Team | null> {
   const local = getTeamById(entrant.teamId);
   if (local) return local;
-  const owned = await fetchAllCoachTeams();
-  return (
-    owned.find((candidate) => candidate.team.id === entrant.teamId)?.team ??
-    null
-  );
+  return entrant.ownerUid
+    ? fetchCoachTeam({ ownerUid: entrant.ownerUid, teamId: entrant.teamId })
+    : null;
 }
 
 export function refreshEntrantDisplays<T extends CompetitionDoc>(

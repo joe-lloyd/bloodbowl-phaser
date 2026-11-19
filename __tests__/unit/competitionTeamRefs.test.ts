@@ -10,7 +10,12 @@ vi.mock("../../src/firebase/config", () => ({
 
 const otherCoachTeams: { ownerUid: string; team: Team }[] = [];
 vi.mock("../../src/firebase/cloudTeamRepository", () => ({
-  fetchAllCoachTeams: vi.fn(async () => otherCoachTeams),
+  fetchCoachTeam: vi.fn(
+    async ({ ownerUid, teamId }: { ownerUid: string; teamId: string }) =>
+      otherCoachTeams.find(
+        (owned) => owned.ownerUid === ownerUid && owned.team.id === teamId
+      )?.team ?? null
+  ),
 }));
 
 import {
@@ -71,7 +76,7 @@ describe("fetchEntrantTeam", () => {
     expect(resolved?.id).toBe("home");
   });
 
-  it("resolves another coach's entrant through the live cross-coach read", async () => {
+  it("resolves another coach's entrant by reading that coach's team", async () => {
     otherCoachTeams.push({
       ownerUid: "coach-1",
       team: team("away", { name: "Away Live" }),

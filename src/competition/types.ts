@@ -8,6 +8,22 @@ export type CompetitionType = "league" | "tournament";
 export type TournamentFormat = "single-elimination" | "round-robin";
 export type CompetitionStatus = "draft" | "active" | "complete";
 
+export type FixturePlay = "online" | "local" | "computer" | "simulated" | "reported";
+
+export type ComputerGames = "simulate" | "play";
+
+export interface OnlineSetup {
+  places: number;
+
+  listed: boolean;
+
+  roundDays: number;
+
+  computerGames: ComputerGames;
+
+  startedAt?: number;
+}
+
 export interface CompetitionContext {
   ruleset?: SevensRuleset;
   competitionType: CompetitionType;
@@ -15,6 +31,8 @@ export interface CompetitionContext {
   fixtureId: string;
 
   knockout?: boolean;
+
+  playedVia?: FixturePlay;
 }
 
 export interface CompetitionEntrant {
@@ -52,6 +70,8 @@ export interface FixtureResult {
   walkover?: { withdrawnEntrantIndex: number };
 
   winnings?: FixtureWinnings;
+
+  playedVia?: FixturePlay;
 }
 
 export interface CompetitionFixture {
@@ -101,6 +121,8 @@ export interface CompetitionBase {
   seedMetadata?: SeedMetadata;
   rosterProfile?: RosterRuleProfile;
   computerDifficulty?: Difficulty;
+
+  online?: OnlineSetup;
 }
 
 export interface LeagueDoc extends CompetitionBase {

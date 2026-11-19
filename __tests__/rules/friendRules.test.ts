@@ -37,7 +37,7 @@ import {
   requestFriend,
 } from "../../src/firebase/friends";
 import {
-  acceptMatchInvite,
+  acceptLobbyInvite,
   dismissInvite,
   inviteFriendToMatch,
   sendMatchInvite,
@@ -251,8 +251,8 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       ]);
 
       const invite = inbox.docs.map((entry) => readInvite(entry.data()))[0];
-      if (!invite) throw new Error("no invite");
-      const joined = await as(bob, () => acceptMatchInvite(invite));
+      if (invite?.kind !== "match") throw new Error("no invite");
+      const joined = await as(bob, () => acceptLobbyInvite(invite));
 
       expect(joined).toBe(code);
       expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBe(bob);
@@ -311,7 +311,7 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
 
       await expect(
         as(bob, () =>
-          acceptMatchInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
+          acceptLobbyInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
         )
       ).rejects.toThrow("Finish your current match before accepting an invite.");
       expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBeNull();
