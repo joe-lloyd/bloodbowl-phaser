@@ -247,8 +247,17 @@ function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   // have their own complete transfer plan in deepReceiverActivations.
   const transfer = board.turnsLeft === 0 ? [] : transferSquares(c, carrier);
   const corner = cornerWorth(c, carrier, transfer);
-  for (const [dx, dy] of CORNERS)
-    add("cage", { x: at.x + dx, y: at.y + dy }, corner);
+  const corners = CORNERS.map(([dx, dy]) => ({ x: at.x + dx, y: at.y + dy }));
+  const held = corners.map((s) => {
+    const there = board.occupant[key(s)];
+    return !!there && there.teamId === board.us && standing(there);
+  });
+  const heldCount = held.filter(Boolean).length;
+  // The corner that completes the cage, or keeps it complete.
+  corners.forEach((s, i) => {
+    const others = heldCount - (held[i] ? 1 : 0);
+    add("cage", s, corner + (others === 3 ? w.fullCage : 0));
+  });
   if (board.turnsLeft === 0) return;
   for (const ahead of [2, 3, 4])
     for (const dy of [-2, 0, 2])

@@ -45,6 +45,13 @@ export const DEFAULT_WEIGHTS = {
    */
   cageKeep: 20,
   /**
+   * Added when all four corners of the carrier's square are held. Over
+   * 5,184 replayed games a turn that ended in a full cage lost the ball
+   * before the team's next turn 1% to 5% of the time, against 20% to 28%
+   * with three corners.
+   */
+  fullCage: 0,
+  /**
    * Per square a turn a new carrier reaches beyond the old one, over the
    * next few turns: hand-offs, passes and pick-ups favour quick carriers.
    * At 2, 4 and 8 the best planner took 51.0% to 51.2% of points from it

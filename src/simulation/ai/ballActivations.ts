@@ -122,7 +122,8 @@ function carrierCover(c: Context, at: Square, carrier: Player): number {
     -(w.cageWalk > 0 ? markRisk(c, carrier, at) : board.marks[key(at)]) *
       w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
-    Math.min(cage, 4) * w.cageCorner -
+    Math.min(cage, 4) * w.cageCorner +
+    (cage >= 4 ? w.fullCage : 0) -
     (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0) -
     exposureCost(c, carrier, at) +
     launchReady(c, carrier, at)
