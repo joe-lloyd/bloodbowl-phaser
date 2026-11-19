@@ -14,6 +14,7 @@ import {
 import {
   HEIGHT,
   type Square,
+  canCarry,
   distance,
   key,
   neighbours,
@@ -297,6 +298,12 @@ function endZoneRoute(c: Context, from: Square, mate: Player): Route | null {
   return best;
 }
 
+function ballMates(c: Context, carrier: Player): Player[] {
+  return c.board.ours.filter(
+    (mate) => mate.id !== carrier.id && standing(mate) && canCarry(mate)
+  );
+}
+
 export function deepReceiverActivations(
   c: Context,
   carrier: Player
@@ -305,8 +312,7 @@ export function deepReceiverActivations(
   if (!c.available.get(carrier.id)?.has("pass")) return [];
   const from = carrier.gridPosition;
   const out: Activation[] = [];
-  for (const mate of board.ours) {
-    if (mate.id === carrier.id || !standing(mate)) continue;
+  for (const mate of ballMates(c, carrier)) {
     if (!c.available.get(mate.id)?.has("move")) continue;
     if (toGoal(board, mate.gridPosition) === 0) continue;
     const best = endZoneRoute(c, from, mate);
@@ -478,15 +484,13 @@ function handoffTo({
 }
 
 export function handoffActivations(c: Context, carrier: Player): Activation[] {
-  const { board } = c;
   if (!c.available.get(carrier.id)?.has("handoff")) return [];
   const out: Activation[] = [];
   const routes = c.routes(carrier);
   const carrierReach = bestReach(c, carrier);
   const escape = pressure(c, carrier);
-  for (const mate of board.ours) {
-    if (mate.id === carrier.id || !standing(mate) || !c.available.has(mate.id))
-      continue;
+  for (const mate of ballMates(c, carrier)) {
+    if (!c.available.has(mate.id)) continue;
     const handoff = handoffTo({
       c: c,
       carrier: carrier,
@@ -666,7 +670,7 @@ function passTo({
 }
 
 export function passActivations(c: Context, carrier: Player): Activation[] {
-  const { board, w } = c;
+  const { w } = c;
   if (!c.available.get(carrier.id)?.has("pass")) return [];
   const throwFrom: (Route | null)[] = [
     null,
@@ -677,8 +681,7 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
   const carrierReach = bestReach(c, carrier);
   const escape = pressure(c, carrier);
   const out: Activation[] = [];
-  for (const mate of board.ours) {
-    if (mate.id === carrier.id || !standing(mate)) continue;
+  for (const mate of ballMates(c, carrier)) {
     const pass = passTo({
       c: c,
       carrier: carrier,
@@ -703,7 +706,7 @@ export function pickupPace(c: Context, player: Player): number {
   const quickest = Math.max(
     nextTurnReach(player),
     ...c.board.ours
-      .filter((p) => standing(p) && !hasSkill(p.skills, SkillType.NO_BALL))
+      .filter((p) => standing(p) && canCarry(p))
       .map((p) => nextTurnReach(p))
   );
   return paceWorth(
@@ -715,7 +718,7 @@ export function pickupPace(c: Context, player: Player): number {
 
 export function pickupActivation(c: Context, player: Player): Activation[] {
   const { board, w } = c;
-  if (board.ball.kind !== "loose") return [];
+  if (board.ball.kind !== "loose" || !canCarry(player)) return [];
   const route = c.routes(player).get(key(board.ball.at));
   if (!route) return [];
   return [

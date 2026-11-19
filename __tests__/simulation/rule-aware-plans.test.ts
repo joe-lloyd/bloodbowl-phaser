@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { game, step } from "./fixtures";
+import { fieldPlayer, game, step } from "./fixtures";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { PlayerStatus } from "../../src/types/Player";
+import { SkillType } from "../../src/types/Skills";
 import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import type { HeadlessCommand } from "../../src/headless/protocol";
 
@@ -34,6 +35,35 @@ describe("a prone player's Blitz", () => {
     expect(await firstActivation(subject())).toEqual({
       commands: ["declare-action", "stand-up", "block"],
       note: "blitzes",
+    });
+  });
+});
+
+describe("a No Ball player", () => {
+  // The loose ball lies beside a No Ball player. A team-mate three squares
+  // away can reach it.
+  const subject = () =>
+    game({
+      turn: 3,
+      ballPosition: { x: 6, y: 5 },
+      team1Placements: [
+        { playerIndex: 0, x: 5, y: 5, skills: [SkillType.NO_BALL] },
+        { playerIndex: 1, x: 3, y: 5 },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 15, y: 1 }],
+    });
+
+  it("leaves the pick-up to a team-mate", async () => {
+    const s = subject();
+    const picker = fieldPlayer(s.ctx.team1.players[1]);
+    const { command, note } = await step(s, createPlannerCoach());
+    expect({ command, note }).toEqual({
+      command: {
+        type: "declare-action",
+        playerId: picker.id,
+        action: "secureBall",
+      },
+      note: "secures the ball (Secure the Ball: 2+)",
     });
   });
 });

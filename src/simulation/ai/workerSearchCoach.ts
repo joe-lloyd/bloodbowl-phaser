@@ -10,7 +10,10 @@ import { type Weights } from "./weights";
 
 const GRACE_MS = 1500;
 
-type SearchWorker = Pick<Worker, "postMessage" | "terminate" | "addEventListener" | "removeEventListener">;
+type SearchWorker = Pick<
+  Worker,
+  "postMessage" | "terminate" | "addEventListener" | "removeEventListener"
+>;
 
 interface WorkerPool {
   workers: (SearchWorker | null)[];

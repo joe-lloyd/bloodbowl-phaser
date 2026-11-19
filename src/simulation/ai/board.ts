@@ -6,6 +6,7 @@ import { GameService } from "../../services/GameService";
 import { type Weather } from "../../game/rules/weather";
 import { teamRerollsLeft } from "../../game/teamRerolls";
 import { isLeagueMode } from "../../types/Team";
+import { SkillType, hasSkill } from "../../types/Skills";
 
 export type Square = GridPosition;
 
@@ -127,6 +128,8 @@ export function toGoal(board: Board, s: Square, team = board.us): number {
 }
 
 export const standing = (p: Player) => p.status === PlayerStatus.ACTIVE;
+
+export const canCarry = (p: Player) => !hasSkill(p.skills, SkillType.NO_BALL);
 
 export const carrierOf = (board: Board) =>
   board.ball.kind === "carried" ? board.ball.carrier : undefined;
