@@ -21,8 +21,10 @@ import {
   getActiveMatchCode,
   fetchLobby,
   joinLobby,
-  resolveCoachName,
 } from "../../../firebase/lobby";
+import { resolveCoachName } from "../../../firebase/coaches";
+import { InviteInbox } from "../social/InviteInbox";
+import { FriendsMenuButton } from "../social/LobbyFriends";
 import { findHouseBotLobby } from "../../../firebase/houseBot";
 import { isAdminUser } from "../../../firebase/admin";
 import {
@@ -196,6 +198,7 @@ export function MainMenu() {
           onResumeLocal={resumeLocal}
           onDiscardLocal={discardLocal}
         />
+        {user && <InviteInbox uid={user.uid} className="mt-4 max-w-2xl" />}
 
         <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MenuSection title="Play">
@@ -241,6 +244,12 @@ export function MainMenu() {
             >
               Join Game
             </HudButton>
+            <FriendsMenuButton
+              uid={user?.uid ?? null}
+              disabled={onlineDisabled}
+              title={onlineAvailable ? undefined : ONLINE_HINT}
+              onClick={() => void handleOnline("/friends")}
+            />
           </MenuSection>
 
           {isAdminUser(user) && (

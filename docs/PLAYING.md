@@ -76,6 +76,20 @@ On a deployment with Firebase configured, sign in with Google and use
 **Host Game** or **Join Game**. The host shares the game code with the other
 coach. Each coach supplies a team and uses their own browser.
 
+### Friends
+
+**Friends** in the main menu shows your friend code. Give it to another coach,
+or type theirs under **Add a friend** and send a request. They accept it on
+their own **Friends** page. In a lobby, **Add friend** on the other coach's card
+sends a request too.
+
+**Invite to game** next to a friend opens your lobby and sends them an invite.
+It appears at the top of their main menu, their **Friends** page and the
+**Join Game** page. **Join** takes them into your lobby without typing a code.
+While you wait in a lobby for an opponent, **Invite a friend** lists your
+friends with an **Invite** button each. A green dot shows a friend who had the
+game open in the last five minutes.
+
 For a relaxed friendly, the host can set **Match settings → Turn timer →
 No time limit** in the lobby before starting. This applies to both coaches:
 there is no countdown, automatic end of turn or time limit on decisions.
