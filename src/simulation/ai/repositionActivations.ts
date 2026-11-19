@@ -209,8 +209,13 @@ function isDeep(c: Context, from: Square, s: Square, receiver: Player) {
 function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   const { board, w } = c;
   const at = carrier.gridPosition!;
+  // A carrier that has acted counted on these corners being filled.
+  const acted = new Set(board.gs.getState().turn.activatedPlayerIds ?? []).has(
+    carrier.id
+  );
+  const corner = w.cageCorner + (acted ? w.cageKeep : 0);
   for (const [dx, dy] of CORNERS)
-    add("cage", { x: at.x + dx, y: at.y + dy }, w.cageCorner);
+    add("cage", { x: at.x + dx, y: at.y + dy }, corner);
   // Final-turn receiver preparation must lead to a score. End-zone runs
   // have their own complete transfer plan in deepReceiverActivations.
   if (board.turnsLeft === 0) return;
