@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
@@ -14,7 +15,7 @@ test("a coach sees their injured player after the opponent's block", async ({
   await app.pitch.clickPlayer("team1:3");
   await app.hud.rollBlockDice();
   await app.hud.chooseBlockResult("pow");
-  // Fend prevents a follow-up. The only active blocker ends its team turn.
+
   await app.pitch.clickSquare({ x: 9, y: 7 });
   await app.bridge.expectEvent(GameEventNames.PlayerCasualtyInflicted);
   await expect
@@ -22,7 +23,7 @@ test("a coach sees their injured player after the opponent's block", async ({
     .toBe(teams[0].id);
   const card = page.getByTestId("turn-catch-up");
   await expect(card).toContainText("Since your last turn");
-  await expect(card).toContainText(victim.name);
+  await expect(card).toContainText(fixtureValue(victim).name);
   await expect(card).toContainText("Seriously hurt");
   await page.screenshot({ path: testInfo.outputPath("catch-up-1280x720.png") });
   const bounds = await card.boundingBox();

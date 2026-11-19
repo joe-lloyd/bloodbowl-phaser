@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
-import { BiteTargetDecisionRequest } from "../../../types/decisions";
+import { type BiteTargetDecisionRequest } from "../../../types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { useEventBus } from "../../hooks/useEventBus";
@@ -12,53 +12,41 @@ import {
 } from "../componentWarehouse/HudKit";
 import { DecisionTeam } from "./DecisionTeam";
 
-/** The bite the game waits on, if any: online the match's, else the engine's. */
 function livePendingBite(): BiteTargetDecisionRequest | null {
   if (!ServiceContainer.isInitialized()) return null;
   const online = getActiveOnlineMatch();
   const pending = online
     ? online.pendingDecision()
     : ServiceContainer.getInstance().gameService.getDecisionService().pending();
-  return pending?.type === "bite-target" ? pending : null;
+  return pending?.type === BITE_TARGET ? pending : null;
 }
 
-/**
- * A failed Bloodlust player with two or more Thrall Linemen in reach: tells
- * the coach to click the one to bite. The Thralls are marked on the pitch
- * and the click is taken there (GameplayInteractionController), as a push
- * square is; this prompt only says so, and offers biting nobody.
- *
- * It stays up until the decision is resolved (or a resync replaces it):
- * online an answer is only sent, and the host may refuse it.
- */
 export function BiteTargetPrompt({ eventBus }: { eventBus: EventBus }) {
   const [request, setRequest] = useState<BiteTargetDecisionRequest | null>(
     null
   );
-  // "Bite nobody" was sent and has not been resolved or refused yet
+
   const [sent, setSent] = useState(false);
   const show = (next: BiteTargetDecisionRequest | null) => {
     setRequest(next);
     setSent(false);
   };
   useEventBus(eventBus, GameEventNames.DecisionRequested, (data) => {
-    if (data.type === "bite-target") show(data);
+    if (data.type === BITE_TARGET) show(data);
   });
-  // The other coach may be the one who answers
+
   useEventBus(eventBus, GameEventNames.DecisionResolved, ({ type }) => {
-    if (type === "bite-target") show(null);
+    if (type === BITE_TARGET) show(null);
   });
-  // A resync replaces the state without resolving: show what it waits on
-  useEventBus(eventBus, GameEventNames.GameStateRestored, () =>
-    show(livePendingBite())
-  );
-  // A refused answer leaves the bite open: offer it again, if it still is
+
+  useEventBus(eventBus, GameEventNames.GameStateRestored, () => {
+    show(livePendingBite());
+  });
+
   useEventBus(eventBus, GameEventNames.NetworkCommandRejected, (data) => {
     if (data.commandType === "choose-bite-target") show(livePendingBite());
   });
 
-  // Online, only the biting coach sees it; the other coach has the
-  // "Waiting for…" banner
   if (
     !request ||
     !ServiceContainer.isInitialized() ||
@@ -70,10 +58,32 @@ export function BiteTargetPrompt({ eventBus }: { eventBus: EventBus }) {
 
   const biteNobody = () => {
     if (sent || getActiveOnlineMatch()?.mayAct() === false) return;
-    // Closed by DecisionResolved, not here: online the host may refuse it
+
     if (gameService.answerBiteTarget(undefined)) setSent(true);
   };
 
+  return (
+    <BiteTargetPromptView
+      request={request}
+      biter={biter}
+      sent={sent}
+      biteNobody={biteNobody}
+    />
+  );
+}
+
+interface BiteTargetPromptViewProps {
+  request: BiteTargetDecisionRequest;
+  biter: string | undefined;
+  sent: boolean;
+  biteNobody: () => void;
+}
+function BiteTargetPromptView({
+  request,
+  biter,
+  sent,
+  biteNobody,
+}: BiteTargetPromptViewProps) {
   return (
     <DialogShell
       placement="dock"
@@ -105,3 +115,5 @@ export function BiteTargetPrompt({ eventBus }: { eventBus: EventBus }) {
     </DialogShell>
   );
 }
+
+const BITE_TARGET = "bite-target";

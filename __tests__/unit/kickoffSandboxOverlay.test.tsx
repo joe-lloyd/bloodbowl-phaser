@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
@@ -20,16 +21,18 @@ describe("Kickoff Table sandbox selector", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
   it("loads a curated seed when a kickoff outcome is selected", async () => {
-    const loads: Array<{
+    const loads: {
       scenarioId: string;
       seed?: number;
       outcomeId?: string;
-    }> = [];
+    }[] = [];
     eventBus.on(GameEventNames.UI_LoadScenario, (data) => loads.push(data));
 
     await act(async () => {
@@ -40,9 +43,9 @@ describe("Kickoff Table sandbox selector", () => {
       );
     });
 
-    const topic = container.querySelector<HTMLSelectElement>(
+    const topic = fixtureValue(container.querySelector<HTMLSelectElement>(
       '[aria-label="Sandbox topic"]'
-    )!;
+    ));
     expect([...topic.options].map((option) => option.text)).toContain(
       "Kickoff Table"
     );
@@ -52,9 +55,9 @@ describe("Kickoff Table sandbox selector", () => {
       topic.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    const configuration = container.querySelector<HTMLSelectElement>(
+    const configuration = fixtureValue(container.querySelector<HTMLSelectElement>(
       '[aria-label="Sandbox configuration"]'
-    )!;
+    ));
     expect([...configuration.options].map((option) => option.text)).toEqual([
       "Select Configuration",
       "Standard Kickoff (Turn 2)",
@@ -66,9 +69,9 @@ describe("Kickoff Table sandbox selector", () => {
       configuration.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    const outcome = container.querySelector<HTMLSelectElement>(
+    const outcome = fixtureValue(container.querySelector<HTMLSelectElement>(
       '[aria-label="Seeded outcome"]'
-    )!;
+    ));
     expect(outcome.options).toHaveLength(12);
 
     await act(async () => {
@@ -77,9 +80,8 @@ describe("Kickoff Table sandbox selector", () => {
     });
 
     expect(
-      container.querySelector<HTMLInputElement>(
-        '[aria-label="Scenario seed"]'
-      )!.value
+      fixtureValue(container.querySelector<HTMLInputElement>('[aria-label="Scenario seed"]'))
+        .value
     ).toBe("7");
     expect(loads.at(-1)).toEqual({
       scenarioId: "kickoff-table-standard",

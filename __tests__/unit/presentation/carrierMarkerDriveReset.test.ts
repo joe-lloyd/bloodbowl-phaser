@@ -1,28 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { GameScene } from "../../../src/scenes/GameScene";
 import { EventBus } from "../../../src/services/EventBus";
 import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
 
-/**
- * The carrier marker (gold ring and ball badge) is shown only on the player
- * who holds the ball. A touchdown ends the drive: the engine takes the ball
- * off the pitch and emits RefreshBoard, and from then until the next kick
- * nobody holds the ball, so nobody may be marked. The scorer used to keep
- * their marker until the kick-off.
- *
- * Drives GameScene's real event wiring with stand-in sprites, so it runs
- * without a browser or a Phaser canvas.
- */
-
-type FakeSprite = {
+interface FakeSprite {
   carrying: boolean;
-  setCarryingBall: ReturnType<typeof vi.fn>;
+  setCarryingBall: Mock<[carrying: boolean], void>;
   setActivated: ReturnType<typeof vi.fn>;
   setTeamTurnBorder: ReturnType<typeof vi.fn>;
   resetOrientation: ReturnType<typeof vi.fn>;
   setRemoteSelected: ReturnType<typeof vi.fn>;
-};
+}
 
 function fakeSprite(): FakeSprite {
   const sprite = {
@@ -71,11 +60,11 @@ describe("carrier marker across the touchdown reset", () => {
       ]),
       ballSprite,
       pitch: { getContainer: () => ({ x: 0, y: 0 }) },
-      // Dugout/pitch placement is not what this test is about.
+
       refreshDugouts: vi.fn(),
       placeBallVisual: vi.fn(),
     });
-    scene["initializeControllers"]();
+    scene.initializeControllers();
   });
 
   afterEach(() => {
@@ -96,9 +85,8 @@ describe("carrier marker across the touchdown reset", () => {
     scene.reconcileBallVisual();
     expect(marked()).toEqual(["scorer"]);
 
-    // GameService.resetDriveState: ball off the pitch, then RefreshBoard.
     state.ballPosition = null;
-    eventBus.emit(GameEventNames.RefreshBoard);
+    eventBus.emit(GameEventNames.RefreshBoard, undefined);
 
     expect(marked()).toEqual([]);
     expect(ballSprite.destroy).toHaveBeenCalledTimes(1);
@@ -108,10 +96,9 @@ describe("carrier marker across the touchdown reset", () => {
   it("marks the new carrier again once the ball is back in someone's hands", () => {
     scene.reconcileBallVisual();
     state.ballPosition = null;
-    eventBus.emit(GameEventNames.RefreshBoard);
+    eventBus.emit(GameEventNames.RefreshBoard, undefined);
     expect(marked()).toEqual([]);
 
-    // Next drive: the defender's team catches the kick.
     state.ballPosition = { x: 15, y: 6 };
     scene.reconcileBallVisual();
     expect(marked()).toEqual(["defender"]);

@@ -1,15 +1,8 @@
-/**
- * Decisions the coach whose turn it is NOT has to make during the other
- * coach's turn (an uphill block's dice, Stand Firm, an interception, …).
- * While one is open the main turn clock stops and the deciding coach gets a
- * short clock of their own; when it runs out their screen answers with the
- * default below, so a slow or absent decider cannot eat the other coach's
- * turn.
- */
+import {
+  type HeadlessCommand,
+  type PendingDecision,
+} from "../headless/protocol";
 
-import { HeadlessCommand, PendingDecision } from "../headless/protocol";
-
-/** Seconds the deciding coach gets, per decision. Tune here. */
 export const DEFENDER_DECISION_SECONDS: Record<
   PendingDecision["type"],
   number
@@ -48,7 +41,6 @@ function pushDefault(
     : null;
 }
 
-/** The Sports-Wizard is asked between turns, of either coach: keep it. */
 function inducementDefault(
   pending: Decision<"inducement-choice">
 ): HeadlessCommand | null {
@@ -57,39 +49,21 @@ function inducementDefault(
     : null;
 }
 
-/**
- * What the decider's screen answers when their clock runs out: decline
- * anything optional, otherwise the first option. Null when there is no
- * safe answer to make on their behalf.
- */
-export function defaultAnswer(
-  pending: PendingDecision
-): HeadlessCommand | null {
-  switch (pending.type) {
-    case "block-dice":
-      return blockDiceDefault(pending);
-    case "push-direction":
-      return pushDefault(pending);
-    case "reaction":
-      return { type: "use-reaction", accept: false };
-    case "bite-target":
-      // As an unanswered single-Thrall bite: nobody is bitten
-      return { type: "choose-bite-target" };
-    case "reroll":
-      return { type: "use-reroll", accept: false };
-    case "interception":
-      return { type: "choose-interception" };
-    case "apothecary":
-      return { type: "use-apothecary", accept: false };
-    case "follow-up":
-      return { type: "choose-follow-up", followUp: false };
-    case "foul-assists":
-      // As before the choice existed: every assist adds +1
-      return { type: "choose-foul-assists", count: pending.available };
-    case "inducement-choice":
-      return inducementDefault(pending);
-    case "touchback":
-    case "kickoff-event":
-      return null;
-  }
+const fixedAnswers: Partial<Record<PendingDecision["type"], HeadlessCommand>> = {
+  reaction: { type: "use-reaction", accept: false },
+  "bite-target": { type: "choose-bite-target" },
+  reroll: { type: "use-reroll", accept: false },
+  interception: { type: "choose-interception" },
+  apothecary: { type: "use-apothecary", accept: false },
+  "follow-up": { type: "choose-follow-up", followUp: false },
+};
+
+export function defaultAnswer(pending: PendingDecision): HeadlessCommand | null {
+  const fixed = fixedAnswers[pending.type];
+  if (fixed) return { ...fixed };
+  if (pending.type === "block-dice") return blockDiceDefault(pending);
+  if (pending.type === "push-direction") return pushDefault(pending);
+  if (pending.type === "inducement-choice") return inducementDefault(pending);
+  if (pending.type === "foul-assists") return { type: "choose-foul-assists", count: pending.available };
+  return null;
 }

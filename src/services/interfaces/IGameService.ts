@@ -1,14 +1,16 @@
-import { GamePhase, GameState, SubPhase } from "@/types/GameState";
-import { Player } from "@/types/Player";
-import { Team } from "@/types/Team";
-import { BlockResult } from "../../services/BlockResolutionService";
+import type * as SetupTypes from "@/types/SetupTypes";
+import type * as InducementTypes from "@/types/Inducements";
+import { GamePhase, type GameState, SubPhase } from "@/types/GameState";
+import { type Player } from "@/types/Player";
+import { type Team } from "@/types/Team";
+import { type BlockResult } from "../../services/BlockResolutionService";
 import { PassController } from "@/game/controllers/PassController";
 import { CatchController } from "@/game/controllers/CatchController";
 import { BallMovementController } from "@/game/controllers/BallMovementController";
 import { DiceController } from "@/game/controllers/DiceController";
 import { ArmourController } from "@/game/controllers/ArmourController";
 import { InjuryController } from "@/game/controllers/InjuryController";
-import { NextHalf } from "@/game/managers/TurnManager";
+import { type NextHalf } from "@/game/managers/TurnManager";
 
 export interface IGameService {
   getState(): GameState;
@@ -16,16 +18,15 @@ export interface IGameService {
   getSubPhase(): SubPhase | undefined;
   getActiveTeamId(): string | null;
   getTurnNumber(teamId: string): number;
-  /** Seed both teams' turn counters (sandbox scenarios starting mid-drive). */
+
   seedTurnCounts(turnNumber: number): void;
   captureTurnManagerState(): import("@/game/managers/TurnManager").TurnManagerState;
   restoreTurnManagerState(
     snapshot: import("@/game/managers/TurnManager").TurnManagerState
   ): void;
-  /** Rebuild setup tracking from the teams after a whole state was copied in. */
+
   resyncSetupFromTeams(): void;
 
-  // Controllers
   getPassController(): PassController;
   getCatchController(): CatchController;
   getBallMovementController(): BallMovementController;
@@ -35,114 +36,89 @@ export interface IGameService {
   getFoulController(): import("@/game/controllers/FoulController").FoulController;
   getFlowContext(): import("@/game/core/GameFlowManager").FlowContext;
 
-  // Skill decisions (rerolls, reactions)
   getDecisionService(): import("@/game/skills").DecisionService;
   getRerollArbiter(): import("@/game/skills").RerollArbiter;
-  /** Answer a pending reroll decision; false when none is pending */
+
   answerReroll(
     accept: boolean,
     source?: import("@/types/decisions").RerollSource
   ): boolean;
-  /** Answer a pending reaction decision; false when none is pending */
+
   answerReaction(accept: boolean): boolean;
-  /**
-   * Answer a pending Bloodlust bite-target decision; undefined bites nobody.
-   * False when none is pending or the player is not an offered target.
-   */
+
   answerBiteTarget(targetId?: string): boolean;
-  /** Answer a pending interception decision; undefined playerId declines */
+
   answerInterception(playerId?: string): boolean;
-  /** Answer a pending Apothecary decision; false when none is pending */
+
   answerApothecary(accept: boolean): boolean;
-  /** Answer a pending Prayer or Desperate Measure choice. */
+
   answerInducementChoice(
     answer: import("@/types/decisions").InducementChoiceDecisionAnswer
   ): boolean;
-  /** Answer a pending Foul assists decision; false when out of range. */
+
   answerFoulAssists(count: number): boolean;
 
-  // Sevens inducements
-  /**
-   * Commit a confirmed pregame inducement selection into match-scoped state
-   * (budgets/profile resolved once, inventory copied in — not the roster).
-   */
   commitInducements(
-    profile: import("@/types/Inducements").InducementRuleProfile,
+    profile: InducementTypes.InducementRuleProfile,
     budgets: Record<string, number>,
-    inventory: import("@/types/Inducements").InducementInventoryEntry[]
+    inventory: InducementTypes.InducementInventoryEntry[]
   ): void;
-  /** The current pregame offer: catalog/budget plus each team's selection. */
-  getInducementOffer(): import("@/types/Inducements").InducementOffer;
-  /** Set (or clear, at quantity 0) one line of a team's pregame selection. */
+
+  getInducementOffer(): InducementTypes.InducementOffer;
+
   selectInducement(
     teamId: string,
-    inducement: import("@/types/Inducements").Inducement,
+    inducement: InducementTypes.Inducement,
     quantity: number
-  ): import("@/types/Inducements").InducementCommandResponse;
+  ): InducementTypes.InducementCommandResponse;
   removeInducement(
     teamId: string,
-    inducement: import("@/types/Inducements").Inducement
-  ): import("@/types/Inducements").InducementCommandResponse;
-  /** Confirm a team's pregame selection; commits once both teams have. */
-  confirmInducements(
-    teamId: string
-  ): import("@/types/Inducements").InducementCommandResponse;
+    inducement: InducementTypes.Inducement
+  ): InducementTypes.InducementCommandResponse;
 
-  /**
-   * True when a mutator only sends a command and the engine runs it a
-   * moment later (against the computer, online). Until it runs, the record
-   * still shows the board as it was before the command.
-   */
+  confirmInducements(teamId: string): InducementTypes.InducementCommandResponse;
+
   readonly runsCommandsLater?: boolean;
 
-  // Setup
   startSetup(startingTeamId?: string): void;
   placePlayer(playerId: string, x: number, y: number): boolean;
   removePlayer(playerId: string): void;
   swapPlayers(player1Id: string, player2Id: string): boolean;
   confirmSetup(teamId: string): boolean;
   isSetupComplete(teamId: string): boolean;
-  getSetupStatus(
-    teamId: string
-  ): import("@/types/SetupTypes").SetupTeamStatus | undefined;
+  getSetupStatus(teamId: string): SetupTypes.SetupTeamStatus | undefined;
   getLastSetupError(): string | null;
-  /**
-   * Whether a player may be placed this drive (not knocked out, a casualty,
-   * sent off or otherwise held in Reserves). The engine's own setup rule.
-   */
+
   isSetupEligible(playerId: string): boolean;
   applySetupFormation(
     teamId: string,
-    formation: import("@/types/SetupTypes").FormationPosition[]
-  ): import("@/types/SetupTypes").SetupFormationResult;
+    formation: SetupTypes.FormationPosition[]
+  ): SetupTypes.SetupFormationResult;
   resolveSetupConcession(teamId: string, concede: boolean): boolean;
-  getSetupZone(
-    teamId: string
-  ): import("@/types/SetupTypes").SetupZone | undefined;
+  getSetupZone(teamId: string): SetupTypes.SetupZone | undefined;
 
-  // Kickoff
   startKickoff(): void;
   selectKicker(playerId: string): void;
-  kickBall(
-    isTeam1Kicking: boolean,
-    playerId: string,
-    targetX: number,
-    targetY: number
-  ): Promise<void>;
+  kickBall({
+    isTeam1Kicking,
+    playerId,
+    targetX,
+    targetY,
+  }: {
+    isTeam1Kicking: boolean;
+    playerId: string;
+    targetX: number;
+    targetY: number;
+  }): Promise<void>;
   rollKickoff(): void;
-  /** Touchback: receiving coach hands the ball to one of their players */
+
   awardTouchback(playerId: string): boolean;
   isTouchbackPending(): boolean;
-  /** A loose kick-off ball bounced out of the receiving half: Touchback. */
+
   kickoffBounceTouchback(to: { x: number; y: number }): boolean;
-  /**
-   * The Kick-off Table waits for Roll, or has been rolled and its result is
-   * not stored yet. A save while it waits restores a kick whose dialog never
-   * reopens; one after the roll holds the advanced dice without the event,
-   * so a restore would roll a different one.
-   */
+
   isKickoffTableResolving(): boolean;
-  /** Interactive Sevens kickoff event currently awaiting its owning coach. */
+
   getKickoffEventStep():
     | import("@/game/kickoff/KickoffEventManager").KickoffEventStepState
     | null;
@@ -152,30 +128,28 @@ export interface IGameService {
   confirmKickoffEventStep(): boolean;
   skipKickoffEventStep(): boolean;
 
-  // Game Actions
   startGame(kickingTeamId: string): void;
   startTurn(teamId: string): void;
   endTurn(): void;
   canActivate(playerId: string): boolean;
   hasPlayerActed(playerId: string): boolean;
-  declareAction(
-    playerId: string,
-    action: import("@/types/events").ActionType,
-    blockReplacement?: import("@/types/BlockReplacement").BlockReplacement,
-    /** Razzle-Dazzle (L22): declare the first of two Actions. */
-    options?: { razzleDazzle?: boolean }
-  ): boolean;
-  /** Cancel a declaration only before movement/attack commitment. */
+  declareAction({
+    playerId,
+    action,
+    blockReplacement,
+    options,
+  }: {
+    playerId: string;
+    action: import("@/types/events").ActionType;
+    blockReplacement?: import("@/types/BlockReplacement").BlockReplacement;
+    options?: { razzleDazzle?: boolean };
+  }): boolean;
+
   cancelAction(playerId: string): boolean;
-  /**
-   * Force the live declaration for this player to commit (idempotent): the
-   * once-per-turn flag is set and the declaration can no longer be released.
-   * Called at the moment an activation gate rolls, a die is rolled, or
-   * movement/an attack is spent — engine-internal, never a coach intent.
-   */
+
   commitAction(playerId: string): void;
   movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
-  /** Leave the carried ball in a square vacated during this Move, no Turnover. */
+
   dropBallWithFumblerooski(
     playerId: string,
     square: { x: number; y: number }
@@ -184,89 +158,103 @@ export interface IGameService {
   standUp(playerId: string): Promise<void>;
 
   previewBlock(attackerId: string, defenderId: string): void;
-  /** Multiple Block: resolve two marked opponents at -2 ST with no follow-up. */
+
   multipleBlock(
     attackerId: string,
     defender1Id: string,
     defender2Id: string
   ): Promise<void>;
-  /** May pause on a skill trigger decision — async engines await it */
-  rollBlockDice(
-    attackerId: string,
-    defenderId: string,
-    numDice: number,
-    isAttackerChoice: boolean
-  ): void | Promise<void>;
-  /** May pause on a skill trigger decision — async engines await it */
+
+  rollBlockDice({
+    attackerId,
+    defenderId,
+    numDice,
+    isAttackerChoice,
+  }: {
+    attackerId: string;
+    defenderId: string;
+    numDice: number;
+    isAttackerChoice: boolean;
+  }): void | Promise<void>;
+
   resolveBlock(
     attackerId: string,
     defenderId: string,
     result: BlockResult
   ): void | Promise<void>;
-  /** Team Re-roll on a block: re-roll all the dice. */
+
   keepBlockDice(attackerId: string): void;
   teamRerollBlock(attackerId: string): void;
-  /** Pro on a block: re-roll a single die (3+ to use). */
+
   proRerollBlockDie(attackerId: string, dieIndex: number): void;
-  /** Brawler on a block: re-roll the single Both Down die. */
+
   brawlerRerollBlockDie(attackerId: string): void;
   veteranRerollBlock(attackerId: string): void;
-  executePush(
-    attackerId: string,
-    defenderId: string,
-    direction: { x: number; y: number },
-    resultType: string,
-    followUp: boolean
-  ): void | Promise<void>;
+  executePush({
+    attackerId,
+    defenderId,
+    direction,
+    resultType,
+    followUp,
+  }: {
+    attackerId: string;
+    defenderId: string;
+    direction: { x: number; y: number };
+    resultType: string;
+    followUp: boolean;
+  }): void | Promise<void>;
 
-  /** `hailMary`: the coach declares the throw as a Hail Mary Pass. */
-  throwBall(
-    passerId: string,
-    targetX: number,
-    targetY: number,
-    hailMary?: boolean
-  ): Promise<{ success: boolean; result?: string }>;
-  /**
-   * Hand-off Action: no Passing Ability Test, no scatter, no interception —
-   * the ball is placed directly in the target's square and they Catch it.
-   * Targets a player id, not a square.
-   */
+  throwBall({
+    passerId,
+    targetX,
+    targetY,
+    hailMary,
+  }: {
+    passerId: string;
+    targetX: number;
+    targetY: number;
+    hailMary?: boolean;
+  }): Promise<{ success: boolean; result?: string }>;
+
   handOffBall(
     passerId: string,
     targetPlayerId: string
   ): Promise<{ success: boolean; result?: string }>;
-  /** Punt a carried ball in the chosen facing via the Throw-in Template. */
+
   puntBall(playerId: string, facingX: number, facingY: number): Promise<void>;
   foulPlayer(foulerId: string, targetX: number, targetY: number): Promise<void>;
-  /** Stab Special Action: unmodifiable Armour Roll vs an adjacent Standing opponent */
+
   stabPlayer(attackerId: string, targetId: string): Promise<boolean>;
-  /** Throw / Kick Team-mate Action: throw an eligible team-mate at an aim square */
-  throwTeammate(
-    throwerId: string,
-    teammateId: string,
-    x: number,
-    y: number,
-    mode?: "throw" | "kick",
-    swoopFacing?: import("../../game/rules/throwTeammate").SwoopFacing
-  ): Promise<void>;
-  /** Throw Bomb Special Action (Bombardier): lob a bomb at a target square */
+
+  throwTeammate({
+    throwerId,
+    teammateId,
+    x,
+    y,
+    mode,
+    swoopFacing,
+  }: {
+    throwerId: string;
+    teammateId: string;
+    x: number;
+    y: number;
+    mode?: "throw" | "kick";
+    swoopFacing?: import("../../game/rules/throwTeammate").SwoopFacing;
+  }): Promise<void>;
+
   throwBomb(throwerId: string, x: number, y: number): Promise<void>;
-  /** Ball & Chain Special Action (Fanatic): lurch one square in a chosen facing */
+
   ballAndChain(
     fanaticId: string,
     facingX: number,
     facingY: number
   ): Promise<void>;
-  /**
-   * The lurching Fanatic enters an occupied square: a Block Action against a
-   * Standing player, a push against a Prone one. The square finishes once
-   * the block engine has resolved it.
-   */
+
   ballAndChainCollision(
     square: import("../../game/operations/BallAndChainOperation").BallAndChainSquare,
     targetId: string
   ): Promise<void>;
-  /** Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic Gaze, Chomp) */
+
   performSpecialAction(
     kind: import("@/types/BlockReplacement").BlockReplacement | "gaze",
     attackerId: string,
@@ -275,56 +263,44 @@ export interface IGameService {
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
   throwInBall(from: { x: number; y: number }): void;
-  /** Free move into the vacated square after a push (no cost, no dice) */
+
   followUpPush(
     attackerId: string,
     targetSquare: { x: number; y: number }
   ): void | Promise<void>;
   triggerTurnover(reason: string): void;
-  /** True after a turnover is latched, until the next turn begins. */
+
   isTurnoverInProgress(): boolean;
 
-  /**
-   * A coach is ready for the opening weather roll; the weather is rolled
-   * once both are. False outside the opening or once it is rolled.
-   */
   readyForWeather(teamId: string): boolean;
-  /** Leave the opening introductions for the coin toss. */
+
   beginCoinFlip(): void;
 
-  // Scoring / end of drive
   checkForTouchdown(playerId: string): boolean;
   endDrive(reason: "touchdown" | "halftime", next: NextHalf): void;
   resetDriveState(): void;
-  /**
-   * Roll KO recovery one player at a time. `beat` paces the sequence between
-   * players; the promise resolves once every roll has been applied.
-   */
+
   rollKORecovery(beat?: () => Promise<void>): Promise<void>;
   canCoinFlip(): boolean;
-  /** The pre-match toss on the seeded RNG: team 1 is heads. Returns the winner's id. */
+
   tossCoin(): string;
 
-  // State Queries & Helpers
   getPlayerById(playerId: string): Player | undefined;
   getPlayerAt(x: number, y: number): Player | undefined;
   getOpponents(teamId: string): Player[];
-  /** On-pitch team-mates of a player (any status), excluding the player. */
+
   getTeammates(playerId: string): Player[];
   getTeam(teamId: string): Team | undefined;
-  /** Both teams in `team1`, `team2` order — the order snapshots use. */
+
   getTeams(): [Team, Team];
   getMovementUsed(playerId: string): number;
-  /**
-   * End or continue a blocker's activation once the block resolved. A plain
-   * Block ends it; a Blitz block keeps the player active while MA+rush remains.
-   */
+
   finishBlockActivation(playerId: string): void;
-  /** End a stabber's activation; Hit and Run may take a free square first. */
+
   finishStabActivation(playerId: string): Promise<void>;
-  /** Charge a Blitz block's square of movement (Rush if needed). */
+
   chargeBlitzBlockSquare(attackerId: string): Promise<boolean>;
-  /** The single block a Blitz allows has been spent this activation. */
+
   hasUsedBlitzBlock(playerId: string): boolean;
   getAvailableMovements(
     playerId: string

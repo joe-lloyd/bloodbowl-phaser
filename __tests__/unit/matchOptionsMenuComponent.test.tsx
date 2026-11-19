@@ -1,16 +1,10 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MatchOptionsMenu } from "../../src/ui/components/hud/MatchOptionsMenu";
-import { MatchOptionsMenuEntry } from "../../src/ui/components/hud/computeMatchOptionsMenu";
+import { type MatchOptionsMenuEntry } from "../../src/ui/components/hud/computeMatchOptionsMenu";
 
-/**
- * Behavioral coverage for the accessible menu shell itself (disclosure,
- * focus management, keyboard operation, the destructive confirm step).
- * computeMatchOptionsMenu.test.ts covers which entries appear in which
- * context; this file covers what the menu does with whatever entries it's
- * given.
- */
 describe("MatchOptionsMenu", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -22,13 +16,15 @@ describe("MatchOptionsMenu", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.restoreAllMocks();
   });
 
   const trigger = () =>
-    container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+    fixtureValue(container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]'));
 
   const menu = () => container.querySelector('[role="menu"]');
 
@@ -56,10 +52,6 @@ describe("MatchOptionsMenu", () => {
     { id: "save-and-exit", label: "Save & Exit" },
   ];
 
-  // A panel entry (see openspec/changes/overhaul-sound-system) hosts an
-  // inline interactive control — here, a plain checkbox, so these tests
-  // stay about the menu shell's generic panel handling rather than
-  // coupling to what SoundToggle specifically renders.
   const WITH_PANEL: MatchOptionsMenuEntry[] = [
     { id: "return-to-menu", label: "Return to Main Menu" },
     {
@@ -105,7 +97,7 @@ describe("MatchOptionsMenu", () => {
     expect(menu()).not.toBeNull();
 
     await act(async () => {
-      menu()!.dispatchEvent(
+      fixtureValue(menu()).dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
       );
     });
@@ -128,16 +120,15 @@ describe("MatchOptionsMenu", () => {
     const items = [
       ...container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
     ];
-    // The disabled connection-status row is first in the list but not
-    // focusable — focus should start on "Save & Exit" instead.
+
     expect(document.activeElement).toBe(items[1]);
 
     await act(async () => {
-      menu()!.dispatchEvent(
+      fixtureValue(menu()).dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
       );
     });
-    // Only one enabled item exists, so ArrowDown wraps back to itself.
+
     expect(document.activeElement).toBe(items[1]);
   });
 
@@ -150,9 +141,7 @@ describe("MatchOptionsMenu", () => {
       trigger().click();
     });
     await act(async () => {
-      container
-        .querySelector<HTMLButtonElement>('[role="menuitem"]')!
-        .click();
+      fixtureValue(container.querySelector<HTMLButtonElement>('[role="menuitem"]')).click();
     });
 
     expect(onSelect).toHaveBeenCalledTimes(1);
@@ -170,9 +159,9 @@ describe("MatchOptionsMenu", () => {
     await act(async () => {
       trigger().click();
     });
-    const disabledButton = [
+    const disabledButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent?.includes("Skrag is connected"))!;
+    ].find((b) => b.textContent?.includes("Skrag is connected")));
     expect(disabledButton.disabled).toBe(true);
 
     await act(async () => {
@@ -191,32 +180,29 @@ describe("MatchOptionsMenu", () => {
     await act(async () => {
       trigger().click();
     });
-    const abandonButton = [
+    const abandonButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-    ].find((b) => b.textContent?.includes("Abandon Match"))!;
+    ].find((b) => b.textContent?.includes("Abandon Match")));
 
     await act(async () => {
       abandonButton.click();
     });
 
-    // Confirm step replaces the list; nothing fired yet.
     expect(onSelect).not.toHaveBeenCalled();
     const dialog = container.querySelector('[role="alertdialog"]');
     expect(dialog).not.toBeNull();
-    expect(dialog!.textContent).toContain("Abandon this match?");
+    expect(fixtureValue(dialog).textContent).toContain("Abandon this match?");
 
-    // Focus defaults to the SAFE option, guarding against an accidental
-    // Enter/Space committing the destructive action.
-    const cancelButton = [
+    const cancelButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent === "Keep Playing")!;
+    ].find((b) => b.textContent === "Keep Playing"));
     expect(document.activeElement).toBe(cancelButton);
 
     await act(async () => {
       cancelButton.click();
     });
     expect(onSelect).not.toHaveBeenCalled();
-    // Cancelling returns to the plain menu list, still open.
+
     expect(container.querySelector('[role="alertdialog"]')).toBeNull();
     expect(menu()).not.toBeNull();
   });
@@ -231,15 +217,15 @@ describe("MatchOptionsMenu", () => {
     await act(async () => {
       trigger().click();
     });
-    const abandonButton = [
+    const abandonButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-    ].find((b) => b.textContent?.includes("Abandon Match"))!;
+    ].find((b) => b.textContent?.includes("Abandon Match")));
     await act(async () => {
       abandonButton.click();
     });
-    const confirmButton = [
+    const confirmButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent === "Abandon Match")!;
+    ].find((b) => b.textContent === "Abandon Match"));
 
     await act(async () => {
       confirmButton.click();
@@ -261,7 +247,6 @@ describe("MatchOptionsMenu", () => {
     expect(menu()).not.toBeNull();
 
     await act(async () => {
-      // A finger on the board sends no mousedown, only the pointer event
       document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     });
 
@@ -285,13 +270,11 @@ describe("MatchOptionsMenu", () => {
         'input[aria-label="Test panel control"]'
       );
       expect(control).not.toBeNull();
-      // It's an inline control, not a selectable action row.
-      expect(control!.closest('[role="menuitem"]')).toBeNull();
 
-      // Interacting with it never routes through onSelect — the panel
-      // manages its own state/behavior entirely.
+      expect(fixtureValue(control).closest('[role="menuitem"]')).toBeNull();
+
       await act(async () => {
-        control!.click();
+        fixtureValue(control).click();
       });
       expect(onSelect).not.toHaveBeenCalled();
     });
@@ -307,14 +290,12 @@ describe("MatchOptionsMenu", () => {
         trigger().click();
       });
 
-      // Opening focuses the first action row.
-      const actionItem = container.querySelector<HTMLButtonElement>(
-        '[role="menuitem"]'
-      )!;
+      const actionItem =
+        fixtureValue(container.querySelector<HTMLButtonElement>('[role="menuitem"]'));
       expect(document.activeElement).toBe(actionItem);
 
       await act(async () => {
-        menu()!.dispatchEvent(
+        fixtureValue(menu()).dispatchEvent(
           new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
         );
       });
@@ -336,25 +317,21 @@ describe("MatchOptionsMenu", () => {
         trigger().click();
       });
 
-      const control = container.querySelector<HTMLInputElement>(
+      const control = fixtureValue(container.querySelector<HTMLInputElement>(
         'input[aria-label="Test panel control"]'
-      )!;
-      // The panel's control is the last focusable element in the menu —
-      // Tab from here would normally leave the menu (and the document, in
-      // this single-menu test tree) entirely without a trap.
+      ));
+
       control.focus();
       expect(document.activeElement).toBe(control);
 
       await act(async () => {
-        menu()!.dispatchEvent(
+        fixtureValue(menu()).dispatchEvent(
           new KeyboardEvent("keydown", { key: "Tab", bubbles: true })
         );
       });
 
-      // Wrapped back to the first focusable element instead of escaping.
-      const actionItem = container.querySelector<HTMLButtonElement>(
-        '[role="menuitem"]'
-      );
+      const actionItem =
+        container.querySelector<HTMLButtonElement>('[role="menuitem"]');
       expect(document.activeElement).toBe(actionItem);
       expect(menu()).not.toBeNull();
     });
@@ -370,13 +347,12 @@ describe("MatchOptionsMenu", () => {
         trigger().click();
       });
 
-      const actionItem = container.querySelector<HTMLButtonElement>(
-        '[role="menuitem"]'
-      )!;
+      const actionItem =
+        fixtureValue(container.querySelector<HTMLButtonElement>('[role="menuitem"]'));
       expect(document.activeElement).toBe(actionItem);
 
       await act(async () => {
-        menu()!.dispatchEvent(
+        fixtureValue(menu()).dispatchEvent(
           new KeyboardEvent("keydown", {
             key: "Tab",
             shiftKey: true,

@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { IEventBus } from "../../../services/EventBus";
-import { GameEventNames, UIEvents } from "../../../types/events";
+import { type IEventBus } from "../../../services/EventBus";
+import { GameEventNames, type UIEvents } from "../../../types/events";
 import { useEventBus } from "../../hooks/useEventBus";
 
 const ROUTE_ROLL_NAMES: Record<
   NonNullable<
-    UIEvents[GameEventNames.UI_RoutePreview]
+    UIEvents[typeof GameEventNames.UI_RoutePreview]
   >["rolls"][number]["type"],
   string
 > = {
@@ -17,7 +17,7 @@ const ROUTE_ROLL_NAMES: Record<
 
 export function RouteSummary({ eventBus }: { eventBus: IEventBus }) {
   const [route, setRoute] =
-    useState<UIEvents[GameEventNames.UI_RoutePreview]>(null);
+    useState<UIEvents[typeof GameEventNames.UI_RoutePreview]>(null);
   useEventBus(eventBus, GameEventNames.UI_RoutePreview, setRoute);
   if (!route) return null;
   return (
@@ -35,7 +35,10 @@ export function RouteSummary({ eventBus }: { eventBus: IEventBus }) {
           className="mt-1 flex flex-wrap gap-x-2 gap-y-1"
         >
           {route.rolls.map((roll, i) => (
-            <span key={i} title={`Square ${roll.square.x}, ${roll.square.y}`}>
+            <span
+              key={i}
+              title={`Square ${String(roll.square.x)}, ${String(roll.square.y)}`}
+            >
               {ROUTE_ROLL_NAMES[roll.type]} {roll.target}+
             </span>
           ))}
@@ -52,7 +55,7 @@ export function RouteSummary({ eventBus }: { eventBus: IEventBus }) {
 
 export function TargetRollPreview({ eventBus }: { eventBus: IEventBus }) {
   const [preview, setPreview] =
-    useState<UIEvents[GameEventNames.UI_TargetRollPreview]>(null);
+    useState<UIEvents[typeof GameEventNames.UI_TargetRollPreview]>(null);
   useEventBus(eventBus, GameEventNames.UI_TargetRollPreview, setPreview);
   if (!preview) return null;
   return (
@@ -60,10 +63,8 @@ export function TargetRollPreview({ eventBus }: { eventBus: IEventBus }) {
       data-testid="target-roll-preview"
       className="pointer-events-none absolute z-40 w-[232px] rounded-hud border border-hud-gold/50 bg-hud-ink/95 p-2 font-hud-body text-hud-xs leading-snug text-hud-bone shadow-hud-panel"
       style={{
-        // Sit beside the target on the side nearer the pitch centre, and
-        // stay clear of the side panels.
-        left: `clamp(312px, ${preview.anchor.x * 100}% ${preview.anchor.x > 0.5 ? "- 280px" : "+ 48px"}, calc(100% - 548px))`,
-        top: `clamp(100px, ${preview.anchor.y * 100}% + 22px, calc(100% - 220px))`,
+        left: `clamp(312px, ${String(preview.anchor.x * 100)}% ${preview.anchor.x > 0.5 ? "- 280px" : "+ 48px"}, calc(100% - 548px))`,
+        top: `clamp(100px, ${String(preview.anchor.y * 100)}% + 22px, calc(100% - 220px))`,
       }}
     >
       {preview.lines.map((line, i) => (

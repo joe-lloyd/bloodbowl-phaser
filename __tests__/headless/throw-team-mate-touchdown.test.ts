@@ -1,15 +1,11 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import type { CommandResponse } from "../../src/headless/protocol";
 
-/**
- * A thrown player holding the ball who lands Standing in the End Zone they
- * score in scores a Touchdown, the same as a ball-carrier who moves there.
- * Team 1 scores at x = 19. Seeds are committed, never searched.
- */
 function scenario(ball = { x: 16, y: 5 }): Scenario {
   return {
     id: "ttm-touchdown",
@@ -35,11 +31,10 @@ function scenario(ball = { x: 16, y: 5 }): Scenario {
   };
 }
 
-/** A Bullseye Superb Throw, then a passed Landing, onto the aim square. */
 const LANDS_ON_TARGET_SEED = 1;
-/** Aimed at x = 18: lands Standing there. */
+
 const LANDS_SHORT_SEED = 5;
-/** Aimed at x = 18: scatters into the end zone and lands Prone. */
+
 const FALLS_IN_END_ZONE_SEED = 12;
 
 async function throwCarrier(
@@ -48,8 +43,8 @@ async function throwCarrier(
   ball?: { x: number; y: number }
 ) {
   const game = new HeadlessGame({ scenario: scenario(ball), seed });
-  const throwerId = game.ctx.team1.players[0].id;
-  const teammateId = game.ctx.team1.players[1].id;
+  const throwerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const teammateId = fixtureValue(game.ctx.team1.players[1]).id;
   await game.execute({
     type: "declare-action",
     playerId: throwerId,
@@ -78,21 +73,26 @@ describe("Throw Team-mate touchdown", () => {
   it("does not score short of the end zone", async () => {
     const snapshot = await throwCarrier(18, LANDS_SHORT_SEED);
 
-    expect(snapshot.teams[0].players[1].status).toBe("Active");
-    expect(snapshot.teams[0].players[1].position).toEqual({ x: 18, y: 5 });
+    expect(
+      fixtureValue(fixtureValue(snapshot.teams[0]).players[1]).status
+    ).toBe("Active");
+    expect(
+      fixtureValue(fixtureValue(snapshot.teams[0]).players[1]).position
+    ).toEqual({ x: 18, y: 5 });
     expect(snapshot.score).toEqual({ team1: 0, team2: 0 });
   });
 
   it("does not score when the carrier lands Prone in the end zone", async () => {
     const snapshot = await throwCarrier(18, FALLS_IN_END_ZONE_SEED);
 
-    expect(snapshot.teams[0].players[1].position).toEqual({ x: 19, y: 5 });
+    expect(
+      fixtureValue(fixtureValue(snapshot.teams[0]).players[1]).position
+    ).toEqual({ x: 19, y: 5 });
     expect(snapshot.score).toEqual({ team1: 0, team2: 0 });
     expect(snapshot.activeTeamId).toBe("team2");
   });
 
   it("does not score for a player without the ball who lands on it in the end zone", async () => {
-    // Landing is involuntary movement: the loose ball bounces away.
     const snapshot = await throwCarrier(19, LANDS_ON_TARGET_SEED, {
       x: 19,
       y: 5,

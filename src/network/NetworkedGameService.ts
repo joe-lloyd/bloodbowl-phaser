@@ -1,81 +1,54 @@
-/**
- * NetworkedGameService - the IGameService the board drives in an online
- * match, for both coaches.
- *
- * The entire browser UI (scene, HUD, interaction controllers) drives the
- * game through IGameService. Reads come from the local engine; every action
- * becomes an action-protocol command, which the lockstep session runs on
- * the local engine at once and sends to the other coach. Engine-flow
- * methods are no-ops: the engine runs its own flow as commands play out.
- *
- * Sync-returning mutators answer optimistically; the command's result (or
- * refusal) follows a moment later from the local engine.
- */
-
-import { IGameService } from "../services/interfaces/IGameService";
+import { type IGameService } from "../services/interfaces/IGameService";
 import { GameService } from "../services/GameService";
 import {
-  HeadlessCommand,
-  CommandResponse,
-  PendingDecision,
+  type HeadlessCommand,
+  type CommandResponse,
+  type PendingDecision,
 } from "../headless/protocol";
-import { GamePhase, GameState, SubPhase } from "../types/GameState";
-import { Player } from "../types/Player";
-import { Team } from "../types/Team";
-import { BlockResult } from "../services/BlockResolutionService";
-import { ActionType, GameEventNames } from "../types/events";
-import { BlockReplacement } from "../types/BlockReplacement";
-import { IEventBus } from "../services/EventBus";
+import { GamePhase, type GameState, SubPhase } from "../types/GameState";
+import { type Player } from "../types/Player";
+import { type Team } from "../types/Team";
+import { type BlockResult } from "../services/BlockResolutionService";
+import { GameEventNames } from "../types/events";
+import { type BlockReplacement } from "../types/BlockReplacement";
+import { type IEventBus } from "../services/EventBus";
 import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager";
 
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
 export class NetworkedGameService implements IGameService {
   readonly runsCommandsLater = true;
-  /** followUpPush + finishActivation arrive as one decision on the wire */
+
   private swallowNextFinish: string | null = null;
 
-  constructor(
-    /** Passive replica: never executes rules, only holds synced state */
-    private readonly inner: GameService,
-    private readonly dispatch: Dispatch,
-    private readonly pendingDecision: () => PendingDecision | null,
-    /** Notifies callers (GameplayInteractionController) that a command it
-     *  treated as optimistically successful was actually refused, so any
-     *  local step-machine state built on that assumption can reconcile. */
-    private readonly eventBus?: IEventBus
-  ) {}
-
-  private send(command: HeadlessCommand): void {
-    void this.run(command).catch((error: unknown) =>
-      this.reportFailure(command, error)
-    );
+  private readonly inner: GameService;
+  private readonly dispatch: Dispatch;
+  private readonly pendingDecision: () => PendingDecision | null;
+  private readonly eventBus: (IEventBus) | undefined;
+  constructor({ inner, dispatch, pendingDecision, eventBus }: { inner: GameService; dispatch: Dispatch; pendingDecision: () => PendingDecision | null; eventBus?: IEventBus }) {
+    this.inner = inner;
+    this.dispatch = dispatch;
+    this.pendingDecision = pendingDecision;
+    this.eventBus = eventBus;
   }
 
-  /**
-   * Run a command on the lockstep session and report a refusal. Mutators
-   * that answer synchronously (declareAction, cancelAction, …) already told
-   * their caller "true" before this response arrived, and an awaited one
-   * (movePlayer, …) returns nothing, so without this a refused command
-   * failed silently and the board waited on a move that never happened.
-   */
+  private send(command: HeadlessCommand): void {
+    void this.run(command).catch((error: unknown) => {
+      this.reportFailure(command, error);
+    });
+  }
+
   private async run(command: HeadlessCommand): Promise<CommandResponse> {
     const response = await this.dispatch(command);
     if (!response.ok) {
       console.warn(
-        `[Networked] host rejected ${command.type}: ${response.reason}`
+        `[Networked] host rejected ${command.type}: ${String(response.reason)}`
       );
       this.reportRejected(command, response.reason ?? "unknown");
     }
     return response;
   }
 
-  /**
-   * A command sent without waiting that could not run at all: the dispatch
-   * itself failed, so no response came back. The board was told "true" and
-   * may be waiting on the result (a dropped player stays where they were
-   * dropped until the engine answers), so it hears this as a refusal.
-   */
   private reportFailure(command: HeadlessCommand, error: unknown): void {
     console.warn(`[Networked] ${command.type} could not run:`, error);
     this.reportRejected(
@@ -85,20 +58,18 @@ export class NetworkedGameService implements IGameService {
   }
 
   private reportRejected(command: HeadlessCommand, reason: string): void {
-    const cmd = command as HeadlessCommand & {
+    const cmd: HeadlessCommand & {
       playerId?: string;
       attackerId?: string;
       action?: string;
-    };
+    } = command;
     this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
       commandType: command.type,
-      playerId: cmd.playerId ?? cmd.attackerId,
-      action: cmd.action,
+      ...((cmd.playerId ?? cmd.attackerId) === undefined ? {} : { playerId: cmd.playerId ?? cmd.attackerId }),
+      ...(cmd.action === undefined ? {} : { action: cmd.action }),
       reason,
     });
   }
-
-  // ===== Reads: answered from the replica =====
 
   getState(): GameState {
     return this.inner.getState();
@@ -167,7 +138,7 @@ export class NetworkedGameService implements IGameService {
     source?: import("../types/decisions").RerollSource
   ): boolean {
     if (this.pendingDecision()?.type !== "reroll") return false;
-    this.send({ type: "use-reroll", accept, source });
+    this.send({ type: "use-reroll", accept, ...(source === undefined ? {} : { source }) });
     return true;
   }
   answerReaction(accept: boolean): boolean {
@@ -180,12 +151,12 @@ export class NetworkedGameService implements IGameService {
     if (pending?.type !== "bite-target") return false;
     if (targetId !== undefined && !pending.targetIds.includes(targetId))
       return false;
-    this.send({ type: "choose-bite-target", playerId: targetId });
+    this.send({ type: "choose-bite-target", ...(targetId === undefined ? {} : { playerId: targetId }) });
     return true;
   }
   answerInterception(playerId?: string): boolean {
     if (this.pendingDecision()?.type !== "interception") return false;
-    this.send({ type: "choose-interception", playerId });
+    this.send({ type: "choose-interception", ...(playerId === undefined ? {} : { playerId }) });
     return true;
   }
   answerApothecary(accept: boolean): boolean {
@@ -209,14 +180,7 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "choose-foul-assists", count });
     return true;
   }
-  commitInducements(
-    _profile: import("../types/Inducements").InducementRuleProfile,
-    _budgets: Record<string, number>,
-    _inventory: import("../types/Inducements").InducementInventoryEntry[]
-  ): void {
-    // Pregame inducements are committed by the confirm-inducements command
-    // on both engines. Committing here would change this engine only.
-  }
+  commitInducements: IGameService["commitInducements"] = () => undefined;
   getInducementOffer() {
     return this.inner.getInducementOffer();
   }
@@ -283,17 +247,8 @@ export class NetworkedGameService implements IGameService {
       selectedPlayerIds: [...pending.selectedPlayerIds],
       movedPlayerIds: [...pending.movedPlayerIds],
       awaitingPlacement: [...pending.awaitingPlacement],
-      landingSquare: pending.landingSquare
-        ? { ...pending.landingSquare }
-        : undefined,
-      charge: pending.charge
-        ? {
-            queue: [...pending.charge.queue],
-            budget: { ...pending.charge.budget },
-            activePlayerId: pending.charge.activePlayerId,
-            aborted: pending.charge.aborted,
-          }
-        : undefined,
+      ...(pending.landingSquare ? { landingSquare: { ...pending.landingSquare } } : {}),
+      ...(pending.charge ? { charge: { ...pending.charge, queue: [...pending.charge.queue], budget: { ...pending.charge.budget } } } : {}),
     };
   }
   canActivate(playerId: string): boolean {
@@ -306,7 +261,6 @@ export class NetworkedGameService implements IGameService {
     return this.inner.canCoinFlip();
   }
   tossCoin(): string {
-    // Online, the host tosses over the lobby (OnlineCoinFlip)
     throw new Error("The online coin toss runs outside the engine");
   }
   getPlayerById(playerId: string): Player | undefined {
@@ -322,21 +276,11 @@ export class NetworkedGameService implements IGameService {
     return this.inner.getTeammates(playerId);
   }
   finishBlockActivation(playerId: string): void {
-    // Online Blitz continuation is not wired; end the activation as before.
     this.finishActivation(playerId);
   }
-  /**
-   * Engine-internal: the block command charges the Blitz square on both
-   * engines. Charging it here would change this coach's engine only and
-   * leave the two a square apart, so the board may not.
-   */
-  /** Engine-internal: only the Stab operation calls it, on the engine. */
-  finishStabActivation(_playerId: string): Promise<void> {
-    return Promise.resolve();
-  }
-  chargeBlitzBlockSquare(_attackerId: string): Promise<boolean> {
-    return Promise.resolve(false);
-  }
+
+  finishStabActivation: IGameService["finishStabActivation"] = () => Promise.resolve();
+  chargeBlitzBlockSquare: IGameService["chargeBlitzBlockSquare"] = () => Promise.resolve(false);
   hasUsedBlitzBlock(playerId: string): boolean {
     return this.inner.hasUsedBlitzBlock(playerId);
   }
@@ -368,16 +312,12 @@ export class NetworkedGameService implements IGameService {
   getAvailableMovements(playerId: string) {
     return this.inner.getAvailableMovements(playerId);
   }
-  /** Local preview only — no dice, no state change */
+
   previewBlock(attackerId: string, defenderId: string): void {
     this.inner.previewBlock(attackerId, defenderId);
   }
 
-  // ===== Mutations: become protocol commands =====
-
   startSetup(startingTeamId?: string): void {
-    // Only the opening toss starts setup from the board; later drives start
-    // inside the engine.
     if (startingTeamId) {
       this.send({ type: "start-setup", kickingTeamId: startingTeamId });
     }
@@ -401,7 +341,6 @@ export class NetworkedGameService implements IGameService {
     teamId: string,
     formation: import("../types/SetupTypes").FormationPosition[]
   ): import("../types/SetupTypes").SetupFormationResult {
-    // The command places them on the local engine a moment later
     const team = this.inner.getTeam(teamId);
     const placedPlayerIds: string[] = [];
     formation.slice(0, 7).forEach((position, index) => {
@@ -432,11 +371,7 @@ export class NetworkedGameService implements IGameService {
   selectKicker(playerId: string): void {
     this.send({ type: "select-kicker", playerId });
   }
-  async kickBall(
-    _isTeam1Kicking: boolean,
-    playerId: string,
-    targetX: number,
-    targetY: number
+  async kickBall({ playerId, targetX, targetY }: Parameters<IGameService["kickBall"]>[0]
   ): Promise<void> {
     await this.run({
       type: "kick-ball",
@@ -449,24 +384,22 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "touchback", playerId });
     return true;
   }
-  /**
-   * The kick-off step as it stood when a command for it went out. The
-   * decision it is read from is away while the command runs, and the step
-   * has not ended, so the board keeps showing it until the result is in.
-   */
+
   private kickoffStepInFlight: KickoffEventStepState | null = null;
-  /** A square clicked before the pick landed queues a second command. */
+
   private kickoffCommandsInFlight = 0;
 
   private sendKickoffStep(command: HeadlessCommand): boolean {
     this.kickoffStepInFlight = this.getKickoffEventStep();
     this.kickoffCommandsInFlight++;
     void this.run(command)
-      .catch((error: unknown) => this.reportFailure(command, error))
+      .catch((error: unknown) => {
+        this.reportFailure(command, error);
+      })
       .finally(() => {
         if (--this.kickoffCommandsInFlight === 0)
           this.kickoffStepInFlight = null;
-        this.eventBus?.emit(GameEventNames.KickoffEventStepChanged);
+        this.eventBus?.emit(GameEventNames.KickoffEventStepChanged, undefined);
       });
     return true;
   }
@@ -495,17 +428,13 @@ export class NetworkedGameService implements IGameService {
   skipKickoffEventStep(): boolean {
     return this.sendKickoffStep({ type: "kickoff-skip" });
   }
-  declareAction(
-    playerId: string,
-    action: ActionType,
-    blockReplacement?: BlockReplacement,
-    options: { razzleDazzle?: boolean } = {}
+  declareAction({ playerId, action, blockReplacement, options = {} }: Parameters<IGameService["declareAction"]>[0]
   ): boolean {
     this.send({
       type: "declare-action",
       playerId,
       action,
-      blockReplacement,
+      ...(blockReplacement === undefined ? {} : { blockReplacement }),
       ...(options.razzleDazzle ? { razzleDazzle: true } : {}),
     });
     return true;
@@ -514,8 +443,8 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "cancel-action", playerId });
     return true;
   }
-  /** Engine-internal (fired from Operations, which only ever run host-side). */
-  commitAction(_playerId: string): void {}
+
+  commitAction: IGameService["commitAction"] = () => undefined;
   async movePlayer(
     playerId: string,
     path: { x: number; y: number }[]
@@ -543,13 +472,8 @@ export class NetworkedGameService implements IGameService {
   async standUp(playerId: string): Promise<void> {
     await this.run({ type: "stand-up", playerId });
   }
-  rollBlockDice(
-    attackerId: string,
-    defenderId: string,
-    _numDice: number,
-    _isAttackerChoice: boolean
+  rollBlockDice({ attackerId, defenderId }: Parameters<IGameService["rollBlockDice"]>[0]
   ): void {
-    // The host recomputes dice count and choice from the board
     this.send({ type: "block", attackerId, defenderId });
   }
   async multipleBlock(
@@ -577,12 +501,7 @@ export class NetworkedGameService implements IGameService {
     );
     this.send({ type: "choose-block-result", index: Math.max(0, index) });
   }
-  executePush(
-    _attackerId: string,
-    _defenderId: string,
-    direction: { x: number; y: number },
-    _resultType: string,
-    _followUp: boolean
+  executePush({ direction }: Parameters<IGameService["executePush"]>[0]
   ): void {
     this.send({
       type: "choose-push-direction",
@@ -590,31 +509,22 @@ export class NetworkedGameService implements IGameService {
       y: direction.y,
     });
   }
-  followUpPush(
-    attackerId: string,
-    _targetSquare: { x: number; y: number }
-  ): void {
-    // On the wire, follow-up choice + activation end are one command
+  followUpPush: IGameService["followUpPush"] = (attackerId) => {
     this.swallowNextFinish = attackerId;
     this.send({ type: "choose-follow-up", followUp: true });
-  }
+  };
   finishActivation(playerId: string): void {
     if (this.swallowNextFinish === playerId) {
       this.swallowNextFinish = null;
       return;
     }
     if (this.pendingDecision()?.type === "follow-up") {
-      // Declining the follow-up ends the activation host-side
       this.send({ type: "choose-follow-up", followUp: false });
       return;
     }
     this.send({ type: "end-activation", playerId });
   }
-  async throwBall(
-    passerId: string,
-    targetX: number,
-    targetY: number,
-    hailMary = false
+  async throwBall({ passerId, targetX, targetY, hailMary = false }: Parameters<IGameService["throwBall"]>[0]
   ): Promise<{ success: boolean; result?: string }> {
     const response = await this.run({
       type: "pass",
@@ -623,7 +533,7 @@ export class NetworkedGameService implements IGameService {
       y: targetY,
       ...(hailMary ? { hailMary } : {}),
     });
-    return { success: response.ok, result: response.reason };
+    return { success: response.ok, ...(response.reason === undefined ? {} : { result: response.reason }) };
   }
   async handOffBall(
     passerId: string,
@@ -634,7 +544,7 @@ export class NetworkedGameService implements IGameService {
       playerId: passerId,
       targetId: targetPlayerId,
     });
-    return { success: response.ok, result: response.reason };
+    return { success: response.ok, ...(response.reason === undefined ? {} : { result: response.reason }) };
   }
   async puntBall(
     playerId: string,
@@ -656,13 +566,7 @@ export class NetworkedGameService implements IGameService {
     });
     return response.ok;
   }
-  async throwTeammate(
-    throwerId: string,
-    teammateId: string,
-    x: number,
-    y: number,
-    mode?: "throw" | "kick",
-    swoopFacing?: import("../game/rules/throwTeammate").SwoopFacing
+  async throwTeammate({ throwerId, teammateId, x, y, mode, swoopFacing }: Parameters<IGameService["throwTeammate"]>[0]
   ): Promise<void> {
     await this.run({
       type: "throw-teammate",
@@ -671,7 +575,7 @@ export class NetworkedGameService implements IGameService {
       x,
       y,
       ...(swoopFacing ? { swoopFacing } : {}),
-      mode,
+      ...(mode === undefined ? {} : { mode }),
     });
   }
   async performSpecialAction(
@@ -726,28 +630,26 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "end-turn" });
   }
 
-  // ===== Engine flow: the host drives these; results arrive as broadcasts =====
-
-  startKickoff(): void {}
-  rollKickoff(): void {}
+  startKickoff: IGameService["startKickoff"] = () => undefined;
+  rollKickoff: IGameService["rollKickoff"] = () => undefined;
   readyForWeather(teamId: string): boolean {
     this.send({ type: "ready-weather", teamId });
     return true;
   }
-  beginCoinFlip(): void {} // the online toss runs outside the engine
-  startGame(_kickingTeamId: string): void {}
-  startTurn(_teamId: string): void {}
-  triggerTurnover(_reason: string): void {}
-  /** Engine-internal: the host's lurch resolves its own collisions. */
-  async ballAndChainCollision(): Promise<void> {}
-  endDrive(): void {}
-  resetDriveState(): void {}
-  async rollKORecovery(): Promise<void> {}
-  throwInBall(): void {}
+  beginCoinFlip: IGameService["beginCoinFlip"] = () => undefined;
+  startGame: IGameService["startGame"] = () => undefined;
+  startTurn: IGameService["startTurn"] = () => undefined;
+  triggerTurnover: IGameService["triggerTurnover"] = () => undefined;
+
+  ballAndChainCollision: IGameService["ballAndChainCollision"] = () => Promise.resolve();
+  endDrive: IGameService["endDrive"] = () => undefined;
+  resetDriveState: IGameService["resetDriveState"] = () => undefined;
+  rollKORecovery: IGameService["rollKORecovery"] = () => Promise.resolve();
+  throwInBall: IGameService["throwInBall"] = () => undefined;
   kickoffBounceTouchback(): boolean {
     return false;
   }
-  setBallPosition(): void {}
+  setBallPosition: IGameService["setBallPosition"] = () => undefined;
   attemptPickup(): boolean {
     return false;
   }

@@ -1,49 +1,25 @@
+import { stepPromptLine } from "./otherCoachText";
 import { useState } from "react";
-import { IEventBus } from "../../../services/EventBus";
+import { type IEventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { GameEventNames, StepPrompt } from "../../../types/events";
+import { GameEventNames, type StepPrompt } from "../../../types/events";
 import { useEventBus } from "../../hooks/useEventBus";
 import { Panel } from "../componentWarehouse/HudKit";
 
-const ROLL_NAMES: Record<StepPrompt["rolls"][number]["type"], string> = {
-  dodge: "Dodge",
-  rush: "Rush",
-  pickup: "Pick up",
-  secureBall: "Secure the Ball",
-  pass: "Pass",
-  catch: "Catch",
-  armour: "Foul armour",
-};
-
-/** "Orc Founders: Rush 2+", or both rolls of a Rush and Dodge. */
-export function stepPromptLine(teamName: string, prompt: StepPrompt): string {
-  const rolls = prompt.rolls
-    .map((roll) => `${ROLL_NAMES[roll.type]} ${roll.target}+`)
-    .join(", then ");
-  return `${teamName}: ${rolls}`;
-}
-
-/**
- * Online, on the waiting coach's screen: the Dodge, Rush or Pick up prompt
- * the other coach has open, read-only, in the decision dock. Block and
- * re-roll decisions already show there from the engine's pending decision;
- * a step prompt opens before its command is sent, so it arrives on its own
- * cosmetic message instead.
- */
 export function OtherCoachPrompt({ eventBus }: { eventBus: IEventBus }) {
   const [prompt, setPrompt] = useState<StepPrompt | null>(null);
-  const clear = () => setPrompt(null);
+  const clear = () => {
+    setPrompt(null);
+  };
   useEventBus(eventBus, GameEventNames.RemotePromptChanged, setPrompt);
   useEventBus(eventBus, GameEventNames.TurnStarted, clear);
   useEventBus(eventBus, GameEventNames.TurnEnded, clear);
   useEventBus(eventBus, GameEventNames.GameStateRestored, clear);
-  // The roll has resolved here: a re-roll choice takes the dock, or the
-  // move it asked about has run. Either way the line is out of date, even
-  // if the other coach's "answered" message is late or lost.
+
   useEventBus(eventBus, GameEventNames.DecisionRequested, clear);
-  useEventBus(eventBus, GameEventNames.UI_OtherCoachMoveResolved, (moved) =>
-    setPrompt((open) => (open?.playerId === moved.playerId ? null : open))
-  );
+  useEventBus(eventBus, GameEventNames.UI_OtherCoachMoveResolved, (moved) => {
+    setPrompt((open) => (open?.playerId === moved.playerId ? null : open));
+  });
 
   if (!prompt || !ServiceContainer.isInitialized()) return null;
   const game = ServiceContainer.getInstance().gameService;

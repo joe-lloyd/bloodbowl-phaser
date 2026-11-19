@@ -1,24 +1,4 @@
-/**
- * Player lifecycle fixtures: deterministic rookies, SPP-earners,
- * multi-advancement veterans, injured players, and one advancement-capped
- * Legend — all progressed through the normal progression services
- * (applyAdvancement), so SPP spending, value increases, and skill legality
- * are enforced by the same code user flows use.
- *
- * Career statistics are synthesized canonically from the player's earned
- * SPP (MVP 4, TD 3, casualty/interception 2, completion 1), so the stored
- * stat lines always reproduce the stored progression totals:
- *   careerStats.sppEarned === unspentSpp + Σ advancement sppCost
- *
- * Also decorates one seeded Matched Play team with a Skill Point purchase
- * and one seeded Sevens Skill Selection team with a pending
- * post-game award, so those two advancement modes (which never earn SPP —
- * team-advancement-modes: "Advanced League alone uses standard SPP
- * progression") have real in-progress state to test, not just their mode
- * label (see decorateModeDemos below).
- */
-
-import { RosterName, Team, calculateTeamValue } from "../types/Team";
+import { RosterName, type Team, calculateTeamValue } from "../types/Team";
 import {
   ASSISTANT_COACH_COST,
   CHEERLEADER_COST,
@@ -26,13 +6,13 @@ import {
 } from "../game/rules/sevensPrices";
 import {
   InjuryType,
-  Player,
-  PlayerCareerStats,
-  PlayerStats,
+  type Player,
+  type PlayerCareerStats,
+  type PlayerStats,
   PositionKeyWord,
 } from "../types/Player";
 import {
-  AdvancementChoice,
+  type AdvancementChoice,
   applyAdvancement,
   eligibleSkills,
 } from "../game/progression/progression";
@@ -43,10 +23,9 @@ import {
 } from "../game/progression/advancementModes";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 
-/** Pick a skill by index from the player's currently eligible list. */
 interface SkillPick {
   access: "primary" | "secondary";
-  /** Index into eligibleSkills(player, categories) at application time. */
+
   index: number;
 }
 
@@ -54,26 +33,23 @@ interface CharacteristicPick {
   stat: keyof PlayerStats;
 }
 
-export interface PlayerDecorationPlan {
-  /** Decorate the first rostered player carrying this positional keyword. */
+interface PlayerDecorationPlan {
   keyword: PositionKeyWord;
   matches: number;
-  /** SPP left unspent after advancements (default 0). */
+
   unspentSpp?: number;
   advancements?: (SkillPick | CharacteristicPick)[];
   injuries?: InjuryType[];
 }
 
-export interface TeamDecorationPlan {
+interface TeamDecorationPlan {
   rosterName: RosterName;
-  /** Optional staff/fan purchases (10k each, debited from the treasury). */
+
   staff?: { coaches?: number; cheerleaders?: number; dedicatedFans?: number };
   players: PlayerDecorationPlan[];
 }
 
-function isSkillPick(
-  pick: SkillPick | CharacteristicPick
-): pick is SkillPick {
+function isSkillPick(pick: SkillPick | CharacteristicPick): pick is SkillPick {
   return (pick as SkillPick).access !== undefined;
 }
 
@@ -82,16 +58,15 @@ function toAdvancementChoice(
   pick: SkillPick | CharacteristicPick
 ): AdvancementChoice {
   if (!isSkillPick(pick)) {
-    // A D8 roll of 8 offers every characteristic (subject to the per-stat
-    // caps), so the choice is always present unless the stat is maxed.
     return { kind: "characteristic", roll: 8, stat: pick.stat };
   }
-  const categories = pick.access === "primary" ? player.primary : player.secondary;
+  const categories =
+    pick.access === "primary" ? player.primary : player.secondary;
   const eligible = eligibleSkills(player, categories ?? []);
   const skill = eligible[pick.index];
   if (!skill) {
     throw new Error(
-      `decoration: no eligible ${pick.access} skill at index ${pick.index} ` +
+      `decoration: no eligible ${pick.access} skill at index ${String(pick.index)} ` +
         `for ${player.positionName}`
     );
   }
@@ -101,7 +76,6 @@ function toAdvancementChoice(
   };
 }
 
-/** Canonical career line whose SPP table value reproduces `sppEarned`. */
 export function careerStatsFor(
   sppEarned: number,
   matches: number
@@ -113,7 +87,7 @@ export function careerStatsFor(
   remaining -= touchdowns * 3;
   const casualties = Math.floor(remaining / 2);
   remaining -= casualties * 2;
-  const completions = remaining; // 1 SPP each
+  const completions = remaining;
   return {
     matches,
     completions,
@@ -121,8 +95,7 @@ export function careerStatsFor(
     casualties,
     touchdowns,
     mvps,
-    // Informational-only counters carry no SPP; seed fixtures pick
-    // plausible values that need not reconcile against sppEarned.
+
     kills: 0,
     squaresMoved: 0,
     passesAttempted: completions,
@@ -138,9 +111,6 @@ const STAT_DECREASE_INJURIES: Partial<Record<InjuryType, keyof PlayerStats>> = {
 };
 
 function decoratePlayer(player: Player, plan: PlayerDecorationPlan): void {
-  // Advancements run through the normal progression service with a
-  // temporary SPP surplus; spending is measured, then the fixture's
-  // intended unspent balance is stored.
   const surplus = 1_000;
   player.spp = surplus;
   for (const pick of plan.advancements ?? []) {
@@ -154,7 +124,6 @@ function decoratePlayer(player: Player, plan: PlayerDecorationPlan): void {
     player.injuries.push(injury);
     const stat = STAT_DECREASE_INJURIES[injury];
     if (stat) {
-      // AG/PA are inverted scales: "worse" is the higher number.
       const direction = stat === "AG" || stat === "PA" ? 1 : -1;
       player.stats[stat] += direction;
     }
@@ -166,12 +135,7 @@ function decoratePlayer(player: Player, plan: PlayerDecorationPlan): void {
   }
 }
 
-/**
- * The lifecycle catalog: rookies everywhere else; here a capped Legend
- * (Orc Blitzer), a multi-advancement Thrower, an SPP-earning Catcher, an
- * injured Lineman, and a stat-decreased Runner.
- */
-export const TEAM_DECORATIONS: TeamDecorationPlan[] = [
+const TEAM_DECORATIONS: TeamDecorationPlan[] = [
   {
     rosterName: RosterName.HUMAN,
     staff: { coaches: 1, cheerleaders: 1, dedicatedFans: 1 },
@@ -245,26 +209,15 @@ export const TEAM_DECORATIONS: TeamDecorationPlan[] = [
   },
 ];
 
-/** Match count backing the Matched Play demo recipient's zero-SPP career
- *  line — just enough to be a plausible "played a few games" history. */
 const MATCHED_PLAY_DEMO_MATCHES = 3;
 
-/**
- * Give one player on a seeded Matched Play team a Primary skill bought with
- * a Skill Point, so the Matched Play
- * panel (`AdvancementModePanel.tsx`) shows both an already-taken skill and
- * a live "allocate another" form on a clean seed refresh — not just the
- * mode label. Matched Play never earns SPP, so the recipient also gets a
- * zero-SPP `careerStats` line (via the same `careerStatsFor` helper used
- * elsewhere in this module) so the seed validator's SPP-reconciliation
- * check still holds for this non-SPP-sourced advancement.
- */
 function decorateMatchedPlayDemo(team: Team): void {
   const recipient = team.players.find(
     (player) => (player.primary ?? []).length > 0
   );
   if (!recipient) return;
-  const category = recipient.primary![0];
+  const [category] = recipient.primary ?? [];
+  if (!category) return;
   const skill = eligibleSkills(recipient, [category])[0];
   if (!skill) return;
 
@@ -274,25 +227,12 @@ function decorateMatchedPlayDemo(team: Team): void {
   team.teamValue = calculateTeamValue(team);
 }
 
-/**
- * Give a seeded Sevens Skill Selection team a pending post-game award — the
- * actual testable unit for that mode (`PendingDevelopmentPanel.tsx`'s
- * `SkillSelectionEntry`, rendered directly on the Team Management overview
- * card). Built through the same `createPendingSkillSelection` helper the
- * real post-match flow uses, with a synthetic match id, so it can't drift
- * from the real shape.
- */
 function decorateSkillSelectionDemo(team: Team): void {
   const eligible = eligibleSkillSelectionPlayers(team);
   if (eligible.length === 0) return;
   createPendingSkillSelection(team, "seed-demo-match", eligible);
 }
 
-/**
- * Apply the decoration plans to the built seed teams (mutates in place).
- * Staff purchases are debited from the treasury at the standard 10k price;
- * team value and career touchdown/casualty totals are re-derived last.
- */
 export function decorateSeedTeams(teams: Team[]): void {
   const byRoster = new Map(teams.map((team) => [team.rosterName, team]));
 
@@ -303,7 +243,8 @@ export function decorateSeedTeams(teams: Team[]): void {
     for (const playerPlan of plan.players) {
       const player = team.players.find(
         (candidate) =>
-          candidate.keywords.includes(playerPlan.keyword) && !candidate.careerStats
+          candidate.keywords.includes(playerPlan.keyword) &&
+          !candidate.careerStats
       );
       if (!player) {
         throw new Error(
@@ -337,10 +278,6 @@ export function decorateSeedTeams(teams: Team[]): void {
     );
   }
 
-  // Give the other two advancement modes real in-progress state too, not
-  // just their mode label. Picking the first built team already assigned
-  // to each mode (rather than re-deriving from teamFixtures.ts's cycle)
-  // keeps this decoupled from that cycling logic.
   const matchedPlayTeam = teams.find(
     (team) => team.advancementMode === "matched-play"
   );

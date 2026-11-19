@@ -11,7 +11,9 @@ import {
 } from "../../../src/game/core/GameFlowManager";
 
 describe("moment queue through the event bus", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("plays turnover, casualty and turn banners one at a time after their dice", async () => {
     vi.useFakeTimers();
@@ -50,8 +52,7 @@ describe("moment queue through the event bus", () => {
       thrown: 1,
       landedThrough: 1,
     });
-    // The landed die shows its result for a short beat before the turnover
-    // covers it: the next coach waits on that banner.
+
     await vi.advanceTimersByTimeAsync(299);
     expect(shown).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
@@ -72,14 +73,13 @@ describe("moment queue through the event bus", () => {
     bus.on(GameEventNames.UI_PresentMoment, (moment) => {
       if (moment) shown.push(moment.kind);
     });
-    const announceKickoff = () =>
+    const announceKickoff = () => {
       bus.emit(GameEventNames.UI_Announce, {
         kind: "kickoff-result",
         headline: "Time-out",
       });
+    };
 
-    // An online page catching up: the engine and lockstep do not wait for
-    // the 4.6 s kick-off banner, though the banner still plays
     let replayed = false;
     void withoutPacing(async () => {
       announceKickoff();
@@ -93,7 +93,6 @@ describe("moment queue through the event bus", () => {
     expect(shown).toEqual(["kickoff-result"]);
     await vi.runAllTimersAsync();
 
-    // Coached play still waits for it
     announceKickoff();
     let paced = false;
     void whenMomentsComplete(bus).then(() => {

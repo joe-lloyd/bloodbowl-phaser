@@ -1,16 +1,4 @@
-/**
- * Every page outside the match, in its main states, at the configured
- * viewport. Each shot is `<SHOTS>/<name>.jpg`; `-full` shots grow the
- * viewport to the page's scroll height so the whole page is in one image.
- * Afterwards `manifest.json` beside SHOTS lists every side's files, which
- * the gallery's Pages section reads. For the gallery:
- *
- *   SHOTS=gallery/public/shots/pages/after   (and /before, /after-1920)
- *
- * The app must run in e2e mode (no Firebase), where the admin pages are
- * open and online pages show their signed-out state.
- */
-import { test, Page } from "@playwright/test";
+import { test, type Page } from "@playwright/test";
 import {
   existsSync,
   mkdirSync,
@@ -21,7 +9,7 @@ import {
 import { basename, dirname, join } from "path";
 import { GameApp } from "../../e2e/support/pages/game";
 
-const DIR = process.env.SHOTS ?? "e2e-results/page-shots/out";
+const DIR = process.env["SHOTS"] ?? "e2e-results/page-shots/out";
 
 const shot = (page: Page, name: string) =>
   page.screenshot({ path: `${DIR}/${name}.jpg`, type: "jpeg", quality: 82 });
@@ -38,7 +26,6 @@ test.afterAll(() => {
   writeFileSync(file, JSON.stringify(manifest, null, 2));
 });
 
-/** Height of the tallest scrolling element, or the window. */
 const scrollHeight = (page: Page) =>
   page.evaluate(() => {
     let tallest = document.documentElement.scrollHeight;
@@ -54,7 +41,6 @@ const scrollHeight = (page: Page) =>
     return tallest;
   });
 
-/** The whole page in one image: grow the viewport, shoot, put it back. */
 async function fullShot(page: Page, name: string) {
   const size = page.viewportSize()!;
   const height = Math.min(await scrollHeight(page), 6000);
@@ -79,7 +65,9 @@ async function visit(page: Page, path: string) {
 
 async function freshProfile(page: Page) {
   await page.goto("/");
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => {
+    localStorage.clear();
+  });
 }
 
 async function seed(page: Page) {
@@ -122,7 +110,6 @@ test("seeded profile", async ({ page }) => {
   await shot(page, "build-team");
   await fullShot(page, "build-team");
 
-  // Team select: empty choice, both picked, and a filter with no match
   await visit(page, "/select-team");
   await shot(page, "select-team");
   await fullShot(page, "select-team");
@@ -140,7 +127,6 @@ test("seeded profile", async ({ page }) => {
   await page.waitForTimeout(200);
   await shot(page, "select-team-no-match");
 
-  // Team builder for a seeded team, then one of its players
   await visit(page, "/build-team");
   await page.getByRole("button", { name: "Manage Team" }).first().click();
   await settle(page);
@@ -155,7 +141,6 @@ test("seeded profile", async ({ page }) => {
   await shot(page, "player-page");
   await fullShot(page, "player-page");
 
-  // Competitions
   await visit(page, "/leagues");
   await shot(page, "leagues");
   await page.getByRole("button", { name: /Founders League/ }).click();

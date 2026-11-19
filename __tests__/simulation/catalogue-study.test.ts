@@ -1,3 +1,5 @@
+import { parseMatchTrace } from "../../src/boundary/matchTrace";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,10 +28,18 @@ describe("catalogue study", () => {
       page.indexOf("function value("),
       page.indexOf("function render(")
     );
-    const format = runInNewContext(`(${formatter})`) as (
-      key: string,
-      value: unknown
-    ) => string;
+    const formatFunction: unknown = runInNewContext(`(${formatter})`);
+    function format(key: string, value: unknown): string {
+      if (typeof formatFunction !== "function")
+        throw new Error("Expected formatter function");
+      const result: unknown = Reflect.apply(formatFunction, undefined, [
+        key,
+        value,
+      ]);
+      if (typeof result !== "string")
+        throw new Error("Expected formatted text");
+      return result;
+    }
     expect(format("decision_points_offered", 331614)).toBe(
       (331614).toLocaleString()
     );
@@ -111,16 +121,19 @@ describe("catalogue study", () => {
   it("records actual reroll banks and replays a catalogue game exactly", async () => {
     const out = mkdtempSync(join(tmpdir(), "bb7-study-"));
     try {
-      const job = studySchedule().find((j) => j.cohort === "calibration")!;
+      const job = fixtureValue(
+        studySchedule().find((j) => j.cohort === "calibration")
+      );
       const result = await playStudyGame(job, out);
       expect(result.completed).toBe(true);
       expect(result.findings).toEqual([]);
       const file = join(out, "traces", `${job.id}.json.gz`);
-      const trace = JSON.parse(gunzipSync(readFileSync(file)).toString());
+      const trace = parseMatchTrace(gunzipSync(readFileSync(file)).toString());
       expect(trace.initial.teams[0].computerTemplateId).toBe(job.templates[0]);
       expect(trace.initial.teams[0].rerolls).toBe(
-        catalogueInventory().teams.find((t) => t.id === job.templates[0])!
-          .rerolls
+        fixtureValue(
+          catalogueInventory().teams.find((t) => t.id === job.templates[0])
+        ).rerolls
       );
       expect((await replayStudyTrace(file)).commands).toBe(result.commands);
       expect(

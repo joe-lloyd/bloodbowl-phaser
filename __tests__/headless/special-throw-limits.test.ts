@@ -1,6 +1,7 @@
+import type { ActionType } from "../../src/types/events";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import type {
@@ -8,16 +9,6 @@ import type {
   HeadlessCommand,
 } from "../../src/headless/protocol";
 
-/**
- * Each special throw has its own once-per-Turn limit (2025 rulebook):
- * "Only a single Throw Team-mate Action can be declared each Turn" (p.55);
- * Kick Team-mate "does not count as a team's Throw Team-mate Action for the
- * Turn, and so a team can perform both" (p.131); Bombardier: "only one
- * player can declare this Special Action each Turn ... A player that
- * declared a Throw Bomb Special Action may not perform a Move Action before
- * throwing the bomb" (p.125). A Pass Action spends none of them.
- * Seeds are committed, never searched.
- */
 function scenario(
   placements: Scenario["setup"]["team1Placements"],
   ball: { x: number; y: number }
@@ -37,7 +28,6 @@ function scenario(
   };
 }
 
-/** A passer, two Throw Team-mate throwers, a mate and a Kick Team-mate kicker. */
 const throwers = scenario(
   [
     { playerIndex: 0, x: 10, y: 9 },
@@ -50,7 +40,6 @@ const throwers = scenario(
   { x: 10, y: 9 }
 );
 
-/** Two Bombardiers and a team-mate still to act. */
 const bombers = scenario(
   [
     { playerIndex: 0, x: 1, y: 3, skills: [SkillType.BOMBARDIER] },
@@ -60,7 +49,6 @@ const bombers = scenario(
   { x: 15, y: 9 }
 );
 
-/** The pass is caught, the throw lands and the bomb explodes: no Turnover. */
 const SEED = 5;
 
 async function run(game: HeadlessGame, command: HeadlessCommand) {
@@ -71,13 +59,13 @@ async function run(game: HeadlessGame, command: HeadlessCommand) {
   return response;
 }
 
-const id = (n: number) => `team1-player-${n + 1}`;
+const id = (n: number) => `team1-player-${String(n + 1)}`;
 
-function declare(game: HeadlessGame, n: number, action: string) {
+function declare(game: HeadlessGame, n: number, action: ActionType) {
   return game.execute({
     type: "declare-action",
     playerId: id(n),
-    action: action as never,
+    action,
   });
 }
 

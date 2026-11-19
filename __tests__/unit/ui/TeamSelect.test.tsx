@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamSelect } from "../../../src/ui/components/pages/TeamSelect";
@@ -7,28 +8,15 @@ import { loadTeams, saveTeams } from "../../../src/game/managers/TeamManager";
 import { RosterName } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
-/**
- * React tracks a controlled input's previous value on the DOM node itself;
- * setting `.value` directly and dispatching a plain Event leaves that
- * tracker out of sync, so the resulting onChange never fires. Using the
- * native value setter (bypassing React's patched one) before dispatching
- * mirrors what @testing-library/react's fireEvent does under the hood.
- */
 function typeInto(input: HTMLInputElement, value: string) {
-  const nativeSetter = Object.getOwnPropertyDescriptor(
+  const nativeSetter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
     window.HTMLInputElement.prototype,
     "value"
-  )!.set!;
+  )).set);
   nativeSetter.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-/**
- * team-management-layout: "Filtering narrows the list" and "A large team
- * library remains navigable" — each of TeamSelect's two mirrored columns
- * gets its own live text filter over team name / roster name, independent
- * of the other column's filter.
- */
 describe("TeamSelect filtering", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -41,7 +29,9 @@ describe("TeamSelect filtering", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     localStorage.clear();
   });
@@ -69,16 +59,15 @@ describe("TeamSelect filtering", () => {
       );
     });
 
-    // Both teams initially visible in both columns.
     expect(container.textContent).toContain("Green Bay Orcs");
     expect(container.textContent).toContain("River Vale Humans");
 
-    const filter1 = container.querySelector(
+    const filter1 = fixtureValue(container.querySelector<HTMLInputElement>(
       'input[aria-label="Filter Player 1 teams"]'
-    ) as HTMLInputElement;
-    const filter2 = container.querySelector(
+    ));
+    const filter2 = fixtureValue(container.querySelector<HTMLInputElement>(
       'input[aria-label="Filter Player 2 teams"]'
-    ) as HTMLInputElement;
+    ));
     expect(filter1).toBeTruthy();
     expect(filter2).toBeTruthy();
 
@@ -86,13 +75,8 @@ describe("TeamSelect filtering", () => {
       typeInto(filter1, "orc");
     });
 
-    // Player 1's column now only shows the Orc team; Player 2's is untouched.
-    const player1Column = filter1.closest(
-      '[data-testid^="team-column-"]'
-    ) as HTMLElement;
-    const player2Column = filter2.closest(
-      '[data-testid^="team-column-"]'
-    ) as HTMLElement;
+    const player1Column = fixtureValue(filter1.closest('[data-testid^="team-column-"]'));
+    const player2Column = fixtureValue(filter2.closest('[data-testid^="team-column-"]'));
     expect(player1Column).toBeTruthy();
     expect(player2Column).toBeTruthy();
     expect(player1Column).not.toBe(player2Column);
@@ -133,20 +117,15 @@ describe("TeamSelect filtering", () => {
       );
     });
 
-    const filter1 = container.querySelector(
+    const filter1 = fixtureValue(container.querySelector<HTMLInputElement>(
       'input[aria-label="Filter Player 1 teams"]'
-    ) as HTMLInputElement;
+    ));
 
-    // "dwarf" doesn't appear in either team's name — only in the Dwarf
-    // team's roster name — so this proves the roster-name branch of
-    // matchesFilter independently of the team-name branch.
     await act(async () => {
       typeInto(filter1, "dwarf");
     });
 
-    const player1Column = filter1.closest(
-      '[data-testid^="team-column-"]'
-    ) as HTMLElement;
+    const player1Column = fixtureValue(filter1.closest('[data-testid^="team-column-"]'));
     expect(player1Column.textContent).toContain("Thunderfoot Warband");
     expect(player1Column.textContent).not.toContain("River Vale Humans");
   });
@@ -164,7 +143,9 @@ describe("TeamSelect ready-made teams", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     localStorage.clear();
   });
@@ -178,17 +159,19 @@ describe("TeamSelect ready-made teams", () => {
       );
     });
     const add = async (roster: RosterName) => {
-      const select = container.querySelector(
+      const select = fixtureValue(container.querySelector<HTMLSelectElement>(
         'select[aria-label="Roster for a ready-made team"]'
-      ) as HTMLSelectElement;
+      ));
       await act(async () => {
         select.value = roster;
         select.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      const button = [...container.querySelectorAll("button")].find(
+      const button = fixtureValue([...container.querySelectorAll("button")].find(
         (b) => b.textContent === "Add ready-made team"
-      )!;
-      await act(async () => button.click());
+      ));
+      await act(async () => {
+        button.click();
+      });
     };
 
     await add(RosterName.SKAVEN);
@@ -212,7 +195,7 @@ describe("TeamSelect ready-made teams", () => {
         .withRosterName(RosterName.HUMAN)
         .withPlayers(11)
         .build();
-    // The second was deleted earlier, so its name is free again.
+
     saveTeams([
       named("team-a", "Ready-made Human"),
       named("team-c", "Ready-made Human 3"),
@@ -224,11 +207,15 @@ describe("TeamSelect ready-made teams", () => {
         </MemoryRouter>
       );
     });
-    const button = [...container.querySelectorAll("button")].find(
+    const button = fixtureValue([...container.querySelectorAll("button")].find(
       (b) => b.textContent === "Add ready-made team"
-    )!;
-    await act(async () => button.click());
-    await act(async () => button.click());
+    ));
+    await act(async () => {
+      button.click();
+    });
+    await act(async () => {
+      button.click();
+    });
 
     expect(loadTeams().map((t) => t.name)).toEqual([
       "Ready-made Human",
@@ -251,7 +238,9 @@ describe("TeamSelect match look", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     localStorage.clear();
   });

@@ -1,21 +1,21 @@
 import {
-  Player,
+  type Player,
   PlayerStatus,
   PlayerCondition,
   hasCondition,
   removeCondition,
 } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { ReactionDecisionAnswer } from "../../types/decisions";
+import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { blockDiceForStrength } from "../validators/BlockValidator";
-import { BlockAnalysis } from "../../types/Actions";
+import { type BlockAnalysis } from "../../types/Actions";
 import {
   consumeOffensiveAssist,
   offensiveAssistBonus,
 } from "../kickoff/driveEffects";
 import {
-  BlockResult,
-  BlockRollData,
+  type BlockResult,
+  type BlockRollData,
 } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
 import { ArmourOperation } from "../operations/ArmourOperation.js";
@@ -26,13 +26,13 @@ import { GameOperation } from "../core/GameOperation";
 import {
   foldBlockResult,
   foldTrigger,
-  BlockResultContext,
-  BlockDeclaredContext,
-  BlockDiceRolledContext,
+  type BlockResultContext,
+  type BlockDeclaredContext,
+  type BlockDiceRolledContext,
 } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
-import { PassController, PassResult } from "../controllers/PassController";
-import { FlowContext, GameFlowManager } from "../core/GameFlowManager";
+import { PassController, type PassResult } from "../controllers/PassController";
+import { type FlowContext, GameFlowManager } from "../core/GameFlowManager";
 import { InOrderOperation, driveOver } from "./BlockOperations";
 import { snapshotRoll } from "./BlockRerolls";
 import {
@@ -42,16 +42,7 @@ import {
 } from "./blockSteps";
 import { BlockPushChain } from "./BlockPushChain";
 
-/**
- * The Block Action from declaration to result: the dice, Dump-Off's
- * interruption, and the Skull and Both Down results. The push, the
- * re-rolls and what follows the Block live in the classes this extends.
- */
 export class BlockManager extends BlockPushChain {
-  /**
-   * Cheering Fans: an owed Offensive Assist adds +1 ST to the team's first
-   * Block of the turn it was granted for. Returns 0 outside that window.
-   */
   private owedAssistBonus(teamId: string): 0 | 1 {
     if (!this.state.turn) return 0;
     return offensiveAssistBonus(
@@ -61,7 +52,6 @@ export class BlockManager extends BlockPushChain {
     );
   }
 
-  /** Apply the owed-assist bonus to an analysis (ST and dice re-derived). */
   private applyOwedAssist(attacker: Player, analysis: BlockAnalysis): boolean {
     if (!this.owedAssistBonus(attacker.teamId)) return false;
     analysis.attackerST += 1;
@@ -84,12 +74,7 @@ export class BlockManager extends BlockPushChain {
     }
 
     const allPlayers = [...this.team1.players, ...this.team2.players];
-    const analysis = this.blockValidator.analyzeBlock(
-      attacker,
-      defender,
-      allPlayers,
-      this.state.activeTeamId
-    );
+    const analysis = this.blockValidator.analyzeBlock({ attacker: attacker, defender: defender, allPlayers: allPlayers, activeTeamId: this.state.activeTeamId });
     this.applyOwedAssist(attacker, analysis);
 
     this.eventBus.emit(GameEventNames.UI_BlockDialog, {
@@ -99,9 +84,6 @@ export class BlockManager extends BlockPushChain {
     });
   }
 
-  /**
-   * Roll block dice and emit results
-   */
   public async rollBlockDice(
     attackerId: string,
     defenderId: string,
@@ -110,12 +92,9 @@ export class BlockManager extends BlockPushChain {
   ): Promise<void> {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
-    // A knockdown from an earlier block never carries into this one.
+
     this.pileDriverTargets.delete(attackerId);
 
-    // Dump-Off interrupts the declaration and completes its Quick Pass before
-    // the targeting Block proceeds to its dice; a touchdown from it ends the
-    // Block there.
     if (
       attacker &&
       defender &&
@@ -125,8 +104,6 @@ export class BlockManager extends BlockPushChain {
       return;
     }
 
-    // Trigger point: block declared — rules may adjust strength/dice, roll a
-    // pre-block die, or cancel the block before any block dice are rolled.
     if (attacker && defender) {
       const analysis = this.analyzeBlock(attacker, defender);
       this.cheerOwedAssist(attacker, analysis);
@@ -144,17 +121,14 @@ export class BlockManager extends BlockPushChain {
       this.announce(ctx.triggers);
 
       if (ctx.cancelled) {
-        // Foul Appearance et al: the block never happens; end the activation.
         this.frenzyExtraFor = null;
-        this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+        this.eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
         this.callbacks
           .getFlowManager?.()
           ?.context.gameService.finishActivation(attacker.id);
         return;
       }
 
-      // Trickster: the defender relocated before the dice are determined —
-      // re-run the assist analysis from the new square.
       if (ctx.relocateDefenderTo && defender.gridPosition) {
         this.relocateDefender(
           attacker,
@@ -172,19 +146,13 @@ export class BlockManager extends BlockPushChain {
     const teamId = attackerId.split("-")[0];
     const results = this.diceController.rollBlockDice(numDice, teamId);
 
-    // Trigger point: dice rolled — a rule may reroll dice in place (Hatred's
-    // single Player Down) before the coach selects a result. Brawler's Both
-    // Down re-roll is instead offered as a button in the block popup itself
-    // (see blockRerollAvailability / brawlerRerollBlockDie below), so the
-    // coach sees the roll before choosing to spend it.
     if (attacker && defender) {
       const ctx: BlockDiceRolledContext = {
         attacker,
         defender,
         results,
         isAttackerChoice,
-        decisions: this.decisions(),
-        flow: this.callbacks.getFlowManager?.(),
+        ...this.triggerServices(),
         dice: this.diceController,
         triggers: [],
         rerolls: [],
@@ -195,7 +163,7 @@ export class BlockManager extends BlockPushChain {
         ctx
       );
       this.announce(ctx.triggers);
-      ctx.rerolls.forEach(({ skill, before, after }) =>
+      ctx.rerolls.forEach(({ skill, before, after }) => {
         this.eventBus.emit(GameEventNames.RerollUsed, {
           playerId: attacker.id,
           source: "skill",
@@ -203,8 +171,8 @@ export class BlockManager extends BlockPushChain {
           rollKind: "block",
           before,
           after,
-        })
-      );
+        });
+      });
     }
 
     const rollData: BlockRollData = {
@@ -221,7 +189,6 @@ export class BlockManager extends BlockPushChain {
     this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(rollData));
   }
 
-  /** Cheering Fans: the owed assist lands on this first Block of the turn. */
   private cheerOwedAssist(attacker: Player, analysis: BlockAnalysis): void {
     if (!this.applyOwedAssist(attacker, analysis)) return;
     consumeOffensiveAssist(
@@ -252,17 +219,12 @@ export class BlockManager extends BlockPushChain {
       isBlitz: active?.action === "blitz" && active?.id === attacker.id,
       cancelled: false,
       allPlayers: this.allPlayers(),
-      decisions: this.decisions(),
-      flow: this.callbacks.getFlowManager?.(),
+      ...this.triggerServices(),
       dice: this.diceController,
       triggers: [],
     };
   }
 
-  /**
-   * Trickster moved the defender to `to`. A Multiple Block's Blocks are
-   * simultaneous, so it reads the board before either one.
-   */
   private relocateDefender(
     attacker: Player,
     defender: Player,
@@ -283,43 +245,22 @@ export class BlockManager extends BlockPushChain {
       from,
       to: { ...to },
     });
-    // Removed from the pitch and placed elsewhere: free of any Chomp,
-    // even beside the chomper (FAQ May 2026)
+
     if (hasCondition(defender, PlayerCondition.CHOMPED)) {
       removeCondition(defender, PlayerCondition.CHOMPED);
       this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
     }
-    const moved = this.blockValidator.analyzeBlock(
-      attacker,
-      defender,
-      board,
-      this.state.activeTeamId
-    );
+    const moved = this.blockValidator.analyzeBlock({ attacker: attacker, defender: defender, allPlayers: board, activeTeamId: this.state.activeTeamId });
     ctx.attackerStrength = moved.attackerST;
     ctx.defenderStrength = moved.defenderST;
   }
 
-  /**
-   * Dump-Off: an opposition-targeted ball carrier may make an immediate
-   * Quick Pass. It never causes a Turnover because it is an interruption
-   * during the opponent's action, not the reacting team's turn.
-   *
-   * The current decision channel is yes/no, so the deterministic legal target
-   * is the nearest on-pitch team-mate (board order breaks ties), or the nearest
-   * empty Quick Pass square when no team-mate is in range. This keeps
-   * browser/headless/online resolution identical until the target-picker
-   * decision gains a payload.
-   *
-   * Resolves false when the pass ended the drive, caught in the end zone
-   * for a touchdown: the action it interrupted must not go on.
-   */
   public async offerDumpOff(targetId: string): Promise<boolean> {
     const passer = this.getPlayerById(targetId);
     const flow = this.callbacks.getFlowManager?.();
     const gs = flow?.context.gameService;
     if (
-      !passer ||
-      !passer.gridPosition ||
+      !passer?.gridPosition ||
       !flow ||
       !gs ||
       !hasSkill(passer.skills, SkillType.DUMP_OFF) ||
@@ -350,7 +291,8 @@ export class BlockManager extends BlockPushChain {
       playerId: passer.id,
       skill: SkillType.DUMP_OFF,
       effect: `Dump-Off: Quick Pass to ${
-        receiver?.playerName ?? `(${targetSquare.x}, ${targetSquare.y})`
+        receiver?.playerName ??
+        `(${String(targetSquare.x)}, ${String(targetSquare.y)})`
       } before the targeting action`,
     });
 
@@ -360,23 +302,19 @@ export class BlockManager extends BlockPushChain {
       .countMarkingOpponents(from, opponents);
     const result = await gs
       .getPassController()
-      .attemptPass(passer, from, targetSquare, marking, {
-        gameService: gs,
-        eventBus: this.eventBus,
-      });
-    // The ball comes to rest, bounces and catches included, before the
-    // action that provoked the pass goes on.
+      .attemptPass({
+          player: passer,from,to: targetSquare,markingOpponents: marking,rerollDeps: {
+            gameService: gs,
+            eventBus: this.eventBus,
+          }
+        });
+
     await flow.runToRest(
       this.landDumpOff(passer, { from, to: targetSquare, receiver, result }, gs)
     );
     return !driveOver(this.state.phase);
   }
 
-  /**
-   * Dump-Off's Quick Pass target: the nearest team-mate in Quick Pass range,
-   * or else the nearest empty Quick Pass square. Ties go to the lower row,
-   * then the lower column.
-   */
   private dumpOffTarget(
     passer: Player,
     from: { x: number; y: number },
@@ -403,7 +341,7 @@ export class BlockManager extends BlockPushChain {
       return { receiver, square: { ...receiver.gridPosition } };
     }
 
-    const emptyQuickPassSquares: Array<{ x: number; y: number }> = [];
+    const emptyQuickPassSquares: { x: number; y: number }[] = [];
     for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
       for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
         const square = { x, y };
@@ -417,13 +355,10 @@ export class BlockManager extends BlockPushChain {
       }
     }
     const square = emptyQuickPassSquares.sort(nearestFirst)[0];
-    return square ? { receiver, square } : null;
+    if (!square) return null;
+    return receiver ? { receiver, square } : { square };
   }
 
-  /**
-   * Where Dump-Off's pass ends: the ball is placed there, and the returned
-   * operation catches or Bounces it.
-   */
   private landDumpOff(
     passer: Player,
     {
@@ -439,7 +374,6 @@ export class BlockManager extends BlockPushChain {
     },
     gs: FlowContext["gameService"]
   ): GameOperation {
-    // A Dump-off offers no interception, so an inaccurate one scatters at once.
     const scatterPath =
       result.fumbled || result.accurate
         ? undefined
@@ -455,7 +389,7 @@ export class BlockManager extends BlockPushChain {
       passType: result.passType,
       accurate: result.accurate,
       finalPosition,
-      scatterPath,
+      ...(scatterPath ? { scatterPath } : {}),
     });
 
     gs.setBallPosition(finalPosition.x, finalPosition.y);
@@ -471,15 +405,12 @@ export class BlockManager extends BlockPushChain {
       : new BounceOperation(finalPosition);
   }
 
-  /**
-   * Resolve block with selected result
-   */
   public async resolveBlock(
     attackerId: string,
     defenderId: string,
     result: BlockResult
   ): Promise<void> {
-    this.pendingBlockRoll = null; // the coach committed to a result
+    this.pendingBlockRoll = null;
     const isFrenzyExtra = this.frenzyExtraFor === attackerId;
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
@@ -499,9 +430,6 @@ export class BlockManager extends BlockPushChain {
       case "push":
       case "pow":
       case "pow-dodge": {
-        // Trigger point: block result — rules may cancel the knockdown
-        // (Dodge turns a Defender Stumbles into a plain push unless the
-        // attacker has Tackle)
         const resultCtx: BlockResultContext = {
           attacker,
           defender,
@@ -510,8 +438,7 @@ export class BlockManager extends BlockPushChain {
           attackerKnockedDown: false,
           defenderKnockedDown:
             result.type === "pow" || result.type === "pow-dodge",
-          decisions: this.decisions(),
-          flow: this.callbacks.getFlowManager?.(),
+          ...this.triggerServices(),
           dice: this.diceController,
           triggers: [],
         };
@@ -533,26 +460,13 @@ export class BlockManager extends BlockPushChain {
       }
     }
 
-    // Push results continue once their complete chain settles. Non-push
-    // results can advance immediately (at the back of the flow queue).
     if (this.multipleBlockState?.attackerId === attackerId && !this.chain) {
       this.queueMultipleBlockContinuation(attackerId);
     }
 
-    // A Frenzy extra block is now resolved (beginPush already read the flag);
-    // clear it so this player Frenzies again on their next Block Action.
-    // Stand Firm can start the extra Block before the first resolve returns.
-    // Only the extra Block itself may clear its marker.
     if (isFrenzyExtra) this.frenzyExtraFor = null;
   }
 
-  /**
-   * Ball & Chain (2025 rulebook p.124): the lurching Fanatic "will
-   * automatically perform a Block Action" against the Standing player in the
-   * square it entered. "If this is a team-mate, then this player's Coach will
-   * choose which result to apply": the dice are by Strength alone, with no
-   * assists, and always the Fanatic's choice.
-   */
   public async startBallAndChainBlock(
     attackerId: string,
     defenderId: string
@@ -560,7 +474,7 @@ export class BlockManager extends BlockPushChain {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
     if (!attacker || !defender) return;
-    // The block dialog opens on the matchup, as when a coach declares one
+
     if (attacker.teamId !== defender.teamId) {
       this.previewBlock(attackerId, defenderId);
       await this.startBlock(attackerId, defenderId);
@@ -585,7 +499,6 @@ export class BlockManager extends BlockPushChain {
     await this.rollBlockDice(attackerId, defenderId, diceCount, true);
   }
 
-  /** A Saboteur target exploded: the blocker goes down instead. */
   private explodeSaboteur(attacker: Player, defender: Player): void {
     const flowManager = this.callbacks.getFlowManager?.();
     this.knockDownPlayer(attacker);
@@ -600,9 +513,6 @@ export class BlockManager extends BlockPushChain {
     this.endBlockActivation(attacker.id);
   }
 
-  /**
-   * Handle skull result (attacker down)
-   */
   private async handleSkull(attacker: Player): Promise<void> {
     const gameService = this.callbacks.getFlowManager?.()?.context.gameService;
     if (
@@ -621,7 +531,6 @@ export class BlockManager extends BlockPushChain {
 
     const flowManager = this.callbacks.getFlowManager?.();
     if (flowManager) {
-      // The Armour Roll, then a carried ball drops, as on a Both Down.
       const drop = attackerHadBall
         ? this.dropCarrierBall(attacker, flowManager)
         : null;
@@ -637,15 +546,10 @@ export class BlockManager extends BlockPushChain {
     this.callbacks.onTurnover("Attacker Down (Skull)");
   }
 
-  /**
-   * Handle both down result
-   */
   private async handleBothDown(
     attacker: Player,
     defender: Player
   ): Promise<void> {
-    // Skill hook: rules may cancel a knock-down (Block ignores Both Down)
-    // or choose both-prone-no-armour (Wrestle, a reacting-team decision).
     const ctx: BlockResultContext = {
       attacker,
       defender,
@@ -653,16 +557,12 @@ export class BlockManager extends BlockPushChain {
       isBlitz: this.isBlitzBlock(attacker),
       attackerKnockedDown: true,
       defenderKnockedDown: true,
-      decisions: this.decisions(),
-      flow: this.callbacks.getFlowManager?.(),
+      ...this.triggerServices(),
       triggers: [],
     };
     await foldBlockResult(ctx, this.allPlayers());
     this.announce(ctx.triggers);
 
-    // Juggernaut on a Blitz may treat the Both Down as a Push Back instead:
-    // nobody is knocked down and there is no turnover. A Wrestle the blitzer
-    // accepted is their choice not to, and it holds whatever the skill order.
     if (ctx.treatAsPush && !ctx.placedProne) {
       await this.beginPush(attacker, defender, "push", false);
       return;
@@ -696,7 +596,6 @@ export class BlockManager extends BlockPushChain {
     this.resolveBothDown(attacker, defender, ctx);
   }
 
-  /** Both Down after the Steady Footing rolls: lay the players down. */
   private resolveBothDown(
     attacker: Player,
     defender: Player,
@@ -726,15 +625,12 @@ export class BlockManager extends BlockPushChain {
     this.endBothDown(attacker, ctx, attackerHadBall, flowManager);
   }
 
-  /** Queue the armour or injury rolls, then the dropped balls. */
   private queueBothDown(
     attacker: Player,
     defender: Player,
     ctx: BlockResultContext,
     flowManager: GameFlowManager
   ): void {
-    // A downed carrier drops the ball (prone players can't hold it) — Safe
-    // Pair of Hands places it in an adjacent empty square instead of bouncing.
     const drops: GameOperation[] = [];
     [defender, attacker].forEach((p) => {
       const down =
@@ -744,7 +640,6 @@ export class BlockManager extends BlockPushChain {
       if (drop) drops.push(drop);
     });
 
-    // The armour rolls first, then any dropped ball Bounces (p.44).
     const rolls = bothDownRolls(ctx, attacker, defender);
     if (rolls.length + drops.length > 0) {
       flowManager.add(new InOrderOperation([...rolls, ...drops]), true);
@@ -759,19 +654,13 @@ export class BlockManager extends BlockPushChain {
   ): void {
     if (ctx.attackerKnockedDown) {
       if (!ctx.placedProne) {
-        // A turnover happens only if the active player (the attacker) went
-        // down.
         this.callbacks.onTurnover("Both Down");
       } else if (attackerHadBall) {
-        // Placed Prone (p.42): a turnover only if the active player was
-        // carrying the ball; otherwise just the activation ends
         this.callbacks.onTurnover("Ball carrier placed prone");
       } else {
         flowManager?.context.gameService.finishActivation(attacker.id);
       }
     } else {
-      // The attacker stayed on their feet (Block) and nobody was pushed, so
-      // no follow-up prompt will complete the block: complete it here.
       flowManager?.context.gameService.finishBlockActivation(attacker.id);
     }
   }

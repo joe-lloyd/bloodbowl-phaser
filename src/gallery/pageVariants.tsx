@@ -1,8 +1,4 @@
-/**
- * Gallery variants for the pages around the match: the real page
- * components on seeded demo data, routed in memory. Seeding is
- * deterministic, so every iframe sees the same teams and competitions.
- */
+import { Button, Input, Select } from "../ui/components/common/NativeControls";
 import React, { useState } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { Variant } from "./variants";
@@ -36,7 +32,6 @@ const SECTION = "Pages";
 const seed = () => void seedDevelopmentData();
 const firstTeamId = () => loadTeams()[0]?.id ?? seedTeamId("missing");
 
-/** One page at one URL, under the app's route pattern for that page. */
 const at = (path: string, pattern: string, element: React.ReactNode) => (
   <MemoryRouter initialEntries={[path]}>
     <Routes>
@@ -59,7 +54,6 @@ const page = (
   view,
 });
 
-/** Every page primitive on one screen, for reviewing the kit itself. */
 function PageKit() {
   const [picked, setPicked] = useState("Human Founders");
   return (
@@ -88,28 +82,30 @@ function PageKit() {
         <Section title="Section" aside="Aside label">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Text field">
-              <input className="hud-field" placeholder="Placeholder" />
+              <Input className="hud-field" placeholder="Placeholder" />
             </Field>
             <Field label="Select" hint="A hint under the control.">
-              <select className="hud-field">
+              <Select className="hud-field">
                 <option>Option one</option>
-              </select>
+              </Select>
             </Field>
           </div>
           <label className="mt-4 flex items-center gap-3 text-hud-base">
-            <input type="checkbox" className="hud-check" defaultChecked />A
+            <Input type="checkbox" className="hud-check" defaultChecked />A
             checkbox with its label
           </label>
           <div className="mt-4 flex flex-col gap-2">
             {["Human Founders", "Orc Founders", "Dwarf Founders"].map((n) => (
-              <button
+              <Button
                 key={n}
                 aria-pressed={picked === n}
-                onClick={() => setPicked(n)}
+                onClick={() => {
+                  setPicked(n);
+                }}
                 className={`${hudChoiceClass(picked === n)} px-3 py-2 font-hud-label font-bold uppercase`}
               >
                 {n}
-              </button>
+              </Button>
             ))}
           </div>
         </Section>
@@ -168,7 +164,7 @@ export const PAGE_VARIANTS: Variant[] = [
   page("player", "Player development", () => {
     const team = loadTeams()[0];
     return at(
-      `/build-team/${team?.id}/player/${team?.players[0]?.id}`,
+      `/build-team/${String(team?.id)}/player/${String(team?.players[0]?.id)}`,
       "/build-team/:teamId/player/:playerId",
       <PlayerPage />
     );

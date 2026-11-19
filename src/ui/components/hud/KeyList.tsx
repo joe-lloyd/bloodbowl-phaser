@@ -1,9 +1,5 @@
 import React from "react";
 
-/**
- * The keys that have no button to wear a badge: the camera's. Every other
- * key shows on the button it presses.
- */
 const CAMERA_KEYS: [keys: string, does: string][] = [
   ["W A S D / arrows", "Move the camera"],
   ["0", "Show the whole pitch"],

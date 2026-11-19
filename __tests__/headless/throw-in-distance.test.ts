@@ -1,15 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import type { CommandResponse } from "../../src/headless/protocol";
 import { forceDice } from "../utils/test-helpers";
 
-/**
- * Sevens rule M5: a Throw-in travels D6+2 squares instead of 2D6. The
- * square the ball left from counts as the first square, as before.
- */
 const scenario: Scenario = {
   id: "throw-in-distance",
   name: "Throw-in distance",
@@ -30,10 +27,9 @@ const scenario: Scenario = {
 describe("a Throw-in", () => {
   it("travels D6+2 squares, counting the square the ball left from", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    // Pass 4 -1 is Inaccurate; Scatter 1 carries the ball off from (8,0);
-    // Throw-in direction 3 is straight down; distance 4 + 2 = 6.
+
     forceDice(game.ctx.rng, [4, 1, 5, 8, 3, 4]);
-    const passerId = game.ctx.team1.players[0].id;
+    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,

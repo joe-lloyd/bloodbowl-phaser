@@ -1,6 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerStatus } from "../../src/types/Player";
@@ -10,16 +11,6 @@ import {
   serializeGameState,
 } from "../../src/headless/serialization";
 
-/**
- * Leader, 2025 rulebook p.130: "A team can only use a Leader Re-roll if
- * they have a player with the Leader Skill on the pitch, and if all players
- * with this Skill are removed from play, either as a Casualty or by of being
- * Sent-off, before the Leader Re-roll is used then it is lost." A Knocked
- * Out Leader only makes it unusable until they return; the bank used to be
- * wiped the first time the Leader was seen off the pitch. The team has no
- * Team Re-rolls, so any re-roll offered is the Leader's. Seed 8 fails the
- * Hypnotic Gaze with a 1 (committed, never searched).
- */
 const GAZE_FAILS_SEED = 8;
 
 const scenario: Scenario = {
@@ -43,14 +34,14 @@ async function failGaze(game: HeadlessGame) {
   const gazer = game.ctx.team1.players[0];
   await game.execute({
     type: "declare-action",
-    playerId: gazer.id,
+    playerId: fixtureValue(gazer).id,
     action: "gaze",
   });
   return game.execute({
     type: "special-action",
     action: "gaze",
-    attackerId: gazer.id,
-    defenderId: game.ctx.team2.players[0].id,
+    attackerId: fixtureValue(gazer).id,
+    defenderId: fixtureValue(game.ctx.team2.players[0]).id,
   });
 }
 
@@ -61,11 +52,11 @@ describe("Leader Re-roll", () => {
     const leader = game.ctx.team1.players[1];
     const arbiter = game.ctx.gameService.getRerollArbiter();
 
-    movePlayerToBox(leader, { box: "ko" });
+    movePlayerToBox(fixtureValue(leader), { box: "ko" });
     expect(arbiter.teamRerollAvailable(game.ctx.team1.id)).toBe(false);
 
-    leader.gridPosition = { x: 5, y: 5 };
-    leader.status = PlayerStatus.ACTIVE;
+    fixtureValue(leader).gridPosition = { x: 5, y: 5 };
+    fixtureValue(leader).status = PlayerStatus.ACTIVE;
     const gazed = await failGaze(game);
 
     expect(gazed.pendingDecision).toMatchObject({
@@ -77,7 +68,9 @@ describe("Leader Re-roll", () => {
   it("is lost once the only Leader is a Casualty", async () => {
     const game = new HeadlessGame({ scenario, seed: GAZE_FAILS_SEED });
     game.ctx.team1.rerolls = 0;
-    movePlayerToBox(game.ctx.team1.players[1], { box: "casualty" });
+    movePlayerToBox(fixtureValue(game.ctx.team1.players[1]), {
+      box: "casualty",
+    });
 
     const gazed = await failGaze(game);
 

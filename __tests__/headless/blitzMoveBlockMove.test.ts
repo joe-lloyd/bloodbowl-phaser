@@ -1,16 +1,10 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { GameEventNames } from "../../src/types/events";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 
-/**
- * A Blitz is a move plus one block that may happen at any point during the
- * move; after the block the player keeps their remaining movement (and may
- * Rush). This drives that at the engine level: declare Blitz, walk two
- * squares, block, and confirm the activation is NOT over — the player can
- * still move, the block cost one square, and a second block is refused.
- */
 const scenario: Scenario = {
   id: "blitz-move-block-move",
   name: "Blitz move/block/move",
@@ -18,8 +12,7 @@ const scenario: Scenario = {
   setup: {
     team1Placements: [
       { playerIndex: 0, x: 5, y: 5, stats: { MA: 6, ST: 4 } },
-      // A second player so finishing the blocker does not flip the turn
-      // (which would reset activatedPlayerIds and hide hasPlayerActed).
+
       { playerIndex: 1, x: 2, y: 9 },
     ],
     team2Placements: [{ playerIndex: 0, x: 8, y: 5, stats: { ST: 2 } }],
@@ -33,18 +26,18 @@ const scenario: Scenario = {
 async function runToPostBlock(seed: number) {
   const game = new HeadlessGame({ scenario, seed });
   const gs = game.ctx.gameService;
-  const attacker = game.snapshot().teams[0].players[0];
-  const defender = game.snapshot().teams[1].players[0];
+  const attacker = fixtureValue(game.snapshot().teams[0]).players[0];
+  const defender = fixtureValue(game.snapshot().teams[1]).players[0];
 
   await game.execute({
     type: "declare-action",
-    playerId: attacker.id,
+    playerId: fixtureValue(attacker).id,
     action: "blitz",
   });
-  // Walk two squares up to the defender at (8,5).
+
   await game.execute({
     type: "move",
-    playerId: attacker.id,
+    playerId: fixtureValue(attacker).id,
     path: [
       { x: 6, y: 5 },
       { x: 7, y: 5 },
@@ -53,36 +46,40 @@ async function runToPostBlock(seed: number) {
 
   const rolled = await game.execute({
     type: "block",
-    attackerId: attacker.id,
-    defenderId: defender.id,
+    attackerId: fixtureValue(attacker).id,
+    defenderId: fixtureValue(defender).id,
   });
   if (rolled.pendingDecision?.type !== "block-dice") return null;
-  // Choose a result that pushes the defender (so a follow-up is offered).
+
   const idx = rolled.pendingDecision.options.findIndex(
     (o) => o.type === "push" || o.type === "pow" || o.type === "pow-dodge"
   );
   if (idx < 0) return null;
 
-  let response = await game.execute({ type: "choose-block-result", index: idx });
+  let response = await game.execute({
+    type: "choose-block-result",
+    index: idx,
+  });
   if (response.pendingDecision?.type === "push-direction") {
     const dir = response.pendingDecision.options[0];
     response = await game.execute({
       type: "choose-push-direction",
-      x: dir.x,
-      y: dir.y,
+      x: fixtureValue(dir).x,
+      y: fixtureValue(dir).y,
     });
   }
   if (response.pendingDecision?.type === "follow-up") {
-    // Decline the follow-up so the blitzer stays clear of the pushed
-    // defender's tackle zone (keeps the continuation move dodge-free).
-    response = await game.execute({ type: "choose-follow-up", followUp: false });
+    response = await game.execute({
+      type: "choose-follow-up",
+      followUp: false,
+    });
   }
   if (response.pendingDecision) return null;
   return {
     game,
     gs,
-    attackerId: attacker.id,
-    defenderId: defender.id,
+    attackerId: fixtureValue(attacker).id,
+    defenderId: fixtureValue(defender).id,
     lastEvents: response.events,
   };
 }
@@ -94,25 +91,21 @@ describe("Blitz: block mid-move, keep moving", () => {
       ctx = await runToPostBlock(seed);
     }
     expect(ctx).not.toBeNull();
-    const { game, gs, attackerId, defenderId } = ctx!;
+    const { game, gs, attackerId, defenderId } = fixtureValue(ctx);
 
-    // The activation is NOT over — a Blitz block keeps the player active.
     expect(gs.hasPlayerActed(attackerId)).toBe(false);
-    // ...and the engine tells the board to pick the blitzer back up, which
-    // every screen needs: online, and after a block with no follow-up.
-    expect(ctx!.lastEvents.map((event) => event.name)).toContain(
+
+    expect(fixtureValue(ctx).lastEvents.map((event) => event.name)).toContain(
       GameEventNames.UI_ResumeBlitzMove
     );
     expect(gs.hasUsedBlitzBlock(attackerId)).toBe(true);
-    // Two walked squares + one for the block.
+
     expect(gs.getState().turn.movementUsed.get(attackerId)).toBe(3);
 
-    // Movement remains, including Rush squares beyond the MA-6 budget.
     const reachable = gs.getAvailableMovements(attackerId);
     expect(reachable.length).toBeGreaterThan(0);
     expect(reachable.some((m) => (m.cost ?? 0) > 6 - 3)).toBe(true);
 
-    // A Blitz allows only one block — a second is refused.
     const second = await game.execute({
       type: "block",
       attackerId,
@@ -121,10 +114,9 @@ describe("Blitz: block mid-move, keep moving", () => {
     expect(second.ok).toBe(false);
     expect(second.reason).toContain("blitz-block-already-used");
 
-    // The blitzer can keep moving after the block.
-    const before = game
-      .snapshot()
-      .teams[0].players[0].position;
+    const before = fixtureValue(
+      fixtureValue(game.snapshot().teams[0]).players[0]
+    ).position;
     const moved = await game.execute({
       type: "move",
       playerId: attackerId,
@@ -134,7 +126,9 @@ describe("Blitz: block mid-move, keep moving", () => {
       ],
     });
     expect(moved.ok).toBe(true);
-    const after = game.snapshot().teams[0].players[0].position;
+    const after = fixtureValue(
+      fixtureValue(game.snapshot().teams[0]).players[0]
+    ).position;
     expect(after).not.toEqual(before);
     expect(after).toEqual({ x: 7, y: 3 });
   });
@@ -142,7 +136,6 @@ describe("Blitz: block mid-move, keep moving", () => {
   it("a plain Block (not a Blitz) still ends the activation", async () => {
     let ended = false;
     for (let seed = 1; seed <= 40 && !ended; seed++) {
-      // A plain Block has no movement, so the attacker starts adjacent.
       const adjacent: Scenario = {
         ...scenario,
         setup: {
@@ -154,18 +147,18 @@ describe("Blitz: block mid-move, keep moving", () => {
       };
       const game = new HeadlessGame({ scenario: adjacent, seed });
       const gs = game.ctx.gameService;
-      const attacker = game.snapshot().teams[0].players[0];
-      const defender = game.snapshot().teams[1].players[0];
+      const attacker = fixtureValue(game.snapshot().teams[0]).players[0];
+      const defender = fixtureValue(game.snapshot().teams[1]).players[0];
       const declared = await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       if (!declared.ok) continue;
       const rolled = await game.execute({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: defender.id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const idx = rolled.pendingDecision.options.findIndex(
@@ -180,8 +173,8 @@ describe("Blitz: block mid-move, keep moving", () => {
         const dir = response.pendingDecision.options[0];
         response = await game.execute({
           type: "choose-push-direction",
-          x: dir.x,
-          y: dir.y,
+          x: fixtureValue(dir).x,
+          y: fixtureValue(dir).y,
         });
       }
       if (response.pendingDecision?.type === "follow-up") {
@@ -191,9 +184,9 @@ describe("Blitz: block mid-move, keep moving", () => {
         });
       }
       if (response.pendingDecision) continue;
-      // A plain block ends the activation.
-      expect(gs.hasPlayerActed(attacker.id)).toBe(true);
-      expect(gs.hasUsedBlitzBlock(attacker.id)).toBe(false);
+
+      expect(gs.hasPlayerActed(fixtureValue(attacker).id)).toBe(true);
+      expect(gs.hasUsedBlitzBlock(fixtureValue(attacker).id)).toBe(false);
       ended = true;
     }
     expect(ended).toBe(true);

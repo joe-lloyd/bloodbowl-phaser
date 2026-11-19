@@ -3,15 +3,15 @@ import type { IEventBus } from "../../services/EventBus";
 import type { IGameService } from "../../services/interfaces/IGameService";
 import {
   InjuryType,
-  Player,
+  type Player,
   PlayerStatus,
   PositionKeyWord,
   createPlayer,
 } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import {
-  PendingDevelopment,
-  Team,
+  type PendingDevelopment,
+  type Team,
   TeamSpecialRule,
   calculateTeamValue,
   isPendingRecruit,
@@ -20,7 +20,6 @@ import { GameEventNames } from "../../types/events";
 import { staysOnRoster } from "./leagueRoster";
 import { uniquePlayerId } from "./playerSlots";
 
-/** Raise a roster Lineman in Reserves, even above the match's roster limit. */
 export function addReserveLineman(team: Team): Player | null {
   const template = getRosterByRosterName(team.rosterName).playerTemplates.find(
     (candidate) => candidate.keywords.includes(PositionKeyWord.LINEMAN)
@@ -35,7 +34,6 @@ export function addReserveLineman(team: Team): Player | null {
   return player;
 }
 
-/** Third Season p.155, using Sevens' confirmed Dead injury result. */
 export function raiseDead(
   gameService: IGameService,
   eventBus: IEventBus,
@@ -62,7 +60,7 @@ export function raiseDead(
     GameEventNames.UI_Notification,
     `Masters of Undeath: ${team.name} raises ${raised.playerName} in Reserves!`
   );
-  eventBus.emit(GameEventNames.RefreshBoard);
+  eventBus.emit(GameEventNames.RefreshBoard, undefined);
 }
 
 export type RaisedDeadOffer = Extract<
@@ -70,7 +68,6 @@ export type RaisedDeadOffer = Extract<
   { kind: "raised-dead-recruit" }
 >;
 
-/** Count permanent survivors, excluding departing temporary players. */
 export function canKeepRaisedDead(team: Team, playerId: string): boolean {
   return (
     team.players.filter(
@@ -82,7 +79,6 @@ export function canKeepRaisedDead(team: Team, playerId: string): boolean {
   );
 }
 
-/** Transfer the match's temporary Lineman to an optional free league hire. */
 export function offerRaisedDeadRecruit(team: Team, playerId: string): void {
   const player = team.players.find((candidate) => candidate.id === playerId);
   if (!player) return;
@@ -111,7 +107,6 @@ export function offerRaisedDeadRecruit(team: Team, playerId: string): void {
   });
 }
 
-/** Hire without a fee when there is room, or release the temporary player. */
 export function resolveRaisedDeadRecruit(
   team: Team,
   entry: RaisedDeadOffer,

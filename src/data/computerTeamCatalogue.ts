@@ -1,5 +1,4 @@
-/** Bonehead Podcast Season 3 Sevens builds. Prices come from RosterTemplates. */
-import { RosterName, TeamColors } from "../types/Team";
+import { RosterName, type TeamColors } from "../types/Team";
 
 export interface ComputerTeamTemplate {
   readonly id: string;
@@ -1205,7 +1204,6 @@ const definitions: readonly ComputerTeamTemplate[] = [
   },
 ];
 
-/** Templates never become saved teams. Freeze their nested recipe data too. */
 export const COMPUTER_TEAM_CATALOGUE: readonly ComputerTeamTemplate[] =
   Object.freeze(
     definitions.map((template) =>

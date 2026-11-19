@@ -1,21 +1,3 @@
-/**
- * `pnpm e2e:seeds [--refresh] [--config <id>] [--limit <n>]`
- *
- * Discovers the committed seed for every rule-catalog outcome and writes
- * `src/testing/seeds/committedSeeds.json`.
- *
- * This is the deliberate, reviewable half of "seeds are versioned test data".
- * Normal runs never search: they execute the committed seed and fail when it
- * stops producing its outcome. When an RNG-order change makes that happen,
- * this command rediscovers the seeds and the resulting diff is the record of
- * what changed.
- *
- *   (no flags)  fill in only the outcomes that have no seed yet
- *   --refresh   re-discover every outcome, even ones already pinned
- *   --config    restrict to one configuration id
- *   --limit     seeds to try per outcome (default: the config's own window)
- */
-
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -51,7 +33,6 @@ interface Unreachable {
   reason: string;
 }
 
-/** Every outcome to find a seed for, in catalog order. */
 function outcomesToSeed() {
   return RULE_SCENARIOS.flatMap((entry) => entry.configs)
     .filter((config) => !onlyConfig || config.id === onlyConfig)
@@ -60,10 +41,12 @@ function outcomesToSeed() {
     );
 }
 
-/** Write the seeds in stable key order, so the committed diff is what changed. */
 function writeSeeds(seeds: CommittedSeedMap): void {
   const ordered: CommittedSeedMap = {};
-  for (const key of Object.keys(seeds).sort()) ordered[key] = seeds[key];
+  for (const key of Object.keys(seeds).sort()) {
+    const seed = seeds[key];
+    if (seed !== undefined) ordered[key] = seed;
+  }
   writeFileSync(OUTPUT, `${JSON.stringify(ordered, null, 2)}\n`, "utf8");
 }
 
@@ -88,10 +71,8 @@ async function main(): Promise<void> {
       );
       seeds[key] = found.seed;
       discovered++;
-      console.log(`  ✓ ${key} → ${found.seed}`);
+      console.log(`  ✓ ${key} → ${String(found.seed)}`);
     } catch (error) {
-      // An unreachable outcome is reported, never guessed at. The gate
-      // will name it as a gap rather than the suite inventing a variant.
       const reason = error instanceof Error ? error.message : String(error);
       unreachable.push({ configId: config.id, outcomeId: outcome.id, reason });
       console.log(`  ✗ ${key}: ${reason}`);
@@ -101,8 +82,8 @@ async function main(): Promise<void> {
   writeSeeds(seeds);
 
   console.log(
-    `\n${discovered} discovered, ${kept} already pinned, ` +
-      `${unreachable.length} unreachable → ${OUTPUT}`
+    `\n${String(discovered)} discovered, ${String(kept)} already pinned, ` +
+      `${String(unreachable.length)} unreachable → ${OUTPUT}`
   );
   if (unreachable.length > 0) {
     console.log("\nUnreachable outcomes (widen the range or fix the config):");

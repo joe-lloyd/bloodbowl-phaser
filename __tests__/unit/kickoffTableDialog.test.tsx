@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
@@ -8,14 +9,12 @@ import { KickoffTableDialog } from "../../src/ui/components/hud/KickoffTableDial
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
 import { SCENARIOS } from "../../src/data/scenarios";
 
-/** A whole match state, as a snapshot restore hands the HUD. */
 function restoredState() {
   const scenario = SCENARIOS.find(({ id }) => id === "basic-scrimmage");
   if (!scenario) throw new Error("no basic-scrimmage scenario");
   return createHeadlessGame({ scenario, seed: 1 }).gameService.getState();
 }
 
-/** Whether the engine is still rolling the table, as a restore leaves it. */
 let tableResolving = false;
 vi.mock("../../src/services/ServiceContainer", () => ({
   ServiceContainer: {
@@ -29,7 +28,6 @@ vi.mock("../../src/services/ServiceContainer", () => ({
   },
 }));
 
-/** The Kick-off Table dialog, mounted on its own bus. */
 describe("KickoffTableDialog", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -43,11 +41,15 @@ describe("KickoffTableDialog", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () => root.render(<KickoffTableDialog eventBus={bus} />));
+    await act(async () => {
+      root.render(<KickoffTableDialog eventBus={bus} />);
+    });
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -68,12 +70,13 @@ describe("KickoffTableDialog", () => {
     expect(dialog()).not.toBeNull();
     expect(answers).toEqual([]);
 
-    await act(async () => roll!.click());
+    await act(async () => {
+      fixtureValue(roll).click();
+    });
     expect(answers).toEqual(["kickoff-ready-1"]);
   });
 
   it("never opens for a kick an online page replays while catching up", async () => {
-    // Replayed without pacing: the whole kick-off runs before React renders
     await act(async () => {
       bus.emit(GameEventNames.KickoffTableReady, {
         presentationId: "kickoff-ready-2",
@@ -111,7 +114,6 @@ describe("KickoffTableDialog", () => {
     });
     expect(dialog()).not.toBeNull();
 
-    // A snapshot replaces the state: no roll or result event comes after
     await act(async () => {
       bus.emit(GameEventNames.GameStateRestored, restoredState());
     });

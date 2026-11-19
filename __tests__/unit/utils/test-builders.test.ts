@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import {
   TeamBuilder,
@@ -141,10 +142,6 @@ describe("Test Fixtures", () => {
       expect(team.players).toHaveLength(7);
     });
 
-    // Both named fixtures come from the production roster templates now, so
-    // the assertions are about the roster data rather than a copied list:
-    // every player must be a real position of that roster, matching what the
-    // Sevens composition fields.
     it("should create an Orc team from the production roster", () => {
       const team = createOrcTeam();
 
@@ -170,12 +167,11 @@ describe("Test Fixtures", () => {
         positionByPlayerIndex(RosterName.HUMAN)
       );
 
-      // Stats come from the template, not from a copy in the test fixture.
       const roster = getRosterByRosterName(RosterName.HUMAN);
       for (const player of team.players) {
-        const template = roster.playerTemplates.find(
+        const template = fixtureValue(roster.playerTemplates.find(
           (t) => t.positionName === player.positionName
-        )!;
+        ));
         expect(player.stats).toEqual(template.stats);
       }
     });
@@ -191,7 +187,6 @@ describe("Test Fixtures", () => {
       expect(blitzer.positionName).toBe(PositionKeyWord.BLITZER);
       expect(catcher.positionName).toBe(PositionKeyWord.CATCHER);
 
-      // Verify stats are different
       expect(blitzer.stats.MA).toBeGreaterThan(lineman.stats.MA);
       expect(catcher.stats.MA).toBeGreaterThan(blitzer.stats.MA);
     });

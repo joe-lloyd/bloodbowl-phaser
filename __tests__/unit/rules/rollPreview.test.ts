@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   pickupTarget,
@@ -29,7 +30,7 @@ const enemy = createTestPlayer({
 describe("roll preview analysis", () => {
   it("includes marking and rain for pickups and catches", () => {
     expect(
-      pickupTarget(player, player.gridPosition!, [enemy], "Pouring Rain")
+      pickupTarget(player, fixtureValue(player.gridPosition), [enemy], "Pouring Rain")
     ).toBe(5);
     expect(catchTarget(player, [enemy], "Nice", "handoff")).toBe(4);
   });
@@ -52,10 +53,18 @@ describe("roll preview analysis", () => {
     ).toBe(6);
   });
   it("gives each interceptor its own target from marking, rain and skills", () => {
-    const interceptor = { ...enemy, number: 4, stats: { ...enemy.stats, AG: 3 } };
-    // Accurate pass is -3, and our player beside the interceptor marks them.
+    const interceptor = {
+      ...enemy,
+      number: 4,
+      stats: { ...enemy.stats, AG: 3 },
+    };
+
     expect(interceptTarget(interceptor, -3, [player], "Nice")).toBe(6);
-    const legs = { ...interceptor, skills: [getSkill(SkillType.VERY_LONG_LEGS)], gridPosition: { x: 9, y: 9 } };
+    const legs = {
+      ...interceptor,
+      skills: [getSkill(SkillType.VERY_LONG_LEGS)],
+      gridPosition: { x: 9, y: 9 },
+    };
     expect(interceptTarget(legs, -3, [player], "Nice")).toBe(4);
     expect(interceptTarget(legs, -3, [player], "Pouring Rain")).toBe(5);
   });
@@ -72,12 +81,7 @@ describe("roll preview analysis", () => {
       stats: { ...enemy.stats, ST: 3 },
       skills: [getSkill(SkillType.DODGE)],
     };
-    const analysis = new BlockValidator().analyzeBlock(
-      player,
-      defender,
-      [player, defender, assist],
-      "ours"
-    );
+    const analysis = new BlockValidator().analyzeBlock({ attacker: player, defender: defender, allPlayers: [player, defender, assist], activeTeamId: "ours" });
     expect(analysis.attackerAssists.map((p) => p.number)).toEqual([8]);
     expect(blockPreviewLines(analysis, player, defender, "attacker")).toEqual(
       expect.arrayContaining([
@@ -89,8 +93,10 @@ describe("roll preview analysis", () => {
   });
   it("says the defender picks when they are stronger", () => {
     const strong = { ...enemy, stats: { ...enemy.stats, ST: 4 } };
-    const analysis = new BlockValidator().analyzeBlock(player, strong, [player, strong], "ours");
-    expect(blockPreviewLines(analysis, player, strong, "attacker").slice(0, 3)).toEqual([
+    const analysis = new BlockValidator().analyzeBlock({ attacker: player, defender: strong, allPlayers: [player, strong], activeTeamId: "ours" });
+    expect(
+      blockPreviewLines(analysis, player, strong, "attacker").slice(0, 3)
+    ).toEqual([
       "2 dice, they pick",
       "Our assists: none",
       "Their assists: none",

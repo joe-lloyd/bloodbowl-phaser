@@ -1,3 +1,8 @@
+import { sceneWith, ballWith, visualWith, phaseServiceWith } from "./rendererFixtures";
+import { teamWith } from "./controllerFixtures";
+import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
+import { playerWith } from "./controllerFixtures";
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KickoffPhaseHandler } from "../../../src/game/controllers/handlers/KickoffPhaseHandler";
 import { EventBus } from "../../../src/services/EventBus";
@@ -6,41 +11,15 @@ import { GameEventNames } from "../../../src/types/events";
 describe("KickoffPhaseHandler single-ball lifecycle", () => {
   const eventBus = new EventBus();
   let handler: KickoffPhaseHandler;
-  let scene: any;
+  let scene: ReturnType<typeof sceneWith>;
 
   beforeEach(() => {
-    const ballSprite = {
-      x: 0,
-      y: 0,
-      flyTo: vi.fn(() => Promise.resolve()),
-      bounce: vi.fn(() => Promise.resolve()),
-    };
-    scene = {
-      ballSprite: null,
-      pendingKickoffData: null,
-      playerSprites: new Map(),
-      kickingTeam: { id: "team1" },
-      pitch: {
-        getPixelPosition: (x: number, y: number) => ({
-          x: x * 60,
-          y: y * 60,
-        }),
-      },
-      placeBallVisual: vi.fn(() => {
-        scene.ballSprite = ballSprite;
-      }),
-      refreshDugouts: vi.fn(),
-      tweens: { add: vi.fn() },
-    };
-    const gameService = {
-      getPlayerById: vi.fn(() => null),
-      getTeam: vi.fn((teamId: string) => ({
-        id: teamId,
-        name: teamId === "team1" ? "Reikland Reavers" : "Gouged Eye",
-      })),
-      startGame: vi.fn(),
-    };
-    handler = new KickoffPhaseHandler(scene, gameService as any, eventBus);
+    const ballSprite = ballWith();
+    scene = sceneWith({team1:{id:"team1"},team2:{id:"team2"}});
+    scene.placeBallVisual.mockImplementation(() => { scene.ballSprite = ballSprite; });
+    const gameService = phaseServiceWith();
+    gameService.getTeam.mockImplementation((id: string) => teamWith({id, name: id === "team1" ? "Reikland Reavers" : "Gouged Eye"}));
+    handler = new KickoffPhaseHandler(scene, gameService, eventBus);
     handler.enter();
   });
 
@@ -66,39 +45,35 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
       isTouchback: false,
     });
 
-    // One ball, kicked from the target square (no kicker sprite here), that
-    // climbs to hang 9 m over the deviated square with the camera riding it.
     expect(scene.placeBallVisual).toHaveBeenCalledTimes(1);
     expect(scene.placeBallVisual).toHaveBeenCalledWith(10, 5, 0.3);
     expect(tracked).toEqual(["ball"]);
-    expect(scene.ballSprite.flyTo).toHaveBeenLastCalledWith(
+    expect(fixtureValue(scene.ballSprite).flyTo).toHaveBeenLastCalledWith(
       { x: 780, y: 420 },
       expect.objectContaining({ endHeight: 9 })
     );
 
-    // Drifting (Changing Weather) keeps it airborne over the new square.
     eventBus.emit(GameEventNames.KickoffAirbornePositionChanged, {
       x: 14,
       y: 8,
     });
     expect(scene.placeBallVisual).toHaveBeenCalledTimes(1);
-    expect(scene.ballSprite.flyTo).toHaveBeenLastCalledWith(
+    expect(fixtureValue(scene.ballSprite).flyTo).toHaveBeenLastCalledWith(
       { x: 840, y: 480 },
       expect.objectContaining({ endHeight: 9 })
     );
 
-    // Landing brings it down to the ground on that square, with a hop.
     eventBus.emit(GameEventNames.KickoffBallLanding, {
       landingSquare: { x: 14, y: 8 },
       isTouchback: false,
     });
-    expect(scene.ballSprite.flyTo).toHaveBeenLastCalledWith(
+    expect(fixtureValue(scene.ballSprite).flyTo).toHaveBeenLastCalledWith(
       { x: 840, y: 480 },
       expect.objectContaining({ apex: 0 })
     );
-    expect(scene.ballSprite.flyTo.mock.lastCall[1].endHeight ?? 0).toBe(0);
+    expect(fixtureValue(fixtureValue(scene.ballSprite).flyTo.mock.lastCall)[1].endHeight ?? 0).toBe(0);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(scene.ballSprite.bounce).toHaveBeenCalledTimes(1);
+    expect(fixtureValue(scene.ballSprite).bounce).toHaveBeenCalledTimes(1);
 
     eventBus.emit(GameEventNames.KickoffSequenceCompleted, {
       isTouchback: false,
@@ -107,15 +82,15 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
   });
 
   it("updates stunned player rendering during the kickoff phase", () => {
-    const sprite = { updateStatus: vi.fn() };
+    const sprite = visualWith();
     scene.playerSprites.set("invaded", sprite);
-    const player = {
+    const player = playerWith({
       id: "invaded",
       status: "Stunned",
       gridPosition: { x: 5, y: 5 },
-    };
+    });
 
-    eventBus.emit(GameEventNames.PlayerStatusChanged, player as any);
+    eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
     expect(sprite.updateStatus).toHaveBeenCalledTimes(1);
     expect(scene.refreshDugouts).not.toHaveBeenCalled();
@@ -126,25 +101,20 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
       category: string;
       headline: string;
       detail?: string;
-      roll?: number;
+      roll?: number | number[];
     }[] = [];
     eventBus.on(GameEventNames.UI_LogEntry, (data) =>
       entries.push(
-        data as {
-          category: string;
-          headline: string;
-          detail?: string;
-          roll?: number;
-        }
+data
       )
     );
 
     eventBus.emit(GameEventNames.KickoffResult, {
       roll: 6,
-      event: "Cheering Fans" as any,
+      event: KickoffEvent.CHEERING_FANS,
       meaning: "Both coaches roll.",
       outcome: {
-        event: "Cheering Fans" as any,
+        event: KickoffEvent.CHEERING_FANS,
         meaning: "Both coaches roll.",
         perTeam: {
           team1: ["wins the Offensive Assist"],
@@ -154,41 +124,28 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
     });
 
     expect(entries).toHaveLength(1);
-    expect(entries[0].category).toBe("kickoff");
-    expect(entries[0].headline).toBe("Cheering Fans");
-    expect(entries[0].roll).toBe(6);
-    expect(entries[0].detail).toContain("Both coaches roll.");
-    expect(entries[0].detail).toContain(
+    expect(fixtureValue(entries[0]).category).toBe("kickoff");
+    expect(fixtureValue(entries[0]).headline).toBe("Cheering Fans");
+    expect(fixtureValue(entries[0]).roll).toBe(6);
+    expect(fixtureValue(entries[0]).detail).toContain("Both coaches roll.");
+    expect(fixtureValue(entries[0]).detail).toContain(
       "Reikland Reavers: wins the Offensive Assist"
     );
-    expect(entries[0].detail).toContain("Gouged Eye: loses the roll-off");
-    expect(entries[0].detail).not.toContain("team1:");
+    expect(fixtureValue(entries[0]).detail).toContain("Gouged Eye: loses the roll-off");
+    expect(fixtureValue(entries[0]).detail).not.toContain("team1:");
   });
 });
 
-/**
- * Live game: a Charge! Blitz reached the block, the coach pressed Roll and
- * the dialog sat on "Rolling…" with no dice. Charge! runs during KICKOFF,
- * and only the play handler passed the block dialog's commands on.
- */
 describe("KickoffPhaseHandler during a Charge! Blitz", () => {
   const eventBus = new EventBus();
-  const gameService = {
-    getState: vi.fn(() => ({ activePlayer: null })),
-    getPlayerById: vi.fn(() => null),
-    rollBlockDice: vi.fn(),
-    resolveBlock: vi.fn(),
-    teamRerollBlock: vi.fn(),
-    answerReroll: vi.fn(),
-    answerApothecary: vi.fn(),
-  };
+  const gameService = phaseServiceWith();
   let handler: KickoffPhaseHandler;
 
   beforeEach(() => {
     vi.clearAllMocks();
     handler = new KickoffPhaseHandler(
-      { playerSprites: new Map() } as any,
-      gameService as any,
+      sceneWith(),
+      gameService,
       eventBus
     );
     handler.enter();
@@ -210,28 +167,25 @@ describe("KickoffPhaseHandler during a Charge! Blitz", () => {
     eventBus.emit(GameEventNames.UI_BlockResultSelected, {
       attackerId: "charger",
       defenderId: "receiver",
-      result: { type: "pow", label: "Pow" } as any,
+      result: { type: "pow", icon: "", label: "Pow" },
     });
     eventBus.emit(GameEventNames.UI_RerollResponse, {
       accept: true,
       source: "team",
-    } as any);
+    });
     eventBus.emit(GameEventNames.UI_ApothecaryResponse, { accept: false });
 
-    expect(gameService.rollBlockDice).toHaveBeenCalledWith(
+    expect(gameService.spies.rollBlockDice).toHaveBeenCalledWith(
+      { attackerId: "charger", defenderId: "receiver", numDice: 2, isAttackerChoice: true }
+    );
+    expect(gameService.spies.teamRerollBlock).toHaveBeenCalledWith("charger");
+    expect(gameService.spies.resolveBlock).toHaveBeenCalledWith(
       "charger",
       "receiver",
-      2,
-      true
+      { type: "pow", icon: "", label: "Pow" }
     );
-    expect(gameService.teamRerollBlock).toHaveBeenCalledWith("charger");
-    expect(gameService.resolveBlock).toHaveBeenCalledWith(
-      "charger",
-      "receiver",
-      { type: "pow", label: "Pow" }
-    );
-    expect(gameService.answerReroll).toHaveBeenCalledWith(true, "team");
-    expect(gameService.answerApothecary).toHaveBeenCalledWith(false);
+    expect(gameService.spies.answerReroll).toHaveBeenCalledWith(true, "team");
+    expect(gameService.spies.answerApothecary).toHaveBeenCalledWith(false);
   });
 
   it("stops passing commands on once the kick-off is over", () => {
@@ -242,6 +196,6 @@ describe("KickoffPhaseHandler during a Charge! Blitz", () => {
       numDice: 1,
       isAttackerChoice: true,
     });
-    expect(gameService.rollBlockDice).not.toHaveBeenCalled();
+    expect(gameService.spies.rollBlockDice).not.toHaveBeenCalled();
   });
 });

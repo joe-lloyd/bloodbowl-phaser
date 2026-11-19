@@ -1,9 +1,6 @@
-/**
- * A coach finds their own league teams on the league page and opens each
- * one's progression with the league as the way back.
- */
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,16 +10,16 @@ vi.mock("../../../src/firebase/config", () => ({
 }));
 
 import { createCompetition } from "../../../src/competition/create";
-import { createComputerTeam } from "../../../src/competition/computerTeams";
+import { createComputerTeam } from "../../fixtures/computerTeam";
 import { createRosterRuleProfile } from "../../../src/competition/rosterRules";
-import { CompetitionDoc } from "../../../src/competition/types";
+import { type CompetitionDoc } from "../../../src/competition/types";
 import {
   saveTeam,
   saveTeams,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
 import { queueExpensiveMistakes } from "../../../src/game/rules/expensiveMistakes";
-import { RosterName, Team } from "../../../src/types/Team";
+import { RosterName, type Team } from "../../../src/types/Team";
 import { CompetitionView } from "../../../src/ui/components/pages/CompetitionView";
 import {
   leagueTeamProgressRows,
@@ -43,19 +40,19 @@ beforeEach(() => {
 
 afterEach(async () => {
   setTeamRepository(null);
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   localStorage.clear();
 });
 
-/** A legal team for league entry, in this coach's library. */
 function coachTeam(roster: RosterName, name: string): Team {
   const team = createReadyMadeTeam(roster, name, 0xaa2222);
   team.advancementMode = "advanced-league";
   return team;
 }
 
-/** Where the router is, shown on the stand-in pages. */
 function Here({ label }: { label: string }) {
   const { pathname, search } = useLocation();
   return (
@@ -101,12 +98,7 @@ describe("the league page's Your teams section", () => {
   beforeEach(async () => {
     first = coachTeam(RosterName.HUMAN, "Nuln Hammers");
     second = coachTeam(RosterName.DWARF, "Reikland Reavers");
-    rival = createComputerTeam(
-      RosterName.ORC,
-      "Orc XI",
-      0x224488,
-      "advanced-league"
-    );
+    rival = createComputerTeam({ rosterName: RosterName.ORC, name: "Orc XI", primaryColour: 0x224488, advancementMode: "advanced-league" });
     saveTeams([first, second]);
     saveTeam(rival);
     league = await createCompetition({
@@ -119,11 +111,10 @@ describe("the league page's Your teams section", () => {
       })),
       profile: createRosterRuleProfile({ advancementMode: "advanced-league" }),
     });
-    // After a game: one team has development to finish, and one player on
-    // the other has the SPP for a random primary skill, not more
+
     first.treasury = 150_000;
     queueExpensiveMistakes(first, "league:f1");
-    second.players[0].spp = 3;
+    fixtureValue(second.players[0]).spp = 3;
     saveTeams([first, second, rival]);
   });
 
@@ -133,7 +124,7 @@ describe("the league page's Your teams section", () => {
       '[data-testid="league-your-teams"]'
     );
     expect(section).not.toBeNull();
-    const rows = [...section!.querySelectorAll("li")].map(
+    const rows = [...fixtureValue(section).querySelectorAll("li")].map(
       (row) => row.textContent
     );
     expect(rows).toHaveLength(3);
@@ -146,7 +137,7 @@ describe("the league page's Your teams section", () => {
     expect(rows[2]).toContain(
       "The computer makes this team's development choices."
     );
-    // A Progress team action for each team a person coaches, named for it
+
     expect(button("Progress team: Nuln Hammers")).toBeDefined();
     expect(button("Progress team: Reikland Reavers")).toBeDefined();
     expect(button("Progress team: Orc XI")).toBeUndefined();
@@ -154,13 +145,17 @@ describe("the league page's Your teams section", () => {
 
   it("opens the chosen team's page and comes back to the league", async () => {
     await showLeague(league);
-    await act(async () => button("Progress team: Reikland Reavers")!.click());
-    // The second team's page, not the first's
-    const page = container.textContent!.toLowerCase();
+    await act(async () => {
+      fixtureValue(button("Progress team: Reikland Reavers")).click();
+    });
+
+    const page = container.textContent.toLowerCase();
     expect(page).toContain("reikland reavers");
     expect(page).not.toContain("nuln hammers");
     expect(button("Cancel")).toBeUndefined();
-    await act(async () => button("Back to the league")!.click());
+    await act(async () => {
+      fixtureValue(button("Back to the league")).click();
+    });
     expect(
       container.querySelector('[data-testid="league-your-teams"]')
     ).not.toBeNull();
@@ -168,18 +163,22 @@ describe("the league page's Your teams section", () => {
 
   it("returns to the league after saving the team", async () => {
     await showLeague(league);
-    await act(async () => button("Progress team: Reikland Reavers")!.click());
-    const save = [...container.querySelectorAll("button")].find((candidate) =>
+    await act(async () => {
+      fixtureValue(button("Progress team: Reikland Reavers")).click();
+    });
+    const save = fixtureValue([...container.querySelectorAll("button")].find((candidate) =>
       candidate.textContent?.startsWith("Save Team")
-    )!;
-    await act(async () => save.click());
+    ));
+    await act(async () => {
+      save.click();
+    });
     expect(
       container.querySelector('[data-testid="league-your-teams"]')
     ).not.toBeNull();
   });
 
   it("leaves out withdrawn teams and teams that are not the coach's", () => {
-    league.entrants[0].withdrawn = true;
+    fixtureValue(league.entrants[0]).withdrawn = true;
     const rows = leagueTeamProgressRows(league, (teamId) =>
       teamId === second.id ? second : undefined
     );
@@ -188,13 +187,13 @@ describe("the league page's Your teams section", () => {
 
   it("does not say pending development blocks the next game when the league allows it", () => {
     league.rosterProfile = {
-      ...league.rosterProfile!,
+      ...fixtureValue(league.rosterProfile),
       requireDevelopmentComplete: false,
     };
     const [row] = leagueTeamProgressRows(league, (teamId) =>
       teamId === first.id ? first : undefined
     );
-    expect(row.status).toEqual({ kind: "development", blocksNextGame: false });
+    expect(fixtureValue(row).status).toEqual({ kind: "development", blocksNextGame: false });
   });
 
   it("calls a team with nothing waiting up to date", () => {
@@ -203,15 +202,17 @@ describe("the league page's Your teams section", () => {
         ? { ...first, id: rival.id, pendingDevelopment: [] }
         : undefined
     );
-    expect(row.status).toEqual({ kind: "computer" });
+    expect(fixtureValue(row).status).toEqual({ kind: "computer" });
+    const person = { ...fixtureValue(league.entrants[0]) };
+    delete person.computerCoached;
     const [mine] = leagueTeamProgressRows(
       {
         ...league,
-        entrants: [{ ...league.entrants[0], computerCoached: undefined }],
+        entrants: [person],
       },
       () => ({ ...first, pendingDevelopment: [] })
     );
-    expect(mine.status).toEqual({ kind: "up-to-date" });
+    expect(fixtureValue(mine).status).toEqual({ kind: "up-to-date" });
   });
 });
 
@@ -253,6 +254,8 @@ it("keeps Back to Teams when a team's page was opened from Teams", async () => {
     );
   });
   expect(button("Back to the league")).toBeUndefined();
-  await act(async () => button("Cancel")!.click());
+  await act(async () => {
+    fixtureValue(button("Cancel")).click();
+  });
   expect(here()).toBe("Teams /build-team");
 });

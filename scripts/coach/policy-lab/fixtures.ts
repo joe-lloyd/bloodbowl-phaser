@@ -1,4 +1,3 @@
-/** The lab and behavior tests drive the same public coach and command engine. */
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
 import type { ScenarioSetup } from "../../../src/types/Scenario";
@@ -59,7 +58,8 @@ export async function coachStep(game: HeadlessGame, coach: Coach) {
     rng: createCoachRng(1),
   });
   const candidate = point.candidates[choice.index];
-  if (!candidate) throw new Error(`Invalid coach choice ${choice.index}`);
+  if (!candidate)
+    throw new Error(`Invalid coach choice ${String(choice.index)}`);
   for (const command of candidate.commands) {
     const response = await game.execute(command);
     if (!response.ok)

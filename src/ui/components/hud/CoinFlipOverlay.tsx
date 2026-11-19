@@ -1,18 +1,17 @@
 import { usePregameInducements } from "./pregameInducementHooks";
 import { PregameInducements } from "./PregameInducements";
 import React, { useState, useEffect, useRef } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { GameEventNames } from "../../../types/events";
-import { Team } from "../../../types/Team";
+import { type Team } from "../../../types/Team";
 import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { soundSettings } from "../../sound/settings";
 import type { DiceThrow } from "../../dice/diceScene";
-import { teamLook } from "./DiceTray";
+import { teamLook } from "./diceTrayData";
 
-/** How long the landed coin shows its face before the winner is named. */
 export const RESULT_BEAT_MS = 700;
 
 interface CoinFlipProps {
@@ -29,9 +28,6 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
   const coinHost = useRef<HTMLDivElement>(null);
   const throwing = useRef<DiceThrow | null>(null);
 
-  // Listen for start request. Online matches use the shared OnlineCoinFlip
-  // (ready check + host-authoritative result) instead of this local overlay;
-  // a match against the computer tosses here.
   useEventBus(eventBus, GameEventNames.UI_StartCoinFlip, (data) => {
     const match = getActiveOnlineMatch();
     if (match && match.kind !== "computer") return;
@@ -41,7 +37,6 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     setWinner(null);
   });
 
-  // Show the coach which side is whose before the toss
   useEffect(() => {
     if (!teams) return;
     const faces = [teamLook(teams.team1.id), teamLook(teams.team2.id)];
@@ -59,17 +54,17 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     };
   }, [teams]);
 
-  // The coin stops drawing once the overlay goes
   useEffect(() => () => throwing.current?.stop(), []);
 
-  // Initial check for active coin flip (Race condition fix)
   useEffect(() => {
     const checkState = () => {
-      eventBus.emit(GameEventNames.UI_RequestCoinFlipState);
+      eventBus.emit(GameEventNames.UI_RequestCoinFlipState, undefined);
     };
-    // Small delay to ensure GameScene is ready
+
     const timer = setTimeout(checkState, 100);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [eventBus]);
 
   const handleFlip = async () => {
@@ -118,7 +113,6 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     setIsVisible(false);
   };
 
-  // Against the computer, a toss it wins is its call: it receives.
   const computer = getActiveOnlineMatch();
   const computerWon =
     computer?.kind === "computer" &&
@@ -126,8 +120,12 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     winner.id !== computer.myTeamId;
   useEffect(() => {
     if (step !== "RESULT" || !computerWon) return;
-    const timer = setTimeout(() => handleChoice("receive"), 1500);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => {
+      handleChoice("receive");
+    }, 1500);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [step, computerWon]);
 
   if (!isVisible || !teams) return null;
@@ -157,7 +155,9 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
               >
                 {faceImages && (
                   <img
-                    src={faceImages[i]}
+                    {...(faceImages[i] === undefined
+                      ? {}
+                      : { src: faceImages[i] })}
                     alt=""
                     className="h-20 w-20 rounded-full border-4 border-hud-gold shadow-[0_8px_20px_rgba(0,0,0,0.6)]"
                   />
@@ -200,14 +200,18 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
             <HudButton
               variant="gold"
               size="lg"
-              onClick={() => handleChoice("kick")}
+              onClick={() => {
+                handleChoice("kick");
+              }}
             >
               KICK
             </HudButton>
             <HudButton
               variant="primary"
               size="lg"
-              onClick={() => handleChoice("receive")}
+              onClick={() => {
+                handleChoice("receive");
+              }}
             >
               RECEIVE
             </HudButton>

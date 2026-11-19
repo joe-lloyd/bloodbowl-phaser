@@ -1,7 +1,6 @@
-import { Team } from "../../types/Team";
-import { KickoffEvent, KickoffEventOutcome } from "./kickoffEvents";
+import { type Team } from "../../types/Team";
+import { KickoffEvent, type KickoffEventOutcome } from "./kickoffEvents";
 
-/** The visible effect in one sentence. The full rule stays in the log. */
 const summary: Record<KickoffEvent, string> = {
   [KickoffEvent.GET_THE_REF]: "Both teams gain a Bribe.",
   [KickoffEvent.TIME_OUT]: "Both turn markers move by one.",
@@ -24,11 +23,6 @@ const summary: Record<KickoffEvent, string> = {
     "The team that loses the roll has a player Stunned by the crowd.",
 };
 
-/**
- * The banner that names the event as soon as the table is rolled: what it
- * does, and which dice come next, so the coach knows what each roll after
- * it decides.
- */
 const reveal: Record<KickoffEvent, string> = {
   [KickoffEvent.GET_THE_REF]: "Both teams gain a Bribe.",
   [KickoffEvent.TIME_OUT]: "Both turn markers move by one.",
@@ -51,7 +45,6 @@ const reveal: Record<KickoffEvent, string> = {
     "Next, each team rolls a D6 and adds its Dedicated Fans. The lower total has a random player Stunned.",
 };
 
-/** Events whose result waits on more dice, told once those have landed. */
 const ROLLS_FOR_ITS_RESULT = new Set<KickoffEvent>([
   KickoffEvent.CHEERING_FANS,
   KickoffEvent.BRILLIANT_COACHING,
@@ -60,21 +53,16 @@ const ROLLS_FOR_ITS_RESULT = new Set<KickoffEvent>([
   KickoffEvent.PITCH_INVASION,
 ]);
 
-/** The reveal banner's line for an event, before any of its own dice. */
 export function kickoffRevealLine(
   event: KickoffEvent,
   kicking: Team,
   receiving: Team
 ): string {
   if (ROLLS_FOR_ITS_RESULT.has(event)) return reveal[event];
-  // Nothing more to roll for the result: say who it favours now
+
   return `${reveal[event]} ${favoursLine({ event, meaning: "", perTeam: {} }, kicking, receiving)}`;
 }
 
-/**
- * What the event's dice decided, team by team, for the banner that follows
- * them. Null when the reveal already said it all.
- */
 export function kickoffOutcomeLine(
   outcome: KickoffEventOutcome,
   kicking: Team,
@@ -85,7 +73,6 @@ export function kickoffOutcomeLine(
     (outcome.perTeam[team.id] ?? []).map((effect) => `${team.name}: ${effect}`)
   );
   if (outcome.event === KickoffEvent.CHANGING_WEATHER) {
-    // The same weather line is granted to both teams
     return outcome.perTeam[kicking.id]?.[0] ?? null;
   }
   return lines.length > 0
@@ -93,7 +80,6 @@ export function kickoffOutcomeLine(
     : "Nobody on the pitch to take it.";
 }
 
-/** One short line on what an event does, for the Kick-off Table. */
 export function kickoffEventSummary(event: KickoffEvent): string {
   return summary[event];
 }
@@ -106,7 +92,6 @@ export function kickoffMomentDetail(
   return `${summary[outcome.event]} ${favoursLine(outcome, kicking, receiving)}`;
 }
 
-/** Who the event helps, once its roll-off (if any) is known. */
 function favoursLine(
   outcome: KickoffEventOutcome,
   kicking: Team,
@@ -114,13 +99,23 @@ function favoursLine(
 ): string {
   const teams = [kicking, receiving];
   const affected = teams.filter((team) => outcome.perTeam[team.id]?.length);
-  /** The roll-off's winners, or a tie when it went the same for both. */
-  const rollOff = (winners: Team[]): string =>
-    winners.length === 1
-      ? `Favours ${winners[0].name}.`
-      : "A tie, so it favours neither team.";
+
+  const rollOff = (winners: Team[]): string => {
+    const [first] = winners;
+    return winners.length === 1 && first ? `Favours ${first.name}.` : "A tie, so it favours neither team.";
+  };
+  if (outcome.event === KickoffEvent.CHEERING_FANS || outcome.event === KickoffEvent.BRILLIANT_COACHING) return rollOff(affected);
+  if (outcome.event === KickoffEvent.DODGY_SNACK || outcome.event === KickoffEvent.PITCH_INVASION) return rollOff(teams.filter((team) => !affected.includes(team)));
+  return simpleFavours(outcome.event, kicking, receiving);
+}
+
+type SimpleEvent = Exclude<KickoffEvent,
+  typeof KickoffEvent.CHEERING_FANS | typeof KickoffEvent.BRILLIANT_COACHING |
+  typeof KickoffEvent.DODGY_SNACK | typeof KickoffEvent.PITCH_INVASION>;
+
+function simpleFavours(event: SimpleEvent, kicking: Team, receiving: Team): string {
   let favours: string;
-  switch (outcome.event) {
+  switch (event) {
     case KickoffEvent.GET_THE_REF:
       favours = "Favours both teams.";
       break;
@@ -138,16 +133,8 @@ function favoursLine(
     case KickoffEvent.QUICK_SNAP:
       favours = `Favours ${receiving.name}.`;
       break;
-    case KickoffEvent.CHEERING_FANS:
-    case KickoffEvent.BRILLIANT_COACHING:
-      favours = rollOff(affected);
-      break;
-    case KickoffEvent.DODGY_SNACK:
-    case KickoffEvent.PITCH_INVASION:
-      favours = rollOff(teams.filter((team) => !affected.includes(team)));
-      break;
     default: {
-      const unreachable: never = outcome.event;
+      const unreachable: never = event;
       return unreachable;
     }
   }

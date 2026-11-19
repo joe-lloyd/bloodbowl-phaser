@@ -1,4 +1,4 @@
-import { expect, Page, TestInfo } from "@playwright/test";
+import { expect, type Page, type TestInfo } from "@playwright/test";
 import type { BrowserTestBridge } from "../../src/testing/browserBridge";
 
 type CameraState = NonNullable<ReturnType<BrowserTestBridge["cameraState"]>>;
@@ -11,7 +11,7 @@ type CameraWindow = Window & {
 
 export async function cameraState(page: Page) {
   const state = await page.evaluate(() =>
-    (window as CameraWindow).__bbTestBridge?.cameraState()
+    (window).__bbTestBridge?.cameraState()
   );
   if (!state) throw new Error("No live match camera");
   return state;
@@ -19,7 +19,7 @@ export async function cameraState(page: Page) {
 
 export async function sampleCamera(page: Page) {
   await page.evaluate(() => {
-    const w = window as CameraWindow;
+    const w: CameraWindow = window;
     w.cameraSamples = [];
     w.cameraSampling = true;
     const sample = () => {
@@ -38,7 +38,7 @@ export async function finishCameraSample(
   name: string
 ) {
   const samples = await page.evaluate(() => {
-    const w = window as CameraWindow;
+    const w: CameraWindow = window;
     w.cameraSampling = false;
     return w.cameraSamples ?? [];
   });

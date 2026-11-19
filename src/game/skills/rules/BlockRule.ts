@@ -1,15 +1,10 @@
-/**
- * Block — a player with Block is not Knocked Down as a result of a Both Down
- * (Blood Bowl 2025). If both players have Block, neither is knocked down.
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const BlockRule: SkillRule = {
   onBlockResult(ctx, self) {
     if (ctx.resultType !== "both-down") return;
-    // Wrestle places both Prone "regardless of any other Skills"
+
     if (ctx.placedProne) return;
 
     if (self.id === ctx.attacker.id && ctx.attackerKnockedDown) {

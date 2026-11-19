@@ -1,18 +1,11 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import type { CommandResponse } from "../../src/headless/protocol";
-
-/**
- * Sevens D8: once per game the Veteran may re-roll a failed pick-up, catch
- * or Pass Action roll, or the block dice when their own Block would Knock
- * them Down. Every team here has no Team Re-rolls unless a test adds some,
- * so the Veteran is the only source. Seeds are committed, never searched
- * (see docs/E2E_TESTING.md); each test first asserts the failure its seed
- * produces, so a dice-order change fails loudly.
- */
 
 const play = {
   activeTeam: "team1" as const,
@@ -77,35 +70,34 @@ const blockScenario: Scenario = {
   },
 };
 
-/** The pick-up fails; so does the dodge from (16,4) to (15,3). */
 const PICKUP_FAILS_SEED = 7;
-/** The hand-off to (6,5) is dropped. */
+
 const CATCH_FAILS_SEED = 7;
-/** The pass to (9,5) is inaccurate. */
+
 const PASS_FAILS_SEED = 1;
-/** One block die: Player Down, then the Veteran's re-roll gives Push. */
+
 const BLOCK_SKULL_SEED = 8;
-/** One block die: Both Down. */
+
 const BLOCK_BOTH_DOWN_SEED = 9;
-/** One block die: POW. */
+
 const BLOCK_POW_SEED = 2;
 
 function newGame(scenario: Scenario, seed: number, veteranIndex: number) {
   const game = new HeadlessGame({ scenario, seed });
   game.ctx.team1.rerolls = 0;
-  game.ctx.team1.players[veteranIndex].veteran = true;
+  fixtureValue(game.ctx.team1.players[veteranIndex]).veteran = true;
   return game;
 }
 
 async function pickUp(game: HeadlessGame): Promise<CommandResponse> {
-  const id = game.ctx.team1.players[0].id;
+  const id = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({ type: "declare-action", playerId: id, action: "move" });
   return game.execute({ type: "move", playerId: id, path: [{ x: 5, y: 5 }] });
 }
 
 async function block(game: HeadlessGame): Promise<CommandResponse> {
-  const attackerId = game.ctx.team1.players[0].id;
-  const defenderId = game.ctx.team2.players[0].id;
+  const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const defenderId = fixtureValue(game.ctx.team2.players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: attackerId,
@@ -138,7 +130,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("spending it re-rolls the pick-up and marks it used for the game", async () => {
     const game = newGame(pickupScenario, PICKUP_FAILS_SEED, 0);
-    const veteranId = game.ctx.team1.players[0].id;
+    const veteranId = fixtureValue(game.ctx.team1.players[0]).id;
     await pickUp(game);
 
     const accepted = await game.execute({
@@ -147,9 +139,14 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
       source: "veteran",
     });
 
-    const used = accepted.events.find(
-      (e) => e.name === GameEventNames.RerollUsed
-    )?.data as { source: string; rollKind: string } | undefined;
+    const used = z
+      .union([
+        z.object({ source: z.string(), rollKind: z.string() }),
+        z.undefined(),
+      ])
+      .parse(
+        accepted.events.find((e) => e.name === GameEventNames.RerollUsed)?.data
+      );
     expect(used).toMatchObject({ source: "veteran", rollKind: "pickup" });
     expect(accepted.pendingDecision).toBeNull();
     expect(accepted.snapshot.veteranRerollsUsed).toEqual([veteranId]);
@@ -168,7 +165,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
   it("is not offered again once used this game", async () => {
     const game = newGame(pickupScenario, PICKUP_FAILS_SEED, 0);
     game.ctx.gameService.getState().veteranRerollsUsed = [
-      game.ctx.team1.players[0].id,
+      fixtureValue(game.ctx.team1.players[0]).id,
     ];
     const moved = await pickUp(game);
 
@@ -180,7 +177,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("does not cover a failed dodge", async () => {
     const game = newGame(pickupScenario, PICKUP_FAILS_SEED, 1);
-    const dodgerId = game.ctx.team1.players[1].id;
+    const dodgerId = fixtureValue(game.ctx.team1.players[1]).id;
     await game.execute({
       type: "declare-action",
       playerId: dodgerId,
@@ -200,7 +197,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("offers the Veteran re-roll on a failed catch", async () => {
     const game = newGame(handoffScenario, CATCH_FAILS_SEED, 1);
-    const passerId = game.ctx.team1.players[0].id;
+    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,
@@ -209,7 +206,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
     const handed = await game.execute({
       type: "handoff",
       playerId: passerId,
-      targetId: game.ctx.team1.players[1].id,
+      targetId: fixtureValue(game.ctx.team1.players[1]).id,
     });
 
     const pending = handed.pendingDecision;
@@ -219,7 +216,7 @@ describe("Veteran re-roll on failed rolls (D8)", () => {
 
   it("offers the Veteran re-roll on a failed Pass Action roll", async () => {
     const game = newGame(passScenario, PASS_FAILS_SEED, 0);
-    const passerId = game.ctx.team1.players[0].id;
+    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,
@@ -249,7 +246,7 @@ describe("Veteran re-roll on block dice (D8)", () => {
 
   it("re-rolls the block dice once", async () => {
     const game = newGame(blockScenario, BLOCK_SKULL_SEED, 0);
-    const attackerId = game.ctx.team1.players[0].id;
+    const attackerId = fixtureValue(game.ctx.team1.players[0]).id;
     await block(game);
 
     const rerolled = await game.execute({
@@ -258,9 +255,14 @@ describe("Veteran re-roll on block dice (D8)", () => {
     });
 
     expect(blockDice(rerolled)).toEqual({ dice: ["push"], veteran: false });
-    const used = rerolled.events.find(
-      (e) => e.name === GameEventNames.RerollUsed
-    )?.data as { source: string; rollKind: string } | undefined;
+    const used = z
+      .union([
+        z.object({ source: z.string(), rollKind: z.string() }),
+        z.undefined(),
+      ])
+      .parse(
+        rerolled.events.find((e) => e.name === GameEventNames.RerollUsed)?.data
+      );
     expect(used).toMatchObject({ source: "veteran", rollKind: "block" });
     expect(rerolled.snapshot.veteranRerollsUsed).toEqual([attackerId]);
   });

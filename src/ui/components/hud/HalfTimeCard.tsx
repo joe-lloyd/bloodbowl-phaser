@@ -1,24 +1,22 @@
 import { useRef, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames } from "../../../types/events";
 import { GamePhase } from "../../../types/GameState";
 import { teamRerollsLeft } from "../../../game/teamRerolls";
 import { useEventBus } from "../../hooks/useEventBus";
 import { HudButton, Panel, PanelHeader } from "../componentWarehouse/HudKit";
-import { HalfTimeSummary, KoRecovery, summarizeHalfTime } from "./turnSummary";
+import {
+  type HalfTimeSummary,
+  type KoRecovery,
+  summarizeHalfTime,
+} from "./turnSummary";
 
 type HalfTimeView =
   | { kind: "closed" }
   | { kind: "summary"; summary: HalfTimeSummary; extraTime: boolean }
   | { kind: "plain" };
 
-/**
- * The half time summary in the left column. It opens when the first half
- * ends, fills in as KO recovery rolls land, and stays until the coach closes
- * it or the second half's first turn starts. It only reads state, so online
- * lockstep play is untouched, and each coach closes their own copy.
- */
 export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
   const [card, setCard] = useState<HalfTimeView>({ kind: "closed" });
   const [ready, setReady] = useState(false);
@@ -28,23 +26,21 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
 
   const refresh = () => {
     if (!open.current || !ServiceContainer.isInitialized()) return;
-    // The card replaces the half time banner, so half time must show even
-    // when the summary cannot be read.
+
     try {
       const game = ServiceContainer.getInstance().gameService;
       const state = game.getState();
       setCard({
         kind: "summary",
-        // Before Extra Time nothing is replenished, and a roll-off decides
-        // who kicks
+
         extraTime: !!state.turn.extraTime,
-        summary: summarizeHalfTime(
-          game.getTeams(),
-          state.score,
-          (team) => teamRerollsLeft(state, team),
-          recoveries.current,
-          kickerId.current
-        ),
+        summary: summarizeHalfTime({
+          teams: game.getTeams(),
+          score: state.score,
+          rerollsLeft: (team) => teamRerollsLeft(state, team),
+          recoveries: recoveries.current,
+          kickerId: kickerId.current,
+        }),
       });
     } catch (error) {
       console.error(
@@ -90,40 +86,13 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
   const extraTime = card.kind === "summary" && card.extraTime;
   const title = extraTime ? "Extra time" : "Half time";
   return (
-    <Panel
-      as="section"
-      data-testid="half-time-card"
-      aria-label={title}
-      aria-live="polite"
-      className="pointer-events-auto flex max-h-[min(45vh,340px)] w-full shrink-0 flex-col"
-    >
-      <PanelHeader
-        as="h2"
-        title={title}
-        controls={
-          <HudButton
-            size="xs"
-            variant="ghost"
-            data-testid="half-time-close"
-            aria-label="Close half time summary"
-            onClick={close}
-          >
-            Close
-          </HudButton>
-        }
-      />
-      <div className="overflow-y-auto hud-scroll p-3 text-hud-sm text-hud-bone">
-        {summary ? (
-          <HalfTimeDetails
-            summary={summary}
-            extraTime={extraTime}
-            ready={ready}
-          />
-        ) : (
-          <p>Second half next</p>
-        )}
-      </div>
-    </Panel>
+    <HalfTimeCardView
+      title={title}
+      close={close}
+      summary={summary}
+      extraTime={extraTime}
+      ready={ready}
+    />
   );
 }
 
@@ -169,5 +138,57 @@ function HalfTimeDetails({
         <p>Nobody</p>
       )}
     </>
+  );
+}
+
+interface HalfTimeCardViewProps {
+  title: "Extra time" | "Half time";
+  close: () => void;
+  summary: HalfTimeSummary | null;
+  extraTime: boolean;
+  ready: boolean;
+}
+function HalfTimeCardView({
+  title,
+  close,
+  summary,
+  extraTime,
+  ready,
+}: HalfTimeCardViewProps) {
+  return (
+    <Panel
+      as="section"
+      data-testid="half-time-card"
+      aria-label={title}
+      aria-live="polite"
+      className="pointer-events-auto flex max-h-[min(45vh,340px)] w-full shrink-0 flex-col"
+    >
+      <PanelHeader
+        as="h2"
+        title={title}
+        controls={
+          <HudButton
+            size="xs"
+            variant="ghost"
+            data-testid="half-time-close"
+            aria-label="Close half time summary"
+            onClick={close}
+          >
+            Close
+          </HudButton>
+        }
+      />
+      <div className="overflow-y-auto hud-scroll p-3 text-hud-sm text-hud-bone">
+        {summary ? (
+          <HalfTimeDetails
+            summary={summary}
+            extraTime={extraTime}
+            ready={ready}
+          />
+        ) : (
+          <p>Second half next</p>
+        )}
+      </div>
+    </Panel>
   );
 }

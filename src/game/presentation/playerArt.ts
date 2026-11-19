@@ -3,51 +3,41 @@ import manifest from "./spriteManifest.json";
 import { ISO } from "../elements/GridUtils";
 import { MATCH_STYLE } from "./matchStyle";
 
-/**
- * Pre-rendered player art. Every model was rendered in Blender from the
- * board camera in eight facings, with idle, run and fall animations, then
- * split into three layers: the figure, and its primary and secondary kit
- * pixels in grey for Phaser to tint with the team's colours. See
- * scripts/sprites/ for the pipeline and spriteManifest.json for its output.
- */
-
-export const FACINGS = ["s", "se", "e", "ne", "n", "nw", "w", "sw"] as const;
+const FACINGS = ["s", "se", "e", "ne", "n", "nw", "w", "sw"] as const;
 export type Facing = (typeof FACINGS)[number];
-/** idle, run, fall and cheer loop or hold; block and pass play once. */
+
 export type Animation = "idle" | "run" | "fall" | "cheer" | "block" | "pass";
 export const LAYERS = ["base", "kit1", "kit2"] as const;
 export type Layer = (typeof LAYERS)[number];
 
 export interface ModelArt {
-  /** Square frame size, in pixels, before trimming. */
   frame: number;
-  /** Where the feet are inside the frame. */
+
   anchor: [number, number];
   animations: Record<Animation, number>;
 }
 
 const MODELS = manifest.models as unknown as Record<string, ModelArt>;
-const POSITIONS = manifest.positions as Record<string, Record<string, string>>;
+const POSITIONS: Record<string, Record<string, string>> = manifest.positions;
 
-/** Used when a roster position has no model of its own. */
 const FALLBACK_MODEL = "human_lineman";
 
-/** The model rendered for a roster position. */
 export function modelFor(rosterName: string, positionName: string): string {
   const model = POSITIONS[rosterName]?.[positionName];
   if (model && MODELS[model]) return model;
-  // A new or renamed position: borrow the roster's first rendered model.
+
   const roster = Object.values(POSITIONS[rosterName] ?? {});
   return roster.find((m) => MODELS[m]) ?? FALLBACK_MODEL;
 }
 
-/** Whether this model has been rendered into the sprite manifest yet. */
 export function hasModelArt(model: string): boolean {
   return model in MODELS;
 }
 
 export function modelArt(model: string): ModelArt {
-  return MODELS[model] ?? MODELS[FALLBACK_MODEL];
+  const art = MODELS[model] ?? MODELS[FALLBACK_MODEL];
+  if (!art) throw new Error(`Missing player art for ${model}`);
+  return art;
 }
 
 export function textureKey(model: string, layer: Layer): string {
@@ -55,10 +45,9 @@ export function textureKey(model: string, layer: Layer): string {
 }
 
 export function frameName(anim: Animation, facing: Facing, index: number) {
-  return `${anim}/${facing}/${index}`;
+  return `${anim}/${facing}/${String(index)}`;
 }
 
-/** Queue the atlases for every model these players use. */
 export function preloadPlayerArt(
   scene: Phaser.Scene,
   players: { rosterName: string; positionName: string }[]
@@ -69,7 +58,6 @@ export function preloadPlayerArt(
   preloadModels(scene, models);
 }
 
-/** Queue non-player models through the same kit-layer atlas pipeline. */
 export function preloadModels(
   scene: Phaser.Scene,
   models: Iterable<string>
@@ -88,10 +76,6 @@ export function preloadModels(
   }
 }
 
-/**
- * The facing for a step across the screen. Grid x runs down-right and grid
- * y down-left, so a screen delta converts back to grid units first.
- */
 export function facingForStep(dx: number, dy: number): Facing | null {
   const u = dx / ISO.gx.x;
   const v = dy / ISO.gx.y;
@@ -110,5 +94,5 @@ export function facingForStep(dx: number, dy: number): Facing | null {
     "-1,0": "w",
     "-1,1": "sw",
   };
-  return table[`${sx},${sy}`] ?? null;
+  return table[`${String(sx)},${String(sy)}`] ?? null;
 }

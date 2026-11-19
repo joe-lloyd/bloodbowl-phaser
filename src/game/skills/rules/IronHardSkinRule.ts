@@ -1,14 +1,5 @@
-/**
- * Iron Hard Skin (2025 p.129) — "Opposition players cannot apply any
- * modifiers when making an Armour Roll against this player. Additionally,
- * the Claws Skill cannot be used against this player."
- *
- * Folds after the causer's rules (victim runs second), so it cancels what
- * Mighty Blow/Claws just applied to the armour roll.
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const IronHardSkinRule: SkillRule = {
   onArmourBreak(ctx, self) {

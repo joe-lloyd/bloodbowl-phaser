@@ -1,10 +1,6 @@
-/**
- * What the waiting coach sees online: no End Turn on the other coach's
- * turn, no stale hover card once the turn passes, and a short message when
- * the game refuses one of their commands.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
@@ -19,7 +15,10 @@ import {
   REFUSAL_SHOW_MS,
 } from "../../src/ui/components/hud/RefusalNotice";
 
-const online = vi.hoisted(() => ({ myTeamId: null as string | null }));
+const online = vi.hoisted(() => {
+  const match: { myTeamId: string | null } = { myTeamId: null };
+  return match;
+});
 vi.mock("../../src/network/OnlineMatch", () => ({
   getActiveOnlineMatch: () =>
     online.myTeamId ? { myTeamId: online.myTeamId, mayAct: () => true } : null,
@@ -34,14 +33,16 @@ beforeEach(() => {
   online.myTeamId = null;
   game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize(bus, game.ctx.team1, game.ctx.team2);
+  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   ServiceContainer.reset();
   vi.useRealTimers();
@@ -62,14 +63,16 @@ describe("refusal messages", () => {
 
   it("shows the refusal for a few seconds, then clears it", async () => {
     vi.useFakeTimers();
-    await act(async () => root.render(<RefusalNotice eventBus={bus} />));
+    await act(async () => {
+      root.render(<RefusalNotice eventBus={bus} />);
+    });
     expect(container.textContent).toBe("");
-    await act(async () =>
+    await act(async () => {
       bus.emit(GameEventNames.NetworkCommandRejected, {
         commandType: "move",
         reason: "not-your-turn",
-      })
-    );
+      });
+    });
     expect(
       container.querySelector('[data-testid="refusal-notice"]')?.textContent
     ).toBe("Your turn has ended, so that was not played.");
@@ -81,39 +84,43 @@ describe("refusal messages", () => {
 describe("the waiting coach's HUD", () => {
   it("hides End Turn online when it is the other coach's turn", async () => {
     online.myTeamId = game.ctx.team2.id;
-    await act(async () =>
+    await act(async () => {
       root.render(
         <EndTurnButton
           phase={GamePhase.PLAY}
           activeTeamId={game.ctx.team1.id}
           onClick={() => {}}
         />
-      )
-    );
+      );
+    });
     expect(container.querySelector('[data-testid="end-turn"]')).toBeNull();
-    await act(async () =>
+    await act(async () => {
       root.render(
         <EndTurnButton
           phase={GamePhase.PLAY}
           activeTeamId={game.ctx.team2.id}
           onClick={() => {}}
         />
-      )
-    );
+      );
+    });
     expect(container.querySelector('[data-testid="end-turn"]')).not.toBeNull();
   });
 
   it("clears a hover card from the last turn when the turn passes", async () => {
-    const player = game.ctx.team1.players[0];
-    await act(async () => root.render(<PlayerInfoPanel eventBus={bus} />));
-    await act(async () => bus.emit(GameEventNames.UI_ShowPlayerInfo, player));
-    expect(container.textContent).toContain(player.playerName);
-    await act(async () =>
+    const player = fixtureValue(game.ctx.team1.players[0]);
+    await act(async () => {
+      root.render(<PlayerInfoPanel eventBus={bus} />);
+    });
+    await act(async () => {
+      bus.emit(GameEventNames.UI_ShowPlayerInfo, player);
+    });
+    expect(container.textContent).toContain(fixtureValue(player).playerName);
+    await act(async () => {
       bus.emit(GameEventNames.TurnStarted, {
         teamId: game.ctx.team2.id,
         turnNumber: 3,
-      })
-    );
+      });
+    });
     expect(container.textContent).toBe("");
   });
 });

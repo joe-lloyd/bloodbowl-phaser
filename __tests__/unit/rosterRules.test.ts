@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   assertEntrantsCompatible,
@@ -5,7 +6,7 @@ import {
   createRosterRuleProfile,
 } from "../../src/competition/rosterRules";
 import { SkillType } from "../../src/types/Skills";
-import { createTeam, RosterName, Team } from "../../src/types/Team";
+import { createTeam, RosterName, type Team } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { chooseVeteran } from "../../src/game/rules/veteran";
@@ -20,14 +21,14 @@ function legalHumanTeam(mode?: Team["advancementMode"]): Team {
     mode
   );
   const roster = getRosterByRosterName(RosterName.HUMAN);
-  const template = roster.playerTemplates.find((candidate) =>
+  const template = fixtureValue(roster.playerTemplates.find((candidate) =>
     candidate.positionName.includes("Lineman")
-  )!;
+  ));
   for (let i = 0; i < 7; i++) {
     team.players.push(createPlayer(template, team.id, i + 1));
     team.treasury -= template.cost;
   }
-  chooseVeteran(team, team.players[0].id);
+  chooseVeteran(team, fixtureValue(team.players[0]).id);
   return team;
 }
 
@@ -42,7 +43,9 @@ describe("competition roster rule profiles", () => {
 
   it("refuses a team with no chosen advancement mode", () => {
     const team = legalHumanTeam(undefined);
-    const profile = createRosterRuleProfile({ advancementMode: "advanced-league" });
+    const profile = createRosterRuleProfile({
+      advancementMode: "advanced-league",
+    });
     const result = checkTeamCompatibility(team, profile);
     expect(result.compatible).toBe(false);
     expect(result.reasons.join(" ")).toMatch(/has not chosen/);
@@ -50,7 +53,9 @@ describe("competition roster rule profiles", () => {
 
   it("refuses a mismatched advancement mode", () => {
     const team = legalHumanTeam("sevens-skill-selection");
-    const profile = createRosterRuleProfile({ advancementMode: "advanced-league" });
+    const profile = createRosterRuleProfile({
+      advancementMode: "advanced-league",
+    });
     const result = checkTeamCompatibility(team, profile);
     expect(result.compatible).toBe(false);
     expect(result.reasons.join(" ")).toMatch(/mismatch/);
@@ -79,10 +84,18 @@ describe("competition roster rule profiles", () => {
 
   it("refuses a Matched Play team whose skills break the Skill Point rules", () => {
     const team = legalHumanTeam("matched-play");
-    // Forged save data: Human is tier 1, so it has 1 Skill Point.
+
     team.matchedPlayAllocations = [
-      { playerId: team.players[0].id, skill: SkillType.GRAB, access: "secondary" },
-      { playerId: team.players[1].id, skill: SkillType.GUARD, access: "secondary" },
+      {
+        playerId: fixtureValue(team.players[0]).id,
+        skill: SkillType.GRAB,
+        access: "secondary",
+      },
+      {
+        playerId: fixtureValue(team.players[1]).id,
+        skill: SkillType.GUARD,
+        access: "secondary",
+      },
     ];
     const profile = createRosterRuleProfile({
       advancementMode: "matched-play",
@@ -103,7 +116,7 @@ describe("competition roster rule profiles", () => {
       {
         id: "p1",
         kind: "advanced-league-advancement",
-        playerId: team.players[0].id,
+        playerId: fixtureValue(team.players[0]).id,
         createdAt: 0,
       },
     ];
@@ -118,10 +131,12 @@ describe("competition roster rule profiles", () => {
 
   it("rejects a forged/bypassed incompatible entry at the authoritative gate", () => {
     const team = legalHumanTeam("sevens-skill-selection");
-    const profile = createRosterRuleProfile({ advancementMode: "advanced-league" });
-    expect(() => assertEntrantsCompatible([team], profile)).toThrow(
-      /not compatible/
-    );
+    const profile = createRosterRuleProfile({
+      advancementMode: "advanced-league",
+    });
+    expect(() => {
+      assertEntrantsCompatible([team], profile);
+    }).toThrow(/not compatible/);
   });
 
   it("lets the authoritative gate pass a compatible entrant through untouched", () => {
@@ -130,6 +145,8 @@ describe("competition roster rule profiles", () => {
       advancementMode: "advanced-league",
       draftBudget: 5_000_000,
     });
-    expect(() => assertEntrantsCompatible([team], profile)).not.toThrow();
+    expect(() => {
+      assertEntrantsCompatible([team], profile);
+    }).not.toThrow();
   });
 });

@@ -1,6 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Team } from "../../src/types/Team";
-import { CompetitionEntrant } from "../../src/competition/types";
+import { type Team } from "../../src/types/Team";
+import { type CompetitionEntrant } from "../../src/competition/types";
 
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
@@ -43,7 +44,9 @@ function team(id: string, overrides: Partial<Team> = {}): Team {
   } as unknown as Team;
 }
 
-function localEntrant(overrides: Partial<CompetitionEntrant> = {}): CompetitionEntrant {
+function localEntrant(
+  overrides: Partial<CompetitionEntrant> = {}
+): CompetitionEntrant {
   return {
     id: "e1",
     teamId: "home",
@@ -84,29 +87,27 @@ describe("fetchEntrantTeam", () => {
   });
 
   it("returns null when the entrant's team cannot be found anywhere", async () => {
-    const resolved = await fetchEntrantTeam(localEntrant({ teamId: "missing" }));
+    const resolved = await fetchEntrantTeam(
+      localEntrant({ teamId: "missing" })
+    );
     expect(resolved).toBeNull();
   });
 
   it("a skill gained after round one is present when round two's entrant is resolved", async () => {
-    // A real roster, a real player, a real advancement — mirrors the
-    // league-builder spec's scenario: advancement gained in round one must
-    // be present when round two fetches the entrant's live roster.
     const roster = getRosterByRosterName(RosterName.HUMAN);
     const homeTeam = team("home", { rosterName: RosterName.HUMAN });
-    homeTeam.players = [createPlayer(roster.playerTemplates[0], "home", 1)];
+    homeTeam.players = [createPlayer(fixtureValue(roster.playerTemplates[0]), "home", 1)];
     saveTeams([homeTeam]);
 
-    // Round one: the player earns SPP and takes a skill, then the team saves
-    // (exactly what recordCompetitionFixture's updateTeamRecord does).
-    const afterRoundOne = loadTeams().find((candidate) => candidate.id === "home")!;
+    const afterRoundOne = fixtureValue(loadTeams().find(
+      (candidate) => candidate.id === "home"
+    ));
     const player = afterRoundOne.players[0];
-    player.spp = 1000;
-    const [skill] = eligibleSkills(player, player.primary ?? []);
-    applyAdvancement(player, { kind: "chosen-primary", skill });
+    fixtureValue(player).spp = 1000;
+    const skill = fixtureValue(eligibleSkills(fixtureValue(player), fixtureValue(player).primary ?? [])[0]);
+    applyAdvancement(fixtureValue(player), { kind: "chosen-primary", skill });
     saveTeams([afterRoundOne]);
 
-    // Round two: the fixture launch fetches the entrant's roster by reference.
     const roundTwoTeam = await fetchEntrantTeam(localEntrant());
     const roundTwoPlayer = roundTwoTeam?.players[0];
     expect(roundTwoPlayer?.skills.some((s) => s.type === skill)).toBe(true);
@@ -133,7 +134,7 @@ describe("refreshEntrantDisplays", () => {
     };
 
     const refreshed = refreshEntrantDisplays(competition, [renamed]);
-    expect(refreshed.entrants[0].name).toBe("New Name");
+    expect(fixtureValue(refreshed.entrants[0]).name).toBe("New Name");
   });
 
   it("returns the same object when nothing changed", () => {

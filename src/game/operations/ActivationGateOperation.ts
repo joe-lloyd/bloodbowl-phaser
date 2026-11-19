@@ -1,62 +1,36 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
-import { GameEventNames, ActionType } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type FlowContext } from "../core/GameFlowManager";
+import { GameEventNames, type ActionType } from "../../types/events";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import {
-  Player,
+  type Player,
   PlayerStatus,
   PlayerCondition,
   addCondition,
 } from "../../types/Player";
 import { activationGates, withRerollOffer } from "../skills";
-import { ActivationGate } from "../skills/SkillRule";
-import { ReactionDecisionAnswer } from "../../types/decisions";
+import { type ActivationGate } from "../skills/SkillRule";
+import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 
-/**
- * ActivationGateOperation — negatrait rolls between declaring an action and
- * performing it (2025: Bone Head, Really Stupid, Animal Savagery,
- * Unchannelled Fury, Take Root, Bloodlust). Queued by declareAction when
- * the player carries a rule with the onActivationDeclared hook. Rules
- * declare their gate (target, modifier, failure effect); this operation
- * rolls each in fold order and applies the first failure. Gate rolls are
- * compulsory but may be team-rerolled (rollKind "activation"); a natural 1
- * always fails (rollSkillCheck's contract).
- *
- * Failure effects:
- * - distracted: the player becomes Distracted and their activation ends —
- *   the declared action is not performed (Distracted definition: no Tackle
- *   Zone until they are next activated).
- * - endActivation: the activation simply ends (Unchannelled Fury).
- * - rooted: the player becomes Rooted but MAY still perform the declared
- *   action in place (Take Root).
- * - lashOut: an adjacent Standing team-mate is Knocked Down with armour/
- *   injury (turnover only if they held the ball); with a victim available
- *   the activation then continues, with nobody adjacent it ends (Animal
- *   Savagery — the victim is picked deterministically by board order; a
- *   coach-facing choice can layer on later without changing the engine).
- * - bloodlust: the coach may downgrade the declared action to a Move
- *   Action; a declared Blitz still counts as the turn's Blitz (the flag was
- *   consumed at declaration). The activation is marked unsated, and
- *   BloodlustBiteOperation settles the Thrall bite when it ends.
- */
 export class ActivationGateOperation extends GameOperation {
   public readonly name = "ActivationGate";
 
-  constructor(
-    private playerId: string,
-    private action: ActionType
-  ) {
+  private playerId: string;
+  private action: ActionType;
+  constructor(playerId: string, action: ActionType) {
     super();
+    this.playerId = playerId;
+    this.action = action;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
     const player = gameService.getPlayerById(this.playerId);
-    if (!player || !player.gridPosition) return;
+    if (!player?.gridPosition) return;
 
     const gates = activationGates(
       player,
@@ -64,19 +38,11 @@ export class ActivationGateOperation extends GameOperation {
       gameService.getTeammates(this.playerId)
     );
     for (const gate of gates) {
-      // The gate rolls whether it passes or fails — the declaration becomes
-      // binding here, before the die is even thrown, so a failed Bone Head
-      // (etc.) still spends the team's once-per-turn allowance.
       gameService.commitAction(this.playerId);
       const dice = gameService.getDiceController();
       const doRoll = () => {
         const r = dice.rollSkillCheck(
-          gate.skill,
-          gate.target,
-          gate.modifier,
-          player.playerName,
-          player.teamId
-        );
+          { reason: gate.skill,target: gate.target,modifier: gate.modifier,playerName: player.playerName,teamId: player.teamId }        );
         return r;
       };
       const result = await withRerollOffer(
@@ -88,7 +54,7 @@ export class ActivationGateOperation extends GameOperation {
       );
       if (result.success) continue;
       await this.applyFailure(context, player, gate);
-      break; // one failed gate settles the activation's fate
+      break;
     }
   }
 
@@ -97,7 +63,7 @@ export class ActivationGateOperation extends GameOperation {
     player: Player,
     gate: ActivationGate
   ): Promise<void> {
-    const gameService = context.gameService as IGameService;
+    const gameService = context.gameService;
     const eventBus = context.eventBus;
 
     switch (gate.onFail.kind) {
@@ -133,7 +99,7 @@ export class ActivationGateOperation extends GameOperation {
           effect: `${gate.skill}: ${player.playerName} becomes Rooted — they may act but not leave their square`,
         });
         eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-        return; // the declared action may still be performed in place
+        return;
       }
       case "lashOut": {
         const victims = gameService
@@ -152,8 +118,7 @@ export class ActivationGateOperation extends GameOperation {
               a.gridPosition!.x - b.gridPosition!.x
           );
         const victim = victims[0];
-        if (!victim || !victim.gridPosition) {
-          // Nobody adjacent to lash out at — the activation ends
+        if (!victim?.gridPosition) {
           eventBus.emit(GameEventNames.SkillTriggered, {
             playerId: player.id,
             skill: gate.skill,
@@ -180,22 +145,19 @@ export class ActivationGateOperation extends GameOperation {
           ball.x === victim.gridPosition.x &&
           ball.y === victim.gridPosition.y;
         if (hadBall) {
-          // The downed carrier drops the ball — a turnover, per the book
           context.flowManager.add(
             new BounceOperation({ ...victim.gridPosition }),
             true
           );
         }
         context.flowManager.add(
-          // A lash-out is not a Block Action — never arms Plague Ridden —
-          // but the lasher must use Mighty Blow and Claws on it.
           new ArmourOperation(victim.id, this.playerId, undefined, "lash-out"),
           true
         );
         if (hadBall) {
           gameService.triggerTurnover("Lashed out at the ball carrier");
         }
-        return; // with a victim struck, the activation continues
+        return;
       }
       case "bloodlust": {
         eventBus.emit(GameEventNames.SkillTriggered, {
@@ -222,12 +184,11 @@ export class ActivationGateOperation extends GameOperation {
         if (state.activePlayer?.id === this.playerId) {
           state.activePlayer.bloodlustUnsated = true;
         }
-        return; // the activation continues either way
+        return;
       }
     }
   }
 
-  /** End the activation: clear the declared action, mark the player spent. */
   private endActivationNow(gameService: IGameService): void {
     const state = gameService.getState();
     if (state.activePlayer?.id === this.playerId) {

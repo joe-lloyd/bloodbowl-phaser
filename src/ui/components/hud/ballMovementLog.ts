@@ -1,10 +1,11 @@
-import { AllEvents, GameEventNames } from "../../../types/events";
+import type { GameEventNames } from "../../../types/events";
+import { type AllEvents } from "../../../types/events";
 
-type Roll = AllEvents[GameEventNames.DiceRoll];
+type Roll = AllEvents[typeof GameEventNames.DiceRoll];
 type Movement = "bounced" | "scattered" | "deviated" | "thrown in";
 export interface BallMovement {
   kind: "ball";
-  /** What moved: the ball, or a thrown team-mate */
+
   subject: "Ball" | "Team-mate";
   movement: Movement;
   squares: number;
@@ -22,7 +23,6 @@ function movementFor(roll: Roll): Movement | null {
   return null;
 }
 
-/** Consecutive ball rolls form a single expandable result. Never consumes RNG. */
 export function appendBallRoll(
   previous: BallMovement | null,
   roll: Roll
@@ -55,10 +55,10 @@ export function appendBallRoll(
 export function ballMovementText(group: BallMovement): string {
   const distance =
     !group.mixed && group.squares
-      ? ` ${group.squares} ${group.squares === 1 ? "square" : "squares"}`
+      ? ` ${String(group.squares)} ${group.squares === 1 ? "square" : "squares"}`
       : "";
   const destination = group.destination
-    ? `, now at ${group.destination.x},${group.destination.y}`
+    ? `, now at ${String(group.destination.x)},${String(group.destination.y)}`
     : "";
   return `${group.subject} ${group.mixed ? "moved" : group.movement}${distance}${destination}`;
 }

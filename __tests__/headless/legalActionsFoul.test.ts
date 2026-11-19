@@ -1,8 +1,4 @@
-/**
- * A Foul Action may move before the Foul, so the legal-action list offers it
- * to a player who can walk beside a downed opponent, not only to one
- * already there.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -28,7 +24,7 @@ async function actionsFor(x: number) {
   });
   const response = await game.execute({ type: "legal-actions" });
   return response.legalActions?.players.find(
-    (p) => p.playerId === game.ctx.team1.players[0].id
+    (p) => p.playerId === fixtureValue(game.ctx.team1.players[0]).id
   )?.actions;
 }
 

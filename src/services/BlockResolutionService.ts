@@ -1,10 +1,7 @@
-import { Player } from "../types/Player";
-import { IRNGService } from "./rng/RNGService";
+import { type Player } from "../types/Player";
+import { type IRNGService } from "./rng/RNGService";
 import { GameConfig } from "../config/GameConfig";
 
-/**
- * Block dice result types
- */
 export type BlockResultType =
   | "both-down"
   | "skull"
@@ -12,18 +9,12 @@ export type BlockResultType =
   | "pow"
   | "pow-dodge";
 
-/**
- * Block dice result
- */
 export interface BlockResult {
   type: BlockResultType;
   icon: string;
   label: string;
 }
 
-/**
- * Block roll data
- */
 export interface BlockRollData {
   attackerId: string;
   defenderId: string;
@@ -32,30 +23,16 @@ export interface BlockRollData {
   results: BlockResult[];
   selectedResult?: BlockResult;
   choiceStage?: "attacker-reroll" | "pick";
-  /** A Team Re-roll may re-roll ALL the block dice (attacker's own turn). */
+
   teamRerollAvailable?: boolean;
-  /** Pro may re-roll ONE block die (attacker has Pro, unused, activating). */
+
   proAvailable?: boolean;
-  /** Brawler may re-roll the single Both Down die (attacker has Brawler). */
+
   brawlerAvailable?: boolean;
-  /** The attacking Veteran may re-roll ALL the dice, once per game (D8). */
+
   veteranRerollAvailable?: boolean;
 }
 
-/**
- * Push direction data
- */
-export interface PushData {
-  defenderId: string;
-  validDirections: { x: number; y: number }[];
-  selectedDirection?: { x: number; y: number };
-  canFollowUp: boolean;
-  willFollowUp?: boolean;
-}
-
-/**
- * Armor roll result
- */
 export interface ArmorResult {
   playerId: string;
   roll: number;
@@ -63,10 +40,6 @@ export interface ArmorResult {
   broken: boolean;
 }
 
-/**
- * Block Resolution Service
- * Handles all block dice rolling and resolution logic
- */
 export class BlockResolutionService {
   private static readonly BLOCK_DICE_FACES: BlockResultType[] = [
     "skull",
@@ -77,41 +50,37 @@ export class BlockResolutionService {
     "pow-dodge",
   ];
 
-  constructor(private rng: IRNGService) {}
+  private rng: IRNGService;
+  constructor(rng: IRNGService) {
+    this.rng = rng;
+  }
 
-  /**
-   * Roll block dice
-   */
   public rollBlockDice(numDice: number): BlockResult[] {
     const results: BlockResult[] = [];
 
     for (let i = 0; i < numDice; i++) {
       const roll = this.rng.rollDie(6);
-      const type = BlockResolutionService.BLOCK_DICE_FACES[roll - 1]; // roll is 1-indexed from RNG
+      const type = BlockResolutionService.faceForRoll(roll);
       results.push(this.createBlockResult(type));
     }
 
     return results;
   }
 
-  /**
-   * Map a 1-6 D6 roll to a block result (static helper for DiceService)
-   */
   public static mapRollToResult(roll: number): BlockResult {
-    const type = this.BLOCK_DICE_FACES[roll - 1];
-    return this.staticCreateBlockResult(type);
+    return this.staticCreateBlockResult(this.faceForRoll(roll));
   }
 
-  /**
-   * Create a block result object
-   */
+  private static faceForRoll(roll: number): BlockResultType {
+    const face = this.BLOCK_DICE_FACES[roll - 1];
+    if (!face) throw new Error(`No block dice face for roll ${String(roll)}`);
+    return face;
+  }
+
   private createBlockResult(type: BlockResultType): BlockResult {
     return BlockResolutionService.staticCreateBlockResult(type);
   }
 
-  /**
-   * Static version of createBlockResult for use in mapRollToResult
-   */
   private static staticCreateBlockResult(type: BlockResultType): BlockResult {
     const iconMap: Record<BlockResultType, string> = {
       "both-down": "/assets/dice/block_dice_both_down_1765911752228.png",
@@ -136,14 +105,10 @@ export class BlockResolutionService {
     };
   }
 
-  /**
-   * Select the best/worst result based on who has choice
-   */
   public selectBlockResult(
     results: BlockResult[],
     isAttackerChoice: boolean
   ): BlockResult {
-    // Priority order (best to worst for attacker)
     const priority: BlockResultType[] = [
       "pow",
       "pow-dodge",
@@ -153,25 +118,22 @@ export class BlockResolutionService {
     ];
 
     if (isAttackerChoice) {
-      // Attacker picks best
       for (const type of priority) {
         const result = results.find((r) => r.type === type);
         if (result) return result;
       }
     } else {
-      // Defender picks worst (reverse priority)
       for (let i = priority.length - 1; i >= 0; i--) {
         const result = results.find((r) => r.type === priority[i]);
         if (result) return result;
       }
     }
 
-    return results[0]; // Fallback
+    const [first] = results;
+    if (!first) throw new Error("No block dice results to choose from");
+    return first;
   }
 
-  /**
-   * Get valid push directions (3 squares behind defender, on-pitch only)
-   */
   public getValidPushDirections(
     attackerPos: { x: number; y: number },
     defenderPos: { x: number; y: number }
@@ -181,11 +143,6 @@ export class BlockResolutionService {
     );
   }
 
-  /**
-   * The 3 push squares behind the defender relative to the attacker:
-   * straight back plus the two adjacent squares. May include off-pitch
-   * coordinates (crowd exits).
-   */
   private pushCandidates(
     attackerPos: { x: number; y: number },
     defenderPos: { x: number; y: number }
@@ -194,7 +151,6 @@ export class BlockResolutionService {
     const dy = Math.sign(defenderPos.y - attackerPos.y);
 
     if (dx !== 0 && dy !== 0) {
-      // Diagonal push: straight back plus the two adjacent orthogonals
       return [
         { x: defenderPos.x + dx, y: defenderPos.y + dy },
         { x: defenderPos.x + dx, y: defenderPos.y },
@@ -202,14 +158,13 @@ export class BlockResolutionService {
       ];
     }
     if (dx !== 0) {
-      // Horizontal push: straight back plus diagonals up and down
       return [
         { x: defenderPos.x + dx, y: defenderPos.y },
         { x: defenderPos.x + dx, y: defenderPos.y + 1 },
         { x: defenderPos.x + dx, y: defenderPos.y - 1 },
       ];
     }
-    // Vertical push: straight back plus diagonals left and right
+
     return [
       { x: defenderPos.x, y: defenderPos.y + dy },
       { x: defenderPos.x + 1, y: defenderPos.y + dy },
@@ -226,12 +181,6 @@ export class BlockResolutionService {
     );
   }
 
-  /**
-   * Tiered push options per the rulebook (p.55): unoccupied squares when any
-   * exist; occupied squares only when forced (chain push); the crowd only
-   * when no on-pitch square exists at all (off-pitch coordinates returned so
-   * the {x,y} decision shape survives).
-   */
   public getPushOptions(
     attackerPos: { x: number; y: number },
     defenderPos: { x: number; y: number },
@@ -246,23 +195,15 @@ export class BlockResolutionService {
     const unoccupied = candidates.filter((p) => !isOccupied(p.x, p.y));
     if (unoccupied.length > 0) return { options: unoccupied, tier: "open" };
 
-    // No unoccupied square: at a sideline/end zone the crowd takes the
-    // player (p.55 — crowd precedes chaining when off-pitch exits exist)
     const offPitch = raw.filter((p) => !this.isOnPitch(p));
     if (offPitch.length > 0) return { options: offPitch, tier: "crowd" };
 
-    // Fully boxed in on-pitch: chain push into an occupied square
     return {
       options: candidates.filter((p) => isOccupied(p.x, p.y)),
       tier: "chain",
     };
   }
 
-  /**
-   * Grab push options (rulebook p.135): any on-pitch unoccupied square
-   * adjacent to the pushed player, not just the three behind them. Empty when
-   * the target is fully boxed in — the skill then cannot be used.
-   */
   public getGrabPushOptions(
     pushedPos: { x: number; y: number },
     isOccupied: (x: number, y: number) => boolean
@@ -278,9 +219,6 @@ export class BlockResolutionService {
     return squares;
   }
 
-  /**
-   * Roll armor
-   */
   public rollArmor(player: Player): ArmorResult {
     const d1 = this.rng.rollDie(6);
     const d2 = this.rng.rollDie(6);
@@ -296,23 +234,14 @@ export class BlockResolutionService {
     };
   }
 
-  /**
-   * Determine if a result causes turnover
-   */
   public causesTornover(resultType: BlockResultType): boolean {
     return resultType === "skull" || resultType === "both-down";
   }
 
-  /**
-   * Determine if a result causes knockdown
-   */
   public causesKnockdown(resultType: BlockResultType): boolean {
     return resultType === "pow" || resultType === "pow-dodge";
   }
 
-  /**
-   * Determine if a result allows follow-up
-   */
   public allowsFollowUp(resultType: BlockResultType): boolean {
     return (
       resultType === "pow" ||

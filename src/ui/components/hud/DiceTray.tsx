@@ -1,473 +1,55 @@
-import { useEffect, useRef, useState } from "react";
-import { EventBus, GameEventMap } from "../../../services/EventBus";
-import { GamePhase } from "../../../types/GameState";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import type { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
-import { ServiceContainer } from "../../../services/ServiceContainer";
-import { soundSettings } from "../../sound/settings";
-import type { DiceRoll, DiceTeam, DiceThrow } from "../../dice/diceScene";
-import type { BlockRollData } from "../../../services/BlockResolutionService";
-import { isBlockDice, isD6, isD16 } from "../../dice/thrownDice";
-import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
-import { kitOf } from "../../../game/presentation/kits";
-import { KICKOFF_TABLE_ROLL } from "../../../game/kickoff/kickoffEvents";
-
-type RollEvent = GameEventMap[GameEventNames.DiceRoll];
-
-/** Block result names in the order the 3D block die numbers its faces. */
-export const BLOCK_VALUE: Record<string, number> = {
-  skull: 1,
-  "both-down": 2,
-  push: 3,
-  "pow-dodge": 5,
-  pow: 6,
-};
-const HOLD_MS = 1800;
-/**
- * A landed roll's read when another roll waits behind it. Long enough to
- * see the die that failed before the fall's dice go up (round 4: at 250 ms
- * a failed Rush was gone before a coach could read it).
- */
-const QUEUED_HOLD_MS = 700;
-/**
- * A fall can queue a throw-in, then armour, injury and Regeneration on
- * their own throws, behind the failed roll still showing.
- */
-const MAX_QUEUE = 5;
-
-/**
- * Turn an engine DiceRoll into dice to throw: D6s, D16s and block dice.
- * A D3 or D8 has no die model.
- */
-export function toDice(event: RollEvent): Omit<DiceRoll, "team"> | null {
-  const values = ([] as (number | string)[]).concat(event.value);
-  if (isBlockDice(event.diceType)) {
-    const faces = values.map((v) => BLOCK_VALUE[String(v)]);
-    return faces.every(Boolean) ? { kind: "block", values: faces } : null;
-  }
-  if (isD6(event.diceType) || isD16(event.diceType)) {
-    const sides = isD16(event.diceType) ? 16 : 6;
-    const pips = values.map(Number);
-    return pips.length > 0 &&
-      pips.every((v) => Number.isInteger(v) && v >= 1 && v <= sides)
-      ? { kind: sides === 16 ? "d16" : "d6", values: pips }
-      : null;
-  }
-  return null;
-}
-
-/**
- * The colours to throw a roll in. Most rolls (pick-ups, armour, injury,
- * catches, Rush, bounces) carry no team; the coach whose turn it is makes
- * nearly all of them, armour and injury included, so they use that team.
- */
-export function teamLook(teamId?: string): DiceTeam | null {
-  if (!ServiceContainer.isInitialized()) return null;
-  const { gameService } = ServiceContainer.getInstance();
-  const rollerId = teamId ?? gameService.getActiveTeamId();
-  if (!rollerId) return null;
-  const team = gameService.getTeam(rollerId);
-  if (!team) return null;
-  const kit = kitOf(gameService.getTeams(), team.id);
-  return {
-    key: team.id,
-    race: team.rosterName.split(" ")[0].toLowerCase(),
-    initial: team.name.charAt(0).toUpperCase(),
-    primary: kit.primary,
-    secondary: kit.secondary,
-  };
-}
-
-interface Queued {
-  roll: DiceRoll;
-  /** What is being rolled, shown while the dice are in the air */
-  title: string;
-  /** The outcome, shown only once they have come to rest */
-  result: string;
-  teamName: string;
-  settled: boolean;
-  /** Order thrown, from 1. */
-  seq: number;
-  /** The roll's type and total, for UI_DiceThrow. Block dice have none. */
-  rollType?: string;
-  teamId?: string;
-  total?: number;
-  /**
-   * The throw ends in a 2D6 roll, such as armour or injury. It is read as a
-   * total that decides what comes next, so no later roll joins it.
-   */
-  closed?: boolean;
-  /** Block dice: held until a result is chosen; the face of each die */
-  block?: string[];
-  /** Block dice: each die's result as the coach reads it */
-  labels?: string[];
-  /** The 3D dice could not be drawn: why. The tray shows flat dice. */
-  failed?: string;
-  /**
-   * Block dice answered while still in the air, or still waiting behind
-   * another roll: how long to hold them once they land. Without it the
-   * answer would find no hold to end.
-   */
-  endAfterMs?: number;
-  /** Block dice answered before they were shown: the die that was picked. */
-  chosen?: number;
-}
-
-/** How long a chosen block die stays forward before the tray clears. */
-const CHOSEN_MS = 1200;
-
-/** The most dice one throw carries; the lifted row fits six. */
-const MAX_DICE_PER_THROW = 6;
-
-/**
- * A D6 roll still waiting to be thrown takes the next D6 roll of its team,
- * such as a bounce and a throw-in. A 2D6 roll, armour or injury, goes up on
- * its own, so the roll that decides a player's fate reads as one line, and
- * an injury roll never goes up before the armour roll that allowed it.
- */
-function joinsThrow(waiting: Queued, next: Queued): boolean {
-  return (
-    !waiting.closed &&
-    !next.closed &&
-    waiting.roll.kind === "d6" &&
-    next.roll.kind === "d6" &&
-    !waiting.block &&
-    !next.block &&
-    waiting.roll.team.key === next.roll.team.key &&
-    waiting.roll.values.length + next.roll.values.length <= MAX_DICE_PER_THROW
-  );
-}
-
-/**
- * The dice tray: the one place every roll is thrown, D6s, D16s and block dice
- * alike, as real 3D dice in the rolling team's colours, at the bottom
- * centre clear of the turn indicator, the clock and the corner panels.
- * The dice tumble, land, then lift up toward the coach with their result
- * face forward; the outcome text shows only then. Block dice stay up until
- * a result is chosen, and the coach chooses by clicking a lifted die (the
- * block dialog applies the choice). The tray only shows rolls; the numbers
- * come from the engine's own RNG. Rolls queue so none overlap.
- */
+import { DiceTrayController, type Queued } from "./diceTrayController";
 export function DiceTray({ eventBus }: { eventBus: EventBus }) {
   const host = useRef<HTMLDivElement>(null);
-  const queue = useRef<Queued[]>([]);
-  const playing = useRef(false);
   const [current, setCurrent] = useState<Queued | null>(null);
-
   useEffect(() => {
-    let shown: Queued | null = null;
-    let throwing: DiceThrow | null = null;
-    // Ends the hold on the dice now up, so the next roll can play
-    let release: (() => void) | null = null;
-    // Shortens a D6's read when another roll arrives during it
-    let cutHold: (() => void) | null = null;
-    // The last read was cut short for this roll: it is part of a burst,
-    // such as a fall's armour and injury, and is hurried like the rest
-    let inBurst = false;
-    // The board holds a step or a fall until the dice deciding it land.
-    // Rolls are numbered as thrown; every roll up to `landedThrough` has
-    // landed or was dropped from a full queue, so it never will.
-    let thrown = 0;
-    // Bumped when setup clears the tray, so a throw from before is dropped.
-    let generation = 0;
-    /** Tell the HUD where one throw is, for banners that follow the dice. */
-    const throwStage = (
-      item: Queued,
-      stage: GameEventMap[GameEventNames.UI_DiceThrow]["stage"]
-    ) => {
-      if (!item.rollType) return;
-      eventBus.emit(GameEventNames.UI_DiceThrow, {
-        seq: item.seq,
-        rollType: item.rollType,
-        teamId: item.teamId,
-        total: item.total,
-        stage,
-      });
-    };
-    const reportInAir = () => {
-      const pending = [
-        ...queue.current,
-        ...(shown && !shown.settled ? [shown] : []),
-      ];
-      eventBus.emit(GameEventNames.UI_DiceInAir, {
-        count: pending.length,
-        thrown,
-        landedThrough: Math.min(thrown, ...pending.map((q) => q.seq - 1)),
-      });
-    };
-
-    const playNext = async () => {
-      const round = generation;
-      const next = queue.current.shift();
-      if (!next || !host.current) {
-        playing.current = false;
-        shown = null;
-        throwing?.stop();
-        throwing = null;
-        setCurrent(null);
-        reportInAir();
-        return;
-      }
-      playing.current = true;
-      shown = next;
-      setCurrent(next);
-      throwStage(next, "thrown");
-      try {
-        const scene = await import("../../dice/diceScene");
-        const handle = scene.playRoll(host.current, next.roll, {
-          sound: !soundSettings.get().muted,
-        });
-        throwing = handle;
-        // More rolls wait behind this one, a fall's armour and injury
-        if (queue.current.length > 0 || inBurst) handle.hurry();
-        if (next.block) {
-          handle.onPick((index) =>
-            eventBus.emit(GameEventNames.UI_BlockDieClicked, { index })
-          );
-        }
-        // A die that never settles (a stalled renderer, a hidden tab)
-        // counts as landed after a bound, so it can never block the queue,
-        // and shows flat, so a block can still be picked.
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        await Promise.race([
-          handle.landed,
-          new Promise<void>((resolve) => {
-            timer = setTimeout(() => {
-              handle.stop();
-              next.failed = "the dice did not land";
-              resolve();
-            }, DIE_LANDING_TIMEOUT_MS);
-          }),
-        ]).finally(() => clearTimeout(timer));
-        if (next.chosen !== undefined)
-          handle.mark(next.chosen >= 0 ? next.chosen : null);
-      } catch (error) {
-        // No 3D dice: the roll still shows, as flat dice a block can be
-        // picked from, and says why on screen
-        console.warn("[DiceTray] could not show a roll", error);
-        throwing = null;
-        next.failed = error instanceof Error ? error.message : String(error);
-      }
-      if (round !== generation) return;
-      next.settled = true;
-      reportInAir();
-      setCurrent({ ...next });
-      throwStage(next, "landed");
-      inBurst = queue.current.length > 0;
-      await new Promise<void>((resolve) => {
-        release = resolve;
-        if (next.block) {
-          if (next.endAfterMs !== undefined)
-            setTimeout(resolve, next.endAfterMs);
-          return;
-        }
-        // A short read when another roll waits; one arriving during a
-        // full read cuts it short too
-        setTimeout(resolve, inBurst ? QUEUED_HOLD_MS : HOLD_MS);
-        cutHold = () => {
-          inBurst = true;
-          setTimeout(resolve, QUEUED_HOLD_MS);
-        };
-      });
-      release = null;
-      cutHold = null;
-      if (round !== generation) return;
-      throwStage(next, "done");
-      void playNext();
-    };
-
-    // A new drive's setup starts with an empty tray: the last injury die
-    // from the drive before is not this drive's roll.
-    const onPhase = ({ phase }: { phase: GamePhase }) => {
-      if (phase !== GamePhase.SETUP) return;
-      if (shown) throwStage(shown, "done");
-      generation++;
-      queue.current = [];
-      throwing?.stop();
-      throwing = null;
-      shown = null;
-      release?.();
-      release = null;
-      playing.current = false;
-      setCurrent(null);
-      reportInAir();
-    };
-
-    const enqueue = (roll: Omit<Queued, "seq">, first = false) => {
-      const item = { ...roll, seq: ++thrown };
-      const waiting = queue.current[queue.current.length - 1];
-      if (!first && waiting && joinsThrow(waiting, item)) {
-        // A burst, such as a fall's bounce, throw-in and armour: one throw
-        // for all of it, rather than one tumble and read after another
-        waiting.roll = {
-          ...waiting.roll,
-          values: [...waiting.roll.values, ...item.roll.values],
-        };
-        waiting.title = `${waiting.title} · ${item.title}`;
-        waiting.result = `${waiting.result} · ${item.result}`;
-        waiting.closed = item.closed;
-      } else {
-        if (first) queue.current.unshift(item);
-        else queue.current.push(item);
-        throwStage(item, "queued");
-      }
-      // Never fall far behind the game: drop the oldest waiting D6s and
-      // keep the latest few. Block dice wait on a pick, so they stay.
-      while (queue.current.length > MAX_QUEUE) {
-        const oldest = queue.current.findIndex((q) => !q.block);
-        if (oldest < 0) break;
-        const [dropped] = queue.current.splice(oldest, 1);
-        throwStage(dropped, "dropped");
-      }
-      if (!playing.current) void playNext();
-      else if (shown && !shown.settled && !shown.block) throwing?.hurry();
-      else cutHold?.();
-      reportInAir();
-    };
-
-    const onRoll = (event: RollEvent) => {
-      const dice = toDice(event);
-      const team = teamLook(event.teamId);
-      // Block dice come from BlockDiceRolled, which has the whole set even
-      // when a Pro re-roll rolls only one of them
-      if (!dice || dice.kind === "block" || !team) return;
-      // The Kick-off Table dialog throws its own 2D6
-      if (event.rollType === KICKOFF_TABLE_ROLL) return;
-      enqueue({
-        roll: { ...dice, team },
-        title: event.rollType,
-        result: event.description || event.rollType,
-        rollType: event.rollType,
-        teamId: event.teamId,
-        total: event.total,
-        teamName: teamName(team.key),
-        settled: false,
-        closed: dice.values.length > 1,
-      });
-    };
-
-    const onBlockRolled = (payload: BlockRollData) => {
-      const faces = payload.results.map((r) => r.type);
-      const values = faces.map((face) => BLOCK_VALUE[face]);
-      const attacker = ServiceContainer.isInitialized()
-        ? ServiceContainer.getInstance().gameService.getPlayerById(
-            payload.attackerId
-          )
-        : undefined;
-      const team = teamLook(attacker?.teamId);
-      if (!team || !values.every(Boolean)) return;
-      // A block is the decision on the table: it goes before older D6s,
-      // and a re-roll replaces the block dice still up, in the air or not,
-      // and any still waiting to be shown
-      queue.current = queue.current.filter((q) => !q.block);
-      if (shown?.block && !release) shown.endAfterMs = 0;
-      enqueue(
-        {
-          roll: { kind: "block", values, team },
-          title: `Block: ${faces.length} ${faces.length === 1 ? "die" : "dice"}`,
-          result: payload.results.map((r) => r.label).join(" · "),
-          teamName: teamName(team.key),
-          settled: false,
-          block: faces,
-          labels: payload.results.map((r) => r.label),
-        },
-        true
-      );
-      release?.();
-    };
-
-    const onResolved = ({
-      type,
-      result,
-    }: {
-      type: string;
-      result?: string;
-    }) => {
-      if (type !== "block-dice") return;
-      // The pick answers the newest block dice. A fast coach can make it
-      // before they are on screen, behind an earlier roll or a re-rolled
-      // throw still up: they then show the pick and close.
-      const waiting = queue.current.find((q) => q.block);
-      if (waiting?.block) {
-        waiting.chosen = result ? waiting.block.indexOf(result) : -1;
-        waiting.endAfterMs = CHOSEN_MS;
-        return;
-      }
-      if (!shown?.block) return;
-      const index = result ? shown.block.indexOf(result) : -1;
-      // Until they land, the dice may not be thrown yet: the landing marks it
-      shown.chosen = index;
-      if (shown.settled) {
-        throwing?.mark(index >= 0 ? index : null);
-        setCurrent({ ...shown });
-      }
-      if (!release) {
-        shown.endAfterMs = CHOSEN_MS;
-        return;
-      }
-      const ending = release;
-      setTimeout(() => ending(), CHOSEN_MS);
-    };
-    const onCancelled = () => {
-      if (!shown?.block) return;
-      if (release) release();
-      else shown.endAfterMs = 0;
-    };
-
-    eventBus.on(GameEventNames.PhaseChanged, onPhase);
-    eventBus.on(GameEventNames.DiceRoll, onRoll);
-    eventBus.on(GameEventNames.BlockDiceRolled, onBlockRolled);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    eventBus.on(GameEventNames.UI_BlockRollCancelled, onCancelled);
+    const controller = new DiceTrayController(eventBus, host, setCurrent);
+    controller.start();
     return () => {
-      eventBus.off(GameEventNames.PhaseChanged, onPhase);
-      eventBus.off(GameEventNames.DiceRoll, onRoll);
-      eventBus.off(GameEventNames.BlockDiceRolled, onBlockRolled);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-      eventBus.off(GameEventNames.UI_BlockRollCancelled, onCancelled);
-      // A closed tray reports nothing more: the bus outlives this match
-      generation++;
-      release?.();
-      throwing?.stop();
+      controller.stop();
     };
   }, [eventBus]);
-
+  return <DiceTrayView current={current} host={host} eventBus={eventBus} />;
+}
+function DiceTrayView({
+  current,
+  host,
+  eventBus,
+}: {
+  current: Queued | null;
+  host: RefObject<HTMLDivElement | null>;
+  eventBus: EventBus;
+}) {
   const color = current
-    ? `#${current.roll.team.primary.toString(16).padStart(6, "0")}`
+    ? "#" + current.roll.team.primary.toString(16).padStart(6, "0")
     : undefined;
-  const pickable = !!current?.block && current.settled;
   return (
     <div
       data-testid="dice-tray"
       data-hud-frame="bottom"
       aria-hidden={!current}
-      data-dice={current ? (current.settled ? "landed" : "in-air") : "empty"}
+      data-dice={diceTrayStage(current)}
       className={`hud-slab pointer-events-none absolute bottom-4 left-1/2 z-[110] w-[420px] max-w-[50vw] -translate-x-1/2 overflow-hidden transition-all duration-200 ${
         current ? "opacity-100" : "translate-y-2 opacity-0"
       }`}
       style={{ borderTop: color ? `3px solid ${color}` : undefined }}
     >
-      <DiceTrayHeader current={current} color={color} />
-      <div className="relative">
-        <div
-          ref={host}
-          data-testid="dice-tray-dice"
-          className={`h-[180px] w-full bg-[radial-gradient(ellipse_at_50%_85%,rgba(44,48,57,0.6),transparent_70%)] ${pickable ? "pointer-events-auto" : ""}`}
-        />
-        {current?.settled && current.failed !== undefined && (
-          <FlatDice
-            roll={current}
-            color={color}
-            onPick={(index) =>
-              eventBus.emit(GameEventNames.UI_BlockDieClicked, { index })
-            }
-          />
-        )}
-      </div>
+      <DiceTrayHeader
+        current={current}
+        {...(color === undefined ? {} : { color: color })}
+      />
+      <DiceTrayBody
+        current={current}
+        host={host}
+        eventBus={eventBus}
+        {...(color === undefined ? {} : { color })}
+      />
     </div>
   );
 }
-
-/** Who rolled, and the roll's title until it lands, then its result. */
 function DiceTrayHeader({
   current,
   color,
@@ -477,7 +59,6 @@ function DiceTrayHeader({
 }) {
   return (
     <div className="flex min-h-[34px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-1.5">
-      {/* Bone text with a swatch: a dark team colour is unreadable here. */}
       <span
         data-testid="dice-tray-team"
         className="flex shrink-0 items-center gap-1.5 font-hud-label text-hud-sm font-bold uppercase tracking-[0.12em] text-hud-bone"
@@ -502,10 +83,6 @@ function DiceTrayHeader({
   );
 }
 
-/**
- * The dice drawn flat, for a browser that could not draw them in 3D. Block
- * dice are buttons, so the coach can still pick one here.
- */
 function FlatDice({
   roll,
   color,
@@ -526,7 +103,9 @@ function FlatDice({
                 key={index}
                 type="button"
                 data-flat-die
-                onClick={() => onPick(index)}
+                onClick={() => {
+                  onPick(index);
+                }}
                 className={`${face} ${
                   roll.chosen === undefined || roll.chosen === index
                     ? ""
@@ -549,7 +128,7 @@ function FlatDice({
             ))}
       </div>
       <p
-        title={roll.failed}
+        {...(roll.failed === undefined ? {} : { title: roll.failed })}
         className="max-w-full truncate text-hud-xs text-hud-dim"
       >
         3D dice unavailable: {roll.failed}
@@ -558,8 +137,38 @@ function FlatDice({
   );
 }
 
-function teamName(teamId: string): string {
-  return ServiceContainer.isInitialized()
-    ? (ServiceContainer.getInstance().gameService.getTeam(teamId)?.name ?? "")
-    : "";
+function DiceTrayBody({
+  current,
+  host,
+  eventBus,
+  color,
+}: {
+  current: Queued | null;
+  host: RefObject<HTMLDivElement | null>;
+  eventBus: EventBus;
+  color?: string;
+}) {
+  const pickable = !!current?.block && current.settled;
+  return (
+    <div className="relative">
+      <div
+        ref={host}
+        data-testid="dice-tray-dice"
+        className={`h-[180px] w-full bg-[radial-gradient(ellipse_at_50%_85%,rgba(44,48,57,0.6),transparent_70%)] ${pickable ? "pointer-events-auto" : ""}`}
+      />
+      {current?.settled && current.failed !== undefined && (
+        <FlatDice
+          roll={current}
+          {...(color === undefined ? {} : { color: color })}
+          onPick={(index) => {
+            eventBus.emit(GameEventNames.UI_BlockDieClicked, { index });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+function diceTrayStage(current: Queued | null): "landed" | "in-air" | "empty" {
+  if (!current) return "empty";
+  return current.settled ? "landed" : "in-air";
 }

@@ -1,4 +1,4 @@
-import { Team } from "../../types/Team";
+import { type Team } from "../../types/Team";
 
 export type SidelineStaffType = "coach" | "cheerleader" | "apothecary" | "fan";
 
@@ -7,9 +7,9 @@ export interface SidelineStaffMember {
   index: number;
   label: string;
   color: number;
-  /** Display name for the info panel, e.g. "Assistant Coach". */
+
   name: string;
-  /** Plain-English statement of what this staff type does in match terms. */
+
   effect: string;
 }
 
@@ -21,11 +21,6 @@ export const SIDELINE_STAFF_CAPS: Readonly<Record<SidelineStaffType, number>> =
     fan: 3,
   };
 
-/**
- * Style, display copy and the team's true count for each staff type. The
- * true-count function ignores the rail's drawn cap so the info panel can
- * report a team's real total (see `getSidelineCrewInfo`).
- */
 const STAFF_INFO: Record<
   SidelineStaffType,
   Pick<SidelineStaffMember, "label" | "color" | "name" | "effect"> & {
@@ -63,17 +58,11 @@ const STAFF_INFO: Record<
   },
 };
 
-/**
- * The panel subject for a sideline crew figure (or the empty-rail
- * placeholder). Shared by both the Phaser figure hover and the React
- * `NO STAFF` label hover so the two renderers cannot present different text.
- */
 export interface SidelineCrewInfo {
-  /** Null for the empty-rail case, which is not tied to one staff type. */
   type: SidelineStaffType | null;
   name: string;
   effect: string;
-  /** The team's real count of this staff type (0 for the empty-rail case). */
+
   count: number;
 }
 
@@ -93,10 +82,6 @@ function members(
   }));
 }
 
-/**
- * Pure staff projection used by the renderer and tests. Counts are capped so
- * the dedicated staff terrace can never spill into player interaction slots.
- */
 export function getVisibleSidelineStaff(team: Team): SidelineStaffMember[] {
   return [
     ...members("coach", team.coaches ?? 0),
@@ -106,11 +91,6 @@ export function getVisibleSidelineStaff(team: Team): SidelineStaffMember[] {
   ];
 }
 
-/**
- * Builds the info-panel subject for a specific staff type, reporting the
- * team's real count rather than the number of figures the rail drew. Shared
- * by the Phaser crew-figure hover and the React `NO STAFF` label hover.
- */
 export function getSidelineCrewInfo(
   type: SidelineStaffType,
   team: Team
@@ -124,11 +104,6 @@ export function getSidelineCrewInfo(
   };
 }
 
-/**
- * The info-panel subject for the `NO STAFF` placeholder: the team retains no
- * sideline staff of any type, so there is nothing to attribute to a single
- * type or count.
- */
 export function getEmptySidelineCrewInfo(): SidelineCrewInfo {
   return {
     type: null,

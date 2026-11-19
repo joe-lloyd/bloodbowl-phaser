@@ -77,3 +77,7 @@ src/data/*.json
 /perf-results/shots/
 /perf-results/verify/
 /perf-results/video/
+
+/.audit/typescript-standards/*
+!/.audit/typescript-standards/decisions.tsv
+!/.audit/typescript-standards/progress.json

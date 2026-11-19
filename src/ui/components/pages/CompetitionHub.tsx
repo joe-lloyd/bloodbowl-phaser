@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listCompetitions } from "../../../competition/repository";
 import {
-  CompetitionDoc,
-  CompetitionStatus,
-  CompetitionType,
+  type CompetitionDoc,
+  type CompetitionStatus,
+  type CompetitionType,
 } from "../../../competition/types";
 import { useAuth } from "../../hooks/useAuth";
 import {
@@ -13,7 +13,7 @@ import {
   EmptyState,
   HudButton,
   hudChoiceClass,
-  HudTone,
+  type HudTone,
   PageHeader,
   PageShell,
 } from "../componentWarehouse/HudKit";

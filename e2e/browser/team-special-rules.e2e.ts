@@ -1,15 +1,10 @@
-import { test, expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
 
-/**
- * Team special rules in the real app (2025 rulebook pp.154-159): the Team
- * Captain's free Team Re-roll, Bribery and Corruption's Argue the Call
- * re-roll, and the League and Favoured of choices in the team builder.
- */
 test.use({ viewport: { width: 1280, height: 800 } });
 
-/** The dice log's text, lower-cased: roll names render in capitals. */
 async function diceLogText(page: Page): Promise<string> {
   const log = page.getByTestId("dice-log");
   if (!(await log.isVisible()))
@@ -18,7 +13,6 @@ async function diceLogText(page: Page): Promise<string> {
   return (await log.innerText()).toLowerCase();
 }
 
-/** Scroll the dice log to its latest line for this roll. */
 async function logEntry(page: Page, rollType: string): Promise<void> {
   await page
     .getByTestId("dice-log")
@@ -45,7 +39,7 @@ test("the Team Captain's 6 keeps the Team Re-roll", async ({ page }) => {
   await app.bridge.expectEvent(GameEventNames.RerollUsed);
 
   await expect
-    .poll(async () => (await app.bridge.snapshot()).teams[0].rerolls)
+    .poll(async () => fixtureValue((await app.bridge.snapshot()).teams[0]).rerolls)
     .toBe(1);
   await expect.poll(() => diceLogText(page)).toContain("team captain");
   await logEntry(page, "Team Captain");
@@ -83,7 +77,6 @@ test("the team builder picks a League, an alignment and a Captain", async ({
   const league = page.getByTestId("team-league");
   const rules = page.getByTestId("team-special-rules");
 
-  // A new team chooses its roster first
   await page.getByTestId("roster-choice-Norse").click();
   await expect(roster).toHaveValue("Norse");
   await expect(league).toHaveValue("Chaos Clash");
@@ -121,7 +114,7 @@ test("the team builder picks a League, an alignment and a Captain", async ({
     .filter({ hasText: "Ogre" })
     .getByRole("button", { name: "HIRE" })
     .click();
-  // The Ogre is a Big Guy, so only the Blitzer is offered the armband
+
   await expect(page.getByTestId("choose-team-captain")).toHaveCount(1);
   await page.getByTestId("choose-team-captain").click();
   const badge = page.getByTestId("team-captain-badge");

@@ -1,4 +1,5 @@
-import { ScenarioCase, step } from "../scenarioCase/types";
+import { fixtureValue } from "../fixtureValue";
+import { type ScenarioCase, step } from "../scenarioCase/types";
 import { playSetup, endsAt, noTurnover, checkpointAssert } from "./helpers";
 import { GameEventNames } from "../../types/events";
 import { SkillType } from "../../types/Skills";
@@ -76,7 +77,7 @@ export const SECURE_BALL_CASES: ScenarioCase[] = [
           );
           checkpointAssert(
             observed.snapshot.turn.activatedPlayerIds.includes(
-              observed.snapshot.teams[0].players[0].id
+              fixtureValue(fixtureValue(observed.snapshot.teams[0]).players[0]).id
             ),
             "Securing the ball must end the player's activation"
           );

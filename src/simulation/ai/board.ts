@@ -1,18 +1,19 @@
-/**
- * One read of the engine per decision, in the shape the planner asks
- * questions in. Nothing else in the planner touches GameService.
- */
-
 import { HeadlessGame } from "../../headless/HeadlessGame";
-import { GridPosition } from "../../headless/protocol";
+import { type GridPosition } from "../../headless/protocol";
 import { GameConfig } from "../../config/GameConfig";
-import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
+import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GameService } from "../../services/GameService";
-import { Weather } from "../../game/rules/weather";
+import { type Weather } from "../../game/rules/weather";
 import { teamRerollsLeft } from "../../game/teamRerolls";
 import { isLeagueMode } from "../../types/Team";
 
 export type Square = GridPosition;
+
+export type FieldPlayer = Player & { gridPosition: Square };
+
+export function onField(player: Player): player is FieldPlayer {
+  return player.gridPosition !== undefined;
+}
 
 export const WIDTH = GameConfig.PITCH_WIDTH;
 export const HEIGHT = GameConfig.PITCH_HEIGHT;
@@ -23,9 +24,6 @@ export const onPitch = (s: Square) =>
   s.x >= 0 && s.x < WIDTH && s.y >= 0 && s.y < HEIGHT;
 export const distance = (a: Square, b: Square) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-export const same = (a: Square | null | undefined, b: Square | null) =>
-  !!a && !!b && a.x === b.x && a.y === b.y;
-
 export function neighbours(s: Square): Square[] {
   const out: Square[] = [];
   for (let dx = -1; dx <= 1; dx++)
@@ -36,8 +34,8 @@ export function neighbours(s: Square): Square[] {
   return out;
 }
 
-export type Ball =
-  | { kind: "carried"; at: Square; carrier: Player }
+type Ball =
+  | { kind: "carried"; at: Square; carrier: FieldPlayer }
   | { kind: "loose"; at: Square }
   | { kind: "none" };
 
@@ -45,39 +43,38 @@ export interface Board {
   gs: GameService;
   us: string;
   them: string;
-  ours: Player[];
-  theirs: Player[];
-  /** Everyone on the pitch, both teams. */
-  everyone: Player[];
+  ours: FieldPlayer[];
+  theirs: FieldPlayer[];
+
+  everyone: FieldPlayer[];
   ball: Ball;
   weather: Weather;
-  /** Team re-rolls we have left this half. */
+
   rerolls: number;
-  /** Our turns left in this half after this one; 0 on our last turn. */
+
   turnsLeft: number;
-  /** Opponent turns still to start, read from the authoritative turn counters. */
+
   opponentTurnsLeft: number;
   persistentInjuries: boolean;
   half2: boolean;
-  /** Our score minus theirs. */
+
   lead: number;
-  /** +1 when we score at the right-hand end (x = 19), -1 at x = 0. */
+
   dir: 1 | -1;
-  /** Opponents with a tackle zone on each square, indexed by `key`. */
-  marks: Uint8Array;
-  /** Who stands on each square, indexed by `key`. */
-  occupant: (Player | undefined)[];
+
+  marks: DataView;
+
+  occupant: (FieldPlayer | undefined)[];
 }
 
-/** Where the ball is: held by a standing player, loose, or nowhere. */
 function ballOn(
   position: Square | null,
-  occupant: (Player | undefined)[]
+  occupant: (FieldPlayer | undefined)[]
 ): Ball {
   if (!position) return { kind: "none" };
   const at = { ...position };
   const holder = occupant[key(at)];
-  return holder && holder.status === PlayerStatus.ACTIVE
+  return holder?.status === PlayerStatus.ACTIVE
     ? { kind: "carried", at, carrier: holder }
     : { kind: "loose", at };
 }
@@ -87,26 +84,20 @@ export function readBoard(game: HeadlessGame, us: string): Board {
   const state = gs.getState();
   const team1 = game.ctx.team1.id;
   const them = us === team1 ? game.ctx.team2.id : team1;
-  const onField = (teamId: string) =>
-    (gs.getTeam(teamId)?.players ?? []).filter((p) => p.gridPosition);
-  const ours = onField(us);
-  const theirs = onField(them);
+  const playersOnField = (teamId: string) =>
+    (gs.getTeam(teamId)?.players ?? []).filter(onField);
+  const ours = playersOnField(us);
+  const theirs = playersOnField(them);
   const everyone = [...ours, ...theirs];
 
-  const marks = new Uint8Array(WIDTH * HEIGHT);
-  for (const o of theirs) {
-    if (!hasTackleZone(o)) continue;
-    for (const n of neighbours(o.gridPosition!)) marks[key(n)]++;
-  }
-  const occupant: (Player | undefined)[] = new Array(WIDTH * HEIGHT);
-  for (const p of everyone) occupant[key(p.gridPosition!)] = p;
+  const { marks, occupant } = fieldMaps(theirs, everyone);
 
   const ball = ballOn(state.ballPosition, occupant);
 
   const turn = state.turn;
   const ourTeam = gs.getTeam(us);
   const ourTurn = turn.teamId === us;
-  const score = state.score ?? {};
+  const score = state.score;
   return {
     gs,
     us,
@@ -122,7 +113,7 @@ export function readBoard(game: HeadlessGame, us: string): Board {
     persistentInjuries:
       game.ctx.matchStats.progressionEnabled ||
       isLeagueMode(ourTeam?.advancementMode),
-    half2: !!turn.isHalf2,
+    half2: turn.isHalf2,
     lead: (score[us] ?? 0) - (score[them] ?? 0),
     dir: us === team1 ? 1 : -1,
     marks,
@@ -130,7 +121,6 @@ export function readBoard(game: HeadlessGame, us: string): Board {
   };
 }
 
-/** Squares from `s` to the end zone `team` scores in. */
 export function toGoal(board: Board, s: Square, team = board.us): number {
   const dir = team === board.us ? board.dir : -board.dir;
   return dir === 1 ? WIDTH - 1 - s.x : s.x;
@@ -140,3 +130,19 @@ export const standing = (p: Player) => p.status === PlayerStatus.ACTIVE;
 
 export const carrierOf = (board: Board) =>
   board.ball.kind === "carried" ? board.ball.carrier : undefined;
+
+function fieldMaps(theirs: FieldPlayer[], everyone: FieldPlayer[]) {
+  const marks = new DataView(new ArrayBuffer(WIDTH * HEIGHT));
+  for (const o of theirs) {
+    if (!hasTackleZone(o)) continue;
+    for (const n of neighbours(o.gridPosition))
+      marks.setUint8(key(n), marks.getUint8(key(n)) + 1);
+  }
+  const occupant: (FieldPlayer | undefined)[] = Array.from(
+    { length: WIDTH * HEIGHT },
+    () => undefined
+  );
+  for (const p of everyone) occupant[key(p.gridPosition)] = p;
+
+  return { marks, occupant };
+}

@@ -1,16 +1,14 @@
-import { Player, PositionKeyWord } from "@/types/Player";
+import { type Player, PositionKeyWord } from "@/types/Player";
 import {
-  FormationPosition,
-  SetupPlayerLimits,
-  SetupState,
-  SetupTeamStatus,
+  type FormationPosition,
+  type SetupPlayerLimits,
+  type SetupState,
+  type SetupTeamStatus,
 } from "@/types/SetupTypes";
 import { SetupValidator } from "../validators/SetupValidator";
 
-/** A team's Swarming roll and the formation it confirmed before rolling. */
 type SwarmAllowance = NonNullable<SetupState["swarming"]>["teams"][string];
 
-/** Reserve Linemen Swarming could add: available and not in the formation. */
 function swarmReserveCount(swarm: SwarmAllowance, eligible: Player[]): number {
   return eligible.filter(
     (player) =>
@@ -19,7 +17,6 @@ function swarmReserveCount(swarm: SwarmAllowance, eligible: Player[]): number {
   ).length;
 }
 
-/** How many players a Swarming team may field; undefined outside Swarming. */
 export function swarmPlayerLimits(
   setup: SetupState | undefined,
   teamId: string,
@@ -36,7 +33,6 @@ export function swarmPlayerLimits(
   };
 }
 
-/** The status a team has before setup has looked at it. */
 export function emptySetupStatus(teamId: string): SetupTeamStatus {
   return {
     teamId,
@@ -49,17 +45,13 @@ export function emptySetupStatus(teamId: string): SetupTeamStatus {
   };
 }
 
-/**
- * One team's setup status: the formation's restrictions, the Team Captain
- * and concession rules on top, and whether the coach may confirm.
- */
 export function teamSetupStatus(input: {
   teamId: string;
   isTeam1: boolean;
   positions: FormationPosition[];
-  /** The players the team can field this drive. */
+
   eligible: Player[];
-  /** The Team Captain, when they are able to play. */
+
   captain: Player | undefined;
   setup: SetupState;
   validator: SetupValidator;
@@ -67,12 +59,7 @@ export function teamSetupStatus(input: {
   const { teamId, positions, eligible, captain, setup } = input;
   const swarm = setup.swarming?.teams[teamId];
   const availablePlayerCount = eligible.length;
-  const validation = input.validator.validateFormation(
-    positions,
-    input.isTeam1,
-    availablePlayerCount,
-    swarmPlayerLimits(setup, teamId, eligible)
-  );
+  const validation = input.validator.validateFormation({ positions: positions, isTeam1: input.isTeam1, availablePlayerCount: availablePlayerCount, limits: swarmPlayerLimits(setup, teamId, eligible) });
   const concessionDecision =
     setup.teams[teamId]?.concessionDecision ??
     (availablePlayerCount <= 3 ? "pending" : "not-offered");

@@ -1,34 +1,12 @@
-/**
- * The read-only browser test bridge.
- *
- * Browser E2E cases act through real controls — canvas clicks and HUD
- * buttons — but asserting on pixels alone would be both fragile and weak.
- * This bridge gives Playwright a precise view of what the game *thinks*
- * happened: the serialized snapshot, the emitted event log, the current
- * phase/scene, and any pending decision.
- *
- * Two properties make it safe to ship in the source tree:
- *
- *  1. It is compiled only into development/test builds. `import.meta.env.DEV`
- *     is statically false in a production build, so the installer's body is
- *     dropped by the bundler and `window.__bbTestBridge` never exists.
- *  2. It cannot mutate the game. The observer is a `HeadlessGame` constructed
- *     with `autoStartOnReady: false`, which only subscribes to the event bus
- *     and records; `execute()` is deliberately not exposed. Everything
- *     returned is a structured clone, so a test cannot reach in and edit
- *     live state through it either.
- */
-
 import { HeadlessGame } from "../headless/HeadlessGame";
-import { HeadlessGameContext } from "../headless/createHeadlessGame";
-import { GameSnapshot } from "../headless/serialization";
-import { EmittedEvent, PendingDecision } from "../headless/protocol";
+import { type HeadlessGameContext } from "../headless/createHeadlessGame";
+import { type GameSnapshot } from "../headless/serialization";
+import { type EmittedEvent, type PendingDecision } from "../headless/protocol";
 import { GameConfig } from "../config/GameConfig";
 
-export const TEST_BRIDGE_KEY = "__bbTestBridge" as const;
-export const TEST_BRIDGE_VERSION = 1;
+const TEST_BRIDGE_KEY = "__bbTestBridge" as const;
+const TEST_BRIDGE_VERSION = 1;
 
-/** A team's stable identity, so a test can resolve `team1:3` in the browser. */
 export interface BridgeTeam {
   id: string;
   name: string;
@@ -37,75 +15,41 @@ export interface BridgeTeam {
 
 export interface BrowserTestBridge {
   readonly version: number;
-  /** Serialized game state, cloned. */
+
   snapshot(): GameSnapshot;
-  /** Events emitted since the bridge was installed, in order. */
+
   events(sinceIndex?: number): EmittedEvent[];
-  /** The decision the game is waiting on, if any. */
+
   pendingDecision(): PendingDecision | null;
-  /** Current phase / sub-phase, without parsing the snapshot. */
+
   phase(): {
     phase: string;
     subPhase: string | null;
     activeTeamId: string | null;
   };
-  /** The Phaser scene keys currently active, for scene-transition assertions. */
+
   scenes(): string[];
-  /** Both teams in `team1`, `team2` order, for stable reference resolution. */
+
   teams(): [BridgeTeam, BridgeTeam];
-  /**
-   * The centre of a grid square in canvas coordinates: the live `Pitch`'s
-   * world position, through the match camera's current scroll and zoom. The
-   * E2E pitch page object converts this to a viewport point, so canvas
-   * clicks use the game's own geometry rather than a second copy of the
-   * projection. Null before a pitch exists.
-   */
+
   squareToCanvas(gridX: number, gridY: number): { x: number; y: number } | null;
-  /** True while the match camera is panning or zooming, when canvas points move. */
+
   cameraMoving(): boolean;
-  /** Live camera values for sampling transitions without mutating Phaser. */
+
   cameraState(): {
     zoom: number;
     centre: { x: number; y: number };
     panning: boolean;
     zooming: boolean;
   } | null;
-  /** Names of the layers drawn on the pitch, such as "setup_zone_highlight". */
+
   pitchLayers(): string[];
-  /** The grid squares under the square highlights actually visible on the pitch. */
+
   pitchHighlights(): { x: number; y: number }[];
-  /**
-   * The *live* design-space canvas size. Deliberately read from the running
-   * Phaser scale manager rather than `GameConfig`: the scale manager fits the
-   * game to its parent element, and the pitch is laid out from that runtime
-   * width — so this is the number a canvas point must be scaled against.
-   */
+
   canvasSize(): { width: number; height: number };
 }
 
-/** True when the bridge was compiled in AND installed on this page. */
-export function isTestBridgeAvailable(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    !!(window as unknown as Record<string, unknown>)[TEST_BRIDGE_KEY]
-  );
-}
-
-/**
- * Whether this build may carry the bridge at all.
- *
- * Both `DEV` and `MODE` are *statically replaced* by Vite at build time, so
- * in a production build this expression folds to `false` and the minifier
- * drops the installer's body — the bridge is genuinely absent from the
- * shipped bundle, not merely unreachable. That is why the check reads the
- * fields inline rather than through a local alias, and why the E2E opt-in is
- * a build mode (`vite build --mode e2e`) rather than a custom env var: Vite
- * only inlines a `VITE_*` var when that mode actually defines it, so a custom
- * var leaves a runtime lookup behind.
- *
- * `MODE === "test"` is Vitest: a jsdom unit test has no use for the bridge
- * and would pay for an extra event-bus observer on every container.
- */
 function bridgeAllowed(): boolean {
   return (
     (import.meta.env?.DEV === true || import.meta.env?.MODE === "e2e") &&
@@ -125,7 +69,6 @@ function cloneTeam(team: HeadlessGameContext["team1"]): BridgeTeam {
   };
 }
 
-/** The shape of a running scene the bridge is willing to look at. */
 interface BridgeCamera {
   zoom: number;
   width: number;
@@ -164,16 +107,9 @@ function activeScenes(): BridgeScene[] {
 
 let observer: HeadlessGame | null = null;
 
-/**
- * Attach the bridge for a freshly built engine. Call once per match, as
- * early as possible: the observer only sees events emitted after it
- * subscribes.
- */
 export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
   if (!bridgeAllowed() || typeof window === "undefined") return;
 
-  // `autoStartOnReady: false` is what makes this an observer rather than a
-  // second coach — without it the observer would start play on ReadyToStart.
   observer = new HeadlessGame({ ctx, autoStartOnReady: false });
   const game = observer;
 
@@ -245,13 +181,6 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
   (window as unknown as Record<string, unknown>)[TEST_BRIDGE_KEY] = bridge;
 }
 
-/**
- * Detach the bridge when the match's engine goes away.
- *
- * Guarded identically to the installer so a production build folds this to
- * nothing too — otherwise `ServiceContainer.reset()`'s unconditional call
- * would keep the key alive in the shipped bundle.
- */
 export function uninstallBrowserTestBridge(): void {
   if (!bridgeAllowed() || typeof window === "undefined") return;
   observer = null;

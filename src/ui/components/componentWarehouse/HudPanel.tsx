@@ -1,4 +1,3 @@
-/** Panels: the slab, its title bar, tabs between views, and labels. */
 import React, { forwardRef } from "react";
 import { cx, toneText, type HudTone } from "./hudTone";
 
@@ -17,13 +16,12 @@ const TONE_TOP: Record<HudTone, string> = {
   neutral: "border-t-hud-edge",
 };
 
-/**
- * A dark slab. `accent` draws a 3px rule along the top: a tone, or a team
- * colour as a CSS colour string.
- */
 export const Panel = forwardRef<
   HTMLDivElement,
-  DivProps & { accent?: HudTone | { color: string }; as?: "div" | "section" }
+  DivProps & {
+    accent?: HudTone | { color: string } | undefined;
+    as?: "div" | "section";
+  }
 >(function Panel(
   { accent, as = "div", className, style, children, ...rest },
   ref
@@ -50,11 +48,6 @@ export const Panel = forwardRef<
   );
 });
 
-/**
- * A panel's title bar: display-face title left, then a small label and any
- * compact controls on the right. It stays one line. When a row is crowded,
- * drop the label rather than shrink the type.
- */
 export function PanelHeader({
   title,
   aside,
@@ -64,9 +57,9 @@ export function PanelHeader({
 }: {
   title: React.ReactNode;
   aside?: React.ReactNode;
-  /** Small buttons at the right end, such as xs HudButtons. */
+
   controls?: React.ReactNode;
-  /** The title's element; pages use a real heading. */
+
   as?: "span" | "h2" | "h3";
   className?: string;
 }) {
@@ -93,16 +86,8 @@ export function PanelHeader({
   );
 }
 
-/** The id of a HudTabs tab, for the panel's aria-labelledby. */
 export const hudTabId = (idBase: string, id: string) => `${idBase}-tab-${id}`;
 
-/**
- * A segmented switch between views of one panel, such as Dice and Chat.
- * It takes the place of a PanelHeader title. A count on a tab draws a
- * small blood badge. Every tab controls the one panel `${idBase}-panel`,
- * whose content follows the selected tab. Left and Right, Home and End
- * move between tabs.
- */
 export function HudTabs<Id extends string>({
   label,
   idBase,
@@ -110,9 +95,8 @@ export function HudTabs<Id extends string>({
   value,
   onChange,
 }: {
-  /** The tab list's accessible name. */
   label: string;
-  /** Unique per instance, such as from React.useId(). */
+
   idBase: string;
   tabs: readonly { id: Id; label: string; count?: number }[];
   value: Id;
@@ -133,7 +117,9 @@ export function HudTabs<Id extends string>({
               : null;
     if (next === null) return;
     event.preventDefault();
-    const id = tabs[next].id;
+    const tab = tabs[next];
+    if (!tab) return;
+    const { id } = tab;
     onChange(id);
     document.getElementById(hudTabId(idBase, id))?.focus();
   };
@@ -155,7 +141,9 @@ export function HudTabs<Id extends string>({
             aria-selected={selected}
             aria-controls={`${idBase}-panel`}
             tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(tab.id)}
+            onClick={() => {
+              onChange(tab.id);
+            }}
             className={cx(
               "inline-flex min-h-[24px] items-center gap-1.5 px-2.5 font-hud-label text-hud-sm font-bold uppercase leading-none tracking-[0.08em] transition-colors duration-150 ease-bb",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-hud-gold",
@@ -178,14 +166,13 @@ export function HudTabs<Id extends string>({
   );
 }
 
-/** Small caps label text. */
 export function Eyebrow({
   children,
   tone,
   className,
 }: {
   children: React.ReactNode;
-  tone?: HudTone;
+  tone?: HudTone | undefined;
   className?: string;
 }) {
   return (

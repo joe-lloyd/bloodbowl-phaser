@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { gridPointToPixel } from "../../src/game/elements/GridUtils";
 import {
@@ -53,16 +54,16 @@ describe("sideline exit routes", () => {
     "leaves through the team's touchline before following it to $box",
     ({ patient, box, lane }) => {
       const route = pitchExitRoute(
-        project(patient[0], patient[1]),
-        project(box[0], box[1]),
+        project(fixtureValue(patient[0]), fixtureValue(patient[1])),
+        project(fixtureValue(box[0]), fixtureValue(box[1])),
         11,
         project
       );
       const grid = route.map((point) => worldToBoard(point, project));
       const expected = [patient, [patient[0], lane], [box[0], lane], box];
       grid.forEach((point, i) => {
-        expect(point.x).toBeCloseTo(expected[i][0]);
-        expect(point.y).toBeCloseTo(expected[i][1]);
+        expect(point.x).toBeCloseTo(fixtureValue(fixtureValue(expected[i])[0]));
+        expect(point.y).toBeCloseTo(fixtureValue(fixtureValue(expected[i])[1]));
       });
     }
   );
@@ -70,8 +71,8 @@ describe("sideline exit routes", () => {
   it("keeps a fractional patient position instead of rounding it to a square", () => {
     const patient = project(4.25, 7.75);
     const route = pitchExitRoute(patient, project(1.5, -2.5), 11, project);
-    expect(route[1].x).toBeCloseTo(project(4.25, -0.5).x);
-    expect(route[1].y).toBeCloseTo(project(4.25, -0.5).y);
+    expect(fixtureValue(route[1]).x).toBeCloseTo(project(4.25, -0.5).x);
+    expect(fixtureValue(route[1]).y).toBeCloseTo(project(4.25, -0.5).y);
   });
 
   it("preserves corners when splitting a walking route into animation steps", () => {
@@ -82,11 +83,13 @@ describe("sideline exit routes", () => {
       project
     );
     const steps = walkingSteps(route);
-    route.slice(1).forEach((corner) => expect(steps).toContainEqual(corner));
+    route.slice(1).forEach((corner) => {
+      expect(steps).toContainEqual(corner);
+    });
     const withStart = [route[0], ...steps];
     for (let i = 1; i < withStart.length; i++) {
-      const a = worldToBoard(withStart[i - 1], project);
-      const b = worldToBoard(withStart[i], project);
+      const a = worldToBoard(fixtureValue(withStart[i - 1]), project);
+      const b = worldToBoard(fixtureValue(withStart[i]), project);
       expect(Math.min(Math.abs(a.x - b.x), Math.abs(a.y - b.y))).toBeLessThan(
         1e-8
       );

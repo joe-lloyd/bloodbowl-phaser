@@ -1,68 +1,65 @@
 import { GameOperation } from "../core/GameOperation";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
 import { withRerollOffer } from "../skills";
-import { RerollableRollKind } from "../../types/decisions";
+import { type RerollableRollKind } from "../../types/decisions";
 import { requiredRoll } from "../rules/rollTargets";
 
-/**
- * AgilityTestOperation
- *
- * Performs a generic Agility Test (Catch, Dodge, Pickup, etc.)
- * Logic: Roll D6 + Modifiers >= Target
- * Handles Natural 1 (Fail) and Natural 6 (Success)
- */
 export class AgilityTestOperation extends GameOperation {
   public readonly name = "AgilityTestOperation";
-  public success: boolean = false; // Store result for caller inspection
-  public roll: number = 0;
-  public effectiveTotal: number = 0;
+  public success = false;
+  public roll = 0;
+  public effectiveTotal = 0;
 
+  private playerId: string;
+  private testName: string;
+  private targetNumber: number;
+  private modifiers: number;
+  private description: (string) | undefined;
+  private rerollKind: (RerollableRollKind) | undefined;
   constructor(
-    private playerId: string,
-    private testName: string,
-    private targetNumber: number,
-    private modifiers: number,
-    private description?: string,
-    /** When set, a failure offers a reroll decision for this roll kind */
-    private rerollKind?: RerollableRollKind
+    playerId: string,
+    testName: string,
+    targetNumber: number,
+    modifiers: number,
+    description?: string,
+
+    rerollKind?: RerollableRollKind
   ) {
     super();
+    this.playerId = playerId;
+    this.testName = testName;
+    this.targetNumber = targetNumber;
+    this.modifiers = modifiers;
+    this.description = description;
+    this.rerollKind = rerollKind;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
-    const eventBus =
-      context.eventBus as import("../../services/EventBus").IEventBus;
+    const gameService = context.gameService;
+    const eventBus = context.eventBus;
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
 
-    // The roll needed, as the die and the re-roll dialog say it
     const modString =
-      this.modifiers >= 0 ? `+${this.modifiers}` : `${this.modifiers}`;
+      this.modifiers >= 0
+        ? `+${String(this.modifiers)}`
+        : `${String(this.modifiers)}`;
     const info = this.description || `${this.testName} Test`;
     const needed = requiredRoll(this.targetNumber, this.modifiers);
     eventBus.emit(
       GameEventNames.UI_Notification,
       this.modifiers === 0
-        ? `${info}: ${needed}+`
-        : `${info}: ${needed}+ (${this.targetNumber}+, ${modString})`
+        ? `${info}: ${String(needed)}+`
+        : `${info}: ${String(needed)}+ (${String(this.targetNumber)}+, ${modString})`
     );
 
-    // Execute Roll via DiceController; failures may offer a reroll. The
-    // player's own team rolls it, even off its turn (a catch of a bounce).
     const doRoll = () =>
       gameService
         .getDiceController()
         .rollSkillCheck(
-          this.testName,
-          this.targetNumber,
-          this.modifiers,
-          player.playerName,
-          player.teamId
-        );
+          { reason: this.testName,target: this.targetNumber,modifier: this.modifiers,playerName: player.playerName,teamId: player.teamId }        );
     const result = this.rerollKind
       ? await withRerollOffer(
           { gameService, eventBus },
@@ -75,32 +72,5 @@ export class AgilityTestOperation extends GameOperation {
     this.success = result.success;
     this.roll = result.roll;
     this.effectiveTotal = result.effectiveTotal;
-
-    // We don't trigger "Turnover" or next steps here.
-    // The CALLER (e.g. CatchOperation) should check `this.success` and decide what to do.
-    // However, GameOperation execution is "fire and forget" in the queue usually?
-    // The previous flow had CatchOperation adding BounceOperation on failure.
-    // If AgilityTestOperation is a *sub-step*, how does CatchOperation know the result?
-    // OPTION A: AgilityTestOperation is just a helper, CatchOperation calls it?
-    // But Operations are usually async tasks in the queue.
-    // If CatchOperation adds AgilityTestOperation to queue, it can't easily wait for it unless we structure it differently.
-    //
-    // The USER asked to "setup an AgilityTestOperation and call that when we need to".
-    //
-    // It seems the intention is to use it as a sub-routine OR a discrete step.
-    // Given the current architecture, CatchOperation *is* the operation running.
-    // It shouldn't necessarily "add" another operation for the test, but maybe *delegate* to it?
-    // OR: CatchOperation executes, and *inside* execute, it creates and runs AgilityTestOperation manually?
-    //
-    // Let's implement it as a standard Operation, but designed to be instantiated and executed manually if needed,
-    // OR we change the pattern so CatchOperation finishes, adds AgilityTest, which adds Success/Fail handler?
-    //
-    // Easier path: `AgilityTestFactory` or just helper method?
-    // But user asked for `AgilityTestOperation`.
-    //
-    // Let's make it an Operation.
-    // `CatchOperation` can instantiate it and call `execute` explicitly with the context?
-    // `await new AgilityTestOperation(...).execute(context);`
-    // This keeps it reusable.
   }
 }

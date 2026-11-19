@@ -43,8 +43,6 @@ describe("a scoped event bus", () => {
   });
 
   it("once detached, keeps its own listeners and tells the page nothing", () => {
-    // A closed online match still has lockstep work queued: its match stats
-    // must hear that work, and the page, already on the next match, must not.
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);
     const heard: string[] = [];
@@ -106,7 +104,7 @@ describe("a scoped event bus", () => {
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);
     const queue = new MomentQueue(bus);
-    bus.emit(GameEventNames.UI_Turnover, { reason: "Dropped it" });
+    bus.emit(GameEventNames.UI_Turnover, { teamId: "team1", reason: "Dropped it" });
 
     expect(hasPendingMoments(bus)).toBe(true);
     expect(hasPendingMoments(scoped)).toBe(true);

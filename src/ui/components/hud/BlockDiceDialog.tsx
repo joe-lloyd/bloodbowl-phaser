@@ -1,13 +1,16 @@
 import { useAfterDice } from "../../hooks/useAfterDice";
 import { DecisionTeam } from "./DecisionTeam";
-import React, { useState, useEffect, useRef } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { blockPreviewLines, BlockSide } from "../../../game/rules/rollPreview";
-import { BlockAnalysis } from "../../../types/Actions";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import type { EventBus } from "../../../services/EventBus";
+import {
+  blockPreviewLines,
+  type BlockSide,
+} from "../../../game/rules/rollPreview";
+import { type BlockAnalysis } from "../../../types/Actions";
 import type { Player } from "../../../types/Player";
 import {
-  BlockResult,
-  BlockRollData,
+  type BlockResult,
+  type BlockRollData,
 } from "../../../services/BlockResolutionService";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -23,9 +26,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   eventBus,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  // Mirror isOpen into a ref so the (once-registered) event handlers can tell a
-  // normal block (dialog already open, coach clicked Roll) from a forced/auto
-  // block (dialog closed) without a stale closure.
+
   const openRef = useRef(false);
   useEffect(() => {
     openRef.current = isOpen;
@@ -40,20 +41,21 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
-  // Online: the face the chooser picked, shown briefly on both screens
+
   const [chosen, setChosen] = useState<string | null>(null);
 
   const [isRolling, setIsRolling] = useState(false);
   const [rollData, setRollData] = useState<BlockRollData | null>(null);
-  // The dice are thrown and lifted in the dice tray; a click on a lifted
-  // die there arrives here as UI_BlockDieClicked
+
   const pickRef = useRef<((index: number) => void) | null>(null);
   useEffect(() => {
     const onPick = ({ index }: { index: number }) => pickRef.current?.(index);
     eventBus.on(GameEventNames.UI_BlockDieClicked, onPick);
-    return () => eventBus.off(GameEventNames.UI_BlockDieClicked, onPick);
+    return () => {
+      eventBus.off(GameEventNames.UI_BlockDieClicked, onPick);
+    };
   }, [eventBus]);
-  // Pro mode: the next die the coach clicks is re-rolled (not selected).
+
   const [proMode, setProMode] = useState(false);
 
   useEffect(() => {
@@ -77,9 +79,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       setIsRolling(false);
       setProMode(false);
       setChosen(null);
-      // Online, both coaches see every block's dice. A screen that did not
-      // open this block (the other coach's, or an uphill defender's) asks
-      // its own engine for the block's numbers and shows the dice at once.
+
       const online = getActiveOnlineMatch();
       const current = dataRef.current;
       const sameBlock =
@@ -91,14 +91,11 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           payload.defenderId
         );
       }
-      // Mandatory blocks roll automatically. Open directly onto their dice;
-      // useAfterDice waits for them to land before allowing a selection.
+
       setRollData(payload);
       setIsOpen(true);
     };
 
-    // The roll will not happen (illegal block, no movement left, rush
-    // declined or failed): close instead of spinning forever
     const onRollCancelled = () => {
       clearTimeout(holdTimer);
       setChosen(null);
@@ -112,13 +109,13 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
     eventBus.on(GameEventNames.BlockDiceKept, onDiceRolled);
     eventBus.on(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
-    // Online: this engine refused the block (the board had moved on)
+
     const onRejected = ({ commandType }: { commandType: string }) => {
       if (commandType === "block" || commandType === "multiple-block")
         onRollCancelled();
     };
     eventBus.on(GameEventNames.NetworkCommandRejected, onRejected);
-    // The other coach may be the one who picks the result
+
     const onResolved = ({
       type,
       result,
@@ -127,7 +124,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       result?: string;
     }) => {
       if (type !== "block-dice") return;
-      // Online, hold the chosen face up for a moment on both screens
+
       if (getActiveOnlineMatch() && result) {
         setIsOpen(true);
         setChosen(result);
@@ -151,11 +148,25 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     };
   }, [eventBus]);
 
-  // The choices name the faces: hold them until the block dice have landed
   const shownRoll = useAfterDice(eventBus, rollData);
 
+  useLayoutEffect(() => {
+    if (!isOpen || !data) {
+      pickRef.current = null;
+      return;
+    }
+    pickRef.current = (index: number) => {
+      const result = shownRoll?.results[index];
+      if (!result) return;
+      if (proMode) handleProReroll(index);
+      else if (!rerollFirst) handleSelectResult(result);
+    };
+    return () => {
+      pickRef.current = null;
+    };
+  });
+
   if (!isOpen || !data) {
-    pickRef.current = null;
     return null;
   }
 
@@ -168,12 +179,10 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   const { attacker, defender, attackingTeamName } = blockSides(data);
 
   const handleRoll = () => {
-    // Online: only the coach who owns the action/decision may interact
     if (getActiveOnlineMatch()?.mayAct() === false) return;
 
     setIsRolling(true);
 
-    // Emit event to roll dice (GameService will handle it)
     eventBus.emit(GameEventNames.UI_RollBlockDice, {
       attackerId: data.attackerId,
       defenderId: data.defenderId,
@@ -183,9 +192,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   };
 
   const handleSelectResult = (result: BlockResult) => {
-    // Online: an uphill block's die belongs to the defender
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    // Emit result to GameService
+
     eventBus.emit(GameEventNames.UI_BlockResultSelected, {
       attackerId: data.attackerId,
       defenderId: data.defenderId,
@@ -197,7 +205,6 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
 
   const handleTeamReroll = () => {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (!data) return;
     eventBus.emit(GameEventNames.UI_TeamRerollBlock, {
       attackerId: data.attackerId,
     });
@@ -205,7 +212,6 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
 
   const handleProReroll = (dieIndex: number) => {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (!data) return;
     setProMode(false);
     eventBus.emit(GameEventNames.UI_ProRerollBlockDie, {
       attackerId: data.attackerId,
@@ -213,16 +219,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     });
   };
 
-  pickRef.current = (index: number) => {
-    const result = shownRoll?.results[index];
-    if (!result) return;
-    if (proMode) handleProReroll(index);
-    else if (!rerollFirst) handleSelectResult(result);
-  };
-
   const handleBrawlerReroll = () => {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (!data) return;
     eventBus.emit(GameEventNames.UI_BrawlerRerollBlockDie, {
       attackerId: data.attackerId,
     });
@@ -230,7 +228,6 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
 
   const handleVeteranReroll = () => {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (!data) return;
     eventBus.emit(GameEventNames.UI_VeteranRerollBlock, {
       attackerId: data.attackerId,
     });
@@ -240,7 +237,6 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     setIsOpen(false);
   };
 
-  // An uphill block's result is the defender's pick
   const defenderPicks = isUphill && !!rollData && !rerollFirst;
   return (
     <DialogShell
@@ -256,8 +252,6 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       title="BLOCK!"
       width="w-[480px]"
       actions={
-        // Once the dice are rolled the block CANNOT be cancelled: a result
-        // must be picked
         !rollData &&
         canAct && (
           <RollActions
@@ -269,7 +263,6 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         )
       }
     >
-      {/* Strength comparison */}
       <div className="flex items-stretch gap-2">
         <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-good/30 bg-black/35 py-1.5">
           <span className="hud-label">ATTACKER</span>
@@ -295,12 +288,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         isUphill={isUphill}
       />
 
-      {/* Dice count and who picks */}
       <DiceCount diceCount={diceCount} isUphill={isUphill} />
 
-      {/* The dice themselves are in the dice tray below: a click on a
-          lifted die chooses it. These buttons keep the choice open to a
-          keyboard or a screen reader. */}
       {shownRoll ? (
         <BlockChoices
           roll={shownRoll}
@@ -309,18 +298,20 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           proMode={proMode}
           chosen={chosen}
           attackingTeamName={attackingTeamName}
-          onKeep={() =>
+          onKeep={() => {
             eventBus.emit(GameEventNames.UI_KeepBlockDice, {
               attackerId: data.attackerId,
-            })
-          }
+            });
+          }}
           onPick={(index) => pickRef.current?.(index)}
         >
           <BlockRerolls
             roll={shownRoll}
             proMode={proMode}
             onTeamReroll={handleTeamReroll}
-            onTogglePro={() => setProMode((m) => !m)}
+            onTogglePro={() => {
+              setProMode((m) => !m);
+            }}
             onBrawlerReroll={handleBrawlerReroll}
             onVeteranReroll={handleVeteranReroll}
           />
@@ -334,7 +325,6 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   );
 };
 
-/** The players and the attacking team in a block, when the game is up. */
 function blockSides({
   attackerId,
   defenderId,
@@ -361,7 +351,6 @@ function blockSides({
   };
 }
 
-/** The dice and who picks: the roll's own once thrown, else the analysis'. */
 function diceAndPicker(
   analysis: BlockAnalysis,
   rollData: BlockRollData | null
@@ -371,7 +360,6 @@ function diceAndPicker(
   return { diceCount: rollData.numDice, isUphill: !rollData.isAttackerChoice };
 }
 
-/** Cancel, while nothing is rolling, beside the roll button. */
 function RollActions({
   showCancel,
   isRolling,
@@ -406,7 +394,6 @@ function RollActions({
   );
 }
 
-/** The block's odds in words, for whichever coach is looking. */
 function BlockPreview({
   analysis,
   attacker,
@@ -418,7 +405,6 @@ function BlockPreview({
   defender: Player | undefined;
   isUphill: boolean;
 }) {
-  // Online, the defending coach sees this card too: word it for them
   const viewer: BlockSide =
     defender && getActiveOnlineMatch()?.myTeamId === defender.teamId
       ? "defender"
@@ -465,10 +451,6 @@ function DiceCount({
   );
 }
 
-/**
- * The rolled dice as buttons, what to do with them, and the re-rolls
- * (children) when this coach may act.
- */
 function BlockChoices({
   roll,
   canAct,
@@ -505,7 +487,9 @@ function BlockChoices({
               key={idx}
               index={idx}
               result={result.type}
-              onPick={() => onPick(idx)}
+              onPick={() => {
+                onPick(idx);
+              }}
             >
               {proMode ? `Re-roll ${result.label}` : result.label}
             </DieChoice>
@@ -525,7 +509,6 @@ function BlockChoices({
   );
 }
 
-/** Warns when the viewer does not pick, and colours each side's assists. */
 function previewLineClass(line: string, warning: boolean): string {
   if (warning) return "text-hud-bad font-bold";
   if (line.startsWith("Our assists")) return "text-hud-good";
@@ -533,7 +516,6 @@ function previewLineClass(line: string, warning: boolean): string {
   return "";
 }
 
-/** The line under the dice: what was chosen, or how to choose. */
 function choiceStatus({
   chosen,
   proMode,
@@ -557,7 +539,6 @@ function choiceStatus({
   return `Click a die in the tray, or press ${dieKeys(diceShown)}, to choose the result`;
 }
 
-/** The re-rolls the attacker may still use on these dice. */
 function BlockRerolls({
   roll,
   proMode,
@@ -623,14 +604,9 @@ function BlockRerolls({
   );
 }
 
-/** The keys for the dice in the tray, left to right: "1", "1 or 2", "1 to 3". */
 const dieKeys = (count: number) =>
-  count === 1 ? "1" : count === 2 ? "1 or 2" : `1 to ${count}`;
+  count === 1 ? "1" : count === 2 ? "1 or 2" : `1 to ${String(count)}`;
 
-/**
- * A die's result as a button, pressed by its number in the tray. Hidden
- * until a keyboard focuses it, then a plain button.
- */
 function DieChoice({
   index,
   result,
@@ -647,7 +623,7 @@ function DieChoice({
   return (
     <button
       ref={button}
-      data-testid={`block-die-${index}`}
+      data-testid={`block-die-${String(index)}`}
       data-block-result={result}
       onClick={onPick}
       className="sr-only focus:not-sr-only focus:rounded-hud focus:border focus:border-hud-gold focus:bg-hud-raise focus:px-3 focus:py-1 focus:font-hud-label focus:text-hud-sm focus:font-bold focus:text-hud-bone"

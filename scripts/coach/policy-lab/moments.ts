@@ -1,19 +1,7 @@
-/**
- * A page of the candidate's scoring moments by play, each linking to a
- * playback of its match opened at the declaration. Reads the usage summary
- * and the saved traces; plays nothing again but the recorded commands.
- */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
 import { join, resolve } from "node:path";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
-import {
-  buildMatchDump,
-  escapeHtml,
-  renderMatchHtml,
-} from "../../../src/simulation/viewer";
+import { escapeHtml } from "../../../src/simulation/viewer";
+import { argument, writeMatchViewer } from "./lab";
 import type { Moment, Tally } from "./usage";
 
 interface Summary {
@@ -34,9 +22,9 @@ function usageRows(summary: Summary): string {
     .sort((a, b) => (candidate[b]?.plays ?? 0) - (candidate[a]?.plays ?? 0));
   const cell = (t: Tally | undefined) =>
     `<td class="n">${perGame(t?.plays ?? 0, summary.games)}</td>` +
-    `<td class="n">${t?.scoredThisTurn ?? 0}</td>` +
-    `<td class="n">${t?.scoredNextTurn ?? 0}</td>` +
-    `<td class="n">${t?.turnovers ?? 0}</td>`;
+    `<td class="n">${String(t?.scoredThisTurn ?? 0)}</td>` +
+    `<td class="n">${String(t?.scoredNextTurn ?? 0)}</td>` +
+    `<td class="n">${String(t?.turnovers ?? 0)}</td>`;
   return plays
     .map(
       (p) =>
@@ -58,7 +46,7 @@ function momentList(moments: Moment[]): string {
         `<h3>${escapeHtml(play)}</h3><ul>${list
           .map(
             (m) =>
-              `<li><a href="${escapeHtml(m.game)}.html#step=${m.step + 1}">${escapeHtml(m.roster)}, half ${m.half} turn ${m.turn}</a>: ${escapeHtml(m.note)}, scored ${m.scored === "this-turn" ? "that turn" : "the next turn"}</li>`
+              `<li><a href="${escapeHtml(m.game)}.html#step=${String(m.step + 1)}">${escapeHtml(m.roster)}, half ${String(m.half)} turn ${String(m.turn)}</a>: ${escapeHtml(m.note)}, scored ${m.scored === "this-turn" ? "that turn" : "the next turn"}</li>`
           )
           .join("")}</ul>`
     )
@@ -66,22 +54,14 @@ function momentList(moments: Moment[]): string {
 }
 
 async function main() {
-  const run = resolve(process.argv[2]);
+  const run = resolve(argument(2));
   const out = join(run, "moments");
   mkdirSync(out, { recursive: true });
   const summary = JSON.parse(
     readFileSync(join(run, "usage-summary.json"), "utf8")
   ) as Summary;
-  for (const id of new Set(summary.moments.map((m) => m.game))) {
-    const trace = JSON.parse(
-      gunzipSync(readFileSync(join(run, "traces", id + ".json.gz"))).toString()
-    ) as { initial: MatchSave; recording: MatchRecording };
-    const dump = await buildMatchDump(
-      trace.recording,
-      new HeadlessGame({ matchSave: trace.initial })
-    );
-    writeFileSync(join(out, id + ".html"), renderMatchHtml(dump));
-  }
+  for (const id of new Set(summary.moments.map((m) => m.game)))
+    await writeMatchViewer(run, out, id);
   writeFileSync(
     join(out, "index.html"),
     `<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -97,7 +77,7 @@ td,th{padding:5px 8px;border-bottom:1px solid #2a3352;text-align:left}th{color:#
 .n{text-align:right;font-variant-numeric:tabular-nums}li{margin:2px 0}
 </style></head><body>
 <h1>Sevens play moments</h1>
-<p>Revision ${escapeHtml(summary.revision.slice(0, 12))}, ${summary.games} games. A play scored when its team scored that turn or the next; turnovers happened during it. This is what followed a play, not what the play was worth.</p>
+<p>Revision ${escapeHtml(summary.revision.slice(0, 12))}, ${String(summary.games)} games. A play scored when its team scored that turn or the next; turnovers happened during it. This is what followed a play, not what the play was worth.</p>
 <h2>Plays per game</h2>
 <div class="wrap"><table>
 <tr><th></th><th colspan="4">Candidate</th><th colspan="4">Frozen</th></tr>

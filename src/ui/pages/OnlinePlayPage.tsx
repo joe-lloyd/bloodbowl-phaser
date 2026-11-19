@@ -14,15 +14,15 @@ import {
   heartbeat,
   describeConnection,
   playHold,
-  LobbyDoc,
-  OwnLink,
+  type LobbyDoc,
+  type OwnLink,
 } from "../../firebase/lobby";
 import {
   createOnlineMatch,
   setActiveOnlineMatch,
-  OnlineMatch,
+  type OnlineMatch,
 } from "../../network/OnlineMatch";
-import { OnlineMatchMenuProps } from "../components/hud/GameHUD";
+import { type OnlineMatchMenuProps } from "../components/hud/GameHUD";
 import { GameEventNames } from "../../types/events";
 import {
   DialogActions,
@@ -40,12 +40,6 @@ interface OnlinePlayPageProps {
   eventBus: EventBus;
 }
 
-/**
- * Boots an online match: builds the network session for this player's role
- * (which also initializes the ServiceContainer), and only then mounts the
- * regular GamePage on top of it. Also carries the in-match controls that
- * live on the lobby doc — mutual end-of-match agreement and save-for-later.
- */
 export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
   const { code } = useParams();
   const navigate = useNavigate();
@@ -55,15 +49,17 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
   const [lobby, setLobby] = useState<LobbyDoc | null>(null);
   const [error, setError] = useState<string | null>(null);
   const leftRef = useRef(false);
-  // Drives the disconnect → reconnecting → abandonable progression (both the
-  // banner and the options menu's connection-status entry read from this).
+
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 2000);
-    return () => clearInterval(id);
+    const id = setInterval(() => {
+      setNow(Date.now());
+    }, 2000);
+    return () => {
+      clearInterval(id);
+    };
   }, []);
 
-  // Boot the match once
   useEffect(() => {
     if (!code || !user || matchRef.current) return;
     let cancelled = false;
@@ -77,10 +73,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         if (cancelled) return;
         setLobby(loaded);
 
-        // Must exist before GamePage mounts: it initializes ServiceContainer
-        // with the right engine (host: native + protocol bridge; guest:
-        // networked proxy over a passive replica).
-        // Both coaches made the seed; each derives it and checks the other
         const seed = await seedFor(loaded);
         if (cancelled) return;
         const created = createOnlineMatch({
@@ -88,9 +80,11 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           user,
           eventBus,
           seed,
-          computer: isHouseBotBrowser() ? {} : undefined,
+          ...(isHouseBotBrowser() ? { computer: {} } : {}),
         });
-        created.onFatalError((message) => setError(message));
+        created.onFatalError((message) => {
+          setError(message);
+        });
         matchRef.current = created;
         setActiveOnlineMatch(created);
         setMatch(created);
@@ -107,35 +101,31 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     };
   }, [code, user, eventBus]);
 
-  // Live lobby doc, which drives the end-match prompt and end/abandon
-  // transitions, and this coach's own link, from one listener. While the
-  // link is down or slow, the other coach's heartbeat stops arriving too,
-  // which must not read as them leaving.
   const [link, setLink] = useState<OwnLink>({
     state: "online",
     confirmedSeen: null,
   });
   useEffect(() => {
     if (!code || !user) return;
-    return subscribeMatchLobby(code, user.uid, setLobby, setLink);
+    return subscribeMatchLobby({ code,uid: user.uid,onLobby: setLobby,onLink: setLink });
   }, [code, user]);
 
-  // Presence heartbeat so the opponent can detect if we drop. Each one the
-  // server confirms counts, even while later writes still wait: the
-  // lobby's own snapshot only confirms once nothing is pending.
   const [ackedSeen, setAckedSeen] = useState(0);
   useEffect(() => {
     if (!code || !user) return;
     const beat = () =>
       void heartbeat(code, user.uid)
-        .then((at) => setAckedSeen((seen) => Math.max(seen, at)))
+        .then((at) => {
+          setAckedSeen((seen) => Math.max(seen, at));
+        })
         .catch(() => {});
     beat();
     const id = setInterval(beat, 6000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+    };
   }, [code, user]);
 
-  // When the match ends (mutually or abandoned), clear our pointer and leave
   useEffect(() => {
     if (!user || !lobby || leftRef.current) return;
     if (lobby.status === "finished" || lobby.status === "abandoned") {
@@ -182,10 +172,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     now
   );
 
-  // A rejected Firestore write must not vanish silently (the coach would
-  // have no idea their "End Match" click did nothing) nor drop them out of
-  // the match — surface it as an ordinary toast and leave them exactly
-  // where they were, free to retry from the menu.
   const reportMenuActionFailed = (action: string) => (error: unknown) => {
     console.warn(`[Online] ${action} failed:`, error);
     eventBus.emit(
@@ -194,10 +180,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     );
   };
 
-  // Everything match-level (save/leave, propose/cancel ending, unilateral
-  // abandon on disconnect) now lives in GameHUD's single bottom-right
-  // options menu — see MatchOptionsMenu/computeMatchOptionsMenu. This page
-  // only supplies the online-specific state and callbacks the menu needs.
   const onlineMenu: OnlineMatchMenuProps | undefined = code
     ? {
         role: match.role,
@@ -205,8 +187,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         connection,
         endRequest,
         onSaveAndExit: () => {
-          // An unfinished pregame choice throws before leaving, keeping
-          // its live continuation available for the coach to finish.
           match.saveState();
           leave();
         },
@@ -222,11 +202,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           finishMatch(code, "abandoned").catch(
             reportMenuActionFailed("ending the match")
           ),
-        // Reconnection is otherwise fully automatic (heartbeat + Firestore's
-        // realtime listener); this only nudges both — an immediate heartbeat
-        // and a fresh lobby read — for the rare case the listener stalled.
-        // It changes nothing about who is authoritative or how sessions
-        // resume, per design.md's non-goal.
+
         onReconnect: () => {
           void heartbeat(code, user.uid).catch(
             reportMenuActionFailed("reconnecting")
@@ -269,9 +245,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         />
       )}
 
-      {/* Shared coin toss at match start. Kept mounted through completion so
-          the host's "apply toss → start setup" effect runs; it self-hides
-          (renders null) once the toss is resolved. */}
       {lobby && code && (
         <OnlineCoinFlip
           code={code}
@@ -281,9 +254,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         />
       )}
 
-      {/* Blocking decision prompt — only for the side who must respond.
-          The proposer's own "cancel" lives in the options menu instead, so
-          proposing no longer locks the requester out of their own screen. */}
       {endRequest === "theirs" && code && (
         <EndMatchModal
           opponentName={match.opponentName}
@@ -303,7 +273,6 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
   );
 }
 
-/** Whether either coach asked to end the match, from this coach's side. */
 function endRequestFrom(
   lobby: LobbyDoc | null,
   uid: string
@@ -313,10 +282,6 @@ function endRequestFrom(
   return endRequestBy === uid ? "mine" : "theirs";
 }
 
-/**
- * The other coach's connection as this screen sees it, and the hold on
- * play while either coach is away.
- */
 function opponentPresence(
   lobby: LobbyDoc | null,
   uid: string,
@@ -331,21 +296,15 @@ function opponentPresence(
     : null;
   if (!lobby || !opponentUid)
     return { connection: "online" as const, hold: null };
-  // Play stops on both screens at once, from when the drop began as both
-  // coaches see it: the absent coach's last heartbeat the server holds
+
   const ownSeen = Math.max(link.confirmedSeen ?? 0, ackedSeen) || null;
   return {
-    connection: describeConnection(lobby, opponentUid, link.state, now),
-    hold: playHold(
-      lobby,
-      opponentUid,
-      { ...link, confirmedSeen: ownSeen },
-      now
+    connection: describeConnection({ lobby,opponentUid,link: link.state,now }),
+    hold: playHold({ lobby: lobby, opponentUid: opponentUid, link: { ...link, confirmedSeen: ownSeen }, now: now }
     ),
   };
 }
 
-/** The turn clock's view of a hold: who is away, and since when. */
 function awayProps(hold: ReturnType<typeof playHold>) {
   return {
     opponentAway: hold != null,
@@ -354,9 +313,6 @@ function awayProps(hold: ReturnType<typeof playHold>) {
   };
 }
 
-/** Blocking prompt shown to the coach who must respond to an end-match
- *  proposal (the proposer manages/cancels their own request from the
- *  options menu instead — see OnlineMatchMenuProps.endRequest). */
 function EndMatchModal({
   opponentName,
   onAgree,

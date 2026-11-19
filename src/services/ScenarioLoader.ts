@@ -1,31 +1,29 @@
 import { ServiceContainer } from "./ServiceContainer";
-import { IEventBus } from "./EventBus";
+import { type IEventBus } from "./EventBus";
 import { GameEventNames } from "../types/events";
-import { Scenario } from "@/types/Scenario";
-import { Team } from "@/types/Team";
+import { type Scenario } from "@/types/Scenario";
+import { type Team } from "@/types/Team";
 import { applyScenario } from "../game/applyScenario";
 
 export class ScenarioLoader {
-  constructor(
-    private eventBus: IEventBus,
-    private team1: Team,
-    private team2: Team
-  ) {}
+  private eventBus: IEventBus;
+  private team1: Team;
+  private team2: Team;
+  constructor(eventBus: IEventBus, team1: Team, team2: Team) {
+    this.eventBus = eventBus;
+    this.team1 = team1;
+    this.team2 = team2;
+  }
 
-  /**
-   * Load a scenario by resetting the game service and initializing with new state
-   */
   public load(scenario: Scenario): void {
     const initialState = applyScenario(scenario, this.team1, this.team2);
 
-    // Re-Mount ServiceContainer with optional scenario seed
     ServiceContainer.reset();
 
-    // If scenario has a seed, use it for deterministic outcomes
     const seed = scenario.seed;
     if (seed !== undefined) {
       console.log(
-        `[ScenarioLoader] Loading scenario with deterministic seed: ${seed}`
+        `[ScenarioLoader] Loading scenario with deterministic seed: ${String(seed)}`
       );
       if (scenario.expectedOutcome) {
         console.log(
@@ -34,40 +32,36 @@ export class ScenarioLoader {
       }
     }
 
-    ServiceContainer.initialize(
-      this.eventBus,
-      this.team1,
-      this.team2,
+    ServiceContainer.initialize({
+      eventBus: this.eventBus,
+      team1: this.team1,
+      team2: this.team2,
       initialState,
-      seed
-    );
+      ...(seed !== undefined ? { seed } : {}),
+    });
 
-    // Seed the per-team turn counters so the match tracker reflects the
-    // scenario's turn (a mid-drive demo, not Turn 0). Sandbox scenarios are
-    // static — no startGame drives the counts — so this is the only source.
     ServiceContainer.getInstance().gameService.seedTurnCounts(
       initialState.turn.turnNumber
     );
 
-    // 4. Trigger UI Refresh and Turn Start
     this.eventBus.emit(GameEventNames.GameStateRestored, initialState);
 
-    // Emit phase change to update UI
     this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: initialState.phase,
-      subPhase: initialState.subPhase,
-      activeTeamId: initialState.activeTeamId ?? undefined,
+      ...(initialState.subPhase !== undefined
+        ? { subPhase: initialState.subPhase }
+        : {}),
+      ...(initialState.activeTeamId != null
+        ? { activeTeamId: initialState.activeTeamId }
+        : {}),
     });
 
-    // Emit turn started to initialize turn state in UI
-    // This is CRITICAL for allowing the active team to take actions
     this.eventBus.emit(GameEventNames.TurnStarted, {
       teamId: initialState.turn.teamId,
       turnNumber: initialState.turn.turnNumber,
       isHalf2: initialState.turn.isHalf2,
     });
 
-    // Emit turn data to update action availability
     this.eventBus.emit(GameEventNames.TurnDataUpdated, {
       hasBlitzed: initialState.turn.hasBlitzed,
       hasPassed: initialState.turn.hasPassed,
@@ -75,9 +69,8 @@ export class ScenarioLoader {
       hasFouled: initialState.turn.hasFouled,
     });
 
-    this.eventBus.emit(GameEventNames.RefreshBoard);
+    this.eventBus.emit(GameEventNames.RefreshBoard, undefined);
 
-    // Emit placements for UI
     this.emitPlacements(this.team1);
     this.emitPlacements(this.team2);
 

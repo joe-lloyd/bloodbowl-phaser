@@ -1,4 +1,3 @@
-/** Acquisition inputs only: report edits must not invalidate saved games. */
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";

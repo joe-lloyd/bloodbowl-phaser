@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { copyFile, mkdir } from "node:fs/promises";
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
 async function expectDockClear(
@@ -37,11 +38,11 @@ async function expectDockClear(
   await expect(app.hud.endTurn()).toBeHidden();
   const screenshot = test.info().outputPath(`${name}.png`);
   await page.screenshot({ path: screenshot });
-  if (process.env.DECISION_DOCK_SHOTS) {
-    await mkdir(process.env.DECISION_DOCK_SHOTS, { recursive: true });
+  if (process.env["DECISION_DOCK_SHOTS"]) {
+    await mkdir(process.env["DECISION_DOCK_SHOTS"], { recursive: true });
     await copyFile(
       screenshot,
-      `${process.env.DECISION_DOCK_SHOTS}/${viewport.width}x${viewport.height}-${name}.png`
+      `${process.env["DECISION_DOCK_SHOTS"]}/${String(viewport.width)}x${String(viewport.height)}-${name}.png`
     );
   }
 }
@@ -50,11 +51,9 @@ for (const viewport of [
   { width: 1280, height: 720 },
   { width: 1920, height: 1080 },
 ]) {
-  test.describe(`${viewport.width}x${viewport.height}`, () => {
+  test.describe(`${String(viewport.width)}x${String(viewport.height)}`, () => {
     test.use({ viewport });
     test("block decisions leave both players visible", async ({ page }) => {
-      // Five layout checks, each waiting for the camera: slow under a full
-      // parallel run.
       test.setTimeout(240_000);
       const app = new GameApp(page);
       await app.sandbox.open({ scenario: "chain-push", seed: 1 });
@@ -62,8 +61,7 @@ for (const viewport of [
       await app.pitch.clickPlayer("team2:0");
       await expect(app.hud.blockDiceDialog()).toBeVisible();
       await expectDockClear(page, app, ["team1:0", "team2:0"], "block-preview");
-      // The 3D dice are slow to render at 1920x1080 in a parallel run; the
-      // rolled steps are checked at 1280x720.
+
       if (viewport.width !== 1280) return;
       await app.hud.rollBlockDice();
       await expectDockClear(page, app, ["team1:0", "team2:0"], "block-pick");
@@ -81,7 +79,7 @@ for (const viewport of [
         const pending = await app.bridge.pendingDecision();
         if (pending?.type !== "push-direction")
           throw new Error("No push square offered");
-        await app.pitch.clickSquare(pending.options[0]);
+        await app.pitch.clickSquare(fixtureValue(pending.options[0]));
       }
       await expect(app.hud.followUpDialog()).toBeVisible();
       await expectDockClear(page, app, ["team1:0", "team2:0"], "follow-up");
@@ -145,7 +143,7 @@ for (const viewport of [
       ).toBeVisible();
       await expectDockClear(page, app, ["team1:0"], "dodge");
       await page.getByRole("button", { name: "Dodge!", exact: true }).click();
-      // The dodge die lands and the runner walks before the Rush prompt.
+
       await expect(
         page.getByRole("button", { name: "Rush!", exact: true })
       ).toBeVisible({ timeout: 20_000 });

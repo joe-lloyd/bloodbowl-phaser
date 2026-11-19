@@ -1,8 +1,3 @@
-/**
- * One rule for the coach's team library: until it is loaded, no teams are
- * read as theirs and nothing is written, deleted or seeded.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   TeamLibraryUnavailableError,
@@ -22,7 +17,6 @@ function localTeam() {
   return new TeamTestBuilder().withId("local-team").withName("Local").build();
 }
 
-/** Everything in localStorage, to show nothing was written. */
 function storageSnapshot(): string {
   return JSON.stringify(
     Object.keys(localStorage)
@@ -61,8 +55,12 @@ describe.each(["loading", "failed"] as const)("team library %s", (status) => {
 
   it("refuses to seed or remove seed data before writing anything", () => {
     const before = storageSnapshot();
-    expect(() => seedAllRosterTeams()).toThrow(TeamLibraryUnavailableError);
-    expect(() => deleteAllSeedTeams()).toThrow(TeamLibraryUnavailableError);
+    expect(() => {
+      seedAllRosterTeams();
+    }).toThrow(TeamLibraryUnavailableError);
+    expect(() => {
+      deleteAllSeedTeams();
+    }).toThrow(TeamLibraryUnavailableError);
     expect(storageSnapshot()).toBe(before);
   });
 });

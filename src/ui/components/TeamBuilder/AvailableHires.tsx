@@ -1,8 +1,9 @@
-import { TeamColors, TeamRoster } from "../../../types/Team";
-import { PlayerTemplate } from "../../../types/Player";
+import { STAT_HEADERS } from "./statHeaders";
+import { type TeamColors, type TeamRoster } from "../../../types/Team";
+import { type PlayerTemplate } from "../../../types/Player";
 import { PlayerPortrait } from "../common/PlayerPortrait";
-import { Skill, SKILL_DEFINITIONS } from "../../../types/Skills";
-import { PlayerStats } from "../../../types/Player";
+import { type Skill, SKILL_DEFINITIONS } from "../../../types/Skills";
+import { type PlayerStats } from "../../../types/Player";
 import { HudButton } from "../componentWarehouse/HudKit";
 import { Tooltip } from "../componentWarehouse/Tooltip";
 import { BloodBowlTable } from "../componentWarehouse/BloodBowlTable";
@@ -10,13 +11,13 @@ import type { PositionAllowance } from "../../../game/rules/teamPricing";
 
 interface AvailableHiresProps {
   roster: TeamRoster;
-  /** The team's kit, so each position is shown in it. */
+
   colors?: TeamColors;
   treasury: number;
   onHirePlayer: (positionName: string) => void;
-  /** Why a position cannot be hired now (roster limits), if it cannot. */
+
   hireRefusal?: (template: PlayerTemplate) => string | undefined;
-  /** How many of each position the team has and may have. */
+
   allowance?: (template: PlayerTemplate) => PositionAllowance;
 }
 
@@ -36,11 +37,7 @@ export function AvailableHires({
       aside={`Treasury ${formatGold(treasury)}`}
       headers={[
         { label: "Position", width: "24%" },
-        { label: "MA", className: "num" },
-        { label: "ST", className: "num" },
-        { label: "AG", className: "num" },
-        { label: "PA", className: "num" },
-        { label: "AV", className: "num" },
+        ...STAT_HEADERS,
         { label: "Skills", width: "30%" },
         { label: "Allowed", className: "num" },
         { label: "Cost", className: "num" },
@@ -86,7 +83,9 @@ export function AvailableHires({
                 size="sm"
                 variant="secondary"
                 block
-                onClick={() => onHirePlayer(template.positionName)}
+                onClick={() => {
+                  onHirePlayer(template.positionName);
+                }}
                 disabled={!!refusal}
                 title={refusal}
               >
@@ -100,7 +99,6 @@ export function AvailableHires({
   );
 }
 
-/** "2 / 4": how many of the position are hired, of the most allowed. */
 function AllowedCell({ allowance }: { allowance: PositionAllowance }) {
   const full = allowance.hired >= allowance.max;
   return (
@@ -109,32 +107,34 @@ function AllowedCell({ allowance }: { allowance: PositionAllowance }) {
         full ? "text-hud-mute" : "text-hud-bone"
       }`}
       data-testid="hire-allowance"
-      title={`${allowance.hired} hired of ${allowance.max} allowed`}
+      title={`${String(allowance.hired)} hired of ${String(allowance.max)} allowed`}
     >
       {allowance.hired} / {allowance.max}
     </td>
   );
 }
 
-/** Five statline cells in big display numerals: MA, ST, AG+, PA+, AV+. */
 export function StatCells({ stats }: { stats: PlayerStats }) {
   return (
     <>
-      {[stats.MA, stats.ST, `${stats.AG}+`, `${stats.PA}+`, `${stats.AV}+`].map(
-        (value, index) => (
-          <td
-            key={index}
-            className="num font-hud-display text-hud-lg leading-none text-hud-bone"
-          >
-            {value}
-          </td>
-        )
-      )}
+      {[
+        stats.MA,
+        stats.ST,
+        `${String(stats.AG)}+`,
+        `${String(stats.PA)}+`,
+        `${String(stats.AV)}+`,
+      ].map((value, index) => (
+        <td
+          key={index}
+          className="num font-hud-display text-hud-lg leading-none text-hud-bone"
+        >
+          {value}
+        </td>
+      ))}
     </>
   );
 }
 
-/** Skill names, each with a short hint on hover or focus. */
 export function SkillList({ skills }: { skills: Skill[] }) {
   if (skills.length === 0) {
     return <span className="text-hud-mute">None</span>;
@@ -142,11 +142,11 @@ export function SkillList({ skills }: { skills: Skill[] }) {
   return (
     <div className="flex flex-wrap gap-x-1 gap-y-0.5 text-hud-sm text-[#ddd5c6]">
       {skills.map((skill, index) => (
-        <span key={`${skill.type}-${index}`}>
+        <span key={`${skill.type}-${String(index)}`}>
           <Tooltip content={SKILL_DEFINITIONS[skill.type].description}>
             <span className="cursor-help underline decoration-hud-gold/40 decoration-dotted underline-offset-2">
               {skill.type}
-              {skill.parameter != null ? ` (${skill.parameter})` : ""}
+              {skill.parameter != null ? ` (${String(skill.parameter)})` : ""}
             </span>
           </Tooltip>
           {index < skills.length - 1 ? "," : ""}

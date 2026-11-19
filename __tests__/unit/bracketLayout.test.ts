@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import {
   layoutBracket,
@@ -9,15 +10,32 @@ import {
   repairBracketLinkage,
   seedEntrants,
 } from "../../src/competition/logic";
-import { CompetitionEntrant, CompetitionFixture } from "../../src/competition/types";
+import {
+  type CompetitionEntrant,
+  type CompetitionFixture,
+  type TournamentDoc,
+} from "../../src/competition/types";
+
+function stripLinkage(fixture: CompetitionFixture): CompetitionFixture {
+  const stripped: CompetitionFixture = {
+    id: fixture.id,
+    round: fixture.round,
+    order: fixture.order,
+    homeEntrantId: fixture.homeEntrantId,
+    awayEntrantId: fixture.awayEntrantId,
+    status: fixture.status,
+  };
+  if (fixture.result) stripped.result = fixture.result;
+  return stripped;
+}
 
 function entrants(count: number): CompetitionEntrant[] {
   return seedEntrants(
     Array.from({ length: count }, (_, i) => ({
-      id: `e${i + 1}`,
-      teamId: `t${i + 1}`,
+      id: `e${String(i + 1)}`,
+      teamId: `t${String(i + 1)}`,
       ownerUid: null,
-      name: `Team ${i + 1}`,
+      name: `Team ${String(i + 1)}`,
       rosterName: "Human",
     }))
   );
@@ -26,23 +44,21 @@ function entrants(count: number): CompetitionEntrant[] {
 const bracketFor = (count: number) =>
   generateSingleElimination(entrants(count));
 
-/** Ties played to a result, byes left out. */
 const playedTies = (fixtures: CompetitionFixture[]) =>
   fixtures.filter((tie) => tie.status === "complete" && !tie.result?.bye);
 
 const loserOf = (tie: CompetitionFixture) =>
-  tie.result!.winnerEntrantId === tie.homeEntrantId
-    ? tie.awayEntrantId!
-    : tie.homeEntrantId!;
+  fixtureValue(tie.result).winnerEntrantId === tie.homeEntrantId
+    ? fixtureValue(tie.awayEntrantId)
+    : fixtureValue(tie.homeEntrantId);
 
-/** Every completed tie's winner holds its slot in the next tie. */
 function expectWinnersAdvanced(fixtures: CompetitionFixture[]): void {
   for (const tie of fixtures) {
     if (tie.status !== "complete" || !tie.nextFixtureId) continue;
-    const next = fixtures.find((f) => f.id === tie.nextFixtureId)!;
+    const next = fixtureValue(fixtures.find((f) => f.id === tie.nextFixtureId));
     const slot =
       tie.nextSlot === "home" ? next.homeEntrantId : next.awayEntrantId;
-    expect(slot).toBe(tie.result!.winnerEntrantId);
+    expect(slot).toBe(fixtureValue(tie.result).winnerEntrantId);
   }
 }
 
@@ -57,7 +73,6 @@ describe("layoutBracket", () => {
   });
 
   it.each([
-    // entrants, expected rounds, expected columns (2R-1)
     [2, 1, 1],
     [3, 2, 3],
     [4, 2, 3],
@@ -74,12 +89,12 @@ describe("layoutBracket", () => {
       const rounds = new Set(fixtures.map((f) => f.round));
       expect(rounds.size).toBe(expectedRounds);
       expect(layout.columns).toBe(expectedColumns);
-      // Every fixture is placed exactly once.
+
       expect(layout.nodes).toHaveLength(fixtures.length);
       expect(new Set(layout.nodes.map((n) => n.fixture.id)).size).toBe(
         fixtures.length
       );
-      // Columns stay inside the declared span.
+
       for (const node of layout.nodes) {
         expect(node.column).toBeGreaterThanOrEqual(0);
         expect(node.column).toBeLessThan(layout.columns);
@@ -92,11 +107,9 @@ describe("layoutBracket", () => {
     const finals = layout.nodes.filter((n) => n.side === "final");
     expect(finals).toHaveLength(1);
     const centre = (layout.columns - 1) / 2;
-    expect(finals[0].column).toBe(centre);
-    // Nothing else shares the centre column.
-    expect(
-      layout.nodes.filter((n) => n.column === centre)
-    ).toHaveLength(1);
+    expect(fixtureValue(finals[0]).column).toBe(centre);
+
+    expect(layout.nodes.filter((n) => n.column === centre)).toHaveLength(1);
   });
 
   it("mirrors the two halves of the draw inward", () => {
@@ -107,13 +120,12 @@ describe("layoutBracket", () => {
 
     expect(left).toHaveLength(2);
     expect(right).toHaveLength(2);
-    // Opening round sits on the outside: column 0 and the last column.
+
     expect(new Set(left.map((n) => n.column))).toEqual(new Set([0]));
     expect(new Set(right.map((n) => n.column))).toEqual(
       new Set([layout.columns - 1])
     );
 
-    // Semi-finals step inward by one column on each side.
     const semis = layout.nodes.filter((n) => n.fixture.round === 2);
     expect(semis.map((n) => n.column).sort()).toEqual([1, 3]);
   });
@@ -122,13 +134,12 @@ describe("layoutBracket", () => {
     const fixtures = bracketFor(8);
     const layout = layoutBracket(fixtures);
     const nodeOf = (id: string) =>
-      layout.nodes.find((n) => n.fixture.id === id)!;
+      fixtureValue(layout.nodes.find((n) => n.fixture.id === id));
 
     for (const node of layout.nodes) {
       const sources = node.fixture.sourceFixtureIds ?? [];
       if (sources.length !== 2) continue;
-      const expected =
-        (nodeOf(sources[0]).row + nodeOf(sources[1]).row) / 2;
+      const expected = (nodeOf(fixtureValue(sources[0])).row + nodeOf(fixtureValue(sources[1])).row) / 2;
       expect(node.row).toBeCloseTo(expected, 10);
     }
   });
@@ -150,9 +161,8 @@ describe("layoutBracket", () => {
     const layout = layoutBracket(fixtures);
     expect(layout.connectors).toHaveLength(fixtures.length - 1);
 
-    // Connectors follow the recorded linkage, not proximity.
     for (const connector of layout.connectors) {
-      const from = fixtures.find((f) => f.id === connector.fromFixtureId)!;
+      const from = fixtureValue(fixtures.find((f) => f.id === connector.fromFixtureId));
       expect(connector.toFixtureId).toBe(from.nextFixtureId);
     }
   });
@@ -160,7 +170,7 @@ describe("layoutBracket", () => {
   it("routes each half's connectors toward the centre", () => {
     const layout = layoutBracket(bracketFor(8));
     const nodeOf = (id: string) =>
-      layout.nodes.find((n) => n.fixture.id === id)!;
+      fixtureValue(layout.nodes.find((n) => n.fixture.id === id));
     for (const connector of layout.connectors) {
       const from = nodeOf(connector.fromFixtureId);
       const to = nodeOf(connector.toFixtureId);
@@ -172,7 +182,7 @@ describe("layoutBracket", () => {
   it("traces a path from any opening fixture to the final", () => {
     const fixtures = bracketFor(16);
     const layout = layoutBracket(fixtures);
-    const finalId = layout.nodes.find((n) => n.side === "final")!.fixture.id;
+    const finalId = fixtureValue(layout.nodes.find((n) => n.side === "final")).fixture.id;
 
     for (const opening of fixtures.filter((f) => f.round === 1)) {
       let current = opening.id;
@@ -180,7 +190,7 @@ describe("layoutBracket", () => {
       while (current !== finalId && hops < 10) {
         const step = layout.connectors.find((c) => c.fromFixtureId === current);
         expect(step).toBeDefined();
-        current = step!.toFixtureId;
+        current = fixtureValue(step).toFixtureId;
         hops++;
       }
       expect(current).toBe(finalId);
@@ -191,39 +201,32 @@ describe("layoutBracket", () => {
     const fixtures = bracketFor(5);
     const layout = layoutBracket(fixtures);
     const byes = fixtures.filter((f) => f.result?.bye);
-    // A 5-entrant draw rounds up to 8, so three opening ties are byes.
+
     expect(byes.length).toBeGreaterThan(0);
-    // Byes are still placed and still connected onward.
+
     for (const bye of byes) {
       const node = layout.nodes.find((n) => n.fixture.id === bye.id);
       expect(node).toBeDefined();
-      expect(
-        layout.connectors.some((c) => c.fromFixtureId === bye.id)
-      ).toBe(true);
+      expect(layout.connectors.some((c) => c.fromFixtureId === bye.id)).toBe(
+        true
+      );
     }
   });
 
   it("falls back to round/order pairing when linkage is missing", () => {
-    // Strip the linkage a pre-existing tournament might not have.
-    const stripped: CompetitionFixture[] = bracketFor(8).map((f) => ({
-      ...f,
-      sourceFixtureIds: undefined,
-      nextFixtureId: undefined,
-      nextSlot: undefined,
-    }));
+    const stripped: CompetitionFixture[] = bracketFor(8).map(stripLinkage);
     const withLinkage = layoutBracket(bracketFor(8));
     const withoutLinkage = layoutBracket(stripped);
 
-    // Same geometry either way.
     expect(withoutLinkage.columns).toBe(withLinkage.columns);
     expect(withoutLinkage.rows).toBe(withLinkage.rows);
     expect(withoutLinkage.connectors).toHaveLength(
       withLinkage.connectors.length
     );
     for (const node of withoutLinkage.nodes) {
-      const original = withLinkage.nodes.find(
+      const original = fixtureValue(withLinkage.nodes.find(
         (n) => n.fixture.id === node.fixture.id
-      )!;
+      ));
       expect(node.column).toBe(original.column);
       expect(node.row).toBeCloseTo(original.row, 10);
     }
@@ -233,7 +236,7 @@ describe("layoutBracket", () => {
     const layout = layoutBracket(bracketFor(2));
     expect(layout.columns).toBe(1);
     expect(layout.nodes).toHaveLength(1);
-    expect(layout.nodes[0].side).toBe("final");
+    expect(fixtureValue(layout.nodes[0]).side).toBe("final");
     expect(layout.connectors).toHaveLength(0);
   });
 });
@@ -260,39 +263,27 @@ describe("repairBracketLinkage", () => {
 
   it("restores linkage stripped from a legacy document", () => {
     const original = bracketFor(8);
-    const stripped: CompetitionFixture[] = original.map((f) => ({
-      ...f,
-      sourceFixtureIds: undefined,
-      nextFixtureId: undefined,
-      nextSlot: undefined,
-    }));
+    const stripped: CompetitionFixture[] = original.map(stripLinkage);
 
     expect(repairBracketLinkage(stripped)).toBe(true);
     for (const fixture of stripped) {
-      const source = original.find((f) => f.id === fixture.id)!;
+      const source = fixtureValue(original.find((f) => f.id === fixture.id));
       expect(fixture.nextFixtureId).toBe(source.nextFixtureId);
       expect(fixture.nextSlot).toBe(source.nextSlot);
       expect(fixture.sourceFixtureIds).toEqual(source.sourceFixtureIds);
     }
-    // Idempotent.
+
     expect(repairBracketLinkage(stripped)).toBe(false);
   });
 
   it("lets a repaired legacy bracket advance a winner again", () => {
-    // Without the linkage, advanceWinner returns early and the winner never
-    // reaches round two — the repair is what makes progression work at all.
     const entered = entrants(8);
     const stripped: CompetitionFixture[] = generateSingleElimination(
       entered
-    ).map((f) => ({
-      ...f,
-      sourceFixtureIds: undefined,
-      nextFixtureId: undefined,
-      nextSlot: undefined,
-    }));
+    ).map(stripLinkage);
     repairBracketLinkage(stripped);
 
-    const tournament = {
+    const tournament: TournamentDoc = {
       id: "t1",
       type: "tournament" as const,
       name: "Repaired",
@@ -307,9 +298,9 @@ describe("repairBracketLinkage", () => {
       updatedAt: 0,
     };
 
-    const first = stripped.find((f) => f.round === 1)!;
-    const updated = recordTournamentResult(tournament, first.id, 2, 1);
-    const next = updated.fixtures.find((f) => f.id === first.nextFixtureId)!;
+    const first = fixtureValue(stripped.find((f) => f.round === 1));
+    const updated = recordTournamentResult({ tournament,fixtureId: first.id,homeScore: 2,awayScore: 1 });
+    const next = fixtureValue(updated.fixtures.find((f) => f.id === first.nextFixtureId));
     const slot =
       first.nextSlot === "home" ? next.homeEntrantId : next.awayEntrantId;
     expect(slot).toBe(first.homeEntrantId);
@@ -317,7 +308,7 @@ describe("repairBracketLinkage", () => {
 });
 
 describe("a tournament played through to a champion", () => {
-  const tournamentOf = (count: number) => {
+  const tournamentOf = (count: number): TournamentDoc => {
     const entered = entrants(count);
     return {
       id: "t1",
@@ -335,15 +326,14 @@ describe("a tournament played through to a champion", () => {
     };
   };
 
-  /** Play every ready tie, home team always winning 2–1. */
-  const playAll = (start: ReturnType<typeof tournamentOf>) => {
+  const playAll = (start: TournamentDoc) => {
     let current = start;
     for (let guard = 0; guard < 40; guard++) {
       const ready = current.fixtures.find(
         (f) => f.status === "ready" && f.homeEntrantId && f.awayEntrantId
       );
       if (!ready) break;
-      current = recordTournamentResult(current, ready.id, 2, 1);
+      current = recordTournamentResult({ tournament: current,fixtureId: ready.id,homeScore: 2,awayScore: 1 });
     }
     return current;
   };
@@ -356,24 +346,18 @@ describe("a tournament played through to a champion", () => {
       const ties = current.fixtures.filter((f) => f.round === round);
       for (const tie of ties) {
         if (tie.status !== "ready") continue;
-        current = recordTournamentResult(current, tie.id, 2, 1);
+        current = recordTournamentResult({ tournament: current,fixtureId: tie.id,homeScore: 2,awayScore: 1 });
       }
 
       const layout = layoutBracket(current.fixtures);
       const eliminated = eliminatedEntrantIds(current.fixtures);
 
-      // The eliminated set is exactly the losers of completed, non-bye ties.
-      // (A round-1 winner who then loses in round 2 is correctly eliminated
-      // by that later defeat, so "winners are never eliminated" would be the
-      // wrong invariant to assert here.)
       const played = playedTies(current.fixtures);
       for (const tie of played) seen.add(tie.id);
       expect(eliminated).toEqual(new Set(played.map(loserOf)));
 
-      // ...and the winner is occupying its slot in the next tie.
       expectWinnersAdvanced(current.fixtures);
 
-      // The layout stays well-formed as results land.
       expect(layout.nodes).toHaveLength(current.fixtures.length);
       expect(layout.columns).toBe(5);
     }
@@ -381,33 +365,33 @@ describe("a tournament played through to a champion", () => {
     expect(seen.size).toBe(7);
     expect(current.championEntrantId).toBeDefined();
     expect(current.status).toBe("complete");
-    // Seven of eight entrants are out; the champion is not.
+
     const eliminated = eliminatedEntrantIds(current.fixtures);
     expect(eliminated.size).toBe(7);
-    expect(eliminated.has(current.championEntrantId!)).toBe(false);
+    expect(eliminated.has(fixtureValue(current.championEntrantId))).toBe(false);
   });
 
   it("advances a bye-containing draw correctly and still crowns a champion", () => {
     const start = tournamentOf(5);
-    // Byes resolve at generation, before a ball is thrown.
+
     const byes = start.fixtures.filter((f) => f.result?.bye);
     expect(byes.length).toBe(3);
 
     const layout = layoutBracket(start.fixtures);
-    // A bye is laid out and connected onward like any other tie.
+
     for (const bye of byes) {
       expect(layout.nodes.some((n) => n.fixture.id === bye.id)).toBe(true);
       expect(layout.connectors.some((c) => c.fromFixtureId === bye.id)).toBe(
         true
       );
     }
-    // Nobody is eliminated by receiving a bye.
+
     expect(eliminatedEntrantIds(start.fixtures).size).toBe(0);
 
     const finished = playAll(start);
     expect(finished.championEntrantId).toBeDefined();
     expect(finished.status).toBe("complete");
-    // Four of the five entrants lost a real tie; byes eliminated nobody.
+
     expect(eliminatedEntrantIds(finished.fixtures).size).toBe(4);
   });
 
@@ -450,7 +434,7 @@ describe("eliminatedEntrantIds", () => {
     const out = eliminatedEntrantIds(fixtures);
     expect(out.has("e2")).toBe(true);
     expect(out.has("e1")).toBe(false);
-    // An unplayed tie eliminates nobody.
+
     expect(out.has("e3")).toBe(false);
     expect(out.has("e4")).toBe(false);
   });

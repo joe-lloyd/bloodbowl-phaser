@@ -1,29 +1,21 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { movementWith, diceWith } from "./controllerFixtures";
+import { describe, it, expect, beforeEach } from "vitest";
 import { KickoffController } from "../../../src/game/controllers/KickoffController";
 
 describe("KickoffController", () => {
   let controller: KickoffController;
-  let mockMovementController;
-  let mockEventBus;
-  let mockWeatherManager;
-  let mockDiceController;
+  let mockMovementController = movementWith();
+  
+  
+  let mockDiceController = diceWith();
 
   beforeEach(() => {
-    mockEventBus = { emit: vi.fn() };
-    mockMovementController = {
-      deviate: vi
-        .fn()
-        .mockReturnValue({ x: 10, y: 10, direction: 1, distance: 1 }),
-    };
-    mockWeatherManager = {};
-    mockDiceController = { roll2D6: vi.fn() };
+    
+    mockMovementController = movementWith();
+    
+    mockDiceController = diceWith();
 
-    controller = new KickoffController(
-      mockEventBus,
-      mockMovementController,
-      mockWeatherManager,
-      mockDiceController
-    );
+    controller = new KickoffController({ movementController: mockMovementController, diceController: mockDiceController });
   });
 
   describe("CalculateKickDestination", () => {
@@ -32,13 +24,11 @@ describe("KickoffController", () => {
       mockMovementController.deviate.mockReturnValue({
         x: 6,
         y: 6,
-        direction: 0,
-        distance: 1,
       });
 
-      const result = controller.calculateKickDestination(target.x, target.y);
+      const result = controller.calculateKickDestination({ targetX: target.x,targetY: target.y, isTeam1Kicking: false });
 
-      expect(mockMovementController.deviate).toHaveBeenCalledWith(
+      expect(mockMovementController.spies.deviate).toHaveBeenCalledWith(
         target,
         false,
         undefined

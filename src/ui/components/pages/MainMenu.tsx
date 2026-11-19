@@ -28,40 +28,34 @@ import { isAdminUser } from "../../../firebase/admin";
 import {
   clearMatchSave,
   getMatchSaveDescription,
-  MatchSaveDescription,
+  type MatchSaveDescription,
   readMatchSave,
   subscribeToMatchSaveChanges,
 } from "../../../game/persistence/MatchSaveRepository";
 
 interface ActiveMatch {
   code: string;
-  /** where resuming should send the player */
+
   path: string;
   label: string;
 }
 
-/**
- * Main Menu - grouped into Play / Online / Extras now that there are more
- * options, with a resume banner when the player has a match in progress.
- */
 export function MainMenu() {
   const navigate = useNavigate();
   const { user, ready, onlineAvailable, confirmLink, signOut } = useAuth();
-  // The sign-in dialog, open while something waits for a coach to sign in
+
   const [signingIn, setSigningIn] = useState<SignInRequest | null>(null);
   const signIn = () =>
-    new Promise<AuthUser>((resolve, reject) =>
-      setSigningIn({ id: ++signInRequests, resolve, reject })
-    );
-  /** Answer one request. A late answer to an older one leaves the open
-   * dialog alone. */
+    new Promise<AuthUser>((resolve, reject) => {
+      setSigningIn({ id: ++signInRequests, resolve, reject });
+    });
+
   const settle = (request: SignInRequest, signedIn: AuthUser | null) => {
     if (signedIn) request.resolve(signedIn);
     else request.reject(new SignInCancelled());
     setSigningIn((open) => (open === request ? null : open));
   };
-  // A cancelled attempt that signs the coach in late still answers the
-  // dialog open now
+
   useEffect(() => {
     if (!user || !signingIn) return;
     signingIn.resolve(user);
@@ -75,12 +69,13 @@ export function MainMenu() {
   );
 
   useEffect(() => {
-    const refresh = () => setLocalMatch(getMatchSaveDescription());
+    const refresh = () => {
+      setLocalMatch(getMatchSaveDescription());
+    };
     refresh();
     return subscribeToMatchSaveChanges(refresh);
   }, []);
 
-  // Resolve the player's in-progress match (if any) for the resume banner
   useEffect(() => {
     if (!user) {
       setActiveMatch(null);
@@ -106,16 +101,13 @@ export function MainMenu() {
             label: "Return to Lobby",
           });
         }
-      } catch {
-        // non-fatal: just don't show the banner
-      }
+      } catch {}
     })();
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  /** Online actions require sign-in; local play never does. */
   const handleOnline = async (path: string) => {
     setAuthError(null);
     if (!user) {
@@ -130,25 +122,24 @@ export function MainMenu() {
     navigate(path);
   };
 
-  /** Admin: join the lobby the house bot on old-mac keeps open. */
   const playHouseBot = async () => {
     setAuthError(null);
     try {
       const coach = user ?? (await signIn());
-      // Joining would replace the pointer to a match still in progress
+
       const current = await getActiveMatchCode(coach.uid);
       const lobby = current ? await fetchLobby(current) : null;
       if (lobby?.status === "active") {
-        navigate(`/online/play/${current}`);
+        navigate(`/online/play/${String(current)}`);
         return;
       }
       if (lobby?.status === "lobby" && lobby.guestUid === coach.uid) {
-        navigate(`/online/lobby/${current}`);
+        navigate(`/online/lobby/${String(current)}`);
         return;
       }
       if (lobby?.status === "lobby") {
         setAuthError(
-          `You are hosting lobby ${current}. Leave it before playing the house bot.`
+          `You are hosting lobby ${String(current)}. Leave it before playing the house bot.`
         );
         return;
       }
@@ -237,8 +228,6 @@ export function MainMenu() {
             <HudButton
               block
               onClick={() => handleOnline("/online/host")}
-              // Until the saved session restores, a signed-in coach looks
-              // signed out and would be sent to sign in again.
               disabled={onlineDisabled}
               title={onlineAvailable ? undefined : ONLINE_HINT}
             >
@@ -283,10 +272,6 @@ export function MainMenu() {
           )}
         </div>
 
-        {/* Auth resolves after the first paint, and a restored session swaps
-            the Sign in button for the taller signed-in controls. The page is
-            vertically centred, so this box holds their height from the start
-            and spans the full width: the menu stays still when they arrive. */}
         <div
           className={cx(
             "mt-10 flex w-full flex-col items-center gap-3",
@@ -340,8 +325,12 @@ export function MainMenu() {
       {signingIn && (
         <SignInDialog
           key={signingIn.id}
-          onSignedIn={(signedIn) => settle(signingIn, signedIn)}
-          onClose={() => settle(signingIn, null)}
+          onSignedIn={(signedIn) => {
+            settle(signingIn, signedIn);
+          }}
+          onClose={() => {
+            settle(signingIn, null);
+          }}
         />
       )}
     </PageShell>
@@ -350,11 +339,9 @@ export function MainMenu() {
 
 const ONLINE_HINT = "Online play requires Firebase config (see .env.example)";
 
-/** The coach closed the sign-in dialog: nothing to report. */
 class SignInCancelled extends Error {}
 
 interface SignInRequest {
-  /** Keys the dialog, so each request gets a fresh one. */
   id: number;
   resolve: (user: AuthUser) => void;
   reject: (cancelled: SignInCancelled) => void;
@@ -393,14 +380,8 @@ function ConfirmEmail({
   );
 }
 
-/**
- * Height of the signed-in account controls: the coach name editor (36px),
- * the privacy note (18px) and the small Sign out button (32px), with two
- * 12px gaps between them.
- */
 const SIGNED_IN_CONTROLS_HEIGHT = "min-h-[110px]";
 
-/** Inline editor for the coach display name (privacy-preserving). */
 function CoachNameEditor({
   value,
   placeholder,
@@ -413,15 +394,18 @@ function CoachNameEditor({
   const [draft, setDraft] = useState(value);
   const [saved, setSaved] = useState(false);
 
-  // Keep in sync when the stored value loads/changes
-  useEffect(() => setDraft(value), [value]);
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
 
   const commit = () => {
     const trimmed = draft.trim();
     if (!trimmed || trimmed === value) return;
     onSave(trimmed);
     setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    setTimeout(() => {
+      setSaved(false);
+    }, 1500);
   };
 
   return (
@@ -434,7 +418,9 @@ function CoachNameEditor({
         value={draft}
         placeholder={placeholder}
         maxLength={20}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+        }}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -454,7 +440,6 @@ function CoachNameEditor({
   );
 }
 
-/** The way back into an online match, or a saved local one. */
 function ResumeBanners({
   activeMatch,
   localMatch,
@@ -473,7 +458,9 @@ function ResumeBanners({
     <div className="mt-8 flex w-full max-w-2xl flex-col gap-3">
       {activeMatch && (
         <button
-          onClick={() => onOpen(activeMatch.path)}
+          onClick={() => {
+            onOpen(activeMatch.path);
+          }}
           className={cx(
             hudButtonClass("primary", "lg", true),
             "justify-between"
@@ -523,7 +510,7 @@ function MenuSection({
   children,
 }: {
   title: string;
-  note?: string;
+  note?: string | undefined;
   children: React.ReactNode;
 }) {
   return (

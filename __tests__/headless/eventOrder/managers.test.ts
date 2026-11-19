@@ -1,8 +1,9 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import {
-  HeadlessCommand,
-  PendingDecision,
+  type HeadlessCommand,
+  type PendingDecision,
 } from "../../../src/headless/protocol";
 import { stabilizeIds } from "../../../src/headless/createHeadlessGame";
 import { PlayerStatus } from "../../../src/types/Player";
@@ -11,7 +12,7 @@ import { GamePhase, SubPhase } from "../../../src/types/GameState";
 import { SkillType } from "../../../src/types/Skills";
 import { RosterName } from "../../../src/types/Team";
 import {
-  Answer,
+  type Answer,
   SEEDS,
   acceptAll,
   acrossSeeds,
@@ -20,14 +21,8 @@ import {
   turnGame,
 } from "./eventOrder";
 
-/**
- * The literal events of the Block, ball and setup managers, across seeds
- * that reach their branches.
- */
-
 const SPARE = { x: 2, y: 12 };
 
-/** A touchback goes to the receiving team's first Standing player. */
 function touchbackToFirstStanding(
   game: HeadlessGame,
   pending: PendingDecision
@@ -43,7 +38,6 @@ function touchbackToFirstStanding(
   return { type: "touchback", playerId: receiver.id };
 }
 
-/** Take the Both Down whenever the dice offer one, else as acceptAll. */
 const bothDown: Answer = (pending: PendingDecision) => {
   if (pending.type !== "block-dice" || pending.choiceStage !== "pick") {
     return acceptAll(pending);
@@ -52,28 +46,41 @@ const bothDown: Answer = (pending: PendingDecision) => {
   return { type: "choose-block-result", index: Math.max(0, index) };
 };
 
-async function block(
-  seed: number,
-  attackerSkills: SkillType[],
-  defenderSkills: SkillType[],
-  answer: Answer
-): Promise<string[]> {
-  const game = turnGame(
-    seed,
-    [{ x: 10, y: 5, skills: attackerSkills, stats: { ST: 4 } }, SPARE],
-    [
+async function block({
+  seed,
+  attackerSkills,
+  defenderSkills,
+  answer,
+}: {
+  seed: number;
+  attackerSkills: SkillType[];
+  defenderSkills: SkillType[];
+  answer: Answer;
+}): Promise<string[]> {
+  const game = turnGame({
+    seed: seed,
+    team1: [{ x: 10, y: 5, skills: attackerSkills, stats: { ST: 4 } }, SPARE],
+    team2: [
       { x: 11, y: 5, skills: defenderSkills },
       { x: 12, y: 7 },
     ],
-    { x: 11, y: 5 }
-  );
+    ballPosition: { x: 11, y: 5 },
+  });
   const [attacker] = game.ctx.team1.players;
   const [defender] = game.ctx.team2.players;
   return playOut(
     game,
     [
-      { type: "declare-action", playerId: attacker.id, action: "block" },
-      { type: "block", attackerId: attacker.id, defenderId: defender.id },
+      {
+        type: "declare-action",
+        playerId: fixtureValue(attacker).id,
+        action: "block",
+      },
+      {
+        type: "block",
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
+      },
     ],
     answer
   );
@@ -95,7 +102,12 @@ describe("manager events keep their order", () => {
   ]) {
     it(`Both Down: ${variant.name}`, async () => {
       const bySeed = await acrossSeeds(SEEDS, (seed) =>
-        block(seed, variant.attacker, variant.defender, bothDown)
+        block({
+          seed: seed,
+          attackerSkills: variant.attacker,
+          defenderSkills: variant.defender,
+          answer: bothDown,
+        })
       );
       expect(bySeed).toMatchSnapshot();
     });
@@ -103,7 +115,12 @@ describe("manager events keep their order", () => {
 
   it("a Block on a Trickster", async () => {
     const bySeed = await acrossSeeds(SEEDS, (seed) =>
-      block(seed, [], [SkillType.TRICKSTER], acceptAll)
+      block({
+        seed: seed,
+        attackerSkills: [],
+        defenderSkills: [SkillType.TRICKSTER],
+        answer: acceptAll,
+      })
     );
     expect(bySeed).toMatchSnapshot();
   });
@@ -141,7 +158,7 @@ describe("manager events keep their order", () => {
         [
           {
             type: "kick-ball",
-            playerId: game.ctx.team1.players[0].id,
+            playerId: fixtureValue(game.ctx.team1.players[0]).id,
             x: 16,
             y: 1,
           },
@@ -157,14 +174,23 @@ describe("manager events keep their order", () => {
 
   it("a pass scattered off the pitch is thrown in", async () => {
     const bySeed = await acrossSeeds(SEEDS, async (seed) => {
-      const game = turnGame(seed, [{ x: 6, y: 1 }, SPARE], [{ x: 15, y: 9 }], {
-        x: 6,
-        y: 1,
+      const game = turnGame({
+        seed: seed,
+        team1: [{ x: 6, y: 1 }, SPARE],
+        team2: [{ x: 15, y: 9 }],
+        ballPosition: {
+          x: 6,
+          y: 1,
+        },
       });
       const [passer] = game.ctx.team1.players;
       return playOut(game, [
-        { type: "declare-action", playerId: passer.id, action: "pass" },
-        { type: "pass", playerId: passer.id, x: 9, y: 0 },
+        {
+          type: "declare-action",
+          playerId: fixtureValue(passer).id,
+          action: "pass",
+        },
+        { type: "pass", playerId: fixtureValue(passer).id, x: 9, y: 0 },
       ]);
     });
     expect(bySeed).toMatchSnapshot();
@@ -173,7 +199,7 @@ describe("manager events keep their order", () => {
   it("setup swaps", async () => {
     const game = new HeadlessGame({
       seed: 1,
-      // Ready-made ids embed the clock; pin them so the trace is stable.
+
       team1: stabilizeIds(
         createReadyMadeTeam(RosterName.HUMAN, "Home", 1),
         "team1"
@@ -186,11 +212,23 @@ describe("manager events keep their order", () => {
     const [a, b, c] = game.ctx.team1.players;
     const order = await playOut(game, [
       { type: "start-setup", kickingTeamId: game.ctx.team1.id },
-      { type: "place-player", playerId: a.id, x: 4, y: 5 },
-      { type: "place-player", playerId: b.id, x: 4, y: 6 },
-      { type: "swap-players", player1Id: a.id, player2Id: b.id },
-      { type: "swap-players", player1Id: a.id, player2Id: c.id },
-      { type: "swap-players", player1Id: c.id, player2Id: a.id },
+      { type: "place-player", playerId: fixtureValue(a).id, x: 4, y: 5 },
+      { type: "place-player", playerId: fixtureValue(b).id, x: 4, y: 6 },
+      {
+        type: "swap-players",
+        player1Id: fixtureValue(a).id,
+        player2Id: fixtureValue(b).id,
+      },
+      {
+        type: "swap-players",
+        player1Id: fixtureValue(a).id,
+        player2Id: fixtureValue(c).id,
+      },
+      {
+        type: "swap-players",
+        player1Id: fixtureValue(c).id,
+        player2Id: fixtureValue(a).id,
+      },
     ]);
     expect(order).toMatchSnapshot();
   });

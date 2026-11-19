@@ -1,52 +1,49 @@
-import { IEventBus } from "../../services/EventBus";
-import { GameState } from "@/types/GameState";
-import { ActionType, GameEventNames } from "@/types/events";
-import { BlockReplacement } from "@/types/BlockReplacement";
-import { Player } from "@/types/Player";
+import { type IEventBus } from "../../services/EventBus";
+import { type GameState } from "@/types/GameState";
+import { type ActionType, GameEventNames } from "@/types/events";
+import { type BlockReplacement } from "@/types/BlockReplacement";
+import { type Player } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { foulSpent, spendMeasure } from "../inducements/matchInducements";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
 
-/** Which term made a declaration binding — used to name a refusal. */
 export type CommitReason =
   | "movement"
   | "blockReplacement"
   | "activated"
   | "gate";
 
-export interface CommitStatus {
-  committed: boolean;
-  reason?: CommitReason;
-}
+export type CommitStatus =
+  | { committed: false }
+  | { committed: true; reason: CommitReason };
 
 export class PlayerActionManager {
+  private eventBus: IEventBus;
+  private state: GameState;
+  private getPlayer: (id: string) => Player | undefined;
   constructor(
-    private eventBus: IEventBus,
-    private state: GameState,
-    private getPlayer: (id: string) => Player | undefined
-  ) {}
+    eventBus: IEventBus,
+    state: GameState,
+    getPlayer: (id: string) => Player | undefined
+  ) {
+    this.eventBus = eventBus;
+    this.state = state;
+    this.getPlayer = getPlayer;
+  }
 
-  /**
-   * Attempt to declare an action for a player
-   */
   public declareAction(
     playerId: string,
     action: ActionType,
     blockReplacement?: BlockReplacement
   ): boolean {
-    // Validation
     if (!this.canDeclareAction(playerId, action)) {
       return false;
     }
 
-    // Set State — provisional until committed (see commitAction). The
-    // team's once-per-turn flag is NOT set here; declaring an action must
-    // not spend it before a die is rolled, a square is moved, or the
-    // activation gate fires.
     this.state.activePlayer = {
       id: playerId,
       action: action,
-      // A second Foul this turn can only be the team's Grudge Match (L24).
+
       ...(action === "foul" && this.state.turn.hasFouled
         ? { grudgeMatch: true }
         : {}),
@@ -55,26 +52,18 @@ export class PlayerActionManager {
         : {}),
     };
 
-    // Emit Event
     this.eventBus.emit(
       GameEventNames.UI_Notification,
       `Action Declared: ${action.toUpperCase()}`
     );
-    // We might want a specific event for "Action Declared" to update UI
 
     return true;
   }
 
-  /**
-   * Whether the live declaration for this player is binding: movement
-   * spent, a block-replacement attack spent, the player already marked
-   * activated, or the activation gate has fired. The single predicate every
-   * release/redeclare/refusal path consults, so they can never drift apart.
-   */
   public isActionCommitted(playerId: string): CommitStatus {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId) return { committed: false };
-    // A Razzle-Dazzle second Action is not bound by the first one's moves
+
     const before = active.razzleDazzle?.movementBefore ?? 0;
     if ((this.state.turn.movementUsed.get(playerId) ?? 0) > before) {
       return { committed: true, reason: "movement" };
@@ -91,7 +80,6 @@ export class PlayerActionManager {
     return { committed: false };
   }
 
-  /** Human-readable refusal text for a commit reason. */
   public static describeCommitReason(reason: CommitReason): string {
     switch (reason) {
       case "movement":
@@ -105,18 +93,11 @@ export class PlayerActionManager {
     }
   }
 
-  /**
-   * Commit the currently declared action for this player: the once-per-turn
-   * flag is set (if the action carries one) and the declaration becomes
-   * binding. Idempotent — safe to call from every trigger point (movement,
-   * block-replacement spend, activation gate roll, activation finalized)
-   * without checking which one actually fired first.
-   */
   public commitAction(playerId: string): void {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId || active.committed) return;
     active.committed = true;
-    // Razzle-Dazzle is spent once the first of its two Actions binds
+
     const player = this.getPlayer(playerId);
     if (active.razzleDazzle?.actions.length === 1 && player) {
       spendMeasure(this.state, player.teamId, DesperateMeasure.RAZZLE_DAZZLE);
@@ -124,25 +105,21 @@ export class PlayerActionManager {
     this.updateTurnFlags(active.action, playerId);
   }
 
-  /**
-   * Cancel an uncommitted declaration. Once movement or the replacement
-   * attack has committed, the team action remains spent.
-   */
   public cancelAction(playerId: string): boolean {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId) return false;
     if (active.razzleDazzle?.awaitingSecond) return false;
     if (this.isActionCommitted(playerId).committed) return false;
 
-    // A Razzle-Dazzle second Action goes back to waiting for its choice
     const razzle = active.razzleDazzle;
-    if (razzle && razzle.actions.length === 2) {
+    const firstAction = razzle?.actions[0];
+    if (razzle && razzle.actions.length === 2 && firstAction) {
       this.state.activePlayer = {
         id: playerId,
-        action: razzle.actions[0],
+        action: firstAction,
         ...(active.bloodlustUnsated ? { bloodlustUnsated: true } : {}),
         committed: true,
-        razzleDazzle: { actions: [razzle.actions[0]], awaitingSecond: true },
+        razzleDazzle: { actions: [firstAction], awaitingSecond: true },
       };
       return true;
     }
@@ -150,13 +127,8 @@ export class PlayerActionManager {
     return true;
   }
 
-  /**
-   * Check if an action can be declared
-   */
   public canDeclareAction(playerId: string, action: ActionType): boolean {
     const turn = this.state.turn;
-
-    // Basic checks (is active team, etc - assumed handled by caller or GameService)
 
     switch (action) {
       case "blitz":
@@ -170,24 +142,14 @@ export class PlayerActionManager {
         return !!fouler && !foulSpent(this.state, fouler.teamId);
       }
       case "throwTeamMate":
-        // "Only a single Throw Team-mate Action can be declared each Turn"
-        // (p.55); a Kick Team-mate is its own once-per-Turn Special Action
-        // (p.131). Neither is a Pass.
         return this.teamMateThrowLimit(playerId) !== null;
       case "throwBomb":
-        // Bombardier: "only one player can declare this Special Action
-        // each Turn" (p.125).
         return !turn.hasThrownBomb;
       default:
-        // Punt, Move, Block, Stab and the other Special Actions are always
-        // allowed if general activation is allowed (Stab: "there is no
-        // limit to the number of players that can declare this Special
-        // Action each Turn").
         return true;
     }
   }
 
-  /** Which unspent once-per-Turn limit this player's declaration uses. */
   private teamMateThrowLimit(
     playerId: string
   ): "hasThrownTeamMate" | "hasKickedTeamMate" | null {
@@ -236,7 +198,7 @@ export class PlayerActionManager {
         turn.hasThrownBomb = true;
         break;
     }
-    // Emit event to update UI
+
     this.emitTurnFlags();
   }
 

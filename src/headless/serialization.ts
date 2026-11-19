@@ -1,42 +1,33 @@
-/**
- * Game state serialization - JSON-safe snapshots of the full game situation.
- *
- * The in-memory GameState uses Set/Map (activatedPlayerIds, movementUsed)
- * which JSON.stringify silently turns into {}. These functions convert to and
- * from plain-JSON structures with stable field names for external consumers
- * (CLI, AI agents, saves, replays).
- */
-
+import { parseMatchSave, normalizeMatchSave } from "../boundary/matchSave";
 import type { Weather } from "../game/rules/weather";
 import { assertPregameSaveable } from "../game/inducements/pregame";
 import {
-  GameState,
+  type GameState,
   GamePhase,
   SubPhase,
-  TurnData,
-  MatchResult,
+  type TurnData,
+  type MatchResult,
 } from "../types/GameState";
-import { Team } from "../types/Team";
+import { type Team } from "../types/Team";
 import {
-  Player,
-  PlayerStats,
+  type Player,
+  type PlayerStats,
   PlayerStatus,
-  PlayerConditionInstance,
+  type PlayerConditionInstance,
 } from "../types/Player";
-import { RNGState } from "../services/rng/RNGService";
-import { MatchStatsSnapshot } from "../game/progression/MatchStats";
-import { CompetitionContext } from "../competition/types";
-import { TurnManagerState } from "../game/managers/TurnManager";
-import { SetupState } from "../types/SetupTypes";
-import { BlockReplacement } from "../types/BlockReplacement";
-import { InducementsMatchState } from "../types/Inducements";
+import { type RNGState } from "../services/rng/RNGService";
+import { type MatchStatsSnapshot } from "../game/progression/MatchStats";
+import { type CompetitionContext } from "../competition/types";
+import { type TurnManagerState } from "../game/managers/TurnManager";
+import { type SetupState } from "../types/SetupTypes";
+import { type InducementsMatchState } from "../types/Inducements";
 import { teamRerollsLeft } from "../game/teamRerolls";
 
 export interface TurnSnapshot {
   teamId: string;
   turnNumber: number;
   isHalf2: boolean;
-  /** Absent outside Extra Time, and on saves from before it. */
+
   extraTime?: boolean;
   activatedPlayerIds: string[];
   hasBlitzed: boolean;
@@ -59,7 +50,7 @@ export interface PlayerSnapshot {
   status: PlayerStatus;
   stats: PlayerStats;
   skills: string[];
-  /** Active conditions (Distracted, Rooted, Chomped). */
+
   conditions: PlayerConditionInstance[];
   movementUsed: number;
 }
@@ -67,7 +58,7 @@ export interface PlayerSnapshot {
 export interface TeamSnapshot {
   id: string;
   name: string;
-  /** Team Re-rolls left this half (not the roster's purchased count). */
+
   rerolls: number;
   players: PlayerSnapshot[];
 }
@@ -78,78 +69,51 @@ export interface GameSnapshot {
   activeTeamId: string | null;
   turn: TurnSnapshot;
   score: Record<string, number>;
-  /** A game that must have a winner; absent for every other game. */
+
   knockout?: boolean;
-  /** A fixture that pays winnings; absent on pre-feature saves. */
+
   paysWinnings?: boolean;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
-  activePlayer: {
-    id: string;
-    action: string | null;
-    blockReplacement?: BlockReplacement;
-    blockReplacementUsed?: boolean;
-    committed?: boolean;
-    bloodlustUnsated?: boolean;
-    grudgeMatch?: boolean;
-    stalling?: boolean;
-  } | null;
+  activePlayer: GameState["activePlayer"];
   setup?: SetupState | null;
-  /** Absent until the match reaches GAME_OVER. */
+
   result?: MatchResult;
   teams: TeamSnapshot[];
-  /** Kickoff-event drive effects; absent on pre-feature saves (= empty). */
-  driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
-  /** Bribes held per team (Get the Ref); absent on pre-feature saves. */
-  bribes?: Record<string, number>;
-  /** Coaches ready for the opening weather; absent = none, or a pre-feature save. */
-  weatherReady?: string[];
-  /** Team Re-rolls spent this half; absent on pre-feature saves (= none). */
-  teamRerollsUsed?: Record<string, number>;
-  /** Unspent Leader Re-rolls this half; absent on pre-feature saves. */
-  leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
-  /** Veterans who spent their re-roll this game; absent on pre-feature saves. */
-  veteranRerollsUsed?: string[];
-  /** Teams that spent the Bribery and Corruption re-roll; absent on pre-feature saves. */
-  briberyRerollsUsed?: string[];
-  /** Players deemed to be Stalling; absent on pre-feature saves (= none). */
-  stallingPlayerIds?: string[];
-  /** This team turn's once-a-turn spending; absent on pre-feature saves. */
+
+  driveEffects?: GameState["driveEffects"];
+
+  bribes?: GameState["bribes"];
+
+  weatherReady?: GameState["weatherReady"];
+
+  teamRerollsUsed?: GameState["teamRerollsUsed"];
+
+  leaderRerolls?: GameState["leaderRerolls"];
+
+  veteranRerollsUsed?: GameState["veteranRerollsUsed"];
+
+  briberyRerollsUsed?: GameState["briberyRerollsUsed"];
+
+  stallingPlayerIds?: GameState["stallingPlayerIds"];
+
   turnUsage?: GameState["turnUsage"];
-  /** The team taking a running Charge!; absent otherwise. */
-  chargeTeamId?: string;
-  /** Masters of Undeath usage and temporary recruits; absent on older saves. */
+
+  chargeTeamId?: GameState["chargeTeamId"];
+
   raisedDead?: GameState["raisedDead"];
-  /** Fan Factors rolled at full time; absent on pre-feature saves. */
+
   fanFactors?: GameState["fanFactors"];
-  /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
+
   inducements?: InducementsMatchState;
   pregameInducements?: GameState["pregameInducements"];
-  /** Rolled Prayers and Desperate Measures; absent on pre-feature saves. */
+
   matchInducements?: GameState["matchInducements"];
-  /**
-   * The current drive's already-resolved kickoff table result, if any;
-   * absent on pre-feature saves. Persisted so a restore mid-kickoff
-   * reproduces the same event/outcome instead of rolling again — see
-   * `GameState.kickoffResolution`.
-   */
+
   kickoffResolution?: GameState["kickoffResolution"];
-  /**
-   * The current drive's already-resolved kickoff deviation, if any; absent
-   * on pre-feature saves. Persisted so a restore mid-kickoff does not
-   * recompute deviation on a re-entrant `kickBall()` call — see
-   * `GameState.kickoffKickResolved`.
-   */
+
   kickoffKickResolved?: GameState["kickoffKickResolved"];
-  /**
-   * Per-team turn counters and drive/half kicking-team bookkeeping
-   * (`TurnManager`'s own state) — NOT part of `GameState`/`serializeGameState`
-   * proper, since it lives on `TurnManager`, not `state.turn` (which only
-   * ever describes the currently-active team's turn). Populated by
-   * `HeadlessGame.snapshot()` for the network layer, so a guest replica can
-   * restore it and report the correct per-team turn count instead of
-   * staying frozen at its initial value. Absent on pre-feature snapshots.
-   */
+
   turnManager?: import("../game/managers/TurnManager").TurnManagerState;
 }
 
@@ -171,13 +135,13 @@ export interface MatchSave {
   matchStats: MatchStatsSnapshot;
   turnManager?: TurnManagerState;
   competition?: CompetitionContext;
-  /** Set when a computer coaches one side; absent for two people at one screen. */
+
   computer?: ComputerMatchSave;
 }
 
 export interface ComputerMatchSave {
   computerTeamId: string;
-  /** Checked against the known levels by the page that resumes the match. */
+
   difficulty: string;
 }
 
@@ -193,25 +157,36 @@ export interface CreateMatchSaveInput {
   savedAt?: number;
 }
 
-/** A deep copy of an optional field; undefined when it is unset or empty. */
-function cloneOf<T>(value: T | null | undefined): T | undefined {
-  return value ? structuredClone(value) : undefined;
+function rerollFields(source: GameState | GameSnapshot) {
+  return {
+    ...(source.bribes === undefined ? {} : { bribes: structuredClone(source.bribes) }),
+    ...(source.weatherReady === undefined ? {} : { weatherReady: structuredClone(source.weatherReady) }),
+    ...(source.teamRerollsUsed === undefined ? {} : { teamRerollsUsed: structuredClone(source.teamRerollsUsed) }),
+    ...(source.leaderRerolls === undefined ? {} : { leaderRerolls: structuredClone(source.leaderRerolls) }),
+    ...(source.veteranRerollsUsed === undefined ? {} : { veteranRerollsUsed: structuredClone(source.veteranRerollsUsed) }),
+    ...(source.briberyRerollsUsed === undefined ? {} : { briberyRerollsUsed: structuredClone(source.briberyRerollsUsed) }),
+  };
 }
 
-/** A shallow copy of an optional record; undefined when it is unset. */
-function copyOf<T extends object>(value: T | null | undefined): T | undefined {
-  return value ? { ...value } : undefined;
+function driveFields(source: GameState | GameSnapshot) {
+  return {
+    ...(source.driveEffects === undefined ? {} : { driveEffects: structuredClone(source.driveEffects) }),
+    ...(source.stallingPlayerIds === undefined ? {} : { stallingPlayerIds: structuredClone(source.stallingPlayerIds) }),
+    ...(source.turnUsage === undefined ? {} : { turnUsage: structuredClone(source.turnUsage) }),
+    ...(source.raisedDead === undefined ? {} : { raisedDead: structuredClone(source.raisedDead) }),
+    ...(source.fanFactors === undefined ? {} : { fanFactors: structuredClone(source.fanFactors) }),
+  };
 }
 
-/** A copy of an optional list; undefined when it is unset. */
-function listOf<T>(value: readonly T[] | null | undefined): T[] | undefined {
-  return value ? [...value] : undefined;
-}
-
-function leaderRerollsOf(
-  value: GameState["leaderRerolls"]
-): GameState["leaderRerolls"] {
-  return value ? { ...value, teamIds: [...value.teamIds] } : undefined;
+function inducementFields(source: GameState | GameSnapshot) {
+  return {
+    ...(source.inducements === undefined ? {} : { inducements: structuredClone(source.inducements) }),
+    ...(source.pregameInducements === undefined ? {} : { pregameInducements: structuredClone(source.pregameInducements) }),
+    ...(source.matchInducements === undefined ? {} : { matchInducements: structuredClone(source.matchInducements) }),
+    ...(source.kickoffResolution === undefined ? {} : { kickoffResolution: structuredClone(source.kickoffResolution) }),
+    ...(source.kickoffKickResolved === undefined ? {} : { kickoffKickResolved: structuredClone(source.kickoffKickResolved) }),
+    ...(source.result === undefined ? {} : { result: structuredClone(source.result) }),
+  };
 }
 
 export function serializeGameState(
@@ -243,30 +218,17 @@ export function serializeGameState(
       movementUsed,
     },
     score: { ...state.score },
+    ...rerollFields(state),
+    ...driveFields(state),
+    ...inducementFields(state),
+
     ...(state.knockout ? { knockout: true } : {}),
     ...(state.paysWinnings ? { paysWinnings: true } : {}),
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
-    driveEffects: cloneOf(state.driveEffects),
-    bribes: copyOf(state.bribes),
-    weatherReady: listOf(state.weatherReady),
-    teamRerollsUsed: copyOf(state.teamRerollsUsed),
-    leaderRerolls: leaderRerollsOf(state.leaderRerolls),
-    veteranRerollsUsed: listOf(state.veteranRerollsUsed),
-    briberyRerollsUsed: listOf(state.briberyRerollsUsed),
-    stallingPlayerIds: listOf(state.stallingPlayerIds),
-    turnUsage: cloneOf(state.turnUsage),
     ...(state.chargeTeamId ? { chargeTeamId: state.chargeTeamId } : {}),
-    raisedDead: copyOf(state.raisedDead),
-    fanFactors: copyOf(state.fanFactors),
-    inducements: cloneOf(state.inducements),
-    pregameInducements: cloneOf(state.pregameInducements),
-    matchInducements: cloneOf(state.matchInducements),
-    kickoffResolution: cloneOf(state.kickoffResolution),
-    kickoffKickResolved: copyOf(state.kickoffKickResolved),
-    setup: cloneOf(state.setup) ?? null,
-    result: cloneOf(state.result),
+    setup: state.setup ? structuredClone(state.setup) : null,
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -292,11 +254,13 @@ function playerSnapshot(p: Player, turn: TurnData): PlayerSnapshot {
   };
 }
 
-/**
- * Rebuild an in-memory GameState (Set/Map restored) from a snapshot.
- * Player placements/statuses live on the Team objects; apply them too when
- * restoring a full game (see applySnapshotToTeams).
- */
+function matchFlags(snapshot: GameSnapshot) {
+  return {
+    ...(snapshot.knockout ? { knockout: true } : {}),
+    ...(snapshot.paysWinnings ? { paysWinnings: true } : {}),
+  };
+}
+
 export function deserializeGameState(snapshot: GameSnapshot): GameState {
   const turn: TurnData = {
     teamId: snapshot.turn.teamId,
@@ -308,61 +272,39 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     hasPassed: snapshot.turn.hasPassed,
     hasHandedOff: snapshot.turn.hasHandedOff,
     hasFouled: snapshot.turn.hasFouled,
-    // Snapshots recorded before these limits existed carry none of them.
-    hasThrownTeamMate: snapshot.turn.hasThrownTeamMate ?? false,
-    hasKickedTeamMate: snapshot.turn.hasKickedTeamMate ?? false,
-    hasThrownBomb: snapshot.turn.hasThrownBomb ?? false,
+
+    hasThrownTeamMate: snapshot.turn.hasThrownTeamMate,
+    hasKickedTeamMate: snapshot.turn.hasKickedTeamMate,
+    hasThrownBomb: snapshot.turn.hasThrownBomb,
     movementUsed: new Map(Object.entries(snapshot.turn.movementUsed)),
   };
 
-  // Every optional field is written, undefined when absent: a resync copies
-  // this onto the live state, where an omitted key would keep a stale value.
   return {
     phase: snapshot.phase,
-    subPhase: snapshot.subPhase ?? undefined,
+    ...(snapshot.subPhase === null ? {} : { subPhase: snapshot.subPhase }),
     activeTeamId: snapshot.activeTeamId,
     turn,
     score: { ...snapshot.score },
-    knockout: snapshot.knockout ? true : undefined,
-    paysWinnings: snapshot.paysWinnings ? true : undefined,
+    ...rerollFields(snapshot),
+    ...driveFields(snapshot),
+    ...inducementFields(snapshot),
+
+    ...matchFlags(snapshot),
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
-    driveEffects: cloneOf(snapshot.driveEffects),
-    bribes: copyOf(snapshot.bribes),
-    weatherReady: listOf(snapshot.weatherReady),
-    teamRerollsUsed: copyOf(snapshot.teamRerollsUsed),
-    leaderRerolls: leaderRerollsOf(snapshot.leaderRerolls),
-    veteranRerollsUsed: listOf(snapshot.veteranRerollsUsed),
-    briberyRerollsUsed: listOf(snapshot.briberyRerollsUsed),
-    stallingPlayerIds: listOf(snapshot.stallingPlayerIds),
-    turnUsage: cloneOf(snapshot.turnUsage),
-    chargeTeamId: snapshot.chargeTeamId,
-    raisedDead: copyOf(snapshot.raisedDead),
-    fanFactors: copyOf(snapshot.fanFactors),
-    inducements: cloneOf(snapshot.inducements),
-    pregameInducements: cloneOf(snapshot.pregameInducements),
-    matchInducements: cloneOf(snapshot.matchInducements),
-    kickoffResolution: cloneOf(snapshot.kickoffResolution),
-    kickoffKickResolved: copyOf(snapshot.kickoffKickResolved),
-    setup: cloneOf(snapshot.setup),
-    result: cloneOf(snapshot.result),
+    ...(snapshot.chargeTeamId === undefined ? {} : { chargeTeamId: snapshot.chargeTeamId }),
+    ...(snapshot.setup ? { setup: structuredClone(snapshot.setup) } : {}),
   };
 }
 
-/** Make `target` hold exactly `source`'s fields, dropping any it lacks. */
-function replaceFields<T extends object>(target: T, source: T): T {
+export function replaceFields<T extends object>(target: T, source: T): T {
   for (const key of Object.keys(target)) {
     if (!(key in source)) Reflect.deleteProperty(target, key);
   }
   return Object.assign(target, source);
 }
 
-/**
- * Restore a saved roster while retaining live team, array and player
- * references. A field the saved record lacks, such as a Team Captain title
- * granted since, is cleared rather than kept.
- */
 export function restoreTeam(team: Team, saved: Team): void {
   const copy = structuredClone(saved);
   const players = copy.players.map((record) => {
@@ -373,10 +315,6 @@ export function restoreTeam(team: Team, saved: Team): void {
   replaceFields(team, { ...copy, players: team.players });
 }
 
-/**
- * Restore player placement/status onto live Team objects from a snapshot,
- * matching players by id.
- */
 export function applySnapshotToTeams(
   snapshot: GameSnapshot,
   teams: Team[]
@@ -390,20 +328,20 @@ export function applySnapshotToTeams(
       const snap = byId.get(player.id);
       if (!snap) return;
       player.status = snap.status;
-      player.gridPosition = snap.position ? { ...snap.position } : undefined;
-      player.conditions = (snap.conditions ?? []).map((c) => ({ ...c }));
+      if (snap.position) player.gridPosition = { ...snap.position };
+      else delete player.gridPosition;
+      player.conditions = snap.conditions.map((c) => ({ ...c }));
     });
   });
 }
 
-/** Build a complete JSON-safe cold-restore payload without widening GameSnapshot. */
 export function createMatchSave(input: CreateMatchSaveInput): MatchSave {
   assertPregameSaveable(input.state);
   const payload: MatchSave = {
     version: MATCH_SAVE_VERSION,
     savedAt: input.savedAt ?? Date.now(),
     snapshot: serializeGameState(input.state, input.teams),
-    teams: input.teams.map((team) => structuredClone(team)) as [Team, Team],
+    teams: [structuredClone(input.teams[0]), structuredClone(input.teams[1])],
     drive: {
       kickingTeamId: input.drive.kickingTeamId,
       receivingTeamId: input.drive.receivingTeamId,
@@ -423,45 +361,15 @@ export function createMatchSave(input: CreateMatchSaveInput): MatchSave {
     ...(input.computer ? { computer: { ...input.computer } } : {}),
   };
 
-  return JSON.parse(JSON.stringify(payload)) as MatchSave;
+  return normalizeMatchSave(payload);
 }
 
 export function serializeMatchSave(save: MatchSave): string {
   return JSON.stringify(save);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isComputerSaveOrAbsent(value: unknown): boolean {
-  return (
-    value === undefined ||
-    (isRecord(value) &&
-      typeof value.computerTeamId === "string" &&
-      typeof value.difficulty === "string")
-  );
-}
-
-export function deserializeMatchSave(value: string | unknown): MatchSave {
-  const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
-  if (
-    !isRecord(parsed) ||
-    parsed.version !== MATCH_SAVE_VERSION ||
-    typeof parsed.savedAt !== "number" ||
-    !isRecord(parsed.snapshot) ||
-    !Array.isArray(parsed.teams) ||
-    parsed.teams.length !== 2 ||
-    !isRecord(parsed.drive) ||
-    typeof parsed.drive.kickingTeamId !== "string" ||
-    typeof parsed.drive.receivingTeamId !== "string" ||
-    !isRecord(parsed.rng) ||
-    !isRecord(parsed.matchStats) ||
-    !isComputerSaveOrAbsent(parsed.computer)
-  ) {
-    throw new Error("unsupported-or-invalid-match-save");
-  }
-  return parsed as unknown as MatchSave;
+export function deserializeMatchSave(value: unknown): MatchSave {
+  return parseMatchSave(value);
 }
 
 export interface RestoredMatchSave {
@@ -470,10 +378,9 @@ export interface RestoredMatchSave {
   teams: [Team, Team];
 }
 
-/** Rebuild mutable teams and GameState from a validated save. */
 export function restoreMatchSave(value: MatchSave | string): RestoredMatchSave {
   const save = deserializeMatchSave(value);
-  const teams = save.teams.map((team) => structuredClone(team)) as [Team, Team];
+  const teams: [Team, Team] = [structuredClone(save.teams[0]), structuredClone(save.teams[1])];
   applySnapshotToTeams(save.snapshot, teams);
   return {
     save,

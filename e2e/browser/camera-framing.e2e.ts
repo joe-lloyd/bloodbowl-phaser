@@ -1,4 +1,5 @@
-import { test, expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
 import {
@@ -17,7 +18,6 @@ async function openSpread(page: Page) {
   return app;
 }
 
-/** Check the live team's footprint against the visible React HUD gap. */
 async function expectTeamFits(
   page: Page,
   app: GameApp,
@@ -28,25 +28,25 @@ async function expectTeamFits(
   await app.pitch.waitForCameraToSettle();
   const state = await app.bridge.snapshot();
   const team = state.teams[teamIndex];
-  const players = team.players.filter(
+  const players = fixtureValue(team).players.filter(
     (p) =>
       p.position &&
       (!eligibleOnly || !state.turn.activatedPlayerIds.includes(p.id))
   );
   const { geometry, z, points } = await page.evaluate(
     (squares) => {
-      const canvas = document
-        .querySelector("#game-container canvas")!
+      const canvas = (document
+        .querySelector("#game-container canvas"))!
         .getBoundingClientRect();
-      const top = document
-        .querySelector('[data-hud-frame="top"]')!
+      const top = (document
+        .querySelector('[data-hud-frame="top"]'))!
         .getBoundingClientRect().bottom;
-      const tray = document.querySelector('[data-hud-frame="bottom"]')!;
+      const tray = (document.querySelector('[data-hud-frame="bottom"]'))!;
       const trayTop =
         tray.getAttribute("aria-hidden") === "true"
           ? canvas.bottom
           : tray.getBoundingClientRect().top;
-      // The phone's centred movement hint also occupies the bottom of the gap.
+
       const hint = document.querySelector('[data-testid="move-hint"]');
       const bottom = Math.min(
         trayTop,
@@ -60,9 +60,9 @@ async function expectTeamFits(
       const size = bridge.canvasSize();
       return {
         geometry: { top, bottom, left: canvas.left, right: canvas.right },
-        z: (bridge.cameraState()!.zoom * canvas.height) / size.height,
+        z: ((bridge.cameraState())!.zoom * canvas.height) / size.height,
         points: squares.map((s) => {
-          const p = bridge.squareToCanvas(s.x, s.y)!;
+          const p = (bridge.squareToCanvas(s.x, s.y))!;
           return {
             x: canvas.left + (p.x * canvas.width) / size.width,
             y: canvas.top + (p.y * canvas.height) / size.height,
@@ -70,7 +70,7 @@ async function expectTeamFits(
         }),
       };
     },
-    players.map((p) => p.position!)
+    players.map((p) => (p.position)!)
   );
   for (const p of points) {
     expect(p.x - 50 * z).toBeGreaterThanOrEqual(geometry.left + 23);
@@ -131,7 +131,7 @@ for (const viewport of [
   { width: 1920, height: 1080 },
   { width: 844, height: 390 },
 ]) {
-  test.describe(`${viewport.width}x${viewport.height}`, () => {
+  test.describe(`${String(viewport.width)}x${String(viewport.height)}`, () => {
     test.use({
       viewport,
       hasTouch: viewport.width === 844,
@@ -160,7 +160,7 @@ for (const viewport of [
       const at = await app.pitch.viewportPoint({ x: 7, y: 9 });
       expect(
         await page.evaluate(
-          ([x, y]) => document.elementFromPoint(x, y)?.tagName,
+          ([x, y]) => document.elementFromPoint((x)!, (y)!)?.tagName,
           [at.x, at.y]
         )
       ).toBe("CANVAS");
@@ -191,7 +191,7 @@ test("turn handoff fits both teams, pauses, then fits the new team", async ({
   const app = await openSpread(page);
   await sampleCamera(page);
   await app.hud.endTurn().click();
-  // During the pause all nine on-pitch players must fit, including the old team.
+
   await page.waitForTimeout(800);
   await expectTeamFits(page, app, 0);
   await expectTeamFits(page, app, 1, false, false);
@@ -201,7 +201,7 @@ test("turn handoff fits both teams, pauses, then fits the new team", async ({
   const samples = await finishCameraSample(page, test.info(), "handoff-frames");
   const still = samples.filter((s) => !s.zooming && !s.panning);
   expect(still.length).toBeGreaterThan(2);
-  expect(still.at(-1)!.zoom).toBeGreaterThan(
+  expect(fixtureValue(still.at(-1)).zoom).toBeGreaterThan(
     Math.min(...still.map((s) => s.zoom))
   );
   await page.screenshot({
@@ -210,7 +210,7 @@ test("turn handoff fits both teams, pauses, then fits the new team", async ({
 });
 
 for (const afterMs of [250, 900]) {
-  test(`resizing at ${afterMs}ms preserves the next-team handoff`, async ({
+  test(`resizing at ${String(afterMs)}ms preserves the next-team handoff`, async ({
     page,
   }) => {
     const app = await openSpread(page);
@@ -234,7 +234,7 @@ test("resizing during a team zoom keeps every eligible player visible", async ({
 });
 
 for (const afterMs of [250, 700]) {
-  test(`selection at ${afterMs}ms cancels the obsolete handoff fit`, async ({
+  test(`selection at ${String(afterMs)}ms cancels the obsolete handoff fit`, async ({
     page,
   }) => {
     const app = await openSpread(page);
@@ -247,11 +247,11 @@ for (const afterMs of [250, 700]) {
           __bbTestBridge: import("../../src/testing/browserBridge").BrowserTestBridge;
         }
       ).__bbTestBridge;
-      const canvas = document
-        .querySelector("#game-container canvas")!
+      const canvas = (document
+        .querySelector("#game-container canvas"))!
         .getBoundingClientRect();
       const size = bridge.canvasSize();
-      const p = bridge.squareToCanvas(s.x, s.y)!;
+      const p = (bridge.squareToCanvas(s.x, s.y))!;
       return {
         x: canvas.left + (p.x * canvas.width) / size.width,
         y: canvas.top + (p.y * canvas.height) / size.height,

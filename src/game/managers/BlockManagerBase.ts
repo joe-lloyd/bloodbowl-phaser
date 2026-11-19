@@ -1,8 +1,8 @@
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
-import { IEventBus } from "../../services/EventBus";
-import { GameState } from "@/types/GameState";
-import { Team } from "@/types/Team";
-import { Player, PlayerStatus } from "@/types/Player";
+import { type IEventBus } from "../../services/EventBus";
+import { type GameState } from "@/types/GameState";
+import { type Team } from "@/types/Team";
+import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { BlockResolutionService } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
@@ -10,29 +10,42 @@ import { BounceOperation } from "../operations/BounceOperation";
 import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
+import { type GameFlowManager } from "../core/GameFlowManager";
+import { type DecisionService } from "../skills/DecisionService";
 import { gatherParticipants, adjacentStanding } from "../skills";
 
-/**
- * BlockManager is one class split across files by stage of the Block
- * Action, each extending the one before: BlockManagerBase, BlockRerolls,
- * BlockActivation, BlockPushChain, then BlockManager. This first one holds
- * what every stage reads: the game it plays on and the board queries.
- */
 export abstract class BlockManagerBase {
+  protected eventBus: IEventBus;
+  protected state: GameState;
+  protected team1: Team;
+  protected team2: Team;
+  protected blockResolutionService: BlockResolutionService;
+  protected diceController: DiceController;
+  protected callbacks: {
+    onTurnover: (reason: string) => void;
+    getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
+  };
   constructor(
-    protected eventBus: IEventBus,
-    protected state: GameState,
-    protected team1: Team,
-    protected team2: Team,
-    protected blockResolutionService: BlockResolutionService,
-    protected diceController: DiceController,
-    protected callbacks: {
+    eventBus: IEventBus,
+    state: GameState,
+    team1: Team,
+    team2: Team,
+    blockResolutionService: BlockResolutionService,
+    diceController: DiceController,
+    callbacks: {
       onTurnover: (reason: string) => void;
       getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
     }
-  ) {}
+  ) {
+    this.eventBus = eventBus;
+    this.state = state;
+    this.team1 = team1;
+    this.team2 = team2;
+    this.blockResolutionService = blockResolutionService;
+    this.diceController = diceController;
+    this.callbacks = callbacks;
+  }
 
-  /** Is this block the block at the end of the active player's Blitz? */
   protected isBlitzBlock(attacker: Player): boolean {
     return (
       this.state.activePlayer?.action === "blitz" &&
@@ -40,7 +53,6 @@ export abstract class BlockManagerBase {
     );
   }
 
-  /** Is this attacker the Fanatic mid-lurch (Ball & Chain)? */
   protected isBallAndChain(attacker: Player): boolean {
     return (
       this.state.activePlayer?.action === "ballAndChain" &&
@@ -62,12 +74,6 @@ export abstract class BlockManagerBase {
     return ballOnSquare(this.state, square);
   }
 
-  /**
-   * A knocked-down carrier drops the ball. Safe Pair of Hands (2025 p.126)
-   * places it in an adjacent unoccupied square instead of Bouncing; otherwise
-   * the ball Bounces from the carrier's square as normal: the returned
-   * operation, for the caller to queue after the Armour Roll.
-   */
   protected dropCarrierBall(
     player: Player,
     flowManager: import("../core/GameFlowManager").GameFlowManager
@@ -89,7 +95,6 @@ export abstract class BlockManagerBase {
     return new BounceOperation(pos);
   }
 
-  /** First unoccupied on-pitch square adjacent to `pos` (fixed clockwise order). */
   private adjacentEmptySquare(pos: {
     x: number;
     y: number;
@@ -97,9 +102,9 @@ export abstract class BlockManagerBase {
     const occupied = new Set(
       this.allPlayers()
         .filter((p) => p.gridPosition)
-        .map((p) => `${p.gridPosition!.x},${p.gridPosition!.y}`)
+        .map((p) => `${String(p.gridPosition!.x)},${String(p.gridPosition!.y)}`)
     );
-    const dirs = [
+    const dirs: readonly (readonly [number, number])[] = [
       [0, -1],
       [1, -1],
       [1, 0],
@@ -119,14 +124,11 @@ export abstract class BlockManagerBase {
       ) {
         continue;
       }
-      if (!occupied.has(`${s.x},${s.y}`)) return s;
+      if (!occupied.has(`${String(s.x)},${String(s.y)}`)) return s;
     }
     return null;
   }
 
-  /**
-   * Knock down a player
-   */
   protected knockDownPlayer(player: Player): void {
     player.status = PlayerStatus.PRONE;
     this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
@@ -134,11 +136,6 @@ export abstract class BlockManagerBase {
     });
   }
 
-  /**
-   * Knock the Block's target down. A target on the active team, which only
-   * a Ball & Chain collision can block, is a Turnover: "A player on the
-   * active team is Knocked Down during their own team's turn" (p.43).
-   */
   protected knockDownTarget(defender: Player): void {
     this.knockDownPlayer(defender);
     if (defender.teamId === this.state.activeTeamId) {
@@ -163,7 +160,18 @@ export abstract class BlockManagerBase {
       ?.context.gameService.getDecisionService();
   }
 
-  /** Attacker → defender → players adjacent to either, by position. */
+  protected triggerServices(): {
+    decisions?: DecisionService;
+    flow?: GameFlowManager;
+  } {
+    const flow = this.callbacks.getFlowManager?.();
+    const decisions = this.decisions();
+    return {
+      ...(decisions ? { decisions } : {}),
+      ...(flow ? { flow } : {}),
+    };
+  }
+
   protected blockParticipants(attacker: Player, defender: Player): Player[] {
     const all = this.allPlayers();
     const adjacents = [
@@ -180,8 +188,8 @@ export abstract class BlockManagerBase {
   protected announce(
     triggers: { playerId: string; skill: string; effect: string }[]
   ): void {
-    triggers.forEach((t) =>
-      this.eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
+    triggers.forEach((t) => {
+      this.eventBus.emit(GameEventNames.SkillTriggered, t);
+    });
   }
 }

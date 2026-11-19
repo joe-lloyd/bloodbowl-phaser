@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   computeStandings,
@@ -9,14 +10,17 @@ import {
   recordCompetitionFixture,
   withdrawFromCompetition,
 } from "../../src/competition/resultRecording";
-import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
+import {
+  type CompetitionEntrant,
+  type LeagueDoc,
+} from "../../src/competition/types";
 import {
   getTeamById,
   loadTeams,
   saveTeams,
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
-import { Team } from "../../src/types/Team";
+import { type Team } from "../../src/types/Team";
 
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
@@ -94,14 +98,12 @@ describe("completing a competition frees its entrants", () => {
     const league = buildLeague("season", teams);
     await saveCompetition(league);
 
-    // A two-team round robin is exactly one fixture; recording it completes
-    // the league (competition/logic.ts: status becomes "complete").
     const context = {
       competitionType: "league" as const,
       competitionId: league.id,
-      fixtureId: league.fixtures[0].id,
+      fixtureId: fixtureValue(league.fixtures[0]).id,
     };
-    const updated = await recordCompetitionFixture(context, 2, 1);
+    const updated = await recordCompetitionFixture({ context,homeScore: 2,awayScore: 1 });
 
     expect(updated.status).toBe("complete");
     const saved = loadTeams();
@@ -125,17 +127,17 @@ describe("withdrawing frees the team", () => {
     const league = buildLeague("season", teams);
     await saveCompetition(league);
 
-    const entrant = league.entrants.find((e) => e.teamId === "home")!;
+    const entrant = fixtureValue(league.entrants.find((e) => e.teamId === "home"));
     const updated = await withdrawFromCompetition(
       { competitionType: "league", competitionId: league.id },
       entrant.id
     );
 
-    expect(
-      updated.entrants.find((e) => e.id === entrant.id)?.withdrawn
-    ).toBe(true);
+    expect(updated.entrants.find((e) => e.id === entrant.id)?.withdrawn).toBe(
+      true
+    );
     expect(getTeamById("home")?.activeCompetitionId).toBeUndefined();
-    // Other entrants are untouched.
+
     expect(getTeamById("away")?.activeCompetitionId).toBe("season");
   });
 });

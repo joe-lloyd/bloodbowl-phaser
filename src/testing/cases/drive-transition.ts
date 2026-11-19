@@ -1,21 +1,8 @@
-/**
- * Drive-transition scenario cases, mirroring
- * `__tests__/headless/driveTransition.test.ts`: the touchdown -> KO recovery
- * -> setup -> kickoff sequence a Sevens match walks between drives.
- */
-
 import { PlayerStatus } from "../../types/Player";
 import { GameEventNames } from "../../types/events";
-import { ScenarioCase, step } from "../scenarioCase/types";
+import { type ScenarioCase, step } from "../scenarioCase/types";
 import { playSetup, emitted, checkpointAssert, playerIn } from "./helpers";
 
-/**
- * Knocked-out players roll to recover when the drive ends.
- *
- * This is the one phase-flow rule that only fires *between* drives, so it
- * needs a drive to actually end: the carrier scores, and the reset rolls
- * recovery for everyone in the KO box.
- */
 const koRecovery: ScenarioCase = {
   id: "match-ko-recovery-at-drive-end",
   name: "KO recovery when the drive ends",
@@ -28,7 +15,7 @@ const koRecovery: ScenarioCase = {
     team1Placements: [
       { playerIndex: 0, x: 17, y: 5 },
       { playerIndex: 1, x: 3, y: 3 },
-      // Off the pitch in the KO box, waiting for the drive to end.
+
       { playerIndex: 2, x: 4, y: 4, status: PlayerStatus.KO },
     ],
     team2Placements: [{ playerIndex: 0, x: 13, y: 9 }],
@@ -74,18 +61,18 @@ const koRecovery: ScenarioCase = {
         )?.data as { roll: number; recovered: boolean } | undefined;
         checkpointAssert(!!roll, "the drive end must roll KO recovery");
         checkpointAssert(
-          roll!.recovered === roll!.roll >= 4,
-          `a ${roll!.roll} should ${roll!.roll >= 4 ? "" : "not "}recover, ` +
-            `but recovered=${roll!.recovered}`
+          roll.recovered === roll.roll >= 4,
+          `a ${String(roll.roll)} should ${roll.roll >= 4 ? "" : "not "}recover, ` +
+            `but recovered=${String(roll.recovered)}`
         );
 
         const player = playerIn(observed, "team1:2");
-        const expected = roll!.recovered
+        const expected = roll.recovered
           ? PlayerStatus.RESERVE
           : PlayerStatus.KO;
         checkpointAssert(
           player.status === expected,
-          `after rolling ${roll!.roll} the player should be ${expected}, ` +
+          `after rolling ${String(roll.roll)} the player should be ${expected}, ` +
             `but is ${player.status}`
         );
       },

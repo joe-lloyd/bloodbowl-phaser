@@ -1,20 +1,25 @@
-/**
- * Runs the HUD gallery's screenshot capture against the same built preview
- * the browser lane uses. Not part of CI.
- */
-import { defineConfig } from "@playwright/test";
+import { defineConfig, type PlaywrightTestConfig } from "@playwright/test";
 import base from "../../playwright.config";
 
-const browserProject = base.projects!.find(
-  (p) => p.name === "browser-gameplay"
-)!;
+function browserGameplayProject() {
+  const project = base.projects?.find((p) => p.name === "browser-gameplay");
+  if (!project) throw new Error("browser-gameplay project is missing");
+  return project;
+}
+
+function withoutSnapshotTemplate(
+  config: PlaywrightTestConfig
+): PlaywrightTestConfig {
+  const copy = { ...config };
+  delete copy.snapshotPathTemplate;
+  return copy;
+}
 
 export default defineConfig({
-  ...base,
+  ...withoutSnapshotTemplate(base),
   testDir: ".",
   testMatch: "hud-shots.e2e.ts",
-  snapshotPathTemplate: undefined,
   reporter: [["list"]],
   outputDir: "../../e2e-results/hud-shots",
-  projects: [{ ...browserProject, name: "hud-shots", testDir: "." }],
+  projects: [{ ...browserGameplayProject(), name: "hud-shots", testDir: "." }],
 });

@@ -1,9 +1,10 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { SkillType } from "../../../src/types/Skills";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
 import { SkillRegistry } from "../../../src/game/skills";
 import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
-import { findSeed, RuleConfig } from "../../../src/game/rules-lab";
+import { findSeed, type RuleConfig } from "../../../src/game/rules-lab";
 import { RULE_CASES } from "../../../src/testing/cases";
 import {
   ruleCaseId,
@@ -11,15 +12,10 @@ import {
 } from "../../../src/testing/cases/fromRuleConfigs";
 import { validateScenarioCases } from "../../../src/testing/scenarioCase";
 
-/**
- * Coverage gate: implemented rules must ship catalog configurations, and
- * the implemented/inert split only changes consciously.
- */
-
 describe("rule coverage gate", () => {
   it("every implemented rule has at least one catalog configuration", () => {
-    const implemented = (Object.values(SkillType) as SkillType[]).filter(
-      (type) => SkillRegistry.has(type)
+    const implemented = Object.values(SkillType).filter((type) =>
+      SkillRegistry.has(type)
     );
     const covered = new Set(RULE_SCENARIOS.map((entry) => entry.skill));
     const uncovered = implemented.filter((type) => !covered.has(type));
@@ -27,7 +23,6 @@ describe("rule coverage gate", () => {
   });
 
   it("catalog entries only exist for implemented rules", () => {
-    // An entry for an inert skill would silently test nothing
     const inertWithConfigs = RULE_SCENARIOS.filter(
       (entry) => !SkillRegistry.has(entry.skill)
     ).map((entry) => entry.skill);
@@ -36,7 +31,7 @@ describe("rule coverage gate", () => {
 
   it("exactly the implemented set is registered — update this list consciously", () => {
     const cov = SkillRegistry.coverage();
-    const implemented = (Object.values(SkillType) as SkillType[])
+    const implemented = Object.values(SkillType)
       .filter((type) => SkillRegistry.has(type))
       .sort();
     expect(implemented).toEqual(
@@ -154,8 +149,6 @@ describe("rule coverage gate", () => {
   });
 
   it("only deliberate Sevens exclusions remain unregistered", () => {
-    // Decay modifies a Casualty Roll that Sevens does not use.
-    // Insignificant constrains draft-list construction in rosterLegality.
     expect(SkillRegistry.coverage().missing).toEqual([
       SkillType.DECAY,
       SkillType.INSIGNIFICANT,
@@ -198,11 +191,6 @@ describe("rule coverage gate", () => {
     }
   });
 
-  /**
-   * Registering a rule is not enough: it must also join the E2E matrix, on
-   * committed seeds, with a declared execution layer. Without this a new
-   * rule could ship a catalog entry that nothing ever runs.
-   */
   it("every registered rule is a runnable E2E case with committed seeds", () => {
     const missingSeeds = ruleOutcomesMissingSeeds();
     expect(
@@ -222,11 +210,11 @@ describe("rule coverage gate", () => {
           `${config.id} has no generated scenario case`
         ).toBeDefined();
         expect(
-          scenarioCase!.layers.length,
+          fixtureValue(scenarioCase).layers.length,
           `${config.id} declares no execution layer`
         ).toBeGreaterThan(0);
         expect(
-          scenarioCase!.variants.length,
+          fixtureValue(scenarioCase).variants.length,
           `${config.id} has no seeded variants`
         ).toBe(config.outcomes.length);
       }

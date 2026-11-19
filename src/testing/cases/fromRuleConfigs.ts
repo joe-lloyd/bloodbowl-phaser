@@ -1,44 +1,20 @@
-/**
- * Turns the rule-scenario catalog into scenario cases.
- *
- * The catalog already describes, per skill, a setup, a script and the named
- * outcomes that matter — everything a case needs except a committed seed and
- * a coverage claim. Generating cases from it means:
- *
- *   * every registered rule outcome joins the E2E matrix automatically, with
- *     no hand-written test file, and
- *   * adding a rule config or an outcome shows up in the next coverage
- *     report rather than needing to be remembered.
- *
- * An outcome with no committed seed still produces a case, marked so the
- * coverage gate can name it as a gap. That is deliberate: a silently missing
- * outcome is exactly what this change exists to prevent.
- */
-
 import { RULE_SCENARIOS } from "../../data/ruleScenarios";
-import { RuleConfig, RuleOutcome } from "../../game/rules-lab";
+import { type RuleConfig, type RuleOutcome } from "../../game/rules-lab";
 import { SkillType } from "../../types/Skills";
 import {
-  ExpectedCheckpoint,
-  ObservedRun,
-  ScenarioCase,
-  SeededVariant,
-  SemanticStep,
+  type ExpectedCheckpoint,
+  type ObservedRun,
+  type ScenarioCase,
+  type SeededVariant,
+  type SemanticStep,
 } from "../scenarioCase/types";
 import type { EngineObservedRun } from "../adapters/engineAdapter";
 import { committedSeedFor } from "../seeds/committedSeeds";
 
-/** Case ids are namespaced so they cannot collide with authored cases. */
 export function ruleCaseId(configId: string): string {
   return `rule-${configId}`;
 }
 
-/**
- * A rule outcome's predicate needs the rules-lab `ScriptResult` shape, which
- * is the engine adapter's observation plus the live game. Browser runs cannot
- * supply that, which is why generated rule cases declare the engine layer
- * only — a browser representative for a rule is written by hand.
- */
 function asScriptResult(observed: ObservedRun) {
   const engineRun = observed as EngineObservedRun;
   if (!engineRun.game) {
@@ -55,7 +31,6 @@ function asScriptResult(observed: ObservedRun) {
   };
 }
 
-/** The catalog's own predicate and verifier, as a case checkpoint. */
 function outcomeCheckpoint(
   config: RuleConfig,
   outcome: RuleOutcome
@@ -72,8 +47,7 @@ function outcomeCheckpoint(
             `longer produces this outcome for '${config.id}'`
         );
       }
-      // The catalog's extra assertions run only on a matching run, exactly as
-      // they do in the rule suite.
+
       outcome.verify?.(result);
     },
   };
@@ -83,19 +57,11 @@ function stepsFor(config: RuleConfig): SemanticStep[] {
   return (config.script ?? []).map((command) => ({ command }));
 }
 
-/** Which capability bucket a skill's cases report under. */
 function capabilityFor(skill: SkillType): string {
   return `rule:${skill}`;
 }
 
-/**
- * One case per rule configuration, with one variant per declared outcome.
- *
- * Grouping by config (rather than one case per outcome) keeps the setup and
- * script written once, which is what makes "this seed produces that branch"
- * a meaningful statement.
- */
-export function scenarioCaseFromRuleConfig(
+function scenarioCaseFromRuleConfig(
   skill: SkillType,
   config: RuleConfig
 ): ScenarioCase {
@@ -105,8 +71,7 @@ export function scenarioCaseFromRuleConfig(
       id: outcome.id,
       name: outcome.name,
       ...(outcome.description ? { description: outcome.description } : {}),
-      // A missing seed is left as NaN on purpose: schema validation rejects
-      // it by name, which is a far better failure than a run on seed 0.
+
       seed: seed ?? Number.NaN,
       expectedOutcome: outcome.name,
       checkpoints: [outcomeCheckpoint(config, outcome)],
@@ -140,13 +105,11 @@ export function scenarioCaseFromRuleConfig(
     tags: ["rule-catalog", String(skill)],
     source: { kind: "rule-config", id: config.id },
     variants,
-    // Every expectation lives on the variant: an outcome predicate is by
-    // definition specific to its branch.
+
     checkpoints: [],
   };
 }
 
-/** Every rule configuration in the catalog, as scenario cases. */
 export function ruleScenarioCases(): ScenarioCase[] {
   return RULE_SCENARIOS.flatMap((entry) =>
     entry.configs.map((config) =>
@@ -155,7 +118,6 @@ export function ruleScenarioCases(): ScenarioCase[] {
   );
 }
 
-/** Config/outcome pairs with no committed seed — the coverage gate's input. */
 export function ruleOutcomesMissingSeeds(): {
   configId: string;
   outcomeId: string;

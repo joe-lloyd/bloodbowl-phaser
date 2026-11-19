@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   RosterName,
-  TeamAdvancementMode,
+  type TeamAdvancementMode,
   calculateTeamValue,
   createTeam,
   setAdvancementMode,
@@ -110,7 +110,9 @@ describe("Apothecary (D6)", () => {
 
 describe("Dedicated Fans (D7)", () => {
   it("league teams start with 1", () => {
-    expect(draftTeam(RosterName.HUMAN, "advanced-league").dedicatedFans).toBe(1);
+    expect(draftTeam(RosterName.HUMAN, "advanced-league").dedicatedFans).toBe(
+      1
+    );
     expect(
       draftTeam(RosterName.HUMAN, "sevens-skill-selection").dedicatedFans
     ).toBe(1);

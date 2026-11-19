@@ -1,14 +1,9 @@
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamStatsOverview } from "../../../src/ui/components/TeamManagement/TeamStatsOverview";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
-/**
- * team-management-layout: "Detail page shows the stats grid" — the shared
- * component that both TeamManagement (removed) and TeamBuilder (added) rely
- * on to avoid duplicating the formatGold/numToHex helpers.
- */
 describe("TeamStatsOverview", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -20,7 +15,9 @@ describe("TeamStatsOverview", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 

@@ -1,11 +1,3 @@
-/**
- * Bone Head rolls the moment an action is declared, and the roll binds the
- * player. The game asks first, so a coach who clicks Move, or a square to
- * measure a route, can back out with nothing rolled.
- *
- * The sandbox case "bone-head-activation" puts a Bone Head Ogre (team1:0)
- * at (10,5).
- */
 import { test, expect } from "@playwright/test";
 import { GameEventNames } from "../../src/types/events";
 import { GameApp } from "../support/pages/game";
@@ -33,7 +25,6 @@ test("Bone Head asks before it rolls, and Cancel declares nothing", async ({
   expect((await app.bridge.snapshot()).activePlayer).toBeNull();
   expect(await rolls()).toHaveLength(0);
 
-  // Clicking a square to measure a route asks the same question
   await app.pitch.clickSquare({ x: 12, y: 5 });
   await expect(confirm).toBeVisible();
   await confirm.getByRole("button", { name: "Roll", exact: true }).click();

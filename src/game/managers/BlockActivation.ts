@@ -1,8 +1,8 @@
-import { Player, PlayerStatus } from "@/types/Player";
+import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { ReactionDecisionAnswer } from "../../types/decisions";
+import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { BlockValidator } from "../validators/BlockValidator";
-import { BlockAnalysis } from "../../types/Actions";
+import { type BlockAnalysis } from "../../types/Actions";
 import { GameEventNames } from "../../types/events";
 import { GameConfig } from "../../config/GameConfig";
 import { PileDriverOperation } from "../operations/PileDriverOperation";
@@ -17,7 +17,6 @@ import {
 } from "./BlockOperations";
 import { BlockRerolls } from "./BlockRerolls";
 
-/** Both players Standing and next to each other. */
 const standingNeighbours = (a: Player, b: Player): boolean =>
   a.status === PlayerStatus.ACTIVE &&
   b.status === PlayerStatus.ACTIVE &&
@@ -32,11 +31,6 @@ const onPitch = (square: { x: number; y: number }): boolean =>
   square.y >= 0 &&
   square.y < GameConfig.PITCH_HEIGHT;
 
-/**
- * What follows a resolved Block within the activation: Multiple Block's
- * second target, Frenzy's second Block, Pile Driver, Hit and Run, and the
- * end of the activation.
- */
 export abstract class BlockActivation extends BlockRerolls {
   protected pileDriverTargets = new Map<string, string>();
   protected blockValidator: BlockValidator = new BlockValidator();
@@ -46,15 +40,14 @@ export abstract class BlockActivation extends BlockRerolls {
     nextIndex: number;
     originalStrength: number;
     continuationQueued: boolean;
-    /** Both Blocks' assists and strengths, analysed before either resolves. */
+
     analyses: Record<string, BlockAnalysis>;
-    /** The board before either Block resolved, for a Trickster relocation. */
+
     board: Player[];
-    /** Targets knocked down so far, offered to Pile Driver at the end. */
+
     pileDriverTargetIds: string[];
   } | null = null;
 
-  /** The attacker mid-Frenzy-extra block, so it does not Frenzy a third time. */
   protected frenzyExtraFor: string | null = null;
 
   public abstract rollBlockDice(
@@ -64,13 +57,6 @@ export abstract class BlockActivation extends BlockRerolls {
     isAttackerChoice: boolean
   ): Promise<void>;
 
-  /**
-   * End the blocker's activation after a Block resolves — but if they are a
-   * still-Standing Hit and Run player with a legal free square, queue the
-   * Hit and Run move (which ends the activation itself). Currently wired into
-   * the knockdown-in-place completion; the push/follow-up path is a further
-   * increment. The Stab path goes through GameService.finishStabActivation.
-   */
   public endBlockActivation(attackerId: string): void {
     if (this.multipleBlockState?.attackerId === attackerId) {
       this.queueMultipleBlockContinuation(attackerId);
@@ -84,9 +70,9 @@ export abstract class BlockActivation extends BlockRerolls {
       return;
     }
     if (
-      this.offerPileDriver(attackerId, () =>
-        this.endBlockActivation(attackerId)
-      )
+      this.offerPileDriver(attackerId, () => {
+        this.endBlockActivation(attackerId);
+      })
     ) {
       return;
     }
@@ -103,14 +89,7 @@ export abstract class BlockActivation extends BlockRerolls {
     flowManager.context.gameService.finishActivation(attackerId);
   }
 
-  /**
-   * Pile Driver (p.133): once the Block has fully resolved, a blocker who
-   * Knocked Down their target "may perform a free Foul Action" against it.
-   * Queues the optional Foul and returns true; `resume` carries on with the
-   * activation when the coach declines or the Foul is no longer possible.
-   */
   public offerPileDriver(attackerId: string, resume: () => void): boolean {
-    // A Multiple Block keeps its knockdowns for the offers after both Blocks.
     if (this.multipleBlockState?.attackerId === attackerId) return false;
     const targetId = this.pileDriverTargets.get(attackerId);
     this.pileDriverTargets.delete(attackerId);
@@ -123,10 +102,6 @@ export abstract class BlockActivation extends BlockRerolls {
     return true;
   }
 
-  /**
-   * Start a two-target Multiple Block. Both opponents must be different,
-   * Standing, marked by the blocker, and opposing players when declared.
-   */
   public async startMultipleBlock(
     attackerId: string,
     defender1Id: string,
@@ -174,17 +149,11 @@ export abstract class BlockActivation extends BlockRerolls {
 
     const originalStrength = attacker.stats.ST;
     attacker.stats.ST = Math.max(1, attacker.stats.ST - 2);
-    // The Blocks happen simultaneously, so each target's assists are counted
-    // before either resolves, the other target included (May 2026 FAQ).
+
     const analyses: Record<string, BlockAnalysis> = {};
     for (const defender of defenders) {
       if (!defender) continue;
-      analyses[defender.id] = this.blockValidator.analyzeBlock(
-        attacker,
-        defender,
-        this.allPlayers(),
-        this.state.activeTeamId
-      );
+      analyses[defender.id] = this.blockValidator.analyzeBlock({ attacker: attacker, defender: defender, allPlayers: this.allPlayers(), activeTeamId: this.state.activeTeamId });
     }
     this.multipleBlockState = {
       attackerId,
@@ -193,11 +162,7 @@ export abstract class BlockActivation extends BlockRerolls {
       originalStrength,
       continuationQueued: false,
       analyses,
-      board: this.allPlayers().map((p) => ({
-        ...p,
-        gridPosition: p.gridPosition && { ...p.gridPosition },
-        conditions: p.conditions && [...p.conditions],
-      })),
+      board: this.allPlayers().map(snapshotPlayer),
       pileDriverTargetIds: [],
     };
     this.eventBus.emit(GameEventNames.SkillTriggered, {
@@ -222,18 +187,15 @@ export abstract class BlockActivation extends BlockRerolls {
     }
   }
 
-  /** Continue with target two, or restore Strength and end after target two. */
   public async continueMultipleBlock(attackerId: string): Promise<void> {
     const state = this.multipleBlockState;
     if (!state || state.attackerId !== attackerId) return;
     state.continuationQueued = false;
-    // The next Block's dice would forget this one's knockdown.
+
     const knockedDown = this.pileDriverTargets.get(attackerId);
     this.pileDriverTargets.delete(attackerId);
     if (knockedDown) state.pileDriverTargetIds.push(knockedDown);
-    // A push that scored ends the drive, and the second Block with it. A
-    // blocker knocked down by the first Block is a Turnover: its activation
-    // ends, and a target no longer Standing on the pitch cannot be blocked.
+
     const scored = driveOver(this.state.phase);
     const blocker = this.getPlayerById(attackerId);
     const next = this.getPlayerById(state.defenderIds[state.nextIndex] ?? "");
@@ -242,8 +204,9 @@ export abstract class BlockActivation extends BlockRerolls {
       !!blocker.gridPosition &&
       next?.status === PlayerStatus.ACTIVE &&
       !!next.gridPosition;
-    if (!scored && canBlock && state.nextIndex < state.defenderIds.length) {
-      const defenderId = state.defenderIds[state.nextIndex++];
+    const defenderId = state.defenderIds[state.nextIndex];
+    if (!scored && canBlock && defenderId !== undefined) {
+      state.nextIndex++;
       await this.startBlock(attackerId, defenderId);
       return;
     }
@@ -252,8 +215,7 @@ export abstract class BlockActivation extends BlockRerolls {
     if (attacker) attacker.stats.ST = state.originalStrength;
     this.multipleBlockState = null;
     if (scored) return;
-    // Pile Driver, once both Blocks have resolved: a declined Foul offers
-    // the other knocked-down target, if any.
+
     const offerNext = (): void => {
       const targetId = state.pileDriverTargetIds.shift();
       if (targetId) {
@@ -267,7 +229,6 @@ export abstract class BlockActivation extends BlockRerolls {
     offerNext();
   }
 
-  /** Analyze and start a fresh Block Action (Frenzy's second block). */
   public async startBlock(
     attackerId: string,
     defenderId: string
@@ -284,7 +245,6 @@ export abstract class BlockActivation extends BlockRerolls {
     );
   }
 
-  /** The Block as it stands, or as analysed when a Multiple Block began. */
   protected analyzeBlock(attacker: Player, defender: Player): BlockAnalysis {
     const declared =
       this.multipleBlockState?.attackerId === attacker.id
@@ -292,15 +252,9 @@ export abstract class BlockActivation extends BlockRerolls {
         : undefined;
     return declared
       ? { ...declared }
-      : this.blockValidator.analyzeBlock(
-          attacker,
-          defender,
-          this.allPlayers(),
-          this.state.activeTeamId
-        );
+      : this.blockValidator.analyzeBlock({ attacker: attacker, defender: defender, allPlayers: this.allPlayers(), activeTeamId: this.state.activeTeamId });
   }
 
-  /** Frenzy's second block, if the target is still standing and adjacent. */
   public async frenzySecondBlock(
     attackerId: string,
     defenderId: string,
@@ -318,8 +272,7 @@ export abstract class BlockActivation extends BlockRerolls {
       gs?.finishBlockActivation(attackerId);
       return;
     }
-    // During a Blitz the second block costs a square too, Rushing if
-    // needed; without one there is no second block.
+
     if (
       this.isBlitzBlock(attacker) &&
       gs &&
@@ -334,12 +287,6 @@ export abstract class BlockActivation extends BlockRerolls {
     await this.startBlock(attackerId, defenderId);
   }
 
-  /**
-   * Defender surfed: the blocker is still offered the follow-up into
-   * the vacated square. Queued at the BACK so the crowd injury +
-   * throw-in settle first — the ball must be at rest and the follow-up
-   * answered before the activation (and possibly the turn) ends
-   */
   protected followUpCrowdSurf(
     attackerId: string,
     vacated: { x: number; y: number }
@@ -349,7 +296,6 @@ export abstract class BlockActivation extends BlockRerolls {
     if (this.multipleBlockState?.attackerId === attackerId) {
       this.queueMultipleBlockContinuation(attackerId);
     } else if (attacker && this.isBallAndChain(attacker)) {
-      // The Fanatic lurches on into the emptied square, no prompt
       flowManager?.add(new ForcedFollowUpOperation(attackerId, vacated));
       flowManager?.add(new FinishBlockOperation(attackerId));
     } else {
@@ -357,10 +303,6 @@ export abstract class BlockActivation extends BlockRerolls {
     }
   }
 
-  /**
-   * The push has landed: Frenzy's extra Block, a forced follow-up, or the
-   * end of an activation no follow-up prompt will end.
-   */
   protected endPushedBlock(
     chain: {
       attackerId: string;
@@ -373,11 +315,7 @@ export abstract class BlockActivation extends BlockRerolls {
   ): void {
     const { attackerId } = chain;
     const flowManager = this.callbacks.getFlowManager?.();
-    // Frenzy's first block: force the follow-up into the vacated square and,
-    // if the target is still Standing, throw a mandatory second Block at the
-    // same player. Queued at the BACK so a POW's armour/injury settle first;
-    // FrenzyOperation then follows up and blocks again if able. The completed
-    // sequence can resume a Blitz's movement.
+
     if (chain.frenzy) {
       flowManager?.add(
         new FrenzyOperation(
@@ -389,17 +327,12 @@ export abstract class BlockActivation extends BlockRerolls {
         )
       );
     } else if (chain.forceFollowUp) {
-      // Taunt, or Frenzy's second (extra) block: run the free follow-up now
-      // at the FRONT and complete the Block once everything has settled.
-      // No follow-up prompt will fire.
       flowManager?.add(
         new ForcedFollowUpOperation(attackerId, first.from),
         true
       );
       flowManager?.add(new FinishBlockOperation(attackerId));
     } else if (chain.preventFollowUp) {
-      // Fend denied the follow-up. Complete the Block at the BACK, once any
-      // queued armour/injury rolls have settled.
       if (this.multipleBlockState?.attackerId === attackerId) {
         this.queueMultipleBlockContinuation(attackerId);
       } else {
@@ -408,14 +341,13 @@ export abstract class BlockActivation extends BlockRerolls {
     }
   }
 
-  /** Squares a Hit and Run move may end in (leaving nobody marked). */
   public hitAndRunSquares(player: Player): { x: number; y: number }[] {
     const from = player.gridPosition;
     if (!from) return [];
     const standingOpponents = this.allPlayers().filter(
       (p) => p.teamId !== player.teamId && p.status === PlayerStatus.ACTIVE
     );
-    // Not Marked by / Marking: no standing opponent adjacent to the square.
+
     const free = (pos: { x: number; y: number }) =>
       onPitch(pos) &&
       !this.getPlayerAt(pos.x, pos.y) &&
@@ -435,7 +367,6 @@ export abstract class BlockActivation extends BlockRerolls {
     return squares;
   }
 
-  /** Offer Hit and Run's free move, then end the activation. */
   public async resolveHitAndRun(attackerId: string): Promise<void> {
     const gs = this.callbacks.getFlowManager?.()?.context.gameService;
     const attacker = this.getPlayerById(attackerId);
@@ -462,8 +393,9 @@ export abstract class BlockActivation extends BlockRerolls {
       use = answer.accept;
     }
 
-    if (use) {
-      this.freeMove(attacker, squares[0]);
+    const square = squares[0];
+    if (use && square) {
+      this.freeMove(attacker, square);
       this.eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: attackerId,
         skill: SkillType.HIT_AND_RUN,
@@ -473,7 +405,6 @@ export abstract class BlockActivation extends BlockRerolls {
     gs?.finishActivation(attackerId);
   }
 
-  /** Move a player to an adjacent square (no dice/cost), carrying the ball. */
   private freeMove(player: Player, to: { x: number; y: number }): void {
     const from = { ...player.gridPosition! };
     player.gridPosition = { ...to };
@@ -487,12 +418,20 @@ export abstract class BlockActivation extends BlockRerolls {
       from,
       to: { ...to },
       path: [from, { ...to }],
-      ballFrom: carriedBall ? from : undefined,
-      ballPath: carriedBall ? [from, { ...to }] : undefined,
+      ...(carriedBall ? { ballFrom: from, ballPath: [from, { ...to }] } : {}),
       ballJoinStep: 0,
     });
     this.callbacks
       .getFlowManager?.()
       ?.context.gameService.checkForTouchdown(player.id);
   }
+}
+
+function snapshotPlayer(player: Player): Player {
+  const { gridPosition, conditions, ...rest } = player;
+  return {
+    ...rest,
+    ...(gridPosition ? { gridPosition: { ...gridPosition } } : {}),
+    ...(conditions ? { conditions: [...conditions] } : {}),
+  };
 }

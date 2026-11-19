@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import {
   Link,
   MemoryRouter,
@@ -11,30 +12,31 @@ import { FirebaseError } from "firebase/app";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MainMenu } from "../../src/ui/components/pages/MainMenu";
 
-/**
- * The menu's sign-in, through the real auth module with the Firebase SDK
- * faked. As in the real SDK, a new account is announced to auth listeners
- * before its call returns, and before the link to prove its email is sent.
- */
 const sdk = vi.hoisted(() => {
-  type FakeUser = {
+  interface FakeUser {
     uid: string;
     displayName: null;
     email: string;
     emailVerified: boolean;
     photoURL: null;
-  };
-  type Deferred<T> = {
+  }
+  interface Deferred<T> {
     resolve: (value: T) => void;
     reject: (error: Error) => void;
-  };
+  }
   const deferred = <T,>(list: Deferred<T>[]) =>
     new Promise<T>((resolve, reject) => list.push({ resolve, reject }));
-  const state = {
-    current: null as FakeUser | null,
-    onChange: (_user: FakeUser | null) => {},
-    popups: [] as Deferred<{ user: FakeUser }>[],
-    links: [] as Deferred<void>[],
+  interface FakeAuthState {
+    current: FakeUser | null;
+    onChange: (user: FakeUser | null) => void;
+    popups: Deferred<{ user: FakeUser }>[];
+    links: Deferred<void>[];
+  }
+  const state: FakeAuthState = {
+    current: null,
+    onChange: () => {},
+    popups: new Array<Deferred<{ user: FakeUser }>>(),
+    links: new Array<Deferred<void>>(),
   };
   const announce = (user: FakeUser | null) => {
     state.current = user;
@@ -62,11 +64,11 @@ vi.mock("../../src/firebase/config", async (importOriginal) => ({
 
 vi.mock("firebase/auth", () => ({
   GoogleAuthProvider: class {},
-  onAuthStateChanged: (_auth: unknown, listener: () => void) => {
+  onAuthStateChanged: (_auth: unknown, listener: (user: unknown) => void) => {
     sdk.state.onChange = listener;
     listener(sdk.state.current);
   },
-  // Settled by the test, which announces the coach apart
+
   signInWithPopup: () => sdk.deferred(sdk.state.popups),
   createUserWithEmailAndPassword: async (_auth: unknown, email: string) => {
     const user = sdk.coach(email);
@@ -76,7 +78,9 @@ vi.mock("firebase/auth", () => ({
   sendEmailVerification: () => sdk.deferred(sdk.state.links),
   signInWithEmailAndPassword: vi.fn(),
   sendPasswordResetEmail: vi.fn(),
-  signOut: async () => sdk.announce(null),
+  signOut: async () => {
+    sdk.announce(null);
+  },
 }));
 
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
@@ -94,12 +98,11 @@ function Elsewhere() {
   );
 }
 
-/** Set a controlled input the way a typing coach would. */
 function typeInto(input: HTMLInputElement, value: string) {
-  Object.getOwnPropertyDescriptor(
+  fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
     window.HTMLInputElement.prototype,
     "value"
-  )!.set!.call(input, value);
+  )).set).call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
@@ -124,15 +127,15 @@ describe("signing in from the main menu", () => {
   const createAccount = async (email = "coach@example.com") => {
     await click("New here? Create an account");
     await act(async () => {
-      typeInto(container.querySelector('input[type="email"]')!, email);
+      typeInto(fixtureValue(container.querySelector('input[type="email"]')), email);
       typeInto(
-        container.querySelector('input[type="password"]')!,
+        fixtureValue(container.querySelector('input[type="password"]')),
         "tackle-zone-7"
       );
     });
     await act(async () => {
-      container
-        .querySelector("form")!
+      fixtureValue(container
+        .querySelector("form"))
         .dispatchEvent(
           new Event("submit", { bubbles: true, cancelable: true })
         );
@@ -146,7 +149,7 @@ describe("signing in from the main menu", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () =>
+    await act(async () => {
       root.render(
         <MemoryRouter>
           <Routes>
@@ -154,12 +157,14 @@ describe("signing in from the main menu", () => {
             <Route path="*" element={<Elsewhere />} />
           </Routes>
         </MemoryRouter>
-      )
-    );
+      );
+    });
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -171,20 +176,25 @@ describe("signing in from the main menu", () => {
 
     await click("Join Game");
     expect(dialog()).not.toBeNull();
-    // The cancelled attempt's Google window comes back now
+
     const late = sdk.coach("late@example.com");
-    await act(async () => sdk.state.popups[0].resolve({ user: late }));
+    await act(async () => {
+      fixtureValue(sdk.state.popups[0]).resolve({ user: late });
+    });
     expect(dialog()).not.toBeNull();
 
-    // Joining goes ahead once that coach is signed in
-    await act(async () => sdk.announce(late));
+    await act(async () => {
+      sdk.announce(late);
+    });
     expect(where()).toBe("/online/join");
   });
 
   it("says when the link to confirm a new email did not send, and sends it again", async () => {
     await click("Sign in");
     await createAccount();
-    await act(async () => sdk.state.links[0].reject(TOO_MANY));
+    await act(async () => {
+      fixtureValue(sdk.state.links[0]).reject(TOO_MANY);
+    });
 
     expect(dialog()).toBeNull();
     expect(container.textContent).toContain(
@@ -192,7 +202,9 @@ describe("signing in from the main menu", () => {
     );
 
     await click("Send the link again");
-    await act(async () => sdk.state.links[1].resolve());
+    await act(async () => {
+      fixtureValue(sdk.state.links[1]).resolve();
+    });
     expect(container.textContent).toContain(
       "A new link to confirm your email is on its way."
     );
@@ -201,10 +213,14 @@ describe("signing in from the main menu", () => {
   it("reports only the newest send when two overlap", async () => {
     await click("Sign in");
     await createAccount();
-    // The first link is still on its way when the coach asks again
+
     await click("Send the link again");
-    await act(async () => sdk.state.links[1].resolve());
-    await act(async () => sdk.state.links[0].reject(TOO_MANY));
+    await act(async () => {
+      fixtureValue(sdk.state.links[1]).resolve();
+    });
+    await act(async () => {
+      fixtureValue(sdk.state.links[0]).reject(TOO_MANY);
+    });
 
     expect(container.textContent).toContain(
       "A new link to confirm your email is on its way."
@@ -214,15 +230,21 @@ describe("signing in from the main menu", () => {
   it("keeps another account's late send off the coach signed in now", async () => {
     await click("Sign in");
     await createAccount("first@example.com");
-    await act(async () => sdk.state.links[0].resolve());
+    await act(async () => {
+      fixtureValue(sdk.state.links[0]).resolve();
+    });
     await click("Send the link again");
     await click("Sign out");
 
     await click("Sign in");
     await createAccount("second@example.com");
-    await act(async () => sdk.state.links[2].reject(TOO_MANY));
-    // The first account's resend lands after the second's failed
-    await act(async () => sdk.state.links[1].resolve());
+    await act(async () => {
+      fixtureValue(sdk.state.links[2]).reject(TOO_MANY);
+    });
+
+    await act(async () => {
+      fixtureValue(sdk.state.links[1]).resolve();
+    });
 
     expect(container.textContent).toContain(
       "The link to confirm your email did not send"
@@ -232,10 +254,12 @@ describe("signing in from the main menu", () => {
   it("still reports a failed link after Host Game has moved on", async () => {
     await click("Host Game");
     await createAccount();
-    // The new account is announced before its link is sent
+
     expect(where()).toBe("/online/host");
 
-    await act(async () => sdk.state.links[0].reject(TOO_MANY));
+    await act(async () => {
+      fixtureValue(sdk.state.links[0]).reject(TOO_MANY);
+    });
     await click("Back");
     expect(container.textContent).toContain(
       "The link to confirm your email did not send"

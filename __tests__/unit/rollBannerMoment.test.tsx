@@ -1,5 +1,5 @@
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
@@ -17,31 +17,34 @@ vi.mock("../../src/services/ServiceContainer", () => ({
   },
 }));
 
-/** The roll banner and a match moment banner share the spot. */
 describe("RollBanner under a match moment", () => {
   let container: HTMLDivElement;
   let root: Root;
   let bus: EventBus;
   const banner = () =>
-    container.querySelector('[data-testid="roll-banner"]')?.textContent ??
-    null;
-  const throwArmour = (seq: number, stage: "queued" | "thrown") =>
+    container.querySelector('[data-testid="roll-banner"]')?.textContent ?? null;
+  const throwArmour = (seq: number, stage: "queued" | "thrown") => {
     bus.emit(GameEventNames.UI_DiceThrow, {
       seq,
       rollType: "Armour Roll (Grimgor)",
       stage,
     });
+  };
 
   beforeEach(async () => {
     bus = new EventBus();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () => root.render(<RollBanner eventBus={bus} />));
+    await act(async () => {
+      root.render(<RollBanner eventBus={bus} />);
+    });
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 

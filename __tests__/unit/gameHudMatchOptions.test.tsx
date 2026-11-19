@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
@@ -8,13 +9,6 @@ import { GamePhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import * as MatchSaveRepository from "../../src/game/persistence/MatchSaveRepository";
 
-// GameHUD mounts a large tree of sibling HUD widgets that each expect their
-// own slice of live game state. This test is only about the in-match
-// options menu's wiring (which context it derives from mode/onlineMenu, and
-// what handleMenuSelect does with a selection) so every other widget is
-// stubbed to a no-op — computeMatchOptionsMenu.test.ts and
-// matchOptionsMenuComponent.test.tsx already cover the menu's own content
-// and behavior in isolation.
 vi.mock("../../src/ui/components/hud/TurnIndicator", () => ({
   TurnIndicator: () => null,
 }));
@@ -82,7 +76,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 import {
   GameHUD,
-  OnlineMatchMenuProps,
+  type OnlineMatchMenuProps,
 } from "../../src/ui/components/hud/GameHUD";
 
 describe("GameHUD match options menu wiring", () => {
@@ -115,31 +109,32 @@ describe("GameHUD match options menu wiring", () => {
     vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
     vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
       gameService,
-      // GameHUD also mounts MatchResultsScreen, whose effects subscribe to
-      // this unconditionally (see match-results-screen).
+
       eventBus,
     } as any);
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.restoreAllMocks();
   });
 
   const openMenu = async () => {
-    const trigger = container.querySelector<HTMLButtonElement>(
+    const trigger = fixtureValue(container.querySelector<HTMLButtonElement>(
       'button[aria-haspopup="menu"]'
-    )!;
+    ));
     await act(async () => {
       trigger.click();
     });
   };
 
   const clickEntry = async (text: string) => {
-    const button = [
+    const button = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-    ].find((b) => b.textContent?.includes(text))!;
+    ].find((b) => b.textContent?.includes(text)));
     await act(async () => {
       button.click();
     });
@@ -182,14 +177,13 @@ describe("GameHUD match options menu wiring", () => {
     await openMenu();
     await clickEntry("Abandon Match");
 
-    // Still unconfirmed — no navigation or save-clearing yet.
     expect(clearSpy).not.toHaveBeenCalled();
     expect(navigateMock).not.toHaveBeenCalled();
     expect(container.textContent).toContain("cannot be resumed");
 
-    const confirmButton = [
+    const confirmButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent === "Abandon Match")!;
+    ].find((b) => b.textContent === "Abandon Match"));
     await act(async () => {
       confirmButton.click();
     });
@@ -218,16 +212,13 @@ describe("GameHUD match options menu wiring", () => {
 
     await openMenu();
     await clickEntry("Abandon Match");
-    const confirmButton = [
+    const confirmButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent === "Abandon Match")!;
+    ].find((b) => b.textContent === "Abandon Match"));
     await act(async () => {
       confirmButton.click();
     });
 
-    // navigate() threw before clearMatchSave() ran — the save must survive,
-    // and the coach must hear about it rather than the click silently
-    // vanishing.
     expect(clearSpy).not.toHaveBeenCalled();
     expect(notified).toEqual([
       "That didn't go through — you're still in the match. Try again.",
@@ -282,19 +273,18 @@ describe("GameHUD match options menu wiring", () => {
     await openMenu();
     expect(container.textContent).toContain("Save & Exit");
     expect(container.textContent).not.toContain("Abandon Match");
-    // Host is not shown the disabled/guest-only leave path.
+
     expect(container.textContent).not.toContain("Leave Match");
     await clickEntry("Save & Exit");
     expect(onSaveAndExit).toHaveBeenCalledTimes(1);
-    // Save & Exit is not destructive, so it acted immediately without a
-    // navigate() call of its own — GameHUD delegates entirely to the callback.
+
     expect(navigateMock).not.toHaveBeenCalled();
 
     await openMenu();
     await clickEntry("End Match");
-    const confirmButton = [
+    const confirmButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent === "Propose Ending")!;
+    ].find((b) => b.textContent === "Propose Ending"));
     await act(async () => {
       confirmButton.click();
     });
@@ -329,11 +319,9 @@ describe("GameHUD match options menu wiring", () => {
     expect(container.textContent).toMatch(/waiting to reconnect/i);
     expect(container.textContent).not.toContain("End Match (Opponent Left)");
 
-    // Host-only action: visible, disabled, and its reason is communicated —
-    // clicking it does nothing.
-    const hostOnlySave = [
+    const hostOnlySave = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent?.includes("Save & Exit"))!;
+    ].find((b) => b.textContent?.includes("Save & Exit")));
     expect(hostOnlySave.disabled).toBe(true);
     expect(hostOnlySave.textContent).toMatch(/only the host/i);
     await act(async () => {
@@ -341,12 +329,11 @@ describe("GameHUD match options menu wiring", () => {
     });
     expect(onSaveAndExit).not.toHaveBeenCalled();
 
-    const statusRow = [
+    const statusRow = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent?.match(/waiting to reconnect/i))!;
+    ].find((b) => /waiting to reconnect/i.exec(b.textContent)));
     expect(statusRow.disabled).toBe(true);
 
-    // Reconnect is a live, actionable entry while disconnected.
     await clickEntry("Try to Reconnect");
     expect(onReconnect).toHaveBeenCalledTimes(1);
   });
@@ -375,8 +362,6 @@ describe("GameHUD match options menu wiring", () => {
     await openMenu();
     expect(container.textContent).not.toContain("End Match (Opponent Left)");
 
-    // Live prop change (as OnlinePlayPage would push once the abandon grace
-    // elapses) must be reflected without remounting — task 3.3.
     await act(async () => {
       root.render(
         <MemoryRouter>
@@ -391,9 +376,9 @@ describe("GameHUD match options menu wiring", () => {
 
     expect(container.textContent).toContain("End Match (Opponent Left)");
     await clickEntry("End Match (Opponent Left)");
-    const confirmButton = [
+    const confirmButton = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((b) => b.textContent === "End Match")!;
+    ].find((b) => b.textContent === "End Match"));
     await act(async () => {
       confirmButton.click();
     });
@@ -414,33 +399,27 @@ describe("GameHUD match options menu wiring", () => {
         );
       });
 
-      // No standalone sound controls anywhere on the HUD before the menu is
-      // even opened: mute and volume exist only inside Match Options.
       expect(container.querySelector('input[type="checkbox"]')).toBeNull();
       expect(container.querySelector('input[type="range"]')).toBeNull();
 
       await openMenu();
 
-      const muteCheckbox = [
+      const muteCheckbox = fixtureValue([
         ...container.querySelectorAll<HTMLInputElement>(
           'input[type="checkbox"]'
         ),
-      ].find((el) => el.closest("label")?.textContent?.includes("Mute sound"))!;
-      const volumeSlider = container.querySelector<HTMLInputElement>(
+      ].find((el) => el.closest("label")?.textContent?.includes("Mute sound")));
+      const volumeSlider = fixtureValue(container.querySelector<HTMLInputElement>(
         'input[type="range"]'
-      )!;
+      ));
       expect(muteCheckbox).toBeTruthy();
       expect(volumeSlider).toBeTruthy();
-      // It's an inline control, not a selectable/clickable menu action row.
+
       expect(muteCheckbox.closest('[role="menuitem"]')).toBeNull();
 
-      // Reachable via Arrow-key navigation, not just present in the DOM:
-      // local/active-match context is [return-to-menu, abandon-match, panel],
-      // so the mute checkbox is two ArrowDowns past the initially-focused
-      // first action row.
-      const menuRoot = container.querySelector('[role="menu"]')!;
+      const menuRoot = fixtureValue(container.querySelector('[role="menu"]'));
       const firstItem =
-        container.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
+        fixtureValue(container.querySelector<HTMLButtonElement>('[role="menuitem"]'));
       expect(document.activeElement).toBe(firstItem);
       await act(async () => {
         menuRoot.dispatchEvent(
@@ -454,30 +433,27 @@ describe("GameHUD match options menu wiring", () => {
       });
       expect(document.activeElement).toBe(muteCheckbox);
 
-      // Reads/writes the same persisted store useSoundSettings/SoundToggle
-      // always used (task 3.4) — nothing new was invented for the relocation.
       expect(muteCheckbox.checked).toBe(false);
       await act(async () => {
         muteCheckbox.click();
       });
       expect(muteCheckbox.checked).toBe(true);
-      expect(JSON.parse(localStorage.getItem("bb-sound-settings")!).muted).toBe(
+      expect(JSON.parse(fixtureValue(localStorage.getItem("bb-sound-settings"))).muted).toBe(
         true
       );
 
-      const nativeValueSetter = Object.getOwnPropertyDescriptor(
+      const nativeValueSetter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype,
         "value"
-      )!.set!;
+      )).set);
       await act(async () => {
         nativeValueSetter.call(volumeSlider, "0.25");
         volumeSlider.dispatchEvent(new Event("input", { bubbles: true }));
       });
       expect(
-        JSON.parse(localStorage.getItem("bb-sound-settings")!).volume
+        JSON.parse(fixtureValue(localStorage.getItem("bb-sound-settings"))).volume
       ).toBeCloseTo(0.25);
 
-      // Closing the menu leaves no popup behind anywhere on the HUD.
       await act(async () => {
         menuRoot.dispatchEvent(
           new KeyboardEvent("keydown", { key: "Escape", bubbles: true })

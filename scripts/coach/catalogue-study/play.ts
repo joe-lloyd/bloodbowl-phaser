@@ -20,12 +20,13 @@ export async function playStudyGame(
   suppliedCoaches?: [Coach, Coach]
 ): Promise<StudyGame> {
   const started = Date.now();
-  const [team1, team2] = job.templates.map((id, i) =>
+  const side = (i: 0 | 1) =>
     stabilizeIds(
-      suppliedTeams?.[i] ?? createComputerTeamFromTemplate(id),
-      `team${i + 1}`
-    )
-  );
+      suppliedTeams?.[i] ?? createComputerTeamFromTemplate(job.templates[i]),
+      `team${String(i + 1)}`
+    );
+  const team1 = side(0);
+  const team2 = side(1);
   const game = new HeadlessGame({
     seed: job.seed,
     team1,
@@ -52,8 +53,7 @@ export async function playStudyGame(
     inducements: false,
   });
   const observed = telemetry.snapshot();
-  // The initial save is essential: runMatch's generic recording does not
-  // serialize supplied catalogue teams or their unequal reroll banks.
+
   mkdirSync(join(out, "traces"), { recursive: true });
   writeFileSync(
     join(out, "traces", `${job.id}.json.gz`),

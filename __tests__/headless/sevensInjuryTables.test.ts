@@ -1,17 +1,15 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
-import { GameOperation } from "../../src/game/core/GameOperation";
+import type { GameOperation } from "../../src/game/core/GameOperation";
 import { SCENARIOS } from "../../src/data/scenarios";
-import { InjuryType, Player, PlayerStatus } from "../../src/types/Player";
+import { InjuryType, type Player, PlayerStatus } from "../../src/types/Player";
 import { SkillType, getSkill } from "../../src/types/Skills";
 
-/**
- * Sevens injury tables I1-I5 (docs/SEVENS_RULES.md): one 2D6 roll decides
- * everything. There is no D16 Casualty Roll and no Lasting Injury.
- */
-
-const scrimmage = SCENARIOS.find((s) => s.id === "basic-scrimmage")!;
+const scrimmage = fixtureValue(
+  SCENARIOS.find((s) => s.id === "basic-scrimmage")
+);
 
 async function injure(
   total: number,
@@ -19,20 +17,20 @@ async function injure(
 ): Promise<{ game: HeadlessGame; player: Player; d16: number }> {
   const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
   const player = game.ctx.team1.players[0];
-  if (opts.stunty) player.skills.push(getSkill(SkillType.STUNTY));
+  if (opts.stunty) fixtureValue(player).skills.push(getSkill(SkillType.STUNTY));
   game.ctx.team1.apothecary = !!opts.apothecary;
   const dice = game.ctx.gameService.getDiceController();
   vi.spyOn(dice, "roll2D6").mockReturnValue(total);
   const d16 = vi.spyOn(dice, "rollD16");
 
-  const op: GameOperation = new InjuryOperation(player.id, {
-    modifier: opts.modifier,
+  const op: GameOperation = new InjuryOperation(fixtureValue(player).id, {
+    ...(opts.modifier === undefined ? {} : { modifier: opts.modifier }),
   });
   game.ctx.gameService.flowManager.add(op, true);
   for (let i = 0; i < 50 && !game.pendingDecision(); i++) {
     await new Promise((resolve) => setImmediate(resolve));
   }
-  return { game, player, d16: d16.mock.calls.length };
+  return { game, player: fixtureValue(player), d16: d16.mock.calls.length };
 }
 
 type Outcome = [status: PlayerStatus, injuries: InjuryType[]];
@@ -56,7 +54,7 @@ describe("Sevens injury tables", () => {
     [12, DEAD],
   ];
   for (const [total, [status, injuries]] of standard) {
-    it(`standard table: ${total} is ${status} ${injuries.join("")}`, async () => {
+    it(`standard table: ${String(total)} is ${status} ${injuries.join("")}`, async () => {
       const { player, d16 } = await injure(total);
       expect(player.status).toBe(status);
       expect(player.injuries).toEqual(injuries);
@@ -74,7 +72,7 @@ describe("Sevens injury tables", () => {
     [12, DEAD],
   ];
   for (const [total, [status, injuries]] of stunty) {
-    it(`Stunty table: ${total} is ${status} ${injuries.join("")}`, async () => {
+    it(`Stunty table: ${String(total)} is ${status} ${injuries.join("")}`, async () => {
       const { player, d16 } = await injure(total, { stunty: true });
       expect(player.status).toBe(status);
       expect(player.injuries).toEqual(injuries);
@@ -94,8 +92,14 @@ describe("Sevens injury tables", () => {
     expect(pending?.type === "apothecary" && pending.casualtyType).toBe(
       "seriously-hurt"
     );
-    vi.spyOn(game.ctx.gameService.getDiceController(), "rollD6").mockReturnValue(4);
-    const response = await game.execute({ type: "use-apothecary", accept: true });
+    vi.spyOn(
+      game.ctx.gameService.getDiceController(),
+      "rollD6"
+    ).mockReturnValue(4);
+    const response = await game.execute({
+      type: "use-apothecary",
+      accept: true,
+    });
     expect(response.ok).toBe(true);
     expect(player.status).toBe(PlayerStatus.RESERVE);
   });

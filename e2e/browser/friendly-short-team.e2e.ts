@@ -1,10 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { confirmPregame } from "../support/pregame";
-/**
- * A friendly takes on no Journeymen (league-treasury spec: exhibition play
- * skips that step). The Human seed team has a player due to Miss Next Game,
- * so in a friendly it sets up with the 6 it has: the checklist counts 6 of
- * 6, nobody joins, and the set-up can be confirmed.
- */
+
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { seedAllRosters } from "../support/seedTeams";
@@ -16,13 +12,11 @@ const OTHER = "Orc Founders";
 test("a short team sets up with the players it has in a friendly", async ({
   page,
 }) => {
-  // A real match from the menu, slow under a full parallel run
   test.setTimeout(240_000);
   await page.setViewportSize({ width: 1280, height: 720 });
   const app = new GameApp(page);
   page.on("dialog", (dialog) => void dialog.accept());
 
-  // As seeded: one Human player misses this game
   await seedAllRosters(page);
   await page.goto("/select-team");
   await page
@@ -36,7 +30,6 @@ test("a short team sets up with the players it has in a friendly", async ({
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
 
-  // The short team kicks, so it sets up first
   await app.rollWeather(45_000);
   await confirmPregame(page);
   const flip = page.getByRole("button", { name: "FLIP COIN" });
@@ -59,11 +52,11 @@ test("a short team sets up with the players it has in a friendly", async ({
   });
 
   const snapshot = await app.bridge.snapshot();
-  const short = snapshot.teams.find((t) => t.name === SHORT)!;
+  const short = fixtureValue(snapshot.teams.find((t) => t.name === SHORT));
   const names = short.players.map(
     (p) => (p as { playerName?: string }).playerName ?? ""
   );
-  expect(names.some((name) => /Journeyman/.test(name))).toBe(false);
+  expect(names.some((name) => name.includes("Journeyman"))).toBe(false);
   expect(short.players).toHaveLength(7);
 
   const select = page
@@ -73,7 +66,7 @@ test("a short team sets up with the players it has in a friendly", async ({
     .locator("optgroup[label=Presets] option")
     .allTextContents();
   await select.selectOption(
-    options.find((o) => /balanced/i.test(o)) ?? options[0]
+    fixtureValue(options.find((o) => /balanced/i.test(o)) ?? options[0])
   );
   await page.getByRole("button", { name: /LOAD/ }).click();
   const checklist = page.getByTestId("setup-checklist");

@@ -1,22 +1,14 @@
-/**
- * useCoachProfile - the current user's coach display name.
- *
- * This is the name shown to opponents in lobbies, chat, and the match, kept
- * separate from the Google account name so the real name is never leaked.
- */
-
 import { useCallback, useEffect, useState } from "react";
 import {
   getCoachName,
   setCoachName as saveCoachName,
   defaultCoachName,
 } from "../../firebase/lobby";
-import { AuthUser } from "../../firebase/auth";
+import { type AuthUser } from "../../firebase/auth";
 
 export interface UseCoachProfile {
-  /** Stored coach name, or null if the user hasn't set one yet */
   coachName: string | null;
-  /** The name actually used in matches (stored name or a safe default) */
+
   effectiveName: string;
   loading: boolean;
   save: (name: string) => Promise<void>;

@@ -1,7 +1,4 @@
-/**
- * Leaving full time: the match save, the online pointer and played games.
- * The shared setup is in matchResultsScreenHarness.tsx.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -9,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { GameEventNames } from "../../src/types/events";
 import { MatchResultsScreen } from "../../src/ui/components/hud/MatchResultsScreen";
 import {
-  OnlineMatch,
+  type OnlineMatch,
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
 import { setMatchSaveRepository } from "../../src/game/persistence/MatchSaveRepository";
@@ -20,7 +17,7 @@ import {
 } from "../../src/game/managers/TeamManager";
 import { resultsHarness, setup } from "./matchResultsScreenHarness";
 
-const clearActiveMatchCode = vi.fn(() => Promise.resolve());
+const clearActiveMatchCode = vi.fn<[uid: string], Promise<void>>(() => Promise.resolve());
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/firebase/lobby")>()),
   clearActiveMatchCode: (uid: string) => clearActiveMatchCode(uid),
@@ -54,10 +51,12 @@ describe("MatchResultsScreen", () => {
     } as unknown as OnlineMatch);
     try {
       await h.render();
-      const exit = [...h.container.querySelectorAll("button")].find((b) =>
+      const exit = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("Continue to Main Menu")
-      )!;
-      await act(async () => exit.click());
+      ));
+      await act(async () => {
+        exit.click();
+      });
       expect(clear).toHaveBeenCalledTimes(1);
     } finally {
       setActiveOnlineMatch(null);
@@ -77,10 +76,12 @@ describe("MatchResultsScreen", () => {
     try {
       await h.render();
       expect(clearActiveMatchCode).not.toHaveBeenCalled();
-      const exit = [...h.container.querySelectorAll("button")].find((b) =>
+      const exit = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("Continue to Main Menu")
-      )!;
-      await act(async () => exit.click());
+      ));
+      await act(async () => {
+        exit.click();
+      });
       expect(clearActiveMatchCode).toHaveBeenCalledWith("coach-uid");
     } finally {
       setActiveOnlineMatch(null);
@@ -92,19 +93,23 @@ describe("MatchResultsScreen", () => {
     saveTeams([structuredClone(team1), structuredClone(team2)]);
     const leaveFullTime = async () => {
       await h.render();
-      const exit = [...h.container.querySelectorAll("button")].find((b) =>
+      const exit = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("Continue to Main Menu")
-      )!;
-      await act(async () => exit.click());
+      ));
+      await act(async () => {
+        exit.click();
+      });
     };
     await leaveFullTime();
-    // A reload mounts a fresh results screen on the restored match
-    await act(async () => h.root.unmount());
+
+    await act(async () => {
+      h.root.unmount();
+    });
     h.root = createRoot(h.container);
     await leaveFullTime();
 
     expect(
-      loadTeams().find((team) => team.id === "team-1")!.playedGames
+      fixtureValue(loadTeams().find((team) => team.id === "team-1")).playedGames
     ).toHaveLength(1);
   });
 
@@ -115,13 +120,15 @@ describe("MatchResultsScreen", () => {
     saveTeams([structuredClone(team1), structuredClone(team2)]);
 
     await h.render();
-    const exit = [...h.container.querySelectorAll("button")].find((b) =>
+    const exit = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
       b.textContent?.includes("Continue to Main Menu")
-    )!;
-    await act(async () => exit.click());
+    ));
+    await act(async () => {
+      exit.click();
+    });
 
     const played = (id: string) =>
-      loadTeams().find((team) => team.id === id)!.playedGames;
+      fixtureValue(loadTeams().find((team) => team.id === id)).playedGames;
     expect(played("team-1")).toMatchObject([
       {
         kind: "local",
@@ -140,14 +147,14 @@ describe("MatchResultsScreen", () => {
     let cache = [structuredClone(team1), structuredClone(team2)];
     setTeamRepository({
       loadTeams: () => cache,
-      // A cloud write that never settles, as it does with no connection
+
       saveTeams: (teams) => {
         cache = teams;
         return new Promise(() => {});
       },
       deleteTeam: () => {},
     });
-    await act(async () =>
+    await act(async () => {
       h.root.render(
         <MemoryRouter initialEntries={["/play"]}>
           <Routes>
@@ -155,12 +162,14 @@ describe("MatchResultsScreen", () => {
             <Route path="/" element={<p>Main menu</p>} />
           </Routes>
         </MemoryRouter>
-      )
-    );
-    const exit = [...h.container.querySelectorAll("button")].find((b) =>
+      );
+    });
+    const exit = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
       b.textContent?.includes("Continue to Main Menu")
-    )!;
-    await act(async () => exit.click());
+    ));
+    await act(async () => {
+      exit.click();
+    });
     expect(h.container.textContent).toContain("Main menu");
   });
 
@@ -189,34 +198,36 @@ describe("MatchResultsScreen", () => {
     vi.spyOn(services.matchStats, "summary").mockReturnValue({
       progressionEnabled: false,
       players: [
-        line(fallen.id, "team-1", { touchdowns: 1, injuriesSuffered: 1 }),
-        line(team2.players[0].id, "team-2"),
+        line(fixtureValue(fallen).id, "team-1", { touchdowns: 1, injuriesSuffered: 1 }),
+        line(fixtureValue(team2.players[0]).id, "team-2"),
       ],
     });
-    // A dead league player has already left the stored roster
+
     const stored = structuredClone(team1);
-    stored.players = stored.players.filter((p) => p.id !== fallen.id);
+    stored.players = stored.players.filter((p) => p.id !== fixtureValue(fallen).id);
     saveTeams([stored, structuredClone(team2)]);
 
     await h.render();
-    const exit = [...h.container.querySelectorAll("button")].find((b) =>
+    const exit = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
       b.textContent?.includes("Continue to Main Menu")
-    )!;
-    await act(async () => exit.click());
+    ));
+    await act(async () => {
+      exit.click();
+    });
 
-    const played = loadTeams().find(
+    const played = fixtureValue(fixtureValue(loadTeams().find(
       (team) => team.id === "team-1"
-    )!.playedGames!;
-    expect(played[0].players).toMatchObject([
-      { playerId: fallen.id, touchdowns: 1, injured: true },
+    )).playedGames);
+    expect(fixtureValue(played[0]).players).toMatchObject([
+      { playerId: fixtureValue(fallen).id, touchdowns: 1, injured: true },
     ]);
   });
 
   it("keeps the played game when a later save of the team fails", async () => {
     const { services, state, team1, team2 } = setup(true);
     state.score["team-1"] = 1;
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team1.players[0]).id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team2.players[0]).id);
     let cache = [structuredClone(team1), structuredClone(team2)];
     let fail = false;
     setTeamRepository({
@@ -231,20 +242,26 @@ describe("MatchResultsScreen", () => {
     });
     await h.render();
     const button = (text: string) =>
-      [...h.container.querySelectorAll("button")].find((b) =>
+      fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes(text)
-      )!;
+      ));
     for (const roll of [...h.container.querySelectorAll("button")].filter((b) =>
       b.textContent?.includes("Roll MVP D6")
     ))
-      await act(async () => roll.click());
-    await act(async () => button("Confirm and assign SPP").click());
-    // The exit saves the teams again, and this time the cloud is down
+      await act(async () => {
+        roll.click();
+      });
+    await act(async () => {
+      button("Confirm and assign SPP").click();
+    });
+
     fail = true;
-    await act(async () => button("Continue to Main Menu").click());
+    await act(async () => {
+      button("Continue to Main Menu").click();
+    });
 
     const played = (id: string) =>
-      cache.find((team) => team.id === id)!.playedGames ?? [];
+      fixtureValue(cache.find((team) => team.id === id)).playedGames ?? [];
     expect(played("team-1")).toHaveLength(1);
     expect(played("team-2")).toHaveLength(1);
   });

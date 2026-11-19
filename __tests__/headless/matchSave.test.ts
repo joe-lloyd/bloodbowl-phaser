@@ -1,3 +1,5 @@
+import { getSkill, SkillType } from "../../src/types/Skills";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
@@ -9,11 +11,11 @@ import {
 import { SCENARIOS } from "../../src/data/scenarios";
 import { GameEventNames } from "../../src/types/events";
 import { InjuryType, PlayerStatus } from "../../src/types/Player";
-import { CompetitionContext } from "../../src/competition/types";
+import { type CompetitionContext } from "../../src/competition/types";
 
-const scrimmage = SCENARIOS.find(
+const scrimmage = fixtureValue(SCENARIOS.find(
   (scenario) => scenario.id === "basic-scrimmage"
-)!;
+));
 
 function saveCurrent(
   game: ReturnType<typeof createHeadlessGame>,
@@ -30,7 +32,7 @@ function saveCurrent(
     rng: game.rng.captureState(),
     matchStats: game.matchStats.captureState(),
     turnManager: game.gameService.captureTurnManagerState(),
-    competition,
+    ...(competition === undefined ? {} : { competition: competition }),
     savedAt,
   });
 }
@@ -51,6 +53,56 @@ describe("resumable match save", () => {
     expect(restored.version).toBe(1);
     expect(restored.savedAt).toBe(1234);
     expect(restored.competition).toEqual(competition);
+  });
+
+  it("restores a save written before the Throw Team-Mate, Kick Team-Mate and Bomb turn limits", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 21 });
+    const save = saveCurrent(game);
+    const older = structuredClone(save);
+    Reflect.deleteProperty(older.snapshot.turn, "hasThrownTeamMate");
+    Reflect.deleteProperty(older.snapshot.turn, "hasKickedTeamMate");
+    Reflect.deleteProperty(older.snapshot.turn, "hasThrownBomb");
+
+    const restored = deserializeMatchSave(serializeMatchSave(older));
+
+    expect(restored.snapshot.turn).toMatchObject({
+      hasThrownTeamMate: false,
+      hasKickedTeamMate: false,
+      hasThrownBomb: false,
+    });
+  });
+
+  it("restores a save whose players carry keywords the rosters no longer use", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 21 });
+    const save = saveCurrent(game);
+    const older = structuredClone(save);
+    const player = fixtureValue(older.teams[0].players[0]);
+    Reflect.set(player, "keywords", [...player.keywords, "Skink"]);
+
+    const restored = deserializeMatchSave(serializeMatchSave(older));
+
+    expect(fixtureValue(restored.teams[0].players[0]).keywords).toEqual(
+      fixtureValue(save.teams[0].players[0]).keywords
+    );
+  });
+
+  it("restores a save whose drive opened with Solid Defence, now Alert Defence", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 21 });
+    const older = structuredClone(saveCurrent(game));
+    const outcome = { event: "Solid Defence", meaning: "Redeploy", perTeam: {} };
+    Reflect.set(older.snapshot, "kickoffResolution", {
+      roll: 4,
+      event: "Solid Defence",
+      meaning: "Redeploy",
+      outcome,
+    });
+
+    const restored = deserializeMatchSave(serializeMatchSave(older));
+
+    expect(restored.snapshot.kickoffResolution?.event).toBe("Alert Defence");
+    expect(restored.snapshot.kickoffResolution?.outcome.event).toBe(
+      "Alert Defence"
+    );
   });
 
   it("restores the engine's per-team turn counters", () => {
@@ -82,19 +134,19 @@ describe("resumable match save", () => {
   it("preserves full player progression, conditions, and injuries", () => {
     const game = createHeadlessGame({ scenario: scrimmage, seed: 17 });
     const player = game.team1.players[0];
-    player.status = PlayerStatus.PRONE;
-    player.spp = 12;
-    player.injuries = [InjuryType.NIGGLING_INJURY];
-    player.skills = [...player.skills, { type: "Block" } as never];
+    fixtureValue(player).status = PlayerStatus.PRONE;
+    fixtureValue(player).spp = 12;
+    fixtureValue(player).injuries = [InjuryType.NIGGLING_INJURY];
+    fixtureValue(player).skills = [...fixtureValue(player).skills, getSkill(SkillType.BLOCK)];
 
     const resumed = createHeadlessGame({ matchSave: saveCurrent(game) });
-    const restored = resumed.team1.players.find(
-      (candidate) => candidate.id === player.id
-    )!;
+    const restored = fixtureValue(resumed.team1.players.find(
+      (candidate) => candidate.id === fixtureValue(player).id
+    ));
     expect(restored.status).toBe(PlayerStatus.PRONE);
     expect(restored.spp).toBe(12);
     expect(restored.injuries).toEqual([InjuryType.NIGGLING_INJURY]);
-    expect(restored.skills).toEqual(player.skills);
+    expect(restored.skills).toEqual(fixtureValue(player).skills);
   });
 
   it("continues accumulating match statistics after resume", () => {
@@ -106,21 +158,21 @@ describe("resumable match save", () => {
     const passer = game.team1.players[0];
     const catcher = game.team1.players[1];
     game.eventBus.emit(GameEventNames.PassCompleted, {
-      playerId: passer.id,
-      catcherId: catcher.id,
+      playerId: fixtureValue(passer).id,
+      catcherId: fixtureValue(catcher).id,
       position: { x: 1, y: 1 },
     });
 
     const resumed = createHeadlessGame({ matchSave: saveCurrent(game) });
     resumed.eventBus.emit(GameEventNames.PassCompleted, {
-      playerId: passer.id,
-      catcherId: catcher.id,
+      playerId: fixtureValue(passer).id,
+      catcherId: fixtureValue(catcher).id,
       position: { x: 2, y: 1 },
     });
 
-    const stats = resumed.matchStats
+    const stats = fixtureValue(resumed.matchStats
       .summary(resumed.team1.players)
-      .players.find((entry) => entry.playerId === passer.id)!;
+      .players.find((entry) => entry.playerId === fixtureValue(passer).id));
     expect(stats.completions).toBe(2);
   });
 });

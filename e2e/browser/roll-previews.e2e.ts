@@ -17,7 +17,7 @@ test("route shows every roll with its target, and no odds, before a score run", 
   await expect(summary).not.toContainText("%");
   await expect(summary).toContainText("Dodge 3+");
   await expect(summary).toContainText("Rush 2+");
-  // The same targets are tagged on the route squares
+
   expect(await app.bridge.pitchLayers()).toContain("path_roll_label");
   await page.screenshot({ path: test.info().outputPath("route-preview.png") });
   await app.pitch.clickSquare({ x: 19, y: 5 });
@@ -47,19 +47,19 @@ test("a second leg goes straight through when a detour would not fit", async ({
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickSquare({ x: 7, y: 5 });
   await app.pitch.clickSquare({ x: 10, y: 5 });
-  // MA 6 and two Rushes: five squares, then three through the gap
+
   await expect(page.getByTestId("route-summary")).toContainText(
     "Rush 2+Dodge 5+Rush 2+Dodge 5+"
   );
   await page.screenshot({ path: test.info().outputPath("tight-leg.png") });
   await app.pitch.clickSquare({ x: 10, y: 5 });
-  // The unmarked squares are walked, then the board asks before the gap
+
   await expect(
     page.getByRole("heading", { name: /: Rush & Dodge$/ })
   ).toBeVisible({
     timeout: 20_000,
   });
-  // (8,4) is Marked once, (8,5) twice
+
   expect(await app.pitch.squareOf("team1:0")).toEqual({ x: 8, y: 4 });
 });
 
@@ -148,7 +148,7 @@ test("clicking a downed opponent with nothing declared offers a Foul, not a Bloc
     "A double sends the fouler off."
   );
   await expect(page.getByTestId("block-dice-dialog")).toBeHidden();
-  // Backing out leaves the Foul uncommitted, free to become something else
+
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByTestId("confirmation-modal")).toBeHidden();
   const { activePlayer } = await app.bridge.snapshot();
@@ -166,7 +166,7 @@ test("a foul clears its red target square once the foul is over", async ({
   const target = await app.pitch.squareOf("team2:0");
   const highlights = async () =>
     (await app.bridge.pitchLayers()).filter((name) => name === "highlight");
-  // Hovering again redraws the one target square instead of stacking it
+
   await app.pitch.hoverSquare(target);
   await app.pitch.hoverSquare({ x: target.x, y: target.y + 2 });
   await app.pitch.hoverSquare(target);
@@ -190,8 +190,7 @@ test("pass hover shows range, catch and each interception roll", async ({
   const preview = page.getByTestId("target-roll-preview");
   await expect(preview).toContainText(/Long Pass: \d\+/);
   await expect(preview).toContainText(/Catch: \d\+/);
-  // The pass is not thrown yet: the roll against an inaccurate pass, which
-  // the interception dialog would offer then, is named too
+
   await expect(preview).toContainText("Intercept #1: 6+, if inaccurate 5+");
   await expect(preview).not.toContainText("%");
   await page.screenshot({ path: test.info().outputPath("pass-preview.png") });

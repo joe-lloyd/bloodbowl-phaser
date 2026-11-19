@@ -1,3 +1,5 @@
+import { fieldPlayer } from "./fixtures";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -22,7 +24,9 @@ import { createCoachRng } from "../../src/simulation/rng";
 import type { Coach } from "../../src/simulation/coach";
 import { sequenceChance } from "../../src/simulation/ai/chance";
 
-function game(setup: Partial<ScenarioSetup>) {
+function game(
+  setup: Pick<ScenarioSetup, "team1Placements"> & Partial<ScenarioSetup>
+) {
   return new HeadlessGame({
     seed: 1,
     scenario: {
@@ -50,7 +54,7 @@ async function step(subject: HeadlessGame, coach: Coach, seed = 1) {
     point,
     rng: createCoachRng(seed),
   });
-  const command = point.candidates[choice.index].commands[0];
+  const command = fixtureValue(point.candidates[choice.index]).commands[0];
   const result = await subject.execute(command);
   expect(result.ok, JSON.stringify(command)).toBe(true);
   return { command, note: choice.note };
@@ -66,13 +70,19 @@ describe("retained turn plans", () => {
     });
     const [thrower, catcher] = subject.ctx.team1.players;
     const stages = [
-      { player: thrower, rolls: [{ kind: "pass" as const, target: 2 }] },
-      { player: catcher, rolls: [{ kind: "catch" as const, target: 2 }] },
+      {
+        player: fixtureValue(thrower),
+        rolls: [{ kind: "pass" as const, target: 2 }],
+      },
+      {
+        player: fixtureValue(catcher),
+        rolls: [{ kind: "catch" as const, target: 2 }],
+      },
     ];
     expect(sequenceChance(stages, false)).toBeCloseTo(1225 / 1296, 12);
     expect(sequenceChance(stages, true, () => false)).toBeCloseTo(25 / 27, 12);
     const arbiter = subject.ctx.gameService.getRerollArbiter();
-    arbiter.consumeSkillReroll(thrower, SkillType.PASS);
+    arbiter.consumeSkillReroll(fixtureValue(thrower), SkillType.PASS);
     expect(
       sequenceChance(stages, false, (player, skill) =>
         arbiter.skillRerollAvailable(player, skill)
@@ -102,7 +112,7 @@ describe("retained turn plans", () => {
       if (!subject.ctx.gameService.getState().activePlayer) break;
       await step(subject, coach);
     }
-    expect(subject.ctx.team1.players[1].gridPosition?.x).toBe(19);
+    expect(fixtureValue(subject.ctx.team1.players[1]).gridPosition?.x).toBe(19);
   });
 
   it("chooses a useful Pass and Catch scoring transfer over non-scoring progress", async () => {
@@ -131,10 +141,10 @@ describe("retained turn plans", () => {
       action: "pass",
     });
     for (let i = 0; i < 16; i++) {
-      if ((subject.ctx.gameService.getState().score?.team1 ?? 0) > 0) break;
+      if ((subject.ctx.gameService.getState().score["team1"] ?? 0) > 0) break;
       await step(subject, coach);
     }
-    expect(subject.ctx.gameService.getState().score?.team1).toBe(1);
+    expect(subject.ctx.gameService.getState().score["team1"]).toBe(1);
   });
 
   it("offers the actual throw after movement commits the Pass allowance", async () => {
@@ -203,13 +213,11 @@ describe("retained turn plans", () => {
   });
 });
 
-/** The weights Standard plays with when it draws its flank game plan. */
 const FLANK_PLAN = {
   ...DEFAULT_WEIGHTS,
-  ...GAME_PLANS.find((p) => p.name === "flank")!.weights,
+  ...fixtureValue(GAME_PLANS.find((p) => p.name === "flank")).weights,
 };
 
-/** The carrier has acted and stayed put, pressed by the defence. */
 async function pressedCarrier(
   extra: PlayerPlacement[],
   coach: Coach = createPlannerCoach({ weights: FLANK_PLAN }),
@@ -232,21 +240,23 @@ async function pressedCarrier(
   const carrier = subject.ctx.team1.players[0];
   await subject.execute({
     type: "declare-action",
-    playerId: carrier.id,
+    playerId: fixtureValue(carrier).id,
     action: "move",
   });
-  await subject.execute({ type: "end-activation", playerId: carrier.id });
+  await subject.execute({
+    type: "end-activation",
+    playerId: fixtureValue(carrier).id,
+  });
   const declared: string[] = [];
   for (let i = 0; i < 40 && subject.snapshot().activeTeamId === "team1"; i++) {
     const { command, note } = await step(subject, coach, seed);
     if (command.type === "declare-action")
-      declared.push(`${command.playerId}: ${note}`);
+      declared.push(`${command.playerId}: ${String(note)}`);
   }
   return { subject, declared };
 }
 
 describe("a roster's own weights", () => {
-  // Scenario teams are both Human.
   it("plays them for that roster", async () => {
     const { subject, declared } = await pressedCarrier(
       [],
@@ -254,7 +264,7 @@ describe("a roster's own weights", () => {
     );
 
     expect(declared).toEqual([
-      `${subject.ctx.team1.players[1].id}: moves to flank`,
+      `${fixtureValue(subject.ctx.team1.players[1]).id}: moves to flank`,
     ]);
   });
 
@@ -273,8 +283,10 @@ describe("flank setup, under Standard's flank game plan", () => {
     const { subject, declared } = await pressedCarrier([]);
     const runner = subject.ctx.team1.players[1];
 
-    expect(declared).toEqual([`${runner.id}: moves to flank`]);
-    expect(runner.gridPosition!.y).toBeGreaterThanOrEqual(8);
+    expect(declared).toEqual([`${fixtureValue(runner).id}: moves to flank`]);
+    expect(
+      fixtureValue(fixtureValue(runner).gridPosition).y
+    ).toBeGreaterThanOrEqual(8);
   });
 
   it("keeps the runner home for the best planner, which a flank costs", async () => {
@@ -284,7 +296,6 @@ describe("flank setup, under Standard's flank game plan", () => {
   });
 
   it("sends the runner wide when Standard draws its flank game plan", async () => {
-    // Coach seed 6 draws the flank plan, the third of the five.
     const FLANK_SEED = 6;
     const { subject, declared } = await pressedCarrier(
       [],
@@ -293,10 +304,12 @@ describe("flank setup, under Standard's flank game plan", () => {
     );
 
     expect(
-      GAME_PLANS[createCoachRng(FLANK_SEED).int(GAME_PLANS.length)].name
+      fixtureValue(
+        GAME_PLANS[createCoachRng(FLANK_SEED).int(GAME_PLANS.length)]
+      ).name
     ).toBe("flank");
     expect(declared).toEqual([
-      `${subject.ctx.team1.players[1].id}: moves to flank`,
+      `${fixtureValue(subject.ctx.team1.players[1]).id}: moves to flank`,
     ]);
   });
 
@@ -307,15 +320,12 @@ describe("flank setup, under Standard's flank game plan", () => {
     ]);
 
     expect(declared.filter((d) => d.endsWith("moves to flank"))).toEqual([
-      `${subject.ctx.team1.players[1].id}: moves to flank`,
+      `${fixtureValue(subject.ctx.team1.players[1]).id}: moves to flank`,
     ]);
   });
 });
 
 describe("blocks that open the way for our carrier", () => {
-  // Our carrier at (8,5) has acted, marked by one defender at (9,5). Our
-  // player at (10,4) can hit that marker, or a defender at (11,3) standing
-  // in the carrier's lane, three squares ahead.
   async function hitOn(coach: Coach) {
     const subject = game({
       turn: 3,
@@ -331,10 +341,13 @@ describe("blocks that open the way for our carrier", () => {
     const carrier = subject.ctx.team1.players[0];
     await subject.execute({
       type: "declare-action",
-      playerId: carrier.id,
+      playerId: fixtureValue(carrier).id,
       action: "move",
     });
-    await subject.execute({ type: "end-activation", playerId: carrier.id });
+    await subject.execute({
+      type: "end-activation",
+      playerId: fixtureValue(carrier).id,
+    });
     for (let i = 0; i < 6; i++) {
       const { command } = await step(subject, coach);
       if (command.type === "block") return command.defenderId;
@@ -374,7 +387,7 @@ describe("keeping the cage after the carrier moves", () => {
         { playerIndex: 1, x: 4, y: 9 },
       ],
     });
-    const carrier = subject.ctx.team1.players[0];
+    const carrier = fixtureValue(subject.ctx.team1.players[0]);
     await subject.execute({
       type: "declare-action",
       playerId: carrier.id,
@@ -401,8 +414,6 @@ describe("keeping the cage after the carrier moves", () => {
 });
 
 describe("cage walk", () => {
-  // A strength 4 carrier at (8,5) faces a wall at x=11: every square at
-  // x=10 is in contact with one defender, every square at x=9 is clear.
   async function carrierEnd(
     skills: SkillType[],
     w: Partial<Weights>,
@@ -425,7 +436,8 @@ describe("cage walk", () => {
       if (command.type === "end-activation" || command.type === "end-turn")
         break;
     }
-    return subject.ctx.team1.players[0].gridPosition!.x;
+    return fixtureValue(fixtureValue(subject.ctx.team1.players[0]).gridPosition)
+      .x;
   }
 
   it("steps a carrier with Block up to the wall, which a one-die hit rarely downs", async () => {
@@ -437,7 +449,6 @@ describe("cage walk", () => {
   });
 
   it("stops a carrier with Block short of a wall that has Wrestle", async () => {
-    // Wrestle puts a Block carrier down on Both Down, and the ball with it.
     expect(
       await carrierEnd([SkillType.BLOCK], { cageWalk: 1 }, [SkillType.WRESTLE])
     ).toBe(9);
@@ -475,7 +486,7 @@ describe("carrier pace", () => {
     const subject = looseBall();
     const { command } = await step(subject, coach({ carrierPace: 0 }));
     expect(command).toMatchObject({
-      playerId: subject.ctx.team1.players[0].id,
+      playerId: fixtureValue(subject.ctx.team1.players[0]).id,
     });
   });
 
@@ -483,7 +494,7 @@ describe("carrier pace", () => {
     const subject = looseBall();
     const { command } = await step(subject, coach({ carrierPace: 4 }));
     expect(command).toMatchObject({
-      playerId: subject.ctx.team1.players[1].id,
+      playerId: fixtureValue(subject.ctx.team1.players[1]).id,
     });
   });
 
@@ -498,12 +509,14 @@ describe("carrier pace", () => {
       ],
       team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
     });
-    const [picker] = subject.ctx.team1.players;
-    const c = context(
-      readBoard(subject, picker.teamId),
-      { ...DEFAULT_WEIGHTS, carrierPace: 4 },
-      new Map([[picker.id, new Set(["move" as const, "secureBall" as const])]])
-    );
+    const picker = fieldPlayer(subject.ctx.team1.players[0]);
+    const c = context({
+      board: readBoard(subject, picker.teamId),
+      w: { ...DEFAULT_WEIGHTS, carrierPace: 4 },
+      available: new Map([
+        [picker.id, new Set(["move" as const, "secureBall" as const])],
+      ]),
+    });
     const values = [
       ...pickupActivation(c, picker),
       ...secureBallActivations(c, picker),
@@ -530,19 +543,22 @@ describe("carrier pace", () => {
       ],
       team2Placements: [{ playerIndex: 0, x: 17, y: 9 }],
     });
-    const [picker, noBall] = subject.ctx.team1.players;
+    const picker = fieldPlayer(subject.ctx.team1.players[0]);
+    const noBall = fieldPlayer(subject.ctx.team1.players[1]);
     const priced = (carrierPace: number) =>
-      pickupActivation(
-        context(
-          readBoard(subject, picker.teamId),
-          { ...DEFAULT_WEIGHTS, carrierPace },
-          new Map([
-            [picker.id, new Set(["move" as const])],
-            [noBall.id, new Set(["move" as const])],
-          ])
-        ),
-        picker
-      )[0].value;
+      fixtureValue(
+        pickupActivation(
+          context({
+            board: readBoard(subject, picker.teamId),
+            w: { ...DEFAULT_WEIGHTS, carrierPace },
+            available: new Map([
+              [picker.id, new Set(["move" as const])],
+              [noBall.id, new Set(["move" as const])],
+            ]),
+          }),
+          picker
+        )[0]
+      ).value;
     expect(priced(4)).toBe(priced(0));
   });
 
@@ -551,16 +567,17 @@ describe("carrier pace", () => {
     // hand off pays one turn of that; My Ball pays all three.
     const secure = (slowSkills: SkillType[]) => {
       const subject = looseBall(slowSkills);
-      const [slow, quick] = subject.ctx.team1.players;
-      const c = context(
-        readBoard(subject, slow.teamId),
-        { ...DEFAULT_WEIGHTS, carrierPace: 4 },
-        new Map([
+      const slow = fieldPlayer(subject.ctx.team1.players[0]);
+      const quick = fieldPlayer(subject.ctx.team1.players[1]);
+      const c = context({
+        board: readBoard(subject, slow.teamId),
+        w: { ...DEFAULT_WEIGHTS, carrierPace: 4 },
+        available: new Map([
           [slow.id, new Set(["move" as const, "secureBall" as const])],
           [quick.id, new Set(["move" as const])],
-        ])
-      );
-      return secureBallActivations(c, slow)[0];
+        ]),
+      });
+      return fixtureValue(secureBallActivations(c, slow)[0]);
     };
     const plain = secure([]);
     const myBall = secure([SkillType.MY_BALL]);

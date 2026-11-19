@@ -1,34 +1,11 @@
-/**
- * Mass match simulation.
- *
- *   pnpm sim --games 200                         heuristic vs heuristic, every roster
- *   pnpm sim --games 500 --coach random          fuzz with the random coach
- *   pnpm sim --games 4 --home jev --away heuristic --concurrency 4
- *   pnpm sim --rosters Human,Orc --games 20 --record all
- *
- *   pnpm sim:replay sim-results/<run>/<match>.json
- *   pnpm sim:replay <match>.json --step 120          state after step 120
- *   pnpm sim:replay <match>.json --save-at 120 --save-out save.json
- *   pnpm sim:replay <match>.json --step 120 --trim-out fixture.json   regression fixture
- *   pnpm sim:replay <match>.json --html match.html     playback page
- *   pnpm sim --games 20 --html                       playback pages + index.html
- *
- *   pnpm sim bench --coach heuristic --vs random --games 200   mirrored benchmark
- *   pnpm sim tune --generations 20                     hill-climb planner weights
- *
- * Writes `summary.json` plus one recording per match with findings (or every
- * match with `--record all`) to `--out`. Exits non-zero when any match broke
- * an invariant, crashed, stalled or ran out of budget.
- */
-
 import * as os from "node:os";
 import * as path from "node:path";
 import { RosterName } from "../types/Team";
-import { CoachName, fail } from "./commands/shared";
-import { RunOptions, runBatch } from "./commands/run";
+import { type CoachName, fail } from "./commands/shared";
+import { type RunOptions, runBatch } from "./commands/run";
 import { replay } from "./commands/replay";
-import { BenchOptions, benchWorker, runBench } from "./commands/bench";
-import { TuneOptions, runTune, tuneWorker } from "./commands/tune";
+import { type BenchOptions, benchWorker, runBench } from "./commands/bench";
+import { type TuneOptions, runTune, tuneWorker } from "./commands/tune";
 
 function parseCoach(value: string): CoachName {
   if (
@@ -56,7 +33,6 @@ function parseRosters(value: string): RosterName[] {
   });
 }
 
-/** Each flag a subcommand takes; one that needs a value reads it. */
 type Flags<T> = Record<string, (options: T, value: () => string) => void>;
 
 function parseFlags<T>(
@@ -66,18 +42,19 @@ function parseFlags<T>(
   help: string
 ): T {
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--help") {
+    const arg = argv[i] ?? "";
+    if (arg === "--help") {
       process.stdout.write(`${help}\n`);
       process.exit(0);
     }
-    const flag = Object.prototype.hasOwnProperty.call(flags, argv[i])
-      ? flags[argv[i]]
+    const flag = Object.prototype.hasOwnProperty.call(flags, arg)
+      ? flags[arg]
       : undefined;
-    if (!flag) fail(`unknown option ${argv[i]}\n\n${help}`);
+    if (!flag) fail(`unknown option ${arg}\n\n${help}`);
     let taken = false;
     flag(options, () => {
       taken = true;
-      return argv[i + 1] ?? fail(`${argv[i]} needs a value`);
+      return argv[i + 1] ?? fail(`${arg} needs a value`);
     });
     if (taken) i++;
   }
@@ -128,7 +105,7 @@ function parseRunOptions(argv: string[]): RunOptions {
   if (!Number.isInteger(options.games) || options.games < 1)
     fail("--games must be a positive integer");
   if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
-  // Pages are for watching matches, so keep every match unless told otherwise.
+
   if (options.html && !recordChosen) options.record = "all";
   return options;
 }
@@ -204,11 +181,10 @@ function parseBenchOptions(argv: string[]): BenchOptions {
   )
     fail("--games must be an even number of at least 2");
   if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
-  // Each mirrored pair's first roster cycles through the list, so fewer
-  // pairs than rosters would leave some out of the table and the share.
+
   if (options.standards && options.games / 2 < options.rosters.length)
     fail(
-      `--games must be at least ${2 * options.rosters.length} for --standards, one mirrored pair per roster`
+      `--games must be at least ${String(2 * options.rosters.length)} for --standards, one mirrored pair per roster`
     );
   if (
     options.rerolls !== undefined &&
@@ -271,7 +247,7 @@ function parseTuneOptions(argv: string[]): TuneOptions {
     },
     TUNE_HELP
   );
-  // Standards tuning needs a mirrored pair per roster to judge every one.
+
   if (options.objective === "standards" && !gamesGiven)
     options.games = Math.max(options.games, 2 * options.rosters.length);
   for (const [name, n] of [
@@ -283,24 +259,21 @@ function parseTuneOptions(argv: string[]): TuneOptions {
   ] as const)
     if (!Number.isInteger(n) || n < 1)
       fail(`${name} must be a positive integer`);
-  // Match seeds count up from a thousand times this, and must stay distinct.
+
   if (!Number.isInteger(options.seed) || options.seed < 0 || options.seed > 1e9)
     fail("--seed must be an integer from 0 to 1000000000");
   if (options.confirmGames < 4) fail("--confirm must be at least 4");
   if (options.games % 2 || options.confirmGames % 2)
     fail("--games and --confirm must be even: each seed is played twice");
-  // Each mirrored pair's first roster cycles through the list, so a share
-  // over fewer pairs than rosters would skip some of them.
+
   const pairs = Math.min(options.games, options.confirmGames) / 2;
   if (options.objective === "standards" && pairs < options.rosters.length)
     fail(
-      `--games and --confirm must each be at least ${2 * options.rosters.length} for --objective standards, one mirrored pair per roster`
+      `--games and --confirm must each be at least ${String(2 * options.rosters.length)} for --objective standards, one mirrored pair per roster`
     );
   return options;
 }
 
-// The engine narrates every operation on console.log; a batch of matches
-// would bury the report. Errors still reach stderr, and are counted.
 let engineErrors = 0;
 const quiet = () => {};
 console.log = quiet;
@@ -310,12 +283,12 @@ console.warn = quiet;
 const stderrError = console.error.bind(console);
 console.error = (...args: unknown[]) => {
   engineErrors++;
-  if (process.env.SIM_VERBOSE) stderrError(...args);
+  if (process.env["SIM_VERBOSE"]) stderrError(...args);
 };
 process.on("exit", () => {
   if (engineErrors > 0) {
     process.stderr.write(
-      `The engine logged ${engineErrors} console errors (set SIM_VERBOSE=1 to see them).\n`
+      `The engine logged ${String(engineErrors)} console errors (set SIM_VERBOSE=1 to see them).\n`
     );
   }
 });
@@ -337,7 +310,7 @@ run.then(
   (code) => process.exit(code),
   (error) => {
     process.stderr.write(
-      `${error instanceof Error ? error.stack : String(error)}\n`
+      `${String(error instanceof Error ? error.stack : String(error))}\n`
     );
     process.exit(2);
   }

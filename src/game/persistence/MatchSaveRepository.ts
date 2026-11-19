@@ -1,10 +1,11 @@
 import { dropOldestDiceLog } from "./diceLogStore";
 import {
   deserializeMatchSave,
-  MatchSave,
+  type MatchSave,
   MATCH_SAVE_VERSION,
   serializeMatchSave,
 } from "../../headless/serialization";
+import { type StorageLike, browserStorage } from "./browserStorage";
 
 export const MATCH_SAVE_STORAGE_KEY = "bloodbowl_local_match_save";
 export const MATCH_SAVE_FALLBACK_KEY =
@@ -28,20 +29,6 @@ export interface MatchSaveRepository {
   describe(): MatchSaveDescription | null;
 }
 
-interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
-function browserStorage(): StorageLike | null {
-  try {
-    return typeof localStorage === "undefined" ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
-
 export function describeMatchSave(save: MatchSave): MatchSaveDescription {
   const [home, away] = save.teams;
   return {
@@ -57,10 +44,15 @@ export function describeMatchSave(save: MatchSave): MatchSaveDescription {
 }
 
 export class LocalStorageMatchSaveRepository implements MatchSaveRepository {
+  private readonly storage: StorageLike | null;
+  private readonly key: string;
   constructor(
-    private readonly storage: StorageLike | null = browserStorage(),
-    private readonly key = MATCH_SAVE_STORAGE_KEY
-  ) {}
+    storage: StorageLike | null = browserStorage(),
+    key = MATCH_SAVE_STORAGE_KEY
+  ) {
+    this.storage = storage;
+    this.key = key;
+  }
 
   read(): MatchSave | null {
     if (!this.storage) return null;
@@ -90,7 +82,7 @@ export class LocalStorageMatchSaveRepository implements MatchSaveRepository {
         return false;
       }
     };
-    // Old dice logs make room before the resumable save is given up
+
     let saved = fits();
     while (!saved && dropOldestDiceLog(storage)) saved = fits();
     if (saved) return;
@@ -134,7 +126,9 @@ let activeRepository: MatchSaveRepository = localRepository;
 const listeners = new Set<() => void>();
 
 function notify(): void {
-  listeners.forEach((listener) => listener());
+  listeners.forEach((listener) => {
+    listener();
+  });
 }
 
 export function subscribeToMatchSaveChanges(listener: () => void): () => void {

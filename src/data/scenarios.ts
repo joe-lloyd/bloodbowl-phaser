@@ -1,5 +1,5 @@
 import { SkillType } from "../types/Skills";
-import { Scenario } from "../types/Scenario";
+import { type Scenario } from "../types/Scenario";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { RosterName } from "../types/Team";
@@ -9,52 +9,85 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "ux-block-preview",
     name: "Block roll preview",
-    description: "An assisted block against Dodge. The hover and dialog show the same analysis.",
+    description:
+      "An assisted block against Dodge. The hover and dialog show the same analysis.",
     setup: {
-      team1Placements: [{ playerIndex: 0, x: 9, y: 5 }, { playerIndex: 1, x: 11, y: 5 }],
-      team2Placements: [{ playerIndex: 0, x: 10, y: 5, skills: [SkillType.DODGE] }],
-      activeTeam: "team1", phase: GamePhase.PLAY, subPhase: SubPhase.TURN_RECEIVING,
-      team1Roster: RosterName.HUMAN, team2Roster: RosterName.HUMAN,
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 11, y: 5 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 5, skills: [SkillType.DODGE] },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
   {
     id: "ux-foul-preview",
     name: "Foul roll preview",
-    description: "An assisted foul. The coach sees the armour target and can cancel before rolling.",
+    description:
+      "An assisted foul. The coach sees the armour target and can cancel before rolling.",
     setup: {
-      team1Placements: [{ playerIndex: 0, x: 9, y: 5 }, { playerIndex: 1, x: 11, y: 5 }],
-      team2Placements: [{ playerIndex: 0, x: 10, y: 5, status: PlayerStatus.PRONE }],
-      activeTeam: "team1", phase: GamePhase.PLAY, subPhase: SubPhase.TURN_RECEIVING,
-      team1Roster: RosterName.HUMAN, team2Roster: RosterName.HUMAN,
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 11, y: 5 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 5, status: PlayerStatus.PRONE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
   {
     id: "handoff-no-interception",
     name: "Hand-off roll preview",
-    description: "A hand-off to a marked receiver. Hovering shows only the catch roll.",
+    description:
+      "A hand-off to a marked receiver. Hovering shows only the catch roll.",
     setup: {
-      team1Placements: [{ playerIndex: 0, x: 9, y: 7, hasBall: true }, { playerIndex: 1, x: 10, y: 7 }],
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 7, hasBall: true },
+        { playerIndex: 1, x: 10, y: 7 },
+      ],
       team2Placements: [{ playerIndex: 0, x: 11, y: 7 }],
-      activeTeam: "team1", phase: GamePhase.PLAY, subPhase: SubPhase.TURN_RECEIVING,
-      team1Roster: RosterName.HUMAN, team2Roster: RosterName.HUMAN,
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
   {
     id: "camera-spread-team",
     name: "Camera team handoffs",
-    description: "A team spread across the pitch to check selection, End activation and turn handoffs.",
+    description:
+      "A team spread across the pitch to check selection, End activation and turn handoffs.",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 5 }, { playerIndex: 1, x: 9, y: 5 },
-        { playerIndex: 2, x: 0, y: 0 }, { playerIndex: 3, x: 19, y: 10 },
-        { playerIndex: 4, x: 0, y: 10 }, { playerIndex: 5, x: 19, y: 0 },
+        { playerIndex: 0, x: 8, y: 5 },
+        { playerIndex: 1, x: 9, y: 5 },
+        { playerIndex: 2, x: 0, y: 0 },
+        { playerIndex: 3, x: 19, y: 10 },
+        { playerIndex: 4, x: 0, y: 10 },
+        { playerIndex: 5, x: 19, y: 0 },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 15, y: 4 }, { playerIndex: 1, x: 16, y: 5 },
+        { playerIndex: 0, x: 15, y: 4 },
+        { playerIndex: 1, x: 16, y: 5 },
         { playerIndex: 2, x: 17, y: 4 },
       ],
-      activeTeam: "team1", phase: GamePhase.PLAY, subPhase: SubPhase.TURN_RECEIVING,
-      team1Roster: RosterName.HUMAN, team2Roster: RosterName.HUMAN,
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
   {
@@ -94,18 +127,15 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Placements: [{ playerIndex: 0, x: 9, y: 5 }],
       team2Placements: [
-        { playerIndex: 0, x: 10, y: 5 }, // block target
-        { playerIndex: 1, x: 11, y: 4 }, // all three push squares occupied
+        { playerIndex: 0, x: 10, y: 5 },
+        { playerIndex: 1, x: 11, y: 4 },
         { playerIndex: 2, x: 11, y: 5 },
         { playerIndex: 3, x: 11, y: 6 },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      // Pinned explicitly (not relying on the caller's default) so this
-      // plain chain-push case is always Human vs. Human — no Grab, no skill
-      // modifiers — regardless of whatever rosters the sandbox currently
-      // has loaded. See chain-push-grab-* below for the Grab-holding cases.
+
       team1Roster: RosterName.HUMAN,
       team2Roster: RosterName.HUMAN,
     },
@@ -119,17 +149,15 @@ export const SCENARIOS: Scenario[] = [
       "Grab-widened squares open: Grab offers that square as an open-tier " +
       "choice instead of chaining.",
     setup: {
-      team1Placements: [{ playerIndex: 0, x: 9, y: 5 }], // Black Orc attacker (Grab)
+      team1Placements: [{ playerIndex: 0, x: 9, y: 5 }],
       team2Placements: [
-        { playerIndex: 0, x: 10, y: 5 }, // block target
+        { playerIndex: 0, x: 10, y: 5 },
         { playerIndex: 1, x: 9, y: 4 },
-        { playerIndex: 2, x: 11, y: 4 }, // traditional push square
-        { playerIndex: 3, x: 11, y: 5 }, // traditional push square
+        { playerIndex: 2, x: 11, y: 4 },
+        { playerIndex: 3, x: 11, y: 5 },
         { playerIndex: 4, x: 9, y: 6 },
         { playerIndex: 5, x: 10, y: 6 },
-        { playerIndex: 6, x: 11, y: 6 }, // traditional push square
-        // (10,4) intentionally left open: the only unoccupied square among
-        // the eight, reachable only via Grab.
+        { playerIndex: 6, x: 11, y: 6 },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -147,17 +175,17 @@ export const SCENARIOS: Scenario[] = [
       "falls back to the normal three-square chain push.",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 9, y: 5 }, // Black Orc attacker (Grab)
-        { playerIndex: 1, x: 10, y: 4 }, // fills the 8th adjacent square
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 10, y: 4 },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 10, y: 5 }, // block target
+        { playerIndex: 0, x: 10, y: 5 },
         { playerIndex: 1, x: 9, y: 4 },
-        { playerIndex: 2, x: 11, y: 4 }, // traditional push square
-        { playerIndex: 3, x: 11, y: 5 }, // traditional push square
+        { playerIndex: 2, x: 11, y: 4 },
+        { playerIndex: 3, x: 11, y: 5 },
         { playerIndex: 4, x: 9, y: 6 },
         { playerIndex: 5, x: 10, y: 6 },
-        { playerIndex: 6, x: 11, y: 6 }, // traditional push square
+        { playerIndex: 6, x: 11, y: 6 },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -178,22 +206,20 @@ export const SCENARIOS: Scenario[] = [
       "propagate past the first push of the chain.",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 9, y: 5 }, // Black Orc attacker (Grab)
-        { playerIndex: 1, x: 10, y: 4 }, // fills D0's 8th adjacent square
-        { playerIndex: 2, x: 12, y: 3 }, // boxes the second occupant's traditional squares
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 10, y: 4 },
+        { playerIndex: 2, x: 12, y: 3 },
         { playerIndex: 3, x: 12, y: 4 },
         { playerIndex: 4, x: 11, y: 3 },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 10, y: 5 }, // block target (D0), fully boxed in on all 8
+        { playerIndex: 0, x: 10, y: 5 },
         { playerIndex: 1, x: 9, y: 4 },
-        { playerIndex: 2, x: 11, y: 4 }, // pushed here at link 0 -> the second-link occupant
+        { playerIndex: 2, x: 11, y: 4 },
         { playerIndex: 3, x: 11, y: 5 },
         { playerIndex: 4, x: 9, y: 6 },
         { playerIndex: 5, x: 10, y: 6 },
         { playerIndex: 6, x: 11, y: 6 },
-        // (10,3) and (12,5) intentionally left open: openings among the
-        // second occupant's wider eight squares that Grab must NOT use.
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -209,8 +235,8 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Placements: [{ playerIndex: 0, x: 9, y: 0 }],
       team2Placements: [
-        { playerIndex: 0, x: 10, y: 0, hasBall: true }, // block target on the sideline
-        { playerIndex: 1, x: 11, y: 0 }, // both on-pitch push squares occupied
+        { playerIndex: 0, x: 10, y: 0, hasBall: true },
+        { playerIndex: 1, x: 11, y: 0 },
         { playerIndex: 2, x: 11, y: 1 },
       ],
       activeTeam: "team1",
@@ -226,7 +252,7 @@ export const SCENARIOS: Scenario[] = [
       "squares are off the pitch, including the corner square",
     setup: {
       team1Placements: [{ playerIndex: 0, x: 18, y: 1 }],
-      team2Placements: [{ playerIndex: 0, x: 19, y: 0 }], // corner square
+      team2Placements: [{ playerIndex: 0, x: 19, y: 0 }],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
@@ -273,12 +299,12 @@ export const SCENARIOS: Scenario[] = [
     description: "Test player movement ranges and obstacles",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 2, y: 5, status: PlayerStatus.ACTIVE }, // Runner
+        { playerIndex: 0, x: 2, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 6, y: 4, status: PlayerStatus.ACTIVE }, // Obstacle
-        { playerIndex: 1, x: 6, y: 5, status: PlayerStatus.ACTIVE }, // Obstacle
-        { playerIndex: 2, x: 6, y: 6, status: PlayerStatus.ACTIVE }, // Obstacle
+        { playerIndex: 0, x: 6, y: 4, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 6, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 6, y: 6, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -295,7 +321,7 @@ export const SCENARIOS: Scenario[] = [
       "than round them.",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 2, y: 5, status: PlayerStatus.ACTIVE }, // Runner
+        { playerIndex: 0, x: 2, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
         { playerIndex: 0, x: 9, y: 4, status: PlayerStatus.ACTIVE },
@@ -315,11 +341,9 @@ export const SCENARIOS: Scenario[] = [
       "safe squares, stops again before the Rush onto the last square, and " +
       "scores once the runner stands in the End Zone.",
     setup: {
-      team1Placements: [
-        { playerIndex: 0, x: 12, y: 5, hasBall: true }, // carrier
-      ],
+      team1Placements: [{ playerIndex: 0, x: 12, y: 5, hasBall: true }],
       team2Placements: [
-        { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE }, // marks the carrier
+        { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE },
         { playerIndex: 1, x: 4, y: 2, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
@@ -336,12 +360,10 @@ export const SCENARIOS: Scenario[] = [
       "only clears Prone/Stunned players — the Standing defender at (12,5) " +
       "cannot be jumped without Leap or Pogo.",
     setup: {
-      team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, hasBall: true }, // jumper (carries ball)
-      ],
+      team1Placements: [{ playerIndex: 0, x: 8, y: 5, hasBall: true }],
       team2Placements: [
-        { playerIndex: 0, x: 9, y: 5, status: PlayerStatus.PRONE }, // jump over this one
-        { playerIndex: 1, x: 12, y: 5, status: PlayerStatus.ACTIVE }, // Standing — base Jump can't clear it
+        { playerIndex: 0, x: 9, y: 5, status: PlayerStatus.PRONE },
+        { playerIndex: 1, x: 12, y: 5, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -366,14 +388,14 @@ export const SCENARIOS: Scenario[] = [
       "which jump-over wins the tie-break.",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, status: PlayerStatus.ACTIVE }, // jumper
+        { playerIndex: 0, x: 8, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 9, y: 5, status: PlayerStatus.PRONE }, // east
-        { playerIndex: 1, x: 8, y: 4, status: PlayerStatus.PRONE }, // north
-        { playerIndex: 2, x: 9, y: 4, status: PlayerStatus.PRONE }, // north-east
-        { playerIndex: 3, x: 8, y: 6, status: PlayerStatus.PRONE }, // south
-        { playerIndex: 4, x: 7, y: 5, status: PlayerStatus.ACTIVE }, // Standing — not jumpable
+        { playerIndex: 0, x: 9, y: 5, status: PlayerStatus.PRONE },
+        { playerIndex: 1, x: 8, y: 4, status: PlayerStatus.PRONE },
+        { playerIndex: 2, x: 9, y: 4, status: PlayerStatus.PRONE },
+        { playerIndex: 3, x: 8, y: 6, status: PlayerStatus.PRONE },
+        { playerIndex: 4, x: 7, y: 5, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -388,7 +410,6 @@ export const SCENARIOS: Scenario[] = [
     description: "Test kickoff camera tracking - ball ready to kick",
     setup: {
       team1Placements: [
-        // Kicking team - spread out in their half
         { playerIndex: 0, x: 3, y: 7, status: PlayerStatus.ACTIVE },
         { playerIndex: 1, x: 5, y: 5, status: PlayerStatus.ACTIVE },
         { playerIndex: 2, x: 5, y: 9, status: PlayerStatus.ACTIVE },
@@ -396,7 +417,6 @@ export const SCENARIOS: Scenario[] = [
         { playerIndex: 4, x: 7, y: 10, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        // Receiving team - waiting in their half
         { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE },
         { playerIndex: 1, x: 17, y: 5, status: PlayerStatus.ACTIVE },
         { playerIndex: 2, x: 17, y: 9, status: PlayerStatus.ACTIVE },
@@ -414,13 +434,13 @@ export const SCENARIOS: Scenario[] = [
     description: "Test quick pass (0-3 squares) with open receiver",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, hasBall: true }, // Thrower with ball
-        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver (2 squares away)
-        { playerIndex: 2, x: 8, y: 5, status: PlayerStatus.ACTIVE }, // Support player
+        { playerIndex: 0, x: 10, y: 7, hasBall: true },
+        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 8, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE }, // Distant opponent
-        { playerIndex: 1, x: 16, y: 5, status: PlayerStatus.ACTIVE }, // Distant opponent
+        { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 16, y: 5, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -433,13 +453,13 @@ export const SCENARIOS: Scenario[] = [
     description: "Test short pass (4-6 squares) with open receiver",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 7, hasBall: true }, // Thrower with ball
-        { playerIndex: 1, x: 14, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver (6 squares away)
-        { playerIndex: 2, x: 6, y: 5, status: PlayerStatus.ACTIVE }, // Support player
+        { playerIndex: 0, x: 8, y: 7, hasBall: true },
+        { playerIndex: 1, x: 14, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 6, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 18, y: 7, status: PlayerStatus.ACTIVE }, // Distant opponent
-        { playerIndex: 1, x: 19, y: 5, status: PlayerStatus.ACTIVE }, // Distant opponent
+        { playerIndex: 0, x: 18, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 19, y: 5, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -452,13 +472,13 @@ export const SCENARIOS: Scenario[] = [
     description: "Test long pass (7-10 squares) with open receiver",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 5, y: 7, hasBall: true }, // Thrower with ball
-        { playerIndex: 1, x: 15, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver (10 squares away)
-        { playerIndex: 2, x: 3, y: 5, status: PlayerStatus.ACTIVE }, // Support player
+        { playerIndex: 0, x: 5, y: 7, hasBall: true },
+        { playerIndex: 1, x: 15, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 3, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 20, y: 7, status: PlayerStatus.ACTIVE }, // Distant opponent
-        { playerIndex: 1, x: 21, y: 5, status: PlayerStatus.ACTIVE }, // Distant opponent
+        { playerIndex: 0, x: 20, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 21, y: 5, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -471,14 +491,14 @@ export const SCENARIOS: Scenario[] = [
     description: "Test catching with marked receiver (-1 per marker)",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 7, hasBall: true }, // Thrower with ball
-        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE }, // Marked receiver
-        { playerIndex: 2, x: 6, y: 5, status: PlayerStatus.ACTIVE }, // Support player
+        { playerIndex: 0, x: 8, y: 7, hasBall: true },
+        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 6, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE }, // Marker 1 (adjacent to receiver)
-        { playerIndex: 1, x: 13, y: 7, status: PlayerStatus.ACTIVE }, // Marker 2 (adjacent to receiver)
-        { playerIndex: 2, x: 12, y: 6, status: PlayerStatus.ACTIVE }, // Marker 3 (adjacent to receiver)
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 13, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 12, y: 6, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -491,14 +511,14 @@ export const SCENARIOS: Scenario[] = [
     description: "Test interception with opponent in pass path",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 6, y: 7, hasBall: true }, // Thrower with ball
-        { playerIndex: 1, x: 16, y: 7, status: PlayerStatus.ACTIVE }, // Receiver
-        { playerIndex: 2, x: 4, y: 5, status: PlayerStatus.ACTIVE }, // Support player
+        { playerIndex: 0, x: 6, y: 7, hasBall: true },
+        { playerIndex: 1, x: 16, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 4, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE }, // Interceptor in pass path
-        { playerIndex: 1, x: 18, y: 5, status: PlayerStatus.ACTIVE }, // Distant opponent
-        { playerIndex: 2, x: 19, y: 9, status: PlayerStatus.ACTIVE }, // Distant opponent
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 18, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 19, y: 9, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -511,18 +531,18 @@ export const SCENARIOS: Scenario[] = [
     description: "Test picking up ball then passing to teammate",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 7, status: PlayerStatus.ACTIVE }, // Player who will pickup
-        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver
-        { playerIndex: 2, x: 6, y: 5, status: PlayerStatus.ACTIVE }, // Support player
+        { playerIndex: 0, x: 8, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 6, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE }, // Distant opponent
-        { playerIndex: 1, x: 16, y: 5, status: PlayerStatus.ACTIVE }, // Distant opponent
+        { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 16, y: 5, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 10, y: 7 }, // Ball on ground (2 squares from player)
+      ballPosition: { x: 10, y: 7 },
     },
   },
   {
@@ -532,14 +552,14 @@ export const SCENARIOS: Scenario[] = [
       "Test passing with thrower being marked (-1 per marker to pass)",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, hasBall: true }, // Thrower with ball (marked)
-        { playerIndex: 1, x: 14, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver
-        { playerIndex: 2, x: 8, y: 5, status: PlayerStatus.ACTIVE }, // Support player
+        { playerIndex: 0, x: 10, y: 7, hasBall: true },
+        { playerIndex: 1, x: 14, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 8, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 9, y: 7, status: PlayerStatus.ACTIVE }, // Marker 1 (adjacent to thrower)
-        { playerIndex: 1, x: 11, y: 7, status: PlayerStatus.ACTIVE }, // Marker 2 (adjacent to thrower)
-        { playerIndex: 2, x: 10, y: 6, status: PlayerStatus.ACTIVE }, // Marker 3 (adjacent to thrower)
+        { playerIndex: 0, x: 9, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 11, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 10, y: 6, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -554,17 +574,16 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Roster: RosterName.OGRE,
       team1Placements: [
-        // Index 0 = Ogre Blocker (Throw Team-mate) — the thrower, marked.
         { playerIndex: 0, x: 8, y: 5, status: PlayerStatus.ACTIVE },
-        // Index 3 = Gnoblar Lineman (Right Stuff, ST 1) — carries the ball.
+
         { playerIndex: 3, x: 9, y: 5, hasBall: true },
-        // A second Ogre Blocker as support.
+
         { playerIndex: 1, x: 7, y: 8, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 7, y: 5, status: PlayerStatus.ACTIVE }, // Marker on the thrower
-        { playerIndex: 1, x: 8, y: 4, status: PlayerStatus.ACTIVE }, // Marker on the thrower
-        { playerIndex: 2, x: 14, y: 6, status: PlayerStatus.ACTIVE }, // Downfield defender
+        { playerIndex: 0, x: 7, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 8, y: 4, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 14, y: 6, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -579,13 +598,12 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Roster: RosterName.OGRE,
       team1Placements: [
-        // Index 2 = Ogre Runt Punter (Kick Team-mate) — the kicker.
         { playerIndex: 2, x: 8, y: 5, status: PlayerStatus.ACTIVE },
-        // Index 3 = Gnoblar Lineman (Right Stuff) — kicked.
+
         { playerIndex: 3, x: 9, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 14, y: 5, status: PlayerStatus.ACTIVE }, // Downfield defender
+        { playerIndex: 0, x: 14, y: 5, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -601,11 +619,9 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Roster: RosterName.GOBLIN,
       team1Placements: [
-        // Index 5 = Bomma (Bombardier) — the real Goblin bomber.
         { playerIndex: 5, x: 8, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        // A tight cluster downfield so the blast can catch several at once.
         { playerIndex: 0, x: 13, y: 5, status: PlayerStatus.ACTIVE },
         { playerIndex: 1, x: 13, y: 4, status: PlayerStatus.ACTIVE },
         { playerIndex: 2, x: 14, y: 5, status: PlayerStatus.ACTIVE },
@@ -625,7 +641,6 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Roster: RosterName.GOBLIN,
       team1Placements: [
-        // Index 4 = Loony (Chainsaw) — the real Goblin sawman.
         { playerIndex: 4, x: 10, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
@@ -645,11 +660,9 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Roster: RosterName.GOBLIN,
       team1Placements: [
-        // Index 6 = Fanatic (Ball & Chain) — the real Goblin wrecking ball.
         { playerIndex: 6, x: 8, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        // A loose cluster to the East for the Fanatic to smash through.
         { playerIndex: 0, x: 10, y: 4, status: PlayerStatus.ACTIVE },
         { playerIndex: 1, x: 10, y: 5, status: PlayerStatus.ACTIVE },
         { playerIndex: 2, x: 11, y: 6, status: PlayerStatus.ACTIVE },
@@ -686,14 +699,13 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Roster: RosterName.OGRE,
       team1Placements: [
-        // Index 3 = Gnoblar Lineman — the ball carrier.
         { playerIndex: 3, x: 15, y: 5, hasBall: true },
-        // A trailing Ogre Blocker.
+
         { playerIndex: 0, x: 12, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 17, y: 4, status: PlayerStatus.ACTIVE }, // Defender to dodge past
-        { playerIndex: 1, x: 17, y: 6, status: PlayerStatus.ACTIVE }, // Defender to dodge past
+        { playerIndex: 0, x: 17, y: 4, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 17, y: 6, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -731,10 +743,10 @@ export const SCENARIOS: Scenario[] = [
       "Big Guy (Black Orc) vs Small Guy (Goblin) for testing injury logic",
     setup: {
       team1Placements: [
-        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // Goblin Bruiser (Defender)
+        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE }, // Black Orc (Attacker)
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team2",
       phase: GamePhase.PLAY,
@@ -749,12 +761,12 @@ export const SCENARIOS: Scenario[] = [
     description: "Test 'move then foul' flow with assists",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 5, y: 5, status: PlayerStatus.ACTIVE }, // Fouler
-        { playerIndex: 1, x: 11, y: 5, status: PlayerStatus.ACTIVE }, // Offensive Assister
+        { playerIndex: 0, x: 5, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 11, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 10, y: 5, status: PlayerStatus.PRONE }, // Target (Prone)
-        { playerIndex: 1, x: 10, y: 4, status: PlayerStatus.ACTIVE }, // Defensive Assister (marks Fouler at 9,5)
+        { playerIndex: 0, x: 10, y: 5, status: PlayerStatus.PRONE },
+        { playerIndex: 1, x: 10, y: 4, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -763,9 +775,7 @@ export const SCENARIOS: Scenario[] = [
       team2Roster: RosterName.OGRE,
     },
   },
-  // =========================================================================
-  // SEEDED SCENARIOS - Deterministic outcomes for testing
-  // =========================================================================
+
   {
     id: "block-injury-stun",
     name: "Block → Stun (Seeded)",
@@ -774,10 +784,10 @@ export const SCENARIOS: Scenario[] = [
     expectedOutcome: "Defender will be stunned",
     setup: {
       team1Placements: [
-        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // Goblin Bruiser (Defender)
+        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE }, // Black Orc (Attacker)
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team2",
       phase: GamePhase.PLAY,
@@ -854,8 +864,8 @@ export const SCENARIOS: Scenario[] = [
     expectedOutcome: "Pass and catch will both succeed",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, hasBall: true }, // Thrower with ball
-        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver
+        { playerIndex: 0, x: 10, y: 7, hasBall: true },
+        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
         { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE },
@@ -941,8 +951,8 @@ export const SCENARIOS: Scenario[] = [
       "Failed pickup → bounce → teammate drops it → exactly one turnover",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 7, status: PlayerStatus.ACTIVE }, // mover
-        // Teammates ring the ball square so the bounce lands on one of them
+        { playerIndex: 0, x: 8, y: 7, status: PlayerStatus.ACTIVE },
+
         { playerIndex: 1, x: 9, y: 6, status: PlayerStatus.ACTIVE },
         { playerIndex: 2, x: 10, y: 6, status: PlayerStatus.ACTIVE },
         { playerIndex: 3, x: 11, y: 6, status: PlayerStatus.ACTIVE },
@@ -969,10 +979,10 @@ export const SCENARIOS: Scenario[] = [
       "Rush prompts appear only past MA.",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // blitzer
+        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 14, y: 7, status: PlayerStatus.ACTIVE }, // target
+        { playerIndex: 0, x: 14, y: 7, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -992,10 +1002,10 @@ export const SCENARIOS: Scenario[] = [
       "A Rush before the block fails: blitzer falls, turnover, no block dice",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // blitzer, MA 6
+        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
-        { playerIndex: 0, x: 17, y: 7, status: PlayerStatus.ACTIVE }, // target
+        { playerIndex: 0, x: 17, y: 7, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
@@ -1014,12 +1024,10 @@ export const SCENARIOS: Scenario[] = [
     expectedOutcome:
       "POW → carrier down, ball bounces loose, blocker's team keeps the turn",
     setup: {
-      team1Placements: [
-        { playerIndex: 0, x: 10, y: 5, hasBall: true }, // carrier
-      ],
+      team1Placements: [{ playerIndex: 0, x: 10, y: 5, hasBall: true }],
       team2Placements: [
-        { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE }, // blocker
-        { playerIndex: 1, x: 16, y: 8, status: PlayerStatus.ACTIVE }, // keeps the turn alive
+        { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 16, y: 8, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team2",
       phase: GamePhase.PLAY,

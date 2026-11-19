@@ -1,21 +1,14 @@
+import { z } from "zod";
+import { skillTypeSchema } from "../../src/boundary/schemas/SkillType";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { SkillType } from "../../src/types/Skills";
 import type { CommandResponse } from "../../src/headless/protocol";
 
-/**
- * Tackle and Prehensile Tail act on a player who Dodges away from a square
- * in the skilled player's Tackle Zone (skills.json). Marking only the
- * destination square is not enough. Both used to fire for any opponent the
- * dodge fold gathered, and it gathers destination markers too, for Titchy.
- *
- * The dodger at (10,5) is marked by a plain lineman at (9,5) and dodges to
- * (11,5). The skilled player stands either at (12,5), marking only the
- * destination, or at (11,4), marking both squares.
- */
 function scenario(skill: SkillType, at: { x: number; y: number }): Scenario {
   return {
     id: "dodge-vacated-square-skills",
@@ -39,15 +32,15 @@ function scenario(skill: SkillType, at: { x: number; y: number }): Scenario {
 
 async function dodge(skill: SkillType, at: { x: number; y: number }) {
   const game = new HeadlessGame({ scenario: scenario(skill, at), seed: 7 });
-  const dodger = game.snapshot().teams[0].players[0];
+  const dodger = fixtureValue(game.snapshot().teams[0]).players[0];
   await game.execute({
     type: "declare-action",
-    playerId: dodger.id,
+    playerId: fixtureValue(dodger).id,
     action: "move",
   });
   return game.execute({
     type: "move",
-    playerId: dodger.id,
+    playerId: fixtureValue(dodger).id,
     path: [{ x: 11, y: 5 }],
   });
 }
@@ -56,18 +49,22 @@ const triggered = (response: CommandResponse, skill: SkillType) =>
   response.events.some(
     (e) =>
       e.name === GameEventNames.SkillTriggered &&
-      (e.data as { skill: SkillType }).skill === skill
+      z.object({ skill: skillTypeSchema }).parse(e.data).skill === skill
   );
 
-/** total - value on the first Dodge roll: the net modifier applied */
 function dodgeModifier(response: CommandResponse): number | undefined {
   const roll = response.events.find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
-      (e.data as { rollType: string }).rollType.startsWith("Dodge")
+      z
+        .object({ rollType: z.string() })
+        .parse(e.data)
+        .rollType.startsWith("Dodge")
   );
   if (!roll) return undefined;
-  const data = roll.data as { value: number; total: number };
+  const data = z
+    .object({ value: z.number(), total: z.number() })
+    .parse(roll.data);
   return data.total - data.value;
 }
 
@@ -88,14 +85,14 @@ describe("skills of the vacated square's markers", () => {
   it("Prehensile Tail does not fire from a player marking only the destination", async () => {
     const response = await dodge(SkillType.PREHENSILE_TAIL, destinationOnly);
     expect(triggered(response, SkillType.PREHENSILE_TAIL)).toBe(false);
-    // Only the tail player's own marking of (11,5) applies.
+
     expect(dodgeModifier(response)).toBe(-1);
   });
 
   it("Prehensile Tail fires from a player marking the vacated square", async () => {
     const response = await dodge(SkillType.PREHENSILE_TAIL, bothSquares);
     expect(triggered(response, SkillType.PREHENSILE_TAIL)).toBe(true);
-    // Marking of (11,5) and the tail, -1 each.
+
     expect(dodgeModifier(response)).toBe(-2);
   });
 });

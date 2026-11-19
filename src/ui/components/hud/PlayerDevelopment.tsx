@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Player } from "../../../types/Player";
-import { SkillCategory, SkillType } from "../../../types/Skills";
-import { calculateTeamValue, Team } from "../../../types/Team";
+import { type Player } from "../../../types/Player";
+import type { SkillCategory, SkillType } from "../../../types/Skills";
+import { calculateTeamValue, type Team } from "../../../types/Team";
 import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
 import { dehydrateTeam } from "../../../data/persistence/teamPersistence";
-import { IRNGService } from "../../../services/rng/RNGService";
+import { type IRNGService } from "../../../services/rng/RNGService";
 import { Notice } from "../componentWarehouse/HudKit";
 import {
-  AdvancementChoice,
+  type AdvancementChoice,
   applyAdvancement,
   eligibleSkills,
   mustAdvance,
@@ -15,32 +15,18 @@ import {
   rollPendingCharacteristic,
   rollPendingRandomPrimary,
 } from "../../../game/progression/progression";
-import { AdvancementForm, SkillAccess } from "../shared/AdvancementForm";
+import { AdvancementForm, type SkillAccess } from "../shared/AdvancementForm";
 
 interface PlayerDevelopmentProps {
   player: Player;
   team: Team;
   rngService: Pick<IRNGService, "rollDie">;
-  /**
-   * Called after a roll or an advancement is saved. The caller's `team` has
-   * been updated in place to the saved copy; re-render from it.
-   */
+
   onSaved?: () => void;
-  /**
-   * Show a message that must outlive this form: after another window's
-   * change, the refreshed player may no longer be able to advance, and the
-   * caller then replaces this form.
-   */
+
   onNotice?: (message: string) => void;
 }
 
-/**
- * Apply a change to the latest stored copy of the team, save it, and read
- * it back. Working on the stored copy means another tab's saved roll is
- * seen rather than overwritten; reading back catches a write the repository
- * only logged (a full localStorage, say). The caller's team is replaced
- * in place only once the save is confirmed.
- */
 function commit(
   team: Team,
   playerId: string,
@@ -64,10 +50,6 @@ function commit(
   adopt(team, latestTeam);
 }
 
-/**
- * Update the caller's objects in place (the player and team props this
- * component and its parent hold) rather than swapping in new ones.
- */
 function adopt(team: Team, latestTeam: Team): void {
   const previous = new Map(team.players.map((p) => [p.id, p]));
   const players = latestTeam.players.map((latest) => {
@@ -78,10 +60,8 @@ function adopt(team: Team, latestTeam: Team): void {
   team.players = players;
 }
 
-/** Another window changed this player's saved roll since it was shown. */
 class StaleRollError extends Error {}
 
-/** Make `target` hold exactly `source`'s fields, keeping its identity. */
 function replaceContents<T extends object>(target: T, source: T): T {
   for (const key of Object.keys(target)) {
     if (!(key in source)) delete (target as Record<string, unknown>)[key];
@@ -89,15 +69,6 @@ function replaceContents<T extends object>(target: T, source: T): T {
   return Object.assign(target, source);
 }
 
-/**
- * Standard SPP advancement — the one place the app spends SPP on a skill or
- * characteristic. Used by the player page and by Manage Team's pending
- * development panel, so both behave the same.
- *
- * Rolls (Random Primary candidates, the Characteristic D8) are stored on the
- * player and the team is saved the moment they are made. Reloading shows
- * the same roll, and the coach must spend it before choosing anything else.
- */
 export function PlayerDevelopment({
   player,
   team,
@@ -140,10 +111,9 @@ export function PlayerDevelopment({
     }
   };
 
-  const rollAndSave = (roll: (latestPlayer: Player) => void) =>
+  const rollAndSave = (roll: (latestPlayer: Player) => void) => {
     attempt(() => {
       commit(team, player.id, (_latestTeam, latestPlayer) => {
-        // Another tab may have rolled already: keep that roll instead
         if (!latestPlayer.pendingAdvancementRoll) roll(latestPlayer);
       });
       setCategory("");
@@ -151,14 +121,13 @@ export function PlayerDevelopment({
       setRevision((value) => value + 1);
       onSaved?.();
     });
+  };
 
-  const applyChoice = (choice: AdvancementChoice) =>
+  const applyChoice = (choice: AdvancementChoice) => {
     attempt(() => {
       const shownRoll = JSON.stringify(savedRoll ?? null);
       try {
         commit(team, player.id, (latestTeam, latestPlayer) => {
-          // Only spend the roll this form is showing: if another window has
-          // already spent (or made) a roll, this choice is out of date
           if (
             JSON.stringify(latestPlayer.pendingAdvancementRoll ?? null) !==
             shownRoll
@@ -169,8 +138,7 @@ export function PlayerDevelopment({
           }
           applyAdvancement(latestPlayer, choice);
           latestTeam.teamValue = calculateTeamValue(latestTeam);
-          // Resolve Manage Team's Advanced League entry in the same save, so
-          // a spent player is never left with an unresolved entry.
+
           if (!mustAdvance(latestPlayer)) {
             latestTeam.pendingDevelopment = (
               latestTeam.pendingDevelopment ?? []
@@ -202,6 +170,7 @@ export function PlayerDevelopment({
       setSkill("");
       onSaved?.();
     });
+  };
 
   return (
     <>
@@ -237,11 +206,11 @@ export function PlayerDevelopment({
             rollPendingRandomPrimary(latestPlayer, category, rngService)
           )
         }
-        rollCharacteristic={() =>
+        rollCharacteristic={() => {
           rollAndSave((latestPlayer) =>
             rollPendingCharacteristic(latestPlayer, rngService)
-          )
-        }
+          );
+        }}
         applyChoice={applyChoice}
       />
       {error && (

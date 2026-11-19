@@ -1,11 +1,5 @@
-/**
- * The league page leads with the round to play next (league-builder spec:
- * "The league page leads with the round to play next"): a partly played
- * round stays first, recording its last game promotes the next round, the
- * played round folds into history that opens by keyboard or touch, and a
- * reload gives the same page. Checked on a desktop and a phone viewport.
- */
-import { expect, Page, test } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { expect, type Page, test } from "@playwright/test";
 import {
   computeStandings,
   generateRoundRobin,
@@ -26,11 +20,10 @@ const ROSTERS = [
   [RosterName.DWARF, "Karak Hammers"],
 ] as const;
 
-/** Four library teams and a league between them, game one of round one played. */
 function season(allPlayed = false) {
   const teams = ROSTERS.map(([roster, name], index) => {
     const team = createReadyMadeTeam(roster, name, 0x8e1b1b + index * 0x2040);
-    team.id = `rounds-${index}`;
+    team.id = `rounds-${String(index)}`;
     return team;
   });
   const entrants: CompetitionEntrant[] = teams.map((team, index) => ({
@@ -44,10 +37,10 @@ function season(allPlayed = false) {
   const fixtures = generateRoundRobin(entrants);
   const play = (game: CompetitionFixture) => {
     game.status = "complete";
-    game.result = { homeScore: 2, awayScore: 1 };
+    game.result = { homeScore: 2, awayScore: 1, completedAt: 0 };
   };
   if (allPlayed) fixtures.forEach(play);
-  else play(fixtures[0]!);
+  else play(fixtureValue(fixtures[0]));
   const league: LeagueDoc = {
     id: "rounds",
     type: "league",
@@ -63,20 +56,20 @@ function season(allPlayed = false) {
     updatedAt: 1,
   };
   const name = (id: string | null) =>
-    entrants.find((entrant) => entrant.id === id)!.name;
+    fixtureValue(entrants.find((entrant) => entrant.id === id)).name;
   return {
     teams: teams.map(dehydrateTeam),
     league,
     left: {
-      home: name(fixtures[1]!.homeEntrantId),
-      away: name(fixtures[1]!.awayEntrantId),
+      home: name(fixtureValue(fixtures[1]).homeEntrantId),
+      away: name(fixtureValue(fixtures[1]).awayEntrantId),
     },
   };
 }
 
 async function openLeague(page: Page, allPlayed = false) {
   const seeded = season(allPlayed);
-  // Seeded once, not in an init script, so a reload keeps what was recorded
+
   await page.goto("/build-team");
   await page.evaluate(({ teams, league }) => {
     localStorage.clear();
@@ -95,9 +88,8 @@ async function openLeague(page: Page, allPlayed = false) {
 
 const nextRound = (page: Page) => page.getByTestId("next-round");
 const completedToggle = (page: Page, round: number) =>
-  page.getByRole("button", { name: `Round ${round}`, exact: true });
+  page.getByRole("button", { name: `Round ${String(round)}`, exact: true });
 
-/** One titled section of the page, as a picture. */
 async function shoot(page: Page, title: string, name: string) {
   await page
     .locator("section")
@@ -124,14 +116,13 @@ for (const device of [
     }) => {
       const { left } = await openLeague(page);
 
-      // Standings stay on top, the round to play sits right beneath them
       const standings = await page
         .getByRole("heading", { name: "Standings", exact: true })
         .boundingBox();
       const next = await page
         .getByRole("heading", { name: "Next round", exact: true })
         .boundingBox();
-      expect(next!.y).toBeGreaterThan(standings!.y);
+      expect(fixtureValue(next).y).toBeGreaterThan(fixtureValue(standings).y);
       await expect(nextRound(page).getByRole("heading")).toHaveText("Round 1");
       await expect(nextRound(page)).toContainText("1 of 2 games played");
       await expect(page.getByTestId("next-round-fixture")).toHaveCount(2);
@@ -145,8 +136,6 @@ for (const device of [
       });
       await shoot(page, "Next round", `${device.label}-1-next-round.png`);
 
-      // Record round one's last game, in the round shown first (the later
-      // rounds offer the same teams' score fields)
       const toPlay = page
         .getByTestId("next-round-fixture")
         .filter({ has: page.getByRole("button", { name: "Record result" }) });
@@ -159,7 +148,7 @@ for (const device of [
       const roundOne = completedToggle(page, 1);
       await expect(roundOne).toHaveAttribute("aria-expanded", "false");
       const panel = page.locator(
-        `#${await roundOne.getAttribute("aria-controls")}`
+        `#${String(await roundOne.getAttribute("aria-controls"))}`
       );
       await expect(panel).toBeHidden();
       await expectNoSideways(page);

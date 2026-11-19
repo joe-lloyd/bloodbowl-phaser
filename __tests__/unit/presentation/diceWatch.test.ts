@@ -11,15 +11,18 @@ const settled = async (promise: Promise<void>) => {
   return done;
 };
 
-const tray = (bus: EventBus, thrown: number, landedThrough: number) =>
+const tray = (bus: EventBus, thrown: number, landedThrough: number) => {
   bus.emit(GameEventNames.UI_DiceInAir, {
     count: thrown - landedThrough,
     thrown,
     landedThrough,
   });
+};
 
 describe("DiceWatch", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("ends a wait at once when no dice are in the air", async () => {
     const watch = new DiceWatch(new EventBus());
@@ -42,7 +45,7 @@ describe("DiceWatch", () => {
     const watch = new DiceWatch(bus);
     tray(bus, 1, 0);
     const wait = watch.landed();
-    tray(bus, 3, 0); // armour and injury, after the turnover was called
+    tray(bus, 3, 0);
     tray(bus, 3, 1);
     expect(await settled(wait)).toBe(true);
   });

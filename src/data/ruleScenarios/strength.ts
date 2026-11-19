@@ -1,13 +1,10 @@
-/**
- * Rule scenarios — Strength skills (Break Tackle).
- */
-
+import { z } from "zod";
 import { SkillType } from "../../types/Skills";
 import { PlayerStatus } from "../../types/Player";
 import { GameEventNames } from "../../types/events";
 import {
-  RuleScenarioEntry,
-  ScriptResult,
+  type RuleScenarioEntry,
+  type ScriptResult,
   playSetup,
   blockConfig,
   assert,
@@ -27,8 +24,9 @@ const mbTriggered = (effectPart: string) => (r: ScriptResult) =>
     r,
     GameEventNames.SkillTriggered,
     (d) =>
-      (d as { skill: string }).skill === SkillType.MIGHTY_BLOW &&
-      (d as { effect: string }).effect.includes(effectPart)
+      z.object({ skill: z.string() }).parse(d).skill ===
+        SkillType.MIGHTY_BLOW &&
+      z.object({ effect: z.string() }).parse(d).effect.includes(effectPart)
   );
 
 export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
@@ -48,8 +46,7 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         script: [
           { type: "declare-action", playerId: "team1:0", action: "move" },
-          // Dodge away from (16,4); the Arm Bar marker at (16,5) is adjacent
-          // to the vacated square but not to the (15,3) landing square.
+
           { type: "move", playerId: "team1:0", path: [{ x: 15, y: 3 }] },
         ],
         outcomes: [
@@ -57,11 +54,12 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "arm-bar-applied",
             name: "Arm Bar adds its modifier",
             matches: (r) => skillTriggered(r, SkillType.ARM_BAR),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 playerDown(r, "team1:0"),
                 "Arm Bar only fires when the dodger falls"
-              ),
+              );
+            },
           },
         ],
       },
@@ -90,11 +88,10 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "The squares beside the defender are offered",
             matches: (r) => skillTriggered(r, SkillType.GRAB),
             verify: (r) => {
-              const push = r.decisions.find(
-                (d) => d.type === "push-direction"
-              ) as { options: { x: number; y: number }[] } | undefined;
+              const push: { options: { x: number; y: number }[] } | undefined =
+                r.decisions.find((d) => d.type === "push-direction");
               assert(!!push, "a push-direction decision must be raised");
-              const opts = push!.options;
+              const opts = push.options;
               assert(
                 opts.some((o) => o.x === 11 && o.y === 4) &&
                   opts.some((o) => o.x === 11 && o.y === 6),
@@ -160,12 +157,12 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
           "A marked assister with Guard still supports the block (2 dice)",
         setup: playSetup({
           team1Placements: [
-            { playerIndex: 0, x: 10, y: 5 }, // attacker
-            { playerIndex: 1, x: 11, y: 6, skills: [SkillType.GUARD] }, // assister
+            { playerIndex: 0, x: 10, y: 5 },
+            { playerIndex: 1, x: 11, y: 6, skills: [SkillType.GUARD] },
           ],
           team2Placements: [
-            { playerIndex: 0, x: 11, y: 5 }, // defender
-            { playerIndex: 1, x: 10, y: 7 }, // marks the assister only
+            { playerIndex: 0, x: 11, y: 5 },
+            { playerIndex: 1, x: 10, y: 7 },
           ],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -177,11 +174,12 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "assist-counts",
             name: "The Guard assist yields a second die",
             matches: (r) => blockDiceCount(r) === 2,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 blockDiceCount(r) === 2,
                 "Guard's marked assist must give the attacker 2 block dice"
-              ),
+              );
+            },
           },
         ],
       }),
@@ -209,18 +207,20 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "armour-flipped",
             name: "The +1 breaks the armour",
             matches: mbTriggered("+1 to the armour"),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 sawEvent(
                   r,
                   GameEventNames.DiceRoll,
                   (d) =>
-                    !!(d as { rollType?: string }).rollType?.startsWith(
-                      "Injury Roll"
-                    )
+                    !!z
+                      .object({ rollType: z.string().exactOptional() })
+                      .parse(d)
+                      .rollType?.startsWith("Injury Roll")
                 ),
                 "the flipped armour must lead to an injury roll"
-              ),
+              );
+            },
           },
           {
             id: "saved-for-injury",
@@ -246,7 +246,7 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
               x: 11,
               y: 5,
               skills: [SkillType.THICK_SKULL],
-              stats: { AV: 5 }, // break armour often to reach injuries
+              stats: { AV: 5 },
             },
           ],
           ballPosition: { x: 1, y: 1 },
@@ -309,11 +309,12 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.BREAK_TACKLE) &&
               skillCheckDiff(r, "Dodge") === 3,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Dodge") === 3,
                 "dodge total must be roll + 3 for ST 5"
-              ),
+              );
+            },
           },
         ],
       },
@@ -337,11 +338,12 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "no-bonus",
             name: "Dodge unmodified at ST 3",
             matches: (r) => skillCheckDiff(r, "Dodge") === 0,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !skillTriggered(r, SkillType.BREAK_TACKLE),
                 "Break Tackle must not trigger below ST 4"
-              ),
+              );
+            },
           },
         ],
       },
@@ -398,14 +400,17 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
               );
               assert(
                 rolls.length === 2,
-                `exactly two Blocks must be rolled (got ${rolls.length}; errors: ${r.responses
+                `exactly two Blocks must be rolled (got ${String(rolls.length)}; errors: ${r.responses
                   .filter((response) => !response.ok)
                   .map((response) => response.reason)
                   .join(", ")})`
               );
               assert(
                 rolls.every(
-                  (e) => (e.data as { numDice?: number }).numDice === 3
+                  (e) =>
+                    z
+                      .object({ numDice: z.number().exactOptional() })
+                      .parse(e.data).numDice === 3
                 ),
                 "-2 ST must make both ST3 opponents choose three dice"
               );

@@ -1,7 +1,7 @@
 import { DiceWatch } from "../../../game/presentation/diceWatch";
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import {
@@ -20,12 +20,12 @@ interface FollowUpOffer {
 }
 
 const offerKey = ({ attackerId, targetSquare: { x, y } }: FollowUpOffer) =>
-  `${attackerId}:${x},${y}`;
+  `${attackerId}:${String(x)},${String(y)}`;
 
 export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [followUpData, setFollowUpData] = useState<FollowUpOffer | null>(null);
-  // Offers whose dice have landed since the last follow-up was answered.
+
   const [presented, setPresented] = useState<readonly string[]>([]);
 
   useEffect(() => {
@@ -41,7 +41,6 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
       });
     };
 
-    // The other coach may be the one who answers
     const onResolved = ({ type }: { type: string }) => {
       if (type !== "follow-up") return;
       generation++;
@@ -60,16 +59,17 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     };
   }, [eventBus]);
 
-  // Another decision can hold this one, then hand it back with no event.
   const [, setPolled] = useState(0);
   useEffect(() => {
     if (!isOpen || !getActiveOnlineMatch()) return;
-    const id = setInterval(() => setPolled((tick) => tick + 1), 400);
-    return () => clearInterval(id);
+    const id = setInterval(() => {
+      setPolled((tick) => tick + 1);
+    }, 400);
+    return () => {
+      clearInterval(id);
+    };
   }, [isOpen]);
 
-  // In a match the pending decision is the offer, once its own prompt has
-  // landed: a repeat on the board can be late, for an earlier block.
   const match = getActiveOnlineMatch();
   const pending = match?.pendingDecision();
   const offer = match
@@ -79,7 +79,6 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     : followUpData;
 
   const handleYes = () => {
-    // Online: the follow-up belongs to the attacking coach
     if (getActiveOnlineMatch()?.mayAct() === false) return;
     if (offer) {
       eventBus.emit(GameEventNames.UI_FollowUpResponse, {
@@ -104,10 +103,27 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     setFollowUpData(null);
   };
 
-  // Online, only the coach who owns the decision sees it; the other
-  // coach has the "Waiting for…" banner
   if (!isOpen || !offer || match?.mayAct() === false) return null;
 
+  return (
+    <FollowUpDialogView
+      offer={offer}
+      handleNo={handleNo}
+      handleYes={handleYes}
+    />
+  );
+};
+
+interface FollowUpDialogViewProps {
+  offer: FollowUpOffer;
+  handleNo: () => void;
+  handleYes: () => void;
+}
+function FollowUpDialogView({
+  offer,
+  handleNo,
+  handleYes,
+}: FollowUpDialogViewProps) {
   return (
     <DialogShell
       placement="dock"
@@ -139,4 +155,4 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
       <p>Do you want to follow up into the defender&apos;s square?</p>
     </DialogShell>
   );
-};
+}

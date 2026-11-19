@@ -1,13 +1,8 @@
-/**
- * Step candidates: what an activated player may do next, one pass per kind
- * of step. Also the label helpers every candidate uses.
- */
-
 import { HeadlessGame } from "../headless/HeadlessGame";
-import { GridPosition, HeadlessCommand } from "../headless/protocol";
-import { GameState } from "../types/GameState";
+import { type GridPosition, type HeadlessCommand } from "../headless/protocol";
+import { type GameState } from "../types/GameState";
 import {
-  Player,
+  type Player,
   PlayerCondition,
   PlayerStatus,
   hasCondition,
@@ -31,7 +26,7 @@ import type { Candidate } from "./candidates";
 const chebyshev = (a: GridPosition, b: GridPosition) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
-export const square = (p: GridPosition) => `(${p.x},${p.y})`;
+export const square = (p: GridPosition) => `(${String(p.x)},${String(p.y)})`;
 
 const onPitch = (p: GridPosition) =>
   p.x >= 0 &&
@@ -41,10 +36,9 @@ const onPitch = (p: GridPosition) =>
 
 export function describePlayer(player: Player): string {
   const where = player.gridPosition ? ` at ${square(player.gridPosition)}` : "";
-  return `${player.positionName} #${player.number}${where}`;
+  return `${player.positionName} #${String(player.number)}${where}`;
 }
 
-/** What every step pass reads about the active player's position. */
 interface StepContext {
   gs: HeadlessGame["ctx"]["gameService"];
   state: GameState;
@@ -62,8 +56,7 @@ interface StepContext {
 function ballAndChainSteps({ player, at, action, step }: StepContext): void {
   if (action !== "ballAndChain" || player.status !== PlayerStatus.ACTIVE)
     return;
-  // The command takes a facing, one square per command: an End Zone or
-  // a Sideline
+
   for (const facing of [
     { x: 1, y: 0 },
     { x: -1, y: 0 },
@@ -88,8 +81,6 @@ function standUpSteps({ player, action, step }: StepContext): void {
 }
 
 function moveSteps({ gs, player, at, action, step }: StepContext): void {
-  // A stood-up player moves on under the same declaration; a Prone one
-  // must stand first.
   if (
     action === "block" ||
     action === "multipleBlock" ||
@@ -181,19 +172,19 @@ function multipleBlockSteps({
   )
     return;
   const targets = adjacent.filter((p) => p.status === PlayerStatus.ACTIVE);
-  for (let i = 0; i < targets.length; i++) {
-    for (let j = i + 1; j < targets.length; j++) {
+  targets.forEach((first, i) => {
+    for (const second of targets.slice(i + 1)) {
       step(
         {
           type: "multiple-block",
           attackerId: player.id,
-          defender1Id: targets[i].id,
-          defender2Id: targets[j].id,
+          defender1Id: first.id,
+          defender2Id: second.id,
         },
-        `${describePlayer(player)} blocks ${describePlayer(targets[i])} and ${describePlayer(targets[j])}`
+        `${describePlayer(player)} blocks ${describePlayer(first)} and ${describePlayer(second)}`
       );
     }
-  }
+  });
 }
 
 function gazeSteps({ player, action, adjacent, step }: StepContext): void {
@@ -241,7 +232,6 @@ function replacementSteps(ctx: StepContext): void {
   }
 }
 
-/** A square the ball may be thrown to under the weather's pass types. */
 function isPassSquare(
   { gs, at }: StepContext,
   passTypes: readonly string[],
@@ -255,13 +245,11 @@ function isPassSquare(
 
 function passSteps(ctx: StepContext): void {
   const { gs, state, player, action, carrying, opponents, step } = ctx;
-  // Moving commits this declaration's team allowance. It does not spend
-  // the throw inside the active Pass action.
+
   if (action !== "pass" || !carrying) return;
-  // Every in-range square, not just team-mates: passes to opponents and
-  // to empty grass are legal, and are where turnover rules get tested.
+
   const everyone = [...gs.getTeammates(player.id), ...opponents];
-  // A Blizzard allows only Quick and Short Passes.
+
   const { passTypes } = weatherEffects(state.weather);
   for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
     for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
@@ -307,7 +295,6 @@ function foulSteps({ player, action, adjacent, step }: StepContext): void {
   }
 }
 
-/** Standing Right Stuff team-mates next to `at` that a thrower may throw. */
 function throwableMates(
   gs: StepContext["gs"],
   player: Player,
@@ -324,16 +311,11 @@ function throwableMates(
     );
 }
 
-/** A plain Scatter, and each Swoop facing for a team-mate with Swoop. */
 const swoopFacings = (mate: Player) =>
   hasSkill(mate.skills, SkillType.SWOOP)
     ? [undefined, ...SWOOP_FACINGS]
     : [undefined];
 
-/**
- * Throw (or Kick) a standing Right Stuff team-mate next to the thrower at any
- * Quick or Short square. A Swooping team-mate may also take each facing.
- */
 function throwTeammateSteps({
   gs,
   player,
@@ -359,7 +341,6 @@ function throwTeammateSteps({
         );
 }
 
-/** Run in this order: candidate order breaks ties between equal scores. */
 const STEP_PASSES = [
   ballAndChainSteps,
   standUpSteps,

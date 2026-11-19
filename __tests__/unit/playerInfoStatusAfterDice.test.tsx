@@ -1,17 +1,12 @@
-/**
- * The player card names a fall or an injury only once the dice that decide
- * it have landed in the tray. The engine settles the injury at once, while
- * the armour and injury dice are still rolling, so the card must not read
- * the live status during that time. With no tray it updates at once.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
-import { Player, PlayerStatus } from "../../src/types/Player";
+import { type Player, PlayerStatus } from "../../src/types/Player";
 import { PlayerInfoPanel } from "../../src/ui/components/hud/PlayerInfoPanel";
 
 let container: HTMLDivElement;
@@ -22,37 +17,41 @@ let player: Player;
 beforeEach(async () => {
   const game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize(bus, game.ctx.team1, game.ctx.team2);
-  player = game.ctx.team1.players[0];
+  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
+  player = fixtureValue(game.ctx.team1.players[0]);
   player.gridPosition = { x: 5, y: 5 };
   player.status = PlayerStatus.ACTIVE;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  await act(async () => root.render(<PlayerInfoPanel eventBus={bus} />));
-  await act(async () => bus.emit(GameEventNames.PlayerSelected, { player }));
+  await act(async () => {
+    root.render(<PlayerInfoPanel eventBus={bus} />);
+  });
+  await act(async () => {
+    bus.emit(GameEventNames.PlayerSelected, { player });
+  });
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   ServiceContainer.reset();
 });
 
-/** The status chip, or null while the player stands. */
 const status = () =>
   container.querySelector('[data-testid="player-status"]')?.textContent ?? null;
 
-const tray = (thrown: number, landedThrough: number) =>
+const tray = (thrown: number, landedThrough: number) => {
   bus.emit(GameEventNames.UI_DiceInAir, {
     count: thrown - landedThrough,
     thrown,
     landedThrough,
   });
+};
 
 it("does not say the player holds the ball while a failed pickup waits on its re-roll", async () => {
-  // Round 3, 1:18:50: Thrower #4 failed the pickup, 3 against 4+, and the
-  // card read HOLDING BALL while the re-roll dialog was open
   const { gameService } = ServiceContainer.getInstance();
   gameService.getState().ballPosition = { x: 5, y: 5 };
   void gameService.getDecisionService().request({
@@ -64,19 +63,20 @@ it("does not say the player holds the ball while a failed pickup waits on its re
     roll: 3,
     needed: 4,
   });
-  await act(async () => bus.emit(GameEventNames.BallPlaced, { x: 5, y: 5 }));
+  await act(async () => {
+    bus.emit(GameEventNames.BallPlaced, { x: 5, y: 5 });
+  });
   expect(container.textContent).not.toMatch(/holding ball/i);
 
-  // Picked up after all: the ball is his
   gameService.getDecisionService().abandon();
-  await act(async () => bus.emit(GameEventNames.BallPlaced, { x: 5, y: 5 }));
+  await act(async () => {
+    bus.emit(GameEventNames.BallPlaced, { x: 5, y: 5 });
+  });
   expect(container.textContent).toMatch(/holding ball/i);
 });
 
 it("waits for the armour and injury dice to land before naming the injury", async () => {
   await act(async () => {
-    // A failed Rush: the player falls, armour breaks, the injury roll says
-    // Badly Hurt. The engine decides all of it before the dice land.
     tray(1, 0);
     player.status = PlayerStatus.PRONE;
     bus.emit(GameEventNames.PlayerStatusChanged, player);
@@ -84,7 +84,7 @@ it("waits for the armour and injury dice to land before naming the injury", asyn
     tray(3, 0);
     player.status = PlayerStatus.INJURED;
     bus.emit(GameEventNames.PlayerStatusChanged, player);
-    // Anything else that redraws the card must not show it early either
+
     bus.emit(GameEventNames.PlayerMoved, {
       playerId: player.id,
       from: { x: 5, y: 5 },
@@ -93,13 +93,19 @@ it("waits for the armour and injury dice to land before naming the injury", asyn
   });
   expect(status()).toBeNull();
 
-  await act(async () => tray(3, 1));
+  await act(async () => {
+    tray(3, 1);
+  });
   expect(status()).toBe("Prone");
 
-  await act(async () => tray(3, 2));
+  await act(async () => {
+    tray(3, 2);
+  });
   expect(status()).toBe("Prone");
 
-  await act(async () => tray(3, 3));
+  await act(async () => {
+    tray(3, 3);
+  });
   expect(status()).toBe("Injured");
 });
 
@@ -113,38 +119,47 @@ it("updates at once with no dice in the tray", async () => {
 
 it("holds a foul's Stunned until the injury die lands, though no event names it", async () => {
   player.status = PlayerStatus.PRONE;
-  await act(async () => bus.emit(GameEventNames.PlayerStatusChanged, player));
+  await act(async () => {
+    bus.emit(GameEventNames.PlayerStatusChanged, player);
+  });
   expect(status()).toBe("Prone");
   await act(async () => {
-    // The foul: the armour die is thrown, then the injury die. The injury
-    // sets Stunned on the player without a status event.
     tray(1, 0);
     tray(2, 0);
     player.status = PlayerStatus.STUNNED;
   });
-  // The armour die lands and redraws the card: still Prone
-  await act(async () => tray(2, 1));
+
+  await act(async () => {
+    tray(2, 1);
+  });
   expect(status()).toBe("Prone");
-  await act(async () => tray(2, 2));
+  await act(async () => {
+    tray(2, 2);
+  });
   expect(status()).toBe("Stunned");
 });
 
 it("releases each status with the roll that caused it", async () => {
   await act(async () => {
-    // A dodge die, then a fall: the dodge fails and the player goes Prone
     tray(1, 0);
     player.status = PlayerStatus.PRONE;
     bus.emit(GameEventNames.PlayerStatusChanged, player);
-    // The armour die, then the injury die that Stuns
+
     tray(2, 0);
     tray(3, 0);
     player.status = PlayerStatus.STUNNED;
   });
   expect(status()).toBeNull();
-  await act(async () => tray(3, 1));
+  await act(async () => {
+    tray(3, 1);
+  });
   expect(status()).toBe("Prone");
-  await act(async () => tray(3, 2));
+  await act(async () => {
+    tray(3, 2);
+  });
   expect(status()).toBe("Prone");
-  await act(async () => tray(3, 3));
+  await act(async () => {
+    tray(3, 3);
+  });
   expect(status()).toBe("Stunned");
 });

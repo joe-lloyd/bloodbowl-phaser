@@ -7,7 +7,11 @@ import {
   INTERACTIVE_KICKOFF_EVENTS,
   KickoffEvent,
 } from "../game/kickoff/kickoffEvents";
-import { RuleConfig, RuleOutcome, ScriptResult } from "../game/rules-lab";
+import {
+  type RuleConfig,
+  type RuleOutcome,
+  type ScriptResult,
+} from "../game/rules-lab";
 
 export const KICKOFF_TOPIC = "Kickoff Table";
 
@@ -30,12 +34,11 @@ function resultEvent(result: ScriptResult): KickoffEvent | undefined {
   return (event?.data as { event?: KickoffEvent } | undefined)?.event;
 }
 
-/** Curated examples keep the common testing path instant and reproducible. */
 export const KICKOFF_EXAMPLE_SEEDS: Record<KickoffEvent, number> = {
   [KickoffEvent.GET_THE_REF]: 13,
   [KickoffEvent.TIME_OUT]: 4,
   [KickoffEvent.ALERT_DEFENCE]: 23,
-  // Lands on an empty square, so a receiver can be placed under the ball
+
   [KickoffEvent.HIGH_KICK]: 22,
   [KickoffEvent.CHEERING_FANS]: 3,
   [KickoffEvent.BRILLIANT_COACHING]: 12,
@@ -66,11 +69,7 @@ const EVENT_OUTCOMES: RuleOutcome[] = Object.entries(KICKOFF_TABLE).map(
 );
 
 function kickoffConfig(
-  id: string,
-  name: string,
-  description: string,
-  turn: number
-): RuleConfig {
+{ id,name,description,turn }: { id: string; name: string; description: string; turn: number; }): RuleConfig {
   return {
     id,
     name,
@@ -98,24 +97,11 @@ function kickoffConfig(
   };
 }
 
-/**
- * Browser-friendly kickoff setups. Both use the same legal seven-player
- * formations and deterministic kick target; the late-half variant makes the
- * Time-Out result demonstrate its turn-marker-backwards branch.
- */
 export const KICKOFF_SCENARIOS: RuleConfig[] = [
   kickoffConfig(
-    "kickoff-table-standard",
-    "Standard Kickoff (Turn 2)",
-    "Team 1 kicks to Team 2 from a legal seven-player formation. Time-Out moves both turn markers forward.",
-    2
-  ),
+    { id: "kickoff-table-standard",name: "Standard Kickoff (Turn 2)",description: "Team 1 kicks to Team 2 from a legal seven-player formation. Time-Out moves both turn markers forward.",turn: 2 }  ),
   kickoffConfig(
-    "kickoff-table-late-half",
-    "Late-Half Kickoff (Turn 5)",
-    "The same kickoff on turn 5. Time-Out moves both turn markers back, exercising its alternate branch.",
-    5
-  ),
+    { id: "kickoff-table-late-half",name: "Late-Half Kickoff (Turn 5)",description: "The same kickoff on turn 5. Time-Out moves both turn markers back, exercising its alternate branch.",turn: 5 }  ),
 ];
 
 export function findKickoffConfig(configId: string): RuleConfig | undefined {

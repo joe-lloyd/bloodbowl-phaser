@@ -1,26 +1,25 @@
-/**
- * Match viewer: turns a recording into one self-contained HTML page that
- * plays the match back on a drawn pitch, step by step, with the dice and
- * the play-by-play. Needs no server, no engine and no network to open.
- */
-
 import * as fs from "node:fs";
-import { EmittedEvent } from "../headless/protocol";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { type EmittedEvent } from "../headless/protocol";
 import type { HeadlessGame } from "../headless/HeadlessGame";
-import { GameSnapshot } from "../headless/serialization";
+import { type GameSnapshot } from "../headless/serialization";
 import { GameEventNames } from "../types/events";
 import { PlayerStatus } from "../types/Player";
-import { MatchRecording, createSimGame, grantSimInducements } from "./runMatch";
+import {
+  type MatchRecording,
+  createSimGame,
+  grantSimInducements,
+} from "./runMatch";
 import { createRuleMonitor } from "./invariants";
 
-/** Status codes kept short: the page holds one frame per step. */
 const STATUS_CODE: Partial<Record<PlayerStatus, string>> = {
   [PlayerStatus.ACTIVE]: "A",
   [PlayerStatus.PRONE]: "P",
   [PlayerStatus.STUNNED]: "S",
 };
 
-export interface DumpPlayer {
+interface DumpPlayer {
   id: string;
   team: 0 | 1;
   number: number;
@@ -29,8 +28,7 @@ export interface DumpPlayer {
   skills: string[];
 }
 
-export interface DumpFrame {
-  /** Recorded step label, or the opening frame's caption. */
+interface DumpFrame {
   label: string;
   team: 0 | 1 | null;
   ok: boolean;
@@ -39,17 +37,17 @@ export interface DumpFrame {
   phase: string;
   half: 1 | 2;
   turn: number;
-  /** Index of the team whose turn it is, if any. */
+
   active: 0 | 1 | null;
   score: [number, number];
   rerolls: [number, number];
   ball: [number, number] | null;
-  /** Per player, in `players` order: [x, y, status] on the pitch, or the off-pitch status. */
+
   board: ([number, number, string] | string)[];
   activePlayer: number | null;
-  /** Play-by-play for this step: dice, notices, turnovers, touchdowns. */
+
   log: string[];
-  /** Invariants this step broke, if any. */
+
   problems: string[];
 }
 
@@ -73,9 +71,9 @@ function narrate(events: EmittedEvent[]): string[] {
         if (
           data &&
           typeof data === "object" &&
-          typeof data.description === "string"
+          typeof data["description"] === "string"
         ) {
-          out.push(`🎲 ${data.description}`);
+          out.push(`🎲 ${data["description"]}`);
         }
         break;
       case GameEventNames.UI_Notification:
@@ -83,14 +81,14 @@ function narrate(events: EmittedEvent[]): string[] {
         break;
       case GameEventNames.UI_Turnover:
         if (data && typeof data === "object")
-          out.push(`TURNOVER: ${String(data.reason ?? "")}`);
+          out.push(`TURNOVER: ${String(data["reason"] ?? "")}`);
         break;
       case GameEventNames.Touchdown:
         out.push("TOUCHDOWN!");
         break;
     }
   }
-  // Notices repeat when several listeners announce the same thing.
+
   return out.filter((line, i) => line !== out[i - 1]);
 }
 
@@ -104,8 +102,10 @@ function frameOf(
   const byId = new Map(
     snapshot.teams.flatMap((t) => t.players).map((p) => [p.id, p])
   );
+  const [home, away] = snapshot.teams;
+  if (!home || !away) throw new Error("a frame needs both teams");
   const teamIndex = (id: string | null) =>
-    id === snapshot.teams[0].id ? 0 : id === snapshot.teams[1].id ? 1 : null;
+    id === home.id ? 0 : id === away.id ? 1 : null;
   return {
     ...step,
     phase: snapshot.phase,
@@ -113,10 +113,10 @@ function frameOf(
     turn: snapshot.turn.turnNumber,
     active: teamIndex(snapshot.activeTeamId),
     score: [
-      snapshot.score[snapshot.teams[0].id] ?? 0,
-      snapshot.score[snapshot.teams[1].id] ?? 0,
+      snapshot.score[home.id] ?? 0,
+      snapshot.score[away.id] ?? 0,
     ],
-    rerolls: [snapshot.teams[0].rerolls, snapshot.teams[1].rerolls],
+    rerolls: [home.rerolls, away.rerolls],
     ball: snapshot.ballPosition
       ? [snapshot.ballPosition.x, snapshot.ballPosition.y]
       : null,
@@ -134,11 +134,6 @@ function frameOf(
   };
 }
 
-/**
- * Replay the recording and capture the board after every step. A recording
- * whose teams the sim did not build, such as a study's, passes its game
- * loaded at the recording's start.
- */
 export async function buildMatchDump(
   recording: MatchRecording,
   initial?: HeadlessGame
@@ -159,7 +154,7 @@ export async function buildMatchDump(
       team: t as 0 | 1,
       number: p.number,
       position: p.positionName,
-      stats: `MA${p.stats.MA} ST${p.stats.ST} AG${p.stats.AG}+ PA${p.stats.PA ?? "-"}+ AV${p.stats.AV}+`,
+      stats: `MA${String(p.stats.MA)} ST${String(p.stats.ST)} AG${String(p.stats.AG)}+ PA${String(p.stats.PA ?? "-")}+ AV${String(p.stats.AV)}+`,
       skills: p.skills,
     }))
   );
@@ -195,8 +190,8 @@ export async function buildMatchDump(
           label: step.label,
           team: step.team,
           ok: response.ok,
-          reason: response.reason,
-          note: step.note,
+          ...(response.reason === undefined ? {} : { reason: response.reason }),
+          ...(step.note === undefined ? {} : { note: step.note }),
         },
         narrate(response.events),
         problems
@@ -204,7 +199,7 @@ export async function buildMatchDump(
     );
   }
   return {
-    title: `${recording.rosters[0]} vs ${recording.rosters[1]}, seed ${recording.seed}`,
+    title: `${recording.rosters[0]} vs ${recording.rosters[1]}, seed ${String(recording.seed)}`,
     seed: recording.seed,
     rosters: recording.rosters,
     coaches: recording.coaches,
@@ -218,9 +213,8 @@ export async function buildMatchDump(
   };
 }
 
-const TEMPLATE = new URL("./viewer.html", import.meta.url);
+const TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), "viewer.html");
 
-/** The viewer page with the dump inlined; safe to open from disk. */
 export function renderMatchHtml(dump: MatchDump): string {
   const json = JSON.stringify(dump).replace(/</g, "\\u003c");
   return fs
@@ -237,7 +231,6 @@ export function escapeHtml(text: string): string {
 }
 
 export interface IndexEntry {
-  /** Page file name, relative to the index. */
   page: string;
   seed: number;
   rosters: [string, string];
@@ -246,7 +239,6 @@ export interface IndexEntry {
   findings: number;
 }
 
-/** A batch's front page: totals, coverage, and a link to every match. */
 export function renderIndexHtml(batch: {
   title: string;
   coaches: [string, string];
@@ -258,19 +250,19 @@ export function renderIndexHtml(batch: {
     .map(
       (m) => `<tr${m.findings ? ' class="bad"' : ""}>
   <td><a href="${escapeHtml(m.page)}">${escapeHtml(m.rosters[0])} vs ${escapeHtml(m.rosters[1])}</a></td>
-  <td class="n">${m.score[0]}–${m.score[1]}</td><td class="n">${m.seed}</td>
-  <td class="n">${m.commands}</td><td class="n">${m.findings || ""}</td></tr>`
+  <td class="n">${String(m.score[0])}–${String(m.score[1])}</td><td class="n">${String(m.seed)}</td>
+  <td class="n">${String(m.commands)}</td><td class="n">${String(m.findings || "")}</td></tr>`
     )
     .join("\n");
   const coverage = Object.entries(batch.commandCoverage)
     .sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => `<span>${escapeHtml(k)} <b>${v}</b></span>`)
+    .map(([k, v]) => `<span>${escapeHtml(k)} <b>${String(v)}</b></span>`)
     .join(" ");
   const problems = batch.findings.length
     ? `<ul>${batch.findings
         .map(
           (f) =>
-            `<li>${escapeHtml(f.key)}: ${f.count} times in ${f.matches} matches</li>`
+            `<li>${escapeHtml(f.key)}: ${String(f.count)} times in ${String(f.matches)} matches</li>`
         )
         .join("")}</ul>`
     : "<p>No rule was broken in any match.</p>";
@@ -290,7 +282,7 @@ td,th{padding:5px 10px;border-bottom:1px solid #2a3352;text-align:left}th{color:
 .cov span{display:inline-block;margin:0 12px 4px 0;color:#8d93a8}.cov b{color:#e8e4d6}
 </style></head><body>
 <h1>${escapeHtml(batch.title)}</h1>
-<p>${escapeHtml(batch.coaches[0])} (home) vs ${escapeHtml(batch.coaches[1])} (away) · ${batch.matches.length} matches · ${touchdowns} touchdowns. Open a match to watch it back.</p>
+<p>${escapeHtml(batch.coaches[0])} (home) vs ${escapeHtml(batch.coaches[1])} (away) · ${String(batch.matches.length)} matches · ${String(touchdowns)} touchdowns. Open a match to watch it back.</p>
 <h2>Problems</h2>${problems}
 <h2>Matches</h2>
 <table><tr><th>Match</th><th class="n">Score</th><th class="n">Seed</th><th class="n">Steps</th><th class="n">Problems</th></tr>

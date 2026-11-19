@@ -1,15 +1,8 @@
-/**
- * Re-roll decision scenario cases, mirroring `__tests__/headless/reroll-decisions.test.ts`.
- */
-
+import { fixtureValue } from "../fixtureValue";
 import { GameEventNames } from "../../types/events";
-import { ScenarioCase, step } from "../scenarioCase/types";
+import { type ScenarioCase, step } from "../scenarioCase/types";
 import { playSetup, checkpointAssert } from "./helpers";
 
-/**
- * A failed roll offers a Team Re-roll only when the team has one. With an
- * empty bank the failure stands and no decision is raised.
- */
 const exhaustedRerolls: ScenarioCase = {
   id: "negative-no-reroll-when-bank-empty",
   name: "No re-roll offer with an empty bank",
@@ -26,7 +19,7 @@ const exhaustedRerolls: ScenarioCase = {
     team2Placements: [{ playerIndex: 0, x: 18, y: 9 }],
     ballPosition: { x: 10, y: 7 },
   }),
-  // rerolls deliberately left at 0/0.
+
   steps: [
     step({ type: "declare-action", playerId: "team1:0", action: "move" }),
     step(
@@ -41,8 +34,7 @@ const exhaustedRerolls: ScenarioCase = {
     {
       id: "pickup-fails-no-offer",
       name: "Failed pick-up, no offer",
-      // Committed: this seed fails the pick-up. With no reroll in the bank the
-      // engine must not raise a reroll decision.
+
       seed: 7,
       expectedOutcome:
         "the pick-up fails and no re-roll decision is offered at all",
@@ -72,19 +64,13 @@ const exhaustedRerolls: ScenarioCase = {
         );
         checkpointAssert(
           offered.length === 0,
-          `an empty re-roll bank must offer nothing, but ${offered.length} offer(s) were made`
+          `an empty re-roll bank must offer nothing, but ${String(offered.length)} offer(s) were made`
         );
       },
     },
   ],
 };
 
-/**
- * Sevens D8: once per game the Veteran may re-roll the block dice when their
- * own Block would Knock them Down. The block-dice decision carries
- * `veteranRerollAvailable`, and the coach spends it with the explicit
- * `veteran-reroll-block` command, as Brawler does with its own command.
- */
 const veteranRerollsBlock: ScenarioCase = {
   id: "veteran-rerolls-block-dice",
   name: "Veteran re-rolls a losing block",
@@ -122,8 +108,7 @@ const veteranRerollsBlock: ScenarioCase = {
     {
       id: "skull-rerolled-to-push",
       name: "Player Down re-rolled to Push",
-      // Committed: one die reads Player Down, the re-roll reads Push (the
-      // same seed as __tests__/headless/veteran-reroll.test.ts).
+
       seed: 8,
       expectedOutcome:
         "the Veteran re-roll is offered on Player Down and the re-roll reads Push",
@@ -156,8 +141,8 @@ const veteranRerollsBlock: ScenarioCase = {
           .map((event) => event.data as { source?: string; rollKind?: string });
         checkpointAssert(
           used.length === 1 &&
-            used[0].source === "veteran" &&
-            used[0].rollKind === "block",
+            fixtureValue(used[0]).source === "veteran" &&
+            fixtureValue(used[0]).rollKind === "block",
           "exactly one Veteran block re-roll must be used"
         );
         const blockDice = observed.decisions.filter(

@@ -1,9 +1,4 @@
-/**
- * Two lockstep sessions over the in-memory transport, each with its own
- * engine: a whole match played by whichever coach may act, a dropped
- * message healed by resync, a reloaded page caught up, and an engine that
- * drifted caught by the checksum.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import {
   createSimGame,
@@ -16,10 +11,10 @@ import { stateChecksum } from "../../src/headless/checksum";
 import { LockstepSession } from "../../src/network/LockstepSession";
 import {
   createInMemoryTransportPair,
-  Transport,
+  type Transport,
 } from "../../src/network/transport";
-import { Envelope } from "../../src/network/envelope";
-import { HeadlessCommand } from "../../src/headless/protocol";
+import { type Envelope } from "../../src/network/envelope";
+import { type HeadlessCommand } from "../../src/headless/protocol";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { trackEngineWork } from "../../src/game/core/GameFlowManager";
@@ -72,7 +67,6 @@ async function pair(seed: number) {
   };
 }
 
-/** Until both sessions have delivered and run everything queued. */
 async function settle(...sessions: LockstepSession[]) {
   for (let i = 0; i < 3; i++) {
     await tick();
@@ -80,7 +74,6 @@ async function settle(...sessions: LockstepSession[]) {
   }
 }
 
-/** The coach who may act runs it; the other side is tried only if refused. */
 async function play(
   host: LockstepSession,
   guest: LockstepSession,
@@ -103,7 +96,7 @@ describe("lockstep sessions", () => {
       await settle(host, guest);
       if (stateChecksum(hostGame) !== stateChecksum(guestGame))
         throw new Error(
-          `diverged at step ${index}: ${step.command.type} by ${side}`
+          `diverged at step ${String(index)}: ${step.command.type} by ${side}`
         );
       expect(response.ok).toBe(step.ok);
       if (response.ok) sides[side as "host" | "guest"]++;
@@ -123,7 +116,6 @@ describe("lockstep sessions", () => {
     const realSend = hostEnd.send.bind(hostEnd);
 
     for (const [index, step] of steps.entries()) {
-      // One host message is lost on the way
       hostEnd.send =
         index === dropAt
           ? async (envelope: Envelope) => {
@@ -145,7 +137,6 @@ describe("lockstep sessions", () => {
       await pair(91);
     const steps = recording.steps.slice(0, 80);
     for (const [index, step] of steps.entries()) {
-      // Something on the guest's machine changes its dice state
       if (index === 40) guestGame.ctx.rng.rollDie(6);
       await play(host, guest, step.command);
       await settle(host, guest);
@@ -162,7 +153,7 @@ describe("lockstep sessions", () => {
       await settle(host, guest);
     }
     guest.close();
-    // The reloaded guest page: its own engine, at the very start
+
     const reloaded = createSimGame(
       5150,
       recording.rosters,
@@ -185,7 +176,7 @@ describe("lockstep sessions", () => {
     expect(resyncs.guest).toBe(1);
     expect(stateChecksum(reloaded)).toBe(stateChecksum(hostGame));
     expect(after.appliedCommands()).toBe(host.appliedCommands());
-    void guestGame;
+    guestGame;
   }, 120_000);
 
   it("rolls the opening weather on both engines once both coaches are ready", async () => {
@@ -233,8 +224,6 @@ describe("lockstep sessions", () => {
       (roll: { rollType: string }) => rolls.push(roll.rollType)
     );
 
-    // Both coaches press READY at the same moment. The guest goes first;
-    // the host's ready waits until the guest's has arrived
     const [hostEarly, guestReady] = await Promise.all([
       host.run({ type: "ready-weather", teamId: hostGame.ctx.team1.id }),
       guest.run({ type: "ready-weather", teamId: hostGame.ctx.team2.id }),
@@ -242,12 +231,11 @@ describe("lockstep sessions", () => {
     await settle(host, guest);
     expect(hostEarly).toMatchObject({ ok: false, reason: "not-your-turn" });
     expect(guestReady.ok).toBe(true);
-    // One coach ready is not enough
+
     expect(rolls).toEqual([]);
     expect(hostGame.snapshot().weatherReady).toEqual([hostGame.ctx.team2.id]);
     expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
 
-    // A coach cannot ready up for the other one
     const forOther = await guest.run({
       type: "ready-weather",
       teamId: hostGame.ctx.team1.id,
@@ -269,7 +257,7 @@ describe("lockstep sessions", () => {
 
   it("hands the other coach's move to the watcher before it runs, so the whole path can be drawn", async () => {
     const { recording, guestGame, host, guest, guestEnd } = await pair(4242);
-    guest.close(); // the watcher below takes its place
+    guest.close();
     const seen: { from?: unknown; path: unknown }[] = [];
     const watcher = new LockstepSession({
       transport: guestEnd,
@@ -297,10 +285,10 @@ describe("lockstep sessions", () => {
     }
     expect(seen.length).toBeGreaterThan(0);
     const [first] = seen;
-    // Before the run: the player still stands where the path starts from
-    expect(first.from).toBeDefined();
-    expect(first.from).not.toEqual(
-      (first.path as { x: number; y: number }[]).at(-1)
+
+    expect(fixtureValue(first).from).toBeDefined();
+    expect(fixtureValue(first).from).not.toEqual(
+      (fixtureValue(first).path as { x: number; y: number }[]).at(-1)
     );
   }, 120_000);
 });
@@ -309,30 +297,30 @@ describe("lockstep sessions send before they animate", () => {
   it("delivers a command to the other engine while the acting screen is still playing it out", async () => {
     const { recording, hostGame, guestGame, host, guest, resyncs } =
       await pair(4242);
-    // The host's screen takes as long as it likes to play a command out;
-    // `release` ends the stall.
+
     const realExecute = hostGame.execute.bind(hostGame);
     let stalling = false;
-    let release: (() => void) | null = null;
+    const releases: (() => void)[] = [];
     hostGame.execute = async (command: unknown) => {
-      if (stalling) await new Promise<void>((resolve) => (release = resolve));
+      if (stalling)
+        await new Promise<void>((resolve) => releases.push(resolve));
       return realExecute(command);
     };
 
     let checked = false;
     for (const step of recording.steps) {
       stalling = !checked;
-      release = null;
+      releases.length = 0;
       const guestBefore = stateChecksum(guestGame);
       const running = host.run(step.command);
       await settle(guest);
+      const release = releases[0];
       if (!checked && release) {
-        // The host's engine has not run it yet, but the guest's already has
         expect(stateChecksum(hostGame)).toBe(guestBefore);
         expect(stateChecksum(guestGame)).not.toBe(guestBefore);
         checked = true;
         stalling = false;
-        (release as () => void)();
+        release();
       }
       const response = await running;
       if (!response.ok && /not-your|host-only/.test(response.reason ?? ""))
@@ -352,14 +340,11 @@ describe("lockstep sessions send before they animate", () => {
     for (const step of recording.steps) {
       const command = step.command;
       if (command.type === "move" && step.ok && !refused) {
-        // The coach owns the player and the turn, so the gate lets it out.
-        // The engine refuses a path off the pitch, on both screens.
         const offPitch = await host.run({
           ...command,
           path: [{ x: -3, y: -3 }],
         });
         if (offPitch.ok || /not-your|host-only/.test(offPitch.reason ?? "")) {
-          // The guest's move: try the same on that side
           refused = null;
         } else {
           refused = offPitch;
@@ -377,9 +362,6 @@ describe("lockstep sessions send before they animate", () => {
   }, 120_000);
 
   it("refuses a command as late for the turn when the turn ends while the screen plays out", async () => {
-    // Round 4, 6:56: the host clicked while its own turnover played out.
-    // The gate passed on the turn before, the engine then refused, and the
-    // notice said only "The game did not allow that".
     const { recording, hostGame, guestGame, host, guest, guestEnd, resyncs } =
       await pair(4242);
     const hostTeam = hostGame.ctx.team1.id;
@@ -388,14 +370,13 @@ describe("lockstep sessions send before they animate", () => {
     for (const step of recording.steps) {
       const hostTurn = hostGame.snapshot().activeTeamId === hostTeam;
       if (hostTurn && step.command.type === "declare-action" && step.ok) {
-        // This screen is still playing out the turn's last moments
         let finish: () => void = () => {};
         const playing = trackEngineWork(
           new Promise<void>((resolve) => (finish = resolve))
         );
         const click = host.run(step.command);
         await tick();
-        // Meanwhile the turn ends on both engines alike
+
         await hostGame.execute({ type: "end-turn" });
         await guestGame.execute({ type: "end-turn" });
         const before = stateChecksum(guestGame);
@@ -411,10 +392,10 @@ describe("lockstep sessions send before they animate", () => {
       await settle(host, guest);
     }
     expect(late).toMatchObject({ ok: false, reason: "not-your-turn" });
-    expect(refusalMessage(late!.reason!)).toBe(
+    expect(refusalMessage(fixtureValue(fixtureValue(late).reason))).toBe(
       "Your turn has ended, so that was not played."
     );
-    // Refused before it was sent: the other engine never saw it
+
     expect(sent).not.toContain("command");
     expect(resyncs).toEqual({ host: 0, guest: 0 });
   }, 120_000);
@@ -454,8 +435,7 @@ describe("a resync during setup", () => {
       "apply-formation",
       "confirm-setup",
     ]);
-    // The guest's first setup command never reaches the host. The host sees
-    // the guest's count run ahead and rebuilds from the guest's full state.
+
     const realSend = guestEnd.send.bind(guestEnd);
     let dropped: string | null = null;
     guestEnd.send = async (envelope: Envelope) => {
@@ -481,8 +461,8 @@ describe("a resync during setup", () => {
         setupCommands.has(step.command.type)
       ) {
         afterResync++;
-        expect(host.appliedCommands()).toBe(before[0] + 1);
-        expect(guest.appliedCommands()).toBe(before[1] + 1);
+        expect(host.appliedCommands()).toBe(fixtureValue(before[0]) + 1);
+        expect(guest.appliedCommands()).toBe(fixtureValue(before[1]) + 1);
       }
       expect(stateChecksum(hostGame)).toBe(stateChecksum(guestGame));
       if (resyncs.host > 0 && !inSetup) break;

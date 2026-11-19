@@ -1,14 +1,11 @@
-﻿import { describe, it, expect, beforeEach } from "vitest";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { describe, it, expect, beforeEach } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
-import {
-  SkillType,
-  SkillCategory,
-  hasSkill,
-} from "../../src/types/Skills";
-import { Scenario } from "../../src/types/Scenario";
+import { SkillType, SkillCategory, hasSkill } from "../../src/types/Skills";
+import type { Scenario } from "../../src/types/Scenario";
 import { SkillRegistry } from "../../src/game/skills";
 
 const scenario: Scenario = {
@@ -36,7 +33,6 @@ const bothDown = { type: "both-down" as const, icon: "", label: "Both Down" };
 
 describe("Block skill â€” Both Down immunity", () => {
   beforeEach(() => {
-    // Framework registers on import; make sure it's live for these tests
     expect(SkillRegistry.has(SkillType.BLOCK)).toBe(true);
   });
 
@@ -45,26 +41,36 @@ describe("Block skill â€” Both Down immunity", () => {
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
 
-    await game.ctx.gameService.resolveBlock(attacker.id, defender.id, bothDown);
+    await game.ctx.gameService.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      bothDown
+    );
 
-    expect(attacker.status).toBe(PlayerStatus.PRONE);
-    expect(defender.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
   });
 
   it("the attacker with Block stays up (and no turnover) on Both Down", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    giveBlock(attacker);
-    expect(hasSkill(attacker.skills, SkillType.BLOCK)).toBe(true);
+    giveBlock(fixtureValue(attacker));
+    expect(hasSkill(fixtureValue(attacker).skills, SkillType.BLOCK)).toBe(true);
 
     const triggers: unknown[] = [];
-    game.ctx.eventBus.on(GameEventNames.SkillTriggered, (d) => triggers.push(d));
+    game.ctx.eventBus.on(GameEventNames.SkillTriggered, (d) =>
+      triggers.push(d)
+    );
 
-    await game.ctx.gameService.resolveBlock(attacker.id, defender.id, bothDown);
+    await game.ctx.gameService.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      bothDown
+    );
 
-    expect(attacker.status).toBe(PlayerStatus.ACTIVE); // stayed up
-    expect(defender.status).toBe(PlayerStatus.PRONE); // still went down
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
     expect(triggers).toHaveLength(1);
   });
 
@@ -72,33 +78,39 @@ describe("Block skill â€” Both Down immunity", () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    giveBlock(attacker);
-    giveBlock(defender);
+    giveBlock(fixtureValue(attacker));
+    giveBlock(fixtureValue(defender));
 
-    await game.ctx.gameService.resolveBlock(attacker.id, defender.id, bothDown);
+    await game.ctx.gameService.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      bothDown
+    );
 
-    expect(attacker.status).toBe(PlayerStatus.ACTIVE);
-    expect(defender.status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.ACTIVE);
   });
 });
-
-// Coverage/gate assertions live in __tests__/headless/rules/gate.test.ts
 
 describe("inert skills", () => {
   it("an inert skill does not change a Both Down outcome", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    // A skill with no registered rule
-    attacker.skills.push({
+
+    fixtureValue(attacker).skills.push({
       type: SkillType.DAUNTLESS,
       category: SkillCategory.STRENGTH,
       description: "",
     });
 
-    await game.ctx.gameService.resolveBlock(attacker.id, defender.id, bothDown);
+    await game.ctx.gameService.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      bothDown
+    );
 
-    expect(attacker.status).toBe(PlayerStatus.PRONE);
-    expect(defender.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
   });
 });

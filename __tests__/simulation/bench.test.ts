@@ -1,31 +1,28 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { RosterName } from "../../src/types/Team";
 import {
   benchJobs,
-  BenchGame,
+  type BenchGame,
   benchReport,
   playBenchGame,
   rosterReport,
   wilson,
 } from "../../src/simulation/bench";
-import { TeamPlayStats } from "../../src/simulation/runMatch";
+import { type TeamPlayStats } from "../../src/simulation/runMatch";
 import { standardFor } from "../../src/simulation/standards";
 import { PUZZLES, playPuzzle } from "../../src/simulation/puzzles";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { randomCoach } from "../../src/simulation/coaches/random";
-import { Coach } from "../../src/simulation/coach";
+import { type Coach } from "../../src/simulation/coach";
 import { mutate, pointShare, standardsShare } from "../../src/simulation/tune";
 import { createCoachRng } from "../../src/simulation/rng";
 import {
   DEFAULT_WEIGHTS,
-  Weights,
+  type Weights,
   weightBounds,
 } from "../../src/simulation/ai/weights";
 
-/**
- * The benchmark is only a measuring stick if a coach playing itself comes
- * out exactly even, so the mirrored pair is checked with real matches.
- */
 describe("coach benchmark", () => {
   it("plays every seed twice with the same rosters and the sides swapped", () => {
     const rosters: [RosterName, RosterName] = [
@@ -45,7 +42,9 @@ describe("coach benchmark", () => {
     const games = await Promise.all(
       jobs.map((job) => playBenchGame(job, heuristicCoach, heuristicCoach))
     );
-    expect(games[0].score).toEqual([...games[1].score].reverse());
+    expect(fixtureValue(games[0]).score).toEqual(
+      [...fixtureValue(games[1]).score].reverse()
+    );
     const report = benchReport(games);
     expect(report.wins).toBe(report.losses);
     expect(report.touchdownDiffPerGame).toBe(0);
@@ -100,14 +99,15 @@ describe("roster standards", () => {
       game(RosterName.HUMAN),
     ]);
 
-    // One touchdown and two casualties: 2 + 3 + 3 SPP for Dwarfs, against
-    // 3 x 1.89 = 5.7; Humans count the touchdown only, 3 against 6.9.
     expect(dwarf).toMatchObject({ roster: RosterName.DWARF, sppPerGame: 8 });
-    expect(dwarf.meets).toBe(true);
+    expect(fixtureValue(dwarf).meets).toBe(true);
     expect(human).toMatchObject({ roster: RosterName.HUMAN, sppPerGame: 3 });
-    expect(human.meets).toBe(false);
-    expect(dwarf.side.actionsPerGame).toEqual({ block: 6, blitz: 4 });
-    // The Dwarf's surplus does not make up for the Human's shortfall.
+    expect(fixtureValue(human).meets).toBe(false);
+    expect(fixtureValue(dwarf).side.actionsPerGame).toEqual({
+      block: 6,
+      blitz: 4,
+    });
+
     expect(
       standardsShare([game(RosterName.DWARF), game(RosterName.HUMAN)])
     ).toBeCloseTo((1 + 3 / standardFor(RosterName.HUMAN).spp) / 2, 9);
@@ -115,7 +115,7 @@ describe("roster standards", () => {
 });
 
 describe("coaching puzzles", () => {
-  const puzzle = (id: string) => PUZZLES.find((p) => p.id === id)!;
+  const puzzle = (id: string) => fixtureValue(PUZZLES.find((p) => p.id === id));
 
   it("counts a walk-in touchdown as solving score-this-turn", async () => {
     const result = await playPuzzle(
@@ -130,9 +130,9 @@ describe("coaching puzzles", () => {
   it("does not credit a coach that only ends its turn", async () => {
     const passive: Coach = {
       name: "passive",
-      async choose({ point }) {
+      choose({ point }) {
         const end = point.candidates.findIndex((c) => c.kind === "end-turn");
-        return { index: Math.max(0, end) };
+        return Promise.resolve({ index: Math.max(0, end) });
       },
     };
     const result = await playPuzzle(puzzle("blitz-the-carrier"), passive, 1);
@@ -149,10 +149,13 @@ describe("coaching puzzles", () => {
 describe("the weight tuner", () => {
   it("keeps mutants inside each weight's bounds", () => {
     const rng = createCoachRng(4);
-    let weights = DEFAULT_WEIGHTS as Weights;
+    let weights: Weights = DEFAULT_WEIGHTS;
     for (let i = 0; i < 200; i++) {
       weights = mutate(weights, rng);
-      for (const name of Object.keys(weights) as (keyof Weights)[]) {
+      for (const name of Object.keys(DEFAULT_WEIGHTS).filter(
+        (name): name is keyof Weights =>
+          Object.getOwnPropertyDescriptor(DEFAULT_WEIGHTS, name) !== undefined
+      )) {
         const [low, high] = weightBounds(name);
         expect(weights[name]).toBeGreaterThanOrEqual(low);
         expect(weights[name]).toBeLessThanOrEqual(high);
@@ -163,7 +166,7 @@ describe("the weight tuner", () => {
   });
 
   it("counts a win as a point and a draw as half", () => {
-    const game = (score: [number, number]) => ({ score }) as BenchGame;
+    const game = (score: [number, number]) => ({ score });
     expect(pointShare([game([2, 0]), game([1, 1]), game([0, 1])])).toBe(0.5);
     expect(pointShare([game([2, 0]), game([1, 1])])).toBe(0.75);
   });

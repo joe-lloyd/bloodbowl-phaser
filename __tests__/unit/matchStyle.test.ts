@@ -1,18 +1,18 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MATCH_STYLE } from "../../src/game/presentation/matchStyle";
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
-import { createMatchSave, MatchSave } from "../../src/headless/serialization";
+import {
+  createMatchSave,
+  type MatchSave,
+} from "../../src/headless/serialization";
 import { SCENARIOS } from "../../src/data/scenarios";
 import { resolveMatchStart } from "../../src/scenes/matchStart";
 
 const PUBLIC = join(__dirname, "../../public");
 
-/**
- * There is one match look, the Blood Bowl stadium. The Neon style is gone,
- * but saves and lobbies written while it existed still name it.
- */
 describe("the match style", () => {
   it("draws the Blood Bowl stadium and sprites, which ship in public/", () => {
     expect(MATCH_STYLE.stadiumPath).toBe("/stadium/bloodbowl");
@@ -37,7 +37,7 @@ describe("the match style", () => {
   });
 
   it("resumes a save written in the Neon style, and saves it without one", () => {
-    const scenario = SCENARIOS.find((s) => s.id === "basic-scrimmage")!;
+    const scenario = fixtureValue(SCENARIOS.find((s) => s.id === "basic-scrimmage"));
     const game = createHeadlessGame({ scenario, seed: 5 });
     const save = createMatchSave({
       state: game.gameService.getState(),
@@ -51,7 +51,6 @@ describe("the match style", () => {
     });
     expect(save).not.toHaveProperty("presentation");
 
-    // What an autosave from before looked like, round-tripped through JSON
     const legacy = JSON.parse(
       JSON.stringify({ ...save, presentation: { pitchThemeId: "neon" } })
     ) as MatchSave;

@@ -1,8 +1,13 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { BallManager } from "../../../src/game/managers/BallManager";
-import { GameState, GamePhase, SubPhase } from "../../../src/types/GameState";
-import { Team } from "../../../src/types/Team";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import {
+  type GameState,
+  GamePhase,
+  SubPhase,
+} from "../../../src/types/GameState";
+import { type Team } from "../../../src/types/Team";
+import { type Player, PlayerStatus } from "../../../src/types/Player";
 
 describe("BallManager", () => {
   let manager: BallManager;
@@ -58,7 +63,7 @@ describe("BallManager", () => {
 
     mockDiceController = {
       rollD8: vi.fn().mockReturnValue(1),
-      rollD6: vi.fn().mockReturnValue(3), // Default to 3, not 1
+      rollD6: vi.fn().mockReturnValue(3),
       roll2D6: vi.fn().mockReturnValue(7),
       rollLowerOf2D6: vi.fn().mockReturnValue(3),
       rollSkillCheck: vi.fn().mockReturnValue({ success: true, roll: 3 }),
@@ -150,9 +155,9 @@ describe("BallManager", () => {
     it("should succeed when roll meets AG target", () => {
       mockDiceController.rollD6.mockReturnValue(4);
       const player = mockTeam1.players[0];
-      player.stats.AG = 3;
+      fixtureValue(player).stats.AG = 3;
 
-      const result = manager.attemptPickup(player, { x: 10, y: 10 });
+      const result = manager.attemptPickup(fixtureValue(player), { x: 10, y: 10 });
 
       expect(result).toBe(true);
       expect(mockDiceController.rollD6).toHaveBeenCalled();
@@ -162,7 +167,7 @@ describe("BallManager", () => {
       mockDiceController.rollD6.mockReturnValue(1);
       const player = mockTeam1.players[0];
 
-      const result = manager.attemptPickup(player, { x: 5, y: 5 });
+      const result = manager.attemptPickup(fixtureValue(player), { x: 5, y: 5 });
 
       expect(result).toBe(false);
       expect(mockCallbacks.onTurnover).toHaveBeenCalledWith("Failed Pickup");

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Blood Bowl Sevens game built with Phaser 3",
   "type": "module",
-  "packageManager": "pnpm@10.26.0",
+  "packageManager": "pnpm@11.28.12",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -17,11 +17,11 @@
     "sim:replay": "tsx src/simulation/cli.ts replay",
     "perf": "tsx scripts/perf/bench.ts",
     "test": "vitest",
-    "test:rules": "npx -y firebase-tools@15.34.1 emulators:exec --only firestore --project demo-bloodbowl-rules \"vitest run __tests__/rules\"",
+    "test:rules": "pnpm dlx firebase-tools@15.34.1 emulators:exec --only firestore --project demo-bloodbowl-rules \"vitest run __tests__/rules\"",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "lint": "eslint .",
-    "dupes": "jscpd",
+    "lint": "eslint . && jscpd --config jscpd.json . && knip",
+    "dupes": "jscpd --config jscpd.json .",
     "format": "prettier --write .",
     "prepare": "husky",
     "e2e:install": "playwright install chromium",
@@ -49,7 +49,10 @@
     "docs:check": "node scripts/check-docs.mjs",
     "dice:simulate": "tsx scripts/dice-audit/simulate.ts",
     "dice:audit": "tsx scripts/dice-audit/audit.ts",
-    "dice:fetch": "tsx scripts/dice-audit/fetch.ts"
+    "dice:fetch": "tsx scripts/dice-audit/fetch.ts",
+    "typecheck": "tsc --noEmit && tsc -p functions/tsconfig.json --noEmit",
+    "check": "pnpm typecheck && pnpm lint",
+    "unused": "knip"
   },
   "dependencies": {
     "cannon-es": "0.20.0",
@@ -58,7 +61,8 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-router-dom": "^7.11.0",
-    "three": "0.186.1"
+    "three": "0.186.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -67,27 +71,35 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.186.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/coverage-v8": "^1.0.4",
     "@vitest/ui": "^1.0.4",
     "autoprefixer": "^10.4.22",
     "eslint": "^9.39.5",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.8",
     "eslint-plugin-sonarjs": "^4.2.2",
     "globals": "^17.14.0",
     "husky": "^9.1.7",
     "jscpd": "^4.3.0",
     "jsdom": "^27.2.0",
+    "knip": "^6.45.1",
     "marked": "18.1.2",
     "postcss": "^8.5.6",
     "prettier": "^3.7.4",
     "tailwindcss": "^3.4.18",
     "tsx": "^4.23.1",
-    "typescript": "^5.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.72.2",
     "vite": "^5.0.8",
     "vitest": "^1.0.4"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "onFail": "error",
+      "version": "11.28.12"
+    }
   }
 }

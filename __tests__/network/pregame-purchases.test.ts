@@ -4,7 +4,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { LockstepSession } from "../../src/network/LockstepSession";
 import {
   createInMemoryTransportPair,
-  Transport,
+  type Transport,
 } from "../../src/network/transport";
 import { stateChecksum } from "../../src/headless/checksum";
 import { Inducement } from "../../src/types/Inducements";
@@ -30,7 +30,7 @@ function session(
     myTeamId: host ? "team1" : "team2",
     peerTeamId: host ? "team2" : "team1",
     hostTeamId: "team1",
-    onDesync,
+    ...(onDesync === undefined ? {} : { onDesync: onDesync }),
   });
 }
 
@@ -42,7 +42,6 @@ describe("pregame lockstep purchases", () => {
     const host = session(home, a, true);
     const guest = session(away, b, false);
     try {
-      // A coach readies only their own team, the guest first
       expect(
         (await guest.run({ type: "ready-weather", teamId: "team1" })).ok
       ).toBe(false);
@@ -54,7 +53,7 @@ describe("pregame lockstep purchases", () => {
         (await host.run({ type: "ready-weather", teamId: "team1" })).ok
       ).toBe(true);
       await settle(host, guest);
-      // Team 2 has the higher team value, so it buys first
+
       expect(
         (await host.run({ type: "confirm-inducements", teamId: "team1" }))
           .reason
@@ -78,9 +77,9 @@ describe("pregame lockstep purchases", () => {
         away.ctx.gameService.getInducementOffer()
       );
       expect(
-        away.snapshot().pregameInducements?.offer?.selections.team1
+        away.snapshot().pregameInducements?.offer?.selections["team1"]
       ).toEqual([{ inducement: Inducement.BLITZERS_BEST_KEGS, quantity: 1 }]);
-      // A reloaded guest resumes the accepted negotiation rather than an empty cached session.
+
       const restored = new HeadlessGame({
         team1: structuredClone(away.ctx.team1),
         team2: structuredClone(away.ctx.team2),
@@ -114,7 +113,6 @@ describe("pregame lockstep purchases", () => {
       guestCommand: Parameters<LockstepSession["run"]>[0]
     ) => Promise.all([host.run(hostCommand), guest.run(guestCommand)]);
     try {
-      // The host's early ready waits for the guest's
       const [early] = await both(
         { type: "ready-weather", teamId: "team1" },
         { type: "ready-weather", teamId: "team2" }
@@ -124,7 +122,6 @@ describe("pregame lockstep purchases", () => {
       await host.run({ type: "ready-weather", teamId: "team1" });
       await settle(host, guest);
 
-      // Both press buttons at once: only the coach whose turn it is acts
       const [hostBuy, guestBuy] = await both(
         {
           type: "select-inducement",

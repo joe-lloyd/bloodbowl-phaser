@@ -2,10 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ServiceContainer } from "../../../src/services/ServiceContainer.js";
 import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
+import { GameEventNames } from "../../../src/types/events.js";
+import type { Team } from "../../../src/types/Team.js";
 
 describe("ServiceContainer", () => {
-  let team1;
-  let team2;
+  let team1: Team;
+  let team2: Team;
 
   beforeEach(() => {
     team1 = new TeamBuilder()
@@ -28,7 +30,7 @@ describe("ServiceContainer", () => {
   describe("Initialization", () => {
     it("should initialize with teams", () => {
       const eventBus = new EventBus();
-      const container = ServiceContainer.initialize(eventBus, team1, team2);
+      const container = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
 
       expect(container).toBeDefined();
       expect(container.eventBus).toBeDefined();
@@ -37,7 +39,7 @@ describe("ServiceContainer", () => {
 
     it("should return same instance on subsequent calls", () => {
       const eventBus = new EventBus();
-      const container1 = ServiceContainer.initialize(eventBus, team1, team2);
+      const container1 = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
       const container2 = ServiceContainer.getInstance();
 
       expect(container1).toBe(container2);
@@ -53,7 +55,7 @@ describe("ServiceContainer", () => {
       expect(ServiceContainer.isInitialized()).toBe(false);
 
       const eventBus = new EventBus();
-      ServiceContainer.initialize(eventBus, team1, team2);
+      ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
 
       expect(ServiceContainer.isInitialized()).toBe(true);
     });
@@ -62,7 +64,7 @@ describe("ServiceContainer", () => {
   describe("Service Access", () => {
     beforeEach(() => {
       const eventBus = new EventBus();
-      ServiceContainer.initialize(eventBus, team1, team2);
+      ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
     });
 
     it("should provide access to EventBus", () => {
@@ -85,11 +87,11 @@ describe("ServiceContainer", () => {
       const container = ServiceContainer.getInstance();
       let eventFired = false;
 
-      container.eventBus.on("test", () => {
+      container.eventBus.on(GameEventNames.KickoffEventStepChanged, () => {
         eventFired = true;
       });
 
-      container.eventBus.emit("test");
+      container.eventBus.emit(GameEventNames.KickoffEventStepChanged, undefined);
 
       expect(eventFired).toBe(true);
     });
@@ -98,7 +100,7 @@ describe("ServiceContainer", () => {
   describe("Reset", () => {
     it("should reset container to uninitialized state", () => {
       const eventBus = new EventBus();
-      ServiceContainer.initialize(eventBus, team1, team2);
+      ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
       expect(ServiceContainer.isInitialized()).toBe(true);
 
       ServiceContainer.reset();
@@ -109,11 +111,11 @@ describe("ServiceContainer", () => {
 
     it("should allow re-initialization after reset", () => {
       const eventBus1 = new EventBus();
-      ServiceContainer.initialize(eventBus1, team1, team2);
+      ServiceContainer.initialize({ eventBus: eventBus1, team1: team1, team2: team2 });
       ServiceContainer.reset();
 
       const eventBus2 = new EventBus();
-      const newContainer = ServiceContainer.initialize(eventBus2, team1, team2);
+      const newContainer = ServiceContainer.initialize({ eventBus: eventBus2, team1: team1, team2: team2 });
 
       expect(newContainer).toBeDefined();
       expect(ServiceContainer.isInitialized()).toBe(true);

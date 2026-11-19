@@ -6,17 +6,17 @@
  * their hands is conceded if the carrier's team scores in its next turn.
  * It also counts every block either team throws by its dice.
  */
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
+import { readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
+import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { BlockRollData } from "../../../src/services/BlockResolutionService";
 import { GameEventNames } from "../../../src/types/events";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import { type Player, PlayerStatus } from "../../../src/types/Player";
 import { GameConfig } from "../../../src/config/GameConfig";
+import { openTrace } from "../catalogue-study/replay";
+import { isEntry, replaySteps } from "./lab";
+
+const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
 
 const WIDTH = GameConfig.PITCH_WIDTH;
 
@@ -85,7 +85,7 @@ export function watchDefence(
   game: HeadlessGame,
   tallies: [DefenceTally, DefenceTally]
 ) {
-  const teams = [game.ctx.team1, game.ctx.team2];
+  const teams = [game.ctx.team1, game.ctx.team2] as const;
   const sideOf = new Map(teams.map((t, i) => [t.id, i as Side]));
   const state = () => game.ctx.gameService.getState();
   const carrier = (): { side: Side; p: Player; at: At } | null => {
@@ -120,7 +120,9 @@ export function watchDefence(
     t.dice[dice] = (t.dice[dice] ?? 0) + 1;
   };
   const countTarget = (side: Side, defenderId: string) => {
-    const target = teams[1 - side].players.find((p) => p.id === defenderId);
+    const target = teams[otherSide(side)].players.find(
+      (p) => p.id === defenderId
+    );
     if (!target?.gridPosition) return;
     const c = carrier();
     const t = tallies[side];
@@ -185,23 +187,21 @@ export function watchDefence(
 }
 
 async function defenceOfTrace(file: string) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
+  const { recording, game } = openTrace(file);
   const tallies: [DefenceTally, DefenceTally] = [
     emptyDefence(),
     emptyDefence(),
   ];
   const watch = watchDefence(game, tallies);
-  for (const [index, step] of trace.recording.steps.entries()) {
-    watch.before(step.command);
-    const response = await game.execute(step.command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
-  }
+  await replaySteps({
+    game,
+    recording,
+    before: (step) => {
+      watch.before(step.command);
+    },
+  });
   return {
-    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName],
+    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName] as const,
     tallies,
   };
 }
@@ -238,8 +238,4 @@ async function main() {
     JSON.stringify(by, null, 2)
   );
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

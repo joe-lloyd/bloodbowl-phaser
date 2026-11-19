@@ -1,4 +1,3 @@
-/** Replay saved commands without coach search; verify hashes and recount events. */
 import { fork } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -14,7 +13,9 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { replayStudyTrace } from "./replay";
 
 const entry = fileURLToPath(import.meta.url);
-const directory = resolve(process.argv[2]);
+const target = process.argv[2];
+if (!target) throw new Error("Usage: repair.ts <study directory>");
+const directory = resolve(target);
 
 function atomic(file: string, data: string | Buffer) {
   writeFileSync(`${file}.tmp`, data);
@@ -78,11 +79,11 @@ if (process.argv.includes("--worker")) {
           });
           child.stderr?.on("data", (data) => process.stderr.write(data));
           child.on("error", reject);
-          child.on("exit", (code) =>
+          child.on("exit", (code) => {
             code === 0
               ? done()
-              : reject(new Error(`Repair worker exited ${code}`))
-          );
+              : reject(new Error(`Repair worker exited ${String(code)}`));
+          });
           child.send(jobs.filter((_, index) => index % workers === i));
         })
     )

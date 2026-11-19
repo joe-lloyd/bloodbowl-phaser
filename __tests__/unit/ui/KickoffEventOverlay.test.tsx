@@ -1,5 +1,5 @@
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ServiceContainer } from "../../../src/services/ServiceContainer";
 import { EventBus } from "../../../src/services/EventBus";
@@ -10,15 +10,10 @@ import type { KickoffEventStepState } from "../../../src/game/kickoff/KickoffEve
 import {
   getActiveOnlineMatch,
   setActiveOnlineMatch,
-  OnlineMatch,
+  type OnlineMatch,
 } from "../../../src/network/OnlineMatch";
 import { TeamBuilder } from "../../utils/test-builders";
 
-/**
- * redesign-multiplayer-selection-visibility, tasks.md 1.1/1.4: the passive
- * (non-deciding) coach in an online match must see no Skip/Done controls
- * for a kickoff event step they cannot act in — only the event/outcome text.
- */
 describe("KickoffEventOverlay", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -30,7 +25,9 @@ describe("KickoffEventOverlay", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     setActiveOnlineMatch(null);
     ServiceContainer.reset();
@@ -48,7 +45,7 @@ describe("KickoffEventOverlay", () => {
       .withPlayers(2)
       .build();
     const eventBus = new EventBus();
-    const services = ServiceContainer.initialize(eventBus, team1, team2);
+    const services = ServiceContainer.initialize({ eventBus: eventBus, team1: team1, team2: team2 });
 
     const step: KickoffEventStepState = {
       event: KickoffEvent.ALERT_DEFENCE,
@@ -58,9 +55,7 @@ describe("KickoffEventOverlay", () => {
       movedPlayerIds: [],
       awaitingPlacement: [],
     };
-    // The engine's real dice-roll path to reach an interactive step is
-    // exercised elsewhere (headless/session tests); this test only needs a
-    // step to exist so it can assert on rendering around `canAct`.
+
     services.gameService.getKickoffEventStep = () => step;
 
     return { eventBus, team1, team2 };
@@ -77,8 +72,7 @@ describe("KickoffEventOverlay", () => {
     await act(async () => {
       root.render(<KickoffEventOverlay eventBus={eventBus} />);
     });
-    // The overlay only reads the step on specific engine events (it does not
-    // poll on mount) — KickoffEventStepStarted is what a real step-open does.
+
     await act(async () => {
       eventBus.emit(GameEventNames.KickoffEventStepStarted, {
         event: KickoffEvent.ALERT_DEFENCE,
@@ -107,7 +101,7 @@ describe("KickoffEventOverlay", () => {
 
   it("hides Skip/Done from the non-deciding coach, but still shows the event", async () => {
     const { eventBus, team2 } = setup();
-    // team2's coach is watching a step that belongs to team1.
+
     setActiveOnlineMatch(fakeMatch(team2.id, false));
 
     await render(eventBus);

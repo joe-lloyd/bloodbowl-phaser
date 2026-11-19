@@ -1,6 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-/** Frozen process-pool acquisition. Every full match is replayed before saving. */
-import { fork } from "node:child_process";
+
 import {
   existsSync,
   mkdirSync,
@@ -17,6 +16,7 @@ import { acquisitionDigest } from "./fingerprint";
 import type { AdvancedJob } from "./schedule";
 import { playStudyGame } from "../catalogue-study/play";
 import { replayStudyTrace } from "../catalogue-study/replay";
+import { forkWorkers } from "../catalogue-study/workers";
 import { catalogueInventory } from "../catalogue-study/schedule";
 import { SKILL_DEFINITIONS } from "../../../src/types/Skills";
 import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
@@ -24,7 +24,7 @@ import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
 const entry = fileURLToPath(import.meta.url);
 const args = process.argv.slice(2);
 const flag = (key: string, fallback: string) =>
-  args.includes("--" + key) ? args[args.indexOf("--" + key) + 1] : fallback;
+  args.includes("--" + key) ? (args[args.indexOf("--" + key) + 1] ?? fallback) : fallback;
 const out = resolve(flag("out", "sim-results/advanced-study"));
 const variants = advancedInventory();
 const byId = new Map(variants.map((v) => [v.id, v]));
@@ -35,7 +35,7 @@ function atomic(file: string, value: unknown) {
 }
 
 if (args.includes("--worker")) {
-  process.on("message", async (job: AdvancedJob | null) => {
+  process.on("message", async (job: AdvancedJob | false) => {
     if (!job) {
       process.disconnect();
       return;
@@ -110,54 +110,43 @@ if (args.includes("--worker")) {
   let next = 0,
     done = jobs.length - pending.length;
   const started = Date.now();
-  const children: ReturnType<typeof fork>[] = [];
-  try {
-    await Promise.all(
-      Array.from(
-        { length: Math.min(workers, pending.length) },
-        () =>
-          new Promise<void>((yes, no) => {
-            let current: AdvancedJob | undefined;
-            const child = fork(entry, ["--worker", "--out", out], {
-              execArgv: process.execArgv,
-              stdio: ["ignore", "ignore", "pipe", "ipc"],
-            });
-            children.push(child);
-            child.stderr?.on("data", (d) => process.stderr.write(d));
-            child.on("error", no);
-            child.on(
-              "message",
-              (message: { done?: string; error?: string; id?: string }) => {
-                if (message.error) {
-                  no(new Error(message.id + ": " + message.error));
-                  return;
-                }
-                if (message.done) {
-                  done++;
-                  if (done % 20 === 0 || done === jobs.length)
-                    console.log(
-                      JSON.stringify({
-                        done,
-                        total: jobs.length,
-                        seconds: Math.round((Date.now() - started) / 1000),
-                      })
-                    );
-                }
-                current = pending[next++];
-                child.send(current ?? null);
-              }
-            );
-            child.on("exit", (code) =>
-              current || code !== 0
-                ? no(new Error("Worker exited during " + current?.id))
-                : yes()
-            );
-          })
-      )
-    );
-  } finally {
-    children.forEach((c) => c.kill());
-  }
+  await forkWorkers(
+    {
+      entry,
+      args: ["--worker", "--out", out],
+      count: Math.min(workers, pending.length),
+    },
+    (child, yes, no) => {
+      let current: AdvancedJob | undefined;
+      child.on(
+        "message",
+        (message: { done?: string; error?: string; id?: string }) => {
+          if (message.error) {
+            no(new Error(message.id + ": " + message.error));
+            return;
+          }
+          if (message.done) {
+            done++;
+            if (done % 20 === 0 || done === jobs.length)
+              console.log(
+                JSON.stringify({
+                  done,
+                  total: jobs.length,
+                  seconds: Math.round((Date.now() - started) / 1000),
+                })
+              );
+          }
+          current = pending[next++];
+          child.send(current ?? false);
+        }
+      );
+      child.on("exit", (code) => {
+        current || code !== 0
+          ? no(new Error("Worker exited during " + current?.id))
+          : yes();
+      });
+    }
+  );
   atomic(join(out, "complete.json"), {
     games: done,
     seconds: (Date.now() - started) / 1000,

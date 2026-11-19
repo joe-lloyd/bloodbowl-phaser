@@ -4,10 +4,6 @@ import {
   shoppingTeamId,
 } from "@/game/inducements/pregame";
 import { GameEventNames } from "@/types/events";
-/**
- * Pregame inducements: the negotiation both coaches confirm, and committing
- * what they bought into the match.
- */
 
 import {
   calculateInducementBudgets,
@@ -25,21 +21,25 @@ import {
   buildSeventsInducementProfile,
   emptyInducementsState,
   Inducement,
-  InducementInventoryEntry,
-  InducementOffer,
-  InducementRuleProfile,
+  type InducementInventoryEntry,
+  type InducementOffer,
+  type InducementRuleProfile,
 } from "@/types/Inducements";
 import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
 import type { GameParts } from "./parts";
 import { calculateTeamValue } from "@/types/Team";
 
-/** Commit a confirmed pregame inducement selection into match state. */
-export function commitInducements(
-  parts: GameParts,
-  profile: InducementRuleProfile,
-  budgets: Record<string, number>,
-  inventory: InducementInventoryEntry[]
-): void {
+export function commitInducements({
+  parts,
+  profile,
+  budgets,
+  inventory,
+}: {
+  parts: GameParts;
+  profile: InducementRuleProfile;
+  budgets: Record<string, number>;
+  inventory: InducementInventoryEntry[];
+}): void {
   const { state, team1, team2 } = parts;
   if (state.pregameInducements) state.pregameInducements.resolving = true;
   state.inducements = {
@@ -49,15 +49,14 @@ export function commitInducements(
     budgets: { ...budgets },
     inventory: inventory.map((entry) => ({ ...entry })),
   };
-  // A league team that lost its Team Captain appoints a new one first.
+
   if (
     state.paysWinnings &&
     [team1, team2].some((team) => captainVacancyCandidates(team).length > 0)
   ) {
     parts.flowManager.add(new AppointTeamCaptainOperation());
   }
-  // Prayers and Desperate Measures are rolled once, before the first
-  // set-up (L4, L5).
+
   const rollsOnTables = inventory.some(
     (entry) =>
       entry.inducement === Inducement.PRAYERS_TO_NUFFLE ||
@@ -66,29 +65,24 @@ export function commitInducements(
   if (rollsOnTables && !getMatchInducements(state).rolled) {
     parts.flowManager.add(new ResolvePregameInducementsOperation());
   }
-  if (state.pregameInducements) {
+  const pregame = state.pregameInducements;
+  if (pregame) {
     parts.flowManager.add({
       name: "CompletePregameInducements",
-      async execute() {
-        state.pregameInducements!.resolving = false;
-        parts.eventBus.emit(GameEventNames.UI_SyncBoard);
+      execute() {
+        pregame.resolving = false;
+        parts.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
+        return Promise.resolve();
       },
     });
   }
 }
 
-/** Both teams' Matched Play draft-list inducements (MP2). */
-export function draftListInventory(parts: GameParts) {
+function draftListInventory(parts: GameParts) {
   return [...teamDraftList(parts.team1), ...teamDraftList(parts.team2)];
 }
 
-/**
- * The pregame inducement negotiation, held by GameService (not in the
- * browser or the headless protocol layer) so local, online-host, and
- * headless callers all validate against the exact same authoritative
- * session regardless of which surface drives it.
- */
-export function session(parts: GameParts): InducementSession {
+function session(parts: GameParts): InducementSession {
   const saved = parts.state.pregameInducements?.offer;
   if (saved)
     return new InducementSession(
@@ -132,11 +126,10 @@ function offerFor(
   };
 }
 
-/** Reject purchases outside the ready, uncommitted opening. */
 function purchaseError(parts: GameParts, teamId: string): string | undefined {
   if (![parts.team1.id, parts.team2.id].includes(teamId)) return "unknown-team";
   const pregame = parts.state.pregameInducements;
-  if (!pregame) return undefined; // Existing headless scenarios and saves.
+  if (!pregame) return undefined;
   if (pregame.complete) return "inducements-already-confirmed";
   if (![parts.team1.id, parts.team2.id].every((id) => pregame.ready[id]))
     return "teams-not-ready";
@@ -146,7 +139,6 @@ function purchaseError(parts: GameParts, teamId: string): string | undefined {
   return undefined;
 }
 
-/** A coach readied up for the weather, which readies them for the match too. */
 export function readyInducements(parts: GameParts, teamId: string) {
   const pregame = parts.state.pregameInducements;
   if (!pregame || ![parts.team1.id, parts.team2.id].includes(teamId))
@@ -165,28 +157,32 @@ export function readyInducements(parts: GameParts, teamId: string) {
       { id: parts.team2.id, value: calculateTeamValue(parts.team2) }
     );
   }
-  parts.eventBus.emit(GameEventNames.UI_SyncBoard);
+  parts.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
   return { ok: true, errors: [] };
 }
 
-export function selectInducement(
-  parts: GameParts,
-  teamId: string,
-  inducement: Inducement,
-  quantity: number
-) {
+export function selectInducement({
+  parts,
+  teamId,
+  inducement,
+  quantity,
+}: {
+  parts: GameParts;
+  teamId: string;
+  inducement: Inducement;
+  quantity: number;
+}) {
   const error = purchaseError(parts, teamId);
   if (error) return { ok: false, errors: [error] };
   const negotiation = session(parts);
   const result = negotiation.select(teamId, inducement, quantity);
   if (result.ok && parts.state.pregameInducements) {
     parts.state.pregameInducements.offer = offerFor(parts, negotiation);
-    parts.eventBus.emit(GameEventNames.UI_SyncBoard);
+    parts.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
   }
   return result;
 }
 
-/** Confirm a team's pregame selection; commits the inventory once both have. */
 export function confirmInducements(
   parts: GameParts,
   teamId: string
@@ -194,7 +190,7 @@ export function confirmInducements(
   const pregame = parts.state.pregameInducements;
   if (![parts.team1.id, parts.team2.id].includes(teamId))
     return { ok: false, errors: ["unknown-team"] };
-  // Replayed or duplicate confirmation must not replenish spent inventory.
+
   if (pregame?.complete) return { ok: true, errors: [] };
   const error = purchaseError(parts, teamId);
   if (error) return { ok: false, errors: [error] };
@@ -210,18 +206,10 @@ export function confirmInducements(
       [...draftListInventory(parts), ...negotiation.toInventory()]
     );
   }
-  parts.eventBus.emit(GameEventNames.UI_SyncBoard);
+  parts.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);
   return result;
 }
 
-/**
- * Inducements already settled when the match is built. Matched Play
- * inducements come on the draft list (MP2): there is no petty cash to
- * negotiate, so they are in the match from the start. A restored save may
- * still have an unresolved Apothecary decision — the operation that
- * requested it is long gone, so re-arm the decision channel directly
- * rather than trying to resume a suspended await.
- */
 export function restoreMatchInducements(parts: GameParts): void {
   const draftList = draftListInventory(parts);
   if (

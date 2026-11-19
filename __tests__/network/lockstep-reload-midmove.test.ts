@@ -1,10 +1,4 @@
-/**
- * A coach reloads their page in the middle of a player's move. The reloaded
- * page starts from an older save, the hello catches it up to the other
- * side, and the coach must be able to carry on with that same player. In
- * the recorded two-machine match the guest's Blitzer could not take another
- * step for 40 minutes after a reload.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import {
   createSimGame,
@@ -15,7 +9,7 @@ import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { stateChecksum } from "../../src/headless/checksum";
 import { LockstepSession } from "../../src/network/LockstepSession";
 import { createInMemoryTransportPair } from "../../src/network/transport";
-import { HeadlessCommand } from "../../src/headless/protocol";
+import { type HeadlessCommand } from "../../src/headless/protocol";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function settle(...sessions: LockstepSession[]) {
@@ -46,7 +40,11 @@ describe("a page reloaded mid-move", () => {
     const hostGame = await build();
     const guestGame = await build();
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
-    const session = (game: typeof hostGame, end: typeof hostEnd, side: string) =>
+    const session = (
+      game: typeof hostGame,
+      end: typeof hostEnd,
+      side: string
+    ) =>
       new LockstepSession({
         transport: end,
         game,
@@ -63,7 +61,6 @@ describe("a page reloaded mid-move", () => {
       guestGame.ctx.gameService.getPlayerById(command.playerId)?.teamId ===
         guestTeam;
 
-    // Play until a guest player has stepped once and steps again next
     let next: HeadlessCommand | null = null;
     for (const [index, step] of recording.steps.entries()) {
       const following = recording.steps[index + 1]?.command;
@@ -73,7 +70,7 @@ describe("a page reloaded mid-move", () => {
           ? Promise.resolve({ ok: true })
           : guest.run(step.command)
         : host.run(step.command));
-      void response;
+      response;
       await settle(host, guest);
       if (
         mine &&
@@ -88,7 +85,6 @@ describe("a page reloaded mid-move", () => {
     expect(next).not.toBeNull();
     expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
 
-    // The guest reloads: a fresh page from the start of the match
     guest.close();
     const reloaded = await build();
     const after = new LockstepSession({
@@ -103,7 +99,7 @@ describe("a page reloaded mid-move", () => {
     await settle(host, after);
     expect(stateChecksum(reloaded)).toBe(stateChecksum(hostGame));
 
-    const stepped = await after.run(next!);
+    const stepped = await after.run(fixtureValue(next));
     await settle(host, after);
     expect(stepped.reason).toBeUndefined();
     expect(stepped.ok).toBe(true);

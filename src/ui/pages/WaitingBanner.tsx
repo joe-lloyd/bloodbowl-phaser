@@ -1,24 +1,18 @@
 import { useEffect, useState } from "react";
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
 import { useEventBus } from "../hooks/useEventBus";
-import { OnlineMatch } from "../../network/OnlineMatch";
+import { type OnlineMatch } from "../../network/OnlineMatch";
 import { DiceWatch } from "../../game/presentation/diceWatch";
 
-/** Phases with no turn to wait on: the drive or the match has stopped. */
 const NO_TURN = new Set<GamePhase>([
   GamePhase.TOUCHDOWN,
   GamePhase.HALFTIME,
   GamePhase.GAME_OVER,
 ]);
 
-/**
- * Non-blocking indicator naming whose action or decision the game awaits.
- * It gives way while a match moment is on screen, so a touchdown or a
- * kick-off result is never covered.
- */
 export function WaitingBanner({
   match,
   eventBus,
@@ -28,16 +22,14 @@ export function WaitingBanner({
 }) {
   const [label, setLabel] = useState<string | null>(null);
   const [moment, setMoment] = useState(false);
-  useEventBus(eventBus, GameEventNames.UI_PresentMoment, (shown) =>
-    setMoment(shown !== null)
-  );
+  useEventBus(eventBus, GameEventNames.UI_PresentMoment, (shown) => {
+    setMoment(shown !== null);
+  });
 
   const dice = DiceWatch.shared(eventBus);
 
   useEffect(() => {
     const tick = () => {
-      // A decision's line gives its roll away: keep the last line until
-      // the dice in the tray have landed
       if (dice.inAir()) return;
       const phase = ServiceContainer.isInitialized()
         ? ServiceContainer.getInstance().gameService.getPhase()
@@ -47,12 +39,13 @@ export function WaitingBanner({
     };
     tick();
     const interval = setInterval(tick, 400);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [match, dice]);
 
   if (!label || moment) return null;
-  // Below the turn indicator and the turn clock, which share the top centre;
-  // steady, as it stays up for the whole of the other coach's turn
+
   return (
     <div
       data-testid="waiting-banner"

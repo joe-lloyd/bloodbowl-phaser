@@ -1,9 +1,4 @@
-/**
- * Command shapes - the fields each command must carry, checked before a
- * command reaches the game so a malformed one is refused with a reason.
- */
-
-import { HeadlessCommand } from "./protocol";
+import { type HeadlessCommand } from "./protocol";
 
 type FieldKind =
   | "string"
@@ -17,7 +12,6 @@ type FieldKind =
   | "string-array";
 type CommandShape = Record<string, FieldKind>;
 
-/** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<string, CommandShape> = {
   "coin-flip": {},
   "ready-weather": { teamId: "string" },
@@ -114,7 +108,6 @@ const COMMAND_SHAPES: Record<string, CommandShape> = {
   "legal-actions": {},
 } satisfies Record<HeadlessCommand["type"], CommandShape>;
 
-/** A square on the pitch grid: whole coordinates, as every rule assumes. */
 function isSquare(value: unknown): boolean {
   return (
     typeof value === "object" &&
@@ -143,7 +136,6 @@ function isFormationPosition(position: unknown): boolean {
   );
 }
 
-/** How to check each kind of field, and what a bad one is told it must be. */
 const FIELD_CHECKS: Record<
   FieldKind,
   { valid: (value: unknown) => boolean; must: string }
@@ -177,16 +169,19 @@ const FIELD_CHECKS: Record<
   },
 };
 
-/** Why a command is malformed, or null when its shape is sound. */
 export function validateShape(command: unknown): string | null {
   if (typeof command !== "object" || command === null) {
     return "malformed-command: not an object";
   }
   const cmd = command as Record<string, unknown>;
-  if (typeof cmd.type !== "string" || !(cmd.type in COMMAND_SHAPES)) {
-    return `unknown-command-type: ${String(cmd.type)}`;
+  const shape =
+    typeof cmd["type"] === "string" && cmd["type"] in COMMAND_SHAPES
+      ? COMMAND_SHAPES[cmd["type"]]
+      : undefined;
+  if (!shape) {
+    return `unknown-command-type: ${String(cmd["type"])}`;
   }
-  for (const [field, kind] of Object.entries(COMMAND_SHAPES[cmd.type])) {
+  for (const [field, kind] of Object.entries(shape)) {
     const check = FIELD_CHECKS[kind];
     if (!check.valid(cmd[field])) {
       return `malformed-command: '${field}' ${check.must}`;

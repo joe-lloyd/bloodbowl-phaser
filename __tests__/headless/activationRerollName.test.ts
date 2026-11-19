@@ -1,10 +1,7 @@
-/**
- * A failed Bone Head roll offers a team re-roll named for the roll, not
- * "the activation roll".
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 
@@ -24,7 +21,6 @@ const scenario: Scenario = {
   },
 };
 
-/** "Bone Head (Human Lineman #1): 1, needs 2+". Committed. */
 const BONE_HEAD_FAILS_SEED = 7;
 
 describe("re-roll for an activation roll", () => {
@@ -33,7 +29,7 @@ describe("re-roll for an activation roll", () => {
     game.ctx.team1.rerolls = 1;
     const response = await game.execute({
       type: "declare-action",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       action: "move",
     });
     expect(response.pendingDecision).toMatchObject({

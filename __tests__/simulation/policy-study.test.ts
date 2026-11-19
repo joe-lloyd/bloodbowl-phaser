@@ -14,12 +14,12 @@ describe("policy comparison balance", () => {
       expect(new Set(block.map((j) => j.seed)).size).toBe(1);
       expect(new Set(block.map((j) => j.pair)).size).toBe(1);
       const assignments = block.map(
-        (j) => `${j.variantIds[j.candidateSide]}:${j.candidateSide}`
+        (j) => `${j.variantIds[j.candidateSide]}:${String(j.candidateSide)}`
       );
       expect(new Set(assignments).size).toBe(4);
       for (const job of block) {
         for (const side of [0, 1]) {
-          const key = `${job.variantIds[side]}:${side}:${job.candidateSide === side}`;
+          const key = `${String(job.variantIds[side])}:${String(side)}:${String(job.candidateSide === side)}`;
           exposures.set(key, (exposures.get(key) ?? 0) + 1);
         }
       }

@@ -1,32 +1,28 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { skillCheckWith } from "./controllerFixtures";
+import { busWith, movementWith, diceWith } from "./controllerFixtures";
+import { playerWith } from "./controllerFixtures";
+import { fixtureValue } from "../../../src/testing/fixtureValue";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   PassController,
-  PassRange,
+  type PassRange,
 } from "../../../src/game/controllers/PassController";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import { type Player, PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
 
 describe("PassController", () => {
   let controller: PassController;
-  let mockEventBus: any;
-  let mockMovementController: any;
-  let mockDiceController: any;
+  let mockEventBus = busWith();
+  let mockMovementController = movementWith();
+  let mockDiceController = diceWith();
   let player: Player;
 
   beforeEach(() => {
-    mockEventBus = {
-      emit: vi.fn(),
-    };
+    mockEventBus = busWith();
 
-    mockMovementController = {
-      scatter: vi.fn().mockReturnValue([{ x: 0, y: 0 }]),
-      bounce: vi.fn(),
-      deviate: vi.fn(),
-    };
+    mockMovementController = movementWith();
 
-    mockDiceController = {
-      rollSkillCheck: vi.fn(),
-    };
+    mockDiceController = diceWith();
 
     controller = new PassController(
       mockEventBus,
@@ -34,14 +30,14 @@ describe("PassController", () => {
       mockDiceController
     );
 
-    player = {
+    player = playerWith({
       id: "player1",
       teamId: "team1",
       playerName: "Test Thrower",
       gridPosition: { x: 10, y: 5 },
       stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
       status: PlayerStatus.ACTIVE,
-    } as Player;
+    });
   });
 
   describe("Measure Range", () => {
@@ -62,8 +58,6 @@ describe("PassController", () => {
     });
 
     it("uses the radial range ruler, not Chebyshev bands, for diagonals", () => {
-      // (3,3) offset is Chebyshev distance 3 (would be a Quick Pass) but the
-      // range ruler reaches ~4.2 squares, so it is a Short Pass (-1).
       const range = controller.measureRange({ x: 13, y: 13 }, { x: 16, y: 16 });
       expect(range.type).toBe("Short Pass");
       expect(range.modifier).toBe(-1);
@@ -75,7 +69,7 @@ describe("PassController", () => {
       ).toBeNull();
       expect(
         PassController.rangeValue({ x: 13, y: 13 }, { x: 15, y: 13 })
-      ).toBe(0); // 2 squares dead ahead → Quick Pass
+      ).toBe(0);
     });
   });
 
@@ -88,12 +82,12 @@ describe("PassController", () => {
     };
 
     it("should succeed on natural 6", () => {
-      mockDiceController.rollSkillCheck.mockReturnValue({
+      mockDiceController.rollSkillCheck.mockReturnValue(skillCheckWith({
         success: true,
         roll: 6,
-      });
+      }));
 
-      const result = controller.testAccuracy(player, quickPass, 0);
+      const result = controller.testAccuracy({ player,passRange: quickPass,markingOpponents: 0 });
 
       expect(result.accurate).toBe(true);
       expect(result.fumbled).toBe(false);
@@ -101,24 +95,24 @@ describe("PassController", () => {
     });
 
     it("should fumble on natural 1", () => {
-      mockDiceController.rollSkillCheck.mockReturnValue({
+      mockDiceController.rollSkillCheck.mockReturnValue(skillCheckWith({
         success: false,
         roll: 1,
-      });
+      }));
 
-      const result = controller.testAccuracy(player, quickPass, 0);
+      const result = controller.testAccuracy({ player,passRange: quickPass,markingOpponents: 0 });
 
       expect(result.accurate).toBe(false);
       expect(result.fumbled).toBe(true);
     });
 
     it("should be accurate when roll meets target", () => {
-      mockDiceController.rollSkillCheck.mockReturnValue({
+      mockDiceController.rollSkillCheck.mockReturnValue(skillCheckWith({
         success: true,
         roll: 3,
-      });
+      }));
 
-      const result = controller.testAccuracy(player, quickPass, 0);
+      const result = controller.testAccuracy({ player,passRange: quickPass,markingOpponents: 0 });
 
       expect(result.accurate).toBe(true);
     });
@@ -126,39 +120,31 @@ describe("PassController", () => {
 
   describe("Attempt Pass", () => {
     it("reports an accurate pass", async () => {
-      mockDiceController.rollSkillCheck.mockReturnValue({
+      mockDiceController.rollSkillCheck.mockReturnValue(skillCheckWith({
         success: true,
         roll: 6,
-      });
+      }));
 
       const result = await controller.attemptPass(
-        player,
-        { x: 5, y: 5 },
-        { x: 7, y: 5 },
-        0
-      );
+        { player,from: { x: 5,y: 5 },to: { x: 7,y: 5 },markingOpponents: 0 }      );
 
       expect(result.accurate).toBe(true);
       expect(result.fumbled).toBe(false);
     });
 
     it("does not scatter an inaccurate pass before interception", async () => {
-      mockDiceController.rollSkillCheck.mockReturnValue({
+      mockDiceController.rollSkillCheck.mockReturnValue(skillCheckWith({
         success: false,
         roll: 2,
-      });
+      }));
 
       const result = await controller.attemptPass(
-        player,
-        { x: 5, y: 5 },
-        { x: 7, y: 5 },
-        0
-      );
+        { player,from: { x: 5,y: 5 },to: { x: 7,y: 5 },markingOpponents: 0 }      );
 
       expect(result.accurate).toBe(false);
       expect(result.fumbled).toBe(false);
-      expect(mockMovementController.scatter).not.toHaveBeenCalled();
-      expect(mockEventBus.emit).not.toHaveBeenCalledWith(
+      expect(mockMovementController.spies.scatter).not.toHaveBeenCalled();
+      expect(mockEventBus.spies.emit).not.toHaveBeenCalledWith(
         GameEventNames.PassAttempted,
         expect.anything()
       );
@@ -187,7 +173,7 @@ describe("PassController", () => {
       y: number,
       status: PlayerStatus = PlayerStatus.ACTIVE
     ): Player =>
-      ({
+      playerWith(({
         id,
         teamId: "team2",
         playerName: id,
@@ -195,124 +181,121 @@ describe("PassController", () => {
         stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
         status,
         skills: [],
-      }) as Player;
+      }));
 
     it("overlaps a square lying on the straight ruler", () => {
       expect(
-        PassController.rulerOverlaps({ x: 5, y: 5 }, { x: 5, y: 10 }, { x: 5, y: 7 })
+        PassController.rulerOverlaps(
+          { x: 5, y: 5 },
+          { x: 5, y: 10 },
+          { x: 5, y: 7 }
+        )
       ).toBe(true);
     });
 
     it("does not overlap a square off the ruler line", () => {
       expect(
-        PassController.rulerOverlaps({ x: 5, y: 5 }, { x: 5, y: 10 }, { x: 7, y: 7 })
+        PassController.rulerOverlaps(
+          { x: 5, y: 5 },
+          { x: 5, y: 10 },
+          { x: 7, y: 7 }
+        )
       ).toBe(false);
     });
 
     it("does not overlap a square beyond the landing endpoint", () => {
       expect(
-        PassController.rulerOverlaps({ x: 5, y: 5 }, { x: 5, y: 10 }, { x: 5, y: 12 })
+        PassController.rulerOverlaps(
+          { x: 5, y: 5 },
+          { x: 5, y: 10 },
+          { x: 5, y: 12 }
+        )
       ).toBe(false);
     });
 
     it("overlaps squares on a diagonal ruler", () => {
       expect(
-        PassController.rulerOverlaps({ x: 5, y: 5 }, { x: 10, y: 10 }, { x: 7, y: 7 })
+        PassController.rulerOverlaps(
+          { x: 5, y: 5 },
+          { x: 10, y: 10 },
+          { x: 7, y: 7 }
+        )
       ).toBe(true);
     });
 
     it("returns only standing under-ruler opponents, with the accurate modifier", () => {
       const opps = [opponent("o1", 5, 7), opponent("o2", 8, 7)];
       const result = controller.checkInterceptions(
-        { x: 5, y: 5 },
-        { x: 5, y: 10 },
-        opps,
-        true
-      );
+      { from: { x: 5,y: 5 },target: { x: 5,y: 10 },opponents: opps,isAccurate: true }      );
       expect(result.map((r) => r.playerId)).toEqual(["o1"]);
-      expect(result[0].modifier).toBe(-3);
+      expect(fixtureValue(result[0]).modifier).toBe(-3);
     });
 
     it("uses the -2 modifier for an inaccurate pass", () => {
       const opps = [opponent("o1", 5, 7)];
       const result = controller.checkInterceptions(
-        { x: 5, y: 5 },
-        { x: 5, y: 10 },
-        opps,
-        false
-      );
-      expect(result[0].modifier).toBe(-2);
+      { from: { x: 5,y: 5 },target: { x: 5,y: 10 },opponents: opps,isAccurate: false }      );
+      expect(fixtureValue(result[0]).modifier).toBe(-2);
     });
 
     it("excludes an opponent that has lost its tackle zone", () => {
       const opps = [opponent("o1", 5, 7, PlayerStatus.PRONE)];
       const result = controller.checkInterceptions(
-        { x: 5, y: 5 },
-        { x: 5, y: 10 },
-        opps,
-        true
-      );
+      { from: { x: 5,y: 5 },target: { x: 5,y: 10 },opponents: opps,isAccurate: true }      );
       expect(result).toHaveLength(0);
     });
 
     it("getInterceptionSquares returns every square the ruler touches", () => {
-      // Horizontal pass (5,5)→(10,5). The ruler is 0.875 wide either side, so
-      // it reaches y = 5 ± 0.875 = [4.125, 5.875] and therefore touches the
-      // flanking rows (y=4 cell starts at 3.5→4.5; y=6 cell 5.5→6.5) as well
-      // as the on-line row. Two rows out (y=3/y=7) is beyond the ruler.
       const zone = controller.getInterceptionSquares(
         { x: 5, y: 5 },
         { x: 10, y: 5 }
       );
-      const keys = new Set(zone.map((s) => `${s.x},${s.y}`));
-      expect(keys.has("7,5")).toBe(true); // on the line
-      expect(keys.has("7,4")).toBe(true); // ruler edge touches this cell
-      expect(keys.has("7,6")).toBe(true); // ruler edge touches this cell
-      expect(keys.has("7,3")).toBe(false); // beyond the ruler
-      expect(keys.has("7,7")).toBe(false); // beyond the ruler
-      expect(keys.has("5,5")).toBe(false); // passer square never intercepts
-      expect(keys.has("10,5")).toBe(false); // target square never intercepts
+      const keys = new Set(zone.map((s) => `${String(s.x)},${String(s.y)}`));
+      expect(keys.has("7,5")).toBe(true);
+      expect(keys.has("7,4")).toBe(true);
+      expect(keys.has("7,6")).toBe(true);
+      expect(keys.has("7,3")).toBe(false);
+      expect(keys.has("7,7")).toBe(false);
+      expect(keys.has("5,5")).toBe(false);
+      expect(keys.has("10,5")).toBe(false);
     });
 
     it("getInterceptionSquares widens to flank a diagonal pass line", () => {
-      // On a 45° line, squares 0.707 off the line fall inside the 0.875
-      // corridor, so the diagonal is flanked (unlike a straight pass).
       const zone = controller.getInterceptionSquares(
         { x: 5, y: 5 },
         { x: 9, y: 9 }
       );
-      const keys = new Set(zone.map((s) => `${s.x},${s.y}`));
-      expect(keys.has("6,6")).toBe(true); // on the diagonal
-      expect(keys.has("7,6")).toBe(true); // flanking the diagonal
-      expect(keys.has("6,7")).toBe(true); // flanking the diagonal
+      const keys = new Set(zone.map((s) => `${String(s.x)},${String(s.y)}`));
+      expect(keys.has("6,6")).toBe(true);
+      expect(keys.has("7,6")).toBe(true);
+      expect(keys.has("6,7")).toBe(true);
     });
   });
 
   describe("Attempt Interception", () => {
     it("subtracts marking from the base modifier and returns success + roll", () => {
-      mockDiceController.rollSkillCheck.mockReturnValue({
+      mockDiceController.rollSkillCheck.mockReturnValue(skillCheckWith({
         success: false,
         roll: 3,
-      });
+      }));
 
       const result = controller.attemptInterception(player, -3, 2);
 
       expect(result).toEqual({ success: false, roll: 3 });
-      expect(mockDiceController.rollSkillCheck).toHaveBeenCalledWith(
-        "Interception",
-        player.stats.AG,
-        -5, // base -3, minus 2 marking opponents
-        player.playerName,
-        // The interceptor's own team rolls it, not the passing team
-        "team1"
-      );
+      expect(mockDiceController.spies.rollSkillCheck).toHaveBeenCalledWith({
+        reason: "Interception",
+        target: player.stats.AG,
+        modifier: -5,
+        playerName: player.playerName,
+        teamId: "team1",
+      });
     });
 
     it("intercepts when the dice check succeeds (natural 6 always succeeds)", () => {
-      mockDiceController.rollSkillCheck.mockReturnValue({
+      mockDiceController.rollSkillCheck.mockReturnValue(skillCheckWith({
         success: true,
         roll: 6,
-      });
+      }));
 
       const result = controller.attemptInterception(player, -3, 1);
 

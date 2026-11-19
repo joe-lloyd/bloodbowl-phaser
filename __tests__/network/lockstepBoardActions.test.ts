@@ -1,10 +1,4 @@
-/**
- * The board drives an online match through NetworkedGameService. Every call
- * that changes the game must reach both engines, so the coach on the move
- * and the coach watching hold the same state once the command has crossed.
- * Two engines over the in-memory transport, the guest's driven through the
- * networked service the way the board drives it.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { stateChecksum } from "../../src/headless/checksum";
@@ -12,14 +6,15 @@ import { LockstepSession } from "../../src/network/LockstepSession";
 import { NetworkedGameService } from "../../src/network/NetworkedGameService";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { SCENARIOS } from "../../src/data/scenarios";
 import { PlayerStatus } from "../../src/types/Player";
 import { forceDice } from "../utils/test-helpers";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
-/** The guest's blitzer on 3,5 and the host's target further down row 5. */
 function blitzScenario(targetX: number): Scenario {
   return {
     id: "guest-blitz-rush",
@@ -69,11 +64,11 @@ function twoEngines(scenario: Scenario) {
     peerTeamId: hostTeamId,
     hostTeamId,
   });
-  const board = new NetworkedGameService(
-    guest.ctx.gameService,
-    (command) => guestSession.run(command),
-    () => guest.pendingDecision()
-  );
+  const board = new NetworkedGameService({
+    inner: guest.ctx.gameService,
+    dispatch: (command) => guestSession.run(command),
+    pendingDecision: () => guest.pendingDecision(),
+  });
   const settled = async () => {
     for (let i = 0; i < 4; i++) {
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -87,11 +82,13 @@ function twoEngines(scenario: Scenario) {
 describe("board actions in an online match", () => {
   it("casts Fireball from a pitch square through the network facade on both engines", async () => {
     const scenario = structuredClone(
-      SCENARIOS.find((s) => s.id === "sports-wizard-spells")!
+      fixtureValue(SCENARIOS.find((s) => s.id === "sports-wizard-spells"))
     );
-    // The guest owns the scroll; their turn ends before the spell is offered.
+
     scenario.setup.activeTeam = "team2";
-    scenario.setup.measures = { team2: scenario.setup.measures!.team1! };
+    scenario.setup.measures = {
+      team2: fixtureValue(fixtureValue(scenario.setup.measures).team1),
+    };
     const { host, guest, board, settled } = twoEngines(scenario);
     board.endTurn();
     await settled();
@@ -101,8 +98,8 @@ describe("board actions in an online match", () => {
       chooserTeamId: guest.ctx.team2.id,
     });
     const target = guest.ctx.team1.players[0];
-    const square = { ...target.gridPosition! };
-    // Hit every target, but fail their Armour Rolls.
+    const square = { ...fixtureValue(fixtureValue(target).gridPosition) };
+
     for (const game of [host, guest]) forceDice(game.ctx.rng, [6, 1, 1]);
     expect(board.answerInducementChoice({ spell: "fireball", square })).toBe(
       true
@@ -110,7 +107,9 @@ describe("board actions in an online match", () => {
     await settled();
     for (const game of [host, guest]) {
       expect(game.pendingDecision()).toBeNull();
-      expect(game.ctx.team1.players[0].status).toBe(PlayerStatus.PRONE);
+      expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+        PlayerStatus.PRONE
+      );
       expect(
         game.ctx.gameService.getState().matchInducements?.sportsWizards
       ).toEqual([]);
@@ -123,44 +122,65 @@ describe("board actions in an online match", () => {
 
   it("a blitz block with a Rush charges the square on both engines", async () => {
     const probe = new HeadlessGame({ scenario: blitzScenario(12), seed: 9 });
-    const ma = probe.ctx.team2.players[0].stats.MA;
-    // MA squares down row 5 end next to the target, so the block is a Rush
+    const ma = fixtureValue(probe.ctx.team2.players[0]).stats.MA;
+
     const { host, guest, board, settled } = twoEngines(
       blitzScenario(3 + ma + 1)
     );
     const blitzer = guest.ctx.team2.players[0];
     const target = guest.ctx.team1.players[0];
     const path = Array.from({ length: ma }, (_, i) => ({ x: 4 + i, y: 5 }));
-    // Rush passes on both engines, then a Push on the block die
+
     forceDice(host.ctx.rng, [6, 3]);
     forceDice(guest.ctx.rng, [6, 3]);
 
-    expect(board.declareAction(blitzer.id, "blitz")).toBe(true);
+    expect(
+      board.declareAction({
+        playerId: fixtureValue(blitzer).id,
+        action: "blitz",
+      })
+    ).toBe(true);
     await settled();
-    await board.movePlayer(blitzer.id, path);
+    await board.movePlayer(fixtureValue(blitzer).id, path);
     await settled();
-    board.rollBlockDice(blitzer.id, target.id, 1, true);
+    board.rollBlockDice({
+      attackerId: fixtureValue(blitzer).id,
+      defenderId: fixtureValue(target).id,
+      numDice: 1,
+      isAttackerChoice: true,
+    });
     await settled();
 
-    expect(guest.ctx.gameService.getMovementUsed(blitzer.id)).toBe(ma + 1);
-    expect(host.ctx.gameService.getMovementUsed(blitzer.id)).toBe(ma + 1);
+    expect(
+      guest.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)
+    ).toBe(ma + 1);
+    expect(host.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)).toBe(
+      ma + 1
+    );
     expect(stateChecksum(host)).toBe(stateChecksum(guest));
   });
 
   it("the board cannot spend a blitz square on the guest's engine alone", async () => {
     const { host, guest, board, settled } = twoEngines(blitzScenario(12));
     const blitzer = guest.ctx.team2.players[0];
-    board.declareAction(blitzer.id, "blitz");
+    board.declareAction({
+      playerId: fixtureValue(blitzer).id,
+      action: "blitz",
+    });
     await settled();
 
-    const allowed = await board.chargeBlitzBlockSquare(blitzer.id);
+    const allowed = await board.chargeBlitzBlockSquare(
+      fixtureValue(blitzer).id
+    );
     await settled();
 
-    // The block command charges the square on both engines; a charge from
-    // the board on its own would leave the two engines a square apart
     expect(allowed).toBe(false);
-    expect(guest.ctx.gameService.getMovementUsed(blitzer.id)).toBe(0);
-    expect(host.ctx.gameService.getMovementUsed(blitzer.id)).toBe(0);
+    expect(
+      guest.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)
+    ).toBe(0);
+    expect(host.ctx.gameService.getMovementUsed(fixtureValue(blitzer).id)).toBe(
+      0
+    );
     expect(stateChecksum(host)).toBe(stateChecksum(guest));
   });
 
@@ -168,19 +188,19 @@ describe("board actions in an online match", () => {
     const { host, guest, board, settled } = twoEngines(blitzScenario(12));
     const mover = guest.ctx.team2.players[0];
 
-    board.declareAction(mover.id, "move");
+    board.declareAction({ playerId: fixtureValue(mover).id, action: "move" });
     await settled();
 
     expect(guest.ctx.gameService.getState().activePlayer).toEqual({
-      id: mover.id,
+      id: fixtureValue(mover).id,
       action: "move",
-      // Not holding the ball, so not Stalling (2025 rulebook p.80)
+
       stalling: false,
     });
     expect(host.ctx.gameService.getState().activePlayer).toEqual({
-      id: mover.id,
+      id: fixtureValue(mover).id,
       action: "move",
-      // Not holding the ball, so not Stalling (2025 rulebook p.80)
+
       stalling: false,
     });
     expect(stateChecksum(host)).toBe(stateChecksum(guest));

@@ -1,18 +1,24 @@
-/** The same planner and paced command loop for local and online computer coaches. */
+import { isCommandOf } from "./commandKinds";
 import { nextComputerPregameCommand } from "../game/inducements/computerPurchases";
 import { whenEngineQuiet } from "../game/core/GameFlowManager";
 import { whenScreenSettled } from "../game/presentation/screenSettled";
 import { HeadlessGame } from "../headless/HeadlessGame";
-import { CommandResponse, HeadlessCommand } from "../headless/protocol";
-import { GameSnapshot } from "../headless/serialization";
-import { IEventBus } from "../services/EventBus";
-import { Coach } from "../simulation/coach";
+import {
+  type CommandResponse,
+  type HeadlessCommand,
+} from "../headless/protocol";
+import { type GameSnapshot } from "../headless/serialization";
+import { type IEventBus } from "../services/EventBus";
+import { type Coach } from "../simulation/coach";
 import { plannerCoach } from "../simulation/ai/planner";
-import { enumerateDecision } from "../simulation/candidates";
+import { type Candidate, enumerateDecision } from "../simulation/candidates";
 import { createCoachRng } from "../simulation/rng";
 import { GameEventNames } from "../types/events";
-import { GamePhase, GameState, SubPhase } from "../types/GameState";
+import { GamePhase, type GameState, SubPhase } from "../types/GameState";
 import { decisionOwner, gateContextOf } from "./OwnershipGate";
+
+const DECLARE_ACTION = "declare-action";
+const END_ACTIVATION = "end-activation";
 
 export interface ComputerCoachOptions {
   game: HeadlessGame;
@@ -24,28 +30,25 @@ export interface ComputerCoachOptions {
   pace?: number;
 }
 
-/** How long the computer waits before each kind of command, in ms. */
 function pause(command: HeadlessCommand): number {
+  if (!isCommandOf(command, ["place-player", "remove-player", "confirm-setup", DECLARE_ACTION, "move", END_ACTIVATION, "end-turn"])) return 550;
   switch (command.type) {
     case "place-player":
     case "remove-player":
       return 40;
     case "confirm-setup":
       return 400;
-    case "declare-action":
+    case DECLARE_ACTION:
       return 700;
     case "move":
       return 320;
-    case "end-activation":
+    case END_ACTIVATION:
       return 250;
     case "end-turn":
       return 600;
-    default:
-      return 550;
   }
 }
 
-/** Resolves once the page is in view. */
 function whenWatched(): Promise<void> {
   if (typeof document === "undefined" || !document.hidden)
     return Promise.resolve();
@@ -59,7 +62,6 @@ function whenWatched(): Promise<void> {
   });
 }
 
-/** During a kick-off, the kicking team: the one not active. */
 function kickingTeamOf(
   snapshot: GameSnapshot,
   team1Id: string,
@@ -69,28 +71,30 @@ function kickingTeamOf(
   return snapshot.activeTeamId === team1Id ? team2Id : team1Id;
 }
 
-/** Dev builds keep a log of the computer's choices on the window. */
 function logChoice(
   snapshot: GameSnapshot,
   label: string,
   note: string | undefined
 ): void {
-  if (!import.meta.env?.DEV) return;
-  const log = ((
-    window as unknown as { __computerLog?: string[] }
-  ).__computerLog ??= []);
-  log.push(`${snapshot.turn.turnNumber} ${label}${note ? ` | ${note}` : ""}`);
+  if (!import.meta.env.DEV) return;
+  const log = (window.__computerLog ??= []);
+  log.push(
+    `${String(snapshot.turn.turnNumber)} ${label}${note ? ` | ${note}` : ""}`
+  );
 }
 
-/** A setup still awaiting placement, confirmation or Swarming. */
 function ownsSetup(state: GameState, teamId: string): boolean {
   return (
     state.activeTeamId === teamId &&
-    (!state.setup?.confirmedTeamIds?.includes(teamId) ||
+    (!state.setup?.confirmedTeamIds.includes(teamId) ||
       !!state.setup.swarming?.teams[teamId]) &&
     (state.subPhase === SubPhase.SETUP_KICKING ||
       state.subPhase === SubPhase.SETUP_RECEIVING)
   );
+}
+
+function ownsKickoff(state: GameState, teamId: string): boolean {
+  return state.activeTeamId !== null && state.activeTeamId !== teamId && state.kickoffKickResolved == null;
 }
 
 export function computerOwnsDecision(
@@ -105,137 +109,127 @@ export function computerOwnsDecision(
   const state = game.ctx.gameService.getState();
   if (state.pregameInducements && !state.pregameInducements.complete)
     return !state.pregameInducements.offer?.confirmed[teamId];
-  switch (state.phase) {
-    case GamePhase.SETUP:
-      return ownsSetup(state, teamId);
-    case GamePhase.KICKOFF:
-      // The kicking team acts, and it is the one not active.
-      return (
-        active != null && active !== teamId && state.kickoffKickResolved == null
-      );
-    case GamePhase.PLAY:
-      return active === teamId;
-    default:
-      return false;
+  if (state.phase === GamePhase.SETUP) return ownsSetup(state, teamId);
+  if (state.phase === GamePhase.KICKOFF) return ownsKickoff(state, teamId);
+  return state.phase === GamePhase.PLAY && active === teamId;
+}
+
+declare global {
+  interface Window {
+    __computerLog?: string[];
   }
 }
 
-export function createComputerCoach(options: ComputerCoachOptions) {
-  const { game, eventBus, computerTeamId, mayAct, run } = options;
-  const coach: Coach & { close?(): void } = options.coach ?? plannerCoach;
-  const pace = options.pace ?? 1;
-  const rng = createCoachRng(Math.floor(Math.random() * 2 ** 31));
-  let thinking = false;
-  let closed = false;
-  const wait = (ms: number) =>
-    new Promise((resolve) => setTimeout(resolve, ms * pace));
+class ComputerCoach {
+  private thinking = false;
+  private closed = false;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private readonly coach: Coach & { close?(): void };
+  private readonly pace: number;
+  private readonly rng = createCoachRng(Math.floor(Math.random() * 2 ** 31));
+  private readonly options: ComputerCoachOptions;
 
-  const thinkPregame = async (): Promise<boolean | null> => {
-    const pregame = game.ctx.gameService.getState().pregameInducements;
-    if (!pregame || pregame.complete || game.pendingDecision()) return null;
-    const command = nextComputerPregameCommand(pregame, computerTeamId, [
-      game.ctx.team1.id,
-      game.ctx.team2.id,
-    ]);
-    return command ? (await run(command)).ok : false;
+  constructor(options: ComputerCoachOptions) {
+    this.options = options;
+    this.coach = options.coach ?? plannerCoach;
+    this.pace = options.pace ?? 1;
+  }
+
+  readonly start = (): void => {
+    if (this.closed) return;
+    void this.think().then((acted) => {
+      if (!this.closed) this.timer = setTimeout(this.start, acted ? 0 : Math.max(5, 200 * this.pace));
+    });
   };
 
-  /** One decision, if it is the computer's to make; true when it acted. */
-  const think = async (): Promise<boolean> => {
-    if (thinking || closed || !mayAct()) return false;
-    thinking = true;
+  isThinking(): boolean {
+    return this.thinking;
+  }
+
+  close(): void {
+    this.closed = true;
+    clearTimeout(this.timer);
+    this.coach.close?.();
+  }
+
+  private wait(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms * this.pace));
+  }
+
+  private mayAct(): boolean {
+    return !this.closed && this.options.mayAct();
+  }
+
+  private async thinkPregame(): Promise<boolean | null> {
+    const { game, computerTeamId } = this.options;
+    const pregame = game.ctx.gameService.getState().pregameInducements;
+    if (!pregame || pregame.complete || game.pendingDecision()) return null;
+    const command = nextComputerPregameCommand(pregame, computerTeamId, [game.ctx.team1.id, game.ctx.team2.id]);
+    return command ? (await this.options.run(command)).ok : false;
+  }
+
+  private async choose(): Promise<Candidate | null> {
+    const { game, computerTeamId } = this.options;
+    const snapshot = game.snapshot();
+    const point = await enumerateDecision(game, kickingTeamOf(snapshot, game.ctx.team1.id, game.ctx.team2.id));
+    if (point.teamId !== computerTeamId) return null;
+    const [first] = point.candidates;
+    if (!first) return null;
+    const { index, note } = await this.coach.choose({ game, snapshot, point, rng: this.rng });
+    const candidate = point.candidates[index] ?? first;
+    logChoice(snapshot, candidate.label, note);
+    return candidate;
+  }
+
+  private async think(): Promise<boolean> {
+    if (this.thinking || !this.mayAct()) return false;
+    this.thinking = true;
     try {
-      // A turn that is about to end by itself has nothing left to decide.
       await whenEngineQuiet();
-      if (closed || !mayAct()) return false;
-      const pregameActed = await thinkPregame();
+      if (!this.mayAct()) return false;
+      const pregameActed = await this.thinkPregame();
       if (pregameActed !== null) return pregameActed;
-      const snapshot = game.snapshot();
-      const point = await enumerateDecision(
-        game,
-        kickingTeamOf(snapshot, game.ctx.team1.id, game.ctx.team2.id)
-      );
-      if (point.teamId !== computerTeamId || point.candidates.length === 0)
-        return false;
-      const { index, note } = await coach.choose({
-        game,
-        snapshot,
-        point,
-        rng,
-      });
-      const candidate = point.candidates[index] ?? point.candidates[0];
-      logChoice(snapshot, candidate.label, note);
-      for (const command of candidate.commands) {
-        // Each step is seen before the next: the walk, the ball, the dice
-        // and the banners it started have all been shown. Nothing plays on
-        // in a tab nobody is watching, to pile up for when they come back.
-        await whenWatched();
-        await whenScreenSettled(eventBus);
-        await wait(pause(command));
-        if (closed || !mayAct()) return false;
-        showIntent(command);
-        const response = await run(command);
-        if (!response.ok) {
-          console.warn(
-            `[Computer] ${command.type} refused: ${response.reason}`
-          );
-          break;
-        }
-        moveResolved(command);
-      }
-      return true;
+      const candidate = await this.choose();
+      return candidate ? await this.execute(candidate) : false;
     } catch (error) {
       console.error("[Computer] coach failed:", error);
       return false;
     } finally {
-      thinking = false;
+      this.thinking = false;
     }
-  };
+  }
 
-  /** The board finishes showing the computer's move. */
-  const moveResolved = (command: HeadlessCommand) => {
-    if (command.type === "move")
-      eventBus.emit(GameEventNames.UI_OtherCoachMoveResolved, {
-        playerId: command.playerId,
-      });
-  };
-
-  /** Show the human which player the computer is using, and where it runs. */
-  const showIntent = (command: HeadlessCommand) => {
-    if (command.type === "declare-action")
-      eventBus.emit(GameEventNames.RemoteSelectionChanged, {
-        playerId: command.playerId,
-      });
-    if (command.type === "end-activation" || command.type === "end-turn")
-      eventBus.emit(GameEventNames.RemoteSelectionChanged, { playerId: null });
-    if (command.type === "move") {
-      const player = game.ctx.gameService.getPlayerById(command.playerId);
-      if (player?.gridPosition)
-        eventBus.emit(GameEventNames.UI_ShowOtherCoachMove, {
-          from: { ...player.gridPosition },
-          path: command.path,
-          ma: player.stats.MA,
-        });
+  private async execute(candidate: Candidate): Promise<boolean> {
+    for (const command of candidate.commands) {
+      await whenWatched();
+      await whenScreenSettled(this.options.eventBus);
+      await this.wait(pause(command));
+      if (!this.mayAct()) return false;
+      this.showIntent(command);
+      const response = await this.options.run(command);
+      if (!response.ok) {
+        console.warn(`[Computer] ${command.type} refused: ${String(response.reason)}`);
+        break;
+      }
+      this.moveResolved(command);
     }
-  };
+    return true;
+  }
 
-  // Act again at once after acting; otherwise look again shortly.
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const loop = () => {
-    if (closed) return;
-    void think().then((acted) => {
-      if (!closed)
-        timer = setTimeout(loop, acted ? 0 : Math.max(5, 200 * pace));
-    });
-  };
+  private moveResolved(command: HeadlessCommand): void {
+    if (command.type === "move") this.options.eventBus.emit(GameEventNames.UI_OtherCoachMoveResolved, { playerId: command.playerId });
+  }
 
-  return {
-    start: loop,
-    isThinking: () => thinking,
-    close() {
-      closed = true;
-      clearTimeout(timer);
-      coach.close?.();
-    },
-  };
+  private showIntent(command: HeadlessCommand): void {
+    const { eventBus, game } = this.options;
+    if (command.type === DECLARE_ACTION) eventBus.emit(GameEventNames.RemoteSelectionChanged, { playerId: command.playerId });
+    if (command.type === END_ACTIVATION || command.type === "end-turn") eventBus.emit(GameEventNames.RemoteSelectionChanged, { playerId: null });
+    if (command.type !== "move") return;
+    const player = game.ctx.gameService.getPlayerById(command.playerId);
+    if (player?.gridPosition) eventBus.emit(GameEventNames.UI_ShowOtherCoachMove, { from: { ...player.gridPosition }, path: command.path, ma: player.stats.MA });
+  }
+}
+
+export function createComputerCoach(options: ComputerCoachOptions) {
+  return new ComputerCoach(options);
 }

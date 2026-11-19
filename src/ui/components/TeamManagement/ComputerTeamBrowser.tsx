@@ -7,7 +7,7 @@ import {
 import { getAvailableRosterNames } from "../../../data/RosterTemplates";
 import {
   DEFAULT_SEVENS_RULESET,
-  SevensRuleset,
+  type SevensRuleset,
 } from "../../../game/rules/sevensRuleset";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
 import { PlayerPortrait } from "../common/PlayerPortrait";
@@ -21,7 +21,6 @@ import {
 } from "../componentWarehouse/HudKit";
 import { formatGold, numToHex } from "./TeamStatsOverview";
 
-/** The shared catalogue is read-only; actions pick a recipe for a fresh copy. */
 export function ComputerTeamBrowser() {
   const [query, setQuery] = useState("");
   const [roster, setRoster] = useState("");
@@ -58,7 +57,9 @@ export function ComputerTeamBrowser() {
           <input
             className="hud-field"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
             placeholder="Name, roster, or build"
           />
         </Field>
@@ -66,7 +67,9 @@ export function ComputerTeamBrowser() {
           <select
             className="hud-field"
             value={roster}
-            onChange={(event) => setRoster(event.target.value)}
+            onChange={(event) => {
+              setRoster(event.target.value);
+            }}
           >
             <option value="">All rosters</option>
             {getAvailableRosterNames().map((name) => (

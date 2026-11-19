@@ -1,14 +1,7 @@
-/**
- * End-to-end journeys for overhaul-team-lifecycle-management, driven at the
- * service layer (the same functions the UI calls) rather than through a
- * browser. The repo has no Playwright/browser-E2E harness yet, so these
- * stand in for tasks 6.3/6.4: incomplete draft repair, legal finalization,
- * first-match activation + active management, and post-match SPP being
- * resolved in Manage Team rather than on the results screen.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RosterName, createTeam } from "../../src/types/Team";
-import { createPlayer, PlayerTemplate } from "../../src/types/Player";
+import { createPlayer, type PlayerTemplate } from "../../src/types/Player";
 import {
   loadTeams,
   saveTeam,
@@ -35,15 +28,17 @@ vi.mock("../../src/firebase/config", () => ({
 }));
 
 const humanRoster = getRosterByRosterName(RosterName.HUMAN);
-const lineman = humanRoster.playerTemplates.find((t) =>
-  t.keywords.includes("Lineman" as never)
-)! as PlayerTemplate;
+const lineman: PlayerTemplate = fixtureValue(
+  humanRoster.playerTemplates.find((t) => t.keywords.includes("Lineman"))
+);
 
 function newDraftTeam() {
-  return createTeam("Reikland Reavers", RosterName.HUMAN, {
-    primary: 0,
-    secondary: 0,
-  });
+  return createTeam(
+    "Reikland Reavers",
+    RosterName.HUMAN,
+    { primary: 0, secondary: 0 },
+    getRosterByRosterName(RosterName.HUMAN).rerollCost
+  );
 }
 
 beforeEach(() => {
@@ -54,28 +49,26 @@ beforeEach(() => {
 describe("draft repair and legal finalization journey", () => {
   it("saves an incomplete draft, then repairs it into a legal roster", () => {
     const team = newDraftTeam();
-    // Only 5 players — below the 7-player minimum.
+
     for (let i = 0; i < 5; i++) {
       team.players.push(createPlayer(lineman, team.id, i + 1));
     }
 
-    // 1.6: an incomplete draft may still be persisted.
     saveTeam(team);
-    const persisted = loadTeams().find((t) => t.id === team.id)!;
+    const persisted = fixtureValue(loadTeams().find((t) => t.id === team.id));
     expect(getTeamMode(persisted)).toBe("draft");
     const violations = validateRosterLegality(persisted, humanRoster);
     expect(violations.some((v) => v.rule === "roster-size")).toBe(true);
 
-    // Repair: hire two more Linemen to reach 7.
     persisted.players.push(createPlayer(lineman, persisted.id, 6));
     persisted.players.push(createPlayer(lineman, persisted.id, 7));
     expect(
       validateRosterLegality(persisted, humanRoster).map((v) => v.rule)
     ).toEqual(["veteran"]);
-    chooseVeteran(persisted, persisted.players[0].id);
+    chooseVeteran(persisted, fixtureValue(persisted.players[0]).id);
     saveTeam(persisted);
 
-    const repaired = loadTeams().find((t) => t.id === team.id)!;
+    const repaired = fixtureValue(loadTeams().find((t) => t.id === team.id));
     expect(validateRosterLegality(repaired, humanRoster)).toEqual([]);
   });
 });
@@ -91,17 +84,14 @@ describe("first-match activation and active management journey", () => {
     expect(canEdit(team, { type: "change-roster-type" }).allowed).toBe(true);
     expect(priceOf(team, { type: "reroll" }).amount).toBe(100000);
 
-    // The team's first match is confirmed complete.
     stampFirstCompletedMatch(team);
     saveTeam(team);
 
-    const active = loadTeams().find((t) => t.id === team.id)!;
+    const active = fixtureValue(loadTeams().find((t) => t.id === team.id));
     expect(getTeamMode(active)).toBe("active");
-    expect(canEdit(active, { type: "change-roster-type" }).allowed).toBe(
-      false
-    );
+    expect(canEdit(active, { type: "change-roster-type" }).allowed).toBe(false);
     expect(priceOf(active, { type: "reroll" }).amount).toBe(100000);
-    // Hiring an eligible player is still legal and still roster price.
+
     expect(canEdit(active, { type: "hire-player" }).allowed).toBe(true);
   });
 });
@@ -113,29 +103,30 @@ describe("post-match development resolved in Manage Team journey", () => {
     team.players.push(player);
     saveTeam(team);
 
-    // Simulate the post-match screen awarding SPP (it no longer offers
-    // skill/characteristic assignment itself — see MatchResultsScreen).
     player.spp = 10;
     saveTeam(team);
 
-    const afterMatch = loadTeams().find((t) => t.id === team.id)!;
+    const afterMatch = fixtureValue(loadTeams().find((t) => t.id === team.id));
     const afterPlayer = afterMatch.players[0];
-    expect(canAdvance(afterPlayer)).toBe(true);
-    expect(afterPlayer.advancements).toHaveLength(0);
+    expect(canAdvance(fixtureValue(afterPlayer))).toBe(true);
+    expect(fixtureValue(afterPlayer).advancements).toHaveLength(0);
 
-    // Later, in Manage Team's player development page: resolve the
-    // pending advancement using the normal advancement + team-save
-    // services (game/progression/progression.ts, TeamManager.saveTeam),
-    // exactly what src/ui/components/hud/PlayerDevelopment.tsx does.
-    const [category] = afterPlayer.primary!;
-    const [skill] = eligibleSkills(afterPlayer, [category]);
-    applyAdvancement(afterPlayer, { kind: "chosen-primary", skill });
+    const [category] = fixtureValue(fixtureValue(afterPlayer).primary);
+    const [skill] = eligibleSkills(fixtureValue(afterPlayer), [
+      fixtureValue(category),
+    ]);
+    applyAdvancement(fixtureValue(afterPlayer), {
+      kind: "chosen-primary",
+      skill: fixtureValue(skill),
+    });
     saveTeam(afterMatch);
 
-    const resolved = loadTeams().find((t) => t.id === team.id)!;
+    const resolved = fixtureValue(loadTeams().find((t) => t.id === team.id));
     const resolvedPlayer = resolved.players[0];
-    expect(resolvedPlayer.advancements).toHaveLength(1);
-    expect(resolvedPlayer.skills.some((s) => s.type === skill)).toBe(true);
-    expect(resolvedPlayer.spp).toBeLessThan(10);
+    expect(fixtureValue(resolvedPlayer).advancements).toHaveLength(1);
+    expect(
+      fixtureValue(resolvedPlayer).skills.some((s) => s.type === skill)
+    ).toBe(true);
+    expect(fixtureValue(resolvedPlayer).spp).toBeLessThan(10);
   });
 });

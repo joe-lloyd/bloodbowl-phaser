@@ -1,16 +1,11 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import type { CommandResponse } from "../../src/headless/protocol";
 
-/**
- * An Inaccurate Pass that scatters off the pitch is out of play at once:
- * "Should the ball leave the pitch as a result of this Scatter, a Throw-in
- * will be required" (2025 rulebook p.75), and the Throw-in starts from "the
- * last square the ball occupied before it left the pitch" (p.77). The ball
- * cannot scatter back on. Seeds are committed, never searched.
- */
 const scenario: Scenario = {
   id: "pass-scatter-off-pitch",
   name: "Inaccurate pass at the sideline",
@@ -28,7 +23,6 @@ const scenario: Scenario = {
   },
 };
 
-/** Inaccurate; the first Scatter die (1, up-left) carries the ball off. */
 const SCATTERS_OFF_THEN_BACK_SEED = 1;
 
 describe("an inaccurate pass scattering off the pitch", () => {
@@ -37,7 +31,7 @@ describe("an inaccurate pass scattering off the pitch", () => {
       scenario,
       seed: SCATTERS_OFF_THEN_BACK_SEED,
     });
-    const passerId = game.ctx.team1.players[0].id;
+    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: passerId,
@@ -56,16 +50,17 @@ describe("an inaccurate pass scattering off the pitch", () => {
     }
     const dice = events
       .filter((e) => e.name === "diceRoll")
-      .map((e) => (e.data as { description: string }).description);
+      .map(
+        (e) => z.object({ description: z.string() }).parse(e.data).description
+      );
 
-    // The 1 carries the ball from (8,0) to (7,-1); the 5 and 8 never count.
     expect(dice).toEqual([
       "Pass (Human Lineman #1): 4, needs 5+",
       "Scatter: 1, 5, 8",
       "Throw-in Direction: 6",
       "Throw-in Distance: 2",
     ]);
-    // D6+2 is 4 squares down-right, counting (8,0) as the first.
+
     expect(response.snapshot.ballPosition).toEqual({ x: 11, y: 3 });
     expect(response.snapshot.activeTeamId).toBe("team2");
   });

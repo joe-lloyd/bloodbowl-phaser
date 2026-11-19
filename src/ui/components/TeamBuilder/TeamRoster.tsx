@@ -1,3 +1,4 @@
+import { STAT_HEADERS } from "./statHeaders";
 import { useNavigate } from "react-router-dom";
 import {
   calculateTeamValue,
@@ -6,9 +7,9 @@ import {
   playersTeamValue,
   playsNextGame,
   staffTeamValue,
-  Team,
+  type Team,
 } from "../../../types/Team";
-import { InjuryType, Player, PlayerStatus } from "../../../types/Player";
+import { InjuryType, type Player, PlayerStatus } from "../../../types/Player";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import { BloodBowlTable } from "../componentWarehouse/BloodBowlTable";
 import { Chip, hudButtonClass } from "../componentWarehouse/HudKit";
@@ -22,21 +23,14 @@ interface TeamRosterProps {
   team: Team;
   onFirePlayer: (playerId: string) => void;
   onReorderPlayers: (sourceSlot: number, targetSlot: number) => void;
-  /** Draft teams only: make this Lineman the Veteran (D8). */
-  onChooseVeteran?: (playerId: string) => void;
-  /** Draft teams with the Team Captain rule only: name this player Captain. */
-  onChooseTeamCaptain?: (playerId: string) => void;
-  /**
-   * Open a player's page. Defaults to navigating straight there; the Team
-   * Builder passes one that saves unsaved edits first.
-   */
+
+  onChooseVeteran?: ((playerId: string) => void) | undefined;
+
+  onChooseTeamCaptain?: ((playerId: string) => void) | undefined;
+
   onOpenPlayer?: (playerId: string) => void;
 }
 
-/**
- * Clicks on the row's own controls (name, Make Veteran, Make Captain, Fire, the drag
- * handle) keep their own behaviour instead of also opening the player.
- */
 function isRowControl(target: EventTarget | null): boolean {
   return (
     target instanceof Element &&
@@ -45,10 +39,6 @@ function isRowControl(target: EventTarget | null): boolean {
   );
 }
 
-/**
- * Why a player is left out of Current Team Value (see playsNextGame). Only
- * called for players who will not play the next game.
- */
 function notInTeamValueReason(team: Team, player: Player): string {
   if (isPendingRecruit(team, player.id)) return "Not hired yet";
   if (
@@ -63,34 +53,6 @@ function notInTeamValueReason(team: Team, player: Player): string {
   return "Injured";
 }
 
-/**
- * The team roster table — readable at the application's normal body-text
- * scale (overhaul-team-lifecycle-management, team-lifecycle-modes). Column
- * widths are declared once on the shared header/row `<colgroup>` so headers
- * and values always line up, and the table scrolls horizontally on narrow
- * viewports instead of shrinking text to fit.
- *
- * Also carries each player's career statistics (games played, touchdowns,
- * completions, casualties, kills, MVPs) as trailing columns
- * (team-management-layout: "Per-player career statistics are shown on the
- * team detail page, not the overview") — this replaced a separate
- * career-stats block that used to live on the Team Management overview page.
- *
- * Each player shows their unspent SPP and their current value (hire cost
- * plus value gained since, see playerValue). A player who cannot play the
- * next game is left out of team value, as calculateTeamValue does, so their
- * value is struck through. The last row adds the counted player values to
- * re-rolls and staff, giving the same team value the page shows elsewhere.
- *
- * Clicking a player row opens that player's page (full stats and
- * advancement). Reordering starts only from the ≡ handle; every row,
- * including empty slots, stays a drop target.
- */
-/**
- * The 11 roster slots, then any number above 11 a player still wears: a
- * Journeyman can take a team past 11 for a game (league-treasury spec), and
- * every retained player must stay visible.
- */
 function rosterSlots(team: Team): number[] {
   const extra = team.players
     .map((player) => player.number)
@@ -119,17 +81,13 @@ export function TeamRoster({
   return (
     <BloodBowlTable
       title={team.name.toUpperCase()}
-      aside={`${team.players.length} / 11 players · click a player to open · drag ≡ to reorder`}
+      aside={`${String(team.players.length)} / 11 players · click a player to open · drag ≡ to reorder`}
       accent={{ color: numToHex(team.colors.primary) }}
       headers={[
         { label: "#", width: "40px", className: "num" },
         { label: "Name", width: "22%" },
         { label: "Position", width: "15%" },
-        { label: "MA", className: "num" },
-        { label: "ST", className: "num" },
-        { label: "AG", className: "num" },
-        { label: "PA", className: "num" },
-        { label: "AV", className: "num" },
+        ...STAT_HEADERS,
         { label: "Skills", width: "15%" },
         { label: "SPP", className: "num" },
         { label: "Value", className: "num" },
@@ -139,7 +97,7 @@ export function TeamRoster({
         { label: "CAS", className: "num" },
         { label: "Kills", className: "num" },
         { label: "MVP", className: "num" },
-        { label: "", width: "64px" }, // Actions
+        { label: "", width: "64px" },
       ]}
     >
       {rosterSlots(team).map((slotNumber) => {
@@ -148,18 +106,20 @@ export function TeamRoster({
         return (
           <tr
             key={slotNumber}
-            data-testid={`roster-row-${slotNumber}`}
+            data-testid={`roster-row-${String(slotNumber)}`}
             className={
               player ? "cursor-pointer transition-colors hover:bg-white/5" : ""
             }
             title={player ? "Open player details" : undefined}
             onClick={(e) => {
               if (!player || isRowControl(e.target)) return;
-              // Finishing a text selection is not a request to open the player.
+
               if (window.getSelection()?.toString()) return;
               openPlayer(player.id);
             }}
-            onDragEnter={(e) => e.preventDefault()}
+            onDragEnter={(e) => {
+              e.preventDefault();
+            }}
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
@@ -183,7 +143,9 @@ export function TeamRoster({
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <button
                       className="rounded-hud text-left font-hud-label font-bold uppercase tracking-[0.03em] text-hud-bone hover:text-hud-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
-                      onClick={() => openPlayer(player.id)}
+                      onClick={() => {
+                        openPlayer(player.id);
+                      }}
                       title="View player development page"
                     >
                       {player.playerName}
@@ -234,8 +196,7 @@ export function TeamRoster({
                           slotNumber.toString()
                         );
                         e.dataTransfer.effectAllowed = "move";
-                        // Show the whole row under the cursor, not just the
-                        // handle glyph, so it still reads as moving the player.
+
                         const row = e.currentTarget.closest("tr");
                         if (
                           row &&
@@ -254,7 +215,9 @@ export function TeamRoster({
                     </span>
                     <button
                       className="flex h-7 w-7 items-center justify-center rounded-hud font-bold text-hud-mute transition-colors hover:bg-hud-blood-deep/60 hover:text-[#ff8a8a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
-                      onClick={() => onFirePlayer(player.id)}
+                      onClick={() => {
+                        onFirePlayer(player.id);
+                      }}
                       title="Fire Player"
                     >
                       X
@@ -285,15 +248,14 @@ export function TeamRoster({
 
 const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
 
-/** Advancement, Veteran and Captain: a badge, or a button to choose one. */
 function PlayerBadges({
   player,
   onChooseVeteran,
   onChooseTeamCaptain,
 }: {
   player: Player;
-  onChooseVeteran?: (playerId: string) => void;
-  onChooseTeamCaptain?: (playerId: string) => void;
+  onChooseVeteran?: ((playerId: string) => void) | undefined;
+  onChooseTeamCaptain?: ((playerId: string) => void) | undefined;
 }) {
   return (
     <>
@@ -319,7 +281,9 @@ function PlayerBadges({
         <button
           data-testid="choose-veteran"
           className={hudButtonClass("ghost", "sm")}
-          onClick={() => onChooseVeteran(player.id)}
+          onClick={() => {
+            onChooseVeteran(player.id);
+          }}
           title="Make this Lineman the team's Veteran (MA -1)"
         >
           Make Veteran
@@ -338,7 +302,9 @@ function PlayerBadges({
         <button
           data-testid="choose-team-captain"
           className={hudButtonClass("ghost", "sm")}
-          onClick={() => onChooseTeamCaptain(player.id)}
+          onClick={() => {
+            onChooseTeamCaptain(player.id);
+          }}
           title="Make this player the Team Captain (gains Pro)"
         >
           Make Captain
@@ -348,7 +314,6 @@ function PlayerBadges({
   );
 }
 
-/** The player's value, struck through when it is not in team value. */
 function ValueCell({ team, player }: { team: Team; player: Player }) {
   return (
     <td
@@ -371,7 +336,6 @@ function ValueCell({ team, player }: { team: Team; player: Player }) {
   );
 }
 
-/** Games, touchdowns, completions, casualties, kills and MVPs. */
 function CareerCells({ player }: { player: Player }) {
   return (
     <>

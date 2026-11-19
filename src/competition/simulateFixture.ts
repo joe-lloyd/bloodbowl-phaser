@@ -1,31 +1,23 @@
-/**
- * A fixture between two computer teams is played, not decided: a whole
- * match runs headless, so its injuries, deaths and SPP are real. Around the
- * match it does what a played game does. The fixture is recorded at full
- * time (GamePage), the MVPs and SPP are awarded (the results screen), and
- * the computer then makes each team's development choices.
- */
-
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import { foldMatchSummaryIntoCareers } from "../game/progression/careerStats";
 import { recordPendingDevelopment } from "../game/progression/postMatch";
 import { HeadlessGame } from "../headless/HeadlessGame";
-import { IRNGService, RNGService } from "../services/rng/RNGService";
+import { type IRNGService, RNGService } from "../services/rng/RNGService";
 import { plannerCoach } from "../simulation/ai/planner";
-import { Coach } from "../simulation/coach";
-import { MatchRecording, runMatch } from "../simulation/runMatch";
+import { type Coach } from "../simulation/coach";
+import { type MatchRecording, runMatch } from "../simulation/runMatch";
 import { GamePhase } from "../types/GameState";
-import { Player, PlayerStatus } from "../types/Player";
-import { Team } from "../types/Team";
-import { ManagementReport, manageComputerTeam } from "./computerTeams";
+import { type Player, PlayerStatus } from "../types/Player";
+import { type Team } from "../types/Team";
+import { type ManagementReport, manageComputerTeam } from "./computerTeams";
 import {
   keepRecordedResult,
   recordCompetitionFixture,
 } from "./resultRecording";
 import {
-  CompetitionContext,
-  CompetitionDoc,
-  CompetitionFixture,
+  type CompetitionContext,
+  type CompetitionDoc,
+  type CompetitionFixture,
 } from "./types";
 import { DEFAULT_SEVENS_RULESET } from "../game/rules/sevensRuleset";
 import { fixturePaysWinnings, stalledSides } from "../game/rules/winnings";
@@ -33,37 +25,35 @@ import { fixturePaysWinnings, stalledSides } from "../game/rules/winnings";
 export interface SimulatedFixture {
   fixture: CompetitionFixture;
   competition: CompetitionDoc;
-  /** Both teams as they left the pitch. */
+
   teams: { home: Team; away: Team };
-  /** Players hurt or killed in this match, as they left the pitch. */
+
   casualties: { team: Team; player: Player }[];
-  /** SPP each player earned, by player id. */
+
   sppEarned: Record<string, number>;
-  /** The computer's development choices for each team afterwards. */
+
   management: ManagementReport[];
   recording: MatchRecording;
 }
 
 export interface SimulationOptions {
   seed?: number;
-  /** Plays both sides; the computer opponent's coach if unset. */
+
   coach?: Coach;
-  /** MVP rolls and development choices. */
+
   rng?: Pick<IRNGService, "rollDie">;
-  /** Sees the match at kick-off, before a command is played. */
+
   inspect?: (game: HeadlessGame) => void;
 }
 
 const isOut = (player: Player) =>
   player.status === PlayerStatus.INJURED || player.status === PlayerStatus.DEAD;
 
-/** A computer entrant that has not withdrawn. */
 function computerEntrant(competition: CompetitionDoc, id: string | null) {
   const entrant = competition.entrants.find((candidate) => candidate.id === id);
   return entrant?.computerCoached && !entrant.withdrawn ? entrant : undefined;
 }
 
-/** Fixtures the computer can play now: ready, and between two computer teams. */
 export function simulatableFixtures(
   competition: CompetitionDoc
 ): CompetitionFixture[] {
@@ -75,12 +65,6 @@ export function simulatableFixtures(
   );
 }
 
-/**
- * The earliest round with a game still to play. A round is simulated only
- * once it is the current one, so the computer never plays ahead of a game
- * a person still has to play. A withdrawn team's games close as walkovers,
- * so they hold up no round.
- */
 export function currentRound(competition: CompetitionDoc): number | undefined {
   const open = competition.fixtures.filter(
     (fixture) => fixture.status !== "complete"
@@ -90,7 +74,6 @@ export function currentRound(competition: CompetitionDoc): number | undefined {
     : undefined;
 }
 
-/** The two computer teams of a fixture the computer can play now. */
 function fixtureTeams(
   competition: CompetitionDoc,
   fixtureId: string
@@ -114,7 +97,6 @@ function fixtureTeams(
   return { home, away };
 }
 
-/** Each team's MVP, drawn from up to six nominees. */
 function awardMvps(
   tracker: HeadlessGame["ctx"]["matchStats"],
   teams: Team[],
@@ -143,7 +125,6 @@ function fixtureContext(
   };
 }
 
-/** A per-team tally as home and away, 0 for a team it does not name. */
 function bySide(
   tally: Record<string, number>,
   home: Team,
@@ -172,7 +153,7 @@ export async function simulateFixture(
     paysWinnings: fixturePaysWinnings(context.competitionType),
   });
   options.inspect?.(game);
-  // Serving a Miss Next Game is not a new casualty
+
   const sittingOut = new Set(
     [game.ctx.team1, game.ctx.team2].flatMap((team) =>
       team.players.filter(isOut).map((player) => player.id)
@@ -194,7 +175,6 @@ export async function simulateFixture(
     );
   }
 
-  // GamePage: the fixture is recorded the moment the match ends
   const teams = {
     home: engine.getTeam(home.id) ?? home,
     away: engine.getTeam(away.id) ?? away,
@@ -203,18 +183,19 @@ export async function simulateFixture(
   const fanFactors = state.fanFactors;
   const score = bySide(state.score, home, away);
   const updated = await recordCompetitionFixture(
-    context,
-    score.home,
-    score.away,
-    teams,
-    penalties && bySide(penalties, home, away),
     {
-      fanFactors: fanFactors && bySide(fanFactors, home, away),
-      stalled: stalledSides(state.stallingPlayerIds, teams.home, teams.away),
+      context,
+      homeScore: score.home,
+      awayScore: score.away,
+      progressedTeams: teams,
+      ...(penalties ? { penalties: bySide(penalties, home, away) } : {}),
+      options: {
+        ...(fanFactors ? { fanFactors: bySide(fanFactors, home, away) } : {}),
+        stalled: stalledSides(state.stallingPlayerIds, teams.home, teams.away),
+      },
     }
   );
 
-  // The results screen: MVPs, SPP, then development to make
   const tracker = game.ctx.matchStats;
   const both = [teams.home, teams.away];
   awardMvps(tracker, both, rng);
@@ -228,7 +209,7 @@ export async function simulateFixture(
   const sppEarned = Object.fromEntries(
     summary.players.map((stats) => [stats.playerId, stats.sppEarned])
   );
-  const matchId = `match-${seed}`;
+  const matchId = `match-${String(seed)}`;
   const management = both.map((team) => {
     recordPendingDevelopment(team, matchId, state.raisedDead?.[team.id], {
       leagueFixture: !!state.paysWinnings,
@@ -236,7 +217,7 @@ export async function simulateFixture(
     });
     keepRecordedResult(team);
     saveTeam(team);
-    // The computer makes the choices a coach makes from Manage Team
+
     const stored = getTeamById(team.id)!;
     const report = manageComputerTeam(stored, rng);
     saveTeam(stored);

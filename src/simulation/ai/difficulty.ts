@@ -1,9 +1,4 @@
-/**
- * How hard the computer plays. The levels differ by how far it looks ahead
- * and how long it may take; the plan underneath is the same.
- */
-
-import { Coach } from "../coach";
+import { type Coach } from "../coach";
 import { createPlannerCoach } from "./planner";
 import { STANDARD_VARIETY } from "./gamePlans";
 import { BUDGETS } from "./search";
@@ -32,7 +27,6 @@ export const DIFFICULTIES = [
 
 export type Difficulty = (typeof DIFFICULTIES)[number]["id"];
 
-/** Most workers to share a search over; one core stays with the page. */
 const MAX_WORKERS = 8;
 
 export function coachFor(difficulty: Difficulty): Coach & { close?(): void } {
@@ -41,7 +35,7 @@ export function coachFor(difficulty: Difficulty): Coach & { close?(): void } {
       name: "standard",
       variety: STANDARD_VARIETY,
     });
-  const cores = globalThis.navigator?.hardwareConcurrency ?? 2;
+  const cores = globalThis.navigator.hardwareConcurrency;
   return createWorkerSearchCoach({
     budget: BUDGETS[difficulty],
     workers: Math.max(1, Math.min(MAX_WORKERS, cores - 1)),

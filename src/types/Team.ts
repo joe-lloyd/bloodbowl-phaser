@@ -1,9 +1,10 @@
-/**
- * Team types and interfaces for Blood Bowl Sevens
- */
-
-import { InjuryType, Player, PlayerStatus, PlayerTemplate } from "./Player";
-import { SeedMetadata } from "./seedMetadata";
+import {
+  InjuryType,
+  type Player,
+  PlayerStatus,
+  type PlayerTemplate,
+} from "./Player";
+import { type SeedMetadata } from "./seedMetadata";
 import type { SevensRuleset } from "../game/rules/sevensRuleset";
 import type { InducementSelectionLine } from "./Inducements";
 import type { PlayedGame } from "../game/progression/matchHistory";
@@ -15,29 +16,17 @@ import {
   TEAM_REROLL_COST,
 } from "../game/rules/sevensPrices";
 
-/**
- * A team's progression lifecycle, chosen once at creation and immutable
- * thereafter (see setAdvancementMode). Matched Play spends tier-based Skill
- * Points before play; Advanced League earns/spends SPP normally; Sevens
- * Skill Selection gives one player a skill after each game and lets pro
- * teams make offers for experienced players (Drafted Players). Absent on teams created before
- * this field existed until migrated or explicitly chosen (see TeamManager).
- */
 export type TeamAdvancementMode =
   | "matched-play"
   | "advanced-league"
   | "sevens-skill-selection";
 
-/** One Matched Play skill bought with Skill Points before finalization. */
 export interface MatchedPlayAllocation {
   playerId: string;
   skill: SkillType;
   access: "primary" | "secondary";
 }
 
-/** A player who left for a pro team after the post-game Drafted Players
- *  roll (A6). Retains a full snapshot so career, match, and Draft history
- *  survive the removal. */
 export interface DraftRecord {
   id: string;
   playerId: string;
@@ -46,12 +35,10 @@ export interface DraftRecord {
   addedSkillCount: number;
   matchId?: string;
   removedAt: number;
-  /** Immutable snapshot of the player at the moment of removal. */
+
   player: Player;
 }
 
-/** Durable, unresolved mode-specific development work created post-match.
- *  Surfaced and resolved from Manage Team rather than the results screen. */
 export type PendingDevelopment =
   | {
       id: string;
@@ -69,17 +56,13 @@ export type PendingDevelopment =
       id: string;
       kind: "sevens-skill-selection";
       matchId: string;
-      /** Frozen at the end of the game: players who did not end it as a
-       *  Casualty, eligible to be chosen (Primary) or randomly selected
-       *  (Secondary). */
+
       eligibleParticipantIds: string[];
       createdAt: number;
-      /** Set once the coach has picked this game's route. */
+
       progress?: SkillSelectionProgress;
     }
   | {
-      /** A6: a pro team offers for this player. The coach pays the
-       *  player's current value from the Treasury or releases them. */
       id: string;
       kind: "drafted-player-offer";
       playerId: string;
@@ -89,8 +72,6 @@ export type PendingDevelopment =
       createdAt: number;
     }
   | {
-      /** A Journeyman who played a league game, waiting to be hired for
-       *  good or let go (src/game/rules/journeymen.ts). */
       id: string;
       kind: "journeyman-offer";
       playerId: string;
@@ -98,28 +79,20 @@ export type PendingDevelopment =
       createdAt: number;
     }
   | {
-      /** The last money step after a league fixture: roll for Expensive
-       *  Mistakes once the coach has finished hiring
-       *  (src/game/rules/expensiveMistakes.ts). */
       id: string;
       kind: "expensive-mistakes";
-      /** `competitionId:fixtureId` of the fixture that queued it. */
+
       fixtureKey: string;
       createdAt: number;
     };
 
-/** Two random rolls on the skill table and the skill they landed on. */
 export interface SkillRollCandidate {
   skill: SkillType;
   firstD6: number;
   secondD6: number;
 }
 
-/** A Sevens Skill Selection in progress. Primary: the coach chose the player
- *  and category, and skills are named coach, opponent, coach (A2).
- *  Secondary: the player was picked at random, then the coach picks a
- *  category and chooses one of two rolled skills (A3). */
-export type SkillSelectionProgress =
+type SkillSelectionProgress =
   | {
       route: "primary";
       playerId: string;
@@ -132,225 +105,174 @@ export type SkillSelectionProgress =
       rolled?: { category: SkillCategory; candidates: SkillRollCandidate[] };
     };
 
-/**
- * Team races/types
- */
-export enum RosterName {
-  AMAZON = "Amazon",
-  BLACK_ORC = "Black Orc",
-  BRETONIAN = "Bretonian",
-  CHAOS_CHOSEN = "Chaos Chosen",
-  CHAOS_DWARF = "Chaos Dwarf",
-  CHAOS_RENEGADE = "Chaos Renegade",
-  DARK_ELF = "Dark Elf",
-  DWARF = "Dwarf",
-  ELVEN_UNION = "Elven Union",
-  GNOME = "Gnome",
-  GOBLIN = "Goblin",
-  HALFLING = "Halfling",
-  HIGH_ELF = "High Elf",
-  HUMAN = "Human",
-  IMPERIAL_NOBILITY = "Imperial Nobility",
-  KHORNE = "Khorne",
-  LIZARDMEN = "Lizardmen",
-  NECROMANTIC_HORROR = "Necromantic Horror",
-  NORSE = "Norse",
-  NURGLE = "Nurgle",
-  OGRE = "Ogre",
-  OLD_WORLD_ALLIANCE = "Old World Alliance",
-  ORC = "Orc",
-  SHAMBLING_UNDEAD = "Shambiling Undead",
-  SKAVEN = "Skaven",
-  SNOTLING = "Snotling",
-  TOMB_KINGS = "Tomb Kings",
-  UNDERWORLD_DENIZENS = "Underworld Denizens",
-  VAMPIRE = "Vampire",
-  WOOD_ELF = "Wood Elf",
-}
+export const RosterName = {
+  AMAZON: "Amazon",
+  BLACK_ORC: "Black Orc",
+  BRETONIAN: "Bretonian",
+  CHAOS_CHOSEN: "Chaos Chosen",
+  CHAOS_DWARF: "Chaos Dwarf",
+  CHAOS_RENEGADE: "Chaos Renegade",
+  DARK_ELF: "Dark Elf",
+  DWARF: "Dwarf",
+  ELVEN_UNION: "Elven Union",
+  GNOME: "Gnome",
+  GOBLIN: "Goblin",
+  HALFLING: "Halfling",
+  HIGH_ELF: "High Elf",
+  HUMAN: "Human",
+  IMPERIAL_NOBILITY: "Imperial Nobility",
+  KHORNE: "Khorne",
+  LIZARDMEN: "Lizardmen",
+  NECROMANTIC_HORROR: "Necromantic Horror",
+  NORSE: "Norse",
+  NURGLE: "Nurgle",
+  OGRE: "Ogre",
+  OLD_WORLD_ALLIANCE: "Old World Alliance",
+  ORC: "Orc",
+  SHAMBLING_UNDEAD: "Shambiling Undead",
+  SKAVEN: "Skaven",
+  SNOTLING: "Snotling",
+  TOMB_KINGS: "Tomb Kings",
+  UNDERWORLD_DENIZENS: "Underworld Denizens",
+  VAMPIRE: "Vampire",
+  WOOD_ELF: "Wood Elf",
+} as const;
+export type RosterName = (typeof RosterName)[keyof typeof RosterName];
 
-export enum League {
-  BADLANDS_BRAWL = "Badlands Brawl",
-  CHAOS_CLASH = "Chaos Clash",
-  LUSTRIAN_SUPERLEAGUE = "Lustrian Superleague",
-  ELVEN_KINGDOMS_LEAGUE = "Elven Kingdoms League",
-  OLD_WORLD_CLASSIC = "Old World Classic",
-  WORLDS_EDGE_SUPERLEAGUE = "Worlds Edge Superleague",
-  SYLVANIAN_SPOTLIGHT = "Sylvanian Spotlight",
-  UNDERWORLD_CHALLENGE = "Underworld Challenge",
-  HALFLING_THIMBLE_CUP = "Halfling Thimble Cup",
-  WOODLAND_LEAGUE = "Woodland League",
-}
+export const League = {
+  BADLANDS_BRAWL: "Badlands Brawl",
+  CHAOS_CLASH: "Chaos Clash",
+  LUSTRIAN_SUPERLEAGUE: "Lustrian Superleague",
+  ELVEN_KINGDOMS_LEAGUE: "Elven Kingdoms League",
+  OLD_WORLD_CLASSIC: "Old World Classic",
+  WORLDS_EDGE_SUPERLEAGUE: "Worlds Edge Superleague",
+  SYLVANIAN_SPOTLIGHT: "Sylvanian Spotlight",
+  UNDERWORLD_CHALLENGE: "Underworld Challenge",
+  HALFLING_THIMBLE_CUP: "Halfling Thimble Cup",
+  WOODLAND_LEAGUE: "Woodland League",
+} as const;
+export type League = (typeof League)[keyof typeof League];
 
-export enum TeamSpecialRule {
-  BRAWLIN_BRUTES = "Brawlin' Brutes",
-  BRIBERY_AND_CORRUPTION = "Bribery and Corruption",
-  TEAM_CAPTAIN = "Team Captain",
-  /** "Favoured of (...)": the team picks one alignment when drafting. */
-  FAVOURED_OF = "Favoured of",
-  MASTERS_OF_UNDEATH = "Masters of Undeath",
-  FAVOURED_OF_HASHUT = "Favoured of Hashut",
-  FAVOURED_OF_KHORNE = "Favoured of Khorne",
-  FAVOURED_OF_NURGLE = "Favoured of Nurgle",
-  FAVOURED_OF_SLAANESH = "Favoured of Slaanesh",
-  FAVOURED_OF_TZEENTCH = "Favoured of Tzeentch",
-  FAVOURED_OF_UNDIVIDED = "Favoured of Undivided",
-  LOW_COST_LINEMEN = "Low Cost Linemen",
-  SWARMING = "Swarming",
-}
+export const TeamSpecialRule = {
+  BRAWLIN_BRUTES: "Brawlin' Brutes",
+  BRIBERY_AND_CORRUPTION: "Bribery and Corruption",
+  TEAM_CAPTAIN: "Team Captain",
+  FAVOURED_OF: "Favoured of",
+  MASTERS_OF_UNDEATH: "Masters of Undeath",
+  FAVOURED_OF_HASHUT: "Favoured of Hashut",
+  FAVOURED_OF_KHORNE: "Favoured of Khorne",
+  FAVOURED_OF_NURGLE: "Favoured of Nurgle",
+  FAVOURED_OF_SLAANESH: "Favoured of Slaanesh",
+  FAVOURED_OF_TZEENTCH: "Favoured of Tzeentch",
+  FAVOURED_OF_UNDIVIDED: "Favoured of Undivided",
+  LOW_COST_LINEMEN: "Low Cost Linemen",
+  SWARMING: "Swarming",
+} as const;
+export type TeamSpecialRule =
+  (typeof TeamSpecialRule)[keyof typeof TeamSpecialRule];
 
-/** One alignment a "Favoured of (...)" roster may pick (rulebook p.154). */
 export type FavouredOfRule =
-  | TeamSpecialRule.FAVOURED_OF_HASHUT
-  | TeamSpecialRule.FAVOURED_OF_KHORNE
-  | TeamSpecialRule.FAVOURED_OF_NURGLE
-  | TeamSpecialRule.FAVOURED_OF_SLAANESH
-  | TeamSpecialRule.FAVOURED_OF_TZEENTCH
-  | TeamSpecialRule.FAVOURED_OF_UNDIVIDED;
+  | typeof TeamSpecialRule.FAVOURED_OF_HASHUT
+  | typeof TeamSpecialRule.FAVOURED_OF_KHORNE
+  | typeof TeamSpecialRule.FAVOURED_OF_NURGLE
+  | typeof TeamSpecialRule.FAVOURED_OF_SLAANESH
+  | typeof TeamSpecialRule.FAVOURED_OF_TZEENTCH
+  | typeof TeamSpecialRule.FAVOURED_OF_UNDIVIDED;
 
-/**
- * Team colors
- */
 export interface TeamColors {
-  primary: number; // Hex color
-  secondary: number; // Hex color
+  primary: number;
+  secondary: number;
 }
 
-/**
- * Team formation
- */
 export interface Formation {
   name: string;
-  positions: { playerId: string; x: number; y: number }[]; // x,y are grid coordinates relative to setup zone
+  positions: { playerId: string; x: number; y: number }[];
 }
 
-/**
- * Team interface - represents a complete team roster
- */
 export interface Team {
-  // Identity
   id: string;
   name: string;
-  coachName?: string; // Name of the coach (user)
+  coachName?: string;
   rosterName: RosterName;
   colors: TeamColors;
 
-  // Roster
-  players: Player[]; // All players on roster (max 11 for Sevens)
-  maxRosterSize: number; // 11 for Sevens
-  formations: Formation[]; // Saved formations
+  players: Player[];
+  maxRosterSize: number;
+  formations: Formation[];
 
-  // Resources
-  treasury: number; // Current Gold available
-  startingTreasury: number; // Initial Treasury (usually 600k for Sevens)
-  rerolls: number; // Team re-rolls purchased
-  /** The roster's rulebook re-roll price. Sevens ignores it: every team
-   *  pays TEAM_REROLL_COST (see src/game/rules/teamPricing.ts). */
+  treasury: number;
+  startingTreasury: number;
+  rerolls: number;
+
   rerollCost: number;
 
-  // Staff
-  apothecary: boolean; // Has apothecary?
+  apothecary: boolean;
   coaches: number;
   cheerleaders: number;
   dedicatedFans: number;
 
-  // League stats
-  teamValue: number; // Total TV (calculated)
+  teamValue: number;
   wins: number;
   losses: number;
   draws: number;
   touchdowns: number;
   casualties: number;
 
-  /**
-   * Timestamp (ms) the team's first completed match was confirmed. Absence
-   * means the team is still in draft mode; once set it is never cleared —
-   * see src/game/rules/teamLifecycle.ts for the draft/active derivation.
-   */
   firstMatchPlayedAt?: number;
 
-  /** Development seed ownership; absent on coach-created teams. */
   seedMetadata?: SeedMetadata;
 
-  /**
-   * The single league or tournament this team is currently entered in, if
-   * any. Set on entry, refused when already set, cleared when that
-   * competition completes or the team withdraws (src/competition/logic.ts).
-   */
   activeCompetitionId?: string;
 
-  /** Draft validation only. A competition chooses its own rules independently. */
   draftRuleset?: SevensRuleset;
 
-  /** `competitionId:fixtureId` of each result in this team's record. */
   recordedFixtureIds?: string[];
-  /** Every game this team played, newest first (matchHistory.ts). */
+
   playedGames?: PlayedGame[];
 
-  /** Immutable progression lifecycle; absent on unmigrated legacy teams. */
   advancementMode?: TeamAdvancementMode;
-  /** True once the mode may no longer change (finalized or entered a
-   *  competition). See setAdvancementMode / lockAdvancementMode. */
+
   advancementModeLocked?: boolean;
-  /** Matched Play only: package skills allocated to players before entry. */
+
   matchedPlayAllocations?: MatchedPlayAllocation[];
-  /** Matched Play only (MP2): inducements bought onto the draft list from
-   *  the draft budget. They come with the team to every match. */
+
   draftInducements?: InducementSelectionLine[];
-  /** Sevens Skill Selection / Matched Play: players poached by the Draft. */
+
   draftHistory?: DraftRecord[];
-  /** Unresolved mode-specific development awaiting a Manage Team decision. */
+
   pendingDevelopment?: PendingDevelopment[];
-  /**
-   * The computer coaches this team in competitions and makes its
-   * development choices between games (src/competition/computerTeams.ts).
-   */
+
   computerCoached?: true;
-  /** Source recipe for this match or competition copy. Never a saved template. */
+
   computerTemplateId?: string;
-  /**
-   * The League chosen from a multi-League roster when drafting. Absent means
-   * the roster's first League (src/game/rules/teamAllegiance.ts).
-   */
+
   league?: League;
-  /**
-   * The alignment a "Favoured of (...)" roster chose when drafting. Absent
-   * means Undivided; never set on any other roster (teamAllegiance.ts).
-   */
+
   favouredOf?: FavouredOfRule;
 }
 
-/**
- * Team roster template - defines what players a race can hire
- */
 export interface TeamRoster {
   rosterName: RosterName;
   rerollCost: number;
   leagues: League[];
   specialRules: TeamSpecialRule[];
-  /**
-   * Most Big Guys the team may field across all its Big Guy positions, for
-   * rosters that print a shared limit ("may have a single Big Guy, chosen
-   * from the following"). Per-position maxima still apply.
-   */
+
   maxBigGuys?: number;
   tier: number;
   apothecary: boolean;
   playerTemplates: PlayerTemplate[];
 }
 
-/**
- * Helper function to create a new team
- */
 export function createTeam(
   name: string,
   rosterName: RosterName,
   colors: TeamColors,
   rerollCost: number,
-  startingTreasury: number = 600000,
+  startingTreasury = 600000,
   advancementMode?: TeamAdvancementMode
 ): Team {
   return {
-    id: `team-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `team-${String(Date.now())}-${Math.random().toString(36).substr(2, 9)}`,
     name,
     coachName: "",
     rosterName,
@@ -358,7 +280,7 @@ export function createTeam(
     players: [],
     maxRosterSize: 11,
     formations: [],
-    treasury: startingTreasury, // Sevens starting gold
+    treasury: startingTreasury,
     startingTreasury,
     rerolls: 0,
     rerollCost,
@@ -376,12 +298,6 @@ export function createTeam(
   };
 }
 
-/**
- * Set or change a team's advancement mode. Immutable once locked (see
- * lockAdvancementMode): a finalized team or one that has entered a
- * competition may not convert between modes. Throws rather than silently
- * ignoring the attempt so callers surface a clear refusal.
- */
 export function setAdvancementMode(
   team: Team,
   mode: TeamAdvancementMode
@@ -400,10 +316,6 @@ export function setAdvancementMode(
   team.advancementMode = mode;
 }
 
-/**
- * League teams carry injuries between games and run the post-game sequence.
- * Matched Play teams and unmigrated legacy teams do neither.
- */
 export function isLeagueMode(mode?: TeamAdvancementMode): boolean {
   switch (mode) {
     case undefined:
@@ -415,22 +327,18 @@ export function isLeagueMode(mode?: TeamAdvancementMode): boolean {
   }
 }
 
-/** D7: league teams start with Dedicated Fans 1, Matched Play teams with 0. */
 export function startingDedicatedFans(mode?: TeamAdvancementMode): number {
   return isLeagueMode(mode) ? 1 : 0;
 }
 
-/** Finalize the mode choice: called on first save and on competition entry. */
 export function lockAdvancementMode(team: Team): void {
   if (team.advancementMode) team.advancementModeLocked = true;
 }
 
-/** Unresolved development that should block launching another fixture. */
 export function hasBlockingPendingDevelopment(team: Team): boolean {
   return (team.pendingDevelopment?.length ?? 0) > 0;
 }
 
-/** A raised Lineman awaiting the coach's permanent hiring decision. */
 export function isPendingRaisedDeadRecruit(
   team: Team,
   playerId: string
@@ -441,11 +349,6 @@ export function isPendingRaisedDeadRecruit(
   );
 }
 
-/**
- * A player on the team's list who is not hired yet: a raised Lineman or a
- * Journeyman waiting on the coach's hiring decision. Neither counts toward
- * the roster limit, team value or the players a game can field.
- */
 export function isPendingRecruit(team: Team, playerId: string): boolean {
   return (team.pendingDevelopment ?? []).some(
     (entry) =>
@@ -455,11 +358,6 @@ export function isPendingRecruit(team: Team, playerId: string): boolean {
   );
 }
 
-/**
- * Whether a hired player can play the team's next game: not already in the
- * Casualty box, which before kick-off means sitting this game out, and in a
- * league not due to Miss Next Game or Dead.
- */
 export function playsNextGame(team: Team, player: Player): boolean {
   if (isPendingRecruit(team, player.id)) return false;
   if (
@@ -475,28 +373,16 @@ export function playsNextGame(team: Team, player: Player): boolean {
   );
 }
 
-/**
- * A player's current value: what they were hired for plus every value
- * increase since (advancements and Drafted Players keeps).
- */
 export function playerValue(player: Player): number {
   return player.cost + (player.teamValue ?? 0);
 }
 
-/**
- * The players' share of Current Team Value: the value of every player who
- * can play the next game.
- */
 export function playersTeamValue(team: Team): number {
   return team.players
     .filter((player) => playsNextGame(team, player))
     .reduce((value, player) => value + playerValue(player), 0);
 }
 
-/**
- * Re-rolls and Sideline Staff at their Sevens prices. Dedicated Fans are not
- * part of Team Value.
- */
 export function staffTeamValue(team: Team): number {
   return (
     team.rerolls * TEAM_REROLL_COST +
@@ -506,59 +392,14 @@ export function staffTeamValue(team: Team): number {
   );
 }
 
-/**
- * The team's Current Team Value: every player who can play the next game,
- * plus re-rolls and Sideline Staff.
- */
 export function calculateTeamValue(team: Team): number {
   return playersTeamValue(team) + staffTeamValue(team);
 }
 
-/**
- * Get active players (on pitch)
- */
-export function getActivePlayers(team: Team): Player[] {
-  return team.players.filter(
-    (p) =>
-      p.status === "Active" || p.status === "Prone" || p.status === "Stunned"
-  );
-}
-
-/**
- * Get reserve players (in dugout)
- */
-export function getReservePlayers(team: Team): Player[] {
-  return team.players.filter(
-    (p) => p.status === "Reserve" && !isPendingRecruit(team, p.id)
-  );
-}
-
-/**
- * Get KO'd players
- */
-export function getKOPlayers(team: Team): Player[] {
-  return team.players.filter((p) => p.status === "KO");
-}
-
-/**
- * Get injured players
- */
-export function getInjuredPlayers(team: Team): Player[] {
-  return team.players.filter(
-    (p) => p.status === "Injured" || p.status === "Dead"
-  );
-}
-
-/**
- * Check if team can afford an item
- */
-export function canAfford(team: Team, cost: number): boolean {
+function canAfford(team: Team, cost: number): boolean {
   return team.treasury >= cost;
 }
 
-/**
- * Add player to team
- */
 export function addPlayerToTeam(team: Team, player: Player): boolean {
   if (team.players.length >= team.maxRosterSize) {
     return false;

@@ -1,38 +1,28 @@
-/**
- * RerollArbiter - central home for every reroll timing constraint, so no
- * individual skill rule re-implements them:
- *
- * - a reroll may never be rerolled (roll paths only offer on the first roll)
- * - a skill reroll is usable once per action (players activate once per team
- *   turn, so per-turn tracking keyed by player+skill is equivalent)
- * - a team reroll is usable once per team turn, only on that team's own
- *   turn, and spends one of the team's re-rolls for this half. A Charge!
- *   counts as the charging team's own turn, on a ledger of its own
- */
-
-import { GameState, TurnUsage } from "../../types/GameState";
-import { Team } from "../../types/Team";
-import { Player } from "../../types/Player";
+import { type GameState, type TurnUsage } from "../../types/GameState";
+import { type Team } from "../../types/Team";
+import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { consumeFreeReroll, freeRerollsFor } from "../kickoff/driveEffects";
 import { spendTeamReroll, teamRerollsLeft } from "../teamRerolls";
 
-/** The re-roll a Team Re-roll spends: free (Brilliant Coaching), bought, or Leader. */
 export type TeamRerollKind = "free" | "team" | "leader";
 
 export class RerollArbiter {
+  private state: GameState;
+  private getTeam: (teamId: string) => Team | undefined;
+  private eventBus: (IEventBus) | undefined;
   constructor(
-    private state: GameState,
-    private getTeam: (teamId: string) => Team | undefined,
-    private eventBus?: IEventBus
-  ) {}
+    state: GameState,
+    getTeam: (teamId: string) => Team | undefined,
+    eventBus?: IEventBus
+  ) {
+    this.state = state;
+    this.getTeam = getTeam;
+    this.eventBus = eventBus;
+  }
 
-  /**
-   * Grant each team with a Leader on the pitch one Leader Re-roll, once per
-   * half. The bank lives on GameState so saves and online sync carry it.
-   */
   public beginHalf(teamIds: string[]): void {
     const half = this.state.turn.isHalf2 ? "h2" : "h1";
     if (this.state.leaderRerolls?.half === half) return;
@@ -53,11 +43,6 @@ export class RerollArbiter {
     return !!this.onPitchLeader(teamId);
   }
 
-  /**
-   * Usable only with a Leader on the pitch. A Knocked Out or unselected
-   * Leader just pauses it; Casualty or Sent-off Leaders never return this
-   * half, so once all are gone it is effectively lost.
-   */
   private leaderRerollAvailable(teamId: string): boolean {
     return (
       !!this.state.leaderRerolls?.teamIds.includes(teamId) &&
@@ -65,27 +50,19 @@ export class RerollArbiter {
     );
   }
 
-  /**
-   * One team turn = one key; a new turn finds nothing spent. A Charge! runs
-   * between turns while `turn` still holds the one before the kick-off, so
-   * it gets a key of its own and neither shares that turn's spending nor
-   * passes its own on to the drive's first turns.
-   */
   private turnKey(): string {
     const t = this.state.turn;
     const period = t.extraTime ? "et" : t.isHalf2 ? "h2" : "h1";
-    const key = `${t.teamId}:${t.turnNumber}:${period}`;
+    const key = `${t.teamId}:${String(t.turnNumber)}:${period}`;
     const charge = this.state.chargeTeamId;
     return charge ? `charge:${charge}:${key}` : key;
   }
 
-  /** What this turn has spent, or undefined when nothing has been yet. */
   private spent(): TurnUsage | undefined {
     const usage = this.state.turnUsage;
     return usage?.turn === this.turnKey() ? usage : undefined;
   }
 
-  /** This turn's ledger to spend from, begun afresh on a new turn. */
   private spend(): TurnUsage {
     const turn = this.turnKey();
     if (this.state.turnUsage?.turn !== turn)
@@ -101,13 +78,7 @@ export class RerollArbiter {
     return this.nextTeamReroll(teamId) !== null;
   }
 
-  /**
-   * Which re-roll a Team Re-roll would spend right now, or null when none
-   * may be: Brilliant Coaching's free one first, then the team's own, then
-   * the Leader Re-roll.
-   */
   public nextTeamReroll(teamId: string): TeamRerollKind | null {
-    // A team reroll may only be spent on that team's own turn or Charge!
     const turnTeamId = this.state.chargeTeamId ?? this.state.turn.teamId;
     if (turnTeamId !== teamId) return null;
     if (this.spent()?.teams.includes(teamId)) return null;
@@ -117,17 +88,14 @@ export class RerollArbiter {
     return null;
   }
 
-  /** The team's own Team Re-rolls left this half. */
   public teamRerollsLeftFor(teamId: string): number {
     const team = this.getTeam(teamId);
     return team ? teamRerollsLeft(this.state, team) : 0;
   }
 
-  /** Sevens Veteran (D8): one re-roll per game, kept on GameState. */
   public veteranRerollAvailable(player: Player): boolean {
     return (
-      !!player.veteran &&
-      !this.state.veteranRerollsUsed?.includes(player.id)
+      !!player.veteran && !this.state.veteranRerollsUsed?.includes(player.id)
     );
   }
 
@@ -149,10 +117,6 @@ export class RerollArbiter {
     if (!once.includes(key)) once.push(key);
   }
 
-  /**
-   * Generic once-per-turn skill usage (Break Tackle's modifier, …) —
-   * the same per-turn ledger the skill rerolls use, aliased for intent.
-   */
   public onceAvailable(player: Player, skill: SkillType): boolean {
     return this.skillRerollAvailable(player, skill);
   }
@@ -161,7 +125,6 @@ export class RerollArbiter {
     this.consumeSkillReroll(player, skill);
   }
 
-  /** Counted per-turn skill usage (Shadowing may fire MA times per turn). */
   public usesThisTurn(player: Player, skill: SkillType): number {
     return this.spent()?.uses[`${player.id}|${skill}`] ?? 0;
   }
@@ -172,7 +135,6 @@ export class RerollArbiter {
     uses[key] = (uses[key] ?? 0) + 1;
   }
 
-  /** This turn's Team Re-roll is used, without spending one (Team Captain). */
   public markTeamRerollUsed(teamId: string): void {
     const teams = this.spend().teams;
     if (!teams.includes(teamId)) teams.push(teamId);
@@ -180,7 +142,7 @@ export class RerollArbiter {
 
   public consumeTeamReroll(teamId: string): void {
     this.markTeamRerollUsed(teamId);
-    // Brilliant Coaching's free re-roll is spent before the team's own.
+
     if (consumeFreeReroll(this.state, teamId)) {
       this.eventBus?.emit(GameEventNames.DriveEffectExpired, {
         teamId,

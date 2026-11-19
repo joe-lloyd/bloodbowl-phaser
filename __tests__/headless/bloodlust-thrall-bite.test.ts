@@ -1,22 +1,14 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
 import { GameEventNames } from "../../src/types/events";
 
-/**
- * Bloodlust (X+), 2025 rulebook p.125: "At the end of their activation,
- * this player may bite an adjacent Thrall Lineman team-mate ... If they do,
- * immediately make an Injury Roll for the Thrall Lineman, treating any
- * Casualty result as Badly Hurt ... If this player does not bite a Thrall
- * Lineman for any reason, then a Turnover is caused, this player becomes
- * Distracted, and will immediately drop the ball if they were holding it."
- *
- * Seed 7 rolls a natural 1 on the Bloodlust die (committed, never searched).
- */
 const BLOODLUST_FAILS_SEED = 7;
 
 function scenario(thrallX: number, ball: { x: number; y: number }): Scenario {
@@ -35,7 +27,7 @@ function scenario(thrallX: number, ball: { x: number; y: number }): Scenario {
           skills: [{ type: SkillType.BLOODLUST, parameter: "2+" }],
         },
         { playerIndex: 1, x: thrallX, y: 5 },
-        // Someone left to activate, so the turn does not simply run out.
+
         { playerIndex: 2, x: 3, y: 9 },
       ],
       team2Placements: [{ playerIndex: 0, x: 20, y: 2 }],
@@ -58,19 +50,21 @@ async function failBloodlustThenEnd(thrallX: number, ball = { x: 1, y: 1 }) {
   game.ctx.eventBus.on(GameEventNames.Turnover, () => turnovers++);
   const declared = await game.execute({
     type: "declare-action",
-    playerId: vampire.id,
+    playerId: fixtureValue(vampire).id,
     action: "move",
   });
-  // Keep the declared Move; the downgrade question is not the point here.
+
   await game.execute({ type: "use-reaction", accept: false });
   const ended = await game.execute({
     type: "end-activation",
-    playerId: vampire.id,
+    playerId: fixtureValue(vampire).id,
   });
   const dice = (r: typeof ended) =>
     r.events
       .filter((e) => e.name === "diceRoll")
-      .map((e) => (e.data as { description: string }).description);
+      .map(
+        (e) => z.object({ description: z.string() }).parse(e.data).description
+      );
   return {
     game,
     vampire,
@@ -91,7 +85,7 @@ describe("Bloodlust failure at the end of the activation", () => {
     ]);
     expect(r.ended.pendingDecision).toBeNull();
     expect(r.turnovers()).toBe(1);
-    expect(r.vampire.conditions?.map((c) => c.type)).toEqual([
+    expect(fixtureValue(r.vampire).conditions?.map((c) => c.type)).toEqual([
       PlayerCondition.DISTRACTED,
     ]);
     expect(r.game.snapshot().ballPosition).not.toEqual({ x: 10, y: 5 });
@@ -102,7 +96,7 @@ describe("Bloodlust failure at the end of the activation", () => {
 
     expect(r.ended.pendingDecision).toMatchObject({
       type: "reaction",
-      playerId: r.vampire.id,
+      playerId: fixtureValue(r.vampire).id,
       skill: SkillType.BLOODLUST,
     });
     const bitten = await r.game.execute({ type: "use-reaction", accept: true });
@@ -110,13 +104,17 @@ describe("Bloodlust failure at the end of the activation", () => {
     expect(
       bitten.events
         .filter((e) => e.name === "diceRoll")
-        .map((e) => (e.data as { description: string }).description)
+        .map(
+          (e) => z.object({ description: z.string() }).parse(e.data).description
+        )
     ).toEqual(["Injury Roll (Thrall Lineman #2): 1 + 6 = 7"]);
-    expect(r.thrall.status).toBe(PlayerStatus.STUNNED);
+    expect(fixtureValue(r.thrall).status).toBe(PlayerStatus.STUNNED);
     expect(r.turnovers()).toBe(0);
-    expect(r.vampire.conditions ?? []).toEqual([]);
+    expect(fixtureValue(r.vampire).conditions ?? []).toEqual([]);
     expect(
-      r.game.snapshot().turn.activatedPlayerIds.includes(r.vampire.id)
+      r.game
+        .snapshot()
+        .turn.activatedPlayerIds.includes(fixtureValue(r.vampire).id)
     ).toBe(true);
   });
 
@@ -125,8 +123,8 @@ describe("Bloodlust failure at the end of the activation", () => {
     await r.game.execute({ type: "use-reaction", accept: false });
 
     expect(r.turnovers()).toBe(1);
-    expect(r.thrall.status).toBe(PlayerStatus.ACTIVE);
-    expect(r.vampire.conditions?.map((c) => c.type)).toEqual([
+    expect(fixtureValue(r.thrall).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(r.vampire).conditions?.map((c) => c.type)).toEqual([
       PlayerCondition.DISTRACTED,
     ]);
   });
@@ -138,7 +136,7 @@ describe("Bloodlust failure on reaching the End Zone", () => {
     const setup = {
       ...base.setup,
       team1Placements: [
-        { ...base.setup.team1Placements[0], x: 17 },
+        { ...fixtureValue(base.setup.team1Placements[0]), x: 17 },
         ...base.setup.team1Placements.slice(1),
       ],
       team2Placements: [{ playerIndex: 0, x: 2, y: 9 }],
@@ -152,20 +150,20 @@ describe("Bloodlust failure on reaching the End Zone", () => {
     game.ctx.eventBus.on(GameEventNames.Turnover, () => turnovers++);
     await game.execute({
       type: "declare-action",
-      playerId: vampire.id,
+      playerId: fixtureValue(vampire).id,
       action: "move",
     });
     await game.execute({ type: "use-reaction", accept: false });
     await game.execute({
       type: "move",
-      playerId: vampire.id,
+      playerId: fixtureValue(vampire).id,
       path: [
         { x: 18, y: 5 },
         { x: 19, y: 5 },
       ],
     });
 
-    expect(vampire.gridPosition).toEqual({ x: 19, y: 5 });
+    expect(fixtureValue(vampire).gridPosition).toEqual({ x: 19, y: 5 });
     expect(Object.values(game.snapshot().score)).toEqual([0, 0]);
     expect(turnovers).toBe(1);
     expect(game.snapshot().ballPosition).not.toEqual({ x: 19, y: 5 });

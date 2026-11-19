@@ -1,6 +1,3 @@
-// Written by scripts/coach/fit-evaluation.ts from 99271 positions of
-// planner self-play. Refit rather than edit.
-
 import type { EvaluationWeights } from "./evaluate";
 
 export const EVALUATION_WEIGHTS: EvaluationWeights = {

@@ -24,15 +24,16 @@ import { RNGService } from "../../../services/rng/RNGService";
 import { injuryLabel, playerLabel } from "../hud/turnSummary";
 import { getTeamById } from "../../../game/managers/TeamManager";
 import {
-  CompetitionContext,
-  CompetitionDoc,
-  CompetitionEntrant,
-  CompetitionFixture,
-  CompetitionType,
+  type CompetitionContext,
+  type CompetitionDoc,
+  type CompetitionEntrant,
+  type CompetitionFixture,
+  type CompetitionType,
 } from "../../../competition/types";
 import { useAuth } from "../../hooks/useAuth";
 import {
-  BracketFixtureContext,
+  type BracketFixtureContext,
+  FixtureActions,
   TournamentBracket,
   walkoverLine,
 } from "./TournamentBracket";
@@ -50,21 +51,20 @@ import {
   clearMatchSave,
   readMatchSave,
 } from "../../../game/persistence/MatchSaveRepository";
-import { hasBlockingPendingDevelopment, Team } from "../../../types/Team";
+import { hasBlockingPendingDevelopment, type Team } from "../../../types/Team";
 import { LeagueRounds } from "./LeagueRounds";
 import { LeagueTeamProgress } from "./LeagueTeamProgress";
 
-type DraftScore = {
+interface DraftScore {
   home: string;
   away: string;
-  /** Roll-offs each side won in a Penalty Shoot-out. */
+
   penaltiesHome?: string;
   penaltiesAway?: string;
-};
+}
 type DraftScores = Record<string, DraftScore>;
 
-/** A simulated game, as the page lists it. */
-type SimulatedResult = {
+interface SimulatedResult {
   fixtureId: string;
   round: number;
   home: string;
@@ -72,9 +72,9 @@ type SimulatedResult = {
   homeScore: number;
   awayScore: number;
   penalties?: { home: number; away: number };
-  /** "Grim #4 (Nuln Hammers): Dead" */
+
   casualties: string[];
-};
+}
 
 const computerCoached = (entrant?: CompetitionEntrant) =>
   !!entrant?.computerCoached;
@@ -87,21 +87,20 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   const [scores, setScores] = useState<DraftScores>({});
   const [error, setError] = useState<string | null>(null);
   const [launching, setLaunching] = useState(false);
-  /** The game being simulated, while the computer plays it. */
+
   const [simulating, setSimulating] = useState<string | null>(null);
   const [simulated, setSimulated] = useState<SimulatedResult[]>([]);
 
   useEffect(() => {
     if (!id) return;
     void getCompetition(type, id)
-      // Games owed as walkovers by a team that withdrew before they were
-      // closed on withdrawal
       .then((loaded) => (loaded ? closeWalkovers(loaded) : loaded))
       .then((loaded) => {
-        if (!loaded) return setCompetition(loaded);
-        // The computer makes its teams' development choices, including
-        // any left by a game a person played against one.
-        // A failure here must not keep the competition from showing.
+        if (!loaded) {
+          setCompetition(loaded);
+          return;
+        }
+
         try {
           manageComputerTeams(loaded, new RNGService(Date.now() % 2 ** 31));
         } catch (reason) {
@@ -109,18 +108,15 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             `The computer could not manage its teams: ${reason instanceof Error ? reason.message : String(reason)}`
           );
         }
-        // Cached display names (team renames) refresh for whatever this
-        // reader can currently see; the refreshed copy is what renders.
+
         const refreshed = refreshEntrantDisplays(loaded);
         setCompetition(refreshed);
       })
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : String(reason))
-      );
+      .catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      });
   }, [id, type]);
 
-  // A link, not a step back: after a match the results screen pushes this
-  // page on top of /play, so a history step would reopen the match.
   const allCompetitions = {
     label: type === "league" ? "All leagues" : "All tournaments",
     to: type === "league" ? "/leagues" : "/tournaments",
@@ -151,7 +147,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     [fixture.homeEntrantId, fixture.awayEntrantId].some(
       (id) => !!user && entrant(id)?.ownerUid === user.uid
     );
-  // The computer's teams are in the organizer's library
+
   const canSimulate =
     !competition.organizerUid || competition.organizerUid === user?.uid;
   const roundToSimulate = currentRound(competition);
@@ -193,10 +189,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     }
   };
 
-  /** Match launch is refused when the profile requires development to be
-   *  resolved and either entrant's live roster still has pending work (see
-   *  team-advancement-modes: "Team development is completed from Manage
-   *  Team"). Legacy competitions (no profile) never block. */
   const blockingDevelopment = (
     home: Team,
     homeName: string,
@@ -221,7 +213,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       setError("Enter both scores as whole numbers.");
       return;
     }
-    // A knockout game left level was decided on Penalties
+
     const penalties =
       isBracket && home === away
         ? {
@@ -231,11 +223,12 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         : undefined;
     try {
       const updated = await recordCompetitionFixture(
-        contextFor(fixture),
-        home,
-        away,
-        undefined,
-        penalties
+        {
+          context: contextFor(fixture),
+          homeScore: home,
+          awayScore: away,
+          ...(penalties ? { penalties } : {}),
+        }
       );
       setCompetition(updated);
       setError(null);
@@ -244,10 +237,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     }
   };
 
-  /**
-   * Load both rosters and, when they may play, start the match. A local
-   * match replaces the saved one, so it asks first.
-   */
   const launch = async (
     fixture: CompetitionFixture,
     local: boolean,
@@ -299,7 +288,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
           team1,
           team2,
           competitionContext: contextFor(fixture),
-          // A league or tournament game counts: SPP and development
+
           progressionEnabled: true,
         },
       })
@@ -318,7 +307,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       })
     );
 
-  /** A person coaches one side and the computer the other. */
   const launchComputer = (
     fixture: CompetitionFixture,
     humanEntrantId: string
@@ -337,10 +325,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       })
     );
 
-  /**
-   * Simulate games one after another, each picked from the competition as
-   * the last left it, until `next` finds none.
-   */
   const simulate = async (
     next: (latest: CompetitionDoc) => CompetitionFixture | undefined
   ) => {
@@ -355,7 +339,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         setSimulating(
           `${name(fixture.homeEntrantId)} v ${name(fixture.awayEntrantId)}`
         );
-        // Let the page show which game is on before the match runs
+
         await new Promise((resolve) => setTimeout(resolve, 0));
         const outcome = await simulateFixture(latest, fixture.id);
         latest = refreshEntrantDisplays(outcome.competition);
@@ -393,15 +377,12 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     competition.type === "tournament" &&
     competition.format === "single-elimination";
 
-  // Shared by the bracket cards and the round list. A plain function, never
-  // mounted: a component would remount the score inputs on every keystroke.
   const fixtureActions = ({ fixture, home, away }: BracketFixtureContext) => {
     if (!canReport(fixture)) return null;
     const busy = launching || simulating !== null;
     if (home && away && computerCoached(home) && computerCoached(away)) {
       return (
         <div className="flex flex-wrap gap-2">
-          {/* The current round only, as for the round's button */}
           {canSimulate && fixture.round === roundToSimulate && (
             <HudButton
               variant="primary"
@@ -470,30 +451,30 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-3">
           <input
-            aria-label={`${home?.name} score`}
+            aria-label={`${String(home?.name)} score`}
             type="number"
             min="0"
             value={draft.home}
-            onChange={(event) =>
+            onChange={(event) => {
               setScores((current) => ({
                 ...current,
                 [fixture.id]: { ...draft, home: event.target.value },
-              }))
-            }
+              }));
+            }}
             className="hud-field w-16 text-center"
           />
           <span className="text-hud-mute">–</span>
           <input
-            aria-label={`${away?.name} score`}
+            aria-label={`${String(away?.name)} score`}
             type="number"
             min="0"
             value={draft.away}
-            onChange={(event) =>
+            onChange={(event) => {
               setScores((current) => ({
                 ...current,
                 [fixture.id]: { ...draft, away: event.target.value },
-              }))
-            }
+              }));
+            }}
             className="hud-field w-16 text-center"
           />
           <HudButton
@@ -510,17 +491,17 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             {(["penaltiesHome", "penaltiesAway"] as const).map((side) => (
               <input
                 key={side}
-                aria-label={`${side === "penaltiesHome" ? home?.name : away?.name} penalties`}
+                aria-label={`${String(side === "penaltiesHome" ? home?.name : away?.name)} penalties`}
                 type="number"
                 min="0"
                 max="5"
                 value={draft[side] ?? ""}
-                onChange={(event) =>
+                onChange={(event) => {
                   setScores((current) => ({
                     ...current,
                     [fixture.id]: { ...draft, [side]: event.target.value },
-                  }))
-                }
+                  }));
+                }}
                 className="hud-field w-16 text-center"
               />
             ))}
@@ -530,7 +511,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     );
   };
 
-  // One fixture as the round list shows it; a league's later rounds too.
   const renderFixtureCard = (fixture: CompetitionFixture) => {
     const home = entrant(fixture.homeEntrantId);
     const away = entrant(fixture.awayEntrantId);
@@ -571,11 +551,11 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             {fixture.result.penalties.away}
           </p>
         )}
-        {ready && (
-          <div className="mt-3 border-t border-white/10 pt-3">
-            {fixtureActions({ fixture, home, away, ready })}
-          </div>
-        )}
+        <FixtureActions
+          className="mt-3 border-t border-white/10 pt-3"
+          context={{ fixture, home, away, ready }}
+          renderActions={fixtureActions}
+        />
       </article>
     );
   };
@@ -627,7 +607,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     </div>
   );
 
-  // In a section body, where the buttons can wrap on a phone.
   const simulateTools = (toSimulate.length > 0 || simulating) && (
     <div className="mb-4 flex flex-wrap items-center gap-2">
       {simulating ? (
@@ -701,7 +680,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                       Computer
                     </span>
                   )}
-                  {/* A computer team withdrawn would leave its games unplayed */}
+
                   {owned &&
                     !candidate.withdrawn &&
                     !candidate.computerCoached && (

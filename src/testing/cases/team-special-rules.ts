@@ -1,13 +1,12 @@
-/**
- * Team special rule cases (2025 rulebook pp.154-155), mirroring
- * `__tests__/headless/team-captain.test.ts` and the Bribery and Corruption
- * tests in `__tests__/headless/argue-the-call.test.ts`.
- */
-
+import { fixtureValue } from "../fixtureValue";
 import { GameEventNames } from "../../types/events";
 import { RosterName, TeamSpecialRule } from "../../types/Team";
 import { PlayerStatus } from "../../types/Player";
-import { ScenarioCase, ObservedRun, step } from "../scenarioCase/types";
+import {
+  type ScenarioCase,
+  type ObservedRun,
+  step,
+} from "../scenarioCase/types";
 import { playSetup, checkpointAssert } from "./helpers";
 
 function rolls(observed: ObservedRun, type: (rollType: string) => boolean) {
@@ -18,16 +17,10 @@ function rolls(observed: ObservedRun, type: (rollType: string) => boolean) {
     .map((roll) => roll.total);
 }
 
-/** Team 1's Team Re-rolls left this half at the end of the run. */
 function rerollsLeft(observed: ObservedRun): number | undefined {
   return observed.snapshot.teams[0]?.rerolls;
 }
 
-/**
- * Team Captain: a Human Lineman fails a pick-up beside the team's Captain,
- * and the team spends its only Team Re-roll. The Captain is on the pitch,
- * so a D6 follows; a natural 6 makes the re-roll free.
- */
 const teamCaptainReroll: ScenarioCase = {
   id: "team-captain-free-reroll",
   name: "Team Captain makes a Team Re-roll free",
@@ -61,7 +54,7 @@ const teamCaptainReroll: ScenarioCase = {
     {
       id: "captain-rolls-six",
       name: "The Captain rolls a 6",
-      // Committed: the pick-up fails, the Captain rolls 6.
+
       seed: 9,
       expectedOutcome:
         "the pick-up fails, the Team Re-roll is used and the Captain's 6 keeps it",
@@ -86,7 +79,7 @@ const teamCaptainReroll: ScenarioCase = {
     {
       id: "captain-misses",
       name: "The Captain misses the 6",
-      // Committed: the pick-up fails, the Captain rolls under 6.
+
       seed: 7,
       expectedOutcome:
         "the pick-up fails, the Team Re-roll is used and the Captain's roll spends it",
@@ -97,7 +90,7 @@ const teamCaptainReroll: ScenarioCase = {
           assert(observed) {
             const captain = rolls(observed, (type) => type === "Team Captain");
             checkpointAssert(
-              captain.length === 1 && captain[0] < 6,
+              captain.length === 1 && fixtureValue(captain[0]) < 6,
               "the Captain must roll once, below 6"
             );
             checkpointAssert(
@@ -118,7 +111,7 @@ const teamCaptainReroll: ScenarioCase = {
           .filter((event) => event.name === GameEventNames.RerollUsed)
           .map((event) => event.data as { source?: string });
         checkpointAssert(
-          used.length === 1 && used[0].source === "team",
+          used.length === 1 && fixtureValue(used[0]).source === "team",
           "exactly one Team Re-roll must be used"
         );
       },
@@ -126,10 +119,6 @@ const teamCaptainReroll: ScenarioCase = {
   ],
 };
 
-/**
- * Bribery and Corruption: a Goblin Lineman is spotted fouling, and the
- * coach's Argue the Call roll is a 1. Once per game that 1 is re-rolled.
- */
 const briberyArgueReroll: ScenarioCase = {
   id: "bribery-and-corruption-argue-reroll",
   name: "Bribery and Corruption re-rolls Argue the Call",
@@ -160,7 +149,7 @@ const briberyArgueReroll: ScenarioCase = {
     {
       id: "argue-one-rerolled",
       name: "A 1 to Argue the Call is re-rolled",
-      // Committed: the foul is spotted and the first Argue roll is a 1.
+
       seed: 5,
       expectedOutcome:
         "the foul is spotted, the Argue the Call 1 is re-rolled once",

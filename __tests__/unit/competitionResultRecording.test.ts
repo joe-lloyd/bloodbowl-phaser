@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   generateRoundRobin,
@@ -7,16 +8,16 @@ import {
 import { saveCompetition } from "../../src/competition/repository";
 import { recordCompetitionFixture } from "../../src/competition/resultRecording";
 import {
-  CompetitionEntrant,
-  LeagueDoc,
-  TournamentDoc,
+  type CompetitionEntrant,
+  type LeagueDoc,
+  type TournamentDoc,
 } from "../../src/competition/types";
 import {
   loadTeams,
   saveTeams,
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
-import { Team } from "../../src/types/Team";
+import { type Team } from "../../src/types/Team";
 
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
@@ -72,11 +73,11 @@ describe("competition result orchestration", () => {
     const context = {
       competitionType: "league" as const,
       competitionId: league.id,
-      fixtureId: fixtures[0].id,
+      fixtureId: fixtureValue(fixtures[0]).id,
     };
 
-    const updated = await recordCompetitionFixture(context, 2, 1);
-    await recordCompetitionFixture(context, 2, 1);
+    const updated = await recordCompetitionFixture({ context,homeScore: 2,awayScore: 1 });
+    await recordCompetitionFixture({ context,homeScore: 2,awayScore: 1 });
 
     expect(updated.standings[0]).toMatchObject({ wins: 1, points: 3 });
     const saved = loadTeams();
@@ -119,18 +120,16 @@ describe("competition result orchestration", () => {
     await saveCompetition(league);
 
     await recordCompetitionFixture(
-      {
+    {
+      context: {
         competitionType: "league",
         competitionId: league.id,
-        fixtureId: fixtures[0].id,
-      },
-      1,
-      0,
-      {
-        home: { ...teams[0], dedicatedFans: 3 },
-        away: { ...teams[1], dedicatedFans: 1 },
+        fixtureId: fixtureValue(fixtures[0]).id,
+      },homeScore: 1,awayScore: 0,progressedTeams: {
+        home: { ...fixtureValue(teams[0]),dedicatedFans: 3 },
+        away: { ...fixtureValue(teams[1]),dedicatedFans: 1 },
       }
-    );
+    }    );
 
     const saved = loadTeams();
     expect(saved.find((t) => t.id === "home3")?.dedicatedFans).toBe(3);
@@ -166,18 +165,18 @@ describe("competition result orchestration", () => {
     await saveCompetition(cup);
 
     const updated = await recordCompetitionFixture(
-      {
+    {
+      context: {
         competitionType: "tournament",
         competitionId: cup.id,
-        fixtureId: fixtures[0].id,
-      },
-      1,
-      1,
-      undefined,
-      { home: 3, away: 2 }
-    );
+        fixtureId: fixtureValue(fixtures[0]).id,
+      },homeScore: 1,awayScore: 1,penalties: { home: 3,away: 2 }
+    }    );
 
-    expect(updated.championEntrantId).toBe("local:home4");
+    expect(updated).toMatchObject({
+      type: "tournament",
+      championEntrantId: "local:home4",
+    });
     const saved = loadTeams();
     expect(saved.find((t) => t.id === "home4")).toMatchObject({
       wins: 1,
@@ -199,10 +198,10 @@ describe("competition result orchestration", () => {
     const entrants: CompetitionEntrant[] = teams.map((snapshot, index) => ({
       id: `local:${snapshot.id}`,
       teamId: snapshot.id,
+      ownerUid: null,
       name: snapshot.name,
       rosterName: snapshot.rosterName,
       seed: index + 1,
-      team: snapshot,
     }));
     const fixtures = generateRoundRobin(entrants);
     const league: LeagueDoc = {
@@ -221,14 +220,13 @@ describe("competition result orchestration", () => {
     };
     await saveCompetition(league);
     await recordCompetitionFixture(
-      {
+    {
+      context: {
         competitionType: "league",
         competitionId: league.id,
-        fixtureId: fixtures[0].id,
-      },
-      2,
-      1
-    );
+        fixtureId: fixtureValue(fixtures[0]).id,
+      },homeScore: 2,awayScore: 1
+    }    );
 
     const saved = loadTeams();
     const home = saved.find((candidate) => candidate.id === "home2");

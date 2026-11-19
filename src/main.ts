@@ -7,25 +7,16 @@ import { connectMatchSavePersistenceToAuth } from "./firebase/cloudMatchSaveRepo
 import { connectDiceLogsToAuth } from "./firebase/cloudDiceLog";
 import { signInHouseBot } from "./firebase/houseBot";
 
-/**
- * Main entry point
- * Creates EventBus and React root
- * Phaser game is now initialized by GamePage component when needed
- */
-
-// Create shared EventBus instance
 const eventBus = new EventBus();
 
-// Signed-in users get a cloud team library; inert without Firebase config
 connectTeamPersistenceToAuth();
 connectMatchSavePersistenceToAuth();
 connectDiceLogsToAuth();
-// Only the house bot's browser has an account to sign in with here
-void signInHouseBot().catch((error) =>
-  console.error("[HouseBot] sign-in failed:", error)
-);
 
-// Initialize React UI
+void signInHouseBot().catch((error) => {
+  console.error("[HouseBot] sign-in failed:", error);
+});
+
 const reactRoot = document.getElementById("react-root");
 if (reactRoot) {
   const root = createRoot(reactRoot);
@@ -35,7 +26,6 @@ if (reactRoot) {
   console.error("React root element not found!");
 }
 
-// Make EventBus available globally for debugging
 window.eventBus = eventBus;
 
 console.log("🏈 Blood Bowl Sevens - Ready!");

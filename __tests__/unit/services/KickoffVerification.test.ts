@@ -1,17 +1,19 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameService } from "../../../src/services/GameService.js";
-import { IGameService } from "../../../src/services/interfaces/IGameService.js";
+import { type IGameService } from "../../../src/services/interfaces/IGameService.js";
 import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
 import { GamePhase } from "../../../src/types/GameState.js";
+import type { Team } from "../../../src/types/Team.js";
 import { GameEventNames } from "../../../src/types/events.js";
 import { noDelay } from "../../../src/game/core/GameFlowManager.js";
 
 describe("Kickoff Verification", () => {
   let gameService: IGameService;
   let eventBus: EventBus;
-  let team1;
-  let team2;
+  let team1: Team;
+  let team2: Team;
 
   beforeEach(async () => {
     eventBus = new EventBus();
@@ -37,17 +39,9 @@ describe("Kickoff Verification", () => {
       rollBlockDice: vi.fn().mockReturnValue([]),
     } as any;
 
-    gameService = new GameService(
-      eventBus,
-      team1,
-      team2,
-      mockRngService as any,
-      mockBlockService,
-      undefined,
-      noDelay
+    gameService = new GameService({ eventBus: eventBus, team1: team1, team2: team2, rngService: mockRngService as any, blockResolutionService: mockBlockService, delay: noDelay }
     );
 
-    // Fast forward to Kickoff
     gameService.startSetup("t1");
     const left = [
       [6, 3],
@@ -59,15 +53,15 @@ describe("Kickoff Verification", () => {
       [4, 8],
     ];
     left.forEach(([x, y], index) =>
-      gameService.placePlayer(team1.players[index].id, x, y)
+      gameService.placePlayer(fixtureValue(team1.players[index]).id, fixtureValue(x), fixtureValue(y))
     );
     gameService.confirmSetup("t1");
     await Promise.resolve();
 
     left
-      .map(([x, y]) => [19 - x, y])
+      .map(([x, y]) => [19 - fixtureValue(x), y])
       .forEach(([x, y], index) =>
-        gameService.placePlayer(team2.players[index].id, x, y)
+        gameService.placePlayer(fixtureValue(team2.players[index]).id, fixtureValue(x), fixtureValue(y))
       );
     gameService.confirmSetup("t2");
   });
@@ -91,13 +85,8 @@ describe("Kickoff Verification", () => {
 
   it("should emit specific events for specific rolls (mocked)", () =>
     new Promise<void>((done) => {
-      // We can't easily mock the internal Math.random here without spyOn,
-      // but checking the range above is good enough for "it works".
-      // Let's just run it multiple times to catch errors?
-      // No, let's just rely on the range check.
-
       eventBus.on(GameEventNames.KickoffResult, (data: any) => {
-        console.log(`Rolled ${data.roll}: ${data.event}`);
+        console.log(`Rolled ${String(data.roll)}: ${String(data.event)}`);
         done();
       });
       gameService.rollKickoff();

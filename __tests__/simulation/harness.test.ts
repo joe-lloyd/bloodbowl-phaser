@@ -6,12 +6,6 @@ import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { randomCoach } from "../../src/simulation/coaches/random";
 import { GamePhase } from "../../src/types/GameState";
 
-/**
- * A small slice of `pnpm sim`, run on every test pass: whole matches between
- * different rosters and coaches must reach full time without breaking an
- * invariant, and a recording must replay to the identical final state.
- * The mass run is the CLI's job; this keeps the harness itself honest.
- */
 const MATCHES = [
   {
     seed: 101,

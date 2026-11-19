@@ -1,27 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  MatchOptionsMenuActionEntry,
-  MatchOptionsMenuEntry,
+  type MatchOptionsMenuActionEntry,
+  type MatchOptionsMenuEntry,
 } from "./computeMatchOptionsMenu";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
 
 interface MatchOptionsMenuProps {
   entries: MatchOptionsMenuEntry[];
-  // Only ever invoked for action entries — panel entries manage their own
-  // interaction internally and never call onSelect.
+
   onSelect: (id: MatchOptionsMenuActionEntry["id"]) => void;
-  /** A gear button in the top-left corner, as on a phone. */
+
   compact?: boolean;
 }
 
-/**
- * Bottom-right expandable match-options menu. Entries are supplied fully
- * computed (see matchOptionsMenu.ts) — this component only handles
- * disclosure, focus, keyboard navigation and the destructive-action confirm
- * step. Recomputing `entries` every render (rather than snapshotting at
- * open-time) is what lets enabled state track a live connection/ownership
- * change while the menu is open.
- */
 export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
   entries,
   onSelect,
@@ -35,11 +26,6 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  // Focus order is read straight from the live DOM rather than tracked in a
-  // parallel ref array — that's what lets a panel entry's own interactive
-  // children (the mute checkbox, the volume slider) join the same
-  // Arrow-key/Tab cycle as the plain action rows without the menu needing
-  // to know anything about what a panel renders.
   const getFocusable = (): HTMLElement[] => {
     if (!menuRef.current) return [];
     return Array.from(
@@ -49,8 +35,6 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
     );
   };
 
-  // A confirm target that vanished (context changed under us) can't stay
-  // pending — fall back to the plain menu list.
   useEffect(() => {
     if (confirming && !entries.some((entry) => entry.id === confirming.id)) {
       setConfirming(null);
@@ -79,11 +63,11 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       setOpen(false);
       setConfirming(null);
     };
-    // Capture phase: the HUD stops presses from bubbling past its panels.
-    // Pointer events, as the board cancels a finger's emulated mousedown.
+
     document.addEventListener("pointerdown", onDocPointerDown, true);
-    return () =>
+    return () => {
       document.removeEventListener("pointerdown", onDocPointerDown, true);
+    };
   }, [open]);
 
   const close = () => {
@@ -109,28 +93,17 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       return;
     }
     if (event.key === "Tab") {
-      // The menu has no surrounding modal/dialog semantics to lean on, so
-      // Tab is trapped by hand: while the menu (or its confirm step) is
-      // open, Tab/Shift+Tab wraps within its own focusable elements rather
-      // than leaking focus out to whatever's next/previous in the page.
       wrapTab(event, getFocusable());
       return;
     }
     if (confirming) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      // A focused <input type="range"> (the volume slider) already uses
-      // Up/Down natively to change its own value — once Arrow-key
-      // navigation has landed a coach there, those keys should adjust the
-      // slider, not immediately bounce focus off it again. Tab still moves
-      // on to the next focusable element.
       const active = document.activeElement;
       if (active instanceof HTMLInputElement && active.type === "range") {
         return;
       }
       event.preventDefault();
-      // Includes a panel entry's own interactive children (see
-      // getFocusable), so Arrow keys can move focus into e.g. the mute
-      // checkbox/volume slider, not just cycle past them.
+
       stepFocus(getFocusable(), event.key === "ArrowDown" ? 1 : -1);
     }
   };
@@ -148,8 +121,11 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
         aria-expanded={open}
         aria-controls="match-options-menu"
         onClick={() => {
-          if (open) return close();
-          // Beside the HUD's corner stack, which scrolls and would clip it
+          if (open) {
+            close();
+            return;
+          }
+
           const trigger = triggerRef.current!.getBoundingClientRect();
           setAnchor({
             top: trigger.bottom + 8,
@@ -196,7 +172,9 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
                 <button
                   ref={cancelRef}
                   type="button"
-                  onClick={() => setConfirming(null)}
+                  onClick={() => {
+                    setConfirming(null);
+                  }}
                   className={hudButtonClass("ghost", "sm")}
                 >
                   {confirming.confirm!.cancelLabel}
@@ -232,10 +210,14 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
                     <button
                       type="button"
                       role="menuitem"
-                      disabled={entry.disabled}
+                      {...(entry.disabled === undefined
+                        ? {}
+                        : { disabled: entry.disabled })}
                       aria-disabled={entry.disabled || undefined}
                       tabIndex={entry.disabled ? -1 : 0}
-                      onClick={() => selectEntry(entry)}
+                      onClick={() => {
+                        selectEntry(entry);
+                      }}
                       className={`w-full rounded-hud border-l-[3px] px-2.5 py-2 text-left font-hud-label text-hud-base font-bold uppercase tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold ${
                         entry.disabled
                           ? "cursor-default border-transparent text-hud-mute"
@@ -262,7 +244,6 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
   );
 };
 
-/** Tab past the last element, or Shift+Tab past the first, wraps round. */
 function wrapTab(event: React.KeyboardEvent, focusable: HTMLElement[]) {
   if (focusable.length === 0) return;
   const currentIndex = focusable.findIndex(
@@ -271,15 +252,14 @@ function wrapTab(event: React.KeyboardEvent, focusable: HTMLElement[]) {
   if (event.shiftKey) {
     if (currentIndex <= 0) {
       event.preventDefault();
-      focusable[focusable.length - 1].focus();
+      focusable.at(-1)?.focus();
     }
   } else if (currentIndex === -1 || currentIndex === focusable.length - 1) {
     event.preventDefault();
-    focusable[0].focus();
+    focusable.at(0)?.focus();
   }
 }
 
-/** Moves focus one element on, or back, wrapping round. */
 function stepFocus(focusable: HTMLElement[], delta: 1 | -1) {
   if (focusable.length === 0) return;
   const currentIndex = focusable.findIndex(

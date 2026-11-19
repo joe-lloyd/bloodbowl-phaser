@@ -1,17 +1,11 @@
-import { test, expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
 
-/**
- * A spotted Foul in the real app: the Sent-off card shows the Argue the
- * Call roll against its 5+, offers the Bribe the coach holds with its 2+,
- * shows the Bribe roll, and names the outcome. Roll targets only, never a
- * chance. The game waits on the card until the coach carries on.
- */
 test.use({ viewport: { width: 1280, height: 800 } });
 
-/** Foul the Prone Orc with the Bribe-holding Human Lineman. */
 async function foul(page: Page, app: GameApp, outcome: string) {
   await app.sandbox.open({ scenario: "bribe-for-sent-off-fouler", outcome });
   await app.hud.declareAction("team1:0", "foul");
@@ -39,7 +33,6 @@ test("a Bribe that works keeps the fouler on the pitch", async ({ page }) => {
     String((argued?.data as { total: number }).total)
   );
 
-  // The coach is asked on the card, not by the plain reaction dialog
   const bribe = card.getByTestId("sent-off-bribe");
   await expect(bribe).toContainText("Bribe 2+");
   await expect(bribe).toContainText("1 Bribe left");
@@ -53,14 +46,14 @@ test("a Bribe that works keeps the fouler on the pitch", async ({ page }) => {
   await expect(card.getByTestId("sent-off-outcome")).toHaveText(
     /stays on the pitch/i
   );
-  // The spent Bribe leaves the score strip
+
   await expect(page.getByText("Bribe 1")).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("bribe-works.png") });
   await card.getByTestId("sent-off-continue").click();
   await expect(card).toHaveCount(0);
 
   const snapshot = await app.bridge.snapshot();
-  expect(snapshot.teams[0].players[0].status).toBe(PlayerStatus.ACTIVE);
+  expect(fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).status).toBe(PlayerStatus.ACTIVE);
   expect(
     (await app.bridge.events()).some((e) => e.name === GameEventNames.Turnover)
   ).toBe(false);
@@ -78,12 +71,9 @@ test("a pocketed Bribe still Sends-off the fouler, then the card closes by itsel
     "The referee pockets the Bribe.",
     { timeout: 15_000 }
   );
-  await expect(card.getByTestId("sent-off-outcome")).toHaveText(
-    /is Sent-off/i
-  );
+  await expect(card.getByTestId("sent-off-outcome")).toHaveText(/is Sent-off/i);
   await page.screenshot({ path: test.info().outputPath("bribe-pocketed.png") });
 
-  // Nobody presses CONTINUE: the outcome is read, and the Turnover follows
   await expect(card).toHaveCount(0, { timeout: 10_000 });
   await app.bridge.expectEvent(GameEventNames.Turnover);
 });

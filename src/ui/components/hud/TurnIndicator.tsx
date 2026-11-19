@@ -17,7 +17,6 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
   }
 
   const showKickoff = phase === GamePhase.KICKOFF;
-  const showSetup = phase === GamePhase.SETUP;
 
   return (
     <div className="flex flex-col items-center pointer-events-none select-none">
@@ -29,19 +28,16 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
         }`}
       >
         <div className="skew-x-12 whitespace-nowrap font-hud-display text-hud-lg uppercase tracking-[0.08em]">
-          {phase === GamePhase.HALFTIME ? (
-            "HALF TIME"
-          ) : showKickoff ? (
-            "KICKOFF"
-          ) : showSetup ? (
-            "SETUP"
-          ) : (
-            <span data-testid="turns-left">
-              {turnProgress(turnNumber ?? 0)}
-            </span>
-          )}
+          <TurnLabel phase={phase} turnNumber={turnNumber} />
         </div>
       </div>
     </div>
   );
 };
+
+function TurnLabel({ phase, turnNumber }: TurnIndicatorProps) {
+  if (phase === GamePhase.HALFTIME) return "HALF TIME";
+  if (phase === GamePhase.KICKOFF) return "KICKOFF";
+  if (phase === GamePhase.SETUP) return "SETUP";
+  return <span data-testid="turns-left">{turnProgress(turnNumber ?? 0)}</span>;
+}

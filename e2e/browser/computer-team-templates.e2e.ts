@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { confirmPregame } from "../support/pregame";
-import { expect, Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
 async function openCatalogue(page: Page, query = "") {
@@ -150,16 +151,16 @@ test("the same template enters two leagues as different teams with the league mo
   for (const [name, mode] of [
     ["First season", "advanced-league"],
     ["Second season", "sevens-skill-selection"],
-  ]) {
+  ] as const) {
     await openCatalogue(page, "Altdorf All Sorts");
     await page.getByRole("button", { name: "Add to a league" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill(fixtureValue(name));
     await page
       .getByRole("checkbox", { name: /Require an advancement mode/ })
       .check();
     await page
       .getByRole("combobox", { name: "Advancement mode", exact: true })
-      .selectOption(mode);
+      .selectOption(fixtureValue(mode));
     await page
       .getByRole("button", { name: "+ Add computer team", exact: true })
       .click();

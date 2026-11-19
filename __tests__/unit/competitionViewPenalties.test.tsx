@@ -1,9 +1,6 @@
-/**
- * Reporting a knockout game left level by hand: the page asks for the
- * Penalty Shoot-out, and its winner goes through the bracket.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -14,7 +11,10 @@ import {
   getCompetition,
   saveCompetition,
 } from "../../src/competition/repository";
-import { CompetitionEntrant, TournamentDoc } from "../../src/competition/types";
+import {
+  type CompetitionEntrant,
+  type TournamentDoc,
+} from "../../src/competition/types";
 import { CompetitionView } from "../../src/ui/components/pages/CompetitionView";
 
 vi.mock("../../src/firebase/config", () => ({
@@ -23,10 +23,10 @@ vi.mock("../../src/firebase/config", () => ({
 }));
 
 function typeInto(input: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(
+  const setter = fixtureValue(fixtureValue(Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     "value"
-  )!.set!;
+  )).set);
   setter.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
@@ -43,7 +43,9 @@ describe("reporting a knockout game left level", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -89,18 +91,28 @@ describe("reporting a knockout game left level", () => {
     const field = (label: string) =>
       container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
 
-    await act(async () => typeInto(field("Reavers score")!, "1"));
+    await act(async () => {
+      typeInto(fixtureValue(field("Reavers score")), "1");
+    });
     expect(field("Reavers penalties")).toBeNull();
-    await act(async () => typeInto(field("Badgers score")!, "1"));
-    await act(async () => typeInto(field("Reavers penalties")!, "2"));
-    await act(async () => typeInto(field("Badgers penalties")!, "3"));
-    const record = [...container.querySelectorAll("button")].find(
+    await act(async () => {
+      typeInto(fixtureValue(field("Badgers score")), "1");
+    });
+    await act(async () => {
+      typeInto(fixtureValue(field("Reavers penalties")), "2");
+    });
+    await act(async () => {
+      typeInto(fixtureValue(field("Badgers penalties")), "3");
+    });
+    const record = fixtureValue([...container.querySelectorAll("button")].find(
       (button) => button.textContent === "Record result"
-    )!;
-    await act(async () => record.click());
+    ));
+    await act(async () => {
+      record.click();
+    });
 
     expect(container.textContent).toContain("Penalties 2–3");
     const stored = await getCompetition("tournament", "cup");
-    expect(stored?.championEntrantId).toBe("local:Badgers");
+    expect(stored).toMatchObject({ championEntrantId: "local:Badgers" });
   });
 });

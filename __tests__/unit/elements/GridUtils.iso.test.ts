@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   gridToPixel,
@@ -29,7 +30,7 @@ describe("isometric grid projection", () => {
   it("maps points just inside a diamond's corners to that square", () => {
     const [top, right, bottom, left] = squareCorners(4, 7, 0.02);
     for (const p of [top, right, bottom, left])
-      expect(pixelToGrid(p.x, p.y)).toEqual({ x: 4, y: 7 });
+      expect(pixelToGrid(fixtureValue(p).x, fixtureValue(p).y)).toEqual({ x: 4, y: 7 });
   });
 
   it("returns negative or out-of-range squares off the pitch", () => {

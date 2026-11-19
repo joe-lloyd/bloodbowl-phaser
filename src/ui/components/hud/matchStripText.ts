@@ -1,15 +1,14 @@
 import { GameConfig } from "../../../config/GameConfig";
 import { emptyDriveEffects } from "../../../game/kickoff/driveEffects";
-import { Weather, weatherDescription } from "../../../game/rules/weather";
-import { GameState, TurnData } from "../../../types/GameState";
-import { Team } from "../../../types/Team";
+import { type Weather, weatherDescription } from "../../../game/rules/weather";
+import { type GameState, type TurnData } from "../../../types/GameState";
+import { type Team } from "../../../types/Team";
 
 export function turnProgress(turn: number): string {
   const total = GameConfig.TURNS_PER_HALF;
-  return `Turn ${Math.min(total, Math.max(0, turn))} of ${total}`;
+  return `Turn ${String(Math.min(total, Math.max(0, turn)))} of ${String(total)}`;
 }
 
-/** Icon, short word and a few words of effect that fit beside the turn tab. */
 const WEATHER_LABELS: Record<
   Weather,
   { icon: string; word: string; short?: string }
@@ -21,14 +20,10 @@ const WEATHER_LABELS: Record<
   "Sweltering Heat": { icon: "♨", word: "Heat", short: "players may faint" },
 };
 
-/**
- * Icon and short word, plus a short effect when the weather changes play.
- * The full effect is the tooltip.
- */
 export function weatherSummary(weather: Weather): {
   icon: string;
   word: string;
-  /** The short effect, or null when the weather does not change play. */
+
   effect: string | null;
   text: string;
   title: string;
@@ -43,7 +38,6 @@ export function weatherSummary(weather: Weather): {
   };
 }
 
-/** The once-per-turn actions already used, as one chip's text. */
 export function spentSummary(spent: string[]): string | null {
   return spent.length ? `Spent: ${spent.join(", ")}` : null;
 }
@@ -70,23 +64,23 @@ export function driveEffectText(state: GameState, team: Team): string[] {
   const free = effects.freeRerolls[team.id] ?? 0;
   if (free > 0)
     text.push(
-      `Brilliant Coaching: ${free} free re-roll${free === 1 ? "" : "s"}`
+      `Brilliant Coaching: ${String(free)} free re-roll${free === 1 ? "" : "s"}`
     );
   const assist = effects.owedAssists[team.id];
   if (assist && !assist.used)
-    text.push(`Cheering Fans: +1 assist on turn ${assist.turn}`);
+    text.push(`Cheering Fans: +1 assist on turn ${String(assist.turn)}`);
   const modifiers = team.players.flatMap((player) => {
     const mod = effects.playerModifiers[player.id];
     if (!mod) return [];
     const detail = mod.confinedToReserves
       ? "reserves this drive"
       : [
-          mod.maModifier ? `${mod.maModifier} MA` : "",
-          mod.avModifier ? `${mod.avModifier} AV` : "",
+          mod.maModifier ? `${String(mod.maModifier)} MA` : "",
+          mod.avModifier ? `${String(mod.avModifier)} AV` : "",
         ]
           .filter(Boolean)
           .join(", ") + " this drive";
-    return [`#${player.number}: ${detail}`];
+    return [`#${String(player.number)}: ${detail}`];
   });
   if (modifiers.length) text.push(`Dodgy Snack ${modifiers.join("; ")}`);
   return text;

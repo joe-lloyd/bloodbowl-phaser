@@ -1,25 +1,19 @@
-/**
- * Authoring helpers for scenario cases, so a case reads as its intent rather
- * than as boilerplate. Checkpoints throw with a message that names the case
- * and what was expected — the same convention the rules-lab verifiers use.
- */
-
+import { fixtureValue } from "../fixtureValue";
 import { GamePhase, SubPhase } from "../../types/GameState";
-import { ScenarioSetup } from "../../types/Scenario";
+import { type ScenarioSetup } from "../../types/Scenario";
 import { GameEventNames } from "../../types/events";
-import { PlayerSnapshot } from "../../headless/serialization";
+import { type PlayerSnapshot } from "../../headless/serialization";
 import {
-  ExpectedCheckpoint,
-  ExecutionLayer,
-  ObservedRun,
-  PlayerRef,
-  SemanticStep,
-  SquareRef,
+  type ExpectedCheckpoint,
+  type ExecutionLayer,
+  type ObservedRun,
+  type PlayerRef,
+  type SemanticStep,
+  type SquareRef,
   step,
 } from "../scenarioCase/types";
 import { parsePlayerRef } from "../../game/rules-lab/references";
 
-/** Fill the phase boilerplate a mid-turn case shares. */
 export function playSetup(
   setup: Omit<ScenarioSetup, "phase" | "subPhase" | "activeTeam"> &
     Partial<Pick<ScenarioSetup, "activeTeam">>
@@ -39,7 +33,6 @@ export function checkpointAssert(
   if (!condition) throw new Error(message);
 }
 
-/** The snapshot entry for a stable player reference. */
 export function playerIn(
   observed: ObservedRun,
   ref: PlayerRef
@@ -52,55 +45,51 @@ export function playerIn(
   return player;
 }
 
-/** Was an event with this name emitted during the run? */
-export function sawEventNamed(observed: ObservedRun, name: string): boolean {
+function sawEventNamed(observed: ObservedRun, name: string): boolean {
   return observed.events.some((event) => event.name === name);
 }
 
-// ----- Common checkpoints -----
-
-/** The player ends the run standing on this square. */
 export function endsAt(
   ref: PlayerRef,
   square: SquareRef,
   layers?: ExecutionLayer[]
 ): ExpectedCheckpoint {
   return {
-    id: `${ref}-ends-at-${square.x}-${square.y}`,
-    description: `${ref} finishes on (${square.x},${square.y})`,
+    id: `${ref}-ends-at-${String(square.x)}-${String(square.y)}`,
+    description: `${ref} finishes on (${String(square.x)},${String(square.y)})`,
     ...(layers ? { layers } : {}),
     assert(observed) {
       const player = playerIn(observed, ref);
       checkpointAssert(
         player.position?.x === square.x && player.position?.y === square.y,
-        `${ref} should finish on (${square.x},${square.y}) but is at ` +
-          `${player.position ? `(${player.position.x},${player.position.y})` : "off-pitch"}`
+        `${ref} should finish on (${String(square.x)},${String(square.y)}) but is at ` +
+          (player.position
+            ? `(${String(player.position.x)},${String(player.position.y)})`
+            : "off-pitch")
       );
     },
   };
 }
 
-/** The ball ends the run on this square. */
 export function ballEndsAt(
   square: SquareRef,
   layers?: ExecutionLayer[]
 ): ExpectedCheckpoint {
   return {
-    id: `ball-ends-at-${square.x}-${square.y}`,
-    description: `the ball comes to rest on (${square.x},${square.y})`,
+    id: `ball-ends-at-${String(square.x)}-${String(square.y)}`,
+    description: `the ball comes to rest on (${String(square.x)},${String(square.y)})`,
     ...(layers ? { layers } : {}),
     assert(observed) {
       const ball = observed.snapshot.ballPosition;
       checkpointAssert(
         ball?.x === square.x && ball?.y === square.y,
-        `the ball should end on (${square.x},${square.y}) but is at ` +
-          `${ball ? `(${ball.x},${ball.y})` : "nowhere"}`
+        `the ball should end on (${String(square.x)},${String(square.y)}) but is at ` +
+          (ball ? `(${String(ball.x)},${String(ball.y)})` : "nowhere")
       );
     },
   };
 }
 
-/** The run does not hand the turn over. */
 export function noTurnover(layers?: ExecutionLayer[]): ExpectedCheckpoint {
   return {
     id: "no-turnover",
@@ -115,7 +104,6 @@ export function noTurnover(layers?: ExecutionLayer[]): ExpectedCheckpoint {
   };
 }
 
-/** Exactly one turnover happens (never two for one mistake). */
 export function exactlyOneTurnover(
   layers?: ExecutionLayer[]
 ): ExpectedCheckpoint {
@@ -129,13 +117,12 @@ export function exactlyOneTurnover(
       ).length;
       checkpointAssert(
         count === 1,
-        `expected exactly one turnover, saw ${count}`
+        `expected exactly one turnover, saw ${String(count)}`
       );
     },
   };
 }
 
-/** The player has this status at the end of the run. */
 export function endsWithStatus(
   ref: PlayerRef,
   status: string,
@@ -155,78 +142,49 @@ export function endsWithStatus(
   };
 }
 
-/**
- * The Nth step was rejected, with a reason containing `reasonFragment`.
- *
- * Negative cases are only meaningful if the refusal is the *right* refusal,
- * so the machine-readable reason is asserted rather than just `ok === false`.
- * Engine-only: the browser refuses illegal actions by not offering them.
- */
 export function stepRejected(
   stepIndex: number,
   reasonFragment: string
 ): ExpectedCheckpoint {
   return {
-    id: `step-${stepIndex}-rejected`,
-    description: `step ${stepIndex + 1} is refused with '${reasonFragment}'`,
+    id: `step-${String(stepIndex)}-rejected`,
+    description: `step ${String(stepIndex + 1)} is refused with '${reasonFragment}'`,
     layers: ["engine"],
     assert(observed) {
       const response = observed.responses[stepIndex];
       checkpointAssert(
         !!response,
-        `step ${stepIndex + 1} never ran (only ${observed.responses.length} responses)`
+        `step ${String(stepIndex + 1)} never ran (only ${String(observed.responses.length)} responses)`
       );
       checkpointAssert(
         !response.ok,
-        `step ${stepIndex + 1} should have been refused but was accepted`
+        `step ${String(stepIndex + 1)} should have been refused but was accepted`
       );
       checkpointAssert(
         (response.reason ?? "").includes(reasonFragment),
-        `step ${stepIndex + 1} was refused as '${response.reason}', ` +
+        `step ${String(stepIndex + 1)} was refused as '${String(response.reason)}', ` +
           `expected a reason containing '${reasonFragment}'`
       );
     },
   };
 }
 
-/** The Nth step was accepted. */
 export function stepAccepted(stepIndex: number): ExpectedCheckpoint {
   return {
-    id: `step-${stepIndex}-accepted`,
-    description: `step ${stepIndex + 1} is accepted`,
+    id: `step-${String(stepIndex)}-accepted`,
+    description: `step ${String(stepIndex + 1)} is accepted`,
     layers: ["engine"],
     assert(observed) {
       const response = observed.responses[stepIndex];
-      checkpointAssert(!!response, `step ${stepIndex + 1} never ran`);
+      checkpointAssert(!!response, `step ${String(stepIndex + 1)} never ran`);
       checkpointAssert(
         response.ok,
-        `step ${stepIndex + 1} was refused: ${response.reason}`
+        `step ${String(stepIndex + 1)} was refused: ${String(response.reason)}`
       );
     },
   };
 }
 
-/** The active team at the end of the run. */
-export function activeTeamIs(
-  team: "team1" | "team2",
-  layers?: ExecutionLayer[]
-): ExpectedCheckpoint {
-  return {
-    id: `active-team-${team}`,
-    description: `${team} is on the ball when the run ends`,
-    ...(layers ? { layers } : {}),
-    assert(observed) {
-      const index = team === "team1" ? 0 : 1;
-      const expected = observed.snapshot.teams[index].id;
-      checkpointAssert(
-        observed.snapshot.activeTeamId === expected,
-        `expected ${team} to be active, but ${observed.snapshot.activeTeamId} is`
-      );
-    },
-  };
-}
-
-/** The game is in this phase at the end of the run. */
 export function endsInPhase(
   phase: string,
   layers?: ExecutionLayer[]
@@ -244,7 +202,6 @@ export function endsInPhase(
   };
 }
 
-/** No event with this name was emitted. */
 export function notEmitted(
   name: string,
   layers?: ExecutionLayer[]
@@ -262,7 +219,6 @@ export function notEmitted(
   };
 }
 
-/** The run raised a decision of this type. */
 export function raisedDecision(
   type: string,
   layers?: ExecutionLayer[]
@@ -275,13 +231,12 @@ export function raisedDecision(
       checkpointAssert(
         observed.decisions.some((decision) => decision.type === type),
         `expected a '${type}' decision; saw ` +
-          `${observed.decisions.map((d) => d.type).join(", ") || "none"}`
+          (observed.decisions.map((d) => d.type).join(", ") || "none")
       );
     },
   };
 }
 
-/** An event with this name was emitted. */
 export function emitted(
   name: string,
   layers?: ExecutionLayer[]
@@ -301,15 +256,6 @@ export function emitted(
   };
 }
 
-// ----- Setup/kickoff/phase-flow helpers -----
-//
-// Shared by the setup- and kickoff-shaped cases (`kickoff-events.ts`,
-// `sevens-setup.ts`), which both need to place a legal seven and check it.
-
-/**
- * Setup squares for a team, walking back from its line of scrimmage.
- * `team1` sets up on the left (0-6) and faces right; `team2` mirrors it.
- */
 export function setupSquares(
   team: "team1" | "team2"
 ): { x: number; y: number }[] {
@@ -326,46 +272,44 @@ export function setupSquares(
   ];
 }
 
-/** `place-player` for all seven of a team, in roster order. */
 export function placeSeven(team: "team1" | "team2"): SemanticStep[] {
   return setupSquares(team).map((square, index) =>
     step(
       {
         type: "place-player",
-        playerId: `${team}:${index}`,
+        playerId: `${team}:${String(index)}`,
         x: square.x,
         y: square.y,
       },
-      `place ${team}:${index} on (${square.x},${square.y})`
+      `place ${team}:${String(index)} on (${String(square.x)},${String(square.y)})`
     )
   );
 }
 
-/** Every player of a team is on the pitch, inside its own half. */
 export function teamIsSetUp(
   team: "team1" | "team2",
   expectedCount = 7
 ): ExpectedCheckpoint {
   return {
     id: `${team}-is-set-up`,
-    description: `${team} has ${expectedCount} players placed in its own half`,
+    description: `${team} has ${String(expectedCount)} players placed in its own half`,
     layers: ["engine"],
     assert(observed) {
       const index = team === "team1" ? 0 : 1;
-      const placed = observed.snapshot.teams[index].players.filter(
+      const placed = fixtureValue(observed.snapshot.teams[index]).players.filter(
         (player) => player.position
       );
       checkpointAssert(
         placed.length === expectedCount,
-        `${team} should have ${expectedCount} players on the pitch, has ${placed.length}`
+        `${team} should have ${String(expectedCount)} players on the pitch, has ${String(placed.length)}`
       );
       for (const player of placed) {
         const inOwnHalf =
-          team === "team1" ? player.position!.x <= 6 : player.position!.x >= 13;
+          team === "team1" ? fixtureValue(player.position).x <= 6 : fixtureValue(player.position).x >= 13;
         checkpointAssert(
           inOwnHalf,
           `${player.name} is set up at ` +
-            `(${player.position!.x},${player.position!.y}), outside ${team}'s half`
+            `(${String(fixtureValue(player.position).x)},${String(fixtureValue(player.position).y)}), outside ${team}'s half`
         );
       }
     },

@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setDoc } from "firebase/firestore";
 import { CloudTeamRepository } from "../../../src/firebase/cloudTeamRepository";
@@ -16,7 +17,9 @@ vi.mock("../../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("cloud team save acknowledgement", () => {
   it("keeps the save pending after updating the cache until Firestore accepts it", async () => {
@@ -35,7 +38,7 @@ describe("cloud team save acknowledgement", () => {
       acknowledged = true;
     });
     await Promise.resolve();
-    expect(repository.loadTeams()[0].treasury).toBe(30_000);
+    expect(fixtureValue(repository.loadTeams()[0]).treasury).toBe(30_000);
     expect(acknowledged).toBe(false);
     acknowledge();
     await saved;
@@ -54,6 +57,6 @@ describe("cloud team save acknowledgement", () => {
       .build();
     const repository = new CloudTeamRepository("coach", []);
     await expect(repository.saveTeams([team])).rejects.toThrow("Cloud offline");
-    expect(repository.loadTeams()[0].treasury).toBe(140_000);
+    expect(fixtureValue(repository.loadTeams()[0]).treasury).toBe(140_000);
   });
 });

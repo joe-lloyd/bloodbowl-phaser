@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { TeamBuilder } from "../utils/test-builders";
 import { RosterName } from "../../src/types/Team";
@@ -10,7 +11,7 @@ import {
   dehydrateTeam,
   readStoredTeam,
 } from "../../src/data/persistence/teamPersistence";
-import { PlayerMatchStats } from "../../src/game/progression/MatchStats";
+import { type PlayerMatchStats } from "../../src/game/progression/MatchStats";
 
 const home = new TeamBuilder()
   .withId("home")
@@ -63,10 +64,10 @@ describe("playedGameFor", () => {
       away,
       { score: { home: 2, away: 1 } },
       [
-        line(scorer.id, "home", { touchdowns: 2, mvps: 1 }),
-        line(quiet.id, "home"),
-        line(hurt.id, "home", { injuriesSuffered: 1 }),
-        line(away.players[0].id, "away", { touchdowns: 1 }),
+        line(fixtureValue(scorer).id, "home", { touchdowns: 2, mvps: 1 }),
+        line(fixtureValue(quiet).id, "home"),
+        line(fixtureValue(hurt).id, "home", { injuriesSuffered: 1 }),
+        line(fixtureValue(away.players[0]).id, "away", { touchdowns: 1 }),
       ],
       meta
     );
@@ -80,8 +81,8 @@ describe("playedGameFor", () => {
     expect(
       game.players.map((p) => [p.playerId, p.touchdowns, p.mvp, p.injured])
     ).toEqual([
-      [scorer.id, 2, true, false],
-      [hurt.id, 0, false, true],
+      [fixtureValue(scorer).id, 2, true, false],
+      [fixtureValue(hurt).id, 0, false, true],
     ]);
   });
 
@@ -120,7 +121,10 @@ describe("a team's played games", () => {
     for (let i = 0; i < PLAYED_GAMES_KEPT + 5; i++) {
       team = withPlayedGame(
         team,
-        playedGameFor(team, away, { score: {} }, [], { ...meta, id: `m${i}` })
+        playedGameFor(team, away, { score: {} }, [], {
+          ...meta,
+          id: `m${String(i)}`,
+        })
       );
     }
     team = withPlayedGame(
@@ -128,7 +132,7 @@ describe("a team's played games", () => {
       playedGameFor(team, away, { score: {} }, [], { ...meta, id: "m104" })
     );
     expect(team.playedGames).toHaveLength(PLAYED_GAMES_KEPT);
-    expect(team.playedGames![0].id).toBe(`m${PLAYED_GAMES_KEPT + 4}`);
+    expect(fixtureValue(fixtureValue(team.playedGames)[0]).id).toBe(`m${String(PLAYED_GAMES_KEPT + 4)}`);
   });
 
   it("survives a save and load, and a damaged entry is dropped", () => {
@@ -138,7 +142,7 @@ describe("a team's played games", () => {
     );
     const stored = {
       ...dehydrateTeam(team),
-      playedGames: [...team.playedGames!, { id: 7, kind: "nonsense" }],
+      playedGames: [...fixtureValue(team.playedGames), { id: 7, kind: "nonsense" }],
     };
     const loaded = readStoredTeam(JSON.parse(JSON.stringify(stored))).team;
     expect(loaded.playedGames).toEqual(team.playedGames);

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { wholePixelSize } from "../../../src/ui/components/common/PlayerPortrait";
 
-/**
- * A large portrait scales the art by whole pixels, so every art pixel is
- * drawn as the same square block instead of a blurred or uneven one.
- */
 describe("wholePixelSize", () => {
   it("picks the largest whole multiple of the figure that fits the box", () => {
     expect(wholePixelSize(55, 240)).toBe(220);

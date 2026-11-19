@@ -2,13 +2,6 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * In the match strip the clock has one short line: one countdown, a short
- * timeout button, and a short word when it stops. Round 1 showed
- * "0:15 15s left" and ran "<coach> disconnected: game paused" over the
- * pitch.
- */
-
 vi.mock("../../src/firebase/lobby", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../../src/firebase/lobby")>();
@@ -38,9 +31,9 @@ vi.mock("../../src/services/ServiceContainer", () => ({
 
 import { TurnClock } from "../../src/ui/pages/TurnClock";
 import { EventBus } from "../../src/services/EventBus";
-import { LobbyDoc } from "../../src/firebase/lobby";
-import { OnlineMatch } from "../../src/network/OnlineMatch";
-import { AuthUser } from "../../src/firebase/auth";
+import { type LobbyDoc } from "../../src/firebase/lobby";
+import { type OnlineMatch } from "../../src/network/OnlineMatch";
+import { type AuthUser } from "../../src/firebase/auth";
 
 const lobbyAt = (deadline: number): LobbyDoc =>
   ({
@@ -70,16 +63,14 @@ const match = {
   setClockPaused: vi.fn(),
 } as unknown as OnlineMatch;
 
-/**
- * What a coach sees in the strip, one entry per line of the clock, with
- * screen-reader-only text left out.
- */
 const visible = (node: Element | null): string[] => {
   const clock = node?.firstElementChild;
   if (!clock) return [];
   return [...clock.children].map((line) => {
     const copy = line.cloneNode(true) as Element;
-    copy.querySelectorAll(".sr-only").forEach((hidden) => hidden.remove());
+    copy.querySelectorAll(".sr-only").forEach((hidden) => {
+      hidden.remove();
+    });
     return (copy.textContent ?? "").trim();
   });
 };
@@ -103,7 +94,7 @@ describe("turn clock in the match strip", () => {
 
   const render = async (deadline: number, opponentAway = false) => {
     const root = createRoot(container);
-    await act(async () =>
+    await act(async () => {
       root.render(
         <TurnClock
           code="ABC123"
@@ -113,8 +104,8 @@ describe("turn clock in the match strip", () => {
           user={{ uid: "host-uid" } as AuthUser}
           opponentAway={opponentAway}
         />
-      )
-    );
+      );
+    });
     return root;
   };
 
@@ -127,12 +118,16 @@ describe("turn clock in the match strip", () => {
     expect(slot.querySelector("button")?.getAttribute("aria-label")).toBe(
       "Timeout, 5:00 left"
     );
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
   });
 
   it("says Paused when the other coach drops, and leaves the name to the banner", async () => {
     const root = await render(Date.now() + 94_000, true);
     expect(visible(slot)).toEqual(["⏸ 1:34", "Paused"]);
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
   });
 });

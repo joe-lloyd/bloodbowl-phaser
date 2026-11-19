@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
 import {
@@ -20,7 +21,7 @@ import {
 class MemoryStorage {
   readonly values = new Map<string, string>();
   failFullWrite = false;
-  /** Characters the store holds at most. */
+
   limit = Infinity;
 
   getItem(key: string): string | null {
@@ -45,9 +46,9 @@ class MemoryStorage {
   }
 }
 
-const scrimmage = SCENARIOS.find(
+const scrimmage = fixtureValue(SCENARIOS.find(
   (scenario) => scenario.id === "basic-scrimmage"
-)!;
+));
 
 function matchSave(savedAt: number) {
   const game = createHeadlessGame({ scenario: scrimmage, seed: 5 });
@@ -114,17 +115,15 @@ describe("match save repository", () => {
   it("drops old dice logs before giving up the resumable save", () => {
     const storage = new MemoryStorage();
     for (const id of ["old", "older"]) {
-      writeDiceLog(
-        {
-          ...createDiceLog({ id, mode: "computer", seed: 1, teams: [] }),
-          padding: "x".repeat(2000),
-        },
-        storage
-      );
+      const paddedLog = {
+        ...createDiceLog({ id, mode: "computer", seed: 1, teams: [] }),
+        padding: "x".repeat(2000),
+      };
+      writeDiceLog(paddedLog, storage);
     }
     const save = matchSave(10);
     const used = [...storage.values.values()].reduce((n, v) => n + v.length, 0);
-    // Room for the save only once one 2,000-character log is gone
+
     storage.limit = used + JSON.stringify(save).length - 1000;
     const repository = new LocalStorageMatchSaveRepository(storage);
 
@@ -157,14 +156,12 @@ describe("match save repository", () => {
     });
     repository.write(save);
 
-    const resumed = repository.read()!;
+    const resumed = fixtureValue(repository.read());
     expect(resumed.snapshot.result).toEqual({
       reason: "concession",
       concedingTeamId: game.team1.id,
     });
 
-    // The restored GameState carries the same fact, not just the snapshot —
-    // a reconnect/resume must never re-derive "completed" from a bare score.
     const restoredState = deserializeGameState(resumed.snapshot);
     expect(restoredState.result).toEqual({
       reason: "concession",

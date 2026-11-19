@@ -1,8 +1,9 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType } from "../../../src/types/Skills";
 import {
-  Answer,
+  type Answer,
   SEEDS,
   acceptAll,
   acrossSeeds,
@@ -10,46 +11,42 @@ import {
   turnGame,
 } from "./eventOrder";
 
-/**
- * The literal events of each operation family, across seeds that reach
- * their branches. A refactor that moves a roll, an emit or a queued
- * operation changes one of these lists.
- */
-
-/** The defending coach tries the first interceptor offered. */
 const intercepting: Answer = (pending) =>
-  pending.type === "interception"
-    ? {
-        type: "choose-interception",
-        playerId: pending.candidates[0]?.playerId,
-      }
-    : acceptAll(pending);
+  fixtureValue(
+    pending.type === "interception"
+      ? {
+          type: "choose-interception",
+          ...(pending.candidates[0]
+            ? { playerId: pending.candidates[0].playerId }
+            : {}),
+        }
+      : acceptAll(pending)
+  );
 
-/** Keeps team1's turn open after the activation under test. */
 const SPARE = { x: 2, y: 12 };
 
 describe("operation events keep their order", () => {
   it("Breathe Fire", async () => {
     const bySeed = await acrossSeeds(SEEDS, async (seed) => {
-      const game = turnGame(
-        seed,
-        [{ x: 10, y: 5, skills: [SkillType.BREATHE_FIRE] }, SPARE],
-        [{ x: 11, y: 5, stats: { ST: 5 } }],
-        { x: 11, y: 5 }
-      );
+      const game = turnGame({
+        seed: seed,
+        team1: [{ x: 10, y: 5, skills: [SkillType.BREATHE_FIRE] }, SPARE],
+        team2: [{ x: 11, y: 5, stats: { ST: 5 } }],
+        ballPosition: { x: 11, y: 5 },
+      });
       const [attacker] = game.ctx.team1.players;
       const [target] = game.ctx.team2.players;
       return playOut(game, [
         {
           type: "declare-action",
-          playerId: attacker.id,
+          playerId: fixtureValue(attacker).id,
           action: "breatheFire",
         },
         {
           type: "special-action",
           action: "breatheFire",
-          attackerId: attacker.id,
-          defenderId: target.id,
+          attackerId: fixtureValue(attacker).id,
+          defenderId: fixtureValue(target).id,
         },
       ]);
     });
@@ -58,21 +55,25 @@ describe("operation events keep their order", () => {
 
   it("Projectile Vomit", async () => {
     const bySeed = await acrossSeeds(SEEDS, async (seed) => {
-      const game = turnGame(
-        seed,
-        [{ x: 10, y: 5, skills: [SkillType.PROJECTILE_VOMIT] }, SPARE],
-        [{ x: 11, y: 5 }],
-        { x: 11, y: 5 }
-      );
+      const game = turnGame({
+        seed: seed,
+        team1: [{ x: 10, y: 5, skills: [SkillType.PROJECTILE_VOMIT] }, SPARE],
+        team2: [{ x: 11, y: 5 }],
+        ballPosition: { x: 11, y: 5 },
+      });
       const [attacker] = game.ctx.team1.players;
       const [target] = game.ctx.team2.players;
       return playOut(game, [
-        { type: "declare-action", playerId: attacker.id, action: "vomit" },
+        {
+          type: "declare-action",
+          playerId: fixtureValue(attacker).id,
+          action: "vomit",
+        },
         {
           type: "special-action",
           action: "vomit",
-          attackerId: attacker.id,
-          defenderId: target.id,
+          attackerId: fixtureValue(attacker).id,
+          defenderId: fixtureValue(target).id,
         },
       ]);
     });
@@ -81,19 +82,27 @@ describe("operation events keep their order", () => {
 
   it("Pile Driver after a Block", async () => {
     const bySeed = await acrossSeeds(SEEDS, async (seed) => {
-      const game = turnGame(
-        seed,
-        [{ x: 10, y: 5, skills: [SkillType.PILE_DRIVER] }, SPARE],
-        [{ x: 11, y: 5 }],
-        { x: 10, y: 5 }
-      );
+      const game = turnGame({
+        seed: seed,
+        team1: [{ x: 10, y: 5, skills: [SkillType.PILE_DRIVER] }, SPARE],
+        team2: [{ x: 11, y: 5 }],
+        ballPosition: { x: 10, y: 5 },
+      });
       const [attacker] = game.ctx.team1.players;
       const [defender] = game.ctx.team2.players;
       return playOut(
         game,
         [
-          { type: "declare-action", playerId: attacker.id, action: "block" },
-          { type: "block", attackerId: attacker.id, defenderId: defender.id },
+          {
+            type: "declare-action",
+            playerId: fixtureValue(attacker).id,
+            action: "block",
+          },
+          {
+            type: "block",
+            attackerId: fixtureValue(attacker).id,
+            defenderId: fixtureValue(defender).id,
+          },
         ],
         acceptAll
       );
@@ -103,18 +112,25 @@ describe("operation events keep their order", () => {
 
   it("Punt with Kick", async () => {
     const bySeed = await acrossSeeds(SEEDS, async (seed) => {
-      const game = turnGame(
-        seed,
-        [{ x: 3, y: 5, skills: [SkillType.PUNT, SkillType.KICK] }, SPARE],
-        [{ x: 8, y: 5 }],
-        { x: 3, y: 5 }
-      );
+      const game = turnGame({
+        seed: seed,
+        team1: [
+          { x: 3, y: 5, skills: [SkillType.PUNT, SkillType.KICK] },
+          SPARE,
+        ],
+        team2: [{ x: 8, y: 5 }],
+        ballPosition: { x: 3, y: 5 },
+      });
       const [punter] = game.ctx.team1.players;
       return playOut(
         game,
         [
-          { type: "declare-action", playerId: punter.id, action: "punt" },
-          { type: "punt", playerId: punter.id, x: 1, y: 5 },
+          {
+            type: "declare-action",
+            playerId: fixtureValue(punter).id,
+            action: "punt",
+          },
+          { type: "punt", playerId: fixtureValue(punter).id, x: 1, y: 5 },
         ],
         acceptAll
       );
@@ -137,9 +153,9 @@ describe("operation events keep their order", () => {
   ]) {
     it(`Throw Team-mate: ${variant.name}`, async () => {
       const bySeed = await acrossSeeds(SEEDS, async (seed) => {
-        const game = turnGame(
-          seed,
-          [
+        const game = turnGame({
+          seed: seed,
+          team1: [
             {
               x: 4,
               y: 5,
@@ -149,20 +165,20 @@ describe("operation events keep their order", () => {
             { x: 8, y: 5 },
             SPARE,
           ],
-          [{ x: 8, y: 7 }],
-          { x: 5, y: 5 }
-        );
+          team2: [{ x: 8, y: 7 }],
+          ballPosition: { x: 5, y: 5 },
+        });
         const [thrower, teammate] = game.ctx.team1.players;
         return playOut(game, [
           {
             type: "declare-action",
-            playerId: thrower.id,
+            playerId: fixtureValue(thrower).id,
             action: "throwTeamMate",
           },
           {
             type: "throw-teammate",
-            throwerId: thrower.id,
-            teammateId: teammate.id,
+            throwerId: fixtureValue(thrower).id,
+            teammateId: fixtureValue(teammate).id,
             ...variant.aim,
           },
         ]);
@@ -173,27 +189,27 @@ describe("operation events keep their order", () => {
 
   it("Throw Team-mate: a Swoop and a kick", async () => {
     const swoop = await acrossSeeds(SEEDS, async (seed) => {
-      const game = turnGame(
-        seed,
-        [
+      const game = turnGame({
+        seed: seed,
+        team1: [
           { x: 4, y: 5, skills: [SkillType.THROW_TEAM_MATE] },
           { x: 5, y: 5, skills: [SkillType.RIGHT_STUFF, SkillType.SWOOP] },
           SPARE,
         ],
-        [{ x: 8, y: 6 }],
-        { x: 1, y: 1 }
-      );
+        team2: [{ x: 8, y: 6 }],
+        ballPosition: { x: 1, y: 1 },
+      });
       const [thrower, teammate] = game.ctx.team1.players;
       return playOut(game, [
         {
           type: "declare-action",
-          playerId: thrower.id,
+          playerId: fixtureValue(thrower).id,
           action: "throwTeamMate",
         },
         {
           type: "throw-teammate",
-          throwerId: thrower.id,
-          teammateId: teammate.id,
+          throwerId: fixtureValue(thrower).id,
+          teammateId: fixtureValue(teammate).id,
           x: 8,
           y: 5,
           swoopFacing: "east",
@@ -201,27 +217,27 @@ describe("operation events keep their order", () => {
       ]);
     });
     const kick = await acrossSeeds(SEEDS, async (seed) => {
-      const game = turnGame(
-        seed,
-        [
+      const game = turnGame({
+        seed: seed,
+        team1: [
           { x: 4, y: 5, skills: [SkillType.KICK_TEAM_MATE] },
           { x: 5, y: 5, skills: [SkillType.RIGHT_STUFF] },
           SPARE,
         ],
-        [{ x: 8, y: 6 }],
-        { x: 5, y: 5 }
-      );
+        team2: [{ x: 8, y: 6 }],
+        ballPosition: { x: 5, y: 5 },
+      });
       const [thrower, teammate] = game.ctx.team1.players;
       return playOut(game, [
         {
           type: "declare-action",
-          playerId: thrower.id,
+          playerId: fixtureValue(thrower).id,
           action: "throwTeamMate",
         },
         {
           type: "throw-teammate",
-          throwerId: thrower.id,
-          teammateId: teammate.id,
+          throwerId: fixtureValue(thrower).id,
+          teammateId: fixtureValue(teammate).id,
           x: 8,
           y: 5,
           mode: "kick",
@@ -256,18 +272,26 @@ describe("operation events keep their order", () => {
   ]) {
     it(`Pass: ${variant.name}`, async () => {
       const bySeed = await acrossSeeds(SEEDS, async (seed) => {
-        const game = turnGame(
-          seed,
-          [{ x: 4, y: 5 }, { x: 8, y: 5 }, { x: 14, y: 5 }, SPARE],
-          variant.team2,
-          { x: 4, y: 5 }
-        );
+        const game = turnGame({
+          seed: seed,
+          team1: [{ x: 4, y: 5 }, { x: 8, y: 5 }, { x: 14, y: 5 }, SPARE],
+          team2: variant.team2,
+          ballPosition: { x: 4, y: 5 },
+        });
         const [passer] = game.ctx.team1.players;
         return playOut(
           game,
           [
-            { type: "declare-action", playerId: passer.id, action: "pass" },
-            { type: "pass", playerId: passer.id, ...variant.target },
+            {
+              type: "declare-action",
+              playerId: fixtureValue(passer).id,
+              action: "pass",
+            },
+            {
+              type: "pass",
+              playerId: fixtureValue(passer).id,
+              ...variant.target,
+            },
           ],
           variant.answer
         );
@@ -284,22 +308,30 @@ describe("operation events keep their order", () => {
 
   it("Armour, Injury and the crowd after a Block", async () => {
     const bySeed = await acrossSeeds(SEEDS, async (seed) => {
-      const game = turnGame(
-        seed,
-        [{ x: 10, y: 1, skills: [SkillType.MIGHTY_BLOW] }, SPARE],
-        [
+      const game = turnGame({
+        seed: seed,
+        team1: [{ x: 10, y: 1, skills: [SkillType.MIGHTY_BLOW] }, SPARE],
+        team2: [
           { x: 10, y: 0 },
           { x: 11, y: 1, status: PlayerStatus.PRONE },
         ],
-        { x: 10, y: 0 }
-      );
+        ballPosition: { x: 10, y: 0 },
+      });
       const [attacker] = game.ctx.team1.players;
       const [defender] = game.ctx.team2.players;
       return playOut(
         game,
         [
-          { type: "declare-action", playerId: attacker.id, action: "block" },
-          { type: "block", attackerId: attacker.id, defenderId: defender.id },
+          {
+            type: "declare-action",
+            playerId: fixtureValue(attacker).id,
+            action: "block",
+          },
+          {
+            type: "block",
+            attackerId: fixtureValue(attacker).id,
+            defenderId: fixtureValue(defender).id,
+          },
         ],
         acceptAll
       );
@@ -309,21 +341,25 @@ describe("operation events keep their order", () => {
 
   it("the end of a drive sends off a Secret Weapon", async () => {
     const bySeed = await acrossSeeds(SEEDS.slice(0, 3), async (seed) => {
-      const game = turnGame(
-        seed,
-        [
+      const game = turnGame({
+        seed: seed,
+        team1: [
           { x: 17, y: 5 },
           { x: 10, y: 5, skills: [SkillType.SECRET_WEAPON] },
         ],
-        [{ x: 12, y: 9, skills: [SkillType.SECRET_WEAPON] }],
-        { x: 17, y: 5 }
-      );
+        team2: [{ x: 12, y: 9, skills: [SkillType.SECRET_WEAPON] }],
+        ballPosition: { x: 17, y: 5 },
+      });
       const [carrier] = game.ctx.team1.players;
       return playOut(game, [
-        { type: "declare-action", playerId: carrier.id, action: "move" },
+        {
+          type: "declare-action",
+          playerId: fixtureValue(carrier).id,
+          action: "move",
+        },
         {
           type: "move",
-          playerId: carrier.id,
+          playerId: fixtureValue(carrier).id,
           path: [
             { x: 18, y: 5 },
             { x: 19, y: 5 },

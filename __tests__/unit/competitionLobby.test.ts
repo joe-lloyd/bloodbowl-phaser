@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Team } from "../../src/types/Team";
+import { type Team } from "../../src/types/Team";
 
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn(),
@@ -25,7 +26,9 @@ import { createLobby } from "../../src/firebase/lobby";
 const setDocMock = vi.mocked(setDoc);
 const team = (id: string) => ({ id, name: id, players: [] }) as unknown as Team;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("hosted competition fixtures", () => {
   it("stores fixture context and locks both roster snapshots on the lobby", async () => {
@@ -41,13 +44,13 @@ describe("hosted competition fixtures", () => {
     });
 
     expect(created.competitionContext).toEqual(context);
-    expect(created.players.host.team?.id).toBe("home");
+    expect(fixtureValue(created.players["host"]).team?.id).toBe("home");
     expect(created.fixtureTeams?.away.id).toBe("away");
-    // The match look is not a lobby setting any more
+
     expect(created.settings).not.toHaveProperty("pitchThemeId");
-    // A competition fixture counts for the teams: SPP and development
+
     expect(created.settings.progressionEnabled).toBe(true);
-    expect(setDocMock.mock.calls[0][1]).toMatchObject({
+    expect(fixtureValue(setDocMock.mock.calls[0])[1]).toMatchObject({
       settings: { progressionEnabled: true },
       competitionContext: context,
       fixtureTeams: {

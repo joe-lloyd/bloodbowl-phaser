@@ -1,16 +1,18 @@
-/** Annotate saved commands without asking a coach to choose again. */
-import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
-import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import { snapshotHash } from "../../../src/simulation/runMatch";
+import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { GameEventNames } from "../../../src/types/events";
-import { processPool } from "../policy-study/pool";
-import type { PolicyJob } from "../policy-study/schedule";
+import { openTrace } from "../catalogue-study/replay";
+import {
+  analyzerSha256,
+  annotateRun,
+  annotationFiles,
+  isEntry,
+  replaySteps,
+  verifiedHash,
+} from "./lab";
 
 const empty = () => ({
   passes: 0,
@@ -27,10 +29,13 @@ const eventId = (data: unknown, key: string): string | undefined => {
 };
 
 type Step = MatchRecording["steps"][number];
-type TurnContext = { turn: string; late: boolean };
+interface TurnContext {
+  turn: string;
+  late: boolean;
+}
 function outcomeTracker(game: HeadlessGame) {
   const totals: [Outcomes, Outcomes] = [empty(), empty()];
-  const sides = new Map([
+  const sides = new Map<string, 0 | 1>([
     [game.ctx.team1.id, 0],
     [game.ctx.team2.id, 1],
   ]);
@@ -44,7 +49,7 @@ function outcomeTracker(game: HeadlessGame) {
   const contextNow = (): TurnContext => {
     const state = game.ctx.gameService.getState();
     return {
-      turn: `${state.turn.isHalf2}/${state.turn.turnNumber}/${state.activeTeamId}`,
+      turn: `${String(state.turn.isHalf2)}/${String(state.turn.turnNumber)}/${String(state.activeTeamId)}`,
       late: state.turn.turnNumber >= 5,
     };
   };
@@ -76,8 +81,7 @@ function outcomeTracker(game: HeadlessGame) {
   }
   function completion(data: unknown, context: TurnContext) {
     const passerId = eventId(data, "playerId") ?? "";
-    // The engine also emits PassCompleted for a handoff. Credit only a
-    // recorded Pass command, including completions resolved by later reactions.
+
     if (throws.get(passerId) !== context.turn) return;
     const catcher = eventId(data, "catcherId");
     const passer = game.ctx.gameService.getPlayerById(passerId);
@@ -108,78 +112,45 @@ function outcomeTracker(game: HeadlessGame) {
   game.ctx.eventBus.on(GameEventNames.PlayerMoved, ({ playerId, to }) =>
     moves.set(playerId, to)
   );
-  game.ctx.eventBus.on(GameEventNames.PassCompleted, (data) =>
-    completion(data, contextNow())
-  );
-  game.ctx.eventBus.on(GameEventNames.Touchdown, (data) =>
-    touchdown(data, contextNow())
-  );
+  game.ctx.eventBus.on(GameEventNames.PassCompleted, (data) => {
+    completion(data, contextNow());
+  });
+  game.ctx.eventBus.on(GameEventNames.Touchdown, (data) => {
+    touchdown(data, contextNow());
+  });
   return { totals, before };
 }
 
 export async function annotateTrace(file: string) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
+  const { recording, game } = openTrace(file);
   const tracker = outcomeTracker(game);
-  for (const [index, step] of trace.recording.steps.entries()) {
-    tracker.before(step);
-    const response = await game.execute(step.command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
-  }
-  const hash = snapshotHash(game.snapshot());
-  if (hash !== trace.recording.final.hash)
-    throw new Error("Outcome replay final hash differs");
+  await replaySteps({ game, recording, before: tracker.before });
+  const hash = verifiedHash(game, recording, "Outcome");
   return { totals: tracker.totals, hash };
 }
 
 async function main() {
   const entry = fileURLToPath(import.meta.url);
-  const run = resolve(process.argv[2]);
-  const out = join(run, "outcomes");
-  mkdirSync(out, { recursive: true });
-  if (process.argv.includes("--worker")) {
-    process.on("message", async (job: PolicyJob | null) => {
-      if (!job) {
-        process.disconnect();
-        return;
-      }
-      try {
-        const result = await annotateTrace(
-          join(run, "traces", job.id + ".json.gz")
-        );
-        writeFileSync(
-          join(out, job.id + ".json"),
-          JSON.stringify({
-            id: job.id,
-            candidateSide: job.candidateSide,
-            ...result,
-          })
-        );
-        process.send?.({ done: job.id });
-      } catch (error) {
-        process.send?.({ error: `${job.id}: ${error}` });
-      }
-    });
-    process.send?.({ ready: true });
-    return;
-  }
-  const manifest = JSON.parse(
-    readFileSync(join(run, "manifest.json"), "utf8")
-  ) as { jobs: PolicyJob[]; revision: string };
-  await processPool(entry, [run], manifest.jobs, 8);
+  const lab = await annotateRun({
+    entry,
+    folder: "outcomes",
+    workers: 8,
+    annotate: async (file, job) => ({
+      id: job.id,
+      candidateSide: job.candidateSide,
+      ...(await annotateTrace(file)),
+    }),
+  });
+  if (!lab) return;
+  const { run, out, manifest } = lab;
   const summary = { candidate: empty(), frozen: empty() };
-  const files = readdirSync(out).filter((name) => name.endsWith(".json"));
-  if (files.length !== manifest.jobs.length)
-    throw new Error("Incomplete or foreign outcome files");
+  const files = annotationFiles(out, manifest.jobs.length, "outcome");
   for (const file of files) {
     const result = JSON.parse(readFileSync(join(out, file), "utf8")) as {
       candidateSide: number;
       totals: [Outcomes, Outcomes];
     };
-    for (const side of [0, 1]) {
+    for (const side of [0, 1] as const) {
       const own =
         side === result.candidateSide ? summary.candidate : summary.frozen;
       for (const key of Object.keys(own) as (keyof Outcomes)[])
@@ -188,9 +159,7 @@ async function main() {
   }
   const receipt = {
     revision: manifest.revision,
-    analyzerSha256: createHash("sha256")
-      .update(readFileSync(entry))
-      .digest("hex"),
+    analyzerSha256: analyzerSha256(entry),
     games: files.length,
     verified: true,
     summary,
@@ -203,8 +172,4 @@ async function main() {
   );
   console.log(JSON.stringify(receipt));
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

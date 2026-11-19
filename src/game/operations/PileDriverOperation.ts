@@ -1,28 +1,19 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
-import { Player, PlayerStatus } from "../../types/Player";
+import { type FlowContext } from "../core/GameFlowManager";
+import { type Player, PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { GameEventNames } from "../../types/events";
-import { ReactionDecisionAnswer } from "../../types/decisions";
+import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { FoulOperation } from "./FoulOperation";
 import { BounceOperation } from "./BounceOperation";
 import { InjuryOperation } from "./InjuryOperation";
 
-/**
- * Pile Driver (2025 rulebook p.133): "When an opposition player is Knocked
- * Down by this player during a Block Action, this player may perform a free
- * Foul Action against the opposition player so long as they are still
- * Standing and are still Marking the opposition player. This player is then
- * Placed Prone and their activation immediately ends."
- *
- * Runs once the Block has fully resolved. The coach chooses; on a decline,
- * or when the Foul is no longer possible, `resume` carries on with the
- * activation (a Blitz may keep moving).
- */
-type Square = { x: number; y: number };
+interface Square {
+  x: number;
+  y: number;
+}
 
-/** A Standing attacker next to a Prone or Stunned defender. */
 function canPileDrive(
   attacker: Player,
   from: Square,
@@ -37,11 +28,6 @@ function canPileDrive(
   return attacker.status === PlayerStatus.ACTIVE && downed && adjacent;
 }
 
-/**
- * A player with the ball who is Placed Prone drops it, and during their
- * own activation that is a Turnover (2025 rulebook, Placed Prone). A
- * follow-up onto a loose ball can leave the blocker holding it.
- */
 function dropHeldBall(context: FlowContext, attacker: Player): void {
   const ball = groundBall(context.gameService.getState());
   const at = attacker.gridPosition;
@@ -56,12 +42,14 @@ function dropHeldBall(context: FlowContext, attacker: Player): void {
 export class PileDriverOperation extends GameOperation {
   public readonly name = "PileDriverOperation";
 
-  constructor(
-    private attackerId: string,
-    private defenderId: string,
-    private resume: () => void
-  ) {
+  private attackerId: string;
+  private defenderId: string;
+  private resume: () => void;
+  constructor(attackerId: string, defenderId: string, resume: () => void) {
     super();
+    this.attackerId = attackerId;
+    this.defenderId = defenderId;
+    this.resume = resume;
   }
 
   async execute(context: FlowContext): Promise<void> {

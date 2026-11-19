@@ -1,36 +1,19 @@
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
-import { GameState } from "../../types/GameState";
-import { Team } from "../../types/Team";
+import { type GameState } from "../../types/GameState";
+import { type Team } from "../../types/Team";
 import {
   createDiceLog,
   DICE_LOG_VERSION,
-  DiceLog,
-  DiceLogMode,
+  type DiceLog,
+  type DiceLogMode,
   DiceLogRecorder,
 } from "./DiceLog";
+import { type StorageLike, browserStorage } from "./browserStorage";
 
-/**
- * Dice logs live in this browser's localStorage, the newest few matches,
- * and, for a signed-in coach, in Firestore under users/{uid}/dice-logs.
- */
 const KEY_PREFIX = "bloodbowl_dice_log_";
 const INDEX_KEY = "bloodbowl_dice_logs";
 const KEEP_LOCAL = 20;
-
-interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
-function browserStorage(): StorageLike | null {
-  try {
-    return typeof localStorage === "undefined" ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
 
 function isDiceLog(value: unknown): value is DiceLog {
   return (
@@ -69,7 +52,6 @@ export function readDiceLog(
   return isDiceLog(log) ? log : null;
 }
 
-/** This browser's dice logs, oldest first. */
 export function listDiceLogs(
   storage: StorageLike | null = browserStorage()
 ): DiceLog[] {
@@ -77,18 +59,17 @@ export function listDiceLogs(
   return readIndex(storage).flatMap((id) => readDiceLog(id, storage) ?? []);
 }
 
-/**
- * Keep `log` and drop the oldest past the newest KEEP_LOCAL. When storage is
- * full, older logs go first, one at a time, until this one fits.
- */
 export function writeDiceLog(
   log: DiceLog,
   storage: StorageLike | null = browserStorage()
 ): void {
   if (!storage) return;
   const ids = [...readIndex(storage).filter((id) => id !== log.id), log.id];
-  const dropOldest = (count: number) =>
-    ids.splice(0, count).forEach((id) => storage.removeItem(KEY_PREFIX + id));
+  const dropOldest = (count: number) => {
+    ids.splice(0, count).forEach((id) => {
+      storage.removeItem(KEY_PREFIX + id);
+    });
+  };
   dropOldest(Math.max(0, ids.length - KEEP_LOCAL));
   const raw = JSON.stringify(log);
   for (;;) {
@@ -106,10 +87,6 @@ export function writeDiceLog(
   }
 }
 
-/**
- * Free room for something that matters more, such as the resumable match
- * save: drop the oldest dice log. False when there is none left to drop.
- */
 export function dropOldestDiceLog(
   storage: StorageLike | null = browserStorage()
 ): boolean {
@@ -124,16 +101,10 @@ export function dropOldestDiceLog(
 type Uploader = (log: DiceLog) => Promise<void>;
 let uploader: Uploader | null = null;
 
-/** Set by the Firebase layer while a coach is signed in. */
 export function setDiceLogUploader(upload: Uploader | null): void {
   uploader = upload;
 }
 
-/**
- * The log a match writes to: its own one again when it resumes, so a
- * reload keeps the rolls from before it. A resumed match this browser has
- * no log for gets a log of its own, so it never replaces one kept elsewhere.
- */
 function logFor(input: {
   mode: DiceLogMode;
   seed: number;
@@ -145,13 +116,12 @@ function logFor(input: {
   const newest = kept[kept.length - 1];
   if (newest && input.resumed) return newest;
   const taken = kept.length > 0 || input.resumed;
-  return createDiceLog({ ...input, id: taken ? `${id}-${Date.now()}` : id });
+  return createDiceLog({
+    ...input,
+    id: taken ? `${id}-${String(Date.now())}` : id,
+  });
 }
 
-/**
- * Record this match's dice. The local copy is written after every roll;
- * the cloud copy at the end of each turn, drive and phase, and on close.
- */
 export function startMatchDiceLog(input: {
   eventBus: IEventBus;
   getState: () => GameState;
@@ -175,17 +145,23 @@ export function startMatchDiceLog(input: {
     eventBus,
     input.getState,
     logFor(input),
-    (log) => writeDiceLog(log)
+    (log) => {
+      writeDiceLog(log);
+    }
   );
   const boundaries = [
     GameEventNames.TurnEnded,
     GameEventNames.DriveEnded,
     GameEventNames.PhaseChanged,
   ] as const;
-  boundaries.forEach((event) => eventBus.on(event, upload));
+  boundaries.forEach((event) => {
+    eventBus.on(event, upload);
+  });
   return {
     dispose() {
-      boundaries.forEach((event) => eventBus.off(event, upload));
+      boundaries.forEach((event) => {
+        eventBus.off(event, upload);
+      });
       recorder.dispose();
       upload();
     },

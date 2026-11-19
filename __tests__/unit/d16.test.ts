@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import {
@@ -13,20 +14,20 @@ describe("a sixteen-sided die", () => {
     const geometry = d16Geometry();
     expect(geometry.groups).toHaveLength(16);
     const areas = D16_FACES.map(([a, b, c], i) => {
-      const normal = new THREE.Vector3(...D16_NORMALS[i]);
-      expect(normal.dot(D16_VERTICES[a])).toBeGreaterThan(0);
+      const normal = new THREE.Vector3(...fixtureValue(D16_NORMALS[i]));
+      expect(normal.dot(fixtureValue(D16_VERTICES[fixtureValue(a)]))).toBeGreaterThan(0);
       expect(
         D16_NORMALS.some(
           (other) => normal.dot(new THREE.Vector3(...other)) < -0.999
         )
       ).toBe(true);
       return new THREE.Triangle(
-        D16_VERTICES[a],
-        D16_VERTICES[b],
-        D16_VERTICES[c]
+        D16_VERTICES[fixtureValue(a)],
+        D16_VERTICES[fixtureValue(b)],
+        D16_VERTICES[fixtureValue(c)]
       ).getArea();
     });
-    for (const area of areas) expect(area).toBeCloseTo(areas[0], 10);
+    for (const area of areas) expect(area).toBeCloseTo(fixtureValue(areas[0]), 10);
     geometry.dispose();
   });
 
@@ -43,7 +44,7 @@ describe("a sixteen-sided die", () => {
             (other) =>
               new THREE.Vector3(...n).dot(new THREE.Vector3(...other)) < -0.999
           );
-          expect(labels[i] + labels[opposite]).toBe(17);
+          expect(fixtureValue(labels[i]) + fixtureValue(labels[opposite])).toBe(17);
         });
       }
     }

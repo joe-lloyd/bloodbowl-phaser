@@ -1,25 +1,13 @@
-/**
- * Candidate enumeration: every concrete thing the deciding coach may send
- * next, derived from the engine's own legality checks.
- *
- * A coach never invents a command. It picks one of these, so a rejection of
- * a candidate means the engine's "what is legal" and "what it accepts" have
- * drifted apart, which the runner reports as a finding.
- *
- * A candidate is a short command sequence because setup is one decision
- * (pick a formation) that takes several placements to carry out.
- */
-
 import { HeadlessGame } from "../headless/HeadlessGame";
-import { GameSnapshot } from "../headless/serialization";
+import { type GameSnapshot } from "../headless/serialization";
 import {
-  HeadlessCommand,
-  PendingDecision,
-  PlayerActions,
+  type HeadlessCommand,
+  type PendingDecision,
+  type PlayerActions,
 } from "../headless/protocol";
 import { GamePhase, SubPhase } from "../types/GameState";
-import { Player, PlayerStatus } from "../types/Player";
-import { ActionType } from "../types/events";
+import { type Player, PlayerStatus } from "../types/Player";
+import { type ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
 import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
@@ -28,7 +16,7 @@ import { isConfinedToReserves } from "../game/kickoff/driveEffects";
 import { decisionOwner } from "../network/OwnershipGate";
 import { describePlayer, square, stepCandidates } from "./stepCandidates";
 
-export type CandidateKind =
+type CandidateKind =
   | "decision"
   | "setup"
   | "kickoff"
@@ -39,12 +27,11 @@ export type CandidateKind =
 
 export interface Candidate {
   kind: CandidateKind;
-  commands: HeadlessCommand[];
-  /** Plain-English description, shown to Jev and written to recordings. */
+  commands: [HeadlessCommand, ...HeadlessCommand[]];
+
   label: string;
 }
 
-/** Who must act, and what they may do. */
 export interface DecisionPoint {
   teamId: string;
   phase: GamePhase;
@@ -52,7 +39,6 @@ export interface DecisionPoint {
   candidates: Candidate[];
 }
 
-/** Actions the step enumerator knows how to carry through to completion. */
 const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "move",
   "block",
@@ -73,16 +59,10 @@ const SUPPORTED_DECLARATIONS = new Set<ActionType>([
   "throwTeamMate",
 ]);
 
-/**
- * The decision point the game is waiting on. `kickingTeamId` is tracked by
- * the runner because a KICKOFF snapshot does not say who kicks.
- */
 export async function enumerateDecision(
   game: HeadlessGame,
   kickingTeamId: string | null
 ): Promise<DecisionPoint> {
-  // Read the state directly: a snapshot is costly and this runs thousands
-  // of times in a lookahead.
   const state = game.ctx.gameService.getState();
   const pending = game.pendingDecision();
   const activeTeamId = state.activeTeamId ?? game.ctx.team1.id;
@@ -90,8 +70,6 @@ export async function enumerateDecision(
   if (pending) {
     const gs = game.ctx.gameService;
     return {
-      // The same owner online play enforces: a follow-up stays the
-      // attacker's even when a turnover has already passed the turn.
       teamId:
         decisionOwner(pending, {
           activeTeamId,
@@ -280,7 +258,7 @@ function decisionCandidates(
         ...pending.candidates.map((c) =>
           one(
             { type: "choose-interception", playerId: c.playerId },
-            `Try to intercept with ${name(c.playerId)} (modifier ${c.modifier})`
+            `Try to intercept with ${name(c.playerId)} (modifier ${String(c.modifier)})`
           )
         ),
         one({ type: "choose-interception" }, "Do not intercept"),
@@ -296,17 +274,14 @@ function decisionCandidates(
     case "inducement-choice":
       return inducementCandidates(game, pending, name);
     case "foul-assists":
-      // Every assist first: adding them all is the default
       return Array.from({ length: pending.available + 1 }, (_, i) => {
         const count = pending.available - i;
         return one(
           { type: "choose-foul-assists", count },
-          `Add ${count} of ${pending.available} Offensive Assists to the Foul`
+          `Add ${String(count)} of ${String(pending.available)} Offensive Assists to the Foul`
         );
       });
     case "kickoff-event":
-      // Coach-owned kickoff steps (Blitz, Charge, Quick Snap, ...) are
-      // optional; confirming an untouched step and skipping it both close it.
       return [
         one({ type: "kickoff-skip" }, `Skip the ${pending.event} step`),
         one({ type: "kickoff-confirm" }, `Confirm the ${pending.event} step`),
@@ -322,8 +297,7 @@ function inducementCandidates(
   if (pending.kind === "sports-wizard") {
     return wizardCandidates(game, pending.chooserTeamId, pending.playerIds);
   }
-  // Every offered player, with every offered skill or characteristic;
-  // a Desperate Measure may also be kept for later.
+
   const extras: { skill?: string; stat?: DopeStat }[] = pending.skills
     ? pending.skills.map((skill) => ({ skill }))
     : pending.stats
@@ -350,7 +324,6 @@ function inducementCandidates(
   return out;
 }
 
-/** The first square of the zone, column by column, that `legal` accepts. */
 function firstLegalSquare(
   playerId: string,
   zone: { minX: number; maxX: number },
@@ -406,28 +379,21 @@ async function setupCandidates(
         player.id,
         zone,
         (candidate) =>
-          validator.validatePlacement(
-            candidate,
-            positions,
-            isTeam1,
-            setup.status.availablePlayerCount,
-            limits
-          ).valid
+          validator.validatePlacement({ candidate: candidate, currentPositions: positions, isTeam1: isTeam1, availablePlayerCount: setup.status.availablePlayerCount, limits: limits }).valid
       );
       if (!placement) continue;
       positions.push(placement);
       commands.push({ type: "place-player", ...placement });
     }
-    commands.push({ type: "confirm-setup", teamId });
     return [
-      { kind: "setup", commands, label: "Add reserve Linemen with Swarming" },
+      { kind: "setup", commands: setupCommands(commands, teamId), label: "Add reserve Linemen with Swarming" },
     ];
   }
   const clear: HeadlessCommand[] = (setup?.placements ?? []).map((p) => ({
     type: "remove-player",
     playerId: p.playerId,
   }));
-  // Strongest players go first so they land on the line of scrimmage.
+
   const eligible = team.players
     .filter(
       (p) =>
@@ -436,10 +402,10 @@ async function setupCandidates(
         p.status === PlayerStatus.PRONE ||
         p.status === PlayerStatus.STUNNED
     )
-    // Sweltering Heat and similar drive effects bench players for a drive.
+
     .filter((p) => !isConfinedToReserves(p, gs.getState()))
     .sort((a, b) => b.stats.ST - a.stats.ST || a.number - b.number);
-  // An available Team Captain must be set up (p.155): bring them into the seven.
+
   const captainAt = eligible.findIndex((p) => p.teamCaptain);
   if (captainAt >= 7) eligible.splice(6, 0, ...eligible.splice(captainAt, 1));
 
@@ -448,25 +414,29 @@ async function setupCandidates(
     .map((formation) => ({
       kind: "setup" as const,
       label: `Set up in the ${formation.name} formation`,
-      commands: [
+      commands: setupCommands([
         ...clear,
-        ...formation.positions.slice(0, Math.min(eligible.length, 7)).map(
-          (pos, index): HeadlessCommand => ({
-            type: "place-player",
-            playerId: eligible[index].id,
-            x: pos.x,
-            y: pos.y,
-          })
+        ...formation.positions.slice(0, Math.min(eligible.length, 7)).flatMap(
+          (pos, index): HeadlessCommand[] => {
+            const player = eligible[index];
+            return player
+              ? [{ type: "place-player", playerId: player.id, x: pos.x, y: pos.y }]
+              : [];
+          }
         ),
-        { type: "confirm-setup", teamId },
-      ],
+      ], teamId),
     }));
 }
 
-/**
- * The Sports-Wizard: keep it, or Zap! or Fireball an opponent on the pitch.
- * Spells on the coach's own players are legal but never worth offering.
- */
+function setupCommands(
+  placements: HeadlessCommand[],
+  teamId: string
+): Candidate["commands"] {
+  const confirmation: HeadlessCommand = { type: "confirm-setup", teamId };
+  const [first, ...rest] = placements;
+  return first ? [first, ...rest, confirmation] : [confirmation];
+}
+
 function wizardCandidates(
   game: HeadlessGame,
   teamId: string,
@@ -524,7 +494,6 @@ function kickoffCandidates(
   return out;
 }
 
-/** The declarations the step enumerator can carry through for one player. */
 function declareCandidates(player: Player, entry: PlayerActions): Candidate[] {
   const out: Candidate[] = [];
   for (const action of entry.actions) {

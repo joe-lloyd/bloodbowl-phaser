@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   tacticalGame,
@@ -46,7 +47,11 @@ describe("late-half scoring and preservation", () => {
       );
       const coach = createPlannerCoach();
       let choice = await coachStep(game, coach);
-      for (let i = 0; i < 12 && choice.command.type !== "pass"; i++)
+      for (
+        let i = 0;
+        i < 12 && fixtureValue(choice.command).type !== "pass";
+        i++
+      )
         choice = await coachStep(game, coach);
       expect(choice.command).toMatchObject({ type: "pass", x: scorer, y: 5 });
     }
@@ -98,7 +103,7 @@ describe("late-half scoring and preservation", () => {
     ) {
       await coachStep(game, coach);
     }
-    expect(game.ctx.team1.players[0].gridPosition?.x).toBe(11);
+    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition?.x).toBe(11);
   });
 
   it("keeps turn-five preparation away from an equally reachable exposed sideline", async () => {
@@ -124,9 +129,15 @@ describe("late-half scoring and preservation", () => {
     await coachStep(game, coach);
     for (let i = 0; i < 12 && game.ctx.gameService.getState().activePlayer; i++)
       await coachStep(game, coach);
-    expect(game.ctx.team1.players[0].gridPosition).toMatchObject({ x: 11 });
-    expect(game.ctx.team1.players[0].gridPosition!.y).toBeGreaterThan(2);
-    expect(game.ctx.team1.players[0].gridPosition!.y).toBeLessThan(10);
+    expect(fixtureValue(game.ctx.team1.players[0]).gridPosition).toMatchObject({
+      x: 11,
+    });
+    expect(
+      fixtureValue(fixtureValue(game.ctx.team1.players[0]).gridPosition).y
+    ).toBeGreaterThan(2);
+    expect(
+      fixtureValue(fixtureValue(game.ctx.team1.players[0]).gridPosition).y
+    ).toBeLessThan(10);
   });
 
   it("takes the available turn-five equalizer instead of stalling while behind", async () => {
@@ -144,12 +155,12 @@ describe("late-half scoring and preservation", () => {
     expect(choice.note).toContain("runs in to score");
     for (
       let i = 0;
-      i < 8 && game.ctx.gameService.getState().score.team1 === 0;
+      i < 8 && game.ctx.gameService.getState().score["team1"] === 0;
       i++
     ) {
       await coachStep(game, coach);
     }
-    expect(game.ctx.gameService.getState().score.team1).toBe(1);
+    expect(game.ctx.gameService.getState().score["team1"]).toBe(1);
   });
 
   it("withdraws a valuable league player from unnecessary exposure when scoring is out of reach", async () => {
@@ -177,7 +188,7 @@ describe("late-half scoring and preservation", () => {
       },
       { league: true, opponentTurnsPlayed: 5 }
     );
-    game.ctx.team1.players[0].cost = 600_000;
+    fixtureValue(game.ctx.team1.players[0]).cost = 600_000;
     const coach = createPlannerCoach();
     expect((await coachStep(game, coach)).command).toMatchObject({
       type: "declare-action",
@@ -236,7 +247,7 @@ describe("late-half scoring and preservation", () => {
         },
         { league: true, opponentTurnsPlayed: 5 }
       );
-      game.ctx.team1.players[0].cost = 600000;
+      fixtureValue(game.ctx.team1.players[0]).cost = 600000;
       expect(
         (await coachStep(game, createPlannerCoach())).command
       ).toMatchObject({ type: "declare-action", action });

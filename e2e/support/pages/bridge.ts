@@ -1,13 +1,4 @@
-/**
- * Playwright-side access to the read-only browser test bridge.
- *
- * The bridge is installed by `ServiceContainer.initialize` in dev/test
- * builds only. Everything here reads; nothing here can change game state,
- * which is the point — browser cases act through real controls and use this
- * only to see what the game concluded.
- */
-
-import { Page, expect } from "@playwright/test";
+import { type Page, expect } from "@playwright/test";
 import type { GameSnapshot } from "../../../src/headless/serialization";
 import type {
   EmittedEvent,
@@ -18,23 +9,17 @@ import type {
   BridgeTeam,
 } from "../../../src/testing/browserBridge";
 
-/**
- * Duplicated from `src/testing/browserBridge.ts` on purpose: this literal is
- * evaluated inside the page, where the import does not exist.
- */
 const BRIDGE_KEY = "__bbTestBridge";
 
 export class GameBridge {
-  constructor(private readonly page: Page) {}
+  private readonly page: Page;
+  constructor(page: Page) {
+    this.page = page;
+  }
 
-  /**
-   * Wait until a match's engine exists and has published the bridge. Failing
-   * here almost always means the page never started a match, or the suite is
-   * pointed at a production build where the bridge is compiled out.
-   */
   async waitForReady(timeout = 20_000): Promise<void> {
     await this.page.waitForFunction(
-      (key) => !!(window as never as Record<string, unknown>)[key],
+      (key) => !!(window as never)[key],
       BRIDGE_KEY,
       { timeout }
     );
@@ -42,28 +27,28 @@ export class GameBridge {
 
   snapshot(): Promise<GameSnapshot> {
     return this.page.evaluate(() =>
-      (
-        window as unknown as Record<string, BrowserTestBridge>
-      ).__bbTestBridge.snapshot()
-    ) as Promise<GameSnapshot>;
+      ((window as unknown as Record<string, BrowserTestBridge>)[
+        "__bbTestBridge"
+      ])!.snapshot()
+    );
   }
 
   events(sinceIndex = 0): Promise<EmittedEvent[]> {
     return this.page.evaluate(
       (since) =>
-        (
-          window as unknown as Record<string, BrowserTestBridge>
-        ).__bbTestBridge.events(since),
+        ((window as unknown as Record<string, BrowserTestBridge>)[
+          "__bbTestBridge"
+        ])!.events(since),
       sinceIndex
-    ) as Promise<EmittedEvent[]>;
+    );
   }
 
   pendingDecision(): Promise<PendingDecision | null> {
     return this.page.evaluate(() =>
-      (
-        window as unknown as Record<string, BrowserTestBridge>
-      ).__bbTestBridge.pendingDecision()
-    ) as Promise<PendingDecision | null>;
+      ((window as unknown as Record<string, BrowserTestBridge>)[
+        "__bbTestBridge"
+      ])!.pendingDecision()
+    );
   }
 
   phase(): Promise<{
@@ -72,46 +57,44 @@ export class GameBridge {
     activeTeamId: string | null;
   }> {
     return this.page.evaluate(() =>
-      (
-        window as unknown as Record<string, BrowserTestBridge>
-      ).__bbTestBridge.phase()
+      ((window as unknown as Record<string, BrowserTestBridge>)[
+        "__bbTestBridge"
+      ])!.phase()
     );
   }
 
   scenes(): Promise<string[]> {
     return this.page.evaluate(() =>
-      (
-        window as unknown as Record<string, BrowserTestBridge>
-      ).__bbTestBridge.scenes()
+      ((window as unknown as Record<string, BrowserTestBridge>)[
+        "__bbTestBridge"
+      ])!.scenes()
     );
   }
 
   pitchLayers(): Promise<string[]> {
     return this.page.evaluate(() =>
-      (
-        window as unknown as Record<string, BrowserTestBridge>
-      ).__bbTestBridge.pitchLayers()
+      ((window as unknown as Record<string, BrowserTestBridge>)[
+        "__bbTestBridge"
+      ])!.pitchLayers()
     );
   }
 
-  /** The grid squares under the square highlights visible on the pitch. */
   pitchHighlights(): Promise<{ x: number; y: number }[]> {
     return this.page.evaluate(() =>
-      (
-        window as unknown as Record<string, BrowserTestBridge>
-      ).__bbTestBridge.pitchHighlights()
+      ((window as unknown as Record<string, BrowserTestBridge>)[
+        "__bbTestBridge"
+      ])!.pitchHighlights()
     );
   }
 
   teams(): Promise<[BridgeTeam, BridgeTeam]> {
     return this.page.evaluate(() =>
-      (
-        window as unknown as Record<string, BrowserTestBridge>
-      ).__bbTestBridge.teams()
-    ) as Promise<[BridgeTeam, BridgeTeam]>;
+      ((window as unknown as Record<string, BrowserTestBridge>)[
+        "__bbTestBridge"
+      ])!.teams()
+    );
   }
 
-  /** Resolve a stable `team1:3` reference to this page's runtime player id. */
   async resolveRef(ref: string): Promise<string> {
     const [team1, team2] = await this.teams();
     if (ref === "team1") return team1.id;
@@ -124,14 +107,12 @@ export class GameBridge {
     return player.id;
   }
 
-  /** Block until the game reports the phase the case expects. */
   async expectPhase(phase: string, timeout = 10_000): Promise<void> {
     await expect
       .poll(async () => (await this.phase()).phase, { timeout })
       .toBe(phase);
   }
 
-  /** Block until an event with this name has been emitted. */
   async expectEvent(name: string, timeout = 10_000): Promise<void> {
     await expect
       .poll(async () => (await this.events()).some((e) => e.name === name), {

@@ -1,9 +1,9 @@
 import {
-  PendingAdvancementRoll,
-  Player,
-  PlayerAdvancement,
-  PlayerStats,
-  RandomSkillCandidate,
+  type PendingAdvancementRoll,
+  type Player,
+  type PlayerAdvancement,
+  type PlayerStats,
+  type RandomSkillCandidate,
 } from "../../types/Player";
 import {
   getSkill,
@@ -11,13 +11,7 @@ import {
   SkillType,
   SKILL_DEFINITIONS,
 } from "../../types/Skills";
-import { IRNGService } from "../../services/rng/RNGService";
-
-export type AdvancementKind =
-  | "random-primary"
-  | "chosen-primary"
-  | "chosen-secondary"
-  | "characteristic";
+import { type IRNGService } from "../../services/rng/RNGService";
 
 export interface AdvancementCosts {
   randomPrimary: number;
@@ -73,7 +67,7 @@ export const CHARACTERISTIC_MAXIMUMS: PlayerStats = {
   AV: 11,
 };
 
-export const VALUE_INCREASES: Record<keyof PlayerStats, number> = {
+const VALUE_INCREASES: Record<keyof PlayerStats, number> = {
   MA: 20_000,
   ST: 60_000,
   AG: 30_000,
@@ -88,7 +82,6 @@ export const ELITE_SKILLS = new Set<SkillType>([
   SkillType.MIGHTY_BLOW,
 ]);
 
-/** Exact page-121 order: first D6 chooses a half, second D6 a row. */
 export const SKILL_ROLL_TABLE: Record<SkillCategory, readonly SkillType[]> = {
   [SkillCategory.AGILITY]: [
     SkillType.CATCH,
@@ -182,8 +175,6 @@ const INCOMPATIBLE_SKILLS: readonly (readonly [SkillType, SkillType])[] = [
   [SkillType.FRENZY, SkillType.MULTIPLE_BLOCK],
 ];
 
-/** Skills a player may only have alongside another (rulebook: "A player
- *  without the Secret Weapon Trait cannot have this Skill"). */
 const REQUIRED_WITH: Partial<Record<SkillType, SkillType>> = {
   [SkillType.SABOTEUR]: SkillType.SECRET_WEAPON,
 };
@@ -217,7 +208,9 @@ export function rollSkill(
     throw new Error("Skill table rolls must be D6 results");
   }
   const halfOffset = firstD6 <= 3 ? 0 : 6;
-  return SKILL_ROLL_TABLE[category][halfOffset + secondD6 - 1];
+  const skill = SKILL_ROLL_TABLE[category][halfOffset + secondD6 - 1];
+  if (!skill) throw new Error(`No ${category} skill for the rolls`);
+  return skill;
 }
 
 export function isSkillLegal(player: Player, skill: SkillType): boolean {
@@ -236,7 +229,7 @@ export function eligibleSkills(
   categories: readonly SkillCategory[]
 ): SkillType[] {
   const allowed = new Set(categories);
-  return (Object.values(SkillType) as SkillType[]).filter((skill) => {
+  return (Object.values(SkillType)).filter((skill) => {
     const definition = SKILL_DEFINITIONS[skill];
     return (
       definition.kind === "skill" &&
@@ -248,19 +241,8 @@ export function eligibleSkills(
 
 export type { PendingAdvancementRoll, RandomSkillCandidate };
 
-/**
- * Most rolls one skill may take. A skill the player can take is checked for
- * first, so fair dice land on one long before this; the cap only stops a
- * broken dice source from looping forever.
- */
 const MAX_SKILL_ROLLS = 1000;
 
-/**
- * Roll on a category's skill table until the result is a skill the player
- * can take. A skill they already have, or cannot have, is rolled again
- * (rulebook: "if the player already has that Skill or if they roll a Skill
- * they cannot have"), so it is never offered or saved.
- */
 export function rollTakeableSkill(
   category: SkillCategory,
   canTake: (skill: SkillType) => boolean,
@@ -302,11 +284,6 @@ function requireCost(player: Player, cost: keyof AdvancementCosts): void {
   if ((player.spp ?? 0) < costs[cost]) throw new Error("Not enough SPP");
 }
 
-/**
- * Roll two Random Primary candidates and store them on the player. The
- * caller saves the team straight away, so the coach must take one of these
- * two: reloading the page shows the same roll rather than a fresh one.
- */
 export function rollPendingRandomPrimary(
   player: Player,
   category: SkillCategory,
@@ -322,7 +299,6 @@ export function rollPendingRandomPrimary(
   return roll;
 }
 
-/** Roll the Characteristic D8 and store it on the player (see above). */
 export function rollPendingCharacteristic(
   player: Player,
   rng: Pick<IRNGService, "rollDie">
@@ -336,7 +312,6 @@ export function rollPendingCharacteristic(
   return roll;
 }
 
-/** A saved roll can only be spent on a choice that uses that roll. */
 function assertMatchesSavedRoll(
   player: Player,
   choice: AdvancementChoice
@@ -357,7 +332,9 @@ function assertMatchesSavedRoll(
       choice.kind !== "characteristic-fallback") ||
     choice.roll !== saved.roll
   ) {
-    throw new Error(`Use the saved Characteristic roll of ${saved.roll}`);
+    throw new Error(
+      `Use the saved Characteristic roll of ${String(saved.roll)}`
+    );
   }
 }
 
@@ -444,7 +421,7 @@ function applyCharacteristic(
   player.characteristicAdvances[choice.stat] =
     (player.characteristicAdvances[choice.stat] ?? 0) + 1;
   return {
-    id: `adv-${advancementCount(player) + 1}`,
+    id: `adv-${String(advancementCount(player) + 1)}`,
     type: "characteristic",
     name: `+1 ${choice.stat}`,
     sppCost: cost,
@@ -470,7 +447,7 @@ function applySkillAdvancement(
     (access === "primary" ? 20_000 : 40_000) + (elite ? 10_000 : 0);
   player.skills.push(getSkill(choice.skill));
   return {
-    id: `adv-${advancementCount(player) + 1}`,
+    id: `adv-${String(advancementCount(player) + 1)}`,
     type: access === "primary" ? "primary-skill" : "secondary-skill",
     name: choice.skill,
     sppCost: cost,

@@ -1,9 +1,5 @@
-/**
- * A decision answered from the keyboard: the key on a button's badge
- * presses it, unless the coach is typing in a field.
- */
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
@@ -28,7 +24,9 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
 });
 
@@ -40,16 +38,18 @@ const press = (key: string, target: EventTarget = document.body) =>
   });
 
 async function askStandFirm() {
-  await act(async () => root.render(<ReactionDialog eventBus={bus} />));
-  await act(async () =>
+  await act(async () => {
+    root.render(<ReactionDialog eventBus={bus} />);
+  });
+  await act(async () => {
     bus.emit(GameEventNames.DecisionRequested, {
       type: "reaction",
       playerId: "player-1",
       chooserTeamId: "team-2",
       skill: "Stand Firm",
       prompt: "Refuse the push?",
-    })
-  );
+    });
+  });
 }
 
 it("answers yes with Y and shows the key on the button", async () => {
@@ -59,7 +59,7 @@ it("answers yes with Y and shows the key on the button", async () => {
   ).toBe("Y");
   await press("y");
   expect(answers).toEqual([{ accept: true }]);
-  // The dialog closed, so its keys went with it
+
   await press("n");
   expect(answers).toEqual([{ accept: true }]);
 });
@@ -83,16 +83,18 @@ it("leaves the letters alone while the coach types in a field", async () => {
 });
 
 it("confirms with Enter and cancels with Escape", async () => {
-  await act(async () => root.render(<ConfirmationModal eventBus={bus} />));
+  await act(async () => {
+    root.render(<ConfirmationModal eventBus={bus} />);
+  });
   const ask = (actionId: string) =>
-    act(async () =>
+    act(async () => {
       bus.emit(GameEventNames.UI_RequestConfirmation, {
         actionId,
         title: "Confirm foul",
         message: "Armour: 8+",
         confirmLabel: "Foul!",
-      })
-    );
+      });
+    });
   await ask("foul-1");
   await press("Enter");
   await ask("foul-2");

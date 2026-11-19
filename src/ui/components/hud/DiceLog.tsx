@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
-import { GameEventNames, LogEntryCategory } from "../../../types/events";
+import { GameEventNames, type LogEntryCategory } from "../../../types/events";
 import {
   getActiveOnlineMatch,
-  ChatMessage,
+  type ChatMessage,
 } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
@@ -26,14 +26,13 @@ import type { RerollSource } from "../../../types/decisions";
 import {
   appendBallRoll,
   ballMovementText,
-  BallMovement,
+  type BallMovement,
 } from "./ballMovementLog";
 
 interface DiceLogProps {
   eventBus: EventBus;
 }
 
-/** A raw dice roll, rendered with its own value/description header. */
 interface DiceRow {
   kind: "dice";
   id: string;
@@ -47,7 +46,6 @@ interface DiceRow {
   timestamp: number;
 }
 
-/** A durable log entry: a headline naming the result plus what it means. */
 interface EntryRow {
   kind: "entry";
   id: string;
@@ -70,8 +68,6 @@ const FONT_SCALE_MAX = 2;
 const FONT_SCALE_STEP = 0.125;
 const FONT_SCALE_DEFAULT = 1;
 
-/** Read the last font scale the player chose, falling back to the default
- *  when nothing's stored yet or storage isn't available (e.g. in tests). */
 function loadFontScale(): number {
   try {
     const raw = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
@@ -87,7 +83,7 @@ function saveFontScale(scale: number): void {
   try {
     window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(scale));
   } catch {
-    // Storage unavailable — the scale just won't survive a reload.
+    return;
   }
 }
 
@@ -95,7 +91,6 @@ function clampFontScale(scale: number): number {
   return Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, scale));
 }
 
-/** A single number reads as a die; a list or a block face as a small tag. */
 function valueFaceClass(value: DiceRow["value"]): string {
   return typeof value === "number" ||
     (typeof value === "string" && /^\d+$/.test(value))
@@ -114,7 +109,6 @@ const CATEGORY_LABELS: Record<LogEntryCategory, string> = {
   info: "Info",
 };
 
-/** What paid for a re-roll, as the log names it. */
 function rerollHeadline(source: RerollSource, skill?: string): string {
   switch (source) {
     case "skill":
@@ -132,7 +126,6 @@ function rerollHeadline(source: RerollSource, skill?: string): string {
   }
 }
 
-/** Resolve a player's team, when the game service is up, for attribution. */
 function teamIdForPlayer(playerId: string): string | undefined {
   if (!ServiceContainer.isInitialized()) return undefined;
   try {
@@ -147,10 +140,9 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const [logs, setLogs] = useState<LogRow[]>([]);
   const counterRef = React.useRef(0);
   const match = getActiveOnlineMatch();
-  // Solo/local play has no single "my team" — null tells the classifier to
-  // color every good/bad roll the same way regardless of who rolled it.
+
   const perspectiveTeamId = match?.myTeamId ?? null;
-  // Chat is between two people; the computer coach has nothing to say.
+
   const chatMatch = match && match.kind !== "computer" ? match : null;
   const [tab, setTab] = useState<Tab>("dice");
   const [fontScale, setFontScale] = useState<number>(() => loadFontScale());
@@ -160,11 +152,12 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const [unread, setUnread] = useState(0);
   const [draft, setDraft] = useState("");
   const tabRef = React.useRef<Tab>("dice");
-  tabRef.current = tab;
+  React.useLayoutEffect(() => {
+    tabRef.current = tab;
+  }, [tab]);
   const chatScrollRef = React.useRef<HTMLDivElement>(null);
   const tabsId = React.useId();
-  // Follow new messages only while the reader is at the bottom, so reading
-  // an older message is not interrupted. Opening the tab jumps to the end.
+
   const followChat = React.useRef(true);
   const onChatScroll = () => {
     const list = chatScrollRef.current;
@@ -180,23 +173,19 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     if (list && followChat.current) list.scrollTop = list.scrollHeight;
   }, [chat, tab]);
 
-  // The dice tray throws a roll a moment after the engine makes it. Every
-  // change to the log waits until all the rolls the tray has thrown so far
-  // have landed, so a row never spoils a die still tumbling, and rows keep
-  // their order. The wait starts a microtask later because the tray may hear
-  // a DiceRoll after the log does. With no tray, rows go in at once.
   const watch = DiceWatch.shared(eventBus);
   const updateLogs = (change: (prev: LogRow[]) => LogRow[]) => {
     queueMicrotask(() => {
-      void watch.landed().then(() => setLogs(change));
+      void watch.landed().then(() => {
+        setLogs(change);
+      });
     });
   };
 
   const pushRow = (row: LogRow) => {
     updateLogs((prev) => {
-      // Add new entry at the START (top) of the array
       const updated = [row, ...prev];
-      // Keep only the most recent 50 entries
+
       if (updated.length > 50) return updated.slice(0, 50);
       return updated;
     });
@@ -204,7 +193,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
 
   const nextId = () => {
     counterRef.current += 1;
-    return `${Date.now()}-${counterRef.current}`;
+    return `${String(Date.now())}-${String(counterRef.current)}`;
   };
 
   const pushEntry = (entry: Omit<DiceRow, "id" | "timestamp" | "kind">) => {
@@ -252,72 +241,65 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       ];
     });
   };
-  useEventBus(eventBus, GameEventNames.BallPlaced, (data) => locateBall(data));
-  useEventBus(eventBus, GameEventNames.BallScattered, (data) =>
-    locateBall(data.to)
-  );
-  useEventBus(eventBus, GameEventNames.BallThrownIn, (data) =>
-    locateBall(data.to, data.distance)
-  );
-  useEventBus(eventBus, GameEventNames.BallKicked, (data) =>
-    locateBall({ x: data.finalX, y: data.finalY }, data.distance)
-  );
-  useEventBus(eventBus, GameEventNames.PassAttempted, (data) =>
-    locateBall(data.finalPosition)
-  );
-  useEventBus(eventBus, GameEventNames.PassFumbled, (data) =>
-    locateBall(data.bouncePosition)
-  );
+  useEventBus(eventBus, GameEventNames.BallPlaced, (data) => {
+    locateBall(data);
+  });
+  useEventBus(eventBus, GameEventNames.BallScattered, (data) => {
+    locateBall(data.to);
+  });
+  useEventBus(eventBus, GameEventNames.BallThrownIn, (data) => {
+    locateBall(data.to, data.distance);
+  });
+  useEventBus(eventBus, GameEventNames.BallKicked, (data) => {
+    locateBall({ x: data.finalX, y: data.finalY }, data.distance);
+  });
+  useEventBus(eventBus, GameEventNames.PassAttempted, (data) => {
+    locateBall(data.finalPosition);
+  });
+  useEventBus(eventBus, GameEventNames.PassFumbled, (data) => {
+    locateBall(data.bouncePosition);
+  });
   useEventBus(eventBus, GameEventNames.UI_GameLog, (description) => {
     pushLogEntry({ category: "kickoff", headline: description });
   });
 
-  // The durable match log: every roll outcome authored by the rule that
-  // resolved it (weather, kickoff table, and anything else converted).
   useEventBus(eventBus, GameEventNames.UI_LogEntry, (data) => {
     pushLogEntry({
       category: data.category,
       headline: data.headline,
-      detail: data.detail,
-      roll: data.roll,
-      teamId: data.teamId,
+      ...(data.detail === undefined ? {} : { detail: data.detail }),
+      ...(data.roll === undefined ? {} : { roll: data.roll }),
+      ...(data.teamId === undefined ? {} : { teamId: data.teamId }),
     });
   });
 
-  // Deprecated alias: a plain string becomes a low-priority "info" entry so
-  // nothing goes silent while call sites are migrated to UI_LogEntry.
   useEventBus(eventBus, GameEventNames.UI_Notification, (text) => {
-    // These describe the same movement already retained with its raw rolls.
     if (/^Ball (lands in empty square|hits player|Out of Bounds)/i.test(text))
       return;
     pushLogEntry({ category: "info", headline: text });
   });
 
-  // Skill activity: triggers and reroll usage read like log entries, with
-  // the effect text authored by the rule that triggered — attributed to the
-  // acting player's team when the game service can resolve it.
   useEventBus(eventBus, GameEventNames.SkillTriggered, (data) => {
+    const teamId = teamIdForPlayer(data.playerId);
     pushLogEntry({
       category: "skill",
       headline: data.skill,
       detail: data.effect,
-      teamId: teamIdForPlayer(data.playerId),
+      ...(teamId === undefined ? {} : { teamId }),
     });
   });
   useEventBus(eventBus, GameEventNames.RerollUsed, (data) => {
+    const teamId = teamIdForPlayer(data.playerId);
     const roll = (dice: number | number[] | string[]) =>
       Array.isArray(dice) ? dice.join(", ") : String(dice);
     pushLogEntry({
       category: "reroll",
       headline: rerollHeadline(data.source, data.skill),
       detail: `${data.rollKind}: ${roll(data.before)} → ${roll(data.after)}`,
-      teamId: teamIdForPlayer(data.playerId),
+      ...(teamId === undefined ? {} : { teamId }),
     });
   });
 
-  // Online chat: always receive incoming messages (regardless of the active
-  // tab). While the player isn't looking at chat, badge the tab AND pop a
-  // toast so the message is noticed from anywhere in the HUD.
   useEffect(() => {
     if (!chatMatch) return;
     return chatMatch.onChatMessage((message) => {
@@ -351,25 +333,24 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     });
   };
 
-  // Color helper for team borders
   const getTeamColorClass = (teamId?: string) => {
     if (!teamId || typeof teamId !== "string")
       return "bg-white/[0.03] border-hud-edge";
-    // Simple toggle for now, ideally get from Team Data
+
     if (teamId.includes("team1"))
-      return "bg-white/[0.03] border-hud-blood-hot/70"; // Team 1 Red
-    if (teamId.includes("team2")) return "bg-white/[0.03] border-hud-info/70"; // Team 2 Blue
+      return "bg-white/[0.03] border-hud-blood-hot/70";
+    if (teamId.includes("team2")) return "bg-white/[0.03] border-hud-info/70";
     return "bg-white/[0.03] border-hud-edge";
   };
 
-  // Online, a Dice and Chat switch takes the title's place, so the header
-  // stays one line in the 288px column.
   const sizeControl = tab === "dice" && (
     <div className="flex items-center gap-1" title="Dice Log text size">
       <HudButton
         size="xs"
         variant="ghost"
-        onClick={() => adjustFontScale(-FONT_SCALE_STEP)}
+        onClick={() => {
+          adjustFontScale(-FONT_SCALE_STEP);
+        }}
         disabled={fontScale <= FONT_SCALE_MIN}
         aria-label="Decrease Dice Log text size"
       >
@@ -381,7 +362,9 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       <HudButton
         size="xs"
         variant="ghost"
-        onClick={() => adjustFontScale(FONT_SCALE_STEP)}
+        onClick={() => {
+          adjustFontScale(FONT_SCALE_STEP);
+        }}
         disabled={fontScale >= FONT_SCALE_MAX}
         aria-label="Increase Dice Log text size"
       >
@@ -416,7 +399,6 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
         controls={sizeControl || undefined}
       />
 
-      {/* Panel body */}
       <div
         className="relative flex flex-1 flex-col overflow-hidden"
         {...(chatMatch && {
@@ -427,10 +409,9 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       >
         {tab === "dice" ? (
           <>
-            {/* Scrollable Content - Scrollbar Hidden */}
             <div
               className="absolute inset-0 overflow-y-auto no-scrollbar p-2 pb-10"
-              style={{ fontSize: `${fontScale}rem` }}
+              style={{ fontSize: `${String(fontScale)}rem` }}
             >
               {logs.length === 0 && (
                 <div className="p-3 text-center font-hud-body text-[0.875em] italic text-hud-mute">
@@ -476,7 +457,6 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                     >
                       <div className="flex items-center gap-2 py-1.5 pl-2.5 pr-1.5">
                         <div className="min-w-0 flex-1">
-                          {/* Header Row: roll type and dice */}
                           <div className="flex items-center gap-1.5">
                             <span className="truncate font-hud-label text-[0.75em] font-bold uppercase tracking-[0.08em] text-hud-dim">
                               {log.rollType}
@@ -485,7 +465,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                               {log.diceType}
                             </span>
                           </div>
-                          {/* Result Row - Full Width Description */}
+
                           <span className="block font-hud-body text-[0.8125em] font-medium leading-snug text-hud-bone">
                             {log.description}
                           </span>
@@ -500,8 +480,6 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                   );
                 }
 
-                // Outcome entry: a durable record of a roll and what it meant —
-                // headline names the result, detail states its effect on play.
                 const nature = classifyEntryNature(log.category);
                 const color = resolveDisplayColor(
                   nature,
@@ -542,14 +520,10 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
               })}
             </div>
 
-            {/* Fade Mask at Bottom */}
             <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-10 bg-gradient-to-t from-hud-slab to-transparent"></div>
           </>
         ) : (
           <>
-            {/* Chat history, newest at the bottom. A spacer, not
-                justify-end, pushes short histories down: justify-end puts
-                the overflow above the top, where it cannot be scrolled to. */}
             <div
               ref={chatScrollRef}
               onScroll={onChatScroll}
@@ -563,7 +537,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
               )}
               {chat.map((message, index) => (
                 <div
-                  key={`${message.ts}-${index}`}
+                  key={`${String(message.ts)}-${String(index)}`}
                   className={`max-w-[85%] rounded-hud px-2.5 py-1.5 font-hud-body text-hud-sm text-hud-bone ${
                     message.fromSelf
                       ? "self-end border border-hud-gold/30 bg-hud-gold/15"
@@ -579,11 +553,13 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                 </div>
               ))}
             </div>
-            {/* Composer */}
+
             <div className="flex gap-1.5 border-t border-hud-gold/20 p-1.5">
               <input
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") sendDraft();
                   e.stopPropagation();
@@ -599,7 +575,6 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
         )}
       </div>
 
-      {/* Inline Styles for hiding scrollbar and custom animation */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar {
           display: none;

@@ -1,7 +1,3 @@
-/**
- * Gallery variants for the whole HUD, and the score bug and turn tab above the
- * pitch.
- */
 import { GameEventNames } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
@@ -16,11 +12,11 @@ import {
   routed,
   score,
   setScore,
+  showPlacing,
 } from "./variantHelpers";
 import type { Variant } from "./variants";
 
 export const HUD_VARIANTS: Variant[] = [
-  // ---- Whole HUD
   {
     id: "hud-play",
     section: "Whole HUD",
@@ -83,26 +79,11 @@ export const HUD_VARIANTS: Variant[] = [
           phase: GamePhase.SETUP,
           subPhase: SubPhase.SETUP_KICKING,
         });
-        fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
-          subPhase: SubPhase.SETUP_KICKING,
-          activeTeam: { id: fx.team1.id, name: fx.team1.name },
-          status: {
-            teamId: fx.team1.id,
-            placedPlayerCount: 4,
-            requiredPlayerCount: 7,
-            availablePlayerCount: 7,
-            restrictions: [],
-            canConfirm: false,
-            concessionDecision: "not-offered",
-          },
-        });
-        fx.bus.emit(GameEventNames.UI_FormationsUpdated, {
-          formations: [
-            { name: "Balanced", builtIn: true },
-            { name: "Wedge", builtIn: true },
-            { name: "My cage", builtIn: false },
-          ],
-        });
+        showPlacing(fx, [
+          { name: "Balanced", builtIn: true },
+          { name: "Wedge", builtIn: true },
+          { name: "My cage", builtIn: false },
+        ]);
         fx.bus.emit(GameEventNames.UI_LogEntry, {
           category: "weather",
           headline: "Nice Weather",
@@ -146,7 +127,6 @@ export const HUD_VARIANTS: Variant[] = [
       }),
   },
 
-  // ---- Score bug
   {
     id: "score-typical",
     section: "Score bug and turn tab",

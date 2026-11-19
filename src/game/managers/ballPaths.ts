@@ -1,9 +1,12 @@
 import { GameConfig } from "../../config/GameConfig";
-import { Player, PlayerStatus } from "@/types/Player";
+import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
-import { Team } from "@/types/Team";
+import { type Team } from "@/types/Team";
 
-type Square = { x: number; y: number };
+interface Square {
+  x: number;
+  y: number;
+}
 
 const MAX_X = GameConfig.PITCH_WIDTH - 1;
 const MAX_Y = GameConfig.PITCH_HEIGHT - 1;
@@ -14,7 +17,6 @@ const distance = (a: Square, b: Square): number =>
 export const isOffPitch = (p: Square): boolean =>
   p.x < 0 || p.x > MAX_X || p.y < 0 || p.y > MAX_Y;
 
-/** The three infield throw-in directions for the edge the ball left from. */
 export function throwInDirections(from: Square): Square[] {
   if (from.x <= 0)
     return [
@@ -41,7 +43,6 @@ export function throwInDirections(from: Square): Square[] {
   ];
 }
 
-/** The last on-pitch square a throw-in passes before leaving again. */
 export function lastSquareIn(from: Square, dir: Square, steps: number): Square {
   let lastIn = { ...from };
   for (let s = 1; s <= steps; s++) {
@@ -52,7 +53,6 @@ export function lastSquareIn(from: Square, dir: Square, steps: number): Square {
   return lastIn;
 }
 
-/** An Open player: on the pitch, and no Standing opponent next to them. */
 function isMarkedAt(square: Square, opponents: Team): boolean {
   return opponents.players.some(
     (opponent) =>
@@ -62,10 +62,6 @@ function isMarkedAt(square: Square, opponents: Team): boolean {
   );
 }
 
-/**
- * The receiving player who may use On the Ball before the Kick-off Event:
- * the topmost, then leftmost, Open Standing player with the skill.
- */
 export function kickoffOnTheBallReactor(
   receiving: Team,
   opponents: Team
@@ -85,10 +81,6 @@ export function kickoffOnTheBallReactor(
     )[0];
 }
 
-/**
- * The next square of a kick-off On the Ball move: free, unmarked, in the
- * receiving half, nearest the ball, then topmost, then leftmost.
- */
 export function kickoffOnTheBallStep(
   current: Square,
   move: {
@@ -111,7 +103,7 @@ export function kickoffOnTheBallStep(
         !isOffPitch(square) &&
         staysOwnHalf &&
         !isMarkedAt(square, opponents) &&
-        !occupied.has(`${square.x},${square.y}`)
+        !occupied.has(`${String(square.x)},${String(square.y)}`)
       ) {
         candidates.push(square);
       }

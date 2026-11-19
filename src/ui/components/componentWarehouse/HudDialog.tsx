@@ -1,4 +1,3 @@
-/** The decision dialog shell and its row of buttons. */
 import React from "react";
 import { cx, type HudTone } from "./hudTone";
 import { Eyebrow, Panel } from "./HudPanel";
@@ -8,7 +7,6 @@ type DialogPlacement = "top" | "center" | "dock";
 const OVERLAY = "absolute inset-0 flex justify-center px-4 pointer-events-auto";
 
 const PLACEMENT: Record<DialogPlacement, string> = {
-  // A phone on its side: dialogs start under the score strip
   top: `${OVERLAY} items-start pt-44 [@media(max-height:500px)]:pt-14`,
   center: `${OVERLAY} items-center`,
   dock: "w-full pointer-events-auto",
@@ -20,10 +18,6 @@ const BACKDROP = {
   heavy: "bg-black/70 backdrop-blur-[2px]",
 };
 
-/**
- * A decision panel. Docked panels fill the HUD column. Other placements
- * keep the board visible behind a vignette. `testId` stays on the wrapper.
- */
 export function DialogShell({
   testId,
   tone = "gold",
@@ -90,7 +84,6 @@ export function DialogShell({
   );
 }
 
-/** A row of dialog buttons, the main action last (rightmost). */
 export function DialogActions({
   children,
   stack = false,

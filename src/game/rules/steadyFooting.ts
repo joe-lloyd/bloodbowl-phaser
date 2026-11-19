@@ -1,29 +1,11 @@
-/**
- * Steady Footing (2025 rulebook p.136)
- *
- *   "Whenever this player would be Knocked Down or Fall Over, roll a D6. On a
- *    6, this player does not get Knocked Down or Fall Over. If this happens
- *    during their activation, they may continue their activation as normal and
- *    no Turnover will be caused."
- *
- * Modelled as a save the falling paths consult before applying the knockdown:
- * a player with the trait rolls a D6 and keeps their feet on a 6. A player
- * without the trait never saves, so callers can gate unconditionally on the
- * return value.
- */
-
-import { Player } from "../../types/Player";
+import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { DiceController } from "../controllers/DiceController";
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import { withRerollOffer } from "../skills/rerolls";
 
-/**
- * Roll Steady Footing for a player about to be Knocked Down / Fall Over.
- * Returns true when they stay standing (trait present and a 6 rolled).
- */
 export async function steadyFootingSaves(
   player: Player,
   dice: DiceController,
@@ -34,12 +16,7 @@ export async function steadyFootingSaves(
 
   const roll = () =>
     dice.rollSkillCheck(
-      "Steady Footing",
-      6,
-      0,
-      player.playerName,
-      player.teamId
-    );
+      { reason: "Steady Footing",target: 6,modifier: 0,playerName: player.playerName,teamId: player.teamId }    );
   const check = gameService
     ? await withRerollOffer(
         { gameService, eventBus },

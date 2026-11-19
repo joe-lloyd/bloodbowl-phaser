@@ -1,9 +1,3 @@
-/**
- * The Weather Table (2025 rulebook): what each result changes about play.
- * Pure, so every roll that weather touches reads the rule from one place.
- * "Nice" is the engine's name for Perfect Conditions.
- */
-
 import type { PassType } from "../controllers/PassController";
 
 export type Weather =
@@ -13,10 +7,6 @@ export type Weather =
   | "Pouring Rain"
   | "Blizzard";
 
-/**
- * The Weather Table: the 2D6 totals each result covers, lowest first. Both
- * the weather roll and the dialog that shows it read it from here.
- */
 export const WEATHER_TABLE: readonly {
   weather: Weather;
   from: number;
@@ -29,7 +19,6 @@ export const WEATHER_TABLE: readonly {
   { weather: "Blizzard", from: 12, to: 12 },
 ];
 
-/** The weather a 2D6 total gives. */
 export function weatherForRoll(total: number): Weather {
   return (
     WEATHER_TABLE.find((row) => total >= row.from && total <= row.to)
@@ -38,13 +27,12 @@ export function weatherForRoll(total: number): Weather {
 }
 
 export interface WeatherEffects {
-  /** Added to every Passing Ability Test. */
   passingAbility: number;
-  /** Added to pick-up, Catch and interception Agility Tests. */
+
   ballHandling: number;
-  /** Added to every Rush. */
+
   rush: number;
-  /** The ranges a Pass Action may be attempted at. */
+
   passTypes: readonly PassType[];
 }
 
@@ -73,7 +61,6 @@ export function weatherEffects(weather: Weather): WeatherEffects {
   }
 }
 
-/** Short weather reminder shared by the match strip and opening banner. */
 export function weatherDescription(weather: Weather): string {
   switch (weather) {
     case "Nice":

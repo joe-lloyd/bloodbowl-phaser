@@ -1,18 +1,9 @@
-/**
- * Drive-reset scenario cases, mirroring `__tests__/headless/driveReset.test.ts`:
- * a carrier walking into the end zone scores, and the drive resets — the
- * pitch clears and the next setup begins.
- */
-
+import { fixtureValue } from "../fixtureValue";
 import { GamePhase } from "../../types/GameState";
 import { GameEventNames } from "../../types/events";
-import { ScenarioCase, step } from "../scenarioCase/types";
+import { type ScenarioCase, step } from "../scenarioCase/types";
 import { playSetup, stepAccepted, emitted, checkpointAssert } from "./helpers";
 
-/**
- * A carrier walking into the end zone scores, and the drive resets: the
- * pitch clears and the next setup begins.
- */
 const touchdown: ScenarioCase = {
   id: "match-touchdown-and-drive-reset",
   name: "Touchdown and drive reset",
@@ -20,11 +11,7 @@ const touchdown: ScenarioCase = {
     "A carrier who reaches the opposing end zone scores; the score updates, " +
     "the drive ends, and the match returns to SETUP for the next kickoff.",
   capability: "phase-flow",
-  interactions: [
-    "protocol-command:move",
-    "phase:TOUCHDOWN",
-    "phase:SETUP",
-  ],
+  interactions: ["protocol-command:move", "phase:TOUCHDOWN", "phase:SETUP"],
   setup: playSetup({
     team1Placements: [
       { playerIndex: 0, x: 17, y: 5 },
@@ -67,7 +54,7 @@ const touchdown: ScenarioCase = {
       description: "the scoring team is one up",
       layers: ["engine"],
       assert(observed) {
-        const teamId = observed.snapshot.teams[0].id;
+        const teamId = fixtureValue(observed.snapshot.teams[0]).id;
         checkpointAssert(
           observed.snapshot.score[teamId] === 1,
           `team1 should have scored once, score is ${JSON.stringify(observed.snapshot.score)}`
@@ -88,7 +75,7 @@ const touchdown: ScenarioCase = {
           .filter((player) => player.position);
         checkpointAssert(
           stillPlaced.length === 0,
-          `the drive reset should clear the pitch, but ${stillPlaced.length} player(s) remain`
+          `the drive reset should clear the pitch, but ${String(stillPlaced.length)} player(s) remain`
         );
         checkpointAssert(
           observed.snapshot.ballPosition === null,

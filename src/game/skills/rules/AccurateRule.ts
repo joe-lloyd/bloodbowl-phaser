@@ -1,11 +1,5 @@
-/**
- * Accurate (2025 p.123) — "When this player performs a Pass Action which
- * is a Quick Pass or a Short Pass, this player may apply a +1 modifier to
- * the Passing Ability Test."
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const AccurateRule: SkillRule = {
   onPassDeclared(ctx, self) {

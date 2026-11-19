@@ -1,37 +1,21 @@
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isLegalHandoffTarget } from "../rules/handoff";
-import { foldTrigger, HandoffDeclaredContext } from "../skills";
+import { foldTrigger, type HandoffDeclaredContext } from "../skills";
 import { CatchOperation } from "./CatchOperation";
 import { FinishPassActivationOperation } from "./PassOperation";
 
-/**
- * HandoffOperation
- *
- * The Hand-off Action end to end, WITHOUT going through PassOperation: no
- * Passing Ability Test, no Accurate/Inaccurate result, no fumble, no
- * scatter, and no interception opportunity. The ball is placed directly in
- * the target team-mate's square and they make a single Catch attempt.
- *
- * Responsibility:
- * - Re-validate the target (a forged/stale command must not move the ball).
- * - Fold the one skill that genuinely keys off a Hand-off declaration
- *   (Animosity) — everything pass-only (Safe Pass, Cloud Burster, Hail Mary
- *   Pass, Dump-Off, On the Ball) lives in PassOperation and is simply never
- *   reached from here.
- * - Transfer the ball and queue the receiving Catch.
- * - End the activation (Give and Go keeps it open, per FinishPassActivationOperation).
- */
 export class HandoffOperation extends GameOperation {
   public readonly name = "HandoffOperation";
 
-  constructor(
-    private passerId: string,
-    private targetId: string
-  ) {
+  private passerId: string;
+  private targetId: string;
+  constructor(passerId: string, targetId: string) {
     super();
+    this.passerId = passerId;
+    this.targetId = targetId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -39,13 +23,10 @@ export class HandoffOperation extends GameOperation {
 
     const passer = gameService.getPlayerById(this.passerId);
     const target = gameService.getPlayerById(this.targetId);
-    if (!passer || !passer.gridPosition || !target || !target.gridPosition) {
+    if (!passer?.gridPosition || !target?.gridPosition) {
       return;
     }
 
-    // Resolution-time re-validation, measured from the hander-off's actual
-    // final square — guards a forged/stale command (a networked guest, a
-    // replayed headless script) rather than trusting the declaration.
     if (!isLegalHandoffTarget(passer, target)) {
       eventBus.emit(
         GameEventNames.UI_Notification,
@@ -54,7 +35,6 @@ export class HandoffOperation extends GameOperation {
       return;
     }
 
-    // Trigger point: hand-off declared — Animosity may refuse it outright.
     const ctx: HandoffDeclaredContext = {
       player: passer,
       targetPlayer: target,
@@ -65,9 +45,9 @@ export class HandoffOperation extends GameOperation {
       triggers: [],
     };
     await foldTrigger("onHandoffDeclared", [passer], ctx);
-    ctx.triggers.forEach((t) =>
-      eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
+    ctx.triggers.forEach((t) => {
+      eventBus.emit(GameEventNames.SkillTriggered, t);
+    });
 
     if (ctx.refused) {
       eventBus.emit(
@@ -78,13 +58,8 @@ export class HandoffOperation extends GameOperation {
       return;
     }
 
-    // No roll, no scatter: the ball is simply placed in the target's hands.
     gameService.setBallPosition(target.gridPosition.x, target.gridPosition.y);
 
-    // The receiving Catch. A dropped hand-off bounces, and is judged once
-    // at rest by FinishPassActivationOperation, same as a pass. `accurate: true`
-    // marks a caught hand-off as a completion (match-stats' completions
-    // counter), same as a completed pass.
     flowManager.add(
       new CatchOperation(
         target.id,
@@ -94,10 +69,6 @@ export class HandoffOperation extends GameOperation {
       true
     );
 
-    // A Hand-off Action ends the activation once it settles. Give and Go
-    // keeps it open (so long as no Turnover was caused) — unconditionally
-    // for a Hand-off, unlike Give and Go's Quick-Pass-only exemption on a
-    // thrown Pass.
     const giveAndGoExempt = hasSkill(passer.skills, SkillType.GIVE_AND_GO);
     flowManager.add(
       new FinishPassActivationOperation(this.passerId, giveAndGoExempt)

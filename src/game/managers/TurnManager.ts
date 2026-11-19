@@ -3,12 +3,16 @@ import {
   whenMomentsComplete,
 } from "../presentation/momentQueue";
 import { realTimeDelay } from "../core/GameFlowManager";
-import { IEventBus } from "../../services/EventBus";
-import { GameState, GamePhase, SubPhase, TurnData } from "@/types/GameState";
-import { Team } from "@/types/Team";
+import { type IEventBus } from "../../services/EventBus";
+import {
+  type GameState,
+  GamePhase,
+  SubPhase,
+} from "@/types/GameState";
+import { type Team } from "@/types/Team";
 import { PlayerStatus } from "@/types/Player";
 import { ActivationValidator } from "../validators/ActivationValidator";
-import { AllEvents, GameEventNames } from "../../types/events";
+import { type AllEvents, GameEventNames } from "../../types/events";
 import { replenishTeamRerolls } from "../teamRerolls";
 import { undecided } from "../rules/extraTime";
 
@@ -17,65 +21,65 @@ export interface TurnManagerState {
   driveKickingTeamId: string | null;
   firstHalfKickingTeamId: string | null;
   turnoverInProgress: boolean;
-  /** Absent in saves made before Stunned players rolled over at turn end. */
+
   stunnedAtTurnStart?: string[];
 }
 
-/**
- * Who kicks off the next half: a known team, or, for Extra Time, whichever
- * team the winner of a roll-off chooses.
- */
 export type NextHalf = { kickingTeamId: string } | { rollOff: true };
 
-/** "Orc Founders' Turn", but "Skaven's Turn". */
 export function possessive(name: string): string {
   return /s$/i.test(name) ? `${name}'` : `${name}'s`;
 }
 
+interface TurnCallbacks {
+  onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
+
+  onHalfEnded?: (next: NextHalf) => void;
+
+  shootout?: () => Record<string, number>;
+
+  onTurnEnding?: (endingTeamId: string) => void;
+
+  betweenTurns?: (endingTeamId: string) => Promise<void> | null;
+}
+
 export class TurnManager {
   private handoverPending = false;
-  /** Between two turns, while a spell resolves: no Turnover can latch. */
+
   private betweenTurnsActive = false;
-  private maxTurns: number = 6; // Sevens default
-  private turnCounts: { [key: string]: number } = {};
+  private maxTurns = 6;
+  private turnCounts: Record<string, number> = {};
   private driveKickingTeamId: string | null = null;
   private firstHalfKickingTeamId: string | null = null;
-  private turnoverInProgress: boolean = false;
-  /** Active-team players who started this turn Stunned; they roll over at its end. */
+  private turnoverInProgress = false;
+
   private stunnedAtTurnStart: string[] = [];
   private activationValidator: ActivationValidator = new ActivationValidator();
 
+  private eventBus: IEventBus;
+  private state: GameState;
+  private team1: Team;
+  private team2: Team;
+  private callbacks: TurnCallbacks;
+  private delay: import("../core/GameFlowManager").DelayProvider;
   constructor(
-    private eventBus: IEventBus,
-    private state: GameState,
-    private team1: Team,
-    private team2: Team,
-    private callbacks: {
-      onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
-      /** Fired at halftime with who kicks off the next half */
-      onHalfEnded?: (next: NextHalf) => void;
-      /** A Penalty Shoot-out's roll-offs won, by team id. */
-      shootout?: () => Record<string, number>;
-      /** Fired as a turn ends, before the next begins (Pick-Me-Up). */
-      onTurnEnding?: (endingTeamId: string) => void;
-      /**
-       * Something to resolve between this turn and the next, such as a
-       * Sports-Wizard's spell; the next turn waits for it. Null for none.
-       */
-      betweenTurns?: (endingTeamId: string) => Promise<void> | null;
-    },
-    private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
+    eventBus: IEventBus,
+    state: GameState,
+    team1: Team,
+    team2: Team,
+    callbacks: TurnCallbacks,
+    delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
+    this.eventBus = eventBus;
+    this.state = state;
+    this.team1 = team1;
+    this.team2 = team2;
+    this.callbacks = callbacks;
+    this.delay = delay;
     this.turnCounts[team1.id] = 0;
     this.turnCounts[team2.id] = 0;
   }
 
-  /**
-   * Force both teams' per-turn counters to a given turn number. Used when a
-   * sandbox scenario begins mid-drive so the match tracker shows that turn
-   * instead of Turn 0. A live game never calls this — startTurn drives the
-   * counts — so it does not disturb normal turn counting or halftime.
-   */
   public seedTurnCounts(turnNumber: number): void {
     this.turnCounts[this.team1.id] = turnNumber;
     this.turnCounts[this.team2.id] = turnNumber;
@@ -109,18 +113,14 @@ export class TurnManager {
       this.firstHalfKickingTeamId = kickingTeamId;
     }
 
-    // Determine who goes first (Receiving team)
     const receivingTeamId =
       kickingTeamId === this.team1.id ? this.team2.id : this.team1.id;
 
     this.state.subPhase = SubPhase.TURN_RECEIVING;
     this.state.activeTeamId = receivingTeamId;
 
-    // Ensure all players on pitch are ACTIVE
     const activatePlayers = (team: Team) => {
       team.players.forEach((p) => {
-        // Setup players enter as Reserves; activate those, but preserve any
-        // Prone/Stunned result inflicted by the kickoff event.
         if (p.gridPosition && p.status === PlayerStatus.RESERVE) {
           p.status = PlayerStatus.ACTIVE;
         } else if (!p.status) {
@@ -139,8 +139,7 @@ export class TurnManager {
   public startTurn(teamId: string): void {
     this.state.phase = GamePhase.PLAY;
     this.state.activeTeamId = teamId;
-    // A fresh turn always clears any stale turnover latch, and any
-    // activation a turnover cut short: it belonged to the previous turn.
+
     this.turnoverInProgress = false;
     this.state.activePlayer = null;
 
@@ -151,10 +150,8 @@ export class TurnManager {
           : SubPhase.TURN_RECEIVING;
     }
 
-    // Emit phase changed for sub-phase update
     this.callbacks.onPhaseChanged(GamePhase.PLAY, this.state.subPhase);
 
-    // Increment turn count for this team
     this.turnCounts[teamId] = (this.turnCounts[teamId] || 0) + 1;
     const currentTurn = this.turnCounts[teamId];
 
@@ -174,14 +171,12 @@ export class TurnManager {
       movementUsed: new Map(),
     };
 
-    // A player who starts the turn Stunned cannot be activated
-    // (ActivationValidator) and rolls over at the end of it (endTurn).
     const activeTeam = teamId === this.team1.id ? this.team1 : this.team2;
     this.stunnedAtTurnStart = activeTeam.players
       .filter((p) => p.status === PlayerStatus.STUNNED && p.gridPosition)
       .map((p) => p.id);
 
-    this.eventBus.emit(GameEventNames.TurnStarted, this.state.turn as TurnData);
+    this.eventBus.emit(GameEventNames.TurnStarted, this.state.turn);
 
     this.announceTurnStart(activeTeam.name, currentTurn);
   }
@@ -190,16 +185,13 @@ export class TurnManager {
     this.eventBus.emit(GameEventNames.UI_Announce, {
       kind: "turn-started",
       headline: `${possessive(teamName)} Turn`,
-      subtitle: `Turn ${turnNumber}`,
+      subtitle: `Turn ${String(turnNumber)}`,
     });
   }
 
   public endTurn(): void {
-    // A latched turnover ends the turn itself, through completeTurnover.
     if (this.handoverPending || this.turnoverInProgress) return;
-    // The hand-over waits for the moments on screen. Headless there are
-    // none, and the turn ends at once; either way the engine reaches the
-    // same state, so lockstep stays deterministic.
+
     if (hasPendingMoments(this.eventBus)) {
       this.handoverPending = true;
       const turn = this.state.turn;
@@ -213,9 +205,6 @@ export class TurnManager {
     const currentTeamId = this.state.activeTeamId;
     if (!currentTeamId) return;
 
-    // "At the end of each team's turn, any players on their team that
-    // started that turn Stunned will automatically roll over and become
-    // Prone" (2025 rulebook, Stunned). Stunned mid-turn waits a turn.
     const endingTeam =
       currentTeamId === this.team1.id ? this.team1 : this.team2;
     for (const player of endingTeam.players) {
@@ -231,13 +220,10 @@ export class TurnManager {
     this.stunnedAtTurnStart = [];
     this.eventBus.emit(GameEventNames.TurnEnded, { teamId: currentTeamId });
 
-    // Fires before the next turn starts, so its effects (Pick-Me-Up
-    // stand-ups) are in place when that turn begins
     this.callbacks.onTurnEnding?.(currentTeamId);
 
     const between = this.callbacks.betweenTurns?.(currentTeamId);
     if (between) {
-      // Nothing between turns is a Turnover: no team is taking its turn
       this.handoverPending = true;
       this.betweenTurnsActive = true;
       const turn = this.state.turn;
@@ -253,8 +239,6 @@ export class TurnManager {
   }
 
   private beginNextTurn(currentTeamId: string): void {
-    // Play alternates, but a team that has used all its turns never gets
-    // another: the other team plays on, and the half ends once both are out.
     const otherTeamId =
       currentTeamId === this.team1.id ? this.team2.id : this.team1.id;
     const nextTeamId = [otherTeamId, currentTeamId].find(
@@ -268,11 +252,6 @@ export class TurnManager {
     this.startTurn(nextTeamId);
   }
 
-  /**
-   * A team that scores during its opponent's Turn skips its next Turn
-   * celebrating (2025 rulebook, "Scoring during your opponent's Turn"):
-   * its Turn Marker moves on without the Turn being played.
-   */
   public skipNextTurn(teamId: string): void {
     this.turnCounts[teamId] = Math.min(
       this.maxTurns,
@@ -280,7 +259,6 @@ export class TurnManager {
     );
   }
 
-  /** Both teams have used every turn of the current half. */
   public isHalfExhausted(): boolean {
     return (
       (this.turnCounts[this.team1.id] ?? 0) >= this.maxTurns &&
@@ -288,20 +266,7 @@ export class TurnManager {
     );
   }
 
-  /**
-   * Cross the half boundary without going through endTurn: swap the kickoff
-   * (first-half receiver kicks), reset the turn counts and announce
-   * HALFTIME. Returns who kicks the next half, or null when the match is
-   * finished.
-   *
-   * A knockout game level after the second half goes to Extra Time, and
-   * one still level after that is settled on Penalties before full time.
-   *
-   * Split out of endHalf so a touchdown scored with no turns left can end
-   * the half in place, rather than kicking off a further drive in it.
-   */
   public beginNextHalf(): NextHalf | null {
-    // A conceded game is over whatever the score
     const undecidedGame =
       !this.state.result && undecided(this.state, this.team1, this.team2);
     if (this.state.turn.isHalf2 && undecidedGame && !this.state.turn.extraTime)
@@ -333,7 +298,6 @@ export class TurnManager {
     };
   }
 
-  /** Extra Time: a fresh set of turns, but no fresh Team Re-rolls. */
   private beginExtraTime(): NextHalf {
     this.state.turn.extraTime = true;
     this.turnCounts[this.team1.id] = 0;
@@ -345,7 +309,7 @@ export class TurnManager {
   private announceBreak(headline: string): void {
     this.state.phase = GamePhase.HALFTIME;
     this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
-    const score = `${this.team1.name} ${this.state.score?.[this.team1.id] ?? 0} : ${this.state.score?.[this.team2.id] ?? 0} ${this.team2.name}`;
+    const score = `${this.team1.name} ${String(this.state.score?.[this.team1.id] ?? 0)} : ${String(this.state.score?.[this.team2.id] ?? 0)} ${this.team2.name}`;
     this.eventBus.emit(GameEventNames.UI_LogEntry, {
       category: "drive",
       headline,
@@ -360,20 +324,18 @@ export class TurnManager {
 
   public endHalf(): void {
     const next = this.beginNextHalf();
-    // Halftime runs a fresh setup for the next half; full time does not.
+
     if (next) this.callbacks.onHalfEnded?.(next);
   }
 
   public finishActivation(playerId: string): void {
     if (this.state.phase !== GamePhase.PLAY) return;
 
-    // Mark as used
     if (!this.state.turn.activatedPlayerIds.has(playerId)) {
       this.state.turn.activatedPlayerIds.add(playerId);
-      this.eventBus.emit(GameEventNames.PlayerActivated, playerId); // UI updates visuals
+      this.eventBus.emit(GameEventNames.PlayerActivated, playerId);
     }
 
-    // Check if any actions remain
     const activeTeam =
       this.state.activeTeamId === this.team1.id ? this.team1 : this.team2;
     const hasActions = this.activationValidator.hasAvailablePlayers(
@@ -382,8 +344,6 @@ export class TurnManager {
     );
 
     if (!hasActions) {
-      // The coach may press End Turn inside the delay; ending again then
-      // would skip the opponent's whole turn.
       const turn = this.state.turn;
       this.delay(500).then(() => {
         if (this.state.turn === turn && this.state.phase === GamePhase.PLAY)
@@ -392,19 +352,9 @@ export class TurnManager {
     }
   }
 
-  /**
-   * Latch a turnover. Only the FIRST turnover during a resolution counts —
-   * secondary failures while the ball settles (a bounce hitting a player who
-   * drops it, etc.) must not stack extra end-of-turn calls, or the turn
-   * flips twice and hands play straight back to the offending team.
-   *
-   * Returns the turnover banner if this call latched the turnover, or null.
-   * The caller raises the banner once the fall's dice are thrown, and ends
-   * the turn via completeTurnover once the ball is at rest.
-   */
   public checkTurnover(
     reason: string
-  ): AllEvents[GameEventNames.UI_Turnover] | null {
+  ): AllEvents[typeof GameEventNames.UI_Turnover] | null {
     if (this.betweenTurnsActive) return null;
     if (this.turnoverInProgress) {
       console.log(
@@ -421,11 +371,12 @@ export class TurnManager {
       player?.playerName ??
       (this.state.activeTeamId === this.team1.id ? this.team1 : this.team2)
         .name;
+    const activeTeamId = this.state.activeTeamId;
     this.eventBus.emit(GameEventNames.UI_LogEntry, {
       category: "action",
       headline: "TURNOVER",
       detail: `${who}: ${reason}`,
-      teamId: this.state.activeTeamId ?? undefined,
+      ...(activeTeamId != null ? { teamId: activeTeamId } : {}),
     });
     this.eventBus.emit(GameEventNames.Turnover, {
       teamId: this.state.activeTeamId || "",
@@ -433,42 +384,30 @@ export class TurnManager {
     return {
       teamId: this.state.activeTeamId || "",
       reason,
-      playerName: player?.playerName,
+      ...(player ? { playerName: player.playerName } : {}),
     };
   }
 
-  /**
-   * Finish a latched turnover: ends the turn exactly once. No-op if the
-   * turn already ended some other way (e.g. the coach pressed End Turn).
-   */
   public completeTurnover(): void {
     if (!this.turnoverInProgress) return;
     this.turnoverInProgress = false;
-    // A bounce caught for a touchdown has already ended the turn and begun
-    // the next drive; ending the turn again would put the set-up into play.
+
     if (this.state.phase !== GamePhase.PLAY) return;
     this.endTurn();
   }
 
-  /** True while a turnover has been latched and its resolution is settling. */
   public isTurnoverInProgress(): boolean {
     return this.turnoverInProgress;
   }
 
-  // Helpers
   public getTurnNumber(teamId: string): number {
     return this.turnCounts[teamId] || 0;
   }
 
-  /** Turns this team has still to play in the current half. */
   public turnsLeft(teamId: string): number {
     return Math.max(0, this.maxTurns - this.getTurnNumber(teamId));
   }
 
-  /**
-   * Time-Out (kickoff 3): move both teams' turn markers, clamped to the
-   * half's bounds — a marker never goes below 0 or past the last turn.
-   */
   public moveTurnMarkers(delta: number): void {
     for (const teamId of [this.team1.id, this.team2.id]) {
       const current = this.turnCounts[teamId] || 0;
@@ -487,7 +426,6 @@ export class TurnManager {
     this.driveKickingTeamId = null;
   }
 
-  /** True once the first drive has kicked off — the coin flip window is over. */
   public hasGameStarted(): boolean {
     return this.firstHalfKickingTeamId !== null;
   }

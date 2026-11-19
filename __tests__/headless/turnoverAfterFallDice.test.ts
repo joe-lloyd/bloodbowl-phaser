@@ -1,16 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import type { CommandResponse } from "../../src/headless/protocol";
 import { forceDice } from "../utils/test-helpers";
 
-/**
- * Round 2, 12:55: the turnover banner came before the fall's armour and
- * injury dice, which then played out under it and held up the hand-over.
- * The banner is raised once the fall is resolved, after its dice.
- */
 const scenario: Scenario = {
   id: "turnover-after-fall-dice",
   name: "Turnover after the fall's dice",
@@ -37,13 +33,17 @@ it("raises the turnover banner after the armour and injury dice", async () => {
   game.ctx.eventBus.on(GameEventNames.UI_Announce, (moment) =>
     seen.push(`announce: ${moment.kind}`)
   );
-  // The Rush fails on a 1; armour 6 + 6 breaks; injury 1 + 2 stuns.
+
   forceDice(game.ctx.rng, [1, 6, 6, 1, 2]);
   const mover = game.ctx.team1.players[0];
-  await game.execute({ type: "declare-action", playerId: mover.id, action: "move" });
+  await game.execute({
+    type: "declare-action",
+    playerId: fixtureValue(mover).id,
+    action: "move",
+  });
   let response: CommandResponse = await game.execute({
     type: "move",
-    playerId: mover.id,
+    playerId: fixtureValue(mover).id,
     path: [
       { x: 4, y: 7 },
       { x: 5, y: 7 },

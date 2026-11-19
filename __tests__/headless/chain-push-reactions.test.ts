@@ -1,19 +1,16 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
-import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
+import type {
+  CommandResponse,
+  EmittedEvent,
+} from "../../src/headless/protocol";
 
-/**
- * Stand Firm (p.136) applies "including during a Chain Push", and Sidestep
- * (p.135) "whenever this player is Pushed Back for any reason". Both used to
- * be offered only to the player the Block targeted. Seeds are committed,
- * never searched; each test asserts its dice first.
- */
-
-/** The defender at (10,5) is boxed in; (11,5) holds the chain-pushed player. */
 function scenario(chained: SkillType): Scenario {
   return {
     id: `chain-push-${chained}`,
@@ -38,9 +35,8 @@ function scenario(chained: SkillType): Scenario {
   };
 }
 
-/** One block die, a Push. */
 const PUSH_SEED = 1;
-/** One block die, a POW; armour 2+2 holds. */
+
 const POW_SEED = 2;
 
 async function chainInto(chained: SkillType, seed: number) {
@@ -54,14 +50,24 @@ async function chainInto(chained: SkillType, seed: number) {
   const attacker = game.ctx.team1.players[0];
   const defender = game.ctx.team2.players[0];
   const chainedPlayer = game.ctx.team2.players[2];
-  await run({ type: "declare-action", playerId: attacker.id, action: "block" });
-  await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+  await run({
+    type: "declare-action",
+    playerId: fixtureValue(attacker).id,
+    action: "block",
+  });
+  await run({
+    type: "block",
+    attackerId: fixtureValue(attacker).id,
+    defenderId: fixtureValue(defender).id,
+  });
   await run({ type: "choose-block-result", index: 0 });
   const reaction = await run({ type: "choose-push-direction", x: 11, y: 5 });
   const dice = () =>
     events
       .filter((e) => e.name === "diceRoll")
-      .map((e) => (e.data as { description: string }).description);
+      .map(
+        (e) => z.object({ description: z.string() }).parse(e.data).description
+      );
   return { game, run, dice, reaction, attacker, defender, chainedPlayer };
 }
 
@@ -71,7 +77,7 @@ describe("a chain-pushed Stand Firm player", () => {
       await chainInto(SkillType.STAND_FIRM, PUSH_SEED);
     expect(reaction.pendingDecision).toMatchObject({
       type: "reaction",
-      playerId: chainedPlayer.id,
+      playerId: fixtureValue(chainedPlayer).id,
       skill: SkillType.STAND_FIRM,
     });
 
@@ -79,9 +85,9 @@ describe("a chain-pushed Stand Firm player", () => {
 
     expect(dice()).toEqual(["Rolled 1 block dice: push"]);
     expect(response.pendingDecision).toBeNull();
-    expect(defender.gridPosition).toEqual({ x: 10, y: 5 });
-    expect(chainedPlayer.gridPosition).toEqual({ x: 11, y: 5 });
-    expect(attacker.gridPosition).toEqual({ x: 9, y: 5 });
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 10, y: 5 });
+    expect(fixtureValue(chainedPlayer).gridPosition).toEqual({ x: 11, y: 5 });
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 9, y: 5 });
     expect(response.snapshot.activePlayer).toBeNull();
   });
 
@@ -97,9 +103,9 @@ describe("a chain-pushed Stand Firm player", () => {
       "Rolled 1 block dice: pow",
       "Armour Roll (Human Lineman #1): 2 + 2 = 4",
     ]);
-    expect(defender.gridPosition).toEqual({ x: 10, y: 5 });
-    expect(defender.status).toBe(PlayerStatus.PRONE);
-    expect(chainedPlayer.gridPosition).toEqual({ x: 11, y: 5 });
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 10, y: 5 });
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(chainedPlayer).gridPosition).toEqual({ x: 11, y: 5 });
   });
 
   it("is pushed as normal when they decline", async () => {
@@ -112,10 +118,10 @@ describe("a chain-pushed Stand Firm player", () => {
 
     expect(response.pendingDecision).toMatchObject({
       type: "push-direction",
-      defenderId: chainedPlayer.id,
+      defenderId: fixtureValue(chainedPlayer).id,
       chooserTeamId: "team1",
     });
-    expect(defender.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 10, y: 5 });
   });
 });
 
@@ -127,7 +133,7 @@ describe("a chain-pushed Sidestep player", () => {
     );
     expect(reaction.pendingDecision).toMatchObject({
       type: "reaction",
-      playerId: chainedPlayer.id,
+      playerId: fixtureValue(chainedPlayer).id,
       skill: SkillType.SIDESTEP,
     });
 
@@ -135,12 +141,12 @@ describe("a chain-pushed Sidestep player", () => {
 
     expect(response.pendingDecision).toMatchObject({
       type: "push-direction",
-      defenderId: chainedPlayer.id,
+      defenderId: fixtureValue(chainedPlayer).id,
       chooserTeamId: "team2",
     });
-    const options = (
-      response.pendingDecision as { options: { x: number; y: number }[] }
-    ).options;
+    const options = z
+      .object({ options: z.object({ x: z.number(), y: z.number() }).array() })
+      .parse(response.pendingDecision).options;
     expect(options).toHaveLength(5);
     expect(options).toEqual(
       expect.arrayContaining([

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { soundSettings, SoundSettings } from "./settings";
+import { soundSettings, type SoundSettings } from "./settings";
 
 export function useSoundSettings(): SoundSettings & {
   setMuted: (muted: boolean) => void;
@@ -11,7 +11,11 @@ export function useSoundSettings(): SoundSettings & {
 
   return {
     ...settings,
-    setMuted: (muted: boolean) => soundSettings.setMuted(muted),
-    setVolume: (volume: number) => soundSettings.setVolume(volume),
+    setMuted: (muted: boolean) => {
+      soundSettings.setMuted(muted);
+    },
+    setVolume: (volume: number) => {
+      soundSettings.setVolume(volume);
+    },
   };
 }

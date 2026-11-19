@@ -1,21 +1,22 @@
-import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService.js";
-import { Player, PlayerStatus } from "../../types/Player.js";
-import { CasualtyType, InjuryResult } from "../controllers/InjuryController.js";
+import { type IGameService } from "../../services/interfaces/IGameService.js";
+import { type Player, PlayerStatus } from "../../types/Player.js";
+import {
+  type CasualtyType,
+  InjuryResult,
+} from "../controllers/InjuryController.js";
 import { CasualtyOperation } from "./CasualtyOperation.js";
-import { CasualtyCause } from "../rules/plagueRidden";
+import { type CasualtyCause } from "../rules/plagueRidden";
 import { movePlayerToBox } from "../rules/playerLocation";
-import { foldTrigger, InjuryRollContext } from "../skills";
+import { foldTrigger, type InjuryRollContext } from "../skills";
 import { offerApothecary } from "../inducements/apothecary";
 import { isFrog } from "../inducements/matchInducements";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
+import {
+  type InjuryParties,
+  InjuryPartiesOperation,
+} from "./injuryParties";
 
-/**
- * Fold the rules' declared effects on an Injury Roll (table switch, KO
- * downgrade), then resolve them together, so stacked skills stay
- * independent. Blocks, fouls and the crowd all go through here.
- */
 export async function resolveInjuryRoll(
   context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,
   player: Player,
@@ -28,7 +29,7 @@ export async function resolveInjuryRoll(
   const total = roll + modifier;
   const ctx: InjuryRollContext = {
     player,
-    causedBy,
+    ...(causedBy === undefined ? {} : { causedBy: causedBy }),
     roll,
     modifier,
     table: "standard",
@@ -54,23 +55,12 @@ export async function resolveInjuryRoll(
     ctx.result = InjuryResult.STUNNED;
     ctx.triggers.push(ctx.koDowngrade);
   }
-  ctx.triggers.forEach((t) => eventBus.emit(GameEventNames.SkillTriggered, t));
+  ctx.triggers.forEach((t) => {
+    eventBus.emit(GameEventNames.SkillTriggered, t);
+  });
   return ctx;
 }
 
-/**
- * InjuryOperation
- *
- * Responsibility:
- * - Execute Injury Roll (2D6), applying any carried modifier (Mighty Blow)
- * - Fold skill rules that adjust the result (Thick Skull)
- * - Update Player Status (STUNNED, KO, or a Casualty)
- * - On a Casualty, trigger CasualtyOperation with the table's result
- */
-/**
- * The result the player suffers, for InjuryRolled: Zap! turns any
- * casualty into Badly Hurt, as CasualtyOperation applies it.
- */
 export function reportedInjury(
   gameService: IGameService,
   playerId: string,
@@ -89,53 +79,61 @@ function isCasualty(result: InjuryResult): result is CasualtyType {
   );
 }
 
-export class InjuryOperation extends GameOperation {
+export class InjuryOperation extends InjuryPartiesOperation {
   public readonly name = "InjuryOperation";
 
+  private opts: {
+    modifier?: number;
+    causedById?: string;
+
+    cause?: CasualtyCause;
+
+    roll?: number;
+
+    casualtyIsBadlyHurt?: boolean;
+
+    stunnedIsKnockedOut?: boolean;
+
+    stunnedToReserves?: boolean;
+  };
   constructor(
-    private playerId: string,
-    private opts: {
+    playerId: string,
+    opts: {
       modifier?: number;
       causedById?: string;
-      /** What inflicted the injury — "block" arms Plague Ridden downstream. */
+
       cause?: CasualtyCause;
-      /** Natural 2D6 total the caller already rolled (a Foul reads its doubles). */
+
       roll?: number;
-      /** Any Casualty is Badly Hurt (a Bloodlust bite). */
+
       casualtyIsBadlyHurt?: boolean;
-      /** Stunned counts as Knocked-out (Ball & Chain, on the pitch). */
+
       stunnedIsKnockedOut?: boolean;
-      /** Off the pitch: the caller sends a Stunned player to the Reserves. */
+
       stunnedToReserves?: boolean;
     } = {}
   ) {
-    super();
+    super(playerId, opts.causedById);
+    this.opts = opts;
   }
 
-  async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
-    const eventBus =
-      context.eventBus as import("../../services/EventBus").IEventBus;
-
-    const player = gameService.getPlayerById(this.playerId);
-    if (!player) return;
-    const causedBy = this.opts.causedById
-      ? gameService.getPlayerById(this.opts.causedById)
-      : undefined;
+  protected async resolve(
+    context: FlowContext,
+    { player, causedBy }: InjuryParties
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
 
     eventBus.emit(
       GameEventNames.UI_Notification,
       `Injury Roll for ${player.playerName}`
     );
 
-    // 1. Roll 2D6 via DiceController, unless the caller already rolled
     const roll =
       this.opts.roll ??
       gameService
         .getDiceController()
         .roll2D6(`Injury Roll (${player.playerName})`, player.teamId);
 
-    // 2. Fold the rules that act on the roll
     const ctx = await resolveInjuryRoll(
       context,
       player,
@@ -144,33 +142,24 @@ export class InjuryOperation extends GameOperation {
       causedBy
     );
 
-    // 3. Apply status
     ctx.result = this.overridden(ctx.result);
     this.report(gameService, eventBus, player, ctx.result);
     switch (ctx.result) {
       case InjuryResult.STUNNED:
         eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
         player.status = PlayerStatus.STUNNED;
-        // Announce it now: a Bloodlust bite reaches this roll with no Knock
-        // Down before it, so without this the board would leave the player
-        // standing until some later full refresh.
+
         eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         break;
       case InjuryResult.KO: {
         eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-        // An owned, unused Apothecary gets first say: offer a patch-up
-        // before the player leaves the pitch. Declining (or having none)
-        // falls through to the normal move below.
+
         const patchedUp = await offerApothecary(gameService, eventBus, player, {
           resultKind: "ko",
           location: "pitch",
-          position: player.gridPosition,
+          ...(player.gridPosition ? { position: player.gridPosition } : {}),
         });
         if (!patchedUp) {
-          // A Knocked Out player leaves the pitch as part of THIS resolution:
-          // status, pitch occupancy and the board announcement move together,
-          // so later pathing/marking/target selection immediately treat the
-          // square as empty and the player appears once, in the KO box.
           movePlayerToBox(player, { box: "ko" }, eventBus);
         }
         break;
@@ -181,12 +170,8 @@ export class InjuryOperation extends GameOperation {
         this.casualty(context, player, ctx.result);
         break;
     }
-
-    // Emit status change event (if exists) or just generic update
-    // Assuming service or managers handle the actual removal from pitch if status is KO/INJURED
   }
 
-  /** The caller's overrides: Ball & Chain's Stun, a Bloodlust bite's casualty. */
   private overridden(result: InjuryResult): InjuryResult {
     if (this.opts.stunnedIsKnockedOut && result === InjuryResult.STUNNED) {
       return InjuryResult.KO;
@@ -197,7 +182,6 @@ export class InjuryOperation extends GameOperation {
     return result;
   }
 
-  /** Tell the HUD's roll banner what the player suffers. */
   private report(
     gameService: IGameService,
     eventBus: FlowContext["eventBus"],
@@ -213,7 +197,6 @@ export class InjuryOperation extends GameOperation {
     });
   }
 
-  /** A Casualty leaves the pitch now; its Casualty Roll is queued next. */
   private casualty(
     context: FlowContext,
     player: Player,
@@ -223,7 +206,9 @@ export class InjuryOperation extends GameOperation {
     eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
     player.status = PlayerStatus.INJURED;
     eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
-      causerId: this.opts.causedById,
+      ...(this.opts.causedById !== undefined
+        ? { causerId: this.opts.causedById }
+        : {}),
       victimId: player.id,
       cause: this.opts.cause ?? "special",
       sppEligible:
@@ -231,7 +216,7 @@ export class InjuryOperation extends GameOperation {
         !!this.opts.causedById &&
         this.opts.causedById !== player.id,
     });
-    // Trigger Casualty Operation
+
     flowManager.add(
       new CasualtyOperation(
         this.playerId,

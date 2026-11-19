@@ -1,11 +1,6 @@
-/**
- * Setup scenario cases, mirroring `__tests__/headless/sevens-setup.test.ts`:
- * placements can be edited before confirming, and a whole team can be placed
- * in one formation command.
- */
-
+import { fixtureValue } from "../fixtureValue";
 import { GamePhase, SubPhase } from "../../types/GameState";
-import { ScenarioCase, step } from "../scenarioCase/types";
+import { type ScenarioCase, step } from "../scenarioCase/types";
 import { GameEventNames } from "../../types/events";
 import {
   stepAccepted,
@@ -16,10 +11,6 @@ import {
   teamIsSetUp,
 } from "./helpers";
 
-/**
- * Setup is editable until it is confirmed: a coach places, swaps two
- * players, removes one, and places again.
- */
 const setupAdjustments: ScenarioCase = {
   id: "match-setup-adjustments",
   name: "Adjusting a setup before confirming",
@@ -41,12 +32,12 @@ const setupAdjustments: ScenarioCase = {
   },
   steps: [
     ...placeSeven("team1"),
-    // Swap two placed players: both keep a square, but not their own.
+
     step(
       { type: "swap-players", player1Id: "team1:0", player2Id: "team1:6" },
       "swap the front and back players"
     ),
-    // Remove one and put them somewhere else.
+
     step({ type: "remove-player", playerId: "team1:3" }, "take one off again"),
     step(
       { type: "place-player", playerId: "team1:3", x: 4, y: 8 },
@@ -74,18 +65,18 @@ const setupAdjustments: ScenarioCase = {
       layers: ["engine"],
       assert(observed) {
         const squares = setupSquares("team1");
-        const players = observed.snapshot.teams[0].players;
-        const first = players[0].position;
-        const last = players[6].position;
+        const players = fixtureValue(observed.snapshot.teams[0]).players;
+        const first = fixtureValue(players[0]).position;
+        const last = fixtureValue(players[6]).position;
         checkpointAssert(
-          first?.x === squares[6].x && first?.y === squares[6].y,
-          `team1:0 should have taken team1:6's square (${squares[6].x},${squares[6].y}), ` +
-            `but is at ${first ? `(${first.x},${first.y})` : "nowhere"}`
+          first?.x === fixtureValue(squares[6]).x && first?.y === fixtureValue(squares[6]).y,
+          `team1:0 should have taken team1:6's square (${String(fixtureValue(squares[6]).x)},${String(fixtureValue(squares[6]).y)}), ` +
+            `but is at ${first ? `(${String(first.x)},${String(first.y)})` : "nowhere"}`
         );
         checkpointAssert(
-          last?.x === squares[0].x && last?.y === squares[0].y,
-          `team1:6 should have taken team1:0's square (${squares[0].x},${squares[0].y}), ` +
-            `but is at ${last ? `(${last.x},${last.y})` : "nowhere"}`
+          last?.x === fixtureValue(squares[0]).x && last?.y === fixtureValue(squares[0]).y,
+          `team1:6 should have taken team1:0's square (${String(fixtureValue(squares[0]).x)},${String(fixtureValue(squares[0]).y)}), ` +
+            `but is at ${last ? `(${String(last.x)},${String(last.y)})` : "nowhere"}`
         );
       },
     },
@@ -94,22 +85,19 @@ const setupAdjustments: ScenarioCase = {
       description: "the removed player was re-placed on the new square",
       layers: ["engine"],
       assert(observed) {
-        const player = observed.snapshot.teams[0].players[3];
+        const player = fixtureValue(observed.snapshot.teams[0]).players[3];
         checkpointAssert(
-          player.position?.x === 4 && player.position?.y === 8,
+          fixtureValue(player).position?.x === 4 && fixtureValue(player).position?.y === 8,
           `team1:3 should have been re-placed on (4,8), but is at ` +
-            `${player.position ? `(${player.position.x},${player.position.y})` : "nowhere"}`
+            (fixtureValue(player).position
+              ? `(${String(fixtureValue(fixtureValue(player).position).x)},${String(fixtureValue(fixtureValue(player).position).y)})`
+              : "nowhere")
         );
       },
     },
   ],
 };
 
-/**
- * A whole team placed in one command, then confirmed. `apply-formation` is
- * what the UI's formation presets use, so it is a real coach action rather
- * than a shortcut.
- */
 const applyFormation: ScenarioCase = {
   id: "match-apply-formation",
   name: "Setting up from a formation",
@@ -131,7 +119,7 @@ const applyFormation: ScenarioCase = {
         type: "apply-formation",
         teamId: "team1",
         formation: setupSquares("team1").map((square, index) => ({
-          playerId: `team1:${index}`,
+          playerId: `team1:${String(index)}`,
           x: square.x,
           y: square.y,
         })),
@@ -154,11 +142,6 @@ const applyFormation: ScenarioCase = {
   checkpoints: [stepAccepted(0), teamIsSetUp("team1")],
 };
 
-/**
- * The opening weather waits for both coaches: one coach ready rolls
- * nothing, readying twice changes nothing, and the second coach rolls the
- * 2D6 once. After that the weather cannot be readied again.
- */
 const weatherReadyUp: ScenarioCase = {
   id: "opening-weather-ready-up",
   name: "Both coaches ready up for the weather",
@@ -208,7 +191,7 @@ const weatherReadyUp: ScenarioCase = {
         );
         checkpointAssert(
           rolls.length === 1,
-          `the weather must be rolled once, rolled ${rolls.length} times`
+          `the weather must be rolled once, rolled ${String(rolls.length)} times`
         );
         checkpointAssert(
           observed.snapshot.weatherReady?.join() === "team1,team2",

@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -5,11 +6,6 @@ import { SkillType } from "../../src/types/Skills";
 import { PlayerStatus } from "../../src/types/Player";
 import { forceDice } from "../utils/test-helpers";
 
-/**
- * Diving Tackle places the diver in the square the dodger left. While a
- * re-roll for the dodger's Steady Footing is still open, the dodger must
- * already stand in the square it dodged into, not share the diver's.
- */
 describe("Diving Tackle", () => {
   it("never leaves the diver and the dodger on one square", async () => {
     const game = new HeadlessGame({
@@ -35,17 +31,17 @@ describe("Diving Tackle", () => {
     game.ctx.team1.rerolls = 1;
     const dodger = game.ctx.team1.players[0];
     const diver = game.ctx.team2.players[0];
-    // Dodge 4 (passes 3+, fails after the dive's -2), Steady Footing 1
+
     forceDice(game.ctx.rng, [4, 1]);
 
     await game.execute({
       type: "declare-action",
-      playerId: dodger.id,
+      playerId: fixtureValue(dodger).id,
       action: "move",
     });
     const dodged = await game.execute({
       type: "move",
-      playerId: dodger.id,
+      playerId: fixtureValue(dodger).id,
       path: [{ x: 4, y: 4 }],
     });
     expect(dodged.pendingDecision?.type).toBe("reaction");
@@ -55,8 +51,8 @@ describe("Diving Tackle", () => {
       type: "reroll",
       rollKind: "steady-footing",
     });
-    expect(diver.gridPosition).toEqual({ x: 5, y: 5 });
-    expect(dodger.gridPosition).toEqual({ x: 4, y: 4 });
+    expect(fixtureValue(diver).gridPosition).toEqual({ x: 5, y: 5 });
+    expect(fixtureValue(dodger).gridPosition).toEqual({ x: 4, y: 4 });
   });
 
   it("never leaves the diver and a jumper on one square", async () => {
@@ -84,17 +80,17 @@ describe("Diving Tackle", () => {
     game.ctx.team1.rerolls = 1;
     const jumper = game.ctx.team1.players[0];
     const diver = game.ctx.team2.players[0];
-    // Jump 5 (passes 4+, fails after the dive's -2), Steady Footing 1
+
     forceDice(game.ctx.rng, [5, 1]);
 
     await game.execute({
       type: "declare-action",
-      playerId: jumper.id,
+      playerId: fixtureValue(jumper).id,
       action: "move",
     });
     const jumped = await game.execute({
       type: "jump",
-      playerId: jumper.id,
+      playerId: fixtureValue(jumper).id,
       x: 7,
       y: 5,
     });
@@ -105,7 +101,7 @@ describe("Diving Tackle", () => {
       type: "reroll",
       rollKind: "steady-footing",
     });
-    expect(diver.gridPosition).toEqual({ x: 5, y: 5 });
-    expect(jumper.gridPosition).toEqual({ x: 7, y: 5 });
+    expect(fixtureValue(diver).gridPosition).toEqual({ x: 5, y: 5 });
+    expect(fixtureValue(jumper).gridPosition).toEqual({ x: 7, y: 5 });
   });
 });

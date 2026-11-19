@@ -1,7 +1,3 @@
-/**
- * A caught pass shows its catch roll in the dice log, after the pass roll,
- * once the catch die has landed.
- */
 import { test, expect } from "@playwright/test";
 import {
   sampleCamera,

@@ -66,7 +66,9 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
             type="checkbox"
             className="hud-check"
             checked={settings.muted}
-            onChange={(e) => settings.setMuted(e.target.checked)}
+            onChange={(e) => {
+              settings.setMuted(e.target.checked);
+            }}
           />
           Mute all sound effects
         </label>
@@ -78,13 +80,15 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
             max={1}
             step={0.05}
             value={settings.volume}
-            onChange={(e) => settings.setVolume(Number(e.target.value))}
+            onChange={(e) => {
+              settings.setVolume(Number(e.target.value));
+            }}
             className="w-full max-w-md accent-hud-gold"
           />
         </label>
         <p className="font-hud-body text-hud-sm text-hud-dim">
-          Persisted to localStorage; applied live to every suite sound
-          below, including sound already playing.
+          Persisted to localStorage; applied live to every suite sound below,
+          including sound already playing.
         </p>
         <div>
           <HudButton variant="danger" onClick={handleStop}>
@@ -94,7 +98,7 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
       </Section>
 
       <Section
-        title={`Interaction Sound Catalog (${CATALOG_ENTRIES.length})`}
+        title={`Interaction Sound Catalog (${String(CATALOG_ENTRIES.length)})`}
       >
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {CATALOG_ENTRIES.map((sound) => (
@@ -113,7 +117,9 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
               <HudButton
                 size="sm"
                 className="shrink-0"
-                onClick={() => handlePlaySound(sound.name)}
+                onClick={() => {
+                  handlePlaySound(sound.name);
+                }}
               >
                 Play
               </HudButton>

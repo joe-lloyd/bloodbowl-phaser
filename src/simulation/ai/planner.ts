@@ -1,42 +1,43 @@
-/**
- * The computer coach, v1: a risk-ordered turn planner behind the `Coach`
- * seam. Each decision it re-reads the board, lists whole activations in
- * Bot Bowl's safe-first order and picks the candidate that carries out the
- * best one. Setup, the kick and anything it has no plan for fall back to
- * the heuristic coach.
- */
-
-import { HeadlessCommand } from "../../headless/protocol";
+import { type FieldPlayer as Player } from "./board";
+import { type HeadlessCommand } from "../../headless/protocol";
 import { GamePhase } from "../../types/GameState";
-import { ActionType } from "../../types/events";
-import { Player } from "../../types/Player";
+import { type ActionType } from "../../types/events";
+
 import { rollLabel } from "../../game/rules/rollTargets";
-import { Candidate } from "../candidates";
-import { Coach, CoachChoice, CoachContext } from "../coach";
+import { type Candidate } from "../candidates";
+import { type Coach, type CoachChoice, type CoachContext } from "../coach";
 import { heuristicCoach } from "../coaches/heuristic";
 import {
-  Activation,
-  Available,
+  type Activation,
+  type Intent,
+  type Available,
   activations,
   continuation,
   continuationPlans,
   planIdentity,
 } from "./activations";
-import { Board, WIDTH, readBoard } from "./board";
+import { type Board, type Square, WIDTH, readBoard } from "./board";
 import { decide } from "./decisions";
 import {
   DEFAULT_WEIGHTS,
   ROSTER_WEIGHTS,
-  RosterWeights,
-  Weights,
+  type RosterWeights,
+  type Weights,
 } from "./weights";
-import { RollTarget } from "./chance";
+import { type RollTarget } from "./chance";
 import { enumerateLegalActions } from "../../headless/legalActions";
 import type { HeadlessGame } from "../../headless/HeadlessGame";
 import { context as activationContext } from "./activationContext";
 import { key } from "./board";
-import { GAME_PLANS, GamePlan, Variety, choosePlan } from "./gamePlans";
+import {
+  GAME_PLANS,
+  type GamePlan,
+  type Variety,
+  choosePlan,
+} from "./gamePlans";
 import type { CoachRng } from "../rng";
+
+const THROW_TEAMMATE = "throw-teammate";
 
 const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   dodge: "Dodge",
@@ -49,7 +50,6 @@ const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   landing: "Landing",
 };
 
-/** What the coach did and the rolls it needed, never how likely they were. */
 export function noteFor(a: Activation): string {
   const what = {
     score: "runs in to score",
@@ -60,8 +60,8 @@ export function noteFor(a: Activation): string {
     "multiple-block": "blocks two opponents",
     handoff: "hands off",
     pass: "throws a pass",
-    "throw-teammate":
-      a.intent.kind === "throw-teammate" && a.intent.carrying
+    [THROW_TEAMMATE]:
+      a.intent.kind === THROW_TEAMMATE && a.intent.carrying
         ? "throws the ball carrier"
         : "throws a team-mate",
     block: "blocks",
@@ -75,7 +75,6 @@ export function noteFor(a: Activation): string {
   return rolls.length ? `${what} (${rolls.join(", ")})` : what;
 }
 
-/** Which actions each player may declare, read off the declare candidates. */
 export function availableActions(candidates: readonly Candidate[]): Available {
   const out = new Map<string, Set<ActionType>>();
   for (const c of candidates) {
@@ -88,123 +87,126 @@ export function availableActions(candidates: readonly Candidate[]): Available {
   return out;
 }
 
-/** The candidate that takes the next step of an activation already declared. */
+function commandIndex(
+  candidates: readonly Candidate[],
+  match: (command: HeadlessCommand) => boolean
+): number {
+  return candidates.findIndex((candidate) => match(candidate.commands[0]));
+}
+
 function nextStep(a: Activation, candidates: readonly Candidate[]): number {
-  const id = a.player.id;
-  const match = (test: (command: HeadlessCommand) => boolean) =>
-    candidates.findIndex((c) => test(c.commands[0]));
-  const stepTo = (route: { path: { x: number; y: number }[] } | null) => {
-    const next = route?.path[0];
-    return next
-      ? match(
-          (c) =>
-            c.type === "move" &&
-            c.playerId === id &&
-            c.path.length === 1 &&
-            c.path[0].x === next.x &&
-            c.path[0].y === next.y
-        )
-      : -1;
+  const { player, intent } = a;
+  const next = "route" in intent ? intent.route?.path[0] : undefined;
+  if (next) return movementStep(candidates, player.id, next);
+  if ("target" in intent) return targetedStep(candidates, player.id, intent);
+  if ("to" in intent) return transferStep(candidates, player.id, intent);
+  if ("targets" in intent)
+    return multipleBlockStep(candidates, player.id, intent.targets);
+  if ("mate" in intent) return thrownStep(candidates, player.id, intent);
+  return intent.kind === "stand-up"
+    ? commandIndex(
+        candidates,
+        (c) => c.type === "stand-up" && c.playerId === player.id
+      )
+    : -1;
+}
+
+function movementStep(
+  candidates: readonly Candidate[],
+  id: string,
+  next: Square
+): number {
+  return commandIndex(
+    candidates,
+    (c) =>
+      c.type === "move" &&
+      c.playerId === id &&
+      c.path.length === 1 &&
+      c.path[0]?.x === next.x &&
+      c.path[0].y === next.y
+  );
+}
+
+type TargetIntent = Extract<Intent, { target: Player }>;
+
+function targetedStep(
+  candidates: readonly Candidate[],
+  id: string,
+  intent: TargetIntent
+): number {
+  const target = intent.target;
+  const block = (c: HeadlessCommand) =>
+    c.type === "block" && c.attackerId === id && c.defenderId === target.id;
+  const matches = {
+    block,
+    blitz: block,
+    gaze: (c: HeadlessCommand) =>
+      c.type === "special-action" &&
+      c.action === "gaze" &&
+      c.attackerId === id &&
+      c.defenderId === target.id,
+    foul: (c: HeadlessCommand) =>
+      c.type === "foul" &&
+      c.playerId === id &&
+      c.x === target.gridPosition.x &&
+      c.y === target.gridPosition.y,
   };
-  /** Walk what is left of the route first, then take the action's step. */
-  const walkThen = (
-    route: { path: { x: number; y: number }[] } | null,
-    act: () => number
-  ) => (route?.path.length ? stepTo(route) : act());
-  switch (a.intent.kind) {
-    case "score":
-    case "carrier":
-    case "pickup":
-    case "secure-ball":
-    case "reposition":
-      return stepTo(a.intent.route);
-    case "stand-up":
-      return match((c) => c.type === "stand-up" && c.playerId === id);
-    case "block": {
-      const target = a.intent.target.id;
-      return match(
-        (c) =>
-          c.type === "block" && c.attackerId === id && c.defenderId === target
-      );
-    }
-    case "multiple-block": {
-      const [first, second] = a.intent.targets;
-      return match(
-        (c) =>
-          c.type === "multiple-block" &&
-          c.attackerId === id &&
-          ((c.defender1Id === first.id && c.defender2Id === second.id) ||
-            (c.defender1Id === second.id && c.defender2Id === first.id))
-      );
-    }
-    case "gaze": {
-      const target = a.intent.target.id;
-      return walkThen(a.intent.route, () =>
-        match(
-          (c) =>
-            c.type === "special-action" &&
-            c.action === "gaze" &&
-            c.attackerId === id &&
-            c.defenderId === target
-        )
-      );
-    }
-    case "foul": {
-      const at = a.intent.target.gridPosition!;
-      return walkThen(a.intent.route, () =>
-        match(
-          (c) =>
-            c.type === "foul" &&
-            c.playerId === id &&
-            c.x === at.x &&
-            c.y === at.y
-        )
-      );
-    }
-    case "blitz": {
-      const target = a.intent.target.id;
-      return walkThen(a.intent.route, () =>
-        match(
-          (c) =>
-            c.type === "block" && c.attackerId === id && c.defenderId === target
-        )
-      );
-    }
-    case "handoff": {
-      const target = a.intent.to.id;
-      return walkThen(a.intent.route, () =>
-        match(
-          (c) =>
-            c.type === "handoff" && c.playerId === id && c.targetId === target
-        )
-      );
-    }
-    case "throw-teammate": {
-      const { mate, aim } = a.intent;
-      return match(
-        (c) =>
-          c.type === "throw-teammate" &&
-          c.throwerId === id &&
-          c.teammateId === mate.id &&
-          c.x === aim.x &&
-          c.y === aim.y &&
-          !c.swoopFacing
-      );
-    }
-    case "pass": {
-      const to = a.intent.to.gridPosition!;
-      return walkThen(a.intent.route, () =>
-        match(
-          (c) =>
-            c.type === "pass" &&
-            c.playerId === id &&
-            c.x === to.x &&
-            c.y === to.y &&
-            !c.hailMary
-        )
-      );
-    }
-  }
+  return commandIndex(candidates, matches[intent.kind]);
+}
+
+function transferStep(
+  candidates: readonly Candidate[],
+  id: string,
+  intent: Extract<Intent, { to: Player }>
+): number {
+  if (intent.kind === "handoff")
+    return commandIndex(
+      candidates,
+      (c) =>
+        c.type === "handoff" && c.playerId === id && c.targetId === intent.to.id
+    );
+  return commandIndex(
+    candidates,
+    (c) =>
+      c.type === "pass" &&
+      c.playerId === id &&
+      c.x === intent.to.gridPosition.x &&
+      c.y === intent.to.gridPosition.y &&
+      !c.hailMary
+  );
+}
+
+function multipleBlockStep(
+  candidates: readonly Candidate[],
+  id: string,
+  targets: [Player, Player]
+): number {
+  const [first, second] = targets;
+  return commandIndex(
+    candidates,
+    (c) =>
+      c.type === "multiple-block" &&
+      c.attackerId === id &&
+      ((c.defender1Id === first.id && c.defender2Id === second.id) ||
+        (c.defender1Id === second.id && c.defender2Id === first.id))
+  );
+}
+
+function thrownStep(
+  candidates: readonly Candidate[],
+  id: string,
+  intent: Extract<Intent, { kind: typeof THROW_TEAMMATE }>
+): number {
+  return commandIndex(
+    candidates,
+    (c) =>
+      c.type === THROW_TEAMMATE &&
+      c.throwerId === id &&
+      c.teammateId === intent.mate.id &&
+      c.x === intent.aim.x &&
+      c.y === intent.aim.y &&
+      !c.swoopFacing
+  );
 }
 
 interface RetainedPlan {
@@ -214,29 +216,34 @@ interface RetainedPlan {
 }
 
 export interface PlannerCoach extends Coach {
-  /** Prime the same continuation policy when search selects an opening plan. */
   remember(game: HeadlessGame, activation: Activation): void;
 }
 
 function turnKey(board: Board): string {
   const state = board.gs.getState();
-  return `${state.turn.teamId}/${state.turn.turnNumber}/${state.turn.isHalf2}/${state.turn.extraTime}/${state.chargeTeamId}`;
+  return `${state.turn.teamId}/${String(state.turn.turnNumber)}/${String(state.turn.isHalf2)}/${String(state.turn.extraTime)}/${String(state.chargeTeamId)}`;
 }
 
 function possessionKey(board: Board): string {
-  return board.ball.kind === "carried"
-    ? board.ball.carrier.id
-    : board.ball.kind === "loose"
-      ? `loose/${key(board.ball.at)}`
-      : "none";
+  if (board.ball.kind === "carried") return board.ball.carrier.id;
+  return board.ball.kind === "loose"
+    ? `loose/${String(key(board.ball.at))}`
+    : "none";
 }
 
-function currentIntent(
-  board: Board,
-  stored: RetainedPlan | undefined,
-  actor: Player,
-  action: string
-): Activation | null {
+interface CurrentIntentArgs {
+  board: Board;
+  stored: RetainedPlan | undefined;
+  actor: Player;
+  action: ActionType;
+}
+
+function currentIntent({
+  board,
+  stored,
+  actor,
+  action,
+}: CurrentIntentArgs): Activation | null {
   if (!stored) return null;
   return stored.turn === turnKey(board) &&
     stored.possession === possessionKey(board) &&
@@ -246,40 +253,48 @@ function currentIntent(
     : null;
 }
 
-/** A retained movement target is repriced and rerouted from the observed square. */
-function retainedStep(
-  board: Board,
-  w: Weights,
-  actor: Player,
-  plan: Activation,
-  candidates: readonly Candidate[],
-  available: Available,
-  skillPlans: boolean
-): CoachChoice | null {
+interface RetainedStepArgs {
+  board: Board;
+  w: Weights;
+  actor: Player;
+  plan: Activation;
+  candidates: readonly Candidate[];
+  available: Available;
+  skillPlans: boolean;
+}
+
+function retainedStep({
+  board,
+  w,
+  actor,
+  plan,
+  candidates,
+  available,
+  skillPlans,
+}: RetainedStepArgs): CoachChoice | null {
   const intent = plan.intent;
-  if (actor.id !== plan.player.id || !actor.gridPosition) return null;
-  if (
-    intent.kind !== "reposition" &&
-    intent.kind !== "score" &&
-    intent.kind !== "carrier"
-  ) {
-    const resumed = continuationPlans(
+  if (actor.id !== plan.player.id) return null;
+  if (!isTravelIntent(intent)) {
+    return resumeAction({
       board,
       w,
       actor,
-      plan.action,
-      board.gs.hasUsedBlitzBlock(actor.id),
+      plan,
+      candidates,
       available,
-      skillPlans
-    ).find((option) => planIdentity(option) === planIdentity(plan));
-    const index = resumed ? nextStep(resumed, candidates) : -1;
-    return index < 0 || !resumed ? null : { index, note: noteFor(resumed) };
+      skillPlans,
+    });
   }
   if (key(actor.gridPosition) === key(intent.route.to)) {
     const end = candidates.findIndex((c) => c.kind === "end-activation");
     return end < 0 ? null : { index: end, note: noteFor(plan) };
   }
-  const c = activationContext(board, w, available, skillPlans);
+  const c = activationContext({
+    board: board,
+    w: w,
+    available: available,
+    skillPlans: skillPlans,
+  });
   const routes =
     intent.kind === "reposition" ? c.plainRoutes(actor) : c.routes(actor);
   const route = routes.get(key(intent.route.to));
@@ -294,23 +309,24 @@ function retainedStep(
   return index < 0 ? null : { index, note: noteFor(resumed) };
 }
 
-/** How a varied coach declares: its game plan for this match and its margin. */
 interface Choosing {
   plan: GamePlan;
   variety: Variety;
   rng: CoachRng;
 }
 
+interface CreatePlannerCoachArgs {
+  weights?: Weights;
+
+  rosters?: RosterWeights;
+  name?: string;
+  skillPlans?: boolean;
+
+  variety?: Variety;
+}
+
 export function createPlannerCoach(
-  options: {
-    weights?: Weights;
-    /** Each roster's tweaks on top of `weights`. */
-    rosters?: RosterWeights;
-    name?: string;
-    skillPlans?: boolean;
-    /** Vary close declarations and draw a game plan for each match. */
-    variety?: Variety;
-  } = {}
+  options: CreatePlannerCoachArgs = {}
 ): PlannerCoach {
   const w = options.weights ?? DEFAULT_WEIGHTS;
   const memory = new WeakMap<HeadlessGame, RetainedPlan>();
@@ -343,14 +359,14 @@ export function createPlannerCoach(
           ? { ...w, ...own, ...chosen?.plan.weights }
           : w;
       return (
-        planChoice(
-          context,
-          weights,
-          options.skillPlans ?? true,
-          memory,
-          remember,
-          () => chosen
-        ) ?? heuristicCoach.choose(context)
+        planChoice({
+          context: context,
+          w: weights,
+          skillPlans: options.skillPlans ?? true,
+          memory: memory,
+          remember: remember,
+          choosing: () => chosen,
+        }) ?? heuristicCoach.choose(context)
       );
     },
   };
@@ -366,10 +382,9 @@ function setupChoice(
     formations[
       Math.max(0, Math.min(Math.round(w.formation), formations.length - 1))
     ];
-  return { index: candidates.indexOf(pick) };
+  return pick ? { index: candidates.indexOf(pick) } : null;
 }
 
-/** The kick nearest the tuned depth, in the middle or on the emptier side. */
 function kickChoice(
   board: Board,
   candidates: readonly Candidate[],
@@ -383,33 +398,44 @@ function kickChoice(
   });
   if (kicks.length === 0) return null;
   const crowd = (y: number) =>
-    board.theirs.filter((o) => Math.abs(o.gridPosition!.y - y) <= 2).length;
+    board.theirs.filter((o) => Math.abs(o.gridPosition.y - y) <= 2).length;
   const wide = w.kickWide > 0.5;
   const score = (kick: { x: number; y: number }) => {
     const depth = board.dir === 1 ? WIDTH - 1 - kick.x : kick.x;
-    return (
-      -Math.abs(depth - w.kickDepth) * 10 +
-      (wide ? (kick.y === 5 ? -5 : -crowd(kick.y)) : kick.y === 5 ? 5 : 0)
-    );
+    return -Math.abs(depth - w.kickDepth) * 10 + kickWidth(kick.y, wide, crowd);
   };
   const best = kicks.reduce((a, b) => (score(b) > score(a) ? b : a));
   return { index: best.index };
 }
 
-function planChoice(
-  context: CoachContext,
-  w: Weights,
-  skillPlans: boolean,
-  memory: WeakMap<HeadlessGame, RetainedPlan>,
-  remember: (game: HeadlessGame, activation: Activation) => void,
-  choosing: (context: CoachContext) => Choosing | null
-): CoachChoice | null {
+interface PlanChoiceArgs {
+  context: CoachContext;
+  w: Weights;
+  skillPlans: boolean;
+  memory: WeakMap<HeadlessGame, RetainedPlan>;
+  remember: (game: HeadlessGame, activation: Activation) => void;
+  choosing: (context: CoachContext) => Choosing | null;
+}
+
+function planChoice({
+  context,
+  w,
+  skillPlans,
+  memory,
+  remember,
+  choosing,
+}: PlanChoiceArgs): CoachChoice | null {
   const { game, point } = context;
   const candidates = point.candidates;
   const board = readBoard(game, point.teamId);
 
   if (point.pending) {
-    const index = decide(board, point.pending, candidates, skillPlans);
+    const index = decide({
+      board: board,
+      pending: point.pending,
+      candidates: candidates,
+      skillPlans: skillPlans,
+    });
     return index === null ? null : { index };
   }
   if (point.phase === GamePhase.SETUP) return setupChoice(candidates, w);
@@ -419,61 +445,53 @@ function planChoice(
 
   const state = board.gs.getState();
   const active = state.activePlayer;
-  const actor = active ? board.gs.getPlayerById(active.id) : undefined;
-  if (active && actor && actor.teamId === point.teamId && active.action) {
-    const waiting: Available = new Map(
-      enumerateLegalActions({ ctx: game.ctx, pending: null })
-        .players.filter((p) => p.playerId !== actor.id)
-        .map((p) => [p.playerId, new Set(p.actions)])
-    );
-    const stored = currentIntent(board, memory.get(game), actor, active.action);
-    if (stored) {
-      const choice = retainedStep(
-        board,
-        w,
-        actor,
-        stored,
-        candidates,
-        waiting,
-        skillPlans
-      );
-      if (choice) return choice;
-      memory.delete(game);
-    }
-    return continueChoice(
-      board,
+  const actor = board.ours.find((player) => player.id === active?.id);
+  if (actor?.teamId === point.teamId && active?.action) {
+    return activeChoice({
+      context,
       w,
-      candidates,
-      actor,
-      active.action,
       skillPlans,
-      waiting
-    );
+      memory,
+      remember,
+      choosing,
+      board,
+      actor,
+      action: active.action,
+    });
   }
   memory.delete(game);
-  return declareChoice(
-    board,
-    w,
-    candidates,
-    skillPlans,
-    (activation) => remember(game, activation),
-    choosing(context)
-  );
+  return declareChoice({
+    board: board,
+    w: w,
+    candidates: candidates,
+    skillPlans: skillPlans,
+    selected: (activation) => {
+      remember(game, activation);
+    },
+    choosing: choosing(context),
+  });
 }
 
-/** The next step of the activation under way, or ending it. */
-function continueChoice(
-  board: Board,
-  w: Weights,
-  candidates: readonly Candidate[],
-  actor: Player,
-  action: string,
-  skillPlans: boolean,
-  available?: Available
-): CoachChoice | null {
-  // Team-mates who have not acted yet still count as helpers, for the
-  // cage the carrier is walking into and the receiver it hands off to.
-  const acted = new Set(board.gs.getState().turn.activatedPlayerIds ?? []);
+interface ContinueChoiceArgs {
+  board: Board;
+  w: Weights;
+  candidates: readonly Candidate[];
+  actor: Player;
+  action: ActionType;
+  skillPlans: boolean;
+  available?: Available;
+}
+
+function continueChoice({
+  board,
+  w,
+  candidates,
+  actor,
+  action,
+  skillPlans,
+  available,
+}: ContinueChoiceArgs): CoachChoice | null {
+  const acted = new Set(board.gs.getState().turn.activatedPlayerIds);
   const waiting: Available =
     available ??
     new Map(
@@ -481,45 +499,47 @@ function continueChoice(
         .filter((p) => p.id !== actor.id && !acted.has(p.id))
         .map((p) => [p.id, new Set<ActionType>(["move"])])
     );
-  const plan = continuation(
+  const plan = continuation({
     board,
     w,
-    actor,
-    action as ActionType,
-    board.gs.hasUsedBlitzBlock(actor.id),
-    waiting,
-    skillPlans
-  );
+    player: actor,
+    action,
+    blitzBlockUsed: board.gs.hasUsedBlitzBlock(actor.id),
+    available: waiting,
+    skillPlans,
+  });
   const index = plan ? nextStep(plan, candidates) : -1;
   if (plan && index >= 0) return { index, note: noteFor(plan) };
   const end = candidates.findIndex((c) => c.kind === "end-activation");
   return end >= 0 ? { index: end } : null;
 }
 
-/**
- * Declare the best planned activation on offer, or, for a varied coach, one
- * close to it; else end the turn.
- */
-function declareChoice(
-  board: Board,
-  w: Weights,
-  candidates: readonly Candidate[],
-  skillPlans: boolean,
-  selected: (activation: Activation) => void,
-  choosing: Choosing | null
-): CoachChoice | null {
-  const plan = activations(board, w, availableActions(candidates), skillPlans);
+interface DeclareChoiceArgs {
+  board: Board;
+  w: Weights;
+  candidates: readonly Candidate[];
+  skillPlans: boolean;
+  selected: (activation: Activation) => void;
+  choosing: Choosing | null;
+}
+
+function declareChoice({
+  board,
+  w,
+  candidates,
+  skillPlans,
+  selected,
+  choosing,
+}: DeclareChoiceArgs): CoachChoice | null {
+  const plan = activations({
+    board: board,
+    w: w,
+    available: availableActions(candidates),
+    skillPlans: skillPlans,
+  });
   const options: { activation: Activation; index: number }[] = [];
   for (const activation of plan) {
-    const index = candidates.findIndex((c) => {
-      const command = c.commands[0];
-      return (
-        command.type === "declare-action" &&
-        !command.blockReplacement &&
-        command.playerId === activation.player.id &&
-        command.action === activation.action
-      );
-    });
+    const index = declarationIndex(candidates, activation);
     if (index < 0) continue;
     options.push({ activation, index });
     if (!choosing) break;
@@ -529,10 +549,123 @@ function declareChoice(
     return end >= 0 ? { index: end } : null;
   }
   const pick = choosing
-    ? choosePlan(options, choosing.plan, choosing.variety, choosing.rng)
+    ? choosePlan({
+        options: options,
+        plan: choosing.plan,
+        variety: choosing.variety,
+        rng: choosing.rng,
+      })
     : options[0];
+  if (!pick) return null;
   selected(pick.activation);
   return { index: pick.index, note: noteFor(pick.activation) };
 }
 
 export const plannerCoach = createPlannerCoach();
+
+function resumeAction({
+  board,
+  w,
+  actor,
+  plan,
+  candidates,
+  available,
+  skillPlans,
+}: RetainedStepArgs): CoachChoice | null {
+  const resumed = continuationPlans({
+    board: board,
+    w: w,
+    player: actor,
+    action: plan.action,
+    blitzBlockUsed: board.gs.hasUsedBlitzBlock(actor.id),
+    available: available,
+    skillPlans: skillPlans,
+  }).find((option) => planIdentity(option) === planIdentity(plan));
+  const index = resumed ? nextStep(resumed, candidates) : -1;
+  return index < 0 || !resumed ? null : { index, note: noteFor(resumed) };
+}
+
+function kickWidth(
+  y: number,
+  wide: boolean,
+  crowd: (y: number) => number
+): number {
+  if (wide) return y === 5 ? -5 : -crowd(y);
+  return y === 5 ? 5 : 0;
+}
+
+interface ActiveChoiceArgs extends PlanChoiceArgs {
+  board: Board;
+  actor: Player;
+  action: ActionType;
+}
+
+function activeChoice({
+  context: { game, point },
+  w,
+  skillPlans,
+  memory,
+  board,
+  actor,
+  action,
+}: ActiveChoiceArgs): CoachChoice | null {
+  const candidates = point.candidates;
+  const waiting: Available = new Map(
+    enumerateLegalActions({ ctx: game.ctx, pending: null })
+      .players.filter((p) => p.playerId !== actor.id)
+      .map((p) => [p.playerId, new Set(p.actions)])
+  );
+  const stored = currentIntent({
+    board: board,
+    stored: memory.get(game),
+    actor: actor,
+    action: action,
+  });
+  if (stored) {
+    const choice = retainedStep({
+      board: board,
+      w: w,
+      actor: actor,
+      plan: stored,
+      candidates: candidates,
+      available: waiting,
+      skillPlans: skillPlans,
+    });
+    if (choice) return choice;
+    memory.delete(game);
+  }
+  return continueChoice({
+    board: board,
+    w: w,
+    candidates: candidates,
+    actor: actor,
+    action: action,
+    skillPlans: skillPlans,
+    available: waiting,
+  });
+}
+
+function isTravelIntent(
+  intent: Intent
+): intent is Extract<Intent, { kind: "reposition" | "score" | "carrier" }> {
+  return (
+    intent.kind === "reposition" ||
+    intent.kind === "score" ||
+    intent.kind === "carrier"
+  );
+}
+
+export function declarationIndex(
+  candidates: readonly Candidate[],
+  activation: Activation
+): number {
+  return candidates.findIndex((candidate) => {
+    const command = candidate.commands[0];
+    return (
+      command.type === "declare-action" &&
+      !command.blockReplacement &&
+      command.playerId === activation.player.id &&
+      command.action === activation.action
+    );
+  });
+}

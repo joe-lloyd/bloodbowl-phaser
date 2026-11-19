@@ -1,12 +1,3 @@
-/**
- * Blood Bowl's rules give a coach the target and nothing more: "Dodge 3+",
- * "Pass 4+, then Catch 3+", "Pro needs 3+, then 4+". No percentage, no
- * chance, no odds before re-rolls. This guard renders every match HUD
- * gallery variant and runs the roll text formatters, and fails if any of
- * them shows a coach a statistic.
- *
- * If this fails, show the target the roll needs instead of its odds.
- */
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
@@ -19,7 +10,7 @@ import {
   foulPreview,
   interceptPreviewLine,
 } from "../../src/game/rules/rollPreview";
-import { stepPromptLine } from "../../src/ui/components/hud/OtherCoachPrompt";
+import { stepPromptLine } from "../../src/ui/components/hud/otherCoachText";
 import { getSkill, SkillType } from "../../src/types/Skills";
 import { PlayerStatus } from "../../src/types/Player";
 import { runMatch } from "../../src/simulation/runMatch";
@@ -27,15 +18,13 @@ import { plannerCoach } from "../../src/simulation/ai/planner";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { RosterName } from "../../src/types/Team";
 
-/** A percentage, or the words a statistic hides behind. */
 const ODDS = /%|\bchances?\b|\bodds\b|\bprobab/i;
 
-/** Every string a coach can read or hear in a rendered subtree. */
 function readableText(root: HTMLElement): string[] {
   const out: string[] = [];
   const walk = (node: Node) => {
     if (node instanceof HTMLStyleElement) return;
-    // The Dice Log's text size readout, "A- 100% A+", is a font scale
+
     if (node instanceof HTMLElement && node.title === "Dice Log text size")
       return;
     if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim())
@@ -64,15 +53,15 @@ describe("no odds on a coach's screen", () => {
       const root = createRoot(container);
       variant.prepare?.();
       const fx = setupMatch(variant.fixture);
-      let cleanup: void | (() => void);
+      let cleanup: void | (() => void) | undefined;
       try {
-        await act(async () => root.render(<>{variant.view(fx)}</>));
+        await act(async () => {
+          root.render(<>{variant.view(fx)}</>);
+        });
         await act(async () => {
           cleanup = variant.drive?.(fx);
         });
-        // Variants play their events in over the first few hundred ms. act
-        // holds renders until it returns, so step in short slices to let a
-        // later event reach a component the first one mounted.
+
         for (let step = 0; step < 10; step++)
           await act(() => new Promise((resolve) => setTimeout(resolve, 40)));
         expect(
@@ -80,7 +69,9 @@ describe("no odds on a coach's screen", () => {
         ).toEqual([]);
       } finally {
         if (typeof cleanup === "function") cleanup();
-        await act(async () => root.unmount());
+        await act(async () => {
+          root.unmount();
+        });
         document.body.innerHTML = "";
         ServiceContainer.reset();
       }
@@ -141,7 +132,7 @@ describe("no odds on a coach's screen", () => {
     expect(
       notes.filter((note) => ODDS.test(note) || /\d\.\d/.test(note))
     ).toEqual([]);
-    // Any number in a note is a roll target, written "N+".
+
     expect(
       notes.filter((note) => /\d/.test(note.replace(/\b[2-6]\+/g, "")))
     ).toEqual([]);

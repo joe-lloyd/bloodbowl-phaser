@@ -1,19 +1,11 @@
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamManagement } from "../../../src/ui/components/pages/TeamManagement";
 import { saveTeams } from "../../../src/game/managers/TeamManager";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
-/**
- * team-management-layout: "Team overview cards show the per-team stats
- * summary" — the Team Value / Treasury / Roster / Record grid is back on
- * the overview card (reversing the earlier redesign-team-management-pages
- * decision). Per-player career statistics moved the other way: off the
- * overview and onto the team detail page's roster table, so the overview
- * no longer renders that block.
- */
 describe("TeamManagement overview card", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -26,7 +18,9 @@ describe("TeamManagement overview card", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     localStorage.clear();
   });

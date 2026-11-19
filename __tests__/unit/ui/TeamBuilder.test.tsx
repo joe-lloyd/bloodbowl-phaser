@@ -1,5 +1,6 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TeamBuilder } from "../../../src/ui/components/pages/TeamBuilder";
@@ -9,7 +10,7 @@ import {
   saveTeams,
   setTeamRepository,
 } from "../../../src/game/managers/TeamManager";
-import { Team } from "../../../src/types/Team";
+import { type Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 import { queueExpensiveMistakes } from "../../../src/game/rules/expensiveMistakes";
 import { PlayerPage } from "../../../src/ui/components/pages/PlayerPage";
@@ -28,7 +29,9 @@ describe("post-match team management", () => {
 
   afterEach(async () => {
     setTeamRepository(null);
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.restoreAllMocks();
     localStorage.clear();
@@ -81,21 +84,25 @@ describe("post-match team management", () => {
     const button = [...container.querySelectorAll("button")].find((b) =>
       label.test(b.textContent ?? "")
     );
-    expect(button, `Missing button ${label}`).toBeDefined();
-    await act(async () => button!.click());
+    expect(button, `Missing button ${String(label)}`).toBeDefined();
+    await act(async () => {
+      fixtureValue(button).click();
+    });
   }
 
   it("shows winnings, keeps purchases on the team, and skips the roll after spending", async () => {
     const team = await renderPostMatch();
     expect(container.textContent).toContain("Post-match team management");
     expect(container.textContent).toContain("60,000 gp");
-    const staff = [...container.querySelectorAll("section")].find((s) =>
+    const staff = fixtureValue([...container.querySelectorAll("section")].find((s) =>
       s.textContent?.includes("Sideline staff")
-    )!;
-    const rerolls = [...staff.querySelectorAll("div")].find(
+    ));
+    const rerolls = fixtureValue([...staff.querySelectorAll("div")].find(
       (d) => d.textContent?.includes("Re-Rolls") && d.querySelector("button")
-    )!;
-    await act(async () => rerolls.querySelector("button")!.click());
+    ));
+    await act(async () => {
+      fixtureValue(rerolls.querySelector("button")).click();
+    });
     await click(/Finish post-match/);
     expect(container.textContent).toBe("The league page");
     expect(getTeamById(team.id)).toMatchObject({
@@ -128,7 +135,7 @@ describe("post-match team management", () => {
       '[data-testid="roster-row-1"] td'
     )[2];
     await act(async () =>
-      cell.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+      fixtureValue(cell).dispatchEvent(new MouseEvent("click", { bubbles: true }))
     );
     expect(container.textContent).toContain("SPP & career statistics");
     await click(/Back to Manage Team/);
@@ -170,10 +177,12 @@ describe("post-match team management", () => {
     expect(container.textContent).toContain("Post-match team management");
     expect(
       [...container.querySelectorAll("button")].find((b) =>
-        /Saving/.test(b.textContent ?? "")
+        (b.textContent ?? "").includes("Saving")
       )?.disabled
     ).toBe(true);
-    await act(async () => acknowledge());
+    await act(async () => {
+      acknowledge();
+    });
     expect(container.textContent).toBe("The league page");
   });
 
@@ -205,11 +214,6 @@ describe("post-match team management", () => {
   });
 });
 
-/**
- * team-management-layout: "Detail page shows the stats grid" — TeamBuilder
- * (the /build-team/:teamId detail page) renders TeamStatsOverview near its
- * existing TV: badge, now that the overview card no longer shows it.
- */
 describe("TeamBuilder detail page", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -222,7 +226,9 @@ describe("TeamBuilder detail page", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     localStorage.clear();
   });
@@ -254,10 +260,6 @@ describe("TeamBuilder detail page", () => {
   });
 });
 
-/**
- * The player page reads the team from storage, so opening a player from
- * the roster must not lose unsaved edits made on this page.
- */
 describe("TeamBuilder opening a player", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -272,7 +274,9 @@ describe("TeamBuilder opening a player", () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     setTeamRepository(null);
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     localStorage.clear();
   });
@@ -320,24 +324,24 @@ describe("TeamBuilder opening a player", () => {
 
   async function clickRow(slot: number) {
     const cell = container.querySelectorAll(
-      `[data-testid="roster-row-${slot}"] td`
+      `[data-testid="roster-row-${String(slot)}"] td`
     )[2];
     await act(async () => {
-      cell.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      fixtureValue(cell).dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
   }
 
   function moveSlot(from: number, to: number) {
     const data = new Map<string, string>();
-    const handle = container.querySelector(
-      `[data-testid="roster-row-${from}"] [data-testid="drag-handle"]`
-    )!;
+    const handle = fixtureValue(container.querySelector(
+      `[data-testid="roster-row-${String(from)}"] [data-testid="drag-handle"]`
+    ));
     act(() => {
       handle.dispatchEvent(dragEvent("dragstart", data));
     });
     act(() => {
-      container
-        .querySelector(`[data-testid="roster-row-${to}"]`)!
+      fixtureValue(container
+        .querySelector(`[data-testid="roster-row-${String(to)}"]`))
         .dispatchEvent(dragEvent("drop", data));
     });
   }
@@ -349,12 +353,12 @@ describe("TeamBuilder opening a player", () => {
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(
       container.querySelector('[data-testid="player-page"]')?.textContent
-    ).toBe(team.players.find((p) => p.number === 1)!.id);
+    ).toBe(fixtureValue(team.players.find((p) => p.number === 1)).id);
   });
 
   it("saves unsaved edits before opening the player when the coach agrees", async () => {
     const team = await renderSavedTeam();
-    const moved = team.players.find((p) => p.number === 1)!;
+    const moved = fixtureValue(team.players.find((p) => p.number === 1));
     moveSlot(1, 9);
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     await clickRow(9);
@@ -362,7 +366,7 @@ describe("TeamBuilder opening a player", () => {
     expect(
       container.querySelector('[data-testid="player-page"]')?.textContent
     ).toBe(moved.id);
-    const stored = loadTeams().find((t) => t.id === team.id)!;
+    const stored = fixtureValue(loadTeams().find((t) => t.id === team.id));
     expect(stored.players.find((p) => p.id === moved.id)?.number).toBe(9);
   });
 
@@ -371,7 +375,7 @@ describe("TeamBuilder opening a player", () => {
     moveSlot(1, 9);
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
-    // A full localStorage: the repository logs the failed write and carries on
+
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("quota exceeded", "QuotaExceededError");
     });
@@ -383,7 +387,7 @@ describe("TeamBuilder opening a player", () => {
       container.querySelector('[data-testid="roster-row-9"]')?.textContent
     ).not.toContain("Empty slot");
     vi.mocked(Storage.prototype.setItem).mockRestore();
-    const stored = loadTeams().find((t) => t.id === team.id)!;
+    const stored = fixtureValue(loadTeams().find((t) => t.id === team.id));
     expect(stored.players.some((p) => p.number === 9)).toBe(false);
   });
 
@@ -396,13 +400,11 @@ describe("TeamBuilder opening a player", () => {
     expect(
       container.querySelector('[data-testid="roster-row-9"]')?.textContent
     ).not.toContain("Empty slot");
-    const stored = loadTeams().find((t) => t.id === team.id)!;
+    const stored = fixtureValue(loadTeams().find((t) => t.id === team.id));
     expect(stored.players.some((p) => p.number === 9)).toBe(false);
   });
 
   it("saves edits first even when the repository hands out its cached team (signed in)", async () => {
-    // Like the cloud repository: reads return the cached team objects, so
-    // edits on this page change the cache itself
     const team = new TeamTestBuilder()
       .withId("cloud-team")
       .withPlayers(3)
@@ -431,10 +433,10 @@ describe("TeamBuilder opening a player", () => {
         </MemoryRouter>
       );
     });
-    // Hiring adds the player to the cached team object in place
-    const hire = Array.from(container.querySelectorAll("button")).find(
+
+    const hire = fixtureValue(Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "HIRE" && !button.disabled
-    )!;
+    ));
     act(() => {
       hire.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -482,7 +484,7 @@ describe("TeamBuilder opening a player", () => {
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
     await clickRow(9);
-    // Any later change re-renders from the same team object
+
     moveSlot(2, 8);
 
     expect(modeButtons().every((button) => !button.disabled)).toBe(true);

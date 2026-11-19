@@ -1,166 +1,99 @@
-/**
- * EventBus - A lightweight event emitter for decoupling components
- *
- * This replaces Phaser.Events.EventEmitter to remove Phaser dependencies
- * from business logic, making services pure TypeScript and easily testable.
- */
+import type { AllEvents } from "../types/events";
 
-import { AllEvents } from "../types/events";
-
-// Alias AllEvents to GameEventMap for backward compatibility/clarity in this file if needed
-// or just use AllEvents directly. I will use GameEventMap alias to minimize changes to interface below.
 export type GameEventMap = AllEvents;
 
-export interface IEventBus {
-  /**
-   * Emit an event with optional data
-   * @param event - Event name
-   * @param data - Optional data to pass to listeners
-   */
-  emit<K extends keyof GameEventMap>(event: K, data?: GameEventMap[K]): void;
+type ListenerStore<Events> = {
+  [Event in keyof Events]?: Set<(data: Events[Event]) => void>;
+};
 
-  /**
-   * Register a listener for an event
-   * @param event - Event name
-   * @param callback - Function to call when event is emitted
-   */
-  on<K extends keyof GameEventMap>(
-    event: K,
-    callback: (data: GameEventMap[K]) => void
-  ): void;
-
-  /**
-   * Remove a listener for an event
-   * @param event - Event name
-   * @param callback - Function to remove
-   */
-  off<K extends keyof GameEventMap>(
-    event: K,
-    callback: (data: GameEventMap[K]) => void
-  ): void;
-
-  /**
-   * Register a one-time listener for an event
-   * @param event - Event name
-   * @param callback - Function to call once when event is emitted
-   */
-  once<K extends keyof GameEventMap>(
-    event: K,
-    callback: (data: GameEventMap[K]) => void
-  ): void;
-
-  /**
-   * Remove all listeners for an event (or all events if no event specified)
-   * @param event - Optional event name
-   */
-  removeAllListeners(event?: string): void;
-
-  /**
-   * Get count of listeners for an event
-   * @param event - Event name
-   */
-  listenerCount(event: string): number;
+function listenersFor<Events, Event extends keyof Events>(
+  store: ListenerStore<Events>,
+  event: Event
+): Set<(data: Events[Event]) => void> {
+  const existing = store[event];
+  if (existing) return existing;
+  const listeners = new Set<(data: Events[Event]) => void>();
+  store[event] = listeners;
+  return listeners;
 }
 
-/**
- * EventBus implementation using pure TypeScript
- * No external dependencies, fully testable
- */
-/** Listeners of every event share one set type; on() and off() keep each paired with its event. */
-type Listener = (data?: unknown) => void;
+function removeListener<Events, Event extends keyof Events>(
+  store: ListenerStore<Events>,
+  event: Event,
+  callback: (data: Events[Event]) => void
+): void {
+  const listeners = store[event];
+  if (!listeners) return;
+  listeners.delete(callback);
+  if (listeners.size === 0) store[event] = new Set();
+}
 
-export class EventBus implements IEventBus {
-  private listeners: Map<string, Set<Listener>> = new Map();
-  private onceListeners: Map<string, Set<Listener>> = new Map();
-
-  emit<K extends keyof GameEventMap>(event: K, data?: GameEventMap[K]): void {
-    // Call regular listeners
-    const eventListeners = this.listeners.get(event as string);
-    if (eventListeners) {
-      eventListeners.forEach((callback) => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(
-            `Error in event listener for "${event as string}":`,
-            error
-          );
-        }
-      });
+function notify<Events, Event extends keyof Events>(
+  event: Event,
+  data: Events[Event],
+  listeners: Set<(data: Events[Event]) => void> | undefined
+): void {
+  listeners?.forEach((callback) => {
+    try {
+      callback(data);
+    } catch (error) {
+      console.error(`Error in event listener for "${String(event)}":`, error);
     }
+  });
+}
 
-    // Call and remove once listeners. They leave the map first, so a once
-    // listener added while they run waits for the next emit.
-    const onceListeners = this.onceListeners.get(event as string);
-    if (onceListeners) {
-      this.onceListeners.delete(event as string);
-      onceListeners.forEach((callback) => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(
-            `Error in once listener for "${event as string}":`,
-            error
-          );
-        }
-      });
-    }
+export class EventBus<Events extends object = GameEventMap> {
+  private listeners: ListenerStore<Events> = {};
+  private onceListeners: ListenerStore<Events> = {};
+
+  emit<Event extends keyof Events>(event: Event, data: Events[Event]): void {
+    notify(event, data, this.listeners[event]);
+    const once = this.onceListeners[event];
+    if (once) this.onceListeners[event] = new Set();
+    notify(event, data, once);
   }
 
-  on<K extends keyof GameEventMap>(
-    event: K,
-    callback: (data: GameEventMap[K]) => void
+  on<Event extends keyof Events>(
+    event: Event,
+    callback: (data: Events[Event]) => void
   ): void {
-    if (!this.listeners.has(event as string)) {
-      this.listeners.set(event as string, new Set());
-    }
-    this.listeners.get(event as string)!.add(callback as Listener);
+    listenersFor(this.listeners, event).add(callback);
   }
 
-  off<K extends keyof GameEventMap>(
-    event: K,
-    callback: (data: GameEventMap[K]) => void
+  off<Event extends keyof Events>(
+    event: Event,
+    callback: (data: Events[Event]) => void
   ): void {
-    const eventListeners = this.listeners.get(event as string);
-    if (eventListeners) {
-      eventListeners.delete(callback as Listener);
-      if (eventListeners.size === 0) {
-        this.listeners.delete(event as string);
-      }
-    }
-
-    const onceListeners = this.onceListeners.get(event as string);
-    if (onceListeners) {
-      onceListeners.delete(callback as Listener);
-      if (onceListeners.size === 0) {
-        this.onceListeners.delete(event as string);
-      }
-    }
+    removeListener(this.listeners, event, callback);
+    removeListener(this.onceListeners, event, callback);
   }
 
-  once<K extends keyof GameEventMap>(
-    event: K,
-    callback: (data: GameEventMap[K]) => void
+  once<Event extends keyof Events>(
+    event: Event,
+    callback: (data: Events[Event]) => void
   ): void {
-    if (!this.onceListeners.has(event as string)) {
-      this.onceListeners.set(event as string, new Set());
-    }
-    this.onceListeners.get(event as string)!.add(callback as Listener);
+    listenersFor(this.onceListeners, event).add(callback);
   }
 
-  removeAllListeners(event?: string): void {
-    if (event) {
-      this.listeners.delete(event);
-      this.onceListeners.delete(event);
-    } else {
-      this.listeners.clear();
-      this.onceListeners.clear();
+  removeAllListeners<Event extends keyof Events>(event?: Event): void {
+    if (event !== undefined) {
+      this.listeners[event] = new Set();
+      this.onceListeners[event] = new Set();
+      return;
     }
+    this.listeners = {};
+    this.onceListeners = {};
   }
 
-  listenerCount(event: string): number {
-    const regular = this.listeners.get(event)?.size || 0;
-    const once = this.onceListeners.get(event)?.size || 0;
-    return regular + once;
+  listenerCount(event: keyof Events): number {
+    return (
+      (this.listeners[event]?.size ?? 0) +
+      (this.onceListeners[event]?.size ?? 0)
+    );
   }
 }
+
+export type IEventBus = Pick<
+  EventBus,
+  "emit" | "on" | "off" | "once" | "removeAllListeners" | "listenerCount"
+>;

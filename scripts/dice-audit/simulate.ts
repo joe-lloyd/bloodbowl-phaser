@@ -1,9 +1,3 @@
-/**
- * Plays computer-v-computer matches on the real engine and writes each
- * match's dice log, for audit.ts to check against chance.
- *
- *   pnpm dice:simulate <out.json> [matches] [first seed]
- */
 import { writeFileSync } from "node:fs";
 import {
   createSimGame,
@@ -14,7 +8,7 @@ import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { RosterName } from "../../src/types/Team";
 import {
   createDiceLog,
-  DiceLog,
+  type DiceLog,
   DiceLogRecorder,
 } from "../../src/game/persistence/DiceLog";
 
@@ -29,12 +23,12 @@ const logs: DiceLog[] = [];
 for (let i = 0; i < Number(matchArg); i++) {
   const seed = Number(seedArg) + i;
   const game = createSimGame(seed, rosters, 3, "sevens-lineup");
-  // Before the inducements, so the pregame table rolls are logged too
+
   const recorder = new DiceLogRecorder(
     game.ctx.eventBus,
     () => game.ctx.gameService.getState(),
     createDiceLog({
-      id: `sim-${seed}`,
+      id: `sim-${String(seed)}`,
       mode: "computer",
       seed,
       teams: [game.ctx.team1, game.ctx.team2],
@@ -51,4 +45,4 @@ for (let i = 0; i < Number(matchArg); i++) {
   logs.push(recorder.log);
 }
 writeFileSync(out, JSON.stringify(logs));
-console.log(`wrote ${logs.length} dice logs to ${out}`);
+console.log(`wrote ${String(logs.length)} dice logs to ${out}`);

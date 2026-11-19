@@ -1,15 +1,11 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 
-/**
- * No Ball: "A player with this Trait may not attempt to Intercept a Pass"
- * (2025 rulebook p.132). Extra Arms: "This player applies a +1 modifier to
- * the Agility Test whenever they attempt to Catch, Pick Up or Intercept the
- * ball" (p.128). Seeds are committed, never searched.
- */
 function scenario(interceptorSkills: SkillType[]): Scenario {
   return {
     id: "interception-skills",
@@ -32,7 +28,6 @@ function scenario(interceptorSkills: SkillType[]): Scenario {
   };
 }
 
-/** The pass is Accurate: "Pass (Human Lineman #1): 5, needs 5+". */
 const ACCURATE_PASS_SEED = 2;
 
 async function passOverDefender(skills: SkillType[]) {
@@ -40,7 +35,7 @@ async function passOverDefender(skills: SkillType[]) {
     scenario: scenario(skills),
     seed: ACCURATE_PASS_SEED,
   });
-  const passerId = game.ctx.team1.players[0].id;
+  const passerId = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passerId,
@@ -61,7 +56,9 @@ describe("interception skills", () => {
 
     const dice = response.events
       .filter((e) => e.name === "diceRoll")
-      .map((e) => (e.data as { description: string }).description);
+      .map(
+        (e) => z.object({ description: z.string() }).parse(e.data).description
+      );
     expect(dice[0]).toBe("Pass (Human Lineman #1): 5, needs 5+");
     expect(response.pendingDecision?.type).not.toBe("interception");
   });
@@ -78,8 +75,8 @@ describe("interception skills", () => {
       playerId: "team2-player-1",
     });
     const roll = attempt.events.find((e) => e.name === "diceRoll");
-    expect((roll?.data as { description: string }).description).toBe(
-      "Interception (Human Lineman #1): 2, needs 5+"
-    );
+    expect(
+      z.object({ description: z.string() }).parse(roll?.data).description
+    ).toBe("Interception (Human Lineman #1): 2, needs 5+");
   });
 });

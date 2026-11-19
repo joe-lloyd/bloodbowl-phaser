@@ -1,20 +1,18 @@
-/**
- * Plays one full Sevens match between two coaches over the headless
- * protocol, checking invariants after every command and recording every
- * command so the match can be replayed exactly.
- */
-
 import { HeadlessGame } from "../headless/HeadlessGame";
 import { stabilizeIds } from "../headless/createHeadlessGame";
-import { CommandResponse, HeadlessCommand } from "../headless/protocol";
-import { GameSnapshot } from "../headless/serialization";
+import {
+  type CommandResponse,
+  type HeadlessCommand,
+} from "../headless/protocol";
+import { type GameSnapshot } from "../headless/serialization";
+import { fnv1a } from "../headless/checksum";
 import { TeamFactory } from "../game/TeamFactory";
 import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
-import { ActionType, GameEventNames } from "../types/events";
+import { type ActionType, GameEventNames } from "../types/events";
 import { enumerateDecision } from "./candidates";
-import { Coach } from "./coach";
+import { type Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
 import {
   Inducement,
@@ -22,32 +20,23 @@ import {
 } from "../types/Inducements";
 import { createCoachRng } from "./rng";
 
-/**
- * "test-team" is TeamFactory's test team, mostly Linemen; "sevens-lineup"
- * fields each roster's positionals (see lineups.ts).
- */
 export type Lineup = "test-team" | "sevens-lineup";
 
 export const RECORDING_FORMAT = "bb7-sim-recording" as const;
 
 export type FindingKind =
-  /** A rule that must always hold was broken. */
   | "invariant"
-  /** The engine threw while executing a command. */
   | "engine-error"
-  /** The engine refused a command its own legality checks offered. */
   | "rejected-candidate"
-  /** The game is waiting but offers nothing legal to do. */
   | "no-candidates"
-  /** The match did not finish inside the command budget. */
   | "budget-exhausted";
 
 export interface Finding {
   kind: FindingKind;
-  /** Stable grouping key for summaries, e.g. "invariant:score-monotonic". */
+
   key: string;
   message: string;
-  /** Index into `steps` of the command that exposed it (-1 if none). */
+
   step: number;
   phase: string;
   turn: string;
@@ -57,7 +46,7 @@ export interface RecordedStep {
   command: HeadlessCommand;
   ok: boolean;
   reason?: string;
-  /** 0 = home (team1), 1 = away (team2). */
+
   team: 0 | 1;
   label: string;
   note?: string;
@@ -71,35 +60,31 @@ export interface MatchRecording {
   rosters: [RosterName, RosterName];
   coaches: [string, string];
   rerolls: number;
-  /** Which teams were fielded; absent on recordings made before line-ups. */
+
   lineup?: Lineup;
-  /**
-   * Both teams held Prayers to Nuffle and Desperate Measures (see
-   * grantSimInducements); absent on recordings made before them.
-   */
+
   inducements?: boolean;
   steps: RecordedStep[];
   final: { phase: string; score: [number, number]; hash: string };
   findings: Finding[];
-  /** Per team, home first; absent on recordings made before stats. */
+
   stats?: [TeamPlayStats, TeamPlayStats];
 }
 
-/** How a team played, counted from the engine's own events. */
 export interface TeamPlayStats {
   turns: number;
   turnovers: number;
-  /** Every Dodge and Rush rolled, re-rolls included. */
+
   dodges: number;
   failedDodges: number;
   rushes: number;
   failedRushes: number;
-  /** Casualties caused that earn SPP, from the match stats. */
+
   casualties: number;
   completions: number;
-  /** Blocks thrown, Blitz blocks included. */
+
   blocks: number;
-  /** Actions declared, by kind. */
+
   actions: Partial<Record<ActionType, number>>;
 }
 
@@ -116,7 +101,6 @@ const emptyStats = (): TeamPlayStats => ({
   actions: {},
 });
 
-/** Add one command's events to the stats; `team` is who sent the command. */
 function countEvents(
   stats: [TeamPlayStats, TeamPlayStats],
   events: CommandResponse["events"],
@@ -137,7 +121,6 @@ function countEvents(
   }
 }
 
-/** Count a Dodge or Rush roll; other rolls are not tracked. */
 function countRoll(side: TeamPlayStats, rollType: string, failed: boolean) {
   if (rollType.startsWith("Dodge (")) {
     side.dodges++;
@@ -148,12 +131,6 @@ function countRoll(side: TeamPlayStats, rollType: string, failed: boolean) {
   }
 }
 
-/**
- * HeadlessGame reports refusals and exceptions alike as "command-failed:
- * <message>". Refusals read as codes or sentences ("illegal-stab-target",
- * "Not enough movement to Jump"); a crash reads like a JavaScript runtime
- * error.
- */
 function refusalFinding(
   command: HeadlessCommand,
   refusal: string | undefined,
@@ -192,7 +169,6 @@ type PlayerMatchStats = ReturnType<
   HeadlessGame["ctx"]["matchStats"]["captureState"]
 >["players"];
 
-/** Add each player's casualties, completions and blocks to their team. */
 function addPlayerStats(
   stats: [TeamPlayStats, TeamPlayStats],
   playerStats: PlayerMatchStats,
@@ -208,26 +184,22 @@ function addPlayerStats(
 
 export interface MatchSpec {
   seed: number;
-  /** Seeds coach choices; defaults to `seed`. */
+
   coachSeed?: number;
   rosters: [RosterName, RosterName];
   coaches: [Coach, Coach];
-  /** Team re-rolls each side starts with. */
+
   rerolls?: number;
-  /** Commands before the match counts as stuck. */
+
   maxCommands?: number;
-  /** Give both teams Prayers and Desperate Measures; default true. */
+
   inducements?: boolean;
-  /**
-   * Play this game instead of building one from `rosters`, such as a
-   * knockout tie or a library team as it stands.
-   */
+
   game?: HeadlessGame;
 }
 
 const DEFAULT_MAX_COMMANDS = 6000;
 
-/** Build the game a recording describes. Same inputs, same game. */
 export function createSimGame(
   seed: number,
   rosters: [RosterName, RosterName],
@@ -248,11 +220,6 @@ export function createSimGame(
   });
 }
 
-/**
- * Both teams hold the Sevens maximum of 2 Prayers to Nuffle and 5 Desperate
- * Measures, free, so every match exercises their tables and decisions. The
- * sim does not buy inducements: it has no petty cash to spend.
- */
 export async function grantSimInducements(game: HeadlessGame): Promise<void> {
   game.ctx.gameService.commitInducements(
     buildSeventsInducementProfile({ advancedLeague: false }),
@@ -274,7 +241,7 @@ export async function grantSimInducements(game: HeadlessGame): Promise<void> {
       }))
     )
   );
-  // Let the rolls run up to the first coach choice.
+
   for (let i = 0; i < 20; i++) {
     await new Promise((resolve) => setImmediate(resolve));
   }
@@ -293,17 +260,15 @@ function finding(
     message,
     step,
     phase: `${snapshot.phase}${snapshot.subPhase ? "/" + snapshot.subPhase : ""}`,
-    turn: `${snapshot.turn.isHalf2 ? "H2" : "H1"} T${snapshot.turn.turnNumber} ${snapshot.activeTeamId ?? "-"}`,
+    turn: `${snapshot.turn.isHalf2 ? "H2" : "H1"} T${String(snapshot.turn.turnNumber)} ${snapshot.activeTeamId ?? "-"}`,
   };
 }
 
-/** Count an accepted declaration by its kind of action. */
 function countDeclaration(side: TeamPlayStats, command: HeadlessCommand): void {
   if (command.type !== "declare-action") return;
   side.actions[command.action] = (side.actions[command.action] ?? 0) + 1;
 }
 
-/** A message for each team whose score its players' touchdowns do not add up to. */
 function uncreditedTouchdowns(
   final: GameSnapshot,
   playerStats: PlayerMatchStats
@@ -315,14 +280,13 @@ function uncreditedTouchdowns(
       .reduce((sum, p) => sum + p.touchdowns, 0);
     if (credited !== (final.score[team.id] ?? 0)) {
       out.push(
-        `${team.name} scored ${final.score[team.id] ?? 0} but match stats credit ${credited} touchdowns`
+        `${team.name} scored ${String(final.score[team.id] ?? 0)} but match stats credit ${String(credited)} touchdowns`
       );
     }
   }
   return out;
 }
 
-/** The team in kicking set-up is the one that will kick. */
 function kickerAtSetup(
   snapshot: GameSnapshot,
   kickingTeamId: string | null
@@ -332,7 +296,6 @@ function kickerAtSetup(
     : kickingTeamId;
 }
 
-/** A team that kicks the ball is the kicking team, whatever came before. */
 function kickerAfter(
   command: HeadlessCommand,
   teamId: string,
@@ -341,7 +304,6 @@ function kickerAfter(
   return command.type === "kick-ball" ? teamId : kickingTeamId;
 }
 
-/** Unfinished, and not because the game stopped offering anything legal. */
 function ranOutOfBudget(final: GameSnapshot, findings: Finding[]): boolean {
   return (
     final.phase !== GamePhase.GAME_OVER &&
@@ -349,7 +311,6 @@ function ranOutOfBudget(final: GameSnapshot, findings: Finding[]): boolean {
   );
 }
 
-/** The spec with its defaults filled in. */
 function matchSettings(spec: MatchSpec) {
   return {
     rerolls: spec.rerolls ?? 3,
@@ -369,7 +330,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   const steps: RecordedStep[] = [];
   const findings: Finding[] = [];
   let kickingTeamId: string | null = null;
-  /** Candidates refused in the current state, so a coach cannot retry them forever. */
+
   const monitor = createRuleMonitor();
   const stats: [TeamPlayStats, TeamPlayStats] = [emptyStats(), emptyStats()];
   let refused = new Set<string>();
@@ -395,8 +356,8 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     if (candidates.length === 0) {
       report(
         "no-candidates",
-        `${point.pending?.type ?? snapshot.phase}`,
-        `nothing legal to do (${point.candidates.length} offered, all refused)`,
+        point.pending?.type ?? snapshot.phase,
+        `nothing legal to do (${String(point.candidates.length)} offered, all refused)`,
         snapshot
       );
       break;
@@ -411,6 +372,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
       rng,
     });
     const candidate = candidates[choice.index] ?? candidates[0];
+    if (!candidate) break;
 
     for (const command of candidate.commands) {
       const before = game.snapshot();
@@ -449,12 +411,11 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     report(
       "budget-exhausted",
       final.phase,
-      `still in ${final.phase} after ${steps.length} commands`,
+      `still in ${final.phase} after ${String(steps.length)} commands`,
       final
     );
   }
-  // Progression reads match stats, so every point on the scoreboard must
-  // have a credited scorer or a player loses the SPP for it.
+
   const playerStats = game.ctx.matchStats.captureState().players;
   addPlayerStats(stats, playerStats, teamIndex);
   for (const message of uncreditedTouchdowns(final, playerStats))
@@ -478,25 +439,21 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
 }
 
 export function summarize(snapshot: GameSnapshot): MatchRecording["final"] {
+  const [home, away] = snapshot.teams;
   return {
     phase: snapshot.phase,
     score: [
-      snapshot.score[snapshot.teams[0].id] ?? 0,
-      snapshot.score[snapshot.teams[1].id] ?? 0,
+      (home ? snapshot.score[home.id] : undefined) ?? 0,
+      (away ? snapshot.score[away.id] : undefined) ?? 0,
     ],
     hash: snapshotHash(snapshot),
   };
 }
 
-/** FNV-1a over the snapshot minus generated names, which are not seeded. */
 export function snapshotHash(snapshot: GameSnapshot): string {
-  const text = JSON.stringify(snapshot, (key, value) =>
-    key === "name" ? undefined : value
+  return fnv1a(
+    JSON.stringify(snapshot, (key, value) =>
+      key === "name" ? undefined : value
+    )
   );
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
 }

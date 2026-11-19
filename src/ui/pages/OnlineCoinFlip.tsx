@@ -11,25 +11,21 @@ import {
   HudCoin,
 } from "../components/componentWarehouse/HudKit";
 import {
-  LobbyDoc,
+  type LobbyDoc,
   setCoinFlipReady,
   setCoinFlipWinner,
   setCoinFlipChoice,
 } from "../../firebase/lobby";
-import { OnlineMatch } from "../../network/OnlineMatch";
+import { type OnlineMatch } from "../../network/OnlineMatch";
 import { soundSettings } from "../sound/settings";
 import type { DiceThrow } from "../dice/diceScene";
-import { teamLook } from "../components/hud/DiceTray";
+import { teamLook } from "../components/hud/diceTrayData";
 import { RESULT_BEAT_MS } from "../components/hud/CoinFlipOverlay";
 import { DIE_LANDING_TIMEOUT_MS } from "../../game/presentation/diceWatch";
 import { weatherRolled } from "../../services/gameService/matchStart";
 import { useEventBus } from "../hooks/useEventBus";
-import {
-  WeatherResult,
-  WeatherStage,
-  WeatherTable,
-  useWeatherThrow,
-} from "../components/hud/WeatherReveal";
+import { WeatherPanel } from "../components/hud/WeatherReveal";
+import { useWeatherThrow } from "../components/hud/weatherThrow";
 import type { Weather } from "../../game/rules/weather";
 
 interface Props {
@@ -43,49 +39,35 @@ function readyForToss(
   pregame: ReturnType<typeof usePregameInducements>,
   cf: NonNullable<LobbyDoc["coinFlip"]>
 ): boolean {
-  // Both coaches ready up for the toss after the inducements, as the lobby
-  // rules require both flags before the host may write the winner
   return (
     (!pregame.pregame || !pregame.pending) && !!cf.hostReady && !!cf.guestReady
   );
 }
 
-/**
- * The shared opening of an online match: the weather, then the coin toss.
- *
- * 1. Both coaches ready up for the weather. Each sends ready-weather, and
- *    both engines roll the same 2D6 once the second arrives.
- * 2. Each coach reads the result and moves on to the toss.
- * 3. Both coaches ready up for the toss (dual-active ready check).
- * 4. The host rolls the winner and writes it to the lobby doc; both see the
- *    same result in real time.
- * 5. Only the winner may choose kick/receive — the loser watches.
- * 6. The host applies the result to its engine (UI_CoinFlipComplete →
- *    startSetup), which flows setup to both sides via broadcasts.
- */
 export function OnlineCoinFlip(props: Props) {
   const cf = props.lobby.coinFlip ?? {};
-  // A toss already under way (a resumed match) has had its weather
+
   const [weatherRead, setWeatherRead] = useState(
     !!(cf.hostReady || cf.guestReady || cf.winnerTeamId)
   );
   if (!weatherRead)
-    return <OnlineWeather {...props} onRead={() => setWeatherRead(true)} />;
+    return (
+      <OnlineWeather
+        {...props}
+        onRead={() => {
+          setWeatherRead(true);
+        }}
+      />
+    );
   return <OnlineToss {...props} />;
 }
 
-/** Each coach's engine, for the weather both of them roll. */
 function engineState() {
   return ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance().gameService.getState()
     : null;
 }
 
-/**
- * Both coaches ready up, both engines roll the weather, each coach reads
- * it. The guest's ready goes first: a host who readies first waits, and
- * their ready is sent once the guest's has arrived (see OwnershipGate).
- */
 function OnlineWeather({
   match,
   eventBus,
@@ -96,26 +78,28 @@ function OnlineWeather({
   const amHost = match.role === "host";
   const readyNow = () => engineState()?.weatherReady ?? [];
   const [ready, setReady] = useState<string[]>(readyNow);
-  useEventBus(eventBus, GameEventNames.WeatherReady, ({ teamIds }) =>
-    setReady(teamIds)
-  );
+  useEventBus(eventBus, GameEventNames.WeatherReady, ({ teamIds }) => {
+    setReady(teamIds);
+  });
   const sent = useRef(false);
-  // A resync replaces the engine's state without replaying its events; a
-  // ready it dropped is sent again
+
   useEventBus(eventBus, GameEventNames.GameStateRestored, () => {
     const now = readyNow();
     if (!now.includes(myTeamId)) sent.current = false;
     setReady(now);
   });
-  const { stage, step, total } = useWeatherThrow(eventBus, team1.id, () => {
-    const state = engineState();
-    return !!state && weatherRolled(state);
+  const { stage, step, total } = useWeatherThrow({
+    eventBus: eventBus,
+    teamId: team1.id,
+    rolled: () => {
+      const state = engineState();
+      return !!state && weatherRolled(state);
+    },
   });
   const weather: Weather = engineState()?.weather ?? "Nice";
 
   const [wantReady, setWantReady] = useState(false);
-  // A refused ready (the opening moved on, or the order was wrong) gives
-  // the button back, so the coach can try again
+
   useEventBus(eventBus, GameEventNames.NetworkCommandRejected, (rejected) => {
     if (rejected.commandType !== "ready-weather") return;
     sent.current = false;
@@ -135,55 +119,40 @@ function OnlineWeather({
     sent.current = true;
     ServiceContainer.getInstance().gameService.readyForWeather(myTeamId);
   }, [wantReady, ready, amHost, guestTeamId, myTeamId]);
-  const readyUp = () => setWantReady(true);
+  const readyUp = () => {
+    setWantReady(true);
+  };
 
   return (
-    <DialogShell
+    <WeatherPanel
       zClass="z-[100]"
-      placement="center"
-      backdrop="heavy"
-      titleAs="h1"
-      title="WEATHER"
-      width="w-[480px]"
-      className="text-center"
-      testId="weather-dialog"
-    >
-      <div className="mb-4 flex items-center justify-center gap-4">
-        <TeamChip name={team1.name} me={myTeamId === team1.id} />
-        <span className="font-hud-display text-hud-lg text-hud-gold">VS</span>
-        <TeamChip name={team2.name} me={myTeamId === team2.id} />
-      </div>
-      <div className="space-y-4 [@media(max-height:500px)]:space-y-2">
-        {step === "waiting" && (
-          <p className="text-hud-dim">
-            Before kick-off the coaches roll 2D6 on the Weather Table. It sets
-            the conditions for the whole match.
+      header={
+        <div className="mb-4 flex items-center justify-center gap-4">
+          <TeamChip name={team1.name} me={myTeamId === team1.id} />
+          <span className="font-hud-display text-hud-lg text-hud-gold">VS</span>
+          <TeamChip name={team2.name} me={myTeamId === team2.id} />
+        </div>
+      }
+      stage={stage}
+      step={step}
+      weather={weather}
+      total={total}
+      onDone={onRead}
+      waiting={
+        iAmReady ? (
+          <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+            Waiting for {match.opponentName} to ready up…
           </p>
-        )}
-        <WeatherStage stage={stage} step={step} />
-        {step === "shown" && <WeatherResult weather={weather} total={total} />}
-        <WeatherTable result={step === "shown" ? weather : null} />
-        {step === "waiting" &&
-          (iAmReady ? (
-            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
-              Waiting for {match.opponentName} to ready up…
-            </p>
-          ) : (
-            <HudButton variant="primary" size="lg" block onClick={readyUp}>
-              READY — ROLL WEATHER
-            </HudButton>
-          ))}
-        {step === "shown" && (
-          <HudButton variant="primary" size="lg" block onClick={onRead}>
-            ON TO THE COIN TOSS
+        ) : (
+          <HudButton variant="primary" size="lg" block onClick={readyUp}>
+            READY — ROLL WEATHER
           </HudButton>
-        )}
-      </div>
-    </DialogShell>
+        )
+      }
+    />
   );
 }
 
-/** Both coaches ready up, the host tosses, the winner chooses. */
 function OnlineToss({ code, lobby, match, eventBus }: Props) {
   const pregame = usePregameInducements(eventBus);
   const amHost = match.role === "host";
@@ -193,11 +162,9 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
 
   const [spin, setSpin] = useState(0);
   const rolledRef = useRef(false);
-  // If the toss was already resolved when we mounted (a resumed match), never
-  // re-apply it — that would re-run setup. Only a toss completed live applies.
+
   const appliedRef = useRef(lobby.coinFlip?.kickingTeamId != null);
-  // The 3D coin shows the host's result on both screens before the choice.
-  // A toss already won when we mounted (a resumed match) is not flipped again.
+
   const [resumed] = useState(lobby.coinFlip?.winnerTeamId != null);
   const [landed, setLanded] = useState(resumed);
   const [coinFailed, setCoinFailed] = useState(false);
@@ -211,12 +178,11 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
   const teamById = (id: string | null) =>
     id === team1.id ? team1 : id === team2.id ? team2 : null;
 
-  // Host: once both are ready, roll the winner (authoritative) — exactly once.
   useEffect(() => {
     if (!amHost || !bothReady || winnerId || rolledRef.current) return;
     rolledRef.current = true;
     const winner = Math.random() < 0.5 ? team1 : team2;
-    // Log the toss like any other dice roll; broadcasts to the guest.
+
     eventBus.emit(GameEventNames.DiceRoll, {
       rollType: "Coin Toss",
       diceType: "1d2",
@@ -229,18 +195,16 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
     void setCoinFlipWinner(code, winner.id);
   }, [amHost, bothReady, winnerId, code, eventBus, team1, team2]);
 
-  // A little spin animation while waiting for the result
   useEffect(() => {
     if (!bothReady || winnerId) return;
-    const id = setInterval(() => setSpin((s) => s + 72), 60);
-    return () => clearInterval(id);
+    const id = setInterval(() => {
+      setSpin((s) => s + 72);
+    }, 60);
+    return () => {
+      clearInterval(id);
+    };
   }, [bothReady, winnerId]);
 
-  // Host: apply the finished toss to the engine — exactly once — which starts
-  // setup. The guard is the live engine state, not just a ref: startSetup
-  // moves the engine to SETUP_KICKING, so if we ever re-run this effect
-  // (re-render/remount) we detect the toss is already applied and do nothing.
-  // Without this, a repeated apply re-emits startSetup in a loop.
   useEffect(() => {
     if (!amHost || !kickingId || appliedRef.current) return;
     appliedRef.current = true;
@@ -248,7 +212,7 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
     const gs = ServiceContainer.isInitialized()
       ? ServiceContainer.getInstance().gameService
       : null;
-    // Already past the toss (applied here or on a resumed match) — skip.
+
     if (!gs || gs.getSubPhase() !== SubPhase.INTRO) return;
 
     const kickingTeam = teamById(kickingId);
@@ -259,10 +223,8 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
         receivingTeam,
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amHost, kickingId]);
 
-  // Flip the coin onto the winner's face once the host's result arrives
   useEffect(() => {
     if (!winnerId || landed) return;
     let live = true;
@@ -283,8 +245,7 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
           { sound: !soundSettings.get().muted }
         );
         throwing.current = handle;
-        // A coin that never lands (a hidden tab, a stalled renderer) still
-        // gives way to the result, or the winner could never choose
+
         let timer: ReturnType<typeof setTimeout> | undefined;
         await Promise.race([
           handle.landed,
@@ -294,7 +255,9 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
               resolve();
             }, DIE_LANDING_TIMEOUT_MS);
           }),
-        ]).finally(() => clearTimeout(timer));
+        ]).finally(() => {
+          clearTimeout(timer);
+        });
         await new Promise((resolve) => setTimeout(resolve, RESULT_BEAT_MS));
       } catch (error) {
         console.warn("[OnlineCoinFlip] could not show the coin", error);
@@ -307,7 +270,6 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
     };
   }, [winnerId]);
 
-  // The coin stops drawing once the choice is made or the card goes
   useEffect(() => {
     if (kickingId) throwing.current?.stop();
   }, [kickingId]);
@@ -315,7 +277,7 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
 
   const ready = () => void setCoinFlipReady(code, amHost);
   const choose = (choice: "kick" | "receive") => {
-    if (winnerId !== myTeamId) return; // only the winner chooses
+    if (winnerId !== myTeamId) return;
     const kicking =
       choice === "kick"
         ? winnerId
@@ -325,7 +287,6 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
     void setCoinFlipChoice(code, kicking);
   };
 
-  // Done — the engine takes over from here.
   if (kickingId) return null;
 
   if (pregame.pending) return <PregameInducements eventBus={eventBus} />;
@@ -381,7 +342,6 @@ function OnlineToss({ code, lobby, match, eventBus }: Props) {
   );
 }
 
-/** Both coaches ready up, then the coin spins until the host's result. */
 function ReadyCheck({
   spin,
   bothReady,
@@ -419,7 +379,6 @@ function ReadyCheck({
   );
 }
 
-/** The winner chooses to kick or receive; the other coach waits. */
 function TossResult({
   winnerName,
   iWon,
@@ -443,14 +402,18 @@ function TossResult({
             <HudButton
               variant="gold"
               size="lg"
-              onClick={() => onChoose("kick")}
+              onClick={() => {
+                onChoose("kick");
+              }}
             >
               KICK
             </HudButton>
             <HudButton
               variant="primary"
               size="lg"
-              onClick={() => onChoose("receive")}
+              onClick={() => {
+                onChoose("receive");
+              }}
             >
               RECEIVE
             </HudButton>

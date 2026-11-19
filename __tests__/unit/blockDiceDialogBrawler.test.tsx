@@ -1,19 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
-import { BlockAnalysis } from "../../src/types/Actions";
+import { type BlockAnalysis } from "../../src/types/Actions";
 import { BlockDiceDialog } from "../../src/ui/components/hud/BlockDiceDialog";
 
-/**
- * Covers the OpenSpec change add-brawler-both-down-reroll: Brawler's Both
- * Down re-roll is no longer a separate yes/no popup that blocks the coach
- * from ever seeing the dice — the normal block-dice popup shows the roll as
- * usual, with a "Brawler: re-roll 1 both down" button inside it whenever a
- * die reads Both Down. Clicking the button re-rolls that die in place and
- * the popup stays open showing the refreshed result.
- */
 describe("BlockDiceDialog — Brawler re-roll button", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -27,7 +20,9 @@ describe("BlockDiceDialog — Brawler re-roll button", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -74,7 +69,6 @@ describe("BlockDiceDialog — Brawler re-roll button", () => {
   };
 
   it("counts one die as 1 DIE, not 1 DICE", async () => {
-    // Round 3, 40:58: the block card read "1 DICE"
     await openAndRoll(false);
     expect(container.textContent).toContain("1 DIE");
     expect(container.textContent).not.toContain("1 DICE");
@@ -83,19 +77,21 @@ describe("BlockDiceDialog — Brawler re-roll button", () => {
   it("shows the block popup with the roll and a Brawler re-roll button — no separate yes/no popup", async () => {
     await openAndRoll(true);
 
-    // The normal block popup is showing, with the die visible immediately —
-    // no intervening reaction/confirmation popup gates the view.
-    expect(container.querySelector('[data-testid="block-dice-dialog"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-testid="block-dice-dialog"]')
+    ).toBeTruthy();
     expect(container.querySelector('[data-testid="block-die-0"]')).toBeTruthy();
-    expect(container.querySelector('[data-testid="reaction-dialog"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="reaction-dialog"]')
+    ).toBeNull();
 
     const brawlerButton = container.querySelector<HTMLButtonElement>(
       '[data-testid="block-brawler-reroll"]'
     );
     expect(brawlerButton).toBeTruthy();
-    expect(brawlerButton!.textContent).toMatch(/brawler/i);
-    expect(brawlerButton!.textContent).toMatch(/re-roll/i);
-    expect(brawlerButton!.textContent).toMatch(/both down/i);
+    expect(fixtureValue(brawlerButton).textContent).toMatch(/brawler/i);
+    expect(fixtureValue(brawlerButton).textContent).toMatch(/re-roll/i);
+    expect(fixtureValue(brawlerButton).textContent).toMatch(/both down/i);
   });
 
   it("clicking the button emits UI_BrawlerRerollBlockDie for the attacker and keeps the dialog open", async () => {
@@ -106,16 +102,18 @@ describe("BlockDiceDialog — Brawler re-roll button", () => {
       emitted.push(data)
     );
 
-    const brawlerButton = container.querySelector<HTMLButtonElement>(
+    const brawlerButton = fixtureValue(container.querySelector<HTMLButtonElement>(
       '[data-testid="block-brawler-reroll"]'
-    )!;
+    ));
     await act(async () => {
       brawlerButton.click();
     });
 
     expect(emitted).toEqual([{ attackerId: "team1-player-1" }]);
-    // No result was chosen — the popup is still open, unlike selecting a die.
-    expect(container.querySelector('[data-testid="block-dice-dialog"]')).toBeTruthy();
+
+    expect(
+      container.querySelector('[data-testid="block-dice-dialog"]')
+    ).toBeTruthy();
   });
 
   it("the popup refreshes in place when the engine re-emits BlockDiceRolled after the re-roll", async () => {
@@ -136,13 +134,11 @@ describe("BlockDiceDialog — Brawler re-roll button", () => {
         ],
         teamRerollAvailable: false,
         proAvailable: false,
-        brawlerAvailable: false, // spent — only one re-roll per block
+        brawlerAvailable: false,
       });
     });
 
-    expect(
-      container.querySelector('[data-block-result="push"]')
-    ).toBeTruthy();
+    expect(container.querySelector('[data-block-result="push"]')).toBeTruthy();
     expect(
       container.querySelector('[data-testid="block-brawler-reroll"]')
     ).toBeNull();

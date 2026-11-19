@@ -1,4 +1,3 @@
-/** Four-game blocks balance physical side and which roster each policy uses. */
 import type { Variant } from "../advanced-study/teams";
 import type { StudyJob } from "../catalogue-study/model";
 
@@ -10,7 +9,6 @@ export interface PolicyJob extends StudyJob {
   leg: number;
 }
 
-/** Keep whole blocks, include named capability sentinels, then span the matrix. */
 export function limitPolicyBlocks(
   jobs: PolicyJob[],
   count: number,
@@ -23,13 +21,21 @@ export function limitPolicyBlocks(
     if (pair && chosen.size < count) chosen.add(pair);
   }
   const remaining = Math.min(count, pairs.length) - chosen.size;
-  for (let i = 0; i < remaining; i++)
-    chosen.add(pairs[Math.floor((i * pairs.length) / remaining)]);
+  for (let i = 0; i < remaining; i++) {
+    const pick = pairs[Math.floor((i * pairs.length) / remaining)];
+    if (pick !== undefined) chosen.add(pick);
+  }
   for (const pair of pairs) {
     if (chosen.size >= Math.min(count, pairs.length)) break;
     chosen.add(pair);
   }
   return jobs.filter((j) => chosen.has(j.pair));
+}
+
+function opponentIn(group: Variant[], position: number): Variant {
+  const opponent = group[position % group.length];
+  if (!opponent) throw new Error("No opponent variant");
+  return opponent;
 }
 
 export function policySchedule(
@@ -40,7 +46,7 @@ export function policySchedule(
 ): PolicyJob[] {
   const groups = new Map<string, Variant[]>();
   for (const v of variants) {
-    const group = `${v.arm}:${v.replicate}`;
+    const group = `${v.arm}:${String(v.replicate)}`;
     groups.set(group, [...(groups.get(group) ?? []), v]);
   }
   const jobs: PolicyJob[] = [];
@@ -48,8 +54,8 @@ export function policySchedule(
   for (const group of groups.values()) {
     for (const offset of [11, 37])
       group.forEach((a, index) => {
-        const b = group[(index + offset) % group.length];
-        const pair = `${smoke ? "smoke" : "confirm"}-${groupIndex}-${offset}-${index}`;
+        const b = opponentIn(group, index + offset);
+        const pair = `${smoke ? "smoke" : "confirm"}-${String(groupIndex)}-${String(offset)}-${String(index)}`;
         const seed =
           (smoke ? 12_000_000 : seedBase) +
           groupIndex * 10000 +
@@ -58,7 +64,7 @@ export function policySchedule(
         for (let leg = 0; leg < (receivingBalance ? 8 : 4); leg++) {
           const sides: [Variant, Variant] = leg % 2 ? [b, a] : [a, b];
           jobs.push({
-            id: `${pair}-${leg}`,
+            id: `${pair}-${String(leg)}`,
             pair,
             seed,
             leg,

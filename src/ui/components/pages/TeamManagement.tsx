@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Team } from "../../../types/Team";
+import { type Team } from "../../../types/Team";
 import {
   assertTeamLibraryLoaded,
   deleteTeam,
@@ -33,7 +33,6 @@ import {
 import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 
-/** Draft/active mode plus shared roster legality, for the team-list badge. */
 function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
   const mode = getTeamMode(team);
   let legal = true;
@@ -48,7 +47,6 @@ function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
   return { mode, legal };
 }
 
-/** The Teams section: every team the coach has, to create, manage or delete. */
 export function TeamManagement() {
   const [teams, reloadTeams] = useTeamLibrary();
   const navigate = useNavigate();
@@ -67,11 +65,6 @@ export function TeamManagement() {
     navigate(`/build-team/${teamId}`);
   };
 
-  /**
-   * A computer team still in a competition stays: its games could no longer
-   * be played or simulated. This early check avoids an unnecessary prompt;
-   * the backend checks current membership when deletion is confirmed.
-   */
   const stillPlaying = (teamId: string): boolean => {
     const team = getTeamById(teamId);
     if (!team?.computerCoached || !team.activeCompetitionId) return false;
@@ -85,7 +78,6 @@ export function TeamManagement() {
     if (stillPlaying(teamId)) return;
     if (!confirm("Are you sure you want to delete this team?")) return;
     try {
-      // The backend checks membership again at the point of deletion.
       await deleteTeam(teamId);
       reloadTeams();
     } catch (reason) {
@@ -93,10 +85,6 @@ export function TeamManagement() {
     }
   };
 
-  /**
-   * Seed actions write teams and competitions together, so they run only
-   * when the coach's library is loaded, and say why when it is not.
-   */
   const runSeedAction = (question: string, action: () => void) => {
     try {
       assertTeamLibraryLoaded();
@@ -108,17 +96,19 @@ export function TeamManagement() {
     reloadTeams();
   };
 
-  const handleSeedTeams = () =>
+  const handleSeedTeams = () => {
     runSeedAction(
       "This will create sample teams for all roster types. Continue?",
       seedAllRosterTeams
     );
+  };
 
-  const handleDeleteSeedTeams = () =>
+  const handleDeleteSeedTeams = () => {
     runSeedAction(
       "This will delete all development seed teams and competitions. Continue?",
       deleteAllSeedTeams
     );
+  };
 
   const handleBack = () => {
     navigate("/");
@@ -162,7 +152,9 @@ export function TeamManagement() {
               hudChoiceClass(tab === item.id),
               "px-5 py-3 font-hud-label text-hud-base uppercase text-hud-bone"
             )}
-            onClick={() => setTab(item.id)}
+            onClick={() => {
+              setTab(item.id);
+            }}
             onKeyDown={(event) => {
               if (
                 !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
@@ -264,7 +256,7 @@ export function TeamManagement() {
                         <div
                           key={player.id}
                           className="flex min-w-0 flex-col items-center"
-                          title={`#${player.number} ${player.playerName} - ${player.positionName}`}
+                          title={`#${String(player.number)} ${player.playerName} - ${player.positionName}`}
                         >
                           <div className="relative">
                             <PlayerPortrait
@@ -300,14 +292,18 @@ export function TeamManagement() {
 
                   <PendingDevelopmentPanel
                     team={team}
-                    onChange={() => reloadTeams()}
+                    onChange={() => {
+                      reloadTeams();
+                    }}
                   />
 
                   <div className="mt-auto flex gap-2">
                     <HudButton
                       variant="gold"
                       block
-                      onClick={() => handleEditTeam(team.id)}
+                      onClick={() => {
+                        handleEditTeam(team.id);
+                      }}
                     >
                       Manage Team
                     </HudButton>

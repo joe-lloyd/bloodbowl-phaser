@@ -1,14 +1,11 @@
-/**
- * Rule scenarios — Traits (No Ball, Titchy, Stunty, Stab, Unsteady).
- */
-
+import { z } from "zod";
 import { SkillType } from "../../types/Skills";
 import { PlayerStatus } from "../../types/Player";
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { computeActionAvailability } from "../../game/rules/actionAvailability";
 import {
-  RuleScenarioEntry,
+  type RuleScenarioEntry,
   playSetup,
   blockConfig,
   assert,
@@ -21,14 +18,12 @@ import {
   playerStanding,
   playerDown,
   resolveRef,
-  ScriptResult,
+  type ScriptResult,
 } from "../../game/rules-lab";
 
-/** How many Block Actions were rolled in the run (Frenzy's second block). */
 const blockRollCount = (r: ScriptResult): number =>
   r.events.filter((e) => e.name === GameEventNames.BlockDiceRolled).length;
 
-/** THIS player's injury 2D6 landed on this total (before rule adjustments). */
 const injuryTotal = (
   r: Parameters<typeof skillTriggered>[0],
   ref: string,
@@ -38,28 +33,31 @@ const injuryTotal = (
     r,
     GameEventNames.DiceRoll,
     (d) =>
-      (d as { rollType?: string }).rollType ===
+      z.object({ rollType: z.string().exactOptional() }).parse(d).rollType ===
         `Injury Roll (${playerOf(r, ref).playerName})` &&
-      (d as { total?: number }).total === total
+      z.object({ total: z.number().exactOptional() }).parse(d).total === total
   );
 
-/** The Stab's direct (unmodifiable) Armour Roll was made. */
 const stabArmourRolled = (r: Parameters<typeof skillTriggered>[0]): boolean =>
   sawEvent(
     r,
     GameEventNames.DiceRoll,
-    (d) => (d as { rollType?: string }).rollType === "Armor Check"
+    (d) =>
+      z.object({ rollType: z.string().exactOptional() }).parse(d).rollType ===
+      "Armor Check"
   );
 
-/** Any Injury Roll happened in the run. */
 const injuryRolled = (r: Parameters<typeof skillTriggered>[0]): boolean =>
   sawEvent(
     r,
     GameEventNames.DiceRoll,
-    (d) => !!(d as { rollType?: string }).rollType?.startsWith("Injury Roll")
+    (d) =>
+      !!z
+        .object({ rollType: z.string().exactOptional() })
+        .parse(d)
+        .rollType?.startsWith("Injury Roll")
   );
 
-/** An Armour Roll was made for the referenced player (ArmourOperation). */
 const armourRolledFor = (
   r: Parameters<typeof skillTriggered>[0],
   ref: string
@@ -68,15 +66,10 @@ const armourRolledFor = (
     r,
     GameEventNames.DiceRoll,
     (d) =>
-      (d as { rollType?: string }).rollType ===
+      z.object({ rollType: z.string().exactOptional() }).parse(d).rollType ===
       `Armour Roll (${playerOf(r, ref).playerName})`
   );
 
-/**
- * The player's activation is spent (Stab always ends it). Checked on the
- * event log, not live state: finishing the active team's last player flips
- * the turn, which resets the activatedPlayerIds set.
- */
 const activationOver = (
   r: Parameters<typeof skillTriggered>[0],
   ref: string
@@ -87,11 +80,6 @@ const activationOver = (
     (d) => d === resolveRef(r.game, ref)
   );
 
-/**
- * The contextual action menu's view of a player, computed exactly as the
- * HUD computes it — so a scenario can assert what a coach is offered, not
- * just what the engine accepts.
- */
 const availabilityFor = (
   r: ScriptResult,
   ref: string,
@@ -111,7 +99,6 @@ const availabilityFor = (
   });
 };
 
-/** The last command of the run was refused with this protocol reason. */
 const lastCommandRefused = (r: ScriptResult, reason: string): boolean => {
   const last = r.responses[r.responses.length - 1];
   return !!last && !last.ok && !!last.reason?.includes(reason);
@@ -125,8 +112,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "regeneration-save",
         name: "Casualty with Regeneration",
         description: "A 4+ ignores the casualty; the player goes to Reserves",
-        // A Skeleton Lineman regenerates natively and keeps ST 3, so the
-        // attacker still rolls the single block die this outcome expects.
+
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Roster: RosterName.SHAMBLING_UNDEAD,
@@ -169,7 +155,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "titchy-dodge-bonus",
         name: "Dodge with Titchy",
         description: "+1 to the dodge Agility Test",
-        // The Ogre roster's Gnoblar Lineman (index 3) is Titchy by default.
+
         setup: playSetup({
           team1Roster: RosterName.OGRE,
           team1Placements: [{ playerIndex: 3, x: 16, y: 4 }],
@@ -187,11 +173,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.TITCHY) &&
               skillCheckDiff(r, "Dodge") === 1,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Dodge") === 1,
                 "dodge total must be roll + 1"
-              ),
+              );
+            },
           },
         ],
       },
@@ -208,7 +195,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         script: [
           { type: "declare-action", playerId: "team1:0", action: "move" },
-          // (10,4) stays inside the Titchy player's Tackle Zone
+
           { type: "move", playerId: "team1:0", path: [{ x: 10, y: 4 }] },
         ],
         outcomes: [
@@ -218,11 +205,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.TITCHY) &&
               skillCheckDiff(r, "Dodge") === 0,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Dodge") === 0,
                 "the Titchy marker's -1 must be forgiven"
-              ),
+              );
+            },
           },
         ],
       },
@@ -235,9 +223,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "stunty-ignores-marking",
         name: "Marked dodge with Stunty",
         description: "No negative marking modifiers on the dodge",
-        // A Lizardmen Skink Lineman is Stunty on the roster and, unlike the
-        // Goblin/Gnoblar Stunties, carries no Right Stuff or Sidestep to
-        // muddy what the dodge modifier is proving.
+
         setup: playSetup({
           team1Roster: RosterName.LIZARDMEN,
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
@@ -246,7 +232,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         script: [
           { type: "declare-action", playerId: "team1:0", action: "move" },
-          // (10,4) is still marked by the opponent at (11,5)
+
           { type: "move", playerId: "team1:0", path: [{ x: 10, y: 4 }] },
         ],
         outcomes: [
@@ -256,11 +242,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.STUNTY) &&
               skillCheckDiff(r, "Dodge") === 0,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillCheckDiff(r, "Dodge") === 0,
                 "Stunty must forgive the marking modifier"
-              ),
+              );
+            },
           },
         ],
       },
@@ -268,19 +255,16 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "stunty-injury-table",
         name: "Injury Roll against a Stunty player",
         description: "A 7 Knocks Out on the Stunty Injury Table",
-        // Skink Linemen are Stunty by roster and have no Thick Skull, which
-        // is what separates this config from stunty-thick-skull below.
+
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Roster: RosterName.LIZARDMEN,
           team2Placements: [
             {
-              // playerIndex 1 keeps the name distinct from the attacker's, so
-              // the injury-roll matcher cannot hit the attacker's own roll
               playerIndex: 1,
               x: 11,
               y: 5,
-              stats: { AV: 4 }, // break armour often
+              stats: { AV: 4 },
             },
           ],
           ballPosition: { x: 1, y: 1 },
@@ -296,11 +280,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.STUNTY) &&
               injuryTotal(r, "team2:1", 7),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 playerOf(r, "team2:1").status === PlayerStatus.KO,
                 "a 7 Knocks a Stunty player Out"
-              ),
+              );
+            },
           },
           {
             id: "nine-is-badly-hurt",
@@ -318,9 +303,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   r,
                   GameEventNames.DiceRoll,
                   (d) =>
-                    !!(d as { rollType?: string }).rollType?.startsWith(
-                      "Casualty Roll"
-                    )
+                    !!z
+                      .object({ rollType: z.string().exactOptional() })
+                      .parse(d)
+                      .rollType?.startsWith("Casualty Roll")
                 ),
                 "Sevens makes no Casualty Roll"
               );
@@ -332,15 +318,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "stunty-thick-skull",
         name: "Stunty and Thick Skull together",
         description: "KO only on the 8; the 7 is a Stunned result",
-        // The Black Orc roster's Goblin Bruiser has both Stunty and Thick
-        // Skull as starting skills — exactly the pairing under test.
+
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Roster: RosterName.BLACK_ORC,
           team2Placements: [
             {
-              // index 4 is the second Goblin Bruiser, so the defender's name
-              // stays distinct from anyone else rolling — see stunty-injury-table
               playerIndex: 4,
               x: 11,
               y: 5,
@@ -355,10 +338,6 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         seedSearch: { from: 1, limit: 500 },
         outcomes: [
           {
-            // A bare Stunty 7 would be a KO — with Thick Skull it must stay
-            // Stunned. The Stunned status wears off to Prone when the turn
-            // flips, so the observable is the injury notification, scoped by
-            // requiring the defender's roll to be the run's only injury roll.
             id: "seven-is-stunned",
             name: "The 7 is only a Stunned result",
             matches: (r) =>
@@ -366,9 +345,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               r.events.filter(
                 (e) =>
                   e.name === GameEventNames.DiceRoll &&
-                  !!(e.data as { rollType?: string }).rollType?.startsWith(
-                    "Injury Roll"
-                  )
+                  !!z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(e.data)
+                    .rollType?.startsWith("Injury Roll")
               ).length === 1,
             verify: (r) => {
               assert(
@@ -400,8 +380,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "no-ball-pickup",
         name: "No Ball player enters the ball's square",
         description: "The pick-up automatically fails as a natural 1",
-        // The Goblin Loony (index 4) has No Ball on the roster — a Secret
-        // Weapon player who genuinely cannot handle the ball.
+
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [{ playerIndex: 4, x: 4, y: 5 }],
@@ -423,12 +402,14 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 !r.events.some(
                   (e) =>
                     e.name === "diceRoll" &&
-                    (e.data as { rollType?: string })?.rollType?.startsWith(
-                      "Pickup"
-                    ) &&
-                    (e.data as { description?: string })?.description?.includes(
-                      "needs"
-                    )
+                    z
+                      .object({ rollType: z.string().exactOptional() })
+                      .parse(e.data)
+                      .rollType?.startsWith("Pickup") &&
+                    z
+                      .object({ description: z.string().exactOptional() })
+                      .parse(e.data)
+                      .description?.includes("needs")
                 ),
                 "no real pick-up roll may happen"
               );
@@ -653,8 +634,6 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "Stab is absent from the menu and the declaration is refused",
             matches: (r) => lastCommandRefused(r, "illegal-action-declaration"),
             verify: (r) => {
-              // Standing where it stands, the Assassin has a legal Stab
-              // target — the ONLY thing withholding the button is the move.
               assert(
                 availabilityFor(r, "team1:0", false).stab,
                 "the scenario must place a legal Stab target adjacent"
@@ -664,12 +643,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 !moved.stab && moved.directBlockReplacements.length === 0,
                 "a moved player is offered no direct block-replacing attack"
               );
-              // …and the engine refuses it too, leaving the Move intact.
+
               const state = r.game.ctx.gameService.getState();
               assert(
                 state.activePlayer?.id === resolveRef(r.game, "team1:0") &&
-                  state.activePlayer?.action === "move" &&
-                  !state.activePlayer?.blockReplacement,
+                  state.activePlayer.action === "move" &&
+                  !state.activePlayer.blockReplacement,
                 "the refused Stab must leave the Move declaration untouched"
               );
               assert(
@@ -709,9 +688,9 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             blockReplacement: "stab",
           },
           { type: "move", playerId: "team1:0", path: [{ x: 11, y: 5 }] },
-          // The board click used to decay into this command; it must not.
+
           { type: "block", attackerId: "team1:0", defenderId: "team2:0" },
-          // …the declared attack is what a target selection resolves.
+
           { type: "stab", attackerId: "team1:0", defenderId: "team2:0" },
         ],
         outcomes: [
@@ -748,7 +727,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "unsteady-secure-ball",
         name: "Unsteady may not Secure the Ball",
         description: "Declaring a Secure the Ball Action is refused",
-        // A Necromantic Horror Zombie Lineman is Unsteady on the roster.
+
         setup: playSetup({
           team1Roster: RosterName.NECROMANTIC_HORROR,
           team1Placements: [{ playerIndex: 0, x: 4, y: 5 }],
@@ -803,31 +782,27 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "second-block",
             name: "A standing pushed target draws a mandatory second Block",
-            // A Knocked Out player leaves the pitch immediately, so the
-            // follow-up adjacency this outcome asserts is only observable on
-            // a run where both players are still standing on the board.
+
             matches: (r) =>
               blockRollCount(r) >= 2 &&
               !!playerOf(r, "team1:0").gridPosition &&
               !!playerOf(r, "team2:0").gridPosition,
             verify: (r) => {
-              // The blocker was forced to follow up out of its start square…
               assert(
                 !playerAt(r, "team1:0", { x: 10, y: 5 }),
                 "Frenzy forces the blocker to follow up the push"
               );
-              // …and threw a second Block (two block rolls, one activation)…
+
               assert(
                 blockRollCount(r) === 2,
                 "Frenzy throws exactly one extra Block, not a third"
               );
-              // …both follow-ups forced, so no follow-up choice is ever shown…
+
               assert(
                 !sawEvent(r, GameEventNames.UI_FollowUpPrompt),
                 "Frenzy follow-ups are automatic — no follow-up prompt"
               );
-              // …and after the second Block the blocker has followed up to sit
-              // adjacent to the twice-pushed target.
+
               const atk = playerOf(r, "team1:0").gridPosition;
               const def = playerOf(r, "team2:0").gridPosition;
               assert(
@@ -905,14 +880,19 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.DiceRoll,
                 (d) =>
-                  !!(d as { rollType?: string }).rollType?.startsWith(
-                    "Chainsaw Kick-back"
-                  ) && (d as { resultState?: string }).resultState === "success"
+                  !!z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(d)
+                    .rollType?.startsWith("Chainsaw Kick-back") &&
+                  z.object({ resultState: z.string().exactOptional() }).parse(d)
+                    .resultState === "success"
               ) &&
               sawEvent(
                 r,
                 GameEventNames.DiceRoll,
-                (d) => (d as { rollType?: string }).rollType === "Armor Check"
+                (d) =>
+                  z.object({ rollType: z.string().exactOptional() }).parse(d)
+                    .rollType === "Armor Check"
               ) &&
               playerStanding(r, "team1:4"),
             verify: (r) => {
@@ -934,9 +914,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.DiceRoll,
                 (d) =>
-                  !!(d as { rollType?: string }).rollType?.startsWith(
-                    "Chainsaw Kick-back"
-                  ) && (d as { resultState?: string }).resultState === "failure"
+                  !!z
+                    .object({ rollType: z.string().exactOptional() })
+                    .parse(d)
+                    .rollType?.startsWith("Chainsaw Kick-back") &&
+                  z.object({ resultState: z.string().exactOptional() }).parse(d)
+                    .resultState === "failure"
               ) && playerDown(r, "team1:4"),
             verify: (r) => {
               assert(
@@ -1056,8 +1039,8 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               const loonyId = resolveRef(r.game, "team1:4");
               assert(
                 state.activePlayer?.id === loonyId &&
-                  state.activePlayer?.blockReplacement === "chainsaw" &&
-                  state.activePlayer?.blockReplacementUsed === false,
+                  state.activePlayer.blockReplacement === "chainsaw" &&
+                  state.activePlayer.blockReplacementUsed === false,
                 "the declaration survives an illegal target"
               );
               assert(
@@ -1090,14 +1073,11 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Throw Bomb Special Action",
         description:
           "A bomb thrown like a Pass; when it comes to rest it explodes, hitting the square it lands in (Armour Rolls all round). A Fumble blows up in the Bomber's own square — a Turnover.",
-        // The Goblin Bomma carries Bombardier on the roster, so the bomb is
-        // thrown by a player who really has it — Secret Weapon send-off and
-        // all — rather than by a Human Lineman who never could.
+
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [{ playerIndex: 5, x: 10, y: 5 }],
           team2Placements: [
-            // A Prone target auto-fails the Catch, so the bomb explodes on it.
             { playerIndex: 0, x: 13, y: 5, status: PlayerStatus.PRONE },
           ],
           ballPosition: { x: 1, y: 1 },
@@ -1157,14 +1137,11 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Ball & Chain lurches into a Standing player",
         description:
           "The Fanatic (ST 7) swings toward an End Zone and Blocks the first Standing player it lurches into: a normal Block Action, so its coach picks the die and may re-roll it. Each command is one square of the Throw-in Template.",
-        // The Goblin Fanatic (index 6) is the real thing: Ball & Chain,
-        // ST 7, MA 3, No Ball and Secret Weapon all from the roster.
+
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [{ playerIndex: 6, x: 10, y: 5 }],
           team2Placements: [
-            // A wall directly East, so any of the three template arrows lands
-            // the Fanatic on a Standing opponent → a Block.
             { playerIndex: 0, x: 11, y: 4 },
             { playerIndex: 1, x: 11, y: 5 },
             { playerIndex: 2, x: 11, y: 6 },
@@ -1177,7 +1154,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             playerId: "team1:6",
             action: "ballAndChain",
           },
-          // Facing East (toward the opponents' End Zone).
+
           { type: "ball-and-chain", playerId: "team1:6", x: 1, y: 0 },
         ],
         seedSearch: { from: 1, limit: 500 },
@@ -1191,14 +1168,15 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.BlockDiceRolled,
                 (d) =>
-                  (d as { attackerId?: string }).attackerId ===
-                  playerOf(r, "team1:6").id
+                  z.object({ attackerId: z.string().exactOptional() }).parse(d)
+                    .attackerId === playerOf(r, "team1:6").id
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 r.decisions.some((d) => d.type === "block-dice"),
                 "the Fanatic's coach must be offered the block dice"
-              ),
+              );
+            },
           },
         ],
       },
@@ -1207,7 +1185,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Ball & Chain into a Stand Firm player",
         description:
           "The Fanatic lurches into a Pump Wagon, which Stands Firm against the push. The May 2026 FAQ: the Fanatic stays in the square it started in, and the square still counts as one square of movement.",
-        // The Snotling Pump Wagon (index 0) has Stand Firm from its roster
+
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [{ playerIndex: 6, x: 10, y: 5 }],
@@ -1277,11 +1255,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               r.decisions.filter((d) => d.type === "push-direction").length ===
                 2 && playerAt(r, "team1:6", { x: 11, y: 5 }),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 !r.decisions.some((d) => d.type === "follow-up"),
                 "the Fanatic moves in without a follow-up choice"
-              ),
+              );
+            },
           },
         ],
       },
@@ -1324,11 +1303,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               ["team1:1", "team1:2", "team1:3"].some((ref) =>
                 playerDown(r, ref)
               ),
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 turnoverHappened(r),
                 "knocking a team-mate down is a Turnover"
-              ),
+              );
+            },
           },
         ],
       },
@@ -1341,7 +1321,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           team1Roster: RosterName.GOBLIN,
           team1Placements: [
             { playerIndex: 6, x: 5, y: 5 },
-            // A bystander keeps the turn going once the Fanatic is done
+
             { playerIndex: 3, x: 1, y: 9 },
           ],
           team2Placements: [{ playerIndex: 0, x: 18, y: 9 }],
@@ -1374,13 +1354,14 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               r.game.ctx.gameService.getMovementUsed(
                 playerOf(r, "team1:6").id
               ) === 5,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 r.game.ctx.gameService.hasPlayerActed(
                   playerOf(r, "team1:6").id
                 ),
                 "the activation ends once MA and both Rushes are spent"
-              ),
+              );
+            },
           },
           {
             id: "fell-over",
@@ -1391,9 +1372,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 r,
                 GameEventNames.DiceRoll,
                 (d) =>
-                  (d as { description?: string }).description?.startsWith(
-                    "Injury Roll (Fanatic"
-                  ) ?? false
+                  z
+                    .object({ description: z.string().exactOptional() })
+                    .parse(d)
+                    .description?.startsWith("Injury Roll (Fanatic") ?? false
               ),
             verify: (r) => {
               assert(turnoverHappened(r), "falling over is a Turnover");
@@ -1402,9 +1384,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   r,
                   GameEventNames.DiceRoll,
                   (d) =>
-                    (d as { description?: string }).description?.startsWith(
-                      "Armour Roll (Fanatic"
-                    ) ?? false
+                    z
+                      .object({ description: z.string().exactOptional() })
+                      .parse(d)
+                      .description?.startsWith("Armour Roll (Fanatic") ?? false
                 ),
                 "a Ball & Chain player takes no Armour Roll"
               );
@@ -1429,7 +1412,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             playerId: "team1:6",
             action: "ballAndChain",
           },
-          // Facing North (toward the top Sideline at y = 0).
+
           { type: "ball-and-chain", playerId: "team1:6", x: 0, y: -1 },
         ],
         seedSearch: { from: 1, limit: 500 },
@@ -1461,9 +1444,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Secret Weapon is Sent-off after the Drive",
         description:
           "A Secret Weapon that took part in the Drive is Sent-off when a touchdown ends that Drive",
-        // The Goblin Bomma (index 5) is a roster Secret Weapon that can still
-        // carry the ball, so it can score the touchdown that ends the Drive
-        // and then be Sent-off — the Loony's No Ball would block the run.
+
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [{ playerIndex: 5, x: 18, y: 5 }],
@@ -1505,9 +1486,6 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "When Stab causes a Casualty, Violent Innovator credits the attacker as the casualty causer for SPP",
         setup: playSetup({
-          // The Dark Elf Assassin brings Stab from the roster; only Violent
-          // Innovator itself — the rule under test — is granted, and no
-          // Sevens position starts with it.
           team1Roster: RosterName.DARK_ELF,
           team1Placements: [
             {
@@ -1536,11 +1514,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.VIOLENT_INNOVATOR) &&
               playerOf(r, "team2:0").status === PlayerStatus.INJURED,
-            verify: (r) =>
+            verify: (r) => {
               assert(
                 skillTriggered(r, SkillType.VIOLENT_INNOVATOR),
                 "Violent Innovator must credit the Special Action casualty"
-              ),
+              );
+            },
           },
         ],
       },

@@ -1,22 +1,20 @@
-/**
- * Runs a rule configuration headlessly and searches seeds by outcome.
- * Shared by the generated tests (Node), the CLI rule runner, and the
- * sandbox's in-browser seed finder — the engine is Phaser-free, so a run
- * is just a HeadlessGame driven by the config's script.
- */
-
+import { fixtureValue } from "../../testing/fixtureValue";
 import { HeadlessGame } from "../../headless/HeadlessGame";
 import {
-  HeadlessCommand,
-  CommandResponse,
-  PendingDecision,
+  type HeadlessCommand,
+  type CommandResponse,
+  type PendingDecision,
 } from "../../headless/protocol";
-import { Scenario } from "../../types/Scenario";
-import { Player, PlayerStatus } from "../../types/Player";
-import { RuleConfig, RuleOutcome, ScriptResult, DecisionPolicy } from "./types";
+import { type Scenario } from "../../types/Scenario";
+import { type Player, PlayerStatus } from "../../types/Player";
+import {
+  type RuleConfig,
+  type RuleOutcome,
+  type ScriptResult,
+  type DecisionPolicy,
+} from "./types";
 import { resolveReference, resolveCommandReferences } from "./references";
 
-/** Resolve "team1:0"-style refs to this run's player/team ids. */
 export function resolveRef(game: HeadlessGame, ref: string): string {
   return resolveReference(game.ctx, ref);
 }
@@ -33,7 +31,6 @@ type Decision<T extends PendingDecision["type"]> = Extract<
   { type: T }
 >;
 
-/** The policy's preferred block result when the dice show it, else the first. */
 function blockIndex(
   pending: Decision<"block-dice">,
   policy: DecisionPolicy
@@ -45,7 +42,6 @@ function blockIndex(
   return preferred >= 0 ? preferred : 0;
 }
 
-/** The receiving team's first Standing player on the pitch takes the ball. */
 function touchbackAnswer(
   pending: Decision<"touchback">,
   game: HeadlessGame
@@ -64,25 +60,26 @@ function rerollAnswer(policy: DecisionPolicy): HeadlessCommand {
   return {
     type: "use-reroll",
     accept: true,
-    source: typeof setting === "string" ? setting : undefined,
+    ...(typeof setting === "string" ? { source: setting } : {}),
   };
 }
 
-/** Default: the defending coach picks the least-penalised interceptor. */
 function interceptionAnswer(
   pending: Decision<"interception">,
   policy: DecisionPolicy
 ): HeadlessCommand {
-  if ((policy.acceptInterceptions ?? true) === false) {
+  if (!(policy.acceptInterceptions ?? true)) {
     return { type: "choose-interception" };
   }
   const best = [...pending.candidates].sort(
     (a, b) => b.modifier - a.modifier
   )[0];
-  return { type: "choose-interception", playerId: best?.playerId };
+  return {
+    type: "choose-interception",
+    ...(best ? { playerId: best.playerId } : {}),
+  };
 }
 
-/** The yes-or-no decisions, answered as the policy says. */
 function consentAnswer(
   pending: Decision<"follow-up" | "reaction" | "bite-target" | "apothecary">,
   policy: DecisionPolicy
@@ -93,16 +90,17 @@ function consentAnswer(
     case "reaction":
       return { type: "use-reaction", accept: policy.acceptReactions ?? true };
     case "bite-target":
-      // As the single-Thrall bite: accepting bites the first in board order.
       return policy.acceptReactions === false
         ? { type: "choose-bite-target" }
-        : { type: "choose-bite-target", playerId: pending.targetIds[0] };
+        : {
+            type: "choose-bite-target",
+            ...(pending.targetIds[0] ? { playerId: pending.targetIds[0] } : {}),
+          };
     case "apothecary":
       return { type: "use-apothecary", accept: policy.useApothecary ?? false };
   }
 }
 
-/** The first option offered; a Desperate Measure is kept for later. */
 function inducementAnswer(
   pending: Decision<"inducement-choice">
 ): HeadlessCommand {
@@ -110,24 +108,41 @@ function inducementAnswer(
     ? { type: "choose-inducement" }
     : {
         type: "choose-inducement",
-        playerId: pending.playerIds[0],
-        skill: pending.skills?.[0],
+        ...(pending.playerIds[0] ? { playerId: pending.playerIds[0] } : {}),
+        ...(pending.skills?.[0] ? { skill: pending.skills[0] } : {}),
       };
 }
 
-/**
- * The reply a decision policy gives to a pending decision, or null to leave
- * it pending and stop. Exported so the E2E engine adapter answers decisions
- * exactly as the rule catalog does rather than growing a second policy.
- */
 export function answerDecision(
   pending: PendingDecision,
   game: HeadlessGame,
   policy: DecisionPolicy
 ): HeadlessCommand | null {
   const custom = policy.custom?.(pending, game);
-  if (custom !== undefined) return custom; // null = leave pending
+  if (custom !== undefined) return custom;
 
+  return automaticAnswer(pending, game, policy);
+}
+
+function isConsentDecision(
+  pending: PendingDecision
+): pending is Decision<
+  "follow-up" | "reaction" | "bite-target" | "apothecary"
+> {
+  return (
+    pending.type === "follow-up" ||
+    pending.type === "reaction" ||
+    pending.type === "bite-target" ||
+    pending.type === "apothecary"
+  );
+}
+
+function automaticAnswer(
+  pending: PendingDecision,
+  game: HeadlessGame,
+  policy: DecisionPolicy
+): HeadlessCommand | null {
+  if (isConsentDecision(pending)) return consentAnswer(pending, policy);
   switch (pending.type) {
     case "kickoff-event":
       return { type: "kickoff-skip" };
@@ -137,7 +152,7 @@ export function answerDecision(
         index: blockIndex(pending, policy),
       };
     case "push-direction": {
-      const dir = pending.options[0];
+      const dir = fixtureValue(pending.options[0]);
       return { type: "choose-push-direction", x: dir.x, y: dir.y };
     }
     case "touchback":
@@ -150,16 +165,10 @@ export function answerDecision(
       return { type: "choose-foul-assists", count: pending.available };
     case "inducement-choice":
       return inducementAnswer(pending);
-    default:
-      return consentAnswer(pending, policy);
   }
 }
 
-export async function runRuleConfig(
-  config: RuleConfig,
-  seed: number,
-  prepareGame?: (game: HeadlessGame) => void | Promise<void>
-): Promise<ScriptResult> {
+function createRuleGame(config: RuleConfig, seed: number): HeadlessGame {
   const scenario: Scenario = {
     id: `rule-config-${config.id}`,
     name: config.name,
@@ -172,6 +181,15 @@ export async function runRuleConfig(
   }
   if (config.rerolls?.team1) game.ctx.team1.rerolls = config.rerolls.team1;
   if (config.rerolls?.team2) game.ctx.team2.rerolls = config.rerolls.team2;
+  return game;
+}
+
+export async function runRuleConfig(
+  config: RuleConfig,
+  seed: number,
+  prepareGame?: (game: HeadlessGame) => void | Promise<void>
+): Promise<ScriptResult> {
+  const game = createRuleGame(config, seed);
   await prepareGame?.(game);
 
   const policy = config.decisionPolicy ?? {};
@@ -186,11 +204,11 @@ export async function runRuleConfig(
 
   script: for (const step of config.script ?? []) {
     let response = await execute(step);
-    // Answer decisions until the step fully resolves (bounded per step)
+
     for (let guard = 0; response.pendingDecision && guard < 25; guard++) {
       decisions.push(response.pendingDecision);
       const reply = answerDecision(response.pendingDecision, game, policy);
-      if (reply === null) break script; // policy wants it left pending
+      if (reply === null) break script;
       response = await execute(reply);
     }
   }
@@ -209,10 +227,6 @@ export interface FoundSeed {
   result: ScriptResult;
 }
 
-/**
- * Bounded deterministic seed search: first seed in [from, from+limit) whose
- * run exhibits the outcome. Throws with the exhausted range when none does.
- */
 export async function findSeed(
   config: RuleConfig,
   outcomeId: string,
@@ -224,15 +238,24 @@ export async function findSeed(
   if (!outcome) {
     throw new Error(`config '${config.id}' has no outcome '${outcomeId}'`);
   }
-  const from = opts?.from ?? config.seedSearch?.from ?? 1;
-  const limit = opts?.limit ?? config.seedSearch?.limit ?? 200;
+  const { from, limit } = searchRange(config, opts);
 
   for (let seed = from; seed < from + limit; seed++) {
     const result = await runRuleConfig(config, seed);
     if (outcome.matches(result)) return { seed, result };
   }
   throw new Error(
-    `no seed in [${from}, ${from + limit}) produced outcome '${outcomeId}' ` +
+    `no seed in [${String(from)}, ${String(from + limit)}) produced outcome '${outcomeId}' ` +
       `for config '${config.id}'`
   );
+}
+
+function searchRange(
+  config: RuleConfig,
+  opts?: { from?: number; limit?: number }
+) {
+  return {
+    from: opts?.from ?? config.seedSearch?.from ?? 1,
+    limit: opts?.limit ?? config.seedSearch?.limit ?? 200,
+  };
 }

@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createCoachRng } from "../../src/simulation/rng";
 import {
@@ -58,7 +59,7 @@ async function search(game: HeadlessGame) {
     point,
     rng: createCoachRng(9),
   });
-  return { index, label: point.candidates[index].label };
+  return { index, label: fixtureValue(point.candidates[index]).label };
 }
 
 describe("the lookahead", () => {
@@ -71,7 +72,7 @@ describe("the lookahead", () => {
 
   it("does not change the real game", async () => {
     const game = new HeadlessGame({ scenario: position("team1"), seed: 3 });
-    // Reading the drive's effects creates their empty record; nothing else.
+
     const state = () => ({ ...game.snapshot(), driveEffects: undefined });
     const before = state();
     await search(game);
@@ -90,7 +91,6 @@ describe("the lookahead", () => {
 });
 
 describe("the lookahead inside an action", () => {
-  // Team 1's player blocks team 2's with an assist: two block dice to choose.
   const block: Scenario = {
     ...position(null),
     setup: {
@@ -103,13 +103,12 @@ describe("the lookahead inside an action", () => {
     },
   };
 
-  /** A game paused on block dice that differ, the fork kept from the start. */
   async function atBlockDice(keepForks: boolean) {
     for (let seed = 1; seed < 200; seed++) {
       const game = new HeadlessGame({ scenario: block, seed });
       if (keepForks) game.keepForks();
-      const attacker = game.ctx.team1.players[0].id;
-      const defender = game.ctx.team2.players[0].id;
+      const attacker = fixtureValue(game.ctx.team1.players[0]).id;
+      const defender = fixtureValue(game.ctx.team2.players[0]).id;
       await game.execute({
         type: "declare-action",
         playerId: attacker,
@@ -144,10 +143,12 @@ describe("the lookahead inside an action", () => {
     const asked: string[][] = [];
     const choice = await createSearchCoach({
       budget: { samples: 1, options: 3 },
-      playouts: async ({ root, indices, seeds }) => {
+      playouts: ({ root, indices, seeds }) => {
         asked.push(root.since.map((command) => command.type));
-        return seeds.map(() =>
-          indices.map((index) => (index === planned.index ? 0 : 1))
+        return Promise.resolve(
+          seeds.map(() =>
+            indices.map((index) => (index === planned.index ? 0 : 1))
+          )
         );
       },
     }).choose(context);
@@ -161,9 +162,9 @@ describe("the lookahead inside an action", () => {
     let rounds = 0;
     const choice = await createSearchCoach({
       budget: { samples: 1, options: 3 },
-      playouts: async () => {
+      playouts: () => {
         rounds++;
-        return [];
+        return Promise.resolve([]);
       },
     }).choose(context);
 
@@ -183,7 +184,6 @@ describe("the lookahead inside an action", () => {
       context
     );
 
-    // The fork replayed to this very block, so the search did run
     expect(warn).not.toHaveBeenCalledWith(
       expect.stringContaining("did not replay")
     );
@@ -201,9 +201,9 @@ describe("the position score", () => {
 
   const score = (hasBall: "team1" | "team2" | null) => {
     const scenario = position(hasBall);
-    // Nobody marking anybody, so only the ball differs.
+
     scenario.setup.team2Placements[0] = {
-      ...scenario.setup.team2Placements[0],
+      ...fixtureValue(scenario.setup.team2Placements[0]),
       x: 17,
     };
     const game = new HeadlessGame({ scenario, seed: 1 });
@@ -216,8 +216,6 @@ describe("the position score", () => {
   });
 
   it("counts a touchdown once while the scorer still holds the ball", () => {
-    // A decision such as a Bribe can pause the drive's end with the scorer
-    // standing in the end zone; the drive is over all the same.
     const after = (ball: "scorer" | "gone") => {
       const scenario = position(null);
       scenario.setup.team1Placements[0] = {
@@ -256,8 +254,10 @@ describe("the lookahead over workers", () => {
   class FakeWorker extends EventTarget {
     asked = 0;
     terminated = false;
-    constructor(private answer: Answer) {
+    private answer: Answer;
+    constructor(answer: Answer) {
       super();
+      this.answer = answer;
     }
     postMessage(request: SearchRequest) {
       this.asked++;
@@ -269,12 +269,12 @@ describe("the lookahead over workers", () => {
   }
   const reply = (worker: FakeWorker, data: SearchReply) =>
     worker.dispatchEvent(new MessageEvent("message", { data }));
-  // Long enough that the first round always starts, however slow the setup.
+
   const coachWithin = (deadlineMs: number, ...workers: FakeWorker[]) => {
     let next = 0;
     return createWorkerSearchCoach({
       budget: { samples: 1, options: 2, deadlineMs },
-      createWorker: () => workers[next++ % workers.length] as unknown as Worker,
+      createWorker: () => fixtureValue(workers[next++ % workers.length]),
       workers: workers.length,
     });
   };
@@ -312,14 +312,16 @@ describe("the lookahead over workers", () => {
       () =>
         new FakeWorker((self, { id, root, us, jobs }) => {
           void Promise.all(
-            jobs.map(({ index, seed }) => scorePlayout(root, us, index, seed))
+            jobs.map(({ index, seed }) =>
+              scorePlayout({ root: root, us: us, index: index, seed: seed })
+            )
           ).then((scores) => reply(self, { id, scores }));
         })
     );
     let next = 0;
     const pooled = createWorkerSearchCoach({
       budget,
-      createWorker: () => workers[next++] as unknown as Worker,
+      createWorker: () => fixtureValue(workers[next++]),
       workers: 3,
     });
     const here = createSearchCoach({ budget });
@@ -335,13 +337,13 @@ describe("the lookahead over workers", () => {
         queueMicrotask(() => self.dispatchEvent(new Event("error")));
       },
     ],
-    ["never answers", () => {}],
+    ["never answers", () => undefined],
   ])(
     "falls back to the plan when the worker %s",
     async (_, answer) => {
       const { context, planned } = await declaration();
       const worker = new FakeWorker(answer);
-      // Short, so a silent worker is given up on well inside the timeout.
+
       const choice = await coachWithin(250, worker).choose(context);
       expect(choice.index).toBe(planned.index);
       expect(worker.terminated).toBe(true);
@@ -375,14 +377,15 @@ describe("the lookahead over workers", () => {
     const { game, context } = await declaration();
     const reroll = {
       type: "reroll",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       chooserTeamId: game.ctx.team1.id,
       rollKind: "dodge",
       sources: ["team"],
-    } as const;
+      roll: 1,
+    } satisfies NonNullable<ReturnType<HeadlessGame["pendingDecision"]>>;
     game.adoptPending(reroll);
     const point = await enumerateDecision(game, null);
-    const worker = new FakeWorker(() => {});
+    const worker = new FakeWorker(() => undefined);
     await coachOn(worker).choose({ ...context, point });
     expect(worker.asked).toBe(0);
   });

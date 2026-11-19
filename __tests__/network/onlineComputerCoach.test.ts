@@ -1,21 +1,25 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { shoppingTeamId } from "../../src/game/inducements/pregame";
 import { pregameGame } from "../utils/pregameGame";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createOnlineMatch, OnlineMatch } from "../../src/network/OnlineMatch";
+import {
+  createOnlineMatch,
+  type OnlineMatch,
+} from "../../src/network/OnlineMatch";
 import {
   createInMemoryTransportPair,
-  Transport,
+  type Transport,
 } from "../../src/network/transport";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { serializeGameState } from "../../src/headless/serialization";
-import { HeadlessCommand } from "../../src/headless/protocol";
+import { type HeadlessCommand } from "../../src/headless/protocol";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import {
   DEFAULT_SETTINGS,
-  LobbyDoc,
+  type LobbyDoc,
   persistMatch,
 } from "../../src/firebase/lobby";
 import { drawsFor } from "../../src/game/presentation/screenSettled";
@@ -28,7 +32,9 @@ vi.mock("../../src/firebase/lobby", async (load) => ({
 
 const matches: OnlineMatch[] = [];
 afterEach(() => {
-  matches.splice(0).forEach((match) => match.close());
+  matches.splice(0).forEach((match) => {
+    match.close();
+  });
   ServiceContainer.reset();
 });
 
@@ -99,14 +105,14 @@ function connect(
   computer = false
 ) {
   const bus = new EventBus();
-  // Stand in for the board finishing a scoring run or bounce animation.
+
   const acknowledge = ({ presentationId }: { presentationId?: string }) => {
     if (presentationId)
-      queueMicrotask(() =>
+      queueMicrotask(() => {
         bus.emit(GameEventNames.UI_PresentationAcknowledged, {
           id: presentationId,
-        })
-      );
+        });
+      });
   };
   bus.on(GameEventNames.PlayerMoved, acknowledge);
   bus.on(GameEventNames.PassFumbled, acknowledge);
@@ -128,7 +134,10 @@ function connect(
   const service = ServiceContainer.getInstance().gameService;
   const snapshot = () =>
     serializeGameState(service.getState(), Object.values(match.teams));
-  return { match, bus, snapshot };
+  const restore = () => {
+    bus.emit(GameEventNames.GameStateRestored, service.getState());
+  };
+  return { match, bus, snapshot, restore };
 }
 
 function recordCommands(transport: Transport): HeadlessCommand[] {
@@ -152,7 +161,9 @@ describe("the online computer coach", () => {
       resolving: true,
     };
     vi.mocked(persistMatch).mockClear();
-    expect(() => match.saveState()).toThrow("Finish pregame choices");
+    expect(() => {
+      match.saveState();
+    }).toThrow("Finish pregame choices");
     expect(persistMatch).not.toHaveBeenCalled();
     state.pregameInducements.resolving = false;
     match.saveState();
@@ -164,8 +175,8 @@ describe("the online computer coach", () => {
     async (side) => {
       const opening = pregameGame();
       const lobby = matchPosition(side);
-      lobby.players.host.team = opening.ctx.team1;
-      lobby.players.guest.team = opening.ctx.team2;
+      fixtureValue(lobby.players["host"]).team = opening.ctx.team1;
+      fixtureValue(lobby.players["guest"]).team = opening.ctx.team2;
       lobby.snapshot = opening.snapshot();
       lobby.resume = {
         rng: opening.ctx.rng.captureState(),
@@ -178,14 +189,14 @@ describe("the online computer coach", () => {
       const sent = recordCommands(ownEnd);
       const human = connect(lobby, side === "host" ? "guest" : "host", peerEnd);
       const bot = connect(lobby, side, ownEnd, true);
-      bot.bus.emit(GameEventNames.GameStateRestored);
+      bot.restore();
       const botReady = () =>
-        vi.waitFor(() =>
+        vi.waitFor(() => {
           expect(
             human.snapshot().pregameInducements?.ready[bot.match.myTeamId]
-          ).toBe(true)
-        );
-      const humanReady = async () =>
+          ).toBe(true);
+        });
+      const humanReady = async () => {
         expect(
           (
             await human.match.run({
@@ -194,7 +205,8 @@ describe("the online computer coach", () => {
             })
           ).ok
         ).toBe(true);
-      // The guest readies for the weather first, then the host
+      };
+
       if (side === "guest") {
         await botReady();
         await humanReady();
@@ -203,15 +215,15 @@ describe("the online computer coach", () => {
         await botReady();
       }
       expect(bot.snapshot().inducements).toBeUndefined();
-      // The teams buy in turn; the human confirms on theirs
-      await vi.waitFor(() =>
+
+      await vi.waitFor(() => {
         expect(
           shoppingTeamId(human.snapshot().pregameInducements, [
             "team1",
             "team2",
           ])
-        ).toBe(human.match.myTeamId)
-      );
+        ).toBe(human.match.myTeamId);
+      });
       expect(
         (
           await human.match.run({
@@ -220,10 +232,12 @@ describe("the online computer coach", () => {
           })
         ).ok
       ).toBe(true);
-      await vi.waitFor(() =>
-        expect(bot.snapshot().pregameInducements?.complete).toBe(true)
-      );
-      await vi.waitFor(() => expect(bot.snapshot()).toEqual(human.snapshot()));
+      await vi.waitFor(() => {
+        expect(bot.snapshot().pregameInducements?.complete).toBe(true);
+      });
+      await vi.waitFor(() => {
+        expect(bot.snapshot()).toEqual(human.snapshot());
+      });
       expect(sent.map((command) => command.type)).toContain("ready-weather");
       expect(sent.map((command) => command.type)).toContain(
         "confirm-inducements"
@@ -245,7 +259,7 @@ describe("the online computer coach", () => {
       const sent = recordCommands(ownEnd);
       const peer = connect(lobby, side === "host" ? "guest" : "host", peerEnd);
       const bot = connect(lobby, side, ownEnd, true);
-      bot.bus.emit(GameEventNames.GameStateRestored);
+      bot.restore();
 
       await vi.waitFor(
         () => {
@@ -256,7 +270,9 @@ describe("the online computer coach", () => {
         { timeout: 3000 }
       );
       bot.match.setClockPaused("timeout");
-      await vi.waitFor(() => expect(bot.snapshot()).toEqual(peer.snapshot()));
+      await vi.waitFor(() => {
+        expect(bot.snapshot()).toEqual(peer.snapshot());
+      });
 
       expect(sent).toContainEqual(
         expect.objectContaining({ type: "declare-action", action: "block" })
@@ -288,9 +304,11 @@ describe("the online computer coach", () => {
         draws++;
         return drawing;
       });
-      bot.bus.emit(GameEventNames.GameStateRestored);
+      bot.restore();
       try {
-        await vi.waitFor(() => expect(draws).toBeGreaterThan(0));
+        await vi.waitFor(() => {
+          expect(draws).toBeGreaterThan(0);
+        });
         if (stop === "pause") bot.match.setClockPaused("timeout");
         else bot.match.close();
         release();
@@ -309,7 +327,7 @@ describe("the online computer coach", () => {
     connect(lobby, "guest", guestEnd);
     const host = connect(lobby, "host", hostEnd);
     const before = host.snapshot();
-    host.bus.emit(GameEventNames.GameStateRestored);
+    host.restore();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(host.snapshot()).toEqual(before);
   });
@@ -319,8 +337,7 @@ describe("the online computer coach", () => {
     const lobby = matchPosition("host", true);
     const peer = connect(lobby, "guest", guestEnd);
     const bot = connect(lobby, "host", hostEnd, true);
-    // The peer can start replaying the scoring move after the local engine
-    // first becomes quiet. Wait for its next drive before comparing states.
+
     const peerNextDrive = new Promise<void>((resolve) => {
       const onPhase = ({ phase }: { phase: GamePhase }) => {
         if (phase !== GamePhase.SETUP) return;
@@ -329,7 +346,7 @@ describe("the online computer coach", () => {
       };
       peer.bus.on(GameEventNames.PhaseChanged, onPhase);
     });
-    bot.bus.emit(GameEventNames.GameStateRestored);
+    bot.restore();
     await vi.waitFor(
       () => {
         expect(bot.snapshot().score[bot.match.myTeamId]).toBe(1);
@@ -340,6 +357,8 @@ describe("the online computer coach", () => {
     await peerNextDrive;
     await whenEngineQuiet();
     expect(bot.snapshot().phase).toBe(GamePhase.SETUP);
-    await vi.waitFor(() => expect(bot.snapshot()).toEqual(peer.snapshot()));
+    await vi.waitFor(() => {
+      expect(bot.snapshot()).toEqual(peer.snapshot());
+    });
   }, 15_000);
 });

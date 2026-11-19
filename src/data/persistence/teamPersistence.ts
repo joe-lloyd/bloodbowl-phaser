@@ -1,57 +1,41 @@
-/**
- * Normalized team persistence: a stored player/team carries only what
- * cannot be derived from the roster templates — identity, progression,
- * injuries, career stats, and team resources. Everything else (statlines,
- * resolved skill objects with their rulebook text, keywords, skill-category
- * access, cost, team value) is rehydrated from `RosterTemplates` on load.
- *
- * `hydrateStoredTeam` accepts BOTH shapes: a document already in the
- * `StoredTeam` shape, and the previous full-object shape (a plain `Team`
- * with fully resolved `Player`s). Rather than branch the conversion logic,
- * it extracts the same non-derivable subset from whichever shape it is
- * given (`toStoredPlayer`/`toStoredTeamShape` tolerate and ignore any extra
- * fields a legacy document carries) and rehydrates fresh either way — so a
- * legacy document is upgraded and de-drifted in the same pass a normalized
- * one is merely re-resolved. The next save always writes the normalized
- * shape (`dehydrateTeam`), so a converted document is rewritten normalized
- * the next time it is saved.
- */
-
 import {
   DRAFT_KEEP_VALUE_INCREASE,
   InjuryType,
-  KeyWord,
-  PendingAdvancementRoll,
-  Player,
-  PlayerAdvancement,
-  PlayerCareerStats,
-  PlayerStats,
+  type KeyWord,
+  type PendingAdvancementRoll,
+  type Player,
+  type PlayerAdvancement,
+  type PlayerCareerStats,
+  type PlayerStats,
   PlayerStatus,
 } from "../../types/Player";
 import {
-  DraftRecord,
-  FavouredOfRule,
-  Formation,
+  type DraftRecord,
+  type FavouredOfRule,
+  type Formation,
   League,
-  MatchedPlayAllocation,
-  PendingDevelopment,
+  type MatchedPlayAllocation,
+  type PendingDevelopment,
   RosterName,
-  Team,
-  TeamAdvancementMode,
-  TeamColors,
+  type Team,
+  type TeamAdvancementMode,
+  type TeamColors,
   calculateTeamValue,
 } from "../../types/Team";
-import { SeedMetadata } from "../../types/seedMetadata";
-import { Skill, SkillCategory, migrateSkill } from "../../types/Skills";
-import { Inducement, InducementSelectionLine } from "../../types/Inducements";
+import { type SeedMetadata } from "../../types/seedMetadata";
+import { type Skill, SkillCategory, migrateSkill } from "../../types/Skills";
+import {
+  Inducement,
+  type InducementSelectionLine,
+} from "../../types/Inducements";
 import { getRosterByRosterName } from "../RosterTemplates";
 import {
   readSevensRuleset,
-  SevensRuleset,
+  type SevensRuleset,
 } from "../../game/rules/sevensRuleset";
 import { staysOnRoster } from "../../game/rules/leagueRoster";
 import {
-  PlayedGame,
+  type PlayedGame,
   parsePlayedGames,
   storedPlayedGames,
 } from "../../game/progression/matchHistory";
@@ -64,7 +48,6 @@ import {
 
 export const TEAM_SCHEMA_VERSION = 1;
 
-/** A persisted player: identity, progression, injuries, career stats. */
 export interface StoredPlayer {
   id: string;
   playerName: string;
@@ -78,15 +61,14 @@ export interface StoredPlayer {
   injuries: InjuryType[];
   careerStats?: PlayerCareerStats;
   timesKeptFromDraft?: number;
-  /** Sevens D8 Veteran; hydration applies its MA -1. */
+
   veteran?: true;
-  /** Team Captain; hydration grants its Pro. */
+
   teamCaptain?: true;
-  /** An SPP advancement roll made but not yet spent. */
+
   pendingAdvancementRoll?: PendingAdvancementRoll;
 }
 
-/** A persisted team: resources, staff, history, and its stored players. */
 export interface StoredTeam {
   schemaVersion: number;
   id: string;
@@ -115,7 +97,7 @@ export interface StoredTeam {
   draftRuleset?: SevensRuleset;
   recordedFixtureIds?: string[];
   playedGames?: PlayedGame[];
-  /** Draft until this is set — see teamLifecycle.ts. */
+
   firstMatchPlayedAt?: number;
   advancementMode?: TeamAdvancementMode;
   advancementModeLocked?: boolean;
@@ -135,7 +117,6 @@ function isInducement(value: unknown): value is Inducement {
   return typeof value === "string" && INDUCEMENTS.has(value);
 }
 
-/** Keep only well-formed draft-list lines: a known inducement, quantity >= 1. */
 function parseDraftInducements(raw: unknown): InducementSelectionLine[] {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((line: unknown) => {
@@ -157,10 +138,6 @@ function parseDraftInducements(raw: unknown): InducementSelectionLine[] {
   });
 }
 
-/**
- * Positions replaced by the March 2026 High Elf roster. Preserve each
- * player's career while resolving their new profile on load.
- */
 const POSITION_ALIASES: Partial<Record<RosterName, Record<string, string>>> = {
   [RosterName.HIGH_ELF]: {
     "High Elf Thrower": "Phoenix Warrior",
@@ -183,40 +160,44 @@ const STAT_DECREASE_INJURY: Partial<Record<InjuryType, keyof PlayerStats>> = {
   [InjuryType.STAT_DECREASE_AV]: "AV",
 };
 
-/** AG/PA are inverted scales: advancement lowers the number, injury raises it. */
 function isInvertedStat(stat: keyof PlayerStats): boolean {
   return stat === "AG" || stat === "PA";
 }
 
 const STATS: readonly (keyof PlayerStats)[] = ["MA", "ST", "AG", "PA", "AV"];
 
-/** Extract the non-derivable subset from any player-shaped record. */
 function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
   return {
-    id: String(raw.id),
-    playerName: String(raw.playerName ?? ""),
-    number: Number(raw.number ?? 0),
-    positionName: String(raw.positionName ?? ""),
-    playerKind: (raw.playerKind as StoredPlayer["playerKind"]) ?? "roster",
-    spp: Number(raw.spp ?? 0),
-    level: Number(raw.level ?? 0),
-    advancements: Array.isArray(raw.advancements)
-      ? (raw.advancements as PlayerAdvancement[])
+    id: String(raw["id"]),
+    playerName: String(raw["playerName"] ?? ""),
+    number: Number(raw["number"] ?? 0),
+    positionName: String(raw["positionName"] ?? ""),
+    playerKind: (raw["playerKind"] as StoredPlayer["playerKind"]) ?? "roster",
+    spp: Number(raw["spp"] ?? 0),
+    level: Number(raw["level"] ?? 0),
+    advancements: Array.isArray(raw["advancements"])
+      ? (raw["advancements"])
       : [],
     characteristicAdvances:
-      (raw.characteristicAdvances as StoredPlayer["characteristicAdvances"]) ??
-      {},
-    injuries: Array.isArray(raw.injuries) ? (raw.injuries as InjuryType[]) : [],
-    careerStats: raw.careerStats as PlayerCareerStats | undefined,
-    ...(typeof raw.timesKeptFromDraft === "number"
-      ? { timesKeptFromDraft: raw.timesKeptFromDraft }
+      (raw[
+        "characteristicAdvances"
+      ] as StoredPlayer["characteristicAdvances"]) ?? {},
+    injuries: Array.isArray(raw["injuries"])
+      ? (raw["injuries"])
+      : [],
+    ...(raw["careerStats"] === undefined
+      ? {}
+      : { careerStats: raw["careerStats"] as PlayerCareerStats }),
+    ...(typeof raw["timesKeptFromDraft"] === "number"
+      ? { timesKeptFromDraft: raw["timesKeptFromDraft"] }
       : {}),
-    ...(raw.veteran === true ? { veteran: true } : {}),
-    ...(raw.teamCaptain === true ? { teamCaptain: true } : {}),
-    ...(raw.pendingAdvancementRoll
+    ...(raw["veteran"] === true ? { veteran: true } : {}),
+    ...(raw["teamCaptain"] === true ? { teamCaptain: true } : {}),
+    ...(raw["pendingAdvancementRoll"]
       ? {
-          pendingAdvancementRoll:
-            raw.pendingAdvancementRoll as PendingAdvancementRoll,
+          pendingAdvancementRoll: raw[
+            "pendingAdvancementRoll"
+          ] as PendingAdvancementRoll,
         }
       : {}),
   };
@@ -224,17 +205,12 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
 
 export interface HydrationResult {
   team: Team;
-  /** Non-fatal warnings surfaced during hydration (e.g. unknown positions). */
+
   warnings: string[];
 }
 
-/** Rebuild a runtime `Player` from its stored record plus the roster template. */
 export function hydratePlayer(
-  stored: StoredPlayer,
-  teamId: string,
-  rosterName: RosterName | undefined,
-  warnings: string[]
-): Player {
+{ stored,teamId,rosterName,warnings }: { stored: StoredPlayer; teamId: string; rosterName: RosterName|undefined; warnings: string[]; }): Player {
   let roster: ReturnType<typeof getRosterByRosterName> | undefined;
   if (rosterName) {
     try {
@@ -293,11 +269,6 @@ export function hydratePlayer(
   }
   if (stored.veteran) stats.MA -= 1;
 
-  // Advancement records predate this change too: `name` may still carry a
-  // pre-2025-catalog-reconciliation skill name. `migrateSkill` resolves it
-  // to its current family (or drops it, for a skill since removed) exactly
-  // as it always has for a stored skill list. Template skills are already
-  // current (RosterTemplates.ts only ever writes current SkillTypes).
   const advancementSkills = (stored.advancements ?? [])
     .filter(
       (advancement) =>
@@ -337,7 +308,7 @@ export function hydratePlayer(
     hasActed: false,
     cost,
     teamValue,
-    careerStats: stored.careerStats,
+    ...(stored.careerStats === undefined ? {} : { careerStats: stored.careerStats }),
     ...(stored.timesKeptFromDraft
       ? { timesKeptFromDraft: stored.timesKeptFromDraft }
       : {}),
@@ -350,7 +321,6 @@ export function hydratePlayer(
   return player;
 }
 
-/** Strip a runtime `Player` down to its non-derivable persisted fields. */
 export function dehydratePlayer(player: Player): StoredPlayer {
   return {
     id: player.id,
@@ -375,111 +345,110 @@ export function dehydratePlayer(player: Player): StoredPlayer {
   };
 }
 
-/**
- * Rebuild a runtime `Team` from any persisted shape — a normalized
- * `StoredTeam` or a legacy full-object document. Team value is always
- * recomputed from the hydrated roster, never read from storage.
- */
 export function hydrateStoredTeam(
   raw: Record<string, unknown>
 ): HydrationResult {
   const warnings: string[] = [];
-  const rosterName = raw.rosterName as RosterName | undefined;
+  const rosterName = raw["rosterName"] as RosterName | undefined;
   const knownRoster = Object.values(RosterName).find(
-    (name) => name === raw.rosterName
+    (name) => name === raw["rosterName"]
   );
-  const teamId = String(raw.id);
-  const storedPlayers = Array.isArray(raw.players)
-    ? (raw.players as Record<string, unknown>[]).map(toStoredPlayer)
+  const teamId = String(raw["id"]);
+  const storedPlayers = Array.isArray(raw["players"])
+    ? (raw["players"]).map(toStoredPlayer)
     : [];
-  // Keep only the injuries that carry to the next game. Sevens has no
-  // lasting injuries, so Badly Hurt ends with its game, and nothing carries
-  // in Matched Play (docs/SEVENS_RULES.md I3 to I5).
+
   for (const stored of storedPlayers) {
     stored.injuries = stored.injuries.filter(
       (injury) =>
-        raw.advancementMode !== "matched-play" &&
+        raw["advancementMode"] !== "matched-play" &&
         injury !== InjuryType.BADLY_HURT
     );
   }
 
   const players = storedPlayers.map((stored) =>
-    hydratePlayer(stored, teamId, rosterName, warnings)
+    hydratePlayer({ stored,teamId,rosterName,warnings })
   );
 
   const team: Team = {
     id: teamId,
-    name: String(raw.name ?? ""),
-    coachName: raw.coachName as string | undefined,
-    rosterName: rosterName as RosterName,
-    colors: raw.colors as TeamColors,
+    name: String(raw["name"] ?? ""),
+    ...(typeof raw["coachName"] === "string"
+      ? { coachName: raw["coachName"] }
+      : {}),
+    rosterName: rosterName!,
+    colors: raw["colors"] as TeamColors,
     players,
-    maxRosterSize: Number(raw.maxRosterSize ?? 11),
-    formations: Array.isArray(raw.formations)
-      ? (raw.formations as Formation[])
+    maxRosterSize: Number(raw["maxRosterSize"] ?? 11),
+    formations: Array.isArray(raw["formations"])
+      ? (raw["formations"])
       : [],
-    treasury: Number(raw.treasury ?? 0),
-    startingTreasury: Number(raw.startingTreasury ?? 0),
-    rerolls: Number(raw.rerolls ?? 0),
-    rerollCost: Number(raw.rerollCost ?? 0),
-    apothecary: Boolean(raw.apothecary),
-    coaches: Number(raw.coaches ?? 0),
-    cheerleaders: Number(raw.cheerleaders ?? 0),
-    dedicatedFans: Number(raw.dedicatedFans ?? 0),
+    treasury: Number(raw["treasury"] ?? 0),
+    startingTreasury: Number(raw["startingTreasury"] ?? 0),
+    rerolls: Number(raw["rerolls"] ?? 0),
+    rerollCost: Number(raw["rerollCost"] ?? 0),
+    apothecary: Boolean(raw["apothecary"]),
+    coaches: Number(raw["coaches"] ?? 0),
+    cheerleaders: Number(raw["cheerleaders"] ?? 0),
+    dedicatedFans: Number(raw["dedicatedFans"] ?? 0),
     teamValue: 0,
-    wins: Number(raw.wins ?? 0),
-    losses: Number(raw.losses ?? 0),
-    draws: Number(raw.draws ?? 0),
-    touchdowns: Number(raw.touchdowns ?? 0),
-    casualties: Number(raw.casualties ?? 0),
-    ...(raw.seedMetadata
-      ? { seedMetadata: raw.seedMetadata as SeedMetadata }
+    wins: Number(raw["wins"] ?? 0),
+    losses: Number(raw["losses"] ?? 0),
+    draws: Number(raw["draws"] ?? 0),
+    touchdowns: Number(raw["touchdowns"] ?? 0),
+    casualties: Number(raw["casualties"] ?? 0),
+    ...(raw["seedMetadata"]
+      ? { seedMetadata: raw["seedMetadata"] as SeedMetadata }
       : {}),
-    ...(raw.recordedFixtureIds
-      ? { recordedFixtureIds: raw.recordedFixtureIds as string[] }
+    ...(raw["recordedFixtureIds"]
+      ? { recordedFixtureIds: raw["recordedFixtureIds"] as string[] }
       : {}),
-    ...(raw.playedGames !== undefined
-      ? { playedGames: parsePlayedGames(raw.playedGames) }
+    ...(raw["playedGames"] !== undefined
+      ? { playedGames: parsePlayedGames(raw["playedGames"]) }
       : {}),
-    ...(raw.draftRuleset !== undefined
-      ? { draftRuleset: readSevensRuleset(raw.draftRuleset) }
+    ...(raw["draftRuleset"] !== undefined
+      ? { draftRuleset: readSevensRuleset(raw["draftRuleset"]) }
       : {}),
-    ...(raw.activeCompetitionId
-      ? { activeCompetitionId: raw.activeCompetitionId as string }
+    ...(raw["activeCompetitionId"]
+      ? { activeCompetitionId: raw["activeCompetitionId"] as string }
       : {}),
-    ...(raw.firstMatchPlayedAt != null
-      ? { firstMatchPlayedAt: Number(raw.firstMatchPlayedAt) }
+    ...(raw["firstMatchPlayedAt"] != null
+      ? { firstMatchPlayedAt: Number(raw["firstMatchPlayedAt"]) }
       : {}),
-    ...(raw.advancementMode
-      ? { advancementMode: raw.advancementMode as TeamAdvancementMode }
+    ...(raw["advancementMode"]
+      ? { advancementMode: raw["advancementMode"] as TeamAdvancementMode }
       : {}),
-    ...(raw.advancementModeLocked
-      ? { advancementModeLocked: Boolean(raw.advancementModeLocked) }
+    ...(raw["advancementModeLocked"]
+      ? { advancementModeLocked: Boolean(raw["advancementModeLocked"]) }
       : {}),
-    ...(raw.computerCoached === true ? { computerCoached: true as const } : {}),
-    ...(typeof raw.computerTemplateId === "string"
-      ? { computerTemplateId: raw.computerTemplateId }
+    ...(raw["computerCoached"] === true
+      ? { computerCoached: true as const }
       : {}),
-    ...(Array.isArray(raw.pendingDevelopment)
-      ? { pendingDevelopment: raw.pendingDevelopment as PendingDevelopment[] }
+    ...(typeof raw["computerTemplateId"] === "string"
+      ? { computerTemplateId: raw["computerTemplateId"] }
       : {}),
-    ...(Array.isArray(raw.matchedPlayAllocations)
+    ...(Array.isArray(raw["pendingDevelopment"])
       ? {
-          matchedPlayAllocations:
-            raw.matchedPlayAllocations as MatchedPlayAllocation[],
+          pendingDevelopment: raw["pendingDevelopment"],
         }
       : {}),
-    ...(Array.isArray(raw.draftInducements)
-      ? { draftInducements: parseDraftInducements(raw.draftInducements) }
+    ...(Array.isArray(raw["matchedPlayAllocations"])
+      ? {
+          matchedPlayAllocations: raw[
+            "matchedPlayAllocations"
+          ],
+        }
       : {}),
-    ...(Array.isArray(raw.draftHistory)
-      ? { draftHistory: raw.draftHistory as DraftRecord[] }
+    ...(Array.isArray(raw["draftInducements"])
+      ? { draftInducements: parseDraftInducements(raw["draftInducements"]) }
+      : {}),
+    ...(Array.isArray(raw["draftHistory"])
+      ? { draftHistory: raw["draftHistory"] }
       : {}),
     ...(knownRoster ? parseAllegiance(knownRoster, raw) : {}),
   };
   team.players = team.players.filter((player) => staysOnRoster(team, player));
-  // A stored Team Captain title stands only where the rules allow one:
-  // the roster has the rule, the player may lead it, and one Captain only.
+
   const flagged = new Set(
     storedPlayers.filter((stored) => stored.teamCaptain).map((p) => p.id)
   );
@@ -491,13 +460,12 @@ export function hydrateStoredTeam(
   return { team, warnings };
 }
 
-/** Strip a runtime `Team` down to the normalized, versioned stored shape. */
 export function dehydrateTeam(team: Team): StoredTeam {
   return {
     schemaVersion: TEAM_SCHEMA_VERSION,
     id: team.id,
     name: team.name,
-    coachName: team.coachName,
+    ...(team.coachName === undefined ? {} : { coachName: team.coachName }),
     rosterName: team.rosterName,
     colors: team.colors,
     players: team.players.map(dehydratePlayer),
@@ -543,13 +511,12 @@ export function dehydrateTeam(team: Team): StoredTeam {
       : {}),
     ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
     ...(team.computerCoached ? { computerCoached: true as const } : {}),
-    computerTemplateId: team.computerTemplateId,
+    ...(team.computerTemplateId === undefined ? {} : { computerTemplateId: team.computerTemplateId }),
     ...(team.league ? { league: team.league } : {}),
     ...(team.favouredOf ? { favouredOf: team.favouredOf } : {}),
   };
 }
 
-/** Read any persisted document (normalized or legacy) into a runtime `Team`. */
 export function readStoredTeam(raw: unknown): HydrationResult {
   return hydrateStoredTeam(raw as Record<string, unknown>);
 }

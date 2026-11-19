@@ -1,41 +1,27 @@
-/**
- * The coach benchmark: a candidate coach against a baseline over mirrored
- * pairs of matches. Both matches of a pair share the seed and the two
- * rosters; only which coach drives which team changes. That cancels the
- * roster match-up and most of the dice luck, so a few hundred games show
- * a real difference.
- *
- * This file is the pure half (one game, and the report over many). The CLI
- * spreads games across child processes, because a match is CPU-bound and
- * async concurrency in one process does not run them in parallel.
- */
-
 import { RosterName } from "../types/Team";
-import { ActionType } from "../types/events";
-import { Coach } from "./coach";
-import { runMatch, TeamPlayStats } from "./runMatch";
-import { scoringSpp, Standard, standardFor } from "./standards";
+import { type ActionType } from "../types/events";
+import { type Coach } from "./coach";
+import { runMatch, type TeamPlayStats } from "./runMatch";
+import { scoringSpp, type Standard, standardFor } from "./standards";
 
 export interface BenchJob {
   seed: number;
   rosters: [RosterName, RosterName];
-  /** 0 = the candidate drives team1 (home); 1 = it drives team2. */
+
   candidateSide: 0 | 1;
 }
 
 export interface BenchGame extends BenchJob {
-  /** Candidate first, baseline second. */
   score: [number, number];
   stats: [TeamPlayStats, TeamPlayStats];
   completed: boolean;
-  /** Invariant breaks, crashes and stalls; a benchmark run wants none. */
+
   blockingFindings: number;
-  /** Their grouping keys, so a report says what broke. */
+
   findingKeys: string[];
   ms: number;
 }
 
-/** Every pair of matches, mirrored: same seed and rosters, sides swapped. */
 export function benchJobs(
   pairs: number,
   firstSeed: number,
@@ -56,7 +42,7 @@ export async function playBenchGame(
   job: BenchJob,
   candidate: Coach,
   baseline: Coach,
-  /** Team re-rolls each side starts with; runMatch's default if unset. */
+
   rerolls?: number
 ): Promise<BenchGame> {
   const started = Date.now();
@@ -66,7 +52,7 @@ export async function playBenchGame(
     seed: job.seed,
     rosters: job.rosters,
     coaches,
-    rerolls,
+    ...(rerolls === undefined ? {} : { rerolls: rerolls }),
   });
   const ours = job.candidateSide;
   const theirs = ours === 0 ? 1 : 0;
@@ -85,7 +71,6 @@ export async function playBenchGame(
   };
 }
 
-/** Wilson score interval at 95% for `wins` out of `n`. */
 export function wilson(wins: number, n: number): [number, number] {
   if (n === 0) return [0, 0];
   const z = 1.96;
@@ -96,10 +81,10 @@ export function wilson(wins: number, n: number): [number, number] {
   return [(centre - spread) / denominator, (centre + spread) / denominator];
 }
 
-export interface SideReport {
+interface SideReport {
   touchdownsPerGame: number;
   turnoversPerGame: number;
-  /** Turnovers per turn played. */
+
   turnoverRate: number;
   dodgesPerGame: number;
   failedDodgesPerGame: number;
@@ -181,12 +166,11 @@ export interface RosterRow {
   winRate: number;
   side: SideReport;
   standard: Standard;
-  /** From touchdowns and casualties, at the roster's own SPP values. */
+
   sppPerGame: number;
   meets: boolean;
 }
 
-/** The candidate's games by the roster it drove, each against its standard. */
 export function rosterReport(games: readonly BenchGame[]): RosterRow[] {
   const byRoster = new Map<RosterName, BenchGame[]>();
   for (const game of games) {

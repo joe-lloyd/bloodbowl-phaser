@@ -1,12 +1,13 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { MatchAutosave } from "../../src/game/persistence/MatchAutosave";
 import {
-  MatchSaveDescription,
-  MatchSaveRepository,
+  type MatchSaveDescription,
+  type MatchSaveRepository,
 } from "../../src/game/persistence/MatchSaveRepository";
-import { MatchSave } from "../../src/headless/serialization";
-import { IGameService } from "../../src/services/interfaces/IGameService";
+import { type MatchSave } from "../../src/headless/serialization";
+import { type IGameService } from "../../src/services/interfaces/IGameService";
 import { MatchStats } from "../../src/game/progression/MatchStats";
 import { createLineupTeam } from "../../src/simulation/lineups";
 import { RosterName } from "../../src/types/Team";
@@ -140,18 +141,17 @@ describe("MatchAutosave", () => {
       { repository, debounceMs: 1 }
     );
     const saved = async () => {
-      await vi.waitFor(() =>
+      await vi.waitFor(() => {
         expect(repository.writes.at(-1)?.matchStats).toEqual(
           stats.captureState()
-        )
-      );
+        );
+      });
       return JSON.stringify(repository.writes.at(-1)?.matchStats);
     };
     autosave.start();
     expect(await saved()).toBe(JSON.stringify(stats.captureState()));
 
-    // A reload must not offer a step that has been taken
-    stats.assignAwardedTouchdown(roster.players[0].id);
+    stats.assignAwardedTouchdown(fixtureValue(roster.players[0]).id);
     expect(await saved()).toBe(JSON.stringify(stats.captureState()));
     stats.applySpp([roster]);
     expect(await saved()).toBe(JSON.stringify(stats.captureState()));

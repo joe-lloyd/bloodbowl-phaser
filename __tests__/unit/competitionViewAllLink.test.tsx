@@ -1,11 +1,6 @@
-/**
- * The "All leagues" / "All tournaments" control at the top of a competition
- * page is a link to the list, not a step back through history. After a
- * league match the results screen pushes the league page, so a history step
- * from there lands on the match (/play) and reloads it.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -14,9 +9,9 @@ import {
 } from "../../src/competition/logic";
 import { saveCompetition } from "../../src/competition/repository";
 import {
-  CompetitionEntrant,
-  CompetitionType,
-  LeagueDoc,
+  type CompetitionEntrant,
+  type CompetitionType,
+  type LeagueDoc,
 } from "../../src/competition/types";
 import { saveTeams } from "../../src/game/managers/TeamManager";
 import { CompetitionView } from "../../src/ui/components/pages/CompetitionView";
@@ -27,7 +22,6 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-/** Every route renders where the router is, so a test can read it. */
 function Where() {
   return <output data-testid="where">{useLocation().pathname}</output>;
 }
@@ -75,7 +69,9 @@ describe("the All leagues control on a competition page", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -113,15 +109,17 @@ describe("the All leagues control on a competition page", () => {
   };
 
   const where = () =>
-    container.querySelector('[data-testid="where"]')!.textContent;
+    fixtureValue(container.querySelector('[data-testid="where"]')).textContent;
 
   it("opens the league list after a league match, not the match", async () => {
     await saveLeague();
-    // League page -> match -> results screen pushes the league page again.
+
     await renderAt(["/leagues/season-1", "/play", "/leagues/season-1"]);
     expect(container.textContent).toContain("Season 1");
 
-    await act(async () => control("All leagues").click());
+    await act(async () => {
+      control("All leagues").click();
+    });
 
     expect(where()).toBe("/leagues");
     expect(container.textContent).toContain("/leagues list");
@@ -136,7 +134,9 @@ describe("the All leagues control on a competition page", () => {
     expect(link.tagName).toBe("A");
     expect(link.getAttribute("href")).toBe("/leagues");
 
-    await act(async () => link.click());
+    await act(async () => {
+      link.click();
+    });
     expect(where()).toBe("/leagues");
   });
 
@@ -147,7 +147,9 @@ describe("the All leagues control on a competition page", () => {
     expect(link.tagName).toBe("A");
     expect(link.getAttribute("href")).toBe("/leagues");
 
-    await act(async () => link.click());
+    await act(async () => {
+      link.click();
+    });
     expect(where()).toBe("/leagues");
   });
 
@@ -157,7 +159,9 @@ describe("the All leagues control on a competition page", () => {
     const link = control("All tournaments");
     expect(link.getAttribute("href")).toBe("/tournaments");
 
-    await act(async () => link.click());
+    await act(async () => {
+      link.click();
+    });
     expect(where()).toBe("/tournaments");
   });
 });

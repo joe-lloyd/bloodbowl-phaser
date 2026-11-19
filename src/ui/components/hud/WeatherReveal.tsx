@@ -1,89 +1,64 @@
-import React, { useEffect, useRef, useState } from "react";
-import { IEventBus } from "../../../services/EventBus";
-import { useEventBus } from "../../hooks/useEventBus";
-import { GameEventNames } from "../../../types/events";
+import type React from "react";
+import type { WeatherStep } from "./weatherThrow";
 import {
   WEATHER_TABLE,
-  Weather,
+  type Weather,
   weatherDescription,
 } from "../../../game/rules/weather";
-import { soundSettings } from "../../sound/settings";
-import type { DiceThrow } from "../../dice/diceScene";
-import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
-import { teamLook } from "./DiceTray";
+import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 
-/** How long the landed dice show before the result reads out. */
-const RESULT_BEAT_MS = 700;
-
-export type WeatherStep = "waiting" | "rolling" | "shown";
-
-/**
- * Throws a table roll's 2D6 into its dialog when the engine rolls it, in
- * the given team's colours, and reports when the result may show: the
- * opening weather (the home team's) and the Kick-off Table (the kicker's).
- * A dialog opened after the roll (a resumed match), or whose engine is
- * restored to a rolled state, shows the result at once: no dice event
- * comes then.
- */
-export function useWeatherThrow(
-  eventBus: IEventBus,
-  teamId: string,
-  rolled: () => boolean,
-  rollType = "Weather"
-) {
-  const stage = useRef<HTMLDivElement>(null);
-  const throwing = useRef<DiceThrow | null>(null);
-  const [step, setStep] = useState<WeatherStep>(() =>
-    rolled() ? "shown" : "waiting"
+export function WeatherPanel({
+  zClass,
+  header,
+  stage,
+  step,
+  weather,
+  total,
+  waiting,
+  onDone,
+}: {
+  zClass: string;
+  header?: React.ReactNode;
+  stage: React.RefObject<HTMLDivElement | null>;
+  step: WeatherStep;
+  weather: Weather;
+  total: number | null;
+  waiting: React.ReactNode;
+  onDone: () => void;
+}) {
+  return (
+    <DialogShell
+      zClass={zClass}
+      placement="center"
+      backdrop="heavy"
+      titleAs="h1"
+      title="WEATHER"
+      width="w-[480px]"
+      className="text-center"
+      testId="weather-dialog"
+    >
+      {header}
+      <div className="space-y-4 [@media(max-height:500px)]:space-y-2">
+        {step === "waiting" && (
+          <p className="text-hud-dim">
+            Before kick-off the coaches roll 2D6 on the Weather Table. It sets
+            the conditions for the whole match.
+          </p>
+        )}
+        <WeatherStage stage={stage} step={step} />
+        {step === "shown" && <WeatherResult weather={weather} total={total} />}
+        <WeatherTable result={step === "shown" ? weather : null} />
+        {step === "waiting" && waiting}
+        {step === "shown" && (
+          <HudButton variant="primary" size="lg" block onClick={onDone}>
+            ON TO THE COIN TOSS
+          </HudButton>
+        )}
+      </div>
+    </DialogShell>
   );
-  const [total, setTotal] = useState<number | null>(null);
-
-  useEventBus(eventBus, GameEventNames.GameStateRestored, () => {
-    if (rolled())
-      setStep((current) => (current === "waiting" ? "shown" : current));
-  });
-
-  useEventBus(eventBus, GameEventNames.DiceRoll, (roll) => {
-    if (roll.rollType !== rollType || step !== "waiting") return;
-    const values = ([] as (number | string)[]).concat(roll.value).map(Number);
-    setStep("rolling");
-    void (async () => {
-      const team = teamLook(teamId);
-      try {
-        if (!stage.current || !team) throw new Error("no stage");
-        const scene = await import("../../dice/diceScene");
-        const handle = scene.playRoll(
-          stage.current,
-          { kind: "d6", values, team },
-          { sound: !soundSettings.get().muted }
-        );
-        throwing.current = handle;
-        // Dice that never land (a hidden tab) still give way to the result
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        await Promise.race([
-          handle.landed,
-          new Promise<void>((resolve) => {
-            timer = setTimeout(() => {
-              handle.stop();
-              resolve();
-            }, DIE_LANDING_TIMEOUT_MS);
-          }),
-        ]).finally(() => clearTimeout(timer));
-        await new Promise((resolve) => setTimeout(resolve, RESULT_BEAT_MS));
-      } catch (error) {
-        console.warn("[WeatherReveal] could not show the dice", error);
-      }
-      setTotal(roll.total);
-      setStep("shown");
-    })();
-  });
-
-  useEffect(() => () => throwing.current?.stop(), []);
-
-  return { stage, step, total };
 }
 
-/** Where the dice land: hidden until they are thrown. */
 export function WeatherStage({
   stage,
   step,
@@ -102,11 +77,7 @@ export function WeatherStage({
   );
 }
 
-/**
- * The Weather Table, with the rolled result marked once it shows. Totals
- * only: never the chance of each.
- */
-export function WeatherTable({ result }: { result: Weather | null }) {
+function WeatherTable({ result }: { result: Weather | null }) {
   return (
     <ul className="space-y-1 text-left" data-testid="weather-table">
       {WEATHER_TABLE.map((row) => {
@@ -122,7 +93,9 @@ export function WeatherTable({ result }: { result: Weather | null }) {
             }`}
           >
             <span className="font-hud-label text-hud-lg font-bold tabular-nums">
-              {row.from === row.to ? row.from : `${row.from}–${row.to}`}
+              {row.from === row.to
+                ? row.from
+                : `${String(row.from)}–${String(row.to)}`}
             </span>
             <span>
               <span className="font-hud-label font-bold uppercase tracking-[0.04em]">
@@ -139,8 +112,7 @@ export function WeatherTable({ result }: { result: Weather | null }) {
   );
 }
 
-/** The rolled weather, read out once the dice have landed. */
-export function WeatherResult({
+function WeatherResult({
   weather,
   total,
 }: {

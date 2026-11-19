@@ -1,18 +1,9 @@
-/**
- * The coverage gate.
- *
- * These are the checks that stop the report from flattering itself: an
- * exclusion without a reason, a stale exclusion id, a synthetic grant with
- * no justification, a variant with no committed seed, and — most
- * importantly — engine and visual coverage never being blended into one
- * number.
- */
-
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
 import { SkillType } from "../../../src/types/Skills";
 import { RosterName } from "../../../src/types/Team";
-import { ScenarioCase, step } from "../../../src/testing/scenarioCase";
+import { type ScenarioCase, step } from "../../../src/testing/scenarioCase";
 import { SCENARIO_CASES } from "../../../src/testing/cases";
 import { ruleOutcomesMissingSeeds } from "../../../src/testing/cases/fromRuleConfigs";
 import {
@@ -48,14 +39,12 @@ function sampleCase(overrides: Partial<ScenarioCase> = {}): ScenarioCase {
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
     },
-    steps: [step({ type: "move", playerId: "team1:0", path: [{ x: 6, y: 5 }] })],
+    steps: [
+      step({ type: "move", playerId: "team1:0", path: [{ x: 6, y: 5 }] }),
+    ],
     layers: ["engine"],
-    variants: [
-      { id: "v", name: "V", seed: 1, expectedOutcome: "moves" },
-    ],
-    checkpoints: [
-      { id: "c", description: "c", assert: () => undefined },
-    ],
+    variants: [{ id: "v", name: "V", seed: 1, expectedOutcome: "moves" }],
+    checkpoints: [{ id: "c", description: "c", assert: () => undefined }],
     ...overrides,
   };
 }
@@ -89,8 +78,8 @@ describe("gameplay inventory", () => {
     for (const decision of DECISION_TYPES) {
       const replies = DECISION_REPLY_COMMANDS[decision];
       expect(replies, decision).toBeDefined();
-      expect(replies.length, decision).toBeGreaterThan(0);
-      for (const reply of replies) {
+      expect(fixtureValue(replies).length, decision).toBeGreaterThan(0);
+      for (const reply of fixtureValue(replies)) {
         expect(INTERACTION_COMMANDS, `${decision} → ${reply}`).toContain(reply);
       }
     }
@@ -126,7 +115,7 @@ describe("reviewed exclusions", () => {
       ],
       new Set(["protocol-command:move"])
     );
-    expect(issues[0].message).toMatch(/no longer exists/);
+    expect(fixtureValue(issues[0]).message).toMatch(/no longer exists/);
   });
 
   it("can excuse a single layer without excusing the entry", () => {
@@ -166,9 +155,9 @@ describe("coverage claims", () => {
       })
     );
     expect(claims.has("rule-config:dodge-reroll")).toBe(true);
-    expect(
-      claims.has("rule-outcome:dodge-reroll/skill-reroll-offered")
-    ).toBe(true);
+    expect(claims.has("rule-outcome:dodge-reroll/skill-reroll-offered")).toBe(
+      true
+    );
   });
 
   it("derives decision claims from a step that answers one", () => {
@@ -203,8 +192,7 @@ describe("coverage report", () => {
       "engine",
       "visual",
     ]);
-    // A case with engine coverage and no visual checkpoint reports visual as
-    // absent, not as partial engine credit.
+
     expect(result.totals.visual.covered).toBe(0);
     expect(result.totals.engine.covered).toBeGreaterThan(0);
   });
@@ -217,7 +205,7 @@ describe("coverage report", () => {
         issue.message.includes("browser")
     );
     expect(missingBrowser.length).toBeGreaterThan(0);
-    expect(missingBrowser[0].message).toMatch(/has no browser case/);
+    expect(fixtureValue(missingBrowser[0]).message).toMatch(/has no browser case/);
   });
 
   it("flags a synthetic grant that could have used a native fixture", () => {
@@ -289,8 +277,6 @@ describe("coverage report", () => {
   });
 
   it("keeps an engine-observed decision out of the browser column", () => {
-    // `decision:block-dice` is browser-required and carries no exclusion, so
-    // proving it in the engine must leave the browser column empty.
     const result = buildCoverage(
       [sampleCase({ layers: ["engine", "browser"] })],
       {
@@ -305,9 +291,9 @@ describe("coverage report", () => {
         ],
       }
     );
-    const blockDice = result.entries.find(
+    const blockDice = fixtureValue(result.entries.find(
       (entry) => entry.entry.id === "decision:block-dice"
-    )!;
+    ));
     expect(
       blockDice.layers.find((layer) => layer.layer === "engine")?.status
     ).toBe("covered");
@@ -333,10 +319,10 @@ describe("shard merging", () => {
   it("unions coverage without double-counting an entry", () => {
     const merged = mergeCoverageResults([shardA, shardB]);
     expect(merged.entries.length).toBe(shardA.entries.length);
-    const move = merged.entries.find(
+    const move = fixtureValue(merged.entries.find(
       (entry) => entry.entry.id === "protocol-command:move"
-    )!;
-    const engine = move.layers.find((layer) => layer.layer === "engine")!;
+    ));
+    const engine = fixtureValue(move.layers.find((layer) => layer.layer === "engine"));
     expect(engine.status).toBe("covered");
     expect(engine.cases).toEqual(["a", "b"]);
   });
@@ -348,9 +334,7 @@ describe("shard merging", () => {
 
   it("recomputes totals rather than summing them", () => {
     const merged = mergeCoverageResults([shardA, shardB]);
-    expect(merged.totals.engine.required).toBe(
-      shardA.totals.engine.required
-    );
+    expect(merged.totals.engine.required).toBe(shardA.totals.engine.required);
   });
 
   it("returns a single result untouched", () => {
@@ -383,6 +367,6 @@ describe("the production registry", () => {
   it("the Ogre Throw Team-mate case is registered and roster-authentic", () => {
     const ttm = SCENARIO_CASES.find((c) => c.id === "rule-ttm-throw");
     expect(ttm).toBeDefined();
-    expect(ttm!.setup.team1Roster).toBe(RosterName.OGRE);
+    expect(fixtureValue(ttm).setup.team1Roster).toBe(RosterName.OGRE);
   });
 });

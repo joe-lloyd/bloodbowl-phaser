@@ -1,11 +1,9 @@
-/**
- * Gallery variants for the dice log and the cards beside it, and the dice tray.
- */
+import type React from "react";
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { setActiveOnlineMatch, type ChatMessage } from "../network/OnlineMatch";
-import { MatchFixture } from "./fixtures";
+import { type MatchFixture } from "./fixtures";
 import { HUDLayout } from "../ui/components/hud/HUDLayout";
 import { DiceLog } from "../ui/components/hud/DiceLog";
 import { DiceTray } from "../ui/components/hud/DiceTray";
@@ -19,6 +17,7 @@ import {
   later,
   onlineMatch,
   setScore,
+  soon,
 } from "./variantHelpers";
 import type { Variant } from "./variants";
 
@@ -33,10 +32,6 @@ const CHAT: ChatMessage[] = [
   { text: "Too late for that", senderName: "Grimgutz", fromSelf: false, ts: 3 },
 ];
 
-/**
- * Makes an online match with chat the active one, so the dice log shows its
- * Dice and Chat tabs. `say` delivers a message from the other coach.
- */
 function onlineChat(fx: MatchFixture, history: ChatMessage[]) {
   const listeners = new Set<(message: ChatMessage) => void>();
   setActiveOnlineMatch(
@@ -49,84 +44,72 @@ function onlineChat(fx: MatchFixture, history: ChatMessage[]) {
       sendChat: () => {},
     })
   );
-  return (text: string) =>
-    listeners.forEach((listener) =>
+  return (text: string) => {
+    listeners.forEach((listener) => {
       listener({
         text,
         senderName: "Grimgutz",
         fromSelf: false,
         ts: Date.now(),
-      })
-    );
+      });
+    });
+  };
 }
 
-const diceLogIn = (fx: MatchFixture) => (
+const diceLogIn = (fx: MatchFixture, above?: React.ReactNode) => (
   <HUDLayout
     bottomLeft={
-      <div className="h-[220px] w-full">
-        <DiceLog eventBus={fx.bus} />
-      </div>
+      <>
+        {above}
+        <div className="h-[220px] w-full">
+          <DiceLog eventBus={fx.bus} />
+        </div>
+      </>
     }
   />
 );
 
+const onlineDiceLog = (fx: MatchFixture) => {
+  onlineChat(fx, CHAT);
+  return diceLogIn(fx);
+};
+
+const fillSoon = (rounds: number) =>
+  soon((fx) => {
+    fillLog(fx, rounds);
+  });
+
 export const DICE_VARIANTS: Variant[] = [
-  // ---- Dice log
   {
     id: "log-empty",
     section: "Dice log",
     title: "Empty",
-    view: (fx) => (
-      <HUDLayout
-        bottomLeft={
-          <div className="h-[220px] w-full">
-            <DiceLog eventBus={fx.bus} />
-          </div>
-        }
-      />
-    ),
+    view: (fx) => diceLogIn(fx),
   },
   {
     id: "log-long",
     section: "Dice log",
     title: "A long log (newest on top)",
-    view: (fx) => (
-      <HUDLayout
-        bottomLeft={
-          <div className="h-[220px] w-full">
-            <DiceLog eventBus={fx.bus} />
-          </div>
-        }
-      />
-    ),
-    drive: (fx) => later(30, () => fillLog(fx, 3)),
+    view: (fx) => diceLogIn(fx),
+    drive: fillSoon(3),
   },
   {
     id: "log-large",
     section: "Dice log",
     title: "Text at 150%",
-    prepare: () => localStorage.setItem("bb-dice-log-font-scale", "1.5"),
-    view: (fx) => (
-      <HUDLayout
-        bottomLeft={
-          <div className="h-[220px] w-full">
-            <DiceLog eventBus={fx.bus} />
-          </div>
-        }
-      />
-    ),
-    drive: (fx) => later(30, () => fillLog(fx, 1)),
+    prepare: () => {
+      localStorage.setItem("bb-dice-log-font-scale", "1.5");
+    },
+    view: (fx) => diceLogIn(fx),
+    drive: fillSoon(1),
   },
 
   {
     id: "log-online-dice",
     section: "Dice log",
     title: "Online: the Dice tab",
-    view: (fx) => {
-      onlineChat(fx, CHAT);
-      return diceLogIn(fx);
-    },
-    drive: (fx) => later(30, () => fillLog(fx, 1)),
+    view: onlineDiceLog,
+    drive: fillSoon(1),
   },
   {
     id: "log-online-unread",
@@ -140,21 +123,19 @@ export const DICE_VARIANTS: Variant[] = [
       });
       return diceLogIn(fx);
     },
-    drive: (fx) => later(30, () => fillLog(fx, 1)),
+    drive: fillSoon(1),
   },
   {
     id: "log-online-chat",
     section: "Dice log",
     title: "Online: the Chat tab",
-    view: (fx) => {
-      onlineChat(fx, CHAT);
-      return diceLogIn(fx);
-    },
+    view: onlineDiceLog,
     drive: () =>
-      later(60, () => click('[data-testid="dice-log"] [role="tab"]', "Chat")),
+      later(60, () => {
+        click('[data-testid="dice-log"] [role="tab"]', "Chat");
+      }),
   },
 
-  // ---- Left column cards
   {
     id: "catch-up-card",
     section: "Left column cards",
@@ -162,18 +143,7 @@ export const DICE_VARIANTS: Variant[] = [
     fixture: { scenario: "block-injury-test", phase: GamePhase.PLAY },
     view: (fx) => {
       onlineChat(fx, []);
-      return (
-        <HUDLayout
-          bottomLeft={
-            <>
-              <TurnCatchUpCard eventBus={fx.bus} />
-              <div className="h-[220px] w-full">
-                <DiceLog eventBus={fx.bus} />
-              </div>
-            </>
-          }
-        />
-      );
+      return diceLogIn(fx, <TurnCatchUpCard eventBus={fx.bus} />);
     },
     drive: (fx) =>
       later(60, () => {
@@ -198,18 +168,7 @@ export const DICE_VARIANTS: Variant[] = [
     section: "Left column cards",
     title: "Half time, with KO recovery rolls in",
     fixture: { scenario: "block-injury-test" },
-    view: (fx) => (
-      <HUDLayout
-        bottomLeft={
-          <>
-            <HalfTimeCard eventBus={fx.bus} />
-            <div className="h-[220px] w-full">
-              <DiceLog eventBus={fx.bus} />
-            </div>
-          </>
-        }
-      />
-    ),
+    view: (fx) => diceLogIn(fx, <HalfTimeCard eventBus={fx.bus} />),
     drive: (fx) =>
       later(60, () => {
         setScore(fx, 1, 0);
@@ -226,14 +185,13 @@ export const DICE_VARIANTS: Variant[] = [
       }),
   },
 
-  // ---- Dice tray
   {
     id: "tray-d6",
     section: "Dice tray",
     title: "A D6 roll (live 3D dice, needs WebGL)",
     view: (fx) => <DiceTray eventBus={fx.bus} />,
     drive: (fx) =>
-      every(4000, () =>
+      every(4000, () => {
         fx.bus.emit(GameEventNames.DiceRoll, {
           rollType: "Dodge (Blitzer)",
           diceType: "1d6",
@@ -242,8 +200,8 @@ export const DICE_VARIANTS: Variant[] = [
           description: "Dodge (Blitzer): 5, needs 3+",
           resultState: "success",
           teamId: fx.team1.id,
-        })
-      ),
+        });
+      }),
   },
   {
     id: "tray-block",
@@ -251,14 +209,14 @@ export const DICE_VARIANTS: Variant[] = [
     title: "Two block dice held for a choice",
     view: (fx) => <DiceTray eventBus={fx.bus} />,
     drive: (fx) =>
-      later(60, () =>
+      later(60, () => {
         fx.bus.emit(GameEventNames.BlockDiceRolled, {
           attackerId: fx.player(2, 0).id,
           defenderId: fx.player(1, 0).id,
           numDice: 2,
           isAttackerChoice: true,
           results: [BLOCK_FACES.push, BLOCK_FACES.dodge],
-        })
-      ),
+        });
+      }),
   },
 ];

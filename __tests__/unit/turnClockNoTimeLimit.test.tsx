@@ -1,14 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-/**
- * End-to-end wiring for the "no time limit" host setting (turnSeconds: 0):
- * TurnClock must (a) write a null deadline instead of an expiring one when a
- * turn starts, (b) render nothing, and (c) never force-end the turn — not
- * just that nextTurnDeadline() returns null in isolation (TurnClock.test.ts)
- * or that the lobby select offers the option (onlineLobbySettingsPanel.test.tsx).
- */
 
 const hoisted = vi.hoisted(() => ({
   setTurnDeadlineMock: vi.fn(() => Promise.resolve()),
@@ -27,16 +20,13 @@ vi.mock("../../src/firebase/lobby", async (importOriginal) => {
   };
 });
 
-// "PLAY" is GamePhase.PLAY's runtime value (types/GameState.ts); hardcoded
-// here (rather than imported into the mock factory) to sidestep vi.mock
-// hoisting/TDZ concerns.
 vi.mock("../../src/services/ServiceContainer", () => ({
   ServiceContainer: {
     isInitialized: () => true,
     getInstance: () => ({
       gameService: {
         getPhase: () => "PLAY",
-        // The host's turn: the active coach keeps the clock
+
         getActiveTeamId: () => hoisted.activeTeamId,
         getState: () => ({
           turn: { teamId: hoisted.activeTeamId, turnNumber: 1, isHalf2: false },
@@ -50,9 +40,9 @@ vi.mock("../../src/services/ServiceContainer", () => ({
 import { TurnClock } from "../../src/ui/pages/TurnClock";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
-import { LobbyDoc } from "../../src/firebase/lobby";
-import { OnlineMatch } from "../../src/network/OnlineMatch";
-import { AuthUser } from "../../src/firebase/auth";
+import { type LobbyDoc } from "../../src/firebase/lobby";
+import { type OnlineMatch } from "../../src/network/OnlineMatch";
+import { type AuthUser } from "../../src/firebase/auth";
 
 describe("TurnClock — no time limit end-to-end wiring", () => {
   let container: HTMLDivElement;
@@ -96,7 +86,9 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -156,8 +148,6 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
       );
     });
 
-    // Well past any real turn timer, repeatedly, to exercise the 500ms
-    // polling interval that would otherwise call endTurn() on expiry.
     await act(async () => {
       vi.advanceTimersByTime(30 * 60 * 1000);
     });
@@ -209,7 +199,7 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
     const lobby: LobbyDoc = {
       ...noLimitLobby,
       timer: {
-        ...noLimitLobby.timer!,
+        ...fixtureValue(noLimitLobby.timer),
         deadline: Date.now() - 1000,
         turn: "host-team:1:1",
       },
@@ -239,12 +229,12 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
     const lobby: LobbyDoc = {
       ...noLimitLobby,
       timer: {
-        ...noLimitLobby.timer!,
+        ...fixtureValue(noLimitLobby.timer),
         deadline: Date.now() + 60_000,
         turn: "host-team:1:1",
       },
     };
-    const render = (opponentAway: boolean) =>
+    const render = (opponentAway: boolean) => {
       root.render(
         <TurnClock
           code={code}
@@ -255,10 +245,15 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
           opponentAway={opponentAway}
         />
       );
-    await act(async () => render(true));
+    };
+    await act(async () => {
+      render(true);
+    });
     expect(match.setClockPaused).toHaveBeenLastCalledWith("opponent-away");
     await act(async () => vi.advanceTimersByTimeAsync(30 * 60 * 1000));
-    await act(async () => render(false));
+    await act(async () => {
+      render(false);
+    });
 
     expect(match.setClockPaused).toHaveBeenLastCalledWith(null);
     expect(hoisted.setTurnDeadlineMock).not.toHaveBeenCalled();

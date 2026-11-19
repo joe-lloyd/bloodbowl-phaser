@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  LegacyEntrant,
-  LegacySharedTeamRecord,
+  type LegacyEntrant,
+  type LegacySharedTeamRecord,
   repointCompetitionEntrants,
   repointEntrant,
 } from "../../src/competition/migrateSharedEntrants";
-import { LeagueDoc } from "../../src/competition/types";
+import { type LeagueDoc } from "../../src/competition/types";
 
 function legacyEntrant(overrides: Partial<LegacyEntrant> = {}): LegacyEntrant {
   return {
@@ -14,7 +14,7 @@ function legacyEntrant(overrides: Partial<LegacyEntrant> = {}): LegacyEntrant {
     name: "Da Boyz",
     rosterName: "Orc",
     seed: 1,
-    team: { id: "local-team-1", name: "Da Boyz", players: [] } as never,
+    ownerUid: null,
     ...overrides,
   };
 }

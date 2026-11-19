@@ -1,5 +1,5 @@
 import {
-  ReactNode,
+  type ReactNode,
   useCallback,
   useEffect,
   useId,
@@ -10,32 +10,16 @@ import {
 import { createPortal } from "react-dom";
 
 interface TooltipProps {
-  /** The rule/explanation text revealed on hover or focus. */
   content: string;
-  /** The hover/focus target (e.g. a skill name badge). */
+
   children: ReactNode;
   className?: string;
 }
 
-/** Closes the tooltip on screen, so only one shows at a time. */
 let openTooltip: (() => void) | null = null;
 
-/** Space kept between the panel, its trigger and the window's edge. */
 const GAP_PX = 6;
 
-/**
- * A small reusable hover/focus tooltip (team-builder-rule-tooltips): a dark HUD
- * slab with a gold hairline and small body text.
- *
- * The panel lives on the page body, fixed beside its trigger, so a table's
- * scroll box or a panel's clipping never cuts it off or grows to fit it.
- * It opens below the trigger, or above when there is more room there, and
- * goes when the page scrolls.
- *
- * The wrapper itself is the keyboard-reachable trigger (`tabIndex={0}`), so
- * callers don't need to make their `children` focusable separately, and its
- * `aria-describedby` links to the tooltip panel for screen readers.
- */
 export function Tooltip({ content, children, className = "" }: TooltipProps) {
   const tooltipId = useId();
   const panel = useRef<HTMLSpanElement>(null);
@@ -44,21 +28,17 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
     null
   );
 
-  // Stable, so the one-at-a-time check can tell this tooltip's from another's
   const hide = useCallback(() => {
     setTrigger(null);
     setPlace(null);
     if (openTooltip === hide) openTooltip = null;
   }, []);
   const show = (event: React.SyntheticEvent<HTMLElement>) => {
-    // One panel at a time: a newly shown one closes any other still open
     if (openTooltip && openTooltip !== hide) openTooltip();
     openTooltip = hide;
     setTrigger(event.currentTarget.getBoundingClientRect());
   };
 
-  // Place the panel once its height is known: below, or above if it fits
-  // better there, and never past the window's edge
   useLayoutEffect(() => {
     if (!trigger || !panel.current) return;
     const { width, height } = panel.current.getBoundingClientRect();
@@ -78,11 +58,12 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
     });
   }, [trigger]);
 
-  // A fixed panel would drift from its trigger as the page scrolls
   useEffect(() => {
     if (!trigger) return;
     window.addEventListener("scroll", hide, true);
-    return () => window.removeEventListener("scroll", hide, true);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+    };
   }, [trigger]);
 
   return (
@@ -91,7 +72,6 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
       tabIndex={0}
       aria-describedby={tooltipId}
       onMouseEnter={show}
-      // A focused trigger keeps its panel until focus leaves or another shows
       onMouseLeave={(event) => {
         if (document.activeElement !== event.currentTarget) hide();
       }}
@@ -119,4 +99,3 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
   );
 }
 
-export default Tooltip;

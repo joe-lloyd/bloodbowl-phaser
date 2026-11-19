@@ -2,8 +2,8 @@ import { useState } from "react";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   calculateTeamValue,
-  PendingDevelopment,
-  Team,
+  type PendingDevelopment,
+  type Team,
   isPendingRecruit,
 } from "../../../types/Team";
 import { saveTeam } from "../../../game/managers/TeamManager";
@@ -16,7 +16,7 @@ import {
   releaseDraftedPlayer,
   rollPrimarySelection,
   rollSecondaryCandidates,
-  SkillSelectionResult,
+  type SkillSelectionResult,
   skillSelectionDecision,
   startPrimarySelection,
   startSecondarySelection,
@@ -24,11 +24,11 @@ import {
 import { SkillCategory, SkillType } from "../../../types/Skills";
 import {
   canKeepRaisedDead,
-  RaisedDeadOffer,
+  type RaisedDeadOffer,
   resolveRaisedDeadRecruit,
 } from "../../../game/rules/raiseDead";
 import {
-  JourneymanOffer,
+  type JourneymanOffer,
   hireJourneyman,
   journeymanHireRefusal,
   journeymanPrice,
@@ -36,7 +36,7 @@ import {
 } from "../../../game/rules/journeymen";
 import {
   EXPENSIVE_MISTAKES_THRESHOLD,
-  ExpensiveMistakesEntry,
+  type ExpensiveMistakesEntry,
   describeExpensiveMistakes,
   resolveExpensiveMistakes,
   stepsBeforeExpensiveMistakes,
@@ -50,15 +50,6 @@ import {
   Panel,
 } from "../componentWarehouse/HudKit";
 
-/**
- * Manage Team's pending-development resolution: Advanced League forced
- * advancements, Sevens Skill Selection awards, and Drafted Players offers
- * (see team-advancement-modes "Team development is completed from Manage
- * Team"). Finishing a Skill Selection rolls for Drafted Players, which may
- * add offers for the coach to answer. After a league fixture it also offers
- * the Journeymen who played, and ends with the Expensive Mistakes roll
- * (league-treasury).
- */
 export function PendingDevelopmentPanel({
   team,
   onChange,
@@ -67,12 +58,12 @@ export function PendingDevelopmentPanel({
 }: {
   team: Team;
   onChange: (team: Team) => void;
-  /** The team detail page checks the Treasury when the coach finishes. */
+
   showExpensiveMistakes?: boolean;
-  onOpenPlayer?: (playerId: string) => void;
+  onOpenPlayer?: ((playerId: string) => void) | undefined;
 }) {
   const [notice, setNotice] = useState("");
-  // Expensive Mistakes is the last step, whatever order it was queued in
+
   const pending = [
     ...(team.pendingDevelopment ?? []).filter(
       (entry) => entry.kind !== "expensive-mistakes"
@@ -195,10 +186,22 @@ function RaisedDeadEntry({
         </p>
       )}
       <div className="flex gap-2">
-        <HudButton size="sm" disabled={!room} onClick={() => choose(true)}>
+        <HudButton
+          size="sm"
+          disabled={!room}
+          onClick={() => {
+            choose(true);
+          }}
+        >
           Hire for free
         </HudButton>
-        <HudButton size="sm" variant="danger" onClick={() => choose(false)}>
+        <HudButton
+          size="sm"
+          variant="danger"
+          onClick={() => {
+            choose(false);
+          }}
+        >
           Let them go
         </HudButton>
       </div>
@@ -241,11 +244,19 @@ function JourneymanEntry({
           size="sm"
           disabled={!!refusal}
           title={refusal}
-          onClick={() => answer(true)}
+          onClick={() => {
+            answer(true);
+          }}
         >
           Hire for {price.toLocaleString("en-GB")} gp
         </HudButton>
-        <HudButton size="sm" variant="danger" onClick={() => answer(false)}>
+        <HudButton
+          size="sm"
+          variant="danger"
+          onClick={() => {
+            answer(false);
+          }}
+        >
           Let them go
         </HudButton>
       </div>
@@ -308,9 +319,9 @@ function AdvancedLeagueEntry({
   team: Team;
   entry: Extract<PendingDevelopment, { kind: "advanced-league-advancement" }>;
   onChange: (team: Team) => void;
-  /** Shown by the panel, so it survives this entry disappearing. */
+
   onNotice: (notice: string) => void;
-  onOpenPlayer?: (playerId: string) => void;
+  onOpenPlayer?: ((playerId: string) => void) | undefined;
 }) {
   const player = team.players.find(
     (candidate) => candidate.id === entry.playerId
@@ -332,7 +343,12 @@ function AdvancedLeagueEntry({
           Not enough SPP yet — this resolves automatically once they qualify.
         </p>
       ) : onOpenPlayer ? (
-        <HudButton size="sm" onClick={() => onOpenPlayer(player.id)}>
+        <HudButton
+          size="sm"
+          onClick={() => {
+            onOpenPlayer(player.id);
+          }}
+        >
           Advance player
         </HudButton>
       ) : (
@@ -340,7 +356,9 @@ function AdvancedLeagueEntry({
           player={player}
           team={team}
           rngService={panelRng()}
-          onSaved={() => onChange({ ...team })}
+          onSaved={() => {
+            onChange({ ...team });
+          }}
           onNotice={onNotice}
         />
       )}
@@ -369,7 +387,7 @@ function playerName(team: Team, playerId: string): string {
 
 function describeSelection(team: Team, result: SkillSelectionResult): string {
   const learned = `${playerName(team, result.playerId)} learned ${result.skill}${
-    result.d3 === undefined ? "" : ` (D3 rolled ${result.d3})`
+    result.d3 === undefined ? "" : ` (D3 rolled ${String(result.d3)})`
   }.`;
   const left = result.draft.released.map(
     (record) =>
@@ -386,12 +404,6 @@ const ENTRY =
   "mt-3 rounded-hud border border-white/10 bg-black/30 p-3 font-hud-body text-hud-sm text-[#ddd5c6]";
 const SELECT = "hud-field w-auto max-w-full disabled:opacity-40";
 
-/**
- * Sevens Skill Selection (Spike! Journal 22, A2-A3). Each step renders the
- * decision `skillSelectionDecision` reports. On the Primary route the
- * coaches name skills in turn; in hot-seat play both coaches use this
- * screen, so the prompt says whose turn it is.
- */
 function SkillSelectionEntry({
   team,
   entry,
@@ -421,8 +433,11 @@ function SkillSelectionEntry({
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
-  const finish = (run: () => SkillSelectionResult) =>
-    act(() => onNotice(describeSelection(team, run())));
+  const finish = (run: () => SkillSelectionResult) => {
+    act(() => {
+      onNotice(describeSelection(team, run()));
+    });
+  };
 
   const decision = skillSelectionDecision(team, entry);
   const body = (() => {
@@ -459,11 +474,11 @@ function SkillSelectionEntry({
                 aria-label="Skill Selection category"
                 value={category}
                 disabled={!option}
-                onChange={(e) =>
+                onChange={(e) => {
                   setCategory(
                     option?.categories.find((c) => c === e.target.value) ?? ""
-                  )
-                }
+                  );
+                }}
                 className={SELECT}
               >
                 <option value="">Primary category</option>
@@ -478,9 +493,9 @@ function SkillSelectionEntry({
                 disabled={!category}
                 onClick={() =>
                   category &&
-                  act(() =>
-                    startPrimarySelection(team, entry, playerId, category)
-                  )
+                  act(() => {
+                    startPrimarySelection(team, entry, playerId, category);
+                  })
                 }
               >
                 Take a Primary skill
@@ -489,9 +504,11 @@ function SkillSelectionEntry({
             <HudButton
               size="sm"
               disabled={!decision.secondaryAvailable}
-              onClick={() =>
-                act(() => startSecondarySelection(team, entry, rng))
-              }
+              onClick={() => {
+                act(() => {
+                  startSecondarySelection(team, entry, rng);
+                });
+              }}
             >
               Random player, Secondary skill
             </HudButton>
@@ -514,11 +531,11 @@ function SkillSelectionEntry({
               <select
                 aria-label="Named skill"
                 value={skill}
-                onChange={(e) =>
+                onChange={(e) => {
                   setSkill(
                     decision.options.find((s) => s === e.target.value) ?? ""
-                  )
-                }
+                  );
+                }}
                 className={SELECT}
               >
                 <option value="">Choose a skill</option>
@@ -533,9 +550,9 @@ function SkillSelectionEntry({
                 disabled={!skill}
                 onClick={() =>
                   skill &&
-                  act(() =>
-                    nominatePrimarySkill(team, entry, decision.chooser, skill)
-                  )
+                  act(() => {
+                    nominatePrimarySkill(team, entry, decision.chooser, skill);
+                  })
                 }
               >
                 Name skill
@@ -548,13 +565,16 @@ function SkillSelectionEntry({
           <>
             <p className="mb-2">
               {playerName(team, decision.playerId)} learns one of:{" "}
-              {decision.named.map((s, i) => `${i + 1}. ${s}`).join(", ")}.
+              {decision.named
+                .map((s, i) => `${String(i + 1)}. ${s}`)
+                .join(", ")}
+              .
             </p>
             <HudButton
               size="sm"
-              onClick={() =>
-                finish(() => rollPrimarySelection(team, entry, rng))
-              }
+              onClick={() => {
+                finish(() => rollPrimarySelection(team, entry, rng));
+              }}
             >
               Roll D3
             </HudButton>
@@ -572,9 +592,11 @@ function SkillSelectionEntry({
                 <HudButton
                   size="sm"
                   key={c}
-                  onClick={() =>
-                    act(() => rollSecondaryCandidates(team, entry, c, rng))
-                  }
+                  onClick={() => {
+                    act(() => {
+                      rollSecondaryCandidates(team, entry, c, rng);
+                    });
+                  }}
                 >
                   {c}
                 </HudButton>
@@ -597,11 +619,11 @@ function SkillSelectionEntry({
                 <button
                   type="button"
                   key={candidate.skill}
-                  onClick={() =>
+                  onClick={() => {
                     finish(() =>
                       chooseSecondarySkill(team, entry, candidate.skill, rng)
-                    )
-                  }
+                    );
+                  }}
                   className={cx(
                     hudChoiceClass(false),
                     "px-3 py-2 font-hud-label text-hud-sm font-bold uppercase text-hud-bone"
@@ -628,8 +650,6 @@ function SkillSelectionEntry({
   );
 }
 
-/** A6: a pro team wants this player. Pay their value to keep them, or let
- *  them go. */
 function DraftOfferEntry({
   team,
   entry,
@@ -668,14 +688,20 @@ function DraftOfferEntry({
         <HudButton
           size="sm"
           disabled={price > team.treasury}
-          onClick={() => act(() => keepDraftedPlayer(team, entry))}
+          onClick={() => {
+            act(() => {
+              keepDraftedPlayer(team, entry);
+            });
+          }}
         >
           Pay {price.toLocaleString()} to keep
         </HudButton>
         <HudButton
           variant="danger"
           size="sm"
-          onClick={() => act(() => releaseDraftedPlayer(team, entry))}
+          onClick={() => {
+            act(() => releaseDraftedPlayer(team, entry));
+          }}
         >
           Let them go
         </HudButton>

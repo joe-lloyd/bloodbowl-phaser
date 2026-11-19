@@ -1,8 +1,4 @@
-/**
- * What the HUD tells the coach, checked in the real game: the player card
- * during a move, and no stray card from a press on a HUD button.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
@@ -13,7 +9,7 @@ test("a press on a HUD button never shows the card of the player under it", asyn
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "setup-coinflip", seed: 3 });
   await page.getByRole("button", { name: "FLIP COIN" }).click();
-  // At 1280x720 this button sits over the bottom dugout's players.
+
   await page
     .getByRole("button", { name: /^(KICK|RECEIVE)$/ })
     .first()
@@ -32,8 +28,8 @@ test("the player card counts movement and rushes left after a partial move", asy
   await page.setViewportSize({ width: 1280, height: 720 });
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "movement-test", seed: 7 });
-  const runner = (await app.bridge.snapshot()).teams[0].players[0];
-  const ma = runner.stats.MA;
+  const runner = fixtureValue((await app.bridge.snapshot()).teams[0]).players[0];
+  const ma = fixtureValue(runner).stats.MA;
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickPath([
     { x: 2, y: 4 },
@@ -42,11 +38,11 @@ test("the player card counts movement and rushes left after a partial move", asy
   await app.pitch.clickSquare({ x: 2, y: 3 });
   await expect
     .poll(
-      async () => (await app.bridge.snapshot()).teams[0].players[0].position
+      async () => fixtureValue(fixtureValue((await app.bridge.snapshot()).teams[0]).players[0]).position
     )
     .toEqual({ x: 2, y: 3 });
   await expect(page.getByTestId("movement-left")).toHaveText(
-    `MA ${ma}, ${ma - 2} left, 2 rush`
+    `MA ${String(ma)}, ${String(ma - 2)} left, 2 rush`
   );
 });
 
@@ -55,7 +51,7 @@ for (const viewport of [
   { width: 1920, height: 1080 },
   { width: 2560, height: 1440 },
 ]) {
-  test(`the full time results card is centred at ${viewport.width}x${viewport.height}`, async ({
+  test(`the full time results card is centred at ${String(viewport.width)}x${String(viewport.height)}`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
@@ -64,7 +60,7 @@ for (const viewport of [
     const card = page.getByTestId("match-results");
     await expect(card).toContainText("Full Time");
     await expect(card).toContainText("Draw");
-    // Wait out the pop-in animation before measuring.
+
     await page.waitForTimeout(400);
     const box = await card.boundingBox();
     if (!box) throw new Error("the results card has no layout box");

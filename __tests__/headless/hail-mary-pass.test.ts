@@ -1,19 +1,12 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import type { CommandResponse } from "../../src/headless/protocol";
 
-/**
- * Hail Mary Pass is a choice: "When this player performs a Pass Action ...
- * they may declare any square on the pitch as the target square rather than
- * using the Range Ruler. Make a Passing Ability Test as normal treating the
- * throw as a Long Bomb, and treating any result of an Accurate Pass as an
- * Inaccurate Pass" (2025 rulebook p.129). A passer with the skill who throws
- * along the ruler makes an ordinary pass. Seeds are committed, never
- * searched (see docs/E2E_TESTING.md).
- */
 function scenario(passerSkills: SkillType[]): Scenario {
   return {
     id: "hail-mary-pass",
@@ -36,7 +29,6 @@ function scenario(passerSkills: SkillType[]): Scenario {
   };
 }
 
-/** The Passing Ability Test rolls a 5 under this seed. */
 const PASS_ROLLS_FIVE_SEED = 2;
 
 async function pass(
@@ -48,7 +40,7 @@ async function pass(
     scenario: scenario(skills),
     seed: PASS_ROLLS_FIVE_SEED,
   });
-  const passerId = game.ctx.team1.players[0].id;
+  const passerId = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passerId,
@@ -67,7 +59,9 @@ async function pass(
   }
   const dice = events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
   return { response, dice };
 }
 

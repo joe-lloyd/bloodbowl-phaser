@@ -2,15 +2,6 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-/**
- * The coach whose turn it is owes a decision of their own when their time
- * runs out. In the round 5 two-machine match (3 November 2026) the block
- * card for one never showed after a tab came back, the clock waited on the
- * decision forever, and both screens sat on Time up for 23 minutes. Their
- * clock now gives the decision's default answer, as the other coach's short
- * clock does, so the turn can end.
- */
-
 vi.mock("../../src/firebase/lobby", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("../../src/firebase/lobby")>();
@@ -41,10 +32,10 @@ vi.mock("../../src/services/ServiceContainer", () => ({
 
 import { TurnClock } from "../../src/ui/pages/TurnClock";
 import { EventBus } from "../../src/services/EventBus";
-import { LobbyDoc } from "../../src/firebase/lobby";
-import { OnlineMatch } from "../../src/network/OnlineMatch";
-import { AuthUser } from "../../src/firebase/auth";
-import { PendingDecision } from "../../src/headless/protocol";
+import { type LobbyDoc } from "../../src/firebase/lobby";
+import { type OnlineMatch } from "../../src/network/OnlineMatch";
+import { type AuthUser } from "../../src/firebase/auth";
+import { type PendingDecision } from "../../src/headless/protocol";
 
 const expiredLobby = (): LobbyDoc =>
   ({
@@ -63,6 +54,9 @@ const expiredLobby = (): LobbyDoc =>
       banks: {},
     },
   }) as unknown as LobbyDoc;
+
+const chooserOf = (decision: PendingDecision | null | undefined): string | null =>
+  decision && "chooserTeamId" in decision ? decision.chooserTeamId ?? null : null;
 
 const blockDice: PendingDecision = {
   type: "block-dice",
@@ -92,14 +86,14 @@ describe("the acting coach's clock runs out on their own decision", () => {
       opponentName: "Other",
       coachName: () => "Other",
       pendingDecision: () => pending,
-      decidingTeamId: () => pending?.chooserTeamId ?? null,
+      decidingTeamId: () => chooserOf(pending),
       setClockPaused: vi.fn(),
       run,
     } as unknown as OnlineMatch;
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () =>
+    await act(async () => {
       root.render(
         <TurnClock
           code="ABC123"
@@ -108,8 +102,8 @@ describe("the acting coach's clock runs out on their own decision", () => {
           eventBus={new EventBus()}
           user={{ uid: "host-uid" } as AuthUser}
         />
-      )
-    );
+      );
+    });
 
     await act(async () => vi.advanceTimersByTimeAsync(600));
     expect(run.mock.calls).toEqual([
@@ -121,13 +115,15 @@ describe("the acting coach's clock runs out on their own decision", () => {
     expect(endTurn).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenCalledTimes(1);
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
   it("answers a second, identical decision too", async () => {
     vi.useFakeTimers();
-    // Frenzy: the first pick opens an identical second block
+
     const queue: PendingDecision[] = [blockDice, blockDice];
     const run = vi.fn(async () => {
       queue.shift();
@@ -139,14 +135,14 @@ describe("the acting coach's clock runs out on their own decision", () => {
       opponentName: "Other",
       coachName: () => "Other",
       pendingDecision: () => queue[0] ?? null,
-      decidingTeamId: () => queue[0]?.chooserTeamId ?? null,
+      decidingTeamId: () => chooserOf(queue[0]),
       setClockPaused: vi.fn(),
       run,
     } as unknown as OnlineMatch;
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () =>
+    await act(async () => {
       root.render(
         <TurnClock
           code="ABC123"
@@ -155,14 +151,16 @@ describe("the acting coach's clock runs out on their own decision", () => {
           eventBus={new EventBus()}
           user={{ uid: "host-uid" } as AuthUser}
         />
-      )
-    );
+      );
+    });
 
     await act(async () => vi.advanceTimersByTimeAsync(1600));
     expect(run).toHaveBeenCalledTimes(2);
     expect(endTurn).toHaveBeenCalledTimes(1);
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -176,7 +174,7 @@ describe("the acting coach's clock runs out on their own decision", () => {
       skill: "Bloodlust",
       prompt: "Bloodlust: bite the Thrall Lineman?",
     } as unknown as PendingDecision;
-    // Ending the turn with the bite still owed asks for it first
+
     endTurn.mockImplementationOnce(() => {
       pending = bite;
     });
@@ -190,14 +188,14 @@ describe("the acting coach's clock runs out on their own decision", () => {
       opponentName: "Other",
       coachName: () => "Other",
       pendingDecision: () => pending,
-      decidingTeamId: () => pending?.chooserTeamId ?? null,
+      decidingTeamId: () => chooserOf(pending),
       setClockPaused: vi.fn(),
       run,
     } as unknown as OnlineMatch;
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () =>
+    await act(async () => {
       root.render(
         <TurnClock
           code="ABC123"
@@ -206,15 +204,17 @@ describe("the acting coach's clock runs out on their own decision", () => {
           eventBus={new EventBus()}
           user={{ uid: "host-uid" } as AuthUser}
         />
-      )
-    );
+      );
+    });
 
     await act(async () => vi.advanceTimersByTimeAsync(1600));
     expect(endTurn).toHaveBeenCalledTimes(1);
-    // Declined on the absent coach's behalf: the penalty ends the turn
+
     expect(run.mock.calls).toEqual([[{ type: "use-reaction", accept: false }]]);
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -234,14 +234,14 @@ describe("the acting coach's clock runs out on their own decision", () => {
       opponentName: "Other",
       coachName: () => "Other",
       pendingDecision: () => pending,
-      decidingTeamId: () => pending?.chooserTeamId ?? null,
+      decidingTeamId: () => chooserOf(pending),
       setClockPaused: vi.fn(),
       run,
     } as unknown as OnlineMatch;
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    await act(async () =>
+    await act(async () => {
       root.render(
         <TurnClock
           code="ABC123"
@@ -250,14 +250,16 @@ describe("the acting coach's clock runs out on their own decision", () => {
           eventBus={new EventBus()}
           user={{ uid: "host-uid" } as AuthUser}
         />
-      )
-    );
+      );
+    });
 
     await act(async () => vi.advanceTimersByTimeAsync(1600));
     expect(run).toHaveBeenCalledTimes(2);
     expect(endTurn).toHaveBeenCalledTimes(1);
 
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 });

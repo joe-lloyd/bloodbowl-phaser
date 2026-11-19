@@ -1,14 +1,17 @@
-import { Player, hasTackleZone } from "../../types/Player";
-import { BlockAnalysis } from "../../types/Actions";
+import { type Player, hasTackleZone } from "../../types/Player";
+import { type BlockAnalysis } from "../../types/Actions";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { PassRange } from "../controllers/PassController";
-import { Weather, weatherEffects } from "./weather";
-import { GameState } from "../../types/GameState";
+import { type PassRange } from "../controllers/PassController";
+import { type Weather, weatherEffects } from "./weather";
+import { type GameState } from "../../types/GameState";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
 import { rollLabel, requiredRoll } from "./rollTargets";
 
-type Square = { x: number; y: number };
+interface Square {
+  x: number;
+  y: number;
+}
 export const markingPlayers = (square: Square, opponents: Player[]) =>
   opponents.filter(
     (p) =>
@@ -23,7 +26,6 @@ export const markingPlayers = (square: Square, opponents: Player[]) =>
 const has = (player: Player, skill: SkillType) =>
   hasSkill(player.skills ?? [], skill);
 
-/** The Dodge target before optional reactions such as Diving Tackle. */
 export function dodgeTarget(
   player: Player,
   from: Square,
@@ -74,7 +76,6 @@ export function pickupTarget(
   );
 }
 
-/** Secure the Ball uses an ordinary D6; Extra Arms does not modify it. */
 export function secureBallTarget(
   player: Player,
   square: Square,
@@ -132,17 +133,11 @@ export function passTarget(
   );
 }
 
-export const assistLine = (side: "Our" | "Their", players: Player[]): string =>
-  `${side} assists: ${players.length ? players.map((p) => `#${p.number}`).join(", ") : "none"}`;
+const assistLine = (side: "Our" | "Their", players: Player[]): string =>
+  `${side} assists: ${players.length ? players.map((p) => `#${String(p.number)}`).join(", ") : "none"}`;
 
-/** Whose side of a block the coach reading the card is on. */
 export type BlockSide = "attacker" | "defender";
 
-/**
- * The same details are used on hover and in the block dialog, worded for
- * the coach reading them: "you pick", "Our assists" and "We have Block"
- * mean that coach's side, attacker or defender.
- */
 export function blockPreviewLines(
   analysis: BlockAnalysis,
   attacker: Player,
@@ -154,11 +149,11 @@ export function blockPreviewLines(
     viewer === "attacker"
       ? [analysis.attackerAssists, analysis.defenderAssists]
       : [analysis.defenderAssists, analysis.attackerAssists];
-  // "We" for the viewer's player, "They" for the other one
+
   const attackerIs = viewer === "attacker" ? "We" : "They";
   const defenderIs = viewer === "defender" ? "We" : "They";
   const lines = [
-    `${analysis.diceCount} ${analysis.diceCount === 1 ? "die" : "dice"}, ${viewerPicks ? "you" : "they"} pick`,
+    `${String(analysis.diceCount)} ${analysis.diceCount === 1 ? "die" : "dice"}, ${viewerPicks ? "you" : "they"} pick`,
     assistLine("Our", ours),
     assistLine("Their", theirs),
   ];
@@ -179,11 +174,11 @@ export function blockPreviewLines(
   return lines;
 }
 
-export type RouteRoll = {
+export interface RouteRoll {
   type: "dodge" | "rush" | "pickup" | "secureBall";
   target: number;
   square: Square;
-};
+}
 export interface RoutePreview {
   movementLeft: number;
   riskySteps: number;
@@ -227,16 +222,6 @@ export function foulPreview(
   return { analysis, lines, targetNumber };
 }
 
-/**
- * The roll one interceptor needs. Mirrors PassOperation: the corridor
- * modifier, Very Long Legs, Extra Arms, weather, and marking by the passing
- * team.
- */
-/**
- * The interception Agility Test's modifiers, the one source for the rules
- * engine, the throw preview and the interception dialog. The corridor
- * modifier is -3 for an accurate pass and -2 for an inaccurate one.
- */
 export function interceptModifiers(
   interceptor: Player,
   corridorModifier: number,
@@ -267,16 +252,9 @@ export function interceptTarget(
   );
 }
 
-/** The roll an interceptor needs given the modifier the engine offers. */
 export const interceptNeed = (interceptor: Player, modifier: number): number =>
   requiredRoll(interceptor.stats.AG, modifier);
 
-/**
- * The throw preview's line for one interceptor. The pass is not thrown
- * yet, so it gives the roll against an accurate pass and, when it differs,
- * against an inaccurate one: the interception dialog then shows the one
- * that applies.
- */
 export function interceptPreviewLine(
   interceptor: Player,
   passingTeam: Player[],
@@ -284,7 +262,7 @@ export function interceptPreviewLine(
 ): { line: string; accurate: number; inaccurate: number } {
   const accurate = interceptTarget(interceptor, -3, passingTeam, weather);
   const inaccurate = interceptTarget(interceptor, -2, passingTeam, weather);
-  const name = `Intercept #${interceptor.number}`;
+  const name = `Intercept #${String(interceptor.number)}`;
   const line =
     accurate === inaccurate
       ? rollLabel(name, accurate)

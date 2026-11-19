@@ -1,13 +1,13 @@
-/**
- * How good a position is for one team: the touchdowns it is likely to finish
- * ahead by. The lookahead scores its playouts with this. The weights are
- * fitted to planner self-play by `scripts/coach/fit-evaluation.ts`, which
- * also writes evaluationWeights.ts; edit the features here, then refit.
- */
-
 import { teamRerollsLeft } from "../../game/teamRerolls";
 import { PlayerStatus } from "../../types/Player";
-import { Board, carrierOf, distance, key, standing, toGoal } from "./board";
+import {
+  type Board,
+  carrierOf,
+  distance,
+  key,
+  standing,
+  toGoal,
+} from "./board";
 import { EVALUATION_WEIGHTS } from "./evaluationWeights";
 
 export const FEATURES = [
@@ -38,70 +38,101 @@ export const FEATURES = [
 export type Feature = (typeof FEATURES)[number];
 export type EvaluationWeights = Record<"bias" | Feature, number>;
 
-/** What the evaluation reads off a board, 0 where a feature does not apply. */
-export function features(board: Board): Record<Feature, number> {
-  const f = Object.fromEntries(FEATURES.map((n) => [n, 0])) as Record<
-    Feature,
-    number
-  >;
-  const state = board.gs.getState();
-  const out = (team: string) =>
-    (board.gs.getTeam(team)?.players ?? []).filter(
-      (p) =>
-        p.status === PlayerStatus.KO ||
-        p.status === PlayerStatus.INJURED ||
-        p.status === PlayerStatus.DEAD
-    ).length;
-  const theirTeam = board.gs.getTeam(board.them);
-  const turns = board.turnsLeft / 6;
-  f.half2 = board.half2 ? 1 : 0;
-  f.turns = turns;
-  f.lead = board.lead;
-  f.standingOurs = board.ours.filter(standing).length;
-  f.standingTheirs = board.theirs.filter(standing).length;
-  f.outOurs = out(board.us);
-  f.outTheirs = out(board.them);
-  f.rerollsOurs = board.rerolls;
-  f.rerollsTheirs = theirTeam ? teamRerollsLeft(state, theirTeam) : 0;
+const ZERO_FEATURES: Record<Feature, number> = {
+  half2: 0,
+  turns: 0,
+  lead: 0,
+  ours: 0,
+  oursTurns: 0,
+  oursToGoal: 0,
+  oursMarks: 0,
+  oursCorners: 0,
+  oursInReach: 0,
+  theirs: 0,
+  theirsTurns: 0,
+  theirsToGoal: 0,
+  theirsMarkers: 0,
+  theirsInReach: 0,
+  loose: 0,
+  looseNearer: 0,
+  standingOurs: 0,
+  standingTheirs: 0,
+  outOurs: 0,
+  outTheirs: 0,
+  rerollsOurs: 0,
+  rerollsTheirs: 0,
+};
 
-  const carrier = carrierOf(board);
-  // A carrier in the end zone it attacks has scored. A decision such as a
-  // Bribe can pause the drive's end there, but the ball is out of play, as
-  // it is once the next drive is set up.
-  const scored =
-    !!carrier && toGoal(board, carrier.gridPosition!, carrier.teamId) === 0;
-  if (carrier && !scored) {
-    const at = carrier.gridPosition!;
-    const inReach = (dist: number) => (dist <= carrier.stats.MA + 2 ? 1 : 0);
-    if (carrier.teamId === board.us) {
-      const dist = toGoal(board, at);
-      f.ours = 1;
-      f.oursTurns = turns;
-      f.oursToGoal = dist / 19;
-      f.oursMarks = board.marks[key(at)];
-      f.oursCorners = board.ours.filter(
+function outCount(board: Board, team: string): number {
+  return (board.gs.getTeam(team)?.players ?? []).filter(
+    (player) =>
+      player.status === PlayerStatus.KO ||
+      player.status === PlayerStatus.INJURED ||
+      player.status === PlayerStatus.DEAD
+  ).length;
+}
+
+function carrierFeatures(
+  board: Board,
+  carrier: NonNullable<ReturnType<typeof carrierOf>>,
+  f: Record<Feature, number>
+): void {
+  const at = carrier.gridPosition;
+  const dist = toGoal(board, at, carrier.teamId);
+  const inReach = dist <= carrier.stats.MA + 2 ? 1 : 0;
+  if (carrier.teamId === board.us) {
+    Object.assign(f, {
+      ours: 1,
+      oursTurns: f.turns,
+      oursToGoal: dist / 19,
+      oursMarks: board.marks.getUint8(key(at)),
+      oursCorners: board.ours.filter(
         (p) =>
           standing(p) &&
-          Math.abs(p.gridPosition!.x - at.x) === 1 &&
-          Math.abs(p.gridPosition!.y - at.y) === 1
-      ).length;
-      f.oursInReach = inReach(dist);
-    } else {
-      const dist = toGoal(board, at, board.them);
-      f.theirs = 1;
-      f.theirsTurns = turns;
-      f.theirsToGoal = dist / 19;
-      f.theirsMarkers = board.ours.filter(
-        (p) => standing(p) && distance(p.gridPosition!, at) === 1
-      ).length;
-      f.theirsInReach = inReach(dist);
-    }
-  } else if (board.ball.kind === "loose") {
+          Math.abs(p.gridPosition.x - at.x) === 1 &&
+          Math.abs(p.gridPosition.y - at.y) === 1
+      ).length,
+      oursInReach: inReach,
+    });
+    return;
+  }
+  Object.assign(f, {
+    theirs: 1,
+    theirsTurns: f.turns,
+    theirsToGoal: dist / 19,
+    theirsMarkers: board.ours.filter(
+      (p) => standing(p) && distance(p.gridPosition, at) === 1
+    ).length,
+    theirsInReach: inReach,
+  });
+}
+
+export function features(board: Board): Record<Feature, number> {
+  const theirTeam = board.gs.getTeam(board.them);
+  const f = {
+    ...ZERO_FEATURES,
+    half2: board.half2 ? 1 : 0,
+    turns: board.turnsLeft / 6,
+    lead: board.lead,
+    standingOurs: board.ours.filter(standing).length,
+    standingTheirs: board.theirs.filter(standing).length,
+    outOurs: outCount(board, board.us),
+    outTheirs: outCount(board, board.them),
+    rerollsOurs: board.rerolls,
+    rerollsTheirs: theirTeam
+      ? teamRerollsLeft(board.gs.getState(), theirTeam)
+      : 0,
+  };
+  const carrier = carrierOf(board);
+  const scored =
+    carrier && toGoal(board, carrier.gridPosition, carrier.teamId) === 0;
+  if (carrier && !scored) carrierFeatures(board, carrier, f);
+  else if (board.ball.kind === "loose") {
     const at = board.ball.at;
     const nearest = (players: Board["ours"]) =>
       Math.min(
         10,
-        ...players.filter(standing).map((p) => distance(p.gridPosition!, at))
+        ...players.filter(standing).map((p) => distance(p.gridPosition, at))
       );
     f.loose = 1;
     f.looseNearer = (nearest(board.theirs) - nearest(board.ours)) / 10;
@@ -109,7 +140,6 @@ export function features(board: Board): Record<Feature, number> {
   return f;
 }
 
-/** The score so far plus the touchdowns this side is expected to add. */
 export function evaluate(
   board: Board,
   w: EvaluationWeights = EVALUATION_WEIGHTS

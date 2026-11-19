@@ -1,24 +1,17 @@
-/**
- * Which plays each policy chose, and what came of them. Replays saved
- * commands, classifies every declaration by the coach's note, and credits a
- * play when its team scores that turn or its next one, or turns the ball over
- * during the activation. Scoring moments are kept with their game and turn,
- * so a replay can be watched. Sequence attribution, not a skill's causal value.
- */
-import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
-import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import { snapshotHash } from "../../../src/simulation/runMatch";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { GameEventNames } from "../../../src/types/events";
-import { processPool } from "../policy-study/pool";
-import type { PolicyJob } from "../policy-study/schedule";
+import { openTrace } from "../catalogue-study/replay";
+import {
+  analyzerSha256,
+  annotateRun,
+  annotationFiles,
+  isEntry,
+  replaySteps,
+  verifiedHash,
+} from "./lab";
 
-/** Note prefixes, most specific first, and the play each names. */
 const PLAYS: readonly [string, string][] = [
   ["throws the ball carrier", "throw-carrier"],
   ["throws a team-mate", "throw-teammate"],
@@ -42,7 +35,7 @@ const PLAYS: readonly [string, string][] = [
   ["stands up", "stand-up"],
 ];
 
-export function playOf(note: string | undefined, action: string): string {
+function playOf(note: string | undefined, action: string): string {
   if (!note) return `unplanned:${action}`;
   return PLAYS.find(([prefix]) => note.startsWith(prefix))?.[1] ?? "other";
 }
@@ -68,9 +61,9 @@ export interface Moment {
   note: string;
   half: 1 | 2;
   turn: number;
-  /** The declaration's index among the recording's steps. */
+
   step: number;
-  /** Scored in the same team turn, or only in its next one. */
+
   scored: "this-turn" | "next-turn";
 }
 
@@ -81,18 +74,16 @@ interface Pending {
   half: 1 | 2;
   turn: number;
   step: number;
-  /** Our team turns since the play: 0 is its own. */
+
   turnsSince: number;
 }
 
-/** Plays by side and roster, from one saved game. */
 export async function usageOfTrace(file: string, id: string) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
-  const rosters = [game.ctx.team1.rosterName, game.ctx.team2.rosterName];
+  const { recording, game } = openTrace(file);
+  const rosters = [
+    game.ctx.team1.rosterName,
+    game.ctx.team2.rosterName,
+  ] as const;
   const sides = new Map([
     [game.ctx.team1.id, 0 as const],
     [game.ctx.team2.id, 1 as const],
@@ -105,8 +96,7 @@ export async function usageOfTrace(file: string, id: string) {
 
   game.ctx.eventBus.on(GameEventNames.Touchdown, ({ teamId }) => {
     const side = sides.get(teamId);
-    // A score in the other team's turn, say from a push, follows none of
-    // this team's plays. The drive still ends, so nothing claims it later.
+
     const ownTurn = game.ctx.gameService.getState().activeTeamId === teamId;
     for (const p of ownTurn ? open : []) {
       if (p.side !== side || p.turnsSince > 1) continue;
@@ -124,7 +114,7 @@ export async function usageOfTrace(file: string, id: string) {
         scored,
       });
     }
-    // A drive ends with the score: nothing earlier can claim it again.
+
     open = [];
   });
   game.ctx.eventBus.on(GameEventNames.Turnover, ({ teamId }) => {
@@ -141,9 +131,12 @@ export async function usageOfTrace(file: string, id: string) {
       .filter((p) => p.turnsSince <= 1);
   });
 
-  for (const [index, step] of trace.recording.steps.entries()) {
-    const command = step.command;
-    if (command.type === "declare-action" && step.ok) {
+  await replaySteps({
+    game,
+    recording,
+    before: (step, index) => {
+      const command = step.command;
+      if (command.type !== "declare-action" || !step.ok) return;
       const state = game.ctx.gameService.getState();
       const pending: Pending = {
         play: playOf(step.note, command.action),
@@ -157,13 +150,9 @@ export async function usageOfTrace(file: string, id: string) {
       count(pending).plays++;
       open.push(pending);
       active = pending;
-    }
-    const response = await game.execute(command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
-  }
-  const hash = snapshotHash(game.snapshot());
-  if (hash !== trace.recording.final.hash)
-    throw new Error("Usage replay final hash differs");
+    },
+  });
+  const hash = verifiedHash(game, recording, "Usage");
   return { rosters, byPlay, moments, hash };
 }
 
@@ -179,7 +168,6 @@ const add = (into: Record<string, Tally>, from: Record<string, Tally>) => {
   }
 };
 
-/** Rarer plays first in the moment list: they are the ones worth watching. */
 function pickMoments(all: Moment[], perPlay: number): Moment[] {
   const byPlay = new Map<string, Moment[]>();
   for (const m of all) {
@@ -205,47 +193,23 @@ function pickMoments(all: Moment[], perPlay: number): Moment[] {
 
 async function main() {
   const entry = fileURLToPath(import.meta.url);
-  const run = resolve(process.argv[2]);
-  const out = join(run, "usage");
-  mkdirSync(out, { recursive: true });
-  if (process.argv.includes("--worker")) {
-    process.on("message", async (job: PolicyJob | null) => {
-      if (!job) {
-        process.disconnect();
-        return;
-      }
-      try {
-        const result = await usageOfTrace(
-          join(run, "traces", job.id + ".json.gz"),
-          job.id
-        );
-        writeFileSync(
-          join(out, job.id + ".json"),
-          JSON.stringify({
-            id: job.id,
-            candidateSide: job.candidateSide,
-            ...result,
-          })
-        );
-        process.send?.({ done: job.id });
-      } catch (error) {
-        process.send?.({ error: `${job.id}: ${error}` });
-      }
-    });
-    process.send?.({ ready: true });
-    return;
-  }
-  const manifest = JSON.parse(
-    readFileSync(join(run, "manifest.json"), "utf8")
-  ) as { jobs: PolicyJob[]; revision: string };
-  await processPool(entry, [run], manifest.jobs, 8);
-  const files = readdirSync(out).filter((name) => name.endsWith(".json"));
-  if (files.length !== manifest.jobs.length)
-    throw new Error("Incomplete or foreign usage files");
-  const policies = { candidate: {}, frozen: {} } as Record<
-    "candidate" | "frozen",
-    Record<string, Tally>
-  >;
+  const lab = await annotateRun({
+    entry,
+    folder: "usage",
+    workers: 8,
+    annotate: async (file, job) => ({
+      id: job.id,
+      candidateSide: job.candidateSide,
+      ...(await usageOfTrace(file, job.id)),
+    }),
+  });
+  if (!lab) return;
+  const { run, out, manifest } = lab;
+  const files = annotationFiles(out, manifest.jobs.length, "usage");
+  const policies: Record<"candidate" | "frozen", Record<string, Tally>> = {
+    candidate: {},
+    frozen: {},
+  };
   const rosters: Record<string, Record<string, Tally>> = {};
   const moments: Moment[] = [];
   for (const file of files) {
@@ -262,9 +226,7 @@ async function main() {
   }
   const receipt = {
     revision: manifest.revision,
-    analyzerSha256: createHash("sha256")
-      .update(readFileSync(entry))
-      .digest("hex"),
+    analyzerSha256: analyzerSha256(entry),
     games: files.length,
     verified: true,
     policies,
@@ -279,8 +241,4 @@ async function main() {
   );
   console.log(JSON.stringify({ games: receipt.games, policies }));
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

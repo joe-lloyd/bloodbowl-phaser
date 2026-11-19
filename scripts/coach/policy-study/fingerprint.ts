@@ -1,4 +1,3 @@
-/** Fingerprint acquisition separately from reports and recorded replay analysis. */
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -7,7 +6,7 @@ import { acquisitionDigest } from "../advanced-study/fingerprint";
 export function policySourceDigest(root: string, lab: boolean): string {
   const hash = createHash("sha256").update(acquisitionDigest(root));
   const policyFiles = ["run.ts", "pool.ts", "schedule.ts"];
-  // Original archives used the same algorithm before this helper existed.
+
   if (existsSync(join(root, "scripts/coach/policy-study/fingerprint.ts")))
     policyFiles.push("fingerprint.ts");
   for (const file of policyFiles)
@@ -40,6 +39,8 @@ export function treeDigest(base: string, paths: string[]): string {
           .update(readFileSync(file));
     }
   }
-  paths.forEach((path) => visit(join(base, path)));
+  paths.forEach((path) => {
+    visit(join(base, path));
+  });
   return hash.digest("hex");
 }

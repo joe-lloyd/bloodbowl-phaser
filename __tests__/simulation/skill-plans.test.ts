@@ -1,7 +1,9 @@
+import { fieldPlayer } from "./fixtures";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { HeadlessCommand } from "../../src/headless/protocol";
-import { ScenarioSetup } from "../../src/types/Scenario";
+import { type HeadlessCommand } from "../../src/headless/protocol";
+import { type ScenarioSetup } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PositionKeyWord, TraitKeyWord } from "../../src/types/Player";
 import { SkillType, getSkill } from "../../src/types/Skills";
@@ -20,7 +22,12 @@ import { repositionActivation } from "../../src/simulation/ai/repositionActivati
 import { secureBallActivations } from "../../src/simulation/ai/skillActivations";
 import { secureBallTarget } from "../../src/game/rules/rollPreview";
 
-function game(setup: Partial<ScenarioSetup> = {}) {
+function game(
+  setup: Partial<Omit<ScenarioSetup, "ballPosition">> & {
+    ballPosition?: ScenarioSetup["ballPosition"];
+  } = {}
+) {
+  const { ballPosition, ...rest } = setup;
   return new HeadlessGame({
     seed: 1,
     scenario: {
@@ -32,13 +39,14 @@ function game(setup: Partial<ScenarioSetup> = {}) {
           { playerIndex: 0, x: 3, y: 5, stats: { AG: 5, MA: 6 } },
         ],
         team2Placements: [{ playerIndex: 0, x: 15, y: 8 }],
-        ballPosition: { x: 6, y: 5 },
+        ...(!("ballPosition" in setup) ? { ballPosition: { x: 6, y: 5 } } : {}),
+        ...(ballPosition ? { ballPosition } : {}),
         activeTeam: "team1",
         turn: 6,
         phase: GamePhase.PLAY,
         subPhase: SubPhase.TURN_RECEIVING,
         teamRerolls: { team1: 0, team2: 0 },
-        ...setup,
+        ...rest,
       },
     },
   });
@@ -58,7 +66,7 @@ async function choose(
     point,
     rng: createCoachRng(1),
   });
-  const command = point.candidates[choice.index].commands[0];
+  const command = fixtureValue(point.candidates[choice.index]).commands[0];
   expect((await subject.execute(command)).ok, JSON.stringify(command)).toBe(
     true
   );
@@ -82,16 +90,23 @@ describe("skill-aware tactical choices", () => {
       ballPosition: undefined,
     });
     const player = subject.ctx.team1.players[0];
-    const c = context(
-      readBoard(subject, player.teamId),
-      DEFAULT_WEIGHTS,
-      new Map([[player.id, new Set(["move" as const])]])
+    const c = context({
+      board: readBoard(subject, fieldPlayer(player).teamId),
+      w: DEFAULT_WEIGHTS,
+      available: new Map([
+        [fieldPlayer(player).id, new Set(["move" as const])],
+      ]),
+    });
+    const ordinary = carrierActivations(
+      { ...c, skillPlans: false },
+      fieldPlayer(player)
     );
-    const ordinary = carrierActivations({ ...c, skillPlans: false }, player);
     expect(ordinary.some((a) => a.intent.kind === "carrier")).toBe(true);
-    // One square gains 16 points; a 1/3 Bloodlust failure costs 28.
+
     expect(
-      carrierActivations(c, player).filter((a) => a.intent.kind === "carrier")
+      carrierActivations(c, fieldPlayer(player)).filter(
+        (a) => a.intent.kind === "carrier"
+      )
     ).toEqual([]);
   });
 
@@ -102,13 +117,15 @@ describe("skill-aware tactical choices", () => {
       ],
     });
     const player = subject.ctx.team1.players[0];
-    const c = context(
-      readBoard(subject, player.teamId),
-      DEFAULT_WEIGHTS,
-      new Map([[player.id, new Set(["move" as const])]])
-    );
+    const c = context({
+      board: readBoard(subject, fieldPlayer(player).teamId),
+      w: DEFAULT_WEIGHTS,
+      available: new Map([
+        [fieldPlayer(player).id, new Set(["move" as const])],
+      ]),
+    });
     expect(
-      repositionActivation(c, player, [
+      repositionActivation(c, fieldPlayer(player), [
         { at: { x: 4, y: 5 }, role: "screen", value: 6 },
       ])
     ).toEqual([]);
@@ -129,16 +146,17 @@ describe("skill-aware tactical choices", () => {
       team2Placements: [{ playerIndex: 0, x: 2, y: 8 }],
     });
     const player = subject.ctx.team1.players[0];
-    const c = context(
-      readBoard(subject, player.teamId),
-      DEFAULT_WEIGHTS,
-      new Map([[player.id, new Set(["secureBall" as const])]])
-    );
-    const plans = secureBallActivations(c, player);
+    const c = context({
+      board: readBoard(subject, fieldPlayer(player).teamId),
+      w: DEFAULT_WEIGHTS,
+      available: new Map([
+        [fieldPlayer(player).id, new Set(["secureBall" as const])],
+      ]),
+    });
+    const plans = secureBallActivations(c, fieldPlayer(player));
     expect(plans).toHaveLength(1);
-    // 5/6 secure success, 2/3 fed scoring chance, 1/6 failed roll cost,
-    // plus 1/3 unfed turnover/own-down/ball-loss cost.
-    expect(plans[0].value).toBeCloseTo(
+
+    expect(fixtureValue(plans[0]).value).toBeCloseTo(
       (5 / 6) * (2 / 3) * 100 -
         (1 / 6) * (c.turnover + c.w.ownDown) -
         (1 / 3) * (c.turnover + c.w.ownDown + c.w.ballLoss)
@@ -210,13 +228,13 @@ describe("skill-aware tactical choices", () => {
     await subject.execute({
       type: "declare-action",
       action: "gaze",
-      playerId: gazer.id,
+      playerId: fixtureValue(gazer).id,
     });
     await subject.execute({
       type: "special-action",
       action: "gaze",
-      attackerId: gazer.id,
-      defenderId: subject.ctx.team2.players[0].id,
+      attackerId: fixtureValue(gazer).id,
+      defenderId: fixtureValue(subject.ctx.team2.players[0]).id,
     });
     expect(subject.pendingDecision()).toMatchObject({
       type: "reroll",
@@ -226,7 +244,7 @@ describe("skill-aware tactical choices", () => {
       type: "use-reroll",
       accept: false,
     });
-    expect(subject.snapshot().teams[0].rerolls).toBe(2);
+    expect(fixtureValue(subject.snapshot().teams[0]).rerolls).toBe(2);
   });
 
   it("does not offer securing when the ball is contested", async () => {
@@ -273,12 +291,12 @@ describe("skill-aware tactical choices", () => {
     expect(await choose(subject)).toMatchObject({
       type: "declare-action",
       action: "gaze",
-      playerId: subject.ctx.team1.players[0].id,
+      playerId: fixtureValue(subject.ctx.team1.players[0]).id,
     });
     expect(await choose(subject)).toMatchObject({
       type: "special-action",
       action: "gaze",
-      defenderId: subject.ctx.team2.players[0].id,
+      defenderId: fixtureValue(subject.ctx.team2.players[0]).id,
     });
   });
 
@@ -294,7 +312,7 @@ describe("skill-aware tactical choices", () => {
     expect(await choose(subject)).toMatchObject({
       type: "declare-action",
       action: "move",
-      playerId: subject.ctx.team1.players[1].id,
+      playerId: fixtureValue(subject.ctx.team1.players[1]).id,
     });
   });
 
@@ -309,7 +327,9 @@ describe("skill-aware tactical choices", () => {
     });
     subject.ctx.gameService
       .getState()
-      .turn.activatedPlayerIds.add(subject.ctx.team1.players[1].id);
+      .turn.activatedPlayerIds.add(
+        fixtureValue(subject.ctx.team1.players[1]).id
+      );
     expect(await choose(subject)).not.toMatchObject({
       type: "declare-action",
       action: "gaze",
@@ -339,8 +359,8 @@ describe("skill-aware tactical choices", () => {
     });
     expect(await choose(subject)).toMatchObject({
       type: "multiple-block",
-      defender1Id: subject.ctx.team2.players[0].id,
-      defender2Id: subject.ctx.team2.players[1].id,
+      defender1Id: fixtureValue(subject.ctx.team2.players[0]).id,
+      defender2Id: fixtureValue(subject.ctx.team2.players[1]).id,
     });
   });
 
@@ -402,10 +422,13 @@ describe("skill-aware tactical choices", () => {
       ballPosition: undefined,
     });
     const [vampire, thrall] = subject.ctx.team1.players;
-    thrall.keywords = [TraitKeyWord.THRALL, PositionKeyWord.LINEMAN];
+    fixtureValue(thrall).keywords = [
+      TraitKeyWord.THRALL,
+      PositionKeyWord.LINEMAN,
+    ];
     const state = subject.ctx.gameService.getState();
     state.activePlayer = {
-      id: vampire.id,
+      id: fixtureValue(vampire).id,
       action: "move",
       committed: true,
       bloodlustUnsated: true,
@@ -415,8 +438,8 @@ describe("skill-aware tactical choices", () => {
     if (command.type === "move")
       expect(
         Math.max(
-          Math.abs(command.path[0].x - 9),
-          Math.abs(command.path[0].y - 3)
+          Math.abs(fixtureValue(command.path[0]).x - 9),
+          Math.abs(fixtureValue(command.path[0]).y - 3)
         )
       ).toBe(1);
   });
@@ -458,11 +481,14 @@ describe("skill-aware tactical choices", () => {
       },
     });
     const [vampire, thrall] = subject.ctx.team1.players;
-    thrall.keywords = [TraitKeyWord.THRALL, PositionKeyWord.LINEMAN];
+    fixtureValue(thrall).keywords = [
+      TraitKeyWord.THRALL,
+      PositionKeyWord.LINEMAN,
+    ];
     await subject.execute({
       type: "declare-action",
       action: "gaze",
-      playerId: vampire.id,
+      playerId: fixtureValue(vampire).id,
     });
     expect(subject.pendingDecision()).toMatchObject({
       type: "reaction",
@@ -505,21 +531,24 @@ describe("skill-aware tactical choices", () => {
     });
     const [vampire, carrier, food] = subject.ctx.team1.players;
     for (const p of [carrier, food])
-      p.keywords = [TraitKeyWord.THRALL, PositionKeyWord.LINEMAN];
+      fixtureValue(p).keywords = [TraitKeyWord.THRALL, PositionKeyWord.LINEMAN];
     await subject.execute({
       type: "declare-action",
       action: "move",
-      playerId: vampire.id,
+      playerId: fixtureValue(vampire).id,
     });
     await subject.execute({ type: "use-reaction", accept: false });
-    await subject.execute({ type: "end-activation", playerId: vampire.id });
+    await subject.execute({
+      type: "end-activation",
+      playerId: fixtureValue(vampire).id,
+    });
     expect(subject.pendingDecision()).toMatchObject({ type: "bite-target" });
     expect(await choose(subject)).toMatchObject({
       type: "choose-bite-target",
-      playerId: food.id,
+      playerId: fixtureValue(food).id,
     });
     expect(subject.ctx.gameService.getState().ballPosition).toEqual(
-      carrier.gridPosition
+      fixtureValue(carrier).gridPosition
     );
   });
 
@@ -541,11 +570,14 @@ describe("skill-aware tactical choices", () => {
       ballPosition: undefined,
     });
     const [vampire, thrall] = subject.ctx.team1.players;
-    thrall.keywords = [TraitKeyWord.THRALL, PositionKeyWord.LINEMAN];
+    fixtureValue(thrall).keywords = [
+      TraitKeyWord.THRALL,
+      PositionKeyWord.LINEMAN,
+    ];
     expect(await choose(subject)).toMatchObject({
       type: "declare-action",
       action: "move",
-      playerId: thrall.id,
+      playerId: fixtureValue(thrall).id,
     });
     for (
       let i = 0;
@@ -556,33 +588,43 @@ describe("skill-aware tactical choices", () => {
     )
       await choose(subject);
     expect(subject.ctx.gameService.getState().activePlayer).toBeNull();
-    expect(thrall.gridPosition!.x).toBeGreaterThan(12);
+    expect(fixtureValue(fixtureValue(thrall).gridPosition).x).toBeGreaterThan(
+      12
+    );
     expect(await choose(subject)).toMatchObject({
       type: "declare-action",
       action: "move",
-      playerId: vampire.id,
+      playerId: fixtureValue(vampire).id,
     });
   });
 
   it("prices securing as a D6 without Sure Hands or Extra Arms", () => {
     const subject = game();
     const player = subject.ctx.team1.players[0];
-    player.skills = [
+    fieldPlayer(player).skills = [
       getSkill(SkillType.SURE_HANDS),
       getSkill(SkillType.EXTRA_ARMS),
     ];
-    expect(chain(player, [{ kind: "secure", target: 2 }], false)).toBeCloseTo(
-      5 / 6
-    );
-    expect(chain(player, [{ kind: "secure", target: 2 }], true)).toBeCloseTo(
-      35 / 36
-    );
-    expect(secureBallTarget(player, { x: 6, y: 5 }, [], "Pouring Rain")).toBe(
-      3
-    );
-    player.skills.push(getSkill(SkillType.BIG_HAND));
-    expect(secureBallTarget(player, { x: 6, y: 5 }, [], "Pouring Rain")).toBe(
-      2
-    );
+    expect(
+      chain({
+        player: fieldPlayer(player),
+        rolls: [{ kind: "secure", target: 2 }],
+        teamReroll: false,
+      })
+    ).toBeCloseTo(5 / 6);
+    expect(
+      chain({
+        player: fieldPlayer(player),
+        rolls: [{ kind: "secure", target: 2 }],
+        teamReroll: true,
+      })
+    ).toBeCloseTo(35 / 36);
+    expect(
+      secureBallTarget(fieldPlayer(player), { x: 6, y: 5 }, [], "Pouring Rain")
+    ).toBe(3);
+    fieldPlayer(player).skills.push(getSkill(SkillType.BIG_HAND));
+    expect(
+      secureBallTarget(fieldPlayer(player), { x: 6, y: 5 }, [], "Pouring Rain")
+    ).toBe(2);
   });
 });

@@ -1,14 +1,12 @@
+import { useLandedDecision } from "../../hooks/useDecisionRequest";
 import { requiredRoll } from "../../../game/rules/rollTargets";
-import { useAfterDice } from "../../hooks/useAfterDice";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { interceptNeed } from "../../../game/rules/rollPreview";
 import { DecisionTeam } from "./DecisionTeam";
-import React, { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { DecisionRequest } from "@/types/decisions";
+import type React from "react";
+import type { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
-import { InterceptionDecisionRequest } from "@/types/decisions";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { type InterceptionDecisionRequest } from "@/types/decisions";
 import {
   DialogActions,
   DialogShell,
@@ -19,49 +17,21 @@ interface InterceptionDialogProps {
   eventBus: EventBus;
 }
 
-/**
- * A pass' landing square is fixed and one or more opponents lie under the
- * Range Ruler: the DEFENDING coach picks who attempts the interception, or
- * declines. The engine is paused on this decision; every button resolves it
- * via UI_InterceptionResponse (playerId chosen, or undefined to decline).
- */
 export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   eventBus,
 }) => {
-  const [pending, setRequest] = useState<InterceptionDecisionRequest | null>(
-    null
-  );
+  const { request, answer: settle } = useLandedDecision(eventBus, {
+    type: "interception",
+  });
 
-  useEffect(() => {
-    const onRequested = (data: DecisionRequest) => {
-      if (data.type === "interception") {
-        setRequest(data);
-      }
-    };
-    // The other coach may be the one who answers
-    const onResolved = ({ type }: { type: string }) => {
-      if (type === "interception") setRequest(null);
-    };
-    eventBus.on(GameEventNames.DecisionRequested, onRequested);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    return () => {
-      eventBus.off(GameEventNames.DecisionRequested, onRequested);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-    };
-  }, [eventBus]);
-
-  // Hold the decision until the die it follows has landed in the tray
-  const request = useAfterDice(eventBus, pending);
-
-  // Online, only the coach who owns the decision sees it; the other
-  // coach has the "Waiting for…" banner
-  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
+  if (!request) return null;
 
   const respond = (playerId?: string) => {
-    // Online: only the defending coach may answer
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    eventBus.emit(GameEventNames.UI_InterceptionResponse, { playerId });
-    setRequest(null);
+    settle(() => {
+      eventBus.emit(GameEventNames.UI_InterceptionResponse, {
+        ...(playerId === undefined ? {} : { playerId: playerId }),
+      });
+    });
   };
 
   const service = ServiceContainer.isInitialized()
@@ -75,6 +45,25 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   };
 
   return (
+    <InterceptionDialogView
+      request={request}
+      respond={respond}
+      needed={needed}
+    />
+  );
+};
+
+interface InterceptionDialogViewProps {
+  request: InterceptionDecisionRequest;
+  respond: (playerId?: string) => void;
+  needed: (id: string, modifier: number) => number;
+}
+function InterceptionDialogView({
+  request,
+  respond,
+  needed,
+}: InterceptionDialogViewProps) {
+  return (
     <DialogShell
       placement="dock"
       eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
@@ -84,7 +73,6 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
       actions={
         <DialogActions stack>
           {request.candidates.map((c, index) => {
-            // Two Linemen differ only by number: cut the position, never it
             const name = c.playerName ?? c.playerId;
             const [, position, number] = /^(.*?)(?: (#\d+))?$/.exec(name)!;
             return (
@@ -94,8 +82,10 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
                 block
                 className="!justify-between"
                 title={name}
-                hotkey={index < 9 ? String(index + 1) : undefined}
-                onClick={() => respond(c.playerId)}
+                {...(index < 9 ? { hotkey: String(index + 1) } : {})}
+                onClick={() => {
+                  respond(c.playerId);
+                }}
               >
                 <span className="flex min-w-0 gap-1 whitespace-nowrap">
                   <span className="truncate">{position}</span>
@@ -111,7 +101,9 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
             variant="ghost"
             block
             hotkey="n"
-            onClick={() => respond(undefined)}
+            onClick={() => {
+              respond(undefined);
+            }}
           >
             DECLINE
           </HudButton>
@@ -121,4 +113,4 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
       <p>Choose a player to attempt the interception. A miss costs nothing.</p>
     </DialogShell>
   );
-};
+}

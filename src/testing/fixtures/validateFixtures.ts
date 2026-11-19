@@ -1,55 +1,25 @@
-/**
- * Fixture-authenticity validation.
- *
- * A scenario setup may grant skills to a placement. That is legitimate two
- * ways round and misleading a third:
- *
- *   - Redundant: the position already has the skill. Harmless, but it hides
- *     the roster fact and rots when the roster changes.
- *   - Rules-valid advancement: the granted player's own position could
- *     legally develop the skill (its category is in that position's primary
- *     or secondary access). This is the everyday case and is allowed.
- *   - Implausible: the position could never hold the skill — a Mutation on a
- *     Human, a trait nobody advances into. That fields a player who cannot
- *     exist, so it must either move to the native roster fixture this module
- *     can name, or carry a written isolation reason.
- */
-
 import { RosterName } from "../../types/Team";
 import { SkillType } from "../../types/Skills";
-import { ScenarioSetup, PlayerPlacement } from "../../types/Scenario";
+import { type ScenarioSetup, type PlayerPlacement } from "../../types/Scenario";
 import {
-  GrantLegality,
+  type GrantLegality,
   grantLegality,
   nativeFixtures,
   nativePositions,
   positionAt,
 } from "./rosterFixtures";
 
-/** A grant the author declared, with the reason that justifies it. */
 export interface DeclaredGrant {
-  /** `team1:3` */
   player: string;
   skill: SkillType;
   reason: string;
 }
 
-export type FixtureIssueKind = "redundant-grant" | "implausible-grant";
+type FixtureIssueKind = "redundant-grant" | "implausible-grant";
 
-/**
- * Why a grant that is not a rules-valid advancement was still allowed.
- *
- * `forced` is the honest, common case: no Sevens composition fields a
- * position that owns the skill, so there is no native fixture to prefer.
- * That is a property of the compositions, not a decision each case should
- * restate, so it is derived rather than declared — and it is reported, so
- * adding such a position to a composition later shows up as a chance to
- * improve the fixture.
- */
-export type GrantJustification = "forced" | "declared";
+type GrantJustification = "forced" | "declared";
 
 export interface FixtureIssue {
-  /** Case or rule-config id. */
   ownerId: string;
   player: string;
   skill: SkillType;
@@ -57,23 +27,18 @@ export interface FixtureIssue {
   message: string;
 }
 
-/** A grant that passed, with how it is justified — for the coverage report. */
-export interface FixtureGrantRecord {
+interface FixtureGrantRecord {
   ownerId: string;
   player: string;
   skill: SkillType;
   roster: RosterName;
   positionName: string;
   legality: GrantLegality;
-  /** Set for grants that are neither native nor a legal advancement. */
+
   justification?: GrantJustification;
-  /** Present when an isolation reason was declared. */
+
   reason?: string;
-  /**
-   * For `forced` grants, the roster position that owns the skill natively
-   * but is not currently fielded — the fixture this case could use if the
-   * Sevens composition gained that position.
-   */
+
   unfieldedNative?: { roster: RosterName; positionName: string };
 }
 
@@ -84,17 +49,18 @@ export interface FixtureAudit {
 
 function describeSlot(roster: RosterName, playerIndex: number): string {
   const position = positionAt(roster, playerIndex);
-  return position ? `${roster} "${position}"` : `${roster} #${playerIndex}`;
+  return position
+    ? `${roster} "${position}"`
+    : `${roster} #${String(playerIndex)}`;
 }
 
 function grantedSkills(placement: PlayerPlacement): SkillType[] {
   return (placement.skills ?? []).map((entry) =>
-    typeof entry === "string" ? (entry as SkillType) : entry.type
+    typeof entry === "string" ? entry : entry.type
   );
 }
 
 export interface AuditOptions {
-  /** Default roster when the setup does not pin one (matches the engine). */
   defaultRoster?: RosterName;
 }
 
@@ -102,14 +68,13 @@ interface GrantToAudit {
   ownerId: string;
   roster: RosterName;
   playerIndex: number;
-  /** "team1:3" */
+
   player: string;
   skill: SkillType;
-  /** The declared isolation reason, if any. */
+
   reason: string | undefined;
 }
 
-/** One granted skill: how it is justified, and the issue it raises, if any. */
 function auditGrant(grant: GrantToAudit): {
   record: FixtureGrantRecord;
   issue?: FixtureIssue;
@@ -141,7 +106,7 @@ function auditGrant(grant: GrantToAudit): {
     };
   }
 
-  if (legality !== "illegal") return { record }; // rules-valid advancement
+  if (legality !== "illegal") return { record };
 
   if (reason) {
     record.justification = "declared";
@@ -150,9 +115,6 @@ function auditGrant(grant: GrantToAudit): {
 
   const native = nativeFixtures(skill)[0];
   if (!native) {
-    // No fielded position owns it, so there is nothing to prefer. Note
-    // the unfielded holder, if any, so growing a composition later
-    // surfaces as an improvement rather than staying invisible.
     record.justification = "forced";
     const unfielded = nativePositions(skill).find((p) => !p.fielded);
     if (unfielded) {
@@ -174,18 +136,12 @@ function auditGrant(grant: GrantToAudit): {
       message:
         `${player} (${describeSlot(roster, playerIndex)}) ` +
         `cannot legally hold ${skill}, but ${native.roster} "${native.positionName}" ` +
-        `(index ${native.playerIndex}) has it natively — field that fixture ` +
+        `(index ${String(native.playerIndex)}) has it natively — field that fixture ` +
         `or record an isolation reason`,
     },
   };
 }
 
-/**
- * Audit one scenario setup's skill grants against the roster it fields.
- *
- * `declared` is the case's own justification list — `ScenarioCase.syntheticGrants`
- * or `RuleConfig.skillProvenance`, both of which carry a reason per grant.
- */
 export function auditSetupFixtures(
   ownerId: string,
   setup: ScenarioSetup,
@@ -220,7 +176,7 @@ export function auditSetupFixtures(
 
   for (const side of sides) {
     for (const placement of side.placements) {
-      const player = `${side.team}:${placement.playerIndex}`;
+      const player = `${side.team}:${String(placement.playerIndex)}`;
       for (const skill of grantedSkills(placement)) {
         const { record, issue } = auditGrant({
           ownerId,
@@ -239,7 +195,8 @@ export function auditSetupFixtures(
   return { issues, grants };
 }
 
-/** Render issues as one readable block for a failing gate. */
 export function formatFixtureIssues(issues: FixtureIssue[]): string {
-  return issues.map((issue) => `  ${issue.ownerId}: ${issue.message}`).join("\n");
+  return issues
+    .map((issue) => `  ${issue.ownerId}: ${issue.message}`)
+    .join("\n");
 }

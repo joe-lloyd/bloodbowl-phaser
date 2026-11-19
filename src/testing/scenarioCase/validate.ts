@@ -1,44 +1,27 @@
-/**
- * Scenario-case schema validation.
- *
- * These are the checks that keep the suite honest before a single game is
- * run: a duplicated id silently shadows a case, a missing seed makes a
- * "deterministic" variant random, an empty expectation set makes a case pass
- * by doing nothing, and a stale player ref fails deep inside the engine with
- * a message about nothing in particular. Catching them here names the case
- * and the field.
- */
-
 import { GameConfig } from "../../config/GameConfig";
 import {
   parsePlayerRef,
   referencesInCommand,
 } from "../../game/rules-lab/references";
-import { HeadlessCommand } from "../../headless/protocol";
+import { type HeadlessCommand } from "../../headless/protocol";
 import {
   EXECUTION_LAYERS,
-  ExecutionLayer,
-  ScenarioCase,
-  SemanticStep,
+  type ExecutionLayer,
+  type ScenarioCase,
+  type SemanticStep,
 } from "./types";
 
 export interface ValidationIssue {
   caseId: string;
-  /** Dotted path to the offending field, e.g. `variants[1].seed`. */
+
   field: string;
   message: string;
 }
 
-/**
- * Whether a step can be driven through a given layer. Section 4 supplies the
- * real browser predicate; validation takes it as an argument so this module
- * stays free of adapter imports (and so tests can probe both answers).
- */
 export interface LayerSupport {
   supports(layer: ExecutionLayer, step: SemanticStep): boolean;
 }
 
-/** Every command type the protocol accepts, for the "invalid step" check. */
 const KNOWN_COMMAND_TYPES = new Set<HeadlessCommand["type"]>([
   "coin-flip",
   "ready-weather",
@@ -103,45 +86,39 @@ function onPitch(x: number, y: number): boolean {
   );
 }
 
-/**
- * Commands whose `x`/`y` are a *direction*, not a square. Ball & Chain takes
- * a unit vector for the Fanatic's facing, so (0,-1) is "north", not an
- * off-pitch square.
- */
 const DIRECTION_COMMANDS = new Set<HeadlessCommand["type"]>(["ball-and-chain"]);
 
-/** Squares a command names, so out-of-pitch targets fail up front. */
-function squaresInCommand(command: HeadlessCommand): { x: number; y: number }[] {
+function squaresInCommand(
+  command: HeadlessCommand
+): { x: number; y: number }[] {
   const record = command as unknown as Record<string, unknown>;
   const squares: { x: number; y: number }[] = [];
   if (
     !DIRECTION_COMMANDS.has(command.type) &&
-    typeof record.x === "number" &&
-    typeof record.y === "number"
+    typeof record["x"] === "number" &&
+    typeof record["y"] === "number"
   ) {
-    squares.push({ x: record.x, y: record.y });
+    squares.push({ x: record["x"], y: record["y"] });
   }
-  if (Array.isArray(record.path)) {
-    for (const entry of record.path as { x: number; y: number }[]) {
+  if (Array.isArray(record["path"])) {
+    for (const entry of record["path"]) {
       squares.push(entry);
     }
   }
   return squares;
 }
 
-/** Placement indices each side declares, i.e. the initially valid ref range. */
 function placementIndices(scenarioCase: ScenarioCase) {
   return {
-    team1: new Set(scenarioCase.setup.team1Placements.map((p) => p.playerIndex)),
-    team2: new Set(scenarioCase.setup.team2Placements.map((p) => p.playerIndex)),
+    team1: new Set(
+      scenarioCase.setup.team1Placements.map((p) => p.playerIndex)
+    ),
+    team2: new Set(
+      scenarioCase.setup.team2Placements.map((p) => p.playerIndex)
+    ),
   };
 }
 
-/**
- * Commands whose whole purpose is to put a player on the pitch. A ref to an
- * unplaced player is exactly right for these, and the player counts as
- * placed for every step that follows.
- */
 const PLACING_COMMANDS = new Set<HeadlessCommand["type"]>([
   "place-player",
   "apply-formation",
@@ -150,12 +127,6 @@ const PLACING_COMMANDS = new Set<HeadlessCommand["type"]>([
 
 type Add = (field: string, message: string) => void;
 
-/**
- * Stale references: a ref may only name a player who is on the pitch by
- * the time the step runs — either placed by the setup, or placed by an
- * earlier step. Setup-driving cases legitimately start from an empty
- * board and place their own players.
- */
 function checkRefs(
   command: HeadlessCommand,
   placed: ReturnType<typeof placementIndices>,
@@ -180,7 +151,6 @@ function checkRefs(
   }
 }
 
-/** A case that claims a layer must be drivable in it. */
 function checkStepLayers(
   scenarioCase: ScenarioCase,
   step: ScenarioCase["steps"][number],
@@ -209,7 +179,7 @@ function validateSteps(
     issues.push({ caseId: scenarioCase.id, field, message });
 
   scenarioCase.steps.forEach((step, index) => {
-    const where = `steps[${index}]`;
+    const where = `steps[${String(index)}]`;
     const command = step.command;
 
     if (!command || typeof command.type !== "string") {
@@ -217,7 +187,10 @@ function validateSteps(
       return;
     }
     if (!KNOWN_COMMAND_TYPES.has(command.type)) {
-      add(`${where}.command.type`, `unknown protocol command '${command.type}'`);
+      add(
+        `${where}.command.type`,
+        `unknown protocol command '${command.type}'`
+      );
     }
     if (command.type === "state" || command.type === "legal-actions") {
       add(
@@ -232,7 +205,7 @@ function validateSteps(
       if (!onPitch(square.x, square.y)) {
         add(
           `${where}.command`,
-          `square (${square.x},${square.y}) is outside the ${GameConfig.PITCH_WIDTH}x${GameConfig.PITCH_HEIGHT} pitch`
+          `square (${String(square.x)},${String(square.y)}) is outside the ${String(GameConfig.PITCH_WIDTH)}x${String(GameConfig.PITCH_HEIGHT)} pitch`
         );
       }
     }
@@ -264,7 +237,7 @@ function checkVariants(scenarioCase: ScenarioCase, add: Add): void {
   }
   const variantIds = new Set<string>();
   scenarioCase.variants.forEach((variant, index) => {
-    const where = `variants[${index}]`;
+    const where = `variants[${String(index)}]`;
     if (variantIds.has(variant.id)) {
       add(`${where}.id`, `duplicate variant id '${variant.id}'`);
     }
@@ -286,7 +259,6 @@ function checkVariants(scenarioCase: ScenarioCase, add: Add): void {
 }
 
 function checkCheckpoints(scenarioCase: ScenarioCase, add: Add): void {
-  // An expectation-free case passes by doing nothing.
   const totalCheckpoints =
     scenarioCase.checkpoints.length +
     scenarioCase.variants.reduce(
@@ -297,15 +269,14 @@ function checkCheckpoints(scenarioCase: ScenarioCase, add: Add): void {
     add("checkpoints", "case asserts nothing — add at least one checkpoint");
   }
 
-  // …and so does a case whose checkpoints all skip the layer it requires.
-  // Only worth saying when there ARE checkpoints; otherwise it just repeats
-  // the message above once per layer.
   for (const layer of totalCheckpoints > 0 ? scenarioCase.layers : []) {
-    if (layer === "visual") continue; // visual adds screenshots to browser cases
+    if (layer === "visual") continue;
     const applies = [
       ...scenarioCase.checkpoints,
       ...scenarioCase.variants.flatMap((variant) => variant.checkpoints ?? []),
-    ].some((checkpoint) => (checkpoint.layers ?? scenarioCase.layers).includes(layer));
+    ].some((checkpoint) =>
+      (checkpoint.layers ?? scenarioCase.layers).includes(layer)
+    );
     if (!applies) {
       add(
         "checkpoints",
@@ -359,7 +330,6 @@ function checkSyntheticGrants(scenarioCase: ScenarioCase, add: Add): void {
   }
 }
 
-/** Validate one case in isolation (ids across cases are checked separately). */
 export function validateScenarioCase(
   scenarioCase: ScenarioCase,
   support?: LayerSupport
@@ -387,7 +357,6 @@ export function validateScenarioCase(
   return issues;
 }
 
-/** Validate a whole registry, including cross-case id uniqueness. */
 export function validateScenarioCases(
   cases: ScenarioCase[],
   support?: LayerSupport
@@ -426,14 +395,12 @@ export function validateScenarioCases(
   return issues;
 }
 
-/** Render issues as one readable block for a thrown error or a report. */
-export function formatValidationIssues(issues: ValidationIssue[]): string {
+function formatValidationIssues(issues: ValidationIssue[]): string {
   return issues
     .map((issue) => `  ${issue.caseId} · ${issue.field}: ${issue.message}`)
     .join("\n");
 }
 
-/** Throw when anything is wrong, naming every problem at once. */
 export function assertValidScenarioCases(
   cases: ScenarioCase[],
   support?: LayerSupport
@@ -441,7 +408,7 @@ export function assertValidScenarioCases(
   const issues = validateScenarioCases(cases, support);
   if (issues.length > 0) {
     throw new Error(
-      `${issues.length} scenario-case validation issue(s):\n${formatValidationIssues(issues)}`
+      `${String(issues.length)} scenario-case validation issue(s):\n${formatValidationIssues(issues)}`
     );
   }
 }

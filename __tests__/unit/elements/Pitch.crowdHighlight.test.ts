@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-// Pitch only needs Vector2 from Phaser (for the trapdoor hatch outline)
 vi.mock("phaser", () => ({
   default: {
     Math: {
       Vector2: class {
-        constructor(
-          public x: number,
-          public y: number
-        ) {}
+        public x: number;
+        public y: number;
+        constructor(x: number, y: number) {
+          this.x = x;
+          this.y = y;
+        }
       },
     },
   },
@@ -17,7 +18,6 @@ vi.mock("phaser", () => ({
 import { Pitch } from "../../../src/game/elements/Pitch";
 import { gridToPixel, pixelToGrid } from "../../../src/game/elements/GridUtils";
 
-/** Every square in the ring one step outside the 20 x 11 pitch. */
 function crowdRing(): { x: number; y: number }[] {
   const ring: { x: number; y: number }[] = [];
   for (let x = -1; x <= 20; x++)
@@ -26,7 +26,6 @@ function crowdRing(): { x: number; y: number }[] {
   return ring;
 }
 
-/** A scene that records what is drawn, with chainable graphics stubs. */
 function fakeScene() {
   const chain = (): unknown =>
     new Proxy({}, { get: (_t, prop) => (prop === "then" ? undefined : chain) });
@@ -85,7 +84,7 @@ describe("crowd push squares off the pitch", () => {
     const pitch = new Pitch(scene as never, 0, 0);
 
     for (const square of crowdRing())
-      pitch.highlightSquare(square.x, square.y, 0xff0000, { crowd: true });
+      pitch.highlightSquare({ x: square.x, y: square.y }, 0xff0000, { crowd: true });
 
     expect(pitch.visibleHighlights()).toEqual(crowdRing());
   });
@@ -94,11 +93,11 @@ describe("crowd push squares off the pitch", () => {
     const { scene } = fakeScene();
     const pitch = new Pitch(scene as never, 0, 0);
 
-    pitch.highlightSquare(-1, 5, 0xffff00); // no opt-in
-    pitch.highlightSquare(20, 11, 0xffff00); // no opt-in, corner
-    pitch.highlightSquare(-2, 5, 0xff0000, { crowd: true }); // two off
-    pitch.highlightSquare(10, 13, 0xff0000, { crowd: true }); // two off
-    pitch.highlightSquare(4, 4, 0xffff00); // on the pitch
+    pitch.highlightSquare({ x: -1, y: 5 }, 0xffff00);
+    pitch.highlightSquare({ x: 20, y: 11 }, 0xffff00);
+    pitch.highlightSquare({ x: -2, y: 5 }, 0xff0000, { crowd: true });
+    pitch.highlightSquare({ x: 10, y: 13 }, 0xff0000, { crowd: true });
+    pitch.highlightSquare({ x: 4, y: 4 }, 0xffff00);
 
     expect(pitch.visibleHighlights()).toEqual([{ x: 4, y: 4 }]);
   });
@@ -108,7 +107,7 @@ describe("crowd push squares off the pitch", () => {
     const pitch = new Pitch(scene as never, 0, 0);
     polygon.mockClear();
 
-    pitch.highlightSquare(20, -1, 0xff0000, { crowd: true });
+    pitch.highlightSquare({ x: 20, y: -1 }, 0xff0000, { crowd: true });
 
     const centre = gridToPixel(20, -1);
     expect(polygon).toHaveBeenCalledWith(

@@ -3,21 +3,23 @@ import { MATCH_STYLE } from "../../../game/presentation/matchStyle";
 import {
   frameName,
   LAYERS,
-  Layer,
+  type Layer,
   modelArt,
   modelFor,
 } from "../../../game/presentation/playerArt";
-import { TeamColors } from "../../../types/Team";
+import { type TeamColors } from "../../../types/Team";
 
 interface AtlasFrame {
   frame: { x: number; y: number; w: number; h: number };
   spriteSourceSize: { x: number; y: number };
 }
-type Atlas = { image: HTMLImageElement; frames: Record<string, AtlasFrame> };
+interface Atlas {
+  image: HTMLImageElement;
+  frames: Record<string, AtlasFrame>;
+}
 
 const atlases = new Map<string, Promise<Atlas>>();
 
-/** One atlas layer, fetched once per page and shared by every portrait. */
 function loadAtlas(model: string, layer: Layer) {
   const base = `${MATCH_STYLE.spritePath}/${model}/${layer}`;
   let atlas = atlases.get(base);
@@ -26,7 +28,9 @@ function loadAtlas(model: string, layer: Layer) {
       fetch(`${base}.json`).then((r) => r.json()),
       new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image();
-        image.onload = () => resolve(image);
+        image.onload = () => {
+          resolve(image);
+        };
         image.onerror = reject;
         image.src = `${base}.png`;
       }),
@@ -39,11 +43,6 @@ function loadAtlas(model: string, layer: Layer) {
 
 const IDLE_FPS = 6;
 
-/**
- * The largest whole multiple of the cropped figure's side that fits in
- * `size` CSS pixels, so every art pixel becomes an exact square block. A
- * figure bigger than `size` is shrunk to fit instead.
- */
 export function wholePixelSize(side: number, size: number): number {
   if (side <= 0 || size < side) return size;
   return side * Math.floor(size / side);
@@ -53,24 +52,14 @@ interface PlayerPortraitProps {
   rosterName: string;
   positionName: string;
   colors: TeamColors;
-  /** Displayed size in CSS pixels. */
+
   size?: number;
-  /**
-   * Treat `size` as the box to fit and scale the art by a whole number of
-   * pixels inside it, so large portraits stay crisp. Off for thumbnails,
-   * which keep their exact `size`.
-   */
+
   wholePixels?: boolean;
-  /** Play the idle loop all the time rather than only on hover. */
+
   animate?: boolean;
 }
 
-/**
- * A player's match sprite outside the match: the same pre-rendered model,
- * tinted with the team's kit, drawn on a small canvas. Hover to see the idle
- * animation. Renders nothing until the art arrives, and stays empty if it
- * never does.
- */
 export function PlayerPortrait({
   rosterName,
   positionName,
@@ -99,8 +88,8 @@ export function PlayerPortrait({
     const el = canvas.current;
     if (!el || !layers) return;
     const art = modelArt(model);
-    // Crop to the standing figure, square, with a pixel of air around it.
-    const first = layers[0].frames[frameName("idle", "se", 0)];
+
+    const first = layers[0]?.frames[frameName("idle", "se", 0)];
     if (!first) return;
     const side = Math.max(first.frame.w, first.frame.h) + 4;
     const ox = first.spriteSourceSize.x + first.frame.w / 2 - side / 2;
@@ -137,7 +126,7 @@ export function PlayerPortrait({
           fctx.drawImage(...args);
           return;
         }
-        // Kit layers are grey; multiply by the kit colour, keep their alpha.
+
         tctx.globalCompositeOperation = "source-over";
         tctx.clearRect(0, 0, tint.width, tint.height);
         tctx.drawImage(...args);
@@ -159,7 +148,9 @@ export function PlayerPortrait({
       frame = (frame + 1) % (art.animations.idle || 1);
       draw(frame);
     }, 1000 / IDLE_FPS);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+    };
   }, [layers, model, colors.primary, colors.secondary, animate, hover]);
 
   const shown = wholePixels ? wholePixelSize(figureSide, size) : size;
@@ -170,8 +161,12 @@ export function PlayerPortrait({
       aria-label={positionName}
       role="img"
       data-model={model}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={() => {
+        setHover(true);
+      }}
+      onMouseLeave={() => {
+        setHover(false);
+      }}
       style={{ width: shown, height: shown, imageRendering: "pixelated" }}
       className="shrink-0"
     />

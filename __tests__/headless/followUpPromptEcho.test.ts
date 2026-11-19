@@ -1,15 +1,11 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { SkillType } from "../../src/types/Skills";
 
-/**
- * The board re-announces a follow-up prompt once its push animation has
- * played, so the dialog opens after the defender has moved. A coach that
- * answered before the animation finished, as the computer coach does, must
- * not see that echo re-open the decision.
- */
 describe("a follow-up prompt the board repeats", () => {
   it("does not re-open a follow-up already answered", async () => {
     for (let seed = 1; seed < 60; seed++) {
@@ -36,13 +32,13 @@ describe("a follow-up prompt the board repeats", () => {
       const defender = game.ctx.team2.players[0];
       await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       let response = await game.execute({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: defender.id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
       });
       if (response.pendingDecision?.type !== "block-dice") continue;
       const push = response.pendingDecision.options.findIndex(
@@ -57,22 +53,23 @@ describe("a follow-up prompt the board repeats", () => {
         const to = response.pendingDecision.options[0];
         response = await game.execute({
           type: "choose-push-direction",
-          x: to.x,
-          y: to.y,
+          x: fixtureValue(to).x,
+          y: fixtureValue(to).y,
         });
       }
       expect(response.pendingDecision?.type).toBe("follow-up");
-      const prompt = response.pendingDecision as {
-        attackerId: string;
-        targetSquare: { x: number; y: number };
-      };
+      const prompt = z
+        .object({
+          attackerId: z.string(),
+          targetSquare: z.object({ x: z.number(), y: z.number() }),
+        })
+        .parse(response.pendingDecision);
       response = await game.execute({
         type: "choose-follow-up",
         followUp: false,
       });
       expect(response.ok).toBe(true);
 
-      // The board's push animation finishes and repeats the prompt.
       game.ctx.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
         attackerId: prompt.attackerId,
         targetSquare: prompt.targetSquare,
@@ -82,7 +79,7 @@ describe("a follow-up prompt the board repeats", () => {
       expect(game.pendingDecision()).toBeNull();
       const next = await game.execute({
         type: "declare-action",
-        playerId: game.ctx.team1.players[1].id,
+        playerId: fixtureValue(game.ctx.team1.players[1]).id,
         action: "move",
       });
       expect(next.ok).toBe(true);
@@ -109,18 +106,19 @@ describe("a follow-up prompt arriving over another decision", () => {
       },
       seed: 1,
     });
-    // A bounce from the push offered a catch re-roll; the engine waits on it.
+
     const reroll = {
       type: "reroll",
-      playerId: game.ctx.team2.players[0].id,
+      playerId: fixtureValue(game.ctx.team2.players[0]).id,
       chooserTeamId: game.ctx.team2.id,
       rollKind: "catch",
       sources: ["skill"],
-    } as const;
+      roll: 1,
+    } satisfies NonNullable<ReturnType<HeadlessGame["pendingDecision"]>>;
     game.adoptPending(reroll);
 
     game.ctx.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
-      attackerId: game.ctx.team1.players[0].id,
+      attackerId: fixtureValue(game.ctx.team1.players[0]).id,
       targetSquare: { x: 8, y: 5 },
       repeat: true,
     });
@@ -142,7 +140,7 @@ describe("a catch re-roll raised by a push's bounce", () => {
               { playerIndex: 0, x: 7, y: 5, stats: { ST: 4 } },
               { playerIndex: 1, x: 2, y: 9 },
             ],
-            // The carrier falls at (9,5); the ball may bounce to a catcher.
+
             team2Placements: [
               { playerIndex: 0, x: 8, y: 5, stats: { ST: 2 }, hasBall: true },
               ...[4, 5, 6].map((y, i) => ({
@@ -162,13 +160,13 @@ describe("a catch re-roll raised by a push's bounce", () => {
       const attacker = game.ctx.team1.players[0];
       await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       let response = await game.execute({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: game.ctx.team2.players[0].id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(game.ctx.team2.players[0]).id,
       });
       if (response.pendingDecision?.type !== "block-dice") continue;
       const pow = response.pendingDecision.options.findIndex(
@@ -187,13 +185,12 @@ describe("a catch re-roll raised by a push's bounce", () => {
       });
       if (response.pendingDecision?.type !== "reroll") continue;
 
-      // A dropped ball can bounce to the next catcher, who may fail too.
       while (response.pendingDecision?.type === "reroll")
         response = await game.execute({ type: "use-reroll", accept: false });
 
       expect(response.pendingDecision).toMatchObject({
         type: "follow-up",
-        attackerId: attacker.id,
+        attackerId: fixtureValue(attacker).id,
       });
       return;
     }

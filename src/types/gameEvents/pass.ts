@@ -1,16 +1,11 @@
-/**
- * Event payloads for passes, throws, bombs, catches, interceptions and the
- * loose ball.
- */
-
 import { GameEventNames } from "./names";
 
 export interface PassGameEvents {
   [GameEventNames.PlayerThrowGesture]: {
     playerId: string;
-    /** "throw" tips the thrower forward; "kick" swings a little kick */
+
     mode: "throw" | "kick";
-    /** +1 if the target is to the right, -1 to the left (tilt direction) */
+
     dir: number;
   };
   [GameEventNames.BallPickup]: {
@@ -20,7 +15,6 @@ export interface PassGameEvents {
     target: number;
   };
 
-  // Pass/Catch Events
   [GameEventNames.PassDeclared]: {
     playerId: string;
     targetX: number;
@@ -40,13 +34,13 @@ export interface PassGameEvents {
     catcherId: string;
     position: { x: number; y: number };
   };
-  /** A thrown bomb flies from the Bomber's square to where it comes to rest. */
+
   [GameEventNames.BombThrown]: {
     playerId: string;
     from: { x: number; y: number };
     to: { x: number; y: number };
   };
-  /** A bomb explodes on a square, covering it and its eight neighbours. */
+
   [GameEventNames.BombExploded]: {
     x: number;
     y: number;
@@ -55,13 +49,13 @@ export interface PassGameEvents {
     playerId: string;
     position: { x: number; y: number };
     bouncePosition: { x: number; y: number };
-    /** A bounce waits for the board to show it before it lands. */
+
     presentationId?: string;
   };
   [GameEventNames.InterceptionAttempted]: {
     passerId: string;
     interceptorId: string;
-    /** Net modifier the interceptor rolls at (base -3/-2 plus marking). */
+
     modifier: number;
   };
   [GameEventNames.PassIntercepted]: {
@@ -101,11 +95,14 @@ export interface PassGameEvents {
   [GameEventNames.PassZoneHovered]: {
     playerId: string;
     targetSquare: { x: number; y: number };
-    passType: string; // PassType from PassController
+    passType: string;
   };
 }
 
 export interface PassUIEvents {
   [GameEventNames.UI_InterceptionResponse]: import("../decisions").InterceptionDecisionAnswer;
-  [GameEventNames.UI_ThrowAim]: { square: { x: number; y: number }; lines: string[] } | null;
+  [GameEventNames.UI_ThrowAim]: {
+    square: { x: number; y: number };
+    lines: string[];
+  } | null;
 }

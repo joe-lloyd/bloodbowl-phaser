@@ -1,10 +1,10 @@
+import type * as RepositoryModule from "../game/persistence/MatchSaveRepository";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MatchSaveRepository } from "../game/persistence/MatchSaveRepository";
 
-// --- firebase/firestore -----------------------------------------------
-const mockGetDoc = vi.fn();
-const mockSetDoc = vi.fn();
-const mockDeleteDoc = vi.fn();
+const mockGetDoc = vi.fn<unknown[], unknown>();
+const mockSetDoc = vi.fn<unknown[], unknown>();
+const mockDeleteDoc = vi.fn<unknown[], unknown>();
 vi.mock("firebase/firestore", () => ({
   doc: vi.fn(() => ({})),
   getDoc: (...args: unknown[]) => mockGetDoc(...args),
@@ -12,15 +12,13 @@ vi.mock("firebase/firestore", () => ({
   deleteDoc: (...args: unknown[]) => mockDeleteDoc(...args),
 }));
 
-// --- ./config -----------------------------------------------------------
-const mockGetIdToken = vi.fn();
-const mockGetFirebaseAuth = vi.fn();
+const mockGetIdToken = vi.fn<[], Promise<string>>();
+const mockGetFirebaseAuth = vi.fn<unknown[], unknown>();
 vi.mock("./config", () => ({
   getDb: vi.fn(() => ({})),
   getFirebaseAuth: (...args: unknown[]) => mockGetFirebaseAuth(...args),
 }));
 
-// --- ./auth ---------------------------------------------------------------
 type FakeAuthUser = { uid: string } | null;
 let mockAuthListener: ((user: FakeAuthUser) => void) | null = null;
 vi.mock("./auth", () => ({
@@ -32,23 +30,24 @@ vi.mock("./auth", () => ({
   },
 }));
 
-// --- ../game/persistence/MatchSaveRepository -------------------------------
-const mockSetMatchSaveRepository = vi.fn();
-const mockLocalRepo: MatchSaveRepository = {
-  read: vi.fn(() => null),
+const mockSetMatchSaveRepository = vi.fn<
+  [MatchSaveRepository | null],
+  undefined
+>();
+const mockLocalRepo = {
+  read: vi.fn<[], ReturnType<MatchSaveRepository["read"]>>(() => null),
   write: vi.fn(),
   clear: vi.fn(),
   describe: vi.fn(() => null),
 };
 vi.mock("../game/persistence/MatchSaveRepository", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("../game/persistence/MatchSaveRepository")
-  >();
+  const actual = await importOriginal<typeof RepositoryModule>();
   return {
     ...actual,
     getLocalMatchSaveRepository: () => mockLocalRepo,
-    setMatchSaveRepository: (...args: [MatchSaveRepository | null]) =>
-      mockSetMatchSaveRepository(...args),
+    setMatchSaveRepository: (...args: [MatchSaveRepository | null]) => {
+      mockSetMatchSaveRepository(...args);
+    },
   };
 });
 
@@ -57,26 +56,22 @@ import { connectMatchSavePersistenceToAuth } from "./cloudMatchSaveRepository";
 function permissionError(
   code: "permission-denied" | "unauthenticated" = "permission-denied"
 ): Error & { code: string } {
-  const error = new Error(
-    "Missing or insufficient permissions."
-  ) as Error & { code: string };
-  error.code = code;
-  return error;
+  return Object.assign(new Error("Missing or insufficient permissions."), {
+    code,
+  });
 }
 
 function missingSnapshot() {
   return { exists: () => false, data: () => undefined };
 }
 
-/** Flushes the microtask queue so chained `await`s inside the code under
- * test settle before assertions run. */
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("connectMatchSavePersistenceToAuth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAuthListener = null;
-    (mockLocalRepo.read as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    mockLocalRepo.read.mockReturnValue(null);
     mockGetIdToken.mockResolvedValue("fresh-token");
     mockGetFirebaseAuth.mockReturnValue({
       currentUser: { getIdToken: mockGetIdToken },
@@ -88,8 +83,12 @@ describe("connectMatchSavePersistenceToAuth", () => {
   });
 
   it("recovers silently from a single transient permission-denied error", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const warnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
     mockGetDoc
       .mockRejectedValueOnce(permissionError())
       .mockResolvedValueOnce(missingSnapshot());
@@ -105,14 +104,19 @@ describe("connectMatchSavePersistenceToAuth", () => {
     expect(mockGetIdToken).toHaveBeenNthCalledWith(2, true);
 
     expect(mockSetMatchSaveRepository).toHaveBeenCalledTimes(1);
-    const [repoArg] = mockSetMatchSaveRepository.mock.calls[0];
+    const repoArg = mockSetMatchSaveRepository.mock.calls[0]?.[0];
+    expect(repoArg).toBeDefined();
     expect(repoArg).not.toBeNull();
     expect(repoArg).not.toBe(mockLocalRepo);
   });
 
   it("falls back to the local repository after two permission-denied failures", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const warnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
     mockGetDoc.mockRejectedValue(permissionError("unauthenticated"));
 
     connectMatchSavePersistenceToAuth();
@@ -126,8 +130,12 @@ describe("connectMatchSavePersistenceToAuth", () => {
   });
 
   it("logs and falls back to null for a non-permission error", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const warnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
     mockGetDoc.mockRejectedValue(new Error("boom"));
 
     connectMatchSavePersistenceToAuth();

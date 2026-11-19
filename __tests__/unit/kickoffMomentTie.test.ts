@@ -1,8 +1,3 @@
-/**
- * A tied kick-off roll gives both teams the same thing, so the banner says
- * it favours nobody. Round 1 read "Favours Reikland Reavers and Altdorf
- * Nobles" after a tied Cheering Fans roll.
- */
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";

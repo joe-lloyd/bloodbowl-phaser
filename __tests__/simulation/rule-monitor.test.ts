@@ -1,15 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { createRuleMonitor } from "../../src/simulation/invariants";
 import { createSimGame } from "../../src/simulation/runMatch";
-import { GameSnapshot } from "../../src/headless/serialization";
+import { type GameSnapshot } from "../../src/headless/serialization";
 import { GamePhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
 
-/**
- * The monitor's command-aware rules, fed doctored snapshots so each rule is
- * proved whatever the engine currently does.
- */
 function playState(): GameSnapshot {
   const snapshot = createSimGame(
     1,
@@ -18,10 +15,18 @@ function playState(): GameSnapshot {
   ).snapshot();
   snapshot.phase = GamePhase.PLAY;
   snapshot.activeTeamId = "team1";
-  snapshot.teams[0].players[0].position = { x: 5, y: 5 };
-  snapshot.teams[0].players[0].status = PlayerStatus.ACTIVE;
-  snapshot.teams[1].players[0].position = { x: 8, y: 5 };
-  snapshot.teams[1].players[0].status = PlayerStatus.ACTIVE;
+  fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).position = {
+    x: 5,
+    y: 5,
+  };
+  fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).status =
+    PlayerStatus.ACTIVE;
+  fixtureValue(fixtureValue(snapshot.teams[1]).players[0]).position = {
+    x: 8,
+    y: 5,
+  };
+  fixtureValue(fixtureValue(snapshot.teams[1]).players[0]).status =
+    PlayerStatus.ACTIVE;
   return snapshot;
 }
 
@@ -61,7 +66,7 @@ describe("rule monitor", () => {
 
     monitor.observe(declare, before, before, false);
     expect(rules(monitor.observe(block, before, before, false))).toEqual([]);
-    // Same half, team and turn number, after a score and a Time-Out.
+
     monitor.observe(declare, before, before, false);
     expect(rules(monitor.observe(block, before, before, false))).toEqual([]);
   });
@@ -107,11 +112,12 @@ describe("rule monitor", () => {
     const monitor = createRuleMonitor();
     const before = playState();
     const after = structuredClone(before);
-    const mover = after.teams[0].players[0];
-    after.turn.movementUsed[mover.id] = mover.stats.MA + 3;
+    const mover = fixtureValue(after.teams[0]).players[0];
+    after.turn.movementUsed[fixtureValue(mover).id] =
+      fixtureValue(mover).stats.MA + 3;
     const move = {
       type: "move" as const,
-      playerId: mover.id,
+      playerId: fixtureValue(mover).id,
       path: [{ x: 6, y: 5 }],
     };
 
@@ -123,17 +129,20 @@ describe("rule monitor", () => {
   it("does not flag movement a skill allowed when the same command ends it", () => {
     const monitor = createRuleMonitor();
     const before = playState();
-    const mover = before.teams[0].players[0];
-    mover.skills = [...mover.skills, "Sprint"];
+    const mover = fixtureValue(before.teams[0]).players[0];
+    fixtureValue(mover).skills = [...fixtureValue(mover).skills, "Sprint"];
     const after = structuredClone(before);
-    const moved = after.teams[0].players[0];
-    after.turn.movementUsed[moved.id] = moved.stats.MA + 3;
-    // The move scored and ended the match, and the drive's Sprint lapsed.
-    moved.skills = moved.skills.filter((s) => s !== "Sprint");
+    const moved = fixtureValue(after.teams[0]).players[0];
+    after.turn.movementUsed[fixtureValue(moved).id] =
+      fixtureValue(moved).stats.MA + 3;
+
+    fixtureValue(moved).skills = fixtureValue(moved).skills.filter(
+      (s) => s !== "Sprint"
+    );
     after.phase = GamePhase.GAME_OVER;
     const move = {
       type: "move" as const,
-      playerId: moved.id,
+      playerId: fixtureValue(moved).id,
       path: [{ x: 6, y: 5 }],
     };
 
@@ -143,10 +152,10 @@ describe("rule monitor", () => {
   it("does not flag movement a lapsed skill allowed earlier in the turn", () => {
     const monitor = createRuleMonitor();
     const before = playState();
-    const mover = before.teams[0].players[0];
-    // Sprint gave a third Rush; it lapsed when the drive ended, but the
-    // turn's counter still holds the squares it allowed.
-    before.turn.movementUsed[mover.id] = mover.stats.MA + 3;
+    const mover = fixtureValue(before.teams[0]).players[0];
+
+    before.turn.movementUsed[fixtureValue(mover).id] =
+      fixtureValue(mover).stats.MA + 3;
     const after = structuredClone(before);
     after.phase = GamePhase.GAME_OVER;
 

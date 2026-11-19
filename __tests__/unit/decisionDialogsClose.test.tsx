@@ -1,10 +1,11 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import React, { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { DecisionRequest } from "../../src/types/decisions";
+import { type DecisionRequest } from "../../src/types/decisions";
 import { RerollDialog } from "../../src/ui/components/hud/RerollDialog";
 import { ReactionDialog } from "../../src/ui/components/hud/ReactionDialog";
 import { InterceptionDialog } from "../../src/ui/components/hud/InterceptionDialog";
@@ -12,12 +13,6 @@ import { ApothecaryDialog } from "../../src/ui/components/hud/ApothecaryDialog";
 import { InducementChoiceDialog } from "../../src/ui/components/hud/InducementChoiceDialog";
 import { FoulAssistsDialog } from "../../src/ui/components/hud/FoulAssistsDialog";
 
-/**
- * Online, both coaches see the engine's decision prompts, but only the one
- * who owns the decision answers it. The other coach's dialog has to close
- * when the decision is settled, or it covers their screen for the rest of
- * the match.
- */
 describe("decision dialogs close once the decision is settled", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -28,8 +23,8 @@ describe("decision dialogs close once the decision is settled", () => {
   beforeEach(() => {
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize(eventBus, game.ctx.team1, game.ctx.team2);
-    playerId = game.ctx.team1.players[0].id;
+    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
+    playerId = fixtureValue(game.ctx.team1.players[0]).id;
     teamId = game.ctx.team1.id;
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -37,7 +32,9 @@ describe("decision dialogs close once the decision is settled", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     ServiceContainer.reset();
   });
@@ -49,55 +46,51 @@ describe("decision dialogs close once the decision is settled", () => {
   ][] = [
     [
       "reroll",
-      RerollDialog as React.FC<{ eventBus: EventBus }>,
-      () =>
-        ({
-          type: "reroll",
-          playerId,
-          chooserTeamId: teamId,
-          rollKind: "dodge",
-          sources: ["team"],
-          roll: 1,
-        }) as DecisionRequest,
+      RerollDialog,
+      () => ({
+        type: "reroll",
+        playerId,
+        chooserTeamId: teamId,
+        rollKind: "dodge",
+        sources: ["team"],
+        roll: 1,
+      }),
     ],
     [
       "reaction",
-      ReactionDialog as React.FC<{ eventBus: EventBus }>,
-      () =>
-        ({
-          type: "reaction",
-          playerId,
-          chooserTeamId: teamId,
-          skill: "Fend",
-          prompt: "Use Fend?",
-        }) as DecisionRequest,
+      ReactionDialog,
+      () => ({
+        type: "reaction",
+        playerId,
+        chooserTeamId: teamId,
+        skill: "Fend",
+        prompt: "Use Fend?",
+      }),
     ],
     [
       "interception",
-      InterceptionDialog as React.FC<{ eventBus: EventBus }>,
-      () =>
-        ({
-          type: "interception",
-          chooserTeamId: teamId,
-          passerId: playerId,
-          candidates: [{ playerId, modifier: -3 }],
-        }) as DecisionRequest,
+      InterceptionDialog,
+      () => ({
+        type: "interception",
+        chooserTeamId: teamId,
+        passerId: playerId,
+        candidates: [{ playerId, modifier: -3 }],
+      }),
     ],
     [
       "apothecary",
-      ApothecaryDialog as React.FC<{ eventBus: EventBus }>,
-      () =>
-        ({
-          type: "apothecary",
-          id: "apo-1",
-          chooserTeamId: teamId,
-          playerId,
-          resultKind: "ko",
-        }) as DecisionRequest,
+      ApothecaryDialog,
+      () => ({
+        type: "apothecary",
+        id: "apo-1",
+        chooserTeamId: teamId,
+        playerId,
+        resultKind: "ko",
+      }),
     ],
     [
       "inducement-choice",
-      InducementChoiceDialog as React.FC<{ eventBus: EventBus }>,
+      InducementChoiceDialog,
       () =>
         ({
           type: "inducement-choice",
@@ -108,7 +101,7 @@ describe("decision dialogs close once the decision is settled", () => {
     ],
     [
       "foul-assists",
-      FoulAssistsDialog as React.FC<{ eventBus: EventBus }>,
+      FoulAssistsDialog,
       () => ({
         type: "foul-assists",
         playerId,
@@ -121,15 +114,16 @@ describe("decision dialogs close once the decision is settled", () => {
   ];
 
   it.each(cases)("%s", async (_type, Dialog, request) => {
-    await act(async () => root.render(<Dialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<Dialog eventBus={eventBus} />);
+    });
     const decisions =
       ServiceContainer.getInstance().gameService.getDecisionService();
 
     await act(async () => void decisions.request(request()));
     expect(container.innerHTML).not.toBe("");
 
-    // The other coach answered: this page never touched the dialog
-    await act(async () => void decisions.answer({ accept: false } as never));
+    await act(async () => void decisions.answer({ accept: false }));
     expect(container.innerHTML).toBe("");
   });
 });

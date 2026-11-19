@@ -1,12 +1,16 @@
-/** Feeding depends on native Thrall Linemen and the action's endpoint. */
-import { Player, PositionKeyWord, TraitKeyWord } from "../../types/Player";
+import { type FieldPlayer as Player } from "./board";
+import {
+  type Player as RosterPlayer,
+  PositionKeyWord,
+  TraitKeyWord,
+} from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { ActionType } from "../../types/events";
-import { Board, Square, carrierOf, distance } from "./board";
+import { type ActionType } from "../../types/events";
+import { type Board, type Square, carrierOf, distance } from "./board";
 import { d6 } from "./chance";
 import type { Context } from "./activationContext";
 
-export function isThrall(player: Player): boolean {
+export function isThrall(player: RosterPlayer): boolean {
   return (
     player.keywords.includes(TraitKeyWord.THRALL) &&
     player.keywords.includes(PositionKeyWord.LINEMAN)
@@ -15,7 +19,7 @@ export function isThrall(player: Player): boolean {
 
 export function hasBiteSupport(
   board: Board,
-  player: Player,
+  player: RosterPlayer,
   at: Square
 ): boolean {
   return board.ours.some(
@@ -23,13 +27,13 @@ export function hasBiteSupport(
       p.id !== player.id &&
       p.id !== carrierOf(board)?.id &&
       isThrall(p) &&
-      distance(p.gridPosition!, at) === 1
+      distance(p.gridPosition, at) === 1
   );
 }
 
 function bloodlustFailure(
   c: Context,
-  player: Player,
+  player: RosterPlayer,
   action: ActionType
 ): number {
   if (!c.skillPlans || !hasSkill(player.skills, SkillType.BLOODLUST)) return 0;
@@ -38,6 +42,10 @@ function bloodlustFailure(
     if (active.bloodlustUnsated) return 1;
     if (active.committed) return 0;
   }
+  return bloodlustRoll(player, action);
+}
+
+function bloodlustRoll(player: RosterPlayer, action: ActionType): number {
   const parameter = player.skills.find(
     (s) => s.type === SkillType.BLOODLUST
   )?.parameter;
@@ -46,24 +54,39 @@ function bloodlustFailure(
   return 1 - d6(threshold - (angry ? 1 : 0));
 }
 
-export function unfedChance(
-  c: Context,
-  player: Player,
-  action: ActionType,
-  at: Square
-): number {
+interface UnfedChanceArgs {
+  c: Context;
+  player: RosterPlayer;
+  action: ActionType;
+  at: Square;
+}
+
+export function unfedChance({
+  c,
+  player,
+  action,
+  at,
+}: UnfedChanceArgs): number {
   return hasBiteSupport(c.board, player, at)
     ? 0
     : bloodlustFailure(c, player, action);
 }
 
-export function feedingCost(
-  c: Context,
-  player: Player,
-  action: ActionType,
-  at: Square,
-  carrying = carrierOf(c.board)?.id === player.id
-): number {
+interface FeedingCostArgs {
+  c: Context;
+  player: RosterPlayer;
+  action: ActionType;
+  at: Square;
+  carrying?: boolean;
+}
+
+export function feedingCost({
+  c,
+  player,
+  action,
+  at,
+  carrying = carrierOf(c.board)?.id === player.id,
+}: FeedingCostArgs): number {
   const { board, w } = c;
   const failure = bloodlustFailure(c, player, action);
   if (failure === 0) return 0;
@@ -74,7 +97,6 @@ export function feedingCost(
   );
 }
 
-/** New moves pay once; a committed move compares against ending here. */
 export function moveFeedingCost(
   c: Context,
   player: Player,
@@ -83,7 +105,12 @@ export function moveFeedingCost(
   const active = c.board.gs.getState().activePlayer;
   const owed =
     active?.id === player.id && active.committed
-      ? feedingCost(c, player, "move", player.gridPosition!)
+      ? feedingCost({
+          c: c,
+          player: player,
+          action: "move",
+          at: player.gridPosition,
+        })
       : 0;
-  return feedingCost(c, player, "move", at) - owed;
+  return feedingCost({ c: c, player: player, action: "move", at: at }) - owed;
 }

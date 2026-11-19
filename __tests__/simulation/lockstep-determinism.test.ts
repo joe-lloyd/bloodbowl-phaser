@@ -1,8 +1,3 @@
-/**
- * Lockstep online play rests on this: two engines built from the same seed
- * and teams, fed the same commands, agree after every single command,
- * including the ones that stop on a coach's decision.
- */
 import { describe, it, expect } from "vitest";
 import {
   runMatch,
@@ -47,7 +42,7 @@ describe("lockstep determinism", () => {
         const [ca, cb] = [stateChecksum(a), stateChecksum(b)];
         if (ca !== cb) {
           throw new Error(
-            `diverged at step ${index} (${step.command.type}): ${ca} vs ${cb}`
+            `diverged at step ${String(index)} (${step.command.type}): ${ca} vs ${cb}`
           );
         }
       }

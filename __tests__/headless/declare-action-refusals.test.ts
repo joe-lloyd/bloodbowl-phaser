@@ -1,12 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerCondition, addCondition } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { GameEventNames } from "../../src/types/events";
 
-/** Two team 1 players well apart, an opponent far away, team 1 to act. */
 function scenario(skills: SkillType[] = []): Scenario {
   return {
     id: "declare-action-refusals",
@@ -27,7 +27,6 @@ function scenario(skills: SkillType[] = []): Scenario {
   };
 }
 
-/** Events emitted while `run` executes, by name and data. */
 function eventsDuring(game: HeadlessGame, run: () => unknown) {
   const before = game.events().length;
   const result = run();
@@ -52,11 +51,11 @@ describe("declaring an Action", () => {
   it("refuses a switch to another Action once the player has moved", async () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
-    const mover = game.ctx.team1.players[0].id;
+    const mover = fixtureValue(game.ctx.team1.players[0]).id;
     await declareAndStep(game, mover, "move");
 
     const { result, events } = eventsDuring(game, () =>
-      gs.declareAction(mover, "block")
+      gs.declareAction({ playerId: mover, action: "block" })
     );
 
     expect(result).toBe(false);
@@ -76,10 +75,10 @@ describe("declaring an Action", () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
     const [blitzer, other] = game.ctx.team1.players.map((p) => p.id);
-    await declareAndStep(game, blitzer, "blitz");
+    await declareAndStep(game, fixtureValue(blitzer), "blitz");
 
     const { result, events } = eventsDuring(game, () =>
-      gs.declareAction(other, "move")
+      gs.declareAction({ playerId: fixtureValue(other), action: "move" })
     );
 
     expect(result).toBe(false);
@@ -106,7 +105,7 @@ describe("declaring an Action", () => {
     });
 
     const { result, events } = eventsDuring(game, () =>
-      gs.declareAction(other, "move")
+      gs.declareAction({ playerId: fixtureValue(other), action: "move" })
     );
 
     expect(result).toBe(true);
@@ -124,17 +123,17 @@ describe("declaring an Action", () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
     const player = game.ctx.team1.players[0];
-    addCondition(player, PlayerCondition.ROOTED);
+    addCondition(fixtureValue(player), PlayerCondition.ROOTED);
 
     const { result, events } = eventsDuring(game, () =>
-      gs.declareAction(player.id, "move")
+      gs.declareAction({ playerId: fixtureValue(player).id, action: "move" })
     );
 
     expect(result).toBe(false);
     expect(events).toEqual([
       {
         name: GameEventNames.UI_Notification,
-        data: `${player.playerName} is Rooted and cannot Move!`,
+        data: `${fixtureValue(player).playerName} is Rooted and cannot Move!`,
       },
     ]);
   });
@@ -146,17 +145,17 @@ describe("declaring an Action", () => {
     });
     const gs = game.ctx.gameService;
     const stabber = game.ctx.team1.players[0];
-    await declareAndStep(game, stabber.id, "move");
+    await declareAndStep(game, fixtureValue(stabber).id, "move");
 
     const { result, events } = eventsDuring(game, () =>
-      gs.declareAction(stabber.id, "stab")
+      gs.declareAction({ playerId: fixtureValue(stabber).id, action: "stab" })
     );
 
     expect(result).toBe(false);
     expect(events).toEqual([
       {
         name: GameEventNames.UI_Notification,
-        data: `${stabber.playerName} has already moved — Stab must be declared as Blitz (with Stab) before moving.`,
+        data: `${fixtureValue(stabber).playerName} has already moved — Stab must be declared as Blitz (with Stab) before moving.`,
       },
     ]);
   });
@@ -167,22 +166,26 @@ describe("declaring an Action", () => {
       seed: 1,
     });
     const gs = game.ctx.gameService;
-    const fanatic = game.ctx.team1.players[0].id;
+    const fanatic = fixtureValue(game.ctx.team1.players[0]).id;
 
-    const refused = eventsDuring(game, () => gs.declareAction(fanatic, "move"));
+    const refused = eventsDuring(game, () =>
+      gs.declareAction({ playerId: fanatic, action: "move" })
+    );
     expect(refused).toEqual({ result: false, events: [] });
-    expect(gs.declareAction(fanatic, "ballAndChain")).toBe(true);
+    expect(
+      gs.declareAction({ playerId: fanatic, action: "ballAndChain" })
+    ).toBe(true);
   });
 
   it("clears Distracted, then Eye Gouged, before the declaration", () => {
     const game = new HeadlessGame({ scenario: scenario(), seed: 1 });
     const gs = game.ctx.gameService;
     const player = game.ctx.team1.players[0];
-    addCondition(player, PlayerCondition.DISTRACTED);
-    addCondition(player, PlayerCondition.EYE_GOUGED);
+    addCondition(fixtureValue(player), PlayerCondition.DISTRACTED);
+    addCondition(fixtureValue(player), PlayerCondition.EYE_GOUGED);
 
     const { result, events } = eventsDuring(game, () =>
-      gs.declareAction(player.id, "move")
+      gs.declareAction({ playerId: fixtureValue(player).id, action: "move" })
     );
 
     expect(result).toBe(true);
@@ -191,7 +194,7 @@ describe("declaring an Action", () => {
       GameEventNames.PlayerStatusChanged,
       GameEventNames.UI_Notification,
     ]);
-    expect(events[2].data).toBe("Action Declared: MOVE");
-    expect(player.conditions ?? []).toEqual([]);
+    expect(fixtureValue(events[2]).data).toBe("Action Declared: MOVE");
+    expect(fixtureValue(player).conditions ?? []).toEqual([]);
   });
 });

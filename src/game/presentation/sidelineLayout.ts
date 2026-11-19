@@ -2,7 +2,6 @@ import type { DugoutSquares } from "../elements/Stadium";
 import type { SidelineStaffMember } from "./sidelineStaff";
 import type { BoardPoint } from "./sidelineRoutes";
 
-/** A six-square extension beside the reserve box; the exit lane stays clear. */
 export interface StaffTerraceLayout {
   x: number;
   y: number;
@@ -13,7 +12,9 @@ export interface StaffTerraceLayout {
 
 export function staffTerraceLayout(squares: DugoutSquares): StaffTerraceLayout {
   const slots = Object.values(squares).flat();
-  const home = slots[0][1] < 0;
+  const first = slots[0];
+  if (!first) throw new Error("Dugout has no squares");
+  const home = first[1] < 0;
   const xs = slots.map(([x]) => x);
   return {
     x: home ? Math.max(...xs) + 0.85 : Math.min(...xs) - 6.85,
@@ -26,7 +27,6 @@ export function staffTerraceLayout(squares: DugoutSquares): StaffTerraceLayout {
   };
 }
 
-/** Cheerleaders at the front, fans in the middle, seated staff at the back. */
 export function staffTerraceSlot(
   layout: StaffTerraceLayout,
   member: Pick<SidelineStaffMember, "type" | "index">

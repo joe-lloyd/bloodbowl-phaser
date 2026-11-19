@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  GestureClock,
-  GestureHandlers,
+  type GestureClock,
+  type GestureHandlers,
   TouchGestures,
 } from "../../../src/game/controllers/TouchGestures";
 
-/** A clock the test moves by hand, and a log of every gesture seen. */
 function setup(
   routeFrom: (at: { x: number; y: number }) => boolean = () => false
 ) {
@@ -16,38 +15,41 @@ function setup(
     setTimeout: (run, ms) => {
       const timer = { at: time + ms, run };
       timers.push(timer);
-      return timer;
-    },
-    clearTimeout: (handle) => {
-      timers = timers.filter((t) => t !== handle);
+      return () => { timers = timers.filter((t) => t !== timer); };
     },
   };
   const seen: string[] = [];
   let doubleTapUsed = true;
   const handlers: GestureHandlers = {
-    tap: (at) => seen.push(`tap ${at.x},${at.y}`),
+    tap: (at) => seen.push(`tap ${String(at.x)},${String(at.y)}`),
     doubleTap: (at) => {
-      seen.push(`double ${at.x},${at.y}`);
+      seen.push(`double ${String(at.x)},${String(at.y)}`);
       return doubleTapUsed;
     },
-    longPress: (at) => seen.push(`hold ${at.x},${at.y}`),
+    longPress: (at) => seen.push(`hold ${String(at.x)},${String(at.y)}`),
     dragStart: (from) => {
       const route = routeFrom(from);
-      seen.push(`drag ${from.x},${from.y} ${route ? "route" : "pan"}`);
+      seen.push(
+        `drag ${String(from.x)},${String(from.y)} ${route ? "route" : "pan"}`
+      );
       return route;
     },
-    routeTo: (at) => seen.push(`route ${at.x},${at.y}`),
+    routeTo: (at) => seen.push(`route ${String(at.x)},${String(at.y)}`),
     routeEnd: () => seen.push("route end"),
-    pan: (dx, dy) => seen.push(`pan ${dx},${dy}`),
-    pinch: (centre, factor, dx, dy) =>
-      seen.push(`pinch ${centre.x},${centre.y} x${factor} ${dx},${dy}`),
+    pan: (dx, dy) => seen.push(`pan ${String(dx)},${String(dy)}`),
+    pinch: ({ centre, factor, dx, dy }) =>
+      seen.push(
+        `pinch ${String(centre.x)},${String(centre.y)} x${String(factor)} ${String(dx)},${String(dy)}`
+      ),
   };
   const gestures = new TouchGestures(handlers, clock);
   const wait = (ms: number) => {
     time += ms;
     const due = timers.filter((t) => t.at <= time);
     timers = timers.filter((t) => t.at > time);
-    due.forEach((t) => t.run());
+    due.forEach((t) => {
+      t.run();
+    });
   };
   return {
     gestures,
@@ -110,7 +112,6 @@ describe("TouchGestures", () => {
     gestures.up(2);
     expect(seen).toEqual(["tap 40,40", "double 50,45"]);
 
-    // A double tap the match does not use is an ordinary second tap
     keepDoubleTap();
     wait(1000);
     gestures.down(3, { x: 40, y: 40 });
@@ -139,7 +140,7 @@ describe("TouchGestures", () => {
     gestures.down(1, { x: 0, y: 0 });
     gestures.move(1, { x: 20, y: 0 });
     gestures.down(2, { x: 120, y: 0 });
-    // The fingers spread from 100 px apart to 200, then close to 180
+
     gestures.move(2, { x: 220, y: 0 });
     gestures.move(1, { x: 40, y: 0 });
     wait(600);

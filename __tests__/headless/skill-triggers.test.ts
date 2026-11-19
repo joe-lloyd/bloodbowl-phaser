@@ -1,19 +1,14 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, afterEach } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType, SkillCategory } from "../../src/types/Skills";
-import { Scenario } from "../../src/types/Scenario";
-import { SkillRegistry, SkillRule } from "../../src/game/skills";
+import { type Scenario } from "../../src/types/Scenario";
+import { SkillRegistry, type SkillRule } from "../../src/game/skills";
 import { GameOperation } from "../../src/game/core/GameOperation";
-
-/**
- * Reactive/interrupt trigger framework: all-participant gather, reactions
- * as reacting-team decisions, flow-altering effects via the operation
- * queue. Stub rules are registered on skills with no built-in rule and
- * removed after each test.
- */
 
 const give = (player: { skills: unknown[] }, type: SkillType) =>
   player.skills.push({
@@ -36,7 +31,7 @@ const scenario: Scenario = {
   },
 };
 
-const STUB_SKILL = SkillType.PREHENSILE_TAIL; // no built-in rule
+const STUB_SKILL = SkillType.PREHENSILE_TAIL;
 
 afterEach(() => {
   SkillRegistry.unregister(STUB_SKILL);
@@ -44,8 +39,6 @@ afterEach(() => {
 
 describe("reactive triggers — all-participant gather (3.1)", () => {
   it("an adjacent opponent's rule modifies the acting player's dodge roll", async () => {
-    // Stub: the marker worsens any dodge away from it by 2 (Prehensile
-    // Tail's real behavior, registered here as a stub)
     const stub: SkillRule = {
       onDodgeDeclared(ctx, self) {
         if (self.teamId === ctx.player.teamId) return;
@@ -61,36 +54,41 @@ describe("reactive triggers — all-participant gather (3.1)", () => {
 
     const game = new HeadlessGame({ scenario, seed: 3 });
     const dodger = game.ctx.team1.players[0];
-    give(game.ctx.team2.players[0], STUB_SKILL);
+    give(fixtureValue(game.ctx.team2.players[0]), STUB_SKILL);
 
     await game.execute({
       type: "declare-action",
-      playerId: dodger.id,
+      playerId: fixtureValue(dodger).id,
       action: "move",
     });
     const moved = await game.execute({
       type: "move",
-      playerId: dodger.id,
-      path: [{ x: 9, y: 4 }], // leaves the opponent's tackle zone
+      playerId: fixtureValue(dodger).id,
+      path: [{ x: 9, y: 4 }],
     });
 
     const skillEvents = moved.events.filter(
       (e) => e.name === GameEventNames.SkillTriggered
     );
     expect(skillEvents).toHaveLength(1);
-    expect((skillEvents[0].data as { playerId: string }).playerId).toBe(
-      game.ctx.team2.players[0].id
-    );
+    expect(
+      z
+        .object({ playerId: z.string() })
+        .parse(fixtureValue(skillEvents[0]).data).playerId
+    ).toBe(fixtureValue(game.ctx.team2.players[0]).id);
 
-    // The dodge dice event carries the worsened modifier: total = roll - 2
-    // (the target square is free of markers, so the base modifier is 0)
     const dodgeRoll = moved.events.find(
       (e) =>
         e.name === GameEventNames.DiceRoll &&
-        (e.data as { rollType: string }).rollType.startsWith("Dodge")
+        z
+          .object({ rollType: z.string() })
+          .parse(e.data)
+          .rollType.startsWith("Dodge")
     );
     expect(dodgeRoll).toBeDefined();
-    const data = dodgeRoll!.data as { value: number; total: number };
+    const data = z
+      .object({ value: z.number(), total: z.number() })
+      .parse(fixtureValue(dodgeRoll).data);
     expect(data.total).toBe(data.value - 2);
   });
 
@@ -99,22 +97,22 @@ describe("reactive triggers — all-participant gather (3.1)", () => {
       const game = new HeadlessGame({ scenario, seed: 3 });
       const dodger = game.ctx.team1.players[0];
       if (withInertSkill) {
-        give(game.ctx.team2.players[0], SkillType.DIVING_TACKLE); // no rule
+        give(fixtureValue(game.ctx.team2.players[0]), SkillType.DIVING_TACKLE);
       }
       await game.execute({
         type: "declare-action",
-        playerId: dodger.id,
+        playerId: fixtureValue(dodger).id,
         action: "move",
       });
       const moved = await game.execute({
         type: "move",
-        playerId: dodger.id,
+        playerId: fixtureValue(dodger).id,
         path: [{ x: 9, y: 4 }],
       });
-      // Compare outcomes, not the roster (the skill itself serializes)
+
       return JSON.stringify({
         dice: moved.events.filter((e) => e.name === GameEventNames.DiceRoll),
-        dodger: moved.snapshot.teams[0].players[0],
+        dodger: fixtureValue(moved.snapshot.teams[0]).players[0],
       });
     };
     expect(await run(true)).toBe(await run(false));
@@ -125,10 +123,9 @@ describe("flow-altering effects via the operation queue (3.3)", () => {
   it("a rule adds a step through the flow queue without editing the base rule", async () => {
     class ExtraStepOperation extends GameOperation {
       public readonly name = "ExtraStepOperation";
-      async execute(context: {
-        eventBus: { emit: (n: string, d: unknown) => void };
-      }): Promise<void> {
+      execute(context: Parameters<GameOperation["execute"]>[0]): Promise<void> {
         context.eventBus.emit(GameEventNames.UI_Notification, "extra-step-ran");
+        return Promise.resolve();
       }
     }
     const stub: SkillRule = {
@@ -147,7 +144,7 @@ describe("flow-altering effects via the operation queue (3.3)", () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    give(attacker, STUB_SKILL);
+    give(fixtureValue(attacker), STUB_SKILL);
 
     const notifications: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.UI_Notification, (d) =>
@@ -158,18 +155,20 @@ describe("flow-altering effects via the operation queue (3.3)", () => {
       skillEvents.push(d)
     );
 
-    await game.ctx.gameService.resolveBlock(attacker.id, defender.id, {
-      type: "both-down",
-      icon: "",
-      label: "Both Down",
-    });
+    await game.ctx.gameService.resolveBlock(
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
+      {
+        type: "both-down",
+        icon: "",
+        label: "Both Down",
+      }
+    );
     await new Promise((resolve) => setImmediate(resolve));
 
-    // The base both-down outcome is unchanged (seed 5 breaks the
-    // defender's armour: Stunned, and still Stunned as team 2's turn starts)...
-    expect(attacker.status).toBe(PlayerStatus.PRONE);
-    expect(defender.status).toBe(PlayerStatus.STUNNED);
-    // ...and the extra step ran via the queue, announced as a trigger
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.STUNNED);
+
     expect(notifications).toContain("extra-step-ran");
     expect(skillEvents).toHaveLength(1);
   });
@@ -182,17 +181,16 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    give(defender, SkillType.WRESTLE);
-    give(attacker, SkillType.BLOCK); // Wrestle overrides Block
+    give(fixtureValue(defender), SkillType.WRESTLE);
+    give(fixtureValue(attacker), SkillType.BLOCK);
 
     const resolveDone = game.ctx.gameService.resolveBlock(
-      attacker.id,
-      defender.id,
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
       bothDown
     );
     await new Promise((resolve) => setImmediate(resolve));
 
-    // The engine paused on the DEFENDER's reaction decision
     const pending = game.pendingDecision();
     expect(pending?.type).toBe("reaction");
     if (pending?.type !== "reaction") return;
@@ -201,8 +199,7 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
 
     const armour: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) => {
-      if ((d as { rollType: string }).rollType.includes("Armour"))
-        armour.push(d);
+      if (d.rollType.includes("Armour")) armour.push(d);
     });
     const turnovers: unknown[] = [];
     game.ctx.eventBus.on(GameEventNames.Turnover, (d) => turnovers.push(d));
@@ -211,28 +208,24 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     expect(reply.ok).toBe(true);
     await resolveDone;
 
-    // Both prone — "regardless of any other Skills" (Block did not save
-    // the attacker); no armour rolls; no turnover (attacker had no ball)
-    expect(attacker.status).toBe(PlayerStatus.PRONE);
-    expect(defender.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
     expect(armour).toHaveLength(0);
     expect(turnovers).toHaveLength(0);
   });
 
-  // The attacker's Wrestle folds before the defender's Block, which must not
-  // undo it: a carrier Placed Prone drops the ball (p.42)
   it("drops the ball when a Block-skilled carrier is Wrestled Prone", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    give(attacker, SkillType.WRESTLE);
-    give(defender, SkillType.BLOCK);
-    const square = { ...defender.gridPosition! };
+    give(fixtureValue(attacker), SkillType.WRESTLE);
+    give(fixtureValue(defender), SkillType.BLOCK);
+    const square = { ...fixtureValue(fixtureValue(defender).gridPosition) };
     game.ctx.gameService.setBallPosition(square.x, square.y);
 
     const resolveDone = game.ctx.gameService.resolveBlock(
-      attacker.id,
-      defender.id,
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
       bothDown
     );
     await new Promise((resolve) => setImmediate(resolve));
@@ -243,12 +236,10 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     await game.execute({ type: "use-reaction", accept: true });
     await resolveDone;
 
-    expect(defender.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
     expect(game.ctx.gameService.getState().ballPosition).not.toEqual(square);
   });
 
-  // Juggernaut bars only the opposition's Wrestle, and its optional push
-  // must not undo the blitzer's own accepted Wrestle, in either skill order
   it.each([
     [[SkillType.WRESTLE, SkillType.JUGGERNAUT]],
     [[SkillType.JUGGERNAUT, SkillType.WRESTLE]],
@@ -256,17 +247,17 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    skills.forEach((skill) => give(attacker, skill));
+    skills.forEach((skill) => give(fixtureValue(attacker), skill));
     const declared = await game.execute({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     expect(declared.ok).toBe(true);
 
     const resolveDone = game.ctx.gameService.resolveBlock(
-      attacker.id,
-      defender.id,
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
       bothDown
     );
     await new Promise((resolve) => setImmediate(resolve));
@@ -278,19 +269,19 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     await game.execute({ type: "use-reaction", accept: true });
     await resolveDone;
 
-    expect(attacker.status).toBe(PlayerStatus.PRONE);
-    expect(defender.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
   });
 
   it("declining applies the normal Both Down", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    give(defender, SkillType.WRESTLE);
+    give(fixtureValue(defender), SkillType.WRESTLE);
 
     const resolveDone = game.ctx.gameService.resolveBlock(
-      attacker.id,
-      defender.id,
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
       bothDown
     );
     await new Promise((resolve) => setImmediate(resolve));
@@ -299,9 +290,8 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     await game.execute({ type: "use-reaction", accept: false });
     await resolveDone;
 
-    // Seed 5 breaks the defender's armour: Stunned, not yet rolled over.
-    expect(attacker.status).toBe(PlayerStatus.PRONE);
-    expect(defender.status).toBe(PlayerStatus.STUNNED);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.STUNNED);
   });
 });
 
@@ -316,16 +306,16 @@ describe("Dodge vs Defender Stumbles (5.3) and Tackle", () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    give(defender, SkillType.DODGE);
-    if (withTackle) give(attacker, SkillType.TACKLE);
+    give(fixtureValue(defender), SkillType.DODGE);
+    if (withTackle) give(fixtureValue(attacker), SkillType.TACKLE);
 
     const done = game.ctx.gameService.resolveBlock(
-      attacker.id,
-      defender.id,
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
       stumbles
     );
     await new Promise((resolve) => setImmediate(resolve));
-    // The push flow now waits on the push-direction decision
+
     const push = await game.execute({
       type: "choose-push-direction",
       x: 12,
@@ -338,15 +328,15 @@ describe("Dodge vs Defender Stumbles (5.3) and Tackle", () => {
 
   it("a defender with Dodge is pushed but not knocked down", async () => {
     const { defender } = await resolveStumbles(false);
-    expect(defender.gridPosition).toEqual({ x: 12, y: 5 });
-    expect(defender.status).toBe(PlayerStatus.ACTIVE); // stumble → push
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 12, y: 5 });
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.ACTIVE);
   });
 
   it("Tackle cancels the Dodge conversion — defender goes down", async () => {
     const { defender } = await resolveStumbles(true);
-    expect(defender.gridPosition).toEqual({ x: 12, y: 5 });
-    // Knocked down (armour/injury may escalate prone to stunned/KO)
-    expect(defender.status).not.toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 12, y: 5 });
+
+    expect(fixtureValue(defender).status).not.toBe(PlayerStatus.ACTIVE);
   });
 });
 
@@ -357,11 +347,11 @@ describe("Stand Firm (5.7) — reacting-team push refusal", () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    give(defender, SkillType.STAND_FIRM);
+    give(fixtureValue(defender), SkillType.STAND_FIRM);
 
     const done = game.ctx.gameService.resolveBlock(
-      attacker.id,
-      defender.id,
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
       push
     );
     await new Promise((resolve) => setImmediate(resolve));
@@ -369,15 +359,15 @@ describe("Stand Firm (5.7) — reacting-team push refusal", () => {
     const pending = game.pendingDecision();
     expect(pending?.type).toBe("reaction");
     if (pending?.type !== "reaction") return;
-    expect(pending.chooserTeamId).toBe(game.ctx.team2.id); // reacting team
+    expect(pending.chooserTeamId).toBe(game.ctx.team2.id);
     expect(pending.skill).toBe(SkillType.STAND_FIRM);
 
     const reply = await game.execute({ type: "use-reaction", accept: true });
     expect(reply.ok).toBe(true);
     await done;
 
-    expect(defender.gridPosition).toEqual({ x: 11, y: 5 }); // unmoved
-    expect(defender.status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 11, y: 5 });
+    expect(fixtureValue(defender).status).toBe(PlayerStatus.ACTIVE);
     expect(
       reply.events.some((e) => e.name === GameEventNames.SkillTriggered)
     ).toBe(true);
@@ -387,11 +377,11 @@ describe("Stand Firm (5.7) — reacting-team push refusal", () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
-    give(defender, SkillType.STAND_FIRM);
+    give(fixtureValue(defender), SkillType.STAND_FIRM);
 
     const done = game.ctx.gameService.resolveBlock(
-      attacker.id,
-      defender.id,
+      fixtureValue(attacker).id,
+      fixtureValue(defender).id,
       push
     );
     await new Promise((resolve) => setImmediate(resolve));
@@ -402,11 +392,11 @@ describe("Stand Firm (5.7) — reacting-team push refusal", () => {
       accept: false,
     });
     expect(declined.ok).toBe(true);
-    // Push flow resumes: now the attacker picks the push direction
+
     expect(declined.pendingDecision?.type).toBe("push-direction");
 
     await game.execute({ type: "choose-push-direction", x: 12, y: 5 });
     await done;
-    expect(defender.gridPosition).toEqual({ x: 12, y: 5 });
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 12, y: 5 });
   });
 });

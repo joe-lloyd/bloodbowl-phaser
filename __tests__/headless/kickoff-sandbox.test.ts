@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { kickoffEventSchema } from "../../src/boundary/schemas/KickoffEvent";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   KICKOFF_EXAMPLE_SEEDS,
@@ -33,20 +36,27 @@ describe("kickoff-table sandbox catalog", () => {
     for (const config of KICKOFF_SCENARIOS) {
       for (const outcome of config.outcomes) {
         expect(outcome.exampleSeed).toBeTypeOf("number");
-        const result = await runRuleConfig(config, outcome.exampleSeed!);
+        const result = await runRuleConfig(
+          config,
+          fixtureValue(outcome.exampleSeed)
+        );
         expect(outcome.matches(result), `${config.id}: ${outcome.name}`).toBe(
           true
         );
 
-        const kickoff = result.events.find(
-          (event) => event.name === GameEventNames.KickoffResult
-        )?.data as { event?: KickoffEvent } | undefined;
+        const kickoff = z
+          .union([
+            z.object({ event: kickoffEventSchema.exactOptional() }),
+            z.undefined(),
+          ])
+          .parse(
+            result.events.find(
+              (event) => event.name === GameEventNames.KickoffResult
+            )?.data
+          );
         expect(kickoff?.event).toBe(outcome.name.replace(/^\d+ — /, ""));
 
-        if (
-          kickoff?.event &&
-          INTERACTIVE_KICKOFF_EVENTS.has(kickoff.event)
-        ) {
+        if (kickoff?.event && INTERACTIVE_KICKOFF_EVENTS.has(kickoff.event)) {
           expect(result.decisions).toContainEqual(
             expect.objectContaining({
               type: "kickoff-event",
@@ -60,14 +70,14 @@ describe("kickoff-table sandbox catalog", () => {
 
   it("makes the two Time-Out branches directly testable", async () => {
     const standard = await runRuleConfig(
-      KICKOFF_SCENARIOS[0],
+      fixtureValue(KICKOFF_SCENARIOS[0]),
       KICKOFF_EXAMPLE_SEEDS[KickoffEvent.TIME_OUT]
     );
     expect(standard.game.ctx.gameService.getTurnNumber("team1")).toBe(3);
     expect(standard.game.ctx.gameService.getTurnNumber("team2")).toBe(4);
 
     const lateHalf = await runRuleConfig(
-      KICKOFF_SCENARIOS[1],
+      fixtureValue(KICKOFF_SCENARIOS[1]),
       KICKOFF_EXAMPLE_SEEDS[KickoffEvent.TIME_OUT]
     );
     expect(lateHalf.game.ctx.gameService.getTurnNumber("team1")).toBe(4);

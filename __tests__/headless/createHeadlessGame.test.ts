@@ -1,9 +1,12 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
 import { SCENARIOS } from "../../src/data/scenarios";
 import { GamePhase } from "../../src/types/GameState";
 
-const scrimmage = SCENARIOS.find((s) => s.id === "basic-scrimmage")!;
+const scrimmage = fixtureValue(
+  SCENARIOS.find((s) => s.id === "basic-scrimmage")
+);
 
 describe("createHeadlessGame", () => {
   it("creates a game in Node without Phaser or DOM", () => {
@@ -19,9 +22,9 @@ describe("createHeadlessGame", () => {
     expect(state.phase).toBe(scrimmage.setup.phase);
     expect(state.ballPosition).toEqual(scrimmage.setup.ballPosition);
     const placed = game.team1.players[0];
-    expect(placed.gridPosition).toEqual({
-      x: scrimmage.setup.team1Placements[0].x,
-      y: scrimmage.setup.team1Placements[0].y,
+    expect(fixtureValue(placed).gridPosition).toEqual({
+      x: fixtureValue(scrimmage.setup.team1Placements[0]).x,
+      y: fixtureValue(scrimmage.setup.team1Placements[0]).y,
     });
   });
 
@@ -37,7 +40,6 @@ describe("createHeadlessGame", () => {
     const a = createHeadlessGame({ scenario: scrimmage, seed: 7 });
     const b = createHeadlessGame({ scenario: scrimmage, seed: 7 });
 
-    // Mutate game A only
     a.gameService.setBallPosition(0, 0);
     const playerA = a.team1.players[0];
     a.gameService.getState().score[a.team1.id] = 3;
@@ -46,7 +48,7 @@ describe("createHeadlessGame", () => {
       scrimmage.setup.ballPosition
     );
     expect(b.gameService.getState().score[b.team1.id]).toBe(0);
-    // Teams are distinct objects (factory-generated per game)
+
     expect(playerA).not.toBe(b.team1.players[0]);
   });
 
@@ -65,9 +67,11 @@ describe("createHeadlessGame", () => {
       const results: boolean[] = [];
       for (let i = 0; i < 10; i++) {
         const player = game.team1.players[0];
-        const ball = game.gameService.getState().ballPosition!;
-        results.push(game.gameService.attemptPickup(player, ball));
-        // Reset ball so each attempt is comparable
+        const ball = fixtureValue(game.gameService.getState().ballPosition);
+        results.push(
+          game.gameService.attemptPickup(fixtureValue(player), ball)
+        );
+
         game.gameService.setBallPosition(ball.x, ball.y);
       }
       return results;

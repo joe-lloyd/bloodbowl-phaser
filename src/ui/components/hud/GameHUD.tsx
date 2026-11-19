@@ -1,7 +1,7 @@
 import { PushChoicePrompt } from "./PushChoicePrompt";
 import { BiteTargetPrompt } from "./BiteTargetPrompt";
 import React, { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { TurnCatchUpCard } from "./TurnCatchUpCard";
@@ -48,20 +48,34 @@ import { SoundToggle } from "./SoundToggle";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { MatchResultsScreen } from "./MatchResultsScreen";
 import { useNavigate } from "react-router-dom";
-import { CompetitionContext } from "../../../competition/types";
+import { type CompetitionContext } from "../../../competition/types";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { KickoffEventOverlay } from "./KickoffEventOverlay";
 import { MatchOptionsMenu } from "./MatchOptionsMenu";
 import {
   computeMatchOptionsMenu,
-  MatchOptionsMenuActionId,
-  MatchOptionsMenuContext,
-  MatchOptionsMenuEntry,
+  type MatchOptionsMenuActionId,
+  type MatchOptionsMenuContext,
+  type MatchOptionsMenuEntry,
 } from "./computeMatchOptionsMenu";
 import type { ConnectionState } from "../../../firebase/lobby";
 
-/** Online-only entries/state, supplied by OnlinePlayPage (GamePage forwards
- *  it through untouched — GameHUD has no lobby access of its own). */
+const DECISION_DOCK = {
+  OtherCoachPrompt,
+  BlockDiceDialog,
+  PushChoicePrompt,
+  FollowUpDialog,
+  RerollDialog,
+  ReactionDialog,
+  SentOffCard,
+  FoulAssistsDialog,
+  BiteTargetPrompt,
+  ApothecaryDialog,
+  InducementChoiceDialog,
+  InterceptionDialog,
+  ConfirmationModal,
+};
+
 export interface OnlineMatchMenuProps {
   role: "host" | "guest";
   opponentName: string;
@@ -78,7 +92,7 @@ interface GameHUDProps {
   eventBus: EventBus;
   mode?: "normal" | "sandbox";
   onlineMenu?: OnlineMatchMenuProps;
-  /** Where the results screen's Leave goes. */
+
   leaveTo?: string;
   fixtureContext?: CompetitionContext;
 }
@@ -104,7 +118,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 }) => {
   const navigate = useNavigate();
   const phone = useMediaQuery(PHONE_QUERY);
-  /** On a phone, the dice log or the sandbox panel, opened from its button. */
+
   const [drawer, setDrawer] = useState<"log" | "sandbox" | null>(null);
   const [turnData, setTurnData] = useState<TurnData>({
     turnNumber: null,
@@ -160,18 +174,15 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     initHUD();
   }, []);
 
-  // Phase change listener
   useEventBus(eventBus, GameEventNames.PhaseChanged, (data) => {
     setTurnData((prev) => ({ ...prev, phase: data.phase }));
   });
 
-  // Turn started listener; a restored state (online resync) carries its own turn
   const showTurn = (turn: { teamId: string; turnNumber: number }) => {
     const container = ServiceContainer.getInstance();
     const activeTeam = container.gameService.getTeam(turn.teamId);
 
     if (activeTeam) {
-      // Fetch fresh state to get reset flags
       const state = container.gameService.getState();
       setTurnData({
         turnNumber: turn.turnNumber,
@@ -187,11 +198,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     }
   };
   useEventBus(eventBus, GameEventNames.TurnStarted, showTurn);
-  useEventBus(eventBus, GameEventNames.GameStateRestored, (state) =>
-    showTurn(state.turn)
-  );
+  useEventBus(eventBus, GameEventNames.GameStateRestored, (state) => {
+    showTurn(state.turn);
+  });
 
-  // Turn Data Updated listener (from PlayerActionManager)
   useEventBus(eventBus, GameEventNames.TurnDataUpdated, (updatedTurn) => {
     setTurnData((prev) => ({
       ...prev,
@@ -202,7 +212,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     }));
   });
 
-  // Kickoff started listener
   useEventBus(eventBus, GameEventNames.KickoffStarted, () => {
     setTurnData((prev) => ({
       ...prev,
@@ -211,16 +220,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   });
 
   const handleEndTurn = () => {
-    // Online: only the active coach may end their turn
     if (getActiveOnlineMatch()?.mayAct() === false) return;
     const container = ServiceContainer.getInstance();
     container.gameService.endTurn();
   };
 
-  // Context-derived menu: recomputed every render so enabled state (e.g. an
-  // opponent reconnecting, or an end-match request landing) always reflects
-  // the live match/connection state rather than a stale snapshot taken when
-  // the menu was opened.
   const menuContext: MatchOptionsMenuContext =
     mode === "sandbox"
       ? { kind: "sandbox" }
@@ -237,20 +241,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             matchOver: turnData.phase === GamePhase.GAME_OVER,
           };
 
-  // The mute/volume control used to be its own floating top-right popup
-  // (SoundToggle), sharing a corner with SandboxOverlay/TurnIndicator. It's
-  // now a "panel" entry appended to every context's menu — sound settings
-  // apply regardless of sandbox/local/online, so it isn't context-derived
-  // like the rest of computeMatchOptionsMenu's entries.
   const menuEntries: MatchOptionsMenuEntry[] = [
     ...computeMatchOptionsMenu(menuContext),
     { type: "panel", id: "sound-settings", render: () => <SoundToggle /> },
     { type: "panel", id: "keys", render: () => <KeyList /> },
   ];
 
-  // A failure here must never strand the coach mid-match with their state
-  // silently discarded (e.g. a save cleared but the navigate away throwing) —
-  // report it and leave them exactly where they were, free to retry.
   const reportMenuActionFailed = (error: unknown) => {
     console.error("[MatchOptionsMenu] action failed:", error);
     eventBus.emit(
@@ -263,8 +259,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     "exit-sandbox": () => navigate("/"),
     "return-to-menu": () => navigate("/"),
     "abandon-match": () => {
-      // Navigate first: if leaving the page fails for any reason, the
-      // save is still intact and the match still resumable.
       navigate("/");
       clearMatchSave();
     },
@@ -286,50 +280,36 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     }
   };
 
-  // The decision dialogs (block dice, re-rolls, pushes), one at a time,
-  // in the place of the action menu while one is open
   const decisionDock = (
     <div
       data-testid="decision-dock"
       className="w-full max-h-[calc(100dvh-3rem)] overflow-y-auto hud-scroll empty:hidden [&>[data-decision-dialog]:not(:last-child)]:hidden"
     >
-      <OtherCoachPrompt eventBus={eventBus} />
-      <BlockDiceDialog eventBus={eventBus} />
-      <PushChoicePrompt eventBus={eventBus} />
-      <FollowUpDialog eventBus={eventBus} />
-      <RerollDialog eventBus={eventBus} />
-      <ReactionDialog eventBus={eventBus} />
-      <SentOffCard eventBus={eventBus} />
-      <FoulAssistsDialog eventBus={eventBus} />
-      <BiteTargetPrompt eventBus={eventBus} />
-      <ApothecaryDialog eventBus={eventBus} />
-      <InducementChoiceDialog eventBus={eventBus} />
-      <InterceptionDialog eventBus={eventBus} />
-      <ConfirmationModal eventBus={eventBus} />
+      {Object.entries(DECISION_DOCK).map(([name, Dialog]) => (
+        <Dialog key={name} eventBus={eventBus} />
+      ))}
     </div>
   );
 
-  // Takeovers over the whole match, the same in either layout
   const takeovers = (
     <>
       <DiceTray eventBus={eventBus} />
       <RollBanner eventBus={eventBus} />
 
-      {/* Full-screen overlays */}
       <WeatherOverlay eventBus={eventBus} />
       <KickoffTableDialog eventBus={eventBus} />
       <CoinFlipOverlay eventBus={eventBus} />
-      {/* A hover read-out; a phone has no hover, and aims in its plan bar */}
+
       {!phone && <TargetRollPreview eventBus={eventBus} />}
       <TurnoverOverlay eventBus={eventBus} />
       <MatchResultsScreen
         visible={turnData.phase === GamePhase.GAME_OVER}
-        leaveTo={leaveTo}
-        fixtureContext={fixtureContext}
+        {...(leaveTo === undefined ? {} : { leaveTo: leaveTo })}
+        {...(fixtureContext === undefined
+          ? {}
+          : { fixtureContext: fixtureContext })}
       />
 
-      {/* Structural-transition announcer: turn started, round passed,
-          halftime, full time — a single centred takeover, not a feed. */}
       <Announcer eventBus={eventBus} showHalftime={false} />
     </>
   );
@@ -338,14 +318,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     "hud-slab flex h-11 items-center px-3 font-hud-label text-hud-sm font-bold uppercase tracking-[0.08em] text-hud-bone aria-expanded:border-hud-gold aria-expanded:text-hud-gold";
 
   if (phone) {
-    // Thumb rails: actions and End Turn under the right thumb, the selected
-    // player under the left, the score in one strip across the top
     return (
       <HUDLayout
         phone
         topLeft={
           <>
-            {/* Mounted while shut, so the log keeps every roll */}
             <div
               className={
                 drawer === "log"
@@ -393,7 +370,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         }
         overlays={
           <>
-            {/* The top bar: menu and log, the score, then the corner tools */}
             <div
               className="absolute z-50 flex gap-2 pointer-events-auto"
               style={{
@@ -411,7 +387,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 type="button"
                 data-testid="dice-log-toggle"
                 aria-expanded={drawer === "log"}
-                onClick={() => setDrawer(drawer === "log" ? null : "log")}
+                onClick={() => {
+                  setDrawer(drawer === "log" ? null : "log");
+                }}
                 className={phoneBarButton}
               >
                 Log
@@ -444,9 +422,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   type="button"
                   data-testid="sandbox-toggle"
                   aria-expanded={drawer === "sandbox"}
-                  onClick={() =>
-                    setDrawer(drawer === "sandbox" ? null : "sandbox")
-                  }
+                  onClick={() => {
+                    setDrawer(drawer === "sandbox" ? null : "sandbox");
+                  }}
                   className={phoneBarButton}
                 >
                   Scenario
@@ -524,7 +502,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       }
       overlays={
         <>
-          {/* Score bug with the turn tab under it - Top Center */}
           <div
             className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center"
             data-hud-panels=""

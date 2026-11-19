@@ -4,18 +4,14 @@ import { GameEventNames, type GameEvents } from "../types/events";
 import { PlayerStatus } from "../types/Player";
 import { PassController } from "../game/controllers/PassController";
 
-/**
- * The match camera follows the game: see CameraController. Every
- * subscription goes through the scene, so its shutdown removes them.
- */
 export function followMatchWithCamera(scene: GameScene): void {
-  const subscribe = scene["subscribe"].bind(scene);
-  const camera = () => scene["cameraController"];
-  const gameService = () => scene["gameService"];
+  const subscribe = scene.subscribe.bind(scene);
+  const camera = () => scene.cameraController;
+  const gameService = () => scene.gameService;
 
   let choosingInterceptor = false;
   let nextPlayerChoice:
-    | GameEvents[GameEventNames.Camera_ChooseNextPlayer]
+    | GameEvents[typeof GameEventNames.Camera_ChooseNextPlayer]
     | null = null;
   const frameNextChoice = () => {
     const intent = nextPlayerChoice;
@@ -28,7 +24,7 @@ export function followMatchWithCamera(scene: GameScene): void {
       nextPlayerChoice = null;
       return;
     }
-    // Computer and online commands finish after their UI handler returns.
+
     if (
       state.activePlayer ||
       !state.turn.activatedPlayerIds.has(intent.playerId)
@@ -59,8 +55,8 @@ export function followMatchWithCamera(scene: GameScene): void {
   subscribe(GameEventNames.Camera_TrackBall, ({ playerId }) => {
     if (choosingInterceptor) return;
     const target = playerId
-      ? scene["playerSprites"].get(playerId)
-      : scene["ballSprite"];
+      ? scene.playerSprites.get(playerId)
+      : scene.ballSprite;
     if (target) camera().follow(target);
   });
   subscribe(GameEventNames.Camera_Reset, (data) => {
@@ -71,7 +67,7 @@ export function followMatchWithCamera(scene: GameScene): void {
     if (!player?.gridPosition || scene.isSetupActive || choosingInterceptor)
       return;
     camera().release();
-    // The kicker aims anywhere in the other half: keep it all in view
+
     if (gameService().getPhase() === GamePhase.KICKOFF) {
       camera().overview();
       return;
@@ -83,13 +79,11 @@ export function followMatchWithCamera(scene: GameScene): void {
     frameReach(scene, playerId, to, 900);
   });
   subscribe(GameEventNames.PhaseChanged, ({ phase }) => {
-    // Setup wants both benches in view for dragging players on.
     if (phase === GamePhase.SETUP) camera().reset();
   });
-  // A loaded scenario or a resumed match shows the whole board first; the
-  // turn start that follows the restore keeps the overview
+
   let restored = false;
-  // A resumed scene may have restored before these subscriptions were installed.
+
   let previousTeamId = gameService().getState().activeTeamId;
   subscribe(GameEventNames.GameStateRestored, (state) => {
     restored = true;
@@ -114,8 +108,7 @@ export function followMatchWithCamera(scene: GameScene): void {
     else if (next.length) camera().fitSquares(next, 650);
     else camera().overview();
   });
-  // Aiming a pass: the thrower and every team-mate in range, so the
-  // receiver is on screen to click
+
   let aimingPass = false;
   subscribe(GameEventNames.UI_UpdateActionSteps, ({ currentStepId }) => {
     const aiming = currentStepId === "pass";
@@ -135,7 +128,7 @@ export function followMatchWithCamera(scene: GameScene): void {
       );
     camera().focusSquares([from, ...receivers]);
   });
-  // Only an explicit UI completion asks the coach to choose another player.
+
   subscribe(GameEventNames.Camera_ChooseNextPlayer, (intent) => {
     if (choosingInterceptor) return;
     camera().release();
@@ -151,7 +144,7 @@ export function followMatchWithCamera(scene: GameScene): void {
 }
 
 function teamSquares(scene: GameScene, teamId?: string, eligibleOnly = false) {
-  const state = scene["gameService"].getState();
+  const state = scene.gameService.getState();
   return [...scene.team1.players, ...scene.team2.players].flatMap((p) => {
     const square = p.gridPosition;
     return square &&
@@ -169,17 +162,12 @@ function teamSquares(scene: GameScene, teamId?: string, eligibleOnly = false) {
   });
 }
 
-/**
- * Frame a player with every square they can still move to, so the coach
- * can click where they want to end up. Anyone who cannot move (an
- * opponent, a spent player) just gets their own square.
- */
 function frameReach(
   scene: GameScene,
   playerId: string,
   from: { x: number; y: number },
   duration?: number
 ): void {
-  const reach = scene["gameService"].getAvailableMovements(playerId);
-  scene["cameraController"].focusSquares([from, ...reach], duration);
+  const reach = scene.gameService.getAvailableMovements(playerId);
+  scene.cameraController.focusSquares([from, ...reach], duration);
 }

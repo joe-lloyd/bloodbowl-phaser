@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -6,11 +8,6 @@ import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { forceDice } from "../utils/test-helpers";
 
-/**
- * A Foul decides Dirty Player's +1 before it waits on the broken armour,
- * and keeps that decision through the wait. Taking the skill away while
- * the Foul is suspended there must not take the +1 off the Injury Roll.
- */
 describe("a Foul's Dirty Player across the armour-broken wait", () => {
   it("keeps the +1 it decided on before the wait", async () => {
     const game = new HeadlessGame({
@@ -41,14 +38,13 @@ describe("a Foul's Dirty Player across the armour-broken wait", () => {
     });
     const fouler = game.ctx.team1.players[0];
     vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(1);
-    // Armour 5+6 breaks AV 9 on its own, so Dirty Player waits for Injury:
-    // 3+4 is Stunned, 3+4+1 is Knocked Out.
+
     forceDice(game.ctx.rng, [5, 6, 3, 4]);
     const context = game.ctx.gameService.flowManager.context;
     const delay = context.delay;
     context.delay = (ms) => {
       if (ms === 800) {
-        fouler.skills = fouler.skills.filter(
+        fixtureValue(fouler).skills = fixtureValue(fouler).skills.filter(
           (skill) => skill.type !== SkillType.DIRTY_PLAYER
         );
       }
@@ -57,22 +53,27 @@ describe("a Foul's Dirty Player across the armour-broken wait", () => {
 
     await game.execute({
       type: "declare-action",
-      playerId: fouler.id,
+      playerId: fixtureValue(fouler).id,
       action: "foul",
     });
     const response = await game.execute({
       type: "foul",
-      playerId: fouler.id,
+      playerId: fixtureValue(fouler).id,
       x: 11,
       y: 5,
     });
 
     const told = response.events.flatMap(({ name, data }) => {
       if (name === GameEventNames.SkillTriggered)
-        return [`skill: ${(data as { effect: string }).effect}`];
+        return [
+          `skill: ${z.object({ effect: z.string() }).parse(data).effect}`,
+        ];
       if (name === GameEventNames.DiceRoll)
-        return [`dice: ${(data as { description: string }).description}`];
-      if (name === GameEventNames.UI_Notification) return [`note: ${data}`];
+        return [
+          `dice: ${z.object({ description: z.string() }).parse(data).description}`,
+        ];
+      if (name === GameEventNames.UI_Notification)
+        return [`note: ${String(data)}`];
       return [];
     });
     expect(told).toEqual([

@@ -1,9 +1,6 @@
-/**
- * Playing a competition fixture from its page: the match is a league or
- * tournament game, so it awards SPP and development to both teams.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -11,7 +8,10 @@ import {
   generateRoundRobin,
 } from "../../src/competition/logic";
 import { saveCompetition } from "../../src/competition/repository";
-import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
+import {
+  type CompetitionEntrant,
+  type LeagueDoc,
+} from "../../src/competition/types";
 import { saveTeams } from "../../src/game/managers/TeamManager";
 import { CompetitionView } from "../../src/ui/components/pages/CompetitionView";
 import { TeamBuilder } from "../utils/test-builders";
@@ -21,14 +21,13 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-/** Stands in for the match page: shows what it was launched with. */
 function LaunchedMatch() {
   const state = useLocation().state as Record<string, unknown>;
   return (
     <output data-testid="launched">
       {JSON.stringify({
-        progressionEnabled: state.progressionEnabled,
-        competitionContext: state.competitionContext,
+        progressionEnabled: state["progressionEnabled"],
+        competitionContext: state["competitionContext"],
       })}
     </output>
   );
@@ -46,7 +45,9 @@ describe("launching a competition fixture", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -96,19 +97,21 @@ describe("launching a competition fixture", () => {
           </MemoryRouter>
         );
       });
-      const play = [...container.querySelectorAll("button")].find(
+      const play = fixtureValue([...container.querySelectorAll("button")].find(
         (button) => button.textContent === "Play local"
-      )!;
-      await act(async () => play.click());
+      ));
+      await act(async () => {
+        play.click();
+      });
 
       const launched = container.querySelector('[data-testid="launched"]');
-      expect(JSON.parse(launched!.textContent!)).toEqual({
+      expect(JSON.parse(fixtureValue(launched).textContent)).toEqual({
         progressionEnabled: true,
         competitionContext: {
           ruleset,
           competitionType: "league",
           competitionId: "season-1",
-          fixtureId: fixtures[0].id,
+          fixtureId: fixtureValue(fixtures[0]).id,
         },
       });
     }

@@ -1,31 +1,29 @@
-/**
- * Who fouls, and what comes of it. Replays saved commands and, for every
- * Foul, records the fouler's roster, position, cost and Sneaky Git, whether
- * the referee sent it off, and how the target ended the activation.
- */
-import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
-import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import { snapshotHash } from "../../../src/simulation/runMatch";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
 import type { Player } from "../../../src/types/Player";
 import { hasSkill, SkillType } from "../../../src/types/Skills";
 import { isBigGuy } from "../../../src/game/rules/rosterLegality";
-import { processPool } from "../policy-study/pool";
-import type { PolicyJob } from "../policy-study/schedule";
+import { openTrace } from "../catalogue-study/replay";
+import {
+  annotateRun,
+  annotationFiles,
+  isEntry,
+  replaySteps,
+  verifiedHash,
+} from "./lab";
+
+const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
 
 interface Tally {
   fouls: number;
   sentOff: number;
-  /** Fouls that left the target KO, Injured or Dead. */
+
   removed: number;
   casualties: number;
-  /** Fouls that left the target Stunned, and no worse. */
+
   stunned: number;
 }
 
@@ -44,23 +42,18 @@ interface Foul {
   sentOff: boolean;
 }
 
-/** The fouler's group: roster, position, and what sets it apart. */
 function groupOf(roster: string, p: Player): string {
   const marks = [
     isBigGuy(p.keywords ?? []) ? "big guy" : "",
     hasSkill(p.skills, SkillType.SNEAKY_GIT) ? "Sneaky Git" : "",
   ].filter(Boolean);
   const cost = Math.round(p.cost / 1000);
-  return `${roster} / ${p.positionName} (${cost}k${marks.map((m) => ", " + m).join("")})`;
+  return `${roster} / ${p.positionName} (${String(cost)}k${marks.map((m) => ", " + m).join("")})`;
 }
 
-export async function foulsOfTrace(file: string) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
-  const teams = [game.ctx.team1, game.ctx.team2];
+async function foulsOfTrace(file: string) {
+  const { recording, game } = openTrace(file);
+  const teams = [game.ctx.team1, game.ctx.team2] as const;
   const byGroup: [Record<string, Tally>, Record<string, Tally>] = [{}, {}];
   let open: Foul | null = null;
 
@@ -88,35 +81,36 @@ export async function foulsOfTrace(file: string) {
   });
   game.ctx.eventBus.on(GameEventNames.TurnStarted, settle);
 
-  for (const [index, step] of trace.recording.steps.entries()) {
-    const command = step.command;
-    if (command.type === "declare-action") settle();
-    if (command.type === "foul" && step.ok) {
-      settle();
-      const side = teams.findIndex((t) =>
-        t.players.some((p) => p.id === command.playerId)
-      ) as 0 | 1;
-      const fouler = teams[side].players.find(
-        (p) => p.id === command.playerId
-      )!;
-      const target = teams[1 - side].players.find(
-        (p) =>
-          p.gridPosition?.x === command.x && p.gridPosition?.y === command.y
-      );
-      if (target)
-        open = {
-          side,
-          key: groupOf(teams[side].rosterName, fouler),
-          target,
-          sentOff: false,
-        };
-    }
-    const response = await game.execute(command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
-  }
+  await replaySteps({
+    game,
+    recording,
+    before: (step) => {
+      const command = step.command;
+      if (command.type === "declare-action") settle();
+      if (command.type === "foul" && step.ok) {
+        settle();
+        const side = teams.findIndex((t) =>
+          t.players.some((p) => p.id === command.playerId)
+        ) as 0 | 1;
+        const fouler = teams[side].players.find(
+          (p) => p.id === command.playerId
+        )!;
+        const target = teams[otherSide(side)].players.find(
+          (p) =>
+            p.gridPosition?.x === command.x && p.gridPosition?.y === command.y
+        );
+        if (target)
+          open = {
+            side,
+            key: groupOf(teams[side].rosterName, fouler),
+            target,
+            sentOff: false,
+          };
+      }
+    },
+  });
   settle();
-  if (snapshotHash(game.snapshot()) !== trace.recording.final.hash)
-    throw new Error("Foul replay final hash differs");
+  verifiedHash(game, recording, "Foul");
   return { byGroup };
 }
 
@@ -126,43 +120,19 @@ type GameFouls = Awaited<ReturnType<typeof foulsOfTrace>> & {
 };
 
 async function main() {
-  const entry = fileURLToPath(import.meta.url);
-  const run = resolve(process.argv[2]);
-  const out = join(run, "fouls");
-  mkdirSync(out, { recursive: true });
-  if (process.argv.includes("--worker")) {
-    process.on("message", async (job: PolicyJob | null) => {
-      if (!job) {
-        process.disconnect();
-        return;
-      }
-      try {
-        const result = await foulsOfTrace(
-          join(run, "traces", job.id + ".json.gz")
-        );
-        writeFileSync(
-          join(out, job.id + ".json"),
-          JSON.stringify({
-            id: job.id,
-            candidateSide: job.candidateSide,
-            ...result,
-          })
-        );
-        process.send?.({ done: job.id });
-      } catch (error) {
-        process.send?.({ error: `${job.id}: ${error}` });
-      }
-    });
-    process.send?.({ ready: true });
-    return;
-  }
-  const manifest = JSON.parse(
-    readFileSync(join(run, "manifest.json"), "utf8")
-  ) as { jobs: PolicyJob[]; revision: string };
-  await processPool(entry, [run], manifest.jobs, 8);
-  const files = readdirSync(out).filter((name) => name.endsWith(".json"));
-  if (files.length !== manifest.jobs.length)
-    throw new Error("Incomplete or foreign foul files");
+  const lab = await annotateRun({
+    entry: fileURLToPath(import.meta.url),
+    folder: "fouls",
+    workers: 8,
+    annotate: async (file, job) => ({
+      id: job.id,
+      candidateSide: job.candidateSide,
+      ...(await foulsOfTrace(file)),
+    }),
+  });
+  if (!lab) return;
+  const { run, out, manifest } = lab;
+  const files = annotationFiles(out, manifest.jobs.length, "foul");
   const policies: Record<"candidate" | "frozen", Record<string, Tally>> = {
     candidate: {},
     frozen: {},
@@ -191,8 +161,4 @@ async function main() {
   );
   console.log(JSON.stringify({ games: receipt.games }));
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

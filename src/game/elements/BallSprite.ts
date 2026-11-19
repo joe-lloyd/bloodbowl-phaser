@@ -3,27 +3,18 @@ import { ISO } from "./GridUtils";
 import { PLAYER_DEPTH } from "./PlayerSprite";
 import { BallTrail } from "./BallTrail";
 
-/** Height of a carried ball: in the carrier's hands. */
 export const CARRIED_HEIGHT = 1.0;
 
-/**
- * BallSprite: the ball, as a ground position plus a height.
- *
- * The container sits on the ground under the ball, so its depth sorts with
- * the players around it. Inside it a shadow stays on the turf while the ball
- * itself rises by `height` metres, which is what makes kicks and passes read
- * as flight on an isometric pitch.
- */
 export class BallSprite extends Phaser.GameObjects.Container {
   private ball: Phaser.GameObjects.Container;
   private shadow: Phaser.GameObjects.Ellipse;
   private heightM = 0;
-  /** The flight in progress, so a new flight or a placement can end it. */
+
   private flight: { tween: Phaser.Tweens.Tween; settle: () => void } | null =
     null;
-  /** The last flight's arrival, so the board can tell when it has landed. */
+
   private landing: Promise<void> = Promise.resolve();
-  /** Recent flight marks, each with its own fade timer. */
+
   private trail: BallTrail;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -55,23 +46,17 @@ export class BallSprite extends Phaser.GameObjects.Container {
     return this.heightM;
   }
 
-  /** Lift the ball off the ground by this many metres. */
   public setHeight(metres: number): this {
     this.heightM = Math.max(0, metres);
     this.ball.y = this.heightM * ISO.upPerMetre - 4;
     const spread = 1 / (1 + this.heightM * 0.08);
     this.shadow.setScale(spread);
     this.shadow.setAlpha(0.45 * spread);
-    // In the air it draws over everything; on the ground it sorts by y.
+
     this.setDepth(PLAYER_DEPTH + this.y + (this.heightM > 2.5 ? 5000 : 1));
     return this;
   }
 
-  /**
-   * Fly to a world point along an arc. Height eases from where it is now to
-   * `endHeight`, plus a parabola that peaks `apex` metres above that line at
-   * the middle of the flight. Resolves on arrival.
-   */
   public flyTo(
     to: { x: number; y: number },
     opts: { duration: number; apex: number; endHeight?: number; ease?: string }
@@ -110,18 +95,10 @@ export class BallSprite extends Phaser.GameObjects.Container {
     }));
   }
 
-  /** Resolves once the ball has landed from any flight under way. */
   public arrived(): Promise<void> {
     return this.landing;
   }
 
-  /**
-   * End the flight in progress where it is. The counter tween drives this
-   * container from outside, so killTweensOf(ball) never reached it: an old
-   * flight kept moving the ball after the engine had put it somewhere else,
-   * which left a thrown-in ball drawn on the square it went out from.
-   * Whoever awaited the flight still gets their answer.
-   */
   public stopFlight(): void {
     const flight = this.flight;
     if (!flight) return;
@@ -131,7 +108,6 @@ export class BallSprite extends Phaser.GameObjects.Container {
     flight.settle();
   }
 
-  /** A short hop on landing. */
   public bounce(): Promise<void> {
     return this.flyTo({ x: this.x, y: this.y }, { duration: 260, apex: 0.5 });
   }

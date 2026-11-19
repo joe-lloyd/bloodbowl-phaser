@@ -1,11 +1,5 @@
-/**
- * The waiting coach's banner names whose turn or decision the game waits
- * on. It gives way to a match moment, such as a touchdown or the kick-off
- * result, so the moment can be read, and it never names a turn during a
- * touchdown or half time.
- */
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
@@ -28,18 +22,20 @@ beforeEach(async () => {
   vi.useFakeTimers();
   const game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize(bus, game.ctx.team1, game.ctx.team2);
+  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
   ServiceContainer.getInstance().gameService.getState().phase = GamePhase.PLAY;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  await act(async () =>
-    root.render(<WaitingBanner match={waitingMatch} eventBus={bus} />)
-  );
+  await act(async () => {
+    root.render(<WaitingBanner match={waitingMatch} eventBus={bus} />);
+  });
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   ServiceContainer.reset();
   vi.useRealTimers();
@@ -54,17 +50,19 @@ it("names the other coach's turn while they play", () => {
 });
 
 it("gives way while a moment is on screen, then comes back", async () => {
-  await act(async () =>
+  await act(async () => {
     bus.emit(GameEventNames.UI_PresentMoment, {
       kind: "kickoff-result",
       headline: "Time-out",
       subtitle: "Both turn markers move",
-    })
-  );
+    });
+  });
   expect(banner()).toBeNull();
   await act(async () => vi.advanceTimersByTime(1000));
   expect(banner()).toBeNull();
-  await act(async () => bus.emit(GameEventNames.UI_PresentMoment, null));
+  await act(async () => {
+    bus.emit(GameEventNames.UI_PresentMoment, null);
+  });
   expect(banner()).toBe("⏳ Coach-KWAZ's turn (Gouged Eye)…");
 });
 

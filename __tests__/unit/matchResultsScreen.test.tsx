@@ -1,7 +1,4 @@
-/**
- * The full-time screen's result, injuries and winnings.
- * The shared setup is in matchResultsScreenHarness.tsx.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -12,7 +9,7 @@ import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOpera
 import { GameFlowManager, noDelay } from "../../src/game/core/GameFlowManager";
 import { resultsHarness, setup } from "./matchResultsScreenHarness";
 
-const clearActiveMatchCode = vi.fn(() => Promise.resolve());
+const clearActiveMatchCode = vi.fn<[uid: string], Promise<void>>(() => Promise.resolve());
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/firebase/lobby")>()),
   clearActiveMatchCode: (uid: string) => clearActiveMatchCode(uid),
@@ -53,9 +50,9 @@ describe("MatchResultsScreen", () => {
     ).toBe(false);
     expect(h.container.textContent).toContain("This match does not award SPP");
 
-    const exitButton = [...h.container.querySelectorAll("button")].find((b) =>
+    const exitButton = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
       b.textContent?.includes("Continue to Main Menu")
-    )!;
+    ));
     expect(exitButton.disabled).toBe(false);
   });
 
@@ -66,33 +63,37 @@ describe("MatchResultsScreen", () => {
         <MatchResultsScreen visible={visible} />
       </MemoryRouter>
     );
-    await act(async () => h.root.render(screen(false)));
-    await act(async () => h.root.render(screen(true)));
+    await act(async () => {
+      h.root.render(screen(false));
+    });
+    await act(async () => {
+      h.root.render(screen(true));
+    });
     expect(h.container.textContent).toContain("Full Time");
   });
 
   it("lists injuries suffered by both teams, including players who never activated", async () => {
     const { team1, team2 } = setup(false);
-    team1.players[0].status = PlayerStatus.INJURED;
-    team1.players[0].injuries = [InjuryType.BADLY_HURT];
-    team1.players[1].status = PlayerStatus.INJURED;
-    team1.players[1].injuries = [InjuryType.MISS_NEXT_GAME];
-    team2.players[0].status = PlayerStatus.DEAD;
-    team2.players[0].injuries = [InjuryType.DEAD];
+    fixtureValue(team1.players[0]).status = PlayerStatus.INJURED;
+    fixtureValue(team1.players[0]).injuries = [InjuryType.BADLY_HURT];
+    fixtureValue(team1.players[1]).status = PlayerStatus.INJURED;
+    fixtureValue(team1.players[1]).injuries = [InjuryType.MISS_NEXT_GAME];
+    fixtureValue(team2.players[0]).status = PlayerStatus.DEAD;
+    fixtureValue(team2.players[0]).injuries = [InjuryType.DEAD];
     await h.render();
     const injuries = h.container.querySelector(
       '[data-testid="match-injuries-team-1"]'
     );
     expect(injuries?.textContent).toContain(
-      `${team1.players[0].playerName} #1: Badly hurt`
+      `${fixtureValue(team1.players[0]).playerName} #1: Badly hurt`
     );
     expect(injuries?.textContent).toContain(
-      `${team1.players[1].playerName} #2: Seriously hurt`
+      `${fixtureValue(team1.players[1]).playerName} #2: Seriously hurt`
     );
     expect(
       h.container.querySelector('[data-testid="match-injuries-team-2"]')
         ?.textContent
-    ).toContain(`${team2.players[0].playerName} #1: Dead`);
+    ).toContain(`${fixtureValue(team2.players[0]).playerName} #1: Dead`);
   });
 
   it.each(["dodge", "crowd"])(
@@ -100,8 +101,8 @@ describe("MatchResultsScreen", () => {
     async (cause) => {
       const { services, team1 } = setup(false);
       const player = team1.players[0];
-      player.skills = [];
-      player.stats.AV = 2;
+      fixtureValue(player).skills = [];
+      fixtureValue(player).stats.AV = 2;
       vi.spyOn(
         services.gameService.getDiceController(),
         "roll2D6"
@@ -113,18 +114,18 @@ describe("MatchResultsScreen", () => {
       });
       flow.add(
         cause === "dodge"
-          ? new ArmourOperation(player.id, undefined, {
+          ? new ArmourOperation(fixtureValue(player).id, undefined, {
               cause: "dodge",
               vacatedSquare: { x: 9, y: 5 },
             })
-          : new CrowdInjuryOperation(player.id, { x: 0, y: 5 }, false)
+          : new CrowdInjuryOperation(fixtureValue(player).id, { x: 0, y: 5 }, false)
       );
       await flow.whenIdle();
       await h.render();
       expect(
         h.container.querySelector('[data-testid="match-injuries-team-1"]')
           ?.textContent
-      ).toContain(`${player.playerName} #1: Badly hurt`);
+      ).toContain(`${fixtureValue(player).playerName} #1: Badly hurt`);
     }
   );
 

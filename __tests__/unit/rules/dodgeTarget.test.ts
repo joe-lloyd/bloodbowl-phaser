@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { dodgeTarget } from "../../../src/game/rules/rollPreview";
 import { planMoveLegs } from "../../../src/game/rules/moveLegs";
@@ -17,7 +18,7 @@ const markers = [
   { x: 7, y: 6 },
 ].map((gridPosition, i) =>
   createTestPlayer({
-    id: `marker-${i}`,
+    id: `marker-${String(i)}`,
     gridPosition,
     status: PlayerStatus.ACTIVE,
     skills: [],
@@ -55,7 +56,7 @@ describe("Dodge targets in a marked destination", () => {
   });
 
   it("does not count a Titchy marker's penalty but still requires a Dodge", () => {
-    const opponents = [{ ...markers[0], skills: [getSkill(SkillType.TITCHY)] }];
+    const opponents = [{ ...fixtureValue(markers[0]), skills: [getSkill(SkillType.TITCHY)] }];
     expect(
       planMoveLegs(from, [to], {
         player,
@@ -77,7 +78,7 @@ describe("Dodge targets in a marked destination", () => {
 
   it("ignores Prehensile Tail when it marks only the destination", () => {
     const opponent = {
-      ...markers[2],
+      ...fixtureValue(markers[2]),
       skills: [getSkill(SkillType.PREHENSILE_TAIL)],
     };
     expect(dodgeTarget(player, from, to, [opponent])).toBe(4);

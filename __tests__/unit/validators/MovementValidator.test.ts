@@ -1,8 +1,9 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach } from "vitest";
 import { MovementValidator } from "../../../src/game/validators/MovementValidator";
 import { PlayerBuilder } from "../../utils/test-builders";
 import { GameConfig } from "../../../src/config/GameConfig";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import { type Player, PlayerStatus } from "../../../src/types/Player";
 
 describe("MovementValidator", () => {
   let validator: MovementValidator;
@@ -12,7 +13,7 @@ describe("MovementValidator", () => {
 
   beforeEach(() => {
     validator = new MovementValidator();
-    // Create a standard human lineman (MA 6, AG 3) at 5,5
+
     player = new PlayerBuilder()
       .withId("p1")
       .withStats({ MA: 6, ST: 3, AG: 3, AV: 9, PA: 4 })
@@ -25,19 +26,17 @@ describe("MovementValidator", () => {
 
   describe("Basic Movement", () => {
     it("should validate a simple valid move within range", () => {
-      // Move 3 squares to the right: 5,5 -> 8,5
-      const result = validator.findPath(player, 8, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 8, targetY: 5, opponents: opponents, teammates: teammates });
 
       expect(result.valid).toBe(true);
       expect(result.path.length).toBe(3);
       expect(result.rolls).toHaveLength(0);
 
-      // Check destination
       expect(result.path[result.path.length - 1]).toEqual({ x: 8, y: 5 });
     });
 
     it("should invalidate move out of bounds", () => {
-      const result = validator.findPath(player, -1, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: -1, targetY: 5, opponents: opponents, teammates: teammates });
       expect(result.valid).toBe(false);
     });
 
@@ -49,14 +48,13 @@ describe("MovementValidator", () => {
         .build();
       opponents.push(opponent);
 
-      const result = validator.findPath(player, 6, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 6, targetY: 5, opponents: opponents, teammates: teammates });
       expect(result.valid).toBe(false);
     });
   });
 
   describe("Tackle Zones & Dodging", () => {
     it("should detect dodge requirement when leaving a tackle zone", () => {
-      // Opponent at 5,6 (below player at 5,5) exerts TZ on player
       const opponent = new PlayerBuilder()
         .withId("opp1")
         .withStatus(PlayerStatus.ACTIVE)
@@ -64,25 +62,23 @@ describe("MovementValidator", () => {
         .build();
       opponents.push(opponent);
 
-      // Move away to 5,4. Leaving TZ of opp1.
-      const result = validator.findPath(player, 5, 4, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 5, targetY: 4, opponents: opponents, teammates: teammates });
 
       expect(result.valid).toBe(true);
       expect(result.rolls).toHaveLength(1);
-      expect(result.rolls[0].type).toBe("dodge");
-      expect(result.rolls[0].target).toBe(3);
-      expect(result.rolls[0].modifiers).toBe(0);
-      expect(result.rolls[0].square).toEqual({ x: 5, y: 4 });
+      expect(fixtureValue(result.rolls[0]).type).toBe("dodge");
+      expect(fixtureValue(result.rolls[0]).target).toBe(3);
+      expect(fixtureValue(result.rolls[0]).modifiers).toBe(0);
+      expect(fixtureValue(result.rolls[0]).square).toEqual({ x: 5, y: 4 });
     });
 
     it("should calculate dodge modifiers correctly (dodging into a TZ)", () => {
-      // Opponent 1 at 5,6 (start TZ)
       const opp1 = new PlayerBuilder()
         .withId("o1")
         .withStatus(PlayerStatus.ACTIVE)
         .withGridPosition(5, 6)
         .build();
-      // Opponent 2 adjacent to destination. Destination 6,5.
+
       const opp2 = new PlayerBuilder()
         .withId("o2")
         .withStatus(PlayerStatus.ACTIVE)
@@ -91,18 +87,16 @@ describe("MovementValidator", () => {
 
       opponents = [opp1, opp2];
 
-      // Move 5,5 -> 6,5
-      const result = validator.findPath(player, 6, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 6, targetY: 5, opponents: opponents, teammates: teammates });
 
       expect(result.rolls).toHaveLength(1);
-      expect(result.rolls[0].type).toBe("dodge");
-      expect(result.rolls[0].modifiers).toBe(-2);
+      expect(fixtureValue(result.rolls[0]).type).toBe("dodge");
+      expect(fixtureValue(result.rolls[0]).modifiers).toBe(-2);
     });
   });
 
   describe("Pathfinding (A*)", () => {
     it("should path around an obstacle", () => {
-      // Obstacle at 6,5 (directly Right)
       const obstacle = new PlayerBuilder()
         .withId("obs")
         .withStatus(PlayerStatus.ACTIVE)
@@ -110,19 +104,16 @@ describe("MovementValidator", () => {
         .build();
       opponents.push(obstacle);
 
-      // Target 7,5 (Right of obstacle)
-      const result = validator.findPath(player, 7, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 7, targetY: 5, opponents: opponents, teammates: teammates });
 
       expect(result.valid).toBe(true);
       expect(result.path.length).toBeGreaterThan(0);
 
-      // Should not pass through 6,5
       const passedThroughObstacle = result.path.some(
         (p) => p.x === 6 && p.y === 5
       );
       expect(passedThroughObstacle).toBe(false);
 
-      // Destination check
       expect(result.path[result.path.length - 1]).toEqual({ x: 7, y: 5 });
     });
 
@@ -139,36 +130,35 @@ describe("MovementValidator", () => {
       ];
       opponents = coords.map((c, i) =>
         new PlayerBuilder()
-          .withId(`o${i}`)
+          .withId(`o${String(i)}`)
           .withStatus(PlayerStatus.ACTIVE)
           .withGridPosition(c.x, c.y)
           .build()
       );
 
-      const result = validator.findPath(player, 8, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 8, targetY: 5, opponents: opponents, teammates: teammates });
       expect(result.valid).toBe(false);
     });
   });
 
   describe("GFI (Go For It)", () => {
     it("should generate rush rolls when exceeding MA", () => {
-      const result = validator.findPath(player, 12, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 12, targetY: 5, opponents: opponents, teammates: teammates });
 
       expect(result.valid).toBe(true);
       expect(result.rolls).toHaveLength(1);
-      expect(result.rolls[0].type).toBe("rush");
-      expect(result.rolls[0].target).toBe(2);
+      expect(fixtureValue(result.rolls[0]).type).toBe("rush");
+      expect(fixtureValue(result.rolls[0]).target).toBe(2);
     });
 
     it("should invalidate move beyond MA + 2", () => {
-      const result = validator.findPath(player, 14, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 14, targetY: 5, opponents: opponents, teammates: teammates });
       expect(result.valid).toBe(false);
     });
   });
 
   describe("Reachable Squares", () => {
     it("should return all reachable squares within MA + 2", () => {
-      // Player at 5,5. MA 6. Max 8.
       const squares = validator.findReachableSquares(
         player,
         opponents,
@@ -177,21 +167,16 @@ describe("MovementValidator", () => {
 
       expect(squares.length).toBeGreaterThan(0);
 
-      // Should include 6,5 (1 step)
       expect(squares).toContainEqual({ x: 6, y: 5, cost: 1 });
 
-      // Should NO LONGER include 5,5 (start)
       expect(squares).not.toContainEqual({ x: 5, y: 5, cost: 0 });
 
-      // Should include max range: 5+8 = 13,5
       expect(squares).toContainEqual({ x: 13, y: 5, cost: 8 });
 
-      // Should NOT include out of range: 14,5
       expect(squares).not.toContainEqual({ x: 14, y: 5, cost: 9 });
     });
 
     it("should calculate reachable squares blocked by opponents", () => {
-      // Block path to right (6,5)
       const opponent = new PlayerBuilder()
         .withId("opp1")
         .withStatus(PlayerStatus.ACTIVE)
@@ -205,16 +190,12 @@ describe("MovementValidator", () => {
         teammates
       );
 
-      // 6,5 is occupied, so not reachable
       expect(squares).not.toContainEqual({ x: 6, y: 5, cost: 1 });
 
-      // 7,5 is reachable by going around
       expect(squares).toContainEqual({ x: 7, y: 5, cost: 2 });
     });
 
     it("reaches nothing from a square that is not on the grid", () => {
-      // A save or snapshot from elsewhere could hold one; the flood must
-      // stay bounded by the pitch rather than wander between fractions.
       const { PITCH_WIDTH: w, PITCH_HEIGHT: h } = GameConfig;
       for (const at of [
         { x: 5.5, y: 5 },
@@ -234,44 +215,37 @@ describe("MovementValidator", () => {
 
   describe("Tackle zone fallback pathing", () => {
     it("still finds a path when every route passes through tackle zones", () => {
-      // Wall of opponents across the pitch at x=7 with a single gap at y=5,
-      // whose flanks put tackle zones on the gap: any path to x=9 must
-      // enter a TZ. The safe-detour search alone would exhaust the step
-      // budget and return nothing.
       for (let y = 0; y <= 10; y++) {
         if (y === 5) continue;
         opponents.push(
           new PlayerBuilder()
-            .withId(`wall-${y}`)
+            .withId(`wall-${String(y)}`)
             .withStatus(PlayerStatus.ACTIVE)
             .withGridPosition(7, y)
             .build()
         );
       }
 
-      const result = validator.findPath(player, 9, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 9, targetY: 5, opponents: opponents, teammates: teammates });
 
       expect(result.valid).toBe(true);
       expect(result.path.length).toBeGreaterThan(0);
       expect(result.path[result.path.length - 1]).toEqual({ x: 9, y: 5 });
-      // The route necessarily crosses a tackle zone, so a dodge is rolled
+
       expect(result.rolls.some((r) => r.type === "dodge")).toBe(true);
     });
 
     it("takes the direct route when the detour would not fit the squares left", () => {
-      // Two opponents either side of the straight line: every square of it
-      // is Marked, and a Marking-free detour runs six squares or more.
       for (const y of [4, 6])
         opponents.push(
           new PlayerBuilder()
-            .withId(`flank-${y}`)
+            .withId(`flank-${String(y)}`)
             .withStatus(PlayerStatus.ACTIVE)
             .withGridPosition(7, y)
             .build()
         );
 
-      // MA 6 + 2 Rushes, with 5 squares spent: three are left
-      const result = validator.findPath(player, 8, 5, opponents, teammates, 5);
+      const result = validator.findPath({ player: player, targetX: 8, targetY: 5, opponents: opponents, teammates: teammates, movementUsed: 5 });
 
       expect(result.valid).toBe(true);
       expect(result.path).toHaveLength(3);
@@ -280,13 +254,11 @@ describe("MovementValidator", () => {
     });
 
     it("finds nothing past the squares left", () => {
-      const result = validator.findPath(player, 9, 5, opponents, teammates, 5);
+      const result = validator.findPath({ player: player, targetX: 9, targetY: 5, opponents: opponents, teammates: teammates, movementUsed: 5 });
       expect(result.valid).toBe(false);
     });
 
     it("prefers the tackle-zone-free route when one exists in range", () => {
-      // Single opponent adjacent to the straight line; a short detour avoids
-      // its tackle zone entirely
       opponents.push(
         new PlayerBuilder()
           .withId("lurker")
@@ -295,7 +267,7 @@ describe("MovementValidator", () => {
           .build()
       );
 
-      const result = validator.findPath(player, 9, 5, opponents, teammates);
+      const result = validator.findPath({ player: player, targetX: 9, targetY: 5, opponents: opponents, teammates: teammates });
 
       expect(result.valid).toBe(true);
       expect(result.rolls.filter((r) => r.type === "dodge")).toHaveLength(0);

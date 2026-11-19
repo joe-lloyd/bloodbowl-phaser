@@ -1,12 +1,15 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { SCENARIOS } from "../../src/data/scenarios";
 import { GameEventNames } from "../../src/types/events";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 
-const scrimmage = SCENARIOS.find((s) => s.id === "basic-scrimmage")!;
+const scrimmage = fixtureValue(
+  SCENARIOS.find((s) => s.id === "basic-scrimmage")
+);
 
 describe("HeadlessGame action protocol", () => {
   it("rejects malformed commands without touching state", async () => {
@@ -30,7 +33,7 @@ describe("HeadlessGame action protocol", () => {
   it("rejects squares and indexes that are not whole numbers", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 21 });
     const before = JSON.stringify(game.snapshot());
-    const playerId = game.ctx.team1.players[0].id;
+    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
 
     for (const command of [
       { type: "place-player", playerId, x: 2.5, y: 3 },
@@ -60,9 +63,9 @@ describe("HeadlessGame action protocol", () => {
     const legal = await game.execute({ type: "legal-actions" });
     expect(legal.ok).toBe(true);
     expect(legal.legalActions).toBeDefined();
-    expect(legal.legalActions!.players.length).toBeGreaterThan(0);
-    // Every enumerated player can at least move
-    for (const p of legal.legalActions!.players) {
+    expect(fixtureValue(legal.legalActions).players.length).toBeGreaterThan(0);
+
+    for (const p of fixtureValue(legal.legalActions).players) {
       expect(p.actions).toContain("move");
     }
   });
@@ -74,13 +77,13 @@ describe("HeadlessGame action protocol", () => {
       seed: 24,
     });
     const nominees = game.ctx.team1.players.slice(0, 6);
-    nominees.forEach((player, index) =>
+    nominees.forEach((player, index) => {
       game.ctx.eventBus.emit(GameEventNames.PlayerPlaced, {
         playerId: player.id,
         x: index,
         y: 1,
-      })
-    );
+      });
+    });
 
     const mvp = await game.execute({
       type: "award-mvp",
@@ -91,14 +94,15 @@ describe("HeadlessGame action protocol", () => {
     const mvpEvent = mvp.events.find(
       (event) => event.name === GameEventNames.MvpAwarded
     );
+    const expectedRoll: unknown = expect.any(Number);
     expect(mvpEvent?.data).toMatchObject({
       teamId: game.ctx.team1.id,
-      roll: expect.any(Number),
+      roll: expectedRoll,
     });
 
     const touchdown = await game.execute({
       type: "assign-awarded-touchdown",
-      playerId: nominees[0].id,
+      playerId: fixtureValue(nominees[0]).id,
     });
     expect(touchdown.ok).toBe(true);
     expect(
@@ -109,10 +113,9 @@ describe("HeadlessGame action protocol", () => {
 
     const summary = game.ctx.matchStats.summary(game.ctx.team1.players);
     const recipient = summary.players.find(
-      (entry) => entry.playerId === nominees[0].id
+      (entry) => entry.playerId === fixtureValue(nominees[0]).id
     );
-    // The awarded touchdown is an SPP-only bonus (a concession rule), never
-    // a real scoring event — it must not inflate the touchdown statistic.
+
     expect(recipient?.touchdowns).toBe(0);
     expect(recipient?.awardedTouchdownSpp).toBe(1);
     expect(
@@ -124,56 +127,69 @@ describe("HeadlessGame action protocol", () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 23 });
 
     const legal = await game.execute({ type: "legal-actions" });
-    const someone = legal.legalActions!.players[0];
+    const someone = fixtureValue(legal.legalActions).players[0];
 
     const detailed = await game.execute({
       type: "legal-actions",
-      playerId: someone.playerId,
+      playerId: fixtureValue(someone).playerId,
     });
-    const withTargets = detailed.legalActions!.players.find(
-      (p) => p.playerId === someone.playerId
-    )!;
-    expect(withTargets.moveTargets!.length).toBeGreaterThan(0);
+    const withTargets = fixtureValue(
+      fixtureValue(detailed.legalActions).players.find(
+        (p) => p.playerId === fixtureValue(someone).playerId
+      )
+    );
+    expect(fixtureValue(withTargets.moveTargets).length).toBeGreaterThan(0);
 
     const declared = await game.execute({
       type: "declare-action",
-      playerId: someone.playerId,
+      playerId: fixtureValue(someone).playerId,
       action: "move",
     });
     expect(declared.ok).toBe(true);
 
-    // Pick an adjacent enumerated target so a 1-step path is valid
-    const start = game
-      .snapshot()
-      .teams.flatMap((t) => t.players)
-      .find((p) => p.id === someone.playerId)!.position!;
-    const adjacent = withTargets.moveTargets!.find(
-      (t) => Math.abs(t.x - start.x) <= 1 && Math.abs(t.y - start.y) <= 1
-    )!;
+    const start = fixtureValue(
+      fixtureValue(
+        game
+          .snapshot()
+          .teams.flatMap((t) => t.players)
+          .find((p) => p.id === fixtureValue(someone).playerId)
+      ).position
+    );
+    const adjacent = fixtureValue(
+      fixtureValue(withTargets.moveTargets).find(
+        (t) => Math.abs(t.x - start.x) <= 1 && Math.abs(t.y - start.y) <= 1
+      )
+    );
     expect(adjacent).toBeDefined();
 
     const moved = await game.execute({
       type: "move",
-      playerId: someone.playerId,
+      playerId: fixtureValue(someone).playerId,
       path: [adjacent],
     });
     expect(moved.ok).toBe(true);
-    const after = moved.snapshot.teams
-      .flatMap((t) => t.players)
-      .find((p) => p.id === someone.playerId)!;
+    const after = fixtureValue(
+      moved.snapshot.teams
+        .flatMap((t) => t.players)
+        .find((p) => p.id === fixtureValue(someone).playerId)
+    );
     expect(after.position).toEqual(adjacent);
   });
 
   it("runs the full block decision chain via pendingDecision", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 24 });
     const snapshot = game.snapshot();
-    const team1Id = snapshot.teams[0].id;
-    const attacker = snapshot.teams[0].players.find(
-      (p) => p.position?.x === 9 && p.position?.y === 5
-    )!;
-    const defender = snapshot.teams[1].players.find(
-      (p) => p.position?.x === 10 && p.position?.y === 5
-    )!;
+    const team1Id = fixtureValue(snapshot.teams[0]).id;
+    const attacker = fixtureValue(
+      fixtureValue(snapshot.teams[0]).players.find(
+        (p) => p.position?.x === 9 && p.position.y === 5
+      )
+    );
+    const defender = fixtureValue(
+      fixtureValue(snapshot.teams[1]).players.find(
+        (p) => p.position?.x === 10 && p.position.y === 5
+      )
+    );
     expect(snapshot.activeTeamId).toBe(team1Id);
 
     await game.execute({
@@ -190,19 +206,17 @@ describe("HeadlessGame action protocol", () => {
     expect(rolled.ok).toBe(true);
     expect(rolled.pendingDecision?.type).toBe("block-dice");
     expect(
-      rolled.pendingDecision!.type === "block-dice" &&
+      rolled.pendingDecision?.type === "block-dice" &&
         rolled.pendingDecision.options.length
     ).toBeGreaterThan(0);
     expect(
       rolled.events.some((e) => e.name === GameEventNames.BlockDiceRolled)
     ).toBe(true);
 
-    // Commands are gated while the decision is pending
     const gated = await game.execute({ type: "end-turn" });
     expect(gated.ok).toBe(false);
     expect(gated.reason).toContain("decision-pending");
 
-    // Resolve the chain: die choice, then possibly push + follow-up
     let response = await game.execute({
       type: "choose-block-result",
       index: 0,
@@ -213,8 +227,8 @@ describe("HeadlessGame action protocol", () => {
       const dir = response.pendingDecision.options[0];
       response = await game.execute({
         type: "choose-push-direction",
-        x: dir.x,
-        y: dir.y,
+        x: fixtureValue(dir).x,
+        y: fixtureValue(dir).y,
       });
       expect(response.ok).toBe(true);
     }
@@ -256,20 +270,19 @@ describe("HeadlessGame action protocol", () => {
       },
     };
 
-    // Find a seed whose pass command is accepted, then assert the events
     let done = false;
     for (let seed = 1; seed <= 30 && !done; seed++) {
       const game = new HeadlessGame({ scenario: passScenario, seed });
-      const thrower = game.snapshot().teams[0].players[0];
+      const thrower = fixtureValue(game.snapshot().teams[0]).players[0];
 
       await game.execute({
         type: "declare-action",
-        playerId: thrower.id,
+        playerId: fixtureValue(thrower).id,
         action: "pass",
       });
       const response = await game.execute({
         type: "pass",
-        playerId: thrower.id,
+        playerId: fixtureValue(thrower).id,
         x: 8,
         y: 5,
       });
@@ -306,26 +319,30 @@ describe("HeadlessGame action protocol", () => {
 
     const game = new HeadlessGame({ scenario: foulScenario, seed: 8 });
     const snapshot = game.snapshot();
-    const fouler = snapshot.teams[0].players[0];
+    const fouler = fixtureValue(snapshot.teams[0]).players[0];
 
     const legal = await game.execute({
       type: "legal-actions",
-      playerId: fouler.id,
+      playerId: fixtureValue(fouler).id,
     });
-    const entry = legal.legalActions!.players.find(
-      (p) => p.playerId === fouler.id
-    )!;
+    const entry = fixtureValue(
+      fixtureValue(legal.legalActions).players.find(
+        (p) => p.playerId === fixtureValue(fouler).id
+      )
+    );
     expect(entry.actions).toContain("foul");
-    expect(entry.foulTargets).toContain(snapshot.teams[1].players[0].id);
+    expect(entry.foulTargets).toContain(
+      fixtureValue(fixtureValue(snapshot.teams[1]).players[0]).id
+    );
 
     await game.execute({
       type: "declare-action",
-      playerId: fouler.id,
+      playerId: fixtureValue(fouler).id,
       action: "foul",
     });
     const response = await game.execute({
       type: "foul",
-      playerId: fouler.id,
+      playerId: fixtureValue(fouler).id,
       x: 10,
       y: 5,
     });
@@ -336,15 +353,15 @@ describe("HeadlessGame action protocol", () => {
   });
 
   it("reports a turnover with reason when a pickup fails", async () => {
-    // Deterministically find a seed whose pickup roll fails, then assert the
-    // protocol reports the turnover and switches the active team.
     let reported = false;
     for (let seed = 1; seed <= 60 && !reported; seed++) {
       const game = new HeadlessGame({ scenario: scrimmage, seed });
       const snapshot = game.snapshot();
-      const mover = snapshot.teams[0].players.find(
-        (p) => p.position?.x === 9 && p.position?.y === 5
-      )!;
+      const mover = fixtureValue(
+        fixtureValue(snapshot.teams[0]).players.find(
+          (p) => p.position?.x === 9 && p.position.y === 5
+        )
+      );
 
       await game.execute({
         type: "declare-action",
@@ -358,7 +375,7 @@ describe("HeadlessGame action protocol", () => {
           { x: 8, y: 5 },
           { x: 7, y: 5 },
           { x: 6, y: 5 },
-          { x: 5, y: 5 }, // ball square
+          { x: 5, y: 5 },
         ],
       });
       if (!moved.ok) continue;
@@ -368,8 +385,10 @@ describe("HeadlessGame action protocol", () => {
       );
       if (turnover) {
         reported = true;
-        // The turnover flow ends the turn: the opponent becomes active
-        expect(moved.snapshot.activeTeamId).toBe(snapshot.teams[1].id);
+
+        expect(moved.snapshot.activeTeamId).toBe(
+          fixtureValue(snapshot.teams[1]).id
+        );
       }
     }
     expect(reported).toBe(true);

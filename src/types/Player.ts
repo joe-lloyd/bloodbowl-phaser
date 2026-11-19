@@ -1,176 +1,116 @@
-/**
- * Player types and interfaces for Blood Bowl Sevens (2020 Rules)
- */
+import { type Skill, SkillCategory, SkillType } from "./Skills";
 
-import { Skill, SkillCategory, SkillType } from "./Skills";
+export const PlayerStatus = {
+  ACTIVE: "Active",
+  PRONE: "Prone",
+  STUNNED: "Stunned",
+  KO: "KO",
+  INJURED: "Injured",
+  DEAD: "Dead",
+  RESERVE: "Reserve",
+  REMOVED: "Removed",
+} as const;
+export type PlayerStatus = (typeof PlayerStatus)[keyof typeof PlayerStatus];
 
-/**
- * Player status on the pitch
- */
-export enum PlayerStatus {
-  ACTIVE = "Active", // Standing and ready
-  PRONE = "Prone", // Knocked down but not injured
-  STUNNED = "Stunned", // Knocked down and can't act next turn
-  KO = "KO", // Knocked out, in KO box
-  INJURED = "Injured", // Badly hurt, in casualty box
-  DEAD = "Dead", // Removed from roster permanently
-  RESERVE = "Reserve", // In dugout, not on pitch
-  REMOVED = "Removed", // Sent off or otherwise removed from game
-}
-
-/**
- * Named player conditions (2025 rulebook) — state distinct from status,
- * applied by rules/operations, expired by the engine (see GameService):
- * Distracted clears when the player is next activated, Rooted ends at the
- * end of the drive or when Knocked Down/Placed Prone, Chomped ends the
- * moment the chomping player is no longer Marking the victim.
- */
-export enum PlayerCondition {
-  DISTRACTED = "Distracted",
-  ROOTED = "Rooted",
-  CHOMPED = "Chomped",
-  /**
-   * Eye Gouge: a player Pushed Back by an Eye Gouge player cannot provide
-   * Offensive or Defensive Assists until after they are next activated (the
-   * engine clears it when the player activates).
-   */
-  EYE_GOUGED = "Eye Gouged",
-  /** Zap!: turned into a Frog until the end of the drive (Sports-Wizard). */
-  FROG = "Frog",
-}
+export const PlayerCondition = {
+  DISTRACTED: "Distracted",
+  ROOTED: "Rooted",
+  CHOMPED: "Chomped",
+  EYE_GOUGED: "Eye Gouged",
+  FROG: "Frog",
+} as const;
+export type PlayerCondition =
+  (typeof PlayerCondition)[keyof typeof PlayerCondition];
 
 export interface PlayerConditionInstance {
   type: PlayerCondition;
-  /** The player who inflicted it (Chomped tracks its chomper). */
+
   byPlayerId?: string;
 }
 
-/**
- * Injury types from casualty table
- */
-export enum InjuryType {
-  NONE = "None",
-  BADLY_HURT = "Badly Hurt", // Miss rest of game
-  MISS_NEXT_GAME = "Miss Next Game",
-  NIGGLING_INJURY = "Niggling Injury", // -1 to future injury rolls
-  STAT_DECREASE_MA = "-1 MA",
-  STAT_DECREASE_ST = "-1 ST",
-  STAT_DECREASE_AG = "-1 AG",
-  STAT_DECREASE_AV = "-1 AV",
-  DEAD = "Dead",
-}
+export const InjuryType = {
+  NONE: "None",
+  BADLY_HURT: "Badly Hurt",
+  MISS_NEXT_GAME: "Miss Next Game",
+  NIGGLING_INJURY: "Niggling Injury",
+  STAT_DECREASE_MA: "-1 MA",
+  STAT_DECREASE_ST: "-1 ST",
+  STAT_DECREASE_AG: "-1 AG",
+  STAT_DECREASE_AV: "-1 AV",
+  DEAD: "Dead",
+} as const;
+export type InjuryType = (typeof InjuryType)[keyof typeof InjuryType];
 
-/**
- * Core player stats (MA, ST, AG, PA, AV) - Blood Bowl 2020 rules
- */
 export interface PlayerStats {
-  MA: number; // Movement Allowance
-  ST: number; // Strength
-  AG: number; // Agility
-  PA: number; // Passing Ability (2020 rules)
-  AV: number; // Armor Value
+  MA: number;
+  ST: number;
+  AG: number;
+  PA: number;
+  AV: number;
 }
 
-/**
- * Player interface - represents a single player on a team
- */
 export interface Player {
-  // Identity
   id: string;
   playerName: string;
   positionName: string;
-  number: number; // Jersey number (1-16)
+  number: number;
   keywords: KeyWord[];
   teamId: string;
 
-  // Stats
   stats: PlayerStats;
-  baseStats: PlayerStats; // Original stats before injuries
+  baseStats: PlayerStats;
 
-  // Skills
   skills: Skill[];
-  /** Skill-category access copied from the roster profile for advancement. */
+
   primary?: SkillCategory[];
   secondary?: SkillCategory[];
 
-  // Progression
-  spp: number; // Star Player Points
-  level: number; // Advancement count: Rookie 0 through Legend 6
+  spp: number;
+  level: number;
   playerKind?: "roster" | "journeyman" | "star";
   advancements?: PlayerAdvancement[];
   characteristicAdvances?: Partial<Record<keyof PlayerStats, number>>;
-  /**
-   * An SPP advancement roll made but not yet spent. It is saved the moment
-   * it is rolled, so leaving or reloading the page cannot re-roll it.
-   */
+
   pendingAdvancementRoll?: PendingAdvancementRoll;
 
-  // Status
   status: PlayerStatus;
-  /** Active conditions (Distracted, Rooted, Chomped); absent = none. */
-  conditions?: PlayerConditionInstance[];
-  injuries: InjuryType[]; // Permanent injuries
 
-  // Game state
-  hasActed: boolean; // Has taken action this turn
-  /** Plague Ridden is once-per-game; set when this player has spent it. */
+  conditions?: PlayerConditionInstance[];
+  injuries: InjuryType[];
+
+  hasActed: boolean;
+
   plagueRiddenUsed?: boolean;
   gridPosition?: {
-    // Current position on pitch (if on field)
     x: number;
     y: number;
   };
 
-  // Cost (for team building)
   cost: number;
   teamValue: number;
-  /** Sevens Drafted Players (A6): times the coach paid to keep this player
-   *  after a pro team's offer. Each adds DRAFT_KEEP_VALUE_INCREASE to their
-   *  value. */
+
   timesKeptFromDraft?: number;
 
-  /** Career totals; absent for players who never played a recorded match. */
   careerStats?: PlayerCareerStats;
 
-  /**
-   * Sevens D8: the team's Veteran Lineman. `stats.MA` already carries the
-   * Veteran's -1 (see src/game/rules/veteran.ts). Absent on everyone else.
-   */
   veteran?: true;
 
-  /**
-   * The team's Team Captain (2025 rulebook p.155). `skills` already holds
-   * the Pro the title grants (see src/game/rules/teamCaptain.ts). Absent on
-   * everyone else.
-   */
   teamCaptain?: true;
 
-  /**
-   * Set by hydration when a stored player's position no longer exists in
-   * its roster template. Progression, injuries and career stats are still
-   * intact; stats/skills/keywords/cost are placeholders. Never persisted —
-   * recomputed on every load so it always reflects the current templates.
-   */
   hydrationWarning?: string;
 }
 
-/**
- * Which advancement mode/pipeline produced an advancement. Absent means the
- * legacy Advanced League SPP flow (the only one that existed previously).
- */
-export type AdvancementSource =
+type AdvancementSource =
   | "advanced-league-spp"
   | "matched-play-package"
   | "sevens-skill-selection";
 
-/** One Random Primary skill candidate: the two D6 and the skill they gave. */
 export interface RandomSkillCandidate {
   skill: SkillType;
   firstD6: number;
   secondD6: number;
 }
 
-/** A saved SPP advancement roll that must be resolved before another. */
 export type PendingAdvancementRoll =
   | {
       kind: "random-primary";
@@ -186,24 +126,14 @@ export interface PlayerAdvancement {
   sppCost: number;
   valueIncrease: number;
   elite?: boolean;
-  /** Provenance: which advancement-mode pipeline awarded this. */
+
   source?: AdvancementSource;
-  /** The match this advancement was awarded after (Matched Play package
-   *  allocations and characteristic advancements have none). */
+
   sourceMatchId?: string;
-  /** Sevens Skill Selection only: the two-roll random candidates offered
-   *  before the coach/system confirmed one (durable audit trail). */
+
   candidateRolls?: { skill: string; firstD6: number; secondD6: number }[];
 }
 
-/**
- * Career totals across all matches a player has appeared in. `sppEarned`
- * must equal the SPP table value of the stat lines (completion 1,
- * interception/casualty 2, touchdown 3, MVP 4) and, for progressed players,
- * the player's unspent SPP plus SPP spent on advancements. `kills`,
- * `squaresMoved` and `passesAttempted` are informational only — they carry
- * no SPP value and are not part of that reconciliation.
- */
 export interface PlayerCareerStats {
   matches: number;
   completions: number;
@@ -211,15 +141,14 @@ export interface PlayerCareerStats {
   casualties: number;
   touchdowns: number;
   mvps: number;
-  /** Casualties whose injury result was Dead — a subset of `casualties`. */
+
   kills: number;
-  /** Squares moved (walked or rushed), summed across every match played. */
+
   squaresMoved: number;
   passesAttempted: number;
   sppEarned: number;
 }
 
-/** A career line with every counter at zero. */
 export const EMPTY_CAREER_STATS: PlayerCareerStats = {
   matches: 0,
   completions: 0,
@@ -233,75 +162,70 @@ export const EMPTY_CAREER_STATS: PlayerCareerStats = {
   sppEarned: 0,
 };
 
-/**
- * Player template for roster creation
- */
 export interface PlayerTemplate {
   positionName: string;
   keywords: KeyWord[];
   cost: number;
   stats: PlayerStats;
   skills: Skill[];
-  maxAllowed?: number; // Max number of this position (e.g., 2 Blitzers)
+  maxAllowed?: number;
   primary: SkillCategory[];
   secondary: SkillCategory[];
 }
 
-export enum RaceKeyWord {
-  ANIMAL = "Animal",
-  BEASTMAN = "Beastman",
-  CONSTRUCT = "Construct",
-  DWARF = "Dwarf",
-  ELF = "Elf",
-  GHOUL = "Ghoul",
-  GNOBLAR = "Gnoblar",
-  GNOME = "Gnome",
-  GOBLIN = "Goblin",
-  HALFLING = "Halfling",
-  HUMAN = "Human",
-  LIZARDMAN = "Lizardman",
-  MINOTAUR = "Minotaur",
-  OGRE = "Ogre",
-  ORC = "Orc",
-  SKAVEN = "Skaven",
-  SKELETON = "Skeleton",
-  SNOTLING = "Snotling",
-  SPAWN = "Spawn",
-  TREEMAN = "Treeman",
-  TROLL = "Troll",
-  UNDEAD = "Undead",
-  VAMPIRE = "Vampire",
-  WEREWOLF = "Werewolf",
-  WRAITH = "Wraith",
-  YHETEE = "Yhetee",
-  ZOMBIE = "Zombie",
-}
+export const RaceKeyWord = {
+  ANIMAL: "Animal",
+  BEASTMAN: "Beastman",
+  CONSTRUCT: "Construct",
+  DWARF: "Dwarf",
+  ELF: "Elf",
+  GHOUL: "Ghoul",
+  GNOBLAR: "Gnoblar",
+  GNOME: "Gnome",
+  GOBLIN: "Goblin",
+  HALFLING: "Halfling",
+  HUMAN: "Human",
+  LIZARDMAN: "Lizardman",
+  MINOTAUR: "Minotaur",
+  OGRE: "Ogre",
+  ORC: "Orc",
+  SKAVEN: "Skaven",
+  SKELETON: "Skeleton",
+  SNOTLING: "Snotling",
+  SPAWN: "Spawn",
+  TREEMAN: "Treeman",
+  TROLL: "Troll",
+  UNDEAD: "Undead",
+  VAMPIRE: "Vampire",
+  WEREWOLF: "Werewolf",
+  WRAITH: "Wraith",
+  YHETEE: "Yhetee",
+  ZOMBIE: "Zombie",
+} as const;
+export type RaceKeyWord = (typeof RaceKeyWord)[keyof typeof RaceKeyWord];
 
-export enum PositionKeyWord {
-  LINEMAN = "Lineman",
-  BLITZER = "Blitzer",
-  CATCHER = "Catcher",
-  THROWER = "Thrower",
-  BLOCKER = "Blocker",
-  RUNNER = "Runner",
-  SPECIAL = "Special",
-}
+export const PositionKeyWord = {
+  LINEMAN: "Lineman",
+  BLITZER: "Blitzer",
+  CATCHER: "Catcher",
+  THROWER: "Thrower",
+  BLOCKER: "Blocker",
+  RUNNER: "Runner",
+  SPECIAL: "Special",
+} as const;
+export type PositionKeyWord =
+  (typeof PositionKeyWord)[keyof typeof PositionKeyWord];
 
-export enum TraitKeyWord {
-  BIG_GUY = "Big Guy",
-  /** Vampire Thrall Linemen: the team-mates a failed Bloodlust may bite. */
-  THRALL = "Thrall",
-}
+export const TraitKeyWord = {
+  BIG_GUY: "Big Guy",
+  THRALL: "Thrall",
+} as const;
+export type TraitKeyWord = (typeof TraitKeyWord)[keyof typeof TraitKeyWord];
 
 export type KeyWord = RaceKeyWord | PositionKeyWord | TraitKeyWord;
 
-/** Sevens Drafted Players (A6): value a player gains each time the coach
- *  pays to keep them. */
 export const DRAFT_KEEP_VALUE_INCREASE = 15_000;
 
-/**
- * Helper function to create a new player
- */
 export function createPlayer(
   template: PlayerTemplate,
   teamId: string,
@@ -309,8 +233,8 @@ export function createPlayer(
   name?: string
 ): Player {
   return {
-    id: `${teamId}-player-${number}`,
-    playerName: name || `${template.positionName} #${number}`,
+    id: `${teamId}-player-${String(number)}`,
+    playerName: name || `${template.positionName} #${String(number)}`,
     number,
     positionName: template.positionName,
     keywords: template.keywords,
@@ -331,59 +255,6 @@ export function createPlayer(
     cost: template.cost,
     teamValue: 0,
   };
-}
-
-/**
- * Check if player can act this turn
- */
-export function canPlayerAct(player: Player): boolean {
-  return player.status === PlayerStatus.ACTIVE && !player.hasActed;
-}
-
-/**
- * Check if player is on the pitch
- */
-export function isPlayerOnPitch(player: Player): boolean {
-  return (
-    player.status === PlayerStatus.ACTIVE ||
-    player.status === PlayerStatus.PRONE ||
-    player.status === PlayerStatus.STUNNED
-  );
-}
-
-/**
- * Get player's current movement allowance
- */
-export function getPlayerMovement(player: Player): number {
-  return player.stats.MA;
-}
-
-/**
- * Get player's current strength
- */
-export function getPlayerStrength(player: Player): number {
-  return player.stats.ST;
-}
-
-/**
- * Get player's current agility
- */
-export function getPlayerAgility(player: Player): number {
-  return player.stats.AG;
-}
-
-/**
- * Get player's current passing ability (2020 rules)
- */
-export function getPlayerPassing(player: Player): number {
-  return player.stats.PA;
-}
-
-/**
- * Get player's current armor value
- */
-export function getPlayerArmor(player: Player): number {
-  return player.stats.AV;
 }
 
 export function hasCondition(player: Player, type: PlayerCondition): boolean {
@@ -407,12 +278,6 @@ export function removeCondition(player: Player, type: PlayerCondition): void {
   player.conditions = player.conditions.filter((c) => c.type !== type);
 }
 
-/**
- * Standing and not Distracted — the test for exerting a Tackle Zone.
- * Every marking computation (dodge modifiers, assists, pass/catch marking,
- * marked-square skill gathers) goes through this one helper, so the
- * Distracted condition bites everywhere at once.
- */
 export function hasTackleZone(player: Player): boolean {
   return (
     player.status === PlayerStatus.ACTIVE &&

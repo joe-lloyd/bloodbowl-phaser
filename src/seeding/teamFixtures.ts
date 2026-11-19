@@ -1,34 +1,18 @@
-/**
- * Development seed team fixtures: every supported roster gets one legal team
- * built through the same purchasing and pricing helpers the team builder
- * uses (createTeam / createPlayer / addPlayerToTeam / purchase /
- * calculateTeamValue), then checked by the shared
- * roster-legality validator.
- *
- * Finances are derived, never assigned: each team starts from the 600k
- * draft budget, purchases are debited by the shared helpers, and the stored
- * treasury is whatever remains unspent. Team value is recalculated from the
- * completed roster.
- *
- * Any illegality throws a SeedFixtureError naming the fixture key and every
- * violated rule — fix the fixture data, never the validator.
- */
-
 import {
   RosterName,
-  Team,
-  TeamAdvancementMode,
-  TeamColors,
-  TeamRoster,
+  type Team,
+  type TeamAdvancementMode,
+  type TeamColors,
+  type TeamRoster,
   addPlayerToTeam,
   calculateTeamValue,
   createTeam,
   lockAdvancementMode,
 } from "../types/Team";
-import { PlayerTemplate, createPlayer } from "../types/Player";
+import { type PlayerTemplate, createPlayer } from "../types/Player";
 import { SkillType, hasSkill } from "../types/Skills";
 import {
-  RosterViolation,
+  type RosterViolation,
   isBigGuy,
   isLinemanPosition,
   validateRosterLegality,
@@ -44,22 +28,21 @@ export const DRAFT_BUDGET = 600_000;
 const TARGET_SQUAD_SIZE = 8;
 const DESIRED_REROLLS = 2;
 
-/** A fixture (or builder) is illegal: name it and every violated rule. */
 export class SeedFixtureError extends Error {
-  constructor(
-    public readonly fixtureKey: string,
-    public readonly violations: RosterViolation[]
-  ) {
+  public readonly fixtureKey: string;
+  public readonly violations: RosterViolation[];
+  constructor(fixtureKey: string, violations: RosterViolation[]) {
     super(
       `[${fixtureKey}] illegal seed fixture: ` +
         violations.map((v) => `${v.rule}: ${v.detail}`).join("; ")
     );
+    this.fixtureKey = fixtureKey;
+    this.violations = violations;
     this.name = "SeedFixtureError";
   }
 }
 
-/** Deterministic team colors (moved from the old TeamManager seeder). */
-export const SEED_TEAM_COLORS: Record<string, TeamColors> = {
+const SEED_TEAM_COLORS: Record<string, TeamColors> = {
   [RosterName.AMAZON]: { primary: 0x228b22, secondary: 0xffd700 },
   [RosterName.BLACK_ORC]: { primary: 0x2f4f4f, secondary: 0xff0000 },
   [RosterName.BRETONIAN]: { primary: 0x4169e1, secondary: 0xffd700 },
@@ -101,10 +84,6 @@ interface SquadPlan {
   apothecary: boolean;
 }
 
-/** Rosters `playerLifecycle.ts` decorates with real earned/spendable SPP and
- *  stored advancements. Advanced League is the only mode that legitimately
- *  earns SPP (team-advancement-modes: "Advanced League alone uses standard
- *  SPP progression"), so these are pinned rather than left to the cycle. */
 const PROGRESSED_ADVANCED_LEAGUE_ROSTERS = new Set<RosterName>([
   RosterName.HUMAN,
   RosterName.ORC,
@@ -112,18 +91,12 @@ const PROGRESSED_ADVANCED_LEAGUE_ROSTERS = new Set<RosterName>([
   RosterName.SKAVEN,
 ]);
 
-/** Every other roster round-robins through all three modes (by declaration
- *  order in RosterName) so the seed catalog exercises each mode's UI and
- *  rules from a clean refresh. */
 const ADVANCEMENT_MODE_CYCLE: readonly TeamAdvancementMode[] = [
   "matched-play",
   "advanced-league",
   "sevens-skill-selection",
 ];
 
-/** Deterministic advancement mode for a seeded roster (see the module
- *  doc-comment and development-seed-data: "Seed teams carry an explicit,
- *  locked advancement mode"). */
 export function seedAdvancementMode(
   rosterName: RosterName
 ): TeamAdvancementMode {
@@ -131,19 +104,15 @@ export function seedAdvancementMode(
     return "advanced-league";
   }
   const index = Object.values(RosterName).indexOf(rosterName);
-  return ADVANCEMENT_MODE_CYCLE[index % ADVANCEMENT_MODE_CYCLE.length];
+  const mode = ADVANCEMENT_MODE_CYCLE[index % ADVANCEMENT_MODE_CYCLE.length];
+  if (!mode) throw new Error(`unknown roster ${rosterName}`);
+  return mode;
 }
 
 function isInsignificantTemplate(template: PlayerTemplate): boolean {
   return hasSkill(template.skills, SkillType.INSIGNIFICANT);
 }
 
-/**
- * Choose a legal squad for a roster: up to 4 non-Lineman positional players
- * (max 2 per position, respecting template limits), filled out with the
- * cheapest Linemen, then trimmed to the budget (players first, then
- * re-rolls, then the apothecary).
- */
 function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
   const templates = roster.playerTemplates;
   const linemen = templates
@@ -165,7 +134,6 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
     counts.set(t.positionName, countOf(t) + 1);
   };
 
-  // 1. Positional stars first: at most 4 non-Linemen, at most 2 of a kind.
   let nonLinemanCap = 4;
   for (const template of positionals) {
     while (nonLinemanCap > 0 && canTake(template) && countOf(template) < 2) {
@@ -174,8 +142,6 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
     }
   }
 
-  // 2. Fill the squad with the cheapest available Linemen, keeping the
-  // Insignificant whole-list limit (never more Insignificant than not).
   while (picks.length < TARGET_SQUAD_SIZE) {
     const insignificant = picks.filter(isInsignificantTemplate).length;
     const significant = picks.length - insignificant;
@@ -191,7 +157,7 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
     throw new SeedFixtureError(fixtureKey, [
       {
         rule: "roster-size",
-        detail: `only ${picks.length} legal players available (need 7)`,
+        detail: `only ${String(picks.length)} legal players available (need 7)`,
       },
     ]);
   }
@@ -199,11 +165,6 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
   return { picks, ...trimToBudget(picks, roster.apothecary, fixtureKey) };
 }
 
-/**
- * Trim to the draft budget: most expensive player first, but never in a way
- * that breaks the Insignificant whole-list limit, then re-rolls, then the
- * apothecary. Removes players from `picks`.
- */
 function trimToBudget(
   picks: PlayerTemplate[],
   hasApothecary: boolean,
@@ -241,7 +202,7 @@ function trimToBudget(
       throw new SeedFixtureError(fixtureKey, [
         {
           rule: "budget",
-          detail: `cheapest legal squad costs ${totalCost()} (budget ${DRAFT_BUDGET})`,
+          detail: `cheapest legal squad costs ${String(totalCost())} (budget ${String(DRAFT_BUDGET)})`,
         },
       ]);
     }
@@ -249,15 +210,10 @@ function trimToBudget(
   return { rerolls, apothecary };
 }
 
-/** The stable fixture key for a roster's seed team ("human", "orc", …). */
 export function teamFixtureKey(rosterName: RosterName): string {
   return rosterSlug(rosterName);
 }
 
-/**
- * Build the seed team for one roster: legal squad, derived finances,
- * legality-validated. Deterministic ids and colors.
- */
 export function buildSeedTeam(rosterName: RosterName): Team {
   const fixtureKey = teamFixtureKey(rosterName);
   const roster = getRosterByRosterName(rosterName);
@@ -281,7 +237,7 @@ export function buildSeedTeam(rosterName: RosterName): Team {
       throw new SeedFixtureError(fixtureKey, [
         {
           rule: "budget",
-          detail: `cannot afford ${template.positionName} (${template.cost})`,
+          detail: `cannot afford ${template.positionName} (${String(template.cost)})`,
         },
       ]);
     }
@@ -303,7 +259,6 @@ export function buildSeedTeam(rosterName: RosterName): Team {
   return team;
 }
 
-/** One legal seed team per supported roster. */
 export function buildAllSeedTeams(): Team[] {
   return Object.values(RosterName).map((rosterName) =>
     buildSeedTeam(rosterName)

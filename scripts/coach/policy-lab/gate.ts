@@ -1,4 +1,3 @@
-/** Run named coach contracts and inventory honest tactical gaps. */
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
@@ -6,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { SkillType } from "../../../src/types/Skills";
 import { ruleScenariosFor } from "../../../src/data/ruleScenarios";
 
-export const CONTRACT_FILES = [
+const CONTRACT_FILES = [
   "__tests__/simulation/turn-plans.test.ts",
   "__tests__/simulation/policy-review.test.ts",
   "__tests__/simulation/policy-outcomes.test.ts",
@@ -61,7 +60,7 @@ export function coverageInventory() {
   }));
 }
 
-export function runGate(out: string): void {
+function runGate(out: string): void {
   mkdirSync(out, { recursive: true });
   const resultFile = join(out, "contracts.json");
   const run = spawnSync(

@@ -1,20 +1,15 @@
-/**
- * The Sports-Wizard (2025 rulebook p.149), which Magic Scroll (Spike!
- * Journal 22, L28) gives a team for free. "Once per game, a Sports-Wizard
- * can cast one of the following two spells", each "at the end of any Turn,
- * before the next Turn begins". TurnManager waits on this operation before
- * it starts the next Turn.
- */
-
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
-import { FlowContext } from "../core/GameFlowManager";
+import { type FlowContext } from "../core/GameFlowManager";
 import { ArmourOperation } from "../operations/ArmourOperation";
 import { BounceOperation } from "../operations/BounceOperation";
-import { Player, PlayerStatus } from "@/types/Player";
-import { Team } from "@/types/Team";
+import { type Player, PlayerStatus } from "@/types/Player";
+import { type Team } from "@/types/Team";
 import { GameEventNames } from "@/types/events";
-import { InducementChoiceDecisionAnswer, WizardSpell } from "@/types/decisions";
+import {
+  type InducementChoiceDecisionAnswer,
+  type WizardSpell,
+} from "@/types/decisions";
 import {
   holdsSportsWizard,
   spendSportsWizard,
@@ -23,12 +18,13 @@ import {
 
 const SPELLS: WizardSpell[] = ["fireball", "zap"];
 
-/** Offer one team's Sports-Wizard a spell, and cast it. */
 export class CastSportsWizardOperation extends GameOperation {
   public readonly name = "CastSportsWizard";
 
-  constructor(private teamId: string) {
+  private teamId: string;
+  constructor(teamId: string) {
     super();
+    this.teamId = teamId;
   }
 
   async execute(context: FlowContext): Promise<void> {
@@ -60,11 +56,6 @@ export class CastSportsWizardOperation extends GameOperation {
   }
 }
 
-/**
- * Fireball: a D6 for every player in or adjacent to the square, hit on a
- * 4+. A Standing player hit is Knocked Down; every player hit takes an
- * Armour Roll at +1.
- */
 function fireball(
   context: FlowContext,
   team: Team,
@@ -75,7 +66,7 @@ function fireball(
   const dice = gameService.getDiceController();
   eventBus.emit(
     GameEventNames.UI_GameLog,
-    `Sports-Wizard (${team.name}): Fireball at (${square.x},${square.y})`
+    `Sports-Wizard (${team.name}): Fireball at (${String(square.x)},${String(square.y)})`
   );
   eventBus.emit(GameEventNames.BombExploded, square);
   const inBlast = onPitch.filter(
@@ -103,19 +94,14 @@ function fireball(
       new ArmourOperation(player.id, undefined, undefined, "special", 1)
     );
   }
-  // A dropped ball Bounces once the blast's Armour Rolls are made
+
   if (dropped) operations.push(new BounceOperation({ ...ball! }));
-  // Each joins the front of the flow, so add the last first
+
   for (const operation of operations.reverse()) {
     flowManager.add(operation, true);
   }
 }
 
-/**
- * Zap!: a D6 against the player's ST. Under it, or a natural 1, nothing
- * happens; at or over it, or a natural 6, they become a Frog, and a ball
- * they held Bounces.
- */
 function zap(context: FlowContext, team: Team, target: Player): void {
   const { gameService, eventBus, flowManager } = context;
   const state = gameService.getState();

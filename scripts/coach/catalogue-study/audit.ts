@@ -1,4 +1,3 @@
-/** Compare engine-legal declarations with the simulation candidate seam. */
 import { writeFileSync } from "node:fs";
 import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
@@ -58,8 +57,10 @@ const captains = getComputerTeamTemplates()
       appointed: team.players.some((player) => player.teamCaptain),
     };
   });
+const target = process.argv[2];
+if (!target) throw new Error("Usage: audit.ts <output.json>");
 writeFileSync(
-  process.argv[2],
+  target,
   JSON.stringify({ omittedDeclarations: rows, captains }, null, 2)
 );
 console.log(

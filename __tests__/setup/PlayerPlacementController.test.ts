@@ -1,20 +1,19 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import Phaser from "phaser";
 import { PlayerPlacementController } from "../../src/game/controllers/PlayerPlacementController";
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
 import { Pitch } from "../../src/game/elements/Pitch";
-import { Team, RosterName } from "../../src/types/Team";
+import { type Team, RosterName } from "../../src/types/Team";
 import { PositionKeyWord } from "../../src/types/Player";
 import { GameEventNames } from "../../src/types/events";
 import { ISO } from "../../src/game/elements/GridUtils";
 import { squareHitAreaContains } from "../../src/game/elements/InteractiveHitArea";
 
-// Mock Pitch
 const mockPitch = {
   getContainer: () => ({ x: 0, y: 0 }),
 } as unknown as Pitch;
 
-// Mock Scene
 const mockScene = {
   add: {
     container: () => ({
@@ -24,7 +23,6 @@ const mockScene = {
   },
 } as unknown as Phaser.Scene;
 
-// Mock Validator
 const mockValidator = new SetupValidator();
 
 describe("PlayerPlacementController", () => {
@@ -33,13 +31,12 @@ describe("PlayerPlacementController", () => {
   let dugoutSprites: Map<string, Phaser.GameObjects.Container>;
 
   beforeEach(() => {
-    controller = new PlayerPlacementController(
-      mockScene,
-      mockPitch,
-      mockValidator
-    );
+    controller = new PlayerPlacementController({
+      _scene: mockScene,
+      pitch: mockPitch,
+      validator: mockValidator,
+    });
 
-    // Setup dummy team using builders or manual valid object
     team = {
       id: "team-1",
       name: "Team 1",
@@ -101,7 +98,6 @@ describe("PlayerPlacementController", () => {
       casualties: 0,
     };
 
-    // Mock Dugout Sprites
     dugoutSprites = new Map();
     const mockSprite1 = {
       setInteractive: vi.fn(),
@@ -127,8 +123,7 @@ describe("PlayerPlacementController", () => {
       controller.enablePlacement(team, true, dugoutSprites);
 
       const sprite1 = dugoutSprites.get("p1");
-      // Draggable, picked by the square the player stands on (one tile),
-      // not by the figure that reaches over the squares behind
+
       expect(sprite1?.setInteractive).toHaveBeenCalledWith(
         expect.objectContaining({
           draggable: true,
@@ -153,7 +148,6 @@ describe("PlayerPlacementController", () => {
   });
 
   describe("setup hit areas", () => {
-    /** A dugout sprite that already takes input, picked by its figure. */
     const figureSprite = () =>
       ({
         displayOriginX: 28,
@@ -173,36 +167,42 @@ describe("PlayerPlacementController", () => {
 
     it("gives a sprite the dugout adds during setup the square hit area", () => {
       controller.enablePlacement(team, true, dugoutSprites);
-      // A player entering the dugout for the first time gets a new sprite,
-      // picked by its figure (Dugout.createPlayerSprite)
+
       const added = figureSprite();
       dugoutSprites.set("p2", added);
 
       controller.applySetupHitAreas();
 
-      expect(added.input!.hitArea).toMatchObject({
+      expect(fixtureValue(added.input).hitArea).toMatchObject({
         width: ISO.tileWidth,
         height: ISO.tileHeight,
       });
-      expect(added.input!.hitAreaCallback).toBe(squareHitAreaContains);
+      expect(fixtureValue(added.input).hitAreaCallback).toBe(
+        squareHitAreaContains
+      );
     });
 
     it("picks dugout sprites by their figure again once setup ends", () => {
       const reserve = figureSprite();
       dugoutSprites.set("p1", reserve);
       controller.enablePlacement(team, true, dugoutSprites);
-      expect(reserve.input!.hitAreaCallback).toBe(squareHitAreaContains);
+      expect(fixtureValue(reserve.input).hitAreaCallback).toBe(
+        squareHitAreaContains
+      );
       const enableCalls = vi.mocked(reserve.setInteractive).mock.calls.length;
 
       controller.restoreFigureHitAreas();
 
-      expect(reserve.input!.hitArea).toMatchObject({ width: 56, height: 82 });
-      expect(reserve.input!.hitAreaCallback).toBe(
+      expect(fixtureValue(reserve.input).hitArea).toMatchObject({
+        width: 56,
+        height: 82,
+      });
+      expect(fixtureValue(reserve.input).hitAreaCallback).toBe(
         Phaser.Geom.Rectangle.Contains
       );
-      // Only the shape changes: input stays as setup left it
+
       expect(reserve.setInteractive).toHaveBeenCalledTimes(enableCalls);
-      expect(reserve.input!.enabled).toBe(true);
+      expect(fixtureValue(reserve.input).enabled).toBe(true);
     });
 
     it("restores the figure hit area when placement is disabled", () => {
@@ -213,17 +213,20 @@ describe("PlayerPlacementController", () => {
 
       controller.disablePlacement();
 
-      expect(reserve.input!.hitArea).toMatchObject({ width: 56, height: 82 });
+      expect(fixtureValue(reserve.input).hitArea).toMatchObject({
+        width: 56,
+        height: 82,
+      });
     });
 
     it("leaves dugout sprites alone outside setup", () => {
       const reserve = figureSprite();
       dugoutSprites.set("p1", reserve);
-      const before = reserve.input!.hitArea;
+      const before = fixtureValue(reserve.input).hitArea;
 
       controller.applySetupHitAreas();
 
-      expect(reserve.input!.hitArea).toBe(before);
+      expect(fixtureValue(reserve.input).hitArea).toBe(before);
     });
   });
 
@@ -243,7 +246,6 @@ describe("PlayerPlacementController", () => {
     });
 
     it("should fail placement if outside setup zone (Team 1)", () => {
-      // Setup zone for Team 1 is x: 0-6
       const result = controller.placePlayer("p1", 7, 1);
 
       expect(result).toBe(false);
@@ -255,7 +257,7 @@ describe("PlayerPlacementController", () => {
       const result = controller.placePlayer("p2", 1, 1);
 
       expect(result).toBe(false);
-      expect(controller.getPlacedCount()).toBe(1); // Still just p1
+      expect(controller.getPlacedCount()).toBe(1);
     });
 
     it("should move player if already placed", () => {
@@ -270,16 +272,6 @@ describe("PlayerPlacementController", () => {
     });
 
     it("should emit only PlayerPlaced (never PlayerRemoved) when repositioning an already-placed player", () => {
-      // Regression test: dragging a placed player to a new legal square must
-      // be a single atomic move. Emitting PlayerRemoved here used to be
-      // forwarded by GameScene to the engine as a real "send to Reserves",
-      // which online sent an extra remove-player command that could race the
-      // place-player command's response and flash the player into the
-      // Reserves box.
-      // `phaser` is globally mocked (see __tests__/setup/vitest-setup.ts) with
-      // `emit` as a bare vi.fn() that never actually invokes `.on()`
-      // listeners, so assert directly against the emit spy's call log instead
-      // of registering a listener.
       const emitSpy = controller.emit as unknown as ReturnType<typeof vi.fn>;
       const eventsNamed = (name: string) =>
         emitSpy.mock.calls.filter(([eventName]) => eventName === name);
@@ -288,14 +280,17 @@ describe("PlayerPlacementController", () => {
       expect(eventsNamed(GameEventNames.PlayerRemoved)).toHaveLength(0);
       expect(eventsNamed(GameEventNames.PlayerPlaced)).toHaveLength(1);
 
-      // The actual reposition under test: p1 is already on the pitch.
       const result = controller.placePlayer("p1", 2, 2);
 
       expect(result).toBe(true);
       expect(eventsNamed(GameEventNames.PlayerRemoved)).toHaveLength(0);
       const placedCalls = eventsNamed(GameEventNames.PlayerPlaced);
       expect(placedCalls).toHaveLength(2);
-      expect(placedCalls[1][1]).toEqual({ playerId: "p1", x: 2, y: 2 });
+      expect(fixtureValue(placedCalls[1])[1]).toEqual({
+        playerId: "p1",
+        x: 2,
+        y: 2,
+      });
     });
 
     it("removePlayer still emits PlayerRemoved for an actual off-pitch removal", () => {
@@ -308,7 +303,7 @@ describe("PlayerPlacementController", () => {
 
       const removedCalls = eventsNamed(GameEventNames.PlayerRemoved);
       expect(removedCalls).toHaveLength(1);
-      expect(removedCalls[0][1]).toBe("p1");
+      expect(fixtureValue(removedCalls[0])[1]).toBe("p1");
       expect(controller.getPlacedCount()).toBe(0);
     });
   });
@@ -331,7 +326,6 @@ describe("PlayerPlacementController", () => {
 });
 
 describe("PlayerPlacementController dugout drops", () => {
-  /** A dugout sprite that keeps its listeners so a test can fire them. */
   const dugoutSprite = (home: { x: number; y: number }) => {
     const handlers = new Map<string, (...args: unknown[]) => void>();
     const data = new Map<string, unknown>();
@@ -364,12 +358,12 @@ describe("PlayerPlacementController dugout drops", () => {
       getContainer: () => ({ x: 0, y: 0 }),
       worldToGrid: () => square,
     } as unknown as Pitch;
-    const controller = new PlayerPlacementController(
-      {} as Phaser.Scene,
+    const controller = new PlayerPlacementController({
+      _scene: {} as Phaser.Scene,
       pitch,
-      new SetupValidator(),
-      isAvailable
-    );
+      validator: new SetupValidator(),
+      ...(isAvailable ? { isAvailable } : {}),
+    });
     const sprite = dugoutSprite({ x: 900, y: 40 });
     const team = {
       id: "team-1",
@@ -381,7 +375,7 @@ describe("PlayerPlacementController dugout drops", () => {
       new Map([["p1", sprite as unknown as Phaser.GameObjects.Container]])
     );
     sprite.fire("dragstart");
-    // Dragged over the pitch
+
     sprite.x = 300;
     sprite.y = 200;
     sprite.fire("dragend", { worldX: 300, worldY: 200 });
@@ -389,9 +383,6 @@ describe("PlayerPlacementController dugout drops", () => {
   };
 
   it("leaves a placed player's dugout sprite where it was dropped", () => {
-    // The dugout refresh hides it; against the computer or online that
-    // refresh comes a moment later, and a snap home would show the player
-    // back in the dugout until then
     const sprite = dropOn({ x: 1, y: 1 });
     expect({ x: sprite.x, y: sprite.y }).toEqual({ x: 300, y: 200 });
   });
@@ -402,8 +393,6 @@ describe("PlayerPlacementController dugout drops", () => {
   });
 
   it("snaps a knocked-out reserve back even from an empty square", () => {
-    // The engine will not place them (IGameService.isSetupEligible), so
-    // the drop is refused here rather than left waiting on the engine
     const sprite = dropOn({ x: 1, y: 1 }, (playerId) => playerId !== "p1");
     expect({ x: sprite.x, y: sprite.y }).toEqual({ x: 900, y: 40 });
   });

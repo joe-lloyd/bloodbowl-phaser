@@ -1,44 +1,35 @@
-/**
- * Where the lookahead's playouts run in the browser: a Web Worker scores
- * the jobs it is sent on copies of the match, so the page never stalls
- * while the computer thinks. The page runs the search; a pool of these
- * shares out its playouts.
- */
-
 import type { GameFork } from "../../headless/HeadlessGame";
 import { scorePlayout } from "./search";
-import { Weights } from "./weights";
+import { type Weights } from "./weights";
 import type { Activation } from "./activations";
 
-/** One playout: a candidate at the decision, on one roll of the dice. */
-export interface PlayoutJob {
+interface PlayoutJob {
   index: number;
   seed: number;
-  plan?: Activation;
+  plan?: Activation | undefined;
 }
 
 export interface SearchRequest {
   id: number;
-  /** The position: a save, and the commands that reach it from there. */
+
   root: GameFork;
-  /** The side the scores are from. */
+
   us: string;
   jobs: PlayoutJob[];
-  /** Date.now() after which no playout starts. */
+
   deadlineAt?: number;
   weights?: Weights;
 }
 
 export interface SearchReply {
   id: number;
-  /** A score for each job, in order; null for one it did not play. */
+
   scores: (number | null)[];
 }
 
-// The engine narrates every operation; thousands of playouts would bury it.
-console.log = () => {};
-console.info = () => {};
-console.debug = () => {};
+console.log = () => undefined;
+console.info = () => undefined;
+console.debug = () => undefined;
 
 self.onmessage = async ({ data }: MessageEvent<SearchRequest>) => {
   const scores: (number | null)[] = [];
@@ -49,7 +40,14 @@ self.onmessage = async ({ data }: MessageEvent<SearchRequest>) => {
     }
     try {
       scores.push(
-        await scorePlayout(data.root, data.us, index, seed, data.weights, plan)
+        await scorePlayout({
+          root: data.root,
+          us: data.us,
+          index: index,
+          seed: seed,
+          w: data.weights,
+          openingPlan: plan,
+        })
       );
     } catch (error) {
       console.warn("[Search worker] playout failed:", error);

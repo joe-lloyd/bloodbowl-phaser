@@ -1,16 +1,11 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { MovementValidator } from "../../src/game/validators/MovementValidator";
 
-/**
- * A `move` path may never pass through a Prone or Stunned player's square.
- * Getting past a downed player is a Jump (2025 p.56): the separate `jump`
- * command, with its own Agility test. A plain move used to step through the
- * square for free, with no roll at all.
- */
 const scenario: Scenario = {
   id: "movement-through-prone",
   name: "Movement through a Prone player",
@@ -30,13 +25,13 @@ const scenario: Scenario = {
 
 async function moverReady() {
   const game = new HeadlessGame({ scenario, seed: 1 });
-  const mover = game.snapshot().teams[0].players[0];
+  const mover = fixtureValue(game.snapshot().teams[0]).players[0];
   await game.execute({
     type: "declare-action",
-    playerId: mover.id,
+    playerId: fixtureValue(mover).id,
     action: "move",
   });
-  return { game, moverId: mover.id };
+  return { game, moverId: fixtureValue(mover).id };
 }
 
 describe("movement through a Prone player", () => {
@@ -52,22 +47,26 @@ describe("movement through a Prone player", () => {
     });
 
     expect(response.ok).toBe(false);
-    const mover = response.snapshot.teams[0].players.find(
-      (p) => p.id === moverId
-    )!;
+    const mover = fixtureValue(
+      fixtureValue(response.snapshot.teams[0]).players.find(
+        (p) => p.id === moverId
+      )
+    );
     expect(mover.position).toEqual({ x: 10, y: 5 });
   });
 
   it("routes the pathfinder around the Prone player", async () => {
     const { game, moverId } = await moverReady();
-    const player = game.ctx.team1.players.find((p) => p.id === moverId)!;
-    const result = new MovementValidator().findPath(
-      player,
-      12,
-      5,
-      game.ctx.team2.players.filter((p) => p.gridPosition),
-      []
+    const player = fixtureValue(
+      game.ctx.team1.players.find((p) => p.id === moverId)
     );
+    const result = new MovementValidator().findPath({
+      player: player,
+      targetX: 12,
+      targetY: 5,
+      opponents: game.ctx.team2.players.filter((p) => p.gridPosition),
+      teammates: [],
+    });
 
     expect(result.valid).toBe(true);
     expect(result.path).toHaveLength(2);
@@ -78,19 +77,30 @@ describe("movement through a Prone player", () => {
   it("finds no path when Prone players wall off the target", () => {
     const validator = new MovementValidator();
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const mover = { ...game.ctx.team1.players[0], gridPosition: { x: 0, y: 0 } };
-    // Prone players on (1,0), (1,1) and (0,1) enclose the corner.
+    const mover = {
+      ...fixtureValue(game.ctx.team1.players[0]),
+      gridPosition: { x: 0, y: 0 },
+    };
+
     const wall = [
       { x: 1, y: 0 },
       { x: 1, y: 1 },
       { x: 0, y: 1 },
     ].map((pos, i) => ({
-      ...game.ctx.team2.players[i % 2],
-      id: `wall-${i}`,
+      ...fixtureValue(game.ctx.team2.players[i % 2]),
+      id: `wall-${String(i)}`,
       gridPosition: pos,
       status: PlayerStatus.PRONE,
     }));
 
-    expect(validator.findPath(mover, 2, 0, wall, []).valid).toBe(false);
+    expect(
+      validator.findPath({
+        player: mover,
+        targetX: 2,
+        targetY: 0,
+        opponents: wall,
+        teammates: [],
+      }).valid
+    ).toBe(false);
   });
 });

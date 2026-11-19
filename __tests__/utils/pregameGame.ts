@@ -26,12 +26,7 @@ export function pregameGame(draft = false) {
     team1,
     team2,
     seed: 23,
-    initialState: GameService.createMatchState(
-      team1,
-      team2,
-      GamePhase.SETUP,
-      SubPhase.INTRO,
-      { pregameInducements: true }
+    initialState: GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: { pregameInducements: true } }
     ),
   });
 }

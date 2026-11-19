@@ -1,11 +1,6 @@
-/**
- * Action protocol - JSON commands and responses for playing the game
- * without a UI. Commands map onto IGameService; no rules are duplicated here.
- */
-
 import { GamePhase, SubPhase } from "../types/GameState";
-import { ActionType } from "../types/events";
-import { BlockResult } from "../services/BlockResolutionService";
+import { type ActionType } from "../types/events";
+import { type BlockResult } from "../services/BlockResolutionService";
 import type {
   DopeStat,
   FoulAssistsDecisionRequest,
@@ -13,26 +8,26 @@ import type {
   RerollSource,
   WizardSpell,
 } from "../types/decisions";
-import { GameSnapshot } from "./serialization";
+import { type GameSnapshot } from "./serialization";
 import type {
   ChargeBudget,
   KickoffEventStepState,
 } from "../game/kickoff/KickoffEventManager";
-import { FormationPosition, SetupTeamStatus } from "../types/SetupTypes";
-import { BlockReplacement } from "../types/BlockReplacement";
+import {
+  type FormationPosition,
+  type SetupTeamStatus,
+} from "../types/SetupTypes";
+import { type BlockReplacement } from "../types/BlockReplacement";
 import type { SwoopFacing } from "../game/rules/throwTeammate";
-import { InducementOffer } from "../types/Inducements";
+import { type InducementOffer } from "../types/Inducements";
 
 export interface GridPosition {
   x: number;
   y: number;
 }
 
-/** Every playable instruction an external agent can send. */
 export type HeadlessCommand =
-  // Setup
   | { type: "coin-flip" }
-  /** A coach is ready for the opening weather; it is rolled once both are. */
   | { type: "ready-weather"; teamId: string }
   | { type: "start-setup"; kickingTeamId: string }
   | { type: "place-player"; playerId: string; x: number; y: number }
@@ -45,7 +40,6 @@ export type HeadlessCommand =
     }
   | { type: "setup-concession"; teamId: string; concede: boolean }
   | { type: "confirm-setup"; teamId: string }
-  // Kickoff
   | { type: "select-kicker"; playerId: string }
   | { type: "kick-ball"; playerId: string; x: number; y: number }
   | { type: "kickoff-select-player"; playerId: string }
@@ -53,13 +47,12 @@ export type HeadlessCommand =
   | { type: "kickoff-place-player"; playerId: string; x: number; y: number }
   | { type: "kickoff-confirm" }
   | { type: "kickoff-skip" }
-  // Turn play
   | {
       type: "declare-action";
       playerId: string;
       action: ActionType;
       blockReplacement?: BlockReplacement;
-      /** Use the team's Razzle-Dazzle: this is the first of two Actions. */
+
       razzleDazzle?: boolean;
     }
   | { type: "cancel-action"; playerId: string }
@@ -67,7 +60,7 @@ export type HeadlessCommand =
   | {
       type: "fumblerooski";
       playerId: string;
-      /** A square this player just moved out of. */
+
       x: number;
       y: number;
     }
@@ -85,11 +78,10 @@ export type HeadlessCommand =
       playerId: string;
       x: number;
       y: number;
-      /** Throw as a Hail Mary Pass: any square, a Long Bomb, never Accurate. */
+
       hailMary?: boolean;
     }
   | { type: "punt"; playerId: string; x: number; y: number }
-  /** Hand-off targets a team-mate id, not a square — a Hand-off never aims. */
   | { type: "handoff"; playerId: string; targetId: string }
   | { type: "foul"; playerId: string; x: number; y: number }
   | { type: "stab"; attackerId: string; defenderId: string }
@@ -99,12 +91,9 @@ export type HeadlessCommand =
       teammateId: string;
       x: number;
       y: number;
-      /** "throw" | "kick"; inferred from the thrower's traits when omitted */
+
       mode?: "throw" | "kick";
-      /**
-       * Swoop: the thrown player travels by the Throw-in Template facing
-       * this way instead of Scattering. Omit to Scatter as normal.
-       */
+
       swoopFacing?: SwoopFacing;
     }
   | { type: "throw-bomb"; throwerId: string; x: number; y: number }
@@ -122,43 +111,37 @@ export type HeadlessCommand =
     }
   | { type: "end-activation"; playerId: string }
   | { type: "end-turn" }
-  // Post-match league progression
   | {
       type: "award-mvp";
       teamId: string;
       nominatedPlayerIds: string[];
     }
   | { type: "assign-awarded-touchdown"; playerId: string }
-  // Decision replies
   | { type: "choose-block-result"; index: number }
   | { type: "choose-push-direction"; x: number; y: number }
   | { type: "choose-follow-up"; followUp: boolean }
   | {
       type: "use-reroll";
       accept: boolean;
-      /** Which source to spend; defaults to the first offered */
+
       source?: RerollSource;
     }
   | { type: "use-reaction"; accept: boolean }
-  /** The Thrall Lineman a failed Bloodlust bites; no playerId bites nobody. */
   | { type: "choose-bite-target"; playerId?: string }
   | { type: "choose-interception"; playerId?: string }
   | { type: "touchback"; playerId: string }
   | { type: "use-apothecary"; accept: boolean }
-  /** Answer a Prayer or Desperate Measure choice; no playerId declines. */
   | {
       type: "choose-inducement";
       playerId?: string;
       skill?: string;
       stat?: DopeStat;
-      /** Sports-Wizard: Zap! names `playerId`, Fireball the square x, y. */
+
       spell?: WizardSpell;
       x?: number;
       y?: number;
     }
-  /** How many of a Foul's Offensive Assists add +1 (0 to available). */
   | { type: "choose-foul-assists"; count: number }
-  // Sevens pregame inducements
   | { type: "offer-inducements" }
   | {
       type: "select-inducement";
@@ -168,14 +151,11 @@ export type HeadlessCommand =
     }
   | { type: "remove-inducement"; teamId: string; inducement: string }
   | { type: "confirm-inducements"; teamId: string }
-  // Queries (never mutate state)
   | { type: "state" }
   | { type: "legal-actions"; playerId?: string };
 
-/** A choice the game is waiting on before other commands are accepted. */
 export type PendingDecision =
   | {
-      /** A coach-owned Sevens kickoff step; may require several commands. */
       type: "kickoff-event";
       chooserTeamId: string;
       event: KickoffEventStepState["event"];
@@ -195,17 +175,17 @@ export type PendingDecision =
       type: "block-dice";
       attackerId: string;
       defenderId: string;
-      /** Team that picks the die (attacker unless more defender dice) */
+
       chooserTeamId: string;
       options: BlockResult[];
       choiceStage?: "attacker-reroll" | "pick";
-      /** The attacker may spend a Team Re-roll (all dice) before choosing. */
+
       teamRerollAvailable?: boolean;
-      /** The attacker may Pro-re-roll one die before choosing. */
+
       proAvailable?: boolean;
-      /** The attacker may Brawler-re-roll the single Both Down die. */
+
       brawlerAvailable?: boolean;
-      /** The attacking Veteran may re-roll all the dice, once per game. */
+
       veteranRerollAvailable?: boolean;
     }
   | {
@@ -213,7 +193,7 @@ export type PendingDecision =
       attackerId: string;
       defenderId: string;
       resultType: string;
-      /** Team whose coach places the push (the pushed player's on Sidestep) */
+
       chooserTeamId?: string;
       options: GridPosition[];
     }
@@ -223,27 +203,24 @@ export type PendingDecision =
       targetSquare: GridPosition;
     }
   | {
-      /** Kick went out / short: receiving coach picks who takes the ball */
       type: "touchback";
       teamId: string;
     }
   | {
-      /** A failed roll can be rerolled: the rolling coach accepts/declines */
       type: "reroll";
       playerId: string;
       chooserTeamId: string;
       rollKind: string;
-      /** The roll's own name, e.g. "Bone Head" for an activation roll */
+
       rollName?: string;
-      /** Available sources, skill first when both may be spent */
+
       sources: RerollSource[];
       skill?: string;
-      /** The failed die result */
+
       roll: number;
       needed?: number;
     }
   | {
-      /** A reactive skill may fire: the REACTING coach accepts/declines */
       type: "reaction";
       playerId: string;
       chooserTeamId: string;
@@ -251,23 +228,18 @@ export type PendingDecision =
       prompt: string;
     }
   | {
-      /** A failed Bloodlust with 2+ Thrall Linemen in reach: its coach picks
-          which to bite, or bites nobody. */
       type: "bite-target";
       playerId: string;
       chooserTeamId: string;
       targetIds: string[];
     }
   | {
-      /** A pass' landing square is fixed: the DEFENDING coach picks an
-          interceptor under the Range Ruler, or declines. */
       type: "interception";
       chooserTeamId: string;
       passerId: string;
       candidates: { playerId: string; modifier: number }[];
     }
   | {
-      /** An owned, unused Apothecary may patch up an eligible KO/casualty. */
       type: "apothecary";
       id: string;
       chooserTeamId: string;
@@ -277,9 +249,7 @@ export type PendingDecision =
       position?: GridPosition;
       casualtyType?: "badly-hurt" | "seriously-hurt" | "dead";
     }
-  /** A Prayer to Nuffle or Desperate Measure waits on its coach's pick. */
   | InducementChoiceDecisionRequest
-  /** The fouling coach declares how many Offensive Assists add +1. */
   | FoulAssistsDecisionRequest;
 
 export interface EmittedEvent {
@@ -291,13 +261,13 @@ export interface PlayerActions {
   playerId: string;
   playerName: string;
   actions: ActionType[];
-  /** Populated when legal-actions is queried for this specific player */
+
   moveTargets?: GridPosition[];
   blockTargets?: string[];
   foulTargets?: string[];
-  /** Legal Hand-off targets: adjacent, Standing, Tackle-Zone-holding team-mates. */
+
   handoffTargets?: string[];
-  /** Typed direct/Blitz declarations and their authoritative target sets. */
+
   replacementActions?: {
     blockReplacement: BlockReplacement;
     label: string;
@@ -328,19 +298,18 @@ export interface LegalActions {
 
 export interface CommandResponse {
   ok: boolean;
-  /** Machine-readable rejection reason when ok is false */
+
   reason?: string;
-  /** Domain events emitted while executing this command (dice rolls included) */
+
   events: EmittedEvent[];
   snapshot: GameSnapshot;
   pendingDecision: PendingDecision | null;
-  /** Populated for the legal-actions query */
+
   legalActions?: LegalActions;
-  /** Populated for the offer-inducements query */
+
   inducementOffer?: InducementOffer;
 }
 
-/** Each command that answers a pending decision, and the decision it answers. */
 export const DECISION_REPLIES: Partial<
   Record<HeadlessCommand["type"], PendingDecision["type"]>
 > = {

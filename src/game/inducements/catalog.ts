@@ -1,20 +1,13 @@
-/**
- * The Sevens inducement catalogue (docs/SEVENS_RULES.md L3). Some lines
- * depend on the roster: who may buy them, or what they cost, so the
- * catalogue is built per team. Nothing outside this list can be bought, so
- * there are no Star Players.
- */
-
 import { getRosterByRosterName } from "../../data/RosterTemplates";
-import { Inducement, InducementCatalogEntry } from "../../types/Inducements";
+import { Inducement, type InducementCatalogEntry } from "../../types/Inducements";
 import { RosterName, TeamSpecialRule } from "../../types/Team";
-import { TeamAllegiance, hasTeamSpecialRule } from "../rules/teamAllegiance";
+import { type TeamAllegiance, hasTeamSpecialRule } from "../rules/teamAllegiance";
 
 export function sevensInducementCatalog(
   team: TeamAllegiance
 ): InducementCatalogEntry[] {
   const roster = getRosterByRosterName(team.rosterName);
-  // Favoured of Nurgle may come from the alignment the team chose.
+
   const has = (rule: TeamSpecialRule) => hasTeamSpecialRule(team, rule);
   const line = (
     inducement: Inducement,

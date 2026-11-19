@@ -3,20 +3,14 @@ import {
   PHONE_QUERY,
   PORTRAIT_QUERY,
 } from "../../../game/presentation/phoneLayout";
-import { goFullscreenLandscape } from "./FullscreenButton";
+import { goFullscreenLandscape } from "./fullscreen";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
 
-/**
- * Over the match on a phone held upright: the pitch is 20 squares long, so
- * the match plays in landscape only. Where the browser allows it (Android),
- * a button goes full screen and locks landscape.
- */
 export function RotatePrompt() {
   const phone = useMediaQuery(PHONE_QUERY);
   const portrait = useMediaQuery(PORTRAIT_QUERY);
   if (!phone || !portrait) return null;
-  const canLock =
-    typeof document !== "undefined" && document.fullscreenEnabled === true;
+  const canLock = typeof document !== "undefined" && document.fullscreenEnabled;
   return (
     <div
       data-testid="rotate-prompt"

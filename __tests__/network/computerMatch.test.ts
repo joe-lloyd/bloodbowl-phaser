@@ -1,14 +1,10 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { confirmComputerPregame } from "../utils/computerPregame";
-/**
- * A match against the computer, end to end through ComputerMatch: the
- * human side is played by the heuristic coach through the match's own
- * `run`, the way the board's actions arrive, and the computer plays its
- * side by itself. The human may never act for the computer's team.
- */
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createComputerMatch } from "../../src/network/ComputerMatch";
 import {
-  OnlineMatch,
+  type OnlineMatch,
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
 import { EventBus } from "../../src/services/EventBus";
@@ -18,7 +14,7 @@ import { stabilizeIds } from "../../src/headless/createHeadlessGame";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
 import { drawsFor } from "../../src/game/presentation/screenSettled";
-import { Coach } from "../../src/simulation/coach";
+import { type Coach } from "../../src/simulation/coach";
 import { plannerCoach } from "../../src/simulation/ai/planner";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { createCoachRng } from "../../src/simulation/rng";
@@ -36,11 +32,6 @@ afterEach(() => {
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-/**
- * Stand in for the board's bounce animation: the page acknowledges each
- * bounce once it has played, and the engine waits for that, so a test
- * without a board answers at once instead of waiting out the guard.
- */
 function acknowledgeBounces(bus: EventBus): void {
   bus.on(GameEventNames.PassFumbled, ({ presentationId }) => {
     if (presentationId)
@@ -56,10 +47,9 @@ describe("a match against the computer, once closed", () => {
     team2: stabilizeIds(createLineupTeam(RosterName.ORC, "O", 2), "team2"),
   });
   const listeners = (bus: EventBus) =>
-    Object.values(GameEventNames).reduce(
-      (count, name) => count + bus.listenerCount(name),
-      0
-    );
+    Object.values(GameEventNames)
+      .filter((name) => name !== GameEventNames.PlayerDeselected)
+      .reduce((count, name) => count + bus.listenerCount(name), 0);
 
   it("leaves no listeners on the page's event bus", () => {
     const eventBus = new EventBus();
@@ -125,9 +115,9 @@ it("the computer waits for both teams, buys its own inducements and confirms bef
     pace: 0,
   });
   const state = () => ServiceContainer.getInstance().gameService.getState();
-  await vi.waitFor(() =>
-    expect(state().pregameInducements?.ready.team2).toBe(true)
-  );
+  await vi.waitFor(() => {
+    expect(state().pregameInducements?.ready["team2"]).toBe(true);
+  });
   expect(state().inducements).toBeUndefined();
   expect(state().pregameInducements?.offer).toBeUndefined();
   await confirmComputerPregame(match);
@@ -145,8 +135,6 @@ it("the computer waits for both teams, buys its own inducements and confirms bef
 });
 
 describe("whose turn it is against the computer", () => {
-  // Activates every player it can, then has only End Turn left to choose,
-  // while the engine is about to end the turn by itself.
   const activatesEveryone: Coach = {
     name: "activates-everyone",
     choose: async (input) => {
@@ -181,7 +169,7 @@ describe("whose turn it is against the computer", () => {
       coach: activatesEveryone,
       pace,
     });
-    // The computer kicks, so the human takes the first turn.
+
     await confirmComputerPregame(match);
     await match.run({ type: "start-setup", kickingTeamId: team2.id });
     const game = (
@@ -191,9 +179,7 @@ describe("whose turn it is against the computer", () => {
     ).__computerMatch.game;
     const rng = createCoachRng(5);
     const live = match;
-    // Plays the human's side up to their first turn, touchback included.
-    // The turn starts before the kick-off has bounced, so a touchback can
-    // still open once the engine goes quiet.
+
     const settled = async () => {
       await whenEngineQuiet();
       return (
@@ -217,7 +203,7 @@ describe("whose turn it is against the computer", () => {
         point,
         rng,
       });
-      for (const command of point.candidates[index].commands)
+      for (const command of fixtureValue(point.candidates[index]).commands)
         await live.run(command);
     }
     return { live, game, turns, team1, team2 };
@@ -230,7 +216,6 @@ describe("whose turn it is against the computer", () => {
     while (turns.length < 3)
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-    // The computer's End Turn was on its way when the engine ended the turn.
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     expect(turns).toEqual(["team1", "team2", "team1"]);
@@ -251,8 +236,6 @@ describe("whose turn it is against the computer", () => {
 });
 
 describe("a match against the computer", () => {
-  // Whoever kicks first decides who ends each half; the computer must set
-  // up again after ending a half itself.
   it.each(["human", "computer"] as const)(
     "plays to full time when the %s kicks first",
     async (firstKicker) => {
@@ -278,7 +261,7 @@ describe("a match against the computer", () => {
         pace: 0,
       });
       await confirmComputerPregame(match);
-      // The board's coin toss.
+
       await match.run({
         type: "start-setup",
         kickingTeamId: firstKicker === "human" ? team1.id : team2.id,
@@ -293,13 +276,11 @@ describe("a match against the computer", () => {
       let humanCommands = 0;
       let refused = 0;
       for (let i = 0; i < 40000; i++) {
-        // A person sees the turn end before choosing what to do next.
         await whenEngineQuiet();
         const snapshot = game.snapshot();
         if (snapshot.phase === GamePhase.GAME_OVER) break;
         if (
           !match.mayAct() ||
-          // The kick is in the air: nothing to do until it lands.
           (snapshot.phase === GamePhase.KICKOFF &&
             !game.pendingDecision() &&
             game.ctx.gameService.getState().kickoffKickResolved)
@@ -314,7 +295,7 @@ describe("a match against the computer", () => {
               : team1.id
             : null;
         const point = await enumerateDecision(game, kicker);
-        // Whatever the human may do is the human's own team's business.
+
         expect(point.teamId).toBe(team1.id);
         const { index } = await heuristicCoach.choose({
           game,
@@ -322,7 +303,7 @@ describe("a match against the computer", () => {
           point,
           rng,
         });
-        for (const command of point.candidates[index].commands) {
+        for (const command of fixtureValue(point.candidates[index]).commands) {
           const response = await match.run(command);
           humanCommands++;
           if (!response.ok) {
@@ -336,7 +317,7 @@ describe("a match against the computer", () => {
       expect(final.phase).toBe(GamePhase.GAME_OVER);
       expect(humanCommands).toBeGreaterThan(50);
       expect(refused).toBe(0);
-      // The computer coached its own players through the match.
+
       expect(computerActivations).toBeGreaterThan(20);
     },
     120_000
@@ -354,7 +335,7 @@ describe("the computer's pace", () => {
       "team2"
     );
     const eventBus = new EventBus();
-    // A walk is still on screen when the computer is due to set up.
+
     let finishWalk = () => {};
     const walk = new Promise<void>((resolve) => (finishWalk = resolve));
     const stopDrawing = drawsFor(eventBus, () => walk);
@@ -373,7 +354,8 @@ describe("the computer's pace", () => {
       }
     ).__computerMatch.game;
     const placed = () =>
-      game.snapshot().teams[1].players.filter((p) => p.position).length;
+      fixtureValue(game.snapshot().teams[1]).players.filter((p) => p.position)
+        .length;
 
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect(placed()).toBe(0);

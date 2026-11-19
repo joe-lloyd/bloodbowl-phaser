@@ -5,7 +5,6 @@ import type {
   SkillUsage,
 } from "../types/Skills";
 
-/** Project-written UI hints, not a reproduction of the tabletop rules. */
 export const SKILL_CATALOG = {
   Accurate: {
     kind: "skill",
@@ -902,7 +901,7 @@ export const SKILL_CATALOG = {
   SkillType,
   {
     kind: SkillKind;
-    category: `${SkillCategory}` | null;
+    category: SkillCategory | null;
     usage: SkillUsage;
     compulsory: boolean;
     parameterForm: string | null;

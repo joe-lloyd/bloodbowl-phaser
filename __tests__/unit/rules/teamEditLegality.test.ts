@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { RosterName, createTeam } from "../../../src/types/Team";
 import { createPlayer } from "../../../src/types/Player";
@@ -59,17 +60,13 @@ describe("canEdit", () => {
     expect(canEdit(t, { type: "hire-player" }).allowed).toBe(true);
   });
 
-  /**
-   * The 2025 rulebook lowered some maxima (Dark Elf Blitzers 0-4 to 0-2) and
-   * added shared Big Guy limits. An active team saved under the old ones
-   * may release the surplus, and only the surplus, so it can play again.
-   */
   function activeRoster(rosterName: RosterName, positions: string[]) {
-    const t = createTeam("Old", rosterName, { primary: 0, secondary: 0 });
-    const templates = getRosterByRosterName(rosterName).playerTemplates;
+    const roster = getRosterByRosterName(rosterName);
+    const t = createTeam("Old", rosterName, { primary: 0, secondary: 0 }, roster.rerollCost);
+    const templates = roster.playerTemplates;
     t.players = positions.map((name, index) =>
       createPlayer(
-        templates.find((template) => template.positionName === name)!,
+        fixtureValue(templates.find((template) => template.positionName === name)),
         t.id,
         index + 1
       )
@@ -83,8 +80,8 @@ describe("canEdit", () => {
       ...Array(4).fill("Dark Elf Lineman"),
       ...Array(3).fill("Dark Elf Blitzer"),
     ]);
-    const blitzer = t.players[4].id;
-    const lineman = t.players[0].id;
+    const blitzer = fixtureValue(t.players[4]).id;
+    const lineman = fixtureValue(t.players[0]).id;
     expect(canEdit(t, { type: "fire-player", playerId: blitzer })).toEqual({
       allowed: true,
     });
@@ -101,10 +98,10 @@ describe("canEdit", () => {
       "Mutant Rat Ogre",
     ]);
     expect(
-      canEdit(t, { type: "fire-player", playerId: t.players[6].id }).allowed
+      canEdit(t, { type: "fire-player", playerId: fixtureValue(t.players[6]).id }).allowed
     ).toBe(true);
     expect(
-      canEdit(t, { type: "fire-player", playerId: t.players[0].id }).allowed
+      canEdit(t, { type: "fire-player", playerId: fixtureValue(t.players[0]).id }).allowed
     ).toBe(false);
   });
 });

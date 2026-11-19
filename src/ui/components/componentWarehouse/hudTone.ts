@@ -1,8 +1,6 @@
-/** Class joining and the tone colours the rest of the kit shares. */
 export const cx = (...classes: (string | false | null | undefined)[]) =>
   classes.filter(Boolean).join(" ");
 
-/** Accent colours shared by panels, chips and log rows. */
 export type HudTone =
   | "gold"
   | "blood"

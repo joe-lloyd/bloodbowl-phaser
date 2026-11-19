@@ -1,15 +1,10 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 
-/**
- * A move may never end on an occupied square or skip squares. Found by the
- * simulation harness (`pnpm sim`): a ball carrier stepped onto a Prone
- * team-mate, and a single `move` command was free to jump several squares.
- * Jumping over a Prone player is the separate `jump` command.
- */
 const scenario: Scenario = {
   id: "movement-occupied-squares",
   name: "Movement into occupied squares",
@@ -33,13 +28,13 @@ const scenario: Scenario = {
 
 async function moverReady() {
   const game = new HeadlessGame({ scenario, seed: 1 });
-  const mover = game.snapshot().teams[0].players[0];
+  const mover = fixtureValue(game.snapshot().teams[0]).players[0];
   await game.execute({
     type: "declare-action",
-    playerId: mover.id,
+    playerId: fixtureValue(mover).id,
     action: "move",
   });
-  return { game, moverId: mover.id };
+  return { game, moverId: fixtureValue(mover).id };
 }
 
 describe("movement into occupied squares", () => {
@@ -47,7 +42,7 @@ describe("movement into occupied squares", () => {
     const { game, moverId } = await moverReady();
     const targets = game.ctx.gameService
       .getAvailableMovements(moverId)
-      .map(({ x, y }) => `${x},${y}`);
+      .map(({ x, y }) => `${String(x)},${String(y)}`);
 
     expect(targets).not.toContain("6,5");
     expect(targets).not.toContain("4,4");
@@ -68,9 +63,11 @@ describe("movement into occupied squares", () => {
     });
 
     expect(response.ok).toBe(false);
-    const mover = response.snapshot.teams[0].players.find(
-      (p) => p.id === moverId
-    )!;
+    const mover = fixtureValue(
+      fixtureValue(response.snapshot.teams[0]).players.find(
+        (p) => p.id === moverId
+      )
+    );
     expect(mover.position).toEqual({ x: 5, y: 5 });
   });
 
@@ -83,9 +80,11 @@ describe("movement into occupied squares", () => {
     });
 
     expect(response.ok).toBe(false);
-    const mover = response.snapshot.teams[0].players.find(
-      (p) => p.id === moverId
-    )!;
+    const mover = fixtureValue(
+      fixtureValue(response.snapshot.teams[0]).players.find(
+        (p) => p.id === moverId
+      )
+    );
     expect(mover.position).toEqual({ x: 5, y: 5 });
   });
 
@@ -98,9 +97,11 @@ describe("movement into occupied squares", () => {
     });
 
     expect(response.ok).toBe(true);
-    const mover = response.snapshot.teams[0].players.find(
-      (p) => p.id === moverId
-    )!;
+    const mover = fixtureValue(
+      fixtureValue(response.snapshot.teams[0]).players.find(
+        (p) => p.id === moverId
+      )
+    );
     expect(mover.position).toEqual({ x: 6, y: 6 });
   });
 });

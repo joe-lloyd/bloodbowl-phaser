@@ -1,5 +1,3 @@
-/** Reproducible, resumable headless study using the public computer recipes. */
-import { fork } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -15,13 +13,14 @@ import { fileURLToPath } from "node:url";
 import { catalogueInventory, studySchedule } from "./catalogue-study/schedule";
 import { playStudyGame } from "./catalogue-study/play";
 import type { StudyGame, StudyJob } from "./catalogue-study/model";
+import { forkWorkers } from "./catalogue-study/workers";
 
 const entry = fileURLToPath(import.meta.url);
 const root = resolve(dirname(entry), "../..");
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) => {
   const index = args.indexOf(`--${name}`);
-  return index < 0 ? fallback : args[index + 1];
+  return index < 0 ? fallback : (args[index + 1] ?? fallback);
 };
 
 function sourceDigest(): string {
@@ -66,7 +65,6 @@ async function worker(out: string) {
         completed: result.completed,
       });
     } catch (error) {
-      // Infrastructure failures are never quietly dropped from the denominator.
       process.send?.({ error: String(error), id: job.id });
     }
   });
@@ -133,70 +131,55 @@ async function run() {
       sourceDigest: digest,
     })
   );
-  const children: ReturnType<typeof fork>[] = [];
-  try {
-    await Promise.all(
-      Array.from(
-        { length: Math.min(workers, pending.length) },
-        () =>
-          new Promise<void>((resolveWorker, reject) => {
-            const child = fork(entry, ["--worker", "--out", out], {
-              execArgv: process.execArgv,
-              stdio: ["ignore", "ignore", "pipe", "ipc"],
-            });
-            children.push(child);
-            let current: StudyJob | undefined;
-            child.stderr?.on("data", (data) => process.stderr.write(data));
-            child.on("error", reject);
-            child.on(
-              "message",
-              (message: {
-                error?: string;
-                id?: string;
-                ready?: boolean;
-                ms?: number;
-                completed?: boolean;
-              }) => {
-                if (message.error) {
-                  reject(new Error(`${message.id}: ${message.error}`));
-                  return;
-                }
-                if (message.id) {
-                  done++;
-                  if (done % 10 === 0 || done === jobs.length)
-                    console.log(
-                      JSON.stringify({
-                        done,
-                        total: jobs.length,
-                        elapsedSeconds: Math.round(
-                          (Date.now() - started) / 1000
-                        ),
-                        last: message.id,
-                        ms: message.ms,
-                      })
-                    );
-                }
-                current = pending[next++];
-                child.send(current ?? "done");
-              }
-            );
-            child.on("exit", (code, signal) => {
-              if (current || code !== 0)
-                reject(
-                  new Error(
-                    `Worker exited ${signal ?? code} during ${current?.id}`
-                  )
-                );
-              else resolveWorker();
-            });
-          })
-      )
-    );
-  } finally {
-    children.forEach((child) => {
-      if (!child.killed) child.kill();
-    });
-  }
+  await forkWorkers(
+    {
+      entry,
+      args: ["--worker", "--out", out],
+      count: Math.min(workers, pending.length),
+    },
+    (child, resolveWorker, reject) => {
+      let current: StudyJob | undefined;
+      child.on(
+        "message",
+        (message: {
+          error?: string;
+          id?: string;
+          ready?: boolean;
+          ms?: number;
+          completed?: boolean;
+        }) => {
+          if (message.error) {
+            reject(new Error(`${String(message.id)}: ${message.error}`));
+            return;
+          }
+          if (message.id) {
+            done++;
+            if (done % 10 === 0 || done === jobs.length)
+              console.log(
+                JSON.stringify({
+                  done,
+                  total: jobs.length,
+                  elapsedSeconds: Math.round((Date.now() - started) / 1000),
+                  last: message.id,
+                  ms: message.ms,
+                })
+              );
+          }
+          current = pending[next++];
+          child.send(current ?? "done");
+        }
+      );
+      child.on("exit", (code, signal) => {
+        if (current || code !== 0)
+          reject(
+            new Error(
+              `Worker exited ${String(signal ?? code)} during ${String(current?.id)}`
+            )
+          );
+        else resolveWorker();
+      });
+    }
+  );
   writeFileSync(
     join(out, "complete.json"),
     JSON.stringify({
@@ -205,7 +188,9 @@ async function run() {
       seconds: (Date.now() - started) / 1000,
     })
   );
-  console.log(`Completed ${done}/${jobs.length} games. Results: ${out}`);
+  console.log(
+    `Completed ${String(done)}/${String(jobs.length)} games. Results: ${out}`
+  );
 }
 
 await run();

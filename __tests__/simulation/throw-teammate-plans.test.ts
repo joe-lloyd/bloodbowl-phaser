@@ -1,9 +1,9 @@
+import { parseMatchTrace } from "../../src/boundary/matchTrace";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
-import type { MatchSave } from "../../src/headless/serialization";
-import type { MatchRecording } from "../../src/simulation/runMatch";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
@@ -19,8 +19,10 @@ import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import { createCoachRng } from "../../src/simulation/rng";
 import type { Coach } from "../../src/simulation/coach";
 
-/** Team 1 scores at x = 19. Turn 6 is the last turn of the half. */
-function game(setup: Partial<ScenarioSetup>, seed = 1) {
+function game(
+  setup: Pick<ScenarioSetup, "team1Placements"> & Partial<ScenarioSetup>,
+  seed = 1
+) {
   return new HeadlessGame({
     seed,
     scenario: {
@@ -48,7 +50,7 @@ async function step(subject: HeadlessGame, coach: Coach) {
     point,
     rng: createCoachRng(1),
   });
-  const command = point.candidates[choice.index].commands[0];
+  const command = fixtureValue(point.candidates[choice.index]).commands[0];
   const result = await subject.execute(command);
   expect(result.ok, JSON.stringify(command)).toBe(true);
   return { command, note: choice.note };
@@ -62,16 +64,21 @@ const troll = (x: number, y: number): PlayerPlacement => ({
   stats: { MA: 4, ST: 5, AG: 5, PA: 3, AV: 10 },
 });
 
-const goblin = (
-  x: number,
-  y: number,
-  MA: number,
-  hasBall = true
-): PlayerPlacement => ({
+const goblin = ({
+  x,
+  y,
+  MA,
+  hasBall = true,
+}: {
+  x: number;
+  y: number;
+  MA: number;
+  hasBall?: boolean;
+}): PlayerPlacement => ({
   playerIndex: 1,
   x,
   y,
-  hasBall,
+  ...(hasBall ? { hasBall: true } : {}),
   skills: [SkillType.RIGHT_STUFF, SkillType.DODGE],
   stats: { MA, ST: 2, AG: 3, PA: 4, AV: 8 },
 });
@@ -79,7 +86,7 @@ const goblin = (
 describe("Throw Team-mate plans", () => {
   it("throws a slow carrier on the last turn when it cannot run in", async () => {
     const subject = game({
-      team1Placements: [troll(13, 5), goblin(14, 5, 2)],
+      team1Placements: [troll(13, 5), goblin({ x: 14, y: 5, MA: 2 })],
     });
     const coach = createPlannerCoach();
     const [troller, gob] = subject.ctx.team1.players;
@@ -87,7 +94,7 @@ describe("Throw Team-mate plans", () => {
     const declare = await step(subject, coach);
     expect(declare.command).toEqual({
       type: "declare-action",
-      playerId: troller.id,
+      playerId: fixtureValue(troller).id,
       action: "throwTeamMate",
     });
     expect(declare.note).toBe(
@@ -97,16 +104,15 @@ describe("Throw Team-mate plans", () => {
     const thrown = await step(subject, coach);
     expect(thrown.command).toMatchObject({
       type: "throw-teammate",
-      throwerId: troller.id,
-      teammateId: gob.id,
+      throwerId: fixtureValue(troller).id,
+      teammateId: fixtureValue(gob).id,
     });
   });
 
   it("runs a thrown carrier in after it lands short of the end zone", async () => {
-    // The throw scatters short; the goblin has not acted, so it runs in.
     const THROWN_SHORT_SEED = 3;
     const subject = game(
-      { team1Placements: [troll(13, 5), goblin(14, 5, 2)] },
+      { team1Placements: [troll(13, 5), goblin({ x: 14, y: 5, MA: 2 })] },
       THROWN_SHORT_SEED
     );
     const coach = createPlannerCoach();
@@ -123,8 +129,6 @@ describe("Throw Team-mate plans", () => {
   });
 
   it("prices a kick below a throw, since a fumbled kick cannot land", async () => {
-    // A fumbled throw bounces and may still land; a fumbled kick removes
-    // and injures the carrier, and the turn is over.
     const launchValue = async (skill: SkillType) => {
       const subject = game({
         team1Placements: [
@@ -133,15 +137,15 @@ describe("Throw Team-mate plans", () => {
             skills: [skill],
             stats: { MA: 4, ST: 5, AG: 5, PA: 5, AV: 10 },
           },
-          goblin(14, 5, 2),
+          goblin({ x: 14, y: 5, MA: 2 }),
         ],
       });
       const point = await enumerateDecision(subject, null);
-      const plans = activations(
-        readBoard(subject, "team1"),
-        DEFAULT_WEIGHTS,
-        availableActions(point.candidates)
-      ).filter((a) => a.action === "throwTeamMate");
+      const plans = activations({
+        board: readBoard(subject, "team1"),
+        w: DEFAULT_WEIGHTS,
+        available: availableActions(point.candidates),
+      }).filter((a) => a.action === "throwTeamMate");
       return plans[0]?.value ?? -Infinity;
     };
     const thrown = await launchValue(SkillType.THROW_TEAM_MATE);
@@ -153,14 +157,14 @@ describe("Throw Team-mate plans", () => {
 
   it("runs a carrier in rather than throwing it when the run is safe", async () => {
     const subject = game({
-      team1Placements: [troll(13, 5), goblin(14, 5, 6)],
+      team1Placements: [troll(13, 5), goblin({ x: 14, y: 5, MA: 6 })],
     });
     const coach = createPlannerCoach();
     const gob = subject.ctx.team1.players[1];
 
     expect((await step(subject, coach)).command).toEqual({
       type: "declare-action",
-      playerId: gob.id,
+      playerId: fixtureValue(gob).id,
       action: "move",
     });
   });
@@ -170,7 +174,7 @@ describe("Throw Team-mate plans", () => {
       turn: 2,
       team1Placements: [
         troll(10, 5),
-        goblin(9, 5, 6, false),
+        goblin({ x: 9, y: 5, MA: 6, hasBall: false }),
         { playerIndex: 2, x: 8, y: 5, hasBall: true },
       ],
     });
@@ -182,18 +186,17 @@ describe("Throw Team-mate plans", () => {
       point,
       rng: createCoachRng(1),
     });
-    expect(point.candidates[choice.index].commands[0]).not.toMatchObject({
+    expect(
+      fixtureValue(point.candidates[choice.index]).commands[0]
+    ).not.toMatchObject({
       action: "throwTeamMate",
     });
   });
 
-  /** The goblin has acted ten squares out; the troll declares next. */
   async function trollAfterGoblin(turn: number) {
-    // Too far for the goblin to run in next turn on its own, close enough
-    // for a throw and a run.
     const subject = game({
       turn,
-      team1Placements: [troll(6, 2), goblin(9, 5, 6)],
+      team1Placements: [troll(6, 2), goblin({ x: 9, y: 5, MA: 6 })],
       team2Placements: [
         { playerIndex: 0, x: 13, y: 4 },
         { playerIndex: 1, x: 13, y: 6 },
@@ -203,13 +206,17 @@ describe("Throw Team-mate plans", () => {
     const [troller, gob] = subject.ctx.team1.players;
     await subject.execute({
       type: "declare-action",
-      playerId: gob.id,
+      playerId: fixtureValue(gob).id,
       action: "move",
     });
-    await subject.execute({ type: "end-activation", playerId: gob.id });
+    await subject.execute({
+      type: "end-activation",
+      playerId: fixtureValue(gob).id,
+    });
     const declare = await step(subject, coach);
     const acting = () =>
-      subject.ctx.gameService.getState().activePlayer?.id === troller.id;
+      subject.ctx.gameService.getState().activePlayer?.id ===
+      fixtureValue(troller).id;
     for (let i = 0; i < 12 && acting(); i++) await step(subject, coach);
     expect(acting()).toBe(false);
     return { declare, troller };
@@ -220,11 +227,11 @@ describe("Throw Team-mate plans", () => {
 
     expect(declare.command).toEqual({
       type: "declare-action",
-      playerId: troller.id,
+      playerId: fixtureValue(troller).id,
       action: "move",
     });
     expect(declare.note).toBe("moves to throw");
-    const at = troller.gridPosition!;
+    const at = fixtureValue(fixtureValue(troller).gridPosition);
     expect(Math.max(Math.abs(at.x - 9), Math.abs(at.y - 5))).toBe(1);
   });
 
@@ -237,9 +244,7 @@ describe("Throw Team-mate plans", () => {
 
 describe("Throw Team-mate from a recorded match", () => {
   it("does not throw the carrier when a fumble is likelier than a score", async () => {
-    // Policy-lab pilot: a Trained Troll, PA 5+ and Always Hungry, beside a
-    // Goblin carrier nine squares out on turn 3. The throw needs a 6+.
-    const trace = JSON.parse(
+    const trace = parseMatchTrace(
       gunzipSync(
         readFileSync(
           join(
@@ -248,7 +253,7 @@ describe("Throw Team-mate from a recorded match", () => {
           )
         )
       ).toString()
-    ) as { initial: MatchSave; recording: MatchRecording };
+    );
     const subject = new HeadlessGame({ matchSave: trace.initial });
     const THROW_STEP = 201;
     for (const step of trace.recording.steps.slice(0, THROW_STEP))
@@ -261,10 +266,14 @@ describe("Throw Team-mate from a recorded match", () => {
       rng: createCoachRng(1),
     });
 
-    expect(trace.recording.steps[THROW_STEP].command).toMatchObject({
+    expect(
+      fixtureValue(trace.recording.steps[THROW_STEP]).command
+    ).toMatchObject({
       action: "throwTeamMate",
     });
-    expect(point.candidates[choice.index].commands[0]).not.toMatchObject({
+    expect(
+      fixtureValue(point.candidates[choice.index]).commands[0]
+    ).not.toMatchObject({
       action: "throwTeamMate",
     });
   });

@@ -11,13 +11,12 @@ import {
   eliminatedEntrantIds,
 } from "../../../competition/bracketLayout";
 import {
-  CompetitionEntrant,
-  CompetitionFixture,
-  FixtureResult,
+  type CompetitionEntrant,
+  type CompetitionFixture,
+  type FixtureResult,
 } from "../../../competition/types";
 import { cx } from "../componentWarehouse/HudKit";
 
-/** "Walkover: Nuln Hammers withdrew" */
 export function walkoverLine(
   entrants: CompetitionEntrant[],
   { withdrawnEntrantIndex }: NonNullable<FixtureResult["walkover"]>
@@ -25,9 +24,8 @@ export function walkoverLine(
   return `Walkover: ${entrants[withdrawnEntrantIndex]?.name ?? "a team"} withdrew`;
 }
 
-/** Minimum width of a round column; the bracket scrolls past this. */
 const COLUMN_MIN_WIDTH = 210;
-/** Vertical breathing room per leaf slot — what stops the tree feeling cramped. */
+
 const HEIGHT_PER_LEAF = 190;
 
 export interface BracketFixtureContext {
@@ -37,13 +35,40 @@ export interface BracketFixtureContext {
   ready: boolean;
 }
 
+export function FixtureActions({
+  className,
+  context: { fixture, home, away, ready },
+  renderActions,
+}: {
+  className: string;
+  context: {
+    fixture: CompetitionFixture;
+    home: CompetitionEntrant | undefined;
+    away: CompetitionEntrant | undefined;
+    ready: boolean;
+  };
+  renderActions: (context: BracketFixtureContext) => React.ReactNode;
+}) {
+  if (!ready) return null;
+  return (
+    <div className={className}>
+      {renderActions({
+        fixture,
+        ...(home === undefined ? {} : { home: home }),
+        ...(away === undefined ? {} : { away: away }),
+        ready,
+      })}
+    </div>
+  );
+}
+
 interface TournamentBracketProps {
   fixtures: CompetitionFixture[];
   entrants: CompetitionEntrant[];
-  championEntrantId?: string;
-  /** Controls for a fixture — omitted entirely when it is not ready to play. */
+  championEntrantId?: string | undefined;
+
   renderActions: (context: BracketFixtureContext) => React.ReactNode;
-  /** Shown instead of the bracket when the viewport is too narrow to read it. */
+
   fallback: React.ReactNode;
 }
 
@@ -53,21 +78,20 @@ interface CardBox {
   centreY: number;
 }
 
-/**
- * True while the viewport is below `minWidth`. A seven-column bracket is
- * unreadable on a phone even with horizontal scrolling, so below this we hand
- * over to the round-by-round list rather than shipping a squeezed bracket.
- */
 function useBelowWidth(minWidth: number): boolean {
   const [below, setBelow] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
-    const query = window.matchMedia(`(max-width: ${minWidth - 1}px)`);
-    const sync = () => setBelow(query.matches);
+    const query = window.matchMedia(`(max-width: ${String(minWidth - 1)}px)`);
+    const sync = () => {
+      setBelow(query.matches);
+    };
     sync();
     query.addEventListener("change", sync);
-    return () => query.removeEventListener("change", sync);
+    return () => {
+      query.removeEventListener("change", sync);
+    };
   }, [minWidth]);
 
   return below;
@@ -112,12 +136,6 @@ export function TournamentBracket({
     []
   );
 
-  /**
-   * Cards live in document flow — their height varies with the controls they
-   * show — so their positions are only known once rendered. Measure them and
-   * draw connectors to the measured card edges. The SVG is absolutely
-   * positioned and cannot affect card layout, so this settles in one pass.
-   */
   useLayoutEffect(() => {
     const measure = () => {
       const container = containerRef.current;
@@ -138,7 +156,9 @@ export function TournamentBracket({
     measure();
     const observer = new ResizeObserver(measure);
     if (containerRef.current) observer.observe(containerRef.current);
-    cardRefs.current.forEach((element) => observer.observe(element));
+    cardRefs.current.forEach((element) => {
+      observer.observe(element);
+    });
     window.addEventListener("resize", measure);
     return () => {
       observer.disconnect();
@@ -149,15 +169,10 @@ export function TournamentBracket({
   const entrantOf = (id: string | null | undefined) =>
     entrants.find((candidate) => candidate.id === id);
 
-  // Below four entrants there is no tree to draw — show the tie directly.
   if (narrow || layout.nodes.length === 0 || entrants.length < 4) {
     return <>{fallback}</>;
   }
 
-  // One flex column per bracket column, cards ordered top to bottom by the
-  // layout's row. `justify-around` is what centres each round between the ties
-  // feeding it — no absolute positioning, so cards can never overlap however
-  // tall their controls make them.
   const columns = Array.from({ length: layout.columns }, (_, column) =>
     layout.nodes
       .filter((node) => node.column === column)
@@ -169,7 +184,6 @@ export function TournamentBracket({
   const champion = entrantOf(championEntrantId);
 
   return (
-    // The bracket scrolls inside its own box; the page never scrolls sideways.
     <div className="overflow-x-auto pb-4">
       <div
         ref={containerRef}
@@ -187,7 +201,7 @@ export function TournamentBracket({
             const from = boxes.get(connector.fromFixtureId);
             const to = boxes.get(connector.toFixtureId);
             if (!from || !to) return null;
-            // Left half runs rightward into the centre, right half leftward.
+
             const rightward = sideOf.get(connector.fromFixtureId) !== "right";
             const startX = rightward ? from.right : from.left;
             const endX = rightward ? to.left : to.right;
@@ -196,10 +210,10 @@ export function TournamentBracket({
               <polyline
                 key={`${connector.fromFixtureId}->${connector.toFixtureId}`}
                 points={[
-                  `${startX},${from.centreY}`,
-                  `${midX},${from.centreY}`,
-                  `${midX},${to.centreY}`,
-                  `${endX},${to.centreY}`,
+                  `${String(startX)},${String(from.centreY)}`,
+                  `${String(midX)},${String(from.centreY)}`,
+                  `${String(midX)},${String(to.centreY)}`,
+                  `${String(endX)},${String(to.centreY)}`,
                 ].join(" ")}
                 fill="none"
                 stroke="currentColor"
@@ -252,16 +266,14 @@ export function TournamentBracket({
                       {walkoverLine(entrants, fixture.result.walkover)}
                     </p>
                   )}
-                  {ready && (
-                    <div className="mt-2 border-t border-white/10 pt-2">
-                      {renderActions({ fixture, home, away, ready })}
-                    </div>
-                  )}
+                  <FixtureActions
+                    className="mt-2 border-t border-white/10 pt-2"
+                    context={{ fixture, home, away, ready }}
+                    renderActions={renderActions}
+                  />
                 </article>
               );
 
-              // The trophy rides with the final as ONE flex item, so it cannot
-              // skew where `justify-around` places the final card.
               if (isFinal && champion) {
                 return (
                   <div key={fixture.id} className="flex flex-col gap-2">
@@ -286,7 +298,6 @@ export function TournamentBracket({
   );
 }
 
-/** One side of a fixture: its score, and whether it won or is out. */
 function slotFacts(
   fixture: CompetitionFixture,
   side: "home" | "away",
@@ -304,7 +315,7 @@ function slotFacts(
         : result?.awayScore,
     isWinner: !!winnerId && winnerId === entrantId,
     isEliminated: !!entrantId && eliminated.has(entrantId),
-    // Only the away slot can be a bye
+
     bye: side === "away" && !!result?.bye,
   };
 }
@@ -316,8 +327,8 @@ function BracketSlot({
   isEliminated,
   bye,
 }: {
-  entrant?: CompetitionEntrant;
-  score?: number;
+  entrant?: CompetitionEntrant | undefined;
+  score?: number | undefined;
   isWinner: boolean;
   isEliminated: boolean;
   bye: boolean;

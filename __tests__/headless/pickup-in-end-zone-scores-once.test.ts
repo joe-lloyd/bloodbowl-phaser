@@ -1,14 +1,10 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 
-/**
- * Picking the ball up in the end zone is one touchdown, credited to the
- * player who scored it. Found by the simulation harness: PickupOperation
- * scored, then the move that made the pickup scored again, and a touchdown
- * scored by moving in reached match stats with no scorer, so no SPP.
- */
 const scenario: Scenario = {
   id: "pickup-in-end-zone-scores-once",
   name: "Pickup in the end zone",
@@ -26,13 +22,14 @@ const scenario: Scenario = {
   },
 };
 
-/** Seed 1 passes the pickup; committed, never searched. */
 const PICKUP_PASSES_SEED = 1;
 
 describe("a pickup in the end zone", () => {
   it("scores one touchdown and credits the scorer", async () => {
     const game = new HeadlessGame({ scenario, seed: PICKUP_PASSES_SEED });
-    const scorer = game.snapshot().teams[0].players[0].id;
+    const scorer = fixtureValue(
+      fixtureValue(game.snapshot().teams[0]).players[0]
+    ).id;
 
     await game.execute({
       type: "declare-action",
@@ -48,11 +45,14 @@ describe("a pickup in the end zone", () => {
     const pickup = response.events.find(
       (e) =>
         e.name === "diceRoll" &&
-        (e.data as { rollType: string }).rollType.startsWith("Pickup")
+        z
+          .object({ rollType: z.string() })
+          .parse(e.data)
+          .rollType.startsWith("Pickup")
     );
-    expect((pickup?.data as { description: string }).description).toBe(
-      "Pickup (Human Lineman #1): 4, needs 3+"
-    );
+    expect(
+      z.object({ description: z.string() }).parse(pickup?.data).description
+    ).toBe("Pickup (Human Lineman #1): 4, needs 3+");
     expect(response.snapshot.score).toEqual({ team1: 1, team2: 0 });
     const credited = game.ctx.matchStats
       .captureState()

@@ -1,5 +1,5 @@
 import React from "react";
-import { IEventBus } from "../../../services/EventBus";
+import { type IEventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames } from "../../../types/events";
 import {
@@ -14,7 +14,6 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useEventBus } from "../../hooks/useEventBus";
 import { Chip, HudButton, Panel } from "../componentWarehouse/HudKit";
 
-/** What the deciding coach should do next in this kickoff step. */
 function kickoffInstruction(
   step: KickoffEventStepState,
   players: readonly Player[]
@@ -23,26 +22,24 @@ function kickoffInstruction(
     return "Finish placing the highlighted player.";
   const limit = step.selectionLimit;
   if (isOneSquareMoveEvent(step.event)) {
-    // The pick a square click will move.
     const stepping = players.find(
       (player) => player.id === steppingPlayerId(step)
     );
     return stepping
       ? `Now click a green square next to ${stepping.playerName} to move them there.`
-      : `Move up to ${limit} of your players one square each: click a player in a blue ring, then a green square next to them. Press Done when you have finished.`;
+      : `Move up to ${String(limit)} of your players one square each: click a player in a blue ring, then a green square next to them. Press Done when you have finished.`;
   }
   if (step.event === KickoffEvent.HIGH_KICK)
-    return `Click one eligible receiving player on the pitch to place them under the ball at (${step.landingSquare?.x}, ${step.landingSquare?.y}).`;
+    return `Click one eligible receiving player on the pitch to place them under the ball at (${String(step.landingSquare?.x)}, ${String(step.landingSquare?.y)}).`;
   if (step.charge) {
     const active = players.find(
       (player) => player.id === step.charge?.activePlayerId
     );
     return `${active?.playerName ?? "The selected player"} is active. Choose an action in the normal player action window.`;
   }
-  return `Pick up to ${limit} players in a blue ring, then press Charge! to move them one at a time.`;
+  return `Pick up to ${String(limit)} players in a blue ring, then press Charge! to move them one at a time.`;
 }
 
-/** Ends the step: once someone has moved, or once Charge! has its players. */
 function finishButton(step: KickoffEventStepState) {
   if (isOneSquareMoveEvent(step.event))
     return { label: "Done", ready: step.movedPlayerIds.length > 0 };
@@ -81,7 +78,9 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
   const limit = step.selectionLimit;
   const moved = step.movedPlayerIds.length;
   const picked = step.selectedPlayerIds.length;
-  const count = oneSquare ? `${moved}/${limit} moved` : `${picked}/${limit}`;
+  const count = oneSquare
+    ? `${String(moved)}/${String(limit)} moved`
+    : `${String(picked)}/${String(limit)}`;
   const finish = finishButton(step);
 
   return (
@@ -116,9 +115,6 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
           : `Waiting for ${team.name}'s coach…`}
       </p>
 
-      {/* Skip/Confirm are the deciding coach's controls only — the other
-          coach is a passive spectator for this step and just watches the
-          result play out live on the board. */}
       {canAct && (
         <div className="mt-4 flex justify-end gap-2">
           <HudButton

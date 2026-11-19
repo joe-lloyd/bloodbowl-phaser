@@ -2,9 +2,9 @@ import { useAfterDice } from "../../hooks/useAfterDice";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useState } from "react";
-import { IEventBus } from "../../../services/EventBus";
+import { type IEventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
-import { GameEventNames, UIEvents } from "../../../types/events";
+import { GameEventNames, type UIEvents } from "../../../types/events";
 import {
   DialogActions,
   DialogShell,
@@ -15,7 +15,7 @@ interface ConfirmationModalProps {
   eventBus: IEventBus;
 }
 
-type ConfirmationData = UIEvents[GameEventNames.UI_RequestConfirmation];
+type ConfirmationData = UIEvents[typeof GameEventNames.UI_RequestConfirmation];
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   eventBus,
@@ -35,9 +35,6 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     });
   });
 
-  // Clear BEFORE emitting: the result handler can synchronously request the
-  // next confirmation (dodge -> sprint), and a trailing setData(null) would
-  // wipe that fresh dialog
   const handleConfirm = () => {
     if (!data || getActiveOnlineMatch()?.mayAct() === false) return;
     const actionId = data.actionId;
@@ -58,15 +55,39 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     });
   };
 
-  // A Rush or Dodge prompt can follow a roll: wait until its die has landed
   const shown = useAfterDice(eventBus, data);
   if (!shown || !data || getActiveOnlineMatch()?.mayAct() === false)
     return null;
 
   return (
+    <ConfirmationModalView
+      data={data}
+      handleConfirm={handleConfirm}
+      handleCancel={handleCancel}
+    />
+  );
+};
+
+interface ConfirmationModalViewProps {
+  data: ConfirmationData;
+  handleConfirm: () => void;
+  handleCancel: () => void;
+}
+function ConfirmationModalView({
+  data,
+  handleConfirm,
+  handleCancel,
+}: ConfirmationModalViewProps) {
+  return (
     <DialogShell
       placement="dock"
-      eyebrow={<DecisionTeam teamId={data.chooserTeamId} />}
+      eyebrow={
+        <DecisionTeam
+          {...(data.chooserTeamId === undefined
+            ? {}
+            : { teamId: data.chooserTeamId })}
+        />
+      }
       testId="confirmation-modal"
       tone={data.risky ? "blood" : "gold"}
       titleAs="h3"
@@ -75,14 +96,14 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       actions={
         <DialogActions>
           <HudButton variant="ghost" hotkey="Escape" onClick={handleCancel}>
-            {data.cancelLabel || "Cancel"}
+            {confirmationLabel(data.cancelLabel, "Cancel")}
           </HudButton>
           <HudButton
             variant={data.risky ? "primary" : "gold"}
             hotkey="Enter"
             onClick={handleConfirm}
           >
-            {data.confirmLabel || "Confirm"}
+            {confirmationLabel(data.confirmLabel, "Confirm")}
           </HudButton>
         </DialogActions>
       }
@@ -90,4 +111,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       <div className="whitespace-pre-line leading-relaxed">{data.message}</div>
     </DialogShell>
   );
-};
+}
+
+function confirmationLabel(
+  value: string | undefined,
+  fallback: string
+): string {
+  return value?.length ? value : fallback;
+}

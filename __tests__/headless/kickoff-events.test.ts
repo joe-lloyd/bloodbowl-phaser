@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase } from "../../src/types/GameState";
@@ -46,15 +48,15 @@ describe("Sevens kickoff events (seeded headless)", () => {
       expect(Object.keys(run.result.outcome.perTeam).length).toBeGreaterThan(0);
     }
 
-    const getRef = found.get(KickoffEvent.GET_THE_REF)!;
+    const getRef = fixtureValue(found.get(KickoffEvent.GET_THE_REF));
     expect(getRef.game.snapshot().bribes).toEqual({ team1: 1, team2: 1 });
 
-    const timeout = found.get(KickoffEvent.TIME_OUT)!;
+    const timeout = fixtureValue(found.get(KickoffEvent.TIME_OUT));
     expect(timeout.game.ctx.gameService.getTurnNumber("team1")).toBe(3);
-    // The receiving side immediately begins its turn after the event.
+
     expect(timeout.game.ctx.gameService.getTurnNumber("team2")).toBe(4);
 
-    const cheering = found.get(KickoffEvent.CHEERING_FANS)!;
+    const cheering = fixtureValue(found.get(KickoffEvent.CHEERING_FANS));
     expect(
       Object.keys(cheering.game.snapshot().driveEffects?.owedAssists ?? {})
         .length
@@ -67,38 +69,37 @@ describe("Sevens kickoff events (seeded headless)", () => {
       )
       .map((eventRecord) => String(eventRecord.data));
     expect(
-      cheeringLogs.some((line) =>
-        line.includes(cheering.game.ctx.team1.name)
-      )
+      cheeringLogs.some((line) => line.includes(cheering.game.ctx.team1.name))
     ).toBe(true);
     expect(
-      cheeringLogs.some((line) =>
-        line.includes(cheering.game.ctx.team2.name)
-      )
+      cheeringLogs.some((line) => line.includes(cheering.game.ctx.team2.name))
     ).toBe(true);
     expect(cheeringLogs.every((line) => line.includes("D6"))).toBe(true);
 
-    const coaching = found.get(KickoffEvent.BRILLIANT_COACHING)!;
+    const coaching = fixtureValue(found.get(KickoffEvent.BRILLIANT_COACHING));
     expect(
       Object.values(
         coaching.game.snapshot().driveEffects?.freeRerolls ?? {}
       ).reduce((sum, count) => sum + count, 0)
     ).toBeGreaterThan(0);
 
-    const weather = found.get(KickoffEvent.CHANGING_WEATHER)!;
+    const weather = fixtureValue(found.get(KickoffEvent.CHANGING_WEATHER));
     expect(
       weather.response.events.some(
         (eventRecord) => eventRecord.name === GameEventNames.WeatherChanged
       )
     ).toBe(true);
 
-    const snack = found.get(KickoffEvent.DODGY_SNACK)!;
+    const snack = fixtureValue(found.get(KickoffEvent.DODGY_SNACK));
     const snackModifiers =
       snack.game.snapshot().driveEffects?.playerModifiers ?? {};
     expect(Object.keys(snackModifiers).length).toBeGreaterThan(0);
     for (const [playerId, modifier] of Object.entries(snackModifiers)) {
-      const player = [...snack.game.ctx.team1.players, ...snack.game.ctx.team2.players]
-        .find((candidate) => candidate.id === playerId)!;
+      const player = fixtureValue(
+        [...snack.game.ctx.team1.players, ...snack.game.ctx.team2.players].find(
+          (candidate) => candidate.id === playerId
+        )
+      );
       if (modifier.confinedToReserves) {
         expect(player.gridPosition).toBeUndefined();
         expect(player.status).toBe("Reserve");
@@ -112,7 +113,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
       }
     }
 
-    const invasion = found.get(KickoffEvent.PITCH_INVASION)!;
+    const invasion = fixtureValue(found.get(KickoffEvent.PITCH_INVASION));
     expect(
       invasion.game
         .snapshot()
@@ -127,7 +128,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
       });
     }
 
-    const quick = found.get(KickoffEvent.QUICK_SNAP)!;
+    const quick = fixtureValue(found.get(KickoffEvent.QUICK_SNAP));
     expect(
       quick.response.events.some(
         (eventRecord) => eventRecord.name === GameEventNames.BallKicked
@@ -135,20 +136,17 @@ describe("Sevens kickoff events (seeded headless)", () => {
     ).toBe(true);
     expect(
       quick.response.events.some(
-        (eventRecord) =>
-          eventRecord.name === GameEventNames.KickoffBallLanding
+        (eventRecord) => eventRecord.name === GameEventNames.KickoffBallLanding
       )
     ).toBe(false);
     const quickSkipped = await quick.game.execute({ type: "kickoff-skip" });
     expect(
       quickSkipped.events.some(
-        (eventRecord) =>
-          eventRecord.name === GameEventNames.KickoffBallLanding
+        (eventRecord) => eventRecord.name === GameEventNames.KickoffBallLanding
       )
     ).toBe(true);
     const quickLanding = quickSkipped.events.findIndex(
-      (eventRecord) =>
-        eventRecord.name === GameEventNames.KickoffBallLanding
+      (eventRecord) => eventRecord.name === GameEventNames.KickoffBallLanding
     );
     const quickComplete = quickSkipped.events.findIndex(
       (eventRecord) =>
@@ -161,7 +159,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(quickComplete).toBeGreaterThan(quickLanding);
     expect(quickReady).toBeGreaterThan(quickComplete);
 
-    const high = found.get(KickoffEvent.HIGH_KICK)!;
+    const high = fixtureValue(found.get(KickoffEvent.HIGH_KICK));
     const highBall = high.response.events.findIndex(
       (eventRecord) => eventRecord.name === GameEventNames.BallKicked
     );
@@ -182,35 +180,35 @@ describe("Sevens kickoff events (seeded headless)", () => {
   it("clears unused drive effects and restores effective MA/AV", () => {
     const game = new HeadlessGame({ scenario: kickoffScenario, seed: 1 });
     const player = game.ctx.team1.players[0];
-    const baseMA = player.stats.MA;
-    const baseAV = player.stats.AV;
+    const baseMA = fixtureValue(player).stats.MA;
+    const baseAV = fixtureValue(player).stats.AV;
     const effects = getDriveEffects(game.ctx.gameService.getState());
-    effects.freeRerolls.team1 = 1;
-    effects.owedAssists.team1 = { turn: 3, used: false };
-    effects.playerModifiers[player.id] = {
+    effects.freeRerolls["team1"] = 1;
+    effects.owedAssists["team1"] = { turn: 3, used: false };
+    effects.playerModifiers[fixtureValue(player).id] = {
       maModifier: -1,
       avModifier: -1,
     };
-    effects.freeRerolls.team2 = 1;
+    effects.freeRerolls["team2"] = 1;
     game.ctx.team2.rerolls = 0;
-    expect(game.ctx.gameService.getRerollArbiter().teamRerollAvailable("team2")).toBe(
-      true
-    );
+    expect(
+      game.ctx.gameService.getRerollArbiter().teamRerollAvailable("team2")
+    ).toBe(true);
     game.ctx.gameService.getRerollArbiter().consumeTeamReroll("team2");
-    expect(effects.freeRerolls.team2).toBeUndefined();
+    expect(effects.freeRerolls["team2"]).toBeUndefined();
     expect(game.ctx.team2.rerolls).toBe(0);
 
     game.ctx.gameService.seedTurnCounts(2);
-    effects.owedAssists.team2 = { turn: 2, used: false };
+    effects.owedAssists["team2"] = { turn: 2, used: false };
     game.ctx.gameService.endTurn();
-    expect(effects.owedAssists.team2).toBeUndefined();
+    expect(effects.owedAssists["team2"]).toBeUndefined();
 
-    expect(effectiveMA(player, game.ctx.gameService.getState())).toBe(
-      baseMA - 1
-    );
-    expect(effectiveAV(player, game.ctx.gameService.getState())).toBe(
-      baseAV - 1
-    );
+    expect(
+      effectiveMA(fixtureValue(player), game.ctx.gameService.getState())
+    ).toBe(baseMA - 1);
+    expect(
+      effectiveAV(fixtureValue(player), game.ctx.gameService.getState())
+    ).toBe(baseAV - 1);
 
     game.ctx.gameService.resetDriveState();
 
@@ -219,8 +217,12 @@ describe("Sevens kickoff events (seeded headless)", () => {
       owedAssists: {},
       playerModifiers: {},
     });
-    expect(effectiveMA(player, game.ctx.gameService.getState())).toBe(baseMA);
-    expect(effectiveAV(player, game.ctx.gameService.getState())).toBe(baseAV);
+    expect(
+      effectiveMA(fixtureValue(player), game.ctx.gameService.getState())
+    ).toBe(baseMA);
+    expect(
+      effectiveAV(fixtureValue(player), game.ctx.gameService.getState())
+    ).toBe(baseAV);
   });
 
   it("announces each passive result with its effect and who it favours", async () => {
@@ -254,13 +256,15 @@ describe("Sevens kickoff events (seeded headless)", () => {
         subtitle: "Both turn markers move by one. Favours neither team.",
       },
     ]);
-    // An interactive event is named first, with the D3 that comes next;
-    // its step's overlay presents the rest.
+
+    const expectedSubtitle: unknown = expect.stringMatching(
+      /^Next, a D3: .* Favours /
+    );
     expect(banners.get(KickoffEvent.CHARGE)).toEqual([
       {
         kind: "kickoff-result",
         headline: KickoffEvent.CHARGE,
-        subtitle: expect.stringMatching(/^Next, a D3: .* Favours /),
+        subtitle: expectedSubtitle,
       },
     ]);
     for (const event of INTERACTIVE_KICKOFF_EVENTS) {
@@ -270,15 +274,13 @@ describe("Sevens kickoff events (seeded headless)", () => {
 
   it("names a rolled-off event first, then what its dice decided", async () => {
     const found = await findEveryEvent();
-    const run = found.get(KickoffEvent.DODGY_SNACK)!;
+    const run = fixtureValue(found.get(KickoffEvent.DODGY_SNACK));
     const names = run.response.events
-      .filter((e) =>
-        ["ui:announce", "diceRoll"].includes(e.name)
-      )
+      .filter((e) => ["ui:announce", "diceRoll"].includes(e.name))
       .map((e) =>
         e.name === "diceRoll"
-          ? `roll: ${(e.data as { rollType: string }).rollType}`
-          : `banner: ${(e.data as { subtitle: string }).subtitle}`
+          ? `roll: ${z.object({ rollType: z.string() }).parse(e.data).rollType}`
+          : `banner: ${z.object({ subtitle: z.string() }).parse(e.data).subtitle}`
       );
     const reveal = names.indexOf(
       "banner: Next, each team rolls a D6. The lower roll has a random player eat something bad."
@@ -301,17 +303,19 @@ describe("Sevens kickoff events (seeded headless)", () => {
   it("resolves High Kick before landing", async () => {
     const found = await findEveryEvent();
 
-    const high = found.get(KickoffEvent.HIGH_KICK)!;
+    const high = fixtureValue(found.get(KickoffEvent.HIGH_KICK));
     const highPending = high.game.pendingDecision();
     expect(highPending?.type).toBe("kickoff-event");
     if (highPending?.type !== "kickoff-event") return;
-    const landing = highPending.landingSquare!;
-    const receiver = high.game.ctx.team2.players.find(
-      (player) =>
-        player.gridPosition &&
-        (player.gridPosition.x !== landing.x ||
-          player.gridPosition.y !== landing.y)
-    )!;
+    const landing = fixtureValue(highPending.landingSquare);
+    const receiver = fixtureValue(
+      high.game.ctx.team2.players.find(
+        (player) =>
+          player.gridPosition &&
+          (player.gridPosition.x !== landing.x ||
+            player.gridPosition.y !== landing.y)
+      )
+    );
     expect(
       (
         await high.game.execute({
@@ -326,15 +330,14 @@ describe("Sevens kickoff events (seeded headless)", () => {
       x: landing.x,
       y: landing.y,
     });
-    // A landing square already occupied by a different player cannot accept
-    // High Kick; the seed finder ordinarily supplies an empty square.
+
     expect(placed.ok).toBe(true);
     expect(receiver.gridPosition).toEqual(landing);
   });
 
   it("spends Charge action budgets without consuming coming-turn activations", async () => {
     const found = await findEveryEvent();
-    const { game } = found.get(KickoffEvent.CHARGE)!;
+    const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
     const players = game.ctx.team1.players.slice(0, 2);
     for (const player of players) {
       await game.execute({
@@ -348,7 +351,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
       (
         await game.execute({
           type: "declare-action",
-          playerId: players[0].id,
+          playerId: fixtureValue(players[0]).id,
           action: "blitz",
         })
       ).ok
@@ -359,86 +362,104 @@ describe("Sevens kickoff events (seeded headless)", () => {
     });
     await game.execute({
       type: "end-activation",
-      playerId: players[0].id,
+      playerId: fixtureValue(players[0]).id,
     });
     expect(game.pendingDecision()).toMatchObject({
       type: "kickoff-event",
-      charge: { activePlayerId: players[1].id },
+      charge: { activePlayerId: fixtureValue(players[1]).id },
     });
     await game.execute({
       type: "declare-action",
-      playerId: players[1].id,
+      playerId: fixtureValue(players[1]).id,
       action: "move",
     });
     await game.execute({
       type: "end-activation",
-      playerId: players[1].id,
+      playerId: fixtureValue(players[1]).id,
     });
 
     expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
-    expect(game.ctx.gameService.hasPlayerActed(players[0].id)).toBe(false);
-    expect(game.ctx.gameService.hasPlayerActed(players[1].id)).toBe(false);
+    expect(
+      game.ctx.gameService.hasPlayerActed(fixtureValue(players[0]).id)
+    ).toBe(false);
+    expect(
+      game.ctx.gameService.hasPlayerActed(fixtureValue(players[1]).id)
+    ).toBe(false);
   });
 
   it("lets the charger up now act, whatever turn the stale ledger holds (regression: Charge! click-to-move)", async () => {
     const found = await findEveryEvent();
-    const { game } = found.get(KickoffEvent.CHARGE)!;
+    const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
     const gs = game.ctx.gameService;
     const [charger, waiting] = game.ctx.team1.players.slice(1, 3);
     const receiver = game.ctx.team2.players[1];
-    // The ledger still holds the turn before the kick-off: here the kicking
-    // team's scoring turn, with the charger already spent in it
+
     const turn = gs.getState().turn;
     turn.teamId = game.ctx.team1.id;
-    turn.activatedPlayerIds.add(charger.id);
-    turn.movementUsed.set(charger.id, charger.stats.MA);
+    turn.activatedPlayerIds.add(fixtureValue(charger).id);
+    turn.movementUsed.set(
+      fixtureValue(charger).id,
+      fixtureValue(charger).stats.MA
+    );
 
-    await game.execute({ type: "kickoff-select-player", playerId: charger.id });
+    await game.execute({
+      type: "kickoff-select-player",
+      playerId: fixtureValue(charger).id,
+    });
     await game.execute({ type: "kickoff-confirm" });
 
-    expect(gs.canActivate(charger.id)).toBe(true);
-    expect(gs.hasPlayerActed(charger.id)).toBe(false);
-    expect(gs.getMovementUsed(charger.id)).toBe(0);
-    expect(gs.canActivate(waiting.id)).toBe(false);
-    expect(gs.canActivate(receiver.id)).toBe(false);
+    expect(gs.canActivate(fixtureValue(charger).id)).toBe(true);
+    expect(gs.hasPlayerActed(fixtureValue(charger).id)).toBe(false);
+    expect(gs.getMovementUsed(fixtureValue(charger).id)).toBe(0);
+    expect(gs.canActivate(fixtureValue(waiting).id)).toBe(false);
+    expect(gs.canActivate(fixtureValue(receiver).id)).toBe(false);
 
     await game.execute({
       type: "declare-action",
-      playerId: charger.id,
+      playerId: fixtureValue(charger).id,
       action: "move",
     });
-    const from = charger.gridPosition!;
+    const from = fixtureValue(fixtureValue(charger).gridPosition);
     const path = [1, 2, 3].map((dx) => ({ x: from.x + dx, y: from.y }));
-    const moved = await game.execute({ type: "move", playerId: charger.id, path });
+    const moved = await game.execute({
+      type: "move",
+      playerId: fixtureValue(charger).id,
+      path,
+    });
     expect(moved.ok).toBe(true);
-    expect(gs.getPlayerById(charger.id)!.gridPosition).toEqual(path[2]);
-    await game.execute({ type: "end-activation", playerId: charger.id });
+    expect(
+      fixtureValue(gs.getPlayerById(fixtureValue(charger).id)).gridPosition
+    ).toEqual(path[2]);
+    await game.execute({
+      type: "end-activation",
+      playerId: fixtureValue(charger).id,
+    });
 
-    // The drive starts on a fresh receiving turn
     expect(gs.getKickoffEventStep()).toBeNull();
     expect(gs.getPhase()).toBe(GamePhase.PLAY);
     expect(gs.getState().turn.teamId).toBe(game.ctx.team2.id);
-    expect(gs.canActivate(receiver.id)).toBe(true);
-    expect(gs.canActivate(charger.id)).toBe(false);
+    expect(gs.canActivate(fixtureValue(receiver).id)).toBe(true);
+    expect(gs.canActivate(fixtureValue(charger).id)).toBe(false);
   });
 
   it("getKickoffEventStep() returns a fresh reference after each mutation (regression: frozen x/x counter)", async () => {
     const found = await findEveryEvent();
-    const { game } = found.get(KickoffEvent.QUICK_SNAP)!;
+    const { game } = fixtureValue(found.get(KickoffEvent.QUICK_SNAP));
     const beforeSelect = game.ctx.gameService.getKickoffEventStep();
     expect(beforeSelect?.selectedPlayerIds).toEqual([]);
-    // Quick Snap belongs to the receiving coach — select one of their Open
-    // players, not the kicking team's.
+
     const owningTeam =
-      beforeSelect!.teamId === game.ctx.team1.id
+      fixtureValue(beforeSelect).teamId === game.ctx.team1.id
         ? game.ctx.team1
         : game.ctx.team2;
-    const player = owningTeam.players.find(
-      (candidate) =>
-        candidate.gridPosition &&
-        candidate.gridPosition.x > 0 &&
-        candidate.gridPosition.x < 20
-    )!;
+    const player = fixtureValue(
+      owningTeam.players.find(
+        (candidate) =>
+          candidate.gridPosition &&
+          candidate.gridPosition.x > 0 &&
+          candidate.gridPosition.x < 20
+      )
+    );
 
     const selectResponse = await game.execute({
       type: "kickoff-select-player",
@@ -446,21 +467,24 @@ describe("Sevens kickoff events (seeded headless)", () => {
     });
     expect(selectResponse.ok).toBe(true);
     const afterSelect = game.ctx.gameService.getKickoffEventStep();
-    // A fresh object every call — not the same reference as before the
-    // mutation, and not the same reference between two calls in a row.
+
     expect(afterSelect).not.toBe(beforeSelect);
     expect(afterSelect).not.toBe(game.ctx.gameService.getKickoffEventStep());
     expect(afterSelect?.selectedPlayerIds).toEqual([player.id]);
-    // The two snapshots' array fields must be independent copies, not the
-    // same mutable array leaking out to every caller.
-    expect(afterSelect?.selectedPlayerIds).not.toBe(beforeSelect?.selectedPlayerIds);
 
-    const toX = player.gridPosition!.x === 0 ? 1 : player.gridPosition!.x - 1;
+    expect(afterSelect?.selectedPlayerIds).not.toBe(
+      beforeSelect?.selectedPlayerIds
+    );
+
+    const toX =
+      fixtureValue(player.gridPosition).x === 0
+        ? 1
+        : fixtureValue(player.gridPosition).x - 1;
     const moveResponse = await game.execute({
       type: "kickoff-move-player",
       playerId: player.id,
       x: toX,
-      y: player.gridPosition!.y,
+      y: fixtureValue(player.gridPosition).y,
     });
     expect(moveResponse.ok).toBe(true);
     const afterMove = game.ctx.gameService.getKickoffEventStep();
@@ -472,7 +496,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
 
   it("Charge!'s active player and step reference advance correctly across advanceCharge() (regression: frozen active player)", async () => {
     const found = await findEveryEvent();
-    const { game } = found.get(KickoffEvent.CHARGE)!;
+    const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
     const players = game.ctx.team1.players.slice(0, 2);
     for (const player of players) {
       await game.execute({
@@ -485,36 +509,39 @@ describe("Sevens kickoff events (seeded headless)", () => {
     await game.execute({ type: "kickoff-confirm" });
     const afterConfirm = game.ctx.gameService.getKickoffEventStep();
     expect(afterConfirm).not.toBe(beforeConfirm);
-    expect(afterConfirm?.charge?.activePlayerId).toBe(players[0].id);
+    expect(afterConfirm?.charge?.activePlayerId).toBe(
+      fixtureValue(players[0]).id
+    );
 
     await game.execute({
       type: "declare-action",
-      playerId: players[0].id,
+      playerId: fixtureValue(players[0]).id,
       action: "move",
     });
     await game.execute({
       type: "end-activation",
-      playerId: players[0].id,
+      playerId: fixtureValue(players[0]).id,
     });
     const afterFirstAdvance = game.ctx.gameService.getKickoffEventStep();
-    // The step reference must change and the active player must move on to
-    // the second queued player — never stay frozen on the first.
+
     expect(afterFirstAdvance).not.toBe(afterConfirm);
-    expect(afterFirstAdvance?.charge?.activePlayerId).toBe(players[1].id);
+    expect(afterFirstAdvance?.charge?.activePlayerId).toBe(
+      fixtureValue(players[1]).id
+    );
     expect(afterFirstAdvance?.charge?.activePlayerId).not.toBe(
       afterConfirm?.charge?.activePlayerId
     );
 
     await game.execute({
       type: "declare-action",
-      playerId: players[1].id,
+      playerId: fixtureValue(players[1]).id,
       action: "move",
     });
     await game.execute({
       type: "end-activation",
-      playerId: players[1].id,
+      playerId: fixtureValue(players[1]).id,
     });
-    // Queue exhausted: the step closes.
+
     expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
   });
 
@@ -524,24 +551,27 @@ describe("Sevens kickoff events (seeded headless)", () => {
       if (result.event !== KickoffEvent.CHARGE) continue;
       const attacker = game.ctx.team1.players[0];
       const defender = game.ctx.team2.players[0];
-      attacker.skills = [...attacker.skills, getSkill(SkillType.FRENZY)];
+      fixtureValue(attacker).skills = [
+        ...fixtureValue(attacker).skills,
+        getSkill(SkillType.FRENZY),
+      ];
       await game.execute({
         type: "kickoff-select-player",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
       });
       await game.execute({ type: "kickoff-confirm" });
-      // Charge! takes an Open player, so the target comes alongside after.
-      attacker.gridPosition = { x: 9, y: 5 };
-      defender.gridPosition = { x: 10, y: 5 };
+
+      fixtureValue(attacker).gridPosition = { x: 9, y: 5 };
+      fixtureValue(defender).gridPosition = { x: 10, y: 5 };
       await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "blitz",
       });
       const rolled = await game.execute({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: defender.id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const push = rolled.pendingDecision.options.findIndex(
@@ -555,7 +585,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
         y: 5,
       });
       expect(game.snapshot().phase).toBe(GamePhase.KICKOFF);
-      expect(attacker.gridPosition).toEqual({ x: 10, y: 5 });
+      expect(fixtureValue(attacker).gridPosition).toEqual({ x: 10, y: 5 });
       expect(pushed.pendingDecision?.type).toBe("block-dice");
       return;
     }
@@ -564,7 +594,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
 
   it("aborts Charge immediately when the active player is knocked down", async () => {
     const found = await findEveryEvent();
-    const { game } = found.get(KickoffEvent.CHARGE)!;
+    const { game } = fixtureValue(found.get(KickoffEvent.CHARGE));
     const pending = game.pendingDecision();
     expect(pending?.type).toBe("kickoff-event");
     if (pending?.type !== "kickoff-event") return;
@@ -586,15 +616,19 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(active?.type).toBe("kickoff-event");
     if (active?.type !== "kickoff-event") return;
     const activeId = active.charge?.activePlayerId;
-    expect(activeId).toBe(candidates[0].id);
+    expect(activeId).toBe(fixtureValue(candidates[0]).id);
 
     game.ctx.eventBus.emit(GameEventNames.PlayerKnockedDown, {
-      playerId: activeId!,
+      playerId: fixtureValue(activeId),
     });
     await Promise.resolve();
 
     expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
-    expect(game.ctx.gameService.hasPlayerActed(candidates[0].id)).toBe(false);
-    expect(game.ctx.gameService.hasPlayerActed(candidates[1].id)).toBe(false);
+    expect(
+      game.ctx.gameService.hasPlayerActed(fixtureValue(candidates[0]).id)
+    ).toBe(false);
+    expect(
+      game.ctx.gameService.hasPlayerActed(fixtureValue(candidates[1]).id)
+    ).toBe(false);
   });
 });

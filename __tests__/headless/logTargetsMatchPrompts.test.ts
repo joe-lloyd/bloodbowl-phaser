@@ -1,19 +1,18 @@
-/**
- * The dice log names the same number the coach was shown. In round 1 the
- * prompt said Rush 3+ while the log said "Target: 2+", and a foul's log
- * said "(AV: 8)" for a player whose card says AV 9+.
- */
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { foulAddingAllAssists } from "../utils/test-helpers";
 
-const descriptions = (events: { name: string; data: unknown }[]) =>
+const descriptions = (events: { name: string; data?: unknown }[]) =>
   events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
 
 describe("dice log targets", () => {
   it("logs a Rush in a blizzard with the 3+ its prompt showed", async () => {
@@ -32,20 +31,20 @@ describe("dice log targets", () => {
     const game = new HeadlessGame({ scenario, seed: 3 });
     game.ctx.gameService.getState().weather = "Blizzard";
     const runner = game.ctx.team1.players[0];
-    const ma = runner.stats.MA;
+    const ma = fixtureValue(runner).stats.MA;
     const path = Array.from({ length: ma + 1 }, (_, i) => ({
       x: 6 + i,
       y: 5,
     }));
-    // A Rush needs 2+, and a blizzard takes 1 off: the prompt says 3+
+
     await game.execute({
       type: "declare-action",
-      playerId: runner.id,
+      playerId: fixtureValue(runner).id,
       action: "move",
     });
     const response = await game.execute({
       type: "move",
-      playerId: runner.id,
+      playerId: fixtureValue(runner).id,
       path,
     });
     const rush = descriptions(response.events).find((d) =>
@@ -77,21 +76,23 @@ describe("dice log targets", () => {
     const victim = game.ctx.team2.players[0];
     await game.execute({
       type: "declare-action",
-      playerId: fouler.id,
+      playerId: fixtureValue(fouler).id,
       action: "foul",
     });
     const response = await foulAddingAllAssists(game, {
       type: "foul",
-      playerId: fouler.id,
+      playerId: fixtureValue(fouler).id,
       x: 10,
       y: 5,
     });
     const armour = descriptions(response.events).find((d) =>
       d.includes("Armour")
     );
-    // One offensive assist: +1 on the roll, against the card's AV
+
     expect(armour).toMatch(
-      new RegExp(`: \\d \\+ \\d \\+1 = \\d+ \\(AV ${victim.stats.AV}\\+\\)$`)
+      new RegExp(
+        `: \\d \\+ \\d \\+1 = \\d+ \\(AV ${String(fixtureValue(victim).stats.AV)}\\+\\)$`
+      )
     );
   });
 });

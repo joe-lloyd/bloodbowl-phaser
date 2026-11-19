@@ -1,27 +1,23 @@
-/**
- * How a league page orders its rounds: the next round to play, the rest of
- * the season, and the rounds already played.
- */
 import { describe, expect, it } from "vitest";
 import { roundFixtures, roundPlan } from "../../src/competition/roundPlan";
-import { CompetitionFixture } from "../../src/competition/types";
+import { type CompetitionFixture } from "../../src/competition/types";
 
 function fixture(
   round: number,
   order: number,
   status: CompetitionFixture["status"] = "ready"
 ): CompetitionFixture {
-  return {
-    id: `round-${round}-match-${order}`,
+  const base: CompetitionFixture = {
+    id: `round-${String(round)}-match-${String(order)}`,
     round,
     order,
     homeEntrantId: "a",
     awayEntrantId: "b",
     status,
-    ...(status === "complete"
-      ? { result: { homeScore: 1, awayScore: 0 } }
-      : {}),
   };
+  return status === "complete"
+    ? { ...base, result: { homeScore: 1, awayScore: 0, completedAt: 1 } }
+    : base;
 }
 
 describe("roundPlan", () => {

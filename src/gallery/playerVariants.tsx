@@ -1,7 +1,3 @@
-/**
- * Gallery variants for the player card, the action menu and the action
- * sequence.
- */
 import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { PlayerCondition, PlayerStatus, InjuryType } from "../types/Player";
@@ -13,9 +9,27 @@ import { PlayerActionMenu } from "../ui/components/hud/PlayerActionMenu";
 import { OtherCoachPrompt } from "../ui/components/hud/OtherCoachPrompt";
 import { later } from "./variantHelpers";
 import type { Variant } from "./variants";
+import type { MatchFixture } from "./fixtures";
+
+const menuWithEndTurn = (fx: MatchFixture, activeTeamId: string) => (
+  <HUDLayout
+    bottomRight={
+      <>
+        <PlayerActionMenu
+          eventBus={fx.bus}
+          turnData={{ phase: GamePhase.PLAY, activeTeamId }}
+        />
+        <EndTurnButton
+          phase={GamePhase.PLAY}
+          activeTeamId={activeTeamId}
+          onClick={() => {}}
+        />
+      </>
+    }
+  />
+);
 
 export const PLAYER_VARIANTS: Variant[] = [
-  // ---- Player card
   {
     id: "card-selected",
     section: "Player card",
@@ -71,43 +85,26 @@ export const PLAYER_VARIANTS: Variant[] = [
       <HUDLayout bottomLeft={<PlayerInfoPanel eventBus={fx.bus} />} />
     ),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.UI_ShowInfo, {
           kind: "sidelineCrew",
           crew: getSidelineCrewInfo("coach", fx.team1),
-        })
-      ),
+        });
+      }),
   },
 
-  // ---- Action menu
   {
     id: "menu-block",
     section: "Action menu and sequence",
     title: "Next to an opponent: move, block, blitz",
     fixture: { scenario: "block-injury-test" },
-    view: (fx) => (
-      <HUDLayout
-        bottomRight={
-          <>
-            <PlayerActionMenu
-              eventBus={fx.bus}
-              turnData={{ phase: GamePhase.PLAY, activeTeamId: fx.team2.id }}
-            />
-            <EndTurnButton
-              phase={GamePhase.PLAY}
-              activeTeamId={fx.team2.id}
-              onClick={() => {}}
-            />
-          </>
-        }
-      />
-    ),
+    view: (fx) => menuWithEndTurn(fx, fx.team2.id),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.PlayerSelected, {
           player: fx.services.gameService.getPlayerById(fx.player(2, 0).id)!,
-        })
-      ),
+        });
+      }),
   },
   {
     id: "other-coach-prompt",
@@ -124,12 +121,12 @@ export const PLAYER_VARIANTS: Variant[] = [
       />
     ),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.RemotePromptChanged, {
           playerId: fx.player(2, 0).id,
           rolls: [{ type: "rush", target: 2 }],
-        })
-      ),
+        });
+      }),
   },
   {
     id: "menu-special",
@@ -147,34 +144,18 @@ export const PLAYER_VARIANTS: Variant[] = [
       />
     ),
     drive: (fx) =>
-      later(30, () =>
+      later(30, () => {
         fx.bus.emit(GameEventNames.PlayerSelected, {
           player: fx.services.gameService.getPlayerById(fx.player(1, 4).id)!,
-        })
-      ),
+        });
+      }),
   },
   {
     id: "menu-sequence",
     section: "Action menu and sequence",
     title: "Action sequence: Move, then Pass",
     fixture: { scenario: "throw-pickup-and-pass" },
-    view: (fx) => (
-      <HUDLayout
-        bottomRight={
-          <>
-            <PlayerActionMenu
-              eventBus={fx.bus}
-              turnData={{ phase: GamePhase.PLAY, activeTeamId: fx.team1.id }}
-            />
-            <EndTurnButton
-              phase={GamePhase.PLAY}
-              activeTeamId={fx.team1.id}
-              onClick={() => {}}
-            />
-          </>
-        }
-      />
-    ),
+    view: (fx) => menuWithEndTurn(fx, fx.team1.id),
     drive: (fx) =>
       later(30, () => {
         fx.bus.emit(GameEventNames.PlayerSelected, { player: fx.player(1, 0) });
@@ -211,8 +192,8 @@ export const PLAYER_VARIANTS: Variant[] = [
           steps: [{ id: "move", label: "Move" }],
         });
       });
-      // The summary mounts with the action sequence, a render later
-      const route = later(90, () =>
+
+      const route = later(90, () => {
         fx.bus.emit(GameEventNames.UI_RoutePreview, {
           movementLeft: 0,
           riskySteps: 3,
@@ -222,8 +203,8 @@ export const PLAYER_VARIANTS: Variant[] = [
             { type: "rush", target: 2, square: { x: 10, y: 3 } },
           ],
           rerolls: ["Dodge", "team 2 left"],
-        })
-      );
+        });
+      });
       return () => {
         select();
         route();

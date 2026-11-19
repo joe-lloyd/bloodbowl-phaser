@@ -1,29 +1,15 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MatchOptionsMenu } from "../../src/ui/components/hud/MatchOptionsMenu";
 import { computeMatchOptionsMenu } from "../../src/ui/components/hud/computeMatchOptionsMenu";
 
-/**
- * Fixed-viewport baseline for the bottom-right match-options menu, collapsed
- * and expanded. There is no Playwright/pixel-screenshot tooling wired into
- * this worktree yet (that lands separately, from the e2e-scenario-testing
- * change) — this follows the same browser-free "render deterministically,
- * diff against a checked-in fixture" convention already used for the pitch
- * baselines in __tests__/headless/match-state-visual-baseline.test.ts,
- * applied to a DOM subtree instead of an SVG.
- *
- * UPDATE BASELINES:  UPDATE_VISUAL_BASELINES=1 npx vitest run \
- *                      __tests__/unit/matchOptionsMenuVisualBaseline.test.tsx
- */
-
 const baselinePath = (file: string) =>
   resolve(process.cwd(), "__tests__", "unit", "screenshots", file);
 
-// Normalizes React's per-render-cycle noise (none expected here, but keeps
-// the fixture stable if attribute ordering ever shifts) and line endings.
 const normalize = (html: string) => html.replace(/\r\n/g, "\n").trim();
 
 describe("MatchOptionsMenu fixed-viewport baseline", () => {
@@ -32,9 +18,7 @@ describe("MatchOptionsMenu fixed-viewport baseline", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
-    // A fixed viewport matters for a real screenshot; here it documents the
-    // HUD's bottom-right slot width so the baseline stays meaningful even
-    // though jsdom doesn't lay anything out.
+
     container.style.width = "1280px";
     container.style.height = "720px";
     document.body.appendChild(container);
@@ -42,7 +26,9 @@ describe("MatchOptionsMenu fixed-viewport baseline", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
   });
 
@@ -50,7 +36,7 @@ describe("MatchOptionsMenu fixed-viewport baseline", () => {
     const actual = normalize(html);
     const path = baselinePath(name);
 
-    if (process.env.UPDATE_VISUAL_BASELINES === "1" || !existsSync(path)) {
+    if (process.env["UPDATE_VISUAL_BASELINES"] === "1" || !existsSync(path)) {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, `${actual}\n`, "utf8");
     }
@@ -60,7 +46,10 @@ describe("MatchOptionsMenu fixed-viewport baseline", () => {
   };
 
   it("matches the collapsed trigger (local, active match)", async () => {
-    const entries = computeMatchOptionsMenu({ kind: "local", matchOver: false });
+    const entries = computeMatchOptionsMenu({
+      kind: "local",
+      matchOver: false,
+    });
     await act(async () => {
       root.render(<MatchOptionsMenu entries={entries} onSelect={() => {}} />);
     });
@@ -68,12 +57,15 @@ describe("MatchOptionsMenu fixed-viewport baseline", () => {
   });
 
   it("matches the expanded menu (local, active match)", async () => {
-    const entries = computeMatchOptionsMenu({ kind: "local", matchOver: false });
+    const entries = computeMatchOptionsMenu({
+      kind: "local",
+      matchOver: false,
+    });
     await act(async () => {
       root.render(<MatchOptionsMenu entries={entries} onSelect={() => {}} />);
     });
     await act(async () => {
-      container.querySelector<HTMLButtonElement>("button")!.click();
+      fixtureValue(container.querySelector<HTMLButtonElement>("button")).click();
     });
     compare("match-options-menu-expanded-local.html", container.innerHTML);
   });
@@ -90,13 +82,16 @@ describe("MatchOptionsMenu fixed-viewport baseline", () => {
       root.render(<MatchOptionsMenu entries={entries} onSelect={() => {}} />);
     });
     await act(async () => {
-      container.querySelector<HTMLButtonElement>("button")!.click();
+      fixtureValue(container.querySelector<HTMLButtonElement>("button")).click();
     });
-    compare("match-options-menu-expanded-online-guest.html", container.innerHTML);
+    compare(
+      "match-options-menu-expanded-online-guest.html",
+      container.innerHTML
+    );
 
-    const forceAbandon = [
+    const forceAbandon = fixtureValue([
       ...container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-    ].find((b) => b.textContent?.includes("End Match (Opponent Left)"))!;
+    ].find((b) => b.textContent?.includes("End Match (Opponent Left)")));
     await act(async () => {
       forceAbandon.click();
     });

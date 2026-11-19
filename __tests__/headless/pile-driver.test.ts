@@ -1,23 +1,19 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import type { ActionType } from "../../src/types/events";
-import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
+import type {
+  CommandResponse,
+  EmittedEvent,
+} from "../../src/headless/protocol";
 import { Inducement } from "../../src/types/Inducements";
 import { forceDice } from "../utils/test-helpers";
 import { bought, commit } from "../utils/inducement-helpers";
-
-/**
- * Pile Driver (2025 rulebook p.133): "When an opposition player is Knocked
- * Down by this player during a Block Action, this player may perform a free
- * Foul Action against the opposition player so long as they are still
- * Standing and are still Marking the opposition player. This player is then
- * Placed Prone and their activation immediately ends." The free Foul is the
- * coach's choice, on a Block and on a Blitz alike.
- */
 
 const scenario: Scenario = {
   id: "pile-driver",
@@ -26,7 +22,7 @@ const scenario: Scenario = {
   setup: {
     team1Placements: [
       { playerIndex: 0, x: 10, y: 5, skills: [SkillType.PILE_DRIVER] },
-      // A spare player keeps team1's turn open after the activation.
+
       { playerIndex: 1, x: 2, y: 12 },
     ],
     team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
@@ -37,7 +33,6 @@ const scenario: Scenario = {
   },
 };
 
-/** One block die, a POW; armour 1+3 holds; the free Foul's armour 1+5 holds. */
 const POW_SEED = 3;
 
 async function knockDownAndFollowUp(
@@ -53,15 +48,25 @@ async function knockDownAndFollowUp(
   };
   const attacker = game.ctx.team1.players[0];
   const defender = game.ctx.team2.players[0];
-  await run({ type: "declare-action", playerId: attacker.id, action });
-  await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+  await run({
+    type: "declare-action",
+    playerId: fixtureValue(attacker).id,
+    action,
+  });
+  await run({
+    type: "block",
+    attackerId: fixtureValue(attacker).id,
+    defenderId: fixtureValue(defender).id,
+  });
   await run({ type: "choose-block-result", index: 0 });
   await run({ type: "choose-push-direction", x: 12, y: 5 });
   const offer = await run({ type: "choose-follow-up", followUp: true });
   const dice = () =>
     events
       .filter((e) => e.name === "diceRoll")
-      .map((e) => (e.data as { description: string }).description);
+      .map(
+        (e) => z.object({ description: z.string() }).parse(e.data).description
+      );
   return { game, run, dice, offer, attacker, defender };
 }
 
@@ -77,7 +82,7 @@ describe("Pile Driver", () => {
 
       expect(offer.pendingDecision).toMatchObject({
         type: "reaction",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         chooserTeamId: "team1",
         skill: SkillType.PILE_DRIVER,
       });
@@ -93,8 +98,8 @@ describe("Pile Driver", () => {
         ...BLOCK_DICE,
         "Foul Armour Roll (Human Lineman #1): 1 + 5 = 6 (AV 9+)",
       ]);
-      expect(attacker.status).toBe(PlayerStatus.PRONE);
-      expect(defender.status).toBe(PlayerStatus.PRONE);
+      expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
+      expect(fixtureValue(defender).status).toBe(PlayerStatus.PRONE);
       expect(response.snapshot.activePlayer).toBeNull();
     });
   }
@@ -105,13 +110,11 @@ describe("Pile Driver", () => {
     const response = await run({ type: "use-reaction", accept: false });
 
     expect(dice()).toEqual(BLOCK_DICE);
-    expect(attacker.status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
     expect(response.snapshot.activePlayer).toBeNull();
   });
 
   it("drops the ball and turns the ball over when the carrier lies down", async () => {
-    // 2025 rulebook, Placed Prone: a player with the ball who is Placed
-    // Prone drops it, and during their own activation that is a Turnover.
     const carrying: Scenario = {
       ...scenario,
       setup: { ...scenario.setup, ballPosition: { x: 10, y: 5 } },
@@ -120,15 +123,14 @@ describe("Pile Driver", () => {
 
     const response = await run({ type: "use-reaction", accept: true });
 
-    expect(attacker.status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.PRONE);
     expect(response.events.some((e) => e.name === "turnover")).toBe(true);
-    expect(response.snapshot.ballPosition).not.toEqual(attacker.gridPosition);
+    expect(response.snapshot.ballPosition).not.toEqual(
+      fixtureValue(attacker).gridPosition
+    );
   });
 
   it("starts the next drive when the dropped ball is caught for a touchdown", async () => {
-    // The blocker follows up beside its end zone holding the ball, lies down,
-    // and the bounce reaches a team-mate standing in the end zone. The
-    // Turnover must not end the turn again once the touchdown has.
     const scoring: Scenario = {
       ...scenario,
       setup: {
@@ -143,9 +145,9 @@ describe("Pile Driver", () => {
         ballPosition: { x: 17, y: 5 },
       },
     };
-    // A POW, then the bounce lands on the team-mate at (19, 4), who catches.
+
     const game = new HeadlessGame({ scenario: scoring, seed: 3 });
-    // Sports Espionage (D8 6) answers a Turnover, never a touchdown.
+
     forceDice(game.ctx.rng, [6]);
     await commit(game, [
       bought(game.ctx.team1.id, Inducement.DESPERATE_MEASURES, 1),
@@ -155,13 +157,21 @@ describe("Pile Driver", () => {
     const events: EmittedEvent[] = [];
     let response: CommandResponse | undefined;
     for (const command of [
-      { type: "declare-action", playerId: attacker.id, action: "block" },
-      { type: "block", attackerId: attacker.id, defenderId: defender.id },
+      {
+        type: "declare-action",
+        playerId: fixtureValue(attacker).id,
+        action: "block",
+      },
+      {
+        type: "block",
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
+      },
       { type: "choose-block-result", index: 0 },
       { type: "choose-push-direction", x: 19, y: 5 },
       { type: "choose-follow-up", followUp: true },
       { type: "use-reaction", accept: true },
-      // Both team-mates beside the defender assist the free Foul
+
       { type: "choose-foul-assists", count: 2 },
     ]) {
       response = await game.execute(command);
@@ -169,12 +179,12 @@ describe("Pile Driver", () => {
     }
 
     expect(events.some((e) => e.name === "touchdown")).toBe(true);
-    expect(response!.snapshot).toMatchObject({
+    expect(fixtureValue(response).snapshot).toMatchObject({
       phase: GamePhase.SETUP,
       subPhase: SubPhase.SETUP_KICKING,
       activeTeamId: "team1",
     });
-    expect(response!.pendingDecision).toBeNull();
+    expect(fixtureValue(response).pendingDecision).toBeNull();
   });
 
   it("lets a declined Blitz keep moving", async () => {
@@ -183,9 +193,9 @@ describe("Pile Driver", () => {
     const response = await run({ type: "use-reaction", accept: false });
 
     expect(dice()).toEqual(BLOCK_DICE);
-    expect(attacker.status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(attacker).status).toBe(PlayerStatus.ACTIVE);
     expect(response.snapshot.activePlayer).toMatchObject({
-      id: attacker.id,
+      id: fixtureValue(attacker).id,
       action: "blitz",
     });
   });

@@ -1,8 +1,8 @@
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { EventEmitter } from "node:events";
 import { BallTrail } from "../../../src/game/elements/BallTrail";
 
-/** Record the shapes the coach would see after the latest redraw. */
 function fakeScene() {
   const lines: {
     x1: number;
@@ -96,17 +96,17 @@ describe("the ball's short comet trail", () => {
     trail.addPoint(40, 0);
     trail.endFlight();
     advanceTo(294);
-    expect(lines[0].alpha).toBeCloseTo(0.6);
-    expect(lines[0].width).toBeCloseTo(3);
-    expect(lines[1].alpha).toBeCloseTo(0.8);
+    expect(fixtureValue(lines[0]).alpha).toBeCloseTo(0.6);
+    expect(fixtureValue(lines[0]).width).toBeCloseTo(3);
+    expect(fixtureValue(lines[1]).alpha).toBeCloseTo(0.8);
     advanceTo(336);
-    expect(lines[0].alpha).toBeCloseTo(0.4);
-    expect(lines[0].width).toBeCloseTo(2);
-    expect(lines[1].alpha).toBeCloseTo(0.8);
+    expect(fixtureValue(lines[0]).alpha).toBeCloseTo(0.4);
+    expect(fixtureValue(lines[0]).width).toBeCloseTo(2);
+    expect(fixtureValue(lines[1]).alpha).toBeCloseTo(0.8);
     advanceTo(436);
     expect(path(lines)).toEqual([[20, 0, 40, 0]]);
-    expect(lines[0].alpha).toBeCloseTo(0.4);
-    expect(lines[0].width).toBeCloseTo(2);
+    expect(fixtureValue(lines[0]).alpha).toBeCloseTo(0.4);
+    expect(fixtureValue(lines[0]).width).toBeCloseTo(2);
     advanceTo(520);
     expect(lines).toEqual([]);
   });

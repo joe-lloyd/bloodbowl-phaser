@@ -1,15 +1,10 @@
-/**
- * The "Since your last turn" card and the half time card in an online
- * match, where the HUD reads the game through NetworkedGameService rather
- * than GameService. Both cards once threw on every turn start online,
- * because the networked service had no getTeams.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createOnlineMatch,
-  OnlineMatch,
+  type OnlineMatch,
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
 import { NetworkedGameService } from "../../src/network/NetworkedGameService";
@@ -20,9 +15,9 @@ import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { LobbyDoc, DEFAULT_SETTINGS } from "../../src/firebase/lobby";
+import { type LobbyDoc, DEFAULT_SETTINGS } from "../../src/firebase/lobby";
 import { HalfTimeCard } from "../../src/ui/components/hud/HalfTimeCard";
 import { TurnCatchUpCard } from "../../src/ui/components/hud/TurnCatchUpCard";
 
@@ -31,7 +26,6 @@ vi.mock("../../src/firebase/lobby", async (load) => ({
   persistMatch: async () => {},
 }));
 
-/** The guest's turn, so the host is the waiting coach. */
 const guestTurn: Scenario = {
   id: "online-hud-cards",
   name: "Online HUD cards",
@@ -57,7 +51,7 @@ beforeEach(async () => {
   const { team1, team2 } = game.ctx;
   team1.name = "Reikland Reavers";
   team2.name = "Gouged Eye";
-  team1.players.forEach((p) => (p.playerName = `Human ${p.number}`));
+  team1.players.forEach((p) => (p.playerName = `Human ${String(p.number)}`));
   const lobby: LobbyDoc = {
     code: "CARDS",
     hostUid: "host-uid",
@@ -84,7 +78,13 @@ beforeEach(async () => {
   bus = new EventBus();
   match = createOnlineMatch({
     lobby,
-    user: { uid: "host-uid", displayName: "Host", email: null, photoURL: null },
+    user: {
+      uid: "host-uid",
+      displayName: "Host",
+      email: null,
+      emailVerified: false,
+      photoURL: null,
+    },
     eventBus: bus,
     transport: createInMemoryTransportPair()[0],
     seed: 3,
@@ -93,18 +93,20 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
-  await act(async () =>
+  await act(async () => {
     root.render(
       <>
         <HalfTimeCard eventBus={bus} />
         <TurnCatchUpCard eventBus={bus} />
       </>
-    )
-  );
+    );
+  });
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   host.remove();
   match.close();
   setActiveOnlineMatch(null);
@@ -119,9 +121,11 @@ describe("online HUD cards", () => {
   });
 
   it("shows the waiting coach what the other turn did when their turn starts", async () => {
-    const player = ServiceContainer.getInstance().gameService.getPlayerById(
-      game.ctx.team1.players[0].id
-    )!;
+    const player = fixtureValue(
+      ServiceContainer.getInstance().gameService.getPlayerById(
+        fixtureValue(game.ctx.team1.players[0]).id
+      )
+    );
     await act(async () => {
       player.status = PlayerStatus.KO;
       bus.emit(GameEventNames.PlayerStatusChanged, player);
@@ -150,12 +154,6 @@ describe("online HUD cards", () => {
   });
 });
 
-/**
- * GameService methods the networked service does not need: private
- * helpers, and engine-only calls the board never makes through the
- * interface. Anything else GameService offers, the networked service must
- * offer too, or the HUD throws online only.
- */
 const ENGINE_ONLY = [
   "addTouchdown",
   "announceFullTime",
@@ -188,9 +186,10 @@ const ENGINE_ONLY = [
 ];
 
 it("NetworkedGameService offers every GameService method the HUD can call", () => {
-  const networked = new Set(
-    Object.getOwnPropertyNames(NetworkedGameService.prototype)
-  );
+  const networked = new Set([
+    ...Object.getOwnPropertyNames(NetworkedGameService.prototype),
+    ...Object.getOwnPropertyNames(ServiceContainer.getInstance().gameService),
+  ]);
   const missing = Object.getOwnPropertyNames(GameService.prototype).filter(
     (name) => !networked.has(name) && !ENGINE_ONLY.includes(name)
   );

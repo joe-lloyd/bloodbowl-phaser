@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { setupMatch, MatchFixture } from "../../src/gallery/fixtures";
+import { setupMatch, type MatchFixture } from "../../src/gallery/fixtures";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
@@ -21,7 +22,9 @@ describe("match information", () => {
     fx = setupMatch();
   });
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     ServiceContainer.reset();
   });
@@ -29,14 +32,16 @@ describe("match information", () => {
   async function showSetup() {
     const gs = fx.services.gameService;
     gs.startSetup(fx.team1.id);
-    await act(async () => root.render(<SetupControls eventBus={fx.bus} />));
-    await act(async () =>
+    await act(async () => {
+      root.render(<SetupControls eventBus={fx.bus} />);
+    });
+    await act(async () => {
       fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
         subPhase: SubPhase.SETUP_KICKING,
         activeTeam: fx.team1,
-        status: gs.getSetupStatus(fx.team1.id),
-      })
-    );
+        status: fixtureValue(gs.getSetupStatus(fx.team1.id)),
+      });
+    });
   }
 
   it("shows live setup counts and why confirmation is blocked", async () => {
@@ -51,9 +56,9 @@ describe("match information", () => {
     expect(checklist?.textContent).toContain("Players placed 0/7");
     await act(async () =>
       fx.services.gameService.applySetupFormation(fx.team1.id, [
-        { playerId: fx.team1.players[0].id, x: 6, y: 3 },
-        { playerId: fx.team1.players[1].id, x: 6, y: 5 },
-        { playerId: fx.team1.players[2].id, x: 4, y: 0 },
+        { playerId: fixtureValue(fx.team1.players[0]).id, x: 6, y: 3 },
+        { playerId: fixtureValue(fx.team1.players[1]).id, x: 6, y: 5 },
+        { playerId: fixtureValue(fx.team1.players[2]).id, x: 4, y: 0 },
       ])
     );
     expect(container.textContent).toContain("Line of scrimmage 2/3");
@@ -76,13 +81,13 @@ describe("match information", () => {
     await act(async () =>
       clear.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }))
     );
-    await act(async () =>
+    await act(async () => {
       fx.bus.emit(
         GameEventNames.SetupRestrictionsUpdated,
-        fx.services.gameService.getSetupStatus(fx.team1.id)
-      )
-    );
-    // A browser delivers click to the pressed node only if it is still attached.
+        fixtureValue(fx.services.gameService.getSetupStatus(fx.team1.id))
+      );
+    });
+
     await act(async () => {
       clear.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
       clear.click();
@@ -107,14 +112,14 @@ describe("match information", () => {
       },
     };
     fx.services.gameService.seedTurnCounts(5);
-    // As the HUD hangs it: the turn tab sits in the strip
-    await act(async () =>
+
+    await act(async () => {
       root.render(
         <MatchStrip eventBus={fx.bus}>
           <TurnIndicator turnNumber={5} phase={GamePhase.PLAY} />
         </MatchStrip>
-      )
-    );
+      );
+    });
     expect(container.textContent).toContain("Rain: -1 catch, pick-up");
     expect(container.textContent).toContain("Turn 5 of 6");
     expect(container.textContent).not.toContain("left");
@@ -148,7 +153,9 @@ describe("match information", () => {
     const { MatchStrip } =
       await import("../../src/ui/components/hud/MatchStrip");
     fx.services.gameService.startSetup(fx.team1.id);
-    await act(async () => root.render(<MatchStrip eventBus={fx.bus} />));
+    await act(async () => {
+      root.render(<MatchStrip eventBus={fx.bus} />);
+    });
     const strip = container.querySelector('[data-testid="match-strip"]');
     expect(strip?.textContent).toBe("☀Nice");
     expect(
@@ -169,10 +176,12 @@ describe("match information", () => {
     state.activePlayer = { id: player.id, action: "move" };
     state.turn.movementUsed.set(player.id, 3);
     state.ballPosition = { ...player.gridPosition };
-    await act(async () => root.render(<PlayerInfoPanel eventBus={fx.bus} />));
-    await act(async () =>
-      fx.bus.emit(GameEventNames.PlayerSelected, { player })
-    );
+    await act(async () => {
+      root.render(<PlayerInfoPanel eventBus={fx.bus} />);
+    });
+    await act(async () => {
+      fx.bus.emit(GameEventNames.PlayerSelected, { player });
+    });
     expect(container.textContent).toContain("MA 6, 3 left, 2 rush");
     expect(container.textContent).toContain("Holding ball");
     expect(container.textContent).toContain("AG3+");
@@ -189,7 +198,9 @@ describe("match information", () => {
   });
 
   it("clears comparing on hover end during setup and uses a neutral reserve chip", async () => {
-    await act(async () => root.render(<PlayerInfoPanel eventBus={fx.bus} />));
+    await act(async () => {
+      root.render(<PlayerInfoPanel eventBus={fx.bus} />);
+    });
     const player = fx.player(2, 0);
     player.status = PlayerStatus.RESERVE;
     await act(async () => {
@@ -202,12 +213,16 @@ describe("match information", () => {
       (span) => span.textContent === "Reserve"
     );
     expect(chip?.className).not.toContain("hud-bad");
-    await act(async () => fx.bus.emit(GameEventNames.UI_HidePlayerInfo));
+    await act(async () => {
+      fx.bus.emit(GameEventNames.UI_HidePlayerInfo, undefined);
+    });
     expect(container.textContent).toBe("");
   });
 
   it("labels a hovered player as comparing only beside a selection", async () => {
-    await act(async () => root.render(<PlayerInfoPanel eventBus={fx.bus} />));
+    await act(async () => {
+      root.render(<PlayerInfoPanel eventBus={fx.bus} />);
+    });
     await act(async () => {
       fx.bus.emit(GameEventNames.PlayerSelected, { player: fx.player(1, 0) });
       fx.bus.emit(GameEventNames.UI_ShowPlayerInfo, fx.player(2, 0));

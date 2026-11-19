@@ -1,14 +1,10 @@
-/**
- * Legal Sevens line-ups that field each roster's positionals, so simulated
- * matches exercise the skills real teams bring: Block, Guard, Frenzy, big
- * guy negatraits, Bloodlust and the rest.
- *
- * TeamFactory's test teams stay as they are: scenario tests address their
- * players by roster index, and many rosters there are all Linemen.
- */
-
-import { Team, RosterName, createTeam, addPlayerToTeam } from "../types/Team";
-import { createPlayer, PlayerTemplate } from "../types/Player";
+import {
+  type Team,
+  RosterName,
+  createTeam,
+  addPlayerToTeam,
+} from "../types/Team";
+import { createPlayer, type PlayerTemplate } from "../types/Player";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { chooseFirstLinemanAsVeteran } from "../game/rules/veteran";
 import {
@@ -19,16 +15,14 @@ import {
 import { hasSkill, SkillType } from "../types/Skills";
 import { purchase } from "../game/rules/teamPricing";
 
-/** Seven to start, two in reserve for injuries and Sweltering Heat. */
 const LINEUP_SIZE = 9;
 const BUDGET = 600_000;
-/** The most team re-rolls a ready-made team buys before its players. */
+
 const READY_MADE_REROLLS = 2;
 
 const insignificant = (template: PlayerTemplate) =>
   hasSkill(template.skills, SkillType.INSIGNIFICANT);
 
-/** Whether one more of `template` stays within its own and the big guy limit. */
 function withinRosterLimits(
   template: PlayerTemplate,
   picked: PlayerTemplate[],
@@ -46,7 +40,6 @@ function withinRosterLimits(
   );
 }
 
-/** Linemen to fill the line-up to nine with what is left of the budget. */
 function linemenToAdd(
   picked: PlayerTemplate[],
   lineman: PlayerTemplate,
@@ -64,12 +57,7 @@ function linemenToAdd(
   return count;
 }
 
-/**
- * Up to four different positionals, most expensive first, within roster
- * limits and the budget, then Linemen up to nine players. Insignificant
- * Linemen are capped so they never outnumber the rest.
- */
-export function lineupTemplates(
+function lineupTemplates(
   rosterName: RosterName,
   budget = BUDGET
 ): PlayerTemplate[] {
@@ -77,16 +65,17 @@ export function lineupTemplates(
   const linemen = roster.playerTemplates.filter((t) =>
     isLinemanPosition(t.keywords)
   );
-  const lineman = [...linemen].sort(
+  const [lineman] = [...linemen].sort(
     (a, b) => (b.maxAllowed ?? 99) - (a.maxAllowed ?? 99) || a.cost - b.cost
-  )[0];
+  );
+  if (!lineman) throw new Error(`${rosterName} has no lineman position`);
   const positionals = roster.playerTemplates
     .filter((t) => !isLinemanPosition(t.keywords))
     .sort((a, b) => b.cost - a.cost);
 
   const picked: PlayerTemplate[] = [];
   let spent = 0;
-  // Round-robin over positions so a line-up shows as many kinds as it can.
+
   for (
     let pass = 0;
     picked.length < MAX_NON_LINEMEN && pass < MAX_NON_LINEMEN;
@@ -127,10 +116,6 @@ export function createLineupTeam(
   return team;
 }
 
-/**
- * A team to play with straight away: as many team re-rolls as it can buy, up
- * to two, while the rest of the draft budget still fields seven players.
- */
 export function createReadyMadeTeam(
   rosterName: RosterName,
   name: string,

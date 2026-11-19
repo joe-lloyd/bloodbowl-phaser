@@ -1,27 +1,20 @@
 import { requiredRoll } from "../rules/rollTargets";
-import { IEventBus } from "../../services/EventBus";
+import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import {
   BlockResolutionService,
-  BlockResult,
+  type BlockResult,
 } from "../../services/BlockResolutionService";
-import { IRNGService } from "../../services/rng/RNGService";
+import { type IRNGService } from "../../services/rng/RNGService";
 
-/**
- * DiceController
- *
- * Orchestrates dice rolls, handles game-specific roll logic (skill checks, block dice mapping),
- * and emits events for logging and UI.
- */
 export class DiceController {
-  constructor(
-    private eventBus: IEventBus,
-    private rng: IRNGService
-  ) {}
+  private eventBus: IEventBus;
+  private rng: IRNGService;
+  constructor(eventBus: IEventBus, rng: IRNGService) {
+    this.eventBus = eventBus;
+    this.rng = rng;
+  }
 
-  /**
-   * Internal helper to emit DiceRoll events
-   */
   private emitDiceRoll(data: {
     rollType: string;
     diceType: string;
@@ -35,29 +28,23 @@ export class DiceController {
     this.eventBus.emit(GameEventNames.DiceRoll, {
       ...data,
       seed: this.rng.getSeed(),
-      resultState: data.resultState || "none",
+      resultState: data.resultState ?? "none",
     });
   }
 
-  /**
-   * Roll a D6
-   */
-  /** A D3 (1-3): a D6 halved, rounding up (2025 dice convention). */
-  public rollD3(reason: string, teamId?: string): number {
-    const roll = Math.ceil(this.rng.rollDie(6) / 2);
-    this.emitDiceRoll({
-      rollType: reason,
-      diceType: "1d3",
-      value: roll,
-      total: roll,
-      description: `${reason}: ${roll}`,
-      resultState: "none",
-      teamId,
+  private reportSingleRoll(reason: string, roll: number, options: { diceType: string; teamId?: string }): number {
+    this.emitDiceRoll({ rollType: reason, diceType: options.diceType, value: roll, total: roll,
+      description: `${reason}: ${String(roll)}`, resultState: "none",
+      ...(options.teamId === undefined ? {} : { teamId: options.teamId }),
     });
     return roll;
   }
 
-  /** The coin toss: heads (1) or tails (2). Returns the winner's id. */
+  public rollD3(reason: string, teamId?: string): number {
+    const roll = Math.ceil(this.rng.rollDie(6) / 2);
+    return this.reportSingleRoll(reason, roll, { diceType: "1d3", ...(teamId === undefined ? {} : { teamId }) });
+  }
+
   public tossCoin(
     heads: { id: string; name: string },
     tails: { id: string; name: string }
@@ -77,21 +64,9 @@ export class DiceController {
 
   public rollD6(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(6);
-    this.emitDiceRoll({
-      rollType: reason,
-      diceType: "1d6",
-      value: roll,
-      total: roll,
-      description: `${reason}: ${roll}`,
-      resultState: "none",
-      teamId,
-    });
-    return roll;
+    return this.reportSingleRoll(reason, roll, { diceType: "1d6", ...(teamId === undefined ? {} : { teamId }) });
   }
 
-  /**
-   * Roll multiple D6
-   */
   public rollMultipleD6(
     reason: string,
     count: number,
@@ -101,72 +76,51 @@ export class DiceController {
     const total = rolls.reduce((sum, v) => sum + v, 0);
     this.emitDiceRoll({
       rollType: reason,
-      diceType: `${count}d6`,
+      diceType: `${String(count)}d6`,
       value: rolls,
       total,
-      description: `${reason}: ${rolls.join(", ")} (Total: ${total})`,
+      description: `${reason}: ${rolls.join(", ")} (Total: ${String(total)})`,
       resultState: "none",
-      teamId,
+      ...(teamId === undefined ? {} : { teamId: teamId }),
     });
     return rolls;
   }
 
-  /**
-   * Roll 2D6 (sum)
-   */
   public roll2D6(reason: string, teamId?: string): number {
     const rolls = this.rng.rollMultipleDice(2, 6);
-    const total = rolls[0] + rolls[1];
+    const total = rolls.reduce((sum, roll) => sum + roll, 0);
     this.emitDiceRoll({
       rollType: reason,
       diceType: "2d6",
       value: rolls,
       total,
-      description: `${reason}: ${rolls.join(" + ")} = ${total}`,
+      description: `${reason}: ${rolls.join(" + ")} = ${String(total)}`,
       resultState: "none",
-      teamId,
+      ...(teamId === undefined ? {} : { teamId: teamId }),
     });
     return total;
   }
 
-  /** Roll 2D6 and keep the lower die (Sevens kick-off deviation). */
   public rollLowerOf2D6(reason: string, teamId?: string): number {
     const rolls = this.rng.rollMultipleDice(2, 6);
-    const lower = Math.min(rolls[0], rolls[1]);
+    const lower = Math.min(...rolls);
     this.emitDiceRoll({
       rollType: reason,
       diceType: "2d6",
       value: rolls,
       total: lower,
-      description: `${reason}: ${rolls.join(", ")} (lower: ${lower})`,
+      description: `${reason}: ${rolls.join(", ")} (lower: ${String(lower)})`,
       resultState: "none",
-      teamId,
+      ...(teamId === undefined ? {} : { teamId: teamId }),
     });
     return lower;
   }
 
-  /**
-   * Roll a D8 (8-sided die)
-   * Used for scatter/bounce directions
-   */
   public rollD8(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(8);
-    this.emitDiceRoll({
-      rollType: reason,
-      diceType: "1d8",
-      value: roll,
-      total: roll,
-      description: `${reason}: ${roll}`,
-      resultState: "none",
-      teamId,
-    });
-    return roll;
+    return this.reportSingleRoll(reason, roll, { diceType: "1d8", ...(teamId === undefined ? {} : { teamId }) });
   }
 
-  /**
-   * Roll multiple D8 dice
-   * Used for scatter paths (3x d8)
-   */
   public rollMultipleD8(
     reason: string,
     count: number,
@@ -175,36 +129,21 @@ export class DiceController {
     const rolls = this.rng.rollMultipleDice(count, 8);
     this.emitDiceRoll({
       rollType: reason,
-      diceType: `${count}d8`,
+      diceType: `${String(count)}d8`,
       value: rolls,
       total: rolls.reduce((sum, v) => sum + v, 0),
       description: `${reason}: ${rolls.join(", ")}`,
       resultState: "none",
-      teamId,
+      ...(teamId === undefined ? {} : { teamId: teamId }),
     });
     return rolls;
   }
 
-  /**
-   * Roll a D16
-   */
   public rollD16(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(16);
-    this.emitDiceRoll({
-      rollType: reason,
-      diceType: "1d16",
-      value: roll,
-      total: roll,
-      description: `${reason}: ${roll}`,
-      resultState: "none",
-      teamId,
-    });
-    return roll;
+    return this.reportSingleRoll(reason, roll, { diceType: "1d16", ...(teamId === undefined ? {} : { teamId }) });
   }
 
-  /**
-   * Roll Block Dice
-   */
   public rollBlockDice(numDice: number, teamId?: string): BlockResult[] {
     const rawRolls = this.rng.rollMultipleDice(numDice, 6);
     const results = rawRolls.map((r) =>
@@ -213,27 +152,19 @@ export class DiceController {
 
     this.emitDiceRoll({
       rollType: "Block Roll",
-      diceType: `${numDice}D Block`,
+      diceType: `${String(numDice)}D Block`,
       value: results.map((r) => r.type),
       total: numDice,
-      description: `Rolled ${numDice} block dice: ${results.map((r) => r.type).join(", ")}`,
+      description: `Rolled ${String(numDice)} block dice: ${results.map((r) => r.type).join(", ")}`,
       resultState: "none",
-      teamId,
+      ...(teamId === undefined ? {} : { teamId: teamId }),
     });
 
     return results;
   }
 
-  /**
-   * Roll a Skill Check (D6 + Modifiers vs Target)
-   */
   public rollSkillCheck(
-    reason: string,
-    target: number,
-    modifier: number,
-    playerName?: string,
-    teamId?: string
-  ): {
+{ reason,target,modifier,playerName,teamId }: { reason: string; target: number; modifier: number; playerName?: string; teamId?: string; }  ): {
     success: boolean;
     roll: number;
     effectiveTotal: number;
@@ -241,19 +172,15 @@ export class DiceController {
   } {
     const roll = this.rng.rollDie(6);
     let success = false;
-    // "The score on a D6 can never be modified to above 6" (errata p.33);
-    // below 1 is allowed
+
     const effectiveTotal = Math.min(6, roll + modifier);
 
-    if (roll === 6)
-      success = true; // Natural 6 always succeeds
-    else if (roll === 1)
-      success = false; // Natural 1 always fails
+    if (roll === 6) success = true;
+    else if (roll === 1) success = false;
     else success = effectiveTotal >= target;
 
     const fullReason = playerName ? `${reason} (${playerName})` : reason;
-    // The die face needed, modifiers folded in: the number the coach's
-    // prompt showed before the roll
+
     const needed = requiredRoll(target, modifier);
     this.emitDiceRoll({
       rollType: fullReason,
@@ -261,9 +188,9 @@ export class DiceController {
       context: { target, modifier },
       value: roll,
       total: effectiveTotal,
-      description: `${fullReason}: ${roll}, needs ${needed}+`,
+      description: `${fullReason}: ${String(roll)}, needs ${String(needed)}+`,
       resultState: success ? "success" : "failure",
-      teamId,
+      ...(teamId === undefined ? {} : { teamId: teamId }),
     });
 
     return {
@@ -274,30 +201,18 @@ export class DiceController {
     };
   }
 
-  /**
-   * Roll Armor Check
-   */
   public rollArmorCheck(
-    /** The AV on the player's card: this many or more breaks it. */
-    av: number,
-    playerName?: string,
-    teamId?: string,
-    /** Added to the roll, e.g. foul assists or a Chainsaw's +3. */
-    modifier = 0,
-    /**
-     * The roll's name in the tray and the log. A named roll keeps its name
-     * once landed, as "Foul Armour Roll (Ogre #1): 5 + 5 = 10 (AV 10+)".
-     */
-    rollType?: string
-  ): { broken: boolean; roll: number; rolls: number[] } {
+{ av,playerName,teamId,modifier=0,rollType }: { av: number; playerName?: string; teamId?: string; modifier?: number; rollType?: string; }  ): { broken: boolean; roll: number; rolls: number[] } {
     const rolls = this.rng.rollMultipleDice(2, 6);
-    const total = rolls[0] + rolls[1];
+    const total = rolls.reduce((sum, roll) => sum + roll, 0);
     const broken = total + modifier >= av;
 
-    const added = modifier ? ` ${modifier > 0 ? "+" : ""}${modifier}` : "";
+    const added = modifier
+      ? ` ${modifier > 0 ? "+" : ""}${String(modifier)}`
+      : "";
     const description = rollType
-      ? `${rollType}: ${rolls[0]} + ${rolls[1]}${added} = ${total + modifier} (AV ${av}+)`
-      : `${playerName ? `${playerName} Armour` : "Armour"}: ${rolls[0]}+${rolls[1]}${added} = ${total + modifier} (AV ${av}+)`;
+      ? `${rollType}: ${String(rolls[0])} + ${String(rolls[1])}${added} = ${String(total + modifier)} (AV ${String(av)}+)`
+      : `${playerName ? `${playerName} Armour` : "Armour"}: ${String(rolls[0])}+${String(rolls[1])}${added} = ${String(total + modifier)} (AV ${String(av)}+)`;
     this.emitDiceRoll({
       rollType: rollType ?? "Armor Check",
       diceType: "2d6",
@@ -305,23 +220,20 @@ export class DiceController {
       total,
       description,
       resultState: broken ? "success" : "failure",
-      teamId,
+      ...(teamId === undefined ? {} : { teamId: teamId }),
     });
 
     return { broken, roll: total, rolls };
   }
 
-  /**
-   * Roll Injury Roll
-   */
   public rollInjury(
     playerName?: string,
     teamId?: string,
-    /** The roll's name in the tray and the log, kept once landed. */
+
     rollType?: string
   ): { total: number; rolls: number[] } {
     const rolls = this.rng.rollMultipleDice(2, 6);
-    const total = rolls[0] + rolls[1];
+    const total = rolls.reduce((sum, roll) => sum + roll, 0);
 
     const label = playerName ? `${playerName} Injury` : "Injury Roll";
     this.emitDiceRoll({
@@ -330,10 +242,10 @@ export class DiceController {
       value: rolls,
       total,
       description: rollType
-        ? `${rollType}: ${rolls[0]} + ${rolls[1]} = ${total}`
-        : `${label}: ${rolls[0]}+${rolls[1]} = ${total}`,
+        ? `${rollType}: ${String(rolls[0])} + ${String(rolls[1])} = ${String(total)}`
+        : `${label}: ${String(rolls[0])}+${String(rolls[1])} = ${String(total)}`,
       resultState: "none",
-      teamId,
+      ...(teamId === undefined ? {} : { teamId: teamId }),
     });
 
     return { total, rolls };

@@ -1,71 +1,50 @@
-/**
- * Fouls: kick an opponent who is already down. The engine's dice are priced
- * exactly: the Armour Roll with assists, Dirty Player and Lone Fouler, the
- * Injury Roll on the target's table, and the referee spotting a double,
- * which Sneaky Git escapes on unbroken armour. A spotted Foul ends the
- * turn unless a Bribe works, and a Send-off, unless the call is argued or
- * bribed away, costs what the fouler is worth to the team for the rest of
- * the game. So cheap players foul, and big guys never do.
- */
-
-import { Player, PlayerStatus } from "../../types/Player";
+import { type FieldPlayer as Player } from "./board";
+import { type Player as RosterPlayer, PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { TeamSpecialRule, playerValue } from "../../types/Team";
 import { hasTeamSpecialRule } from "../../game/rules/teamAllegiance";
 import { bribesLeft } from "../../game/inducements/bribes";
 import { isBigGuy } from "../../game/rules/rosterLegality";
 import { FoulValidator } from "../../game/validators/FoulValidator";
-import { Square, distance, key, neighbours, standing } from "./board";
+import { type Square, distance, key, neighbours, standing } from "./board";
 import type { Route } from "./routes";
 import type { Context } from "./activationContext";
 import type { Activation } from "./activations";
 
 const validator = new FoulValidator();
 
-/** A team's usual lineman, for pricing a player's place on the pitch. */
 const LINEMAN_VALUE = 50_000;
 
 export interface FoulOdds {
-  /** The target leaves the game: Badly Hurt or worse. */
   casualty: number;
-  /** The target leaves the drive. */
+
   ko: number;
-  /**
-   * The referee spots the Foul: a Send-off and a Turnover, unless the
-   * call is argued away, which still ends the turn, or bribed away.
-   */
+
   spotted: number;
 }
 
-const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
+const has = (p: RosterPlayer, s: SkillType) => hasSkill(p.skills, s);
 
-/** The Sevens injury table for `target`: the highest Stunned, then KO, totals. */
-function injuryBands(target: Player): [number, number] {
+function injuryBands(target: RosterPlayer): [number, number] {
   const stunty = has(target, SkillType.STUNTY);
   const stunnedUpTo = stunty ? 6 : 7;
-  // Thick Skull turns the lowest KO into Stunned.
+
   const thick = has(target, SkillType.THICK_SKULL) ? 1 : 0;
   return [stunnedUpTo + thick, stunty ? 8 : 9];
 }
 
-/** Every pair of dice faces, each with its share of chance `p`. */
 function eachPair(p: number, roll: (a: number, b: number, q: number) => void) {
   for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) roll(a, b, p / 36);
 }
 
-/**
- * A Foul's assists: their net modifier, and whether neither side has any.
- * Assists that cancel out still deny Lone Fouler.
- */
 export interface FoulAssists {
   modifier: number;
   none: boolean;
 }
 
-/** Every Armour and Injury Roll of one Foul, die face by die face. */
 export function foulOdds(
-  fouler: Player,
-  target: Player,
+  fouler: RosterPlayer,
+  target: RosterPlayer,
   assists: FoulAssists
 ): FoulOdds {
   const locked = has(target, SkillType.IRON_HARD_SKIN);
@@ -78,45 +57,51 @@ export function foulOdds(
   const regenerates = has(target, SkillType.REGENERATION) ? 0.5 : 1;
   const AV = target.stats.AV;
   const out: FoulOdds = { casualty: 0, ko: 0, spotted: 0 };
-  /** The Injury Roll; a double on it or on the armour is spotted. */
-  const injury = (p: number, bonus: number, armourDouble: boolean) =>
+
+  const injury = (p: number, bonus: number, armourDouble: boolean) => {
     eachPair(p, (c, d, q) => {
       const total = c + d + bonus;
       if (armourDouble || c === d) out.spotted += q;
       if (total > koUpTo) out.casualty += q * regenerates;
       else if (total > stunnedUpTo) out.ko += q;
     });
-  /** One Armour Roll, then the Injury Roll if it breaks. */
-  const armour = (a: number, b: number, p: number, rerolled: boolean) => {
+  };
+
+  const armour = (
+    a: number,
+    b: number,
+    roll: { p: number; rerolled: boolean }
+  ) => {
+    const { p, rerolled } = roll;
     const total = a + b + modifier;
-    if (total >= AV) return injury(p, dirty ? 1 : 0, a === b);
-    if (lone && !rerolled)
-      return eachPair(p, (c, d, q) => armour(c, d, q, true));
-    // Dirty Player's +1 goes on the armour when that alone breaks it.
-    if (dirtyOnArmourAllowed && total + 1 >= AV) return injury(p, 0, a === b);
+    if (total >= AV) {
+      injury(p, dirty ? 1 : 0, a === b);
+      return;
+    }
+    if (lone && !rerolled) {
+      eachPair(p, (c, d, q) => {
+        armour(c, d, { p: q, rerolled: true });
+      });
+      return;
+    }
+
+    if (dirtyOnArmourAllowed && total + 1 >= AV) {
+      injury(p, 0, a === b);
+      return;
+    }
     if (a === b && !sneaky) out.spotted += p;
   };
-  eachPair(1, (a, b, q) => armour(a, b, q, false));
+  eachPair(1, (a, b, q) => {
+    armour(a, b, { p: q, rerolled: false });
+  });
   return out;
 }
 
-/**
- * What the fouler's place on the pitch is worth for the rest of the game,
- * rising with the square of its value against a lineman's: a Gnoblar is a
- * tenth of a lineman to lose, a big guy several times one.
- */
-function sendOffCost(c: Context, fouler: Player): number {
+function sendOffCost(c: Context, fouler: RosterPlayer): number {
   return c.w.sentOff * (playerValue(fouler) / LINEMAN_VALUE) ** 2;
 }
 
-/**
- * What a spotted Foul costs, chance by chance. Arguing the Call sways the
- * referee on a 5 or 6, and Bribery and Corruption re-rolls a first 1 once
- * a game: the player stays, but the turn still ends. Otherwise a held
- * Bribe works on a 2+, keeping the player and the turn. Failing both, the
- * player is Sent-off and the turn ends.
- */
-function spottedChances(c: Context, fouler: Player) {
+function spottedChances(c: Context, fouler: RosterPlayer) {
   const state = c.board.gs.getState();
   const team = c.board.gs.getTeam(fouler.teamId);
   const corrupt =
@@ -129,12 +114,17 @@ function spottedChances(c: Context, fouler: Player) {
   return { sentOff, turnover: swayed + sentOff };
 }
 
-/** A Turnover loses the activations still to come. */
 const lostActivations = (c: Context) =>
   c.w.turnoverPerPlayer * Math.max(0, c.available.size - 1);
 
-/** The value of one Foul on `target` from `at`, before the walk there. */
-function foulAt(c: Context, fouler: Player, target: Player, at: Square) {
+interface FoulAtArgs {
+  c: Context;
+  fouler: Player;
+  target: Player;
+  at: Square;
+}
+
+function foulAt({ c, fouler, target, at }: FoulAtArgs) {
   const moved = { ...fouler, gridPosition: at };
   const everyone = c.board.everyone.map((p) =>
     p.id === fouler.id ? moved : p
@@ -158,15 +148,22 @@ function foulAt(c: Context, fouler: Player, target: Player, at: Square) {
 const down = (p: Player) =>
   p.status === PlayerStatus.PRONE || p.status === PlayerStatus.STUNNED;
 
-/** A Foul on `target` from `at`, or null when the walk there is unsafe. */
-function foulFrom(
-  c: Context,
-  fouler: Player,
-  target: Player,
-  at: Square,
-  routes: ReadonlyMap<number, Route>
-): Activation | null {
-  const here = distance(at, fouler.gridPosition!) === 0;
+interface FoulFromArgs {
+  c: Context;
+  fouler: Player;
+  target: Player;
+  at: Square;
+  routes: ReadonlyMap<number, Route>;
+}
+
+function foulFrom({
+  c,
+  fouler,
+  target,
+  at,
+  routes,
+}: FoulFromArgs): Activation | null {
+  const here = distance(at, fouler.gridPosition) === 0;
   const route = here ? null : (routes.get(key(at)) ?? null);
   if (!here && (!route || route.chance < c.w.safeMove)) return null;
   const chance = route?.chance ?? 1;
@@ -174,20 +171,15 @@ function foulFrom(
     player: fouler,
     action: "foul",
     intent: { kind: "foul", target, route },
-    // A Send-off is a Turnover, so a Foul is always a risk.
+
     tier: "risky",
     value:
-      chance * foulAt(c, fouler, target, at) -
+      chance * foulAt({ c: c, fouler: fouler, target: target, at: at }) -
       (1 - chance) * (c.turnover + c.w.ownDown),
     rolls: route?.rolls ?? [],
   };
 }
 
-/**
- * The best Foul this player can walk to: each downed opponent, from the
- * reachable empty square beside it with the most assists. Only safe walks.
- * A big guy never fouls: a game plan's lean could otherwise tip one in.
- */
 export function foulActivations(c: Context, fouler: Player): Activation[] {
   const { board } = c;
   if (
@@ -203,9 +195,22 @@ export function foulActivations(c: Context, fouler: Player): Activation[] {
   };
   let best: Activation | null = null;
   for (const target of board.theirs.filter(down))
-    for (const at of neighbours(target.gridPosition!).filter(free)) {
-      const foul = foulFrom(c, fouler, target, at, routes);
-      if (foul && (!best || foul.value > best.value)) best = foul;
+    for (const at of neighbours(target.gridPosition).filter(free)) {
+      const foul = foulFrom({
+        c: c,
+        fouler: fouler,
+        target: target,
+        at: at,
+        routes: routes,
+      });
+      best = betterFoul(best, foul);
     }
   return best ? [best] : [];
+}
+
+function betterFoul(
+  best: Activation | null,
+  foul: Activation | null
+): Activation | null {
+  return foul && (!best || foul.value > best.value) ? foul : best;
 }

@@ -1,17 +1,12 @@
-/**
- * Answers to the decisions a turn raises mid-action: block dice, re-rolls,
- * push squares, follow-ups and the rest. Each returns an index into the
- * offered candidates, or null to let the heuristic coach answer.
- */
-
-import { PendingDecision } from "../../headless/protocol";
-import { BlockResultType } from "../../services/BlockResolutionService";
+import { type PendingDecision } from "../../headless/protocol";
+import { type BlockResultType } from "../../services/BlockResolutionService";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { Candidate } from "../candidates";
-import { Board, carrierOf, distance, key, onPitch, toGoal } from "./board";
+import { type Candidate } from "../candidates";
+import { type Board, carrierOf, distance, key, onPitch, toGoal } from "./board";
 import { hasBiteSupport } from "./feeding";
 
-/** Traits that can stop a player acting on its turn. */
+const USE_REROLL = "use-reroll";
+
 const UNRELIABLE = [
   SkillType.ANIMAL_SAVAGERY,
   SkillType.BONE_HEAD,
@@ -21,13 +16,19 @@ const UNRELIABLE = [
   SkillType.LONER,
 ];
 
-/** How good a block result is for the attacker. */
-function resultRank(
-  type: BlockResultType,
-  attackerBlock: boolean,
-  defenderBlock: boolean,
-  defenderDodge: boolean
-): number {
+interface ResultRankArgs {
+  type: BlockResultType;
+  attackerBlock: boolean;
+  defenderBlock: boolean;
+  defenderDodge: boolean;
+}
+
+function resultRank({
+  type,
+  attackerBlock,
+  defenderBlock,
+  defenderDodge,
+}: ResultRankArgs): number {
   switch (type) {
     case "pow":
       return 5;
@@ -36,9 +37,7 @@ function resultRank(
     case "push":
       return 3;
     case "both-down":
-      if (attackerBlock && !defenderBlock) return 4;
-      if (attackerBlock) return 2.5;
-      return defenderBlock ? 0.5 : 1;
+      return bothDownRank(attackerBlock, defenderBlock);
     case "skull":
       return 0;
   }
@@ -49,7 +48,6 @@ type PendingOf<T extends PendingDecision["type"]> = Extract<
   { type: T }
 >;
 
-/** The index of the first candidate that passes `test`, or null. */
 function first(
   candidates: readonly Candidate[],
   test: (c: Candidate) => boolean
@@ -58,10 +56,6 @@ function first(
   return index >= 0 ? index : null;
 }
 
-/**
- * The first candidate with the highest score, or null when none has one.
- * `score` returns undefined for a candidate that is not in the running.
- */
 function best(
   candidates: readonly Candidate[],
   score: (c: Candidate) => number | undefined
@@ -83,26 +77,27 @@ function blockDiceChoice(
   pending: PendingOf<"block-dice">,
   candidates: readonly Candidate[]
 ): number | null {
-  const gs = board.gs;
-  const attacker = gs.getPlayerById(pending.attackerId)!;
-  const defender = gs.getPlayerById(pending.defenderId)!;
+  const attacker = board.everyone.find((p) => p.id === pending.attackerId);
+  const defender = board.everyone.find((p) => p.id === pending.defenderId);
+  if (!attacker || !defender)
+    throw new Error("Block decision players must be on the pitch");
   const has = (p: typeof attacker, s: SkillType) => hasSkill(p.skills, s);
   const rank = (type: BlockResultType) =>
-    resultRank(
-      type,
-      has(attacker, SkillType.BLOCK),
-      has(defender, SkillType.BLOCK),
-      has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE)
-    );
+    resultRank({
+      type: type,
+      attackerBlock: has(attacker, SkillType.BLOCK),
+      defenderBlock: has(defender, SkillType.BLOCK),
+      defenderDodge:
+        has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE),
+    });
   const weAttack = attacker.teamId === board.us;
   const ranks = pending.options.map((o) => rank(o.type));
-  // At the attacker's re-roll stage the defender picks, so the worst die
-  // is the one that counts.
+
   const counts =
     pending.choiceStage === "attacker-reroll"
       ? Math.min(...ranks)
       : Math.max(...ranks);
-  // Re-roll a block that would put our attacker down, if we can.
+
   if (weAttack && counts <= 1) {
     const reroll =
       first(candidates, (c) => c.commands[0].type === "veteran-reroll-block") ??
@@ -115,15 +110,13 @@ function blockDiceChoice(
   return best(candidates, (c) => {
     const command = c.commands[0];
     if (command.type !== "choose-block-result") return undefined;
-    const r = rank(pending.options[command.index].type);
+    const option = pending.options[command.index];
+    if (!option) return undefined;
+    const r = rank(option.type);
     return weAttack ? r : -r;
   });
 }
 
-/**
- * Pushing their player: off the pitch if we can, else towards the
- * sideline. Pushed ourselves (Sidestep): towards the middle.
- */
 function pushChoice(
   board: Board,
   pending: PendingOf<"push-direction">,
@@ -136,26 +129,26 @@ function pushChoice(
     if (command.type !== "choose-push-direction") return undefined;
     const square = { x: command.x, y: command.y };
     const wide = !onPitch(square) ? 100 : Math.abs(square.y - 5) * 2;
-    return pushingThem ? wide : -wide - board.marks[key(square)];
+    return pushingThem
+      ? wide
+      : -wide - (onPitch(square) ? board.marks.getUint8(key(square)) : NaN);
   });
 }
 
-/** Stay put when we hold the ball or keep a cage corner; else follow. */
 function followUpChoice(
   board: Board,
   candidates: readonly Candidate[]
 ): number | null {
-  const gs = board.gs;
   const carrier = carrierOf(board);
-  const active = gs.getState().activePlayer;
-  const attacker = active ? gs.getPlayerById(active.id) : undefined;
-  const holding = carrier && attacker && carrier.id === attacker.id;
+  const active = board.gs.getState().activePlayer;
+  const attacker = board.everyone.find((player) => player.id === active?.id);
+  const holding = carrier && carrier.id === attacker?.id;
   const corner =
     carrier &&
     attacker &&
     carrier.teamId === board.us &&
     carrier.id !== attacker.id &&
-    distance(carrier.gridPosition!, attacker.gridPosition!) === 1;
+    distance(carrier.gridPosition, attacker.gridPosition) === 1;
   const follow = !holding && !corner;
   return first(
     candidates,
@@ -165,10 +158,6 @@ function followUpChoice(
   );
 }
 
-/**
- * The ball to a ball handler out of trouble: never a big guy who may
- * refuse to act, the quicker and surer-handed the better.
- */
 function touchbackChoice(
   board: Board,
   candidates: readonly Candidate[]
@@ -180,7 +169,7 @@ function touchbackChoice(
     if (!p?.gridPosition) return undefined;
     const unreliable = UNRELIABLE.some((skill) => hasSkill(p.skills, skill));
     return (
-      -board.marks[key(p.gridPosition)] * 10 -
+      -board.marks.getUint8(key(p.gridPosition)) * 10 -
       (unreliable ? 30 : 0) +
       p.stats.MA -
       p.stats.AG * 2 -
@@ -197,16 +186,15 @@ function rerollChoice(
   const find = (test: (c: Candidate) => boolean) => first(candidates, test);
   if (skillPlans && pending.rollKind === "gaze")
     return find(
-      (c) => c.commands[0].type === "use-reroll" && !c.commands[0].accept
+      (c) => c.commands[0].type === USE_REROLL && !c.commands[0].accept
     );
   return (
     find(
       (c) =>
-        c.commands[0].type === "use-reroll" &&
+        c.commands[0].type === USE_REROLL &&
         c.commands[0].accept &&
         c.commands[0].source !== "team"
-    ) ??
-    find((c) => c.commands[0].type === "use-reroll" && c.commands[0].accept)
+    ) ?? find((c) => c.commands[0].type === USE_REROLL && c.commands[0].accept)
   );
 }
 
@@ -225,14 +213,21 @@ function biteChoice(
   );
 }
 
-function skillReactionChoice(
-  board: Board,
-  pending: PendingOf<"reaction">,
-  candidates: readonly Candidate[],
-  skillPlans: boolean
-): number | null {
+interface SkillReactionChoiceArgs {
+  board: Board;
+  pending: PendingOf<"reaction">;
+  candidates: readonly Candidate[];
+  skillPlans: boolean;
+}
+
+function skillReactionChoice({
+  board,
+  pending,
+  candidates,
+  skillPlans,
+}: SkillReactionChoiceArgs): number | null {
   const active = board.gs.getState().activePlayer;
-  const player = active ? board.gs.getPlayerById(active.id) : undefined;
+  const player = board.ours.find((p) => p.id === active?.id);
   if (
     skillPlans &&
     pending.skill === SkillType.BLOODLUST &&
@@ -248,13 +243,20 @@ function skillReactionChoice(
   return null;
 }
 
-export function decide(
-  board: Board,
-  pending: PendingDecision,
-  candidates: readonly Candidate[],
-  skillPlans = true
-): number | null {
-  const find = (test: (c: Candidate) => boolean) => first(candidates, test);
+interface DecideArgs {
+  board: Board;
+  pending: PendingDecision;
+  candidates: readonly Candidate[];
+  skillPlans?: boolean;
+}
+
+export function decide({
+  board,
+  pending,
+  candidates,
+  skillPlans = true,
+}: DecideArgs): number | null {
+  if (isOtherDecision(pending)) return otherDecision(pending, candidates);
   switch (pending.type) {
     case "block-dice":
       return blockDiceChoice(board, pending, candidates);
@@ -269,7 +271,33 @@ export function decide(
     case "bite-target":
       return biteChoice(board, candidates);
     case "reaction":
-      return skillReactionChoice(board, pending, candidates, skillPlans);
+      return skillReactionChoice({
+        board: board,
+        pending: pending,
+        candidates: candidates,
+        skillPlans: skillPlans,
+      });
+  }
+}
+
+function bothDownRank(attackerBlock: boolean, defenderBlock: boolean): number {
+  if (attackerBlock && !defenderBlock) return 4;
+  if (attackerBlock) return 2.5;
+  return defenderBlock ? 0.5 : 1;
+}
+
+function otherDecision(
+  pending: PendingOf<
+    | "interception"
+    | "apothecary"
+    | "foul-assists"
+    | "inducement-choice"
+    | "kickoff-event"
+  >,
+  candidates: readonly Candidate[]
+): number | null {
+  const find = (test: (c: Candidate) => boolean) => first(candidates, test);
+  switch (pending.type) {
     case "interception":
       return find(
         (c) =>
@@ -280,7 +308,27 @@ export function decide(
       return find(
         (c) => c.commands[0].type === "use-apothecary" && c.commands[0].accept
       );
-    default:
+    case "foul-assists":
+    case "inducement-choice":
+    case "kickoff-event":
       return null;
   }
+}
+
+function isOtherDecision(
+  pending: PendingDecision
+): pending is PendingOf<
+  | "interception"
+  | "apothecary"
+  | "foul-assists"
+  | "inducement-choice"
+  | "kickoff-event"
+> {
+  return (
+    pending.type === "interception" ||
+    pending.type === "apothecary" ||
+    pending.type === "foul-assists" ||
+    pending.type === "inducement-choice" ||
+    pending.type === "kickoff-event"
+  );
 }

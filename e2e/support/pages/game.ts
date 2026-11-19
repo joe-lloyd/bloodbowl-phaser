@@ -1,19 +1,12 @@
-/**
- * DOM page objects for the browser lane.
- *
- * Everything here drives the game the way a coach does: navigating routes,
- * choosing a sandbox scenario, picking an action from the HUD menu, and
- * answering decision dialogs. Assertions about what the game *concluded*
- * belong to `GameBridge`; these objects only act and expose locators.
- */
-
-import { Locator, Page, expect } from "@playwright/test";
+import { type Locator, type Page, expect } from "@playwright/test";
 import { GameBridge } from "./bridge";
 import { PitchPage } from "./pitch";
 
-/** Main menu and route navigation. */
 export class MenuPage {
-  constructor(private readonly page: Page) {}
+  private readonly page: Page;
+  constructor(page: Page) {
+    this.page = page;
+  }
 
   async open(): Promise<void> {
     await this.page.goto("/");
@@ -32,7 +25,6 @@ export class MenuPage {
       .click();
   }
 
-  /** The Sandbox entry is admin-gated; without Firebase everyone is admin. */
   openSandbox(): Promise<void> {
     return this.page.getByRole("button", { name: /Sandbox/ }).click();
   }
@@ -42,20 +34,17 @@ export class MenuPage {
   }
 }
 
-/** The sandbox scenario explorer overlay. */
 export class SandboxPage {
   readonly pitch: PitchPage;
   readonly bridge: GameBridge;
 
-  constructor(private readonly page: Page) {
+  private readonly page: Page;
+  constructor(page: Page) {
+    this.page = page;
     this.pitch = new PitchPage(page);
     this.bridge = new GameBridge(page);
   }
 
-  /**
-   * Open the sandbox directly. The scene reads `?scenario=&seed=&outcome=`,
-   * so a CI failure's reproduction reference is a URL.
-   */
   async open(params?: {
     scenario?: string;
     seed?: number;
@@ -68,23 +57,18 @@ export class SandboxPage {
     const suffix = query.toString() ? `?${query}` : "";
     await this.page.goto(`/sand-box${suffix}`);
     await this.pitch.waitForCanvas();
-    // The scene defers the URL-driven load, so the bridge exists before the
-    // scenario is on the pitch. The overlay's seed panel only renders on
-    // ScenarioLoaded, which makes it the honest "board is ready" signal.
+
     if (params?.scenario) await this.waitForScenarioLoaded();
   }
 
-  /** The overlay panel that appears once a scenario has been loaded. */
   scenarioInfo(): Locator {
     return this.page.getByTestId("sandbox-scenario-info");
   }
 
   async waitForScenarioLoaded(timeout = 20_000): Promise<void> {
-    // Attached, not visible: on a phone the panel waits in a closed drawer
     await expect(this.scenarioInfo()).toBeAttached({ timeout });
   }
 
-  /** The seed the scene actually ran with, as shown in the overlay. */
   async loadedSeed(): Promise<number> {
     const raw = await this.scenarioInfo().getAttribute("data-scenario-seed");
     return Number(raw);
@@ -114,19 +98,19 @@ export class SandboxPage {
     return this.page.getByLabel("Seeded outcome");
   }
 
-  /** Pick a core-rules scenario from the flat list. */
   async loadCoreScenario(id: string): Promise<void> {
     await this.topicSelect().selectOption("core");
     await this.coreScenarioSelect().selectOption(id);
   }
 }
 
-/** The in-match HUD: action menu, decision dialogs, turn control. */
 export class HudPage {
   readonly bridge: GameBridge;
   readonly pitch: PitchPage;
 
-  constructor(private readonly page: Page) {
+  private readonly page: Page;
+  constructor(page: Page) {
+    this.page = page;
     this.bridge = new GameBridge(page);
     this.pitch = new PitchPage(page);
   }
@@ -135,17 +119,14 @@ export class HudPage {
     return this.page.getByTestId("player-action-menu");
   }
 
-  /** An action button by its protocol action name, e.g. "move", "blitz". */
   actionButton(action: string): Locator {
     return this.page.getByTestId(`action-${action}`);
   }
 
-  /** A Block-replacement declaration, e.g. ("blitz", "chainsaw"). */
   replacementButton(action: string, replacement: string): Locator {
     return this.page.getByTestId(`action-${action}-${replacement}`);
   }
 
-  /** Select a player on the pitch and declare an action from their menu. */
   async declareAction(playerRef: string, action: string): Promise<void> {
     await this.pitch.clickPlayer(playerRef);
     await expect(this.actionMenu()).toBeVisible();
@@ -153,17 +134,12 @@ export class HudPage {
     await this.rollNegatraitIfAsked(playerRef);
   }
 
-  /** The confirm a negatrait (Bone Head, Bloodlust, …) asks before it rolls. */
   negatraitConfirm(): Locator {
     return this.page
       .getByTestId("confirmation-modal")
       .filter({ hasText: "must roll first" });
   }
 
-  /**
-   * A declaration that rolls a negatrait asks first. Press Roll when it
-   * does; otherwise go on once the declaration has landed.
-   */
   async rollNegatraitIfAsked(playerRef: string): Promise<void> {
     const id = await this.bridge.resolveRef(playerRef);
     const confirm = this.negatraitConfirm();
@@ -185,13 +161,6 @@ export class HudPage {
     return this.page.getByTestId("end-turn");
   }
 
-  /**
-   * Advance to a step of a multi-step action.
-   *
-   * A Pass is "Move, then Pass": until the coach selects the Pass step, a
-   * canvas click is planning movement, not aiming a throw. Skipping this is
-   * why a click on a perfectly legal receiver would otherwise do nothing.
-   */
   async selectActionStep(stepId: string): Promise<void> {
     const stepButton = this.page.getByTestId(`action-step-${stepId}`);
     await expect(stepButton).toBeVisible();
@@ -199,13 +168,10 @@ export class HudPage {
     await expect(stepButton).toHaveAttribute("data-active", "true");
   }
 
-  // ----- Decision dialogs -----
-
   rerollDialog(): Locator {
     return this.page.getByTestId("reroll-dialog");
   }
 
-  /** Answer a reroll offer. `source` picks which bank to spend. */
   async answerReroll(
     accept: boolean,
     source: "skill" | "team" = "skill"
@@ -244,24 +210,16 @@ export class HudPage {
     return this.page.getByTestId("block-dice-dialog");
   }
 
-  /**
-   * Roll the block dice.
-   *
-   * The dialog opens showing the strength comparison and a ROLL DICE button —
-   * the dice faces only exist afterwards. Skipping this is why a die
-   * selector would otherwise wait forever on a dialog that is plainly there.
-   */
   async rollBlockDice(): Promise<void> {
     await expect(this.blockDiceDialog()).toBeVisible();
     const roll = this.page.getByTestId("block-roll-dice");
     if (await roll.isVisible().catch(() => false)) {
       await roll.click();
     }
-    // The dice are up; their keyboard buttons are what the caller uses next.
+
     await expect(this.page.getByTestId("block-die-0")).toBeVisible();
   }
 
-  /** Choose a rolled block die by its result type, e.g. "pow". */
   async chooseBlockResult(resultType: string): Promise<void> {
     await expect(this.blockDiceDialog()).toBeVisible();
     const die = this.blockDiceDialog().locator(
@@ -271,22 +229,19 @@ export class HudPage {
       die.first(),
       `no '${resultType}' die was rolled — the seed may have drifted`
     ).toBeVisible();
-    // The dice are clicked in the 3D tray; these buttons are the keyboard
-    // way to the same choice
+
     await die.first().focus();
     await die.first().press("Enter");
   }
 
-  /** Choose whichever die is at this index, regardless of its face. */
   async chooseBlockDie(index: number): Promise<void> {
     await expect(this.blockDiceDialog()).toBeVisible();
-    const die = this.page.getByTestId(`block-die-${index}`);
+    const die = this.page.getByTestId(`block-die-${String(index)}`);
     await die.focus();
     await die.press("Enter");
   }
 }
 
-/** Everything a browser case needs, assembled once per test. */
 export class GameApp {
   readonly menu: MenuPage;
   readonly sandbox: SandboxPage;
@@ -294,7 +249,9 @@ export class GameApp {
   readonly pitch: PitchPage;
   readonly bridge: GameBridge;
 
-  constructor(private readonly page: Page) {
+  private readonly page: Page;
+  constructor(page: Page) {
+    this.page = page;
     this.menu = new MenuPage(page);
     this.sandbox = new SandboxPage(page);
     this.hud = new HudPage(page);
@@ -302,10 +259,6 @@ export class GameApp {
     this.bridge = new GameBridge(page);
   }
 
-  /**
-   * The opening's weather dialog: roll the 2D6, wait for the result, and go
-   * on to the coin toss. `timeout` covers the introductions before it.
-   */
   async rollWeather(timeout = 60_000): Promise<void> {
     const roll = this.page.getByRole("button", { name: "ROLL WEATHER" });
     await roll.waitFor({ timeout });
@@ -315,10 +268,6 @@ export class GameApp {
       .click({ timeout: 15_000 });
   }
 
-  /**
-   * The Kick-off Table dialog that opens once the kick is in the air: roll
-   * the 2D6 and wait for the dialog to hand over to the event's banner.
-   */
   async rollKickoff(timeout = 30_000): Promise<void> {
     const roll = this.page.getByRole("button", { name: "ROLL KICK-OFF" });
     await roll.click({ timeout });

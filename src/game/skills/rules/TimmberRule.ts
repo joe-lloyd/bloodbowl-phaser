@@ -1,18 +1,10 @@
-/**
- * Timmm-ber! (2025 rulebook p.137, trait) — "If this player has an MA of 2
- * or less and attempts to stand up, apply a +1 modifier to the roll for
- * standing up for each Open Standing team-mate adjacent to this player. A
- * roll of a natural 1 will still fail as normal." (Open = not being Marked
- * by any opposition player.)
- */
-
 import { SkillType } from "../../../types/Skills";
 import {
-  Player,
+  type Player,
   PlayerStatus,
   hasTackleZone,
 } from "../../../types/Player";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 const adjacent = (a: Player, b: Player): boolean =>
   !!a.gridPosition &&
@@ -38,7 +30,7 @@ export const TimmberRule: SkillRule = {
     ctx.triggers.push({
       playerId: self.id,
       skill: SkillType.TIMMM_BER,
-      effect: `Timmm-ber!: +${helpers} to stand up (${helpers} Open helper${helpers > 1 ? "s" : ""})`,
+      effect: `Timmm-ber!: +${String(helpers)} to stand up (${String(helpers)} Open helper${helpers > 1 ? "s" : ""})`,
     });
   },
 };

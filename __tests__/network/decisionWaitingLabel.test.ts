@@ -1,13 +1,16 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { afterEach, expect, it } from "vitest";
 import { createOnlineMatch } from "../../src/network/OnlineMatch";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { DEFAULT_SETTINGS, LobbyDoc } from "../../src/firebase/lobby";
+import { DEFAULT_SETTINGS, type LobbyDoc } from "../../src/firebase/lobby";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 
-afterEach(() => ServiceContainer.reset());
+afterEach(() => {
+  ServiceContainer.reset();
+});
 it("names the team and decision in plain words for the waiting coach", () => {
   const game = new HeadlessGame({ seed: 1 });
   const { team1, team2 } = game.ctx;
@@ -31,7 +34,13 @@ it("names the team and decision in plain words for the waiting coach", () => {
   const [transport] = createInMemoryTransportPair();
   const match = createOnlineMatch({
     lobby,
-    user: { uid: "guest", displayName: "Coach B", email: null, photoURL: null },
+    user: {
+      uid: "guest",
+      displayName: "Coach B",
+      email: null,
+      emailVerified: false,
+      photoURL: null,
+    },
     eventBus: new EventBus(),
     transport,
     seed: 1,
@@ -41,7 +50,7 @@ it("names the team and decision in plain words for the waiting coach", () => {
       .gameService.getDecisionService()
       .request({
         type: "reroll",
-        playerId: team1.players[0].id,
+        playerId: fixtureValue(team1.players[0]).id,
         chooserTeamId: team1.id,
         rollKind: "dodge",
         sources: ["team"],

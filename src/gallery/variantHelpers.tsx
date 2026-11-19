@@ -1,25 +1,32 @@
-/**
- * Fixtures and helpers that more than one family of gallery variants uses.
- */
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
 import { GameEventNames } from "../types/events";
-import { GamePhase } from "../types/GameState";
+import { GamePhase, SubPhase } from "../types/GameState";
+import type { SetupTeamStatus } from "../types/SetupTypes";
 import type { OnlineMatch } from "../network/OnlineMatch";
 import type { LobbyDoc } from "../firebase/lobby";
-import { MatchFixture } from "./fixtures";
+import { type MatchFixture } from "./fixtures";
 import { ScoreBoard } from "../ui/components/hud/ScoreBoard";
 import { TurnIndicator } from "../ui/components/hud/TurnIndicator";
 
 export const later = (ms: number, fn: () => void) => {
   const t = setTimeout(fn, ms);
-  return () => clearTimeout(t);
+  return () => {
+    clearTimeout(t);
+  };
 };
+
+export const soon = (open: (fx: MatchFixture) => void) => (fx: MatchFixture) =>
+  later(30, () => {
+    open(fx);
+  });
 
 export const every = (ms: number, fn: () => void) => {
   fn();
   const t = setInterval(fn, ms);
-  return () => clearInterval(t);
+  return () => {
+    clearInterval(t);
+  };
 };
 
 export const click = (selector: string, text?: string) => {
@@ -29,6 +36,51 @@ export const click = (selector: string, text?: string) => {
     : buttons[0];
   target?.click();
 };
+
+const BALANCED = [{ name: "Balanced", builtIn: true }];
+
+export function showSetup(
+  fx: MatchFixture,
+  {
+    subPhase,
+    activeTeam,
+    status,
+    formations = BALANCED,
+  }: {
+    subPhase: SubPhase;
+    activeTeam: { id: string; name: string };
+    status: Partial<SetupTeamStatus>;
+    formations?: { name: string; builtIn: boolean }[];
+  }
+) {
+  fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
+    subPhase,
+    activeTeam,
+    status: {
+      teamId: activeTeam.id,
+      placedPlayerCount: 0,
+      requiredPlayerCount: 7,
+      availablePlayerCount: 7,
+      restrictions: [],
+      canConfirm: false,
+      concessionDecision: "not-offered",
+      ...status,
+    },
+  });
+  fx.bus.emit(GameEventNames.UI_FormationsUpdated, { formations });
+}
+
+export function showPlacing(
+  fx: MatchFixture,
+  formations: { name: string; builtIn: boolean }[]
+) {
+  showSetup(fx, {
+    subPhase: SubPhase.SETUP_KICKING,
+    activeTeam: { id: fx.team1.id, name: fx.team1.name },
+    status: { placedPlayerCount: 4 },
+    formations,
+  });
+}
 
 export const LONG = {
   team1Name: "The Altdorf Sorcerer-Kings of Middenheim",
@@ -54,7 +106,7 @@ export const score = (fx: MatchFixture) => (
   </div>
 );
 
-export const LOG_ROWS: [
+const LOG_ROWS: [
   string,
   string,
   number | number[] | string[],
@@ -156,8 +208,6 @@ export const BLOCK_FACES = {
   pow: { type: "pow" as const, icon: "", label: "POW!" },
 };
 
-// The online-only widgets take a live OnlineMatch and lobby; these stubs
-// carry just the fields those widgets read.
 export function onlineMatch(
   fx: MatchFixture,
   overrides: Record<string, unknown> = {}
@@ -189,7 +239,7 @@ export function lobby(fx: MatchFixture, patch: Partial<LobbyDoc>): LobbyDoc {
     createdAt: null,
     timer: {
       deadline: Date.now() + 94_000,
-      turn: `${turn.teamId}:${turn.isHalf2 ? 2 : 1}:${turn.turnNumber}`,
+      turn: `${turn.teamId}:${String(turn.isHalf2 ? 2 : 1)}:${String(turn.turnNumber)}`,
       pausedBy: null,
       pausedAt: null,
       banks: { me: 120_000 },

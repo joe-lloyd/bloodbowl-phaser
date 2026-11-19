@@ -1,8 +1,8 @@
-/** Thralls can prepare food at the endpoint before a carrier Vampire acts. */
-import { Context, gamble } from "./activationContext";
-import { Player } from "../../types/Player";
+import { type FieldPlayer as Player } from "./board";
+import { type Context, gamble } from "./activationContext";
+
 import { SkillType, hasSkill } from "../../types/Skills";
-import { Activation } from "./activations";
+import { type Activation } from "./activations";
 import { carrierActivations } from "./ballActivations";
 import { carrierOf, distance, key, neighbours, standing } from "./board";
 import { isThrall, unfedChance } from "./feeding";
@@ -13,7 +13,12 @@ function supportForRoute(
   carrier: Player,
   route: Route
 ): Activation[] {
-  const failure = unfedChance(c, carrier, "move", route.to);
+  const failure = unfedChance({
+    c: c,
+    player: carrier,
+    action: "move",
+    at: route.to,
+  });
   if (failure === 0) return [];
   const out: Activation[] = [];
   const thralls = c.board.ours.filter(
@@ -44,33 +49,26 @@ export function feedingSupportActivations(c: Context): Activation[] {
   const carrier = carrierOf(c.board);
   if (
     !c.skillPlans ||
-    !carrier ||
-    carrier.teamId !== c.board.us ||
+    carrier?.teamId !== c.board.us ||
     !hasSkill(carrier.skills, SkillType.BLOODLUST) ||
     !c.available.get(carrier.id)?.has("move")
   )
     return [];
   const plans = carrierActivations({ ...c, skillPlans: false }, carrier);
   const out: Activation[] = [];
-  for (const plan of plans) {
-    if (
-      plan.value <= 0 ||
-      (plan.intent.kind !== "carrier" && plan.intent.kind !== "score")
-    )
-      continue;
-    out.push(...supportForRoute(c, carrier, plan.intent.route));
+  for (const plan of plans.filter((plan) => plan.value > 0)) {
+    if (plan.intent.kind === "carrier" || plan.intent.kind === "score")
+      out.push(...supportForRoute(c, carrier, plan.intent.route));
   }
   return out;
 }
 
-/** Once food reaches a useful future endpoint, leave it for the Vampire. */
 export function holdsFeedingSupport(c: Context, player: Player): boolean {
   const carrier = carrierOf(c.board);
   if (
     !c.skillPlans ||
     !isThrall(player) ||
-    !carrier ||
-    carrier.teamId !== c.board.us ||
+    carrier?.teamId !== c.board.us ||
     !hasSkill(carrier.skills, SkillType.BLOODLUST) ||
     !c.available.get(carrier.id)?.has("move") ||
     c.board.gs.getMovementUsed(player.id) === 0
@@ -80,6 +78,6 @@ export function holdsFeedingSupport(c: Context, player: Player): boolean {
     (plan) =>
       plan.value > 0 &&
       (plan.intent.kind === "score" || plan.intent.kind === "carrier") &&
-      distance(player.gridPosition!, plan.intent.route.to) === 1
+      distance(player.gridPosition, plan.intent.route.to) === 1
   );
 }

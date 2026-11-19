@@ -1,16 +1,11 @@
 import { usePregameInducements } from "./pregameInducementHooks";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { shoppingTeamId } from "../../../game/inducements/pregame";
 import { DialogShell } from "../componentWarehouse/HudKit";
 import { InducementSelectionPanel } from "./InducementSelectionPanel";
 
-/**
- * Inducements before the coin toss. Both coaches readied up for the
- * weather, so the teams now buy in turn: the coach whose turn it is gets
- * the purchase panel, and the other sees who is buying.
- */
 export function PregameInducements({ eventBus }: { eventBus: EventBus }) {
   const { pregame, pending, decision, refresh } =
     usePregameInducements(eventBus);

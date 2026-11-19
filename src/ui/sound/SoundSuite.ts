@@ -1,35 +1,30 @@
-import { IEventBus } from "../../services/EventBus";
-import { AllEvents, GameEventNames } from "../../types/events";
+import { type IEventBus } from "../../services/EventBus";
+import { type AllEvents, GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
 import { PlayerStatus } from "../../types/Player";
-import { CATALOG, SoundName } from "./catalog";
+import { CATALOG, type SoundName } from "./catalog";
 import { SoundManager } from "./SoundManager";
 import { soundSettings } from "./settings";
 import { isThrownIn3D } from "../dice/thrownDice";
 
 type Unsubscribe = () => void;
 
-/** How long a higher-priority sound suppresses lower-priority ones that land right after it. */
 const PRIORITY_LOCK_MS = 600;
 
-/**
- * Binds domain events on the shared EventBus to catalog sounds. The engine
- * never references sound; every mapping here is one line of data, and the
- * whole class can be mounted/disposed freely without touching gameplay code.
- */
 export class SoundSuite {
   private unsubs: Unsubscribe[] = [];
   private lastPlayedAt = new Map<SoundName, number>();
   private priorityLockUntil = 0;
   private priorityLockLevel = -Infinity;
 
-  constructor(
-    private readonly eventBus: IEventBus,
-    private readonly manager: SoundManager
-  ) {}
+  private readonly eventBus: IEventBus;
+  private readonly manager: SoundManager;
+  constructor(eventBus: IEventBus, manager: SoundManager) {
+    this.eventBus = eventBus;
+    this.manager = manager;
+  }
 
   mount(): void {
-    // Rolls thrown as 3D dice sound their own knocks as they land
     this.bind(GameEventNames.DiceRoll, (roll) =>
       isThrownIn3D(roll.diceType) ? null : "diceRoll"
     );
@@ -69,11 +64,12 @@ export class SoundSuite {
   }
 
   dispose(): void {
-    this.unsubs.forEach((unsub) => unsub());
+    this.unsubs.forEach((unsub) => {
+      unsub();
+    });
     this.unsubs = [];
   }
 
-  /** Play a catalog entry directly — used by the audition board, bypassing event bindings. */
   play(name: SoundName): void {
     this.trigger(name);
   }
@@ -87,7 +83,9 @@ export class SoundSuite {
       if (name) this.trigger(name);
     };
     this.eventBus.on(event, handler);
-    this.unsubs.push(() => this.eventBus.off(event, handler));
+    this.unsubs.push(() => {
+      this.eventBus.off(event, handler);
+    });
   }
 
   private trigger(name: SoundName): void {
@@ -112,7 +110,8 @@ export class SoundSuite {
     this.priorityLockLevel = entry.priority;
 
     const variant =
-      entry.samples[Math.floor(Math.random() * entry.samples.length)];
+      entry.samples[Math.floor(Math.random() * entry.samples.length)] ??
+      entry.samples[0];
     this.manager.playSample(variant, entry.build, entry.durationMs);
   }
 }

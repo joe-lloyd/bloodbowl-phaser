@@ -1,10 +1,3 @@
-/**
- * Auth - Google sign-in via Firebase Auth with a subscribable user state.
- *
- * Gracefully inert when Firebase isn't configured: subscribers immediately
- * get null and sign-in rejects with a clear error the UI can show.
- */
-
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -14,7 +7,7 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
-  User,
+  type User,
 } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { getFirebaseAuth, isFirebaseConfigured } from "./config";
@@ -23,12 +16,11 @@ export interface AuthUser {
   uid: string;
   displayName: string | null;
   email: string | null;
-  /** True for Google, and for an email sign-up once its link is clicked. */
+
   emailVerified: boolean;
   photoURL: string | null;
 }
 
-/** Where the link that proves the signed-in coach's email stands. */
 export type ConfirmLink =
   | { kind: "sent" }
   | { kind: "failed"; message: string }
@@ -37,9 +29,9 @@ export type ConfirmLink =
 type AuthListener = (user: AuthUser | null) => void;
 
 let currentUser: AuthUser | null = null;
-// Kept here, not in a page, so it outlives navigation
+
 let confirmLink: ConfirmLink = { kind: "sent" };
-/** Counts link sends; only the newest may report how it went. */
+
 let linkAttempt = 0;
 const listeners = new Set<AuthListener>();
 let watching = false;
@@ -47,13 +39,7 @@ let resolved = false;
 
 function toAuthUser(user: User | null): AuthUser | null {
   if (!user) return null;
-  return {
-    uid: user.uid,
-    displayName: user.displayName,
-    email: user.email,
-    emailVerified: user.emailVerified,
-    photoURL: user.photoURL,
-  };
+  return requireAuthUser(user);
 }
 
 function ensureWatching(): void {
@@ -67,53 +53,45 @@ function ensureWatching(): void {
       linkAttempt++;
     }
     currentUser = next;
-    listeners.forEach((listener) => listener(currentUser));
+    listeners.forEach((listener) => {
+      listener(currentUser);
+    });
   });
 }
 
-/**
- * Send the link that proves this account's email, and report how it went
- * unless a newer send, or another account, has come since.
- */
 async function sendLink(user: User, sent: ConfirmLink): Promise<void> {
   const attempt = ++linkAttempt;
   const report = (next: ConfirmLink) => {
     if (attempt !== linkAttempt) return;
     confirmLink = next;
-    listeners.forEach((listener) => listener(currentUser));
+    listeners.forEach((listener) => {
+      listener(currentUser);
+    });
   };
   await sendEmailVerification(user).then(
-    () => report(sent),
-    (error: unknown) =>
-      report({ kind: "failed", message: authErrorMessage(error) })
+    () => {
+      report(sent);
+    },
+    (error: unknown) => {
+      report({ kind: "failed", message: authErrorMessage(error) });
+    }
   );
 }
 
-/** Subscribers hear of a change to this as an auth change. */
 export function getConfirmLink(): ConfirmLink {
   return confirmLink;
 }
 
-/**
- * True once Firebase has reported the initial auth state (or when Firebase
- * isn't configured, so there is nothing to wait for). Until then a null
- * user may just mean "still restoring the session" — don't redirect on it.
- */
 export function isAuthResolved(): boolean {
   ensureWatching();
   return !isFirebaseConfigured() || resolved;
 }
 
-/** Current signed-in user, or null (always null when unconfigured). */
 export function getCurrentUser(): AuthUser | null {
   ensureWatching();
   return currentUser;
 }
 
-/**
- * Subscribe to auth state. The callback fires immediately with the current
- * state, then on every change. Returns an unsubscribe function.
- */
 export function subscribeToAuth(listener: AuthListener): () => void {
   ensureWatching();
   listeners.add(listener);
@@ -144,14 +122,16 @@ function requireConfigured(): void {
   }
 }
 
-/** What a coach is told when an email sign-in or sign-up is refused. */
+const BAD_CREDENTIAL_CODES = new Set([
+  "auth/invalid-credential",
+  "auth/wrong-password",
+  "auth/user-not-found",
+]);
+
 export function authErrorMessage(error: unknown): string {
   const code = error instanceof FirebaseError ? error.code : "";
+  if (BAD_CREDENTIAL_CODES.has(code)) return "Wrong email or password.";
   switch (code) {
-    case "auth/invalid-credential":
-    case "auth/wrong-password":
-    case "auth/user-not-found":
-      return "Wrong email or password.";
     case "auth/invalid-email":
       return "That is not an email address.";
     case "auth/email-already-in-use":
@@ -177,13 +157,9 @@ export async function signInWithEmail(
     email.trim(),
     password
   );
-  return toAuthUser(credential.user)!;
+  return requireAuthUser(credential.user);
 }
 
-/**
- * A new email account, and a link to prove the address. The account can
- * play even when the link fails to send; getConfirmLink says it did.
- */
 export async function createAccountWithEmail(
   email: string,
   password: string
@@ -195,10 +171,9 @@ export async function createAccountWithEmail(
     password
   );
   await sendLink(credential.user, { kind: "sent" });
-  return toAuthUser(credential.user)!;
+  return requireAuthUser(credential.user);
 }
 
-/** Send the signed-in coach another link to prove their email address. */
 export async function sendVerificationLink(): Promise<void> {
   requireConfigured();
   const user = getFirebaseAuth().currentUser;
@@ -214,4 +189,14 @@ export async function sendPasswordReset(email: string): Promise<void> {
 export async function signOutUser(): Promise<void> {
   if (!isFirebaseConfigured()) return;
   await signOut(getFirebaseAuth());
+}
+
+function requireAuthUser(user: User): AuthUser {
+  return {
+    uid: user.uid,
+    displayName: user.displayName,
+    email: user.email,
+    emailVerified: user.emailVerified,
+    photoURL: user.photoURL,
+  };
 }

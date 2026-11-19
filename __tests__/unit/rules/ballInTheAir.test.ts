@@ -5,7 +5,7 @@ import {
   groundBall,
 } from "../../../src/game/rules/ballInTheAir";
 import { isBallAt } from "../../../src/game/managers/movementShared";
-import { GamePhase, GameState } from "../../../src/types/GameState";
+import { GamePhase, type GameState } from "../../../src/types/GameState";
 
 const square = { x: 7, y: 3 };
 const state = (over: Partial<GameState>): GameState =>
@@ -29,7 +29,9 @@ describe("a kicked ball still in the air", () => {
   });
 
   it("is not in the air before the kick or after a Touchback", () => {
-    expect(ballInTheAir(state({ kickoffKickResolved: undefined }))).toBe(false);
+    const beforeKick = state({});
+    delete beforeKick.kickoffKickResolved;
+    expect(ballInTheAir(beforeKick)).toBe(false);
     expect(ballInTheAir(state({ ballPosition: null }))).toBe(false);
   });
 

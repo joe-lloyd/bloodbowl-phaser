@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-/** Compare current modular plans with an archived, frozen pre-change planner. */
+
 import {
   existsSync,
   mkdirSync,
@@ -33,7 +33,9 @@ import { labInventory } from "../policy-lab/teams";
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) =>
-  args.includes("--" + name) ? args[args.indexOf("--" + name) + 1] : fallback;
+  args.includes("--" + name)
+    ? (args[args.indexOf("--" + name) + 1] ?? fallback)
+    : fallback;
 const entry = fileURLToPath(import.meta.url);
 const root = resolve(dirname(entry), "../../..");
 const out = resolve(flag("out", "sim-results/skill-plans"));
@@ -52,11 +54,11 @@ const getTeam = (id: string) => {
 const opponent = flag("opponent", "planner");
 if (!["planner", "heuristic", "hard", "legend"].includes(opponent))
   throw new Error("Unsupported frozen opponent");
-/** The planner at its best, or Standard: game plans and close-call variety. */
+
 const candidateKind = flag("candidate", "planner");
 if (!["planner", "standard"].includes(candidateKind))
   throw new Error("Unsupported candidate");
-/** Candidate weights for an ablation: a JSON file of overrides. */
+
 const weightsFile = flag("weights", "");
 const { weights: candidateWeights, rosters: candidateRosters } = weightsFile
   ? parseWeightFile(JSON.parse(readFileSync(resolve(weightsFile), "utf8")))
@@ -97,7 +99,7 @@ function track(coach: Coach, collectPlans = false) {
         command?.type === "declare-action" &&
         choice.note?.startsWith("moves to feed")
       )
-        selected.feedingSupport = (selected.feedingSupport ?? 0) + 1;
+        selected["feedingSupport"] = (selected["feedingSupport"] ?? 0) + 1;
       if (command) {
         const key =
           command.type === "declare-action"
@@ -128,7 +130,7 @@ if (args.includes("--worker")) {
     ...module.makeCoach(opponent, []),
     name: "planner-frozen",
   };
-  process.on("message", async (job: PolicyJob | null) => {
+  process.on("message", async (job: PolicyJob | false) => {
     if (!job) {
       process.disconnect();
       return;
@@ -192,7 +194,7 @@ if (args.includes("--worker")) {
   if (lab) {
     if (args.includes("--base-only"))
       jobs = jobs.filter((j) => j.development === "base");
-    // Small gates preserve whole blocks. Confirmation visits every recipe.
+
     const blockLimit = Number(flag("blocks", "0"));
     if (!Number.isSafeInteger(blockLimit) || blockLimit < 0)
       throw new Error("Invalid block limit");
@@ -215,7 +217,7 @@ if (args.includes("--worker")) {
         : [];
       jobs = limitPolicyBlocks(jobs, blockLimit, sentinels);
     }
-    // A roster study keeps the games where either side plays one of them.
+
     if (args.includes("--rosters")) {
       const listed = args[args.indexOf("--rosters") + 1] ?? "";
       const wanted = new Set(listed.split(",").map((name) => name.trim()));

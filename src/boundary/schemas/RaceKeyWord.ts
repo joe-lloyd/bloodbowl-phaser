@@ -1,0 +1,32 @@
+import { z } from "zod";
+import type { RaceKeyWord } from "../../types/Player";
+
+export const raceKeyWordSchema: z.ZodType<RaceKeyWord> = z.union([
+  z.literal("Dwarf"),
+  z.literal("Gnome"),
+  z.literal("Goblin"),
+  z.literal("Halfling"),
+  z.literal("Human"),
+  z.literal("Ogre"),
+  z.literal("Orc"),
+  z.literal("Skaven"),
+  z.literal("Snotling"),
+  z.literal("Vampire"),
+  z.literal("Animal"),
+  z.literal("Beastman"),
+  z.literal("Construct"),
+  z.literal("Elf"),
+  z.literal("Ghoul"),
+  z.literal("Gnoblar"),
+  z.literal("Lizardman"),
+  z.literal("Minotaur"),
+  z.literal("Skeleton"),
+  z.literal("Spawn"),
+  z.literal("Treeman"),
+  z.literal("Troll"),
+  z.literal("Undead"),
+  z.literal("Werewolf"),
+  z.literal("Wraith"),
+  z.literal("Yhetee"),
+  z.literal("Zombie"),
+]);

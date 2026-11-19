@@ -1,9 +1,5 @@
-/**
- * FirestoreTransport against a stand-in Firestore: a page load must not
- * download or replay the match's message log, and nothing it sends may be
- * written before its listener covers what comes next.
- */
-
+import { Timestamp } from "firebase/firestore";
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Envelope } from "../../../src/network/envelope";
 
@@ -11,17 +7,29 @@ type Listener = (snapshot: {
   docChanges(): { type: string; doc: { data(): Envelope } }[];
 }) => void;
 
-const firestore = vi.hoisted(() => ({
-  listener: null as Listener | null,
-  /** The query the listener was attached with, as plain parts */
-  listened: [] as unknown[],
-  newestAt: null as number | null,
-  written: [] as Record<string, unknown>[],
+const firestore = vi.hoisted(() => {
+  const state: {
+    listener: Listener | null;
+    listened: unknown[];
+    newestAt: Timestamp | null;
+    written: Record<string, unknown>[];
+    newestLookup: Promise<void>;
+  } = {
+  listener: null,
+
+  listened: new Array<unknown>(),
+  newestAt: null,
+  written: new Array<Record<string, unknown>>(),
   newestLookup: Promise.resolve(),
-}));
+};
+  return state;
+});
 
 vi.mock("../../../src/firebase/config", () => ({ getDb: () => ({}) }));
-vi.mock("firebase/firestore", () => ({
+vi.mock("firebase/firestore", async (importOriginal) => {
+  const { Timestamp } = await importOriginal<typeof import("firebase/firestore")>();
+  return {
+  Timestamp,
   collection: () => "messages",
   query: (...parts: unknown[]) => parts,
   orderBy: (field: string, dir: string) => ["orderBy", field, dir],
@@ -48,21 +56,22 @@ vi.mock("firebase/firestore", () => ({
   addDoc: async (_collection: unknown, data: Record<string, unknown>) => {
     firestore.written.push(data);
   },
-}));
+};
+});
 
 const { FirestoreTransport } =
   await import("../../../src/network/FirestoreTransport");
 
 const envelope = (seq: number, from = "host-uid"): Envelope => ({
   kind: "chat",
-  payload: { text: `#${seq}`, senderName: "Host" },
+  payload: { text: `#${String(seq)}`, senderName: "Host" },
   seq,
   from,
   ts: seq,
 });
 
 function arrive(envelopes: Envelope[]) {
-  firestore.listener!({
+  fixtureValue(firestore.listener)({
     docChanges: () =>
       envelopes.map((data) => ({ type: "added", doc: { data: () => data } })),
   });
@@ -80,11 +89,12 @@ beforeEach(() => {
 
 describe("FirestoreTransport", () => {
   it("listens only for messages after the newest one in the log", async () => {
-    firestore.newestAt = 1234;
+    const newestAt = Timestamp.fromMillis(1234);
+    firestore.newestAt = newestAt;
     const transport = new FirestoreTransport("CODE", "guest-uid");
     await flush();
 
-    expect(firestore.listened).toContainEqual(["where", "at", ">", 1234]);
+    expect(firestore.listened).toContainEqual(["where", "at", ">", newestAt]);
     const received: number[] = [];
     transport.subscribe((incoming) => received.push(incoming.seq));
     arrive([envelope(4), envelope(5, "guest-uid")]);

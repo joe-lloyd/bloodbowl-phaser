@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/firebase/config", () => ({
@@ -5,12 +6,19 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-import { getCompetition, saveCompetition } from "../../src/competition/repository";
-import { LeagueDoc, TournamentDoc } from "../../src/competition/types";
+import {
+  getCompetition,
+  saveCompetition,
+} from "../../src/competition/repository";
+import {
+  type LeagueDoc,
+  type TournamentDoc,
+} from "../../src/competition/types";
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
-/** A pre-normalization league document: entrants embed a full roster. */
 function legacyLeagueDoc(): LeagueDoc {
   return {
     id: "legacy-league",
@@ -27,7 +35,7 @@ function legacyLeagueDoc(): LeagueDoc {
         rosterName: "Human",
         seed: 1,
         source: "local",
-        // The pre-normalization shape embedded the whole roster here.
+
         team: { id: "home", name: "Home", players: [{ id: "p1" }] },
       } as unknown as LeagueDoc["entrants"][number],
     ],
@@ -68,8 +76,6 @@ function legacyTournamentDoc(): TournamentDoc {
 
 describe("reading a legacy embedded-roster competition document", () => {
   it("converts a league's entrants, dropping the embedded roster", async () => {
-    // saveCompetition would normally write the new shape; write the raw
-    // legacy shape directly to localStorage to simulate a pre-existing doc.
     localStorage.setItem(
       "bloodbowl_competitions",
       JSON.stringify({ "league:legacy-league": legacyLeagueDoc() })
@@ -77,9 +83,9 @@ describe("reading a legacy embedded-roster competition document", () => {
 
     const loaded = await getCompetition("league", "legacy-league");
     expect(loaded).not.toBeNull();
-    expect(loaded!.entrants[0]).not.toHaveProperty("team");
-    expect(loaded!.entrants[0].ownerUid).toBeNull();
-    expect(loaded!.entrants[0].teamId).toBe("home");
+    expect(fixtureValue(loaded).entrants[0]).not.toHaveProperty("team");
+    expect(fixtureValue(fixtureValue(loaded).entrants[0]).ownerUid).toBeNull();
+    expect(fixtureValue(fixtureValue(loaded).entrants[0]).teamId).toBe("home");
   });
 
   it("writes the converted shape back on the next save", async () => {
@@ -88,9 +94,9 @@ describe("reading a legacy embedded-roster competition document", () => {
       JSON.stringify({ "league:legacy-league": legacyLeagueDoc() })
     );
     const loaded = await getCompetition("league", "legacy-league");
-    await saveCompetition(loaded!);
+    await saveCompetition(fixtureValue(loaded));
 
-    const raw = JSON.parse(localStorage.getItem("bloodbowl_competitions")!);
+    const raw = JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_competitions")));
     expect(raw["league:legacy-league"].entrants[0]).not.toHaveProperty("team");
   });
 
@@ -101,7 +107,7 @@ describe("reading a legacy embedded-roster competition document", () => {
     );
 
     const loaded = await getCompetition("tournament", "legacy-cup");
-    expect(loaded!.entrants[0]).not.toHaveProperty("team");
-    expect(loaded!.entrants[0].ownerUid).toBeNull();
+    expect(fixtureValue(loaded).entrants[0]).not.toHaveProperty("team");
+    expect(fixtureValue(fixtureValue(loaded).entrants[0]).ownerUid).toBeNull();
   });
 });

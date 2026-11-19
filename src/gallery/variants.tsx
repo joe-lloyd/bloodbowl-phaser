@@ -1,7 +1,3 @@
-/**
- * Every gallery variant: which fixture it needs, what it renders, and the
- * events it plays into the real components once they are mounted.
- */
 import React from "react";
 import type { FixtureOptions, MatchFixture } from "./fixtures";
 import { HUD_VARIANTS } from "./hudVariants";
@@ -18,15 +14,15 @@ export interface Variant {
   id: string;
   section: string;
   title: string;
-  /** Stage height in px (the stage is always 1280 wide). */
+
   height?: number;
-  /** "page" drops the pitch backdrop, for the pages around the match. */
+
   stage?: "pitch" | "page";
   fixture?: FixtureOptions;
-  /** Runs before the first render, e.g. to seed localStorage. */
+
   prepare?: () => void;
   view: (fx: MatchFixture) => React.ReactNode;
-  /** Plays events into the mounted components. May return a cleanup. */
+
   drive?: (fx: MatchFixture) => void | (() => void);
 }
 

@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { planMoveLegs, stepRolls } from "../../src/game/rules/moveLegs";
@@ -16,7 +18,7 @@ function scenario(skills: SkillType[] = []): Scenario {
     setup: {
       team1Roster: RosterName.GOBLIN,
       team2Roster: RosterName.GNOME,
-      // Goblin index 0 is the team's Troll; index 1 is a Goblin Lineman.
+
       team1Placements: [{ playerIndex: 1, x: 5, y: 5, stats: { MA: 1 } }],
       team2Placements: [
         { playerIndex: 0, x: 7, y: 4, skills },
@@ -47,13 +49,17 @@ describe("Stunty dodge preview and resolution", () => {
       { x: 6, y: 5 },
       { x: 7, y: 5 },
     ];
-    const legs = planMoveLegs(goblin.gridPosition!, path, {
-      player: goblin,
-      ma: goblin.stats.MA,
-      used: 0,
-      rushModifier: 0,
-      opponents: game.ctx.team2.players,
-    });
+    const legs = planMoveLegs(
+      fixtureValue(fixtureValue(goblin).gridPosition),
+      path,
+      {
+        player: fixtureValue(goblin),
+        ma: fixtureValue(goblin).stats.MA,
+        used: 0,
+        rushModifier: 0,
+        opponents: game.ctx.team2.players,
+      }
+    );
     const preview = legs.flatMap((leg) =>
       leg.risk ? stepRolls(leg.risk, leg.path[0]) : []
     );
@@ -64,23 +70,25 @@ describe("Stunty dodge preview and resolution", () => {
 
     await game.execute({
       type: "declare-action",
-      playerId: goblin.id,
+      playerId: fixtureValue(goblin).id,
       action: "move",
     });
     forceDice(game.ctx.rng, [2, target]);
     const response = await game.execute({
       type: "move",
-      playerId: goblin.id,
+      playerId: fixtureValue(goblin).id,
       path,
     });
     expect(response.ok).toBe(true);
-    expect(response.snapshot.teams[0].players[1].position).toEqual(path[1]);
+    expect(
+      fixtureValue(fixtureValue(response.snapshot.teams[0]).players[1]).position
+    ).toEqual(path[1]);
     const rolls = response.events
       .filter((e) => e.name === GameEventNames.DiceRoll)
-      .map((e) => e.data as { description: string });
+      .map((e) => z.object({ description: z.string() }).parse(e.data));
     expect(rolls.map((roll) => roll.description)).toEqual([
       "Rush (Goblin Lineman #2): 2, needs 2+",
-      `Dodge (Goblin Lineman #2): ${target}, needs ${target}+`,
+      `Dodge (Goblin Lineman #2): ${String(target)}, needs ${String(target)}+`,
     ]);
   });
 });

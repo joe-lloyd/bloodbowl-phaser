@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  AuthUser,
+  type AuthUser,
   authErrorMessage,
   createAccountWithEmail,
   sendPasswordReset,
@@ -17,11 +17,6 @@ import {
 
 type Mode = "sign-in" | "create";
 
-/**
- * Sign in for online play: with Google, or with an email and password. A
- * new email account gets a link to prove the address; it can play straight
- * away.
- */
 export function SignInDialog({
   onSignedIn,
   onClose,
@@ -103,7 +98,9 @@ export function SignInDialog({
               autoComplete="email"
               className="hud-field"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+              }}
               required
             />
           </Field>
@@ -118,7 +115,9 @@ export function SignInDialog({
               }
               className="hud-field"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => {
+                setPassword(event.target.value);
+              }}
               required
               minLength={6}
             />

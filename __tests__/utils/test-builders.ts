@@ -1,33 +1,18 @@
-/**
- * Test builders for creating test data with fluent API
- * Following the Builder pattern for easy, readable test setup
- */
-
-import { RosterName, Team, createTeam } from "../../src/types/Team.js";
+import { RosterName, type Team, createTeam } from "../../src/types/Team.js";
 import {
-  Player,
-  PlayerTemplate,
+  type Player,
+  type PlayerTemplate,
   PlayerStatus,
-  PlayerStats,
+  type PlayerStats,
   PositionKeyWord,
   createPlayer,
 } from "../../src/types/Player.js";
-import { GameState, GamePhase } from "../../src/types/GameState.js";
+import { type GameState, GamePhase } from "../../src/types/GameState.js";
 
-/**
- * TeamBuilder - Fluent API for creating test teams
- *
- * @example
- * const team = new TeamBuilder()
- *   .withName('Test Orcs')
- *   .withPlayers(7)
- *   .build();
- */
 export class TeamBuilder {
   private team: Team;
 
   constructor() {
-    // Start with default team
     this.team = createTeam(
       "Test Team",
       RosterName.HUMAN,
@@ -36,35 +21,35 @@ export class TeamBuilder {
     );
   }
 
-  withName(name: string): TeamBuilder {
+  withName(name: string): this {
     this.team.name = name;
     return this;
   }
 
-  withColors(primary: number, secondary: number): TeamBuilder {
+  withColors(primary: number, secondary: number): this {
     this.team.colors = { primary, secondary };
     return this;
   }
 
-  withId(id: string): TeamBuilder {
+  withId(id: string): this {
     this.team.id = id;
-    // Update all existing players' teamIds to match
+
     this.team.players.forEach((player) => {
       player.teamId = id;
     });
     return this;
   }
 
-  withRosterName(rosterName: RosterName): TeamBuilder {
+  withRosterName(rosterName: RosterName): this {
     this.team.rosterName = rosterName;
     return this;
   }
 
-  withPlayers(count: number): TeamBuilder {
+  withPlayers(count: number): this {
     this.team.players = [];
     for (let i = 0; i < count; i++) {
       const player = new PlayerBuilder()
-        .withTeamId(this.team.id) // Use current team ID
+        .withTeamId(this.team.id)
         .withNumber(i + 1)
         .build();
       this.team.players.push(player);
@@ -72,27 +57,27 @@ export class TeamBuilder {
     return this;
   }
 
-  withCustomPlayers(players: Player[]): TeamBuilder {
+  withCustomPlayers(players: Player[]): this {
     this.team.players = players;
     return this;
   }
 
-  withTreasury(amount: number): TeamBuilder {
+  withTreasury(amount: number): this {
     this.team.treasury = amount;
     return this;
   }
 
-  withRerolls(count: number): TeamBuilder {
+  withRerolls(count: number): this {
     this.team.rerolls = count;
     return this;
   }
 
-  withApothecary(has: boolean = true): TeamBuilder {
+  withApothecary(has = true): this {
     this.team.apothecary = has;
     return this;
   }
 
-  withStats(wins: number, losses: number, draws: number): TeamBuilder {
+  withStats(wins: number, losses: number, draws: number): this {
     this.team.wins = wins;
     this.team.losses = losses;
     this.team.draws = draws;
@@ -104,26 +89,16 @@ export class TeamBuilder {
   }
 }
 
-/**
- * PlayerBuilder - Fluent API for creating test players
- *
- * @example
- * const player = new PlayerBuilder()
- *   .withPosition(PositionKeyWord.BLITZER)
- *   .withStats({ MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 })
- *   .build();
- */
 export class PlayerBuilder {
   private template: PlayerTemplate;
   private teamId: string;
   private number: number;
-  private name?: string;
+  private name: string | undefined;
   private status: PlayerStatus;
-  private id?: string;
-  private gridPosition?: { x: number; y: number };
+  private id: string | undefined;
+  private gridPosition: { x: number; y: number } | undefined;
 
   constructor() {
-    // Default lineman template
     this.template = {
       positionName: PositionKeyWord.LINEMAN,
       cost: 50000,
@@ -144,47 +119,47 @@ export class PlayerBuilder {
     this.status = PlayerStatus.RESERVE;
   }
 
-  withPosition(position: string | PositionKeyWord): PlayerBuilder {
+  withPosition(position: string | PositionKeyWord): this {
     this.template.positionName = position;
     return this;
   }
 
-  withStats(stats: Partial<PlayerStats>): PlayerBuilder {
+  withStats(stats: Partial<PlayerStats>): this {
     this.template.stats = { ...this.template.stats, ...stats };
     return this;
   }
 
-  withCost(cost: number): PlayerBuilder {
+  withCost(cost: number): this {
     this.template.cost = cost;
     return this;
   }
 
-  withTeamId(teamId: string): PlayerBuilder {
+  withTeamId(teamId: string): this {
     this.teamId = teamId;
     return this;
   }
 
-  withNumber(number: number): PlayerBuilder {
+  withNumber(number: number): this {
     this.number = number;
     return this;
   }
 
-  withName(name: string): PlayerBuilder {
+  withName(name: string): this {
     this.name = name;
     return this;
   }
 
-  withStatus(status: PlayerStatus): PlayerBuilder {
+  withStatus(status: PlayerStatus): this {
     this.status = status;
     return this;
   }
 
-  withGridPosition(x: number, y: number): PlayerBuilder {
+  withGridPosition(x: number, y: number): this {
     this.gridPosition = { x, y };
     return this;
   }
 
-  withId(id: string): PlayerBuilder {
+  withId(id: string): this {
     this.id = id;
     return this;
   }
@@ -210,15 +185,6 @@ export class PlayerBuilder {
   }
 }
 
-/**
- * GameStateBuilder - Fluent API for creating test game states
- *
- * @example
- * const gameState = new GameStateBuilder()
- *   .inPhase(GamePhase.PLAY)
- *   .withActiveTeam('team-1')
- *   .build();
- */
 export class GameStateBuilder {
   private state: GameState;
 
@@ -235,54 +201,60 @@ export class GameStateBuilder {
         hasPassed: false,
         hasHandedOff: false,
         hasFouled: false,
+        hasThrownTeamMate: false,
+        hasKickedTeamMate: false,
+        hasThrownBomb: false,
         movementUsed: new Map(),
       },
       score: {},
+      weather: "Nice",
+      ballPosition: null,
+      activePlayer: null,
     };
   }
 
-  inPhase(phase: GamePhase): GameStateBuilder {
+  inPhase(phase: GamePhase): this {
     this.state.phase = phase;
     return this;
   }
 
-  withActiveTeam(teamId: string): GameStateBuilder {
+  withActiveTeam(teamId: string): this {
     this.state.activeTeamId = teamId;
     this.state.turn.teamId = teamId;
     return this;
   }
 
-  withTurnNumber(turnNumber: number): GameStateBuilder {
+  withTurnNumber(turnNumber: number): this {
     this.state.turn.turnNumber = turnNumber;
     return this;
   }
 
-  inHalf2(): GameStateBuilder {
+  inHalf2(): this {
     this.state.turn.isHalf2 = true;
     return this;
   }
 
-  withActivatedPlayers(...playerIds: string[]): GameStateBuilder {
+  withActivatedPlayers(...playerIds: string[]): this {
     this.state.turn.activatedPlayerIds = new Set(playerIds);
     return this;
   }
 
-  withBlitzUsed(): GameStateBuilder {
+  withBlitzUsed(): this {
     this.state.turn.hasBlitzed = true;
     return this;
   }
 
-  withPassUsed(): GameStateBuilder {
+  withPassUsed(): this {
     this.state.turn.hasPassed = true;
     return this;
   }
 
-  withHandOffUsed(): GameStateBuilder {
+  withHandOffUsed(): this {
     this.state.turn.hasHandedOff = true;
     return this;
   }
 
-  withFoulUsed(): GameStateBuilder {
+  withFoulUsed(): this {
     this.state.turn.hasFouled = true;
     return this;
   }
@@ -292,7 +264,7 @@ export class GameStateBuilder {
     team1Score: number,
     team2Id: string,
     team2Score: number
-  ): GameStateBuilder {
+  ): this {
     this.state.score = {
       [team1Id]: team1Score,
       [team2Id]: team2Score,

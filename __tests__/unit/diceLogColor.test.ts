@@ -41,9 +41,7 @@ describe("diceLogColor", () => {
     );
 
     it("classifies a roll with no resultState (or 'none') as unknown", () => {
-      expect(classifyDiceRowNature({ rollType: "Block Roll" })).toBe(
-        "unknown"
-      );
+      expect(classifyDiceRowNature({ rollType: "Block Roll" })).toBe("unknown");
       expect(
         classifyDiceRowNature({ rollType: "Armour Roll", resultState: "none" })
       ).toBe("unknown");
@@ -74,19 +72,11 @@ describe("diceLogColor", () => {
 
   describe("resolveDisplayColor", () => {
     it("passes neutral/warning/unknown through unchanged regardless of perspective", () => {
-      expect(resolveDisplayColor("neutral", "team1", "team1")).toBe(
-        "neutral"
-      );
+      expect(resolveDisplayColor("neutral", "team1", "team1")).toBe("neutral");
       expect(resolveDisplayColor("neutral", "team1", null)).toBe("neutral");
-      expect(resolveDisplayColor("warning", "team1", "team2")).toBe(
-        "warning"
-      );
-      expect(resolveDisplayColor("unknown", "team1", "team1")).toBe(
-        "unknown"
-      );
-      expect(resolveDisplayColor("unknown", undefined, null)).toBe(
-        "unknown"
-      );
+      expect(resolveDisplayColor("warning", "team1", "team2")).toBe("warning");
+      expect(resolveDisplayColor("unknown", "team1", "team1")).toBe("unknown");
+      expect(resolveDisplayColor("unknown", undefined, null)).toBe("unknown");
     });
 
     it("solo/local play: good/bad pass straight through regardless of team", () => {

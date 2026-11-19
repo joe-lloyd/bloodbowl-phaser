@@ -1,9 +1,12 @@
 import Phaser from "phaser";
-import { Team } from "../../types/Team";
-import { Player, PlayerStatus } from "../../types/Player";
-import { SetupValidator } from "../validators/SetupValidator";
-import { FormationPosition, SetupPlayerLimits } from "../../types/SetupTypes";
-import { Pitch } from "../elements/Pitch";
+import { type Team } from "../../types/Team";
+import { type Player, PlayerStatus } from "../../types/Player";
+import type { SetupValidator } from "../validators/SetupValidator";
+import {
+  type FormationPosition,
+  type SetupPlayerLimits,
+} from "../../types/SetupTypes";
+import type { Pitch } from "../elements/Pitch";
 import {
   playerHitArea,
   replaceHitArea,
@@ -13,10 +16,8 @@ import {
 } from "../elements/InteractiveHitArea";
 import { GameEventNames } from "../../types/events";
 
-/**
- * PlayerPlacementController - Handles player placement via drag-and-drop or click-to-place
- * Emits events when players are placed/removed
- */
+const UNAVAILABLE_STATUSES = new Set<PlayerStatus>([PlayerStatus.KO, PlayerStatus.INJURED, PlayerStatus.DEAD, PlayerStatus.REMOVED]);
+
 export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   private validator: SetupValidator;
   private pitch: Pitch;
@@ -24,33 +25,26 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   private currentTeam: Team | null = null;
   private isTeam1 = false;
   private selectedPlayerId: string | null = null;
-  private dugoutSprites: Map<string, Phaser.GameObjects.Container> = new Map();
-  private placedPlayers: Map<string, FormationPosition> = new Map();
-  /** Dugout sprites given the square hit area, to restore when setup ends. */
-  private squareSprites: Set<Phaser.GameObjects.Container> = new Set();
+  private dugoutSprites = new Map<string, Phaser.GameObjects.Container>();
+  private placedPlayers = new Map<string, FormationPosition>();
 
-  /** The engine's rule for who may be placed this drive (IGameService.isSetupEligible). */
+  private dragOrigins = new Map<string, { x: number; y: number }>();
+
+  private squareSprites = new Set<Phaser.GameObjects.Container>();
+
   private isAvailable: (playerId: string) => boolean;
 
+  private getPlayerLimits: (teamId: string) => SetupPlayerLimits | undefined;
   constructor(
-    _scene: Phaser.Scene,
-    pitch: Pitch,
-    validator: SetupValidator,
-    isAvailable: (playerId: string) => boolean = () => true,
-    private getPlayerLimits: (
-      teamId: string
-    ) => SetupPlayerLimits | undefined = () => undefined
-  ) {
+{ pitch,validator,isAvailable=() => true,getPlayerLimits=() => undefined }: { _scene: Phaser.Scene; pitch: Pitch; validator: SetupValidator; isAvailable?: (playerId: string) => boolean; getPlayerLimits?: (teamId: string) => SetupPlayerLimits|undefined; }  ) {
     super();
-    // this.scene = scene;
+    this.getPlayerLimits = getPlayerLimits;
+
     this.pitch = pitch;
     this.validator = validator;
     this.isAvailable = isAvailable;
   }
 
-  /**
-   * Enable placement for a team
-   */
   enablePlacement(
     team: Team,
     isTeam1: boolean,
@@ -63,64 +57,41 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     this.syncFromTeam();
 
     console.log(
-      `[PlayerPlacementController] enablePlacement: team=${team.id}, isTeam1=${isTeam1}, spriteCount=${dugoutSprites.size}`
+      `[PlayerPlacementController] enablePlacement: team=${team.id}, isTeam1=${String(isTeam1)}, spriteCount=${String(dugoutSprites.size)}`
     );
 
-    // Enable dragging for current team's players
     this.dugoutSprites.forEach((sprite, playerId) => {
       const player = this.getPlayerById(playerId);
 
-      if (player && player.teamId === team.id) {
-        // console.log(`[PlayerPlacementController] Enabling sprite for player ${playerId}`);
-        // Picked by the square the player stands on, not by their figure:
-        // a big player's body reaches over the square behind them, and a
-        // press there belongs to whoever stands in that square
-        setHitArea(sprite, squareHitArea(sprite), squareHitAreaContains, true);
+      if (player?.teamId === team.id) {
+        setHitArea(sprite, squareHitArea(sprite), { contains: squareHitAreaContains, draggable: true });
         this.squareSprites.add(sprite);
         sprite.setAlpha(1);
 
-        // Remove old listeners to prevent duplicates
         sprite.off("dragend");
-        sprite.off("dragstart"); // Ensure we don't duplicate our debug listener
+        sprite.off("dragstart");
 
         sprite.on("dragstart", () => {
-          // Remember the dugout slot so a failed drop can snap back to it
-          sprite.setData("homeX", sprite.x);
-          sprite.setData("homeY", sprite.y);
+          this.dragOrigins.set(playerId, { x: sprite.x, y: sprite.y });
         });
 
-        // Add drag end listener for snapping
         sprite.on("dragend", (pointer: Phaser.Input.Pointer) => {
           console.log(
-            `[PlayerPlacementController] dragend on ${playerId}. World: ${pointer.worldX}, ${pointer.worldY}`
+            `[PlayerPlacementController] dragend on ${playerId}. World: ${String(pointer.worldX)}, ${String(pointer.worldY)}`
           );
 
-          // Convert drop position to world coordinates (since sprite is in container)
-          // Actually, pointer.worldX/Y is what we want, or we use the sprite's world transform
-          // But the sprite is being dragged, so its x/y are updated relative to container.
-          // We need where the USER let go.
-
-          // Use the SPRITE's world center, not the pointer: the sprite keeps
-          // the grab offset while dragging, so dropping by pointer position
-          // could land a different cell than the one the visual sits on.
-          void pointer;
           const matrix = sprite.getWorldTransformMatrix();
           const worldX = matrix.tx;
           const worldY = matrix.ty;
 
           const gridPos = this.pitch.worldToGrid(worldX, worldY);
           if (this.placePlayer(playerId, gridPos.x, gridPos.y)) {
-            // A valid drop: the dugout refresh hides this sprite and the
-            // pitch shows the player. Against the computer and online that
-            // refresh comes a moment later, and snapping home now would
-            // show the player back in the dugout until then.
             return;
           }
 
-          // An invalid drop (off pitch / outside the zone) leaves the
-          // player visibly back in their dugout slot
-          sprite.x = (sprite.getData("homeX") as number) ?? 0;
-          sprite.y = (sprite.getData("homeY") as number) ?? 0;
+          const origin = this.dragOrigins.get(playerId);
+          sprite.x = origin?.x ?? 0;
+          sprite.y = origin?.y ?? 0;
         });
       } else {
         if (!player)
@@ -138,11 +109,6 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     });
   }
 
-  /**
-   * Give the active team's dugout sprites the square hit area. The dugout
-   * makes a new sprite, picked by its figure, when a player first enters it,
-   * and that can happen during setup; this runs after every dugout refresh.
-   */
   applySetupHitAreas(): void {
     if (!this.currentTeam) return;
     this.dugoutSprites.forEach((sprite, playerId) => {
@@ -154,63 +120,47 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     });
   }
 
-  /**
-   * Setup is over: dugout sprites are picked by their figure again, for
-   * hover and click. Whether each one takes input is left as it was.
-   */
   restoreFigureHitAreas(): void {
-    this.squareSprites.forEach((sprite) =>
+    this.squareSprites.forEach((sprite) => {
       replaceHitArea(
         sprite,
         playerHitArea(sprite),
         Phaser.Geom.Rectangle.Contains
-      )
-    );
+      );
+    });
     this.squareSprites.clear();
   }
 
-  /**
-   * Disable placement
-   */
   disablePlacement(): void {
     this.currentTeam = null;
     this.selectedPlayerId = null;
     this.restoreFigureHitAreas();
 
-    // Disable all sprites
     this.dugoutSprites.forEach((sprite) => {
       sprite.disableInteractive();
       sprite.setAlpha(0.5);
-      sprite.setDepth(1); // Reset to standard low depth
+      sprite.setDepth(1);
     });
   }
 
-  /**
-   * Select a player (for click-to-place)
-   */
   selectPlayer(playerId: string): void {
     if (!this.currentTeam) return;
 
     const player = this.getPlayerById(playerId);
-    if (!player || player.teamId !== this.currentTeam.id) {
+    if (player?.teamId !== this.currentTeam.id) {
       return;
     }
 
-    // Deselect previous
     if (this.selectedPlayerId) {
       this.emit(GameEventNames.PlayerDeselected, this.selectedPlayerId);
     }
 
     this.selectedPlayerId = playerId;
     this.emit(GameEventNames.PlayerSelected, playerId);
-    // Setup shows the same info panel as play: selecting (or starting a
-    // drag on) a player fills it with their full details.
+
     this.emit(GameEventNames.UI_ShowPlayerInfo, player);
   }
 
-  /**
-   * Deselect current player
-   */
   deselectPlayer(): void {
     if (this.selectedPlayerId) {
       this.emit(GameEventNames.PlayerDeselected, this.selectedPlayerId);
@@ -218,15 +168,9 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     }
   }
 
-  /**
-   * Place a player at a grid position
-   * Returns true if placement was successful
-   */
   placePlayer(playerId: string, gridX: number, gridY: number): boolean {
     if (!this.currentTeam) return false;
 
-    // A knocked-out or injured reserve can be picked up, but the engine
-    // will not place them: refuse here so the drop snaps back at once
     if (!this.isAvailable(playerId)) {
       this.emit(GameEventNames.PlacementInvalid, {
         playerId,
@@ -244,21 +188,10 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       7,
       this.currentTeam.players.filter(
         (player) =>
-          ![
-            PlayerStatus.KO,
-            PlayerStatus.INJURED,
-            PlayerStatus.DEAD,
-            PlayerStatus.REMOVED,
-          ].includes(player.status)
+          !UNAVAILABLE_STATUSES.has(player.status)
       ).length
     );
-    const validation = this.validator.validatePlacement(
-      { playerId, x: gridX, y: gridY },
-      current,
-      this.isTeam1,
-      availablePlayerCount,
-      this.getPlayerLimits(this.currentTeam.id)
-    );
+    const validation = this.validator.validatePlacement({ candidate: { playerId, x: gridX, y: gridY }, currentPositions: current, isTeam1: this.isTeam1, availablePlayerCount: availablePlayerCount, limits: this.getPlayerLimits(this.currentTeam.id) });
     if (!validation.valid) {
       this.emit(GameEventNames.PlacementInvalid, {
         playerId,
@@ -269,7 +202,6 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       return false;
     }
 
-    // Check if position is occupied
     const occupied = Array.from(this.placedPlayers.values()).some(
       (pos) => pos.x === gridX && pos.y === gridY
     );
@@ -284,16 +216,6 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       return false;
     }
 
-    // Moving an already-placed player to a new square is one atomic move, not
-    // a removal followed by a placement: the engine's placePlayer already
-    // overwrites the previous position in a single step (see SetupManager /
-    // NetworkedGameService). Emitting PlayerRemoved here used to be purely
-    // local Map bookkeeping, but GameScene forwards it to the engine as a
-    // real "send to Reserves" — which online sends an extra, unnecessary
-    // remove-player command that can race the place-player command's
-    // response and briefly flash the player into the Reserves box.
-
-    // Place player
     this.placedPlayers.set(playerId, { playerId, x: gridX, y: gridY });
 
     this.emit(GameEventNames.PlayerPlaced, {
@@ -305,14 +227,10 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     return true;
   }
 
-  /** Whether a grid square lies in the current team's setup zone */
   isInSetupZone(gridX: number, gridY: number): boolean {
     return this.validator.isInSetupZone(gridX, gridY, this.isTeam1);
   }
 
-  /**
-   * Remove a player from the pitch
-   */
   removePlayer(playerId: string): void {
     if (this.placedPlayers.has(playerId)) {
       this.placedPlayers.delete(playerId);
@@ -320,9 +238,6 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     }
   }
 
-  /**
-   * Clear all placements
-   */
   clearPlacements(): void {
     const playerIds = Array.from(this.placedPlayers.keys());
     this.placedPlayers.clear();
@@ -332,11 +247,6 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     });
   }
 
-  /**
-   * Load a formation (place all players at once). A position's playerId
-   * that parses as a number is a roster index (how formations are stored,
-   * so they survive fresh team instances); otherwise array order is used.
-   */
   loadFormation(formation: FormationPosition[]): void {
     this.clearPlacements();
 
@@ -351,14 +261,10 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     });
   }
 
-  /**
-   * Get current placements
-   */
   getPlacements(): FormationPosition[] {
     return Array.from(this.placedPlayers.values());
   }
 
-  /** Reconcile controller-local drag state with authoritative team state. */
   syncFromTeam(): void {
     this.placedPlayers.clear();
     this.currentTeam?.players.forEach((player) => {
@@ -371,33 +277,23 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     });
   }
 
-  /**
-   * Get count of placed players
-   */
   getPlacedCount(): number {
     return this.placedPlayers.size;
   }
 
-  /**
-   * Get selected player ID
-   */
   getSelectedPlayerId(): string | null {
     return this.selectedPlayerId;
   }
-
-  // Helper methods
 
   private getPlayerById(playerId: string): Player | undefined {
     if (!this.currentTeam) return undefined;
     return this.currentTeam.players.find((p) => p.id === playerId);
   }
 
-  /**
-   * Clean up
-   */
-  destroy(): void {
+  override destroy(): void {
     this.disablePlacement();
     this.placedPlayers.clear();
+    this.dragOrigins.clear();
     this.removeAllListeners();
   }
 }

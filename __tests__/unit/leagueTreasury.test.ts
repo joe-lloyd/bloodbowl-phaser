@@ -1,8 +1,4 @@
-/**
- * The money steps after a recorded fixture (openspec/specs/league-treasury):
- * only a league fixture queues Expensive Mistakes, the results screen keeps
- * it, and a computer team resolves its post-game steps itself.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   computeStandings,
@@ -16,10 +12,10 @@ import {
 } from "../../src/competition/resultRecording";
 import { manageComputerTeam } from "../../src/competition/computerTeams";
 import {
-  CompetitionContext,
-  CompetitionEntrant,
-  LeagueDoc,
-  TournamentDoc,
+  type CompetitionContext,
+  type CompetitionEntrant,
+  type LeagueDoc,
+  type TournamentDoc,
 } from "../../src/competition/types";
 import {
   getTeamById,
@@ -27,7 +23,7 @@ import {
   saveTeams,
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
-import { RosterName, Team } from "../../src/types/Team";
+import { RosterName, type Team } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { TeamBuilder } from "../utils/test-builders";
@@ -42,11 +38,11 @@ describe("Expensive Mistakes after spending", () => {
   it("clears the saved task below 100,000 while preserving other development", () => {
     const team = libraryTeam("spending", 150_000);
     queueExpensiveMistakes(team, "league:f1");
-    team.pendingDevelopment!.push({
+    fixtureValue(team.pendingDevelopment).push({
       id: "skill-f1",
       kind: "sevens-skill-selection",
       matchId: "f1",
-      eligibleParticipantIds: [team.players[0].id],
+      eligibleParticipantIds: [fixtureValue(team.players[0]).id],
       createdAt: 1,
     });
     saveTeam(team);
@@ -79,7 +75,8 @@ function fixedDice(...rolls: number[]) {
     rollDie: vi.fn((sides: number) => {
       const roll = queue.shift();
       if (roll === undefined) throw new Error("No fixed roll left.");
-      if (roll < 1 || roll > sides) throw new Error(`Bad d${sides}: ${roll}`);
+      if (roll < 1 || roll > sides)
+        throw new Error(`Bad d${String(sides)}: ${String(roll)}`);
       return roll;
     }),
     rollMultipleDice: vi.fn(),
@@ -129,9 +126,9 @@ async function league(id: string, teams: Team[]): Promise<CompetitionContext> {
     updatedAt: 1,
   };
   await saveCompetition(doc);
-  const first = fixtures.find(
-    (fixture) => fixture.homeEntrantId === entrants[0].id
-  )!;
+  const first = fixtureValue(fixtures.find(
+    (fixture) => fixture.homeEntrantId === fixtureValue(entrants[0]).id
+  ));
   return { competitionType: "league", competitionId: id, fixtureId: first.id };
 }
 
@@ -164,7 +161,7 @@ async function tournament(
   return {
     competitionType: "tournament",
     competitionId: id,
-    fixtureId: fixtures[0].id,
+    fixtureId: fixtureValue(fixtures[0]).id,
   };
 }
 
@@ -181,17 +178,21 @@ describe("Expensive Mistakes after a recorded fixture", () => {
     const home = libraryTeam("rich", 600_000);
     const away = libraryTeam("poor", 50_000);
     const context = await league("money", [home, away]);
-    // The Fans: D3s of 1 and 1 on 1 Dedicated Fan each, Fan Attendance 4
-    await recordCompetitionFixture(context, 1, 0, undefined, undefined, {
-      rng: fixedDice(2, 2),
-    });
-    await recordCompetitionFixture(context, 1, 0, undefined, undefined, {
-      rng: fixedDice(2, 2),
-    });
+
+    await recordCompetitionFixture({
+        context,homeScore: 1,awayScore: 0,options: {
+          rng: fixedDice(2,2),
+        }
+      });
+    await recordCompetitionFixture({
+        context,homeScore: 1,awayScore: 0,options: {
+          rng: fixedDice(2,2),
+        }
+      });
 
     expect(getTeamById("rich")?.treasury).toBe(640_000);
     expect(pendingKinds("rich")).toEqual(["expensive-mistakes"]);
-    // 50,000 plus 30,000 winnings stays under the threshold
+
     expect(getTeamById("poor")?.treasury).toBe(80_000);
     expect(pendingKinds("poor")).toEqual([]);
   });
@@ -201,9 +202,11 @@ describe("Expensive Mistakes after a recorded fixture", () => {
     const away = libraryTeam("keep-b", 50_000);
     const context = await league("keep", [home, away]);
     const matchCopy = structuredClone(home);
-    await recordCompetitionFixture(context, 1, 0, undefined, undefined, {
-      rng: fixedDice(2, 2),
-    });
+    await recordCompetitionFixture({
+        context,homeScore: 1,awayScore: 0,options: {
+          rng: fixedDice(2,2),
+        }
+      });
     keepRecordedResult(matchCopy);
     expect(matchCopy.treasury).toBe(640_000);
     expect(matchCopy.pendingDevelopment?.map((entry) => entry.kind)).toEqual([
@@ -218,9 +221,11 @@ describe("Expensive Mistakes after a recorded fixture", () => {
       const away = libraryTeam(`cup-${format}-b`, 600_000);
       const context = await tournament(`cup-${format}`, [home, away], format);
       const dice = fixedDice();
-      await recordCompetitionFixture(context, 1, 0, undefined, undefined, {
-        rng: dice,
-      });
+      await recordCompetitionFixture({
+          context,homeScore: 1,awayScore: 0,options: {
+            rng: dice,
+          }
+        });
       expect(dice.rollDie).not.toHaveBeenCalled();
       expect(pendingKinds(home.id)).toEqual([]);
       expect(pendingKinds(away.id)).toEqual([]);
@@ -235,15 +240,14 @@ describe("a computer team's post-game steps", () => {
     team.computerCoached = true;
     team.firstMatchPlayedAt = 1;
     const lineman = getRosterByRosterName(RosterName.HUMAN).playerTemplates[0];
-    // 10 players and every re-roll and member of staff it may have, so the
-    // Journeyman is the only thing left to buy (purchasePlanner.ts)
+
     for (let number = 8; number <= 10; number++)
-      team.players.push(createPlayer(lineman, team.id, number));
+      team.players.push(createPlayer(fixtureValue(lineman), team.id, number));
     team.rerolls = 6;
     team.apothecary = true;
     team.coaches = 3;
     team.cheerleaders = 3;
-    const journeyman = createPlayer(lineman, team.id, 11, "Journeyman #11");
+    const journeyman = createPlayer(fixtureValue(lineman), team.id, 11, "Journeyman #11");
     journeyman.id = "cpu-journeyman-11";
     journeyman.playerKind = "journeyman";
     team.players.push(journeyman);
@@ -262,9 +266,7 @@ describe("a computer team's post-game steps", () => {
         createdAt: 2,
       },
     ];
-    // Hiring the Human Lineman Journeyman costs 50,000, leaving 350,000.
-    // Then Expensive Mistakes: a 3 in the 300,000 column is a Minor
-    // Incident, and a D3 of 2 (a 4) loses 20,000
+
     const report = manageComputerTeam(team, fixedDice(3, 4));
     expect(team.pendingDevelopment).toEqual([]);
     expect(team.players.find((p) => p.id === journeyman.id)?.playerKind).toBe(

@@ -1,14 +1,9 @@
-/**
- * Magic Scroll (Spike! Journal 22, L28) gives the home team a free
- * Sports-Wizard. Ending the turn offers its spell before the away team's
- * turn begins: here the coach aims Zap! at the ball carrier by clicking
- * them on the pitch, and Fireball is shown aimed beside the huddle.
- */
-import { test, expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
 const shot = (name: string) =>
-  `${process.env.SHOTS ?? test.info().outputDir}/${name}.png`;
+  `${process.env["SHOTS"] ?? test.info().outputDir}/${name}.png`;
 
 async function openAndEndTurn(app: GameApp, page: Page) {
   await app.sandbox.open({ scenario: "sports-wizard-spells" });
@@ -37,7 +32,7 @@ test("the Sports-Wizard's Zap! is aimed by clicking a player", async ({
   await app.pitch.clickPlayer("team2:0");
 
   await expect(dialog).toBeHidden({ timeout: 15_000 });
-  // The away team's turn has begun, and the wizard has cast its one spell
+
   await expect
     .poll(async () => (await app.bridge.snapshot()).activeTeamId, {
       timeout: 15_000,
@@ -50,13 +45,12 @@ test("the Sports-Wizard's Zap! is aimed by clicking a player", async ({
       String((e.data as { rollType?: string }).rollType).startsWith("Zap!")
   );
   expect(zap, "Zap! rolled its D6").toBeTruthy();
-  // Seed 3 rolls the Zap! at or over the Lineman's ST 3: a Frog, and the
-  // ball they carried Bounces off their square
+
   await expect
     .poll(
       async () => {
         const snapshot = await app.bridge.snapshot();
-        const frog = snapshot.teams[1].players.find((p) => p.id === target)!;
+        const frog = fixtureValue(fixtureValue(snapshot.teams[1]).players.find((p) => p.id === target));
         return {
           conditions: frog.conditions.map((c) => c.type),
           stats: frog.stats,

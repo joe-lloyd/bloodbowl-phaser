@@ -1,11 +1,10 @@
-import { Team } from "../../../types/Team";
-import { GameState, MatchResult } from "../../../types/GameState";
-import { MatchStatsSummary } from "../../../game/progression/MatchStats";
+import { type Team } from "../../../types/Team";
+import { type GameState, type MatchResult } from "../../../types/GameState";
+import { type MatchStatsSummary } from "../../../game/progression/MatchStats";
 import { earnsWinnings } from "../../../game/rules/winnings";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
 import { injuryLabel, playerLabel } from "./turnSummary";
 
-/** League winnings the recorded fixture paid, by team id. */
 export interface MatchWinnings {
   gold: Record<string, number>;
   fanFactors: Record<string, number>;
@@ -17,21 +16,15 @@ function endedEarlyLabel(teams: Team[], result: MatchResult): string {
   return conceding ? `${conceding.name} ${verb}` : `Match ${verb}`;
 }
 
-/** A level game a Penalty Shoot-out decided. */
 function penaltiesLabel(
   a: Team,
   b: Team,
   penalties: Record<string, number>
 ): string {
   const [wonA, wonB] = [penalties[a.id] ?? 0, penalties[b.id] ?? 0];
-  return `${wonA > wonB ? a.name : b.name} win on Penalties, ${Math.max(wonA, wonB)}–${Math.min(wonA, wonB)}`;
+  return `${wonA > wonB ? a.name : b.name} win on Penalties, ${String(Math.max(wonA, wonB))}–${String(Math.min(wonA, wonB))}`;
 }
 
-/**
- * The played score and the termination reason are kept as separate facts
- * (see `MatchResult`): a concession/forfeit never invents a touchdown or
- * rewrites the scoreline, it only changes how the outcome is labelled.
- */
 function outcomeLabel(
   teams: Team[],
   score: Record<string, number>,
@@ -40,15 +33,14 @@ function outcomeLabel(
   if (result?.reason === "concession" || result?.reason === "forfeit") {
     return endedEarlyLabel(teams, result);
   }
-  if (teams.length < 2) return "";
   const [a, b] = teams;
+  if (!a || !b) return "";
   const scoreA = score[a.id] ?? 0;
   const scoreB = score[b.id] ?? 0;
   if (scoreA !== scoreB) return `${scoreA > scoreB ? a.name : b.name} win`;
   return result?.penalties ? penaltiesLabel(a, b, result.penalties) : "Draw";
 }
 
-/** Full time: the scoreline, how it ended, and any winnings it paid. */
 export function ResultHeader({
   teams,
   score,
@@ -67,21 +59,7 @@ export function ResultHeader({
       <h1 className="font-hud-display text-hud-4xl uppercase tracking-[0.03em] text-hud-bone">
         Full Time
       </h1>
-      {teams.length >= 2 && (
-        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-y border-hud-gold/30 bg-black/40 px-5 py-4">
-          <span className="truncate font-hud-label text-hud-2xl font-bold uppercase tracking-[0.03em]">
-            {teams[0].name}
-          </span>
-          <span className="-skew-x-12 bg-hud-blood px-5 py-1 font-hud-display text-hud-3xl text-white">
-            <span className="block skew-x-12">
-              {score[teams[0].id] ?? 0} : {score[teams[1].id] ?? 0}
-            </span>
-          </span>
-          <span className="truncate text-right font-hud-label text-hud-2xl font-bold uppercase tracking-[0.03em]">
-            {teams[1].name}
-          </span>
-        </div>
-      )}
+      <ResultScoreline teams={teams} score={score} />
       <p className="mt-3 font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-gold">
         {outcomeLabel(teams, score, result)}
       </p>
@@ -95,10 +73,6 @@ export function ResultHeader({
   );
 }
 
-/**
- * League winnings (Record Outcome and Winnings): half the Fan Attendance
- * plus the team's own touchdowns, times 10,000 gp, paid into the Treasury.
- */
 function WinningsPanel({
   teams,
   winnings,
@@ -123,7 +97,7 @@ function WinningsPanel({
         {teams
           .map(
             (team) =>
-              `${team.name} Fan Factor ${winnings.fanFactors[team.id] ?? 0}`
+              `${team.name} Fan Factor ${String(winnings.fanFactors[team.id] ?? 0)}`
           )
           .join(", ")}
         ). Each team earns half the Fan Attendance plus its own touchdowns, plus
@@ -265,7 +239,6 @@ function leaveLabel({
   return leaveTo === "/" ? "Continue to Main Menu" : "Back to the competition";
 }
 
-/** Leave, why it is held, and any save that failed on the way out. */
 export function LeaveControls(props: LeaveProps) {
   const {
     canExit,
@@ -313,5 +286,31 @@ export function LeaveControls(props: LeaveProps) {
 
       {error && <p className="mt-4 text-hud-bad-soft">{error}</p>}
     </>
+  );
+}
+
+function ResultScoreline({
+  teams,
+  score,
+}: {
+  teams: Team[];
+  score: GameState["score"];
+}) {
+  const [a, b] = teams;
+  if (!a || !b) return null;
+  return (
+    <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-y border-hud-gold/30 bg-black/40 px-5 py-4">
+      <span className="truncate font-hud-label text-hud-2xl font-bold uppercase tracking-[0.03em]">
+        {a.name}
+      </span>
+      <span className="-skew-x-12 bg-hud-blood px-5 py-1 font-hud-display text-hud-3xl text-white">
+        <span className="block skew-x-12">
+          {score[a.id] ?? 0} : {score[b.id] ?? 0}
+        </span>
+      </span>
+      <span className="truncate text-right font-hud-label text-hud-2xl font-bold uppercase tracking-[0.03em]">
+        {b.name}
+      </span>
+    </div>
   );
 }

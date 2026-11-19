@@ -1,20 +1,18 @@
+import { createTestPlayer } from "../fixtures/players";
+import { createTestTeam } from "../fixtures/teams";
+import { SkillType } from "../../src/types/Skills";
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { RerollArbiter } from "../../src/game/skills";
-import { GameState } from "../../src/types/GameState";
-import { Team } from "../../src/types/Team";
-import { Player } from "../../src/types/Player";
+import { type GameState } from "../../src/types/GameState";
+import { type Team } from "../../src/types/Team";
+import { type Player } from "../../src/types/Player";
 import { teamRerollsLeft } from "../../src/game/teamRerolls";
-
-/**
- * Reroll machinery (RerollArbiter + DecisionService + protocol):
- * offer/decline/accept paths, constraint matrix, determinism. Team rerolls
- * drive these tests — no skill rules required, so the machinery is proven
- * independently of the starter skills.
- */
 
 const scenario: Scenario = {
   id: "reroll-pickup",
@@ -22,8 +20,8 @@ const scenario: Scenario = {
   description: "mover picks up with team rerolls in the bank",
   setup: {
     team1Placements: [
-      { playerIndex: 0, x: 4, y: 5 }, // the mover
-      { playerIndex: 1, x: 16, y: 4 }, // marked by team2's player (dodge tests)
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 16, y: 4 },
     ],
     team2Placements: [{ playerIndex: 0, x: 16, y: 5 }],
     activeTeam: "team1",
@@ -40,20 +38,19 @@ function newGame(seed: number, rerolls = 3): HeadlessGame {
 }
 
 async function moveOntoBall(game: HeadlessGame) {
-  const mover = game.snapshot().teams[0].players[0];
+  const mover = fixtureValue(game.snapshot().teams[0]).players[0];
   await game.execute({
     type: "declare-action",
-    playerId: mover.id,
+    playerId: fixtureValue(mover).id,
     action: "move",
   });
   return game.execute({
     type: "move",
-    playerId: mover.id,
+    playerId: fixtureValue(mover).id,
     path: [{ x: 5, y: 5 }],
   });
 }
 
-/** First seed whose pickup fails and pauses on a reroll offer. */
 async function findOfferSeed(): Promise<number> {
   for (let seed = 1; seed <= 100; seed++) {
     const game = newGame(seed);
@@ -73,7 +70,7 @@ describe("reroll decisions (headless protocol)", () => {
       if ((await moveOntoBall(game)).pendingDecision?.type !== "reroll")
         continue;
       await game.execute({ type: "use-reroll", accept: true, source: "team" });
-      // Only a turn the re-roll saved shows anything
+
       if (game.ctx.gameService.getState().activeTeamId !== team1Id) continue;
 
       expect(arbiter(game).teamRerollAvailable(team1Id)).toBe(false);
@@ -97,19 +94,16 @@ describe("reroll decisions (headless protocol)", () => {
     expect(pending.rollKind).toBe("pickup");
     expect(pending.needed).toBe(3);
     expect(pending.chooserTeamId).toBe(team1Id);
-    expect(pending.sources).toEqual(["team"]); // no skill rule registered
+    expect(pending.sources).toEqual(["team"]);
 
-    // The failure has NOT been applied yet: no turnover, no bounce
     expect(moved.events.some((e) => e.name === GameEventNames.Turnover)).toBe(
       false
     );
 
-    // Other commands are gated until the decision is answered
     const gated = await game.execute({ type: "end-turn" });
     expect(gated.ok).toBe(false);
     expect(gated.reason).toContain("decision-pending:reroll");
 
-    // An invalid source is rejected and the decision stays pending
     const badSource = await game.execute({
       type: "use-reroll",
       accept: true,
@@ -128,12 +122,11 @@ describe("reroll decisions (headless protocol)", () => {
     expect(declined.ok).toBe(true);
     expect(declined.pendingDecision).toBeNull();
 
-    // Original failure resolves: turnover to team2, reroll bank untouched
     expect(
       declined.events.filter((e) => e.name === GameEventNames.Turnover)
     ).toHaveLength(1);
     expect(declined.snapshot.activeTeamId).toBe(game.ctx.team2.id);
-    expect(game.snapshot().teams[0].rerolls).toBe(3);
+    expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(3);
     expect(
       declined.events.some((e) => e.name === GameEventNames.RerollUsed)
     ).toBe(false);
@@ -150,24 +143,25 @@ describe("reroll decisions (headless protocol)", () => {
       source: "team",
     });
     expect(accepted.ok).toBe(true);
-    expect(game.snapshot().teams[0].rerolls).toBe(2);
+    expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(2);
 
     const rerollUsed = accepted.events.find(
       (e) => e.name === GameEventNames.RerollUsed
     );
     expect(rerollUsed).toBeDefined();
-    const data = rerollUsed!.data as {
-      source: string;
-      rollKind: string;
-      before: number;
-      after: number;
-    };
+    const data = z
+      .object({
+        source: z.string(),
+        rollKind: z.string(),
+        before: z.number(),
+        after: z.number(),
+      })
+      .parse(fixtureValue(rerollUsed).data);
     expect(data.source).toBe("team");
     expect(data.rollKind).toBe("pickup");
     expect(data.before).toBeGreaterThanOrEqual(1);
     expect(data.after).toBeGreaterThanOrEqual(1);
 
-    // A reroll is never offered on the rerolled roll
     expect(accepted.pendingDecision).toBeNull();
   });
 
@@ -189,34 +183,32 @@ describe("reroll decisions (headless protocol)", () => {
       if (moved.pendingDecision?.type !== "reroll") continue;
 
       const accepted = await game.execute({ type: "use-reroll", accept: true });
-      // Need the rerolled pickup to SUCCEED so the turn continues
+
       const pickedUp = accepted.events.some(
         (e) =>
           e.name === GameEventNames.BallPickup &&
-          (e.data as { success: boolean }).success === true
+          z.object({ success: z.boolean() }).parse(e.data).success
       );
       if (!pickedUp) continue;
 
-      // Same turn: another failing roll (a dodge away from a marker) must
-      // get no offer — the team reroll is spent for this turn
-      const dodger = game.snapshot().teams[0].players[1];
+      const dodger = fixtureValue(game.snapshot().teams[0]).players[1];
       await game.execute({
         type: "declare-action",
-        playerId: dodger.id,
+        playerId: fixtureValue(dodger).id,
         action: "move",
       });
       const dodged = await game.execute({
         type: "move",
-        playerId: dodger.id,
+        playerId: fixtureValue(dodger).id,
         path: [{ x: 15, y: 3 }],
       });
       const fell = dodged.events.some(
         (e) => e.name === GameEventNames.PlayerKnockedDown
       );
-      if (!fell) continue; // dodge succeeded; try another seed
+      if (!fell) continue;
 
       expect(dodged.pendingDecision).toBeNull();
-      expect(game.snapshot().teams[0].rerolls).toBe(2); // only the pickup spent one
+      expect(fixtureValue(game.snapshot().teams[0]).rerolls).toBe(2);
       return;
     }
     throw new Error("no seed produced pickup-reroll-success + failed dodge");
@@ -246,39 +238,42 @@ describe("reroll decisions (headless protocol)", () => {
 });
 
 describe("RerollArbiter constraint matrix", () => {
-  const makeState = (teamId: string, turnNumber = 1): GameState =>
-    ({
-      turn: { teamId, turnNumber, isHalf2: false },
-    }) as unknown as GameState;
+  const makeState = (teamId: string, turnNumber = 1): GameState => {
+    const state = new HeadlessGame({ seed: 1 }).ctx.gameService.getState();
+    state.turn.teamId = teamId;
+    state.turn.turnNumber = turnNumber;
+    state.turn.isHalf2 = false;
+    return state;
+  };
   const player = (id: string, teamId: string): Player =>
-    ({ id, teamId }) as unknown as Player;
+    createTestPlayer({ id, teamId });
 
   it("team reroll: own turn only, bank > 0, once per turn, decrements", () => {
-    const team = { id: "t1", rerolls: 2 } as Team;
+    const team: Team = { ...createTestTeam(), id: "t1", rerolls: 2 };
     const state = makeState("t1");
     const arbiter = new RerollArbiter(state, () => team);
 
-    expect(arbiter.teamRerollAvailable("t2")).toBe(false); // not their turn
+    expect(arbiter.teamRerollAvailable("t2")).toBe(false);
     expect(arbiter.teamRerollAvailable("t1")).toBe(true);
 
     arbiter.consumeTeamReroll("t1");
     expect(teamRerollsLeft(state, team)).toBe(1);
-    expect(arbiter.teamRerollAvailable("t1")).toBe(false); // spent this turn
+    expect(arbiter.teamRerollAvailable("t1")).toBe(false);
 
-    state.turn.turnNumber = 2; // next turn: available again
+    state.turn.turnNumber = 2;
     expect(arbiter.teamRerollAvailable("t1")).toBe(true);
 
     arbiter.consumeTeamReroll("t1");
     state.turn.turnNumber = 3;
     expect(teamRerollsLeft(state, team)).toBe(0);
-    expect(team.rerolls).toBe(2); // the roster's purchased count is untouched
-    expect(arbiter.teamRerollAvailable("t1")).toBe(false); // bank empty
+    expect(team.rerolls).toBe(2);
+    expect(arbiter.teamRerollAvailable("t1")).toBe(false);
   });
 
   it("skill reroll: once per action per player, independent across players", () => {
     const state = makeState("t1");
     const arbiter = new RerollArbiter(state, () => undefined);
-    const dodge = "Dodge" as never;
+    const dodge = SkillType.DODGE;
     const p1 = player("p1", "t1");
     const p2 = player("p2", "t1");
 
@@ -287,7 +282,7 @@ describe("RerollArbiter constraint matrix", () => {
     expect(arbiter.skillRerollAvailable(p1, dodge)).toBe(false);
     expect(arbiter.skillRerollAvailable(p2, dodge)).toBe(true);
 
-    state.turn.turnNumber = 2; // new activation next turn
+    state.turn.turnNumber = 2;
     expect(arbiter.skillRerollAvailable(p1, dodge)).toBe(true);
   });
 });

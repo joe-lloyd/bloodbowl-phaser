@@ -1,11 +1,8 @@
+import { useLandedDecision } from "../../hooks/useDecisionRequest";
 import { DecisionTeam } from "./DecisionTeam";
-import { useAfterDice } from "../../hooks/useAfterDice";
-import React, { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { DecisionRequest } from "@/types/decisions";
+import type React from "react";
+import type { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
-import { ReactionDecisionRequest } from "@/types/decisions";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { BRIBE_DECISION } from "../../../game/inducements/bribes";
 import {
   DialogActions,
@@ -17,45 +14,18 @@ interface ReactionDialogProps {
   eventBus: EventBus;
 }
 
-/**
- * A reactive skill's yes/no question to the REACTING coach (Stand Firm
- * "refuse the push?", Wrestle "both down without armour?"). The engine is
- * paused on this decision; both buttons resolve it via UI_ReactionResponse.
- */
 export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
-  const [pending, setRequest] = useState<ReactionDecisionRequest | null>(null);
+  const { request, answer: settle } = useLandedDecision(eventBus, {
+    type: "reaction",
+    accepts: (data) => data.skill !== BRIBE_DECISION,
+  });
 
-  useEffect(() => {
-    const onRequested = (data: DecisionRequest) => {
-      // The Sent-off card asks about a Bribe itself
-      if (data.type === "reaction" && data.skill !== BRIBE_DECISION) {
-        setRequest(data);
-      }
-    };
-    // The other coach may be the one who answers
-    const onResolved = ({ type }: { type: string }) => {
-      if (type === "reaction") setRequest(null);
-    };
-    eventBus.on(GameEventNames.DecisionRequested, onRequested);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    return () => {
-      eventBus.off(GameEventNames.DecisionRequested, onRequested);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-    };
-  }, [eventBus]);
-
-  // Hold the decision until the die it follows has landed in the tray
-  const request = useAfterDice(eventBus, pending);
-
-  // Online, only the coach who owns the decision sees it; the other
-  // coach has the "Waiting for…" banner
-  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
+  if (!request) return null;
 
   const answer = (accept: boolean) => {
-    // Online: only the reacting coach may answer
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    eventBus.emit(GameEventNames.UI_ReactionResponse, { accept });
-    setRequest(null);
+    settle(() => {
+      eventBus.emit(GameEventNames.UI_ReactionResponse, { accept });
+    });
   };
 
   return (
@@ -70,7 +40,9 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
             data-testid="reaction-no"
             variant="ghost"
             hotkey="n"
-            onClick={() => answer(false)}
+            onClick={() => {
+              answer(false);
+            }}
           >
             NO
           </HudButton>
@@ -78,7 +50,9 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
             data-testid="reaction-yes"
             variant="gold"
             hotkey="y"
-            onClick={() => answer(true)}
+            onClick={() => {
+              answer(true);
+            }}
           >
             YES
           </HudButton>

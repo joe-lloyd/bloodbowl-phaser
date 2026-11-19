@@ -1,28 +1,24 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { diceWith } from "./controllerFixtures";
+import { describe, it, expect, beforeEach } from "vitest";
 import { BallMovementController } from "../../../src/game/controllers/BallMovementController";
 
 describe("BallMovementController", () => {
   let controller: BallMovementController;
-  let mockDiceController;
+  let mockDiceController = diceWith();
 
   beforeEach(() => {
-    mockDiceController = {
-      rollD8: vi.fn(),
-      rollMultipleD8: vi.fn(),
-      rollD6: vi.fn(),
-      rollLowerOf2D6: vi.fn(),
-    };
+    mockDiceController = diceWith();
 
     controller = new BallMovementController(mockDiceController);
   });
 
   describe("Scatter", () => {
     it("should roll d8 three times for scatter", () => {
-      mockDiceController.rollMultipleD8.mockReturnValue([1, 2, 3]); // Return array for multi-roll
+      mockDiceController.rollMultipleD8.mockReturnValue([1, 2, 3]);
 
       const path = controller.scatter({ x: 5, y: 5 });
 
-      expect(mockDiceController.rollMultipleD8).toHaveBeenCalledWith(
+      expect(mockDiceController.spies.rollMultipleD8).toHaveBeenCalledWith(
         "Scatter",
         3
       );
@@ -31,12 +27,11 @@ describe("BallMovementController", () => {
 
     it("should calculate path based on rolls", () => {
       const controller = new BallMovementController(mockDiceController);
-      // Mock returns: TL, T, TR
+
       mockDiceController.rollMultipleD8.mockReturnValue([1, 2, 3]);
 
       const path = controller.scatter({ x: 5, y: 5 });
 
-      // TL: (5-1, 5-1) = (4,4), T: (4+0, 4-1) = (4,3), TR: (4+1, 3-1) = (5,2)
       expect(path).toEqual([
         { x: 4, y: 4 },
         { x: 4, y: 3 },
@@ -51,7 +46,7 @@ describe("BallMovementController", () => {
 
       const result = controller.bounce({ x: 5, y: 5 });
 
-      expect(mockDiceController.rollD8).toHaveBeenCalledWith("Bounce");
+      expect(mockDiceController.spies.rollD8).toHaveBeenCalledWith("Bounce");
       expect(result).toBeDefined();
     });
   });
@@ -63,12 +58,11 @@ describe("BallMovementController", () => {
 
       const result = controller.deviate({ x: 5, y: 5 }, false, "kickers");
 
-      // The kicking team's dice
-      expect(mockDiceController.rollD8).toHaveBeenCalledWith(
+      expect(mockDiceController.spies.rollD8).toHaveBeenCalledWith(
         expect.stringContaining("Direction"),
         "kickers"
       );
-      expect(mockDiceController.rollLowerOf2D6).toHaveBeenCalledWith(
+      expect(mockDiceController.spies.rollLowerOf2D6).toHaveBeenCalledWith(
         expect.stringContaining("Distance"),
         "kickers"
       );

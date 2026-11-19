@@ -1,6 +1,6 @@
 import { SkillType } from "../../../types/Skills";
-import { Player } from "../../../types/Player";
-import { CatchContext, SkillRule } from "../SkillRule";
+import { type Player } from "../../../types/Player";
+import { type CatchContext, type SkillRule } from "../SkillRule";
 
 export const DivingCatchRule: SkillRule = {
   onCatch(ctx: CatchContext, self: Player) {

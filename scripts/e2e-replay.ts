@@ -1,14 +1,3 @@
-/**
- * `pnpm e2e:replay <case-id|regression-id> [--variant <id>] [--browser] [--headed]`
- *
- * One command from a CI failure back to a running reproduction.
- *
- * With no flags it re-runs the case in the engine and prints the diagnostic
- * bundle — the fastest loop, and enough for most rule failures. `--browser`
- * and `--headed` hand off to Playwright with the case already filtered, and
- * the sandbox URL is always printed so the same board can be opened by hand.
- */
-
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -45,10 +34,11 @@ function parseArgs(argv: string[]): Args {
     return index >= 0 ? argv[index + 1] : undefined;
   };
   const seedRaw = flag("seed");
+  const variantId = flag("variant");
   return {
     target: positional[0] ?? "",
-    variantId: flag("variant"),
-    seed: seedRaw !== undefined ? Number(seedRaw) : undefined,
+    ...(variantId === undefined ? {} : { variantId }),
+    ...(seedRaw === undefined ? {} : { seed: Number(seedRaw) }),
     browser: argv.includes("--browser"),
     headed: argv.includes("--headed"),
   };
@@ -72,7 +62,8 @@ function resolveCase(target: string): ScenarioCase {
   const direct = findScenarioCase(SCENARIO_CASES, target);
   if (direct) return direct;
   const byRegression = findByRegressionId(SCENARIO_CASES, target);
-  if (byRegression.length === 1) return byRegression[0];
+  const [only] = byRegression;
+  if (byRegression.length === 1 && only) return only;
   if (byRegression.length > 1) {
     usage(
       `regression '${target}' has several cases: ${byRegression
@@ -83,20 +74,17 @@ function resolveCase(target: string): ScenarioCase {
   usage(`no case or regression id matches '${target}'`);
 }
 
-function resolveVariant(
-  scenarioCase: ScenarioCase,
-  args: Args
-): SeededVariant {
+function resolveVariant(scenarioCase: ScenarioCase, args: Args): SeededVariant {
   const base = args.variantId
     ? scenarioCase.variants.find((v) => v.id === args.variantId)
     : scenarioCase.variants[0];
   if (!base) {
     usage(
-      `case '${scenarioCase.id}' has no variant '${args.variantId}' ` +
+      `case '${scenarioCase.id}' has no variant '${String(args.variantId)}' ` +
         `(have: ${scenarioCase.variants.map((v) => v.id).join(", ")})`
     );
   }
-  // An explicit --seed overrides the committed one, for bisecting drift.
+
   return args.seed !== undefined ? { ...base, seed: args.seed } : base;
 }
 
@@ -107,7 +95,11 @@ async function replayInEngine(
   const observed = await runCaseInEngine(scenarioCase, variant);
 
   const failures: { id: string; message: string }[] = [];
-  for (const checkpoint of checkpointsForLayer(scenarioCase, variant, "engine")) {
+  for (const checkpoint of checkpointsForLayer(
+    scenarioCase,
+    variant,
+    "engine"
+  )) {
     try {
       checkpoint.assert(observed);
     } catch (error) {
@@ -138,7 +130,9 @@ async function replayInEngine(
   const path = join(dir, bundleFileName(scenarioCase, variant, "engine"));
   writeFileSync(path, JSON.stringify(bundle, null, 2), "utf8");
 
-  console.log(`\n${scenarioCase.id}/${variant.id}  (seed ${variant.seed})`);
+  console.log(
+    `\n${scenarioCase.id}/${variant.id}  (seed ${String(variant.seed)})`
+  );
   console.log(`  expected: ${variant.expectedOutcome}`);
   console.log(`  run was:  ${summariseRun(observed)}`);
   console.log(`  bundle:   ${path}`);
@@ -148,7 +142,7 @@ async function replayInEngine(
     console.log("\n  ✓ every engine checkpoint passed");
     return 0;
   }
-  console.log(`\n  ✗ ${failures.length} checkpoint(s) failed:`);
+  console.log(`\n  ✗ ${String(failures.length)} checkpoint(s) failed:`);
   for (const failure of failures) {
     console.log(`      ${failure.id}: ${failure.message}`);
   }
@@ -166,7 +160,7 @@ function replayInBrowser(
     "test",
     "--project=browser-gameplay",
     "--grep",
-    `${scenarioCase.id}`,
+    scenarioCase.id,
     ...(headed ? ["--headed"] : []),
   ];
   console.log(`sandbox: ${sandboxUrlFor(scenarioCase, variant)}`);

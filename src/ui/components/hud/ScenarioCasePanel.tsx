@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames } from "@/types/events";
 import { useEventBus } from "../../hooks/useEventBus";
 import { serializeGameState } from "../../../headless/serialization";
 import { SCENARIO_CASES } from "../../../testing/cases";
 import {
-  ScenarioCase,
-  SeededVariant,
+  type ScenarioCase,
+  type SeededVariant,
   checkpointsForLayer,
   interactiveCases,
   matchesQuery,
@@ -25,23 +25,13 @@ const inputClass = "hud-field font-mono";
 const boxClass =
   "rounded-hud border border-white/10 bg-black/30 px-2.5 py-1.5 text-hud-sm text-hud-bone/85";
 
-type CheckpointState = {
+interface CheckpointState {
   id: string;
   description: string;
   passed: boolean;
   detail?: string;
-};
+}
 
-/**
- * The E2E scenario-case explorer.
- *
- * A CI failure names a case and a variant; this panel is the other end of
- * that reference. It lists every interactive case (searchable by id,
- * capability, interaction, tag or regression id), loads the exact setup and
- * committed seed the automated run used, explains where each player on the
- * pitch comes from, and evaluates the case's own checkpoints live so you can
- * watch the expectation the suite is asserting go green — or not.
- */
 export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
   const cases = useMemo(() => interactiveCases(SCENARIO_CASES), []);
   const [query, setQuery] = useState("");
@@ -51,7 +41,7 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
   const [checkpoints, setCheckpoints] = useState<CheckpointState[] | null>(
     null
   );
-  // Bumped whenever the board changes, so a re-check reflects the live game.
+
   const [, setTick] = useState(0);
 
   const visible = useMemo(
@@ -65,10 +55,12 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
     scenarioCase?.variants.find((entry) => entry.id === variantId) ??
     scenarioCase?.variants[0];
 
-  useEventBus(eventBus, GameEventNames.PlayerMoved, () =>
-    setTick((n) => n + 1)
-  );
-  useEventBus(eventBus, GameEventNames.Turnover, () => setTick((n) => n + 1));
+  useEventBus(eventBus, GameEventNames.PlayerMoved, () => {
+    setTick((n) => n + 1);
+  });
+  useEventBus(eventBus, GameEventNames.Turnover, () => {
+    setTick((n) => n + 1);
+  });
 
   const load = (nextCaseId: string, nextVariantId?: string) => {
     const target = cases.find((entry) => entry.id === nextCaseId);
@@ -76,6 +68,7 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
     const chosen =
       target.variants.find((entry) => entry.id === nextVariantId) ??
       target.variants[0];
+    if (!chosen) return;
     setCheckpoints(null);
     eventBus.emit(GameEventNames.UI_LoadScenario, {
       scenarioId: target.id,
@@ -97,14 +90,6 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
     if (caseId) load(caseId, value);
   };
 
-  /**
-   * Evaluate the case's checkpoints against the live game.
-   *
-   * The engine emits its whole event history through the bus, but the
-   * sandbox does not retain it, so event-based checkpoints are evaluated
-   * against an empty log and will report honestly rather than falsely pass:
-   * they throw, and the failure is shown.
-   */
   const checkNow = () => {
     if (!scenarioCase || !variant) return;
     if (!ServiceContainer.isInitialized()) return;
@@ -153,12 +138,13 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
 
   const copyReference = () => {
     if (!scenarioCase || !variant) return;
-    // Deliberately no runtime player ids: case, variant and seed are enough
-    // to reproduce, and they survive a rerun.
-    const reference = `${scenarioCase.id}/${variant.id} (seed ${variant.seed}) ${sandboxUrlFor(scenarioCase, variant)}`;
+
+    const reference = `${scenarioCase.id}/${variant.id} (seed ${String(variant.seed)}) ${sandboxUrlFor(scenarioCase, variant)}`;
     void navigator.clipboard?.writeText(reference);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => {
+      setCopied(false);
+    }, 1500);
   };
 
   const fixture = scenarioCase ? describeFixture(scenarioCase) : null;
@@ -169,8 +155,12 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
         aria-label="Filter scenario cases"
         data-testid="case-filter"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        onKeyDown={(event) => event.stopPropagation()}
+        onChange={(event) => {
+          setQuery(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+        }}
         placeholder="id, capability, rule, tag, BUG-…"
         className={inputClass}
       />
@@ -179,7 +169,9 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
         aria-label="Scenario case"
         data-testid="case-select"
         value={caseId}
-        onChange={(event) => pickCase(event.target.value)}
+        onChange={(event) => {
+          pickCase(event.target.value);
+        }}
         className={selectClass}
       >
         <option value="" disabled>
@@ -200,7 +192,9 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
             aria-label="Case variant"
             data-testid="variant-select"
             value={variant?.id ?? ""}
-            onChange={(event) => pickVariant(event.target.value)}
+            onChange={(event) => {
+              pickVariant(event.target.value);
+            }}
             className={selectClass}
           >
             {scenarioCase.variants.map((entry) => (
@@ -216,7 +210,6 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
             </div>
           )}
 
-          {/* Fixture authenticity — where every player on the pitch comes from */}
           {fixture && (
             <div className={boxClass} data-testid="fixture-panel">
               <div className="font-semibold text-hud-bone">
@@ -262,7 +255,6 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
             </div>
           )}
 
-          {/* Expected checkpoints, evaluated on demand against the live board */}
           <div className="flex gap-1">
             <button
               onClick={checkNow}

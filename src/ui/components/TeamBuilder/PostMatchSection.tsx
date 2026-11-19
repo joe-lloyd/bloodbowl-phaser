@@ -3,14 +3,13 @@ import { Notice, Section } from "../componentWarehouse/HudKit";
 interface Props {
   postMatch: boolean;
   pendingMistakes: boolean;
-  /** The Expensive Mistakes outcome once Finish post-match has rolled it. */
+
   completion: string;
-  /** The `winnings-<team id>` value the results screen put in the URL. */
+
   matchWinnings: string | null;
   waitingForDevelopment: boolean;
 }
 
-/** What is left to do after a match: winnings, then Expensive Mistakes. */
 export function PostMatchSection({
   postMatch,
   pendingMistakes,

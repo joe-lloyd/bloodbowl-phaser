@@ -1,9 +1,13 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "types": ["node"],
-    "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "types": [
+      "node"
+    ]
   },
-  "include": ["../e2e", "../src", "../scripts"]
+  "include": [
+    "../e2e",
+    "../src",
+    "../scripts"
+  ]
 }

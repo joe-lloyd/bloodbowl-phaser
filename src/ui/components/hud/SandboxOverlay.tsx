@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { useEventBus, useEventEmit } from "../../hooks/useEventBus";
 import { SCENARIOS } from "../../../data/scenarios";
 import {
@@ -15,9 +15,10 @@ import {
   TRAIT_TOPIC,
   NEGATRAIT_TOPIC,
 } from "../../../data/ruleScenarios";
-import { findSeed, RuleConfig } from "../../../game/rules-lab";
+import { findSeed, type RuleConfig } from "../../../game/rules-lab";
 import { SkillRegistry } from "../../../game/skills";
-import { SkillCategory, SkillType } from "../../../types/Skills";
+import type { SkillType } from "../../../types/Skills";
+import { SkillCategory } from "../../../types/Skills";
 import { ScenarioCasePanel } from "./ScenarioCasePanel";
 import { SCENARIO_CASES } from "../../../testing/cases";
 import { findScenarioCase } from "../../../testing/scenarioCase";
@@ -33,15 +34,9 @@ interface SandboxOverlayProps {
 }
 
 const CORE_TOPIC = "core";
-/** The E2E scenario-case explorer: what CI actually runs. */
+
 const CASE_TOPIC = "e2e-cases";
 
-/**
- * Rebuild the explorer's form state from the URL the scene maintains
- * (?scenario=&seed=&outcome=). Only the config id, seed and outcome are
- * stored — topic and rule are derived from the config id via the catalog —
- * so a refresh restores every select without a param per level.
- */
 function formStateFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const scenarioId = params.get("scenario") ?? "";
@@ -57,7 +52,7 @@ function formStateFromUrl() {
   if (SCENARIOS.some((s) => s.id === scenarioId)) {
     return { ...empty, topic: CORE_TOPIC, coreId: scenarioId };
   }
-  // A scenario-case id — the reference a CI failure quotes.
+
   if (findScenarioCase(SCENARIO_CASES, scenarioId)) {
     return { ...empty, topic: CASE_TOPIC, configId: scenarioId };
   }
@@ -74,7 +69,7 @@ function formStateFromUrl() {
   return {
     ...empty,
     topic: topicForSkill(rule.skill),
-    skill: rule.skill as string,
+    skill: rule.skill,
     configId: scenarioId,
     outcomeId: params.get("outcome") ?? "",
   };
@@ -90,12 +85,6 @@ const selectClass = "hud-field cursor-pointer";
 const boxClass =
   "rounded-hud border border-white/10 bg-black/30 px-2.5 py-1.5 text-hud-sm text-hud-bone/85";
 
-/**
- * Leveled scenario selection: Topic → Rule (implemented/inert badge) →
- * Configuration → Seed. Each level appears once the previous one is chosen;
- * the seed row can search for a seed producing a chosen outcome by running
- * the headless engine in-browser.
- */
 export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
   const emit = useEventEmit(eventBus);
 
@@ -122,8 +111,8 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
     setSearchError(null);
     emit(GameEventNames.UI_LoadScenario, {
       scenarioId,
-      seed,
-      outcomeId: outcome,
+      ...(seed === undefined ? {} : { seed: seed }),
+      ...(outcome === undefined ? {} : { outcomeId: outcome }),
     });
   };
 
@@ -189,11 +178,12 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
     <Panel accent="blood" className="w-full pointer-events-auto animate-hud-in">
       <PanelHeader as="h3" title="Sandbox" />
       <div className="flex flex-col gap-2 p-2.5">
-        {/* Level 1: Topic */}
         <select
           aria-label="Sandbox topic"
           value={topic}
-          onChange={(e) => pickTopic(e.target.value)}
+          onChange={(e) => {
+            pickTopic(e.target.value);
+          }}
           className={selectClass}
         >
           <option value="" disabled>
@@ -211,7 +201,6 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
           ))}
         </select>
 
-        {/* Core topic: the classic flat scenario list */}
         {topic === CORE_TOPIC && (
           <select
             aria-label="Core scenario"
@@ -230,15 +219,15 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
           </select>
         )}
 
-        {/* E2E cases: the same cases, variants and seeds CI runs */}
         {topic === CASE_TOPIC && <ScenarioCasePanel eventBus={eventBus} />}
 
-        {/* Level 2: Rule, badged implemented (✓) / inert (○) */}
         {topicHasRules(topic) && (
           <select
             aria-label="Sandbox rule"
             value={skill}
-            onChange={(e) => pickSkill(e.target.value)}
+            onChange={(e) => {
+              pickSkill(e.target.value);
+            }}
             className={selectClass}
           >
             <option value="" disabled>
@@ -252,13 +241,14 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
           </select>
         )}
 
-        {/* Level 3: Configuration */}
         {(topic === KICKOFF_TOPIC || skill) &&
           (visibleConfigs ? (
             <select
               aria-label="Sandbox configuration"
               value={configId}
-              onChange={(e) => pickConfig(e.target.value)}
+              onChange={(e) => {
+                pickConfig(e.target.value);
+              }}
               className={selectClass}
             >
               <option value="" disabled>
@@ -276,13 +266,14 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
 
         {config && <div className={boxClass}>{config.description}</div>}
 
-        {/* Level 4: Seed row + outcome finder */}
         {config && (
           <SeedFinder
             config={config}
             seedInput={seedInput}
             onSeedInput={setSeedInput}
-            onLoadSeed={() => load(config.id, parsedSeed())}
+            onLoadSeed={() => {
+              load(config.id, parsedSeed());
+            }}
             onRandomSeed={rollRandomSeed}
             outcomeId={outcomeId}
             onPickOutcome={pickOutcome}
@@ -298,7 +289,6 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
   );
 }
 
-/** The topics that list rules at level 2; the rest have their own lists. */
 function topicHasRules(topic: string): boolean {
   return (
     !!topic &&
@@ -308,7 +298,6 @@ function topicHasRules(topic: string): boolean {
   );
 }
 
-/** The configurations at level 3: Kickoff's own, or the chosen rule's. */
 function configsFor(topic: string, skill: string): RuleConfig[] | undefined {
   if (topic === KICKOFF_TOPIC) return KICKOFF_SCENARIOS;
   return skill ? ruleScenariosFor(skill as SkillType)?.configs : undefined;
@@ -324,7 +313,6 @@ function NoConfigurations({ skill }: { skill: string }) {
   );
 }
 
-/** The seed and expected outcome of the scenario on the board. */
 function LoadedScenario({ info }: { info: ScenarioInfo }) {
   return (
     <div
@@ -345,10 +333,6 @@ function LoadedScenario({ info }: { info: ScenarioInfo }) {
   );
 }
 
-/**
- * Level 4: the seed row, and an outcome finder that searches for a seed
- * producing the chosen outcome.
- */
 function SeedFinder({
   config,
   seedInput,
@@ -382,7 +366,9 @@ function SeedFinder({
           aria-label="Scenario seed"
           type="number"
           value={seedInput}
-          onChange={(e) => onSeedInput(e.target.value)}
+          onChange={(e) => {
+            onSeedInput(e.target.value);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") onLoadSeed();
             e.stopPropagation();
@@ -402,7 +388,9 @@ function SeedFinder({
         <select
           aria-label="Seeded outcome"
           value={outcomeId}
-          onChange={(e) => onPickOutcome(e.target.value)}
+          onChange={(e) => {
+            onPickOutcome(e.target.value);
+          }}
           className={`${selectClass} flex-1`}
         >
           <option value="" disabled>

@@ -1,12 +1,10 @@
-import { useAfterDice } from "../../hooks/useAfterDice";
+import { useLandedDecision } from "../../hooks/useDecisionRequest";
 import { DecisionTeam } from "./DecisionTeam";
 import type { TeamRerollKind } from "../../../game/skills/RerollArbiter";
-import React, { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { DecisionRequest } from "@/types/decisions";
+import type React from "react";
+import type { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
-import { RerollDecisionRequest, RerollSource } from "@/types/decisions";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { type RerollSource } from "@/types/decisions";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   DialogActions,
@@ -14,9 +12,7 @@ import {
   HudButton,
 } from "../componentWarehouse/HudKit";
 
-/** A long label wraps between words, never inside "RE-ROLL". */
 const keepRerollWhole = (label: string) => (
-  // One child, so the button's flex gap does not open up around the word
   <span>
     {label.split(/(RE-ROLL)/).map((part, index) =>
       part === "RE-ROLL" ? (
@@ -34,52 +30,27 @@ interface RerollDialogProps {
   eventBus: EventBus;
 }
 
-/**
- * Offers the failed roll's reroll sources (skill and/or team) to the rolling
- * coach. The engine is paused on this decision; every button resolves it via
- * UI_RerollResponse → gameService.answerReroll.
- */
 export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
-  const [pending, setRequest] = useState<RerollDecisionRequest | null>(null);
+  const { request, answer: settle } = useLandedDecision(eventBus, {
+    type: "reroll",
+  });
 
-  useEffect(() => {
-    const onRequested = (data: DecisionRequest) => {
-      if (data.type === "reroll") {
-        setRequest(data);
-      }
-    };
-    // The other coach may be the one who answers
-    const onResolved = ({ type }: { type: string }) => {
-      if (type === "reroll") setRequest(null);
-    };
-    eventBus.on(GameEventNames.DecisionRequested, onRequested);
-    eventBus.on(GameEventNames.DecisionResolved, onResolved);
-    return () => {
-      eventBus.off(GameEventNames.DecisionRequested, onRequested);
-      eventBus.off(GameEventNames.DecisionResolved, onResolved);
-    };
-  }, [eventBus]);
-
-  // Hold the decision until the die it follows has landed in the tray
-  const request = useAfterDice(eventBus, pending);
-
-  // Online, only the coach who owns the decision sees it; the other
-  // coach has the "Waiting for…" banner
-  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
+  if (!request) return null;
 
   const answer = (accept: boolean, source?: RerollSource) => {
-    // Online: only the rolling coach may answer
-    if (getActiveOnlineMatch()?.mayAct() === false) return;
-    eventBus.emit(GameEventNames.UI_RerollResponse, { accept, source });
-    setRequest(null);
+    settle(() => {
+      eventBus.emit(GameEventNames.UI_RerollResponse, {
+        accept,
+        ...(source === undefined ? {} : { source: source }),
+      });
+    });
   };
 
   const container = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance()
     : null;
   const player = container?.gameService.getPlayerById(request.playerId);
-  // Name the re-roll the team button would actually spend, and drop the
-  // button when there is none to spend
+
   const arbiter = container?.gameService.getRerollArbiter();
   const teamReroll = arbiter?.nextTeamReroll(request.chooserTeamId) ?? null;
   const teamLabel = (kind: TeamRerollKind): string => {
@@ -89,7 +60,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
       case "leader":
         return "USE LEADER RE-ROLL";
       case "team":
-        return `USE TEAM RE-ROLL (${arbiter?.teamRerollsLeftFor(request.chooserTeamId) ?? 0} left)`;
+        return `USE TEAM RE-ROLL (${String(arbiter?.teamRerollsLeftFor(request.chooserTeamId) ?? 0)} left)`;
       default: {
         const exhaustive: never = kind;
         return exhaustive;
@@ -97,7 +68,6 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
     }
   };
 
-  // Numbered in the order shown, from 1
   const offered = request.sources.filter(
     (source) => source !== "team" || teamReroll
   );
@@ -138,7 +108,9 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
                   variant={source === "veteran" ? "secondary" : "gold"}
                   block
                   hotkey={String(index + 1)}
-                  onClick={() => answer(true, source)}
+                  onClick={() => {
+                    answer(true, source);
+                  }}
                 >
                   {keepRerollWhole(label)}
                 </HudButton>
@@ -151,7 +123,9 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
             variant="ghost"
             block
             hotkey="n"
-            onClick={() => answer(false)}
+            onClick={() => {
+              answer(false);
+            }}
           >
             DECLINE
           </HudButton>
@@ -164,14 +138,13 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
       </p>
       <p data-testid="reroll-odds">
         {request.needed !== undefined
-          ? `Needed ${request.needed}+, rolled ${request.roll}.`
-          : `Rolled ${request.roll}.`}
+          ? `Needed ${String(request.needed)}+, rolled ${String(request.roll)}.`
+          : `Rolled ${String(request.roll)}.`}
       </p>
     </DialogShell>
   );
 };
 
-/** What a re-roll source needs, the target and nothing more. */
 function SourceNeed({
   source,
   needed,
@@ -183,7 +156,7 @@ function SourceNeed({
     return (
       <p data-testid="reroll-need-pro" className="mt-1 text-hud-sm">
         {needed !== undefined
-          ? `Pro needs 3+, then ${needed}+.`
+          ? `Pro needs 3+, then ${String(needed)}+.`
           : "Pro needs 3+."}{" "}
         A failed Pro check ends the re-roll.
       </p>
@@ -191,7 +164,7 @@ function SourceNeed({
   if (needed === undefined && source !== "veteran") return null;
   return (
     <p data-testid={`reroll-need-${source}`} className="mt-1 text-hud-sm">
-      {needed !== undefined && `Needs ${needed}+.`}
+      {needed !== undefined && `Needs ${String(needed)}+.`}
       {needed !== undefined && source === "veteran" && " "}
       {source === "veteran" && "Once per game."}
     </p>

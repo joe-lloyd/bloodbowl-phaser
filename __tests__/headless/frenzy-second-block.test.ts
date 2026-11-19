@@ -1,6 +1,8 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario, PlayerPlacement } from "../../src/types/Scenario";
+import { type Scenario, type PlayerPlacement } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition, hasCondition } from "../../src/types/Player";
@@ -10,12 +12,6 @@ import type {
 } from "../../src/headless/protocol";
 import { GameEventNames } from "../../src/types/events";
 import { forceDice } from "../utils/test-helpers";
-
-/**
- * Frenzy's second Block (2025 rulebook p.128): what may stop it and what it
- * costs. Seeds are committed, never searched (docs/E2E_TESTING.md); each test
- * asserts the dice its seed rolls first, so a dice-order change fails loudly.
- */
 
 function scenario(
   attacker: Partial<PlayerPlacement>,
@@ -34,7 +30,7 @@ function scenario(
           skills: [SkillType.FRENZY],
           ...attacker,
         },
-        // A spare player keeps team1's turn open after the activation.
+
         { playerIndex: 1, x: 2, y: 12 },
       ],
       team2Placements: [{ playerIndex: 0, x: 11, y: 5, ...defender }],
@@ -57,7 +53,9 @@ function session(scenario: Scenario, seed: number) {
   const dice = () =>
     events
       .filter((e) => e.name === "diceRoll")
-      .map((e) => (e.data as { description: string }).description);
+      .map(
+        (e) => z.object({ description: z.string() }).parse(e.data).description
+      );
   return {
     game,
     run,
@@ -67,7 +65,6 @@ function session(scenario: Scenario, seed: number) {
   };
 }
 
-/** One block die, a Push; the second Block rolls a Skull. */
 const PUSH_SEED = 1;
 
 describe("Frenzy after a failed follow-up pickup", () => {
@@ -75,23 +72,22 @@ describe("Frenzy after a failed follow-up pickup", () => {
     "does not open another block decision after turnover on turn %i",
     async (turn) => {
       const base = scenario({}, {});
-      base.setup.team1Placements![1] = { playerIndex: 1, x: 2, y: 9 };
+      base.setup.team1Placements[1] = { playerIndex: 1, x: 2, y: 9 };
       base.setup.ballPosition = { x: 12, y: 5 };
       base.setup.turn = turn;
       base.setup.teamRerolls = { team1: 0, team2: 0 };
       const { game, run, attacker, defender } = session(base, 1);
-      // Push onto the loose ball; it bounces west into the vacated square.
-      // The forced follow-up fails its pickup, then the ball bounces south.
+
       forceDice(game.ctx.rng, [3, 4, 1, 7]);
       await run({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       await run({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: defender.id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
       });
       await run({ type: "choose-block-result", index: 0 });
       const after = await run({ type: "choose-push-direction", x: 12, y: 5 });
@@ -99,7 +95,10 @@ describe("Frenzy after a failed follow-up pickup", () => {
       expect(
         after.events.filter((e) => e.name === "ballPickup").map((e) => e.data)
       ).toEqual([
-        expect.objectContaining({ playerId: attacker.id, success: false }),
+        expect.objectContaining({
+          playerId: fixtureValue(attacker).id,
+          success: false,
+        }),
       ]);
       expect(after.events.filter((e) => e.name === "turnover")).toHaveLength(1);
       expect(
@@ -118,13 +117,13 @@ describe("Frenzy against Stand Firm", () => {
     forceDice(game.ctx.rng, [6, 1, 1, 5]);
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     await run({ type: "choose-block-result", index: 0 });
     const after = await run({ type: "use-reaction", accept: true });
@@ -153,13 +152,13 @@ describe("Frenzy against Stand Firm", () => {
 
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "block",
     });
     await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     const reaction = await run({ type: "choose-block-result", index: 0 });
     expect(reaction.pendingDecision).toMatchObject({
@@ -175,11 +174,11 @@ describe("Frenzy against Stand Firm", () => {
     ]);
     expect(second.pendingDecision).toMatchObject({
       type: "block-dice",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
-    expect(attacker.gridPosition).toEqual({ x: 10, y: 5 });
-    expect(defender.gridPosition).toEqual({ x: 11, y: 5 });
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 10, y: 5 });
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 11, y: 5 });
   });
 });
 
@@ -189,52 +188,49 @@ describe("a cancelled Frenzy second Block", () => {
       scenario({}, { skills: [SkillType.FOUL_APPEARANCE] }),
       1
     );
-    // Pass Foul Appearance, Push, then fail the second Foul Appearance.
+
     forceDice(game.ctx.rng, [2, 4, 1]);
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "block",
     });
     await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     await run({ type: "choose-block-result", index: 0 });
     const cancelled = await run({ type: "choose-push-direction", x: 12, y: 5 });
     expect(cancelled.pendingDecision).toBeNull();
-    expect(game.ctx.gameService.hasPlayerActed(attacker.id)).toBe(true);
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(attacker).id)).toBe(
+      true
+    );
 
     await run({ type: "end-turn" });
     await run({ type: "end-turn" });
     forceDice(game.ctx.rng, [2, 4, 2, 4]);
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "block",
     });
     await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     await run({ type: "choose-block-result", index: 0 });
     const second = await run({ type: "choose-push-direction", x: 13, y: 5 });
     expect(second.pendingDecision).toMatchObject({
       type: "block-dice",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
       options: [{ type: "push" }],
     });
   });
 });
 
-/**
- * MA 1 blitzers. Blocking from the start square spends the one square of
- * MA. Starting two squares back, the blitzer moves one square and Rushes
- * one, so the Blitz block itself is the second and last Rush.
- */
 const ADJACENT_BLITZ_SEED = 11;
 const EXHAUSTED_BLITZ_SEED = 11;
 
@@ -243,13 +239,13 @@ describe("Frenzy's second Block during a Blitz", () => {
     const { game, run, attacker, defender } = session(scenario({}, {}), 2);
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     const first = await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     expect(first.pendingDecision).toMatchObject({
       type: "block-dice",
@@ -259,9 +255,13 @@ describe("Frenzy's second Block during a Blitz", () => {
     const after = await run({ type: "choose-push-direction", x: 12, y: 5 });
 
     expect(after.pendingDecision).toBeNull();
-    expect(attacker.gridPosition).toEqual({ x: 11, y: 5 });
-    expect(game.ctx.gameService.hasPlayerActed(attacker.id)).toBe(false);
-    expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(1);
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 11, y: 5 });
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(attacker).id)).toBe(
+      false
+    );
+    expect(
+      game.ctx.gameService.getMovementUsed(fixtureValue(attacker).id)
+    ).toBe(1);
     expect(after.events.map((event) => event.name)).toContain(
       GameEventNames.UI_ResumeBlitzMove
     );
@@ -274,13 +274,13 @@ describe("Frenzy's second Block during a Blitz", () => {
     );
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     await run({ type: "choose-block-result", index: 0 });
     const second = await run({ type: "use-reaction", accept: true });
@@ -292,9 +292,13 @@ describe("Frenzy's second Block during a Blitz", () => {
     const after = await run({ type: "use-reaction", accept: true });
 
     expect(after.pendingDecision).toBeNull();
-    expect(attacker.gridPosition).toEqual({ x: 10, y: 5 });
-    expect(game.ctx.gameService.hasPlayerActed(attacker.id)).toBe(false);
-    expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(2);
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 10, y: 5 });
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(attacker).id)).toBe(
+      false
+    );
+    expect(
+      game.ctx.gameService.getMovementUsed(fixtureValue(attacker).id)
+    ).toBe(2);
     expect(after.events.map((event) => event.name)).toContain(
       GameEventNames.UI_ResumeBlitzMove
     );
@@ -308,20 +312,20 @@ describe("Frenzy's second Block during a Blitz", () => {
 
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     const approach = await run({
       type: "move",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       path: [{ x: 10, y: 5 }],
     });
     expect(approach.ok).toBe(true);
-    expect(attacker.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 10, y: 5 });
     await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     await run({ type: "choose-block-result", index: 0 });
     const second = await run({ type: "choose-push-direction", x: 12, y: 5 });
@@ -338,32 +342,32 @@ describe("Frenzy's second Block during a Blitz", () => {
       "Rolled 1 block dice: push",
     ]);
     expect(after.pendingDecision).toBeNull();
-    expect(attacker.gridPosition).toEqual({ x: 12, y: 5 });
-    expect(defender.gridPosition).toEqual({ x: 13, y: 5 });
-    expect(gs.hasPlayerActed(attacker.id)).toBe(false);
-    expect(gs.hasUsedBlitzBlock(attacker.id)).toBe(true);
-    expect(gs.getMovementUsed(attacker.id)).toBe(3);
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 12, y: 5 });
+    expect(fixtureValue(defender).gridPosition).toEqual({ x: 13, y: 5 });
+    expect(gs.hasPlayerActed(fixtureValue(attacker).id)).toBe(false);
+    expect(gs.hasUsedBlitzBlock(fixtureValue(attacker).id)).toBe(true);
+    expect(gs.getMovementUsed(fixtureValue(attacker).id)).toBe(3);
     expect(after.events).toContainEqual({
       name: GameEventNames.UI_ResumeBlitzMove,
-      data: { playerId: attacker.id },
+      data: { playerId: fixtureValue(attacker).id },
     });
 
     const third = await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     expect(third.ok).toBe(false);
     expect(third.reason).toContain("blitz-block-already-used");
 
     const escape = await run({
       type: "move",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       path: [{ x: 11, y: 4 }],
     });
     expect(escape.ok).toBe(true);
-    expect(attacker.gridPosition).toEqual({ x: 11, y: 4 });
-    expect(gs.getMovementUsed(attacker.id)).toBe(4);
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 11, y: 4 });
+    expect(gs.getMovementUsed(fixtureValue(attacker).id)).toBe(4);
     expect(dice()).toEqual([
       "Dodge (Human Lineman #1): 4, needs 3+",
       "Rolled 1 block dice: push",
@@ -380,13 +384,13 @@ describe("Frenzy's second Block during a Blitz", () => {
 
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     await run({ type: "choose-block-result", index: 0 });
     const second = await run({ type: "choose-push-direction", x: 12, y: 5 });
@@ -397,7 +401,9 @@ describe("Frenzy's second Block during a Blitz", () => {
       "Rolled 1 block dice: push",
     ]);
     expect(second.pendingDecision).toMatchObject({ type: "block-dice" });
-    expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(2);
+    expect(
+      game.ctx.gameService.getMovementUsed(fixtureValue(attacker).id)
+    ).toBe(2);
   });
 
   it("cannot happen when the blitzer has no Rush left", async () => {
@@ -408,12 +414,12 @@ describe("Frenzy's second Block during a Blitz", () => {
 
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "blitz",
     });
     await run({
       type: "move",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       path: [
         { x: 9, y: 5 },
         { x: 10, y: 5 },
@@ -421,8 +427,8 @@ describe("Frenzy's second Block during a Blitz", () => {
     });
     await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     await run({ type: "choose-block-result", index: 0 });
     const after = await run({ type: "choose-push-direction", x: 12, y: 5 });
@@ -433,16 +439,13 @@ describe("Frenzy's second Block during a Blitz", () => {
       "Rolled 1 block dice: push",
     ]);
     expect(after.pendingDecision).toBeNull();
-    expect(attacker.gridPosition).toEqual({ x: 11, y: 5 });
-    expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(3);
+    expect(fixtureValue(attacker).gridPosition).toEqual({ x: 11, y: 5 });
+    expect(
+      game.ctx.gameService.getMovementUsed(fixtureValue(attacker).id)
+    ).toBe(3);
   });
 });
 
-/**
- * A push that scores ends the drive, and the second Block with it. The sim
- * found both ways this went wrong: on a cleared board a POW crashed the
- * command, and a Both Down left the blocker Prone off the pitch for good.
- */
 describe("Frenzy after a push that scores", () => {
   it("throws no second Block once the drive is over", async () => {
     const { game, run, attacker, defender } = session(
@@ -457,13 +460,13 @@ describe("Frenzy after a push that scores", () => {
     );
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "block",
     });
     const rolled = await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     expect(
       rolled.pendingDecision?.type === "block-dice" &&
@@ -488,13 +491,13 @@ describe("Frenzy's follow-up that scores", () => {
     );
     await run({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "block",
     });
     const rolled = await run({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
     expect(
       rolled.pendingDecision?.type === "block-dice" &&
@@ -522,16 +525,16 @@ describe("Frenzy's follow-up into the end zone with Bloodlust unsated", () => {
       );
       const declared = await run({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
-      // A failed Bloodlust roll leaves the player unsated.
+
       if (declared.pendingDecision?.type !== "reaction") continue;
       await run({ type: "use-reaction", accept: false });
       const rolled = await run({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: defender.id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const push = rolled.pendingDecision.options.findIndex(
@@ -541,8 +544,9 @@ describe("Frenzy's follow-up into the end zone with Bloodlust unsated", () => {
       await run({ type: "choose-block-result", index: push });
       const pushed = await run({ type: "choose-push-direction", x: 19, y: 6 });
 
-      // No Thrall to bite: Distracted, the ball dropped, and no touchdown.
-      expect(hasCondition(attacker, PlayerCondition.DISTRACTED)).toBe(true);
+      expect(
+        hasCondition(fixtureValue(attacker), PlayerCondition.DISTRACTED)
+      ).toBe(true);
       expect(pushed.snapshot.score).toEqual({ team1: 0, team2: 0 });
       expect(pushed.pendingDecision?.type).not.toBe("block-dice");
       expect(game.pendingDecision()?.type).not.toBe("block-dice");
@@ -586,14 +590,14 @@ describe("Multiple Block after a push that scores", () => {
       const attacker = game.ctx.team1.players[0];
       await game.execute({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "multipleBlock",
       });
       const rolled = await game.execute({
         type: "multiple-block",
-        attackerId: attacker.id,
-        defender1Id: game.ctx.team2.players[0].id,
-        defender2Id: game.ctx.team2.players[1].id,
+        attackerId: fixtureValue(attacker).id,
+        defender1Id: fixtureValue(game.ctx.team2.players[0]).id,
+        defender2Id: fixtureValue(game.ctx.team2.players[1]).id,
       });
       if (rolled.pendingDecision?.type !== "block-dice") continue;
       const push = rolled.pendingDecision.options.findIndex(
@@ -618,7 +622,7 @@ describe("Multiple Block after a push that scores", () => {
 
       expect(pushed.snapshot.score).toEqual({ team1: 0, team2: 1 });
       expect(pushed.pendingDecision).toBeNull();
-      expect(attacker.stats.ST).toBe(5);
+      expect(fixtureValue(attacker).stats.ST).toBe(5);
       return;
     }
     throw new Error("no seed rolled a Push on the first target");

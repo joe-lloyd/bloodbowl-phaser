@@ -5,16 +5,15 @@ import { useHotkey } from "../../hotkeys";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useHeldOnline } from "../../hooks/useHeldOnline";
 
-/** On a phone, End Turn fires after a hold this long, so a stray tap can't. */
-export const END_TURN_HOLD_MS = 650;
+const END_TURN_HOLD_MS = 650;
 
 interface EndTurnButtonProps {
   onClick: () => void;
   disabled?: boolean;
   phase: GamePhase;
-  /** The team whose turn it is. */
+
   activeTeamId: string | null;
-  /** Press and hold to end the turn, as on a phone's thumb rail. */
+
   hold?: boolean;
 }
 
@@ -25,7 +24,6 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   activeTeamId,
   hold = false,
 }) => {
-  // Online, no command can be sent while input is held
   const held = useHeldOnline();
   const [holding, setHolding] = useState(false);
   const [hint, setHint] = useState(false);
@@ -39,11 +37,11 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
     },
     []
   );
-  // Online, only the coach whose turn it is gets the button
+
   const online = getActiveOnlineMatch();
   const shown =
     phase === GamePhase.PLAY && (!online || online.myTeamId === activeTeamId);
-  // Shift as well, so a slip of the E that ends an activation keeps the turn
+
   useHotkey("shift+e", onClick, shown && !disabled && !held && !hold, button);
   if (!shown) {
     return null;
@@ -65,7 +63,6 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   }
 
   const startHold = () => {
-    // A second finger during a hold must not start a second timer
     if (timer.current) return;
     setHint(false);
     setHolding(true);
@@ -81,10 +78,12 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
     clearTimeout(timer.current);
     timer.current = null;
     setHolding(false);
-    // Let go too soon: say how it works
+
     setHint(true);
     if (hintTimer.current) clearTimeout(hintTimer.current);
-    hintTimer.current = setTimeout(() => setHint(false), 1500);
+    hintTimer.current = setTimeout(() => {
+      setHint(false);
+    }, 1500);
   };
 
   return (
@@ -104,8 +103,9 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
         onPointerUp={stopHold}
         onPointerLeave={stopHold}
         onPointerCancel={stopHold}
-        onContextMenu={(e) => e.preventDefault()}
-        // A keyboard press has no hold to measure: it ends the turn
+        onContextMenu={(e) => {
+          e.preventDefault();
+        }}
         onClick={(e) => e.detail === 0 && onClick()}
         className={`${hudButtonClass("primary", "lg", true)} relative min-h-[48px] select-none flex-col !gap-0.5 overflow-hidden px-2 whitespace-nowrap font-hud-display !text-hud-base !font-normal !tracking-[0.06em] [-webkit-touch-callout:none]`}
       >
@@ -115,7 +115,9 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
           style={{
             width: holding ? "100%" : "0%",
             transitionProperty: "width",
-            transitionDuration: holding ? `${END_TURN_HOLD_MS}ms` : "0ms",
+            transitionDuration: holding
+              ? `${String(END_TURN_HOLD_MS)}ms`
+              : "0ms",
           }}
         />
         <span className="relative leading-none">End Turn</span>

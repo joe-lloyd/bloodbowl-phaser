@@ -1,19 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { confirmPregame } from "../support/pregame";
-/**
- * One full Sevens match played through the real UI, start to finish.
- *
- * Both teams are drafted in the Team Builder (Sevens Skill Selection, a
- * Veteran, re-rolls), picked on Team Selection as a league fixture, set up,
- * kicked off and played to full time by clicking the HUD and the canvas.
- * Then MVP and SPP are confirmed on the results screen and each team's
- * Sevens skill pick is made in Manage Team.
- *
- * Moves are chosen by the simulation's heuristic coach running in the page
- * (brain.ts), but every one is carried out through the controls a coach
- * uses. The log and screenshots land in FULLGAME_OUT; the video lands in
- * the Playwright output folder.
- */
-import { test, Page } from "@playwright/test";
+
+import { test, type Page } from "@playwright/test";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { GameApp } from "../support/pages/game";
 import {
@@ -29,10 +17,12 @@ import {
 } from "./driver";
 import { createUxProbe } from "./uxProbe";
 
-const OUT = process.env.FULLGAME_OUT ?? "e2e-results/fullgame-shots";
+const OUT = process.env["FULLGAME_OUT"] ?? "e2e-results/fullgame-shots";
 const LOG = `${OUT}/drive.log`;
-const MAX_ITER = Number(process.env.MAX_ITER ?? 4000);
-const log = (line: string) => appendFileSync(LOG, line + "\n");
+const MAX_ITER = Number(process.env["MAX_ITER"] ?? 4000);
+const log = (line: string) => {
+  appendFileSync(LOG, line + "\n");
+};
 const shot = (page: Page, n: string) =>
   page.screenshot({ path: `${OUT}/${n}.png` });
 const rec = { log, shot };
@@ -43,21 +33,24 @@ test("a full Sevens match, built and played through the UI", async ({
   mkdirSync(OUT, { recursive: true });
   writeFileSync(LOG, "");
   page.on("dialog", (d) => d.accept());
-  page.on("pageerror", (e) => log(`PAGEERROR ${e.message}`));
+  page.on("pageerror", (e) => {
+    log(`PAGEERROR ${e.message}`);
+  });
   page.on("console", (m) => {
     if (/Move failed|Path too long|Invalid move/.test(m.text()))
       log(`  CONSOLE ${m.text().slice(0, 300)}`);
   });
   const app = new GameApp(page);
   const size = page.viewportSize();
-  const ux = process.env.UX_PROBE
-    ? createUxProbe(page, OUT, `${size?.width}x${size?.height}`)
+  const ux = process.env["UX_PROBE"]
+    ? createUxProbe(page, OUT, `${String(size?.width)}x${String(size?.height)}`)
     : null;
 
-  // ---- Draft both teams in the team builder ----
   await page.goto("/");
   await ux?.probe("main menu");
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => {
+    localStorage.clear();
+  });
   await buildTeam(
     page,
     "Reikland Reavers",
@@ -91,7 +84,6 @@ test("a full Sevens match, built and played through the UI", async ({
   await shot(page, "manage");
   await ux?.probe("manage team");
 
-  // ---- Pick the fixture ----
   await page.goto("/select-team");
   await page
     .getByRole("button", { name: /Reikland Reavers/ })
@@ -112,7 +104,6 @@ test("a full Sevens match, built and played through the UI", async ({
     .getByRole("button", { name: "FLIP COIN" })
     .waitFor({ timeout: 15_000 });
 
-  // ---- Play ----
   let lastKey = "";
   let lastLabel = "";
   let stuck = 0;
@@ -121,31 +112,28 @@ test("a full Sevens match, built and played through the UI", async ({
   let failures = 0;
   for (let i = 0; i < MAX_ITER; i++) {
     await page.waitForTimeout(120);
-    await ux?.probe(`step ${i}`);
+    await ux?.probe(`step ${String(i)}`);
 
-    // DOM dialogs come first: in the browser they are the decision.
     if (await clickIf(page, /^FLIP COIN$/)) {
-      log(`${i} coin flip`);
+      log(`${String(i)} coin flip`);
       await page.waitForTimeout(2500);
       continue;
     }
     if (await riskyMoveConfirm(page, rec)) continue;
     if (await clickIf(page, /^RECEIVE$/)) {
-      log(`${i} chose receive`);
+      log(`${String(i)} chose receive`);
       continue;
     }
 
-    // A dialog click that misses (an overlay passing over it) is retried
-    // next step, like any other failed move
     const answered = await answerDialog(page, app, i, rec).catch((e: Error) => {
-      log(`${i} dialog failed: ${e.message.split("\n")[0]}`);
+      log(`${String(i)} dialog failed: ${String(e.message.split("\n")[0])}`);
       return true;
     });
     if (answered) continue;
 
     const next = await brainNext(page);
     if (next.over) {
-      log(`${i} GAME OVER`);
+      log(`${String(i)} GAME OVER`);
       break;
     }
     const key = JSON.stringify([
@@ -160,11 +148,11 @@ test("a full Sevens match, built and played through the UI", async ({
     const fresh = key !== lastLabel;
     lastLabel = key;
     if (stuck === 8) {
-      await shot(page, `stuck-${i}`);
+      await shot(page, `stuck-${String(i)}`);
       log(
-        `${i} STUCK on ${key} buttons=${JSON.stringify(await visibleButtons(page))}`
+        `${String(i)} STUCK on ${key} buttons=${JSON.stringify(await visibleButtons(page))}`
       );
-      // What the board thinks it is doing
+
       log(
         `   board ${await page.evaluate(() => {
           const scene = (
@@ -174,16 +162,16 @@ test("a full Sevens match, built and played through the UI", async ({
               };
             }
           ).game?.scene.getScene("GameScene");
-          const c = scene?.gameplayController as
+          const c = (scene)!?.["gameplayController"] as
             | Record<string, unknown>
             | undefined;
           return JSON.stringify(
             c && {
-              busy: c.isBusy,
-              selected: c.selectedPlayerId,
-              mode: c.currentActionMode,
-              step: c.currentStepId,
-              waypoints: c.waypoints,
+              busy: c["isBusy"],
+              selected: c["selectedPlayerId"],
+              mode: c["currentActionMode"],
+              step: c["currentStepId"],
+              waypoints: c["waypoints"],
             }
           );
         })}`
@@ -191,7 +179,7 @@ test("a full Sevens match, built and played through the UI", async ({
     }
     if (stuck >= 10) {
       fallbacks++;
-      log(`${i} FALLBACK end turn`);
+      log(`${String(i)} FALLBACK end turn`);
       if (fallbacks > 40) break;
       await page.keyboard.press("Escape");
       if (await visible(app.hud.endTurn()))
@@ -205,17 +193,17 @@ test("a full Sevens match, built and played through the UI", async ({
 
     const c = next.candidate;
     if (!c) {
-      log(`${i} no candidate ${key}`);
+      log(`${String(i)} no candidate ${key}`);
       await page.waitForTimeout(400);
       continue;
     }
-    if (fresh && process.env.DEBUG_COACH)
+    if (fresh && process.env["DEBUG_COACH"])
       log(`   debug ${JSON.stringify((next as { debug?: unknown }).debug)}`);
     if (fresh)
       log(
-        `${i} ${new Date().toISOString().slice(11, 19)} ${next.phase}/${next.subPhase ?? "-"} ${next.pending?.type ?? ""} :: ${c.label}`
+        `${String(i)} ${new Date().toISOString().slice(11, 19)} ${String(next.phase)}/${next.subPhase ?? "-"} ${next.pending?.type ?? ""} :: ${c.label}`
       );
-    if (c.commands[0]?.type === "kick-ball") {
+    if (fixtureValue(c.commands[0])?.["type"] === "kick-ball") {
       if (kicked) {
         await page.waitForTimeout(500);
         continue;
@@ -229,7 +217,7 @@ test("a full Sevens match, built and played through the UI", async ({
     } catch (e) {
       const msg = (e as Error).message;
       log(
-        `${i} perform failed: ${msg.split("\n")[0]} | ${msg
+        `${String(i)} perform failed: ${String(msg.split("\n")[0])} | ${msg
           .split("\n")
           .filter((l) => /intercept|waiting|subtree/.test(l))
           .slice(0, 3)
@@ -237,7 +225,7 @@ test("a full Sevens match, built and played through the UI", async ({
           .slice(0, 300)}`
       );
       log(`  buttons=${JSON.stringify(await visibleButtons(page))}`);
-      if (failures++ < 3) await shot(page, `fail-${i}`);
+      if (failures++ < 3) await shot(page, `fail-${String(i)}`);
     }
   }
 
@@ -248,19 +236,18 @@ test("a full Sevens match, built and played through the UI", async ({
     );
   await page.waitForTimeout(3000);
   await shot(page, "end");
-  log(`fallbacks=${fallbacks}`);
+  log(`fallbacks=${String(fallbacks)}`);
 
-  // ---- Full time: MVP, SPP, back to the menu ----
   for (let k = 0; k < 12; k++) {
     const buttons = await visibleButtons(page);
-    log(`post ${k} buttons=${JSON.stringify(buttons)}`);
+    log(`post ${String(k)} buttons=${JSON.stringify(buttons)}`);
     if (await clickIf(page, /^Roll MVP D6$/)) {
       await page.waitForTimeout(1200);
       continue;
     }
     if (await clickIf(page, /Confirm|Record/i)) {
       await page.waitForTimeout(1500);
-      await shot(page, `post-${k}`);
+      await shot(page, `post-${String(k)}`);
       continue;
     }
     if (await clickIf(page, /Leave|Continue|Return|Main Menu|Done/i)) {
@@ -272,7 +259,6 @@ test("a full Sevens match, built and played through the UI", async ({
   }
   await shot(page, "after-match");
 
-  // ---- Manage Team: the Sevens skill pick for each side ----
   for (const team of ["Reikland Reavers", "Gouged Eye"]) {
     await page.goto("/build-team");
     await page.waitForTimeout(800);
@@ -282,7 +268,6 @@ test("a full Sevens match, built and played through the UI", async ({
       const recipient = page.getByLabel("Skill Selection recipient");
       const named = page.getByLabel("Named skill");
       if (await visible(recipient)) {
-        // Panels list every team's pending pick; work on this team's one.
         const opts = await recipient
           .first()
           .locator("option")
@@ -292,7 +277,7 @@ test("a full Sevens match, built and played through the UI", async ({
           .getByLabel("Skill Selection category")
           .first()
           .selectOption({ index: 1 });
-        log(`  ${team} recipient ${opts[1]}`);
+        log(`  ${team} recipient ${String(opts[1])}`);
         await page
           .getByRole("button", { name: "Take a Primary skill" })
           .first()
@@ -306,8 +291,8 @@ test("a full Sevens match, built and played through the UI", async ({
           ", "
         );
         const pick = opts.find((o) => !done.includes(o)) ?? opts[0];
-        log(`  ${prompt.split("\n")[0]} -> ${pick}`);
-        await named.first().selectOption(pick);
+        log(`  ${String(prompt.split("\n")[0])} -> ${String(pick)}`);
+        await named.first().selectOption(fixtureValue(pick));
         await page.getByRole("button", { name: "Name skill" }).first().click();
       } else if (await clickIf(page, /^Roll D3$/)) {
         await page.waitForTimeout(800);
@@ -318,7 +303,7 @@ test("a full Sevens match, built and played through the UI", async ({
         log(`  drafted-player offer answered`);
       } else break;
       await page.waitForTimeout(500);
-      await shot(page, `develop-${team}-${k}`);
+      await shot(page, `develop-${team}-${String(k)}`);
     }
   }
   await page.goto("/build-team");

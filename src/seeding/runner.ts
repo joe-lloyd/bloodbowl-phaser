@@ -1,14 +1,3 @@
-/**
- * Development seed runner: build, validate, persist — idempotently.
- *
- * Refresh removes every record owned by the seed namespace (any version,
- * including exact-name legacy v1 " Sample" teams) and rebuilds from the
- * current fixture catalog. Ids are stable, so re-running converges on the
- * same records instead of duplicating them. Cleanup selects records by
- * seed ownership metadata only, so coach-created records are never
- * targeted.
- */
-
 import {
   readLocalCompetitions,
   removeLocalCompetitions,
@@ -41,22 +30,14 @@ export interface SeedCleanupResult {
   removedCompetitions: number;
 }
 
-/**
- * Build the full catalog, validate every invariant, then persist.
- * Throws SeedFixtureError / SeedValidationError before anything is written
- * when a fixture is illegal — the previous seed state is left untouched.
- */
 export function seedDevelopmentData(): SeedRunResult {
-  // Teams and competitions are written together: refuse before either is
-  // touched while the coach's team library is not loaded.
   assertTeamLibraryLoaded();
-  // 1. Build + decorate + validate (no writes yet).
+
   const teams = buildAllSeedTeams();
   decorateSeedTeams(teams);
   const competitions = buildSeedCompetitions(teams);
   assertValidDevelopmentSeedData(teams, competitions);
 
-  // 2. Replace every seed-owned record (any version) with the new catalog.
   const existing = loadTeams();
   const kept = existing.filter((team) => !isSeedCleanupTarget(team));
   const removedTeams = existing.length - kept.length;
@@ -67,8 +48,7 @@ export function seedDevelopmentData(): SeedRunResult {
     .filter((doc) => isSeedCompetitionCleanupTarget(doc))
     .map((doc) => doc.id);
   removeLocalCompetitions(removedCompetitionIds);
-  // Local documents (organizerUid null): saveCompetition persists them
-  // synchronously on the local path.
+
   for (const doc of competitions) {
     void saveCompetition(doc);
   }
@@ -82,11 +62,6 @@ export function seedDevelopmentData(): SeedRunResult {
   };
 }
 
-/**
- * Remove seed-owned records. With `targetVersion`, only that seed version
- * is removed; without it, every version of the namespace goes (including
- * legacy v1 " Sample" teams). Coach-created records are never selected.
- */
 export function cleanupDevelopmentSeedData(
   targetVersion?: number
 ): SeedCleanupResult {

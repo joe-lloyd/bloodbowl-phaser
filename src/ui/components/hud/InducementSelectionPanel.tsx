@@ -145,7 +145,9 @@ export function InducementSelectionPanel({
                   size="sm"
                   className="!w-9 !px-0"
                   disabled={busy || quantity === 0}
-                  onClick={() => setQuantity(entry.inducement, quantity - 1)}
+                  onClick={() => {
+                    setQuantity(entry.inducement, quantity - 1);
+                  }}
                 >
                   −
                 </HudButton>
@@ -164,7 +166,9 @@ export function InducementSelectionPanel({
                     quantity >= entry.maxCount ||
                     entry.price > budget - spent
                   }
-                  onClick={() => setQuantity(entry.inducement, quantity + 1)}
+                  onClick={() => {
+                    setQuantity(entry.inducement, quantity + 1);
+                  }}
                 >
                   +
                 </HudButton>

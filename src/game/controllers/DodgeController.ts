@@ -1,5 +1,5 @@
-import { Player, hasTackleZone } from "@/types/Player";
-import { DiceController } from "./DiceController";
+import { type Player, hasTackleZone } from "@/types/Player";
+import type { DiceController } from "./DiceController";
 
 export interface DodgeResult {
   success: boolean;
@@ -9,7 +9,10 @@ export interface DodgeResult {
 }
 
 export class DodgeController {
-  constructor(private diceController: DiceController) {}
+  private diceController: DiceController;
+  constructor(diceController: DiceController) {
+    this.diceController = diceController;
+  }
 
   public isDodgeRequired(
     from: { x: number; y: number },
@@ -39,21 +42,12 @@ export class DodgeController {
   }
 
   public attemptDodge(
-    player: Player,
-    to: { x: number; y: number },
-    opponents: Player[],
-    /** Skill triggers may have adjusted the modifiers (Diving Tackle) */
-    modifiersOverride?: number
-  ): DodgeResult {
+{ player,to,opponents,modifiersOverride }: { player: Player; to: { x: number; y: number; }; opponents: Player[]; modifiersOverride?: number; }  ): DodgeResult {
     const target = player.stats.AG;
     const modifiers =
       modifiersOverride ?? this.calculateDodgeModifiers(to, opponents);
     const result = this.diceController.rollSkillCheck(
-      "Dodge",
-      target,
-      modifiers,
-      player.playerName
-    );
+      { reason: "Dodge",target,modifier: modifiers,playerName: player.playerName }    );
 
     return {
       success: result.success,

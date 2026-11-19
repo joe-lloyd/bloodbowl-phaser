@@ -1,70 +1,28 @@
-import { BallMovementController } from "./BallMovementController";
-import { DiceController } from "./DiceController";
+import type { BallMovementController } from "./BallMovementController";
+import type { DiceController } from "./DiceController";
 import { GameConfig, isKickingTeamTerritory } from "@/config/GameConfig";
-import { KICKOFF_TABLE, KickoffEvent } from "../kickoff/kickoffEvents";
+import type { KickoffEvent } from "../kickoff/kickoffEvents";
+import { kickoffEventForRoll } from "../kickoff/kickoffEvents";
 
-/**
- * KickoffController
- *
- * Purpose: Encapsulates all logic specific to the Kickoff sequence.
- *
- * IN_SCOPE:
- * - rollKickoffEvent(): Handles the 2d6 Kickoff Table events.
- * - calculateKickDestination(): Uses BallMovementController.deviate to find where the ball lands.
- * - Determining if the ball lands out of bounds (Touchback logic).
- *
- * OUT_OF_SCOPE:
- * - Placing the ball on the pitch (Calls BallManager to update state).
- * - Managing weather effects (Queries WeatherManager, doesn't own it).
- */
 export class KickoffController {
-  private movementController: BallMovementController;
-  private diceController: DiceController;
+  private movementController: Pick<BallMovementController, "deviate">;
+  private diceController: Pick<DiceController, "roll2D6">;
 
-  constructor(
-    movementController: BallMovementController,
-    diceController: DiceController
-  );
-  /** Compatibility overload for callers using the controller's former shape. */
-  constructor(
-    eventBus: unknown,
-    movementController: BallMovementController,
-    weatherManager: unknown,
-    diceController: DiceController
-  );
-  constructor(
-    movementOrEventBus: BallMovementController | unknown,
-    diceOrMovement: DiceController | BallMovementController,
-    _weatherManager?: unknown,
-    legacyDiceController?: DiceController
-  ) {
-    if (legacyDiceController) {
-      this.movementController = diceOrMovement as BallMovementController;
-      this.diceController = legacyDiceController;
-    } else {
-      this.movementController = movementOrEventBus as BallMovementController;
-      this.diceController = diceOrMovement as DiceController;
-    }
+  constructor({ movementController, diceController }: {
+    movementController: Pick<BallMovementController, "deviate">;
+    diceController: Pick<DiceController, "roll2D6">;
+  }) {
+    this.movementController = movementController;
+    this.diceController = diceController;
   }
 
-  /**
-   * Roll the Blood Bowl Sevens table. State-changing resolution is owned by
-   * KickoffEventManager; this controller retains the pure table-roll seam.
-   */
   public rollKickoffEvent(): { roll: number; event: KickoffEvent } {
     const roll = this.diceController.roll2D6("Kickoff Event");
-    return { roll, event: KICKOFF_TABLE[roll] };
+    return { roll, event: kickoffEventForRoll(roll) };
   }
 
   public calculateKickDestination(
-    targetX: number,
-    targetY: number,
-    isTeam1Kicking: boolean,
-    /** The kicker has the Kick skill: deviate only D3 squares. */
-    useKickD3 = false,
-    /** The kicking team, whose dice the deviation is. */
-    kickingTeamId?: string
-  ): {
+{ targetX,targetY,isTeam1Kicking,useKickD3=false,kickingTeamId }: { targetX: number; targetY: number; isTeam1Kicking: boolean; useKickD3?: boolean; kickingTeamId?: string; }  ): {
     finalX: number;
     finalY: number;
     isTouchback: boolean;

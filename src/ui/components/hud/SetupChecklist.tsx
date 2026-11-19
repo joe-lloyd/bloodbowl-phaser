@@ -1,4 +1,4 @@
-import { SetupTeamStatus } from "../../../types/SetupTypes";
+import { type SetupTeamStatus } from "../../../types/SetupTypes";
 
 export function SetupChecklist({ status }: { status: SetupTeamStatus }) {
   const rules = status.restrictions.filter(

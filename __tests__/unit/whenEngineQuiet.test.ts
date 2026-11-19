@@ -4,15 +4,11 @@ import {
   whenEngineQuiet,
 } from "../../src/game/core/GameFlowManager";
 
-/**
- * Online lockstep waits for the engine's paced flow (a turnover, the
- * half-time sequence) to finish before it checks or runs a command.
- */
 describe("whenEngineQuiet", () => {
   it("returns at once when nothing is running", async () => {
     const start = Date.now();
     await whenEngineQuiet();
-    // Nothing to wait for; the bound is loose so a busy machine passes
+
     expect(Date.now() - start).toBeLessThan(500);
   });
 

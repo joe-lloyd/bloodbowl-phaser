@@ -1,6 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
@@ -29,16 +30,21 @@ const downedNeighbour: Scenario = {
 describe("a Block against a downed opponent", () => {
   it("is refused by the service and leaves the declaration free to become a Foul", async () => {
     const game = new HeadlessGame({ scenario: downedNeighbour, seed: 1 });
-    const blockerId = game.ctx.team1.players[0].id;
-    const victimId = game.ctx.team2.players[0].id;
+    const blockerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const victimId = fixtureValue(game.ctx.team2.players[0]).id;
 
     await game.execute({
       type: "declare-action",
       playerId: blockerId,
       action: "block",
     });
-    // The browser's block dialog rolls through the service directly
-    await game.ctx.gameService.rollBlockDice(blockerId, victimId, 1, true);
+
+    await game.ctx.gameService.rollBlockDice({
+      attackerId: blockerId,
+      defenderId: victimId,
+      numDice: 1,
+      isAttackerChoice: true,
+    });
     expect(game.snapshot().activePlayer?.committed).toBeFalsy();
 
     const foul = await game.execute({
@@ -69,7 +75,7 @@ describe("a Foul whose declaration a failed negatrait ended", () => {
     };
     for (let seed = 1; seed <= 300; seed++) {
       const game = new HeadlessGame({ scenario, seed });
-      const foulerId = game.ctx.team1.players[0].id;
+      const foulerId = fixtureValue(game.ctx.team1.players[0]).id;
       const declared = await game.execute({
         type: "declare-action",
         playerId: foulerId,
@@ -85,9 +91,9 @@ describe("a Foul whose declaration a failed negatrait ended", () => {
       expect(
         fouled.events.some((e) => e.name === GameEventNames.DiceRoll)
       ).toBe(false);
-      expect(fouled.snapshot.teams[1].players[0].status).toBe(
-        PlayerStatus.PRONE
-      );
+      expect(
+        fixtureValue(fixtureValue(fouled.snapshot.teams[1]).players[0]).status
+      ).toBe(PlayerStatus.PRONE);
       return;
     }
     throw new Error("no seed failed the Bone Head roll");
@@ -107,7 +113,7 @@ describe("a Foul on a downed opponent out of reach", () => {
       },
     };
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const foulerId = game.ctx.team1.players[0].id;
+    const foulerId = fixtureValue(game.ctx.team1.players[0]).id;
     await game.execute({
       type: "declare-action",
       playerId: foulerId,

@@ -1,42 +1,30 @@
-/**
- * Human-readable fixture authenticity for a scenario case.
- *
- * The sandbox shows this so a coach reading a scenario can tell, at a
- * glance, whether the players on the pitch are real roster entries or props:
- * which roster and position each placement is, which of the relevant skills
- * come from the roster, and — for anything granted — why a native fixture
- * could not be used.
- */
-
 import { RosterName } from "../../types/Team";
-import { SkillType } from "../../types/Skills";
-import { PlayerPlacement } from "../../types/Scenario";
-import { ScenarioCase } from "../scenarioCase/types";
+import { type PlayerPlacement } from "../../types/Scenario";
+import { type ScenarioCase } from "../scenarioCase/types";
 import {
-  GrantLegality,
+  type GrantLegality,
   grantLegality,
   nativeFixtures,
   nativeSkillsAt,
   positionAt,
 } from "./rosterFixtures";
 
-export interface PlacementDescription {
-  /** `team1:3` */
+interface PlacementDescription {
   ref: string;
   roster: RosterName;
   positionName: string;
-  /** Skills this position starts with. */
+
   nativeSkills: string[];
-  /** Skills the scenario added on top, with how they are justified. */
+
   grants: {
     skill: string;
     legality: GrantLegality;
-    /** Written isolation reason, when the case records one. */
+
     reason?: string;
-    /** The roster position that owns it natively, when one is fielded. */
+
     preferredNative?: string;
   }[];
-  /** Stat overrides the scenario pins, e.g. `AV 4`. */
+
   statOverrides: string[];
 }
 
@@ -44,7 +32,7 @@ export interface FixtureDescription {
   team1Roster: RosterName;
   team2Roster: RosterName;
   placements: PlacementDescription[];
-  /** True when nothing on the pitch needed an unexplained grant. */
+
   fullyAuthentic: boolean;
 }
 
@@ -56,9 +44,9 @@ function describePlacement(
   placement: PlayerPlacement,
   reasons: Map<string, string>
 ): PlacementDescription {
-  const ref = `${team}:${placement.playerIndex}`;
+  const ref = `${team}:${String(placement.playerIndex)}`;
   const granted = (placement.skills ?? []).map((entry) =>
-    typeof entry === "string" ? (entry as SkillType) : entry.type
+    typeof entry === "string" ? entry : entry.type
   );
 
   return {
@@ -68,30 +56,32 @@ function describePlacement(
     nativeSkills: nativeSkillsAt(roster, placement.playerIndex).map(String),
     grants: granted.map((skill) => {
       const legality = grantLegality(roster, placement.playerIndex, skill);
-      const native = legality === "illegal" ? nativeFixtures(skill)[0] : undefined;
+      const native =
+        legality === "illegal" ? nativeFixtures(skill)[0] : undefined;
+      const reason = reasons.get(`${ref}|${skill}`);
       return {
         skill: String(skill),
         legality,
-        ...(reasons.has(`${ref}|${skill}`)
-          ? { reason: reasons.get(`${ref}|${skill}`) }
-          : {}),
+        ...(reason === undefined ? {} : { reason }),
         ...(native
           ? { preferredNative: `${native.roster} ${native.positionName}` }
           : {}),
       };
     }),
     statOverrides: Object.entries(placement.stats ?? {}).map(
-      ([stat, value]) => `${stat} ${value}`
+      ([stat, value]) => `${stat} ${String(value)}`
     ),
   };
 }
 
-export function describeFixture(scenarioCase: ScenarioCase): FixtureDescription {
+export function describeFixture(
+  scenarioCase: ScenarioCase
+): FixtureDescription {
   const team1Roster = scenarioCase.setup.team1Roster ?? DEFAULT_ROSTER;
   const team2Roster = scenarioCase.setup.team2Roster ?? DEFAULT_ROSTER;
   const reasons = new Map(
     (scenarioCase.syntheticGrants ?? []).map((grant) => [
-      `${grant.player}|${grant.skill}`,
+      `${grant.player}|${String(grant.skill)}`,
       grant.reason,
     ])
   );

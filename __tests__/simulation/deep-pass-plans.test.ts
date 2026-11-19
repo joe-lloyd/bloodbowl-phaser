@@ -1,7 +1,4 @@
-/**
- * The two-step pass: on the setup turn one receiver goes deep, where the
- * carrier can throw to it next turn and it can then run the ball in.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -12,7 +9,6 @@ import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { createCoachRng } from "../../src/simulation/rng";
 import { PassController } from "../../src/game/controllers/PassController";
 
-/** Team 1 scores in column 19. */
 const END_ZONE = 19;
 
 const coach = createPlannerCoach();
@@ -25,13 +21,12 @@ async function step(subject: HeadlessGame) {
     point,
     rng: createCoachRng(1),
   });
-  const command = point.candidates[choice.index].commands[0];
+  const command = fixtureValue(point.candidates[choice.index]).commands[0];
   const result = await subject.execute(command);
   expect(result.ok, JSON.stringify(command)).toBe(true);
   return { command, note: choice.note };
 }
 
-/** Play team 1's turn out with the planner, noting each declaration. */
 async function playTurn(subject: HeadlessGame) {
   const declared: string[] = [];
   const commands: { type: string; playerId?: string }[] = [];
@@ -42,15 +37,11 @@ async function playTurn(subject: HeadlessGame) {
     const { command, note } = await step(subject);
     commands.push(command);
     if (command.type === "declare-action")
-      declared.push(`${command.playerId}: ${note}`);
+      declared.push(`${command.playerId}: ${String(note)}`);
   }
   return { declared, commands };
 }
 
-/**
- * Turn 3. The carrier, with a thrower's PA, has acted and stands deep in
- * our half, pressed by the defence. A catcher waits behind it.
- */
 async function setupTurn(
   carrier: Partial<PlayerPlacement> = {},
   more: PlayerPlacement[] = []
@@ -97,17 +88,16 @@ async function setupTurn(
   const [thrower] = subject.ctx.team1.players;
   await subject.execute({
     type: "declare-action",
-    playerId: thrower.id,
+    playerId: fixtureValue(thrower).id,
     action: "move",
   });
-  await subject.execute({ type: "end-activation", playerId: thrower.id });
+  await subject.execute({
+    type: "end-activation",
+    playerId: fixtureValue(thrower).id,
+  });
   return subject;
 }
 
-/**
- * Turn 4, the throwing turn. Two defenders mark the carrier, so keeping
- * the ball means dodging away; the catcher waits deep and unmarked.
- */
 function pressedTurn() {
   return new HeadlessGame({
     seed: 1,
@@ -155,12 +145,15 @@ describe("two-step pass", () => {
 
     const { declared } = await playTurn(subject);
 
-    expect(declared).toEqual([`${catcher.id}: moves to deep`]);
-    const at = catcher.gridPosition!;
+    expect(declared).toEqual([`${fixtureValue(catcher).id}: moves to deep`]);
+    const at = fixtureValue(fixtureValue(catcher).gridPosition);
     expect(END_ZONE - at.x).toBeGreaterThan(0);
     expect(END_ZONE - at.x).toBeLessThanOrEqual(8);
     expect(
-      PassController.rangeValue(thrower.gridPosition!, at)
+      PassController.rangeValue(
+        fixtureValue(fixtureValue(thrower).gridPosition),
+        at
+      )
     ).toBeLessThanOrEqual(2);
   });
 
@@ -178,18 +171,16 @@ describe("two-step pass", () => {
     const { declared } = await playTurn(subject);
 
     expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
-      `${first.id}: moves to deep`,
+      `${fixtureValue(first).id}: moves to deep`,
     ]);
     expect(declared.map((d) => d.split(":")[0])).toEqual([
-      first.id,
-      second.id,
-      third.id,
+      fixtureValue(first).id,
+      fixtureValue(second).id,
+      fixtureValue(third).id,
     ]);
   });
 
   it("sends the catcher who can get there, not the surer hands that cannot", async () => {
-    // A slower catcher with surer hands stands in the cage; every deep
-    // square is beyond its reach, Rushes and all.
     const slow: PlayerPlacement = {
       playerIndex: 2,
       x: 4,
@@ -203,17 +194,15 @@ describe("two-step pass", () => {
     const { declared } = await playTurn(subject);
 
     expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
-      `${catcher.id}: moves to deep`,
+      `${fixtureValue(catcher).id}: moves to deep`,
     ]);
     expect(declared.map((d) => d.split(":")[0])).toEqual([
-      catcher.id,
-      surer.id,
+      fixtureValue(catcher).id,
+      fixtureValue(surer).id,
     ]);
   });
 
   it("sends nobody else once the receiver's run opens a route for surer hands", async () => {
-    // A boxed-in catcher with surer hands at (5,0) has no way out until the
-    // first catcher leaves (6,1). Four team-mates have acted around them.
     const subject = new HeadlessGame({
       seed: 1,
       scenario: {
@@ -262,16 +251,19 @@ describe("two-step pass", () => {
     for (const p of [0, 3, 4, 5, 6].map((i) => players[i])) {
       await subject.execute({
         type: "declare-action",
-        playerId: p.id,
+        playerId: fixtureValue(p).id,
         action: "move",
       });
-      await subject.execute({ type: "end-activation", playerId: p.id });
+      await subject.execute({
+        type: "end-activation",
+        playerId: fixtureValue(p).id,
+      });
     }
 
     const { declared } = await playTurn(subject);
 
     expect(declared.filter((d) => d.endsWith("moves to deep"))).toEqual([
-      `${players[1].id}: moves to deep`,
+      `${fixtureValue(players[1]).id}: moves to deep`,
     ]);
   });
 
@@ -295,26 +287,26 @@ describe("two-step pass", () => {
     const subject = await setupTurn();
     const [thrower, catcher] = subject.ctx.team1.players;
     await playTurn(subject);
-    // The defence stays put: their turn ends at once.
+
     expect(subject.snapshot().activeTeamId).toBe("team2");
     expect((await subject.execute({ type: "end-turn" })).ok).toBe(true);
-    const deep = { ...catcher.gridPosition! };
+    const deep = { ...fixtureValue(fixtureValue(catcher).gridPosition) };
 
     const { declared, commands } = await playTurn(subject);
 
     expect(commands).toContainEqual(
       expect.objectContaining({
         type: "pass",
-        playerId: thrower.id,
+        playerId: fixtureValue(thrower).id,
         x: deep.x,
         y: deep.y,
       })
     );
     expect(declared).toEqual([
-      `${thrower.id}: throws a pass (Pass: 2+, Catch: 2+)`,
-      `${catcher.id}: runs in to score`,
+      `${fixtureValue(thrower).id}: throws a pass (Pass: 2+, Catch: 2+)`,
+      `${fixtureValue(catcher).id}: runs in to score`,
     ]);
-    expect(subject.ctx.gameService.getState().score?.team1).toBe(1);
+    expect(subject.ctx.gameService.getState().score["team1"]).toBe(1);
   });
 
   it("gets the ball out of a press to the deep catcher, who runs it in", async () => {
@@ -324,9 +316,9 @@ describe("two-step pass", () => {
     const { declared } = await playTurn(subject);
 
     expect(declared).toEqual([
-      `${thrower.id}: hands off (Dodge: 4+, Dodge: 3+, Rush: 2+, Catch: 2+)`,
-      `${catcher.id}: runs in to score`,
+      `${fixtureValue(thrower).id}: hands off (Dodge: 4+, Dodge: 3+, Rush: 2+, Catch: 2+)`,
+      `${fixtureValue(catcher).id}: runs in to score`,
     ]);
-    expect(subject.ctx.gameService.getState().score?.team1).toBe(1);
+    expect(subject.ctx.gameService.getState().score["team1"]).toBe(1);
   });
 });

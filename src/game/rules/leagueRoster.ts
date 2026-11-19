@@ -1,50 +1,23 @@
-/**
- * League roster carry-over between games (docs/SEVENS_RULES.md I4, I5, L2)
- * and the post-game Dedicated Fans roll (D7).
- *
- * The Sevens injury tables record Seriously Hurt as Miss Next Game and Dead
- * on the player. Before a league game the player due to miss it sits in the
- * Casualty box and the record is struck, so the team saved after the game
- * has them back. A dead player leaves the Team Draft List when the team is
- * next loaded. In a league fixture, a team left short of 7 players takes on
- * Journeymen. After the game each one who played waits on the coach's
- * hiring decision (journeymen.ts); the rest leave.
- */
-
 import {
   InjuryType,
-  Player,
+  type Player,
   PlayerStatus,
   PositionKeyWord,
   createPlayer,
 } from "../../types/Player";
-import { Team, isLeagueMode, isPendingRecruit } from "../../types/Team";
+import { type Team, isLeagueMode, isPendingRecruit } from "../../types/Team";
 import { SkillType, getSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { movePlayerToBox } from "./playerLocation";
 import { MAX_DEDICATED_FANS, MIN_DEDICATED_FANS } from "./sevensPrices";
 import { uniquePlayerId } from "./playerSlots";
 
-/** L2: Journeymen fill a league team up to this many available players. */
-export const JOURNEYMEN_FILL_TO = 7;
+const JOURNEYMEN_FILL_TO = 7;
 
-/** What kind of game a team is being readied for. */
 export interface GameReadiness {
-  /**
-   * A league fixture (`fixturePaysWinnings`). Only then does a short team
-   * take on Journeymen: exhibition play skips that step (Second Season:
-   * "This step can be skipped during exhibition play."), and tournament
-   * fixtures run no league pre-game sequence.
-   */
   leagueFixture?: boolean;
 }
 
-/**
- * Ready a league team at the start of a game, after every player has been
- * put in the Reserves: a dead player goes to the Casualty box, a Miss Next
- * Game player serves the game there, and in a league fixture Journeymen make
- * up the numbers.
- */
 export function readyForLeagueGame(
   team: Team,
   { leagueFixture = false }: GameReadiness = {}
@@ -63,10 +36,6 @@ export function readyForLeagueGame(
   if (leagueFixture) takeOnJourneymen(team);
 }
 
-/**
- * L2: while the team cannot field 7 players, add a Lineman Journeyman with
- * Loner (5+) to the Reserves. The roster's first Lineman position is used.
- */
 function takeOnJourneymen(team: Team): void {
   const template = getRosterByRosterName(team.rosterName).playerTemplates.find(
     (candidate) => candidate.keywords.includes(PositionKeyWord.LINEMAN)
@@ -83,10 +52,13 @@ function takeOnJourneymen(team: Team): void {
       template,
       team.id,
       number,
-      `Journeyman #${number}`
+      `Journeyman #${String(number)}`
     );
-    // A hired Journeyman keeps their id when their number changes
-    journeyman.id = uniquePlayerId(team, `${team.id}-journeyman-${number}`);
+
+    journeyman.id = uniquePlayerId(
+      team,
+      `${team.id}-journeyman-${String(number)}`
+    );
     journeyman.playerKind = "journeyman";
     journeyman.skills = [
       ...journeyman.skills.filter((skill) => skill.type !== SkillType.LONER),
@@ -106,12 +78,6 @@ function nextFreeNumber(team: Team): number {
 
 export type GameOutcome = "win" | "draw" | "loss";
 
-/**
- * Update Dedicated Fans in the post-game sequence (2025 rulebook p.99): a
- * win adds one on a D6 at or over the current fans, a loss takes one away
- * on a D6 under them, and a draw changes nothing. Sevens keeps league fans
- * between 1 and 5 (D7). Matched Play has no post-game, so nothing is rolled.
- */
 export function updateDedicatedFans(
   team: Team,
   outcome: GameOutcome,
@@ -135,18 +101,12 @@ export function updateDedicatedFans(
   );
 }
 
-/**
- * Whether a stored player is still on the team: a Journeyman stays only
- * while the coach decides whether to hire them, and a dead league player is
- * removed.
- */
 export function staysOnRoster(team: Team, player: Player): boolean {
   if (player.playerKind === "journeyman")
     return isPendingRecruit(team, player.id);
   return !isDeadLeaguePlayer(team, player);
 }
 
-/** A league player who has died, removed from the team after the match. */
 export function isDeadLeaguePlayer(team: Team, player: Player): boolean {
   return (
     isLeagueMode(team.advancementMode) &&

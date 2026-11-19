@@ -1,60 +1,44 @@
-/**
- * The engine adapter: runs a scenario case against `HeadlessGame`.
- *
- * Semantic steps are protocol commands carrying stable refs, so "adapting"
- * here is mostly resolving those refs and answering whatever decisions the
- * run raises — using the same `answerDecision` policy the rule catalog uses,
- * so a case behaves identically in both places.
- *
- * Everything the checkpoints and the diagnostic bundle need is recorded:
- * the initial snapshot, every response, every decision as it was raised,
- * every event in emission order, and the final snapshot.
- */
-
 import { HeadlessGame } from "../../headless/HeadlessGame";
 import {
-  HeadlessCommand,
-  CommandResponse,
-  PendingDecision,
+  type HeadlessCommand,
+  type CommandResponse,
+  type PendingDecision,
 } from "../../headless/protocol";
-import { Scenario } from "../../types/Scenario";
+import { type Scenario } from "../../types/Scenario";
 import { answerDecision } from "../../game/rules-lab/runner";
 import { resolveCommandReferences } from "../../game/rules-lab/references";
 import {
-  ObservedRun,
-  ScenarioCase,
-  SeededVariant,
-  SemanticStep,
+  type ObservedRun,
+  type ScenarioCase,
+  type SeededVariant,
+  type SemanticStep,
 } from "../scenarioCase/types";
 
-/** How many decision replies one step may need before we call it a loop. */
 const DECISION_GUARD = 25;
 
 export interface EngineObservedRun extends ObservedRun {
   layer: "engine";
-  /** The live game, for checkpoints that need more than the snapshot. */
+
   game: HeadlessGame;
-  /** Per-step log, in order, for the diagnostic bundle. */
+
   stepLog: EngineStepRecord[];
 }
 
-export interface EngineStepRecord {
+interface EngineStepRecord {
   index: number;
   intent: string;
   command: HeadlessCommand;
   ok: boolean;
   reason?: string;
-  /** Decision replies this step needed before it resolved. */
+
   replies: HeadlessCommand[];
 }
 
-/** Human-readable label for a step, used in logs and failure messages. */
-export function describeStep(step: SemanticStep, index: number): string {
-  return step.intent ?? `${step.command.type} (step ${index + 1})`;
+function describeStep(step: SemanticStep, index: number): string {
+  return step.intent ?? `${step.command.type} (step ${String(index + 1)})`;
 }
 
-/** Build the `Scenario` payload a case's setup represents. */
-export function scenarioForCase(
+function scenarioForCase(
   scenarioCase: ScenarioCase,
   variant: SeededVariant
 ): Scenario {
@@ -68,11 +52,6 @@ export function scenarioForCase(
   };
 }
 
-/**
- * Run one case/variant pair. Never throws for a rejected command — a case
- * may legitimately assert that a command is refused — but does throw when a
- * step's decisions fail to settle, since that is a harness bug, not a result.
- */
 export async function runCaseInEngine(
   scenarioCase: ScenarioCase,
   variant: SeededVariant
@@ -122,14 +101,13 @@ export async function runCaseInEngine(
       if (guard++ >= DECISION_GUARD) {
         throw new Error(
           `${scenarioCase.id}/${variant.id}: step '${record.intent}' still had a ` +
-            `'${response.pendingDecision.type}' decision after ${DECISION_GUARD} replies — ` +
+            `'${response.pendingDecision.type}' decision after ${String(DECISION_GUARD)} replies — ` +
             `the decision policy is not converging`
         );
       }
       decisions.push(response.pendingDecision);
       const reply = answerDecision(response.pendingDecision, game, policy);
-      // A policy returning null deliberately leaves the decision pending; the
-      // case's checkpoints assert on that state, so stop the script here.
+
       if (reply === null) break steps;
       record.replies.push(reply);
       response = await execute(reply);

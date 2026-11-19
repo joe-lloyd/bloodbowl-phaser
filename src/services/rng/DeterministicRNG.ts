@@ -5,10 +5,6 @@ export class DeterministicRNG {
     this.seed = seed;
   }
 
-  /**
-   * Generates a pseudo-random float in the range [0, 1).
-   * USAGE: mulberry32 algorithm
-   */
   public next(): number {
     let t = (this.seed += 0x6d2b79f5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -16,21 +12,14 @@ export class DeterministicRNG {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
 
-  /**
-   * Generates a pseudo-random integer between min and max (inclusive).
-   */
   public nextInt(min: number, max: number): number {
     return Math.floor(this.next() * (max - min + 1)) + min;
   }
 
-  /**
-   * Returns current internal seed state.
-   */
   public getSeed(): number {
     return this.seed;
   }
 
-  /** Restore the exact running state captured by getSeed(). */
   public setSeed(seed: number): void {
     if (!Number.isFinite(seed)) {
       throw new Error("rng-state-must-be-a-finite-number");

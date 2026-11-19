@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
@@ -44,8 +45,8 @@ function blockGame(
     return game.execute(command);
   };
   const [attackerId, defenderId] = [
-    game.ctx.team1.players[0].id,
-    game.ctx.team2.players[0].id,
+    fixtureValue(game.ctx.team1.players[0]).id,
+    fixtureValue(game.ctx.team2.players[0]).id,
   ];
   return { game, tallies, run, attackerId, defenderId };
 }

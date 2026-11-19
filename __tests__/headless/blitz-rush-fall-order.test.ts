@@ -1,8 +1,9 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { forceDice } from "../utils/test-helpers";
 
 const scenario: Scenario = {
@@ -21,26 +22,28 @@ const scenario: Scenario = {
   },
 };
 
-/** Declare the Blitz with no movement left, so its attack needs a Rush. */
 async function blitzOutOfMovement(stab: boolean) {
   const game = new HeadlessGame({ scenario, seed: 4 });
   game.ctx.team1.rerolls = 0;
   const attacker = game.ctx.team1.players[0];
   await game.execute({
     type: "declare-action",
-    playerId: attacker.id,
+    playerId: fixtureValue(attacker).id,
     action: "blitz",
     ...(stab ? { blockReplacement: "stab" } : {}),
   });
   game.ctx.gameService
     .getState()
-    .turn.movementUsed.set(attacker.id, attacker.stats.MA);
-  // The Rush fails on a 1; every later die is a 3.
+    .turn.movementUsed.set(
+      fixtureValue(attacker).id,
+      fixtureValue(attacker).stats.MA
+    );
+
   forceDice(game.ctx.rng, [1, 3, 3, 3, 3, 3, 3, 3]);
   return {
     game,
-    attackerId: attacker.id,
-    targetId: game.ctx.team2.players[0].id,
+    attackerId: fixtureValue(attacker).id,
+    targetId: fixtureValue(game.ctx.team2.players[0]).id,
   };
 }
 
@@ -58,7 +61,6 @@ async function eventNamesUntilSettled(
     .map((event) => event.name);
 }
 
-/** The fall, the dropped ball, and the Turnover that ends the turn. */
 const FALL_AND_TURNOVER = [
   "ui:logEntry",
   "turnover",
@@ -98,7 +100,12 @@ describe("a failed Rush for a Blitz's attack", () => {
   it("knocks a blocker down and cancels the block dice", async () => {
     const { game, attackerId, targetId } = await blitzOutOfMovement(false);
     const names = await eventNamesUntilSettled(game, () =>
-      game.ctx.gameService.rollBlockDice(attackerId, targetId, 1, true)
+      game.ctx.gameService.rollBlockDice({
+        attackerId: attackerId,
+        defenderId: targetId,
+        numDice: 1,
+        isAttackerChoice: true,
+      })
     );
     expect(names).toEqual([
       "turnDataUpdated",

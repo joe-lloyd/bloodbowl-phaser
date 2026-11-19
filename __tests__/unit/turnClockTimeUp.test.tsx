@@ -1,12 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-/**
- * When a turn runs out, both coaches see Time up, for long enough to read
- * it, and only then the next team's turn banner. The waiting coach's screen
- * hears the turn end from the other coach's command.
- */
 
 vi.mock("../../src/firebase/lobby", async (importOriginal) => {
   const actual =
@@ -38,10 +33,10 @@ vi.mock("../../src/services/ServiceContainer", () => ({
 
 import { TurnClock } from "../../src/ui/pages/TurnClock";
 import { EventBus } from "../../src/services/EventBus";
-import { GameEventNames, MatchMoment } from "../../src/types/events";
-import { LobbyDoc } from "../../src/firebase/lobby";
-import { OnlineMatch } from "../../src/network/OnlineMatch";
-import { AuthUser } from "../../src/firebase/auth";
+import { GameEventNames, type MatchMoment } from "../../src/types/events";
+import { type LobbyDoc } from "../../src/firebase/lobby";
+import { type OnlineMatch } from "../../src/network/OnlineMatch";
+import { type AuthUser } from "../../src/firebase/auth";
 import { MomentQueue } from "../../src/game/presentation/momentQueue";
 
 const lobbyAt = (deadline: number): LobbyDoc =>
@@ -87,7 +82,7 @@ describe("Time up when a turn runs out", () => {
       vi.useFakeTimers();
       const eventBus = new EventBus();
       const queue = new MomentQueue(eventBus);
-      const shown: { text: string; subtitle?: string; at: number }[] = [];
+      const shown: { text: string; subtitle?: string | undefined; at: number }[] = [];
       eventBus.on(
         GameEventNames.UI_PresentMoment,
         (moment: MatchMoment | null) =>
@@ -101,7 +96,7 @@ describe("Time up when a turn runs out", () => {
       const container = document.createElement("div");
       document.body.appendChild(container);
       const root = createRoot(container);
-      await act(async () =>
+      await act(async () => {
         root.render(
           <TurnClock
             code="ABC123"
@@ -110,10 +105,9 @@ describe("Time up when a turn runs out", () => {
             eventBus={eventBus}
             user={{ uid: `${myTeamId}-uid` } as AuthUser}
           />
-        )
-      );
+        );
+      });
 
-      // The turn ends on the clock, and the engine starts the next one
       await act(async () => {
         eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" });
         state.turn = { teamId: "guest-team", turnNumber: 3, isHalf2: false };
@@ -129,12 +123,14 @@ describe("Time up when a turn runs out", () => {
         "Time up",
         "Guest Team's Turn",
       ]);
-      expect(banners[1].at - banners[0].at).toBeGreaterThanOrEqual(2000);
-      // Round 2, 6:34: the card did not say whose time ran out
-      expect(banners[0].subtitle).toBe("Reikland Reavers' turn ended");
+      expect(fixtureValue(banners[1]).at - fixtureValue(banners[0]).at).toBeGreaterThanOrEqual(2000);
+
+      expect(fixtureValue(banners[0]).subtitle).toBe("Reikland Reavers' turn ended");
 
       queue.dispose();
-      await act(async () => root.unmount());
+      await act(async () => {
+        root.unmount();
+      });
       container.remove();
     });
   }

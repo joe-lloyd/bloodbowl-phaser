@@ -1,12 +1,10 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 
-/**
- * A ball carrier who rolls a Skull goes down and drops the ball. Found by
- * the simulation harness: the attacker lay on the ball and kept it.
- */
 const scenario: Scenario = {
   id: "skull-drops-carried-ball",
   name: "Skull on a ball carrier",
@@ -27,14 +25,17 @@ const scenario: Scenario = {
   },
 };
 
-/** Seed 7 rolls a single Skull; committed, never searched. */
 const SKULL_SEED = 7;
 
 describe("a Skull on a ball carrier", () => {
   it("knocks the carrier down and bounces the ball off their square", async () => {
     const game = new HeadlessGame({ scenario, seed: SKULL_SEED });
-    const carrier = game.snapshot().teams[0].players[0].id;
-    const defender = game.snapshot().teams[1].players[0].id;
+    const carrier = fixtureValue(
+      fixtureValue(game.snapshot().teams[0]).players[0]
+    ).id;
+    const defender = fixtureValue(
+      fixtureValue(game.snapshot().teams[1]).players[0]
+    ).id;
 
     await game.execute({
       type: "declare-action",
@@ -56,10 +57,9 @@ describe("a Skull on a ball carrier", () => {
       index: 0,
     });
 
-    // Knocked Down: the Armour Roll, then the ball Bounces (p.44)
     const rolls = response.events
       .filter((e) => e.name === "diceRoll")
-      .map((e) => (e.data as { rollType: string }).rollType);
+      .map((e) => z.object({ rollType: z.string() }).parse(e.data).rollType);
     const armour = rolls.indexOf("Armour Roll (Human Lineman #1)");
     const bounce = rolls.indexOf("Bounce Direction");
     expect(armour).toBeGreaterThanOrEqual(0);
@@ -67,8 +67,8 @@ describe("a Skull on a ball carrier", () => {
     expect(armour).toBeLessThan(bounce);
     expect(response.snapshot.ballPosition).toEqual({ x: 9, y: 6 });
     expect(response.snapshot.activeTeamId).toBe("team2");
-    const fallen = response.snapshot.teams[0].players[0];
-    expect(fallen.position).toEqual({ x: 10, y: 5 });
-    expect(fallen.status).not.toBe("Active");
+    const fallen = fixtureValue(response.snapshot.teams[0]).players[0];
+    expect(fixtureValue(fallen).position).toEqual({ x: 10, y: 5 });
+    expect(fixtureValue(fallen).status).not.toBe("Active");
   });
 });

@@ -1,26 +1,29 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
 
-/**
- * Errata (May 2026, rulebook p.122/125): "If an Active Trait allows a player
- * to declare a Special Action, then they may still declare the Special
- * Action whilst Prone, so long as the Special Action allows them to first
- * make a free Move Action." The designers' note names Punt and Hypnotic
- * Gaze. Both were refused unless the player was Standing.
- */
-function scenario(skill: SkillType, opts: { ball?: { x: number; y: number } }): Scenario {
+function scenario(
+  skill: SkillType,
+  opts: { ball?: { x: number; y: number } }
+): Scenario {
   return {
     id: "prone-special-actions",
     name: "A Prone player declares a move-first Special Action",
     description: "a Prone player two squares from an opponent",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 5, skills: [skill], status: PlayerStatus.PRONE },
-        // Still to act, so one activation does not end the turn.
+        {
+          playerIndex: 0,
+          x: 10,
+          y: 5,
+          skills: [skill],
+          status: PlayerStatus.PRONE,
+        },
+
         { playerIndex: 1, x: 2, y: 9 },
       ],
       team2Placements: [{ playerIndex: 0, x: 12, y: 5 }],
@@ -35,7 +38,7 @@ function scenario(skill: SkillType, opts: { ball?: { x: number; y: number } }): 
 async function legalFor(game: HeadlessGame) {
   const legal = await game.execute({ type: "legal-actions" });
   return legal.legalActions?.players.find(
-    (p) => p.playerId === game.ctx.team1.players[0].id
+    (p) => p.playerId === fixtureValue(game.ctx.team1.players[0]).id
   )?.actions;
 }
 
@@ -45,8 +48,8 @@ describe("a Prone player with Hypnotic Gaze", () => {
       scenario: scenario(SkillType.HYPNOTIC_GAZE, {}),
       seed: 2,
     });
-    const gazerId = game.ctx.team1.players[0].id;
-    const targetId = game.ctx.team2.players[0].id;
+    const gazerId = fixtureValue(game.ctx.team1.players[0]).id;
+    const targetId = fixtureValue(game.ctx.team2.players[0]).id;
     expect(await legalFor(game)).toContain("gaze");
 
     const declared = await game.execute({
@@ -55,9 +58,15 @@ describe("a Prone player with Hypnotic Gaze", () => {
       action: "gaze",
     });
     expect(declared.ok).toBe(true);
-    await game.execute({ type: "move", playerId: gazerId, path: [{ x: 11, y: 5 }] });
-    expect(game.ctx.team1.players[0].status).toBe(PlayerStatus.ACTIVE);
-    // Standing up (3) and one square (1) of a Human Lineman's MA 6.
+    await game.execute({
+      type: "move",
+      playerId: gazerId,
+      path: [{ x: 11, y: 5 }],
+    });
+    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+      PlayerStatus.ACTIVE
+    );
+
     expect(game.ctx.gameService.getMovementUsed(gazerId)).toBe(4);
 
     const gazed = await game.execute({
@@ -67,9 +76,9 @@ describe("a Prone player with Hypnotic Gaze", () => {
       defenderId: targetId,
     });
     expect(gazed.ok).toBe(true);
-    expect(game.ctx.team2.players[0].conditions?.map((c) => c.type)).toEqual([
-      PlayerCondition.DISTRACTED,
-    ]);
+    expect(
+      fixtureValue(game.ctx.team2.players[0]).conditions?.map((c) => c.type)
+    ).toEqual([PlayerCondition.DISTRACTED]);
   });
 });
 
@@ -83,7 +92,7 @@ describe("a Prone player with Punt", () => {
 
     const declared = await game.execute({
       type: "declare-action",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       action: "punt",
     });
     expect(declared.ok).toBe(true);
@@ -106,7 +115,7 @@ describe("a Prone player with Stab", () => {
 
     const declared = await game.execute({
       type: "declare-action",
-      playerId: game.ctx.team1.players[0].id,
+      playerId: fixtureValue(game.ctx.team1.players[0]).id,
       action: "stab",
     });
     expect(declared.ok).toBe(false);

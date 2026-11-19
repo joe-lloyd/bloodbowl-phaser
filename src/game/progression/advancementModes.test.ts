@@ -1,13 +1,18 @@
+import { fixtureValue } from "../../testing/fixtureValue";
 import { describe, expect, it } from "vitest";
-import { Player, PlayerStatus, PlayerStats } from "../../types/Player";
+import {
+  type Player,
+  PlayerStatus,
+  type PlayerStats,
+} from "../../types/Player";
 import { getSkill, SkillCategory, SkillType } from "../../types/Skills";
 import {
   createTeam,
   lockAdvancementMode,
-  PendingDevelopment,
+  type PendingDevelopment,
   RosterName,
   setAdvancementMode,
-  Team,
+  type Team,
 } from "../../types/Team";
 import {
   allocateMatchedPlaySkill,
@@ -54,11 +59,14 @@ function player(id: string, teamId = "team-1"): Player {
   };
 }
 
-/** Test data: a player who already learned `skill` in an earlier game. */
-function withAddedSkill(target: Player, skill: SkillType, value: number): Player {
+function withAddedSkill(
+  target: Player,
+  skill: SkillType,
+  value: number
+): Player {
   target.skills.push(getSkill(skill));
-  target.advancements!.push({
-    id: `adv-${target.advancements!.length + 1}`,
+  fixtureValue(target.advancements).push({
+    id: `adv-${String(fixtureValue(target.advancements).length + 1)}`,
     type: "primary-skill",
     name: skill,
     sppCost: 0,
@@ -89,8 +97,9 @@ function fakeRng(rolls: number[]) {
   let index = 0;
   return {
     rollDie: () => {
-      if (index >= rolls.length) throw new Error("fakeRng ran out of rolls");
-      return rolls[index++];
+      const roll = rolls[index++];
+      if (roll === undefined) throw new Error("fakeRng ran out of rolls");
+      return roll;
     },
   };
 }
@@ -110,7 +119,7 @@ function onlySelection(team: Team): SkillSelectionEntry {
       entry.kind === "sevens-skill-selection"
   );
   expect(entries).toHaveLength(1);
-  return entries[0];
+  return fixtureValue(entries[0]);
 }
 
 function draftOffers(team: Team): DraftOfferEntry[] {
@@ -123,11 +132,13 @@ describe("advancement mode immutability", () => {
   it("locks the mode once finalized and refuses conversion", () => {
     const team = teamOf([]);
     lockAdvancementMode(team);
-    expect(() => setAdvancementMode(team, "advanced-league")).toThrow(
-      /immutable/
-    );
-    // Re-affirming the same mode is fine.
-    expect(() => setAdvancementMode(team, "sevens-skill-selection")).not.toThrow();
+    expect(() => {
+      setAdvancementMode(team, "advanced-league");
+    }).toThrow(/immutable/);
+
+    expect(() => {
+      setAdvancementMode(team, "sevens-skill-selection");
+    }).not.toThrow();
   });
 
   it("allows free changes before the team is locked", () => {
@@ -153,8 +164,20 @@ describe("Matched Play skill points (MP5, MP6)", () => {
     const p1 = player("p1");
     const p2 = player("p2");
     const team = teamOf([p1, p2], 0, "matched-play");
-    allocateMatchedPlaySkill(team, { tier: 3 }, p1, SkillType.TACKLE, "primary");
-    allocateMatchedPlaySkill(team, { tier: 3 }, p2, SkillType.GRAB, "secondary");
+    allocateMatchedPlaySkill(
+      team,
+      { tier: 3 },
+      p1,
+      SkillType.TACKLE,
+      "primary"
+    );
+    allocateMatchedPlaySkill(
+      team,
+      { tier: 3 },
+      p2,
+      SkillType.GRAB,
+      "secondary"
+    );
     expect(matchedPlaySkillStatus(team, { tier: 3 })).toEqual({
       points: 3,
       spent: 3,
@@ -171,7 +194,13 @@ describe("Matched Play skill points (MP5, MP6)", () => {
     const p1 = player("p1");
     const p2 = player("p2");
     const team = teamOf([p1, p2], 0, "matched-play");
-    allocateMatchedPlaySkill(team, { tier: 1 }, p1, SkillType.TACKLE, "primary");
+    allocateMatchedPlaySkill(
+      team,
+      { tier: 1 },
+      p1,
+      SkillType.TACKLE,
+      "primary"
+    );
     expect(() =>
       allocateMatchedPlaySkill(team, { tier: 1 }, p2, SkillType.KICK, "primary")
     ).toThrow("Not enough Skill Points: Kick costs 1 and 0 remain.");
@@ -181,16 +210,34 @@ describe("Matched Play skill points (MP5, MP6)", () => {
     const p1 = player("p1");
     const p2 = player("p2");
     const team = teamOf([p1, p2], 0, "matched-play");
-    allocateMatchedPlaySkill(team, { tier: 4 }, p1, SkillType.GRAB, "secondary");
+    allocateMatchedPlaySkill(
+      team,
+      { tier: 4 },
+      p1,
+      SkillType.GRAB,
+      "secondary"
+    );
     expect(() =>
-      allocateMatchedPlaySkill(team, { tier: 4 }, p2, SkillType.BRAWLER, "secondary")
+      allocateMatchedPlaySkill(
+        team,
+        { tier: 4 },
+        p2,
+        SkillType.BRAWLER,
+        "secondary"
+      )
     ).toThrow("A team may take only one Secondary skill.");
   });
 
   it("allows only one added skill per player", () => {
     const p1 = player("p1");
     const team = teamOf([p1], 0, "matched-play");
-    allocateMatchedPlaySkill(team, { tier: 4 }, p1, SkillType.TACKLE, "primary");
+    allocateMatchedPlaySkill(
+      team,
+      { tier: 4 },
+      p1,
+      SkillType.TACKLE,
+      "primary"
+    );
     expect(() =>
       allocateMatchedPlaySkill(team, { tier: 4 }, p1, SkillType.KICK, "primary")
     ).toThrow("This player already has a Matched Play skill.");
@@ -202,7 +249,13 @@ describe("Matched Play skill points (MP5, MP6)", () => {
     allocateMatchedPlaySkill(team, { tier: 4 }, p1, SkillType.BLOCK, "primary");
     allocateMatchedPlaySkill(team, { tier: 4 }, p2, SkillType.DODGE, "primary");
     expect(() =>
-      allocateMatchedPlaySkill(team, { tier: 4 }, p3, SkillType.GUARD, "secondary")
+      allocateMatchedPlaySkill(
+        team,
+        { tier: 4 },
+        p3,
+        SkillType.GUARD,
+        "secondary"
+      )
     ).toThrow("A team may take at most two Elite skills.");
   });
 });
@@ -212,10 +265,10 @@ describe("Sevens Skill Selection eligibility", () => {
     const players = ["ok", "ko", "reserve", "hurt", "dead"].map((id) =>
       player(id)
     );
-    players[1].status = PlayerStatus.KO;
-    players[2].status = PlayerStatus.RESERVE;
-    players[3].status = PlayerStatus.INJURED;
-    players[4].status = PlayerStatus.DEAD;
+    fixtureValue(players[1]).status = PlayerStatus.KO;
+    fixtureValue(players[2]).status = PlayerStatus.RESERVE;
+    fixtureValue(players[3]).status = PlayerStatus.INJURED;
+    fixtureValue(players[4]).status = PlayerStatus.DEAD;
     expect(eligibleSkillSelectionPlayers(teamOf(players))).toEqual([
       "ok",
       "ko",
@@ -281,7 +334,6 @@ describe("Sevens Skill Selection, Primary route (A2, A4, A5)", () => {
       named: [SkillType.BLOCK, SkillType.KICK, SkillType.TACKLE],
     });
 
-    // D3 = 2 picks the opponent's skill; the Draft D6 = 6 keeps p1.
     const result = rollPrimarySelection(team, entry, fakeRng([2, 6]));
     expect(result.skill).toBe(SkillType.KICK);
     expect(result.d3).toBe(2);
@@ -308,16 +360,16 @@ describe("Sevens Skill Selection, Primary route (A2, A4, A5)", () => {
     createPendingSkillSelection(team, "match-1", ["p1"]);
     const entry = onlySelection(team);
     startPrimarySelection(team, entry, "p1", SkillCategory.GENERAL);
-    expect(() =>
-      nominatePrimarySkill(team, entry, "opponent", SkillType.BLOCK)
-    ).toThrow("It is the coach's turn to name a skill.");
-    expect(() =>
-      nominatePrimarySkill(team, entry, "coach", SkillType.PRO)
-    ).toThrow("Pro cannot be named for p1.");
+    expect(() => {
+      nominatePrimarySkill(team, entry, "opponent", SkillType.BLOCK);
+    }).toThrow("It is the coach's turn to name a skill.");
+    expect(() => {
+      nominatePrimarySkill(team, entry, "coach", SkillType.PRO);
+    }).toThrow("Pro cannot be named for p1.");
     nominatePrimarySkill(team, entry, "coach", SkillType.BLOCK);
-    expect(() =>
-      nominatePrimarySkill(team, entry, "opponent", SkillType.BLOCK)
-    ).toThrow("Block cannot be named for p1.");
+    expect(() => {
+      nominatePrimarySkill(team, entry, "opponent", SkillType.BLOCK);
+    }).toThrow("Block cannot be named for p1.");
   });
 
   it("refuses a Primary route for a player who ended the game as a Casualty", () => {
@@ -325,9 +377,14 @@ describe("Sevens Skill Selection, Primary route (A2, A4, A5)", () => {
     hurt.status = PlayerStatus.INJURED;
     const team = teamOf([player("p1"), hurt]);
     createPendingSkillSelection(team, "match-1", ["p1"]);
-    expect(() =>
-      startPrimarySelection(team, onlySelection(team), "hurt", SkillCategory.GENERAL)
-    ).toThrow("hurt cannot gain a skill this game.");
+    expect(() => {
+      startPrimarySelection(
+        team,
+        onlySelection(team),
+        "hurt",
+        SkillCategory.GENERAL
+      );
+    }).toThrow("hurt cannot gain a skill this game.");
   });
 });
 
@@ -346,7 +403,12 @@ describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
       categories: [SkillCategory.STRENGTH],
     });
 
-    rollSecondaryCandidates(team, entry, SkillCategory.STRENGTH, fakeRng([1, 6, 4, 2]));
+    rollSecondaryCandidates(
+      team,
+      entry,
+      SkillCategory.STRENGTH,
+      fakeRng([1, 6, 4, 2])
+    );
     expect(skillSelectionDecision(team, entry)).toEqual({
       type: "choose-secondary-skill",
       playerId: "p2",
@@ -369,7 +431,12 @@ describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
     createPendingSkillSelection(team, "match-1", ["p1"]);
     const entry = onlySelection(team);
     startSecondarySelection(team, entry, fakeRng([1]));
-    rollSecondaryCandidates(team, entry, SkillCategory.STRENGTH, fakeRng([1, 6, 4, 2]));
+    rollSecondaryCandidates(
+      team,
+      entry,
+      SkillCategory.STRENGTH,
+      fakeRng([1, 6, 4, 2])
+    );
     chooseSecondarySkill(team, entry, SkillType.MIGHTY_BLOW, fakeRng([6]));
     expect(p1.teamValue).toBe(40_000);
   });
@@ -381,8 +448,13 @@ describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
     createPendingSkillSelection(team, "match-1", ["p1"]);
     const entry = onlySelection(team);
     startSecondarySelection(team, entry, fakeRng([1]));
-    // General 1,6 is Pro: re-rolled to 1,1 Block. Then 4,2 Sure Hands.
-    rollSecondaryCandidates(team, entry, SkillCategory.GENERAL, fakeRng([1, 6, 1, 1, 4, 3]));
+
+    rollSecondaryCandidates(
+      team,
+      entry,
+      SkillCategory.GENERAL,
+      fakeRng([1, 6, 1, 1, 4, 3])
+    );
     expect(skillSelectionDecision(team, entry)).toMatchObject({
       candidates: [
         { skill: SkillType.BLOCK, firstD6: 1, secondD6: 1 },
@@ -398,8 +470,7 @@ describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
     createPendingSkillSelection(team, "match-1", ["p1"]);
     const entry = onlySelection(team);
     startSecondarySelection(team, entry, fakeRng([1]));
-    // Strength 1,6 is Guard (owned) and 1,5 Grab (clashes with Frenzy):
-    // both rolled again, to 1,1 Arm Bar. Then 4,2 Mighty Blow.
+
     rollSecondaryCandidates(
       team,
       entry,
@@ -438,8 +509,8 @@ describe("Drafted Players (A6)", () => {
       addedSkillCount: 1,
     });
 
-    keepDraftedPlayer(team, offer);
-    expect(team.treasury).toBe(40_000); // paid 50,000 cost + 10,000 skill
+    keepDraftedPlayer(team, fixtureValue(offer));
+    expect(team.treasury).toBe(40_000);
     expect(p1.teamValue).toBe(25_000);
     expect(team.players).toEqual([p1]);
     expect(team.pendingDevelopment).toEqual([]);
@@ -449,18 +520,18 @@ describe("Drafted Players (A6)", () => {
     const p1 = withAddedSkill(player("p1"), SkillType.BLOCK, 10_000);
     const team = teamOf([p1], 100_000);
     rollDraftOffers(team, fakeRng([1]), "m1");
-    releaseDraftedPlayer(team, draftOffers(team)[0]);
+    releaseDraftedPlayer(team, fixtureValue(draftOffers(team)[0]));
     expect(team.players).toEqual([]);
     expect(team.treasury).toBe(100_000);
     expect(team.pendingDevelopment).toEqual([]);
     expect(team.draftHistory).toHaveLength(1);
-    expect(team.draftHistory![0]).toMatchObject({
+    expect(fixtureValue(team.draftHistory)[0]).toMatchObject({
       playerId: "p1",
       roll: 1,
       addedSkillCount: 1,
       matchId: "m1",
     });
-    expect(team.draftHistory![0].player.skills.map((s) => s.type)).toEqual([
+    expect(fixtureValue(fixtureValue(team.draftHistory)[0]).player.skills.map((s) => s.type)).toEqual([
       SkillType.BLOCK,
     ]);
   });
@@ -481,10 +552,10 @@ describe("Drafted Players (A6)", () => {
     const team = teamOf([p1, p2], 100_000);
     rollDraftOffers(team, fakeRng([1, 1]), "m1");
     const [first, second] = draftOffers(team);
-    keepDraftedPlayer(team, first);
-    expect(() => keepDraftedPlayer(team, second)).toThrow(
-      "The Treasury has 40,000 but keeping p2 costs 60,000."
-    );
+    keepDraftedPlayer(team, fixtureValue(first));
+    expect(() => {
+      keepDraftedPlayer(team, fixtureValue(second));
+    }).toThrow("The Treasury has 40,000 but keeping p2 costs 60,000.");
   });
 
   it("never rolls for a player with no added skills or who died", () => {
@@ -503,10 +574,22 @@ describe("Drafted Players (A6)", () => {
     createPendingSkillSelection(team, "match-1", ["p1"]);
     const entry = onlySelection(team);
     startSecondarySelection(team, entry, fakeRng([1]));
-    rollSecondaryCandidates(team, entry, SkillCategory.STRENGTH, fakeRng([1, 6, 4, 2]));
-    // Two added skills now; D6 = 2 is an offer the empty Treasury cannot pay.
-    const result = chooseSecondarySkill(team, entry, SkillType.GUARD, fakeRng([2]));
-    expect(result.draft.released.map((record) => record.playerId)).toEqual(["p1"]);
+    rollSecondaryCandidates(
+      team,
+      entry,
+      SkillCategory.STRENGTH,
+      fakeRng([1, 6, 4, 2])
+    );
+
+    const result = chooseSecondarySkill(
+      team,
+      entry,
+      SkillType.GUARD,
+      fakeRng([2])
+    );
+    expect(result.draft.released.map((record) => record.playerId)).toEqual([
+      "p1",
+    ]);
     expect(team.players).toEqual([]);
   });
 });

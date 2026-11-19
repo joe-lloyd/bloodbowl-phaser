@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RosterName, Team } from "../../../types/Team";
+import { RosterName, type Team } from "../../../types/Team";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { validateInsignificant } from "../../../game/rules/insignificant";
@@ -29,7 +29,10 @@ import {
   TeamSwatch,
 } from "../componentWarehouse/HudKit";
 import { numToHex } from "../TeamManagement/TeamStatsOverview";
-import { DIFFICULTIES, Difficulty } from "../../../simulation/ai/difficulty";
+import {
+  DIFFICULTIES,
+  type Difficulty,
+} from "../../../simulation/ai/difficulty";
 import {
   clearMatchSave,
   readMatchSave,
@@ -39,17 +42,8 @@ interface TeamSelectProps {
   mode?: "sandbox" | "standard" | "play";
 }
 
-/**
- * Team Selection Component
- * Select teams for Player 1 and Player 2 before starting a game
- */
-/** Kit colours for ready-made teams, taken in turn. */
 const READY_MADE_COLORS = [0x8e1b1b, 0x1e3a5f, 0x556b2f, 0xd6b25e];
 
-/**
- * A legal team of any roster in one click, for a coach who wants to play
- * now rather than draft first.
- */
 function ReadyMadeTeamPicker({
   teams,
   onAdded,
@@ -59,17 +53,14 @@ function ReadyMadeTeamPicker({
 }) {
   const [roster, setRoster] = useState<RosterName>(RosterName.HUMAN);
   const add = () => {
-    // The first free name in the series: a deleted team's name is reused.
+    const color = READY_MADE_COLORS[teams.length % READY_MADE_COLORS.length];
+    if (color === undefined) return;
     const taken = new Set(teams.map((team) => team.name));
     const base = `Ready-made ${roster}`;
     let name = base;
-    for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
+    for (let n = 2; taken.has(name); n++) name = `${base} ${String(n)}`;
     saveTeam(
-      createReadyMadeTeam(
-        roster,
-        name,
-        READY_MADE_COLORS[teams.length % READY_MADE_COLORS.length]
-      )
+      createReadyMadeTeam(roster, name, color)
     );
     onAdded();
   };
@@ -78,13 +69,13 @@ function ReadyMadeTeamPicker({
       <select
         aria-label="Roster for a ready-made team"
         value={roster}
-        onChange={(event) =>
+        onChange={(event) => {
           setRoster(
             getAvailableRosterNames().find(
               (name) => name === event.target.value
             ) ?? roster
-          )
-        }
+          );
+        }}
         className="hud-field w-auto min-w-[180px]"
       >
         {getAvailableRosterNames().map((name) => (
@@ -113,7 +104,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       mode === "play" &&
       team.computerTemplateId === searchParams.get("computer")
   );
-  // The computer's league and cup teams are the computer's to coach
+
   const teams = library.filter((team) => !team.computerCoached);
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(
@@ -122,7 +113,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [filter1, setFilter1] = useState("");
   const [filter2, setFilter2] = useState("");
   const [progressionEnabled, setProgressionEnabled] = useState(false);
-  /** Who coaches Player 2: another person at this screen, or the computer. */
+
   const [opponent, setOpponent] = useState<"human" | "computer">(
     initialComputer ? "computer" : "human"
   );
@@ -130,11 +121,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const navigate = useNavigate();
 
-  /**
-   * Shared roster legality — a team may not be selected for a match until it
-   * is legal (team-lifecycle-modes: "Illegal draft tries to play"). Returns
-   * every violation found; empty means the team is legal.
-   */
   const legalityIssues = (team: Team): string[] => {
     const issues: string[] = [];
     const insignificantError = validateInsignificant(team.players);
@@ -148,8 +134,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     return issues;
   };
 
-  /** Case-insensitive substring match on team name or roster name, so a
-   *  coach with many saved teams can narrow either column's list down. */
   const matchesFilter = (team: Team, filter: string): boolean => {
     const query = filter.trim().toLowerCase();
     if (!query) return true;
@@ -249,21 +233,25 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       accent={
         selected ? { color: numToHex(selected.colors.primary) } : "neutral"
       }
-      data-testid={`team-column-${player}`}
+      data-testid={`team-column-${String(player)}`}
     >
       <PanelHeader
         as="h2"
-        title={player === 2 && vsComputer ? "Computer" : `Player ${player}`}
-        aside={`${columnTeams.length} teams`}
+        title={
+          player === 2 && vsComputer ? "Computer" : `Player ${String(player)}`
+        }
+        aside={`${String(columnTeams.length)} teams`}
         className="px-4"
       />
       <div className="p-3">
         <input
           type="text"
           value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+          onChange={(e) => {
+            setFilter(e.target.value);
+          }}
           placeholder="Search team or roster..."
-          aria-label={`Filter Player ${player} teams`}
+          aria-label={`Filter Player ${String(player)} teams`}
           className="hud-field"
         />
         <div className="hud-scroll mt-2 flex h-[clamp(200px,calc(100vh_-_400px),620px)] flex-col gap-1.5 overflow-y-auto p-1">
@@ -288,7 +276,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                     hudChoiceClass(isSelected),
                     "flex w-full shrink-0 items-center gap-2.5 px-3 py-2"
                   )}
-                  onClick={() => onSelect(team)}
+                  onClick={() => {
+                    onSelect(team);
+                  }}
                 >
                   <TeamSwatch
                     color={numToHex(team.colors.primary)}
@@ -387,7 +377,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                     hudChoiceClass(difficulty === id),
                     "px-4 py-3 text-left"
                   )}
-                  onClick={() => setDifficulty(id)}
+                  onClick={() => {
+                    setDifficulty(id);
+                  }}
                 >
                   <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
                     {label}
@@ -446,7 +438,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
               type="checkbox"
               className="hud-check"
               checked={progressionEnabled}
-              onChange={(event) => setProgressionEnabled(event.target.checked)}
+              onChange={(event) => {
+                setProgressionEnabled(event.target.checked);
+              }}
             />
             League fixture — award SPP and enable player advancement
           </label>
@@ -456,7 +450,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   );
 }
 
-/** The action bar's readout of who plays whom. */
 function Matchup({ team1, team2 }: { team1: Team | null; team2: Team | null }) {
   if (!team1 && !team2) {
     return <span className="hud-label text-hud-mute">Pick two teams</span>;

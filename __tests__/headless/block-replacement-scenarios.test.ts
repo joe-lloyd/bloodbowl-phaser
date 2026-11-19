@@ -1,8 +1,9 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { RULE_SCENARIOS } from "../../src/data/ruleScenarios";
 import { findSeed, runRuleConfig } from "../../src/game/rules-lab";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { SkillType, hasSkill } from "../../src/types/Skills";
 import { GameEventNames } from "../../src/types/events";
 
@@ -40,9 +41,11 @@ const replacements = [
 ] as const;
 
 const config = (skill: SkillType, id: string) =>
-  RULE_SCENARIOS.find((entry) => entry.skill === skill)!.configs.find(
-    (candidate) => candidate.id === id
-  )!;
+  fixtureValue(
+    fixtureValue(
+      RULE_SCENARIOS.find((entry) => entry.skill === skill)
+    ).configs.find((candidate) => candidate.id === id)
+  );
 
 describe("roster-authentic block-replacement scenario catalog", () => {
   it.each(replacements)(
@@ -59,22 +62,26 @@ describe("roster-authentic block-replacement scenario catalog", () => {
           } satisfies Scenario,
           seed: 1,
         });
-        expect(fixture.skillProvenance!.length).toBeGreaterThan(0);
+        expect(fixtureValue(fixture.skillProvenance).length).toBeGreaterThan(0);
 
-        for (const provenance of fixture.skillProvenance!) {
+        for (const provenance of fixtureValue(fixture.skillProvenance)) {
           expect(provenance.skill).toBe(skill);
           expect(provenance.reason.length).toBeGreaterThan(20);
           expect(fixture.setup.team1Roster).toBe(provenance.roster);
 
           const playerIndex = Number(provenance.playerRef.split(":")[1]);
           const player = game.ctx.team1.players[playerIndex];
-          expect(player.positionName).toBe(provenance.positionName);
-          expect(hasSkill(player.skills, skill)).toBe(true);
+          expect(fixtureValue(player).positionName).toBe(
+            provenance.positionName
+          );
+          expect(hasSkill(fixtureValue(player).skills, skill)).toBe(true);
 
           if (provenance.source === "roster-default") {
-            const placement = fixture.setup.team1Placements.find(
-              (candidate) => candidate.playerIndex === playerIndex
-            )!;
+            const placement = fixtureValue(
+              fixture.setup.team1Placements.find(
+                (candidate) => candidate.playerIndex === playerIndex
+              )
+            );
             expect(
               placement.skills?.some((granted) =>
                 typeof granted === "string"
@@ -126,19 +133,25 @@ describe("roster-authentic block-replacement scenario catalog", () => {
     const snapshot = game.snapshot();
 
     expect(
-      snapshot.teams[0].players.filter((player) => player.position)
+      fixtureValue(snapshot.teams[0]).players.filter(
+        (player) => player.position
+      )
     ).toHaveLength(5);
     expect(
-      snapshot.teams[1].players.filter((player) => player.position)
+      fixtureValue(snapshot.teams[1]).players.filter(
+        (player) => player.position
+      )
     ).toHaveLength(5);
 
     const before = await game.execute({
       type: "legal-actions",
-      playerId: secondAssassin.id,
+      playerId: fixtureValue(secondAssassin).id,
     });
-    const beforeSecond = before.legalActions!.players.find(
-      (player) => player.playerId === secondAssassin.id
-    )!;
+    const beforeSecond = fixtureValue(
+      fixtureValue(before.legalActions).players.find(
+        (player) => player.playerId === fixtureValue(secondAssassin).id
+      )
+    );
     expect(beforeSecond.actions).toContain("blitz");
     expect(beforeSecond.replacementActions).toContainEqual(
       expect.objectContaining({
@@ -150,22 +163,22 @@ describe("roster-authentic block-replacement scenario catalog", () => {
 
     await game.execute({
       type: "declare-action",
-      playerId: firstAssassin.id,
+      playerId: fixtureValue(firstAssassin).id,
       action: "blitz",
       blockReplacement: "stab",
     });
     await game.execute({
       type: "move",
-      playerId: firstAssassin.id,
+      playerId: fixtureValue(firstAssassin).id,
       path: [{ x: 11, y: 5 }],
     });
     const stabbed = await game.execute({
       type: "stab",
-      attackerId: firstAssassin.id,
-      defenderId: firstTarget.id,
+      attackerId: fixtureValue(firstAssassin).id,
+      defenderId: fixtureValue(firstTarget).id,
     });
     expect(stabbed.ok).toBe(true);
-    // The Assassin's Hit and Run is offered once the Stab resolves.
+
     expect(stabbed.pendingDecision).toMatchObject({
       type: "reaction",
       skill: SkillType.HIT_AND_RUN,
@@ -177,19 +190,21 @@ describe("roster-authentic block-replacement scenario catalog", () => {
     expect(resolved.ok).toBe(true);
     expect(resolved.snapshot.turn.hasBlitzed).toBe(true);
     expect(resolved.snapshot.turn.activatedPlayerIds).toContain(
-      firstAssassin.id
+      fixtureValue(firstAssassin).id
     );
     expect(resolved.snapshot.turn.activatedPlayerIds).not.toContain(
-      secondAssassin.id
+      fixtureValue(secondAssassin).id
     );
 
     const after = await game.execute({
       type: "legal-actions",
-      playerId: secondAssassin.id,
+      playerId: fixtureValue(secondAssassin).id,
     });
-    const afterSecond = after.legalActions!.players.find(
-      (player) => player.playerId === secondAssassin.id
-    )!;
+    const afterSecond = fixtureValue(
+      fixtureValue(after.legalActions).players.find(
+        (player) => player.playerId === fixtureValue(secondAssassin).id
+      )
+    );
     expect(afterSecond.actions).not.toContain("blitz");
     expect(afterSecond.replacementActions?.some((action) => action.blitz)).toBe(
       false
@@ -198,7 +213,7 @@ describe("roster-authentic block-replacement scenario catalog", () => {
     const beforeForgedDeclaration = JSON.stringify(game.snapshot());
     const forgedSecondBlitz = await game.execute({
       type: "declare-action",
-      playerId: secondAssassin.id,
+      playerId: fixtureValue(secondAssassin).id,
       action: "blitz",
       blockReplacement: "stab",
     });

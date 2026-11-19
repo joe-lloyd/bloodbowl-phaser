@@ -1,7 +1,6 @@
-import { GameEventNames, RefereeCallStep } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
-import { FlowContext } from "../core/GameFlowManager";
-import { Player } from "../../types/Player";
+import { GameEventNames, type RefereeCallStep } from "../../types/events";
+import { type FlowContext } from "../core/GameFlowManager";
+import { type Player } from "../../types/Player";
 import { TeamSpecialRule } from "../../types/Team";
 import { hasTeamSpecialRule } from "../rules/teamAllegiance";
 import { movePlayerToBox } from "../rules/playerLocation";
@@ -11,41 +10,24 @@ import {
   nextPresentationId,
 } from "../presentation/presentationGate";
 
-/** The longest the engine waits for the card to show the outcome. */
 const OUTCOME_PRESENTATION_TIMEOUT_MS = 8000;
 
 export type SendOffResult = "swayed" | "bribed" | "sent-off";
 
-/**
- * The referee Sends-off a player, and the coach does what they can about
- * it, in the rulebook's order:
- * - Argue the Call (Sevens rule M6): on a 5 or 6 the referee is swayed.
- *   The coach is never ejected, so the argument is always made.
- * - Bribery and Corruption (2025 rulebook p.154): once per game, a roll of
- *   1 is re-rolled. A 1 always fails, so the re-roll is always taken.
- * - A Bribe (p.148) if the argument failed: on a 2+ the player stays.
- * - Otherwise the player goes to the Sent-off box.
- *
- * Each step is a RefereeCall event for the card both coaches watch, and
- * the engine waits for the card to show the outcome. Whether a Turnover
- * follows is the caller's call: a swayed referee still means one, a Bribe
- * that works does not.
- */
 export async function resolveSendOff(
   context: FlowContext,
   player: Player,
   cause: RefereeCallStep["cause"]
 ): Promise<SendOffResult> {
-  const gameService = context.gameService as IGameService;
+  const gameService = context.gameService;
   const { eventBus } = context;
   const call = { playerId: player.id, teamId: player.teamId, cause };
   eventBus.emit(GameEventNames.RefereeCall, { ...call, step: "called" });
 
-  const rolls = argueTheCall(context, player);
+  const { rolls, finalRoll } = argueTheCall(context, player);
   const swayed =
-    gameService
-      .getFoulController()
-      .resolveArgueTheCall(rolls[rolls.length - 1]) === "swayed";
+    gameService.getFoulController().resolveArgueTheCall(finalRoll) ===
+    "swayed";
   eventBus.emit(GameEventNames.RefereeCall, {
     ...call,
     step: "argued",
@@ -70,8 +52,7 @@ export async function resolveSendOff(
       });
     result = bribe?.works ? "bribed" : "sent-off";
   }
-  // Through the single location seam, so the pitch square is released as
-  // the sent-off dugout entry is created and PlayerStatusChanged fires
+
   if (result === "sent-off") {
     movePlayerToBox(player, { box: "sent-off" }, eventBus);
     eventBus.emit(
@@ -97,9 +78,11 @@ export async function resolveSendOff(
   return result;
 }
 
-/** The Argue the Call dice: one, or a 1 and its Bribery and Corruption re-roll. */
-function argueTheCall(context: FlowContext, player: Player): number[] {
-  const gameService = context.gameService as IGameService;
+function argueTheCall(
+  context: FlowContext,
+  player: Player
+): { rolls: number[]; finalRoll: number } {
+  const gameService = context.gameService;
   const diceController = gameService.getDiceController();
   const teamId = player.teamId;
 
@@ -107,11 +90,11 @@ function argueTheCall(context: FlowContext, player: Player): number[] {
     GameEventNames.UI_Notification,
     "Coach is Arguing the Call..."
   );
-  const rolls = [diceController.rollD6("Argue the Call", teamId)];
+  const firstRoll = diceController.rollD6("Argue the Call", teamId);
   const state = gameService.getState();
   const team = gameService.getTeam(teamId);
   if (
-    rolls[0] === 1 &&
+    firstRoll === 1 &&
     team &&
     hasTeamSpecialRule(team, TeamSpecialRule.BRIBERY_AND_CORRUPTION) &&
     !state.briberyRerollsUsed?.includes(teamId)
@@ -122,15 +105,16 @@ function argueTheCall(context: FlowContext, player: Player): number[] {
       skill: TeamSpecialRule.BRIBERY_AND_CORRUPTION,
       effect: "Bribery and Corruption: re-roll the Argue the Call 1",
     });
-    rolls.push(diceController.rollD6("Argue the Call (re-roll)", teamId));
+    const reroll = diceController.rollD6("Argue the Call (re-roll)", teamId);
     context.eventBus.emit(GameEventNames.RerollUsed, {
       playerId: player.id,
       source: "skill",
       skill: TeamSpecialRule.BRIBERY_AND_CORRUPTION,
       rollKind: "argue-the-call",
-      before: rolls[0],
-      after: rolls[1],
+      before: firstRoll,
+      after: reroll,
     });
+    return { rolls: [firstRoll, reroll], finalRoll: reroll };
   }
-  return rolls;
+  return { rolls: [firstRoll], finalRoll: firstRoll };
 }

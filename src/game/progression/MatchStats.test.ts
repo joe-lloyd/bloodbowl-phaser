@@ -1,7 +1,12 @@
+import { fixtureValue } from "../../testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { EventBus } from "../../services/EventBus";
-import { Player, PlayerStatus, PlayerStats } from "../../types/Player";
-import { RosterName, Team } from "../../types/Team";
+import {
+  type Player,
+  PlayerStatus,
+  type PlayerStats,
+} from "../../types/Player";
+import { RosterName, type Team } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { MatchStats } from "./MatchStats";
 
@@ -36,7 +41,7 @@ function player(id: string, teamId: string): Player {
 function team(
   id: string,
   players: Player[],
-  rosterName = RosterName.HUMAN
+  rosterName: RosterName = RosterName.HUMAN
 ): Team {
   return { id, players, rosterName } as Team;
 }
@@ -52,10 +57,10 @@ describe("MatchStats — concession bookkeeping (no artificial touchdown)", () =
     stats.assignAwardedTouchdown("p1");
 
     const summary = stats.summary(teams.flatMap((t) => t.players));
-    const entry = summary.players.find((p) => p.playerId === "p1")!;
+    const entry = fixtureValue(summary.players.find((p) => p.playerId === "p1"));
     expect(entry.touchdowns).toBe(0);
     expect(entry.awardedTouchdownSpp).toBe(1);
-    expect(entry.sppEarned).toBe(3); // touchdown-value SPP, not a real touchdown
+    expect(entry.sppEarned).toBe(3);
   });
 
   it("zeroes the conceding team's SPP consistently across repeated summary() calls (idempotent across rerender/resume)", () => {
@@ -66,13 +71,19 @@ describe("MatchStats — concession bookkeeping (no artificial touchdown)", () =
     const stats = new MatchStats(eventBus, teams, true);
     eventBus.emit(GameEventNames.PlayerActivated, "p1");
     eventBus.emit(GameEventNames.PlayerActivated, "p2");
-    eventBus.emit(GameEventNames.PassCompleted, { playerId: "p1", catcherId: "p1", position: { x: 0, y: 0 } });
-    eventBus.emit(GameEventNames.PassCompleted, { playerId: "p2", catcherId: "p2", position: { x: 0, y: 0 } });
+    eventBus.emit(GameEventNames.PassCompleted, {
+      playerId: "p1",
+      catcherId: "p1",
+      position: { x: 0, y: 0 },
+    });
+    eventBus.emit(GameEventNames.PassCompleted, {
+      playerId: "p2",
+      catcherId: "p2",
+      position: { x: 0, y: 0 },
+    });
 
     stats.applySpp(teams, "team-1");
 
-    // Calling summary() again (as a rerender/resume would) must keep
-    // agreeing that team-1 was zeroed, not just the one-off return value.
     for (let i = 0; i < 3; i++) {
       const summary = stats.summary(teams.flatMap((t) => t.players));
       expect(summary.players.find((p) => p.playerId === "p1")?.sppEarned).toBe(
@@ -106,7 +117,11 @@ describe("MatchStats — concession bookkeeping (no artificial touchdown)", () =
     const teams = [team("team-1", [p1]), team("team-2", [])];
     const stats = new MatchStats(eventBus, teams, true);
     eventBus.emit(GameEventNames.PlayerActivated, "p1");
-    eventBus.emit(GameEventNames.PassCompleted, { playerId: "p1", catcherId: "p1", position: { x: 0, y: 0 } });
+    eventBus.emit(GameEventNames.PassCompleted, {
+      playerId: "p1",
+      catcherId: "p1",
+      position: { x: 0, y: 0 },
+    });
     stats.applySpp(teams, "team-1");
     const snapshot = stats.captureState();
 
@@ -135,16 +150,16 @@ describe("MatchStats — Brawlin' Brutes", () => {
     ]) {
       for (let i = 0; i < 2; i++) {
         eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
-          causerId: causer.id,
-          victimId: victim.id,
+          causerId: fixtureValue(causer).id,
+          victimId: fixtureValue(victim).id,
           cause: "block",
           sppEligible: true,
         });
       }
       eventBus.emit(GameEventNames.Touchdown, {
-        teamId: causer.teamId,
+        teamId: fixtureValue(causer).teamId,
         score: 1,
-        scorerId: causer.id,
+        scorerId: fixtureValue(causer).id,
       });
     }
 

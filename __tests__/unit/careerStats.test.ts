@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
-import { Player, PlayerStatus } from "../../src/types/Player";
-import { RosterName, Team } from "../../src/types/Team";
+import { type Player, PlayerStatus } from "../../src/types/Player";
+import { RosterName, type Team } from "../../src/types/Team";
 import { GameEventNames } from "../../src/types/events";
 import { MatchStats } from "../../src/game/progression/MatchStats";
 import {
@@ -95,8 +96,8 @@ describe("career stats fold", () => {
       squaresMoved: 16,
       sppEarned: 16,
     });
-    // A kill is a subset of casualties, never double-counted against it.
-    expect(p.careerStats!.kills).toBeLessThanOrEqual(p.careerStats!.casualties);
+
+    expect(fixtureValue(p.careerStats).kills).toBeLessThanOrEqual(fixtureValue(p.careerStats).casualties);
   });
 
   it("folds a whole match summary across both teams by player id", () => {
@@ -168,7 +169,9 @@ describe("kills are tracked separately from casualties, from the event bus", () 
     });
 
     const summary = stats.summary();
-    const attackerStats = summary.players.find((p) => p.playerId === "attacker");
+    const attackerStats = summary.players.find(
+      (p) => p.playerId === "attacker"
+    );
     expect(attackerStats?.casualties).toBe(1);
     expect(attackerStats?.kills).toBe(1);
   });

@@ -1,21 +1,12 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import type { CommandResponse } from "../../src/headless/protocol";
 
-/**
- * Swoop belongs to the thrown player (2025 rulebook p.137): "When this
- * player is thrown by a Throw Team-mate Action, they may choose not to
- * Scatter before landing as normal. If they do, position the Throw-in
- * Template over this player so it faces one of the two End Zones or either
- * Sideline. Roll a D6 to determine the direction this player will travel,
- * and then a second D6 to determine how many squares in that direction this
- * player will travel. Additionally, if they choose not to Scatter as normal,
- * this player may re-roll the Agility Test when attempting to land."
- * Seeds are committed, never searched.
- */
 function scenario(where: "thrower" | "thrown"): Scenario {
   return {
     id: "swoop",
@@ -52,9 +43,8 @@ function scenario(where: "thrower" | "thrown"): Scenario {
   };
 }
 
-/** "Throw Team-mate (Human Lineman #1): 5 -1 = 4": a Superb Throw. */
 const SUPERB_SEED = 2;
-/** A Swoop whose first Landing roll is a 1. */
+
 const LANDING_REROLL_SEED = 3;
 
 async function throwMate(
@@ -63,8 +53,8 @@ async function throwMate(
   swoopFacing?: "north" | "east" | "south" | "west"
 ) {
   const game = new HeadlessGame({ scenario: scenario(where), seed });
-  const throwerId = game.ctx.team1.players[0].id;
-  const teammateId = game.ctx.team1.players[1].id;
+  const throwerId = fixtureValue(game.ctx.team1.players[0]).id;
+  const teammateId = fixtureValue(game.ctx.team1.players[1]).id;
   await game.execute({
     type: "declare-action",
     playerId: throwerId,
@@ -85,7 +75,9 @@ async function throwMate(
   }
   const dice = events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
   const rerolls = events
     .filter((e) => e.name === "rerollUsed")
     .map((e) => e.data);
@@ -93,7 +85,7 @@ async function throwMate(
     response,
     dice,
     rerolls,
-    mate: response.snapshot.teams[0].players[1],
+    mate: fixtureValue(response.snapshot.teams[0]).players[1],
   };
 }
 
@@ -103,12 +95,12 @@ describe("Swoop", () => {
 
     expect(dice).toEqual([
       "Throw Team-mate (Human Lineman #1): 5, needs 5+",
-      // Facing east, a 2 is the left arrow: north-east, two squares.
+
       "Swoop Direction: 2",
       "Swoop Distance: 2",
       "Landing (Human Lineman #2): 4, needs 3+",
     ]);
-    expect(mate.position).toEqual({ x: 10, y: 3 });
+    expect(fixtureValue(mate).position).toEqual({ x: 10, y: 3 });
   });
 
   it("re-rolls a failed landing after travelling by the template", async () => {
@@ -125,8 +117,8 @@ describe("Swoop", () => {
       "Landing (Human Lineman #2): 1, needs 3+",
       "Landing (Human Lineman #2): 5, needs 3+",
     ]);
-    expect(mate.position).toEqual({ x: 11, y: 2 });
-    expect(mate.status).toBe("Active");
+    expect(fixtureValue(mate).position).toEqual({ x: 11, y: 2 });
+    expect(fixtureValue(mate).status).toBe("Active");
   });
 
   it("reports the landing re-roll with both rolls", async () => {

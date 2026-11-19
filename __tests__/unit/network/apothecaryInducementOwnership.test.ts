@@ -2,16 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   checkOwnership,
   decisionOwner,
-  GateContext,
+  type GateContext,
 } from "../../../src/network/OwnershipGate";
-import { PendingDecision } from "../../../src/headless/protocol";
+import { type PendingDecision } from "../../../src/headless/protocol";
 import { GamePhase } from "../../../src/types/GameState";
-
-/**
- * Host/guest ownership for Sevens inducements and the Apothecary decision
- * (tasks.md 5.4): only the owning coach may answer an Apothecary offer or
- * submit their own team's pregame selection.
- */
 
 const apothecaryPending: PendingDecision = {
   type: "apothecary",

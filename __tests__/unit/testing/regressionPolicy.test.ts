@@ -1,17 +1,8 @@
-/**
- * The regression policy, as an executable rule.
- *
- * "Every confirmed gameplay bug gets a deterministic case" is only a policy
- * if something enforces the parts a reviewer would otherwise have to
- * remember: a stable id, a summary of the original failure, uniqueness across
- * the registry, and — for anything that happened at the UI boundary — an
- * actual browser case rather than an engine test standing in for one.
- */
-
+import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
 import {
-  ScenarioCase,
+  type ScenarioCase,
   step,
   validateScenarioCase,
   validateScenarioCases,
@@ -37,9 +28,11 @@ function regressionCase(
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
     },
-    steps: [step({ type: "move", playerId: "team1:0", path: [{ x: 6, y: 5 }] })],
+    steps: [
+      step({ type: "move", playerId: "team1:0", path: [{ x: 6, y: 5 }] }),
+    ],
     layers: ["engine"],
-    regression,
+    ...(regression === undefined ? {} : { regression: regression }),
     variants: [{ id: "v", name: "V", seed: 1, expectedOutcome: "moves" }],
     checkpoints: [{ id: "c", description: "c", assert: () => undefined }],
     ...overrides,
@@ -78,7 +71,7 @@ describe("regression provenance", () => {
       })
     );
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toMatch(
+    expect(fixtureValue(issues[0]).message).toMatch(
       /UI-boundary defect, so the case must also require the 'browser' layer/
     );
   });
@@ -119,7 +112,7 @@ describe("regression provenance", () => {
     ]);
     expect(
       issues.some((issue) =>
-        /duplicate regression id 'BUG-duplicate'/.test(issue.message)
+        issue.message.includes("duplicate regression id 'BUG-duplicate'")
       )
     ).toBe(true);
   });
@@ -132,10 +125,9 @@ describe("regression provenance", () => {
     expect(findByRegressionId(cases, "BUG-findable").map((c) => c.id)).toEqual([
       "linked",
     ]);
-    // …and by free-text search, which is what `pnpm e2e:case` and the sandbox
-    // filter both use.
-    expect(matchesQuery(cases[0], "BUG-findable")).toBe(true);
-    expect(matchesQuery(cases[1], "BUG-findable")).toBe(false);
+
+    expect(matchesQuery(fixtureValue(cases[0]), "BUG-findable")).toBe(true);
+    expect(matchesQuery(fixtureValue(cases[1]), "BUG-findable")).toBe(false);
   });
 });
 
@@ -145,14 +137,14 @@ describe("the production registry honours the policy", () => {
   );
 
   it("every regression id is unique", () => {
-    const ids = regressions.map((c) => c.regression!.id);
+    const ids = regressions.map((c) => fixtureValue(c.regression).id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("every regression records what originally went wrong", () => {
     for (const scenarioCase of regressions) {
       expect(
-        scenarioCase.regression!.summary.trim().length,
+        fixtureValue(scenarioCase.regression).summary.trim().length,
         scenarioCase.id
       ).toBeGreaterThan(0);
     }
@@ -160,7 +152,7 @@ describe("the production registry honours the policy", () => {
 
   it("every UI-boundary regression runs in the browser", () => {
     for (const scenarioCase of regressions) {
-      if (!scenarioCase.regression!.uiBoundary) continue;
+      if (!fixtureValue(scenarioCase.regression).uiBoundary) continue;
       expect(scenarioCase.layers, scenarioCase.id).toContain("browser");
     }
   });

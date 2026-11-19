@@ -3,7 +3,7 @@ import {
   NAF_SEVENS_RULESET,
   readSevensRuleset,
   SEVENS_RULESET_LABELS,
-  SevensRuleset,
+  type SevensRuleset,
 } from "../../../game/rules/sevensRuleset";
 import { Field } from "../componentWarehouse/HudKit";
 
@@ -26,7 +26,9 @@ export function SevensRulesetSelector({
       <select
         aria-label="Sevens rules"
         value={value}
-        onChange={(event) => onChange(readSevensRuleset(event.target.value))}
+        onChange={(event) => {
+          onChange(readSevensRuleset(event.target.value));
+        }}
         disabled={disabled}
         className="hud-field"
       >

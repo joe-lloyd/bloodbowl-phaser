@@ -14,7 +14,7 @@ export function advancedSchedule(variants: Variant[]): AdvancedJob[] {
       ids.flatMap((id, index) =>
         comparisonJobs(
           id,
-          ids[(index + offset) % ids.length],
+          opponentAt(ids, index + offset),
           replicate,
           offset,
           index
@@ -22,6 +22,12 @@ export function advancedSchedule(variants: Variant[]): AdvancedJob[] {
       )
     )
   );
+}
+
+function opponentAt(ids: string[], position: number): string {
+  const opponent = ids[position % ids.length];
+  if (opponent === undefined) throw new Error("No opponent template");
+  return opponent;
 }
 
 function comparisonJobs(
@@ -37,8 +43,8 @@ function comparisonJobs(
     ["random", "base"],
     ["focused", "random"],
   ] as const) {
-    const pair = `advanced-${replicate}-${offset}-${index}-${arm}-${other}`;
-    const a = `${id}--${arm}-${replicate}`;
+    const pair = `advanced-${String(replicate)}-${String(offset)}-${String(index)}-${arm}-${other}`;
+    const a = `${id}--${arm}-${String(replicate)}`;
     const b = `${opponent}--${other}${other === "base" ? "" : "-" + replicate}`;
     for (const reverse of [false, true])
       jobs.push({

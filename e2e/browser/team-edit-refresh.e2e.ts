@@ -1,9 +1,5 @@
-/**
- * Edit Team survives a refresh and a direct link: the page loads the saved
- * team its URL names, saves over that same team, and says so plainly when
- * the ID is not in the library instead of starting a new team.
- */
-import { test, expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { test, expect, type Page } from "@playwright/test";
 
 const STORAGE_KEY = "bloodbowl_teams";
 
@@ -26,18 +22,16 @@ test("a saved team's edit page survives a refresh and a direct link", async ({
   page.on("dialog", (dialog) => void dialog.accept());
   await page.setViewportSize({ width: 1440, height: 900 });
 
-  // A saved, non-Amazon team
   await page.goto("/build-team/new-team");
   await page.getByTestId("roster-choice-Dwarf").click();
   await page.getByPlaceholder("Enter Team Name").fill("Refresh Dwarfs");
   await page.getByRole("button", { name: /Save Team/ }).click();
   await expect(page).toHaveURL(/\/build-team$/);
   const [saved] = await storedTeams(page);
-  expect(saved.name).toBe("Refresh Dwarfs");
+  expect(fixtureValue(saved).name).toBe("Refresh Dwarfs");
 
-  // Normal navigation into Edit Team, then a refresh
   await page.getByRole("button", { name: "Manage Team" }).click();
-  await expect(page).toHaveURL(new RegExp(`/build-team/${saved.id}$`));
+  await expect(page).toHaveURL(new RegExp(`/build-team/${fixtureValue(saved).id}$`));
   await page.reload();
   const roster = page.getByRole("combobox", { name: "Roster", exact: true });
   await expect(page.getByPlaceholder("Enter Team Name")).toHaveValue(
@@ -49,17 +43,15 @@ test("a saved team's edit page survives a refresh and a direct link", async ({
   ).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("after-refresh.png") });
 
-  // Saving after the refresh updates the original team
   await page.getByPlaceholder("Enter Team Name").fill("Refresh Dwarfs II");
   await page.getByRole("button", { name: /Save Team/ }).click();
   await expect(page).toHaveURL(/\/build-team$/);
   expect(await storedTeams(page)).toEqual([
-    { id: saved.id, name: "Refresh Dwarfs II" },
+    { id: fixtureValue(saved).id, name: "Refresh Dwarfs II" },
   ]);
 
-  // A direct link opens the same team
   const direct = await page.context().newPage();
-  await direct.goto(`/build-team/${saved.id}`);
+  await direct.goto(`/build-team/${fixtureValue(saved).id}`);
   await expect(direct.getByPlaceholder("Enter Team Name")).toHaveValue(
     "Refresh Dwarfs II"
   );

@@ -1,16 +1,3 @@
-/**
- * `pnpm e2e:coverage [--write-baseline] [--compare-baseline] [--json <path>] [--merge <dir>]`
- *
- * Builds the E2E coverage report from the registered scenario cases and the
- * generated gameplay inventory.
- *
- *   (no flags)          print the human report; exit non-zero on any gap or issue
- *   --write-baseline    record the current state as the committed baseline
- *   --compare-baseline  diff against the baseline and name added/removed gaps
- *   --json <path>       also write the machine-readable result
- *   --merge <dir>       fold sharded coverage fragments in before reporting
- */
-
 import {
   existsSync,
   mkdirSync,
@@ -39,7 +26,6 @@ const flag = (name: string): string | undefined => {
   return index >= 0 ? argv[index + 1] : undefined;
 };
 
-/** The gap set, as stable `entryId@layer` strings — the thing we diff. */
 function gapsOf(result: CoverageResult): string[] {
   return result.entries
     .flatMap((entry) =>
@@ -55,15 +41,11 @@ function loadShards(dir: string): CoverageResult[] {
   return readdirSync(dir)
     .filter((name) => name.endsWith(".json"))
     .map(
-      (name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as CoverageResult
+      (name) =>
+        JSON.parse(readFileSync(join(dir, name), "utf8")) as CoverageResult
     );
 }
 
-/**
- * Fragments written by the E2E runners: what each run actually exercised.
- * Absent on a fresh checkout, which is correct — coverage that has not been
- * demonstrated should not be claimed.
- */
 function loadFragments(): CoverageFragment[] {
   const dir = join(ROOT, "e2e-results", "coverage-fragments");
   if (!existsSync(dir)) return [];
@@ -75,11 +57,6 @@ function loadFragments(): CoverageFragment[] {
     );
 }
 
-/**
- * Diff the gap set against the committed baseline. Only *new* gaps fail:
- * historical backfill is tracked by the baseline, so a change that does not
- * make coverage worse is not blocked by it.
- */
 function compareBaseline(result: CoverageResult): void {
   if (!existsSync(BASELINE)) {
     console.error(
@@ -96,13 +73,15 @@ function compareBaseline(result: CoverageResult): void {
   const closed = [...before].filter((gap) => !now.has(gap)).sort();
 
   console.log("");
-  console.log(`vs baseline: ${closed.length} closed, ${added.length} added`);
+  console.log(
+    `vs baseline: ${String(closed.length)} closed, ${String(added.length)} added`
+  );
   for (const gap of closed) console.log(`  + closed  ${gap}`);
   for (const gap of added) console.log(`  - ADDED   ${gap}`);
 
   if (added.length > 0) {
     console.error(
-      `\n${added.length} new coverage gap(s) — add cases or record a reviewed exclusion`
+      `\n${String(added.length)} new coverage gap(s) — add cases or record a reviewed exclusion`
     );
     process.exit(1);
   }
@@ -111,7 +90,9 @@ function compareBaseline(result: CoverageResult): void {
 function main(): void {
   const fragments = loadFragments();
   if (fragments.length > 0) {
-    console.log(`using ${fragments.length} observed coverage fragment(s)`);
+    console.log(
+      `using ${String(fragments.length)} observed coverage fragment(s)`
+    );
   }
   let result = buildCoverage(SCENARIO_CASES, {
     support: layerSupport,
@@ -123,7 +104,9 @@ function main(): void {
     const shards = loadShards(join(ROOT, mergeDir));
     if (shards.length > 0) {
       result = mergeCoverageResults([result, ...shards]);
-      console.log(`merged ${shards.length} coverage shard(s) from ${mergeDir}`);
+      console.log(
+        `merged ${String(shards.length)} coverage shard(s) from ${mergeDir}`
+      );
     }
   }
 
@@ -136,12 +119,10 @@ function main(): void {
   }
 
   if (argv.includes("--write-baseline")) {
-    // The baseline records the gap set and totals, not the whole report:
-    // a diff should be about coverage changing, not timestamps.
     const baseline = { totals: result.totals, gaps: gapsOf(result) };
     writeFileSync(BASELINE, `${JSON.stringify(baseline, null, 2)}\n`, "utf8");
     console.log(
-      `baseline written: ${baseline.gaps.length} known gap(s) → ${BASELINE}`
+      `baseline written: ${String(baseline.gaps.length)} known gap(s) → ${BASELINE}`
     );
     return;
   }
@@ -154,7 +135,7 @@ function main(): void {
   }
 
   if (result.issues.length > 0) {
-    console.error(`\n${result.issues.length} coverage issue(s)`);
+    console.error(`\n${String(result.issues.length)} coverage issue(s)`);
     process.exit(1);
   }
 }

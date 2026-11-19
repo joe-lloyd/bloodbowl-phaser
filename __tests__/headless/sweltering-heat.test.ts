@@ -1,15 +1,11 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import type { Weather } from "../../src/game/rules/weather";
 
-/**
- * Sweltering Heat (2025 rulebook, Weather Table): at the end of each Drive
- * one coach rolls a D3 and each coach randomly picks that many of their
- * players who were on the pitch. They go to the Reserves and cannot be set
- * up for the next Drive. The engine rolled the weather and did nothing.
- */
 function scenario(weather: Weather): Scenario {
   return {
     id: `sweltering-heat-${weather}`,
@@ -36,7 +32,7 @@ function scenario(weather: Weather): Scenario {
 
 async function scoreTouchdown(weather: Weather, seed: number) {
   const game = new HeadlessGame({ scenario: scenario(weather), seed });
-  const carrier = game.ctx.team1.players[0].id;
+  const carrier = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: carrier,
@@ -52,18 +48,21 @@ async function scoreTouchdown(weather: Weather, seed: number) {
   });
   const dice = res.events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
   return { game, res, dice };
 }
 
-/** Names of the players each team must keep in the Reserves, per team. */
 function benched(game: HeadlessGame): string[][] {
   const modifiers = game.snapshot().driveEffects?.playerModifiers ?? {};
-  return game.snapshot().teams.map((team) =>
-    team.players
-      .filter((p) => modifiers[p.id]?.confinedToReserves)
-      .map((p) => p.name)
-  );
+  return game
+    .snapshot()
+    .teams.map((team) =>
+      team.players
+        .filter((p) => modifiers[p.id]?.confinedToReserves)
+        .map((p) => p.name)
+    );
 }
 
 describe("Sweltering Heat", () => {
@@ -77,18 +76,19 @@ describe("Sweltering Heat", () => {
       "Sweltering Heat — Away Team: 16",
     ]);
     expect(benched(game)).toEqual([["Human Lineman #1"], ["Human Lineman #2"]]);
-    const setup = res.snapshot.setup!;
+    const setup = fixtureValue(res.snapshot.setup);
     expect(
       Object.values(setup.teams).map((t) => t.availablePlayerCount)
     ).toEqual([6, 6]);
 
-    // The kicking team sets up first; a benched player may not be placed.
-    const kicking = res.snapshot.activeTeamId!;
+    const kicking = fixtureValue(res.snapshot.activeTeamId);
     const kickingIndex = res.snapshot.teams.findIndex((t) => t.id === kicking);
-    const faintedName = benched(game)[kickingIndex][0];
-    const fainted = res.snapshot.teams[kickingIndex].players.find(
-      (p) => p.name === faintedName
-    )!;
+    const faintedName = fixtureValue(benched(game)[kickingIndex])[0];
+    const fainted = fixtureValue(
+      fixtureValue(res.snapshot.teams[kickingIndex]).players.find(
+        (p) => p.name === faintedName
+      )
+    );
     const placed = await game.execute({
       type: "place-player",
       playerId: fainted.id,

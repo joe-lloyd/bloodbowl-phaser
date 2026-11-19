@@ -1,14 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { CompetitionDoc } from "../../../competition/types";
+import { type CompetitionDoc } from "../../../competition/types";
 import { getTeamById } from "../../../game/managers/TeamManager";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
-import { hasBlockingPendingDevelopment, Team } from "../../../types/Team";
+import { hasBlockingPendingDevelopment, type Team } from "../../../types/Team";
 import { TeamCrest } from "../common/TeamCrest";
 import { Chip, HudButton, Section } from "../componentWarehouse/HudKit";
 import type { HudTone } from "../componentWarehouse/hudTone";
 
-/** Where one of the coach's league teams stands on its development. */
-export type LeagueTeamStatus =
+type LeagueTeamStatus =
   | { kind: "computer" }
   | { kind: "development"; blocksNextGame: boolean }
   | { kind: "can-advance"; players: number }
@@ -19,11 +18,6 @@ export interface LeagueTeamProgressRow {
   status: LeagueTeamStatus;
 }
 
-/**
- * The coach's teams in this league, read from their own library, in entry
- * order. Another coach's team and a withdrawn team are left out: neither
- * is this coach's to progress from here.
- */
 export function leagueTeamProgressRows(
   competition: CompetitionDoc,
   findTeam: (teamId: string) => Team | undefined = getTeamById
@@ -46,7 +40,6 @@ function statusOf(
   computerEntrant: boolean | undefined,
   competition: CompetitionDoc
 ): LeagueTeamStatus {
-  // The computer makes its own teams' development choices on this page
   if (computerEntrant || team.computerCoached) return { kind: "computer" };
   if (hasBlockingPendingDevelopment(team) || team.players.some(mustAdvance)) {
     return {
@@ -62,7 +55,6 @@ function statusOf(
     : { kind: "up-to-date" };
 }
 
-/** What a team's row says about its development. */
 function statusCopy(status: LeagueTeamStatus): {
   chip: string;
   tone: HudTone;
@@ -85,7 +77,7 @@ function statusCopy(status: LeagueTeamStatus): {
       };
     case "can-advance":
       return {
-        chip: `${status.players} ${status.players === 1 ? "player" : "players"} can advance`,
+        chip: `${String(status.players)} ${status.players === 1 ? "player" : "players"} can advance`,
         tone: "info",
         detail: "Spend Star Player Points on the team's page.",
       };
@@ -98,17 +90,11 @@ function statusCopy(status: LeagueTeamStatus): {
   }
 }
 
-/** The team page, told to come back to this league. */
 export function progressTeamPath(teamId: string, leagueId: string): string {
   const params = new URLSearchParams({ returnTo: `/leagues/${leagueId}` });
   return `/build-team/${encodeURIComponent(teamId)}?${params}`;
 }
 
-/**
- * The coach's own teams in a league, each with where its development
- * stands and a way into that team's progression. After a game the coach
- * comes back to the league, and this is where they find their team.
- */
 export function LeagueTeamProgress({
   competition,
 }: {

@@ -1,14 +1,7 @@
-/**
- * Planning a move on the pitch and walking it: the waypoints a click or a
- * drag adds, the path and rolls drawn for them, the range overlay, and the
- * walk that stops before each Dodge or Rush to ask the coach.
- *
- * moveAlong holds every await of a walk, where the controller had them
- * before the split. Everything it calls between awaits is synchronous.
- */
-
+import { isOwnActor, activeActionFor } from "./players";
+import { adjacentSquares } from "./squares";
 import { GameEventNames } from "@/types/events";
-import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
+import { type Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { GamePhase } from "@/types/GameState";
 import { getActiveOnlineMatch } from "@/network/OnlineMatch";
@@ -19,17 +12,19 @@ import { rushModifier } from "../../inducements/matchInducements";
 import {
   pickupTarget,
   secureBallTarget,
-  RoutePreview,
-  RouteRoll,
+  type RoutePreview,
+  type RouteRoll,
 } from "../../rules/rollPreview";
 import { isSecuringBall } from "../../rules/secureBall";
 import { ballInTheAir } from "../../rules/ballInTheAir";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { riskyStepRequest } from "./Confirmations";
 
-type Square = { x: number; y: number };
+interface Square {
+  x: number;
+  y: number;
+}
 
-/** The on-pitch players beside and against a team. */
 function sidesOf(
   c: GameplayInteractionController,
   player: Player
@@ -48,31 +43,14 @@ function sidesOf(
   };
 }
 
-/**
- * The shortest legal way from the end of the plotted route to (x, y),
- * within the squares left after earlier moves and legs.
- */
 function findLeg(
-  c: GameplayInteractionController,
-  player: Player,
-  x: number,
-  y: number
-) {
+{ c,player,x,y }: { c: GameplayInteractionController; player: Player; x: number; y: number; }) {
   const effectivePlayer = withDriveModifiers(player, c.gameService.getState());
-  const startPos =
-    c.waypoints.length > 0
-      ? c.waypoints[c.waypoints.length - 1]
-      : player.gridPosition!;
+  const startPos = c.waypoints.at(-1) ?? player.gridPosition;
+  if (!startPos) return { valid: false, path: [], rolls: [], cost: 0 };
   const { opponents, teammates } = sidesOf(c, player);
   const mockPlayer = { ...effectivePlayer, gridPosition: startPos };
-  return c.movementValidator.findPath(
-    mockPlayer,
-    x,
-    y,
-    opponents,
-    teammates,
-    c.gameService.getMovementUsed(player.id) + c.waypoints.length
-  );
+  return c.movementValidator.findPath({ player: mockPlayer, targetX: x, targetY: y, opponents: opponents, teammates: teammates, movementUsed: c.gameService.getMovementUsed(player.id) + c.waypoints.length });
 }
 
 export function addWaypoint(
@@ -84,8 +62,7 @@ export function addWaypoint(
   const player = c.gameService.getPlayerById(c.selectedPlayerId);
   if (!player) return;
 
-  // Use pathfinder for this segment (smart pathing between clicks)
-  const result = findLeg(c, player, x, y);
+  const result = findLeg({ c,player,x,y });
 
   if (!result.valid) {
     c.eventBus.emit(GameEventNames.UI_Notification, "Out of reach");
@@ -93,7 +70,7 @@ export function addWaypoint(
   }
   c.waypoints.push(...result.path);
   drawCurrentPath(c);
-  // Range/sprint overlays now measure from the last node
+
   refreshPlayerVisualization(c, player.id);
 }
 
@@ -108,17 +85,10 @@ function rerollSources(
   kinds: RouteRoll["type"][]
 ): string[] {
   const arbiter = c.gameService.getRerollArbiter();
-  const skills = new Set(
-    kinds
-      .filter((kind) => kind !== "secureBall")
-      .map((kind) =>
-        kind === "dodge"
-          ? SkillType.DODGE
-          : kind === "rush"
-            ? SkillType.SURE_FEET
-            : SkillType.SURE_HANDS
-      )
-  );
+  const rerollSkill: Record<Exclude<RouteRoll["type"], "secureBall">, SkillType> = {
+    dodge: SkillType.DODGE, rush: SkillType.SURE_FEET, pickup: SkillType.SURE_HANDS,
+  };
+  const skills = new Set(kinds.filter((kind) => kind !== "secureBall").map((kind) => rerollSkill[kind]));
   const sources: string[] = [];
   for (const skill of skills) {
     if (
@@ -131,7 +101,9 @@ function rerollSources(
   if (team === "free") sources.push("Brilliant Coaching");
   if (team === "leader") sources.push("Leader");
   if (team === "team")
-    sources.push(`team ${arbiter.teamRerollsLeftFor(player.teamId)} left`);
+    sources.push(
+      `team ${String(arbiter.teamRerollsLeftFor(player.teamId))} left`
+    );
   if (
     hasSkill(player.skills, SkillType.PRO) &&
     arbiter.onceAvailable(player, SkillType.PRO)
@@ -141,7 +113,7 @@ function rerollSources(
   return sources;
 }
 
-export function planLegs(
+function planLegs(
   c: GameplayInteractionController,
   player: Player,
   route: Square[]
@@ -149,7 +121,19 @@ export function planLegs(
   const state = c.gameService.getState();
   const mover = withDriveModifiers(player, state);
   const securing = isSecuringBall(state, player.id);
-  return planMoveLegs(player.gridPosition!, route, {
+  const start = player.gridPosition;
+  if (!start) return [];
+  const pickup =
+      state.ballPosition &&
+      !ballInTheAir(state) &&
+      !c.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
+        ? {
+            square: state.ballPosition,
+            target: (securing ? secureBallTarget : pickupTarget)(mover, state.ballPosition, c.getOpposingPlayers(player.teamId), state.weather),
+            ...(securing ? { securing: true } : {}),
+          }
+        : undefined;
+  return planMoveLegs(start, route, {
     opponents: c.getOpposingPlayers(player.teamId),
     player: mover,
     ma: mover.stats.MA,
@@ -157,23 +141,8 @@ export function planLegs(
       c.gameService.getMovementUsed(player.id) +
       (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
     rushModifier: rushModifier(state, player),
-    // A kick still in the air is no loose ball: whoever stands under it
-    // Catches it when it lands
-    pickup:
-      state.ballPosition &&
-      !ballInTheAir(state) &&
-      !c.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
-        ? {
-            square: state.ballPosition,
-            target: (securing ? secureBallTarget : pickupTarget)(
-              mover,
-              state.ballPosition,
-              c.getOpposingPlayers(player.teamId),
-              state.weather
-            ),
-            ...(securing ? { securing: true } : {}),
-          }
-        : undefined,
+
+    ...(pickup === undefined ? {} : { pickup }),
   });
 }
 
@@ -208,17 +177,11 @@ function drawPlannedRoute(
   return route;
 }
 
-export function drawCurrentPath(c: GameplayInteractionController): void {
+function drawCurrentPath(c: GameplayInteractionController): void {
   if (!c.selectedPlayerId) return;
 
-  // We need to calculate rolls for the FULL path to visualize correctly
-  // Recalculate rolls based on full sequence
-  // This is a bit heavy but ensures correct visualization (dodge/gfi)
-
-  // TODO: Use a validator helper to "Analyze Path"
-  // For now, simple draw
   const player = c.gameService.getPlayerById(c.selectedPlayerId);
-  if (player && player.gridPosition) {
+  if (player?.gridPosition) {
     const fullPath = [
       { x: player.gridPosition.x, y: player.gridPosition.y },
       ...c.waypoints,
@@ -238,30 +201,25 @@ export function drawPath(
 ): void {
   if (!c.selectedPlayerId) return;
   const player = c.gameService.getPlayerById(c.selectedPlayerId);
-  if (!player) return;
+  if (!player?.gridPosition) return;
 
-  // Don't draw preview if not active team
   const state = c.gameService.getState();
   if (state.activeTeamId !== player.teamId) return;
 
-  // Find path for segment, from the last waypoint
-  const result = findLeg(c, player, x, y);
+  const result = findLeg({ c,player,x,y });
 
   if (result.valid) {
-    // Combine confirmed waypoints + preview path
-    // ALSO include the player's current position as the start of the visual path
     const fullPath = [
-      { x: player.gridPosition!.x, y: player.gridPosition!.y },
+      { ...player.gridPosition },
       ...c.waypoints,
       ...result.path,
     ];
-    // TODO: Get rolls for full path
+
     drawPlannedRoute(c, player, fullPath);
   } else {
-    // Just draw existing waypoints if preview is invalid
     if (c.waypoints.length > 0) {
       const fullPath = [
-        { x: player.gridPosition!.x, y: player.gridPosition!.y },
+        { ...player.gridPosition },
         ...c.waypoints,
       ];
       drawPlannedRoute(c, player, fullPath);
@@ -271,28 +229,21 @@ export function drawPath(
   }
 }
 
-/**
- * Every square the player can still reach, coloured by whether it needs a
- * Rush. With waypoints planned, the range is drawn as if the player already
- * stood on the last node with the spent squares deducted.
- */
 function drawMoveRange(
   c: GameplayInteractionController,
   player: Player,
   effectivePlayer: Player
 ): void {
-  // Calculate remaining SAFE MA (for overlay coloring)
   let used = c.gameService.getMovementUsed(player.id);
 
-  // If prone, they need to spend 3 MA to stand (or all MA if less than 3)
   if (player.status === "Prone") {
     const standUpCost = Math.min(3, effectivePlayer.stats.MA);
     used += standUpCost;
   }
 
   let reachable: { x: number; y: number; cost?: number }[];
-  if (c.waypoints.length > 0) {
-    const lastNode = c.waypoints[c.waypoints.length - 1];
+  const lastNode = c.waypoints.at(-1);
+  if (lastNode) {
     const { opponents, teammates } = sidesOf(c, player);
     const remainingAllowance = Math.max(
       0,
@@ -312,45 +263,22 @@ function drawMoveRange(
 
   const remainingSafeMA = Math.max(0, effectivePlayer.stats.MA - used);
 
-  // Sprint moves need a Rush (> remaining MA); every reachable square is
-  // still drawn lit
   const sprintMoves = reachable.filter(
     (move) => move.cost !== undefined && move.cost > remainingSafeMA
   );
 
-  // Show Overlay (Inverse of ALL reachable)
   c.pitch.drawRangeOverlay(reachable);
 
-  // Show Sprint Risks
   c.pitch.drawSprintRisks(sprintMoves);
 }
 
-/** The squares around each opponent that exerts a Tackle Zone. */
 function tackleZoneSquares(opponents: Player[]): Square[] {
-  const tackleZones: Square[] = [];
-  for (const op of opponents) {
-    // Standing and not Distracted — Distracted opponents draw none
-    if (!hasTackleZone(op) || !op.gridPosition) continue;
-    // Add 8 squares around
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        const tx = op.gridPosition.x + dx;
-        const ty = op.gridPosition.y + dy;
-        // Check bounds (0-25, 0-14)
-        const onPitch = tx >= 0 && tx < 26 && ty >= 0 && ty < 15;
-        if ((dx !== 0 || dy !== 0) && onPitch)
-          tackleZones.push({ x: tx, y: ty });
-      }
-    }
-  }
-  return tackleZones;
+  return opponents.flatMap((opponent) => hasTackleZone(opponent) && opponent.gridPosition
+    ? adjacentSquares(opponent.gridPosition, { width: 26, height: 15 }) : []);
 }
 
-/**
- * No route may start now: something is in flight, the other coach owns
- * the board, play has stopped outside a Charge!, or the action does not
- * move.
- */
+const MOVEMENT_MODES = new Set<GameplayInteractionController["currentActionMode"]>([null, "move", "blitz", "secureBall"]);
+
 function routesClosed(c: GameplayInteractionController): boolean {
   if (c.isBusy || c.push.active) return true;
   if (getActiveOnlineMatch()?.mayAct() === false) return true;
@@ -359,81 +287,49 @@ function routesClosed(c: GameplayInteractionController): boolean {
     !!c.gameService.getKickoffEventStep()?.charge?.activePlayerId;
   if (state.phase !== GamePhase.PLAY && !charging) return true;
   const mode = c.currentActionMode;
-  return (
-    mode !== null &&
-    mode !== "move" &&
-    mode !== "blitz" &&
-    mode !== "secureBall"
-  );
+  return !MOVEMENT_MODES.has(mode);
 }
 
-/** The player whose route a drag from this square would draw, if any. */
-export function routeOwnerAt(
-  c: GameplayInteractionController,
-  x: number,
-  y: number
-): Player | null {
-  if (routesClosed(c)) return null;
-  const state = c.gameService.getState();
-  const mode = c.currentActionMode;
-  const id = c.selectedPlayerId;
-  const selected = id ? c.gameService.getPlayerById(id) : undefined;
-  const end = c.waypoints[c.waypoints.length - 1];
-  if (selected && end?.x === x && end.y === y) return selected;
-  const there = c.getPlayerAt(x, y);
-  if (!there || !mayDrawRouteFor(c, there, state.activeTeamId)) return null;
-  // Another player only while the selected one has not started an action
-  if (there.id !== id && mode !== null) return null;
+function selectedRouteEndpoint(c: GameplayInteractionController, x: number, y: number): Player | null {
+  const selected = c.selectedPlayerId ? c.gameService.getPlayerById(c.selectedPlayerId) : undefined;
+  const end = c.waypoints.at(-1);
+  return selected && end?.x === x && end.y === y ? selected : null;
+}
+
+function ownsRoute(c: GameplayInteractionController, player: Player): boolean {
+  if (!isOwnActor(c, player, c.gameService.getState().activeTeamId)) return false;
+  if (player.id !== c.selectedPlayerId && c.currentActionMode !== null) return false;
   const online = getActiveOnlineMatch();
-  if (online && online.myTeamId !== there.teamId) return null;
-  return there;
+  return !online || online.myTeamId === player.teamId;
 }
 
-function mayDrawRouteFor(
-  c: GameplayInteractionController,
-  player: Player,
-  activeTeamId: string | null | undefined
-): boolean {
-  return player.teamId === activeTeamId && c.gameService.canActivate(player.id);
+export function routeOwnerAt(c: GameplayInteractionController, x: number, y: number): Player | null {
+  if (routesClosed(c)) return null;
+  const selected = selectedRouteEndpoint(c, x, y);
+  if (selected) return selected;
+  const there = c.getPlayerAt(x, y);
+  return there && ownsRoute(c, there) ? there : null;
 }
 
-/**
- * The dragging finger reached a square. Back over the route cuts it to
- * there; anywhere else adds the square, by the shortest legal way from
- * the route's end, as a click on it would.
- */
-export function dragRouteTo(
-  c: GameplayInteractionController,
-  player: Player,
-  start: Square,
-  x: number,
-  y: number
-): void {
-  const end = c.waypoints[c.waypoints.length - 1] ?? start;
-  if (end.x === x && end.y === y) return;
+function rewindRoute({ c, player, start, x, y }: Parameters<typeof dragRouteTo>[0]): boolean {
   if (start.x === x && start.y === y) {
     c.clearWaypoints();
     c.clearRollPreviews();
     c.pitch.clearPath();
     refreshPlayerVisualization(c, player.id);
-    return;
+    return true;
   }
   const back = c.waypoints.findIndex((p) => p.x === x && p.y === y);
   if (back >= 0) {
     c.waypoints = c.waypoints.slice(0, back + 1);
     drawCurrentPath(c);
     refreshPlayerVisualization(c, player.id);
-    return;
+    return true;
   }
-  if (c.getPlayerAt(x, y)) return;
-  const state = c.gameService.getState();
-  const action =
-    state.activePlayer?.id === player.id
-      ? state.activePlayer.action
-      : undefined;
-  if (!c.declareMoveIfNone(player.id, action)) return;
-  // A finger going diagonally clips a square beside the corner: one step
-  // reaches here from the square before that, so the clipped one goes
+  return false;
+}
+
+function extendRoute(c: GameplayInteractionController, start: Square, { x, y }: Square): void {
   const route = c.waypoints;
   const before = route[route.length - 2] ?? start;
   if (
@@ -443,14 +339,23 @@ export function dragRouteTo(
     c.waypoints = route.slice(0, -1);
   }
   addWaypoint(c, x, y);
-  // Out of reach: the route stays as it was
+
   if (c.waypoints.length <= route.length - 1) c.waypoints = route;
 }
 
-/**
- * Whether this player's activation runs on after a step: a turn of the
- * drive they have not finished, or the Charge! activation they are up in.
- */
+export function dragRouteTo(
+{ c,player,start,x,y }: { c: GameplayInteractionController; player: Player; start: Square; x: number; y: number; }): void {
+  const end = c.waypoints[c.waypoints.length - 1] ?? start;
+  if (end.x === x && end.y === y) return;
+  if (rewindRoute({ c, player, start, x, y })) return;
+  if (c.getPlayerAt(x, y)) return;
+  const state = c.gameService.getState();
+  const action = activeActionFor(state, player.id);
+  if (!c.declareMoveIfNone(player.id, action)) return;
+
+  extendRoute(c, start, { x, y });
+}
+
 function isStillActing(
   c: GameplayInteractionController,
   playerId: string
@@ -463,7 +368,6 @@ function isStillActing(
   );
 }
 
-/** The walk stopped before the leg's end: a fall, a turnover, or no more acting. */
 function stoppedShort(
   c: GameplayInteractionController,
   playerId: string,
@@ -474,16 +378,12 @@ function stoppedShort(
     !isStillActing(c, playerId) ||
     now?.status !== PlayerStatus.ACTIVE ||
     now.gridPosition?.x !== end.x ||
-    now.gridPosition?.y !== end.y
+    now.gridPosition.y !== end.y
   );
 }
 
 function afterMove(c: GameplayInteractionController, playerId: string): void {
-  // GameService finishes the activation once MA+2 is spent; otherwise the
-  // player stays selected to plot the next leg.
   if (!isStillActing(c, playerId)) {
-    // A Charge! that ran out of squares has already handed the board to
-    // the next charger: leave their unspent movement state alone
     if (c.selectedPlayerId === playerId) c.deselectPlayer();
     return;
   }
@@ -491,66 +391,59 @@ function afterMove(c: GameplayInteractionController, playerId: string): void {
   c.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
   c.clearWaypoints();
   c.pitch.clearPath();
-  // Calling selectPlayer would reset the action mode
+
   refreshPlayerVisualization(c, playerId);
 }
 
-/**
- * Walk the plotted route a leg at a time. A stretch that rolls nothing goes
- * as one move; each Dodge or Rush stops the player on the square before
- * it, asks the coach, and goes alone, so its dice land before the walk
- * carries on. Declining stops the player there with the movement left.
- */
-async function moveAlong(
-  c: GameplayInteractionController,
-  playerId: string,
-  route: Square[]
-): Promise<void> {
+type PlannedLeg = ReturnType<typeof planLegs>[number];
+
+async function confirmLeg(c: GameplayInteractionController, player: Player, leg: PlannedLeg): Promise<boolean> {
+  if (!leg.risk) return true;
+  await c.dice.landed();
+  const square = player.gridPosition;
+  if (!square) return false;
+  const request = riskyStepRequest({ deps: c, player, square, risk: leg.risk });
+  return c.confirmations.ask("risky-step", request);
+}
+
+async function walkRoute(c: GameplayInteractionController, playerId: string, route: Square[]): Promise<boolean> {
+  let rest = route;
+  let walked = false;
+  while (rest.length > 0) {
+    const player = c.gameService.getPlayerById(playerId);
+    if (!player?.gridPosition) break;
+    const [leg] = planLegs(c, player, rest);
+    if (!leg) break;
+    if (leg.risk && !(await confirmLeg(c, player, leg))) break;
+    await c.gameService.movePlayer(playerId, leg.path);
+    walked = true;
+    await c.scene.playerSettled?.(playerId);
+    const end = leg.path.reduce((_, square) => square, leg.path[0]);
+    if (stoppedShort(c, playerId, end)) break;
+    rest = rest.slice(leg.path.length);
+  }
+  return walked;
+}
+
+async function moveAlong(c: GameplayInteractionController, playerId: string, route: Square[]): Promise<void> {
   c.isBusy = true;
   c.clearWaypoints();
   c.clearRollPreviews();
   c.pitch.clearPath();
   let walked = false;
   try {
-    let rest = route;
-    while (rest.length > 0) {
-      const player = c.gameService.getPlayerById(playerId);
-      if (!player?.gridPosition) break;
-      const [leg] = planLegs(c, player, rest);
-      if (leg.risk) {
-        // The walk stops waiting on the dice after 3 s, but a slow screen
-        // or a queue in the tray can take longer: never ask about the
-        // next roll while the last one is still in the air
-        await c.dice.landed();
-        const request = riskyStepRequest(
-          c,
-          player,
-          player.gridPosition,
-          leg.risk
-        );
-        if (!(await c.confirmations.ask("risky-step", request))) break;
-      }
-      await c.gameService.movePlayer(playerId, leg.path);
-      walked = true;
-      await c.scene.playerSettled?.(playerId);
-      if (stoppedShort(c, playerId, leg.path[leg.path.length - 1])) break;
-      rest = rest.slice(leg.path.length);
-    }
-  } catch (err) {
-    console.error("Move failed", err);
-    c.isBusy = false;
+    walked = await walkRoute(c, playerId, route);
+  } catch (error) {
+    console.error("Move failed", error);
     c.deselectPlayer();
     return;
+  } finally {
+    c.isBusy = false;
   }
-  c.isBusy = false;
   if (walked) afterMove(c, playerId);
   else refreshPlayerVisualization(c, playerId);
 }
 
-/**
- * The selected player's movement range and the Tackle Zones around them,
- * drawn while their team may still act with them.
- */
 export function refreshPlayerVisualization(
   c: GameplayInteractionController,
   playerId: string
@@ -560,26 +453,20 @@ export function refreshPlayerVisualization(
   if (!player) return;
   const effectivePlayer = withDriveModifiers(player, state);
 
-  // canActivate answers for the Charge! window too
   const canActivate = c.gameService.canActivate(playerId);
   const isOwnTurn = state.activeTeamId === player.teamId;
   if (!isOwnTurn || !canActivate) return;
 
-  // Show Movement Range
-  // Show range if NOT in Pass Mode OR if in Move Step of Pass Mode. A
-  // Ball & Chain lurch goes where the Throw-in Template sends it.
   if (
     c.currentActionMode !== "ballAndChain" &&
     (c.currentActionMode !== "pass" || c.currentStepId === "move")
   ) {
     drawMoveRange(c, player, effectivePlayer);
   } else {
-    // Aiming a pass or swinging the chain: clear the movement overlays
     c.pitch.clearLayer("range_overlay");
     c.pitch.clearLayer("sprint_risk");
   }
 
-  // Show Tackle Zones (always show these)
   c.pitch.drawTackleZones(
     tackleZoneSquares(c.getOpposingPlayers(player.teamId))
   );

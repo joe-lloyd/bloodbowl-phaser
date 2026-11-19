@@ -5,10 +5,9 @@ import {
   insignificantLimitOk,
   validateInsignificant,
 } from "../../../src/game/rules/insignificant";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import { type Player, PlayerStatus } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 
-/** A player carrying (or not) the Insignificant trait. */
 const P = (insignificant: boolean, id = "p"): Player =>
   ({
     id,
@@ -21,8 +20,8 @@ const P = (insignificant: boolean, id = "p"): Player =>
   }) as Player;
 
 const list = (insig: number, sig: number): Player[] => [
-  ...Array.from({ length: insig }, (_, i) => P(true, `insig${i}`)),
-  ...Array.from({ length: sig }, (_, i) => P(false, `sig${i}`)),
+  ...Array.from({ length: insig }, (_, i) => P(true, `insig${String(i)}`)),
+  ...Array.from({ length: sig }, (_, i) => P(false, `sig${String(i)}`)),
 ];
 
 describe("Insignificant draft-list limit", () => {

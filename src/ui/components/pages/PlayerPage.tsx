@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Player, PlayerStats } from "../../../types/Player";
+import { type Player, type PlayerStats } from "../../../types/Player";
 import type { Team } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
 import {
@@ -32,17 +32,6 @@ const STAT_LABELS: Record<keyof PlayerStats, string> = {
   AV: "Armour",
 };
 
-/**
- * Manage Team's per-player development page (overhaul-team-lifecycle-
- * management, player-development-page capability). This is the only place
- * standard SPP advancement is applied — post-match only records SPP and
- * flags who has pending development, it never assigns a skill directly.
- *
- * Advancement mode: this page always offers standard SPP spending. Matched
- * Play and Sevens Skill Selection teams don't earn SPP (see
- * team-advancement-modes), so `canAdvance` naturally stays false for their
- * players here — this page needs no separate mode check of its own.
- */
 export function PlayerPage() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -77,7 +66,9 @@ export function PlayerPage() {
     );
   }
 
-  const refresh = () => setRefreshTick((value) => value + 1);
+  const refresh = () => {
+    setRefreshTick((value) => value + 1);
+  };
 
   const startingSkillNames = new Set(
     player.skills
@@ -114,8 +105,8 @@ export function PlayerPage() {
   return (
     <PageShell width="medium">
       <PageHeader
-        eyebrow={`${player.positionName} · Level ${player.level} · ${team.name}`}
-        title={`#${player.number} ${player.playerName}`}
+        eyebrow={`${player.positionName} · Level ${String(player.level)} · ${team.name}`}
+        title={`#${String(player.number)} ${player.playerName}`}
         actions={
           <HudButton
             variant="ghost"
@@ -136,7 +127,7 @@ export function PlayerPage() {
                   key={stat}
                   label={STAT_LABELS[stat]}
                   value={current}
-                  tone={current !== base ? "gold" : undefined}
+                  {...(current !== base ? { tone: "gold" as const } : {})}
                 />
               ))}
             </div>
@@ -149,7 +140,7 @@ export function PlayerPage() {
                   .map(({ stat, base, advances }) => (
                     <li key={stat}>
                       {STAT_LABELS[stat]}: base {base}
-                      {advances > 0 ? `, +${advances} advance(s)` : ""}
+                      {advances > 0 ? `, +${String(advances)} advance(s)` : ""}
                     </li>
                   ))}
               </ul>
@@ -211,7 +202,7 @@ export function PlayerPage() {
         ) : (
           <ul className="flex flex-wrap gap-1.5">
             {player.injuries.map((injury, index) => (
-              <li key={`${injury}-${index}`}>
+              <li key={`${injury}-${String(index)}`}>
                 <Chip tone="bad">{injury}</Chip>
               </li>
             ))}
@@ -233,7 +224,7 @@ export function PlayerPage() {
         {!eligible ? (
           <p className="text-hud-mute">
             {costs
-              ? `Not enough SPP to advance yet: ${player.spp} SPP, and the cheapest advancement (Random Primary) costs ${costs.randomPrimary}.`
+              ? `Not enough SPP to advance yet: ${String(player.spp)} SPP, and the cheapest advancement (Random Primary) costs ${String(costs.randomPrimary)}.`
               : "This player is a Legend and cannot advance further."}
           </p>
         ) : (
@@ -253,17 +244,8 @@ export function PlayerPage() {
   );
 }
 
-/**
- * The box the player's sprite is fitted into, in CSS pixels. The art is
- * scaled by whole pixels inside it, so the drawn figure is at most this big;
- * with the panel's padding it still fits a 320px-wide phone.
- */
 const SPRITE_BOX = 240;
 
-/**
- * The player's match sprite, large: the model their position uses in the
- * match, in their team's colours, under a rule in the team's primary colour.
- */
 function PlayerSprite({ player, team }: { player: Player; team: Team }) {
   return (
     <Panel
@@ -292,7 +274,6 @@ function PlayerSprite({ player, team }: { player: Player; team: Team }) {
   );
 }
 
-/** Unspent SPP, the career record, and where the player came from. */
 function SppAndCareer({
   player,
   team,

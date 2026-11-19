@@ -3,7 +3,7 @@ import { loadTeams, saveTeams } from "../game/managers/TeamManager";
 import { validateInsignificant } from "../game/rules/insignificant";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
 import type { Difficulty } from "../simulation/ai/difficulty";
-import { Team } from "../types/Team";
+import { type Team } from "../types/Team";
 import {
   computeStandings,
   generateRoundRobin,
@@ -11,41 +11,48 @@ import {
   seedEntrants,
 } from "./logic";
 import { findCompetitionById, saveCompetition } from "./repository";
-import { assertEntrantsCompatible, RosterRuleProfile } from "./rosterRules";
 import {
-  CompetitionDoc,
-  CompetitionEntrant,
-  CompetitionType,
+  assertEntrantsCompatible,
+  type RosterRuleProfile,
+} from "./rosterRules";
+import {
+  type CompetitionDoc,
+  type CompetitionEntrant,
+  type CompetitionType,
   DEFAULT_LEAGUE_POINTS,
-  TournamentFormat,
+  type TournamentFormat,
 } from "./types";
 import {
   COMPUTER_COACH,
   createComputerTeamFromTemplate,
 } from "./computerTeamTemplates";
-import { readSevensRuleset, SevensRuleset } from "../game/rules/sevensRuleset";
+import {
+  readSevensRuleset,
+  type SevensRuleset,
+} from "../game/rules/sevensRuleset";
 
-export type EntrantChoice =
+type EntrantChoice =
   | { team: Team; ownerUid: string | null }
   | { computerTemplateId: string };
+
+function entrantCoach(team: Team): Pick<CompetitionEntrant, "coachName"> {
+  if (team.computerCoached) return { coachName: COMPUTER_COACH };
+  return team.coachName === undefined ? {} : { coachName: team.coachName };
+}
 
 export interface NewCompetition {
   ruleset?: SevensRuleset;
   type: CompetitionType;
   name: string;
-  /** Tournaments only. */
+
   format?: TournamentFormat;
   organizerUid: string | null;
-  /** In seed order. A computer team is saved to the organizer's library. */
+
   entrants: EntrantChoice[];
   profile?: RosterRuleProfile;
   computerDifficulty?: Difficulty;
 }
 
-/**
- * Check the entrants and create the competition, as CompetitionBuilder's
- * Generate does. Throws an Error whose message the organizer is shown.
- */
 export async function createCompetition(
   input: NewCompetition
 ): Promise<CompetitionDoc> {
@@ -53,7 +60,7 @@ export async function createCompetition(
   if (!name) throw new Error("Give the competition a name.");
   if (input.entrants.length < 2) throw new Error("Select at least two teams.");
   const ruleset = readSevensRuleset(input.ruleset);
-  // Resolve recipes here so each competition owns its own untouched rookies.
+
   const taken = new Set(
     input.entrants.flatMap((choice) =>
       "team" in choice ? [choice.team.name] : []
@@ -67,15 +74,12 @@ export async function createCompetition(
     });
     const base = team.name;
     for (let suffix = 2; taken.has(team.name); suffix++)
-      team.name = `${base} ${suffix}`;
+      team.name = `${base} ${String(suffix)}`;
     taken.add(team.name);
     return { team, ownerUid: input.organizerUid };
   });
   const teams = choices.map((choice) => choice.team);
 
-  // A team belongs to at most one active competition. Every entrant carries
-  // a live team object, the organizer's own or another coach's (read via
-  // fetchAllCoachTeams), so this holds for every entrant.
   for (const team of teams) {
     if (!team.activeCompetitionId) continue;
     const existing = await findCompetitionById(team.activeCompetitionId);
@@ -85,8 +89,6 @@ export async function createCompetition(
     );
   }
 
-  // Shared roster legality gates competition entry the same way it gates
-  // finalization and match selection (team-lifecycle-modes).
   const illegal = teams.filter((team) => {
     try {
       const roster = getRosterByRosterName(team.rosterName);
@@ -113,19 +115,17 @@ export async function createCompetition(
         ? `computer:${team.id}`
         : ownerUid === input.organizerUid
           ? `own:${team.id}`
-          : `coach:${ownerUid}:${team.id}`,
+          : `coach:${String(ownerUid)}:${team.id}`,
       teamId: team.id,
       ownerUid,
       name: team.name,
-      coachName: team.computerCoached
-        ? COMPUTER_COACH
-        : (team.coachName ?? undefined),
+      ...entrantCoach(team),
       coachUid: ownerUid,
       rosterName: team.rosterName,
       ...(team.computerCoached ? { computerCoached: true as const } : {}),
     }))
-  ) as CompetitionEntrant[];
-  const id = `${input.type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  );
+  const id = `${input.type}-${String(Date.now())}-${Math.random().toString(36).slice(2, 8)}`;
   const now = Date.now();
   const fixtures =
     input.type === "league" || input.format === "round-robin"
@@ -160,8 +160,6 @@ export async function createCompetition(
         };
   await saveCompetition(competition);
 
-  // A cloud write to another coach's team is refused by Firestore rules
-  // (owner-only write), so only the organizer's own teams are stamped.
   const owned = choices.filter(
     (choice) => choice.ownerUid === input.organizerUid
   );

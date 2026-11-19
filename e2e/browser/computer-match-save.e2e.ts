@@ -1,10 +1,7 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { confirmPregame } from "../support/pregame";
-/**
- * Coming back to a match against the computer, through the real pages: the
- * toss starts the save, the options menu is usable, the menu banner and a
- * reload both pick the match up, and abandoning it removes the save.
- */
-import { test, expect, Page } from "@playwright/test";
+
+import { test, expect, type Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
 const SAVE_KEY = "bloodbowl_local_match_save";
@@ -12,7 +9,9 @@ const SAVE_KEY = "bloodbowl_local_match_save";
 async function startComputerMatch(page: Page, app: GameApp) {
   page.on("dialog", (dialog) => void dialog.accept());
   await page.goto("/build-team");
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => {
+    localStorage.clear();
+  });
   await page.reload();
   await page.getByText("Development fixtures", { exact: true }).click();
   await page.getByRole("button", { name: /Seed All Rosters/ }).click();
@@ -32,15 +31,11 @@ async function startComputerMatch(page: Page, app: GameApp) {
   await flip.click();
 }
 
-/**
- * Wait for a save from after the toss. The toss is won or lost at random;
- * a toss the human wins needs a choice.
- */
 async function waitForSave(page: Page) {
   const receive = page.getByRole("button", { name: /^RECEIVE$/ });
   await expect(async () => {
     if (await receive.count()) await receive.first().click({ timeout: 500 });
-    // Readiness and purchases save before the toss too: wait for set-up
+
     const subPhase = await page.evaluate((key) => {
       const raw = localStorage.getItem(key);
       return raw
@@ -52,10 +47,9 @@ async function waitForSave(page: Page) {
   }).toPass({ timeout: 60_000 });
 }
 
-/** The real click target at the row's centre: clipped rows hit something else. */
 async function isOnTop(page: Page, name: RegExp) {
   const item = page.getByRole("menuitem", { name });
-  const box = (await item.boundingBox())!;
+  const box = fixtureValue((await item.boundingBox()));
   return item.evaluate(
     (element, point) =>
       element.contains(document.elementFromPoint(point.x, point.y)),
@@ -72,13 +66,11 @@ test("saves after the toss, resumes, and abandons from the options menu", async 
   await startComputerMatch(page, app);
   await waitForSave(page);
 
-  // A reload picks the match up instead of tossing the coin again.
   await page.reload();
   const options = page.getByRole("button", { name: /match options/i });
   await options.waitFor({ timeout: 120_000 });
   await expect(page.getByRole("button", { name: "FLIP COIN" })).toHaveCount(0);
 
-  // The banner names the match and takes the coach back to it.
   await page.goto("/");
   const banner = page.getByTestId("resume-local-match");
   await expect(banner).toContainText("Resume match against the computer");
@@ -89,7 +81,7 @@ test("saves after the toss, resumes, and abandons from the options menu", async 
 
   await options.click();
   await expect(page.getByRole("menu")).toBeVisible();
-  // The entrance animation moves the rows; check them once they are at rest.
+
   await expect.poll(() => isOnTop(page, /return to main menu/i)).toBe(true);
   expect(await isOnTop(page, /abandon match/i)).toBe(true);
 

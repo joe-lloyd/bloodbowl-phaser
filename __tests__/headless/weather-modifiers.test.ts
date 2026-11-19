@@ -1,17 +1,16 @@
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import type { Weather } from "../../src/game/rules/weather";
 import type { EmittedEvent } from "../../src/headless/protocol";
 
-/**
- * The Weather Table (2025 rulebook) changes the dice: Very Sunny is -1 to
- * Passing Ability Tests, Pouring Rain -1 to pick-ups, catches and
- * interceptions, Blizzard -1 to Rush. The weather was rolled and shown but
- * no roll read it. Seeds are committed, never searched.
- */
-function scenario(weather: Weather, setup: Partial<Scenario["setup"]>): Scenario {
+function scenario(
+  weather: Weather,
+  setup: Partial<Scenario["setup"]>
+): Scenario {
   return {
     id: `weather-${weather}`,
     name: `Weather: ${weather}`,
@@ -31,13 +30,11 @@ function scenario(weather: Weather, setup: Partial<Scenario["setup"]>): Scenario
 function diceOf(events: EmittedEvent[]): string[] {
   return events
     .filter((e) => e.name === "diceRoll")
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
 }
 
-/**
- * A passer at (4,5) throws a Short Pass to a catcher at (10,5), with or
- * without a defender standing on the ruler at (7,5).
- */
 function passScenario(weather: Weather, interceptor: boolean): Scenario {
   return scenario(weather, {
     team1Placements: [
@@ -54,7 +51,7 @@ async function pass(weather: Weather, interceptor: boolean, seed: number) {
     scenario: passScenario(weather, interceptor),
     seed,
   });
-  const passer = game.ctx.team1.players[0].id;
+  const passer = fixtureValue(game.ctx.team1.players[0]).id;
   await game.execute({
     type: "declare-action",
     playerId: passer,
@@ -70,7 +67,7 @@ async function pass(weather: Weather, interceptor: boolean, seed: number) {
   if (res.pendingDecision?.type === "interception") {
     const reply = await game.execute({
       type: "choose-interception",
-      playerId: game.ctx.team2.players[0].id,
+      playerId: fixtureValue(game.ctx.team2.players[0]).id,
     });
     events.push(...reply.events);
   }
@@ -89,8 +86,12 @@ async function walkOntoBall(weather: Weather, seed: number) {
     }),
     seed,
   });
-  const mover = game.ctx.team1.players[0].id;
-  await game.execute({ type: "declare-action", playerId: mover, action: "move" });
+  const mover = fixtureValue(game.ctx.team1.players[0]).id;
+  await game.execute({
+    type: "declare-action",
+    playerId: mover,
+    action: "move",
+  });
   const res = await game.execute({
     type: "move",
     playerId: mover,
@@ -111,8 +112,12 @@ async function rushOneSquare(weather: Weather, seed: number) {
     }),
     seed,
   });
-  const mover = game.ctx.team1.players[0].id;
-  await game.execute({ type: "declare-action", playerId: mover, action: "move" });
+  const mover = fixtureValue(game.ctx.team1.players[0]).id;
+  await game.execute({
+    type: "declare-action",
+    playerId: mover,
+    action: "move",
+  });
   const res = await game.execute({
     type: "move",
     playerId: mover,
@@ -141,7 +146,6 @@ describe("weather modifiers", () => {
   });
 
   it("Pouring Rain puts -1 on the interception", async () => {
-    // The inaccurate pass is offered for interception before it scatters.
     expect(await pass("Pouring Rain", true, 1)).toEqual([
       "Pass (Human Lineman #1): 4, needs 5+",
       "Interception (Human Lineman #1): 1, needs 6+",

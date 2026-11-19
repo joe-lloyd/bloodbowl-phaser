@@ -1,6 +1,6 @@
 import type { Difficulty } from "../simulation/ai/difficulty";
-import { SeedMetadata } from "../types/seedMetadata";
-import { RosterRuleProfile } from "./rosterRules";
+import { type SeedMetadata } from "../types/seedMetadata";
+import { type RosterRuleProfile } from "./rosterRules";
 import type { FixtureWinnings } from "../game/rules/winnings";
 import type { SevensRuleset } from "../game/rules/sevensRuleset";
 
@@ -9,54 +9,32 @@ export type TournamentFormat = "single-elimination" | "round-robin";
 export type CompetitionStatus = "draft" | "active" | "complete";
 
 export interface CompetitionContext {
-  /** The competition's dated rules choice, carried by saves and online lobbies. */
   ruleset?: SevensRuleset;
   competitionType: CompetitionType;
   competitionId: string;
   fixtureId: string;
-  /** A knockout tie: a draw goes to Extra Time, then Penalties. */
+
   knockout?: boolean;
 }
 
-/**
- * An entrant references a team; it never embeds one. `teamId` + `ownerUid`
- * (null for a signed-out coach's local team) is the reference — the live
- * roster is fetched by reference when a fixture is launched
- * (src/competition/teamRefs.ts). `name`/`coachName`/`rosterName` are a
- * display cache for rendering fixture lists and brackets without fetching
- * every roster; they are refreshed opportunistically whenever a reader who
- * can see the referenced team loads the competition. `coachUid` is the
- * authoritative coach reference; `coachName` is its cached display name.
- */
 export interface CompetitionEntrant {
-  /** Stable id inside the competition. */
   id: string;
   teamId: string;
-  /** null for a signed-out coach's locally-stored team. */
+
   ownerUid: string | null;
-  /** Cached display name — team name. Refreshed on load when readable. */
+
   name: string;
-  /** Cached display name for the coach; `coachUid` is authoritative. */
+
   coachName?: string;
   coachUid?: string | null;
   rosterName: string;
   seed: number;
-  /**
-   * Set when the coach withdraws. Games already played stand; the ones left
-   * close as walkovers (FixtureResult.walkover).
-   */
+
   withdrawn?: boolean;
-  /**
-   * The computer coaches this entrant. Its team is in the organizer's
-   * library; a game between two computer entrants is simulated.
-   */
+
   computerCoached?: true;
 }
 
-/**
- * A Penalty Shoot-out (2025 rulebook, Penalties): five roll-offs, each won
- * by one side, after a knockout game is still level at the end of Extra Time.
- */
 export interface PenaltyShootout {
   home: number;
   away: number;
@@ -65,22 +43,14 @@ export interface PenaltyShootout {
 export interface FixtureResult {
   homeScore: number;
   awayScore: number;
-  /** Decided a level knockout game; the side that won more goes through. */
+
   penalties?: PenaltyShootout;
   winnerEntrantId?: string;
   completedAt: number;
   bye?: boolean;
-  /**
-   * Never played: one side had withdrawn. The other side wins it, and goes
-   * through in a knockout, but the table leaves it out. The index names the
-   * withdrawn entrant in `entrants`, so the database rules can check it.
-   */
+
   walkover?: { withdrawnEntrantIndex: number };
-  /**
-   * A played league game's winnings (src/game/rules/winnings.ts), fixed by
-   * the first report so both coaches pay the same amounts. Absent for a
-   * tournament game, a walkover, a bye and results recorded before winnings.
-   */
+
   winnings?: FixtureWinnings;
 }
 
@@ -115,11 +85,9 @@ export interface LeaguePoints {
   loss: number;
 }
 
-export interface LeagueDoc {
-  /** Fixed for this competition. Older records use GW 2025 Sevens. */
+export interface CompetitionBase {
   ruleset?: SevensRuleset;
   id: string;
-  type: "league";
   name: string;
   organizerUid: string | null;
   participantUids: string[];
@@ -127,45 +95,23 @@ export interface LeagueDoc {
   entrants: CompetitionEntrant[];
   fixtures: CompetitionFixture[];
   standings: Standing[];
-  /** Where in `entrants` the last reporting coach's team is; rules check it. */
   reporterEntrantIndex?: number;
-  points: LeaguePoints;
   createdAt: number;
   updatedAt: number;
-  /** Development seed ownership; absent on coach-created competitions. */
   seedMetadata?: SeedMetadata;
-  /** Versioned advancement-mode/budget/roster requirements, snapshotted at
-   *  creation (see competition-roster-rules). Absent = legacy competition:
-   *  compatibility is not enforced until the organizer edits/migrates it. */
   rosterProfile?: RosterRuleProfile;
-  /** How hard the computer plays a person; Standard if unset. */
   computerDifficulty?: Difficulty;
 }
 
-export interface TournamentDoc {
-  /** See LeagueDoc.ruleset. */
-  ruleset?: SevensRuleset;
-  id: string;
+export interface LeagueDoc extends CompetitionBase {
+  type: "league";
+  points: LeaguePoints;
+}
+
+export interface TournamentDoc extends CompetitionBase {
   type: "tournament";
-  name: string;
-  organizerUid: string | null;
-  participantUids: string[];
-  status: CompetitionStatus;
   format: TournamentFormat;
-  entrants: CompetitionEntrant[];
-  fixtures: CompetitionFixture[];
-  standings: Standing[];
-  /** See LeagueDoc.reporterEntrantIndex. */
-  reporterEntrantIndex?: number;
   championEntrantId?: string;
-  createdAt: number;
-  updatedAt: number;
-  /** Development seed ownership; absent on coach-created competitions. */
-  seedMetadata?: SeedMetadata;
-  /** See LeagueDoc.rosterProfile. */
-  rosterProfile?: RosterRuleProfile;
-  /** See LeagueDoc.computerDifficulty. */
-  computerDifficulty?: Difficulty;
 }
 
 export type CompetitionDoc = LeagueDoc | TournamentDoc;
@@ -176,7 +122,6 @@ export const DEFAULT_LEAGUE_POINTS: LeaguePoints = {
   loss: 0,
 };
 
-/** The page a competition is shown on. */
 export function competitionPath(
   competition: Pick<CompetitionContext, "competitionType" | "competitionId">
 ): string {

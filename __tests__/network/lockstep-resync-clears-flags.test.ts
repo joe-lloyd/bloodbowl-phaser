@@ -1,8 +1,3 @@
-/**
- * A full-state resync copies the peer's state onto the live GameState with
- * Object.assign. A flag the peer does not have must be cleared, or this
- * engine keeps it: a stale Charge! left team two without its re-roll.
- */
 import { describe, expect, it } from "vitest";
 import { createSimGame } from "../../src/simulation/runMatch";
 import { stateChecksum } from "../../src/headless/checksum";

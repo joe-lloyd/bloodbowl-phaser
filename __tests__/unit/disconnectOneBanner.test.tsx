@@ -1,18 +1,12 @@
-/**
- * Round 2, 25:22: a disconnect showed two stacked banners, "Coach
- * disconnected" and "Reconnecting to Coach…", and End Turn stayed up
- * while no command could be sent. One banner says what is wrong, and End
- * Turn is disabled while input is held.
- */
 import { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase } from "../../src/types/GameState";
 import {
-  OnlineMatch,
+  type OnlineMatch,
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
 import { MatchBanner } from "../../src/ui/pages/ConnectionBanner";
@@ -27,7 +21,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   game = new HeadlessGame({ seed: 1 });
   bus = new EventBus();
-  ServiceContainer.initialize(bus, game.ctx.team1, game.ctx.team2);
+  ServiceContainer.initialize({ eventBus: bus, team1: game.ctx.team1, team2: game.ctx.team2 });
   ServiceContainer.getInstance().gameService.getState().phase = GamePhase.PLAY;
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -35,7 +29,9 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   setActiveOnlineMatch(null);
   ServiceContainer.reset();
@@ -53,7 +49,7 @@ const banners = () =>
   );
 
 it("shows one banner while the other coach is away", async () => {
-  await act(async () =>
+  await act(async () => {
     root.render(
       <MatchBanner
         match={held}
@@ -61,8 +57,8 @@ it("shows one banner while the other coach is away", async () => {
         opponentName="Coach-KWAZ"
         connection="reconnecting"
       />
-    )
-  );
+    );
+  });
   await act(async () => vi.advanceTimersByTime(500));
   expect(banners()).toEqual([
     "⚠ Coach-KWAZ disconnectedWaiting for them to reconnect…",
@@ -70,16 +66,19 @@ it("shows one banner while the other coach is away", async () => {
 });
 
 it("shows the waiting line once both coaches are connected", async () => {
-  await act(async () =>
+  await act(async () => {
     root.render(
       <MatchBanner
-        match={{ mayAct: () => false, waitingLabel: () => "Coach-KWAZ's turn…" }}
+        match={{
+          mayAct: () => false,
+          waitingLabel: () => "Coach-KWAZ's turn…",
+        }}
         eventBus={bus}
         opponentName="Coach-KWAZ"
         connection="online"
       />
-    )
-  );
+    );
+  });
   await act(async () => vi.advanceTimersByTime(500));
   expect(banners()).toEqual(["⏳ Coach-KWAZ's turn…"]);
 });
@@ -90,15 +89,15 @@ it("disables End Turn while input is held", async () => {
     myTeamId: game.ctx.team1.id,
     mayAct: () => mayAct,
   } as unknown as OnlineMatch);
-  await act(async () =>
+  await act(async () => {
     root.render(
       <EndTurnButton
         onClick={() => {}}
         phase={GamePhase.PLAY}
         activeTeamId={game.ctx.team1.id}
       />
-    )
-  );
+    );
+  });
   const button = () =>
     container.querySelector<HTMLButtonElement>('[data-testid="end-turn"]');
   expect(button()?.disabled).toBe(false);

@@ -1,4 +1,3 @@
-/** The initials on a team's crest. */
 import { describe, expect, it } from "vitest";
 import { crestInitials } from "../../src/ui/components/common/TeamCrest";
 

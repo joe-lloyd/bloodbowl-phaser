@@ -1,8 +1,3 @@
-/**
- * Both coaches' pages open at the same moment and each says hello. Each
- * answers the other's hello, so neither needs the other's answer, and play
- * must carry on with no desync and no resync.
- */
 import { describe, it, expect } from "vitest";
 import {
   createSimGame,

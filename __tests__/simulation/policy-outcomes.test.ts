@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,7 +29,7 @@ async function replayScore(
   }
   for (
     let i = 0;
-    i < 20 && game.ctx.gameService.getState().score.team1 === 0;
+    i < 20 && game.ctx.gameService.getState().score["team1"] === 0;
     i++
   ) {
     const point = await enumerateDecision(game, null);
@@ -38,7 +39,8 @@ async function replayScore(
       point,
       rng: createCoachRng(1),
     });
-    for (const command of point.candidates[choice.index].commands) {
+    for (const command of fixtureValue(point.candidates[choice.index])
+      .commands) {
       const response = await game.execute(command);
       expect(response.ok).toBe(true);
       steps.push({
@@ -46,11 +48,11 @@ async function replayScore(
         ok: response.ok,
         team: 0,
         label: "tactical trace",
-        note: choice.note,
+        ...(choice.note === undefined ? {} : { note: choice.note }),
       });
     }
   }
-  expect(game.ctx.gameService.getState().score.team1).toBe(1);
+  expect(game.ctx.gameService.getState().score["team1"]).toBe(1);
   const recording: MatchRecording = {
     format: RECORDING_FORMAT,
     version: 1,
@@ -91,7 +93,7 @@ describe("saved policy outcome evidence", () => {
         },
       ],
     });
-    const playerId = game.ctx.team1.players[0].id;
+    const playerId = fixtureValue(game.ctx.team1.players[0]).id;
     const result = await replayScore(game, [
       { type: "declare-action", playerId, action: "move" },
       {

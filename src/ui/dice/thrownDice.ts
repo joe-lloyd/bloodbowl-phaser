@@ -1,9 +1,3 @@
-/**
- * Which rolls are thrown as 3D dice: D6s, D16s and block dice in the tray.
- * A D3 or D8 has no die model. The thrown dice make
- * their own sound as they land, so the sound suite skips its dice rattle
- * for these.
- */
 export const isBlockDice = (diceType: string): boolean =>
   /block/i.test(diceType);
 

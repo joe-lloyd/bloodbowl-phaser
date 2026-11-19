@@ -1,4 +1,4 @@
-import { Player } from "../../types/Player";
+import { type Player } from "../../types/Player";
 import { AssistValidator } from "./AssistValidator";
 
 export interface FoulAnalysis {
@@ -8,26 +8,23 @@ export interface FoulAnalysis {
 }
 
 export class FoulValidator extends AssistValidator {
-  /**
-   * Analyze a foul to determine assists and modifiers
-   */
   public analyzeFoul(
     fouler: Player,
     target: Player,
     allPlayers: Player[]
   ): FoulAnalysis {
-    const offensiveAssists = this.getValidAssists(
-      fouler,
-      target,
+    const offensiveAssists = this.getValidAssists({
+      subject: fouler,
+      opponent: target,
       allPlayers,
-      "foul"
-    );
-    const defensiveAssists = this.getValidAssists(
-      target,
-      fouler,
+      action: "foul",
+    });
+    const defensiveAssists = this.getValidAssists({
+      subject: target,
+      opponent: fouler,
       allPlayers,
-      "foul"
-    );
+      action: "foul",
+    });
 
     const modifier = offensiveAssists.length - defensiveAssists.length;
 

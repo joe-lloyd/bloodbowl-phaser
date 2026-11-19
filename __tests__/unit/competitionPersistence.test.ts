@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LeagueDoc } from "../../src/competition/types";
+import { type LeagueDoc } from "../../src/competition/types";
 
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
@@ -29,7 +29,9 @@ function league(): LeagueDoc {
   };
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe("local competition persistence", () => {
   it("resumes a saved season after a reload", async () => {

@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createCompetition } from "../../src/competition/create";
 import {
@@ -30,14 +31,16 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+});
 
 function nafRoster() {
   const team = createReadyMadeTeam(RosterName.SNOTLING, "NAF Snots", 1);
   const template = getRosterByRosterName(RosterName.SNOTLING)
     .playerTemplates[0];
-  team.players.push(createPlayer(template, team.id, team.players.length + 1));
-  team.treasury -= template.cost;
+  team.players.push(createPlayer(fixtureValue(template), team.id, team.players.length + 1));
+  team.treasury -= fixtureValue(template).cost;
   team.draftRuleset = NAF_SEVENS_RULESET;
   team.advancementMode = "advanced-league";
   return team;
@@ -51,7 +54,7 @@ describe("GW baseline and dated NAF Sevens rulings", () => {
     );
     expect(validateInsignificant(team.players, NAF_SEVENS_RULESET)).toBeNull();
     const profile = createRosterRuleProfile({
-      advancementMode: team.advancementMode!,
+      advancementMode: fixtureValue(team.advancementMode),
     });
     expect(checkTeamCompatibility(team, profile).compatible).toBe(false);
     expect(checkTeamCompatibility(team, profile, NAF_SEVENS_RULESET)).toEqual({
@@ -87,9 +90,9 @@ describe("GW baseline and dated NAF Sevens rulings", () => {
   it("still refuses other roster violations with NAF enabled", async () => {
     const team = nafRoster();
     team.treasury = -1;
-    expect(() =>
-      assertEntrantsCompatible([team], undefined, NAF_SEVENS_RULESET)
-    ).toThrow("treasury is negative");
+    expect(() => {
+      assertEntrantsCompatible([team], undefined, NAF_SEVENS_RULESET);
+    }).toThrow("treasury is negative");
     const opponent = createReadyMadeTeam(RosterName.HUMAN, "Visitors", 2);
     await expect(
       createCompetition({
@@ -136,7 +139,7 @@ describe("GW baseline and dated NAF Sevens rulings", () => {
       ...latest,
       name: "Renamed legacy league",
     }));
-    const stored = JSON.parse(localStorage.getItem("bloodbowl_competitions")!);
+    const stored = JSON.parse(fixtureValue(localStorage.getItem("bloodbowl_competitions")));
     expect(stored[`league:${competition.id}`]).toMatchObject({
       name: "Renamed legacy league",
     });

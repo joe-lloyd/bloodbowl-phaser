@@ -2,11 +2,6 @@ import { describe, it, expect } from "vitest";
 import { BlockResolutionService } from "../../../src/services/BlockResolutionService";
 import { RNGService } from "../../../src/services/rng/RNGService";
 
-/**
- * Push option tiers (rulebook p.55): unoccupied squares whenever any exist;
- * the crowd when only off-pitch exits remain; occupied squares (chain push)
- * only when fully boxed in on-pitch.
- */
 describe("BlockResolutionService.getPushOptions", () => {
   const service = new BlockResolutionService(new RNGService(1));
 
@@ -54,8 +49,6 @@ describe("BlockResolutionService.getPushOptions", () => {
   });
 
   it("offers the crowd when the sideline blocks everything else", () => {
-    // Defender on the top sideline; both on-pitch squares occupied, so the
-    // only exit is the off-pitch square above
     const { options, tier } = service.getPushOptions(
       { x: 9, y: 0 },
       { x: 10, y: 0 },
@@ -66,7 +59,6 @@ describe("BlockResolutionService.getPushOptions", () => {
   });
 
   it("offers only the crowd behind the end zone", () => {
-    // Defender in the far end zone column pushed straight off the pitch
     const { options, tier } = service.getPushOptions(
       { x: 24, y: 5 },
       { x: 25, y: 5 },
@@ -74,11 +66,12 @@ describe("BlockResolutionService.getPushOptions", () => {
     );
     expect(tier).toBe("crowd");
     expect(options).toHaveLength(3);
-    options.forEach((o) => expect(o.x).toBe(26));
+    options.forEach((o) => {
+      expect(o.x).toBe(26);
+    });
   });
 
   it("prefers an open square over the crowd at the sideline", () => {
-    // One on-pitch square free: the crowd must not be offered
     const { options, tier } = service.getPushOptions(
       { x: 9, y: 0 },
       { x: 10, y: 0 },

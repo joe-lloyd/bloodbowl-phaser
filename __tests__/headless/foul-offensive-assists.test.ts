@@ -1,18 +1,13 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
-import { PlayerPlacement } from "../../src/types/Scenario";
+import { type PlayerPlacement } from "../../src/types/Scenario";
 import { forceDice } from "../utils/test-helpers";
 
-/**
- * FAQ (May 2026): "You may choose not to add Offensive Assists to a Foul's
- * Armour Roll ... You must declare which Assists are applying a +1 modifier
- * before rolling". Defensive Assists always apply. A Sneaky Git fouler
- * declines them so a double that holds does not get them Sent-off.
- */
 function foulGame(
   assisters: Omit<PlayerPlacement, "playerIndex">[],
   defenders: Omit<PlayerPlacement, "playerIndex">[] = []
@@ -51,15 +46,20 @@ function foulGame(
   game.ctx.eventBus.on(GameEventNames.DiceRoll, ({ rollType, description }) => {
     if (rollType.startsWith("Foul Armour Roll")) armourRolls.push(description);
   });
-  // Argue the Call fails, so a spotted fouler is Sent-off
+
   vi.spyOn(game.ctx.rng, "rollDie").mockReturnValue(1);
   const startFoul = async () => {
     await game.execute({
       type: "declare-action",
-      playerId: fouler.id,
+      playerId: fixtureValue(fouler).id,
       action: "foul",
     });
-    return game.execute({ type: "foul", playerId: fouler.id, x: 11, y: 5 });
+    return game.execute({
+      type: "foul",
+      playerId: fixtureValue(fouler).id,
+      x: 11,
+      y: 5,
+    });
   };
   return { game, fouler, target, armourRolls, startFoul };
 }
@@ -78,9 +78,9 @@ describe("a Foul's Offensive Assists are the fouling coach's choice", () => {
     expect(response.ok).toBe(true);
     expect(response.pendingDecision).toEqual({
       type: "foul-assists",
-      playerId: fouler.id,
-      targetId: target.id,
-      chooserTeamId: fouler.teamId,
+      playerId: fixtureValue(fouler).id,
+      targetId: fixtureValue(target).id,
+      chooserTeamId: fixtureValue(fouler).teamId,
       available: 2,
       defensive: 0,
     });
@@ -97,27 +97,27 @@ describe("a Foul's Offensive Assists are the fouling coach's choice", () => {
 
     expect(reply.ok).toBe(true);
     expect(armourRolls).toEqual([
-      `Foul Armour Roll (${target.playerName}): 4 + 4 = 8 (AV 10+)`,
+      `Foul Armour Roll (${fixtureValue(target).playerName}): 4 + 4 = 8 (AV 10+)`,
     ]);
-    expect(target.status).toBe(PlayerStatus.PRONE);
-    expect(fouler.status).toBe(PlayerStatus.ACTIVE);
-    expect(fouler.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(fixtureValue(target).status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(fouler).status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(fouler).gridPosition).toEqual({ x: 10, y: 5 });
   });
 
   it("adds every assist chosen, and a broken double Sends-off the fouler", async () => {
     const { game, fouler, target, armourRolls, startFoul } =
       foulGame(twoAssists);
-    // Armour 4 + 4 + 2 breaks; Injury 1 + 2 Stunned
+
     forceDice(game.ctx.rng, [4, 4, 1, 2]);
     await startFoul();
 
     await game.execute({ type: "choose-foul-assists", count: 2 });
 
     expect(armourRolls).toEqual([
-      `Foul Armour Roll (${target.playerName}): 4 + 4 +2 = 10 (AV 10+)`,
+      `Foul Armour Roll (${fixtureValue(target).playerName}): 4 + 4 +2 = 10 (AV 10+)`,
     ]);
-    expect(target.status).toBe(PlayerStatus.STUNNED);
-    expect(fouler.gridPosition).toBeUndefined();
+    expect(fixtureValue(target).status).toBe(PlayerStatus.STUNNED);
+    expect(fixtureValue(fouler).gridPosition).toBeUndefined();
   });
 
   it("applies one of two assists when the coach adds one", async () => {
@@ -128,13 +128,11 @@ describe("a Foul's Offensive Assists are the fouling coach's choice", () => {
     await game.execute({ type: "choose-foul-assists", count: 1 });
 
     expect(armourRolls).toEqual([
-      `Foul Armour Roll (${target.playerName}): 5 + 3 +1 = 9 (AV 10+)`,
+      `Foul Armour Roll (${fixtureValue(target).playerName}): 5 + 3 +1 = 9 (AV 10+)`,
     ]);
   });
 
   it("always applies Defensive Assists, whatever the coach adds", async () => {
-    // One offensive assist at (11,4); one defensive assist at (9,5) marks
-    // the fouler. The defender is not adjacent to the assisting team-mate.
     const { game, target, armourRolls, startFoul } = foulGame(
       [{ x: 11, y: 4 }],
       [{ x: 9, y: 6 }]
@@ -150,7 +148,7 @@ describe("a Foul's Offensive Assists are the fouling coach's choice", () => {
     await game.execute({ type: "choose-foul-assists", count: 0 });
 
     expect(armourRolls).toEqual([
-      `Foul Armour Roll (${target.playerName}): 5 + 3 -1 = 7 (AV 10+)`,
+      `Foul Armour Roll (${fixtureValue(target).playerName}): 5 + 3 -1 = 7 (AV 10+)`,
     ]);
   });
 
@@ -173,7 +171,7 @@ describe("a Foul's Offensive Assists are the fouling coach's choice", () => {
 
     expect(response.pendingDecision).toBeNull();
     expect(armourRolls).toEqual([
-      `Foul Armour Roll (${target.playerName}): 5 + 3 = 8 (AV 10+)`,
+      `Foul Armour Roll (${fixtureValue(target).playerName}): 5 + 3 = 8 (AV 10+)`,
     ]);
   });
 });

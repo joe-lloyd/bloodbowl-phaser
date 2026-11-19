@@ -1,21 +1,22 @@
+import { invokeCommand } from "./gameService/commandPromise";
+import type * as SetupTypes from "@/types/SetupTypes";
+import type * as InducementTypes from "@/types/Inducements";
 import { assertPregamePurchasesComplete } from "@/game/inducements/pregame";
-/**
- * GameService - Core game logic service
- *
- * Pure TypeScript implementation with no Phaser dependencies.
- * Manages game state, phase transitions, and turn management. The managers
- * it wires together are built in gameService/parts.ts; the longer steps
- * live beside it in gameService/.
- */
 
-import { IGameService } from "./interfaces/IGameService.js";
-import { IEventBus } from "./EventBus.js";
-import { GameState, GamePhase, SubPhase } from "@/types/GameState";
-import { ActionType, GameEventNames } from "../types/events";
-import { Team } from "@/types/Team";
-import { Player } from "@/types/Player";
-import { BlockResult, BlockResolutionService } from "./BlockResolutionService";
-import { NextHalf, TurnManagerState } from "../game/managers/TurnManager";
+import { type IGameService } from "./interfaces/IGameService.js";
+import { type IEventBus } from "./EventBus.js";
+import { type GameState, GamePhase, SubPhase } from "@/types/GameState";
+import { GameEventNames } from "../types/events";
+import { type Team } from "@/types/Team";
+import { type Player } from "@/types/Player";
+import {
+  type BlockResult,
+  BlockResolutionService,
+} from "./BlockResolutionService";
+import {
+  type NextHalf,
+  type TurnManagerState,
+} from "../game/managers/TurnManager";
 import { PassController } from "../game/controllers/PassController";
 import { CatchController } from "../game/controllers/CatchController";
 import { BallMovementController } from "../game/controllers/BallMovementController";
@@ -24,18 +25,17 @@ import { ArmourController } from "../game/controllers/ArmourController";
 import { InjuryController } from "../game/controllers/InjuryController";
 import {
   GameFlowManager,
-  DelayProvider,
+  type DelayProvider,
   realTimeDelay,
 } from "@/game/core/GameFlowManager";
-import { SwoopFacing } from "@/game/rules/throwTeammate";
-import { BallAndChainSquare } from "@/game/operations/BallAndChainOperation";
+import { type BallAndChainSquare } from "@/game/operations/BallAndChainOperation";
 import { FoulController } from "@/game/controllers/FoulController";
-import { IRNGService } from "./rng/RNGService.js";
+import { type IRNGService } from "./rng/RNGService.js";
 import { RerollArbiter, DecisionService } from "@/game/skills";
-import { RerollSource } from "@/types/decisions";
-import { Inducement, InducementOffer } from "@/types/Inducements";
-import { BlockReplacement } from "@/types/BlockReplacement";
-import { GameParts, createGameParts } from "./gameService/parts";
+import { type RerollSource } from "@/types/decisions";
+import { Inducement, type InducementOffer } from "@/types/Inducements";
+import { type BlockReplacement } from "@/types/BlockReplacement";
+import { type GameParts, createGameParts } from "./gameService/parts";
 import { createInitialState, createMatchState } from "./gameService/matchStart";
 import * as activation from "./gameService/activation";
 import * as answers from "./gameService/decisionAnswers";
@@ -50,28 +50,34 @@ import * as roster from "./gameService/roster";
 import * as specials from "./gameService/specialActions";
 
 export class GameService implements IGameService {
-  /** The managers and the state they share (gameService/parts.ts). */
   private readonly parts: GameParts;
-  /** Blitzers whose one Block is spent this activation. */
+
   private readonly blitzBlockUsed: Set<string>;
 
-  /** The opening state of a fresh match, teams readied (matchStart.ts). */
   public static createMatchState = createMatchState;
-  /** A default initial state. */
+
   public static createInitialState = createInitialState;
 
   public diceController: DiceController;
   public flowManager: GameFlowManager;
 
-  constructor(
-    eventBus: IEventBus,
-    team1: Team,
-    team2: Team,
-    rngService: IRNGService,
-    blockResolutionService: BlockResolutionService,
-    initialState?: GameState,
-    delay: DelayProvider = realTimeDelay
-  ) {
+  constructor({
+    eventBus,
+    team1,
+    team2,
+    rngService,
+    blockResolutionService,
+    initialState,
+    delay = realTimeDelay,
+  }: {
+    eventBus: IEventBus;
+    team1: Team;
+    team2: Team;
+    rngService: IRNGService;
+    blockResolutionService: BlockResolutionService;
+    initialState?: GameState;
+    delay?: DelayProvider;
+  }) {
     this.parts = createGameParts({
       game: this,
       eventBus,
@@ -86,16 +92,12 @@ export class GameService implements IGameService {
     this.flowManager = this.parts.flowManager;
     this.blitzBlockUsed = this.parts.marks.blitzBlockUsed;
 
-    // A headless/sandbox scenario may begin directly in PLAY, bypassing the
-    // normal kickoff transition, so seed its half-level Leader bank here.
     if (this.parts.state.phase === GamePhase.PLAY) {
       this.parts.rerollArbiter.beginHalf([team1.id, team2.id]);
     }
 
     inducements.restoreMatchInducements(this.parts);
   }
-
-  // ===== State Queries =====
 
   getState(): GameState {
     return this.parts.state;
@@ -151,50 +153,47 @@ export class GameService implements IGameService {
     return this.parts.rerollArbiter;
   }
 
-  /** Answer a pending reroll decision (dialog or protocol reply). */
   public answerReroll(accept: boolean, source?: RerollSource): boolean {
     return answers.answerReroll(this.parts.decisionService, accept, source);
   }
 
-  /** Answer a pending reaction decision (dialog or protocol reply). */
   public answerReaction(accept: boolean): boolean {
     return answers.answerReaction(this.parts.decisionService, accept);
   }
 
-  /** Answer a pending Bloodlust bite-target decision; undefined bites nobody. */
   public answerBiteTarget(targetId?: string): boolean {
     return answers.answerBiteTarget(this.parts.decisionService, targetId);
   }
 
-  /** Answer a pending interception decision; undefined declines. */
   public answerInterception(playerId?: string): boolean {
     return answers.answerInterception(this.parts.decisionService, playerId);
   }
 
-  /** Answer a pending Apothecary decision (dialog or protocol reply). */
   public answerApothecary(accept: boolean): boolean {
     return answers.answerApothecary(this.parts.decisionService, accept);
   }
 
-  /** Answer a pending Prayer or Desperate Measure choice. */
   public answerInducementChoice(
     answer: import("@/types/decisions").InducementChoiceDecisionAnswer
   ): boolean {
     return answers.answerInducementChoice(this.parts.decisionService, answer);
   }
 
-  /** Answer a pending Foul assists decision with the assists that count. */
   public answerFoulAssists(count: number): boolean {
     return answers.answerFoulAssists(this.parts.decisionService, count);
   }
 
-  /** Commit a confirmed pregame inducement selection into match state. */
   public commitInducements(
-    profile: import("@/types/Inducements").InducementRuleProfile,
+    profile: InducementTypes.InducementRuleProfile,
     budgets: Record<string, number>,
-    inventory: import("@/types/Inducements").InducementInventoryEntry[]
+    inventory: InducementTypes.InducementInventoryEntry[]
   ): void {
-    inducements.commitInducements(this.parts, profile, budgets, inventory);
+    inducements.commitInducements({
+      parts: this.parts,
+      profile,
+      budgets,
+      inventory,
+    });
   }
 
   getInducementOffer(): InducementOffer {
@@ -206,22 +205,26 @@ export class GameService implements IGameService {
     inducement: Inducement,
     quantity: number
   ): { ok: boolean; errors: string[] } {
-    return inducements.selectInducement(
-      this.parts,
+    return inducements.selectInducement({
+      parts: this.parts,
       teamId,
       inducement,
-      quantity
-    );
+      quantity,
+    });
   }
 
   removeInducement(
     teamId: string,
     inducement: Inducement
   ): { ok: boolean; errors: string[] } {
-    return inducements.selectInducement(this.parts, teamId, inducement, 0);
+    return inducements.selectInducement({
+      parts: this.parts,
+      teamId,
+      inducement,
+      quantity: 0,
+    });
   }
 
-  /** Confirm a team's pregame selection; commits the inventory once both have. */
   confirmInducements(teamId: string): { ok: boolean; errors: string[] } {
     return inducements.confirmInducements(this.parts, teamId);
   }
@@ -246,7 +249,6 @@ export class GameService implements IGameService {
     this.parts.setupManager.resyncFromTeams();
   }
 
-  // ===== Setup Phase =====
   startSetup(startingTeamId?: string): void {
     assertPregamePurchasesComplete(this.parts.state);
     matchStart.rollMasterChefs(this.parts);
@@ -273,9 +275,7 @@ export class GameService implements IGameService {
     return this.parts.setupManager.isSetupComplete(teamId);
   }
 
-  getSetupStatus(
-    teamId: string
-  ): import("../types/SetupTypes").SetupTeamStatus | undefined {
+  getSetupStatus(teamId: string): SetupTypes.SetupTeamStatus | undefined {
     return this.parts.setupManager.getSetupStatus(teamId);
   }
 
@@ -289,8 +289,8 @@ export class GameService implements IGameService {
 
   applySetupFormation(
     teamId: string,
-    formation: import("../types/SetupTypes").FormationPosition[]
-  ): import("../types/SetupTypes").SetupFormationResult {
+    formation: SetupTypes.FormationPosition[]
+  ): SetupTypes.SetupFormationResult {
     return this.parts.setupManager.applyFormation(teamId, formation);
   }
 
@@ -298,13 +298,9 @@ export class GameService implements IGameService {
     return this.parts.setupManager.resolveConcession(teamId, concede);
   }
 
-  getSetupZone(
-    teamId: string
-  ): import("../types/SetupTypes").SetupZone | undefined {
+  getSetupZone(teamId: string): SetupTypes.SetupZone | undefined {
     return this.parts.setupManager.getSetupZone(teamId);
   }
-
-  // ===== Kickoff Phase =====
 
   startKickoff(): void {
     drive.startKickoff(this.parts);
@@ -314,12 +310,12 @@ export class GameService implements IGameService {
     drive.selectKicker(this.parts, playerId);
   }
 
-  async kickBall(
-    isTeam1Kicking: boolean,
-    playerId: string,
-    targetX: number,
-    targetY: number
-  ): Promise<void> {
+  async kickBall({
+    isTeam1Kicking,
+    playerId,
+    targetX,
+    targetY,
+  }: Parameters<IGameService["kickBall"]>[0]): Promise<void> {
     await this.parts.ballManager.kickBall(
       isTeam1Kicking,
       playerId,
@@ -332,11 +328,6 @@ export class GameService implements IGameService {
     void this.parts.ballManager.rollKickoff();
   }
 
-  resolveBallPlacement(): void {
-    this.parts.ballManager.resolveBallPlacement();
-  }
-
-  /** Touchback: receiving coach hands the ball to one of their players. */
   awardTouchback(playerId: string): boolean {
     return this.parts.ballManager.awardTouchback(playerId);
   }
@@ -379,9 +370,6 @@ export class GameService implements IGameService {
     return this.parts.kickoffEventManager.skipStep();
   }
 
-  // ===== Sub-Phase Helpers =====
-
-  /** The opening is done (teams introduced, weather shown): toss the coin. */
   beginCoinFlip(): void {
     matchStart.beginCoinFlip(this.parts);
   }
@@ -390,7 +378,6 @@ export class GameService implements IGameService {
     return matchStart.readyForWeather(this.parts, teamId);
   }
 
-  // ===== Turn Management =====
   setCoinFlipWinner(winningTeamId: string): void {
     this.startSetup(winningTeamId);
   }
@@ -417,13 +404,10 @@ export class GameService implements IGameService {
 
   public hasUsedBlitzBlock(playerId: string): boolean {
     if (!this.blitzBlockUsed.has(playerId)) return false;
-    // The guard only means anything INSIDE the Blitz that spent the block.
-    // A flag surviving an earlier activation must never refuse a later
-    // Block — that is what produced "this Blitz has already used its Block"
-    // on a plain Block the player was entitled to make.
+
     return (
       this.parts.state.activePlayer?.id === playerId &&
-      this.parts.state.activePlayer?.action === "blitz"
+      this.parts.state.activePlayer.action === "blitz"
     );
   }
 
@@ -439,15 +423,9 @@ export class GameService implements IGameService {
     return activation.canActivate(this.parts, playerId);
   }
 
-  playerAction(playerId: string): boolean {
-    return this.canActivate(playerId);
-  }
-
   hasPlayerActed(playerId: string): boolean {
     return activation.hasPlayerActed(this.parts, playerId);
   }
-
-  // ===== Action Methods =====
 
   previewBlock(attackerId: string, defenderId: string): void {
     if (activation.awaitingSecondAction(this.parts, attackerId)) return;
@@ -459,27 +437,27 @@ export class GameService implements IGameService {
     defender1Id: string,
     defender2Id: string
   ): Promise<void> {
-    return blockActions.multipleBlock(
-      this.parts,
+    return blockActions.multipleBlock({
+      parts: this.parts,
       attackerId,
       defender1Id,
-      defender2Id
-    );
+      defender2Id,
+    });
   }
 
-  rollBlockDice(
-    attackerId: string,
-    defenderId: string,
-    numDice: number,
-    isAttackerChoice: boolean
-  ): Promise<void> {
-    return blockActions.rollBlockDice(
-      this.parts,
+  rollBlockDice({
+    attackerId,
+    defenderId,
+    numDice,
+    isAttackerChoice,
+  }: Parameters<IGameService["rollBlockDice"]>[0]): Promise<void> {
+    return blockActions.rollBlockDice({
+      parts: this.parts,
       attackerId,
       defenderId,
       numDice,
-      isAttackerChoice
-    );
+      isAttackerChoice,
+    });
   }
 
   public chargeBlitzBlockSquare(attackerId: string): Promise<boolean> {
@@ -491,50 +469,50 @@ export class GameService implements IGameService {
     defenderId: string,
     result: BlockResult
   ): Promise<void> {
-    return blockActions.resolveBlock(
-      this.parts,
+    return blockActions.resolveBlock({
+      parts: this.parts,
       attackerId,
       defenderId,
-      result
-    );
+      result,
+    });
   }
 
-  /** Keep an uphill roll without a re-roll; the defender then picks. */
   keepBlockDice(attackerId: string): void {
     this.parts.blockManager.keepBlockDice(attackerId);
   }
 
-  /** Team Re-roll on a block: re-roll all the dice. */
   teamRerollBlock(attackerId: string): void {
     this.parts.blockManager.teamRerollBlock(attackerId);
   }
 
-  /** Pro on a block: re-roll a single die (3+ to use). */
   proRerollBlockDie(attackerId: string, dieIndex: number): void {
     this.parts.blockManager.proRerollBlockDie(attackerId, dieIndex);
   }
 
-  /** Brawler on a block: re-roll the single Both Down die. */
   brawlerRerollBlockDie(attackerId: string): void {
     this.parts.blockManager.brawlerRerollBlockDie(attackerId);
   }
 
-  /** Veteran on a block: re-roll all the dice, once per game (D8). */
   veteranRerollBlock(attackerId: string): void {
     this.parts.blockManager.veteranRerollBlock(attackerId);
   }
 
-  public executePush(
-    attackerId: string,
-    defenderId: string,
-    direction: { x: number; y: number },
-    resultType: string,
-    followUp: boolean
-  ): Promise<void> {
-    return blockActions.executePush(this.parts, attackerId, defenderId, {
-      direction,
-      resultType,
-      followUp,
+  public executePush({
+    attackerId,
+    defenderId,
+    direction,
+    resultType,
+    followUp,
+  }: Parameters<IGameService["executePush"]>[0]): Promise<void> {
+    return blockActions.executePush({
+      parts: this.parts,
+      attackerId,
+      defenderId,
+      push: {
+        direction,
+        resultType,
+        followUp,
+      },
     });
   }
 
@@ -553,24 +531,22 @@ export class GameService implements IGameService {
     return this.parts.turnManager.isTurnoverInProgress();
   }
 
-  blockPlayer(
-    _attackerId: string,
-    _defenderId: string
-  ): { success: boolean; result?: string } {
-    return { success: false, result: "Not implemented" };
-  }
-
-  throwBall(
-    passerId: string,
-    targetX: number,
-    targetY: number,
-    hailMary = false
-  ): Promise<{ success: boolean; result?: string }> {
-    return ballActions.throwBall(
-      this.parts,
-      passerId,
-      { x: targetX, y: targetY },
-      hailMary
+  throwBall({
+    passerId,
+    targetX,
+    targetY,
+    hailMary = false,
+  }: Parameters<IGameService["throwBall"]>[0]): Promise<{
+    success: boolean;
+    result?: string;
+  }> {
+    return invokeCommand(() =>
+      ballActions.throwBall({
+        parts: this.parts,
+        passerId,
+        target: { x: targetX, y: targetY },
+        hailMary,
+      })
     );
   }
 
@@ -578,11 +554,20 @@ export class GameService implements IGameService {
     passerId: string,
     targetPlayerId: string
   ): Promise<{ success: boolean; result?: string }> {
-    return ballActions.handOffBall(this.parts, passerId, targetPlayerId);
+    return invokeCommand(() =>
+      ballActions.handOffBall(this.parts, passerId, targetPlayerId)
+    );
   }
 
   puntBall(playerId: string, facingX: number, facingY: number): Promise<void> {
-    return ballActions.puntBall(this.parts, playerId, facingX, facingY);
+    return invokeCommand(() => {
+      ballActions.puntBall({
+        parts: this.parts,
+        playerId,
+        facingX,
+        facingY,
+      });
+    });
   }
 
   public getPlayerAt(x: number, y: number): Player | undefined {
@@ -597,20 +582,10 @@ export class GameService implements IGameService {
     return roster.teammatesOf(this.parts, playerId);
   }
 
-  passBall(
-    passerId: string,
-    targetSquare: { x: number; y: number }
-  ): { success: boolean; result?: string } {
-    this.throwBall(passerId, targetSquare.x, targetSquare.y);
-    return { success: true, result: "Pass initiated" };
-  }
-
   setBallPosition(x: number, y: number): void {
     this.parts.state.ballPosition = { x, y };
     this.parts.eventBus.emit(GameEventNames.BallPlaced, { x, y });
   }
-
-  // ===== Score Management =====
 
   addTouchdown(teamId: string, scorerId?: string): void {
     drive.addTouchdown(this.parts, teamId, scorerId);
@@ -634,7 +609,6 @@ export class GameService implements IGameService {
     return drive.checkForTouchdown(this.parts, playerId);
   }
 
-  /** The pre-match toss on the seeded RNG: team 1 is heads. Returns the winner's id. */
   tossCoin(): string {
     assertPregamePurchasesComplete(this.parts.state);
     return this.diceController.tossCoin(this.parts.team1, this.parts.team2);
@@ -644,15 +618,9 @@ export class GameService implements IGameService {
     return matchStart.canCoinFlip(this.parts);
   }
 
-  getScore(teamId: string): number {
-    return this.parts.state.score[teamId] || 0;
-  }
-
   public getPlayerById(playerId: string): Player | undefined {
     return roster.playerById(this.parts, playerId);
   }
-
-  // ===== Movement Implementation =====
 
   getMovementUsed(playerId: string): number {
     return this.parts.movementManager.getMovementUsed(playerId);
@@ -689,19 +657,21 @@ export class GameService implements IGameService {
     return moves.jumpPlayer(this.parts, playerId, target);
   }
 
-  declareAction(
-    playerId: string,
-    action: ActionType,
-    requestedReplacement?: BlockReplacement,
-    options: { razzleDazzle?: boolean } = {}
-  ): boolean {
-    return declaration.declareAction(
-      this.parts,
+  declareAction({
+    playerId,
+    action,
+    blockReplacement: requestedReplacement,
+    options = {},
+  }: Parameters<IGameService["declareAction"]>[0]): boolean {
+    return declaration.declareAction({
+      parts: this.parts,
       playerId,
       action,
-      requestedReplacement,
-      options
-    );
+      ...(requestedReplacement === undefined
+        ? {}
+        : { blockReplacement: requestedReplacement }),
+      options,
+    });
   }
 
   cancelAction(playerId: string): boolean {
@@ -716,7 +686,6 @@ export class GameService implements IGameService {
     return this.parts.ballManager.attemptPickup(player, position);
   }
 
-  /** Throw-in from the square where the ball left the pitch (p.73). */
   throwInBall(from: { x: number; y: number }): void {
     this.parts.ballManager.throwIn(from);
   }
@@ -725,7 +694,6 @@ export class GameService implements IGameService {
     return roster.teamById(this.parts, teamId);
   }
 
-  /** Both teams in `team1`, `team2` order — the order snapshots use. */
   public getTeams(): [Team, Team] {
     return [this.parts.team1, this.parts.team2];
   }
@@ -735,33 +703,47 @@ export class GameService implements IGameService {
     targetX: number,
     targetY: number
   ): Promise<void> {
-    return specials.foulPlayer(this.parts, foulerId, targetX, targetY);
+    return specials.foulPlayer({
+      parts: this.parts,
+      foulerId,
+      targetX,
+      targetY,
+    });
   }
 
   public stabPlayer(attackerId: string, targetId: string): Promise<boolean> {
     return specials.stabPlayer(this.parts, attackerId, targetId);
   }
 
-  public throwTeammate(
-    throwerId: string,
-    teammateId: string,
-    x: number,
-    y: number,
-    mode?: "throw" | "kick",
-    swoopFacing?: SwoopFacing
-  ): Promise<void> {
-    return specials.throwTeammate(this.parts, {
-      throwerId,
-      teammateId,
-      x,
-      y,
-      mode,
-      swoopFacing,
+  public throwTeammate({
+    throwerId,
+    teammateId,
+    x,
+    y,
+    mode,
+    swoopFacing,
+  }: Parameters<IGameService["throwTeammate"]>[0]): Promise<void> {
+    return invokeCommand(() => {
+      specials.throwTeammate(this.parts, {
+        throwerId,
+        teammateId,
+        x,
+        y,
+        ...(mode === undefined ? {} : { mode }),
+        ...(swoopFacing === undefined ? {} : { swoopFacing }),
+      });
     });
   }
 
   public throwBomb(throwerId: string, x: number, y: number): Promise<void> {
-    return specials.throwBomb(this.parts, throwerId, x, y);
+    return invokeCommand(() => {
+      specials.throwBomb({
+        parts: this.parts,
+        throwerId,
+        x,
+        y,
+      });
+    });
   }
 
   public ballAndChain(
@@ -769,7 +751,14 @@ export class GameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
-    return specials.ballAndChain(this.parts, fanaticId, facingX, facingY);
+    return invokeCommand(() => {
+      specials.ballAndChain({
+        parts: this.parts,
+        fanaticId,
+        facingX,
+        facingY,
+      });
+    });
   }
 
   public ballAndChainCollision(
@@ -784,11 +773,11 @@ export class GameService implements IGameService {
     attackerId: string,
     targetId: string
   ): Promise<boolean> {
-    return specials.performSpecialAction(
-      this.parts,
+    return specials.performSpecialAction({
+      parts: this.parts,
       kind,
       attackerId,
-      targetId
-    );
+      targetId,
+    });
   }
 }

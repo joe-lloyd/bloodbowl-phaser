@@ -2,18 +2,21 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
-import { GameEventNames, AllEvents } from "../../src/types/events";
+import { GameEventNames, type AllEvents } from "../../src/types/events";
 import { DiceLog } from "../../src/ui/components/hud/DiceLog";
 import {
   appendBallRoll,
   ballMovementText,
 } from "../../src/ui/components/hud/ballMovementLog";
 
-function roll(rollType: string, value = 5): AllEvents[GameEventNames.DiceRoll] {
+function roll(
+  rollType: string,
+  value = 5
+): AllEvents[typeof GameEventNames.DiceRoll] {
   return {
     rollType,
     diceType: "1d8",
-    description: `${rollType}: ${value}`,
+    description: `${rollType}: ${String(value)}`,
     value,
     total: value,
   };
@@ -45,7 +48,9 @@ it("renders one expandable ball movement with raw dice and a separate next actio
   const host = document.createElement("div");
   const root = createRoot(host);
   try {
-    await act(async () => root.render(<DiceLog eventBus={bus} />));
+    await act(async () => {
+      root.render(<DiceLog eventBus={bus} />);
+    });
     await act(async () => {
       bus.emit(GameEventNames.DiceRoll, roll("Bounce Direction"));
       bus.emit(GameEventNames.BallPlaced, { x: 8, y: 5 });
@@ -64,7 +69,9 @@ it("renders one expandable ball movement with raw dice and a separate next actio
     expect(details?.textContent).toContain("Bounce Direction: 2");
     expect(host.textContent).toContain("Dodge");
   } finally {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
   }
 });
 

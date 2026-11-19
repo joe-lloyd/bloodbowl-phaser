@@ -1,19 +1,18 @@
 import React, { useState } from "react";
-import { EventBus } from "../../../services/EventBus";
+import type { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 
 import { SubPhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
 import { SetupChecklist } from "./SetupChecklist";
-import { SetupTeamStatus } from "../../../types/SetupTypes";
+import { type SetupTeamStatus } from "../../../types/SetupTypes";
 import {
   HudButton,
-  HudButtonVariant,
+  type HudButtonVariant,
   Panel,
   PanelHeader,
 } from "../componentWarehouse/HudKit";
 
-/** The setup panel's colour names, mapped onto HUD button variants. */
 const SETUP_VARIANTS: Record<string, HudButtonVariant> = {
   red: "danger",
   yellow: "gold",
@@ -24,7 +23,7 @@ const SETUP_VARIANTS: Record<string, HudButtonVariant> = {
 
 interface SetupControlsProps {
   eventBus: EventBus;
-  /** A phone's short screen: presets only, no saving or deleting layouts. */
+
   compact?: boolean;
 }
 
@@ -94,7 +93,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
     setStatus(data.status ?? null);
     setIsComplete(data.status?.canConfirm ?? false);
     setSaveName("");
-    // Fetch this team's pickable formations (presets + their saved ones)
+
     eventBus.emit(GameEventNames.UI_SetupAction, { action: "list" });
   });
 
@@ -129,7 +128,10 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
   );
 
   const handleAction = (action: string, name?: string) => {
-    eventBus.emit(GameEventNames.UI_SetupAction, { action, name });
+    eventBus.emit(GameEventNames.UI_SetupAction, {
+      action,
+      ...(name === undefined ? {} : { name: name }),
+    });
   };
 
   const concessionPending = status?.concessionDecision === "pending";
@@ -149,13 +151,11 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
         <PanelHeader title={activeTeam?.name || "Unknown Team"} aside={title} />
       )}
 
-      {/* Body */}
       <div className={`flex flex-col gap-2 ${compact ? "p-2" : "p-2.5"}`}>
         {concessionPending && (
           <ConcessionOffer status={status} onAction={handleAction} />
         )}
 
-        {/* Formations: presets + this team's saved layouts */}
         {status?.swarming ? (
           <p className="font-hud-body text-hud-sm text-hud-bone">
             Swarming rolled {status.swarming.roll}. Add up to{" "}
@@ -182,10 +182,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({
           onAction={handleAction}
           action="confirm"
           label={confirmLabel(status, isComplete)}
-          // A short-handed team fields everyone it has, so the target is the
-          // available count — never a hard-coded seven.
-          // On a phone the checklist above already counts the players
-          sub={compact ? undefined : confirmSub(status, isComplete)}
+          {...(compact ? {} : { sub: confirmSub(status, isComplete) })}
           disabled={!isComplete}
           color={isComplete ? "green" : "gray"}
         />
@@ -209,13 +206,12 @@ function confirmLabel(status: SetupTeamStatus | null, isComplete: boolean) {
 function confirmSub(status: SetupTeamStatus | null, isComplete: boolean) {
   if (isComplete) return "Ready!";
   return status
-    ? `Placed ${status.placedPlayerCount} of ${status.requiredPlayerCount} available`
+    ? `Placed ${String(status.placedPlayerCount)} of ${String(status.requiredPlayerCount)} available`
     : "Place Players";
 }
 
 type SetupAction = (action: string, name?: string) => void;
 
-/** A short-handed team may concede before the drive without extra penalty. */
 function ConcessionOffer({
   status,
   onAction,
@@ -250,7 +246,6 @@ function ConcessionOffer({
   );
 }
 
-/** Formations: presets + this team's saved layouts. */
 function FormationTools({
   formations,
   selectedFormation,
@@ -275,7 +270,9 @@ function FormationTools({
     <>
       <select
         value={selectedFormation}
-        onChange={(e) => onSelectFormation(e.target.value)}
+        onChange={(e) => {
+          onSelectFormation(e.target.value);
+        }}
         className="hud-field cursor-pointer"
       >
         <optgroup label="Presets">
@@ -307,7 +304,9 @@ function FormationTools({
           label="LOAD"
           color="blue"
           disabled={!selectedFormation || concessionPending}
-          onClick={() => onAction("load", selectedFormation)}
+          onClick={() => {
+            onAction("load", selectedFormation);
+          }}
         />
         {compact ? (
           <SetupActionButton
@@ -324,7 +323,9 @@ function FormationTools({
             label="DELETE"
             color="red"
             disabled={!selected || selected.builtIn}
-            onClick={() => onAction("delete", selectedFormation)}
+            onClick={() => {
+              onAction("delete", selectedFormation);
+            }}
           />
         )}
       </div>
@@ -333,11 +334,15 @@ function FormationTools({
         <input
           type="text"
           value={saveName}
-          onChange={(e) => onSaveName(e.target.value)}
+          onChange={(e) => {
+            onSaveName(e.target.value);
+          }}
           placeholder="Formation name…"
           maxLength={24}
           className="hud-field min-w-0 flex-1"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
         />
         <div className="w-24">
           <SetupActionButton

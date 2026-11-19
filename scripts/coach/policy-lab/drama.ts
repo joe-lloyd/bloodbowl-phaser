@@ -1,19 +1,9 @@
-/**
- * How close each saved game was: its scoring timeline, lead changes, late
- * scores, comebacks, casualties and team-mate throws. Replays the saved
- * commands and writes `drama.json` with one row per game, closest first, for
- * picking games worth watching.
- */
-import { readFileSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
-import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { GameEventNames } from "../../../src/types/events";
-import { processPool } from "../policy-study/pool";
-import type { PolicyJob } from "../policy-study/schedule";
+import { openTrace } from "../catalogue-study/replay";
+import { annotateRun, isEntry } from "./lab";
 
 interface Score {
   side: 0 | 1;
@@ -29,24 +19,20 @@ export interface Drama {
   final: [number, number];
   scores: Score[];
   leadChanges: number;
-  /** A side that trailed at some point and still won. */
+
   comeback: boolean;
-  /** Touchdowns in a half's last two team turns. */
+
   lateScores: number;
-  /** The winning or levelling score came in the last turn of the game. */
+
   lastGasp: boolean;
   casualties: number;
   throws: number;
-  /** Higher is closer and more eventful. */
+
   drama: number;
 }
 
-export async function dramaOfTrace(file: string, id: string, side: number) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
+async function dramaOfTrace(file: string, id: string, side: number) {
+  const { recording, game } = openTrace(file);
   const sides = new Map([
     [game.ctx.team1.id, 0 as const],
     [game.ctx.team2.id, 1 as const],
@@ -67,7 +53,7 @@ export async function dramaOfTrace(file: string, id: string, side: number) {
     casualties++;
   });
   let throws = 0;
-  for (const [index, s] of trace.recording.steps.entries()) {
+  for (const [index, s] of recording.steps.entries()) {
     step = index;
     if (s.command.type === "throw-teammate") throws++;
     await game.execute(s.command);
@@ -83,29 +69,26 @@ export async function dramaOfTrace(file: string, id: string, side: number) {
   } satisfies Drama;
 }
 
-/** Who leads after each score: 0, 1, or -1 when level. */
 const leaderOf = (t: [number, number]) =>
   t[0] === t[1] ? -1 : t[0] > t[1] ? 0 : 1;
 
-/** The running score's lead changes, and which sides ever trailed. */
 function leads(scores: Score[]) {
   const final: [number, number] = [0, 0];
   let leader = -1;
   let leadChanges = 0;
-  const trailed = [false, false];
+  const trailed: [boolean, boolean] = [false, false];
   for (const s of scores) {
     final[s.side]++;
     const now = leaderOf(final);
     if (now === -1) continue;
     if (leader !== -1 && now !== leader) leadChanges++;
-    trailed[1 - now] = true;
+    trailed[now === 0 ? 1 : 0] = true;
     leader = now;
   }
   return { final, leadChanges, trailed };
 }
 
-/** Lead changes, comebacks, late scores and a closeness score, from a timeline. */
-export function closeness(scores: Score[], casualties: number, throws: number) {
+function closeness(scores: Score[], casualties: number, throws: number) {
   const { final, leadChanges, trailed } = leads(scores);
   const margin = Math.abs(final[0] - final[1]);
   const winner = leaderOf(final);
@@ -127,35 +110,14 @@ export function closeness(scores: Score[], casualties: number, throws: number) {
 }
 
 async function main() {
-  const entry = fileURLToPath(import.meta.url);
-  const run = resolve(process.argv[2]);
-  const out = join(run, "drama");
-  mkdirSync(out, { recursive: true });
-  if (process.argv.includes("--worker")) {
-    process.on("message", async (job: PolicyJob | null) => {
-      if (!job) {
-        process.disconnect();
-        return;
-      }
-      try {
-        const row = await dramaOfTrace(
-          join(run, "traces", job.id + ".json.gz"),
-          job.id,
-          job.candidateSide
-        );
-        writeFileSync(join(out, job.id + ".json"), JSON.stringify(row));
-        process.send?.({ done: job.id });
-      } catch (error) {
-        process.send?.({ error: `${job.id}: ${error}` });
-      }
-    });
-    process.send?.({ ready: true });
-    return;
-  }
-  const manifest = JSON.parse(
-    readFileSync(join(run, "manifest.json"), "utf8")
-  ) as { jobs: PolicyJob[] };
-  await processPool(entry, [run], manifest.jobs, 10);
+  const lab = await annotateRun({
+    entry: fileURLToPath(import.meta.url),
+    folder: "drama",
+    workers: 10,
+    annotate: (file, job) => dramaOfTrace(file, job.id, job.candidateSide),
+  });
+  if (!lab) return;
+  const { run, out } = lab;
   const rows = readdirSync(out)
     .filter((f) => f.endsWith(".json"))
     .map((f) => JSON.parse(readFileSync(join(out, f), "utf8")) as Drama)
@@ -163,8 +125,4 @@ async function main() {
   writeFileSync(join(run, "drama.json"), JSON.stringify(rows));
   console.log(JSON.stringify(rows.slice(0, 5)));
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

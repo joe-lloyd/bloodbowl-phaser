@@ -1,9 +1,9 @@
 import Phaser from "phaser";
-import { Player, PlayerCondition, hasCondition } from "../../types/Player";
-import { TeamColors } from "../../types/Team";
+import { type Player, PlayerCondition, hasCondition } from "../../types/Player";
+import { type TeamColors } from "../../types/Team";
 import {
-  Animation,
-  Facing,
+  type Animation,
+  type Facing,
   LAYERS,
   facingForStep,
   frameName,
@@ -13,8 +13,12 @@ import {
 } from "../presentation/playerArt";
 import { prefersReducedMotion } from "../presentation/motion";
 import { playerBoxOf } from "../rules/playerLocation";
+import {
+  playerNumber,
+  playerRings,
+  playerStatusMarkers,
+} from "./playerMarkers";
 
-/** How a player is drawn: which roster's models, in which kit, facing where. */
 export interface PlayerLook {
   rosterName: string;
   colors: TeamColors;
@@ -29,176 +33,90 @@ const FPS: Record<Animation, number> = {
   block: 16,
   pass: 14,
 };
-/** Animations that play once and hold their last frame. */
+
 const ONE_SHOT: ReadonlySet<Animation> = new Set(["fall", "block", "pass"]);
-/** Jumps in one cheer, for the walk-on and a touchdown. */
+
 const CHEER_JUMPS = 3;
-/** Ground rings are drawn as flattened ellipses so they lie on the pitch. */
-const RING = { w: 66, h: 30 };
-/** Depth band for players: above the pitch overlays, sorted by screen y. */
+
+const SINE_OUT = "Sine.easeOut";
+const SINE_IN_OUT = "Sine.easeInOut";
+
 export const PLAYER_DEPTH = 100;
-/** A hovered player draws over every other player, number and all. */
+
 const RAISED_DEPTH = 10_000;
 
-/**
- * PlayerSprite: one player on the pitch or in a dugout.
- *
- * The container sits on the player's feet. Inside it, ground markers (team
- * turn ring, selection rings) lie flat under the feet, and `figure` holds the
- * three tinted atlas layers so gestures can lean or lift the figure without
- * moving the markers. Animation frames advance on the scene's update tick so
- * the three layers always show the same frame.
- */
 export class PlayerSprite extends Phaser.GameObjects.Container {
   private player: Player;
   private look: PlayerLook;
   private model: string;
   private figure: Phaser.GameObjects.Container;
   private layers: Phaser.GameObjects.Sprite[] = [];
-  private numberText: Phaser.GameObjects.Text;
-  private teamTurnBorder: Phaser.GameObjects.Ellipse;
+  private rings: ReturnType<typeof playerRings>;
+  private markers: ReturnType<typeof playerStatusMarkers>;
   private teamTurnBorderVisible = false;
-  private selectionRing: Phaser.GameObjects.Ellipse;
-  /**
-   * Online only: shows which single player the OTHER coach currently has
-   * selected. A separate object from `selectionRing`, which the local coach's
-   * own highlighting reuses with different colours, so the two never clash.
-   */
-  private remoteSelectionRing: Phaser.GameObjects.Ellipse;
-  /** Gold ring at the feet of the ball carrier; the ball itself sits in their hands. */
-  private carrierMarker: Phaser.GameObjects.Ellipse;
-  /** A football over the carrier's head, in case the model hides the ball. */
-  private carrierBadge: Phaser.GameObjects.Container;
-  /** Distracted is a condition of a Standing player, so it gets its own mark. */
-  private distractedMarker: Phaser.GameObjects.Container;
-  /** Zap!: a frog's face over a shrunken figure until the drive ends. */
-  private frogMarker: Phaser.GameObjects.Container;
-  /** Stars over a Stunned player, who lies like a Prone one. */
-  private stunnedMarker: Phaser.GameObjects.Text;
 
   private anim: Animation = "idle";
   private facing: Facing;
-  /** The walk or fall being shown; resolves once it has played. */
+
   public motion: Promise<void> = Promise.resolve();
   private animStart = 0;
-  /** Each player keeps its own timing instead of idling on a shared beat. */
+
   private phase = Math.random() * 1000;
   private shownFrame = "";
-  /** Top of the head relative to the feet, for markers. */
+
   private headY = -60;
-  /** Set while the sprite sits in a dugout box, where KO'd and injured players lie down. */
+
   private dugoutPose: "standing" | "lying" | null = null;
-  /** Reduced motion: stand still instead of breathing. */
+
   private stillIdle = prefersReducedMotion();
 
-  constructor(
-    scene: Phaser.Scene,
-    x: number,
-    y: number,
-    player: Player,
-    look: PlayerLook
-  ) {
+  constructor(options: {
+    scene: Phaser.Scene;
+    x: number;
+    y: number;
+    player: Player;
+    look: PlayerLook;
+  }) {
+    const { scene, x, y, player, look } = options;
     super(scene, x, y);
     this.player = player;
     this.look = look;
     this.facing = look.facing;
     this.model = modelFor(look.rosterName, player.positionName);
-
-    // Shadow and ground rings first, so the figure draws over them.
-    const shadow = scene.add.ellipse(0, 0, 44, 18, 0x000000, 0.35);
-    this.teamTurnBorder = scene.add.ellipse(0, 0, RING.w, RING.h);
-    this.teamTurnBorder.setStrokeStyle(2, 0xffffff, 0.4);
-    this.teamTurnBorder.setVisible(false);
-    this.selectionRing = scene.add.ellipse(0, 0, RING.w + 6, RING.h + 3);
-    this.selectionRing.setStrokeStyle(4, 0xffff00);
-    this.selectionRing.setVisible(false);
-    this.remoteSelectionRing = scene.add.ellipse(0, 0, RING.w + 14, RING.h + 7);
-    this.remoteSelectionRing.setStrokeStyle(3, 0xff3b30);
-    this.remoteSelectionRing.setVisible(false);
-    this.carrierMarker = scene.add.ellipse(0, 0, RING.w - 10, RING.h - 5);
-    this.carrierMarker.setStrokeStyle(3, 0xffc83a, 0.95);
-    this.carrierMarker.setVisible(false);
+    this.rings = playerRings(scene);
+    const {
+      shadow,
+      carrierMarker,
+      teamTurnBorder,
+      selectionRing,
+      remoteSelectionRing,
+    } = this.rings;
     this.add([
       shadow,
-      this.carrierMarker,
-      this.teamTurnBorder,
-      this.selectionRing,
-      this.remoteSelectionRing,
+      carrierMarker,
+      teamTurnBorder,
+      selectionRing,
+      remoteSelectionRing,
     ]);
-
     this.figure = scene.add.container(0, 0);
     this.add(this.figure);
     this.buildFigure();
-
-    this.numberText = scene.add.text(0, 10, player.number.toString(), {
-      fontFamily: "Georgia, serif",
-      fontSize: "12px",
-      color: "#ffffff",
-      fontStyle: "bold",
-      stroke: "#000000",
-      strokeThickness: 3,
-    });
-    this.numberText.setOrigin(0.5, 0);
-    this.add(this.numberText);
-
-    this.distractedMarker = scene.add.container(0, this.headY - 12);
-    const swirl = scene.add.circle(0, 0, 8, 0x9b59b6);
-    swirl.setStrokeStyle(2, 0xffffff);
-    const dizzy = scene.add.graphics();
-    dizzy.lineStyle(1.5, 0xffffff);
-    dizzy.strokeCircle(-2, -1, 2.5);
-    dizzy.strokeCircle(3, 1, 2);
-    this.distractedMarker.add([swirl, dizzy]);
-    this.distractedMarker.setVisible(false);
-    this.add(this.distractedMarker);
-
-    this.frogMarker = scene.add.container(0, this.headY + 4);
-    const frogFace = scene.add.ellipse(0, 0, 22, 15, 0x4ade80);
-    frogFace.setStrokeStyle(2, 0x14532d);
-    const eyes = [-6, 6].flatMap((x) => [
-      scene.add.circle(x, -6, 4, 0xffffff).setStrokeStyle(1, 0x14532d),
-      scene.add.circle(x, -6, 1.6, 0x111111),
-    ]);
-    this.frogMarker.add([frogFace, ...eyes]);
-    this.frogMarker.setVisible(false);
-    this.add(this.frogMarker);
-
-    this.carrierBadge = scene.add.container(0, this.headY - 18);
-    const disc = scene.add.circle(0, 0, 10, 0x140c08, 0.85);
-    disc.setStrokeStyle(2, 0xffc83a);
-    const leather = scene.add.ellipse(0, 0, 13, 8, 0x8b4513);
-    leather.setStrokeStyle(1, 0x2a1408);
-    const laces = scene.add.graphics();
-    laces.lineStyle(1.2, 0xffffff);
-    laces.lineBetween(-3.5, 0, 3.5, 0);
-    laces.lineBetween(-1.5, -1.8, -1.5, 1.8);
-    laces.lineBetween(1.5, -1.8, 1.5, 1.8);
-    this.carrierBadge.add([disc, leather, laces]);
-    this.carrierBadge.setVisible(false);
-    this.add(this.carrierBadge);
-
-    this.stunnedMarker = scene.add.text(0, -26, "★ ★", {
-      fontSize: "13px",
-      color: "#ffd84a",
-      stroke: "#000000",
-      strokeThickness: 3,
-    });
-    this.stunnedMarker.setOrigin(0.5);
-    this.stunnedMarker.setVisible(false);
-    this.add(this.stunnedMarker);
-
+    this.add(playerNumber(scene, player.number));
+    this.markers = playerStatusMarkers(scene, this, this.headY);
     this.setSize(56, 80);
     this.setDepth(this.depthNow());
     this.updateStatus(false);
-
-    scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
-    this.once(Phaser.GameObjects.Events.DESTROY, () =>
-      scene.events.off(Phaser.Scenes.Events.UPDATE, this.tick, this)
-    );
+    this.watchAnimation(scene);
     scene.add.existing(this);
   }
 
-  /** The three tinted layers, or a plain token if the art never loaded. */
+  private watchAnimation(scene: Phaser.Scene): void {
+    scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
+    this.once(Phaser.GameObjects.Events.DESTROY, () => {
+      scene.events.off(Phaser.Scenes.Events.UPDATE, this.tick, this);
+    });
+  }
+
   private buildFigure(): void {
     const art = modelArt(this.model);
     const base = textureKey(this.model, "base");
@@ -223,40 +141,36 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       );
       sprite.setOrigin(art.anchor[0] / art.frame, art.anchor[1] / art.frame);
       const tint = tints[i];
-      if (tint !== null) sprite.setTint(tint);
+      if (tint !== null && tint !== undefined) sprite.setTint(tint);
       return sprite;
     });
     this.figure.add(this.layers);
-    // Head height from the standing frame's trimmed top edge.
-    // A trimmed frame's y is where its pixels start inside the untrimmed frame.
-    this.headY = this.layers[0].frame.y - art.anchor[1];
+
+    const baseLayer = this.layers[0];
+    if (baseLayer) this.headY = baseLayer.frame.y - art.anchor[1];
   }
 
-  /** Advance the current animation; called every frame by the scene. */
-  private tick(time: number): void {
+  private tick = (time: number): void => {
     if (!this.layers.length || !this.visible) return;
-    const count = modelArt(this.model).animations[this.anim] ?? 1;
+    const count = modelArt(this.model).animations[this.anim];
     const once = ONE_SHOT.has(this.anim);
     const step = Math.floor(
       ((time - this.animStart + (once ? 0 : this.phase)) / 1000) *
         FPS[this.anim]
     );
-    const index = once
-      ? Math.min(step, count - 1)
-      : this.anim === "idle" && this.stillIdle
-        ? 0
-        : step % count;
+    let index = step % count;
+    if (once) index = Math.min(step, count - 1);
+    else if (this.anim === "idle" && this.stillIdle) index = 0;
     const name = frameName(this.anim, this.facing, index);
     if (name !== this.shownFrame) {
       this.shownFrame = name;
       for (const layer of this.layers) layer.setFrame(name);
     }
     this.setDepth(this.depthNow());
-  }
+  };
 
   private raised = false;
 
-  /** Lift this player over the others while the pointer is on their square. */
   public setRaised(raised: boolean): void {
     this.raised = raised;
     this.setDepth(this.depthNow());
@@ -271,12 +185,10 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.anim = anim;
     this.animStart = this.scene.time.now;
     if (anim === "fall" && !fromStart) {
-      // Already down (a restored board): show the last frame at once.
       this.animStart -= 10_000;
     }
   }
 
-  /** Pose for a dugout box: reserves stand, KO'd and injured players lie. */
   public setDugoutPose(pose: "standing" | "lying"): void {
     this.dugoutPose = pose;
     this.updateStatus(false);
@@ -290,18 +202,11 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     return this.facing;
   }
 
-  /** Whether this sprite's atlas has frames for `anim`; older renders lack block and pass. */
   private hasAnimation(anim: Animation): boolean {
     const layer = this.layers[0];
     return !!layer && layer.texture.has(frameName(anim, this.facing, 0));
   }
 
-  /**
-   * A one-shot action (block, pass) towards a world point, then back to idle.
-   * A player who is down, or lying in a dugout box, does nothing. When this
-   * sprite's atlas has no frames for the action, `fallback` runs instead.
-   * Fire-and-forget.
-   */
   public playAction(
     anim: "block" | "pass",
     target?: { x: number; y: number },
@@ -317,9 +222,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       return;
     }
     this.play(anim);
-    const frames = modelArt(this.model).animations[anim] ?? 1;
+    const frames = modelArt(this.model).animations[anim];
     this.scene.time.delayedCall((frames / FPS[anim]) * 1000 + 150, () => {
-      // A status change meanwhile (knocked down) has already moved on.
       if (this.anim === anim && !this.isDown()) this.play("idle");
     });
   }
@@ -328,26 +232,12 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     return this.player.status === "Prone" || this.player.status === "Stunned";
   }
 
-  /**
-   * Update player status visual (prone, stunned, etc.). A player who goes
-   * down plays the fall; one who was already down, or a fresh sprite, just
-   * lies there.
-   */
   public updateStatus(animate = true): void {
     if (this.dugoutPose) {
-      this.setVisible(true);
-      this.figure.setAlpha(1);
-      this.play(this.dugoutPose === "lying" ? "fall" : "idle", false);
-      this.stunnedMarker.setVisible(false);
-      this.teamTurnBorder.setVisible(false);
-      this.distractedMarker.setVisible(false);
-      this.frogMarker.setVisible(false);
-      this.figure.setScale(1);
+      this.showDugoutPose(this.dugoutPose);
       return;
     }
-    // Turn-start activation resets and delayed status updates also reach
-    // retained pitch sprites. Use the dugout's location rule so a reserve
-    // or sent-off player cannot reappear on their old pitch square.
+
     if (playerBoxOf(this.player) !== "pitch") {
       this.setVisible(false);
       return;
@@ -359,33 +249,35 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       this.play("idle");
     }
     this.figure.setAlpha(1);
-    this.stunnedMarker.setVisible(this.player.status === "Stunned");
+    this.markers.stunnedMarker.setVisible(this.player.status === "Stunned");
     this.refreshTeamTurnBorder();
     this.refreshDistractedMarker();
     this.refreshFrog();
   }
 
+  private showDugoutPose(pose: "standing" | "lying"): void {
+    this.setVisible(true);
+    this.figure.setAlpha(1);
+    this.play(pose === "lying" ? "fall" : "idle", false);
+    this.markers.stunnedMarker.setVisible(false);
+    this.rings.teamTurnBorder.setVisible(false);
+    this.markers.distractedMarker.setVisible(false);
+    this.markers.frogMarker.setVisible(false);
+    this.figure.setScale(1);
+  }
+
   private refreshFrog(): void {
     const frog = hasCondition(this.player, PlayerCondition.FROG);
-    this.frogMarker.setVisible(frog);
+    this.markers.frogMarker.setVisible(frog);
     this.figure.setScale(frog ? 0.55 : 1);
   }
 
-  /**
-   * Distracted only ever matters for a Standing player (hasTackleZone already
-   * folds status in), but the marker just follows the condition directly —
-   * it clears itself the moment the condition does, on the next status sync.
-   */
   private refreshDistractedMarker(): void {
-    this.distractedMarker.setVisible(
+    this.markers.distractedMarker.setVisible(
       hasCondition(this.player, PlayerCondition.DISTRACTED)
     );
   }
 
-  /**
-   * Stand the player back up and face them down the pitch again. Used by the
-   * end-of-drive teardown, so nobody lies on the turf into the next drive.
-   */
   public resetOrientation(): void {
     this.figure.setAngle(0);
     this.facing = this.look.facing;
@@ -393,11 +285,6 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.refreshTeamTurnBorder();
   }
 
-  /**
-   * Show/hide the active-team ring. Colour reflects status:
-   * standing = white, prone (down) = yellow, stunned = orange. Opacity
-   * (setActivated) continues to show who has already gone.
-   */
   public setTeamTurnBorder(visible: boolean): void {
     this.teamTurnBorderVisible = visible;
     this.refreshTeamTurnBorder();
@@ -405,81 +292,52 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
 
   private refreshTeamTurnBorder(): void {
     if (this.player.status === "Stunned") {
-      this.teamTurnBorder.setStrokeStyle(3, 0xffa500, 0.9);
+      this.rings.teamTurnBorder.setStrokeStyle(3, 0xffa500, 0.9);
     } else if (this.player.status === "Prone") {
-      this.teamTurnBorder.setStrokeStyle(3, 0xffff00, 0.9);
+      this.rings.teamTurnBorder.setStrokeStyle(3, 0xffff00, 0.9);
     } else {
-      this.teamTurnBorder.setStrokeStyle(2, 0xffffff, 0.4);
+      this.rings.teamTurnBorder.setStrokeStyle(2, 0xffffff, 0.4);
     }
-    // Down-state rings are status information, not turn information, so
-    // they stay visible even when no team turn is running (kick-off).
-    this.teamTurnBorder.setVisible(this.teamTurnBorderVisible || this.isDown());
+
+    this.rings.teamTurnBorder.setVisible(
+      this.teamTurnBorderVisible || this.isDown()
+    );
   }
 
-  /**
-   * Set activated visual state (dimmed)
-   */
   public setActivated(activated: boolean): void {
     if (activated) {
       this.figure.setAlpha(0.55);
     } else {
-      // Restore what the canonical status dictates; a turn reset must not
-      // stand a stunned model up. A player still standing here whose fall
-      // has not shown yet plays it (a Bloodlust bite settled by End Turn
-      // passes the turn before its Injury dice land); one already down just
-      // lies there.
       this.updateStatus();
     }
   }
 
-  /**
-   * Show/hide the carrier's gold ring. Idempotent: driven purely by
-   * the resolved ball representation, so repeated reconciliation cannot leave
-   * two players marked as carrying.
-   */
   public setCarryingBall(carrying: boolean): void {
-    this.carrierMarker.setVisible(carrying);
-    this.carrierBadge.setVisible(carrying);
+    this.rings.carrierMarker.setVisible(carrying);
+    this.markers.carrierBadge.setVisible(carrying);
   }
 
-  /**
-   * Highlight this player
-   */
   public highlight(color: number): void {
-    this.selectionRing.setStrokeStyle(4, color);
-    this.selectionRing.setVisible(true);
+    this.rings.selectionRing.setStrokeStyle(4, color);
+    this.rings.selectionRing.setVisible(true);
   }
 
-  /**
-   * Remove highlight
-   */
   public unhighlight(): void {
-    this.selectionRing.setVisible(false);
+    this.rings.selectionRing.setVisible(false);
   }
 
-  /**
-   * Show/hide the remote-selection ring: whether the OTHER coach currently
-   * has this player selected. Independent of local highlight/selection.
-   */
   public setRemoteSelected(active: boolean): void {
-    this.remoteSelectionRing.setVisible(active);
+    this.rings.remoteSelectionRing.setVisible(active);
   }
 
-  /**
-   * Get the player data
-   */
   public getPlayer(): Player {
     return this.player;
   }
 
-  /** Screen offset from the feet to just above the head. */
   public getHeadOffset(): number {
     return this.headY;
   }
 
-  /**
-   * Run along a path of world pixel positions, turning to face each step.
-   */
   public async animateMovement(
     path: { x: number; y: number }[]
   ): Promise<void> {
@@ -512,21 +370,16 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     });
   }
 
-  /**
-   * Throw arc — used when a player is thrown (Throw Team-mate). The container
-   * slides to the destination while the figure rises and tumbles, then lands
-   * with a squash. `path` is in world pixels, like animateMovement.
-   */
   public async animateThrow(path: { x: number; y: number }[]): Promise<void> {
-    if (path.length === 0) return;
     const dest = path[path.length - 1];
+    if (!dest) return;
     const duration = 650;
     return new Promise((resolve) => {
       this.scene.tweens.add({
         targets: this.figure,
         y: -70,
         duration: duration / 2,
-        ease: "Sine.easeOut",
+        ease: SINE_OUT,
         yoyo: true,
       });
       this.scene.tweens.add({
@@ -540,7 +393,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
         x: dest.x,
         y: dest.y,
         duration,
-        ease: "Sine.easeInOut",
+        ease: SINE_IN_OUT,
         onComplete: () => {
           this.figure.setAngle(0);
           this.figure.y = 0;
@@ -550,49 +403,37 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
             scaleX: 1.15,
             duration: 90,
             yoyo: true,
-            onComplete: () => resolve(),
+            onComplete: () => {
+              resolve();
+            },
           });
         },
       });
     });
   }
 
-  /**
-   * Throw gesture — lean toward the target, then rock back upright. `dir` is
-   * +1 to the right of the screen, -1 to the left. Fire-and-forget.
-   */
   public animateThrowGesture(dir = 1): void {
     this.scene.tweens.chain({
       targets: this.figure,
       tweens: [
-        { angle: dir * 16, duration: 130, ease: "Sine.easeOut" },
-        { angle: 0, duration: 220, ease: "Sine.easeInOut" },
+        { angle: dir * 16, duration: 130, ease: SINE_OUT },
+        { angle: 0, duration: 220, ease: SINE_IN_OUT },
       ],
     });
   }
 
-  /**
-   * Kick gesture — wind up, swing, settle. `dir` is +1 right, -1 left.
-   */
   public animateKickGesture(dir = 1): void {
     this.scene.tweens.chain({
       targets: this.figure,
       tweens: [
-        { angle: -dir * 8, duration: 90, ease: "Sine.easeOut" },
+        { angle: -dir * 8, duration: 90, ease: SINE_OUT },
         { angle: dir * 20, duration: 110, ease: "Back.easeOut" },
-        { angle: 0, duration: 200, ease: "Sine.easeInOut" },
+        { angle: 0, duration: 200, ease: SINE_IN_OUT },
       ],
     });
   }
 
-  /**
-   * Cheer: a few jumps with the arms up, then back to standing. Team-mates
-   * start a moment apart, as a crowd would. A player who is down, or lying
-   * in a dugout box, stays down. A walk still on its way, such as the
-   * scorer's last step, finishes first. Resolves when the cheer is over.
-   */
   public async playCelebrateAnimation(): Promise<void> {
-    // Asked again after each wait: a player can go down meanwhile.
     const standing = () => !this.isDown() && this.dugoutPose !== "lying";
     if (!standing()) return;
     await this.motion;
@@ -600,7 +441,10 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     const frames = modelArt(this.model).animations.cheer;
     return new Promise((resolve) => {
       this.scene.time.delayedCall(Math.random() * 400, () => {
-        if (!standing()) return resolve();
+        if (!standing()) {
+          resolve();
+          return;
+        }
         this.play("cheer");
         const ms = ((CHEER_JUMPS * frames) / FPS.cheer) * 1000;
         this.scene.time.delayedCall(ms, () => {

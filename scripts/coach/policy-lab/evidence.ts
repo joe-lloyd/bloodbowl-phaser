@@ -1,4 +1,3 @@
-/** Diagnostic proposals are observations, never an independent opportunity oracle. */
 import type { CoachContext, CoachChoice } from "../../../src/simulation/coach";
 import { availableActions } from "../../../src/simulation/ai/planner";
 import { readBoard } from "../../../src/simulation/ai/board";
@@ -18,7 +17,7 @@ export function createOpportunityLog() {
     const available = availableActions(context.point.candidates);
     if (available.size) {
       const board = readBoard(context.game, context.point.teamId);
-      const plans = activations(board, DEFAULT_WEIGHTS, available);
+      const plans = activations({ board: board, w: DEFAULT_WEIGHTS, available: available });
       for (const actions of available.values())
         for (const action of actions) legal[action] = (legal[action] ?? 0) + 1;
       for (const plan of plans)

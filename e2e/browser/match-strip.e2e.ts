@@ -1,8 +1,8 @@
-import { Page, test, expect } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { type Page, test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import type { BrowserTestBridge } from "../../src/testing/browserBridge";
 
-/** The score bug, turn tab and match strip as one box on screen. */
 async function hudTop(page: Page) {
   const boxes = await Promise.all(
     ["scoreboard", "match-strip"].map((id) =>
@@ -12,33 +12,30 @@ async function hudTop(page: Page) {
   if (boxes.some((box) => !box)) throw new Error("Score bug has no bounds");
   const [bug, strip] = boxes as NonNullable<(typeof boxes)[number]>[];
   return {
-    left: bug.x,
-    right: bug.x + bug.width,
-    bottom: Math.max(bug.y + bug.height, strip.y + strip.height),
+    left: fixtureValue(bug).x,
+    right: fixtureValue(bug).x + fixtureValue(bug).width,
+    bottom: Math.max(fixtureValue(bug).y + fixtureValue(bug).height, fixtureValue(strip).y + fixtureValue(strip).height),
   };
 }
 
-/**
- * Points on the far touchline and far end line, the highest edges of the
- * pitch on screen, that are on screen but under the score bug.
- */
 async function squaresUnderHud(app: GameApp, page: Page) {
   const hud = await hudTop(page);
   await app.pitch.waitForCameraToSettle();
   const box = await app.pitch.canvas.boundingBox();
   const size = await app.pitch.canvasSize();
   if (!box) throw new Error("the game canvas has no layout box");
-  // Square centres sit half a square in from their top corner.
+
   const corners = await page.evaluate(() => {
-    const bridge = (window as unknown as Record<string, BrowserTestBridge>)
-      .__bbTestBridge;
+    const bridge = (window as unknown as Record<string, BrowserTestBridge>)[
+      "__bbTestBridge"
+    ];
     const edge = [
       ...Array.from({ length: 21 }, (_, x) => ({ x, y: 0 })),
       ...Array.from({ length: 11 }, (_, y) => ({ x: 0, y: y + 1 })),
     ];
     return edge.map((point) => ({
       point,
-      design: bridge.squareToCanvas(point.x - 0.5, point.y - 0.5),
+      design: (bridge)!.squareToCanvas(point.x - 0.5, point.y - 0.5),
     }));
   });
   const covered: string[] = [];
@@ -54,7 +51,7 @@ async function squaresUnderHud(app: GameApp, page: Page) {
       corner.x > hud.left &&
       corner.x < hud.right
     )
-      covered.push(`${point.x},${point.y}`);
+      covered.push(`${String(point.x)},${String(point.y)}`);
   }
   return covered;
 }
@@ -63,7 +60,7 @@ for (const viewport of [
   { width: 1280, height: 720 },
   { width: 1920, height: 1080 },
 ]) {
-  test(`match strip stays slim and clear of the pitch at ${viewport.width}x${viewport.height}`, async ({
+  test(`match strip stays slim and clear of the pitch at ${String(viewport.width)}x${String(viewport.height)}`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
@@ -77,9 +74,9 @@ for (const viewport of [
       "Nice: No effect on play"
     );
     await expect(page.getByTestId("turns-left")).toHaveText("Turn 2 of 6");
-    // The turn shows once, in the tab, not again beside it
+
     expect((await strip.innerText()).match(/turn/gi)).toEqual(["TURN"]);
-    // The strip has the score bug's backing, so the pitch never shows through
+
     const backing = await page
       .getByTestId("match-strip-bar")
       .evaluate((el) => getComputedStyle(el).backgroundColor);

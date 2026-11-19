@@ -1,14 +1,4 @@
-/**
- * A failed Bloodlust player beside two Thrall Linemen: the coach chooses
- * who to bite. The game says so, marks both Thralls on the pitch, ignores
- * clicks on anyone else, and bites the Thrall the coach clicks. Covers both
- * places a bite is settled, ending the activation and End Turn with the
- * bite still owed, and that a lone Thrall is still the yes/no question.
- *
- * The sandbox case "bloodlust-bite-choice" puts the biter (team1:0) at
- * (10,5) with Thralls team1:1 at (11,5) and team1:2 at (10,6), and team1:3
- * far away. Seed 7 is its committed "thirst" seed: the Bloodlust roll fails.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
@@ -30,7 +20,7 @@ async function failBesideTwoThralls(page: Page) {
     bystander: await id("team1:3"),
   };
   await app.hud.declareAction("team1:0", "move");
-  // The failed roll offers the switch to a Move; keep the declared Move
+
   await app.hud.answerReaction(false);
   return { app, team1, team2, players };
 }
@@ -40,11 +30,12 @@ const statusOf = async (app: GameApp, playerId: string) =>
     .flatMap((team) => team.players)
     .find((p) => p.id === playerId)?.status;
 
-/** The two Thralls are marked, and only they. */
 async function expectTargetsMarked(app: GameApp) {
   await expect
     .poll(async () =>
-      (await app.bridge.pitchHighlights()).map(({ x, y }) => `${x},${y}`).sort()
+      (await app.bridge.pitchHighlights())
+        .map(({ x, y }) => `${String(x)},${String(y)}`)
+        .sort()
     )
     .toEqual(expect.arrayContaining(["10,6", "11,5"]));
 }
@@ -60,16 +51,14 @@ test("two Thralls in reach at the end of the activation: the coach clicks who to
 
   await app.hud.actionButton("end-activation").click();
 
-  // The game says there is a choice and how to make it
   await expect(prompt(page)).toBeVisible();
   await expect(prompt(page)).toContainText("choose who to bite");
   await expect(prompt(page)).toContainText("Click the one to bite");
-  // ... instead of offering one Thrall it picked
+
   await expect(app.hud.reactionDialog()).toBeHidden();
   await expectTargetsMarked(app);
   await shot(page, testInfo, "1-prompt-and-markers.png");
 
-  // Anyone else, and an empty square, does nothing
   await app.pitch.clickPlayer("team1:3");
   await app.pitch.clickPlayer("team1:0");
   await app.pitch.clickSquare({ x: 12, y: 8 });
@@ -81,16 +70,15 @@ test("two Thralls in reach at the end of the activation: the coach clicks who to
   await expectTargetsMarked(app);
   await shot(page, testInfo, "2-after-non-target-clicks.png");
 
-  // The second in board order: the old flow only ever offered the first
   await app.pitch.clickPlayer("team1:2");
 
   await expect(prompt(page)).toBeHidden();
   await expect.poll(() => statusOf(app, players.second)).not.toBe("Active");
   expect(await statusOf(app, players.first)).toBe("Active");
   const snapshot = await app.bridge.snapshot();
-  const biter = snapshot.teams[0].players.find((p) => p.id === players.biter);
+  const biter = fixtureValue(snapshot.teams[0]).players.find((p) => p.id === players.biter);
   expect(biter?.conditions ?? []).toEqual([]);
-  // The markers went with the choice
+
   await expect
     .poll(async () =>
       (await app.bridge.pitchHighlights()).filter(
@@ -106,7 +94,6 @@ test("two Thralls in reach at End Turn: the coach clicks who to bite", async ({
 }, testInfo) => {
   const { app, team2, players } = await failBesideTwoThralls(page);
 
-  // Walk away from the owed bite through the HUD's End Turn
   await app.hud.endTurn().click();
 
   await expect(prompt(page)).toBeVisible();

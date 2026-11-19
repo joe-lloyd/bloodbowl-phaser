@@ -1,17 +1,9 @@
-/**
- * A Ball & Chain collision is a normal Block Action (2025 rulebook p.124):
- * the Fanatic's coach sees the dice and the re-roll window, the target's
- * push reactions apply, a boxed-in target is chain-pushed, and the Fanatic
- * moves into a vacated square without a follow-up choice. Each
- * `ball-and-chain` command is one square of the Throw-in Template, with its
- * own facing, up to MA and then two Rushes. The May 2026 FAQ rulings are
- * pinned here too: Stand Firm, off the pitch, Stunned, Chomped and a
- * sabotaged weapon.
- */
+import { z } from "zod";
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { CommandResponse } from "../../src/headless/protocol";
-import { PlayerPlacement } from "../../src/types/Scenario";
+import { type CommandResponse } from "../../src/headless/protocol";
+import { type PlayerPlacement } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import {
   PlayerCondition,
@@ -24,7 +16,6 @@ import { GameEventNames } from "../../src/types/events";
 import { nativeFixtures } from "../../src/testing/fixtures/rosterFixtures";
 import { answerDecision } from "../../src/game/rules-lab/runner";
 
-/** The Goblin Fanatic: Ball & Chain, MA 3, ST 7, Stunty, from the roster. */
 const FANATIC = 6;
 
 function fanaticGame(opts: {
@@ -44,14 +35,18 @@ function fanaticGame(opts: {
       description: "",
       setup: {
         team1Roster: RosterName.GOBLIN,
-        team2Roster: opts.team2Roster,
+        ...(opts.team2Roster === undefined
+          ? {}
+          : { team2Roster: opts.team2Roster }),
         team1Placements: [
           {
             playerIndex: FANATIC,
             ...(opts.at ?? { x: 10, y: 5 }),
-            skills: opts.fanaticSkills,
+            ...(opts.fanaticSkills === undefined
+              ? {}
+              : { skills: opts.fanaticSkills }),
           },
-          // A bystander keeps the turn going after the Fanatic's activation
+
           { playerIndex: 3, x: 1, y: 9 },
           ...(opts.team1 ?? []),
         ],
@@ -59,11 +54,11 @@ function fanaticGame(opts: {
         activeTeam: opts.activeTeam ?? "team1",
         phase: GamePhase.PLAY,
         subPhase: SubPhase.TURN_RECEIVING,
-        ballPosition: [...(opts.team1 ?? []), ...(opts.team2 ?? [])].some(
+        ...([...(opts.team1 ?? []), ...(opts.team2 ?? [])].some(
           (p) => p.hasBall
         )
-          ? undefined
-          : { x: 1, y: 1 },
+          ? {}
+          : { ballPosition: { x: 1, y: 1 } }),
       },
     },
   });
@@ -97,13 +92,13 @@ function swing(
 const dice = (response: CommandResponse): string[] =>
   response.events
     .filter((e) => e.name === GameEventNames.DiceRoll)
-    .map((e) => (e.data as { description: string }).description);
+    .map(
+      (e) => z.object({ description: z.string() }).parse(e.data).description
+    );
 
-/** "Ball & Chain Deviation: 3" is straight on; 1-2 left, 5-6 right. */
 const straight = (response: CommandResponse) =>
   dice(response).some((d) => /^Ball & Chain Deviation: [34]$/.test(d));
 
-/** The first seed in 1..limit whose run returns a value, with that value. */
 async function firstSeed<T>(
   run: (seed: number) => Promise<T | null>,
   limit = 300
@@ -112,10 +107,9 @@ async function firstSeed<T>(
     const found = await run(seed);
     if (found !== null) return found;
   }
-  throw new Error(`no seed in 1..${limit}`);
+  throw new Error(`no seed in 1..${String(limit)}`);
 }
 
-/** Human Linemen at x = 11 across the Fanatic's three template squares. */
 const WALL: PlayerPlacement[] = [
   { playerIndex: 0, x: 11, y: 4 },
   { playerIndex: 1, x: 11, y: 5 },
@@ -128,8 +122,8 @@ describe("a Ball & Chain collision is a normal Block", () => {
       seed: 25,
       team2: [{ playerIndex: 0, x: 11, y: 5, hasBall: true }],
     });
-    await declare(game, fanatic.id);
-    const collision = await swing(game, fanatic.id, EAST);
+    await declare(game, fixtureValue(fanatic).id);
+    const collision = await swing(game, fixtureValue(fanatic).id, EAST);
     expect(straight(collision)).toBe(true);
     expect(collision.pendingDecision?.type).toBe("block-dice");
     const options =
@@ -145,23 +139,24 @@ describe("a Ball & Chain collision is a normal Block", () => {
       y: 5,
     });
 
-    expect(fanatic.gridPosition).toEqual({ x: 11, y: 5 });
+    expect(fixtureValue(fanatic).gridPosition).toEqual({ x: 11, y: 5 });
     expect(dice(moved).filter((d) => d.startsWith("Bounce"))).toHaveLength(2);
     expect(moved.events.some((e) => e.name === GameEventNames.Turnover)).toBe(
       false
     );
     expect(game.snapshot().activeTeamId).toBe(game.ctx.team1.id);
-    expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(false);
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(fanatic).id)).toBe(
+      false
+    );
   });
 
   it("does not turn over when a team-mate Wrestles the Fanatic Prone", async () => {
-    // A Goblin team-mate takes Wrestle as an advancement.
     const { game, fanatic } = fanaticGame({
       seed: 6,
       team1: [{ playerIndex: 1, x: 11, y: 5, skills: [SkillType.WRESTLE] }],
     });
-    await declare(game, fanatic.id);
-    const collision = await swing(game, fanatic.id, EAST);
+    await declare(game, fixtureValue(fanatic).id);
+    const collision = await swing(game, fixtureValue(fanatic).id, EAST);
     expect(straight(collision)).toBe(true);
     const options =
       collision.pendingDecision?.type === "block-dice"
@@ -179,7 +174,9 @@ describe("a Ball & Chain collision is a normal Block", () => {
     });
     const wrestled = await game.execute({ type: "use-reaction", accept: true });
 
-    expect(game.ctx.team1.players[1].status).toBe(PlayerStatus.PRONE);
+    expect(fixtureValue(game.ctx.team1.players[1]).status).toBe(
+      PlayerStatus.PRONE
+    );
     expect(
       dice(wrestled).filter((d) => d.startsWith("Injury Roll (Fanatic #7)"))
     ).toHaveLength(1);
@@ -199,8 +196,8 @@ describe("a Ball & Chain collision is a normal Block", () => {
       fanaticSkills: [SkillType.PILE_DRIVER],
       team2: [{ playerIndex: 0, x: 11, y: 5 }],
     });
-    await declare(game, fanatic.id);
-    const collision = await swing(game, fanatic.id, EAST);
+    await declare(game, fixtureValue(fanatic).id);
+    const collision = await swing(game, fixtureValue(fanatic).id, EAST);
     expect(straight(collision)).toBe(true);
     const options =
       collision.pendingDecision?.type === "block-dice"
@@ -226,22 +223,26 @@ describe("a Ball & Chain collision is a normal Block", () => {
     expect(
       dice(piled).some((d) => d.startsWith("Armour Roll (Fanatic #7)"))
     ).toBe(false);
-    expect([PlayerStatus.KO, PlayerStatus.INJURED]).toContain(fanatic.status);
-    expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(true);
+    expect([PlayerStatus.KO, PlayerStatus.INJURED]).toContain(
+      fixtureValue(fanatic).status
+    );
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(fanatic).id)).toBe(
+      true
+    );
     expect(game.snapshot().activeTeamId).toBe(game.ctx.team1.id);
   });
 
   it("lets the Fanatic's coach pick the die, assists counted: ST 7 against 3 + 2", async () => {
     const { game, fanatic } = fanaticGame({ seed: 1, team2: WALL });
-    await declare(game, fanatic.id);
-    const response = await swing(game, fanatic.id, EAST);
+    await declare(game, fixtureValue(fanatic).id);
+    const response = await swing(game, fixtureValue(fanatic).id, EAST);
 
     expect(response.pendingDecision).toMatchObject({
       type: "block-dice",
-      attackerId: fanatic.id,
+      attackerId: fixtureValue(fanatic).id,
       chooserTeamId: game.ctx.team1.id,
     });
-    // The wall's other two Linemen mark the Fanatic: two dice, not three
+
     expect(
       response.pendingDecision?.type === "block-dice" &&
         response.pendingDecision.options.length
@@ -251,8 +252,8 @@ describe("a Ball & Chain collision is a normal Block", () => {
   it("offers the team re-roll on the Fanatic's block dice", async () => {
     const { game, fanatic } = fanaticGame({ seed: 1, team2: WALL });
     game.ctx.team1.rerolls = 1;
-    await declare(game, fanatic.id);
-    const response = await swing(game, fanatic.id, EAST);
+    await declare(game, fixtureValue(fanatic).id);
+    const response = await swing(game, fixtureValue(fanatic).id, EAST);
     expect(response.pendingDecision).toMatchObject({
       type: "block-dice",
       teamRerollAvailable: true,
@@ -260,19 +261,18 @@ describe("a Ball & Chain collision is a normal Block", () => {
 
     const rerolled = await game.execute({
       type: "team-reroll-block",
-      attackerId: fanatic.id,
+      attackerId: fixtureValue(fanatic).id,
     });
     expect(
       rerolled.events.find((e) => e.name === GameEventNames.RerollUsed)?.data
     ).toMatchObject({
-      playerId: fanatic.id,
+      playerId: fixtureValue(fanatic).id,
       source: "team",
       rollKind: "block",
     });
   });
 
   it("ignores Foul Appearance", async () => {
-    // No Sevens composition fields a native Foul Appearance player
     const run = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({
         seed,
@@ -280,8 +280,8 @@ describe("a Ball & Chain collision is a normal Block", () => {
           { playerIndex: 0, x: 11, y: 5, skills: [SkillType.FOUL_APPEARANCE] },
         ],
       });
-      await declare(game, fanatic.id);
-      const response = await swing(game, fanatic.id, EAST);
+      await declare(game, fixtureValue(fanatic).id);
+      const response = await swing(game, fixtureValue(fanatic).id, EAST);
       return straight(response) ? response : null;
     });
     expect(dice(run).filter((d) => d.startsWith("Foul Appearance"))).toEqual(
@@ -295,11 +295,11 @@ describe("a Ball & Chain collision is a normal Block", () => {
     const { game, fanatic, target } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({
         seed,
-        team2Roster: slot.roster,
-        team2: [{ playerIndex: slot.playerIndex, x: 11, y: 5 }],
+        team2Roster: fixtureValue(slot).roster,
+        team2: [{ playerIndex: fixtureValue(slot).playerIndex, x: 11, y: 5 }],
       });
-      await declare(game, fanatic.id);
-      const response = await swing(game, fanatic.id, EAST);
+      await declare(game, fixtureValue(fanatic).id);
+      const response = await swing(game, fixtureValue(fanatic).id, EAST);
       const pending = response.pendingDecision;
       if (!straight(response) || pending?.type !== "block-dice") return null;
       const push = pending.options.findIndex((o) => o.type === "push");
@@ -308,20 +308,22 @@ describe("a Ball & Chain collision is a normal Block", () => {
       return {
         game,
         fanatic,
-        target: game.ctx.team2.players[slot.playerIndex],
+        target: game.ctx.team2.players[fixtureValue(slot).playerIndex],
       };
     });
 
     const stood = await game.execute({ type: "use-reaction", accept: true });
     expect(stood.pendingDecision).toBeNull();
-    expect(target.gridPosition).toEqual({ x: 11, y: 5 });
-    expect(fanatic.gridPosition).toEqual({ x: 10, y: 5 });
-    // The square still counts, and the activation goes on
+    expect(fixtureValue(target).gridPosition).toEqual({ x: 11, y: 5 });
+    expect(fixtureValue(fanatic).gridPosition).toEqual({ x: 10, y: 5 });
+
     const state = game.ctx.gameService.getState();
-    expect(state.turn.movementUsed.get(fanatic.id)).toBe(1);
-    expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(false);
+    expect(state.turn.movementUsed.get(fixtureValue(fanatic).id)).toBe(1);
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(fanatic).id)).toBe(
+      false
+    );
     expect(state.activePlayer).toMatchObject({
-      id: fanatic.id,
+      id: fixtureValue(fanatic).id,
       action: "ballAndChain",
     });
   });
@@ -337,8 +339,8 @@ describe("a Ball & Chain collision is a normal Block", () => {
           { playerIndex: 3, x: 12, y: 6 },
         ],
       });
-      await declare(game, fanatic.id);
-      const response = await swing(game, fanatic.id, EAST);
+      await declare(game, fixtureValue(fanatic).id);
+      const response = await swing(game, fixtureValue(fanatic).id, EAST);
       const pending = response.pendingDecision;
       if (!straight(response) || pending?.type !== "block-dice") return null;
       const push = pending.options.findIndex((o) => o.type === "push");
@@ -353,7 +355,7 @@ describe("a Ball & Chain collision is a normal Block", () => {
     });
     expect(first.pendingDecision).toMatchObject({
       type: "push-direction",
-      defenderId: target.id,
+      defenderId: fixtureValue(target).id,
       chooserTeamId: game.ctx.team1.id,
     });
     const chained = await game.execute({
@@ -363,7 +365,7 @@ describe("a Ball & Chain collision is a normal Block", () => {
     });
     expect(chained.pendingDecision).toMatchObject({
       type: "push-direction",
-      defenderId: behind.id,
+      defenderId: fixtureValue(behind).id,
     });
     const options =
       chained.pendingDecision?.type === "push-direction"
@@ -375,10 +377,12 @@ describe("a Ball & Chain collision is a normal Block", () => {
     });
 
     expect(settled.pendingDecision).toBeNull();
-    expect(behind.gridPosition).toEqual(options[0]);
-    expect(target.gridPosition).toEqual({ x: 12, y: 5 });
-    expect(fanatic.gridPosition).toEqual({ x: 11, y: 5 });
-    expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(false);
+    expect(fixtureValue(behind).gridPosition).toEqual(options[0]);
+    expect(fixtureValue(target).gridPosition).toEqual({ x: 12, y: 5 });
+    expect(fixtureValue(fanatic).gridPosition).toEqual({ x: 11, y: 5 });
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(fanatic).id)).toBe(
+      false
+    );
   });
 
   it("knocking a team-mate down is a Turnover", async () => {
@@ -387,8 +391,8 @@ describe("a Ball & Chain collision is a normal Block", () => {
         seed,
         team1: [{ playerIndex: 1, x: 11, y: 5 }],
       });
-      await declare(game, fanatic.id);
-      const response = await swing(game, fanatic.id, EAST);
+      await declare(game, fixtureValue(fanatic).id);
+      const response = await swing(game, fixtureValue(fanatic).id, EAST);
       const pending = response.pendingDecision;
       if (!straight(response) || pending?.type !== "block-dice") return null;
       expect(pending.chooserTeamId).toBe(game.ctx.team1.id);
@@ -400,12 +404,14 @@ describe("a Ball & Chain collision is a normal Block", () => {
       });
       while (reply.pendingDecision) {
         reply = await game.execute(
-          answerDecision(reply.pendingDecision, game, {})!
+          fixtureValue(answerDecision(reply.pendingDecision, game, {}))
         );
       }
       return { game };
     });
-    expect(game.ctx.team1.players[1].status).not.toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(game.ctx.team1.players[1]).status).not.toBe(
+      PlayerStatus.ACTIVE
+    );
     expect(game.snapshot().activeTeamId).toBe(game.ctx.team2.id);
   });
 });
@@ -414,38 +420,46 @@ describe("Ball & Chain movement", () => {
   it("takes a new facing for every square", async () => {
     const { game, fanatic } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({ seed });
-      await declare(game, fanatic.id);
-      if (!straight(await swing(game, fanatic.id, EAST))) return null;
-      if (!straight(await swing(game, fanatic.id, NORTH))) return null;
+      await declare(game, fixtureValue(fanatic).id);
+      if (!straight(await swing(game, fixtureValue(fanatic).id, EAST)))
+        return null;
+      if (!straight(await swing(game, fixtureValue(fanatic).id, NORTH)))
+        return null;
       return { game, fanatic };
     });
-    expect(fanatic.gridPosition).toEqual({ x: 11, y: 4 });
+    expect(fixtureValue(fanatic).gridPosition).toEqual({ x: 11, y: 4 });
     expect(
-      game.ctx.gameService.getState().turn.movementUsed.get(fanatic.id)
+      game.ctx.gameService
+        .getState()
+        .turn.movementUsed.get(fixtureValue(fanatic).id)
     ).toBe(2);
-    expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(false);
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(fanatic).id)).toBe(
+      false
+    );
   });
 
   it("Rushes the two squares after its MA, then the activation ends", async () => {
     const { game, fanatic, rushes } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({ seed, at: { x: 5, y: 5 } });
-      await declare(game, fanatic.id);
+      await declare(game, fixtureValue(fanatic).id);
       const rushes: string[][] = [];
       for (let square = 0; square < 5; square++) {
-        const response = await swing(game, fanatic.id, EAST);
+        const response = await swing(game, fixtureValue(fanatic).id, EAST);
         rushes.push(dice(response).filter((d) => d.startsWith("Rush")));
       }
-      return fanatic.status === PlayerStatus.ACTIVE
+      return fixtureValue(fanatic).status === PlayerStatus.ACTIVE
         ? { game, fanatic, rushes }
         : null;
     });
     expect(rushes.map((r) => r.length)).toEqual([0, 0, 0, 1, 1]);
-    expect(rushes[3][0]).toMatch(/^Rush \(Fanatic #7\): [2-6], needs 2\+$/);
-    expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(true);
+    expect(fixtureValue(rushes[3])[0]).toMatch(
+      /^Rush \(Fanatic #7\): [2-6], needs 2\+$/
+    );
+    expect(game.ctx.gameService.hasPlayerActed(fixtureValue(fanatic).id)).toBe(
+      true
+    );
   });
 
-  // Steady Footing covers Falling Over (p.136), and Ball & Chain does not
-  // exclude it: a 6 keeps the Fanatic up, with no Injury and no Turnover
   it("lets Steady Footing save a failed Rush", async () => {
     const { game, fanatic, response } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({
@@ -454,19 +468,19 @@ describe("Ball & Chain movement", () => {
         fanaticSkills: [SkillType.STEADY_FOOTING],
       });
       game.ctx.team1.rerolls = 0;
-      await declare(game, fanatic.id);
+      await declare(game, fixtureValue(fanatic).id);
       for (let square = 0; square < 3; square++) {
-        await swing(game, fanatic.id, EAST);
+        await swing(game, fixtureValue(fanatic).id, EAST);
       }
-      if (fanatic.status !== PlayerStatus.ACTIVE) return null;
-      const response = await swing(game, fanatic.id, EAST);
+      if (fixtureValue(fanatic).status !== PlayerStatus.ACTIVE) return null;
+      const response = await swing(game, fixtureValue(fanatic).id, EAST);
       const rolled = dice(response);
       return rolled.some((d) => d.startsWith("Rush (Fanatic #7): 1")) &&
         rolled.some((d) => d.startsWith("Steady Footing (Fanatic #7): 6"))
         ? { game, fanatic, response }
         : null;
     });
-    expect(fanatic.status).toBe(PlayerStatus.ACTIVE);
+    expect(fixtureValue(fanatic).status).toBe(PlayerStatus.ACTIVE);
     expect(dice(response).some((d) => d.startsWith("Injury Roll"))).toBe(false);
     expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
   });
@@ -474,13 +488,13 @@ describe("Ball & Chain movement", () => {
   it("enters the square of a failed Rush, then Falls Over there", async () => {
     const { game, fanatic, response, from } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({ seed, at: { x: 5, y: 5 } });
-      await declare(game, fanatic.id);
+      await declare(game, fixtureValue(fanatic).id);
       for (let square = 0; square < 3; square++) {
-        await swing(game, fanatic.id, EAST);
+        await swing(game, fixtureValue(fanatic).id, EAST);
       }
-      if (fanatic.status !== PlayerStatus.ACTIVE) return null;
-      const from = { ...fanatic.gridPosition! };
-      const response = await swing(game, fanatic.id, EAST);
+      if (fixtureValue(fanatic).status !== PlayerStatus.ACTIVE) return null;
+      const from = { ...fixtureValue(fixtureValue(fanatic).gridPosition) };
+      const response = await swing(game, fixtureValue(fanatic).id, EAST);
       return dice(response).some((d) => d.startsWith("Rush (Fanatic #7): 1"))
         ? { game, fanatic, response, from }
         : null;
@@ -488,17 +502,21 @@ describe("Ball & Chain movement", () => {
     const moved = response.events.findIndex(
       (e) =>
         e.name === GameEventNames.PlayerMoved &&
-        (e.data as { playerId: string }).playerId === fanatic.id
+        z.object({ playerId: z.string() }).parse(e.data).playerId ===
+          fixtureValue(fanatic).id
     );
-    expect((response.events[moved].data as { to: { x: number } }).to.x).toBe(
-      from.x + 1
-    );
+    expect(
+      z
+        .object({ to: z.object({ x: z.number() }) })
+        .parse(fixtureValue(response.events[moved]).data).to.x
+    ).toBe(from.x + 1);
     const injury = response.events.findIndex(
       (e) =>
         e.name === GameEventNames.DiceRoll &&
-        (e.data as { description: string }).description.startsWith(
-          "Injury Roll (Fanatic #7)"
-        )
+        z
+          .object({ description: z.string() })
+          .parse(e.data)
+          .description.startsWith("Injury Roll (Fanatic #7)")
     );
     expect(moved).toBeGreaterThanOrEqual(0);
     expect(injury).toBeGreaterThan(moved);
@@ -512,13 +530,13 @@ describe("Ball & Chain movement", () => {
       team2: [{ playerIndex: 0, x: 9, y: 5 }],
     });
     addCondition(
-      fanatic,
+      fixtureValue(fanatic),
       PlayerCondition.CHOMPED,
-      game.ctx.team2.players[0].id
+      fixtureValue(game.ctx.team2.players[0]).id
     );
-    await declare(game, fanatic.id);
-    await swing(game, fanatic.id, EAST);
-    expect(fanatic.gridPosition?.x).toBe(11);
+    await declare(game, fixtureValue(fanatic).id);
+    await swing(game, fixtureValue(fanatic).id, EAST);
+    expect(fixtureValue(fanatic).gridPosition?.x).toBe(11);
   });
 });
 
@@ -536,13 +554,13 @@ describe("a Ball & Chain player getting hurt", () => {
     const troll = game.ctx.team2.players[0];
     await game.execute({
       type: "declare-action",
-      playerId: troll.id,
+      playerId: fixtureValue(troll).id,
       action: "block",
     });
     const block = await game.execute({
       type: "block",
-      attackerId: troll.id,
-      defenderId: fanatic.id,
+      attackerId: fixtureValue(troll).id,
+      defenderId: fixtureValue(fanatic).id,
     });
     const options =
       block.pendingDecision?.type === "block-dice"
@@ -563,23 +581,24 @@ describe("a Ball & Chain player getting hurt", () => {
     expect(
       dice(downed).some((d) => d.startsWith("Armour Roll (Fanatic #7)"))
     ).toBe(false);
+    const expectedData: unknown = expect.objectContaining({
+      playerId: fixtureValue(troll).id,
+      skill: SkillType.MIGHTY_BLOW,
+    });
     expect(downed.events).toContainEqual(
       expect.objectContaining({
         name: GameEventNames.SkillTriggered,
-        data: expect.objectContaining({
-          playerId: troll.id,
-          skill: SkillType.MIGHTY_BLOW,
-        }),
+        data: expectedData,
       })
     );
-    expect(fanatic.status).toBe(PlayerStatus.INJURED);
+    expect(fixtureValue(fanatic).status).toBe(PlayerStatus.INJURED);
   });
 
   it("rolls Injury with no Armour Roll when Knocked Down, and Stunned is KO", async () => {
     const { fanatic, rolls } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({ seed, team2: WALL });
-      await declare(game, fanatic.id);
-      const response = await swing(game, fanatic.id, EAST);
+      await declare(game, fixtureValue(fanatic).id);
+      const response = await swing(game, fixtureValue(fanatic).id, EAST);
       const pending = response.pendingDecision;
       if (pending?.type !== "block-dice") return null;
       const skull = pending.options.findIndex((o) => o.type === "skull");
@@ -589,21 +608,21 @@ describe("a Ball & Chain player getting hurt", () => {
         index: skull,
       });
       const rolls = dice(chosen).filter((d) => d.includes("(Fanatic #7)"));
-      // The Stunty table's Stunned band is 2-6
+
       const injury = rolls.find((d) => d.startsWith("Injury Roll"));
       return injury && Number(injury.split("= ")[1]) <= 6
         ? { fanatic, rolls }
         : null;
     });
     expect(rolls.filter((d) => d.startsWith("Armour Roll"))).toEqual([]);
-    expect(fanatic.status).toBe(PlayerStatus.KO);
+    expect(fixtureValue(fanatic).status).toBe(PlayerStatus.KO);
   });
 
   it("counts off the pitch as Pushed into the Crowd, where Stunned is Reserves (FAQ)", async () => {
     const { game, fanatic } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({ seed, at: { x: 10, y: 0 } });
-      await declare(game, fanatic.id);
-      const response = await swing(game, fanatic.id, NORTH);
+      await declare(game, fixtureValue(fanatic).id);
+      const response = await swing(game, fixtureValue(fanatic).id, NORTH);
       const injury = dice(response).find((d) =>
         d.startsWith("Injury by the Crowd (Fanatic #7)")
       );
@@ -611,13 +630,12 @@ describe("a Ball & Chain player getting hurt", () => {
         ? { game, fanatic }
         : null;
     });
-    expect(fanatic.status).toBe(PlayerStatus.RESERVE);
-    expect(fanatic.gridPosition).toBeUndefined();
+    expect(fixtureValue(fanatic).status).toBe(PlayerStatus.RESERVE);
+    expect(fixtureValue(fanatic).gridPosition).toBeUndefined();
     expect(game.snapshot().activeTeamId).toBe(game.ctx.team2.id);
   });
 
   it("is Knocked Out with no Injury Roll when its sabotaged weapon goes off (FAQ)", async () => {
-    // Saboteur needs Secret Weapon, which the Fanatic has from its roster
     const { fanatic, rolls } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({
         seed,
@@ -628,13 +646,13 @@ describe("a Ball & Chain player getting hurt", () => {
       const blocker = game.ctx.team2.players[0];
       await game.execute({
         type: "declare-action",
-        playerId: blocker.id,
+        playerId: fixtureValue(blocker).id,
         action: "block",
       });
       const response = await game.execute({
         type: "block",
-        attackerId: blocker.id,
-        defenderId: fanatic.id,
+        attackerId: fixtureValue(blocker).id,
+        defenderId: fixtureValue(fanatic).id,
       });
       const pending = response.pendingDecision;
       if (pending?.type !== "block-dice") return null;
@@ -649,7 +667,7 @@ describe("a Ball & Chain player getting hurt", () => {
         ? { fanatic, rolls }
         : null;
     }, 600);
-    expect(fanatic.status).toBe(PlayerStatus.KO);
+    expect(fixtureValue(fanatic).status).toBe(PlayerStatus.KO);
     expect(rolls.filter((d) => d.includes("Roll (Fanatic #7)"))).toEqual([]);
   });
 });

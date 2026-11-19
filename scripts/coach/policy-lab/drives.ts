@@ -1,41 +1,35 @@
-/**
- * How each roster's turns with the ball go. Replays saved games and, for
- * every team turn that starts with that team's standing carrier, records how
- * far the ball went and whether the turn scored, kept the ball or lost it.
- */
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
+import { readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { HeadlessGame } from "../../../src/headless/HeadlessGame";
-import type { MatchSave } from "../../../src/headless/serialization";
-import type { MatchRecording } from "../../../src/simulation/runMatch";
+import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
 import { GameConfig } from "../../../src/config/GameConfig";
 import { RosterName } from "../../../src/types/Team";
+import { openTrace } from "../catalogue-study/replay";
+import { isEntry, replaySteps } from "./lab";
+
+const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
 
 const WIDTH = GameConfig.PITCH_WIDTH;
 const ROSTERS = new Set<string>(Object.values(RosterName));
 
 export interface DriveTally {
-  /** Team turns that started with the team's own standing carrier. */
   turns: number;
   scored: number;
   kept: number;
   lost: number;
-  /** Squares gained toward the end zone over kept turns. */
+
   gained: number;
-  /** Halves that ended with this team's standing carrier holding the ball. */
+
   heldAtHalf: number;
-  /** Squares to go at the start of each turn with the ball. */
+
   toGo: number;
-  /** Turns that started with a standing opponent next to the carrier. */
+
   marked: number;
-  /** Kept turns, and squares gained over them, that started marked. */
+
   keptMarked: number;
   gainedMarked: number;
-  /** Kept turns that gained nothing, by whether they started marked. */
+
   stalledFree: number;
   stalledMarked: number;
 }
@@ -55,22 +49,14 @@ const empty = (): DriveTally => ({
   stalledMarked: 0,
 });
 
-/** Replays one saved game and tallies both teams' turns with the ball. */
-export async function drivesOfTrace(file: string) {
-  const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
-    initial: MatchSave;
-    recording: MatchRecording;
-  };
-  const game = new HeadlessGame({ matchSave: trace.initial });
+async function drivesOfTrace(file: string) {
+  const { recording, game } = openTrace(file);
   const tallies: [DriveTally, DriveTally] = [empty(), empty()];
   const watch = watchDrives(game, tallies);
-  for (const [index, step] of trace.recording.steps.entries()) {
-    const response = await game.execute(step.command);
-    if (response.ok !== step.ok) throw new Error(`Replay diverged at ${index}`);
-  }
+  await replaySteps({ game, recording });
   watch.finish();
   return {
-    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName],
+    rosters: [game.ctx.team1.rosterName, game.ctx.team2.rosterName] as const,
     tallies,
   };
 }
@@ -81,20 +67,14 @@ interface Open {
   marked: boolean;
 }
 
-/**
- * Tallies turns with the ball as the game plays. A turn settles when it
- * ends, before half time clears the pitch. The last turn to end before the
- * half changes, or before the game finishes, credits the team then holding
- * the ball with a half held.
- */
 export function watchDrives(
   game: HeadlessGame,
   tallies: [DriveTally, DriveTally]
 ) {
-  const teams = [game.ctx.team1, game.ctx.team2];
+  const teams = [game.ctx.team1, game.ctx.team2] as const;
   const sideOf = new Map(teams.map((t, i) => [t.id, i as 0 | 1]));
   const state = () => game.ctx.gameService.getState();
-  /** The side whose standing player holds the ball, and its squares to go. */
+
   const holder = (): { side: 0 | 1; toGo: number } | null => {
     const at = state().ballPosition;
     if (!at) return null;
@@ -112,7 +92,7 @@ export function watchDrives(
   };
   const markedAt = (side: 0 | 1) => {
     const at = state().ballPosition!;
-    return teams[1 - side].players.some(
+    return teams[otherSide(side)].players.some(
       (p) =>
         p.status === PlayerStatus.ACTIVE &&
         p.gridPosition &&
@@ -124,7 +104,7 @@ export function watchDrives(
   };
   let open: Open | null = null;
   let scored = false;
-  /** Who held the ball as the last turn ended, and in which half. */
+
   let ended: { holder: 0 | 1 | null; half2: boolean } | null = null;
 
   const settle = () => {
@@ -151,8 +131,6 @@ export function watchDrives(
   };
 
   game.ctx.eventBus.on(GameEventNames.Touchdown, ({ teamId }) => {
-    // A score ends the drive: no half is held, and only the scoring team's
-    // open turn counts it.
     if (open && sideOf.get(teamId) === open.side) scored = true;
     else settle();
     ended = null;
@@ -180,7 +158,6 @@ export function watchDrives(
     open = { side, toGo: held.toGo, marked };
   });
   return {
-    /** The recording is over: the last half ended with its last turn. */
     finish() {
       settle();
       halfOver();
@@ -191,7 +168,6 @@ export function watchDrives(
 const USAGE =
   "Usage: drives.ts <stage directory> [roster] [--shard i/n], with 0 <= i < n";
 
-/** Reads and checks the arguments before any file is read or written. */
 export function driveArgs(argv: string[]) {
   const [dir, ...rest] = argv;
   if (!dir) throw new Error(USAGE);
@@ -208,10 +184,10 @@ export function driveArgs(argv: string[]) {
   );
   if (roster !== undefined && !ROSTERS.has(roster))
     throw new Error(`${roster} is not a roster. ${USAGE}`);
-  // A filtered or sharded run writes its own file, never the stage summary.
+
   const scope = [
     roster ? roster.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "",
-    shard[1] > 1 ? `${shard[0]}-of-${shard[1]}` : "",
+    shard[1] > 1 ? `${String(shard[0])}-of-${String(shard[1])}` : "",
   ].filter(Boolean);
   return {
     run: resolve(dir),
@@ -223,7 +199,7 @@ export function driveArgs(argv: string[]) {
 
 async function main() {
   const { run, roster: only, shard, out } = driveArgs(process.argv.slice(2));
-  // --shard i/n replays every nth game, so shards can run side by side.
+
   const files = readdirSync(join(run, "traces"))
     .filter((f) => f.endsWith(".json.gz"))
     .filter((_, i) => i % shard[1] === shard[0]);
@@ -243,17 +219,13 @@ async function main() {
   ))
     console.log(
       roster.padEnd(22),
-      `turns ${t.turns}`,
+      `turns ${String(t.turns)}`,
       `toGo ${(t.toGo / t.turns).toFixed(1)}`,
       `score ${((100 * t.scored) / t.turns).toFixed(0)}%`,
       `lost ${((100 * t.lost) / t.turns).toFixed(0)}%`,
       `gain/kept ${(t.gained / Math.max(1, t.kept)).toFixed(2)}`,
-      `heldAtHalf ${t.heldAtHalf}`,
+      `heldAtHalf ${String(t.heldAtHalf)}`,
       `marked ${((100 * t.marked) / t.turns).toFixed(0)}%`
     );
 }
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  await main();
+if (isEntry(import.meta.url)) await main();

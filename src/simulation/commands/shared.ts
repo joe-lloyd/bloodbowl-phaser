@@ -1,16 +1,11 @@
-/**
- * What every `pnpm sim` subcommand shares: failing on bad input, and the
- * coaches a command line can name.
- */
-
 import * as fs from "node:fs";
-import { Coach } from "../coach";
+import { type Coach } from "../coach";
 import { randomCoach } from "../coaches/random";
 import { heuristicCoach } from "../coaches/heuristic";
 import { createPlannerCoach, plannerCoach } from "../ai/planner";
 import { BUDGETS, createSearchCoach } from "../ai/search";
 import { parseWeights } from "../ai/weights";
-import { createJevCoach, JevStats } from "../coaches/jev";
+import { createJevCoach, type JevStats } from "../coaches/jev";
 
 export type CoachName =
   | "random"
@@ -34,7 +29,6 @@ export function makeCoach(
   if (name === "heuristic") return heuristicCoach;
   if (name === "hard" || name === "legend")
     return createSearchCoach({
-      // The bench has no clock: a deadline would make its games unrepeatable.
       budget: {
         samples: BUDGETS[name].samples,
         options: BUDGETS[name].options,
@@ -55,9 +49,13 @@ export function makeCoach(
           ),
         })
       : plannerCoach;
-  const apiKey = process.env.TYPESAFE_API_KEY;
+  const apiKey = process.env["TYPESAFE_API_KEY"];
   if (!apiKey) fail("the jev coach needs TYPESAFE_API_KEY in the environment");
-  const coach = createJevCoach({ apiKey, model: process.env.TYPESAFE_MODEL });
+  const model = process.env["TYPESAFE_MODEL"];
+  const coach = createJevCoach({
+    apiKey,
+    ...(model === undefined ? {} : { model }),
+  });
   jevStats.push(coach.stats);
   return coach;
 }

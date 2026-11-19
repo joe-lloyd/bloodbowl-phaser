@@ -1,29 +1,3 @@
-/**
- * Browser cost benchmark: `pnpm perf`.
- *
- * Builds the app in e2e mode (offline, test bridge on), serves it with
- * `vite preview` on a free port, and opens a sandbox match at 1440x900 in
- * each browser config. Every run measures two windows:
- *
- *   idle    the board loaded and settled, nobody touching it, 30 s
- *   action  a move, a pick-up confirmation and its dice roll, then the
- *           board left alone until the window ends, 20 s
- *   held    straight after, nobody touching the board while the rolled
- *           dice stay up in the tray, 20 s. A match spends most of its
- *           time like this.
- *
- * For each window it records the CPU seconds of the whole browser process
- * tree (GPU process included, split by process type), how many animation
- * frames issued WebGL draws, the draw calls, rAF frame times, and JS heap.
- * Results go to perf-results/<timestamp>.json plus a median table.
- *
- *   pnpm perf                     both configs, 3 runs each
- *   pnpm perf --config swiftshader --runs 1 --no-build
- *   pnpm perf --label "dice idle stop"
- *   pnpm perf --reduced-motion    players stand still instead of breathing
- *   pnpm perf --video 1440x900    record video as the online-match rig does
- */
-
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
@@ -83,7 +57,7 @@ const VIEWPORT = { width: 1440, height: 900 };
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
-/** A flag's operand, or undefined when the flag is absent. */
+
 const option = (name: string): string | undefined => {
   const i = args.indexOf(`--${name}`);
   if (i < 0) return undefined;
@@ -95,11 +69,15 @@ const option = (name: string): string | undefined => {
 const CONFIGS: ConfigName[] = ["swiftshader", "gpu"];
 const runs = Number(option("runs") ?? 3);
 if (!Number.isInteger(runs) || runs < 1)
-  throw new Error(`--runs must be a positive whole number, not ${runs}`);
+  throw new Error(
+    `--runs must be a positive whole number, not ${String(runs)}`
+  );
 const configArg = option("config");
 if (configArg !== undefined && !CONFIGS.some((c) => c === configArg))
   throw new Error(`--config must be one of ${CONFIGS.join(", ")}`);
-const configs = CONFIGS.filter((c) => configArg === undefined || c === configArg);
+const configs = CONFIGS.filter(
+  (c) => configArg === undefined || c === configArg
+);
 const label = option("label") ?? "";
 const videoArg = option("video");
 const videoSize = videoArg?.match(/^(\d+)x(\d+)$/);
@@ -109,18 +87,16 @@ const VIDEO = videoSize
   ? { width: Number(videoSize[1]), height: Number(videoSize[2]) }
   : null;
 
-// ---------------------------------------------------------------- server
-
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
-      server.close(() =>
+      server.close(() => {
         typeof address === "object" && address
           ? resolve(address.port)
-          : reject(new Error("no port"))
-      );
+          : reject(new Error("no port"));
+      });
     });
   });
 }
@@ -146,25 +122,20 @@ async function startPreview(port: number): Promise<ChildProcess> {
   );
   for (let i = 0; i < 100; i++) {
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/`);
+      const res = await fetch(`http://127.0.0.1:${String(port)}/`);
       if (res.ok) return child;
-    } catch {
-      // not up yet
-    }
+    } catch {}
     await new Promise((r) => setTimeout(r, 200));
   }
   child.kill();
   throw new Error("vite preview never came up");
 }
 
-// ------------------------------------------------------------------- cpu
-
-/** `ps` cputime, `[[dd-]hh:]mm:ss.cc`, in seconds. */
 function parseCpuTime(raw: string): number {
-  const [days, rest] = raw.includes("-") ? raw.split("-") : ["0", raw];
+  const [days = "0", rest = ""] = raw.includes("-") ? raw.split("-") : ["0", raw];
   const parts = rest.split(":").map(Number);
   while (parts.length < 3) parts.unshift(0);
-  const [h, m, s] = parts;
+  const [h = 0, m = 0, s = 0] = parts;
   return Number(days) * 86400 + h * 3600 + m * 60 + s;
 }
 
@@ -182,13 +153,13 @@ function processTree(rootPid: number): ProcessCpu[] {
       return {
         pid: Number(pid),
         ppid: Number(ppid),
-        seconds: parseCpuTime(time),
+        seconds: parseCpuTime(time ?? ""),
         type: cmd.includes("ffmpeg")
           ? "ffmpeg"
           : (/--type=([\w-]+)/.exec(cmd)?.[1] ?? "browser"),
       };
     });
-  // Playwright's video encoder runs under this script, not the browser
+
   const encoders = descendants(all, process.pid).filter(
     (p) => p.type === "ffmpeg"
   );
@@ -221,14 +192,6 @@ function cpuDelta(before: ProcessCpu[], after: ProcessCpu[]) {
   return { total, byType };
 }
 
-// -------------------------------------------------------------- in-page
-
-/**
- * Counts WebGL draw calls on every context (Phaser's and the dice tray's)
- * and, per animation frame, whether any were issued. Installed before the
- * app loads. A string, because tsx would wrap a function's inner
- * declarations in helpers that do not exist inside the page.
- */
 const PROBE = `(() => {
   const probe = { drawCalls: 0, drawFrames: 0, rafFrames: 0, frameMs: [], drewThisFrame: false };
   window.__perfProbe = probe;
@@ -259,10 +222,10 @@ function resetProbe(page: Page) {
   return page.evaluate(() => {
     const p = (window as unknown as { __perfProbe: Record<string, unknown> })
       .__perfProbe;
-    p.drawCalls = 0;
-    p.drawFrames = 0;
-    p.rafFrames = 0;
-    p.frameMs = [];
+    p["drawCalls"] = 0;
+    p["drawFrames"] = 0;
+    p["rafFrames"] = 0;
+    p["frameMs"] = [];
   });
 }
 
@@ -295,14 +258,14 @@ function glRenderer(page: Page): Promise<string> {
   });
 }
 
-// ------------------------------------------------------------- measure
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+  return (
+    sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0
+  );
 }
 
 async function measure(
@@ -334,11 +297,10 @@ async function measure(
     frameMeanMs: mean,
     frameP95Ms: percentile(stats.frameMs, 0.95),
     heapMb: stats.heapMb,
-    loadAvg: loadavg()[0],
+    loadAvg: loadavg()[0] ?? 0,
   };
 }
 
-/** Move next to the ball, confirm the pick-up, and let its dice roll. */
 async function pickUpBall(app: GameApp, page: Page) {
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickSquare({ x: 10, y: 7 });
@@ -359,9 +321,7 @@ async function launch(config: ConfigName): Promise<{
   pid: number;
   close: () => Promise<void>;
 }> {
-  // launchServer exposes the browser's pid, which launch() does not
   const server = await chromium.launchServer({
-    // Same as the e2e config: keep rAF running in an unfocused window
     args: [
       "--disable-background-timer-throttling",
       "--disable-backgrounding-occluded-windows",
@@ -412,7 +372,7 @@ async function oneRun(
     if (flag("shots")) {
       mkdirSync("perf-results/shots", { recursive: true });
       await page.screenshot({
-        path: `perf-results/shots/${config}-${run}.png`,
+        path: `perf-results/shots/${config}-${String(run)}.png`,
       });
     }
     return {
@@ -422,8 +382,6 @@ async function oneRun(
       windows: { idle, action, held },
     };
   } finally {
-    // Close the context first so a recording ends before the browser does,
-    // and close the browser even if that fails
     try {
       await context?.close();
     } finally {
@@ -432,27 +390,26 @@ async function oneRun(
   }
 }
 
-// ------------------------------------------------------------- report
-
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const at = (index: number) => sorted[index] ?? NaN;
+  return sorted.length % 2 ? at(mid) : (at(mid - 1) + at(mid)) / 2;
 }
 
 function summarise(results: RunResult[]) {
   const rows: Record<string, Record<string, number | string | null>> = {};
   for (const config of configs) {
-    for (const name of ["idle", "action", "held"] as WindowName[]) {
+    for (const name of ["idle", "action", "held"] satisfies WindowName[]) {
       const ws = results
         .filter((r) => r.config === config)
         .map((r) => r.windows[name]);
       if (ws.length === 0) continue;
       const m = (pick: (w: WindowResult) => number) =>
         Number(median(ws.map(pick)).toFixed(2));
-      // Null when the browser reports no heap, not a false 0 MB
+
       const heap = ws.map((w) => w.heapMb);
-      // Null when a run drew nothing: a cost per frame has no meaning there
+
       const perFrame = ws.map((w) =>
         w.drawFps > 0 ? (w.cpuSeconds * 1000) / (w.drawFps * w.seconds) : null
       );
@@ -466,8 +423,7 @@ function summarise(results: RunResult[]) {
           (w) => ((w.cpuByType["renderer"] ?? 0) / w.seconds) * 100
         ),
         drawFps: m((w) => w.drawFps),
-        // Under SwiftShader the GPU process is saturated, so a cheaper
-        // frame shows up as more frames, not less CPU. This sees both.
+
         cpuMsPerFrame: perFrame.every((v): v is number => v !== null)
           ? Number(median(perFrame).toFixed(2))
           : null,
@@ -496,12 +452,12 @@ async function main() {
   }
   const port = await freePort();
   const preview = await startPreview(port);
-  const baseURL = `http://127.0.0.1:${port}`;
+  const baseURL = `http://127.0.0.1:${String(port)}`;
   const results: RunResult[] = [];
   try {
     for (let run = 1; run <= runs; run++) {
       for (const config of configs) {
-        process.stdout.write(`${config} run ${run} ... `);
+        process.stdout.write(`${config} run ${String(run)} ... `);
         const result = await oneRun(baseURL, config, run);
         results.push(result);
         console.log(
@@ -515,7 +471,7 @@ async function main() {
   const commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
     encoding: "utf8",
   }).trim();
-  // Everything that decides what was measured, the bench itself included
+
   const dirty =
     execFileSync(
       "git",
@@ -558,7 +514,7 @@ async function main() {
   );
   console.log(
     `\n${label || "(no label)"} @ ${commit}${dirty ? "+dirty" : ""}, ` +
-      `median of ${runs}; renderer: ${[...new Set(results.map((r) => `${r.config}=${r.glRenderer}`))].join(", ")}`
+      `median of ${String(runs)}; renderer: ${[...new Set(results.map((r) => `${r.config}=${r.glRenderer}`))].join(", ")}`
   );
   console.table(summary);
   console.log(`wrote ${file}`);

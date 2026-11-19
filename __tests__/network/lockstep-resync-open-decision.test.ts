@@ -1,10 +1,4 @@
-/**
- * A full-state resync lands while a coach owes a re-roll, a reaction or an
- * inducement choice. The roll path paused on that decision cannot travel in
- * a state, so the owner's answer used to be refused for good and only ending
- * the match by agreement got out. The resync now carries the state from
- * before the decision and the commands since, which rebuild the paused path.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
 import {
   createSimGame,
@@ -15,7 +9,7 @@ import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { stateChecksum } from "../../src/headless/checksum";
 import { LockstepSession } from "../../src/network/LockstepSession";
 import { createInMemoryTransportPair } from "../../src/network/transport";
-import { HeadlessCommand } from "../../src/headless/protocol";
+import { type HeadlessCommand } from "../../src/headless/protocol";
 import { RosterName } from "../../src/types/Team";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -32,7 +26,6 @@ type SimGame = ReturnType<typeof createSimGame>;
 type Transport = ReturnType<typeof createInMemoryTransportPair>[number];
 type Side = "host" | "guest";
 
-/** One coach's session: the host plays team 1 and the guest team 2. */
 function sideSession(
   game: SimGame,
   end: Transport,
@@ -46,7 +39,7 @@ function sideSession(
     myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
     peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
     hostTeamId: game.ctx.team1.id,
-    onDesync,
+    ...(onDesync === undefined ? {} : { onDesync: onDesync }),
   });
 }
 
@@ -103,7 +96,6 @@ describe.each([
     }
     expect(hostGame.pendingDecision()?.type).toBe(decision);
 
-    // Each engine in turn really differs, so the resync has to rebuild it
     const diverge = (game: typeof hostGame) => {
       const { score } = game.ctx.gameService.getState();
       score[game.ctx.team1.id] = (score[game.ctx.team1.id] ?? 0) + 7;
@@ -134,8 +126,6 @@ describe.each([
 
 describe("a full resync while a pre-match inducement choice is open", () => {
   it("leaves the choice answerable when both engines already agree", async () => {
-    // Opened as the engine is built, before any command, so no earlier state
-    // can rebuild it. Matched Play draft lists start their rolls this way.
     for (let seed = 7000; seed < 7100; seed++) {
       const build = async () => {
         const game = createSimGame(seed, [RosterName.HUMAN, RosterName.ORC], 3);
@@ -181,10 +171,10 @@ describe("a full resync onto a page with nothing paused", () => {
       if (!(await host.run(step.command)).ok) await guest.run(step.command);
       await settle(host, guest);
     }
-    const owner = hostGame.pendingDecision()?.chooserTeamId;
+    const decision = hostGame.pendingDecision();
+    const owner =
+      decision?.type === "reroll" ? decision.chooserTeamId : undefined;
 
-    // A page that comes back differing from every state the host ran, so
-    // the host cannot send it a catch-up and falls back to the full state
     guest.close();
     const freshGame = await build();
     const { score } = freshGame.ctx.gameService.getState();
@@ -196,7 +186,7 @@ describe("a full resync onto a page with nothing paused", () => {
     expect(freshGame.pendingDecision()?.type).toBe("reroll");
 
     const answerer = owner === hostGame.ctx.team1.id ? host : fresh;
-    const answered = await answerer.run(steps[stop + 1].command);
+    const answered = await answerer.run(fixtureValue(steps[stop + 1]).command);
     await settle(host, fresh);
     expect(answered.reason).toBeUndefined();
     expect(answered.ok).toBe(true);

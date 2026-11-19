@@ -2,9 +2,9 @@ import { GameOperation } from "../core/GameOperation";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { IGameService } from "../../services/interfaces/IGameService";
-import { InterceptionDecisionAnswer } from "../../types/decisions";
-import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
+import { type IGameService } from "../../services/interfaces/IGameService";
+import { chooseInterceptor } from "./interceptionChoice";
+import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
@@ -19,38 +19,25 @@ import {
   gatherParticipants,
   adjacentStanding,
   playersWithin,
-  PassDeclaredContext,
-  PassResultContext,
+  type PassDeclaredContext,
+  type PassResultContext,
   withRerollOffer,
 } from "../skills";
 
-/**
- * Judges a Pass or a Hand-off once the ball is at rest (catch, bounces and
- * throw-ins settled), then ends the passer's activation. If no Standing
- * player of the passing team holds the ball, a Turnover is caused (2025
- * rulebook p.75): the ball on the ground, or in an opponent's hands. A drop
- * that bounces into a team-mate's hands is no Turnover (p.35). Give and Go
- * skips this after a Quick Pass or a Hand-off (so long as no Turnover was
- * caused), letting the player continue their Move with any movement
- * remaining. A turnover is latched before the ball-settling flow goes idle,
- * so this operation can suppress Give and Go even before the delayed turn
- * change occurs. Shared with HandoffOperation, which queues it directly
- * (a Hand-off never runs through PassOperation).
- */
 export class FinishPassActivationOperation extends GameOperation {
   public readonly name = "FinishPassActivation";
 
-  constructor(
-    private passerId: string,
-    private giveAndGoExempt: boolean
-  ) {
+  private passerId: string;
+  private giveAndGoExempt: boolean;
+  constructor(passerId: string, giveAndGoExempt: boolean) {
     super();
+    this.passerId = passerId;
+    this.giveAndGoExempt = giveAndGoExempt;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
-    const eventBus =
-      context.eventBus as import("../../services/EventBus").IEventBus;
+    const gameService = context.gameService;
+    const eventBus = context.eventBus;
     const passer = gameService.getPlayerById(this.passerId);
     const ball = gameService.getState().ballPosition;
     const holder = ball ? gameService.getPlayerAt(ball.x, ball.y) : undefined;
@@ -60,12 +47,9 @@ export class FinishPassActivationOperation extends GameOperation {
       (holder?.teamId !== passer.teamId ||
         holder.status !== PlayerStatus.ACTIVE)
     ) {
-      // Latches at most once: a fumble or an interception already did.
       gameService.triggerTurnover("Pass not caught");
     }
     if (gameService.isTurnoverInProgress()) {
-      // The visual turnover delay must not leave a command window in which
-      // the passer can keep moving before the next turn starts.
       gameService.finishActivation(this.passerId);
       return;
     }
@@ -82,7 +66,10 @@ export class FinishPassActivationOperation extends GameOperation {
   }
 }
 
-type Square = { x: number; y: number };
+interface Square {
+  x: number;
+  y: number;
+}
 
 const isAt = (player: Player, square: Square): boolean =>
   player.gridPosition?.x === square.x && player.gridPosition?.y === square.y;
@@ -90,7 +77,6 @@ const isAt = (player: Player, square: Square): boolean =>
 const distance = (a: Square, b: Square): number =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
-/** Set Piece (L25) can be offered: not a Hail Mary, and the team holds it. */
 function setPieceOffered(
   gameService: IGameService,
   passer: Player,
@@ -106,7 +92,6 @@ function setPieceOffered(
   );
 }
 
-/** Only an inaccurate pass scatters; the ball lands where its path ends. */
 function scatterOf(
   passController: ReturnType<IGameService["getPassController"]>,
   target: Square,
@@ -119,14 +104,9 @@ function scatterOf(
   };
 }
 
-/** Give and Go keeps the activation open after a Quick Pass. */
 const giveAndGoExempt = (passer: Player, passType: string): boolean =>
   hasSkill(passer.skills, SkillType.GIVE_AND_GO) && passType === "Quick Pass";
 
-/**
- * Safe Pass: no fumble — the passer retains possession, their activation
- * ends, no turnover.
- */
 function safePass(context: FlowContext, passer: Player): void {
   const { gameService, eventBus } = context;
   eventBus.emit(GameEventNames.UI_Notification, "Safe Pass! Ball held.");
@@ -136,11 +116,10 @@ function safePass(context: FlowContext, passer: Player): void {
   gameService.finishActivation(passer.id);
 }
 
-/** A fumble drops in the passer's square, then bounces: a Turnover. */
 function fumble(context: FlowContext, passer: Player): void {
   const { gameService, eventBus } = context;
   eventBus.emit(GameEventNames.UI_Notification, "FUMBLE!");
-  // Update ball pos to passer first
+
   if (passer.gridPosition) {
     gameService.setBallPosition(passer.gridPosition.x, passer.gridPosition.y);
     context.flowManager.add(new BounceOperation(passer.gridPosition), true);
@@ -148,10 +127,6 @@ function fumble(context: FlowContext, passer: Player): void {
   gameService.triggerTurnover("Fumbled Pass");
 }
 
-/**
- * The Diving Catch player next to an empty landing square who tries for
- * the ball: the topmost, then leftmost.
- */
 function divingCatcherAt(
   players: Player[],
   landingPos: Square
@@ -171,7 +146,6 @@ function divingCatcherAt(
     )[0];
 }
 
-/** Standing On the Ball opponents of the passer, top to bottom. */
 function onTheBallReactors(
   gameService: IGameService,
   passer: Player
@@ -191,7 +165,6 @@ function onTheBallReactors(
     );
 }
 
-/** Squares held by the teams of `players`, other than by `mover`. */
 function occupiedSquares(
   gameService: IGameService,
   players: Player[],
@@ -201,7 +174,9 @@ function occupiedSquares(
   for (const { teamId } of players) {
     for (const player of gameService.getTeam(teamId)?.players ?? []) {
       if (player.id !== mover.id && player.gridPosition) {
-        occupied.add(`${player.gridPosition.x},${player.gridPosition.y}`);
+        occupied.add(
+          `${String(player.gridPosition.x)},${String(player.gridPosition.y)}`
+        );
       }
     }
   }
@@ -213,9 +188,8 @@ const isFreeOnPitch = (square: Square, occupied: Set<string>): boolean =>
   square.x < 26 &&
   square.y >= 0 &&
   square.y < 15 &&
-  !occupied.has(`${square.x},${square.y}`);
+  !occupied.has(`${String(square.x)},${String(square.y)}`);
 
-/** The free square next to `from` nearest the pass target, if any. */
 function onTheBallStep(
   gameService: IGameService,
   passer: Player,
@@ -240,10 +214,6 @@ function onTheBallStep(
   return candidates[0];
 }
 
-/**
- * The markers on `to` when the step leaves a Tackle Zone, so needs a
- * Dodge; null when it does not.
- */
 function dodgeMarkers(
   gameService: IGameService,
   reactor: Player,
@@ -261,7 +231,6 @@ function dodgeMarkers(
     .length;
 }
 
-/** The On the Ball Dodge, with the re-roll offer it allows. */
 function onTheBallDodge(
   context: FlowContext,
   reactor: Player,
@@ -272,15 +241,10 @@ function onTheBallDodge(
     gameService
       .getDiceController()
       .rollSkillCheck(
-        "Dodge",
-        reactor.stats.AG,
-        -destinationMarkers,
-        reactor.playerName
-      )
+        { reason: "Dodge",target: reactor.stats.AG,modifier: -destinationMarkers,playerName: reactor.playerName }      )
   );
 }
 
-/** A failed On the Ball Dodge: the reactor falls on `to`. */
 function fallOnTheBall(
   context: FlowContext,
   reactor: Player,
@@ -304,59 +268,49 @@ function fallOnTheBall(
   context.flowManager.add(new ArmourOperation(reactor.id), true);
 }
 
-/**
- * PassOperation
- *
- * Responsibility:
- * - Execute the "Pass" sequence:
- *   1. Calculate modifiers (using Controller)
- *   2. Roll accuracy
- *   3. Offer an interception along the ruler to the target
- *   4. Scatter an inaccurate pass that got through, and animate the flight
- *   5. Trigger next operation (Catch or Bounce)
- */
 export class PassOperation extends GameOperation {
   public readonly name = "PassOperation";
 
+  private passerId: string;
+  private targetX: number;
+  private targetY: number;
+  private hailMary: boolean;
   constructor(
-    private passerId: string,
-    private targetX: number,
-    private targetY: number,
-    private hailMary = false
+    passerId: string,
+    targetX: number,
+    targetY: number,
+    hailMary = false
   ) {
     super();
+    this.passerId = passerId;
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.hailMary = hailMary;
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const gameService = context.gameService as IGameService;
-    const eventBus =
-      context.eventBus as import("../../services/EventBus").IEventBus;
+    const gameService = context.gameService;
+    const eventBus = context.eventBus;
 
     const passer = gameService.getPlayerById(this.passerId);
-    if (!passer || !passer.gridPosition) return;
+    if (!passer?.gridPosition) return;
 
-    // The throw is happening — commit the declaration (Pass or Handoff)
-    // before anything else can be rolled or resolved.
     gameService.commitAction(this.passerId);
 
     console.log(
-      `[PassOperation] Executing pass from ${passer.id} to ${this.targetX},${this.targetY}`
+      `[PassOperation] Executing pass from ${passer.id} to ${String(this.targetX)},${String(this.targetY)}`
     );
 
-    // 1. Calculate Result (Logic delegated to Controller)
-    // We assume PassController is pure calculation helper now
     const passController = gameService.getPassController();
     const catchController = gameService.getCatchController();
 
-    const opponents = gameService.getOpponents(passer.teamId); // Helper needed on service?
-    // Calculate marking opponents (Zones of Control)
+    const opponents = gameService.getOpponents(passer.teamId);
+
     const markingOpponents = catchController.countMarkingOpponents(
       passer.gridPosition,
       opponents
     );
 
-    // Trigger point: pass declared — rules adjust the PA test (Accurate,
-    // Cannoneer by range; Nerves of Steel cancels marking)
     const passRange = passController.measureRange(
       passer.gridPosition,
       { x: this.targetX, y: this.targetY },
@@ -366,10 +320,6 @@ export class PassOperation extends GameOperation {
       .getTeammates(this.passerId)
       .find((p) => isAt(p, { x: this.targetX, y: this.targetY }));
 
-    // On the Ball resolves after the target is known but before any modifier
-    // folds or the Passing Ability Test. Reactors move one at a time; a fall
-    // stops the remaining reactions but is not a Turnover (it is not their
-    // team turn).
     await this.resolveOnTheBall(gameService, eventBus, context, passer, {
       x: this.targetX,
       y: this.targetY,
@@ -379,7 +329,7 @@ export class PassOperation extends GameOperation {
       player: passer,
       passType: passRange.type,
       hailMary: this.hailMary,
-      targetPlayer,
+      ...(targetPlayer === undefined ? {} : { targetPlayer: targetPlayer }),
       marking: markingOpponents,
       modifiers: weatherEffects(gameService.getState().weather).passingAbility,
       decisions: gameService.getDecisionService(),
@@ -392,17 +342,15 @@ export class PassOperation extends GameOperation {
       "onPassDeclared",
       gatherParticipants(passer, undefined, [
         ...adjacentStanding(passer.gridPosition, opponents),
-        // Aura skills (Disturbing Presence) reach 3 squares, any status
+
         ...playersWithin(passer.gridPosition, opponents, 3),
       ]),
       passCtx
     );
-    passCtx.triggers.forEach((t) =>
-      eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
+    passCtx.triggers.forEach((t) => {
+      eventBus.emit(GameEventNames.SkillTriggered, t);
+    });
 
-    // Animosity: the thrower refuses — the activation ends, the ball
-    // stays put, no turnover
     if (passCtx.refused) {
       eventBus.emit(
         GameEventNames.UI_Notification,
@@ -412,7 +360,6 @@ export class PassOperation extends GameOperation {
       return;
     }
 
-    // Set Piece (L25): Accurate on any 2+, and caught on any 2+.
     const setPiece =
       setPieceOffered(gameService, passer, this.hailMary) &&
       (await offerMeasure(
@@ -424,18 +371,8 @@ export class PassOperation extends GameOperation {
       ));
 
     const result = await passController.attemptPass(
-      passer,
-      passer.gridPosition,
-      { x: this.targetX, y: this.targetY },
-      markingOpponents,
-      { gameService, eventBus }, // failed passes may offer a reroll
-      passCtx.modifiers,
-      this.hailMary,
-      setPiece
-    );
+      { player: passer,from: passer.gridPosition,to: { x: this.targetX,y: this.targetY },markingOpponents,rerollDeps: { gameService,eventBus },extraModifier: passCtx.modifiers,hailMary: this.hailMary,setPiece }    );
 
-    // Trigger point: PA test rolled — Safe Pass may cancel a natural-1
-    // fumble (keep the ball, end the activation, no turnover)
     const resultCtx: PassResultContext = {
       player: passer,
       roll: result.roll,
@@ -447,13 +384,13 @@ export class PassOperation extends GameOperation {
       triggers: [],
     };
     await foldTrigger("onPassResult", [passer], resultCtx);
-    resultCtx.triggers.forEach((t) =>
-      eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
+    resultCtx.triggers.forEach((t) => {
+      eventBus.emit(GameEventNames.SkillTriggered, t);
+    });
 
     const from = { ...passer.gridPosition };
     const target = { x: this.targetX, y: this.targetY };
-    // Animate the ball to where it ends up, then give the flight time to play.
+
     const fly = async (
       finalPosition: { x: number; y: number },
       scatterPath?: { x: number; y: number }[]
@@ -465,7 +402,7 @@ export class PassOperation extends GameOperation {
         passType: result.passType,
         accurate: result.accurate,
         finalPosition,
-        scatterPath,
+        ...(scatterPath ? { scatterPath } : {}),
       });
       await context.delay(1500);
     };
@@ -478,11 +415,6 @@ export class PassOperation extends GameOperation {
     if (result.fumbled) {
       fumble(context, passer);
     } else {
-      // The defending team may Intercept after the Passing Ability Test and
-      // before an inaccurate pass scatters. A successful interception grants
-      // possession and a turnover, and the ball never scatters or lands. Hail
-      // Mary Pass suppresses interception outright; Cloud Burster suppresses it
-      // for everyone except a Very Long Legs interceptor.
       const interceptor = passCtx.suppressInterception
         ? undefined
         : await this.resolveInterception(
@@ -510,7 +442,6 @@ export class PassOperation extends GameOperation {
         return;
       }
 
-      // The ball got through: only now does an inaccurate pass scatter.
       const { scatterPath, landingPos } = scatterOf(
         passController,
         target,
@@ -526,10 +457,6 @@ export class PassOperation extends GameOperation {
       });
     }
 
-    // A Pass Action ends the activation once it settles. Give and Go keeps it
-    // open after a Quick Pass. A latched Turnover bypasses it even while the
-    // ball-settling flow is still completing. (A Hand-off's own exemption is
-    // computed by HandoffOperation — a Hand-off never reaches here.)
     context.flowManager.add(
       new FinishPassActivationOperation(
         this.passerId,
@@ -538,10 +465,6 @@ export class PassOperation extends GameOperation {
     );
   }
 
-  /**
-   * The ball got through and has flown: it goes out of bounds, to a player
-   * on the landing square, to a Diving Catch, or bounces.
-   */
   private land(
     context: FlowContext,
     passer: Player,
@@ -562,23 +485,20 @@ export class PassOperation extends GameOperation {
     }
 
     if (!isOnPitch(landingPos)) {
-      // The scatter path ends at the first square off the pitch; the
-      // crowd throws the ball in from the square before it (p.77).
       const path = scatterPath ?? [];
+      const lastInBounds = path[path.length - 2];
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
-      gameService.throwInBall(path[path.length - 2]);
+      if (!lastInBounds) throw new Error("Pass left the pitch without a path");
+      gameService.throwInBall(lastInBounds);
     } else {
-      // Update ball position to landing spot
       gameService.setBallPosition(landingPos.x, landingPos.y);
 
-      // Check landing
       const playerAtLanding = gameService.getPlayerAt(
         landingPos.x,
         landingPos.y
       );
 
       if (playerAtLanding) {
-        // Attempt Catch
         context.flowManager.add(
           new CatchOperation(
             playerAtLanding.id,
@@ -615,7 +535,6 @@ export class PassOperation extends GameOperation {
             true
           );
         } else {
-          // Land in empty square -> Bounce
           eventBus.emit(
             GameEventNames.UI_Notification,
             "Ball Lands in Empty Square"
@@ -675,11 +594,6 @@ export class PassOperation extends GameOperation {
     }
   }
 
-  /**
-   * Offer the defending coach an interception of a pass in flight, along the
-   * Range Ruler from the passer to the declared target. Returns the player
-   * who intercepted, or undefined when nobody tried or the attempt failed.
-   */
   private async resolveInterception(
     gameService: IGameService,
     eventBus: import("../../services/EventBus").IEventBus,
@@ -694,12 +608,8 @@ export class PassOperation extends GameOperation {
     const opponents = gameService.getOpponents(passer.teamId);
 
     let eligible = passController.checkInterceptions(
-      passer.gridPosition,
-      target,
-      opponents,
-      accurate
-    );
-    // Cloud Burster: only a Very Long Legs interceptor may still try.
+      { from: passer.gridPosition,target,opponents,isAccurate: accurate }    );
+
     if (cloudBurster) {
       eligible = eligible.filter((e) => {
         const p = gameService.getPlayerById(e.playerId);
@@ -708,13 +618,11 @@ export class PassOperation extends GameOperation {
     }
     if (eligible.length === 0) return undefined;
 
-    // Marking is measured at each interceptor against the passing team.
     const passingTeam = [passer, ...gameService.getTeammates(passer.id)];
     const weather = gameService.getState().weather;
     const candidates = eligible.map((e) => {
       const interceptor = gameService.getPlayerById(e.playerId)!;
-      // Very Long Legs adds +2, Extra Arms +1, the weather its ball-handling
-      // modifier: the same sum the throw preview and the dialog show.
+
       const { base, marking, total } = interceptModifiers(
         interceptor,
         e.modifier,
@@ -729,28 +637,17 @@ export class PassOperation extends GameOperation {
             "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
-      return { playerId: e.playerId, base, marking, modifier: total };
+      return {
+        playerId: e.playerId,
+        playerName: interceptor.playerName,
+        base,
+        marking,
+        modifier: total,
+      };
     });
 
-    const chooserTeamId = gameService.getPlayerById(
-      candidates[0].playerId
-    )!.teamId;
-
-    const answer = (await gameService.getDecisionService().request({
-      type: "interception",
-      chooserTeamId,
-      passerId: passer.id,
-      candidates: candidates.map((c) => ({
-        playerId: c.playerId,
-        playerName: gameService.getPlayerById(c.playerId)?.playerName,
-        modifier: c.modifier,
-      })),
-    })) as InterceptionDecisionAnswer;
-
-    const chosen = answer.playerId
-      ? candidates.find((c) => c.playerId === answer.playerId)
-      : undefined;
-    if (!chosen) return undefined; // declined or invalid
+    const chosen = await chooseInterceptor(gameService, passer.id, candidates);
+    if (!chosen) return undefined;
 
     const interceptor = gameService.getPlayerById(chosen.playerId)!;
     eventBus.emit(GameEventNames.InterceptionAttempted, {

@@ -1,30 +1,12 @@
-/**
- * Sevens Apothecary — the once-per-match patch-up decision.
- *
- * An owned, unused Apothecary is offered immediately after an eligible
- * Knocked Out or casualty result, before the player's final placement
- * (design.md "Pause injury resolution for an owned Apothecary"). Declining
- * leaves the original result untouched; accepting always consumes the
- * Apothecary, whether or not the patch-up succeeds. A Wandering Apothecary
- * or Plague Doctor inducement gives one more use each, spent after the
- * team's own Apothecary.
- *
- * `applyApothecaryAnswer` is the single resolution routine, called both from
- * the live await (a fresh decision, mid-operation) and from a re-armed seed
- * after a cold restore (see DecisionService.seed / GameService construction)
- * — a resumed decision needs no operation call stack, only the data already
- * captured on the request.
- */
-
-import { IEventBus } from "../../services/EventBus";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { type IEventBus } from "../../services/EventBus";
+import { type IGameService } from "../../services/interfaces/IGameService";
 import { GameEventNames } from "../../types/events";
-import { InjuryType, Player, PlayerStatus } from "../../types/Player";
+import { InjuryType, type Player, PlayerStatus } from "../../types/Player";
 import {
-  ApothecaryCasualtyType,
-  ApothecaryDecisionAnswer,
-  ApothecaryDecisionRequest,
-  ApothecaryLocation,
+  type ApothecaryCasualtyType,
+  type ApothecaryDecisionAnswer,
+  type ApothecaryDecisionRequest,
+  type ApothecaryLocation,
 } from "../../types/decisions";
 import { emptyInducementsState, Inducement } from "../../types/Inducements";
 import { movePlayerToBox } from "../rules/playerLocation";
@@ -32,7 +14,6 @@ import { inducementUsesLeft, spendInducement } from "./inventory";
 import { confirmKill } from "../rules/plagueRidden";
 import { isFrog } from "./matchInducements";
 
-/** The record CasualtyOperation left on the player for each casualty. */
 function recordedInjury(casualtyType: ApothecaryCasualtyType): InjuryType {
   switch (casualtyType) {
     case "badly-hurt":
@@ -44,8 +25,7 @@ function recordedInjury(casualtyType: ApothecaryCasualtyType): InjuryType {
   }
 }
 
-/** Get (creating if absent) this match's inducements state. */
-export function ensureInducementsState(
+function ensureInducementsState(
   gameService: IGameService
 ): NonNullable<ReturnType<IGameService["getState"]>["inducements"]> {
   const state = gameService.getState();
@@ -55,10 +35,6 @@ export function ensureInducementsState(
   return state.inducements;
 }
 
-/**
- * Inducements a team may use "in the same manner as an Apothecary"
- * (2025 rulebook p.149), spent after the team's own Apothecary.
- */
 const APOTHECARY_INDUCEMENTS = [
   Inducement.WANDERING_APOTHECARY,
   Inducement.PLAGUE_DOCTOR,
@@ -74,8 +50,7 @@ function ownApothecaryAvailable(
   );
 }
 
-/** True when this team has an Apothecary use left this match. */
-export function apothecaryAvailable(
+function apothecaryAvailable(
   gameService: IGameService,
   teamId: string
 ): boolean {
@@ -88,7 +63,6 @@ export function apothecaryAvailable(
   );
 }
 
-/** Spend one Apothecary use: the team's own first, then an inducement. */
 function spendApothecary(gameService: IGameService, teamId: string): void {
   if (ownApothecaryAvailable(gameService, teamId)) {
     ensureInducementsState(gameService).apothecaryUsed[teamId] = true;
@@ -113,11 +87,6 @@ type ApothecaryOffer =
       armsPlagueRidden?: boolean;
     };
 
-/**
- * Offer the Apothecary for an eligible result. Returns false (no-op) when no
- * unused Apothecary is available — the caller applies the original result
- * itself. Returns true once the decision (and its outcome) is fully applied.
- */
 export async function offerApothecary(
   gameService: IGameService,
   eventBus: IEventBus,
@@ -126,11 +95,11 @@ export async function offerApothecary(
 ): Promise<boolean> {
   const teamId = player.teamId;
   if (!apothecaryAvailable(gameService, teamId)) return false;
-  // "An Apothecary cannot be used on a Frog" (Sports-Wizard, Zap!)
+
   if (isFrog(gameService.getState(), player.id)) return false;
 
   const inducements = ensureInducementsState(gameService);
-  const id = `apothecary-${++inducements.decisionSeq}`;
+  const id = `apothecary-${String(++inducements.decisionSeq)}`;
   const request: ApothecaryDecisionRequest = {
     type: "apothecary",
     id,
@@ -138,7 +107,7 @@ export async function offerApothecary(
     playerId: player.id,
     resultKind: opts.resultKind,
     ...(opts.resultKind === "ko"
-      ? { location: opts.location, position: opts.position }
+      ? { location: opts.location, ...(opts.position === undefined ? {} : { position: opts.position }) }
       : {
           casualtyType: opts.casualtyType,
           ...(opts.killerId ? { killerId: opts.killerId } : {}),
@@ -180,14 +149,7 @@ function applyOriginalResult(
   }
 }
 
-/**
- * Apply an Apothecary decision's outcome. Idempotent against the request id:
- * if the pending decision no longer matches (already resolved), this still
- * safely re-applies the same deterministic outcome rather than erroring —
- * but callers only ever invoke it once per id via DecisionService's
- * single-pending-decision gate, which itself prevents a second resolution.
- */
-export function applyApothecaryAnswer(
+function applyApothecaryAnswer(
   gameService: IGameService,
   eventBus: IEventBus,
   request: ApothecaryDecisionRequest,
@@ -195,7 +157,7 @@ export function applyApothecaryAnswer(
 ): void {
   const inducements = ensureInducementsState(gameService);
   if (inducements.pendingApothecaryDecision?.id === request.id) {
-    inducements.pendingApothecaryDecision = undefined;
+    delete inducements.pendingApothecaryDecision;
   }
 
   const player = gameService.getPlayerById(request.playerId);
@@ -237,9 +199,6 @@ export function applyApothecaryAnswer(
     return;
   }
 
-  // Casualty: one D6 through the match RNG (recorded like every other roll).
-  // 4+ moves the player to Reserves and strikes the casualty from their
-  // record; 1-3 leaves the original result standing.
   const roll = gameService
     .getDiceController()
     .rollD6(
@@ -256,36 +215,28 @@ export function applyApothecaryAnswer(
     movePlayerToBox(player, { box: "reserves" }, eventBus);
     eventBus.emit(
       GameEventNames.UI_Notification,
-      `${player.playerName}'s Apothecary patch-up succeeds (${roll}) — to the Reserves!`
+      `${player.playerName}'s Apothecary patch-up succeeds (${String(roll)}) — to the Reserves!`
     );
   } else {
     applyOriginalResult(gameService, eventBus, request, player);
     eventBus.emit(
       GameEventNames.UI_Notification,
-      `${player.playerName}'s Apothecary patch-up fails (${roll}).`
+      `${player.playerName}'s Apothecary patch-up fails (${String(roll)}).`
     );
   }
 }
 
-/**
- * Re-arm a decision restored mid-flight from a save. Called once at engine
- * construction time when the restored state still has a pending decision —
- * the original operation's call stack is gone, so answering resolves
- * directly through `applyApothecaryAnswer` rather than unblocking an await.
- */
 export function resumeApothecaryDecision(
   gameService: IGameService,
   eventBus: IEventBus,
   request: ApothecaryDecisionRequest
 ): void {
-  gameService
-    .getDecisionService()
-    .seed(request, (answer) =>
-      applyApothecaryAnswer(
-        gameService,
-        eventBus,
-        request,
-        answer as ApothecaryDecisionAnswer
-      )
+  gameService.getDecisionService().seed(request, (answer) => {
+    applyApothecaryAnswer(
+      gameService,
+      eventBus,
+      request,
+      answer as ApothecaryDecisionAnswer
     );
+  });
 }

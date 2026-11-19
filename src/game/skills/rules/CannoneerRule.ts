@@ -1,11 +1,5 @@
-/**
- * Cannoneer (2025 p.126) — "When this player performs a Pass Action which
- * is a Long Pass or a Long Bomb, this player may apply a +1 modifier to
- * the Passing Ability Test."
- */
-
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { type SkillRule } from "../SkillRule";
 
 export const CannoneerRule: SkillRule = {
   onPassDeclared(ctx, self) {

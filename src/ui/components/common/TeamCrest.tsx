@@ -1,8 +1,7 @@
-import { TeamColors } from "../../../types/Team";
+import { type TeamColors } from "../../../types/Team";
 import { cx } from "../componentWarehouse/HudKit";
 import { numToHex } from "../TeamManagement/TeamStatsOverview";
 
-/** "Nuln Hammers" -> "NH", "Skaven" -> "SK", "" -> "?". */
 export function crestInitials(name?: string): string {
   const [first, second] = (name ?? "").match(/[\p{L}\p{N}]+/gu) ?? [];
   if (!first) return "?";
@@ -17,12 +16,6 @@ const SIZES = {
   lg: "h-11 w-10 text-hud-sm",
 } as const;
 
-/**
- * A team's crest: a shield in its kit colours with its initials. A team
- * whose kit this browser cannot read (another coach's, or one no longer in
- * the library) gets the same shield in neutral colours, so every name in a
- * list lines up the same way. Decorative: the team's name sits beside it.
- */
 export function TeamCrest({
   name,
   colors,

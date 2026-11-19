@@ -1,4 +1,3 @@
-/** Frozen advanced builds: legal skill access and actual progression pricing. */
 import {
   createComputerTeamFromTemplate,
   getComputerTeamTemplates,
@@ -34,6 +33,36 @@ export interface Variant {
   sppSpent: number;
 }
 
+const THROW_BOOSTS: readonly SkillType[] = [
+  SkillType.STRONG_ARM,
+  SkillType.BULLSEYE,
+];
+const WEAPONS: readonly SkillType[] = [
+  SkillType.STAB,
+  SkillType.CHAINSAW,
+  SkillType.PROJECTILE_VOMIT,
+  SkillType.BREATHE_FIRE,
+  SkillType.BOMBARDIER,
+];
+const MUTATIONS: readonly SkillType[] = [
+  SkillType.BIG_HAND,
+  SkillType.EXTRA_ARMS,
+  SkillType.TWO_HEADS,
+  SkillType.MONSTROUS_MOUTH,
+];
+const HOLDERS: readonly SkillType[] = [
+  SkillType.TENTACLES,
+  SkillType.PREHENSILE_TAIL,
+  SkillType.GUARD,
+  SkillType.STAND_FIRM,
+];
+
+function playerAt(players: Player[], index: number): Player {
+  const player = players[index];
+  if (!player) throw new Error("No player at index " + String(index));
+  return player;
+}
+
 function learn(player: Player, allocation: Allocation) {
   const kind =
     allocation.access === "primary" ? "chosen-primary" : "chosen-secondary";
@@ -46,7 +75,7 @@ function learn(player: Player, allocation: Allocation) {
 export function teamFromVariant(variant: Variant) {
   const team = createComputerTeamFromTemplate(variant.template);
   for (const allocation of variant.allocations)
-    learn(team.players[allocation.player], allocation);
+    learn(playerAt(team.players, allocation.player), allocation);
   team.teamValue = calculateTeamValue(team);
   if (team.teamValue !== variant.teamValue)
     throw new Error("Variant value drift: " + variant.id);
@@ -55,49 +84,25 @@ export function teamFromVariant(variant: Variant) {
 
 function specializedFit(p: Player, skill: SkillType): number | undefined {
   const canThrow = hasSkill(p.skills, SkillType.THROW_TEAM_MATE);
-  if ([SkillType.STRONG_ARM, SkillType.BULLSEYE].includes(skill))
+  if (THROW_BOOSTS.includes(skill))
     return canThrow ? 120 : -1000;
   if (skill === SkillType.LETHAL_FLIGHT)
     return hasSkill(p.skills, SkillType.RIGHT_STUFF) ? 120 : -1000;
   if (skill === SkillType.VIOLENT_INNOVATOR)
-    return p.skills.some((s) =>
-      [
-        SkillType.STAB,
-        SkillType.CHAINSAW,
-        SkillType.PROJECTILE_VOMIT,
-        SkillType.BREATHE_FIRE,
-        SkillType.BOMBARDIER,
-      ].includes(s.type)
-    )
+    return p.skills.some((s) => WEAPONS.includes(s.type))
       ? 100
       : -1000;
   if (skill === SkillType.MULTIPLE_BLOCK && p.stats.ST < 4) return -100;
   return undefined;
 }
 
-/** Plausible tactical role score; coverage packages are not claimed optimal. */
 function fit(p: Player, skill: SkillType): number {
   const specific = specializedFit(p, skill);
   if (specific !== undefined) return specific;
   const category = SKILL_DEFINITIONS[skill].category;
-  if (
-    [
-      SkillType.BIG_HAND,
-      SkillType.EXTRA_ARMS,
-      SkillType.TWO_HEADS,
-      SkillType.MONSTROUS_MOUTH,
-    ].includes(skill)
-  )
+  if (MUTATIONS.includes(skill))
     return (7 - p.stats.AG) * 12 + p.stats.MA * 3;
-  if (
-    [
-      SkillType.TENTACLES,
-      SkillType.PREHENSILE_TAIL,
-      SkillType.GUARD,
-      SkillType.STAND_FIRM,
-    ].includes(skill)
-  )
-    return p.stats.ST * 18;
+  if (HOLDERS.includes(skill)) return p.stats.ST * 18;
   if (category === SkillCategory.PASSING)
     return p.stats.PA > 0 ? (7 - p.stats.PA) * 14 : -1000;
   if (category === SkillCategory.AGILITY)
@@ -174,14 +179,14 @@ function developedVariants(
       skill: chosen.skill,
       access: chosen.access,
     };
-    learn(team.players[allocation.player], allocation);
+    learn(playerAt(team.players, allocation.player), allocation);
     allocations.push(allocation);
     coverage.set(allocation.skill, (coverage.get(allocation.skill) ?? 0) + 1);
   }
   const randomTeam = createComputerTeamFromTemplate(templateId);
   const rng = createCoachRng(8_000_000 + replicate * 1000 + index);
   const random = allocations.map((allocation) => {
-    const player = randomTeam.players[allocation.player];
+    const player = playerAt(randomTeam.players, allocation.player);
     const pool = eligibleSkills(player, player[allocation.access] ?? []).filter(
       (skill) =>
         SKILL_DEFINITIONS[skill].category ===
@@ -200,7 +205,7 @@ function developedVariants(
   ] as const) {
     const developed = arm === "focused" ? team : randomTeam;
     variants.push({
-      id: `${templateId}--${arm}-${replicate}`,
+      id: `${templateId}--${arm}-${String(replicate)}`,
       template: templateId,
       arm,
       replicate,

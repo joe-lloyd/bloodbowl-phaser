@@ -1,20 +1,10 @@
-/**
- * Browser journeys through a local match.
- *
- * These are the interactions that only exist in the browser: selecting teams
- * and starting a match from the menu, declaring an action from the HUD menu,
- * throwing a block and choosing a die in the dialog, answering a follow-up,
- * ending a turn, and switching pitch themes. The engine lane proves the
- * rules; this lane proves you can actually reach them by clicking.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 import { GamePhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { GameApp } from "../support/pages/game";
 import { recordBrowserCoverage } from "../support/coverageFragments";
 
-/** The case these journeys' coverage is attributed to. */
 const ATTRIBUTION = "movement-unopposed-walk";
 
 test.describe("local match creation", () => {
@@ -25,16 +15,11 @@ test.describe("local match creation", () => {
     await app.menu.open();
     await app.menu.playLocal();
 
-    // Team selection is the gate between the menu and a match.
     await expect(page).toHaveURL(/\/select-team/);
     await expect(
       page.getByRole("heading", { name: "TEAM SELECTION" })
     ).toBeVisible();
 
-    // A clean E2E profile has no saved teams, so the page must say so rather
-    // than offering an unplayable match. (With teams saved it shows the two
-    // coach panels instead; the sandbox case below covers reaching a live
-    // pitch either way.)
     const noTeams = page.getByRole("heading", {
       name: /need at least 2 teams/i,
     });
@@ -49,8 +34,7 @@ test.describe("local match creation", () => {
     await app.sandbox.open({ scenario: "basic-scrimmage", seed: 1 });
 
     await expect(app.pitch.canvas).toBeVisible();
-    // A loaded scenario is a live match: the turn control is available and
-    // the engine reports PLAY.
+
     await expect(app.hud.endTurn()).toBeVisible();
     const phase = await app.bridge.phase();
     expect(phase.phase).toBe(GamePhase.PLAY);
@@ -67,7 +51,6 @@ test.describe("core turn interactions", () => {
     const before = await app.bridge.phase();
     await app.hud.declareAction("team1:0", "move");
 
-    // The declaration reached the engine, not just the DOM.
     await expect
       .poll(async () => (await app.bridge.snapshot()).activePlayer?.action)
       .toBe("move");
@@ -75,7 +58,6 @@ test.describe("core turn interactions", () => {
     const eventsBefore = (await app.bridge.events()).length;
     await app.hud.endTurn().click();
 
-    // Ending the turn hands the ball to the other coach.
     await expect
       .poll(async () => (await app.bridge.phase()).activeTeamId)
       .not.toBe(before.activeTeamId);
@@ -94,18 +76,13 @@ test.describe("core turn interactions", () => {
     page,
   }) => {
     const app = new GameApp(page);
-    // A scenario where team1:0 stands next to a team2 player, so a block is
-    // available without any movement first.
+
     await app.sandbox.open({ scenario: "chain-push", seed: 1 });
 
     await app.hud.declareAction("team1:0", "block");
-    // Clicking the defender is how a coach throws the block.
+
     await app.pitch.clickPlayer("team2:0");
 
-    // Unlike the protocol lane, the browser does not park the engine on a
-    // `pendingDecision` for block dice — the dialog *is* the decision, and
-    // the engine hears about it through UI events. So the assertion is that
-    // the dialog drives a real roll.
     await app.hud.rollBlockDice();
     await expect
       .poll(async () =>
@@ -117,7 +94,6 @@ test.describe("core turn interactions", () => {
 
     await app.hud.chooseBlockDie(0);
 
-    // Picking a face closes the dialog and resolves the block.
     await expect(app.hud.blockDiceDialog()).toBeHidden();
 
     recordBrowserCoverage(ATTRIBUTION, "journey-block", [
@@ -136,9 +112,6 @@ test.describe("core turn interactions", () => {
     await app.hud.rollBlockDice();
     await app.hud.chooseBlockDie(0);
 
-    // A push offers a follow-up; a Both Down or Skull does not. Only assert
-    // the dialog when the engine actually raised it, so this tests the HUD
-    // rather than the seed's luck.
     const followUp = app.hud.followUpDialog();
     const offered = await followUp
       .waitFor({ state: "visible", timeout: 5_000 })
@@ -149,14 +122,12 @@ test.describe("core turn interactions", () => {
       await app.hud.answerFollowUp(false);
       await expect(followUp).toBeHidden();
     }
-    // Either way the block is over: the dice dialog has closed.
+
     await expect(app.hud.blockDiceDialog()).toBeHidden();
   });
 });
 
 test.describe("presentation", () => {
-  // The Neon style is gone, but links from when it existed still carry
-  // ?theme=neon. They open the Blood Bowl stadium, before and after a reload.
   test("a link that still asks for the Neon style opens the Blood Bowl stadium", async ({
     page,
   }) => {
@@ -170,13 +141,13 @@ test.describe("presentation", () => {
     await app.pitch.waitForCanvas();
     await app.sandbox.waitForScenarioLoaded();
     const snapshot = await app.bridge.snapshot();
-    expect(snapshot.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
+    expect(fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).position).toEqual({ x: 9, y: 5 });
 
     await page.reload();
     await app.pitch.waitForCanvas();
     await app.sandbox.waitForScenarioLoaded();
     const afterReload = await app.bridge.snapshot();
-    expect(afterReload.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
+    expect(fixtureValue(fixtureValue(afterReload.teams[0]).players[0]).position).toEqual({ x: 9, y: 5 });
 
     expect(
       stadiumArt.some((p) => p.endsWith("/stadium/bloodbowl/base.webp"))
@@ -192,10 +163,8 @@ test.describe("presentation", () => {
     const app = new GameApp(page);
     await app.sandbox.open({ scenario: "basic-scrimmage", seed: 1 });
 
-    // The canvas is the whole window; the match camera frames the pitch and
-    // both dugouts inside it (the dugout boxes are baked into the stadium).
-    const canvasBox = (await app.pitch.canvas.boundingBox())!;
-    const viewport = page.viewportSize()!;
+    const canvasBox = fixtureValue((await app.pitch.canvas.boundingBox()));
+    const viewport = fixtureValue(page.viewportSize());
     expect(canvasBox.width).toBeCloseTo(viewport.width, -1);
     expect(canvasBox.height).toBeCloseTo(viewport.height, -1);
 

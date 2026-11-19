@@ -1,30 +1,9 @@
-/**
- * Trickster (2025 rulebook p.138, trait) — "Whenever an opposition player
- * attempts to perform a Block Action against this player ... before
- * determining how many dice are rolled, this player may be removed from the
- * pitch and placed in any other unoccupied square adjacent to the player
- * performing the Action. The Action then takes place as normal."
- *
- * The reacting coach accepts via the decision channel; the landing square
- * is picked deterministically (first unoccupied square adjacent to the
- * attacker in board order) — a coach-facing square choice can layer on
- * later. BlockManager applies the relocation and re-runs the assist
- * analysis from the new square, so the dice count reflects it (a
- * simultaneous strength-modifying rule on the same block would be
- * recomputed too — an accepted, vanishingly rare overlap). The Ball & Chain
- * exception and the pick-up-the-ball clause land with their subsystems.
- */
-
 import { SkillType } from "../../../types/Skills";
-import { Player } from "../../../types/Player";
-import { SkillRule } from "../SkillRule";
-import { ReactionDecisionAnswer } from "../../../types/decisions";
+import { type Player } from "../../../types/Player";
+import { type SkillRule } from "../SkillRule";
+import { type ReactionDecisionAnswer } from "../../../types/decisions";
 import { GameConfig } from "../../../config/GameConfig";
 
-/**
- * The free squares next to the attacker the defender may slip to, in board
- * order, matching every other deterministic gather.
- */
 function tricksterSquares(
   base: { x: number; y: number },
   allPlayers: Player[]
@@ -32,7 +11,7 @@ function tricksterSquares(
   const occupied = new Set(
     allPlayers
       .filter((p) => p.gridPosition)
-      .map((p) => `${p.gridPosition!.x},${p.gridPosition!.y}`)
+      .map((p) => `${String(p.gridPosition!.x)},${String(p.gridPosition!.y)}`)
   );
   const candidates: { x: number; y: number }[] = [];
   for (let dy = -1; dy <= 1; dy++) {
@@ -55,7 +34,7 @@ const isFreeOnPitch = (
   square.y >= 0 &&
   square.x < GameConfig.PITCH_WIDTH &&
   square.y < GameConfig.PITCH_HEIGHT &&
-  !occupied.has(`${square.x},${square.y}`);
+  !occupied.has(`${String(square.x)},${String(square.y)}`);
 
 export const TricksterRule: SkillRule = {
   async onBlockDeclared(ctx, self) {
@@ -66,7 +45,8 @@ export const TricksterRule: SkillRule = {
       ctx.attacker.gridPosition,
       ctx.allPlayers
     );
-    if (candidates.length === 0) return;
+    const [square] = candidates;
+    if (!square) return;
 
     const answer = (await ctx.decisions.request({
       type: "reaction",
@@ -77,11 +57,11 @@ export const TricksterRule: SkillRule = {
     })) as ReactionDecisionAnswer;
     if (!answer.accept) return;
 
-    ctx.relocateDefenderTo = candidates[0];
+    ctx.relocateDefenderTo = square;
     ctx.triggers.push({
       playerId: self.id,
       skill: SkillType.TRICKSTER,
-      effect: `Trickster: slips to (${candidates[0].x}, ${candidates[0].y}) before the dice are counted`,
+      effect: `Trickster: slips to (${String(square.x)}, ${String(square.y)}) before the dice are counted`,
     });
   },
 };

@@ -1,14 +1,10 @@
-/**
- * What every kind of activation reads while it is judged: the board, the
- * weights, the routes each player has, and the price of a turnover.
- */
-
-import { Player, PlayerStatus } from "../../types/Player";
-import { Board, Square, distance, toGoal } from "./board";
-import { Chance } from "./chance";
+import { type FieldPlayer as Player } from "./board";
+import { PlayerStatus } from "../../types/Player";
+import { type Board, type Square, distance, toGoal } from "./board";
+import { type Chance } from "./chance";
 import { SPP_VALUES, sppValuesFor } from "../../game/progression/MatchStats";
-import { Route, routesFor, withTeamReroll } from "./routes";
-import { Weights } from "./weights";
+import { type Route, routesFor, withTeamReroll } from "./routes";
+import { type Weights } from "./weights";
 import type { Available, Tier } from "./activations";
 import { canStillScore } from "./latePlans";
 
@@ -19,38 +15,39 @@ export interface Context {
   w: Weights;
   available: Available;
   teamReroll: boolean;
-  /** Cost of a turnover now: the activations it would throw away. */
+
   turnover: number;
-  /**
-   * How much each square of progress counts: 1 for a team of MA 6, rising
-   * to 3 times that when the ball must move faster than four squares a turn
-   * to score this half.
-   */
+
   urgency: number;
-  /** Points for a casualty we cause, weighed by what our SPP pays for one. */
+
   casualty: number;
-  /** Paths for a play worth a team re-roll: scoring, the ball, a blitz. */
+
   routes: (p: Player) => Map<number, Route>;
-  /**
-   * Paths for positioning, judged without the team re-roll: a re-roll spent
-   * on a cage corner is not there for the pick-up.
-   */
+
   plainRoutes: (p: Player) => Map<number, Route>;
 }
 
-export function context(
-  board: Board,
-  w: Weights,
-  available: Available,
-  skillPlans = true
-): Context {
+interface ContextArgs {
+  board: Board;
+  w: Weights;
+  available: Available;
+  skillPlans?: boolean;
+}
+
+export function context({
+  board,
+  w,
+  available,
+  skillPlans = true,
+}: ContextArgs): Context {
   const teamReroll = board.gs.getRerollArbiter().teamRerollAvailable(board.us);
-  // A player's paths do not depend on the re-roll, only their chances do.
+
   const plainCache = new Map<string, Map<number, Route>>();
   const rerollCache = new Map<string, Map<number, Route>>();
   const plainRoutes = (p: Player) => {
     let routes = plainCache.get(p.id);
-    if (!routes) plainCache.set(p.id, (routes = routesFor(board, p)));
+    if (!routes)
+      plainCache.set(p.id, (routes = routesFor({ board: board, player: p })));
     return routes;
   };
   const rerollRoutes = (p: Player) => {
@@ -66,18 +63,12 @@ export function context(
   };
   const ballAt = board.ball.kind === "none" ? null : board.ball.at;
   const pace = ballAt ? toGoal(board, ballAt) / (board.turnsLeft + 1) : 0;
-  // A square is a share of a turn's move, so a slow team prizes each one
-  // more than a fast team does.
+
   const speed =
     board.ours.reduce((sum, p) => sum + p.stats.MA, 0) /
     Math.max(1, board.ours.length);
   return {
-    goal:
-      board.turnsLeft > 1
-        ? "attack"
-        : canStillScore(board, available)
-          ? "finish"
-          : "protect",
+    goal: phaseGoal(board, available),
     skillPlans,
     board,
     w,
@@ -95,16 +86,10 @@ export function context(
   };
 }
 
-/** The share of the game still to play: 1 at kick-off, 0 on its last turn. */
 function gameLeft(board: Board): number {
   return (board.turnsLeft + (board.half2 ? 0 : 6)) / 11;
 }
 
-/**
- * A casualty against a touchdown, in SPP, next to the usual 2 against 3: a
- * Brawlin' Brutes team, paid 3 against 2, prizes casualties 2.25 times as
- * much.
- */
 function casualtyWorth(board: Board): number {
   const team = board.gs.getTeam(board.us);
   const values = team ? sppValuesFor(team.rosterName) : SPP_VALUES;
@@ -114,34 +99,26 @@ function casualtyWorth(board: Board): number {
   );
 }
 
-/**
- * Value of a gamble: win `gain` with chance `p`; else the turn is over and
- * our player is on the ground.
- */
 export const gamble = (c: Context, p: number, gain: number) =>
   p * gain - (1 - p) * (c.turnover + c.w.ownDown);
 
 export const tierFor = (p: Chance, threshold: number, safe: Tier): Tier =>
   p >= threshold ? safe : "risky";
 
-/** Opponents who could reach a square next turn and hit whoever is there. */
 export function threats(board: Board, at: Square): number {
   return board.theirs.filter(
     (o) =>
       o.status !== PlayerStatus.STUNNED &&
-      distance(o.gridPosition!, at) <= o.stats.MA + 3
+      distance(o.gridPosition, at) <= o.stats.MA + 3
   ).length;
 }
 
-/** Standing opponents within three squares: who can close on a square. */
 export function crowd(board: Board, at: Square): number {
   return board.theirs.filter(
-    (o) =>
-      o.status === PlayerStatus.ACTIVE && distance(o.gridPosition!, at) <= 3
+    (o) => o.status === PlayerStatus.ACTIVE && distance(o.gridPosition, at) <= 3
   ).length;
 }
 
-/** The best chance a player has of running in a touchdown from here. */
 export function scoreChanceOf(c: Context, player: Player): number {
   let best = 0;
   for (const r of c.routes(player).values())
@@ -149,11 +126,15 @@ export function scoreChanceOf(c: Context, player: Player): number {
   return best;
 }
 
-/** The furthest forward a player can safely get from where it stands. */
 export function bestReach(c: Context, player: Player): number {
-  let best = toGoal(c.board, player.gridPosition!);
+  let best = toGoal(c.board, player.gridPosition);
   for (const route of c.plainRoutes(player).values())
     if (route.chance >= c.w.safeMove)
       best = Math.min(best, toGoal(c.board, route.to));
   return best;
+}
+
+function phaseGoal(board: Board, available: Available): Context["goal"] {
+  if (board.turnsLeft > 1) return "attack";
+  return canStillScore(board, available) ? "finish" : "protect";
 }

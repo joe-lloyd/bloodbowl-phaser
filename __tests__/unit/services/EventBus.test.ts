@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { EventBus, IEventBus } from "../../../src/services/EventBus";
+import { EventBus } from "../../../src/services/EventBus";
+
+type TestEvents = Record<"event1" | "event2" | "event3" | "no-listeners" | "other-event" | "test-event", unknown>;
 
 describe("EventBus", () => {
-  let eventBus: IEventBus;
+  let eventBus: EventBus<TestEvents>;
 
   beforeEach(() => {
-    eventBus = new EventBus();
+    eventBus = new EventBus<TestEvents>();
   });
 
   describe("emit and on", () => {
@@ -50,7 +52,7 @@ describe("EventBus", () => {
       const callback = vi.fn();
       eventBus.on("test-event", callback);
 
-      eventBus.emit("other-event");
+      eventBus.emit("other-event", undefined);
 
       expect(callback).not.toHaveBeenCalled();
     });
@@ -59,19 +61,35 @@ describe("EventBus", () => {
       const callback = vi.fn();
       eventBus.on("test-event", callback);
 
-      eventBus.emit("test-event");
+      eventBus.emit("test-event", undefined);
 
       expect(callback).toHaveBeenCalledWith(undefined);
     });
   });
 
   describe("off", () => {
+    it("defers a replacement listener until the next emission", () => {
+      const calls: string[] = [];
+      const replacement = () => calls.push("replacement");
+      const original = () => {
+        calls.push("original");
+        eventBus.off("test-event", original);
+        eventBus.on("test-event", replacement);
+      };
+      eventBus.on("test-event", original);
+
+      eventBus.emit("test-event", undefined);
+      expect(calls).toEqual(["original"]);
+      eventBus.emit("test-event", undefined);
+      expect(calls).toEqual(["original", "replacement"]);
+    });
+
     it("should remove listener", () => {
       const callback = vi.fn();
       eventBus.on("test-event", callback);
 
       eventBus.off("test-event", callback);
-      eventBus.emit("test-event");
+      eventBus.emit("test-event", undefined);
 
       expect(callback).not.toHaveBeenCalled();
     });
@@ -142,7 +160,7 @@ describe("EventBus", () => {
   describe("edge cases", () => {
     it("should handle emitting event with no listeners", () => {
       expect(() => {
-        eventBus.emit("no-listeners");
+        eventBus.emit("no-listeners", undefined);
       }).not.toThrow();
     });
 
@@ -155,9 +173,8 @@ describe("EventBus", () => {
       eventBus.on("test-event", errorCallback);
       eventBus.on("test-event", successCallback);
 
-      // Should not throw and should call all callbacks
       expect(() => {
-        eventBus.emit("test-event");
+        eventBus.emit("test-event", undefined);
       }).not.toThrow();
 
       expect(errorCallback).toHaveBeenCalled();
@@ -181,6 +198,20 @@ describe("EventBus", () => {
   });
 
   describe("removeAllListeners", () => {
+    it("finishes the active emission when a listener removes all registrations", () => {
+      const calls: string[] = [];
+      eventBus.on("test-event", () => {
+        calls.push("first");
+        eventBus.removeAllListeners("test-event");
+      });
+      eventBus.on("test-event", () => calls.push("second"));
+
+      eventBus.emit("test-event", undefined);
+      expect(calls).toEqual(["first", "second"]);
+      eventBus.emit("test-event", undefined);
+      expect(calls).toEqual(["first", "second"]);
+    });
+
     it("should remove all listeners for specific event", () => {
       const callback1 = vi.fn();
       const callback2 = vi.fn();
@@ -191,12 +222,11 @@ describe("EventBus", () => {
 
       eventBus.removeAllListeners("test-event");
 
-      eventBus.emit("test-event");
-      eventBus.emit("other-event");
+      eventBus.emit("test-event", undefined);
+      eventBus.emit("other-event", undefined);
 
-      // callback2 should not be called at all (only on test-event which was removed)
       expect(callback2).not.toHaveBeenCalled();
-      // callback1 should only be called once from other-event
+
       expect(callback1).toHaveBeenCalledTimes(1);
     });
 
@@ -209,9 +239,9 @@ describe("EventBus", () => {
 
       eventBus.removeAllListeners();
 
-      eventBus.emit("event1");
-      eventBus.emit("event2");
-      eventBus.emit("event3");
+      eventBus.emit("event1", undefined);
+      eventBus.emit("event2", undefined);
+      eventBus.emit("event3", undefined);
 
       expect(callback).not.toHaveBeenCalled();
     });
@@ -222,7 +252,7 @@ describe("EventBus", () => {
       eventBus.once("test-event", callback);
       eventBus.removeAllListeners("test-event");
 
-      eventBus.emit("test-event");
+      eventBus.emit("test-event", undefined);
 
       expect(callback).not.toHaveBeenCalled();
     });

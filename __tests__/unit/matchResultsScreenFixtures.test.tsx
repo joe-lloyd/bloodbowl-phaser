@@ -1,14 +1,11 @@
-/**
- * Recording a competition fixture from the full-time screen.
- * The shared setup is in matchResultsScreenHarness.tsx.
- */
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { GameEventNames } from "../../src/types/events";
 import { MatchResultsScreen } from "../../src/ui/components/hud/MatchResultsScreen";
 import {
-  OnlineMatch,
+  type OnlineMatch,
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
 import { recordCompetitionFixture } from "../../src/competition/resultRecording";
@@ -19,7 +16,7 @@ import {
 import { TeamBuilder as TeamBuilderPage } from "../../src/ui/components/pages/TeamBuilder";
 import { leagueOf, resultsHarness, setup } from "./matchResultsScreenHarness";
 
-const clearActiveMatchCode = vi.fn(() => Promise.resolve());
+const clearActiveMatchCode = vi.fn<[uid: string], Promise<void>>(() => Promise.resolve());
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/firebase/lobby")>()),
   clearActiveMatchCode: (uid: string) => clearActiveMatchCode(uid),
@@ -47,12 +44,14 @@ describe("MatchResultsScreen", () => {
     const fixtureContext = {
       competitionType: "league" as const,
       competitionId: league.id,
-      fixtureId: league.fixtures[0].id,
+      fixtureId: fixtureValue(league.fixtures[0]).id,
     };
-    await recordCompetitionFixture(fixtureContext, 1, 0, {
-      home: team1,
-      away: team2,
-    });
+    await recordCompetitionFixture({
+        context: fixtureContext,homeScore: 1,awayScore: 0,progressedTeams: {
+          home: team1,
+          away: team2,
+        }
+      });
     let cache = loadTeams();
     let fail = true;
     let acknowledge!: () => void;
@@ -67,34 +66,40 @@ describe("MatchResultsScreen", () => {
       },
       deleteTeam: () => {},
     });
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
-    await act(async () =>
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team1.players[0]).id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team2.players[0]).id);
+    await act(async () => {
       h.root.render(
         <MemoryRouter>
           <MatchResultsScreen visible fixtureContext={fixtureContext} />
         </MemoryRouter>
-      )
-    );
+      );
+    });
     expect(h.container.textContent).toContain(
       "The competition result could not be saved. Cloud offline"
     );
     for (const button of [...h.container.querySelectorAll("button")].filter(
       (b) => b.textContent?.includes("Roll MVP D6")
     ))
-      await act(async () => button.click());
+      await act(async () => {
+        button.click();
+      });
     const confirm = () =>
-      [...h.container.querySelectorAll("button")].find((b) =>
+      fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("Confirm and assign SPP")
-      )!;
+      ));
     expect(confirm().disabled).toBe(true);
     fail = false;
-    const retry = [...h.container.querySelectorAll("button")].find((b) =>
+    const retry = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
       b.textContent?.includes("Retry saving result")
-    )!;
-    await act(async () => retry.click());
+    ));
+    await act(async () => {
+      retry.click();
+    });
     expect(confirm().disabled).toBe(true);
-    await act(async () => acknowledge());
+    await act(async () => {
+      acknowledge();
+    });
     expect(confirm().disabled).toBe(false);
     expect(h.container.textContent).toContain(
       "Competition fixture result recorded"
@@ -126,43 +131,45 @@ describe("MatchResultsScreen", () => {
       localStorage.clear();
       const { services, state, team1, team2 } = setup(true);
       const league = await leagueOf([team1, team2]);
-      state.score["team-1"] = score[0];
-      state.score["team-2"] = score[1];
+      state.score["team-1"] = fixtureValue(score[0]);
+      state.score["team-2"] = fixtureValue(score[1]);
       services.eventBus.emit(
         GameEventNames.PlayerActivated,
-        team1.players[0].id
+        fixtureValue(team1.players[0]).id
       );
       services.eventBus.emit(
         GameEventNames.PlayerActivated,
-        team2.players[0].id
+        fixtureValue(team2.players[0]).id
       );
-      // GamePage records the fixture at full time; it is the season's last
+
       const fixture = league.fixtures[0];
       await recordCompetitionFixture(
-        {
+      {
+        context: {
           competitionType: "league",
           competitionId: league.id,
-          fixtureId: fixture.id,
-        },
-        score[0],
-        score[1],
-        { home: team1, away: team2 }
-      );
+          fixtureId: fixtureValue(fixture).id,
+        },homeScore: fixtureValue(score[0]),awayScore: fixtureValue(score[1]),progressedTeams: { home: team1,away: team2 }
+      }      );
 
       await h.render();
       for (const button of [...h.container.querySelectorAll("button")].filter(
         (b) => b.textContent?.includes("Roll MVP D6")
       )) {
-        await act(async () => button.click());
+        await act(async () => {
+          button.click();
+        });
       }
-      const confirm = [...h.container.querySelectorAll("button")].find((b) =>
+      const confirm = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("Confirm and assign SPP")
-      )!;
-      await act(async () => confirm.click());
+      ));
+      await act(async () => {
+        confirm.click();
+      });
 
       const stored = (id: string) =>
-        loadTeams().find((team) => team.id === id)!;
-      const key = `${league.id}:${fixture.id}`;
+        fixtureValue(loadTeams().find((team) => team.id === id));
+      const key = `${league.id}:${fixtureValue(fixture).id}`;
       expect(stored("team-1")).toMatchObject({
         ...home,
         recordedFixtureIds: [key],
@@ -171,11 +178,11 @@ describe("MatchResultsScreen", () => {
         ...away,
         recordedFixtureIds: [key],
       });
-      // The season is over, so both teams are free to enter the next one
+
       expect(stored("team-1").activeCompetitionId).toBeUndefined();
       expect(stored("team-2").activeCompetitionId).toBeUndefined();
-      // And the MVP's SPP is kept as well
-      expect(stored("team-1").players[0].spp).toBeGreaterThan(0);
+
+      expect(fixtureValue(stored("team-1").players[0]).spp).toBeGreaterThan(0);
     }
   );
 
@@ -188,19 +195,17 @@ describe("MatchResultsScreen", () => {
     state.paysWinnings = true;
     state.score["team-1"] = 0;
     state.score["team-2"] = 2;
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team1.players[0]).id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team2.players[0]).id);
     await recordCompetitionFixture(
-      {
+    {
+      context: {
         competitionType: "league",
         competitionId: league.id,
-        fixtureId: league.fixtures[0].id,
-      },
-      0,
-      2,
-      { home: team1, away: team2 }
-    );
-    // The engine rolls the MVP among the nominees
+        fixtureId: fixtureValue(league.fixtures[0]).id,
+      },homeScore: 0,awayScore: 2,progressedTeams: { home: team1,away: team2 }
+    }    );
+
     const runProgressionCommand = vi.fn(
       async (command: { teamId: string; nominatedPlayerIds: string[] }) => {
         services.matchStats.awardMvp(
@@ -231,7 +236,7 @@ describe("MatchResultsScreen", () => {
                     fixtureContext={{
                       competitionType: "league",
                       competitionId: league.id,
-                      fixtureId: league.fixtures[0].id,
+                      fixtureId: fixtureValue(league.fixtures[0]).id,
                     }}
                   />
                 }
@@ -243,28 +248,31 @@ describe("MatchResultsScreen", () => {
         );
       });
 
-      // The computer named its own nominees; the coach rolls only theirs
       expect(runProgressionCommand).toHaveBeenCalledWith({
         type: "award-mvp",
         teamId: "team-2",
-        nominatedPlayerIds: [team2.players[0].id],
+        nominatedPlayerIds: [fixtureValue(team2.players[0]).id],
       });
       const rolls = [...h.container.querySelectorAll("button")].filter((b) =>
         b.textContent?.includes("Roll MVP D6")
       );
       expect(rolls).toHaveLength(1);
-      await act(async () => rolls[0].click());
-      const confirm = [...h.container.querySelectorAll("button")].find((b) =>
+      await act(async () => {
+        fixtureValue(rolls[0]).click();
+      });
+      const confirm = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("Confirm and assign SPP")
-      )!;
-      await act(async () => confirm.click());
+      ));
+      await act(async () => {
+        confirm.click();
+      });
 
       const stored = (id: string) =>
-        loadTeams().find((team) => team.id === id)!;
+        fixtureValue(loadTeams().find((team) => team.id === id));
       expect(stored("team-1")).toMatchObject({ losses: 1, wins: 0 });
-      // The computer's team is this coach's too, so its game is kept
+
       expect(stored("team-2")).toMatchObject({ wins: 1, touchdowns: 2 });
-      expect(stored("team-2").players[0].spp).toBeGreaterThan(0);
+      expect(fixtureValue(stored("team-2").players[0]).spp).toBeGreaterThan(0);
 
       expect(h.container.textContent).toContain("Post-match team management");
       expect(
@@ -272,10 +280,12 @@ describe("MatchResultsScreen", () => {
           .querySelector('input[placeholder="Enter Team Name"]')
           ?.getAttribute("value")
       ).toBe("Reikland Reavers");
-      const finish = [...h.container.querySelectorAll("button")].find((b) =>
+      const finish = fixtureValue([...h.container.querySelectorAll("button")].find((b) =>
         b.textContent?.includes("Finish post-match")
-      )!;
-      await act(async () => finish.click());
+      ));
+      await act(async () => {
+        finish.click();
+      });
       expect(h.container.textContent).toBe("The league page");
     } finally {
       setActiveOnlineMatch(null);
@@ -286,9 +296,9 @@ describe("MatchResultsScreen", () => {
     const { services, state } = setup(false);
     state.score["team-1"] = 2;
     state.score["team-2"] = 1;
-    services.gameService.getTeam("team-1")!.advancementMode =
+    fixtureValue(services.gameService.getTeam("team-1")).advancementMode =
       "sevens-skill-selection";
-    services.gameService.getTeam("team-2")!.advancementMode = "advanced-league";
+    fixtureValue(services.gameService.getTeam("team-2")).advancementMode = "advanced-league";
 
     await h.render();
     expect(
@@ -303,7 +313,7 @@ describe("MatchResultsScreen", () => {
       });
     });
 
-    const panel = h.container.querySelector('[data-testid="match-winnings"]')!;
+    const panel = fixtureValue(h.container.querySelector('[data-testid="match-winnings"]'));
     expect(panel.textContent).toContain("Fan Attendance 8");
     expect(
       h.container.querySelector('[data-testid="match-winnings-team-1"]')

@@ -1,3 +1,4 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { SECURE_BALL_CASES } from "../../src/testing/cases/secure-the-ball";
@@ -39,11 +40,11 @@ test("Secure the Ball moves onto the ball with one unnumbered action and the rig
     .poll(async () => {
       const snapshot = await app.bridge.snapshot();
       return snapshot.turn.activatedPlayerIds.includes(
-        snapshot.teams[0].players[0].id
+        fixtureValue(fixtureValue(snapshot.teams[0]).players[0]).id
       );
     })
     .toBe(true);
-  expect((await app.bridge.snapshot()).teams[0].players[0].position).toEqual({
+  expect(fixtureValue(fixtureValue((await app.bridge.snapshot()).teams[0]).players[0]).position).toEqual({
     x: 7,
     y: 5,
   });
@@ -60,7 +61,7 @@ test("Secure the Ball moves onto the ball with one unnumbered action and the rig
     responses: [],
   };
   const scenarioCase = SECURE_BALL_CASES[0];
-  const variant = scenarioCase.variants[0];
-  assertBrowserCheckpoints(test.info(), scenarioCase, variant, observed);
-  recordCoverageFragment(scenarioCase, variant.id, observed);
+  const variant = fixtureValue(scenarioCase).variants[0];
+  assertBrowserCheckpoints(test.info(), fixtureValue(scenarioCase), fixtureValue(variant), observed);
+  recordCoverageFragment(fixtureValue(scenarioCase), fixtureValue(variant).id, observed);
 });

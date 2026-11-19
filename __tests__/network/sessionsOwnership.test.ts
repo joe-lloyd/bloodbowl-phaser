@@ -1,12 +1,8 @@
-/**
- * Host/guest sessions: each coach may send only their own commands and answer
- * only their own decisions, and a refused command changes nothing.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType, SkillCategory } from "../../src/types/Skills";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { checkOwnership } from "../../src/network/OwnershipGate";
 import { createMatch, uphillScenario } from "./sessionsHarness";
 
@@ -16,7 +12,7 @@ describe("networked sessions", () => {
     await match.host.executeLocal({ type: "coin-flip" });
 
     const before = JSON.stringify(match.game.snapshot());
-    // Guest tries to end the turn during setup it doesn't control
+
     const response = await match.guest.sendCommand({ type: "end-turn" });
 
     expect(response.ok).toBe(false);
@@ -26,9 +22,7 @@ describe("networked sessions", () => {
 
   it("rejects guest commands that reference the host's players", async () => {
     const match = createMatch({ seed: 7, startingPhase: GamePhase.SETUP });
-    // Make the GUEST the active setup team, so the rejection is specifically
-    // about ownership (not turn): a coach may set up, but only their own
-    // players — never reach across and place the opponent's.
+
     await match.host.executeLocal({
       type: "start-setup",
       kickingTeamId: match.guestTeamId,
@@ -37,7 +31,7 @@ describe("networked sessions", () => {
     const hostPlayer = match.game.ctx.team1.players[0];
     const response = await match.guest.sendCommand({
       type: "place-player",
-      playerId: hostPlayer.id,
+      playerId: fixtureValue(hostPlayer).id,
       x: 5,
       y: 5,
     });
@@ -70,8 +64,8 @@ describe("networked sessions", () => {
 
     const response = await match.guest.sendCommand({
       type: "stab",
-      attackerId: hostAttacker.id,
-      defenderId: guestTarget.id,
+      attackerId: fixtureValue(hostAttacker).id,
+      defenderId: fixtureValue(guestTarget).id,
     });
 
     expect(response.ok).toBe(false);
@@ -81,7 +75,7 @@ describe("networked sessions", () => {
 
   it("rejects setup placement when it is not that coach's setup turn", async () => {
     const match = createMatch({ seed: 7, startingPhase: GamePhase.SETUP });
-    // Host is the kicking team and sets up first; the guest must wait.
+
     await match.host.executeLocal({
       type: "start-setup",
       kickingTeamId: match.hostTeamId,
@@ -90,7 +84,7 @@ describe("networked sessions", () => {
     const guestPlayer = match.game.ctx.team2.players[0];
     const response = await match.guest.sendCommand({
       type: "place-player",
-      playerId: guestPlayer.id,
+      playerId: fixtureValue(guestPlayer).id,
       x: 20,
       y: 5,
     });
@@ -111,7 +105,7 @@ describe("networked sessions", () => {
       (
         await match.guest.sendCommand({
           type: "place-player",
-          playerId: first.id,
+          playerId: fixtureValue(first).id,
           x: 14,
           y: 0,
         })
@@ -119,7 +113,7 @@ describe("networked sessions", () => {
     ).toBe(true);
     const response = await match.guest.sendCommand({
       type: "place-player",
-      playerId: second.id,
+      playerId: fixtureValue(second).id,
       x: 14,
       y: 1,
     });
@@ -131,7 +125,6 @@ describe("networked sessions", () => {
   });
 
   it("kickoff belongs to the kicking (non-active) team, not the active team", () => {
-    // During KICKOFF, active = receiving team; the kicking team acts.
     const ctx = {
       activeTeamId: "receiving",
       pendingDecision: null,
@@ -141,7 +134,6 @@ describe("networked sessions", () => {
       phase: GamePhase.KICKOFF,
     };
 
-    // Kicking team (non-active) may select its kicker and kick
     expect(
       checkOwnership(
         { type: "select-kicker", playerId: "kick-1" },
@@ -157,7 +149,6 @@ describe("networked sessions", () => {
       ).allowed
     ).toBe(true);
 
-    // Receiving team (active) may NOT kick off
     const denied = checkOwnership(
       { type: "select-kicker", playerId: "recv-1" },
       "receiving",
@@ -214,13 +205,13 @@ describe("networked sessions", () => {
 
     await match.host.executeLocal({
       type: "declare-action",
-      playerId: attacker.id,
+      playerId: fixtureValue(attacker).id,
       action: "block",
     });
     await match.host.executeLocal({
       type: "block",
-      attackerId: attacker.id,
-      defenderId: defender.id,
+      attackerId: fixtureValue(attacker).id,
+      defenderId: fixtureValue(defender).id,
     });
 
     const pending = match.game.pendingDecision();
@@ -228,7 +219,6 @@ describe("networked sessions", () => {
     if (pending?.type !== "block-dice") return;
     expect(pending.chooserTeamId).toBe(match.guestTeamId);
 
-    // The attacking host may not take the defender's decision
     const hostAttempt = await match.host.executeLocal({
       type: "choose-block-result",
       index: 0,
@@ -236,7 +226,6 @@ describe("networked sessions", () => {
     expect(hostAttempt.ok).toBe(false);
     expect(hostAttempt.reason).toBe("not-your-decision");
 
-    // The defending guest may
     const guestAttempt = await match.guest.sendCommand({
       type: "choose-block-result",
       index: 0,
@@ -245,8 +234,6 @@ describe("networked sessions", () => {
   });
 
   it("a reroll decision is accepted only from the rolling coach's session", async () => {
-    // The GUEST's mover fails a pickup with team rerolls banked: the offer
-    // belongs to the guest, and the host may not answer it.
     const guestPickup: Scenario = {
       id: "guest-pickup",
       name: "Guest pickup",
@@ -269,20 +256,19 @@ describe("networked sessions", () => {
 
       await match.guest.sendCommand({
         type: "declare-action",
-        playerId: mover.id,
+        playerId: fixtureValue(mover).id,
         action: "move",
       });
       await match.guest.sendCommand({
         type: "move",
-        playerId: mover.id,
+        playerId: fixtureValue(mover).id,
         path: [{ x: 5, y: 5 }],
       });
 
       const pending = match.game.pendingDecision();
-      if (pending?.type !== "reroll") continue; // pickup succeeded
+      if (pending?.type !== "reroll") continue;
       expect(pending.chooserTeamId).toBe(match.guestTeamId);
 
-      // The host may not spend the guest's reroll decision
       const hostAttempt = await match.host.executeLocal({
         type: "use-reroll",
         accept: true,
@@ -291,22 +277,19 @@ describe("networked sessions", () => {
       expect(hostAttempt.reason).toBe("not-your-decision");
       expect(match.game.pendingDecision()?.type).toBe("reroll");
 
-      // The guest may
       const guestAttempt = await match.guest.sendCommand({
         type: "use-reroll",
         accept: true,
         source: "team",
       });
       expect(guestAttempt.ok).toBe(true);
-      expect(match.game.snapshot().teams[1].rerolls).toBe(2);
+      expect(fixtureValue(match.game.snapshot().teams[1]).rerolls).toBe(2);
       return;
     }
     throw new Error("no failing pickup found in seed range");
   });
 
   it("a reaction decision belongs to the REACTING coach, not the actor", async () => {
-    // Host blocks the guest's Stand Firm defender: the push refusal is the
-    // guest's decision even though the host is the acting side.
     const standFirmScenario: Scenario = {
       id: "standfirm-online",
       name: "Stand Firm online",
@@ -325,7 +308,7 @@ describe("networked sessions", () => {
       const match = createMatch({ scenario: standFirmScenario, seed });
       const attacker = match.game.ctx.team1.players[0];
       const defender = match.game.ctx.team2.players[0];
-      defender.skills.push({
+      fixtureValue(defender).skills.push({
         type: SkillType.STAND_FIRM,
         category: SkillCategory.GENERAL,
         description: "",
@@ -333,13 +316,13 @@ describe("networked sessions", () => {
 
       await match.host.executeLocal({
         type: "declare-action",
-        playerId: attacker.id,
+        playerId: fixtureValue(attacker).id,
         action: "block",
       });
       await match.host.executeLocal({
         type: "block",
-        attackerId: attacker.id,
-        defenderId: defender.id,
+        attackerId: fixtureValue(attacker).id,
+        defenderId: fixtureValue(defender).id,
       });
 
       const dice = match.game.pendingDecision();
@@ -347,7 +330,7 @@ describe("networked sessions", () => {
       const pushIndex = dice.options.findIndex((o) =>
         ["push", "pow", "pow-dodge"].includes(o.type)
       );
-      if (pushIndex < 0) continue; // no push rolled — next seed
+      if (pushIndex < 0) continue;
 
       await match.host.executeLocal({
         type: "choose-block-result",
@@ -360,7 +343,6 @@ describe("networked sessions", () => {
       expect(pending.chooserTeamId).toBe(match.guestTeamId);
       expect(pending.skill).toBe(SkillType.STAND_FIRM);
 
-      // The acting host may not answer the guest's reaction
       const hostAttempt = await match.host.executeLocal({
         type: "use-reaction",
         accept: false,
@@ -368,13 +350,12 @@ describe("networked sessions", () => {
       expect(hostAttempt.ok).toBe(false);
       expect(hostAttempt.reason).toBe("not-your-decision");
 
-      // The reacting guest may — refusing the push keeps them in place
       const guestAttempt = await match.guest.sendCommand({
         type: "use-reaction",
         accept: true,
       });
       expect(guestAttempt.ok).toBe(true);
-      expect(defender.gridPosition).toEqual({ x: 11, y: 5 });
+      expect(fixtureValue(defender).gridPosition).toEqual({ x: 11, y: 5 });
       return;
     }
     throw new Error("no push result rolled in seed range");

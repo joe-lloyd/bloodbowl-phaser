@@ -1,20 +1,15 @@
-/**
- * The Fanatic's Ball & Chain Special Action (2025 rulebook), driven through the
- * headless protocol. The catalog pins the two rule facets (an auto-Block on the
- * first Standing player it lurches into; a crowd surf when it wanders off the
- * pitch). These tests drive the raw `ball-and-chain` command: each command is
- * one square, and a Standing Fanatic is refused every other action.
- */
-
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, it, expect } from "vitest";
 import { TRAIT_RULE_SCENARIOS } from "../../src/data/ruleScenarios/traits";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { Scenario } from "../../src/types/Scenario";
+import { type Scenario } from "../../src/types/Scenario";
 import { SkillType } from "../../src/types/Skills";
 
-const BC_CONFIG = TRAIT_RULE_SCENARIOS.find(
-  (e) => e.skill === SkillType.BALL_AND_CHAIN
-)!.configs.find((c) => c.id === "ball-and-chain-block")!;
+const BC_CONFIG = fixtureValue(
+  fixtureValue(
+    TRAIT_RULE_SCENARIOS.find((e) => e.skill === SkillType.BALL_AND_CHAIN)
+  ).configs.find((c) => c.id === "ball-and-chain-block")
+);
 
 describe("ball & chain protocol round-trip", () => {
   const scenario: Scenario = {
@@ -24,17 +19,13 @@ describe("ball & chain protocol round-trip", () => {
     setup: BC_CONFIG.setup,
   };
 
-  /**
-   * The config fields the real Goblin Fanatic, so its roster index is not 0.
-   * Read it from the config's own placement rather than pinning a number that
-   * moves whenever the Sevens composition changes.
-   */
-  const FANATIC_INDEX = BC_CONFIG.setup.team1Placements[0].playerIndex;
-  /** Any other placed Goblin, to keep the turn alive as a bystander. */
+  const FANATIC_INDEX = fixtureValue(
+    BC_CONFIG.setup.team1Placements[0]
+  ).playerIndex;
+
   const BYSTANDER_INDEX = FANATIC_INDEX === 1 ? 2 : 1;
 
   it("lurches one square per `ball-and-chain` command until the coach ends it", async () => {
-    // Open ground East of the Fanatic, so the square holds nobody
     const openGround: Scenario = {
       ...scenario,
       setup: {
@@ -46,7 +37,7 @@ describe("ball & chain protocol round-trip", () => {
       },
     };
     const game = new HeadlessGame({ scenario: openGround, seed: 1 });
-    const fanaticId = game.ctx.team1.players[FANATIC_INDEX].id;
+    const fanaticId = fixtureValue(game.ctx.team1.players[FANATIC_INDEX]).id;
 
     await game.execute({
       type: "declare-action",
@@ -62,7 +53,9 @@ describe("ball & chain protocol round-trip", () => {
 
     expect(res.ok).toBe(true);
     expect(game.ctx.gameService.getMovementUsed(fanaticId)).toBe(1);
-    expect(game.ctx.team1.players[FANATIC_INDEX].gridPosition?.x).toBe(6);
+    expect(
+      fixtureValue(game.ctx.team1.players[FANATIC_INDEX]).gridPosition?.x
+    ).toBe(6);
     expect(game.ctx.gameService.hasPlayerActed(fanaticId)).toBe(false);
 
     await game.execute({ type: "end-activation", playerId: fanaticId });
@@ -71,7 +64,7 @@ describe("ball & chain protocol round-trip", () => {
 
   it("refuses a Standing Fanatic any action other than Ball & Chain", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const fanaticId = game.ctx.team1.players[FANATIC_INDEX].id;
+    const fanaticId = fixtureValue(game.ctx.team1.players[FANATIC_INDEX]).id;
 
     const move = await game.execute({
       type: "declare-action",

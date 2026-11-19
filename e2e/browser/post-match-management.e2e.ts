@@ -1,4 +1,5 @@
-import { test, expect, Page } from "@playwright/test";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+import { test, expect, type Page } from "@playwright/test";
 import { createTeam, RosterName } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
@@ -21,7 +22,7 @@ async function openPostMatch(page: Page) {
   team.treasury = 150_000;
   const lineman = getRosterByRosterName(RosterName.HUMAN).playerTemplates[0];
   team.players = Array.from({ length: 7 }, (_, index) =>
-    createPlayer(lineman, team.id, index + 1, `Human ${index + 1}`)
+    createPlayer(fixtureValue(lineman), team.id, index + 1, `Human ${String(index + 1)}`)
   );
   queueExpensiveMistakes(team, "season-1:fixture-1");
   await page.goto("/build-team");
@@ -54,18 +55,16 @@ for (const viewport of [
   { width: 1440, height: 900 },
   { width: 802, height: 1138 },
 ]) {
-  test(`spending removes Expensive Mistakes and finishes at ${viewport.width}px`, async ({
+  test(`spending removes Expensive Mistakes and finishes at ${String(viewport.width)}px`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
     const id = await openPostMatch(page);
-    const details = page
-      .locator(".hud-slab")
-      .filter({
-        has: page.getByRole("heading", { name: "Team details", exact: true }),
-      });
+    const details = page.locator(".hud-slab").filter({
+      has: page.getByRole("heading", { name: "Team details", exact: true }),
+    });
     const box = await details.boundingBox();
-    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+    expect(fixtureValue(box).x + fixtureValue(box).width).toBeLessThanOrEqual(viewport.width);
     await expect(
       page.getByText("Winnings: +60,000 gp added to the Treasury.")
     ).toBeVisible();

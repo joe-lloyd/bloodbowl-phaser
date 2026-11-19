@@ -1,20 +1,14 @@
-/**
- * Gallery fixtures: a real ServiceContainer and EventBus with no Phaser
- * scene attached. Each gallery variant runs in its own iframe, so each gets
- * its own singleton container, set up exactly for that variant.
- */
 import { EventBus } from "../services/EventBus";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
 import { TeamFactory } from "../game/TeamFactory";
 import { applyScenario } from "../game/applyScenario";
 import { SCENARIOS } from "../data/scenarios";
-import { RosterName, Team } from "../types/Team";
+import { RosterName, type Team } from "../types/Team";
 import { GamePhase } from "../types/GameState";
-import { Player } from "../types/Player";
+import { type Player } from "../types/Player";
 
 export interface FixtureOptions {
-  /** A core sandbox scenario id, for players on the pitch. */
   scenario?: string;
   team1Name?: string;
   team2Name?: string;
@@ -31,7 +25,7 @@ export interface MatchFixture {
   services: ServiceContainer;
   team1: Team;
   team2: Team;
-  /** A player by team and roster index, e.g. player(1, 0). */
+
   player: (team: 1 | 2, index: number) => Player;
 }
 
@@ -55,28 +49,19 @@ export function setupMatch(options: FixtureOptions = {}): MatchFixture {
   const bus = new EventBus();
   const state = scenario
     ? applyScenario(scenario, team1, team2)
-    : GameService.createInitialState(
-        team1,
-        team2,
-        options.phase ?? GamePhase.PLAY
+    : GameService.createInitialState({ team1: team1, team2: team2, startingPhase: options.phase ?? GamePhase.PLAY }
       );
   if (options.phase) state.phase = options.phase;
 
   ServiceContainer.reset();
-  const services = ServiceContainer.initialize(
-    bus,
-    team1,
-    team2,
-    state,
-    7,
-    undefined,
-    options.progression ?? false
-  );
+  const services = ServiceContainer.initialize({ eventBus: bus, team1: team1, team2: team2, initialState: state, seed: 7, progressionEnabled: options.progression ?? false });
   services.gameService.seedTurnCounts(state.turn.turnNumber || 1);
 
   const player = (team: 1 | 2, index: number) => {
     const roster = (team === 1 ? team1 : team2).players;
-    return roster[Math.min(index, roster.length - 1)];
+    const picked = roster[Math.min(index, roster.length - 1)];
+    if (!picked) throw new Error(`team ${String(team)} has no players`);
+    return picked;
   };
   return { bus, services, team1, team2, player };
 }

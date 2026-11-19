@@ -1,20 +1,17 @@
+import { fixtureValue } from "../../src/testing/fixtureValue";
 import { getSkill, SkillType } from "../../src/types/Skills";
-import React, { act } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
-import { RerollDecisionRequest } from "../../src/types/decisions";
+import { type RerollDecisionRequest } from "../../src/types/decisions";
 import { getDriveEffects } from "../../src/game/kickoff/driveEffects";
 import { RerollDialog } from "../../src/ui/components/hud/RerollDialog";
 import { buttonLabel } from "../utils/test-helpers";
 
-/**
- * The team button names the re-roll it would spend, and is gone when the
- * team has none to spend, rather than offering "(0 left)".
- */
 describe("RerollDialog team button", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -24,7 +21,7 @@ describe("RerollDialog team button", () => {
   beforeEach(() => {
     const game = new HeadlessGame({ seed: 1 });
     eventBus = new EventBus();
-    ServiceContainer.initialize(eventBus, game.ctx.team1, game.ctx.team2);
+    ServiceContainer.initialize({ eventBus: eventBus, team1: game.ctx.team1, team2: game.ctx.team2 });
     teamId = game.ctx.team1.id;
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -32,29 +29,33 @@ describe("RerollDialog team button", () => {
   });
 
   afterEach(async () => {
-    await act(async () => root.unmount());
+    await act(async () => {
+      root.unmount();
+    });
     container.remove();
     ServiceContainer.reset();
   });
 
   const showDodgeReroll = async (rerolls: number, free = 0) => {
     const service = ServiceContainer.getInstance().gameService;
-    const team = service.getTeam(teamId)!;
+    const team = fixtureValue(service.getTeam(teamId));
     team.rerolls = rerolls;
     service.getState().turn.teamId = team.id;
     if (free) getDriveEffects(service.getState()).freeRerolls[team.id] = free;
-    await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
+    await act(async () => {
+      root.render(<RerollDialog eventBus={eventBus} />);
+    });
     const request: RerollDecisionRequest = {
       type: "reroll",
-      playerId: team.players[0].id,
+      playerId: fixtureValue(team.players[0]).id,
       chooserTeamId: team.id,
       rollKind: "dodge",
       sources: ["team", "veteran"],
       roll: 1,
     };
-    await act(async () =>
-      eventBus.emit(GameEventNames.DecisionRequested, request)
-    );
+    await act(async () => {
+      eventBus.emit(GameEventNames.DecisionRequested, request);
+    });
     return container.querySelector('[data-testid="reroll-use-team"]');
   };
 
@@ -65,7 +66,6 @@ describe("RerollDialog team button", () => {
   });
 
   it("keeps the Veteran button short and says once per game under it", async () => {
-    // Round 3, 1:16:38: "USE VETERAN RE-ROLL (ONCE PER GAME)" wrapped
     await showDodgeReroll(0);
     expect(
       buttonLabel(container.querySelector('[data-testid="reroll-use-veteran"]'))
@@ -79,15 +79,15 @@ describe("RerollDialog team button", () => {
   it("counts the team's own re-rolls", async () => {
     const button = await showDodgeReroll(2);
     expect(buttonLabel(button)).toBe("USE TEAM RE-ROLL (2 left)");
-    // The first re-roll offered is pressed with 1
+
     expect(button?.querySelector("kbd")?.textContent).toBe("1");
   });
 
   it("names the Leader re-roll when it is the next legal team source", async () => {
     const service = ServiceContainer.getInstance().gameService;
-    const team = service.getTeam(teamId)!;
-    team.players[0].gridPosition = { x: 5, y: 5 };
-    team.players[0].skills.push(getSkill(SkillType.LEADER));
+    const team = fixtureValue(service.getTeam(teamId));
+    fixtureValue(team.players[0]).gridPosition = { x: 5, y: 5 };
+    fixtureValue(team.players[0]).skills.push(getSkill(SkillType.LEADER));
     service.getRerollArbiter().beginHalf([teamId]);
     expect(buttonLabel(await showDodgeReroll(0))).toBe("USE LEADER RE-ROLL");
   });

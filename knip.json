@@ -1,0 +1,47 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": false,
+  "includeEntryExports": true,
+  "workspaces": {
+    ".": {
+      "project": [
+        "**/*.{ts,tsx}",
+        "!functions/**"
+      ],
+      "entry": [
+        "scripts/coach/catalogue-study.ts",
+        "scripts/coach/fit-evaluation.ts",
+        "scripts/coach/positions.ts",
+        "scripts/coach/race-rates.ts",
+        "scripts/page-shots/playwright.config.ts",
+        "scripts/perf/verifyRender.ts",
+        "scripts/coach/advanced-study/run.ts",
+        "scripts/coach/catalogue-study/audit.ts",
+        "scripts/coach/catalogue-study/repair.ts",
+        "scripts/coach/catalogue-study/rules.ts",
+        "scripts/coach/policy-lab/drama.ts",
+        "scripts/coach/policy-lab/evidence.ts",
+        "scripts/coach/policy-lab/fouls.ts",
+        "scripts/coach/policy-lab/moments.ts",
+        "scripts/coach/policy-lab/nailbiters.ts",
+        "scripts/coach/policy-study/run.ts",
+        "e2e/fullgame/brain.ts",
+        "scripts/discover-block-seeds.ts",
+        "scripts/page-shots/page-shots.e2e.ts"
+      ]
+    },
+    "functions": {
+      "project": [
+        "src/**/*.ts"
+      ]
+    }
+  },
+  "ignoreIssues": {
+    "e2e/fullgame/brain.ts": [
+      "exports"
+    ],
+    "scripts/page-shots/playwright.config.ts": [
+      "exports"
+    ]
+  }
+}
