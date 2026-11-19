@@ -22,7 +22,7 @@ import {
 import { Route } from "./routes";
 import { PassController } from "../../game/controllers/PassController";
 import { Context, crowd, gamble, tierFor } from "./activationContext";
-import { CORNERS, passRange } from "./ballActivations";
+import { CORNERS, inScoringRange, passRange } from "./ballActivations";
 import { passTarget } from "../../game/rules/rollPreview";
 import { d6, withReroll } from "./chance";
 import type { Activation, Role } from "./activations";
@@ -253,10 +253,11 @@ function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
     return !!there && there.teamId === board.us && standing(there);
   });
   const heldCount = held.filter(Boolean).length;
+  const range = inScoringRange(c, at, carrier);
   // The corner that completes the cage, or keeps it complete.
   corners.forEach((s, i) => {
     const others = heldCount - (held[i] ? 1 : 0);
-    add("cage", s, corner + (others === 3 ? w.fullCage : 0));
+    add("cage", s, corner + (others === 3 && range ? w.fullCage : 0));
   });
   if (board.turnsLeft === 0) return;
   for (const ahead of [2, 3, 4])

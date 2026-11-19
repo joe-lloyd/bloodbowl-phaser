@@ -45,7 +45,8 @@ export const DEFAULT_WEIGHTS = {
    */
   cageKeep: 20,
   /**
-   * Added when all four corners of the carrier's square are held. Over
+   * Added when all four corners of the carrier's square are held and it
+   * can score from there next turn. Over
    * 5,184 replayed games a turn that ended in a full cage lost the ball
    * before the team's next turn 1% to 5% of the time, against 20% to 28%
    * with three corners.

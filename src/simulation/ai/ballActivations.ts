@@ -110,6 +110,14 @@ function pressure(c: Context, carrier: Player): number {
   return Math.max(0, -carrierCover(c, carrier.gridPosition!, carrier));
 }
 
+/**
+ * A carrier that can score next turn from `at`: losing the ball there
+ * costs a likely touchdown, so a full cage is worth most there.
+ */
+export function inScoringRange(c: Context, at: Square, carrier: Player) {
+  return c.board.turnsLeft > 0 && toGoal(c.board, at) <= nextTurnReach(carrier);
+}
+
 /** The square's cover for the carrier, apart from its distance to go. */
 function carrierCover(c: Context, at: Square, carrier: Player): number {
   const { board, w } = c;
@@ -123,7 +131,7 @@ function carrierCover(c: Context, at: Square, carrier: Player): number {
       w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner +
-    (cage >= 4 ? w.fullCage : 0) -
+    (cage >= 4 && inScoringRange(c, at, carrier) ? w.fullCage : 0) -
     (edge === 0 ? w.sideline : edge === 1 ? w.sideline / 3 : 0) -
     exposureCost(c, carrier, at) +
     launchReady(c, carrier, at)
