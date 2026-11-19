@@ -34,7 +34,7 @@ import {
   journeymanOffers,
   planPurchases,
 } from "../game/rules/purchasePlanner";
-import { MIN_ROSTER_PLAYERS } from "../game/rules/rosterLegality";
+import { teamDraftRules } from "../game/rules/draftRules";
 import {
   describeExpensiveMistakes,
   resolveExpensiveMistakes,
@@ -320,7 +320,7 @@ function spendTreasury(team: Team, report: ManagementReport): void {
     );
   }
   const fit = fitPlayers(team).length;
-  if (spends && fit < MIN_ROSTER_PLAYERS)
+  if (spends && fit < teamDraftRules(team).minPlayers)
     report.setbacks.push({
       rule: "cannot-refill",
       detail: `${team.name}: ${String(fit)} fit players, ${String(team.treasury)} in the Treasury`,

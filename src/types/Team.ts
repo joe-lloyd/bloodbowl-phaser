@@ -14,8 +14,8 @@ import {
   APOTHECARY_COST,
   ASSISTANT_COACH_COST,
   CHEERLEADER_COST,
-  TEAM_REROLL_COST,
 } from "../game/rules/sevensPrices";
+import { rerollPrice, teamDraftRules } from "../game/rules/draftRules";
 
 export type TeamAdvancementMode =
   | "matched-play"
@@ -388,7 +388,7 @@ export function playersTeamValue(team: Team): number {
 
 export function staffTeamValue(team: Team): number {
   return (
-    team.rerolls * TEAM_REROLL_COST +
+    team.rerolls * rerollPrice(teamDraftRules(team), team.rerollCost) +
     (team.apothecary ? APOTHECARY_COST : 0) +
     team.coaches * ASSISTANT_COACH_COST +
     team.cheerleaders * CHEERLEADER_COST

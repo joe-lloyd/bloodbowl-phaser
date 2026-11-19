@@ -1,4 +1,8 @@
-import { type Team, isPendingRecruit } from "../../types/Team";
+import {
+  type Team,
+  isLeagueMode,
+  isPendingRecruit,
+} from "../../types/Team";
 import {
   type Player,
   type PlayerTemplate,
@@ -6,12 +10,16 @@ import {
 } from "../../types/Player";
 import { isActiveTeam } from "./teamLifecycle";
 import { staysOnRoster } from "./leagueRoster";
+import { isBigGuy, isLinemanPosition } from "./rosterLegality";
 import {
-  MAX_NON_LINEMEN,
-  MAX_ROSTER_PLAYERS,
-  isBigGuy,
-  isLinemanPosition,
-} from "./rosterLegality";
+  type SidelineStaff,
+  dedicatedFanPrice,
+  rerollPrice,
+  staffRefusal,
+  teamDraftRules,
+  teamGameType,
+  teamGameTypeLabel,
+} from "./draftRules";
 import { freeRosterNumber, uniquePlayerId } from "./playerSlots";
 import { countInsignificant } from "./insignificant";
 import { SkillType, hasSkill } from "../../types/Skills";
@@ -22,12 +30,10 @@ import {
   APOTHECARY_COST,
   ASSISTANT_COACH_COST,
   CHEERLEADER_COST,
-  DEDICATED_FAN_COST,
   MAX_ASSISTANT_COACHES,
   MAX_CHEERLEADERS,
   MAX_DEDICATED_FANS,
   MAX_TEAM_REROLLS,
-  TEAM_REROLL_COST,
 } from "./sevensPrices";
 
 export type StaffItem =
@@ -60,75 +66,109 @@ function capped(
     : { amount };
 }
 
+function staffPrice(
+  team: Team,
+  staff: SidelineStaff,
+  count: number
+): PriceResult {
+  const refusal = staffRefusal(teamGameType(team), staff);
+  if (refusal) return { amount: null, reason: refusal };
+  switch (staff) {
+    case "apothecary":
+      return apothecaryPrice(team);
+    case "coach":
+      return capped(
+        count,
+        MAX_ASSISTANT_COACHES,
+        ASSISTANT_COACH_COST,
+        "Assistant Coaches"
+      );
+    case "cheerleader":
+      return capped(count, MAX_CHEERLEADERS, CHEERLEADER_COST, "Cheerleaders");
+  }
+}
+
+function apothecaryPrice(team: Team): PriceResult {
+  if (!getRosterByRosterName(team.rosterName).apothecary) {
+    return {
+      amount: null,
+      reason: `${team.rosterName} teams cannot hire an Apothecary.`,
+    };
+  }
+  return team.apothecary
+    ? { amount: null, reason: "A team may have only one Apothecary." }
+    : { amount: APOTHECARY_COST };
+}
+
+function dedicatedFanPurchase(team: Team): PriceResult {
+  const draft = teamDraftRules(team);
+  if (draft.dedicatedFansInLeagueOnly && !isLeagueMode(team.advancementMode)) {
+    return {
+      amount: null,
+      reason: `${teamGameTypeLabel(team)} teams buy Dedicated Fans only in a league.`,
+    };
+  }
+  return capped(
+    team.dedicatedFans,
+    MAX_DEDICATED_FANS,
+    dedicatedFanPrice(draft),
+    "Dedicated Fans"
+  );
+}
+
+function inducementPrice(team: Team, inducement: Inducement): PriceResult {
+  if (team.advancementMode !== "matched-play") {
+    return {
+      amount: null,
+      reason: "Only Matched Play teams buy inducements at the draft.",
+    };
+  }
+  if (isActiveTeam(team)) {
+    return {
+      amount: null,
+      reason: "Inducements go on the draft list only at the draft.",
+    };
+  }
+  const entry = sevensInducementCatalog(team).find(
+    (line) => line.inducement === inducement
+  );
+  if (!entry) {
+    return {
+      amount: null,
+      reason: `${team.rosterName} teams cannot buy ${inducement}.`,
+    };
+  }
+  return capped(
+    draftInducementCount(team, inducement),
+    entry.maxCount,
+    entry.price,
+    inducement
+  );
+}
+
+export function teamRerollPrice(team: Team): number {
+  return rerollPrice(teamDraftRules(team), team.rerollCost);
+}
+
 export function priceOf(team: Team, item: PriceableItem): PriceResult {
   switch (item.type) {
     case "reroll":
       return capped(
         team.rerolls,
         MAX_TEAM_REROLLS,
-        TEAM_REROLL_COST,
+        teamRerollPrice(team),
         "team re-rolls"
       );
     case "dedicated-fan":
-      return capped(
-        team.dedicatedFans,
-        MAX_DEDICATED_FANS,
-        DEDICATED_FAN_COST,
-        "Dedicated Fans"
-      );
+      return dedicatedFanPurchase(team);
     case "apothecary":
-      if (!getRosterByRosterName(team.rosterName).apothecary) {
-        return {
-          amount: null,
-          reason: `${team.rosterName} teams cannot hire an Apothecary.`,
-        };
-      }
-      return team.apothecary
-        ? { amount: null, reason: "A team may have only one Apothecary." }
-        : { amount: APOTHECARY_COST };
+      return staffPrice(team, "apothecary", team.apothecary ? 1 : 0);
     case "coach":
-      return capped(
-        team.coaches,
-        MAX_ASSISTANT_COACHES,
-        ASSISTANT_COACH_COST,
-        "Assistant Coaches"
-      );
+      return staffPrice(team, "coach", team.coaches);
     case "cheerleader":
-      return capped(
-        team.cheerleaders,
-        MAX_CHEERLEADERS,
-        CHEERLEADER_COST,
-        "Cheerleaders"
-      );
-    case "inducement": {
-      if (team.advancementMode !== "matched-play") {
-        return {
-          amount: null,
-          reason: "Only Matched Play teams buy inducements at the draft.",
-        };
-      }
-      if (isActiveTeam(team)) {
-        return {
-          amount: null,
-          reason: "Inducements go on the draft list only at the draft.",
-        };
-      }
-      const entry = sevensInducementCatalog(team).find(
-        (line) => line.inducement === item.inducement
-      );
-      if (!entry) {
-        return {
-          amount: null,
-          reason: `${team.rosterName} teams cannot buy ${item.inducement}.`,
-        };
-      }
-      return capped(
-        draftInducementCount(team, item.inducement),
-        entry.maxCount,
-        entry.price,
-        item.inducement
-      );
-    }
+      return staffPrice(team, "cheerleader", team.cheerleaders);
+    case "inducement":
+      return inducementPrice(team, item.inducement);
     case "player":
       return { amount: item.cost };
   }
@@ -190,16 +230,19 @@ export interface PositionAllowance {
   max: number;
 }
 
+function rosterSizeLimit(team: Team): number {
+  const { maxPlayers } = teamDraftRules(team);
+  return Math.min(team.maxRosterSize, maxPlayers);
+}
+
 export function positionAllowance(
   team: Team,
   template: PlayerTemplate
 ): PositionAllowance {
-  const rosterLimit = Math.min(
-    team.maxRosterSize ?? MAX_ROSTER_PLAYERS,
-    MAX_ROSTER_PLAYERS
-  );
+  const rosterLimit = rosterSizeLimit(team);
   const caps = [template.maxAllowed ?? rosterLimit, rosterLimit];
-  if (!isLinemanPosition(template.keywords)) caps.push(MAX_NON_LINEMEN);
+  if (!isLinemanPosition(template.keywords))
+    caps.push(teamDraftRules(team).maxNonLinemen);
   return {
     hired: draftListPlayers(team).filter(
       (player) => player.positionName === template.positionName
@@ -217,18 +260,16 @@ export function hireRefusal(
   const listed = draftListPlayers(team).filter(
     (player) => player.id !== joiningPlayerId
   );
-  const limit = Math.min(
-    team.maxRosterSize ?? MAX_ROSTER_PLAYERS,
-    MAX_ROSTER_PLAYERS
-  );
+  const limit = rosterSizeLimit(team);
+  const label = teamGameTypeLabel(team);
   if (listed.length >= limit) {
-    return `A Sevens team may have at most ${String(limit)} permanently hired players.`;
+    return `A ${label} team may have at most ${String(limit)} permanently hired players.`;
   }
   if (
     joiningPlayerId === undefined &&
     team.players.filter((player) => staysOnRoster(team, player)).length >= limit
   ) {
-    return `A Sevens team may have at most ${String(limit)} players, counting a Journeyman or recruit still waiting on a hiring decision.`;
+    return `A ${label} team may have at most ${String(limit)} players, counting a Journeyman or recruit still waiting on a hiring decision.`;
   }
   if (!isActiveTeam(team)) return undefined;
   return compositionRefusal(team, template, listed);
@@ -253,12 +294,13 @@ function compositionRefusal(
   ) {
     return `${team.rosterName} teams may have at most ${String(maxBigGuys)} Big Guy${maxBigGuys === 1 ? "" : "s"}.`;
   }
+  const { maxNonLinemen } = teamDraftRules(team);
   if (
     !isLinemanPosition(template.keywords) &&
     listed.filter((player) => !isLinemanPosition(player.keywords)).length >=
-      MAX_NON_LINEMEN
+      maxNonLinemen
   ) {
-    return `A Sevens team may have at most ${String(MAX_NON_LINEMEN)} players without the Lineman keyword.`;
+    return `A ${teamGameTypeLabel(team)} team may have at most ${String(maxNonLinemen)} players without the Lineman keyword.`;
   }
   const insignificant = countInsignificant(listed);
   if (
