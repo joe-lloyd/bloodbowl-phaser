@@ -55,6 +55,14 @@ export function inviteId(invite: Invite): string {
   return `${invite.kind}__${invite.fromUid}__${invite.toUid}`;
 }
 
+export function sameInvite(stored: Invite, answered: Invite): boolean {
+  return (
+    inviteId(stored) === inviteId(answered) &&
+    stored.code === answered.code &&
+    stored.createdAt === answered.createdAt
+  );
+}
+
 export function inviteIsFresh(invite: Invite, now: number): boolean {
   return now - invite.createdAt < MATCH_INVITE_LIFETIME_MS;
 }

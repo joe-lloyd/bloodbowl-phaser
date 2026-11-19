@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import { readEach } from "../boundary/readEach";
 import { type Invite, readInvite } from "../boundary/social";
-import { inviteId } from "../social/friends";
+import { inviteId, sameInvite } from "../social/friends";
 import { getDb } from "./config";
 import { resolveCoachName } from "./coaches";
 import {
@@ -85,7 +85,7 @@ export async function dismissInvite(invite: Invite): Promise<void> {
   await runTransaction(getDb(), async (tx) => {
     const snapshot = await tx.get(ref);
     if (!snapshot.exists()) return;
-    if (readInvite(snapshot.data()).createdAt === invite.createdAt) tx.delete(ref);
+    if (sameInvite(readInvite(snapshot.data()), invite)) tx.delete(ref);
   });
 }
 

@@ -308,6 +308,27 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       await as(bob, () => dismissInvite(answered));
     });
 
+    it("is cleared without touching a replacement sent in the same millisecond", async () => {
+      const [alice, bob] = await friends();
+      const now = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+      try {
+        await as(alice, () => sendMatchInvite({ fromUid: alice, toUid: bob, code: "FIRST1" }));
+        const answered = (
+          await getDocs(query(collection(dbFor(bob), "invites"), where("toUid", "==", bob)))
+        ).docs.map((entry) => readInvite(entry.data()))[0];
+        if (!answered) throw new Error("no invite");
+        await as(alice, () => sendMatchInvite({ fromUid: alice, toUid: bob, code: "SECOND" }));
+
+        await as(bob, () => dismissInvite(answered));
+      } finally {
+        now.mockRestore();
+      }
+      const left = await getDocs(query(collection(dbFor(bob), "invites"), where("toUid", "==", bob)));
+      expect(left.docs.map((entry) => readInvite(entry.data()))).toEqual([
+        expect.objectContaining({ code: "SECOND", createdAt: 1_700_000_000_000 }),
+      ]);
+    });
+
     it("goes only to friends, and only the two coaches can see it", async () => {
       const [alice, bob] = await friends();
       const carol = uniqueUid("carol");
