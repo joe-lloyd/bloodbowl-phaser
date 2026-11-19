@@ -1,0 +1,128 @@
+import {
+  doc,
+  getDoc,
+  onSnapshot,
+  runTransaction,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { firebaseProfile } from "../boundary/firebaseJson";
+import {
+  type CoachProfile,
+  FRIEND_CODE_ALPHABET,
+  FRIEND_CODE_LENGTH,
+  type FriendCode,
+  parseFriendCode,
+  readCoachProfile,
+  readFriendCodeOwner,
+} from "../boundary/social";
+import { getDb } from "./config";
+
+function coachRef(uid: string) {
+  return doc(getDb(), "coaches", uid);
+}
+
+function friendCodeRef(code: FriendCode) {
+  return doc(getDb(), "friendCodes", code);
+}
+
+export function defaultCoachName(uid: string): string {
+  return `Coach-${uid.slice(0, 4).toUpperCase()}`;
+}
+
+function randomFriendCode(): FriendCode {
+  const letters = crypto.getRandomValues(new Uint8Array(FRIEND_CODE_LENGTH));
+  const code = parseFriendCode(
+    [...letters]
+      .map((byte) =>
+        FRIEND_CODE_ALPHABET.charAt(byte % FRIEND_CODE_ALPHABET.length)
+      )
+      .join("")
+  );
+  if (!code) throw new Error("A generated friend code was malformed.");
+  return code;
+}
+
+async function claimFriendCode(uid: string): Promise<FriendCode> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = randomFriendCode();
+    const claimed = await runTransaction(getDb(), async (tx) => {
+      if ((await tx.get(friendCodeRef(code))).exists()) return false;
+      tx.set(friendCodeRef(code), { uid });
+      return true;
+    });
+    if (claimed) return code;
+  }
+  throw new Error("Could not find a free friend code. Try again.");
+}
+
+async function legacyCoachName(uid: string): Promise<string | undefined> {
+  const snapshot = await getDoc(doc(getDb(), "users", uid));
+  if (!snapshot.exists()) return undefined;
+  const name = firebaseProfile(snapshot.data()).coachName?.trim();
+  return name === "" ? undefined : name;
+}
+
+export async function getCoachProfile(
+  uid: string
+): Promise<CoachProfile | null> {
+  const snapshot = await getDoc(coachRef(uid));
+  return snapshot.exists() ? readCoachProfile(snapshot.data()) : null;
+}
+
+export async function ensureCoachProfile(uid: string): Promise<CoachProfile> {
+  const existing = await getCoachProfile(uid);
+  if (existing) {
+    await touchPresence(uid);
+    return existing;
+  }
+  const coachName = await legacyCoachName(uid);
+  const profile: CoachProfile = {
+    uid,
+    friendCode: await claimFriendCode(uid),
+    lastSeen: Date.now(),
+    ...(coachName === undefined ? {} : { coachName }),
+  };
+  await setDoc(coachRef(uid), profile);
+  return profile;
+}
+
+export async function touchPresence(uid: string): Promise<void> {
+  await updateDoc(coachRef(uid), { lastSeen: Date.now() });
+}
+
+export async function getCoachName(uid: string): Promise<string | null> {
+  const name =
+    (await getCoachProfile(uid))?.coachName ?? (await legacyCoachName(uid));
+  return name?.trim() ? name : null;
+}
+
+export async function resolveCoachName(uid: string): Promise<string> {
+  return (await getCoachName(uid)) ?? defaultCoachName(uid);
+}
+
+export function displayName(profile: CoachProfile | null | undefined): string {
+  if (!profile) return "A coach";
+  return profile.coachName ?? defaultCoachName(profile.uid);
+}
+
+export async function setCoachName(uid: string, name: string): Promise<void> {
+  await ensureCoachProfile(uid);
+  await updateDoc(coachRef(uid), { coachName: name.trim() });
+}
+
+export async function findCoachByFriendCode(
+  code: FriendCode
+): Promise<string | null> {
+  const snapshot = await getDoc(friendCodeRef(code));
+  return snapshot.exists() ? readFriendCodeOwner(snapshot.data()) : null;
+}
+
+export function subscribeCoachProfile(
+  uid: string,
+  onChange: (profile: CoachProfile | null) => void
+): () => void {
+  return onSnapshot(coachRef(uid), (snapshot) => {
+    onChange(snapshot.exists() ? readCoachProfile(snapshot.data()) : null);
+  });
+}

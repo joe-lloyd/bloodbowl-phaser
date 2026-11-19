@@ -3,7 +3,7 @@ import {
   getCoachName,
   setCoachName as saveCoachName,
   defaultCoachName,
-} from "../../firebase/lobby";
+} from "../../firebase/coaches";
 import { type AuthUser } from "../../firebase/auth";
 
 export interface UseCoachProfile {

@@ -6,7 +6,8 @@ import {
 } from "firebase/auth";
 import { collection, doc, getDocs, setDoc } from "firebase/firestore";
 import { getDb, getFirebaseAuth, isFirebaseConfigured } from "./config";
-import { fetchLobby, setCoachName } from "./lobby";
+import { fetchLobby } from "./lobby";
+import { setCoachName } from "./coaches";
 
 interface HouseBotLogin {
   email: string;
