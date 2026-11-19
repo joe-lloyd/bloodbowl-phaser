@@ -84,7 +84,7 @@ export class Pitch {
   private drawTrapdoors(): void {
     const graphics = this.scene.add.graphics();
     graphics.setName("pitch_trapdoors");
-    for (const square of TRAPDOOR_SQUARES) {
+    for (const square of TRAPDOOR_SQUARES.squares) {
       if (!this.isOnPitch(square)) continue;
       const corners = squareCorners(square.x, square.y, 0.14).map(
         (p) => new Phaser.Math.Vector2(p.x, p.y)

@@ -1,5 +1,50 @@
 import { type Formation, type FormationPosition } from "../../types/SetupTypes";
-import { getLineOfScrimmageX, SEVENS_GEOMETRY } from "../../config/GameConfig";
+import {
+  getLineOfScrimmageX,
+  getSevensSetupZone,
+  SEVENS_GEOMETRY,
+} from "../../config/GameConfig";
+import { activeLayout } from "../variants/activeMatch";
+import { isPlayableSquare } from "../variants/pitchLayouts";
+
+const squareKey = (x: number, y: number) => `${String(x)},${String(y)}`;
+
+function nearestFreeSquare(
+  wanted: FormationPosition,
+  taken: Set<string>,
+  isTeam1: boolean
+): { x: number; y: number } {
+  const layout = activeLayout();
+  const zone = getSevensSetupZone(isTeam1);
+  const free = (x: number, y: number) =>
+    x >= zone.minX &&
+    x <= zone.maxX &&
+    isPlayableSquare(layout, { x, y }) &&
+    !taken.has(squareKey(x, y));
+  for (let reach = 0; reach < layout.cols; reach++) {
+    for (let dx = -reach; dx <= reach; dx++) {
+      for (let dy = -reach; dy <= reach; dy++) {
+        const x = wanted.x + dx;
+        const y = wanted.y + dy;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) === reach && free(x, y))
+          return { x, y };
+      }
+    }
+  }
+  return wanted;
+}
+
+function settleFormation(
+  positions: FormationPosition[],
+  isTeam1: boolean
+): FormationPosition[] {
+  const taken = new Set<string>();
+  return positions.map((position) => {
+    const square = nearestFreeSquare(position, taken, isTeam1);
+    taken.add(squareKey(square.x, square.y));
+    return { ...position, ...square };
+  });
+}
 
 export interface FormationEntry {
   name: string;
@@ -15,49 +60,49 @@ export class FormationManager {
   ): { name: string; positions: FormationPosition[] }[] {
     const los = getLineOfScrimmageX(isTeam1);
     const depth = (n: number) => (isTeam1 ? los - n : los + n);
-    const at = (index: number, x: number, y: number): FormationPosition => ({
-      playerId: String(index),
-      x,
-      y,
+    const { rows, centreRows } = activeLayout();
+    const mid = Math.floor(rows / 2);
+    const inCentre = (y: number) =>
+      Math.min(centreRows.max, Math.max(centreRows.min, y));
+    const shape = (
+      name: string,
+      squares: readonly (readonly [number, number])[]
+    ) => ({
+      name,
+      positions: settleFormation(
+        squares.map(([x, y], index) => ({ playerId: String(index), x, y })),
+        isTeam1
+      ),
     });
 
     return [
-      {
-        name: "Balanced",
-        positions: [
-          at(0, los, 4),
-          at(1, los, 5),
-          at(2, los, 6),
-          at(3, depth(2), 2),
-          at(4, depth(2), 8),
-          at(5, depth(4), 4),
-          at(6, depth(4), 6),
-        ],
-      },
-      {
-        name: "Spread",
-        positions: [
-          at(0, los, 3),
-          at(1, los, 5),
-          at(2, los, 7),
-          at(3, depth(2), 0),
-          at(4, depth(2), 10),
-          at(5, depth(4), 2),
-          at(6, depth(4), 8),
-        ],
-      },
-      {
-        name: "Bunker",
-        positions: [
-          at(0, los, 4),
-          at(1, los, 5),
-          at(2, los, 6),
-          at(3, depth(1), 4),
-          at(4, depth(1), 6),
-          at(5, depth(2), 5),
-          at(6, depth(4), 5),
-        ],
-      },
+      shape("Balanced", [
+        [los, mid - 1],
+        [los, mid],
+        [los, mid + 1],
+        [depth(2), centreRows.min],
+        [depth(2), centreRows.max],
+        [depth(4), mid - 1],
+        [depth(4), mid + 1],
+      ]),
+      shape("Spread", [
+        [los, inCentre(mid - 2)],
+        [los, mid],
+        [los, inCentre(mid + 2)],
+        [depth(2), 0],
+        [depth(2), rows - 1],
+        [depth(4), centreRows.min],
+        [depth(4), centreRows.max],
+      ]),
+      shape("Bunker", [
+        [los, mid - 1],
+        [los, mid],
+        [los, mid + 1],
+        [depth(1), mid - 1],
+        [depth(1), mid + 1],
+        [depth(2), mid],
+        [depth(4), mid],
+      ]),
     ];
   }
 
@@ -151,17 +196,22 @@ export class FormationManager {
     const backX = isTeam1
       ? Math.max(SEVENS_GEOMETRY.END_ZONE_X.team1, losX - 3)
       : Math.min(SEVENS_GEOMETRY.END_ZONE_X.team2, losX + 3);
+    const { rows, centreRows, wideZoneRows } = activeLayout();
+    const mid = Math.floor(rows / 2);
 
-    return [
-      { playerId: "0", x: losX, y: 4 },
-      { playerId: "1", x: losX, y: SEVENS_GEOMETRY.CENTRE_FIELD_ROWS.min },
-      { playerId: "2", x: losX, y: 6 },
+    return settleFormation(
+      [
+        { playerId: "0", x: losX, y: mid - 1 },
+        { playerId: "1", x: losX, y: centreRows.min },
+        { playerId: "2", x: losX, y: mid + 1 },
 
-      { playerId: "3", x: losX, y: 5 },
-      { playerId: "4", x: backX, y: 1 },
-      { playerId: "5", x: backX, y: 9 },
-      { playerId: "6", x: losX - (isTeam1 ? 1 : -1), y: 5 },
-    ];
+        { playerId: "3", x: losX, y: mid },
+        { playerId: "4", x: backX, y: wideZoneRows.top.max },
+        { playerId: "5", x: backX, y: wideZoneRows.bottom.min },
+        { playerId: "6", x: losX - (isTeam1 ? 1 : -1), y: mid },
+      ],
+      isTeam1
+    );
   }
 
   clearFormations(teamId: string): void {

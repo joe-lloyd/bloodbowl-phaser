@@ -1,3 +1,4 @@
+import { readGameType } from "../game/variants/gameTypes";
 import {
   readCompetition,
   readCompetitions,
@@ -66,6 +67,17 @@ function assertRulesetKept(
   }
 }
 
+function assertGameTypeKept(
+  before: CompetitionDoc["gameType"],
+  after: CompetitionDoc
+): void {
+  if (readGameType(before) !== readGameType(after.gameType)) {
+    throw new Error(
+      "The game type cannot change during a tournament or league season."
+    );
+  }
+}
+
 export async function saveCompetition(
   competition: CompetitionDoc
 ): Promise<void> {
@@ -79,6 +91,7 @@ export async function saveCompetition(
   const store = readLocal();
   const before = store[storageKey(competition.type, competition.id)];
   if (before) assertRulesetKept(before.ruleset, competition);
+  if (before) assertGameTypeKept(before.gameType, competition);
   store[storageKey(competition.type, competition.id)] =
     structuredClone(competition);
   writeLocal(store);
@@ -140,10 +153,11 @@ export async function updateCompetition(
       if (!snapshot.exists()) return null;
       foundRemote = true;
       const latest = normalizeCompetition(readCompetition(snapshot.data()));
-      const ruleset = latest.ruleset;
+      const { ruleset, gameType } = latest;
       const next = change(latest);
       if (!next) return latest;
       assertRulesetKept(ruleset, next);
+      assertGameTypeKept(gameType, next);
       tx.set(ref, firebaseDocument(next));
       return next;
     }).catch((reason: unknown) => {
@@ -156,10 +170,11 @@ export async function updateCompetition(
   }
   const latest = normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
   if (!latest) throw new Error("Competition not found.");
-  const ruleset = latest.ruleset;
+  const { ruleset, gameType } = latest;
   const next = change(latest);
   if (!next) return latest;
   assertRulesetKept(ruleset, next);
+  assertGameTypeKept(gameType, next);
   const store = readLocal();
   store[storageKey(type, id)] = structuredClone(next);
   writeLocal(store);
@@ -207,5 +222,6 @@ function normalizeCompetition(competition: CompetitionDoc): CompetitionDoc {
   )
     repairBracketLinkage(competition.fixtures);
   if (competition.ruleset !== undefined) readSevensRuleset(competition.ruleset);
+  if (competition.gameType !== undefined) readGameType(competition.gameType);
   return withResultsFromFixtures(competition);
 }

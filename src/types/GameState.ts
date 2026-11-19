@@ -80,6 +80,10 @@ export interface GameState {
   knockout?: boolean;
 
   paysWinnings?: boolean;
+
+  gameType?: import("../game/variants/gameTypes").GameType;
+
+  venue?: import("../game/variants/pitchLayouts").Venue;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {

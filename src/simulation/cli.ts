@@ -1,3 +1,4 @@
+import { GAME_TYPES, isGameType } from "../game/variants/gameTypes";
 import * as os from "node:os";
 import * as path from "node:path";
 import { RosterName } from "../types/Team";
@@ -99,6 +100,12 @@ function parseRunOptions(argv: string[]): RunOptions {
         (o.concurrency = Math.max(1, Number(value()))),
       "--strict": (o) => (o.strict = true),
       "--html": (o) => (o.html = true),
+      "--game-type": (o, value) => {
+        const gameType = value();
+        if (!isGameType(gameType))
+          fail(`--game-type ${GAME_TYPES.join(" | ")}`);
+        o.gameType = gameType;
+      },
     },
     HELP
   );
@@ -121,6 +128,7 @@ const HELP = `Usage: pnpm sim [options]
   --record <mode>      all | failures | none (default failures)
   --concurrency <n>    matches in flight at once; useful with jev (default 1)
   --strict             also fail on rejected-candidate findings
+  --game-type <type>   sevens | gutter-bowl | street-bowl | beach-bowl
   --html               write a playback page per recorded match and an
                        index.html (records every match unless --record says otherwise)
 jev needs TYPESAFE_API_KEY in the environment.`;

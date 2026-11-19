@@ -1,3 +1,5 @@
+import { activeLayout, activeRules } from "../variants/activeMatch";
+import { obstacleAt } from "../variants/pitchLayouts";
 import {
   getLineOfScrimmageX,
   getSevensSetupZone,
@@ -29,17 +31,18 @@ interface FormationInput {
 export class SetupValidator {
   private config: Required<SetupConfig>;
 
-  constructor(
-    config: SetupConfig = {
-      minPlayers: 7,
-      maxPlayers: 7,
-      pitchWidth: 20,
-      pitchHeight: 11,
-    }
-  ) {
+  constructor(config?: SetupConfig) {
+    const layout = activeLayout();
+    const { maxOnPitch } = activeRules().setup;
+    const resolved = config ?? {
+      minPlayers: maxOnPitch,
+      maxPlayers: maxOnPitch,
+      pitchWidth: layout.cols,
+      pitchHeight: layout.rows,
+    };
     this.config = {
-      ...config,
-      maxPlayers: config.maxPlayers ?? config.minPlayers,
+      ...resolved,
+      maxPlayers: resolved.maxPlayers ?? resolved.minPlayers,
     };
   }
 
@@ -48,7 +51,8 @@ export class SetupValidator {
       x < 0 ||
       x >= this.config.pitchWidth ||
       y < 0 ||
-      y >= this.config.pitchHeight
+      y >= this.config.pitchHeight ||
+      obstacleAt(activeLayout(), { x, y })
     ) {
       return false;
     }
@@ -99,7 +103,7 @@ export class SetupValidator {
     const restrictions = full.restrictions.filter((rule) =>
       placementIds.has(rule.id)
     );
-    if (availablePlayerCount < 3) {
+    if (availablePlayerCount < activeRules().setup.minOnLineOfScrimmage) {
       restrictions.push({
         id: "short-handed-line",
         satisfied: this.isOnCentreLineOfScrimmage(
@@ -161,6 +165,8 @@ export class SetupValidator {
         onCentreLos,
         inNeutralZone,
         inSetupArea,
+        minOnLos: activeRules().setup.minOnLineOfScrimmage,
+        maxPerWideZone: activeRules().setup.maxPerWideZone,
       })
     );
   }

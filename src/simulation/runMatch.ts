@@ -1,3 +1,6 @@
+import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
+import { gameTypeRules } from "../game/variants/gameTypeRules";
+import type { MatchFormat } from "../game/variants/activeMatch";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import { stabilizeIds } from "../headless/createHeadlessGame";
 import {
@@ -196,6 +199,8 @@ export interface MatchSpec {
   inducements?: boolean;
 
   game?: HeadlessGame;
+
+  gameType?: GameType;
 }
 
 const DEFAULT_MAX_COMMANDS = 6000;
@@ -204,7 +209,8 @@ export function createSimGame(
   seed: number,
   rosters: [RosterName, RosterName],
   rerolls: number,
-  lineup: Lineup = "test-team"
+  lineup: Lineup = "test-team",
+  gameType: GameType = DEFAULT_GAME_TYPE
 ): HeadlessGame {
   const build =
     lineup === "sevens-lineup" ? createLineupTeam : TeamFactory.createTestTeam;
@@ -217,7 +223,13 @@ export function createSimGame(
     team1,
     team2,
     startingPhase: GamePhase.SETUP,
+    format: seededFormat(gameType, seed),
   });
+}
+
+function seededFormat(gameType: GameType, seed: number): MatchFormat {
+  const { venues } = gameTypeRules(gameType);
+  return { gameType, venue: venues[Math.abs(seed) % venues.length] ?? venues[0] };
 }
 
 export async function grantSimInducements(game: HeadlessGame): Promise<void> {
@@ -324,7 +336,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   const { rerolls, coachSeed, maxCommands, inducements } = matchSettings(spec);
   const game =
     spec.game ??
-    createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup");
+    createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup", spec.gameType);
   if (inducements) await grantSimInducements(game);
   const rng = createCoachRng(coachSeed);
   const steps: RecordedStep[] = [];

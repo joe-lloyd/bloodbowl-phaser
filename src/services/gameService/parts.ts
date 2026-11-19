@@ -1,3 +1,4 @@
+import { activateMatchFormat, formatOf } from "@/game/variants/activeMatch";
 import type { GameService } from "../GameService";
 import { type IEventBus } from "../EventBus.js";
 import { type IRNGService } from "../rng/RNGService.js";
@@ -122,6 +123,7 @@ function createCore({
   delay,
 }: PartOptions) {
   const state = initialState ?? createInitialState({ team1, team2 });
+  activateMatchFormat(formatOf(state));
 
   if (!initialState) {
     SetupManager.sanitizeTeam(team1);

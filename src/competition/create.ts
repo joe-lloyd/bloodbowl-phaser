@@ -1,3 +1,8 @@
+import {
+  DEFAULT_GAME_TYPE,
+  readGameType,
+  type GameType,
+} from "../game/variants/gameTypes";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { loadTeams, saveTeams } from "../game/managers/TeamManager";
 import { validateInsignificant } from "../game/rules/insignificant";
@@ -42,6 +47,7 @@ function entrantCoach(team: Team): Pick<CompetitionEntrant, "coachName"> {
 
 export interface NewCompetition {
   ruleset?: SevensRuleset;
+  gameType?: GameType;
   type: CompetitionType;
   name: string;
 
@@ -60,6 +66,7 @@ export async function createCompetition(
   if (!name) throw new Error("Give the competition a name.");
   if (input.entrants.length < 2) throw new Error("Select at least two teams.");
   const ruleset = readSevensRuleset(input.ruleset);
+  const gameType = readGameType(input.gameType);
 
   const taken = new Set(
     input.entrants.flatMap((choice) =>
@@ -133,6 +140,7 @@ export async function createCompetition(
       : generateSingleElimination(entrants);
   const base = {
     ruleset,
+    ...(gameType === DEFAULT_GAME_TYPE ? {} : { gameType }),
     id,
     name,
     organizerUid: input.organizerUid,

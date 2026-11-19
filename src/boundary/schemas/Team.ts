@@ -1,3 +1,4 @@
+import { gameTypeSchema } from "./GameType";
 import { z } from "zod";
 import { rosterNameSchema } from "./RosterName";
 import { teamColorsSchema } from "./TeamColors";
@@ -42,6 +43,7 @@ export const teamSchema: z.ZodType<Team> = z.looseObject({
   seedMetadata: seedMetadataSchema.exactOptional(),
   activeCompetitionId: z.string().exactOptional(),
   draftRuleset: sevensRulesetSchema.exactOptional(),
+  gameType: gameTypeSchema.exactOptional(),
   recordedFixtureIds: z.string().array().exactOptional(),
   playedGames: playedGameSchema.array().exactOptional(),
   advancementMode: teamAdvancementModeSchema.exactOptional(),

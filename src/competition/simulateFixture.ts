@@ -115,6 +115,9 @@ function fixtureContext(
 ): CompetitionContext {
   return {
     ruleset: competition.ruleset ?? DEFAULT_SEVENS_RULESET,
+    ...(competition.gameType === undefined
+      ? {}
+      : { gameType: competition.gameType }),
     competitionType: competition.type,
     competitionId: competition.id,
     fixtureId,
