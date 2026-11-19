@@ -63,6 +63,20 @@ describe("Firebase data boundaries", () => {
       },
     ]);
   });
+  it("ignores the standings, status and champion a coach wrote, which reads derive from fixtures", () => {
+    const parsed = readCompetition({
+      ...legacyLeague(),
+      status: "complete",
+      standings: [{ entrantId: "entry", points: 99 }],
+      championEntrantId: 7,
+    });
+    expect(parsed.status).toBe("active");
+    expect(parsed.standings).toEqual([]);
+    expect("championEntrantId" in parsed).toBe(false);
+  });
+  it("keeps a draft competition a draft", () => {
+    expect(readCompetition({ ...legacyLeague(), status: "draft" }).status).toBe("draft");
+  });
   it("rejects malformed nested competition points", () => {
     expect(() =>
       readCompetition({

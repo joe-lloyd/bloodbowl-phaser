@@ -8,6 +8,7 @@ const legacyEntrantSchema = z.looseObject({
 });
 const rawCompetitionSchema = z.looseObject({
   entrants: legacyEntrantSchema.array(),
+  status: z.unknown(),
 });
 const localStoreSchema = z
   .record(z.string(), z.unknown())
@@ -24,7 +25,10 @@ export function readCompetition(value: unknown) {
     Reflect.deleteProperty(result, "team");
     return result;
   });
-  return competitionDocSchema.parse({ ...raw, entrants });
+  const status = raw.status === "draft" ? "draft" : "active";
+  const derived = { ...raw, entrants, status, standings: [] };
+  Reflect.deleteProperty(derived, "championEntrantId");
+  return competitionDocSchema.parse(derived);
 }
 
 export function readCompetitionStore(text: string) {
