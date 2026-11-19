@@ -64,9 +64,8 @@ export function targetValue(
       : near === 1
         ? w.cageBreak
         : 0;
-  const knockdown = carrier && near > 2 ? w.knockdown * w.farHit : w.knockdown;
   return (
-    knockdown +
+    w.knockdown +
     bonus +
     target.stats.ST +
     casualtyChance(attacker, target) * c.casualty
@@ -231,150 +230,81 @@ export function blitzActivations(c: Context, player: Player): Activation[] {
   });
 }
 
-type Hit = Activation & { intent: { kind: "block" | "blitz" } };
-
-function isHit(a: Activation): a is Hit {
-  return a.intent.kind === "block" || a.intent.kind === "blitz";
-}
-
-/** The most valuable block or blitz on each opponent. */
-function bestHits(hits: Activation[]): Hit[] {
-  const best = new Map<string, Hit>();
+/** The most valuable block or blitz aimed at `carrier`, or null. */
+function bestHitOn(hits: Activation[], carrier: Player): Activation | null {
+  let hit: Activation | null = null;
   for (const a of hits) {
-    if (!isHit(a)) continue;
-    const held = best.get(a.intent.target.id);
-    if (!held || a.value > held.value) best.set(a.intent.target.id, a);
+    const aimed =
+      a.intent.kind === "block" || a.intent.kind === "blitz"
+        ? a.intent.target.id === carrier.id
+        : false;
+    if (aimed && (!hit || a.value > hit.value)) hit = a;
   }
-  return [...best.values()];
+  return hit;
 }
 
-/** What a hit's dice are worth: a knockdown, less the attacker falling. */
-interface Stakes {
-  knockdown: number;
-  fall: number;
-}
-
-/** The square beside the target where `player` adds most to the hit. */
+/** The square beside the carrier where `player` adds most to the hit. */
 function assistRoute(
   c: Context,
   player: Player,
   hit: { player: Player; from: Square; before: BlockOdds },
-  target: Player,
-  stakes: Stakes
+  carrier: Player
 ): { route: Route; gain: number } | null {
   const { board, w } = c;
   const { from, before } = hit;
   const routes = c.plainRoutes(player);
   let best: { route: Route; gain: number } | null = null;
-  for (const at of neighbours(target.gridPosition!)) {
+  for (const at of neighbours(carrier.gridPosition!)) {
     if (board.marks[key(at)] !== 1 || (at.x === from.x && at.y === from.y))
       continue;
     const route = routes.get(key(at));
     if (!route || route.chance < w.safeMove) continue;
-    const odds = blockFrom(c, hit.player, target, from, { player, at });
+    const odds = blockFrom(c, hit.player, carrier, from, { player, at });
     const gain =
-      (odds.knockdown - before.knockdown) * stakes.knockdown +
-      (before.attackerDown - odds.attackerDown) * stakes.fall;
+      (odds.knockdown - before.knockdown) * w.carrierKnockdown +
+      (before.attackerDown - odds.attackerDown) * c.turnover;
     if (gain > (best?.gain ?? 0)) best = { route, gain };
   }
   return best;
 }
 
 /**
- * How much `player` moving in to assist `hit` is worth, or null. On their
- * carrier every die counts; on anyone else, scaled by `assistAll`, the
- * gain must beat the helper's own best hit, which it gives up by moving.
+ * Free moves that give the best hit on their carrier a better die, made
+ * before it is thrown. A square beside the carrier only assists if nobody
+ * else marks it.
  */
-function assistValue(
+export function assistActivations(
   c: Context,
-  player: Player,
-  hit: Hit,
-  own: number
-): { route: Route; value: number } | null {
-  const { board, w } = c;
-  const target = hit.intent.target;
-  const onCarrier = carrierOf(board)?.id === target.id;
+  hits: Activation[]
+): Activation[] {
+  const { board } = c;
+  const carrier = carrierOf(board);
+  if (!carrier || carrier.teamId === board.us) return [];
+  const hit = bestHitOn(hits, carrier);
+  if (!hit || (hit.intent.kind !== "block" && hit.intent.kind !== "blitz"))
+    return [];
   const from =
     (hit.intent.kind === "blitz" ? hit.intent.route?.to : null) ??
     hit.player.gridPosition!;
   const thrown = {
     player: hit.player,
     from,
-    before: blockFrom(c, hit.player, target, from),
+    before: blockFrom(c, hit.player, carrier, from),
   };
-  const stakes = onCarrier
-    ? { knockdown: w.carrierKnockdown, fall: c.turnover }
-    : {
-        knockdown: targetValue(c, hit.player, target),
-        fall: c.turnover + w.ownDown,
-      };
-  const best = assistRoute(c, player, thrown, target, stakes);
-  if (!best) return null;
-  const gain = onCarrier ? best.gain : best.gain * w.assistAll - own;
-  if (gain <= 0) return null;
-  return {
-    route: best.route,
-    value: gamble(c, best.route.chance, hit.value + gain),
-  };
-}
-
-/** The hit `player` adds most to by moving in to assist it, if any. */
-function bestAssist(
-  c: Context,
-  player: Player,
-  aimed: Hit[],
-  hits: Activation[]
-): { route: Route; value: number } | null {
-  const own = Math.max(
-    0,
-    ...hits
-      .filter((a) => isHit(a) && a.player.id === player.id)
-      .map((a) => a.value)
-  );
-  let best: { route: Route; value: number } | null = null;
-  for (const hit of aimed) {
-    if (hit.player.id === player.id) continue;
-    const assist = assistValue(c, player, hit, own);
-    if (assist && assist.value > (best?.value ?? 0)) best = assist;
+  const out: Activation[] = [];
+  for (const player of board.ours) {
+    if (player.id === hit.player.id || !c.available.get(player.id)?.has("move"))
+      continue;
+    const best = assistRoute(c, player, thrown, carrier);
+    if (best)
+      out.push({
+        player,
+        action: "move",
+        intent: { kind: "reposition", role: "mark", route: best.route },
+        tier: "assist",
+        value: gamble(c, best.route.chance, hit.value + best.gain),
+        rolls: best.route.rolls,
+      });
   }
-  return best;
-}
-
-/**
- * Free moves that give a hit a better die, made before it is thrown: the
- * best hit on their carrier and, with `assistAll` above 0, the best hit
- * on every other opponent. A square beside the target only assists if
- * nobody else marks it.
- */
-export function assistActivations(
-  c: Context,
-  hits: Activation[]
-): Activation[] {
-  const { board, w } = c;
-  const carrier = carrierOf(board);
-  const theirs = carrier && carrier.teamId !== board.us ? carrier : null;
-  const aimed = bestHits(hits).filter(
-    (h) => h.intent.target.id === theirs?.id || w.assistAll > 0
-  );
-  if (!aimed.length) return [];
-  return board.ours.flatMap((player) => {
-    if (!c.available.get(player.id)?.has("move")) return [];
-    const best = bestAssist(c, player, aimed, hits);
-    return best
-      ? [
-          {
-            player,
-            action: "move" as const,
-            intent: {
-              kind: "reposition" as const,
-              role: "mark" as const,
-              route: best.route,
-            },
-            tier: "assist" as const,
-            value: best.value,
-            rolls: best.route.rolls,
-          },
-        ]
-      : [];
-  });
+  return out;
 }

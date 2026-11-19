@@ -71,23 +71,11 @@ export const DEFAULT_WEIGHTS = {
   markCarrier: 16,
   /** More for a square beside the carrier that would give an assist. */
   assist: 8,
-  /**
-   * Above 0, a free player also moves in to assist the best hit on any
-   * opponent, by this share of what the assist adds, when that beats its
-   * own best hit. 0 assists only hits on their carrier.
-   */
-  assistAll: 0,
   /** Stand between the opposing carrier and our end zone. */
   screen: 9,
   /** Get next to a loose ball. */
   chase: 11,
   knockdown: 12,
-  /**
-   * Scales `knockdown` for a hit more than two squares from the ball
-   * carrier, of either team, where a knockdown changes nothing about the
-   * drive. 1 counts it like any other hit.
-   */
-  farHit: 1,
   carrierKnockdown: 75,
   /**
    * Per casualty a knockdown is expected to cause, for a team paid the

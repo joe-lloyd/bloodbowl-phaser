@@ -358,66 +358,6 @@ describe("blocks that open the way for our carrier", () => {
   });
 });
 
-describe("assists for every block", () => {
-  // Our Block player at (8,5) can hit a defender at (9,5) on one die. Their
-  // carrier is out of reach at (19,1), and a team-mate far away has used
-  // the team's blitz. A free team-mate at (8,8) can reach a square beside
-  // the defender that nobody else marks.
-  async function diceOfFirstBlock(coach: Coach) {
-    const subject = game({
-      turn: 3,
-      team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, skills: [SkillType.BLOCK] },
-        { playerIndex: 1, x: 8, y: 8, stats: { MA: 6 } },
-        { playerIndex: 2, x: 1, y: 9 },
-      ],
-      team2Placements: [
-        { playerIndex: 0, x: 19, y: 1, hasBall: true },
-        { playerIndex: 1, x: 9, y: 5 },
-      ],
-    });
-    const [, helper, blitzer] = subject.ctx.team1.players;
-    await subject.execute({
-      type: "declare-action",
-      playerId: blitzer.id,
-      action: "blitz",
-    });
-    await subject.execute({ type: "end-activation", playerId: blitzer.id });
-    for (let i = 0; i < 12; i++) {
-      const point = await enumerateDecision(subject, null);
-      const choice = await coach.choose({
-        game: subject,
-        snapshot: subject.snapshot(),
-        point,
-        rng: createCoachRng(1),
-      });
-      for (const command of point.candidates[choice.index].commands) {
-        const result = await subject.execute(command);
-        expect(result.ok, JSON.stringify(command)).toBe(true);
-        if (command.type !== "block") continue;
-        const dice = result.pendingDecision as { options: unknown[] };
-        return { dice: dice.options.length, helper: helper.gridPosition };
-      }
-    }
-    return null;
-  }
-
-  it("throws the block on one die by default", async () => {
-    expect(await diceOfFirstBlock(createPlannerCoach())).toEqual({
-      dice: 1,
-      helper: { x: 8, y: 8 },
-    });
-  });
-
-  it("brings the team-mate in first, for two dice, with assistAll on", async () => {
-    const coach = createPlannerCoach({
-      weights: { ...DEFAULT_WEIGHTS, assistAll: 1 },
-    });
-    const thrown = await diceOfFirstBlock(coach);
-    expect(thrown).toEqual({ dice: 2, helper: { x: 8, y: 4 } });
-  });
-});
-
 describe("cage walk", () => {
   // A strength 4 carrier at (8,5) faces a wall at x=11: every square at
   // x=10 is in contact with one defender, every square at x=9 is clear.
