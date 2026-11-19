@@ -71,8 +71,14 @@ function ballAndChainSteps({ player, at, action, step }: StepContext): void {
   }
 }
 
+const STANDS_TO_ACT = new Set<StepContext["action"]>([
+  "standUp",
+  "blitz",
+  "gaze",
+]);
+
 function standUpSteps({ player, action, step }: StepContext): void {
-  if (action === "standUp" && player.status === PlayerStatus.PRONE) {
+  if (STANDS_TO_ACT.has(action) && player.status === PlayerStatus.PRONE) {
     step(
       { type: "stand-up", playerId: player.id },
       `${describePlayer(player)} stands up`

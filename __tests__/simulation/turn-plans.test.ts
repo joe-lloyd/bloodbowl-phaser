@@ -1,11 +1,9 @@
-import { fieldPlayer } from "./fixtures";
+import { fieldPlayer, game, step } from "./fixtures";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
-import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { RosterName } from "../../src/types/Team";
-import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
+import type { PlayerPlacement } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { context } from "../../src/simulation/ai/activationContext";
@@ -23,42 +21,6 @@ import {
 import { createCoachRng } from "../../src/simulation/rng";
 import type { Coach } from "../../src/simulation/coach";
 import { sequenceChance } from "../../src/simulation/ai/chance";
-
-function game(
-  setup: Pick<ScenarioSetup, "team1Placements"> & Partial<ScenarioSetup>
-) {
-  return new HeadlessGame({
-    seed: 1,
-    scenario: {
-      id: "turn-plan",
-      name: "Complete a tactical plan",
-      description: "",
-      setup: {
-        phase: GamePhase.PLAY,
-        subPhase: SubPhase.TURN_RECEIVING,
-        activeTeam: "team1",
-        turn: 6,
-        teamRerolls: { team1: 0, team2: 0 },
-        team2Placements: [{ playerIndex: 0, x: 1, y: 1 }],
-        ...setup,
-      },
-    },
-  });
-}
-
-async function step(subject: HeadlessGame, coach: Coach, seed = 1) {
-  const point = await enumerateDecision(subject, null);
-  const choice = await coach.choose({
-    game: subject,
-    snapshot: subject.snapshot(),
-    point,
-    rng: createCoachRng(seed),
-  });
-  const command = fixtureValue(point.candidates[choice.index]).commands[0];
-  const result = await subject.execute(command);
-  expect(result.ok, JSON.stringify(command)).toBe(true);
-  return { command, note: choice.note };
-}
 
 describe("retained turn plans", () => {
   it("prices Pass and Catch rerolls and one shared team reroll literally", () => {
