@@ -133,6 +133,7 @@ describe("a league against the computer", () => {
         competitionType: "league",
         competitionId: league.id,
         fixtureId: mineFirst.id,
+        playedVia: "computer",
       },
     });
   });

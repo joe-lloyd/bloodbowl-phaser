@@ -7,6 +7,8 @@ import {
   type CompetitionType,
 } from "../../../competition/types";
 import { useAuth } from "../../hooks/useAuth";
+import { releaseFinishedEntries } from "../../../competition/teamLocks";
+import { OpenSignups } from "../competition/OpenSignups";
 import {
   Chip,
   cx,
@@ -19,7 +21,7 @@ import {
 } from "../componentWarehouse/HudKit";
 
 const STATUS_TONE: Record<CompetitionStatus, HudTone> = {
-  draft: "neutral",
+  draft: "info",
   active: "gold",
   complete: "good",
 };
@@ -32,7 +34,13 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
   const route = type === "league" ? "leagues" : "tournaments";
 
   useEffect(() => {
-    void listCompetitions(type, user?.uid ?? null).then(setCompetitions);
+    const uid = user?.uid ?? null;
+    void releaseFinishedEntries()
+      .catch((error: unknown) => {
+        console.warn("[competition] could not release finished entries", error);
+      })
+      .then(() => listCompetitions(type, uid))
+      .then(setCompetitions);
   }, [type, user]);
 
   const createButton = (
@@ -49,6 +57,8 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
         subtitle="Build a competition, play its fixtures locally or online, and resume the season at any time."
         actions={competitions.length > 0 && createButton}
       />
+
+      {user && <OpenSignups type={type} uid={user.uid} />}
 
       {competitions.length === 0 ? (
         <EmptyState
@@ -69,7 +79,9 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
               <span className="flex flex-wrap items-center gap-2">
                 <Chip>{competition.entrants.length} teams</Chip>
                 <Chip tone={STATUS_TONE[competition.status]}>
-                  {competition.status}
+                  {competition.status === "draft"
+                    ? "sign-ups open"
+                    : competition.status}
                 </Chip>
               </span>
             </button>

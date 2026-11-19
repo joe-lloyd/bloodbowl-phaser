@@ -1,7 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createCompetition } from "../../../competition/create";
 import { getComputerTeamTemplates } from "../../../competition/computerTeamTemplates";
+import { pickComputerTemplates } from "../../../competition/computerFill";
+import { RosterProfileSection } from "../competition/RosterProfileSection";
+import {
+  DEFAULT_PROFILE_CHOICE,
+  profileFrom,
+} from "../competition/profileChoice";
+import { OnlineCompetitionBuilder } from "../competition/OnlineCompetitionBuilder";
+import { BuilderModeSwitch, type BuilderMode } from "../competition/BuilderModeSwitch";
+import { DifficultyPicker } from "../competition/DifficultyPicker";
 import { type ComputerTeamTemplate } from "../../../data/computerTeamCatalogue";
 import {
   competitionPath,
@@ -10,23 +19,10 @@ import {
 } from "../../../competition/types";
 import {
   checkTeamCompatibility,
-  createRosterRuleProfile,
-  type RosterRuleProfile,
 } from "../../../competition/rosterRules";
-import {
-  fetchAllCoachTeams,
-  type OwnedTeam,
-} from "../../../firebase/cloudTeamRepository";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
-import {
-  DIFFICULTIES,
-  type Difficulty,
-} from "../../../simulation/ai/difficulty";
-import {
-  RosterName,
-  type Team,
-  type TeamAdvancementMode,
-} from "../../../types/Team";
+import { type Difficulty } from "../../../simulation/ai/difficulty";
+import { type Team } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import {
   DEFAULT_SEVENS_RULESET,
@@ -57,7 +53,13 @@ interface ComputerRow {
   template: ComputerTeamTemplate;
 }
 
-export function CompetitionBuilder({ type }: { type: CompetitionType }) {
+function LocalCompetitionBuilder({
+  type,
+  modeSwitch,
+}: {
+  type: CompetitionType;
+  modeSwitch: ReactNode;
+}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextComputerId = useRef(1);
@@ -65,9 +67,8 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const [name, setName] = useState("");
   const [format, setFormat] = useState<TournamentFormat>("single-elimination");
   const [selected, setSelected] = useState<string[]>([]);
-  const [otherTeams, setOtherTeams] = useState<OwnedTeam[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [useProfile, setUseProfile] = useState(false);
+  const [profileChoice, setProfileChoice] = useState(DEFAULT_PROFILE_CHOICE);
   const [ruleset, setRuleset] = useState<SevensRuleset>(
     searchParams.get("ruleset") === NAF_SEVENS_RULESET
       ? NAF_SEVENS_RULESET
@@ -77,9 +78,6 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const rosters = [
     ...new Set(templates.map((template) => template.rosterName)),
   ];
-  const [advancementMode, setAdvancementModeChoice] =
-    useState<TeamAdvancementMode>("advanced-league");
-  const [draftBudget, setDraftBudget] = useState(600_000);
   const [computerRows, setComputerRows] = useState<ComputerRow[]>(() => {
     const template = templates.find(
       (candidate) => candidate.id === searchParams.get("computer")
@@ -90,23 +88,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const [localTeams] = useTeamLibrary();
 
-  const profile: RosterRuleProfile | undefined = useProfile
-    ? createRosterRuleProfile({
-        advancementMode,
-        draftBudget,
-      })
-    : undefined;
-
-  useEffect(() => {
-    if (!user) return;
-    void fetchAllCoachTeams()
-      .then((owned) => {
-        setOtherTeams(owned.filter((entry) => entry.ownerUid !== user.uid));
-      })
-      .catch(() => {
-        setOtherTeams([]);
-      });
-  }, [user]);
+  const profile = profileFrom(profileChoice);
 
   const candidates: Candidate[] = [
     ...localTeams
@@ -116,19 +98,6 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         label: `${team.name} (${team.rosterName}) · your team`,
         team,
         ownerUid: user?.uid,
-      })),
-    ...otherTeams
-
-      .filter(
-        (owned) =>
-          !owned.team.computerCoached &&
-          !localTeams.some((team) => team.id === owned.team.id)
-      )
-      .map((owned) => ({
-        id: `coach:${owned.ownerUid}:${owned.team.id}`,
-        label: `${owned.team.name} (${owned.team.coachName || "Unnamed"}) — other coach`,
-        team: owned.team,
-        ownerUid: owned.ownerUid,
       })),
   ];
 
@@ -142,40 +111,19 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
 
   const addComputerTeams = (count: number) => {
     const ids = Array.from({ length: count }, () => nextComputerId.current++);
+    const chosen = candidates.filter((candidate) => selected.includes(candidate.id));
     setComputerRows((rows) => {
-      const next = [...rows];
-      const chosen = candidates.filter((candidate) =>
-        selected.includes(candidate.id)
-      );
-      const rosterCounts = new Map<RosterName, number>();
-      for (const roster of [
-        ...chosen.map((candidate) => candidate.team.rosterName),
-        ...rows.map((row) => row.template.rosterName),
-      ]) {
-        rosterCounts.set(roster, (rosterCounts.get(roster) ?? 0) + 1);
-      }
-      for (const id of ids) {
-        const fewest = Math.min(
-          ...rosters.map((roster) => rosterCounts.get(roster) ?? 0)
-        );
-        const pool = rosters.filter(
-          (roster) => (rosterCounts.get(roster) ?? 0) === fewest
-        );
-        const roster = pool[Math.floor(Math.random() * pool.length)];
-        if (roster === undefined) continue;
-        const variants = templates.filter(
-          (template) => template.rosterName === roster
-        );
-        const unused = variants.filter(
-          (template) => !next.some((row) => row.template.id === template.id)
-        );
-        const choices = unused.length > 0 ? unused : variants;
-        const template = choices[Math.floor(Math.random() * choices.length)];
-        if (!template) continue;
-        next.push({ id, template });
-        rosterCounts.set(roster, (rosterCounts.get(roster) ?? 0) + 1);
-      }
-      return next;
+      const picks = pickComputerTemplates({
+        templates,
+        count,
+        rosters: chosen.map((candidate) => candidate.team.rosterName),
+        picked: rows.map((row) => row.template),
+        random: Math.random,
+      });
+      return [
+        ...rows,
+        ...picks.map((template, index) => ({ id: ids[index] ?? -index, template })),
+      ];
     });
   };
 
@@ -243,6 +191,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
       }
     >
       <PageHeader title={`Create ${type}`} />
+      {modeSwitch}
 
       <Section title="Details">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -281,52 +230,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         </p>
       </Section>
 
-      <Section title="Roster rule profile">
-        <label className="flex items-start gap-3 font-hud-body text-hud-base text-hud-bone">
-          <input
-            type="checkbox"
-            checked={useProfile}
-            onChange={(event) => {
-              setUseProfile(event.target.checked);
-            }}
-            className="hud-check mt-0.5"
-          />
-          Require an advancement mode, draft budget, and roster rules for
-          entrants (leave unchecked for an unrestricted legacy competition)
-        </label>
-        {useProfile && (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Advancement mode">
-              <select
-                value={advancementMode}
-                onChange={(event) => {
-                  setAdvancementModeChoice(
-                    event.target.value as TeamAdvancementMode
-                  );
-                }}
-                className="hud-field"
-              >
-                <option value="advanced-league">Advanced League</option>
-                <option value="matched-play">Matched Play</option>
-                <option value="sevens-skill-selection">
-                  Sevens Skill Selection
-                </option>
-              </select>
-            </Field>
-            <Field label="Draft budget (gold)">
-              <input
-                type="number"
-                step={10000}
-                value={draftBudget}
-                onChange={(event) => {
-                  setDraftBudget(Number(event.target.value) || 0);
-                }}
-                className="hud-field"
-              />
-            </Field>
-          </div>
-        )}
-      </Section>
+      <RosterProfileSection value={profileChoice} onChange={setProfileChoice} />
 
       <Section title="Entrants and seeding">
         <p className="mb-4 font-hud-body text-hud-sm text-hud-dim">
@@ -534,37 +438,23 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           + Add computer team
         </HudButton>
         {computerEntrants > 0 && (
-          <p className="hud-label mb-2 mt-5">How hard the computer plays</p>
-        )}
-        {computerEntrants > 0 && (
-          <div
-            role="radiogroup"
-            aria-label="How hard the computer plays"
-            className="grid max-w-2xl grid-cols-3 gap-2"
-          >
-            {DIFFICULTIES.map(({ id, label, detail }) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={difficulty === id}
-                className={cx(
-                  hudChoiceClass(difficulty === id),
-                  "px-4 py-3 text-left"
-                )}
-                onClick={() => {
-                  setDifficulty(id);
-                }}
-              >
-                <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
-                  {label}
-                </span>
-                <span className="block text-hud-sm text-hud-dim">{detail}</span>
-              </button>
-            ))}
-          </div>
+          <DifficultyPicker value={difficulty} onChange={setDifficulty} />
         )}
       </Section>
     </PageShell>
+  );
+}
+
+export function CompetitionBuilder({ type }: { type: CompetitionType }) {
+  const { user, onlineAvailable } = useAuth();
+  const [mode, setMode] = useState<BuilderMode>("local");
+  const modeSwitch =
+    user && onlineAvailable ? (
+      <BuilderModeSwitch type={type} mode={mode} onChange={setMode} />
+    ) : null;
+  return mode === "online" && user ? (
+    <OnlineCompetitionBuilder type={type} uid={user.uid} modeSwitch={modeSwitch} />
+  ) : (
+    <LocalCompetitionBuilder type={type} modeSwitch={modeSwitch} />
   );
 }

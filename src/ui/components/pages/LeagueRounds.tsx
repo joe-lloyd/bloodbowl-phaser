@@ -9,6 +9,7 @@ import { type TeamColors } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
 import { TeamCrest } from "../common/TeamCrest";
 import { cx, Section } from "../componentWarehouse/HudKit";
+import { coachLabel, PLAYED_VIA } from "../competition/labels";
 import {
   type BracketFixtureContext,
   FixtureActions,
@@ -240,6 +241,11 @@ function ResultNotes({
           Penalties {result.penalties.home}–{result.penalties.away}
         </p>
       )}
+      {result?.playedVia && (
+        <p className="mt-2 text-center text-hud-sm text-hud-mute">
+          {PLAYED_VIA[result.playedVia]}
+        </p>
+      )}
     </>
   );
 }
@@ -280,6 +286,11 @@ function FixtureSide({
         {entrant?.rosterName && (
           <span className="block text-hud-sm text-hud-dim">
             {entrant.rosterName}
+          </span>
+        )}
+        {entrant && (
+          <span className="block text-hud-sm text-hud-mute">
+            {coachLabel(entrant)}
           </span>
         )}
       </div>

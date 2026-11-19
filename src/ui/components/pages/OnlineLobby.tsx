@@ -37,14 +37,17 @@ import {
   fetchLobby,
 } from "../../../firebase/lobby";
 import { resolveCoachName } from "../../../firebase/coaches";
-import { acceptMatchInvite } from "../../../firebase/invites";
 import { useFriends } from "../../hooks/useSocial";
 import { InviteInbox } from "../social/InviteInbox";
 import { FriendButton, InviteFriendsPanel } from "../social/LobbyFriends";
 import { OpenGames } from "../social/OpenGames";
 import { OpenLobbyToggle } from "../social/OpenLobbyToggle";
 import { type Team } from "../../../types/Team";
-import { type CompetitionContext } from "../../../competition/types";
+import type { HostedFixture } from "../competition/useFixtureLaunch";
+import {
+  acceptLobbyInvite,
+  sendFixtureInvite,
+} from "../../../firebase/invites";
 
 type Mode = "host" | "join";
 
@@ -67,11 +70,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   const [busy, setBusy] = useState(false);
   const competitionFixture = (
     location.state as {
-      competitionFixture?: {
-        context: CompetitionContext;
-        homeTeam: Team;
-        awayTeam: Team;
-      };
+      competitionFixture?: HostedFixture;
     } | null
   )?.competitionFixture;
 
@@ -94,8 +93,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           navigate(`/online/play/${String(existing)}`, { replace: true });
           return;
         }
-        if (doc?.status === "lobby") {
-          setCode(existing);
+        if (doc && reusableLobby(doc, competitionFixture)) {
+          setCode(doc.code);
           return;
         }
 
@@ -105,6 +104,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           coachName,
           competitionFixture
         );
+        if (competitionFixture) await inviteOpponent(created.code, user.uid, competitionFixture);
         if (!cancelled) setCode(created.code);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -198,7 +198,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           <InviteInbox
             uid={user.uid}
             busy={busy}
-            onAccept={(invite) => void enter(() => acceptMatchInvite(invite))}
+            onAccept={(invite) => void enter(() => acceptLobbyInvite(invite))}
           />
         }
         openGames={
@@ -302,6 +302,33 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       {error && <ErrorText text={error} />}
     </PageShell>
   );
+}
+
+function reusableLobby(
+  lobby: LobbyDoc,
+  fixture: HostedFixture | undefined
+): boolean {
+  return (
+    lobby.status === "lobby" &&
+    lobby.competitionContext?.fixtureId === fixture?.context.fixtureId
+  );
+}
+
+async function inviteOpponent(
+  code: string,
+  fromUid: string,
+  fixture: HostedFixture
+): Promise<void> {
+  if (!fixture.reservedFor) return;
+  await sendFixtureInvite({
+    fromUid,
+    toUid: fixture.reservedFor,
+    code,
+    context: fixture.context,
+    competitionName: fixture.competitionName,
+  }).catch((error: unknown) => {
+    console.warn("[lobby] could not invite the other coach", error);
+  });
 }
 
 function seedProgress(lobby: LobbyDoc | null, myUid: string | undefined) {

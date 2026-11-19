@@ -112,6 +112,7 @@ describe("launching a competition fixture", () => {
           competitionType: "league",
           competitionId: "season-1",
           fixtureId: fixtureValue(fixtures[0]).id,
+          playedVia: "local",
         },
       });
     }

@@ -9,7 +9,7 @@ import { OnlineLobby } from "../../src/ui/components/pages/OnlineLobby";
 
 const calls = vi.hoisted(() => ({
   joinLobby: vi.fn(() => new Promise<never>(() => undefined)),
-  acceptMatchInvite: vi.fn((): Promise<string> => new Promise(() => undefined)),
+  acceptLobbyInvite: vi.fn((): Promise<string> => new Promise(() => undefined)),
 }));
 
 vi.mock("../../src/ui/hooks/useAuth", () => ({
@@ -25,7 +25,7 @@ vi.mock("../../src/firebase/coaches", () => ({
 }));
 
 vi.mock("../../src/firebase/invites", () => ({
-  acceptMatchInvite: calls.acceptMatchInvite,
+  acceptLobbyInvite: calls.acceptLobbyInvite,
 }));
 
 vi.mock("../../src/firebase/lobby", async (importOriginal) => {
@@ -119,14 +119,14 @@ describe("joining from the Join Game page", () => {
     act(() => {
       invite.click();
     });
-    expect(calls.acceptMatchInvite).not.toHaveBeenCalled();
+    expect(calls.acceptLobbyInvite).not.toHaveBeenCalled();
   });
 
   it("holds the open games while an invitation is being accepted", () => {
     act(() => {
       button('[data-testid="match-invite"]').click();
     });
-    expect(calls.acceptMatchInvite).toHaveBeenCalledTimes(1);
+    expect(calls.acceptLobbyInvite).toHaveBeenCalledTimes(1);
 
     const open = button('[data-testid="open-game"]');
     expect(open.disabled).toBe(true);
@@ -137,7 +137,7 @@ describe("joining from the Join Game page", () => {
   });
 
   it("opens the accepted lobby at its own address, so a reload keeps it", async () => {
-    calls.acceptMatchInvite.mockResolvedValueOnce("INVITE");
+    calls.acceptLobbyInvite.mockResolvedValueOnce("INVITE");
     await act(async () => {
       button('[data-testid="match-invite"]').click();
       await Promise.resolve();
