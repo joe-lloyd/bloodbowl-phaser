@@ -9,7 +9,7 @@ import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { context } from "../../src/simulation/ai/activationContext";
 import { readBoard } from "../../src/simulation/ai/board";
 import { secureBallActivations } from "../../src/simulation/ai/skillActivations";
-import { pickupActivation } from "../../src/simulation/ai/ballActivations";
+import { pickupActivation } from "../../src/simulation/ai/pickupActivations";
 import { PlayerStatus } from "../../src/types/Player";
 
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
@@ -521,6 +521,32 @@ describe("carrier pace", () => {
           picker
         )[0]
       ).value;
+    expect(priced(4)).toBe(priced(0));
+  });
+
+  it("does not charge a picker for a quick team-mate who cannot reach the ball", () => {
+    const priced = (carrierPace: number) => {
+      const subject = game({
+        turn: 2,
+        ballPosition: { x: 6, y: 5 },
+        team1Placements: [
+          { playerIndex: 0, x: 5, y: 5, stats: { MA: 3 } },
+          { playerIndex: 1, x: 18, y: 9, stats: { MA: 8 } },
+        ],
+        team2Placements: [{ playerIndex: 0, x: 17, y: 1 }],
+      });
+      const picker = fieldPlayer(subject.ctx.team1.players[0]);
+      const quick = fieldPlayer(subject.ctx.team1.players[1]);
+      const c = context({
+        board: readBoard(subject, picker.teamId),
+        w: { ...DEFAULT_WEIGHTS, carrierPace },
+        available: new Map([
+          [picker.id, new Set(["move" as const])],
+          [quick.id, new Set(["move" as const])],
+        ]),
+      });
+      return fixtureValue(pickupActivation(c, picker)[0]).value;
+    };
     expect(priced(4)).toBe(priced(0));
   });
 

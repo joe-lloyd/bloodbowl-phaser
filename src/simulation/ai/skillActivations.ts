@@ -10,7 +10,7 @@ import { feedingCost, unfedChance } from "./feeding";
 import { movesLeft, routesFor, withTeamReroll } from "./routes";
 import { gazeActivations } from "./gazeActivations";
 import { throwTeammateActivations } from "./teammateActivations";
-import { pickupPace } from "./ballActivations";
+import { pickupPace } from "./pickupActivations";
 import type { ActionType } from "../../types/events";
 import { standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";

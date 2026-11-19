@@ -11,7 +11,6 @@ import {
   deepReceiverActivations,
   handoffActivations,
   passActivations,
-  pickupActivation,
 } from "./ballActivations";
 import {
   assistActivations,
@@ -23,6 +22,7 @@ import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
 import { foulActivations } from "./foulActivations";
 import { gatePriced } from "./gateActivations";
+import { pickupActivation } from "./pickupActivations";
 import {
   feedingSupportActivations,
   holdsFeedingSupport,

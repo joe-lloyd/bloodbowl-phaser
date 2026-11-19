@@ -126,7 +126,11 @@ function spaceGain(c: Context, carrier: Player, mate: Player): number {
 
 const CARRY_TURNS = 3;
 
-function paceWorth(c: Context, faster: number, turns = CARRY_TURNS): number {
+export function paceWorth(
+  c: Context,
+  faster: number,
+  turns = CARRY_TURNS
+): number {
   if (c.goal === "protect") return 0;
   return c.w.carrierPace * faster * Math.min(c.board.turnsLeft, turns);
 }
@@ -692,40 +696,6 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
     if (pass) out.push(pass);
   }
   return out;
-}
-
-/**
- * A picker short of the team's quickest carrier loses pace for the whole
- * drive: lab replays showed slow pickers rarely handed the ball on.
- */
-export function pickupPace(c: Context, player: Player): number {
-  // The picker counts too: a prone picker with nobody else standing is
-  // its own quickest carrier, never short of an empty team. A No Ball
-  // player cannot carry, so it sets no benchmark.
-  const quickest = Math.max(
-    nextTurnReach(player),
-    ...c.board.ours
-      .filter((p) => standing(p) && canCarry(p))
-      .map((p) => nextTurnReach(p))
-  );
-  return paceWorth(c, nextTurnReach(player) - quickest);
-}
-
-export function pickupActivation(c: Context, player: Player): Activation[] {
-  const { board, w } = c;
-  if (board.ball.kind !== "loose" || !canCarry(player)) return [];
-  const route = c.routes(player).get(key(board.ball.at));
-  if (!route) return [];
-  return [
-    {
-      player,
-      action: "move",
-      intent: { kind: "pickup", route },
-      tier: tierFor(route.chance, w.pickupMin, "pickup"),
-      value: gamble(c, route.chance, w.pickup + pickupPace(c, player)),
-      rolls: route.rolls,
-    },
-  ];
 }
 
 function sidelineCost(edge: number, cost: number): number {

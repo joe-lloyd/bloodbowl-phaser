@@ -5212,11 +5212,6 @@
       "count": 1
     }
   },
-  "src/simulation/ai/ballActivations.ts": {
-    "local/no-comments": {
-      "count": 4
-    }
-  },
   "src/simulation/ai/board.ts": {
     "@typescript-eslint/consistent-type-imports": {
       "count": 2
