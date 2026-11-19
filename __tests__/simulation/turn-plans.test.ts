@@ -400,6 +400,47 @@ describe("keeping the cage after the carrier moves", () => {
   });
 });
 
+describe("building the cage before the carrier moves", () => {
+  // Our carrier at (8,5) has not acted and would step forward. A free
+  // team-mate at (8,8) can take a corner of that square first.
+  async function plays(coach: Coach) {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, hasBall: true },
+        { playerIndex: 1, x: 8, y: 8 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 19, y: 1 },
+        { playerIndex: 1, x: 15, y: 9 },
+      ],
+    });
+    const carrier = subject.ctx.team1.players[0];
+    const first = await step(subject, coach);
+    return {
+      carrierFirst: first.command.playerId === carrier.id,
+      note: first.note,
+    };
+  }
+
+  it("moves the carrier first with cageAhead at 0", async () => {
+    const coach = createPlannerCoach({
+      weights: { ...DEFAULT_WEIGHTS, cageAhead: 0 },
+    });
+    expect((await plays(coach)).carrierFirst).toBe(true);
+  });
+
+  it("takes a corner of the carrier's next square first", async () => {
+    const coach = createPlannerCoach({
+      weights: { ...DEFAULT_WEIGHTS, cageAhead: 80 },
+    });
+    expect(await plays(coach)).toEqual({
+      carrierFirst: false,
+      note: "moves to cage",
+    });
+  });
+});
+
 describe("cage walk", () => {
   // A strength 4 carrier at (8,5) faces a wall at x=11: every square at
   // x=10 is in contact with one defender, every square at x=9 is clear.
