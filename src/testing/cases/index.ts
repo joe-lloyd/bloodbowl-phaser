@@ -15,7 +15,7 @@ import { STALLING_CASES } from "./stalling";
 import { SECURE_BALL_CASES } from "./secure-the-ball";
 import { ruleScenarioCases } from "./fromRuleConfigs";
 
-export const AUTHORED_CASES: ScenarioCase[] = [
+const AUTHORED_CASES: ScenarioCase[] = [
   ...MOVEMENT_CASES,
   ...ACTIVATION_CASES,
   ...DECISION_CASES,
@@ -29,7 +29,7 @@ export const AUTHORED_CASES: ScenarioCase[] = [
   ...SECURE_BALL_CASES,
 ];
 
-export const LEGACY_CASES: ScenarioCase[] = scenarioCasesFromLegacy(SCENARIOS);
+const LEGACY_CASES: ScenarioCase[] = scenarioCasesFromLegacy(SCENARIOS);
 
 export const RULE_CASES: ScenarioCase[] = ruleScenarioCases();
 
@@ -39,18 +39,8 @@ export const SCENARIO_CASES: ScenarioCase[] = sortScenarioCases([
   ...RULE_CASES,
 ]);
 
-export {
-  MOVEMENT_CASES,
-  ACTIVATION_CASES,
-  DECISION_CASES,
-  REROLL_DECISION_CASES,
-  KICKOFF_EVENTS_CASES,
-  SEVENS_SETUP_CASES,
-  DRIVE_RESET_CASES,
-  DRIVE_TRANSITION_CASES,
-  STALLING_CASES,
-};
-export { ruleScenarioCases, ruleOutcomesMissingSeeds } from "./fromRuleConfigs";
+;
+;
 
 export const MATCH_FLOW_CASES: ScenarioCase[] = [
   ...KICKOFF_EVENTS_CASES,

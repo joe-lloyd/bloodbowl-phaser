@@ -9,7 +9,7 @@ import {
   positionAt,
 } from "./rosterFixtures";
 
-export interface PlacementDescription {
+interface PlacementDescription {
   ref: string;
   roster: RosterName;
   positionName: string;

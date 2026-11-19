@@ -61,7 +61,7 @@ function capabilityFor(skill: SkillType): string {
   return `rule:${skill}`;
 }
 
-export function scenarioCaseFromRuleConfig(
+function scenarioCaseFromRuleConfig(
   skill: SkillType,
   config: RuleConfig
 ): ScenarioCase {

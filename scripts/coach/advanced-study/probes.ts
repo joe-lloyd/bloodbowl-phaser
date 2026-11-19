@@ -12,7 +12,7 @@ import type { RuleConfig } from "../../../src/game/rules-lab";
 import type { SkillType } from "../../../src/types/Skills";
 import { PlayerStatus } from "../../../src/types/Player";
 
-export function endpoints(game: HeadlessGame) {
+function endpoints(game: HeadlessGame) {
   const state = game.ctx.gameService.getState();
   return [game.ctx.team1, game.ctx.team2].map((team) => ({
     score: state.score[team.id] ?? 0,

@@ -4,7 +4,7 @@ import { throwDice } from "./diceAnimation";
 export type DiceKind = "d6" | "d16" | "block";
 
 export { BLOCK_FACES, coinFaceImage } from "./diceFaces";
-export { labelling, simulate } from "./dicePhysics";
+export { labelling,  } from "./dicePhysics";
 
 export interface DiceTeam {
   key: string;

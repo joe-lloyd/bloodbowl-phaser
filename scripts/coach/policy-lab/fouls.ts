@@ -50,7 +50,7 @@ function groupOf(roster: string, p: Player): string {
   return `${roster} / ${p.positionName} (${String(cost)}k${marks.map((m) => ", " + m).join("")})`;
 }
 
-export async function foulsOfTrace(file: string) {
+async function foulsOfTrace(file: string) {
   const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
     initial: MatchSave;
     recording: MatchRecording;

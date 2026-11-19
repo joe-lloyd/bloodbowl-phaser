@@ -26,7 +26,7 @@ const BROWSER_SUPPORTED: ReadonlySet<HeadlessCommand["type"]> = new Set([
   "use-reaction",
 ]);
 
-export function browserSupports(step: SemanticStep): boolean {
+function browserSupports(step: SemanticStep): boolean {
   return BROWSER_SUPPORTED.has(step.command.type);
 }
 
@@ -37,16 +37,12 @@ export const layerSupport: LayerSupport = {
   },
 };
 
-export function unsupportedBrowserSteps(steps: SemanticStep[]): SemanticStep[] {
-  return steps.filter((step) => !browserSupports(step));
-}
-
 export interface BrowserStepContext {
   app: GameApp;
   page: Page;
 }
 
-export async function performStep(
+async function performStep(
   { app }: BrowserStepContext,
   step: SemanticStep
 ): Promise<void> {

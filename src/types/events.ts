@@ -11,12 +11,12 @@ import type { CommonUIEvents } from "./gameEvents/ui";
 
 export { GameEventNames };
 export type { ActionType, RefereeCallStep } from "./gameEvents/match";
-export type { PromptRollType, StepPrompt } from "./gameEvents/network";
+export type {  StepPrompt } from "./gameEvents/network";
 export type {
   LogEntryCategory,
   AnnouncementKind,
   MatchMoment,
-  InfoPanelSubject,
+  
 } from "./gameEvents/ui";
 
 export interface GameEvents

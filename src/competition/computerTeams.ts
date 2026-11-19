@@ -40,7 +40,7 @@ import {
   resolveExpensiveMistakes,
 } from "../game/rules/expensiveMistakes";
 import { type IRNGService } from "../services/rng/RNGService";
-export { COMPUTER_COACH } from "./computerTeamTemplates";
+;
 import { type Player } from "../types/Player";
 import {
   calculateTeamValue,

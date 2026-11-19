@@ -35,7 +35,7 @@ export interface Drama {
   drama: number;
 }
 
-export async function dramaOfTrace(file: string, id: string, side: number) {
+async function dramaOfTrace(file: string, id: string, side: number) {
   const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
     initial: MatchSave;
     recording: MatchRecording;
@@ -96,7 +96,7 @@ function leads(scores: Score[]) {
   return { final, leadChanges, trailed };
 }
 
-export function closeness(scores: Score[], casualties: number, throws: number) {
+function closeness(scores: Score[], casualties: number, throws: number) {
   const { final, leadChanges, trailed } = leads(scores);
   const margin = Math.abs(final[0] - final[1]);
   const winner = leaderOf(final);

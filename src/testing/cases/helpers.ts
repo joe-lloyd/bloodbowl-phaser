@@ -45,7 +45,7 @@ export function playerIn(
   return player;
 }
 
-export function sawEventNamed(observed: ObservedRun, name: string): boolean {
+function sawEventNamed(observed: ObservedRun, name: string): boolean {
   return observed.events.some((event) => event.name === name);
 }
 
@@ -180,25 +180,6 @@ export function stepAccepted(stepIndex: number): ExpectedCheckpoint {
       checkpointAssert(
         response.ok,
         `step ${String(stepIndex + 1)} was refused: ${String(response.reason)}`
-      );
-    },
-  };
-}
-
-export function activeTeamIs(
-  team: "team1" | "team2",
-  layers?: ExecutionLayer[]
-): ExpectedCheckpoint {
-  return {
-    id: `active-team-${team}`,
-    description: `${team} is on the ball when the run ends`,
-    ...(layers ? { layers } : {}),
-    assert(observed) {
-      const index = team === "team1" ? 0 : 1;
-      const expected = fixtureValue(observed.snapshot.teams[index]).id;
-      checkpointAssert(
-        observed.snapshot.activeTeamId === expected,
-        `expected ${team} to be active, but ${String(observed.snapshot.activeTeamId)} is`
       );
     },
   };

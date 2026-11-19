@@ -45,7 +45,7 @@ export async function freezeAnimation(page: Page): Promise<void> {
   await page.waitForTimeout(150);
 }
 
-export function volatileRegions(page: Page): Locator[] {
+function volatileRegions(page: Page): Locator[] {
   return [page.getByTestId("sandbox-scenario-info")];
 }
 

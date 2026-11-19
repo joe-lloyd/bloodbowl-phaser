@@ -24,7 +24,7 @@ export interface EngineObservedRun extends ObservedRun {
   stepLog: EngineStepRecord[];
 }
 
-export interface EngineStepRecord {
+interface EngineStepRecord {
   index: number;
   intent: string;
   command: HeadlessCommand;
@@ -34,11 +34,11 @@ export interface EngineStepRecord {
   replies: HeadlessCommand[];
 }
 
-export function describeStep(step: SemanticStep, index: number): string {
+function describeStep(step: SemanticStep, index: number): string {
   return step.intent ?? `${step.command.type} (step ${String(index + 1)})`;
 }
 
-export function scenarioForCase(
+function scenarioForCase(
   scenarioCase: ScenarioCase,
   variant: SeededVariant
 ): Scenario {

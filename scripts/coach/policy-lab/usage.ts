@@ -34,7 +34,7 @@ const PLAYS: readonly [string, string][] = [
   ["stands up", "stand-up"],
 ];
 
-export function playOf(note: string | undefined, action: string): string {
+function playOf(note: string | undefined, action: string): string {
   if (!note) return `unplanned:${action}`;
   return PLAYS.find(([prefix]) => note.startsWith(prefix))?.[1] ?? "other";
 }

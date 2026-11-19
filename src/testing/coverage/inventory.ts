@@ -4,7 +4,7 @@ import { GamePhase } from "../../types/GameState";
 import { type HeadlessCommand } from "../../headless/protocol";
 import { type ExecutionLayer } from "../scenarioCase/types";
 
-export type InventoryKind =
+type InventoryKind =
   | "sandbox-scenario"
   | "rule-config"
   | "rule-outcome"
@@ -108,7 +108,7 @@ export const DECISION_REPLY_COMMANDS: Record<
   interception: ["choose-interception"],
 };
 
-export const COVERED_PHASES: GamePhase[] = [
+const COVERED_PHASES: GamePhase[] = [
   GamePhase.SETUP,
   GamePhase.KICKOFF,
   GamePhase.PLAY,

@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import type { TestInfo } from "@playwright/test";
 import {
   buildDiagnosticBundle,
@@ -28,8 +28,4 @@ export function writeDiagnosticBundle(
   });
 
   return path;
-}
-
-export function standaloneBundleDir(): string {
-  return join(process.cwd(), "e2e-results", "diagnostics");
 }

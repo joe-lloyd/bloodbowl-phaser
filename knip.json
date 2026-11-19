@@ -26,16 +26,22 @@
         "scripts/coach/policy-lab/nailbiters.ts",
         "scripts/coach/policy-study/run.ts",
         "e2e/fullgame/brain.ts",
-        "scripts/discover-block-seeds.ts"
+        "scripts/discover-block-seeds.ts",
+        "scripts/page-shots/page-shots.e2e.ts"
       ]
     },
     "functions": {
-      "entry": [
-        "src/index.ts"
-      ],
       "project": [
         "src/**/*.ts"
       ]
     }
+  },
+  "ignoreIssues": {
+    "e2e/fullgame/brain.ts": [
+      "exports"
+    ],
+    "scripts/page-shots/playwright.config.ts": [
+      "exports"
+    ]
   }
 }

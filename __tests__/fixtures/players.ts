@@ -40,16 +40,6 @@ export function createCatcher(teamId = "test-team", number = 1): Player {
     .build();
 }
 
-export function createThrower(teamId = "test-team", number = 1): Player {
-  return new PlayerBuilder()
-    .withTeamId(teamId)
-    .withNumber(number)
-    .withPosition(PositionKeyWord.THROWER)
-    .withStats({ MA: 6, ST: 3, AG: 3, PA: 2, AV: 9 })
-    .withCost(80000)
-    .build();
-}
-
 export function createPlayerOnPitch(
   teamId: string,
   number: number,
@@ -61,29 +51,5 @@ export function createPlayerOnPitch(
     .withNumber(number)
     .withStatus(PlayerStatus.ACTIVE)
     .withGridPosition(x, y)
-    .build();
-}
-
-export function createPronePlayer(teamId = "test-team", number = 1): Player {
-  return new PlayerBuilder()
-    .withTeamId(teamId)
-    .withNumber(number)
-    .withStatus(PlayerStatus.PRONE)
-    .build();
-}
-
-export function createStunnedPlayer(teamId = "test-team", number = 1): Player {
-  return new PlayerBuilder()
-    .withTeamId(teamId)
-    .withNumber(number)
-    .withStatus(PlayerStatus.STUNNED)
-    .build();
-}
-
-export function createKOPlayer(teamId = "test-team", number = 1): Player {
-  return new PlayerBuilder()
-    .withTeamId(teamId)
-    .withNumber(number)
-    .withStatus(PlayerStatus.KO)
     .build();
 }

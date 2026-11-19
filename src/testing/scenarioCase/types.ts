@@ -20,8 +20,6 @@ export const EXECUTION_LAYERS: ExecutionLayer[] = [
   "visual",
 ];
 
-export type TeamRef = "team1" | "team2";
-
 export interface SquareRef {
   x: number;
   y: number;
@@ -75,7 +73,7 @@ export interface SeededVariant {
   tags?: string[];
 }
 
-export interface RegressionProvenance {
+interface RegressionProvenance {
   id: string;
 
   summary: string;
@@ -85,18 +83,18 @@ export interface RegressionProvenance {
   uiBoundary?: boolean;
 }
 
-export interface TeamFixture {
+interface TeamFixture {
   roster: RosterName;
 
   positions?: string[];
 }
 
-export interface RosterFixture {
+interface RosterFixture {
   team1: TeamFixture;
   team2: TeamFixture;
 }
 
-export interface SyntheticGrant {
+interface SyntheticGrant {
   player: PlayerRef;
   skill?: SkillType;
   stat?: string;
@@ -104,7 +102,7 @@ export interface SyntheticGrant {
   reason: string;
 }
 
-export interface CaseSource {
+interface CaseSource {
   kind: "authored" | "legacy-scenario" | "rule-config";
 
   id: string;

@@ -51,7 +51,7 @@ const empty = (): DriveTally => ({
   stalledMarked: 0,
 });
 
-export async function drivesOfTrace(file: string) {
+async function drivesOfTrace(file: string) {
   const trace = JSON.parse(gunzipSync(readFileSync(file)).toString()) as {
     initial: MatchSave;
     recording: MatchRecording;

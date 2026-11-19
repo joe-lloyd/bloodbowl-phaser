@@ -7,13 +7,13 @@ import type { Tally as PlayTally } from "./usage";
 
 type Tier = 1 | 2 | 3 | 4;
 
-export const STANDARDS: Record<Tier, { points: number; scores: number }> = {
+const STANDARDS: Record<Tier, { points: number; scores: number }> = {
   1: { points: 0.5, scores: 0.55 },
   2: { points: 0.45, scores: 0.5 },
   3: { points: 0.38, scores: 0.4 },
   4: { points: 0.28, scores: 0.35 },
 };
-export const CEILING = 0.75;
+const CEILING = 0.75;
 
 const ROSTERS = new Set<string>(Object.values(RosterName));
 const isRosterName = (name: string): name is RosterName => ROSTERS.has(name);
@@ -86,7 +86,7 @@ interface FoulTally {
   stunned: number;
 }
 
-export interface Signature {
+interface Signature {
   play: string;
   perGame: number;
 

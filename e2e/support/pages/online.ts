@@ -1,4 +1,4 @@
-import { type BrowserContext, type Page, expect } from "@playwright/test";
+import { type Page, expect } from "@playwright/test";
 
 export class OnlinePage {
   private readonly page: Page;
@@ -64,12 +64,4 @@ export class OnlinePage {
       { timeout: 30_000 }
     );
   }
-}
-
-export async function newCoach(
-  context: BrowserContext
-): Promise<{ page: Page; online: OnlinePage }> {
-  const page = await context.newPage();
-  await page.goto("/");
-  return { page, online: new OnlinePage(page) };
 }

@@ -119,7 +119,7 @@ export function createMatch(
   return match;
 }
 
-export function senderSide(
+function senderSide(
   match: Match,
   command: HeadlessCommand,
   pending: PendingDecision | null
@@ -159,7 +159,7 @@ export function senderSide(
   }
 }
 
-export async function run(
+async function run(
   match: Match,
   command: HeadlessCommand
 ): Promise<CommandResponse> {
@@ -312,7 +312,7 @@ export async function playNetworkedMatch(seed: number): Promise<{
   return { match, finalSnapshot: game.snapshot(), commandCount };
 }
 
-export async function placeTeam(
+async function placeTeam(
   match: Match,
   exec: (cmd: HeadlessCommand) => Promise<CommandResponse>,
   snap: GameSnapshot,

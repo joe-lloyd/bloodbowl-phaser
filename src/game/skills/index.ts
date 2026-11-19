@@ -415,7 +415,7 @@ export { SkillRegistry } from "./SkillRegistry";
 export { RerollArbiter } from "./RerollArbiter";
 export { DecisionService } from "./DecisionService";
 export { withRerollOffer, spendTeamReroll } from "./rerolls";
-export type { RollLike, RerollDeps } from "./rerolls";
+export type {  RerollDeps } from "./rerolls";
 export type {
   SkillRule,
   BlockResultContext,
@@ -435,11 +435,11 @@ export type {
   CasualtyContext,
   CountAssistContext,
   ActionDeclaredContext,
-  ActivationDeclaredContext,
+  
   ActivationGate,
-  RushDeclaredContext,
-  StandUpRollContext,
+  
+  
   TurnEndingContext,
-  TeamRerollGateContext,
+  
 } from "./SkillRule";
-export { rushAllowance, moveAllowance, standUpCost } from "./movement";
+;

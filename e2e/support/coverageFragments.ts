@@ -6,7 +6,7 @@ import {
   type CoverageFragment,
 } from "../../src/testing/coverage/observed";
 
-export const FRAGMENT_DIR = join("e2e-results", "coverage-fragments");
+const FRAGMENT_DIR = join("e2e-results", "coverage-fragments");
 
 const buffered: CoverageFragment[] = [];
 let flushRegistered = false;
@@ -38,7 +38,7 @@ function ensureFlushOnExit(): void {
   });
 }
 
-export function flushCoverageFragments(): void {
+function flushCoverageFragments(): void {
   if (buffered.length === 0) return;
   const dir = join(process.cwd(), FRAGMENT_DIR);
   mkdirSync(dir, { recursive: true });

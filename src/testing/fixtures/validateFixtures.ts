@@ -15,9 +15,9 @@ export interface DeclaredGrant {
   reason: string;
 }
 
-export type FixtureIssueKind = "redundant-grant" | "implausible-grant";
+type FixtureIssueKind = "redundant-grant" | "implausible-grant";
 
-export type GrantJustification = "forced" | "declared";
+type GrantJustification = "forced" | "declared";
 
 export interface FixtureIssue {
   ownerId: string;
@@ -27,7 +27,7 @@ export interface FixtureIssue {
   message: string;
 }
 
-export interface FixtureGrantRecord {
+interface FixtureGrantRecord {
   ownerId: string;
   player: string;
   skill: SkillType;

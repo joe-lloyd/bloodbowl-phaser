@@ -3,27 +3,6 @@ import type { HeadlessGame } from "../../src/headless/HeadlessGame";
 import type { HeadlessCommand } from "../../src/headless/protocol";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 
-export const wait = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-export const flushPromises = () =>
-  new Promise((resolve) => setImmediate(resolve));
-
-export const mockRaf = () => {
-  let lastTime = 0;
-  vi.spyOn(window, "requestAnimationFrame").mockImplementation(
-    (callback: FrameRequestCallback) => {
-      const currTime = Date.now();
-      const timeToCall = Math.max(0, 16 - (currTime - lastTime));
-      const id = window.setTimeout(() => {
-        callback(currTime + timeToCall);
-      }, timeToCall);
-      lastTime = currTime + timeToCall;
-      return id;
-    }
-  );
-};
-
 export const forceDice = (
   rng: { rollMultipleDice(count: number, sides: number): number[] },
   values: number[]

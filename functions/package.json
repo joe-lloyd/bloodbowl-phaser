@@ -7,8 +7,8 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
-    "serve": "pnpm build && firebase emulators:start --only functions",
-    "deploy": "firebase deploy --only functions"
+    "serve": "pnpm build && pnpm dlx firebase-tools@15.34.1 emulators:start --only functions",
+    "deploy": "pnpm dlx firebase-tools@15.34.1 deploy --only functions"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0"

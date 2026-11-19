@@ -395,7 +395,7 @@ export function validateScenarioCases(
   return issues;
 }
 
-export function formatValidationIssues(issues: ValidationIssue[]): string {
+function formatValidationIssues(issues: ValidationIssue[]): string {
   return issues
     .map((issue) => `  ${issue.caseId} · ${issue.field}: ${issue.message}`)
     .join("\n");

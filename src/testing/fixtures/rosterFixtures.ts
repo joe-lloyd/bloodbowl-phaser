@@ -8,7 +8,7 @@ import {
 import { positionByPlayerIndex } from "../../game/TeamFactory";
 import { type PlayerRef } from "../scenarioCase/types";
 
-export type FixtureSource = "native" | "advancement" | "synthetic";
+type FixtureSource = "native" | "advancement" | "synthetic";
 
 export interface RosterSlot {
   roster: RosterName;

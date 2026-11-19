@@ -2,7 +2,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { type Page } from "@playwright/test";
 import { appendFileSync } from "node:fs";
 
-export interface UxFinding {
+interface UxFinding {
   kind:
     | "covered"
     | "offscreen"

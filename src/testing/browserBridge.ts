@@ -4,8 +4,8 @@ import { type GameSnapshot } from "../headless/serialization";
 import { type EmittedEvent, type PendingDecision } from "../headless/protocol";
 import { GameConfig } from "../config/GameConfig";
 
-export const TEST_BRIDGE_KEY = "__bbTestBridge" as const;
-export const TEST_BRIDGE_VERSION = 1;
+const TEST_BRIDGE_KEY = "__bbTestBridge" as const;
+const TEST_BRIDGE_VERSION = 1;
 
 export interface BridgeTeam {
   id: string;
@@ -48,13 +48,6 @@ export interface BrowserTestBridge {
   pitchHighlights(): { x: number; y: number }[];
 
   canvasSize(): { width: number; height: number };
-}
-
-export function isTestBridgeAvailable(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    !!(window as unknown as Record<string, unknown>)[TEST_BRIDGE_KEY]
-  );
 }
 
 function bridgeAllowed(): boolean {

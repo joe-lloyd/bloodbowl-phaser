@@ -23,7 +23,7 @@ import {
   validateExclusions,
 } from "./exclusions";
 
-export type EntryStatus = "covered" | "excluded" | "missing" | "not-required";
+type EntryStatus = "covered" | "excluded" | "missing" | "not-required";
 
 export interface EntryLayerResult {
   layer: ExecutionLayer;

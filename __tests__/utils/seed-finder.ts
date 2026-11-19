@@ -13,11 +13,6 @@ export interface InjuryChainOptions {
   casualtyRoll?: number;
 }
 
-export interface SeedScenario {
-  name: string;
-  validator: (rng: RNGService, diceController: DiceController) => boolean;
-}
-
 export interface SeedResult {
   seed: number;
   attempts: number;
@@ -125,43 +120,4 @@ function injuryChainMatches(
     options.casualtyRoll === undefined ||
     rng.rollDie(16) === options.casualtyRoll
   );
-}
-
-export function findSeedsForMultipleOutcomes(
-  scenarios: SeedScenario[],
-  maxAttempts = 100000
-): Map<string, SeedResult> {
-  const results = new Map<string, SeedResult>();
-  const eventBus = new EventBus();
-
-  for (const scenario of scenarios) {
-    for (let seed = 1; seed <= maxAttempts; seed++) {
-      const rng = new RNGService(seed);
-      const diceController = new DiceController(eventBus, rng);
-
-      if (scenario.validator(rng, diceController)) {
-        results.set(scenario.name, { seed, attempts: seed });
-        break;
-      }
-    }
-  }
-
-  return results;
-}
-
-export function exportSeeds(seeds: Map<string, SeedResult>): string {
-  const obj: Record<string, SeedResult> = {};
-  seeds.forEach((result, name) => {
-    obj[name] = result;
-  });
-  return JSON.stringify(obj, null, 2);
-}
-
-export function importSeeds(json: string): Map<string, SeedResult> {
-  const obj = JSON.parse(json) as Record<string, SeedResult>;
-  const map = new Map<string, SeedResult>();
-  Object.entries(obj).forEach(([name, result]) => {
-    map.set(name, result);
-  });
-  return map;
 }

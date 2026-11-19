@@ -82,7 +82,7 @@ export const brainCall = (page: Page, fn: string, arg?: string) =>
     [fn, arg, BRAIN] as const
   );
 
-export const BRAIN = "/e2e/fullgame/brain.ts";
+const BRAIN = "/e2e/fullgame/brain.ts";
 const BLOCK_RANK = ["pow", "pow-dodge", "push", "both-down", "skull"];
 let turnShots = 0;
 

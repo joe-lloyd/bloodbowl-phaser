@@ -193,6 +193,6 @@ export type MatchMoment =
   | AnnouncementMoment
   | { kind: "turnover"; reason: string };
 
-export type InfoPanelSubject =
+type InfoPanelSubject =
   | { kind: "player"; player: Player }
   | { kind: "sidelineCrew"; crew: SidelineCrewInfo };

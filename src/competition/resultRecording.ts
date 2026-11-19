@@ -205,7 +205,7 @@ async function updateReachableTeams({
   }
 }
 
-export interface RecordFixtureOptions {
+interface RecordFixtureOptions {
   fanFactors?: { home: number; away: number };
 
   stalled?: { home: boolean; away: boolean };
