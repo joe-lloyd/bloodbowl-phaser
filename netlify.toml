@@ -1,17 +1,14 @@
 # Netlify deployment config for the Vite + React SPA.
 #
-# Build note: the `build` npm script runs `tsc && vite build`, but the project
-# has pre-existing UI-layer type errors that would fail CI. Vite/esbuild
-# transpiles without type-checking, so we build with `vite build` directly
-# (runtime is unaffected — tsc is only a type gate). Fix those separately in a
-# `fix-typecheck-build` change if you want the gate back.
+# The repo uses pnpm only: npm refuses to run here because of devEngines in
+# package.json. pnpm 11 needs Node 22, the version CI uses.
 
 [build]
-  command = "npm run build:netlify"
+  command = "pnpm run build:netlify"
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "22"
   # Skip husky git-hook install in CI (no dev hooks needed to build)
   HUSKY = "0"
 
