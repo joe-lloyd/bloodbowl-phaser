@@ -54,7 +54,7 @@ def look(base, values):
     if base.key == "vampire_thrower":
         layout.update(THROWER_HAIR[sex])
     if base.key == "vampire_runner" and sex == "m":
-        layout.update(lip="lip", tie=None)
+        layout.update(lip="lip")
     for name, value in choice.items():
         layout.update(LAYOUTS[base.key].get(name, {}).get(value, {}))
     key = "%s__%s" % (base.key, "-".join(values))
