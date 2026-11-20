@@ -2,7 +2,7 @@ import type { LobbyDoc } from "../firebase/lobby";
 
 export const OPEN_GAME_HEARTBEAT_MS = 30_000;
 const HOST_GONE_MS = 90_000;
-const LISTING_ABANDONED_MS = 300_000;
+const LISTING_ABANDONED_MS = 600_000;
 
 export interface OpenGame {
   code: string;

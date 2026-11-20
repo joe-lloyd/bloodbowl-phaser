@@ -38,7 +38,7 @@ import { DEFAULT_SETTINGS } from "../../src/firebase/lobby";
 import { createHumanTeam, createOrcTeam } from "../fixtures/teams";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 
-const GONE = 10 * 60_000;
+const GONE = 15 * 60_000;
 
 function openGameAppears(uid: string, code: string): Promise<boolean> {
   return as(

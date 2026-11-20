@@ -597,7 +597,6 @@ function unlistAbandoned(
     if (unlisting.has(code)) continue;
     unlisting.add(code);
     updateDoc(lobbyRef(code), { listed: false }).catch((error: unknown) => {
-      unlisting.delete(code);
       console.warn("[open lobby] could not unlist an abandoned game", error);
     });
   }
@@ -609,6 +608,7 @@ export function subscribeOpenLobbies(
   const unlisting = new Set<string>();
   let latest: LobbyDoc[] = [];
   const sweep = setInterval(() => {
+    unlisting.clear();
     unlistAbandoned(latest, unlisting);
   }, OPEN_LOBBY_SWEEP_MS);
   const stop = onSnapshot(

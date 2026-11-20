@@ -50,13 +50,16 @@ describe("the open games list", () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
+    firestore.updateDoc.mockReset();
+    firestore.updateDoc.mockResolvedValue(undefined);
+    firestore.stop.mockClear();
   });
 
   it("unlists a lobby whose host goes quiet after the list loaded, and stops when closed", () => {
     const close = subscribeOpenLobbies(vi.fn());
     const deliver = fixtureValue(firestore.listeners.at(-1));
-    deliver({ docs: [{ data: () => listedLobby(Date.now() - 4 * MINUTE) }] });
+    deliver({ docs: [{ data: () => listedLobby(Date.now() - 9 * MINUTE) }] });
     expect(firestore.updateDoc).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(2 * MINUTE);
@@ -67,5 +70,24 @@ describe("the open games list", () => {
     vi.advanceTimersByTime(5 * MINUTE);
     expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
     expect(firestore.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a refused unlist only once a minute, however often the list changes", async () => {
+    firestore.updateDoc.mockRejectedValue(new Error("permission-denied"));
+    vi.spyOn(console, "warn").mockReturnValue(undefined);
+    const close = subscribeOpenLobbies(vi.fn());
+    const deliver = fixtureValue(firestore.listeners.at(-1));
+    const quiet = { docs: [{ data: () => listedLobby(Date.now() - 11 * MINUTE) }] };
+
+    deliver(quiet);
+    await vi.advanceTimersByTimeAsync(0);
+    deliver(quiet);
+    deliver(quiet);
+    expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(MINUTE);
+    deliver(quiet);
+    expect(firestore.updateDoc).toHaveBeenCalledTimes(2);
+    close();
   });
 });
