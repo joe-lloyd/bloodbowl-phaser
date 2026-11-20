@@ -125,6 +125,49 @@ describe("Wrestle", () => {
     expect(wrestleAnswer(subject, attacker, defender)).toBe("accept");
   });
 
+  it("prices a hungry Vampire's Wrestle as a turnover and keeps Defender Stumbles", () => {
+    const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE], {
+      skills: [SkillType.BLOCK],
+      hasBall: true,
+    });
+    subject.ctx.gameService.getState().activePlayer = {
+      id: attacker.id,
+      action: "block",
+      bloodlustUnsated: true,
+    };
+    const board = readBoard(subject, attacker.teamId);
+    expect(
+      blockOdds({
+        dice: 1,
+        attackerPicks: true,
+        teamReroll: false,
+        faces: blockFaces(board, attacker, defender),
+      })
+    ).toEqual({ knockdown: 3 / 6, attackerDown: 2 / 6 });
+    const options = (["both-down", "pow-dodge"] as const).map((type) => ({
+      type,
+      icon: "",
+      label: type,
+    }));
+    const picked = decide({
+      board,
+      pending: {
+        type: "block-dice",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        chooserTeamId: attacker.teamId,
+        options,
+        choiceStage: "pick",
+      },
+      candidates: options.map((_, index) => ({
+        kind: "decision",
+        label: String(index),
+        commands: [{ type: "choose-block-result", index }],
+      })),
+    });
+    expect(picked).toBe(1);
+  });
+
   it("keeps its own carrier standing instead of wrestling with Block against Block", () => {
     const { subject, attacker, defender } = wrestleBoard(
       [SkillType.BLOCK, SkillType.WRESTLE],

@@ -73,6 +73,7 @@ export function blockFaces(
     takesWrestle(board, attacker, defender) ||
     defenderWrestles(attacker, defender);
   const value = wrestleValue(board, attacker, defender);
+  const fallsHungry = wrestled && hungry(board, attacker);
   return {
     pow: { rank: 5, knockdown: true, attackerDown: false },
     "pow-dodge": dodges
@@ -80,7 +81,11 @@ export function blockFaces(
       : { rank: 4.5, knockdown: true, attackerDown: false },
     push: { rank: 3, knockdown: false, attackerDown: false },
     "both-down": wrestled
-      ? { rank: value, knockdown: true, attackerDown: value === 0 }
+      ? {
+          rank: fallsHungry ? value - 0.1 : value,
+          knockdown: true,
+          attackerDown: value === 0 || fallsHungry,
+        }
       : {
           rank: bothDownRank(aBlock, dBlock),
           knockdown: !dBlock,
