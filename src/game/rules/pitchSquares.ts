@@ -34,10 +34,6 @@ export function isStandableSquare(square: Square): boolean {
   return isOnPitch(square) && obstacleKindAt(square) === undefined;
 }
 
-export function hasObstacles(): boolean {
-  return activeLayout().obstacles.length > 0;
-}
-
 export type PitchEdge = "sideline-wall" | "crowd";
 
 export function edgeCrossed(to: Square): PitchEdge {
