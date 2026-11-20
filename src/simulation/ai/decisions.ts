@@ -143,6 +143,14 @@ function pushChoice(
   });
 }
 
+function keepsFood(board: Board, attacker: FieldPlayer | undefined): boolean {
+  return (
+    !!attacker &&
+    !!board.gs.getState().activePlayer?.bloodlustUnsated &&
+    hasBiteSupport(board, attacker, attacker.gridPosition)
+  );
+}
+
 function followUpChoice(
   board: Board,
   candidates: readonly Candidate[]
@@ -157,7 +165,7 @@ function followUpChoice(
     carrier.teamId === board.us &&
     carrier.id !== attacker.id &&
     distance(carrier.gridPosition, attacker.gridPosition) === 1;
-  const follow = !holding && !corner;
+  const follow = !holding && !corner && !keepsFood(board, attacker);
   return first(
     candidates,
     (c) =>
