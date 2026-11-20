@@ -101,7 +101,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           navigate(`/online/play/${String(existing)}`, { replace: true });
           return;
         }
-        if (doc && reusableLobby(doc, competitionFixture)) {
+        if (doc && reusableLobby(doc, { uid: user.uid, fixture: competitionFixture })) {
           setCode(doc.code);
           return;
         }
@@ -335,10 +335,11 @@ function sameFixture(
 
 function reusableLobby(
   lobby: LobbyDoc,
-  fixture: HostedFixture | undefined
+  { uid, fixture }: { uid: string; fixture: HostedFixture | undefined }
 ): boolean {
   return (
     lobby.status === "lobby" &&
+    lobby.hostUid === uid &&
     sameFixture(lobby.competitionContext, fixture?.context)
   );
 }
