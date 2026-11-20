@@ -52,7 +52,7 @@ export function defenderWrestles(attacker: Player, defender: Player): boolean {
   );
 }
 
-export interface BlockFace {
+interface BlockFace {
   rank: number;
   knockdown: boolean;
   attackerDown: boolean;
