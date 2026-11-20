@@ -1,6 +1,4 @@
 import Phaser from "phaser";
-import { MATCH_STYLE } from "../presentation/matchStyle";
-
 import { parseStadiumMeta, type StadiumMeta } from "../../boundary/stadium";
 export type {
   DugoutBox,
@@ -10,29 +8,33 @@ export type {
 
 const LAYERS = ["base", "home", "away"] as const;
 
-function key(part: string): string {
-  return `stadium:${part}`;
+function key(path: string, part: string): string {
+  return `stadium:${path}:${part}`;
 }
 
-export function preloadStadium(scene: Phaser.Scene) {
-  const path = MATCH_STYLE.stadiumPath;
-  scene.load.json(key("meta"), `${path}/meta.json`);
+export function preloadStadium(scene: Phaser.Scene, path: string) {
+  scene.load.json(key(path, "meta"), `${path}/meta.json`);
   for (const layer of LAYERS) {
-    if (!scene.textures.exists(key(layer)))
-      scene.load.image(key(layer), `${path}/${layer}.webp`);
+    if (!scene.textures.exists(key(path, layer)))
+      scene.load.image(key(path, layer), `${path}/${layer}.webp`);
   }
+}
+
+export interface TeamColours {
+  home: number;
+  away: number;
 }
 
 export class Stadium {
   public readonly meta: StadiumMeta;
   private image: Phaser.GameObjects.Image | null = null;
 
-  constructor(scene: Phaser.Scene, colors: { home: number; away: number }) {
-    this.meta = parseStadiumMeta(scene.cache.json.get(key("meta")));
+  constructor(scene: Phaser.Scene, path: string, colors: TeamColours) {
+    this.meta = parseStadiumMeta(scene.cache.json.get(key(path, "meta")));
     const layers = LAYERS.filter((layer) =>
-      scene.textures.exists(key(layer))
+      scene.textures.exists(key(path, layer))
     ).flatMap((layer) => {
-      const image = scene.textures.get(key(layer)).getSourceImage();
+      const image = scene.textures.get(key(path, layer)).getSourceImage();
       const tint = layer === "base" ? 0xffffff : colors[layer];
       return image instanceof HTMLImageElement ? [{ image, tint }] : [];
     });
@@ -41,7 +43,7 @@ export class Stadium {
 
     const canvas = flatten([first, ...rest]);
     const texture = scene.textures.create(
-      key(`match-${Phaser.Math.RND.uuid()}`),
+      key(path, `match-${Phaser.Math.RND.uuid()}`),
       canvas
     );
     if (!texture) return;
@@ -52,8 +54,6 @@ export class Stadium {
   public get dugouts(): StadiumMeta["dugouts"] {
     return this.meta.dugouts;
   }
-
-  public readonly gates = {};
 
   public get origin(): { x: number; y: number } {
     const [x, y] = this.meta.sizes.lo.origin;

@@ -1,14 +1,17 @@
 import type Phaser from "phaser";
 import { activeLayout } from "../../variants/activeMatch";
+import type { Venue } from "../../variants/pitchLayouts";
+import { MATCH_STYLE } from "../../presentation/matchStyle";
 import {
   dugoutGateX,
-  venueDugouts,
   type VenueDugouts,
 } from "../../presentation/venueSidelines";
-import { preloadStadium, Stadium } from "../Stadium";
-import { PaintedVenue } from "./PaintedVenue";
-import type { VenueGates } from "./paintVenue";
-import type { TeamColours } from "./markings";
+import { preloadStadium, Stadium, type TeamColours } from "../Stadium";
+
+interface VenueGates {
+  home?: number;
+  away?: number;
+}
 
 export interface VenueBackdrop {
   readonly dugouts: VenueDugouts;
@@ -19,8 +22,14 @@ export interface VenueBackdrop {
   destroy(): void;
 }
 
+function venueArtPath(venue: Venue): string {
+  return venue === "stadium"
+    ? MATCH_STYLE.stadiumPath
+    : `${MATCH_STYLE.venuePath}/${venue}`;
+}
+
 export function preloadVenue(scene: Phaser.Scene): void {
-  if (activeLayout().venue === "stadium") preloadStadium(scene);
+  preloadStadium(scene, venueArtPath(activeLayout().venue));
 }
 
 export function createVenueBackdrop(
@@ -28,10 +37,19 @@ export function createVenueBackdrop(
   colours: TeamColours
 ): VenueBackdrop {
   const layout = activeLayout();
-  if (layout.venue === "stadium") return new Stadium(scene, colours);
-  const dugouts = venueDugouts(layout);
+  const art = new Stadium(scene, venueArtPath(layout.venue), colours);
+  const { dugouts } = art;
   const gates = layout.walledSidelines
     ? { home: dugoutGateX(dugouts.home), away: dugoutGateX(dugouts.away) }
     : {};
-  return new PaintedVenue(scene, { layout, colours, dugouts, gates });
+  return {
+    dugouts,
+    gates,
+    origin: art.origin,
+    width: art.width,
+    height: art.height,
+    destroy: () => {
+      art.destroy();
+    },
+  };
 }

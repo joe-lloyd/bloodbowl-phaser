@@ -1,7 +1,7 @@
 import type { GameScene } from "./GameScene";
 import { GameEventNames } from "../types/events";
 import { activeLayout } from "../game/variants/activeMatch";
-import { UP_PX } from "../game/elements/venue/isoCanvas";
+import { ISO } from "../game/elements/GridUtils";
 import { PLAYER_DEPTH } from "../game/elements/PlayerSprite";
 import { prefersReducedMotion } from "../game/presentation/motion";
 import {
@@ -14,7 +14,7 @@ const PUFFS = 7;
 
 function playWallHit(scene: GameScene, hit: WallHit): void {
   const at = scene.pitch.getPointPosition(hit.x, hit.y);
-  const y = at.y - UP_PX * 0.8;
+  const y = at.y + ISO.upPerMetre * 0.8;
   const depth = PLAYER_DEPTH + at.y + 1;
   const flash = scene.add
     .ellipse(at.x, y, 46, 22, 0xfff1c8, 0.95)

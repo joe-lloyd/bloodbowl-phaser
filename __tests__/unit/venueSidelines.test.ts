@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import meta from "../../public/stadium/bloodbowl/meta.json";
+import beachMeta from "../../public/venues/beach/meta.json";
+import gutterSewerMeta from "../../public/venues/gutter-sewer/meta.json";
+import gutterStreetMeta from "../../public/venues/gutter-street/meta.json";
+import streetMeta from "../../public/venues/street/meta.json";
 import { parseStadiumMeta } from "../../src/boundary/stadium";
 import {
   dugoutGateX,
   venueDugouts,
 } from "../../src/game/presentation/venueSidelines";
 import { PITCH_LAYOUTS } from "../../src/game/variants/pitchLayouts";
-import { obstacleBlocks } from "../../src/game/elements/venue/obstacles";
 import {
   wallHitFromSquare,
   wallHitFromThrowIn,
@@ -39,19 +42,36 @@ describe("venue dugouts", () => {
   });
 });
 
-describe("venue obstacles", () => {
-  it("groups the Gutter Bowl stalls into four 6 × 4 blocks", () => {
-    const blocks = obstacleBlocks(PITCH_LAYOUTS["gutter-street"].obstacles);
-    expect(blocks).toEqual([
-      { kind: "market-stall", rect: { x0: 2, y0: 0, x1: 8, y1: 4 } },
-      { kind: "market-stall", rect: { x0: 6, y0: 11, x1: 12, y1: 15 } },
-      { kind: "market-stall", rect: { x0: 14, y0: 0, x1: 20, y1: 4 } },
-      { kind: "market-stall", rect: { x0: 18, y0: 11, x1: 24, y1: 15 } },
-    ]);
-  });
+describe("rendered venues", () => {
+  const rendered = [
+    ["street", streetMeta],
+    ["beach", beachMeta],
+    ["gutter-street", gutterStreetMeta],
+    ["gutter-sewer", gutterSewerMeta],
+  ] as const;
 
-  it("has no obstacles on the open venues", () => {
-    expect(obstacleBlocks(PITCH_LAYOUTS.beach.obstacles)).toEqual([]);
+  it.each(rendered)(
+    "draws the %s pitch, dugouts and obstacles where the rules put them",
+    (venue, raw) => {
+      const layout = PITCH_LAYOUTS[venue];
+      const art = parseStadiumMeta(raw);
+      expect([art.layout, art.cols, art.rows]).toEqual([
+        venue,
+        layout.cols,
+        layout.rows,
+      ]);
+      expect(art.dugouts).toEqual(venueDugouts(layout));
+      expect(raw.obstacles).toEqual(
+        layout.obstacles.map(({ x, y }) => [x, y])
+      );
+    }
+  );
+
+  it("puts the Gutter Bowl stalls on 96 squares and the open venues on none", () => {
+    expect(gutterStreetMeta.obstacles).toHaveLength(96);
+    expect(gutterSewerMeta.obstacles).toHaveLength(96);
+    expect(beachMeta.obstacles).toEqual([]);
+    expect(streetMeta.obstacles).toEqual([]);
   });
 });
 

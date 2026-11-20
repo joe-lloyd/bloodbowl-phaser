@@ -14,7 +14,6 @@ const stadiumMeta = z.object({
   cols: z.number(),
   rows: z.number(),
   dugouts: z.object({ home: dugout, away: dugout }),
-  screen: z.tuple([z.number(), z.number(), z.number()]),
   sizes: z.object({
     lo: z.object({
       width: z.number(),
