@@ -20,6 +20,7 @@ import {
 const ROLL_LETTER: Record<RouteRoll["type"], string> = {
   dodge: "D",
   rush: "R",
+  barricade: "B",
   pickup: "P",
   secureBall: "S",
 };

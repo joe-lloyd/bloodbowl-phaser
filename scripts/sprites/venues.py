@@ -7,15 +7,17 @@ VENUE is street, beach, gutter-street or gutter-sewer. One venue per run,
 for the same reason stadium.py renders one layout per run.
 
 layouts.json comes from the game's own pitch layouts, so the pitch size,
-Lines of Scrimmage, wide zones, walls, obstacles, dugout squares and wall
-gates in the render are the ones the rules use. The camera, light style,
+Lines of Scrimmage, wide zones, walls, obstacles, barricades, dugout squares
+and wall gates in the render are the ones the rules use. The camera, light style,
 materials and the colour and mask passes are stadium.py's, so the players
 and the Phaser tinting work the same on every venue. meta.json has the
-same shape as the stadium's, plus the obstacle squares, so a unit test can
-check the art against the rules layout.
+same shape as the stadium's, plus the obstacle squares and the barricades
+as [afterColumn, first row, last row], so a unit test can check the art
+against the rules layout.
 
 Tall things stay off the pitch side of anything a player can stand on:
-the far wall is chest high, the near wall knee high, stall awnings low, and
+the far wall is chest high, the near wall and the barricades knee high,
+stall awnings low and pulled in so they only cover their own squares, and
 houses, sea and sewer arches sit behind the far dugout.
 """
 
@@ -39,6 +41,7 @@ G = st["G"]
 FONTS = ["C:/Windows/Fonts/georgiab.ttf", "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"]
 MARGIN = {"ends": 6, "near": 6}
 FAR_EDGE = -5
+LIFT = 21.651 / 49.497
 
 
 def rgb(hex_colour):
@@ -82,6 +85,7 @@ VENUE_PARTS = {
     "produce_orange": toon("#d9782a"), "produce_yellow": toon("#d9c23a"), "sack": toon("#a08a5c"),
     "palm_trunk": toon("#7a5a3a"), "palm_leaf": toon("#3f7a2e"), "palm_leaf_b": toon("#2f6326"),
     "iron": toon("#2b2b2e"),
+    "paint": toon("#e9e4d6"), "spike": toon("#b9b6ae"),
 }
 
 AWNINGS = [("awning_red", "awning_cream"), ("awning_blue", "awning_yellow"),
@@ -367,16 +371,21 @@ def lamps(b, layout):
         b.box("iron", (x - 0.3, y - 0.3, 3.85), (x + 0.3, y + 0.3, 3.97))
 
 
-def stall(b, rng, x0, y0, x1, y1, faces, colours):
-    """A market stall on grid rect x0..x1, y0..y1, its counter facing +y or -y."""
+def stall(b, rng, x0, y0, x1, y1, colours, awning_x0):
+    """A market stall on grid rect x0..x1, y0..y1, its counter facing the camera.
+
+    The awning slopes down to the counter. A metre of height draws LIFT
+    squares up the screen in both grid axes, so the awning starts that far in
+    from the back and from awning_x0, and draws over the block's own squares.
+    """
+    high, low = 2.0, 1.55
+    inset = LIFT * (high + 0.1)
+    ax0, ay0, ay1 = awning_x0, y0 + inset, y1 - 0.55
     gbox(b, "timber_dark", x0 + 0.12, y0 + 0.12, x1 - 0.12, y1 - 0.12, 0.0, 0.18)
-    fy = y1 if faces > 0 else y0
-    by = y0 if faces > 0 else y1
-    inner = -faces * 0.45
-    for px in (x0 + 0.25, x1 - 0.25):
-        for py in (fy - faces * 0.25, by + faces * 0.25):
-            gbox(b, "timber", px - 0.04, py - 0.04, px + 0.04, py + 0.04, 0.18, 2.3)
-    cy0, cy1 = sorted((fy - faces * 0.2, fy + inner))
+    for px in (ax0 + 0.2, x1 - 0.25):
+        gbox(b, "timber", px - 0.04, ay0 + 0.16, px + 0.04, ay0 + 0.24, 0.18, high)
+        gbox(b, "timber", px - 0.04, ay1 - 0.24, px + 0.04, ay1 - 0.16, 0.18, low)
+    cy0, cy1 = y1 - 0.45, y1 - 0.2
     gbox(b, "timber", x0 + 0.3, cy0, x1 - 0.3, cy1, 0.18, 1.05)
     gbox(b, "timber_dark", x0 + 0.28, cy0 - 0.02, x1 - 0.28, cy1 + 0.02, 1.05, 1.12)
     t = x0 + 0.38
@@ -388,19 +397,20 @@ def stall(b, rng, x0, y0, x1, y1, faces, colours):
             gbox(b, crate, fx, cy0 + 0.07, fx + 0.09, cy1 - 0.07, 1.3, 1.42)
         t += 0.46
     for _ in range(rng.randint(3, 5)):
-        sx = rng.uniform(x0 + 0.4, x1 - 0.7)
-        sy = rng.uniform(min(y0, y1) + 0.5, max(y0, y1) - 0.9)
+        sx = rng.uniform(x0 + 0.5, x1 - 0.7)
+        sy = rng.uniform(y0 + 0.5, cy0 - 0.35)
         part = rng.choice(["sack", "timber", "timber_dark"])
         h = rng.uniform(0.4, 0.9)
         gbox(b, part, sx, sy, sx + 0.25, sy + 0.25, 0.18, 0.18 + h)
-    depth = abs(y1 - y0) * S
-    stripes = int((x1 - x0) * S / 0.6)
-    width = (x1 - x0) * S / stripes
-    tilt = 10
-    cy = G(0, (y0 + y1) / 2).y
+    depth = (ay1 - ay0) * S
+    tilt = math.degrees(math.atan2(high - low, depth))
+    stripes = int((x1 - ax0) * S / 0.6)
+    width = (x1 - ax0) * S / stripes
+    cy = G(0, (ay0 + ay1) / 2).y
     for k in range(stripes):
-        cx = x0 * S + width * (k + 0.5)
-        tilted(b, colours[k % 2], (cx, cy, 2.45), (width + 0.01, depth - 0.2, 0.08), (faces * tilt, 0, 0))
+        cx = ax0 * S + width * (k + 0.5)
+        tilted(b, colours[k % 2], (cx, cy, (high + low) / 2 + 0.04),
+               (width + 0.01, math.hypot(depth, high - low), 0.08), (tilt, 0, 0))
 
 
 def stalls(b, rng, layout):
@@ -408,10 +418,38 @@ def stalls(b, rng, layout):
         if kind != "market-stall":
             continue
         hazard_ring(b, x0, y0, x1, y1, SURFACE_TOP["cobbles"])
-        faces = 1 if y0 == 0 else -1
         mid = (x0 + x1) / 2
-        stall(b, rng, x0 + 0.15, y0 + 0.15, mid - 0.05, y1 - 0.15, faces, AWNINGS[(2 * i) % 4])
-        stall(b, rng, mid + 0.05, y0 + 0.15, x1 - 0.15, y1 - 0.15, faces, AWNINGS[(2 * i + 1) % 4])
+        left_x0 = x0 + 0.15 + LIFT * 2.1
+        stall(b, rng, x0 + 0.15, y0 + 0.15, mid - 0.05, y1 - 0.15, AWNINGS[(2 * i) % 4], left_x0)
+        stall(b, rng, mid + 0.05, y0 + 0.15, x1 - 0.15, y1 - 0.15, AWNINGS[(2 * i + 1) % 4], mid + 0.05)
+
+
+# ---------------------------------------------------------------- barricades
+
+
+def plank_barrier(b, gx, gy0, gy1, z0):
+    """A knee-high spiked plank barrier on grid line x = gx from row line gy0 to gy1."""
+    half = 0.08
+    rim = 0.07
+    gbox(b, "line", gx - half - rim, gy0 + 0.04, gx + half + rim, gy1 - 0.04, z0, z0 + 0.02)
+    for py in (gy0 + 0.18, (gy0 + gy1) / 2, gy1 - 0.18):
+        gbox(b, "timber_dark", gx - half - 0.02, py - 0.06, gx + half + 0.02, py + 0.06, z0, 0.62)
+    gbox(b, "timber", gx - half + 0.02, gy0 + 0.1, gx + half - 0.02, gy1 - 0.1, 0.1, 0.3)
+    gbox(b, "timber_dark", gx - half + 0.03, gy0 + 0.1, gx + half - 0.03, gy1 - 0.1, 0.3, 0.33)
+    gbox(b, "timber", gx - half + 0.02, gy0 + 0.1, gx + half - 0.02, gy1 - 0.1, 0.33, 0.52)
+    gbox(b, "paint", gx - half, gy0 + 0.08, gx + half, gy1 - 0.08, 0.52, 0.6)
+    steps = int((gy1 - gy0 - 0.3) / 0.22)
+    for k in range(steps + 1):
+        py = gy0 + 0.15 + k * (gy1 - gy0 - 0.3) / steps
+        lean = 20 if k % 2 else -20
+        tilted(b, "spike", (gx * S, -py * S, 0.76), (0.1, 0.1, 0.42), (lean, 0, 0))
+
+
+def barricades(b, layout):
+    z0 = SURFACE_TOP[layout["surface"]] + 0.005
+    for bar in layout["barricades"]:
+        rows = bar["rows"]
+        plank_barrier(b, bar["afterColumn"] + 1, rows["min"], rows["max"] + 1, z0)
 
 
 # -------------------------------------------------------------------- beach
@@ -566,6 +604,7 @@ def build(layout):
     dugouts(b, layout)
     sideline_walls(b, rng, layout)
     end_crowds(b, rng, layout)
+    barricades(b, layout)
     if surface == "cobbles":
         houses(b, rng, layout)
         lamps(b, layout)
@@ -593,6 +632,7 @@ def render(layout, out_dir):
     meta = {
         "layout": layout["venue"], "square_m": S, "cols": layout["cols"], "rows": layout["rows"],
         "dugouts": built, "obstacles": [[o["x"], o["y"]] for o in layout["obstacles"]],
+        "barricades": [[r["afterColumn"], r["rows"]["min"], r["rows"]["max"]] for r in layout["barricades"]],
         "sizes": {"lo": {
             "width": w, "height": h, "px_per_unit": st["PX_PER_UNIT"]["lo"],
             "origin": to_px(G(0, 0)),

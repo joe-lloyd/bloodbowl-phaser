@@ -18,6 +18,7 @@ import { readMatchSave } from "../../game/persistence/MatchSaveRepository";
 import { restoreMatchSave } from "../../headless/serialization";
 import { type CompetitionContext } from "../../competition/types";
 import type { GameType } from "../../game/variants/gameTypes";
+import type { Venue } from "../../game/variants/pitchLayouts";
 
 export interface ComputerPlayState {
   team1: Team;
@@ -30,6 +31,8 @@ export interface ComputerPlayState {
   competitionContext?: CompetitionContext;
 
   gameType?: GameType;
+
+  venue?: Venue;
 }
 
 function difficultyOf(id: string | undefined): Difficulty {
@@ -81,6 +84,7 @@ function startFrom(state: ComputerPlayState | null) {
         ? {}
         : { competitionContext: state.competitionContext }),
       ...(state.gameType === undefined ? {} : { gameType: state.gameType }),
+      ...(state.venue === undefined ? {} : { venue: state.venue }),
     }),
   };
 }

@@ -14,6 +14,7 @@ import { fixturePaysWinnings } from "../game/rules/winnings";
 import { startMatchDiceLog } from "../game/persistence/diceLogStore";
 import { getActiveOnlineMatch } from "../network/OnlineMatch";
 import type { GameType } from "../game/variants/gameTypes";
+import type { Venue } from "../game/variants/pitchLayouts";
 import { startingFormat } from "../game/variants/startingFormat";
 
 export interface GameSceneData {
@@ -22,6 +23,7 @@ export interface GameSceneData {
   progressionEnabled?: boolean;
   competitionContext?: CompetitionContext;
   gameType?: GameType;
+  venue?: Venue;
   resumeSave?: MatchSave;
   autosaveEnabled?: boolean;
 
@@ -40,6 +42,7 @@ export function resolveMatchStart(data: GameSceneData, sceneKey: string) {
     team2,
     competitionContext: save?.competition ?? data.competitionContext,
     gameType: data.gameType,
+    venue: data.venue,
     resumed: !!restored || data.resumed === true,
     autosaveEnabled: data.autosaveEnabled ?? sceneKey === "GameScene",
     ...driveTeams(save?.drive, team1, team2),
@@ -68,7 +71,11 @@ export function ensureMatchServices(
     GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
         paysWinnings: fixturePaysWinnings(competitionContext?.competitionType),
         pregameInducements: true,
-      }, ...startingFormat(competitionContext?.gameType ?? start.gameType) }
+      }, ...startingFormat(
+        competitionContext
+          ? { gameType: competitionContext.gameType }
+          : { gameType: start.gameType, venue: start.venue }
+      ) }
     );
   if (!restored && competitionContext?.knockout) {
     initialState.knockout = true;

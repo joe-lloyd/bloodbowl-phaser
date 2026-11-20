@@ -36,7 +36,7 @@ describe("GameTypeSelector", () => {
 
     expect(cards().map((button) => button.textContent)).toEqual([
       "Sevens20 × 11 stadium pitch",
-      "Gutter Bowl26 × 15 street or sewer, rolled each match",
+      "Gutter Bowl26 × 15 street or sewer, chosen or rolled",
       "Street Bowl26 × 7 street between two walls",
       "Beach Bowl20 × 9 sand, no casualties",
     ]);
@@ -138,6 +138,60 @@ describe("GameTypeSelector", () => {
     });
 
     expect(cards().map((button) => button.tabIndex)).toEqual([0, -1, -1, -1]);
+  });
+
+  const pitches = () => [
+    ...container.querySelectorAll<HTMLButtonElement>(
+      '[aria-label="Pitch"] [role="radio"]'
+    ),
+  ];
+
+  it("lets the coaches choose the Gutter Bowl pitch or roll for it", () => {
+    const onVenueChange = vi.fn();
+    act(() => {
+      root.render(
+        <GameTypeSelector
+          value="gutter-bowl"
+          onChange={vi.fn()}
+          venue="gutter-sewer"
+          onVenueChange={onVenueChange}
+        />
+      );
+    });
+
+    expect(
+      pitches().map((pitch) => [
+        pitch.textContent,
+        pitch.getAttribute("aria-checked"),
+      ])
+    ).toEqual([
+      ["StreetMarket stalls count as walls", "false"],
+      ["SewerA pushed player can fall into a pit", "true"],
+      ["Roll a D61-3 Sewer, 4-6 Street", "false"],
+    ]);
+
+    act(() => {
+      pitches()[0]?.click();
+    });
+    act(() => {
+      pitches()[2]?.click();
+    });
+
+    expect(onVenueChange.mock.calls).toEqual([["gutter-street"], [undefined]]);
+  });
+
+  it("offers no pitch choice for a game type with one pitch", () => {
+    act(() => {
+      root.render(
+        <GameTypeSelector
+          value="sevens"
+          onChange={vi.fn()}
+          onVenueChange={vi.fn()}
+        />
+      );
+    });
+
+    expect(pitches()).toEqual([]);
   });
 
   it("leaves the choice alone while disabled", () => {

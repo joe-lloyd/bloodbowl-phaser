@@ -8,12 +8,7 @@ import { useEventBus } from "../../hooks/useEventBus";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
 
-const ROLL_NAMES = {
-  dodge: "Dodge",
-  rush: "Rush",
-  pickup: "Pick up",
-  secureBall: "Secure the Ball",
-};
+import { ROUTE_ROLL_NAMES } from "../../../game/rules/rollPreview";
 
 export function MovePlanBar({
   eventBus,
@@ -107,7 +102,7 @@ export function MovePlanBar({
 
   if (plan) {
     const rolls = plan.rolls.map(
-      (r) => `${ROLL_NAMES[r.type]} ${String(r.target)}+`
+      (r) => `${ROUTE_ROLL_NAMES[r.type]} ${String(r.target)}+`
     );
     return (
       <div

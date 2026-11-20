@@ -25,6 +25,7 @@ import {
 } from "./movementShared";
 import { movePlayer } from "./moveAction";
 import { jumpPlayer } from "./jumpAction";
+import type { MoveStep } from "../../headless/protocol";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -185,7 +186,7 @@ export class MovementManager {
 
   public movePlayer(
     playerId: string,
-    path: { x: number; y: number }[],
+    path: MoveStep[],
     context?: FlowContext
   ): Promise<void> {
     return movePlayer(this.deps, playerId, path, context);

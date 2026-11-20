@@ -231,7 +231,13 @@ function startingState(
         lobby.competitionContext?.competitionType
       ),
       pregameInducements: true,
-    }, ...startingFormat(lobbyGameType(lobby), seededRandom(seed)) }
+    }, ...startingFormat(
+        {
+          gameType: lobbyGameType(lobby),
+          ...(lobby.competitionContext ? {} : { venue: lobby.settings.venue }),
+        },
+        seededRandom(seed)
+      ) }
   );
   if (lobby.competitionContext?.knockout) initialState.knockout = true;
   return { saved, initialState };

@@ -1,6 +1,6 @@
 import { type Player } from "../types/Player";
 import { type IRNGService } from "./rng/RNGService";
-import { isStandableSquare } from "../game/rules/pitchSquares";
+import { isOpenPushSquare } from "../game/rules/pitchSquares";
 
 export type BlockResultType =
   | "both-down"
@@ -139,7 +139,7 @@ export class BlockResolutionService {
     defenderPos: { x: number; y: number }
   ): { x: number; y: number }[] {
     return this.pushCandidates(attackerPos, defenderPos).filter((pos) =>
-      isStandableSquare(pos)
+      isOpenPushSquare(defenderPos, pos)
     );
   }
 
@@ -181,12 +181,12 @@ export class BlockResolutionService {
     tier: "open" | "chain" | "crowd";
   } {
     const raw = this.pushCandidates(attackerPos, defenderPos);
-    const candidates = raw.filter((p) => isStandableSquare(p));
+    const candidates = raw.filter((p) => isOpenPushSquare(defenderPos, p));
 
     const unoccupied = candidates.filter((p) => !isOccupied(p.x, p.y));
     if (unoccupied.length > 0) return { options: unoccupied, tier: "open" };
 
-    const edges = raw.filter((p) => !isStandableSquare(p));
+    const edges = raw.filter((p) => !isOpenPushSquare(defenderPos, p));
     if (edges.length > 0) return { options: edges, tier: "crowd" };
 
     return {
@@ -204,7 +204,7 @@ export class BlockResolutionService {
       for (let dy = -1; dy <= 1; dy++) {
         if (dx === 0 && dy === 0) continue;
         const pos = { x: pushedPos.x + dx, y: pushedPos.y + dy };
-        if (isStandableSquare(pos) && !isOccupied(pos.x, pos.y))
+        if (isOpenPushSquare(pushedPos, pos) && !isOccupied(pos.x, pos.y))
           squares.push(pos);
       }
     }

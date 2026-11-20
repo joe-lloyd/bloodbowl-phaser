@@ -27,6 +27,7 @@ import { type OnlineMatch } from "./OnlineMatch";
 import { possessive } from "../game/managers/TurnManager";
 import { fixturePaysWinnings } from "../game/rules/winnings";
 import type { GameType } from "../game/variants/gameTypes";
+import type { Venue } from "../game/variants/pitchLayouts";
 import { startingFormat } from "../game/variants/startingFormat";
 
 class ComputerGameService extends NetworkedGameService {
@@ -76,6 +77,8 @@ export interface ComputerMatchOptions {
   competitionContext?: CompetitionContext;
 
   gameType?: GameType;
+
+  venue?: Venue;
 }
 
 function computerMatchState(options: ComputerMatchOptions): GameState {
@@ -87,7 +90,11 @@ function computerMatchState(options: ComputerMatchOptions): GameState {
           options.competitionContext?.competitionType
         ),
         pregameInducements: true,
-      }, ...devVenueFormat(), ...startingFormat(options.competitionContext?.gameType ?? options.gameType) }
+      }, ...devVenueFormat(), ...startingFormat(
+        options.competitionContext
+          ? { gameType: options.competitionContext.gameType }
+          : { gameType: options.gameType, venue: options.venue }
+      ) }
     );
   if (!options.resume && options.competitionContext?.knockout)
     initialState.knockout = true;

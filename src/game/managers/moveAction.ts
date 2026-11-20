@@ -45,6 +45,13 @@ import {
   teamsOf,
 } from "./movementShared";
 
+import type { MoveStep } from "../../headless/protocol";
+import {
+  RECKLESS_CROSSING_TARGET,
+  SAFE_CROSSING_EXTRA,
+  crossingAt,
+} from "../rules/barricades";
+
 const SCORE_RUN_WAIT_MS = 3500;
 
 type MoveEnd =
@@ -90,7 +97,7 @@ interface MoveRun {
 export async function movePlayer(
   deps: MovementDeps,
   playerId: string,
-  path: Square[],
+  path: MoveStep[],
   context?: FlowContext
 ): Promise<void> {
   const prepared = prepareMove(deps, playerId, path);
@@ -112,7 +119,14 @@ export async function movePlayer(
   const run = beginRoute(deps, prepared, context, standingCost);
   const { gameService } = run;
   let end: MoveEnd = "walked";
-  for (const step of path) {
+  for (const move of path) {
+    const step = { x: move.x, y: move.y };
+    const crossing = crossingAt({
+      from: run.currentPos,
+      step: move,
+      used: run.preUsed + run.stepsTaken,
+      ma: maView.stats.MA,
+    });
     if (run.preUsed + run.stepsTaken + 1 > maView.stats.MA) {
       showWalk(run);
       const check = await rollRush(deps, player, gameService);
@@ -201,6 +215,12 @@ export async function movePlayer(
     }
 
     enterSquare(run, step);
+    if (crossing === "safe") run.stepsTaken += SAFE_CROSSING_EXTRA;
+    if (crossing === "reckless") carryBallOver(run, step);
+    if (crossing === "reckless" && !(await clearBarricade(run))) {
+      end = fallOverBarricade(run);
+      break;
+    }
 
     if (trapdoorOpens(deps.state, diceController, player, step)) {
       end = "fellThrough";
@@ -249,7 +269,7 @@ export async function movePlayer(
 function prepareMove(
   deps: MovementDeps,
   playerId: string,
-  path: Square[]
+  path: MoveStep[]
 ): PreparedMove {
   const { state, eventBus } = deps;
   const player = findPlayer(deps, playerId);
@@ -361,6 +381,47 @@ function fallOnRush(run: MoveRun, step: Square): MoveEnd {
   fallInto(run, step, { reason: "Failed Rush", slip: { cause: "rush" } });
   run.stepsTaken++;
   run.completedPath.push(step);
+  return "failed";
+}
+
+function carryBallOver(run: MoveRun, step: Square): void {
+  if (!run.holdingBall) return;
+  run.deps.state.ballPosition = { ...step };
+  run.deps.eventBus.emit(GameEventNames.BallPlaced, { ...step });
+}
+
+async function clearBarricade(run: MoveRun): Promise<boolean> {
+  const { deps, player, gameService } = run;
+  showWalk(run);
+  const roll = () =>
+    deps.diceController.rollSkillCheck({
+      reason: "Reckless Barricade",
+      target: RECKLESS_CROSSING_TARGET,
+      modifier: 0,
+      playerName: player.playerName,
+    });
+  const check = gameService
+    ? await withRerollOffer(
+        { gameService, eventBus: deps.eventBus },
+        player,
+        "barricade",
+        roll
+      )
+    : roll();
+  if (check.success) return true;
+  return steadyFootingSaves(
+    player,
+    deps.diceController,
+    deps.eventBus,
+    gameService
+  );
+}
+
+function fallOverBarricade(run: MoveRun): MoveEnd {
+  fallInto(run, run.currentPos, {
+    reason: "Fell over a Barricade",
+    slip: { cause: "barricade" },
+  });
   return "failed";
 }
 

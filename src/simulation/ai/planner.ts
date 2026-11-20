@@ -43,6 +43,7 @@ const THROW_TEAMMATE = "throw-teammate";
 const ROLL_NAMES: Record<RollTarget["kind"], string> = {
   dodge: "Dodge",
   rush: "Rush",
+  barricade: "Reckless crossing",
   pickup: "Pick up",
   secure: "Secure the Ball",
   catch: "Catch",

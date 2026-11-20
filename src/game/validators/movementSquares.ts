@@ -41,8 +41,8 @@ export function movementTackleZones(
   return count;
 }
 
-export function* adjacentPathSteps(path: MovementSquare[]) {
-  let from: MovementSquare | undefined;
+export function* adjacentPathSteps<T extends MovementSquare>(path: T[]) {
+  let from: T | undefined;
   for (const to of path) {
     if (from) yield { from, to };
     from = to;

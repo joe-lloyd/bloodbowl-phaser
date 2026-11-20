@@ -56,6 +56,7 @@ async function showUphillBlock(myTeamId: string) {
         isUphill: true,
         attackerST: 3,
         defenderST: 4,
+        barricadeCover: false,
         attackerAssists: [],
         defenderAssists: [fixtureValue(game.ctx.team2.players[1])],
       },

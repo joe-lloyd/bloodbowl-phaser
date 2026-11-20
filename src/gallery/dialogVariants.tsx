@@ -60,6 +60,7 @@ function openBlock(
       isUphill: uphill,
       attackerST: st[0],
       defenderST: st[1],
+      barricadeCover: false,
       attackerAssists: [],
       defenderAssists: [],
     },

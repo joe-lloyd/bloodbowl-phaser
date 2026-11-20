@@ -180,11 +180,12 @@ describe("Gutter Bowl sewer kick-off table", () => {
   });
 
   it("GB-KW4 Sudden Stink pushes both Lines of Scrimmage back, in a chain, but not into a pit", async () => {
-    const setup = { ...GUTTER_SETUP, team1: GUTTER_SETUP.team1.map((p) => (p.playerIndex === 5 ? { ...p, x: 11 } : p)) };
+    const moved: Partial<Record<number, { x: number; y: number }>> = { 4: { x: 10, y: 9 }, 5: { x: 11, y: 7 }, 6: { x: 11, y: 9 } };
+    const setup = { ...GUTTER_SETUP, team1: GUTTER_SETUP.team1.map((p) => ({ ...p, ...moved[p.playerIndex] })) };
     const { game } = await sewer([1, 3], { setup });
 
-    expect(squaresOf(game, "team1")).toEqual(["11,5", "11,7", "11,9", "10,2", "12,13", "10,7", "9,6"]);
-    expect(squaresOf(game, "team2")).toEqual(["14,5", "14,7", "14,9", "13,2", "16,12", "16,7", "16,6"]);
+    expect(squaresOf(game, "team1")).toEqual(["11,5", "11,7", "12,9", "10,2", "10,9", "10,7", "11,9"]);
+    expect(squaresOf(game, "team2")).toEqual(["14,5", "14,7", "14,9", "14,2", "16,13", "16,7", "16,6"]);
   });
 
   it("GB-KW5 Bats! Stuns a random player of the lower roll", async () => {
@@ -216,8 +217,8 @@ describe("Gutter Bowl sewer kick-off table", () => {
   it("GB-KW11 'Fresh' Sewage lays everyone within 2 squares of a pit Prone", async () => {
     const { game } = await sewer([5, 6]);
 
-    expect(statusesOf(game, "team1")).toEqual(["Prone", ACTIVE, "Prone", ACTIVE, "Prone", ACTIVE, ACTIVE]);
-    expect(statusesOf(game, "team2")).toEqual(["Prone", ACTIVE, "Prone", "Prone", "Prone", ACTIVE, ACTIVE]);
+    expect(statusesOf(game, "team1")).toEqual([ACTIVE, ACTIVE, ACTIVE, "Prone", ACTIVE, "Prone", "Prone"]);
+    expect(statusesOf(game, "team2")).toEqual([ACTIVE, ACTIVE, ACTIVE, ACTIVE, "Prone", "Prone", "Prone"]);
   });
 
   it("keeps a sewer kick-off result and its drive effects through the snapshot schema", async () => {

@@ -4,6 +4,7 @@ import { GameEventNames } from "@/types/events";
 import { SkillType, hasSkill } from "@/types/Skills";
 import type { GameParts } from "./parts";
 import { awaitingSecondAction, whenSettled } from "./activation";
+import type { MoveStep } from "../../headless/protocol";
 
 interface Square {
   x: number;
@@ -13,7 +14,7 @@ interface Square {
 export async function movePlayer(
   parts: GameParts,
   playerId: string,
-  path: Square[]
+  path: MoveStep[]
 ): Promise<void> {
   if (awaitingSecondAction(parts, playerId)) return;
 

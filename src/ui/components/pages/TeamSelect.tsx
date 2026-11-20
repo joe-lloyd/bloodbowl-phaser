@@ -17,6 +17,7 @@ import {
   isGameType,
 } from "../../../game/variants/gameTypes";
 import { GameTypeSelector } from "../common/GameTypeSelector";
+import type { Venue } from "../../../game/variants/pitchLayouts";
 import {
   Chip,
   cx,
@@ -51,6 +52,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [gameType, setGameType] = useState<GameType>(
     isGameType(gameTypeParam) ? gameTypeParam : DEFAULT_GAME_TYPE
   );
+  const [venue, setVenue] = useState<Venue | undefined>();
   const computerTeams = useMemo(
     () =>
       getComputerTeamTemplates({ gameType }).map((template) =>
@@ -159,6 +161,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           computerTeamId: computerTeam.id,
           difficulty,
           gameType,
+          ...(venue ? { venue } : {}),
         },
       });
       return;
@@ -170,6 +173,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         team2: selectedTeam2,
         progressionEnabled,
         gameType,
+        ...(venue ? { venue } : {}),
       },
     });
   };
@@ -298,9 +302,12 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             value={gameType}
             onChange={(next) => {
               setGameType(next);
+              setVenue(undefined);
               setSelectedTeam1(null);
               setSelectedTeam2(null);
             }}
+            venue={venue}
+            onVenueChange={setVenue}
           />
         </Section>
       )}

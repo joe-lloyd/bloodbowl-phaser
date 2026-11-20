@@ -39,7 +39,7 @@ async function failedDodge(gameType: GameType) {
   await s.run({
     type: "move",
     playerId: s.player(1).id,
-    path: [{ x: 9, y: 3 }],
+    path: [{ x: 10, y: 4 }],
   });
   return s;
 }

@@ -162,6 +162,8 @@ export function blockPreviewLines(
     assistLine("Our", ours),
     assistLine("Their", theirs),
   ];
+  if (analysis.barricadeCover)
+    lines.push(`${defenderIs} are behind a Barricade: +1 ST`);
   if (has(defender, SkillType.DODGE))
     lines.push(
       has(attacker, SkillType.TACKLE)
@@ -180,10 +182,18 @@ export function blockPreviewLines(
 }
 
 export interface RouteRoll {
-  type: "dodge" | "rush" | "pickup" | "secureBall";
+  type: "dodge" | "rush" | "barricade" | "pickup" | "secureBall";
   target: number;
   square: Square;
 }
+export const ROUTE_ROLL_NAMES: Record<RouteRoll["type"], string> = {
+  dodge: "Dodge",
+  rush: "Rush",
+  barricade: "Reckless crossing",
+  pickup: "Pick up",
+  secureBall: "Secure the Ball",
+};
+
 export interface RoutePreview {
   movementLeft: number;
   riskySteps: number;

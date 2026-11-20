@@ -6,6 +6,7 @@ export type RerollableRollKind =
   | "catch"
   | "pass"
   | "rush"
+  | "barricade"
   | "jump"
   | "activation"
   | "gaze"

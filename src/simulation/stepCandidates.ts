@@ -24,6 +24,7 @@ import {
 } from "../game/rules/throwTeammate";
 import type { Candidate } from "./candidates";
 import { isStandableSquare, isWallSquare } from "../game/rules/pitchSquares";
+import { barricadeBetween } from "../game/rules/pitchSquares";
 
 const chebyshev = (a: GridPosition, b: GridPosition) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
@@ -93,12 +94,14 @@ function moveSteps({ gs, player, at, action, step }: StepContext): void {
     return;
   for (const target of gs.getAvailableMovements(player.id)) {
     if (chebyshev(target, at) !== 1) continue;
+    const to = { x: target.x, y: target.y };
+    if (barricadeBetween(at, to))
+      step(
+        { type: "move", playerId: player.id, path: [{ ...to, reckless: true }] },
+        `${describePlayer(player)} vaults the barricade to ${square(target)}`
+      );
     step(
-      {
-        type: "move",
-        playerId: player.id,
-        path: [{ x: target.x, y: target.y }],
-      },
+      { type: "move", playerId: player.id, path: [to] },
       `${describePlayer(player)} steps to ${square(target)}`
     );
   }

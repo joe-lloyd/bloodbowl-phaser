@@ -11,7 +11,7 @@ import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
-import { pushLandingAt } from "../rules/pitchSquares";
+import { barricadeBetween, pushLandingAt } from "../rules/pitchSquares";
 import { activeRules } from "../variants/activeMatch";
 import { type PushContext, foldTrigger } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
@@ -296,7 +296,7 @@ export abstract class BlockPushChain extends BlockActivation {
     }
 
     const from = { ...defender.gridPosition };
-    if (pushLandingAt(direction) !== "pitch") {
+    if (pushLandingAt(from, direction) !== "pitch") {
       await this.pushOffThePitch(this.chain, defender, {
         from,
         direction,
@@ -518,7 +518,7 @@ export abstract class BlockPushChain extends BlockActivation {
       followUp,
     }: { from: Square; direction: Square; followUp: boolean }
   ): Promise<void> {
-    const landing = pushLandingAt(direction);
+    const landing = pushLandingAt(from, direction);
     if (landing === "wall") {
       await this.pushIntoWall(chain, pushed, { square: from, wall: direction });
       return;
@@ -583,7 +583,12 @@ export abstract class BlockPushChain extends BlockActivation {
     knockedDown: boolean
   ): boolean {
     const fell =
-      knockedDown || this.diceController.rollD6("Pushed into the Wall") >= 4;
+      knockedDown ||
+      this.diceController.rollD6(
+        barricadeBetween(square, wall)
+          ? "Pushed into the Barricade"
+          : "Pushed into the Wall"
+      ) >= 4;
     this.eventBus.emit(GameEventNames.PlayerPushedIntoWall, {
       playerId: pushed.id,
       square: { ...square },

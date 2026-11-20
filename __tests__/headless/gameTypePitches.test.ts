@@ -1,98 +1,33 @@
 import { describe, it, expect } from "vitest";
-import { forceDice } from "../utils/test-helpers";
-import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { type PlayerPlacement, type Scenario } from "../../src/types/Scenario";
-import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { GameEventNames } from "../../src/types/events";
-import { BounceOperation } from "../../src/game/operations/BounceOperation";
 import { KickoffController } from "../../src/game/controllers/KickoffController";
 import { BallMovementController } from "../../src/game/controllers/BallMovementController";
 import type { MatchFormat } from "../../src/game/variants/activeMatch";
+import { type PlayerPlacement } from "../../src/types/Scenario";
 import { fixtureValue } from "../../src/testing/fixtureValue";
-
-const SEVENS: MatchFormat = { gameType: "sevens", venue: "stadium" };
-const STREET: MatchFormat = { gameType: "street-bowl", venue: "street" };
-const BEACH: MatchFormat = { gameType: "beach-bowl", venue: "beach" };
-const MARKET: MatchFormat = { gameType: "gutter-bowl", venue: "gutter-street" };
-const SEWER: MatchFormat = { gameType: "gutter-bowl", venue: "gutter-sewer" };
-
-interface Pitch {
-  format: MatchFormat;
-  team1?: PlayerPlacement[];
-  team2?: PlayerPlacement[];
-  ball?: { x: number; y: number };
-}
-
-function pitchGame({ format, team1 = [], team2 = [], ball }: Pitch) {
-  const scenario: Scenario = {
-    id: "game-type-pitch",
-    name: "Game type pitch",
-    description: "",
-    setup: {
-      team1Placements: team1,
-      team2Placements: team2,
-      activeTeam: "team1",
-      phase: GamePhase.PLAY,
-      subPhase: SubPhase.TURN_RECEIVING,
-      ...(ball ? { ballPosition: ball } : {}),
-    },
-  };
-  const game = new HeadlessGame({ scenario, seed: 1, format });
-  const rolls: string[] = [];
-  game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) =>
-    rolls.push(`${roll.rollType} ${String(roll.value)}`)
-  );
-  const wallHits: unknown[] = [];
-  game.ctx.eventBus.on(GameEventNames.BallHitWall, (hit) => wallHits.push(hit));
-  return { game, rolls, wallHits };
-}
-
-async function bounceFrom(
-  game: HeadlessGame,
-  square: { x: number; y: number }
-) {
-  game.ctx.gameService.setBallPosition(square.x, square.y);
-  await game.ctx.gameService
-    .getFlowContext()
-    .flowManager.runToRest(new BounceOperation(square));
-  return game.ctx.gameService.getState().ballPosition;
-}
-
-async function blockAndPush(
-  game: HeadlessGame,
-  push: { x: number; y: number }
-) {
-  const attacker = fixtureValue(game.ctx.team1.players[0]);
-  const defender = fixtureValue(game.ctx.team2.players[0]);
-  await game.execute({
-    type: "declare-action",
-    playerId: attacker.id,
-    action: "block",
-  });
-  await game.execute({
-    type: "block",
-    attackerId: attacker.id,
-    defenderId: defender.id,
-  });
-  const offered = await game.execute({ type: "choose-block-result", index: 0 });
-  const response = await game.execute({
-    type: "choose-push-direction",
-    ...push,
-  });
-  return { attacker, defender, offered, response };
-}
-
-const PUSH = 3;
-const POW = 5;
+import {
+  BEACH,
+  MARKET,
+  POW,
+  PUSH,
+  SEVENS,
+  SEWER,
+  STREET,
+  type Pitch,
+  blockAndPush,
+  bounceFrom,
+  forceDice,
+  pitchGame,
+} from "../utils/pitchGame";
 
 describe("GB-P4 obstacles block movement", () => {
   it("refuses a move into a market stall", async () => {
     const { game } = pitchGame({
       format: MARKET,
-      team1: [{ playerIndex: 0, x: 8, y: 2 }],
-      team2: [{ playerIndex: 0, x: 20, y: 7 }],
+      team1: [{ playerIndex: 0, x: 10, y: 4 }],
+      team2: [{ playerIndex: 0, x: 22, y: 9 }],
     });
     const player = fixtureValue(game.ctx.team1.players[0]);
     await game.execute({
@@ -103,10 +38,10 @@ describe("GB-P4 obstacles block movement", () => {
     await game.execute({
       type: "move",
       playerId: player.id,
-      path: [{ x: 7, y: 2 }],
+      path: [{ x: 9, y: 4 }],
     });
 
-    expect(player.gridPosition).toEqual({ x: 8, y: 2 });
+    expect(player.gridPosition).toEqual({ x: 10, y: 4 });
   });
 });
 
@@ -179,15 +114,15 @@ describe("GB-M7 pushed into a market stall", () => {
   it("rolls for the stall like a wall", async () => {
     const { game, rolls } = pitchGame({
       format: MARKET,
-      team1: [{ playerIndex: 0, x: 9, y: 2 }],
-      team2: [{ playerIndex: 0, x: 8, y: 2 }],
+      team1: [{ playerIndex: 0, x: 11, y: 4 }],
+      team2: [{ playerIndex: 0, x: 10, y: 4 }],
     });
     forceDice(game.ctx.rng, [PUSH, 5, 1, 1]);
-    const { defender } = await blockAndPush(game, { x: 7, y: 2 });
+    const { defender } = await blockAndPush(game, { x: 9, y: 4 });
 
     expect(rolls).toContain("Pushed into the Wall 5");
     expect(defender.status).toBe(PlayerStatus.PRONE);
-    expect(defender.gridPosition).toEqual({ x: 8, y: 2 });
+    expect(defender.gridPosition).toEqual({ x: 10, y: 4 });
   });
 });
 
@@ -195,34 +130,34 @@ describe("GB-M8 sewer pits", () => {
   const sewer = () =>
     pitchGame({
       format: SEWER,
-      team1: [{ playerIndex: 0, x: 9, y: 2 }],
-      team2: [{ playerIndex: 0, x: 8, y: 2 }],
+      team1: [{ playerIndex: 0, x: 11, y: 4 }],
+      team2: [{ playerIndex: 0, x: 10, y: 4 }],
     });
 
   it("swallows a player pushed into a pit", async () => {
     const { game } = sewer();
     forceDice(game.ctx.rng, [PUSH]);
-    const { defender } = await blockAndPush(game, { x: 7, y: 2 });
+    const { defender } = await blockAndPush(game, { x: 9, y: 4 });
 
     expect(defender.gridPosition).toBeUndefined();
-    expect(defender.sewerPit).toEqual({ x: 7, y: 2 });
+    expect(defender.sewerPit).toEqual({ x: 9, y: 4 });
   });
 
   it("lets the player climb out standing on 4+ at the end of the turn", async () => {
     const { game } = sewer();
     forceDice(game.ctx.rng, [PUSH, 4]);
-    const { defender } = await blockAndPush(game, { x: 7, y: 2 });
+    const { defender } = await blockAndPush(game, { x: 9, y: 4 });
     await game.execute({ type: "choose-follow-up", followUp: false });
 
     expect(defender.sewerPit).toBeUndefined();
     expect(defender.status).toBe(PlayerStatus.ACTIVE);
-    expect(defender.gridPosition).toEqual({ x: 8, y: 1 });
+    expect(defender.gridPosition).toEqual({ x: 10, y: 3 });
   });
 
   it("makes a Casualty on a 1", async () => {
     const { game, rolls } = sewer();
     forceDice(game.ctx.rng, [PUSH, 1]);
-    const { defender } = await blockAndPush(game, { x: 7, y: 2 });
+    const { defender } = await blockAndPush(game, { x: 9, y: 4 });
     await game.execute({ type: "choose-follow-up", followUp: false });
     expect(rolls).toContain("Sewer Pit (Human Lineman #1) 1");
 
@@ -323,7 +258,7 @@ describe("GB-M9 a ball on a stall or pit", () => {
     const { game, rolls } = pitchGame({ format: MARKET });
     forceDice(game.ctx.rng, [4, 5, 7]);
 
-    expect(await bounceFrom(game, { x: 8, y: 2 })).toEqual({ x: 8, y: 3 });
+    expect(await bounceFrom(game, { x: 10, y: 4 })).toEqual({ x: 10, y: 5 });
     expect(rolls).toEqual([
       "Bounce Direction 4",
       "Ball Rolls Off the Obstacle 5",
@@ -382,9 +317,9 @@ describe("SB-M7 and GB-M3 kicks on walled pitches", () => {
   });
 
   it("moves a kick that lands on a market stall back onto the pitch", () => {
-    expect(kick(MARKET, { x: 18, y: 5 }, [2, 2, 2, 5])).toEqual({
+    expect(kick(MARKET, { x: 20, y: 7 }, [2, 2, 2])).toEqual({
       finalX: 20,
-      finalY: 3,
+      finalY: 1,
       isTouchback: false,
       wallHits: [],
     });
@@ -470,30 +405,30 @@ describe("SB-M10 and GB-M8 throwing a team-mate at walls and pits", () => {
     const { teammate } = await throwAt(
       {
         format: SEWER,
-        team1: [thrower(10, 5), mate(9, 5), { playerIndex: 2, x: 1, y: 6 }],
+        team1: [thrower(12, 7), mate(11, 7), { playerIndex: 2, x: 1, y: 6 }],
         team2: [{ playerIndex: 0, x: 20, y: 7 }],
       },
-      { x: 8, y: 4 },
+      { x: 10, y: 6 },
       [4, 1, 1, 1]
     );
 
     expect(teammate.gridPosition).toBeUndefined();
-    expect(teammate.sewerPit).toEqual({ x: 5, y: 1 });
+    expect(teammate.sewerPit).toEqual({ x: 7, y: 3 });
   });
 
   it("refuses to aim at a market stall", async () => {
     const { rolls, teammate } = await throwAt(
       {
         format: MARKET,
-        team1: [thrower(10, 5), mate(9, 5)],
+        team1: [thrower(12, 7), mate(11, 7)],
         team2: [{ playerIndex: 0, x: 20, y: 7 }],
       },
-      { x: 7, y: 3 },
+      { x: 9, y: 5 },
       []
     );
 
     expect(rolls).toEqual([]);
-    expect(teammate.gridPosition).toEqual({ x: 9, y: 5 });
+    expect(teammate.gridPosition).toEqual({ x: 11, y: 7 });
   });
 });
 

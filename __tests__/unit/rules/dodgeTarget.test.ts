@@ -65,7 +65,7 @@ describe("Dodge targets in a marked destination", () => {
         used: 0,
         rushModifier: 0,
       })
-    ).toEqual([{ risk: { kind: "dodge", dodgeNeed: 3 }, path: [to] }]);
+    ).toEqual([{ risk: [{ type: "dodge", target: 3 }], path: [to] }]);
   });
 
   it("counts only the ordinary markers in a mixture with Titchy", () => {

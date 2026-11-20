@@ -26,6 +26,11 @@ interface Span {
   max: number;
 }
 
+export interface Barricade {
+  afterColumn: number;
+  rows: Span;
+}
+
 export interface PitchLayout {
   venue: Venue;
   label: string;
@@ -38,6 +43,7 @@ export interface PitchLayout {
   wideZoneRows: { top: Span; bottom: Span };
   walledSidelines: boolean;
   obstacles: readonly Obstacle[];
+  barricades: readonly Barricade[];
   trapdoors: readonly Square[];
 }
 
@@ -55,12 +61,19 @@ function block(
 
 function gutterObstacles(kind: ObstacleKind): Obstacle[] {
   return [
-    ...block(kind, { min: 2, max: 7 }, { min: 0, max: 3 }),
-    ...block(kind, { min: 6, max: 11 }, { min: 11, max: 14 }),
-    ...block(kind, { min: 14, max: 19 }, { min: 0, max: 3 }),
-    ...block(kind, { min: 18, max: 23 }, { min: 11, max: 14 }),
+    ...block(kind, { min: 4, max: 9 }, { min: 2, max: 5 }),
+    ...block(kind, { min: 4, max: 9 }, { min: 9, max: 12 }),
+    ...block(kind, { min: 16, max: 21 }, { min: 2, max: 5 }),
+    ...block(kind, { min: 16, max: 21 }, { min: 9, max: 12 }),
   ];
 }
+
+const GUTTER_BARRICADES: readonly Barricade[] = [
+  { afterColumn: 11, rows: { min: 0, max: 2 } },
+  { afterColumn: 10, rows: { min: 6, max: 8 } },
+  { afterColumn: 14, rows: { min: 6, max: 8 } },
+  { afterColumn: 13, rows: { min: 12, max: 14 } },
+];
 
 const FULL_LENGTH = {
   cols: 26,
@@ -75,6 +88,7 @@ const GUTTER = {
   centreRows: { min: 4, max: 10 },
   wideZoneRows: { top: { min: 0, max: 3 }, bottom: { min: 11, max: 14 } },
   walledSidelines: true,
+  barricades: GUTTER_BARRICADES,
 } as const;
 
 export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
@@ -90,6 +104,7 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 9, max: 10 } },
     walledSidelines: false,
     obstacles: [],
+    barricades: [],
     trapdoors: [
       { x: 5, y: 1 },
       { x: 14, y: 9 },
@@ -105,6 +120,7 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 5, max: 6 } },
     walledSidelines: true,
     obstacles: [],
+    barricades: [],
   },
   beach: {
     venue: "beach",
@@ -118,6 +134,7 @@ export const PITCH_LAYOUTS: Record<Venue, PitchLayout> = {
     wideZoneRows: { top: { min: 0, max: 1 }, bottom: { min: 7, max: 8 } },
     walledSidelines: false,
     obstacles: [],
+    barricades: [],
     trapdoors: [],
   },
   "gutter-street": {

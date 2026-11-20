@@ -23,6 +23,8 @@ import {
 } from "./board";
 import { CERTAIN, type Chance, type RollTarget, chain } from "./chance";
 import { activeLayout } from "../../game/variants/activeMatch";
+import { barricadeBetween } from "../../game/rules/pitchSquares";
+import { RECKLESS_CROSSING_TARGET } from "../../game/rules/barricades";
 
 const NO_ROLLS: RollTarget[] = [];
 
@@ -68,6 +70,8 @@ function stepRolls({
   if (board.marks.getUint8(key(from)) > 0) {
     rolls.push(dodgeRoll(board, player, { from, to }));
   }
+  if (barricadeBetween(from, to))
+    rolls.push({ kind: "barricade", target: RECKLESS_CROSSING_TARGET });
   if (board.ball.kind === "loose" && key(board.ball.at) === key(to))
     rolls.push({
       kind: securing ? "secure" : "pickup",
@@ -101,6 +105,7 @@ interface RouteGrid {
   bestAt: NumberTable;
   parentAt: NumberTable;
   neighbours: number[][];
+  crossings: Set<number>;
 }
 
 const routeGrids = new Map<string, RouteGrid>();
@@ -117,10 +122,22 @@ function routeGrid(): RouteGrid {
     neighbours: Array.from({ length: cells }, (_, cell) =>
       neighbours(square(cell)).map(key)
     ),
+    crossings: barricadeCrossings(cells),
   };
   routeGrids.set(venue, grid);
   return grid;
 }
+
+function barricadeCrossings(cells: number): Set<number> {
+  const crossings = new Set<number>();
+  for (let cell = 0; cell < cells; cell++)
+    for (const next of neighbours(square(cell)))
+      if (barricadeBetween(square(cell), next))
+        crossings.add(cell * cells + key(next));
+  return crossings;
+}
+
+const RECKLESS_CHANCE = (7 - RECKLESS_CROSSING_TARGET) / 6;
 
 const rollChance = (target: number) =>
   (7 - Math.min(6, Math.max(2, target))) / 6;
@@ -176,11 +193,12 @@ interface RelaxArgs {
 
 function relax({ search, k, cell, p, stepRush, neighbours }: RelaxArgs): void {
   const { board, ballKey } = search;
-  const { bestAt, parentAt } = routeGrid();
+  const { bestAt, parentAt, crossings, cells } = routeGrid();
   const leavesZone = board.marks.getUint8(cell) > 0;
   for (const next of neighbours) {
     if (board.occupant[next]) continue;
     let chance = stepRush;
+    if (crossings.has(cell * cells + next)) chance *= RECKLESS_CHANCE;
     if (leavesZone)
       chance *= search.dodgeInto.getFloat64(board.marks.getUint8(next) * 8);
     if (next === ballKey) chance *= search.pickup;

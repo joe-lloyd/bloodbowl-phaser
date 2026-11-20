@@ -10,16 +10,23 @@ import {
 } from "./movementSquares";
 import { isOnPitch, isStandableSquare } from "../rules/pitchSquares";
 import type { MovementSquare } from "./movementSquares";
+import type { MoveStep } from "../../headless/protocol";
+import {
+  RECKLESS_CROSSING_TARGET,
+  crossingAt,
+  planCrossings,
+  stepCost,
+} from "../rules/barricades";
 
 export interface MovementResult {
   valid: boolean;
-  path: MovementSquare[];
+  path: MoveStep[];
   rolls: MovementRoll[];
   cost: number;
 }
 
 interface MovementRoll {
-  type: "dodge" | "gfi" | "rush";
+  type: "dodge" | "gfi" | "rush" | "barricade";
   target: number;
   modifiers: number;
   square: MovementSquare;
@@ -27,13 +34,17 @@ interface MovementRoll {
 
 interface PathInput {
   player: Player;
-  path: MovementSquare[];
+  path: MoveStep[];
   opponents: Player[];
   teammates?: Player[] | undefined;
   movementUsed?: number | undefined;
 }
 
 type ReachableSquare = MovementSquare & { cost: number };
+
+function standingCost(player: Player): number {
+  return player.status === PlayerStatus.PRONE ? standUpCost(player) : 0;
+}
 
 function invalidResult(): MovementResult {
   return { valid: false, path: [], rolls: [], cost: 0 };
@@ -117,9 +128,15 @@ export class MovementValidator {
     if (path.length === 0)
       path = new MovementPathSearch({ ...search, mode: "direct" }).find();
     if (path.length === 0) return invalidResult();
+    const [first, ...steps] = path;
+    if (!first) return invalidResult();
+    const planned = planCrossings(first, steps, {
+      used: movementUsed + standingCost(player),
+      ma: player.stats.MA,
+    });
     return this.validatePath({
       player,
-      path,
+      path: [first, ...planned],
       opponents,
       teammates,
       movementUsed,
@@ -176,15 +193,27 @@ export class MovementValidator {
   }: PathInput): MovementResult {
     const rolls: MovementRoll[] = [];
     let valid = true;
-    let steps =
-      movementUsed +
-      (player.status === PlayerStatus.PRONE ? standUpCost(player) : 0);
+    let steps = movementUsed + standingCost(player);
     const occupants = [...opponents, ...teammates];
     for (const { from, to } of adjacentPathSteps(path)) {
+      const crossing = crossingAt({
+        from,
+        step: to,
+        used: steps,
+        ma: player.stats.MA,
+      });
       steps++;
       if (!validStep(from, to, occupants) || steps > moveAllowance(player))
         valid = false;
       rolls.push(...stepRolls({ from, to, player, opponents, steps }));
+      if (crossing === "reckless")
+        rolls.push({
+          type: "barricade",
+          target: RECKLESS_CROSSING_TARGET,
+          modifiers: 0,
+          square: to,
+        });
+      steps += stepCost(crossing) - 1;
     }
     return { valid, path: path.slice(1), rolls, cost: path.length - 1 };
   }

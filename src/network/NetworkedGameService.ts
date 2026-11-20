@@ -13,6 +13,7 @@ import { GameEventNames } from "../types/events";
 import { type BlockReplacement } from "../types/BlockReplacement";
 import { type IEventBus } from "../services/EventBus";
 import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager";
+import type { MoveStep } from "../headless/protocol";
 
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
@@ -447,7 +448,7 @@ export class NetworkedGameService implements IGameService {
   commitAction: IGameService["commitAction"] = () => undefined;
   async movePlayer(
     playerId: string,
-    path: { x: number; y: number }[]
+    path: MoveStep[]
   ): Promise<void> {
     await this.run({ type: "move", playerId, path });
   }
