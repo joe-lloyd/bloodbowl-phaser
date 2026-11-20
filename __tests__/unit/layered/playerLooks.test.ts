@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { dehydratePlayer, hydratePlayer } from "../../../src/data/persistence/teamPersistence";
-import { hirePlayer } from "../../../src/game/rules/teamPricing";
+import { hireWithIdentity } from "../../../src/game/names/playerIdentity";
 import { createTeam, RosterName, type Team } from "../../../src/types/Team";
 
 function team(rosterName: RosterName): Team {
@@ -12,7 +12,7 @@ function hire(rosterName: RosterName, positionName: string) {
   const squad = team(rosterName);
   const template = getRosterByRosterName(rosterName).playerTemplates.find((t) => t.positionName === positionName);
   if (!template) throw new Error(`No ${positionName}`);
-  const result = hirePlayer(squad, template);
+  const result = hireWithIdentity(squad, template);
   if (!result.player) throw new Error(result.reason ?? "not hired");
   return { squad, player: result.player };
 }
