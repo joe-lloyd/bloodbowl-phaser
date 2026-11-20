@@ -1,0 +1,86 @@
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GameTypeSelector } from "../../../src/ui/components/common/GameTypeSelector";
+
+describe("GameTypeSelector", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  const cards = () => [
+    ...container.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
+  ];
+  const card = (name: string) => {
+    const found = cards().find((button) =>
+      button.textContent.startsWith(name)
+    );
+    if (!found) throw new Error(`No ${name} card.`);
+    return found;
+  };
+
+  it("shows a card per game type with its pitch and size", () => {
+    act(() => {
+      root.render(<GameTypeSelector value="street-bowl" onChange={vi.fn()} />);
+    });
+
+    expect(cards().map((button) => button.textContent)).toEqual([
+      "Sevens20 × 11 stadium pitch",
+      "Gutter Bowl26 × 15 street or sewer, rolled each match",
+      "Street Bowl26 × 7 street between two walls",
+      "Beach Bowl20 × 9 sand, no casualties",
+    ]);
+    expect(card("Street Bowl").getAttribute("aria-checked")).toBe("true");
+    expect(
+      [...card("Gutter Bowl").querySelectorAll("img")].map((img) =>
+        img.getAttribute("src")
+      )
+    ).toEqual([
+      "/venues/gutter-street/card.webp",
+      "/venues/gutter-sewer/card.webp",
+    ]);
+    expect(card("Sevens").querySelector("img")?.getAttribute("src")).toBe(
+      "/stadium/bloodbowl/card.webp"
+    );
+  });
+
+  it("picks a game type when its card is clicked", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root.render(<GameTypeSelector value="sevens" onChange={onChange} />);
+    });
+
+    act(() => {
+      card("Beach Bowl").click();
+    });
+
+    expect(onChange).toHaveBeenCalledWith("beach-bowl");
+  });
+
+  it("leaves the choice alone while disabled", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root.render(
+        <GameTypeSelector value="sevens" onChange={onChange} disabled />
+      );
+    });
+
+    act(() => {
+      card("Gutter Bowl").click();
+    });
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});

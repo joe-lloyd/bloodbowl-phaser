@@ -71,13 +71,16 @@ function FormatChoices({
   const disabled = locked || !!team.activeCompetitionId;
   return (
     <>
-      <GameTypeSelector
-        {...(team.gameType === undefined ? {} : { value: team.gameType })}
-        disabled={disabled}
-        onChange={(gameType) => {
-          onChange(withDraftGameType(team, gameType));
-        }}
-      />
+      <div className="lg:col-span-2">
+        <GameTypeSelector
+          label="Game type"
+          {...(team.gameType === undefined ? {} : { value: team.gameType })}
+          disabled={disabled}
+          onChange={(gameType) => {
+            onChange(withDraftGameType(team, gameType));
+          }}
+        />
+      </div>
       {teamGameType(team) === "sevens" && (
         <div>
           <SevensRulesetSelector
