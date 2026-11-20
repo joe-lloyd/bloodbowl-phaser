@@ -18,8 +18,19 @@ function wrestleBoard(
     turn: 3,
     team1Placements: [{ playerIndex: 0, x: 8, y: 5, skills: attackerSkills }],
     team2Placements: [
-      { playerIndex: 0, x: 9, y: 5, ...target },
-      { playerIndex: 1, x: 18, y: 1, hasBall: !target.hasBall },
+      {
+        playerIndex: 0,
+        x: 9,
+        y: 5,
+        skills: target.skills,
+        ...(target.hasBall ? { hasBall: true as const } : {}),
+      },
+      {
+        playerIndex: 1,
+        x: 18,
+        y: 1,
+        ...(target.hasBall ? {} : { hasBall: true as const }),
+      },
     ],
   });
   const attacker = fieldPlayer(subject.ctx.team1.players[0]);
