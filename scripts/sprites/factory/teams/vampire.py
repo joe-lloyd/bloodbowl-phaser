@@ -2,7 +2,7 @@
 vampire_blitzer, vargheist). Costume: Crimson Court. No figure holds a ball."""
 import math
 from mathutils import Vector
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, palette
 from lib.core import tube, tband, ball_at, box, lerp, UP, basis, D
 from mathutils import Matrix
 
@@ -10,8 +10,38 @@ VAMP = dict(skin="skin", eyes="red", fangs=True, ears="pointed", hair="slick", h
             boots="boot", cuff="leather", legs="trouser", torso="kit1", arms="kit1", lapel="kit2", hem="kit2",
             collar_mat="kit2")
 
+FEMALE = dict(shoulders=0.86, hips=1.12, limb=0.86, arm=0.84, legs=1.04)
+MALE = dict(shoulders=1.08, arm=1.12, neck=1.18, hips=0.92)
+
+
+class Vampire(Biped):
+    """A Vampire team biped: men and women differ clearly in build, and fine details that only resolve
+    from 2x density up are added there and left out at game size."""
+
+    def knob(self, name, default=1.0):
+        base = super().knob(name, default)
+        factor = (FEMALE if self.sex == "f" else MALE).get(name)
+        return base * factor if factor else base
+
+    def extras(self, J, P, L, tag, pose):
+        if self.sex == "f":
+            mat = L.get("breast") or L.get("jersey") or L["torso"]
+            off = 0.07 if L.get("breast") else 0.04
+            for i, ang in enumerate((-24, 24)):
+                ball_at(tag + "bust%d" % i, core.surf(J, P, 0.3, ang, off), 0.055, mat)
+        if palette.STYLE.get("density", 1) >= 2:
+            self.details(J, P, L, tag, pose)
+
+    def details(self, J, P, L, tag, pose):
+        """Small parts drawn only from 2x density up."""
+
+    def band(self, J, tag, limb, side, a, b, r, mat):
+        joints = J[limb][side]
+        tube(tag + "band%s%s%.2f" % (limb, side, a), [lerp(joints[1], joints[2], a), lerp(joints[1], joints[2], b)],
+             [r, r], mat, n=10)
+
 @register
-class Thrall(Biped):
+class Thrall(Vampire):
     """Human militia servant in livery: the smallest, plainest figure; skull cap, no cape, fists up."""
     key = "thrall"
     race = "human"
@@ -27,12 +57,19 @@ class Thrall(Biped):
                  arms={"l": (26 + 7 * w["s2"], 24, 66, 4), "r": (26 - 7 * w["s2"], 24, 66, 4)})
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         p = core.surf(J, P, 0.36, 0, 0.03)
         box(tag + "badge", p, (0.12, 0.03, 0.12), "kit2", Matrix.Rotation(D(45), 3, J["F"]) @ basis(J["X"], J["F"], J["u"]))
         ball_at(tag + "badgeboss", p + J["F"] * 0.02, 0.03, "gold")
 
+    def details(self, J, P, L, tag, pose):
+        R = basis(J["X"], J["F"], J["u"])
+        box(tag + "patch0", core.surf(J, P, 0.16, 38, 0.05), (0.09, 0.02, 0.08), "rags", R)
+        box(tag + "patch1", core.surf(J, P, 0.26, -150, 0.05), (0.1, 0.02, 0.09), "rags", R)
+        ball_at(tag + "beltknot", core.surf(J, P, 0.02, -30, 0.06), 0.035, "leather")
+
 @register
-class Runner(Biped):
+class Runner(Vampire):
     """Lightweight sprinter: slim, long bare legs and arms, sleeveless top and shorts, sash, high ponytail."""
     key = "vampire_runner"
     race = "human"
@@ -51,7 +88,14 @@ class Runner(Biped):
         p.update(legs={"l": (-10 + 30 * w["dn"], 6, 8 + 50 * w["dn"]), "r": (14 + 26 * w["up"], 6, 12 + 50 * w["up"])},
                  feet={"l": toe, "r": toe}, sash=0.05 * w["s1"])
 
+    def details(self, J, P, L, tag, pose):
+        k = L["limb"] * core.LIMB
+        for side in ("l", "r"):
+            self.band(J, tag, "arms", side, 0.78, 0.92, 0.06 * k, "kit2")
+            self.band(J, tag, "legs", side, 0.02, 0.12, 0.085 * k, "kit2")
+
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         k = L["limb"] * core.LIMB
         for side in ("l", "r"):
             hip, knee = J["legs"][side][:2]
@@ -74,7 +118,7 @@ class Runner(Biped):
             tube(tag + "sash%d" % i, pts, [0.05, 0.055, 0.05, 0.02], "kit2", ref=X, n=6, flat=0.4)
 
 @register
-class Thrower(Biped):
+class Thrower(Vampire):
     """Frock coat under cuirass and gorget, high collar, long cape, pinned bun. Her hands are always empty."""
     key = "vampire_thrower"
     race = "human"
@@ -89,8 +133,15 @@ class Thrower(Biped):
         flex = ("open", "open", "relaxed", "fist", "fist", "fist", "relaxed", "open")[int(round(ph * 8)) % 8]
         p.update(hand_modes={"r": flex}, cape=0.06 + 0.06 * w["s1"])
 
+    def details(self, J, P, L, tag, pose):
+        sh = P["sh_h"]
+        ball_at(tag + "brooch", core.surf(J, P, sh - 0.02, 0, 0.1), 0.032, "gold")
+        ball_at(tag + "broochgem", core.surf(J, P, sh - 0.02, 0, 0.125), 0.017, "kit2")
+        for i, ang in enumerate((-50, 50)):
+            ball_at(tag + "stud%d" % i, core.surf(J, P, 0.0, ang, 0.07), 0.022, "gold")
+
 @register
-class Blitzer(Biped):
+class Blitzer(Vampire):
     """Full plate: big spiked pauldrons, gauntlets, greaves, open helm with bat wings, short cape."""
     key = "vampire_blitzer"
     race = "human"
@@ -106,6 +157,11 @@ class Blitzer(Biped):
         b, dn = w["breath"], w["dn"]
         arm = (6 + 16 * dn, 36 + 6 * b, 46 + 44 * dn, -8 - 34 * dn)
         p.update(lean=5 + 3 * b, look=22 * w["s1"], nod=-6 + 10 * w["c1"], arms={"l": arm, "r": arm})
+
+    def details(self, J, P, L, tag, pose):
+        for i, (h, ang) in enumerate(((0.13, -34), (0.13, 34), (0.22, -42), (0.22, 42))):
+            ball_at(tag + "rivet%d" % i, core.surf(J, P, h, ang, 0.06), 0.02, "gold")
+        ball_at(tag + "gorgetgem", core.surf(J, P, P["sh_h"] + 0.03, 0, 0.1), 0.028, "kit2")
 
 @register
 class Vargheist(Biped):

@@ -33,7 +33,7 @@ These change the look for review; the defaults are what shipped.
 | `--density N` | N times the pixels in each direction: frame and target height scale by N |
 | `--dither D` | checker strength at tone edges; 0.1 shipped, 0 for flat tones |
 | `--tones 2` | two tones per material (dark, mid) instead of three |
-| `--frames N` | N frames for the looping animations (idle, run, cheer) instead of 8 |
+| `--frames N` | N frames for the looping animations (idle, run, cheer) instead of 8; `--frames run=12` sets one |
 
 A look variant is registered as `<model>__<look>` and is sized and coloured like its model, so
 `--models vampire_blitzer__f-bare-left` renders a female blitzer, no helmet, left shoulder pad only.

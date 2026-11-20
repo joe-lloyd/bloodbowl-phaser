@@ -565,8 +565,8 @@ def face(J, L, tag):
         tube(tag + "bunband", [b + F * 0.07 - U * 0.07, b + F * 0.1 - U * 0.1], [0.1, 0.095], tm, ref=X, n=8)
         for sd in (-1, 1):
             a = b - X * sd * 0.2 - U * 0.1
-            tube(tag + "pin%d" % sd, [a, b + X * sd * 0.2 + U * 0.14], [0.012, 0.012], L.get("trim", "gold"), n=5)
-            ball_at(tag + "pinhead%d" % sd, b + X * sd * 0.2 + U * 0.14, 0.028, L.get("trim", "gold"))
+            tube(tag + "pin%d" % sd, [a, b + X * sd * 0.12 + U * 0.07], [0.012, 0.012], L.get("trim", "gold"), n=5)
+            ball_at(tag + "pinhead%d" % sd, b + X * sd * 0.12 + U * 0.07, 0.024, L.get("trim", "gold"))
     if L.get("scarf"):
         cap(tag + "scarf", c + U * 0.015, (s[0] * 1.13, s[1] * 1.13, s[2] * 1.12), L["scarf"],
             (U * 0.85 - F * 0.5).normalized(), cut=0.12, rot=R, thick=0.03)

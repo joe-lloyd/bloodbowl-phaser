@@ -32,7 +32,7 @@ ROSTERS = json.load(open(os.path.join(REF, "rosters.json")))
 def parse(argv):
     a = dict(models=[], anims=list(anim.ANIMS), facings=list(pixel.FACINGS), out=os.path.join(FACTORY, "out"),
              preview=False, force=False, finish=False, list=False, all=False, batch=None, examples=False,
-             density=1, frames=0, dither=None, tones=None)
+             density=1, frames={}, dither=None, tones=None)
     it = iter(argv)
     for tok in it:
         if tok == "--models":
@@ -45,8 +45,10 @@ def parse(argv):
             a["out"] = os.path.abspath(next(it))
         elif tok == "--batch":
             a["batch"] = next(it)
-        elif tok in ("--density", "--frames", "--tones"):
+        elif tok in ("--density", "--tones"):
             a[tok[2:]] = int(next(it))
+        elif tok == "--frames":
+            a["frames"] = frame_counts(next(it))
         elif tok == "--dither":
             a["dither"] = float(next(it))
         elif tok in ("--preview", "--force", "--finish", "--list", "--all", "--examples"):
@@ -54,6 +56,12 @@ def parse(argv):
         else:
             raise SystemExit("unknown argument " + tok)
     return a
+
+def frame_counts(spec):
+    """"12" sets every looping animation to 12 frames; "run=12,cheer=10" sets only those."""
+    if "=" not in spec:
+        return {name: int(spec) for name in anim.LOOPS}
+    return {name: int(n) for name, n in (part.split("=") for part in spec.split(","))}
 
 def today(key):
     """Today's frame size and idle height (px) for a model key, from the reference atlases."""
@@ -228,7 +236,7 @@ def main():
         keys += json.load(open(os.path.join(FACTORY, "batches.json")))[a["batch"]]["models"]
     if a["all"]:
         keys += registry.keys()
-    DENSITY[0] = a["density"]
+    DENSITY[0] = palette.STYLE["density"] = a["density"]
     if a["dither"] is not None:
         palette.STYLE["dither"] = a["dither"]
     if a["tones"] is not None:
@@ -236,7 +244,7 @@ def main():
     for key in keys:
         if a["frames"] and key in registry.MODELS:
             model = registry.get(key)
-            model.animations = dict(model.animations, **{k: a["frames"] for k in anim.LOOPS if k in model.animations})
+            model.animations = dict(model.animations, **{k: n for k, n in a["frames"].items() if k in model.animations})
         if key not in registry.MODELS:
             print("NO SPEC %s (not registered%s)" % (key, "; a team file failed to import" if errors else ""))
             continue

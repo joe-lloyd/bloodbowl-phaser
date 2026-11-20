@@ -78,7 +78,9 @@ TEAM_COLOURS = {
 }
 
 CANVAS = [128, 128]      # set by the renderer before any material is built (the dither is in screen pixels)
-STYLE = {"dither": 0.1, "tones": 3}   # dither: checker strength at tone edges; tones: 3 = dark/mid/light, 2 = dark/mid
+STYLE = {"dither": 0.1, "tones": 3, "density": 1}
+# dither: checker strength at tone edges; tones: 3 = dark/mid/light, 2 = dark/mid; density: pixels per
+# pixel of the shipped size, which team files read to add details that only resolve from 2x up
 MATS = {}
 
 def ramp(name, dark, mid, light):
