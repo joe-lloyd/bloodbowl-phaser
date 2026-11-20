@@ -67,7 +67,9 @@ function GameTypeCard({
   gameType: GameType;
   selected: boolean;
   disabled: boolean;
-  keys: ReturnType<ReturnType<typeof choiceKeys<GameType>>>;
+  keys: ReturnType<ReturnType<typeof choiceKeys<GameType>>> & {
+    onFocus: () => void;
+  };
   onSelect: () => void;
 }) {
   return (
@@ -134,7 +136,12 @@ export function GameTypeSelector({
             gameType={gameType}
             selected={value === gameType}
             disabled={disabled}
-            keys={keys(gameType)}
+            keys={{
+              ...keys(gameType),
+              onFocus: () => {
+                setTabStop(gameType);
+              },
+            }}
             onSelect={() => {
               if (gameType !== value) onChange(gameType);
             }}

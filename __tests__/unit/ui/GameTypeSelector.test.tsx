@@ -122,6 +122,24 @@ describe("GameTypeSelector", () => {
     outside.remove();
   });
 
+  it("moves the tab stop to a card clicked after arrowing away from it", () => {
+    act(() => {
+      root.render(<GameTypeSelector value="sevens" onChange={vi.fn()} />);
+    });
+
+    act(() => {
+      card("Sevens").focus();
+      card("Sevens").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+      );
+    });
+    act(() => {
+      card("Sevens").focus();
+    });
+
+    expect(cards().map((button) => button.tabIndex)).toEqual([0, -1, -1, -1]);
+  });
+
   it("leaves the choice alone while disabled", () => {
     const onChange = vi.fn();
     act(() => {
