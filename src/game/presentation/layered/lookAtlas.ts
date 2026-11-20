@@ -48,6 +48,9 @@ function place(painted: readonly Painted[]): { rects: Map<string, AtlasRect>; he
   for (const { name, frame } of painted) {
     const w = Math.max(frame.width, 1);
     const h = Math.max(frame.height, 1);
+    if (w > PAGE_SIDE || h > PAGE_SIDE) {
+      throw new Error(`Frame ${name} is ${String(w)}x${String(h)} px, larger than a ${String(PAGE_SIDE)} px atlas page`);
+    }
     if (cursor.x + w > PAGE_SIDE) cursor = { ...cursor, x: 0, y: cursor.y + cursor.row + 1, row: 0 };
     if (cursor.y + h > PAGE_SIDE) cursor = { page: cursor.page + 1, x: 0, y: 0, row: 0 };
     rects.set(name, { page: cursor.page, x: cursor.x, y: cursor.y, w, h, sx: frame.x, sy: frame.y });

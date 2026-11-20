@@ -42,6 +42,7 @@ foreach ($job in $jobs) {
 }
 $running | Wait-Process
 $packs = @()
+$packed = @()
 $failed = @()
 foreach ($model in $Models.Split(",")) {
   $missing = @(foreach ($bodyName in $bodiesOf[$model]) { foreach ($anim in $anims) {
@@ -51,12 +52,14 @@ foreach ($model in $Models.Split(",")) {
     $failed += "$model missing $($missing -join ',')"
     continue
   }
+  Remove-Item -Force "$logs/pack-$model.log" -ErrorAction SilentlyContinue
   $packs += Start-Blender -Opts (@("--models", $model, "--pack", $stash, "--verify", "2") + $common) -Log "$logs/pack-$model"
+  $packed += $model
 }
 $packs | Wait-Process
-foreach ($model in $Models.Split(",")) {
+foreach ($model in $packed) {
   $log = "$logs/pack-$model.log"
-  if ((Test-Path $log) -and -not (Select-String -Quiet -Path $log -Pattern "^DONE $model ")) {
+  if (-not ((Test-Path $log) -and (Select-String -Quiet -Path $log -Pattern "^DONE $model "))) {
     $failed += "$model pack failed, see $log"
   }
 }

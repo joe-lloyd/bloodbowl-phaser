@@ -188,8 +188,8 @@ def verify(stage, scale, spec, body, default, store, rng, count, seed=7):
     if compared:
         print("VERIFY %s %s worst %d px" % (default.key, body, worst), flush=True)
     else:
-        print("VERIFY %s %s compared no frames: none of %s was rendered" % (
-            default.key, body, ",".join(sorted({name for name, _, _ in VERIFY_FRAMES}))), flush=True)
+        print("VERIFY %s %s compared no frames: verify samples %s, and this run rendered none of them" % (
+            default.key, body, ", ".join("%s/%s/%d" % (name, f, i) for name, i, f in VERIFY_FRAMES)), flush=True)
 
 
 def tables(stage):
