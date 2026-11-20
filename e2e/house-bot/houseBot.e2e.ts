@@ -1,4 +1,4 @@
-import { test, expect, chromium, type Page } from "@playwright/test";
+import { test, chromium, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import {
   appendFileSync,
@@ -59,14 +59,15 @@ test("the house bot hosts games until stopped", async () => {
     );
   });
   await ensureTeam(page);
+  await logFriendCode(page);
 
   for (let played = 0; MATCHES === 0 || played < MATCHES; played++) {
     await page.goto("/");
     await signOut.waitFor({ timeout: 60_000 });
     const code = await hostFreshGame(page);
-    log(`waiting in lobby ${code}`);
-    await waitForGuestAndStart(page);
-    log(`match ${code} started`);
+    log(`waiting in lobby ${code}, or for an invite`);
+    if (!(await waitForMatch(page))) continue;
+    log(`match ${page.url().split("/").pop() ?? code} started`);
     if ((await playMatch(page)) === "full time") await leaveFullTime(page);
     log(`match ${code} over`);
   }
@@ -88,6 +89,15 @@ function botLogin(): { email: string; password: string } {
   writeFileSync(file, JSON.stringify(login), { mode: 0o600 });
   log(`made the bot's login for ${login.email}; kept in ${file}`);
   return login;
+}
+
+async function logFriendCode(page: Page) {
+  await page.goto("/friends");
+  const code = await page
+    .locator('[data-testid="friend-code"][data-code]')
+    .getAttribute("data-code", { timeout: 30_000 })
+    .catch(() => null);
+  log(code ? `friend code ${code}` : "no friend code yet");
 }
 
 async function ensureTeam(page: Page) {
@@ -124,22 +134,55 @@ async function ensureTeam(page: Page) {
   await page.waitForTimeout(3000);
 }
 
-async function waitForGuestAndStart(page: Page) {
+const WAIT_FOR_A_GAME_MS = 24 * 60 * 60 * 1000;
+const WAIT_AS_GUEST_MS = 20 * 60 * 1000;
+
+async function readyUp(page: Page) {
   const select = page
     .locator("select")
     .filter({ has: page.locator("option", { hasText: TEAM }) });
-  await select.waitFor({ timeout: 30_000 });
-  await select
-    .selectOption({ label: TEAM })
-    .catch(() => select.selectOption({ index: 1 }));
+  if (!(await select.isVisible().catch(() => false))) return;
+  const ours = await select
+    .locator("option", { hasText: TEAM })
+    .first()
+    .getAttribute("value");
+  if (ours && (await select.inputValue()) !== ours) {
+    log(`picking ${TEAM}`);
+    await select.selectOption(ours);
+  }
   const ready = page.getByRole("button", { name: "Ready!" });
-  await expect(ready).toBeEnabled({ timeout: 30_000 });
-  await ready.click();
+  if (await ready.isEnabled().catch(() => false)) await ready.click();
+}
 
-  const start = page.getByRole("button", { name: "Start Match" });
-  await expect(start).toBeEnabled({ timeout: 24 * 60 * 60 * 1000 });
-  await start.click();
-  await page.waitForURL(/\/online\/play\//, { timeout: 60_000 });
+async function guestSince(page: Page, since: number | null): Promise<number | null> {
+  const hosting = await page
+    .getByRole("button", { name: "Start Match" })
+    .isVisible()
+    .catch(() => false);
+  if (hosting) return null;
+  return since ?? Date.now();
+}
+
+async function waitForMatch(page: Page): Promise<boolean> {
+  const deadline = Date.now() + WAIT_FOR_A_GAME_MS;
+  let guest: number | null = null;
+  while (Date.now() < deadline) {
+    if (page.url().includes("/online/play/")) return true;
+    await readyUp(page).catch(() => undefined);
+    const start = page.getByRole("button", { name: "Start Match" });
+    if (await start.isEnabled().catch(() => false)) {
+      await start.click();
+      await page.waitForURL(/\/online\/play\//, { timeout: 60_000 });
+      return true;
+    }
+    guest = await guestSince(page, guest);
+    if (guest !== null && Date.now() - guest > WAIT_AS_GUEST_MS) {
+      log("the host never started; going back to hosting");
+      return false;
+    }
+    await page.waitForTimeout(2000);
+  }
+  throw new Error("nobody started a game with the bot in a day");
 }
 
 async function hostFreshGame(page: Page): Promise<string> {

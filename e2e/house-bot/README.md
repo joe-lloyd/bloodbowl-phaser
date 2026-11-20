@@ -9,6 +9,12 @@ An admin joins from the main menu: Extras, Play the House Bot. The button
 looks in `houseBots` for a lobby still waiting for a guest and joins it.
 If no bot is waiting it says so.
 
+The bot is also a friend you can invite. Add it on the Friends page with
+its friend code, and it accepts the request by itself. Then host a game,
+invite House Bot from the lobby, and it joins, picks its team and readies
+up. Start the match when you are ready. If the bot is already in a match,
+it joins as soon as that match ends, while the invite is still fresh.
+
 ## How it works
 
 - The bot is an ordinary coach account with an email and password, not a
@@ -36,6 +42,12 @@ If no bot is waiting it says so.
   pick after a game and can start the next one at once.
 - If the other coach ends the match early, the bot agrees and hosts the
   next one.
+- In the bot's browser only, `HouseBotSocial`
+  (`src/ui/components/social/HouseBotSocial.tsx`) accepts every incoming
+  friend request and every match invite, as long as the bot has no guest
+  waiting and is not playing. It then opens the invited lobby. The runner
+  waits the same way as host or guest: it picks the team and presses Ready!,
+  and as host it presses Start Match once the guest is ready.
 
 ## Running it
 
@@ -47,13 +59,17 @@ bot's own log is still `~/.bb-house-bot/logs/bot.log`.
 
 ```sh
 git worktree add --detach ~/house-bot origin/main   # once
-cd ~/house-bot && pnpm install
+cd ~/house-bot && CI=true pnpm install --ignore-scripts
 cp ~/Projects/MyProjects/bloodbowl-phaser/.env .env
 cp e2e/house-bot/cc.jialab.bb-house-bot.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/cc.jialab.bb-house-bot.plist
 ```
 
 Stop it with `launchctl bootout gui/$(id -u)/cc.jialab.bb-house-bot`.
+
+The agent installs with `CI=true`. Without a terminal, pnpm refuses to
+rebuild `node_modules` when its settings change, and with `--silent` the
+run just exits 1 and launchd retries every 30 seconds.
 
 To run it by hand instead, stop the agent first and use a checkout of
 `main` that matches the deployed site: the online protocol refuses a coach

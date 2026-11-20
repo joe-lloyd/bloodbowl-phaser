@@ -12,7 +12,7 @@
   <array>
     <string>/bin/zsh</string>
     <string>-c</string>
-    <string>cd ~/house-bot &amp;&amp; git fetch -q origin main &amp;&amp; git checkout -q --detach origin/main &amp;&amp; pnpm install --frozen-lockfile --silent &amp;&amp; exec pnpm house-bot</string>
+    <string>cd ~/house-bot &amp;&amp; git fetch -q origin main &amp;&amp; git checkout -q --detach origin/main &amp;&amp; CI=true pnpm install --frozen-lockfile --ignore-scripts --silent &amp;&amp; exec pnpm house-bot</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
