@@ -15,6 +15,7 @@ import {
   biteBeforeBallAction,
   takeUnsatedBloodlust,
 } from "./activation";
+import { isWallSquare } from "../../game/rules/pitchSquares";
 
 interface Square {
   x: number;
@@ -92,7 +93,7 @@ function passTargetRefusal({
   if (hailMary && !hasSkill(passer.skills, SkillType.HAIL_MARY_PASS)) {
     return "Player does not have Hail Mary Pass";
   }
-  if (!pitchSquare(target)) {
+  if (!pitchSquare(target) && !isWallSquare(target)) {
     return "Target is off the pitch";
   }
 

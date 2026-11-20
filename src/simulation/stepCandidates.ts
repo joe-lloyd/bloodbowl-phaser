@@ -22,7 +22,7 @@ import {
   throwTeammateAims,
 } from "../game/rules/throwTeammate";
 import type { Candidate } from "./candidates";
-import { isStandableSquare } from "../game/rules/pitchSquares";
+import { isStandableSquare, isWallSquare } from "../game/rules/pitchSquares";
 
 const chebyshev = (a: GridPosition, b: GridPosition) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
@@ -233,7 +233,7 @@ function isPassSquare(
   to: GridPosition
 ): boolean {
   if (to.x === at.x && to.y === at.y) return false;
-  if (!isStandableSquare(to)) return false;
+  if (!isStandableSquare(to) && !isWallSquare(to)) return false;
   if (PassController.rangeValue(at, to) === null) return false;
   const range = gs.getPassController().measureRange(at, to);
   return passTypes.includes(range.type);
@@ -248,7 +248,7 @@ function passSteps(ctx: StepContext): void {
 
   const { passTypes } = weatherEffects(state.weather);
   for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
-    for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
+    for (let y = -1; y <= GameConfig.PITCH_HEIGHT; y++) {
       if (!isPassSquare(ctx, passTypes, { x, y })) continue;
       const there = everyone.find(
         (p) => p.gridPosition?.x === x && p.gridPosition?.y === y
