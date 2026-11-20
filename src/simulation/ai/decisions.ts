@@ -13,7 +13,7 @@ import {
 } from "./board";
 import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
-import { attackerWrestles } from "./chance";
+import { bothDownRank, takesWrestle, wrestleValue } from "./wrestle";
 
 const USE_REROLL = "use-reroll";
 
@@ -108,7 +108,7 @@ function blockDiceChoice(
       defenderDodge:
         has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE),
       wrestle: {
-        attacker: attackerWrestles(attacker, defender) && !hungry(board),
+        attacker: takesWrestle(board, attacker, defender),
         defender: has(defender, SkillType.WRESTLE),
         value: wrestleValue(board, attacker, defender),
       },
@@ -296,17 +296,13 @@ function wrestleChoice(
   const block = (p: FieldPlayer) => hasSkill(p.skills, SkillType.BLOCK);
   const accept =
     self.id === attacker.id
-      ? !!defender && attackerWrestles(self, defender) && !hungry(board)
+      ? !!defender && takesWrestle(board, self, defender)
       : block(attacker) && !block(self);
   return first(
     candidates,
     (c) =>
       c.commands[0].type === "use-reaction" && c.commands[0].accept === accept
   );
-}
-
-function hungry(board: Board): boolean {
-  return !!board.gs.getState().activePlayer?.bloodlustUnsated;
 }
 
 function sparesCarrier(board: Board, player: FieldPlayer): boolean {
@@ -356,26 +352,10 @@ export function decide({
   }
 }
 
-function wrestleValue(
-  board: Board,
-  attacker: FieldPlayer,
-  defender: FieldPlayer
-): number {
-  const carrier = carrierOf(board)?.id;
-  if (carrier === attacker.id) return 0;
-  return carrier === defender.id ? 4.5 : 2;
-}
-
 function wrestled(rank: number, wrestle: Wrestle): number {
   if (wrestle.attacker && wrestle.value > rank) return wrestle.value;
   if (wrestle.defender && wrestle.value < rank) return wrestle.value;
   return rank;
-}
-
-function bothDownRank(attackerBlock: boolean, defenderBlock: boolean): number {
-  if (attackerBlock && !defenderBlock) return 4;
-  if (attackerBlock) return 2.5;
-  return defenderBlock ? 0.5 : 1;
 }
 
 function otherDecision(

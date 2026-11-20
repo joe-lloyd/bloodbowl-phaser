@@ -159,7 +159,11 @@ function titchyMarkers(board: Board): Square[] {
     .map((o) => o.gridPosition);
 }
 
-function dodgeMarks(board: Board, titchy: readonly Square[], to: Square): number {
+function dodgeMarks(
+  board: Board,
+  titchy: readonly Square[],
+  to: Square
+): number {
   const marks = board.marks.getUint8(key(to));
   return marks - titchy.filter((at) => distance(at, to) === 1).length;
 }
@@ -198,7 +202,14 @@ function searchFor(board: Board, player: Player, securing: boolean): Search {
           )
         )
       : 1;
-  return { board, ballKey, rush, dodgeInto, pickup, titchy: titchyMarkers(board) };
+  return {
+    board,
+    ballKey,
+    rush,
+    dodgeInto,
+    pickup,
+    titchy: titchyMarkers(board),
+  };
 }
 
 interface RelaxArgs {

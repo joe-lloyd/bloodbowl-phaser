@@ -243,6 +243,38 @@ describe("a carrier one step from scoring beside a Distracted opponent", () => {
   });
 });
 
+describe("a carrier with one marker and no team-mates", () => {
+  it("keeps its own moves when its only hit on the marker is its own Blitz", () => {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 8,
+          y: 5,
+          hasBall: true,
+          stats: { AG: 2, ST: 4 },
+          skills: [SkillType.DODGE, SkillType.BLOCK],
+        },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 9, y: 5, stats: { ST: 2 } }],
+    });
+    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
+    const plans = activations({
+      board: readBoard(subject, carrier.teamId),
+      w: DEFAULT_WEIGHTS,
+      available: new Map([
+        [carrier.id, new Set(["move" as const, "blitz" as const])],
+      ]),
+    });
+    expect(
+      plans.some(
+        (plan) => plan.player.id === carrier.id && plan.action === "move"
+      )
+    ).toBe(true);
+  });
+});
+
 describe("a Take Root player's Blitz", () => {
   async function blitzValue(
     target: { x: number; y: number },

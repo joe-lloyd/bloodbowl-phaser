@@ -1,4 +1,5 @@
 import { type FieldPlayer as Player } from "./board";
+import { takesWrestle } from "./wrestle";
 import { hasTackleZone } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { playerValue } from "../../types/Team";
@@ -120,6 +121,7 @@ export function exposureCost(c: Context, player: Player, at: Square): number {
       dice: hit.diceCount,
       attackerPicks: !hit.isUphill,
       teamReroll: false,
+      wrestles: takesWrestle(board, opponent, moved),
     });
     worst = Math.max(worst, odds.knockdown * casualtyChance(opponent, moved));
   }

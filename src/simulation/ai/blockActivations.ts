@@ -12,6 +12,7 @@ import {
   toGoal,
 } from "./board";
 import { type BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
+import { takesWrestle } from "./wrestle";
 import { type Route, movesLeft } from "./routes";
 import { type Context, gamble } from "./activationContext";
 import type { Activation } from "./activations";
@@ -98,6 +99,7 @@ export function blockFrom({
     dice: analysis.diceCount,
     attackerPicks: !analysis.isUphill,
     teamReroll: reroll,
+    wrestles: takesWrestle(c.board, moved, target),
   });
 }
 

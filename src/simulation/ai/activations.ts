@@ -1,12 +1,7 @@
 import { type FieldPlayer as Player } from "./board";
 
 import { type ActionType } from "../../types/events";
-import {
-  type Board,
-  type Square,
-  carrierOf,
-  distance,
-} from "./board";
+import { type Board, type Square, carrierOf, distance } from "./board";
 import { hasTackleZone } from "../../types/Player";
 import { type RollTarget } from "./chance";
 import { type Route } from "./routes";
@@ -207,7 +202,12 @@ function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
     (p) =>
       hasTackleZone(p) && distance(p.gridPosition, carrier.gridPosition) === 1
   );
-  if (!plans.some((plan) => hitsMarker(plan, markers))) return plans;
+  if (
+    !plans.some(
+      (plan) => plan.player.id !== carrier.id && hitsMarker(plan, markers)
+    )
+  )
+    return plans;
   return plans.filter(
     (plan) =>
       plan.player.id !== carrier.id ||
