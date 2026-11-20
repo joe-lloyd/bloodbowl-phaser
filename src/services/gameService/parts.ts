@@ -29,6 +29,7 @@ import { type BallAndChainSquare } from "@/game/operations/BallAndChainOperation
 import { RerollArbiter, DecisionService } from "@/game/skills";
 import { revokeMatchGrants } from "@/game/inducements/matchInducements";
 import { breakSouvenirs } from "@/game/inducements/souvenirs";
+import { bindPotionHooks } from "./potionWiring";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import { createInitialState } from "./matchStart";
@@ -103,6 +104,7 @@ export function createGameParts(options: PartOptions): GameParts {
   );
   const kickoffManagers = makeKickoffManagers(core, options.delay, turnManager);
   bindPartEvents(core, () => parts, kickoffManagers.kickoffEventManager);
+  bindPotionHooks(core.eventBus, () => parts);
   const parts: GameParts = {
     ...core,
     setupManager,
