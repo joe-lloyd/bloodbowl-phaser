@@ -102,7 +102,9 @@ function steadySupport(c: Context, plans: Activation[]) {
     const best = bestPlan(plans, big);
     if (!best) continue;
     const teammates = gs.getTeammates(big.id);
-    const moves = steadyPlans({ c, big, best, teammates });
+    const moves = steadyPlans({ c, big, best, teammates }).filter(
+      (m) => m.value > 0
+    );
     if (moves.length === 0) continue;
     const alone = gateChance(best, teammates);
     const gain = Math.max(...moves.map((m) => m.value)) / best.value;
@@ -115,10 +117,10 @@ function steadySupport(c: Context, plans: Activation[]) {
 export function gatePriced(c: Context, plans: Activation[]): Activation[] {
   const gs = c.board.gs;
   const { support, wait } = steadySupport(c, plans);
-  const priced = plans.map((a) => {
+  const price = (a: Activation): Activation => {
     const p = gateChance(a, gs.getTeammates(a.player.id));
     if (p >= 1 || a.value <= 0) return a;
     return { ...a, value: a.value * p * (wait.get(a.player.id) ?? 1) };
-  });
-  return [...priced, ...support];
+  };
+  return [...plans, ...support].map(price);
 }

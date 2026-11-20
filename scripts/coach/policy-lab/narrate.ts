@@ -5,7 +5,7 @@ import { GameConfig } from "../../../src/config/GameConfig";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import type { MatchRecording } from "../../../src/simulation/runMatch";
 import { openTrace } from "../catalogue-study/replay";
-import { argument, isEntry, replaySteps } from "./lab";
+import { argument, isEntry, replaySteps, verifiedHash } from "./lab";
 
 const WIDTH = GameConfig.PITCH_WIDTH;
 const HEIGHT = GameConfig.PITCH_HEIGHT;
@@ -112,7 +112,7 @@ function listen({ game, lines }: Narration): void {
   bus.on(GameEventNames.BlockDiceKept, (d) => {
     const picks = d.isAttackerChoice ? "" : "(defender picks) ";
     lines.push(
-      `      block ${name(d.attackerId)} -> ${name(d.defenderId)} ${String(d.numDice)}d ${picks}${JSON.stringify(d.results)} kept ${JSON.stringify(d.selectedResult ?? null)}`
+      `      block ${name(d.attackerId)} -> ${name(d.defenderId)} ${String(d.numDice)}d ${picks}${JSON.stringify(d.results)}${d.selectedResult === undefined ? "" : ` kept ${JSON.stringify(d.selectedResult)}`}`
     );
   });
   bus.on(GameEventNames.PlayerKnockedDown, ({ playerId }) =>
@@ -154,6 +154,7 @@ async function narrate(file: string): Promise<string> {
       describe(narration, step);
     },
   });
+  verifiedHash(game, recording, "Narration");
   return narration.lines.join("\n");
 }
 

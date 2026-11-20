@@ -228,3 +228,41 @@ describe("a Take Root player's Blitz", () => {
     );
   });
 });
+
+describe("a helper who can steady a Really Stupid team-mate", () => {
+  async function steadyValue(helperSkills: SkillType[]) {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 8,
+          y: 5,
+          stats: { ST: 5 },
+          skills: [SkillType.REALLY_STUPID],
+        },
+        { playerIndex: 1, x: 5, y: 5, stats: { MA: 2 }, skills: helperSkills },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 5 },
+        { playerIndex: 1, x: 18, y: 1, hasBall: true },
+      ],
+    });
+    const point = await enumerateDecision(subject, null);
+    const steady = activations({
+      board: readBoard(subject, "team1"),
+      w: DEFAULT_WEIGHTS,
+      available: availableActions(point.candidates),
+    }).find(
+      (a) => a.intent.kind === "reposition" && a.intent.role === "steady"
+    );
+    return steady?.value ?? NaN;
+  }
+
+  it("prices the move by the helper's own Take Root roll", async () => {
+    expect(await steadyValue([SkillType.TAKE_ROOT])).toBeCloseTo(
+      ((await steadyValue([])) * 5) / 6,
+      9
+    );
+  });
+});

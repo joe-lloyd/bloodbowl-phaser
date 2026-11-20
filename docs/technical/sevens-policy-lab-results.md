@@ -326,7 +326,7 @@ Measured and dropped:
 
 An independent Fable 5.2 review of the agents' evidence proposed the hold-the-ball idea and caught the pick-up benchmark fault. Drives that kept the ball until turn 4 scored 35.9% of the time against 12.5% without it, but holding on purpose cost tempo the cage never repaid. The same lesson ended `fullCage`.
 
-Candidate source `74c074d275ae` played main, `35d50ad36b87`. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 87-check tactical gate passed.
+Candidate source `74c074d275ae` played main, `35d50ad36b87`. Review then made two changes to the Really Stupid help. A helper's move is offered only when it is worth something, and it is priced by the helper's own activation rolls. Before, a helper with Take Root kept the full value of its move, and a set of helper moves that were all worth less than nothing raised the Big Guy's value instead of lowering it. Both change play only when a Really Stupid player waits for a helper. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 87-check tactical gate passed.
 
 | Stage                                | Games |   Candidate points share | 95% interval         |
 | ------------------------------------ | ----: | -----------------------: | -------------------- |
