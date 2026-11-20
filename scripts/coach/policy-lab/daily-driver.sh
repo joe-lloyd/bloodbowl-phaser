@@ -17,7 +17,7 @@ for seed in "$confirmation_override" "$heuristic_override"; do
 done
 revision="$(git rev-parse HEAD)"
 # The incumbent: main before this branch. Override to compare another frozen policy.
-baseline="${BB7_BASELINE:-53a1c8dd611832f3dc8221664ad07e277ecb87dd}"
+baseline="${BB7_BASELINE:-35d50ad36b8745ffe0732f09cb7cb93e07b293b3}"
 case "$baseline" in *[!0-9a-f]*) echo 'BB7_BASELINE must be a full commit hash' >&2; exit 2;; esac
 remote_root="/Users/joelloyd/tmp/bb7-policy-lab-${revision:0:12}-vs-${baseline:0:12}"
 ssh -o BatchMode=yes daily-driver mkdir -p "$remote_root/candidate" "$remote_root/frozen"
