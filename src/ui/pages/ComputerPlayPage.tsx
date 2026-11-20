@@ -17,6 +17,7 @@ import { HudButton, Notice } from "../components/componentWarehouse/HudKit";
 import { readMatchSave } from "../../game/persistence/MatchSaveRepository";
 import { restoreMatchSave } from "../../headless/serialization";
 import { type CompetitionContext } from "../../competition/types";
+import type { GameType } from "../../game/variants/gameTypes";
 
 export interface ComputerPlayState {
   team1: Team;
@@ -27,6 +28,8 @@ export interface ComputerPlayState {
   progressionEnabled?: boolean;
 
   competitionContext?: CompetitionContext;
+
+  gameType?: GameType;
 }
 
 function difficultyOf(id: string | undefined): Difficulty {
@@ -77,6 +80,7 @@ function startFrom(state: ComputerPlayState | null) {
       ...(state.competitionContext === undefined
         ? {}
         : { competitionContext: state.competitionContext }),
+      ...(state.gameType === undefined ? {} : { gameType: state.gameType }),
     }),
   };
 }

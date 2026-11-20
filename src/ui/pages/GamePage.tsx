@@ -23,6 +23,7 @@ import {
 } from "../../game/persistence/MatchSaveRepository";
 import { SoundManager } from "../sound/SoundManager";
 import { SoundSuite } from "../sound/SoundSuite";
+import type { GameType } from "../../game/variants/gameTypes";
 
 interface GamePageProps {
   eventBus: EventBus;
@@ -43,6 +44,7 @@ interface RouteState {
   competitionContext?: CompetitionContext;
   progressionEnabled?: boolean;
   resumeSave?: MatchSave;
+  gameType?: GameType;
 }
 
 function fixtureContextFor(
@@ -171,6 +173,7 @@ export function GamePage({
           team2,
           progressionEnabled: enableProgression,
           competitionContext: fixtureContext ?? undefined,
+          gameType: routeState.gameType,
           resumeSave,
           autosaveEnabled: !teams,
           resumed,

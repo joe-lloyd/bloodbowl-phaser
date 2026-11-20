@@ -35,6 +35,7 @@ import {
   updateSettings,
   getActiveMatchCode,
   fetchLobby,
+  lobbyGameType,
 } from "../../../firebase/lobby";
 import { resolveCoachName } from "../../../firebase/coaches";
 import { useFriends } from "../../hooks/useSocial";
@@ -49,6 +50,13 @@ import {
   acceptLobbyInvite,
   sendFixtureInvite,
 } from "../../../firebase/invites";
+import {
+  GAME_TYPE_LABELS,
+  type GameType,
+} from "../../../game/variants/gameTypes";
+import { legalGameTypes } from "../../../game/rules/rosterLegality";
+import { getRosterByRosterName } from "../../../data/RosterTemplates";
+import { GameTypeSelector } from "../common/GameTypeSelector";
 
 type Mode = "host" | "join";
 
@@ -290,6 +298,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           me={me}
           fixture={!!lobby.fixtureTeams}
           myTeams={myTeams}
+          gameType={lobbyGameType(lobby)}
           onPick={(team) => void selectTeam(lobby.code, user.uid, team)}
         />
       </Section>
@@ -297,6 +306,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       <SettingsPanel
         settings={lobby.settings}
         readOnly={!isHost}
+        gameTypeLocked={!!lobby.competitionContext}
         onChange={(settings) => void updateSettings(lobby.code, settings)}
       />
 
@@ -546,15 +556,26 @@ function LobbyPlayers({
   );
 }
 
+function playsGameType(team: Team, gameType: GameType): boolean {
+  try {
+    const roster = getRosterByRosterName(team.rosterName);
+    return legalGameTypes(team, roster).includes(gameType);
+  } catch {
+    return false;
+  }
+}
+
 function TeamPicker({
   me,
   fixture,
   myTeams,
+  gameType,
   onPick,
 }: {
   me: LobbyPlayer | undefined;
   fixture: boolean;
   myTeams: Team[];
+  gameType: GameType;
   onPick: (team: Team) => void;
 }) {
   if (fixture && me?.team)
@@ -570,24 +591,59 @@ function TeamPicker({
       </p>
     );
   return (
-    <select
-      value={me?.team?.id ?? ""}
-      onChange={(e) => {
-        const team = myTeams.find((t: Team) => t.id === e.target.value);
-        if (team) onPick(team);
-      }}
-      aria-label="Your team"
-      className="hud-field"
-    >
-      <option value="" disabled>
-        Pick a team…
-      </option>
-      {myTeams.map((team: Team) => (
-        <option key={team.id} value={team.id}>
-          {team.name} ({team.rosterName})
+    <TeamChoice
+      chosen={me?.team ?? null}
+      myTeams={myTeams}
+      gameType={gameType}
+      onPick={onPick}
+    />
+  );
+}
+
+function TeamChoice({
+  chosen,
+  myTeams,
+  gameType,
+  onPick,
+}: {
+  chosen: Team | null;
+  myTeams: Team[];
+  gameType: GameType;
+  onPick: (team: Team) => void;
+}) {
+  const label = GAME_TYPE_LABELS[gameType];
+  return (
+    <>
+      <select
+        value={chosen?.id ?? ""}
+        onChange={(e) => {
+          const team = myTeams.find((t: Team) => t.id === e.target.value);
+          if (team) onPick(team);
+        }}
+        aria-label="Your team"
+        className="hud-field"
+      >
+        <option value="" disabled>
+          Pick a team…
         </option>
-      ))}
-    </select>
+        {myTeams.map((team: Team) => (
+          <option
+            key={team.id}
+            value={team.id}
+            disabled={!playsGameType(team, gameType)}
+          >
+            {team.name} ({team.rosterName})
+            {playsGameType(team, gameType) ? "" : ` · not legal for ${label}`}
+          </option>
+        ))}
+      </select>
+      {chosen && !playsGameType(chosen, gameType) && (
+        <Notice tone="warn" className="mt-3">
+          {chosen.name} does not meet the {label} draft rules. Pick another
+          team.
+        </Notice>
+      )}
+    </>
   );
 }
 
@@ -636,10 +692,12 @@ function PlayerCard({
 export function SettingsPanel({
   settings,
   readOnly,
+  gameTypeLocked = false,
   onChange,
 }: {
   settings: LobbySettings;
   readOnly: boolean;
+  gameTypeLocked?: boolean;
   onChange: (settings: LobbySettings) => void;
 }) {
   return (
@@ -647,6 +705,15 @@ export function SettingsPanel({
       title={readOnly ? "Match settings (host decides)" : "Match settings"}
       bodyClassName="flex flex-col gap-4"
     >
+      <GameTypeSelector
+        {...(settings.gameType === undefined
+          ? {}
+          : { value: settings.gameType })}
+        disabled={readOnly || gameTypeLocked}
+        onChange={(gameType) => {
+          onChange({ ...settings, gameType });
+        }}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Turn timer"

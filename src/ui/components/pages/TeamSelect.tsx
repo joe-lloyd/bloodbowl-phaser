@@ -15,6 +15,14 @@ import {
   createComputerTeamFromTemplate,
 } from "../../../competition/computerTeamTemplates";
 import { createReadyMadeTeam } from "../../../simulation/lineups";
+import { withDraftGameType } from "../../../game/rules/gameTypeChange";
+import {
+  DEFAULT_GAME_TYPE,
+  GAME_TYPE_LABELS,
+  type GameType,
+  isGameType,
+} from "../../../game/variants/gameTypes";
+import { GameTypeSelector } from "../common/GameTypeSelector";
 import {
   Chip,
   cx,
@@ -46,9 +54,11 @@ const READY_MADE_COLORS = [0x8e1b1b, 0x1e3a5f, 0x556b2f, 0xd6b25e];
 
 function ReadyMadeTeamPicker({
   teams,
+  gameType,
   onAdded,
 }: {
   teams: Team[];
+  gameType: GameType;
   onAdded: () => void;
 }) {
   const [roster, setRoster] = useState<RosterName>(RosterName.HUMAN);
@@ -60,7 +70,7 @@ function ReadyMadeTeamPicker({
     let name = base;
     for (let n = 2; taken.has(name); n++) name = `${base} ${String(n)}`;
     saveTeam(
-      createReadyMadeTeam(roster, name, color)
+      withDraftGameType(createReadyMadeTeam(roster, name, color), gameType)
     );
     onAdded();
   };
@@ -92,12 +102,16 @@ function ReadyMadeTeamPicker({
 export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [library, reloadTeams] = useTeamLibrary();
   const [searchParams] = useSearchParams();
+  const gameTypeParam = searchParams.get("gameType");
+  const [gameType, setGameType] = useState<GameType>(
+    isGameType(gameTypeParam) ? gameTypeParam : DEFAULT_GAME_TYPE
+  );
   const computerTeams = useMemo(
     () =>
-      getComputerTeamTemplates().map((template) =>
-        createComputerTeamFromTemplate(template.id)
+      getComputerTeamTemplates({ gameType }).map((template) =>
+        createComputerTeamFromTemplate(template.id, { gameType })
       ),
-    []
+    [gameType]
   );
   const initialComputer = computerTeams.find(
     (team) =>
@@ -127,7 +141,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     if (insignificantError) issues.push(insignificantError);
     try {
       const roster = getRosterByRosterName(team.rosterName);
-      issues.push(...validateRosterLegality(team, roster).map((v) => v.detail));
+      issues.push(
+        ...validateRosterLegality(team, roster, gameType).map((v) => v.detail)
+      );
     } catch {
       issues.push(`Unknown roster ${team.rosterName}`);
     }
@@ -188,7 +204,8 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     if (vsComputer) {
       if (!selectedTeam2.computerTemplateId) return;
       const computerTeam = createComputerTeamFromTemplate(
-        selectedTeam2.computerTemplateId
+        selectedTeam2.computerTemplateId,
+        { gameType }
       );
       navigate("/play/computer", {
         state: {
@@ -196,6 +213,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           team2: computerTeam,
           computerTeamId: computerTeam.id,
           difficulty,
+          gameType,
         },
       });
       return;
@@ -206,6 +224,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         team1: selectedTeam1,
         team2: selectedTeam2,
         progressionEnabled,
+        gameType,
       },
     });
   };
@@ -290,7 +309,11 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                   <span className="shrink-0 text-hud-sm text-hud-dim">
                     {team.rosterName}
                   </span>
-                  {issues.length > 0 && <Chip tone="blood">Illegal</Chip>}
+                  {issues.length > 0 && (
+                    <Chip tone="blood">
+                      Not {GAME_TYPE_LABELS[gameType]}
+                    </Chip>
+                  )}
                 </button>
               );
             })
@@ -319,7 +342,25 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         </>
       }
     >
-      <PageHeader eyebrow="Friendly Sevens Match" title="TEAM SELECTION" />
+      <PageHeader
+        eyebrow={`Friendly ${GAME_TYPE_LABELS[gameType]} Match`}
+        title="TEAM SELECTION"
+      />
+
+      {mode !== "sandbox" && (
+        <Section title="Game type" className="mt-6">
+          <div className="max-w-2xl">
+            <GameTypeSelector
+              value={gameType}
+              onChange={(next) => {
+                setGameType(next);
+                setSelectedTeam1(null);
+                setSelectedTeam2(null);
+              }}
+            />
+          </div>
+        </Section>
+      )}
 
       {mode === "play" && (
         <Section title="Player 2" className="mt-6">
@@ -428,7 +469,11 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       )}
 
       <Section title="Ready-made teams" className="mt-6">
-        <ReadyMadeTeamPicker teams={teams} onAdded={reloadTeams} />
+        <ReadyMadeTeamPicker
+          teams={teams}
+          gameType={gameType}
+          onAdded={reloadTeams}
+        />
       </Section>
 
       {mode !== "sandbox" && !vsComputer && (
