@@ -47,9 +47,9 @@ export async function currentLobby(
   return status === "active" ? { code: doc.code, playing: true } : null;
 }
 
-export function vacateWhenGuestLeaves(lobby: LobbyDoc, uid: string): void {
+export async function vacateWhenGuestLeaves(lobby: LobbyDoc, uid: string): Promise<void> {
   if (lobby.guestUid !== uid || lobby.status !== "lobby") return;
-  leaveGuestSeat(lobby.code, uid).catch((error: unknown) => {
+  await leaveGuestSeat(lobby.code, uid).catch((error: unknown) => {
     console.warn("[lobby] could not give up the guest seat", error);
   });
 }

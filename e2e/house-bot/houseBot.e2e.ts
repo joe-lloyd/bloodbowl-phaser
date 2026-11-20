@@ -67,9 +67,10 @@ test("the house bot hosts games until stopped", async () => {
     const code = await hostFreshGame(page);
     log(`waiting in lobby ${code}, or for an invite`);
     if (!(await waitForMatch(page))) continue;
-    log(`match ${page.url().split("/").pop() ?? code} started`);
+    const match = page.url().split("/").pop() ?? code;
+    log(`match ${match} started`);
     if ((await playMatch(page)) === "full time") await leaveFullTime(page);
-    log(`match ${code} over`);
+    log(`match ${match} over`);
     played++;
   }
   await context.close();

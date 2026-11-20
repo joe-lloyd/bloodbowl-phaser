@@ -7,7 +7,7 @@ import { fetchLobby, getActiveMatchCode } from "../../../firebase/lobby";
 import { inviteId } from "../../../social/friends";
 import { errorText } from "../../errorText";
 import { useAuth } from "../../hooks/useAuth";
-import { type FriendRow, type InviteRow, useFriends, useInvites } from "../../hooks/useSocial";
+import { type FriendRow, type InviteRow, useFriends, useInvites, useNow } from "../../hooks/useSocial";
 
 function say(line: string): void {
   console.log(`[HouseBot] ${line}`);
@@ -69,6 +69,7 @@ function useJoinMatchInvites(uid: string | null, invites: readonly InviteRow[]):
   const playing = useLocation().pathname.startsWith("/online/play/");
   const joining = useRef(false);
   const [tried, setTried] = useState<ReadonlySet<string>>(() => new Set());
+  const minute = useNow(60_000);
   const next = firstMatchInvite(invites, tried);
   useEffect(() => {
     if (!uid || !next || playing || joining.current) return;
@@ -79,7 +80,7 @@ function useJoinMatchInvites(uid: string | null, invites: readonly InviteRow[]):
         joining.current = false;
         if (attempted) setTried((done) => new Set(done).add(attemptKey(next)));
       });
-  }, [uid, next, playing, navigate, tried]);
+  }, [uid, next, playing, navigate, tried, minute]);
 }
 
 export function HouseBotSocial() {

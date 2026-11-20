@@ -236,8 +236,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           me={me}
           onLeave={() => {
             unlistWhenHostLeaves(lobby, user.uid);
-            vacateWhenGuestLeaves(lobby, user.uid);
-            void navigate("/");
+            void vacateWhenGuestLeaves(lobby, user.uid).then(() => navigate("/"));
           }}
           onReady={() => void setReady(lobby.code, user.uid, !me?.ready)}
           onStart={() => {

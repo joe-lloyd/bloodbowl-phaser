@@ -12,6 +12,7 @@ const world = vi.hoisted(() => {
     friends: new Array<FriendRow>(),
     invites: new Array<InviteRow>(),
     current,
+    minute: 0,
     acceptFriend: vi.fn((): Promise<void> => Promise.resolve()),
     acceptLobbyInvite: vi.fn((): Promise<string> => Promise.resolve("FRIEND")),
     dismissInvite: vi.fn((): Promise<void> => Promise.resolve()),
@@ -22,6 +23,7 @@ vi.mock("../../src/ui/hooks/useAuth", () => ({ useAuth: () => ({ user: { uid: "b
 vi.mock("../../src/ui/hooks/useSocial", () => ({
   useFriends: () => world.friends,
   useInvites: () => world.invites,
+  useNow: () => world.minute,
 }));
 vi.mock("../../src/firebase/friends", () => ({ acceptFriend: world.acceptFriend }));
 vi.mock("../../src/firebase/invites", () => ({
@@ -142,5 +144,17 @@ describe("the house bot's browser", () => {
     world.invites = [{ invite: replacement, fromName: "Joe" }];
     await show("/");
     expect(world.acceptLobbyInvite).toHaveBeenLastCalledWith(replacement);
+  });
+
+  it("takes an invite once the guest who blocked it has left", async () => {
+    world.invites = [{ invite, fromName: "Joe" }];
+    world.current = { status: "lobby", guestUid: "stranger" };
+    await show("/");
+    expect(world.acceptLobbyInvite).not.toHaveBeenCalled();
+
+    world.current = { status: "lobby", guestUid: null };
+    world.minute += 60_000;
+    await show("/");
+    expect(world.acceptLobbyInvite).toHaveBeenCalledWith(invite);
   });
 });
