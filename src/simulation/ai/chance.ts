@@ -210,6 +210,14 @@ interface BlockOddsArgs {
   teamReroll: boolean;
 }
 
+export function attackerWrestles(attacker: Player, defender: Player): boolean {
+  return (
+    hasSkill(attacker.skills, SkillType.WRESTLE) &&
+    (!hasSkill(attacker.skills, SkillType.BLOCK) ||
+      hasSkill(defender.skills, SkillType.BLOCK))
+  );
+}
+
 function faceOdds(
   attacker: Player,
   defender: Player
@@ -219,7 +227,7 @@ function faceOdds(
   const dBlock = has(defender, SkillType.BLOCK);
   const dodges =
     has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE);
-  const wrestles = has(attacker, SkillType.WRESTLE) && (!aBlock || dBlock);
+  const wrestles = attackerWrestles(attacker, defender);
   const bothDownFloors = (aBlock && !dBlock) || wrestles;
   return {
     good: (1 + (dodges ? 0 : 1) + (bothDownFloors ? 1 : 0)) / 6,

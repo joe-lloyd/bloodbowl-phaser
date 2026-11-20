@@ -230,6 +230,7 @@ export type PendingDecision =
       chooserTeamId: string;
       skill: string;
       prompt: string;
+      opponentId?: string;
     }
   | {
       type: "bite-target";

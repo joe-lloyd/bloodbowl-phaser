@@ -7,13 +7,19 @@ import { routesFor } from "../../src/simulation/ai/routes";
 import { decide } from "../../src/simulation/ai/decisions";
 import type { Candidate } from "../../src/simulation/candidates";
 
-function wrestleBoard(attackerSkills: SkillType[]) {
+function wrestleBoard(
+  attackerSkills: SkillType[],
+  target: { skills: SkillType[]; hasBall: boolean } = {
+    skills: [SkillType.WRESTLE],
+    hasBall: false,
+  }
+) {
   const subject = game({
     turn: 3,
     team1Placements: [{ playerIndex: 0, x: 8, y: 5, skills: attackerSkills }],
     team2Placements: [
-      { playerIndex: 0, x: 9, y: 5, skills: [SkillType.WRESTLE] },
-      { playerIndex: 1, x: 18, y: 1, hasBall: true },
+      { playerIndex: 0, x: 9, y: 5, ...target },
+      { playerIndex: 1, x: 18, y: 1, hasBall: !target.hasBall },
     ],
   });
   const attacker = fieldPlayer(subject.ctx.team1.players[0]);
@@ -33,7 +39,8 @@ const answers: Candidate[] = [true, false].map((accept) => ({
 
 function wrestleAnswer(
   subject: ReturnType<typeof wrestleBoard>["subject"],
-  self: { id: string; teamId: string }
+  self: { id: string; teamId: string },
+  opponent: { id: string }
 ) {
   const index = decide({
     board: readBoard(subject, self.teamId),
@@ -43,6 +50,7 @@ function wrestleAnswer(
       chooserTeamId: self.teamId,
       skill: SkillType.WRESTLE,
       prompt: "Use Wrestle to place both players prone (no armour rolls)?",
+      opponentId: opponent.id,
     },
     candidates: answers,
   });
@@ -64,18 +72,68 @@ describe("Wrestle", () => {
   });
 
   it("wrestles as an attacker without Block", () => {
-    const { subject, attacker } = wrestleBoard([SkillType.WRESTLE]);
-    expect(wrestleAnswer(subject, attacker)).toBe("accept");
+    const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE]);
+    expect(wrestleAnswer(subject, attacker, defender)).toBe("accept");
   });
 
   it("does not wrestle as a defender when the attacker would take the turnover", () => {
-    const { subject, defender } = wrestleBoard([]);
-    expect(wrestleAnswer(subject, defender)).toBe("decline");
+    const { subject, attacker, defender } = wrestleBoard([]);
+    expect(wrestleAnswer(subject, defender, attacker)).toBe("decline");
   });
 
   it("wrestles as a defender when the attacker's Block would keep it standing", () => {
-    const { subject, defender } = wrestleBoard([SkillType.BLOCK]);
-    expect(wrestleAnswer(subject, defender)).toBe("accept");
+    const { subject, attacker, defender } = wrestleBoard([SkillType.BLOCK]);
+    expect(wrestleAnswer(subject, defender, attacker)).toBe("accept");
+  });
+
+  it("picks Both Down against a carrier with Block and wrestles the ball loose", () => {
+    const { subject, attacker, defender } = wrestleBoard(
+      [SkillType.BLOCK, SkillType.WRESTLE],
+      { skills: [SkillType.BLOCK], hasBall: true }
+    );
+    const die = (type: "both-down" | "push") => ({
+      type,
+      icon: "",
+      label: type,
+    });
+    const options = [die("both-down"), die("push")];
+    const picks: Candidate[] = options.map((_, index) => ({
+      kind: "decision",
+      label: String(index),
+      commands: [{ type: "choose-block-result", index }],
+    }));
+    const picked = decide({
+      board: readBoard(subject, attacker.teamId),
+      pending: {
+        type: "block-dice",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        chooserTeamId: attacker.teamId,
+        options,
+        choiceStage: "pick",
+      },
+      candidates: picks,
+    });
+    expect(picked).toBe(0);
+    expect(wrestleAnswer(subject, attacker, defender)).toBe("accept");
+  });
+
+  it("keeps Both Down plain against a defender without Block", () => {
+    const { subject, attacker, defender } = wrestleBoard(
+      [SkillType.BLOCK, SkillType.WRESTLE],
+      { skills: [], hasBall: true }
+    );
+    expect(wrestleAnswer(subject, attacker, defender)).toBe("decline");
+  });
+
+  it("does not wrestle while its Bloodlust is unsated", () => {
+    const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE]);
+    subject.ctx.gameService.getState().activePlayer = {
+      id: attacker.id,
+      action: "block",
+      bloodlustUnsated: true,
+    };
+    expect(wrestleAnswer(subject, attacker, defender)).toBe("decline");
   });
 });
 
@@ -102,5 +160,21 @@ describe("Titchy", () => {
       player: fieldPlayer(subject.ctx.team1.players[0]),
     }).get(key({ x: 7, y: 5 }));
     expect(route?.chance).toBeCloseTo(5 / 6, 6);
+  });
+
+  it("does not let an opposing Titchy player mark the square a dodger enters", () => {
+    const subject = game({
+      turn: 3,
+      team1Placements: [{ playerIndex: 0, x: 10, y: 5, stats: { AG: 3 } }],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 5, skills: [SkillType.TITCHY] },
+        { playerIndex: 1, x: 18, y: 1, hasBall: true },
+      ],
+    });
+    const route = routesFor({
+      board: readBoard(subject, subject.ctx.team1.id),
+      player: fieldPlayer(subject.ctx.team1.players[0]),
+    }).get(key({ x: 10, y: 4 }));
+    expect(route?.chance).toBeCloseTo(4 / 6, 6);
   });
 });

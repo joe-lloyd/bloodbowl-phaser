@@ -6,8 +6,8 @@ import {
   type Square,
   carrierOf,
   distance,
-  standing,
 } from "./board";
+import { hasTackleZone } from "../../types/Player";
 import { type RollTarget } from "./chance";
 import { type Route } from "./routes";
 import { type Weights } from "./weights";
@@ -204,11 +204,15 @@ function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
   const carrier = carrierOf(c.board);
   if (carrier?.teamId !== c.board.us) return plans;
   const markers = c.board.theirs.filter(
-    (p) => standing(p) && distance(p.gridPosition, carrier.gridPosition) === 1
+    (p) =>
+      hasTackleZone(p) && distance(p.gridPosition, carrier.gridPosition) === 1
   );
   if (!plans.some((plan) => hitsMarker(plan, markers))) return plans;
   return plans.filter(
-    (plan) => plan.player.id !== carrier.id || plan.action !== "move"
+    (plan) =>
+      plan.player.id !== carrier.id ||
+      plan.action !== "move" ||
+      (plan.intent.kind === "score" && plan.rolls.length === 0)
   );
 }
 

@@ -81,6 +81,7 @@ export const pendingDecisionSchema: z.ZodType<PendingDecision> = z.union([
     chooserTeamId: z.string(),
     skill: z.string(),
     prompt: z.string(),
+    opponentId: z.string().exactOptional(),
   }),
   z.looseObject({
     type: z.literal("bite-target"),

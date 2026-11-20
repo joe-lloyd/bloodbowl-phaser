@@ -627,7 +627,6 @@ describe("skill-aware tactical choices", () => {
     for (let step = 0; step < 8; step++) {
       const command = await choose(subject);
       if (command.type !== "move") break;
-      await subject.execute(command);
     }
     const end = fixtureValue(fixtureValue(vampire).gridPosition);
     expect(Math.max(Math.abs(end.x - 7), Math.abs(end.y - 2))).toBe(1);

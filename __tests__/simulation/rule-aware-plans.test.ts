@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fieldPlayer, game, step } from "./fixtures";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
-import { PlayerStatus } from "../../src/types/Player";
+import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import { enumerateDecision } from "../../src/simulation/candidates";
@@ -212,6 +212,33 @@ describe("a carrier marked by three opponents, one of which team-mates can hit s
     expect(await firstActivation(subject)).toEqual({
       commands: ["declare-action", "block"],
       note: "blocks",
+    });
+  });
+});
+
+describe("a carrier one step from scoring beside a Distracted opponent", () => {
+  it("scores instead of waiting for a hit on a player who marks nobody", async () => {
+    const subject = game({
+      turn: 6,
+      team1Placements: [
+        { playerIndex: 0, x: 18, y: 5, hasBall: true },
+        { playerIndex: 1, x: 17, y: 7, skills: [SkillType.BLOCK] },
+      ],
+      team2Placements: [
+        {
+          playerIndex: 0,
+          x: 17,
+          y: 6,
+          conditions: [PlayerCondition.DISTRACTED],
+        },
+      ],
+    });
+    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
+    const { command } = await step(subject, createPlannerCoach());
+    expect(command).toMatchObject({
+      type: "declare-action",
+      playerId: carrier.id,
+      action: "move",
     });
   });
 });

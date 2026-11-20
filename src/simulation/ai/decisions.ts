@@ -13,6 +13,7 @@ import {
 } from "./board";
 import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
+import { attackerWrestles } from "./chance";
 
 const USE_REROLL = "use-reroll";
 
@@ -107,7 +108,7 @@ function blockDiceChoice(
       defenderDodge:
         has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE),
       wrestle: {
-        attacker: has(attacker, SkillType.WRESTLE),
+        attacker: attackerWrestles(attacker, defender) && !hungry(board),
         defender: has(defender, SkillType.WRESTLE),
         value: wrestleValue(board, attacker, defender),
       },
@@ -291,14 +292,21 @@ function wrestleChoice(
   );
   const self = board.everyone.find((p) => p.id === pending.playerId);
   if (!attacker || !self) return null;
+  const defender = board.everyone.find((p) => p.id === pending.opponentId);
   const block = (p: FieldPlayer) => hasSkill(p.skills, SkillType.BLOCK);
   const accept =
-    self.id === attacker.id ? !block(self) : block(attacker) && !block(self);
+    self.id === attacker.id
+      ? !!defender && attackerWrestles(self, defender) && !hungry(board)
+      : block(attacker) && !block(self);
   return first(
     candidates,
     (c) =>
       c.commands[0].type === "use-reaction" && c.commands[0].accept === accept
   );
+}
+
+function hungry(board: Board): boolean {
+  return !!board.gs.getState().activePlayer?.bloodlustUnsated;
 }
 
 function sparesCarrier(board: Board, player: FieldPlayer): boolean {
