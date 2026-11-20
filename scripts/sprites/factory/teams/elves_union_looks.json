@@ -1,0 +1,22 @@
+{
+  "union_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["swept", "Swept"], ["ponytail", "Ponytail"], ["short", "Short"]]],
+    ["pads", "Pads", [["small", "Shoulder caps"], ["full", "Full pads"], ["none", "No pads"]]]
+  ],
+  "union_blitzer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["fins", "Helmet fins", [["swept", "Swept fins"], ["crest", "Crest"], ["none", "Plain helmet"]]],
+    ["pads", "Pads", [["full", "Full pads"], ["big", "Big pads"]]]
+  ],
+  "union_catcher": [
+    ["body", "Body", [["f", "Female"], ["m", "Male"]]],
+    ["hair", "Hair", [["ponytail", "Ponytail"], ["braid", "Braid"], ["short", "Short"]]],
+    ["shades", "Shades", [["shades", "Shades"], ["none", "No shades"]]]
+  ],
+  "union_thrower": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["loose", "Loose"], ["ponytail", "Ponytail"], ["short", "Short"]]],
+    ["sleeves", "Sleeves", [["one", "Throwing arm"], ["both", "Both arms"], ["none", "Bare arms"]]]
+  ]
+}

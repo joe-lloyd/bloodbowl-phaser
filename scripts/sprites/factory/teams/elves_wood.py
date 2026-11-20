@@ -2,20 +2,21 @@
 Costume: forest rangers in leaf and bark, hoods, braids, feathers and antlers. No figure holds a ball."""
 import math
 from mathutils import Vector
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, cone, flat_cone, lerp, UP, surf, D
 from teams import elves_common as ec
 
-WE = dict(skin="skin_elf", hair_mat="hair_brown", brow="hair_brown", trim="brass", legs="rags", boots="leather", cuff="rags")
+WE = dict(skin="skin_elf", hair_mat="hair_brown", brow="hair_brown", trim="brass", legs="rags", boots="leather", cuff="rags", tie="kit2")
 
 @register
-class Lineman(Biped):
+class Lineman(looks.Fine, Biped):
     """Hooded ranger: kit1 hood and leaf-edged shoulder mantle over a leather jerkin, kit2 sash; shades his eyes
     to scan the tree line."""
     key = "we_lineman"
     race = "elf"
     layout = dict(WE, hair=None, helm="hood", hood_mat="kit1", torso="leather", arms="cloth_green", bracers="leather",
-                  belt="kit2", buckle="brass", loin="kit1", loin_trim="kit2", sleeve_cuff="kit2")
+                  belt="kit2", buckle="brass", loin="kit1", loin_trim="kit2", sleeve_cuff="kit2", elf_mantle="kit1",
+                  cape_mat="kit1", cape_lining="kit2", clasp=False, elf_leafskirt=None)
     stance = dict(lean=3, legs={"l": (8, 8, 6), "r": (-8, 10, 6)}, arms={"l": (4, 20, 28), "r": (4, 20, 28)}, hands="relaxed")
     height = 1.0
 
@@ -24,15 +25,24 @@ class Lineman(Biped):
                  arms={"l": (4, 20, 28), "r": (96, 34, 112, -40)})
 
     def extras(self, J, P, L, tag, pose):
-        ec.drape(J, P, tag, "mantle", 0.3, -180, 180, ("kit1", "kit1"), fold=0.3, grow=0.02, jag=0.09, depth=0.03, nu=18,
-                 thick=0.035, flare=0.12, lift=0.02)
+        super().extras(J, P, L, tag, pose)
+        if L.get("elf_mantle"):
+            m = L["elf_mantle"]
+            ec.drape(J, P, tag, "mantle", 0.3, -180, 180, (m, m), fold=0.3, grow=0.02, jag=0.09, depth=0.03, nu=18, thick=0.035,
+                     flare=0.12, lift=0.02)
+        if L.get("elf_leafskirt"):
+            ec.leaf_ring(J, P, tag, 0.08, 11, 0.36, L["elf_leafskirt"], width=0.12, droop=0.8, off=0.03, name="skirt", alt="leaf")
         ec.sash(J, P, tag, pose, "kit2", sd=-1, length=0.4)
         c, X, F, U, s = ec.hf(J)
         b = c + X * s[0] * 1.2 + U * s[2] * 0.2 - F * 0.05     # one feather tucked into the hood
         flat_cone(tag + "hoodfeather", b, b + U * 0.34 - F * 0.2 + X * 0.06, 0.055, "kit2", X, 0.3)
 
+    def details(self, J, P, L, tag, pose):
+        ec.studs(J, P, tag, "toggle", [(0.16, 0), (0.24, 0), (0.32, 0)], "brass", r=0.02, off=0.06)
+        ec.studs(J, P, tag, "acorn", [(P["sh_h"] - 0.02, -30)], "bark", r=0.03, off=0.09)
+
 @register
-class Catcher(Biped):
+class Catcher(looks.Fine, Biped):
     """The smallest and lightest: long red braid, two tall kit2 feathers in a headband, kit1 leaf skirt and
     top, bare limbs with bark wraps; never still, skipping from foot to foot."""
     key = "we_catcher"
@@ -40,7 +50,8 @@ class Catcher(Biped):
     sex = "f"
     knobs = dict(legs=1.12, limb=0.76, shoulders=0.9, torso=0.88)
     layout = dict(WE, hair="braid", hair_mat="hair_red", brow="hair_red", lip="lip_f", tie="kit2", torso="skin_elf",
-                  arms="skin_elf", legs="skin_elf", wraps="rags", boots="rags", cuff=None, belt="kit2", buckle=None)
+                  arms="skin_elf", legs="skin_elf", wraps="rags", boots="rags", cuff=None, belt="kit2", buckle=None,
+                  elf_feathers="kit2", elf_antlers=None)
     stance = dict(lean=8, legs={"l": (10, 10, 14), "r": (-8, 10, 10)}, feet={"l": 22, "r": 22},
                   arms={"l": (20, 34, 50, 16), "r": (20, 34, 50, 16)}, hands="open")
     stride, arm_swing, run_lean, jump = 48, 42, 22, 0.32
@@ -52,10 +63,16 @@ class Catcher(Biped):
                  arms={"l": (20, 34 + 14 * w["dn"], 50, 16), "r": (20, 34 + 14 * w["up"], 50, 16)})
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         ec.headband(J, tag, "kit2", lo=0.3, hi=0.5)
-        ec.feathers(J, tag, "kit2", n=2, h=0.46, at=(0.8, 0.45, -0.45), r=0.065, alt="kit1")
-        tband(tag + "top", J, P, [0.3, 0.38, 0.47], "kit1", k=1.06, add=0.012)
-        ec.torso_stripe(J, P, tag, "strap", [(0.47, 32), (P["sh_h"] + 0.04, 14)], "kit1", r=0.035)
+        if L.get("elf_feathers"):
+            ec.feathers(J, tag, L["elf_feathers"], n=2, h=0.46, at=(0.8, 0.45, -0.45), r=0.065, alt="kit1")
+        if L.get("elf_antlers"):
+            ec.antlers(J, tag, L["elf_antlers"], k=0.85)
+        ec.loose_hair(J, L, tag, length=0.5)
+        if L.get("sex") == "f":     # her leaf top; a man goes bare-chested
+            tband(tag + "top", J, P, [0.3, 0.38, 0.47], "kit1", k=1.06, add=0.012)
+            ec.torso_stripe(J, P, tag, "strap", [(0.47, 32), (P["sh_h"] + 0.04, 14)], "kit1", r=0.035)
         ec.leaf_ring(J, P, tag, 0.08, 11, 0.4, "kit1", width=0.12, droop=0.8, off=0.03, name="skirt")
         sh = J["arms"]["l"][0]
         for i, (dx, dz) in enumerate(((-0.1, 0.02), (-0.02, 0.08), (-0.14, -0.1))):     # leaf pauldron
@@ -63,14 +80,21 @@ class Catcher(Biped):
         for side in ("l", "r"):
             ec.leg_band(J, L, tag, side, 0.1, 0.4, "rags", "shin", grow=1.1, name="wrap")
 
+    def details(self, J, P, L, tag, pose):
+        c, X, F, U, s = ec.hf(J)
+        ball_at(tag + "bandgem", c + F * s[1] * 1.12 + U * s[2] * 0.4, 0.026, "leaf")
+        for side in ("l", "r"):
+            ec.leg_band(J, L, tag, side, 0.22, 0.26, "kit2", "shin", grow=1.16, name="wraptie")
+
 @register
-class Thrower(Biped):
+class Thrower(looks.Fine, Biped):
     """Antler circlet over long loose brown hair, a kit2 half cape on the off shoulder, kit1 tail coat; holds
     up a finger to test the wind."""
     key = "we_thrower"
     race = "elf"
     layout = dict(WE, hair="slick", torso="leather", arms="cloth_green", hem="kit2",
-                  bracers="rags", belt="kit2", buckle="brass", neckband="kit1", pads="leather", pad_sides=("r",))
+                  bracers="rags", belt="kit2", buckle="brass", neckband="kit1", pads="leather", pad_sides=("r",),
+                  elf_antlers="bone_old", elf_feathers=None, elf_cape="half")
     stance = dict(lean=0, twist=-6, legs={"l": (6, 8, 4), "r": (-6, 8, 6)}, arms={"l": (2, 18, 22), "r": (20, 18, 50)},
                   hands="relaxed")
     height = 1.08
@@ -80,13 +104,20 @@ class Thrower(Biped):
                  arms={"l": (2, 18, 22), "r": (58, 26, 118 + 8 * w["s2"], 8)})
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         # coat tails drawn here rather than with coat="tails": the library's tails always get the default red lining
         core.skirt(J, P, L, tag, 0.74, (-62, 62), pose.get("flare", 0.06) + 0.12, "kit1", lining="kit2")
         ec.back_hair(J, L, tag, "hair_brown", length=0.34)
-        ec.antlers(J, tag, "bone_old", k=1.1)
+        if L.get("elf_antlers"):
+            ec.antlers(J, tag, L["elf_antlers"], k=1.1)
+        if L.get("elf_feathers"):
+            ec.feathers(J, tag, L["elf_feathers"], n=2, h=0.4, at=(0.8, 0.4, -0.4), r=0.06, alt="kit1")
         ec.headband(J, tag, "brass", lo=0.34, hi=0.48)
-        rows = ec.drape(J, P, tag, "halfcape", 0.72, -130, 30, ("kit2", "kit1"), stream=pose.get("cape", 0.0) * 0.8, jag=0.08,
-                        depth=0.14, nu=12, grow=0.02)
+        cape = L.get("elf_cape")
+        if cape:
+            a0, a1, ln = (-130, 30, 0.72) if cape == "half" else (-110, 110, 0.86)
+            ec.drape(J, P, tag, "halfcape", ln, a0, a1, ("kit2", "kit1"), stream=pose.get("cape", 0.0) * 0.8, jag=0.08, depth=0.14,
+                     nu=12, grow=0.02)
         tband(tag + "coatbody", J, P, [0.1, 0.25, 0.4, P["sh_h"]], "kit1", k=1.07, add=0.012, arc=(-140, 140))
         if pose.get("hand_modes", {}).get("r") == "fist":      # the raised index finger
             c0, d, n, t = J["grip_r"]
@@ -94,15 +125,21 @@ class Thrower(Biped):
             dd = (tip - wr).normalized()
             tube(tag + "finger", [tip - dd * 0.02, tip + dd * 0.11], [0.024, 0.02], L["skin"], n=5)
 
+    def details(self, J, P, L, tag, pose):
+        ec.studs(J, P, tag, "coatbtn", [(0.16, 14), (0.24, 14), (0.32, 14)], "brass", r=0.02, off=0.04)
+        c, X, F, U, s = ec.hf(J)
+        ball_at(tag + "bandgem", c + F * s[1] * 1.12 + U * s[2] * 0.41, 0.026, "leaf")
+
 @register
-class Wardancer(Biped):
+class Wardancer(looks.Fine, Biped):
     """Bare to the waist with kit1 warpaint spiralling over arms and chest, a tall red topknot bound in kit2,
     kit1 dance trousers with kit2 garters, long kit2 sash tails; balanced on one leg, slowly dancing."""
     key = "wardancer"
     race = "elf"
     knobs = dict(legs=1.1, limb=0.86)
     layout = dict(WE, hair=None, hair_mat="hair_red", brow="hair_red", torso="skin_elf", arms="skin_elf", legs="kit1",
-                  boots="rags", cuff="leather", belt="kit2", buckle="brass", loin="kit2", loin_trim="kit1", wraps="kit1")
+                  boots="rags", cuff="leather", belt="kit2", buckle="brass", loin="kit2", loin_trim="kit1", wraps="kit1",
+                  elf_topknot="hair_red", elf_mohawk=None, elf_paint="kit1")
     stance = dict(lean=4, twist=10, legs={"l": (4, 8, 4), "r": (46, 16, 96)}, feet={"r": 40},
                   arms={"l": (10, 70, 30, 60), "r": (30, 60, 80, 20)}, hands="open")
     stride, arm_swing, run_lean, jump = 46, 44, 18, 0.36
@@ -115,26 +152,43 @@ class Wardancer(Biped):
                  arms={"l": (10 + 50 * s1, 70 - 20 * c1, 30, 60), "r": (30 - 50 * s1, 60 + 20 * c1, 80, 20)})
 
     def extras(self, J, P, L, tag, pose):
-        ec.mane(J, tag, "hair_red", length=0.02, r=0.06) if False else None
+        super().extras(J, P, L, tag, pose)
         c, X, F, U, s = ec.hf(J)
-        core.cap(tag + "scalp", c + U * 0.012, (s[0] * 1.08, s[1] * 1.08, s[2] * 1.08), "hair_red", (U * 0.9 - F * 0.45).normalized(),
-                 cut=0.3, rot=J["head_R"], thick=0.025)
-        ec.topknot(J, L, tag, "hair_red", tie="kit2", length=0.6)
-        tube(tag + "facepaint", [c + F * s[1] * 1.0 + U * s[2] * 0.12 - X * s[0] * 0.75, c + F * s[1] * 1.06 + U * s[2] * 0.12,
-                                 c + F * s[1] * 1.0 + U * s[2] * 0.12 + X * s[0] * 0.75], [0.035] * 3, "kit1", n=5, flat=0.5, ref=U)
-        # warpaint: chest chevrons and arm spirals
-        ec.torso_stripe(J, P, tag, "tat1", [(0.47, -62), (0.34, -28), (0.24, 0), (0.34, 28), (0.47, 62)], "kit1", r=0.04, off=0.0)
-        ec.torso_stripe(J, P, tag, "tat2", [(0.4, 120), (0.3, 180), (0.4, 240)], "kit1", r=0.045, off=0.0)
-        ec.torso_stripe(J, P, tag, "tat3", [(0.2, -70), (0.13, -30), (0.2, 0)], "kit1", r=0.03, off=0.0)
+        if L.get("elf_topknot"):
+            hm = L["elf_topknot"]
+            core.cap(tag + "scalp", c + U * 0.012, (s[0] * 1.08, s[1] * 1.08, s[2] * 1.08), hm, (U * 0.9 - F * 0.45).normalized(),
+                     cut=0.3, rot=J["head_R"], thick=0.025)
+            ec.topknot(J, L, tag, hm, tie="kit2", length=0.6)
+        if L.get("elf_mohawk"):
+            ec.comb(J, tag, L["elf_mohawk"], h=0.22, lo=0.7, back=-0.98, n=9, jag=0.45, thick=0.09, name="mohawk")
+        ec.loose_hair(J, L, tag, length=0.5)
+        paint = L.get("elf_paint")
+        if paint:
+            tube(tag + "facepaint", [c + F * s[1] * 1.0 + U * s[2] * 0.12 - X * s[0] * 0.75, c + F * s[1] * 1.06 + U * s[2] * 0.12,
+                                     c + F * s[1] * 1.0 + U * s[2] * 0.12 + X * s[0] * 0.75], [0.035] * 3, paint, n=5, flat=0.5, ref=U)
+            # warpaint: chest chevrons and arm spirals
+            ec.torso_stripe(J, P, tag, "tat1", [(0.47, -62), (0.34, -28), (0.24, 0), (0.34, 28), (0.47, 62)], paint, r=0.04, off=0.0)
+            ec.torso_stripe(J, P, tag, "tat2", [(0.4, 120), (0.3, 180), (0.4, 240)], paint, r=0.045, off=0.0)
+            ec.torso_stripe(J, P, tag, "tat3", [(0.2, -70), (0.13, -30), (0.2, 0)], paint, r=0.03, off=0.0)
+            for side in ("l", "r"):
+                for i, t in enumerate((0.15, 0.45, 0.75)):
+                    ec.arm_band(J, L, tag, side, t, t + 0.13, paint, "upper", grow=1.04, name="tat%d" % i)
+        if L.get("sex") == "f":     # her bound chest wrap
+            tband(tag + "wrap", J, P, [0.31, 0.39, 0.47], "kit2", k=1.07, add=0.016)
         for side in ("l", "r"):
-            for i, t in enumerate((0.15, 0.45, 0.75)):
-                ec.arm_band(J, L, tag, side, t, t + 0.13, "kit1", "upper", grow=1.04, name="tat%d" % i)
             ec.leg_band(J, L, tag, side, 0.25, 0.4, "kit2", "thigh", name="garter")
         ec.sash(J, P, tag, pose, "kit2", sd=-1, length=0.66, n=3)
         ec.leaf_ring(J, P, tag, P["sh_h"] + 0.02, 7, 0.14, "leaf", width=0.09, droop=0.5, off=0.03, name="torc", arc=(-150, 150))
 
+    def details(self, J, P, L, tag, pose):
+        c, X, F, U, s = ec.hf(J)
+        for sd in (-1, 1):          # bone ear cuffs
+            ball_at(tag + "earcuff%d" % sd, c + X * sd * s[0] * 1.02 + U * s[2] * 0.15, 0.024, "bone_old")
+        for side in ("l", "r"):
+            ec.arm_band(J, L, tag, side, 0.7, 0.8, "brass", "fore", grow=1.12, name="armring")
+
 @register
-class LorenTreeman(Biped):
+class LorenTreeman(looks.Fine, Biped):
     """A tall pale-barked forest giant: antler-like branch crown with leaf clusters, glowing eyes in a hollow
     face, kit1 pennants hanging from both forearms and a kit1 standard down the back, kit2 ribbons knotted
     round trunk, wrists and branches."""
@@ -156,6 +210,7 @@ class LorenTreeman(Biped):
                  arms={"l": (6 + 5 * k, 20, 18, 6), "r": (6 - 5 * k, 20, 18, 6)})
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         X, u, B, F = J["X"], J["u"], J["B"], J["F"]
         c, HX, HF, HU, s = ec.hf(J)
         sway = pose.get("sash", 0.0)
@@ -199,3 +254,9 @@ class LorenTreeman(Biped):
         ec.banner(tag, "std", a - X * 0.26, a + X * 0.26, 0.85, "kit1", trim="kit2", sway=0.1 + sway + stream * 2, back=Bh)
         tube(tag + "yoke", [a - X * 0.34, a + X * 0.34], [0.045, 0.045], "bark", n=5)
         ec.sash(J, P, tag, pose, "kit2", sd=1, length=0.7, n=3)
+
+    def details(self, J, P, L, tag, pose):
+        for i, (h, a) in enumerate(((0.12, -20), (0.35, 70), (0.5, -110), (0.25, 160))):    # moss and toadstools on the bark
+            p = surf(J, P, h, a, 0.01)
+            ball_at(tag + "moss%d" % i, p, 0.06, "leaf")
+            ball_at(tag + "shroom%d" % i, p + J["u"] * 0.05 + ec.hz(p - J["pelvis"]) * 0.04, 0.035, "kit2")
