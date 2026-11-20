@@ -496,3 +496,99 @@ describe("SB-M10 and GB-M8 throwing a team-mate at walls and pits", () => {
     expect(teammate.gridPosition).toEqual({ x: 9, y: 5 });
   });
 });
+
+describe("SB-M9 and GB-M10 ricochet passes", () => {
+  const passAt = async (
+    pitch: Pitch,
+    target: { x: number; y: number },
+    dice: number[]
+  ) => {
+    const { game, rolls, wallHits } = pitchGame(pitch);
+    forceDice(game.ctx.rng, dice);
+    const passerId = fixtureValue(game.ctx.team1.players[0]).id;
+    await game.execute({
+      type: "declare-action",
+      playerId: passerId,
+      action: "pass",
+    });
+    let response = await game.execute({
+      type: "pass",
+      playerId: passerId,
+      ...target,
+    });
+    while (response.pendingDecision?.type === "reroll")
+      response = await game.execute({ type: "use-reroll", accept: false });
+    return { game, rolls, wallHits };
+  };
+  const street = (catcherAt: { x: number; y: number }): Pitch => ({
+    format: STREET,
+    team1: [
+      { playerIndex: 0, x: 5, y: 3 },
+      { playerIndex: 1, ...catcherAt },
+    ],
+    team2: [{ playerIndex: 0, x: 22, y: 5 }],
+    ball: { x: 5, y: 3 },
+  });
+
+  it("bounces off the wall on the mirrored diagonal to a team-mate", async () => {
+    const { game, rolls } = await passAt(
+      street({ x: 10, y: 1 }),
+      { x: 8, y: -1 },
+      [6, 3, 6]
+    );
+
+    expect(rolls).toContain("Ricochet Pass Distance 3");
+    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+      x: 10,
+      y: 1,
+    });
+    expect(game.ctx.gameService.getPlayerAt(10, 1)?.status).toBe(
+      PlayerStatus.ACTIVE
+    );
+  });
+
+  it("scatters once where it stops, then bounces as a dropped ball", async () => {
+    const { game, rolls } = await passAt(
+      street({ x: 1, y: 6 }),
+      { x: 8, y: -1 },
+      [6, 2, 5, 5, 5]
+    );
+
+    expect(rolls).toEqual([
+      expect.stringMatching(/^Pass/),
+      "Ricochet Pass Distance 2",
+      "Scatter 5",
+      "Bounce Direction 5",
+      "Bounce Direction 5",
+    ]);
+    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+      x: 13,
+      y: 1,
+    });
+  });
+
+  it("moves the target one wall square on a miss", async () => {
+    const { rolls } = await passAt(
+      street({ x: 1, y: 6 }),
+      { x: 8, y: -1 },
+      [3, 1, 1, 5, 5, 5]
+    );
+
+    expect(rolls).toContain("Ricochet Pass Miss 1");
+    expect(rolls).toContain("Ricochet Pass Distance 1");
+  });
+
+  it("refuses a pass at the sideline in Sevens", async () => {
+    const { game, rolls } = await passAt(
+      { ...street({ x: 1, y: 6 }), format: SEVENS },
+      { x: 8, y: -1 },
+      []
+    );
+
+    expect(rolls).toEqual([]);
+    expect(game.ctx.gameService.getState().ballPosition).toEqual({
+      x: 5,
+      y: 3,
+    });
+  });
+});

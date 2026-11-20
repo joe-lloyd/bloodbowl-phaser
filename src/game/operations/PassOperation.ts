@@ -14,6 +14,9 @@ import { lostBallHandling, passModifier } from "../kickoff/ballConditions";
 import { interceptModifiers } from "../rules/rollPreview";
 import { ArmourOperation } from "./ArmourOperation";
 import { isOnPitch } from "../controllers/BallMovementController";
+import { settleOffObstacle } from "../rules/ballFlight";
+import { isWallSquare } from "../rules/pitchSquares";
+import { ricochetDrop, ricochetPath } from "../rules/ricochetPass";
 import { holdsMeasure, offerMeasure } from "../inducements/matchInducements";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
 import {
@@ -448,19 +451,27 @@ export class PassOperation extends GameOperation {
         return;
       }
 
-      const { scatterPath, landingPos } = scatterOf(
-        passController,
-        target,
-        result.accurate
-      );
-      await fly(landingPos, scatterPath);
+      if (isWallSquare(target)) {
+        await this.ricochet(context, passer, {
+          wall: target,
+          accurate: result.accurate,
+          fly,
+        });
+      } else {
+        const { scatterPath, landingPos } = scatterOf(
+          passController,
+          target,
+          result.accurate
+        );
+        await fly(landingPos, scatterPath);
 
-      this.land(context, passer, landingPos, {
-        scatterPath,
-        accurate: result.accurate,
-        setPiece,
-        opponents,
-      });
+        this.land(context, passer, landingPos, {
+          scatterPath,
+          accurate: result.accurate,
+          setPiece,
+          opponents,
+        });
+      }
     }
 
     context.flowManager.add(
@@ -469,6 +480,57 @@ export class PassOperation extends GameOperation {
         giveAndGoExempt(passer, result.passType)
       )
     );
+  }
+
+  private async ricochet(
+    context: FlowContext,
+    passer: Player,
+    shot: {
+      wall: Square;
+      accurate: boolean;
+      fly: (to: Square, path?: Square[]) => Promise<void>;
+    }
+  ): Promise<void> {
+    const { gameService } = context;
+    const dice = gameService.getDiceController();
+    const from = passer.gridPosition ?? shot.wall;
+    const flight = ricochetPath(dice, { ...shot, from });
+    const { wall, path, last } = flight;
+    await shot.fly(last, [wall, ...path]);
+    if (await this.catchOnTheWay(context, passer, path)) return;
+    const scattered = ricochetDrop(dice, flight);
+    if (!isOnPitch(scattered)) {
+      gameService.throwInBall(last, scattered);
+      return;
+    }
+    this.land(context, passer, settleOffObstacle(dice, scattered), {
+      scatterPath: undefined,
+      accurate: false,
+      setPiece: false,
+      opponents: gameService.getOpponents(passer.teamId),
+    });
+  }
+
+  private async catchOnTheWay(
+    context: FlowContext,
+    passer: Player,
+    path: readonly Square[]
+  ): Promise<boolean> {
+    const { gameService } = context;
+    const catcher = path
+      .map((square) => gameService.getPlayerAt(square.x, square.y))
+      .find((player) => !!player && hasTackleZone(player));
+    if (!catcher?.gridPosition) return false;
+    const { x, y } = catcher.gridPosition;
+    gameService.setBallPosition(x, y);
+    await context.flowManager.runToRest(
+      new CatchOperation(
+        catcher.id,
+        { origin: "pass" },
+        { passerId: passer.id, passerTeamId: passer.teamId, accurate: false }
+      )
+    );
+    return true;
   }
 
   private land(

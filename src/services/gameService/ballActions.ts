@@ -16,6 +16,7 @@ import {
   biteBeforeBallAction,
   takeUnsatedBloodlust,
 } from "./activation";
+import { isWallSquare } from "../../game/rules/pitchSquares";
 
 interface Square {
   x: number;
@@ -96,7 +97,7 @@ function passTargetRefusal({
   if (!carrierMayPass(parts.state)) {
     return "Sticky Sludge: the ball carrier cannot Pass this drive";
   }
-  if (!pitchSquare(target)) {
+  if (!pitchSquare(target) && !isWallSquare(target)) {
     return "Target is off the pitch";
   }
 
