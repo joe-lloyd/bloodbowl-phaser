@@ -30,7 +30,7 @@ VERIFY_FRAMES = [("idle", 0, "se"), ("run", 3, "e"), ("block", 4, "n"), ("fall",
 def signature():
     """Per mesh object: materials, vertex count and sum, and placement; equal signatures = the same part."""
     sig = {}
-    for ob in bpy.context.scene.objects:
+    for ob in bpy.data.objects:
         if ob.type != "MESH":
             continue
         me = ob.data
@@ -99,14 +99,12 @@ def render_body(stage, scale, default, base, parts, a, warnings):
                 gone = sorted(set(base_sig) - set(sig))
                 if gone:
                     warnings.setdefault(lname, gone[:6])
+                if not keep <= set(base_sig):    # a part that only recolours the base casts the base's shadows
+                    unchanged = {k for k in sig if k not in keep}
+                    for f, res in stage.render_layer(a["facings"], unchanged, data=False).items():
+                        store[lname + SHADE]["%s/%s/%d" % (name, f, i)] = crop(shade(base_res[f], res))
                 for f, res in stage.render_layer(a["facings"], keep).items():
                     store[lname]["%s/%s/%d" % (name, f, i)] = crop(res)
-                if keep <= set(base_sig):
-                    continue                  # only recolours parts the base has: its shadows are the base's
-                stage.build(model, pose, scale)
-                unchanged = {k for k in sig if k not in keep}
-                for f, res in stage.render_layer(a["facings"], unchanged, data=False).items():
-                    store[lname + SHADE]["%s/%s/%d" % (name, f, i)] = crop(shade(base_res[f], res))
         print("LAYERS %s %s done" % (default.key, name), flush=True)
     return store
 

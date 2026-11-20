@@ -49,6 +49,8 @@ def parse(argv):
             a[tok[2:]] = os.path.abspath(next(it))
         elif tok == "--bodies":
             a["bodies"] = next(it).split(",")
+        elif tok == "--bodies-of":
+            a["bodies_of"] = next(it)
         elif tok in ("--density", "--tones", "--verify"):
             a[tok[2:]] = int(next(it))
         elif tok == "--frames":
@@ -232,6 +234,9 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     a = parse(argv)
     errors = registry.load_all(FACTORY, private=a["examples"])
+    if a.get("bodies_of"):
+        print("BODIES " + " ".join(body for body, _, _, _ in layers.plan(a["bodies_of"])[0]))
+        return
     if a["list"]:
         print("MODELS", " ".join(registry.keys()))
         return
