@@ -14,7 +14,7 @@ import { policySourceDigest, treeDigest } from "./fingerprint";
 import { recoverVerifiedGames } from "../policy-lab/recover";
 import { advancedInventory, teamFromVariant } from "../advanced-study/teams";
 import { catalogueInventory } from "../catalogue-study/schedule";
-import { playStudyGame } from "../catalogue-study/play";
+import { playStudyGame, withInducementFlag } from "../catalogue-study/play";
 import { replayStudyTrace } from "../catalogue-study/replay";
 import { createPlannerCoach } from "../../../src/simulation/ai/planner";
 import { STANDARD_VARIETY } from "../../../src/simulation/ai/gamePlans";
@@ -255,6 +255,7 @@ if (args.includes("--worker")) {
       )
       .slice(0, 96);
   }
+  jobs = withInducementFlag(jobs, args);
   const workers = Number(flag("workers", "8"));
   if (!Number.isSafeInteger(workers) || workers < 1)
     throw new Error("Invalid worker count");

@@ -11,7 +11,7 @@ import { cpus, hostname, totalmem } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { catalogueInventory, studySchedule } from "./catalogue-study/schedule";
-import { playStudyGame } from "./catalogue-study/play";
+import { playStudyGame, withInducementFlag } from "./catalogue-study/play";
 import type { StudyGame, StudyJob } from "./catalogue-study/model";
 import { forkWorkers } from "./catalogue-study/workers";
 
@@ -88,6 +88,7 @@ async function run() {
   if (jobs.length === 0)
     throw new Error("No jobs matched the requested cohorts");
   if (limit > 0) jobs = jobs.slice(0, limit);
+  jobs = withInducementFlag(jobs, args);
   mkdirSync(join(out, "games"), { recursive: true });
   const manifestFile = join(out, "manifest.json");
   const digest = sourceDigest();

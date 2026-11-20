@@ -51,7 +51,7 @@ function shoppingList(catalog: readonly InducementCatalogEntry[]) {
     : sevens;
 }
 
-function computerInducementPurchases(
+export function computerInducementPurchases(
   offer: InducementOffer,
   teamId: string
 ): InducementSelectionLine[] {

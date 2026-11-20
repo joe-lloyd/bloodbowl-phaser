@@ -12,7 +12,9 @@ pnpm exec tsx scripts/coach/catalogue-study/audit.ts sim-results/candidate-audit
 The default GW Sevens catalogue currently has 82 legal templates from 30 rosters.
 The inventory records the reason any bundled recipe is unavailable. Teams keep
 their actual players, veteran and reroll bank. No free simulation inducements are
-granted. Every match starts fresh; this evaluates play rather than career growth.
+granted, but the lower-value team spends its petty cash as the computer coach
+would; `--no-inducements` turns that off. Every match starts fresh; this
+evaluates play rather than career growth.
 
 The schedule contains 6,480 planner league games, 972 old-heuristic calibration
 games, 162 Hard games and 162 Legend games. League opponents play at home and

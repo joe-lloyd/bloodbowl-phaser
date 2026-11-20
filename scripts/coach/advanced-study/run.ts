@@ -14,7 +14,7 @@ import { advancedInventory, teamFromVariant } from "./teams";
 import { advancedSchedule } from "./schedule";
 import { acquisitionDigest } from "./fingerprint";
 import type { AdvancedJob } from "./schedule";
-import { playStudyGame } from "../catalogue-study/play";
+import { playStudyGame, withInducementFlag } from "../catalogue-study/play";
 import { replayStudyTrace } from "../catalogue-study/replay";
 import { forkWorkers } from "../catalogue-study/workers";
 import { catalogueInventory } from "../catalogue-study/schedule";
@@ -71,6 +71,7 @@ if (args.includes("--worker")) {
   let jobs = advancedSchedule(variants);
   const limit = Number(flag("limit", "0"));
   if (limit > 0) jobs = jobs.slice(0, limit);
+  jobs = withInducementFlag(jobs, args);
   mkdirSync(join(out, "games"), { recursive: true });
   const sourceDigest = acquisitionDigest(resolve(dirname(entry), "../../.."));
   const manifest = {

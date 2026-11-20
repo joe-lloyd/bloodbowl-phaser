@@ -13,7 +13,11 @@ import {
   limitPolicyBlocks,
 } from "../../scripts/coach/policy-study/schedule";
 import { playStudyGame } from "../../scripts/coach/catalogue-study/play";
-import { replayStudyTrace } from "../../scripts/coach/catalogue-study/replay";
+import {
+  openTrace,
+  replayStudyTrace,
+} from "../../scripts/coach/catalogue-study/replay";
+import type { StudyJob } from "../../scripts/coach/catalogue-study/model";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 
 describe("repeatable Sevens policy lab", () => {
@@ -210,4 +214,38 @@ describe("repeatable Sevens policy lab", () => {
       rmSync(out, { recursive: true, force: true });
     }
   });
+
+  it("gives a cheap Halfling preset its petty cash and buys the Master Chef", async () => {
+    const out = mkdtempSync(join(tmpdir(), "bb7-lab-petty-cash-"));
+    try {
+      const job: StudyJob = {
+        id: "halfling-petty-cash",
+        cohort: "calibration",
+        pair: "halfling-dwarf",
+        seed: 30_000_004,
+        templates: ["halfling-best-stuff-roster", "dwarf-1-reroll"],
+        coaches: ["heuristic", "heuristic"],
+        receivingSide: 0,
+      };
+      const result = await playStudyGame(job, out);
+      const trace = join(out, "traces", job.id + ".json.gz");
+      const inducements =
+        openTrace(trace).game.ctx.gameService.getState().inducements;
+      expect(inducements?.budgets).toEqual({ team1: 130_000, team2: 0 });
+      expect(
+        inducements?.inventory.map(
+          (e) => `${e.ownerTeamId}: ${e.inducement} x${String(e.quantity)}`
+        )
+      ).toEqual([
+        "team1: Halfling Master Chef x1",
+        "team1: Part-time Assistant Coach x2",
+      ]);
+      expect(inducements?.masterChef?.half).toBe("h1");
+      expect(result.completed).toBe(true);
+      const replay = await replayStudyTrace(trace);
+      expect(replay.observations.counters).toEqual(result.counters);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  }, 60_000);
 });
