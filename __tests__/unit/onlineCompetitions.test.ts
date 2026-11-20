@@ -7,11 +7,13 @@ vi.mock("../../src/firebase/config", () => ({
 
 import { generateRoundRobin, seedEntrants } from "../../src/competition/logic";
 import {
+  openOnlineCompetition,
   startedFrom,
   withoutEntrants,
   withSignup,
 } from "../../src/competition/online";
 import { orientToFixture } from "../../src/competition/resultRecording";
+import { createRosterRuleProfile } from "../../src/competition/rosterRules";
 import {
   assertFixtureInOpenRound,
   openRound,
@@ -105,6 +107,19 @@ describe("sign-ups", () => {
     expect(() => withSignup(season(), { team: createOrcTeam(), uid: "eve", coachName: "Eve" })).toThrow(
       "Sign-ups for this competition are closed."
     );
+  });
+
+  it("refuse to open with a roster profile budget of zero", async () => {
+    await expect(
+      openOnlineCompetition({
+        type: "league",
+        name: "Spike Cup",
+        organizerUid: "ann",
+        team: null,
+        online: { places: 4, listed: true, roundDays: 7, computerGames: "simulate" },
+        profile: createRosterRuleProfile({ advancementMode: "matched-play", draftBudget: 0 }),
+      })
+    ).rejects.toThrow("Give the roster profile a budget above zero.");
   });
 });
 

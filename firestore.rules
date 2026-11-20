@@ -400,6 +400,8 @@ service cloud.firestore {
       let removed = before.entrants.removeAll(after.entrants);
       let joined = after.participantUids.removeAll(before.participantUids);
       let left = before.participantUids.removeAll(after.participantUids);
+      let grew = after.entrants.size() - before.entrants.size();
+      let coaches = after.participantUids.size() - before.participantUids.size();
       return before.status == 'draft'
         && after.status == 'draft'
         && before.get('online', null) != null
@@ -409,10 +411,12 @@ service cloud.firestore {
             && added[0].ownerUid == request.auth.uid
             && added[0].get('computerCoached', false) == false
             && joined == [request.auth.uid] && left.size() == 0
+            && grew == 1 && coaches == 1
             && after.entrants.size() <= before.online.places)
           || (added.size() == 0 && removed.size() == 1
             && removed[0].ownerUid == request.auth.uid
-            && left == [request.auth.uid] && joined.size() == 0));
+            && left == [request.auth.uid] && joined.size() == 0
+            && grew == -1 && coaches == -1));
     }
 
     // Organizers control competition structure and may report any fixture. A

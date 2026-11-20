@@ -57,13 +57,20 @@ function signedUpEntrant({
   };
 }
 
-export async function openOnlineCompetition(
-  input: NewOnlineCompetition
-): Promise<CompetitionDoc> {
+function assertOnlineSetup(input: NewOnlineCompetition): void {
   if (!input.name.trim()) throw new Error("Give the competition a name.");
   const { places } = input.online;
   if (!Number.isInteger(places) || places < 2 || places > MAX_PLACES)
     throw new Error(`A competition has between 2 and ${String(MAX_PLACES)} places.`);
+  const budget = input.profile?.draftBudget;
+  if (budget !== undefined && !(budget > 0))
+    throw new Error("Give the roster profile a budget above zero.");
+}
+
+export async function openOnlineCompetition(
+  input: NewOnlineCompetition
+): Promise<CompetitionDoc> {
+  assertOnlineSetup(input);
   const ruleset = readSevensRuleset(input.ruleset);
   const teams = input.team ? [input.team] : [];
   await assertTeamsCanEnter({ teams, ruleset, profile: input.profile });
@@ -148,11 +155,14 @@ async function release(
   competition: CompetitionDoc,
   leaving: (entrant: CompetitionEntrant) => boolean
 ): Promise<CompetitionDoc> {
-  const teamIds = competition.entrants.filter(leaving).map((entrant) => entrant.teamId);
+  let teamIds: string[] = [];
   const updated = await updateCompetition(
     competition.type,
     competition.id,
-    (latest) => withoutEntrants(latest, leaving)
+    (latest) => {
+      teamIds = latest.entrants.filter(leaving).map((entrant) => entrant.teamId);
+      return withoutEntrants(latest, leaving);
+    }
   );
   for (const teamId of teamIds) await clearActiveCompetition(teamId, competition.id);
   return updated;

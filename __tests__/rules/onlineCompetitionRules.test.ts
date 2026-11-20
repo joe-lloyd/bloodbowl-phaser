@@ -43,7 +43,7 @@ import {
   sendFixtureInvite,
 } from "../../src/firebase/invites";
 import { createLobby, joinLobby } from "../../src/firebase/lobby";
-import { setTeamRepository } from "../../src/game/managers/TeamManager";
+import { loadTeams, setTeamRepository } from "../../src/game/managers/TeamManager";
 import { friendshipKey } from "../../src/social/friends";
 import type { Team } from "../../src/types/Team";
 
@@ -146,6 +146,52 @@ describe.skipIf(!EMULATOR)("online competitions", () => {
         updateCompetition("league", league.id, (latest) => ({ ...latest, status: "active" }))
       )
     );
+  });
+
+  it("release the team that actually left, even when the page was out of date", async () => {
+    const organizer = uniqueUid("organizer");
+    const amy = uniqueUid("amy");
+    const league = await openLeague(organizer);
+    const [first, second] = [coachTeam(), coachTeam()];
+    await as(amy, () => enterCompetition({ competition: league, team: first, uid: amy }));
+    const stale = await stored(league, amy);
+    await as(amy, () => leaveCompetition({ competition: stale, uid: amy }));
+    await as(amy, () => enterCompetition({ competition: league, team: second, uid: amy }));
+
+    await as(amy, () => leaveCompetition({ competition: stale, uid: amy }));
+    const locks = new Map(loadTeams().map((team) => [team.id, team.activeCompetitionId]));
+    expect([locks.get(first.id), locks.get(second.id)]).toEqual([undefined, undefined]);
+  });
+
+  it("refuse a sign-up or withdrawal that copies another coach's entrant", async () => {
+    const organizer = uniqueUid("organizer");
+    const [amy, bob, mallory] = [uniqueUid("amy"), uniqueUid("bob"), uniqueUid("mallory")];
+    const league = await openLeague(organizer);
+    await as(amy, () => enterCompetition({ competition: league, team: coachTeam(), uid: amy }));
+    await as(bob, () => enterCompetition({ competition: league, team: coachTeam(), uid: bob }));
+
+    await denied(
+      as(mallory, () =>
+        updateCompetition("league", league.id, (latest) => ({
+          ...latest,
+          entrants: [...latest.entrants, ...latest.entrants.slice(0, 1), extraEntrant("mine", mallory)],
+          participantUids: [...latest.participantUids, mallory],
+        }))
+      )
+    );
+    await denied(
+      as(amy, () =>
+        updateCompetition("league", league.id, (latest) => {
+          const others = latest.entrants.filter((entrant) => entrant.ownerUid !== amy);
+          return {
+            ...latest,
+            entrants: [...others, ...others],
+            participantUids: latest.participantUids.filter((uid) => uid !== amy),
+          };
+        })
+      )
+    );
+    expect((await stored(league, amy)).entrants).toHaveLength(2);
   });
 
   it("start when the organizer says, with computer teams in the empty places", async () => {
