@@ -133,11 +133,19 @@ function warnPresence(error: unknown): void {
 export function useCoachPresence(uid: string | null): void {
   useEffect(() => {
     if (!uid) return;
-    const beat = () => {
-      if (document.visibilityState === "visible")
-        touchPresence(uid).catch(warnPresence);
+    let profileReady = false;
+    const sync = async () => {
+      if (profileReady) {
+        await touchPresence(uid);
+        return;
+      }
+      await ensureCoachProfile(uid);
+      profileReady = true;
     };
-    ensureCoachProfile(uid).catch(warnPresence);
+    const beat = () => {
+      if (document.visibilityState === "visible") sync().catch(warnPresence);
+    };
+    sync().catch(warnPresence);
     const id = setInterval(beat, PRESENCE_INTERVAL_MS);
     document.addEventListener("visibilitychange", beat);
     return () => {

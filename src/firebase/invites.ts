@@ -16,7 +16,7 @@ import {
   createLobby,
   fetchLobby,
   getActiveMatchCode,
-  joinLobby,
+  joinInvitedLobby,
 } from "./lobby";
 
 function inviteRef(invite: Invite) {
@@ -90,15 +90,10 @@ export async function dismissInvite(invite: Invite): Promise<void> {
 }
 
 export async function acceptMatchInvite(invite: Invite): Promise<string> {
-  const current = await getActiveMatchCode(invite.toUid);
-  const playing = current ? await fetchLobby(current) : null;
-  if (playing?.status === "active" && playing.code !== invite.code)
-    throw new Error("Finish your current match before accepting an invite.");
-  const joined = await joinLobby(
-    invite.code,
-    invite.toUid,
-    await resolveCoachName(invite.toUid)
-  );
+  const joined = await joinInvitedLobby(invite.code, {
+    uid: invite.toUid,
+    displayName: await resolveCoachName(invite.toUid),
+  });
   await dismissInvite(invite).catch((error: unknown) => {
     console.warn("[invites] could not clear an accepted invite", error);
   });

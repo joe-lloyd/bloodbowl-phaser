@@ -28,6 +28,7 @@ import {
   revealSeed,
   joinLobby,
   selectTeam,
+  setLobbyListed,
   setReady,
   startMatch,
   subscribeLobby,
@@ -36,13 +37,23 @@ import {
   fetchLobby,
 } from "../../../firebase/lobby";
 import { resolveCoachName } from "../../../firebase/coaches";
+import { acceptMatchInvite } from "../../../firebase/invites";
 import { useFriends } from "../../hooks/useSocial";
 import { InviteInbox } from "../social/InviteInbox";
 import { FriendButton, InviteFriendsPanel } from "../social/LobbyFriends";
+import { OpenGames } from "../social/OpenGames";
+import { OpenLobbyToggle } from "../social/OpenLobbyToggle";
 import { type Team } from "../../../types/Team";
 import { type CompetitionContext } from "../../../competition/types";
 
 type Mode = "host" | "join";
+
+function unlistWhenHostLeaves(lobby: LobbyDoc, uid: string): void {
+  if (lobby.hostUid !== uid || lobby.listed !== true) return;
+  setLobbyListed(lobby, false).catch((error: unknown) => {
+    console.warn("[open lobby] could not unlist the lobby on leave", error);
+  });
+}
 
 export function OnlineLobby({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
@@ -163,27 +174,45 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   }
 
   if (!code) {
-    const join = async () => {
+    const enter = async (joining: () => Promise<string>) => {
       setError(null);
       setBusy(true);
       try {
-        const coachName = await resolveCoachName(user.uid);
-        const joined = await joinLobby(joinInput, user.uid, coachName);
-        setCode(joined.code);
+        const joined = await joining();
+        setCode(joined);
+        void navigate(`/online/lobby/${joined}`, { replace: true });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setBusy(false);
       }
     };
+    const join = (target: string) =>
+      enter(async () => {
+        const coachName = await resolveCoachName(user.uid);
+        return (await joinLobby(target, user.uid, coachName)).code;
+      });
     return (
       <JoinByCode
-        inbox={<InviteInbox uid={user.uid} />}
+        inbox={
+          <InviteInbox
+            uid={user.uid}
+            busy={busy}
+            onAccept={(invite) => void enter(() => acceptMatchInvite(invite))}
+          />
+        }
+        openGames={
+          <OpenGames
+            uid={user.uid}
+            busy={busy}
+            onJoin={(target) => void join(target)}
+          />
+        }
         joinInput={joinInput}
         onJoinInput={setJoinInput}
         busy={busy}
         error={error}
-        onJoin={join}
+        onJoin={() => void join(joinInput)}
         onBack={() => navigate("/")}
       />
     );
@@ -205,7 +234,10 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           lobby={lobby}
           isHost={isHost}
           me={me}
-          onLeave={() => navigate("/")}
+          onLeave={() => {
+            unlistWhenHostLeaves(lobby, user.uid);
+            void navigate("/");
+          }}
           onReady={() => void setReady(lobby.code, user.uid, !me?.ready)}
         />
       }
@@ -242,7 +274,14 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         }
       />
       {isHost && !lobby.guestUid && !lobby.competitionContext && (
-        <InviteFriendsPanel me={user.uid} code={lobby.code} friends={friends} />
+        <>
+          <OpenLobbyToggle lobby={lobby} uid={user.uid} />
+          <InviteFriendsPanel
+            me={user.uid}
+            code={lobby.code}
+            friends={friends}
+          />
+        </>
       )}
 
       <Section title="Your team">
@@ -310,6 +349,7 @@ function lobbyWaitingOn(
 
 function JoinByCode({
   inbox,
+  openGames,
   joinInput,
   onJoinInput,
   busy,
@@ -318,6 +358,7 @@ function JoinByCode({
   onBack,
 }: {
   inbox: ReactNode;
+  openGames: ReactNode;
   joinInput: string;
   onJoinInput: (value: string) => void;
   busy: boolean;
@@ -358,6 +399,7 @@ function JoinByCode({
           Join
         </HudButton>
         {error && <ErrorText text={error} />}
+        {openGames}
         <HudButton variant="ghost" onClick={onBack}>
           Back
         </HudButton>

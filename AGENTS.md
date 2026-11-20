@@ -26,14 +26,16 @@ Merging to `main` deploys the client to the live site, but it never deploys `fir
 
    ```sh
    node scripts/firestore-rules.mjs live > /tmp/live.rules
-   git diff --no-index /tmp/live.rules <(git show origin/main:firestore.rules)
+   git show origin/main:firestore.rules > /tmp/main.rules
+   git diff --no-index /tmp/live.rules /tmp/main.rules
    ```
 
    If they differ, stop and ask the owner.
-4. Deploy the branch's rules, then merge the pull request:
+4. Deploy the branch's rules:
 
    ```sh
    node scripts/firestore-rules.mjs deploy
    ```
 
 5. Run `node scripts/firestore-rules.mjs live` again and check it matches the branch's `firestore.rules`.
+6. Wait ten minutes, then merge the pull request. New rules reach new queries within about a minute and open listeners within about ten, so a client published sooner can still be refused.
