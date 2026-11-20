@@ -12,7 +12,7 @@ import {
   type HeadlessCommand,
 } from "../headless/protocol";
 import { type GameSnapshot } from "../headless/serialization";
-import { fnv1a } from "../headless/checksum";
+import { canonical, fnv1a } from "../headless/checksum";
 import { TeamFactory } from "../game/TeamFactory";
 import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
@@ -526,9 +526,5 @@ export function summarize(snapshot: GameSnapshot): MatchRecording["final"] {
 }
 
 export function snapshotHash(snapshot: GameSnapshot): string {
-  return fnv1a(
-    JSON.stringify(snapshot, (key, value) =>
-      key === "name" ? undefined : value
-    )
-  );
+  return fnv1a(canonical(snapshot, ["name"]));
 }

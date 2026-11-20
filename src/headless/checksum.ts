@@ -1,14 +1,18 @@
 import { HeadlessGame } from "./HeadlessGame";
 
-function canonical(value: unknown): string {
-  return JSON.stringify(value, (_key, inner) =>
-    inner && typeof inner === "object" && !Array.isArray(inner)
-      ? Object.fromEntries(
-          Object.keys(inner)
-            .sort()
-            .map((key) => [key, (inner as Record<string, unknown>)[key]])
-        )
-      : inner
+function sortedKeys(inner: unknown): unknown {
+  if (!inner || typeof inner !== "object" || Array.isArray(inner)) return inner;
+  return Object.fromEntries(
+    Object.entries(inner).sort(([a], [b]) => (a < b ? -1 : 1))
+  );
+}
+
+export function canonical(
+  value: unknown,
+  omitted: readonly string[] = []
+): string {
+  return JSON.stringify(value, (key: string, inner: unknown) =>
+    omitted.includes(key) ? undefined : sortedKeys(inner)
   );
 }
 
