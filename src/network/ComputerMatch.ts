@@ -1,3 +1,4 @@
+import { devVenueFormat } from "../testing/devVenue";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { clearMatchSave } from "../game/persistence/MatchSaveRepository";
 import { type IEventBus } from "../services/EventBus";
@@ -82,7 +83,7 @@ function computerMatchState(options: ComputerMatchOptions): GameState {
           options.competitionContext?.competitionType
         ),
         pregameInducements: true,
-      } }
+      }, ...devVenueFormat() }
     );
   if (!options.resume && options.competitionContext?.knockout)
     initialState.knockout = true;
