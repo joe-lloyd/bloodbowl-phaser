@@ -12,7 +12,6 @@ const POSITIONS = [
   { key: "blitzer", label: "Vampire Blitzer", model: "vampire_blitzer", stats: [6, 4, "2+", "4+", "9+"], cost: 110 },
   { key: "runner", label: "Vampire Runner", model: "vampire_runner", stats: [8, 3, "2+", "3+", "8+"], cost: 100 },
 ];
-const GENDERS = [["m", "Male"], ["f", "Female"]];
 const CYCLE = { idle: 1.35, run: 0.8, cheer: 1.0 };
 const HOLD = 0.6;
 const STAT_NAMES = ["MA", "ST", "AG", "PA", "AV"];
@@ -230,134 +229,99 @@ function sectionShell(title, lede, controls, build, verdict) {
 }
 
 const ANIMS = [["idle", "Idle"], ["run", "Run"], ["block", "Block"], ["pass", "Pass"], ["cheer", "Cheer"], ["fall", "Fall"]];
-const HELMS = [["bare", "Bare head"], ["cap", "Skull cap"], ["winged", "Winged helm"]];
-const PADS = [["none", "No pads"], ["left", "Left pad"], ["right", "Right pad"], ["both", "Both pads"]];
+const positionOf = (key) => POSITIONS.find((x) => x.key === key);
+const options = (position) => data.options[positionOf(position).model];
+const defaults = (position) => Object.fromEntries(options(position).map(([name, , values]) => [name, values[0][0]]));
+const lookKey = (position, look) => `${positionOf(position).model}__${options(position).map(([name]) => look[name]).join("-")}`;
+const look = (set, position, choice) => data.sets[set][lookKey(position, { ...defaults(position), ...choice })];
+const otherBody = (position) => options(position)[0][2][1];
 const positionSeg = (local, refresh) => field("Position", seg(POSITIONS.map((p) => [p.key, p.label.replace("Vampire ", "")]), () => local.position, (v) => { local.position = v; refresh(); }));
-const modelOf = (position) => POSITIONS.find((x) => x.key === position).model;
-const lookKey = (position, look) => `${modelOf(position)}__${look.gender}-${look.helm}-${look.pads}`;
+const columnHead = (label, note) => el("div", { class: "rowhead" }, label, el("div", { class: "note", style: "color:var(--mute);text-transform:none;letter-spacing:0;font:400 12px/16px Barlow" }, note));
 
-function sharpenSection() {
-  const local = { anim: "idle", zoom: 4, density: 1 };
+function defaultSection() {
+  const local = { anim: "idle" };
   const columns = [
-    ["As shipped", "base", "Three tones per material, checker dither where tones meet"],
-    ["No dither", "nodither", "Same three tones, hard edges between them"],
-    ["Two tones", "twotone", "Dark and mid only, no dither"],
+    ["As shipped", "base-d1", 4, "mul", "Game size, dither, multiply tint"],
+    ["New, game size", "new-d1", 4, "ramp", "No dither, ramp tint"],
+    ["New, 2× pixels", "new-d2", 2, "ramp", "No dither, ramp tint, fine details"],
   ];
   const build = () => el("div", {},
-    el("div", { class: "grid cols-3" }, columns.map(([label, , note]) => el("div", { class: "rowhead" }, label, el("div", { class: "note", style: "color:var(--mute);text-transform:none;letter-spacing:0;font:400 12px/16px Barlow" }, note)))),
+    el("div", { class: "grid cols-3" }, columns.map(([label, , , , note]) => columnHead(label, note))),
     POSITIONS.map((p) => el("div", {},
       el("div", { class: "rowhead" }, p.label),
-      el("div", { class: "grid cols-3" }, columns.map(([label, set]) => {
-        const entry = data[`${set}-d${local.density}`][p.model];
-        const make = (scale) => sprite({ entry, anim: local.anim, scale, tints: () => teamTints(), title: label });
-        return el("div", { class: "cell" }, stage(make(1), make(Math.max(1, Math.round(local.zoom / local.density)))));
+      el("div", { class: "grid cols-3" }, columns.map(([label, set, zoom, mode]) => {
+        const entry = data.sets[set][p.model];
+        const make = (scale) => sprite({ entry, anim: local.anim, scale, tints: () => teamTints(), mode: () => mode, title: label });
+        return el("div", { class: "cell" }, stage(make(1), make(zoom)));
       })),
     )),
   );
   let section;
   section = sectionShell(
-    "1. Less mud: dither and tones",
-    "Re-rendered in Blender from the models the shipped sprites came from, with the pixel shader changed. Each cell shows the real game size, then zoomed. The kit tint switch in the top bar applies to every section.",
-    [
-      field("Animation", seg(ANIMS, () => local.anim, (v) => { local.anim = v; section.refresh(); })),
-      field("Pixels", seg([[1, "Game size"], [2, "2× density"]], () => local.density, (v) => { local.density = v; section.refresh(); })),
-      field("Zoom", seg([[3, "3×"], [4, "4×"], [6, "6×"]], () => local.zoom, (v) => { local.zoom = v; section.refresh(); })),
-    ],
+    "1. The new default",
+    "The recommendations together: no dither, the ramp tint, 2× pixels and a 12-frame run. The bodies are now clearly male or female, and at 2× each position gets fine details: rivets and a gorget gem on the blitzer, a brooch and belt studs on the thrower, wrist and knee bands on the runner, patches on the thrall. Each cell shows the real size, then zoomed to the same height.",
+    [field("Animation", seg(ANIMS, () => local.anim, (v) => { local.anim = v; section.refresh(); }))],
     build,
-    [el("b", {}, "What I would do: "), "drop the dither and keep three tones, and switch the game to the ramp tint. The dither is what turns red cloth into speckle at game size; the three tones carry the form. Two tones read cleaner still on the thrall and runner but flatten the blitzer's armour."],
+    [el("b", {}, "Next: "), "the fine details are left out at game size on purpose, where they would only be single noisy pixels. Pick this and I re-render the Vampire atlases with it and switch the game's kit tint."],
   );
   return section;
 }
 
-function densitySection() {
-  const local = { position: "blitzer", anim: "idle", target: 300 };
+function bodySection() {
+  const local = { anim: "idle" };
+  const build = () => el("div", { class: "grid cols-4" }, POSITIONS.map((p) => {
+    const [, , values] = options(p.key)[0];
+    return el("div", { class: "cell" },
+      el("div", { class: "label" }, p.label),
+      stage(...values.map(([value]) => sprite({ entry: look("looks-d2", p.key, { body: value }), anim: local.anim, scale: 2, tints: () => teamTints() }))),
+      el("div", { class: "note" }, values.map(([, label]) => label).join(" · ")));
+  }));
+  let section;
+  section = sectionShell(
+    "2. Male and female",
+    "Each position's own look next to the same look with the other body, at 2×. Women are narrower in the shoulders with wider hips, slimmer limbs and a bust; men are broader with heavier arms and a thicker neck. Hair follows the body unless the position has its own hair option.",
+    [field("Animation", seg([["idle", "Idle"], ["run", "Run"]], () => local.anim, (v) => { local.anim = v; section.refresh(); }))],
+    build,
+  );
+  return section;
+}
+
+function optionsSection(card) {
+  const local = { position: "thrall" };
   const build = () => {
-    const model = modelOf(local.position);
-    const d = [1, 2, 3, 4].map((n) => [n, data[`base-d${n}`][model]]);
-    return el("div", {},
-      el("div", { class: "grid cols-4" }, d.map(([n, entry]) => cell(
-        n === 1 ? "As shipped" : `${n}× density`,
-        stage(sprite({ entry, anim: local.anim, scale: fitScale(entry, local.target), tints: () => teamTints() })),
-        n === 1 ? "The game's size today, enlarged" : `${n * n}× the pixels; same model, same shader`,
-      ))),
-      el("div", { class: "rowhead" }, "At their real size, side by side"),
-      el("div", { class: "cell" }, stage(...d.map(([, entry]) => sprite({ entry, anim: local.anim, scale: 1, tints: () => teamTints() }))),
-        el("div", { class: "note" }, "What each density looks like on screen with no zoom. 2× suits a match camera zoomed in 2×, a retina screen, or the player page.")),
-    );
+    const base = defaults(local.position);
+    return el("div", {}, options(local.position).map(([name, label, values]) => el("div", {},
+      el("div", { class: "rowhead" }, label),
+      el("div", { class: "options" }, values.map(([value, vlabel]) => {
+        const choice = { ...base, [name]: value };
+        return el("button", { class: "m", type: "button", title: "Hire this look onto the player page", onclick: () => card.hire(local.position, choice) },
+          sprite({ entry: look("looks-d2", local.position, choice), anim: "idle", scale: 2, tints: () => teamTints() }),
+          el("span", { class: "note" }, vlabel));
+      })),
+    )));
   };
   let section;
   section = sectionShell(
-    "2. Double, triple and quadruple the pixels",
-    "The same Blender models rendered with more pixels per metre. Unlike an upscaler, every extra pixel is real detail from the model. Shown at about the same height, then at their real size.",
-    [positionSeg(local, () => section.refresh()), field("Animation", seg(ANIMS, () => local.anim, (v) => { local.anim = v; section.refresh(); }))],
+    "3. Options per position",
+    "Each position has its own options, not one list for everyone: the thrall's headgear, chest and feet, the runner's hair, legs and arms, the thrower's coat and cape, the blitzer's helmet, pads and cape. Each row changes one option from the position's own look. Click a figure to hire it onto the player page.",
+    [positionSeg(local, () => section.refresh())],
     build,
-    [el("b", {}, "What I would do: "), "2× for the player page and any zoomed match camera. At 3× and 4× the models' simple shapes start to show, so they would need a modelling pass first. Atlas size grows with the square of the density."],
+    [el("b", {}, "Cost: "), "every combination is its own render, 132 looks for these four positions. In the game I would render looks per team on demand, or build the figure from separately rendered layers if the count grows."],
   );
   return section;
 }
 
-function framesSection() {
-  const local = { position: "runner", anim: "run" };
-  const build = () => {
-    const model = modelOf(local.position);
-    const pair = [["8 frames, as shipped", data["base-d2"][model]], ["12 frames", data["frames12-d2"][model]]];
-    return el("div", { class: "grid cols-2" }, pair.map(([label, entry]) =>
-      cell(label, stage(sprite({ entry, anim: local.anim, scale: 2, tints: () => teamTints() })))));
-  };
-  let section;
-  section = sectionShell(
-    "3. Smoother loops",
-    "The looping animations with 12 frames instead of 8, over the same loop time, at 2× density.",
-    [positionSeg(local, () => section.refresh()), field("Animation", seg([["idle", "Idle"], ["run", "Run"], ["cheer", "Cheer"]], () => local.anim, (v) => { local.anim = v; section.refresh(); }))],
-    build,
-    [el("b", {}, "What I would do: "), "12 frames for run, where 8 visibly steps; keep 8 for idle. It costs half as many frames again for each looping animation."],
-  );
-  return section;
+function randomLook(position) {
+  return Object.fromEntries(options(position).map(([name, , values]) => [name, values[Math.floor(Math.random() * values.length)][0]]));
 }
 
-function looksSection(card) {
-  const local = { position: "blitzer", gender: "m", density: 2 };
-  const build = () => el("div", { class: "matrix", style: `grid-template-columns: 110px repeat(${PADS.length}, minmax(0, 1fr))` },
-    el("div", { class: "h" }),
-    PADS.map(([, label]) => el("div", { class: "h" }, label)),
-    HELMS.map(([helm, hlabel]) => [
-      el("div", { class: "h" }, hlabel),
-      PADS.map(([pads]) => {
-        const look = { gender: local.gender, helm, pads };
-        const entry = data[`looks-d${local.density}`][lookKey(local.position, look)];
-        return el("div", { class: "m", title: "Hire this look onto the player page", onclick: () => card.hire(local.position, look) },
-          sprite({ entry, anim: "idle", scale: local.density === 2 ? 2 : 3, tints: () => teamTints() }));
-      }),
-    ]),
-  );
-  let section;
-  section = sectionShell(
-    "4. Looks",
-    "Every look for one position: helmet down the side, shoulder pads across, body above. Each figure is its own Blender render, so pads, helmets and hair animate with the body. Click a figure to hire it onto the player page.",
-    [
-      positionSeg(local, () => section.refresh()),
-      field("Body", seg(GENDERS, () => local.gender, (v) => { local.gender = v; section.refresh(); })),
-      field("Pixels", seg([[1, "Game size"], [2, "2× density"]], () => local.density, (v) => { local.density = v; section.refresh(); })),
-    ],
-    build,
-    [el("b", {}, "What I would do: "), "ship helmet and pads as player choices; both read at game size. The female body reads through hair and build, so it is clearest bare-headed. Rendering every look for every position multiplies the atlases, so render looks on demand per team rather than all at once."],
-  );
-  return section;
+function newPlayer(position, number, choice = randomLook(position)) {
+  return { id: `${Date.now()}-${number}`, number, position, look: choice, name: rollName(position, choice.body), custom: false };
 }
 
-function randomLook() {
-  const pick = (list) => list[Math.floor(Math.random() * list.length)][0];
-  return { gender: pick(GENDERS), helm: pick(HELMS), pads: pick(PADS) };
-}
-
-function newPlayer(position, number, look = randomLook()) {
-  return { id: `${Date.now()}-${number}`, number, position, look, name: rollName(position, look.gender), custom: false };
-}
-
-function rollName(position, gender) {
-  const p = POSITIONS.find((x) => x.key === position);
-  const book = nameBookFor("Vampire", p.label);
-  return formatPlayerName(generatePlayerName(book, gender === "f" ? "female" : "male"));
+function rollName(position, body) {
+  const book = nameBookFor("Vampire", positionOf(position).label);
+  return formatPlayerName(generatePlayerName(book, body === "f" ? "female" : "male"));
 }
 
 function startingRoster() {
@@ -366,24 +330,24 @@ function startingRoster() {
 }
 
 function validRoster(saved) {
-  return Array.isArray(saved) && saved.length > 0 && saved.every((p) => p.look && p.look.helm && p.look.pads);
+  return Array.isArray(saved) && saved.length > 0 && saved.every((p) => positionOf(p.position) && data.sets["looks-d1"][lookKey(p.position, p.look ?? {})]);
 }
 
 function playerCard(card) {
-  const saved = store.get("vampire-lab-roster-v3", null);
+  const saved = store.get("vampire-lab-roster-v4", null);
   const local = { roster: validRoster(saved) ? saved : startingRoster(), selected: 0, editing: false };
   const section = el("section", {});
-  const save = () => store.set("vampire-lab-roster-v3", local.roster);
+  const save = () => store.set("vampire-lab-roster-v4", local.roster);
   const current = () => local.roster[local.selected];
 
-  const cycler = (label, options, get, set) => {
+  const cycler = (label, values, get, set) => {
     const step = (d) => {
-      const i = options.findIndex(([v]) => v === get());
-      set(options[(i + d + options.length) % options.length][0]);
+      const i = values.findIndex(([v]) => v === get());
+      set(values[(i + d + values.length) % values.length][0]);
       save();
       render();
     };
-    const value = options.find(([v]) => v === get())?.[1] ?? "";
+    const value = values.find(([v]) => v === get())?.[1] ?? "";
     return el("div", { class: "cycler" },
       el("span", { class: "k" }, label),
       el("button", { class: "btn icon", type: "button", "aria-label": `Previous ${label}`, onclick: () => step(-1) }, "‹"),
@@ -412,33 +376,31 @@ function playerCard(card) {
     return el("div", { class: "name-row" },
       el("span", { class: "name" }, `#${p.number} ${p.name}`),
       el("button", { class: "btn", type: "button", onclick: () => { local.editing = true; render(); } }, "Rename"),
-      el("button", { class: "btn", type: "button", onclick: () => { p.name = rollName(p.position, p.look.gender); p.custom = false; save(); render(); } }, "New name"),
+      el("button", { class: "btn", type: "button", onclick: () => { p.name = rollName(p.position, p.look.body); p.custom = false; save(); render(); } }, "New name"),
     );
   };
 
   const portrait = (p) => {
-    const entry = data["looks-d2"][lookKey(p.position, p.look)];
+    const entry = data.sets["looks-d2"][lookKey(p.position, p.look)];
     const anim = p.anim ?? "idle";
     return el("div", { class: "portrait" },
       el("div", { class: "stage" }, sprite({ entry, anim, scale: fitScale(entry, 280), tints: () => teamTints() })),
       cycler("Animation", [["idle", "Idle"], ["run", "Run"]], () => anim, (v) => { p.anim = v; }),
-      cycler("Body", GENDERS, () => p.look.gender, (v) => {
-        p.look.gender = v;
-        if (!p.custom) p.name = rollName(p.position, v);
-      }),
-      cycler("Helmet", HELMS, () => p.look.helm, (v) => { p.look.helm = v; }),
-      cycler("Pads", PADS, () => p.look.pads, (v) => { p.look.pads = v; }),
+      options(p.position).map(([name, label, values]) => cycler(label, values, () => p.look[name], (v) => {
+        p.look[name] = v;
+        if (name === "body" && !p.custom) p.name = rollName(p.position, v);
+      })),
     );
   };
 
   const rosterList = () => el("div", {},
     el("h3", {}, "Roster, Sevens"),
     el("div", { class: "roster" }, local.roster.map((p, i) => {
-      const entry = data["looks-d1"][lookKey(p.position, p.look)];
+      const entry = data.sets["looks-d1"][lookKey(p.position, p.look)];
       return el("button", { type: "button", class: i === local.selected ? "on" : "", onclick: () => { local.selected = i; local.editing = false; render(); } },
         el("span", { class: "num" }, String(p.number)),
         sprite({ entry, anim: "idle", scale: 1, tints: () => teamTints() }),
-        el("span", { class: "who" }, el("b", {}, p.name), el("span", {}, POSITIONS.find((x) => x.key === p.position).label)));
+        el("span", { class: "who" }, el("b", {}, p.name), el("span", {}, positionOf(p.position).label)));
     })),
     el("div", { class: "hire" },
       POSITIONS.map((pos) => el("button", { class: "btn", type: "button", onclick: () => card.hire(pos.key) }, `Hire ${pos.label.replace("Vampire ", "")}`)),
@@ -448,10 +410,10 @@ function playerCard(card) {
 
   const render = () => {
     const p = current();
-    const pos = POSITIONS.find((x) => x.key === p.position);
+    const pos = positionOf(p.position);
     section.replaceChildren(
-      el("h2", {}, "5. Player page"),
-      el("p", { class: "lede" }, "A mock of the player detail page: the portrait at 2× density, the roster at game size. Hiring rolls a name from the position's name book and a random look. Cycle the body, helmet and pads, rename the player or roll a new name. Changing the body rolls a fitting first name unless you renamed the player."),
+      el("h2", {}, "4. Player page"),
+      el("p", { class: "lede" }, "A mock of the player detail page: the portrait at 2×, the roster at game size. Hiring rolls a name from the position's name book and a random look. Each position shows only its own options. Changing the body rolls a fitting first name unless you renamed the player."),
       el("div", { class: "card" },
         portrait(p),
         el("div", {},
@@ -461,13 +423,12 @@ function playerCard(card) {
           rosterList(),
         ),
       ),
-      el("div", { class: "verdict" }, el("b", {}, "Names: "), "the generator lives in src/game/names and is tested. Vampires take a first name by gender, then a family name or a noble house such as \"von Ravenmoor\", and sometimes an epithet. Thralls get peasant names. Other teams can add their own book."),
     );
   };
 
-  card.hire = (position, look) => {
+  card.hire = (position, choice) => {
     const number = Math.max(0, ...local.roster.map((p) => p.number)) + 1;
-    local.roster.push(newPlayer(position, number, look ? { ...look } : randomLook()));
+    local.roster.push(newPlayer(position, number, choice ? { ...choice } : randomLook(position)));
     local.selected = local.roster.length - 1;
     save();
     render();
@@ -496,7 +457,7 @@ async function main() {
   data = await response.json();
   const card = {};
   const player = playerCard(card);
-  const sections = [sharpenSection(), densitySection(), framesSection(), looksSection(card), player];
+  const sections = [defaultSection(), bodySection(), optionsSection(card), player];
   topBar(sections);
   document.getElementById("app").replaceChildren(...sections);
   requestAnimationFrame(tick);

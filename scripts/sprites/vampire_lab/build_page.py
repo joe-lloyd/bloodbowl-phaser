@@ -6,8 +6,8 @@ LAB holds one folder per render set (base-d1, nodither-d2, looks-d1, ...), each 
 with sprites/<model>/{base,kit1,kit2}.{png,json}. Only the se facing is used. Every model becomes one
 packed sheet: one row per animation and layer, cropped to the box that holds every frame of its group, so
 switching between treatments or looks of one position never shifts the figure. A group is a position at
-one density. OUT gets index.html, lab.js, names.js (the game's name generator, bundled), data.json and
-sheets/.
+one density. data.json also carries each position's look options from the factory's vampire_looks.json.
+OUT gets index.html, lab.js, names.js (the game's name generator, bundled), data.json and sheets/.
 """
 
 import json
@@ -20,6 +20,7 @@ from pathlib import Path
 from PIL import Image
 
 HERE = Path(__file__).resolve().parent
+OPTIONS = HERE.parent / "factory" / "teams" / "vampire_looks.json"
 LAYERS = ("base", "kit1", "kit2")
 FACING = "se"
 
@@ -88,11 +89,11 @@ def main(lab, out):
     for (set_name, key), model_frames in loaded.items():
         group = (key.split("__")[0], density(set_name))
         boxes[group] = union(boxes.get(group), content_box(model_frames))
-    data = {}
+    data = {"options": json.loads(OPTIONS.read_text()), "sets": {}}
     for (set_name, key), model_frames in loaded.items():
         rel = f"sheets/{set_name}/{key}.png"
         box = boxes[(key.split("__")[0], density(set_name))]
-        data.setdefault(set_name, {})[key] = {"src": rel, **pack(model_frames, box, out / rel)}
+        data["sets"].setdefault(set_name, {})[key] = {"src": rel, **pack(model_frames, box, out / rel)}
         print(set_name, key, flush=True)
     (out / "data.json").write_text(json.dumps(data, separators=(",", ":")))
     for name in ("index.html", "lab.js"):

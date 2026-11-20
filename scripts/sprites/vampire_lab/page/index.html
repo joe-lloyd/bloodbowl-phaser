@@ -48,10 +48,9 @@ input[type="range"] { accent-color: var(--gold); width: 110px; }
 .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.matrix { display: grid; gap: 6px; overflow-x: auto; }
-.matrix .h { font: 600 12px/14px "Barlow Condensed", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; justify-content: center; text-align: center; }
-.matrix .m { background: var(--sunk); border: 1px solid var(--edge); border-radius: 3px; display: flex; align-items: flex-end; justify-content: center; padding: 6px; cursor: pointer; }
-.matrix .m:hover { border-color: var(--gold-deep); }
+.options { display: flex; flex-wrap: wrap; gap: 8px; }
+.options .m { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; min-width: 120px; background: var(--sunk); border: 1px solid var(--edge); border-radius: 3px; padding: 8px; cursor: pointer; color: inherit; font: inherit; }
+.options .m:hover { border-color: var(--gold-deep); }
 @media (max-width: 860px) { .cols-4, .cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .cell { background: var(--sunk); border: 1px solid var(--edge); border-radius: 4px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
 .cell .label { font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); text-align: center; }
