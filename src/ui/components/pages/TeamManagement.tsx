@@ -9,7 +9,15 @@ import {
   deleteAllSeedTeams,
 } from "../../../game/managers/TeamManager";
 import { getTeamMode } from "../../../game/rules/teamLifecycle";
-import { validateRosterLegality } from "../../../game/rules/rosterLegality";
+import { legalGameTypes } from "../../../game/rules/rosterLegality";
+import {
+  teamGameType,
+  teamGameTypeLabel,
+} from "../../../game/rules/draftRules";
+import {
+  GAME_TYPE_LABELS,
+  type GameType,
+} from "../../../game/variants/gameTypes";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import {
@@ -33,18 +41,40 @@ import {
 import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 
-function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
+interface TeamStatus {
+  mode: "draft" | "active";
+  legal: boolean;
+  alsoPlays: GameType[];
+}
+
+function teamStatus(team: Team): TeamStatus {
   const mode = getTeamMode(team);
-  let legal = true;
   try {
     const roster = getRosterByRosterName(team.rosterName);
-    legal =
-      validateRosterLegality(team, roster).length === 0 &&
-      !validateInsignificant(team.players, team.draftRuleset);
+    const insignificantOk = !validateInsignificant(
+      team.players,
+      team.draftRuleset
+    );
+    const playable = insignificantOk ? legalGameTypes(team, roster) : [];
+    const own = teamGameType(team);
+    return {
+      mode,
+      legal: playable.includes(own),
+      alsoPlays: playable.filter((gameType) => gameType !== own),
+    };
   } catch {
-    legal = false;
+    return { mode, legal: false, alsoPlays: [] };
   }
-  return { mode, legal };
+}
+
+function GameTypeLine({ team, status }: { team: Team; status: TeamStatus }) {
+  const labels = status.alsoPlays.map((gameType) => GAME_TYPE_LABELS[gameType]);
+  return (
+    <p className="mt-1 font-hud-body text-hud-sm text-hud-dim">
+      {teamGameTypeLabel(team)} team
+      {labels.length > 0 && `. Also legal for ${labels.join(", ")}`}
+    </p>
+  );
 }
 
 export function TeamManagement() {
@@ -245,6 +275,7 @@ export function TeamManagement() {
                     <h3 className="mt-2 break-words font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-bone">
                       {team.name}
                     </h3>
+                    <GameTypeLine team={team} status={status} />
                   </div>
 
                   <div className="rounded-hud border border-white/10 bg-black/40 p-3">

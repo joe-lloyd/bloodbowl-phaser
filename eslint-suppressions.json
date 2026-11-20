@@ -6530,9 +6530,6 @@
     "@typescript-eslint/no-misused-promises": {
       "count": 3
     },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
     "complexity": {
       "count": 1
     },

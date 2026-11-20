@@ -6,6 +6,7 @@ import {
 } from "../../../game/rules/teamPricing";
 import { sevensInducementCatalog } from "../../../game/inducements/catalog";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
+import { teamDraftRules } from "../../../game/rules/draftRules";
 import { HudButton, Section } from "../componentWarehouse/HudKit";
 import { formatGold } from "../TeamManagement/TeamStatsOverview";
 
@@ -21,6 +22,7 @@ export function SidelineStaffSection({
   onApothecaryToggle: () => void;
 }) {
   const apothecaryPrice = priceOf(team, { type: "apothecary" });
+  const draft = teamDraftRules(team);
   return (
     <Section title="Sideline staff" aside={`Gold ${formatGold(team.treasury)}`}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
@@ -31,28 +33,30 @@ export function SidelineStaffSection({
           item={{ type: "reroll" }}
           onBuy={onBuy}
         />
-        <label className="flex flex-col gap-1">
-          <span className="hud-label">
-            Apothecary ({formatGold(APOTHECARY_COST)})
-          </span>
-          <span className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 px-3">
-            <span className="font-hud-display text-hud-lg">
-              {team.apothecary ? "Yes" : "No"}
+        {draft.apothecary && (
+          <label className="flex flex-col gap-1">
+            <span className="hud-label">
+              Apothecary ({formatGold(APOTHECARY_COST)})
             </span>
-            <input
-              type="checkbox"
-              checked={team.apothecary}
-              onChange={onApothecaryToggle}
-              disabled={
-                team.apothecary
-                  ? active
-                  : team.treasury < (apothecaryPrice.amount ?? Infinity)
-              }
-              title={apothecaryPrice.reason}
-              className="hud-check"
-            />
-          </span>
-        </label>
+            <span className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 px-3">
+              <span className="font-hud-display text-hud-lg">
+                {team.apothecary ? "Yes" : "No"}
+              </span>
+              <input
+                type="checkbox"
+                checked={team.apothecary}
+                onChange={onApothecaryToggle}
+                disabled={
+                  team.apothecary
+                    ? active
+                    : team.treasury < (apothecaryPrice.amount ?? Infinity)
+                }
+                title={apothecaryPrice.reason}
+                className="hud-check"
+              />
+            </span>
+          </label>
+        )}
         <StaffCounter
           label="Dedicated Fans"
           count={team.dedicatedFans}
@@ -60,20 +64,24 @@ export function SidelineStaffSection({
           item={{ type: "dedicated-fan" }}
           onBuy={onBuy}
         />
-        <StaffCounter
-          label="Asst. Coaches"
-          count={team.coaches}
-          team={team}
-          item={{ type: "coach" }}
-          onBuy={onBuy}
-        />
-        <StaffCounter
-          label="Cheerleaders"
-          count={team.cheerleaders}
-          team={team}
-          item={{ type: "cheerleader" }}
-          onBuy={onBuy}
-        />
+        {draft.assistantCoaches && (
+          <StaffCounter
+            label="Asst. Coaches"
+            count={team.coaches}
+            team={team}
+            item={{ type: "coach" }}
+            onBuy={onBuy}
+          />
+        )}
+        {draft.cheerleaders && (
+          <StaffCounter
+            label="Cheerleaders"
+            count={team.cheerleaders}
+            team={team}
+            item={{ type: "cheerleader" }}
+            onBuy={onBuy}
+          />
+        )}
       </div>
     </Section>
   );
