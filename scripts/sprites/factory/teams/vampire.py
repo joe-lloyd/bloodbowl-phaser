@@ -10,6 +10,17 @@ VAMP = dict(skin="skin", eyes="red", fangs=True, ears="pointed", hair="slick", h
             boots="boot", cuff="leather", legs="trouser", torso="kit1", arms="kit1", lapel="kit2", hem="kit2",
             collar_mat="kit2")
 
+def bust(P):
+    """A female chest shaped into the torso itself: a tight ring under the bust and a deeper ring pushed
+    forward at its fullest, so the jersey, coat and breastplate lofted over the torso follow it."""
+    rings = list(P["torso"])
+    sh = P["sh_h"]
+    for h, depth, forward in ((0.54 * sh, -0.012, 0.0), (0.7 * sh, 0.05, 0.045)):
+        rx, ry, back = core.tprof(P, h)
+        rings.append((h, rx, ry + depth, back - forward))
+    return sorted(rings, key=lambda ring: ring[0])
+
+
 FEMALE = dict(shoulders=0.86, hips=1.12, limb=0.86, arm=0.84, legs=1.04)
 MALE = dict(shoulders=1.08, arm=1.12, neck=1.18, hips=0.92)
 
@@ -23,12 +34,13 @@ class Vampire(Biped):
         factor = (FEMALE if self.sex == "f" else MALE).get(name)
         return base * factor if factor else base
 
-    def extras(self, J, P, L, tag, pose):
+    def proportions(self, L):
+        P = super().proportions(L)
         if self.sex == "f":
-            mat = L.get("breast") or L.get("jersey") or L["torso"]
-            off = 0.07 if L.get("breast") else 0.04
-            for i, ang in enumerate((-24, 24)):
-                ball_at(tag + "bust%d" % i, core.surf(J, P, 0.3, ang, off), 0.055, mat)
+            P["torso"] = bust(P)
+        return P
+
+    def extras(self, J, P, L, tag, pose):
         if palette.STYLE.get("density", 1) >= 2:
             self.details(J, P, L, tag, pose)
 
@@ -159,7 +171,7 @@ class Blitzer(Vampire):
         p.update(lean=5 + 3 * b, look=22 * w["s1"], nod=-6 + 10 * w["c1"], arms={"l": arm, "r": arm})
 
     def details(self, J, P, L, tag, pose):
-        for i, (h, ang) in enumerate(((0.13, -34), (0.13, 34), (0.22, -42), (0.22, 42))):
+        for i, (h, ang) in enumerate(((0.06, -30), (0.06, 30), (0.14, -38), (0.14, 38))):
             ball_at(tag + "rivet%d" % i, core.surf(J, P, h, ang, 0.06), 0.02, "gold")
         ball_at(tag + "gorgetgem", core.surf(J, P, P["sh_h"] + 0.03, 0, 0.1), 0.028, "kit2")
 

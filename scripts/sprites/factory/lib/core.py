@@ -724,8 +724,9 @@ def cape(J, P, L, tag, length, stream, mats=("kit2", "lining"), jag=0.0, half=10
     drape("mantle", 0.24, 3, 16, 128, 0.25, 0.035, (mats[0], mats[0]), lift=0.03, thick=0.03)
     if L.get("clasp", True):
         pts = []
+        fem = L.get("sex") == "f"     # on a woman the clasps sit up on the shoulders, clear of the bust
         for sd in (-1, 1):
-            p = surf(J, P, P["sh_h"] - 0.02, sd * 52, 0.04)
+            p = surf(J, P, P["sh_h"] + (0.02 if fem else -0.02), sd * (66 if fem else 52), 0.04)
             pts.append(p)
             ellipsoid(tag + "clasp%d" % sd, p, (0.055, 0.055, 0.055), trim, seg=10)
             ball_at(tag + "claspgem%d" % sd, p + J["F"] * 0.04, 0.025, "eye")
@@ -814,13 +815,16 @@ def breastplate(J, P, L, tag):
     tband(tag + "cuirass", J, P, [0.25, 0.36, sh - 0.04, sh + 0.035], mat, k=1.1, add=0.03, solid=0.03)
     tband(tag + "cuirim", J, P, [0.235, 0.275], trim, k=1.1, add=0.045, solid=0.03)
     # centre ridge and an emblem in the team colour
-    tube(tag + "bridge", [surf(J, P, 0.28, 0, 0.065), surf(J, P, 0.38, 0, 0.085), surf(J, P, sh, 0, 0.06)],
-         [0.02, 0.03, 0.02], mat, n=6)
+    if L.get("sex") != "f":                       # a centre ridge reads as a man's chest
+        tube(tag + "bridge", [surf(J, P, 0.28, 0, 0.065), surf(J, P, 0.38, 0, 0.085), surf(J, P, sh, 0, 0.06)],
+             [0.02, 0.03, 0.02], mat, n=6)
     if L.get("emblem", True):
-        p = surf(J, P, 0.4, 0, 0.09)
-        R = basis(J["X"], J["F"], J["u"])
+        # on a woman the wings would land on the bust, so the emblem moves up to the neckline and shrinks
+        fem = L.get("sex") == "f"
+        p = surf(J, P, sh - 0.04, 0, 0.07) if fem else surf(J, P, 0.4, 0, 0.09)
+        span = 0.08 if fem else 0.13
         for sd in (-1, 1):
-            flat_cone(tag + "emb%d" % sd, p, p + J["X"] * sd * 0.13 + J["u"] * 0.05, 0.05, L.get("emblem_mat", "kit1"),
+            flat_cone(tag + "emb%d" % sd, p, p + J["X"] * sd * span + J["u"] * 0.05, 0.05, L.get("emblem_mat", "kit1"),
                       J["F"], squash=0.25)
         ball_at(tag + "embc", p, 0.04, trim)
 
