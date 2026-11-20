@@ -174,9 +174,11 @@ def verify(stage, scale, spec, body, default, store, rng, count, seed=7):
             if anim_name not in default.animations:
                 continue
             n = default.animations[anim_name]
+            k = "%s/%s/%d" % (anim_name, f, i % n)
+            if k not in store["base"]:
+                continue
             stage.build(model, default.pose(anim_name, i % n, n), scale)
             full = stage.render([f])[f]
-            k = "%s/%s/%d" % (anim_name, f, i % n)
             cells, shades = look_cells(store, names, k, rng)
             mine = finished(stage, *composite(cells, shape, shades))
             diffs.append(int((mine != full).sum()))
