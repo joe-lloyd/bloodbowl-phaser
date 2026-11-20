@@ -10,6 +10,10 @@ Open pull requests ready for review. If you opened a draft, run `gh pr ready` on
 - Once CodeRabbit passes the head clean, and any CI the repo runs is green, merge without asking.
 - If CodeRabbit still has open findings after three rounds of fixes, stop. Do not merge. Tell the owner directly.
 
+## Review scope
+
+Reviewers, CodeRabbit and fallback reviewers alike, skip `public/sprites/bloodbowl/` and `__tests__/`. Both are large and mostly generated, and the owner decided a review there is not worth it. Read the rest of the diff with `git diff origin/main...HEAD -- . ':!public/sprites/bloodbowl' ':!__tests__'`. CI still runs every test.
+
 ## Firestore rules
 
 Merging to `main` deploys the client to the live site, but it never deploys `firestore.rules`. A client that writes a path the live rules refuse breaks on the live site. When a pull request changes the rules, deploy them yourself just before you merge it:

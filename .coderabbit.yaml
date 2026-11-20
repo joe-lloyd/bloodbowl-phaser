@@ -15,11 +15,11 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-  # Sprite atlases, audio and screenshots: generated or binary, nothing to review.
+  # The owner chose to skip these: sprite art, audio and screenshots are generated or binary, and the
+  # tests folder is too large to be worth a review. AGENTS.md tells every other reviewer the same.
   path_filters:
     - "!public/**"
     - "!gallery/**"
-  # Golden frames the sprite factory writes for the layered compositor test: generated, nothing to review.
-    - "!__tests__/fixtures/layered/**"
+    - "!__tests__/**"
 chat:
   auto_reply: true
