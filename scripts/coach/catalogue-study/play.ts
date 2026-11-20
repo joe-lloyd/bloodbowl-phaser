@@ -6,7 +6,7 @@ import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { stabilizeIds } from "../../../src/headless/createHeadlessGame";
 import { GamePhase } from "../../../src/types/GameState";
 import { makeCoach } from "../../../src/simulation/commands/shared";
-import { runMatch } from "../../../src/simulation/runMatch";
+import { type MatchRecording, runMatch } from "../../../src/simulation/runMatch";
 import { createTelemetry } from "./telemetry";
 import type { StudyGame, StudyJob } from "./model";
 import type { Team } from "../../../src/types/Team";
@@ -25,9 +25,8 @@ export function withInducementFlag<Job extends StudyJob>(
   jobs: Job[],
   args: readonly string[]
 ): Job[] {
-  return args.includes("--no-inducements")
-    ? jobs.map((job) => ({ ...job, inducements: false }))
-    : jobs;
+  const inducements = !args.includes("--no-inducements");
+  return jobs.map((job) => ({ ...job, inducements }));
 }
 
 async function buyComputerInducements(game: HeadlessGame) {
@@ -37,6 +36,11 @@ async function buyComputerInducements(game: HeadlessGame) {
       await mustExecute(game, { type: "select-inducement", teamId, ...line });
     await mustExecute(game, { type: "confirm-inducements", teamId });
   }
+}
+
+function firstReceiver(recording: MatchRecording): { initialReceivingSide?: 0 | 1 } {
+  const kick = recording.steps.find((step) => step.command.type === "kick-ball");
+  return kick ? { initialReceivingSide: kick.team === 0 ? 1 : 0 } : {};
 }
 
 export async function playStudyGame(
@@ -61,12 +65,7 @@ export async function playStudyGame(
     progressionEnabled: job.persistentInjuries ?? false,
   });
   const participants = [team1.players.slice(), team2.players.slice()];
-  if (job.receivingSide !== undefined) {
-    const kickingTeamId = job.receivingSide === 0 ? team2.id : team1.id;
-    const response = await game.execute({ type: "start-setup", kickingTeamId });
-    if (!response.ok) throw new Error("Cannot set requested first receiver");
-  }
-  if (job.inducements !== false) await buyComputerInducements(game);
+  if (job.inducements === true) await buyComputerInducements(game);
   const initial = game.matchSave();
   const telemetry = createTelemetry(game);
   const coaches = job.coaches.map((name, side) =>
@@ -78,6 +77,9 @@ export async function playStudyGame(
     coaches,
     game,
     inducements: false,
+    ...(job.receivingSide === undefined
+      ? {}
+      : { kickingTeamId: job.receivingSide === 0 ? team2.id : team1.id }),
   });
   const observed = telemetry.snapshot();
 
@@ -104,7 +106,7 @@ export async function playStudyGame(
     commands: recording.steps.length,
     ms: Date.now() - started,
     observationVersion: 2,
-    initialReceivingSide: initial.drive.receivingTeamId === team1.id ? 0 : 1,
+    ...firstReceiver(recording),
     playerLosses: participants.map((players) => ({
       deaths: players.filter((p) => p.injuries.includes(InjuryType.DEAD))
         .length,

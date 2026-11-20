@@ -281,7 +281,7 @@ engine's.
 If an engine change alters the order of dice rolls, a committed recording
 stops matching and the test names the first step that differs. Re-record it
 on purpose, as with committed seeds. Recordings made before 20 November 2026
-hash their final state in key order, so replay them with the source that made
+hash their final state in key insertion order, so replay them with the source that made
 them.
 
 ## Where things live

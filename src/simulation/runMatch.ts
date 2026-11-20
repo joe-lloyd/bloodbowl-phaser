@@ -18,7 +18,7 @@ import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
 import { type ActionType, GameEventNames } from "../types/events";
-import { enumerateDecision } from "./candidates";
+import { type DecisionPoint, enumerateDecision } from "./candidates";
 import { type Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
 import {
@@ -206,6 +206,8 @@ export interface MatchSpec {
 
   inducements?: boolean;
 
+  kickingTeamId?: string;
+
   game?: HeadlessGame;
 
   gameType?: GameType;
@@ -368,6 +370,26 @@ function kickerAfter(
   return command.type === "kick-ball" ? teamId : kickingTeamId;
 }
 
+function withKicker(
+  point: DecisionPoint,
+  kickingTeamId: string | undefined
+): DecisionPoint {
+  const flipsCoin = point.candidates.some((c) =>
+    c.commands.some((command) => command.type === "coin-flip")
+  );
+  if (!kickingTeamId || !flipsCoin) return point;
+  return {
+    ...point,
+    candidates: [
+      {
+        kind: "setup",
+        commands: [{ type: "start-setup", kickingTeamId }],
+        label: "Start with the chosen kicker",
+      },
+    ],
+  };
+}
+
 function ranOutOfBudget(final: GameSnapshot, findings: Finding[]): boolean {
   return (
     final.phase !== GamePhase.GAME_OVER &&
@@ -421,7 +443,10 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     if (snapshot.phase === GamePhase.GAME_OVER) break;
     kickingTeamId = kickerAtSetup(snapshot, kickingTeamId);
 
-    const point = await enumerateDecision(game, kickingTeamId);
+    const point = withKicker(
+      await enumerateDecision(game, kickingTeamId),
+      spec.kickingTeamId
+    );
     const candidates = point.candidates.filter(
       (c) => !refused.has(JSON.stringify(c.commands))
     );

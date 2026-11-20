@@ -10,7 +10,7 @@ export interface StudyJob {
   coaches: [CoachName, CoachName];
   receivingSide?: 0 | 1;
   persistentInjuries?: boolean;
-  inducements?: false;
+  inducements?: boolean;
 }
 
 export interface SkillObservation {

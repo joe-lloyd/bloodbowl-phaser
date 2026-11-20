@@ -49,6 +49,7 @@ class ReportTests(unittest.TestCase):
             self.assertIn('target attainment has not been assessed', page)
             self.assertNotIn('{{', page)
             self.assertIn('no inducements, no persistence', page)
+            self.assertIn('--out sim-results/catalogue-study --no-inducements\n', page)
 
     def test_refuses_to_merge_runs_with_and_without_petty_cash(self):
         with tempfile.TemporaryDirectory() as directory:

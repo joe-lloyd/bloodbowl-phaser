@@ -226,6 +226,7 @@ describe("repeatable Sevens policy lab", () => {
         templates: ["halfling-best-stuff-roster", "dwarf-1-reroll"],
         coaches: ["heuristic", "heuristic"],
         receivingSide: 0,
+        inducements: true,
       };
       const result = await playStudyGame(job, out);
       const trace = join(out, "traces", job.id + ".json.gz");
@@ -241,6 +242,21 @@ describe("repeatable Sevens policy lab", () => {
         "team1: Part-time Assistant Coach x2",
       ]);
       expect(result.completed).toBe(true);
+      expect(result.initialReceivingSide).toBe(0);
+      const opening = openTrace(trace);
+      const chefHalf = () =>
+        opening.game.ctx.gameService.getState().inducements?.masterChef?.half;
+      expect(chefHalf()).toBeUndefined();
+      const [first] = opening.recording.steps;
+      expect(first?.command).toEqual({
+        type: "start-setup",
+        kickingTeamId: "team2",
+      });
+      if (first) await opening.game.execute(first.command);
+      expect([chefHalf(), opening.game.snapshot().phase]).toEqual([
+        "h1",
+        "SETUP",
+      ]);
       const replay = await replayStudyTrace(trace);
       expect(replay.observations.counters).toEqual(result.counters);
       const chefRolls = (rolls: { roll: string; attempts: number }[]) =>
