@@ -394,7 +394,7 @@
   },
   "__tests__/simulation/turn-plans.test.ts": {
     "local/no-comments": {
-      "count": 13
+      "count": 10
     }
   },
   "__tests__/unit/PlayerInfoPanel.test.tsx": {
@@ -5210,11 +5210,6 @@
   "src/services/rng/RNGService.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    }
-  },
-  "src/simulation/ai/ballActivations.ts": {
-    "local/no-comments": {
-      "count": 4
     }
   },
   "src/simulation/ai/board.ts": {

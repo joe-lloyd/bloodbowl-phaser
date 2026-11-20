@@ -1,17 +1,15 @@
-import { fieldPlayer } from "./fixtures";
+import { fieldPlayer, game, step } from "./fixtures";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { describe, expect, it } from "vitest";
-import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { RosterName } from "../../src/types/Team";
-import type { PlayerPlacement, ScenarioSetup } from "../../src/types/Scenario";
+import type { PlayerPlacement } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
 import { context } from "../../src/simulation/ai/activationContext";
 import { readBoard } from "../../src/simulation/ai/board";
 import { secureBallActivations } from "../../src/simulation/ai/skillActivations";
-import { pickupActivation } from "../../src/simulation/ai/ballActivations";
+import { pickupActivation } from "../../src/simulation/ai/pickupActivations";
 import { PlayerStatus } from "../../src/types/Player";
 
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
@@ -23,42 +21,6 @@ import {
 import { createCoachRng } from "../../src/simulation/rng";
 import type { Coach } from "../../src/simulation/coach";
 import { sequenceChance } from "../../src/simulation/ai/chance";
-
-function game(
-  setup: Pick<ScenarioSetup, "team1Placements"> & Partial<ScenarioSetup>
-) {
-  return new HeadlessGame({
-    seed: 1,
-    scenario: {
-      id: "turn-plan",
-      name: "Complete a tactical plan",
-      description: "",
-      setup: {
-        phase: GamePhase.PLAY,
-        subPhase: SubPhase.TURN_RECEIVING,
-        activeTeam: "team1",
-        turn: 6,
-        teamRerolls: { team1: 0, team2: 0 },
-        team2Placements: [{ playerIndex: 0, x: 1, y: 1 }],
-        ...setup,
-      },
-    },
-  });
-}
-
-async function step(subject: HeadlessGame, coach: Coach, seed = 1) {
-  const point = await enumerateDecision(subject, null);
-  const choice = await coach.choose({
-    game: subject,
-    snapshot: subject.snapshot(),
-    point,
-    rng: createCoachRng(seed),
-  });
-  const command = fixtureValue(point.candidates[choice.index]).commands[0];
-  const result = await subject.execute(command);
-  expect(result.ok, JSON.stringify(command)).toBe(true);
-  return { command, note: choice.note };
-}
 
 describe("retained turn plans", () => {
   it("prices Pass and Catch rerolls and one shared team reroll literally", () => {
@@ -562,9 +524,33 @@ describe("carrier pace", () => {
     expect(priced(4)).toBe(priced(0));
   });
 
+  it("does not charge a picker for a quick team-mate who cannot reach the ball", () => {
+    const priced = (carrierPace: number) => {
+      const subject = game({
+        turn: 2,
+        ballPosition: { x: 6, y: 5 },
+        team1Placements: [
+          { playerIndex: 0, x: 5, y: 5, stats: { MA: 3 } },
+          { playerIndex: 1, x: 18, y: 9, stats: { MA: 8 } },
+        ],
+        team2Placements: [{ playerIndex: 0, x: 17, y: 1 }],
+      });
+      const picker = fieldPlayer(subject.ctx.team1.players[0]);
+      const quick = fieldPlayer(subject.ctx.team1.players[1]);
+      const c = context({
+        board: readBoard(subject, picker.teamId),
+        w: { ...DEFAULT_WEIGHTS, carrierPace },
+        available: new Map([
+          [picker.id, new Set(["move" as const])],
+          [quick.id, new Set(["move" as const])],
+        ]),
+      });
+      return fixtureValue(pickupActivation(c, picker)[0]).value;
+    };
+    expect(priced(4)).toBe(priced(0));
+  });
+
   it("charges a My Ball picker for every turn it will keep the ball", () => {
-    // Reach 3+2 against 8+2: five squares a turn short. A picker who can
-    // hand off pays one turn of that; My Ball pays all three.
     const secure = (slowSkills: SkillType[]) => {
       const subject = looseBall(slowSkills);
       const slow = fieldPlayer(subject.ctx.team1.players[0]);
@@ -583,7 +569,6 @@ describe("carrier pace", () => {
     const myBall = secure([SkillType.MY_BALL]);
     const chance =
       plain.intent.kind === "secure-ball" ? plain.intent.route.chance : NaN;
-    // Two more turns at 4 points a square, five squares short, if it works.
     expect(plain.value - myBall.value).toBeCloseTo(4 * 5 * 2 * chance, 6);
   });
 

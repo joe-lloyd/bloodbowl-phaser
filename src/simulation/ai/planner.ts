@@ -1,6 +1,7 @@
 import { type FieldPlayer as Player } from "./board";
 import { type HeadlessCommand } from "../../headless/protocol";
 import { GamePhase } from "../../types/GameState";
+import { PlayerStatus } from "../../types/Player";
 import { type ActionType } from "../../types/events";
 
 import { rollLabel } from "../../game/rules/rollTargets";
@@ -98,7 +99,10 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
   const { player, intent } = a;
   const next = "route" in intent ? intent.route?.path[0] : undefined;
   if (next) return movementStep(candidates, player.id, next);
-  if ("target" in intent) return targetedStep(candidates, player.id, intent);
+  if ("target" in intent) {
+    const up = standUpFirst(candidates, player);
+    return up >= 0 ? up : targetedStep(candidates, player.id, intent);
+  }
   if ("to" in intent) return transferStep(candidates, player.id, intent);
   if ("targets" in intent)
     return multipleBlockStep(candidates, player.id, intent.targets);
@@ -109,6 +113,17 @@ function nextStep(a: Activation, candidates: readonly Candidate[]): number {
         (c) => c.type === "stand-up" && c.playerId === player.id
       )
     : -1;
+}
+
+function standUpFirst(
+  candidates: readonly Candidate[],
+  player: Player
+): number {
+  if (player.status !== PlayerStatus.PRONE) return -1;
+  return commandIndex(
+    candidates,
+    (c) => c.type === "stand-up" && c.playerId === player.id
+  );
 }
 
 function movementStep(

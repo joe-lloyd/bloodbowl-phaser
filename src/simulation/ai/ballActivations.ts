@@ -1,6 +1,5 @@
 import { type FieldPlayer as Player } from "./board";
 
-import { SkillType, hasSkill } from "../../types/Skills";
 import {
   catchTarget,
   interceptTarget,
@@ -14,6 +13,7 @@ import {
 import {
   HEIGHT,
   type Square,
+  canCarry,
   distance,
   key,
   neighbours,
@@ -124,9 +124,13 @@ function spaceGain(c: Context, carrier: Player, mate: Player): number {
   );
 }
 
-const CARRY_TURNS = 3;
+export const CARRY_TURNS = 3;
 
-function paceWorth(c: Context, faster: number, turns = CARRY_TURNS): number {
+export function paceWorth(
+  c: Context,
+  faster: number,
+  turns = CARRY_TURNS
+): number {
   if (c.goal === "protect") return 0;
   return c.w.carrierPace * faster * Math.min(c.board.turnsLeft, turns);
 }
@@ -297,6 +301,12 @@ function endZoneRoute(c: Context, from: Square, mate: Player): Route | null {
   return best;
 }
 
+function ballMates(c: Context, carrier: Player): Player[] {
+  return c.board.ours.filter(
+    (mate) => mate.id !== carrier.id && standing(mate) && canCarry(mate)
+  );
+}
+
 export function deepReceiverActivations(
   c: Context,
   carrier: Player
@@ -305,8 +315,7 @@ export function deepReceiverActivations(
   if (!c.available.get(carrier.id)?.has("pass")) return [];
   const from = carrier.gridPosition;
   const out: Activation[] = [];
-  for (const mate of board.ours) {
-    if (mate.id === carrier.id || !standing(mate)) continue;
+  for (const mate of ballMates(c, carrier)) {
     if (!c.available.get(mate.id)?.has("move")) continue;
     if (toGoal(board, mate.gridPosition) === 0) continue;
     const best = endZoneRoute(c, from, mate);
@@ -478,15 +487,13 @@ function handoffTo({
 }
 
 export function handoffActivations(c: Context, carrier: Player): Activation[] {
-  const { board } = c;
   if (!c.available.get(carrier.id)?.has("handoff")) return [];
   const out: Activation[] = [];
   const routes = c.routes(carrier);
   const carrierReach = bestReach(c, carrier);
   const escape = pressure(c, carrier);
-  for (const mate of board.ours) {
-    if (mate.id === carrier.id || !standing(mate) || !c.available.has(mate.id))
-      continue;
+  for (const mate of ballMates(c, carrier)) {
+    if (!c.available.has(mate.id)) continue;
     const handoff = handoffTo({
       c: c,
       carrier: carrier,
@@ -666,7 +673,7 @@ function passTo({
 }
 
 export function passActivations(c: Context, carrier: Player): Activation[] {
-  const { board, w } = c;
+  const { w } = c;
   if (!c.available.get(carrier.id)?.has("pass")) return [];
   const throwFrom: (Route | null)[] = [
     null,
@@ -677,8 +684,7 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
   const carrierReach = bestReach(c, carrier);
   const escape = pressure(c, carrier);
   const out: Activation[] = [];
-  for (const mate of board.ours) {
-    if (mate.id === carrier.id || !standing(mate)) continue;
+  for (const mate of ballMates(c, carrier)) {
     const pass = passTo({
       c: c,
       carrier: carrier,
@@ -690,44 +696,6 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
     if (pass) out.push(pass);
   }
   return out;
-}
-
-/**
- * A picker short of the team's quickest carrier: one who can hand the
- * ball on loses a turn of pace; one with My Ball keeps it to the end.
- */
-export function pickupPace(c: Context, player: Player): number {
-  // The picker counts too: a prone picker with nobody else standing is
-  // its own quickest carrier, never short of an empty team. A No Ball
-  // player cannot carry, so it sets no benchmark.
-  const quickest = Math.max(
-    nextTurnReach(player),
-    ...c.board.ours
-      .filter((p) => standing(p) && !hasSkill(p.skills, SkillType.NO_BALL))
-      .map((p) => nextTurnReach(p))
-  );
-  return paceWorth(
-    c,
-    nextTurnReach(player) - quickest,
-    hasSkill(player.skills, SkillType.MY_BALL) ? CARRY_TURNS : 1
-  );
-}
-
-export function pickupActivation(c: Context, player: Player): Activation[] {
-  const { board, w } = c;
-  if (board.ball.kind !== "loose") return [];
-  const route = c.routes(player).get(key(board.ball.at));
-  if (!route) return [];
-  return [
-    {
-      player,
-      action: "move",
-      intent: { kind: "pickup", route },
-      tier: tierFor(route.chance, w.pickupMin, "pickup"),
-      value: gamble(c, route.chance, w.pickup + pickupPace(c, player)),
-      rolls: route.rolls,
-    },
-  ];
 }
 
 function sidelineCost(edge: number, cost: number): number {

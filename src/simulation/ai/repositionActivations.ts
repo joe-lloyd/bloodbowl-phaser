@@ -7,6 +7,7 @@ import {
   HEIGHT,
   type Square,
   WIDTH,
+  canCarry,
   carrierOf,
   distance,
   key,
@@ -59,7 +60,7 @@ function flankRunner(c: Context, carrier: Player): Player | undefined {
   const at = carrier.gridPosition;
   const wide = (p: Player) => Math.abs(p.gridPosition.y - at.y) >= 3;
   return c.board.ours
-    .filter((p) => p.id !== carrier.id && standing(p))
+    .filter((p) => p.id !== carrier.id && standing(p) && canCarry(p))
     .sort(
       (a, b) =>
         b.stats.MA - a.stats.MA ||
@@ -123,6 +124,7 @@ function deepReceiver(c: Context, carrier: Player): Player | undefined {
       (p) =>
         p.id !== carrier.id &&
         standing(p) &&
+        canCarry(p) &&
         !!c.available.get(p.id)?.has("move") &&
         canGo(p)
     )
@@ -358,7 +360,7 @@ function chaseRoute(
     if (route.chance < w.safeMove || board.marks.getUint8(key(route.to)) > 0)
       continue;
     const gain =
-      (now - distance(route.to, target)) * 0.5 -
+      gamble(c, route.chance, (now - distance(route.to, target)) * 0.5) -
       moveFeedingCost(c, player, route.to);
     if (now > 3 && gain > (best?.gain ?? 0.5))
       best = { route, gain, role: "chase" };
@@ -391,8 +393,11 @@ export function repositionActivation(
   const routes = c.plainRoutes(player);
   const isCarrier = carrierOf(board)?.id === player.id;
   if (isCarrier) return [];
+  const roles = canCarry(player)
+    ? squares
+    : squares.filter((s) => s.role !== "receiver");
   const best =
-    roleRoute({ c: c, player: player, squares: squares, routes: routes }) ??
+    roleRoute({ c: c, player: player, squares: roles, routes: routes }) ??
     chaseRoute(c, player, routes);
   const withdrawal = withdrawalRoute(c, player, routes);
   const selected =

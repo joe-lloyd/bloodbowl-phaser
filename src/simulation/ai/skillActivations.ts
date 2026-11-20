@@ -5,12 +5,12 @@ import { canSecureBall } from "../../game/rules/secureBall";
 import { type Context, gamble, tierFor } from "./activationContext";
 import type { Activation } from "./activations";
 import { blockFrom, targetValue } from "./blockActivations";
-import { type Board, distance, key, standing, toGoal } from "./board";
+import { type Board, canCarry, distance, key, standing, toGoal } from "./board";
 import { feedingCost, unfedChance } from "./feeding";
 import { movesLeft, routesFor, withTeamReroll } from "./routes";
 import { gazeActivations } from "./gazeActivations";
 import { throwTeammateActivations } from "./teammateActivations";
-import { pickupPace } from "./ballActivations";
+import { pickupPace } from "./pickupActivations";
 import type { ActionType } from "../../types/events";
 import { standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
@@ -88,6 +88,7 @@ export function secureBallActivations(
   const { board, w } = c;
   if (
     board.ball.kind !== "loose" ||
+    !canCarry(player) ||
     !canSecureBall(
       player,
       board.ball.at,
@@ -140,10 +141,7 @@ export function secureBallActivations(
   ];
 }
 
-function multipleBlockActivations(
-  c: Context,
-  player: Player
-): Activation[] {
+function multipleBlockActivations(c: Context, player: Player): Activation[] {
   if (!standing(player) || !hasSkill(player.skills, SkillType.MULTIPLE_BLOCK))
     return [];
   const targets = c.board.theirs.filter(

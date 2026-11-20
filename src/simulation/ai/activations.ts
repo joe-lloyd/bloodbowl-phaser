@@ -11,16 +11,18 @@ import {
   deepReceiverActivations,
   handoffActivations,
   passActivations,
-  pickupActivation,
 } from "./ballActivations";
 import {
   assistActivations,
   blitzActivations,
+  carrierBlitzActivations,
   blockActivations,
 } from "./blockActivations";
 import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
 import { foulActivations } from "./foulActivations";
+import { gatePriced } from "./gateActivations";
+import { pickupActivation } from "./pickupActivations";
 import {
   feedingSupportActivations,
   holdsFeedingSupport,
@@ -51,7 +53,8 @@ export type Role =
   | "feed"
   | "throw"
   | "flank"
-  | "deep";
+  | "deep"
+  | "steady";
 
 export type Intent =
   | { kind: "score"; route: Route }
@@ -117,6 +120,7 @@ function carrierOptions(
   if (actions.has("move")) out.push(...carrierActivations(c, player));
   if (actions.has("handoff")) out.push(...handoffActivations(c, player));
   if (actions.has("pass")) out.push(...passActivations(c, player));
+  if (actions.has("blitz")) out.push(...carrierBlitzActivations(c, player));
   return out;
 }
 
@@ -177,7 +181,7 @@ export function activations({
     out.push(...deepReceiverActivations(c, carrier));
   out.push(...assistActivations(c, out));
   out.push(...feedingSupportActivations(c));
-  return sortActivations(out);
+  return sortActivations(gatePriced(c, out));
 }
 
 function movementContinuation(c: Context, player: Player): Activation[] {
@@ -196,10 +200,11 @@ function blitzContinuation(
   player: Player,
   used: boolean
 ): Activation[] {
+  const carrying = carrierOf(c.board)?.id === player.id;
+  if (!used && carrying) return carrierBlitzActivations(c, player);
   if (!used)
     return [...blitzActivations(c, player), ...pickupActivation(c, player)];
-  if (carrierOf(c.board)?.id === player.id)
-    return carrierActivations(c, player);
+  if (carrying) return carrierActivations(c, player);
   return [
     ...pickupActivation(c, player),
     ...repositionActivation(c, player, roleSquares(c)),
