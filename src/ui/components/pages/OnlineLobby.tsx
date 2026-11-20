@@ -30,7 +30,7 @@ import {
   selectTeam,
   setLobbyListed,
   setReady,
-  startMatch,
+  startLobbyMatch,
   subscribeLobby,
   updateSettings,
   getActiveMatchCode,
@@ -247,6 +247,13 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
             void navigate("/");
           }}
           onReady={() => void setReady(lobby.code, user.uid, !me?.ready)}
+          onStart={() => {
+            startLobbyMatch(lobby.code).catch((reason: unknown) => {
+              setError(
+                reason instanceof Error ? reason.message : String(reason)
+              );
+            });
+          }}
         />
       }
     >
@@ -483,12 +490,14 @@ function LobbyActions({
   me,
   onLeave,
   onReady,
+  onStart,
 }: {
   lobby: LobbyDoc;
   isHost: boolean;
   me: LobbyPlayer | undefined;
   onLeave: () => void;
   onReady: () => void;
+  onStart: () => void;
 }) {
   const waitingOn = lobbyWaitingOn(lobby, me, isHost);
   const startable = isHost && canStart(lobby);
@@ -516,14 +525,7 @@ function LobbyActions({
             variant={startable ? "primary" : "secondary"}
             size="lg"
             disabled={!canStart(lobby)}
-            onClick={() =>
-              void startMatch({
-                code: lobby.code,
-                settings: lobby.settings,
-                hostUid: lobby.hostUid,
-                guestUid: lobby.guestUid!,
-              })
-            }
+            onClick={onStart}
           >
             Start Match
           </HudButton>

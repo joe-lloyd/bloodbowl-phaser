@@ -138,8 +138,8 @@ export function settleKick(
   let landing = flight.to;
   let wallHits: WallHit[] = [];
   if (!isOnPitch(landing)) {
-    if (edgeCrossed(landing) === "crowd") return { landing: null, wallHits };
     const wall = step(flight.lastIn, unitToward(flight.lastIn, landing), 1);
+    if (edgeCrossed(wall) === "crowd") return { landing: null, wallHits };
     const ricochet = ricochetFlight(dice, flight.lastIn, wall);
     wallHits = ricochet.hits;
     if (ricochet.kind === "crowd") return { landing: null, wallHits };

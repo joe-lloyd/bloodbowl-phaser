@@ -1,5 +1,6 @@
 import { dodgeTarget, markingPlayers, type RouteRoll } from "./rollPreview";
 import { type Player } from "../../types/Player";
+import { activeRules } from "../variants/activeMatch";
 
 interface Square {
   x: number;
@@ -122,7 +123,7 @@ function riskAt({
   const movement = movementRisk({
     rush: ctx.used + index + 1 > ctx.ma,
     dodge: markingPlayers(from, ctx.opponents).length > 0,
-    rushNeed: need(2 - ctx.rushModifier),
+    rushNeed: need(activeRules().rushTarget - ctx.rushModifier),
     dodgeNeed: dodgeTarget(ctx.player, from, step, ctx.opponents),
   });
   return { risk: stepRisk(movement, ball), pickedUp: ball !== null };

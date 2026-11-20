@@ -5,6 +5,24 @@ import { hirePlayer, purchase } from "../../src/game/rules/teamPricing";
 import { chooseFirstLinemanAsVeteran } from "../../src/game/rules/veteran";
 import type { GameType } from "../../src/game/variants/gameTypes";
 
+const stored: { lobby: unknown } = { lobby: null };
+const update = vi.fn();
+
+vi.mock("firebase/firestore", () => ({
+  doc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join("/") })),
+  runTransaction: vi.fn(
+    (_db: unknown, work: (tx: unknown) => Promise<unknown>) =>
+      work({
+        get: () =>
+          Promise.resolve({
+            exists: () => stored.lobby !== null,
+            data: () => stored.lobby,
+          }),
+        update,
+      })
+  ),
+}));
+
 vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(() => ({})),
 }));
@@ -13,6 +31,7 @@ import {
   DEFAULT_SETTINGS,
   type LobbyDoc,
   canStart,
+  startLobbyMatch,
 } from "../../src/firebase/lobby";
 
 const amazon = getRosterByRosterName(RosterName.AMAZON);
@@ -78,5 +97,37 @@ describe("starting a lobby match on a game type", () => {
       sevensTeam("away", false)
     );
     expect(canStart(lobby)).toBe(true);
+  });
+});
+
+describe("the Start Match button", () => {
+  it("starts the lobby as it now stands in Firestore", async () => {
+    update.mockClear();
+    stored.lobby = readyLobby(
+      "street-bowl",
+      sevensTeam("home", false),
+      sevensTeam("away", false)
+    );
+
+    await startLobbyMatch("ABC123");
+
+    expect(update).toHaveBeenCalledWith(
+      { path: "games/ABC123" },
+      expect.objectContaining({ status: "active" })
+    );
+  });
+
+  it("refuses when the stored lobby changed to a format a team cannot play", async () => {
+    update.mockClear();
+    stored.lobby = readyLobby(
+      "street-bowl",
+      sevensTeam("home", true),
+      sevensTeam("away", false)
+    );
+
+    await expect(startLobbyMatch("ABC123")).rejects.toThrow(
+      "Both coaches need a ready team that meets this game type's rules."
+    );
+    expect(update).not.toHaveBeenCalled();
   });
 });

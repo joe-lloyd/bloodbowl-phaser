@@ -2,6 +2,7 @@ import { getRosterByRosterName } from "../../data/RosterTemplates";
 import {
   type Team,
   type TeamRoster,
+  isLeagueMode,
   startingDedicatedFans,
 } from "../../types/Team";
 import { PositionKeyWord, TraitKeyWord } from "../../types/Player";
@@ -181,11 +182,33 @@ function staffViolations(team: Team, gameType: GameType): RosterViolation[] {
   });
 }
 
+function boughtDedicatedFans(team: Team): number {
+  return team.dedicatedFans - startingDedicatedFans(team.advancementMode);
+}
+
+function fanViolations(
+  team: Team,
+  draft: DraftRules,
+  label: string
+): RosterViolation[] {
+  if (
+    !draft.dedicatedFansInLeagueOnly ||
+    isLeagueMode(team.advancementMode) ||
+    boughtDedicatedFans(team) <= 0
+  )
+    return [];
+  return [
+    {
+      rule: "dedicated-fans",
+      detail: `${label} teams buy Dedicated Fans only in a league.`,
+    },
+  ];
+}
+
 function draftSpendUnder(team: Team, gameType: GameType): number {
   const own = teamDraftRules(team);
   const other = draftRulesFor(gameType);
-  const boughtFans =
-    team.dedicatedFans - startingDedicatedFans(team.advancementMode);
+  const boughtFans = boughtDedicatedFans(team);
   return (
     team.startingTreasury -
     team.treasury +
@@ -234,6 +257,7 @@ export function validateRosterLegality(
     ...bigGuyViolations(rostered, roster),
     ...veteranViolations(team, draft),
     ...staffViolations(team, gameType),
+    ...fanViolations(team, draft, label),
     ...budgetViolations(team, gameType),
   ];
 }

@@ -212,6 +212,18 @@ describe("legalGameTypes", () => {
     ]);
   });
 
+  it("keeps a Matched Play team with bought Dedicated Fans out of Beach Bowl (BB-D3)", () => {
+    const team = draftTeam("sevens", 600_000, "matched-play");
+    hire(team, { "Eagle Warrior": 7 });
+    chooseFirstLinemanAsVeteran(team);
+    expect(purchase(team, { type: "dedicated-fan" }).amount).not.toBeNull();
+
+    expect(legalGameTypes(team, amazon)).not.toContain("beach-bowl");
+    expect(
+      validateRosterLegality(team, amazon, "beach-bowl").map((v) => v.detail)
+    ).toEqual(["Beach Bowl teams buy Dedicated Fans only in a league."]);
+  });
+
   it("lets a Sevens team bring its Veteran to the other game types", () => {
     const team = draftTeam("sevens", 600_000);
     hire(team, { "Eagle Warrior": 7 });

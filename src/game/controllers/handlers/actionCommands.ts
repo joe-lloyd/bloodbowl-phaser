@@ -6,6 +6,7 @@ import { type GameEventMap, type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { moveAllowance } from "../../skills/movement";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
+import { activeRules } from "../../variants/activeMatch";
 
 export type ActionCommandService = Pick<IGameService,
   "getState" | "getPlayerById" | "getMovementUsed" | "rollBlockDice" | "resolveBlock" |
@@ -41,7 +42,10 @@ function rollBlock(context: ActionContext, data: GameEventMap[typeof GameEventNa
       }
       if (used + 1 > effectiveAttacker.stats.MA) {
         context.pendingBlitzBlock = data;
-        const target = requiredRoll(2, rushModifier(state, attacker));
+        const target = requiredRoll(
+          activeRules().rushTarget,
+          rushModifier(state, attacker)
+        );
         eventBus.emit(GameEventNames.UI_RequestConfirmation, {
           actionId: "blitz-rush-confirm",
           title: "Rush Required!",

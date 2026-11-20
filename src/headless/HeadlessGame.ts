@@ -32,7 +32,7 @@ const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
   "end-activation",
 ]);
 
-const tick: () => Promise<void> =
+export const tick: () => Promise<void> =
   typeof setImmediate === "function"
     ? () => new Promise((resolve) => setImmediate(resolve))
     : typeof MessageChannel === "function"

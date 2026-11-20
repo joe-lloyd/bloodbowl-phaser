@@ -138,7 +138,9 @@ interface Search {
 function searchFor(board: Board, player: Player, securing: boolean): Search {
   const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
 
-  const rush = rollChance(requiredRoll(2, weatherEffects(board.weather).rush));
+  const rush = rollChance(
+    requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
+  );
   const stunty = hasSkill(player.skills, SkillType.STUNTY);
   const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
   const dodgeInto = new DataView(new ArrayBuffer(9 * 8));

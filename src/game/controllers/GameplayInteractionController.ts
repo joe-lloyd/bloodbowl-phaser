@@ -542,8 +542,10 @@ export class GameplayInteractionController {
     world: { worldX: number; worldY: number },
     isSetupActive: boolean
   ): void {
-    const { valid, gridX, gridY } = this.getGridFromPointer(world);
-    if (valid && !isSetupActive && aimThrow(this, gridX, gridY)) return;
+    const { valid } = this.getGridFromPointer(world);
+    const square = this.pitch.worldToGrid(world.worldX, world.worldY);
+    const aimable = valid || this.passesAtWall(square);
+    if (aimable && !isSetupActive && aimThrow(this, square.x, square.y)) return;
     this.dropAim();
     this.handlePointerDown(world, isSetupActive);
   }

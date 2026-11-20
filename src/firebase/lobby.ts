@@ -483,18 +483,18 @@ export function canStart(lobby: LobbyDoc): boolean {
   );
 }
 
-export async function startMatch({
-  code,
-  settings,
-  hostUid,
-  guestUid,
-}: {
-  code: string;
+interface MatchStartSeats {
   settings: LobbySettings;
   hostUid: string;
   guestUid: string;
-}): Promise<void> {
-  const timer: TimerState = {
+}
+
+function startingClock({
+  settings,
+  hostUid,
+  guestUid,
+}: MatchStartSeats): TimerState {
+  return {
     deadline: null,
     pausedBy: null,
     pausedAt: null,
@@ -503,7 +503,36 @@ export async function startMatch({
       [guestUid]: settings.timeoutBankMs,
     },
   };
-  await updateDoc(lobbyRef(code), { status: "active", timer });
+}
+
+export async function startMatch({
+  code,
+  ...seats
+}: MatchStartSeats & { code: string }): Promise<void> {
+  await updateDoc(lobbyRef(code), {
+    status: "active",
+    timer: startingClock(seats),
+  });
+}
+
+export async function startLobbyMatch(code: string): Promise<void> {
+  await runTransaction(getDb(), async (tx) => {
+    const snapshot = await tx.get(lobbyRef(code));
+    if (!snapshot.exists()) throw new Error("No game found with that code.");
+    const lobby = readLobby(snapshot.data());
+    if (!lobby.guestUid || !canStart(lobby))
+      throw new Error(
+        "Both coaches need a ready team that meets this game type's rules."
+      );
+    tx.update(lobbyRef(code), {
+      status: "active",
+      timer: startingClock({
+        settings: lobby.settings,
+        hostUid: lobby.hostUid,
+        guestUid: lobby.guestUid,
+      }),
+    });
+  });
 }
 
 export function nextTurnDeadline(

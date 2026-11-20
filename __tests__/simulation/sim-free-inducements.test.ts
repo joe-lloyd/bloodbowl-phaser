@@ -1,11 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RosterName } from "../../src/types/Team";
 import { Inducement } from "../../src/types/Inducements";
-import { createSimGame, runMatch } from "../../src/simulation/runMatch";
 import { randomCoach } from "../../src/simulation/coaches/random";
 import type { GameType } from "../../src/game/variants/gameTypes";
 
 async function freeItemsWithoutInducements(gameType: GameType) {
+  const { createSimGame, runMatch } = await import(
+    "../../src/simulation/runMatch"
+  );
   const rosters = [RosterName.HUMAN, RosterName.ORC] as const;
   const game = createSimGame(3, [...rosters], 3, "sevens-lineup", gameType);
   await runMatch({
@@ -25,20 +27,38 @@ async function freeItemsWithoutInducements(gameType: GameType) {
   );
 }
 
+const STREET_BOWL_POTIONS = [
+  {
+    inducement: Inducement.MAGIC_POTION,
+    ownerTeamId: "team1",
+    provenance: "free",
+  },
+  {
+    inducement: Inducement.MAGIC_POTION,
+    ownerTeamId: "team2",
+    provenance: "free",
+  },
+];
+
 describe("a simulated match that buys no inducements", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
   it("still gives each Street Bowl team its free Magic Potion (SB-D5)", async () => {
-    expect(await freeItemsWithoutInducements("street-bowl")).toEqual([
-      {
-        inducement: Inducement.MAGIC_POTION,
-        ownerTeamId: "team1",
-        provenance: "free",
-      },
-      {
-        inducement: Inducement.MAGIC_POTION,
-        ownerTeamId: "team2",
-        provenance: "free",
-      },
-    ]);
+    expect(await freeItemsWithoutInducements("street-bowl")).toEqual(
+      STREET_BOWL_POTIONS
+    );
+  });
+
+  it("hands them out in a browser, which has no setImmediate", async () => {
+    vi.resetModules();
+    vi.stubGlobal("setImmediate", undefined);
+
+    expect(await freeItemsWithoutInducements("street-bowl")).toEqual(
+      STREET_BOWL_POTIONS
+    );
   });
 
   it("gives a Sevens team nothing", async () => {

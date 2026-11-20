@@ -5,7 +5,7 @@ import {
   keepMatchFormat,
   type MatchFormat,
 } from "../game/variants/activeMatch";
-import { HeadlessGame } from "../headless/HeadlessGame";
+import { HeadlessGame, tick } from "../headless/HeadlessGame";
 import { stabilizeIds } from "../headless/createHeadlessGame";
 import {
   type CommandResponse,
@@ -73,6 +73,8 @@ export interface MatchRecording {
   lineup?: Lineup;
 
   inducements?: boolean;
+
+  matchFormat?: MatchFormat;
   steps: RecordedStep[];
   final: { phase: string; score: [number, number]; hash: string };
   findings: Finding[];
@@ -216,7 +218,7 @@ export function createSimGame(
   rosters: [RosterName, RosterName],
   rerolls: number,
   lineup: Lineup = "test-team",
-  gameType: GameType = DEFAULT_GAME_TYPE
+  format: GameType | MatchFormat = DEFAULT_GAME_TYPE
 ): HeadlessGame {
   const build =
     lineup === "sevens-lineup" ? createLineupTeam : TeamFactory.createTestTeam;
@@ -229,7 +231,7 @@ export function createSimGame(
     team1,
     team2,
     startingPhase: GamePhase.SETUP,
-    format: seededFormat(gameType, seed),
+    format: typeof format === "string" ? seededFormat(format, seed) : format,
   });
 }
 
@@ -306,9 +308,7 @@ async function commitSimInducements(
     {},
     inventory
   );
-  for (let i = 0; i < 20; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
+  for (let i = 0; i < 20; i++) await tick();
 }
 
 function finding(
@@ -448,6 +448,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
 
     for (const command of candidate.commands) {
       const before = game.snapshot();
+      keepMatchFormat(format);
       const response = await game.execute(command);
       keepMatchFormat(format);
       countEvents(stats, response.events, team, teamIndex);
@@ -504,6 +505,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     rerolls,
     lineup: "sevens-lineup",
     inducements,
+    ...(format.gameType === DEFAULT_GAME_TYPE ? {} : { matchFormat: format }),
     steps,
     final: summarize(final),
     findings,

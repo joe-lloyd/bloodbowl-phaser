@@ -50,7 +50,8 @@ export async function replayRecording(
     recording.seed,
     recording.rosters,
     recording.rerolls,
-    recording.lineup
+    recording.lineup,
+    recording.matchFormat
   );
   await prepareSimInducements(game, !!recording.inducements);
   let divergedAt: number | null = null;

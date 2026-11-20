@@ -141,7 +141,8 @@ export async function buildMatchDump(
       recording.seed,
       recording.rosters,
       recording.rerolls,
-      recording.lineup
+      recording.lineup,
+      recording.matchFormat
     );
   if (!initial) await prepareSimInducements(game, !!recording.inducements);
   const start = game.snapshot();
