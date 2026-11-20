@@ -37,8 +37,12 @@ describe("the game's compositor matches the sprite factory", () => {
         const layers = expected.layers.map((name) => readLayer(model, body, name));
         const shades = expected.layers.slice(1).filter((name) => art.layered.bodies[body]?.includes(`${name}~shade`))
           .map((name) => readLayer(model, body, `${name}~shade`));
-        const finished = finishFrame(composeFrame({ layers, shades }, expected.frame, art.frame), art.layered.palette);
-        expect(Array.from(finished)).toEqual(expand(expected.rle));
+        const done = finishFrame(composeFrame({ layers, shades }, expected.frame), art.layered.palette);
+        const full = new Int16Array(art.frame * art.frame).fill(-1);
+        for (let row = 0; row < done.height; row += 1) {
+          full.set(done.pixels.subarray(row * done.width, (row + 1) * done.width), (done.y + row) * art.frame + done.x);
+        }
+        expect(Array.from(full)).toEqual(expand(expected.rle));
       }
     });
   }

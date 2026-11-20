@@ -1,7 +1,10 @@
 import type { FrameRect, LayerData } from "../../../boundary/layeredArt";
 
 export interface FrameBuffers {
-  readonly size: number;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
   readonly idx: Int16Array;
   readonly code: Uint8Array;
 }
@@ -47,9 +50,10 @@ type RowOp = (layer: LayerData, target: Target, span: Span) => void;
 
 function eachRow(layer: LayerData, rect: FrameRect, apply: { target: Target; op: RowOp; base: boolean }): void {
   const [x, y, width, height, offset] = rect;
+  const { target } = apply;
   for (let row = 0; row < height; row += 1) {
-    const span = { source: offset + row * width, dest: (y + row) * apply.target.size + x, width, base: apply.base };
-    apply.op(layer, apply.target, span);
+    const dest = (y + row - target.y) * target.width + x - target.x;
+    apply.op(layer, target, { source: offset + row * width, dest, width, base: apply.base });
   }
 }
 
@@ -58,13 +62,31 @@ export interface LookLayers {
   readonly shades: readonly LayerData[];
 }
 
-export function composeFrame(look: LookLayers, name: string, size: number): FrameBuffers {
+function frameUnion(layers: readonly LayerData[], name: string): { x: number; y: number; width: number; height: number } {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = 0;
+  let y1 = 0;
+  for (const layer of layers) {
+    const rect = layer.frames[name];
+    if (!rect) continue;
+    x0 = Math.min(x0, rect[0]);
+    y0 = Math.min(y0, rect[1]);
+    x1 = Math.max(x1, rect[0] + rect[2]);
+    y1 = Math.max(y1, rect[1] + rect[3]);
+  }
+  return x1 > 0 ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : { x: 0, y: 0, width: 0, height: 0 };
+}
+
+export function composeFrame(look: LookLayers, name: string): FrameBuffers {
+  const area = frameUnion(look.layers, name);
+  const count = area.width * area.height;
   const target: Target = {
-    size,
-    idx: new Int16Array(size * size).fill(-1),
-    code: new Uint8Array(size * size),
-    depth: new Uint16Array(size * size).fill(256),
-    fromBase: new Uint8Array(size * size),
+    ...area,
+    idx: new Int16Array(count).fill(-1),
+    code: new Uint8Array(count),
+    depth: new Uint16Array(count).fill(256),
+    fromBase: new Uint8Array(count),
   };
   look.layers.forEach((layer, n) => {
     const rect = layer.frames[name];
@@ -76,3 +98,4 @@ export function composeFrame(look: LookLayers, name: string, size: number): Fram
   }
   return target;
 }
+
