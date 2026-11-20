@@ -14,7 +14,7 @@ anything.
 """
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, cap, ellipsoid, flat_cone, lerp, UP, basis, D, surf
 from teams import greenskins_dwarfs_common as gd
 
@@ -108,15 +108,22 @@ class UnderworldTroll(TrollBase):
             _bands(J, L, tag, side, "kit2")
 
 # ---------------------------------------------------------------------------- Ogre team
+def _ogre_hair(J, L, tag, pose):
+    """Hair a look option adds to a bald ogre: a bound topknot or a short mohawk."""
+    if L.get("gd_topknot"):
+        gd.topknot(J, tag, L["gd_topknot"], "kit2", h=0.34, pose=pose)
+    if L.get("gd_mohawk"):
+        gd.mohawk(J, tag, L["gd_mohawk"], h=0.22, n=6)
+
 @register
-class OgreBlocker(Biped):
+class OgreBlocker(looks.Fine, Biped):
     """A wall of fat and muscle: bald, drooping moustache, crossed straps holding a riveted kit gut plate,
     one iron shoulder, kit trousers, fur boot tops. Slaps his belly."""
     key = "ogre_blocker"
     race = "ogre"
     knobs = dict(belly=1.5, shoulders=1.35, head=1.0, neck=1.3)
     layout = dict(legs="kit2", pant_stripe="kit1", boots="boot", cuff="fur_brown", belt="leather", buckle=None, arm_band="kit2",
-                  brow="hair", loin="kit1", loin_trim="kit2")
+                  brow="hair", loin="kit1", loin_trim="kit2", gd_tache=True, gd_gut=True, gd_shplate=True)
     stance = dict(lean=-2, legs={"l": (5, 18, 10), "r": (-4, 18, 10)}, arms={"l": (6, 38, 40, -4), "r": (6, 38, 40, -4)},
                   hands="relaxed")
     stride, arm_swing, run_lean, jump = 26, 22, 9, 0.08
@@ -130,28 +137,44 @@ class OgreBlocker(Biped):
         p["look"] = 10 * w["s1"]
 
     def extras(self, J, P, L, tag, pose):
-        gd.brute_jaw(J, L, tag, 1.1)
-        gd.big_tusks(J, tag, 0.55, spread=0.4)
-        gd.moustache(J, tag, "hair", 1.1, 0.055)
+        super().extras(J, P, L, tag, pose)
+        fem = L.get("sex") == "f"
+        gd.brute_jaw(J, L, tag, 0.9 if fem else 1.1)
+        gd.big_tusks(J, tag, 0.4 if fem else 0.55, spread=0.4)
+        if L.get("gd_tache"):
+            gd.moustache(J, tag, "hair", 1.1, 0.055)
+        if L.get("gd_wrap"):
+            gd.bust_band(J, P, tag, L["gd_wrap"], "kit1")
+        _ogre_hair(J, L, tag, pose)
+        if L.get("gd_hoops"):
+            gd.hoops(J, tag, L["gd_hoops"], r=0.075)
         gd.baldric(J, P, tag, "leather", sd=1, r=0.05, bot=0.16, name="bx")
         gd.baldric(J, P, tag, "leather", sd=-1, r=0.05, bot=0.16, name="by")
-        # larger kit1 gut plate on a wide dark iron rim, kit2 diamond on the front (contrast against tan skin)
-        gp = gd.gut_plate(J, P, tag, "kit1", "darkmetal", h=0.16, rx=0.4, rz=0.33, off=0.06, boss="brass", emblem="kit2")
-        ellipsoid(tag + "gutrim2", gp - J["F"] * 0.035, (0.4 * 1.24, 0.05, 0.33 * 1.24), "darkmetal", basis(J["X"], J["F"], J["u"]), seg=16)
-        gd.shoulder_plate(J, tag, "l", "darkmetal", "kit1", 1.3, spike="metal")
+        if L.get("gd_gut"):
+            # larger kit1 gut plate on a wide dark iron rim, kit2 diamond on the front (contrast against tan skin)
+            gp = gd.gut_plate(J, P, tag, "kit1", "darkmetal", h=0.16, rx=0.4, rz=0.33, off=0.06, boss="brass", emblem="kit2")
+            ellipsoid(tag + "gutrim2", gp - J["F"] * 0.035, (0.4 * 1.24, 0.05, 0.33 * 1.24), "darkmetal", basis(J["X"], J["F"], J["u"]), seg=16)
+        if L.get("gd_shplate"):
+            gd.shoulder_plate(J, tag, "l", "darkmetal", "kit1", 1.3, spike="metal")
         for side in ("l", "r"):
             _bands(J, L, tag, side, "kit1", k=1.1)
         gd.rivets(J, P, tag, "briv", 0.07, "brass", angles=(-150, -100, -50, 50, 100, 150), off=0.06, r=0.03)
 
+    def details(self, J, P, L, tag, pose):
+        if not L.get("gd_hoops"):
+            gd.earring(J, tag, "gold", 1, r=0.05)
+        for i, (h, a) in enumerate(((0.36, 150), (0.3, -160), (0.42, -130))):     # old scars across the back
+            gd.strap(J, P, tag, "scar%d" % i, "lip_h", a - 14, h + 0.03, a + 14, h - 0.03, r=0.014, off=0.008, n=3)
+
 @register
-class OgreRunt(Biped):
+class OgreRunt(looks.Fine, Biped):
     """The punter: a younger, leaner ogre in a kit vest and strapped kit cap, with one huge iron-shod
     kicking boot. Swings the boot to keep it warm."""
     key = "ogre_runt"
     race = "ogre"
     knobs = dict(torso=1.3, belly=1.15, shoulders=1.2, limb=1.42, legs=0.98, head=1.08)
     layout = dict(jersey="kit1", legs="kit2", pant_stripe="kit1", boots="boot", cuff="rags", belt="leather", buckle="brass",
-                  helm="skull", helm_mat="kit2", brow="hair_brown", wraps="rags")
+                  helm="skull", helm_mat="kit2", brow="hair_brown", wraps="rags", gd_runtcap=True, gd_kboot="metal")
     stance = dict(lean=3, twist=-8, legs={"l": (10, 13, 10), "r": (-10, 13, 10)}, arms={"l": (10, 28, 34), "r": (4, 30, 30)},
                   hands="fist")
     stride, arm_swing, run_lean, jump = 32, 28, 12, 0.12
@@ -175,29 +198,47 @@ class OgreRunt(Biped):
         return pose
 
     def extras(self, J, P, L, tag, pose):
-        gd.brute_jaw(J, L, tag, 1.05)
+        super().extras(J, P, L, tag, pose)
+        fem = L.get("sex") == "f"
+        gd.brute_jaw(J, L, tag, 0.88 if fem else 1.05)
         c, X, F, U, s = gd.hf(J)
-        cap(tag + "capband", c + U * 0.02, (s[0] * 1.21, s[1] * 1.21, s[2] * 1.19), "kit1", U, cut=0.2, hi=0.44, rot=J["head_R"],
-            thick=0.025)
-        gd.big_tusks(J, tag, 0.5, spread=0.4)
-        tube(tag + "chinstrap", [c + X * s[0] * 1.0, c - U * s[2] * 1.02 + F * s[1] * 0.45, c - X * s[0] * 1.0], [0.03] * 3,
-             "leather", n=6)
-        ball_at(tag + "capstud", c + U * s[2] * 1.18, 0.05, "brass")
-        k = L["limb"] * core.LIMB
-        hip, knee, ankle, toe = J["legs"]["r"]
-        tube(tag + "kboot", [lerp(knee, ankle, 0.25), lerp(knee, ankle, 0.6), ankle - UP * 0.02], [0.135 * k, 0.125 * k, 0.115 * k],
-             "metal", n=10)
-        tube(tag + "kband", [lerp(knee, ankle, 0.2), lerp(knee, ankle, 0.34)], [0.142 * k, 0.142 * k], "kit2", n=10)
-        fd = (toe - ankle).normalized()
-        ellipsoid(tag + "ktoe", ankle + fd * (toe - ankle).length * 0.75 - UP * 0.02, (0.125 * k, 0.17 * k, 0.085 * k), "metal",
-                  basis(fd.cross(UP).normalized(), fd, UP), seg=10)
-        cone(tag + "kspike", toe + fd * 0.02, toe + fd * 0.16 + UP * 0.03, 0.05 * k, "brass", 6)
-        ball_at(tag + "kknee", knee + J["hF"] * 0.05, 0.1 * k, "metal")
+        if L.get("gd_runtcap"):
+            cap(tag + "capband", c + U * 0.02, (s[0] * 1.21, s[1] * 1.21, s[2] * 1.19), "kit1", U, cut=0.2, hi=0.44, rot=J["head_R"],
+                thick=0.025)
+            tube(tag + "chinstrap", [c + X * s[0] * 1.0, c - U * s[2] * 1.02 + F * s[1] * 0.45, c - X * s[0] * 1.0], [0.03] * 3,
+                 "leather", n=6)
+            ball_at(tag + "capstud", c + U * s[2] * 1.18, 0.05, "brass")
+        gd.big_tusks(J, tag, 0.38 if fem else 0.5, spread=0.4)
+        if L.get("gd_hoops"):
+            gd.hoops(J, tag, L["gd_hoops"], r=0.07)
+        if L.get("gd_kboot"):
+            self.kick_boot(J, L, tag, L["gd_kboot"])
         gd.strap(J, P, tag, "vest", "kit2", 40, P["sh_h"], -60, 0.12, r=0.045)
         _bands(J, L, tag, "l", "kit2", ts=(0.25, 0.6))
 
+    def kick_boot(self, J, L, tag, mat):
+        """One huge shod kicking boot on the right leg, in iron or painted in the team colour."""
+        k = L["limb"] * core.LIMB
+        hip, knee, ankle, toe = J["legs"]["r"]
+        band = "kit1" if mat == "kit2" else "kit2"
+        tube(tag + "kboot", [lerp(knee, ankle, 0.25), lerp(knee, ankle, 0.6), ankle - UP * 0.02], [0.135 * k, 0.125 * k, 0.115 * k],
+             mat, n=10)
+        tube(tag + "kband", [lerp(knee, ankle, 0.2), lerp(knee, ankle, 0.34)], [0.142 * k, 0.142 * k], band, n=10)
+        fd = (toe - ankle).normalized()
+        ellipsoid(tag + "ktoe", ankle + fd * (toe - ankle).length * 0.75 - UP * 0.02, (0.125 * k, 0.17 * k, 0.085 * k), mat,
+                  basis(fd.cross(UP).normalized(), fd, UP), seg=10)
+        cone(tag + "kspike", toe + fd * 0.02, toe + fd * 0.16 + UP * 0.03, 0.05 * k, "brass", 6)
+        ball_at(tag + "kknee", knee + J["hF"] * 0.05, 0.1 * k, mat)
+
+    def details(self, J, P, L, tag, pose):
+        X, F, u = J["X"], J["F"], J["u"]
+        hip, knee = J["legs"]["l"][:2]
+        box(tag + "kneepatch", lerp(hip, knee, 0.82) + J["hF"] * 0.13, (0.11, 0.03, 0.1), "kit1", basis(X, F, u))
+        if not L.get("gd_hoops"):
+            gd.earring(J, tag, "brass", -1, r=0.04)
+
 @register
-class Gnoblar(Biped):
+class Gnoblar(looks.Fine, Biped):
     """Tiny scrappy servant: olive skin, enormous drooping ears and nose, ragged kit smock, kit neckerchief,
     a bedroll roped to his back. Scratches his ear like a dog."""
     key = "gnoblar"
@@ -205,7 +246,7 @@ class Gnoblar(Biped):
     knobs = dict(legs=0.5, head=1.32, torso=0.82, limb=0.72, hunch=12, arms=0.9)
     layout = dict(BARE, skin="skin_nurgle", lip="skin_nurgle", torso="kit1", arms="skin_nurgle", legs="skin_nurgle",
                   boots="skin_nurgle", coat="robe", robe_len=0.36, jag=0.55, coat_mat="kit1", robe_lining="kit1", hem=None,
-                  neckband="kit2", belt="kit2", buckle=None, eyes="dark", fangs=False)
+                  neckband="kit2", belt="kit2", buckle=None, eyes="dark", fangs=False, gd_roll=True)
     stance = dict(lean=8, legs={"l": (8, 14, 16), "r": (-6, 14, 16)}, arms={"l": (20, 26, 60, 0), "r": (20, 26, 60, 0)},
                   hands="relaxed")
     stride, arm_swing, jump = 42, 40, 0.26
@@ -221,13 +262,36 @@ class Gnoblar(Biped):
     def extras(self, J, P, L, tag, pose):
         gd.big_ears(J, L, tag, length=0.42, lift=-0.35, width=0.55, back=0.12)
         gd.long_nose(J, L, tag, 0.22, 0.07, droop=0.5)
+        super().extras(J, P, L, tag, pose)
         X, B, u = J["X"], J["B"], J["u"]
-        p = surf(J, P, 0.3, 180, 0.11)
-        parts.cylinder(tag + "roll", p - X * 0.22, p + X * 0.22, 0.11, "kit2", seg=8)
-        for sx in (-0.11, 0.11):
-            parts.cylinder(tag + "rollrope%d" % (sx > 0), p + X * (sx - 0.02), p + X * (sx + 0.02), 0.108, "rope", seg=8)
+        if L.get("gd_roll"):
+            p = surf(J, P, 0.3, 180, 0.11)
+            parts.cylinder(tag + "roll", p - X * 0.22, p + X * 0.22, 0.11, "kit2", seg=8)
+            for sx in (-0.11, 0.11):
+                parts.cylinder(tag + "rollrope%d" % (sx > 0), p + X * (sx - 0.02), p + X * (sx + 0.02), 0.108, "rope", seg=8)
+        if L.get("gd_basket"):
+            self.basket(J, P, tag)
         q = surf(J, P, 0.22, -28, 0.035)
         box(tag + "patch", q, (0.09, 0.03, 0.09), "kit2", basis(X, J["F"], u))
+
+    def basket(self, J, P, tag):
+        """A tall wicker basket strapped to his back, a kit cloth tied over the top and a stick poking out."""
+        X, B, u = J["X"], J["B"], J["u"]
+        R = basis(X, B, u)
+        p = surf(J, P, 0.3, 180, 0.15)
+        box(tag + "basket", p, (0.34, 0.22, 0.42), "rope", R)
+        for i, h in enumerate((-0.12, 0.06)):
+            box(tag + "basketband%d" % i, p + u * h, (0.36, 0.24, 0.04), "wood", R)
+        box(tag + "basketcloth", p + u * 0.23, (0.36, 0.24, 0.06), "kit2", R)
+        tube(tag + "basketstick", [p + X * 0.1 + u * 0.2, p + X * 0.16 + u * 0.48 + B * 0.04], [0.022, 0.018], "wood", n=5)
+        for sd in (-1, 1):
+            tube(tag + "basketstrap%d" % sd, [surf(J, P, P["sh_h"], 180 - sd * 30, 0.04), surf(J, P, P["sh_h"] - 0.02, sd * 40, 0.04),
+                                              surf(J, P, 0.16, sd * 50, 0.04)], [0.022] * 3, "rope", n=5)
+
+    def details(self, J, P, L, tag, pose):
+        gd.earring(J, tag, "brass", 1, r=0.03, drop=0.05)
+        q = surf(J, P, 0.08, 34, 0.04)
+        box(tag + "patch2", q, (0.07, 0.03, 0.08), "rags", basis(J["X"], J["F"], J["u"]))
 
 # ---------------------------------------------------------------------------- Underworld Denizens
 @register
@@ -290,13 +354,13 @@ class MutantRatOgre(Biped):
             _bands(J, L, tag, side, "kit2", k=1.3)
 
 @register
-class UnderworldGoblin(Biped):
+class UnderworldGoblin(looks.Fine, Biped):
     """Hooded tunnel goblin: kit hood with the ears poking through, glowing eyes, a crystal cluster on one
     shoulder and a thin mutant tail."""
     key = "goblin_underworld"
     race = "goblin"
     layout = dict(helm="hood", hood_mat="kit1", torso="kit1", arms="skin_goblin", legs="rags", boots="leather", cuff=None,
-                  belt="kit2", buckle="gd_warp", loin="kit2", loin_trim="kit1", wraps="bandage",
+                  belt="kit2", buckle="gd_warp", loin="kit2", loin_trim="kit1", wraps="bandage", gd_shcry=True,
                   tail=dict(len=0.75, r=0.04, mat="skin_goblin", up=0.45, tip="gd_warp"))
     stance = dict(lean=10, legs={"l": (10, 13, 18), "r": (-8, 13, 16)}, arms={"l": (18, 22, 58, 0), "r": (26, 22, 70, 0)},
                   hands="open")
@@ -313,11 +377,20 @@ class UnderworldGoblin(Biped):
     def extras(self, J, P, L, tag, pose):
         gd.big_ears(J, L, tag, length=0.34, lift=0.25, width=0.42)
         gd.long_nose(J, L, tag, 0.15, 0.05)
+        super().extras(J, P, L, tag, pose)
         gd.glow_eyes(J, tag, "eye_green", 1.25)
-        sh = J["arms"]["l"][0]
-        gd.crystals(tag, "shcry", sh + J["u"] * 0.06, J["u"] - J["X"] * 0.5, 0.32, 3, seed=5)
+        if L.get("gd_shcry"):
+            sh = J["arms"]["l"][0]
+            gd.crystals(tag, "shcry", sh + J["u"] * 0.06, J["u"] - J["X"] * 0.5, 0.32, 3, seed=5)
+        if L.get("gd_hcry"):
+            c, X, F, U, s = gd.hf(J)
+            gd.crystals(tag, "hcry", c + U * s[2] * 1.0 + X * s[0] * 0.3, U + X * 0.4 - F * 0.2, 0.3, 3, seed=9)
         gd.crystals(tag, "bkcry", surf(J, P, 0.3, 170, -0.02), J["B"] + J["u"] * 0.5, 0.2, 2, seed=8)
         tband(tag + "hem", J, P, [0.06, 0.1], "kit2", k=1.1, add=0.02)
+
+    def details(self, J, P, L, tag, pose):
+        gd.earring(J, tag, "gd_warp", -1, r=0.03, drop=0.02)
+        gd.rivets(J, P, tag, "beltstud", 0.07, "gd_warp", angles=(-110, -60, 60, 110), off=0.06, r=0.018)
 
 @register
 class UnderworldSnotling(Biped):
@@ -326,7 +399,7 @@ class UnderworldSnotling(Biped):
     race = "snotling"
     knobs = dict(limb=0.85, torso=0.85)
     layout = dict(BARE, torso="kit1", arms="skin_goblin", legs="skin_goblin", boots="skin_goblin", loin="kit1", loin_trim="kit2",
-                  neckband="kit2", belt="kit2", buckle=None)
+                  neckband="kit2", belt="kit2", buckle=None, gd_horn="one")
     stance = dict(lean=4, legs={"l": (6, 14, 12), "r": (-5, 14, 12)}, arms={"l": (30, 40, 70, 0), "r": (30, 40, 70, 0)},
                   hands="open")
     stride, arm_swing, jump = 44, 44, 0.3
@@ -343,4 +416,13 @@ class UnderworldSnotling(Biped):
         gd.big_ears(J, L, tag, length=0.28, lift=0.2, width=0.45)
         gd.glow_eyes(J, tag, "eye_green", 1.3)
         c, X, F, U, s = gd.hf(J)
-        gd.crystals(tag, "horn", c + U * s[2] * 0.8 + X * s[0] * 0.2, U + X * 0.25 - F * 0.1, 0.42, 3, seed=6)
+        horn = L.get("gd_horn")
+        if horn == "one":
+            gd.crystals(tag, "horn", c + U * s[2] * 0.8 + X * s[0] * 0.2, U + X * 0.25 - F * 0.1, 0.42, 3, seed=6)
+        elif horn == "twin":
+            for sd in (-1, 1):
+                gd.crystals(tag, "horn%d" % sd, c + U * s[2] * 0.7 + X * s[0] * 0.45 * sd, U + X * 0.55 * sd - F * 0.1, 0.3, 2,
+                            seed=6 + sd)
+        elif horn == "back":
+            gd.crystals(tag, "bkcry", surf(J, P, 0.3, 180, -0.02), J["B"] + J["u"] * 0.7, 0.34, 3, seed=12)
+            gd.crystals(tag, "shcry", J["arms"]["r"][0] + J["u"] * 0.05, J["u"] + J["X"] * 0.5, 0.24, 2, seed=13)
