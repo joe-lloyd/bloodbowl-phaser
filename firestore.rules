@@ -48,8 +48,8 @@ service cloud.firestore {
     // A coach's public card: the name other coaches see, the friend code
     // that finds them, and when they last had the game open. Fetched one
     // coach at a time; nobody can list every coach. The app fits a name to
-    // 40 characters; one character can take several units here, so the cap
-    // only stops an oversized write.
+    // 40 characters and 200 UTF-8 bytes, which this cap allows however it
+    // counts; it only stops an oversized write.
     function validFriendCode(code) {
       return code is string && code.matches('^[A-HJ-NP-Z2-9]{8}$');
     }

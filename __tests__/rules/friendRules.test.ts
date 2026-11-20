@@ -134,6 +134,20 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       expect(await as(alice, () => getCoachName(alice))).toBe(`${"B".repeat(39)}${family}`);
     });
 
+    it("fits forty wide characters into what the rules accept", async () => {
+      const alice = uniqueUid("alice");
+      const family = "👨‍👩‍👧‍👦";
+      await setDoc(doc(dbFor(alice), "users", alice), {
+        coachName: family.repeat(40),
+      });
+
+      expect(
+        (await as(alice, () => ensureCoachProfile(alice))).coachName
+      ).toBe(family.repeat(8));
+      await as(alice, () => setCoachName(alice, family.repeat(40)));
+      expect(await as(alice, () => getCoachName(alice))).toBe(family.repeat(8));
+    });
+
     it("is written only by its coach, and a code only claimed for yourself", async () => {
       const alice = uniqueUid("alice");
       const mallory = uniqueUid("mallory");

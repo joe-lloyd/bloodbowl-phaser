@@ -19,13 +19,23 @@ import {
 import { getDb } from "./config";
 
 const COACH_NAME_LIMIT = 40;
+const COACH_NAME_BYTES = 200;
+
+function byteLength(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
 
 function fittedName(name: string | undefined): string | undefined {
-  const characters = Array.from(
-    new Intl.Segmenter().segment(name?.trim() ?? ""),
-    ({ segment }) => segment
-  );
-  const fitted = characters.slice(0, COACH_NAME_LIMIT).join("").trim();
+  let fitted = "";
+  let characters = 0;
+  for (const { segment } of new Intl.Segmenter().segment(name?.trim() ?? "")) {
+    const longer = fitted + segment;
+    if (characters === COACH_NAME_LIMIT || byteLength(longer) > COACH_NAME_BYTES)
+      break;
+    fitted = longer;
+    characters++;
+  }
+  fitted = fitted.trim();
   return fitted === "" ? undefined : fitted;
 }
 
