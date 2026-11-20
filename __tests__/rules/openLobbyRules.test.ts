@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -26,10 +27,15 @@ vi.mock("../../src/firebase/config", async () => {
 });
 
 import {
+  commitSeed,
   createLobby,
+  fetchLobby,
+  getActiveMatchCode,
   heartbeat,
   joinLobby,
+  leaveGuestSeat,
   type LobbyDoc,
+  revealSeed,
   setLobbyListed,
   subscribeOpenLobbies,
 } from "../../src/firebase/lobby";
@@ -228,5 +234,52 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     expect(await openGameAppears(uniqueUid("stranger"), live)).toBe(true);
     const first = await getDoc(doc(dbFor(ADMIN), "games", fixtureValue(stale[0])));
     expect(first.get("listed")).toBe(false);
+  });
+
+  it("let a guest give up their own seat while the lobby waits, and nothing else", async () => {
+    const host = uniqueUid("host");
+    const guest = uniqueUid("guest");
+    const stranger = uniqueUid("stranger");
+    const { code } = await as(host, () => createLobby(host, "Host"));
+    await as(guest, () => joinLobby(code, guest, "Guest"));
+    const ref = (uid: string) => doc(dbFor(uid), "games", code);
+
+    await denied(updateDoc(ref(stranger), { guestUid: null, [`players.${guest}`]: deleteField() }));
+    await denied(
+      updateDoc(ref(guest), { guestUid: null, [`players.${guest}`]: deleteField(), listed: true })
+    );
+    await as(guest, () => leaveGuestSeat(code, guest));
+    const left = await as(host, () => fetchLobby(code));
+    expect([left?.guestUid, Object.keys(left?.players ?? {})]).toEqual([null, [host]]);
+    expect(await as(guest, () => getActiveMatchCode(guest))).toBeNull();
+
+    await as(guest, () => joinLobby(code, guest, "Guest"));
+    await updateDoc(doc(dbFor(ADMIN), "games", code), { status: "active" });
+    expect(await as(guest, () => leaveGuestSeat(code, guest))).toBe("active");
+    expect((await as(host, () => fetchLobby(code)))?.guestUid).toBe(guest);
+    await denied(updateDoc(ref(guest), { guestUid: null, [`players.${guest}`]: deleteField() }));
+  });
+
+  it("clear both seeds when a guest leaves, so the host commits a fresh secret", async () => {
+    const host = uniqueUid("host");
+    const guest = uniqueUid("guest");
+    const { code } = await as(host, () => createLobby(host, "Host"));
+    await as(guest, () => joinLobby(code, guest, "Guest"));
+    await as(host, () => commitSeed(code, host));
+    await as(guest, () => commitSeed(code, guest));
+    await as(host, () => revealSeed(code, host));
+    const first = (await as(host, () => fetchLobby(code)))?.seedCommits?.[host];
+
+    await denied(
+      updateDoc(doc(dbFor(guest), "games", code), { guestUid: null, [`players.${guest}`]: deleteField() })
+    );
+    await as(guest, () => leaveGuestSeat(code, guest));
+    const left = await as(host, () => fetchLobby(code));
+    expect([left?.seedCommits ?? {}, left?.seedReveals ?? {}]).toEqual([{}, {}]);
+
+    await as(host, () => commitSeed(code, host));
+    const second = (await as(host, () => fetchLobby(code)))?.seedCommits?.[host];
+    expect(second).toBeDefined();
+    expect(second).not.toBe(first);
   });
 });

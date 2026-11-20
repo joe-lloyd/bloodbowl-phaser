@@ -6427,7 +6427,7 @@
       "count": 2
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 6
+      "count": 5
     },
     "complexity": {
       "count": 4
@@ -6439,9 +6439,6 @@
       "count": 1
     },
     "react-hooks/set-state-in-effect": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
       "count": 1
     }
   },

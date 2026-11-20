@@ -28,13 +28,10 @@ import {
   revealSeed,
   joinLobby,
   selectTeam,
-  setLobbyListed,
   setReady,
   startLobbyMatch,
   subscribeLobby,
   updateSettings,
-  getActiveMatchCode,
-  fetchLobby,
   lobbyGameType,
 } from "../../../firebase/lobby";
 import { resolveCoachName } from "../../../firebase/coaches";
@@ -44,8 +41,12 @@ import { FriendButton, InviteFriendsPanel } from "../social/LobbyFriends";
 import { OpenGames } from "../social/OpenGames";
 import { OpenLobbyToggle } from "../social/OpenLobbyToggle";
 import { type Team } from "../../../types/Team";
-import type { CompetitionContext } from "../../../competition/types";
 import type { HostedFixture } from "../competition/useFixtureLaunch";
+import {
+  currentLobby,
+  unlistWhenHostLeaves,
+  vacateWhenGuestLeaves,
+} from "./lobbyChoices";
 import {
   acceptLobbyInvite,
   sendFixtureInvite,
@@ -58,13 +59,6 @@ import { teamPlaysGameType } from "../../../game/rules/rosterLegality";
 import { GameTypeSelector } from "../common/GameTypeSelector";
 
 type Mode = "host" | "join";
-
-function unlistWhenHostLeaves(lobby: LobbyDoc, uid: string): void {
-  if (lobby.hostUid !== uid || lobby.listed !== true) return;
-  setLobbyListed(lobby, false).catch((error: unknown) => {
-    console.warn("[open lobby] could not unlist the lobby on leave", error);
-  });
-}
 
 export function OnlineLobby({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
@@ -93,16 +87,14 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     setBusy(true);
     void (async () => {
       try {
-        const existing = await getActiveMatchCode(user.uid);
+        const found = await currentLobby(user.uid, competitionFixture);
         if (cancelled) return;
-        const doc = existing ? await fetchLobby(existing) : null;
-        if (cancelled) return;
-        if (doc?.status === "active") {
-          navigate(`/online/play/${String(existing)}`, { replace: true });
+        if (found?.playing) {
+          navigate(`/online/play/${found.code}`, { replace: true });
           return;
         }
-        if (doc && reusableLobby(doc, competitionFixture)) {
-          setCode(doc.code);
+        if (found) {
+          setCode(found.code);
           return;
         }
 
@@ -244,7 +236,14 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           me={me}
           onLeave={() => {
             unlistWhenHostLeaves(lobby, user.uid);
-            void navigate("/");
+            setError(null);
+            vacateWhenGuestLeaves(lobby, user.uid)
+              .then(() => navigate("/"))
+              .catch((reason: unknown) => {
+                setError(
+                  `Could not give up your seat: ${reason instanceof Error ? reason.message : String(reason)}`
+                );
+              });
           }}
           onReady={() => void setReady(lobby.code, user.uid, !me?.ready)}
           onStart={() => {
@@ -318,28 +317,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
 
       {error && <ErrorText text={error} />}
     </PageShell>
-  );
-}
-
-function sameFixture(
-  held: CompetitionContext | undefined,
-  wanted: CompetitionContext | undefined
-): boolean {
-  if (!held || !wanted) return held === wanted;
-  return (
-    held.competitionType === wanted.competitionType &&
-    held.competitionId === wanted.competitionId &&
-    held.fixtureId === wanted.fixtureId
-  );
-}
-
-function reusableLobby(
-  lobby: LobbyDoc,
-  fixture: HostedFixture | undefined
-): boolean {
-  return (
-    lobby.status === "lobby" &&
-    sameFixture(lobby.competitionContext, fixture?.context)
   );
 }
 
