@@ -61,7 +61,7 @@ test("the house bot hosts games until stopped", async () => {
   await ensureTeam(page);
   await logFriendCode(page);
 
-  for (let played = 0; MATCHES === 0 || played < MATCHES; played++) {
+  for (let played = 0; MATCHES === 0 || played < MATCHES; ) {
     await page.goto("/");
     await signOut.waitFor({ timeout: 60_000 });
     const code = await hostFreshGame(page);
@@ -70,6 +70,7 @@ test("the house bot hosts games until stopped", async () => {
     log(`match ${page.url().split("/").pop() ?? code} started`);
     if ((await playMatch(page)) === "full time") await leaveFullTime(page);
     log(`match ${code} over`);
+    played++;
   }
   await context.close();
 });
@@ -177,7 +178,9 @@ async function waitForMatch(page: Page): Promise<boolean> {
     }
     guest = await guestSince(page, guest);
     if (guest !== null && Date.now() - guest > WAIT_AS_GUEST_MS) {
-      log("the host never started; going back to hosting");
+      log("the host never started; leaving the seat and hosting again");
+      await page.getByRole("button", { name: "Leave" }).click().catch(() => undefined);
+      await page.waitForURL((url) => url.pathname === "/", { timeout: 10_000 }).catch(() => undefined);
       return false;
     }
     await page.waitForTimeout(2000);

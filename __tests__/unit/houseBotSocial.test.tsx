@@ -108,4 +108,28 @@ describe("the house bot's browser", () => {
     await show("/");
     expect(world.dismissInvite).toHaveBeenCalledWith(invite);
   });
+
+  it("takes the next invite once a slow first one fails", async () => {
+    const second: Invite = { ...invite, fromUid: "ann", code: "SECOND" };
+    let failFirst: (error: Error) => void = () => undefined;
+    world.acceptLobbyInvite.mockImplementationOnce(
+      () => new Promise<string>((_resolve, reject) => { failFirst = reject; })
+    );
+    world.invites = [{ invite, fromName: "Joe" }];
+    await show("/");
+    world.invites = [{ invite: second, fromName: "Ann" }];
+    await show("/");
+    expect(world.acceptLobbyInvite).toHaveBeenCalledTimes(1);
+
+    world.acceptLobbyInvite.mockResolvedValueOnce("SECOND");
+    await act(async () => {
+      failFirst(new Error("That game is already full."));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(world.acceptLobbyInvite).toHaveBeenLastCalledWith(second);
+    expect(container.textContent).toBe("Lobby SECOND");
+  });
 });
