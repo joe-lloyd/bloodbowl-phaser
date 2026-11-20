@@ -32,6 +32,10 @@ import {
   restoreFrogs,
 } from "@/game/inducements/matchInducements";
 import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
+import {
+  PreDriveInducementsOperation,
+  holdsDriveInducements,
+} from "@/game/inducements/driveInducements";
 import { Inducement } from "@/types/Inducements";
 import {
   driveEffectsEmpty,
@@ -247,6 +251,8 @@ export function endDrive(
   parts.flowManager.add(new KORecoveryOperation());
 
   if (upNext === null) return;
+  if (holdsDriveInducements(parts.state, [parts.team1, parts.team2]))
+    parts.flowManager.add(new PreDriveInducementsOperation());
   parts.flowManager.add(
     kickingTeamId
       ? new StartNextDriveOperation(kickingTeamId)

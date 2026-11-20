@@ -232,17 +232,40 @@ function seededFormat(gameType: GameType, seed: number): MatchFormat {
   return { gameType, venue: venues[Math.abs(seed) % venues.length] ?? venues[0] };
 }
 
+const SIM_INDUCEMENTS: Record<
+  GameType,
+  readonly (readonly [Inducement, number])[]
+> = {
+  sevens: [
+    [Inducement.PRAYERS_TO_NUFFLE, 2],
+    [Inducement.DESPERATE_MEASURES, 5],
+  ],
+  "street-bowl": [
+    [Inducement.MAGIC_POTION, 2],
+    [Inducement.HALFLING_MASTER_CHEF, 1],
+  ],
+  "beach-bowl": [
+    [Inducement.SOUVENIR, 3],
+    [Inducement.BLITZERS_BEST_KEGS, 1],
+    [Inducement.HALFLING_MASTER_CHEF, 1],
+  ],
+  "gutter-bowl": [
+    [Inducement.LESSER_MAGIC_POTION, 2],
+    [Inducement.SUPERIOR_MAGIC_POTION, 1],
+    [Inducement.SAWBONES, 1],
+    [Inducement.SNACK_STAND, 1],
+    [Inducement.NOVICE_WIZARD, 1],
+  ],
+};
+
 export async function grantSimInducements(game: HeadlessGame): Promise<void> {
   game.ctx.gameService.commitInducements(
     buildSeventsInducementProfile({ advancedLeague: false }),
     {},
     [game.ctx.team1.id, game.ctx.team2.id].flatMap((ownerTeamId) =>
-      (
-        [
-          [Inducement.PRAYERS_TO_NUFFLE, 2],
-          [Inducement.DESPERATE_MEASURES, 5],
-        ] as const
-      ).map(([inducement, quantity]) => ({
+      SIM_INDUCEMENTS[
+        game.ctx.gameService.getState().gameType ?? DEFAULT_GAME_TYPE
+      ].map(([inducement, quantity]) => ({
         inducement,
         ownerTeamId,
         quantity,

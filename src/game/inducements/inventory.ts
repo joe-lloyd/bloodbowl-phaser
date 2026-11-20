@@ -1,5 +1,9 @@
 import { type GameState } from "../../types/GameState";
-import { Inducement, type InducementInventoryEntry } from "../../types/Inducements";
+import {
+  Inducement,
+  type InducementInventoryEntry,
+  emptyInducementsState,
+} from "../../types/Inducements";
 
 function purchasedInducements(
   state: GameState,
@@ -42,4 +46,25 @@ export function spendInducement(
   if (!entry) return false;
   entry.remainingUses--;
   return true;
+}
+
+export type PotionInducement =
+  | typeof Inducement.MAGIC_POTION
+  | typeof Inducement.LESSER_MAGIC_POTION
+  | typeof Inducement.SUPERIOR_MAGIC_POTION;
+
+export function grantFreePotion(
+  state: GameState,
+  teamId: string,
+  kind: PotionInducement
+): void {
+  state.inducements ??= emptyInducementsState();
+  state.inducements.inventory.push({
+    inducement: kind,
+    ownerTeamId: teamId,
+    quantity: 1,
+    remainingUses: 1,
+    price: 0,
+    provenance: "free",
+  });
 }

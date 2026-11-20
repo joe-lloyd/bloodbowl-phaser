@@ -24,7 +24,17 @@ const TITLES: Record<InducementChoiceKind, string> = {
   "you-dope": "You Dope!: +1 ST or +1 AG for the game",
   "team-captain": "Appoint a new Team Captain",
   "sports-wizard": "Sports-Wizard: cast a spell?",
+  "magic-potion": "Magic Potion: who drinks it?",
+  "lesser-magic-potion": "Lesser Magic Potion: who drinks it?",
+  "superior-magic-potion": "Superior Magic Potion: who drinks it?",
+  souvenir: "Souvenir: who carries it this half?",
+  "novice-wizard": "Novice Wizard: cast a spell at an opponent?",
 };
+
+const titleOf = (request: InducementChoiceDecisionRequest): string =>
+  request.item
+    ? `${TITLES[request.kind]} (${request.item})`
+    : TITLES[request.kind];
 
 const SPELLS: Record<
   WizardSpell,
@@ -165,7 +175,7 @@ function InducementChoiceDialogView({
     <DialogShell
       placement="dock"
       eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
-      title={TITLES[request.kind]}
+      title={titleOf(request)}
       width="w-[520px]"
       backdrop="heavy"
       className="max-h-[80vh] overflow-y-auto hud-scroll"

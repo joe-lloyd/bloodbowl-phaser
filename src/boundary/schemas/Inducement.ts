@@ -58,6 +58,8 @@ export const inducementSchema: z.ZodType<Inducement> = z.union([
   z.literal("Sawbones"),
   z.literal("Snack Stand"),
   z.literal("Novice Wizard"),
+  z.literal("Magic Potion"),
+  z.literal("Souvenir"),
   z.literal("Prayers to Nuffle"),
   z.literal("Star Player"),
 ]);

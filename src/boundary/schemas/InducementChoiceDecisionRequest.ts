@@ -13,5 +13,6 @@ export const inducementChoiceDecisionRequestSchema: z.ZodType<InducementChoiceDe
     skills: z.string().array().exactOptional(),
     stats: dopeStatSchema.array().exactOptional(),
     spells: wizardSpellSchema.array().exactOptional(),
+    item: z.string().exactOptional(),
     optional: z.boolean(),
   });

@@ -1,4 +1,6 @@
 import { shoppingTeamId } from "./pregame";
+import { activeMatchFormat } from "../variants/activeMatch";
+import { type GameType } from "../variants/gameTypes";
 import {
   Inducement,
   type InducementCatalogEntry,
@@ -6,22 +8,47 @@ import {
   type InducementSelectionLine,
 } from "../../types/Inducements";
 
-const SHOPPING_LIST = [
-  Inducement.EXTRA_TEAM_TRAINING,
-  Inducement.BLITZERS_BEST_KEGS,
-  Inducement.PART_TIME_ASSISTANT_COACH,
-  Inducement.TEMP_AGENCY_CHEERLEADER,
-];
+type Wish = readonly [Inducement, number];
+
+const ALL_ALLOWED = Number.MAX_SAFE_INTEGER;
+
+const SHOPPING_LISTS: Record<GameType, readonly Wish[]> = {
+  sevens: [
+    [Inducement.EXTRA_TEAM_TRAINING, ALL_ALLOWED],
+    [Inducement.BLITZERS_BEST_KEGS, ALL_ALLOWED],
+    [Inducement.PART_TIME_ASSISTANT_COACH, ALL_ALLOWED],
+    [Inducement.TEMP_AGENCY_CHEERLEADER, ALL_ALLOWED],
+  ],
+  "street-bowl": [
+    [Inducement.HALFLING_MASTER_CHEF, 1],
+    [Inducement.MAGIC_POTION, 3],
+  ],
+  "beach-bowl": [
+    [Inducement.BLITZERS_BEST_KEGS, 2],
+    [Inducement.HALFLING_MASTER_CHEF, 1],
+    [Inducement.SOUVENIR, 3],
+  ],
+  "gutter-bowl": [
+    [Inducement.SUPERIOR_MAGIC_POTION, 2],
+    [Inducement.SNACK_STAND, 1],
+    [Inducement.SAWBONES, 1],
+    [Inducement.NOVICE_WIZARD, 1],
+    [Inducement.LESSER_MAGIC_POTION, 3],
+  ],
+};
 
 function shoppingList(catalog: readonly InducementCatalogEntry[]) {
+  const sevens = SHOPPING_LISTS.sevens;
+  const gameType = activeMatchFormat().gameType;
+  if (gameType !== "sevens") return SHOPPING_LISTS[gameType];
   const price = (inducement: Inducement) =>
     catalog.find((line) => line.inducement === inducement)?.price ?? Infinity;
   const chefIsBargain =
     price(Inducement.HALFLING_MASTER_CHEF) <
     price(Inducement.EXTRA_TEAM_TRAINING);
   return chefIsBargain
-    ? [Inducement.HALFLING_MASTER_CHEF, ...SHOPPING_LIST]
-    : SHOPPING_LIST;
+    ? [[Inducement.HALFLING_MASTER_CHEF, ALL_ALLOWED] as const, ...sevens]
+    : sevens;
 }
 
 function computerInducementPurchases(
@@ -31,11 +58,12 @@ function computerInducementPurchases(
   let remaining = offer.budgets[teamId] ?? 0;
   const purchases: InducementSelectionLine[] = [];
   const catalog = offer.catalogs[teamId] ?? [];
-  for (const inducement of shoppingList(catalog)) {
+  for (const [inducement, wanted] of shoppingList(catalog)) {
     const entry = catalog.find((line) => line.inducement === inducement);
     if (!entry) continue;
     const quantity = Math.min(
       entry.maxCount,
+      wanted,
       Math.floor(remaining / entry.price)
     );
     if (quantity > 0) {

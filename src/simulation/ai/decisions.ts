@@ -4,6 +4,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { type Candidate } from "../candidates";
 import { type Board, carrierOf, distance, key, onPitch, toGoal } from "./board";
 import { hasBiteSupport } from "./feeding";
+import { inducementChoice } from "./inducementChoices";
 
 const USE_REROLL = "use-reroll";
 
@@ -256,7 +257,8 @@ export function decide({
   candidates,
   skillPlans = true,
 }: DecideArgs): number | null {
-  if (isOtherDecision(pending)) return otherDecision(pending, candidates);
+  if (isOtherDecision(pending))
+    return otherDecision(board, pending, candidates);
   switch (pending.type) {
     case "block-dice":
       return blockDiceChoice(board, pending, candidates);
@@ -287,6 +289,7 @@ function bothDownRank(attackerBlock: boolean, defenderBlock: boolean): number {
 }
 
 function otherDecision(
+  board: Board,
   pending: PendingOf<
     | "interception"
     | "apothecary"
@@ -308,8 +311,9 @@ function otherDecision(
       return find(
         (c) => c.commands[0].type === "use-apothecary" && c.commands[0].accept
       );
-    case "foul-assists":
     case "inducement-choice":
+      return inducementChoice(board, pending, candidates);
+    case "foul-assists":
     case "kickoff-event":
       return null;
   }

@@ -58,6 +58,8 @@ export const Inducement = {
   SAWBONES: "Sawbones",
   SNACK_STAND: "Snack Stand",
   NOVICE_WIZARD: "Novice Wizard",
+  MAGIC_POTION: "Magic Potion",
+  SOUVENIR: "Souvenir",
   PRAYERS_TO_NUFFLE: "Prayers to Nuffle",
   STAR_PLAYER: "Star Player",
 } as const;

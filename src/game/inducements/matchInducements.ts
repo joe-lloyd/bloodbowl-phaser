@@ -12,7 +12,6 @@ import {
 import { type Skill, SkillType, getSkill, hasSkill } from "@/types/Skills";
 import { type Team } from "@/types/Team";
 import {
-  type DopeStat,
   type InducementChoiceDecisionAnswer,
   type InducementChoiceDecisionRequest,
   type ReactionDecisionAnswer,
@@ -27,6 +26,7 @@ import { markingPlayers } from "../rules/rollPreview";
 import { getDriveEffects } from "../kickoff/driveEffects";
 import { eligibleSkills } from "../progression/progression";
 import { rollPrayersToNuffle } from "./prayersToNuffle";
+import { type VariantInducementsState } from "./variantState";
 import { DesperateMeasure, rollDesperateMeasures } from "./desperateMeasures";
 import {
   appointTeamCaptain,
@@ -40,7 +40,7 @@ export interface HeldMeasure {
 
 export type MatchGrant =
   | { kind: "skill"; playerId: string; skill: SkillType }
-  | { kind: "stat"; playerId: string; stat: "AV" | DopeStat; delta: number };
+  | { kind: "stat"; playerId: string; stat: keyof PlayerStats; delta: number };
 
 export interface FrogRecord {
   playerId: string;
@@ -61,6 +61,8 @@ export interface MatchInducementsState {
   sportsWizards?: string[];
 
   frogs?: FrogRecord[];
+
+  variant?: VariantInducementsState;
 }
 
 export function emptyMatchInducements(): MatchInducementsState {
@@ -183,7 +185,7 @@ export async function offerMeasure(
   );
 }
 
-function grantSkill(
+export function grantSkill(
   state: GameState,
   player: Player,
   skill: SkillType
@@ -198,10 +200,10 @@ function grantSkill(
   return true;
 }
 
-function grantStat(
+export function grantStat(
   state: GameState,
   player: Player,
-  stat: "AV" | DopeStat,
+  stat: keyof PlayerStats,
   delta: number
 ): void {
   player.stats[stat] += delta;
@@ -265,25 +267,30 @@ export function restoreFrogs(state: GameState, players: Player[]): void {
   if (mi) mi.frogs = [];
 }
 
+export function revokeGrant(player: Player, grant: MatchGrant): void {
+  switch (grant.kind) {
+    case "skill": {
+      const index = player.skills.findIndex((s) => s.type === grant.skill);
+      if (index >= 0) player.skills.splice(index, 1);
+      break;
+    }
+    case "stat":
+      player.stats[grant.stat] -= grant.delta;
+      break;
+  }
+}
+
 export function revokeMatchGrants(state: GameState, players: Player[]): void {
   const mi = state.matchInducements;
   if (!mi) return;
   restoreFrogs(state, players);
-  for (const grant of mi.grants) {
+  const halfGrants = mi.variant?.halfGrants ?? [];
+  for (const grant of [...mi.grants, ...halfGrants]) {
     const player = players.find((p) => p.id === grant.playerId);
-    if (!player) continue;
-    switch (grant.kind) {
-      case "skill": {
-        const index = player.skills.findIndex((s) => s.type === grant.skill);
-        if (index >= 0) player.skills.splice(index, 1);
-        break;
-      }
-      case "stat":
-        player.stats[grant.stat] -= grant.delta;
-        break;
-    }
+    if (player) revokeGrant(player, grant);
   }
   mi.grants = [];
+  if (mi.variant) mi.variant.halfGrants = [];
 }
 
 function availablePlayers(team: Team): Player[] {
@@ -602,6 +609,7 @@ export function validChoiceAnswer(
   if (!request.playerIds.includes(answer.playerId)) return null;
   switch (request.kind) {
     case "intensive-training":
+    case "novice-wizard":
       return offered(answer.skill, request.skills) ? answer : null;
     case "you-dope":
       return offered(answer.stat, request.stats) ? answer : null;
@@ -609,6 +617,10 @@ export function validChoiceAnswer(
     case "knuckle-dusters":
     case "hangover":
     case "team-captain":
+    case "magic-potion":
+    case "lesser-magic-potion":
+    case "superior-magic-potion":
+    case "souvenir":
       return answer;
   }
 }

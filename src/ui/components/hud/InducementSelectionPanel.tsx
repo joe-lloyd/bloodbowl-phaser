@@ -1,5 +1,6 @@
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { Inducement } from "../../../types/Inducements";
+import { NO_PURCHASE_LIMIT } from "../../../game/inducements/catalog";
 import { DialogShell, HudButton, Notice } from "../componentWarehouse/HudKit";
 import { usePregameCommand } from "./pregameInducementHooks";
 
@@ -22,6 +23,20 @@ const EFFECTS: Partial<Record<Inducement, string>> = {
     "Each half, roll three dice: each 4+ gains a re-roll and removes one from the opponent if available.",
   [Inducement.DESPERATE_MEASURES]:
     "Roll a random trick to use once this match.",
+  [Inducement.MAGIC_POTION]:
+    "Give it to a KO'd or hurt player after a drive, or a fit one before it. Roll a D8 to see what it does.",
+  [Inducement.SOUVENIR]:
+    "Roll a D8 for a trinket a player carries from the next drive until half time.",
+  [Inducement.LESSER_MAGIC_POTION]:
+    "Before a drive, give it to a fit or KO'd player and roll a D8.",
+  [Inducement.SUPERIOR_MAGIC_POTION]:
+    "Before a drive, give it to a fit or KO'd player for a lasting boost. A KO'd player recovers.",
+  [Inducement.SAWBONES]:
+    "Once per game, after a Casualty roll on your player, try for a better result.",
+  [Inducement.SNACK_STAND]:
+    "+1 to KO recovery; a used team re-roll comes back on a D6 of 6.",
+  [Inducement.NOVICE_WIZARD]:
+    "Once per game, at the end of your turn, Firebolt or Transmute an opposing player.",
 };
 
 export function InducementSelectionPanel({
@@ -132,8 +147,10 @@ export function InducementSelectionPanel({
                   {entry.inducement}
                 </div>
                 <div className="text-hud-sm text-hud-dim">
-                  {entry.price.toLocaleString()} gold each · max{" "}
-                  {entry.maxCount}
+                  {entry.price.toLocaleString()} gold each ·{" "}
+                  {entry.maxCount >= NO_PURCHASE_LIMIT
+                    ? "no limit"
+                    : `max ${String(entry.maxCount)}`}
                 </div>
                 <p className="text-hud-sm text-hud-dim">
                   {EFFECTS[entry.inducement]}
