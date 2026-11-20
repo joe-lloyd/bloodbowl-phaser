@@ -1,4 +1,5 @@
 import type { CompetitionType } from "../../../competition/types";
+import { choiceKeys } from "../componentWarehouse/choiceKeys";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 
 export type BuilderMode = "local" | "online";
@@ -26,6 +27,7 @@ export function BuilderModeSwitch({
   mode: BuilderMode;
   onChange: (mode: BuilderMode) => void;
 }) {
+  const keys = choiceKeys({ ids: MODES.map((option) => option.id), value: mode, onChange });
   return (
     <div role="radiogroup" aria-label="Who plays" className="mb-6 grid gap-2 sm:grid-cols-2">
       {MODES.map((option) => (
@@ -34,6 +36,7 @@ export function BuilderModeSwitch({
           type="button"
           role="radio"
           aria-checked={mode === option.id}
+          {...keys(option.id)}
           className={cx(hudChoiceClass(mode === option.id), "px-4 py-3 text-left")}
           onClick={() => {
             onChange(option.id);

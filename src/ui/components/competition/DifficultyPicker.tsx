@@ -1,4 +1,5 @@
 import { DIFFICULTIES, type Difficulty } from "../../../simulation/ai/difficulty";
+import { choiceKeys } from "../componentWarehouse/choiceKeys";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 
 export function DifficultyPicker({
@@ -8,6 +9,7 @@ export function DifficultyPicker({
   value: Difficulty;
   onChange: (value: Difficulty) => void;
 }) {
+  const keys = choiceKeys({ ids: DIFFICULTIES.map(({ id }) => id), value, onChange });
   return (
     <>
       <p className="hud-label mb-2 mt-5">How hard the computer plays</p>
@@ -22,6 +24,7 @@ export function DifficultyPicker({
             type="button"
             role="radio"
             aria-checked={value === id}
+            {...keys(id)}
             className={cx(hudChoiceClass(value === id), "px-4 py-3 text-left")}
             onClick={() => {
               onChange(id);
