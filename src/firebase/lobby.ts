@@ -15,6 +15,10 @@ import { type GameSnapshot } from "../headless/serialization";
 import { type RNGState } from "../services/rng/RNGService";
 import { type MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { type CompetitionContext } from "../competition/types";
+import {
+  DEFAULT_GAME_TYPE,
+  type GameType,
+} from "../game/variants/gameTypes";
 import { OWN_SLOW_MS, type LinkState, type OwnLink } from "./connection";
 
 export * from "./connection";
@@ -37,6 +41,8 @@ export interface LobbySettings {
   timeoutBankMs: number;
 
   progressionEnabled: boolean;
+
+  gameType?: GameType;
 }
 
 export interface TimerState {
@@ -227,7 +233,13 @@ export async function createLobby(
     status: "lobby",
 
     settings: fixture
-      ? { ...DEFAULT_SETTINGS, progressionEnabled: true }
+      ? {
+          ...DEFAULT_SETTINGS,
+          progressionEnabled: true,
+          ...(fixture.context.gameType === undefined
+            ? {}
+            : { gameType: fixture.context.gameType }),
+        }
       : DEFAULT_SETTINGS,
     players: {
       [hostUid]: {
@@ -397,6 +409,14 @@ export async function updateSettings(
   settings: LobbySettings
 ): Promise<void> {
   await updateDoc(lobbyRef(code), { settings: firebaseDocument(settings) });
+}
+
+export function lobbyGameType(lobby: LobbyDoc): GameType {
+  return (
+    lobby.competitionContext?.gameType ??
+    lobby.settings.gameType ??
+    DEFAULT_GAME_TYPE
+  );
 }
 
 export function canStart(lobby: LobbyDoc): boolean {

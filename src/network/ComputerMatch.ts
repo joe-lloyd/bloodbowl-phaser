@@ -25,6 +25,8 @@ import { createComputerCoach, computerOwnsDecision } from "./computerCoach";
 import { type OnlineMatch } from "./OnlineMatch";
 import { possessive } from "../game/managers/TurnManager";
 import { fixturePaysWinnings } from "../game/rules/winnings";
+import type { GameType } from "../game/variants/gameTypes";
+import { startingFormat } from "../game/variants/startingFormat";
 
 class ComputerGameService extends NetworkedGameService {
   private readonly engine: GameService;
@@ -71,6 +73,8 @@ export interface ComputerMatchOptions {
   autosave?: { difficulty: string };
 
   competitionContext?: CompetitionContext;
+
+  gameType?: GameType;
 }
 
 function computerMatchState(options: ComputerMatchOptions): GameState {
@@ -82,7 +86,7 @@ function computerMatchState(options: ComputerMatchOptions): GameState {
           options.competitionContext?.competitionType
         ),
         pregameInducements: true,
-      } }
+      }, ...startingFormat(options.competitionContext?.gameType ?? options.gameType) }
     );
   if (!options.resume && options.competitionContext?.knockout)
     initialState.knockout = true;
