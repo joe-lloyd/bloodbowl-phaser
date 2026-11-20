@@ -204,6 +204,7 @@ function fallOnRush(jump: JumpRun): void {
     square: jump.from,
     ballBounces: jump.holdingBall,
     context: jump.context,
+    slip: { cause: "rush" },
     reason: "Failed Rush",
   });
   deps.callbacks.onActivationFinished(player.id);

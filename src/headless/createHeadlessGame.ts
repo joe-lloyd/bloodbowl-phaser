@@ -135,7 +135,12 @@ function startingState(
   const initialState: GameState | undefined =
     restored?.state ?? options.initialState;
   if (initialState) return initialState;
-  if (options.scenario) return applyScenario(options.scenario, team1, team2);
+  if (options.scenario) {
+    return {
+      ...applyScenario(options.scenario, team1, team2),
+      ...options.format,
+    };
+  }
   return freshMatchState(options, team1, team2);
 }
 

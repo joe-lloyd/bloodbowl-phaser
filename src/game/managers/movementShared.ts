@@ -1,3 +1,4 @@
+import { activeRules } from "@/game/variants/activeMatch";
 import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
 import { ballOnSquare } from "@/game/rules/ballInTheAir";
@@ -13,7 +14,10 @@ import { DodgeController } from "../controllers/DodgeController";
 import { DiceController } from "../controllers/DiceController";
 import { MovementValidator } from "../validators/MovementValidator";
 import { BounceOperation } from "../operations/BounceOperation";
-import { ArmourOperation } from "../operations/ArmourOperation";
+import {
+  ArmourOperation,
+  type ArmourFall,
+} from "../operations/ArmourOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { type IGameService } from "@/services/interfaces/IGameService";
 import { type FlowContext, GameFlowManager } from "../core/GameFlowManager";
@@ -123,7 +127,7 @@ export async function rollRush(
   }
   const roll = () =>
     diceController.rollSkillCheck(
-      { reason: "Rush",target: 2,modifier: rushCtx.modifiers,playerName: player.playerName }    );
+      { reason: "Rush",target: activeRules().rushTarget,modifier: rushCtx.modifiers,playerName: player.playerName }    );
   return gameService
     ? withRerollOffer({ gameService, eventBus }, player, "rush", roll)
     : roll();
@@ -137,7 +141,7 @@ export function fallOver(
     ballBounces: boolean;
     context: FlowContext | undefined;
 
-    vacatedSquare?: Square;
+    slip?: ArmourFall;
     reason: string;
   }
 ): void {
@@ -150,12 +154,7 @@ export function fallOver(
   }
   if (context?.flowManager) {
     context.flowManager.add(
-      fall.vacatedSquare
-        ? new ArmourOperation(player.id, undefined, {
-            cause: "dodge",
-            vacatedSquare: fall.vacatedSquare,
-          })
-        : new ArmourOperation(player.id),
+      new ArmourOperation(player.id, undefined, fall.slip),
       true
     );
   }

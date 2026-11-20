@@ -41,7 +41,16 @@ export interface ArmourRules {
   knockedDownOrFallsOver: number;
   wallPush: number;
   failedDodgeOrRush: number | null;
+  foul: number;
 }
+
+export type SecretWeaponsAfterDrive =
+  | "referee"
+  | "one-drive"
+  | "street-crowd"
+  | "gutter-crowd";
+
+export type StallingPenalty = "crowd" | "bottle";
 
 export interface GameTypeRules {
   gameType: GameType;
@@ -59,7 +68,8 @@ export interface GameTypeRules {
   referee: boolean;
   foulRetribution: FoulRetribution;
   rushTarget: number;
-  secretWeaponsLeaveAfterDrive: "never" | "always" | "crowd-roll";
+  secretWeaponsAfterDrive: SecretWeaponsAfterDrive;
+  stallingPenalty: StallingPenalty;
 }
 
 const SEVENS_DRAFT: DraftRules = {
@@ -79,12 +89,14 @@ const NO_ARMOUR_CHANGE: ArmourRules = {
   knockedDownOrFallsOver: 0,
   wallPush: 0,
   failedDodgeOrRush: null,
+  foul: 0,
 };
 
 const COBBLES: ArmourRules = {
   knockedDownOrFallsOver: 1,
   wallPush: 1,
   failedDodgeOrRush: null,
+  foul: 0,
 };
 
 const SEVENS = "sevens";
@@ -111,7 +123,8 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     referee: true,
     foulRetribution: "none",
     rushTarget: 2,
-    secretWeaponsLeaveAfterDrive: "never",
+    secretWeaponsAfterDrive: "referee",
+    stallingPenalty: "crowd",
   },
   [STREET_BOWL]: {
     gameType: STREET_BOWL,
@@ -137,7 +150,8 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     referee: false,
     foulRetribution: "rock",
     rushTarget: 2,
-    secretWeaponsLeaveAfterDrive: "crowd-roll",
+    secretWeaponsAfterDrive: "street-crowd",
+    stallingPenalty: "crowd",
   },
   [BEACH_BOWL]: {
     gameType: BEACH_BOWL,
@@ -156,11 +170,17 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     kickDeviation: "lower-of-2d6",
     throwInDistance: "d6",
     ballBounces: 0,
-    armour: { knockedDownOrFallsOver: 1, wallPush: 0, failedDodgeOrRush: -1 },
+    armour: {
+      knockedDownOrFallsOver: 1,
+      wallPush: 0,
+      failedDodgeOrRush: -1,
+      foul: 1,
+    },
     referee: true,
     foulRetribution: "sand",
     rushTarget: 3,
-    secretWeaponsLeaveAfterDrive: "always",
+    secretWeaponsAfterDrive: "one-drive",
+    stallingPenalty: "crowd",
   },
   "gutter-bowl": {
     gameType: "gutter-bowl",
@@ -186,7 +206,8 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     referee: false,
     foulRetribution: "none",
     rushTarget: 2,
-    secretWeaponsLeaveAfterDrive: "crowd-roll",
+    secretWeaponsAfterDrive: "gutter-crowd",
+    stallingPenalty: "bottle",
   },
 };
 
