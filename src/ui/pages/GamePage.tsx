@@ -24,6 +24,7 @@ import {
 import { SoundManager } from "../sound/SoundManager";
 import { SoundSuite } from "../sound/SoundSuite";
 import type { GameType } from "../../game/variants/gameTypes";
+import type { Venue } from "../../game/variants/pitchLayouts";
 
 interface GamePageProps {
   eventBus: EventBus;
@@ -45,6 +46,7 @@ interface RouteState {
   progressionEnabled?: boolean;
   resumeSave?: MatchSave;
   gameType?: GameType;
+  venue?: Venue;
 }
 
 function fixtureContextFor(
@@ -174,6 +176,7 @@ export function GamePage({
           progressionEnabled: enableProgression,
           competitionContext: fixtureContext ?? undefined,
           gameType: routeState.gameType,
+          venue: routeState.venue,
           resumeSave,
           autosaveEnabled: !teams,
           resumed,

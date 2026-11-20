@@ -57,6 +57,7 @@ import {
 } from "../../../game/variants/gameTypes";
 import { teamPlaysGameType } from "../../../game/rules/rosterLegality";
 import { GameTypeSelector } from "../common/GameTypeSelector";
+import type { Venue } from "../../../game/variants/pitchLayouts";
 
 type Mode = "host" | "join";
 
@@ -741,11 +742,34 @@ export function SettingsPanel({
           : { value: settings.gameType })}
         disabled={readOnly || gameTypeLocked}
         onChange={(gameType) => {
-          onChange({ ...settings, gameType });
+          onChange({ ...withVenue(settings, undefined), gameType });
         }}
+        venue={settings.venue}
+        {...(gameTypeLocked
+          ? {}
+          : {
+              onVenueChange: (venue: Venue | undefined) => {
+                onChange(withVenue(settings, venue));
+              },
+            })}
       />
     </Section>
   );
+}
+
+function withVenue(
+  settings: LobbySettings,
+  venue: Venue | undefined
+): LobbySettings {
+  const { turnSeconds, timeoutBankMs, progressionEnabled, gameType } =
+    settings;
+  return {
+    turnSeconds,
+    timeoutBankMs,
+    progressionEnabled,
+    ...(gameType ? { gameType } : {}),
+    ...(venue ? { venue } : {}),
+  };
 }
 
 function ErrorText({ text }: { text: string }) {

@@ -28,6 +28,7 @@ import { type RNGState } from "../services/rng/RNGService";
 import { type MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { type CompetitionContext } from "../competition/types";
 import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
+import type { Venue } from "../game/variants/pitchLayouts";
 import { OWN_SLOW_MS, type LinkState, type OwnLink } from "./connection";
 import { abandonedListings } from "../social/openGames";
 
@@ -53,6 +54,8 @@ export interface LobbySettings {
   progressionEnabled: boolean;
 
   gameType?: GameType;
+
+  venue?: Venue;
 }
 
 export interface TimerState {

@@ -11,10 +11,11 @@ import { PITCH_LAYOUTS, type Venue } from "../../../game/variants/pitchLayouts";
 import { venueArtPath } from "../../../game/presentation/matchStyle";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 import { choiceKeys } from "../componentWarehouse/choiceKeys";
+import { VenuePicker } from "./VenuePicker";
 
 const GROUNDS: Record<GameType, string> = {
   sevens: "stadium pitch",
-  "gutter-bowl": "street or sewer, rolled each match",
+  "gutter-bowl": "street or sewer, chosen or rolled",
   "street-bowl": "street between two walls",
   "beach-bowl": "sand, no casualties",
 };
@@ -96,16 +97,16 @@ function GameTypeCard({
   );
 }
 
-export function GameTypeSelector({
-  value = DEFAULT_GAME_TYPE,
+function GameTypeCards({
+  value,
   onChange,
-  disabled = false,
+  disabled,
   label,
 }: {
-  value?: GameType;
+  value: GameType;
   onChange: (gameType: GameType) => void;
-  disabled?: boolean;
-  label?: string;
+  disabled: boolean;
+  label: string;
 }) {
   const [tabStop, setTabStop] = useState(value);
   const [shown, setShown] = useState(value);
@@ -119,38 +120,71 @@ export function GameTypeSelector({
     onChange: setTabStop,
   });
   return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setTabStop(value);
+      }}
+    >
+      {GAME_TYPES.map((gameType) => (
+        <GameTypeCard
+          key={gameType}
+          gameType={gameType}
+          selected={value === gameType}
+          disabled={disabled}
+          keys={{
+            ...keys(gameType),
+            onFocus: () => {
+              setTabStop(gameType);
+            },
+          }}
+          onSelect={() => {
+            if (gameType !== value) onChange(gameType);
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function GameTypeSelector({
+  value = DEFAULT_GAME_TYPE,
+  onChange,
+  disabled = false,
+  label,
+  venue,
+  onVenueChange,
+}: {
+  value?: GameType;
+  onChange: (gameType: GameType) => void;
+  disabled?: boolean;
+  label?: string;
+  venue?: Venue | undefined;
+  onVenueChange?: (venue: Venue | undefined) => void;
+}) {
+  return (
     <div className="flex min-w-0 flex-col gap-1.5">
       {label && <span className="hud-label">{label}</span>}
-      <div
-        role="radiogroup"
-        aria-label={label ?? "Game type"}
-        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget))
-            setTabStop(value);
-        }}
-      >
-        {GAME_TYPES.map((gameType) => (
-          <GameTypeCard
-            key={gameType}
-            gameType={gameType}
-            selected={value === gameType}
-            disabled={disabled}
-            keys={{
-              ...keys(gameType),
-              onFocus: () => {
-                setTabStop(gameType);
-              },
-            }}
-            onSelect={() => {
-              if (gameType !== value) onChange(gameType);
-            }}
-          />
-        ))}
-      </div>
+      <GameTypeCards
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        label={label ?? "Game type"}
+      />
       <p className="mt-1.5 font-hud-body text-hud-sm text-hud-dim">
         {GAME_TYPE_SUMMARIES[value]}
       </p>
+      {onVenueChange && (
+        <VenuePicker
+          gameType={value}
+          venue={venue}
+          onChange={onVenueChange}
+          disabled={disabled}
+        />
+      )}
     </div>
   );
 }
