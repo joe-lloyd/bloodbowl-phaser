@@ -104,6 +104,7 @@ async function run() {
     workers,
     ruleset: "default Sevens",
     freeInducements: false,
+    pettyCash: jobs.every((job) => job.inducements !== false),
     inventory: catalogueInventory(),
     jobs,
   };

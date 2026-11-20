@@ -73,6 +73,8 @@ def collect(directories, rules_file):
     manifests = [json.loads((directory / 'manifest.json').read_text()) for directory in directories]
     if len({m['sourceDigest'] for m in manifests}) != 1:
         raise ValueError('Runs used different engine or study sources')
+    if len({m.get('pettyCash', False) for m in manifests}) != 1:
+        raise ValueError('Runs mixed games with and without petty cash')
     manifest = manifests[0]
     templates = {t['id']: t for t in manifest['inventory']['teams']}
     requested = [job for m in manifests for job in m['jobs']]

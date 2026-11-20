@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from analyse import summarize_cohort
+from analyse import collect, summarize_cohort
 from build import build, chart
 
 
@@ -48,6 +48,18 @@ class ReportTests(unittest.TestCase):
             self.assertIn('Calibration results are not available', page)
             self.assertIn('target attainment has not been assessed', page)
             self.assertNotIn('{{', page)
+            self.assertIn('no inducements, no persistence', page)
+
+    def test_refuses_to_merge_runs_with_and_without_petty_cash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runs = []
+            for name, petty in (('calibration', True), ('hard', False)):
+                run = Path(directory)/name
+                run.mkdir()
+                (run/'manifest.json').write_text(json.dumps(dict(sourceDigest='same', pettyCash=petty, jobs=[])))
+                runs.append(run)
+            with self.assertRaisesRegex(ValueError, 'with and without petty cash'):
+                collect(runs, Path(directory)/'rules.json')
 
 
 if __name__ == '__main__':

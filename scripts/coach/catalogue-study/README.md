@@ -47,6 +47,8 @@ actions with the simulator's candidate seam and checks captain preparation.
 Older acquisitions with query-duplicated observations can be recounted without
 running coach search again. Each replay must match its recorded final hash;
 results and traces receive observation version 2, with a pipeline fingerprint.
+Run the repair with the source that wrote the traces: runs made before
+20 November 2026 hash their final state in key order.
 
 ```sh
 pnpm exec tsx scripts/coach/catalogue-study/repair.ts <run-dir> 2
