@@ -221,7 +221,10 @@ function ownCarrierSquares(c: Context, carrier: Player, add: AddSquare): void {
   const at = carrier.gridPosition;
   const transfer = board.turnsLeft === 0 ? [] : transferSquares(c, carrier);
   const corner = cornerWorth(c, carrier, transfer);
-  for (const [dx, dy] of CORNERS)
+  const frontFirst = [...CORNERS].sort(
+    (a, b) => Number(b[0] === board.dir) - Number(a[0] === board.dir)
+  );
+  for (const [dx, dy] of frontFirst)
     add({ role: "cage", at: { x: at.x + dx, y: at.y + dy }, value: corner });
 
   if (board.turnsLeft === 0) return;
