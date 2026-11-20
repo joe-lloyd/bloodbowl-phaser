@@ -714,7 +714,11 @@ export function TeamBuilder() {
             onFirePlayer={handleFirePlayer}
             onReorderPlayers={handleReorderPlayers}
             onOpenPlayer={handleOpenPlayer}
-            onChooseVeteran={active ? undefined : handleChooseVeteran}
+            onChooseVeteran={
+              active || !teamDraftRules(team).veteran
+                ? undefined
+                : handleChooseVeteran
+            }
             onChooseTeamCaptain={
               !active && hasTeamCaptainRule(team)
                 ? handleChooseTeamCaptain
