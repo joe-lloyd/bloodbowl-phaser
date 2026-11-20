@@ -71,7 +71,7 @@ export class FormationManager {
   }
 
   isBuiltIn(name: string): boolean {
-    return this.getBuiltInFormations(true).some((f) => f.name === name);
+    return DEPLOYMENTS.some((deployment) => deployment.name === name);
   }
 
   saveFormation(

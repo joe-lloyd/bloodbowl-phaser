@@ -1,4 +1,5 @@
 import { type HeadlessCommand } from "./protocol";
+import { DEPLOYMENT_ROLES } from "../types/SetupTypes";
 
 type FieldKind =
   | "string"
@@ -132,7 +133,9 @@ function isFormationPosition(position: unknown): boolean {
     position !== null &&
     "playerId" in position &&
     typeof position.playerId === "string" &&
-    isSquare(position)
+    isSquare(position) &&
+    (!("role" in position) ||
+      DEPLOYMENT_ROLES.some((role) => role === position.role))
   );
 }
 

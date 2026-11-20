@@ -196,4 +196,44 @@ describe("deployments", () => {
     );
     expect(headlessCommandSchema.safeParse(command(7)).success).toBe(false);
   });
+
+  it("refuses a bad role through the headless command and keeps the setup", async () => {
+    const game = new HeadlessGame({ seed: 5 });
+    await game.execute({
+      type: "start-setup",
+      kickingTeamId: game.ctx.team1.id,
+    });
+    const press = fixtureValue(
+      new FormationManager()
+        .getBuiltInFormations(true)
+        .find((f) => f.name === "Kick: Press")
+    );
+    expect(
+      (
+        await game.execute({
+          type: "apply-formation",
+          teamId: game.ctx.team1.id,
+          formation: press.positions,
+        })
+      ).ok
+    ).toBe(true);
+    const before = game.ctx.team1.players.map((p) => p.gridPosition);
+    const refused = await game.execute({
+      type: "apply-formation",
+      teamId: game.ctx.team1.id,
+      formation: press.positions.map((p) => ({ ...p, role: "bogus" })),
+    });
+    expect(refused.ok).toBe(false);
+    expect(game.ctx.team1.players.map((p) => p.gridPosition)).toEqual(before);
+  });
+
+  it("keeps every preset name reserved, even on a pitch that does not offer it", () => {
+    withMatchFormat({ gameType: "street-bowl", venue: "street" }, () => {
+      const manager = new FormationManager();
+      expect(
+        manager.getBuiltInFormations(true).map((f) => f.name)
+      ).not.toContain("Kick: Blitz line");
+      expect(manager.isBuiltIn("Kick: Blitz line")).toBe(true);
+    });
+  });
 });
