@@ -10,4 +10,9 @@ export const inducementChoiceKindSchema: z.ZodType<InducementChoiceKind> =
     z.literal("hangover"),
     z.literal("you-dope"),
     z.literal("sports-wizard"),
+    z.literal("magic-potion"),
+    z.literal("lesser-magic-potion"),
+    z.literal("superior-magic-potion"),
+    z.literal("souvenir"),
+    z.literal("novice-wizard"),
   ]);

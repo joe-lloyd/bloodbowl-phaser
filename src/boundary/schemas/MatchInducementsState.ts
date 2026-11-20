@@ -3,6 +3,7 @@ import { prayerToNuffleSchema } from "./PrayerToNuffle";
 import { heldMeasureSchema } from "./HeldMeasure";
 import { matchGrantSchema } from "./MatchGrant";
 import { frogRecordSchema } from "./FrogRecord";
+import { variantInducementsStateSchema } from "./VariantInducementsState";
 import type { MatchInducementsState } from "../../game/inducements/matchInducements";
 
 export const matchInducementsStateSchema: z.ZodType<MatchInducementsState> =
@@ -15,4 +16,5 @@ export const matchInducementsStateSchema: z.ZodType<MatchInducementsState> =
     noRecoveryPlayerIds: z.string().array(),
     sportsWizards: z.string().array().exactOptional(),
     frogs: frogRecordSchema.array().exactOptional(),
+    variant: variantInducementsStateSchema.exactOptional(),
   });

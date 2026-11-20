@@ -28,6 +28,7 @@ import {
 import { type BallAndChainSquare } from "@/game/operations/BallAndChainOperation";
 import { RerollArbiter, DecisionService } from "@/game/skills";
 import { revokeMatchGrants } from "@/game/inducements/matchInducements";
+import { breakSouvenirs } from "@/game/inducements/souvenirs";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import { createInitialState } from "./matchStart";
@@ -325,6 +326,8 @@ function bindPartEvents(
     sweepChomped(getParts());
   });
   eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
+    if (phase === GamePhase.HALFTIME)
+      breakSouvenirs(state, [...team1.players, ...team2.players]);
     if (phase === GamePhase.GAME_OVER) {
       state.bribes = {};
 

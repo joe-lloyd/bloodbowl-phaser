@@ -9,7 +9,15 @@ import {
   calculateInducementBudgets,
   draftListInventory as teamDraftList,
 } from "@/game/inducements/rules";
-import { sevensInducementCatalog } from "@/game/inducements/catalog";
+import {
+  inducementCatalog,
+  startingFreeInducements,
+} from "@/game/inducements/catalog";
+import {
+  PreDriveInducementsOperation,
+  holdsDriveInducements,
+} from "@/game/inducements/driveInducements";
+import { activeMatchFormat } from "@/game/variants/activeMatch";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import { captainVacancyCandidates } from "@/game/rules/teamCaptain";
 import {
@@ -47,7 +55,10 @@ export function commitInducements({
     ...state.inducements,
     profile,
     budgets: { ...budgets },
-    inventory: inventory.map((entry) => ({ ...entry })),
+    inventory: [
+      ...inventory.map((entry) => ({ ...entry })),
+      ...freeInducements(parts),
+    ],
   };
 
   if (
@@ -65,6 +76,9 @@ export function commitInducements({
   if (rollsOnTables && !getMatchInducements(state).rolled) {
     parts.flowManager.add(new ResolvePregameInducementsOperation());
   }
+  if (holdsDriveInducements(state, [team1, team2])) {
+    parts.flowManager.add(new PreDriveInducementsOperation());
+  }
   const pregame = state.pregameInducements;
   if (pregame) {
     parts.flowManager.add({
@@ -76,6 +90,20 @@ export function commitInducements({
       },
     });
   }
+}
+
+function freeInducements(parts: GameParts): InducementInventoryEntry[] {
+  const free = startingFreeInducements(activeMatchFormat().gameType);
+  return [parts.team1, parts.team2].flatMap((team) =>
+    free.map((inducement) => ({
+      inducement,
+      ownerTeamId: team.id,
+      quantity: 1,
+      remainingUses: 1,
+      price: 0,
+      provenance: "free" as const,
+    }))
+  );
 }
 
 function draftListInventory(parts: GameParts) {
@@ -94,9 +122,10 @@ function session(parts: GameParts): InducementSession {
   if (!parts.inducementSession) {
     const profile = buildSeventsInducementProfile({ advancedLeague: false });
     const budgets = calculateInducementBudgets(parts.team1, parts.team2);
+    const { gameType } = activeMatchFormat();
     parts.inducementSession = new InducementSession(profile, budgets, {
-      [parts.team1.id]: sevensInducementCatalog(parts.team1),
-      [parts.team2.id]: sevensInducementCatalog(parts.team2),
+      [parts.team1.id]: inducementCatalog(parts.team1, gameType),
+      [parts.team2.id]: inducementCatalog(parts.team2, gameType),
     });
   }
   return parts.inducementSession;
