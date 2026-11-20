@@ -30,7 +30,7 @@ const el = (tag, attrs = {}, ...kids) => {
     else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
     else node.setAttribute(k, v);
   }
-  for (const kid of kids.flat()) if (kid != null) node.append(kid);
+  for (const kid of kids.flat(Infinity)) if (kid != null) node.append(kid);
   return node;
 };
 const store = {

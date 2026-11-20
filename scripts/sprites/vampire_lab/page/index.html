@@ -34,7 +34,7 @@ section { background: var(--slab); border: 1px solid var(--edge); border-radius:
 .bar-inner { max-width: 1240px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
 .field { display: flex; gap: 8px; align-items: center; }
 .field > label, .field > .eyebrow { white-space: nowrap; }
-.seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 4px; overflow: hidden; }
+.seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--edge); border-radius: 4px; overflow: hidden; }
 .seg button { background: var(--raise); color: var(--dim); border: 0; border-right: 1px solid var(--edge); padding: 5px 10px; font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed="true"] { background: var(--gold); color: var(--ink); }
@@ -58,7 +58,7 @@ input[type="range"] { accent-color: var(--gold); width: 110px; }
 .cell .note { font-size: 12px; line-height: 16px; color: var(--mute); text-align: center; }
 .stage { display: flex; align-items: flex-end; justify-content: center; gap: 10px; min-height: 60px; width: 100%; overflow: hidden; }
 .stage.pitch { background: repeating-linear-gradient(45deg, #1c2b1e 0 12px, #203222 12px 24px); border-radius: 3px; padding: 8px 4px 4px; }
-canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: 100%; height: auto; min-width: 0; }
 .rowhead { font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); margin: 16px 0 8px; }
 .controls { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 10px 0 4px; }
 .card { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; }
