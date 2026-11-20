@@ -547,6 +547,16 @@ service cloud.firestore {
         && lastSeenBelievable();
     }
 
+    // Any coach may take a listed lobby off the open list once its host has
+    // not been seen for five minutes, so dead listings cannot fill the list.
+    function unlistsAbandonedLobby() {
+      return resource.data.get('listed', false) == true
+        && changed().hasOnly(['listed'])
+        && request.resource.data.listed == false
+        && request.time.toMillis()
+          - resource.data.players[resource.data.hostUid].get('lastSeen', 0) > 300000;
+    }
+
     // Game/lobby docs. A code is the way in: fetching one by its code is
     // allowed, and only lobbies their host opened to everyone can be listed.
     // Writes are members-only, apart from claiming the empty guest seat.
@@ -570,7 +580,8 @@ service cloud.firestore {
         && (((request.auth.uid == resource.data.hostUid
               || request.auth.uid == resource.data.guestUid)
             && memberUpdateAllowed())
-          || claimsGuestSeat());
+          || claimsGuestSeat()
+          || unlistsAbandonedLobby());
       allow delete: if request.auth != null
         && request.auth.uid == resource.data.hostUid
         && resource.data.status != 'active';

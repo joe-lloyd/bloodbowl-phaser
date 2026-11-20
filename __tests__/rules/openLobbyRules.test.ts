@@ -1,6 +1,16 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  ADMIN,
   as,
   closeEmulatorApps,
   dbFor,
@@ -24,7 +34,54 @@ import {
   subscribeOpenLobbies,
 } from "../../src/firebase/lobby";
 import { openGames } from "../../src/social/openGames";
+import { DEFAULT_SETTINGS } from "../../src/firebase/lobby";
 import { createHumanTeam, createOrcTeam } from "../fixtures/teams";
+import { fixtureValue } from "../../src/testing/fixtureValue";
+
+const GONE = 10 * 60_000;
+
+function openGameAppears(uid: string, code: string): Promise<boolean> {
+  return as(
+    uid,
+    () =>
+      new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          stop();
+          resolve(false);
+        }, 30_000);
+        const stop = subscribeOpenLobbies((lobbies) => {
+          const games = openGames({ lobbies, now: Date.now(), me: uid });
+          if (!games.some((game) => game.code === code)) return;
+          clearTimeout(timeout);
+          stop();
+          resolve(true);
+        });
+      })
+  );
+}
+
+async function listedLobby({
+  code,
+  host,
+  lastSeen,
+}: {
+  code: string;
+  host: string;
+  lastSeen: number;
+}): Promise<void> {
+  const ref = doc(dbFor(host), "games", code);
+  await setDoc(ref, {
+    code,
+    hostUid: host,
+    guestUid: null,
+    status: "lobby",
+    settings: DEFAULT_SETTINGS,
+    players: { [host]: { uid: host, displayName: "Host", team: null, ready: false } },
+    createdAt: null,
+    listed: false,
+  });
+  await updateDoc(ref, { listed: true, [`players.${host}.lastSeen`]: lastSeen });
+}
 
 function openLobbiesSeenBy(uid: string): Promise<LobbyDoc[]> {
   return as(
@@ -56,8 +113,9 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
   it("are listed by their host and joined by a stranger", async () => {
     const host = uniqueUid("host");
     const stranger = uniqueUid("stranger");
-    const { code } = await as(host, () => createLobby(host, "Host"));
-    await as(host, () => setLobbyListed(code, true));
+    const lobby = await as(host, () => createLobby(host, "Host"));
+    const { code } = lobby;
+    await as(host, () => setLobbyListed(lobby, true));
     await as(host, () => heartbeat(code, host));
 
     const seen = await openLobbiesSeenBy(stranger);
@@ -98,12 +156,46 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     const guest = uniqueUid("guest");
     const { code } = await as(host, () => createLobby(host, "Host"));
     await as(guest, () => joinLobby(code, guest, "Guest"));
-    await denied(as(guest, () => setLobbyListed(code, true)));
+    await denied(updateDoc(doc(dbFor(guest), "games", code), { listed: true }));
 
     const fixtureHost = uniqueUid("organizer");
     const fixtureLobby = await as(fixtureHost, () =>
       createLobby(fixtureHost, "Organizer", fixture)
     );
-    await denied(as(fixtureHost, () => setLobbyListed(fixtureLobby.code, true)));
+    await denied(as(fixtureHost, () => setLobbyListed(fixtureLobby, true)));
+  });
+
+  it("can be taken off the list by anyone once the host has been gone five minutes", async () => {
+    const host = uniqueUid("host");
+    const stranger = uniqueUid("stranger");
+    const code = `L${String(Date.now()).slice(-5)}`;
+    await listedLobby({ code, host, lastSeen: Date.now() });
+    const ref = doc(dbFor(stranger), "games", code);
+    await denied(updateDoc(ref, { listed: false }));
+
+    await updateDoc(doc(dbFor(host), "games", code), {
+      [`players.${host}.lastSeen`]: Date.now() - GONE,
+    });
+    await denied(updateDoc(ref, { listed: false, status: "abandoned" }));
+    await denied(updateDoc(ref, { listed: true }));
+    await updateDoc(ref, { listed: false });
+    expect((await getDoc(doc(dbFor(ADMIN), "games", code))).get("listed")).toBe(false);
+  });
+
+  it("are not hidden behind thirty lobbies whose hosts left", async () => {
+    const run = String(Date.now()).slice(-4);
+    const stale = Array.from({ length: 30 }, (_, index) => `0${run}${String(index).padStart(2, "0")}`
+    );
+    await Promise.all(
+      stale.map((code) =>
+        listedLobby({ code, host: uniqueUid("gone"), lastSeen: Date.now() - GONE })
+      )
+    );
+    const live = `Z${run}01`;
+    await listedLobby({ code: live, host: uniqueUid("here"), lastSeen: Date.now() });
+
+    expect(await openGameAppears(uniqueUid("stranger"), live)).toBe(true);
+    const first = await getDoc(doc(dbFor(ADMIN), "games", fixtureValue(stale[0])));
+    expect(first.get("listed")).toBe(false);
   });
 });

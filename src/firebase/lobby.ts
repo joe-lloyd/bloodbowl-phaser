@@ -1,4 +1,8 @@
-import { readLobby, readAppliedCommandCount } from "../boundary/firebaseLobby";
+import {
+  readAppliedCommandCount,
+  readLobby,
+  readLobbyStatus,
+} from "../boundary/firebaseLobby";
 import { firebaseDocument, firebaseProfile } from "../boundary/firebaseJson";
 import {
   collection,
@@ -10,6 +14,7 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  type Transaction,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -21,6 +26,7 @@ import { type RNGState } from "../services/rng/RNGService";
 import { type MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { type CompetitionContext } from "../competition/types";
 import { OWN_SLOW_MS, type LinkState, type OwnLink } from "./connection";
+import { abandonedListings } from "../social/openGames";
 
 export * from "./connection";
 
@@ -244,36 +250,72 @@ export async function createLobby(
   return { ...lobby, createdAt: null };
 }
 
+async function refuseWhilePlayingElsewhere(
+  tx: Transaction,
+  uid: string,
+  code: string
+): Promise<void> {
+  const user = await tx.get(userRef(uid));
+  const current = user.exists()
+    ? (firebaseProfile(user.data()).activeMatchCode ?? null)
+    : null;
+  if (!current || current === code) return;
+  const playing = await tx.get(lobbyRef(current));
+  if (readLobbyStatus(playing.data()) === "active")
+    throw new Error("Finish your current match before accepting an invite.");
+}
+
+interface Guest {
+  uid: string;
+  displayName: string;
+}
+
+async function seatGuest(
+  tx: Transaction,
+  code: string,
+  guest: Guest
+): Promise<LobbyDoc> {
+  const snapshot = await tx.get(lobbyRef(code));
+  if (!snapshot.exists()) throw new Error("No game found with that code.");
+  const lobby = readLobby(snapshot.data());
+  if (lobby.status !== "lobby") throw new Error("That game has already started.");
+  if (lobby.guestUid && lobby.guestUid !== guest.uid)
+    throw new Error("That game is already full.");
+
+  const players = {
+    ...lobby.players,
+    [guest.uid]: {
+      uid: guest.uid,
+      displayName: guest.displayName,
+      team: lobby.fixtureTeams?.away ?? null,
+      ready: false,
+    },
+  };
+  tx.update(lobbyRef(code), {
+    guestUid: guest.uid,
+    players: firebaseDocument(players),
+  });
+  tx.set(userRef(guest.uid), { activeMatchCode: code }, { merge: true });
+  return { ...lobby, guestUid: guest.uid, players };
+}
+
 export async function joinLobby(
   code: string,
   guestUid: string,
   displayName: string
 ): Promise<LobbyDoc> {
-  const normalized = code.trim().toUpperCase();
-  return runTransaction(getDb(), async (tx) => {
-    const snapshot = await tx.get(lobbyRef(normalized));
-    if (!snapshot.exists()) throw new Error("No game found with that code.");
-    const lobby = readLobby(snapshot.data());
-    if (lobby.status !== "lobby")
-      throw new Error("That game has already started.");
-    if (lobby.guestUid && lobby.guestUid !== guestUid)
-      throw new Error("That game is already full.");
+  return runTransaction(getDb(), (tx) =>
+    seatGuest(tx, code.trim().toUpperCase(), { uid: guestUid, displayName })
+  );
+}
 
-    const players = {
-      ...lobby.players,
-      [guestUid]: {
-        uid: guestUid,
-        displayName,
-        team: lobby.fixtureTeams?.away ?? null,
-        ready: false,
-      },
-    };
-    tx.update(lobbyRef(normalized), {
-      guestUid,
-      players: firebaseDocument(players),
-    });
-    tx.set(userRef(guestUid), { activeMatchCode: normalized }, { merge: true });
-    return { ...lobby, guestUid, players };
+export async function joinInvitedLobby(
+  code: string,
+  guest: Guest
+): Promise<LobbyDoc> {
+  return runTransaction(getDb(), async (tx) => {
+    await refuseWhilePlayingElsewhere(tx, guest.uid, code);
+    return seatGuest(tx, code, guest);
   });
 }
 
@@ -534,15 +576,31 @@ export async function finishMatch(
 }
 
 export async function setLobbyListed(
-  code: string,
+  lobby: Pick<LobbyDoc, "code" | "hostUid">,
   listed: boolean
 ): Promise<void> {
-  await updateDoc(lobbyRef(code), { listed });
+  await updateDoc(
+    lobbyRef(lobby.code),
+    listed
+      ? { listed, [`players.${lobby.hostUid}.lastSeen`]: Date.now() }
+      : { listed }
+  );
+}
+
+function unlistAbandoned(lobbies: readonly LobbyDoc[], tried: Set<string>): void {
+  for (const code of abandonedListings(lobbies, Date.now())) {
+    if (tried.has(code)) continue;
+    tried.add(code);
+    updateDoc(lobbyRef(code), { listed: false }).catch((error: unknown) => {
+      console.warn("[open lobby] could not unlist an abandoned game", error);
+    });
+  }
 }
 
 export function subscribeOpenLobbies(
   onChange: (lobbies: LobbyDoc[]) => void
 ): () => void {
+  const tried = new Set<string>();
   return onSnapshot(
     query(
       collection(getDb(), "games"),
@@ -552,7 +610,11 @@ export function subscribeOpenLobbies(
       limit(30)
     ),
     (snapshot) => {
-      onChange(readEach(snapshot.docs, (entry) => readLobby(entry.data())));
+      const lobbies = readEach(snapshot.docs, (entry) =>
+        readLobby(entry.data())
+      );
+      unlistAbandoned(lobbies, tried);
+      onChange(lobbies);
     },
     (error) => {
       console.warn("[open lobby] could not follow open games", error);

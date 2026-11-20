@@ -2,6 +2,7 @@ import type { LobbyDoc } from "../firebase/lobby";
 
 export const OPEN_GAME_HEARTBEAT_MS = 30_000;
 const HOST_GONE_MS = 90_000;
+const LISTING_ABANDONED_MS = 300_000;
 
 export interface OpenGame {
   code: string;
@@ -21,8 +22,22 @@ function waitingForAnyone(lobby: LobbyDoc, me: string): boolean {
   );
 }
 
-function hostPresent(lastSeen: number | undefined, now: number): boolean {
-  return lastSeen !== undefined && now - lastSeen <= HOST_GONE_MS;
+function hostSeenWithin(lobby: LobbyDoc, now: number, ms: number): boolean {
+  const lastSeen = lobby.players[lobby.hostUid]?.lastSeen;
+  return lastSeen !== undefined && now - lastSeen <= ms;
+}
+
+export function abandonedListings(
+  lobbies: readonly LobbyDoc[],
+  now: number
+): string[] {
+  return lobbies
+    .filter(
+      (lobby) =>
+        lobby.listed === true &&
+        !hostSeenWithin(lobby, now, LISTING_ABANDONED_MS)
+    )
+    .map((lobby) => lobby.code);
 }
 
 export function openGames({
@@ -37,7 +52,7 @@ export function openGames({
   return lobbies.flatMap((lobby) => {
     const host = lobby.players[lobby.hostUid];
     if (!host || !waitingForAnyone(lobby, me)) return [];
-    if (!hostPresent(host.lastSeen, now)) return [];
+    if (!hostSeenWithin(lobby, now, HOST_GONE_MS)) return [];
     return [
       {
         code: lobby.code,

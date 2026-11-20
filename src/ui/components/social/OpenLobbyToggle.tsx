@@ -44,7 +44,7 @@ export function OpenLobbyToggle({
           checked={listed}
           onChange={(event) => {
             setError(null);
-            setLobbyListed(code, event.target.checked).catch(
+            setLobbyListed(lobby, event.target.checked).catch(
               (reason: unknown) => {
                 setError(errorText(reason));
               }
