@@ -8,7 +8,7 @@ import { blockOdds, casualtyChance, twoD6 } from "./chance";
 import {
   type Board,
   type Square,
-  WIDTH,
+  pitchWidth,
   carrierOf,
   distance,
   toGoal,
@@ -26,7 +26,7 @@ export const nextTurnReach = (player: Player) =>
 export function opponentCanScore(board: Board): boolean {
   const turns = board.opponentTurnsLeft;
   if (turns === 0 || board.ball.kind === "none") return false;
-  const goal = (at: Square) => WIDTH - 1 - toGoal(board, at);
+  const goal = (at: Square) => pitchWidth() - 1 - toGoal(board, at);
   const ball = board.ball;
   if (ball.kind === "loose")
     return board.theirs.some(
@@ -142,7 +142,7 @@ export function finalBallLoss(
     const goal =
       board.dir === 1
         ? opponent.gridPosition.x
-        : WIDTH - 1 - opponent.gridPosition.x;
+        : pitchWidth() - 1 - opponent.gridPosition.x;
     return goal <= nextTurnReach(opponent);
   });
   const concedingChangesResult = !board.half2 || board.lead >= 0;

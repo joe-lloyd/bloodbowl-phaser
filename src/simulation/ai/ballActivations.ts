@@ -11,7 +11,7 @@ import {
   type PassType,
 } from "../../game/controllers/PassController";
 import {
-  HEIGHT,
+  pitchHeight,
   type Square,
   canCarry,
   distance,
@@ -102,7 +102,7 @@ function carrierCover(c: Context, at: Square, carrier: Player): number {
   const cage = cageCorners(c, at, carrier);
 
   const exposed = cage >= 3 ? 0 : 1 - cage / 4;
-  const edge = Math.min(at.y, HEIGHT - 1 - at.y);
+  const edge = Math.min(at.y, pitchHeight() - 1 - at.y);
   return (
     -(w.cageWalk > 0
       ? markRisk(c, carrier, at)
@@ -281,7 +281,7 @@ function stallRoute(
 
   const safety = (at: Square) =>
     Math.min(99, ...board.theirs.map((o) => distance(o.gridPosition, at))) +
-    Math.min(2, at.y, HEIGHT - 1 - at.y);
+    Math.min(2, at.y, pitchHeight() - 1 - at.y);
   const pick = options.reduce((best, o) =>
     safety(o.at) > safety(best.at) ? o : best
   );
