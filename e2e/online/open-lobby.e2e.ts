@@ -38,6 +38,13 @@ test("a host opens a lobby and a stranger joins it from Open games @online", asy
       code,
       { timeout: 30_000 }
     );
+    await expect(guestPage).toHaveURL(new RegExp(`/online/lobby/${code}$`));
+    await guestPage.reload();
+    await expect(guestPage.getByTestId("lobby-code")).toHaveAttribute(
+      "data-code",
+      code,
+      { timeout: 30_000 }
+    );
     await expect(hostPage.getByText("Waiting for opponent…")).toBeHidden();
     await expect(
       hostPage.getByRole("checkbox", { name: /Open game/ })

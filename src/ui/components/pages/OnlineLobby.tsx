@@ -178,7 +178,9 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       setError(null);
       setBusy(true);
       try {
-        setCode(await joining());
+        const joined = await joining();
+        setCode(joined);
+        void navigate(`/online/lobby/${joined}`, { replace: true });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {

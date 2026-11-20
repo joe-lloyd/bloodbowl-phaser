@@ -2,14 +2,14 @@ import type * as LobbyModule from "../../src/firebase/lobby";
 import type * as SocialModule from "../../src/ui/hooks/useSocial";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { OnlineLobby } from "../../src/ui/components/pages/OnlineLobby";
 
 const calls = vi.hoisted(() => ({
   joinLobby: vi.fn(() => new Promise<never>(() => undefined)),
-  acceptMatchInvite: vi.fn(() => new Promise<never>(() => undefined)),
+  acceptMatchInvite: vi.fn((): Promise<string> => new Promise(() => undefined)),
 }));
 
 vi.mock("../../src/ui/hooks/useAuth", () => ({
@@ -51,6 +51,7 @@ vi.mock("../../src/firebase/lobby", async (importOriginal) => {
   return {
     ...original,
     joinLobby: calls.joinLobby,
+    subscribeLobby: () => vi.fn(),
     subscribeOpenLobbies: (onChange: (lobbies: LobbyModule.LobbyDoc[]) => void) => {
       onChange([waiting]);
       return vi.fn();
@@ -69,6 +70,11 @@ vi.mock("../../src/ui/hooks/useSocial", async (importOriginal) => ({
   ],
 }));
 
+function JoinedLobby() {
+  const { code } = useParams();
+  return <p>Lobby {code}</p>;
+}
+
 describe("joining from the Join Game page", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -79,8 +85,11 @@ describe("joining from the Join Game page", () => {
     root = createRoot(container);
     act(() => {
       root.render(
-        <MemoryRouter>
-          <OnlineLobby mode="join" />
+        <MemoryRouter initialEntries={["/online/join"]}>
+          <Routes>
+            <Route path="/online/join" element={<OnlineLobby mode="join" />} />
+            <Route path="/online/lobby/:code" element={<JoinedLobby />} />
+          </Routes>
         </MemoryRouter>
       );
     });
@@ -125,5 +134,14 @@ describe("joining from the Join Game page", () => {
       open.click();
     });
     expect(calls.joinLobby).not.toHaveBeenCalled();
+  });
+
+  it("opens the accepted lobby at its own address, so a reload keeps it", async () => {
+    calls.acceptMatchInvite.mockResolvedValueOnce("INVITE");
+    await act(async () => {
+      button('[data-testid="match-invite"]').click();
+      await Promise.resolve();
+    });
+    expect(container.textContent).toBe("Lobby INVITE");
   });
 });
