@@ -31,7 +31,7 @@ test("the default catalogue is read-only, searchable, and filters by rules", asy
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openCatalogue(page);
-  await expect(page.getByRole("status")).toHaveText("81 of 81 computer teams");
+  await expect(page.getByRole("status")).toHaveText("82 of 82 computer teams");
   await expect(
     page.getByRole("button", { name: "Delete team", exact: true })
   ).toHaveCount(0);
@@ -40,7 +40,7 @@ test("the default catalogue is read-only, searchable, and filters by rules", asy
   await page
     .getByRole("combobox", { name: "Roster", exact: true })
     .selectOption("Human");
-  await expect(page.getByRole("status")).toHaveText("3 of 81 computer teams");
+  await expect(page.getByRole("status")).toHaveText("3 of 82 computer teams");
   const human = page
     .locator(".hud-slab")
     .filter({ has: page.getByRole("heading", { name: "Altdorf All Sorts" }) });
@@ -76,11 +76,11 @@ test("the default catalogue is read-only, searchable, and filters by rules", asy
   await page
     .getByRole("textbox", { name: "Find a computer team" })
     .fill("Snot What You Think");
-  await expect(page.getByRole("status")).toHaveText("0 of 81 computer teams");
+  await expect(page.getByRole("status")).toHaveText("0 of 82 computer teams");
   await page
     .getByRole("combobox", { name: "Sevens rules" })
     .selectOption("naf-sevens-2026-09-26");
-  await expect(page.getByRole("status")).toHaveText("1 of 82 computer teams");
+  await expect(page.getByRole("status")).toHaveText("1 of 83 computer teams");
   await expect(
     page.getByRole("button", { name: "Play against", exact: true })
   ).toBeDisabled();
@@ -190,7 +190,7 @@ test("the same template enters two leagues as different teams with the league mo
     page.getByRole("heading", { name: "Second season", exact: true })
   ).toBeVisible();
   await openCatalogue(page, "Altdorf All Sorts");
-  await expect(page.getByRole("status")).toHaveText("1 of 81 computer teams");
+  await expect(page.getByRole("status")).toHaveText("1 of 82 computer teams");
   await expect(
     page.getByRole("button", { name: "Add to a league" })
   ).toBeEnabled();

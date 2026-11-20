@@ -11,6 +11,9 @@ export interface ComputerTeamTemplate {
   readonly rerolls: number;
 }
 
+const HALFLING_CATCHER = "Halfling Catcher";
+const ALTERN_FOREST_TREEMAN = "Altern Forest Treeman";
+
 const definitions: readonly ComputerTeamTemplate[] = [
   {
     id: "amazon-amazons-0rr",
@@ -376,7 +379,7 @@ const definitions: readonly ComputerTeamTemplate[] = [
     players: [
       ["Gnome Lineman", 4],
       ["Woodland Fox", 2],
-      ["Altern Forest Treeman", 2],
+      [ALTERN_FOREST_TREEMAN, 2],
     ],
     rerolls: 1,
   },
@@ -449,8 +452,8 @@ const definitions: readonly ComputerTeamTemplate[] = [
     sourceUrl: "https://www.youtube.com/watch?v=eY78f8OSVsU&t=440s",
     players: [
       ["Halfling Hopeful", 4],
-      ["Halfling Catcher", 2],
-      ["Altern Forest Treeman", 2],
+      [HALFLING_CATCHER, 2],
+      [ALTERN_FOREST_TREEMAN, 2],
     ],
     rerolls: 0,
   },
@@ -463,9 +466,23 @@ const definitions: readonly ComputerTeamTemplate[] = [
     sourceUrl: "https://www.youtube.com/watch?v=eY78f8OSVsU&t=560s",
     players: [
       ["Halfling Hopeful", 9],
-      ["Halfling Catcher", 2],
+      [HALFLING_CATCHER, 2],
     ],
     rerolls: 0,
+  },
+  {
+    id: "halfling-best-stuff-reroll",
+    name: "Second Helpings",
+    rosterName: RosterName.HALFLING,
+    colors: { primary: 0xb29136, secondary: 0xabc3f5 },
+    buildName: "Best stuff with a re-roll",
+    sourceUrl: "https://www.youtube.com/watch?v=eY78f8OSVsU&t=440s",
+    players: [
+      ["Halfling Hopeful", 5],
+      [HALFLING_CATCHER, 2],
+      [ALTERN_FOREST_TREEMAN, 2],
+    ],
+    rerolls: 1,
   },
   {
     id: "high-elf-max-positionals",

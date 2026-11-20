@@ -36,22 +36,32 @@ beforeEach(() => {
 describe("computer team templates", () => {
   it("is available without seeding or saving teams, with distinct identities", () => {
     const templates = getComputerTeamTemplates();
-    expect(templates).toHaveLength(81);
+    expect(templates).toHaveLength(82);
     expect(new Set(templates.map((template) => template.rosterName)).size).toBe(
       30
     );
     expect(
       new Set(COMPUTER_TEAM_CATALOGUE.map((template) => template.id)).size
-    ).toBe(82);
+    ).toBe(83);
     expect(
       new Set(COMPUTER_TEAM_CATALOGUE.map((template) => template.name)).size
-    ).toBe(82);
+    ).toBe(83);
     expect(
       new Set(
         COMPUTER_TEAM_CATALOGUE.map((template) => template.colors.primary)
       ).size
-    ).toBe(82);
+    ).toBe(83);
     expect(loadTeams()).toEqual([]);
+  });
+
+  it("spends the whole draft on Second Helpings", () => {
+    const team = createComputerTeamFromTemplate("halfling-best-stuff-reroll");
+    expect({
+      teamValue: team.teamValue,
+      treasury: team.treasury,
+      rerolls: team.rerolls,
+      players: team.players.length,
+    }).toEqual({ teamValue: 600_000, treasury: 0, rerolls: 1, players: 9 });
   });
 
   it("builds the sourced Human lineup at current prices", () => {
@@ -81,7 +91,7 @@ describe("computer team templates", () => {
         (template) => template.id === id
       )
     ).toBe(false);
-    expect(getComputerTeamTemplates(NAF_SEVENS_RULESET)).toHaveLength(82);
+    expect(getComputerTeamTemplates(NAF_SEVENS_RULESET)).toHaveLength(83);
     expect(() => createComputerTeamFromTemplate(id)).toThrow(
       "Too many Insignificant"
     );

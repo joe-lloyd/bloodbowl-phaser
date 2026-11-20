@@ -9,7 +9,7 @@ pnpm exec tsx scripts/coach/catalogue-study/rules.ts sim-results/catalogue-rules
 pnpm exec tsx scripts/coach/catalogue-study/audit.ts sim-results/candidate-audit.json
 ```
 
-The default GW Sevens catalogue currently has 81 legal templates from 30 rosters.
+The default GW Sevens catalogue currently has 82 legal templates from 30 rosters.
 The inventory records the reason any bundled recipe is unavailable. Teams keep
 their actual players, veteran and reroll bank. No free simulation inducements are
 granted. Every match starts fresh; this evaluates play rather than career growth.
