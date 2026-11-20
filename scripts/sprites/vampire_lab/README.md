@@ -1,28 +1,31 @@
 # Vampire sprite lab
 
-Review tools for sharper player sprites, built on the shipped pixel art
-(#164) for the vampire team only. Nothing here changes the game.
+A review page for sharper player sprites, the Vampire team only. Every image is rendered by the sprite
+factory (`scripts/sprites/factory`), the pipeline that made the shipped art. Nothing here changes the game.
 
-`shipped_pass.py` reads `public/sprites/bloodbowl/<model>/` for the thrall
-and the three vampire models and writes one strip per animation, layer and
-treatment:
+The page has five sections:
 
-- `current`: the shipped pixels, untouched.
-- `clean`: near-duplicate colours merged, lone pixels removed, and a dark
-  line on the shadow side where kit meets the rest of the figure.
-- `clean-x2`, `clean-x3`, `clean-x4`: `clean` scaled with Scale2x and
-  Scale3x. Each new pixel is picked from one source neighbour, decided on the
-  composite and applied to every layer, so the layers stay aligned.
+1. Dither and tones: the shipped shader next to no dither and two tones.
+2. Density: the same models at 1×, 2×, 3× and 4× the pixels.
+3. Smoother loops: idle, run and cheer at 12 frames instead of 8.
+4. Looks: body, helmet and shoulder pads for each position (`teams/vampire_looks.py`).
+5. Player page: a roster with names from `src/game/names`, rename, and cyclers for each look.
 
-`build_page.py` packs those strips into a dark review page: the sharpen
-comparison with today's multiply tint against the proposed ramp tint, the
-upscalers, and a player page mock that rolls names with the game's own
-generator. `bundle_names.mjs` bundles that generator for the page.
+## Build it
+
+Render the sets with the factory, one output folder per set, then pack them into the page:
 
 ```sh
-python3 scripts/sprites/vampire_lab/shipped_pass.py OUT
-python3 scripts/sprites/vampire_lab/build_page.py OUT PAGE
+cd scripts/sprites/factory && python3 make_reference.py
+V=thrall,vampire_runner,vampire_thrower,vampire_blitzer
+./run.sh --models $V --facings se --out LAB/base-d1
+./run.sh --models $V --facings se --density 2 --out LAB/base-d2      # and d3, d4
+./run.sh --models $V --facings se --dither 0 --out LAB/nodither-d1   # and --density 2 for -d2
+./run.sh --models $V --facings se --dither 0 --tones 2 --out LAB/twotone-d1
+./run.sh --models $V --facings se --density 2 --frames 12 --anims idle,run,cheer --out LAB/frames12-d2
+./run.sh --models <every vampire look key> --facings se --anims idle,run --out LAB/looks-d1  # and -d2
+cd ../vampire_lab && python3 build_page.py LAB PAGE
 ```
 
-Higher pixel density and look variants need the 3D models that the shipped
-pixel art was rendered from. Those models are not in this repository.
+The page reads these sets: `base-d1` to `base-d4`, `nodither-d1`, `nodither-d2`, `twotone-d1`,
+`twotone-d2`, `frames12-d2`, `looks-d1` and `looks-d2`. A set name ends in its density.

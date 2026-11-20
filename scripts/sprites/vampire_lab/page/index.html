@@ -47,6 +47,11 @@ input[type="range"] { accent-color: var(--gold); width: 110px; }
 .grid { display: grid; gap: 12px; }
 .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.matrix { display: grid; gap: 6px; overflow-x: auto; }
+.matrix .h { font: 600 12px/14px "Barlow Condensed", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; justify-content: center; text-align: center; }
+.matrix .m { background: var(--sunk); border: 1px solid var(--edge); border-radius: 3px; display: flex; align-items: flex-end; justify-content: center; padding: 6px; cursor: pointer; }
+.matrix .m:hover { border-color: var(--gold-deep); }
 @media (max-width: 860px) { .cols-4, .cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .cell { background: var(--sunk); border: 1px solid var(--edge); border-radius: 4px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
 .cell .label { font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); text-align: center; }
@@ -101,9 +106,9 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
   <h1>Vampire sprite lab</h1>
   <p class="lede">Everything here is a proposal on a branch. Nothing ships until you pick. Each section ends with what I would do.</p>
   <div class="findings">
-    <div class="finding"><b>Few colours, wrong values</b><span>The shipped vampires use only 18 to 21 colours. Neighbouring shades sit too close in brightness, so they blur into each other.</span></div>
-    <div class="finding"><b>Tint crushes the kit</b><span>The game multiplies grey kit pixels by the team colour. Crimson's dark shade lands near the outline colour, so cloth reads as black mud.</span></div>
-    <div class="finding"><b>No part lines</b><span>Arms, pads and torso run into each other with no dark line between them, so shapes vanish at game size.</span></div>
+    <div class="finding"><b>Same pipeline as the shipped art</b><span>Everything below is rendered in Blender by the sprite factory that made the shipped sprites, restored from its session record. Re-rendering the blitzer reproduces the shipped atlas to within one pixel a frame.</span></div>
+    <div class="finding"><b>Dither makes the mud</b><span>The shader breaks every edge between two tones into a checker. At 42 px that checker covers much of the cloth, so red reads as speckle.</span></div>
+    <div class="finding"><b>Tint crushes the kit</b><span>The game multiplies grey kit pixels by the team colour. Crimson's dark shade lands near the outline colour. The ramp tint in the top bar fixes that with no new art.</span></div>
   </div>
   <div id="app"><div class="loading">Loading sprites…</div></div>
 </main>
