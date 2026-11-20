@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useParams,
+} from "react-router-dom";
 import { MainMenu } from "./components/pages/MainMenu";
 import { TeamManagement } from "./components/pages/TeamManagement";
 import { TeamBuilder } from "./components/pages/TeamBuilder";
@@ -18,6 +24,8 @@ import { type ReactElement } from "react";
 import { EventBus } from "../services/EventBus";
 import { useAuth } from "./hooks/useAuth";
 import { useCoachPresence } from "./hooks/useSocial";
+import { isHouseBotBrowser } from "../firebase/houseBot";
+import { HouseBotSocial } from "./components/social/HouseBotSocial";
 import { TeamLibraryGate } from "./components/TeamManagement/TeamLibraryGate";
 import { isAdminUser } from "../firebase/admin";
 import "./styles/global.css";
@@ -38,6 +46,11 @@ function CoachPresence() {
   return null;
 }
 
+function LobbyAtCode() {
+  const { code } = useParams();
+  return <OnlineLobby key={code} mode="host" />;
+}
+
 function withTeamLibrary(page: ReactElement): ReactElement {
   return <TeamLibraryGate>{page}</TeamLibraryGate>;
 }
@@ -46,6 +59,7 @@ export function App({ eventBus }: AppProps) {
   return (
     <BrowserRouter>
       <CoachPresence />
+      {isHouseBotBrowser() && <HouseBotSocial />}
       <Routes>
         <Route path="/" element={<MainMenu />} />
         <Route
@@ -101,7 +115,7 @@ export function App({ eventBus }: AppProps) {
         />
         <Route
           path="/online/lobby/:code"
-          element={withTeamLibrary(<OnlineLobby mode="host" />)}
+          element={withTeamLibrary(<LobbyAtCode />)}
         />
         <Route
           path="/online/play/:code"
