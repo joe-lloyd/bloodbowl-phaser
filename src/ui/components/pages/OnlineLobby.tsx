@@ -758,6 +758,7 @@ export function SettingsPanel({
         />
       </label>
       <GameTypeSelector
+        label="Game type"
         {...(settings.gameType === undefined
           ? {}
           : { value: settings.gameType })}

@@ -294,16 +294,14 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
 
       {mode !== "sandbox" && (
         <Section title="Game type" className="mt-6">
-          <div className="max-w-2xl">
-            <GameTypeSelector
-              value={gameType}
-              onChange={(next) => {
-                setGameType(next);
-                setSelectedTeam1(null);
-                setSelectedTeam2(null);
-              }}
-            />
-          </div>
+          <GameTypeSelector
+            value={gameType}
+            onChange={(next) => {
+              setGameType(next);
+              setSelectedTeam1(null);
+              setSelectedTeam2(null);
+            }}
+          />
         </Section>
       )}
 

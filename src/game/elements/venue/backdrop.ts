@@ -1,7 +1,6 @@
 import type Phaser from "phaser";
 import { activeLayout } from "../../variants/activeMatch";
-import type { Venue } from "../../variants/pitchLayouts";
-import { MATCH_STYLE } from "../../presentation/matchStyle";
+import { venueArtPath } from "../../presentation/matchStyle";
 import {
   dugoutGateX,
   type VenueDugouts,
@@ -20,12 +19,6 @@ export interface VenueBackdrop {
   readonly width: number;
   readonly height: number;
   destroy(): void;
-}
-
-function venueArtPath(venue: Venue): string {
-  return venue === "stadium"
-    ? MATCH_STYLE.stadiumPath
-    : `${MATCH_STYLE.venuePath}/${venue}`;
 }
 
 export function preloadVenue(scene: Phaser.Scene): void {

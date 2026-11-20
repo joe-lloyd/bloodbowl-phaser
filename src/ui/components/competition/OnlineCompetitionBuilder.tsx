@@ -150,18 +150,21 @@ function Rules({ settings, update }: { settings: Settings; update: Update }) {
   return (
     <Section title="Rules for this competition">
       <div className="grid gap-4 sm:grid-cols-2">
-        <GameTypeSelector
-          value={settings.gameType}
-          onChange={(gameType) => {
-            update({
-              gameType,
-              profile: {
-                ...settings.profile,
-                draftBudget: draftRulesFor(gameType).budget,
-              },
-            });
-          }}
-        />
+        <div className="sm:col-span-2">
+          <GameTypeSelector
+            label="Game type"
+            value={settings.gameType}
+            onChange={(gameType) => {
+              update({
+                gameType,
+                profile: {
+                  ...settings.profile,
+                  draftBudget: draftRulesFor(gameType).budget,
+                },
+              });
+            }}
+          />
+        </div>
         {settings.gameType === DEFAULT_GAME_TYPE && (
           <SevensRulesetSelector value={settings.ruleset} onChange={(ruleset) => { update({ ruleset }); }} />
         )}

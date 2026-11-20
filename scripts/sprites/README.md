@@ -77,7 +77,10 @@ blender -b --factory-startup --python venues.py -- OUT layouts.json street
 python3 scripts/sprites/build_game_assets.py venues OUT
 ```
 
-The last step writes `public/venues/<venue>/`. `venueSidelines.test.ts`
+The last step writes `public/venues/<venue>/`. Then run
+`python3 scripts/sprites/venue_cards.py` to rebuild the `card.webp` each game
+type card shows: the venue's layers tinted in kit colours and cropped to the
+pitch. `venueSidelines.test.ts`
 checks each venue's `meta.json` against the rules layout, so a change to a
 pitch layout fails the tests until the venue is rendered again.
 
@@ -92,6 +95,9 @@ colours), `public/stadium/bloodbowl/` layers, meta and the thumbnail behind
 the loading screen, and `src/game/presentation/spriteManifest.json`, which
 maps every roster position to its model. The script refuses to write a
 manifest whose frames disagree with the existing one.
+
+After a new stadium, run `python3 scripts/sprites/venue_cards.py` so the
+Sevens card on the game type picker shows it.
 
 Pass `-` for the stadium folder to rebuild the players alone. A change that
 moves frames, such as a pose that reaches higher, also changes the manifest:

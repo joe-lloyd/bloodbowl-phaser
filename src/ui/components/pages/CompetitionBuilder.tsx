@@ -240,17 +240,20 @@ function LocalCompetitionBuilder({
 
       <Section title="Rules for this competition">
         <div className="grid gap-4 sm:grid-cols-2">
-          <GameTypeSelector
-            value={gameType}
-            onChange={(next) => {
-              setGameType(next);
-              setProfileChoice((choice) => ({
-                ...choice,
-                draftBudget: draftRulesFor(next).budget,
-              }));
-              setComputerRows([]);
-            }}
-          />
+          <div className="sm:col-span-2">
+            <GameTypeSelector
+              label="Game type"
+              value={gameType}
+              onChange={(next) => {
+                setGameType(next);
+                setProfileChoice((choice) => ({
+                  ...choice,
+                  draftBudget: draftRulesFor(next).budget,
+                }));
+                setComputerRows([]);
+              }}
+            />
+          </div>
           {gameType === DEFAULT_GAME_TYPE && (
             <SevensRulesetSelector value={ruleset} onChange={setRuleset} />
           )}
