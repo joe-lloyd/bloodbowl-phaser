@@ -1,3 +1,4 @@
+import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { GameOperation } from "../core/GameOperation";
 import { GameConfig } from "../../config/GameConfig";
 import type { FlowContext } from "../core/GameFlowManager";
@@ -332,7 +333,9 @@ export class PassOperation extends GameOperation {
       hailMary: this.hailMary,
       ...(targetPlayer === undefined ? {} : { targetPlayer: targetPlayer }),
       marking: markingOpponents,
-      modifiers: passModifier(gameService.getState(), passRange.type),
+      modifiers:
+        passModifier(gameService.getState(), passRange.type) +
+        souvenirModifier(gameService.getState(), passer.id, "pass"),
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -660,7 +663,8 @@ export class PassOperation extends GameOperation {
 
     const outcome = passController.attemptInterception(
       interceptor,
-      chosen.base,
+      chosen.base +
+        souvenirModifier(gameService.getState(), interceptor.id, "intercept"),
       chosen.marking
     );
 

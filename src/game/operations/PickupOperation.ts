@@ -1,3 +1,4 @@
+import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { GameOperation } from "../core/GameOperation";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
@@ -58,7 +59,10 @@ export class PickupOperation extends GameOperation {
       marking: markingOpponents,
       weather,
       agilityTest: !securing,
-      modifiers: -markingOpponents + weather,
+      modifiers:
+        -markingOpponents +
+        weather +
+        souvenirModifier(gameService.getState(), player.id, "pick-up"),
       decisions: gameService.getDecisionService(),
       flow: flowManager,
       arbiter: gameService.getRerollArbiter(),

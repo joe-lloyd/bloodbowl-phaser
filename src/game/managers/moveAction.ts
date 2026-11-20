@@ -1,3 +1,4 @@
+import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { PickupOperation } from "../operations/PickupOperation";
@@ -389,7 +390,9 @@ function dodgeDeclaredContext(
     player: run.player,
     from: { ...run.currentPos },
     to: { ...step },
-    modifiers: markingPenalty,
+    modifiers:
+      markingPenalty +
+      souvenirModifier(deps.state, run.player.id, "dodge"),
     markingPenalty,
     skillRerollAllowed: true,
     ...triggerServices(run),

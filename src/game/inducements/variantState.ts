@@ -1,5 +1,4 @@
 import { type GameState } from "@/types/GameState";
-import { type Player } from "@/types/Player";
 import { getMatchInducements, type MatchGrant } from "./matchInducements";
 
 export const SOUVENIRS = [
@@ -20,7 +19,7 @@ export type PotionEffect =
   | "fungus-beer"
   | "endurance";
 
-export interface PotionEffectRecord {
+interface PotionEffectRecord {
   playerId: string;
   effect: PotionEffect;
 }
@@ -85,21 +84,4 @@ export function removePotionEffect(
     (record) => record.playerId !== playerId || record.effect !== effect
   );
   return true;
-}
-
-export function playersWithEffect(
-  state: GameState,
-  players: Player[],
-  effect: PotionEffect
-): Player[] {
-  return players.filter((player) => hasPotionEffect(state, player.id, effect));
-}
-
-export function souvenirsCarried(
-  state: GameState,
-  playerId: string
-): Souvenir[] {
-  return (state.matchInducements?.variant?.souvenirs ?? [])
-    .filter((held) => held.playerId === playerId)
-    .map((held) => held.souvenir);
 }

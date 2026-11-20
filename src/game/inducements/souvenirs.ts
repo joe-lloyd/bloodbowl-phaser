@@ -11,7 +11,6 @@ import {
   SOUVENIRS,
   type Souvenir,
   getVariantInducements,
-  souvenirsCarried,
 } from "./variantState";
 
 const SOUVENIR_SKILLS: Record<Souvenir, readonly SkillType[]> = {
@@ -25,7 +24,7 @@ const SOUVENIR_SKILLS: Record<Souvenir, readonly SkillType[]> = {
   Gatorcade: [SkillType.FRENZY, SkillType.JUMP_UP, SkillType.NO_BALL],
 };
 
-export function souvenirForRoll(roll: number): Souvenir {
+function souvenirForRoll(roll: number): Souvenir {
   const souvenir = SOUVENIRS[Math.min(SOUVENIRS.length, Math.max(1, roll)) - 1];
   if (!souvenir) throw new Error(`No souvenir for ${String(roll)}`);
   return souvenir;
@@ -86,35 +85,5 @@ export function breakSouvenirs(state: GameState, players: Player[]): void {
   variant.halfGrants = [];
   variant.souvenirs = variant.souvenirs.filter(
     (held) => held.playerId === undefined
-  );
-}
-
-export type SouvenirRoll =
-  | "rush"
-  | "dodge"
-  | "pick-up"
-  | "catch"
-  | "intercept"
-  | "pass";
-
-const ROLL_BONUS: Record<Souvenir, Partial<Record<SouvenirRoll, number>>> = {
-  "Sports Sandals": { rush: 1 },
-  "Suntan Lotion": { dodge: 1 },
-  Thong: {},
-  Sunglasses: {},
-  Bottle: {},
-  "Puka Shell Necklace": {},
-  "Sticky Bun": { "pick-up": 1, catch: 1, intercept: 1, pass: -1 },
-  Gatorcade: {},
-};
-
-export function souvenirModifier(
-  state: GameState,
-  playerId: string,
-  roll: SouvenirRoll
-): number {
-  return souvenirsCarried(state, playerId).reduce(
-    (sum, souvenir) => sum + (ROLL_BONUS[souvenir][roll] ?? 0),
-    0
   );
 }
