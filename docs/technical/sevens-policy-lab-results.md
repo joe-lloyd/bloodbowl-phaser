@@ -284,6 +284,78 @@ Confirmation on its own cannot rule out parity, but it agrees with the six focus
 
 The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-7bd9e5eee52b-vs-15128db61afa` on Daily Driver. The focused runs stay under `/Users/joelloyd/tmp/bb7-bash*`.
 
+## Rules the planner ignored, 20 November
+
+Weight changes had stopped moving the seven rosters below their standard, so this round read games instead. Four agents each took a group of rosters, read narrated games turn by turn and counted every pattern they found across the 5,184 games of the previous lab. `narrate.ts` prints a trace as a text board with each declaration, the coach's note and the dice.
+
+They found the planner ignoring rules, not weighing them badly:
+
+- A prone player who declared a Blitz had no step to stand up, so the coach ended the activation and the team lost its Blitz. That happened 0.7 to 1.2 times per team per game, 10.8% of all Blitzes.
+- No Ball players were sent to pick up and secure the ball and were handed it: 0.33 free turnovers a game for Necromantic builds with Wraiths.
+- A chase move was valued by the squares it closed and never charged for its dice. Under Halfling's 82% move threshold, Halflings and their Treemen lost about 100 turnovers and 17 players per 128 games to them.
+- Really Stupid, Unchannelled Fury, Bone Head, Animal Savagery and Take Root can end an activation before it starts, but every activation was valued as if it always happened. Minotaurs failed 367 of 752 declared moves; Snotling Big Guys failed Really Stupid 46% of the time, mostly as the team's first activation.
+
+Each is now handled. A prone blitzer stands up and then blocks. No Ball players take no ball job. A chase move is priced like any other move with dice. An activation counts only as often as its rolls pass. Take Root counts only for plans that leave the square, because a Rooted player may still act where it stands. A Really Stupid player waits while a free team-mate can step beside it first and turn its 4+ into a 2+. Two smaller changes go with them. A pick-up is charged only against team-mates who could reach the ball this turn; before, a slow player beside a loose ball was charged for a fast team-mate across the pitch and left the ball on the ground. A marked carrier may Blitz the player marking it.
+
+| Change, paired against the policy before it                                 | Seeds |  Games | Candidate points |
+| --------------------------------------------------------------------------- | ----: | -----: | ---------------: |
+| Prone Blitz, No Ball and chase pricing, against main                        |     3 | 15,552 |           53.12% |
+| Activation rolls and Really Stupid help, against the above                  |     3 | 15,544 |           50.60% |
+| Carrier Blitz, against the first three                                      |     1 |  5,184 |           50.18% |
+| Pick-up benchmark limited to who can reach the ball, against the first four |     1 |  5,184 |           50.27% |
+
+No change in earlier rounds gained more than 1.6 points. The first three together gained 3.1. They raised the candidate's touchdowns from 3,786 to 4,257 a seed.
+
+A per-roster "change" belongs to a pairing: candidate Halfling against frozen Snotling and frozen Halfling against candidate Snotling give both rosters the same number. Against the field's mean change, the first three fixes moved Nurgle +3.0, Chaos Dwarf +1.8, Tomb Kings +0.9, Dwarf +0.3, Necromantic -0.7, Halfling -4.6 and Snotling -9.6. A stronger planner helped the Stunty rosters least.
+
+Measured and dropped:
+
+| Change                                                                                    | Result                                                                                                         |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `cageAhead`, team-mates build the carrier's next cage before it moves                     | 49.8% and 50.1% on fresh all-roster seeds; Dwarf -4.0 and Chaos Dwarf -4.2 at 80                               |
+| Frenzy's second block priced from the follow-up square                                    | 50.15% over 15,552 games; Norse and Necromantic, the Frenzy rosters, did not gain                              |
+| Hold the ball while the clock allows: no progress value while the carrier has spare turns | 44.8% at one spare turn, 48.0% at two; touchdowns fell 11 to 21%                                               |
+| The same hold for Tomb Kings and Halfling only                                            | 48.56% over 2,432 games on fresh seeds; Tomb Kings -4.0                                                        |
+| Halfling at the default 92% move threshold                                                | 46.78% over 1,536 Halfling games; 82% stays                                                                    |
+| Chase moves without dice pricing, Halfling only                                           | 48.67% over 1,536 games; the chase pricing stays                                                               |
+| A hand-off valued by the team-mate throw it sets up                                       | 50.00%: a Right Stuff team-mate is almost never already beside a free thrower on the last turn                 |
+| Own casualties priced like the ones we inflict, every roster                              | 49.23%; Snotling, Ogre, Gnome, Halfling and Goblin pairings gained 2 to 9 points, the elf rosters lost 5 to 9  |
+| The same pricing for those five rosters only, on fresh seeds                              | 49.49% over 2,432 games; only Gnome gained. The earlier gains came from opponents playing them more cautiously |
+| Every picker charged pace for the whole drive, not one turn                               | 50.00% over 10,368 games; Dwarf -2.1                                                                           |
+| Tackle players prefer to mark a Dodge carrier                                             | 50.00% over 10,368 games; Dwarf +0.8                                                                           |
+
+An independent Fable 5.2 review of the agents' evidence proposed the hold-the-ball idea and caught the pick-up benchmark fault. Drives that kept the ball until turn 4 scored 35.9% of the time against 12.5% without it, but holding on purpose cost tempo the cage never repaid. The same lesson ended `fullCage`.
+
+Candidate source `74c074d275ae` played main, `35d50ad36b87`. All 12,304 games completed, with zero acquisition findings and no excluded blocks. The 87-check tactical gate passed.
+
+| Stage                                | Games |   Candidate points share | 95% interval         |
+| ------------------------------------ | ----: | -----------------------: | -------------------- |
+| Confirmation, best planner           | 5,184 |                   52.99% | 52.09% to 53.83%     |
+| Standard, against the frozen planner | 5,184 |                   51.52% | 50.54% to 52.55%     |
+| Persistent fixtures                  | 1,296 |                   53.12% | 51.47% to 54.90%     |
+| Heuristic control                    |   432 |                   93.52% | 91.55% to 95.37%     |
+| Hard sentinels                       |    16 | 28.13%, descriptive only | No strength estimate |
+
+The candidate scored 4,249 touchdowns against 3,726 in confirmation. Standard, with its game plans and close-call variety, beat the frozen best planner for the first time.
+
+A stronger planner did not close the gaps between rosters. The confirmation scorecard pools both policies, so two self-play runs, where the candidate plays itself on the confirmation schedule, give the standards for the shipped planner. Averaged over them, 23 rosters meet their standard, as on `7bd9e5eee52b`. Snotling now meets its standard at 31.5% against 25.9%. Vampire falls below its bar, at 40.1% against 45.3%; no paired change moved it against the field, and it sat at its bar in earlier rounds.
+
+| Roster still short | Tier | Strength, then and now | Scores in, then and now |
+| ------------------ | ---: | ---------------------: | ----------------------: |
+| Necromantic Horror |    1 |    46.2% → 46.4% (50%) |         51% → 49% (55%) |
+| Chaos Dwarf        |    1 |    44.8% → 45.3% (50%) |         51% → 47% (55%) |
+| Nurgle             |    2 |    42.7% → 43.5% (45%) |         35% → 34% (50%) |
+| Tomb Kings         |    2 |    41.3% → 41.8% (45%) |         39% → 38% (50%) |
+| Dwarf              |    2 |    40.0% → 40.2% (45%) |         33% → 35% (50%) |
+| Vampire            |    2 |    45.3% → 40.1% (45%) |         52% → 46% (50%) |
+| Halfling           |    3 |    23.5% → 23.5% (38%) |         27% → 28% (40%) |
+
+Halfling's gap is mostly its builds. Undeveloped, the two presets took 43.8% and 32.8% on `7bd9e5eee52b`; with four players developed they took 19% to 27%. Both presets spend 470,000 and 380,000 of the 600,000 budget and buy no team re-roll. The developed arms rank skills by a list that holds nothing a Halfling can take as a primary skill, so ties go alphabetically: Hopefuls take Catch and Right Stuff players Lethal Flight. Slow tier-2 rosters score in about a third of their games against a bar of half; every change that slowed the carrier down to protect the ball lost.
+
+The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-74c074d275ae-vs-35d50ad36b87` on Daily Driver. The paired experiments and self-play runs stay under `/Users/joelloyd/tmp/bb7-std`.
+
+Published report: [Blood Bowl Sevens policy lab, 20 November](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-policy-lab-2026-11-20%2Findex.html), Blood Bowl, `sevens-policy-lab-2026-11-20/`.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
