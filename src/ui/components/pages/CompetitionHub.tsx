@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import {
+  GAME_TYPE_LABELS,
+  readGameType,
+} from "../../../game/variants/gameTypes";
 import { useNavigate } from "react-router-dom";
 import { listCompetitions } from "../../../competition/repository";
 import {
@@ -67,6 +71,9 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
                 {competition.name}
               </span>
               <span className="flex flex-wrap items-center gap-2">
+                <Chip tone="info">
+                  {GAME_TYPE_LABELS[readGameType(competition.gameType)]}
+                </Chip>
                 <Chip>{competition.entrants.length} teams</Chip>
                 <Chip tone={STATUS_TONE[competition.status]}>
                   {competition.status}

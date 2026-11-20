@@ -77,11 +77,11 @@ describe("computer team templates", () => {
   it("only offers Max snots under rules that permit its draft", () => {
     const id = "snotling-max-snots";
     expect(
-      getComputerTeamTemplates(DEFAULT_SEVENS_RULESET).some(
+      getComputerTeamTemplates({ ruleset: DEFAULT_SEVENS_RULESET }).some(
         (template) => template.id === id
       )
     ).toBe(false);
-    expect(getComputerTeamTemplates(NAF_SEVENS_RULESET)).toHaveLength(82);
+    expect(getComputerTeamTemplates({ ruleset: NAF_SEVENS_RULESET })).toHaveLength(82);
     expect(() => createComputerTeamFromTemplate(id)).toThrow(
       "Too many Insignificant"
     );
@@ -105,13 +105,13 @@ describe("computer team templates", () => {
         draftBudget: 600_000,
       });
       for (const ruleset of [DEFAULT_SEVENS_RULESET, NAF_SEVENS_RULESET] as const) {
-        const failures = getComputerTeamTemplates(ruleset).flatMap(
+        const failures = getComputerTeamTemplates({ ruleset }).flatMap(
           (template) => {
             const team = createComputerTeamFromTemplate(template.id, {
               ruleset,
               advancementMode,
             });
-            const { reasons } = checkTeamCompatibility(team, profile, ruleset);
+            const { reasons } = checkTeamCompatibility(team, profile, { ruleset });
             return reasons.map((reason) => `${template.name}: ${reason}`);
           }
         );

@@ -77,6 +77,7 @@ export async function createCompetition(
     if ("team" in choice) return choice;
     const team = createComputerTeamFromTemplate(choice.computerTemplateId, {
       ruleset,
+      gameType,
       advancementMode: input.profile?.advancementMode ?? "advanced-league",
     });
     const base = team.name;
@@ -100,7 +101,7 @@ export async function createCompetition(
     try {
       const roster = getRosterByRosterName(team.rosterName);
       return (
-        validateRosterLegality(team, roster).length > 0 ||
+        validateRosterLegality(team, roster, gameType).length > 0 ||
         !!validateInsignificant(team.players, ruleset)
       );
     } catch {
@@ -114,7 +115,7 @@ export async function createCompetition(
         .join(", ")}`
     );
   }
-  assertEntrantsCompatible(teams, input.profile, ruleset);
+  assertEntrantsCompatible(teams, input.profile, { ruleset, gameType });
 
   const entrants = seedEntrants(
     choices.map(({ team, ownerUid }) => ({

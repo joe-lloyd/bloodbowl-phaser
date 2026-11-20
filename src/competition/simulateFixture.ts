@@ -2,6 +2,7 @@ import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import { foldMatchSummaryIntoCareers } from "../game/progression/careerStats";
 import { recordPendingDevelopment } from "../game/progression/postMatch";
 import { HeadlessGame } from "../headless/HeadlessGame";
+import { startingFormat } from "../game/variants/startingFormat";
 import { type IRNGService, RNGService } from "../services/rng/RNGService";
 import { plannerCoach } from "../simulation/ai/planner";
 import { type Coach } from "../simulation/coach";
@@ -154,6 +155,7 @@ export async function simulateFixture(
     progressionEnabled: true,
     knockout: context.knockout,
     paysWinnings: fixturePaysWinnings(context.competitionType),
+    ...startingFormat(context.gameType, () => (rng.rollDie(6) - 1) / 6),
   });
   options.inspect?.(game);
 

@@ -1,8 +1,6 @@
-import {
-  DEFAULT_SEVENS_RULESET,
-  SEVENS_RULESET_LABELS,
-} from "../../../game/rules/sevensRuleset";
+import { DEFAULT_SEVENS_RULESET } from "../../../game/rules/sevensRuleset";
 import { useEffect, useState } from "react";
+import { CompetitionRulesLine } from "../common/CompetitionRulesLine";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCompetition } from "../../../competition/repository";
 import {
@@ -166,6 +164,9 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
 
   const contextFor = (fixture: CompetitionFixture): CompetitionContext => ({
     ruleset: competition.ruleset ?? DEFAULT_SEVENS_RULESET,
+    ...(competition.gameType === undefined
+      ? {}
+      : { gameType: competition.gameType }),
     competitionType: competition.type,
     competitionId: competition.id,
     fixtureId: fixture.id,
@@ -222,14 +223,12 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
           }
         : undefined;
     try {
-      const updated = await recordCompetitionFixture(
-        {
-          context: contextFor(fixture),
-          homeScore: home,
-          awayScore: away,
-          ...(penalties ? { penalties } : {}),
-        }
-      );
+      const updated = await recordCompetitionFixture({
+        context: contextFor(fixture),
+        homeScore: home,
+        awayScore: away,
+        ...(penalties ? { penalties } : {}),
+      });
       setCompetition(updated);
       setError(null);
     } catch (reason) {
@@ -645,10 +644,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         actions={<Chip>{competition.status}</Chip>}
       />
 
-      <p className="mb-6 font-hud-body text-hud-sm text-hud-dim">
-        {SEVENS_RULESET_LABELS[competition.ruleset ?? DEFAULT_SEVENS_RULESET]}
-        {" · "}NAF clarifications apply. Swarming is enabled.
-      </p>
+      <CompetitionRulesLine competition={competition} />
 
       {champion && (
         <Panel accent="gold" className="mb-6 px-5 py-4">

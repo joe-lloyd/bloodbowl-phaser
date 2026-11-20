@@ -2,6 +2,7 @@ import { matchedPlaySkillViolations } from "../game/progression/advancementModes
 import { validateInsignificant } from "../game/rules/insignificant";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
 import { type SevensRuleset } from "../game/rules/sevensRuleset";
+import type { GameType } from "../game/variants/gameTypes";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import {
   calculateTeamValue,
@@ -61,47 +62,63 @@ function profileReasons(team: Team, profile: RosterRuleProfile): string[] {
 const developmentBlocks = (team: Team, profile: RosterRuleProfile) =>
   profile.requireDevelopmentComplete && hasBlockingPendingDevelopment(team);
 
+export interface CompetitionRules {
+  ruleset?: SevensRuleset;
+  gameType?: GameType;
+}
+
+function rosterReasons(
+  team: Team,
+  { ruleset, gameType }: CompetitionRules
+): string[] {
+  try {
+    const roster = getRosterByRosterName(team.rosterName);
+    const insignificantError = validateInsignificant(team.players, ruleset);
+    return [
+      ...validateRosterLegality(team, roster, gameType).map(
+        (violation) => violation.detail
+      ),
+      ...(insignificantError ? [insignificantError] : []),
+      ...(team.advancementMode === "matched-play"
+        ? matchedPlaySkillViolations(team, roster)
+        : []),
+    ];
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
+  }
+}
+
+const restricts = (
+  profile: RosterRuleProfile | undefined,
+  rules: CompetitionRules
+): boolean => !!profile || !!rules.ruleset || !!rules.gameType;
+
 export function checkTeamCompatibility(
   team: Team,
   profile: RosterRuleProfile | undefined,
-  ruleset?: SevensRuleset
+  rules: CompetitionRules = {}
 ): CompatibilityResult {
-  const reasons: string[] = [];
-  if (!profile && !ruleset) return { compatible: true, reasons };
-
-  if (profile) reasons.push(...profileReasons(team, profile));
-
-  try {
-    const roster = getRosterByRosterName(team.rosterName);
-    const violations = validateRosterLegality(team, roster);
-    violations.forEach((violation) => reasons.push(violation.detail));
-    const insignificantError = validateInsignificant(team.players, ruleset);
-    if (insignificantError) reasons.push(insignificantError);
-
-    if (team.advancementMode === "matched-play") {
-      reasons.push(...matchedPlaySkillViolations(team, roster));
-    }
-  } catch (error) {
-    reasons.push(error instanceof Error ? error.message : String(error));
-  }
-
+  if (!restricts(profile, rules)) return { compatible: true, reasons: [] };
+  const reasons = [
+    ...(profile ? profileReasons(team, profile) : []),
+    ...rosterReasons(team, rules),
+  ];
   if (profile && developmentBlocks(team, profile)) {
     reasons.push(
       "Team has unresolved development (Skill Selection or a required advancement) — resolve it in Manage Team."
     );
   }
-
   return { compatible: reasons.length === 0, reasons };
 }
 
 export function assertEntrantsCompatible(
   teams: readonly Team[],
   profile: RosterRuleProfile | undefined,
-  ruleset?: SevensRuleset
+  rules: CompetitionRules = {}
 ): void {
-  if (!profile && !ruleset) return;
+  if (!restricts(profile, rules)) return;
   for (const team of teams) {
-    const result = checkTeamCompatibility(team, profile, ruleset);
+    const result = checkTeamCompatibility(team, profile, rules);
     if (!result.compatible) {
       throw new Error(
         `${team.name} is not compatible with this competition: ${result.reasons.join(" ")}`
