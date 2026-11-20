@@ -8,6 +8,11 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
+const viewer = vi.hoisted((): { uid: string | null } => ({ uid: null }));
+vi.mock("../../src/firebase/auth", () => ({
+  getCurrentUser: () => (viewer.uid ? { uid: viewer.uid } : null),
+}));
+
 const otherCoachTeams: { ownerUid: string; team: Team }[] = [];
 vi.mock("../../src/firebase/cloudTeamRepository", () => ({
   fetchCoachTeam: vi.fn(
@@ -67,6 +72,35 @@ beforeEach(() => {
   localStorage.clear();
   setTeamRepository(null);
   otherCoachTeams.length = 0;
+  viewer.uid = null;
+});
+
+describe("another coach's entrant that names one of your team ids", () => {
+  const copied = () =>
+    localEntrant({ id: "coach:mallory:home", ownerUid: "mallory", name: "Mallory's entry" });
+
+  it("never loads or relabels your own team for it", async () => {
+    viewer.uid = "amy";
+    await saveTeams([team("home", { name: "Amy's Team" })]);
+    otherCoachTeams.push({ ownerUid: "mallory", team: team("home", { name: "Mallory's Team" }) });
+
+    expect((await fetchEntrantTeam(copied()))?.name).toBe("Mallory's Team");
+    const competition = {
+      id: "c1",
+      type: "league" as const,
+      name: "League",
+      organizerUid: "amy",
+      participantUids: ["mallory"],
+      status: "active" as const,
+      entrants: [copied()],
+      fixtures: [],
+      standings: [],
+      points: { win: 3, draw: 1, loss: 0 },
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    expect(refreshEntrantDisplays(competition).entrants[0]?.name).toBe("Mallory's entry");
+  });
 });
 
 describe("fetchEntrantTeam", () => {

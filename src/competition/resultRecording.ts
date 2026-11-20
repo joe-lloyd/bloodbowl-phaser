@@ -1,5 +1,6 @@
 import { getCurrentUser } from "../firebase/auth";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
+import { ownLocalTeam } from "./teamRefs";
 import { stampFirstCompletedMatch } from "../game/rules/teamLifecycle";
 import { MIN_DEDICATED_FANS } from "../game/rules/sevensPrices";
 import { queueExpensiveMistakes } from "../game/rules/expensiveMistakes";
@@ -95,7 +96,7 @@ function updateTeamRecord({
   counts = true,
   winnings,
 }: TeamRecordUpdate): void | Promise<void> {
-  const persisted = getTeamById(entrant.teamId);
+  const persisted = ownLocalTeam(entrant);
   if (!persisted) return;
   if (persisted.recordedFixtureIds?.includes(fixtureKey))
     return saveTeam(persisted);
@@ -223,7 +224,7 @@ function rollFanFactors(
     const entrant = competition.entrants.find(
       (candidate) => candidate.id === entrantId
     );
-    const team = entrant && getTeamById(entrant.teamId);
+    const team = entrant && ownLocalTeam(entrant);
     return team?.dedicatedFans ?? MIN_DEDICATED_FANS;
   };
   return {

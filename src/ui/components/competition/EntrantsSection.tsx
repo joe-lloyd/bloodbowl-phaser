@@ -5,7 +5,7 @@ import type {
   CompetitionDoc,
   CompetitionEntrant,
 } from "../../../competition/types";
-import { getTeamById } from "../../../game/managers/TeamManager";
+import { ownLocalTeam } from "../../../competition/teamRefs";
 import { errorText } from "../../errorText";
 import { cx, Section } from "../componentWarehouse/HudKit";
 import { coachLabel } from "./labels";
@@ -25,7 +25,7 @@ function actionFor({
   organizer: boolean;
 }): EntrantAction {
   if (entrant.withdrawn || entrant.computerCoached) return null;
-  if (getTeamById(entrant.teamId)) return "withdraw";
+  if (ownLocalTeam(entrant)) return "withdraw";
   return organizer && overdue.has(entrant.id) ? "remove" : null;
 }
 

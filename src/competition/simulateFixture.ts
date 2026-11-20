@@ -1,4 +1,5 @@
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
+import { ownLocalTeam } from "./teamRefs";
 import { foldMatchSummaryIntoCareers } from "../game/progression/careerStats";
 import { recordPendingDevelopment } from "../game/progression/postMatch";
 import { HeadlessGame } from "../headless/HeadlessGame";
@@ -87,7 +88,7 @@ function fixtureTeams(
   }
   const load = (entrantId: string | null) => {
     const entrant = computerEntrant(competition, entrantId)!;
-    const team = getTeamById(entrant.teamId);
+    const team = ownLocalTeam(entrant);
     if (!team) throw new Error(`${entrant.name} is not in this library.`);
     return team;
   };
