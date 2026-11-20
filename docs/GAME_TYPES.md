@@ -64,29 +64,31 @@ played, and `GameConfig` reads its pitch from there.
 
 ### Kick-off table (2D6)
 
+Fan Factor in this table is the team's Dedicated Fans, the same number the Sevens Pitch Invasion adds.
+
 | ID | Roll | Event | Status |
 | --- | --- | --- | --- |
-| SB-K2 | 2 | Loose Masonry: pick a Wide Zone at random. Every player in it is Knocked Down and makes an unmodified Armour roll. | missing |
-| SB-K3 | 3 | Riot: D6 per coach. The lower coach, or both on a tie, picks D3 random players on the pitch, who are Placed Prone and Stunned. | missing |
-| SB-K4 | 4 | Stray Pony: every player on a Line of Scrimmage makes a Dodge into the square behind them, pushing anyone there straight back without a fall. A failed Dodge is Knocked Down with +2 Armour. ST 5 or more skips the roll. | missing |
-| SB-K5 | 5 | High Kick: one Open receiving player may move to the landing square. | missing |
-| SB-K6 | 6 | Cheering Fans: D6 + Fan Factor each; the higher gets a team re-roll for the drive. A tie gives nothing. | missing |
-| SB-K7 | 7 | Brilliant Coaching: as SB-K6. | missing |
-| SB-K8 | 8 | Changing Weather: roll new Street Bowl weather. On Normal the ball scatters three times before landing. | missing |
-| SB-K9 | 9 | Potion Peddler: each team gains one Magic Potion. | missing |
-| SB-K10 | 10 | Blitz: D3+1 Open kicking players may Move; one may Blitz and one may Throw Team-mate. A fall ends it. | missing |
-| SB-K11 | 11 | Throw a Bomb: D6 + Fan Factor each. The lower team has a random player on the pitch hit by an accurate bomb. A tie is a dud. | missing |
-| SB-K12 | 12 | Guards!: the lowest MA player on each team (random tie-break) takes a ST 3 block with no skills. A player Knocked Down is arrested for the rest of the game. Pushes go straight back towards their own end zone. | missing |
+| SB-K2 | 2 | Loose Masonry: pick a Wide Zone at random. Every player in it is Knocked Down and makes an unmodified Armour roll. | ok |
+| SB-K3 | 3 | Riot: D6 per coach. The lower coach, or both on a tie, picks D3 random players on the pitch, who are Placed Prone and Stunned. | ok |
+| SB-K4 | 4 | Stray Pony: every player on a Line of Scrimmage makes a Dodge into the square behind them, pushing anyone there straight back without a fall. A failed Dodge is Knocked Down with +2 Armour. ST 5 or more skips the roll. Our version: the Dodge is an unmodified Agility test, and a push that would leave the pitch or go into an obstacle does not happen. | differs |
+| SB-K5 | 5 | High Kick: one Open receiving player may move to the landing square. | ok |
+| SB-K6 | 6 | Cheering Fans: D6 + Fan Factor each; the higher gets a team re-roll for the drive. A tie gives nothing. | ok |
+| SB-K7 | 7 | Brilliant Coaching: as SB-K6. | ok |
+| SB-K8 | 8 | Changing Weather: roll new Street Bowl weather. On Normal the ball scatters three times before landing. | ok |
+| SB-K9 | 9 | Potion Peddler: each team gains one Magic Potion. Our version: the potion is logged; using it waits for the Magic Potions rules. | differs |
+| SB-K10 | 10 | Blitz: D3+1 Open kicking players may Move; one may Blitz and one may Throw Team-mate. A fall ends it. | ok |
+| SB-K11 | 11 | Throw a Bomb: D6 + Fan Factor each. The lower team has a random player on the pitch hit by an accurate bomb. A tie is a dud. Our version: the bomb goes off at once; nobody can catch it and throw it on. | differs |
+| SB-K12 | 12 | Guards!: the lowest MA player on each team (random tie-break) takes a ST 3 block with no skills. A player Knocked Down is arrested for the rest of the game. Pushes go straight back towards their own end zone. Our version: the block dice are picked for both sides, each taking its best face. | differs |
 
 ### Weather table (2D6)
 
 | ID | Roll | Weather | Status |
 | --- | --- | --- | --- |
-| SB-W2 | 2 | Smog: before each kick-off each coach rolls a D6; on a 1 they field at most 6, on a 6 up to 8. Quick passes only. | missing |
-| SB-W3 | 3 | Wind: -1 to every pass. | missing |
-| SB-W4 | 4-10 | Normal: no effect. | missing |
-| SB-W11 | 11 | Rain: -1 to catch, deflect, intercept and pick-up. | missing |
-| SB-W12 | 12 | Snow: -1 to Rush; Quick and Short passes only. | missing |
+| SB-W2 | 2 | Smog: before each kick-off each coach rolls a D6; on a 1 they field at most 6, on a 6 up to 8. Quick passes only. Our version: Quick passes only. The fielding roll before each kick-off is missing. | differs |
+| SB-W3 | 3 | Wind: -1 to every pass. | ok |
+| SB-W4 | 4-10 | Normal: no effect. | ok |
+| SB-W11 | 11 | Rain: -1 to catch, deflect, intercept and pick-up. | ok |
+| SB-W12 | 12 | Snow: -1 to Rush; Quick and Short passes only. | ok |
 
 ### Magic Potions (D8)
 
@@ -135,27 +137,27 @@ or to a fit player before a drive. Not to a player with Regeneration.
 
 | ID | Roll | Event | Status |
 | --- | --- | --- | --- |
-| BB-K2 | 2 | High Tide: a random Wide Zone floods for the drive. Players in it move straight towards the middle until they reach Centre Field. A player pushed in goes to Reserves. A kick landing there is a touchback; a ball entering it returns to its last square. | missing |
-| BB-K3 | 3 | Rousted: if the receiving team's marker is on turn 5, both markers go back one; if the receiving team has not had a turn this half, both go forward one; otherwise a D6 of 1-3 moves both forward, 4-6 back. | missing |
-| BB-K4 | 4 | Lost Ball: D6. 1-3 a conch shell: -1 to pick-up, catch and intercept, and the carrier gains Mighty Blow (+1). 4-6 a beach ball: -1 to pass, +1 to pick-up, catch and intercept. Lasts the game or until rolled again. | missing |
-| BB-K5 | 5 | High Kick: one Open receiving player may move to the landing square. | missing |
-| BB-K6 | 6 | Samba!: D6 + Cheerleaders each; the higher gets a team re-roll for the drive. A tie gives nothing. | missing |
-| BB-K7 | 7 | Brilliant Coaching: D6 + Assistant Coaches each; as BB-K6. | missing |
-| BB-K8 | 8 | Changing Weather: roll new Beach Bowl weather. On Perfect Conditions the ball scatters one extra square. | missing |
-| BB-K9 | 9 | Jellyfish!?: D6 each; the lower team, or both on a tie, has a random player make an Injury roll. | missing |
-| BB-K10 | 10 | Seagull Attack: for the drive, -1 to Quick and Short passes and -2 to Long passes and Long Bombs. | missing |
-| BB-K11 | 11 | Charge!: D3+1 Open kicking players may Move; one may Blitz and one may Throw Team-mate. A fall ends it. | missing |
-| BB-K12 | 12 | Monster Wave: every player on the pitch moves D3 squares in one random direction, all at once. Anyone washed off the pitch goes to Reserves. Then the ball lands. | missing |
+| BB-K2 | 2 | High Tide: a random Wide Zone floods for the drive. Players in it move straight towards the middle until they reach Centre Field. A player pushed in goes to Reserves. A kick landing there is a touchback; a ball entering it returns to its last square. Our version: players wade out and a kick landing in the flood is a touchback. Pushes into the flood and a loose ball entering it are not handled yet. | differs |
+| BB-K3 | 3 | Rousted: if the receiving team's marker is on turn 5, both markers go back one; if the receiving team has not had a turn this half, both go forward one; otherwise a D6 of 1-3 moves both forward, 4-6 back. | ok |
+| BB-K4 | 4 | Lost Ball: D6. 1-3 a conch shell: -1 to pick-up, catch and intercept, and the carrier gains Mighty Blow (+1). 4-6 a beach ball: -1 to pass, +1 to pick-up, catch and intercept. Lasts the game or until rolled again. Our version: the conch carrier does not gain Mighty Blow. | differs |
+| BB-K5 | 5 | High Kick: one Open receiving player may move to the landing square. | ok |
+| BB-K6 | 6 | Samba!: D6 + Cheerleaders each; the higher gets a team re-roll for the drive. A tie gives nothing. | ok |
+| BB-K7 | 7 | Brilliant Coaching: D6 + Assistant Coaches each; as BB-K6. | ok |
+| BB-K8 | 8 | Changing Weather: roll new Beach Bowl weather. On Perfect Conditions the ball scatters one extra square. | ok |
+| BB-K9 | 9 | Jellyfish!?: D6 each; the lower team, or both on a tie, has a random player make an Injury roll. | ok |
+| BB-K10 | 10 | Seagull Attack: for the drive, -1 to Quick and Short passes and -2 to Long passes and Long Bombs. | ok |
+| BB-K11 | 11 | Charge!: D3+1 Open kicking players may Move; one may Blitz and one may Throw Team-mate. A fall ends it. | ok |
+| BB-K12 | 12 | Monster Wave: every player on the pitch moves D3 squares in one random direction, all at once. Anyone washed off the pitch goes to Reserves. Then the ball lands. | ok |
 
 ### Weather table (2D6)
 
 | ID | Roll | Weather | Status |
 | --- | --- | --- | --- |
-| BB-W2 | 2 | Sweltering Heat: at the end of a drive the kicking team rolls a D3; that many random players from each team on the pitch miss the next drive. | missing |
-| BB-W3 | 3 | Very Sunny: -1 to every Passing Ability test. | missing |
-| BB-W4 | 4-10 | Perfect Conditions: no effect. | missing |
-| BB-W11 | 11 | Pouring Rain: -1 to catch, pick-up and intercept. | missing |
-| BB-W12 | 12 | Tropical Storm: every kick-off is a touchback. Quick and Short passes only. | missing |
+| BB-W2 | 2 | Sweltering Heat: at the end of a drive the kicking team rolls a D3; that many random players from each team on the pitch miss the next drive. | ok |
+| BB-W3 | 3 | Very Sunny: -1 to every Passing Ability test. | ok |
+| BB-W4 | 4-10 | Perfect Conditions: no effect. | ok |
+| BB-W11 | 11 | Pouring Rain: -1 to catch, pick-up and intercept. | ok |
+| BB-W12 | 12 | Tropical Storm: every kick-off is a touchback. Quick and Short passes only. | ok |
 
 ### Souvenir Shop (D8, 50,000 each)
 
@@ -215,44 +217,46 @@ Assigned before a drive. Every souvenir breaks at the end of the half.
 
 ### Kick-off tables (2D6)
 
+Fan Factor in these tables is the team's Dedicated Fans, the same number the Sevens Pitch Invasion adds.
+
 Street:
 
 | ID | Roll | Event | Status |
 | --- | --- | --- | --- |
-| GB-KS2 | 2 | Falling Roof Tiles: every player in a random Wide Zone makes an Armour roll; a break means an Injury roll. | missing |
-| GB-KS3 | 3 | Riot!: D6 per player on the pitch; on a 6 Placed Prone and Stunned. | missing |
-| GB-KS4 | 4 | Quick Attack: one kicking player may Block before the first turn. | missing |
-| GB-KS5 | 5 | Rogue Washing Line: each coach picks one random player who cannot act next turn. | missing |
-| GB-KS6 | 6 | "This round is on us!": for the drive, a player who is KO'd rolls a D6 and goes to Reserves on 4+. | missing |
-| GB-KS7 | 7 | Cheering Fans: D6 + Fan Factor each; the higher gets a team re-roll for the drive. A tie gives nothing. | missing |
-| GB-KS8 | 8 | Changing Weather: roll new Street weather. On A Normal Day the ball scatters before landing. | missing |
-| GB-KS9 | 9 | Loose Dogs: for the drive, no team re-rolls on pick-ups or Blocks. | missing |
-| GB-KS10 | 10 | Black Market Dealer: each team gains a free Lesser Magic Potion. | missing |
-| GB-KS11 | 11 | Furious Neighbour: D6 + Fan Factor each; the lower team has a random player on the pitch KO'd. | missing |
-| GB-KS12 | 12 | "The Guards are Coming!": each coach picks a random player and rolls a D6; on 1-2 they are arrested for the game. | missing |
+| GB-KS2 | 2 | Falling Roof Tiles: every player in a random Wide Zone makes an Armour roll; a break means an Injury roll. | ok |
+| GB-KS3 | 3 | Riot!: D6 per player on the pitch; on a 6 Placed Prone and Stunned. | ok |
+| GB-KS4 | 4 | Quick Attack: one kicking player may Block before the first turn. | ok |
+| GB-KS5 | 5 | Rogue Washing Line: each coach picks one random player who cannot act next turn. | ok |
+| GB-KS6 | 6 | "This round is on us!": for the drive, a player who is KO'd rolls a D6 and goes to Reserves on 4+. | ok |
+| GB-KS7 | 7 | Cheering Fans: D6 + Fan Factor each; the higher gets a team re-roll for the drive. A tie gives nothing. | ok |
+| GB-KS8 | 8 | Changing Weather: roll new Street weather. On A Normal Day the ball scatters before landing. | ok |
+| GB-KS9 | 9 | Loose Dogs: for the drive, no team re-rolls on pick-ups or Blocks. | ok |
+| GB-KS10 | 10 | Black Market Dealer: each team gains a free Lesser Magic Potion. Our version: the potion is logged; using it waits for the Magic Potions rules. | differs |
+| GB-KS11 | 11 | Furious Neighbour: D6 + Fan Factor each; the lower team has a random player on the pitch KO'd. | ok |
+| GB-KS12 | 12 | "The Guards are Coming!": each coach picks a random player and rolls a D6; on 1-2 they are arrested for the game. | ok |
 
 Sewer:
 
 | ID | Roll | Event | Status |
 | --- | --- | --- | --- |
-| GB-KW2 | 2 | Tentacled Terror: D6 each; the lower coach's player on the pitch becomes a Casualty. | missing |
-| GB-KW3 | 3 | Riot!: as GB-KS3. | missing |
-| GB-KW4 | 4 | Sudden Stink: every player on a Line of Scrimmage is pushed one square towards their own End Zone, pushing anyone behind them in turn. | missing |
-| GB-KW5 | 5 | Bats!: D6 each; the lower coach's random player is Placed Prone and Stunned. | missing |
-| GB-KW6 | 6 | "Get Ready, Lads!": each Open receiving player may move one square. | missing |
-| GB-KW7 | 7 | Cheering Fans: as GB-KS7. | missing |
-| GB-KW8 | 8 | Changing Weather: roll new Sewer weather. | missing |
-| GB-KW9 | 9 | Sticky Sludge: for the drive, +1 to pick-up but a ball carrier cannot Pass. | missing |
-| GB-KW10 | 10 | Black Market Dealer: as GB-KS10. | missing |
-| GB-KW11 | 11 | 'Fresh' Sewage: every player within 2 squares of a pit is Placed Prone. | missing |
-| GB-KW12 | 12 | Swarm of Rats: for the drive, a player who ends an activation next to a wall rolls a D6 and Falls Over on a 1; a Turnover only for the ball carrier. | missing |
+| GB-KW2 | 2 | Tentacled Terror: D6 each; the lower coach's player on the pitch becomes a Casualty. Our version: always Badly Hurt, until the Casualty roll is in. | differs |
+| GB-KW3 | 3 | Riot!: as GB-KS3. | ok |
+| GB-KW4 | 4 | Sudden Stink: every player on a Line of Scrimmage is pushed one square towards their own End Zone, pushing anyone behind them in turn. Our version: a push that would go into a pit does not happen. | differs |
+| GB-KW5 | 5 | Bats!: D6 each; the lower coach's random player is Placed Prone and Stunned. | ok |
+| GB-KW6 | 6 | "Get Ready, Lads!": each Open receiving player may move one square. | ok |
+| GB-KW7 | 7 | Cheering Fans: as GB-KS7. | ok |
+| GB-KW8 | 8 | Changing Weather: roll new Sewer weather. | ok |
+| GB-KW9 | 9 | Sticky Sludge: for the drive, +1 to pick-up but a ball carrier cannot Pass. | ok |
+| GB-KW10 | 10 | Black Market Dealer: as GB-KS10. Our version: the potion is logged; using it waits for the Magic Potions rules. | differs |
+| GB-KW11 | 11 | 'Fresh' Sewage: every player within 2 squares of a pit is Placed Prone. | ok |
+| GB-KW12 | 12 | Swarm of Rats: for the drive, a player who ends an activation next to a wall rolls a D6 and Falls Over on a 1; a Turnover only for the ball carrier. | ok |
 
 ### Weather tables (2D6)
 
 | ID | Roll | Street | Sewer | Status |
 | --- | --- | --- | --- | --- |
-| GB-W2 | 2 | Clouds of Smog: Quick and Short passes only | Unbearable Stench: a random active player is Placed Prone at the end of each turn | missing |
-| GB-W3 | 3 | Howling Winds: -1 to pass | Spilt Sewage: -2 to Rush | missing |
-| GB-W4 | 4-10 | A Normal Day | No more Disgusting than usual | missing |
-| GB-W11 | 11 | Sudden Downpour: -1 to Rush and pick-up | It's Getting Warm: -1 to pick-up and catch | missing |
-| GB-W12 | 12 | A Stormy Night: Downpour, and a D6 of 1 at the end of each turn knocks a random player over | Underground Heatwave: at the end of a drive a D6 of 1 keeps a player out of the next drive | missing |
+| GB-W2 | 2 | Clouds of Smog: Quick and Short passes only | Unbearable Stench: a random active player is Placed Prone at the end of each turn | ok |
+| GB-W3 | 3 | Howling Winds: -1 to pass | Spilt Sewage: -2 to Rush | ok |
+| GB-W4 | 4-10 | A Normal Day | No more Disgusting than usual | ok |
+| GB-W11 | 11 | Sudden Downpour: -1 to Rush and pick-up | It's Getting Warm: -1 to pick-up and catch | ok |
+| GB-W12 | 12 | A Stormy Night: Downpour, and a D6 of 1 at the end of each turn knocks a random player over | Underground Heatwave: at the end of a drive a D6 of 1 keeps a player out of the next drive | ok |
