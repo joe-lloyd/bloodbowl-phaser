@@ -4,9 +4,9 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "../../game/rules/throwTeammate";
 import {
   type Board,
-  HEIGHT,
+  pitchHeight,
   type Square,
-  WIDTH,
+  pitchWidth,
   carrierOf,
   distance,
   key,
@@ -91,7 +91,7 @@ function flankSquares(c: Context, carrier: Player, add: AddSquare): void {
   const runner = pressed > 0 ? flankRunner(c, carrier) : undefined;
   if (!runner) return;
   for (const ahead of [0, 1, 2, 3])
-    for (let y = 1; y < HEIGHT - 1; y++) {
+    for (let y = 1; y < pitchHeight() - 1; y++) {
       if (Math.abs(y - at.y) < 3) continue;
       const s = { x: at.x + board.dir * ahead, y };
       if (
@@ -148,8 +148,8 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
   if (board.ours.some(wentDeep)) return;
   const receiver = deepReceiver(c, carrier);
   if (!receiver) return;
-  for (let x = 0; x < WIDTH; x++)
-    for (let y = 1; y < HEIGHT - 1; y++) {
+  for (let x = 0; x < pitchWidth(); x++)
+    for (let y = 1; y < pitchHeight() - 1; y++) {
       const s = { x, y };
       const range = isDeep({ c, from: at, s, receiver });
       if (!range) continue;
@@ -177,7 +177,7 @@ function isDeep({ c, from, s, receiver }: IsDeepArgs) {
   const run = toGoal(c.board, s);
   const range = passRange(from, s);
   return s.y > 0 &&
-    s.y < HEIGHT - 1 &&
+    s.y < pitchHeight() - 1 &&
     run > 0 &&
     run <= receiver.stats.MA &&
     !!range &&

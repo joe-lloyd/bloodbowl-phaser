@@ -16,7 +16,7 @@ import {
   continuationPlans,
   planIdentity,
 } from "./activations";
-import { type Board, type Square, WIDTH, readBoard } from "./board";
+import { type Board, type Square, pitchWidth, readBoard } from "./board";
 import { decide } from "./decisions";
 import {
   DEFAULT_WEIGHTS,
@@ -401,7 +401,7 @@ function kickChoice(
     board.theirs.filter((o) => Math.abs(o.gridPosition.y - y) <= 2).length;
   const wide = w.kickWide > 0.5;
   const score = (kick: { x: number; y: number }) => {
-    const depth = board.dir === 1 ? WIDTH - 1 - kick.x : kick.x;
+    const depth = board.dir === 1 ? pitchWidth() - 1 - kick.x : kick.x;
     return -Math.abs(depth - w.kickDepth) * 10 + kickWidth(kick.y, wide, crowd);
   };
   const best = kicks.reduce((a, b) => (score(b) > score(a) ? b : a));

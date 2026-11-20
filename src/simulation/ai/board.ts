@@ -1,6 +1,7 @@
 import { HeadlessGame } from "../../headless/HeadlessGame";
 import { type GridPosition } from "../../headless/protocol";
 import { GameConfig } from "../../config/GameConfig";
+import { isStandableSquare } from "../../game/rules/pitchSquares";
 import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GameService } from "../../services/GameService";
 import { type Weather } from "../../game/rules/weather";
@@ -15,13 +16,11 @@ export function onField(player: Player): player is FieldPlayer {
   return player.gridPosition !== undefined;
 }
 
-export const WIDTH = GameConfig.PITCH_WIDTH;
-export const HEIGHT = GameConfig.PITCH_HEIGHT;
-const TURNS_PER_HALF = GameConfig.TURNS_PER_HALF;
+export const pitchWidth = () => GameConfig.PITCH_WIDTH;
+export const pitchHeight = () => GameConfig.PITCH_HEIGHT;
 
-export const key = (s: Square) => s.y * WIDTH + s.x;
-export const onPitch = (s: Square) =>
-  s.x >= 0 && s.x < WIDTH && s.y >= 0 && s.y < HEIGHT;
+export const key = (s: Square) => s.y * pitchWidth() + s.x;
+export const onPitch = (s: Square) => isStandableSquare(s);
 export const distance = (a: Square, b: Square) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 export function neighbours(s: Square): Square[] {
@@ -108,8 +107,13 @@ export function readBoard(game: HeadlessGame, us: string): Board {
     ball,
     weather: state.weather,
     rerolls: ourTeam ? teamRerollsLeft(state, ourTeam) : 0,
-    turnsLeft: ourTurn ? Math.max(0, TURNS_PER_HALF - turn.turnNumber) : 0,
-    opponentTurnsLeft: Math.max(0, TURNS_PER_HALF - gs.getTurnNumber(them)),
+    turnsLeft: ourTurn
+      ? Math.max(0, GameConfig.TURNS_PER_HALF - turn.turnNumber)
+      : 0,
+    opponentTurnsLeft: Math.max(
+      0,
+      GameConfig.TURNS_PER_HALF - gs.getTurnNumber(them)
+    ),
     persistentInjuries:
       game.ctx.matchStats.progressionEnabled ||
       isLeagueMode(ourTeam?.advancementMode),
@@ -123,7 +127,7 @@ export function readBoard(game: HeadlessGame, us: string): Board {
 
 export function toGoal(board: Board, s: Square, team = board.us): number {
   const dir = team === board.us ? board.dir : -board.dir;
-  return dir === 1 ? WIDTH - 1 - s.x : s.x;
+  return dir === 1 ? pitchWidth() - 1 - s.x : s.x;
 }
 
 export const standing = (p: Player) => p.status === PlayerStatus.ACTIVE;
@@ -132,14 +136,14 @@ export const carrierOf = (board: Board) =>
   board.ball.kind === "carried" ? board.ball.carrier : undefined;
 
 function fieldMaps(theirs: FieldPlayer[], everyone: FieldPlayer[]) {
-  const marks = new DataView(new ArrayBuffer(WIDTH * HEIGHT));
+  const marks = new DataView(new ArrayBuffer(pitchWidth() * pitchHeight()));
   for (const o of theirs) {
     if (!hasTackleZone(o)) continue;
     for (const n of neighbours(o.gridPosition))
       marks.setUint8(key(n), marks.getUint8(key(n)) + 1);
   }
   const occupant: (FieldPlayer | undefined)[] = Array.from(
-    { length: WIDTH * HEIGHT },
+    { length: pitchWidth() * pitchHeight() },
     () => undefined
   );
   for (const p of everyone) occupant[key(p.gridPosition)] = p;
