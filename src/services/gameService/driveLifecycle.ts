@@ -2,7 +2,7 @@ import type { Team } from "@/types/Team";
 import { GamePhase, type MatchResult, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
 import { isLeagueMode } from "@/types/Team";
-import { PlayerStatus } from "@/types/Player";
+import { PlayerCondition, PlayerStatus } from "@/types/Player";
 import { type NextHalf } from "@/game/managers/TurnManager";
 import {
   ClearPitchOperation,
@@ -18,7 +18,7 @@ import {
 import { isInEndZone } from "@/game/elements/GridUtils";
 import { GameConfig } from "@/config/GameConfig";
 import { BloodlustBiteOperation } from "@/game/operations/BloodlustBiteOperation";
-import { inducementCount } from "@/game/inducements/inventory";
+import { koRecoveryBonus } from "@/game/inducements/inventory";
 import {
   OfferYouDopeOperation,
   holdsMeasure,
@@ -29,7 +29,6 @@ import {
   PreDriveInducementsOperation,
   holdsDriveInducements,
 } from "@/game/inducements/driveInducements";
-import { Inducement } from "@/types/Inducements";
 import {
   driveEffectsEmpty,
   emptyDriveEffects,
@@ -284,7 +283,10 @@ export function resetDriveState(parts: GameParts): void {
   parts.marks.blitzBlockUsed.clear();
 
   [...team1.players, ...team2.players].forEach((p) => {
-    if (p.conditions?.length) p.conditions = [];
+    if (p.conditions?.length)
+      p.conditions = p.conditions.filter(
+        (condition) => condition.type === PlayerCondition.FROG
+      );
   });
 
   parts.eventBus.emit(GameEventNames.RefreshBoard, undefined);
@@ -307,11 +309,7 @@ export async function rollKORecovery(
   for (const player of knockedOut) {
     const roll = parts.diceController.rollD6("KO Recovery");
 
-    const kegs = inducementCount(
-      state,
-      player.teamId,
-      Inducement.BLITZERS_BEST_KEGS
-    );
+    const kegs = koRecoveryBonus(state, player.teamId);
     const recovered = roll + kegs >= 4;
     parts.eventBus.emit(GameEventNames.KORecoveryRolled, {
       playerId: player.id,

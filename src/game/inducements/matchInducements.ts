@@ -6,7 +6,6 @@ import {
   type PlayerStats,
   PlayerStatus,
   addCondition,
-  hasCondition,
   removeCondition,
 } from "@/types/Player";
 import { type Skill, SkillType, getSkill, hasSkill } from "@/types/Skills";
@@ -27,6 +26,7 @@ import { getDriveEffects } from "../kickoff/driveEffects";
 import { eligibleSkills } from "../progression/progression";
 import { rollPrayersToNuffle } from "./prayersToNuffle";
 import { type VariantInducementsState } from "./variantState";
+import { souvenirModifier } from "./souvenirModifiers";
 import { DesperateMeasure, rollDesperateMeasures } from "./desperateMeasures";
 import {
   appointTeamCaptain,
@@ -46,6 +46,7 @@ export interface FrogRecord {
   playerId: string;
   stats: PlayerStats;
   skills: Skill[];
+  drivesLeft?: number;
 }
 
 export interface MatchInducementsState {
@@ -128,7 +129,11 @@ export function rushModifier(state: GameState, player: Player): number {
       teamId !== player.teamId &&
       held.includes(PrayerToNuffle.MOLES_UNDER_THE_PITCH)
   );
-  return weatherEffects(state.weather).rush - (moles ? 1 : 0);
+  return (
+    weatherEffects(state.weather).rush -
+    (moles ? 1 : 0) +
+    souvenirModifier(state, player.id, "rush")
+  );
 }
 
 export function underScrutiny(state: GameState, foulerTeamId: string): boolean {
@@ -229,12 +234,21 @@ export function spendSportsWizard(state: GameState, teamId: string): void {
   mi.sportsWizards = (mi.sportsWizards ?? []).filter((id) => id !== teamId);
 }
 
-export function turnIntoFrog(state: GameState, player: Player): void {
+export function turnIntoFrog(
+  state: GameState,
+  player: Player,
+  spell: { drives: number } = { drives: 1 }
+): void {
   const mi = getMatchInducements(state);
-  if (hasCondition(player, PlayerCondition.FROG)) return;
+  if (isFrog(state, player.id)) return;
   mi.frogs = [
     ...(mi.frogs ?? []),
-    { playerId: player.id, stats: { ...player.stats }, skills: player.skills },
+    {
+      playerId: player.id,
+      stats: { ...player.stats },
+      skills: player.skills,
+      ...(spell.drives > 1 ? { drivesLeft: spell.drives } : {}),
+    },
   ];
 
   player.stats = { MA: 5, ST: 1, AG: 2, PA: 0, AV: 5 };
@@ -255,16 +269,25 @@ export function isFrog(state: GameState, playerId: string): boolean {
   );
 }
 
-export function restoreFrogs(state: GameState, players: Player[]): void {
+export function restoreFrogs(
+  state: GameState,
+  players: Player[],
+  ending: "drive" | "match" = "drive"
+): void {
   const mi = state.matchInducements;
-  for (const frog of mi?.frogs ?? []) {
+  if (!mi) return;
+  const lasting = (frog: FrogRecord) =>
+    ending === "drive" && (frog.drivesLeft ?? 1) > 1;
+  for (const frog of mi.frogs ?? []) {
     const player = players.find((p) => p.id === frog.playerId);
-    if (!player) continue;
+    if (!player || lasting(frog)) continue;
     player.stats = { ...frog.stats };
     player.skills = frog.skills;
     removeCondition(player, PlayerCondition.FROG);
   }
-  if (mi) mi.frogs = [];
+  mi.frogs = (mi.frogs ?? [])
+    .filter(lasting)
+    .map((frog) => ({ ...frog, drivesLeft: (frog.drivesLeft ?? 1) - 1 }));
 }
 
 export function revokeGrant(player: Player, grant: MatchGrant): void {
@@ -283,7 +306,7 @@ export function revokeGrant(player: Player, grant: MatchGrant): void {
 export function revokeMatchGrants(state: GameState, players: Player[]): void {
   const mi = state.matchInducements;
   if (!mi) return;
-  restoreFrogs(state, players);
+  restoreFrogs(state, players, "match");
   const halfGrants = mi.variant?.halfGrants ?? [];
   for (const grant of [...mi.grants, ...halfGrants]) {
     const player = players.find((p) => p.id === grant.playerId);

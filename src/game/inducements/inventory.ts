@@ -68,3 +68,10 @@ export function grantFreePotion(
     provenance: "free",
   });
 }
+
+export function koRecoveryBonus(state: GameState, teamId: string): number {
+  return (
+    inducementCount(state, teamId, Inducement.BLITZERS_BEST_KEGS) +
+    inducementCount(state, teamId, Inducement.SNACK_STAND)
+  );
+}

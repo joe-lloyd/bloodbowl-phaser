@@ -1,3 +1,5 @@
+import { inducementCount } from "../inducements/inventory";
+import { Inducement } from "../../types/Inducements";
 import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type IEventBus } from "../../services/EventBus";
@@ -203,12 +205,30 @@ export function spendTeamReroll(deps: RerollDeps, player: Player): boolean {
     deps.eventBus.emit(GameEventNames.SkillTriggered, t);
   }
   const arbiter = deps.gameService.getRerollArbiter();
-  if (teamCaptainFreesReroll(deps, player.teamId)) {
+  if (
+    teamCaptainFreesReroll(deps, player.teamId) ||
+    snackStandFreesReroll(deps, player.teamId)
+  ) {
     arbiter.markTeamRerollUsed(player.teamId);
   } else {
     arbiter.consumeTeamReroll(player.teamId);
   }
   return gateCtx.allowed;
+}
+
+function snackStandFreesReroll(deps: RerollDeps, teamId: string): boolean {
+  const state = deps.gameService.getState();
+  if (inducementCount(state, teamId, Inducement.SNACK_STAND) === 0)
+    return false;
+  const roll = deps.gameService
+    .getDiceController()
+    .rollD6("Snack Stand", teamId);
+  if (roll === 6)
+    deps.eventBus.emit(
+      GameEventNames.UI_GameLog,
+      "Snack Stand: a natural 6, the Team Re-roll is free"
+    );
+  return roll === 6;
 }
 
 function teamCaptainFreesReroll(deps: RerollDeps, teamId: string): boolean {

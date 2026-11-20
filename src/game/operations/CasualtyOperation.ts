@@ -1,6 +1,6 @@
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
-import { InjuryType, PlayerStatus } from "../../types/Player.js";
+import { InjuryType, type Player, PlayerStatus } from "../../types/Player.js";
 import {
   type CasualtyType,
   InjuryResult,
@@ -15,6 +15,7 @@ import { movePlayerToBox } from "../rules/playerLocation";
 import { type ApothecaryCasualtyType } from "../../types/decisions";
 import { offerApothecary } from "../inducements/apothecary";
 import { isFrog } from "../inducements/matchInducements";
+import { variantCasualty } from "../inducements/sawbones";
 import { rerollFailedRegeneration } from "../inducements/regeneration";
 import {
   type InjuryParties,
@@ -32,6 +33,27 @@ function apothecaryCasualtyType(result: CasualtyType): ApothecaryCasualtyType {
   }
 }
 
+function announceCasualty(
+  eventBus: FlowContext["eventBus"],
+  player: Player,
+  result: CasualtyType
+): void {
+  eventBus.emit(GameEventNames.UI_Notification, `Result: ${result}`);
+
+  eventBus.emit(GameEventNames.UI_Announce, {
+    kind: "casualty",
+    headline: "Casualty",
+    subtitle: `${player.playerName}: ${result}`,
+  });
+
+  eventBus.emit(GameEventNames.UI_LogEntry, {
+    category: "action",
+    headline: "Casualty",
+    detail: `${player.playerName}: ${result}`,
+    teamId: player.teamId,
+  });
+}
+
 export class CasualtyOperation extends InjuryPartiesOperation {
   public readonly name = "CasualtyOperation";
 
@@ -47,6 +69,22 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     super(playerId, causedById);
     this.result = result;
     this.cause = cause;
+  }
+
+  private async finalResult(
+    context: FlowContext,
+    player: Player
+  ): Promise<CasualtyType | null> {
+    const outcome = await variantCasualty(
+      context,
+      player,
+      isFrog(context.gameService.getState(), player.id)
+        ? InjuryResult.BADLY_HURT
+        : this.result
+    );
+    if (outcome !== "ko" && outcome !== "reserves") return outcome;
+    movePlayerToBox(player, { box: outcome }, context.eventBus);
+    return null;
   }
 
   protected async resolve(
@@ -90,23 +128,9 @@ export class CasualtyOperation extends InjuryPartiesOperation {
       return;
     }
 
-    const result = isFrog(gameService.getState(), player.id)
-      ? InjuryResult.BADLY_HURT
-      : this.result;
-    eventBus.emit(GameEventNames.UI_Notification, `Result: ${result}`);
-
-    eventBus.emit(GameEventNames.UI_Announce, {
-      kind: "casualty",
-      headline: "Casualty",
-      subtitle: `${player.playerName}: ${result}`,
-    });
-
-    eventBus.emit(GameEventNames.UI_LogEntry, {
-      category: "action",
-      headline: "Casualty",
-      detail: `${player.playerName}: ${result}`,
-      teamId: player.teamId,
-    });
+    const result = await this.finalResult(context, player);
+    if (result === null) return;
+    announceCasualty(eventBus, player, result);
 
     switch (result) {
       case InjuryResult.BADLY_HURT:

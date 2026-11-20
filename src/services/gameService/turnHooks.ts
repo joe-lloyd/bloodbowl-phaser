@@ -11,6 +11,10 @@ import {
 import { foldTurnEnding, type TurnEndingContext } from "@/game/skills";
 import { holdsSportsWizard } from "@/game/inducements/matchInducements";
 import { CastSportsWizardOperation } from "@/game/inducements/sportsWizard";
+import {
+  CastNoviceWizardOperation,
+  holdsNoviceWizard,
+} from "@/game/inducements/noviceWizard";
 import { getDriveEffects } from "@/game/kickoff/driveEffects";
 import type { GameParts } from "./parts";
 import { whenSettled } from "./activation";
@@ -50,7 +54,9 @@ export function castSportsWizards(
   const casters = [endingTeamId, other].filter((teamId) =>
     holdsSportsWizard(parts.state, teamId)
   );
-  if (casters.length === 0) return null;
+  const novice = holdsNoviceWizard(parts.state, endingTeamId);
+  if (casters.length === 0 && !novice) return null;
+  if (novice) parts.flowManager.add(new CastNoviceWizardOperation(endingTeamId));
   for (const teamId of casters) {
     parts.flowManager.add(new CastSportsWizardOperation(teamId));
   }
