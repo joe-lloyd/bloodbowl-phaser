@@ -9,6 +9,7 @@ import { gameTypeRules } from "../../../game/variants/gameTypeRules";
 import { PITCH_LAYOUTS, type Venue } from "../../../game/variants/pitchLayouts";
 import { venueArtPath } from "../../../game/presentation/matchStyle";
 import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
+import { choiceKeys } from "../componentWarehouse/choiceKeys";
 
 const GROUNDS: Record<GameType, string> = {
   sevens: "stadium pitch",
@@ -59,11 +60,13 @@ function GameTypeCard({
   gameType,
   selected,
   disabled,
+  keys,
   onSelect,
 }: {
   gameType: GameType;
   selected: boolean;
   disabled: boolean;
+  keys: ReturnType<ReturnType<typeof choiceKeys<GameType>>>;
   onSelect: () => void;
 }) {
   return (
@@ -72,6 +75,7 @@ function GameTypeCard({
       role="radio"
       aria-checked={selected}
       disabled={disabled}
+      {...keys}
       onClick={onSelect}
       className={cx(hudChoiceClass(selected), "flex flex-col overflow-hidden")}
     >
@@ -100,6 +104,7 @@ export function GameTypeSelector({
   disabled?: boolean;
   label?: string;
 }) {
+  const keys = choiceKeys({ ids: GAME_TYPES, value, onChange });
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       {label && <span className="hud-label">{label}</span>}
@@ -114,6 +119,7 @@ export function GameTypeSelector({
             gameType={gameType}
             selected={value === gameType}
             disabled={disabled}
+            keys={keys(gameType)}
             onSelect={() => {
               if (gameType !== value) onChange(gameType);
             }}

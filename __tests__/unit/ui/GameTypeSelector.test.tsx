@@ -24,9 +24,7 @@ describe("GameTypeSelector", () => {
     ...container.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
   ];
   const card = (name: string) => {
-    const found = cards().find((button) =>
-      button.textContent.startsWith(name)
-    );
+    const found = cards().find((button) => button.textContent.startsWith(name));
     if (!found) throw new Error(`No ${name} card.`);
     return found;
   };
@@ -67,6 +65,28 @@ describe("GameTypeSelector", () => {
     });
 
     expect(onChange).toHaveBeenCalledWith("beach-bowl");
+  });
+
+  it("moves the choice and focus with the arrow keys, wrapping at the ends", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root.render(<GameTypeSelector value="beach-bowl" onChange={onChange} />);
+    });
+    const press = (name: string, key: string) => {
+      act(() => {
+        card(name).dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true })
+        );
+      });
+    };
+
+    expect(cards().map((button) => button.tabIndex)).toEqual([-1, -1, -1, 0]);
+    press("Beach Bowl", "ArrowRight");
+    expect(onChange).toHaveBeenLastCalledWith("sevens");
+    expect(document.activeElement).toBe(card("Sevens"));
+    press("Sevens", "ArrowLeft");
+    expect(onChange).toHaveBeenLastCalledWith("beach-bowl");
+    expect(document.activeElement).toBe(card("Beach Bowl"));
   });
 
   it("leaves the choice alone while disabled", () => {

@@ -96,6 +96,9 @@ the loading screen, and `src/game/presentation/spriteManifest.json`, which
 maps every roster position to its model. The script refuses to write a
 manifest whose frames disagree with the existing one.
 
+After a new stadium, run `python3 scripts/sprites/venue_cards.py` so the
+Sevens card on the game type picker shows it.
+
 Pass `-` for the stadium folder to rebuild the players alone. A change that
 moves frames, such as a pose that reaches higher, also changes the manifest:
 delete `spriteManifest.json` before building, so the new frames are not
