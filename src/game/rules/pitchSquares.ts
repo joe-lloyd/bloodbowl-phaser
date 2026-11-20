@@ -53,6 +53,20 @@ export function isWallSquare(square: Square): boolean {
   return square.y === -1 || square.y === layout.rows;
 }
 
+export function rulerCrossesStall(from: Square, to: Square): boolean {
+  const steps =
+    Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y)) * 8;
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const square = {
+      x: Math.round(from.x + (to.x - from.x) * t),
+      y: Math.round(from.y + (to.y - from.y) * t),
+    };
+    if (obstacleKindAt(square) === "market-stall") return true;
+  }
+  return false;
+}
+
 export type PushLanding = "pitch" | "crowd" | "wall" | "pit";
 
 export function pushLandingAt(square: Square): PushLanding {
