@@ -43,6 +43,7 @@ import { FriendButton, InviteFriendsPanel } from "../social/LobbyFriends";
 import { OpenGames } from "../social/OpenGames";
 import { OpenLobbyToggle } from "../social/OpenLobbyToggle";
 import { type Team } from "../../../types/Team";
+import type { CompetitionContext } from "../../../competition/types";
 import type { HostedFixture } from "../competition/useFixtureLaunch";
 import {
   acceptLobbyInvite,
@@ -304,13 +305,25 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   );
 }
 
+function sameFixture(
+  held: CompetitionContext | undefined,
+  wanted: CompetitionContext | undefined
+): boolean {
+  if (!held || !wanted) return held === wanted;
+  return (
+    held.competitionType === wanted.competitionType &&
+    held.competitionId === wanted.competitionId &&
+    held.fixtureId === wanted.fixtureId
+  );
+}
+
 function reusableLobby(
   lobby: LobbyDoc,
   fixture: HostedFixture | undefined
 ): boolean {
   return (
     lobby.status === "lobby" &&
-    lobby.competitionContext?.fixtureId === fixture?.context.fixtureId
+    sameFixture(lobby.competitionContext, fixture?.context)
   );
 }
 
