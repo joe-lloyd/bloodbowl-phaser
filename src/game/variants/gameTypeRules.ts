@@ -44,7 +44,7 @@ export interface ArmourRules {
   foul: number;
 }
 
-export type SecretWeaponsAfterDrive =
+type SecretWeaponsAfterDrive =
   | "referee"
   | "one-drive"
   | "street-crowd"
