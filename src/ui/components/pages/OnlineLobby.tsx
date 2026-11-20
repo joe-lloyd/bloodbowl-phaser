@@ -730,15 +730,10 @@ function withVenue(
   settings: LobbySettings,
   venue: Venue | undefined
 ): LobbySettings {
-  const { turnSeconds, timeoutBankMs, progressionEnabled, gameType } =
-    settings;
-  return {
-    turnSeconds,
-    timeoutBankMs,
-    progressionEnabled,
-    ...(gameType ? { gameType } : {}),
-    ...(venue ? { venue } : {}),
-  };
+  const kept: LobbySettings = { ...settings };
+  if (venue) kept.venue = venue;
+  else delete kept.venue;
+  return kept;
 }
 
 function ErrorText({ text }: { text: string }) {
