@@ -8,6 +8,8 @@
   --facings se,e    subset of facings     (default: all eight)
   --out DIR         output root           (default: factory/out)
   --preview         fast look at a design: 8 key poses on one strip, out/preview/<model>.png; nothing cached
+  --sheet           fast look at a model's looks: each body, then each option value, in three poses,
+                    out/sheet/<model>/<n>.png plus out/sheet/<model>.json; nothing cached
   --force           re-render even if cached / finished
   --finish          only rebuild manifest.json and the team sheets from the finished atlases
   --list            print the registered model keys
@@ -31,7 +33,7 @@ ROSTERS = json.load(open(os.path.join(REF, "rosters.json")))
 
 def parse(argv):
     a = dict(models=[], anims=list(anim.ANIMS), facings=list(pixel.FACINGS), out=os.path.join(FACTORY, "out"),
-             preview=False, force=False, finish=False, list=False, all=False, batch=None, examples=False,
+             preview=False, sheet=False, force=False, finish=False, list=False, all=False, batch=None, examples=False,
              density=1, frames={}, dither=None, tones=None, layers=False, verify=0, stash=None, pack=None, bodies=[])
     it = iter(argv)
     for tok in it:
@@ -57,7 +59,7 @@ def parse(argv):
             a["frames"] = frame_counts(next(it))
         elif tok == "--dither":
             a["dither"] = float(next(it))
-        elif tok in ("--preview", "--force", "--finish", "--list", "--all", "--examples", "--layers"):
+        elif tok in ("--preview", "--sheet", "--force", "--finish", "--list", "--all", "--examples", "--layers"):
             a[tok[2:]] = True
         else:
             raise SystemExit("unknown argument " + tok)
@@ -222,6 +224,55 @@ def preview(key, a):
     shutil.rmtree(stage.tmp, ignore_errors=True)
     print("PREVIEW %s %.1fs idle=%dpx (today %s, target %.0f) -> %s" % (key, time.time() - t0, got, height, target, path))
 
+SHEET = [("idle", 0, "se"), ("run", 3, "e"), ("idle", 0, "nw")]
+
+def sheet_choices(key):
+    """[(label, choice)]: every body in its own look, then each other option value on the first body."""
+    spec = registry.LOOKS.get(key)
+    if spec is None:
+        return [("Base", None)]
+    body_name, _, bodies = spec.options[0]
+    slots = spec.options[1:]
+    own = {s: vals[0][0] for s, _, vals in slots}
+    rows = [(label, dict(own, **{body_name: body})) for body, label in bodies]
+    first = bodies[0][0]
+    for s, slabel, vals in slots:
+        rows += [("%s: %s" % (slabel, label), dict(own, **{body_name: first, s: v})) for v, label in vals[1:]]
+    return rows
+
+def sheet(key, a):
+    """Render the look sheet of a model: one strip per row of sheet_choices, cropped to one shared box."""
+    t0 = time.time()
+    spec = registry.LOOKS.get(key)
+    stage, frame, height = make_stage(key, a["out"])
+    scales, rows = {}, []
+    for label, choice in sheet_choices(key):
+        model = spec.variant(choice) if choice else registry.get(key)
+        body = choice[spec.options[0][0]] if choice else None
+        model.animations = dict(model.animations, **{k: n for k, n in a["frames"].items() if k in model.animations})
+        if body not in scales:
+            scales[body] = calibrate(stage, model, target_height(model, height))[0]
+        scale = scales.get(body, next(iter(scales.values())))
+        cells = []
+        for name, i, f in SHEET:
+            n = model.animations[name]
+            stage.build(model, model.pose(name, min(i, n - 1), n), scale)
+            cells.append(stage.render([f])[f])
+        rows.append((label, cells))
+    every = [c for _, cells in rows for c in cells]
+    ys = np.concatenate([np.nonzero(c >= 0)[0] for c in every]); xs = np.concatenate([np.nonzero(c >= 0)[1] for c in every])
+    y0, y1, x0, x1 = ys.min() - 1, ys.max() + 2, xs.min() - 1, xs.max() + 2
+    folder = os.path.join(a["out"], "sheet", key)
+    os.makedirs(folder, exist_ok=True)
+    for n, (label, cells) in enumerate(rows):
+        strip = np.concatenate([atlas.tinted(atlas.layers(c[y0:y1, x0:x1], stage.pal), team_colours(key)) for c in cells], axis=1)
+        atlas.save_png(strip, os.path.join(folder, "%d.png" % n))
+    with open(os.path.join(a["out"], "sheet", key + ".json"), "w") as fh:
+        json.dump(dict(model=key, density=DENSITY[0], cell=[int(x1 - x0), int(y1 - y0)], poses=[list(p) for p in SHEET],
+                       rows=[label for label, _ in rows]), fh)
+    shutil.rmtree(stage.tmp, ignore_errors=True)
+    print("SHEET %s %d looks %.1fs" % (key, len(rows), time.time() - t0), flush=True)
+
 def finish(a):
     n, missing = atlas.write_manifest(a["out"], ROSTERS, pixel.FACINGS)
     made = 0
@@ -262,13 +313,15 @@ def main():
                 layers.run(key, a, make_stage, target_height, calibrate, PAD)
             elif a["preview"]:
                 preview(key, a)
+            elif a["sheet"]:
+                sheet(key, a)
             else:
                 render_model(key, a)
         except Exception as exc:              # one broken model must not stop the batch
             import traceback
             traceback.print_exc()
             print("FAILED %s %r" % (key, exc))
-    if a["finish"] or (keys and not a["preview"] and not a["layers"]):
+    if a["finish"] or (keys and not a["preview"] and not a["sheet"] and not a["layers"]):
         finish(a)
 
 main()
