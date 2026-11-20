@@ -10,9 +10,13 @@ import { errorText } from "../../errorText";
 export function InviteInbox({
   uid,
   className,
+  busy = false,
+  onAccept,
 }: {
   uid: string;
   className?: string;
+  busy?: boolean;
+  onAccept?: (invite: Invite) => void;
 }) {
   const navigate = useNavigate();
   const invites = useInvites(uid);
@@ -46,8 +50,11 @@ export function InviteInbox({
         <InviteCard
           key={inviteId(row.invite)}
           row={row}
-          busy={joining}
-          onJoin={() => void join(row.invite)}
+          busy={busy || joining}
+          onJoin={() => {
+            if (onAccept) onAccept(row.invite);
+            else void join(row.invite);
+          }}
           onDecline={() => {
             decline(row.invite);
           }}

@@ -36,6 +36,7 @@ import {
   fetchLobby,
 } from "../../../firebase/lobby";
 import { resolveCoachName } from "../../../firebase/coaches";
+import { acceptMatchInvite } from "../../../firebase/invites";
 import { useFriends } from "../../hooks/useSocial";
 import { InviteInbox } from "../social/InviteInbox";
 import { FriendButton, InviteFriendsPanel } from "../social/LobbyFriends";
@@ -165,22 +166,31 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   }
 
   if (!code) {
-    const join = async (target: string) => {
+    const enter = async (joining: () => Promise<string>) => {
       setError(null);
       setBusy(true);
       try {
-        const coachName = await resolveCoachName(user.uid);
-        const joined = await joinLobby(target, user.uid, coachName);
-        setCode(joined.code);
+        setCode(await joining());
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setBusy(false);
       }
     };
+    const join = (target: string) =>
+      enter(async () => {
+        const coachName = await resolveCoachName(user.uid);
+        return (await joinLobby(target, user.uid, coachName)).code;
+      });
     return (
       <JoinByCode
-        inbox={<InviteInbox uid={user.uid} />}
+        inbox={
+          <InviteInbox
+            uid={user.uid}
+            busy={busy}
+            onAccept={(invite) => void enter(() => acceptMatchInvite(invite))}
+          />
+        }
         openGames={
           <OpenGames
             uid={user.uid}

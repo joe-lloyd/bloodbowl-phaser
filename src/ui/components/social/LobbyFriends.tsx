@@ -45,9 +45,11 @@ export function FriendButton({
 }) {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const link = friends.find((row) => row.uid === other);
-  if (link?.kind === "friend") return <Chip tone="good">Friend</Chip>;
-  if (link?.kind === "outgoing" || sent) return <Chip>Request sent</Chip>;
+  const kind =
+    friends.find((row) => row.uid === other)?.kind ??
+    (sent ? "outgoing" : undefined);
+  if (kind === "friend") return <Chip tone="good">Friend</Chip>;
+  if (kind === "outgoing") return <Chip>Request sent</Chip>;
   const add = () => {
     requestFriend({ me, other })
       .then(() => {
@@ -60,7 +62,7 @@ export function FriendButton({
   return (
     <span className="flex flex-col items-start gap-1">
       <HudButton size="sm" variant="ghost" onClick={add}>
-        {link?.kind === "incoming" ? "Accept friend request" : "Add friend"}
+        {kind === "incoming" ? "Accept friend request" : "Add friend"}
       </HudButton>
       {error && <span className="text-hud-sm text-hud-bad">{error}</span>}
     </span>
