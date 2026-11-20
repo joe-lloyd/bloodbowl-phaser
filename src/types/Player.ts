@@ -50,6 +50,8 @@ export interface PlayerStats {
   AV: number;
 }
 
+export type PlayerAppearance = Readonly<Record<string, string>>;
+
 export interface Player {
   id: string;
   playerName: string;
@@ -104,6 +106,8 @@ export interface Player {
   teamCaptain?: true;
 
   hydrationWarning?: string;
+
+  appearance?: PlayerAppearance;
 }
 
 type AdvancementSource =

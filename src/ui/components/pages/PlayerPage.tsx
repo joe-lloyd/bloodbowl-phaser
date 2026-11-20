@@ -23,6 +23,8 @@ import {
   Section,
   Stat,
 } from "../componentWarehouse/HudKit";
+import { appearanceOf } from "../../../game/names/playerIdentity";
+import { PlayerLookControls, PlayerNameEditor } from "./PlayerIdentity";
 
 const STAT_LABELS: Record<keyof PlayerStats, string> = {
   MA: "Movement",
@@ -117,8 +119,12 @@ export function PlayerPage() {
         }
       />
 
+      <div className="mb-4 max-w-xl">
+        <PlayerNameEditor player={player} team={team} onSaved={refresh} />
+      </div>
+
       <div className="grid gap-x-6 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
-        <PlayerSprite player={player} team={team} />
+        <PlayerSprite player={player} team={team} onSaved={refresh} />
         <div className="min-w-0">
           <Section title="Characteristics">
             <div className="flex gap-2">
@@ -246,7 +252,7 @@ export function PlayerPage() {
 
 const SPRITE_BOX = 240;
 
-function PlayerSprite({ player, team }: { player: Player; team: Team }) {
+function PlayerSprite({ player, team, onSaved }: { player: Player; team: Team; onSaved: () => void }) {
   return (
     <Panel
       accent={{ color: numToHex(team.colors.primary) }}
@@ -262,6 +268,7 @@ function PlayerSprite({ player, team }: { player: Player; team: Team }) {
             rosterName={team.rosterName}
             positionName={player.positionName}
             colors={team.colors}
+            appearance={appearanceOf(player, team.rosterName)}
             size={SPRITE_BOX}
             wholePixels
           />
@@ -269,6 +276,7 @@ function PlayerSprite({ player, team }: { player: Player; team: Team }) {
         <figcaption className="hud-label text-center text-hud-2xs">
           {player.positionName} · {team.rosterName}
         </figcaption>
+        <PlayerLookControls player={player} team={team} onSaved={onSaved} />
       </figure>
     </Panel>
   );

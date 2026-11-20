@@ -18,6 +18,7 @@ import {
 } from "./draftRules";
 import { freeRosterNumber, uniquePlayerId } from "./playerSlots";
 import { countInsignificant } from "./insignificant";
+import { rollIdentity } from "../names/playerIdentity";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { Inducement } from "../../types/Inducements";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
@@ -327,7 +328,9 @@ export function hirePlayer(
       reason: "Every roster number from 1 to 11 is taken.",
     };
   }
-  const player = createPlayer(template, team.id, number);
+  const identity = rollIdentity({ rosterName: team.rosterName, positionName: template.positionName });
+  const player = createPlayer(template, team.id, number, identity.name);
+  if (identity.appearance) player.appearance = identity.appearance;
   player.id = uniquePlayerId(team, player.id);
   player.cost = price.amount;
   team.players.push(player);

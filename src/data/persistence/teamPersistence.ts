@@ -6,6 +6,7 @@ import {
   type PendingAdvancementRoll,
   type Player,
   type PlayerAdvancement,
+  type PlayerAppearance,
   type PlayerCareerStats,
   type PlayerStats,
   PlayerStatus,
@@ -24,6 +25,7 @@ import {
   calculateTeamValue,
 } from "../../types/Team";
 import { type SeedMetadata } from "../../types/seedMetadata";
+import { readAppearance } from "../../boundary/playerAppearance";
 import { type Skill, SkillCategory, migrateSkill } from "../../types/Skills";
 import {
   Inducement,
@@ -68,6 +70,8 @@ export interface StoredPlayer {
   teamCaptain?: true;
 
   pendingAdvancementRoll?: PendingAdvancementRoll;
+
+  appearance?: PlayerAppearance;
 }
 
 export interface StoredTeam {
@@ -169,6 +173,7 @@ function isInvertedStat(stat: keyof PlayerStats): boolean {
 const STATS: readonly (keyof PlayerStats)[] = ["MA", "ST", "AG", "PA", "AV"];
 
 function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
+  const appearance = readAppearance(raw["appearance"]);
   return {
     id: String(raw["id"]),
     playerName: String(raw["playerName"] ?? ""),
@@ -202,6 +207,7 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
           ] as PendingAdvancementRoll,
         }
       : {}),
+    ...(appearance ? { appearance } : {}),
   };
 }
 
@@ -320,6 +326,7 @@ export function hydratePlayer(
   if (stored.pendingAdvancementRoll) {
     player.pendingAdvancementRoll = stored.pendingAdvancementRoll;
   }
+  if (stored.appearance) player.appearance = stored.appearance;
   return player;
 }
 
@@ -344,6 +351,7 @@ export function dehydratePlayer(player: Player): StoredPlayer {
     ...(player.pendingAdvancementRoll
       ? { pendingAdvancementRoll: player.pendingAdvancementRoll }
       : {}),
+    ...(player.appearance ? { appearance: player.appearance } : {}),
   };
 }
 
