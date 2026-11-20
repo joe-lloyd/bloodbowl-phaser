@@ -78,7 +78,7 @@ export const DEFAULT_WEIGHTS = {
 
   standUp: 4,
 
-  setupKick: 2,
+  setupKick: 3,
   setupReceive: 2,
 
   kickDepth: 6,

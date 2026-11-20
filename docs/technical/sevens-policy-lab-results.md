@@ -356,6 +356,40 @@ The acquisition stays at `/Users/joelloyd/tmp/bb7-policy-lab-74c074d275ae-vs-35d
 
 Published report: [Blood Bowl Sevens policy lab, 20 November](https://home.arpa/open/?fp=URFDvuvpmcDmjtIkdxfUIIoW7wLpwxPawUc1BFCVk54&vault=bloodbowl&path=sevens-policy-lab-2026-11-20%2Findex.html), Blood Bowl, `sevens-policy-lab-2026-11-20/`.
 
+## Deployment, 20 November
+
+Every computer team set up the same way. The planner loaded built-in formation number 2, the Bunker, whether it kicked or received, and gave the seven squares to its strongest players first. A person who loaded a preset from the setup drop-down got roster player 1 on square 1.
+
+Built-in formations now give each square a role: line, support, flank or deep. The players who fit a role best fill it, judged for kicking or receiving. When receiving, Sure Hands, Big Hand and agility go deep to collect the ball, and strength, Block and Guard go on the line. When kicking, speed, Tackle and Strip Ball go on the line, and Tackle and Diving Tackle stay back as the safety. An exact assignment picks the seven, and the Team Captain is always fielded. Six formations join Balanced, Spread and Bunker: Kick: Blitz line, Kick: Press, Kick: Screen, Receive: Wedge, Receive: Full line and Receive: Flank. A pitch offers only the formations that are legal on it, and people see them in the same drop-down.
+
+Both policies in a paired lab share the engine's setups, so role matching on its own cannot be measured there. Each formation was measured as the candidate's choice against the Bunker, both with role matching.
+
+| Formation the candidate chose           | Seeds |  Games | Candidate points |
+| --------------------------------------- | ----: | -----: | ---------------: |
+| Kick: Blitz line, all seven on the line |     3 | 15,744 |           52.31% |
+| Kick: Press                             |     1 |  5,248 |           51.19% |
+| Kick: Screen                            |     1 |  5,248 |           49.43% |
+| Receive: Full line                      |     1 |  5,248 |           50.42% |
+| Receive: Flank                          |     1 |  5,248 |           50.15% |
+| Receive: Wedge                          |     1 |  5,248 |           49.74% |
+
+Pressure on the kick pays: with everyone on its line, the kicking team reaches the receivers a turn sooner. The receiving formation barely matters. The computer now kicks from the Blitz line and still receives in the Bunker. Over the three Blitz line seeds, against the field's mean change, Chaos Dwarf moved +2.0, Nurgle +1.8 and Tomb Kings -3.1.
+
+The owner also suggested using the Veteran, a Lineman with one less movement and one re-roll a game for a pick-up, catch or pass. It could fetch the ball and hand it to a quicker player, or sit on the bench in a slow team. Branch `t3/veteran-fetch` built it: the odds count the Veteran's re-roll while it is unused, a player may declare a Hand-off, pick up the ball and hand it to a quicker team-mate who has not acted, and setups can put the Veteran deep or leave it in reserve. Each change played this branch's planner on 5,248 games.
+
+| Veteran change                                   | Candidate points |
+| ------------------------------------------------ | ---------------: |
+| Re-roll counted in the odds                      |           49.96% |
+| Plus the fetch, by the Veteran only              |           49.53% |
+| Plus the fetch, by the Veteran only, set up deep |           49.27% |
+| Fetch by any picker                              |           48.94% |
+| Fetch by any picker, Veteran set up deep         |           48.59% |
+| Fetch by any picker, Veteran in reserve          |           49.03% |
+
+None helped. The re-roll comes once a game, and the fetch spends the turn's Hand-off and adds a catch roll. The branch stays as a record; nothing from it ships.
+
+Role matching also changes the heuristic coach's games, so the lockstep reload test now replays seed 5151, which still reaches both decisions. The formation runs used candidate `aef765e6` against main at `c2cf35b2`, seed bases 1091000000 to 1093000000; the Veteran runs used `92ab9739` and `4b29abb3` against `aef765e6`, seed base 1101000000. The runs stay under `/Users/joelloyd/tmp/bb7-std` on Daily Driver as `dep-*`, `vet-*` and `vet2-*`.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
