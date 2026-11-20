@@ -25,11 +25,17 @@ export function formatOf(state: {
 
 export function activateMatchFormat(format: MatchFormat): void {
   if (!gameTypeRules(format.gameType).venues.includes(format.venue)) {
-    throw new Error(
-      `${format.venue} is not a ${format.gameType} venue.`
-    );
+    throw new Error(`${format.venue} is not a ${format.gameType} venue.`);
   }
   active = format;
+}
+
+export function keepMatchFormat(format: MatchFormat): void {
+  if (active.gameType === format.gameType && active.venue === format.venue)
+    return;
+  throw new Error(
+    `A ${active.gameType} match on the ${active.venue} took over the rules while a ${format.gameType} match on the ${format.venue} was running.`
+  );
 }
 
 export function activeMatchFormat(): MatchFormat {
@@ -49,7 +55,10 @@ export function matchFormatFor(
   random: () => number = Math.random
 ): MatchFormat {
   const { venues } = gameTypeRules(gameType);
-  const index = Math.min(venues.length - 1, Math.floor(random() * venues.length));
+  const index = Math.min(
+    venues.length - 1,
+    Math.floor(random() * venues.length)
+  );
   return { gameType, venue: venues[index] ?? venues[0] };
 }
 

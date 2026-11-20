@@ -1,3 +1,4 @@
+import { getRosterByRosterName } from "../../data/RosterTemplates";
 import {
   type Team,
   type TeamRoster,
@@ -241,4 +242,13 @@ export function legalGameTypes(team: Team, roster: TeamRoster): GameType[] {
   return GAME_TYPES.filter(
     (gameType) => validateRosterLegality(team, roster, gameType).length === 0
   );
+}
+
+export function teamPlaysGameType(team: Team, gameType: GameType): boolean {
+  try {
+    const roster = getRosterByRosterName(team.rosterName);
+    return validateRosterLegality(team, roster, gameType).length === 0;
+  } catch {
+    return false;
+  }
 }

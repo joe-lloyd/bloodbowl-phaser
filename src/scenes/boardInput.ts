@@ -20,7 +20,8 @@ export function wirePointerInput(scene: GameScene): void {
       if (!onCanvas(pointer) || pointer.wasTouch) return;
 
       const square = pitch().worldToGrid(pointer.worldX, pointer.worldY);
-      if (!pitch().isOnPitch(square)) scene.onBackgroundClick();
+      if (!pitch().isOnPitch(square) && !gameplay().passesAtWall(square))
+        scene.onBackgroundClick();
     });
 
   scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
@@ -62,7 +63,8 @@ export function wireTouchInput(scene: GameScene): TouchController {
   const touch = new TouchController(scene, camera, {
     tap: (at) => {
       const square = pitch().worldToGrid(at.worldX, at.worldY);
-      if (!pitch().isOnPitch(square)) scene.onBackgroundClick();
+      if (!pitch().isOnPitch(square) && !gameplay().passesAtWall(square))
+        scene.onBackgroundClick();
       gameplay().tap(at, scene.isSetupActive);
     },
     fitAll: (at) => {

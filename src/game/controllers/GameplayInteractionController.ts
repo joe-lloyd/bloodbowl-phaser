@@ -4,6 +4,7 @@ import type Phaser from "phaser";
 import { type IGameService } from "../../services/interfaces/IGameService";
 import { GameConfig } from "../../config/GameConfig";
 import { GamePhase } from "../../types/GameState";
+import { isWallSquare } from "../rules/pitchSquares";
 import { type IEventBus } from "../../services/EventBus";
 import { type Player } from "@/types/Player";
 import { type ActionType, GameEventNames, type UIEvents } from "@/types/events";
@@ -304,11 +305,22 @@ export class GameplayInteractionController {
 
     const margin = this.push.active ? 1 : 0;
     const { valid, gridX, gridY } = this.getGridFromPointer(pointer, margin);
+    const square = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
     if (valid) {
       void this.onSquareClicked(gridX, gridY);
+    } else if (this.passesAtWall(square)) {
+      void this.onSquareClicked(square.x, square.y);
     } else if (!this.push.active) {
       this.deselectPlayer();
     }
+  }
+
+  public passesAtWall(square: { x: number; y: number }): boolean {
+    return (
+      this.currentActionMode === "pass" &&
+      this.currentStepId === "pass" &&
+      isWallSquare(square)
+    );
   }
 
   public handlePointerMove(

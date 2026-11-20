@@ -1,6 +1,10 @@
 import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
 import { gameTypeRules } from "../game/variants/gameTypeRules";
-import type { MatchFormat } from "../game/variants/activeMatch";
+import {
+  formatOf,
+  keepMatchFormat,
+  type MatchFormat,
+} from "../game/variants/activeMatch";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import { stabilizeIds } from "../headless/createHeadlessGame";
 import {
@@ -19,8 +23,10 @@ import { type Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
 import {
   Inducement,
+  type InducementInventoryEntry,
   buildSeventsInducementProfile,
 } from "../types/Inducements";
+import { startingFreeInducements } from "../game/inducements/catalog";
 import { createCoachRng } from "./rng";
 
 export type Lineup = "test-team" | "sevens-lineup";
@@ -229,7 +235,10 @@ export function createSimGame(
 
 function seededFormat(gameType: GameType, seed: number): MatchFormat {
   const { venues } = gameTypeRules(gameType);
-  return { gameType, venue: venues[Math.abs(seed) % venues.length] ?? venues[0] };
+  return {
+    gameType,
+    venue: venues[Math.abs(seed) % venues.length] ?? venues[0],
+  };
 }
 
 const SIM_INDUCEMENTS: Record<
@@ -258,14 +267,24 @@ const SIM_INDUCEMENTS: Record<
   ],
 };
 
+function simGameType(game: HeadlessGame): GameType {
+  return game.ctx.gameService.getState().gameType ?? DEFAULT_GAME_TYPE;
+}
+
+export async function prepareSimInducements(
+  game: HeadlessGame,
+  sold: boolean
+): Promise<void> {
+  if (sold) return grantSimInducements(game);
+  if (startingFreeInducements(simGameType(game)).length === 0) return;
+  await commitSimInducements(game, []);
+}
+
 export async function grantSimInducements(game: HeadlessGame): Promise<void> {
-  game.ctx.gameService.commitInducements(
-    buildSeventsInducementProfile({ advancedLeague: false }),
-    {},
+  await commitSimInducements(
+    game,
     [game.ctx.team1.id, game.ctx.team2.id].flatMap((ownerTeamId) =>
-      SIM_INDUCEMENTS[
-        game.ctx.gameService.getState().gameType ?? DEFAULT_GAME_TYPE
-      ].map(([inducement, quantity]) => ({
+      SIM_INDUCEMENTS[simGameType(game)].map(([inducement, quantity]) => ({
         inducement,
         ownerTeamId,
         quantity,
@@ -276,7 +295,17 @@ export async function grantSimInducements(game: HeadlessGame): Promise<void> {
       }))
     )
   );
+}
 
+async function commitSimInducements(
+  game: HeadlessGame,
+  inventory: InducementInventoryEntry[]
+): Promise<void> {
+  game.ctx.gameService.commitInducements(
+    buildSeventsInducementProfile({ advancedLeague: false }),
+    {},
+    inventory
+  );
   for (let i = 0; i < 20; i++) {
     await new Promise((resolve) => setImmediate(resolve));
   }
@@ -359,8 +388,15 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   const { rerolls, coachSeed, maxCommands, inducements } = matchSettings(spec);
   const game =
     spec.game ??
-    createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup", spec.gameType);
-  if (inducements) await grantSimInducements(game);
+    createSimGame(
+      spec.seed,
+      spec.rosters,
+      rerolls,
+      "sevens-lineup",
+      spec.gameType
+    );
+  const format = formatOf(game.ctx.gameService.getState());
+  await prepareSimInducements(game, inducements);
   const rng = createCoachRng(coachSeed);
   const steps: RecordedStep[] = [];
   const findings: Finding[] = [];
@@ -380,6 +416,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   ) => findings.push(finding(kind, key, message, steps.length - 1, snapshot));
 
   while (steps.length < maxCommands) {
+    keepMatchFormat(format);
     const snapshot = game.snapshot();
     if (snapshot.phase === GamePhase.GAME_OVER) break;
     kickingTeamId = kickerAtSetup(snapshot, kickingTeamId);
@@ -412,6 +449,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     for (const command of candidate.commands) {
       const before = game.snapshot();
       const response = await game.execute(command);
+      keepMatchFormat(format);
       countEvents(stats, response.events, team, teamIndex);
       steps.push(
         recordedStep(command, response, team, candidate.label, choice.note)

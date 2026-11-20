@@ -93,7 +93,11 @@ export function commitInducements({
 }
 
 function draftListInventory(parts: GameParts) {
-  return [...teamDraftList(parts.team1), ...teamDraftList(parts.team2)];
+  const { gameType } = activeMatchFormat();
+  return [
+    ...teamDraftList(parts.team1, gameType),
+    ...teamDraftList(parts.team2, gameType),
+  ];
 }
 
 function session(parts: GameParts): InducementSession {

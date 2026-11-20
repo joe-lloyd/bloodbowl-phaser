@@ -219,6 +219,23 @@ describe("Matched Play inducements on the draft list (MP2)", () => {
     });
   });
 
+  it("sells a Street Bowl draft only the Street Bowl list (SB-D5)", () => {
+    const team = draftTeam(RosterName.HUMAN, "matched-play");
+    team.gameType = "street-bowl";
+    expect(
+      priceOf(team, {
+        type: "inducement",
+        inducement: Inducement.BLITZERS_BEST_KEGS,
+      })
+    ).toEqual({
+      amount: null,
+      reason: "Human teams cannot buy Blitzer's Best Kegs.",
+    });
+    expect(
+      priceOf(team, { type: "inducement", inducement: Inducement.MAGIC_POTION })
+    ).toEqual({ amount: 50_000 });
+  });
+
   it("does not count toward team value", () => {
     const team = draftTeam(RosterName.HUMAN, "matched-play");
     const before = calculateTeamValue(team);

@@ -4,9 +4,9 @@ import {
   draftInducementCount,
   priceOf,
 } from "../../../game/rules/teamPricing";
-import { sevensInducementCatalog } from "../../../game/inducements/catalog";
+import { inducementCatalog } from "../../../game/inducements/catalog";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
-import { teamDraftRules } from "../../../game/rules/draftRules";
+import { teamDraftRules, teamGameType } from "../../../game/rules/draftRules";
 import { HudButton, Section } from "../componentWarehouse/HudKit";
 import { formatGold } from "../TeamManagement/TeamStatsOverview";
 
@@ -98,7 +98,7 @@ export function DraftInducementsSection({
   return (
     <Section title="Inducements on the draft list">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-        {sevensInducementCatalog(team).map((entry) => (
+        {inducementCatalog(team, teamGameType(team)).map((entry) => (
           <StaffCounter
             key={entry.inducement}
             label={entry.inducement}

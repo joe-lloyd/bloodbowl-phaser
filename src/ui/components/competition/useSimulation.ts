@@ -74,6 +74,14 @@ export function useSimulation({
   const [simulating, setSimulating] = useState<string | null>(null);
   const [simulated, setSimulated] = useState<SimulatedResult[]>([]);
   const running = useRef(false);
+  const onPage = useRef(true);
+
+  useEffect(() => {
+    onPage.current = true;
+    return () => {
+      onPage.current = false;
+    };
+  }, []);
 
   const simulate = useCallback(
     async (start: CompetitionDoc, next: NextFixture) => {
@@ -87,6 +95,7 @@ export function useSimulation({
             `${entrantName(latest, fixture.homeEntrantId)} v ${entrantName(latest, fixture.awayEntrantId)}`
           );
           await new Promise((resolve) => setTimeout(resolve, 0));
+          if (!onPage.current) break;
           const outcome = await simulateFixture(latest, fixture.id);
           const row = simulatedRow(latest, outcome);
           latest = refreshEntrantDisplays(outcome.competition);

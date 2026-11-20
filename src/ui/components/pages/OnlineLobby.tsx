@@ -54,8 +54,7 @@ import {
   GAME_TYPE_LABELS,
   type GameType,
 } from "../../../game/variants/gameTypes";
-import { legalGameTypes } from "../../../game/rules/rosterLegality";
-import { getRosterByRosterName } from "../../../data/RosterTemplates";
+import { teamPlaysGameType } from "../../../game/rules/rosterLegality";
 import { GameTypeSelector } from "../common/GameTypeSelector";
 
 type Mode = "host" | "join";
@@ -518,8 +517,12 @@ function LobbyActions({
             size="lg"
             disabled={!canStart(lobby)}
             onClick={() =>
-              void startMatch(
-                { code: lobby.code,settings: lobby.settings,hostUid: lobby.hostUid,guestUid: lobby.guestUid! }              )
+              void startMatch({
+                code: lobby.code,
+                settings: lobby.settings,
+                hostUid: lobby.hostUid,
+                guestUid: lobby.guestUid!,
+              })
             }
           >
             Start Match
@@ -554,15 +557,6 @@ function LobbyPlayers({
       />
     </div>
   );
-}
-
-function playsGameType(team: Team, gameType: GameType): boolean {
-  try {
-    const roster = getRosterByRosterName(team.rosterName);
-    return legalGameTypes(team, roster).includes(gameType);
-  } catch {
-    return false;
-  }
 }
 
 function TeamPicker({
@@ -630,14 +624,16 @@ function TeamChoice({
           <option
             key={team.id}
             value={team.id}
-            disabled={!playsGameType(team, gameType)}
+            disabled={!teamPlaysGameType(team, gameType)}
           >
             {team.name} ({team.rosterName})
-            {playsGameType(team, gameType) ? "" : ` · not legal for ${label}`}
+            {teamPlaysGameType(team, gameType)
+              ? ""
+              : ` · not legal for ${label}`}
           </option>
         ))}
       </select>
-      {chosen && !playsGameType(chosen, gameType) && (
+      {chosen && !teamPlaysGameType(chosen, gameType) && (
         <Notice tone="warn" className="mt-3">
           {chosen.name} does not meet the {label} draft rules. Pick another
           team.

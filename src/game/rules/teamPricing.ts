@@ -21,7 +21,7 @@ import { countInsignificant } from "./insignificant";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { Inducement } from "../../types/Inducements";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
-import { sevensInducementCatalog } from "../inducements/catalog";
+import { inducementCatalog } from "../inducements/catalog";
 import {
   APOTHECARY_COST,
   ASSISTANT_COACH_COST,
@@ -125,7 +125,7 @@ function inducementPrice(team: Team, inducement: Inducement): PriceResult {
       reason: "Inducements go on the draft list only at the draft.",
     };
   }
-  const entry = sevensInducementCatalog(team).find(
+  const entry = inducementCatalog(team, teamGameType(team)).find(
     (line) => line.inducement === inducement
   );
   if (!entry) {

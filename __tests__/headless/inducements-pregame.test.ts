@@ -7,6 +7,7 @@ import { createMatchSave } from "../../src/headless/serialization";
 import { stabilizeIds } from "../../src/headless/createHeadlessGame";
 import { TeamFactory } from "../../src/game/TeamFactory";
 import { RosterName } from "../../src/types/Team";
+import { GamePhase } from "../../src/types/GameState";
 
 const scrimmage = fixtureValue(
   SCENARIOS.find((s) => s.id === "basic-scrimmage")
@@ -233,6 +234,25 @@ describe("Matched Play inducements (MP2)", () => {
         provenance: "purchased",
       },
     ]);
+  });
+
+  it("brings only the draft list items a Street Bowl match sells (SB-D5)", () => {
+    const team1 = matchedPlayTeam("team1");
+    team1.draftInducements = [
+      { inducement: Inducement.BLITZERS_BEST_KEGS, quantity: 1 },
+      { inducement: Inducement.BRIBE, quantity: 1 },
+    ];
+    const game = new HeadlessGame({
+      seed: 1,
+      team1,
+      team2: matchedPlayTeam("team2"),
+      startingPhase: GamePhase.SETUP,
+      format: { gameType: "street-bowl", venue: "street" },
+    });
+
+    expect(game.ctx.gameService.getState().inducements?.inventory ?? []).toEqual(
+      []
+    );
   });
 
   it("offers no petty cash, even to the lower-value team", async () => {

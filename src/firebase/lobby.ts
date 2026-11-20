@@ -20,15 +20,13 @@ import {
 } from "firebase/firestore";
 import { readEach } from "../boundary/readEach";
 import { getDb } from "./config";
+import { teamPlaysGameType } from "../game/rules/rosterLegality";
 import { type Team } from "../types/Team";
 import { type GameSnapshot } from "../headless/serialization";
 import { type RNGState } from "../services/rng/RNGService";
 import { type MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { type CompetitionContext } from "../competition/types";
-import {
-  DEFAULT_GAME_TYPE,
-  type GameType,
-} from "../game/variants/gameTypes";
+import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
 import { OWN_SLOW_MS, type LinkState, type OwnLink } from "./connection";
 import { abandonedListings } from "../social/openGames";
 
@@ -309,7 +307,8 @@ async function seatGuest(
   const snapshot = await tx.get(lobbyRef(code));
   if (!snapshot.exists()) throw new Error("No game found with that code.");
   const lobby = readLobby(snapshot.data());
-  if (lobby.status !== "lobby") throw new Error("That game has already started.");
+  if (lobby.status !== "lobby")
+    throw new Error("That game has already started.");
   if (lobby.guestUid && lobby.guestUid !== guest.uid)
     throw new Error("That game is already full.");
   if (lobby.reservedFor && lobby.reservedFor !== guest.uid)
@@ -476,7 +475,12 @@ export function canStart(lobby: LobbyDoc): boolean {
   const everyone = [lobby.hostUid, lobby.guestUid].map(
     (uid) => lobby.players[uid]
   );
-  return everyone.every((p) => p?.team && p.ready) && seedReady(lobby);
+  const gameType = lobbyGameType(lobby);
+  return (
+    everyone.every(
+      (p) => p?.team && p.ready && teamPlaysGameType(p.team, gameType)
+    ) && seedReady(lobby)
+  );
 }
 
 export async function startMatch({
