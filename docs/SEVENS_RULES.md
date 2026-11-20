@@ -410,8 +410,9 @@ this:
   downside. A free re-roll is still the team's one Team Re-roll for that
   turn. "On the pitch" means on a pitch square, Prone and Stunned
   included, as the Leader Re-roll counts it.
-- A preset formation that leaves out an available Captain gives the
-  Captain its last square. The set-up checklist shows the Captain, and
+- A custom formation that leaves out an available Captain gives the
+  Captain its last square. A built-in formation always fields the
+  Captain, in the square whose role suits them best. The set-up checklist shows the Captain, and
   set-up cannot be confirmed without them.
 - Sevens never lets a team fire a player after a game (L6), so the
   rulebook's limit on firing a Captain never comes up. Removing a player

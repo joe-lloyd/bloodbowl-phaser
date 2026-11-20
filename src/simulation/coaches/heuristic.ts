@@ -1,4 +1,5 @@
 import { type FieldPlayer, onField } from "../ai/board";
+import { setupLabel } from "../../game/setup/deployment";
 import {
   type HeadlessCommand,
   type GridPosition,
@@ -38,7 +39,7 @@ function scoreCandidate(candidate: Candidate, board: Board): number {
     case "end-activation":
       return 2;
     case "setup":
-      return candidate.label.includes("Balanced") ? 10 : 5;
+      return candidate.label === setupLabel("Balanced") ? 10 : 5;
     case "kickoff":
       return kickoffValue(command);
     case "declare":

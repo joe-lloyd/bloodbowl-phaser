@@ -190,7 +190,6 @@ test("after setup a reserve is hovered by their body again", async ({
 
   await startSetup(page, app, SNOTLINGS);
   const team = fixtureValue((await app.bridge.teams()).find((t) => t.name === SNOTLINGS));
-  const reserve = fixtureValue(team.players[7]).id;
 
   for (let side = 0; side < 2; side++) {
     await loadPreset(page, /balanced/i);
@@ -206,7 +205,7 @@ test("after setup a reserve is hovered by their body again", async ({
     .not.toBe(GamePhase.SETUP);
   const snapshot = await app.bridge.snapshot();
   const players = fixtureValue(snapshot.teams.find((t) => t.id === team.id)).players;
-  expect(players.find((p) => p.id === reserve)?.position).toBeNull();
+  const reserve = fixtureValue(players.find((p) => p.position === null)).id;
 
   const away = await app.pitch.viewportPoint({ x: 10, y: 5 });
   await page.mouse.move(away.x, away.y);

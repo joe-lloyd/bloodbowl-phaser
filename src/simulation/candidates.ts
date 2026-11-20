@@ -10,6 +10,7 @@ import { type Player, PlayerStatus } from "../types/Player";
 import { type ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
+import { assignPlayers, setupLabel } from "../game/setup/deployment";
 import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { isConfinedToReserves } from "../game/kickoff/driveEffects";
@@ -404,26 +405,20 @@ async function setupCandidates(
         p.status === PlayerStatus.STUNNED
     )
 
-    .filter((p) => !isConfinedToReserves(p, gs.getState()))
-    .sort((a, b) => b.stats.ST - a.stats.ST || a.number - b.number);
-
-  const captainAt = eligible.findIndex((p) => p.teamCaptain);
-  if (captainAt >= 7) eligible.splice(6, 0, ...eligible.splice(captainAt, 1));
+    .filter((p) => !isConfinedToReserves(p, gs.getState()));
+  const kicking = gs.getState().setup?.kickingTeamId === teamId;
+  const mustField = eligible.find((p) => p.teamCaptain)?.id;
 
   return new FormationManager()
     .getBuiltInFormations(isTeam1)
+    .filter((formation) => formation.use !== (kicking ? "receive" : "kick"))
     .map((formation) => ({
       kind: "setup" as const,
-      label: `Set up in the ${formation.name} formation`,
+      label: setupLabel(formation.name),
       commands: setupCommands([
         ...clear,
-        ...formation.positions.slice(0, Math.min(eligible.length, 7)).flatMap(
-          (pos, index): HeadlessCommand[] => {
-            const player = eligible[index];
-            return player
-              ? [{ type: "place-player", playerId: player.id, x: pos.x, y: pos.y }]
-              : [];
-          }
+        ...assignPlayers({ squares: formation.positions, players: eligible, kicking, mustField }).map(
+          (pos): HeadlessCommand => ({ type: "place-player", playerId: pos.playerId, x: pos.x, y: pos.y })
         ),
       ], teamId),
     }));

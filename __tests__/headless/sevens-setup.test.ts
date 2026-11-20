@@ -45,7 +45,17 @@ describe("Sevens setup through the headless protocol", () => {
     expect(legal.legalActions?.setup).toMatchObject({
       canApplyPreset: true,
       canConfirm: false,
-      presetNames: ["Balanced", "Spread", "Bunker"],
+      presetNames: [
+        "Balanced",
+        "Spread",
+        "Bunker",
+        "Kick: Blitz line",
+        "Kick: Press",
+        "Kick: Screen",
+        "Receive: Wedge",
+        "Receive: Full line",
+        "Receive: Flank",
+      ],
     });
 
     expect(
