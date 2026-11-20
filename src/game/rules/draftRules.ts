@@ -50,7 +50,7 @@ const STAFF_NAMES: Record<SidelineStaff, string> = {
   cheerleader: "Cheerleaders",
 };
 
-export function staffAllowed(draft: DraftRules, staff: SidelineStaff): boolean {
+function staffAllowed(draft: DraftRules, staff: SidelineStaff): boolean {
   switch (staff) {
     case "apothecary":
       return draft.apothecary;
