@@ -43,7 +43,7 @@ function gradeResult(grade: CasualtyGrade): CasualtyType {
   }
 }
 
-function rollCasualty(dice: DiceController, player: Player): CasualtyRecord {
+export function rollCasualty(dice: DiceController, player: Player): CasualtyRecord {
   const niggles = player.injuries.filter(
     (injury) => injury === InjuryType.NIGGLING_INJURY
   ).length;
