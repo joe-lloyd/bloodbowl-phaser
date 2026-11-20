@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   DEFAULT_GAME_TYPE,
   GAME_TYPES,
@@ -104,11 +105,16 @@ export function GameTypeSelector({
   disabled?: boolean;
   label?: string;
 }) {
+  const [tabStop, setTabStop] = useState(value);
+  const [shown, setShown] = useState(value);
+  if (shown !== value) {
+    setShown(value);
+    setTabStop(value);
+  }
   const keys = choiceKeys({
     ids: GAME_TYPES,
-    value,
-    onChange,
-    activation: "manual",
+    value: tabStop,
+    onChange: setTabStop,
   });
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -117,6 +123,10 @@ export function GameTypeSelector({
         role="radiogroup"
         aria-label={label ?? "Game type"}
         className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setTabStop(value);
+        }}
       >
         {GAME_TYPES.map((gameType) => (
           <GameTypeCard

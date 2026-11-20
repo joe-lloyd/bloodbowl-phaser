@@ -97,6 +97,31 @@ describe("GameTypeSelector", () => {
     expect(onChange).toHaveBeenCalledWith("street-bowl");
   });
 
+  it("keeps one tab stop on the focused card, and returns it to the checked card when focus leaves", () => {
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    act(() => {
+      root.render(<GameTypeSelector value="sevens" onChange={vi.fn()} />);
+    });
+    const stops = () => cards().map((button) => button.tabIndex);
+
+    act(() => {
+      card("Sevens").focus();
+      card("Sevens").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+      );
+    });
+    expect(stops()).toEqual([-1, 0, -1, -1]);
+
+    act(() => {
+      card("Gutter Bowl").dispatchEvent(
+        new FocusEvent("focusout", { bubbles: true, relatedTarget: outside })
+      );
+    });
+    expect(stops()).toEqual([0, -1, -1, -1]);
+    outside.remove();
+  });
+
   it("leaves the choice alone while disabled", () => {
     const onChange = vi.fn();
     act(() => {

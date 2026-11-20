@@ -11,12 +11,10 @@ export function choiceKeys<T extends string>({
   ids,
   value,
   onChange,
-  activation = "automatic",
 }: {
   ids: readonly T[];
   value: T;
   onChange: (id: T) => void;
-  activation?: "automatic" | "manual";
 }) {
   return (id: T) => ({
     tabIndex: id === value ? 0 : -1,
@@ -27,7 +25,7 @@ export function choiceKeys<T extends string>({
       const index = (ids.indexOf(id) + step + ids.length) % ids.length;
       const next = ids[index];
       if (next === undefined) return;
-      if (activation === "automatic") onChange(next);
+      onChange(next);
       const sibling = event.currentTarget.parentElement?.children[index];
       if (sibling instanceof HTMLElement) sibling.focus();
     },
