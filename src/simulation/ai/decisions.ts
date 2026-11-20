@@ -11,7 +11,7 @@ import {
   onPitch,
   toGoal,
 } from "./board";
-import { hasBiteSupport } from "./feeding";
+import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
 
 const USE_REROLL = "use-reroll";
@@ -157,6 +157,14 @@ function pushChoice(
   });
 }
 
+function keepsFood(board: Board, attacker: FieldPlayer | undefined): boolean {
+  return (
+    !!attacker &&
+    !!board.gs.getState().activePlayer?.bloodlustUnsated &&
+    hasBiteSupport(board, attacker, attacker.gridPosition)
+  );
+}
+
 function followUpChoice(
   board: Board,
   candidates: readonly Candidate[]
@@ -171,7 +179,7 @@ function followUpChoice(
     carrier.teamId === board.us &&
     carrier.id !== attacker.id &&
     distance(carrier.gridPosition, attacker.gridPosition) === 1;
-  const follow = !holding && !corner;
+  const follow = !holding && !corner && !keepsFood(board, attacker);
   return first(
     candidates,
     (c) =>
@@ -250,21 +258,27 @@ function skillReactionChoice({
 }: SkillReactionChoiceArgs): number | null {
   if (pending.skill === SkillType.WRESTLE)
     return wrestleChoice(board, pending, candidates);
-  const active = board.gs.getState().activePlayer;
-  const player = board.ours.find((p) => p.id === active?.id);
-  if (
-    skillPlans &&
-    pending.skill === SkillType.BLOODLUST &&
-    pending.prompt.includes("change the declared action") &&
-    active?.action === "gaze" &&
-    player?.gridPosition &&
+  if (!skillPlans || pending.skill !== SkillType.BLOODLUST) return null;
+  const player = board.ours.find((p) => p.id === pending.playerId);
+  if (!player) return null;
+  const declines = pending.prompt.includes("change the declared action")
+    ? keepsFedAction(board, player)
+    : sparesCarrier(board, player);
+  return declines
+    ? first(
+        candidates,
+        (c) => c.commands[0].type === "use-reaction" && !c.commands[0].accept
+      )
+    : null;
+}
+
+function keepsFedAction(board: Board, player: FieldPlayer): boolean {
+  const action = board.gs.getState().activePlayer?.action;
+  return (
+    !!action &&
+    KEEPS_ACTION_WHEN_FED.has(action) &&
     hasBiteSupport(board, player, player.gridPosition)
-  )
-    return first(
-      candidates,
-      (c) => c.commands[0].type === "use-reaction" && !c.commands[0].accept
-    );
-  return null;
+  );
 }
 
 function wrestleChoice(
@@ -286,6 +300,15 @@ function wrestleChoice(
       c.commands[0].type === "use-reaction" && c.commands[0].accept === accept
   );
 }
+
+function sparesCarrier(board: Board, player: FieldPlayer): boolean {
+  const thralls = board.ours.filter(
+    (p) => isThrall(p) && distance(p.gridPosition, player.gridPosition) === 1
+  );
+  return thralls.length === 1 && thralls[0]?.id === carrierOf(board)?.id;
+}
+
+const KEEPS_ACTION_WHEN_FED = new Set<string>(["gaze", "block"]);
 
 interface DecideArgs {
   board: Board;

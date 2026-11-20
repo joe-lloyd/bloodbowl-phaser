@@ -552,6 +552,137 @@ describe("skill-aware tactical choices", () => {
     );
   });
 
+  it("keeps a Block after failed Bloodlust when a Thrall stands beside the Vampire", async () => {
+    const subject = new HeadlessGame({
+      seed: 7,
+      scenario: {
+        id: "supported-block",
+        name: "Supported block",
+        description: "",
+        setup: {
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [{ type: SkillType.BLOODLUST, parameter: "6+" }],
+            },
+            { playerIndex: 1, x: 9, y: 5 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+          ballPosition: { x: 1, y: 1 },
+          teamRerolls: { team1: 0, team2: 0 },
+        },
+      },
+    });
+    const [vampire, thrall] = subject.ctx.team1.players;
+    fixtureValue(thrall).keywords = [
+      TraitKeyWord.THRALL,
+      PositionKeyWord.LINEMAN,
+    ];
+    await subject.execute({
+      type: "declare-action",
+      action: "block",
+      playerId: fixtureValue(vampire).id,
+    });
+    expect(subject.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.BLOODLUST,
+    });
+    expect(await choose(subject)).toMatchObject({
+      type: "use-reaction",
+      accept: false,
+    });
+  });
+
+  it("walks a failed-Bloodlust Vampire to a Thrall it can bite", async () => {
+    const subject = game({
+      turn: 1,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 10,
+          y: 5,
+          skills: [SkillType.BLOODLUST],
+        },
+        { playerIndex: 1, x: 7, y: 2 },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 18, y: 8, hasBall: true }],
+      ballPosition: undefined,
+    });
+    const [vampire, thrall] = subject.ctx.team1.players;
+    fixtureValue(thrall).keywords = [
+      TraitKeyWord.THRALL,
+      PositionKeyWord.LINEMAN,
+    ];
+    subject.ctx.gameService.getState().activePlayer = {
+      id: fixtureValue(vampire).id,
+      action: "move",
+      committed: true,
+      bloodlustUnsated: true,
+    };
+    for (let step = 0; step < 8; step++) {
+      const command = await choose(subject);
+      if (command.type !== "move") break;
+      await subject.execute(command);
+    }
+    const end = fixtureValue(fixtureValue(vampire).gridPosition);
+    expect(Math.max(Math.abs(end.x - 7), Math.abs(end.y - 2))).toBe(1);
+  });
+
+  it("does not bite the only adjacent Thrall when it holds the ball", async () => {
+    const subject = new HeadlessGame({
+      seed: 7,
+      scenario: {
+        id: "carrier-bite",
+        name: "Spare the carrier",
+        description: "",
+        setup: {
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [{ type: SkillType.BLOODLUST, parameter: "2+" }],
+            },
+            { playerIndex: 1, x: 11, y: 5, hasBall: true },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 2, y: 8 }],
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+          teamRerolls: { team1: 0, team2: 0 },
+        },
+      },
+    });
+    const [vampire, carrier] = subject.ctx.team1.players;
+    fixtureValue(carrier).keywords = [
+      TraitKeyWord.THRALL,
+      PositionKeyWord.LINEMAN,
+    ];
+    await subject.execute({
+      type: "declare-action",
+      action: "move",
+      playerId: fixtureValue(vampire).id,
+    });
+    await subject.execute({ type: "use-reaction", accept: false });
+    await subject.execute({
+      type: "end-activation",
+      playerId: fixtureValue(vampire).id,
+    });
+    expect(subject.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.BLOODLUST,
+    });
+    expect(await choose(subject)).toMatchObject({
+      type: "use-reaction",
+      accept: false,
+    });
+  });
+
   it("moves a Thrall into future feeding range and leaves it there", async () => {
     const subject = game({
       turn: 1,
