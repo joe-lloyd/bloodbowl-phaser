@@ -18,6 +18,7 @@ import { SkillList, StatCells } from "./AvailableHires";
 import { isLinemanPosition } from "../../../game/rules/rosterLegality";
 import { mayCaptain } from "../../../game/rules/teamCaptain";
 import { PlayerPortrait } from "../common/PlayerPortrait";
+import { appearanceOf } from "../../../game/names/playerIdentity";
 
 interface TeamRosterProps {
   team: Team;
@@ -163,6 +164,7 @@ export function TeamRoster({
                       rosterName={team.rosterName}
                       positionName={player.positionName}
                       colors={team.colors}
+                      appearance={appearanceOf(player, team.rosterName)}
                       size={40}
                     />
                     {player.positionName}

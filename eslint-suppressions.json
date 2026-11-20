@@ -5884,9 +5884,6 @@
     },
     "react-hooks/set-state-in-effect": {
       "count": 1
-    },
-    "react-refresh/only-export-components": {
-      "count": 1
     }
   },
   "src/ui/components/common/SignInDialog.tsx": {

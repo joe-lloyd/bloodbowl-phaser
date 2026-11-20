@@ -40,6 +40,7 @@ import {
 } from "../TeamManagement/TeamStatsOverview";
 import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
 import { PlayerPortrait } from "../common/PlayerPortrait";
+import { appearanceOf } from "../../../game/names/playerIdentity";
 
 interface TeamStatus {
   mode: "draft" | "active";
@@ -294,6 +295,7 @@ export function TeamManagement() {
                               rosterName={team.rosterName}
                               positionName={player.positionName}
                               colors={team.colors}
+                              appearance={appearanceOf(player, team.rosterName)}
                               size={40}
                             />
                             <span

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vampire sprite lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --ink: #0c0d10; --sunk: #08090b; --slab: #15171c; --raise: #1f222a; --edge: #2c3039;
+  --gold: #e3b448; --gold-deep: #9c7a2e; --blood: #b8141d; --blood-hot: #d72631;
+  --bone: #f1ebdd; --dim: #a39b8c; --mute: #6f685e; --good: #4fb35c; --warn: #e8a33a;
+  --pitch: #1b2a1d;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: var(--bone); font: 15px/22px Barlow, system-ui, sans-serif; }
+a { color: var(--gold); }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 96px; }
+h1, h2 { font-family: Anton, Impact, sans-serif; font-weight: 400; letter-spacing: 0.02em; margin: 0; }
+h1 { font-size: 40px; line-height: 44px; }
+h2 { font-size: 26px; line-height: 30px; margin-bottom: 6px; }
+h3 { font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin: 0 0 8px; }
+.eyebrow { font: 600 12px/14px "Barlow Condensed", sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+p { margin: 0 0 10px; max-width: 72ch; }
+.lede { color: var(--dim); }
+section { background: var(--slab); border: 1px solid var(--edge); border-radius: 6px; padding: 20px; margin-top: 20px; }
+.findings { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 14px; }
+.finding { background: var(--raise); border-left: 3px solid var(--gold); padding: 10px 12px; border-radius: 4px; }
+.finding b { display: block; font: 700 14px/18px "Barlow Condensed", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--bone); margin-bottom: 2px; }
+.finding span { color: var(--dim); font-size: 14px; line-height: 20px; }
+.bar { position: sticky; top: 0; z-index: 5; background: rgba(12, 13, 16, 0.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--edge); }
+.bar-inner { max-width: 1240px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+.field { display: flex; gap: 8px; align-items: center; }
+.field > label, .field > .eyebrow { white-space: nowrap; }
+.seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--edge); border-radius: 4px; overflow: hidden; }
+.seg button { background: var(--raise); color: var(--dim); border: 0; border-right: 1px solid var(--edge); padding: 5px 10px; font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: var(--ink); }
+.seg button:hover:not([aria-pressed="true"]) { color: var(--bone); }
+.swatches { display: inline-flex; gap: 6px; }
+.swatch { width: 30px; height: 22px; border-radius: 3px; border: 2px solid transparent; cursor: pointer; padding: 0; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
+.swatch[aria-pressed="true"] { border-color: var(--gold); }
+.swatch i { display: block; }
+input[type="range"] { accent-color: var(--gold); width: 110px; }
+.grid { display: grid; gap: 12px; }
+.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.options { display: flex; flex-wrap: wrap; gap: 8px; }
+.options .m { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; min-width: 120px; background: var(--sunk); border: 1px solid var(--edge); border-radius: 3px; padding: 8px; cursor: pointer; color: inherit; font: inherit; }
+.options .m:hover { border-color: var(--gold-deep); }
+@media (max-width: 860px) { .cols-4, .cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cell { background: var(--sunk); border: 1px solid var(--edge); border-radius: 4px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.cell .label { font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); text-align: center; }
+.cell .note { font-size: 12px; line-height: 16px; color: var(--mute); text-align: center; }
+.stage { display: flex; align-items: flex-end; justify-content: center; gap: 10px; min-height: 60px; width: 100%; overflow: hidden; }
+.stage.pitch { background: repeating-linear-gradient(45deg, #1c2b1e 0 12px, #203222 12px 24px); border-radius: 3px; padding: 8px 4px 4px; }
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: 100%; height: auto; min-width: 0; }
+.rowhead { font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); margin: 16px 0 8px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 10px 0 4px; }
+.card { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; }
+@media (max-width: 860px) { .card { grid-template-columns: 1fr; } }
+.portrait { background: var(--sunk); border: 1px solid var(--edge); border-radius: 4px; padding: 14px; }
+.portrait .stage { min-height: 300px; background: radial-gradient(ellipse at 50% 85%, #2a1a20 0, var(--sunk) 65%); border-radius: 3px; }
+.cycler { display: grid; grid-template-columns: 96px 30px minmax(0, 1fr) 30px; gap: 6px; align-items: center; margin-top: 6px; }
+.cycler .k { font: 600 12px/14px "Barlow Condensed", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.cycler .v { text-align: center; font: 600 14px/18px "Barlow Condensed", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; background: var(--raise); border-radius: 3px; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn { background: var(--raise); color: var(--bone); border: 1px solid var(--edge); border-radius: 4px; padding: 5px 10px; font: 600 13px/16px "Barlow Condensed", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.btn:hover { border-color: var(--gold-deep); color: var(--gold); }
+.btn.gold { background: var(--gold); color: var(--ink); border-color: var(--gold); box-shadow: 0 3px 0 #6b531c; }
+.btn.blood { background: var(--blood); border-color: var(--blood-hot); box-shadow: 0 3px 0 #5c0a0e; }
+.btn.icon { padding: 4px 0; width: 30px; }
+.name-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 2px; }
+.name { font-family: Anton, Impact, sans-serif; font-size: 34px; line-height: 38px; }
+.name-input { background: var(--sunk); color: var(--bone); border: 1px solid var(--gold-deep); border-radius: 4px; font: 400 26px/32px Anton, Impact, sans-serif; padding: 2px 8px; width: min(100%, 520px); }
+.roster { display: grid; gap: 6px; margin-top: 8px; }
+.roster button { display: grid; grid-template-columns: 34px 52px minmax(0, 1fr); gap: 10px; align-items: center; background: var(--raise); border: 1px solid var(--edge); border-radius: 4px; color: var(--bone); padding: 4px 8px; text-align: left; cursor: pointer; font: inherit; }
+.roster button.on { border-color: var(--gold); }
+.roster .num { font: 400 20px/22px Anton, sans-serif; color: var(--gold); text-align: center; }
+.roster .who { min-width: 0; }
+.roster .who b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roster .who span { font-size: 12px; color: var(--dim); }
+.hire { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.stats { display: flex; gap: 6px; margin: 10px 0; }
+.stat { background: var(--raise); border-radius: 4px; padding: 6px 10px; text-align: center; min-width: 54px; }
+.stat b { display: block; font: 400 22px/24px Anton, sans-serif; }
+.stat span { font: 600 10px/12px "Barlow Condensed", sans-serif; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
+.verdict { margin-top: 12px; padding: 10px 12px; background: var(--raise); border-radius: 4px; color: var(--dim); font-size: 14px; }
+.verdict b { color: var(--bone); }
+.loading { color: var(--mute); padding: 40px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="bar-inner">
+    <div class="field"><span class="eyebrow">Team colours</span><div class="swatches" id="teams"></div></div>
+    <div class="field"><span class="eyebrow">Kit tint</span><div class="seg" id="tint-mode"></div></div>
+    <div class="field"><span class="eyebrow">Speed</span><input type="range" id="speed" min="0.25" max="2" step="0.25" value="1"></div>
+  </div>
+</div>
+<main>
+  <div class="eyebrow">Bloodbowl Sevens · art review · vampire team only</div>
+  <h1>Vampire sprite lab</h1>
+  <p class="lede">Everything here is a proposal on a branch. Nothing ships until you pick. Each section ends with what I would do.</p>
+  <div class="findings">
+    <div class="finding"><b>Same pipeline as the shipped art</b><span>Everything below is rendered in Blender by the sprite factory that made the shipped sprites, restored from its session record. Re-rendering the blitzer reproduces the shipped atlas to within one pixel a frame.</span></div>
+    <div class="finding"><b>Dither makes the mud</b><span>The shader breaks every edge between two tones into a checker. At 42 px that checker covers much of the cloth, so red reads as speckle.</span></div>
+    <div class="finding"><b>Tint crushes the kit</b><span>The game multiplies grey kit pixels by the team colour. Crimson's dark shade lands near the outline colour. The ramp tint in the top bar fixes that with no new art.</span></div>
+  </div>
+  <div id="app"><div class="loading">Loading sprites…</div></div>
+</main>
+<script type="module" src="lab.js"></script>
+</body>
+</html>

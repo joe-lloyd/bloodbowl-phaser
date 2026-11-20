@@ -1,0 +1,90 @@
+import { useEffect, useRef, useState } from "react";
+import { loadLookAtlas } from "../../../game/presentation/layered/layeredModels";
+import type { LookAtlas } from "../../../game/presentation/layered/lookAtlas";
+import type { PlayerAppearance } from "../../../types/Player";
+import type { TeamColors } from "../../../types/Team";
+import { PortraitCanvas } from "./portraitCanvas";
+import { wholePixelSize } from "./portraitSize";
+
+const IDLE_FPS = 6;
+
+interface LayeredPortraitProps {
+  readonly model: string;
+  readonly label: string;
+  readonly appearance: PlayerAppearance | undefined;
+  readonly colors: TeamColors;
+  readonly size: number;
+  readonly animate: boolean;
+  readonly wholePixels: boolean;
+}
+
+interface Sheet {
+  readonly atlas: LookAtlas;
+  readonly image: HTMLCanvasElement;
+  readonly names: readonly string[];
+}
+
+function toSheet(atlas: LookAtlas): Sheet {
+  const image = document.createElement("canvas");
+  image.width = atlas.width;
+  image.height = atlas.height;
+  image.getContext("2d")?.putImageData(new ImageData(atlas.pixels, atlas.width, atlas.height), 0, 0);
+  const names = Object.keys(atlas.frames).sort((a, b) => Number(a.split("/")[2]) - Number(b.split("/")[2]));
+  return { atlas, image, names };
+}
+
+function drawFrame(canvas: HTMLCanvasElement, sheet: Sheet, index: number): number {
+  const first = sheet.atlas.frames[sheet.names[0] ?? ""];
+  const rect = sheet.atlas.frames[sheet.names[index] ?? ""];
+  const ctx = canvas.getContext("2d");
+  if (!first || !rect || !ctx) return 0;
+  const side = Math.max(first.w, first.h) + 8;
+  const ox = first.sx + first.w / 2 - side / 2;
+  const oy = first.sy + first.h - side + 4;
+  canvas.width = canvas.height = side;
+  ctx.clearRect(0, 0, side, side);
+  ctx.drawImage(sheet.image, rect.x, rect.y, rect.w, rect.h, rect.sx - ox, rect.sy - oy, rect.w, rect.h);
+  return side;
+}
+
+export function LayeredPortrait(props: LayeredPortraitProps) {
+  const { model, appearance, colors, animate } = props;
+  const lookKey = JSON.stringify(appearance ?? {});
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [hover, setHover] = useState(false);
+  const [side, setSide] = useState(0);
+
+  useEffect(() => {
+    let live = true;
+    loadLookAtlas({ model, appearance, colors, anims: ["idle"], facings: ["se"] })
+      .then((atlas) => {
+        if (live) setSheet(toSheet(atlas));
+      })
+      .catch(() => {
+        if (live) setSheet(null);
+      });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the look is keyed by value, not by object identity
+  }, [model, lookKey, colors.primary, colors.secondary]);
+
+  useEffect(() => {
+    const el = canvas.current;
+    if (!el || !sheet) return;
+    setSide(drawFrame(el, sheet, 0));
+    if (!animate && !hover) return;
+    let frame = 0;
+    const timer = setInterval(() => {
+      frame = (frame + 1) % Math.max(sheet.names.length, 1);
+      drawFrame(el, sheet, frame);
+    }, 1000 / IDLE_FPS);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [sheet, animate, hover]);
+
+  const shown = props.wholePixels ? wholePixelSize(side, props.size) : props.size;
+  return <PortraitCanvas ref={canvas} label={props.label} model={model} shown={shown} onHover={setHover} />;
+}

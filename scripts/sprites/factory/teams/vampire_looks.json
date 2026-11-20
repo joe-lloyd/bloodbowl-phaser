@@ -1,0 +1,25 @@
+{
+  "thrall": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["cap", "Skull cap"], ["hood", "Hood"], ["bare", "Bare head"]]],
+    ["chest", "Chest", [["gambeson", "Gambeson"], ["tabard", "Kit tabard"], ["apron", "Leather apron"]]],
+    ["feet", "Feet", [["boots", "Boots"], ["wraps", "Rag wraps"]]]
+  ],
+  "vampire_runner": [
+    ["body", "Body", [["f", "Female"], ["m", "Male"]]],
+    ["hair", "Hair", [["ponytail", "Ponytail"], ["braid", "Braid"], ["short", "Short"]]],
+    ["legs", "Legs", [["bare", "Bare legs"], ["leggings", "Leggings"]]],
+    ["arms", "Arms", [["bare", "Bare arms"], ["sleeves", "Sleeves"]]]
+  ],
+  "vampire_thrower": [
+    ["body", "Body", [["f", "Female"], ["m", "Male"]]],
+    ["coat", "Coat", [["frock", "Frock coat"], ["tails", "Tailcoat"], ["none", "No coat"]]],
+    ["cape", "Cape", [["long", "Long cape"], ["short", "Short cape"], ["none", "No cape"]]]
+  ],
+  "vampire_blitzer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["winged", "Winged helm"], ["cap", "Skull cap"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["both", "Both pads"], ["left", "Left pad"], ["right", "Right pad"]]],
+    ["cape", "Cape", [["short", "Short cape"], ["long", "Long cape"], ["none", "No cape"]]]
+  ]
+}

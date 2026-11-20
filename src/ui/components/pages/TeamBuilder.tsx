@@ -9,9 +9,9 @@ import {
   isActiveTeam,
 } from "../../../game/rules/teamLifecycle";
 import { canEdit } from "../../../game/rules/teamEditLegality";
+import { hireWithIdentity } from "../../../game/names/playerIdentity";
 import {
   type StaffItem,
-  hirePlayer,
   hireRefusal,
   positionAllowance,
   purchase,
@@ -333,7 +333,7 @@ export function TeamBuilder() {
     );
     if (!template) return;
 
-    const hired = hirePlayer(team, template);
+    const hired = hireWithIdentity(team, template);
     if (hired.amount == null) {
       alert(hired.reason ?? "This player cannot be hired.");
       return;

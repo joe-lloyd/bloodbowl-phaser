@@ -20,6 +20,7 @@ import {
   Stat,
 } from "../componentWarehouse/HudKit";
 import { formatGold, numToHex } from "./TeamStatsOverview";
+import { appearanceOf } from "../../../game/names/playerIdentity";
 
 export function ComputerTeamBrowser() {
   const [query, setQuery] = useState("");
@@ -116,6 +117,7 @@ export function ComputerTeamBrowser() {
                   rosterName={template.rosterName}
                   positionName={player.positionName}
                   colors={preview.colors}
+                  appearance={appearanceOf(player, template.rosterName)}
                   size={36}
                 />
               ))}
