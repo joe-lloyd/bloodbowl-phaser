@@ -225,7 +225,7 @@ function fixtureFields(fixture: LobbyFixture) {
   };
 }
 
-export function guestFixtureTeam(lobby: LobbyDoc): Team | null {
+function guestFixtureTeam(lobby: LobbyDoc): Team | null {
   const teams = lobby.fixtureTeams;
   if (!teams) return null;
   const hostTeamId = lobby.players[lobby.hostUid]?.team?.id;
