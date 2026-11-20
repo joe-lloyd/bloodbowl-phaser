@@ -187,7 +187,7 @@ function staffViolations(team: Team, gameType: GameType): RosterViolation[] {
   });
 }
 
-export function draftSpendUnder(team: Team, gameType: GameType): number {
+function draftSpendUnder(team: Team, gameType: GameType): number {
   const own = teamDraftRules(team);
   const other = draftRulesFor(gameType);
   const boughtFans =
