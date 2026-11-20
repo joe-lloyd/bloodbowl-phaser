@@ -73,8 +73,18 @@ function holdingAt(board: Board, player: Player, route: Route) {
   return { board: held, carrier };
 }
 
+function mayFetch(c: Context, player: Player): boolean {
+  const who = Math.round(c.w.fetchHandoff);
+  if (who <= 0 || !c.available.get(player.id)?.has("handoff")) return false;
+  return (
+    who >= 2 ||
+    (!!player.veteran &&
+      c.board.gs.getRerollArbiter().veteranRerollAvailable(player))
+  );
+}
+
 export function fetchActivations(c: Context, player: Player): Activation[] {
-  if (!c.available.get(player.id)?.has("handoff")) return [];
+  if (!mayFetch(c, player)) return [];
   const [pickup] = pickupActivation(c, player);
   if (pickup?.intent.kind !== "pickup") return [];
   const route = pickup.intent.route;

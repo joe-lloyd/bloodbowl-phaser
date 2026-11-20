@@ -460,9 +460,10 @@ describe("carrier pace", () => {
     const { command } = await step(subject, coach({ carrierPace: 4 }));
     expect(command.type).toBe("declare-action");
     if (command.type !== "declare-action") return;
-    expect([`${String(quick)}/move`, `${String(slow)}/handoff`]).toContain(
-      `${command.playerId}/${command.action}`
-    );
+    expect(
+      command.playerId === quick ||
+        (command.playerId === slow && command.action === "handoff")
+    ).toBe(true);
   });
 
   it("prices a pick-up by a prone player with nobody else standing", () => {
