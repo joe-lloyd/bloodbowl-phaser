@@ -157,9 +157,9 @@ describe("a knockout tie", () => {
   }, 120_000);
 
   it("ends a game level after the second half as a draw when it is not a knockout", async () => {
-    const knockout = await play(2, true);
+    const knockout = await play(3, true);
     expect(knockout.state.result?.penalties).toBeDefined();
-    const friendly = await play(2, false);
+    const friendly = await play(3, false);
     expect(friendly.state.score[friendly.home]).toBe(
       friendly.state.score[friendly.away]
     );

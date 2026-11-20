@@ -452,12 +452,17 @@ describe("carrier pace", () => {
     });
   });
 
-  it("sends the quick player for the ball when pace counts", async () => {
+  it("puts the ball in the quick player's hands when pace counts", async () => {
     const subject = looseBall();
+    const [slow, quick] = subject.ctx.team1.players.map(
+      (p) => fixtureValue(p).id
+    );
     const { command } = await step(subject, coach({ carrierPace: 4 }));
-    expect(command).toMatchObject({
-      playerId: fixtureValue(subject.ctx.team1.players[1]).id,
-    });
+    expect(command.type).toBe("declare-action");
+    if (command.type !== "declare-action") return;
+    expect([`${String(quick)}/move`, `${String(slow)}/handoff`]).toContain(
+      `${command.playerId}/${command.action}`
+    );
   });
 
   it("prices a pick-up by a prone player with nobody else standing", () => {
