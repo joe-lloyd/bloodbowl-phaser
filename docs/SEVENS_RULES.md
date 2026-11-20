@@ -186,7 +186,10 @@ New local, computer and online matches use this pregame sequence: both
 coaches ready up for the weather roll, the teams buy inducements in turn
 (the higher team value first, and each confirms even when it buys none),
 any prayer or desperate-measure choices resolve, then the coin toss starts
-setup. The computer readies and buys its own affordable inducements.
+setup. The computer readies and buys its own affordable inducements:
+the Halfling Master Chef first when it costs less than Extra Team Training,
+as it does for Halfling teams, then Extra Team Training, Blitzer's Best
+Kegs, Part-time Assistant Coaches and Temp Agency Cheerleaders.
 The purchase screen shows the remaining petty cash, per-item limits and
 match effects. Matched Play keeps its draft-budget purchases and receives
 no extra petty cash; those draft purchases load with the match.
