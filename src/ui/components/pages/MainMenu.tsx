@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import {
+  GAME_TYPES,
+  GAME_TYPE_LABELS,
+} from "../../../game/variants/gameTypes";
 import { useNavigate } from "react-router-dom";
 import {
   cx,
@@ -184,8 +188,11 @@ export function MainMenu() {
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center py-6 text-center">
         <Eyebrow tone="gold">Fantasy football mayhem</Eyebrow>
         <h1 className="mt-2 font-hud-display text-[56px] uppercase leading-none tracking-[0.02em] text-hud-bone lg:text-[76px]">
-          BLOOD BOWL SEVENS
+          BLOOD BOWL
         </h1>
+        <p className="mt-3 font-hud-label text-hud-base font-bold uppercase tracking-[0.08em] text-hud-dim">
+          {GAME_TYPES.map((gameType) => GAME_TYPE_LABELS[gameType]).join(" · ")}
+        </p>
         <div
           aria-hidden
           className="mt-4 h-[3px] w-56 bg-gradient-to-r from-transparent via-hud-blood to-transparent"
