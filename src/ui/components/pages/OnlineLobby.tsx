@@ -53,6 +53,7 @@ import {
   sendFixtureInvite,
 } from "../../../firebase/invites";
 import { type GameType } from "../../../game/variants/gameTypes";
+import { teamPlaysGameType } from "../../../game/rules/rosterLegality";
 import { GameTypeSelector } from "../common/GameTypeSelector";
 import type { Venue } from "../../../game/variants/pitchLayouts";
 import type { TeamValueRange } from "../../../social/teamValueRange";
@@ -373,8 +374,10 @@ function playerWait(
 ): string | null {
   if (!player) return null;
   if (!player.team) return `${name} to pick a team`;
+  if (!teamPlaysGameType(player.team, lobbyGameType(lobby)))
+    return `${name} to pick a team that fits the game type`;
   if (!teamFitsLobby(player.team, lobby))
-    return `${name} to pick a team that fits the game type and team value`;
+    return `${name} to pick a team inside the team value range`;
   return player.ready ? null : `${name} to ready up`;
 }
 
@@ -388,7 +391,7 @@ function lobbyWaitingOn(
   return [
     lobby.guestUid ? null : "an opponent to join",
     playerWait(lobby, me, "you"),
-    playerWait(lobby, opponent, opponent?.displayName ?? "your opponent"),
+    opponent ? playerWait(lobby, opponent, opponent.displayName) : null,
   ].flatMap((line) => (line ? [line] : []));
 }
 
@@ -504,7 +507,7 @@ function LobbyActions({
         <HudButton
           variant={startable || me?.ready ? "secondary" : "primary"}
           size="lg"
-          disabled={!me?.team || !teamFitsLobby(me.team, lobby)}
+          disabled={!me?.team || (!me.ready && !teamFitsLobby(me.team, lobby))}
           onClick={onReady}
         >
           {me?.ready ? "Not ready" : "Ready!"}
