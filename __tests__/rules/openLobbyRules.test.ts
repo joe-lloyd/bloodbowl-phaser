@@ -149,6 +149,15 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
         )
       )
     );
+    await denied(
+      getDocs(
+        query(
+          collection(dbFor(uniqueUid("stranger")), "games"),
+          where("listed", "==", true),
+          where("status", "==", "lobby")
+        )
+      )
+    );
   });
 
   it("are listed only by the host, and never for a competition fixture", async () => {
@@ -197,6 +206,11 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     await denied(updateDoc(ref, { listed: true }));
     await updateDoc(ref, { listed: false });
     expect((await getDoc(doc(dbFor(ADMIN), "games", code))).get("listed")).toBe(false);
+
+    const started = `S${String(Date.now()).slice(-5)}`;
+    await listedLobby({ code: started, host, lastSeen: Date.now() - GONE });
+    await updateDoc(doc(dbFor(ADMIN), "games", started), { status: "active" });
+    await denied(updateDoc(doc(dbFor(stranger), "games", started), { listed: false }));
   });
 
   it("are not hidden behind thirty lobbies whose hosts left", async () => {
