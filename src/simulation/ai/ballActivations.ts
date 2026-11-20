@@ -101,7 +101,7 @@ function carrierCover(c: Context, at: Square, carrier: Player): number {
   const { board, w } = c;
   const cage = cageCorners(c, at, carrier);
 
-  const exposed = cage >= 3 ? 0 : 1 - cage / 4;
+  const exposed = cage >= 4 ? 0 : cage === 3 ? 0.6 : 1 - cage / 4;
   const edge = Math.min(at.y, HEIGHT - 1 - at.y);
   return (
     -(w.cageWalk > 0
