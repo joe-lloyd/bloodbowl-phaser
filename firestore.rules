@@ -220,7 +220,9 @@ service cloud.firestore {
             && was[0].ownerUid == request.auth.uid
             && now[0].ownerUid == request.auth.uid
             && now[0].id == was[0].id
-            && now[0].teamId == was[0].teamId));
+            && now[0].teamId == was[0].teamId
+            && now[0].get('computerCoached', false)
+              == was[0].get('computerCoached', false)));
     }
 
     function slotKept(was, now) {
@@ -409,6 +411,7 @@ service cloud.firestore {
           .hasOnly(['entrants', 'participantUids', 'standings', 'updatedAt'])
         && ((added.size() == 1 && removed.size() == 0
             && added[0].ownerUid == request.auth.uid
+            && added[0].id == 'coach:' + request.auth.uid + ':' + added[0].teamId
             && added[0].get('computerCoached', false) == false
             && joined == [request.auth.uid] && left.size() == 0
             && grew == 1 && coaches == 1

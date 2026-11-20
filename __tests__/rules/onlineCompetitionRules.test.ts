@@ -132,6 +132,9 @@ describe.skipIf(!EMULATOR)("online competitions", () => {
       )
     );
     await as(bob, () => enterCompetition({ competition: league, team: coachTeam(), uid: bob }));
+    expect(
+      (await as(mallory, () => listOpenCompetitions("league"))).map((found) => found.id)
+    ).not.toContain(league.id);
     await denied(
       as(mallory, () =>
         updateCompetition("league", league.id, (latest) => ({
@@ -192,6 +195,43 @@ describe.skipIf(!EMULATOR)("online competitions", () => {
       )
     );
     expect((await stored(league, amy)).entrants).toHaveLength(2);
+
+    const amyEntrant = (await stored(league, amy)).entrants.find((entrant) => entrant.ownerUid === amy);
+    await denied(
+      as(mallory, () =>
+        updateCompetition("league", league.id, (latest) => ({
+          ...latest,
+          entrants: [...latest.entrants, { ...extraEntrant(String(amyEntrant?.id), mallory), teamId: String(amyEntrant?.teamId) }],
+          participantUids: [...latest.participantUids, mallory],
+        }))
+      )
+    );
+    await denied(
+      as(mallory, () =>
+        updateCompetition("league", league.id, (latest) => ({
+          ...latest,
+          entrants: [...latest.entrants, extraEntrant("own:mine", mallory)],
+          participantUids: [...latest.participantUids, mallory],
+        }))
+      )
+    );
+  });
+
+  it("keep a signed-up team coached by its coach", async () => {
+    const organizer = uniqueUid("organizer");
+    const amy = uniqueUid("amy");
+    const league = await openLeague(organizer);
+    await as(amy, () => enterCompetition({ competition: league, team: coachTeam(), uid: amy }));
+    await denied(
+      as(amy, () =>
+        updateCompetition("league", league.id, (latest) => ({
+          ...latest,
+          entrants: latest.entrants.map((entrant) =>
+            entrant.ownerUid === amy ? { ...entrant, computerCoached: true as const } : entrant
+          ),
+        }))
+      )
+    );
   });
 
   it("start when the organizer says, with computer teams in the empty places", async () => {

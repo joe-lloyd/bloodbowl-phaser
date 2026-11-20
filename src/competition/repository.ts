@@ -231,6 +231,7 @@ export async function listOpenCompetitions(
   );
   return readCompetitions(snapshot.docs.map((item) => item.data()))
     .map(normalizeCompetition)
+    .filter((competition) => competition.entrants.length < (competition.online?.places ?? 0))
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
