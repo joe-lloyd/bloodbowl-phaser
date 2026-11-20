@@ -18,6 +18,7 @@ import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
 import { isConfinedToReserves } from "../kickoff/driveEffects";
 import { type GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
 import { teamCaptain } from "../rules/teamCaptain";
+import { assignPlayers } from "../setup/deployment";
 import {
   emptySetupStatus,
   swarmPlayerLimits,
@@ -358,12 +359,13 @@ export class SetupManager {
     const skipped: { playerId?: string; reason: string }[] = [];
     const used = new Set<string>();
 
-    const slots = formation.slice(0, Math.min(7, eligible.length));
+    const captain = teamCaptain(team);
+    const slots = this.formationSlots(team, formation, eligible);
     const picks = slots.map((position, index) => {
       const rosterIndex = Number.parseInt(position.playerId, 10);
-      const indexed = Number.isNaN(rosterIndex)
-        ? eligible[index]
-        : team.players[rosterIndex];
+      const indexed =
+        eligible.find((candidate) => candidate.id === position.playerId) ??
+        (Number.isNaN(rosterIndex) ? eligible[index] : team.players[rosterIndex]);
       const player =
         indexed && this.isEligible(indexed) && !used.has(indexed.id)
           ? indexed
@@ -372,7 +374,6 @@ export class SetupManager {
       return player;
     });
 
-    const captain = teamCaptain(team);
     if (captain && this.isEligible(captain) && !used.has(captain.id)) {
       for (let index = picks.length - 1; index >= 0; index--) {
         if (picks[index]) {
@@ -407,6 +408,22 @@ export class SetupManager {
       skipped,
       status: this.requireStatus(teamId),
     };
+  }
+
+  private formationSlots(
+    team: Team,
+    formation: FormationPosition[],
+    eligible: Player[]
+  ): FormationPosition[] {
+    if (!formation.every((position) => position.role))
+      return formation.slice(0, Math.min(7, eligible.length));
+    const captain = teamCaptain(team);
+    return assignPlayers({
+      squares: formation.slice(0, 7),
+      players: eligible,
+      kicking: this.state.setup?.kickingTeamId === team.id,
+      mustField: captain && this.isEligible(captain) ? captain.id : undefined,
+    });
   }
 
   public confirmSetup(teamId: string): boolean {

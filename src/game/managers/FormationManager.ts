@@ -1,57 +1,19 @@
 import { type Formation, type FormationPosition } from "../../types/SetupTypes";
-import {
-  getLineOfScrimmageX,
-  getSevensSetupZone,
-  SEVENS_GEOMETRY,
-} from "../../config/GameConfig";
+import { getLineOfScrimmageX, SEVENS_GEOMETRY } from "../../config/GameConfig";
 import { activeLayout } from "../variants/activeMatch";
-import { isPlayableSquare } from "../variants/pitchLayouts";
-
-const squareKey = (x: number, y: number) => `${String(x)},${String(y)}`;
-
-function ringSquares(
-  centre: { x: number; y: number },
-  reach: number
-): { x: number; y: number }[] {
-  const squares: { x: number; y: number }[] = [];
-  for (let dx = -reach; dx <= reach; dx++) {
-    for (let dy = -reach; dy <= reach; dy++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) === reach)
-        squares.push({ x: centre.x + dx, y: centre.y + dy });
-    }
-  }
-  return squares;
-}
-
-function nearestFreeSquare(
-  wanted: FormationPosition,
-  taken: Set<string>,
-  isTeam1: boolean
-): { x: number; y: number } {
-  const layout = activeLayout();
-  const zone = getSevensSetupZone(isTeam1);
-  const free = (x: number, y: number) =>
-    x >= zone.minX &&
-    x <= zone.maxX &&
-    isPlayableSquare(layout, { x, y }) &&
-    !taken.has(squareKey(x, y));
-  for (let reach = 0; reach < layout.cols; reach++) {
-    const found = ringSquares(wanted, reach).find(({ x, y }) => free(x, y));
-    if (found) return found;
-  }
-  return wanted;
-}
+import { SetupValidator } from "../validators/SetupValidator";
+import {
+  DEPLOYMENTS,
+  type DeploymentUse,
+  deploymentSquares,
+  settleSquares,
+} from "../setup/deployment";
 
 function settleFormation(
   positions: FormationPosition[],
   isTeam1: boolean
 ): FormationPosition[] {
-  const taken = new Set<string>();
-  return positions.map((position) => {
-    const square = nearestFreeSquare(position, taken, isTeam1);
-    taken.add(squareKey(square.x, square.y));
-    return { ...position, ...square };
-  });
+  return settleSquares({ layout: activeLayout(), isTeam1 }, positions);
 }
 
 export interface FormationEntry {
@@ -65,53 +27,21 @@ export class FormationManager {
 
   getBuiltInFormations(
     isTeam1: boolean
-  ): { name: string; positions: FormationPosition[] }[] {
-    const los = getLineOfScrimmageX(isTeam1);
-    const depth = (n: number) => (isTeam1 ? los - n : los + n);
-    const { rows, centreRows } = activeLayout();
-    const mid = Math.floor(rows / 2);
-    const inCentre = (y: number) =>
-      Math.min(centreRows.max, Math.max(centreRows.min, y));
-    const shape = (
-      name: string,
-      squares: readonly (readonly [number, number])[]
-    ) => ({
-      name,
-      positions: settleFormation(
-        squares.map(([x, y], index) => ({ playerId: String(index), x, y })),
-        isTeam1
-      ),
-    });
-
-    return [
-      shape("Balanced", [
-        [los, mid - 1],
-        [los, mid],
-        [los, mid + 1],
-        [depth(2), centreRows.min],
-        [depth(2), centreRows.max],
-        [depth(4), mid - 1],
-        [depth(4), mid + 1],
-      ]),
-      shape("Spread", [
-        [los, inCentre(mid - 2)],
-        [los, mid],
-        [los, inCentre(mid + 2)],
-        [depth(2), 0],
-        [depth(2), rows - 1],
-        [depth(4), centreRows.min],
-        [depth(4), centreRows.max],
-      ]),
-      shape("Bunker", [
-        [los, mid - 1],
-        [los, mid],
-        [los, mid + 1],
-        [depth(1), mid - 1],
-        [depth(1), mid + 1],
-        [depth(2), mid],
-        [depth(4), mid],
-      ]),
-    ];
+  ): { name: string; use: DeploymentUse; positions: FormationPosition[] }[] {
+    const area = { layout: activeLayout(), isTeam1 };
+    const validator = new SetupValidator();
+    return DEPLOYMENTS.map((deployment) => ({
+      name: deployment.name,
+      use: deployment.use,
+      positions: deploymentSquares(area, deployment),
+    })).filter(
+      ({ positions }) =>
+        validator.validateFormation({
+          positions,
+          isTeam1,
+          availablePlayerCount: positions.length,
+        }).valid
+    );
   }
 
   listAllFormations(teamKey: string, isTeam1: boolean): FormationEntry[] {
