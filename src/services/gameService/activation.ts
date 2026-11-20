@@ -1,3 +1,4 @@
+import { actFirstBlocks } from "@/game/inducements/potionHooks";
 import type { Team } from "@/types/Team";
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { whenMomentsComplete } from "@/game/presentation/momentQueue";
@@ -41,9 +42,11 @@ export function canActivate(parts: GameParts, playerId: string): boolean {
       player.status === PlayerStatus.ACTIVE
     );
   }
+  const team = player.teamId === parts.team1.id ? parts.team1 : parts.team2;
   return (
     activationValidator.canActivate(player, parts.state.turn) &&
-    !missesThisTurn(player, parts.state, parts.state.turn.turnNumber)
+    !missesThisTurn(player, parts.state, parts.state.turn.turnNumber) &&
+    !actFirstBlocks(parts.state, player, team.players)
   );
 }
 
