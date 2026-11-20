@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import manifest from "./spriteManifest.json";
 import { ISO } from "../elements/GridUtils";
 import { MATCH_STYLE } from "./matchStyle";
+import { layeredArt } from "./layered/layeredModels";
 
 const FACINGS = ["s", "se", "e", "ne", "n", "nw", "w", "sw"] as const;
 export type Facing = (typeof FACINGS)[number];
@@ -64,6 +65,7 @@ export function preloadModels(
 ): void {
   const base = MATCH_STYLE.spritePath;
   for (const model of models) {
+    if (layeredArt(model)) continue;
     for (const layer of LAYERS) {
       const key = textureKey(model, layer);
       if (scene.textures.exists(key)) continue;

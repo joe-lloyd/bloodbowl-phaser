@@ -12,7 +12,9 @@ import {
   preloadVenue,
   type VenueBackdrop,
 } from "../game/elements/venue/backdrop";
-import { preloadPlayerArt } from "../game/presentation/playerArt";
+import { modelFor, preloadPlayerArt } from "../game/presentation/playerArt";
+import { preloadLooks } from "../game/presentation/layered/lookTextures";
+import { appearanceOf } from "../game/names/playerIdentity";
 import { type Team, type TeamColors } from "../types/Team";
 import { GameConfig } from "../config/GameConfig";
 import { ServiceContainer } from "../services/ServiceContainer";
@@ -193,14 +195,22 @@ export class GameScene extends Phaser.Scene {
   preload(): void {
     preloadVenue(this);
     preloadSidelineArt(this);
-    preloadPlayerArt(
+    const players = [this.team1, this.team2].flatMap((team) =>
+      team.players.map((player) => ({
+        rosterName: team.rosterName,
+        positionName: player.positionName,
+        player,
+        colors: this.kitOf(team.id),
+      }))
+    );
+    preloadPlayerArt(this, players);
+    preloadLooks(
       this,
-      [this.team1, this.team2].flatMap((team) =>
-        team.players.map((p) => ({
-          rosterName: team.rosterName,
-          positionName: p.positionName,
-        }))
-      )
+      players.map(({ rosterName, positionName, player, colors }) => ({
+        model: modelFor(rosterName, positionName),
+        appearance: appearanceOf(player, rosterName),
+        colors,
+      }))
     );
     this.load.on(Phaser.Loader.Events.PROGRESS, (progress: number) => {
       this.eventBus?.emit(GameEventNames.UI_LoadProgress, { progress });

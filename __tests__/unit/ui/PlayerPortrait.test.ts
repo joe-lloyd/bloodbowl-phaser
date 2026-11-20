@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { wholePixelSize } from "../../../src/ui/components/common/PlayerPortrait";
+import { wholePixelSize } from "../../../src/ui/components/common/portraitCanvas";
 
 describe("wholePixelSize", () => {
   it("picks the largest whole multiple of the figure that fits the box", () => {

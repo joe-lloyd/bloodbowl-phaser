@@ -8,6 +8,10 @@ import {
   modelFor,
 } from "../../../game/presentation/playerArt";
 import { type TeamColors } from "../../../types/Team";
+import type { PlayerAppearance } from "../../../types/Player";
+import { layeredArt } from "../../../game/presentation/layered/layeredModels";
+import { LayeredPortrait } from "./LayeredPortrait";
+import { PortraitCanvas, wholePixelSize } from "./portraitCanvas";
 
 interface AtlasFrame {
   frame: { x: number; y: number; w: number; h: number };
@@ -43,10 +47,6 @@ function loadAtlas(model: string, layer: Layer) {
 
 const IDLE_FPS = 6;
 
-export function wholePixelSize(side: number, size: number): number {
-  if (side <= 0 || size < side) return size;
-  return side * Math.floor(size / side);
-}
 
 interface PlayerPortraitProps {
   rosterName: string;
@@ -58,9 +58,27 @@ interface PlayerPortraitProps {
   wholePixels?: boolean;
 
   animate?: boolean;
+
+  appearance?: PlayerAppearance | undefined;
 }
 
-export function PlayerPortrait({
+export function PlayerPortrait(props: PlayerPortraitProps) {
+  const model = modelFor(props.rosterName, props.positionName);
+  if (!layeredArt(model)) return <AtlasPortrait {...props} />;
+  return (
+    <LayeredPortrait
+      model={model}
+      label={props.positionName}
+      appearance={props.appearance}
+      colors={props.colors}
+      size={props.size ?? 56}
+      animate={props.animate ?? false}
+      wholePixels={props.wholePixels ?? false}
+    />
+  );
+}
+
+function AtlasPortrait({
   rosterName,
   positionName,
   colors,
@@ -155,20 +173,5 @@ export function PlayerPortrait({
 
   const shown = wholePixels ? wholePixelSize(figureSide, size) : size;
 
-  return (
-    <canvas
-      ref={canvas}
-      aria-label={positionName}
-      role="img"
-      data-model={model}
-      onMouseEnter={() => {
-        setHover(true);
-      }}
-      onMouseLeave={() => {
-        setHover(false);
-      }}
-      style={{ width: shown, height: shown, imageRendering: "pixelated" }}
-      className="shrink-0"
-    />
-  );
+  return <PortraitCanvas ref={canvas} label={positionName} model={model} shown={shown} onHover={setHover} />;
 }

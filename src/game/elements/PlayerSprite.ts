@@ -12,6 +12,8 @@ import {
   textureKey,
 } from "../presentation/playerArt";
 import { prefersReducedMotion } from "../presentation/motion";
+import { layeredArt, lookTextureKey } from "../presentation/layered/layeredModels";
+import { appearanceOf } from "../names/playerIdentity";
 import { playerBoxOf } from "../rules/playerLocation";
 import {
   playerNumber,
@@ -117,7 +119,29 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     });
   }
 
+  private buildLayeredFigure(): boolean {
+    const art = layeredArt(this.model);
+    const key = lookTextureKey({
+      model: this.model,
+      appearance: appearanceOf(this.player, this.look.rosterName),
+      colors: this.look.colors,
+    });
+    if (!art || key === null || !this.scene.textures.exists(key)) return false;
+    const sprite = this.scene.add.sprite(0, 0, key, frameName("idle", this.facing, 0));
+    sprite.setOrigin(art.anchor[0] / art.frame, art.anchor[1] / art.frame);
+    sprite.setScale(1 / art.layered.density);
+    this.layers = [sprite];
+    this.figure.add(sprite);
+    this.headY = (sprite.frame.y - art.anchor[1]) / art.layered.density;
+    return true;
+  }
+
+  private fps(anim: Animation): number {
+    return (FPS[anim] * modelArt(this.model).animations[anim]) / 8;
+  }
+
   private buildFigure(): void {
+    if (this.buildLayeredFigure()) return;
     const art = modelArt(this.model);
     const base = textureKey(this.model, "base");
     if (!this.scene.textures.exists(base)) {
@@ -156,7 +180,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     const once = ONE_SHOT.has(this.anim);
     const step = Math.floor(
       ((time - this.animStart + (once ? 0 : this.phase)) / 1000) *
-        FPS[this.anim]
+        this.fps(this.anim)
     );
     let index = step % count;
     if (once) index = Math.min(step, count - 1);
@@ -223,7 +247,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     }
     this.play(anim);
     const frames = modelArt(this.model).animations[anim];
-    this.scene.time.delayedCall((frames / FPS[anim]) * 1000 + 150, () => {
+    this.scene.time.delayedCall((frames / this.fps(anim)) * 1000 + 150, () => {
       if (this.anim === anim && !this.isDown()) this.play("idle");
     });
   }
@@ -446,7 +470,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
           return;
         }
         this.play("cheer");
-        const ms = ((CHEER_JUMPS * frames) / FPS.cheer) * 1000;
+        const ms = ((CHEER_JUMPS * frames) / this.fps("cheer")) * 1000;
         this.scene.time.delayedCall(ms, () => {
           if (this.anim === "cheer") this.play("idle");
           resolve();
