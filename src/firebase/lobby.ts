@@ -31,6 +31,7 @@ import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
 import type { Venue } from "../game/variants/pitchLayouts";
 import { OWN_SLOW_MS, type LinkState, type OwnLink } from "./connection";
 import { abandonedListings } from "../social/openGames";
+import { type TeamValueRange, withinTeamValue } from "../social/teamValueRange";
 
 export * from "./connection";
 
@@ -56,6 +57,7 @@ export interface LobbySettings {
   gameType?: GameType;
 
   venue?: Venue;
+  teamValue?: TeamValueRange;
 }
 
 export interface TimerState {
@@ -521,11 +523,16 @@ export function canStart(lobby: LobbyDoc): boolean {
   const everyone = [lobby.hostUid, lobby.guestUid].map(
     (uid) => lobby.players[uid]
   );
-  const gameType = lobbyGameType(lobby);
   return (
-    everyone.every(
-      (p) => p?.team && p.ready && teamPlaysGameType(p.team, gameType)
-    ) && seedReady(lobby)
+    everyone.every((p) => p?.team && p.ready && teamFitsLobby(p.team, lobby)) &&
+    seedReady(lobby)
+  );
+}
+
+export function teamFitsLobby(team: Team, lobby: LobbyDoc): boolean {
+  const range = lobby.competitionContext ? undefined : lobby.settings.teamValue;
+  return (
+    teamPlaysGameType(team, lobbyGameType(lobby)) && withinTeamValue(team, range)
   );
 }
 
@@ -568,7 +575,7 @@ export async function startLobbyMatch(code: string): Promise<void> {
     const lobby = readLobby(snapshot.data());
     if (!lobby.guestUid || !canStart(lobby))
       throw new Error(
-        "Both coaches need a ready team that meets this game type's rules."
+        "Both coaches need a ready team that meets this game type's rules and the team value range."
       );
     tx.update(lobbyRef(code), {
       status: "active",

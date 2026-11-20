@@ -16,7 +16,7 @@ export class OnlinePage {
       .getByRole("button", { name: /sign in with google/i })
       .click();
     const popup = await popupPromise;
-    await popup.waitForLoadState();
+    await popup.waitForLoadState("domcontentloaded");
 
     await popup
       .getByRole("button", { name: /add new account/i })

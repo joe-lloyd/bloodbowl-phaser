@@ -11,9 +11,9 @@ If no bot is waiting it says so.
 
 The bot is also a friend you can invite. Add it on the Friends page with
 its friend code, and it accepts the request by itself. Then host a game,
-invite House Bot from the lobby, and it joins, picks one of its teams at
-random and readies up. You host, so the game type, turn timer, timeout bank
-and the rest of the settings are yours. Start the match when you are ready.
+invite House Bot from the lobby, and it joins, picks a random computer team
+and readies up. You host, so the game type, team value range, turn timer,
+timeout bank and the rest of the settings are yours. Start the match when you are ready.
 If the bot is already in a match, it joins as soon as that match ends,
 while the invite is still fresh.
 
@@ -40,19 +40,21 @@ while the invite is still fresh.
   full time. It does not choose moves or translate them into board clicks.
   The page loads a Vite dev server on old-mac with the production Firebase
   config from `.env`.
-- The bot owns House Bot Orcs and eight teams built from the computer team
-  templates listed in `SQUAD` in the runner, all in Matched Play, so none
-  owes a skill pick after a game. The runner drafts any that are missing on
-  start. In a lobby it picks at random among the teams the lobby allows for
-  its game type, and picks again if the host changes the game type.
+- The bot keeps no team library. In any lobby, its browser
+  (`useHouseBotTeam`) builds a random computer team from every template
+  that plays the lobby's game type inside its team value range
+  (`src/social/houseBotTeam.ts`), in Matched Play so it owes no skill pick,
+  and picks again when the host changes either setting. If no template
+  fits, it says so in `bot.log` and cannot ready up.
 - If the other coach ends the match early, the bot agrees and hosts the
   next one.
 - In the bot's browser only, `HouseBotSocial`
   (`src/ui/components/social/HouseBotSocial.tsx`) accepts every incoming
   friend request and every match invite, as long as the bot has no guest
   waiting and is not playing. It then opens the invited lobby. The runner
-  waits the same way as host or guest: it picks the team and presses Ready!,
-  and as host it presses Start Match once the guest is ready.
+  waits the same way as host or guest: it presses Ready!, which stays
+  disabled until the bot's browser has picked a team that fits, and as host
+  it presses Start Match once the guest is ready.
 
 ## Running it
 

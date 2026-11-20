@@ -8,4 +8,7 @@ export const lobbySettingsSchema: z.ZodType<LobbySettings> = z.looseObject({
   progressionEnabled: z.boolean(),
   gameType: gameTypeSchema.exactOptional(),
   venue: venueSchema.exactOptional(),
+  teamValue: z
+    .object({ min: z.number().exactOptional(), max: z.number().exactOptional() })
+    .exactOptional(),
 });

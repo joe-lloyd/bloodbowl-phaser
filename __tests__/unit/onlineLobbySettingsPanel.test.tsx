@@ -92,4 +92,20 @@ describe("OnlineLobby SettingsPanel — turn timer", () => {
     expect(container.textContent).not.toMatch(/neon/i);
     expect(DEFAULT_SETTINGS).not.toHaveProperty("pitchThemeId");
   });
+
+  it("keeps the team value range when the host changes the game type", () => {
+    const onChange = vi.fn();
+    render({ ...DEFAULT_SETTINGS, teamValue: { min: 450_000, max: 500_000 } }, onChange);
+    const street = fixtureValue(
+      [...container.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find((card) =>
+        card.textContent.includes("Street Bowl")
+      )
+    );
+    act(() => {
+      street.click();
+    });
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ gameType: "street-bowl", teamValue: { min: 450_000, max: 500_000 } })
+    );
+  });
 });

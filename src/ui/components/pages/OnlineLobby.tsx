@@ -33,6 +33,7 @@ import {
   subscribeLobby,
   updateSettings,
   lobbyGameType,
+  teamFitsLobby,
 } from "../../../firebase/lobby";
 import { resolveCoachName } from "../../../firebase/coaches";
 import { useFriends } from "../../hooks/useSocial";
@@ -51,13 +52,14 @@ import {
   acceptLobbyInvite,
   sendFixtureInvite,
 } from "../../../firebase/invites";
-import {
-  GAME_TYPE_LABELS,
-  type GameType,
-} from "../../../game/variants/gameTypes";
+import { type GameType } from "../../../game/variants/gameTypes";
 import { teamPlaysGameType } from "../../../game/rules/rosterLegality";
 import { GameTypeSelector } from "../common/GameTypeSelector";
 import type { Venue } from "../../../game/variants/pitchLayouts";
+import type { TeamValueRange } from "../../../social/teamValueRange";
+import { TeamChoice } from "./TeamChoice";
+import { TeamValueSetting } from "./TeamValueSetting";
+import { useHouseBotTeam } from "../social/useHouseBotTeam";
 
 type Mode = "host" | "join";
 
@@ -124,6 +126,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   }, [code]);
 
   const myUid = user?.uid;
+  useHouseBotTeam(lobby, myUid);
   const { committed, revealed, bothCommitted } = seedProgress(lobby, myUid);
   useEffect(() => {
     if (!lobby || !myUid || lobby.status !== "lobby" || !lobby.guestUid) return;
@@ -305,6 +308,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           fixture={!!lobby.fixtureTeams}
           myTeams={myTeams}
           gameType={lobbyGameType(lobby)}
+          teamValue={lobby.settings.teamValue}
           onPick={(team) => void selectTeam(lobby.code, user.uid, team)}
         />
       </Section>
@@ -363,6 +367,20 @@ function houseBotWaitingIn(
     : null;
 }
 
+function playerWait(
+  lobby: LobbyDoc,
+  player: LobbyPlayer | null | undefined,
+  name: string
+): string | null {
+  if (!player) return null;
+  if (!player.team) return `${name} to pick a team`;
+  if (!teamPlaysGameType(player.team, lobbyGameType(lobby)))
+    return `${name} to pick a team that fits the game type`;
+  if (!teamFitsLobby(player.team, lobby))
+    return `${name} to pick a team inside the team value range`;
+  return player.ready ? null : `${name} to ready up`;
+}
+
 function lobbyWaitingOn(
   lobby: LobbyDoc,
   me: LobbyPlayer | undefined,
@@ -370,15 +388,11 @@ function lobbyWaitingOn(
 ): string[] {
   const opponentUid = isHost ? lobby.guestUid : lobby.hostUid;
   const opponent = opponentUid ? lobby.players[opponentUid] : null;
-  const waitingOn: string[] = [];
-  if (!lobby.guestUid) waitingOn.push("an opponent to join");
-  if (me && !me.team) waitingOn.push("you to pick a team");
-  if (me?.team && !me.ready) waitingOn.push("you to ready up");
-  if (opponent && !opponent.team)
-    waitingOn.push(`${opponent.displayName} to pick a team`);
-  if (opponent?.team && !opponent.ready)
-    waitingOn.push(`${opponent.displayName} to ready up`);
-  return waitingOn;
+  return [
+    lobby.guestUid ? null : "an opponent to join",
+    playerWait(lobby, me, "you"),
+    opponent ? playerWait(lobby, opponent, opponent.displayName) : null,
+  ].flatMap((line) => (line ? [line] : []));
 }
 
 function JoinByCode({
@@ -493,7 +507,7 @@ function LobbyActions({
         <HudButton
           variant={startable || me?.ready ? "secondary" : "primary"}
           size="lg"
-          disabled={!me?.team}
+          disabled={!me?.team || (!me.ready && !teamFitsLobby(me.team, lobby))}
           onClick={onReady}
         >
           {me?.ready ? "Not ready" : "Ready!"}
@@ -544,12 +558,14 @@ function TeamPicker({
   fixture,
   myTeams,
   gameType,
+  teamValue,
   onPick,
 }: {
   me: LobbyPlayer | undefined;
   fixture: boolean;
   myTeams: Team[];
   gameType: GameType;
+  teamValue: TeamValueRange | undefined;
   onPick: (team: Team) => void;
 }) {
   if (fixture && me?.team)
@@ -569,57 +585,9 @@ function TeamPicker({
       chosen={me?.team ?? null}
       myTeams={myTeams}
       gameType={gameType}
+      teamValue={teamValue}
       onPick={onPick}
     />
-  );
-}
-
-function TeamChoice({
-  chosen,
-  myTeams,
-  gameType,
-  onPick,
-}: {
-  chosen: Team | null;
-  myTeams: Team[];
-  gameType: GameType;
-  onPick: (team: Team) => void;
-}) {
-  const label = GAME_TYPE_LABELS[gameType];
-  return (
-    <>
-      <select
-        value={chosen?.id ?? ""}
-        onChange={(e) => {
-          const team = myTeams.find((t: Team) => t.id === e.target.value);
-          if (team) onPick(team);
-        }}
-        aria-label="Your team"
-        className="hud-field"
-      >
-        <option value="" disabled>
-          Pick a team…
-        </option>
-        {myTeams.map((team: Team) => (
-          <option
-            key={team.id}
-            value={team.id}
-            disabled={!teamPlaysGameType(team, gameType)}
-          >
-            {team.name} ({team.rosterName})
-            {teamPlaysGameType(team, gameType)
-              ? ""
-              : ` · not legal for ${label}`}
-          </option>
-        ))}
-      </select>
-      {chosen && !teamPlaysGameType(chosen, gameType) && (
-        <Notice tone="warn" className="mt-3">
-          {chosen.name} does not meet the {label} draft rules. Pick another
-          team.
-        </Notice>
-      )}
-    </>
   );
 }
 
@@ -735,6 +703,7 @@ export function SettingsPanel({
           }}
         />
       </label>
+      <TeamValueSetting settings={settings} readOnly={readOnly || gameTypeLocked} onChange={onChange} />
       <GameTypeSelector
         label="Game type"
         {...(settings.gameType === undefined
@@ -761,15 +730,10 @@ function withVenue(
   settings: LobbySettings,
   venue: Venue | undefined
 ): LobbySettings {
-  const { turnSeconds, timeoutBankMs, progressionEnabled, gameType } =
-    settings;
-  return {
-    turnSeconds,
-    timeoutBankMs,
-    progressionEnabled,
-    ...(gameType ? { gameType } : {}),
-    ...(venue ? { venue } : {}),
-  };
+  const kept: LobbySettings = { ...settings };
+  if (venue) kept.venue = venue;
+  else delete kept.venue;
+  return kept;
 }
 
 function ErrorText({ text }: { text: string }) {
