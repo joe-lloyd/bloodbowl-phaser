@@ -1,3 +1,4 @@
+import { rollSewerPits } from "./sewerPits";
 import type { Player } from "@/types/Player";
 import { GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
@@ -74,8 +75,9 @@ export function turnEndHazards(
   const weather =
     parts.state.phase === GamePhase.PLAY && weatherActsAtTurnEnd(parts.state);
   if (weather) parts.flowManager.add(new WeatherTurnEndOperation());
+  const pits = rollSewerPits(parts);
   const wizards = castSportsWizards(parts, endingTeamId);
-  if (wizards || !weather) return wizards;
+  if (wizards || !(weather || pits)) return wizards;
   return whenSettled(parts).then(() => undefined);
 }
 

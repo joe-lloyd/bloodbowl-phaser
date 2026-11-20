@@ -36,6 +36,7 @@ export function movePlayerToBox(
   eventBus?: IEventBus
 ): void {
   delete player.gridPosition;
+  delete player.sewerPit;
 
   switch (destination.box) {
     case "pitch":

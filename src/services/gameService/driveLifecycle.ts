@@ -294,6 +294,7 @@ export function resetDriveState(parts: GameParts): void {
       p.conditions = p.conditions.filter(
         (condition) => condition.type === PlayerCondition.FROG
       );
+    if (p.sewerPit) movePlayerToBox(p, { box: "reserves" }, parts.eventBus);
   });
 
   parts.eventBus.emit(GameEventNames.RefreshBoard, undefined);
