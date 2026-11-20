@@ -11,25 +11,13 @@ import { homedir } from "node:os";
 import { dirname } from "node:path";
 import { GameApp } from "../support/pages/game";
 import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
-import { buildTeam, clickIf, type Recorder } from "../fullgame/driver";
-import { createComputerTeamFromTemplate } from "../../src/competition/computerTeamTemplates";
+import { clickIf, type Recorder } from "../fullgame/driver";
 
 const PORT = Number(process.env["HOUSE_BOT_PORT"] ?? 5299);
 const APP_URL = `http://localhost:${String(PORT)}`;
 const PROFILE =
   process.env["HOUSE_BOT_PROFILE"] ?? `${homedir()}/.bb-house-bot/profile`;
 const OUT = process.env["HOUSE_BOT_OUT"] ?? `${homedir()}/.bb-house-bot/logs`;
-const TEAM = "House Bot Orcs";
-const SQUAD = [
-  "human-reroll-mix-roster",
-  "chaos-dwarf-big-guns",
-  "dark-elf-max-positional",
-  "dwarf-max-positional",
-  "elven-union-1-reroll",
-  "amazon-amazons-0rr",
-  "goblin-1-reroll",
-  "halfling-best-stuff-roster",
-];
 
 const MATCHES = Number(process.env["HOUSE_BOT_MATCHES"] ?? 0);
 
@@ -69,7 +57,6 @@ test("the house bot hosts games until stopped", async () => {
       "The bot could not sign in. Is Email/Password sign-in enabled in the Firebase console? See bot.log."
     );
   });
-  await ensureTeams(page);
   await logFriendCode(page);
 
   for (let played = 0; MATCHES === 0 || played < MATCHES; ) {
@@ -113,79 +100,10 @@ async function logFriendCode(page: Page) {
   log(code ? `friend code ${code}` : "no friend code yet");
 }
 
-async function ensureTeams(page: Page) {
-  await ensureTeam(page);
-  await page.goto("/build-team");
-  await page.getByText(TEAM, { exact: false }).first().waitFor({ timeout: 30_000 });
-  const listed = await page.locator("main").innerText();
-  for (const id of SQUAD) {
-    const team = createComputerTeamFromTemplate(id);
-    if (listed.includes(team.name)) continue;
-    log(`drafting ${team.name} (${team.rosterName})`);
-    await buildTeam(
-      page,
-      team.name,
-      team.rosterName,
-      team.players.map((player) => player.positionName),
-      rec,
-      /Matched Play/
-    );
-  }
-}
-
-async function ensureTeam(page: Page) {
-  await page.goto("/build-team");
-
-  const drafted = await page
-    .getByText(TEAM, { exact: false })
-    .first()
-    .waitFor({ timeout: 10_000 })
-    .then(
-      () => true,
-      () => false
-    );
-  if (drafted) return;
-  log(`drafting ${TEAM}`);
-  await buildTeam(
-    page,
-    TEAM,
-    "Orc",
-    [
-      "Orc Lineman",
-      "Orc Lineman",
-      "Orc Lineman",
-      "Orc Lineman",
-      "Blitzer",
-      "Blitzer",
-      "Thrower",
-    ],
-    rec,
-
-    /Matched Play/
-  );
-
-  await page.waitForTimeout(3000);
-}
-
 const WAIT_FOR_A_GAME_MS = 24 * 60 * 60 * 1000;
 const WAIT_AS_GUEST_MS = 20 * 60 * 1000;
 
 async function readyUp(page: Page) {
-  const select = page.getByLabel("Your team");
-  if (!(await select.isVisible().catch(() => false))) return;
-  const legal = await select.locator("option").evaluateAll((options) =>
-    options.flatMap((option) =>
-      option instanceof HTMLOptionElement && option.value && !option.disabled
-        ? [{ value: option.value, label: option.text }]
-        : []
-    )
-  );
-  const current = await select.inputValue();
-  const pick = legal[Math.floor(Math.random() * legal.length)];
-  if (pick && !legal.some((option) => option.value === current)) {
-    log(`picking ${pick.label}`);
-    await select.selectOption(pick.value);
-  }
   const ready = page.getByRole("button", { name: "Ready!" });
   if (await ready.isEnabled().catch(() => false)) await ready.click();
 }
