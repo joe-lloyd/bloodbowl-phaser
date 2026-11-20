@@ -43,7 +43,7 @@ export function lastSquareIn(from: Square, dir: Square, steps: number): Square {
   return lastIn;
 }
 
-export function wallBeside(from: Square): Square | undefined {
+function wallBeside(from: Square): Square | undefined {
   const { cols, rows, walledSidelines } = activeLayout();
   if (!walledSidelines || from.x <= 0 || from.x >= cols - 1) return undefined;
   if (from.y <= 0) return { x: from.x, y: -1 };

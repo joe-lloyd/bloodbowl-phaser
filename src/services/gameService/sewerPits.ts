@@ -9,7 +9,7 @@ import type { GameParts } from "./parts";
 
 type PitRoll = "casualty" | "stays" | "climbs-out";
 
-export function sewerPitRoll(roll: number): PitRoll {
+function sewerPitRoll(roll: number): PitRoll {
   if (roll <= 1) return "casualty";
   return roll <= 3 ? "stays" : "climbs-out";
 }
