@@ -492,6 +492,7 @@ export class BlockManager extends BlockPushChain {
         isUphill: false,
         attackerST: attacker.stats.ST,
         defenderST: defender.stats.ST,
+        barricadeCover: false,
         attackerAssists: [],
         defenderAssists: [],
       },

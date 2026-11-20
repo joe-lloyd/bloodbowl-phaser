@@ -6,6 +6,7 @@ import {
   occupiedSquare,
 } from "./movementSquares";
 import type { MovementSquare } from "./movementSquares";
+import { barricadeBetween } from "../rules/pitchSquares";
 
 interface SearchInput {
   start: MovementSquare;
@@ -92,15 +93,23 @@ export class MovementPathSearch {
       )
         continue;
       const score =
-        (this.gScore.get(currentKey) ?? 0) + this.stepCost(neighbor, steps);
+        (this.gScore.get(currentKey) ?? 0) +
+        this.stepCost(current, neighbor, steps);
       this.relax({ current, neighbor, score, steps: steps + 1 });
     }
   }
 
-  private stepCost(square: MovementSquare, steps: number): number {
+  private stepCost(
+    from: MovementSquare,
+    square: MovementSquare,
+    steps: number
+  ): number {
     const zones = movementTackleZones(square, this.input.opponents);
     const rush = steps + 1 > this.input.player.stats.MA ? 4 : 0;
-    return this.input.mode === "safe" ? 1 + zones * 10 + rush : 100 + zones;
+    const barricade = barricadeBetween(from, square) ? 3 : 0;
+    return this.input.mode === "safe"
+      ? 1 + zones * 10 + rush + barricade
+      : 100 + zones + barricade;
   }
 
   private relax(step: {

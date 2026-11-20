@@ -8,7 +8,7 @@ import { availableRerolls } from "../../skills/rerolls";
 import { rollLabel } from "../../rules/rollTargets";
 import { type StepRisk, stepRolls } from "../../rules/moveLegs";
 import type { foulPreview} from "../../rules/rollPreview";
-import { type RouteRoll } from "../../rules/rollPreview";
+import { ROUTE_ROLL_NAMES, type RouteRoll } from "../../rules/rollPreview";
 
 type ConfirmationRequest = Omit<
   AllEvents[typeof GameEventNames.UI_RequestConfirmation],
@@ -57,18 +57,13 @@ export class Confirmations {
   }
 }
 
-function stepTitle(rolls: RouteRoll[], risk: StepRisk): string {
+function stepTitle(rolls: RouteRoll[]): string {
   if (rolls.some((roll) => roll.type === "secureBall")) return "Secure the Ball";
-  if (risk.kind === "dodge") return "Dodge";
-  if (risk.kind === "rush") return "Rush";
-  return risk.kind === "rush-dodge" ? "Rush & Dodge" : "Pick up";
+  if (rolls.some((roll) => roll.type === "pickup")) return "Pick up";
+  return rolls.map((roll) => rollName(roll.type)).join(" & ");
 }
 
-const ROLL_NAMES: Record<RouteRoll["type"], string> = {
-  secureBall: "Secure the Ball", pickup: "Pick up", dodge: "Dodge", rush: "Rush",
-};
-
-const rollName = (kind: RouteRoll["type"]) => ROLL_NAMES[kind];
+const rollName = (kind: RouteRoll["type"]) => ROUTE_ROLL_NAMES[kind];
 
 type RerollArbiter = ReturnType<IGameService["getRerollArbiter"]>;
 
@@ -166,7 +161,7 @@ export function riskyStepRequest(
       });
     });
   });
-  const title = stepTitle(rolls, risk);
+  const title = stepTitle(rolls);
   return {
     title: `${player.playerName}: ${title}`,
     chooserTeamId: player.teamId,

@@ -9,6 +9,7 @@ export const IMPOSSIBLE = 0;
 type RollKind =
   | "dodge"
   | "rush"
+  | "barricade"
   | "pickup"
   | "secure"
   | "pass"
@@ -36,6 +37,7 @@ export function withReroll(p: Chance): Chance {
 const KINDS: readonly RollTarget["kind"][] = [
   "dodge",
   "rush",
+  "barricade",
   "pickup",
   "catch",
   "secure",
@@ -47,6 +49,7 @@ const KINDS: readonly RollTarget["kind"][] = [
 const REROLL_SKILL: Record<RollTarget["kind"], SkillType | null> = {
   dodge: SkillType.DODGE,
   rush: SkillType.SURE_FEET,
+  barricade: null,
   pickup: SkillType.SURE_HANDS,
   catch: SkillType.CATCH,
   secure: null,

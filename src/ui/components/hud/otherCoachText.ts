@@ -1,10 +1,8 @@
 import type { StepPrompt } from "../../../types/events";
+import { ROUTE_ROLL_NAMES } from "../../../game/rules/rollPreview";
 
 const ROLL_NAMES: Record<StepPrompt["rolls"][number]["type"], string> = {
-  dodge: "Dodge",
-  rush: "Rush",
-  pickup: "Pick up",
-  secureBall: "Secure the Ball",
+  ...ROUTE_ROLL_NAMES,
   pass: "Pass",
   catch: "Catch",
   armour: "Foul armour",

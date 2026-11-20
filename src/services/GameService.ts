@@ -48,6 +48,7 @@ import * as matchStart from "./gameService/matchStart";
 import * as moves from "./gameService/moveActions";
 import * as roster from "./gameService/roster";
 import * as specials from "./gameService/specialActions";
+import type { MoveStep } from "../headless/protocol";
 
 export class GameService implements IGameService {
   private readonly parts: GameParts;
@@ -634,7 +635,7 @@ export class GameService implements IGameService {
 
   movePlayer(
     playerId: string,
-    path: { x: number; y: number }[]
+    path: MoveStep[]
   ): Promise<void> {
     return moves.movePlayer(this.parts, playerId, path);
   }

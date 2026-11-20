@@ -39,8 +39,8 @@ describe("planMoveLegs", () => {
     const legs = planMoveLegs({ x: 0, y: 5 }, line(8), ctx);
     expect(legs).toEqual([
       { risk: null, path: line(6) },
-      { risk: { kind: "rush", rushNeed: 2 }, path: [{ x: 7, y: 5 }] },
-      { risk: { kind: "rush", rushNeed: 2 }, path: [{ x: 8, y: 5 }] },
+      { risk: [{ type: "rush", target: 2 }], path: [{ x: 7, y: 5 }] },
+      { risk: [{ type: "rush", target: 2 }], path: [{ x: 8, y: 5 }] },
     ]);
   });
 
@@ -51,7 +51,7 @@ describe("planMoveLegs", () => {
     );
     expect(legs).toEqual([
       { risk: null, path: line(6) },
-      { risk: { kind: "rush", rushNeed: 3 }, path: [{ x: 7, y: 5 }] },
+      { risk: [{ type: "rush", target: 3 }], path: [{ x: 7, y: 5 }] },
     ]);
   });
 
@@ -61,9 +61,9 @@ describe("planMoveLegs", () => {
       opponents: [opponent(0, 5), opponent(4, 4)],
     });
     expect(legs).toEqual([
-      { risk: { kind: "dodge", dodgeNeed: 3 }, path: [{ x: 2, y: 5 }] },
+      { risk: [{ type: "dodge", target: 3 }], path: [{ x: 2, y: 5 }] },
       { risk: null, path: [{ x: 3, y: 5 }] },
-      { risk: { kind: "dodge", dodgeNeed: 4 }, path: [{ x: 4, y: 5 }] },
+      { risk: [{ type: "dodge", target: 4 }], path: [{ x: 4, y: 5 }] },
     ]);
   });
 
@@ -84,7 +84,7 @@ describe("planMoveLegs", () => {
     });
     expect(legs).toEqual([
       {
-        risk: { kind: "rush-dodge", rushNeed: 3, dodgeNeed: 3 },
+        risk: [{ type: "rush", target: 3 }, { type: "dodge", target: 3 }],
         path: [{ x: 2, y: 5 }],
       },
     ]);
@@ -99,11 +99,11 @@ describe("planMoveLegs", () => {
       })
     ).toEqual([
       {
-        risk: {
-          kind: "ball-step",
-          movement: { kind: "rush-dodge", rushNeed: 2, dodgeNeed: 3 },
-          pickupNeed: 4,
-        },
+        risk: [
+          { type: "rush", target: 2 },
+          { type: "dodge", target: 3 },
+          { type: "pickup", target: 4 },
+        ],
         path: [{ x: 2, y: 5 }],
       },
     ]);

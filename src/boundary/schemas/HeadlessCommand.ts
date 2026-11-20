@@ -2,7 +2,7 @@ import { z } from "zod";
 import { formationPositionSchema } from "./FormationPosition";
 import { actionTypeSchema } from "./ActionType";
 import { blockReplacementSchema } from "./BlockReplacement";
-import { gridPositionSchema } from "./GridPosition";
+import { moveStepSchema } from "./GridPosition";
 import { swoopFacingSchema } from "./SwoopFacing";
 import { rerollSourceSchema } from "./RerollSource";
 import { dopeStatSchema } from "./DopeStat";
@@ -96,7 +96,7 @@ export const headlessCommandSchema: z.ZodType<HeadlessCommand> = z.union([
   z.looseObject({
     type: z.literal("move"),
     playerId: z.string(),
-    path: gridPositionSchema.array(),
+    path: moveStepSchema.array(),
   }),
   z.looseObject({
     type: z.literal("fumblerooski"),

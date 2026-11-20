@@ -25,7 +25,8 @@ import {
 
 export type ArmourFall =
   | { cause: "dodge"; vacatedSquare: { x: number; y: number } }
-  | { cause: "rush" };
+  | { cause: "rush" }
+  | { cause: "barricade" };
 
 export async function foldArmourRoll(
   context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,

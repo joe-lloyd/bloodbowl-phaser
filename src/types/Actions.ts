@@ -5,6 +5,7 @@ export interface BlockAnalysis {
   isUphill: boolean;
   attackerST: number;
   defenderST: number;
+  barricadeCover: boolean;
   attackerAssists: Player[];
   defenderAssists: Player[];
 }

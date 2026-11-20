@@ -3,17 +3,7 @@ import { type IEventBus } from "../../../services/EventBus";
 import { GameEventNames, type UIEvents } from "../../../types/events";
 import { useEventBus } from "../../hooks/useEventBus";
 
-const ROUTE_ROLL_NAMES: Record<
-  NonNullable<
-    UIEvents[typeof GameEventNames.UI_RoutePreview]
-  >["rolls"][number]["type"],
-  string
-> = {
-  dodge: "Dodge",
-  rush: "Rush",
-  pickup: "Pick up",
-  secureBall: "Secure the Ball",
-};
+import { ROUTE_ROLL_NAMES } from "../../../game/rules/rollPreview";
 
 export function RouteSummary({ eventBus }: { eventBus: IEventBus }) {
   const [route, setRoute] =

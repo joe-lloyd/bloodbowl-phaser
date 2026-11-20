@@ -11,6 +11,7 @@ import { DiceController } from "@/game/controllers/DiceController";
 import { ArmourController } from "@/game/controllers/ArmourController";
 import { InjuryController } from "@/game/controllers/InjuryController";
 import { type NextHalf } from "@/game/managers/TurnManager";
+import type { MoveStep } from "../../headless/protocol";
 
 export interface IGameService {
   getState(): GameState;
@@ -148,7 +149,7 @@ export interface IGameService {
   cancelAction(playerId: string): boolean;
 
   commitAction(playerId: string): void;
-  movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
+  movePlayer(playerId: string, path: MoveStep[]): Promise<void>;
 
   dropBallWithFumblerooski(
     playerId: string,

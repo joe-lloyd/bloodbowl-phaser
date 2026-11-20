@@ -211,11 +211,15 @@ Reserves.
 
 | ID | Rule | Status |
 | --- | --- | --- |
-| GB-P1 | Before the match roll a D6: 1-3 the Sewer, 4-6 the Street. The game rolls it when the match is created. | ok |
+| GB-P1 | The coaches choose the Street or the Sewer pitch, or roll a D6: 1-3 the Sewer, 4-6 the Street. A friendly or an online lobby offers Street, Sewer or Roll a D6 under the game type. A competition fixture rolls when the match is created. | ok |
 | GB-P2 | Both pitches are 26 × 15 with Wide Zones of 4 rows. Both sidelines are walls. | ok |
-| GB-P3 | Four 6 × 4 blocks, two in each half: market stalls on the Street, sewer pits in the Sewer. The printed board's positions are not in the text, so the game places one block in each Wide Zone of each half, staggered and point-symmetric (`gutterObstacles` in pitchLayouts.ts). | differs |
+| GB-P3 | Four 6 × 4 blocks, two in each half: market stalls on the Street, sewer pits in the Sewer. Both sides of the printed board put them in the same places: columns 4-9 and 16-21, rows 2-5 and 9-12, two squares in from each wall (`gutterObstacles` in pitchLayouts.ts). | ok |
 | GB-P4 | Market stalls count as walls. Nobody may move into a stall or a pit. | ok |
-| GB-P5 | Barricades are left out: the text does not say where they stand. | missing |
+| GB-P5 | Four Barricades per pitch, two in each half, each three squares long on a line between squares, the same on both sides of the board: between columns 11 and 12 on rows 0-2, between 10 and 11 on rows 6-8, between 14 and 15 on rows 6-8, and between 13 and 14 on rows 12-14. | ok |
+| GB-P6 | Moving over a Barricade Safely costs 2 extra squares of Movement and is not allowed if it needs a Rush. Moving over Recklessly costs nothing extra; after entering the square roll a D6, and on a 1 the player Falls Over there. The move command marks each Reckless step. The route planner climbs Safely when the whole route still ends without Rushing and goes Recklessly otherwise; a step with no mark climbs Safely when it can. The computer coach always goes Recklessly. | ok: a team re-roll may re-roll the D6, and Steady Footing can save the fall |
+| GB-P7 | A Block over a Barricade gives the target +1 ST before Assists. A diagonal Block past the end of a Barricade gets nothing. | ok |
+| GB-P8 | A player with no open push square who could be pushed over a Barricade is pushed into it, as into a wall: D6 4+ Falls Over, a POW! falls with no roll. Squares over a Barricade are never open push squares. | ok |
+| GB-P9 | Barricades do not stop the ball, Tackle Zones, passes, Leap, Ball & Chain or kick-off event shoves. | differs: the rules do not say, so the game ignores them there |
 
 ### Match play
 

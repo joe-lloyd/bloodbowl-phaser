@@ -1,56 +1,30 @@
 import { dodgeTarget, markingPlayers, type RouteRoll } from "./rollPreview";
 import { type Player } from "../../types/Player";
 import { activeRules } from "../variants/activeMatch";
+import type { MoveStep } from "../../headless/protocol";
+import {
+  RECKLESS_CROSSING_TARGET,
+  crossingAt,
+  planCrossings,
+  stepCost,
+} from "./barricades";
 
 interface Square {
   x: number;
   y: number;
 }
 
-type MovementRisk =
-  | { kind: "dodge"; dodgeNeed: number }
-  | { kind: "rush"; rushNeed: number }
-  | { kind: "rush-dodge"; rushNeed: number; dodgeNeed: number };
+type StepRoll = Omit<RouteRoll, "square">;
 
-export type StepRisk =
-  | MovementRisk
-  | { kind: "pickup" | "secureBall"; pickupNeed: number }
-  | {
-      kind: "ball-step";
-      movement: MovementRisk;
-      pickupNeed: number;
-      securing?: boolean;
-    };
+export type StepRisk = readonly [StepRoll, ...StepRoll[]];
 
 export function stepRolls(risk: StepRisk, square: Square): RouteRoll[] {
-  switch (risk.kind) {
-    case "dodge":
-      return [{ type: "dodge", target: risk.dodgeNeed, square }];
-    case "rush":
-      return [{ type: "rush", target: risk.rushNeed, square }];
-    case "rush-dodge":
-      return [
-        { type: "rush", target: risk.rushNeed, square },
-        { type: "dodge", target: risk.dodgeNeed, square },
-      ];
-    case "pickup":
-    case "secureBall":
-      return [{ type: risk.kind, target: risk.pickupNeed, square }];
-    case "ball-step":
-      return [
-        ...stepRolls(risk.movement, square),
-        {
-          type: risk.securing ? "secureBall" : "pickup",
-          target: risk.pickupNeed,
-          square,
-        },
-      ];
-  }
+  return risk.map((roll) => ({ ...roll, square }));
 }
 
 export type MoveLeg =
-  | { risk: null; path: [Square, ...Square[]] }
-  | { risk: StepRisk; path: [Square] };
+  | { risk: null; path: [MoveStep, ...MoveStep[]] }
+  | { risk: StepRisk; path: [MoveStep] };
 
 export interface LegContext {
   opponents: Player[];
@@ -65,41 +39,6 @@ export interface LegContext {
 
 const need = (target: number) => Math.min(6, Math.max(2, target));
 
-function movementRisk({
-  rush,
-  dodge,
-  rushNeed,
-  dodgeNeed,
-}: {
-  rush: boolean;
-  dodge: boolean;
-  rushNeed: number;
-  dodgeNeed: number;
-}): MovementRisk | null {
-  if (rush && dodge) return { kind: "rush-dodge", rushNeed, dodgeNeed };
-  if (rush) return { kind: "rush", rushNeed };
-  if (dodge) return { kind: "dodge", dodgeNeed };
-  return null;
-}
-
-function stepRisk(
-  movement: MovementRisk | null,
-  ball: { target: number; securing?: boolean } | null
-): StepRisk | null {
-  if (!ball) return movement;
-  return movement
-    ? {
-        kind: "ball-step",
-        movement,
-        pickupNeed: ball.target,
-        ...(ball.securing ? { securing: true } : {}),
-      }
-    : {
-        kind: ball.securing ? "secureBall" : "pickup",
-        pickupNeed: ball.target,
-      };
-}
-
 function pickupAt(pickup: LegContext["pickup"], step: Square) {
   return pickup && pickup.square.x === step.x && pickup.square.y === step.y
     ? pickup
@@ -110,23 +49,41 @@ function riskAt({
   from,
   step,
   ctx,
-  index,
+  spent,
   pickup,
 }: {
   from: Square;
-  step: Square;
+  step: MoveStep;
   ctx: LegContext;
-  index: number;
+  spent: number;
   pickup: LegContext["pickup"];
 }) {
   const ball = pickupAt(pickup, step);
-  const movement = movementRisk({
-    rush: ctx.used + index + 1 > ctx.ma,
-    dodge: markingPlayers(from, ctx.opponents).length > 0,
-    rushNeed: need(activeRules().rushTarget - ctx.rushModifier),
-    dodgeNeed: dodgeTarget(ctx.player, from, step, ctx.opponents),
-  });
-  return { risk: stepRisk(movement, ball), pickedUp: ball !== null };
+  const crossing = crossingAt({ from, step, used: spent, ma: ctx.ma });
+  const rolls: StepRoll[] = [];
+  if (spent + 1 > ctx.ma)
+    rolls.push({
+      type: "rush",
+      target: need(activeRules().rushTarget - ctx.rushModifier),
+    });
+  if (markingPlayers(from, ctx.opponents).length > 0)
+    rolls.push({
+      type: "dodge",
+      target: dodgeTarget(ctx.player, from, step, ctx.opponents),
+    });
+  if (crossing === "reckless")
+    rolls.push({ type: "barricade", target: RECKLESS_CROSSING_TARGET });
+  if (ball)
+    rolls.push({
+      type: ball.securing ? "secureBall" : "pickup",
+      target: ball.target,
+    });
+  const [first, ...rest] = rolls;
+  return {
+    risk: first ? ([first, ...rest] as const) : null,
+    cost: stepCost(crossing),
+    pickedUp: ball !== null,
+  };
 }
 
 export function planMoveLegs(
@@ -135,12 +92,14 @@ export function planMoveLegs(
   ctx: LegContext
 ): MoveLeg[] {
   const legs: MoveLeg[] = [];
-  let safe: [Square, ...Square[]] | null = null;
+  let safe: [MoveStep, ...MoveStep[]] | null = null;
   let from = start;
+  let spent = ctx.used;
   let pickup = ctx.pickup;
-  for (const [index, step] of path.entries()) {
-    const { risk, pickedUp } = riskAt({ from, step, ctx, index, pickup });
+  for (const step of planCrossings(start, path, ctx)) {
+    const { risk, cost, pickedUp } = riskAt({ from, step, ctx, spent, pickup });
     from = step;
+    spent += cost;
     if (pickedUp) pickup = undefined;
     if (!risk) {
       if (safe) safe.push(step);

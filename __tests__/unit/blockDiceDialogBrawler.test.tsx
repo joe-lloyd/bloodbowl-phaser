@@ -31,6 +31,7 @@ describe("BlockDiceDialog — Brawler re-roll button", () => {
     isUphill: false,
     attackerST: 3,
     defenderST: 3,
+    barricadeCover: false,
     attackerAssists: [],
     defenderAssists: [],
   };

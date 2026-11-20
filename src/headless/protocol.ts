@@ -26,6 +26,10 @@ export interface GridPosition {
   y: number;
 }
 
+export interface MoveStep extends GridPosition {
+  reckless?: true;
+}
+
 export type HeadlessCommand =
   | { type: "coin-flip" }
   | { type: "ready-weather"; teamId: string }
@@ -56,7 +60,7 @@ export type HeadlessCommand =
       razzleDazzle?: boolean;
     }
   | { type: "cancel-action"; playerId: string }
-  | { type: "move"; playerId: string; path: GridPosition[] }
+  | { type: "move"; playerId: string; path: MoveStep[] }
   | {
       type: "fumblerooski";
       playerId: string;

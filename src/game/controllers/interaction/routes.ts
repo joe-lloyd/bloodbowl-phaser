@@ -85,10 +85,10 @@ function rerollSources(
   kinds: RouteRoll["type"][]
 ): string[] {
   const arbiter = c.gameService.getRerollArbiter();
-  const rerollSkill: Record<Exclude<RouteRoll["type"], "secureBall">, SkillType> = {
+  const rerollSkill: Partial<Record<RouteRoll["type"], SkillType>> = {
     dodge: SkillType.DODGE, rush: SkillType.SURE_FEET, pickup: SkillType.SURE_HANDS,
   };
-  const skills = new Set(kinds.filter((kind) => kind !== "secureBall").map((kind) => rerollSkill[kind]));
+  const skills = new Set(kinds.flatMap((kind) => rerollSkill[kind] ?? []));
   const sources: string[] = [];
   for (const skill of skills) {
     if (

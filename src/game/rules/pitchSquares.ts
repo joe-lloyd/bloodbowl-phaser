@@ -1,5 +1,6 @@
 import { activeLayout } from "../variants/activeMatch";
 import {
+  type Barricade,
   isInsideLayout,
   type ObstacleKind,
   type PitchLayout,
@@ -34,6 +35,20 @@ export function isStandableSquare(square: Square): boolean {
   return isOnPitch(square) && obstacleKindAt(square) === undefined;
 }
 
+function crosses(barricade: Barricade, from: Square, to: Square): boolean {
+  const west = Math.min(from.x, to.x);
+  if (west !== barricade.afterColumn || Math.max(from.x, to.x) !== west + 1)
+    return false;
+  const { min, max } = barricade.rows;
+  return Math.min(from.y, to.y) >= min && Math.max(from.y, to.y) <= max;
+}
+
+export function barricadeBetween(from: Square, to: Square): boolean {
+  return activeLayout().barricades.some((barricade) =>
+    crosses(barricade, from, to)
+  );
+}
+
 export type PitchEdge = "sideline-wall" | "crowd";
 
 export function edgeCrossed(to: Square): PitchEdge {
@@ -65,12 +80,17 @@ export function rulerCrossesStall(from: Square, to: Square): boolean {
 
 export type PushLanding = "pitch" | "crowd" | "wall" | "pit";
 
-export function pushLandingAt(square: Square): PushLanding {
+export function pushLandingAt(from: Square, square: Square): PushLanding {
+  if (barricadeBetween(from, square)) return "wall";
   if (!isOnPitch(square))
     return edgeCrossed(square) === "sideline-wall" ? "wall" : "crowd";
   const obstacle = obstacleKindAt(square);
   if (obstacle === undefined) return "pitch";
   return obstacle === "sewer-pit" ? "pit" : "wall";
+}
+
+export function isOpenPushSquare(from: Square, to: Square): boolean {
+  return isStandableSquare(to) && !barricadeBetween(from, to);
 }
 
 function ringAround(from: Square, distance: number): Square[] {
