@@ -236,7 +236,14 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           me={me}
           onLeave={() => {
             unlistWhenHostLeaves(lobby, user.uid);
-            void vacateWhenGuestLeaves(lobby, user.uid).then(() => navigate("/"));
+            setError(null);
+            vacateWhenGuestLeaves(lobby, user.uid)
+              .then(() => navigate("/"))
+              .catch((reason: unknown) => {
+                setError(
+                  `Could not give up your seat: ${reason instanceof Error ? reason.message : String(reason)}`
+                );
+              });
           }}
           onReady={() => void setReady(lobby.code, user.uid, !me?.ready)}
           onStart={() => {

@@ -49,9 +49,7 @@ export async function currentLobby(
 
 export async function vacateWhenGuestLeaves(lobby: LobbyDoc, uid: string): Promise<void> {
   if (lobby.guestUid !== uid || lobby.status !== "lobby") return;
-  await leaveGuestSeat(lobby.code, uid).catch((error: unknown) => {
-    console.warn("[lobby] could not give up the guest seat", error);
-  });
+  await leaveGuestSeat(lobby.code, uid);
 }
 
 export function unlistWhenHostLeaves(lobby: LobbyDoc, uid: string): void {

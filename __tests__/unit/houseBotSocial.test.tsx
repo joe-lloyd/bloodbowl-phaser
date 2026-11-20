@@ -157,4 +157,17 @@ describe("the house bot's browser", () => {
     await show("/");
     expect(world.acceptLobbyInvite).toHaveBeenCalledWith(invite);
   });
+
+  it("accepts a new request from a coach who unfriended it", async () => {
+    const request: FriendRow = { kind: "incoming", uid: "joe", key: "bot__joe", name: "Joe", lastSeen: undefined };
+    world.friends = [request];
+    await show("/");
+    world.friends = [{ ...request, kind: "friend" }];
+    await show("/");
+    world.friends = [];
+    await show("/");
+    world.friends = [request];
+    await show("/");
+    expect(world.acceptFriend).toHaveBeenCalledTimes(2);
+  });
 });
