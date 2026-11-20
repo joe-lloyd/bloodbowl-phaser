@@ -54,7 +54,11 @@ export function useCompetitionDoc(
     getCompetition(type, id)
       .then((loaded) => (loaded ? settled(loaded) : null))
       .then((loaded) => {
-        if (cancelled || !loaded) return;
+        if (cancelled) return;
+        if (!loaded) {
+          setError("This competition does not exist, or it was deleted.");
+          return;
+        }
         setCompetition(managed(loaded, setError));
         setHosted(!!loaded.organizerUid && isFirebaseConfigured());
       })

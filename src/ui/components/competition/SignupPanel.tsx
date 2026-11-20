@@ -82,7 +82,9 @@ function EnterTeam({ competition, uid, onChange, onError }: SignupProps & { uid:
           if (team)
             run(async () => {
               const updated = await enterCompetition({ competition, team, uid });
-              await dismissCompetitionInvites({ uid, competitionId: competition.id });
+              dismissCompetitionInvites({ uid, competitionId: competition.id }).catch((reason: unknown) => {
+                console.warn("[competition] could not clear the invites to it", reason);
+              });
               return updated;
             });
         }}

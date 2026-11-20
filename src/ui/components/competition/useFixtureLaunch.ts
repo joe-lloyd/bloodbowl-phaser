@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { errorText } from "../../errorText";
 import { fixtureContext } from "../../../competition/fixtureContext";
 import { fetchEntrantTeam } from "../../../competition/teamRefs";
 import type {
@@ -134,6 +135,8 @@ export function useFixtureLaunch({
       if (local) clearMatchSave();
       const { path, state } = route(fixture, teams);
       void navigate(path, { state });
+    } catch (reason) {
+      onError(errorText(reason));
     } finally {
       setLaunching(false);
     }

@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { openOnlineCompetition } from "../../../competition/online";
 import {
@@ -158,11 +158,16 @@ export function OnlineCompetitionBuilder({ type, uid, modeSwitch }: { type: Comp
   const [library] = useTeamLibrary();
   const [settings, setSettings] = useState(initialSettings);
   const [error, setError] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+  const pending = useRef(false);
   const update: Update = (patch) => {
     setSettings((current) => ({ ...current, ...patch }));
   };
 
   const open = () => {
+    if (pending.current) return;
+    pending.current = true;
+    setOpening(true);
     setError(null);
     const profile = profileFrom(settings.profile);
     openOnlineCompetition({
@@ -179,6 +184,10 @@ export function OnlineCompetitionBuilder({ type, uid, modeSwitch }: { type: Comp
       .then((competition) => navigate(competitionPath({ competitionType: competition.type, competitionId: competition.id })))
       .catch((reason: unknown) => {
         setError(errorText(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        setOpening(false);
       });
   };
 
@@ -189,7 +198,7 @@ export function OnlineCompetitionBuilder({ type, uid, modeSwitch }: { type: Comp
         <>
           <HudButton variant="ghost" onClick={() => void navigate(-1)}>Cancel</HudButton>
           {error && <Notice tone="bad" role="alert" className="order-last w-full py-2 sm:order-none sm:w-auto sm:flex-1">{error}</Notice>}
-          <HudButton variant="primary" onClick={open}>Open sign-ups</HudButton>
+          <HudButton variant="primary" disabled={opening} onClick={open}>Open sign-ups</HudButton>
         </>
       }
     >

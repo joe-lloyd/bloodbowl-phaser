@@ -190,6 +190,10 @@ function CompetitionPage(props: CompetitionProps & { error: string | null }) {
 
 export function CompetitionView({ type }: { type: CompetitionType }) {
   const { id } = useParams();
+  return <LoadedCompetition key={`${type}:${id ?? ""}`} type={type} id={id} />;
+}
+
+function LoadedCompetition({ type, id }: { type: CompetitionType; id: string | undefined }) {
   const { user } = useAuth();
   const { competition, setCompetition, error, setError } = useCompetitionDoc(type, id);
 

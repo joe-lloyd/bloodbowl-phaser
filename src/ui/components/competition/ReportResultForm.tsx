@@ -110,7 +110,8 @@ export function ReportResultForm({
   const knockout =
     competition.type === "tournament" &&
     competition.format === "single-elimination";
-  const level = draft.home !== "" && draft.home === draft.away;
+  const scores = wholeNumbers(draft.home, draft.away);
+  const level = scores !== null && scores[0] === scores[1];
   const set = (field: keyof DraftScore) => (value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
   };
