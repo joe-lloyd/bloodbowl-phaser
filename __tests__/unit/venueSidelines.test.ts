@@ -67,6 +67,19 @@ describe("rendered venues", () => {
     }
   );
 
+  it.each([
+    ["gutter-street", gutterStreetMeta],
+    ["gutter-sewer", gutterSewerMeta],
+  ] as const)("draws the %s barricades on the lines the rules use", (venue, raw) => {
+    expect(raw.barricades).toEqual(
+      PITCH_LAYOUTS[venue].barricades.map(({ afterColumn, rows }) => [
+        afterColumn,
+        rows.min,
+        rows.max,
+      ])
+    );
+  });
+
   it("puts the Gutter Bowl stalls on 96 squares and the open venues on none", () => {
     expect(gutterStreetMeta.obstacles).toHaveLength(96);
     expect(gutterSewerMeta.obstacles).toHaveLength(96);

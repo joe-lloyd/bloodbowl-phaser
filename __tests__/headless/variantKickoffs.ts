@@ -52,7 +52,7 @@ export const GUTTER_SETUP = {
   team2: [
     ...row(13, [5, 7, 9]),
     { playerIndex: 3, x: 13, y: 2 },
-    { playerIndex: 4, x: 16, y: 12 },
+    { playerIndex: 4, x: 16, y: 13 },
     ...row(16, [7, 6], 5),
   ],
   landing: { x: 21, y: 7 },
