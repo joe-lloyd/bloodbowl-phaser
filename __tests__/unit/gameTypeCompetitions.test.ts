@@ -65,23 +65,21 @@ describe("a Street Bowl tournament of computer teams", () => {
 });
 
 describe("entering a competition with a game type", () => {
-  it("refuses a Sevens team with its Veteran from a Beach Bowl league", async () => {
+  it("lets a Sevens team bring its Veteran into a Beach Bowl league (BB-D4)", async () => {
     const sevens = createReadyMadeTeam(RosterName.HUMAN, "Sevens side", 0xaa2222);
     const [template] = getComputerTeamTemplates({ gameType: "beach-bowl" });
-    await expect(
-      createCompetition({
-        type: "league",
-        name: "Sand Season",
-        gameType: "beach-bowl",
-        organizerUid: null,
-        entrants: [
-          { team: sevens, ownerUid: null },
-          { computerTemplateId: fixtureValue(template).id },
-        ],
-      })
-    ).rejects.toThrow(
-      "These teams are not legal for competition entry: Sevens side"
-    );
+    const league = await createCompetition({
+      type: "league",
+      name: "Sand Season",
+      gameType: "beach-bowl",
+      organizerUid: null,
+      entrants: [
+        { team: sevens, ownerUid: null },
+        { computerTemplateId: fixtureValue(template).id },
+      ],
+    });
+    expect(league.gameType).toBe("beach-bowl");
+    expect(league.entrants.map((entrant) => entrant.name)).toContain("Sevens side");
   });
 
   it("builds Gutter Bowl computer teams on the 750,000 budget", () => {
