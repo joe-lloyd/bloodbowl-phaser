@@ -37,6 +37,7 @@ describe("KickoffController", () => {
         finalX: 6,
         finalY: 6,
         isTouchback: false,
+        wallHits: [],
       });
     });
   });
