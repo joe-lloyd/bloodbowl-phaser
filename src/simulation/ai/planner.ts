@@ -27,6 +27,7 @@ import {
 } from "./weights";
 import { type RollTarget } from "./chance";
 import { enumerateLegalActions } from "../../headless/legalActions";
+import { deploymentsFor } from "../../game/setup/deployment";
 import type { HeadlessGame } from "../../headless/HeadlessGame";
 import { context as activationContext } from "./activationContext";
 import { key } from "./board";
@@ -388,16 +389,24 @@ export function createPlannerCoach(
   };
 }
 
+function kickingTeam(game: HeadlessGame, teamId: string): boolean {
+  return game.ctx.gameService.getState().setup?.kickingTeamId === teamId;
+}
+
 function setupChoice(
   candidates: readonly Candidate[],
-  w: Weights
+  w: Weights,
+  kicking: boolean
 ): CoachChoice | null {
   const formations = candidates.filter((c) => c.kind === "setup");
   if (formations.length < 2) return null;
+  const options = deploymentsFor(kicking);
+  const wanted = Math.round(kicking ? w.setupKick : w.setupReceive);
+  const name = options[Math.max(0, Math.min(wanted, options.length - 1))]?.name;
   const pick =
-    formations[
-      Math.max(0, Math.min(Math.round(w.formation), formations.length - 1))
-    ];
+    formations.find(
+      (c) => c.label === `Set up in the ${String(name)} formation`
+    ) ?? formations[0];
   return pick ? { index: candidates.indexOf(pick) } : null;
 }
 
@@ -454,7 +463,8 @@ function planChoice({
     });
     return index === null ? null : { index };
   }
-  if (point.phase === GamePhase.SETUP) return setupChoice(candidates, w);
+  if (point.phase === GamePhase.SETUP)
+    return setupChoice(candidates, w, kickingTeam(game, point.teamId));
   if (point.phase === GamePhase.KICKOFF)
     return kickChoice(board, candidates, w);
   if (point.phase !== GamePhase.PLAY) return null;

@@ -1,7 +1,10 @@
+export type DeploymentRole = "line" | "support" | "flank" | "deep";
+
 export interface FormationPosition {
   playerId: string;
   x: number;
   y: number;
+  role?: DeploymentRole;
 }
 
 export interface Formation {
