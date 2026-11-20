@@ -2,7 +2,8 @@ import { type FieldPlayer as Player, canCarry, key, standing } from "./board";
 import { type Context, gamble, tierFor } from "./activationContext";
 import { nextTurnReach } from "./latePlans";
 import type { Activation } from "./activations";
-import { paceWorth } from "./ballActivations";
+import { CARRY_TURNS, paceWorth } from "./ballActivations";
+import { SkillType, hasSkill } from "../../types/Skills";
 
 function couldPickUp(c: Context, player: Player): boolean {
   const ball = c.board.ball;
@@ -20,7 +21,11 @@ export function pickupPace(c: Context, player: Player): number {
     nextTurnReach(player),
     ...c.board.ours.filter((p) => couldPickUp(c, p)).map(nextTurnReach)
   );
-  return paceWorth(c, nextTurnReach(player) - quickest);
+  return paceWorth(
+    c,
+    nextTurnReach(player) - quickest,
+    hasSkill(player.skills, SkillType.MY_BALL) ? CARRY_TURNS : 1
+  );
 }
 
 export function pickupActivation(c: Context, player: Player): Activation[] {

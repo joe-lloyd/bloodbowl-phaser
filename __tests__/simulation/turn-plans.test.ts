@@ -550,14 +550,14 @@ describe("carrier pace", () => {
     expect(priced(4)).toBe(priced(0));
   });
 
-  it("charges a slow picker for every turn of the drive", () => {
-    const secure = (carrierPace: number) => {
-      const subject = looseBall([]);
+  it("charges a My Ball picker for every turn it will keep the ball", () => {
+    const secure = (slowSkills: SkillType[]) => {
+      const subject = looseBall(slowSkills);
       const slow = fieldPlayer(subject.ctx.team1.players[0]);
       const quick = fieldPlayer(subject.ctx.team1.players[1]);
       const c = context({
         board: readBoard(subject, slow.teamId),
-        w: { ...DEFAULT_WEIGHTS, carrierPace },
+        w: { ...DEFAULT_WEIGHTS, carrierPace: 4 },
         available: new Map([
           [slow.id, new Set(["move" as const, "secureBall" as const])],
           [quick.id, new Set(["move" as const])],
@@ -565,10 +565,11 @@ describe("carrier pace", () => {
       });
       return fixtureValue(secureBallActivations(c, slow)[0]);
     };
-    const free = secure(0);
+    const plain = secure([]);
+    const myBall = secure([SkillType.MY_BALL]);
     const chance =
-      free.intent.kind === "secure-ball" ? free.intent.route.chance : NaN;
-    expect(free.value - secure(4).value).toBeCloseTo(4 * 5 * 3 * chance, 6);
+      plain.intent.kind === "secure-ball" ? plain.intent.route.chance : NaN;
+    expect(plain.value - myBall.value).toBeCloseTo(4 * 5 * 2 * chance, 6);
   });
 
   it("hands the ball from a slow carrier to a quick team-mate when pace counts", async () => {

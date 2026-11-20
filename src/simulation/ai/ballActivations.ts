@@ -124,7 +124,7 @@ function spaceGain(c: Context, carrier: Player, mate: Player): number {
   );
 }
 
-const CARRY_TURNS = 3;
+export const CARRY_TURNS = 3;
 
 export function paceWorth(
   c: Context,
