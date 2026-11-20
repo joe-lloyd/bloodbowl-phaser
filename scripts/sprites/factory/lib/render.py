@@ -23,7 +23,7 @@ import numpy as np
 FACTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if FACTORY not in sys.path:
     sys.path.insert(0, FACTORY)
-from lib import pixel, atlas, registry, palette, anim
+from lib import pixel, atlas, registry, palette, anim, layers
 
 PAD = 48                    # spare canvas around today's frame, so wide poses are measured before framing
 REF = os.path.join(FACTORY, "reference")
@@ -32,7 +32,7 @@ ROSTERS = json.load(open(os.path.join(REF, "rosters.json")))
 def parse(argv):
     a = dict(models=[], anims=list(anim.ANIMS), facings=list(pixel.FACINGS), out=os.path.join(FACTORY, "out"),
              preview=False, force=False, finish=False, list=False, all=False, batch=None, examples=False,
-             density=1, frames={}, dither=None, tones=None)
+             density=1, frames={}, dither=None, tones=None, layers=False, verify=0, stash=None, pack=None, bodies=[])
     it = iter(argv)
     for tok in it:
         if tok == "--models":
@@ -45,13 +45,17 @@ def parse(argv):
             a["out"] = os.path.abspath(next(it))
         elif tok == "--batch":
             a["batch"] = next(it)
-        elif tok in ("--density", "--tones"):
+        elif tok in ("--stash", "--pack"):
+            a[tok[2:]] = os.path.abspath(next(it))
+        elif tok == "--bodies":
+            a["bodies"] = next(it).split(",")
+        elif tok in ("--density", "--tones", "--verify"):
             a[tok[2:]] = int(next(it))
         elif tok == "--frames":
             a["frames"] = frame_counts(next(it))
         elif tok == "--dither":
             a["dither"] = float(next(it))
-        elif tok in ("--preview", "--force", "--finish", "--list", "--all", "--examples"):
+        elif tok in ("--preview", "--force", "--finish", "--list", "--all", "--examples", "--layers"):
             a[tok[2:]] = True
         else:
             raise SystemExit("unknown argument " + tok)
@@ -249,12 +253,17 @@ def main():
             print("NO SPEC %s (not registered%s)" % (key, "; a team file failed to import" if errors else ""))
             continue
         try:
-            preview(key, a) if a["preview"] else render_model(key, a)
+            if a["layers"]:
+                layers.run(key, a, make_stage, target_height, calibrate, PAD)
+            elif a["preview"]:
+                preview(key, a)
+            else:
+                render_model(key, a)
         except Exception as exc:              # one broken model must not stop the batch
             import traceback
             traceback.print_exc()
             print("FAILED %s %r" % (key, exc))
-    if a["finish"] or (keys and not a["preview"]):
+    if a["finish"] or (keys and not a["preview"] and not a["layers"]):
         finish(a)
 
 main()

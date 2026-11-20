@@ -7,7 +7,7 @@ near-black on the shadow side and a dark tone of the neighbouring fill on the li
 A Stage owns one Blender scene (camera, light, two root empties) and renders a built figure in any
 number of facings. Results are 2D int16 arrays of palette indices (-1 = transparent), top row first.
 """
-import bpy, os, math
+import bpy, os, math, zlib
 import numpy as np
 from mathutils import Vector
 from . import palette, core
@@ -79,6 +79,7 @@ class Stage:
         self.darker = np.array([darker.get(i, out_i) for i in range(n)])
         self.ramp_dark = np.array([ramp_dark.get(i, out_i) for i in range(n)])
         self.keep = [pal.index(h) for h in set(palette.FLAT.values()) if h != palette.OUTLINE]
+        self.void_i = int((self.cols ** 2).sum(-1).argmin())     # what an empty pixel classifies as
 
     # -- scene content
     def clear(self):
@@ -115,6 +116,80 @@ class Stage:
         bpy.data.images.remove(im)
         return a.reshape(self.canvas, self.canvas, 4)
 
+    def _shoot_data(self, name):
+        """A float render: exact emission values, for object codes and depth."""
+        sc = bpy.context.scene
+        st = sc.render.image_settings
+        old = (st.file_format, st.color_depth)
+        st.file_format, st.color_depth = "OPEN_EXR", "32"
+        path = os.path.join(self.tmp, name + ".exr")
+        sc.render.filepath = path
+        try:
+            bpy.ops.render.render(write_still=True)
+        finally:
+            st.file_format, st.color_depth = old
+        im = bpy.data.images.load(path)
+        a = np.empty(self.canvas * self.canvas * 4, dtype=np.float32)
+        im.pixels.foreach_get(a)
+        bpy.data.images.remove(im)
+        return a.reshape(self.canvas, self.canvas, 4)
+
+    def data_material(self, code):
+        """Emission: red = the object's code / 255, green = depth along the view (larger is farther)."""
+        name = "data%d" % code
+        if name in bpy.data.materials:
+            return bpy.data.materials[name]
+        m = bpy.data.materials.new(name)
+        m.use_nodes = True
+        nt = m.node_tree
+        nt.nodes.clear()
+        N, LK = nt.nodes.new, nt.links.new
+        out, em = N("ShaderNodeOutputMaterial"), N("ShaderNodeEmission")
+        geo, dot = N("ShaderNodeNewGeometry"), N("ShaderNodeVectorMath")
+        dot.operation = "DOT_PRODUCT"
+        dot.inputs[1].default_value = tuple(core.VIEW)
+        add = N("ShaderNodeMath"); add.operation = "ADD"; add.inputs[1].default_value = 10.0
+        rgb = N("ShaderNodeCombineColor")
+        rgb.inputs[0].default_value = code / 255.0
+        LK(geo.outputs["Position"], dot.inputs[0]); LK(dot.outputs["Value"], add.inputs[0])
+        LK(add.outputs[0], rgb.inputs[1]); LK(rgb.outputs[0], em.inputs["Color"]); LK(em.outputs[0], out.inputs["Surface"])
+        return m
+
+    def render_layer(self, facings, visible=None, data=True):
+        """Render the built figure for layered output: {facing: (idx, code, depth)} on the full canvas, rows
+        top-down, idx -1 where empty and not finished (no speckle removal, inner lines or outline yet).
+        visible: the names of the objects the camera sees; the others are hidden but still cast shadows."""
+        meshes = [ob for ob in bpy.context.scene.objects if ob.type == "MESH"]
+        if visible is not None:
+            for ob in meshes:
+                ob.visible_camera = ob.name in visible
+        shots = {}
+        for f in facings:
+            self.face.rotation_euler = (0, 0, math.radians(DIRECTIONS[f]))
+            shots[f] = self._shoot("c")
+        if not data:
+            out = {}
+            for f in facings:
+                idx, solid = self.classify(shots[f])
+                out[f] = (idx[::-1].copy(), np.zeros(idx.shape, np.int16), np.where(solid, 0.0, np.inf)[::-1].astype(np.float32))
+            return out
+        for ob in meshes:
+            m = self.data_material(object_code(ob.name) if max(ob.dimensions) > 0.16 else 0)
+            ob.data.materials.clear()
+            ob.data.materials.append(m)
+            for md in ob.modifiers:
+                if md.type == "SOLIDIFY":
+                    md.material_offset = 0
+        out = {}
+        for f in facings:
+            self.face.rotation_euler = (0, 0, math.radians(DIRECTIONS[f]))
+            d = self._shoot_data("d")
+            idx, solid = self.classify(shots[f])
+            code = np.where(solid, np.round(d[..., 0] * 255), 0).astype(np.int16)
+            depth = np.where(solid, d[..., 1], np.inf).astype(np.float32)
+            out[f] = (idx[::-1].copy(), code[::-1].copy(), depth[::-1].copy())
+        return out
+
     def render(self, facings):
         """Render the built figure in each facing; returns {facing: index array}."""
         shots = {}
@@ -150,16 +225,29 @@ class Stage:
 
     # -- image clean-up
     def post(self, a, ids):
+        idx, solid = self.classify(a)
+        idc = (np.round(ids[..., :3] * 255).astype(np.int32) * np.array([65536, 256, 1])).sum(-1)
+        return self.finish(idx, idc, solid)[::-1].copy()
+
+    def classify(self, a):
+        """Rendered pixels -> (nearest palette index, -1 where empty; solid mask). Rows bottom-up."""
         h, w = a.shape[:2]
         solid = a[..., 3] > 0.5
         full = np.full((h, w), -1, dtype=np.int16)
+        if solid.any():
+            ys, xs = np.nonzero(solid)
+            y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+            d = ((a[y0:y1, x0:x1, None, :3] * 255.0 - self.cols[None, None]) ** 2).sum(-1)
+            full[y0:y1, x0:x1] = np.where(solid[y0:y1, x0:x1], d.argmin(-1), -1)
+        return full, solid
+
+    def finish(self, idx, idc, solid):
+        """Speckle removal, inner lines and the outline on a whole figure; rows bottom-up.
+        idx: palette indices (-1 empty), idc: object codes (0 = small part), solid: mask."""
+        h, w = idx.shape
         if not solid.any():
-            return full
-        ys, xs = np.nonzero(solid)
-        y0, y1, x0, x1 = max(ys.min() - 2, 0), min(ys.max() + 3, h), max(xs.min() - 2, 0), min(xs.max() + 3, w)
-        a, ids, solid = a[y0:y1, x0:x1], ids[y0:y1, x0:x1], solid[y0:y1, x0:x1]
-        d = ((a[:, :, None, :3] * 255.0 - self.cols[None, None]) ** 2).sum(-1)
-        idx = d.argmin(-1)
+            return np.full((h, w), -1, dtype=np.int16)
+        idx = np.where(solid, idx, self.void_i)
         # single stray pixels in a flat field are removed; accents (eyes, glints) are kept
         keep = np.isin(idx, self.keep)
         lf, rt = np.roll(idx, 1, axis=1), np.roll(idx, -1, axis=1)
@@ -167,7 +255,6 @@ class Stage:
         speck = solid & ~keep & (lf == rt) & (up == dn) & (lf == up) & (lf != idx)
         idx = np.where(speck, lf, idx)
         # inner lines: two large parts of the same colour meet -> darken one pixel by one tone
-        idc = (np.round(ids[..., :3] * 255).astype(np.int32) * np.array([65536, 256, 1])).sum(-1)
         big = idc != 0
         line = np.zeros(idx.shape, bool)
         line[:, :-1] |= ((idc[:, :-1] != idc[:, 1:]) & (idx[:, :-1] == idx[:, 1:]) & solid[:, :-1] & solid[:, 1:]
@@ -183,9 +270,11 @@ class Stage:
         below, below_ok = np.roll(idx, 1, axis=0), np.roll(solid, 1, axis=0)
         oi = np.where(edge & below_ok, self.ramp_dark[below], oi)
         oi = np.where(edge & left_ok, self.ramp_dark[left], oi)
-        res = np.where(solid, idx, np.where(edge, oi, -1)).astype(np.int16)
-        full[y0:y1, x0:x1] = res
-        return full[::-1].copy()
+        return np.where(solid, idx, np.where(edge, oi, -1)).astype(np.int16)
+
+def object_code(name):
+    """A stable 1..254 code per object name, so one part has the same code in every layer it appears in."""
+    return zlib.crc32(name.encode()) % 254 + 1
 
 def bbox(idx):
     ys, xs = np.nonzero(idx >= 0)

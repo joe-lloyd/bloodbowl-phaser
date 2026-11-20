@@ -39,3 +39,11 @@ def get(key):
 
 def keys():
     return sorted(MODELS)
+
+LOOKS = {}
+
+def register_looks(model, spec):
+    """Look options for a model, for the layered renderer. spec has: options (list of (name, label, [(value,
+    label), ...]) with the body first), part(slot, value, body) -> layout or None for a value that draws
+    nothing, and variant(choice) -> a model instance whose scene objects share the model's names."""
+    LOOKS[model] = spec

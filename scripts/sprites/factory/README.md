@@ -38,6 +38,30 @@ These change the look for review; the defaults are what shipped.
 A look variant is registered as `<model>__<look>` and is sized and coloured like its model, so
 `--models vampire_blitzer__f-bare-left` renders a female blitzer, no helmet, left shoulder pad only.
 
+## Layered models (look options)
+
+A model with look options (a `register_looks` entry, such as `teams/vampire_looks.py`) ships as layers
+instead of one atlas, and the game builds each player's look when a team loads.
+
+    ./run.sh --layers --models thrall,vampire_blitzer --dither 0 --density 2 --frames run=12 --verify 3
+    python3 install_layered.py out/layered thrall vampire_blitzer
+
+Per body the driver renders a base (no options) and, for every option value, the objects that value adds
+or changes, with the rest of the figure hidden from the camera but still casting shadows. A second layer
+per value (`<option>.<value>~shade`) keeps the base pixels that value's shadow darkens. Each pixel stores
+its palette index, an object code (for inner lines) and its depth; the game keeps the nearest pixel of
+the chosen layers, applies the shades where the base shows, then runs the finishing pass (speckle
+removal, inner lines, outline) and the ramp kit tint. `--verify N` renders the position's own look and N
+random looks whole and prints how many pixels differ from the composite per frame.
+
+Every option needs an empty state and each value's layout must set every key the empty state clears
+(see `SLOTS` in `teams/vampire_looks.py`). The driver warns when a value removes an object the base has;
+fold that object into the option instead.
+
+`install_layered.py` copies the layers to `public/sprites/bloodbowl/<model>/layered/`, removes the model's
+flat atlases, writes its manifest entry (with the options and palette tables the game reads) and copies
+a golden frame to `__tests__/fixtures/layered/` for the compositor's unit test.
+
 ## The acceptance checklist (every model)
 
 1. Unique position: team-mates can be told apart by silhouette alone at about 42 px (headgear, build,
