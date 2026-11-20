@@ -195,3 +195,35 @@ describe("GB barricades: moving over a barricade", () => {
     expect(rolls).toEqual([]);
   });
 });
+
+describe("GB barricades: a ball carrier going over Recklessly", () => {
+  it("brings the ball over before the D6, so a pending re-roll shows them together", async () => {
+    const { game } = pitchGame({
+      format: SEWER,
+      team1: [{ playerIndex: 0, x: 10, y: 7, hasBall: true }],
+      team2: [{ playerIndex: 0, x: 22, y: 1 }],
+    });
+    const carrier = fixtureValue(game.ctx.team1.players[0]);
+    game.ctx.team1.rerolls = 1;
+    forceDice(game.ctx.rng, [1]);
+    await game.execute({
+      type: "declare-action",
+      playerId: carrier.id,
+      action: "move",
+    });
+    const response = await game.execute({
+      type: "move",
+      playerId: carrier.id,
+      path: [{ x: 11, y: 7, reckless: true }],
+    });
+
+    expect(response.pendingDecision?.type).toBe("reroll");
+    expect([
+      carrier.gridPosition,
+      game.ctx.gameService.getState().ballPosition,
+    ]).toEqual([
+      { x: 11, y: 7 },
+      { x: 11, y: 7 },
+    ]);
+  });
+});

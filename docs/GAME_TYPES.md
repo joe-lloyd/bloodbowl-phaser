@@ -219,7 +219,7 @@ Reserves.
 | GB-P6 | Moving over a Barricade Safely costs 2 extra squares of Movement and is not allowed if it needs a Rush. Moving over Recklessly costs nothing extra; after entering the square roll a D6, and on a 1 the player Falls Over there. The move command marks each Reckless step. The route planner climbs Safely when the whole route still ends without Rushing and goes Recklessly otherwise; a step with no mark climbs Safely when it can. The computer coach always goes Recklessly. | ok: a team re-roll may re-roll the D6, and Steady Footing can save the fall |
 | GB-P7 | A Block over a Barricade gives the target +1 ST before Assists. A diagonal Block past the end of a Barricade gets nothing. | ok |
 | GB-P8 | A player with no open push square who could be pushed over a Barricade is pushed into it, as into a wall: D6 4+ Falls Over, a POW! falls with no roll. Squares over a Barricade are never open push squares. | ok |
-| GB-P9 | Barricades do not stop the ball, Tackle Zones, passes, Leap, Ball & Chain or kick-off event shoves. | differs: the rules do not say, so the game ignores them there |
+| GB-P9 | Barricades do not stop the ball, Tackle Zones, passes, Leap, a Ball & Chain's own lurching or kick-off event shoves. A push from a Ball & Chain collision is a Block push, so GB-P8 applies to it. | differs: the rules do not say, so the game ignores them there |
 
 ### Match play
 

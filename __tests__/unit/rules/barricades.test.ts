@@ -81,3 +81,14 @@ describe("GB-P1 choosing the Gutter Bowl pitch", () => {
     ).toEqual({ format: { gameType: "gutter-bowl", venue: "gutter-street" } });
   });
 });
+
+describe("a route built from waypoints", () => {
+  it("still fits the allowance when an early crossing cannot be climbed", () => {
+    const route = withMatchFormat(SEWER, () =>
+      planCrossings({ x: 10, y: 7 }, east(11, 18), { used: 0, ma: 6 })
+    );
+
+    expect(route[0]).toEqual({ x: 11, y: 7, reckless: true });
+    expect(route).toHaveLength(8);
+  });
+});
