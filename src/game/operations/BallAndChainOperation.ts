@@ -1,3 +1,4 @@
+import { activeRules } from "@/game/variants/activeMatch";
 import { groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
@@ -79,7 +80,7 @@ export class BallAndChainOperation extends GameOperation {
         "rush",
         () =>
           dice.rollSkillCheck(
-            { reason: "Rush",target: 2,modifier: rushModifier(gameService.getState(),fanatic),playerName: fanatic.playerName }          )
+            { reason: "Rush",target: activeRules().rushTarget,modifier: rushModifier(gameService.getState(),fanatic),playerName: fanatic.playerName }          )
       );
       rushFailed = !check.success;
     }

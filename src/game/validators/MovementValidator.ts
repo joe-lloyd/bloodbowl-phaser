@@ -1,3 +1,4 @@
+import { activeRules } from "@/game/variants/activeMatch";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { moveAllowance, standUpCost } from "../skills/movement";
 import { GameConfig } from "@/config/GameConfig";
@@ -77,7 +78,12 @@ function stepRolls(input: {
     });
   }
   if (steps > player.stats.MA)
-    rolls.push({ type: "rush", target: 2, modifiers: 0, square: to });
+    rolls.push({
+      type: "rush",
+      target: activeRules().rushTarget,
+      modifiers: 0,
+      square: to,
+    });
   return rolls;
 }
 

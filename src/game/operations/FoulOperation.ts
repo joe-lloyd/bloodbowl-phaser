@@ -19,6 +19,7 @@ import {
 } from "../inducements/matchInducements";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
 import { type FoulAssistsDecisionAnswer } from "../../types/decisions";
+import { activeRules } from "../variants/activeMatch";
 
 async function useGrudgeMatch(
   context: FlowContext,
@@ -309,6 +310,7 @@ export class FoulOperation extends GameOperation {
       knockedDown: false,
       roll: diceTotal(rolls),
       armourModifier: modifier,
+      surfaceModifier: activeRules().armour.foul,
     });
     const armourResult = rerollAndDirtyPlayer(context, fouler, armourCtx, {
       rolls,

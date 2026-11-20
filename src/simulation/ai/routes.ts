@@ -1,3 +1,4 @@
+import { activeRules } from "@/game/variants/activeMatch";
 import { NumberTable } from "./numberTable";
 import { type FieldPlayer as Player } from "./board";
 import {
@@ -59,7 +60,10 @@ function stepRolls({
   if (rush)
     rolls.push({
       kind: "rush",
-      target: requiredRoll(2, weatherEffects(board.weather).rush),
+      target: requiredRoll(
+        activeRules().rushTarget,
+        weatherEffects(board.weather).rush
+      ),
     });
   if (board.marks.getUint8(key(from)) > 0) {
     rolls.push(dodgeRoll(board, player, { from, to }));

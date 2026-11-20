@@ -45,7 +45,7 @@ played, and `GameConfig` reads its pitch from there.
 | SB-M1 | Two halves of 6 turns. | ok |
 | SB-M2 | The pitch is 26 long and 7 wide: Wide Zones of 2 rows on each side and a Centre Field of 3. The Lines of Scrimmage meet in the middle as on a full pitch. | ok |
 | SB-M3 | Field as many players as possible, up to 7. At least 1 on the Line of Scrimmage in Centre Field, at most 1 in each Wide Zone. | ok |
-| SB-M4 | Cobbles: +1 to the Armour roll of any player Knocked Down or who Falls Over. A player Placed Prone gets no bonus. The bonus does not stack with Claws or a Secret Weapon's modifier. | missing |
+| SB-M4 | Cobbles: +1 to the Armour roll of any player Knocked Down or who Falls Over. A player Placed Prone gets no bonus. The bonus does not stack with Claws or a Secret Weapon's modifier. | ok |
 | SB-M5 | A dropped ball bounces twice: after a failed catch, a pass or kick hitting the ground, a throw-in hitting the ground, or a Knocked Down ball carrier. If the first bounce lands in an occupied square, that player may try to catch it; if not caught it bounces twice more. | missing |
 | SB-M6 | Walls run the length of both sidelines. A ball never leaves by a sideline. A ball that would cross one hits the wall and moves D6 squares in a direction from the throw-in template, then bounces twice. This covers kicks too. | missing |
 | SB-M7 | Only the end zones are open. A ball leaving over an end line is thrown in by the crowd as usual. A kick is a touchback only if it lands in the kicking team's half or leaves over an end line. | missing |
@@ -118,10 +118,10 @@ or to a fit player before a drive. Not to a player with Regeneration.
 | BB-M2 | The pitch is 20 long and 9 wide: Wide Zones of 2 rows and a Centre Field of 5. The layout along the pitch follows Sevens, with No Man's Land between two Lines of Scrimmage. The NAF text gives the size only; the No Man's Land is our reading of its "strong similarities" with Sevens. | ok |
 | BB-M3 | Field as many players as possible, up to 7. At least 2 on the Line of Scrimmage in Centre Field, at most 1 in each Wide Zone. | ok |
 | BB-M4 | Kick-off deviation is the lower of 2D6, as in Sevens. | ok |
-| BB-M5 | Sand: -1 to the Armour roll after a failed Dodge or Rush; +1 to every other Armour roll. | missing |
+| BB-M5 | Sand: -1 to the Armour roll after a failed Dodge or Rush; +1 to every other Armour roll. | ok |
 | BB-M6 | Injury table (2D6, no Stunty table): 2-7 Stunned, 8-9 Mild Knock-out (recovers on 3+), 10-12 Serious Knock-out (recovers on 5+). There are no casualties. Regeneration does nothing. A Serious KO counts as a Casualty for SPP and tie-breaks. | missing |
 | BB-M7 | The ball does not bounce when it lands in an open square. A crowd throw-in goes D6 squares, counting the square it left from as the first. | missing |
-| BB-M8 | Every Rush succeeds on 3+, before modifiers. | missing |
+| BB-M8 | Every Rush succeeds on 3+, before modifiers. | ok |
 | BB-M9 | Fouls: before the Armour roll the fouled player's coach rolls a D6. On 4-6 the fouler is Knocked Down and it is a Turnover. On 1-3 the Foul goes ahead. | missing |
 | BB-M10 | A Secret Weapon plays one drive, then misses the rest of the match. | missing |
 
@@ -197,7 +197,7 @@ Assigned before a drive. Every souvenir breaks at the end of the half.
 | GB-M3 | The kick may not target a stall or a pit. A kick that deviates into one moves the minimum distance back onto the pitch in a D8 direction. A kick that hits a sideline bounces off the wall. Touchback only over an end line or into the kicking half. | missing |
 | GB-M4 | A ball that hits a wall moves D6 squares in a throw-in template direction from where it would have gone. | missing |
 | GB-M5 | A dropped ball bounces twice on the cobbles. | missing |
-| GB-M6 | Cobbles: +1 to every Armour roll after a fall. | missing |
+| GB-M6 | Cobbles: +1 to every Armour roll after a fall. | ok |
 | GB-M7 | Pushed into a wall or stall: D6, 1-3 nothing happens, 4+ the player Falls Over. After a POW! they fall with no roll. | missing |
 | GB-M8 | Pushed into a sewer pit: a player next to a pit with no square to be pushed into goes in. In a pit a player has no Tackle Zone, cannot act and cannot be targeted. At the end of each team turn roll a D6 per player in a pit: 1 a Casualty, 2-3 stays, 4+ climbs out Standing onto the nearest free square. | missing |
 | GB-M9 | A pass whose range ruler crosses a stall is at -1. A ball that lands on a stall or pit moves the minimum distance back onto the pitch in a D8 direction. | missing |

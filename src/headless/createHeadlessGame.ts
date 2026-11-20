@@ -135,7 +135,12 @@ function startingState(
   const initialState: GameState | undefined =
     restored?.state ?? options.initialState;
   if (initialState) return initialState;
-  if (options.scenario) return applyScenario(options.scenario, team1, team2);
+  if (options.scenario) {
+    return {
+      ...applyScenario(options.scenario, team1, team2),
+      ...options.format,
+    };
+  }
   if (options.startingPhase) {
     return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: options.paysWinnings === undefined ? {} : { paysWinnings: options.paysWinnings }, ...formatOption(options) }
     );
