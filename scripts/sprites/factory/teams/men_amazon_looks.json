@@ -1,0 +1,22 @@
+{
+  "amazon_eagle": [
+    ["body", "Body", [["f", "Female"]]],
+    ["crown", "Crown", [["fan", "Feather fan"], ["plume", "Tall plume"], ["none", "Bare head"]]],
+    ["wings", "Wings", [["fringe", "Wing fringes"], ["cloak", "Feather cloak"], ["none", "Bare arms"]]]
+  ],
+  "amazon_jaguar": [
+    ["body", "Body", [["f", "Female"]]],
+    ["head", "Head", [["hood", "Jaguar hood"], ["bare", "Braid"]]],
+    ["pelt", "Pelt", [["back", "Jaguar pelt"], ["none", "No pelt"]]]
+  ],
+  "amazon_piranha": [
+    ["body", "Body", [["f", "Female"]]],
+    ["head", "Head", [["fish", "Fish helm"], ["bare", "Ponytail"]]],
+    ["fins", "Fins", [["fins", "Arm and calf fins"], ["none", "No fins"]]]
+  ],
+  "amazon_python": [
+    ["body", "Body", [["f", "Female"]]],
+    ["hair", "Hair", [["long", "Ponytail"], ["braid", "Braid"], ["bun", "Bun"]]],
+    ["arms", "Arms", [["bands", "Arm bands"], ["gold", "Gold bracers"], ["bare", "Bare arms"]]]
+  ]
+}

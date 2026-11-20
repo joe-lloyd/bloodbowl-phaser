@@ -1,0 +1,23 @@
+{
+  "human_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["kettle", "Kettle helm"], ["cap", "Iron cap"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["left", "Left pad"], ["plate", "Plate pads"], ["none", "No pads"]]]
+  ],
+  "human_thrower": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hat", "Hat", [["cap", "Peaked cap"], ["beret", "Beret"], ["bare", "Bare head"]]],
+    ["sleeves", "Sleeves", [["one", "One sleeve"], ["both", "Both sleeves"], ["none", "Bare arms"]]]
+  ],
+  "human_catcher": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["band", "Headband"], ["scarf", "Head scarf"], ["bare", "Bare head"]]],
+    ["legs", "Legs", [["shorts", "Shorts"], ["tights", "Tights"]]]
+  ],
+  "human_blitzer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["plumed", "Plumed helm"], ["visored", "Visored helm"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["both", "Both pads"], ["left", "Left pad"], ["none", "No pads"]]],
+    ["chest", "Chest", [["tabard", "Tabard"], ["cape", "Short cape"]]]
+  ]
+}

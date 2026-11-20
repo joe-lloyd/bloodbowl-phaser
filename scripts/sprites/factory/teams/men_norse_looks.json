@@ -1,0 +1,17 @@
+{
+  "berserker": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["mane", "Wild mane"], ["crest", "Crest"], ["braids", "Braids"]]],
+    ["paint", "War paint", [["stripes", "Stripes"], ["none", "None"]]]
+  ],
+  "norse_raider": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["horned", "Horned cap"], ["bare", "Bare head"]]],
+    ["mantle", "Mantle", [["fur", "Fur mantle"], ["none", "No mantle"]]]
+  ],
+  "valkyrie": [
+    ["body", "Body", [["f", "Female"]]],
+    ["helm", "Helm", [["winged", "Winged helm"], ["bare", "Bare head"]]],
+    ["cape", "Cape", [["short", "Short cape"], ["long", "Long cape"], ["none", "No cape"]]]
+  ]
+}

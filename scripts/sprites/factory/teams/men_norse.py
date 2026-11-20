@@ -3,7 +3,7 @@ Each position has its own head and build: wild mane, horned cap, winged helm, wo
 beast, and a little boar carrying a keg. Hands are always empty."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, Quadruped, register, core, parts
+from lib import Biped, Quadruped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, lerp, UP, basis, D, ellipsoid, cap, cone, flat_cone, surf
 from teams import men_common as mc
 
@@ -28,14 +28,14 @@ def warpaint(tag, J, P, mat, n=3):
 
 
 @register
-class Berserker(Biped):
+class Berserker(looks.Fine, Biped):
     """Bare-chested and wild: huge spiky red mane and forked beard, war paint, kilt, wrapped fists; roars."""
     key = "berserker"
     race = "human"
     knobs = dict(shoulders=1.16, limb=1.1, torso=1.04, arm=1.1)
     layout = dict(skin="skin_fair", torso="skin_fair", arms="skin_fair", legs="skin_fair", hair="swept", hair_mat="hair_red",
                   brow="hair_red", beard="hair_red", beard_len=0.9, boots="leather", cuff=None, belt="leather", buckle="gold",
-                  loin="kit1", loin_trim="kit2", wraps="kit2", arm_band="kit1")
+                  loin="kit1", loin_trim="kit2", wraps="kit2", arm_band="kit1", mane="mane", paint=True)
     stance = dict(lean=12, legs={"l": (14, 16, 22), "r": (-12, 16, 18)}, arms={"l": (10, 44, 70, -10), "r": (10, 44, 70, -10)},
                   hands="fist", jaw=20)
     stride, arm_swing, run_lean, jump = 42, 40, 20, 0.26
@@ -48,19 +48,23 @@ class Berserker(Biped):
                  nod=14 * w["up"], lean=12 - 8 * w["breath"])
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         c, X, F, U, s, R = mc.head(J)
         act = mc.act(pose)
-        # mane: a ring of long spikes round the crown, swept back when he runs
-        for i, (ax, ay, ln) in enumerate(((0, 0.3, 0.3), (-0.6, 0.0, 0.34), (0.6, 0.0, 0.34), (-0.9, -0.5, 0.36), (0.9, -0.5, 0.36),
-                                          (0, -0.5, 0.42), (-0.5, -1.0, 0.4), (0.5, -1.0, 0.4), (0, -1.1, 0.46))):
-            b = c + X * ax * s[0] * 0.8 + F * ay * s[1] * 0.7 + U * s[2] * 0.6
-            d = (X * ax * 0.7 + F * (ay * 0.5 - (0.9 if act else 0.25)) + U * (0.5 if act else 1.0)).normalized()
-            cone(tag + "mane%d" % i, b - d * 0.04, b + d * ln, 0.085, "hair_red", 6)
-        # beard forks
-        for sd in (-1, 1):
-            b = c - U * s[2] * 1.3 + F * s[1] * 0.6 + X * sd * 0.05
-            cone(tag + "fork%d" % sd, b, b - U * 0.3 + X * sd * 0.12 + F * 0.06, 0.06, "hair_red", 6)
-        warpaint(tag, J, P, "kit1")
+        if L.get("mane") == "mane":
+            self.mane(J, act, tag)
+        elif L.get("mane") == "crest":           # shaved sides under a tall red crest
+            core.crest(tag, c, R, s, "hair_red", h=0.34, n=6, lo=0.85, width=0.075)
+        elif L.get("mane") == "braids":
+            mc.braids(tag, J, "hair_red", tie="kit2", stream=act)
+        if L.get("beard"):
+            for sd in (-1, 1):           # beard forks
+                b = c - U * s[2] * 1.3 + F * s[1] * 0.6 + X * sd * 0.05
+                cone(tag + "fork%d" % sd, b, b - U * 0.3 + X * sd * 0.12 + F * 0.06, 0.06, "hair_red", 6)
+        if L["sex"] == "f":
+            mc.bandeau(tag, J, P, "fur_brown", lo=0.32, hi=0.48, trim="kit1")
+        if L.get("paint"):
+            warpaint(tag, J, P, "kit1")
         mc.tooth_necklace(tag, J, P, n=5)
         tband(tag + "kiltband", J, P, [-0.07, 0.0, 0.08], "kit1", k=1.08, add=0.015, solid=0.03)
         for side in ("l", "r"):
@@ -68,16 +72,33 @@ class Berserker(Biped):
             mc.legging(tag, J, L, side, "kit2", 0.18, 0.225, grow=1.16, name="kilthem")
         fur_boots(tag, J, L)
 
+    def details(self, J, P, L, tag, pose):
+        mc.studs(tag, J, P, [(0.0, a, 0.09) for a in (-30, 30)], "gold", r=0.024, name="kiltstud")
+        k = L["limb"] * core.LIMB * L["arm"]
+        for side in ("l", "r"):          # iron rings round the biceps
+            sh, el = J["arms"][side][:2]
+            tube(tag + "armring" + side, [lerp(sh, el, 0.3), lerp(sh, el, 0.37)], [0.112 * k, 0.112 * k], "metal", ref=J["F"], n=10)
+
+    def mane(self, J, act, tag):
+        """A ring of long spikes round the crown, swept back when he runs."""
+        c, X, F, U, s, R = mc.head(J)
+        for i, (ax, ay, ln) in enumerate(((0, 0.3, 0.3), (-0.6, 0.0, 0.34), (0.6, 0.0, 0.34), (-0.9, -0.5, 0.36), (0.9, -0.5, 0.36),
+                                          (0, -0.5, 0.42), (-0.5, -1.0, 0.4), (0.5, -1.0, 0.4), (0, -1.1, 0.46))):
+            b = c + X * ax * s[0] * 0.8 + F * ay * s[1] * 0.7 + U * s[2] * 0.6
+            d = (X * ax * 0.7 + F * (ay * 0.5 - (0.9 if act else 0.25)) + U * (0.5 if act else 1.0)).normalized()
+            cone(tag + "mane%d" % i, b - d * 0.04, b + d * ln, 0.085, "hair_red", 6)
+
 
 @register
-class Raider(Biped):
+class Raider(looks.Fine, Biped):
     """Fur-wrapped lineman: iron cap with two short horns, heavy fur mantle, quilted tunic, drinking horn on the belt."""
     key = "norse_raider"
     race = "human"
     knobs = dict(torso=1.1, belly=1.15, limb=1.06, shoulders=1.06)
     layout = dict(skin="skin_fair", torso="kit1", arms="shirt", legs="rags", coat="gambeson", hem="kit2", belt="leather",
                   helm="skull", bracers="leather", boots="boot", cuff=None, beard="hair_blond", beard_len=0.7,
-                  brow="hair_blond", hair=None, arm_band="kit2", pant_stripe="kit2")
+                  brow="hair_blond", hair=None, hair_mat="hair_blond", arm_band="kit2", pant_stripe="kit2", horncap=True,
+                  mantle=True)
     stance = dict(lean=2, legs={"l": (5, 13, 6), "r": (-4, 13, 6)}, arms={"l": (8, 30, 40, -6), "r": (8, 30, 40, -6)},
                   hands="fist")
     stride, arm_swing, jump = 35, 28, 0.16
@@ -90,16 +111,12 @@ class Raider(Biped):
                  arms={"l": (8, 30, 40, -6), "r": (8 + 62 * up, 30 - 14 * up, 40 + 86 * up, -6 - 34 * up)})
 
     def extras(self, J, P, L, tag, pose):
-        c, X, F, U, s, R = mc.head(J)
-        for sd in (-1, 1):          # short straight horns from the cap, and a nasal bar
-            b = c + X * sd * s[0] * 0.95 + U * s[2] * 0.55
-            tube(tag + "caphorn%d" % sd, [b, b + X * sd * 0.14 + U * 0.1, b + X * sd * 0.2 + U * 0.3], [0.065, 0.05, 0.015], "bone", n=6)
-            ball_at(tag + "caphornboss%d" % sd, b, 0.06, "kit2")
-        tube(tag + "nasal", [c + F * s[1] * 1.12 + U * s[2] * 0.55, c + F * s[1] * 1.16 - U * s[2] * 0.15], [0.035, 0.025], "metal", n=6,
-             flat=0.5)
-        cap(tag + "capband", c + U * 0.02, (s[0] * 1.2, s[1] * 1.2, s[2] * 1.18), "kit2", U, cut=0.22, hi=0.4, rot=R, thick=0.03)
-        mc.fur_mantle(tag, J, P, "fur_brown", drop=0.2, add=0.12)
-        ball_at(tag + "brooch", surf(J, P, P["sh_h"] - 0.08, 0, 0.15), 0.05, "kit2")
+        super().extras(J, P, L, tag, pose)
+        if L.get("horncap"):
+            self.horn_cap(J, tag)
+        if L.get("mantle"):
+            mc.fur_mantle(tag, J, P, "fur_brown", drop=0.2, add=0.12)
+            ball_at(tag + "brooch", surf(J, P, P["sh_h"] - 0.08, 0, 0.15), 0.05, "kit2")
         fur_boots(tag, J, L)
         # drinking horn hanging at the hip (curved, pointed, with a kit2 rim): slung, never held
         h0 = surf(J, P, 0.04, -80, 0.07)
@@ -108,9 +125,24 @@ class Raider(Biped):
         tube(tag + "dhornrim", [h0 + UP * 0.02, h0 - UP * 0.03], [0.078, 0.078], "kit2", n=6)
         mc.sash(tag, J, P, "leather", side=1, r=0.035, name="hornstrap", full=False)
 
+    def details(self, J, P, L, tag, pose):
+        mc.pouch(tag, J, P, ang=62, flap="kit2")
+        mc.studs(tag, J, P, [(h, a, 0.05) for h in (0.2, 0.34) for a in (-28, 28)], "kit2", r=0.02, name="quiltknot")
+
+    def horn_cap(self, J, tag):
+        """Short straight horns from the iron cap, a nasal bar and a kit2 band."""
+        c, X, F, U, s, R = mc.head(J)
+        for sd in (-1, 1):
+            b = c + X * sd * s[0] * 0.95 + U * s[2] * 0.55
+            tube(tag + "caphorn%d" % sd, [b, b + X * sd * 0.14 + U * 0.1, b + X * sd * 0.2 + U * 0.3], [0.065, 0.05, 0.015], "bone", n=6)
+            ball_at(tag + "caphornboss%d" % sd, b, 0.06, "kit2")
+        tube(tag + "nasal", [c + F * s[1] * 1.12 + U * s[2] * 0.55, c + F * s[1] * 1.16 - U * s[2] * 0.15], [0.035, 0.025], "metal", n=6,
+             flat=0.5)
+        cap(tag + "capband", c + U * 0.02, (s[0] * 1.2, s[1] * 1.2, s[2] * 1.18), "kit2", U, cut=0.22, hi=0.4, rot=R, thick=0.03)
+
 
 @register
-class Valkyrie(Biped):
+class Valkyrie(looks.Fine, Biped):
     """Shield-maiden: tall feathered wings on her helm, two long blond braids, scale corselet, split skirt, bare arms."""
     key = "valkyrie"
     race = "human"
@@ -119,7 +151,7 @@ class Valkyrie(Biped):
     layout = dict(skin="skin_fair", torso="kit1", arms="skin_fair", legs="skin_fair", hair=None, brow="hair_blond", lip="lip_h",
                   helm="skull", trim="gold", breast="metal", emblem_mat="kit2", belt="kit2", buckle="gold", bracers="metal",
                   arm_band="kit2", boots="boot", cuff=None, greaves=True, loin="kit1", loin_trim="kit2", neckband="kit2",
-                  cape="short", cape_mat="kit2", cape_lining="kit1")
+                  cape="short", cape_mat="kit2", cape_lining="kit1", hair_mat="hair_blond", helmwings=True)
     stance = dict(lean=0, twist=8, legs={"l": (8, 9, 4), "r": (-8, 9, 6)}, arms={"l": (-16, 36, 62, -50), "r": (20, 20, 60, 0)},
                   hands="relaxed")
     stride, arm_swing, jump = 40, 34, 0.26
@@ -131,17 +163,23 @@ class Valkyrie(Biped):
                  hand_modes={"l": "fist", "r": "open"}, look=-16 * up + 10 * w["dn"], cape=0.05 + 0.05 * w["s2"])
 
     def extras(self, J, P, L, tag, pose):
-        mc.helm_wings(tag, J, "shirt", size=1.25, n=4, boss="gold")
+        super().extras(J, P, L, tag, pose)
         mc.braids(tag, J, "hair_blond", tie="kit2", stream=mc.act(pose), ln=1.05)
-        c, X, F, U, s, R = mc.head(J)
-        tube(tag + "nasal", [c + F * s[1] * 1.12 + U * s[2] * 0.55, c + F * s[1] * 1.16 + U * s[2] * 0.05], [0.03, 0.022], "gold", n=6,
-             flat=0.5)
-        ball_at(tag + "helmgem", c + F * s[1] * 1.1 + U * s[2] * 0.62, 0.045, "kit1")
+        if L.get("helmwings"):
+            mc.helm_wings(tag, J, "shirt", size=1.25, n=4, boss="gold")
+            c, X, F, U, s, R = mc.head(J)
+            tube(tag + "nasal", [c + F * s[1] * 1.12 + U * s[2] * 0.55, c + F * s[1] * 1.16 + U * s[2] * 0.05], [0.03, 0.022], "gold",
+                 n=6, flat=0.5)
+            ball_at(tag + "helmgem", c + F * s[1] * 1.1 + U * s[2] * 0.62, 0.045, "kit1")
         # split skirt of kit1 strips with kit2 tips over the thighs
         for side in ("l", "r"):
             mc.legging(tag, J, L, side, "kit1", 0.0, 0.2, grow=1.12, name="skirt")
             mc.legging(tag, J, L, side, "kit2", 0.18, 0.225, grow=1.16, name="skirthem")
         tband(tag + "scales", J, P, [0.1, 0.05, -0.02], "metal", k=1.08, add=0.02, solid=0.03, jag=0.5)
+
+    def details(self, J, P, L, tag, pose):
+        mc.studs(tag, J, P, [(h, a, 0.07) for h in (0.16, 0.26) for a in (-32, 0, 32)], "gold", r=0.02, name="scalestud")
+        mc.studs(tag, J, P, [(0.07, 0, 0.1)], "kit1", r=0.032, name="beltgem")
 
 
 class Beast(Biped):

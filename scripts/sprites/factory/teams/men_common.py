@@ -253,3 +253,38 @@ def shag(tag, a, b, r, mat, n=3, out=None, ln=0.16, name="shag"):
         p = lerp(a, b, t)
         o = (out if out is not None else Vector((0, 0, 0)))
         cone(tag + "%s%d" % (name, i), p + o * r * 0.5, p + o * (r + ln * 0.6) - UP * ln, r * 0.75, mat, 6)
+
+
+# ---------------------------------------------------------------- look options (used by the men_*_looks files)
+def lips(sex):
+    """Painted lips on a woman, plain ones on a man."""
+    return dict(lip="lip_f" if sex == "f" else "lip_h")
+
+
+def shaven(sex, beard, beard_len):
+    """A beard on a man, none on a woman, and her painted lips."""
+    return dict(lips(sex), beard=None if sex == "f" else beard, beard_len=beard_len)
+
+
+def hair(sex, men="short", women="long", **kw):
+    """A hair style by body: women wear it longer."""
+    return dict(kw, hair=women if sex == "f" else men)
+
+
+def helmed(sex, helm, **kw):
+    """A helmet; a woman's long braid escapes from under it and hangs over her shoulder."""
+    return dict(kw, helm=helm, hair="braid" if sex == "f" else None, helm_tail=None)
+
+
+def studs(tag, J, P, spots, mat="gold", r=0.02, name="stud"):
+    """Small round studs on the torso surface at (height, angle, offset) spots: rivets, buttons, gems."""
+    for i, (h, a, off) in enumerate(spots):
+        ball_at(tag + "%s%d" % (name, i), surf(J, P, h, a, off), r, mat)
+
+
+def pouch(tag, J, P, ang=-60, mat="leather", flap="kit2", name="pouch"):
+    """A small belt pouch with a coloured flap."""
+    R = basis(J["X"], J["F"], J["u"])
+    p = surf(J, P, 0.0, ang, 0.08)
+    box(tag + name, p, (0.1, 0.06, 0.11), mat, R)
+    box(tag + name + "flap", p + J["u"] * 0.04 + J["F"] * 0.012, (0.105, 0.065, 0.045), flap, R)
