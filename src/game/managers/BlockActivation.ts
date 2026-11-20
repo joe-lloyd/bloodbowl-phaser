@@ -4,7 +4,6 @@ import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { BlockValidator } from "../validators/BlockValidator";
 import { type BlockAnalysis } from "../../types/Actions";
 import { GameEventNames } from "../../types/events";
-import { GameConfig } from "../../config/GameConfig";
 import { PileDriverOperation } from "../operations/PileDriverOperation";
 import {
   ContinueMultipleBlockOperation,
@@ -16,6 +15,7 @@ import {
   driveOver,
 } from "./BlockOperations";
 import { BlockRerolls } from "./BlockRerolls";
+import { isStandableSquare } from "../rules/pitchSquares";
 
 const standingNeighbours = (a: Player, b: Player): boolean =>
   a.status === PlayerStatus.ACTIVE &&
@@ -26,10 +26,7 @@ const standingNeighbours = (a: Player, b: Player): boolean =>
   Math.abs(a.gridPosition.y - b.gridPosition.y) <= 1;
 
 const onPitch = (square: { x: number; y: number }): boolean =>
-  square.x >= 0 &&
-  square.x < GameConfig.PITCH_WIDTH &&
-  square.y >= 0 &&
-  square.y < GameConfig.PITCH_HEIGHT;
+  isStandableSquare(square);
 
 export abstract class BlockActivation extends BlockRerolls {
   protected pileDriverTargets = new Map<string, string>();

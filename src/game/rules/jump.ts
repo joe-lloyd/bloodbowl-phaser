@@ -1,6 +1,6 @@
 import { SkillType, hasSkill } from "../../types/Skills";
-import { GameConfig } from "../../config/GameConfig";
 import { type Player, PlayerStatus } from "../../types/Player";
+import { isStandableSquare } from "./pitchSquares";
 
 export interface JumpTarget {
   over: { x: number; y: number };
@@ -106,6 +106,6 @@ export function jumpTargets(
 export function legalJumpTargets(player: Player, from: { x: number; y: number }, players: Player[]): JumpTarget[] {
   const others = players.filter((other) => other.id !== player.id && other.gridPosition);
   const canJumpAnything = hasSkill(player.skills, SkillType.LEAP) || hasSkill(player.skills, SkillType.POGO);
-  const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < GameConfig.PITCH_WIDTH && y < GameConfig.PITCH_HEIGHT;
+  const inBounds = (x: number, y: number) => isStandableSquare({ x, y });
   return jumpTargets(from, others, canJumpAnything, inBounds);
 }

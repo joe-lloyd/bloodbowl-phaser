@@ -7,6 +7,7 @@ import { withDriveModifiers } from "../kickoff/driveEffects";
 import { PrayerToNuffle } from "../../types/Inducements";
 import { prayerInPlay } from "../inducements/matchInducements";
 import { type StallingPenalty } from "../variants/gameTypeRules";
+import { isStandableSquare } from "./pitchSquares";
 
 const ACTIVATION_ROLLS = [
   SkillType.BONE_HEAD,
@@ -32,11 +33,7 @@ function canRunWithBall(
   return !ACTIVATION_ROLLS.some((skill) => hasSkill(player.skills, skill));
 }
 
-const onPitch = (square: Square): boolean =>
-  square.x >= 0 &&
-  square.y >= 0 &&
-  square.x < GameConfig.PITCH_WIDTH &&
-  square.y < GameConfig.PITCH_HEIGHT;
+const onPitch = (square: Square): boolean => isStandableSquare(square);
 
 function neighbours(from: Square): Square[] {
   const squares: Square[] = [];

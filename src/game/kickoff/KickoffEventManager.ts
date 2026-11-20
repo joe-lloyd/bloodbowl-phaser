@@ -18,7 +18,7 @@ import { type Team } from "@/types/Team";
 import { type Player, PlayerStatus } from "@/types/Player";
 import type { DiceController } from "../controllers/DiceController";
 import type { WeatherManager } from "../managers/WeatherManager";
-import { GameConfig } from "@/config/GameConfig";
+import { isStandableSquare } from "../rules/pitchSquares";
 import { SetupValidator } from "../validators/SetupValidator";
 import {
   INTERACTIVE_KICKOFF_EVENTS,
@@ -408,7 +408,7 @@ export class KickoffEventManager {
   }
 
   private isFreeDestination(playerId: string, x: number, y: number): boolean {
-    if (x < 0 || x >= GameConfig.PITCH_WIDTH || y < 0 || y >= GameConfig.PITCH_HEIGHT) return false;
+    if (!isStandableSquare({ x, y })) return false;
     return ![...this.team1.players, ...this.team2.players].some((other) => other.id !== playerId && other.gridPosition?.x === x && other.gridPosition.y === y);
   }
 
