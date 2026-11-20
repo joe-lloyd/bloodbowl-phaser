@@ -21,6 +21,7 @@ const ctx = {
     skills: [],
   }),
   ma: 6,
+  allowance: 8,
   used: 0,
   rushModifier: 0,
   opponents: [],

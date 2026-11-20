@@ -18,7 +18,8 @@ import {
 import { isSecuringBall } from "../../rules/secureBall";
 import { ballInTheAir } from "../../rules/ballInTheAir";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
-import { riskyStepRequest } from "./Confirmations";
+import { climbRequest, riskyStepRequest } from "./Confirmations";
+import type { MoveStep } from "@/headless/protocol";
 
 interface Square {
   x: number;
@@ -137,6 +138,7 @@ function planLegs(
     opponents: c.getOpposingPlayers(player.teamId),
     player: mover,
     ma: mover.stats.MA,
+    allowance: moveAllowance(mover),
     used:
       c.gameService.getMovementUsed(player.id) +
       (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
@@ -406,6 +408,20 @@ async function confirmLeg(c: GameplayInteractionController, player: Player, leg:
   return c.confirmations.ask("risky-step", request);
 }
 
+async function legPath(c: GameplayInteractionController, player: Player, leg: PlannedLeg): Promise<MoveStep[] | null> {
+  if (!("climb" in leg)) {
+    if (leg.risk && !(await confirmLeg(c, player, leg))) return null;
+    return leg.path;
+  }
+  await c.dice.landed();
+  const square = player.gridPosition;
+  if (!square) return null;
+  const answer = await c.confirmations.choose("climb", climbRequest({ deps: c, player, square, climb: leg.climb }));
+  if (answer === "cancel") return null;
+  const [step] = leg.path;
+  return [answer === "alternative" ? { ...step, reckless: true } : step];
+}
+
 async function walkRoute(c: GameplayInteractionController, playerId: string, route: Square[]): Promise<boolean> {
   let rest = route;
   let walked = false;
@@ -414,8 +430,9 @@ async function walkRoute(c: GameplayInteractionController, playerId: string, rou
     if (!player?.gridPosition) break;
     const [leg] = planLegs(c, player, rest);
     if (!leg) break;
-    if (leg.risk && !(await confirmLeg(c, player, leg))) break;
-    await c.gameService.movePlayer(playerId, leg.path);
+    const path = await legPath(c, player, leg);
+    if (!path) break;
+    await c.gameService.movePlayer(playerId, path);
     walked = true;
     await c.scene.playerSettled?.(playerId);
     const end = leg.path.reduce((_, square) => square, leg.path[0]);

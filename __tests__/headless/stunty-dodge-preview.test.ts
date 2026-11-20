@@ -55,6 +55,7 @@ describe("Stunty dodge preview and resolution", () => {
       {
         player: fixtureValue(goblin),
         ma: fixtureValue(goblin).stats.MA,
+        allowance: fixtureValue(goblin).stats.MA + 2,
         used: 0,
         rushModifier: 0,
         opponents: game.ctx.team2.players,

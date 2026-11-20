@@ -45,12 +45,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     });
   };
 
-  const handleCancel = () => {
+  const answer = (result: { confirmed: false; alternative?: true }) => {
     if (!data || getActiveOnlineMatch()?.mayAct() === false) return;
     const actionId = data.actionId;
     setData(null);
     eventBus.emit(GameEventNames.UI_ConfirmationResult, {
-      confirmed: false,
+      ...result,
       actionId,
     });
   };
@@ -63,7 +63,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     <ConfirmationModalView
       data={data}
       handleConfirm={handleConfirm}
-      handleCancel={handleCancel}
+      handleCancel={() => {
+        answer({ confirmed: false });
+      }}
+      handleAlternative={() => {
+        answer({ confirmed: false, alternative: true });
+      }}
     />
   );
 };
@@ -72,11 +77,13 @@ interface ConfirmationModalViewProps {
   data: ConfirmationData;
   handleConfirm: () => void;
   handleCancel: () => void;
+  handleAlternative: () => void;
 }
 function ConfirmationModalView({
   data,
   handleConfirm,
   handleCancel,
+  handleAlternative,
 }: ConfirmationModalViewProps) {
   return (
     <DialogShell
@@ -98,6 +105,11 @@ function ConfirmationModalView({
           <HudButton variant="ghost" hotkey="Escape" onClick={handleCancel}>
             {confirmationLabel(data.cancelLabel, "Cancel")}
           </HudButton>
+          {data.alternativeLabel && (
+            <HudButton variant="primary" onClick={handleAlternative}>
+              {data.alternativeLabel}
+            </HudButton>
+          )}
           <HudButton
             variant={data.risky ? "primary" : "gold"}
             hotkey="Enter"

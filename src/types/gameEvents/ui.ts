@@ -88,6 +88,7 @@ export interface CommonUIEvents {
     message: string;
     confirmLabel?: string;
     cancelLabel?: string;
+    alternativeLabel?: string;
     risky?: boolean;
     chooserTeamId?: string;
 
@@ -96,6 +97,7 @@ export interface CommonUIEvents {
 
   [GameEventNames.UI_ConfirmationResult]: {
     confirmed: boolean;
+    alternative?: true;
     actionId: string;
   };
 
