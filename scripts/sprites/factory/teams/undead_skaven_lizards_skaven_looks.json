@@ -1,0 +1,22 @@
+{
+  "skaven_lineman": [
+    ["body", "Body", [["x", "Clanrat"]]],
+    ["head", "Head", [["bare", "Bare head"], ["cap", "Iron cap"], ["kettle", "Kettle helm"]]],
+    ["pads", "Pads", [["left", "Left plate"], ["both", "Both plates"], ["none", "No plate"]]]
+  ],
+  "skaven_thrower": [
+    ["body", "Body", [["x", "Thrower"]]],
+    ["head", "Head", [["goggles", "Cap and goggles"], ["cap", "Cap"], ["bare", "Bare head"]]],
+    ["arms", "Arms", [["sleeves", "Sleeves"], ["bare", "Bare arms"]]]
+  ],
+  "skaven_blitzer": [
+    ["body", "Body", [["x", "Stormvermin"]]],
+    ["helmet", "Helmet", [["crested", "Crested helm"], ["horned", "Horned helm"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["both", "Both plates"], ["left", "Left plate"], ["none", "No plates"]]]
+  ],
+  "gutter_runner": [
+    ["body", "Body", [["x", "Gutter runner"]]],
+    ["head", "Head", [["hood", "Hood"], ["bare", "Mask only"]]],
+    ["scarf", "Scarf", [["black", "Black scarf"], ["kit", "Kit scarf"], ["none", "No scarf"]]]
+  ]
+}

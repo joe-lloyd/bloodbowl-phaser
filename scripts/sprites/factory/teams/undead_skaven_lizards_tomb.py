@@ -2,7 +2,7 @@
 dynasty in gold and bronze, kit colours on headdresses, kilts, collars and capes. No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, lerp, UP, basis, D, cone, flat_cone, ellipsoid, cap, surf
 from teams import undead_skaven_lizards_kit as K
 
@@ -17,7 +17,8 @@ class TombSkeleton(Biped):
     race = "skeleton"
     knobs = dict(limb=0.6)
     layout = dict(legs="bone_old", boots="bone_old", cuff=None, loin="kit1", loin_trim="gold", shorts="kit1", belt="gold",
-                  buckle="kit2", pads="plate", pad_sides=("l",), pad_mat="brass", pad_trim="kit2", bracers="brass")
+                  buckle="kit2", pads="plate", pad_sides=("l",), pad_mat="brass", pad_trim="kit2", bracers="brass",
+                  headcloth=True)
     stance = dict(lean=3, legs={"l": (8, 8, 8), "r": (-8, 8, 6)}, arms={"l": (24, 20, 78, 0), "r": (16, 20, 70, 0)},
                   hands="fist")
     height = 1.0
@@ -29,6 +30,10 @@ class TombSkeleton(Biped):
     def extras(self, J, P, L, tag, pose):
         K.ribs(J, P, tag)
         K.collar(J, P, tag, "kit2", "gold", drop=0.08)
+        if L.get("shield"):
+            K.arm_shield(J, L, tag, "l", "kit1", "gold", "brass", size=(0.3, 0.5))
+        if not L.get("headcloth"):
+            return
         c, X, F, U, s = K.hframe(J)
         R = J["head_R"]
         cap(tag + "cloth", c + U * 0.015, (s[0] * 1.12, s[1] * 1.12, s[2] * 1.1), "kit1", (U * 0.75 - F * 0.65).normalized(),
@@ -47,7 +52,8 @@ class AnointedBlitzer(Biped):
     knobs = dict(shoulders=1.2, limb=0.95, torso=1.0)
     layout = dict(torso="bone_old", arms="bone_old", legs="bone_old", boots="brass", cuff="kit2", loin="kit1", loin_trim="gold",
                   shorts="kit1", pads="big", pad_mat="gold", pad_trim="kit2", breast="gold", emblem_mat="kit1", gorget=True,
-                  cape="short", cape_mat="kit2", cape_lining="cloth_blue", bracers="gold", belt="kit2", trim="brass")
+                  cape="short", cape_mat="kit2", cape_lining="cloth_blue", bracers="gold", belt="kit2", trim="brass",
+                  headdress="crown")
     stance = dict(lean=8, legs={"l": (8, 15, 12), "r": (-6, 15, 10)}, arms={"l": (8, 34, 50, -6), "r": (8, 34, 50, -6)},
                   hands="fist")
     stride, arm_swing, jump = 36, 30, 0.16
@@ -59,6 +65,10 @@ class AnointedBlitzer(Biped):
                        "r": (8 + 40 * w["dn"], 34 - 10 * w["dn"], 50 + 20 * w["dn"], -6)})
 
     def extras(self, J, P, L, tag, pose):
+        if L.get("headdress") == "nemes":
+            K.nemes(J, tag, "kit1", "gold", stripes=True)
+        if L.get("headdress") != "crown":
+            return
         c, X, F, U, s = K.hframe(J)
         R = J["head_R"]
         ellipsoid(tag + "crown", c + U * s[2] * 0.72 - F * s[1] * 0.12, (s[0] * 0.98, s[1] * 1.02, s[2] * 1.25), "kit1", R)
@@ -75,7 +85,7 @@ class AnointedThrower(Biped):
     race = "skeleton"
     knobs = dict(limb=0.62, legs=1.04)
     layout = dict(legs="bone_old", boots="brass", cuff=None, coat="robe", coat_mat="kit1", robe_len=0.72, robe_lining="kit1",
-                  hem="gold", belt="gold", buckle="kit2", arm_band="gold", bracers="kit2")
+                  hem="gold", belt="gold", buckle="kit2", arm_band="gold", bracers="kit2", headdress="winged")
     stance = dict(lean=0, legs={"l": (4, 6, 4), "r": (-3, 6, 4)}, arms={"l": (10, 22, 24), "r": (44, 26, 104, 2)},
                   hands="open")
     height = 1.08
@@ -91,14 +101,17 @@ class AnointedThrower(Biped):
         K.ribbon(J, tag, "sashtail", surf(J, P, 0.08, 80, 0.05), 0.5, "kit2", pose, w=0.06, back=0.1)
         c, X, F, U, s = K.hframe(J)
         R = J["head_R"]
-        cap(tag + "cloth", c + U * 0.015, (s[0] * 1.14, s[1] * 1.14, s[2] * 1.12), "kit2", (U * 0.8 - F * 0.6).normalized(),
-            cut=-0.05, rot=R, thick=0.03)
-        for sd in (-1, 1):
-            top = c + X * sd * s[0] * 0.8 + U * s[2] * 0.75
-            flat_cone(tag + "wing%d" % sd, c + X * sd * s[0] * 1.75 - U * s[2] * 1.0 - F * 0.02, top, 0.2, "kit2", F, squash=0.3)
-            box(tag + "lappet%d" % sd, c + X * sd * s[0] * 0.95 - U * s[2] * 1.45 + F * s[1] * 0.55, (0.11, 0.04, 0.3), "kit2", R)
-            box(tag + "lapend%d" % sd, c + X * sd * s[0] * 0.95 - U * s[2] * 2.05 + F * s[1] * 0.56, (0.12, 0.045, 0.07), "kit1", R)
-        K.head_band(J, tag, "gold", 0.3, 0.46, 1.19)
+        if L.get("headdress") == "winged":
+            K.nemes(J, tag, "kit2", "gold", ends="kit1")
+            for sd in (-1, 1):
+                top = c + X * sd * s[0] * 0.8 + U * s[2] * 0.75
+                flat_cone(tag + "wing%d" % sd, c + X * sd * s[0] * 1.75 - U * s[2] * 1.0 - F * 0.02, top, 0.2, "kit2", F, squash=0.3)
+        elif L.get("headdress") == "crown":     # the tall double crown of a priest-king
+            base = c + U * s[2] * 0.4
+            cone(tag + "crown", base, base + U * 0.36, s[0] * 1.05, "kit2", seg=10, r2=s[0] * 0.55)
+            ball_at(tag + "crowntop", base + U * 0.38, s[0] * 0.5, "kit2")
+            cone(tag + "crownband", base - U * 0.02, base + U * 0.08, s[0] * 1.12, "gold", seg=10, r2=s[0] * 1.06)
+            cone(tag + "uraeus", c + F * s[1] * 1.0 + U * s[2] * 0.5, c + F * s[1] * 1.1 + U * (s[2] * 0.5 + 0.18), 0.04, "gold", 5)
         ellipsoid(tag + "mask", c + F * s[1] * 0.42 - U * s[2] * 0.1, (s[0] * 0.86, s[1] * 0.72, s[2] * 0.95), "gold", R)
         for sd in (-1, 1):
             box(tag + "slit%d" % sd, c + F * s[1] * 1.1 + X * sd * s[0] * 0.38 + U * s[2] * 0.08, (s[0] * 0.42, 0.03, 0.035), "socket", R)

@@ -1,0 +1,17 @@
+{
+  "tk_skeleton": [
+    ["body", "Body", [["x", "Skeleton"]]],
+    ["head", "Head", [["cloth", "Headcloth"], ["helm", "Bronze helm"], ["bare", "Bare skull"]]],
+    ["shield", "Shield", [["none", "No shield"], ["shield", "Tomb shield"]]]
+  ],
+  "anointed_blitzer": [
+    ["body", "Body", [["x", "Anointed"]]],
+    ["head", "Head", [["crown", "War crown"], ["nemes", "Royal headcloth"]]],
+    ["cape", "Cape", [["short", "Short cape"], ["long", "Long cape"], ["none", "No cape"]]]
+  ],
+  "anointed_thrower": [
+    ["body", "Body", [["x", "Anointed"]]],
+    ["head", "Head", [["winged", "Winged headcloth"], ["crown", "Tall crown"]]],
+    ["dress", "Dress", [["robe", "Long robe"], ["kilt", "Kilt"]]]
+  ]
+}

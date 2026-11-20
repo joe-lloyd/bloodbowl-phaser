@@ -1,0 +1,17 @@
+{
+  "saurus": [
+    ["body", "Body", [["x", "Saurus"]]],
+    ["head", "Head", [["crest", "Kit crest"], ["frill", "Neck frill"], ["horns", "Long horns"]]],
+    ["shoulder", "Shoulder", [["left", "Gold plate"], ["both", "Both plates"], ["none", "No plate"]]]
+  ],
+  "skink": [
+    ["body", "Body", [["x", "Skink"]]],
+    ["crest", "Crest", [["sail", "Sail crest"], ["frill", "Neck frill"], ["none", "Bare head"]]],
+    ["chest", "Chest", [["band", "Neck band"], ["harness", "Harness"], ["sash", "Sash"]]]
+  ],
+  "chameleon_skink": [
+    ["body", "Body", [["x", "Chameleon"]]],
+    ["head", "Head", [["casque", "Casque"], ["horned", "Horned casque"], ["smooth", "Smooth head"]]],
+    ["strap", "Strap", [["sash", "Kit sash"], ["harness", "Harness"]]]
+  ]
+}

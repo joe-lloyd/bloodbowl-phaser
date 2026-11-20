@@ -1,0 +1,32 @@
+{
+  "zombie": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["shirt", "Shirt", [["jersey", "Torn jersey"], ["shroud", "Burial shroud"]]],
+    ["pad", "Pad", [["pad", "Shoulder pad"], ["none", "No pad"]]]
+  ],
+  "ghoul": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["band", "Headband"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["pads", "Shoulder pads"], ["none", "No pads"]]]
+  ],
+  "wraith": [
+    ["body", "Body", [["x", "Wraith"]]],
+    ["head", "Head", [["hood", "Hood"], ["crowned", "Crowned hood"]]],
+    ["shroud", "Shroud", [["shroud", "Kit shroud"], ["none", "No shroud"]]]
+  ],
+  "skeleton": [
+    ["body", "Body", [["x", "Skeleton"]]],
+    ["helmet", "Helmet", [["pot", "Spiked pot helm"], ["hood", "Kit hood"], ["bare", "Bare skull"]]],
+    ["shield", "Shield", [["none", "No shield"], ["shield", "Rusty shield"]]]
+  ],
+  "wight": [
+    ["body", "Body", [["x", "Wight"]]],
+    ["head", "Head", [["crowned", "Crowned helm"], ["helm", "Open helm"], ["crown", "Crown"]]],
+    ["cape", "Cape", [["long", "Long cape"], ["short", "Short cape"], ["none", "No cape"]]]
+  ],
+  "mummy": [
+    ["body", "Body", [["x", "Mummy"]]],
+    ["head", "Head", [["wrap", "Head wrap"], ["nemes", "Royal headcloth"]]],
+    ["collar", "Collar", [["collar", "Broad collar"], ["none", "No collar"]]]
+  ]
+}
