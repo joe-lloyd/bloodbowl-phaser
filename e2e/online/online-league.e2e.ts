@@ -1,4 +1,10 @@
-import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import {
+  type BrowserContext,
+  expect,
+  type Locator,
+  type Page,
+  test,
+} from "@playwright/test";
 import {
   createComputerTeamFromTemplate,
   getComputerTeamTemplates,
@@ -16,6 +22,13 @@ function coachTeam(index: number, name: string): { id: string; stored: string } 
   delete team.computerTemplateId;
   team.name = name;
   return { id: team.id, stored: JSON.stringify([dehydrateTeam(team)]) };
+}
+
+async function recordByHand(game: Locator): Promise<void> {
+  const scores = game.getByRole("spinbutton");
+  await scores.nth(0).fill("1");
+  await scores.nth(1).fill("0");
+  await game.getByRole("button", { name: "Record result" }).click();
 }
 
 async function coach(context: BrowserContext, teams: string): Promise<Page> {
@@ -71,16 +84,13 @@ test("coaches sign up to an online league, computer teams fill it, and a fixture
     for (let round = 1; round <= 3; round++) {
       await expect(organizer.getByTestId("round-status")).toContainText(`Round ${String(round)} is open`, { timeout: 60_000 });
       const games = organizer.getByTestId("next-round-fixture");
-      if ((await games.filter({ hasText: alpha }).filter({ hasText: bravo }).count()) > 0) break;
-      await expect(games.filter({ hasNotText: alpha }).filter({ hasNotText: bravo })).toContainText("Simulated", { timeout: 60_000 });
-      for (const name of [alpha, bravo]) {
-        const game = games.filter({ hasText: name });
-        const scores = game.getByRole("spinbutton");
-        await scores.nth(0).fill("1");
-        await scores.nth(1).fill("0");
-        await game.getByRole("button", { name: "Record result" }).click();
-        await expect(game).toContainText("Result entered by hand");
+      if ((await games.filter({ hasText: alpha }).filter({ hasText: bravo }).count()) > 0) {
+        await expect(games.filter({ hasNotText: alpha }).filter({ hasNotText: bravo })).toContainText("Simulated", { timeout: 60_000 });
+        break;
       }
+      await recordByHand(games.filter({ hasText: alpha }));
+      await expect(games.filter({ hasText: alpha })).toContainText("Result entered by hand");
+      await recordByHand(games.filter({ hasText: bravo }));
     }
     await shot(organizer, "organizer-open-round");
     await shot(rival, "rival-open-round");
