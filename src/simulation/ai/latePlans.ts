@@ -79,17 +79,16 @@ export function lateMoveValue({
   route,
   ordinary,
 }: LateMoveValueArgs): number {
-  if (c.goal === "protect" || c.board.turnsLeft === 0) return ordinary;
-  if (
-    c.board.turnsLeft !== 1 ||
-    toGoal(c.board, carrier.gridPosition) <= nextTurnReach(carrier)
-  )
-    return ordinary;
-  if (toGoal(c.board, route.to) > nextTurnReach(carrier))
-    return ordinary * c.w.lateProgress;
-
-  return ordinary + route.chance * c.w.touchdown;
+  const turns = c.board.turnsLeft;
+  if (c.goal === "protect" || turns === 0 || turns > 2) return ordinary;
+  const reach = nextTurnReach(carrier) * turns;
+  if (toGoal(c.board, carrier.gridPosition) <= reach) return ordinary;
+  if (toGoal(c.board, route.to) > reach) return ordinary * c.w.lateProgress;
+  const scores = turns === 1 ? 1 : TWO_TURN_SCORE;
+  return ordinary + route.chance * c.w.touchdown * scores;
 }
+
+const TWO_TURN_SCORE = 0.3;
 
 export function markRisk(c: Context, carrier: Player, at: Square): number {
   const { board } = c;
