@@ -1,3 +1,4 @@
+import { activeRules } from "../variants/activeMatch";
 import type { DiceController } from "./DiceController";
 import { GameConfig } from "@/config/GameConfig";
 
@@ -10,7 +11,7 @@ export function isOnPitch(square: { x: number; y: number }): boolean {
   );
 }
 
-type MovementDice = Pick<DiceController, "rollD8" | "rollMultipleD8" | "rollD3" | "rollLowerOf2D6">;
+type MovementDice = Pick<DiceController, "rollD8" | "rollMultipleD8" | "rollD3" | "rollD6" | "rollLowerOf2D6">;
 
 export class BallMovementController {
   private diceController: MovementDice;
@@ -28,12 +29,13 @@ export class BallMovementController {
       y: number;
     },
 
-    rollType: "Scatter" | "Team-mate Scatter" = "Scatter"
+    rollType: "Scatter" | "Team-mate Scatter" = "Scatter",
+    squares = 3
   ): { x: number; y: number }[] {
     const path: { x: number; y: number }[] = [];
     let currentPos = { ...position };
 
-    const rolls = this.diceController.rollMultipleD8(rollType, 3);
+    const rolls = this.diceController.rollMultipleD8(rollType, squares);
 
     for (const direction of rolls) {
       currentPos = this.calculateOffsetPosition(currentPos, direction, 1);
@@ -58,9 +60,15 @@ export class BallMovementController {
 
     const distance = useKickD3
       ? this.diceController.rollD3("Kickoff Deviate Distance (Kick)", teamId)
-      : this.diceController.rollLowerOf2D6("Kickoff Deviate Distance", teamId);
+      : this.kickDistance(teamId);
 
     return this.calculateOffsetPosition(position, direction, distance);
+  }
+
+  private kickDistance(teamId?: string): number {
+    return activeRules().kickDeviation === "d6"
+      ? this.diceController.rollD6("Kickoff Deviate Distance", teamId)
+      : this.diceController.rollLowerOf2D6("Kickoff Deviate Distance", teamId);
   }
 
   private calculateScatterStep(

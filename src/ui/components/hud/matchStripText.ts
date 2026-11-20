@@ -1,4 +1,11 @@
 import { GameConfig } from "../../../config/GameConfig";
+import { formatOf } from "../../../game/variants/activeMatch";
+import { gameTypeRules } from "../../../game/variants/gameTypeRules";
+import {
+  DEFAULT_GAME_TYPE,
+  GAME_TYPE_LABELS,
+} from "../../../game/variants/gameTypes";
+import { PITCH_LAYOUTS } from "../../../game/variants/pitchLayouts";
 import { emptyDriveEffects } from "../../../game/kickoff/driveEffects";
 import { type Weather, weatherDescription } from "../../../game/rules/weather";
 import { type GameState, type TurnData } from "../../../types/GameState";
@@ -9,15 +16,45 @@ export function turnProgress(turn: number): string {
   return `Turn ${String(Math.min(total, Math.max(0, turn)))} of ${String(total)}`;
 }
 
+export function gameTypeLabel(
+  state: Pick<GameState, "gameType" | "venue">
+): string | null {
+  const { gameType, venue } = formatOf(state);
+  if (gameType === DEFAULT_GAME_TYPE) return null;
+  return gameTypeRules(gameType).venues.length > 1
+    ? PITCH_LAYOUTS[venue].label
+    : GAME_TYPE_LABELS[gameType];
+}
+
+const SLIPPERY = "-1 catch, pick-up";
+const PASS_PENALTY = "-1 pass";
+const ICY = "-1 rush, short passes";
+
 const WEATHER_LABELS: Record<
   Weather,
   { icon: string; word: string; short?: string }
 > = {
   Nice: { icon: "☀", word: "Nice" },
-  "Very Sunny": { icon: "☼", word: "Sunny", short: "-1 pass" },
-  "Pouring Rain": { icon: "☂", word: "Rain", short: "-1 catch, pick-up" },
-  Blizzard: { icon: "❄", word: "Blizzard", short: "-1 rush, short passes" },
+  "Very Sunny": { icon: "☼", word: "Sunny", short: PASS_PENALTY },
+  "Pouring Rain": { icon: "☂", word: "Rain", short: SLIPPERY },
+  Blizzard: { icon: "❄", word: "Blizzard", short: ICY },
   "Sweltering Heat": { icon: "♨", word: "Heat", short: "players may faint" },
+  Smog: { icon: "🌫", word: "Smog", short: "quick passes only" },
+  Wind: { icon: "🌬", word: "Wind", short: PASS_PENALTY },
+  Normal: { icon: "☀", word: "Normal" },
+  Rain: { icon: "☂", word: "Rain", short: SLIPPERY },
+  Snow: { icon: "❄", word: "Snow", short: ICY },
+  "Tropical Storm": { icon: "⛈", word: "Storm", short: "touchbacks, short passes" },
+  "Clouds of Smog": { icon: "🌫", word: "Smog", short: "short passes" },
+  "Howling Winds": { icon: "🌬", word: "Winds", short: PASS_PENALTY },
+  "A Normal Day": { icon: "☀", word: "Normal" },
+  "Sudden Downpour": { icon: "☂", word: "Downpour", short: "-1 rush, pick-up" },
+  "A Stormy Night": { icon: "⛈", word: "Storm", short: "-1 rush, pick-up, falls" },
+  "Unbearable Stench": { icon: "☣", word: "Stench", short: "a player falls each turn" },
+  "Spilt Sewage": { icon: "☣", word: "Sewage", short: "-2 rush" },
+  "No More Disgusting Than Usual": { icon: "☁", word: "Usual" },
+  "It's Getting Warm": { icon: "♨", word: "Warm", short: SLIPPERY },
+  "Underground Heatwave": { icon: "♨", word: "Heatwave", short: "players may faint" },
 };
 
 export function weatherSummary(weather: Weather): {

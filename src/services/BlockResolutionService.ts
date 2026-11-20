@@ -1,6 +1,6 @@
 import { type Player } from "../types/Player";
 import { type IRNGService } from "./rng/RNGService";
-import { GameConfig } from "../config/GameConfig";
+import { isStandableSquare } from "../game/rules/pitchSquares";
 
 export type BlockResultType =
   | "both-down"
@@ -139,7 +139,7 @@ export class BlockResolutionService {
     defenderPos: { x: number; y: number }
   ): { x: number; y: number }[] {
     return this.pushCandidates(attackerPos, defenderPos).filter((pos) =>
-      this.isOnPitch(pos)
+      isStandableSquare(pos)
     );
   }
 
@@ -172,15 +172,6 @@ export class BlockResolutionService {
     ];
   }
 
-  private isOnPitch(pos: { x: number; y: number }): boolean {
-    return (
-      pos.x >= 0 &&
-      pos.x < GameConfig.PITCH_WIDTH &&
-      pos.y >= 0 &&
-      pos.y < GameConfig.PITCH_HEIGHT
-    );
-  }
-
   public getPushOptions(
     attackerPos: { x: number; y: number },
     defenderPos: { x: number; y: number },
@@ -190,13 +181,13 @@ export class BlockResolutionService {
     tier: "open" | "chain" | "crowd";
   } {
     const raw = this.pushCandidates(attackerPos, defenderPos);
-    const candidates = raw.filter((p) => this.isOnPitch(p));
+    const candidates = raw.filter((p) => isStandableSquare(p));
 
     const unoccupied = candidates.filter((p) => !isOccupied(p.x, p.y));
     if (unoccupied.length > 0) return { options: unoccupied, tier: "open" };
 
-    const offPitch = raw.filter((p) => !this.isOnPitch(p));
-    if (offPitch.length > 0) return { options: offPitch, tier: "crowd" };
+    const edges = raw.filter((p) => !isStandableSquare(p));
+    if (edges.length > 0) return { options: edges, tier: "crowd" };
 
     return {
       options: candidates.filter((p) => isOccupied(p.x, p.y)),
@@ -213,7 +204,8 @@ export class BlockResolutionService {
       for (let dy = -1; dy <= 1; dy++) {
         if (dx === 0 && dy === 0) continue;
         const pos = { x: pushedPos.x + dx, y: pushedPos.y + dy };
-        if (this.isOnPitch(pos) && !isOccupied(pos.x, pos.y)) squares.push(pos);
+        if (isStandableSquare(pos) && !isOccupied(pos.x, pos.y))
+          squares.push(pos);
       }
     }
     return squares;

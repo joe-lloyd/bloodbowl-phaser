@@ -32,7 +32,7 @@ export function ComputerTeamBrowser() {
   );
   const entries = useMemo(
     () =>
-      getComputerTeamTemplates(ruleset).map((template) => ({
+      getComputerTeamTemplates({ ruleset }).map((template) => ({
         template,
         preview: createComputerTeamFromTemplate(template.id, { ruleset }),
       })),

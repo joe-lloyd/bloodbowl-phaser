@@ -58,7 +58,7 @@ async function walkOntoTrapdoor(game: HeadlessGame) {
 
 describe("Trapdoors", () => {
   it("sit in the inner Wide Zone row of each half", () => {
-    expect(TRAPDOOR_SQUARES).toEqual([
+    expect(TRAPDOOR_SQUARES.squares).toEqual([
       { x: 5, y: 1 },
       { x: 14, y: 9 },
     ]);

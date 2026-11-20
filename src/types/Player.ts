@@ -36,6 +36,7 @@ export const InjuryType = {
   STAT_DECREASE_MA: "-1 MA",
   STAT_DECREASE_ST: "-1 ST",
   STAT_DECREASE_AG: "-1 AG",
+  STAT_DECREASE_PA: "-1 PA",
   STAT_DECREASE_AV: "-1 AV",
   DEAD: "Dead",
 } as const;
@@ -82,6 +83,11 @@ export interface Player {
 
   plagueRiddenUsed?: boolean;
   gridPosition?: {
+    x: number;
+    y: number;
+  };
+
+  sewerPit?: {
     x: number;
     y: number;
   };

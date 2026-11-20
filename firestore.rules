@@ -384,13 +384,17 @@ service cloud.firestore {
 
     function validCompetitionRules() {
       return request.resource.data.get('ruleset', 'gw-2025')
-        in ['gw-2025', 'naf-sevens-2026-09-26'];
+          in ['gw-2025', 'naf-sevens-2026-09-26']
+        && request.resource.data.get('gameType', 'sevens')
+          in ['sevens', 'gutter-bowl', 'street-bowl', 'beach-bowl'];
     }
 
     function competitionRulesKept() {
       return validCompetitionRules()
         && request.resource.data.get('ruleset', 'gw-2025')
-          == resource.data.get('ruleset', 'gw-2025');
+          == resource.data.get('ruleset', 'gw-2025')
+        && request.resource.data.get('gameType', 'sevens')
+          == resource.data.get('gameType', 'sevens');
     }
 
     // While sign-ups are open any coach may add one team of their own, or take

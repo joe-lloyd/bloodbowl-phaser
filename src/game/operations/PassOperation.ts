@@ -1,3 +1,4 @@
+import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { GameOperation } from "../core/GameOperation";
 import { GameConfig } from "../../config/GameConfig";
 import type { FlowContext } from "../core/GameFlowManager";
@@ -9,10 +10,13 @@ import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
-import { weatherEffects } from "../rules/weather";
+import { lostBallHandling, passModifier } from "../kickoff/ballConditions";
 import { interceptModifiers } from "../rules/rollPreview";
 import { ArmourOperation } from "./ArmourOperation";
 import { isOnPitch } from "../controllers/BallMovementController";
+import { settleOffObstacle } from "../rules/ballFlight";
+import { isWallSquare } from "../rules/pitchSquares";
+import { ricochetDrop, ricochetPath } from "../rules/ricochetPass";
 import { holdsMeasure, offerMeasure } from "../inducements/matchInducements";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
 import {
@@ -101,7 +105,9 @@ function scatterOf(
   const scatterPath = accurate ? undefined : passController.scatterPass(target);
   return {
     scatterPath,
-    landingPos: scatterPath?.[scatterPath.length - 1] ?? target,
+    landingPos: passController.settleLanding(
+      scatterPath?.[scatterPath.length - 1] ?? target
+    ),
   };
 }
 
@@ -332,7 +338,9 @@ export class PassOperation extends GameOperation {
       hailMary: this.hailMary,
       ...(targetPlayer === undefined ? {} : { targetPlayer: targetPlayer }),
       marking: markingOpponents,
-      modifiers: weatherEffects(gameService.getState().weather).passingAbility,
+      modifiers:
+        passModifier(gameService.getState(), passRange.type) +
+        souvenirModifier(gameService.getState(), passer.id, "pass"),
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -443,19 +451,27 @@ export class PassOperation extends GameOperation {
         return;
       }
 
-      const { scatterPath, landingPos } = scatterOf(
-        passController,
-        target,
-        result.accurate
-      );
-      await fly(landingPos, scatterPath);
+      if (isWallSquare(target)) {
+        await this.ricochet(context, passer, {
+          wall: target,
+          accurate: result.accurate,
+          fly,
+        });
+      } else {
+        const { scatterPath, landingPos } = scatterOf(
+          passController,
+          target,
+          result.accurate
+        );
+        await fly(landingPos, scatterPath);
 
-      this.land(context, passer, landingPos, {
-        scatterPath,
-        accurate: result.accurate,
-        setPiece,
-        opponents,
-      });
+        this.land(context, passer, landingPos, {
+          scatterPath,
+          accurate: result.accurate,
+          setPiece,
+          opponents,
+        });
+      }
     }
 
     context.flowManager.add(
@@ -464,6 +480,57 @@ export class PassOperation extends GameOperation {
         giveAndGoExempt(passer, result.passType)
       )
     );
+  }
+
+  private async ricochet(
+    context: FlowContext,
+    passer: Player,
+    shot: {
+      wall: Square;
+      accurate: boolean;
+      fly: (to: Square, path?: Square[]) => Promise<void>;
+    }
+  ): Promise<void> {
+    const { gameService } = context;
+    const dice = gameService.getDiceController();
+    const from = passer.gridPosition ?? shot.wall;
+    const flight = ricochetPath(dice, { ...shot, from });
+    const { wall, path, last } = flight;
+    await shot.fly(last, [wall, ...path]);
+    if (await this.catchOnTheWay(context, passer, path)) return;
+    const scattered = ricochetDrop(dice, flight);
+    if (!isOnPitch(scattered)) {
+      gameService.throwInBall(last, scattered);
+      return;
+    }
+    this.land(context, passer, settleOffObstacle(dice, scattered), {
+      scatterPath: undefined,
+      accurate: false,
+      setPiece: false,
+      opponents: gameService.getOpponents(passer.teamId),
+    });
+  }
+
+  private async catchOnTheWay(
+    context: FlowContext,
+    passer: Player,
+    path: readonly Square[]
+  ): Promise<boolean> {
+    const { gameService } = context;
+    const catcher = path
+      .map((square) => gameService.getPlayerAt(square.x, square.y))
+      .find((player) => !!player && hasTackleZone(player));
+    if (!catcher?.gridPosition) return false;
+    const { x, y } = catcher.gridPosition;
+    gameService.setBallPosition(x, y);
+    await context.flowManager.runToRest(
+      new CatchOperation(
+        catcher.id,
+        { origin: "pass" },
+        { passerId: passer.id, passerTeamId: passer.teamId, accurate: false }
+      )
+    );
+    return true;
   }
 
   private land(
@@ -490,7 +557,7 @@ export class PassOperation extends GameOperation {
       const lastInBounds = path[path.length - 2];
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
       if (!lastInBounds) throw new Error("Pass left the pitch without a path");
-      gameService.throwInBall(lastInBounds);
+      gameService.throwInBall(lastInBounds, landingPos);
     } else {
       gameService.setBallPosition(landingPos.x, landingPos.y);
 
@@ -638,12 +705,13 @@ export class PassOperation extends GameOperation {
             "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
+      const lostBall = lostBallHandling(gameService.getState());
       return {
         playerId: e.playerId,
         playerName: interceptor.playerName,
-        base,
+        base: base + lostBall,
         marking,
-        modifier: total,
+        modifier: total + lostBall,
       };
     });
 
@@ -659,7 +727,8 @@ export class PassOperation extends GameOperation {
 
     const outcome = passController.attemptInterception(
       interceptor,
-      chosen.base,
+      chosen.base +
+        souvenirModifier(gameService.getState(), interceptor.id, "intercept"),
       chosen.marking
     );
 

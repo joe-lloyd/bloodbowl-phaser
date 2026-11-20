@@ -1,3 +1,4 @@
+import type { GameType } from "../../game/variants/gameTypes";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { RosterName } from "../../types/Team";
@@ -33,6 +34,8 @@ export interface RunOptions {
   strict: boolean;
 
   html: boolean;
+
+  gameType?: GameType;
 }
 
 interface MatchSummary {
@@ -82,6 +85,7 @@ export async function runBatch(options: RunOptions): Promise<number> {
           rosters,
           coaches,
           ...(options.maxCommands === undefined ? {} : { maxCommands: options.maxCommands }),
+          ...(options.gameType === undefined ? {} : { gameType: options.gameType }),
         });
       } catch (error) {
         findings.push(runnerThrew(error, seed));

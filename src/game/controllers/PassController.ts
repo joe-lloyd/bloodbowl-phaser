@@ -5,6 +5,8 @@ import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import type { BallMovementController } from "./BallMovementController";
 import type { DiceController } from "./DiceController";
+import { isOnPitch, rulerCrossesStall } from "../rules/pitchSquares";
+import { settleOffObstacle } from "../rules/ballFlight";
 import { withRerollOffer } from "../skills";
 import { GameConfig } from "../../config/GameConfig";
 
@@ -91,6 +93,15 @@ export class PassController {
     this.diceController = diceController;
   }
 
+  public settleLanding(square: { x: number; y: number }): {
+    x: number;
+    y: number;
+  } {
+    return isOnPitch(square)
+      ? settleOffObstacle(this.diceController, square)
+      : square;
+  }
+
   public static rangeValue(
     from: { x: number; y: number },
     to: { x: number; y: number }
@@ -110,7 +121,10 @@ export class PassController {
     if (hailMary) return PassController.PASS_RANGES[3];
     const value = PassController.rangeValue(from, to);
 
-    return PassController.PASS_RANGES[value ?? 3];
+    const range = PassController.PASS_RANGES[value ?? 3];
+    return rulerCrossesStall(from, to)
+      ? { ...range, modifier: range.modifier - 1 }
+      : range;
   }
 
   private calculatePassModifiers(

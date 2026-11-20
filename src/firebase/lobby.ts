@@ -20,11 +20,13 @@ import {
 } from "firebase/firestore";
 import { readEach } from "../boundary/readEach";
 import { getDb } from "./config";
+import { teamPlaysGameType } from "../game/rules/rosterLegality";
 import { type Team } from "../types/Team";
 import { type GameSnapshot } from "../headless/serialization";
 import { type RNGState } from "../services/rng/RNGService";
 import { type MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { type CompetitionContext } from "../competition/types";
+import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
 import { OWN_SLOW_MS, type LinkState, type OwnLink } from "./connection";
 import { abandonedListings } from "../social/openGames";
 
@@ -48,6 +50,8 @@ export interface LobbySettings {
   timeoutBankMs: number;
 
   progressionEnabled: boolean;
+
+  gameType?: GameType;
 }
 
 export interface TimerState {
@@ -247,7 +251,13 @@ export async function createLobby(
     status: "lobby",
 
     settings: fixture
-      ? { ...DEFAULT_SETTINGS, progressionEnabled: true }
+      ? {
+          ...DEFAULT_SETTINGS,
+          progressionEnabled: true,
+          ...(fixture.context.gameType === undefined
+            ? {}
+            : { gameType: fixture.context.gameType }),
+        }
       : DEFAULT_SETTINGS,
     players: {
       [hostUid]: {
@@ -297,7 +307,8 @@ async function seatGuest(
   const snapshot = await tx.get(lobbyRef(code));
   if (!snapshot.exists()) throw new Error("No game found with that code.");
   const lobby = readLobby(snapshot.data());
-  if (lobby.status !== "lobby") throw new Error("That game has already started.");
+  if (lobby.status !== "lobby")
+    throw new Error("That game has already started.");
   if (lobby.guestUid && lobby.guestUid !== guest.uid)
     throw new Error("That game is already full.");
   if (lobby.reservedFor && lobby.reservedFor !== guest.uid)
@@ -451,26 +462,39 @@ export async function updateSettings(
   await updateDoc(lobbyRef(code), { settings: firebaseDocument(settings) });
 }
 
+export function lobbyGameType(lobby: LobbyDoc): GameType {
+  return (
+    lobby.competitionContext?.gameType ??
+    lobby.settings.gameType ??
+    DEFAULT_GAME_TYPE
+  );
+}
+
 export function canStart(lobby: LobbyDoc): boolean {
   if (lobby.status !== "lobby" || !lobby.guestUid) return false;
   const everyone = [lobby.hostUid, lobby.guestUid].map(
     (uid) => lobby.players[uid]
   );
-  return everyone.every((p) => p?.team && p.ready) && seedReady(lobby);
+  const gameType = lobbyGameType(lobby);
+  return (
+    everyone.every(
+      (p) => p?.team && p.ready && teamPlaysGameType(p.team, gameType)
+    ) && seedReady(lobby)
+  );
 }
 
-export async function startMatch({
-  code,
-  settings,
-  hostUid,
-  guestUid,
-}: {
-  code: string;
+interface MatchStartSeats {
   settings: LobbySettings;
   hostUid: string;
   guestUid: string;
-}): Promise<void> {
-  const timer: TimerState = {
+}
+
+function startingClock({
+  settings,
+  hostUid,
+  guestUid,
+}: MatchStartSeats): TimerState {
+  return {
     deadline: null,
     pausedBy: null,
     pausedAt: null,
@@ -479,7 +503,36 @@ export async function startMatch({
       [guestUid]: settings.timeoutBankMs,
     },
   };
-  await updateDoc(lobbyRef(code), { status: "active", timer });
+}
+
+export async function startMatch({
+  code,
+  ...seats
+}: MatchStartSeats & { code: string }): Promise<void> {
+  await updateDoc(lobbyRef(code), {
+    status: "active",
+    timer: startingClock(seats),
+  });
+}
+
+export async function startLobbyMatch(code: string): Promise<void> {
+  await runTransaction(getDb(), async (tx) => {
+    const snapshot = await tx.get(lobbyRef(code));
+    if (!snapshot.exists()) throw new Error("No game found with that code.");
+    const lobby = readLobby(snapshot.data());
+    if (!lobby.guestUid || !canStart(lobby))
+      throw new Error(
+        "Both coaches need a ready team that meets this game type's rules."
+      );
+    tx.update(lobbyRef(code), {
+      status: "active",
+      timer: startingClock({
+        settings: lobby.settings,
+        hostUid: lobby.hostUid,
+        guestUid: lobby.guestUid,
+      }),
+    });
+  });
 }
 
 export function nextTurnDeadline(

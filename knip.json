@@ -28,7 +28,8 @@
         "scripts/coach/policy-study/run.ts",
         "e2e/fullgame/brain.ts",
         "scripts/discover-block-seeds.ts",
-        "scripts/page-shots/page-shots.e2e.ts"
+        "scripts/page-shots/page-shots.e2e.ts",
+        "scripts/sprites/venue_layouts.ts"
       ]
     },
     "functions": {

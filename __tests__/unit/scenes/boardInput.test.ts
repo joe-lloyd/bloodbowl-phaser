@@ -11,7 +11,7 @@ function fakeScene() {
   const canvas = {};
   const scene = {
     isSetupActive: true,
-    stadium: { width: 100, height: 100 },
+    venue: { width: 100, height: 100 },
     add: { rectangle: () => chain },
     input: {
       on: (event: string, handler: (pointer: unknown) => void) =>

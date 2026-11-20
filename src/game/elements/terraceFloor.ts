@@ -5,8 +5,20 @@ import {
   type staffTerraceLayout,
 } from "../presentation/sidelineLayout";
 import type { BoardProjection } from "../presentation/sidelineRoutes";
+import { activeLayout } from "../variants/activeMatch";
+import type { Surface } from "../variants/pitchLayouts";
 
 type TerraceLayout = ReturnType<typeof staffTerraceLayout>;
+
+const TERRACE_FLOORS: Record<
+  Surface,
+  { base: number; tiles: [number, number] }
+> = {
+  grass: { base: 0x62462d, tiles: [0x79593b, 0x705135] },
+  cobbles: { base: 0x2c2722, tiles: [0x544d45, 0x4a443d] },
+  sand: { base: 0x6e2f25, tiles: [0x9a3f30, 0xcbb994] },
+  sewer: { base: 0x22281f, tiles: [0x414a3e, 0x394036] },
+};
 
 export function terraceFloor(
   scene: Phaser.Scene,
@@ -15,8 +27,9 @@ export function terraceFloor(
 ) {
   const { kit, project } = options;
   const corners = staffTerraceCorners(layout).map((p) => project(p.x, p.y));
+  const style = TERRACE_FLOORS[activeLayout().surface];
   const floor = scene.add.graphics().setDepth(5);
-  floor.fillStyle(0x62462d, 1).fillPoints(corners, true);
+  floor.fillStyle(style.base, 1).fillPoints(corners, true);
   for (let col = 0; col < layout.width; col++) {
     for (let row = 0; row < 3; row++) {
       const tile = (
@@ -28,7 +41,7 @@ export function terraceFloor(
         ] as const
       ).map(([x, y]) => project(layout.x + x, layout.y + y * layout.direction));
       floor
-        .fillStyle((col + row) % 2 ? 0x705135 : 0x79593b, 1)
+        .fillStyle(style.tiles[(col + row) % 2] ?? style.base, 1)
         .fillPoints(tile, true);
     }
   }

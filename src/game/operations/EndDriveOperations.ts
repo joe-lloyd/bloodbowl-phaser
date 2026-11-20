@@ -1,3 +1,5 @@
+import { heatwaveCasualties } from "../kickoff/driveHazards";
+import type { IGameService } from "../../services/interfaces/IGameService";
 import {
   whenMomentsComplete,
   hasPendingMoments,
@@ -6,11 +8,10 @@ import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SubPhase } from "../../types/GameState";
-import { SkillType, hasSkill } from "../../types/Skills";
-import { type Player, PlayerStatus } from "../../types/Player";
+import { type Player } from "../../types/Player";
 import { type Team } from "../../types/Team";
 import { getDriveEffects } from "../kickoff/driveEffects";
-import { resolveSendOff } from "./refereeCall";
+import { secretWeaponsAfterDrive } from "./secretWeaponsAfterDrive";
 import { DiceController } from "../controllers/DiceController";
 import { rollYouDopeCollapse } from "../inducements/matchInducements";
 import { rollOff } from "../rules/extraTime";
@@ -46,11 +47,6 @@ function activeTeamFirst(gameService: FlowContext["gameService"]): Player[] {
     ? [...activeTeam.players, ...gameService.getOpponents(activeTeam.id)]
     : [];
 }
-
-const secretWeaponInPlay = (player: Player): boolean =>
-  hasSkill(player.skills, SkillType.SECRET_WEAPON) &&
-  player.status !== PlayerStatus.RESERVE &&
-  player.status !== PlayerStatus.REMOVED;
 
 function youDopeCollapse(context: FlowContext): void {
   const { gameService, eventBus } = context;
@@ -119,25 +115,9 @@ export class ClearPitchOperation extends GameOperation {
     });
 
     const players = activeTeamFirst(gameService);
-    for (const player of players) {
-      if (secretWeaponInPlay(player)) {
-        eventBus.emit(GameEventNames.SkillTriggered, {
-          playerId: player.id,
-          skill: SkillType.SECRET_WEAPON,
-          effect: "Secret Weapon: Sent-off at the end of the Drive",
-        });
+    await secretWeaponsAfterDrive(context, players);
 
-        await resolveSendOff(context, player, "secret-weapon");
-      }
-    }
-
-    const fainted =
-      this.anotherDrive && gameService.getState().weather === "Sweltering Heat"
-        ? swelteringHeat(
-            gameService.getTeams(),
-            gameService.getDiceController()
-          )
-        : [];
+    const fainted = this.anotherDrive ? driveEndFaints(gameService) : [];
 
     if (this.anotherDrive) youDopeCollapse(context);
 
@@ -156,6 +136,15 @@ export class ClearPitchOperation extends GameOperation {
     }
     assertSinglePlayerLocation(players, "ClearPitchOperation");
   }
+}
+
+function driveEndFaints(gameService: IGameService): Player[] {
+  const dice = gameService.getDiceController();
+  const teams = gameService.getTeams();
+  const weather = gameService.getState().weather;
+  if (weather === "Sweltering Heat") return swelteringHeat(teams, dice);
+  if (weather !== "Underground Heatwave") return [];
+  return heatwaveCasualties(teams.flatMap((team) => team.players), dice);
 }
 
 function swelteringHeat(teams: Team[], dice: DiceController): Player[] {

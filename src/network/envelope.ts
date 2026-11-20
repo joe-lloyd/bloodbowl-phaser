@@ -5,7 +5,7 @@ import { type RNGState } from "../services/rng/RNGService";
 import { type MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { type StepPrompt } from "../types/events";
 
-export const PROTOCOL_VERSION = 15;
+export const PROTOCOL_VERSION = 16;
 
 export interface HelloPayload {
   protocolVersion: number;

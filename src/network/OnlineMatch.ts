@@ -29,7 +29,15 @@ import { NetworkedGameService } from "./NetworkedGameService";
 import { decisionOwner } from "./OwnershipGate";
 import { possessive } from "../game/managers/TurnManager";
 import { PROTOCOL_VERSION } from "./envelope";
-import { type LobbyDoc, persistMatch } from "../firebase/lobby";
+import {
+  type LobbyDoc,
+  lobbyGameType,
+  persistMatch,
+} from "../firebase/lobby";
+import {
+  seededRandom,
+  startingFormat,
+} from "../game/variants/startingFormat";
 import { type AuthUser } from "../firebase/auth";
 import { fixturePaysWinnings } from "../game/rules/winnings";
 import {
@@ -207,7 +215,11 @@ function restoreLobbyTeams(saved: LobbyDoc, teams: Team[]): void {
     }
  }
 
-function startingState(lobby: LobbyDoc, team1: Team, team2: Team) {
+function startingState(
+  lobby: LobbyDoc,
+  [team1, team2]: [Team, Team],
+  seed: number
+) {
   const saved = lobby.snapshot ? lobby : null;
   if (saved?.snapshot) {
     restoreLobbyTeams(saved, [team1, team2]);
@@ -219,7 +231,7 @@ function startingState(lobby: LobbyDoc, team1: Team, team2: Team) {
         lobby.competitionContext?.competitionType
       ),
       pregameInducements: true,
-    } }
+    }, ...startingFormat(lobbyGameType(lobby), seededRandom(seed)) }
   );
   if (lobby.competitionContext?.knockout) initialState.knockout = true;
   return { saved, initialState };
@@ -316,7 +328,11 @@ class OnlineSession {
     this.sides = lobbySides(options.lobby, options.user);
     this.transport = options.transport ?? new FirestoreTransport(options.lobby.code, options.user.uid);
     const { team1, team2 } = this.sides;
-    const { saved, initialState } = startingState(options.lobby, team1, team2);
+    const { saved, initialState } = startingState(
+      options.lobby,
+      [team1, team2],
+      options.seed
+    );
     const resume = resumeParts(saved);
     this.container = this.initializeServices(initialState, resume);
     this.engine = this.container.engineGameService;

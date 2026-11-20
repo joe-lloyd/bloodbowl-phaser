@@ -1,4 +1,11 @@
-import { HeadlessGame } from "../headless/HeadlessGame";
+import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
+import { gameTypeRules } from "../game/variants/gameTypeRules";
+import {
+  formatOf,
+  keepMatchFormat,
+  type MatchFormat,
+} from "../game/variants/activeMatch";
+import { HeadlessGame, tick } from "../headless/HeadlessGame";
 import { stabilizeIds } from "../headless/createHeadlessGame";
 import {
   type CommandResponse,
@@ -16,8 +23,10 @@ import { type Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
 import {
   Inducement,
+  type InducementInventoryEntry,
   buildSeventsInducementProfile,
 } from "../types/Inducements";
+import { startingFreeInducements } from "../game/inducements/catalog";
 import { createCoachRng } from "./rng";
 
 export type Lineup = "test-team" | "sevens-lineup";
@@ -64,6 +73,8 @@ export interface MatchRecording {
   lineup?: Lineup;
 
   inducements?: boolean;
+
+  matchFormat?: MatchFormat;
   steps: RecordedStep[];
   final: { phase: string; score: [number, number]; hash: string };
   findings: Finding[];
@@ -196,6 +207,8 @@ export interface MatchSpec {
   inducements?: boolean;
 
   game?: HeadlessGame;
+
+  gameType?: GameType;
 }
 
 const DEFAULT_MAX_COMMANDS = 6000;
@@ -204,7 +217,8 @@ export function createSimGame(
   seed: number,
   rosters: [RosterName, RosterName],
   rerolls: number,
-  lineup: Lineup = "test-team"
+  lineup: Lineup = "test-team",
+  format: GameType | MatchFormat = DEFAULT_GAME_TYPE
 ): HeadlessGame {
   const build =
     lineup === "sevens-lineup" ? createLineupTeam : TeamFactory.createTestTeam;
@@ -217,20 +231,62 @@ export function createSimGame(
     team1,
     team2,
     startingPhase: GamePhase.SETUP,
+    format: typeof format === "string" ? seededFormat(format, seed) : format,
   });
 }
 
+function seededFormat(gameType: GameType, seed: number): MatchFormat {
+  const { venues } = gameTypeRules(gameType);
+  return {
+    gameType,
+    venue: venues[Math.abs(seed) % venues.length] ?? venues[0],
+  };
+}
+
+const SIM_INDUCEMENTS: Record<
+  GameType,
+  readonly (readonly [Inducement, number])[]
+> = {
+  sevens: [
+    [Inducement.PRAYERS_TO_NUFFLE, 2],
+    [Inducement.DESPERATE_MEASURES, 5],
+  ],
+  "street-bowl": [
+    [Inducement.MAGIC_POTION, 2],
+    [Inducement.HALFLING_MASTER_CHEF, 1],
+  ],
+  "beach-bowl": [
+    [Inducement.SOUVENIR, 3],
+    [Inducement.BLITZERS_BEST_KEGS, 1],
+    [Inducement.HALFLING_MASTER_CHEF, 1],
+  ],
+  "gutter-bowl": [
+    [Inducement.LESSER_MAGIC_POTION, 2],
+    [Inducement.SUPERIOR_MAGIC_POTION, 1],
+    [Inducement.SAWBONES, 1],
+    [Inducement.SNACK_STAND, 1],
+    [Inducement.NOVICE_WIZARD, 1],
+  ],
+};
+
+function simGameType(game: HeadlessGame): GameType {
+  return game.ctx.gameService.getState().gameType ?? DEFAULT_GAME_TYPE;
+}
+
+export async function prepareSimInducements(
+  game: HeadlessGame,
+  sold: boolean
+): Promise<void> {
+  if (sold) return grantSimInducements(game);
+  if (startingFreeInducements(simGameType(game)).length === 0) return;
+  await commitSimInducements(game, []);
+}
+
 export async function grantSimInducements(game: HeadlessGame): Promise<void> {
-  game.ctx.gameService.commitInducements(
-    buildSeventsInducementProfile({ advancedLeague: false }),
-    {},
+  await commitSimInducements(
+    game,
     [game.ctx.team1.id, game.ctx.team2.id].flatMap((ownerTeamId) =>
-      (
-        [
-          [Inducement.PRAYERS_TO_NUFFLE, 2],
-          [Inducement.DESPERATE_MEASURES, 5],
-        ] as const
-      ).map(([inducement, quantity]) => ({
+      SIM_INDUCEMENTS[simGameType(game)].map(([inducement, quantity]) => ({
         inducement,
         ownerTeamId,
         quantity,
@@ -241,10 +297,18 @@ export async function grantSimInducements(game: HeadlessGame): Promise<void> {
       }))
     )
   );
+}
 
-  for (let i = 0; i < 20; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
+async function commitSimInducements(
+  game: HeadlessGame,
+  inventory: InducementInventoryEntry[]
+): Promise<void> {
+  game.ctx.gameService.commitInducements(
+    buildSeventsInducementProfile({ advancedLeague: false }),
+    {},
+    inventory
+  );
+  for (let i = 0; i < 20; i++) await tick();
 }
 
 function finding(
@@ -324,8 +388,15 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   const { rerolls, coachSeed, maxCommands, inducements } = matchSettings(spec);
   const game =
     spec.game ??
-    createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup");
-  if (inducements) await grantSimInducements(game);
+    createSimGame(
+      spec.seed,
+      spec.rosters,
+      rerolls,
+      "sevens-lineup",
+      spec.gameType
+    );
+  const format = formatOf(game.ctx.gameService.getState());
+  await prepareSimInducements(game, inducements);
   const rng = createCoachRng(coachSeed);
   const steps: RecordedStep[] = [];
   const findings: Finding[] = [];
@@ -345,6 +416,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   ) => findings.push(finding(kind, key, message, steps.length - 1, snapshot));
 
   while (steps.length < maxCommands) {
+    keepMatchFormat(format);
     const snapshot = game.snapshot();
     if (snapshot.phase === GamePhase.GAME_OVER) break;
     kickingTeamId = kickerAtSetup(snapshot, kickingTeamId);
@@ -376,7 +448,9 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
 
     for (const command of candidate.commands) {
       const before = game.snapshot();
+      keepMatchFormat(format);
       const response = await game.execute(command);
+      keepMatchFormat(format);
       countEvents(stats, response.events, team, teamIndex);
       steps.push(
         recordedStep(command, response, team, candidate.label, choice.note)
@@ -431,6 +505,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     rerolls,
     lineup: "sevens-lineup",
     inducements,
+    ...(format.gameType === DEFAULT_GAME_TYPE ? {} : { matchFormat: format }),
     steps,
     final: summarize(final),
     findings,

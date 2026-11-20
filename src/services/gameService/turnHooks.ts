@@ -1,3 +1,4 @@
+import { rollSewerPits } from "./sewerPits";
 import type { Player } from "@/types/Player";
 import { GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
@@ -11,7 +12,15 @@ import {
 import { foldTurnEnding, type TurnEndingContext } from "@/game/skills";
 import { holdsSportsWizard } from "@/game/inducements/matchInducements";
 import { CastSportsWizardOperation } from "@/game/inducements/sportsWizard";
+import {
+  CastNoviceWizardOperation,
+  holdsNoviceWizard,
+} from "@/game/inducements/noviceWizard";
 import { getDriveEffects } from "@/game/kickoff/driveEffects";
+import {
+  WeatherTurnEndOperation,
+  weatherActsAtTurnEnd,
+} from "@/game/kickoff/driveHazards";
 import type { GameParts } from "./parts";
 import { whenSettled } from "./activation";
 
@@ -40,7 +49,7 @@ export function sweepChomped(parts: GameParts): void {
   }
 }
 
-export function castSportsWizards(
+function castSportsWizards(
   parts: GameParts,
   endingTeamId: string
 ): Promise<void> | null {
@@ -50,10 +59,25 @@ export function castSportsWizards(
   const casters = [endingTeamId, other].filter((teamId) =>
     holdsSportsWizard(parts.state, teamId)
   );
-  if (casters.length === 0) return null;
+  const novice = holdsNoviceWizard(parts.state, endingTeamId);
+  if (casters.length === 0 && !novice) return null;
+  if (novice) parts.flowManager.add(new CastNoviceWizardOperation(endingTeamId));
   for (const teamId of casters) {
     parts.flowManager.add(new CastSportsWizardOperation(teamId));
   }
+  return whenSettled(parts).then(() => undefined);
+}
+
+export function turnEndHazards(
+  parts: GameParts,
+  endingTeamId: string
+): Promise<void> | null {
+  const weather =
+    parts.state.phase === GamePhase.PLAY && weatherActsAtTurnEnd(parts.state);
+  if (weather) parts.flowManager.add(new WeatherTurnEndOperation());
+  const pits = rollSewerPits(parts);
+  const wizards = castSportsWizards(parts, endingTeamId);
+  if (wizards || !(weather || pits)) return wizards;
   return whenSettled(parts).then(() => undefined);
 }
 

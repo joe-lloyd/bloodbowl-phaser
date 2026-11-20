@@ -18,21 +18,26 @@ import { type Team } from "@/types/Team";
 import { type Player, PlayerStatus } from "@/types/Player";
 import type { DiceController } from "../controllers/DiceController";
 import type { WeatherManager } from "../managers/WeatherManager";
-import { GameConfig } from "@/config/GameConfig";
+import { isStandableSquare } from "../rules/pitchSquares";
 import { SetupValidator } from "../validators/SetupValidator";
 import {
   INTERACTIVE_KICKOFF_EVENTS,
-  KICKOFF_EVENT_MEANING,
-  kickoffEventForRoll,
   KICKOFF_TABLE_ROLL,
   KickoffEvent,
   type KickoffEventOutcome,
   grantEffect,
+  isChargeStepEvent,
   isOneSquareMoveEvent,
   kickoffEventOwner,
   isOpenKickoffPlayer,
 } from "./kickoffEvents";
+import {
+  activeKickoffTableId,
+  kickoffEventForRoll,
+  kickoffEventMeaning,
+} from "./kickoffTables";
 import { kickoffEventResolvers } from "./kickoffResolvers";
+import type { GameFlowManager } from "../core/GameFlowManager";
 
 export interface ChargeBudget {
   blitz: number;
@@ -63,6 +68,15 @@ export interface KickoffEventStepState {
 
 const KICKOFF_RESULT = "kickoff-result";
 
+function chargeBudget(event: KickoffEvent): ChargeBudget {
+  if (event === KickoffEvent.QUICK_ATTACK) {
+    return { blitz: 0, throwTeammate: 0, kickTeammate: 0 };
+  }
+  const kickTeammate =
+    event === KickoffEvent.CHARGE && activeKickoffTableId() === "sevens" ? 1 : 0;
+  return { blitz: 1, throwTeammate: 1, kickTeammate };
+}
+
 const ROLL_READY_GUARD_MS = 30 * 60_000;
 
 const TABLE_SHOWN_GUARD_MS = DIE_LANDING_TIMEOUT_MS + 4000;
@@ -78,6 +92,7 @@ team1: Team;
 team2: Team;
 diceController: DiceController;
 weatherManager: WeatherManager;
+flowManager: GameFlowManager;
 callbacks: {
       getTurnNumber: (teamId: string) => number;
       moveTurnMarkers: (delta: number) => void;
@@ -89,7 +104,7 @@ export class KickoffEventManager {
   private step: KickoffEventStepState | null = null;
   private stepResolver: StepResolver | null = null;
 
-  private weatherScatterPending = false;
+  private weatherScatterPending = 0;
   private lastEvent: KickoffEvent | null = null;
 
   private resolving = false;
@@ -104,7 +119,7 @@ export class KickoffEventManager {
   private team2: Team;
   private diceController: DiceController;
   private readonly delay: DelayProvider;
-  constructor({ eventBus, state, team1, team2, diceController, weatherManager, callbacks, delay }: KickoffManagerOptions) {
+  constructor({ eventBus, state, team1, team2, diceController, weatherManager, flowManager, callbacks, delay }: KickoffManagerOptions) {
     this.eventBus = eventBus;
     this.state = state;
     this.team1 = team1;
@@ -116,10 +131,11 @@ export class KickoffEventManager {
       state,
       diceController,
       weatherManager,
+      flowManager,
       getTurnNumber: callbacks.getTurnNumber,
       moveTurnMarkers: callbacks.moveTurnMarkers,
-      onWeatherScatter: () => {
-        this.weatherScatterPending = true;
+      onWeatherScatter: (squares) => {
+        this.weatherScatterPending = squares;
       },
       diceShown: () => this.diceShown(),
     });
@@ -155,8 +171,9 @@ export class KickoffEventManager {
 
     this.resolving = true;
     const { roll, event } = await this.revealTable(kickingTeam, receivingTeam);
-    const outcome: KickoffEventOutcome = { event, meaning: KICKOFF_EVENT_MEANING[event], perTeam: {} };
-    await this.resolvers[event]({ isTeam1Kicking, kickingTeam, receivingTeam, outcome });
+    const table = activeKickoffTableId();
+    const outcome: KickoffEventOutcome = { event, meaning: kickoffEventMeaning(event, table), perTeam: {} };
+    await this.resolvers[event]({ isTeam1Kicking, kickingTeam, receivingTeam, outcome, table });
     this.grantInteractiveEffect(outcome, kickingTeam, receivingTeam);
     this.state.kickoffResolution = { roll, event, meaning: outcome.meaning, outcome };
     this.resolving = false;
@@ -206,8 +223,15 @@ export class KickoffEventManager {
   private async resolveCoachStep(event: KickoffEvent, kickingTeam: Team, receivingTeam: Team): Promise<void> {
     if (!INTERACTIVE_KICKOFF_EVENTS.has(event) || event === KickoffEvent.HIGH_KICK) return;
     const ownerTeamId = kickoffEventOwner(event, kickingTeam.id, receivingTeam.id);
-    const selectionLimit = this.diceController.rollD3(`${event}: D3 + 1 players`, ownerTeamId) + 1;
-    await this.openStep({ event, teamId: ownerTeamId, selectionLimit });
+    await this.openStep({ event, teamId: ownerTeamId, selectionLimit: this.stepSize(event, ownerTeamId) });
+  }
+
+  private stepSize(event: KickoffEvent, ownerTeamId: string): number {
+    if (event === KickoffEvent.QUICK_ATTACK) return 1;
+    if (event === KickoffEvent.GET_READY_LADS) {
+      return this.stepPlayers(ownerTeamId).filter((player) => this.isOpen(player)).length;
+    }
+    return this.diceController.rollD3(`${event}: D3 + 1 players`, ownerTeamId) + 1;
   }
 
   private announceMoment(
@@ -264,9 +288,9 @@ export class KickoffEventManager {
     );
   }
 
-  public consumeWeatherScatterPending(): boolean {
+  public consumeWeatherScatterPending(): number {
     const pending = this.weatherScatterPending;
-    this.weatherScatterPending = false;
+    this.weatherScatterPending = 0;
     return pending;
   }
 
@@ -305,7 +329,7 @@ export class KickoffEventManager {
   private finishStep(skipped: boolean): void {
     if (!this.step) return;
     const { event, teamId } = this.step;
-    if (event === KickoffEvent.CHARGE) {
+    if (isChargeStepEvent(event)) {
       this.state.activePlayer = null;
       this.state.activeTeamId = this.chargePreviousActiveTeamId;
       this.chargePreviousActiveTeamId = null;
@@ -330,6 +354,11 @@ export class KickoffEventManager {
     return isOpenKickoffPlayer(player, opponents);
   }
 
+  private selectable(player: Player, event: KickoffEvent): boolean {
+    if (event !== KickoffEvent.QUICK_ATTACK) return this.isOpen(player);
+    return player.status === PlayerStatus.ACTIVE && !!player.gridPosition;
+  }
+
   private stepPlayers(teamId: string): Player[] {
     const team = teamId === this.team1.id ? this.team1 : this.team2;
     return team.players;
@@ -340,7 +369,7 @@ export class KickoffEventManager {
     const player = this.stepPlayers(this.step.teamId).find(
       (candidate) => candidate.id === playerId
     );
-    if (!player || !this.isOpen(player)) return false;
+    if (!player || !this.selectable(player, this.step.event)) return false;
     if (this.step.movedPlayerIds.includes(playerId)) return false;
     const selected = this.step.selectedPlayerIds;
     const index = selected.indexOf(playerId);
@@ -379,7 +408,7 @@ export class KickoffEventManager {
   }
 
   private isFreeDestination(playerId: string, x: number, y: number): boolean {
-    if (x < 0 || x >= GameConfig.PITCH_WIDTH || y < 0 || y >= GameConfig.PITCH_HEIGHT) return false;
+    if (!isStandableSquare({ x, y })) return false;
     return ![...this.team1.players, ...this.team2.players].some((other) => other.id !== playerId && other.gridPosition?.x === x && other.gridPosition.y === y);
   }
 
@@ -412,7 +441,7 @@ export class KickoffEventManager {
 
   public confirmStep(): boolean {
     if (!this.step) return false;
-    if (this.step.event === KickoffEvent.CHARGE) {
+    if (isChargeStepEvent(this.step.event)) {
       if (this.step.charge) return false;
       if (this.step.selectedPlayerIds.length === 0) {
         this.finishStep(true);
@@ -420,7 +449,7 @@ export class KickoffEventManager {
       }
       this.step.charge = {
         queue: [...this.step.selectedPlayerIds],
-        budget: { blitz: 1, throwTeammate: 1, kickTeammate: 1 },
+        budget: chargeBudget(this.step.event),
         activePlayerId: null,
         aborted: false,
       };
@@ -437,7 +466,7 @@ export class KickoffEventManager {
 
   public skipStep(): boolean {
     if (!this.step) return false;
-    if (this.step.event === KickoffEvent.CHARGE && this.step.charge) {
+    if (isChargeStepEvent(this.step.event) && this.step.charge) {
       this.step.charge.queue = [];
       this.step.charge.activePlayerId = null;
       this.finishStep(false);
@@ -482,6 +511,7 @@ export class KickoffEventManager {
   public canChargeAct(playerId: string, action: ActionType): boolean {
     const charge = this.step?.charge;
     if (charge?.activePlayerId !== playerId) return false;
+    if (this.step?.event === KickoffEvent.QUICK_ATTACK) return action === "block";
     if (action === "move") return true;
     if (action === "blitz") return charge.budget.blitz > 0;
     return action === "throwTeamMate" && (charge.budget.throwTeammate > 0 || charge.budget.kickTeammate > 0);

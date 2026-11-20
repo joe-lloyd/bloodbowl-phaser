@@ -262,7 +262,11 @@ export interface IGameService {
   ): Promise<boolean>;
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
-  throwInBall(from: { x: number; y: number }): void;
+  throwInBall(
+    from: { x: number; y: number },
+    toward?: { x: number; y: number },
+    kickoff?: boolean
+  ): void;
 
   followUpPush(
     attackerId: string,

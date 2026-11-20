@@ -1,7 +1,8 @@
 import { ballOnSquare, groundBall } from "@/game/rules/ballInTheAir";
 import { GameOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
-import { GameConfig } from "../../config/GameConfig";
+import { isOnPitch } from "../rules/pitchSquares";
+import { settleOffObstacle } from "../rules/ballFlight";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type Player } from "../../types/Player";
@@ -52,8 +53,8 @@ function canPunt(punter: Player, at: Square, state: GameState): boolean {
 
 function puntFlight(
   from: Square,
-  direction: Square,
-  distance: number
+  { direction, distance }: { direction: Square; distance: number },
+  dice: Parameters<typeof settleOffObstacle>[0]
 ): { landing: Square; intoCrowd: boolean } {
   let landing = { ...from };
   for (let step = 0; step < distance; step++) {
@@ -61,16 +62,9 @@ function puntFlight(
       x: landing.x + direction.x,
       y: landing.y + direction.y,
     };
-    if (
-      landing.x < 0 ||
-      landing.x >= GameConfig.PITCH_WIDTH ||
-      landing.y < 0 ||
-      landing.y >= GameConfig.PITCH_HEIGHT
-    ) {
-      return { landing, intoCrowd: true };
-    }
+    if (!isOnPitch(landing)) return { landing, intoCrowd: true };
   }
-  return { landing, intoCrowd: false };
+  return { landing: settleOffObstacle(dice, landing), intoCrowd: false };
 }
 
 export class PuntOperation extends GameOperation {
@@ -124,7 +118,11 @@ export class PuntOperation extends GameOperation {
     if (!direction)
       throw new Error(`No Punt direction for facing ${String(facing)}`);
     const from = { ...punter.gridPosition };
-    const { landing, intoCrowd } = puntFlight(from, direction, distance);
+    const { landing, intoCrowd } = puntFlight(
+      from,
+      { direction, distance },
+      dice
+    );
 
     const presentationId = nextPresentationId("punt");
     eventBus.emit(GameEventNames.PuntDeclared, {
@@ -150,10 +148,10 @@ export class PuntOperation extends GameOperation {
         effect: `Punt: ${String(distance)} squares into the crowd`,
       });
       gameService.triggerTurnover("Punt entered the crowd");
-      gameService.throwInBall({
-        x: landing.x - direction.x,
-        y: landing.y - direction.y,
-      });
+      gameService.throwInBall(
+        { x: landing.x - direction.x, y: landing.y - direction.y },
+        landing
+      );
       flowManager.add(new FinishActivationOperation("FinishPunt", punter.id));
       return;
     }

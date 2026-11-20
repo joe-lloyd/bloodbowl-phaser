@@ -7,6 +7,7 @@ import {
 import { GameEventNames } from "../../types/events";
 import { spendTeamReroll } from "../skills";
 import { BlockManagerBase } from "./BlockManagerBase";
+import { teamRerollBarred } from "../kickoff/ballConditions";
 
 export const snapshotRoll = (roll: BlockRollData): BlockRollData => ({
   ...roll,
@@ -56,7 +57,9 @@ export abstract class BlockRerolls extends BlockManagerBase {
       veteranRerollAvailable:
         arbiter.veteranRerollAvailable(attacker) &&
         blockKnocksAttackerDown(attacker, results, isAttackerChoice),
-      teamRerollAvailable: arbiter.teamRerollAvailable(attacker.teamId),
+      teamRerollAvailable:
+        arbiter.teamRerollAvailable(attacker.teamId) &&
+        !teamRerollBarred(this.state, "block"),
       proAvailable: this.proUsable(attacker),
       brawlerAvailable:
         this.brawlerUsable(attacker) &&
@@ -119,7 +122,8 @@ export abstract class BlockRerolls extends BlockManagerBase {
     const gameService = this.callbacks.getFlowManager?.()?.context.gameService;
     if (
       !attacker ||
-      !gameService?.getRerollArbiter().teamRerollAvailable(attacker.teamId)
+      !gameService?.getRerollArbiter().teamRerollAvailable(attacker.teamId) ||
+      teamRerollBarred(this.state, "block")
     ) {
       return;
     }

@@ -1,5 +1,7 @@
 import type { ActionType } from "./events";
 import type { Weather } from "../game/rules/weather";
+import type { LostBall } from "../game/kickoff/ballConditions";
+import type { MatchFormat } from "../game/variants/activeMatch";
 export const SubPhase = {
   INTRO: "INTRO",
   WEATHER: "WEATHER",
@@ -80,6 +82,10 @@ export interface GameState {
   knockout?: boolean;
 
   paysWinnings?: boolean;
+
+  gameType?: MatchFormat["gameType"];
+
+  venue?: MatchFormat["venue"];
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
@@ -107,7 +113,11 @@ export interface GameState {
 
   stallingPlayerIds?: string[];
 
+  seriousKnockoutIds?: string[];
+
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
+
+  lostBall?: LostBall;
 
   bribes?: Record<string, number>;
 

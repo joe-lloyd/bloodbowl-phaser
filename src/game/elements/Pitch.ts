@@ -7,6 +7,7 @@ import {
   SEVENS_GEOMETRY,
   TRAPDOOR_SQUARES,
 } from "../../config/GameConfig";
+import { activeLayout } from "../variants/activeMatch";
 import {
   gridPointToPixel,
   gridToPixel,
@@ -84,7 +85,7 @@ export class Pitch {
   private drawTrapdoors(): void {
     const graphics = this.scene.add.graphics();
     graphics.setName("pitch_trapdoors");
-    for (const square of TRAPDOOR_SQUARES) {
+    for (const square of TRAPDOOR_SQUARES.squares) {
       if (!this.isOnPitch(square)) continue;
       const corners = squareCorners(square.x, square.y, 0.14).map(
         (p) => new Phaser.Math.Vector2(p.x, p.y)
@@ -199,18 +200,34 @@ export class Pitch {
 
   private drawSetupMarkings(minX: number, maxX: number, isLeft: boolean): void {
     const markings = this.scene.add.graphics().setName("setup_zone_markings");
+    const { CENTRE_FIELD_ROWS: centre, WIDE_ZONE_ROWS: wide } = SEVENS_GEOMETRY;
     markings.fillStyle(0xe8bd67, 0.14);
     const los = getLineOfScrimmageX(isLeft);
-    this.drawBlock(markings, { x: los, y: 2 }, { x: los, y: 8 });
-    markings.fillStyle(0x71b9e7, 0.13);
-    this.drawBlock(markings, { x: minX, y: 0 }, { x: maxX, y: 1 });
-    this.drawBlock(markings, { x: minX, y: 9 }, { x: maxX, y: 10 });
-    markings.fillStyle(0xa44339, 0.13);
     this.drawBlock(
       markings,
-      { x: SEVENS_GEOMETRY.NEUTRAL_ZONE_X.min, y: 0 },
-      { x: SEVENS_GEOMETRY.NEUTRAL_ZONE_X.max, y: this.height - 1 }
+      { x: los, y: centre.min },
+      { x: los, y: centre.max }
     );
+    markings.fillStyle(0x71b9e7, 0.13);
+    this.drawBlock(
+      markings,
+      { x: minX, y: wide.top.min },
+      { x: maxX, y: wide.top.max }
+    );
+    this.drawBlock(
+      markings,
+      { x: minX, y: wide.bottom.min },
+      { x: maxX, y: wide.bottom.max }
+    );
+    const noMansLand = activeLayout().noMansLand;
+    if (noMansLand) {
+      markings.fillStyle(0xa44339, 0.13);
+      this.drawBlock(
+        markings,
+        { x: noMansLand.min, y: 0 },
+        { x: noMansLand.max, y: this.height - 1 }
+      );
+    }
     this.container.add(markings);
   }
 

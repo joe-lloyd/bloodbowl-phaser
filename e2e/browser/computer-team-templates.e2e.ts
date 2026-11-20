@@ -2,6 +2,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { confirmPregame } from "../support/pregame";
 import { expect, type Page, test } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
+import { seedAllRosters } from "../support/seedTeams";
 
 async function openCatalogue(page: Page, query = "") {
   await page.goto("/build-team");
@@ -98,14 +99,12 @@ test("the default catalogue is read-only, searchable, and filters by rules", asy
   ).toBeVisible();
 });
 
-test("one saved team can play a fresh catalogue opponent without saving the opponent", async ({
+test("a saved team can play a fresh catalogue opponent without saving the opponent", async ({
   page,
 }) => {
-  await page.goto("/select-team");
-  await page
-    .getByRole("button", { name: "Add ready-made team", exact: true })
-    .click();
-  expect(await savedTeams(page)).toHaveLength(1);
+  page.on("dialog", (dialog) => void dialog.accept());
+  await seedAllRosters(page, { fullStrength: true });
+  const saved = (await savedTeams(page)).length;
   await openCatalogue(page, "Green Bay Smackers");
   await page.getByRole("button", { name: "Play against", exact: true }).click();
   await expect(
@@ -118,7 +117,7 @@ test("one saved team can play a fresh catalogue opponent without saving the oppo
   ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByTestId("team-column-1")
-    .getByRole("button", { name: /Ready-made Human/ })
+    .getByRole("button", { name: /Human Founders/ })
     .click();
   await page.getByRole("button", { name: /Start Game/ }).click();
   const app = new GameApp(page);
@@ -141,7 +140,7 @@ test("one saved team can play a fresh catalogue opponent without saving the oppo
     "Orc Lineman",
     "Goblin Lineman",
   ]);
-  expect(await savedTeams(page)).toHaveLength(1);
+  expect(await savedTeams(page)).toHaveLength(saved);
 });
 
 test("the same template enters two leagues as different teams with the league mode", async ({

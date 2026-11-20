@@ -1,3 +1,8 @@
+import {
+  activateMatchFormat,
+  type MatchFormat,
+  SEVENS_FORMAT,
+} from "@/game/variants/activeMatch";
 import { freshTurn } from "./turnState";
 import { type GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
@@ -13,13 +18,16 @@ export function createMatchState({
   startingPhase = GamePhase.SETUP,
   startingSubPhase,
   fixture = {},
+  format = SEVENS_FORMAT,
 }: {
   team1: Team;
   team2: Team;
   startingPhase?: GamePhase;
   startingSubPhase?: SubPhase;
   fixture?: { paysWinnings?: boolean; pregameInducements?: boolean };
+  format?: MatchFormat;
 }): GameState {
+  activateMatchFormat(format);
   const readiness = { leagueFixture: !!fixture.paysWinnings };
   SetupManager.sanitizeTeam(team1, readiness);
   SetupManager.sanitizeTeam(team2, readiness);
@@ -30,6 +38,10 @@ export function createMatchState({
     ...(startingSubPhase === undefined ? {} : { startingSubPhase }),
   });
   if (fixture.paysWinnings) state.paysWinnings = true;
+  if (format.gameType !== SEVENS_FORMAT.gameType) {
+    state.gameType = format.gameType;
+    state.venue = format.venue;
+  }
   if (fixture.pregameInducements) state.pregameInducements = { ready: {} };
   return state;
 }

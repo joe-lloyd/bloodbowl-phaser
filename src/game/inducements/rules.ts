@@ -5,7 +5,8 @@ import {
   type InducementInventoryEntry,
   type InducementSelectionLine,
 } from "../../types/Inducements";
-import { sevensInducementCatalog } from "./catalog";
+import { inducementCatalog } from "./catalog";
+import { type GameType } from "../variants/gameTypes";
 
 export interface InducementValidationResult {
   valid: boolean;
@@ -91,10 +92,13 @@ export function toInventoryEntries(
   return entries;
 }
 
-export function draftListInventory(team: Team): InducementInventoryEntry[] {
+export function draftListInventory(
+  team: Team,
+  gameType: GameType
+): InducementInventoryEntry[] {
   if (team.advancementMode !== "matched-play") return [];
   return toInventoryEntries(
-    sevensInducementCatalog(team),
+    inducementCatalog(team, gameType),
     team.id,
     team.draftInducements ?? []
   );

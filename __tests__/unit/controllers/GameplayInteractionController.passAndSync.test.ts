@@ -8,6 +8,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
 import { GamePhase } from "../../../src/types/GameState";
 import {
+  activateMatchFormat,
+  SEVENS_FORMAT,
+} from "../../../src/game/variants/activeMatch";
+import {
   mockScene,
   mockPitch,
   mockMovementValidator,
@@ -82,6 +86,48 @@ describe("GameplayInteractionController", () => {
       expect(serviceSpies.throwBall).toHaveBeenCalledWith(
         { passerId: "p1", targetX: 10, targetY: 5, hailMary: false }
       );
+    });
+
+    it("passes at a sideline wall square clicked on the Street", () => {
+      activateMatchFormat({ gameType: "street-bowl", venue: "street" });
+      controller.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "pass" });
+      mockPitch.worldToGrid.mockReturnValue({ x: 5, y: -1 });
+
+      controller.handlePointerDown({ worldX: 0, worldY: 0 }, false);
+      activateMatchFormat(SEVENS_FORMAT);
+
+      expect(serviceSpies.throwBall).toHaveBeenCalledWith(
+        { passerId: "p1", targetX: 5, targetY: -1, hailMary: false }
+      );
+    });
+
+    it("aims a tapped wall square first, then passes on the second tap", () => {
+      activateMatchFormat({ gameType: "street-bowl", venue: "street" });
+      controller.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "pass" });
+      mockPitch.worldToGrid.mockReturnValue({ x: 5, y: -1 });
+
+      controller.tap({ worldX: 0, worldY: 0 }, false);
+      const passedOnFirstTap = serviceSpies.throwBall.mock.calls.length;
+      controller.tap({ worldX: 0, worldY: 0 }, false);
+      activateMatchFormat(SEVENS_FORMAT);
+
+      expect(passedOnFirstTap).toBe(0);
+      expect(eventBusSpies.emit).toHaveBeenCalledWith(
+        GameEventNames.UI_ThrowAim,
+        expect.objectContaining({ square: { x: 5, y: -1 } })
+      );
+      expect(serviceSpies.throwBall).toHaveBeenCalledWith(
+        { passerId: "p1", targetX: 5, targetY: -1, hailMary: false }
+      );
+    });
+
+    it("treats the same square beside the stadium pitch as the background", () => {
+      controller.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "pass" });
+      mockPitch.worldToGrid.mockReturnValue({ x: 5, y: -1 });
+
+      controller.handlePointerDown({ worldX: 0, worldY: 0 }, false);
+
+      expect(serviceSpies.throwBall).not.toHaveBeenCalled();
     });
 
     it("should switch back to 'move' and allow movement", () => {

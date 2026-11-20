@@ -600,6 +600,53 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       }
     );
 
+    it.each(["leagues", "tournaments"])(
+      "keeps a game type fixed in %s and refuses an unknown one",
+      async (collectionName) => {
+        const ref = doc(
+          dbFor(ORGANIZER),
+          collectionName,
+          `street-${collectionName}`
+        );
+        await setDoc(ref, {
+          organizerUid: ORGANIZER,
+          gameType: "street-bowl",
+          name: "Street season",
+        });
+        await expect(
+          updateDoc(ref, { name: "Renamed street season" })
+        ).resolves.toBeUndefined();
+        await expect(updateDoc(ref, { gameType: "sevens" })).rejects.toThrow();
+        await expect(
+          setDoc(
+            doc(dbFor(ORGANIZER), collectionName, `dungeon-${collectionName}`),
+            { organizerUid: ORGANIZER, gameType: "dungeon-bowl" }
+          )
+        ).rejects.toThrow();
+      }
+    );
+
+    it.each(["leagues", "tournaments"])(
+      "lets the organizer edit a %s document saved before game types",
+      async (collectionName) => {
+        const ref = doc(
+          dbFor(ORGANIZER),
+          collectionName,
+          `legacy-${collectionName}`
+        );
+        await setDoc(ref, { organizerUid: ORGANIZER, name: "Old season" });
+        await expect(
+          updateDoc(ref, { name: "Old season, renamed" })
+        ).resolves.toBeUndefined();
+        await expect(
+          updateDoc(ref, { gameType: "sevens" })
+        ).resolves.toBeUndefined();
+        await expect(
+          updateDoc(ref, { gameType: "beach-bowl" })
+        ).rejects.toThrow();
+      }
+    );
+
     const entrants = (): CompetitionEntrant[] =>
       seedEntrants(
         [GUEST, HOST, THIRD, ORGANIZER].map((uid) => ({

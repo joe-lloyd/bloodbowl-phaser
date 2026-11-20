@@ -1,13 +1,14 @@
+import { activeRules } from "@/game/variants/activeMatch";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { moveAllowance, standUpCost } from "../skills/movement";
 import { GameConfig } from "@/config/GameConfig";
 import { MovementPathSearch } from "./MovementPathSearch";
 import {
   adjacentPathSteps,
-  inPitchBounds,
   movementTackleZones,
   occupiedSquare,
 } from "./movementSquares";
+import { isOnPitch, isStandableSquare } from "../rules/pitchSquares";
 import type { MovementSquare } from "./movementSquares";
 
 export interface MovementResult {
@@ -42,7 +43,7 @@ function pitchSquare(square: MovementSquare): boolean {
   return (
     Number.isInteger(square.x) &&
     Number.isInteger(square.y) &&
-    inPitchBounds(square)
+    isStandableSquare(square)
   );
 }
 
@@ -53,7 +54,7 @@ function validStep(
 ): boolean {
   return (
     Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y)) === 1 &&
-    inPitchBounds(to) &&
+    isStandableSquare(to) &&
     !occupiedSquare(to, occupants)
   );
 }
@@ -77,7 +78,12 @@ function stepRolls(input: {
     });
   }
   if (steps > player.stats.MA)
-    rolls.push({ type: "rush", target: 2, modifiers: 0, square: to });
+    rolls.push({
+      type: "rush",
+      target: activeRules().rushTarget,
+      modifiers: 0,
+      square: to,
+    });
   return rolls;
 }
 
@@ -101,7 +107,7 @@ export class MovementValidator {
     if (!player.gridPosition) return invalidResult();
     const end = { x: targetX, y: targetY };
     if (
-      !inPitchBounds(end) ||
+      !isStandableSquare(end) ||
       occupiedSquare(end, [...opponents, ...teammates])
     )
       return invalidResult();
@@ -133,7 +139,7 @@ export class MovementValidator {
     const blocked = new Uint8Array(width * GameConfig.PITCH_HEIGHT);
     for (const occupant of [...opponents, ...teammates]) {
       const at = occupant.gridPosition;
-      if (at && inPitchBounds(at)) blocked[at.y * width + at.x] = 1;
+      if (at && isOnPitch(at)) blocked[at.y * width + at.x] = 1;
     }
     blocked[start.y * width + start.x] = 1;
     const queue: ReachableSquare[] = [{ x: start.x, y: start.y, cost: 0 }];
@@ -154,7 +160,7 @@ export class MovementValidator {
       for (let dy = -1; dy <= 1; dy++) {
         const x = current.x + dx;
         const y = current.y + dy;
-        if (!inPitchBounds({ x, y }) || blocked[y * width + x]) continue;
+        if (!isStandableSquare({ x, y }) || blocked[y * width + x]) continue;
         blocked[y * width + x] = 1;
         queue.push({ x, y, cost: current.cost + 1 });
       }

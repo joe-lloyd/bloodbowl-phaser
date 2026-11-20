@@ -4,6 +4,7 @@ import { lineupSchema } from "./Lineup";
 import { recordedStepSchema } from "./RecordedStep";
 import { findingSchema } from "./Finding";
 import { teamPlayStatsSchema } from "./TeamPlayStats";
+import { gameTypeSchema, venueSchema } from "./GameType";
 import type { MatchRecording } from "../../simulation/runMatch";
 
 export const matchRecordingSchema: z.ZodType<MatchRecording> = z.looseObject({
@@ -16,6 +17,9 @@ export const matchRecordingSchema: z.ZodType<MatchRecording> = z.looseObject({
   rerolls: z.number(),
   lineup: lineupSchema.exactOptional(),
   inducements: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+  matchFormat: z
+    .object({ gameType: gameTypeSchema, venue: venueSchema })
+    .exactOptional(),
   steps: recordedStepSchema.array(),
   final: z.looseObject({
     phase: z.string(),

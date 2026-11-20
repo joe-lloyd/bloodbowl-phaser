@@ -1,3 +1,4 @@
+import { activeRules } from "@/game/variants/activeMatch";
 import { steadyFootingSaves } from "@/game/rules/steadyFooting";
 import { withRerollOffer } from "@/game/skills";
 import { rushModifier } from "@/game/inducements/matchInducements";
@@ -20,7 +21,7 @@ export async function rushSucceeds(
     () =>
       parts.diceController.rollSkillCheck({
         reason: "Rush",
-        target: 2,
+        target: activeRules().rushTarget,
         modifier: rushModifier(parts.state, attacker),
         playerName: attacker.playerName,
         ...request,

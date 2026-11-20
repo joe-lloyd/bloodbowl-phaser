@@ -3,6 +3,8 @@ import { GamePhase } from "../types/GameState";
 import { GameEventNames, type GameEvents } from "../types/events";
 import { PlayerStatus } from "../types/Player";
 import { PassController } from "../game/controllers/PassController";
+import { activeLayout } from "../game/variants/activeMatch";
+import { isInsideLayout } from "../game/variants/pitchLayouts";
 
 export function followMatchWithCamera(scene: GameScene): void {
   const subscribe = scene.subscribe.bind(scene);
@@ -148,10 +150,7 @@ function teamSquares(scene: GameScene, teamId?: string, eligibleOnly = false) {
   return [...scene.team1.players, ...scene.team2.players].flatMap((p) => {
     const square = p.gridPosition;
     return square &&
-      square.x >= 0 &&
-      square.x < 20 &&
-      square.y >= 0 &&
-      square.y < 11 &&
+      isInsideLayout(activeLayout(), square) &&
       (!teamId || p.teamId === teamId) &&
       (!eligibleOnly ||
         ((p.status === PlayerStatus.ACTIVE ||

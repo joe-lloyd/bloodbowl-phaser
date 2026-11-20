@@ -9,6 +9,7 @@ import {
 } from "../types/Player";
 import { PassController } from "../game/controllers/PassController";
 import { weatherEffects } from "../game/rules/weather";
+import { carrierMayPass } from "../game/kickoff/ballConditions";
 import { legalHandoffTargets } from "../game/rules/handoff";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { GameConfig } from "../config/GameConfig";
@@ -22,17 +23,12 @@ import {
   throwTeammateAims,
 } from "../game/rules/throwTeammate";
 import type { Candidate } from "./candidates";
+import { isStandableSquare, isWallSquare } from "../game/rules/pitchSquares";
 
 const chebyshev = (a: GridPosition, b: GridPosition) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
 export const square = (p: GridPosition) => `(${String(p.x)},${String(p.y)})`;
-
-const onPitch = (p: GridPosition) =>
-  p.x >= 0 &&
-  p.x < GameConfig.PITCH_WIDTH &&
-  p.y >= 0 &&
-  p.y < GameConfig.PITCH_HEIGHT;
 
 export function describePlayer(player: Player): string {
   const where = player.gridPosition ? ` at ${square(player.gridPosition)}` : "";
@@ -133,7 +129,7 @@ function jumpSteps(ctx: StepContext): void {
     hasSkill(player.skills, SkillType.LEAP) ||
     hasSkill(player.skills, SkillType.POGO);
   for (const target of jumpTargets(at, others, canJumpAnything, (x, y) =>
-    onPitch({ x, y })
+    isStandableSquare({ x, y })
   )) {
     step(
       {
@@ -244,6 +240,7 @@ function isPassSquare(
   to: GridPosition
 ): boolean {
   if (to.x === at.x && to.y === at.y) return false;
+  if (!isStandableSquare(to) && !isWallSquare(to)) return false;
   if (PassController.rangeValue(at, to) === null) return false;
   const range = gs.getPassController().measureRange(at, to);
   return passTypes.includes(range.type);
@@ -252,13 +249,13 @@ function isPassSquare(
 function passSteps(ctx: StepContext): void {
   const { gs, state, player, action, carrying, opponents, step } = ctx;
 
-  if (action !== "pass" || !carrying) return;
+  if (action !== "pass" || !carrying || !carrierMayPass(state)) return;
 
   const everyone = [...gs.getTeammates(player.id), ...opponents];
 
   const { passTypes } = weatherEffects(state.weather);
   for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
-    for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
+    for (let y = -1; y <= GameConfig.PITCH_HEIGHT; y++) {
       if (!isPassSquare(ctx, passTypes, { x, y })) continue;
       const there = everyone.find(
         (p) => p.gridPosition?.x === x && p.gridPosition?.y === y

@@ -3,8 +3,11 @@ import type {
   ValidationResult,
 } from "../../types/SetupTypes";
 
-export const SHORT_HANDED_MESSAGE =
-  "A team with fewer than three available players must place every player in Centre Field on its Line of Scrimmage.";
+export function shortHandedMessage(minOnLos: number): string {
+  return minOnLos === 3
+    ? "A team with fewer than three available players must place every player in Centre Field on its Line of Scrimmage."
+    : `A team with fewer than ${String(minOnLos)} available players must place every player in Centre Field on its Line of Scrimmage.`;
+}
 
 interface SetupFacts {
   placedCount: number;
@@ -17,7 +20,12 @@ interface SetupFacts {
   onCentreLos: number;
   inNeutralZone: boolean;
   inSetupArea: boolean;
+  minOnLos: number;
+  maxPerWideZone: number;
 }
+
+const playersWord = (count: number) =>
+  count === 1 ? "one player" : `${String(count)} players`;
 
 function areaRestrictions(facts: SetupFacts): SetupRestriction[] {
   return [
@@ -49,27 +57,37 @@ function areaRestrictions(facts: SetupFacts): SetupRestriction[] {
   ];
 }
 
-function wideZoneRestriction({ wideCounts }: SetupFacts): SetupRestriction {
+function wideZoneRestriction({
+  wideCounts,
+  maxPerWideZone,
+}: SetupFacts): SetupRestriction {
   return {
     id: "wide-zone-limit",
-    summary: `Wide zones: at most 1 each (top ${String(wideCounts.top)}, bottom ${String(wideCounts.bottom)})`,
+    summary: `Wide zones: at most ${String(maxPerWideZone)} each (top ${String(wideCounts.top)}, bottom ${String(wideCounts.bottom)})`,
     wideZones: wideCounts,
-    satisfied: wideCounts.top <= 1 && wideCounts.bottom <= 1,
+    satisfied:
+      wideCounts.top <= maxPerWideZone && wideCounts.bottom <= maxPerWideZone,
     satisfiable: true,
-    message: "Only one player may be set up in each Wide Zone.",
+    message:
+      maxPerWideZone === 1
+        ? "Only one player may be set up in each Wide Zone."
+        : `At most ${String(maxPerWideZone)} players may be set up in each Wide Zone.`,
   };
 }
 
 function lineRestrictions(facts: SetupFacts): SetupRestriction[] {
-  const shortHanded = facts.requiredCount < 3;
+  const { minOnLos } = facts;
+  const shortHanded = facts.requiredCount < minOnLos;
   return [
     {
       id: "line-of-scrimmage",
-      summary: `Line of scrimmage ${String(facts.onCentreLos)}/3`,
-      satisfied: facts.onCentreLos >= 3,
-      satisfiable: facts.availableCount >= 3,
+      summary: `Line of scrimmage ${String(facts.onCentreLos)}/${String(minOnLos)}`,
+      satisfied: facts.onCentreLos >= minOnLos,
+      satisfiable: facts.availableCount >= minOnLos,
       message:
-        "At least three players must stand in Centre Field directly adjacent to the Line of Scrimmage.",
+        minOnLos === 3
+          ? "At least three players must stand in Centre Field directly adjacent to the Line of Scrimmage."
+          : `At least ${playersWord(minOnLos)} must stand in Centre Field on the Line of Scrimmage.`,
     },
     {
       id: "short-handed-line",
@@ -79,7 +97,7 @@ function lineRestrictions(facts: SetupFacts): SetupRestriction[] {
         (facts.placedCount === facts.onCentreLos &&
           facts.onCentreLos === facts.requiredCount),
       satisfiable: shortHanded,
-      message: SHORT_HANDED_MESSAGE,
+      message: shortHandedMessage(minOnLos),
     },
   ];
 }

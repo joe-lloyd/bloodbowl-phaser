@@ -1,3 +1,4 @@
+import { activateMatchFormat, formatOf } from "@/game/variants/activeMatch";
 import type { GameService } from "../GameService";
 import { type IEventBus } from "../EventBus.js";
 import { type IRNGService } from "../rng/RNGService.js";
@@ -27,6 +28,8 @@ import {
 import { type BallAndChainSquare } from "@/game/operations/BallAndChainOperation";
 import { RerollArbiter, DecisionService } from "@/game/skills";
 import { revokeMatchGrants } from "@/game/inducements/matchInducements";
+import { breakSouvenirs } from "@/game/inducements/souvenirs";
+import { bindPotionHooks } from "./potionWiring";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import { createInitialState } from "./matchStart";
@@ -36,7 +39,7 @@ import {
   updateDedicatedFans,
 } from "./driveLifecycle";
 import {
-  castSportsWizards,
+  turnEndHazards,
   handleTurnEnding,
   onPlayerDowned,
   sweepChomped,
@@ -101,6 +104,7 @@ export function createGameParts(options: PartOptions): GameParts {
   );
   const kickoffManagers = makeKickoffManagers(core, options.delay, turnManager);
   bindPartEvents(core, () => parts, kickoffManagers.kickoffEventManager);
+  bindPotionHooks(core.eventBus, () => parts);
   const parts: GameParts = {
     ...core,
     setupManager,
@@ -122,6 +126,7 @@ function createCore({
   delay,
 }: PartOptions) {
   const state = initialState ?? createInitialState({ team1, team2 });
+  activateMatchFormat(formatOf(state));
 
   if (!initialState) {
     SetupManager.sanitizeTeam(team1);
@@ -221,7 +226,7 @@ function makeTurnManager(
         handleTurnEnding(getParts(), endingTeamId);
       },
       betweenTurns: (endingTeamId) =>
-        castSportsWizards(getParts(), endingTeamId),
+        turnEndHazards(getParts(), endingTeamId),
     },
     delay
   );
@@ -287,12 +292,13 @@ function makeKickoffManagers(
     team2,
     diceController,
     weatherService,
+    flowManager,
   } = core;
   const playerActionManager = new PlayerActionManager(eventBus, state, (id) =>
     game.getPlayerById(id)
   );
 
-  const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, team1: team1, team2: team2, diceController: diceController, weatherManager: weatherService, callbacks: {
+  const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, team1: team1, team2: team2, diceController: diceController, weatherManager: weatherService, flowManager: flowManager, callbacks: {
       getTurnNumber: (teamId) => turnManager.getTurnNumber(teamId),
       moveTurnMarkers: (delta) => {
         turnManager.moveTurnMarkers(delta);
@@ -323,6 +329,8 @@ function bindPartEvents(
     sweepChomped(getParts());
   });
   eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
+    if (phase === GamePhase.HALFTIME)
+      breakSouvenirs(state, [...team1.players, ...team2.players]);
     if (phase === GamePhase.GAME_OVER) {
       state.bribes = {};
 

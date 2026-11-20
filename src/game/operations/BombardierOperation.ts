@@ -92,7 +92,7 @@ export class BombardierOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `Fumble! The bomb goes off in ${thrower.playerName}'s square!`
       );
-      this.explode(context, { ...thrower.gridPosition });
+      explodeBomb(context, { ...thrower.gridPosition });
       gameService.triggerTurnover("Fumbled Bomb");
       return;
     }
@@ -153,11 +153,11 @@ export class BombardierOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `${occupant.playerName} drops the bomb — it explodes!`
       );
-      this.explode(context, landing);
+      explodeBomb(context, landing);
       return;
     }
 
-    this.explode(context, landing);
+    explodeBomb(context, landing);
   }
 
   private async rethrow(
@@ -174,7 +174,7 @@ export class BombardierOperation extends GameOperation {
         GameEventNames.UI_Notification,
         "The bomb is dropped and explodes!"
       );
-      this.explode(context, { ...newThrower.gridPosition });
+      explodeBomb(context, { ...newThrower.gridPosition });
       return;
     }
 
@@ -215,57 +215,6 @@ export class BombardierOperation extends GameOperation {
   ): { x: number; y: number } {
     const path = gameService.getBallMovementController().scatter(target);
     return path[path.length - 1] ?? { ...target };
-  }
-
-  private explode(
-    context: FlowContext,
-    square: { x: number; y: number }
-  ): void {
-    const gameService = context.gameService;
-    const eventBus = context.eventBus;
-    const dice = gameService.getDiceController();
-
-    eventBus.emit(GameEventNames.UI_Notification, "BOOM! The bomb explodes!");
-
-    eventBus.emit(GameEventNames.BombExploded, { x: square.x, y: square.y });
-
-    const hits: Player[] = [];
-    const direct = gameService.getPlayerAt(square.x, square.y);
-    if (direct) hits.push(direct);
-
-    const candidates = this.adjacentPlayers(gameService, square, direct?.id);
-    for (const p of candidates) {
-      const roll = dice.rollD6("Bomb Blast", p.teamId);
-      if (roll >= 4) hits.push(p);
-    }
-
-    for (const player of hits) {
-      if (player.status === PlayerStatus.ACTIVE) {
-        knockDownPlayer(eventBus, player);
-        bounceIfBallUnder(context, player);
-      }
-
-      context.flowManager.add(
-        new ArmourOperation(player.id, undefined, undefined, "special"),
-        true
-      );
-    }
-  }
-
-  private adjacentPlayers(
-    gameService: IGameService,
-    square: { x: number; y: number },
-    excludeId?: string
-  ): Player[] {
-    const found: Player[] = [];
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        const p = gameService.getPlayerAt(square.x + dx, square.y + dy);
-        if (p && p.id !== excludeId) found.push(p);
-      }
-    }
-    return found;
   }
 
   private async resolveInterception(
@@ -323,5 +272,71 @@ export class BombardierOperation extends GameOperation {
       `${interceptor.playerName} intercepts the bomb!`
     );
     return interceptor.id;
+  }
+}
+
+function explodeBomb(
+  context: FlowContext,
+  square: { x: number; y: number }
+): void {
+  const gameService = context.gameService;
+  const eventBus = context.eventBus;
+  const dice = gameService.getDiceController();
+
+  eventBus.emit(GameEventNames.UI_Notification, "BOOM! The bomb explodes!");
+
+  eventBus.emit(GameEventNames.BombExploded, { x: square.x, y: square.y });
+
+  const hits: Player[] = [];
+  const direct = gameService.getPlayerAt(square.x, square.y);
+  if (direct) hits.push(direct);
+
+  const candidates = adjacentPlayers(gameService, square, direct?.id);
+  for (const p of candidates) {
+    const roll = dice.rollD6("Bomb Blast", p.teamId);
+    if (roll >= 4) hits.push(p);
+  }
+
+  for (const player of hits) {
+    if (player.status === PlayerStatus.ACTIVE) {
+      knockDownPlayer(eventBus, player);
+      bounceIfBallUnder(context, player);
+    }
+
+    context.flowManager.add(
+      new ArmourOperation(player.id, undefined, undefined, "special"),
+      true
+    );
+  }
+}
+
+function adjacentPlayers(
+  gameService: IGameService,
+  square: { x: number; y: number },
+  excludeId?: string
+): Player[] {
+  const found: Player[] = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      if (dx === 0 && dy === 0) continue;
+      const p = gameService.getPlayerAt(square.x + dx, square.y + dy);
+      if (p && p.id !== excludeId) found.push(p);
+    }
+  }
+  return found;
+}
+
+export class BombBlastOperation extends GameOperation {
+  public readonly name = "BombBlastOperation";
+
+  private square: { x: number; y: number };
+  constructor(square: { x: number; y: number }) {
+    super();
+    this.square = square;
+  }
+
+  execute(context: FlowContext): Promise<void> {
+    explodeBomb(context, this.square);
+    return Promise.resolve();
   }
 }

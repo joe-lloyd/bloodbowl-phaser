@@ -1,4 +1,10 @@
-import { type Player } from "../../types/Player";
+import {
+  type InjuryBand,
+  type InjuryTableKind,
+  injuryBand,
+  lowestKO,
+} from "../rules/injuryTables";
+import { activeRules } from "../variants/activeMatch";
 
 export const InjuryResult = {
   STUNNED: "Stunned",
@@ -14,31 +20,15 @@ export type CasualtyType =
   | typeof InjuryResult.SERIOUSLY_HURT
   | typeof InjuryResult.DEAD;
 
-export type InjuryTableKind = "standard" | "stunty";
-
-const INJURY_TABLES: Record<
-  InjuryTableKind,
-  { stunnedUpTo: number; koUpTo: number; badlyHurtUpTo: number }
-> = {
-  standard: { stunnedUpTo: 7, koUpTo: 9, badlyHurtUpTo: 10 },
-  stunty: { stunnedUpTo: 6, koUpTo: 8, badlyHurtUpTo: 10 },
-};
-
 export class InjuryController {
-  public getInjuryResult(
-    _player: Player,
+  public getInjuryBand(
     roll: number,
     table: InjuryTableKind = "standard"
-  ): InjuryResult {
-    const bands = INJURY_TABLES[table];
-    if (roll <= bands.stunnedUpTo) return InjuryResult.STUNNED;
-    if (roll <= bands.koUpTo) return InjuryResult.KO;
-    if (roll <= bands.badlyHurtUpTo) return InjuryResult.BADLY_HURT;
-    if (roll <= 11) return InjuryResult.SERIOUSLY_HURT;
-    return InjuryResult.DEAD;
+  ): InjuryBand {
+    return injuryBand(activeRules().injuryTable, table, roll);
   }
 
   public lowestKO(table: InjuryTableKind): number {
-    return INJURY_TABLES[table].stunnedUpTo + 1;
+    return lowestKO(activeRules().injuryTable, table);
   }
 }

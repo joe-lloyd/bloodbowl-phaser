@@ -1,7 +1,9 @@
+import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { PickupOperation } from "../operations/PickupOperation";
 import { BounceOperation } from "../operations/BounceOperation";
+import { type ArmourFall } from "../operations/ArmourOperation";
 import { type IGameService } from "@/services/interfaces/IGameService";
 import { type FlowContext } from "../core/GameFlowManager";
 import { steadyFootingSaves } from "../rules/steadyFooting";
@@ -340,7 +342,7 @@ function showWalk(run: MoveRun): void {
 function fallInto(
   run: MoveRun,
   step: Square,
-  fall: { reason: string; vacatedSquare?: Square }
+  fall: { reason: string; slip: ArmourFall }
 ): void {
   const { deps, player } = run;
   run.currentPos = step;
@@ -356,7 +358,7 @@ function fallInto(
 }
 
 function fallOnRush(run: MoveRun, step: Square): MoveEnd {
-  fallInto(run, step, { reason: "Failed Rush" });
+  fallInto(run, step, { reason: "Failed Rush", slip: { cause: "rush" } });
   run.stepsTaken++;
   run.completedPath.push(step);
   return "failed";
@@ -388,7 +390,9 @@ function dodgeDeclaredContext(
     player: run.player,
     from: { ...run.currentPos },
     to: { ...step },
-    modifiers: markingPenalty,
+    modifiers:
+      markingPenalty +
+      souvenirModifier(deps.state, run.player.id, "dodge"),
     markingPenalty,
     skillRerollAllowed: true,
     ...triggerServices(run),
@@ -431,7 +435,10 @@ function vacatedMarkers(run: MoveRun): Player[] {
 
 function fallOnDodge(run: MoveRun, step: Square): MoveEnd {
   const vacatedSquare = { ...run.currentPos };
-  fallInto(run, step, { vacatedSquare, reason: "Failed Dodge" });
+  fallInto(run, step, {
+    slip: { cause: "dodge", vacatedSquare },
+    reason: "Failed Dodge",
+  });
   run.completedPath.push(step);
   return "failed";
 }

@@ -17,7 +17,7 @@ import {
   journeymanPrice,
   releaseJourneyman,
 } from "./journeymen";
-import { MIN_ROSTER_PLAYERS } from "./rosterLegality";
+import { teamDraftRules } from "./draftRules";
 import { canEdit } from "./teamEditLegality";
 import {
   draftListPlayers,
@@ -226,7 +226,7 @@ export function planPurchases(team: Team): PlannedPurchase[] {
     return false;
   };
 
-  while (fitPlayers(sim).length < MIN_ROSTER_PLAYERS) {
+  while (fitPlayers(sim).length < teamDraftRules(sim).minPlayers) {
     if (
       !hireJourneymanFor("minimum", () => sim.treasury) &&
       !hireCheapest("minimum", sim.treasury) &&

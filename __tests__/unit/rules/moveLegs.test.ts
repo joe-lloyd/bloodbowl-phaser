@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import { planMoveLegs } from "../../../src/game/rules/moveLegs";
 import { PlayerStatus } from "../../../src/types/Player";
 import { createTestPlayer } from "../../fixtures/players";
+import { withMatchFormat } from "../../../src/game/variants/activeMatch";
 
-const opponent = (x: number, y: number, status: PlayerStatus = PlayerStatus.ACTIVE) =>
+const opponent = (
+  x: number,
+  y: number,
+  status: PlayerStatus = PlayerStatus.ACTIVE
+) =>
   createTestPlayer({
     id: `o${String(x)}${String(y)}`,
     gridPosition: { x, y },
@@ -36,6 +41,17 @@ describe("planMoveLegs", () => {
       { risk: null, path: line(6) },
       { risk: { kind: "rush", rushNeed: 2 }, path: [{ x: 7, y: 5 }] },
       { risk: { kind: "rush", rushNeed: 2 }, path: [{ x: 8, y: 5 }] },
+    ]);
+  });
+
+  it("asks Beach Bowl for a Rush on 3+ (BB-M8)", () => {
+    const legs = withMatchFormat(
+      { gameType: "beach-bowl", venue: "beach" },
+      () => planMoveLegs({ x: 0, y: 5 }, line(7), ctx)
+    );
+    expect(legs).toEqual([
+      { risk: null, path: line(6) },
+      { risk: { kind: "rush", rushNeed: 3 }, path: [{ x: 7, y: 5 }] },
     ]);
   });
 

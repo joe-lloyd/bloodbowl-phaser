@@ -3,6 +3,7 @@ import { gamePhaseSchema } from "./GamePhase";
 import { subPhaseSchema } from "./SubPhase";
 import { turnSnapshotSchema } from "./TurnSnapshot";
 import { weatherSchema } from "./Weather";
+import { gameTypeSchema, venueSchema } from "./GameType";
 import { actionTypeSchema } from "./ActionType";
 import { blockReplacementSchema } from "./BlockReplacement";
 import { setupStateSchema } from "./SetupState";
@@ -26,6 +27,8 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   score: z.record(z.string(), z.number()),
   knockout: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   paysWinnings: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+  gameType: gameTypeSchema.exactOptional(),
+  venue: venueSchema.exactOptional(),
   weather: weatherSchema,
   ballPosition: z.union([
     z.null(),
@@ -64,6 +67,9 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   result: matchResultSchema.exactOptional(),
   teams: teamSnapshotSchema.array(),
   driveEffects: driveEffectsSchema.exactOptional(),
+  lostBall: z
+    .union([z.literal("conch"), z.literal("beach-ball")])
+    .exactOptional(),
   bribes: z.record(z.string(), z.number()).exactOptional(),
   weatherReady: z.string().array().exactOptional(),
   teamRerollsUsed: z.record(z.string(), z.number()).exactOptional(),
@@ -76,6 +82,7 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   veteranRerollsUsed: z.string().array().exactOptional(),
   briberyRerollsUsed: z.string().array().exactOptional(),
   stallingPlayerIds: z.string().array().exactOptional(),
+  seriousKnockoutIds: z.string().array().exactOptional(),
   turnUsage: turnUsageSchema.exactOptional(),
   chargeTeamId: z.string().exactOptional(),
   raisedDead: z.record(z.string(), z.string()).exactOptional(),

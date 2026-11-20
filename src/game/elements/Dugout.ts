@@ -9,7 +9,10 @@ import { playerHitArea } from "./InteractiveHitArea";
 import { type Facing } from "../presentation/playerArt";
 import type { DugoutBox, DugoutSquares } from "./Stadium";
 import { type PitchExit, playPitchExit } from "./pitchExits";
-import { pitchExitRoute } from "../presentation/sidelineRoutes";
+import {
+  pitchExitRoute,
+  type SidelineExit,
+} from "../presentation/sidelineRoutes";
 
 const DUGOUT_SLOT_MOVE_MS = 320;
 
@@ -28,7 +31,7 @@ export class Dugout {
   private squares: DugoutSquares;
   private toWorld: (gx: number, gy: number) => { x: number; y: number };
   private facing: Facing;
-  private rows: number;
+  private exit: Omit<SidelineExit, "project">;
   private playerSprites = new Map<string, PlayerSprite>();
 
   private visibleBeforeRefresh = new Set<string>();
@@ -61,16 +64,16 @@ export class Dugout {
     squares: DugoutSquares;
     toWorld: (gx: number, gy: number) => { x: number; y: number };
     facing: Facing;
-    rows: number;
+    exit: Omit<SidelineExit, "project">;
   }) {
-    const { scene, team, kit, squares, toWorld, facing, rows } = options;
+    const { scene, team, kit, squares, toWorld, facing, exit } = options;
     this.scene = scene;
     this.team = team;
     this.kit = kit;
     this.squares = squares;
     this.toWorld = toWorld;
     this.facing = facing;
-    this.rows = rows;
+    this.exit = exit;
     this.refresh();
   }
 
@@ -169,7 +172,10 @@ export class Dugout {
     sprite.setVisible(true);
     const transit = { box, abort: new AbortController() };
     this.inTransit.set(player.id, transit);
-    const route = pitchExitRoute(arrival.from, at, this.rows, this.toWorld);
+    const route = pitchExitRoute(arrival.from, at, {
+      ...this.exit,
+      project: this.toWorld,
+    });
     void playPitchExit({
       scene: this.scene,
       sprite: sprite,

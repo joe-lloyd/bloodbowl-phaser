@@ -60,6 +60,12 @@ export const playerSchema: z.ZodType<Player> = z.looseObject({
       y: z.number(),
     })
     .exactOptional(),
+  sewerPit: z
+    .looseObject({
+      x: z.number(),
+      y: z.number(),
+    })
+    .exactOptional(),
   cost: z.number(),
   teamValue: z.number(),
   timesKeptFromDraft: z.number().exactOptional(),

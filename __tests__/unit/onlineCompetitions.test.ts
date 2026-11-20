@@ -19,7 +19,10 @@ import {
   openRound,
   overdueEntrantIds,
 } from "../../src/competition/schedule";
-import { pickComputerTemplates } from "../../src/competition/computerFill";
+import {
+  computerFillTeams,
+  pickComputerTemplates,
+} from "../../src/competition/computerFill";
 import { getComputerTeamTemplates } from "../../src/competition/computerTeamTemplates";
 import { lockIsStale } from "../../src/competition/teamLocks";
 import type {
@@ -135,6 +138,25 @@ describe("starting an online league", () => {
     expect(competition.entrants).toHaveLength(4);
     expect(competition.entrants.filter((candidate) => candidate.ownerUid === "boss")).toHaveLength(3);
     expect(competition.fixtures).toHaveLength(6);
+  });
+});
+
+describe("filling a Street Bowl league", () => {
+  it("drafts the computer teams to Street Bowl rules", () => {
+    const teams = computerFillTeams({
+      count: 3,
+      rules: { ruleset: "gw-2025", gameType: "street-bowl" },
+      profile: undefined,
+      rosters: [],
+      random: () => 0.5,
+    });
+
+    expect(teams.map((team) => team.gameType)).toEqual([
+      "street-bowl",
+      "street-bowl",
+      "street-bowl",
+    ]);
+    expect(teams.map((team) => team.apothecary)).toEqual([false, false, false]);
   });
 });
 

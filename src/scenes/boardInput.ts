@@ -6,13 +6,13 @@ import { TouchController } from "../game/controllers/TouchController";
 export function wirePointerInput(scene: GameScene): void {
   const pitch = () => scene.pitch;
   const gameplay = () => scene.gameplayController;
-  const stadium = scene.stadium;
+  const venue = scene.venue;
 
   const onCanvas = (pointer: Phaser.Input.Pointer) =>
     pointer.event?.target === scene.game.canvas;
 
   scene.add
-    .rectangle(0, 0, stadium.width, stadium.height, 0x000000, 0)
+    .rectangle(0, 0, venue.width, venue.height, 0x000000, 0)
     .setOrigin(0)
     .setDepth(-1)
     .setInteractive()
@@ -20,7 +20,8 @@ export function wirePointerInput(scene: GameScene): void {
       if (!onCanvas(pointer) || pointer.wasTouch) return;
 
       const square = pitch().worldToGrid(pointer.worldX, pointer.worldY);
-      if (!pitch().isOnPitch(square)) scene.onBackgroundClick();
+      if (!pitch().isOnPitch(square) && !gameplay().passesAtWall(square))
+        scene.onBackgroundClick();
     });
 
   scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
@@ -62,7 +63,8 @@ export function wireTouchInput(scene: GameScene): TouchController {
   const touch = new TouchController(scene, camera, {
     tap: (at) => {
       const square = pitch().worldToGrid(at.worldX, at.worldY);
-      if (!pitch().isOnPitch(square)) scene.onBackgroundClick();
+      if (!pitch().isOnPitch(square) && !gameplay().passesAtWall(square))
+        scene.onBackgroundClick();
       gameplay().tap(at, scene.isSetupActive);
     },
     fitAll: (at) => {

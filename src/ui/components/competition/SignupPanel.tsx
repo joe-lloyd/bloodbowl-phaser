@@ -8,6 +8,7 @@ import {
 import { checkTeamCompatibility } from "../../../competition/rosterRules";
 import type { CompetitionDoc } from "../../../competition/types";
 import { readSevensRuleset } from "../../../game/rules/sevensRuleset";
+import { readGameType } from "../../../game/variants/gameTypes";
 import type { Team } from "../../../types/Team";
 import { errorText } from "../../errorText";
 import { dismissCompetitionInvites } from "../../../firebase/invites";
@@ -41,12 +42,15 @@ function useAction(onError: SignupProps["onError"], onChange: SignupProps["onCha
 }
 
 function eligibleTeams(competition: CompetitionDoc, library: Team[]): Team[] {
-  const ruleset = readSevensRuleset(competition.ruleset);
+  const rules = {
+    ruleset: readSevensRuleset(competition.ruleset),
+    gameType: readGameType(competition.gameType),
+  };
   return library.filter(
     (team) =>
       !team.computerCoached &&
       !team.activeCompetitionId &&
-      checkTeamCompatibility(team, competition.rosterProfile, ruleset).compatible
+      checkTeamCompatibility(team, competition.rosterProfile, rules).compatible
   );
 }
 

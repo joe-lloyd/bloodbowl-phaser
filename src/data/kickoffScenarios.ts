@@ -7,6 +7,7 @@ import {
   INTERACTIVE_KICKOFF_EVENTS,
   KickoffEvent,
 } from "../game/kickoff/kickoffEvents";
+import type { SevensKickoffEvent } from "../game/kickoff/variantEventMeanings";
 import {
   type RuleConfig,
   type RuleOutcome,
@@ -34,7 +35,7 @@ function resultEvent(result: ScriptResult): KickoffEvent | undefined {
   return (event?.data as { event?: KickoffEvent } | undefined)?.event;
 }
 
-export const KICKOFF_EXAMPLE_SEEDS: Record<KickoffEvent, number> = {
+export const KICKOFF_EXAMPLE_SEEDS: Record<SevensKickoffEvent, number> = {
   [KickoffEvent.GET_THE_REF]: 13,
   [KickoffEvent.TIME_OUT]: 4,
   [KickoffEvent.ALERT_DEFENCE]: 23,

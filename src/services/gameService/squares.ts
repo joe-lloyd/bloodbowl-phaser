@@ -1,4 +1,4 @@
-import { GameConfig } from "@/config/GameConfig";
+import { isStandableSquare } from "@/game/rules/pitchSquares";
 
 interface Square {
   x: number;
@@ -13,10 +13,5 @@ export function adjacentSquare(from: Square | undefined, to: Square): boolean {
 }
 
 export function pitchSquare(square: Square): boolean {
-  return (
-    square.x >= 0 &&
-    square.y >= 0 &&
-    square.x < GameConfig.PITCH_WIDTH &&
-    square.y < GameConfig.PITCH_HEIGHT
-  );
+  return isStandableSquare(square);
 }

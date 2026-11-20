@@ -17,6 +17,15 @@ import {
   type InjuryParties,
   InjuryPartiesOperation,
 } from "./injuryParties";
+import { activeRules } from "../variants/activeMatch";
+import {
+  surfaceArmourModifier,
+  surfaceStacksWith,
+} from "../rules/surfaceArmour";
+
+export type ArmourFall =
+  | { cause: "dodge"; vacatedSquare: { x: number; y: number } }
+  | { cause: "rush" };
 
 export async function foldArmourRoll(
   context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,
@@ -30,12 +39,13 @@ export async function foldArmourRoll(
     | "knockedDown"
     | "roll"
     | "armourModifier"
-  >,
+  > & { surfaceModifier?: number },
   armourSkipped = false
 ): Promise<ArmourBreakContext> {
   const { gameService, eventBus, flowManager } = context;
+  const { surfaceModifier = 0, ...armourRoll } = roll;
   const ctx: ArmourBreakContext = {
-    ...roll,
+    ...armourRoll,
     injuryModifier: 0,
     broken: roll.roll >= effectiveAV(roll.player, gameService.getState()),
     decisions: gameService.getDecisionService(),
@@ -45,6 +55,7 @@ export async function foldArmourRoll(
     triggers: [],
   };
   await foldTrigger("onArmourBreak", participants, ctx);
+  if (surfaceStacksWith(ctx.triggers)) ctx.armourModifier += surfaceModifier;
   placeMightyBlow(
     ctx,
     effectiveAV(roll.player, gameService.getState()),
@@ -108,7 +119,7 @@ export function armourBroken(
 export class ArmourOperation extends InjuryPartiesOperation {
   public readonly name = "ArmourOperation";
 
-  private fall: ({ cause: "dodge"; vacatedSquare: { x: number; y: number } }) | undefined;
+  private fall: ArmourFall | undefined;
   private cause: CasualtyCause;
   private armourModifier: number;
   constructor(
@@ -116,7 +127,7 @@ export class ArmourOperation extends InjuryPartiesOperation {
 
     causedById?: string,
 
-    fall?: { cause: "dodge"; vacatedSquare: { x: number; y: number } },
+    fall?: ArmourFall,
 
     cause: CasualtyCause = "block",
 
@@ -161,11 +172,17 @@ export class ArmourOperation extends InjuryPartiesOperation {
       {
         player,
         ...(causedBy === undefined ? {} : { causedBy: causedBy }),
-        cause: this.fall?.cause ?? this.cause,
-        ...(this.fall?.vacatedSquare === undefined ? {} : { vacatedSquare: this.fall?.vacatedSquare }),
+        cause: this.casualtyCause(),
+        ...(this.fall?.cause === "dodge"
+          ? { vacatedSquare: this.fall.vacatedSquare }
+          : {}),
         knockedDown: true,
         roll,
         armourModifier: this.armourModifier,
+        surfaceModifier: surfaceArmourModifier(
+          activeRules().armour,
+          this.fall ? "failed-dodge-or-rush" : "knocked-down"
+        ),
       },
       armourSkipped
     );
@@ -184,12 +201,16 @@ export class ArmourOperation extends InjuryPartiesOperation {
     this.resolveBreak(context, isBroken, armourSkipped, ctx.injuryModifier);
   }
 
+  private casualtyCause(): CasualtyCause {
+    return this.fall?.cause === "dodge" ? "dodge" : this.cause;
+  }
+
   private nearbyOpponents(player: Player, opponents: Player[]): Player[] {
     return [
       ...(player.gridPosition
         ? adjacentStanding(player.gridPosition, opponents)
         : []),
-      ...(this.fall
+      ...(this.fall?.cause === "dodge"
         ? adjacentStanding(this.fall.vacatedSquare, opponents)
         : []),
     ];
@@ -213,7 +234,7 @@ export class ArmourOperation extends InjuryPartiesOperation {
           ...(this.causedById !== undefined
             ? { causedById: this.causedById }
             : {}),
-          cause: this.fall?.cause ?? this.cause,
+          cause: this.casualtyCause(),
           stunnedIsKnockedOut: armourSkipped,
         }),
         true

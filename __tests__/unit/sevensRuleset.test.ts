@@ -57,7 +57,9 @@ describe("GW baseline and dated NAF Sevens rulings", () => {
       advancementMode: fixtureValue(team.advancementMode),
     });
     expect(checkTeamCompatibility(team, profile).compatible).toBe(false);
-    expect(checkTeamCompatibility(team, profile, NAF_SEVENS_RULESET)).toEqual({
+    expect(checkTeamCompatibility(team, profile, {
+        ruleset: NAF_SEVENS_RULESET,
+      })).toEqual({
       compatible: true,
       reasons: [],
     });
@@ -91,7 +93,9 @@ describe("GW baseline and dated NAF Sevens rulings", () => {
     const team = nafRoster();
     team.treasury = -1;
     expect(() => {
-      assertEntrantsCompatible([team], undefined, NAF_SEVENS_RULESET);
+      assertEntrantsCompatible([team], undefined, {
+        ruleset: NAF_SEVENS_RULESET,
+      });
     }).toThrow("treasury is negative");
     const opponent = createReadyMadeTeam(RosterName.HUMAN, "Visitors", 2);
     await expect(

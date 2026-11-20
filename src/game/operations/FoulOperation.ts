@@ -19,6 +19,8 @@ import {
 } from "../inducements/matchInducements";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
 import { type FoulAssistsDecisionAnswer } from "../../types/decisions";
+import { activeRules } from "../variants/activeMatch";
+import { rockFromTheCrowd, sandStopsFoul } from "./foulRetribution";
 
 async function useGrudgeMatch(
   context: FlowContext,
@@ -287,6 +289,8 @@ export class FoulOperation extends GameOperation {
 
     await context.delay(1000);
 
+    if (sandStopsFoul(context, fouler, target)) return;
+
     const foulerHasNoAssists =
       analysis.offensiveAssists.length === 0 &&
       analysis.defensiveAssists.length === 0;
@@ -309,6 +313,7 @@ export class FoulOperation extends GameOperation {
       knockedDown: false,
       roll: diceTotal(rolls),
       armourModifier: modifier,
+      surfaceModifier: activeRules().armour.foul,
     });
     const armourResult = rerollAndDirtyPlayer(context, fouler, armourCtx, {
       rolls,
@@ -367,12 +372,15 @@ export class FoulOperation extends GameOperation {
 
     await context.delay(1000);
 
-    spotted = refereeSpots(context, fouler, {
-      spotted,
-      broken,
-      isNaturalDouble,
-      grudgeMatch,
-    });
+    spotted =
+      activeRules().referee &&
+      refereeSpots(context, fouler, {
+        spotted,
+        broken,
+        isNaturalDouble,
+        grudgeMatch,
+      });
+    await rockFromTheCrowd(context, fouler, target);
     finishFoul(context, fouler, spotted);
   }
 }

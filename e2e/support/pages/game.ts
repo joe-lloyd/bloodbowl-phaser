@@ -11,7 +11,7 @@ export class MenuPage {
   async open(): Promise<void> {
     await this.page.goto("/");
     await expect(
-      this.page.getByRole("heading", { name: "BLOOD BOWL SEVENS" })
+      this.page.getByRole("heading", { name: "BLOOD BOWL", exact: true })
     ).toBeVisible();
   }
 

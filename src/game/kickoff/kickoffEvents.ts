@@ -1,4 +1,8 @@
 import { type Player, PlayerStatus } from "../../types/Player";
+import {
+  type SevensKickoffEvent,
+  VARIANT_EVENT_MEANING,
+} from "./variantEventMeanings";
 export const KickoffEvent = {
   GET_THE_REF: "Get the Ref",
   TIME_OUT: "Time-Out",
@@ -11,12 +15,42 @@ export const KickoffEvent = {
   CHARGE: "Charge!",
   DODGY_SNACK: "Dodgy Snack",
   PITCH_INVASION: "Pitch Invasion",
+  LOOSE_MASONRY: "Loose Masonry",
+  RIOT: "Riot",
+  STRAY_PONY: "Stray Pony",
+  POTION_PEDDLER: "Potion Peddler",
+  BLITZ: "Blitz!",
+  THROW_A_BOMB: "Throw a Bomb",
+  GUARDS: "Guards!",
+  HIGH_TIDE: "High Tide",
+  ROUSTED: "Rousted",
+  LOST_BALL: "Lost Ball",
+  SAMBA: "Samba!",
+  JELLYFISH: "Jellyfish!?",
+  SEAGULL_ATTACK: "Seagull Attack",
+  MONSTER_WAVE: "Monster Wave",
+  FALLING_ROOF_TILES: "Falling Roof Tiles",
+  GUTTER_RIOT: "Riot!",
+  QUICK_ATTACK: "Quick Attack",
+  ROGUE_WASHING_LINE: "Rogue Washing Line",
+  ROUND_ON_US: "This Round Is on Us!",
+  LOOSE_DOGS: "Loose Dogs",
+  BLACK_MARKET_DEALER: "Black Market Dealer",
+  FURIOUS_NEIGHBOUR: "Furious Neighbour",
+  GUARDS_ARE_COMING: "The Guards Are Coming!",
+  TENTACLED_TERROR: "Tentacled Terror",
+  SUDDEN_STINK: "Sudden Stink",
+  BATS: "Bats!",
+  GET_READY_LADS: "Get Ready, Lads!",
+  STICKY_SLUDGE: "Sticky Sludge",
+  FRESH_SEWAGE: "'Fresh' Sewage",
+  SWARM_OF_RATS: "Swarm of Rats",
 } as const;
 export type KickoffEvent = (typeof KickoffEvent)[keyof typeof KickoffEvent];
 
 export const KICKOFF_TABLE_ROLL = "Kickoff Event";
 
-export const KICKOFF_TABLE: Record<number, KickoffEvent> = {
+export const KICKOFF_TABLE: Record<number, SevensKickoffEvent> = {
   2: KickoffEvent.GET_THE_REF,
   3: KickoffEvent.TIME_OUT,
   4: KickoffEvent.ALERT_DEFENCE,
@@ -31,6 +65,7 @@ export const KICKOFF_TABLE: Record<number, KickoffEvent> = {
 };
 
 export const KICKOFF_EVENT_MEANING: Record<KickoffEvent, string> = {
+  ...VARIANT_EVENT_MEANING,
   [KickoffEvent.GET_THE_REF]:
     "Each team gains one Bribe, usable until the end of the match.",
   [KickoffEvent.TIME_OUT]:
@@ -55,12 +90,33 @@ export const KICKOFF_EVENT_MEANING: Record<KickoffEvent, string> = {
     "D6 + Fan Factor per coach; the lowest (or both on a tie) has a random player on the pitch Placed Prone and Stunned.",
 };
 
-export const INTERACTIVE_KICKOFF_EVENTS = new Set<KickoffEvent>([
+const KICKING_TEAM_STEPS = new Set<KickoffEvent>([
   KickoffEvent.ALERT_DEFENCE,
+  KickoffEvent.CHARGE,
+  KickoffEvent.BLITZ,
+  KickoffEvent.QUICK_ATTACK,
+]);
+
+const RECEIVING_TEAM_STEPS = new Set<KickoffEvent>([
   KickoffEvent.HIGH_KICK,
   KickoffEvent.QUICK_SNAP,
-  KickoffEvent.CHARGE,
+  KickoffEvent.GET_READY_LADS,
 ]);
+
+export const INTERACTIVE_KICKOFF_EVENTS = new Set<KickoffEvent>([
+  ...KICKING_TEAM_STEPS,
+  ...RECEIVING_TEAM_STEPS,
+]);
+
+const CHARGE_STEPS = new Set<KickoffEvent>([
+  KickoffEvent.CHARGE,
+  KickoffEvent.BLITZ,
+  KickoffEvent.QUICK_ATTACK,
+]);
+
+export function isChargeStepEvent(event: KickoffEvent): boolean {
+  return CHARGE_STEPS.has(event);
+}
 
 export function steppingPlayerId(step: {
   selectedPlayerIds: string[];
@@ -74,7 +130,9 @@ export function steppingPlayerId(step: {
 
 export function isOneSquareMoveEvent(event: KickoffEvent): boolean {
   return (
-    event === KickoffEvent.ALERT_DEFENCE || event === KickoffEvent.QUICK_SNAP
+    event === KickoffEvent.ALERT_DEFENCE ||
+    event === KickoffEvent.QUICK_SNAP ||
+    event === KickoffEvent.GET_READY_LADS
   );
 }
 
@@ -83,8 +141,8 @@ export function kickoffEventOwner(
   kickingTeamId: string,
   receivingTeamId: string
 ): string {
-  if (event === KickoffEvent.ALERT_DEFENCE || event === KickoffEvent.CHARGE) return kickingTeamId;
-  if (event === KickoffEvent.HIGH_KICK || event === KickoffEvent.QUICK_SNAP) return receivingTeamId;
+  if (KICKING_TEAM_STEPS.has(event)) return kickingTeamId;
+  if (RECEIVING_TEAM_STEPS.has(event)) return receivingTeamId;
   throw new Error(`${event} is not an interactive kickoff event`);
 }
 
@@ -102,12 +160,6 @@ export function grantEffect(
   effect: string
 ): void {
   (outcome.perTeam[teamId] ??= []).push(effect);
-}
-
-export function kickoffEventForRoll(roll: number): KickoffEvent {
-  const event = KICKOFF_TABLE[roll];
-  if (event === undefined) throw new Error(`Invalid kickoff table roll: ${String(roll)}`);
-  return event;
 }
 
 export function isOpenKickoffPlayer(player: Player, opponents: Player[]): boolean {

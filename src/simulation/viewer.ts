@@ -9,7 +9,7 @@ import { PlayerStatus } from "../types/Player";
 import {
   type MatchRecording,
   createSimGame,
-  grantSimInducements,
+  prepareSimInducements,
 } from "./runMatch";
 import { createRuleMonitor } from "./invariants";
 
@@ -112,10 +112,7 @@ function frameOf(
     half: snapshot.turn.isHalf2 ? 2 : 1,
     turn: snapshot.turn.turnNumber,
     active: teamIndex(snapshot.activeTeamId),
-    score: [
-      snapshot.score[home.id] ?? 0,
-      snapshot.score[away.id] ?? 0,
-    ],
+    score: [snapshot.score[home.id] ?? 0, snapshot.score[away.id] ?? 0],
     rerolls: [home.rerolls, away.rerolls],
     ball: snapshot.ballPosition
       ? [snapshot.ballPosition.x, snapshot.ballPosition.y]
@@ -144,9 +141,10 @@ export async function buildMatchDump(
       recording.seed,
       recording.rosters,
       recording.rerolls,
-      recording.lineup
+      recording.lineup,
+      recording.matchFormat
     );
-  if (!initial && recording.inducements) await grantSimInducements(game);
+  if (!initial) await prepareSimInducements(game, !!recording.inducements);
   const start = game.snapshot();
   const players: DumpPlayer[] = start.teams.flatMap((team, t) =>
     team.players.map((p) => ({

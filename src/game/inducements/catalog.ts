@@ -1,7 +1,30 @@
 import { getRosterByRosterName } from "../../data/RosterTemplates";
-import { Inducement, type InducementCatalogEntry } from "../../types/Inducements";
+import {
+  Inducement,
+  type InducementCatalogEntry,
+} from "../../types/Inducements";
 import { RosterName, TeamSpecialRule } from "../../types/Team";
-import { type TeamAllegiance, hasTeamSpecialRule } from "../rules/teamAllegiance";
+import {
+  type TeamAllegiance,
+  hasTeamSpecialRule,
+} from "../rules/teamAllegiance";
+import { type GameType } from "../variants/gameTypes";
+import { type PotionInducement } from "./inventory";
+
+export const NO_PURCHASE_LIMIT = 99;
+
+const line = (
+  inducement: Inducement,
+  maxCount: number,
+  price: number
+): InducementCatalogEntry[] => [{ inducement, maxCount, price }];
+
+const masterChef = (team: TeamAllegiance): InducementCatalogEntry[] =>
+  line(
+    Inducement.HALFLING_MASTER_CHEF,
+    1,
+    team.rosterName === RosterName.HALFLING ? 100_000 : 300_000
+  );
 
 export function sevensInducementCatalog(
   team: TeamAllegiance
@@ -9,11 +32,6 @@ export function sevensInducementCatalog(
   const roster = getRosterByRosterName(team.rosterName);
 
   const has = (rule: TeamSpecialRule) => hasTeamSpecialRule(team, rule);
-  const line = (
-    inducement: Inducement,
-    maxCount: number,
-    price: number
-  ): InducementCatalogEntry[] => [{ inducement, maxCount, price }];
 
   return [
     ...line(Inducement.TEMP_AGENCY_CHEERLEADER, 2, 15_000),
@@ -35,11 +53,42 @@ export function sevensInducementCatalog(
     ...(has(TeamSpecialRule.FAVOURED_OF_NURGLE)
       ? line(Inducement.PLAGUE_DOCTOR, 1, 100_000)
       : []),
-    ...line(
-      Inducement.HALFLING_MASTER_CHEF,
-      1,
-      team.rosterName === RosterName.HALFLING ? 100_000 : 300_000
-    ),
+    ...masterChef(team),
     ...line(Inducement.DESPERATE_MEASURES, 5, 50_000),
   ];
+}
+
+export function inducementCatalog(
+  team: TeamAllegiance,
+  gameType: GameType
+): InducementCatalogEntry[] {
+  switch (gameType) {
+    case "sevens":
+      return sevensInducementCatalog(team);
+    case "street-bowl":
+      return [
+        ...line(Inducement.MAGIC_POTION, NO_PURCHASE_LIMIT, 50_000),
+        ...masterChef(team),
+      ];
+    case "beach-bowl":
+      return [
+        ...line(Inducement.BLITZERS_BEST_KEGS, 2, 50_000),
+        ...masterChef(team),
+        ...line(Inducement.SOUVENIR, NO_PURCHASE_LIMIT, 50_000),
+      ];
+    case "gutter-bowl":
+      return [
+        ...line(Inducement.LESSER_MAGIC_POTION, NO_PURCHASE_LIMIT, 50_000),
+        ...line(Inducement.SUPERIOR_MAGIC_POTION, NO_PURCHASE_LIMIT, 100_000),
+        ...line(Inducement.SAWBONES, 1, 50_000),
+        ...line(Inducement.SNACK_STAND, 1, 100_000),
+        ...line(Inducement.NOVICE_WIZARD, 1, 100_000),
+      ];
+  }
+}
+
+export function startingFreeInducements(
+  gameType: GameType
+): PotionInducement[] {
+  return gameType === "street-bowl" ? [Inducement.MAGIC_POTION] : [];
 }

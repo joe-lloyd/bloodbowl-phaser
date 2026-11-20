@@ -6,6 +6,7 @@ import { type HeadlessCommand } from "../headless/protocol";
 import { GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { GameConfig } from "../config/GameConfig";
+import { obstacleKindAt } from "../game/rules/pitchSquares";
 
 const ON_PITCH_STATUSES = new Set<PlayerStatus>([
   PlayerStatus.ACTIVE,
@@ -45,6 +46,8 @@ function squareChecks(
     occupied.set(key, p);
     if (!inBounds(p.position!))
       fail("player-in-bounds", `${where(p)} is off the pitch grid`);
+    if (p.position && obstacleKindAt(p.position))
+      fail("player-off-obstacles", `${where(p)} stands on an obstacle`);
     if (!ON_PITCH_STATUSES.has(p.status)) {
       fail(
         "on-pitch-status",

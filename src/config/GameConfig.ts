@@ -1,95 +1,130 @@
-const PITCH_WIDTH = 20;
-const PITCH_HEIGHT = 11;
+import { activeLayout, activeRules } from "../game/variants/activeMatch";
+import type { PitchLayout, Square } from "../game/variants/pitchLayouts";
+
 const SQUARE_SIZE = 60;
 
+function geometryOf(layout: PitchLayout) {
+  const { lineOfScrimmage, noMansLand } = layout;
+  return {
+    END_ZONE_X: { team1: 0, team2: layout.cols - 1 },
+    LINE_OF_SCRIMMAGE_X: lineOfScrimmage,
+    NEUTRAL_ZONE_X: noMansLand ?? {
+      min: lineOfScrimmage.team1 + 1,
+      max: lineOfScrimmage.team2 - 1,
+    },
+    CENTRE_FIELD_ROWS: layout.centreRows,
+    WIDE_ZONE_ROWS: layout.wideZoneRows,
+  };
+}
+
+const geometries = new Map<PitchLayout, ReturnType<typeof geometryOf>>();
+
+function layoutGeometry() {
+  const layout = activeLayout();
+  const known = geometries.get(layout);
+  if (known) return known;
+  const geometry = geometryOf(layout);
+  geometries.set(layout, geometry);
+  return geometry;
+}
+
 export const SEVENS_GEOMETRY = {
-  END_ZONE_X: { team1: 0, team2: PITCH_WIDTH - 1 },
-  LINE_OF_SCRIMMAGE_X: { team1: 6, team2: 13 },
-  NEUTRAL_ZONE_X: { min: 7, max: 12 },
-  CENTRE_FIELD_ROWS: { min: 2, max: 8 },
-  WIDE_ZONE_ROWS: {
-    top: { min: 0, max: 1 },
-    bottom: { min: 9, max: 10 },
+  get END_ZONE_X() {
+    return layoutGeometry().END_ZONE_X;
   },
-} as const;
+  get LINE_OF_SCRIMMAGE_X() {
+    return layoutGeometry().LINE_OF_SCRIMMAGE_X;
+  },
+  get NEUTRAL_ZONE_X() {
+    return layoutGeometry().NEUTRAL_ZONE_X;
+  },
+  get CENTRE_FIELD_ROWS() {
+    return layoutGeometry().CENTRE_FIELD_ROWS;
+  },
+  get WIDE_ZONE_ROWS() {
+    return layoutGeometry().WIDE_ZONE_ROWS;
+  },
+};
 
 export function getSevensSetupZone(isTeam1: boolean) {
+  const { cols, lineOfScrimmage } = activeLayout();
   return isTeam1
-    ? { minX: 0, maxX: SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team1 }
-    : {
-        minX: SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2,
-        maxX: PITCH_WIDTH - 1,
-      };
+    ? { minX: 0, maxX: lineOfScrimmage.team1 }
+    : { minX: lineOfScrimmage.team2, maxX: cols - 1 };
 }
 
 export function getLineOfScrimmageX(isTeam1: boolean): number {
-  return isTeam1
-    ? SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team1
-    : SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2;
+  const { lineOfScrimmage } = activeLayout();
+  return isTeam1 ? lineOfScrimmage.team1 : lineOfScrimmage.team2;
 }
 
 export function isKickingTeamTerritory(
   x: number,
   isTeam1Kicking: boolean
 ): boolean {
+  const { lineOfScrimmage } = activeLayout();
   return isTeam1Kicking
-    ? x <= SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team1
-    : x >= SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2;
+    ? x <= lineOfScrimmage.team1
+    : x >= lineOfScrimmage.team2;
 }
 
-export const TRAPDOOR_SQUARES: readonly { x: number; y: number }[] = [
-  { x: 5, y: 1 },
-  { x: 14, y: 9 },
-];
+export const TRAPDOOR_SQUARES: { readonly squares: readonly Square[] } = {
+  get squares() {
+    return activeLayout().trapdoors;
+  },
+};
 
 export function isTrapdoorSquare(x: number, y: number): boolean {
-  return TRAPDOOR_SQUARES.some((square) => square.x === x && square.y === y);
+  return activeLayout().trapdoors.some(
+    (square) => square.x === x && square.y === y
+  );
 }
 
 export function getWideZone(y: number): "top" | "bottom" | null {
-  const { top, bottom } = SEVENS_GEOMETRY.WIDE_ZONE_ROWS;
+  const { top, bottom } = activeLayout().wideZoneRows;
   if (y >= top.min && y <= top.max) return "top";
   if (y >= bottom.min && y <= bottom.max) return "bottom";
   return null;
 }
 
 export function isCentreFieldRow(y: number): boolean {
-  const { min, max } = SEVENS_GEOMETRY.CENTRE_FIELD_ROWS;
+  const { min, max } = activeLayout().centreRows;
   return y >= min && y <= max;
 }
 
 export function isNeutralZoneX(x: number): boolean {
-  const { min, max } = SEVENS_GEOMETRY.NEUTRAL_ZONE_X;
-  return x >= min && x <= max;
+  const zone = activeLayout().noMansLand;
+  return zone !== null && x >= zone.min && x <= zone.max;
 }
-
-const PITCH_PIXEL_WIDTH = PITCH_WIDTH * SQUARE_SIZE;
-const PITCH_PIXEL_HEIGHT = PITCH_HEIGHT * SQUARE_SIZE;
 
 const PADDING_X = 20;
 const TOP_UI_HEIGHT = 160;
 const BOTTOM_UI_HEIGHT = 160;
 
-const CANVAS_WIDTH = PITCH_PIXEL_WIDTH + PADDING_X;
-const CANVAS_HEIGHT = PITCH_PIXEL_HEIGHT + TOP_UI_HEIGHT + BOTTOM_UI_HEIGHT;
-
 export const GameConfig = {
-  PITCH_WIDTH,
-  PITCH_HEIGHT,
+  get PITCH_WIDTH() {
+    return activeLayout().cols;
+  },
+  get PITCH_HEIGHT() {
+    return activeLayout().rows;
+  },
   SQUARE_SIZE,
 
   SEVENS_GEOMETRY,
 
-  PITCH_PIXEL_WIDTH,
-  PITCH_PIXEL_HEIGHT,
-
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
+  get CANVAS_WIDTH() {
+    return activeLayout().cols * SQUARE_SIZE + PADDING_X;
+  },
+  get CANVAS_HEIGHT() {
+    return activeLayout().rows * SQUARE_SIZE + TOP_UI_HEIGHT + BOTTOM_UI_HEIGHT;
+  },
 
   TOP_UI_HEIGHT,
   BOTTOM_UI_HEIGHT,
 
-  TURNS_PER_HALF: 6,
+  get TURNS_PER_HALF() {
+    return activeRules().turnsPerHalf;
+  },
   TOTAL_HALVES: 2,
 
   STARTING_GOLD: 600000,

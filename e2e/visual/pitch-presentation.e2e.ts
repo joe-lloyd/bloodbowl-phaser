@@ -62,6 +62,9 @@ test.describe("pitch presentation @visual", () => {
     await page.getByTestId("case-select").selectOption(fixtureValue(scenarioCase).id);
 
     await expect(page.getByTestId("fixture-panel")).toBeVisible();
+    await expect(page.getByTestId("match-loading")).toHaveCount(0, {
+      timeout: 20_000,
+    });
 
     await expectVisualCheckpoint(
       page,

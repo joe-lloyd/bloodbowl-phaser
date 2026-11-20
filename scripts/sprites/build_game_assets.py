@@ -1,6 +1,7 @@
 """Pack one style's renders into the game's public/ folder.
 
     python3 scripts/sprites/build_game_assets.py STYLE RENDERS_DIR STADIUM_DIR [model_id ...]
+    python3 scripts/sprites/build_game_assets.py venues VENUES_DIR
 
 STADIUM_DIR "-" leaves the stadium as it is, for a rebuild of the players alone.
 
@@ -12,6 +13,9 @@ run and fall at "lo"); STADIUM_DIR is one stadium.py layout folder. Writes:
         the model for every roster position. The same for every style, since a
         style changes colours and light, not geometry; a mismatch is an error.
     public/stadium/<style>/{base,home,away}.webp, meta.json, preview.webp
+
+The venues form takes venues.py output, one folder per venue, and writes
+public/venues/<venue>/{base,home,away}.webp and meta.json.
 
 Atlases are quantised to a 256-colour palette. The renders are flat toon
 bands, so this is close to lossless and roughly a third of the size.
@@ -60,13 +64,15 @@ def positions():
     return {names.get(key, key): {pos: model for pos, model in rows} for key, rows in teams.items()}
 
 
-def stadium(src, out):
+def stadium(src, out, thumbnail=True):
     out.mkdir(parents=True, exist_ok=True)
     color = Image.open(src / "lo_color.png")
     for name, layer in zip(("base", "home", "away"), split_layers(color, Image.open(src / "lo_mask.png"))):
         layer.save(out / f"{name}.webp", lossless=True, quality=100, method=4)
     meta = json.loads((src / "meta.json").read_text())
     shutil.copy(src / "meta.json", out / "meta.json")
+    if not thumbnail:
+        return
     # Picker thumbnail: the pitch and both dugouts, from the untinted colour pass.
     lo = meta["sizes"]["lo"]
     ox, oy = lo["origin"]
@@ -108,5 +114,14 @@ def main(style, renders, stadium_dir, only):
     print(f"{len(models)} models, missing renders: {missing or 'none'}")
 
 
+def venues(src):
+    for folder in sorted(p for p in src.iterdir() if (p / "meta.json").exists()):
+        stadium(folder, REPO / "public" / "venues" / folder.name, thumbnail=False)
+        print("venue", folder.name)
+
+
 if __name__ == "__main__":
-    main(sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3]), sys.argv[4:])
+    if sys.argv[1] == "venues":
+        venues(Path(sys.argv[2]))
+    else:
+        main(sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3]), sys.argv[4:])

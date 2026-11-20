@@ -1,3 +1,5 @@
+import type { GameType } from "../game/variants/gameTypes";
+import type { Venue } from "../game/variants/pitchLayouts";
 import { parseMatchSave, normalizeMatchSave } from "../boundary/matchSave";
 import type { Weather } from "../game/rules/weather";
 import { assertPregameSaveable } from "../game/inducements/pregame";
@@ -73,6 +75,10 @@ export interface GameSnapshot {
   knockout?: boolean;
 
   paysWinnings?: boolean;
+
+  gameType?: GameType;
+
+  venue?: Venue;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: GameState["activePlayer"];
@@ -82,6 +88,8 @@ export interface GameSnapshot {
   teams: TeamSnapshot[];
 
   driveEffects?: GameState["driveEffects"];
+
+  lostBall?: GameState["lostBall"];
 
   bribes?: GameState["bribes"];
 
@@ -96,6 +104,8 @@ export interface GameSnapshot {
   briberyRerollsUsed?: GameState["briberyRerollsUsed"];
 
   stallingPlayerIds?: GameState["stallingPlayerIds"];
+
+  seriousKnockoutIds?: GameState["seriousKnockoutIds"];
 
   turnUsage?: GameState["turnUsage"];
 
@@ -171,7 +181,9 @@ function rerollFields(source: GameState | GameSnapshot) {
 function driveFields(source: GameState | GameSnapshot) {
   return {
     ...(source.driveEffects === undefined ? {} : { driveEffects: structuredClone(source.driveEffects) }),
+    ...(source.lostBall === undefined ? {} : { lostBall: source.lostBall }),
     ...(source.stallingPlayerIds === undefined ? {} : { stallingPlayerIds: structuredClone(source.stallingPlayerIds) }),
+    ...(source.seriousKnockoutIds === undefined ? {} : { seriousKnockoutIds: structuredClone(source.seriousKnockoutIds) }),
     ...(source.turnUsage === undefined ? {} : { turnUsage: structuredClone(source.turnUsage) }),
     ...(source.raisedDead === undefined ? {} : { raisedDead: structuredClone(source.raisedDead) }),
     ...(source.fanFactors === undefined ? {} : { fanFactors: structuredClone(source.fanFactors) }),
@@ -224,6 +236,7 @@ export function serializeGameState(
 
     ...(state.knockout ? { knockout: true } : {}),
     ...(state.paysWinnings ? { paysWinnings: true } : {}),
+    ...formatFields(state),
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
@@ -254,10 +267,18 @@ function playerSnapshot(p: Player, turn: TurnData): PlayerSnapshot {
   };
 }
 
+function formatFields(source: Pick<GameState, "gameType" | "venue">) {
+  return {
+    ...(source.gameType === undefined ? {} : { gameType: source.gameType }),
+    ...(source.venue === undefined ? {} : { venue: source.venue }),
+  };
+}
+
 function matchFlags(snapshot: GameSnapshot) {
   return {
     ...(snapshot.knockout ? { knockout: true } : {}),
     ...(snapshot.paysWinnings ? { paysWinnings: true } : {}),
+    ...formatFields(snapshot),
   };
 }
 

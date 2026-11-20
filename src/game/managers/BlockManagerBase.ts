@@ -7,12 +7,12 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { BlockResolutionService } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
 import { BounceOperation } from "../operations/BounceOperation";
-import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
 import { type GameFlowManager } from "../core/GameFlowManager";
 import { type DecisionService } from "../skills/DecisionService";
 import { gatherParticipants, adjacentStanding } from "../skills";
+import { isStandableSquare } from "../rules/pitchSquares";
 
 export abstract class BlockManagerBase {
   protected eventBus: IEventBus;
@@ -116,14 +116,7 @@ export abstract class BlockManagerBase {
     ];
     for (const [dx, dy] of dirs) {
       const s = { x: pos.x + dx, y: pos.y + dy };
-      if (
-        s.x < 0 ||
-        s.y < 0 ||
-        s.x >= GameConfig.PITCH_WIDTH ||
-        s.y >= GameConfig.PITCH_HEIGHT
-      ) {
-        continue;
-      }
+      if (!isStandableSquare(s)) continue;
       if (!occupied.has(`${String(s.x)},${String(s.y)}`)) return s;
     }
     return null;

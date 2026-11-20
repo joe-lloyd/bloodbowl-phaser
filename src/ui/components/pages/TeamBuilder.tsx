@@ -18,6 +18,9 @@ import {
 } from "../../../game/rules/teamPricing";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
 import { chooseVeteran } from "../../../game/rules/veteran";
+import { teamDraftRules } from "../../../game/rules/draftRules";
+import { withDraftGameType } from "../../../game/rules/gameTypeChange";
+import { GameTypeSelector } from "../common/GameTypeSelector";
 import {
   captainVacancyCandidates,
   chooseTeamCaptain,
@@ -75,10 +78,24 @@ const MODE_EYEBROWS: Record<TeamMode, string> = {
 
 const MODE_SUBTITLES: Record<TeamMode, string> = {
   active:
-    "This team has played its first match. Roster type is locked and nobody can be fired. Between league fixtures, spend the Treasury on players at roster price, and on re-rolls and Sideline Staff at their Sevens prices, within the roster limits.",
+    "This team has played its first match. Roster type is locked and nobody can be fired. Between league fixtures, spend the Treasury on players at roster price, and on re-rolls and Sideline Staff at the prices of the team's game type, within the roster limits.",
   draft:
     "Draft teams may be edited freely and saved even while incomplete, but must pass roster legality before they can be selected for a match or entered in a competition.",
 };
+
+function freshTeam(race: RosterName, color: number, previous?: Team): Team {
+  const team = createTeam(
+    previous?.name ?? "New Team",
+    race,
+    { primary: color, secondary: 0xffffff },
+    getRosterByRosterName(race).rerollCost,
+    teamDraftRules(previous ?? {}).budget
+  );
+  if (previous?.gameType !== undefined) team.gameType = previous.gameType;
+  if (previous?.draftRuleset !== undefined)
+    team.draftRuleset = previous.draftRuleset;
+  return team;
+}
 
 function snapshotOf(team: Team): string {
   return JSON.stringify(dehydrateTeam(team));
@@ -263,13 +280,7 @@ export function TeamBuilder() {
 
     savedSnapshot.current = null;
     setRosterChosen(false);
-    const newTeam = createTeam(
-      "New Team",
-      selectedRace,
-      { primary: selectedColor, secondary: 0xffffff },
-      50000
-    );
-    setTeam(newTeam);
+    setTeam(freshTeam(selectedRace, selectedColor));
     return undefined;
   }, [teamId]);
 
@@ -287,29 +298,13 @@ export function TeamBuilder() {
     }
 
     setSelectedRace(race);
-    const newTeam = createTeam(
-      team?.name || "New Team",
-      race,
-      { primary: selectedColor, secondary: 0xffffff },
-      team?.treasury || 50000
-    );
-    if (team.draftRuleset !== undefined)
-      newTeam.draftRuleset = team.draftRuleset;
-    setTeam(newTeam);
+    setTeam(freshTeam(race, selectedColor, team));
   };
 
   const handleFirstRoster = (race: RosterName) => {
     if (!team) return;
     setSelectedRace(race);
-    const newTeam = createTeam(
-      team.name,
-      race,
-      { primary: selectedColor, secondary: 0xffffff },
-      team.treasury
-    );
-    if (team.draftRuleset !== undefined)
-      newTeam.draftRuleset = team.draftRuleset;
-    setTeam(newTeam);
+    setTeam(freshTeam(race, selectedColor, team));
     setRosterChosen(true);
   };
 
@@ -580,8 +575,16 @@ export function TeamBuilder() {
         <PageHeader
           eyebrow="New team"
           title="CHOOSE YOUR TEAM"
-          subtitle="Pick the roster first. Its players and special rules shape everything else on the team sheet."
+          subtitle="Pick the game type and the roster first. The game type sets the budget and the staff you may hire; the roster's players and special rules shape everything else on the team sheet."
         />
+        <Section title="Game type">
+          <GameTypeSelector
+            {...(team.gameType === undefined ? {} : { value: team.gameType })}
+            onChange={(gameType) => {
+              setTeam(withDraftGameType(team, gameType));
+            }}
+          />
+        </Section>
         <Section title="Rosters">
           <RosterPicker onChoose={handleFirstRoster} />
         </Section>
@@ -711,7 +714,11 @@ export function TeamBuilder() {
             onFirePlayer={handleFirePlayer}
             onReorderPlayers={handleReorderPlayers}
             onOpenPlayer={handleOpenPlayer}
-            onChooseVeteran={active ? undefined : handleChooseVeteran}
+            onChooseVeteran={
+              active || !teamDraftRules(team).veteran
+                ? undefined
+                : handleChooseVeteran
+            }
             onChooseTeamCaptain={
               !active && hasTeamCaptainRule(team)
                 ? handleChooseTeamCaptain

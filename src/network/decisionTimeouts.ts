@@ -2,6 +2,7 @@ import {
   type HeadlessCommand,
   type PendingDecision,
 } from "../headless/protocol";
+import { type InducementChoiceKind } from "../types/decisions";
 
 export const DEFENDER_DECISION_SECONDS: Record<
   PendingDecision["type"],
@@ -41,10 +42,19 @@ function pushDefault(
     : null;
 }
 
+const DECLINED_BY_DEFAULT: readonly InducementChoiceKind[] = [
+  "sports-wizard",
+  "magic-potion",
+  "lesser-magic-potion",
+  "superior-magic-potion",
+  "souvenir",
+  "novice-wizard",
+];
+
 function inducementDefault(
   pending: Decision<"inducement-choice">
 ): HeadlessCommand | null {
-  return pending.kind === "sports-wizard"
+  return DECLINED_BY_DEFAULT.includes(pending.kind)
     ? { type: "choose-inducement" }
     : null;
 }

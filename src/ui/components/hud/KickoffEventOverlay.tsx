@@ -37,7 +37,7 @@ function kickoffInstruction(
     );
     return `${active?.playerName ?? "The selected player"} is active. Choose an action in the normal player action window.`;
   }
-  return `Pick up to ${String(limit)} players in a blue ring, then press Charge! to move them one at a time.`;
+  return `Pick up to ${String(limit)} players in a blue ring, then press ${step.event} to move them one at a time.`;
 }
 
 function finishButton(step: KickoffEventStepState) {
@@ -45,7 +45,7 @@ function finishButton(step: KickoffEventStepState) {
     return { label: "Done", ready: step.movedPlayerIds.length > 0 };
   if (step.event === KickoffEvent.HIGH_KICK)
     return { label: "Confirm", ready: true };
-  return { label: "Charge!", ready: step.selectedPlayerIds.length > 0 };
+  return { label: step.event, ready: step.selectedPlayerIds.length > 0 };
 }
 
 export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {

@@ -9,9 +9,9 @@ import {
 } from "../../game/rules/throwTeammate";
 import {
   type Board,
-  HEIGHT,
+  pitchHeight,
   type Square,
-  WIDTH,
+  pitchWidth,
   carrierOf,
   distance,
   key,
@@ -70,8 +70,8 @@ const DIRECTIONS = [
 ] as const;
 
 const clamp = (s: Square): Square => ({
-  x: Math.max(0, Math.min(WIDTH - 1, s.x)),
-  y: Math.max(0, Math.min(HEIGHT - 1, s.y)),
+  x: Math.max(0, Math.min(pitchWidth() - 1, s.x)),
+  y: Math.max(0, Math.min(pitchHeight() - 1, s.y)),
 });
 
 const scatterCache = new Map<number, ReadonlyMap<number, number>>();
@@ -278,8 +278,8 @@ interface ComingDownArgs {
 function comingDown({ aim, from, odds, bullseye }: ComingDownArgs): Descent[] {
   const out = fumbledLandings(from, odds);
   const cellAt = (cell: number) => ({
-    x: cell % WIDTH,
-    y: Math.floor(cell / WIDTH),
+    x: cell % pitchWidth(),
+    y: Math.floor(cell / pitchWidth()),
   });
   for (const [superb, p] of [
     [true, odds.superb],

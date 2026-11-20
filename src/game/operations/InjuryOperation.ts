@@ -1,3 +1,4 @@
+import { knockedOutBox } from "../kickoff/driveHazards";
 import { GameEventNames } from "../../types/events";
 import { type IGameService } from "../../services/interfaces/IGameService.js";
 import { type Player, PlayerStatus } from "../../types/Player.js";
@@ -12,10 +13,21 @@ import { foldTrigger, type InjuryRollContext } from "../skills";
 import { offerApothecary } from "../inducements/apothecary";
 import { isFrog } from "../inducements/matchInducements";
 import { type FlowContext } from "../core/GameFlowManager";
+import { InjuryBand } from "../rules/injuryTables";
+import {
+  type CasualtyRecord,
+  type InjuryVerdict,
+  casualtyOutcome,
+  injuryVerdict,
+  recordSeriousKnockout,
+} from "./injuryVerdict";
 import {
   type InjuryParties,
   InjuryPartiesOperation,
 } from "./injuryParties";
+
+export type ResolvedInjury = InjuryRollContext &
+  Pick<InjuryVerdict, "casualty" | "seriousKnockout">;
 
 export async function resolveInjuryRoll(
   context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,
@@ -23,7 +35,7 @@ export async function resolveInjuryRoll(
   roll: number,
   modifier: number,
   causedBy?: Player
-): Promise<InjuryRollContext> {
+): Promise<ResolvedInjury> {
   const { gameService, eventBus, flowManager } = context;
   const injuryController = gameService.getInjuryController();
   const total = roll + modifier;
@@ -33,7 +45,7 @@ export async function resolveInjuryRoll(
     roll,
     modifier,
     table: "standard",
-    result: injuryController.getInjuryResult(player, total),
+    result: InjuryResult.STUNNED,
     decisions: gameService.getDecisionService(),
     flow: flowManager,
     arbiter: gameService.getRerollArbiter(),
@@ -46,19 +58,25 @@ export async function resolveInjuryRoll(
     ctx
   );
 
-  ctx.result = injuryController.getInjuryResult(player, total, ctx.table);
-  if (
-    ctx.koDowngrade &&
-    ctx.result === InjuryResult.KO &&
-    total === injuryController.lowestKO(ctx.table)
-  ) {
-    ctx.result = InjuryResult.STUNNED;
+  const downgraded =
+    !!ctx.koDowngrade && total === injuryController.lowestKO(ctx.table);
+  const band = injuryController.getInjuryBand(total, ctx.table);
+  const verdict = injuryVerdict(
+    downgraded && band === InjuryBand.KO ? InjuryBand.STUNNED : band,
+    gameService.getDiceController(),
+    player
+  );
+  if (downgraded && band === InjuryBand.KO && ctx.koDowngrade) {
     ctx.triggers.push(ctx.koDowngrade);
   }
+  ctx.result = verdict.result;
   ctx.triggers.forEach((t) => {
     eventBus.emit(GameEventNames.SkillTriggered, t);
   });
-  return ctx;
+  return Object.assign(ctx, {
+    ...(verdict.casualty === undefined ? {} : { casualty: verdict.casualty }),
+    seriousKnockout: verdict.seriousKnockout,
+  });
 }
 
 export function reportedInjury(
@@ -151,25 +169,37 @@ export class InjuryOperation extends InjuryPartiesOperation {
 
         eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         break;
-      case InjuryResult.KO: {
-        eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-
-        const patchedUp = await offerApothecary(gameService, eventBus, player, {
-          resultKind: "ko",
-          location: "pitch",
-          ...(player.gridPosition ? { position: player.gridPosition } : {}),
-        });
-        if (!patchedUp) {
-          movePlayerToBox(player, { box: "ko" }, eventBus);
-        }
+      case InjuryResult.KO:
+        await this.knockedOut(context, player, ctx.seriousKnockout);
         break;
-      }
       case InjuryResult.BADLY_HURT:
       case InjuryResult.SERIOUSLY_HURT:
       case InjuryResult.DEAD:
-        this.casualty(context, player, ctx.result);
+        this.casualty(context, player, casualtyOutcome(ctx.result, ctx.casualty));
         break;
     }
+  }
+
+  private async knockedOut(
+    context: FlowContext,
+    player: Player,
+    serious: boolean
+  ): Promise<void> {
+    const { gameService, eventBus } = context;
+    eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
+    const patchedUp = await offerApothecary(gameService, eventBus, player, {
+      resultKind: "ko",
+      location: "pitch",
+      ...(player.gridPosition ? { position: player.gridPosition } : {}),
+    });
+    if (patchedUp) return;
+    const box = knockedOutBox(
+      gameService.getState(),
+      gameService.getDiceController(),
+      player
+    );
+    movePlayerToBox(player, { box }, eventBus);
+    if (serious && box === "ko") this.seriousKnockout(context, player);
   }
 
   private overridden(result: InjuryResult): InjuryResult {
@@ -197,10 +227,19 @@ export class InjuryOperation extends InjuryPartiesOperation {
     });
   }
 
+  private seriousKnockout(context: FlowContext, player: Player): void {
+    recordSeriousKnockout(context, player, {
+      ...(this.opts.causedById === undefined
+        ? {}
+        : { causedById: this.opts.causedById }),
+      cause: this.opts.cause ?? "special",
+    });
+  }
+
   private casualty(
     context: FlowContext,
     player: Player,
-    result: CasualtyType
+    outcome: CasualtyType | CasualtyRecord
   ): void {
     const { eventBus, flowManager } = context;
     eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
@@ -220,7 +259,7 @@ export class InjuryOperation extends InjuryPartiesOperation {
     flowManager.add(
       new CasualtyOperation(
         this.playerId,
-        result,
+        outcome,
         this.opts.causedById,
         this.opts.cause
       ),

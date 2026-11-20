@@ -57,6 +57,22 @@ export interface BlockGameEvents {
     playerId: string;
     exitSquare: { x: number; y: number };
   };
+  [GameEventNames.PlayerPushedIntoWall]: {
+    playerId: string;
+    square: { x: number; y: number };
+    wall: { x: number; y: number };
+    fell: boolean;
+  };
+  [GameEventNames.PlayerFellIntoPit]: {
+    playerId: string;
+    from: { x: number; y: number };
+    pit: { x: number; y: number };
+  };
+  [GameEventNames.PlayerClimbedOutOfPit]: {
+    playerId: string;
+    pit: { x: number; y: number };
+    to: { x: number; y: number };
+  };
 }
 
 export interface BlockUIEvents {

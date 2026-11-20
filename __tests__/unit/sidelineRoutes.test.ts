@@ -56,8 +56,7 @@ describe("sideline exit routes", () => {
       const route = pitchExitRoute(
         project(fixtureValue(patient[0]), fixtureValue(patient[1])),
         project(fixtureValue(box[0]), fixtureValue(box[1])),
-        11,
-        project
+        { rows: 11, project }
       );
       const grid = route.map((point) => worldToBoard(point, project));
       const expected = [patient, [patient[0], lane], [box[0], lane], box];
@@ -70,18 +69,19 @@ describe("sideline exit routes", () => {
 
   it("keeps a fractional patient position instead of rounding it to a square", () => {
     const patient = project(4.25, 7.75);
-    const route = pitchExitRoute(patient, project(1.5, -2.5), 11, project);
+    const route = pitchExitRoute(patient, project(1.5, -2.5), {
+      rows: 11,
+      project,
+    });
     expect(fixtureValue(route[1]).x).toBeCloseTo(project(4.25, -0.5).x);
     expect(fixtureValue(route[1]).y).toBeCloseTo(project(4.25, -0.5).y);
   });
 
   it("preserves corners when splitting a walking route into animation steps", () => {
-    const route = pitchExitRoute(
-      project(12.5, 6.5),
-      project(-0.5, -3.5),
-      11,
-      project
-    );
+    const route = pitchExitRoute(project(12.5, 6.5), project(-0.5, -3.5), {
+      rows: 11,
+      project,
+    });
     const steps = walkingSteps(route);
     route.slice(1).forEach((corner) => {
       expect(steps).toContainEqual(corner);
@@ -99,7 +99,29 @@ describe("sideline exit routes", () => {
   it("handles a crowd injury and already aligned points without zero-length legs", () => {
     const from = project(-0.5, 11.5);
     const to = project(20.5, 12.5);
-    const route = pitchExitRoute(from, to, 11, project);
+    const route = pitchExitRoute(from, to, { rows: 11, project });
     expect(route).toEqual([from, project(20.5, 11.5), to]);
+  });
+
+  it("walks a player along the inside of a street wall to its gate before the bench", () => {
+    const route = pitchExitRoute(project(4.5, 3.5), project(9.5, -2.5), {
+      rows: 7,
+      project,
+      gateX: 11,
+    });
+    const grid = route.map((point) => worldToBoard(point, project));
+    const expected = [
+      [4.5, 3.5],
+      [4.5, 0.2],
+      [11, 0.2],
+      [11, -0.5],
+      [9.5, -0.5],
+      [9.5, -2.5],
+    ];
+    expect(grid).toHaveLength(expected.length);
+    grid.forEach((point, i) => {
+      expect(point.x).toBeCloseTo(fixtureValue(fixtureValue(expected[i])[0]));
+      expect(point.y).toBeCloseTo(fixtureValue(fixtureValue(expected[i])[1]));
+    });
   });
 });

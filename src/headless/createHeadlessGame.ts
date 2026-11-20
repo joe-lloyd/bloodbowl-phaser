@@ -1,3 +1,7 @@
+import {
+  type MatchFormat,
+  withMatchFormat,
+} from "../game/variants/activeMatch";
 import { EventBus, type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import {
@@ -47,6 +51,8 @@ export interface HeadlessGameOptions {
   knockout?: boolean | undefined;
 
   paysWinnings?: boolean;
+
+  format?: MatchFormat;
 
   rngState?: RNGState;
 
@@ -115,6 +121,22 @@ function savedInputs(options: HeadlessGameOptions, restored: RestoredSave) {
   return { rngState, matchStatsState, seed };
 }
 
+const formatOption = (options: HeadlessGameOptions) =>
+  options.format === undefined ? {} : { format: options.format };
+
+function scenarioState(
+  options: HeadlessGameOptions,
+  scenario: Scenario,
+  { team1, team2 }: { team1: Team; team2: Team }
+): GameState {
+  const { format } = options;
+  if (!format) return applyScenario(scenario, team1, team2);
+  const state = withMatchFormat(format, () =>
+    applyScenario(scenario, team1, team2)
+  );
+  return { ...state, gameType: format.gameType, venue: format.venue };
+}
+
 const savedTurnManager = (
   options: HeadlessGameOptions,
   restored: RestoredSave
@@ -129,14 +151,36 @@ function startingState(
   const initialState: GameState | undefined =
     restored?.state ?? options.initialState;
   if (initialState) return initialState;
-  if (options.scenario) return applyScenario(options.scenario, team1, team2);
+  if (options.scenario) return scenarioState(options, options.scenario, { team1, team2 });
+  return freshMatchState(options, team1, team2);
+}
+
+function freshMatchState(
+  options: HeadlessGameOptions,
+  team1: Team,
+  team2: Team
+): GameState | undefined {
+  const fixture = options.paysWinnings ? { paysWinnings: true } : {};
   if (options.startingPhase) {
-    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: options.paysWinnings === undefined ? {} : { paysWinnings: options.paysWinnings } }
-    );
+    return GameService.createMatchState({
+      team1,
+      team2,
+      startingPhase: options.startingPhase,
+      ...(options.startingSubPhase === undefined
+        ? {}
+        : { startingSubPhase: options.startingSubPhase }),
+      fixture,
+      ...formatOption(options),
+    });
   }
-  if (options.paysWinnings) {
-    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SANDBOX_IDLE, fixture: { paysWinnings: true } }
-    );
+  if (options.paysWinnings || options.format) {
+    return GameService.createMatchState({
+      team1,
+      team2,
+      startingPhase: GamePhase.SANDBOX_IDLE,
+      fixture,
+      ...formatOption(options),
+    });
   }
   return undefined;
 }

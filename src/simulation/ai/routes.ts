@@ -1,3 +1,4 @@
+import { activeRules } from "@/game/variants/activeMatch";
 import { NumberTable } from "./numberTable";
 import { type FieldPlayer as Player } from "./board";
 import {
@@ -13,14 +14,15 @@ import { rushAllowance, standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
 import {
   type Board,
-  HEIGHT,
+  pitchHeight,
   type Square,
-  WIDTH,
+  pitchWidth,
   distance,
   key,
   neighbours,
 } from "./board";
 import { CERTAIN, type Chance, type RollTarget, chain } from "./chance";
+import { activeLayout } from "../../game/variants/activeMatch";
 
 const NO_ROLLS: RollTarget[] = [];
 
@@ -32,10 +34,9 @@ export interface Route {
   chance: Chance;
 }
 
-const CELLS = WIDTH * HEIGHT;
 const square = (k: number): Square => ({
-  x: k % WIDTH,
-  y: Math.floor(k / WIDTH),
+  x: k % pitchWidth(),
+  y: Math.floor(k / pitchWidth()),
 });
 
 interface StepRollsArgs {
@@ -59,7 +60,10 @@ function stepRolls({
   if (rush)
     rolls.push({
       kind: "rush",
-      target: requiredRoll(2, weatherEffects(board.weather).rush),
+      target: requiredRoll(
+        activeRules().rushTarget,
+        weatherEffects(board.weather).rush
+      ),
     });
   if (board.marks.getUint8(key(from)) > 0) {
     rolls.push(dodgeRoll(board, player, { from, to }));
@@ -91,12 +95,32 @@ export function movesLeft(
 }
 
 const MAX_STEPS = 16;
-const bestAt = new NumberTable(MAX_STEPS + 1, CELLS);
-const parentAt = new NumberTable(MAX_STEPS + 1, CELLS);
 
-const NEIGHBOURS = Array.from({ length: CELLS }, (_, cell) =>
-  neighbours(square(cell)).map(key)
-);
+interface RouteGrid {
+  cells: number;
+  bestAt: NumberTable;
+  parentAt: NumberTable;
+  neighbours: number[][];
+}
+
+const routeGrids = new Map<string, RouteGrid>();
+
+function routeGrid(): RouteGrid {
+  const { venue } = activeLayout();
+  const cached = routeGrids.get(venue);
+  if (cached) return cached;
+  const cells = pitchWidth() * pitchHeight();
+  const grid: RouteGrid = {
+    cells,
+    bestAt: new NumberTable(MAX_STEPS + 1, cells),
+    parentAt: new NumberTable(MAX_STEPS + 1, cells),
+    neighbours: Array.from({ length: cells }, (_, cell) =>
+      neighbours(square(cell)).map(key)
+    ),
+  };
+  routeGrids.set(venue, grid);
+  return grid;
+}
 
 const rollChance = (target: number) =>
   (7 - Math.min(6, Math.max(2, target))) / 6;
@@ -114,7 +138,9 @@ interface Search {
 function searchFor(board: Board, player: Player, securing: boolean): Search {
   const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
 
-  const rush = rollChance(requiredRoll(2, weatherEffects(board.weather).rush));
+  const rush = rollChance(
+    requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
+  );
   const stunty = hasSkill(player.skills, SkillType.STUNTY);
   const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
   const dodgeInto = new DataView(new ArrayBuffer(9 * 8));
@@ -150,6 +176,7 @@ interface RelaxArgs {
 
 function relax({ search, k, cell, p, stepRush, neighbours }: RelaxArgs): void {
   const { board, ballKey } = search;
+  const { bestAt, parentAt } = routeGrid();
   const leavesZone = board.marks.getUint8(cell) > 0;
   for (const next of neighbours) {
     if (board.occupant[next]) continue;
@@ -173,6 +200,7 @@ interface SpreadArgs {
 }
 
 function spread({ search, start, steps, normal }: SpreadArgs): void {
+  const { bestAt, neighbours: NEIGHBOURS } = routeGrid();
   bestAt.fillRows(steps + 1, -1);
   bestAt.set(0, key(start), 1);
   for (let k = 0; k < steps; k++) {
@@ -194,6 +222,7 @@ function spread({ search, start, steps, normal }: SpreadArgs): void {
 
 function pathTo(cell: number, steps: number): Square[] {
   const path: Square[] = [];
+  const { parentAt } = routeGrid();
   for (let k = steps, c = cell; k > 0; c = parentAt.get(k, c), k--)
     path.push(square(c));
   return path.reverse();
@@ -201,6 +230,7 @@ function pathTo(cell: number, steps: number): Square[] {
 
 function bestStepCount(cell: number, steps: number): number {
   let bestK = -1;
+  const { bestAt } = routeGrid();
   for (let k = 1; k <= steps; k++)
     if (bestAt.get(k, cell) > (bestK < 0 ? 0 : bestAt.get(bestK, cell) + 1e-9))
       bestK = k;
@@ -266,7 +296,8 @@ export function routesFor({
   });
 
   const out = new Map<number, Route>();
-  for (let cell = 0; cell < CELLS; cell++) {
+  const { bestAt, cells } = routeGrid();
+  for (let cell = 0; cell < cells; cell++) {
     if (cell === key(start)) continue;
     const bestK = bestStepCount(cell, steps);
     if (bestK < 0) continue;

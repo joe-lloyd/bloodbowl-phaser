@@ -118,7 +118,12 @@ export type InducementChoiceKind =
   | "hangover"
   | "you-dope"
   | "team-captain"
-  | "sports-wizard";
+  | "sports-wizard"
+  | "magic-potion"
+  | "lesser-magic-potion"
+  | "superior-magic-potion"
+  | "souvenir"
+  | "novice-wizard";
 
 export type WizardSpell = "fireball" | "zap";
 
@@ -136,6 +141,8 @@ export interface InducementChoiceDecisionRequest {
   stats?: DopeStat[];
 
   spells?: WizardSpell[];
+
+  item?: string;
 
   optional: boolean;
 }

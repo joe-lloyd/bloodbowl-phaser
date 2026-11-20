@@ -1,7 +1,4 @@
-import {
-  DEFAULT_SEVENS_RULESET,
-  SEVENS_RULESET_LABELS,
-} from "../../../game/rules/sevensRuleset";
+import { CompetitionRulesLine } from "../common/CompetitionRulesLine";
 import { useParams } from "react-router-dom";
 import type {
   CompetitionDoc,
@@ -160,12 +157,7 @@ function CompetitionPage(props: CompetitionProps & { error: string | null }) {
         title={competition.name}
         actions={<Chip>{STATUS_LABEL[competition.status]}</Chip>}
       />
-      <p className="mb-6 font-hud-body text-hud-sm text-hud-dim">
-        {SEVENS_RULESET_LABELS[competition.ruleset ?? DEFAULT_SEVENS_RULESET]}
-        {" · "}NAF clarifications apply. Swarming is enabled.
-        {competition.online &&
-          ` · Online: ${String(competition.online.places)} places, one round every ${String(competition.online.roundDays)} ${competition.online.roundDays === 1 ? "day" : "days"}.`}
-      </p>
+      <CompetitionRulesLine competition={competition} />
       {champion && (
         <Panel accent="gold" className="mb-6 px-5 py-4">
           <span className="font-hud-display text-hud-2xl uppercase tracking-[0.03em] text-hud-gold">

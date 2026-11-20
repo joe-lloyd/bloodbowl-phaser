@@ -11,7 +11,8 @@ import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
-import { GameConfig } from "../../config/GameConfig";
+import { pushLandingAt } from "../rules/pitchSquares";
+import { activeRules } from "../variants/activeMatch";
 import { type PushContext, foldTrigger } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
 import {
@@ -30,6 +31,7 @@ interface PushLink {
   playerId: string;
   from: Square;
   to: Square | null;
+  pit?: Square;
 }
 
 interface PushChain {
@@ -294,15 +296,12 @@ export abstract class BlockPushChain extends BlockActivation {
     }
 
     const from = { ...defender.gridPosition };
-    const onPitch =
-      direction.x >= 0 &&
-      direction.x < GameConfig.PITCH_WIDTH &&
-      direction.y >= 0 &&
-      direction.y < GameConfig.PITCH_HEIGHT;
-
-    if (!onPitch) {
-      this.chain.links.push({ playerId: defenderId, from, to: null });
-      await this.applyChain(followUp);
+    if (pushLandingAt(direction) !== "pitch") {
+      await this.pushOffThePitch(this.chain, defender, {
+        from,
+        direction,
+        followUp,
+      });
       return;
     }
 
@@ -462,7 +461,7 @@ export abstract class BlockPushChain extends BlockActivation {
     }
   ): void {
     if (link.to === null) {
-      this.pushIntoCrowd(player, link.from);
+      this.leaveThePitch(link, player);
       return;
     }
     const to = link.to;
@@ -508,6 +507,119 @@ export abstract class BlockPushChain extends BlockActivation {
       exitSquare,
     });
     this.queueCrowdInjury(player, exitSquare);
+  }
+
+  private async pushOffThePitch(
+    chain: PushChain,
+    pushed: Player,
+    {
+      from,
+      direction,
+      followUp,
+    }: { from: Square; direction: Square; followUp: boolean }
+  ): Promise<void> {
+    const landing = pushLandingAt(direction);
+    if (landing === "wall") {
+      await this.pushIntoWall(chain, pushed, { square: from, wall: direction });
+      return;
+    }
+    chain.links.push({
+      playerId: pushed.id,
+      from,
+      to: null,
+      ...(landing === "pit" ? { pit: { ...direction } } : {}),
+    });
+    await this.applyChain(followUp);
+  }
+
+  private leaveThePitch(link: PushLink, player: Player): void {
+    if (link.pit) this.dropIntoPit(player, link.from, link.pit);
+    else this.pushIntoCrowd(player, link.from);
+  }
+
+  private dropIntoPit(player: Player, from: Square, pit: Square): void {
+    const carriedBall = this.ballAt(from);
+    delete player.gridPosition;
+    player.sewerPit = { ...pit };
+    this.eventBus.emit(GameEventNames.PlayerFellIntoPit, {
+      playerId: player.id,
+      from,
+      pit: { ...pit },
+    });
+    this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+    if (carriedBall) {
+      this.state.ballPosition = { ...pit };
+      this.flow()?.add(new BounceOperation(pit), true);
+    }
+    if (player.teamId === this.state.activeTeamId)
+      this.callbacks.onTurnover("Fell into a Sewer Pit");
+  }
+
+  private async pushIntoWall(
+    chain: PushChain,
+    pushed: Player,
+    at: { square: Square; wall: Square }
+  ): Promise<void> {
+    this.chain = null;
+    const attacker = this.getPlayerById(chain.attackerId);
+    const defender = this.getPlayerById(chain.links[0]?.playerId ?? pushed.id);
+    if (!attacker || !defender) return;
+    const pow = chain.knockDownDefender ?? isPow(chain.resultType);
+    const isDefender = pushed.id === defender.id;
+    const fell = this.hitTheWall(pushed, at, pow && isDefender);
+    if (fell)
+      this.knockDownAgainstWall(chain.attackerId, pushed, pow && isDefender);
+    if (pow && isDefender) {
+      this.flow()?.add(new FinishBlockOperation(attacker.id));
+      return;
+    }
+    const frenzy = !!chain.frenzy && !(fell && isDefender);
+    await this.resolveRefusedPush(attacker, defender, pow, frenzy);
+  }
+
+  private hitTheWall(
+    pushed: Player,
+    { square, wall }: { square: Square; wall: Square },
+    knockedDown: boolean
+  ): boolean {
+    const fell =
+      knockedDown || this.diceController.rollD6("Pushed into the Wall") >= 4;
+    this.eventBus.emit(GameEventNames.PlayerPushedIntoWall, {
+      playerId: pushed.id,
+      square: { ...square },
+      wall: { ...wall },
+      fell,
+    });
+    return fell;
+  }
+
+  private flow() {
+    return this.callbacks.getFlowManager?.();
+  }
+
+  private knockDownAgainstWall(
+    attackerId: string,
+    player: Player,
+    knockedDown: boolean
+  ): void {
+    this.knockDownTarget(player);
+    const square = player.gridPosition;
+    const bounce =
+      square && this.ballAt(square) ? [new BounceOperation(square)] : [];
+    const modifier = knockedDown ? activeRules().armour.wallPush : 0;
+    this.flow()?.add(
+      new InOrderOperation([
+        new ArmourOperation(
+          player.id,
+          attackerId,
+          undefined,
+          "block",
+          modifier
+        ),
+        ...bounce,
+      ]),
+      true
+    );
   }
 
   private carryBall(from: Square, to: Square): boolean {

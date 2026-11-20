@@ -6,13 +6,11 @@ import {
   type PlayerStats,
   PlayerStatus,
   addCondition,
-  hasCondition,
   removeCondition,
 } from "@/types/Player";
 import { type Skill, SkillType, getSkill, hasSkill } from "@/types/Skills";
 import { type Team } from "@/types/Team";
 import {
-  type DopeStat,
   type InducementChoiceDecisionAnswer,
   type InducementChoiceDecisionRequest,
   type ReactionDecisionAnswer,
@@ -27,6 +25,8 @@ import { markingPlayers } from "../rules/rollPreview";
 import { getDriveEffects } from "../kickoff/driveEffects";
 import { eligibleSkills } from "../progression/progression";
 import { rollPrayersToNuffle } from "./prayersToNuffle";
+import { type VariantInducementsState } from "./variantState";
+import { souvenirModifier } from "./souvenirModifiers";
 import { DesperateMeasure, rollDesperateMeasures } from "./desperateMeasures";
 import {
   appointTeamCaptain,
@@ -40,12 +40,13 @@ export interface HeldMeasure {
 
 export type MatchGrant =
   | { kind: "skill"; playerId: string; skill: SkillType }
-  | { kind: "stat"; playerId: string; stat: "AV" | DopeStat; delta: number };
+  | { kind: "stat"; playerId: string; stat: keyof PlayerStats; delta: number };
 
 export interface FrogRecord {
   playerId: string;
   stats: PlayerStats;
   skills: Skill[];
+  drivesLeft?: number;
 }
 
 export interface MatchInducementsState {
@@ -61,6 +62,8 @@ export interface MatchInducementsState {
   sportsWizards?: string[];
 
   frogs?: FrogRecord[];
+
+  variant?: VariantInducementsState;
 }
 
 export function emptyMatchInducements(): MatchInducementsState {
@@ -126,7 +129,11 @@ export function rushModifier(state: GameState, player: Player): number {
       teamId !== player.teamId &&
       held.includes(PrayerToNuffle.MOLES_UNDER_THE_PITCH)
   );
-  return weatherEffects(state.weather).rush - (moles ? 1 : 0);
+  return (
+    weatherEffects(state.weather).rush -
+    (moles ? 1 : 0) +
+    souvenirModifier(state, player.id, "rush")
+  );
 }
 
 export function underScrutiny(state: GameState, foulerTeamId: string): boolean {
@@ -183,7 +190,7 @@ export async function offerMeasure(
   );
 }
 
-function grantSkill(
+export function grantSkill(
   state: GameState,
   player: Player,
   skill: SkillType
@@ -198,10 +205,10 @@ function grantSkill(
   return true;
 }
 
-function grantStat(
+export function grantStat(
   state: GameState,
   player: Player,
-  stat: "AV" | DopeStat,
+  stat: keyof PlayerStats,
   delta: number
 ): void {
   player.stats[stat] += delta;
@@ -227,12 +234,21 @@ export function spendSportsWizard(state: GameState, teamId: string): void {
   mi.sportsWizards = (mi.sportsWizards ?? []).filter((id) => id !== teamId);
 }
 
-export function turnIntoFrog(state: GameState, player: Player): void {
+export function turnIntoFrog(
+  state: GameState,
+  player: Player,
+  spell: { drives: number } = { drives: 1 }
+): void {
   const mi = getMatchInducements(state);
-  if (hasCondition(player, PlayerCondition.FROG)) return;
+  if (isFrog(state, player.id)) return;
   mi.frogs = [
     ...(mi.frogs ?? []),
-    { playerId: player.id, stats: { ...player.stats }, skills: player.skills },
+    {
+      playerId: player.id,
+      stats: { ...player.stats },
+      skills: player.skills,
+      ...(spell.drives > 1 ? { drivesLeft: spell.drives } : {}),
+    },
   ];
 
   player.stats = { MA: 5, ST: 1, AG: 2, PA: 0, AV: 5 };
@@ -253,37 +269,51 @@ export function isFrog(state: GameState, playerId: string): boolean {
   );
 }
 
-export function restoreFrogs(state: GameState, players: Player[]): void {
+export function restoreFrogs(
+  state: GameState,
+  players: Player[],
+  ending: "drive" | "match" = "drive"
+): void {
   const mi = state.matchInducements;
-  for (const frog of mi?.frogs ?? []) {
+  if (!mi) return;
+  const lasting = (frog: FrogRecord) =>
+    ending === "drive" && (frog.drivesLeft ?? 1) > 1;
+  for (const frog of mi.frogs ?? []) {
     const player = players.find((p) => p.id === frog.playerId);
-    if (!player) continue;
+    if (!player || lasting(frog)) continue;
     player.stats = { ...frog.stats };
     player.skills = frog.skills;
     removeCondition(player, PlayerCondition.FROG);
   }
-  if (mi) mi.frogs = [];
+  mi.frogs = (mi.frogs ?? [])
+    .filter(lasting)
+    .map((frog) => ({ ...frog, drivesLeft: (frog.drivesLeft ?? 1) - 1 }));
+}
+
+export function revokeGrant(player: Player, grant: MatchGrant): void {
+  switch (grant.kind) {
+    case "skill": {
+      const index = player.skills.findIndex((s) => s.type === grant.skill);
+      if (index >= 0) player.skills.splice(index, 1);
+      break;
+    }
+    case "stat":
+      player.stats[grant.stat] -= grant.delta;
+      break;
+  }
 }
 
 export function revokeMatchGrants(state: GameState, players: Player[]): void {
   const mi = state.matchInducements;
   if (!mi) return;
-  restoreFrogs(state, players);
-  for (const grant of mi.grants) {
+  restoreFrogs(state, players, "match");
+  const halfGrants = mi.variant?.halfGrants ?? [];
+  for (const grant of [...mi.grants, ...halfGrants]) {
     const player = players.find((p) => p.id === grant.playerId);
-    if (!player) continue;
-    switch (grant.kind) {
-      case "skill": {
-        const index = player.skills.findIndex((s) => s.type === grant.skill);
-        if (index >= 0) player.skills.splice(index, 1);
-        break;
-      }
-      case "stat":
-        player.stats[grant.stat] -= grant.delta;
-        break;
-    }
+    if (player) revokeGrant(player, grant);
   }
   mi.grants = [];
+  if (mi.variant) mi.variant.halfGrants = [];
 }
 
 function availablePlayers(team: Team): Player[] {
@@ -602,6 +632,7 @@ export function validChoiceAnswer(
   if (!request.playerIds.includes(answer.playerId)) return null;
   switch (request.kind) {
     case "intensive-training":
+    case "novice-wizard":
       return offered(answer.skill, request.skills) ? answer : null;
     case "you-dope":
       return offered(answer.stat, request.stats) ? answer : null;
@@ -609,6 +640,10 @@ export function validChoiceAnswer(
     case "knuckle-dusters":
     case "hangover":
     case "team-captain":
+    case "magic-potion":
+    case "lesser-magic-potion":
+    case "superior-magic-potion":
+    case "souvenir":
       return answer;
   }
 }

@@ -9,7 +9,7 @@ test("loads the game shell headlessly with no page errors", async ({
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: "BLOOD BOWL SEVENS" })
+    page.getByRole("heading", { name: "BLOOD BOWL", exact: true })
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Play Local" })).toBeVisible();
   expect(pageErrors).toEqual([]);
