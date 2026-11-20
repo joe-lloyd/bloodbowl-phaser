@@ -9,13 +9,6 @@ import { type GameType } from "../../../src/game/variants/gameTypes";
 import { gameTypeRules } from "../../../src/game/variants/gameTypeRules";
 import { forceDice } from "../../utils/test-helpers";
 
-export const ALL_GAME_TYPES: readonly GameType[] = [
-  "sevens",
-  "street-bowl",
-  "beach-bowl",
-  "gutter-bowl",
-];
-
 export function duel(
   team1: Partial<PlayerPlacement>[],
   team2: Partial<PlayerPlacement>[]
