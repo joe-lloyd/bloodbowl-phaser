@@ -1,7 +1,13 @@
 import { type FieldPlayer as Player } from "./board";
 
 import { type ActionType } from "../../types/events";
-import { type Board, type Square, carrierOf } from "./board";
+import {
+  type Board,
+  type Square,
+  carrierOf,
+  distance,
+  standing,
+} from "./board";
 import { type RollTarget } from "./chance";
 import { type Route } from "./routes";
 import { type Weights } from "./weights";
@@ -181,7 +187,28 @@ export function activations({
     out.push(...deepReceiverActivations(c, carrier));
   out.push(...assistActivations(c, out));
   out.push(...feedingSupportActivations(c));
-  return sortActivations(gatePriced(c, out));
+  return sortActivations(hitMarkersFirst(c, gatePriced(c, out)));
+}
+
+function hitsMarker(plan: Activation, markers: readonly Player[]): boolean {
+  const intent = plan.intent;
+  return (
+    (plan.tier === "sure-block" || plan.tier === "blitz") &&
+    (intent.kind === "block" || intent.kind === "blitz") &&
+    markers.some((m) => m.id === intent.target.id)
+  );
+}
+
+function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
+  const carrier = carrierOf(c.board);
+  if (carrier?.teamId !== c.board.us) return plans;
+  const markers = c.board.theirs.filter(
+    (p) => standing(p) && distance(p.gridPosition, carrier.gridPosition) === 1
+  );
+  if (!plans.some((plan) => hitsMarker(plan, markers))) return plans;
+  return plans.filter(
+    (plan) => plan.player.id !== carrier.id || plan.action !== "move"
+  );
 }
 
 function movementContinuation(c: Context, player: Player): Activation[] {
