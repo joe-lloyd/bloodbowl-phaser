@@ -136,13 +136,35 @@ function startingState(
     restored?.state ?? options.initialState;
   if (initialState) return initialState;
   if (options.scenario) return applyScenario(options.scenario, team1, team2);
+  return freshMatchState(options, team1, team2);
+}
+
+function freshMatchState(
+  options: HeadlessGameOptions,
+  team1: Team,
+  team2: Team
+): GameState | undefined {
+  const fixture = options.paysWinnings ? { paysWinnings: true } : {};
   if (options.startingPhase) {
-    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: options.paysWinnings === undefined ? {} : { paysWinnings: options.paysWinnings }, ...formatOption(options) }
-    );
+    return GameService.createMatchState({
+      team1,
+      team2,
+      startingPhase: options.startingPhase,
+      ...(options.startingSubPhase === undefined
+        ? {}
+        : { startingSubPhase: options.startingSubPhase }),
+      fixture,
+      ...formatOption(options),
+    });
   }
   if (options.paysWinnings || options.format) {
-    return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SANDBOX_IDLE, fixture: options.paysWinnings ? { paysWinnings: true } : {}, ...formatOption(options) }
-    );
+    return GameService.createMatchState({
+      team1,
+      team2,
+      startingPhase: GamePhase.SANDBOX_IDLE,
+      fixture,
+      ...formatOption(options),
+    });
   }
   return undefined;
 }

@@ -9,6 +9,20 @@ import { isPlayableSquare } from "../variants/pitchLayouts";
 
 const squareKey = (x: number, y: number) => `${String(x)},${String(y)}`;
 
+function ringSquares(
+  centre: { x: number; y: number },
+  reach: number
+): { x: number; y: number }[] {
+  const squares: { x: number; y: number }[] = [];
+  for (let dx = -reach; dx <= reach; dx++) {
+    for (let dy = -reach; dy <= reach; dy++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) === reach)
+        squares.push({ x: centre.x + dx, y: centre.y + dy });
+    }
+  }
+  return squares;
+}
+
 function nearestFreeSquare(
   wanted: FormationPosition,
   taken: Set<string>,
@@ -22,14 +36,8 @@ function nearestFreeSquare(
     isPlayableSquare(layout, { x, y }) &&
     !taken.has(squareKey(x, y));
   for (let reach = 0; reach < layout.cols; reach++) {
-    for (let dx = -reach; dx <= reach; dx++) {
-      for (let dy = -reach; dy <= reach; dy++) {
-        const x = wanted.x + dx;
-        const y = wanted.y + dy;
-        if (Math.max(Math.abs(dx), Math.abs(dy)) === reach && free(x, y))
-          return { x, y };
-      }
-    }
+    const found = ringSquares(wanted, reach).find(({ x, y }) => free(x, y));
+    if (found) return found;
   }
   return wanted;
 }

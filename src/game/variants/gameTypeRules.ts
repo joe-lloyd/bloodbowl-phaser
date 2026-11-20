@@ -87,19 +87,23 @@ const COBBLES: ArmourRules = {
   failedDodgeOrRush: null,
 };
 
+const SEVENS = "sevens";
+const STREET_BOWL = "street-bowl";
+const BEACH_BOWL = "beach-bowl";
+
 const venueTable = (venue: Venue): KickoffTableId =>
-  venue === "gutter-sewer" ? "gutter-sewer" : "gutter-street";
+  venue === "gutter-sewer" ? venue : "gutter-street";
 
 export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
-  sevens: {
-    gameType: "sevens",
+  [SEVENS]: {
+    gameType: SEVENS,
     venues: ["stadium"],
     turnsPerHalf: 6,
     draft: SEVENS_DRAFT,
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 3, maxPerWideZone: 1 },
-    kickoffTable: () => "sevens",
-    weatherTable: () => "sevens",
-    injuryTable: "sevens",
+    kickoffTable: () => SEVENS,
+    weatherTable: () => SEVENS,
+    injuryTable: SEVENS,
     kickDeviation: "lower-of-2d6",
     throwInDistance: "d6+2",
     ballBounces: 1,
@@ -109,8 +113,8 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     rushTarget: 2,
     secretWeaponsLeaveAfterDrive: "never",
   },
-  "street-bowl": {
-    gameType: "street-bowl",
+  [STREET_BOWL]: {
+    gameType: STREET_BOWL,
     venues: ["street"],
     turnsPerHalf: 6,
     draft: {
@@ -123,8 +127,8 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
       veteran: false,
     },
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 1, maxPerWideZone: 1 },
-    kickoffTable: () => "street-bowl",
-    weatherTable: () => "street-bowl",
+    kickoffTable: () => STREET_BOWL,
+    weatherTable: () => STREET_BOWL,
     injuryTable: "standard",
     kickDeviation: "d6",
     throwInDistance: "2d6",
@@ -135,8 +139,8 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     rushTarget: 2,
     secretWeaponsLeaveAfterDrive: "crowd-roll",
   },
-  "beach-bowl": {
-    gameType: "beach-bowl",
+  [BEACH_BOWL]: {
+    gameType: BEACH_BOWL,
     venues: ["beach"],
     turnsPerHalf: 6,
     draft: {
@@ -146,9 +150,9 @@ export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
       veteran: false,
     },
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 2, maxPerWideZone: 1 },
-    kickoffTable: () => "beach-bowl",
-    weatherTable: () => "beach-bowl",
-    injuryTable: "beach-bowl",
+    kickoffTable: () => BEACH_BOWL,
+    weatherTable: () => BEACH_BOWL,
+    injuryTable: BEACH_BOWL,
     kickDeviation: "lower-of-2d6",
     throwInDistance: "d6",
     ballBounces: 0,
