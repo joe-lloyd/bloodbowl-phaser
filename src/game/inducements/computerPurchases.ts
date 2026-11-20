@@ -54,13 +54,30 @@ export function nextComputerPregameCommand(
   if (!pregame.ready[teamId]) return { type: "ready-weather", teamId };
   const offer = pregame.offer;
   if (!offer || shoppingTeamId(pregame, teamIds) !== teamId) return null;
-  for (const line of computerInducementPurchases(offer, teamId)) {
-    const quantity =
-      offer.selections[teamId]?.find(
-        (item) => item.inducement === line.inducement
-      )?.quantity ?? 0;
-    if (quantity !== line.quantity)
-      return { type: "select-inducement", teamId, ...line };
-  }
-  return { type: "confirm-inducements", teamId };
+  const change = nextBasketChange(
+    offer.selections[teamId] ?? [],
+    computerInducementPurchases(offer, teamId)
+  );
+  return change
+    ? { type: "select-inducement", teamId, ...change }
+    : { type: "confirm-inducements", teamId };
+}
+
+function nextBasketChange(
+  basket: readonly InducementSelectionLine[],
+  plan: readonly InducementSelectionLine[]
+): InducementSelectionLine | undefined {
+  const planned = (inducement: Inducement) =>
+    plan.find((line) => line.inducement === inducement)?.quantity ?? 0;
+  const held = (inducement: Inducement) =>
+    basket.find((line) => line.inducement === inducement)?.quantity ?? 0;
+  const surplus = basket.find(
+    (line) => line.quantity > planned(line.inducement)
+  );
+  if (surplus)
+    return {
+      inducement: surplus.inducement,
+      quantity: planned(surplus.inducement),
+    };
+  return plan.find((line) => held(line.inducement) !== line.quantity);
 }
