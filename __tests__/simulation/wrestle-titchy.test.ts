@@ -5,7 +5,7 @@ import { blockOdds } from "../../src/simulation/ai/chance";
 import { key, readBoard } from "../../src/simulation/ai/board";
 import { routesFor } from "../../src/simulation/ai/routes";
 import { decide } from "../../src/simulation/ai/decisions";
-import { takesWrestle } from "../../src/simulation/ai/wrestle";
+import { blockFaces } from "../../src/simulation/ai/wrestle";
 import type { Candidate } from "../../src/simulation/candidates";
 
 function wrestleBoard(
@@ -82,18 +82,47 @@ describe("Wrestle", () => {
     const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE]);
     expect(
       blockOdds({
-        attacker,
-        defender,
         dice: 1,
         attackerPicks: true,
         teamReroll: false,
-        wrestles: takesWrestle(
+        faces: blockFaces(
           readBoard(subject, attacker.teamId),
           attacker,
           defender
         ),
       })
     ).toEqual({ knockdown: 3 / 6, attackerDown: 1 / 6 });
+  });
+
+  it("prices two dice by the face the dice choice would keep", () => {
+    const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE], {
+      skills: [SkillType.BLOCK],
+      hasBall: false,
+    });
+    const odds = blockOdds({
+      dice: 2,
+      attackerPicks: true,
+      teamReroll: false,
+      faces: blockFaces(
+        readBoard(subject, attacker.teamId),
+        attacker,
+        defender
+      ),
+    });
+    expect(odds.knockdown).toBeCloseTo(23 / 36, 6);
+  });
+
+  it("wrestles a carrier with Block when a hungry Vampire without Block falls either way", () => {
+    const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE], {
+      skills: [SkillType.BLOCK],
+      hasBall: true,
+    });
+    subject.ctx.gameService.getState().activePlayer = {
+      id: attacker.id,
+      action: "block",
+      bloodlustUnsated: true,
+    };
+    expect(wrestleAnswer(subject, attacker, defender)).toBe("accept");
   });
 
   it("keeps its own carrier standing instead of wrestling with Block against Block", () => {
@@ -115,12 +144,10 @@ describe("Wrestle", () => {
       bloodlustUnsated: true,
     };
     const odds = blockOdds({
-      attacker,
-      defender,
       dice: 1,
       attackerPicks: true,
       teamReroll: false,
-      wrestles: takesWrestle(
+      faces: blockFaces(
         readBoard(subject, attacker.teamId),
         attacker,
         defender
@@ -184,8 +211,12 @@ describe("Wrestle", () => {
     expect(wrestleAnswer(subject, attacker, defender)).toBe("decline");
   });
 
-  it("does not wrestle while its Bloodlust is unsated", () => {
-    const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE]);
+  it("keeps a hungry Vampire with Block standing instead of wrestling a carrier", () => {
+    const { subject, attacker, defender } = wrestleBoard(
+      [SkillType.BLOCK, SkillType.WRESTLE],
+      { skills: [SkillType.BLOCK], hasBall: true }
+    );
+    expect(wrestleAnswer(subject, attacker, defender)).toBe("accept");
     subject.ctx.gameService.getState().activePlayer = {
       id: attacker.id,
       action: "block",

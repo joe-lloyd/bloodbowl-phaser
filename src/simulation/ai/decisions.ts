@@ -13,7 +13,7 @@ import {
 } from "./board";
 import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
-import { bothDownRank, takesWrestle, wrestleValue } from "./wrestle";
+import { blockFaces, defenderWrestles, takesWrestle } from "./wrestle";
 
 const USE_REROLL = "use-reroll";
 
@@ -25,41 +25,6 @@ const UNRELIABLE = [
   SkillType.UNCHANNELLED_FURY,
   SkillType.LONER,
 ];
-
-interface ResultRankArgs {
-  type: BlockResultType;
-  attackerBlock: boolean;
-  defenderBlock: boolean;
-  defenderDodge: boolean;
-  wrestle: Wrestle;
-}
-
-interface Wrestle {
-  attacker: boolean;
-  defender: boolean;
-  value: number;
-}
-
-function resultRank({
-  type,
-  attackerBlock,
-  defenderBlock,
-  defenderDodge,
-  wrestle,
-}: ResultRankArgs): number {
-  switch (type) {
-    case "pow":
-      return 5;
-    case "pow-dodge":
-      return defenderDodge ? 3 : 4.5;
-    case "push":
-      return 3;
-    case "both-down":
-      return wrestled(bothDownRank(attackerBlock, defenderBlock), wrestle);
-    case "skull":
-      return 0;
-  }
-}
 
 type PendingOf<T extends PendingDecision["type"]> = Extract<
   PendingDecision,
@@ -99,20 +64,8 @@ function blockDiceChoice(
   const defender = board.everyone.find((p) => p.id === pending.defenderId);
   if (!attacker || !defender)
     throw new Error("Block decision players must be on the pitch");
-  const has = (p: typeof attacker, s: SkillType) => hasSkill(p.skills, s);
-  const rank = (type: BlockResultType) =>
-    resultRank({
-      type: type,
-      attackerBlock: has(attacker, SkillType.BLOCK),
-      defenderBlock: has(defender, SkillType.BLOCK),
-      defenderDodge:
-        has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE),
-      wrestle: {
-        attacker: takesWrestle(board, attacker, defender),
-        defender: has(defender, SkillType.WRESTLE),
-        value: wrestleValue(board, attacker, defender),
-      },
-    });
+  const faces = blockFaces(board, attacker, defender);
+  const rank = (type: BlockResultType) => faces[type].rank;
   const weAttack = attacker.teamId === board.us;
   const ranks = pending.options.map((o) => rank(o.type));
 
@@ -293,11 +246,10 @@ function wrestleChoice(
   const self = board.everyone.find((p) => p.id === pending.playerId);
   if (!attacker || !self) return null;
   const defender = board.everyone.find((p) => p.id === pending.opponentId);
-  const block = (p: FieldPlayer) => hasSkill(p.skills, SkillType.BLOCK);
   const accept =
     self.id === attacker.id
       ? !!defender && takesWrestle(board, self, defender)
-      : block(attacker) && !block(self);
+      : defenderWrestles(attacker, self);
   return first(
     candidates,
     (c) =>
@@ -350,12 +302,6 @@ export function decide({
         skillPlans: skillPlans,
       });
   }
-}
-
-function wrestled(rank: number, wrestle: Wrestle): number {
-  if (wrestle.attacker && wrestle.value > rank) return wrestle.value;
-  if (wrestle.defender && wrestle.value < rank) return wrestle.value;
-  return rank;
 }
 
 function otherDecision(

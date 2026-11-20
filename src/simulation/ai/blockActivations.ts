@@ -12,7 +12,7 @@ import {
   toGoal,
 } from "./board";
 import { type BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
-import { takesWrestle } from "./wrestle";
+import { blockFaces } from "./wrestle";
 import { type Route, movesLeft } from "./routes";
 import { type Context, gamble } from "./activationContext";
 import type { Activation } from "./activations";
@@ -94,12 +94,10 @@ export function blockFrom({
   });
   const reroll = c.teamReroll && carrierOf(c.board)?.id === target.id;
   return blockOdds({
-    attacker: moved,
-    defender: target,
     dice: analysis.diceCount,
     attackerPicks: !analysis.isUphill,
     teamReroll: reroll,
-    wrestles: takesWrestle(c.board, moved, target),
+    faces: blockFaces(c.board, moved, target),
   });
 }
 

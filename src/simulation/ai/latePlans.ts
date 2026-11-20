@@ -1,5 +1,5 @@
 import { type FieldPlayer as Player } from "./board";
-import { takesWrestle } from "./wrestle";
+import { blockFaces } from "./wrestle";
 import { hasTackleZone } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { playerValue } from "../../types/Team";
@@ -116,12 +116,10 @@ export function exposureCost(c: Context, player: Player, at: Square): number {
   let worst = 0;
   for (const { opponent, hit, moved } of adjacentBlocks(board, player, at)) {
     const odds = blockOdds({
-      attacker: opponent,
-      defender: moved,
       dice: hit.diceCount,
       attackerPicks: !hit.isUphill,
       teamReroll: false,
-      wrestles: takesWrestle(board, opponent, moved),
+      faces: blockFaces(board, opponent, moved),
     });
     worst = Math.max(worst, odds.knockdown * casualtyChance(opponent, moved));
   }

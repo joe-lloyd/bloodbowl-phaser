@@ -1,5 +1,6 @@
 import { type Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
+import { type BlockFaces, pickedFaceOdds } from "./wrestle";
 
 export type Chance = number;
 
@@ -203,49 +204,19 @@ export interface BlockOdds {
 }
 
 interface BlockOddsArgs {
-  attacker: Player;
-  defender: Player;
   dice: number;
   attackerPicks: boolean;
   teamReroll: boolean;
-  wrestles: boolean;
-}
-
-function faceOdds(
-  attacker: Player,
-  defender: Player,
-  wrestles: boolean
-): { good: number; bad: number } {
-  const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
-  const aBlock = has(attacker, SkillType.BLOCK);
-  const dBlock = has(defender, SkillType.BLOCK);
-  const dodges =
-    has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE);
-  const bothDownFloors = (aBlock && !dBlock) || wrestles;
-  return {
-    good: (1 + (dodges ? 0 : 1) + (bothDownFloors ? 1 : 0)) / 6,
-    bad: (1 + (aBlock || wrestles ? 0 : 1)) / 6,
-  };
+  faces: BlockFaces;
 }
 
 export function blockOdds({
-  attacker,
-  defender,
   dice,
   attackerPicks,
   teamReroll,
-  wrestles,
+  faces,
 }: BlockOddsArgs): BlockOdds {
-  const { good, bad } = faceOdds(attacker, defender, wrestles);
-  let knockdown: number;
-  let attackerDown: number;
-  if (attackerPicks) {
-    knockdown = 1 - (1 - good) ** dice;
-    attackerDown = bad ** dice;
-  } else {
-    knockdown = good ** dice;
-    attackerDown = 1 - (1 - bad) ** dice;
-  }
+  let { knockdown, attackerDown } = pickedFaceOdds(faces, dice, attackerPicks);
   if (teamReroll) {
     knockdown += attackerDown * knockdown;
     attackerDown *= attackerDown;
