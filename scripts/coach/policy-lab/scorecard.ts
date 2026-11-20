@@ -489,7 +489,7 @@ td,th{padding:5px 8px;border-bottom:1px solid #2a3352;text-align:left;vertical-a
 tr.below td:last-child{color:#ef8a7a}tr.ceiling td:last-child{color:#e0b24a}tr.meets td:last-child{color:#8fd19e}
 </style>
 <h1>Team scorecard</h1>
-<p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${String(below.length)} of ${String(cards.length)} rosters miss their tier's standard.${cards.some((c) => c.adjusted === null) ? " This schedule splits the rosters into groups that never meet, so no strength can be fitted and each roster is judged on raw points." : ""}</p>
+<p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${String(below.length)} of ${String(cards.length)} rosters miss their standard.${cards.some((c) => c.adjusted === null) ? " This schedule splits the rosters into groups that never meet, so no strength can be fitted and each roster is judged on raw points." : ""}</p>
 <h2>Rosters</h2>
 <div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Strength, 95%</th><th class="n">Raw points</th><th class="n">Change vs frozen</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th class="n">Points bar</th><th>Standard</th></tr>
 ${cards.map(row).join("\n")}</table></div>
