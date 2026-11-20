@@ -3,7 +3,8 @@ import { loadLookAtlas } from "../../../game/presentation/layered/layeredModels"
 import type { LookAtlas } from "../../../game/presentation/layered/lookAtlas";
 import type { PlayerAppearance } from "../../../types/Player";
 import type { TeamColors } from "../../../types/Team";
-import { PortraitCanvas, wholePixelSize } from "./portraitCanvas";
+import { PortraitCanvas } from "./portraitCanvas";
+import { wholePixelSize } from "./portraitSize";
 
 const IDLE_FPS = 6;
 

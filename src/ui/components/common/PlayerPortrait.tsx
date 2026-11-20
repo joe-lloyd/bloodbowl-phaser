@@ -11,7 +11,8 @@ import { type TeamColors } from "../../../types/Team";
 import type { PlayerAppearance } from "../../../types/Player";
 import { layeredArt } from "../../../game/presentation/layered/layeredModels";
 import { LayeredPortrait } from "./LayeredPortrait";
-import { PortraitCanvas, wholePixelSize } from "./portraitCanvas";
+import { PortraitCanvas } from "./portraitCanvas";
+import { wholePixelSize } from "./portraitSize";
 
 interface AtlasFrame {
   frame: { x: number; y: number; w: number; h: number };

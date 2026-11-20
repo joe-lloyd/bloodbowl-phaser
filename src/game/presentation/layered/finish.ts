@@ -13,7 +13,7 @@ interface Point {
   readonly y: number;
 }
 
-export interface Window {
+interface Window {
   readonly x: number;
   readonly y: number;
   readonly width: number;
