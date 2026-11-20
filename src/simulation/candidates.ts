@@ -15,6 +15,7 @@ import { SetupValidator } from "../game/validators/SetupValidator";
 import { isConfinedToReserves } from "../game/kickoff/driveEffects";
 import { decisionOwner } from "../network/OwnershipGate";
 import { describePlayer, square, stepCandidates } from "./stepCandidates";
+import { isStandableSquare } from "../game/rules/pitchSquares";
 
 type CandidateKind =
   | "decision"
@@ -484,6 +485,7 @@ function kickoffCandidates(
   for (const depth of [2, 4, 6]) {
     for (const y of [2, 5, 8]) {
       const x = kicksRight ? GameConfig.PITCH_WIDTH - 1 - depth : depth;
+      if (!isStandableSquare({ x, y })) continue;
       out.push({
         kind: "kickoff",
         commands: [{ type: "kick-ball", playerId: kicker.id, x, y }],

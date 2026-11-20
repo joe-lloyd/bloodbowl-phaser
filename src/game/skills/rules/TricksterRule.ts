@@ -2,7 +2,7 @@ import { SkillType } from "../../../types/Skills";
 import { type Player } from "../../../types/Player";
 import { type SkillRule } from "../SkillRule";
 import { type ReactionDecisionAnswer } from "../../../types/decisions";
-import { GameConfig } from "../../../config/GameConfig";
+import { isStandableSquare } from "../../rules/pitchSquares";
 
 function tricksterSquares(
   base: { x: number; y: number },
@@ -30,10 +30,7 @@ const isFreeOnPitch = (
   square: { x: number; y: number },
   occupied: Set<string>
 ): boolean =>
-  square.x >= 0 &&
-  square.y >= 0 &&
-  square.x < GameConfig.PITCH_WIDTH &&
-  square.y < GameConfig.PITCH_HEIGHT &&
+  isStandableSquare(square) &&
   !occupied.has(`${String(square.x)},${String(square.y)}`);
 
 export const TricksterRule: SkillRule = {

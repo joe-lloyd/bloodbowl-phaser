@@ -9,7 +9,6 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
 import { jumpTargets } from "./jump";
 import { canSecureBall } from "./secureBall";
-import { GameConfig } from "../../config/GameConfig";
 import {
   type BlockReplacement,
   BLOCK_REPLACEMENTS,
@@ -20,6 +19,7 @@ import {
 } from "./blockReplacements";
 import { type ActionType } from "../../types/events";
 import { chebyshev } from "./chebyshev";
+import { isStandableSquare } from "./pitchSquares";
 
 const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
   "move",
@@ -311,8 +311,7 @@ function standingStillActions(board: ActingBoard) {
   return { block, multipleBlock, jump };
 }
 
-const inBounds = (x: number, y: number) =>
-  x >= 0 && y >= 0 && x < GameConfig.PITCH_WIDTH && y < GameConfig.PITCH_HEIGHT;
+const inBounds = (x: number, y: number) => isStandableSquare({ x, y });
 
 function blockReplacementActions(board: ActingBoard) {
   const { player, opponents, reachable, turn } = board.input;

@@ -22,17 +22,12 @@ import {
   throwTeammateAims,
 } from "../game/rules/throwTeammate";
 import type { Candidate } from "./candidates";
+import { isStandableSquare } from "../game/rules/pitchSquares";
 
 const chebyshev = (a: GridPosition, b: GridPosition) =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
 export const square = (p: GridPosition) => `(${String(p.x)},${String(p.y)})`;
-
-const onPitch = (p: GridPosition) =>
-  p.x >= 0 &&
-  p.x < GameConfig.PITCH_WIDTH &&
-  p.y >= 0 &&
-  p.y < GameConfig.PITCH_HEIGHT;
 
 export function describePlayer(player: Player): string {
   const where = player.gridPosition ? ` at ${square(player.gridPosition)}` : "";
@@ -127,7 +122,7 @@ function jumpSteps(ctx: StepContext): void {
     hasSkill(player.skills, SkillType.LEAP) ||
     hasSkill(player.skills, SkillType.POGO);
   for (const target of jumpTargets(at, others, canJumpAnything, (x, y) =>
-    onPitch({ x, y })
+    isStandableSquare({ x, y })
   )) {
     step(
       {
@@ -238,6 +233,7 @@ function isPassSquare(
   to: GridPosition
 ): boolean {
   if (to.x === at.x && to.y === at.y) return false;
+  if (!isStandableSquare(to)) return false;
   if (PassController.rangeValue(at, to) === null) return false;
   const range = gs.getPassController().measureRange(at, to);
   return passTypes.includes(range.type);

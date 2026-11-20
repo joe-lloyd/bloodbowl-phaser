@@ -1,16 +1,7 @@
 import { type Player, PlayerStatus } from "../../types/Player";
-import { GameConfig } from "../../config/GameConfig";
+import { isStandableSquare } from "../rules/pitchSquares";
 
 export type MovementSquare = NonNullable<Player["gridPosition"]>;
-
-export function inPitchBounds({ x, y }: MovementSquare): boolean {
-  return (
-    x >= 0 &&
-    x < GameConfig.PITCH_WIDTH &&
-    y >= 0 &&
-    y < GameConfig.PITCH_HEIGHT
-  );
-}
 
 export function movementNeighbors(square: MovementSquare): MovementSquare[] {
   const neighbors: MovementSquare[] = [];
@@ -18,7 +9,7 @@ export function movementNeighbors(square: MovementSquare): MovementSquare[] {
     for (let dy = -1; dy <= 1; dy++) {
       if (dx === 0 && dy === 0) continue;
       const neighbor = { x: square.x + dx, y: square.y + dy };
-      if (inPitchBounds(neighbor)) neighbors.push(neighbor);
+      if (isStandableSquare(neighbor)) neighbors.push(neighbor);
     }
   }
   return neighbors;
