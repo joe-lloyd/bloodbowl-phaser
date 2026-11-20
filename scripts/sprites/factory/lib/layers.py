@@ -182,7 +182,7 @@ def verify(stage, scale, spec, body, default, store, rng, count, seed=7):
             cells, shades = look_cells(store, names, k, rng)
             mine = finished(stage, *composite(cells, shape, shades))
             diffs.append(int((mine != full).sum()))
-        worst = max(worst, max(diffs))
+        worst = max([worst] + diffs)
         print("VERIFY %s %s %s diff px %s" % (default.key, body, "-".join(choice.values()), diffs), flush=True)
     print("VERIFY %s %s worst %d px" % (default.key, body, worst), flush=True)
 

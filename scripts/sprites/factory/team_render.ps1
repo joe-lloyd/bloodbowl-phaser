@@ -1,6 +1,7 @@
 # Render a team's models layered on Jellybingus: smoke test, parallel chunks, then pack with --verify.
 #   powershell -File team_render.ps1 -Models thrall,vampire_runner -Out out-layered [-Parallel 14]
-# Resumable: a chunk whose stash file exists is skipped. Writes logs-<Out>/ and logs-<Out>/all.done.
+# Resumable: a chunk whose stash file exists is skipped. Writes logs-<Out>/ and logs-<Out>/all.done, which
+# starts with FAILED and lists the missing chunks of any model it did not pack; rerun to retry those.
 param(
   [Parameter(Mandatory)][string]$Models,
   [string]$Out = "out-layered",
@@ -21,8 +22,10 @@ function Start-Blender([string[]]$Opts, [string]$Log) {
 }
 
 $jobs = @()
+$bodiesOf = @{}
 foreach ($model in $Models.Split(",")) {
   $bodies = (& $Blender -b --factory-startup --python lib/render.py -- --bodies-of $model 2>$null | Select-String "^BODIES " | ForEach-Object { $_.Line.Split(" ")[1..99] })
+  $bodiesOf[$model] = @($bodies)
   foreach ($bodyName in $bodies) {
     foreach ($anim in $anims) {
       if (Test-Path "$stash/$($model)__$($bodyName)__$anim.pkl") { continue }
@@ -39,8 +42,17 @@ foreach ($job in $jobs) {
 }
 $running | Wait-Process
 $packs = @()
+$failed = @()
 foreach ($model in $Models.Split(",")) {
+  $missing = @(foreach ($bodyName in $bodiesOf[$model]) { foreach ($anim in $anims) {
+    if (-not (Test-Path "$stash/$($model)__$($bodyName)__$anim.pkl")) { "$bodyName-$anim" } } })
+  if ($bodiesOf[$model].Count -eq 0) { $missing = @("no bodies") }
+  if ($missing.Count -gt 0) {
+    $failed += "$model missing $($missing -join ',')"
+    continue
+  }
   $packs += Start-Blender -Opts (@("--models", $model, "--pack", $stash, "--verify", "2") + $common) -Log "$logs/pack-$model"
 }
 $packs | Wait-Process
-"ALL DONE" | Out-File "$logs/all.done"
+if ($failed.Count -gt 0) { ("FAILED`n" + ($failed -join "`n")) | Out-File "$logs/all.done" }
+else { "ALL DONE" | Out-File "$logs/all.done" }

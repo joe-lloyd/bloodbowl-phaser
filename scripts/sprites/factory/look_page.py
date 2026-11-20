@@ -4,8 +4,8 @@
 
 Each SHEETS folder is the sheet/ folder a `render.py --sheet` run writes: <model>.json plus <model>/<n>.png.
 OUT gets index.html and a copy of every sheet. Teams come from reference/rosters.json, so a model shared by
-several teams shows under each; a team shows once any of its models has a sheet. Option labels come from
-teams/*_looks.json."""
+several teams shows under each; a team shows once any of its models has a sheet. Row labels come from each
+sheet's json."""
 import glob
 import html
 import json
