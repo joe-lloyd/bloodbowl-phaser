@@ -4,10 +4,10 @@ import { composeFrame, type LookLayers } from "./compose";
 import { finishFrame, type FinishedFrame } from "./finish";
 import { colourTable } from "./paint";
 
-const ATLAS_WIDTH = 4096;
-const MAX_TEXTURE_SIDE = 4096;
+const PAGE_SIDE = 4096;
 
 interface AtlasRect {
+  readonly page: number;
   readonly x: number;
   readonly y: number;
   readonly w: number;
@@ -16,11 +16,15 @@ interface AtlasRect {
   readonly sy: number;
 }
 
-export interface LookAtlas {
+export interface AtlasPage {
   readonly width: number;
   readonly height: number;
-  readonly size: number;
   readonly pixels: Uint8ClampedArray<ArrayBuffer>;
+}
+
+export interface LookAtlas {
+  readonly size: number;
+  readonly pages: readonly AtlasPage[];
   readonly frames: Readonly<Record<string, AtlasRect>>;
 }
 
@@ -37,33 +41,32 @@ export interface LookAtlasInput {
   readonly colors: TeamColors;
 }
 
-function place(painted: readonly Painted[]): { rects: Map<string, AtlasRect>; height: number } {
+function place(painted: readonly Painted[]): { rects: Map<string, AtlasRect>; heights: number[] } {
   const rects = new Map<string, AtlasRect>();
-  let x = 0;
-  let y = 0;
-  let row = 0;
+  const heights: number[] = [];
+  let cursor = { page: 0, x: 0, y: 0, row: 0 };
   for (const { name, frame } of painted) {
-    const box = { w: Math.max(frame.width, 1), h: Math.max(frame.height, 1), x: frame.x, y: frame.y };
-    if (x + box.w > ATLAS_WIDTH) {
-      x = 0;
-      y += row + 1;
-      row = 0;
-    }
-    rects.set(name, { x, y, w: box.w, h: box.h, sx: box.x, sy: box.y });
-    x += box.w + 1;
-    row = Math.max(row, box.h);
+    const w = Math.max(frame.width, 1);
+    const h = Math.max(frame.height, 1);
+    if (cursor.x + w > PAGE_SIDE) cursor = { ...cursor, x: 0, y: cursor.y + cursor.row + 1, row: 0 };
+    if (cursor.y + h > PAGE_SIDE) cursor = { page: cursor.page + 1, x: 0, y: 0, row: 0 };
+    rects.set(name, { page: cursor.page, x: cursor.x, y: cursor.y, w, h, sx: frame.x, sy: frame.y });
+    cursor = { ...cursor, x: cursor.x + w + 1, row: Math.max(cursor.row, h) };
+    heights[cursor.page] = Math.max(heights[cursor.page] ?? 1, cursor.y + cursor.row);
   }
-  return { rects, height: Math.max(y + row, 1) };
+  return { rects, heights: heights.length > 0 ? heights : [1] };
 }
 
-function copyFrame(target: { pixels: Uint8ClampedArray; table: Uint8ClampedArray }, item: Painted, rect: AtlasRect): void {
+function copyFrame(target: { pages: readonly AtlasPage[]; table: Uint8ClampedArray }, item: Painted, rect: AtlasRect): void {
   const { frame } = item;
+  const pixels = target.pages[rect.page]?.pixels;
+  if (!pixels) return;
   for (let row = 0; row < frame.height; row += 1) {
     for (let col = 0; col < frame.width; col += 1) {
       const value = frame.pixels[row * frame.width + col] ?? -1;
       if (value < 0) continue;
-      const dest = ((rect.y + row) * ATLAS_WIDTH + rect.x + col) * 4;
-      target.pixels.set(target.table.subarray(value * 4, value * 4 + 4), dest);
+      const dest = ((rect.y + row) * PAGE_SIDE + rect.x + col) * 4;
+      pixels.set(target.table.subarray(value * 4, value * 4 + 4), dest);
     }
   }
 }
@@ -73,13 +76,12 @@ export function buildLookAtlas(input: LookAtlasInput): LookAtlas {
     name,
     frame: finishFrame(composeFrame(input.look, name), input.palette),
   }));
-  const { rects, height } = place(painted);
-  if (height > MAX_TEXTURE_SIDE) console.warn(`A look atlas is ${String(height)} px tall, over the ${String(MAX_TEXTURE_SIDE)} px texture limit`);
-  const pixels = new Uint8ClampedArray(ATLAS_WIDTH * height * 4);
+  const { rects, heights } = place(painted);
+  const pages = heights.map((height) => ({ width: PAGE_SIDE, height, pixels: new Uint8ClampedArray(PAGE_SIDE * height * 4) }));
   const table = colourTable(input.palette, input.colors);
   for (const item of painted) {
     const rect = rects.get(item.name);
-    if (rect) copyFrame({ pixels, table }, item, rect);
+    if (rect) copyFrame({ pages, table }, item, rect);
   }
-  return { width: ATLAS_WIDTH, height, size: input.size, pixels, frames: Object.fromEntries(rects) };
+  return { size: input.size, pages, frames: Object.fromEntries(rects) };
 }

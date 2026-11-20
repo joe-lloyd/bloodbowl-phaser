@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { pageCanvas } from "./atlasCanvas";
 import type { LookAtlas } from "./lookAtlas";
 import {
   loadLookAtlas,
@@ -13,22 +14,12 @@ function addAtlasTexture(
   key: string,
   atlas: LookAtlas
 ): void {
-  const canvas = document.createElement("canvas");
-  canvas.width = atlas.width;
-  canvas.height = atlas.height;
-  canvas
-    .getContext("2d")
-    ?.putImageData(
-      new ImageData(atlas.pixels, atlas.width, atlas.height),
-      0,
-      0
-    );
-  const texture = textures.addCanvas(key, canvas);
+  const texture = textures.create(key, atlas.pages.map(pageCanvas));
   if (!texture) return;
   texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
   for (const [name, rect] of Object.entries(atlas.frames)) {
     texture
-      .add(name, 0, rect.x, rect.y, rect.w, rect.h)
+      .add(name, rect.page, rect.x, rect.y, rect.w, rect.h)
       ?.setTrim(atlas.size, atlas.size, rect.sx, rect.sy, rect.w, rect.h);
   }
 }
