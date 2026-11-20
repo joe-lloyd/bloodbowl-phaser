@@ -6,6 +6,7 @@ import { isInEndZone } from "../elements/GridUtils";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { PrayerToNuffle } from "../../types/Inducements";
 import { prayerInPlay } from "../inducements/matchInducements";
+import { type StallingPenalty } from "../variants/gameTypeRules";
 
 const ACTIVATION_ROLLS = [
   SkillType.BONE_HEAD,
@@ -105,6 +106,11 @@ export function canScoreWithoutDice({
   return false;
 }
 
-export function crowdHits(roll: number, turnNumber: number): boolean {
-  return roll >= turnNumber;
+const BOTTLE_HITS_ON = 2;
+
+export function stallingHitsOn(
+  penalty: StallingPenalty,
+  turnNumber: number
+): number {
+  return penalty === "bottle" ? BOTTLE_HITS_ON : turnNumber;
 }
