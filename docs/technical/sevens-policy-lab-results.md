@@ -409,6 +409,32 @@ A roster's points bar is now the lower of its tier's bar and the share of points
 
 Replay verification now hashes the final state with sorted keys, as the engine's checksum does. Restoring a save reorders the keys in `state.inducements`, so the old hash failed once inducements were in the saved state.
 
+## Fable ideas, 20 November
+
+The previous round left seven rosters short of their standard, and a self-play rerun added Vampire. Fable 5.2 read the earlier rounds and proposed ideas for the eight. Each idea played main's planner in paired games on fresh seeds.
+
+| Change, paired against main                                                        |  Games | Candidate points | Against the field's mean change             |
+| ---------------------------------------------------------------------------------- | -----: | ---------------: | ------------------------------------------- |
+| Stand prone players up before the first risky action                               | 10,496 |           50.96% | Dwarf -2.0, Gnome -2.8, Snotling -1.8       |
+| Fill the front cage corners first                                                  | 10,368 |           50.68% | Chaos Dwarf -2.6, Dwarf -2.4, Snotling +5.2 |
+| Price Wrestle and Titchy, answer Wrestle prompts                                   | 10,368 |           50.37% | Snotling +5.4, Gnome +2.7, Tomb Kings -2.8  |
+| Three cage corners                                                                 | 10,368 |           50.19% | Nurgle -2.6, Vampire +3.1                   |
+| Hit the players marking our carrier before it dodges away                          | 10,368 |           50.00% | Chaos Dwarf +2.3, Necromantic +2.7          |
+| Press a carrier two turns early                                                    | 10,368 |           50.00% | No roster moved more than 0.6               |
+| Answer Bloodlust prompts and walk an unfed Vampire to a Thrall, Vampire games only |  2,048 |           50.63% | Vampire +1.3 against its frozen self        |
+
+Three of these fix rules the planner ignored, and this branch keeps them:
+
+- A carrier marked by several opponents dodged away instead of letting team-mates hit the players marking it. When a sure block or Blitz hits a marker, the carrier's own moves wait.
+- A Wrestle attacker counted Both Down as bad, though it puts both players prone with no armour roll and no turnover. Titchy's +1 to dodge was missing from route odds. The engine's Wrestle prompts went to the heuristic, which accepted every one. Now an attacker without Block takes Wrestle, and a defender takes it when the attacker has Block and it does not.
+- Bloodlust prompts also went to the heuristic. A Vampire now keeps a declared Block or Hypnotic Gaze when a Thrall beside it can be bitten afterwards, refuses to bite when the only Thrall in reach is the ball carrier, and an unfed Vampire walks to a Thrall when it would otherwise stay hungry.
+
+Together the three took 50.84% of points over 10,496 games, inside the noise of parity. They do not move any roster to its bar. Four self-play seeds a policy, 1,400 games a roster on average, put 22 rosters at their standard under main and 22 under this branch. Snotling fell from 23.9% to 20.9% in self-play. Six Snotling-only seeds, 384 games a policy, show no loss: this branch's Snotlings took 36.3% where main's took 34.4% in the same matchups.
+
+Standing up first was the strongest single idea, and it fails the search worker test `chooses what the search in this thread chooses, over three workers`. It waits for a fix and a run combined with this branch. Front corners helped overall but cost Chaos Dwarf and Dwarf, two of the slow rosters below their bar, so it was dropped.
+
+The paired experiments and self-play runs stay under `/Users/joelloyd/tmp/bb7-std` on Daily Driver: `combo1`, `hitsfirst`, `wrestle`, `bloodlust2`, `stand-first`, `front-corners`, `three-corners` and `late-two`.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
