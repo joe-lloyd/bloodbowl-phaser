@@ -28,6 +28,7 @@ import {
   revealSeed,
   joinLobby,
   selectTeam,
+  setLobbyListed,
   setReady,
   startMatch,
   subscribeLobby,
@@ -46,6 +47,13 @@ import { type Team } from "../../../types/Team";
 import { type CompetitionContext } from "../../../competition/types";
 
 type Mode = "host" | "join";
+
+function unlistWhenHostLeaves(lobby: LobbyDoc, uid: string): void {
+  if (lobby.hostUid !== uid || lobby.listed !== true) return;
+  setLobbyListed(lobby, false).catch((error: unknown) => {
+    console.warn("[open lobby] could not unlist the lobby on leave", error);
+  });
+}
 
 export function OnlineLobby({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
@@ -224,7 +232,10 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           lobby={lobby}
           isHost={isHost}
           me={me}
-          onLeave={() => navigate("/")}
+          onLeave={() => {
+            unlistWhenHostLeaves(lobby, user.uid);
+            void navigate("/");
+          }}
           onReady={() => void setReady(lobby.code, user.uid, !me?.ready)}
         />
       }

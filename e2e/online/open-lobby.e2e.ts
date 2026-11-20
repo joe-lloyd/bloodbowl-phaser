@@ -47,3 +47,33 @@ test("a host opens a lobby and a stranger joins it from Open games @online", asy
     await guestContext.close();
   }
 });
+
+test("a host who leaves takes the lobby off Open games @online", async ({
+  browser,
+}) => {
+  const hostContext = await browser.newContext();
+  const guestContext = await browser.newContext();
+  try {
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const host = new OnlinePage(hostPage);
+    await hostPage.goto("/");
+    await host.signIn();
+    const code = await host.hostGame();
+    await hostPage.getByRole("checkbox", { name: /Open game/ }).click();
+
+    await guestPage.goto("/");
+    await new OnlinePage(guestPage).signIn();
+    await guestPage.getByRole("button", { name: "Join Game" }).click();
+    const listed = guestPage.locator(
+      `[data-testid="open-game"][data-code="${code}"]`
+    );
+    await expect(listed).toBeVisible({ timeout: 30_000 });
+
+    await hostPage.getByRole("button", { name: "Leave" }).click();
+    await expect(listed).toBeHidden({ timeout: 15_000 });
+  } finally {
+    await hostContext.close();
+    await guestContext.close();
+  }
+});
