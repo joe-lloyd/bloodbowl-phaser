@@ -2067,10 +2067,10 @@
   },
   "__tests__/unit/ui/TeamSelect.test.tsx": {
     "@typescript-eslint/no-floating-promises": {
-      "count": 4
+      "count": 3
     },
     "@typescript-eslint/require-await": {
-      "count": 15
+      "count": 8
     },
     "@typescript-eslint/unbound-method": {
       "count": 1
@@ -6562,7 +6562,7 @@
   },
   "src/ui/components/pages/TeamSelect.tsx": {
     "@typescript-eslint/no-floating-promises": {
-      "count": 4
+      "count": 3
     },
     "complexity": {
       "count": 2

@@ -1,21 +1,15 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RosterName, type Team } from "../../../types/Team";
+import { type Team } from "../../../types/Team";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { mustAdvance } from "../../../game/progression/progression";
-import {
-  getAvailableRosterNames,
-  getRosterByRosterName,
-} from "../../../data/RosterTemplates";
-import { saveTeam } from "../../../game/managers/TeamManager";
+import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import {
   getComputerTeamTemplates,
   createComputerTeamFromTemplate,
 } from "../../../competition/computerTeamTemplates";
-import { createReadyMadeTeam } from "../../../simulation/lineups";
-import { withDraftGameType } from "../../../game/rules/gameTypeChange";
 import {
   DEFAULT_GAME_TYPE,
   GAME_TYPE_LABELS,
@@ -50,57 +44,8 @@ interface TeamSelectProps {
   mode?: "sandbox" | "standard" | "play";
 }
 
-const READY_MADE_COLORS = [0x8e1b1b, 0x1e3a5f, 0x556b2f, 0xd6b25e];
-
-function ReadyMadeTeamPicker({
-  teams,
-  gameType,
-  onAdded,
-}: {
-  teams: Team[];
-  gameType: GameType;
-  onAdded: () => void;
-}) {
-  const [roster, setRoster] = useState<RosterName>(RosterName.HUMAN);
-  const add = () => {
-    const color = READY_MADE_COLORS[teams.length % READY_MADE_COLORS.length];
-    if (color === undefined) return;
-    const taken = new Set(teams.map((team) => team.name));
-    const base = `Ready-made ${roster}`;
-    let name = base;
-    for (let n = 2; taken.has(name); n++) name = `${base} ${String(n)}`;
-    saveTeam(
-      withDraftGameType(createReadyMadeTeam(roster, name, color), gameType)
-    );
-    onAdded();
-  };
-  return (
-    <div className="flex flex-wrap items-center justify-center gap-3">
-      <select
-        aria-label="Roster for a ready-made team"
-        value={roster}
-        onChange={(event) => {
-          setRoster(
-            getAvailableRosterNames().find(
-              (name) => name === event.target.value
-            ) ?? roster
-          );
-        }}
-        className="hud-field w-auto min-w-[180px]"
-      >
-        {getAvailableRosterNames().map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
-      <HudButton onClick={add}>Add ready-made team</HudButton>
-    </div>
-  );
-}
-
 export function TeamSelect({ mode = "play" }: TeamSelectProps) {
-  const [library, reloadTeams] = useTeamLibrary();
+  const [library] = useTeamLibrary();
   const [searchParams] = useSearchParams();
   const gameTypeParam = searchParams.get("gameType");
   const [gameType, setGameType] = useState<GameType>(
@@ -278,7 +223,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             <p className="py-6 text-center text-hud-sm text-hud-mute">
               {filter
                 ? `No teams match "${filter}".`
-                : "No saved teams yet. Add a ready-made team below."}
+                : "No saved teams yet. Build one in Team Builder."}
             </p>
           ) : (
             columnTeams.map((team) => {
@@ -467,14 +412,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           Team before this match can start.
         </Notice>
       )}
-
-      <Section title="Ready-made teams" className="mt-6">
-        <ReadyMadeTeamPicker
-          teams={teams}
-          gameType={gameType}
-          onAdded={reloadTeams}
-        />
-      </Section>
 
       {mode !== "sandbox" && !vsComputer && (
         <Panel className="p-4">
