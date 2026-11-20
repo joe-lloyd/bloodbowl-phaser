@@ -60,6 +60,27 @@ and every dugout square land.
 blender -b --factory-startup --python stadium.py -- OUT corners
 ```
 
+## Street, Beach and Gutter Bowl venues
+
+`venues.py` builds the other four venues (street, beach, gutter-street,
+gutter-sewer) with the stadium's camera, light style, materials and colour
+and mask passes. It reads the pitch from the game rather than its own
+numbers: `venue_layouts.ts` prints every venue's pitch layout, dugout squares
+and wall gates from `src/game/variants/pitchLayouts.ts`. Each venue takes a
+few seconds on Daily Driver.
+
+```sh
+pnpm exec tsx scripts/sprites/venue_layouts.ts > layouts.json
+# on the Blender machine, one venue per run
+blender -b --factory-startup --python venues.py -- OUT layouts.json street
+# back in the repo
+python3 scripts/sprites/build_game_assets.py venues OUT
+```
+
+The last step writes `public/venues/<venue>/`. `venueSidelines.test.ts`
+checks each venue's `meta.json` against the rules layout, so a change to a
+pitch layout fails the tests until the venue is rendered again.
+
 ## Into the game
 
 ```sh
