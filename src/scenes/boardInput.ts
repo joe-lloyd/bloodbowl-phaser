@@ -6,13 +6,13 @@ import { TouchController } from "../game/controllers/TouchController";
 export function wirePointerInput(scene: GameScene): void {
   const pitch = () => scene.pitch;
   const gameplay = () => scene.gameplayController;
-  const stadium = scene.stadium;
+  const venue = scene.venue;
 
   const onCanvas = (pointer: Phaser.Input.Pointer) =>
     pointer.event?.target === scene.game.canvas;
 
   scene.add
-    .rectangle(0, 0, stadium.width, stadium.height, 0x000000, 0)
+    .rectangle(0, 0, venue.width, venue.height, 0x000000, 0)
     .setOrigin(0)
     .setDepth(-1)
     .setInteractive()

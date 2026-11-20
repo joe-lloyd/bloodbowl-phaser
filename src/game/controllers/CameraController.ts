@@ -4,6 +4,7 @@ import { GameEventNames } from "../../types/events";
 import { prefersReducedMotion as reducedMotion } from "../presentation/motion";
 import { MATCH_STYLE } from "../presentation/matchStyle";
 import { ISO } from "../elements/GridUtils";
+import { GameConfig } from "../../config/GameConfig";
 import { isTyping } from "../presentation/keyboardFocus";
 
 interface Point {
@@ -161,11 +162,13 @@ export class CameraController {
   }
 
   private pitchCorners(): Point[] {
+    const cols = GameConfig.PITCH_WIDTH;
+    const rows = GameConfig.PITCH_HEIGHT;
     return ([
       [0, 0],
-      [20, 0],
-      [0, 11],
-      [20, 11],
+      [cols, 0],
+      [0, rows],
+      [cols, rows],
     ] as const).map(([x, y]) => this.pitch.getPointPosition(x, y));
   }
 

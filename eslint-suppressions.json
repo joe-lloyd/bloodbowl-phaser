@@ -4375,11 +4375,6 @@
       "count": 1
     }
   },
-  "src/game/presentation/sidelineRoutes.ts": {
-    "max-params": {
-      "count": 1
-    }
-  },
   "src/game/presentation/sidelineStaff.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 6
@@ -5065,9 +5060,6 @@
   },
   "src/scenes/matchCamera.ts": {
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "complexity": {
       "count": 1
     },
     "max-lines-per-function": {
