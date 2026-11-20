@@ -15,6 +15,7 @@ import { movePlayerToBox } from "../rules/playerLocation";
 import { type ApothecaryCasualtyType } from "../../types/decisions";
 import { offerApothecary } from "../inducements/apothecary";
 import { isFrog } from "../inducements/matchInducements";
+import { variantCasualty } from "../inducements/sawbones";
 import { rerollFailedRegeneration } from "../inducements/regeneration";
 import {
   type InjuryParties,
@@ -100,7 +101,9 @@ export class CasualtyOperation extends InjuryPartiesOperation {
       return;
     }
 
-    const { result, lasting } = this.recordOutcome(context, player);
+    const outcome = await this.recordOutcome(context, player);
+    if (!outcome) return;
+    const { result, lasting } = outcome;
 
     const kill =
       result === InjuryResult.DEAD
@@ -136,13 +139,23 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     }
   }
 
-  private recordOutcome(
+  private async recordOutcome(
     context: FlowContext,
     player: Player
-  ): { result: CasualtyType; lasting: LastingInjury | undefined } {
-    const result = isFrog(context.gameService.getState(), player.id)
-      ? InjuryResult.BADLY_HURT
-      : this.result;
+  ): Promise<
+    { result: CasualtyType; lasting: LastingInjury | undefined } | null
+  > {
+    const result = await variantCasualty(
+      context,
+      player,
+      isFrog(context.gameService.getState(), player.id)
+        ? InjuryResult.BADLY_HURT
+        : this.result
+    );
+    if (result === "ko" || result === "reserves") {
+      movePlayerToBox(player, { box: result }, context.eventBus);
+      return null;
+    }
     const lasting =
       this.record?.result === result ? this.record.lasting : undefined;
     const grade = casualtyGradeFor(result, this.record);

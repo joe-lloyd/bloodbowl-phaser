@@ -7,4 +7,5 @@ export const frogRecordSchema: z.ZodType<FrogRecord> = z.looseObject({
   playerId: z.string(),
   stats: playerStatsSchema,
   skills: skillSchema.array(),
+  drivesLeft: z.number().exactOptional(),
 });
