@@ -91,7 +91,7 @@ def collect(directories, rules_file):
     expected = {j['id']: j for j in requested}
     for game in games:
         job = expected[game['id']]
-        if any(game[k] != job[k] for k in ('seed','cohort','templates','coaches','pair')):
+        if any(game.get(k) != job.get(k) for k in ('seed','cohort','templates','coaches','pair','inducements')):
             raise ValueError('Game does not match manifest: ' + game['id'])
     team_games, contexts, roll_rows, match_rows, findings = [], [], [], [], []
     actions = collections.defaultdict(lambda: [0, 0])

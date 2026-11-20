@@ -159,7 +159,7 @@ dom.window.close();
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)
             _, games = self.fixture(root)
-            for field, value in (("seed", 0), ("verifiedHash", ""), ("counters", {"skillTriggered": 1})):
+            for field, value in (("seed", 0), ("inducements", False), ("verifiedHash", ""), ("counters", {"skillTriggered": 1})):
                 bad = copy.deepcopy(games[0])
                 bad[field] = value
                 path = root / "games/a-0.json"

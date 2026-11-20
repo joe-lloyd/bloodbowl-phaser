@@ -82,7 +82,7 @@ def analyse(root, baseline, partial=False):
     if not partial and len(games)!=len(scheduled): raise ValueError('Missing scheduled games')
     for game in games:
         job=scheduled[game['id']]
-        if any(game[k]!=job[k] for k in ('pair','seed','templates','variantIds','comparison')): raise ValueError('Schedule mismatch: '+game['id'])
+        if any(game.get(k)!=job.get(k) for k in ('pair','seed','templates','variantIds','comparison','inducements')): raise ValueError('Schedule mismatch: '+game['id'])
         if not game.get('verifiedHash') or game.get('observationVersion')!=2: raise ValueError('Unverified game: '+game['id'])
         if sum(r['count'] for r in game['skills'])!=game['counters'].get('skillTriggered',0): raise ValueError('Skill reconciliation: '+game['id'])
         if sum(r['attempts'] for r in game['rolls'])!=game['counters'].get('diceRoll',0): raise ValueError('Roll reconciliation: '+game['id'])

@@ -60,13 +60,13 @@ export async function playStudyGame(
     startingPhase: GamePhase.SETUP,
     progressionEnabled: job.persistentInjuries ?? false,
   });
-  if (job.inducements !== false) await buyComputerInducements(game);
   const participants = [team1.players.slice(), team2.players.slice()];
   if (job.receivingSide !== undefined) {
     const kickingTeamId = job.receivingSide === 0 ? team2.id : team1.id;
     const response = await game.execute({ type: "start-setup", kickingTeamId });
     if (!response.ok) throw new Error("Cannot set requested first receiver");
   }
+  if (job.inducements !== false) await buyComputerInducements(game);
   const initial = game.matchSave();
   const telemetry = createTelemetry(game);
   const coaches = job.coaches.map((name, side) =>

@@ -24,7 +24,7 @@ def load_games(root):
         if g["id"] not in jobs or g["id"] in games:
             raise ValueError("Unexpected or duplicate game: " + g["id"])
         job = jobs[g["id"]]
-        if any(g.get(k) != v for k, v in job.items()):
+        if any(g.get(k) != v for k, v in job.items()) or g.get("inducements") != job.get("inducements"):
             raise ValueError("Schedule differs: " + g["id"])
         if path.stem != g["id"] or g.get("observationVersion") != 2:
             raise ValueError("Invalid result identity or observation version")

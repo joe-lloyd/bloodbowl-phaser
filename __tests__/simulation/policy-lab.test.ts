@@ -240,10 +240,17 @@ describe("repeatable Sevens policy lab", () => {
         "team1: Halfling Master Chef x1",
         "team1: Part-time Assistant Coach x2",
       ]);
-      expect(inducements?.masterChef?.half).toBe("h1");
       expect(result.completed).toBe(true);
       const replay = await replayStudyTrace(trace);
       expect(replay.observations.counters).toEqual(result.counters);
+      const chefRolls = (rolls: { roll: string; attempts: number }[]) =>
+        rolls
+          .filter((r) => r.roll === "Halfling Master Chef")
+          .reduce((sum, r) => sum + r.attempts, 0);
+      expect([
+        chefRolls(result.rolls),
+        chefRolls(replay.observations.rolls),
+      ]).toEqual([2, 2]);
     } finally {
       rmSync(out, { recursive: true, force: true });
     }

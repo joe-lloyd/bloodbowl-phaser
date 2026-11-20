@@ -61,6 +61,16 @@ class ReportTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'with and without petty cash'):
                 collect(runs, Path(directory)/'rules.json')
 
+    def test_refuses_a_result_played_with_the_other_petty_cash_setting(self):
+        job = dict(id='g1', seed=1, cohort='calibration', templates=['a', 'b'], coaches=['planner', 'heuristic'], pair='p1')
+        with tempfile.TemporaryDirectory() as directory:
+            run = Path(directory)/'calibration'
+            (run/'games').mkdir(parents=True)
+            (run/'manifest.json').write_text(json.dumps(dict(sourceDigest='same', pettyCash=True, inventory=dict(teams=[]), jobs=[job])))
+            (run/'games'/'g1.json').write_text(json.dumps(job | dict(inducements=False, observationVersion=2, skills=[], rolls=[], counters={})))
+            with self.assertRaisesRegex(ValueError, 'Game does not match manifest: g1'):
+                collect([run], Path(directory)/'rules.json')
+
 
 if __name__ == '__main__':
     unittest.main()
