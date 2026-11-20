@@ -308,7 +308,7 @@ def finish_model(key, a, rendered, helpers):
     defaults = dict((o[0], o[2][0][0]) for o in options[1:])
     goldens = {}
     for body, _, _, parts in bodies:
-        own = [name for name, _, (s, v) in parts if defaults.get(s) == v]
+        own = [name for name, _, (s, v) in parts if defaults.get(s) == v and name in stores[body]]
         goldens[body] = golden(stage, stores[body], ranges[body], (ox, oy, frame), ["base"] + own)
     with open(os.path.join(out, "golden.json"), "w") as fh:
         json.dump(goldens, fh, separators=(",", ":"))
