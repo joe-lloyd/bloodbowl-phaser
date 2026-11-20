@@ -4,7 +4,7 @@ import { type FlowContext } from "../core/GameFlowManager";
 import { type Player, hasTackleZone } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
-import { weatherEffects } from "../rules/weather";
+import { catchModifier } from "../kickoff/ballConditions";
 import {
   foldTrigger,
   gatherParticipants,
@@ -38,7 +38,7 @@ export async function catchRoll(
 
   const modifiers =
     catchController.calculateModifiers(
-      { position: player.gridPosition,opponents,isBounce: options.origin==="bounce",isThrowIn: options.origin==="throw-in" }    ) + weatherEffects(gameService.getState().weather).ballHandling;
+      { position: player.gridPosition,opponents,isBounce: options.origin==="bounce",isThrowIn: options.origin==="throw-in" }    ) + catchModifier(gameService.getState());
 
   const catchCtx: CatchContext = {
     player,

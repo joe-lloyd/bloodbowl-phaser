@@ -1,9 +1,9 @@
 import type React from "react";
 import type { WeatherStep } from "./weatherThrow";
 import {
-  WEATHER_TABLE,
   type Weather,
   weatherDescription,
+  weatherTableRows,
 } from "../../../game/rules/weather";
 import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 
@@ -80,7 +80,7 @@ export function WeatherStage({
 function WeatherTable({ result }: { result: Weather | null }) {
   return (
     <ul className="space-y-1 text-left" data-testid="weather-table">
-      {WEATHER_TABLE.map((row) => {
+      {weatherTableRows().map((row) => {
         const hit = row.weather === result;
         return (
           <li

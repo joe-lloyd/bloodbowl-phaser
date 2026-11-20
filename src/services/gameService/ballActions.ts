@@ -8,6 +8,7 @@ import { HandoffOperation } from "@/game/operations/HandoffOperation";
 import { PuntOperation } from "@/game/operations/PuntOperation";
 import { isLegalHandoffTarget } from "@/game/rules/handoff";
 import { weatherEffects } from "@/game/rules/weather";
+import { carrierMayPass } from "@/game/kickoff/ballConditions";
 import { pitchSquare } from "./squares";
 import type { GameParts } from "./parts";
 import {
@@ -92,6 +93,9 @@ function passTargetRefusal({
   if (hailMary && !hasSkill(passer.skills, SkillType.HAIL_MARY_PASS)) {
     return "Player does not have Hail Mary Pass";
   }
+  if (!carrierMayPass(parts.state)) {
+    return "Sticky Sludge: the ball carrier cannot Pass this drive";
+  }
   if (!pitchSquare(target)) {
     return "Target is off the pitch";
   }
@@ -107,8 +111,10 @@ function passTargetRefusal({
     ? "Long Bomb"
     : parts.passController.measureRange(from, { x: target.x, y: target.y })
         .type;
-  if (!weatherEffects(parts.state.weather).passTypes.includes(type)) {
-    return `${parts.state.weather}: only a Quick or Short Pass may be attempted`;
+  const allowed = weatherEffects(parts.state.weather).passTypes;
+  if (!allowed.includes(type)) {
+    const only = allowed.length === 1 ? "a Quick Pass" : "a Quick or Short Pass";
+    return `${parts.state.weather}: only ${only} may be attempted`;
   }
   return null;
 }

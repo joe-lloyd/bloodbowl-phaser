@@ -8,6 +8,7 @@ import {
   KickoffEvent,
 } from "../../src/game/kickoff/kickoffEvents";
 import { KICKOFF_EXAMPLE_SEEDS } from "../../src/data/kickoffScenarios";
+import type { SevensKickoffEvent } from "../../src/game/kickoff/variantEventMeanings";
 
 const OUT = process.env["KICKOFF_VIDEO_OUT"] ?? "e2e-results/kickoff-video-out";
 
@@ -15,7 +16,7 @@ const KICKER = "team1:0";
 const TARGET = { x: 14, y: 5 };
 
 interface Clip {
-  event: KickoffEvent;
+  event: SevensKickoffEvent;
   roll: number;
   scenario: "kickoff-table-standard" | "kickoff-table-late-half";
 }

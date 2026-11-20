@@ -9,6 +9,7 @@ import {
 } from "../types/Player";
 import { PassController } from "../game/controllers/PassController";
 import { weatherEffects } from "../game/rules/weather";
+import { carrierMayPass } from "../game/kickoff/ballConditions";
 import { legalHandoffTargets } from "../game/rules/handoff";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { GameConfig } from "../config/GameConfig";
@@ -246,7 +247,7 @@ function isPassSquare(
 function passSteps(ctx: StepContext): void {
   const { gs, state, player, action, carrying, opponents, step } = ctx;
 
-  if (action !== "pass" || !carrying) return;
+  if (action !== "pass" || !carrying || !carrierMayPass(state)) return;
 
   const everyone = [...gs.getTeammates(player.id), ...opponents];
 

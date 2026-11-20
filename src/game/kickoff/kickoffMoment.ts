@@ -1,7 +1,14 @@
 import { type Team } from "../../types/Team";
-import { KickoffEvent, type KickoffEventOutcome } from "./kickoffEvents";
+import {
+  INTERACTIVE_KICKOFF_EVENTS,
+  KickoffEvent,
+  type KickoffEventOutcome,
+  kickoffEventOwner,
+} from "./kickoffEvents";
+import { kickoffEventMeaning } from "./kickoffTables";
+import type { SevensKickoffEvent } from "./variantEventMeanings";
 
-const summary: Record<KickoffEvent, string> = {
+const summary: Record<SevensKickoffEvent, string> = {
   [KickoffEvent.GET_THE_REF]: "Both teams gain a Bribe.",
   [KickoffEvent.TIME_OUT]: "Both turn markers move by one.",
   [KickoffEvent.ALERT_DEFENCE]:
@@ -23,7 +30,7 @@ const summary: Record<KickoffEvent, string> = {
     "The team that loses the roll has a player Stunned by the crowd.",
 };
 
-const reveal: Record<KickoffEvent, string> = {
+const reveal: Record<SevensKickoffEvent, string> = {
   [KickoffEvent.GET_THE_REF]: "Both teams gain a Bribe.",
   [KickoffEvent.TIME_OUT]: "Both turn markers move by one.",
   [KickoffEvent.ALERT_DEFENCE]:
@@ -45,7 +52,7 @@ const reveal: Record<KickoffEvent, string> = {
     "Next, each team rolls a D6 and adds its Dedicated Fans. The lower total has a random player Stunned.",
 };
 
-const ROLLS_FOR_ITS_RESULT = new Set<KickoffEvent>([
+const SEVENS_ROLLS_FOR_RESULT = new Set<KickoffEvent>([
   KickoffEvent.CHEERING_FANS,
   KickoffEvent.BRILLIANT_COACHING,
   KickoffEvent.CHANGING_WEATHER,
@@ -53,14 +60,27 @@ const ROLLS_FOR_ITS_RESULT = new Set<KickoffEvent>([
   KickoffEvent.PITCH_INVASION,
 ]);
 
+const isSevensEvent = (event: KickoffEvent): event is SevensKickoffEvent =>
+  event in summary;
+
+const rollsForItsResult = (event: KickoffEvent): boolean =>
+  SEVENS_ROLLS_FOR_RESULT.has(event) ||
+  (!isSevensEvent(event) && !INTERACTIVE_KICKOFF_EVENTS.has(event));
+
+const revealOf = (event: KickoffEvent): string =>
+  isSevensEvent(event) ? reveal[event] : kickoffEventMeaning(event);
+
+const summaryOf = (event: KickoffEvent): string =>
+  isSevensEvent(event) ? summary[event] : kickoffEventMeaning(event);
+
 export function kickoffRevealLine(
   event: KickoffEvent,
   kicking: Team,
   receiving: Team
 ): string {
-  if (ROLLS_FOR_ITS_RESULT.has(event)) return reveal[event];
+  if (rollsForItsResult(event)) return revealOf(event);
 
-  return `${reveal[event]} ${favoursLine({ event, meaning: "", perTeam: {} }, kicking, receiving)}`;
+  return `${revealOf(event)} ${favoursLine({ event, meaning: "", perTeam: {} }, kicking, receiving)}`;
 }
 
 export function kickoffOutcomeLine(
@@ -68,7 +88,7 @@ export function kickoffOutcomeLine(
   kicking: Team,
   receiving: Team
 ): string | null {
-  if (!ROLLS_FOR_ITS_RESULT.has(outcome.event)) return null;
+  if (!rollsForItsResult(outcome.event)) return null;
   const lines = [kicking, receiving].flatMap((team) =>
     (outcome.perTeam[team.id] ?? []).map((effect) => `${team.name}: ${effect}`)
   );
@@ -81,7 +101,7 @@ export function kickoffOutcomeLine(
 }
 
 export function kickoffEventSummary(event: KickoffEvent): string {
-  return summary[event];
+  return summaryOf(event);
 }
 
 export function kickoffMomentDetail(
@@ -89,7 +109,7 @@ export function kickoffMomentDetail(
   kicking: Team,
   receiving: Team
 ): string {
-  return `${summary[outcome.event]} ${favoursLine(outcome, kicking, receiving)}`;
+  return `${summaryOf(outcome.event)} ${favoursLine(outcome, kicking, receiving)}`;
 }
 
 function favoursLine(
@@ -109,34 +129,12 @@ function favoursLine(
   return simpleFavours(outcome.event, kicking, receiving);
 }
 
-type SimpleEvent = Exclude<KickoffEvent,
-  typeof KickoffEvent.CHEERING_FANS | typeof KickoffEvent.BRILLIANT_COACHING |
-  typeof KickoffEvent.DODGY_SNACK | typeof KickoffEvent.PITCH_INVASION>;
-
-function simpleFavours(event: SimpleEvent, kicking: Team, receiving: Team): string {
-  let favours: string;
-  switch (event) {
-    case KickoffEvent.GET_THE_REF:
-      favours = "Favours both teams.";
-      break;
-    case KickoffEvent.TIME_OUT:
-    case KickoffEvent.CHANGING_WEATHER:
-      favours = "Favours neither team.";
-      break;
-    case KickoffEvent.ALERT_DEFENCE:
-    case KickoffEvent.CHARGE:
-      favours = `Favours ${kicking.name}.`;
-      break;
-    case KickoffEvent.HIGH_KICK:
-      favours = `Favours ${receiving.name} if the landing square is eligible.`;
-      break;
-    case KickoffEvent.QUICK_SNAP:
-      favours = `Favours ${receiving.name}.`;
-      break;
-    default: {
-      const unreachable: never = event;
-      return unreachable;
-    }
+function simpleFavours(event: KickoffEvent, kicking: Team, receiving: Team): string {
+  if (event === KickoffEvent.GET_THE_REF) return "Favours both teams.";
+  if (event === KickoffEvent.HIGH_KICK) {
+    return `Favours ${receiving.name} if the landing square is eligible.`;
   }
-  return favours;
+  if (!INTERACTIVE_KICKOFF_EVENTS.has(event)) return "Favours neither team.";
+  const owner = kickoffEventOwner(event, kicking.id, receiving.id);
+  return `Favours ${owner === kicking.id ? kicking.name : receiving.name}.`;
 }

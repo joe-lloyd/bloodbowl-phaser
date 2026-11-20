@@ -16,7 +16,14 @@ import {
   offerMeasure,
 } from "@/game/inducements/matchInducements";
 import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
-import { withDriveModifiers } from "@/game/kickoff/driveEffects";
+import {
+  SwarmOfRatsOperation,
+  ratsCanStrike,
+} from "@/game/kickoff/driveHazards";
+import {
+  missesThisTurn,
+  withDriveModifiers,
+} from "@/game/kickoff/driveEffects";
 import { ActivationValidator } from "@/game/validators/ActivationValidator";
 import type { GameParts } from "./parts";
 
@@ -34,7 +41,10 @@ export function canActivate(parts: GameParts, playerId: string): boolean {
       player.status === PlayerStatus.ACTIVE
     );
   }
-  return activationValidator.canActivate(player, parts.state.turn);
+  return (
+    activationValidator.canActivate(player, parts.state.turn) &&
+    !missesThisTurn(player, parts.state, parts.state.turn.turnNumber)
+  );
 }
 
 export function hasPlayerActed(parts: GameParts, playerId: string): boolean {
@@ -124,6 +134,10 @@ function finishRemainingActivation(parts: GameParts, playerId: string): void {
   }
   parts.turnManager.finishActivation(playerId);
   parts.eventBus.emit(GameEventNames.ActionResolved, { playerId });
+  const player = parts.game.getPlayerById(playerId);
+  if (player && ratsCanStrike(parts.state, player)) {
+    parts.flowManager.add(new SwarmOfRatsOperation(playerId));
+  }
 }
 
 export function awaitingSecondAction(

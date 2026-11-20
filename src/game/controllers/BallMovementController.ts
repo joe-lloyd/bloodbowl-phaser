@@ -28,12 +28,13 @@ export class BallMovementController {
       y: number;
     },
 
-    rollType: "Scatter" | "Team-mate Scatter" = "Scatter"
+    rollType: "Scatter" | "Team-mate Scatter" = "Scatter",
+    squares = 3
   ): { x: number; y: number }[] {
     const path: { x: number; y: number }[] = [];
     let currentPos = { ...position };
 
-    const rolls = this.diceController.rollMultipleD8(rollType, 3);
+    const rolls = this.diceController.rollMultipleD8(rollType, squares);
 
     for (const direction of rolls) {
       currentPos = this.calculateOffsetPosition(currentPos, direction, 1);

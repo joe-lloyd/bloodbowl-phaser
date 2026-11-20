@@ -8,10 +8,11 @@ import { GameEventNames } from "../../../types/events";
 import { useEventBus } from "../../hooks/useEventBus";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import type { KickoffEvent } from "../../../game/kickoff/kickoffEvents";
+import { KICKOFF_TABLE_ROLL } from "../../../game/kickoff/kickoffEvents";
 import {
-  KICKOFF_TABLE,
-  KICKOFF_TABLE_ROLL,
-} from "../../../game/kickoff/kickoffEvents";
+  KICKOFF_TABLES,
+  activeKickoffTableId,
+} from "../../../game/kickoff/kickoffTables";
 import { kickoffEventSummary } from "../../../game/kickoff/kickoffMoment";
 import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 import { WeatherStage } from "./WeatherReveal";
@@ -142,7 +143,7 @@ function KickoffTable({ result }: { result: KickoffEvent | null }) {
       className="max-h-[min(360px,40dvh)] space-y-0.5 overflow-y-auto hud-scroll text-left"
       data-testid="kickoff-table"
     >
-      {Object.entries(KICKOFF_TABLE).map(([total, event]) => {
+      {Object.entries(KICKOFF_TABLES[activeKickoffTableId()]).map(([total, event]) => {
         const hit = event === result;
         return (
           <li

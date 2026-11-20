@@ -1,3 +1,4 @@
+import { knockedOutBox } from "../kickoff/driveHazards";
 import { GameEventNames } from "../../types/events";
 import { type IGameService } from "../../services/interfaces/IGameService.js";
 import { type Player, PlayerStatus } from "../../types/Player.js";
@@ -160,7 +161,8 @@ export class InjuryOperation extends InjuryPartiesOperation {
           ...(player.gridPosition ? { position: player.gridPosition } : {}),
         });
         if (!patchedUp) {
-          movePlayerToBox(player, { box: "ko" }, eventBus);
+          const box = knockedOutBox(gameService.getState(), gameService.getDiceController(), player);
+          movePlayerToBox(player, { box }, eventBus);
         }
         break;
       }
