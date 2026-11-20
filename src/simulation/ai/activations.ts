@@ -18,7 +18,7 @@ import {
   blitzActivations,
   carrierBlitzActivations,
   blockActivations,
-  blockFrom,
+  hitStandsChance,
 } from "./blockActivations";
 import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
@@ -196,16 +196,14 @@ function hitsMarker(plan: Activation, markers: readonly Player[]): boolean {
   );
 }
 
-function hitStandsChance(c: Context, plan: Activation): number {
+function markerHitStands(c: Context, plan: Activation): number {
   const intent = plan.intent;
-  if (plan.action !== "block" || intent.kind !== "block") return 1;
-  const odds = blockFrom({
-    c,
+  if (intent.kind !== "block" && intent.kind !== "blitz") return 1;
+  return hitStandsChance(c, {
     attacker: plan.player,
     target: intent.target,
-    from: plan.player.gridPosition,
+    route: intent.kind === "blitz" ? intent.route : null,
   });
-  return 1 - odds.attackerDown;
 }
 
 function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
@@ -219,7 +217,7 @@ function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
     (plan) => plan.player.id !== carrier.id && hitsMarker(plan, markers)
   );
   if (hits.length === 0) return plans;
-  const hitFirst = Math.max(...hits.map((plan) => hitStandsChance(c, plan)));
+  const hitFirst = Math.max(...hits.map((plan) => markerHitStands(c, plan)));
   const scoresNow = (plan: Activation) =>
     plan.intent.kind === "score" &&
     sequenceChance([{ player: carrier, rolls: plan.rolls }], c.teamReroll) >=

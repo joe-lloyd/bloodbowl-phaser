@@ -185,6 +185,26 @@ interface BestBlitzArgs {
   moves: Moves;
 }
 
+function blitzReach(route: Route | null, normal: number): number {
+  return (
+    (route?.chance ?? 1) * (route && route.path.length >= normal ? d6(2) : 1)
+  );
+}
+
+export function hitStandsChance(
+  c: Context,
+  hit: { attacker: Player; target: Player; route: Route | null }
+): number {
+  const [normal] = movesLeft(c.board, hit.attacker);
+  const odds = blockFrom({
+    c,
+    attacker: hit.attacker,
+    target: hit.target,
+    from: hit.route?.to ?? hit.attacker.gridPosition,
+  });
+  return blitzReach(hit.route, normal) * (1 - odds.attackerDown);
+}
+
 function bestBlitz({
   c,
   player,
@@ -206,8 +226,7 @@ function bestBlitz({
       target: target,
       from: from,
     });
-    const reach =
-      (route?.chance ?? 1) * (route && route.path.length >= normal ? d6(2) : 1);
+    const reach = blitzReach(route, normal);
     const chance = reach * (1 - odds.attackerDown);
     const value =
       reach * odds.knockdown * targetValue(c, player, target) -
