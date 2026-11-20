@@ -9,7 +9,7 @@ import { type Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
-import { weatherEffects } from "../rules/weather";
+import { lostBallHandling, passModifier } from "../kickoff/ballConditions";
 import { interceptModifiers } from "../rules/rollPreview";
 import { ArmourOperation } from "./ArmourOperation";
 import { isOnPitch } from "../controllers/BallMovementController";
@@ -332,7 +332,7 @@ export class PassOperation extends GameOperation {
       hailMary: this.hailMary,
       ...(targetPlayer === undefined ? {} : { targetPlayer: targetPlayer }),
       marking: markingOpponents,
-      modifiers: weatherEffects(gameService.getState().weather).passingAbility,
+      modifiers: passModifier(gameService.getState(), passRange.type),
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -638,12 +638,13 @@ export class PassOperation extends GameOperation {
             "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
+      const lostBall = lostBallHandling(gameService.getState());
       return {
         playerId: e.playerId,
         playerName: interceptor.playerName,
-        base,
+        base: base + lostBall,
         marking,
-        modifier: total,
+        modifier: total + lostBall,
       };
     });
 

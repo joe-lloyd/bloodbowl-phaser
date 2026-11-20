@@ -2,7 +2,12 @@ import { type Player, hasTackleZone } from "../../types/Player";
 import { type BlockAnalysis } from "../../types/Actions";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type PassRange } from "../controllers/PassController";
-import { type Weather, weatherEffects } from "./weather";
+import {
+  type Weather,
+  catchWeather,
+  pickUpWeather,
+  weatherEffects,
+} from "./weather";
 import { type GameState } from "../../types/GameState";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
@@ -71,7 +76,7 @@ export function pickupTarget(
   return requiredRoll(
     player.stats.AG,
     -marking +
-      weatherEffects(weather).ballHandling +
+      pickUpWeather(weather) +
       (has(player, SkillType.EXTRA_ARMS) ? 1 : 0)
   );
 }
@@ -83,7 +88,7 @@ export function secureBallTarget(
   weather: Weather
 ): number {
   const marking = markingPlayers(square, opponents).length;
-  const rain = weatherEffects(weather).ballHandling;
+  const rain = pickUpWeather(weather);
   const modifier = has(player, SkillType.BIG_HAND)
     ? Math.max(0, rain)
     : rain - marking;
@@ -102,7 +107,7 @@ export function catchTarget(
       : 0;
   const modifier =
     -marking +
-    weatherEffects(weather).ballHandling -
+    catchWeather(weather) -
     disturbing(player, opponents) +
     (has(player, SkillType.EXTRA_ARMS) ? 1 : 0) +
     (origin === "pass" && has(player, SkillType.DIVING_CATCH) ? 1 : 0);

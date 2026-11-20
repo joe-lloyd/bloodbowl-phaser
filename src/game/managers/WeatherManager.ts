@@ -2,9 +2,13 @@ import { type IEventBus } from "../../services/EventBus";
 import { type GameState } from "@/types/GameState";
 import { GameEventNames } from "../../types/events";
 import { DiceController } from "../controllers/DiceController";
-import { weatherForRoll, type Weather } from "../rules/weather";
+import {
+  type Weather,
+  weatherDescription,
+  weatherForRoll,
+} from "../rules/weather";
 
-const WEATHER_EFFECT: Record<Weather, string> = {
+const WEATHER_EFFECT: Partial<Record<Weather, string>> = {
   "Sweltering Heat":
     "At the end of each drive, roll a D3: each coach picks that many of their players on the pitch at random, and they miss the next drive in the Reserves.",
   "Very Sunny": "The glare gives passers a -1 penalty to Passing rolls.",
@@ -38,7 +42,7 @@ export class WeatherManager {
     this.eventBus.emit(GameEventNames.UI_LogEntry, {
       category: "weather",
       headline: weather,
-      detail: WEATHER_EFFECT[weather],
+      detail: WEATHER_EFFECT[weather] ?? `${weather}: ${weatherDescription(weather)}.`,
       roll,
     });
     this.eventBus.emit(GameEventNames.WeatherChanged, weather);

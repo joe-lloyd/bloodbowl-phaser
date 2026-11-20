@@ -2,7 +2,7 @@ import type { BallMovementController } from "./BallMovementController";
 import type { DiceController } from "./DiceController";
 import { GameConfig, isKickingTeamTerritory } from "@/config/GameConfig";
 import type { KickoffEvent } from "../kickoff/kickoffEvents";
-import { kickoffEventForRoll } from "../kickoff/kickoffEvents";
+import { kickoffEventForRoll } from "../kickoff/kickoffTables";
 
 export class KickoffController {
   private movementController: Pick<BallMovementController, "deviate">;

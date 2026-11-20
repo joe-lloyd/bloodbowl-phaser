@@ -28,10 +28,9 @@ import {
 } from "./ballPaths";
 import { BounceOperation } from "../operations/BounceOperation";
 import { type ReactionDecisionAnswer } from "../../types/decisions";
-import {
-  KICKOFF_EVENT_MEANING,
-  type KickoffEventOutcome,
-} from "../kickoff/kickoffEvents";
+import { type KickoffEventOutcome } from "../kickoff/kickoffEvents";
+import { kickoffEventMeaning } from "../kickoff/kickoffTables";
+import { kickLandsAsTouchback } from "../kickoff/ballConditions";
 
 interface BallCallbacks {
   onTurnover: (reason: string) => void;
@@ -46,7 +45,7 @@ interface BallCallbacks {
     landingSquare: { x: number; y: number }
   ) => Promise<void>;
 
-  consumeWeatherScatterPending?: () => boolean;
+  consumeWeatherScatterPending?: () => number;
 }
 
 export class BallManager {
@@ -254,7 +253,7 @@ export class BallManager {
       const { roll, event } = this.kickoffController.rollKickoffEvent();
       const outcome: KickoffEventOutcome = {
         event,
-        meaning: KICKOFF_EVENT_MEANING[event],
+        meaning: kickoffEventMeaning(event),
         perTeam: {},
       };
       this.eventBus.emit(GameEventNames.KickoffResult, {
@@ -273,12 +272,33 @@ export class BallManager {
       });
     }
 
+    await this.scatterInTheWind(
+      this.callbacks.consumeWeatherScatterPending?.() ?? 0
+    );
     if (
       this.state.ballPosition &&
-      this.callbacks.consumeWeatherScatterPending?.()
+      kickLandsAsTouchback(this.state, this.state.ballPosition)
     ) {
+      this.pendingTouchback = true;
+      this.state.ballPosition = null;
+    }
+
+    this.eventBus.emit(GameEventNames.KickoffBallLanding, {
+      landingSquare: this.state.ballPosition
+        ? { ...this.state.ballPosition }
+        : null,
+      isTouchback: this.pendingTouchback,
+    });
+
+    await this.delay(1000);
+    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
+    await this.resolveBallPlacement();
+  }
+
+  private async scatterInTheWind(squares: number): Promise<void> {
+    if (this.state.ballPosition && squares > 0) {
       const from = { ...this.state.ballPosition };
-      const path = this.movementController.scatter(from);
+      const path = this.movementController.scatter(from, "Scatter", squares);
       const to = path[path.length - 1];
       if (!to) throw new Error("Weather scatter produced no path");
       const offPitch =
@@ -292,7 +312,7 @@ export class BallManager {
       this.eventBus.emit(GameEventNames.BallScattered, {
         from,
         to,
-        reason: "Changing Weather: Perfect Conditions",
+        reason: `Changing Weather: ${this.state.weather === "Nice" ? "Perfect Conditions" : this.state.weather}`,
       });
       if (this.state.ballPosition) {
         this.eventBus.emit(GameEventNames.KickoffAirbornePositionChanged, {
@@ -302,17 +322,6 @@ export class BallManager {
         await this.delay(800);
       }
     }
-
-    this.eventBus.emit(GameEventNames.KickoffBallLanding, {
-      landingSquare: this.state.ballPosition
-        ? { ...this.state.ballPosition }
-        : null,
-      isTouchback: this.pendingTouchback,
-    });
-
-    await this.delay(1000);
-    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
-    await this.resolveBallPlacement();
   }
 
   public async resolveBallPlacement(): Promise<void> {

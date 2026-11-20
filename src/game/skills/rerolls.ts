@@ -12,6 +12,7 @@ import { type IGameService } from "../../services/interfaces/IGameService";
 import { VETERAN_REROLL_KINDS } from "../rules/veteran";
 import { teamCaptain } from "../rules/teamCaptain";
 import { requiredRoll } from "../rules/rollTargets";
+import { teamRerollBarred } from "../kickoff/ballConditions";
 
 export interface RollLike {
   success: boolean;
@@ -56,7 +57,13 @@ export function availableRerolls(
     : findSkillSource(deps, player, rollKind);
   const sources: RerollSource[] = [];
   if (skillSource) sources.push("skill");
-  if (arbiter.teamRerollAvailable(player.teamId)) sources.push("team");
+  const barred = teamRerollBarred(
+    deps.gameService.getState(),
+    rollKind === "pickup" ? "pickup" : "other"
+  );
+  if (arbiter.teamRerollAvailable(player.teamId) && !barred) {
+    sources.push("team");
+  }
 
   if (
     SkillRegistry.has(SkillType.PRO) &&

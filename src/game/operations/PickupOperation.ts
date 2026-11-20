@@ -3,7 +3,7 @@ import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
-import { weatherEffects } from "../rules/weather";
+import { pickUpModifier } from "../kickoff/ballConditions";
 import {
   foldTrigger,
   gatherParticipants,
@@ -51,7 +51,7 @@ export class PickupOperation extends GameOperation {
 
     let roll = 1;
     const securing = isSecuringBall(gameService.getState(), this.playerId);
-    const weather = weatherEffects(gameService.getState().weather).ballHandling;
+    const weather = pickUpModifier(gameService.getState());
 
     const pickupCtx: PickupContext = {
       player,

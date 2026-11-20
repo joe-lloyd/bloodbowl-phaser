@@ -67,6 +67,9 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   result: matchResultSchema.exactOptional(),
   teams: teamSnapshotSchema.array(),
   driveEffects: driveEffectsSchema.exactOptional(),
+  lostBall: z
+    .union([z.literal("conch"), z.literal("beach-ball")])
+    .exactOptional(),
   bribes: z.record(z.string(), z.number()).exactOptional(),
   weatherReady: z.string().array().exactOptional(),
   teamRerollsUsed: z.record(z.string(), z.number()).exactOptional(),

@@ -8,4 +8,5 @@ export const playerDriveModifiersSchema: z.ZodType<PlayerDriveModifiers> =
     confinedToReserves: z
       .union([z.literal(false), z.literal(true)])
       .exactOptional(),
+    missesTurn: z.number().exactOptional(),
   });

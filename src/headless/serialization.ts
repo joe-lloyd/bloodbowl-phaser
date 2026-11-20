@@ -89,6 +89,8 @@ export interface GameSnapshot {
 
   driveEffects?: GameState["driveEffects"];
 
+  lostBall?: GameState["lostBall"];
+
   bribes?: GameState["bribes"];
 
   weatherReady?: GameState["weatherReady"];
@@ -179,6 +181,7 @@ function rerollFields(source: GameState | GameSnapshot) {
 function driveFields(source: GameState | GameSnapshot) {
   return {
     ...(source.driveEffects === undefined ? {} : { driveEffects: structuredClone(source.driveEffects) }),
+    ...(source.lostBall === undefined ? {} : { lostBall: source.lostBall }),
     ...(source.stallingPlayerIds === undefined ? {} : { stallingPlayerIds: structuredClone(source.stallingPlayerIds) }),
     ...(source.seriousKnockoutIds === undefined ? {} : { seriousKnockoutIds: structuredClone(source.seriousKnockoutIds) }),
     ...(source.turnUsage === undefined ? {} : { turnUsage: structuredClone(source.turnUsage) }),

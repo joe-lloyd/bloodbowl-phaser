@@ -7,6 +7,8 @@ export interface PlayerDriveModifiers {
   avModifier?: number;
 
   confinedToReserves?: boolean;
+
+  missesTurn?: number;
 }
 
 export interface OwedOffensiveAssist {
@@ -15,10 +17,21 @@ export interface OwedOffensiveAssist {
   used: boolean;
 }
 
+export type DriveCondition =
+  | "seagulls"
+  | "loose-dogs"
+  | "sticky-sludge"
+  | "swarm-of-rats"
+  | "round-on-us";
+
+export type WideZone = "top" | "bottom";
+
 export interface DriveEffects {
   freeRerolls: Record<string, number>;
   owedAssists: Record<string, OwedOffensiveAssist>;
   playerModifiers: Record<string, PlayerDriveModifiers>;
+  conditions?: DriveCondition[];
+  floodedZone?: WideZone;
 }
 
 export function emptyDriveEffects(): DriveEffects {
@@ -34,7 +47,37 @@ export function driveEffectsEmpty(effects: DriveEffects): boolean {
   return (
     Object.keys(effects.freeRerolls).length === 0 &&
     Object.keys(effects.owedAssists).length === 0 &&
-    Object.keys(effects.playerModifiers).length === 0
+    Object.keys(effects.playerModifiers).length === 0 &&
+    (effects.conditions ?? []).length === 0 &&
+    effects.floodedZone === undefined
+  );
+}
+
+export function addDriveCondition(
+  state: GameState,
+  condition: DriveCondition
+): void {
+  const effects = getDriveEffects(state);
+  effects.conditions = [
+    ...(effects.conditions ?? []).filter((held) => held !== condition),
+    condition,
+  ];
+}
+
+export function hasDriveCondition(
+  state: GameState,
+  condition: DriveCondition
+): boolean {
+  return state.driveEffects?.conditions?.includes(condition) === true;
+}
+
+export function missesThisTurn(
+  player: Player,
+  state: GameState,
+  turnNumber: number
+): boolean {
+  return (
+    state.driveEffects?.playerModifiers[player.id]?.missesTurn === turnNumber
   );
 }
 

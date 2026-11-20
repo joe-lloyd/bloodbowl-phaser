@@ -18,6 +18,10 @@ import {
 import { SkillType, getSkill } from "../../src/types/Skills";
 import { kickoffScenario, kick, findEveryEvent } from "./kickoffKicks";
 
+const SEVENS_STEPS = Object.values(KICKOFF_TABLE).filter((event) =>
+  INTERACTIVE_KICKOFF_EVENTS.has(event)
+);
+
 describe("Sevens kickoff events (seeded headless)", () => {
   it("maps every 2D6 total to the eleven Sevens events", () => {
     expect(Object.entries(KICKOFF_TABLE)).toEqual([
@@ -121,7 +125,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
         .some((player) => player.status === "Stunned")
     ).toBe(true);
 
-    for (const event of INTERACTIVE_KICKOFF_EVENTS) {
+    for (const event of SEVENS_STEPS) {
       expect(found.get(event)?.response.pendingDecision).toMatchObject({
         type: "kickoff-event",
         event,
@@ -267,7 +271,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
         subtitle: expectedSubtitle,
       },
     ]);
-    for (const event of INTERACTIVE_KICKOFF_EVENTS) {
+    for (const event of SEVENS_STEPS) {
       expect(banners.get(event)).toHaveLength(1);
     }
   });

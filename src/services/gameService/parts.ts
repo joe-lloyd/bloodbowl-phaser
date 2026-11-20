@@ -37,7 +37,7 @@ import {
   updateDedicatedFans,
 } from "./driveLifecycle";
 import {
-  castSportsWizards,
+  turnEndHazards,
   handleTurnEnding,
   onPlayerDowned,
   sweepChomped,
@@ -223,7 +223,7 @@ function makeTurnManager(
         handleTurnEnding(getParts(), endingTeamId);
       },
       betweenTurns: (endingTeamId) =>
-        castSportsWizards(getParts(), endingTeamId),
+        turnEndHazards(getParts(), endingTeamId),
     },
     delay
   );
@@ -289,12 +289,13 @@ function makeKickoffManagers(
     team2,
     diceController,
     weatherService,
+    flowManager,
   } = core;
   const playerActionManager = new PlayerActionManager(eventBus, state, (id) =>
     game.getPlayerById(id)
   );
 
-  const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, team1: team1, team2: team2, diceController: diceController, weatherManager: weatherService, callbacks: {
+  const kickoffEventManager = new KickoffEventManager({ eventBus: eventBus, state: state, team1: team1, team2: team2, diceController: diceController, weatherManager: weatherService, flowManager: flowManager, callbacks: {
       getTurnNumber: (teamId) => turnManager.getTurnNumber(teamId),
       moveTurnMarkers: (delta) => {
         turnManager.moveTurnMarkers(delta);
