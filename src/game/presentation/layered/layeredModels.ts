@@ -100,3 +100,8 @@ export function loadLookAtlas(request: LookRequest): Promise<LookAtlas> {
   }
   return pending;
 }
+
+export function releaseLookAtlas(request: LookRequest): void {
+  const art = LAYERED.get(request.model);
+  if (art) atlases.delete(lookAtlasKey(request, resolveLook(art, request.appearance)));
+}

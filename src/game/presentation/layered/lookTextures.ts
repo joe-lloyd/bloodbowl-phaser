@@ -3,6 +3,7 @@ import type { LookAtlas } from "./lookAtlas";
 import {
   loadLookAtlas,
   lookTextureKey,
+  releaseLookAtlas,
   type LookRequest,
   type PlayerLookRequest,
 } from "./layeredModels";
@@ -64,6 +65,8 @@ function lookFileClass() {
       if (this.atlas && !this.loader.textureManager.exists(this.key)) {
         addAtlasTexture(this.loader.textureManager, this.key, this.atlas);
       }
+      if (this.loader.textureManager.exists(this.key)) releaseLookAtlas(this.request);
+      this.atlas = null;
       this.onProcessComplete();
     }
   };

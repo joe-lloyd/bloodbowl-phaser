@@ -2,7 +2,7 @@
 vampire_blitzer, vargheist). Costume: Crimson Court. No figure holds a ball."""
 import math
 from mathutils import Vector
-from lib import Biped, register, core, parts, palette
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, lerp, UP, basis, D
 from mathutils import Matrix
 
@@ -10,42 +10,9 @@ VAMP = dict(skin="skin", eyes="red", fangs=True, ears="pointed", hair="slick", h
             boots="boot", cuff="leather", legs="trouser", torso="kit1", arms="kit1", lapel="kit2", hem="kit2",
             collar_mat="kit2")
 
-def bust(P):
-    """A female chest shaped into the torso itself: a tight ring under the bust and a deeper ring pushed
-    forward at its fullest, so the jersey, coat and breastplate lofted over the torso follow it."""
-    rings = list(P["torso"])
-    sh = P["sh_h"]
-    for h, depth, forward in ((0.54 * sh, -0.012, 0.0), (0.7 * sh, 0.05, 0.045)):
-        rx, ry, back = core.tprof(P, h)
-        rings.append((h, rx, ry + depth, back - forward))
-    return sorted(rings, key=lambda ring: ring[0])
-
-
-FEMALE = dict(shoulders=0.86, hips=1.12, limb=0.86, arm=0.84, legs=1.04)
-MALE = dict(shoulders=1.08, arm=1.12, neck=1.18, hips=0.92)
-
-
-class Vampire(Biped):
+class Vampire(looks.Physique, looks.Fine, Biped):
     """A Vampire team biped: men and women differ clearly in build, and fine details that only resolve
     from 2x density up are added there and left out at game size."""
-
-    def knob(self, name, default=1.0):
-        base = super().knob(name, default)
-        factor = (FEMALE if self.sex == "f" else MALE).get(name)
-        return base * factor if factor else base
-
-    def proportions(self, L):
-        P = super().proportions(L)
-        if self.sex == "f":
-            P["torso"] = bust(P)
-        return P
-
-    def extras(self, J, P, L, tag, pose):
-        if palette.STYLE.get("density", 1) >= 2:
-            self.details(J, P, L, tag, pose)
-
-    def details(self, J, P, L, tag, pose):
-        """Small parts drawn only from 2x density up."""
 
     def band(self, J, tag, limb, side, a, b, r, mat):
         joints = J[limb][side]

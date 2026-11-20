@@ -15,9 +15,13 @@ const layeredPalette = z.object({
   kit: z.object({ kit1: z.array(index), kit2: z.array(index) }),
 });
 
+const options = z
+  .array(option)
+  .refine((list) => list.length === 0 || list[0]?.[0] === "body", { message: 'The first look option must be "body"' });
+
 const layered = z.object({
   density: z.number().int().positive(),
-  options: z.array(option),
+  options,
   bodies: z.record(z.string(), z.array(z.string()).nonempty()),
   palette: layeredPalette,
 });
@@ -35,12 +39,18 @@ export type LayeredPalette = z.infer<typeof layeredPalette>;
 export type LayeredModel = z.infer<typeof layeredModel>;
 export type LookOption = z.infer<typeof option>;
 
+function isLayered(value: unknown): boolean {
+  return typeof value === "object" && value !== null && "layered" in value;
+}
+
 export function parseLayeredModels(manifest: unknown): ReadonlyMap<string, LayeredModel> {
   const { models } = manifestModels.parse(manifest);
   const found = new Map<string, LayeredModel>();
   for (const [key, value] of Object.entries(models)) {
+    if (!isLayered(value)) continue;
     const parsed = layeredModel.safeParse(value);
-    if (parsed.success) found.set(key, parsed.data);
+    if (!parsed.success) throw new Error(`Sprite model ${key} has a malformed layered block: ${z.prettifyError(parsed.error)}`);
+    found.set(key, parsed.data);
   }
   return found;
 }

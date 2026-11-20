@@ -1,20 +1,12 @@
-"""Look options of the Vampire positions. Each position has its own options, listed with their labels in
-vampire_looks.json; the first value of every option is the position's own look.
-
-The layered renderer draws each position once per body without any option (the base), then each option
-value on its own. So every option has an empty state, and each value's layout sets every key its empty
-state clears. Whole-figure variants are also registered as <model>__<value>-<value>-... for full renders,
-which the layered renderer checks its composites against."""
-import itertools
-import json
+"""Look options of the Vampire positions, listed with their labels in vampire_looks.json. See lib/looks.py
+for how options, empty states and bodies work."""
 import os
 
-from lib import registry
+from lib import looks
+from lib.looks import EMPTY
 from teams.vampire import Thrall, Runner, Thrower, Blitzer
 
-OPTIONS = json.load(open(os.path.join(os.path.dirname(__file__), "vampire_looks.json")))
 BASES = {base.key: base for base in (Thrall, Runner, Thrower, Blitzer)}
-EMPTY = None
 
 
 def hair(sex, men="slick"):
@@ -68,51 +60,4 @@ SLOTS = {
 }
 
 
-def value_layout(model, slot, value, sex):
-    """The layout a value adds, or EMPTY when the value draws nothing."""
-    layout = SLOTS[model][slot][1][value]
-    return layout(sex) if callable(layout) else layout
-
-
-def layout_for(model, choice):
-    """A position's layout for a choice {"body": sex, option: value or EMPTY}; a missing option is empty."""
-    sex = choice["body"]
-    layout = dict(BASES[model].layout)
-    layout.update(BODY[model](sex))
-    for slot, (empty, _) in SLOTS[model].items():
-        value = choice.get(slot, EMPTY)
-        part = EMPTY if value is EMPTY else value_layout(model, slot, value, sex)
-        layout.update(empty if part is EMPTY else dict(empty, **part))
-    return layout
-
-
-def variant(model, choice, key=None):
-    """A model instance for a choice. Without a key it keeps the position's key, so its scene objects get the
-    same names as every other layer of that position."""
-    base = BASES[model]
-    cls = type(base.__name__ + "Look", (base,), dict(key=key or base.key, sex=choice["body"],
-                                                     layout=layout_for(model, choice)))
-    return cls()
-
-
-def full_key(model, values):
-    return "%s__%s" % (model, "-".join(values))
-
-
-class Looks:
-    def __init__(self, model):
-        self.model = model
-        self.options = OPTIONS[model]
-
-    def part(self, slot, value, body):
-        return value_layout(self.model, slot, value, body)
-
-    def variant(self, choice):
-        return variant(self.model, choice)
-
-
-for model, options in OPTIONS.items():
-    registry.register_looks(model, Looks(model))
-    names = [name for name, _, _ in options]
-    for values in itertools.product(*([v for v, _ in vals] for _, _, vals in options)):
-        registry.register(type(variant(model, dict(zip(names, values)), full_key(model, values))))
+looks.define(os.path.join(os.path.dirname(__file__), "vampire_looks.json"), BASES, SLOTS, BODY)

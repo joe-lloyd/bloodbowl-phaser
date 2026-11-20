@@ -81,3 +81,6 @@ src/data/*.json
 /.audit/typescript-standards/*
 !/.audit/typescript-standards/decisions.tsv
 !/.audit/typescript-standards/progress.json
+
+# Python bytecode
+__pycache__/

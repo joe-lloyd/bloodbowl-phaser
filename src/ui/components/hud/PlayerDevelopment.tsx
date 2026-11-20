@@ -2,8 +2,7 @@ import { useState } from "react";
 import { type Player } from "../../../types/Player";
 import type { SkillCategory, SkillType } from "../../../types/Skills";
 import { calculateTeamValue, type Team } from "../../../types/Team";
-import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
-import { dehydrateTeam } from "../../../data/persistence/teamPersistence";
+import { loadTeams } from "../../../game/managers/TeamManager";
 import { type IRNGService } from "../../../services/rng/RNGService";
 import { Notice } from "../componentWarehouse/HudKit";
 import {
@@ -16,6 +15,8 @@ import {
   rollPendingRandomPrimary,
 } from "../../../game/progression/progression";
 import { AdvancementForm, type SkillAccess } from "../shared/AdvancementForm";
+import { restoreTeam } from "../../../headless/serialization";
+import { commitPlayerChange } from "./commitPlayerChange";
 
 interface PlayerDevelopmentProps {
   player: Player;
@@ -27,47 +28,7 @@ interface PlayerDevelopmentProps {
   onNotice?: (message: string) => void;
 }
 
-function commit(
-  team: Team,
-  playerId: string,
-  change: (latestTeam: Team, latestPlayer: Player) => void
-): void {
-  const latestTeam = loadTeams().find((t) => t.id === team.id);
-  const latestPlayer = latestTeam?.players.find((p) => p.id === playerId);
-  if (!latestTeam || !latestPlayer) {
-    throw new Error("This player could not be found in the saved team.");
-  }
-  change(latestTeam, latestPlayer);
-  saveTeam(latestTeam);
-  const stored = loadTeams().find((t) => t.id === team.id);
-  if (
-    !stored ||
-    JSON.stringify(dehydrateTeam(stored)) !==
-      JSON.stringify(dehydrateTeam(latestTeam))
-  ) {
-    throw new Error("The team could not be saved, so nothing was changed.");
-  }
-  adopt(team, latestTeam);
-}
-
-function adopt(team: Team, latestTeam: Team): void {
-  const previous = new Map(team.players.map((p) => [p.id, p]));
-  const players = latestTeam.players.map((latest) => {
-    const existing = previous.get(latest.id);
-    return existing ? replaceContents(existing, latest) : latest;
-  });
-  replaceContents(team, latestTeam);
-  team.players = players;
-}
-
 class StaleRollError extends Error {}
-
-function replaceContents<T extends object>(target: T, source: T): T {
-  for (const key of Object.keys(target)) {
-    if (!(key in source)) delete (target as Record<string, unknown>)[key];
-  }
-  return Object.assign(target, source);
-}
 
 export function PlayerDevelopment({
   player,
@@ -113,7 +74,7 @@ export function PlayerDevelopment({
 
   const rollAndSave = (roll: (latestPlayer: Player) => void) => {
     attempt(() => {
-      commit(team, player.id, (_latestTeam, latestPlayer) => {
+      commitPlayerChange(team, player.id, (_latestTeam, latestPlayer) => {
         if (!latestPlayer.pendingAdvancementRoll) roll(latestPlayer);
       });
       setCategory("");
@@ -127,7 +88,7 @@ export function PlayerDevelopment({
     attempt(() => {
       const shownRoll = JSON.stringify(savedRoll ?? null);
       try {
-        commit(team, player.id, (latestTeam, latestPlayer) => {
+        commitPlayerChange(team, player.id, (latestTeam, latestPlayer) => {
           if (
             JSON.stringify(latestPlayer.pendingAdvancementRoll ?? null) !==
             shownRoll
@@ -154,7 +115,7 @@ export function PlayerDevelopment({
       } catch (cause) {
         if (cause instanceof StaleRollError) {
           const latestTeam = loadTeams().find((t) => t.id === team.id);
-          if (latestTeam) adopt(team, latestTeam);
+          if (latestTeam) restoreTeam(team, latestTeam);
           setRevision((value) => value + 1);
           onSaved?.();
           if (onNotice) {

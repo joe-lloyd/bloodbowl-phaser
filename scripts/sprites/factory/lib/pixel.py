@@ -4,11 +4,16 @@ No anti-aliasing, every pixel one palette colour, a one-pixel checker dither loc
 two tones meet, inner lines where two parts of the same colour overlap, and a one-pixel outline that is
 near-black on the shadow side and a dark tone of the neighbouring fill on the lit side.
 
-A Stage owns one Blender scene (camera, light, two root empties) and renders a built figure in any
-number of facings. Results are 2D int16 arrays of palette indices (-1 = transparent), top row first.
+A Stage owns one Blender scene. The figure is built under two root empties in a collection that is not
+in the scene; eight instances of it, one per facing, stand in a row across one wide image, spaced along
+the camera's horizontal axis (which leaves depth unchanged and keeps their shadows apart). One render
+gives every facing: a colour render, then (for layered output) a data render with flat materials whose
+emission holds each object's code (for inner lines) and its depth along the view. Both are float EXR,
+read with OpenImageIO. Results are 2D int16 arrays of palette indices (-1 = transparent), top row first.
 """
 import bpy, os, math, zlib
 import numpy as np
+import OpenImageIO as oiio
 from mathutils import Vector
 from . import palette, core
 
@@ -21,7 +26,8 @@ class Stage:
         """canvas: square render size in px; anchor: (x, y from top) where the ground origin lands."""
         bpy.ops.wm.read_factory_settings(use_empty=True)
         palette.MATS.clear()
-        palette.CANVAS[0] = palette.CANVAS[1] = canvas
+        self.cells = len(FACINGS)
+        palette.CANVAS[0], palette.CANVAS[1] = canvas * self.cells, canvas
         self.canvas, self.anchor, self.tmp = canvas, anchor, tmpdir
         os.makedirs(tmpdir, exist_ok=True)
         sc = bpy.context.scene
@@ -29,13 +35,15 @@ class Stage:
         sc.render.film_transparent = True
         sc.render.dither_intensity = 0.0
         sc.view_settings.view_transform = "Standard"
+        sc.eevee.shadow_pool_size = "1024"       # eight figures per image need more shadow pages than one
         sc.eevee.taa_render_samples = 1          # shadows need a few samples; the tiny filter keeps it un-anti-aliased
         sc.render.filter_size = 0.01
         sc.render.use_freestyle = False
-        sc.render.resolution_x = sc.render.resolution_y = canvas
+        width = canvas * self.cells
+        sc.render.resolution_x, sc.render.resolution_y = width, canvas
         sc.render.resolution_percentage = 100
-        sc.render.image_settings.file_format = "PNG"
-        sc.render.image_settings.compression = 0
+        st = sc.render.image_settings
+        st.file_format, st.color_depth, st.exr_codec = "OPEN_EXR", "32", "NONE"
         world = bpy.data.worlds.new("w")
         world.use_nodes = True
         world.node_tree.nodes.get("Background").inputs[0].default_value = (0, 0, 0, 1)
@@ -50,17 +58,23 @@ class Stage:
         sc.collection.objects.link(cam)
         cam.rotation_euler = (math.pi / 2 - core.CAM_EL, 0, core.CAM_AZ)
         sc.camera = cam
-        cd.ortho_scale = canvas / PPM
+        cd.ortho_scale = width / PPM
         bpy.context.view_layer.update()
         R = cam.matrix_world.to_3x3()
         cx, cy, view = R.col[0], R.col[1], -R.col[2]
-        cam.location = cx * ((canvas / 2 - anchor[0]) / PPM) + cy * ((anchor[1] - canvas / 2) / PPM) - view * 60
-        self.face = bpy.data.objects.new("facing", None)       # rotates about Z for the 8 facings
+        cam.location = cx * ((width / 2 - anchor[0]) / PPM) + cy * ((anchor[1] - canvas / 2) / PPM) - view * 60
+        self.fig = bpy.data.collections.new("figure")          # instanced once per facing, not in the scene
+        self.face = bpy.data.objects.new("facing", None)
         self.tilt = bpy.data.objects.new("tilt", None)         # scale, fall, hop
         for ob in (self.face, self.tilt):
-            sc.collection.objects.link(ob)
+            self.fig.objects.link(ob)
         self.tilt.parent = self.face
-        self.idmats = []
+        for k, f in enumerate(FACINGS):
+            cell = bpy.data.objects.new("cell_" + f, None)
+            cell.instance_type, cell.instance_collection = "COLLECTION", self.fig
+            cell.location = cx * (k * canvas / PPM)
+            cell.rotation_euler = (0, 0, math.radians(DIRECTIONS[f]))
+            sc.collection.objects.link(cell)
         self.pal = palette.all_colours()
         self._tables()
 
@@ -86,7 +100,7 @@ class Stage:
         for me in list(bpy.data.meshes):
             bpy.data.meshes.remove(me, do_unlink=True)
         for ob in list(bpy.data.objects):
-            if ob.type == "EMPTY" and ob not in (self.face, self.tilt):
+            if ob.type == "EMPTY" and ob not in (self.face, self.tilt) and not ob.name.startswith("cell_"):
                 bpy.data.objects.remove(ob, do_unlink=True)
         core.ROOT[0] = self.tilt
 
@@ -95,6 +109,14 @@ class Stage:
         self.clear()
         model.build(pose)
         core.ROOT[0] = None
+        scene = bpy.context.scene.collection
+        for ob in list(scene.objects):
+            if ob.type in ("MESH", "EMPTY") and not ob.name.startswith("cell_"):
+                self.fig.objects.link(ob)
+                scene.objects.unlink(ob)
+        for ob in self.fig.objects:
+            if ob.type == "MESH":
+                ob["code"] = object_code(ob.name) if max(ob.dimensions) > 0.16 else 0
         pitch, roll = math.radians(pose.get("pitch", 0)), math.radians(pose.get("roll", 0))
         down = max(abs(math.sin(pitch)), abs(math.sin(roll)))
         t = self.tilt
@@ -105,34 +127,46 @@ class Stage:
         t.location = (0, (-pose.get("shift", 0) - model.lie_shift * math.sin(pitch)) * scale,
                       (pose.get("hop", 0) + model.lie * down) * scale)
 
-    def _shoot(self, name):
+    def meshes(self):
+        return [ob for ob in self.fig.objects if ob.type == "MESH"]
+
+    def _render(self):
+        """Render the wide image; float RGBA rows top-down, linear."""
         sc = bpy.context.scene
-        path = os.path.join(self.tmp, name + ".png")
+        path = os.path.join(self.tmp, "shot.exr")
         sc.render.filepath = path
         bpy.ops.render.render(write_still=True)
-        im = bpy.data.images.load(path)
-        a = np.empty(self.canvas * self.canvas * 4, dtype=np.float32)
-        im.pixels.foreach_get(a)
-        bpy.data.images.remove(im)
-        return a.reshape(self.canvas, self.canvas, 4)
+        image = oiio.ImageInput.open(path)
+        spec = image.spec()
+        data = image.read_image(0, 0, 0, 4, "float")
+        image.close()
+        return data.reshape(spec.height, spec.width, 4)
 
-    def _shoot_data(self, name):
-        """A float render: exact emission values, for object codes and depth."""
-        sc = bpy.context.scene
-        st = sc.render.image_settings
-        old = (st.file_format, st.color_depth)
-        st.file_format, st.color_depth = "OPEN_EXR", "32"
-        path = os.path.join(self.tmp, name + ".exr")
-        sc.render.filepath = path
-        try:
-            bpy.ops.render.render(write_still=True)
-        finally:
-            st.file_format, st.color_depth = old
-        im = bpy.data.images.load(path)
-        a = np.empty(self.canvas * self.canvas * 4, dtype=np.float32)
-        im.pixels.foreach_get(a)
-        bpy.data.images.remove(im)
-        return a.reshape(self.canvas, self.canvas, 4)
+    def _cells(self, wide):
+        c = self.canvas
+        return {f: wide[:, k * c:(k + 1) * c] for k, f in enumerate(FACINGS)}
+
+    def shoot(self, visible=None):
+        """The colour render of every facing: {facing: sRGB RGBA}, canvas-sized, rows top-down.
+        visible: the names of the objects the camera sees; the others are hidden but still cast shadows."""
+        for ob in self.meshes():
+            ob.visible_camera = visible is None or ob.name in visible
+        lin = self._render()
+        rgb = np.where(lin[..., :3] <= 0.0031308, lin[..., :3] * 12.92,
+                       1.055 * np.power(np.maximum(lin[..., :3], 0), 1 / 2.4) - 0.055)
+        return self._cells(np.concatenate([rgb, lin[..., 3:]], -1))
+
+    def shoot_data(self):
+        """The data render of every facing, after a colour shoot: {facing: (code, depth)}. It replaces the
+        figure's materials, so build again before the next colour shoot."""
+        for ob in self.meshes():
+            ob.data.materials.clear()
+            ob.data.materials.append(self.data_material(int(ob.get("code", 0))))
+            for md in ob.modifiers:
+                if md.type == "SOLIDIFY":
+                    md.material_offset = 0
+        cells = self._cells(self._render())
+        return {f: (np.round(a[..., 0] * 255), a[..., 1]) for f, a in cells.items()}
 
     def data_material(self, code):
         """Emission: red = the object's code / 255, green = depth along the view (larger is farther)."""
@@ -156,81 +190,28 @@ class Stage:
         return m
 
     def render_layer(self, facings, visible=None, data=True):
-        """Render the built figure for layered output: {facing: (idx, code, depth)} on the full canvas, rows
-        top-down, idx -1 where empty and not finished (no speckle removal, inner lines or outline yet).
-        visible: the names of the objects the camera sees; the others are hidden but still cast shadows."""
-        meshes = [ob for ob in bpy.context.scene.objects if ob.type == "MESH"]
-        if visible is not None:
-            for ob in meshes:
-                ob.visible_camera = ob.name in visible
-        shots = {}
-        for f in facings:
-            self.face.rotation_euler = (0, 0, math.radians(DIRECTIONS[f]))
-            shots[f] = self._shoot("c")
+        """The built figure for layered output: {facing: (idx, code, depth)} on the canvas, rows top-down, idx
+        -1 where empty and not finished (no speckle removal, inner lines or outline yet). With data, the
+        figure's materials are replaced afterwards."""
+        shots = self.shoot(visible)
+        classified = {f: self.classify(shots[f]) for f in facings}
         if not data:
-            out = {}
-            for f in facings:
-                idx, solid = self.classify(shots[f])
-                out[f] = (idx[::-1].copy(), np.zeros(idx.shape, np.int16), np.where(solid, 0.0, np.inf)[::-1].astype(np.float32))
-            return out
-        for ob in meshes:
-            m = self.data_material(object_code(ob.name) if max(ob.dimensions) > 0.16 else 0)
-            ob.data.materials.clear()
-            ob.data.materials.append(m)
-            for md in ob.modifiers:
-                if md.type == "SOLIDIFY":
-                    md.material_offset = 0
-        out = {}
-        for f in facings:
-            self.face.rotation_euler = (0, 0, math.radians(DIRECTIONS[f]))
-            d = self._shoot_data("d")
-            idx, solid = self.classify(shots[f])
-            code = np.where(solid, np.round(d[..., 0] * 255), 0).astype(np.int16)
-            depth = np.where(solid, d[..., 1], np.inf).astype(np.float32)
-            out[f] = (idx[::-1].copy(), code[::-1].copy(), depth[::-1].copy())
-        return out
+            return {f: (idx, np.zeros(idx.shape, np.int16), np.where(solid, 0.0, np.inf).astype(np.float32))
+                    for f, (idx, solid) in classified.items()}
+        extra = self.shoot_data()
+        return {f: (idx, np.where(solid, extra[f][0], 0).astype(np.int16),
+                    np.where(solid, extra[f][1], np.inf).astype(np.float32)) for f, (idx, solid) in classified.items()}
 
     def render(self, facings):
-        """Render the built figure in each facing; returns {facing: index array}."""
-        shots = {}
-        for f in facings:
-            self.face.rotation_euler = (0, 0, math.radians(DIRECTIONS[f]))
-            shots[f] = self._shoot("c")
-        # second pass: every large object in its own flat colour, to find overlaps of same-coloured parts
-        n = 0
-        for ob in bpy.context.scene.objects:
-            if ob.type != "MESH":
-                continue
-            if max(ob.dimensions) > 0.16:
-                n += 1
-                while len(self.idmats) < n:
-                    k = len(self.idmats) + 1
-                    c = ((k * 53) % 251 / 255.0, (k * 97) % 241 / 255.0, ((k * 29) % 239 + 8) / 255.0)
-                    self.idmats.append(palette.flat_material("id%d" % k, tuple(x ** 2.2 for x in c)))
-                m = self.idmats[n - 1]
-            else:
-                if not hasattr(self, "idzero") or self.idzero.name not in bpy.data.materials:
-                    self.idzero = palette.flat_material("id0", (0, 0, 0))
-                m = self.idzero
-            ob.data.materials.clear()
-            ob.data.materials.append(m)
-            for md in ob.modifiers:
-                if md.type == "SOLIDIFY":
-                    md.material_offset = 0
+        """Render the built figure in each facing, finished; returns {facing: index array}, rows top-down."""
         out = {}
-        for f in facings:
-            self.face.rotation_euler = (0, 0, math.radians(DIRECTIONS[f]))
-            out[f] = self.post(shots[f], self._shoot("i"))
+        for f, (idx, code, _) in self.render_layer(facings).items():
+            out[f] = self.finish(idx[::-1], code[::-1], (idx >= 0)[::-1])[::-1].copy()
         return out
 
     # -- image clean-up
-    def post(self, a, ids):
-        idx, solid = self.classify(a)
-        idc = (np.round(ids[..., :3] * 255).astype(np.int32) * np.array([65536, 256, 1])).sum(-1)
-        return self.finish(idx, idc, solid)[::-1].copy()
-
     def classify(self, a):
-        """Rendered pixels -> (nearest palette index, -1 where empty; solid mask). Rows bottom-up."""
+        """Rendered sRGB pixels -> (nearest palette index, -1 where empty; solid mask)."""
         h, w = a.shape[:2]
         solid = a[..., 3] > 0.5
         full = np.full((h, w), -1, dtype=np.int16)

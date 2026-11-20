@@ -2,12 +2,15 @@ import { readFileSync, existsSync } from "node:fs";
 import { inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import type { LayerData } from "../../../src/boundary/layeredArt";
+import { parseLayeredModels, type LayerData } from "../../../src/boundary/layeredArt";
 import { parseJson } from "../../../src/boundary/json";
 import { composeFrame } from "../../../src/game/presentation/layered/compose";
 import { finishFrame } from "../../../src/game/presentation/layered/finish";
 import { layeredArt } from "../../../src/game/presentation/layered/layeredModels";
-import { rampTint } from "../../../src/game/presentation/layered/paint";
+import { buildLookAtlas } from "../../../src/game/presentation/layered/lookAtlas";
+import { resolveLook } from "../../../src/game/presentation/layered/looks";
+import { colourTable, rampTint } from "../../../src/game/presentation/layered/paint";
+import manifest from "../../../src/game/presentation/spriteManifest.json";
 
 const rect = z.tuple([z.number(), z.number(), z.number(), z.number(), z.number()]);
 const layerIndex = z.object({ frames: z.record(z.string(), rect), pixels: z.number() });
@@ -24,12 +27,13 @@ function expand(rle: readonly (readonly [number, number])[]): number[] {
   return rle.flatMap(([value, count]) => Array.from({ length: count }, () => value));
 }
 
-const MODELS = ["thrall", "vampire_runner", "vampire_thrower", "vampire_blitzer", "vargheist"];
+const MODELS = [...parseLayeredModels(manifest).keys()];
 
 describe("the game's compositor matches the sprite factory", () => {
   for (const model of MODELS) {
     const path = `__tests__/fixtures/layered/${model}.golden.json`;
-    it.runIf(existsSync(path))(`rebuilds ${model}'s own look exactly`, () => {
+    it(`rebuilds ${model}'s own look exactly`, () => {
+      expect(existsSync(path), `${path} is missing`).toBe(true);
       const art = layeredArt(model);
       expect(art).toBeDefined();
       if (!art) return;
@@ -53,5 +57,56 @@ describe("rampTint", () => {
     expect(rampTint(0x8b0000, 0.78).map(Math.round)).toEqual([139, 0, 0]);
     const dark = rampTint(0x8b0000, 0.4375);
     expect(dark[0]).toBeGreaterThan(40);
+  });
+});
+
+describe("colourTable", () => {
+  const palette = {
+    colors: ["#000000", "#102030", "#405060", "#708090", "#a0b0c0", "#d0e0f0"],
+    keep: [],
+    darker: [],
+    rampDark: [],
+    outline: 0,
+    void: 0,
+    kit: { kit1: [1, 2, 3], kit2: [4] },
+  };
+  const table = colourTable(palette, { primary: 0x8b0000, secondary: 0x00ff00 });
+  const entry = (index: number) => Array.from(table.subarray(index * 4, index * 4 + 4));
+
+  it("paints the kit indices with the team colour ramp", () => {
+    expect(entry(1)).toEqual([86, 8, 22, 255]);
+    expect(entry(2)).toEqual([127, 2, 6, 255]);
+    expect(entry(3)).toEqual([183, 90, 82, 255]);
+    expect(entry(4)).toEqual([15, 137, 22, 255]);
+  });
+
+  it("keeps every other index at its palette colour", () => {
+    expect(entry(0)).toEqual([0, 0, 0, 255]);
+    expect(entry(5)).toEqual([208, 224, 240, 255]);
+  });
+});
+
+describe("buildLookAtlas", () => {
+  it("gives every requested frame a rect inside the atlas", () => {
+    const art = layeredArt("thrall");
+    expect(art).toBeDefined();
+    if (!art) return;
+    const look = resolveLook(art, undefined);
+    const read = (name: string) => readLayer("thrall", look.body, name);
+    const names = Object.entries(art.animations).flatMap(([anim, count]) =>
+      ["s", "e", "n", "w"].flatMap((facing) => Array.from({ length: count }, (_, i) => `${anim}/${facing}/${String(i)}`))
+    );
+    const atlas = buildLookAtlas({
+      look: { layers: look.layers.map(read), shades: look.shades.map(read) },
+      names,
+      size: art.frame,
+      palette: art.layered.palette,
+      colors: { primary: 0x8b0000, secondary: 0xffffff },
+    });
+    expect(atlas.width).toBe(4096);
+    expect(Object.keys(atlas.frames).sort()).toEqual([...names].sort());
+    const outside = Object.entries(atlas.frames).filter(([, r]) => r.x < 0 || r.y < 0 || r.x + r.w > atlas.width || r.y + r.h > atlas.height);
+    expect(outside).toEqual([]);
+    expect(atlas.pixels.length).toBe(atlas.width * atlas.height * 4);
   });
 });
