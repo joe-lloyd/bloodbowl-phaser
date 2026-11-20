@@ -227,7 +227,7 @@ class PythonWarrior(looks.Fine, Biped):
 
     def details(self, J, P, L, tag, pose):
         k = L["limb"] * core.LIMB
-        for side in ("l", "r"):          # gold rings round the upper arms
+        for side in ("l", "r") if L.get("arm_band") else ():          # gold rings round the upper arms
             sh, el = J["arms"][side][:2]
             tube(tag + "armring" + side, [lerp(sh, el, 0.3), lerp(sh, el, 0.36)], [0.11 * k, 0.11 * k], "gold", ref=J["F"], n=10)
         mc.studs(tag, J, P, [(0.4, 0, 0.05)], "gold", r=0.03, name="topgem")

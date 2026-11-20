@@ -1,7 +1,7 @@
 {
   "ogre_blocker": [
     ["body", "Body", [["m", "Male"], ["f", "Female"]]],
-    ["hair", "Hair", [["bald", "Bald"], ["topknot", "Topknot"], ["mohawk", "Mohawk"]]],
+    ["hair", "Hair", [["bald", "No crest"], ["topknot", "Topknot"], ["mohawk", "Mohawk"]]],
     ["chest", "Chest", [["plate", "Gut plate"], ["straps", "Straps only"]]],
     ["shoulder", "Shoulder", [["iron", "Iron shoulder"], ["none", "Bare shoulder"]]]
   ],

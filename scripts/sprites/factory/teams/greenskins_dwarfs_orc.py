@@ -176,6 +176,8 @@ class BigUn(looks.Fine, Biped):
     def extras(self, J, P, L, tag, pose):
         super().extras(J, P, L, tag, pose)
         gd.jaw_plate(J, tag, "metal", "bone", 1.12 * (0.88 if L.get("sex") == "f" else 1.0))
+        if L.get("gd_hoops"):
+            gd.hoops(J, tag, L["gd_hoops"])
         hair(J, L, tag, pose, mohawk=0.34)
         if L.get("gd_hspike"):
             gd.helm_spike(J, tag, L["gd_hspike"], h=0.3, r=0.08)

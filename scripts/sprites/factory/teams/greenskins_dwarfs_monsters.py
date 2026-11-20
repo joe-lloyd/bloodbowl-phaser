@@ -385,7 +385,8 @@ class UnderworldGoblin(looks.Fine, Biped):
         if L.get("gd_hcry"):
             c, X, F, U, s = gd.hf(J)
             gd.crystals(tag, "hcry", c + U * s[2] * 1.0 + X * s[0] * 0.3, U + X * 0.4 - F * 0.2, 0.3, 3, seed=9)
-        gd.crystals(tag, "bkcry", surf(J, P, 0.3, 170, -0.02), J["B"] + J["u"] * 0.5, 0.2, 2, seed=8)
+        if L.get("gd_shcry") or L.get("gd_hcry"):
+            gd.crystals(tag, "bkcry", surf(J, P, 0.3, 170, -0.02), J["B"] + J["u"] * 0.5, 0.2, 2, seed=8)
         tband(tag + "hem", J, P, [0.06, 0.1], "kit2", k=1.1, add=0.02)
 
     def details(self, J, P, L, tag, pose):

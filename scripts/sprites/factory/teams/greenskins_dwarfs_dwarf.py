@@ -94,6 +94,8 @@ class DwarfRunner(looks.Fine, Biped):
     def extras(self, J, P, L, tag, pose):
         super().extras(J, P, L, tag, pose)
         gd.opt_beard(J, L, tag, "hair_blond", pose, tie="kit2", own=("fork", 1.15, 1.0))
+        if L.get("gd_braids"):
+            gd.side_braids(J, tag, L["gd_braids"], "kit2", pose)
         c, X, F, U, s = gd.hf(J)
         cap(tag + "hband", c + U * 0.01, (s[0] * 1.12, s[1] * 1.12, s[2] * 1.1), "kit2", U, cut=0.3, hi=0.56, rot=J["head_R"],
             thick=0.03)
