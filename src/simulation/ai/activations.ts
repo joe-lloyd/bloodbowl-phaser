@@ -1,7 +1,7 @@
 import { type FieldPlayer as Player } from "./board";
 
 import { type ActionType } from "../../types/events";
-import { type Board, type Square, carrierOf } from "./board";
+import { type Board, type Square, carrierOf, standing } from "./board";
 import { type RollTarget } from "./chance";
 import { type Route } from "./routes";
 import { type Weights } from "./weights";
@@ -181,7 +181,27 @@ export function activations({
     out.push(...deepReceiverActivations(c, carrier));
   out.push(...assistActivations(c, out));
   out.push(...feedingSupportActivations(c));
-  return sortActivations(gatePriced(c, out));
+  return standUpFirst(sortActivations(gatePriced(c, out)));
+}
+
+const SAFE_ACTIONS = new Set<ActionType>(["move", "standUp"]);
+
+function riskFree(plan: Activation): boolean {
+  return SAFE_ACTIONS.has(plan.action) && plan.rolls.length === 0;
+}
+
+function standUpFirst(plans: Activation[]): Activation[] {
+  const top = plans[0];
+  if (!top || riskFree(top)) return plans;
+  const best = new Map<string, Activation>();
+  for (const plan of plans)
+    if (!best.has(plan.player.id)) best.set(plan.player.id, plan);
+  const rising = [...best.values()].filter(
+    (plan) => !standing(plan.player) && riskFree(plan)
+  );
+  return rising.length
+    ? [...rising, ...plans.filter((p) => !rising.includes(p))]
+    : plans;
 }
 
 function movementContinuation(c: Context, player: Player): Activation[] {
