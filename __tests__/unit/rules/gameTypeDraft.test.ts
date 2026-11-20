@@ -137,10 +137,7 @@ describe("sideline staff per game type", () => {
     purchase(team, { type: "apothecary" });
     expect(
       validateRosterLegality(team, amazon, "beach-bowl").map((v) => v.detail)
-    ).toEqual([
-      "Beach Bowl teams have no Veteran",
-      "Beach Bowl teams cannot have an Apothecary.",
-    ]);
+    ).toEqual(["Beach Bowl teams cannot have an Apothecary."]);
   });
 });
 
@@ -215,11 +212,16 @@ describe("legalGameTypes", () => {
     ]);
   });
 
-  it("keeps a Sevens team with its Veteran to Sevens", () => {
+  it("lets a Sevens team bring its Veteran to the other game types", () => {
     const team = draftTeam("sevens", 600_000);
     hire(team, { "Eagle Warrior": 7 });
     chooseFirstLinemanAsVeteran(team);
-    expect(legalGameTypes(team, amazon)).toEqual(["sevens"]);
+    expect(legalGameTypes(team, amazon)).toEqual([
+      "sevens",
+      "gutter-bowl",
+      "street-bowl",
+      "beach-bowl",
+    ]);
   });
 });
 

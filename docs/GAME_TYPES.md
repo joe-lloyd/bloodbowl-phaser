@@ -8,9 +8,9 @@ draft rules its roster meets.
 
 To check another game type, the game prices the draft at that game
 type's costs: its re-roll price and Dedicated Fan price against its
-budget. A team with a Veteran plays only Sevens, and a Sevens team needs
-one, so a Sevens draft and a draft for the other three never share a
-game type. Street, Beach and Gutter Bowl drafts often do.
+budget. A Sevens team needs a Veteran and keeps it in the other game
+types (SB-D4). A Street, Beach or Gutter Bowl draft has no Veteran, so it
+cannot play Sevens until it names one.
 
 | Game type | Source | Pitch | Status |
 | --- | --- | --- | --- |
@@ -41,7 +41,7 @@ played, and `GameConfig` reads its pitch from there.
 | SB-D1 | Draft budget 600,000. 7 to 11 players. At most 4 players from positions with a limit below 0-12 (the non-Lineman limit). | ok |
 | SB-D2 | Team re-rolls cost double the roster's listed price. | ok |
 | SB-D3 | No Apothecary, Assistant Coaches or Cheerleaders. Dedicated Fans cost double. | ok |
-| SB-D4 | No Veteran: that is a Sevens rule. | ok |
+| SB-D4 | No Veteran: that is a Sevens rule. A Street Bowl draft cannot name one. A Sevens team that enters keeps its Veteran, with MA -1 and its one re-roll: a house rule so one roster can play every game type it meets. | differs |
 | SB-D5 | The only inducements are Magic Potions and the Halfling Master Chef. Each team gets one Magic Potion free; more cost 50,000 each with no limit. | missing |
 
 ### Match play
@@ -113,7 +113,7 @@ or to a fit player before a drive. Not to a player with Regeneration.
 | BB-D1 | Draft budget 600,000. 7 to 11 players. At most 4 positional players. | ok |
 | BB-D2 | Team re-rolls cost double the roster's listed price. | ok |
 | BB-D3 | No Apothecary. Cheerleaders and Assistant Coaches are allowed. Dedicated Fans only in a league. | ok |
-| BB-D4 | No Veteran. | ok |
+| BB-D4 | No Veteran. A Sevens team that enters keeps its Veteran, as in SB-D4. | differs |
 | BB-D5 | Inducements: Blitzer's Best Kegs, the Halfling Master Chef and the Souvenir Shop. | missing |
 
 ### Match play
@@ -181,7 +181,7 @@ Assigned before a drive. Every souvenir breaks at the end of the half.
 | GB-D1 | Draft budget 750,000. At least 7 players. At most 5 players without the Lineman keyword. | ok |
 | GB-D2 | Team re-rolls cost 100,000 for every roster. | ok |
 | GB-D3 | No Sideline Staff: no Apothecary, Assistant Coaches or Cheerleaders. | ok |
-| GB-D4 | No Veteran. | ok |
+| GB-D4 | No Veteran. A Sevens team that enters keeps its Veteran, as in SB-D4. | differs |
 | GB-D5 | Only Gutter Bowl inducements: Lesser (50,000) and Superior (100,000) Magic Potions, Sawbones, Snack Stand and Novice Wizard. No Prayers to Nuffle. | missing |
 
 ### Pitch

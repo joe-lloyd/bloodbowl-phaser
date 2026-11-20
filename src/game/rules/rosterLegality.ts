@@ -164,15 +164,8 @@ function requiredVeteranViolations(team: Team): RosterViolation[] {
   ];
 }
 
-function veteranViolations(
-  team: Team,
-  draft: DraftRules,
-  label: string
-): RosterViolation[] {
-  if (draft.veteran) return requiredVeteranViolations(team);
-  return team.players.some((player) => player.veteran)
-    ? [{ rule: "veteran", detail: `${label} teams have no Veteran` }]
-    : [];
+function veteranViolations(team: Team, draft: DraftRules): RosterViolation[] {
+  return draft.veteran ? requiredVeteranViolations(team) : [];
 }
 
 function staffViolations(team: Team, gameType: GameType): RosterViolation[] {
@@ -238,7 +231,7 @@ export function validateRosterLegality(
     ...sizeViolations(team, draft, label),
     ...positionViolations(rostered, roster),
     ...bigGuyViolations(rostered, roster),
-    ...veteranViolations(team, draft, label),
+    ...veteranViolations(team, draft),
     ...staffViolations(team, gameType),
     ...budgetViolations(team, gameType),
   ];
