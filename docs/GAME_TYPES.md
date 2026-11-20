@@ -204,7 +204,7 @@ Assigned before a drive. Every souvenir breaks at the end of the half.
 | GB-M10 | Ricochet passes work as SB-M9. | missing |
 | GB-M11 | No referee: nobody is Sent-off. One Foul per turn still applies. | ok |
 | GB-M12 | Secret Weapons roll a D6 at the end of each drive: 1-3 the crowd removes them for the game, and a second D6 of 1 makes them a Casualty. 4+ they stay. Bribes do not help. | ok: a player removed for the game goes to the Sent-off box, and a Casualty makes a Casualty roll. No Bribe is offered |
-| GB-M13 | Stalling: at the end of the team turn a stalling player is hit by a bottle on a D6 of 2+ and makes an Injury roll. | missing |
+| GB-M13 | Stalling: at the end of the team turn a stalling player is hit by a bottle on a D6 of 2+ and makes an Injury roll. | differs: the bottle is thrown when the stalling player's activation ends, as the Sevens crowd is, not at the end of the team turn. A hit is an Injury roll with no Armour roll, Steady Footing does not help, and it is a Turnover |
 | GB-M14 | Injuries use the 2025 rulebook tables, with the Casualty roll. | ok, as SB-M13 |
 
 ### Kick-off tables (2D6)
