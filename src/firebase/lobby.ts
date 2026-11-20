@@ -1,11 +1,12 @@
 import {
   readAppliedCommandCount,
   readLobby,
-  readLobbyStatus,
+  readLobbySeats,
 } from "../boundary/firebaseLobby";
 import { firebaseDocument, firebaseProfile } from "../boundary/firebaseJson";
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   limit,
@@ -279,19 +280,36 @@ export async function createLobby(
   return { ...lobby, createdAt: null };
 }
 
-async function refuseWhilePlayingElsewhere(
+async function activeCodeIn(tx: Transaction, uid: string): Promise<string | null> {
+  const user = await tx.get(userRef(uid));
+  return user.exists()
+    ? (firebaseProfile(user.data()).activeMatchCode ?? null)
+    : null;
+}
+
+async function refuseWhileBusyElsewhere(
   tx: Transaction,
   uid: string,
   code: string
 ): Promise<void> {
-  const user = await tx.get(userRef(uid));
-  const current = user.exists()
-    ? (firebaseProfile(user.data()).activeMatchCode ?? null)
-    : null;
+  const current = await activeCodeIn(tx, uid);
   if (!current || current === code) return;
-  const playing = await tx.get(lobbyRef(current));
-  if (readLobbyStatus(playing.data()) === "active")
+  const seats = readLobbySeats((await tx.get(lobbyRef(current))).data());
+  if (seats?.status === "active")
     throw new Error("Finish your current match before accepting an invite.");
+  if (seats?.status === "lobby" && seats.guestUid !== null)
+    throw new Error("Leave your current game before accepting an invite.");
+}
+
+export async function leaveGuestSeat(code: string, uid: string): Promise<void> {
+  await runTransaction(getDb(), async (tx) => {
+    const current = await activeCodeIn(tx, uid);
+    const seats = readLobbySeats((await tx.get(lobbyRef(code))).data());
+    if (seats?.status !== "lobby" || seats.guestUid !== uid) return;
+    tx.update(lobbyRef(code), { guestUid: null, [`players.${uid}`]: deleteField() });
+    if (current === code)
+      tx.set(userRef(uid), { activeMatchCode: null }, { merge: true });
+  });
 }
 
 interface Guest {
@@ -348,7 +366,7 @@ export async function joinInvitedLobby(
   guest: Guest
 ): Promise<LobbyDoc> {
   return runTransaction(getDb(), async (tx) => {
-    await refuseWhilePlayingElsewhere(tx, guest.uid, code);
+    await refuseWhileBusyElsewhere(tx, guest.uid, code);
     return seatGuest(tx, code, guest);
   });
 }

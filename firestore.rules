@@ -637,6 +637,18 @@ service cloud.firestore {
         && lastSeenBelievable();
     }
 
+    // A guest may give up their own seat while the lobby still waits, so a
+    // host can never start a match with a guest who has moved on.
+    function vacatesGuestSeat() {
+      return resource.data.status == 'lobby'
+        && request.auth.uid == resource.data.guestUid
+        && request.resource.data.guestUid == null
+        && changed().hasOnly(['guestUid', 'players'])
+        && request.resource.data.players.diff(resource.data.players)
+          .affectedKeys().hasOnly([request.auth.uid])
+        && !(request.auth.uid in request.resource.data.players);
+    }
+
     // Any coach may take a listed lobby off the open list once its host has
     // not been seen for five minutes, so dead listings cannot fill the list.
     function unlistsAbandonedLobby() {
@@ -673,6 +685,7 @@ service cloud.firestore {
               || request.auth.uid == resource.data.guestUid)
             && memberUpdateAllowed())
           || claimsGuestSeat()
+          || vacatesGuestSeat()
           || unlistsAbandonedLobby());
       allow delete: if request.auth != null
         && request.auth.uid == resource.data.hostUid

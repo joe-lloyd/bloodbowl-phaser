@@ -42,7 +42,7 @@ import {
   inviteFriendToMatch,
   sendMatchInvite,
 } from "../../src/firebase/invites";
-import { createLobby, fetchLobby } from "../../src/firebase/lobby";
+import { createLobby, fetchLobby, joinLobby } from "../../src/firebase/lobby";
 import { friendshipKey } from "../../src/social/friends";
 import { readFriendship, readInvite } from "../../src/boundary/social";
 
@@ -314,6 +314,21 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
           acceptLobbyInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
         )
       ).rejects.toThrow("Finish your current match before accepting an invite.");
+      expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBeNull();
+    });
+
+    it("cannot pull a coach away from a coach seated with them", async () => {
+      const [alice, bob] = await friends();
+      const carol = uniqueUid("carol");
+      const { code } = await as(alice, () => createLobby(alice, "Alice"));
+      const own = await as(bob, () => createLobby(bob, "Bob"));
+      await as(carol, () => joinLobby(own.code, carol, "Carol"));
+
+      await expect(
+        as(bob, () =>
+          acceptLobbyInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
+        )
+      ).rejects.toThrow("Leave your current game before accepting an invite.");
       expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBeNull();
     });
 

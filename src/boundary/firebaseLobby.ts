@@ -6,10 +6,14 @@ export function readLobby(value: unknown) {
   return lobbyDocSchema.parse(value);
 }
 
-const statusOnlySchema = z.object({ status: lobbyStatusSchema });
+const seatsSchema = z.object({
+  status: lobbyStatusSchema,
+  hostUid: z.string(),
+  guestUid: z.string().nullable(),
+});
 
-export function readLobbyStatus(value: unknown) {
-  return statusOnlySchema.safeParse(value).data?.status;
+export function readLobbySeats(value: unknown) {
+  return seatsSchema.safeParse(value).data;
 }
 
 const appliedCountSchema = z

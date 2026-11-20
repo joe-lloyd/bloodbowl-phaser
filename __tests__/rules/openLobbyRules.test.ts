@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -27,8 +28,11 @@ vi.mock("../../src/firebase/config", async () => {
 
 import {
   createLobby,
+  fetchLobby,
+  getActiveMatchCode,
   heartbeat,
   joinLobby,
+  leaveGuestSeat,
   type LobbyDoc,
   setLobbyListed,
   subscribeOpenLobbies,
@@ -228,5 +232,27 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     expect(await openGameAppears(uniqueUid("stranger"), live)).toBe(true);
     const first = await getDoc(doc(dbFor(ADMIN), "games", fixtureValue(stale[0])));
     expect(first.get("listed")).toBe(false);
+  });
+
+  it("let a guest give up their own seat while the lobby waits, and nothing else", async () => {
+    const host = uniqueUid("host");
+    const guest = uniqueUid("guest");
+    const stranger = uniqueUid("stranger");
+    const { code } = await as(host, () => createLobby(host, "Host"));
+    await as(guest, () => joinLobby(code, guest, "Guest"));
+    const ref = (uid: string) => doc(dbFor(uid), "games", code);
+
+    await denied(updateDoc(ref(stranger), { guestUid: null, [`players.${guest}`]: deleteField() }));
+    await denied(
+      updateDoc(ref(guest), { guestUid: null, [`players.${guest}`]: deleteField(), listed: true })
+    );
+    await as(guest, () => leaveGuestSeat(code, guest));
+    const left = await as(host, () => fetchLobby(code));
+    expect([left?.guestUid, Object.keys(left?.players ?? {})]).toEqual([null, [host]]);
+    expect(await as(guest, () => getActiveMatchCode(guest))).toBeNull();
+
+    await as(guest, () => joinLobby(code, guest, "Guest"));
+    await updateDoc(doc(dbFor(ADMIN), "games", code), { status: "active" });
+    await denied(updateDoc(ref(guest), { guestUid: null, [`players.${guest}`]: deleteField() }));
   });
 });

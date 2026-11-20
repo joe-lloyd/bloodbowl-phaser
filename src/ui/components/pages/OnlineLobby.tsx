@@ -36,6 +36,7 @@ import {
   getActiveMatchCode,
   fetchLobby,
   lobbyGameType,
+  leaveGuestSeat,
 } from "../../../firebase/lobby";
 import { resolveCoachName } from "../../../firebase/coaches";
 import { useFriends } from "../../hooks/useSocial";
@@ -58,6 +59,28 @@ import { teamPlaysGameType } from "../../../game/rules/rosterLegality";
 import { GameTypeSelector } from "../common/GameTypeSelector";
 
 type Mode = "host" | "join";
+
+async function currentLobby(
+  uid: string,
+  fixture: HostedFixture | undefined
+): Promise<{ code: string; playing: boolean } | null> {
+  const existing = await getActiveMatchCode(uid);
+  const doc = existing ? await fetchLobby(existing) : null;
+  if (!doc) return null;
+  if (doc.status === "active") return { code: doc.code, playing: true };
+  if (reusableLobby(doc, { uid, fixture })) return { code: doc.code, playing: false };
+  if (doc.status !== "lobby" || doc.guestUid !== uid) return null;
+  if (isHouseBotBrowser()) return { code: doc.code, playing: false };
+  await leaveGuestSeat(doc.code, uid);
+  return null;
+}
+
+function vacateWhenGuestLeaves(lobby: LobbyDoc, uid: string): void {
+  if (lobby.guestUid !== uid || lobby.status !== "lobby") return;
+  leaveGuestSeat(lobby.code, uid).catch((error: unknown) => {
+    console.warn("[lobby] could not give up the guest seat", error);
+  });
+}
 
 function unlistWhenHostLeaves(lobby: LobbyDoc, uid: string): void {
   if (lobby.hostUid !== uid || lobby.listed !== true) return;
@@ -93,16 +116,14 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     setBusy(true);
     void (async () => {
       try {
-        const existing = await getActiveMatchCode(user.uid);
+        const found = await currentLobby(user.uid, competitionFixture);
         if (cancelled) return;
-        const doc = existing ? await fetchLobby(existing) : null;
-        if (cancelled) return;
-        if (doc?.status === "active") {
-          navigate(`/online/play/${String(existing)}`, { replace: true });
+        if (found?.playing) {
+          navigate(`/online/play/${found.code}`, { replace: true });
           return;
         }
-        if (doc && reusableLobby(doc, { uid: user.uid, fixture: competitionFixture })) {
-          setCode(doc.code);
+        if (found) {
+          setCode(found.code);
           return;
         }
 
@@ -244,6 +265,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           me={me}
           onLeave={() => {
             unlistWhenHostLeaves(lobby, user.uid);
+            vacateWhenGuestLeaves(lobby, user.uid);
             void navigate("/");
           }}
           onReady={() => void setReady(lobby.code, user.uid, !me?.ready)}
