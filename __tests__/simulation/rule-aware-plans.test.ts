@@ -188,6 +188,34 @@ describe("our ST4 carrier with Block, marked by one ST3 opponent in front", () =
   });
 });
 
+describe("a carrier marked by three opponents, one of which team-mates can hit safely", () => {
+  it("hits the marker before the carrier dodges", async () => {
+    const lineman = {
+      stats: { MA: 4, ST: 3, AG: 4 },
+      skills: [SkillType.BLOCK, SkillType.THICK_SKULL],
+    };
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 7, hasBall: true, stats: { MA: 6 } },
+        { playerIndex: 1, x: 8, y: 7, ...lineman },
+        { playerIndex: 2, x: 8, y: 5, ...lineman },
+        { playerIndex: 3, x: 9, y: 5, ...lineman },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 6 },
+        { playerIndex: 1, x: 10, y: 6 },
+        { playerIndex: 2, x: 10, y: 7 },
+        { playerIndex: 3, x: 11, y: 5 },
+      ],
+    });
+    expect(await firstActivation(subject)).toEqual({
+      commands: ["declare-action", "block"],
+      note: "blocks",
+    });
+  });
+});
+
 describe("a Take Root player's Blitz", () => {
   async function blitzValue(
     target: { x: number; y: number },
