@@ -33,6 +33,7 @@ import {
   subscribeLobby,
   updateSettings,
   lobbyGameType,
+  teamFitsLobby,
 } from "../../../firebase/lobby";
 import { resolveCoachName } from "../../../firebase/coaches";
 import { useFriends } from "../../hooks/useSocial";
@@ -365,6 +366,18 @@ function houseBotWaitingIn(
     : null;
 }
 
+function playerWait(
+  lobby: LobbyDoc,
+  player: LobbyPlayer | null | undefined,
+  name: string
+): string | null {
+  if (!player) return null;
+  if (!player.team) return `${name} to pick a team`;
+  if (!teamFitsLobby(player.team, lobby))
+    return `${name} to pick a team that fits the game type and team value`;
+  return player.ready ? null : `${name} to ready up`;
+}
+
 function lobbyWaitingOn(
   lobby: LobbyDoc,
   me: LobbyPlayer | undefined,
@@ -372,15 +385,11 @@ function lobbyWaitingOn(
 ): string[] {
   const opponentUid = isHost ? lobby.guestUid : lobby.hostUid;
   const opponent = opponentUid ? lobby.players[opponentUid] : null;
-  const waitingOn: string[] = [];
-  if (!lobby.guestUid) waitingOn.push("an opponent to join");
-  if (me && !me.team) waitingOn.push("you to pick a team");
-  if (me?.team && !me.ready) waitingOn.push("you to ready up");
-  if (opponent && !opponent.team)
-    waitingOn.push(`${opponent.displayName} to pick a team`);
-  if (opponent?.team && !opponent.ready)
-    waitingOn.push(`${opponent.displayName} to ready up`);
-  return waitingOn;
+  return [
+    lobby.guestUid ? null : "an opponent to join",
+    playerWait(lobby, me, "you"),
+    playerWait(lobby, opponent, opponent?.displayName ?? "your opponent"),
+  ].flatMap((line) => (line ? [line] : []));
 }
 
 function JoinByCode({
@@ -495,7 +504,7 @@ function LobbyActions({
         <HudButton
           variant={startable || me?.ready ? "secondary" : "primary"}
           size="lg"
-          disabled={!me?.team}
+          disabled={!me?.team || !teamFitsLobby(me.team, lobby)}
           onClick={onReady}
         >
           {me?.ready ? "Not ready" : "Ready!"}
