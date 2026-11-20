@@ -4,7 +4,7 @@ to another batch). Costume: the Turncoats. Every one wears a torn kit1 rag skirt
 crossed-slash mark, over whatever is left of the kit of the team they deserted. No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, flat_cone, ellipsoid, lerp, UP, basis, D, surf
 from teams import chaos_common as cc
 
@@ -16,14 +16,14 @@ def turncoat(J, P, tag, pose, side=-1, sash_len=0.42, mark_h=0.36, rag=True, mar
         cc.sigil(J, P, tag, h=mark_h, mat=mark, size=0.17, off=0.05)
 
 @register
-class RenegadeLineman(Biped):
+class RenegadeLineman(looks.Fine, Biped):
     """Human deserter: head-scarf and eye patch, one battered shoulder pad, bare bandaged other arm, kit1 vest and rag skirt, kit2 sash."""
     key = "renegade_lineman"
     race = "human"
     knobs = dict(shoulders=1.06)
     layout = dict(hair=None, scarf="kit1", torso="kit1", arms="skin_human", legs="rags", boots="leather", cuff="rags", wraps="bandage",
                   pads="football", pad_sides=("l",), pad_mat="darkmetal", pad_trim="kit2", spikes=1, belt="leather", buckle="brass",
-                  bracers="leather", brow="hair")
+                  bracers="leather", brow="hair", hair_mat="hair_brown", tie="kit2", helm_mat="darkmetal")
     stance = dict(lean=6, legs={"l": (6, 12, 10), "r": (-5, 12, 10)}, arms={"l": (14, 26, 56, -4), "r": (14, 26, 56, -4)}, hands="fist")
     height = 1.0
 
@@ -34,9 +34,19 @@ class RenegadeLineman(Biped):
                  hand_modes={"l": "open" if up > 0.2 else "fist"})
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         cc.eye_patch(J, tag, sd=1)
         turncoat(J, P, tag, pose, side=1)
         cc.strap(J, P, tag, "leather", r=0.035, flip=-1)
+
+    def details(self, J, P, L, tag, pose):
+        k = L["limb"] * core.LIMB
+        for side in ("l", "r"):                         # patched knees and a bandaged wrist knot
+            hip, knee = J["legs"][side][:2]
+            fwd = (J["F"] - J["u"] * 0.2).normalized()
+            box(tag + "kneepatch" + side, knee + fwd * 0.12 * k + J["u"] * 0.04, (0.11, 0.03, 0.1), "leather",
+                basis(J["X"], J["F"], J["u"]))
+        ball_at(tag + "sashstud", surf(J, P, 0.06, 0, 0.07), 0.026, "brass")
 
 @register
 class RenegadeThrower(Biped):
@@ -46,7 +56,7 @@ class RenegadeThrower(Biped):
     knobs = dict(limb=0.9, legs=1.06, shoulders=0.96)
     layout = dict(hair="swept", hair_mat="hair_blond", brow="hair_blond", torso="kit1", arms="shirt", legs="trouser", coat="tails",
                   coat_mat="kit1", hem="kit2", boots="boot", cuff="kit2", belt="leather", buckle="brass", sleeve_cuff="kit2",
-                  bracers="kit2", neckband="kit2", lining="cloth_black")
+                  bracers="kit2", neckband="kit2", lining="cloth_black", mohawk=None, tie="kit2")
     stance = dict(lean=2, twist=-8, legs={"l": (6, 8, 6), "r": (-6, 8, 6)}, arms={"l": (0, 30, 80, -40), "r": (20, 22, 60, 0)}, hands="relaxed")
     stride, arm_swing, jump = 40, 34, 0.24
     height = 1.03
@@ -58,6 +68,8 @@ class RenegadeThrower(Biped):
 
     def extras(self, J, P, L, tag, pose):
         cc.headband(J, tag, "kit2", h=0.36)
+        if L.get("mohawk"):
+            cc.mohawk(J, tag, L["hair_mat"], h=0.24, n=6, lo=0.75)
         turncoat(J, P, tag, pose, side=-1, rag=False, mark_h=0.38)
         cc.strap(J, P, tag, "leather", r=0.03, flip=1)
 
@@ -68,7 +80,8 @@ class RenegadeOrc(Biped):
     race = "orc"
     knobs = dict(shoulders=1.4, torso=1.28)
     layout = dict(torso="skin_orc", legs="leather", boots="boot", cuff="rags", pads="football_big", pad_mat="kit1", pad_trim="kit2", spikes=1,
-                  belt="leather", buckle="brass", bracers="darkmetal", arm_band="kit2", tusks=False)
+                  belt="leather", buckle="brass", bracers="darkmetal", arm_band="kit2", tusks=False, topknot=True, mohawk=None,
+                  helm_mat="darkmetal")
     stance = dict(lean=6, legs={"l": (5, 16, 10), "r": (-4, 16, 10)}, arms={"l": (8, 34, 44, -4), "r": (8, 34, 44, -4)}, hands="fist")
     stride, arm_swing, jump = 32, 26, 0.12
     height = 1.0
@@ -87,9 +100,10 @@ class RenegadeOrc(Biped):
             ball_at(tag + "jbolt%d" % sd, c + X * sd * s[0] * 1.0 - U * s[2] * 0.35 + F * s[1] * 0.3, 0.035, "brass")
             cone(tag + "jtusk%d" % sd, c + F * s[1] * 1.0 - U * s[2] * 0.75 + X * sd * s[0] * 0.4, c + F * s[1] * 1.08 - U * s[2] * 0.15 + X * sd * s[0] * 0.45,
                  0.035, "bone", 6)
-        top = c + U * s[2] * 0.95 - F * s[1] * 0.2
-        tube(tag + "topknot", [top, top + U * 0.14 - F * 0.04, top + U * 0.2 - F * 0.2, top + U * 0.06 - F * 0.34], [0.05, 0.075, 0.06, 0.02], "hair", n=6)
-        tube(tag + "knottie", [top + U * 0.02, top + U * 0.08], [0.06, 0.06], "kit2", n=6)
+        if L.get("topknot"):
+            cc.topknot(J, tag, "hair", "kit2")
+        if L.get("mohawk"):
+            cc.mohawk(J, tag, "hair", h=0.22, n=5, lo=0.7)
         turncoat(J, P, tag, pose, side=-1, mark=None)
         cc.sigil(J, P, tag, h=0.2, mat="white", size=0.2, off=0.03)
         cc.strap(J, P, tag, "kit1", r=0.05, flip=1)
@@ -117,9 +131,10 @@ class RenegadeGoblin(Biped):
         c, X, F, U, s = cc.hf(J)
         cc.big_ears(J, L, tag, size=1.0, droop=0.16)
         cc.long_nose(J, L, tag, ln=0.14)
-        tube(tag + "hstripe", [c - F * s[1] * 1.0 + U * s[2] * 0.62, c + U * s[2] * 1.2, c + F * s[1] * 1.0 + U * s[2] * 0.62], [0.05, 0.055, 0.05],
-             "kit2", ref=X, n=6, flat=0.5)
-        cone(tag + "hspike", c + U * s[2] * 1.15, c + U * (s[2] * 1.15 + 0.16), 0.045, "bone", 6)
+        if L.get("helm") == "kettle":                  # the stolen helm's kit2 stripe and spike
+            tube(tag + "hstripe", [c - F * s[1] * 1.0 + U * s[2] * 0.62, c + U * s[2] * 1.2, c + F * s[1] * 1.0 + U * s[2] * 0.62],
+                 [0.05, 0.055, 0.05], "kit2", ref=X, n=6, flat=0.5)
+            cone(tag + "hspike", c + U * s[2] * 1.15, c + U * (s[2] * 1.15 + 0.16), 0.045, "bone", 6)
         cc.sash(J, P, tag, pose, "kit2", side=-1, ln=0.26, r=0.04)
         cc.sigil(J, P, tag, h=0.2, mat="kit2", size=0.13, off=0.07)
 
@@ -131,7 +146,7 @@ class RenegadeSkaven(Biped):
     knobs = dict(hunch=18)
     layout = dict(skin="fur_brown", legs="fur_brown", dark="fur_black", jersey="kit1", arms="kit1", forearms="fur_brown", horns="small", horn_mat="bone", bracers="kit2",
                   arm_band="kit2", belt="rope", buckle=None, fangs=True, eye_mat="eye",
-                  tail=dict(len=1.0, r=0.045, mat="skin_rat", up=0.25))
+                  tail=dict(len=1.0, r=0.045, mat="skin_rat", up=0.25), mutation="spines")
     stance = dict(lean=10, nod=6, legs={"l": (8, 10, 10), "r": (-8, 10, 8)}, arms={"l": (26, 16, 80, -10), "r": (26, 16, 80, -10)},
                   hands="relaxed")
     stride, arm_swing, run_lean, jump = 46, 36, 22, 0.26
@@ -142,7 +157,13 @@ class RenegadeSkaven(Biped):
                  arms={"l": (26 + 8 * w["s2"], 12, 86, -22), "r": (26 - 8 * w["s2"], 12, 86, -22)})
 
     def extras(self, J, P, L, tag, pose):
-        cc.spines(J, P, tag, (0.16, 0.3, 0.44), mat="bone", ln=0.2, r=0.05)
+        mutation = L.get("mutation")
+        if mutation == "spines":
+            cc.spines(J, P, tag, (0.16, 0.3, 0.44), mat="bone", ln=0.2, r=0.05)
+        elif mutation == "tentacle":
+            cc.shoulder_tentacle(J, tag, side="l", ln=0.6, r=0.06, mat="skin_rat")
+        elif mutation == "eye":
+            cc.third_eye(J, tag, up=0.6)
         turncoat(J, P, tag, pose, side=1, sash_len=0.34, mark_h=0.3)
         # the hunch and rubbing hands hide the vest head-on: a ragged kit1 mantle over the shoulders,
         # a kit2 neck rag and a kit2 brow band put team colour on the parts that face the camera
@@ -163,7 +184,7 @@ class RenegadeDarkElf(Biped):
     layout = dict(skin="skin", hair="long", hair_mat="hair_white", brow="hair_white", tie="kit2", lip="lip", eyes="red", torso="cloth_black",
                   arms="cloth_black", legs="cloth_black", breast="darkmetal", emblem_mat="kit2", trim="kit2", pads="plate", pad_sides=("l",),
                   pad_mat="darkmetal", pad_trim="kit2", spikes=2, spike_mat="darkmetal", cape="short", cape_mat="kit1",
-                  cape_lining="cloth_black", clasp=False, greaves=True, bracers="darkmetal", belt="kit2", buckle="brass")
+                  cape_lining="cloth_black", clasp=False, greaves=True, bracers="darkmetal", belt="kit2", buckle="brass", helm_mat="darkmetal")
     stance = dict(lean=0, twist=8, legs={"l": (8, 6, 4), "r": (-8, 6, 10)}, arms={"l": (4, 20, 20), "r": (10, 26, 100, -30)}, hands="relaxed")
     stride, arm_swing, run_lean, jump = 44, 36, 16, 0.26
     height = 1.04

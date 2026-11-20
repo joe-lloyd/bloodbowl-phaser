@@ -1,0 +1,13 @@
+{
+  "beastman": [
+    ["body", "Body", [["x", "Beastman"]]],
+    ["horns", "Horns", [["goat", "Goat horns"], ["ram", "Ram horns"], ["bull", "Bull horns"]]],
+    ["mutation", "Mutation", [["none", "None"], ["eye", "Third eye"], ["tentacle", "Tentacle"]]]
+  ],
+  "chaos_chosen": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helm", "Helm", [["horned", "Horned helm"], ["crested", "Crested helm"], ["bare", "Bare head"]]],
+    ["cape", "Cape", [["short", "Short cape"], ["long", "Long cape"], ["none", "No cape"]]],
+    ["mutation", "Mutation", [["none", "None"], ["tentacle", "Tentacle"], ["claw", "Claw arm"]]]
+  ]
+}
