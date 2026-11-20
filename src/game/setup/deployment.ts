@@ -346,7 +346,7 @@ function kickingFit(player: Player, role: DeploymentRole): number {
   }
 }
 
-export function roleFit(
+function roleFit(
   player: Player,
   role: DeploymentRole,
   kicking: boolean
