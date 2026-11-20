@@ -2,7 +2,10 @@ import { ballOnSquare } from "@/game/rules/ballInTheAir";
 import { GamePhase } from "@/types/GameState";
 import { type Player } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
-import { PassController } from "@/game/controllers/PassController";
+import {
+  PassController,
+  type PassType,
+} from "@/game/controllers/PassController";
 import { PassOperation } from "@/game/operations/PassOperation";
 import { HandoffOperation } from "@/game/operations/HandoffOperation";
 import { PuntOperation } from "@/game/operations/PuntOperation";
@@ -101,23 +104,22 @@ function passTargetRefusal({
     return "Target is off the pitch";
   }
 
-  if (
-    !hailMary &&
-    PassController.rangeValue(from, { x: target.x, y: target.y }) === null
-  ) {
+  if (hailMary) return weatherRefusal(parts, "Long Bomb");
+  if (PassController.rangeValue(from, { x: target.x, y: target.y }) === null) {
     return "Target is beyond the Range Ruler";
   }
+  const { type } = parts.passController.measureRange(from, {
+    x: target.x,
+    y: target.y,
+  });
+  return weatherRefusal(parts, type);
+}
 
-  const type = hailMary
-    ? "Long Bomb"
-    : parts.passController.measureRange(from, { x: target.x, y: target.y })
-        .type;
+function weatherRefusal(parts: GameParts, type: PassType): string | null {
   const allowed = weatherEffects(parts.state.weather).passTypes;
-  if (!allowed.includes(type)) {
-    const only = allowed.length === 1 ? "a Quick Pass" : "a Quick or Short Pass";
-    return `${parts.state.weather}: only ${only} may be attempted`;
-  }
-  return null;
+  if (allowed.includes(type)) return null;
+  const only = allowed.length === 1 ? "a Quick Pass" : "a Quick or Short Pass";
+  return `${parts.state.weather}: only ${only} may be attempted`;
 }
 
 export function handOffBall(

@@ -91,7 +91,9 @@ describe("computer team templates", () => {
         (template) => template.id === id
       )
     ).toBe(false);
-    expect(getComputerTeamTemplates({ ruleset: NAF_SEVENS_RULESET })).toHaveLength(83);
+    expect(
+      getComputerTeamTemplates({ ruleset: NAF_SEVENS_RULESET })
+    ).toHaveLength(83);
     expect(() => createComputerTeamFromTemplate(id)).toThrow(
       "Too many Insignificant"
     );
@@ -114,14 +116,19 @@ describe("computer team templates", () => {
         advancementMode,
         draftBudget: 600_000,
       });
-      for (const ruleset of [DEFAULT_SEVENS_RULESET, NAF_SEVENS_RULESET] as const) {
+      for (const ruleset of [
+        DEFAULT_SEVENS_RULESET,
+        NAF_SEVENS_RULESET,
+      ] as const) {
         const failures = getComputerTeamTemplates({ ruleset }).flatMap(
           (template) => {
             const team = createComputerTeamFromTemplate(template.id, {
               ruleset,
               advancementMode,
             });
-            const { reasons } = checkTeamCompatibility(team, profile, { ruleset });
+            const { reasons } = checkTeamCompatibility(team, profile, {
+              ruleset,
+            });
             return reasons.map((reason) => `${template.name}: ${reason}`);
           }
         );
@@ -151,8 +158,12 @@ describe("computer team templates", () => {
         advancementMode: "sevens-skill-selection",
       }),
     });
-    const oldTeam = fixtureValue(getTeamById(fixtureValue(first.entrants[0]).teamId));
-    const newTeam = fixtureValue(getTeamById(fixtureValue(second.entrants[0]).teamId));
+    const oldTeam = fixtureValue(
+      getTeamById(fixtureValue(first.entrants[0]).teamId)
+    );
+    const newTeam = fixtureValue(
+      getTeamById(fixtureValue(second.entrants[0]).teamId)
+    );
     expect(oldTeam.id).not.toBe(newTeam.id);
     expect(
       new Set(
@@ -168,11 +179,18 @@ describe("computer team templates", () => {
     fixtureValue(oldTeam.players[0]).spp = 6;
     manageComputerTeam(oldTeam, new RNGService(7));
     saveTeam(oldTeam);
-    expect(fixtureValue(fixtureValue(getTeamById(oldTeam.id)).players[0]).advancements).toHaveLength(1);
-    expect(fixtureValue(fixtureValue(getTeamById(newTeam.id)).players[0]).advancements).toEqual([]);
     expect(
-      fixtureValue(createComputerTeamFromTemplate("human-reroll-mix-roster").players[0])
+      fixtureValue(fixtureValue(getTeamById(oldTeam.id)).players[0])
         .advancements
+    ).toHaveLength(1);
+    expect(
+      fixtureValue(fixtureValue(getTeamById(newTeam.id)).players[0])
+        .advancements
+    ).toEqual([]);
+    expect(
+      fixtureValue(
+        createComputerTeamFromTemplate("human-reroll-mix-roster").players[0]
+      ).advancements
     ).toEqual([]);
     expect(loadTeams()).toHaveLength(4);
   });
