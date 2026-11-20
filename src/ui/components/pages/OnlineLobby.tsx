@@ -51,13 +51,13 @@ import {
   acceptLobbyInvite,
   sendFixtureInvite,
 } from "../../../firebase/invites";
-import {
-  GAME_TYPE_LABELS,
-  type GameType,
-} from "../../../game/variants/gameTypes";
-import { teamPlaysGameType } from "../../../game/rules/rosterLegality";
+import { type GameType } from "../../../game/variants/gameTypes";
 import { GameTypeSelector } from "../common/GameTypeSelector";
 import type { Venue } from "../../../game/variants/pitchLayouts";
+import type { TeamValueRange } from "../../../social/teamValueRange";
+import { TeamChoice } from "./TeamChoice";
+import { TeamValueSetting } from "./TeamValueSetting";
+import { useHouseBotTeam } from "../social/useHouseBotTeam";
 
 type Mode = "host" | "join";
 
@@ -124,6 +124,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   }, [code]);
 
   const myUid = user?.uid;
+  useHouseBotTeam(lobby, myUid);
   const { committed, revealed, bothCommitted } = seedProgress(lobby, myUid);
   useEffect(() => {
     if (!lobby || !myUid || lobby.status !== "lobby" || !lobby.guestUid) return;
@@ -305,6 +306,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           fixture={!!lobby.fixtureTeams}
           myTeams={myTeams}
           gameType={lobbyGameType(lobby)}
+          teamValue={lobby.settings.teamValue}
           onPick={(team) => void selectTeam(lobby.code, user.uid, team)}
         />
       </Section>
@@ -544,12 +546,14 @@ function TeamPicker({
   fixture,
   myTeams,
   gameType,
+  teamValue,
   onPick,
 }: {
   me: LobbyPlayer | undefined;
   fixture: boolean;
   myTeams: Team[];
   gameType: GameType;
+  teamValue: TeamValueRange | undefined;
   onPick: (team: Team) => void;
 }) {
   if (fixture && me?.team)
@@ -569,57 +573,9 @@ function TeamPicker({
       chosen={me?.team ?? null}
       myTeams={myTeams}
       gameType={gameType}
+      teamValue={teamValue}
       onPick={onPick}
     />
-  );
-}
-
-function TeamChoice({
-  chosen,
-  myTeams,
-  gameType,
-  onPick,
-}: {
-  chosen: Team | null;
-  myTeams: Team[];
-  gameType: GameType;
-  onPick: (team: Team) => void;
-}) {
-  const label = GAME_TYPE_LABELS[gameType];
-  return (
-    <>
-      <select
-        value={chosen?.id ?? ""}
-        onChange={(e) => {
-          const team = myTeams.find((t: Team) => t.id === e.target.value);
-          if (team) onPick(team);
-        }}
-        aria-label="Your team"
-        className="hud-field"
-      >
-        <option value="" disabled>
-          Pick a team…
-        </option>
-        {myTeams.map((team: Team) => (
-          <option
-            key={team.id}
-            value={team.id}
-            disabled={!teamPlaysGameType(team, gameType)}
-          >
-            {team.name} ({team.rosterName})
-            {teamPlaysGameType(team, gameType)
-              ? ""
-              : ` · not legal for ${label}`}
-          </option>
-        ))}
-      </select>
-      {chosen && !teamPlaysGameType(chosen, gameType) && (
-        <Notice tone="warn" className="mt-3">
-          {chosen.name} does not meet the {label} draft rules. Pick another
-          team.
-        </Notice>
-      )}
-    </>
   );
 }
 
@@ -735,6 +691,7 @@ export function SettingsPanel({
           }}
         />
       </label>
+      <TeamValueSetting settings={settings} readOnly={readOnly} onChange={onChange} />
       <GameTypeSelector
         label="Game type"
         {...(settings.gameType === undefined
