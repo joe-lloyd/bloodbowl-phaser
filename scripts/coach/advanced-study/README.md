@@ -14,7 +14,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 scripts/coach/advanced-study/report.py \
   --out sim-results/advanced-study/dashboard
 ```
 
-The default catalogue creates 405 snapshots: 81 original recipes and 324 advanced variants, covering all 30 rosters. Each recipe has two focused and two randomized builds. Each advanced build has six legal chosen advancements, at most two per player, granted through the existing progression API. The focused builder balances plausible player roles with coverage across all 72 learnable skills. Its packages are coverage-oriented, not optimized development advice.
+The default catalogue creates 410 snapshots: 82 original recipes and 328 advanced variants, covering all 30 rosters. Each recipe has two focused and two randomized builds. Each advanced build has six legal chosen advancements, at most two per player, granted through the existing progression API. The focused builder balances plausible player roles with coverage across all 72 learnable skills. Its packages are coverage-oriented, not optimized development advice.
 
 The randomized allocation uses the same player, skill category, primary/secondary access and elite value band as each focused allocation. Team value and SPP cost match for each recipe and replicate. Randomness comes from a separate deterministic coach RNG. This is an allocation control using chosen-advancement pricing, not the application's cheaper two-roll random-primary mode. Traits are retained on their native players and are never rolled as advancements.
 
