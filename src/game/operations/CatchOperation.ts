@@ -1,3 +1,4 @@
+import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { type FlowContext } from "../core/GameFlowManager";
@@ -38,7 +39,8 @@ export async function catchRoll(
 
   const modifiers =
     catchController.calculateModifiers(
-      { position: player.gridPosition,opponents,isBounce: options.origin==="bounce",isThrowIn: options.origin==="throw-in" }    ) + weatherEffects(gameService.getState().weather).ballHandling;
+      { position: player.gridPosition,opponents,isBounce: options.origin==="bounce",isThrowIn: options.origin==="throw-in" }    ) + weatherEffects(gameService.getState().weather).ballHandling +
+    souvenirModifier(gameService.getState(), player.id, "catch");
 
   const catchCtx: CatchContext = {
     player,

@@ -52,6 +52,7 @@ export function requestedDecision(
         ...(request.skills ? { skills: [...request.skills] } : {}),
         ...(request.stats ? { stats: [...request.stats] } : {}),
         ...(request.spells ? { spells: [...request.spells] } : {}),
+        ...(request.item === undefined ? {} : { item: request.item }),
         optional: request.optional,
       };
     case "foul-assists":
