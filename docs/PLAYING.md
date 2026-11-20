@@ -99,6 +99,33 @@ someone joins it, when it starts, when its host clicks **Leave**, or when its
 host has had the lobby closed for 90 seconds. Matches are still relayed
 through Firestore, not connected browser to browser.
 
+### Online leagues and tournaments
+
+When you create a league or tournament while signed in, pick **Online
+sign-ups**. Choose the number of places, the pace (a round every day, twice a
+week, once a week or every two weeks), whether games between two computer teams
+are simulated on their own, and whether it is listed under **Open for sign-up**.
+You can enter one of your own teams or only organize it.
+
+Other coaches find it under **Open for sign-up** on the Leagues or Tournaments
+page, through a link from **Copy link**, or from an invite you send a friend.
+Each coach enters one team that is legal for the competition's rules, and can
+leave again until it starts. When you press **Start**, computer teams fill any
+empty places and the fixtures are drawn.
+
+Rounds open one at a time. Each round has a deadline set by the pace, and the
+next round opens as soon as every game in the current one is played. **Host
+online** on your fixture opens a lobby held for your opponent and sends them an
+invite, so they press **Join match** on the competition page or **Join** on the
+main menu. Standings show each team's coach, and each result says how it was
+played: online, on one screen, against the computer, simulated, or entered by
+hand.
+
+If a coach has not played by the deadline, the organizer can **Remove** them.
+Their remaining games become walkovers for their opponents. Computer teams live
+in the organizer's library, so the organizer's browser plays out their games
+and keeps their injuries and SPP.
+
 For a relaxed friendly, the host can set **Match settings → Turn timer →
 No time limit** in the lobby before starting. This applies to both coaches:
 there is no countdown, automatic end of turn or time limit on decisions.

@@ -1,18 +1,26 @@
 import { getTeamById, loadTeams } from "../game/managers/TeamManager";
-import { fetchAllCoachTeams } from "../firebase/cloudTeamRepository";
+import { getCurrentUser } from "../firebase/auth";
+import { fetchCoachTeam } from "../firebase/cloudTeamRepository";
 import { type Team } from "../types/Team";
 import { type CompetitionDoc, type CompetitionEntrant } from "./types";
+
+function viewerOwns(entrant: CompetitionEntrant): boolean {
+  const viewer = getCurrentUser()?.uid;
+  return !viewer || entrant.ownerUid === null || entrant.ownerUid === viewer;
+}
+
+export function ownLocalTeam(entrant: CompetitionEntrant): Team | undefined {
+  return viewerOwns(entrant) ? getTeamById(entrant.teamId) : undefined;
+}
 
 export async function fetchEntrantTeam(
   entrant: CompetitionEntrant
 ): Promise<Team | null> {
-  const local = getTeamById(entrant.teamId);
+  const local = ownLocalTeam(entrant);
   if (local) return local;
-  const owned = await fetchAllCoachTeams();
-  return (
-    owned.find((candidate) => candidate.team.id === entrant.teamId)?.team ??
-    null
-  );
+  return entrant.ownerUid
+    ? fetchCoachTeam({ ownerUid: entrant.ownerUid, teamId: entrant.teamId })
+    : null;
 }
 
 export function refreshEntrantDisplays<T extends CompetitionDoc>(
@@ -22,7 +30,7 @@ export function refreshEntrantDisplays<T extends CompetitionDoc>(
   const ownedById = new Map(ownedTeams.map((team) => [team.id, team]));
   let changed = false;
   const entrants = competition.entrants.map((entrant) => {
-    const team = ownedById.get(entrant.teamId);
+    const team = viewerOwns(entrant) ? ownedById.get(entrant.teamId) : undefined;
     if (!team) return entrant;
     const next = {
       ...entrant,

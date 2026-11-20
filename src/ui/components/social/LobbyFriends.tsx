@@ -69,6 +69,52 @@ export function FriendButton({
   );
 }
 
+export function FriendInviteList({
+  friends,
+  send,
+}: {
+  friends: FriendRow[];
+  send: (friend: FriendRow) => Promise<void>;
+}) {
+  const now = useNow(30_000);
+  const [invited, setInvited] = useState<ReadonlySet<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+
+  const invite = (friend: FriendRow) => {
+    setError(null);
+    send(friend)
+      .then(() => {
+        setInvited((current) => new Set(current).add(friend.uid));
+      })
+      .catch((reason: unknown) => {
+        setError(errorText(reason));
+      });
+  };
+
+  return (
+    <>
+      <ul className="flex flex-col gap-2">
+        {friends.map((friend) => (
+          <FriendInviteRow
+            key={friend.uid}
+            friend={friend}
+            now={now}
+            invited={invited.has(friend.uid)}
+            onInvite={() => {
+              invite(friend);
+            }}
+          />
+        ))}
+      </ul>
+      {error && (
+        <Notice tone="bad" role="alert">
+          {error}
+        </Notice>
+      )}
+    </>
+  );
+}
+
 export function InviteFriendsPanel({
   me,
   code,
@@ -78,22 +124,7 @@ export function InviteFriendsPanel({
   code: string;
   friends: FriendRow[];
 }) {
-  const now = useNow(30_000);
-  const [invited, setInvited] = useState<ReadonlySet<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
   const accepted = friends.filter((row) => row.kind === "friend");
-
-  const invite = (friend: FriendRow) => {
-    setError(null);
-    sendMatchInvite({ fromUid: me, toUid: friend.uid, code })
-      .then(() => {
-        setInvited((current) => new Set(current).add(friend.uid));
-      })
-      .catch((reason: unknown) => {
-        setError(errorText(reason));
-      });
-  };
-
   return (
     <Section title="Invite a friend" bodyClassName="flex flex-col gap-3">
       {accepted.length === 0 ? (
@@ -105,24 +136,10 @@ export function InviteFriendsPanel({
           to invite them straight into your lobby.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {accepted.map((friend) => (
-            <FriendInviteRow
-              key={friend.uid}
-              friend={friend}
-              now={now}
-              invited={invited.has(friend.uid)}
-              onInvite={() => {
-                invite(friend);
-              }}
-            />
-          ))}
-        </ul>
-      )}
-      {error && (
-        <Notice tone="bad" role="alert">
-          {error}
-        </Notice>
+        <FriendInviteList
+          friends={accepted}
+          send={(friend) => sendMatchInvite({ fromUid: me, toUid: friend.uid, code })}
+        />
       )}
     </Section>
   );

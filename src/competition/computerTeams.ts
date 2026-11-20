@@ -1,4 +1,5 @@
-import { getTeamById, saveTeam } from "../game/managers/TeamManager";
+import { saveTeam } from "../game/managers/TeamManager";
+import { ownLocalTeam } from "./teamRefs";
 import {
   chooseSecondarySkill,
   draftedPlayerPrice,
@@ -124,7 +125,7 @@ export function manageComputerTeams(
   return competition.entrants.flatMap((entrant) => {
     if (!entrant.computerCoached) return [];
     if (entrantIds && !entrantIds.includes(entrant.id)) return [];
-    const team = getTeamById(entrant.teamId);
+    const team = ownLocalTeam(entrant);
     if (!team) return [];
     const before = JSON.stringify(team);
     const report = manageComputerTeam(team, rng);

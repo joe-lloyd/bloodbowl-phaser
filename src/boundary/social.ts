@@ -32,8 +32,37 @@ const matchInviteSchema = z.object({
   code: z.string(),
   createdAt: z.number(),
 });
-const inviteSchema = z.discriminatedUnion("kind", [matchInviteSchema]);
+const competitionTypeSchema = z.enum(["league", "tournament"]);
+
+const fixtureInviteSchema = z.object({
+  kind: z.literal("fixture"),
+  fromUid: z.string(),
+  toUid: z.string(),
+  code: z.string(),
+  competitionType: competitionTypeSchema,
+  competitionId: z.string(),
+  competitionName: z.string(),
+  fixtureId: z.string(),
+  createdAt: z.number(),
+});
+
+const competitionInviteSchema = z.object({
+  kind: z.literal("competition"),
+  fromUid: z.string(),
+  toUid: z.string(),
+  competitionType: competitionTypeSchema,
+  competitionId: z.string(),
+  competitionName: z.string(),
+  createdAt: z.number(),
+});
+
+const inviteSchema = z.discriminatedUnion("kind", [
+  matchInviteSchema,
+  fixtureInviteSchema,
+  competitionInviteSchema,
+]);
 export type Invite = z.infer<typeof inviteSchema>;
+export type LobbyInvite = Extract<Invite, { kind: "match" | "fixture" }>;
 
 const friendCodeOwnerSchema = z.object({ uid: z.string() });
 

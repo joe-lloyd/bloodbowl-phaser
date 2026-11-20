@@ -10,8 +10,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  onSnapshot,
+  query,
   runTransaction,
   setDoc,
+  where,
 } from "firebase/firestore";
 import { isFirebaseConfigured, getDb } from "../firebase/config";
 import { readSevensRuleset } from "../game/rules/sevensRuleset";
@@ -183,13 +187,16 @@ export async function listCompetitions(
   );
   let remote: CompetitionDoc[] = [];
   if (uid && isFirebaseConfigured()) {
-    const snapshot = await getDocs(collection(getDb(), collectionName(type)));
-    remote = readCompetitions(snapshot.docs.map((item) => item.data()))
-      .filter(
-        (competition) =>
-          competition.organizerUid === uid ||
-          competition.participantUids.includes(uid)
-      );
+    const competitions = collection(getDb(), collectionName(type));
+    const [organized, joined] = await Promise.all([
+      getDocs(query(competitions, where("organizerUid", "==", uid))),
+      getDocs(
+        query(competitions, where("participantUids", "array-contains", uid))
+      ),
+    ]);
+    remote = readCompetitions(
+      [...organized.docs, ...joined.docs].map((item) => item.data())
+    );
   }
   const combined = new Map<string, CompetitionDoc>();
   [...local, ...remote].forEach((competition) =>
@@ -208,4 +215,46 @@ function normalizeCompetition(competition: CompetitionDoc): CompetitionDoc {
     repairBracketLinkage(competition.fixtures);
   if (competition.ruleset !== undefined) readSevensRuleset(competition.ruleset);
   return withResultsFromFixtures(competition);
+}
+
+export async function listOpenCompetitions(
+  type: CompetitionType
+): Promise<CompetitionDoc[]> {
+  if (!isFirebaseConfigured()) return [];
+  const snapshot = await getDocs(
+    query(
+      collection(getDb(), collectionName(type)),
+      where("status", "==", "draft"),
+      where("online.listed", "==", true),
+      limit(50)
+    )
+  );
+  return readCompetitions(snapshot.docs.map((item) => item.data()))
+    .map(normalizeCompetition)
+    .filter((competition) => competition.entrants.length < (competition.online?.places ?? 0))
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function subscribeCompetition({
+  type,
+  id,
+  onChange,
+}: {
+  type: CompetitionType;
+  id: string;
+  onChange: (competition: CompetitionDoc | null) => void;
+}): () => void {
+  return onSnapshot(
+    doc(getDb(), collectionName(type), id),
+    (snapshot) => {
+      onChange(
+        snapshot.exists()
+          ? normalizeCompetition(readCompetition(snapshot.data()))
+          : null
+      );
+    },
+    (error) => {
+      console.warn("[competition] could not follow the competition", error);
+    }
+  );
 }

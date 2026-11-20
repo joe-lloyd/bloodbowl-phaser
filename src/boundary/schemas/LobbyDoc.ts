@@ -44,4 +44,5 @@ export const lobbyDocSchema: z.ZodType<LobbyDoc> = z.looseObject({
     })
     .exactOptional(),
   listed: z.boolean().exactOptional(),
+  reservedFor: z.string().exactOptional(),
 });

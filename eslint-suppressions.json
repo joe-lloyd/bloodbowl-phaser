@@ -3307,23 +3307,6 @@
       "count": 1
     }
   },
-  "src/competition/create.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "max-statements": {
-      "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/competition/simulateFixture.ts": {
     "@typescript-eslint/no-floating-promises": {
       "count": 2
@@ -6409,21 +6392,12 @@
   },
   "src/ui/components/pages/CompetitionBuilder.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 2
-    },
-    "@typescript-eslint/consistent-type-imports": {
       "count": 1
     },
     "@typescript-eslint/no-floating-promises": {
       "count": 1
     },
     "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "complexity": {
       "count": 1
     },
     "max-lines-per-function": {
@@ -6439,28 +6413,7 @@
     }
   },
   "src/ui/components/pages/CompetitionView.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 3
-    },
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
     "complexity": {
-      "count": 4
-    },
-    "max-lines-per-function": {
-      "count": 2
-    },
-    "max-params": {
-      "count": 1
-    },
-    "max-statements": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
       "count": 1
     }
   },

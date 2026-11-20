@@ -49,7 +49,10 @@ describe("reporting a knockout game left level", () => {
     container.remove();
   });
 
-  it("asks for the Penalty Shoot-out and sends its winner through", async () => {
+  const field = (label: string) =>
+    container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
+
+  const showCup = async () => {
     const entrants: CompetitionEntrant[] = ["Reavers", "Badgers"].map(
       (name, index) => ({
         id: `local:${name}`,
@@ -88,8 +91,10 @@ describe("reporting a knockout game left level", () => {
         </MemoryRouter>
       );
     });
-    const field = (label: string) =>
-      container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
+  };
+
+  it("asks for the Penalty Shoot-out and sends its winner through", async () => {
+    await showCup();
 
     await act(async () => {
       typeInto(fixtureValue(field("Reavers score")), "1");
@@ -114,5 +119,32 @@ describe("reporting a knockout game left level", () => {
     expect(container.textContent).toContain("Penalties 2–3");
     const stored = await getCompetition("tournament", "cup");
     expect(stored).toMatchObject({ championEntrantId: "local:Badgers" });
+  });
+
+  it("treats 01 and 1 as the same score", async () => {
+    await showCup();
+    act(() => {
+      typeInto(fixtureValue(field("Reavers score")), "01");
+    });
+    act(() => {
+      typeInto(fixtureValue(field("Badgers score")), "1");
+    });
+    expect(field("Reavers penalties")).not.toBeNull();
+  });
+
+  it("says so when the competition does not exist", async () => {
+    await act(async () => {
+      await Promise.resolve();
+      root.render(
+        <MemoryRouter initialEntries={["/tournaments/missing"]}>
+          <Routes>
+            <Route path="/tournaments/:id" element={<CompetitionView type="tournament" />} />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "This competition does not exist, or it was deleted."
+    );
   });
 });

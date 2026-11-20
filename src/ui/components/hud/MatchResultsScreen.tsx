@@ -28,7 +28,11 @@ import {
   StatsTables,
 } from "./MatchResultsSections";
 import { MvpAwardCard } from "./MvpAwardCard";
-import { type CompetitionContext } from "../../../competition/types";
+import {
+  type CompetitionContext,
+  type CompetitionDoc,
+  type CompetitionFixture,
+} from "../../../competition/types";
 
 interface Props {
   visible: boolean;
@@ -67,6 +71,19 @@ function savedTeams(teams: Team[]): Team[] {
   return getActiveOnlineMatch()?.kind === "computer"
     ? teams.filter((team) => !!getTeamById(team.id))
     : ownedTeams(teams);
+}
+
+function fixtureSides(
+  competition: CompetitionDoc,
+  fixture: CompetitionFixture | undefined,
+  [gameHome, gameAway]: [string, string]
+): { home: string; away: string } {
+  const fixtureHome = competition.entrants.find(
+    (entrant) => entrant.id === fixture?.homeEntrantId
+  )?.teamId;
+  return fixtureHome === gameAway
+    ? { home: gameAway, away: gameHome }
+    : { home: gameHome, away: gameAway };
 }
 
 function homeAndAway(
@@ -157,13 +174,14 @@ export function MatchResultsScreen({
         );
         setCompetitionRecorded(true);
         const saved = fixture?.result?.winnings;
+        const sides = fixtureSides(competition, fixture, [homeId, awayId]);
         const recorded = {
           fixtureId: fixtureContext.fixtureId,
           ...(saved && {
-            winnings: { [homeId]: saved.home, [awayId]: saved.away },
+            winnings: { [sides.home]: saved.home, [sides.away]: saved.away },
             fanFactors: {
-              [homeId]: saved.fanFactor.home,
-              [awayId]: saved.fanFactor.away,
+              [sides.home]: saved.fanFactor.home,
+              [sides.away]: saved.fanFactor.away,
             },
           }),
         };
