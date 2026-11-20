@@ -705,15 +705,6 @@ export function SettingsPanel({
       title={readOnly ? "Match settings (host decides)" : "Match settings"}
       bodyClassName="flex flex-col gap-4"
     >
-      <GameTypeSelector
-        {...(settings.gameType === undefined
-          ? {}
-          : { value: settings.gameType })}
-        disabled={readOnly || gameTypeLocked}
-        onChange={(gameType) => {
-          onChange({ ...settings, gameType });
-        }}
-      />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Turn timer"
@@ -768,6 +759,15 @@ export function SettingsPanel({
           }}
         />
       </label>
+      <GameTypeSelector
+        {...(settings.gameType === undefined
+          ? {}
+          : { value: settings.gameType })}
+        disabled={readOnly || gameTypeLocked}
+        onChange={(gameType) => {
+          onChange({ ...settings, gameType });
+        }}
+      />
     </Section>
   );
 }
