@@ -15,6 +15,12 @@ import type { Difficulty } from "../../../simulation/ai/difficulty";
 import { errorText } from "../../errorText";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
+import { GameTypeSelector } from "../common/GameTypeSelector";
+import {
+  DEFAULT_GAME_TYPE,
+  type GameType,
+} from "../../../game/variants/gameTypes";
+import { draftRulesFor } from "../../../game/rules/draftRules";
 import {
   Field,
   HudButton,
@@ -52,6 +58,7 @@ interface Settings {
   name: string;
   format: TournamentFormat;
   ruleset: SevensRuleset;
+  gameType: GameType;
   profile: ProfileChoice;
   places: number;
   roundDays: number;
@@ -68,6 +75,7 @@ function initialSettings(): Settings {
     name: "",
     format: "single-elimination",
     ruleset: DEFAULT_SEVENS_RULESET,
+    gameType: DEFAULT_GAME_TYPE,
     profile: DEFAULT_PROFILE_CHOICE,
     places: 8,
     roundDays: 7,
@@ -138,6 +146,30 @@ function Schedule({ type, settings, update }: { type: CompetitionType; settings:
   );
 }
 
+function Rules({ settings, update }: { settings: Settings; update: Update }) {
+  return (
+    <Section title="Rules for this competition">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <GameTypeSelector
+          value={settings.gameType}
+          onChange={(gameType) => {
+            update({
+              gameType,
+              profile: {
+                ...settings.profile,
+                draftBudget: draftRulesFor(gameType).budget,
+              },
+            });
+          }}
+        />
+        {settings.gameType === DEFAULT_GAME_TYPE && (
+          <SevensRulesetSelector value={settings.ruleset} onChange={(ruleset) => { update({ ruleset }); }} />
+        )}
+      </div>
+    </Section>
+  );
+}
+
 function OrganizerTeam({ settings, update }: { settings: Settings; update: Update }) {
   const [library] = useTeamLibrary();
   const teams = library.filter((team) => !team.computerCoached && !team.activeCompetitionId);
@@ -175,6 +207,7 @@ export function OnlineCompetitionBuilder({ type, uid, modeSwitch }: { type: Comp
       name: settings.name,
       format: settings.format,
       ruleset: settings.ruleset,
+      gameType: settings.gameType,
       computerDifficulty: settings.difficulty,
       organizerUid: uid,
       team: library.find((team) => team.id === settings.teamId) ?? null,
@@ -205,9 +238,7 @@ export function OnlineCompetitionBuilder({ type, uid, modeSwitch }: { type: Comp
       <PageHeader title={`Create ${type}`} />
       {modeSwitch}
       <Details type={type} settings={settings} update={update} />
-      <Section title="Rules for this competition">
-        <SevensRulesetSelector value={settings.ruleset} onChange={(ruleset) => { update({ ruleset }); }} />
-      </Section>
+      <Rules settings={settings} update={update} />
       <RosterProfileSection value={settings.profile} onChange={(profile) => { update({ profile }); }} />
       <Schedule type={type} settings={settings} update={update} />
       <OrganizerTeam settings={settings} update={update} />

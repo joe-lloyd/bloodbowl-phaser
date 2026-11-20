@@ -1,5 +1,6 @@
 import type { ComputerTeamTemplate } from "../data/computerTeamCatalogue";
 import type { SevensRuleset } from "../game/rules/sevensRuleset";
+import type { GameType } from "../game/variants/gameTypes";
 import type { Team } from "../types/Team";
 import {
   createComputerTeamFromTemplate,
@@ -68,33 +69,38 @@ export function pickComputerTemplates({
   return chosen;
 }
 
+interface FillRules {
+  ruleset: SevensRuleset;
+  gameType: GameType;
+}
+
 function fillTeam(
   template: ComputerTeamTemplate,
-  { ruleset, profile }: { ruleset: SevensRuleset; profile: RosterRuleProfile | undefined }
+  { rules, profile }: { rules: FillRules; profile: RosterRuleProfile | undefined }
 ): Team {
   return createComputerTeamFromTemplate(template.id, {
-    ruleset,
+    ...rules,
     advancementMode: profile?.advancementMode ?? "advanced-league",
   });
 }
 
 export function computerFillTeams({
   count,
-  ruleset,
+  rules,
   profile,
   rosters,
   random,
 }: {
   count: number;
-  ruleset: SevensRuleset;
+  rules: FillRules;
   profile: RosterRuleProfile | undefined;
   rosters: readonly string[];
   random: Random;
 }): Team[] {
-  const options = { ruleset, profile };
-  const templates = getComputerTeamTemplates(ruleset).filter(
+  const options = { rules, profile };
+  const templates = getComputerTeamTemplates(rules).filter(
     (template) =>
-      checkTeamCompatibility(fillTeam(template, options), profile, ruleset)
+      checkTeamCompatibility(fillTeam(template, options), profile, rules)
         .compatible
   );
   if (count > 0 && templates.length === 0)

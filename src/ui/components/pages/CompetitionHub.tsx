@@ -30,6 +30,34 @@ const STATUS_TONE: Record<CompetitionStatus, HudTone> = {
   complete: "good",
 };
 
+function CompetitionCard({
+  competition,
+  onOpen,
+}: {
+  competition: CompetitionDoc;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      onClick={onOpen}
+      className={cx(hudChoiceClass(false), "flex flex-col gap-3 p-5")}
+    >
+      <span className="block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+        {competition.name}
+      </span>
+      <span className="flex flex-wrap items-center gap-2">
+        <Chip tone="info">
+          {GAME_TYPE_LABELS[readGameType(competition.gameType)]}
+        </Chip>
+        <Chip>{competition.entrants.length} teams</Chip>
+        <Chip tone={STATUS_TONE[competition.status]}>
+          {competition.status === "draft" ? "sign-ups open" : competition.status}
+        </Chip>
+      </span>
+    </button>
+  );
+}
+
 export function CompetitionHub({ type }: { type: CompetitionType }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -72,26 +100,11 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {competitions.map((competition) => (
-            <button
+            <CompetitionCard
               key={competition.id}
-              onClick={() => navigate(`/${route}/${competition.id}`)}
-              className={cx(hudChoiceClass(false), "flex flex-col gap-3 p-5")}
-            >
-              <span className="block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
-                {competition.name}
-              </span>
-              <span className="flex flex-wrap items-center gap-2">
-                <Chip tone="info">
-                  {GAME_TYPE_LABELS[readGameType(competition.gameType)]}
-                </Chip>
-                <Chip>{competition.entrants.length} teams</Chip>
-                <Chip tone={STATUS_TONE[competition.status]}>
-                  {competition.status === "draft"
-                    ? "sign-ups open"
-                    : competition.status}
-                </Chip>
-              </span>
-            </button>
+              competition={competition}
+              onOpen={() => navigate(`/${route}/${competition.id}`)}
+            />
           ))}
         </div>
       )}

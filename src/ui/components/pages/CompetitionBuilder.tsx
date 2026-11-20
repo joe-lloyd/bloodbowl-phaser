@@ -244,7 +244,10 @@ function LocalCompetitionBuilder({
             value={gameType}
             onChange={(next) => {
               setGameType(next);
-              setDraftBudget(draftRulesFor(next).budget);
+              setProfileChoice((choice) => ({
+                ...choice,
+                draftBudget: draftRulesFor(next).budget,
+              }));
               setComputerRows([]);
             }}
           />

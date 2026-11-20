@@ -6365,11 +6365,6 @@
       "count": 3
     }
   },
-  "src/ui/components/pages/CompetitionView.tsx": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/ui/components/pages/LeagueRounds.tsx": {
     "max-lines-per-function": {
       "count": 1

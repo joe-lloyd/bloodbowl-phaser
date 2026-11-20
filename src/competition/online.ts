@@ -1,5 +1,6 @@
 import { resolveCoachName } from "../firebase/coaches";
 import { readSevensRuleset } from "../game/rules/sevensRuleset";
+import { readGameType } from "../game/variants/gameTypes";
 import { type Team } from "../types/Team";
 import { computerFillTeams } from "./computerFill";
 import {
@@ -72,10 +73,16 @@ export async function openOnlineCompetition(
 ): Promise<CompetitionDoc> {
   assertOnlineSetup(input);
   const ruleset = readSevensRuleset(input.ruleset);
+  const gameType = readGameType(input.gameType);
   const teams = input.team ? [input.team] : [];
-  await assertTeamsCanEnter({ teams, ruleset, profile: input.profile });
+  await assertTeamsCanEnter({
+    teams,
+    ruleset,
+    gameType,
+    profile: input.profile,
+  });
   const draft = buildCompetition({
-    rules: { ...input, ruleset },
+    rules: { ...input, ruleset, gameType },
     organizerUid: input.organizerUid,
     entrants: [],
     status: "draft",
@@ -124,6 +131,7 @@ export async function enterCompetition({
   await assertTeamsCanEnter({
     teams: [team],
     ruleset: readSevensRuleset(competition.ruleset),
+    gameType: readGameType(competition.gameType),
     profile: competition.rosterProfile,
   });
   const coachName = await resolveCoachName(uid);
@@ -257,7 +265,10 @@ export async function startOnlineCompetition({
   const online = signupsOpen(competition);
   const pool = computerFillTeams({
     count: Math.max(0, online.places - competition.entrants.length),
-    ruleset: readSevensRuleset(competition.ruleset),
+    rules: {
+      ruleset: readSevensRuleset(competition.ruleset),
+      gameType: readGameType(competition.gameType),
+    },
     profile: competition.rosterProfile,
     rosters: competition.entrants.map((entrant) => entrant.rosterName),
     random,
