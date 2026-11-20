@@ -67,14 +67,18 @@ function blockDiceChoice(
   const faces = blockFaces(board, attacker, defender);
   const rank = (type: BlockResultType) => faces[type].rank;
   const weAttack = attacker.teamId === board.us;
-  const ranks = pending.options.map((o) => rank(o.type));
+  const kept = pending.options.reduce<BlockResultType | null>(
+    (worst, o) =>
+      worst === null ||
+      (pending.choiceStage === "attacker-reroll"
+        ? rank(o.type) < rank(worst)
+        : rank(o.type) > rank(worst))
+        ? o.type
+        : worst,
+    null
+  );
 
-  const counts =
-    pending.choiceStage === "attacker-reroll"
-      ? Math.min(...ranks)
-      : Math.max(...ranks);
-
-  if (weAttack && counts <= 1) {
+  if (weAttack && kept !== null && faces[kept].attackerDown) {
     const reroll =
       first(candidates, (c) => c.commands[0].type === "veteran-reroll-block") ??
       first(candidates, (c) => c.commands[0].type === "brawler-reroll-block") ??

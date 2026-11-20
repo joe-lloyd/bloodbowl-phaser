@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fieldPlayer, game } from "./fixtures";
 import { SkillType } from "../../src/types/Skills";
+import { PlayerCondition } from "../../src/types/Player";
 import { blockOdds } from "../../src/simulation/ai/chance";
 import { key, readBoard } from "../../src/simulation/ai/board";
 import { routesFor } from "../../src/simulation/ai/routes";
@@ -77,6 +78,68 @@ function wrestleAnswer(
   return index === null ? null : answers[index]?.label;
 }
 
+type BlockFace = "both-down" | "push" | "pow-dodge";
+
+function blockDiceAnswer(
+  { subject, ...players }: ReturnType<typeof wrestleBoard>,
+  types: BlockFace[],
+  teamReroll = false
+) {
+  const options = types.map((type) => ({ type, icon: "", label: type }));
+  const pick = (index: number): Candidate => ({
+    kind: "decision",
+    label: options[index]?.type ?? "",
+    commands: [{ type: "choose-block-result", index }],
+  });
+  const reroll: Candidate = {
+    kind: "decision",
+    label: "team reroll",
+    commands: [{ type: "team-reroll-block", attackerId: players.attacker.id }],
+  };
+  const candidates = [
+    ...options.map((_, index) => pick(index)),
+    ...(teamReroll ? [reroll] : []),
+  ];
+  const picked = decide({
+    board: readBoard(subject, players.attacker.teamId),
+    pending: {
+      type: "block-dice",
+      attackerId: players.attacker.id,
+      defenderId: players.defender.id,
+      chooserTeamId: players.attacker.teamId,
+      options,
+      choiceStage: "pick",
+    },
+    candidates,
+  });
+  return picked === null ? null : candidates[picked]?.label;
+}
+
+function hungryVampire() {
+  const board = wrestleBoard([SkillType.WRESTLE], {
+    skills: [SkillType.BLOCK],
+    hasBall: true,
+  });
+  board.subject.ctx.gameService.getState().activePlayer = {
+    id: board.attacker.id,
+    action: "block",
+    bloodlustUnsated: true,
+  };
+  return board;
+}
+
+function oddsOf(
+  { subject, attacker, defender }: ReturnType<typeof wrestleBoard>,
+  teamReroll: boolean
+) {
+  return blockOdds({
+    dice: 1,
+    attackerPicks: true,
+    teamReroll,
+    faces: blockFaces(readBoard(subject, attacker.teamId), attacker, defender),
+  });
+}
+
 describe("Wrestle", () => {
   it("prices a Wrestle attacker's Both Down as the target down and no turnover", () => {
     const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE]);
@@ -126,46 +189,28 @@ describe("Wrestle", () => {
   });
 
   it("prices a hungry Vampire's Wrestle as a turnover and keeps Defender Stumbles", () => {
-    const { subject, attacker, defender } = wrestleBoard([SkillType.WRESTLE], {
-      skills: [SkillType.BLOCK],
-      hasBall: true,
+    const vampire = hungryVampire();
+    expect(oddsOf(vampire, false)).toEqual({
+      knockdown: 3 / 6,
+      attackerDown: 2 / 6,
     });
-    subject.ctx.gameService.getState().activePlayer = {
-      id: attacker.id,
-      action: "block",
-      bloodlustUnsated: true,
-    };
-    const board = readBoard(subject, attacker.teamId);
-    expect(
-      blockOdds({
-        dice: 1,
-        attackerPicks: true,
-        teamReroll: false,
-        faces: blockFaces(board, attacker, defender),
-      })
-    ).toEqual({ knockdown: 3 / 6, attackerDown: 2 / 6 });
-    const options = (["both-down", "pow-dodge"] as const).map((type) => ({
-      type,
-      icon: "",
-      label: type,
-    }));
-    const picked = decide({
-      board,
-      pending: {
-        type: "block-dice",
-        attackerId: attacker.id,
-        defenderId: defender.id,
-        chooserTeamId: attacker.teamId,
-        options,
-        choiceStage: "pick",
-      },
-      candidates: options.map((_, index) => ({
-        kind: "decision",
-        label: String(index),
-        commands: [{ type: "choose-block-result", index }],
-      })),
-    });
-    expect(picked).toBe(1);
+    expect(blockDiceAnswer(vampire, ["both-down", "pow-dodge"])).toBe(
+      "pow-dodge"
+    );
+  });
+
+  it("rerolls a hungry Vampire's lone Both Down and prices the reroll that way", () => {
+    const vampire = hungryVampire();
+    expect(blockDiceAnswer(vampire, ["both-down"], true)).toBe("team reroll");
+    const odds = oddsOf(vampire, true);
+    expect(odds.knockdown).toBeCloseTo(3 / 6, 9);
+    expect(odds.attackerDown).toBeCloseTo(1 / 9, 9);
+  });
+
+  it("takes Both Down against a Distracted defender whose Wrestle is lost", () => {
+    const board = wrestleBoard([SkillType.BLOCK]);
+    board.defender.conditions = [{ type: PlayerCondition.DISTRACTED }];
+    expect(blockDiceAnswer(board, ["both-down", "push"])).toBe("both-down");
   });
 
   it("keeps its own carrier standing instead of wrestling with Block against Block", () => {
@@ -215,35 +260,14 @@ describe("Wrestle", () => {
   });
 
   it("picks Both Down against a carrier with Block and wrestles the ball loose", () => {
-    const { subject, attacker, defender } = wrestleBoard(
-      [SkillType.BLOCK, SkillType.WRESTLE],
-      { skills: [SkillType.BLOCK], hasBall: true }
+    const board = wrestleBoard([SkillType.BLOCK, SkillType.WRESTLE], {
+      skills: [SkillType.BLOCK],
+      hasBall: true,
+    });
+    expect(blockDiceAnswer(board, ["both-down", "push"])).toBe("both-down");
+    expect(wrestleAnswer(board.subject, board.attacker, board.defender)).toBe(
+      "accept"
     );
-    const die = (type: "both-down" | "push") => ({
-      type,
-      icon: "",
-      label: type,
-    });
-    const options = [die("both-down"), die("push")];
-    const picks: Candidate[] = options.map((_, index) => ({
-      kind: "decision",
-      label: String(index),
-      commands: [{ type: "choose-block-result", index }],
-    }));
-    const picked = decide({
-      board: readBoard(subject, attacker.teamId),
-      pending: {
-        type: "block-dice",
-        attackerId: attacker.id,
-        defenderId: defender.id,
-        chooserTeamId: attacker.teamId,
-        options,
-        choiceStage: "pick",
-      },
-      candidates: picks,
-    });
-    expect(picked).toBe(0);
-    expect(wrestleAnswer(subject, attacker, defender)).toBe("accept");
   });
 
   it("keeps Both Down plain against a defender without Block", () => {

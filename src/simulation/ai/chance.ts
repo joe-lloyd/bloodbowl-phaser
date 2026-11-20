@@ -216,9 +216,10 @@ export function blockOdds({
   teamReroll,
   faces,
 }: BlockOddsArgs): BlockOdds {
-  let { knockdown, attackerDown } = pickedFaceOdds(faces, dice, attackerPicks);
+  const picked = pickedFaceOdds(faces, dice, attackerPicks);
+  let { knockdown, attackerDown } = picked;
   if (teamReroll) {
-    knockdown += attackerDown * knockdown;
+    knockdown += attackerDown * knockdown - picked.both;
     attackerDown *= attackerDown;
   }
   return {

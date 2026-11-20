@@ -1,4 +1,4 @@
-import { type Player } from "../../types/Player";
+import { type Player, PlayerCondition, hasCondition } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import {
   type BlockResultType,
@@ -47,6 +47,7 @@ export function takesWrestle(
 export function defenderWrestles(attacker: Player, defender: Player): boolean {
   return (
     has(defender, SkillType.WRESTLE) &&
+    !hasCondition(defender, PlayerCondition.DISTRACTED) &&
     has(attacker, SkillType.BLOCK) &&
     !has(defender, SkillType.BLOCK)
   );
@@ -103,14 +104,17 @@ export function pickedFaceOdds(
   faces: BlockFaces,
   dice: number,
   attackerPicks: boolean
-): { knockdown: number; attackerDown: number } {
+): { knockdown: number; attackerDown: number; both: number } {
   const rolled = DIE_FACES.map((type) => faces[type]);
-  let knockdown = 0;
-  let attackerDown = 0;
+  const odds = { knockdown: 0, attackerDown: 0, both: 0 };
+  const tally = (face: BlockFace, weight: number) => {
+    if (face.knockdown) odds.knockdown += weight;
+    if (face.attackerDown) odds.attackerDown += weight;
+    if (face.knockdown && face.attackerDown) odds.both += weight;
+  };
   const visit = (left: number, chosen: BlockFace | null, weight: number) => {
     if (left === 0) {
-      if (chosen?.knockdown) knockdown += weight;
-      if (chosen?.attackerDown) attackerDown += weight;
+      if (chosen) tally(chosen, weight);
       return;
     }
     for (const face of rolled) {
@@ -121,5 +125,5 @@ export function pickedFaceOdds(
     }
   };
   visit(Math.max(1, dice), null, 1);
-  return { knockdown, attackerDown };
+  return odds;
 }
