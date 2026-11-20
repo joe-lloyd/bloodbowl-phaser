@@ -19,5 +19,7 @@ reviews:
   path_filters:
     - "!public/**"
     - "!gallery/**"
+  # Golden frames the sprite factory writes for the layered compositor test: generated, nothing to review.
+    - "!__tests__/fixtures/layered/**"
 chat:
   auto_reply: true
