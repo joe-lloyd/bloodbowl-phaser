@@ -36,7 +36,7 @@ played, and `GameConfig` reads its pitch from there.
 | SB-D2 | Team re-rolls cost double the roster's listed price. | missing |
 | SB-D3 | No Apothecary, Assistant Coaches or Cheerleaders. Dedicated Fans cost double. | missing |
 | SB-D4 | No Veteran: that is a Sevens rule. | missing |
-| SB-D5 | The only inducements are Magic Potions and the Halfling Master Chef. Each team gets one Magic Potion free; more cost 50,000 each with no limit. | missing |
+| SB-D5 | The only inducements are Magic Potions and the Halfling Master Chef. Each team gets one Magic Potion free; more cost 50,000 each with no limit. | ok |
 
 ### Match play
 
@@ -86,17 +86,19 @@ played, and `GameConfig` reads its pitch from there.
 
 Given to a KO'd, Badly Hurt or Seriously Hurt player after KOs are rolled,
 or to a fit player before a drive. Not to a player with Regeneration.
+The game asks each coach before every drive, the first included, once KO
+recovery is done. A player who drank Tap Water waits for the next break.
 
 | ID | Roll | Potion | Status |
 | --- | --- | --- | --- |
-| SB-P1 | 1 | Squig Pish: the player dies. | missing |
-| SB-P2 | 2 | Tap Water: no effect; another potion may be tried after the next drive. | missing |
-| SB-P3 | 3 | Laudanum: returns with Really Stupid, Thick Skull and -2 to Agility tests. | missing |
-| SB-P4 | 4 | Dwarf Ale: returns with Bone-head and -1 to Agility tests. | missing |
-| SB-P5 | 5 | Healing Balm: returns with no ill effect. | missing |
-| SB-P6 | 6 | Warpstone Tincture: returns with Sprint and Jump Up, and must be the first player activated each turn. Activating another first is a Turnover. | missing |
-| SB-P7 | 7 | Orca-Cola: returns, but leaves for the rest of the drive whenever an action ends in a Wide Zone or End Zone. A touchdown still counts. | missing |
-| SB-P8 | 8 | Fungus Beer: +2 ST, Frenzy and Animal Savagery. Rolls a D6 at the start of every turn and dies on a 1. | missing |
+| SB-P1 | 1 | Squig Pish: the player dies. | ok |
+| SB-P2 | 2 | Tap Water: no effect; another potion may be tried after the next drive. | ok |
+| SB-P3 | 3 | Laudanum: returns with Really Stupid, Thick Skull and -2 to Agility tests. | ok |
+| SB-P4 | 4 | Dwarf Ale: returns with Bone-head and -1 to Agility tests. | ok |
+| SB-P5 | 5 | Healing Balm: returns with no ill effect. | ok |
+| SB-P6 | 6 | Warpstone Tincture: returns with Sprint and Jump Up, and must be the first player activated each turn. Activating another first is a Turnover. | differs: the game will not let another player act first, so the Turnover never happens |
+| SB-P7 | 7 | Orca-Cola: returns, but leaves for the rest of the drive whenever an action ends in a Wide Zone or End Zone. A touchdown still counts. | ok |
+| SB-P8 | 8 | Fungus Beer: +2 ST, Frenzy and Animal Savagery. Rolls a D6 at the start of every turn and dies on a 1. | ok |
 
 ## Beach Bowl (BB)
 
@@ -108,7 +110,7 @@ or to a fit player before a drive. Not to a player with Regeneration.
 | BB-D2 | Team re-rolls cost double the roster's listed price. | missing |
 | BB-D3 | No Apothecary. Cheerleaders and Assistant Coaches are allowed. Dedicated Fans only in a league. | missing |
 | BB-D4 | No Veteran. | missing |
-| BB-D5 | Inducements: Blitzer's Best Kegs, the Halfling Master Chef and the Souvenir Shop. | missing |
+| BB-D5 | Inducements: Blitzer's Best Kegs, the Halfling Master Chef and the Souvenir Shop. | ok |
 
 ### Match play
 
@@ -154,17 +156,20 @@ or to a fit player before a drive. Not to a player with Regeneration.
 ### Souvenir Shop (D8, 50,000 each)
 
 Assigned before a drive. Every souvenir breaks at the end of the half.
+The game rolls each souvenir before the first drive. A souvenir nobody
+carries yet stays in the bag for a later drive; one a player carries
+breaks at the end of that half.
 
 | ID | Roll | Souvenir | Status |
 | --- | --- | --- | --- |
-| BB-S1 | 1 | Sports Sandals: +1 to Rush. | missing |
-| BB-S2 | 2 | Suntan Lotion: +1 to Dodge. | missing |
-| BB-S3 | 3 | Thong: Disturbing Presence. | missing |
-| BB-S4 | 4 | Sunglasses: Accurate and Safe Pass. | missing |
-| BB-S5 | 5 | Bottle: Stab. | missing |
-| BB-S6 | 6 | Puka Shell Necklace: Pro. | missing |
-| BB-S7 | 7 | Sticky Bun: +1 to pick-up, catch and intercept; -1 to pass. | missing |
-| BB-S8 | 8 | Gatorcade: Frenzy, Jump Up and No Ball. | missing |
+| BB-S1 | 1 | Sports Sandals: +1 to Rush. | ok |
+| BB-S2 | 2 | Suntan Lotion: +1 to Dodge. | ok |
+| BB-S3 | 3 | Thong: Disturbing Presence. | ok |
+| BB-S4 | 4 | Sunglasses: Accurate and Safe Pass. | ok |
+| BB-S5 | 5 | Bottle: Stab. | ok |
+| BB-S6 | 6 | Puka Shell Necklace: Pro. | ok |
+| BB-S7 | 7 | Sticky Bun: +1 to pick-up, catch and intercept; -1 to pass. | ok |
+| BB-S8 | 8 | Gatorcade: Frenzy, Jump Up and No Ball. | ok |
 
 ## Gutter Bowl (GB)
 
@@ -176,7 +181,22 @@ Assigned before a drive. Every souvenir breaks at the end of the half.
 | GB-D2 | Team re-rolls cost 100,000 for every roster. | ok |
 | GB-D3 | No Sideline Staff: no Apothecary, Assistant Coaches or Cheerleaders. | missing |
 | GB-D4 | No Veteran. | missing |
-| GB-D5 | Only Gutter Bowl inducements: Lesser (50,000) and Superior (100,000) Magic Potions, Sawbones, Snack Stand and Novice Wizard. No Prayers to Nuffle. | missing |
+| GB-D5 | Only Gutter Bowl inducements: Lesser (50,000) and Superior (100,000) Magic Potions, Sawbones, Snack Stand and Novice Wizard. No Prayers to Nuffle. | ok |
+
+### Inducements
+
+Potions are given before a drive, after KO recovery, to a fit or KO'd
+player. A player drinks at most one Gutter Bowl potion a game. A
+potion's result that "recovers" a KO'd player sends them to the
+Reserves.
+
+| ID | Inducement | Rule | Status |
+| --- | --- | --- | --- |
+| GB-I1 | Lesser Magic Potion | 50,000, no limit. D8: 1 Manticore Venom, the player is removed with a Casualty roll; 2 Fresh Water, nothing; 3 Blood and Bootlaces IPA, Bone-head and -1 AG; 4 Healing Bairn, nothing more; 5 Fungus Broth, Projectile Vomit; 6 Warpstone Whiskey, Jump Up and Leap, must act first each turn; 7 Bugman's XXXXXX, Pro; 8 roll on the Superior table. Results 3 to 8 recover a KO'd player. | ok |
+| GB-I2 | Superior Magic Potion | 100,000, no limit. A KO'd player always recovers. D8: 1 Endurance, AV +1 and the next Casualty is only a KO; 2 Mutation, a random Mutation skill; 3 Accuracy, PA +1; 4 Intelligence, Leader and Sidestep; 5 Grace, AG +1 and Sure Feet; 6 Speed, MA +1 and Sprint; 7 Strength, ST +1 and Stand Firm; 8 Rage, ST +2, Frenzy and Animal Savagery. | differs: Accuracy does not yet ignore range modifiers |
+| GB-I3 | Sawbones | 50,000, 0-1. Once per game, after a Casualty roll on one of your players, roll a D6. On a 1 the player dies. On 2+ make a second Casualty roll and keep the better result; a Badly Hurt player goes to the Reserves. | ok |
+| GB-I4 | Snack Stand | 100,000, 0-1. +1 to KO recovery. Each team re-roll the team uses comes back on a D6 of 6. | ok |
+| GB-I5 | Novice Wizard | 100,000, 0-1. Once per game, at the end of your turn, pick an opposing player. Firebolt: on 3+ the target is Knocked Down, otherwise the nearest player to it is. Transmutation: on 3+ the target becomes a Frog until the end of the next drive and drops the ball. | differs: the Frog is the Sports-Wizard Frog, with No Ball in place of No Hands |
 
 ### Pitch
 
