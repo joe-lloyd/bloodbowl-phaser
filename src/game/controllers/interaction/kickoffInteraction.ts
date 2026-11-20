@@ -13,6 +13,7 @@ import {
   steppingPlayerId,
 } from "../../kickoff/kickoffEvents";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
+import { isStandableSquare } from "../../rules/pitchSquares";
 
 function toggleEventPick(
   c: GameplayInteractionController,
@@ -102,7 +103,8 @@ function clickKickAim(
   }
 
   const isTeam1Kicking = c.scene.kickingTeam.id === c.scene.team1.id;
-  const isOpponentHalf = !isKickingTeamTerritory(x, isTeam1Kicking);
+  const isOpponentHalf =
+    !isKickingTeamTerritory(x, isTeam1Kicking) && isStandableSquare({ x, y });
 
   if (!isOpponentHalf) {
     if (c.selectedPlayerId) {

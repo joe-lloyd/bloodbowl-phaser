@@ -102,7 +102,9 @@ function scatterOf(
   const scatterPath = accurate ? undefined : passController.scatterPass(target);
   return {
     scatterPath,
-    landingPos: scatterPath?.[scatterPath.length - 1] ?? target,
+    landingPos: passController.settleLanding(
+      scatterPath?.[scatterPath.length - 1] ?? target
+    ),
   };
 }
 
@@ -493,7 +495,7 @@ export class PassOperation extends GameOperation {
       const lastInBounds = path[path.length - 2];
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
       if (!lastInBounds) throw new Error("Pass left the pitch without a path");
-      gameService.throwInBall(lastInBounds);
+      gameService.throwInBall(lastInBounds, landingPos);
     } else {
       gameService.setBallPosition(landingPos.x, landingPos.y);
 

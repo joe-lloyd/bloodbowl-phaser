@@ -686,8 +686,12 @@ export class GameService implements IGameService {
     return this.parts.ballManager.attemptPickup(player, position);
   }
 
-  throwInBall(from: { x: number; y: number }): void {
-    this.parts.ballManager.throwIn(from);
+  throwInBall(
+    from: { x: number; y: number },
+    toward?: { x: number; y: number },
+    kickoff?: boolean
+  ): void {
+    this.parts.ballManager.throwIn(from, toward, kickoff);
   }
 
   public getTeam(teamId: string): Team | undefined {

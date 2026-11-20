@@ -17,15 +17,23 @@ import { KickoffController } from "../controllers/KickoffController";
 import { PickupController } from "../controllers/PickupController";
 import { BallMovementController } from "../controllers/BallMovementController";
 import { DiceController } from "../controllers/DiceController";
-import { GameConfig, isKickingTeamTerritory } from "../../config/GameConfig";
+import { isKickingTeamTerritory } from "../../config/GameConfig";
 import { CatchOperation } from "../operations/CatchOperation";
 import {
-  isOffPitch,
   kickoffOnTheBallReactor,
   kickoffOnTheBallStep,
-  lastSquareIn,
   throwInDirections,
 } from "./ballPaths";
+import {
+  type WallHit,
+  lastSquareIn,
+  leavesByWall,
+  ricochetFlight,
+  settleKick,
+  settleOffObstacle,
+} from "../rules/ballFlight";
+import { edgeCrossed, isOnPitch } from "../rules/pitchSquares";
+import { activeRules } from "../variants/activeMatch";
 import { BounceOperation } from "../operations/BounceOperation";
 import { type ReactionDecisionAnswer } from "../../types/decisions";
 import { type KickoffEventOutcome } from "../kickoff/kickoffEvents";
@@ -137,6 +145,7 @@ export class BallManager {
     const result = this.kickoffController.calculateKickDestination(
       { targetX,targetY,isTeam1Kicking,useKickD3,kickingTeamId: isTeam1Kicking? this.team1.id:this.team2.id }    );
 
+    this.announceWallHits(result.wallHits);
     this.pendingTouchback = result.isTouchback;
     if (result.isTouchback) {
       this.state.ballPosition = null;
@@ -301,14 +310,14 @@ export class BallManager {
       const path = this.movementController.scatter(from, "Scatter", squares);
       const to = path[path.length - 1];
       if (!to) throw new Error("Weather scatter produced no path");
-      const offPitch =
-        to.x < 0 ||
-        to.x >= GameConfig.PITCH_WIDTH ||
-        to.y < 0 ||
-        to.y >= GameConfig.PITCH_HEIGHT;
-      this.pendingTouchback =
-        offPitch || isKickingTeamTerritory(to.x, this.isTeam1Kicking);
-      this.state.ballPosition = this.pendingTouchback ? null : { ...to };
+      const kick = settleKick(
+        this.diceController,
+        { lastIn: path[path.length - 2] ?? from, to },
+        this.isTeam1Kicking
+      );
+      this.announceWallHits(kick.wallHits);
+      this.pendingTouchback = kick.landing === null;
+      this.state.ballPosition = kick.landing ? { ...kick.landing } : null;
       this.eventBus.emit(GameEventNames.BallScattered, {
         from,
         to,
@@ -360,17 +369,23 @@ export class BallManager {
   }
 
   public kickoffBounceTouchback(to: { x: number; y: number }): boolean {
-    const offPitch =
-      to.x < 0 ||
-      to.x >= GameConfig.PITCH_WIDTH ||
-      to.y < 0 ||
-      to.y >= GameConfig.PITCH_HEIGHT;
-    if (!offPitch && !isKickingTeamTerritory(to.x, this.isTeam1Kicking)) {
-      return false;
-    }
+    const touchback = isOnPitch(to)
+      ? isKickingTeamTerritory(to.x, this.isTeam1Kicking)
+      : edgeCrossed(to) === "crowd";
+    if (!touchback) return false;
+    this.touchback();
+    return true;
+  }
+
+  private touchback(): void {
     this.state.ballPosition = null;
     this.awardTouchbackToReceivers();
-    return true;
+  }
+
+  private announceWallHits(hits: readonly WallHit[]): void {
+    for (const hit of hits) {
+      this.eventBus.emit(GameEventNames.BallHitWall, { ...hit });
+    }
   }
 
   private awardTouchbackToReceivers(): void {
@@ -421,7 +436,29 @@ export class BallManager {
     return this.touchbackTeamId !== null;
   }
 
-  public throwIn(from: { x: number; y: number }): void {
+  public throwIn(
+    from: { x: number; y: number },
+    toward?: { x: number; y: number },
+    kickoff = false
+  ): void {
+    const wall = leavesByWall(from, toward);
+    if (wall) this.ricochet(from, wall, kickoff);
+    else this.crowdThrowIn(from);
+  }
+
+  private throwInDistance(): number {
+    const reason = "Throw-in Distance";
+    switch (activeRules().throwInDistance) {
+      case "d6+2":
+        return this.diceController.rollD6(reason) + 2;
+      case "2d6":
+        return this.diceController.roll2D6(reason);
+      case "d6":
+        return this.diceController.rollD6(reason);
+    }
+  }
+
+  private crowdThrowIn(from: { x: number; y: number }): void {
     const dirs = throwInDirections(from);
 
     const directionRoll = this.diceController.rollD6("Throw-in Direction");
@@ -429,20 +466,67 @@ export class BallManager {
     if (!dir)
       throw new Error(`No throw-in direction for roll ${String(directionRoll)}`);
 
-    const distance = this.diceController.rollD6("Throw-in Distance") + 2;
+    const distance = this.throwInDistance();
 
     const landing = {
       x: from.x + dir.x * (distance - 1),
       y: from.y + dir.y * (distance - 1),
     };
 
-    if (isOffPitch(landing)) {
+    if (!isOnPitch(landing)) {
       const lastIn = lastSquareIn(from, dir, distance - 1);
+      const wall = leavesByWall(lastIn, {
+        x: lastIn.x + dir.x,
+        y: lastIn.y + dir.y,
+      });
+      if (wall) {
+        this.ricochet(lastIn, wall, false);
+        return;
+      }
       this.eventBus.emit(GameEventNames.UI_Notification, "Thrown out again!");
-      this.throwIn(lastIn);
+      this.crowdThrowIn(lastIn);
       return;
     }
 
+    this.placeThrownIn(
+      from,
+      settleOffObstacle(this.diceController, landing),
+      distance
+    );
+  }
+
+  private ricochet(
+    from: { x: number; y: number },
+    wall: { x: number; y: number },
+    kickoff: boolean
+  ): void {
+    const flight = ricochetFlight(this.diceController, from, wall);
+    this.announceWallHits(flight.hits);
+    if (flight.kind === "crowd") {
+      if (kickoff) this.touchback();
+      else this.crowdThrowIn(flight.lastIn);
+      return;
+    }
+    const landing = settleOffObstacle(this.diceController, flight.landing);
+    if (kickoff && this.kickoffBounceTouchback(landing)) return;
+    this.state.ballPosition = { ...landing };
+    this.eventBus.emit(GameEventNames.BallPlaced, { ...landing });
+    const occupant = this.playerAt(landing);
+    this.callbacks
+      .getFlowManager?.()
+      .add(
+        occupant
+          ? new CatchOperation(occupant.id, { origin: "bounce", kickoff })
+          : new BounceOperation(landing, kickoff),
+        true
+      );
+  }
+
+  private placeThrownIn(
+    from: { x: number; y: number },
+    landing: { x: number; y: number },
+    distance: number
+  ): void {
     this.state.ballPosition = { x: landing.x, y: landing.y };
     this.eventBus.emit(GameEventNames.BallThrownIn, {
       from,

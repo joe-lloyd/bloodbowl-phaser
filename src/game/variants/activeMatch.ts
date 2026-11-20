@@ -52,3 +52,13 @@ export function matchFormatFor(
   const index = Math.min(venues.length - 1, Math.floor(random() * venues.length));
   return { gameType, venue: venues[index] ?? venues[0] };
 }
+
+export function withMatchFormat<T>(format: MatchFormat, run: () => T): T {
+  const previous = active;
+  activateMatchFormat(format);
+  try {
+    return run();
+  } finally {
+    active = previous;
+  }
+}
