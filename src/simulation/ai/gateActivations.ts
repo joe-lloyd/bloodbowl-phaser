@@ -73,14 +73,16 @@ function steadyPlans({ c, big, best, teammates }: SteadyPlan): Activation[] {
     ]);
     const route = c.plainRoutes(move.helper).get(key(move.at));
     if (!route || helped <= alone) continue;
-    out.push({
+    const step: Activation = {
       player: move.helper,
       action: "move",
       intent: { kind: "reposition", role: "steady", route },
       tier: "prepare",
       value: gamble(c, route.chance, (helped - alone) * best.value),
       rolls: route.rolls,
-    });
+    };
+    const own = gateChance(step, c.board.gs.getTeammates(move.helper.id));
+    out.push({ ...step, value: step.value * own });
   }
   return out;
 }
@@ -122,5 +124,5 @@ export function gatePriced(c: Context, plans: Activation[]): Activation[] {
     if (p >= 1 || a.value <= 0) return a;
     return { ...a, value: a.value * p * (wait.get(a.player.id) ?? 1) };
   };
-  return [...plans, ...support].map(price);
+  return [...plans.map(price), ...support];
 }

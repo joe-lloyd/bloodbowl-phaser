@@ -230,7 +230,7 @@ describe("a Take Root player's Blitz", () => {
 });
 
 describe("a helper who can steady a Really Stupid team-mate", () => {
-  async function steadyValue(helperSkills: SkillType[]) {
+  async function plans(helperSkills: SkillType[]) {
     const subject = game({
       turn: 3,
       team1Placements: [
@@ -249,19 +249,34 @@ describe("a helper who can steady a Really Stupid team-mate", () => {
       ],
     });
     const point = await enumerateDecision(subject, null);
-    const steady = activations({
+    const all = activations({
       board: readBoard(subject, "team1"),
       w: DEFAULT_WEIGHTS,
       available: availableActions(point.candidates),
-    }).find(
-      (a) => a.intent.kind === "reposition" && a.intent.role === "steady"
+    });
+    const big = fieldPlayer(subject.ctx.team1.players[0]);
+    const steady =
+      all.find(
+        (a) => a.intent.kind === "reposition" && a.intent.role === "steady"
+      )?.value ?? NaN;
+    const waiting = Math.max(
+      ...all.filter((a) => a.player.id === big.id).map((a) => a.value)
     );
-    return steady?.value ?? NaN;
+    return { steady, waiting };
   }
 
   it("prices the move by the helper's own Take Root roll", async () => {
-    expect(await steadyValue([SkillType.TAKE_ROOT])).toBeCloseTo(
-      ((await steadyValue([])) * 5) / 6,
+    expect((await plans([SkillType.TAKE_ROOT])).steady).toBeCloseTo(
+      ((await plans([])).steady * 5) / 6,
+      9
+    );
+  });
+
+  it("makes the Big Guy wait only for the help the move is worth", async () => {
+    const rooted = await plans([SkillType.TAKE_ROOT]);
+    const plain = await plans([]);
+    expect(rooted.waiting + rooted.steady).toBeCloseTo(
+      plain.waiting + plain.steady,
       9
     );
   });
