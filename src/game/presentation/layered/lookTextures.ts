@@ -53,7 +53,8 @@ function lookFileClass() {
           this.atlas = atlas;
           this.loader.nextFile(this, true);
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          console.warn(`Could not build the player look ${this.key}`, error);
           this.loader.nextFile(this, false);
         });
     }
