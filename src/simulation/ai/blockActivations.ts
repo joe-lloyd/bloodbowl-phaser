@@ -191,10 +191,13 @@ function blitzReach(route: Route | null, normal: number): number {
   );
 }
 
-export function hitStandsChance(
-  c: Context,
-  hit: { attacker: Player; target: Player; route: Route | null }
-): number {
+export interface MarkerHit {
+  attacker: Player;
+  target: Player;
+  route: Route | null;
+}
+
+export function hitKeepsTurnChance(c: Context, hit: MarkerHit): number {
   const [normal] = movesLeft(c.board, hit.attacker);
   const odds = blockFrom({
     c,

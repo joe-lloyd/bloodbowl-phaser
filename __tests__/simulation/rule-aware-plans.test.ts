@@ -276,49 +276,65 @@ describe("a carrier with one marker and no team-mates", () => {
 });
 
 describe("a carrier one Dodge from scoring beside a marker a team-mate can hit", () => {
+  function planLabels(hit: "block" | "blitz", x: number, skills: SkillType[]) {
+    const subject = game({
+      turn: 6,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 18,
+          y: 5,
+          hasBall: true,
+          stats: { AG: 2 },
+          skills: [SkillType.DODGE, ...skills],
+        },
+        { playerIndex: 1, x, y: 5, skills: [SkillType.BLOCK] },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 17, y: 5, skills: [SkillType.BLOCK] },
+      ],
+    });
+    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
+    const mate = fieldPlayer(subject.ctx.team1.players[1]);
+    const plans = activations({
+      board: readBoard(subject, "team1"),
+      w: DEFAULT_WEIGHTS,
+      available: new Map([
+        [carrier.id, new Set(["move" as const])],
+        [mate.id, new Set(["move" as const, hit])],
+      ]),
+    });
+    const labels = (id: string) =>
+      plans
+        .filter((plan) => plan.player.id === id)
+        .map(
+          (plan) =>
+            `${plan.action}/${plan.intent.kind}/${String(plan.rolls.length)}`
+        );
+    return { carrier: labels(carrier.id), mate: labels(mate.id) };
+  }
+
   it.each([
     { hit: "block" as const, x: 16 },
     { hit: "blitz" as const, x: 14 },
   ])(
     "keeps the touchdown that is safer than a $hit on the marker",
     ({ hit, x }) => {
-      const subject = game({
-        turn: 6,
-        team1Placements: [
-          {
-            playerIndex: 0,
-            x: 18,
-            y: 5,
-            hasBall: true,
-            stats: { AG: 2 },
-            skills: [SkillType.DODGE],
-          },
-          { playerIndex: 1, x, y: 5, skills: [SkillType.BLOCK] },
-        ],
-        team2Placements: [
-          { playerIndex: 0, x: 17, y: 5, skills: [SkillType.BLOCK] },
-        ],
-      });
-      const carrier = fieldPlayer(subject.ctx.team1.players[0]);
-      const mate = fieldPlayer(subject.ctx.team1.players[1]);
-      const plans = activations({
-        board: readBoard(subject, "team1"),
-        w: DEFAULT_WEIGHTS,
-        available: new Map([
-          [carrier.id, new Set(["move" as const])],
-          [mate.id, new Set(["move" as const, hit])],
-        ]),
-      });
+      const labels = planLabels(hit, x, []);
       expect(
-        plans
-          .filter((plan) => plan.player.id === carrier.id)
-          .map(
-            (plan) =>
-              `${plan.action}/${plan.intent.kind}/${String(plan.rolls.length)}`
-          )
-      ).toContain("move/score/1");
+        labels.mate.some((label) => label.startsWith(`${hit}/${hit}/`))
+      ).toBe(true);
+      expect(labels.carrier).toContain("move/score/1");
     }
   );
+
+  it("waits for the hit when a Vampire carrier may stay hungry in the end zone", () => {
+    const labels = planLabels("block", 16, [SkillType.BLOODLUST]);
+    expect(labels.mate.some((label) => label.startsWith("block/block/"))).toBe(
+      true
+    );
+    expect(labels.carrier).not.toContain("move/score/1");
+  });
 });
 
 describe("a Take Root player's Blitz", () => {

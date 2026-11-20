@@ -17,9 +17,11 @@ import {
   assistActivations,
   blitzActivations,
   carrierBlitzActivations,
+  type MarkerHit,
   blockActivations,
-  hitStandsChance,
+  hitKeepsTurnChance,
 } from "./blockActivations";
+import { unfedChance } from "./feeding";
 import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
 import { foulActivations } from "./foulActivations";
@@ -187,23 +189,19 @@ export function activations({
   return sortActivations(hitMarkersFirst(c, gatePriced(c, out)));
 }
 
-function hitsMarker(plan: Activation, markers: readonly Player[]): boolean {
+function markerHit(
+  plan: Activation,
+  markers: readonly Player[]
+): MarkerHit | null {
   const intent = plan.intent;
-  return (
-    (plan.tier === "sure-block" || plan.tier === "blitz") &&
-    (intent.kind === "block" || intent.kind === "blitz") &&
-    markers.some((m) => m.id === intent.target.id)
-  );
-}
-
-function markerHitStands(c: Context, plan: Activation): number {
-  const intent = plan.intent;
-  if (intent.kind !== "block" && intent.kind !== "blitz") return 1;
-  return hitStandsChance(c, {
+  if (plan.tier !== "sure-block" && plan.tier !== "blitz") return null;
+  if (intent.kind !== "block" && intent.kind !== "blitz") return null;
+  if (!markers.some((m) => m.id === intent.target.id)) return null;
+  return {
     attacker: plan.player,
     target: intent.target,
     route: intent.kind === "blitz" ? intent.route : null,
-  });
+  };
 }
 
 function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
@@ -213,18 +211,20 @@ function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
     (p) =>
       hasTackleZone(p) && distance(p.gridPosition, carrier.gridPosition) === 1
   );
-  const hits = plans.filter(
-    (plan) => plan.player.id !== carrier.id && hitsMarker(plan, markers)
-  );
+  const hits = plans
+    .filter((plan) => plan.player.id !== carrier.id)
+    .flatMap((plan) => markerHit(plan, markers) ?? []);
   if (hits.length === 0) return plans;
-  const hitFirst = Math.max(...hits.map((plan) => markerHitStands(c, plan)));
-  const scoresNow = (plan: Activation) =>
-    plan.intent.kind === "score" &&
-    sequenceChance([{ player: carrier, rolls: plan.rolls }], c.teamReroll) >=
-      hitFirst;
+  const hitFirst = Math.max(...hits.map((hit) => hitKeepsTurnChance(c, hit)));
+  const scoreChance = (route: Route, rolls: readonly RollTarget[]) =>
+    sequenceChance([{ player: carrier, rolls }], c.teamReroll) *
+    (1 - unfedChance({ c, player: carrier, action: "move", at: route.to }));
   return plans.filter(
     (plan) =>
-      plan.player.id !== carrier.id || plan.action !== "move" || scoresNow(plan)
+      plan.player.id !== carrier.id ||
+      plan.action !== "move" ||
+      (plan.intent.kind === "score" &&
+        scoreChance(plan.intent.route, plan.rolls) >= hitFirst)
   );
 }
 
