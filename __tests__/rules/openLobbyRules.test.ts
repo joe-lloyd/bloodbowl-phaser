@@ -157,6 +157,23 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
     const { code } = await as(host, () => createLobby(host, "Host"));
     await as(guest, () => joinLobby(code, guest, "Guest"));
     await denied(updateDoc(doc(dbFor(guest), "games", code), { listed: true }));
+    await denied(
+      updateDoc(doc(dbFor(uniqueUid("stranger")), "games", code), { listed: true })
+    );
+
+    const born = uniqueUid("host");
+    await denied(
+      setDoc(doc(dbFor(born), "games", `B${String(Date.now()).slice(-5)}`), {
+        code: "LISTED",
+        hostUid: born,
+        guestUid: null,
+        status: "lobby",
+        settings: DEFAULT_SETTINGS,
+        players: { [born]: { uid: born, displayName: "Host", team: null, ready: false } },
+        createdAt: null,
+        listed: true,
+      })
+    );
 
     const fixtureHost = uniqueUid("organizer");
     const fixtureLobby = await as(fixtureHost, () =>
