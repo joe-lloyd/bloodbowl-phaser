@@ -330,8 +330,10 @@ a friendly against the computer, and on for a league or cup game.
 
 The Computer teams tab in Teams provides Bonehead Podcast's Season 3
 Sevens starting builds, with names, kits, roster previews, and source links.
-The bundled catalogue has 82 recipes across 30 rosters. GW rules permit 81;
-the NAF rulings also permit the Snotling Max snots build. Prices and legality
+Second Helpings is the Halfling Best stuff roster with its spare 130,000
+spent on a team re-roll and a fifth Hopeful, so one Halfling build uses the
+whole 600,000. The bundled catalogue has 83 recipes across 30 rosters. GW
+rules permit 82; the NAF rulings also permit the Snotling Max snots build. Prices and legality
 come from the game's current purchasing and draft rules.
 
 `src/data/computerTeamCatalogue.ts` stores frozen recipes. They have no team or

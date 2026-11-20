@@ -22,7 +22,7 @@ pnpm exec tsx scripts/coach/policy-study/run.ts \
 
 The schedule includes all 405 snapshots: 81 native public recipes, 162 focused advanced builds and 162 cost-matched randomized builds across 30 rosters. All 72 learnable skills are assigned in the advanced inventory; traits remain native. Each development/replicate group uses cyclic opponent offsets 11 and 37.
 
-Each seed block has four games. The candidate uses team A on both physical sides, then team B on both sides, against the archived opponent. The full run has 3,240 matches and 810 blocks. The smoke run takes 24 whole blocks involving Vampire or Multiple Block builds on a separate 12-million seed range. Confirmation defaults to 13 million; `--seed-base` permits a disjoint range after a correction. This is a balanced sample, not a round-robin of every possible pair.
+Each seed block has four games. The candidate uses team A on both physical sides, then team B on both sides, against the archived opponent. The full run has 3,280 matches and 820 blocks. The smoke run takes 24 whole blocks involving Vampire or Multiple Block builds on a separate 12-million seed range. Confirmation defaults to 13 million; `--seed-base` permits a disjoint range after a correction. This is a balanced sample, not a round-robin of every possible pair.
 
 The worker saves initial teams and command traces, immediately replays each game, and compares its final state hash and all authoritative event counters. Results use atomic writes. Resume requires identical source digests, baseline digests and jobs; changing report or dashboard files is allowed. A failed worker fails the pool. Engine findings remain in results and block promotion.
 
