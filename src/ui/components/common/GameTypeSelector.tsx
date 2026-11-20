@@ -104,7 +104,12 @@ export function GameTypeSelector({
   disabled?: boolean;
   label?: string;
 }) {
-  const keys = choiceKeys({ ids: GAME_TYPES, value, onChange });
+  const keys = choiceKeys({
+    ids: GAME_TYPES,
+    value,
+    onChange,
+    activation: "manual",
+  });
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       {label && <span className="hud-label">{label}</span>}

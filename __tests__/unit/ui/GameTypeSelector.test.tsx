@@ -67,7 +67,7 @@ describe("GameTypeSelector", () => {
     expect(onChange).toHaveBeenCalledWith("beach-bowl");
   });
 
-  it("moves the choice and focus with the arrow keys, wrapping at the ends", () => {
+  it("moves focus with the arrow keys, wrapping at the ends, and picks only on a press", () => {
     const onChange = vi.fn();
     act(() => {
       root.render(<GameTypeSelector value="beach-bowl" onChange={onChange} />);
@@ -82,11 +82,19 @@ describe("GameTypeSelector", () => {
 
     expect(cards().map((button) => button.tabIndex)).toEqual([-1, -1, -1, 0]);
     press("Beach Bowl", "ArrowRight");
-    expect(onChange).toHaveBeenLastCalledWith("sevens");
     expect(document.activeElement).toBe(card("Sevens"));
+    press("Sevens", "ArrowRight");
+    press("Gutter Bowl", "ArrowLeft");
     press("Sevens", "ArrowLeft");
-    expect(onChange).toHaveBeenLastCalledWith("beach-bowl");
     expect(document.activeElement).toBe(card("Beach Bowl"));
+    expect(onChange).not.toHaveBeenCalled();
+
+    press("Beach Bowl", "ArrowLeft");
+    act(() => {
+      card("Street Bowl").click();
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("street-bowl");
   });
 
   it("leaves the choice alone while disabled", () => {
