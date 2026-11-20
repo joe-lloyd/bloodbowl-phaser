@@ -2,7 +2,7 @@
 chaos_chosen.py). Costume: the Ashen Forge, black iron and bronze. No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, Centaur, register, core, parts
+from lib import Biped, Centaur, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, flat_cone, ellipsoid, lerp, UP, basis, D, surf
 from teams import chaos_common as cc
 
@@ -16,7 +16,7 @@ class ChaosDwarf(Biped):
     race = "dwarf"
     knobs = dict(shoulders=1.25, torso=1.28)
     layout = dict(FORGE, breast="darkmetal", emblem_mat="kit2", pads="plate", pad_mat="kit2", pad_trim="brass", coat="gambeson",
-                  coat_mat="kit1", hem="kit2", gauntlets=True, beard_len=0.5)
+                  coat_mat="kit1", hem="kit2", gauntlets=True, beard_len=0.5, hat="tall", helm_mat="darkmetal")
     stance = dict(lean=2, legs={"l": (4, 16, 6), "r": (-4, 16, 6)}, arms={"l": (6, 30, 40, -6), "r": (6, 30, 40, -6)}, hands="fist")
     stride, arm_swing, jump = 30, 24, 0.1
     height = 1.1
@@ -27,8 +27,13 @@ class ChaosDwarf(Biped):
                  hand_modes={"r": "relaxed" if up else "fist"}, nod=6 * up)
 
     def extras(self, J, P, L, tag, pose):
-        cc.tall_hat(J, tag, 0.62, "darkmetal", bands=((0.08, "kit2", 0.1), (0.5, "kit1", 0.09), (0.84, "kit2", 0.1)), taper=0.92,
-                    rim="brass", k=0.98, lift=0.5)
+        hat = L.get("hat")
+        if hat == "tall":
+            cc.tall_hat(J, tag, 0.62, "darkmetal", bands=((0.08, "kit2", 0.1), (0.5, "kit1", 0.09), (0.84, "kit2", 0.1)), taper=0.92,
+                        rim="brass", k=0.98, lift=0.5)
+        elif hat == "horned":
+            cc.tall_hat(J, tag, 0.34, "darkmetal", bands=((0.1, "kit2", 0.1), (0.62, "kit1", 0.09)), taper=0.9, rim="brass", k=0.98, lift=0.5)
+            cc.hat_horns(J, tag)
         cc.curled_beard(J, tag, rows=4, ln=0.9)
         for i, a in enumerate((-40, 0, 40)):           # scale rows on the cuirass
             ball_at(tag + "rivet%d" % i, surf(J, P, 0.18, a, 0.03), 0.03, "brass")
@@ -40,7 +45,7 @@ class Flamesmith(Biped):
     race = "dwarf"
     knobs = dict(shoulders=1.1)
     layout = dict(FORGE, beard="hair", beard_len=0.9, helm="skull", helm_mat="brass", torso="kit1", tabard="kit2", tabard_trim="brass",
-                  bracers="brass", gloves="leather", neckband="kit1")
+                  bracers="brass", gloves="leather", neckband="kit1", tank="brass", hat=None)
     stance = dict(lean=8, legs={"l": (8, 12, 10), "r": (-6, 12, 8)}, arms={"l": (16, 24, 50, 0), "r": (16, 24, 50, 0)}, hands="fist")
     stride, arm_swing, jump = 32, 26, 0.1
     height = 1.05
@@ -57,7 +62,9 @@ class Flamesmith(Biped):
 
     def extras(self, J, P, L, tag, pose):
         c, X, F, U, s = cc.hf(J)
-        top = cc.tank(J, P, tag, body="brass", band="kit1")
+        top = cc.tank(J, P, tag, body=L["tank"], band="kit1")
+        if L.get("hat") == "drum":
+            cc.tall_hat(J, tag, 0.3, "darkmetal", bands=((0.14, "kit2", 0.1),), taper=0.92, rim="brass", k=0.98, lift=0.5)
         fl = pose.get("flick", 0) % 2
         cc.flame(tag + "pilot", top, UP, 0.16 + 0.07 * fl, r=0.06)
         # mask: goggles and a snout nozzle fed by a hose from the tank
@@ -77,12 +84,13 @@ class Flamesmith(Biped):
 HOB = dict(skin="skin_goblin", legs="rags", boots="leather", cuff=None, belt="rope", buckle=None, fangs=True)
 
 @register
-class Hobgoblin(Biped):
+class Hobgoblin(looks.Fine, Biped):
     """Lanky lineman: long-limbed goblin with a floppy pointed kit1 cap, hooked nose, wide ears, kit2 jerkin, bare arms."""
     key = "hobgoblin"
     race = "goblin"
     knobs = dict(legs=0.95, arms=1.12, limb=0.72, torso=0.8, torso_len=0.9, head=1.05, hunch=10, shoulders=0.95)
-    layout = dict(HOB, torso="kit2", arms="skin_goblin", jersey="kit2", neckband="kit1", wraps="rags", arm_band="kit1", shorts="kit1")
+    layout = dict(HOB, torso="kit2", arms="skin_goblin", jersey="kit2", neckband="kit1", wraps="rags", arm_band="kit1", shorts="kit1",
+                  cap="floppy", topknot=None, xstrap=None, helm_mat="darkmetal")
     stance = dict(lean=6, legs={"l": (6, 10, 14), "r": (-6, 10, 14)}, arms={"l": (20, 14, 70, -10), "r": (20, 14, 70, -10)}, hands="relaxed")
     stride, arm_swing, run_lean, jump = 42, 36, 18, 0.22
     height = 1.08
@@ -92,10 +100,23 @@ class Hobgoblin(Biped):
                  arms={"l": (26 + 8 * w["s2"], 10, 84, -24), "r": (26 - 8 * w["s2"], 10, 84, -24)})
 
     def extras(self, J, P, L, tag, pose):
-        cc.floppy_cap(J, tag, "kit1", "kit2", h=0.5, flop=0.3)
+        super().extras(J, P, L, tag, pose)
+        if L.get("cap") == "floppy":
+            cc.floppy_cap(J, tag, "kit1", "kit2", h=0.5, flop=0.3)
+        if L.get("topknot"):
+            cc.topknot(J, tag, L["topknot"], "kit1")
+        if L.get("xstrap"):
+            cc.strap(J, P, tag, L["xstrap"], r=0.045, flip=1, name="xstrap")
         cc.big_ears(J, L, tag, size=0.85, droop=0.06)
         cc.long_nose(J, L, tag, ln=0.17)
         cc.sash(J, P, tag, pose, "kit1", side=1, ln=0.3, r=0.04)
+
+    def details(self, J, P, L, tag, pose):
+        c, X, F, U, s = cc.hf(J)
+        for sd in (-1, 1):                              # brass rings through both ears, a pouch on the belt
+            root = c + X * sd * s[0] * 0.85 + U * s[2] * 0.05
+            ball_at(tag + "earring%d" % sd, root + (X * sd * 0.2 + U * 0.02 - F * 0.06) * 0.85 - U * 0.04, 0.025, "brass")
+        box(tag + "pouch", surf(J, P, -0.02, -40, 0.06), (0.1, 0.06, 0.1), "leather", basis(J["X"], J["F"], J["u"]))
 
 @register
 class HobgoblinStabba(Biped):
@@ -170,8 +191,5 @@ class BullCentaur(Centaur):
     def extras(self, J, P, L, tag, pose):
         top, ax, r = cc.tall_hat(J, tag, 0.4, "darkmetal", bands=((0.1, "kit1", 0.1), (0.72, "kit2", 0.1)), taper=0.9, rim="brass", k=0.98, lift=0.5)
         c, X, F, U, s = cc.hf(J)
-        for sd in (-1, 1):                                  # bull horns bolted to the hat
-            root = c + X * sd * s[0] * 1.0 + U * s[2] * 0.6
-            tube(tag + "hhorn%d" % sd, [root, root + X * sd * 0.2 + U * 0.04, root + X * sd * 0.3 + U * 0.26 + F * 0.04], [0.065, 0.05, 0.012],
-                 "bone", n=6)
+        cc.hat_horns(J, tag)                                # bull horns bolted to the hat
         cc.curled_beard(J, tag, rows=2)

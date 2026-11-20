@@ -1,0 +1,30 @@
+{
+  "de_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Helmet", [["ridged", "Ridged helm"], ["crested", "Crested helm"], ["bare", "Bare head"]]],
+    ["chest", "Chest", [["gambeson", "Quilted coat"], ["tabard", "Tabard"], ["none", "Breastplate only"]]],
+    ["pads", "Pads", [["spiked", "Spiked pads"], ["none", "No pads"]]]
+  ],
+  "de_blitzer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["horned", "Horned helm"], ["winged", "Winged helm"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["spiked", "Spiked pauldrons"], ["plate", "Plain plate"]]],
+    ["cape", "Cape", [["short", "Short cape"], ["long", "Long cape"], ["none", "No cape"]]]
+  ],
+  "de_runner": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["swept", "Swept"], ["ponytail", "Ponytail"], ["braid", "Braid"]]],
+    ["scarf", "Scarf", [["masked", "Scarf and mask"], ["scarf", "Scarf only"], ["none", "No scarf"]]]
+  ],
+  "assassin": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["cloak", "Cloak", [["ragged", "Ragged cloak"], ["long", "Long cape"], ["none", "No cloak"]]],
+    ["face", "Face", [["masked", "Mask"], ["bare", "Bare face"]]]
+  ],
+  "witch_elf": [
+    ["body", "Body", [["f", "Female"]]],
+    ["hair", "Hair", [["mane", "Wild mane"], ["ponytail", "Ponytail"], ["braid", "Braid"]]],
+    ["crown", "Crown", [["tiara", "Blade tiara"], ["horns", "Horns"], ["none", "Nothing"]]],
+    ["legs", "Legs", [["bare", "Bare legs"], ["hose", "Hose"]]]
+  ]
+}

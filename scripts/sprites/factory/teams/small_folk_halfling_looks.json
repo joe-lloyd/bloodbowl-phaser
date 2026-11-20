@@ -1,0 +1,17 @@
+{
+  "halfling_hopeful": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["pot", "Cooking pot"], ["kerchief", "Kerchief"], ["curls", "Bare curls"]]],
+    ["apron", "Apron", [["apron", "Apron"], ["none", "No apron"]]]
+  ],
+  "halfling_catcher": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["band", "Headband"], ["cap", "Flat cap"], ["bare", "Bare curls"]]],
+    ["scarf", "Scarf", [["long", "Long scarf"], ["short", "Short scarf"], ["none", "No scarf"]]]
+  ],
+  "halfling_hefty": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hat", "Hat", [["toque", "Cook's hat"], ["kerchief", "Kerchief"], ["bare", "Bare head"]]],
+    ["back", "Back", [["pan", "Frying pan"], ["cauldron", "Stewpot"], ["pin", "Rolling pin"]]]
+  ]
+}

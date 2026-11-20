@@ -1,0 +1,22 @@
+{
+  "dwarf_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["bucket", "Bucket helm"], ["open", "Open helm"], ["bare", "Bare head"]]],
+    ["beard", "Beard", [["spade", "Spade beard"], ["fork", "Forked beard"], ["none", "No beard"]]]
+  ],
+  "dwarf_runner": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["swept", "Swept back"], ["braid", "Long braid"], ["tail", "Ponytail"]]],
+    ["beard", "Beard", [["fork", "Forked beard"], ["spade", "Spade beard"], ["none", "No beard"]]]
+  ],
+  "dwarf_blitzer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["winged", "Winged helm"], ["horned", "Horned helm"], ["bare", "Bare head"]]],
+    ["beard", "Beard", [["long", "Ringed beard"], ["fork", "Forked beard"], ["spade", "Spade beard"]]]
+  ],
+  "troll_slayer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["crest", "Crest", [["tall", "Tall crest"], ["short", "Short crest"], ["topknot", "Topknot"]]],
+    ["beard", "Beard", [["bush", "Wild beard"], ["fork", "Forked beard"], ["long", "Long beard"]]]
+  ]
+}

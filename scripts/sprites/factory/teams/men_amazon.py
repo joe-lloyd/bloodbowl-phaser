@@ -2,7 +2,7 @@
 animal. Shared uniform: kit1 top and kit2 loincloth; the animal gear makes the silhouette. Empty hands."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, lerp, UP, basis, D, ellipsoid, cap, cone, flat_cone, surf
 from teams import men_common as mc
 
@@ -17,13 +17,13 @@ def sandal_straps(tag, J, L, mat="leather"):
 
 
 @register
-class EagleWarrior(Biped):
+class EagleWarrior(looks.Fine, Biped):
     """Eagle: tall upright feather crown, golden beak brow, feather fringes on the arms that open like wings."""
     key = "amazon_eagle"
     race = "human"
     sex = "f"
     knobs = dict(limb=0.9)
-    layout = dict(AMZ, hair="short", arm_band="kit1", bracers="gold")
+    layout = dict(AMZ, hair="short", arm_band="kit1", bracers="gold", crown="fan", fringe=True)
     stance = dict(lean=4, legs={"l": (8, 9, 8), "r": (-6, 9, 8)}, arms={"l": (6, 34, 30, 10), "r": (6, 34, 30, 10)}, hands="open")
     stride, arm_swing, jump = 40, 34, 0.26
     height = 1.1
@@ -34,12 +34,28 @@ class EagleWarrior(Biped):
                  look=28 * (1 if w["c1"] > 0 else -1), nod=-6 * up)
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         mc.bandeau(tag, J, P, "kit1", trim="kit2")
-        mc.headband(tag, J, "gold", tails=0)
-        mc.crest_fan(tag, J, ("kit1", "kit2"), n=7, h=0.5, spread=58, base=0.9, r=0.075)
-        c, X, F, U, s, R = mc.head(J)
-        b = c + F * s[1] * 0.95 + U * s[2] * 0.5
-        cone(tag + "beak", b - F * 0.04 + U * 0.05, b + F * 0.2 - U * 0.14, 0.07, "gold", 6)
+        if L.get("crown"):
+            mc.headband(tag, J, "gold", tails=0)
+            if L["crown"] == "fan":
+                mc.crest_fan(tag, J, ("kit1", "kit2"), n=7, h=0.5, spread=58, base=0.9, r=0.075)
+            else:
+                mc.plume_tall(tag, J, "kit1", h=0.42, r=0.12, base=1.0)
+            c, X, F, U, s, R = mc.head(J)
+            b = c + F * s[1] * 0.95 + U * s[2] * 0.5
+            cone(tag + "beak", b - F * 0.04 + U * 0.05, b + F * 0.2 - U * 0.14, 0.07, "gold", 6)
+        if L.get("fringe"):
+            self.fringes(J, tag)
+        sandal_straps(tag, J, L)
+        tband(tag + "collar", J, P, [P["sh_h"] + 0.06, P["sh_h"] - 0.02, P["sh_h"] - 0.07], "kit2", k=1.0, add=0.06, solid=0.03, jag=0.4)
+
+    def details(self, J, P, L, tag, pose):
+        sh = P["sh_h"]
+        mc.studs(tag, J, P, [(sh - 0.06, a, 0.08) for a in (-44, -22, 0, 22, 44)], "gold", r=0.022, name="collarbead")
+        mc.studs(tag, J, P, [(0.4, 0, 0.05)], "gold", r=0.03, name="topgem")
+
+    def fringes(self, J, tag):
         for side, sd in (("l", -1), ("r", 1)):                 # wing fringes along the back of each arm
             sh, el, wr, _ = J["arms"][side]
             out = (J["X"] * sd * 0.5 - J["F"] * 0.4 - UP * 0.75).normalized()
@@ -47,20 +63,19 @@ class EagleWarrior(Biped):
                 t = i / 4
                 a = lerp(sh, el, t * 1.0) if t <= 1 else el
                 a = lerp(lerp(sh, el, 0.3), lerp(el, wr, 0.5), t)
-                flat_cone(tag + "wingf%s%d" % (side, i), a, a + out * (0.3 + 0.12 * math.sin(t * 3.1)), 0.07,
+                flat_cone(tag + "wingf%s%d" % (side, i), a, a + out * (0.36 + 0.14 * math.sin(t * 3.1)), 0.085,
                           "kit2" if i % 2 else "kit1", J["F"], 0.3)
-        sandal_straps(tag, J, L)
-        tband(tag + "collar", J, P, [P["sh_h"] + 0.06, P["sh_h"] - 0.02, P["sh_h"] - 0.07], "kit2", k=1.0, add=0.06, solid=0.03, jag=0.4)
 
 
 @register
-class JaguarWarrior(Biped):
+class JaguarWarrior(looks.Fine, Biped):
     """Jaguar: the strong one, under a spotted cat-head hood with ears and fangs, pelt down her back, clawed fists."""
     key = "amazon_jaguar"
     race = "human"
     sex = "f"
     knobs = dict(limb=1.12, shoulders=1.14, torso=1.12)
-    layout = dict(AMZ, hair=None, pads="leather", bracers="pelt", arm_band="kit2", claws=0.07, kneecops=True, knee_mat="pelt")
+    layout = dict(AMZ, hair=None, pads="leather", bracers="pelt", arm_band="kit2", claws=0.07, kneecops=True, knee_mat="pelt",
+                  hood=True, pelt=True)
     stance = dict(lean=14, legs={"l": (14, 16, 26), "r": (-10, 16, 22)}, arms={"l": (26, 34, 70, 10), "r": (26, 34, 70, 10)},
                   hands="open")
     stride, arm_swing, jump = 36, 30, 0.18
@@ -73,9 +88,23 @@ class JaguarWarrior(Biped):
                  arms={"l": (26, 34, 70, 10), "r": (26 + 50 * sw, 34 - 14 * sw, 70 - 40 * sw, 10)}, look=-16 * w["c1"])
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         mc.bandeau(tag, J, P, "kit1", trim="kit2")
+        if L.get("hood"):
+            self.hood(J, tag)
+        if L.get("pelt"):
+            self.pelt(J, P, tag, pose)
+        # kit1 girdle tied round the waist: team colour from behind too
+        tband(tag + "girdle", J, P, [0.12, 0.17, 0.22], "kit1", k=1.12, add=0.095, solid=0.035)
+        sandal_straps(tag, J, L, "pelt")
+
+    def details(self, J, P, L, tag, pose):
+        mc.studs(tag, J, P, [(0.17, a, 0.13) for a in (-30, 0, 30)], "gold", r=0.025, name="girdlestud")
+        mc.tooth_necklace(tag, J, P, n=3, span=30, ln=0.08)
+
+    def hood(self, J, tag):
+        """Cat-head hood with ears, fangs, eyes, spots and a kit1 brow band."""
         c, X, F, U, s, R = mc.head(J)
-        # cat-head hood
         cap(tag + "hood", c + U * 0.02, (s[0] * 1.22, s[1] * 1.22, s[2] * 1.2), "pelt", (U * 0.8 - F * 0.6).normalized(), cut=-0.05,
             rot=R, thick=0.04)
         m = c + U * s[2] * 0.72 + F * s[1] * 0.85
@@ -88,14 +117,17 @@ class JaguarWarrior(Biped):
             f = m + X * sd * s[0] * 0.34 - U * 0.03 + F * 0.05
             cone(tag + "fang%d" % sd, f, f - U * 0.16, 0.035, "bone", 6)
             ball_at(tag + "cateye%d" % sd, m + X * sd * s[0] * 0.45 + U * 0.07 + F * 0.02, 0.03, "eye_yellow")
-        # pelt down the back, forepaws knotted over the shoulders
+        tube(tag + "hoodband", [c + U * s[2] * 0.35 - F * 0.02, c + U * s[2] * 0.6 - F * 0.04], [s[0] * 1.3, s[0] * 1.28], "kit1",
+             ref=X, n=12)
+        for i, (x, y, z) in enumerate(((0.5, -0.3, 0.85), (-0.5, -0.3, 0.85), (0, -0.75, 0.75), (0.75, -0.5, 0.3), (-0.75, -0.5, 0.3),
+                                       (0, 0.2, 1.05))):
+            ball_at(tag + "hspot%d" % i, c + X * x * s[0] * 1.2 + F * y * s[1] * 1.2 + U * z * s[2] * 1.2, 0.035, "socket")
+
+    def pelt(self, J, P, tag, pose):
+        """Spotted pelt down the back with its tail, forepaws knotted over the shoulders."""
         sh = P["sh_h"]
         tband(tag + "pelt", J, P, [sh + 0.06, sh - 0.06, 0.26, 0.1], "pelt", k=1.1, add=0.05, arc=(-95, 95), solid=0.04, jag=0.3)
         core.panel(J, P, tag + "pelt", False, 0.62, 0.2, "pelt", pose.get("flare", 0.06), top=0.14)
-        # kit1 girdle tied over the pelt and a kit1 brow band on the hood: team colour from behind too
-        tband(tag + "girdle", J, P, [0.12, 0.17, 0.22], "kit1", k=1.12, add=0.095, solid=0.035)
-        tube(tag + "hoodband", [c + U * s[2] * 0.35 - F * 0.02, c + U * s[2] * 0.6 - F * 0.04], [s[0] * 1.3, s[0] * 1.28], "kit1",
-             ref=X, n=12)
         for sd in (-1, 1):
             a = J["arms"]["l" if sd < 0 else "r"][0] + J["u"] * 0.1
             b = surf(J, P, sh - 0.08, sd * 22, 0.06)
@@ -104,25 +136,21 @@ class JaguarWarrior(Biped):
         spots = [(sh - 0.02, 180), (0.38, 150), (0.38, -150), (0.25, 175), (0.14, 150), (0.14, -155), (0.3, 120), (0.3, -120)]
         for i, (h, a) in enumerate(spots):
             ball_at(tag + "spot%d" % i, surf(J, P, h, a, 0.085), 0.04, "socket")
-        for i, (x, y, z) in enumerate(((0.5, -0.3, 0.85), (-0.5, -0.3, 0.85), (0, -0.75, 0.75), (0.75, -0.5, 0.3), (-0.75, -0.5, 0.3),
-                                       (0, 0.2, 1.05))):
-            ball_at(tag + "hspot%d" % i, c + X * x * s[0] * 1.2 + F * y * s[1] * 1.2 + U * z * s[2] * 1.2, 0.035, "socket")
         # tail of the pelt
         t0 = J["pelvis"] + J["B"] * 0.22 - UP * 0.45
         sw = 0.5 if mc.act(pose) else 0.0
         tube(tag + "pelttail", [t0, t0 + J["B"] * (0.1 + sw * 0.4) - UP * (0.28 - sw * 0.2), t0 + J["B"] * (0.16 + sw * 0.8) - UP * (0.5 - sw * 0.45)],
              [0.05, 0.045, 0.035], "pelt", n=6)
-        sandal_straps(tag, J, L, "pelt")
 
 
 @register
-class PiranhaWarrior(Biped):
+class PiranhaWarrior(looks.Fine, Biped):
     """Piranha: sleek fish helm with a tall dorsal fin and a tooth-lined jaw, forearm and calf fins, tooth necklace."""
     key = "amazon_piranha"
     race = "human"
     sex = "f"
     knobs = dict(limb=0.92, legs=1.06)
-    layout = dict(AMZ, hair=None, helm_tail=True, tie="kit1", bracers="kit2", wraps=None)
+    layout = dict(AMZ, hair=None, helm_tail=True, tie="kit1", bracers="kit2", wraps=None, fish=True, fins=True)
     stance = dict(lean=10, twist=10, legs={"l": (16, 9, 16), "r": (-14, 9, 12)}, feet={"r": 14},
                   arms={"l": (40, 20, 94, 0), "r": (16, 22, 100, 0)}, hands="fist")
     stride, arm_swing, run_lean, jump = 44, 38, 18, 0.3
@@ -135,7 +163,33 @@ class PiranhaWarrior(Biped):
                  arms={"l": (40 + 40 * jab, 20, 94 - 78 * jab, 0), "r": (16, 22, 100, 0)}, twist=10 - 14 * jab)
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         mc.bandeau(tag, J, P, "kit1", trim="kit2")
+        if L.get("fish"):
+            self.fish_helm(J, tag)
+        mc.tooth_necklace(tag, J, P, n=5)
+        if L.get("fins"):
+            self.fins(J, tag)
+        tband(tag + "scales", J, P, [0.06, 0.0, -0.07], "kit2", k=1.1, add=0.02, solid=0.03, jag=0.5)
+        sandal_straps(tag, J, L, "kit2")
+
+    def details(self, J, P, L, tag, pose):
+        mc.studs(tag, J, P, [(0.03, a, 0.09) for a in (-40, -14, 14, 40)], "bone", r=0.022, name="scalestud")
+        mc.studs(tag, J, P, [(0.4, 0, 0.05)], "bone", r=0.03, name="topgem")
+
+    def fins(self, J, tag):
+        for side, sd in (("l", -1), ("r", 1)):
+            sh, el, wr, _ = J["arms"][side]
+            fd = (wr - el).normalized()
+            out = (J["X"] * sd - fd * (J["X"] * sd).dot(fd)).normalized()
+            a = lerp(el, wr, 0.3)
+            flat_cone(tag + "armfin" + side, a, a + out * 0.26 - fd * 0.16, 0.11, "kit1", J["F"].cross(out), 0.25)
+            knee, ankle = J["legs"][side][1:3]
+            a = lerp(knee, ankle, 0.35)
+            flat_cone(tag + "calffin" + side, a, a + J["B"] * 0.24 + UP * 0.1, 0.1, "kit1", J["X0"], 0.25)
+
+    def fish_helm(self, J, tag):
+        """Sleek fish helm: a tall swept dorsal fin, gill fins, big eyes and a row of teeth over the brow."""
         c, X, F, U, s, R = mc.head(J)
         big = (s[0] * 1.15, s[1] * 1.2, s[2] * 1.14)
         cap(tag + "fishhelm", c + U * 0.02, big, "kit2", (U * 0.8 - F * 0.55).normalized(), cut=-0.1, rot=R, thick=0.03)
@@ -152,22 +206,10 @@ class PiranhaWarrior(Biped):
             x = (i - 2) * 0.42
             b = c + X * x * s[0] + F * s[1] * (1.12 - 0.12 * abs(x)) + U * s[2] * 0.42
             cone(tag + "jawtooth%d" % i, b + U * 0.02, b - U * 0.1 + F * 0.02, 0.03, "bone", 5)
-        mc.tooth_necklace(tag, J, P, n=5)
-        for side, sd in (("l", -1), ("r", 1)):
-            sh, el, wr, _ = J["arms"][side]
-            fd = (wr - el).normalized()
-            out = (J["X"] * sd - fd * (J["X"] * sd).dot(fd)).normalized()
-            a = lerp(el, wr, 0.3)
-            flat_cone(tag + "armfin" + side, a, a + out * 0.26 - fd * 0.16, 0.11, "kit1", J["F"].cross(out), 0.25)
-            knee, ankle = J["legs"][side][1:3]
-            a = lerp(knee, ankle, 0.35)
-            flat_cone(tag + "calffin" + side, a, a + J["B"] * 0.24 + UP * 0.1, 0.1, "kit1", J["X0"], 0.25)
-        tband(tag + "scales", J, P, [0.06, 0.0, -0.07], "kit2", k=1.1, add=0.02, solid=0.03, jag=0.5)
-        sandal_straps(tag, J, L, "kit2")
 
 
 @register
-class PythonWarrior(Biped):
+class PythonWarrior(looks.Fine, Biped):
     """Python: a great kit-coloured snake coiled round her body, its head reared over her off shoulder; long tail of hair."""
     key = "amazon_python"
     race = "human"
@@ -183,7 +225,15 @@ class PythonWarrior(Biped):
         p.update(twist=-8 + 5 * k, snake=w["s1"], snake2=w["c1"], look=-10 * w["s1"],
                  arms={"l": (-6, 30, 34, -10), "r": (34 + 10 * w["s2"], 22, 96, -6)})
 
+    def details(self, J, P, L, tag, pose):
+        k = L["limb"] * core.LIMB
+        for side in ("l", "r"):          # gold rings round the upper arms
+            sh, el = J["arms"][side][:2]
+            tube(tag + "armring" + side, [lerp(sh, el, 0.3), lerp(sh, el, 0.36)], [0.11 * k, 0.11 * k], "gold", ref=J["F"], n=10)
+        mc.studs(tag, J, P, [(0.4, 0, 0.05)], "gold", r=0.03, name="topgem")
+
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         mc.bandeau(tag, J, P, "kit1", trim="kit2")
         sh = P["sh_h"]
         sw, sw2 = pose.get("snake", 0.0), pose.get("snake2", 0.0)

@@ -5,7 +5,7 @@ They are about 22 px tall, so each position is one big prop: stilts, a bouncing 
 a pump cart. Nothing round is ever held in a hand."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, Vehicle, register, core, parts, anim
+from lib import Biped, Vehicle, register, core, parts, anim, looks
 from lib.core import tube, tband, ball_at, box, cone, flat_cone, ellipsoid, cap, sheet, lerp, UP, basis, D
 from teams import small_folk_common as sf
 
@@ -16,6 +16,19 @@ SNOT = dict(skin="skin_goblin", torso="kit1", arms="skin_goblin", legs="skin_gob
 def snot_face(J, L, tag, ears=1.15, nose=0.12):
     sf.big_ears(J, L, tag, size=ears, up=0.15, back=0.15)
     sf.long_nose(J, L, tag, ln=nose, r=0.06, droop=0.02)
+
+
+def snot_hat(J, L, tag, pose):
+    """The head option shared by the snotlings: a floppy cone, a headband, a pot helmet or a toadstool cap."""
+    hat = L.get("snothat")
+    if hat == "cone":
+        sf.pointy_hat(J, tag, "kit2", band="kit1", h=0.5, bend=0.3, r=1.0, tip="kit1")
+    elif hat == "band":
+        headband(J, tag, pose)
+    elif hat == "pot":
+        sf.pot_helm(J, tag)
+    elif hat == "toadstool":
+        sf.toadstool_hat(J, tag, r=1.5, lift=0.35)
 
 
 def headband(J, tag, pose, mat="kit2", ln=0.36):
@@ -31,11 +44,11 @@ def headband(J, tag, pose, mat="kit2", ln=0.36):
 
 
 @register
-class Snotling(Biped):
+class Snotling(looks.Fine, Biped):
     """The plain one: bare head with a hair tuft, sack smock, big neckerchief. Jumps up and down for attention."""
     key = "snotling"
     race = "snotling"
-    layout = dict(SNOT, neckband="kit2")
+    layout = dict(SNOT, neckband="kit2", tuft=True, kerchief="kit2")
     stance = dict(lean=2, legs={"l": (6, 16, 10), "r": (-5, 16, 10)}, arms={"l": (20, 40, 60, 10), "r": (20, 40, 60, 10)},
                   hands="open")
     stride, arm_swing, jump = 42, 40, 0.3
@@ -47,22 +60,34 @@ class Snotling(Biped):
                  arms={"l": (a, 40, 40 + 25 * w["s2"], 10), "r": (a, 40, 40 - 25 * w["s2"], 10)})
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         snot_face(J, L, tag)
         sf.grin(J, tag, w=0.7)
         c, X, F, U, s = sf.hf(J)
-        for i, dx in enumerate((-0.07, 0.0, 0.07)):      # scruffy tuft
-            b = c + U * s[2] * 0.92 + X * dx
-            cone(tag + "tuft%d" % i, b, b + U * (0.16 + 0.05 * (i == 1)) + X * dx * 1.5 - F * 0.04, 0.045, "hair", 5)
-        k = core.surf(J, P, P["sh_h"] - 0.02, 0, 0.05)      # neckerchief point on the chest
-        flat_cone(tag + "kerchief", k + UP * 0.03, k - UP * 0.2 + J["F"] * 0.03, 0.13, "kit2", J["F"], squash=0.25)
+        if L.get("tuft"):
+            for i, dx in enumerate((-0.07, 0.0, 0.07)):      # scruffy tuft
+                b = c + U * s[2] * 0.92 + X * dx
+                cone(tag + "tuft%d" % i, b, b + U * (0.16 + 0.05 * (i == 1)) + X * dx * 1.5 - F * 0.04, 0.045, "hair", 5)
+        snot_hat(J, L, tag, pose)
+        if L.get("kerchief"):
+            k = core.surf(J, P, P["sh_h"] - 0.02, 0, 0.05)      # neckerchief point on the chest
+            flat_cone(tag + "kerchief", k + UP * 0.03, k - UP * 0.2 + J["F"] * 0.03, 0.13, L["kerchief"], J["F"], squash=0.25)
+        if L.get("scarf_tails"):                           # a striped scarf far too long for him
+            sf.scarf(J, P, tag, pose, mats=("kit2", "kit1"), wrap="kit2", tails=((-40, 0.55, -0.1, 1), (-150, 0.7, -0.2, -1)),
+                     r=0.12)
+
+    def details(self, J, P, L, tag, pose):
+        R = basis(J["X"], J["F"], J["u"])
+        box(tag + "patch0", core.surf(J, P, 0.05, 140, 0.07), (0.09, 0.02, 0.08), "kit2", R)
+        box(tag + "patch1", core.surf(J, P, -0.08, -60, 0.1), (0.08, 0.02, 0.07), "rags", R)
 
 
 @register
-class StiltyRunna(Biped):
+class StiltyRunna(looks.Fine, Biped):
     """Teeters on two tall banded stilts, arms out for balance, in a tall floppy cone hat."""
     key = "stilty_runna"
     race = "snotling"
-    layout = dict(SNOT)
+    layout = dict(SNOT, snothat="cone")
     stance = dict(lean=4, legs={"l": (8, 10, 12), "r": (-6, 10, 12)}, arms={"l": (0, 70, 10, 60), "r": (0, 70, 10, 60)},
                   hands="open")
     stride, arm_swing, jump = 24, 0, 0.1
@@ -87,9 +112,10 @@ class StiltyRunna(Biped):
         return p
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         snot_face(J, L, tag)
         c, X, F, U, s = sf.hf(J)
-        sf.pointy_hat(J, tag, "kit2", band="kit1", h=0.5, bend=0.3, r=1.0, tip="kit1")
+        snot_hat(J, L, tag, pose)
         for side, sd in (("l", -1), ("r", 1)):
             hip, knee, ankle, toe = J["legs"][side]
             d = ((ankle - knee).normalized() - UP * 0.8).normalized()
@@ -106,11 +132,11 @@ class StiltyRunna(Biped):
 
 
 @register
-class FunHoppa(Biped):
+class FunHoppa(looks.Fine, Biped):
     """Rides a fat spotted toadstool like a space-hopper, reins in both fists, headband tails flying."""
     key = "fun_hoppa"
     race = "snotling"
-    layout = dict(SNOT, coat=None)
+    layout = dict(SNOT, coat=None, snothat="band")
     stance = dict(lean=6, legs={"l": (58, 52, 74), "r": (58, 52, 74)}, arms={"l": (48, 10, 40, -10), "r": (48, 10, 40, -10)},
                   hands="fist")
     jump = 0.3
@@ -157,9 +183,10 @@ class FunHoppa(Biped):
         return p
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         snot_face(J, L, tag)
         sf.grin(J, tag, w=0.7)
-        headband(J, tag, pose)
+        snot_hat(J, L, tag, pose)
         tband(tag + "hem", J, P, [0.0, 0.07], "kit2", k=1.05, add=0.012, solid=0.03)
         loose = pose.get("_loose", 0.0)
         S, air = pose.get("_S", self.H), pose.get("_air", 0.0)
@@ -182,12 +209,12 @@ class FunHoppa(Biped):
 
 
 @register
-class FungusFlinga(Biped):
+class FungusFlinga(looks.Fine, Biped):
     """Bent under a bulging sack of toadstools taller than he is, with a wide toadstool cap for a hat."""
     key = "fungus_flinga"
     race = "snotling"
     knobs = dict(hunch=14)
-    layout = dict(SNOT)
+    layout = dict(SNOT, snothat="bigcap", load="sack")
     stance = dict(lean=10, legs={"l": (10, 16, 16), "r": (-8, 16, 16)}, arms={"l": (14, 30, 50, 0), "r": (14, 30, 50, 0)},
                   hands="open")
     stride, arm_swing, jump = 36, 30, 0.18
@@ -197,24 +224,32 @@ class FungusFlinga(Biped):
                  twist=-8 * w["breath"])
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         snot_face(J, L, tag, ears=1.0)
-        c, X, F, U, s = sf.hf(J)
-        R = J["head_R"]
-        cap(tag + "caphat", c + U * s[2] * 0.3, (s[0] * 1.7, s[1] * 1.7, s[2] * 1.0), "shroom", U, cut=0.0, rot=R, thick=0.05)
-        ellipsoid(tag + "capgill", c + U * s[2] * 0.3, (s[0] * 1.62, s[1] * 1.62, 0.03), "bone_old", R, seg=12)
-        for i, (a, e) in enumerate(((20, 0.5), (140, 0.45), (250, 0.55), (0, 1.3))):
-            d = X * math.cos(D(a)) * math.cos(e) + F * math.sin(D(a)) * math.cos(e)
-            ball_at(tag + "capspot%d" % i, c + U * s[2] * (0.3 + 0.98 * math.sin(e)) + d * s[0] * 1.66, 0.06, "white")
+        if L.get("snothat") == "bigcap":
+            sf.toadstool_hat(J, tag, r=1.7, lift=0.3)
+        else:
+            snot_hat(J, L, tag, pose)
+        load = L.get("load")
+        if not load:
+            return
         sf.strap(tag, "sackstrap", J, P, "kit2", sd=1, r=0.045)
         B, u, Xb = J["B"], J["u"], J["X"]
         sc = core.surf(J, P, 0.2, 180, 0.24) + UP * 0.06
         Rb = basis(Xb, J["F"], u)
-        ellipsoid(tag + "sack", sc, (0.3, 0.26, 0.36), "sack", Rb, seg=12)
-        tube(tag + "sackneck", [sc + u * 0.3, sc + u * 0.4], [0.17, 0.2], "sack", n=8)
-        tube(tag + "sacktie", [sc + u * 0.28, sc + u * 0.33], [0.18, 0.18], "kit2", n=8)
-        box(tag + "patch", sc + B * 0.25 - u * 0.05, (0.2, 0.05, 0.2), "kit2", Rb)
-        box(tag + "patch2", sc + Xb * 0.28 + u * 0.05, (0.05, 0.16, 0.16), "kit1", Rb)
-        for i, (dx, dy, h) in enumerate(((-0.08, 0.0, 0.2), (0.09, 0.05, 0.14), (0.0, -0.08, 0.1))):
+        if load == "sack":
+            ellipsoid(tag + "sack", sc, (0.3, 0.26, 0.36), "sack", Rb, seg=12)
+            tube(tag + "sackneck", [sc + u * 0.3, sc + u * 0.4], [0.17, 0.2], "sack", n=8)
+            tube(tag + "sacktie", [sc + u * 0.28, sc + u * 0.33], [0.18, 0.18], "kit2", n=8)
+            box(tag + "patch", sc + B * 0.25 - u * 0.05, (0.2, 0.05, 0.2), "kit2", Rb)
+            box(tag + "patch2", sc + Xb * 0.28 + u * 0.05, (0.05, 0.16, 0.16), "kit1", Rb)
+            crops = ((-0.08, 0.0, 0.2), (0.09, 0.05, 0.14), (0.0, -0.08, 0.1))
+        else:                                # a tall wicker basket in kit1 bands, heaped higher with toadstools
+            parts.cylinder(tag + "basket", sc - u * 0.3, sc + u * 0.34, 0.27, "wood", seg=12)
+            for j, t in enumerate((-0.18, 0.05, 0.28)):
+                parts.cylinder(tag + "basketband%d" % j, sc + u * (t - 0.04), sc + u * (t + 0.04), 0.285, "kit1", seg=12)
+            crops = ((-0.1, 0.0, 0.24), (0.1, 0.06, 0.2), (0.0, -0.1, 0.16), (0.02, 0.1, 0.12))
+        for i, (dx, dy, h) in enumerate(crops):
             sf.mushroom(tag, "crop%d" % i, sc + u * 0.36 + Xb * dx + B * dy, h, 0.11, nspots=3, seed=i, axis=u)
 
 

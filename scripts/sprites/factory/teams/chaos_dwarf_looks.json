@@ -1,0 +1,23 @@
+{
+  "chaos_dwarf": [
+    ["body", "Body", [["m", "Male"]]],
+    ["hat", "Hat", [["tall", "Tall hat"], ["horned", "Horned hat"], ["cap", "Iron cap"]]],
+    ["pads", "Pads", [["plate", "Plate pads"], ["spiked", "Spiked pads"], ["none", "No pads"]]]
+  ],
+  "flamesmith": [
+    ["body", "Body", [["m", "Male"]]],
+    ["head", "Head", [["cap", "Brass cap"], ["drum", "Drum hat"], ["bare", "Bare head"]]],
+    ["tank", "Tank", [["brass", "Brass tank"], ["iron", "Iron tank"]]],
+    ["apron", "Apron", [["kit", "Kit apron"], ["leather", "Leather apron"], ["none", "No apron"]]]
+  ],
+  "hobgoblin": [
+    ["body", "Body", [["m", "Male"]]],
+    ["head", "Head", [["cap", "Floppy cap"], ["helm", "Iron cap"], ["topknot", "Topknot"]]],
+    ["top", "Top", [["jerkin", "Jerkin"], ["bare", "Bare chest"]]]
+  ],
+  "hobgoblin_stabba": [
+    ["body", "Body", [["m", "Male"]]],
+    ["head", "Head", [["hood", "Hood"], ["bandana", "Bandana"], ["bare", "Bare head"]]],
+    ["cloak", "Cloak", [["short", "Short cloak"], ["long", "Long cloak"], ["none", "No cloak"]]]
+  ]
+}

@@ -257,3 +257,69 @@ def tank(J, P, tag, body="brass", band="kit1", r=0.15, h0=0.08, h1=0.56, off=0.1
 def flame(name, base, d, ln, r=0.07):
     cone(name + "o", base, base + d * ln, r, "fire", 6)
     cone(name + "i", base + d * ln * 0.1, base + d * ln * 0.6, r * 0.5, "white", 5)
+
+# ------------------------------------------------------------------ mutations and swappable gear
+def third_eye(J, tag, up=0.6, r=0.05, mat="eye_yellow"):
+    """A third eye in a dark lidded socket in the middle of the forehead; up is how high on the brow it sits."""
+    c, X, F, U, s = hf(J)
+    hs = s[0] / 0.2
+    fwd = (1 - up * up) ** 0.5
+    p = c + F * s[1] * fwd + U * s[2] * up
+    r = r * hs
+    ellipsoid(tag + "eye3lid", p, (r * 1.5, r * 0.8, r * 1.2), "socket", J["head_R"], seg=8)
+    ball_at(tag + "eye3", p + F * r * 0.5, r, mat)
+    ball_at(tag + "eye3pupil", p + F * r * 1.3, r * 0.4, "black")
+
+def shoulder_tentacle(J, tag, side="r", ln=0.8, r=0.08, mat="skin_chaos", ring="kit2"):
+    """A tentacle growing up out of one shoulder and hooking out and down, with two kit rings."""
+    sh = J["arms"][side][0]
+    sd = -1 if side == "l" else 1
+    X, u, F, B = J["X"], J["u"], J["F"], J["B"]
+    base = sh + u * 0.05 + B * 0.04
+    d = (X * sd * 0.25 + u * 1.0 + B * 0.1).normalized()
+    bend = X * sd * 0.6 - UP * 1.4 + F * 0.3
+    pts = tentacle(tag + "tent", base, d, bend, ln, r, mat, n=7, curl=3.0, tip=0.15)
+    for i, j in enumerate((1, 3)):
+        ball_at(tag + "tentring%d" % i, pts[j], r * (1.12 - 0.13 * j), ring)
+    return pts
+
+def claw_arm(J, L, tag, side, mat="skin_chaos", k=1.22, size=1.0, claw="bone"):
+    """One arm swollen into a mutant limb ending in a three-bladed claw over the hand."""
+    arm_overlay(J, L, tag, side, mat, k=k)
+    sh, el, wr, tip = J["arms"][side]
+    d = (tip - wr).normalized()
+    ellipsoid(tag + "clawpalm", wr + d * 0.1 * size, (0.13 * size, 0.1 * size, 0.13 * size), mat)
+    sx = d.cross(UP)
+    if sx.length < 0.2:
+        sx = J["X"]
+    sx.normalize()
+    for i, o in enumerate((-0.09, 0.0, 0.09)):
+        b = wr + d * 0.16 * size + sx * o * size
+        cone(tag + "bigclaw%d" % i, b, b + (d * 0.3 + sx * o * 0.6) * size, 0.05 * size, claw, 6)
+
+def topknot(J, tag, mat="hair", tie="kit2"):
+    """A long topknot sprouting from the crown and swinging back, tied at the root."""
+    c, X, F, U, s = hf(J)
+    top = c + U * s[2] * 0.95 - F * s[1] * 0.2
+    tube(tag + "topknot", [top, top + U * 0.14 - F * 0.04, top + U * 0.2 - F * 0.2, top + U * 0.06 - F * 0.34], [0.05, 0.075, 0.06, 0.02], mat, n=6)
+    tube(tag + "knottie", [top + U * 0.02, top + U * 0.08], [0.06, 0.06], tie, n=6)
+
+def hat_horns(J, tag, mat="bone"):
+    """Bull horns bolted to the sides of a hat."""
+    c, X, F, U, s = hf(J)
+    for sd in (-1, 1):
+        root = c + X * sd * s[0] * 1.0 + U * s[2] * 0.6
+        tube(tag + "hhorn%d" % sd, [root, root + X * sd * 0.2 + U * 0.04, root + X * sd * 0.3 + U * 0.26 + F * 0.04], [0.065, 0.05, 0.012],
+             mat, n=6)
+
+def chest_wrap(J, P, tag, mat, trim=None):
+    """A wrap of cloth or fur over the chest: a woman's top for bare-chested costumes."""
+    sh = P["sh_h"]
+    tband(tag + "wrap", J, P, [sh * 0.5, sh * 0.62, sh * 0.76, sh * 0.86], mat, k=1.04, add=0.02, solid=0.03)
+    if trim:
+        tband(tag + "wraptrim", J, P, [sh * 0.48, sh * 0.53], trim, k=1.05, add=0.03, solid=0.03)
+
+def bell(name, at, mat="brass", r=0.06):
+    """A small hanging bell: a flared cup with a clapper."""
+    cone(name, at, at - UP * r * 1.6, r * 0.45, mat, 8, r2=r)
+    ball_at(name + "cl", at - UP * r * 1.7, r * 0.35, "darkmetal")

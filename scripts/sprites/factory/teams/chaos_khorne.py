@@ -2,19 +2,20 @@
 No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, flat_cone, ellipsoid, lerp, UP, basis, D, surf
 from teams import chaos_common as cc
 
 @register
-class Marauder(Biped):
+class Marauder(looks.Fine, Biped):
     """Bare-chested tribesman: tall red mohawk and beard, kit1 warpaint and kilt, spiked brass collar, kit2 cross-strap, fur boots."""
     key = "marauder"
     race = "human"
     knobs = dict(shoulders=1.1, limb=1.06)
     layout = dict(skin="skin_tan", hair=None, beard="hair_red", beard_len=0.45, brow="hair_red", legs="leather", coat="gambeson",
                   coat_mat="kit1", hem="kit2", boots="fur_brown", cuff="fur_brown", belt="leather", buckle="brass", bracers="brass",
-                  arm_band="kit1", neckband="brass")
+                  arm_band="kit1", neckband="brass", mohawk=True, wrap=None, helm_mat="darkmetal", horn_mat="bone", hair_mat="hair_red",
+                  tie="kit2", cape_mat="fur_brown", cape_lining="leather", clasp=False)
     stance = dict(lean=6, legs={"l": (6, 14, 10), "r": (-5, 14, 10)}, arms={"l": (10, 34, 50, -6), "r": (10, 34, 50, -6)}, hands="fist")
     stride, arm_swing, run_lean, jump = 40, 36, 18, 0.24
     height = 1.02
@@ -25,10 +26,27 @@ class Marauder(Biped):
                  arms={"l": (10 - 16 * up, 34 + 14 * up, 50 + 30 * up + 8 * w["s2"], -6), "r": (10 - 16 * up, 34 + 14 * up, 50 + 30 * up - 8 * w["s2"], -6)})
 
     def extras(self, J, P, L, tag, pose):
-        cc.mohawk(J, tag, "hair_red", h=0.3, n=6, lo=0.7)
+        super().extras(J, P, L, tag, pose)
+        if L.get("mohawk"):
+            cc.mohawk(J, tag, "hair_red", h=0.3, n=6, lo=0.7)
+        if L.get("wrap"):
+            cc.chest_wrap(J, P, tag, L["wrap"])
         cc.warpaint(J, P, tag, "kit1", hs=(0.42, 0.33, 0.24))
         cc.strap(J, P, tag, "kit2", r=0.04, flip=1)
         cc.collar_spikes(J, P, tag, mat="brass", n=6, ln=0.1)
+
+    def details(self, J, P, L, tag, pose):
+        p = surf(J, P, -0.02, 48, 0.1)                  # a small skull trophy tied at the hip, brass rings on the wrists
+        tube(tag + "trophycord", [surf(J, P, 0.06, 48, 0.06), p], [0.012, 0.012], "leather", n=5)
+        c = p - UP * 0.07
+        R = basis(J["X"], J["F"], J["u"])
+        ellipsoid(tag + "trophy", c, (0.06, 0.06, 0.065), "bone", R, seg=10)
+        for sd in (-1, 1):
+            ball_at(tag + "trophyeye%d" % sd, c + J["F"] * 0.05 + J["X"] * sd * 0.022 + UP * 0.01, 0.014, "socket")
+        for side in ("l", "r"):
+            el, wr = J["arms"][side][1:3]
+            k = L["limb"] * core.LIMB * L.get("arm", 1.0)
+            tube(tag + "wring" + side, [lerp(el, wr, 0.88), lerp(el, wr, 0.95)], [0.085 * k, 0.085 * k], "brass", n=10)
 
 @register
 class Khorngor(Biped):
@@ -38,7 +56,7 @@ class Khorngor(Biped):
     knobs = dict(shoulders=1.25, torso=1.15, limb=1.22, hunch=14)
     layout = dict(skin="fur_red", legs="fur_red", dark="fur_black", horns="ram", horn_mat="bone", snout=(1.0, 1.0), fangs=True, loin="kit1",
                   loin_trim="kit2", pads="plate", pad_sides=("r",), pad_mat="brass", pad_trim="kit2", spikes=2, belt="leather", buckle="brass",
-                  bracers="kit2", arm_band="brass")
+                  bracers="kit2", arm_band="brass", skullplate="brass")
     stance = dict(lean=10, nod=12, legs={"l": (8, 14, 10), "r": (-8, 14, 6)}, arms={"l": (16, 30, 60, -6), "r": (16, 30, 60, -6)}, hands="fist")
     stride, arm_swing, run_lean, jump = 38, 30, 20, 0.2
     height = 1.05
@@ -49,8 +67,9 @@ class Khorngor(Biped):
 
     def extras(self, J, P, L, tag, pose):
         c, X, F, U, s = cc.hf(J)
-        core.cap(tag + "skullplate", c + U * 0.02, (s[0] * 1.1, s[1] * 1.12, s[2] * 1.1), "brass", (U * 0.8 + F * 0.5).normalized(), cut=0.5,
-                 rot=J["head_R"], thick=0.03)
+        if L.get("skullplate"):
+            core.cap(tag + "skullplate", c + U * 0.02, (s[0] * 1.1, s[1] * 1.12, s[2] * 1.1), L["skullplate"], (U * 0.8 + F * 0.5).normalized(),
+                     cut=0.5, rot=J["head_R"], thick=0.03)
         cc.strap(J, P, tag, "kit1", r=0.08, flip=1)
         cc.strap(J, P, tag, "kit1", r=0.08, flip=-1, name="strapb")
         ball_at(tag + "boss", surf(J, P, 0.3, 0, 0.08), 0.07, "brass")
@@ -69,7 +88,7 @@ class Bloodseeker(Biped):
     layout = dict(torso="brass", arms="brass", forearms="kit1", gloves="brass", legs="brass", boots="brass", cuff="kit1", breast="kit1",
                   trim="brass", emblem_mat="brass", gorget=True, pads="big", pad_mat="kit1", pad_trim="brass", spikes=1, spike_mat="brass",
                   tabard="kit2", tabard_trim="brass", belt="leather", buckle="brass", helm="winged", helm_mat="brass", crest_mat="kit1",
-                  plume="kit1", kneecops=True, knee_mat="kit1")
+                  plume="kit1", kneecops=True, knee_mat="kit1", horn_mat="bone", hair_mat="hair_red", tie="kit2")
     stance = dict(lean=4, legs={"l": (6, 15, 8), "r": (-5, 15, 8)}, arms={"l": (6, 34, 44, -8), "r": (6, 34, 44, -8)}, hands="fist")
     stride, arm_swing, jump = 33, 27, 0.13
     height = 1.03

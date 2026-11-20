@@ -1,0 +1,17 @@
+{
+  "gnome_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hat", "Hat", [["cone", "Pointed hat"], ["toadstool", "Toadstool cap"], ["nightcap", "Nightcap"]]],
+    ["coat", "Coat", [["tunic", "Tunic"], ["smock", "Long smock"], ["vest", "Jerkin"]]]
+  ],
+  "gnome_illusionist": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hat", "Hat", [["wizard", "Wizard hat"], ["steeple", "Steeple hat"], ["hood", "Hood"]]],
+    ["robe", "Robe", [["robe", "Robe"], ["caped", "Robe and cape"], ["tunic", "Short tunic"]]]
+  ],
+  "gnome_beastmaster": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["antlers", "Antler cap"], ["wolf", "Wolf pelt"], ["cap", "Fur cap"]]],
+    ["mantle", "Mantle", [["fur", "Fur mantle"], ["cape", "Kit cape"], ["none", "No mantle"]]]
+  ]
+}

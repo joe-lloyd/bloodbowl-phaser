@@ -118,15 +118,19 @@ def warts(J, tag, mat, spots, r=0.04):
         ball_at(tag + "wart%d" % i, p, r, mat)
 
 # ------------------------------------------------------------------ beards
-def beard(J, tag, mat, kind="spade", ln=1.0, tie=None, wide=1.0, pose=None):
+def beard(J, tag, mat, kind="spade", ln=1.0, tie=None, wide=1.0, pose=None, tache=True):
     """Dwarf beards. kind: spade (broad slab), fork (two braids with ties), long (one tapering point),
-    bush (wild and round). Beards swing back a little in action poses."""
+    bush (wild and round). Beards swing back a little in action poses. tache=False leaves the lips bare
+    and keeps the beard to the chin."""
     c, X, F, U, s = hf(J)
     R = J["head_R"]
     act = bool(pose and pose.get("_action"))
     dn = (-U * 0.9 - F * 0.45).normalized() if act else -U
-    ellipsoid(tag + "beardmass", c - U * s[2] * 0.72 + F * s[1] * 0.5, (s[0] * 0.98 * wide, s[1] * 0.62, s[2] * 0.72), mat, R)
-    for sd in (-1, 1):        # drooping moustache
+    if tache:
+        ellipsoid(tag + "beardmass", c - U * s[2] * 0.72 + F * s[1] * 0.5, (s[0] * 0.98 * wide, s[1] * 0.62, s[2] * 0.72), mat, R)
+    else:
+        ellipsoid(tag + "beardmass", c - U * s[2] * 0.86 + F * s[1] * 0.42, (s[0] * 0.8 * wide, s[1] * 0.5, s[2] * 0.45), mat, R)
+    for sd in (-1, 1) if tache else ():        # drooping moustache
         tube(tag + "tache%d" % sd, [c + F * s[1] * 1.0 - U * s[2] * 0.36 + X * sd * 0.02,
                                     c + F * s[1] * 0.95 - U * s[2] * 0.52 + X * sd * s[0] * 0.55,
                                     c + F * s[1] * 0.75 - U * s[2] * 0.95 + X * sd * s[0] * 0.95 * wide],
@@ -282,3 +286,60 @@ def lumps(J, P, tag, name, spots, mat, r=0.09):
     """spots: (height, angle, radius factor) on the torso surface: rocky growths, boils, warts."""
     for i, (h, a, k) in enumerate(spots):
         ball_at(tag + name + "%d" % i, surf(J, P, h, a, 0.0), r * k, mat)
+
+# ------------------------------------------------------------------ look options
+BEARD_DEFAULTS = {"spade": (1.2, 1.1), "fork": (1.1, 1.0), "long": (1.1, 1.0), "bush": (1.0, 1.05)}
+
+def opt_beard(J, L, tag, mat, pose, tie=None, own=None):
+    """The beard the layout's gd_beard names (None draws none). own=(kind, ln, wide) keeps the position's
+    own proportions for its own kind. Women's beards are short chin beards with no moustache."""
+    kind = L.get("gd_beard")
+    if not kind:
+        return
+    ln, wide = own[1:] if own and own[0] == kind else BEARD_DEFAULTS[kind]
+    fem = L.get("sex") == "f"
+    if fem:
+        ln, wide = ln * 0.45, wide * 0.72
+    beard(J, tag, mat, kind, ln, tie, wide, pose, tache=not fem)
+
+def side_braids(J, tag, mat, tie="kit2", pose=None, ln=1.0):
+    """Two long plaits from beside the ears, hanging down in front of the shoulders; they stream back in
+    action poses. Drawn outside any helmet, so they show under a full helm."""
+    c, X, F, U, s = hf(J)
+    act = bool(pose and pose.get("_action"))
+    for sd in (-1, 1):
+        a = c + X * sd * s[0] * 1.14 - U * s[2] * 0.05 - F * s[1] * 0.12
+        if act:
+            pts = [a, a - U * s[2] * 0.6 - F * s[1] * 0.4, a - U * s[2] * 1.0 * ln - F * s[1] * 1.3 * ln]
+        else:
+            pts = [a, a - U * s[2] * 0.9 + F * s[1] * 0.15 + X * sd * 0.03, a - U * s[2] * 2.1 * ln + F * s[1] * 0.4 + X * sd * 0.02]
+        n = 8
+        for i in range(n):
+            t = i / (n - 1) * 2
+            k = min(int(t), 1)
+            q = lerp(pts[k], pts[k + 1], t - k)
+            ball_at(tag + "sbraid%d_%d" % (sd, i), q + F * 0.012 * (1 if i % 2 else -1), lerp(0.07, 0.048, i / (n - 1)), mat)
+        ball_at(tag + "sbraidtie%d" % sd, pts[-1], 0.058, tie)
+        cone(tag + "sbraidtip%d" % sd, pts[-1], pts[-1] + (pts[-1] - pts[1]).normalized() * 0.12, 0.042, mat, 6)
+
+def bust_band(J, P, tag, mat, trim=None):
+    """A wrap over a bare-chested woman's bust, so a shirtless position still reads as a woman."""
+    sh = P["sh_h"]
+    tband(tag + "bustband", J, P, [0.48 * sh, 0.6 * sh, 0.74 * sh, 0.84 * sh], mat, k=1.07, add=0.018, solid=0.03)
+    if trim:
+        tband(tag + "bustrim", J, P, [0.47 * sh, 0.52 * sh], trim, k=1.08, add=0.03, solid=0.03)
+
+def earring(J, tag, mat="brass", sd=1, r=0.04, drop=0.12):
+    """A ring hanging from one ear lobe."""
+    c, X, F, U, s = hf(J)
+    ball_at(tag + "earring%d" % sd, c + X * sd * s[0] * 1.02 - U * s[2] * drop, r, mat)
+
+def hoops(J, tag, mat="gold", r=0.065):
+    """Big hoop earrings hanging from both ears."""
+    c, X, F, U, s = hf(J)
+    for sd in (-1, 1):
+        top = c + X * sd * (s[0] * 0.95 + 0.02) - U * s[2] * 0.12
+        mid = top - U * r
+        pts = [top + (U * math.cos(D(a)) + F * math.sin(D(a))) * r - U * r for a in range(0, 361, 45)]
+        tube(tag + "hoop%d" % sd, pts, [0.016] * len(pts), mat, ref=X, n=5)
+        ball_at(tag + "hoopbead%d" % sd, mid - U * r, 0.026, mat)

@@ -1,0 +1,17 @@
+{
+  "marauder": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Head", [["mohawk", "Mohawk"], ["braid", "Braid"], ["helm", "Horned helm"]]],
+    ["pelt", "Pelt", [["none", "No pelt"], ["fur", "Fur pelt"]]]
+  ],
+  "khorngor": [
+    ["body", "Body", [["x", "Khorngor"]]],
+    ["horns", "Horns", [["ram", "Ram horns"], ["bull", "Bull horns"], ["goat", "Goat horns"]]],
+    ["plate", "Skull plate", [["brass", "Brass plate"], ["kit", "Kit plate"], ["none", "No plate"]]]
+  ],
+  "bloodseeker": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helm", "Helm", [["crested", "Crested helm"], ["horned", "Horned helm"], ["open", "Open helm"]]],
+    ["pads", "Pads", [["big", "Big pads"], ["left", "Left pad"], ["plate", "Plate pads"]]]
+  ]
+}

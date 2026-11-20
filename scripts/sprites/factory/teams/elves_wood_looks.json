@@ -1,0 +1,22 @@
+{
+  "we_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["mantle", "Mantle", [["leaf", "Leaf mantle"], ["cloak", "Long cloak"], ["none", "No mantle"]]],
+    ["skirt", "Skirt", [["loin", "Loincloth"], ["leaves", "Leaf skirt"]]]
+  ],
+  "we_catcher": [
+    ["body", "Body", [["f", "Female"], ["m", "Male"]]],
+    ["hair", "Hair", [["braid", "Braid"], ["ponytail", "Ponytail"], ["loose", "Loose"]]],
+    ["crown", "Headdress", [["feathers", "Feathers"], ["antlers", "Antlers"], ["none", "Headband only"]]]
+  ],
+  "we_thrower": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["crown", "Headdress", [["antlers", "Antlers"], ["feathers", "Feathers"], ["circlet", "Circlet only"]]],
+    ["cape", "Cape", [["half", "Half cape"], ["full", "Full cape"], ["none", "No cape"]]]
+  ],
+  "wardancer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["topknot", "Topknot"], ["mohawk", "Crest"], ["loose", "Loose"]]],
+    ["paint", "Warpaint", [["paint", "Warpaint"], ["none", "No paint"]]]
+  ]
+}

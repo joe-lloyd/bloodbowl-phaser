@@ -2,7 +2,7 @@
 harness, arm rings and tail bands; each position has its own scale colour. No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, lerp, UP, basis, D, cone, flat_cone, ellipsoid, cap, surf
 from teams import undead_skaven_lizards_kit as K
 
@@ -22,7 +22,8 @@ class Saurus(Biped):
     race = "saurus"
     knobs = dict(shoulders=1.32, torso=1.25, limb=1.4, head=1.12, hands=1.2, legs=0.95)
     layout = scaly("skin_lizard", loin="kit1", loin_trim="gold", belt="gold", buckle="kit2", pads="plate", pad_sides=("l",),
-                   pad_mat="gold", pad_trim="kit2", bracers="gold", arm_band="kit2", claws=0.1, snout=(1.35, 1.05))
+                   pad_mat="gold", pad_trim="kit2", bracers="gold", arm_band="kit2", claws=0.1, snout=(1.35, 1.05), head_crest="kit2",
+                   saurus_horns="swept")
     stance = dict(lean=2, jaw=10, legs={"l": (6, 16, 10), "r": (-5, 16, 10)}, arms={"l": (8, 36, 46, -4), "r": (8, 36, 46, -4)},
                   hands="fist")
     stride, arm_swing, run_lean, jump = 32, 26, 10, 0.12
@@ -41,11 +42,17 @@ class Saurus(Biped):
         K.tail(J, tag, pose, ln=1.0, r=0.15, mat="skin_lizard", up=0.08, bands=[(0.3, 0.4, "kit1"), (0.6, 0.68, "kit1")],
                spikes="bone")
         c, X, F, U, s = K.hframe(J)
-        core.crest(tag, c, J["head_R"], s, "kit2", h=0.22, n=5, lo=0.5, width=0.06)
-        for sd in (-1, 1):
-            root = c + X * sd * s[0] * 0.6 + U * s[2] * 0.7 - F * s[1] * 0.3
-            tube(tag + "horn%d" % sd, [root, root - F * 0.2 + U * 0.1 + X * sd * 0.06, root - F * 0.42 + U * 0.08 + X * sd * 0.1],
-                 [0.07, 0.055, 0.02], "bone", n=6)
+        if L.get("head_crest"):
+            core.crest(tag, c, J["head_R"], s, L["head_crest"], h=0.22, n=5, lo=0.5, width=0.06)
+        if L.get("head_frill"):
+            K.frill(J, tag, "bone", L["head_frill"], n=5, length=0.4)
+        horns = L.get("saurus_horns")
+        if horns:
+            k = 1.45 if horns == "long" else 1.0
+            for sd in (-1, 1):
+                root = c + X * sd * s[0] * 0.6 + U * s[2] * 0.7 - F * s[1] * 0.3
+                tube(tag + "horn%d" % sd, [root, root - F * 0.2 * k + U * 0.1 * k + X * sd * 0.06 * k,
+                                           root - F * 0.42 * k + U * 0.08 * k + X * sd * 0.1 * k], [0.07 * k, 0.055 * k, 0.02], "bone", n=6)
         K.spines(J, P, tag, "kit2", [0.2, 0.34, 0.48], length=0.12, r=0.06)
 
 @register
@@ -56,7 +63,7 @@ class Skink(Biped):
     race = "skink"
     knobs = dict(head=1.15, hunch=14)
     layout = scaly("skin_skink", loin="kit2", loin_trim="gold", arm_band="kit2", bracers="gold", belt="leather", buckle="gold",
-                   neckband="kit1")
+                   neckband="kit1", skink_crest="sail", chest="band")
     stance = dict(lean=4, nod=-8, legs={"l": (14, 10, 26), "r": (-6, 10, 18)}, feet={"l": 14, "r": 14},
                   arms={"l": (24, 16, 70, 0), "r": (24, 16, 70, 0)}, hands="relaxed")
     stride, arm_swing, run_lean, jump = 46, 38, 18, 0.3
@@ -69,9 +76,17 @@ class Skink(Biped):
 
     def extras(self, J, P, L, tag, pose):
         K.belly(J, P, tag, half=55)
+        if L.get("chest") == "harness":
+            K.harness(J, P, tag, "kit1", boss="gold", w=0.05, lo=0.08)
+        elif L.get("chest") == "sash":
+            K.sash(J, P, tag, "kit1", w=0.07)
+            K.ribbon(J, tag, "sashtail", surf(J, P, 0.08, 80, 0.05), 0.35, "kit1", pose, w=0.05, back=0.2, key="tail")
         K.tail(J, tag, pose, ln=0.9, r=0.07, mat="skin_skink", up=0.4, bands=[(0.35, 0.45, "kit1"), (0.62, 0.7, "kit1")])
         c, X, F, U, s = K.hframe(J)
-        core.crest(tag, c, J["head_R"], s, "kit1", h=0.36, n=6, lo=0.75, back=-0.95, width=0.07)
+        if L.get("skink_crest") == "sail":
+            core.crest(tag, c, J["head_R"], s, "kit1", h=0.36, n=6, lo=0.75, back=-0.95, width=0.07)
+        elif L.get("skink_crest") == "frill":
+            K.frill(J, tag, "kit1", "kit2", n=5)
 
 @register
 class ChameleonSkink(Biped):
@@ -81,7 +96,7 @@ class ChameleonSkink(Biped):
     race = "skink"
     knobs = dict(head=1.12, hunch=22, arms=1.1)
     layout = scaly("leaf", loin="kit1", loin_trim="kit2", wraps="kit2", belt="rope", buckle=None, eye_mat="socket",
-                   snout=(1.0, 0.85))
+                   snout=(1.0, 0.85), casque="plain", body_strap="sash")
     stance = dict(lean=6, nod=-14, legs={"l": (18, 12, 30), "r": (-10, 12, 20)},
                   arms={"l": (50, 14, 40, 0), "r": (4, 18, 50, 0)}, hands="open")
     stride, arm_swing, run_lean, jump = 44, 36, 18, 0.26
@@ -94,7 +109,10 @@ class ChameleonSkink(Biped):
 
     def extras(self, J, P, L, tag, pose):
         K.belly(J, P, tag, half=50)
-        K.sash(J, P, tag, "kit1", w=0.065)
+        if L.get("body_strap") == "sash":
+            K.sash(J, P, tag, "kit1", w=0.065)
+        elif L.get("body_strap") == "harness":
+            K.harness(J, P, tag, "kit1", boss="kit2", w=0.05, lo=0.08)
         K.tail(J, tag, pose, ln=0.85, r=0.07, mat="leaf", curl=pose.get("curl", 1.0))
         Rb = basis(J["X"], J["F"], J["u"])
         for i, (h, a, m) in enumerate(((0.38, 150, "kit2"), (0.22, 200, "skin_belly"), (0.42, 215, "skin_belly"), (0.14, 150, "kit2"),
@@ -103,8 +121,13 @@ class ChameleonSkink(Biped):
         c, X, F, U, s = K.hframe(J)
         R = J["head_R"]
         top = c + U * s[2] * 0.55 - F * s[1] * 0.2
-        cone(tag + "casque", top - U * 0.06, top + U * 0.2 - F * 0.36, s[0] * 0.8, "leaf", 8)
-        flat_cone(tag + "casquefin", top + F * 0.2, top + U * 0.26 - F * 0.4, 0.09, "kit2", X, squash=0.3)
+        if L.get("casque"):
+            cone(tag + "casque", top - U * 0.06, top + U * 0.2 - F * 0.36, s[0] * 0.8, "leaf", 8)
+            flat_cone(tag + "casquefin", top + F * 0.2, top + U * 0.26 - F * 0.4, 0.09, "kit2", X, squash=0.3)
+        if L.get("casque") == "horned":     # three forward horns like a Jackson's chameleon
+            for i, (x, z, ln) in enumerate(((0.0, -0.35, 0.3), (-0.45, 0.35, 0.24), (0.45, 0.35, 0.24))):
+                b = c + F * s[1] * (1.25 if i == 0 else 0.8) + X * x * s[0] + U * z * s[2]
+                cone(tag + "nosehorn%d" % i, b, b + F * ln + U * 0.04 + X * x * 0.06, 0.05, "bone", 6)
         for sd in (-1, 1):
             e = c + F * s[1] * 0.55 + X * sd * s[0] * 0.85 + U * s[2] * 0.2
             ball_at(tag + "turret%d" % sd, e, 0.085, "skin_belly")

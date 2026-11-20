@@ -1,0 +1,23 @@
+{
+  "he_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["spire", "Spired helm"], ["plumed", "Plumed helm"], ["bare", "Bare head"]]],
+    ["chest", "Chest", [["tabard", "Tabard"], ["robe", "Long robe"]]]
+  ],
+  "he_blitzer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["dragon", "Dragon helm"], ["winged", "Winged helm"], ["bare", "Bare head"]]],
+    ["cape", "Cape", [["long", "Long cape"], ["short", "Short cape"], ["none", "No cape"]]]
+  ],
+  "he_thrower": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["phoenix", "Phoenix helm"], ["plain", "Plain helm"], ["circlet", "Circlet"]]],
+    ["robe", "Robe", [["robe", "Long robe"], ["tabard", "Tabard"], ["short", "Short coat"]]],
+    ["collar", "Collar", [["ruff", "Feather ruff"], ["none", "No ruff"]]]
+  ],
+  "he_catcher": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["loose", "Loose"], ["ponytail", "Ponytail"], ["braid", "Braid"]]],
+    ["pelt", "Pelt", [["lion", "Lion pelt"], ["none", "No pelt"]]]
+  ]
+}

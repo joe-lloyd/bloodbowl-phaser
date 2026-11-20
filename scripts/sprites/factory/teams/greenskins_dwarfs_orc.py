@@ -8,19 +8,35 @@ plate with a crested full helm; goblin bruiser = tiny body under a huge spiked p
 """
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, cap, ellipsoid, lerp, UP, basis, D, surf
 from teams import greenskins_dwarfs_common as gd
 
 ORC = dict(boots="boot", cuff="leather", belt="leather", buckle="brass", trim="brass", legs="leather")
 
+
+def jaw(J, L, tag, k=1.0):
+    """The heavy underbite of the men. Women keep the plain chin, so their lips show, and may wear hoops."""
+    if L.get("sex") != "f":
+        gd.brute_jaw(J, L, tag, k)
+    if L.get("gd_hoops"):
+        gd.hoops(J, tag, L["gd_hoops"])
+
+
+def hair(J, L, tag, pose, mohawk=0.3):
+    """The hair parts a look option switches: gd_mohawk (a crest), gd_topknot (a bound tuft)."""
+    if L.get("gd_mohawk"):
+        gd.mohawk(J, tag, L["gd_mohawk"], h=mohawk, n=6)
+    if L.get("gd_topknot"):
+        gd.topknot(J, tag, L["gd_topknot"], "kit2", h=0.36, pose=pose)
+
 @register
-class OrcLineman(Biped):
+class OrcLineman(looks.Fine, Biped):
     """Bare-headed line orc: black mohawk, kit jersey under football pads with one spike each, fists low."""
     key = "orc_lineman"
     race = "orc"
     layout = dict(ORC, jersey="kit1", pads="football", pad_mat="kit1", pad_trim="kit2", spikes=1, bracers="leather",
-                  pant_stripe="kit2", loin="kit2", loin_trim="brass")
+                  pant_stripe="kit2", loin="kit2", loin_trim="brass", gd_mohawk="hair")
     stance = dict(lean=7, legs={"l": (6, 15, 12), "r": (-5, 15, 12)}, arms={"l": (10, 30, 48, -6), "r": (10, 30, 48, -6)},
                   hands="fist")
     stride, arm_swing, jump = 33, 30, 0.13
@@ -32,19 +48,28 @@ class OrcLineman(Biped):
         p["look"] = 10 * w["c1"]
 
     def extras(self, J, P, L, tag, pose):
-        gd.brute_jaw(J, L, tag)
-        gd.mohawk(J, tag, "hair", h=0.3, n=6)
-        gd.rivets(J, P, tag, "yriv", 0.33, "brass", angles=(-140, -70, 0, 70, 140), off=0.075)
+        super().extras(J, P, L, tag, pose)
+        jaw(J, L, tag)
+        hair(J, L, tag, pose)
+        if L.get("pads") == "football":
+            gd.rivets(J, P, tag, "yriv", 0.33, "brass", angles=(-140, -70, 0, 70, 140), off=0.075)
+
+    def details(self, J, P, L, tag, pose):
+        if not L.get("gd_hoops"):
+            gd.earring(J, tag, "brass", 1)
+            gd.earring(J, tag, "brass", -1, drop=0.02)
+        gd.rivets(J, P, tag, "beltstud", 0.07, "brass", angles=(-120, -60, 60, 120), off=0.07, r=0.02)
 
 @register
-class OrcThrower(Biped):
+class OrcThrower(looks.Fine, Biped):
     """Leaner, upright orc: leather cap with amber goggles, pad on the off shoulder only, bare throwing arm
     with a kit wrap. Hands always empty."""
     key = "orc_thrower"
     race = "orc"
     knobs = dict(shoulders=1.12, limb=1.14, torso=1.05, legs=1.0, hunch=3)
     layout = dict(ORC, jersey="kit1", pads="football_small", pad_sides=("l",), pad_mat="kit1", pad_trim="kit2",
-                  helm="skull", helm_mat="leather", legs="kit2", belt="leather", arm_band="kit2", pant_stripe="kit1")
+                  helm="skull", helm_mat="leather", legs="kit2", belt="leather", arm_band="kit2", pant_stripe="kit1",
+                  gd_cap=True, gd_goggles=0.12)
     stance = dict(lean=2, legs={"l": (8, 9, 8), "r": (-6, 9, 8)}, arms={"l": (6, 20, 26), "r": (14, 22, 40, 4)},
                   hands="relaxed")
     stride, arm_swing, jump = 36, 32, 0.16
@@ -57,23 +82,38 @@ class OrcThrower(Biped):
         p["look"] = -14 * w["s1"]
 
     def extras(self, J, P, L, tag, pose):
-        gd.brute_jaw(J, L, tag, 0.92)
-        gd.goggles(J, tag, level=0.12, k=1.35)
-        c, X, F, U, s = gd.hf(J)                     # kit band round the cap with two tails at the back
-        cap(tag + "capband", c + U * 0.02, (s[0] * 1.21, s[1] * 1.21, s[2] * 1.19), "kit2", U, cut=0.34, hi=0.6, rot=J["head_R"],
-            thick=0.025)
-        k0 = c - F * s[1] * 1.15 + U * s[2] * 0.4
-        back = (-F * 0.34 + U * 0.05) if pose.get("_action") else (-F * 0.12 - U * 0.3)
-        for sd in (-1, 1):
-            core.flat_cone(tag + "captail%d" % sd, k0, k0 + back + X * sd * 0.1, 0.07, "kit2", F if not pose.get("_action") else U, 0.3)
+        super().extras(J, P, L, tag, pose)
+        jaw(J, L, tag, 0.92)
+        hair(J, L, tag, pose)
+        if L.get("gd_goggles") is not None:
+            gd.goggles(J, tag, level=L["gd_goggles"], k=1.35)
+        if L.get("gd_cap"):
+            self.cap_band(J, tag, pose)
         sh, el, wr, tip = J["arms"]["r"]
         ak = L["limb"] * core.LIMB * L["arm"]
         for i, t in enumerate((0.3, 0.5, 0.7)):      # throwing-arm wrap in the secondary colour
             tube(tag + "twrap%d" % i, [lerp(el, wr, t), lerp(el, wr, t + 0.13)], [0.096 * ak, 0.09 * ak], "kit2", ref=J["F"], n=8)
         gd.baldric(J, P, tag, "leather", sd=-1, r=0.035)
 
+    def details(self, J, P, L, tag, pose):
+        X, F, u = J["X"], J["F"], J["u"]
+        box(tag + "pouch", surf(J, P, 0.05, 40, 0.07), (0.1, 0.06, 0.1), "leather", basis(X, F, u))
+        ball_at(tag + "pouchbtn", surf(J, P, 0.07, 40, 0.11), 0.02, "brass")
+        if not L.get("gd_hoops"):
+            gd.earring(J, tag, "brass", -1)
+
+    def cap_band(self, J, tag, pose):
+        """Kit band round the cap with two tails at the back."""
+        c, X, F, U, s = gd.hf(J)
+        cap(tag + "capband", c + U * 0.02, (s[0] * 1.21, s[1] * 1.21, s[2] * 1.19), "kit2", U, cut=0.34, hi=0.6, rot=J["head_R"],
+            thick=0.025)
+        k0 = c - F * s[1] * 1.15 + U * s[2] * 0.4
+        back = (-F * 0.34 + U * 0.05) if pose.get("_action") else (-F * 0.12 - U * 0.3)
+        for sd in (-1, 1):
+            core.flat_cone(tag + "captail%d" % sd, k0, k0 + back + X * sd * 0.1, 0.07, "kit2", F if not pose.get("_action") else U, 0.3)
+
 @register
-class OrcBlitzer(Biped):
+class OrcBlitzer(looks.Fine, Biped):
     """Horned iron helm, spiked plate pauldrons with kit rims, greaves; always leaning into the charge."""
     key = "orc_blitzer"
     race = "orc"
@@ -81,7 +121,7 @@ class OrcBlitzer(Biped):
     layout = dict(ORC, jersey="kit1", pads="big", pad_mat="kit1", pad_trim="kit2", spikes=2, helm="open", helm_mat="darkmetal",
                   trim="kit2", buckle="brass", gorget=True, breast="darkmetal", emblem_mat="kit2", kneecops=True, knee_mat="darkmetal",
                   bracers="darkmetal", pant_stripe="kit2",
-                  loin="kit2", loin_trim="kit1", arm_band="kit2")
+                  loin="kit2", loin_trim="kit1", arm_band="kit2", gd_horns="bone", gd_cheeks=True)
     stance = dict(lean=14, nod=-6, legs={"l": (16, 13, 16), "r": (-14, 13, 14)}, feet={"r": 12},
                   arms={"l": (16, 30, 62, -10), "r": (-4, 30, 56, -10)}, hands="fist")
     stride, arm_swing, run_lean, jump = 38, 34, 20, 0.14
@@ -93,14 +133,26 @@ class OrcBlitzer(Biped):
                  legs={"l": (16, 13, 16), "r": (-14 + 22 * w["up"], 13, 14 + 34 * w["up"])}, feet={"r": 12 + 20 * w["up"]})
 
     def extras(self, J, P, L, tag, pose):
-        gd.brute_jaw(J, L, tag)
-        gd.helm_horns(J, tag, "bone", size=1.05)
-        gd.cheek_guards(J, tag, "darkmetal", "brass")
+        super().extras(J, P, L, tag, pose)
+        jaw(J, L, tag)
+        hair(J, L, tag, pose)
+        if L.get("gd_horns"):
+            gd.helm_horns(J, tag, L["gd_horns"], size=1.05)
+        if L.get("gd_hspike"):
+            gd.helm_spike(J, tag, L["gd_hspike"], h=0.34, r=0.075)
+        if L.get("gd_cheeks"):
+            gd.cheek_guards(J, tag, "darkmetal", "brass")
         for side in ("l", "r"):
             gd.arm_spikes(J, tag, side, "bone", n=2)
 
+    def details(self, J, P, L, tag, pose):
+        for i, (h, ang) in enumerate(((0.28, -40), (0.28, 40), (0.38, -48), (0.38, 48))):
+            ball_at(tag + "brivet%d" % i, surf(J, P, h, ang, 0.075), 0.02, "brass")
+        for sd in ("l", "r"):
+            gd.knee_spike(J, tag, sd, "bone", 0.08, 0.8)
+
 @register
-class BigUn(Biped):
+class BigUn(looks.Fine, Biped):
     """The hulk of the Orc line: half again as wide, iron cuirass and toothed jaw plate, huge kit pads with
     spikes, bound topknot, kit tabard. Beats his chest."""
     key = "big_un"
@@ -108,7 +160,7 @@ class BigUn(Biped):
     knobs = dict(belly=1.18, shoulders=1.42, head=1.2)
     layout = dict(ORC, torso="kit1", pads="football_big", pad_mat="kit1", pad_trim="kit2", spikes=1, breast="darkmetal",
                   emblem_mat="kit2", tabard="kit1", tabard_trim="kit2", gauntlets=True, tusks=False, trim="brass",
-                  belt="kit2", greaves=True, arm_band="kit2")
+                  belt="kit2", greaves=True, arm_band="kit2", gd_topknot="hair")
     stance = dict(lean=5, legs={"l": (6, 18, 12), "r": (-5, 18, 12)}, arms={"l": (8, 40, 44, -8), "r": (8, 40, 44, -8)},
                   hands="fist")
     stride, arm_swing, run_lean, jump = 28, 24, 12, 0.1
@@ -122,15 +174,23 @@ class BigUn(Biped):
         p["jaw"] = 20
 
     def extras(self, J, P, L, tag, pose):
-        gd.jaw_plate(J, tag, "metal", "bone", 1.12)
-        gd.topknot(J, tag, "hair", "kit2", h=0.36, pose=pose)
+        super().extras(J, P, L, tag, pose)
+        gd.jaw_plate(J, tag, "metal", "bone", 1.12 * (0.88 if L.get("sex") == "f" else 1.0))
+        hair(J, L, tag, pose, mohawk=0.34)
+        if L.get("gd_hspike"):
+            gd.helm_spike(J, tag, L["gd_hspike"], h=0.3, r=0.08)
         gd.rivets(J, P, tag, "criv", 0.42, "brass", angles=(-120, -60, 60, 120), off=0.085, r=0.028)
         for side in ("l", "r"):
             gd.knee_spike(J, tag, side, "metal", 0.12, 1.3)
 
+    def details(self, J, P, L, tag, pose):
+        for i, a in enumerate((-50, -25, 0, 25, 50)):    # a necklace of teeth
+            b = surf(J, P, P["sh_h"] + 0.02, a, 0.1)
+            cone(tag + "toothnk%d" % i, b, b - J["u"] * 0.08 + J["F"] * 0.02, 0.022, "bone", 5)
+
 # ---------------------------------------------------------------------------- Black Orc team
 @register
-class BlackOrc(Biped):
+class BlackOrc(looks.Fine, Biped):
     """A slab of black riveted plate: dark-skinned, full black-iron helm with a kit crest and cheek guards,
     kit-rimmed pauldrons, kit tabard. Flexes his grabbing hands."""
     key = "black_orc"
@@ -140,7 +200,7 @@ class BlackOrc(Biped):
                   breast="darkmetal", emblem_mat="kit2", gorget=True, pads="big", pad_mat="kit1", pad_trim="kit2", spikes=1,
                   spike_mat="metal", helm="open", helm_mat="gd_iron", plume="kit2", trim="kit2", tabard="kit1", tabard_trim="kit2",
                   bracers="darkmetal", belt="kit1", buckle="metal", legs="gd_iron", boots="gd_iron", cuff="metal", kneecops=True,
-                  knee_mat="darkmetal", arm_band="kit1")
+                  knee_mat="darkmetal", arm_band="kit1", gd_cheeks=True)
     stance = dict(lean=4, legs={"l": (5, 17, 10), "r": (-4, 17, 10)}, arms={"l": (14, 34, 52, 0), "r": (14, 34, 52, 0)},
                   hands="open")
     stride, arm_swing, run_lean, jump = 28, 24, 12, 0.1
@@ -154,15 +214,25 @@ class BlackOrc(Biped):
                  arms={"l": (14 + 12 * k, 34, 52 + 22 * k, 0), "r": (14 + 12 * k, 34, 52 + 22 * k, 0)})
 
     def extras(self, J, P, L, tag, pose):
-        gd.brute_jaw(J, L, tag)
-        gd.cheek_guards(J, tag, "gd_iron", "metal")
+        super().extras(J, P, L, tag, pose)
+        jaw(J, L, tag)
+        hair(J, L, tag, pose)
+        if L.get("gd_cheeks"):
+            gd.cheek_guards(J, tag, "gd_iron", "metal")
+        if L.get("gd_horns"):
+            gd.helm_horns(J, tag, L["gd_horns"], size=1.1)
         gd.rivets(J, P, tag, "criv", 0.31, "metal", angles=(-130, -80, -30, 30, 80, 130), off=0.08, r=0.028)
         gd.rivets(J, P, tag, "criv2", 0.17, "metal", angles=(-110, -40, 40, 110), off=0.06, r=0.026)
         for side in ("l", "r"):
             gd.arm_spikes(J, tag, side, "metal", n=2, k=1.2)
 
+    def details(self, J, P, L, tag, pose):
+        gd.rivets(J, P, tag, "beltstud", 0.07, "metal", angles=(-140, -100, -60, 60, 100, 140), off=0.07, r=0.02)
+        if not L.get("gd_hoops"):
+            gd.earring(J, tag, "metal", 1)
+
 @register
-class GoblinBruiser(Biped):
+class GoblinBruiser(looks.Fine, Biped):
     """A goblin swamped by scavenged orc armour: huge pot helm with a tall spike that keeps slipping over
     his eyes, pads far too big for him, ears poking out under the rim."""
     key = "goblin_bruiser"
@@ -170,7 +240,7 @@ class GoblinBruiser(Biped):
     knobs = dict(shoulders=1.0, head=1.25)
     layout = dict(jersey="kit1", pads="football_big", pad_mat="gd_iron", pad_trim="kit2", spikes=1, spike_mat="metal",
                   legs="leather", boots="boot", cuff="rags", belt="kit2", buckle="metal", loin="kit1", loin_trim="kit2",
-                  bracers="gd_iron", trim="metal")
+                  bracers="gd_iron", trim="metal", gd_pot="spike")
     stance = dict(lean=6, legs={"l": (6, 14, 14), "r": (-5, 14, 14)}, arms={"l": (16, 34, 60, -6), "r": (16, 34, 60, -6)},
                   hands="fist")
     stride, arm_swing, jump = 40, 36, 0.24
@@ -191,12 +261,27 @@ class GoblinBruiser(Biped):
         R = J["head_R"]
         gd.big_ears(J, L, tag, length=0.3, lift=0.1)
         gd.long_nose(J, L, tag, 0.14, 0.05)
+        super().extras(J, P, L, tag, pose)
+        pot = L.get("gd_pot")
+        if not pot:
+            return
         slip = pose.get("helm_slip", 0.0)
         hc = c + U * (s[2] * 0.42 - 0.13 * slip) + F * 0.03 * slip
         big = (s[0] * 1.32, s[1] * 1.32, s[2] * 1.2)
         cap(tag + "pot", hc, big, "gd_iron", U, cut=-0.12, rot=R, thick=0.03)
         cap(tag + "potrim", hc, tuple(b * 1.06 for b in big), "kit2", U, cut=-0.16, hi=0.06, rot=R, thick=0.03)
-        cone(tag + "potspike", hc + U * big[2] * 0.9, hc + U * (big[2] + 0.46), 0.085, "metal", 6)
+        if pot == "spike":
+            cone(tag + "potspike", hc + U * big[2] * 0.9, hc + U * (big[2] + 0.46), 0.085, "metal", 6)
+        else:
+            for sd in (-1, 1):
+                root = hc + X * sd * big[0] * 0.85 + U * big[2] * 0.35
+                pts = [root, root + X * sd * 0.16 + U * 0.06, root + X * sd * 0.26 + U * 0.22, root + X * sd * 0.24 + U * 0.36]
+                tube(tag + "pothorn%d" % sd, pts, [0.06, 0.05, 0.035, 0.01], "bone", ref=F, n=6)
         for i, a in enumerate((-60, 0, 60, 120, 180, 240)):
             q = hc + (X * math.sin(D(a)) * big[0] + F * math.cos(D(a)) * big[1]) * 0.93 + U * big[2] * 0.3
             ball_at(tag + "potriv%d" % i, q, 0.035, "metal")
+
+    def details(self, J, P, L, tag, pose):
+        gd.earring(J, tag, "brass", -1, r=0.035, drop=0.0)
+        c, X, F, U, s = gd.hf(J)
+        ball_at(tag + "nosering", c + F * s[1] * 1.3 - U * 0.06, 0.022, "brass")

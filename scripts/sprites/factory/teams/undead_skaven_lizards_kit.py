@@ -186,3 +186,44 @@ def collar(J, P, tag, mat="kit2", rim="gold", drop=0.1):
     tband(tag + "bcollar", J, P, [sh - drop, sh - 0.02, sh + 0.05], mat, k=1.06, add=0.035, solid=0.03)
     if rim:
         tband(tag + "bcollarrim", J, P, [sh - drop - 0.035, sh - drop + 0.005], rim, k=1.06, add=0.045, solid=0.03)
+
+def frill(J, tag, mat, web, n=5, length=0.34, spread=85, k=1.0):
+    """A frilled-lizard fan behind the head: a flat web disc with blade ribs radiating through it."""
+    c, X, F, U, s = hframe(J)
+    back = c - F * s[1] * 0.6 - U * s[2] * 0.1
+    ellipsoid(tag + "frillweb", back - F * 0.02, (s[0] * 2.0 * k, 0.03, s[2] * 1.7 * k), web, J["head_R"], seg=14)
+    for i in range(n):
+        a = D(lerp(-spread, spread, i / (n - 1.0)))
+        d = X * math.sin(a) + U * math.cos(a)
+        b = back + d * s[0] * 0.6
+        flat_cone(tag + "frill%d" % i, b, b + d * length * k - F * 0.06, 0.09 * k, mat, F, squash=0.25)
+
+def arm_shield(J, L, tag, side, mat, rim, boss, size=(0.34, 0.46)):
+    """A flat board strapped to the outside of a forearm, with a rim and a spike boss (never round)."""
+    sd = -1 if side == "l" else 1
+    el, wr = J["arms"][side][1:3]
+    d = (wr - el).normalized()
+    out = (J["X"] * sd * 0.6 + J["F"]).normalized()
+    n = out - d * out.dot(d)
+    n = n.normalized() if n.length > 1e-3 else J["F"]
+    R = basis(n.cross(d), n, d)
+    c = lerp(el, wr, 0.5) + n * (arm_r(L) + 0.04)
+    box(tag + "shield", c, (size[0], 0.035, size[1]), mat, R)
+    box(tag + "shieldrim", c - n * 0.012, (size[0] + 0.05, 0.03, size[1] + 0.05), rim, R)
+    cone(tag + "shieldboss", c + n * 0.015, c + n * 0.11, 0.05, boss, 6)
+
+def nemes(J, tag, mat, trim="gold", ends=None, k=1.0, stripes=False):
+    """A striped royal headcloth: a cap over the cranium, a gold band and two lappets down the chest."""
+    c, X, F, U, s = hframe(J)
+    R = J["head_R"]
+    keep = (U * 0.8 - F * 0.6).normalized()
+    size = (s[0] * 1.14 * k, s[1] * 1.14 * k, s[2] * 1.12 * k)
+    cap(tag + "cloth", c + U * 0.015, size, mat, keep, cut=-0.05, rot=R, thick=0.03)
+    if stripes:
+        for i, lo in enumerate((0.05, 0.4, 0.72)):
+            cap(tag + "stripe%d" % i, c + U * 0.015, tuple(x * 1.03 for x in size), trim, keep, cut=lo, hi=lo + 0.12, rot=R,
+                thick=0.03)
+    for sd in (-1, 1):
+        box(tag + "lappet%d" % sd, c + X * sd * s[0] * 0.95 * k - U * s[2] * 1.45 + F * s[1] * 0.55, (0.11, 0.04, 0.3), mat, R)
+        box(tag + "lapend%d" % sd, c + X * sd * s[0] * 0.95 * k - U * s[2] * 2.05 + F * s[1] * 0.56, (0.12, 0.045, 0.07), ends or trim, R)
+    head_band(J, tag, trim, 0.3, 0.46, 1.19 * k)

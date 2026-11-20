@@ -1,0 +1,12 @@
+{
+  "rotter": [
+    ["body", "Body", [["x", "Rotter"]]],
+    ["head", "Head", [["bandage", "Bandages"], ["hood", "Hood"], ["bare", "Bare head"]]],
+    ["shoulder", "Shoulder", [["pad", "Rusty pad"], ["tentacle", "Tentacle"], ["bare", "Bare shoulder"]]]
+  ],
+  "pestigor": [
+    ["body", "Body", [["x", "Pestigor"]]],
+    ["horns", "Horns", [["one", "One horn"], ["pair", "Both horns"]]],
+    ["flies", "Flies", [["swarm", "Fly swarm"], ["none", "No flies"]]]
+  ]
+}
