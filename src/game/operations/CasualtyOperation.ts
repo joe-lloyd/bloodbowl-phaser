@@ -1,6 +1,6 @@
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
-import { InjuryType, PlayerStatus } from "../../types/Player.js";
+import { type Player, PlayerStatus } from "../../types/Player.js";
 import {
   type CasualtyType,
   InjuryResult,
@@ -20,6 +20,14 @@ import {
   type InjuryParties,
   InjuryPartiesOperation,
 } from "./injuryParties";
+import {
+  type CasualtyRecord,
+  casualtyGradeFor,
+  casualtyLabel,
+  recordCasualty,
+  sufferLastingInjury,
+} from "./injuryVerdict";
+import { type LastingInjury } from "../rules/injuryTables";
 
 function apothecaryCasualtyType(result: CasualtyType): ApothecaryCasualtyType {
   switch (result) {
@@ -36,16 +44,18 @@ export class CasualtyOperation extends InjuryPartiesOperation {
   public readonly name = "CasualtyOperation";
 
   private result: CasualtyType;
+  private record: CasualtyRecord | undefined;
   private cause: (CasualtyCause) | undefined;
   constructor(
     playerId: string,
-    result: CasualtyType,
+    outcome: CasualtyType | CasualtyRecord,
     causedById?: string,
 
     cause?: CasualtyCause
   ) {
     super(playerId, causedById);
-    this.result = result;
+    this.result = typeof outcome === "string" ? outcome : outcome.result;
+    this.record = typeof outcome === "string" ? undefined : outcome;
     this.cause = cause;
   }
 
@@ -90,36 +100,7 @@ export class CasualtyOperation extends InjuryPartiesOperation {
       return;
     }
 
-    const result = isFrog(gameService.getState(), player.id)
-      ? InjuryResult.BADLY_HURT
-      : this.result;
-    eventBus.emit(GameEventNames.UI_Notification, `Result: ${result}`);
-
-    eventBus.emit(GameEventNames.UI_Announce, {
-      kind: "casualty",
-      headline: "Casualty",
-      subtitle: `${player.playerName}: ${result}`,
-    });
-
-    eventBus.emit(GameEventNames.UI_LogEntry, {
-      category: "action",
-      headline: "Casualty",
-      detail: `${player.playerName}: ${result}`,
-      teamId: player.teamId,
-    });
-
-    switch (result) {
-      case InjuryResult.BADLY_HURT:
-        player.injuries.push(InjuryType.BADLY_HURT);
-        break;
-      case InjuryResult.SERIOUSLY_HURT:
-        player.injuries.push(InjuryType.MISS_NEXT_GAME);
-        break;
-      case InjuryResult.DEAD:
-        player.injuries.push(InjuryType.DEAD);
-        player.status = PlayerStatus.DEAD;
-        break;
-    }
+    const { result, lasting } = this.recordOutcome(context, player);
 
     const kill =
       result === InjuryResult.DEAD
@@ -138,6 +119,7 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     });
     if (offered) return;
 
+    if (lasting) sufferLastingInjury(player, lasting, eventBus);
     movePlayerToBox(
       player,
       { box: "casualty", dead: result === InjuryResult.DEAD },
@@ -153,4 +135,39 @@ export class CasualtyOperation extends InjuryPartiesOperation {
       );
     }
   }
+
+  private recordOutcome(
+    context: FlowContext,
+    player: Player
+  ): { result: CasualtyType; lasting: LastingInjury | undefined } {
+    const result = isFrog(context.gameService.getState(), player.id)
+      ? InjuryResult.BADLY_HURT
+      : this.result;
+    const lasting =
+      this.record?.result === result ? this.record.lasting : undefined;
+    const grade = casualtyGradeFor(result, this.record);
+    announceCasualty(context.eventBus, player, casualtyLabel(grade, lasting));
+    recordCasualty(player, grade);
+    if (result === InjuryResult.DEAD) player.status = PlayerStatus.DEAD;
+    return { result, lasting };
+  }
+}
+
+function announceCasualty(
+  eventBus: FlowContext["eventBus"],
+  player: Player,
+  label: string
+): void {
+  eventBus.emit(GameEventNames.UI_Notification, `Result: ${label}`);
+  eventBus.emit(GameEventNames.UI_Announce, {
+    kind: "casualty",
+    headline: "Casualty",
+    subtitle: `${player.playerName}: ${label}`,
+  });
+  eventBus.emit(GameEventNames.UI_LogEntry, {
+    category: "action",
+    headline: "Casualty",
+    detail: `${player.playerName}: ${label}`,
+    teamId: player.teamId,
+  });
 }

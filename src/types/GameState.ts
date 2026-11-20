@@ -111,6 +111,8 @@ export interface GameState {
 
   stallingPlayerIds?: string[];
 
+  seriousKnockoutIds?: string[];
+
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
 
   bribes?: Record<string, number>;
