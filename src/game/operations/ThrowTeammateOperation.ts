@@ -30,10 +30,25 @@ import { CrowdInjuryOperation } from "./CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
 import { weatherEffects } from "../rules/weather";
 import { isOnPitch } from "../controllers/BallMovementController";
+import { obstacleKindAt } from "../rules/pitchSquares";
+import { activeRules } from "../variants/activeMatch";
+import {
+  type WallStrike,
+  clearOfObstacles,
+  clearOfStalls,
+  firstWallOnPath,
+  pushOffWall,
+} from "./thrownIntoObstacles";
 
 interface Square {
   x: number;
   y: number;
+}
+
+interface ThrownFlight {
+  landing: Square;
+  swooped: boolean;
+  wall?: Square;
 }
 
 const lethalFlight = (teammate: Player, occupant: Player): boolean =>
@@ -119,7 +134,7 @@ export class ThrowTeammateOperation extends GameOperation {
       );
     }
 
-    const { landing, swooped } = fumbled
+    const flight: ThrownFlight = fumbled
       ? {
           landing: gameService
             .getBallMovementController()
@@ -127,13 +142,40 @@ export class ThrowTeammateOperation extends GameOperation {
           swooped: false,
         }
       : this.landingSquare(context, thrower, teammate, bullseye);
+    await this.throwTo(context, teammate, {
+      ...flight,
+      thrower,
+      from: teammate.gridPosition,
+      superbThrow,
+    });
+  }
+
+  private async throwTo(
+    context: FlowContext,
+    teammate: Player,
+    flight: ThrownFlight & {
+      thrower: Player;
+      from: Square;
+      superbThrow: boolean;
+    }
+  ): Promise<void> {
+    const { wall, superbThrow, swooped, thrower } = flight;
+    const strike = wall ? { before: flight.landing, wall } : undefined;
+    const stopsAtWall = !!strike && this.hitsTheWall(context, teammate, strike);
+    const landing =
+      strike && !stopsAtWall
+        ? pushOffWall(context.gameService.getDiceController(), strike)
+        : clearOfStalls(flight.landing);
     const { carriesBall, occupant } = this.fly(
       context,
       teammate,
-      teammate.gridPosition,
+      flight.from,
       landing
     );
-
+    if (stopsAtWall && !occupant) {
+      this.knockedDownAtWall(context, teammate, carriesBall);
+      return;
+    }
     await this.resolveLanding(context, thrower, teammate, {
       landing,
       carriesBall,
@@ -141,6 +183,74 @@ export class ThrowTeammateOperation extends GameOperation {
       superbThrow,
       swooped,
     });
+  }
+
+  private hitsTheWall(
+    context: FlowContext,
+    teammate: Player,
+    strike: WallStrike
+  ): boolean {
+    const roll = context.gameService
+      .getDiceController()
+      .rollD6("Thrown into the Wall", teammate.teamId);
+    context.eventBus.emit(GameEventNames.PlayerPushedIntoWall, {
+      playerId: teammate.id,
+      square: { ...strike.before },
+      wall: { ...strike.wall },
+      fell: roll < 6,
+    });
+    return roll < 6;
+  }
+
+  private knockedDownAtWall(
+    context: FlowContext,
+    teammate: Player,
+    carriesBall: boolean
+  ): void {
+    knockDownPlayer(context.eventBus, teammate);
+    bounceIfBallUnder(context, teammate);
+    context.flowManager.add(
+      new ArmourOperation(
+        teammate.id,
+        undefined,
+        undefined,
+        "block",
+        activeRules().armour.wallPush
+      ),
+      true
+    );
+    this.finishLanding(
+      context.gameService,
+      context,
+      carriesBall,
+      "Thrown into a wall"
+    );
+  }
+
+  private dropIntoPit(
+    context: FlowContext,
+    teammate: Player,
+    { pit, carriesBall }: { pit: Square; carriesBall: boolean }
+  ): void {
+    const from = teammate.gridPosition ?? pit;
+    delete teammate.gridPosition;
+    teammate.sewerPit = { ...pit };
+    context.eventBus.emit(GameEventNames.PlayerFellIntoPit, {
+      playerId: teammate.id,
+      from: { ...from },
+      pit: { ...pit },
+    });
+    context.eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
+    if (carriesBall) {
+      context.gameService.setBallPosition(pit.x, pit.y);
+      context.flowManager.add(new BounceOperation({ ...pit }), true);
+    }
+    this.finishLanding(
+      context.gameService,
+      context,
+      carriesBall,
+      "Fell into a Sewer Pit"
+    );
   }
 
   private async resolveLanding(
@@ -162,6 +272,11 @@ export class ThrowTeammateOperation extends GameOperation {
 
     if (!isOnPitch(landing)) {
       this.landInCrowd(context, teammate, thrower.gridPosition!, carriesBall);
+      return;
+    }
+
+    if (obstacleKindAt(landing) === "sewer-pit") {
+      this.dropIntoPit(context, teammate, { pit: landing, carriesBall });
       return;
     }
 
@@ -350,7 +465,7 @@ export class ThrowTeammateOperation extends GameOperation {
     thrower: Player,
     teammate: Player,
     bullseye: boolean
-  ): { landing: Square; swooped: boolean } {
+  ): ThrownFlight {
     const { gameService, eventBus } = context;
     const dice = gameService.getDiceController();
     if (bullseye) {
@@ -389,6 +504,9 @@ export class ThrowTeammateOperation extends GameOperation {
       .scatter({ x: this.aimX, y: this.aimY }, "Team-mate Scatter");
     const scatterEnd = path[path.length - 1];
     if (!scatterEnd) throw new Error("Team-mate scatter produced no path");
+    const strike = firstWallOnPath({ x: this.aimX, y: this.aimY }, path);
+    if (strike)
+      return { landing: strike.before, swooped: false, wall: strike.wall };
     return {
       landing: clampToPitch(scatterEnd),
       swooped: false,
@@ -464,7 +582,9 @@ export class ThrowTeammateOperation extends GameOperation {
         await context.flowManager.runToRest(new BounceOperation({ ...square }));
         if (gameService.getPhase() !== GamePhase.PLAY) return;
       }
-      const next = gameService.getBallMovementController().bounce(square);
+      const next = clearOfObstacles(
+        gameService.getBallMovementController().bounce(square)
+      );
       target = this.fly(context, teammate, square, next, carriesBall).occupant;
       if (!isOnPitch(next)) {
         this.landInCrowd(context, teammate, square, carriesBall);
