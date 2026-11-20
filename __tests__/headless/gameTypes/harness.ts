@@ -3,10 +3,8 @@ import { fixtureValue } from "../../../src/testing/fixtureValue";
 import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { type Scenario, type PlayerPlacement } from "../../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../../src/types/GameState";
-import type {
-  CommandResponse,
-  EmittedEvent,
-} from "../../../src/headless/protocol";
+import type { CommandResponse } from "../../../src/headless/protocol";
+import { GameEventNames } from "../../../src/types/events";
 import { type GameType } from "../../../src/game/variants/gameTypes";
 import { gameTypeRules } from "../../../src/game/variants/gameTypeRules";
 import { forceDice } from "../../utils/test-helpers";
@@ -47,6 +45,17 @@ export function duel(
   };
 }
 
+const WATCHED = [
+  GameEventNames.DiceRoll,
+  GameEventNames.ArmorRolled,
+  GameEventNames.InjuryRolled,
+  GameEventNames.PlayerCasualtyInflicted,
+  GameEventNames.SkillTriggered,
+  GameEventNames.UI_Turnover,
+  GameEventNames.UI_GameLog,
+  GameEventNames.KORecoveryRolled,
+] as const;
+
 export function session(gameType: GameType, scenario: Scenario, dice: number[]) {
   const venue = gameTypeRules(gameType).venues[0];
   const game = new HeadlessGame({
@@ -55,13 +64,14 @@ export function session(gameType: GameType, scenario: Scenario, dice: number[]) 
     format: { gameType, venue },
   });
   forceDice(game.ctx.rng, dice);
-  const events: EmittedEvent[] = [];
+  const events: { name: string; data: unknown }[] = [];
+  for (const name of WATCHED) {
+    game.ctx.eventBus.on(name, (data: unknown) => events.push({ name, data }));
+  }
   const run = async (command: unknown): Promise<CommandResponse> => {
     let response = await game.execute(command);
-    events.push(...response.events);
     while (response.pendingDecision?.type === "reroll") {
       response = await game.execute({ type: "use-reroll", accept: false });
-      events.push(...response.events);
     }
     return response;
   };

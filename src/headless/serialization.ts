@@ -103,6 +103,8 @@ export interface GameSnapshot {
 
   stallingPlayerIds?: GameState["stallingPlayerIds"];
 
+  seriousKnockoutIds?: GameState["seriousKnockoutIds"];
+
   turnUsage?: GameState["turnUsage"];
 
   chargeTeamId?: GameState["chargeTeamId"];
@@ -178,6 +180,7 @@ function driveFields(source: GameState | GameSnapshot) {
   return {
     ...(source.driveEffects === undefined ? {} : { driveEffects: structuredClone(source.driveEffects) }),
     ...(source.stallingPlayerIds === undefined ? {} : { stallingPlayerIds: structuredClone(source.stallingPlayerIds) }),
+    ...(source.seriousKnockoutIds === undefined ? {} : { seriousKnockoutIds: structuredClone(source.seriousKnockoutIds) }),
     ...(source.turnUsage === undefined ? {} : { turnUsage: structuredClone(source.turnUsage) }),
     ...(source.raisedDead === undefined ? {} : { raisedDead: structuredClone(source.raisedDead) }),
     ...(source.fanFactors === undefined ? {} : { fanFactors: structuredClone(source.fanFactors) }),

@@ -54,7 +54,7 @@ played, and `GameConfig` reads its pitch from there.
 | SB-M10 | Throw Team-mate into a wall: the thrown player rolls a D6. 1-5 they stop at the wall and are Knocked Down with +2 Armour. On a 6 they push off: the coach picks a throw-in template direction, they move D3 squares and land as normal. | missing |
 | SB-M11 | No referee: nobody is Sent-off for a Foul. After any Foul the fouled player's coach rolls a D6; on 4+ a rock hits the fouler, who makes an Armour roll at +1. If the armour breaks, make an Injury roll and the fouling team suffers a Turnover. | missing |
 | SB-M12 | Secret Weapons play through the drive. At the end of each drive roll a D6 for each: 1-3 the crowd drags them off as Badly Hurt, 4+ they stay. A Loner stays only on a 6. | missing |
-| SB-M13 | Injuries use the 2025 rulebook tables, with the Casualty roll. | missing |
+| SB-M13 | Injuries use the 2025 rulebook tables, with the Casualty roll. | ok: a Niggling Injury and Decay each add 1 to the Casualty roll. A Lasting Injury that cannot lower its characteristic is a Miss Next Game only |
 
 ### Kick-off table (2D6)
 
@@ -119,7 +119,7 @@ or to a fit player before a drive. Not to a player with Regeneration.
 | BB-M3 | Field as many players as possible, up to 7. At least 2 on the Line of Scrimmage in Centre Field, at most 1 in each Wide Zone. | ok |
 | BB-M4 | Kick-off deviation is the lower of 2D6, as in Sevens. | ok |
 | BB-M5 | Sand: -1 to the Armour roll after a failed Dodge or Rush; +1 to every other Armour roll. | ok |
-| BB-M6 | Injury table (2D6, no Stunty table): 2-7 Stunned, 8-9 Mild Knock-out (recovers on 3+), 10-12 Serious Knock-out (recovers on 5+). There are no casualties. Regeneration does nothing. A Serious KO counts as a Casualty for SPP and tie-breaks. | missing |
+| BB-M6 | Injury table (2D6, no Stunty table): 2-7 Stunned, 8-9 Mild Knock-out (recovers on 3+), 10-12 Serious Knock-out (recovers on 5+). There are no casualties. Regeneration does nothing. A Serious KO counts as a Casualty for SPP and tie-breaks. | ok: a Serious Knock-out is recorded in `GameState.seriousKnockoutIds` and counts as a Casualty through the same event as one, so SPP and casualty counts include it |
 | BB-M7 | The ball does not bounce when it lands in an open square. A crowd throw-in goes D6 squares, counting the square it left from as the first. | missing |
 | BB-M8 | Every Rush succeeds on 3+, before modifiers. | ok |
 | BB-M9 | Fouls: before the Armour roll the fouled player's coach rolls a D6. On 4-6 the fouler is Knocked Down and it is a Turnover. On 1-3 the Foul goes ahead. | missing |
@@ -205,7 +205,7 @@ Assigned before a drive. Every souvenir breaks at the end of the half.
 | GB-M11 | No referee: nobody is Sent-off. One Foul per turn still applies. | missing |
 | GB-M12 | Secret Weapons roll a D6 at the end of each drive: 1-3 the crowd removes them for the game, and a second D6 of 1 makes them a Casualty. 4+ they stay. Bribes do not help. | missing |
 | GB-M13 | Stalling: at the end of the team turn a stalling player is hit by a bottle on a D6 of 2+ and makes an Injury roll. | missing |
-| GB-M14 | Injuries use the 2025 rulebook tables, with the Casualty roll. | missing |
+| GB-M14 | Injuries use the 2025 rulebook tables, with the Casualty roll. | ok, as SB-M13 |
 
 ### Kick-off tables (2D6)
 

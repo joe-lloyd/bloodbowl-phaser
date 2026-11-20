@@ -9,7 +9,8 @@ import { DecisionService } from "./DecisionService";
 import { RerollArbiter } from "./RerollArbiter";
 import { GameOperation } from "../core/GameOperation";
 import { DiceController } from "../controllers/DiceController";
-import { InjuryResult, type InjuryTableKind } from "../controllers/InjuryController";
+import { InjuryResult } from "../controllers/InjuryController";
+import { type InjuryTableKind } from "../rules/injuryTables";
 import type { CasualtyCause } from "../rules/plagueRidden";
 
 interface SkillTriggerRecord {

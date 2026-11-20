@@ -10,5 +10,6 @@ export const injuryTypeSchema: z.ZodType<InjuryType> = z.union([
   z.literal("-1 MA"),
   z.literal("-1 ST"),
   z.literal("-1 AG"),
+  z.literal("-1 PA"),
   z.literal("-1 AV"),
 ]);

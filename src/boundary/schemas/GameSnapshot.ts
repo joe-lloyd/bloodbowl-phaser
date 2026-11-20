@@ -79,6 +79,7 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   veteranRerollsUsed: z.string().array().exactOptional(),
   briberyRerollsUsed: z.string().array().exactOptional(),
   stallingPlayerIds: z.string().array().exactOptional(),
+  seriousKnockoutIds: z.string().array().exactOptional(),
   turnUsage: turnUsageSchema.exactOptional(),
   chargeTeamId: z.string().exactOptional(),
   raisedDead: z.record(z.string(), z.string()).exactOptional(),

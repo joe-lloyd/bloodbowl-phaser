@@ -1,5 +1,12 @@
 import type { Team } from "@/types/Team";
-import { GamePhase, type MatchResult, SubPhase } from "@/types/GameState";
+import {
+  type GameState,
+  GamePhase,
+  type MatchResult,
+  SubPhase,
+} from "@/types/GameState";
+import { activeRules } from "@/game/variants/activeMatch";
+import { knockoutRecoveryTarget } from "@/game/rules/injuryTables";
 import { GameEventNames } from "@/types/events";
 import { isLeagueMode } from "@/types/Team";
 import { PlayerStatus } from "@/types/Player";
@@ -284,6 +291,20 @@ export function resetDriveState(parts: GameParts): void {
   parts.eventBus.emit(GameEventNames.RefreshBoard, undefined);
 }
 
+function forgetSeriousKnockout(state: GameState, playerId: string): void {
+  if (!state.seriousKnockoutIds) return;
+  state.seriousKnockoutIds = state.seriousKnockoutIds.filter(
+    (id) => id !== playerId
+  );
+}
+
+function recoveryTarget(state: GameState, playerId: string): number {
+  return knockoutRecoveryTarget(
+    activeRules().injuryTable,
+    !!state.seriousKnockoutIds?.includes(playerId)
+  );
+}
+
 export async function rollKORecovery(
   parts: GameParts,
   beat: () => Promise<void>
@@ -306,7 +327,7 @@ export async function rollKORecovery(
       player.teamId,
       Inducement.BLITZERS_BEST_KEGS
     );
-    const recovered = roll + kegs >= 4;
+    const recovered = roll + kegs >= recoveryTarget(state, player.id);
     parts.eventBus.emit(GameEventNames.KORecoveryRolled, {
       playerId: player.id,
       roll,
@@ -315,6 +336,7 @@ export async function rollKORecovery(
     await beat();
     if (recovered) {
       movePlayerToBox(player, { box: "reserves" }, parts.eventBus);
+      forgetSeriousKnockout(state, player.id);
     }
   }
 

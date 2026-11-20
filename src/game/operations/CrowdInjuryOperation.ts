@@ -6,9 +6,15 @@ import { type GameState } from "../../types/GameState";
 import { InjuryResult } from "../controllers/InjuryController";
 import { CasualtyOperation } from "./CasualtyOperation";
 import { BounceOperation } from "./BounceOperation";
-import { reportedInjury, resolveInjuryRoll } from "./InjuryOperation";
+import {
+  type ResolvedInjury,
+  reportedInjury,
+  resolveInjuryRoll,
+} from "./InjuryOperation";
+import { type Player } from "../../types/Player";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { offerApothecary } from "../inducements/apothecary";
+import { casualtyOutcome, recordSeriousKnockout } from "./injuryVerdict";
 
 export class CrowdInjuryOperation extends GameOperation {
   public readonly name = "CrowdInjury";
@@ -37,7 +43,7 @@ export class CrowdInjuryOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
-    const { gameService, eventBus, flowManager } = context;
+    const { gameService, eventBus } = context;
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
@@ -54,14 +60,26 @@ export class CrowdInjuryOperation extends GameOperation {
 
     const rollType = `Injury by the Crowd (${player.playerName})`;
     const roll = gameService.getDiceController().roll2D6(rollType);
-    const { result } = await resolveInjuryRoll(context, player, roll, 0);
+    const injury = await resolveInjuryRoll(context, player, roll, 0);
     eventBus.emit(GameEventNames.InjuryRolled, {
       playerId: player.id,
-      result: reportedInjury(gameService, player.id, result),
+      result: reportedInjury(gameService, player.id, injury.result),
       rollType,
       stunnedToReserves: true,
     });
+    await this.settle(context, player, injury);
+    eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+    await context.delay(600);
 
+    this.afterCrowd(context, carriedBall);
+  }
+
+  private async settle(
+    context: FlowContext,
+    player: Player,
+    { result, casualty, seriousKnockout }: ResolvedInjury
+  ): Promise<void> {
+    const { gameService, eventBus, flowManager } = context;
     switch (result) {
       case InjuryResult.STUNNED:
         eventBus.emit(
@@ -77,8 +95,10 @@ export class CrowdInjuryOperation extends GameOperation {
           resultKind: "ko",
           location: "crowd",
         });
-        if (!patchedUp) {
-          movePlayerToBox(player, { box: "ko" });
+        if (patchedUp) break;
+        movePlayerToBox(player, { box: "ko" });
+        if (seriousKnockout) {
+          recordSeriousKnockout(context, player, { cause: "crowd" });
         }
         break;
       }
@@ -92,13 +112,12 @@ export class CrowdInjuryOperation extends GameOperation {
           cause: "crowd",
           sppEligible: false,
         });
-        flowManager.add(new CasualtyOperation(this.playerId, result), true);
+        flowManager.add(
+          new CasualtyOperation(this.playerId, casualtyOutcome(result, casualty)),
+          true
+        );
         break;
     }
-    eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-    await context.delay(600);
-
-    this.afterCrowd(context, carriedBall);
   }
 
   private carriedBall(state: GameState): boolean {
