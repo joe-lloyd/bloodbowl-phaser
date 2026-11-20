@@ -587,11 +587,17 @@ export async function setLobbyListed(
   );
 }
 
-function unlistAbandoned(lobbies: readonly LobbyDoc[], tried: Set<string>): void {
+const OPEN_LOBBY_SWEEP_MS = 60_000;
+
+function unlistAbandoned(
+  lobbies: readonly LobbyDoc[],
+  unlisting: Set<string>
+): void {
   for (const code of abandonedListings(lobbies, Date.now())) {
-    if (tried.has(code)) continue;
-    tried.add(code);
+    if (unlisting.has(code)) continue;
+    unlisting.add(code);
     updateDoc(lobbyRef(code), { listed: false }).catch((error: unknown) => {
+      unlisting.delete(code);
       console.warn("[open lobby] could not unlist an abandoned game", error);
     });
   }
@@ -600,8 +606,12 @@ function unlistAbandoned(lobbies: readonly LobbyDoc[], tried: Set<string>): void
 export function subscribeOpenLobbies(
   onChange: (lobbies: LobbyDoc[]) => void
 ): () => void {
-  const tried = new Set<string>();
-  return onSnapshot(
+  const unlisting = new Set<string>();
+  let latest: LobbyDoc[] = [];
+  const sweep = setInterval(() => {
+    unlistAbandoned(latest, unlisting);
+  }, OPEN_LOBBY_SWEEP_MS);
+  const stop = onSnapshot(
     query(
       collection(getDb(), "games"),
       where("listed", "==", true),
@@ -610,16 +620,18 @@ export function subscribeOpenLobbies(
       limit(30)
     ),
     (snapshot) => {
-      const lobbies = readEach(snapshot.docs, (entry) =>
-        readLobby(entry.data())
-      );
-      unlistAbandoned(lobbies, tried);
-      onChange(lobbies);
+      latest = readEach(snapshot.docs, (entry) => readLobby(entry.data()));
+      unlistAbandoned(latest, unlisting);
+      onChange(latest);
     },
     (error) => {
       console.warn("[open lobby] could not follow open games", error);
     }
   );
+  return () => {
+    clearInterval(sweep);
+    stop();
+  };
 }
 
 export async function fetchLobby(code: string): Promise<LobbyDoc | null> {
