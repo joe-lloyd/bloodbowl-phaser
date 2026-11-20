@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fieldPlayer, game, step } from "./fixtures";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
-import { PlayerStatus } from "../../src/types/Player";
+import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import { enumerateDecision } from "../../src/simulation/candidates";
@@ -185,6 +185,155 @@ describe("our ST4 carrier with Block, marked by one ST3 opponent in front", () =
       commands: ["declare-action", "block"],
       note: "blitzes",
     });
+  });
+});
+
+describe("a carrier marked by three opponents, one of which team-mates can hit safely", () => {
+  it("hits the marker before the carrier dodges", async () => {
+    const lineman = {
+      stats: { MA: 4, ST: 3, AG: 4 },
+      skills: [SkillType.BLOCK, SkillType.THICK_SKULL],
+    };
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 7, hasBall: true, stats: { MA: 6 } },
+        { playerIndex: 1, x: 8, y: 7, ...lineman },
+        { playerIndex: 2, x: 8, y: 5, ...lineman },
+        { playerIndex: 3, x: 9, y: 5, ...lineman },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 6 },
+        { playerIndex: 1, x: 10, y: 6 },
+        { playerIndex: 2, x: 10, y: 7 },
+        { playerIndex: 3, x: 11, y: 5 },
+      ],
+    });
+    expect(await firstActivation(subject)).toEqual({
+      commands: ["declare-action", "block"],
+      note: "blocks",
+    });
+  });
+});
+
+describe("a carrier one step from scoring beside a Distracted opponent", () => {
+  it("scores instead of waiting for a hit on a player who marks nobody", async () => {
+    const subject = game({
+      turn: 6,
+      team1Placements: [
+        { playerIndex: 0, x: 18, y: 5, hasBall: true },
+        { playerIndex: 1, x: 17, y: 7, skills: [SkillType.BLOCK] },
+      ],
+      team2Placements: [
+        {
+          playerIndex: 0,
+          x: 17,
+          y: 6,
+          conditions: [PlayerCondition.DISTRACTED],
+        },
+      ],
+    });
+    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
+    const { command } = await step(subject, createPlannerCoach());
+    expect(command).toMatchObject({
+      type: "declare-action",
+      playerId: carrier.id,
+      action: "move",
+    });
+  });
+});
+
+describe("a carrier with one marker and no team-mates", () => {
+  it("keeps its own moves when its only hit on the marker is its own Blitz", () => {
+    const subject = game({
+      turn: 3,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 8,
+          y: 5,
+          hasBall: true,
+          stats: { AG: 2, ST: 4 },
+          skills: [SkillType.DODGE, SkillType.BLOCK],
+        },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 9, y: 5, stats: { ST: 2 } }],
+    });
+    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
+    const plans = activations({
+      board: readBoard(subject, carrier.teamId),
+      w: DEFAULT_WEIGHTS,
+      available: new Map([
+        [carrier.id, new Set(["move" as const, "blitz" as const])],
+      ]),
+    });
+    expect(
+      plans.some(
+        (plan) => plan.player.id === carrier.id && plan.action === "move"
+      )
+    ).toBe(true);
+  });
+});
+
+describe("a carrier one Dodge from scoring beside a marker a team-mate can hit", () => {
+  function planLabels(hit: "block" | "blitz", x: number, skills: SkillType[]) {
+    const subject = game({
+      turn: 6,
+      team1Placements: [
+        {
+          playerIndex: 0,
+          x: 18,
+          y: 5,
+          hasBall: true,
+          stats: { AG: 2 },
+          skills: [SkillType.DODGE, ...skills],
+        },
+        { playerIndex: 1, x, y: 5, skills: [SkillType.BLOCK] },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 17, y: 5, skills: [SkillType.BLOCK] },
+      ],
+    });
+    const carrier = fieldPlayer(subject.ctx.team1.players[0]);
+    const mate = fieldPlayer(subject.ctx.team1.players[1]);
+    const plans = activations({
+      board: readBoard(subject, "team1"),
+      w: DEFAULT_WEIGHTS,
+      available: new Map([
+        [carrier.id, new Set(["move" as const])],
+        [mate.id, new Set(["move" as const, hit])],
+      ]),
+    });
+    const labels = (id: string) =>
+      plans
+        .filter((plan) => plan.player.id === id)
+        .map(
+          (plan) =>
+            `${plan.action}/${plan.intent.kind}/${String(plan.rolls.length)}`
+        );
+    return { carrier: labels(carrier.id), mate: labels(mate.id) };
+  }
+
+  it.each([
+    { hit: "block" as const, x: 16 },
+    { hit: "blitz" as const, x: 14 },
+  ])(
+    "keeps the touchdown that is safer than a $hit on the marker",
+    ({ hit, x }) => {
+      const labels = planLabels(hit, x, []);
+      expect(
+        labels.mate.some((label) => label.startsWith(`${hit}/${hit}/`))
+      ).toBe(true);
+      expect(labels.carrier).toContain("move/score/1");
+    }
+  );
+
+  it("waits for the hit when a Vampire carrier may stay hungry in the end zone", () => {
+    const labels = planLabels("block", 16, [SkillType.BLOODLUST]);
+    expect(labels.mate.some((label) => label.startsWith("block/block/"))).toBe(
+      true
+    );
+    expect(labels.carrier).not.toContain("move/score/1");
   });
 });
 

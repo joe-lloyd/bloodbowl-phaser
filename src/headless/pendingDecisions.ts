@@ -28,6 +28,9 @@ export function requestedDecision(
         chooserTeamId: request.chooserTeamId,
         skill: request.skill,
         prompt: request.prompt,
+        ...(request.opponentId === undefined
+          ? {}
+          : { opponentId: request.opponentId }),
       };
     case "bite-target":
       return {

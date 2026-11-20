@@ -4,8 +4,15 @@ import { type Context, gamble } from "./activationContext";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type Activation } from "./activations";
 import { carrierActivations } from "./ballActivations";
-import { carrierOf, distance, key, neighbours, standing } from "./board";
-import { isThrall, unfedChance } from "./feeding";
+import {
+  type Square,
+  carrierOf,
+  distance,
+  key,
+  neighbours,
+  standing,
+} from "./board";
+import { hasBiteSupport, isThrall, unfedChance } from "./feeding";
 import type { Route } from "./routes";
 
 function supportForRoute(
@@ -80,4 +87,46 @@ export function holdsFeedingSupport(c: Context, player: Player): boolean {
       (plan.intent.kind === "score" || plan.intent.kind === "carrier") &&
       distance(player.gridPosition, plan.intent.route.to) === 1
   );
+}
+
+function hungry(c: Context, player: Player): boolean {
+  const active = c.board.gs.getState().activePlayer;
+  return (
+    c.skillPlans &&
+    active?.id === player.id &&
+    !!active.bloodlustUnsated &&
+    carrierOf(c.board)?.id !== player.id &&
+    !hasBiteSupport(c.board, player, player.gridPosition)
+  );
+}
+
+function feedSquares(c: Context): Square[] {
+  const carrier = carrierOf(c.board)?.id;
+  return c.board.ours
+    .filter((p) => isThrall(p) && p.id !== carrier)
+    .flatMap((thrall) => neighbours(thrall.gridPosition));
+}
+
+export function feedActivations(c: Context, player: Player): Activation[] {
+  if (!hungry(c, player)) return [];
+  const routes = c.routes(player);
+  return feedSquares(c).flatMap((at) => {
+    const route = routes.get(key(at));
+    return route
+      ? [
+          {
+            player: player,
+            action: "move" as const,
+            intent: {
+              kind: "reposition" as const,
+              role: "feed" as const,
+              route,
+            },
+            tier: "support" as const,
+            value: gamble(c, route.chance, c.turnover),
+            rolls: route.rolls,
+          },
+        ]
+      : [];
+  });
 }

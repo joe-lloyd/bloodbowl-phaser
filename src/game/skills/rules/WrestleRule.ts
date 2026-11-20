@@ -18,6 +18,7 @@ export const WrestleRule: SkillRule = {
       chooserTeamId: self.teamId,
       skill: SkillType.WRESTLE,
       prompt: `Use ${self.playerName}'s Wrestle to place both players prone (no armour rolls)?`,
+      opponentId: self.id === ctx.attacker.id ? ctx.defender.id : ctx.attacker.id,
     })) as ReactionDecisionAnswer;
     if (!answer.accept) return;
 

@@ -150,6 +150,29 @@ interface Search {
 
   dodgeInto: DataView;
   pickup: number;
+  titchy: readonly Square[];
+}
+
+function titchyMarkers(board: Board): Square[] {
+  return board.theirs
+    .filter((o) => hasTackleZone(o) && hasSkill(o.skills, SkillType.TITCHY))
+    .map((o) => o.gridPosition);
+}
+
+function dodgeMarks(
+  board: Board,
+  titchy: readonly Square[],
+  to: Square
+): number {
+  const marks = board.marks.getUint8(key(to));
+  return marks - titchy.filter((at) => distance(at, to) === 1).length;
+}
+
+function dodgeBonus(player: Player): number {
+  return (
+    (hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0) +
+    (hasSkill(player.skills, SkillType.TITCHY) ? 1 : 0)
+  );
 }
 
 function searchFor(board: Board, player: Player, securing: boolean): Search {
@@ -159,7 +182,7 @@ function searchFor(board: Board, player: Player, securing: boolean): Search {
     requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
   );
   const stunty = hasSkill(player.skills, SkillType.STUNTY);
-  const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
+  const twoHeads = dodgeBonus(player);
   const dodgeInto = new DataView(new ArrayBuffer(9 * 8));
   for (let marks = 0; marks < 9; marks++)
     dodgeInto.setFloat64(
@@ -179,7 +202,14 @@ function searchFor(board: Board, player: Player, securing: boolean): Search {
           )
         )
       : 1;
-  return { board, ballKey, rush, dodgeInto, pickup };
+  return {
+    board,
+    ballKey,
+    rush,
+    dodgeInto,
+    pickup,
+    titchy: titchyMarkers(board),
+  };
 }
 
 interface RelaxArgs {
@@ -200,7 +230,9 @@ function relax({ search, k, cell, p, stepRush, neighbours }: RelaxArgs): void {
     let chance = stepRush;
     if (crossings.has(cell * cells + next)) chance *= RECKLESS_CHANCE;
     if (leavesZone)
-      chance *= search.dodgeInto.getFloat64(board.marks.getUint8(next) * 8);
+      chance *= search.dodgeInto.getFloat64(
+        dodgeMarks(board, search.titchy, square(next)) * 8
+      );
     if (next === ballKey) chance *= search.pickup;
     const q = p * chance;
     if (q > bestAt.get(k + 1, next)) {
@@ -381,8 +413,8 @@ function dodgeRoll(
 ): RollTarget {
   const modifier = hasSkill(player.skills, SkillType.STUNTY)
     ? 0
-    : -board.marks.getUint8(key(to));
-  const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
+    : -dodgeMarks(board, titchyMarkers(board), to);
+  const twoHeads = dodgeBonus(player);
   const tackled = board.theirs.some(
     (o) =>
       hasTackleZone(o) &&

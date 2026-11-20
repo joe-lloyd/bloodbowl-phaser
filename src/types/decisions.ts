@@ -44,6 +44,7 @@ export interface ReactionDecisionRequest {
   skill: string;
 
   prompt: string;
+  opponentId?: string;
 }
 
 export interface ReactionDecisionAnswer {

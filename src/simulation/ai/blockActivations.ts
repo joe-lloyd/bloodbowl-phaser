@@ -12,6 +12,7 @@ import {
   toGoal,
 } from "./board";
 import { type BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
+import { blockFaces } from "./wrestle";
 import { type Route, movesLeft } from "./routes";
 import { type Context, gamble } from "./activationContext";
 import type { Activation } from "./activations";
@@ -93,11 +94,10 @@ export function blockFrom({
   });
   const reroll = c.teamReroll && carrierOf(c.board)?.id === target.id;
   return blockOdds({
-    attacker: moved,
-    defender: target,
     dice: analysis.diceCount,
     attackerPicks: !analysis.isUphill,
     teamReroll: reroll,
+    faces: blockFaces(c.board, moved, target),
   });
 }
 
@@ -185,6 +185,29 @@ interface BestBlitzArgs {
   moves: Moves;
 }
 
+function blitzReach(route: Route | null, normal: number): number {
+  return (
+    (route?.chance ?? 1) * (route && route.path.length >= normal ? d6(2) : 1)
+  );
+}
+
+export interface MarkerHit {
+  attacker: Player;
+  target: Player;
+  route: Route | null;
+}
+
+export function hitKeepsTurnChance(c: Context, hit: MarkerHit): number {
+  const [normal] = movesLeft(c.board, hit.attacker);
+  const odds = blockFrom({
+    c,
+    attacker: hit.attacker,
+    target: hit.target,
+    from: hit.route?.to ?? hit.attacker.gridPosition,
+  });
+  return blitzReach(hit.route, normal) * (1 - odds.attackerDown);
+}
+
 function bestBlitz({
   c,
   player,
@@ -206,8 +229,7 @@ function bestBlitz({
       target: target,
       from: from,
     });
-    const reach =
-      (route?.chance ?? 1) * (route && route.path.length >= normal ? d6(2) : 1);
+    const reach = blitzReach(route, normal);
     const chance = reach * (1 - odds.attackerDown);
     const value =
       reach * odds.knockdown * targetValue(c, player, target) -

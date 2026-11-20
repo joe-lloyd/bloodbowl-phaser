@@ -1,8 +1,9 @@
 import { type FieldPlayer as Player } from "./board";
 
 import { type ActionType } from "../../types/events";
-import { type Board, type Square, carrierOf } from "./board";
-import { type RollTarget } from "./chance";
+import { type Board, type Square, carrierOf, distance } from "./board";
+import { hasTackleZone } from "../../types/Player";
+import { type RollTarget, sequenceChance } from "./chance";
 import { type Route } from "./routes";
 import { type Weights } from "./weights";
 import { type Context, context, scoreChanceOf } from "./activationContext";
@@ -16,14 +17,18 @@ import {
   assistActivations,
   blitzActivations,
   carrierBlitzActivations,
+  type MarkerHit,
   blockActivations,
+  hitKeepsTurnChance,
 } from "./blockActivations";
+import { unfedChance } from "./feeding";
 import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
 import { foulActivations } from "./foulActivations";
 import { gatePriced } from "./gateActivations";
 import { pickupActivation } from "./pickupActivations";
 import {
+  feedActivations,
   feedingSupportActivations,
   holdsFeedingSupport,
 } from "./feedingSupport";
@@ -181,7 +186,46 @@ export function activations({
     out.push(...deepReceiverActivations(c, carrier));
   out.push(...assistActivations(c, out));
   out.push(...feedingSupportActivations(c));
-  return sortActivations(gatePriced(c, out));
+  return sortActivations(hitMarkersFirst(c, gatePriced(c, out)));
+}
+
+function markerHit(
+  plan: Activation,
+  markers: readonly Player[]
+): MarkerHit | null {
+  const intent = plan.intent;
+  if (plan.tier !== "sure-block" && plan.tier !== "blitz") return null;
+  if (intent.kind !== "block" && intent.kind !== "blitz") return null;
+  if (!markers.some((m) => m.id === intent.target.id)) return null;
+  return {
+    attacker: plan.player,
+    target: intent.target,
+    route: intent.kind === "blitz" ? intent.route : null,
+  };
+}
+
+function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
+  const carrier = carrierOf(c.board);
+  if (carrier?.teamId !== c.board.us) return plans;
+  const markers = c.board.theirs.filter(
+    (p) =>
+      hasTackleZone(p) && distance(p.gridPosition, carrier.gridPosition) === 1
+  );
+  const hits = plans
+    .filter((plan) => plan.player.id !== carrier.id)
+    .flatMap((plan) => markerHit(plan, markers) ?? []);
+  if (hits.length === 0) return plans;
+  const hitFirst = Math.max(...hits.map((hit) => hitKeepsTurnChance(c, hit)));
+  const scoreChance = (route: Route, rolls: readonly RollTarget[]) =>
+    sequenceChance([{ player: carrier, rolls }], c.teamReroll) *
+    (1 - unfedChance({ c, player: carrier, action: "move", at: route.to }));
+  return plans.filter(
+    (plan) =>
+      plan.player.id !== carrier.id ||
+      plan.action !== "move" ||
+      (plan.intent.kind === "score" &&
+        scoreChance(plan.intent.route, plan.rolls) >= hitFirst)
+  );
 }
 
 function movementContinuation(c: Context, player: Player): Activation[] {
@@ -192,6 +236,7 @@ function movementContinuation(c: Context, player: Player): Activation[] {
     ...pickupActivation(c, player),
     ...repositionActivation(c, player, roleSquares(c)),
     ...feedingSupportActivations(c).filter((a) => a.player.id === player.id),
+    ...feedActivations(c, player),
   ];
 }
 
@@ -208,6 +253,7 @@ function blitzContinuation(
   return [
     ...pickupActivation(c, player),
     ...repositionActivation(c, player, roleSquares(c)),
+    ...feedActivations(c, player),
   ].filter((a) => a.tier !== "risky");
 }
 

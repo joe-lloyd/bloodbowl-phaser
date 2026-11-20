@@ -2,9 +2,18 @@ import { type PendingDecision } from "../../headless/protocol";
 import { type BlockResultType } from "../../services/BlockResolutionService";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type Candidate } from "../candidates";
-import { type Board, carrierOf, distance, key, onPitch, toGoal } from "./board";
-import { hasBiteSupport } from "./feeding";
+import {
+  type Board,
+  type FieldPlayer,
+  carrierOf,
+  distance,
+  key,
+  onPitch,
+  toGoal,
+} from "./board";
+import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
+import { blockFaces, defenderWrestles, takesWrestle } from "./wrestle";
 
 const USE_REROLL = "use-reroll";
 
@@ -16,33 +25,6 @@ const UNRELIABLE = [
   SkillType.UNCHANNELLED_FURY,
   SkillType.LONER,
 ];
-
-interface ResultRankArgs {
-  type: BlockResultType;
-  attackerBlock: boolean;
-  defenderBlock: boolean;
-  defenderDodge: boolean;
-}
-
-function resultRank({
-  type,
-  attackerBlock,
-  defenderBlock,
-  defenderDodge,
-}: ResultRankArgs): number {
-  switch (type) {
-    case "pow":
-      return 5;
-    case "pow-dodge":
-      return defenderDodge ? 3 : 4.5;
-    case "push":
-      return 3;
-    case "both-down":
-      return bothDownRank(attackerBlock, defenderBlock);
-    case "skull":
-      return 0;
-  }
-}
 
 type PendingOf<T extends PendingDecision["type"]> = Extract<
   PendingDecision,
@@ -82,24 +64,21 @@ function blockDiceChoice(
   const defender = board.everyone.find((p) => p.id === pending.defenderId);
   if (!attacker || !defender)
     throw new Error("Block decision players must be on the pitch");
-  const has = (p: typeof attacker, s: SkillType) => hasSkill(p.skills, s);
-  const rank = (type: BlockResultType) =>
-    resultRank({
-      type: type,
-      attackerBlock: has(attacker, SkillType.BLOCK),
-      defenderBlock: has(defender, SkillType.BLOCK),
-      defenderDodge:
-        has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE),
-    });
+  const faces = blockFaces(board, attacker, defender);
+  const rank = (type: BlockResultType) => faces[type].rank;
   const weAttack = attacker.teamId === board.us;
-  const ranks = pending.options.map((o) => rank(o.type));
+  const kept = pending.options.reduce<BlockResultType | null>(
+    (worst, o) =>
+      worst === null ||
+      (pending.choiceStage === "attacker-reroll"
+        ? rank(o.type) < rank(worst)
+        : rank(o.type) > rank(worst))
+        ? o.type
+        : worst,
+    null
+  );
 
-  const counts =
-    pending.choiceStage === "attacker-reroll"
-      ? Math.min(...ranks)
-      : Math.max(...ranks);
-
-  if (weAttack && counts <= 1) {
+  if (weAttack && kept !== null && faces[kept].attackerDown) {
     const reroll =
       first(candidates, (c) => c.commands[0].type === "veteran-reroll-block") ??
       first(candidates, (c) => c.commands[0].type === "brawler-reroll-block") ??
@@ -136,6 +115,14 @@ function pushChoice(
   });
 }
 
+function keepsFood(board: Board, attacker: FieldPlayer | undefined): boolean {
+  return (
+    !!attacker &&
+    !!board.gs.getState().activePlayer?.bloodlustUnsated &&
+    hasBiteSupport(board, attacker, attacker.gridPosition)
+  );
+}
+
 function followUpChoice(
   board: Board,
   candidates: readonly Candidate[]
@@ -150,7 +137,7 @@ function followUpChoice(
     carrier.teamId === board.us &&
     carrier.id !== attacker.id &&
     distance(carrier.gridPosition, attacker.gridPosition) === 1;
-  const follow = !holding && !corner;
+  const follow = !holding && !corner && !keepsFood(board, attacker);
   return first(
     candidates,
     (c) =>
@@ -227,22 +214,61 @@ function skillReactionChoice({
   candidates,
   skillPlans,
 }: SkillReactionChoiceArgs): number | null {
-  const active = board.gs.getState().activePlayer;
-  const player = board.ours.find((p) => p.id === active?.id);
-  if (
-    skillPlans &&
-    pending.skill === SkillType.BLOODLUST &&
-    pending.prompt.includes("change the declared action") &&
-    active?.action === "gaze" &&
-    player?.gridPosition &&
-    hasBiteSupport(board, player, player.gridPosition)
-  )
-    return first(
-      candidates,
-      (c) => c.commands[0].type === "use-reaction" && !c.commands[0].accept
-    );
-  return null;
+  if (pending.skill === SkillType.WRESTLE)
+    return wrestleChoice(board, pending, candidates);
+  if (!skillPlans || pending.skill !== SkillType.BLOODLUST) return null;
+  const player = board.ours.find((p) => p.id === pending.playerId);
+  if (!player) return null;
+  const declines = pending.prompt.includes("change the declared action")
+    ? keepsFedAction(board, player)
+    : sparesCarrier(board, player);
+  return declines
+    ? first(
+        candidates,
+        (c) => c.commands[0].type === "use-reaction" && !c.commands[0].accept
+      )
+    : null;
 }
+
+function keepsFedAction(board: Board, player: FieldPlayer): boolean {
+  const action = board.gs.getState().activePlayer?.action;
+  return (
+    !!action &&
+    KEEPS_ACTION_WHEN_FED.has(action) &&
+    hasBiteSupport(board, player, player.gridPosition)
+  );
+}
+
+function wrestleChoice(
+  board: Board,
+  pending: PendingOf<"reaction">,
+  candidates: readonly Candidate[]
+): number | null {
+  const attacker = board.everyone.find(
+    (p) => p.id === board.gs.getState().activePlayer?.id
+  );
+  const self = board.everyone.find((p) => p.id === pending.playerId);
+  if (!attacker || !self) return null;
+  const defender = board.everyone.find((p) => p.id === pending.opponentId);
+  const accept =
+    self.id === attacker.id
+      ? !!defender && takesWrestle(board, self, defender)
+      : defenderWrestles(attacker, self);
+  return first(
+    candidates,
+    (c) =>
+      c.commands[0].type === "use-reaction" && c.commands[0].accept === accept
+  );
+}
+
+function sparesCarrier(board: Board, player: FieldPlayer): boolean {
+  const thralls = board.ours.filter(
+    (p) => isThrall(p) && distance(p.gridPosition, player.gridPosition) === 1
+  );
+  return thralls.length === 1 && thralls[0]?.id === carrierOf(board)?.id;
+}
+
+const KEEPS_ACTION_WHEN_FED = new Set<string>(["gaze", "block"]);
 
 interface DecideArgs {
   board: Board;
@@ -280,12 +306,6 @@ export function decide({
         skillPlans: skillPlans,
       });
   }
-}
-
-function bothDownRank(attackerBlock: boolean, defenderBlock: boolean): number {
-  if (attackerBlock && !defenderBlock) return 4;
-  if (attackerBlock) return 2.5;
-  return defenderBlock ? 0.5 : 1;
 }
 
 function otherDecision(

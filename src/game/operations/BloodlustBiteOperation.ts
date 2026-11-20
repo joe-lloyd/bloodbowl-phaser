@@ -5,6 +5,7 @@ import { GameEventNames } from "../../types/events";
 import {
   type Player,
   PlayerCondition,
+  PlayerStatus,
   PositionKeyWord,
   TraitKeyWord,
   addCondition,
@@ -56,7 +57,10 @@ export class BloodlustBiteOperation extends GameOperation {
       return;
     }
 
-    const thrall = await this.chooseThrall(context, player);
+    const thrall =
+      player.status === PlayerStatus.ACTIVE
+        ? await this.chooseThrall(context, player)
+        : undefined;
     const followUps: GameOperation[] = [];
     if (thrall?.gridPosition) {
       eventBus.emit(GameEventNames.SkillTriggered, {
