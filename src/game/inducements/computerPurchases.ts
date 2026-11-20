@@ -1,9 +1,28 @@
 import { shoppingTeamId } from "./pregame";
 import {
   Inducement,
+  type InducementCatalogEntry,
   type InducementOffer,
   type InducementSelectionLine,
 } from "../../types/Inducements";
+
+const SHOPPING_LIST = [
+  Inducement.EXTRA_TEAM_TRAINING,
+  Inducement.BLITZERS_BEST_KEGS,
+  Inducement.PART_TIME_ASSISTANT_COACH,
+  Inducement.TEMP_AGENCY_CHEERLEADER,
+];
+
+function shoppingList(catalog: readonly InducementCatalogEntry[]) {
+  const price = (inducement: Inducement) =>
+    catalog.find((line) => line.inducement === inducement)?.price ?? Infinity;
+  const chefIsBargain =
+    price(Inducement.HALFLING_MASTER_CHEF) <
+    price(Inducement.EXTRA_TEAM_TRAINING);
+  return chefIsBargain
+    ? [Inducement.HALFLING_MASTER_CHEF, ...SHOPPING_LIST]
+    : SHOPPING_LIST;
+}
 
 function computerInducementPurchases(
   offer: InducementOffer,
@@ -11,15 +30,9 @@ function computerInducementPurchases(
 ): InducementSelectionLine[] {
   let remaining = offer.budgets[teamId] ?? 0;
   const purchases: InducementSelectionLine[] = [];
-  for (const inducement of [
-    Inducement.EXTRA_TEAM_TRAINING,
-    Inducement.BLITZERS_BEST_KEGS,
-    Inducement.PART_TIME_ASSISTANT_COACH,
-    Inducement.TEMP_AGENCY_CHEERLEADER,
-  ]) {
-    const entry = offer.catalogs[teamId]?.find(
-      (line) => line.inducement === inducement
-    );
+  const catalog = offer.catalogs[teamId] ?? [];
+  for (const inducement of shoppingList(catalog)) {
+    const entry = catalog.find((line) => line.inducement === inducement);
     if (!entry) continue;
     const quantity = Math.min(
       entry.maxCount,
