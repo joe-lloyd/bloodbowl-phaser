@@ -253,6 +253,8 @@ describe.skipIf(!EMULATOR)("open lobbies", () => {
 
     await as(guest, () => joinLobby(code, guest, "Guest"));
     await updateDoc(doc(dbFor(ADMIN), "games", code), { status: "active" });
+    expect(await as(guest, () => leaveGuestSeat(code, guest))).toBe("active");
+    expect((await as(host, () => fetchLobby(code)))?.guestUid).toBe(guest);
     await denied(updateDoc(ref(guest), { guestUid: null, [`players.${guest}`]: deleteField() }));
   });
 });

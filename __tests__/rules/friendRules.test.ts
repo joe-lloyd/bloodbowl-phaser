@@ -332,6 +332,18 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBeNull();
     });
 
+    it("closes the empty lobby the coach was hosting when they accept", async () => {
+      const [alice, bob] = await friends();
+      const { code } = await as(alice, () => createLobby(alice, "Alice"));
+      const own = await as(bob, () => createLobby(bob, "Bob"));
+
+      await as(bob, () =>
+        acceptLobbyInvite({ kind: "match", fromUid: alice, toUid: bob, code, createdAt: 1 })
+      );
+      expect(await as(bob, () => fetchLobby(own.code))).toBeNull();
+      expect((await as(alice, () => fetchLobby(code)))?.guestUid).toBe(bob);
+    });
+
     it("is cleared only if it is still the one the coach answered", async () => {
       const [alice, bob] = await friends();
       const first = await as(alice, () => createLobby(alice, "Alice"));

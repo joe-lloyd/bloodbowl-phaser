@@ -287,28 +287,37 @@ async function activeCodeIn(tx: Transaction, uid: string): Promise<string | null
     : null;
 }
 
-async function refuseWhileBusyElsewhere(
-  tx: Transaction,
-  uid: string,
-  code: string
-): Promise<void> {
-  const current = await activeCodeIn(tx, uid);
-  if (!current || current === code) return;
-  const seats = readLobbySeats((await tx.get(lobbyRef(current))).data());
+function refuseWhileBusy(seats: ReturnType<typeof readLobbySeats>): void {
   if (seats?.status === "active")
     throw new Error("Finish your current match before accepting an invite.");
   if (seats?.status === "lobby" && seats.guestUid !== null)
     throw new Error("Leave your current game before accepting an invite.");
 }
 
-export async function leaveGuestSeat(code: string, uid: string): Promise<void> {
-  await runTransaction(getDb(), async (tx) => {
+async function emptyLobbyLeftBehind(
+  tx: Transaction,
+  uid: string,
+  code: string
+): Promise<string | null> {
+  const current = await activeCodeIn(tx, uid);
+  if (!current || current === code) return null;
+  const seats = readLobbySeats((await tx.get(lobbyRef(current))).data());
+  refuseWhileBusy(seats);
+  return seats?.status === "lobby" && seats.hostUid === uid ? current : null;
+}
+
+export async function leaveGuestSeat(
+  code: string,
+  uid: string
+): Promise<LobbyStatus | undefined> {
+  return runTransaction(getDb(), async (tx) => {
     const current = await activeCodeIn(tx, uid);
     const seats = readLobbySeats((await tx.get(lobbyRef(code))).data());
-    if (seats?.status !== "lobby" || seats.guestUid !== uid) return;
+    if (seats?.status !== "lobby" || seats.guestUid !== uid) return seats?.status;
     tx.update(lobbyRef(code), { guestUid: null, [`players.${uid}`]: deleteField() });
     if (current === code)
       tx.set(userRef(uid), { activeMatchCode: null }, { merge: true });
+    return seats.status;
   });
 }
 
@@ -366,8 +375,10 @@ export async function joinInvitedLobby(
   guest: Guest
 ): Promise<LobbyDoc> {
   return runTransaction(getDb(), async (tx) => {
-    await refuseWhileBusyElsewhere(tx, guest.uid, code);
-    return seatGuest(tx, code, guest);
+    const emptied = await emptyLobbyLeftBehind(tx, guest.uid, code);
+    const joined = await seatGuest(tx, code, guest);
+    if (emptied) tx.delete(lobbyRef(emptied));
+    return joined;
   });
 }
 

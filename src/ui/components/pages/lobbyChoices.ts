@@ -43,8 +43,8 @@ export async function currentLobby(
   if (reusableLobby(doc, { uid, fixture })) return { code: doc.code, playing: false };
   if (doc.status !== "lobby" || doc.guestUid !== uid) return null;
   if (isHouseBotBrowser()) return { code: doc.code, playing: false };
-  await leaveGuestSeat(doc.code, uid);
-  return null;
+  const status = await leaveGuestSeat(doc.code, uid);
+  return status === "active" ? { code: doc.code, playing: true } : null;
 }
 
 export function vacateWhenGuestLeaves(lobby: LobbyDoc, uid: string): void {
