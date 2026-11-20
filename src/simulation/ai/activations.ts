@@ -24,6 +24,7 @@ import { foulActivations } from "./foulActivations";
 import { gatePriced } from "./gateActivations";
 import { pickupActivation } from "./pickupActivations";
 import {
+  feedActivations,
   feedingSupportActivations,
   holdsFeedingSupport,
 } from "./feedingSupport";
@@ -192,6 +193,7 @@ function movementContinuation(c: Context, player: Player): Activation[] {
     ...pickupActivation(c, player),
     ...repositionActivation(c, player, roleSquares(c)),
     ...feedingSupportActivations(c).filter((a) => a.player.id === player.id),
+    ...feedActivations(c, player),
   ];
 }
 
@@ -208,6 +210,7 @@ function blitzContinuation(
   return [
     ...pickupActivation(c, player),
     ...repositionActivation(c, player, roleSquares(c)),
+    ...feedActivations(c, player),
   ].filter((a) => a.tier !== "risky");
 }
 

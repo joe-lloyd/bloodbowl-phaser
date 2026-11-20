@@ -2,8 +2,16 @@ import { type PendingDecision } from "../../headless/protocol";
 import { type BlockResultType } from "../../services/BlockResolutionService";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type Candidate } from "../candidates";
-import { type Board, carrierOf, distance, key, onPitch, toGoal } from "./board";
-import { hasBiteSupport } from "./feeding";
+import {
+  type Board,
+  type FieldPlayer,
+  carrierOf,
+  distance,
+  key,
+  onPitch,
+  toGoal,
+} from "./board";
+import { hasBiteSupport, isThrall } from "./feeding";
 
 const USE_REROLL = "use-reroll";
 
@@ -226,22 +234,37 @@ function skillReactionChoice({
   candidates,
   skillPlans,
 }: SkillReactionChoiceArgs): number | null {
-  const active = board.gs.getState().activePlayer;
-  const player = board.ours.find((p) => p.id === active?.id);
-  if (
-    skillPlans &&
-    pending.skill === SkillType.BLOODLUST &&
-    pending.prompt.includes("change the declared action") &&
-    active?.action === "gaze" &&
-    player?.gridPosition &&
-    hasBiteSupport(board, player, player.gridPosition)
-  )
-    return first(
-      candidates,
-      (c) => c.commands[0].type === "use-reaction" && !c.commands[0].accept
-    );
-  return null;
+  if (!skillPlans || pending.skill !== SkillType.BLOODLUST) return null;
+  const player = board.ours.find((p) => p.id === pending.playerId);
+  if (!player) return null;
+  const declines = pending.prompt.includes("change the declared action")
+    ? keepsFedAction(board, player)
+    : sparesCarrier(board, player);
+  return declines
+    ? first(
+        candidates,
+        (c) => c.commands[0].type === "use-reaction" && !c.commands[0].accept
+      )
+    : null;
 }
+
+function keepsFedAction(board: Board, player: FieldPlayer): boolean {
+  const action = board.gs.getState().activePlayer?.action;
+  return (
+    !!action &&
+    KEEPS_ACTION_WHEN_FED.has(action) &&
+    hasBiteSupport(board, player, player.gridPosition)
+  );
+}
+
+function sparesCarrier(board: Board, player: FieldPlayer): boolean {
+  const thralls = board.ours.filter(
+    (p) => isThrall(p) && distance(p.gridPosition, player.gridPosition) === 1
+  );
+  return thralls.length === 1 && thralls[0]?.id === carrierOf(board)?.id;
+}
+
+const KEEPS_ACTION_WHEN_FED = new Set<string>(["gaze", "block"]);
 
 interface DecideArgs {
   board: Board;
