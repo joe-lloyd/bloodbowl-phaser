@@ -1,8 +1,4 @@
-import {
-  type Team,
-  isLeagueMode,
-  isPendingRecruit,
-} from "../../types/Team";
+import { type Team, isLeagueMode, isPendingRecruit } from "../../types/Team";
 import {
   type Player,
   type PlayerTemplate,

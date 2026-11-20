@@ -388,7 +388,9 @@ export function hydrateStoredTeam(
     treasury: Number(raw["treasury"] ?? 0),
     startingTreasury: Number(raw["startingTreasury"] ?? 0),
     rerolls: Number(raw["rerolls"] ?? 0),
-    rerollCost: Number(raw["rerollCost"] ?? 0),
+    rerollCost: knownRoster
+      ? getRosterByRosterName(knownRoster).rerollCost
+      : Number(raw["rerollCost"] ?? 0),
     apothecary: Boolean(raw["apothecary"]),
     coaches: Number(raw["coaches"] ?? 0),
     cheerleaders: Number(raw["cheerleaders"] ?? 0),

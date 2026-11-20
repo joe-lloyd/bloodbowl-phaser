@@ -3,6 +3,9 @@ import { getAvailableRosterNames } from "../../../data/RosterTemplates";
 import { Field, Section } from "../componentWarehouse/HudKit";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
 import { AdvancementModeSelector } from "./AdvancementModePanel";
+import { GameTypeSelector } from "../common/GameTypeSelector";
+import { withDraftGameType } from "../../../game/rules/gameTypeChange";
+import { teamGameType } from "../../../game/rules/draftRules";
 
 interface Props {
   team: Team;
@@ -43,12 +46,45 @@ export function MainChoicesSection({
             ))}
           </select>
         </Field>
+        <FormatChoices
+          team={team}
+          locked={saving || active}
+          onChange={onChange}
+        />
+        <div className="lg:col-span-2">
+          <AdvancementModeSelector team={team} onChange={onChange} />
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function FormatChoices({
+  team,
+  locked,
+  onChange,
+}: {
+  team: Team;
+  locked: boolean;
+  onChange: (team: Team) => void;
+}) {
+  const disabled = locked || !!team.activeCompetitionId;
+  return (
+    <>
+      <GameTypeSelector
+        {...(team.gameType === undefined ? {} : { value: team.gameType })}
+        disabled={disabled}
+        onChange={(gameType) => {
+          onChange(withDraftGameType(team, gameType));
+        }}
+      />
+      {teamGameType(team) === "sevens" && (
         <div>
           <SevensRulesetSelector
             {...(team.draftRuleset === undefined
               ? {}
               : { value: team.draftRuleset })}
-            disabled={saving || active || !!team.activeCompetitionId}
+            disabled={disabled}
             onChange={(draftRuleset) => {
               onChange({ ...team, draftRuleset });
             }}
@@ -58,10 +94,7 @@ export function MainChoicesSection({
             the competition&apos;s own choice. Friendly matches use GW rules.
           </p>
         </div>
-        <div className="lg:col-span-2">
-          <AdvancementModeSelector team={team} onChange={onChange} />
-        </div>
-      </div>
-    </Section>
+      )}
+    </>
   );
 }

@@ -26,7 +26,10 @@ export function teamGameTypeLabel(team: DraftedFor): string {
   return GAME_TYPE_LABELS[teamGameType(team)];
 }
 
-export function rerollPrice(draft: DraftRules, rosterRerollCost: number): number {
+export function rerollPrice(
+  draft: DraftRules,
+  rosterRerollCost: number
+): number {
   switch (draft.rerolls.kind) {
     case "flat":
       return draft.rerolls.cost;

@@ -22,7 +22,6 @@ import {
   teamGameType,
 } from "./draftRules";
 
-
 export interface RosterViolation {
   rule: string;
 
@@ -197,7 +196,8 @@ export function draftSpendUnder(team: Team, gameType: GameType): number {
     team.startingTreasury -
     team.treasury +
     team.rerolls *
-      (rerollPrice(other, team.rerollCost) - rerollPrice(own, team.rerollCost)) +
+      (rerollPrice(other, team.rerollCost) -
+        rerollPrice(own, team.rerollCost)) +
     boughtFans * (dedicatedFanPrice(other) - dedicatedFanPrice(own))
   );
 }

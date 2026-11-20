@@ -21,6 +21,7 @@ import {
   chooseVeteran,
 } from "../../../src/game/rules/veteran";
 import type { GameType } from "../../../src/game/variants/gameTypes";
+import { withDraftGameType } from "../../../src/game/rules/gameTypeChange";
 
 const amazon = getRosterByRosterName(RosterName.AMAZON);
 
@@ -219,5 +220,39 @@ describe("legalGameTypes", () => {
     hire(team, { "Eagle Warrior": 7 });
     chooseFirstLinemanAsVeteran(team);
     expect(legalGameTypes(team, amazon)).toEqual(["sevens"]);
+  });
+});
+
+describe("changing a draft's game type", () => {
+  it("moves a Sevens draft to Street Bowl prices and staff", () => {
+    const team = draftTeam("sevens", 600_000);
+    hire(team, { "Eagle Warrior": 7 });
+    chooseFirstLinemanAsVeteran(team);
+    purchase(team, { type: "reroll" });
+    purchase(team, { type: "apothecary" });
+    purchase(team, { type: "coach" });
+    expect(team.treasury).toBe(50_000);
+
+    const street = withDraftGameType(team, "street-bowl");
+
+    expect(street.gameType).toBe("street-bowl");
+    expect(street.rerolls).toBe(1);
+    expect(street.apothecary).toBe(false);
+    expect(street.coaches).toBe(0);
+    expect(street.treasury).toBe(130_000);
+    expect(street.players.filter((player) => player.veteran)).toEqual([]);
+    expect(team.gameType).toBeUndefined();
+  });
+
+  it("raises the budget to 750,000 for Gutter Bowl and back", () => {
+    const team = draftTeam("sevens", 600_000);
+    hire(team, { "Eagle Warrior": 7 });
+    const gutter = withDraftGameType(team, "gutter-bowl");
+    expect(gutter.startingTreasury).toBe(750_000);
+    expect(gutter.treasury).toBe(400_000);
+    const sevens = withDraftGameType(gutter, "sevens");
+    expect(sevens.gameType).toBeUndefined();
+    expect(sevens.treasury).toBe(250_000);
+    expect(sevens.players.filter((player) => player.veteran)).toHaveLength(1);
   });
 });
