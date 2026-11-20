@@ -11,9 +11,11 @@ If no bot is waiting it says so.
 
 The bot is also a friend you can invite. Add it on the Friends page with
 its friend code, and it accepts the request by itself. Then host a game,
-invite House Bot from the lobby, and it joins, picks its team and readies
-up. Start the match when you are ready. If the bot is already in a match,
-it joins as soon as that match ends, while the invite is still fresh.
+invite House Bot from the lobby, and it joins, picks one of its teams at
+random and readies up. You host, so the game type, turn timer, timeout bank
+and the rest of the settings are yours. Start the match when you are ready.
+If the bot is already in a match, it joins as soon as that match ends,
+while the invite is still fresh.
 
 ## How it works
 
@@ -38,8 +40,11 @@ it joins as soon as that match ends, while the invite is still fresh.
   full time. It does not choose moves or translate them into board clicks.
   The page loads a Vite dev server on old-mac with the production Firebase
   config from `.env`.
-- The bot's team, House Bot Orcs, uses Matched Play, so it owes no skill
-  pick after a game and can start the next one at once.
+- The bot owns House Bot Orcs and eight teams built from the computer team
+  templates listed in `SQUAD` in the runner, all in Matched Play, so none
+  owes a skill pick after a game. The runner drafts any that are missing on
+  start. In a lobby it picks at random among the teams the lobby allows for
+  its game type, and picks again if the host changes the game type.
 - If the other coach ends the match early, the bot agrees and hosts the
   next one.
 - In the bot's browser only, `HouseBotSocial`
