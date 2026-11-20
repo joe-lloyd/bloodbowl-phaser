@@ -126,7 +126,7 @@ describe("the Start Match button", () => {
     );
 
     await expect(startLobbyMatch("ABC123")).rejects.toThrow(
-      "Both coaches need a ready team that meets this game type's rules."
+      "Both coaches need a ready team that meets this game type's rules and the team value range."
     );
     expect(update).not.toHaveBeenCalled();
   });

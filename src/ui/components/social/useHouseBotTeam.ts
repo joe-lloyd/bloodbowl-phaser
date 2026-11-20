@@ -4,6 +4,7 @@ import {
   type LobbyDoc,
   lobbyGameType,
   selectTeam,
+  setReady,
   teamFitsLobby,
 } from "../../../firebase/lobby";
 import { houseBotTeam } from "../../../social/houseBotTeam";
@@ -33,6 +34,7 @@ export function useHouseBotTeam(lobby: LobbyDoc | null, uid: string | undefined)
     const team = houseBotTeam({ gameType, teamValue: lobby.settings.teamValue, random: Math.random });
     if (!team) {
       say(`no computer team plays ${gameType} at ${teamValueText(lobby.settings.teamValue)}`);
+      if (lobby.players[uid]?.ready) void setReady(lobby.code, uid, false);
       return;
     }
     say(`picking ${team.name} (${team.rosterName}, ${String(calculateTeamValue(team) / 1000)}k)`);

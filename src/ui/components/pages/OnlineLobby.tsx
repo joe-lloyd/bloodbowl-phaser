@@ -691,7 +691,7 @@ export function SettingsPanel({
           }}
         />
       </label>
-      <TeamValueSetting settings={settings} readOnly={readOnly} onChange={onChange} />
+      <TeamValueSetting settings={settings} readOnly={readOnly || gameTypeLocked} onChange={onChange} />
       <GameTypeSelector
         label="Game type"
         {...(settings.gameType === undefined

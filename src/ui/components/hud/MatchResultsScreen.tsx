@@ -8,6 +8,7 @@ import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { getCurrentUser } from "../../../firebase/auth";
 import { clearActiveMatchCode } from "../../../firebase/lobby";
 import { getTeamById, saveTeam } from "../../../game/managers/TeamManager";
+import { isHouseBotBrowser } from "../../../firebase/houseBot";
 import { recordPendingDevelopment } from "../../../game/progression/postMatch";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import {
@@ -68,7 +69,7 @@ function ownedTeams(teams: Team[]): Team[] {
 }
 
 function savedTeams(teams: Team[]): Team[] {
-  return getActiveOnlineMatch()?.kind === "computer"
+  return getActiveOnlineMatch()?.kind === "computer" || isHouseBotBrowser()
     ? teams.filter((team) => !!getTeamById(team.id))
     : ownedTeams(teams);
 }

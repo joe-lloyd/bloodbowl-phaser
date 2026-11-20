@@ -104,6 +104,7 @@ const WAIT_FOR_A_GAME_MS = 24 * 60 * 60 * 1000;
 const WAIT_AS_GUEST_MS = 20 * 60 * 1000;
 
 async function readyUp(page: Page) {
+  if (await page.getByText(/Pick another team\./).isVisible().catch(() => false)) return;
   const ready = page.getByRole("button", { name: "Ready!" });
   if (await ready.isEnabled().catch(() => false)) await ready.click();
 }

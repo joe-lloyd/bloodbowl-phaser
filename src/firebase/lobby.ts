@@ -530,9 +530,9 @@ export function canStart(lobby: LobbyDoc): boolean {
 }
 
 export function teamFitsLobby(team: Team, lobby: LobbyDoc): boolean {
+  const range = lobby.competitionContext ? undefined : lobby.settings.teamValue;
   return (
-    teamPlaysGameType(team, lobbyGameType(lobby)) &&
-    withinTeamValue(team, lobby.settings.teamValue)
+    teamPlaysGameType(team, lobbyGameType(lobby)) && withinTeamValue(team, range)
   );
 }
 
@@ -575,7 +575,7 @@ export async function startLobbyMatch(code: string): Promise<void> {
     const lobby = readLobby(snapshot.data());
     if (!lobby.guestUid || !canStart(lobby))
       throw new Error(
-        "Both coaches need a ready team that meets this game type's rules."
+        "Both coaches need a ready team that meets this game type's rules and the team value range."
       );
     tx.update(lobbyRef(code), {
       status: "active",

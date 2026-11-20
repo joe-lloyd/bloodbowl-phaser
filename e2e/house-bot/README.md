@@ -52,8 +52,9 @@ while the invite is still fresh.
   (`src/ui/components/social/HouseBotSocial.tsx`) accepts every incoming
   friend request and every match invite, as long as the bot has no guest
   waiting and is not playing. It then opens the invited lobby. The runner
-  waits the same way as host or guest: it picks the team and presses Ready!,
-  and as host it presses Start Match once the guest is ready.
+  waits the same way as host or guest: it presses Ready! once the bot's
+  browser has picked a team that fits, and as host it presses Start Match
+  once the guest is ready.
 
 ## Running it
 
