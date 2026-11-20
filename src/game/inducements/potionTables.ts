@@ -83,7 +83,7 @@ const SUPERIOR_POTIONS: readonly PotionOutcome[] = [
   }),
 ];
 
-export function potionTable(kind: PotionInducement): readonly PotionOutcome[] {
+function potionTable(kind: PotionInducement): readonly PotionOutcome[] {
   switch (kind) {
     case Inducement.MAGIC_POTION:
       return STREET_POTIONS;

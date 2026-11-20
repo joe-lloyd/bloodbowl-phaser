@@ -67,7 +67,7 @@ function mayDrink(
   );
 }
 
-export function potionPatients(
+function potionPatients(
   state: GameState,
   team: Team,
   kind: PotionInducement

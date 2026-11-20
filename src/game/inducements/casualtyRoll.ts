@@ -4,7 +4,7 @@ import {
   InjuryResult,
 } from "../controllers/InjuryController";
 
-export function casualtyForRoll(roll: number): CasualtyType {
+function casualtyForRoll(roll: number): CasualtyType {
   if (roll <= 8) return InjuryResult.BADLY_HURT;
   if (roll <= 14) return InjuryResult.SERIOUSLY_HURT;
   return InjuryResult.DEAD;

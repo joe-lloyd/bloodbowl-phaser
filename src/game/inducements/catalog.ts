@@ -9,6 +9,7 @@ import {
   hasTeamSpecialRule,
 } from "../rules/teamAllegiance";
 import { type GameType } from "../variants/gameTypes";
+import { type PotionInducement } from "./inventory";
 
 export const NO_PURCHASE_LIMIT = 99;
 
@@ -86,6 +87,8 @@ export function inducementCatalog(
   }
 }
 
-export function startingFreeInducements(gameType: GameType): Inducement[] {
+export function startingFreeInducements(
+  gameType: GameType
+): PotionInducement[] {
   return gameType === "street-bowl" ? [Inducement.MAGIC_POTION] : [];
 }
