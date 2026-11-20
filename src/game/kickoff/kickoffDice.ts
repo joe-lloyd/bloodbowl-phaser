@@ -1,3 +1,5 @@
+import { activeRules } from "../variants/activeMatch";
+import { surfaceArmourModifier } from "../rules/surfaceArmour";
 import { type IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { type GameState } from "@/types/GameState";
@@ -132,11 +134,12 @@ export function placeProne(eventBus: IEventBus, player: Player): void {
 export async function knockDownWithArmour(
   { eventBus, flowManager }: ResolverDeps,
   player: Player,
-  armourModifier: number
+  totalModifier: number
 ): Promise<void> {
   if (player.status === PlayerStatus.ACTIVE) knockDownPlayer(eventBus, player);
+  const surface = surfaceArmourModifier(activeRules().armour, "knocked-down");
   await flowManager.runToRest(
-    new ArmourOperation(player.id, undefined, undefined, "special", armourModifier)
+    new ArmourOperation(player.id, undefined, undefined, "special", totalModifier - surface)
   );
 }
 

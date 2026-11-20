@@ -1,3 +1,5 @@
+import { surfaceArmourModifier } from "../rules/surfaceArmour";
+import { activeRules } from "../variants/activeMatch";
 import { GameEventNames } from "../../types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { movePlayerToBox } from "../rules/playerLocation";
@@ -76,10 +78,11 @@ async function resolveFallingRoofTiles(
   ctx: KickoffEventResolverContext
 ): Promise<void> {
   const zone = await randomWideZone(deps, "Falling Roof Tiles");
+  const standingArmour = -surfaceArmourModifier(activeRules().armour, "knocked-down");
   for (const player of playersInWideZone(ctx, zone)) {
     grantEffect(ctx.outcome, player.teamId, `${player.playerName} is hit by roof tiles`);
     await deps.flowManager.runToRest(
-      new ArmourOperation(player.id, undefined, undefined, "special")
+      new ArmourOperation(player.id, undefined, undefined, "special", standingArmour)
     );
   }
 }
