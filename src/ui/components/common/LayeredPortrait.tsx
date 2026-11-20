@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { pageCanvas } from "../../../game/presentation/layered/atlasCanvas";
 import { loadLookAtlas } from "../../../game/presentation/layered/layeredModels";
 import type { LookAtlas } from "../../../game/presentation/layered/lookAtlas";
 import type { PlayerAppearance } from "../../../types/Player";
@@ -20,30 +21,28 @@ interface LayeredPortraitProps {
 
 interface Sheet {
   readonly atlas: LookAtlas;
-  readonly image: HTMLCanvasElement;
+  readonly images: readonly HTMLCanvasElement[];
   readonly names: readonly string[];
 }
 
 function toSheet(atlas: LookAtlas): Sheet {
-  const image = document.createElement("canvas");
-  image.width = atlas.width;
-  image.height = atlas.height;
-  image.getContext("2d")?.putImageData(new ImageData(atlas.pixels, atlas.width, atlas.height), 0, 0);
+  const images = atlas.pages.map(pageCanvas);
   const names = Object.keys(atlas.frames).sort((a, b) => Number(a.split("/")[2]) - Number(b.split("/")[2]));
-  return { atlas, image, names };
+  return { atlas, images, names };
 }
 
 function drawFrame(canvas: HTMLCanvasElement, sheet: Sheet, index: number): number {
   const first = sheet.atlas.frames[sheet.names[0] ?? ""];
   const rect = sheet.atlas.frames[sheet.names[index] ?? ""];
   const ctx = canvas.getContext("2d");
-  if (!first || !rect || !ctx) return 0;
+  const image = rect ? sheet.images[rect.page] : undefined;
+  if (!first || !rect || !ctx || !image) return 0;
   const side = Math.max(first.w, first.h) + 8;
   const ox = first.sx + first.w / 2 - side / 2;
   const oy = first.sy + first.h - side + 4;
   canvas.width = canvas.height = side;
   ctx.clearRect(0, 0, side, side);
-  ctx.drawImage(sheet.image, rect.x, rect.y, rect.w, rect.h, rect.sx - ox, rect.sy - oy, rect.w, rect.h);
+  ctx.drawImage(image, rect.x, rect.y, rect.w, rect.h, rect.sx - ox, rect.sy - oy, rect.w, rect.h);
   return side;
 }
 

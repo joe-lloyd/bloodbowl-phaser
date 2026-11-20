@@ -47,7 +47,7 @@ def plan(key):
     spec = registry.LOOKS.get(key)
     if spec is None:
         model = registry.get(key)
-        return [(model.sex, model, model, [])], []
+        return [(getattr(model, "sex", "x"), model, model, [])], []
     body_name, _, bodies = spec.options[0]
     slots = spec.options[1:]
     out = []
@@ -165,7 +165,7 @@ def verify(stage, scale, spec, body, default, store, rng, count, seed=7):
     looks = [{s: vals[0][0] for s, _, vals in slots}] + [{s: rnd.choice(vals)[0] for s, _, vals in slots}
                                                           for _ in range(count)]
     shape = (stage.canvas, stage.canvas)
-    worst = 0
+    worst, compared = 0, False
     for choice in looks:
         model = spec.variant(dict(choice, **{body_name: body}))
         names = ["base"] + ["%s.%s" % (s, v) for s, v in choice.items() if ("%s.%s" % (s, v)) in store]
@@ -183,8 +183,13 @@ def verify(stage, scale, spec, body, default, store, rng, count, seed=7):
             mine = finished(stage, *composite(cells, shape, shades))
             diffs.append(int((mine != full).sum()))
         worst = max([worst] + diffs)
+        compared = compared or bool(diffs)
         print("VERIFY %s %s %s diff px %s" % (default.key, body, "-".join(choice.values()), diffs), flush=True)
-    print("VERIFY %s %s worst %d px" % (default.key, body, worst), flush=True)
+    if compared:
+        print("VERIFY %s %s worst %d px" % (default.key, body, worst), flush=True)
+    else:
+        print("VERIFY %s %s compared no frames: verify samples %s, and this run rendered none of them" % (
+            default.key, body, ", ".join("%s/%s/%d" % (name, f, i) for name, i, f in VERIFY_FRAMES)), flush=True)
 
 
 def tables(stage):
@@ -261,8 +266,10 @@ def run(key, a, make_stage, target_height, calibrate, pad):
         os.makedirs(a["stash"], exist_ok=True)
         tag = "-".join(a["anims"])
         for body, store in stores.items():
-            with open(os.path.join(a["stash"], "%s__%s__%s.pkl" % (key, body, tag)), "wb") as fh:
+            path = os.path.join(a["stash"], "%s__%s__%s.pkl" % (key, body, tag))
+            with open(path + ".part", "wb") as fh:
                 pickle.dump({"store": store, "warnings": warnings}, fh, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(path + ".part", path)
         print("STASHED %s %s %s" % (key, sorted(stores), tag), flush=True)
         return
     finish_model(key, a, (bodies, options, stores, warnings), (make_stage, target_height, calibrate, pad))

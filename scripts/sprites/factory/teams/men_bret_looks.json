@@ -1,0 +1,22 @@
+{
+  "bret_squire": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["hood", "Hood and cape"], ["hat", "Straw hat"], ["bare", "Bare head"]]],
+    ["legs", "Legs", [["bare", "Bare shins"], ["hose", "Hose"]]]
+  ],
+  "bret_catcher": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helm", "Helm", [["mantled", "Helm and mantling"], ["bare", "Bare head"]]],
+    ["surcoat", "Surcoat", [["halved", "Halved surcoat"], ["tabard", "Tabard"]]]
+  ],
+  "bret_thrower": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helm", "Helm", [["bascinet", "Bascinet"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["left", "Left plate"], ["heraldic", "Heraldic plates"], ["big", "Big pauldrons"]]]
+  ],
+  "grail_knight": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helm", "Helm", [["great", "Crowned great helm"], ["open", "Plumed open helm"]]],
+    ["cape", "Cloak", [["long", "Long cloak"], ["short", "Short cloak"], ["none", "No cloak"]]]
+  ]
+}

@@ -3,7 +3,7 @@ are also used by Underworld Denizens and the Rat Ogre by Chaos Renegade. Each po
 colour as well as its own gear. No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, lerp, UP, basis, D, cone, flat_cone, ellipsoid, cap, surf
 from teams import undead_skaven_lizards_kit as K
 
@@ -50,7 +50,7 @@ class SkavenThrower(Biped):
     race = "skaven"
     knobs = dict(hunch=5, legs=1.05, shoulders=0.9)
     layout = rat("fur_grey", torso="kit1", arms="kit1", sleeve_cuff="kit2", helm="skull", helm_mat="leather", loin="kit1",
-                 loin_trim="kit2", belt="leather", buckle="brass", neckband="kit2")
+                 loin_trim="kit2", belt="leather", buckle="brass", neckband="kit2", goggles=True)
     stance = dict(lean=0, legs={"l": (5, 8, 6), "r": (-4, 8, 6)}, arms={"l": (8, 20, 26), "r": (36, 22, 96, 2)},
                   hands="relaxed")
     stride, arm_swing, jump = 42, 34, 0.22
@@ -65,6 +65,8 @@ class SkavenThrower(Biped):
         K.tail(J, tag, pose, ln=0.95, r=0.05, mat="skin_rat", up=0.3, bands=[(0.3, 0.4, "kit1")])
         K.sash(J, P, tag, "kit2", w=0.06)
         K.ribbon(J, tag, "sashtail", surf(J, P, 0.08, 80, 0.05), 0.4, "kit2", pose, w=0.05, back=0.2, key="tail")
+        if not L.get("goggles"):
+            return
         c, X, F, U, s = K.hframe(J)
         hs = s[0] / 0.2
         K.head_band(J, tag, "leather", -0.02, 0.2, 1.08, "gstrap")
@@ -109,7 +111,7 @@ class GutterRunner(Biped):
     race = "skaven"
     knobs = dict(limb=0.68, torso=0.74, shoulders=0.8, hunch=24, arms=1.1, legs=1.02, head=0.95)
     layout = rat("fur_grey", torso="cloth_black", helm="hood", hood_mat="cloth_black", loin="kit2", wraps="kit2",
-                 belt="kit1", buckle=None, snout_mat="cloth_black", nose_mat="skin_rat", ears="none")
+                 belt="kit1", buckle=None, snout_mat="cloth_black", nose_mat="skin_rat", ears="none", scarf_mat="cloth_black")
     stance = dict(lean=6, nod=-22, legs={"l": (20, 12, 30), "r": (-14, 12, 22)},
                   arms={"l": (-34, 22, 26, 10), "r": (-22, 22, 34, 10)}, hands="open")
     stride, arm_swing, run_lean, jump = 52, 14, 24, 0.3
@@ -132,11 +134,13 @@ class GutterRunner(Biped):
         for side in ("l", "r"):
             hip, knee = J["legs"][side][:2]
             K.ring(tag, "legwrap" + side, hip, knee, 0.45, 0.75, rl * 1.5, "kit2")
-        c, X, F, U, s = K.hframe(J)
-        nk = c - F * s[1] * 0.9 - U * s[2] * 0.75
-        tband(tag + "scarfwrap", J, P, [P["sh_h"] - 0.02, P["sh_h"] + 0.1], "cloth_black", k=1.0, add=0.05, solid=0.04)
-        for i, sd in enumerate((-1, 1)):
-            K.ribbon(J, tag, "scarf%d" % i, nk, 0.75 + 0.12 * i, "cloth_black", pose, w=0.06, side=sd * 0.12, back=0.7)
+        sm = L.get("scarf_mat")
+        if sm:
+            c, X, F, U, s = K.hframe(J)
+            nk = c - F * s[1] * 0.9 - U * s[2] * 0.75
+            tband(tag + "scarfwrap", J, P, [P["sh_h"] - 0.02, P["sh_h"] + 0.1], sm, k=1.0, add=0.05, solid=0.04)
+            for i, sd in enumerate((-1, 1)):
+                K.ribbon(J, tag, "scarf%d" % i, nk, 0.75 + 0.12 * i, sm, pose, w=0.06, side=sd * 0.12, back=0.7)
 
 @register
 class RatOgre(Biped):

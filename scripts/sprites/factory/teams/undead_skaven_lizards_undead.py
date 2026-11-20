@@ -2,7 +2,7 @@
 wight, mummy). Zombie and Ghoul are shared by both teams. No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, Floating, register, core, parts
+from lib import Biped, Floating, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, lerp, UP, basis, D, cone, flat_cone, ellipsoid, cap, surf
 from teams import undead_skaven_lizards_kit as K
 
@@ -17,7 +17,7 @@ class Zombie(Biped):
     race = "zombie"
     knobs = dict(hunch=18, head_fwd=0.08, limb=0.95)
     layout = dict(hair=None, legs="rags", boots="leather", cuff=None, belt="rope", buckle=None,
-                  pads="football_small", pad_sides=("l",), pad_mat="kit2", pad_trim="rust", wraps="rags")
+                  pads="football_small", pad_sides=("l",), pad_mat="kit2", pad_trim="rust", wraps="rags", shirt="kit1")
     stance = dict(lean=4, nod=6, look=-14, legs={"l": (12, 8, 16), "r": (-12, 10, 6)}, feet={"r": 12},
                   arms={"l": (78, 8, 10), "r": (58, 12, 22)}, hands="relaxed")
     stride, arm_swing, run_lean, jump = 26, 8, 6, 0.08
@@ -36,13 +36,15 @@ class Zombie(Biped):
 
     def extras(self, J, P, L, tag, pose):
         sh = P["sh_h"]
-        tband(tag + "jersey", J, P, [0.1, 0.22, 0.36, sh, sh + 0.04], "kit1", k=1.05, add=0.015, solid=0.03)
-        tband(tag + "jerseyrag", J, P, [0.1, 0.0, -0.1], "kit2", k=1.08, add=0.02, solid=0.025, jag=0.9)
-        el, wr = J["arms"]["r"][1:3]
-        shd = J["arms"]["r"][0]
-        r = K.arm_r(L)
-        tube(tag + "sleeve", [shd, lerp(shd, el, 0.5), lerp(shd, el, 0.8)], [r * 1.12, r * 1.1, r * 1.08], "kit1", n=8)
-        K.ring(tag, "sleevehem", shd, el, 0.76, 0.86, r * 1.12, "kit2")
+        shirt = L.get("shirt")
+        if shirt:
+            tband(tag + "jersey", J, P, [0.1, 0.22, 0.36, sh, sh + 0.04], shirt, k=1.05, add=0.015, solid=0.03)
+            tband(tag + "jerseyrag", J, P, [0.1, 0.0, -0.1], "kit2", k=1.08, add=0.02, solid=0.025, jag=0.9)
+            el, wr = J["arms"]["r"][1:3]
+            shd = J["arms"]["r"][0]
+            r = K.arm_r(L)
+            tube(tag + "sleeve", [shd, lerp(shd, el, 0.5), lerp(shd, el, 0.8)], [r * 1.12, r * 1.1, r * 1.08], shirt, n=8)
+            K.ring(tag, "sleevehem", shd, el, 0.76, 0.86, r * 1.12, "kit2")
         c, X, F, U, s = K.hframe(J)
         ellipsoid(tag + "wound", c + U * s[2] * 0.7 + X * s[0] * 0.45 + F * s[1] * 0.2, (0.07, 0.06, 0.04), "mouth", J["head_R"], seg=8)
         K.surf_stitch(J, P, tag, "scar", 0.4, 28, 0.2, 12, 3, off=0.045)
@@ -56,7 +58,7 @@ class Ghoul(Biped):
     knobs = dict(hunch=36, arms=1.4, legs=0.92, head=1.08, head_fwd=0.1, limb=0.8, shoulders=1.08, hands=1.2)
     layout = dict(legs="skin_ghoul", boots="skin_ghoul", cuff=None, loin="kit1", loin_trim="kit2", shorts="kit1", belt="rope",
                   buckle=None, wraps="kit2", arm_band="kit1", pads="football_small", pad_mat="kit1", pad_trim="kit2",
-                  claws=0.16, finger=1.25)
+                  claws=0.16, finger=1.25, headband=True)
     stance = dict(lean=8, nod=-28, legs={"l": (34, 16, 66), "r": (22, 16, 62)}, arms={"l": (14, 20, 18), "r": (30, 18, 30)},
                   hands="open")
     stride, arm_swing, run_lean, jump = 40, 44, 16, 0.22
@@ -75,9 +77,12 @@ class Ghoul(Biped):
         tband(tag + "vestrag", J, P, [0.2, 0.12, 0.05], "kit1", k=1.07, add=0.02, solid=0.025, jag=0.9)
         tband(tag + "vestneck", J, P, [sh - 0.01, sh + 0.05], "kit2", k=1.03, add=0.03, solid=0.03)
         K.spines(J, P, tag, "bone", [0.12, 0.22, 0.32, 0.42], length=0.11, r=0.05, lift=0.2)
-        K.head_band(J, tag, "kit2", 0.25, 0.62, 1.08)
+        if not L.get("headband"):
+            return
+        k = 1.15 if L.get("hair") else 1.08
+        K.head_band(J, tag, "kit2", 0.25, 0.62, k)
         c, X, F, U, s = K.hframe(J)
-        knot = c - F * s[1] * 1.05 + U * s[2] * 0.42
+        knot = c - F * s[1] * (k - 0.03) + U * s[2] * 0.42
         ball_at(tag + "knot", knot, 0.05, "kit2")
         for i, sd in enumerate((-1, 1)):
             K.ribbon(J, tag, "btail%d" % i, knot, 0.42 + 0.08 * i, "kit2", pose, w=0.045, side=sd * 0.1, back=0.6)
@@ -133,7 +138,7 @@ class Wraith(Floating):
     knobs = dict(arms=1.15, shoulders=1.0, hands=1.05)
     layout = dict(torso="cloth_black", arms="cloth_black", coat_mat="cloth_black", robe_lining="kit1", hem="kit1",
                   helm="hood", hood_mat="cloth_black", belt="kit2", buckle="gold", sleeve_cuff="kit2", jag=0.7,
-                  claws=0.08, finger=1.3, clasp=False, trim="kit2")
+                  claws=0.08, finger=1.3, clasp=False, trim="kit2", shroud=True, hood_rim=True)
     stance = dict(lean=6, nod=10, legs={"l": (0, 5, 0), "r": (0, 5, 0)}, arms={"l": (34, 30, 46), "r": (50, 30, 40)},
                   hands="open")
     hover = 0.24
@@ -145,19 +150,23 @@ class Wraith(Floating):
                  arms={"l": (34 + 8 * w["c1"], 30, 46), "r": (50 + 22 * w["up"], 30, 40 + 40 * w["up"])})
 
     def extras(self, J, P, L, tag, pose):
-        core.cape(J, P, L, tag, 0.78, pose.get("cape", 0.0), mats=("kit1", "cloth_black"))
-        c, X, F, U, s = K.hframe(J)
-        cap(tag + "hoodrim", c + U * 0.01 - F * 0.02, (s[0] * 1.36, s[1] * 1.34, s[2] * 1.32), "kit1",
-            (U * 0.5 - F * 0.85).normalized(), cut=-0.5, hi=-0.34, rot=J["head_R"], thick=0.035)
         sh = P["sh_h"]
+        if L.get("shroud"):
+            core.cape(J, P, L, tag, 0.78, pose.get("cape", 0.0), mats=("kit1", "cloth_black"))
+            tband(tag + "mantle", J, P, [sh - 0.06, sh + 0.0, sh + 0.06], "kit1", k=1.06, add=0.05, solid=0.03)
+        c, X, F, U, s = K.hframe(J)
+        if L.get("hood_rim"):
+            cap(tag + "hoodrim", c + U * 0.01 - F * 0.02, (s[0] * 1.36, s[1] * 1.34, s[2] * 1.32), "kit1",
+                (U * 0.5 - F * 0.85).normalized(), cut=-0.5, hi=-0.34, rot=J["head_R"], thick=0.035)
+        if L.get("wraith_crown"):
+            K.crown(J, tag, "darkmetal", n=6, h=0.2, lo=0.5, hi=0.66, r=0.05, k=1.36)
         for sd in (-1, 1):          # a stole down the front of the robe
             K.strap(J, P, tag, "stole%d" % sd, sh + 0.03, 24 * sd, -0.22, 16 * sd, "kit2", w=0.06, off=0.05)
-        tband(tag + "mantle", J, P, [sh - 0.06, sh + 0.0, sh + 0.06], "kit1", k=1.06, add=0.05, solid=0.03)
         start = surf(J, P, 0.07, 35, 0.06)
         K.ribbon(J, tag, "cord", start, 0.5, "kit2", pose, w=0.035, back=-0.1, key="cape")
 
 @register
-class FleshGolem(Biped):
+class FleshGolem(looks.Fine, Biped):
     """Stitched giant: tiny bolted head with a riveted skull plate between huge shoulders, sewn-on grey
     forearms, kit1 breeches, one dark shoulder plate on a kit2 strap, seams everywhere."""
     key = "flesh_golem"
@@ -176,7 +185,20 @@ class FleshGolem(Biped):
                  arms={"l": (8, 30, 30, 0), "r": (8 + 34 * jolt, 30 + 8 * jolt, 30 + 50 * jolt, 0)},
                  hand_modes={"r": "open" if jolt else "fist"})
 
+    def details(self, J, P, L, tag, pose):     # more seams and staples where the parts were sewn together
+        K.surf_stitch(J, P, tag, "seam3", 0.14, -70, 0.16, 40, 5, off=0.02)
+        K.surf_stitch(J, P, tag, "seam4", 0.52, 70, 0.32, 96, 3, off=0.02)
+        K.surf_stitch(J, P, tag, "seam5", 0.2, 200, 0.12, 250, 3, off=0.02)
+        r = K.arm_r(L)
+        for side in ("l", "r"):
+            shd, el = J["arms"][side][:2]
+            K.ring(tag, "shseam" + side, shd, el, 0.3, 0.36, r * 1.0, "socket")
+        Rb = basis(J["X"], J["F"], J["u"])
+        for i, ang in enumerate((-24, 24)):
+            box(tag + "staple%d" % i, surf(J, P, 0.36, ang, 0.03), (0.07, 0.02, 0.025), "metal", Rb)
+
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         sh = P["sh_h"]
         K.strap(J, P, tag, "padF", sh + 0.02, 44, 0.1, -80, "kit2", 0.06)
         K.strap(J, P, tag, "padB", sh + 0.02, 138, 0.1, 258, "kit2", 0.06)
@@ -205,7 +227,7 @@ class Skeleton(Biped):
     key = "skeleton"
     race = "skeleton"
     layout = dict(helm="skull", helm_mat="rust", jersey="darkmetal", tabard="kit1", tabard_trim="kit2", belt="leather",
-                  legs="bone_old", boots="leather", cuff="rags", neckband="kit2", arm_band="kit2")
+                  legs="bone_old", boots="leather", cuff="rags", neckband="kit2", arm_band="kit2", pot_helm=True)
     stance = dict(lean=2, look=8, legs={"l": (6, 9, 8), "r": (-5, 9, 8)}, arms={"l": (6, 22, 22), "r": (18, 24, 54, 6)},
                   hands="relaxed")
     height = 1.0
@@ -218,9 +240,13 @@ class Skeleton(Biped):
     def extras(self, J, P, L, tag, pose):
         tband(tag + "mailhem", J, P, [0.1, 0.02, -0.06], "darkmetal", k=1.08, add=0.02, solid=0.025, jag=0.5)
         c, X, F, U, s = K.hframe(J)
-        cone(tag + "helmspike", c + U * s[2] * 1.05, c + U * (s[2] * 1.05 + 0.2), 0.05, "rust", 6)
-        for sd in (-1, 1):
-            box(tag + "cheek%d" % sd, c + X * sd * s[0] * 1.08 - U * s[2] * 0.2 + F * s[1] * 0.1, (0.03, 0.14, 0.24), "rust", J["head_R"])
+        if L.get("pot_helm"):
+            cone(tag + "helmspike", c + U * s[2] * 1.05, c + U * (s[2] * 1.05 + 0.2), 0.05, "rust", 6)
+            for sd in (-1, 1):
+                box(tag + "cheek%d" % sd, c + X * sd * s[0] * 1.08 - U * s[2] * 0.2 + F * s[1] * 0.1, (0.03, 0.14, 0.24), "rust",
+                    J["head_R"])
+        if L.get("shield"):
+            K.arm_shield(J, L, tag, "l", "rust", "kit2", "darkmetal")
         start = surf(J, P, P["sh_h"] + 0.04, 150, 0.05)
         K.ribbon(J, tag, "scarf", start, 0.4, "kit2", pose, w=0.05, back=0.5)
 
@@ -234,7 +260,7 @@ class Wight(Biped):
     layout = dict(torso="rust", arms="bone_old", legs="bone_old", helm="open", helm_mat="darkmetal", trim="gold",
                   pads="plate", pad_mat="darkmetal", pad_trim="kit2", breast="darkmetal", emblem_mat="kit1", gorget=True,
                   tabard="kit2", tabard_trim="gold", cape="long", cape_mat="kit1", cape_lining="cloth_black", greaves=True,
-                  bracers="darkmetal", belt="leather", claws=0.08)
+                  bracers="darkmetal", belt="leather", claws=0.08, crowned=True)
     stance = dict(lean=0, nod=-4, legs={"l": (5, 10, 5), "r": (-4, 10, 5)}, arms={"l": (4, 24, 18), "r": (38, 26, 100, 0)},
                   hands="fist")
     stride, arm_swing, jump = 36, 30, 0.16
@@ -246,17 +272,18 @@ class Wight(Biped):
                  arms={"l": (4, 24, 18), "r": (38 + 10 * w["up"], 26, 100 - 14 * w["up"], 0)})
 
     def extras(self, J, P, L, tag, pose):
-        K.crown(J, tag, "gold", n=7, h=0.2, lo=0.42, hi=0.62, r=0.05, k=1.22)
+        if L.get("crowned"):
+            K.crown(J, tag, "gold", n=7, h=0.2, lo=0.42, hi=0.62, r=0.05, k=1.22)
 
 @register
-class Mummy(Biped):
+class Mummy(looks.Fine, Biped):
     """Huge bandaged brute: wide and slow, arms reaching, darker wrappings banding every limb, loose strips
     trailing from the wrists, kit1 loincloth and sash, broad kit2 collar and arm rings."""
     key = "mummy"
     race = "mummy"
     knobs = dict(limb=1.55, shoulders=1.42, torso=1.4, arms=1.18, legs=0.86, head=0.92, hunch=10, hands=1.3, belly=1.1)
     layout = dict(legs="bandage", boots="bandage", cuff=None, loin="kit1", loin_trim="gold", belt="gold", buckle="kit2",
-                  arm_band="kit2")
+                  arm_band="kit2", headdress="wrap", broad_collar=True)
     stance = dict(lean=4, legs={"l": (6, 15, 8), "r": (-5, 15, 8)}, arms={"l": (58, 16, 22), "r": (40, 18, 36)},
                   hands="open")
     stride, arm_swing, run_lean, jump = 24, 10, 6, 0.06
@@ -274,10 +301,22 @@ class Mummy(Biped):
             pose["arms"] = {"l": (56 + a["l"][0], 14, 20), "r": (44 + a["r"][0], 16, 30)}
             pose["hands"] = "open"
 
+    def details(self, J, P, L, tag, pose):     # the edges of the wrappings, a gold scarab and frayed ends
+        for i, h in enumerate((0.06, 0.22, 0.4)):
+            tband(tag + "dwrap%d" % i, J, P, [h, h + 0.02], "rags", k=1.04, add=0.014, solid=0.015)
+        Rb = basis(J["X"], J["F"], J["u"])
+        ellipsoid(tag + "scarab", surf(J, P, P["sh_h"] - 0.19, 0, 0.07), (0.07, 0.03, 0.055), "gold", Rb, seg=8)
+        for side in ("l", "r"):
+            hip, knee = J["legs"][side][:2]
+            cone(tag + "fray" + side, lerp(hip, knee, 0.7) + J["F"] * K.leg_r(L), lerp(hip, knee, 0.95) + J["F"] * K.leg_r(L) * 1.2,
+                 0.04, "bandage", 5)
+
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         sh = P["sh_h"]
-        tband(tag + "collar", J, P, [sh - 0.1, sh - 0.02, sh + 0.05], "kit2", k=1.06, add=0.035, solid=0.03)
-        tband(tag + "collarrim", J, P, [sh - 0.13, sh - 0.09], "gold", k=1.06, add=0.045, solid=0.03)
+        if L.get("broad_collar"):
+            tband(tag + "collar", J, P, [sh - 0.1, sh - 0.02, sh + 0.05], "kit2", k=1.06, add=0.035, solid=0.03)
+            tband(tag + "collarrim", J, P, [sh - 0.13, sh - 0.09], "gold", k=1.06, add=0.045, solid=0.03)
         K.sash(J, P, tag, "kit1", w=0.075)
         for i, h in enumerate((0.16, 0.3)):
             tband(tag + "wrapT%d" % i, J, P, [h, h + 0.035], "rags", k=1.03, add=0.012, solid=0.02)
@@ -291,5 +330,8 @@ class Mummy(Biped):
             K.ring(tag, "wrapS" + side, knee, ankle, 0.35, 0.47, rl * 0.9, "rags")
             K.ribbon(J, tag, "strip" + side, lerp(el, wr, 0.8), 0.5, "bandage", pose, w=0.05, back=0.2)
         c, X, F, U, s = K.hframe(J)
-        K.head_band(J, tag, "rags", 0.1, 0.3, 1.05, "hwrap")
-        K.ribbon(J, tag, "hstrip", c - F * s[1] * 1.0 + U * s[2] * 0.2, 0.45, "bandage", pose, w=0.05, back=0.4)
+        if L.get("headdress") == "wrap":
+            K.head_band(J, tag, "rags", 0.1, 0.3, 1.05, "hwrap")
+            K.ribbon(J, tag, "hstrip", c - F * s[1] * 1.0 + U * s[2] * 0.2, 0.45, "bandage", pose, w=0.05, back=0.4)
+        elif L.get("headdress") == "nemes":
+            K.nemes(J, tag, "kit1", "gold", stripes=True)

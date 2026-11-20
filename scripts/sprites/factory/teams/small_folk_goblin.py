@@ -4,7 +4,7 @@ Costume idea: a scrapyard gang. Every "secret weapon" is one bold prop; nobody e
 ball-like (the Fanatic's spiked wrecking weight swings on a chain above his head, it is never in a hand)."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, flat_cone, ellipsoid, cap, sheet, lerp, UP, basis, D
 from teams import small_folk_common as sf
 
@@ -17,12 +17,23 @@ def gob_face(J, L, tag, ears=1.0, nose=0.2):
     sf.long_nose(J, L, tag, ln=nose)
 
 
+def goggles(J, tag, strap="kit2"):
+    """Big brass flying goggles with a strap round the head."""
+    c, X, F, U, s = sf.hf(J)
+    for sd in (-1, 1):
+        e = c + F * s[1] * 0.86 + X * sd * s[0] * 0.42 + U * s[2] * 0.12
+        parts.cylinder(tag + "gog%d" % sd, e, e + F * 0.08, 0.09, "brass", seg=8)
+        ball_at(tag + "lens%d" % sd, e + F * 0.07, 0.06, "white")
+    tube(tag + "gogstrap", [c + X * s[0] * 1.05 + U * s[2] * 0.15, c - F * s[1] * 1.1 + U * s[2] * 0.2,
+                            c - X * s[0] * 1.05 + U * s[2] * 0.15], [0.03] * 3, strap, n=6)
+
+
 @register
-class GoblinLineman(Biped):
+class GoblinLineman(looks.Fine, Biped):
     """Plain but cheeky: bare head with huge ears, one scrap shoulder pad, hands on hips; thumbs his nose."""
     key = "goblin_lineman"
     race = "goblin"
-    layout = dict(GOB, wraps="kit2", neckband="kit2", pads="leather", pad_sides=("l",))
+    layout = dict(GOB, wraps="kit2", neckband="kit2", pads="leather", pad_sides=("l",), topknot=True)
     stance = dict(lean=4, legs={"l": (6, 14, 10), "r": (-5, 14, 10)}, arms={"l": (-8, 46, 96, -30), "r": (-8, 46, 96, -30)},
                   hands="fist")
     stride, arm_swing, jump = 40, 36, 0.24
@@ -33,24 +44,38 @@ class GoblinLineman(Biped):
                  arms={"l": (-8, 46, 96, -30), "r": (62, 12, 118 + 10 * w["s2"], -22)}, hand_modes={"r": "open"})
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         gob_face(J, L, tag)
         sf.grin(J, tag)
-        c, X, F, U, s = sf.hf(J)            # a single top-knot tuft tied in the secondary colour
-        b = c + U * s[2] * 0.9 - F * 0.04
-        cone(tag + "knot", b, b + U * 0.2 - F * 0.1, 0.05, "hair", 6)
-        ball_at(tag + "knottie", b + U * 0.03, 0.055, "kit2")
+        c, X, F, U, s = sf.hf(J)
+        if L.get("topknot"):                # a single top-knot tuft tied in the secondary colour
+            b = c + U * s[2] * 0.9 - F * 0.04
+            cone(tag + "knot", b, b + U * 0.2 - F * 0.1, 0.05, "hair", 6)
+            ball_at(tag + "knottie", b + U * 0.03, 0.055, "kit2")
+        if L.get("pothelm"):
+            sf.pot_helm(J, tag, mat=L["pothelm"])
+        if L.get("hood"):
+            sf.nightcap(J, tag, pose, L["hood"], "kit2", "kit2", ln=0.45)
         p = core.surf(J, P, P["sh_h"] * 0.62, 0, 0.03)      # crude painted chest stripe
         box(tag + "stripe", p, (0.2, 0.04, 0.07), "kit2", basis(J["X"], J["F"], J["u"]))
 
+    def details(self, J, P, L, tag, pose):
+        for i, a in enumerate((-40, -15, 15, 40)):        # a necklace of teeth
+            cone(tag + "tooth%d" % i, core.surf(J, P, P["sh_h"] - 0.04, a, 0.05), core.surf(J, P, P["sh_h"] - 0.12, a, 0.07),
+                 0.022, "bone", 4)
+        for side in ("l", "r"):                           # rag patches on the knees
+            hip, knee = J["legs"][side][:2]
+            ball_at(tag + "kneepatch" + side, knee + J["F"] * 0.06, 0.06, "rags")
+
 
 @register
-class Bomma(Biped):
+class Bomma(looks.Fine, Biped):
     """Crouched sapper: tin hat down over the eyes, fat bomb satchel on the hip with fizzing fuses, bandolier,
     a lit taper (a thin stick) in one hand. The bombs stay in the bag."""
     key = "bomma"
     race = "goblin"
     knobs = dict(hunch=16)
-    layout = dict(GOB, helm="skull", helm_mat="darkmetal", bracers="leather")
+    layout = dict(GOB, helm="skull", helm_mat="darkmetal", bracers="leather", tinhat=True, bag="satchel")
     stance = dict(lean=12, legs={"l": (16, 16, 34), "r": (-12, 16, 30)}, arms={"l": (10, 30, 60, 0), "r": (40, 26, 80, 0)},
                   hands="fist")
     stride, arm_swing, jump = 36, 22, 0.16
@@ -66,19 +91,33 @@ class Bomma(Biped):
             pose["arms"] = {"l": pose["arms"]["l"], "r": (50, 24, 70, 0)}
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         gob_face(J, L, tag, ears=0.9)
         X, F, u = J["X"], J["F"], J["u"]
         c, Xh, Fh, U, s = sf.hf(J)
-        ellipsoid(tag + "brim", c + U * s[2] * 0.42, (s[0] * 1.45, s[1] * 1.45, 0.035), "darkmetal", J["head_R"], seg=14)
-        box(tag + "helmstripe", c + U * s[2] * 0.78 + Fh * s[1] * 0.75, (s[0] * 0.5, 0.06, 0.1), "kit1", J["head_R"])
+        if L.get("tinhat"):
+            ellipsoid(tag + "brim", c + U * s[2] * 0.42, (s[0] * 1.45, s[1] * 1.45, 0.035), "darkmetal", J["head_R"], seg=14)
+            box(tag + "helmstripe", c + U * s[2] * 0.78 + Fh * s[1] * 0.75, (s[0] * 0.5, 0.06, 0.1), "kit1", J["head_R"])
+        if L.get("goggles"):
+            goggles(J, tag, strap=L["goggles"])
         sf.strap(tag, "band", J, P, "kit2", sd=1, r=0.05)
-        bag = core.surf(J, P, 0.05, -62, 0.17) - UP * 0.06
         R = basis(X, F, u)
-        ellipsoid(tag + "bag", bag, (0.2, 0.2, 0.2), "leather", R, seg=10)
-        box(tag + "bagflap", bag + UP * 0.1, (0.36, 0.36, 0.07), "kit2", R)
+        kind = L.get("bag")
+        if kind == "satchel":
+            bag = core.surf(J, P, 0.05, -62, 0.17) - UP * 0.06
+            ellipsoid(tag + "bag", bag, (0.2, 0.2, 0.2), "leather", R, seg=10)
+            box(tag + "bagflap", bag + UP * 0.1, (0.36, 0.36, 0.07), "kit2", R)
+            spots = [bag + UP * 0.2 + X * dx + F * dy for dx, dy in ((-0.05, -0.1), (-0.07, 0.09))]
+        elif kind == "pack":                 # a big powder keg strapped on his back, fuses sticking out of the top
+            bag = core.surf(J, P, 0.2, 180, 0.22)
+            parts.cylinder(tag + "keg", bag - u * 0.22, bag + u * 0.22, 0.2, "kit2", seg=12)
+            for j, t in enumerate((-0.15, 0.15)):
+                parts.cylinder(tag + "keghoop%d" % j, bag + u * (t - 0.025), bag + u * (t + 0.025), 0.21, "darkmetal", seg=12)
+            spots = [bag + u * 0.26 + X * dx for dx in (-0.08, 0.08)]
+        else:
+            spots = []
         sp = pose.get("_spark", 0)
-        for i, (dx, dy) in enumerate(((-0.05, -0.1), (-0.07, 0.09))):
-            b = bag + UP * 0.2 + X * dx + F * dy
+        for i, b in enumerate(spots):
             ball_at(tag + "bomb%d" % i, b, 0.085, "black")
             tube(tag + "fuse%d" % i, [b + UP * 0.07, b + UP * 0.16 - X * 0.03], [0.014, 0.012], "rope", n=5)
             if (i + sp) % 2 == 0:
@@ -90,11 +129,11 @@ class Bomma(Biped):
 
 
 @register
-class DoomDiver(Biped):
+class DoomDiver(looks.Fine, Biped):
     """Glider goblin: patched canvas wings on poles strapped along both arms, flying cap and big goggles."""
     key = "doom_diver"
     race = "goblin"
-    layout = dict(GOB, helm="skull", helm_mat="leather", arms="kit1", neckband="kit2")
+    layout = dict(GOB, helm="skull", helm_mat="leather", arms="kit1", neckband="kit2", wing_mats=("kit2",))
     stance = dict(lean=14, legs={"l": (14, 14, 30), "r": (-10, 14, 26)}, arms={"l": (0, 78, 8, 80), "r": (0, 78, 8, 80)},
                   hands="fist")
     stride, arm_swing, jump = 40, 0, 0.3
@@ -115,14 +154,13 @@ class DoomDiver(Biped):
             pose["arms"] = {"l": (0, f, 6, f), "r": (0, f, 6, f)}
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         gob_face(J, L, tag, ears=0.85)
         c, X, F, U, s = sf.hf(J)
-        for sd in (-1, 1):          # goggles
-            e = c + F * s[1] * 0.86 + X * sd * s[0] * 0.42 + U * s[2] * 0.12
-            parts.cylinder(tag + "gog%d" % sd, e, e + F * 0.08, 0.09, "brass", seg=8)
-            ball_at(tag + "lens%d" % sd, e + F * 0.07, 0.06, "white")
-        tube(tag + "gogstrap", [c + X * s[0] * 1.05 + U * s[2] * 0.15, c - F * s[1] * 1.1 + U * s[2] * 0.2,
-                                c - X * s[0] * 1.05 + U * s[2] * 0.15], [0.03] * 3, "kit2", n=6)
+        goggles(J, tag)
+        if L.get("helmspike"):
+            cone(tag + "helmspike", c + U * s[2] * 1.05, c + U * (s[2] * 1.05 + 0.26), 0.07, L["helmspike"], 6)
+        wm = L.get("wing_mats") or ("kit2",)
         B, u = J["B"], J["u"]
         sf.strap(tag, "harn1", J, P, "leather", sd=1)
         sf.strap(tag, "harn2", J, P, "leather", sd=-1)
@@ -140,18 +178,18 @@ class DoomDiver(Biped):
             for i in range(4):       # flat canvas panels between the ribs, scalloped along the trailing edge
                 m = lerp(bot[i], bot[i + 1], 0.5) - dn * 0.12
                 sheet(tag + "wing%s%d" % (side, i), [[top[i], lerp(top[i], top[i + 1], 0.5), top[i + 1]], [bot[i], m, bot[i + 1]]],
-                      ["kit2"], thick=0.025, subsurf=0)
+                      [wm[i % len(wm)]], thick=0.025, subsurf=0)
             for i in (1, 2, 3):      # ribs in the primary colour
                 tube(tag + "rib%s%d" % (side, i), [top[i] - B * 0.03, bot[i] - B * 0.03], [0.04, 0.03], "kit1", n=5, flat=0.6, ref=B)
             tube(tag + "wtip" + side, [top[4], bot[4]], [0.035, 0.03], "wood", n=5)
 
 
 @register
-class Fanatic(Biped):
+class Fanatic(looks.Fine, Biped):
     """Hooded loon whirling a huge spiked iron weight on a chain round his head (a weapon, never in a hand)."""
     key = "fanatic"
     race = "goblin"
-    layout = dict(GOB, torso="kit2", legs="cloth_black", belt="rope", buckle=None, wraps="kit1")
+    layout = dict(GOB, torso="kit2", legs="cloth_black", belt="rope", buckle=None, wraps="kit1", hood="floppy", rags=0.3)
     stance = dict(lean=-4, legs={"l": (8, 20, 18), "r": (-6, 20, 18)}, arms={"l": (164, 10, 24, -10), "r": (164, 10, 24, -10)},
                   hands="fist")
     stride, arm_swing, jump = 30, 0, 0.1
@@ -183,15 +221,21 @@ class Fanatic(Biped):
             return q
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         gob_face(J, L, tag, ears=0.9, nose=0.24)
         c, X, F, U, s = sf.hf(J)
-        # tall floppy hood in the primary colour, ragged cape of the same cloth
-        cap(tag + "hood", c + U * 0.01 - F * 0.02, (s[0] * 1.2, s[1] * 1.2, s[2] * 1.2), "kit1", (U * 0.6 - F * 0.8).normalized(),
-            cut=-0.35, rot=J["head_R"], thick=0.03)
-        b = c + U * s[2] * 0.75 - F * s[1] * 0.3
-        tube(tag + "hoodtip", [b, b + U * 0.28 - F * 0.1, b + U * 0.42 - F * 0.34, b + U * 0.3 - F * 0.56],
-             [s[0] * 0.8, s[0] * 0.5, s[0] * 0.28, 0.03], "kit1", ref=X, n=8)
-        core.skirt(J, P, L, tag, 0.3, (-178, 178), pose.get("flare", 0.1), "kit2", lining="kit2", jag=0.5, top=0.08)
+        hood = L.get("hood")
+        if hood:                             # tall hood in the primary colour, floppy or stiffly pointed
+            cap(tag + "hood", c + U * 0.01 - F * 0.02, (s[0] * 1.2, s[1] * 1.2, s[2] * 1.2), "kit1", (U * 0.6 - F * 0.8).normalized(),
+                cut=-0.35, rot=J["head_R"], thick=0.03)
+            b = c + U * s[2] * 0.75 - F * s[1] * 0.3
+            if hood == "floppy":
+                pts = [b, b + U * 0.28 - F * 0.1, b + U * 0.42 - F * 0.34, b + U * 0.3 - F * 0.56]
+            else:
+                pts = [b, b + U * 0.3 - F * 0.02, b + U * 0.58 + F * 0.02, b + U * 0.82 + F * 0.06]
+            tube(tag + "hoodtip", pts, [s[0] * 0.8, s[0] * 0.5, s[0] * 0.28, 0.03], "kit1", ref=X, n=8)
+        if L.get("rags"):                    # ragged skirt or robe of kit2 cloth
+            core.skirt(J, P, L, tag, L["rags"], (-178, 178), pose.get("flare", 0.1), "kit2", lining="kit2", jag=0.5, top=0.08)
         gl, gr = J["grip_l"][0], J["grip_r"][0]
         h = lerp(gl, gr, 0.5)
         tube(tag + "handle", [gl, gr], [0.03, 0.03], "wood", n=6)
@@ -222,12 +266,12 @@ class Fanatic(Biped):
 
 
 @register
-class Loony(Biped):
+class Loony(looks.Fine, Biped):
     """Masked maniac hefting a chain-toothed cutting engine taller than himself: engine block, long toothed
     bar, smoking exhaust. Rust helm with a primary-colour crest, secondary-colour apron."""
     key = "loony"
     race = "goblin"
-    layout = dict(GOB, helm="skull", helm_mat="rust", plume="kit1", bracers="leather")
+    layout = dict(GOB, helm="skull", helm_mat="rust", plume="kit1", bracers="leather", apron="kit2")
     stance = dict(lean=2, legs={"l": (10, 18, 16), "r": (-8, 18, 16)}, arms={"l": (58, 8, 52, -30), "r": (30, 14, 96, -20)},
                   hands="fist")
     stride, arm_swing, jump = 34, 0, 0.14
@@ -251,9 +295,17 @@ class Loony(Biped):
                 pose.update(arms=hold, hands="fist", _level=0.4 if i in (1, 5) else 0.0)
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         gob_face(J, L, tag, ears=0.95)
         X, F, u = J["X"], J["F"], J["u"]
-        core.panel(J, P, tag, True, 0.3, 0.13, "kit2", pose.get("flare", 0.0), trim="leather", top=0.1)
+        if L.get("apron"):
+            core.panel(J, P, tag, True, 0.3, 0.13, L["apron"], pose.get("flare", 0.0), trim="leather", top=0.1)
+        if L.get("bucket"):                  # a dented bucket over the head, kit1 band, a spike on top
+            c0, Xh, Fh, Uh, s0 = sf.hf(J)
+            parts.cylinder(tag + "bucket", c0 - Uh * s0[2] * 0.15, c0 + Uh * s0[2] * 1.15, s0[0] * 1.18, L["bucket"], seg=10)
+            parts.cylinder(tag + "bucketband", c0 + Uh * s0[2] * 0.55, c0 + Uh * s0[2] * 0.75, s0[0] * 1.22, "kit1", seg=10)
+            cone(tag + "bucketspike", c0 + Uh * s0[2] * 1.12, c0 + Uh * (s0[2] * 1.12 + 0.24), 0.06, "metal", 5)
+            box(tag + "bucketslit", c0 + Fh * s0[0] * 1.2 + Uh * s0[2] * 0.12, (s0[0] * 1.1, 0.04, 0.05), "eye", J["head_R"])
         sf.strap(tag, "brace", J, P, "kit2", sd=-1, r=0.04)
         c, Xh, Fh, U, s = sf.hf(J)
         box(tag + "slit", c + Fh * s[1] * 1.0 + U * s[2] * 0.12, (s[0] * 1.3, 0.05, 0.05), "eye", J["head_R"])
@@ -297,12 +349,12 @@ class Loony(Biped):
 
 
 @register
-class Ooligan(Biped):
+class Ooligan(looks.Fine, Biped):
     """Pot-bellied terrace yob: bobble hat, long striped scarf, a wooden clacker rattle whirled overhead."""
     key = "ooligan"
     race = "goblin"
     knobs = dict(belly=1.5, torso=1.0, hunch=2)
-    layout = dict(GOB, arms="kit1", sleeve_cuff="kit2", legs="rags")
+    layout = dict(GOB, arms="kit1", sleeve_cuff="kit2", legs="rags", bobble=True, scarf_len=1.0)
     stance = dict(lean=-4, legs={"l": (6, 16, 8), "r": (-5, 16, 8)}, arms={"l": (40, 30, 110, -10), "r": (150, 24, 30, 6)},
                   hands="fist")
     stride, arm_swing, jump = 34, 26, 0.26
@@ -317,25 +369,28 @@ class Ooligan(Biped):
             pose["arms"] = {"l": pose["arms"]["l"], "r": (150, 24, 30, 6)}
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         gob_face(J, L, tag, ears=0.95)
         sf.grin(J, tag)
         c, X, F, U, s = sf.hf(J)
         R = J["head_R"]
         big = (s[0] * 1.12, s[1] * 1.12, s[2] * 1.14)
-        cap(tag + "hat", c + U * 0.03, big, "kit1", U, cut=0.25, rot=R, thick=0.03)
-        cap(tag + "hatband", c + U * 0.03, tuple(b * 1.05 for b in big), "kit2", U, cut=0.25, hi=0.5, rot=R, thick=0.03)
-        ball_at(tag + "bobble", c + U * (big[2] + 0.1), 0.1, "kit2")
-        # scarf: a wrap at the neck and two striped tails
-        # scarf: a thick two-colour wrap at the neck and two long, wide striped tails
+        if L.get("bobble"):
+            cap(tag + "hat", c + U * 0.03, big, "kit1", U, cut=0.25, rot=R, thick=0.03)
+            cap(tag + "hatband", c + U * 0.03, tuple(b * 1.05 for b in big), "kit2", U, cut=0.25, hi=0.5, rot=R, thick=0.03)
+            ball_at(tag + "bobble", c + U * (big[2] + 0.1), 0.1, "kit2")
+        # scarf: a thick two-colour wrap at the neck and two long, wide striped tails (one in front, one behind)
         sh = P["sh_h"]
-        tband(tag + "scarf", J, P, [sh - 0.04, sh + 0.04, sh + 0.13], "kit2", k=1.0, add=0.085, solid=0.045)
-        tband(tag + "scarfstripe", J, P, [sh + 0.02, sh + 0.065], "kit1", k=1.0, add=0.1, solid=0.03)
-        Bh = Vector((J["B"].x, J["B"].y, 0)).normalized()
-        st = 1.0 if pose.get("_action") else 0.0
-        for i, (ang, ln, sw, d) in enumerate(((-38, 0.6, -0.1, -Bh), (-150, 0.72, -0.2, Bh))):   # one tail in front, one behind
-            k0 = core.surf(J, P, sh - 0.02, ang, 0.1)
-            pts = sf.hang(k0, Bh if st else d, J["X"], ln, n=6, stream=st, sway=sw, out=0.25)
-            sf.streamer(tag, "tail%d" % i, pts, 0.125, ("kit2", "kit1"), ref=J["X"], taper=0.85)
+        ln = L.get("scarf_len")
+        if ln:
+            tband(tag + "scarf", J, P, [sh - 0.04, sh + 0.04, sh + 0.13], "kit2", k=1.0, add=0.085, solid=0.045)
+            tband(tag + "scarfstripe", J, P, [sh + 0.02, sh + 0.065], "kit1", k=1.0, add=0.1, solid=0.03)
+            Bh = Vector((J["B"].x, J["B"].y, 0)).normalized()
+            st = 1.0 if pose.get("_action") else 0.0
+            for i, (ang, tl, sw, d) in enumerate(((-38, 0.6, -0.1, -Bh), (-150, 0.72, -0.2, Bh))):
+                k0 = core.surf(J, P, sh - 0.02, ang, 0.1)
+                pts = sf.hang(k0, Bh if st else d, J["X"], tl * ln, n=6, stream=st, sway=sw, out=0.25)
+                sf.streamer(tag, "tail%d" % i, pts, 0.125, ("kit2", "kit1"), ref=J["X"], taper=0.85)
         tband(tag + "gut", J, P, [0.0, 0.07], "kit2", k=1.03, add=0.01, solid=0.03)       # hem stripe on the stretched jersey
         # rattle: handle in the raised fist, a cog and a flat clacker board that spins round the handle
         c0, d, n, t = J["grip_r"]
@@ -358,11 +413,11 @@ class Ooligan(Biped):
 
 
 @register
-class Pogoer(Biped):
+class Pogoer(looks.Fine, Biped):
     """Crouched on a sprung pogo stick, both hands on the crossbar; spiked helm, pennant streaming from the top."""
     key = "pogoer"
     race = "goblin"
-    layout = dict(GOB, helm="skull", helm_mat="metal", wraps="leather", neckband="kit2")
+    layout = dict(GOB, helm="skull", helm_mat="metal", wraps="leather", neckband="kit2", helmspike="metal", pennant=0.3)
     stance = dict(lean=10, legs={"l": (38, 20, 78), "r": (38, 20, 78)}, arms={"l": (50, 2, 46, -34), "r": (50, 2, 46, -34)},
                   hands="fist")
     jump = 0.3
@@ -402,9 +457,11 @@ class Pogoer(Biped):
         return p
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         gob_face(J, L, tag, ears=0.95)
         c, X, F, U, s = sf.hf(J)
-        cone(tag + "helmspike", c + U * s[2] * 1.05, c + U * (s[2] * 1.05 + 0.26), 0.07, "metal", 6)
+        if L.get("helmspike"):
+            cone(tag + "helmspike", c + U * s[2] * 1.05, c + U * (s[2] * 1.05 + 0.26), 0.07, L["helmspike"], 6)
         tband(tag + "hem", J, P, [0.0, 0.07], "kit2", k=1.05, add=0.012, solid=0.03)
         gl, gr = J["grip_l"][0], J["grip_r"][0]
         loose = pose.get("_loose", 0.0)
@@ -436,7 +493,24 @@ class Pogoer(Biped):
             tube(tag + "coil%d" % i, [q - ax * 0.025, q + ax * 0.025], [0.1, 0.1], "metal", n=8)
         ball_at(tag + "ferrule", foot + ax * 0.02, 0.05, "kit1")
         # pennant on the stick top
-        Bh = Vector((0, 1, 0))
-        st = 1.0 if pose.get("_action") else 0.25
-        pts = sf.hang(top + ax * 0.1, Bh, J["X"], 0.3, n=3, stream=st)
-        sf.streamer(tag, "pennant", pts, 0.06, ("kit2", "kit1"), ref=J["X"])
+        ln = L.get("pennant")
+        if ln:
+            Bh = Vector((0, 1, 0))
+            st = 1.0 if pose.get("_action") else 0.25
+            pts = sf.hang(top + ax * 0.1, Bh, J["X"], ln, n=max(3, int(ln * 10)), stream=st)
+            sf.streamer(tag, "pennant", pts, 0.06, ("kit2", "kit1"), ref=J["X"])
+        if L.get("banner"):           # a tall banner pole strapped to his back, the flag streaming behind
+            b0 = core.surf(J, P, 0.05, 180, 0.08)
+            ptop = b0 + J["u"] * 1.75 + J["B"] * 0.05
+            tube(tag + "bannerpole", [b0 - J["u"] * 0.1, ptop], [0.03, 0.025], "wood", n=5)
+            ball_at(tag + "bannertop", ptop, 0.045, "kit2")
+            Bh = Vector((0, 1, 0))
+            droop = 0.02 if pose.get("_action") else 0.12
+            Xs = J["X0"]
+            cols = []
+            for j in range(4):           # a flag of three panels flying out behind the pole
+                off = Bh * (0.17 * j) + Xs * (0.04 * ((j % 2) * 2 - 1) * (j > 0)) - UP * (droop * j * 0.6)
+                cols.append((ptop - UP * 0.04 + off, ptop - UP * 0.44 + off))
+            for j, m in enumerate(("kit1", "kit2", "kit1")):
+                sheet(tag + "banner%d" % j, [[cols[j][0], cols[j + 1][0]], [cols[j][1], cols[j + 1][1]]], [m], thick=0.03,
+                      subsurf=0)

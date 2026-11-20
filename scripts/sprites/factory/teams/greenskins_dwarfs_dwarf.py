@@ -9,7 +9,7 @@ bushy beard, bare tattooed chest; deathroller = steam roller in kit paint with a
 """
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, Vehicle, register, core, parts
+from lib import Biped, Vehicle, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, cap, ellipsoid, flat_cone, lerp, UP, basis, D, surf
 from teams import greenskins_dwarfs_common as gd
 
@@ -35,7 +35,7 @@ def _tattoo_arm(J, L, tag, side, mat="cloth_blue"):
         tube(tag + "tatarm%s%d" % (side, i), [lerp(sh, el, t), lerp(sh, el, t + 0.1)], [0.112 * ak, 0.11 * ak], mat, ref=J["F"], n=8)
 
 @register
-class DwarfLineman(Biped):
+class DwarfLineman(looks.Fine, Biped):
     """Shield-wall dwarf: full-face bucket helm with a slit visor and kit ridge, square slab of a beard
     with a kit clasp, broad plate pauldrons, square kit plates strapped to both forearms."""
     key = "dwarf_lineman"
@@ -43,7 +43,8 @@ class DwarfLineman(Biped):
     knobs = dict(shoulders=1.22, torso=1.26)
     layout = dict(DWARF, torso="kit1", arms="kit1", legs="kit2", helm="winged", helm_mat="metal", crest_mat="kit1",
                   pads="plate", pad_mat="metal", pad_trim="kit2", breast="metal", emblem_mat="kit2", gorget=True,
-                  kneecops=True, knee_mat="metal", belt="kit2", pant_stripe="kit1", tabard="kit1", tabard_trim="kit2")
+                  kneecops=True, knee_mat="metal", belt="kit2", pant_stripe="kit1", tabard="kit1", tabard_trim="kit2",
+                  gd_beard="spade")
     stance = dict(lean=4, legs={"l": (4, 18, 12), "r": (-3, 18, 12)}, arms={"l": (30, 30, 84, -30), "r": (30, 30, 84, -30)},
                   hands="fist")
     stride, arm_swing, run_lean, jump = 28, 24, 10, 0.1
@@ -56,20 +57,29 @@ class DwarfLineman(Biped):
                  look=14 * w["s2"] * (1 - b))
 
     def extras(self, J, P, L, tag, pose):
-        gd.beard(J, tag, "hair_brown", "spade", ln=1.3, tie="kit2", wide=1.15, pose=pose)
+        super().extras(J, P, L, tag, pose)
+        gd.opt_beard(J, L, tag, "hair_brown", pose, tie="kit2", own=("spade", 1.3, 1.15))
+        if L.get("gd_braids"):
+            gd.side_braids(J, tag, L["gd_braids"], "kit2", pose)
         for side in ("l", "r"):
             _forearm_plate(J, tag, side)
         gd.rivets(J, P, tag, "criv", 0.3, "brass", angles=(-120, -60, 60, 120), off=0.07, r=0.026)
 
+    def details(self, J, P, L, tag, pose):
+        gd.rivets(J, P, tag, "beltstud", 0.07, "brass", angles=(-130, -90, -50, 50, 90, 130), off=0.07, r=0.02)
+        for i, h in enumerate((0.16, 0.24)):
+            gd.rivets(J, P, tag, "tabstud%d" % i, h, "kit2", angles=(-24, 24), off=0.075, r=0.018)
+
 @register
-class DwarfRunner(Biped):
+class DwarfRunner(looks.Fine, Biped):
     """The quick one: bare-headed with a kit headband and swept-back hair, two long plaits tied in kit
     colour, sleeveless kit jerkin, bare arms with wraps, no armour at all."""
     key = "dwarf_runner"
     race = "dwarf"
     knobs = dict(limb=1.05, shoulders=1.02, torso=1.02, legs=0.66)
     layout = dict(DWARF, torso="kit1", arms="skin_fair", legs="kit2", hair="swept", hair_mat="hair_blond", brow="hair_blond",
-                  wraps="bandage", belt="kit2", neckband="kit2", pant_stripe="kit1", cuff="kit1", arm_band="kit1")
+                  wraps="bandage", belt="kit2", neckband="kit2", pant_stripe="kit1", cuff="kit1", arm_band="kit1",
+                  gd_beard="fork")
     stance = dict(lean=10, twist=-6, legs={"l": (-10, 9, 10), "r": (14, 9, 14)}, feet={"l": 18},
                   arms={"l": (24, 16, 62, 4), "r": (-14, 18, 54)}, hands="fist")
     stride, arm_swing, run_lean, jump = 44, 40, 20, 0.2
@@ -82,7 +92,10 @@ class DwarfRunner(Biped):
                  arms={"l": (24 - 40 * l, 16, 62, 4), "r": (-14 + 40 * l, 18, 54)}, _action=False)
 
     def extras(self, J, P, L, tag, pose):
-        gd.beard(J, tag, "hair_blond", "fork", ln=1.15, tie="kit2", pose=pose)
+        super().extras(J, P, L, tag, pose)
+        gd.opt_beard(J, L, tag, "hair_blond", pose, tie="kit2", own=("fork", 1.15, 1.0))
+        if L.get("gd_braids"):
+            gd.side_braids(J, tag, L["gd_braids"], "kit2", pose)
         c, X, F, U, s = gd.hf(J)
         cap(tag + "hband", c + U * 0.01, (s[0] * 1.12, s[1] * 1.12, s[2] * 1.1), "kit2", U, cut=0.3, hi=0.56, rot=J["head_R"],
             thick=0.03)
@@ -94,8 +107,13 @@ class DwarfRunner(Biped):
         tband(tag + "hem", J, P, [0.04, 0.09], "kit2", k=1.06, add=0.02)
         gd.baldric(J, P, tag, "leather", sd=1, r=0.035)
 
+    def details(self, J, P, L, tag, pose):
+        gd.rivets(J, P, tag, "baldstud", 0.24, "brass", angles=(30, -20), off=0.07, r=0.02)
+        c, X, F, U, s = gd.hf(J)
+        ball_at(tag + "hbgem", c + F * s[1] * 1.12 + U * s[2] * 0.45, 0.03, "brass")
+
 @register
-class DwarfBlitzer(Biped):
+class DwarfBlitzer(looks.Fine, Biped):
     """The star: open helm with swept kit wings and a tall kit crest, one long beard bound with brass
     rings, big kit pauldrons with a spike, gauntlets and greaves. Head down, ready to ram."""
     key = "dwarf_blitzer"
@@ -103,7 +121,8 @@ class DwarfBlitzer(Biped):
     knobs = dict(shoulders=1.28, torso=1.22)
     layout = dict(DWARF, torso="kit1", arms="kit1", legs="kit2", helm="open", helm_mat="metal", helm_wings="kit2", plume="kit1",
                   trim="brass", pads="big", pad_mat="kit1", pad_trim="kit2", spikes=1, breast="metal", emblem_mat="kit2",
-                  gauntlets=True, greaves=True, kneecops=True, belt="kit2", loin="kit1", loin_trim="kit2")
+                  gauntlets=True, greaves=True, kneecops=True, belt="kit2", loin="kit1", loin_trim="kit2",
+                  gd_beard="long", gd_cheeks=True)
     stance = dict(lean=12, nod=-6, legs={"l": (14, 14, 14), "r": (-12, 14, 12)}, arms={"l": (14, 34, 70, -12), "r": (-2, 34, 64, -12)},
                   hands="fist")
     stride, arm_swing, run_lean, jump = 34, 30, 18, 0.13
@@ -117,18 +136,29 @@ class DwarfBlitzer(Biped):
                  arms={"l": (14 + 10 * b, 34, 70 + 16 * b, -12), "r": (-2 - 10 * b, 34, 64 + 16 * b, -12)})
 
     def extras(self, J, P, L, tag, pose):
-        gd.beard(J, tag, "hair_red", "long", ln=1.1, tie="brass", pose=pose)
-        gd.cheek_guards(J, tag, "metal", "brass")
+        super().extras(J, P, L, tag, pose)
+        gd.opt_beard(J, L, tag, "hair_red", pose, tie="brass", own=("long", 1.1, 1.0))
+        if L.get("gd_braids"):
+            gd.side_braids(J, tag, L["gd_braids"], "brass", pose)
+        if L.get("gd_cheeks"):
+            gd.cheek_guards(J, tag, "metal", "brass")
+        if L.get("gd_horns"):
+            gd.helm_horns(J, tag, L["gd_horns"], size=0.9)
+
+    def details(self, J, P, L, tag, pose):
+        for i, (h, ang) in enumerate(((0.3, -34), (0.3, 34), (0.38, -40), (0.38, 40))):
+            ball_at(tag + "brivet%d" % i, surf(J, P, h, ang, 0.075), 0.02, "brass")
 
 @register
-class TrollSlayer(Biped):
+class TrollSlayer(looks.Fine, Biped):
     """Oath-bound berserker: towering orange crest, wild orange beard, bare chest and arms with blue
     tattoo bands, kit trousers and a long kit sash. Always roaring."""
     key = "troll_slayer"
     race = "dwarf"
     knobs = dict(shoulders=1.2, torso=1.14, limb=1.3)
     layout = dict(DWARF, torso="skin_fair", arms="skin_fair", legs="kit1", pant_stripe="kit2", belt="kit2", buckle="brass",
-                  brow="gd_hair_orange", loin="kit2", loin_trim="kit1", arm_band="kit1", bracers="leather", cuff="kit2")
+                  brow="gd_hair_orange", loin="kit2", loin_trim="kit1", arm_band="kit1", bracers="leather", cuff="kit2",
+                  gd_beard="bush", gd_crest=0.62)
     stance = dict(lean=2, nod=-8, jaw=16, legs={"l": (8, 18, 10), "r": (-7, 18, 10)}, arms={"l": (0, 50, 80, -40), "r": (0, 50, 80, -40)},
                   hands="fist")
     stride, arm_swing, run_lean, jump = 38, 36, 20, 0.2
@@ -146,8 +176,16 @@ class TrollSlayer(Biped):
         return pose
 
     def extras(self, J, P, L, tag, pose):
-        gd.mohawk(J, tag, "gd_hair_orange", h=0.62, n=7, lo=0.5, back=-0.8, width=0.07)
-        gd.beard(J, tag, "gd_hair_orange", "bush", ln=1.0, wide=1.1, pose=pose)
+        super().extras(J, P, L, tag, pose)
+        if L.get("gd_crest"):
+            gd.mohawk(J, tag, "gd_hair_orange", h=L["gd_crest"], n=7, lo=0.5, back=-0.8, width=0.07)
+        if L.get("gd_topknot"):
+            gd.topknot(J, tag, "gd_hair_orange", "kit2", h=0.4, pose=pose)
+        gd.opt_beard(J, L, tag, "gd_hair_orange", pose, tie="kit2", own=("bush", 1.0, 1.1))
+        if L.get("gd_braids"):
+            gd.side_braids(J, tag, L["gd_braids"], "kit2", pose)
+        if L.get("gd_wrap"):
+            gd.bust_band(J, P, tag, L["gd_wrap"], "kit1")
         # tattoos: blue chevrons on the chest and back, bands on the upper arms
         for i, h in enumerate((0.36, 0.27)):
             gd.strap(J, P, tag, "tatl%d" % i, "cloth_blue", -62, h + 0.07, 0, h - 0.03, r=0.022, off=0.012)
@@ -167,6 +205,12 @@ class TrollSlayer(Biped):
             else:
                 pts = [start, start - UP * 0.14 + X * (0.03 + off), start - UP * 0.3 + X * (0.04 + off * 1.5)]
             tube(tag + "sash%d" % i, pts, [0.05, 0.055, 0.02], "kit2", ref=X, n=6, flat=0.4)
+
+    def details(self, J, P, L, tag, pose):
+        for sd in (-1, 1):
+            gd.earring(J, tag, "gold", sd, r=0.035)
+        c, X, F, U, s = gd.hf(J)
+        ball_at(tag + "nosering", c + F * s[1] * 1.08 - U * s[2] * 0.28, 0.026, "gold")
 
 # ---------------------------------------------------------------------------- deathroller
 class RollerDriver(Biped):

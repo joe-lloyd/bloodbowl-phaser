@@ -1,0 +1,27 @@
+{
+  "ogre_blocker": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["bald", "No crest"], ["topknot", "Topknot"], ["mohawk", "Mohawk"]]],
+    ["chest", "Chest", [["plate", "Gut plate"], ["straps", "Straps only"]]],
+    ["shoulder", "Shoulder", [["iron", "Iron shoulder"], ["none", "Bare shoulder"]]]
+  ],
+  "ogre_runt": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["cap", "Kit cap"], ["bandana", "Bandana"], ["bare", "Bare head"]]],
+    ["boot", "Kicking boot", [["iron", "Iron boot"], ["kit", "Painted boot"]]]
+  ],
+  "gnoblar": [
+    ["body", "Body", [["m", "Male"]]],
+    ["head", "Head", [["bare", "Bare head"], ["hood", "Hood"], ["cap", "Leather cap"]]],
+    ["pack", "Pack", [["roll", "Bedroll"], ["basket", "Wicker basket"], ["none", "No pack"]]]
+  ],
+  "goblin_underworld": [
+    ["body", "Body", [["m", "Male"]]],
+    ["head", "Head", [["hood", "Hood"], ["cap", "Leather cap"], ["bare", "Bare head"]]],
+    ["growth", "Growth", [["shoulder", "Shoulder crystals"], ["head", "Head crystals"], ["none", "No growth"]]]
+  ],
+  "snotling_underworld": [
+    ["body", "Body", [["x", "Snotling"]]],
+    ["crystal", "Crystal", [["one", "Crystal horn"], ["twin", "Twin horns"], ["back", "Back crystals"]]]
+  ]
+}

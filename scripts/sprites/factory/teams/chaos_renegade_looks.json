@@ -1,0 +1,32 @@
+{
+  "renegade_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["scarf", "Head scarf"], ["cap", "Iron cap"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["left", "Left pad"], ["right", "Right pad"], ["both", "Both pads"]]]
+  ],
+  "renegade_thrower": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["swept", "Swept back"], ["braid", "Braid"], ["mohawk", "Mohawk"]]],
+    ["coat", "Coat", [["tails", "Tailcoat"], ["frock", "Frock coat"], ["none", "No coat"]]]
+  ],
+  "renegade_orc": [
+    ["body", "Body", [["m", "Male"]]],
+    ["head", "Head", [["topknot", "Topknot"], ["mohawk", "Mohawk"], ["helm", "Iron cap"]]],
+    ["pads", "Pads", [["both", "Both pads"], ["left", "Left pad"], ["none", "No pads"]]]
+  ],
+  "renegade_goblin": [
+    ["body", "Body", [["m", "Male"]]],
+    ["helm", "Helm", [["kettle", "Kettle helm"], ["cap", "Iron cap"], ["bare", "Bare head"]]],
+    ["smock", "Smock", [["smock", "Long smock"], ["vest", "Vest"]]]
+  ],
+  "renegade_skaven": [
+    ["body", "Body", [["x", "Skaven"]]],
+    ["horns", "Horns", [["stubs", "Stub horns"], ["ram", "Ram horns"], ["none", "No horns"]]],
+    ["mutation", "Mutation", [["spines", "Bone spines"], ["tentacle", "Tentacle"], ["eye", "Third eye"]]]
+  ],
+  "renegade_dark_elf": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Head", [["long", "Long hair"], ["braid", "Braid"], ["helm", "Open helm"]]],
+    ["cape", "Cape", [["short", "Half cape"], ["long", "Long cape"], ["none", "No cape"]]]
+  ]
+}

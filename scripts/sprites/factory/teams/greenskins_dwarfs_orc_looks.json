@@ -1,0 +1,32 @@
+{
+  "orc_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hair", "Hair", [["mohawk", "Mohawk"], ["topknot", "Topknot"], ["braid", "Long braid"]]],
+    ["pads", "Pads", [["football", "Football pads"], ["plate", "Plate pads"], ["none", "No pads"]]]
+  ],
+  "orc_thrower": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["cap", "Cap and goggles"], ["bandana", "Bandana"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["left", "Off-arm pad"], ["both", "Both pads"], ["none", "No pads"]]]
+  ],
+  "orc_blitzer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["horned", "Horned helm"], ["spiked", "Spiked helm"], ["bare", "Bare head"]]],
+    ["pads", "Pads", [["both", "Both pads"], ["left", "Left pad"], ["iron", "Iron pads"]]]
+  ],
+  "big_un": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["head", "Head", [["topknot", "Topknot"], ["mohawk", "Mohawk"], ["helm", "Spiked helm"]]],
+    ["chest", "Chest", [["tabard", "Kit tabard"], ["gutplate", "Gut plate"], ["none", "Bare plate"]]]
+  ],
+  "black_orc": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helmet", "Helmet", [["crested", "Crested helm"], ["horned", "Horned helm"], ["bare", "Bare head"]]],
+    ["chest", "Chest", [["tabard", "Kit tabard"], ["sash", "Kit sash"], ["none", "Bare plate"]]]
+  ],
+  "goblin_bruiser": [
+    ["body", "Body", [["m", "Male"]]],
+    ["helmet", "Helmet", [["spike", "Spiked pot"], ["horns", "Horned pot"], ["none", "Bare head"]]],
+    ["pads", "Pads", [["big", "Big pads"], ["small", "Small pads"]]]
+  ]
+}

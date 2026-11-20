@@ -2,19 +2,20 @@
 No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, flat_cone, ellipsoid, lerp, UP, basis, D, surf
 from teams import chaos_common as cc
 
 @register
-class Rotter(Biped):
+class Rotter(looks.Fine, Biped):
     """Shambling plague victim: stooped and pot-bellied, bandaged head and arm, torn kit1 smock, kit2 rope collar and leg wraps, one rusty pad."""
     key = "rotter"
     race = "zombie"
     knobs = dict(hunch=20, belly=1.25, limb=0.92, head_fwd=0.08)
     layout = dict(skin="skin_zombie", lip="skin_zombie", torso="kit1", arms="skin_zombie", legs="rags", boots="rags", cuff="kit2",
                   coat="robe", coat_mat="kit1", robe_len=0.4, jag=0.6, robe_lining="kit1", scarf="bandage", wraps="bandage", neckband="kit2",
-                  belt="rope", buckle=None, pads="plate", pad_sides=("r",), pad_mat="rust", pad_trim="kit2", bracers="kit2")
+                  belt="rope", buckle=None, pads="plate", pad_sides=("r",), pad_mat="rust", pad_trim="kit2", bracers="kit2", hood_mat="kit1",
+                  tentacle=None)
     stance = dict(lean=8, nod=14, legs={"l": (4, 10, 14), "r": (-8, 10, 8)}, arms={"l": (26, 14, 30, 0), "r": (8, 18, 16, 0)}, hands="relaxed")
     stride, arm_swing, run_lean, jump = 30, 16, 10, 0.1
     height = 1.05
@@ -30,8 +31,17 @@ class Rotter(Biped):
             pose["hands"] = "relaxed"
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         cc.boils(J, P, tag, ((0.16, 24), (0.08, -30), (0.3, -42)), mat="skin_belly", r=0.04)
         cc.strap(J, P, tag, "kit2", r=0.035, flip=-1)
+        if L.get("tentacle"):
+            cc.shoulder_tentacle(J, tag, side="r", ln=0.6, r=0.065, mat="skin_zombie")
+
+    def details(self, J, P, L, tag, pose):
+        cc.bell(tag + "bell", surf(J, P, 0.04, 40, 0.09), "rust", r=0.055)     # a rusty bell on the rope belt
+        R = basis(J["X"], J["F"], J["u"])
+        for i, h in enumerate((0.22, 0.28, 0.34)):       # crude stitches across a tear in the smock
+            box(tag + "stitch%d" % i, surf(J, P, h, 20, 0.035), (0.09, 0.02, 0.02), "black", R)
 
 @register
 class Pestigor(Biped):
@@ -41,7 +51,7 @@ class Pestigor(Biped):
     knobs = dict(shoulders=1.1, hunch=14, belly=1.15)
     layout = dict(skin="skin_belly", legs="skin_belly", dark="fur_brown", horns=None, snout=(1.0, 0.85), eye_mat="eye_yellow", tabard="kit1",
                   tabard_trim="kit2", pads="plate", pad_sides=("r",), pad_mat="rust", pad_trim="kit2", spikes=1, belt="rope", buckle=None,
-                  bracers="kit2", arm_band="kit1", neckband="kit2")
+                  bracers="kit2", arm_band="kit1", neckband="kit2", horn="one", swarm=True)
     stance = dict(lean=8, nod=8, legs={"l": (8, 12, 10), "r": (-8, 12, 6)}, arms={"l": (12, 26, 48, -4), "r": (12, 26, 48, -4)}, hands="relaxed")
     stride, arm_swing, run_lean = 40, 32, 18
     height = 1.06
@@ -56,9 +66,11 @@ class Pestigor(Biped):
         pose.setdefault("flies", i / 8.0)
 
     def extras(self, J, P, L, tag, pose):
-        cc.one_horn(J, tag, sd=-1, ln=0.5)
+        if L.get("horn") == "one":
+            cc.one_horn(J, tag, sd=-1, ln=0.5)
         cc.chin_tuft(J, tag, "fur_brown", ln=0.18, fwd=1.05)
-        cc.flies(J, tag, pose.get("flies", 0.0), n=4, rad=0.36, r=0.04)
+        if L.get("swarm"):
+            cc.flies(J, tag, pose.get("flies", 0.0), n=4, rad=0.36, r=0.04)
         cc.boils(J, P, tag, ((0.3, 30), (0.18, -28)), mat="skin_belly", r=0.04)
         cc.spines(J, P, tag, (0.22, 0.36, 0.48), mat="fur_brown", ln=0.1, r=0.06, name="mane")
 

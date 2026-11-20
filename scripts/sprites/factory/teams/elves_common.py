@@ -244,6 +244,31 @@ def antlers(J, tag, mat, k=1.0):
         tube(tag + "antt%d" % sd, [a, a + (X * sd * 0.18 + U * 0.1) * k], [0.028, 0.01], mat, n=5)
         tube(tag + "antu%d" % sd, [lerp(a, b, 0.5), lerp(a, b, 0.5) + (-X * sd * 0.08 + U * 0.14 + F * 0.05) * k], [0.024, 0.01], mat, n=5)
 
+def studs(J, P, tag, name, pts, mat, r=0.022, off=0.06):
+    """Small round studs, gems or rivets on the torso surface at (height, angle) points."""
+    for i, (h, a) in enumerate(pts):
+        ball_at(tag + name + str(i), surf(J, P, h, a, off), r, mat)
+
+# ----------------------------------------------------------------------------- look options
+def hair(sex, mat, men="slick", women="long"):
+    """Layout of a bare head's hair: "slick" for men also gets long loose hair down the back, drawn by
+    the team's extras from the elf_backhair key; women default to a high ponytail."""
+    style = women if sex == "f" else men
+    out = dict(hair=style, hair_mat=mat)
+    if style == "slick":
+        out["elf_backhair"] = mat
+    return out
+
+def helmed(**layout):
+    """A helmet value as a function of the body: a man's hair escapes the helm in a low tail at the back, a
+    woman's in a long braid over her shoulder, so she reads apart from the front."""
+    return lambda sex: dict(layout, helm_tail=None, hair="braid") if sex == "f" else dict(layout, helm_tail=True)
+
+def loose_hair(J, L, tag, length=0.42, w=0.17):
+    """The elf_backhair layout key: long loose hair down the back."""
+    if L.get("elf_backhair"):
+        back_hair(J, L, tag, L["elf_backhair"], length=length, w=w)
+
 def sheath(J, tag, sd, mat="leather", hilt="darkmetal", ln=0.3):
     """A sheathed dagger strapped behind one hip (worn, never drawn)."""
     base = J["pelvis"] + J["u"] * 0.1 + J["X"] * sd * 0.2 + J["B"] * 0.17

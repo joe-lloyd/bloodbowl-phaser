@@ -2,19 +2,19 @@
 Renegade (minotaur, chaos_ogre, chaos_troll). Costume: the Iron Horde. No figure holds a ball."""
 import math
 from mathutils import Vector, Matrix
-from lib import Biped, register, core, parts
+from lib import Biped, register, core, parts, looks
 from lib.core import tube, tband, ball_at, box, cone, flat_cone, ellipsoid, lerp, UP, basis, D, surf
 from teams import chaos_common as cc
 
 @register
-class Beastman(Biped):
+class Beastman(looks.Fine, Biped):
     """Lean goat-headed runner: swept-back horns, chin tuft, dark mane, hooves, one kit2 shoulder plate."""
     key = "beastman"
     race = "beastman"
     knobs = dict(shoulders=1.08, hunch=12)
     layout = dict(skin="fur_brown", legs="fur_brown", horns="goat", horn_mat="bone", crest="fur_black", jersey="kit1", loin="kit1", loin_trim="kit2",
                   pads="plate", pad_sides=("l",), pad_mat="kit2", pad_trim="brass", belt="leather", buckle="brass",
-                  bracers="kit2", arm_band="kit1", dark="fur_black")
+                  bracers="kit2", arm_band="kit1", dark="fur_black", mutation=None)
     stance = dict(lean=8, nod=10, legs={"l": (8, 12, 10), "r": (-8, 12, 6)}, arms={"l": (14, 26, 52, -4), "r": (6, 26, 44, -4)},
                   hands="fist")
     stride, arm_swing, run_lean = 42, 34, 18
@@ -25,9 +25,22 @@ class Beastman(Biped):
                  nod=10 - 26 * max(0.0, -w["s2"]) * (1 if w["s1"] < 0 else 0), look=14 * w["c1"])
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         cc.chin_tuft(J, tag, "fur_black", ln=0.2, fwd=1.05)
         cc.strap(J, P, tag, "kit2", r=0.04, flip=-1)
         cc.spines(J, P, tag, (0.2, 0.34, 0.46), mat="fur_black", ln=0.1, r=0.06, name="mane")
+        mutation = L.get("mutation")
+        if mutation == "eye":
+            cc.third_eye(J, tag, up=0.62)
+        elif mutation == "tentacle":
+            cc.shoulder_tentacle(J, tag, side="r", ln=0.65, r=0.08)
+
+    def details(self, J, P, L, tag, pose):
+        for i, h in enumerate((0.12, 0.3)):            # brass studs down the strap, a bone charm on the belt
+            ball_at(tag + "stud%d" % i, surf(J, P, h, -18 + 40 * i, 0.07), 0.026, "brass")
+        b = surf(J, P, 0.04, 34, 0.08)
+        tube(tag + "charmcord", [b, b - UP * 0.1], [0.012, 0.012], "leather", n=5)
+        cone(tag + "charm", b - UP * 0.08, b - UP * 0.2, 0.035, "bone", 6)
 
 @register
 class ChaosChosen(Biped):
@@ -40,7 +53,7 @@ class ChaosChosen(Biped):
                   gorget=True, pads="big", pad_mat="kit2", pad_trim="brass", spikes=2, tabard="kit1", tabard_trim="kit2",
                   belt="leather", buckle="brass", helm="winged", helm_mat="darkmetal", crest_mat="kit1", horns="bull",
                   horn_mat="bone", cape="short", cape_mat="kit1", cape_lining="cloth_black", clasp=False, kneecops=True,
-                  knee_mat="kit1", bracers="brass")
+                  knee_mat="kit1", bracers="brass", mutation=None, hair_mat="hair_blond", tie="kit2")
     stance = dict(lean=3, legs={"l": (5, 16, 6), "r": (-4, 16, 6)}, arms={"l": (4, 34, 38, -6), "r": (4, 34, 38, -6)},
                   hands="fist")
     stride, arm_swing, jump = 32, 26, 0.12
@@ -59,9 +72,14 @@ class ChaosChosen(Biped):
             d = (wr - el).normalized()
             cone(tag + "elbspk%d" % i, el, el - d * 0.16 + J["B"] * 0.05, 0.045, "bone", 6)
         cc.chain(tag + "chn", surf(J, P, 0.07, -60, 0.06), surf(J, P, 0.07, -5, 0.06), "brass", n=5, sag=0.12)
+        mutation = L.get("mutation")
+        if mutation == "tentacle":
+            cc.shoulder_tentacle(J, tag, side="r", ln=0.8, r=0.1)
+        elif mutation == "claw":
+            cc.claw_arm(J, L, tag, "r", k=1.12, size=0.85)
 
 @register
-class Minotaur(Biped):
+class Minotaur(looks.Fine, Biped):
     """Huge bull-headed brute: wide horns, black mane, nose ring, kit1 loincloth and shoulder plate, kit2 harness."""
     key = "minotaur"
     race = "minotaur"
@@ -81,6 +99,7 @@ class Minotaur(Biped):
                  arms={"l": (6, 30 + 6 * b, 40, 0), "r": (6, 30 + 6 * b, 40, 0)})
 
     def extras(self, J, P, L, tag, pose):
+        super().extras(J, P, L, tag, pose)
         c, X, F, U, s = cc.hf(J)
         hs = s[0] / 0.2
         nose = c + F * s[1] * 1.25 - U * s[2] * 0.42
@@ -95,6 +114,15 @@ class Minotaur(Biped):
             tube(tag + "hband" + side, [a, a + (X * sd * 0.07 + U * 0.02) * hs], [0.075 * hs, 0.072 * hs], "kit1", n=6)
             wr, tip = J["arms"][side][2:]
             cc.chain(tag + "shk" + side, wr, wr - UP * 0.22 + J["B"] * 0.03, "darkmetal", n=3, sag=0.0, r=0.03)
+
+    def details(self, J, P, L, tag, pose):
+        for i, h in enumerate((0.1, 0.24, 0.38)):      # brass studs down the harness, a brass tip on each horn
+            ball_at(tag + "stud%d" % i, surf(J, P, h, -30 + 26 * i, 0.08), 0.032, "brass")
+        c, X, F, U, s = cc.hf(J)
+        hs = s[0] / 0.2
+        for sd in (-1, 1):
+            root = c + X * sd * s[0] * 0.75 + U * s[2] * 0.6
+            ball_at(tag + "horntip%d" % sd, root + (X * sd * 0.34 + U * 0.24 + F * 0.08) * hs, 0.03 * hs, "brass")
 
 @register
 class ChaosOgre(Biped):
@@ -122,17 +150,8 @@ class ChaosOgre(Biped):
         pose["hand_modes"] = modes
 
     def extras(self, J, P, L, tag, pose):
-        ak = cc.arm_overlay(J, L, tag, "l", "skin_chaos", k=1.22)
-        sh, el, wr, tip = J["arms"]["l"]
-        d = (tip - wr).normalized()
-        ellipsoid(tag + "clawpalm", wr + d * 0.1, (0.13, 0.1, 0.13), "skin_chaos")
-        side = d.cross(UP)
-        if side.length < 0.2:
-            side = J["X"]
-        side.normalize()
-        for i, o in enumerate((-0.09, 0.0, 0.09)):
-            b = wr + d * 0.16 + side * o
-            cone(tag + "bigclaw%d" % i, b, b + d * 0.3 + side * o * 0.6, 0.05, "bone", 6)
+        cc.claw_arm(J, L, tag, "l", k=1.22)
+        sh, el = J["arms"]["l"][:2]
         for i, t in enumerate((0.3, 0.75)):
             q = lerp(sh, el, t)
             cone(tag + "armspk%d" % i, q, q - J["X"] * 0.2 + UP * 0.1, 0.05, "bone", 6)

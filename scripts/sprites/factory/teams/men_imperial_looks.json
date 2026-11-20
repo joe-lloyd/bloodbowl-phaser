@@ -1,0 +1,23 @@
+{
+  "imperial_lineman": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hat", "Hat", [["beret", "Beret"], ["bare", "Bare head"]]],
+    ["sleeves", "Sleeves", [["puffed", "Puffed sleeves"], ["coloured", "Coloured sleeves"]]],
+    ["hose", "Hose", [["halved", "Two-colour hose"], ["plain", "Plain hose"]]]
+  ],
+  "imperial_thrower": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["hat", "Hat", [["brim", "Plumed hat"], ["beret", "Beret"], ["bare", "Bare head"]]],
+    ["cape", "Cape", [["half", "Half cape"], ["none", "No cape"]]]
+  ],
+  "noble_blitzer": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helm", "Helm", [["morion", "Morion"], ["bare", "Bare head"]]],
+    ["hose", "Hose", [["trunks", "Trunk hose"], ["tights", "Coloured tights"]]]
+  ],
+  "bodyguard": [
+    ["body", "Body", [["m", "Male"], ["f", "Female"]]],
+    ["helm", "Helm", [["sallet", "Sallet"], ["kettle", "Kettle helm"]]],
+    ["coat", "Coat", [["frock", "Long coat"], ["none", "No coat"]]]
+  ]
+}

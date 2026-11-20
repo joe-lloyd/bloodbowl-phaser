@@ -86,27 +86,44 @@ describe("colourTable", () => {
   });
 });
 
+function fullAtlas(model: string) {
+  const art = layeredArt(model);
+  if (!art) throw new Error(`no layered art for ${model}`);
+  const look = resolveLook(art, undefined);
+  const read = (name: string) => readLayer(model, look.body, name);
+  const names = Object.entries(art.animations).flatMap(([anim, count]) =>
+    ["s", "se", "e", "ne", "n", "nw", "w", "sw"].flatMap((facing) => Array.from({ length: count }, (_, i) => `${anim}/${facing}/${String(i)}`))
+  );
+  const atlas = buildLookAtlas({
+    look: { layers: look.layers.map(read), shades: look.shades.map(read) },
+    names,
+    size: art.frame,
+    palette: art.layered.palette,
+    colors: { primary: 0x8b0000, secondary: 0xffffff },
+  });
+  return { atlas, names };
+}
+
+function outsideTheirPage(atlas: ReturnType<typeof fullAtlas>["atlas"]) {
+  return Object.entries(atlas.frames).filter(([, r]) => {
+    const page = atlas.pages[r.page];
+    return !page || r.x < 0 || r.y < 0 || r.x + r.w > page.width || r.y + r.h > page.height;
+  });
+}
+
 describe("buildLookAtlas", () => {
-  it("gives every requested frame a rect inside the atlas", () => {
-    const art = layeredArt("thrall");
-    expect(art).toBeDefined();
-    if (!art) return;
-    const look = resolveLook(art, undefined);
-    const read = (name: string) => readLayer("thrall", look.body, name);
-    const names = Object.entries(art.animations).flatMap(([anim, count]) =>
-      ["s", "e", "n", "w"].flatMap((facing) => Array.from({ length: count }, (_, i) => `${anim}/${facing}/${String(i)}`))
-    );
-    const atlas = buildLookAtlas({
-      look: { layers: look.layers.map(read), shades: look.shades.map(read) },
-      names,
-      size: art.frame,
-      palette: art.layered.palette,
-      colors: { primary: 0x8b0000, secondary: 0xffffff },
-    });
-    expect(atlas.width).toBe(4096);
+  it("packs a figure into one 4096 wide page with a rect for every frame", () => {
+    const { atlas, names } = fullAtlas("thrall");
+    expect(atlas.pages.map((page) => page.width)).toEqual([4096]);
     expect(Object.keys(atlas.frames).sort()).toEqual([...names].sort());
-    const outside = Object.entries(atlas.frames).filter(([, r]) => r.x < 0 || r.y < 0 || r.x + r.w > atlas.width || r.y + r.h > atlas.height);
-    expect(outside).toEqual([]);
-    expect(atlas.pixels.length).toBe(atlas.width * atlas.height * 4);
+    expect(outsideTheirPage(atlas)).toEqual([]);
+  });
+
+  it("spreads a big figure over pages that each fit a 4096 texture", () => {
+    const { atlas, names } = fullAtlas("treeman");
+    expect(atlas.pages.length).toBe(2);
+    expect(atlas.pages.every((page) => page.width === 4096 && page.height <= 4096)).toBe(true);
+    expect(Object.keys(atlas.frames).sort()).toEqual([...names].sort());
+    expect(outsideTheirPage(atlas)).toEqual([]);
   });
 });
