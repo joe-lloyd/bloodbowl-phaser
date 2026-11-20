@@ -108,7 +108,7 @@ export function uniqueTeamName(team: Team, taken: Set<string>): Team {
 
 function withComputerTeams(
   input: NewCompetition,
-  ruleset: SevensRuleset
+  rules: { ruleset: SevensRuleset; gameType: GameType }
 ): OwnedChoice[] {
   const taken = new Set(
     input.entrants.flatMap((choice) =>
@@ -118,18 +118,21 @@ function withComputerTeams(
   return input.entrants.map((choice) => {
     if ("team" in choice) return choice;
     const team = createComputerTeamFromTemplate(choice.computerTemplateId, {
-      ruleset,
+      ...rules,
       advancementMode: input.profile?.advancementMode ?? "advanced-league",
     });
     return { team: uniqueTeamName(team, taken), ownerUid: input.organizerUid };
   });
 }
 
-function isIllegal(team: Team, ruleset: SevensRuleset): boolean {
+function isIllegal(
+  team: Team,
+  { ruleset, gameType }: { ruleset: SevensRuleset; gameType: GameType }
+): boolean {
   try {
     const roster = getRosterByRosterName(team.rosterName);
     return (
-      validateRosterLegality(team, roster).length > 0 ||
+      validateRosterLegality(team, roster, gameType).length > 0 ||
       !!validateInsignificant(team.players, ruleset)
     );
   } catch {
@@ -140,10 +143,12 @@ function isIllegal(team: Team, ruleset: SevensRuleset): boolean {
 export async function assertTeamsCanEnter({
   teams,
   ruleset,
+  gameType,
   profile,
 }: {
   teams: readonly Team[];
   ruleset: SevensRuleset;
+  gameType: GameType;
   profile: RosterRuleProfile | undefined;
 }): Promise<void> {
   const busy = teams.find((team) => team.activeCompetitionId);
@@ -154,7 +159,9 @@ export async function assertTeamsCanEnter({
         `${existing?.name ?? "another active competition"}.`
     );
   }
-  const illegal = teams.filter((team) => isIllegal(team, ruleset));
+  const illegal = teams.filter((team) =>
+    isIllegal(team, { ruleset, gameType })
+  );
   if (illegal.length > 0) {
     throw new Error(
       `These teams are not legal for competition entry: ${illegal
@@ -162,7 +169,7 @@ export async function assertTeamsCanEnter({
         .join(", ")}`
     );
   }
-  assertEntrantsCompatible(teams, profile, ruleset);
+  assertEntrantsCompatible(teams, profile, { ruleset, gameType });
 }
 
 export function competitionFixtures(
@@ -235,15 +242,17 @@ export async function createCompetition(
   if (!input.name.trim()) throw new Error("Give the competition a name.");
   if (input.entrants.length < 2) throw new Error("Select at least two teams.");
   const ruleset = readSevensRuleset(input.ruleset);
-  const choices = withComputerTeams(input, ruleset);
+  const gameType = readGameType(input.gameType);
+  const choices = withComputerTeams(input, { ruleset, gameType });
   await assertTeamsCanEnter({
     teams: choices.map((choice) => choice.team),
     ruleset,
+    gameType,
     profile: input.profile,
   });
 
   const competition = buildCompetition({
-    rules: { ...input, ruleset },
+    rules: { ...input, ruleset, gameType },
     organizerUid: input.organizerUid,
     entrants: seedEntrants(
       choices.map(({ team, ownerUid }) =>

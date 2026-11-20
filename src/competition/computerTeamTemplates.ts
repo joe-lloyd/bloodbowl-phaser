@@ -16,6 +16,8 @@ import { validateRosterLegality } from "../game/rules/rosterLegality";
 import { validateInsignificant } from "../game/rules/insignificant";
 import { chooseFirstLinemanAsVeteran } from "../game/rules/veteran";
 import { purchase } from "../game/rules/teamPricing";
+import { draftRulesFor } from "../game/rules/draftRules";
+import { DEFAULT_GAME_TYPE, type GameType } from "../game/variants/gameTypes";
 import {
   DEFAULT_SEVENS_RULESET,
   type SevensRuleset,
@@ -28,6 +30,14 @@ export const COMPUTER_COACH = "Computer";
 interface TemplateOptions {
   advancementMode?: TeamAdvancementMode;
   ruleset?: SevensRuleset;
+  gameType?: GameType;
+}
+
+function buyRerolls(team: Team, template: ComputerTeamTemplate): void {
+  for (let index = 0; index < template.rerolls; index++)
+    purchase(team, { type: "reroll" });
+  if (team.gameType === undefined) return;
+  while (purchase(team, { type: "reroll" }).amount != null);
 }
 
 function buildTemplate(
@@ -40,9 +50,11 @@ function buildTemplate(
     template.rosterName,
     { ...template.colors },
     roster.rerollCost,
-    600_000,
+    draftRulesFor(options.gameType ?? DEFAULT_GAME_TYPE).budget,
     options.advancementMode
   );
+  if (options.gameType !== undefined && options.gameType !== DEFAULT_GAME_TYPE)
+    team.gameType = options.gameType;
   team.computerCoached = true;
   team.computerTemplateId = template.id;
   team.coachName = COMPUTER_COACH;
@@ -63,8 +75,7 @@ function buildTemplate(
         throw new Error(`${template.name} cannot afford its starting players.`);
     }
   }
-  for (let index = 0; index < template.rerolls; index++)
-    purchase(team, { type: "reroll" });
+  buyRerolls(team, template);
   chooseFirstLinemanAsVeteran(team);
   if (options.advancementMode === "matched-play") {
     for (const player of team.players) {
@@ -90,11 +101,11 @@ function draftIssues(team: Team): string[] {
 }
 
 export function getComputerTeamTemplates(
-  ruleset: SevensRuleset = DEFAULT_SEVENS_RULESET
+  options: Omit<TemplateOptions, "advancementMode"> = {}
 ): readonly ComputerTeamTemplate[] {
   return COMPUTER_TEAM_CATALOGUE.filter((template) => {
     try {
-      const team = buildTemplate(template, { ruleset });
+      const team = buildTemplate(template, options);
       return draftIssues(team).length === 0;
     } catch {
       return false;

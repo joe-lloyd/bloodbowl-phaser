@@ -30,6 +30,13 @@ import {
   type SevensRuleset,
 } from "../../../game/rules/sevensRuleset";
 import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
+import { GameTypeSelector } from "../common/GameTypeSelector";
+import {
+  DEFAULT_GAME_TYPE,
+  type GameType,
+  isGameType,
+} from "../../../game/variants/gameTypes";
+import { draftRulesFor } from "../../../game/rules/draftRules";
 import {
   cx,
   Field,
@@ -74,7 +81,14 @@ function LocalCompetitionBuilder({
       ? NAF_SEVENS_RULESET
       : DEFAULT_SEVENS_RULESET
   );
-  const templates = useMemo(() => getComputerTeamTemplates(ruleset), [ruleset]);
+  const gameTypeParam = searchParams.get("gameType");
+  const [gameType, setGameType] = useState<GameType>(
+    isGameType(gameTypeParam) ? gameTypeParam : DEFAULT_GAME_TYPE
+  );
+  const templates = useMemo(
+    () => getComputerTeamTemplates({ ruleset, gameType }),
+    [ruleset, gameType]
+  );
   const rosters = [
     ...new Set(templates.map((template) => template.rosterName)),
   ];
@@ -139,6 +153,7 @@ function LocalCompetitionBuilder({
     try {
       const competition = await createCompetition({
         ruleset,
+        gameType,
         type,
         name,
         format,
@@ -224,9 +239,22 @@ function LocalCompetitionBuilder({
       </Section>
 
       <Section title="Rules for this competition">
-        <SevensRulesetSelector value={ruleset} onChange={setRuleset} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <GameTypeSelector
+            value={gameType}
+            onChange={(next) => {
+              setGameType(next);
+              setDraftBudget(draftRulesFor(next).budget);
+              setComputerRows([]);
+            }}
+          />
+          {gameType === DEFAULT_GAME_TYPE && (
+            <SevensRulesetSelector value={ruleset} onChange={setRuleset} />
+          )}
+        </div>
         <p className="mt-3 font-hud-body text-hud-sm text-hud-dim">
-          This choice applies to the whole tournament or league season.
+          These choices apply to the whole tournament or league season. Every
+          entrant must meet the game type&apos;s draft rules.
         </p>
       </Section>
 
@@ -245,7 +273,7 @@ function LocalCompetitionBuilder({
             const compatibility = checkTeamCompatibility(
               candidate.team,
               profile,
-              ruleset
+              { ruleset, gameType }
             );
             return (
               <button
