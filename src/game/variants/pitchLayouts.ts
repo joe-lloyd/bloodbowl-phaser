@@ -21,7 +21,7 @@ export interface Obstacle extends Square {
   kind: ObstacleKind;
 }
 
-export interface Span {
+interface Span {
   min: number;
   max: number;
 }

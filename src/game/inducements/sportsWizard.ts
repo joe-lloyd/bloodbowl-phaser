@@ -1,5 +1,5 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
-import { GameOperation } from "../core/GameOperation";
+import { type GameOperation, TeamOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { ArmourOperation } from "../operations/ArmourOperation";
 import { BounceOperation } from "../operations/BounceOperation";
@@ -18,14 +18,8 @@ import {
 
 const SPELLS: WizardSpell[] = ["fireball", "zap"];
 
-export class CastSportsWizardOperation extends GameOperation {
+export class CastSportsWizardOperation extends TeamOperation {
   public readonly name = "CastSportsWizard";
-
-  private teamId: string;
-  constructor(teamId: string) {
-    super();
-    this.teamId = teamId;
-  }
 
   async execute(context: FlowContext): Promise<void> {
     const { gameService } = context;

@@ -1,5 +1,5 @@
 import { groundBall } from "@/game/rules/ballInTheAir";
-import { GameOperation } from "../core/GameOperation";
+import { TeamOperation } from "../core/GameOperation";
 import { type FlowContext } from "../core/GameFlowManager";
 import { ArmourOperation } from "../operations/ArmourOperation";
 import { BounceOperation } from "../operations/BounceOperation";
@@ -98,14 +98,8 @@ function transmute(context: FlowContext, target: Player, roll: number): void {
   if (dropped) flowManager.add(new BounceOperation(dropped), true);
 }
 
-export class CastNoviceWizardOperation extends GameOperation {
+export class CastNoviceWizardOperation extends TeamOperation {
   public readonly name = "CastNoviceWizard";
-
-  private teamId: string;
-  constructor(teamId: string) {
-    super();
-    this.teamId = teamId;
-  }
 
   async execute(context: FlowContext): Promise<void> {
     const { gameService } = context;

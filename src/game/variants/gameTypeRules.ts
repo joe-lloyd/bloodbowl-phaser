@@ -12,7 +12,7 @@ export type WeatherTableId = KickoffTableId;
 
 export type InjuryTableId = "sevens" | "beach-bowl" | "standard";
 
-export type RerollPricing =
+type RerollPricing =
   | { kind: "flat"; cost: number }
   | { kind: "double-roster" };
 
@@ -30,13 +30,13 @@ export interface DraftRules {
   veteran: boolean;
 }
 
-export interface SetupRules {
+interface SetupRules {
   maxOnPitch: number;
   minOnLineOfScrimmage: number;
   maxPerWideZone: number;
 }
 
-export type FoulRetribution = "none" | "rock" | "sand";
+type FoulRetribution = "none" | "rock" | "sand";
 
 export interface ArmourRules {
   knockedDownOrFallsOver: number;
@@ -108,7 +108,7 @@ const BEACH_BOWL = "beach-bowl";
 const venueTable = (venue: Venue): KickoffTableId =>
   venue === "gutter-sewer" ? venue : "gutter-street";
 
-export const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
+const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
   [SEVENS]: {
     gameType: SEVENS,
     venues: ["stadium"],

@@ -44,16 +44,6 @@ export function activeRules(): GameTypeRules {
   return gameTypeRules(active.gameType);
 }
 
-export function withMatchFormat<T>(format: MatchFormat, run: () => T): T {
-  const previous = active;
-  activateMatchFormat(format);
-  try {
-    return run();
-  } finally {
-    active = previous;
-  }
-}
-
 export function matchFormatFor(
   gameType: GameType,
   random: () => number = Math.random
