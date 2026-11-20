@@ -77,7 +77,10 @@ blender -b --factory-startup --python venues.py -- OUT layouts.json street
 python3 scripts/sprites/build_game_assets.py venues OUT
 ```
 
-The last step writes `public/venues/<venue>/`. `venueSidelines.test.ts`
+The last step writes `public/venues/<venue>/`. Then run
+`python3 scripts/sprites/venue_cards.py` to rebuild the `card.webp` each game
+type card shows: the venue's layers tinted in kit colours and cropped to the
+pitch. `venueSidelines.test.ts`
 checks each venue's `meta.json` against the rules layout, so a change to a
 pitch layout fails the tests until the venue is rendered again.
 
