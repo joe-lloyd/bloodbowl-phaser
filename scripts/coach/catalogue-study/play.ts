@@ -55,7 +55,7 @@ function pettyShopping(team: Team, budget: number): InducementInventoryEntry[] {
   return entries;
 }
 
-async function buyPettyCash(game: HeadlessGame, team1: Team, team2: Team) {
+export async function buyPettyCash(game: HeadlessGame, team1: Team, team2: Team) {
   const budgets = calculateInducementBudgets(team1, team2);
   game.ctx.gameService.commitInducements(
     buildSeventsInducementProfile({ advancedLeague: false }),
@@ -67,6 +67,11 @@ async function buyPettyCash(game: HeadlessGame, team1: Team, team2: Team) {
   );
   for (let i = 0; i < 20; i++)
     await new Promise((resolve) => setImmediate(resolve));
+  const state = game.ctx.gameService.getState();
+  if (state.inducements) {
+    const { profile, ...rest } = state.inducements;
+    state.inducements = { ...(profile ? { profile } : {}), ...rest };
+  }
 }
 
 export async function playStudyGame(
