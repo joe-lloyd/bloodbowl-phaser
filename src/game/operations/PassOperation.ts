@@ -1,4 +1,5 @@
 import { GameOperation } from "../core/GameOperation";
+import { GameConfig } from "../../config/GameConfig";
 import type { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
@@ -185,9 +186,9 @@ function occupiedSquares(
 
 const isFreeOnPitch = (square: Square, occupied: Set<string>): boolean =>
   square.x >= 0 &&
-  square.x < 26 &&
+  square.x < GameConfig.PITCH_WIDTH &&
   square.y >= 0 &&
-  square.y < 15 &&
+  square.y < GameConfig.PITCH_HEIGHT &&
   !occupied.has(`${String(square.x)},${String(square.y)}`);
 
 function onTheBallStep(

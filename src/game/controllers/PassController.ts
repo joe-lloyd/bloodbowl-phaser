@@ -6,6 +6,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import type { BallMovementController } from "./BallMovementController";
 import type { DiceController } from "./DiceController";
 import { withRerollOffer } from "../skills";
+import { GameConfig } from "../../config/GameConfig";
 
 export type PassType = "Quick Pass" | "Short Pass" | "Long Pass" | "Long Bomb";
 
@@ -276,8 +277,8 @@ export class PassController {
     to: { x: number; y: number }
   ): { x: number; y: number }[] {
     const squares: { x: number; y: number }[] = [];
-    for (let x = 0; x < 26; x++) {
-      for (let y = 0; y < 15; y++) {
+    for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
+      for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
         if (PassController.isEndpoint({ x, y }, from, to)) continue;
         if (PassController.rulerOverlaps(from, to, { x, y })) {
           squares.push({ x, y });
@@ -327,8 +328,8 @@ export class PassController {
     );
     if (value < 0) return squares;
 
-    for (let x = 0; x < 26; x++) {
-      for (let y = 0; y < 15; y++) {
+    for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
+      for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
         if (PassController.rangeValue(from, { x, y }) === value) {
           squares.push({ x, y });
         }
