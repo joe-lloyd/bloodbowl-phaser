@@ -14,8 +14,14 @@ treatment:
   Scale3x. Each new pixel is picked from one source neighbour, decided on the
   composite and applied to every layer, so the layers stay aligned.
 
+`build_page.py` packs those strips into a dark review page: the sharpen
+comparison with today's multiply tint against the proposed ramp tint, the
+upscalers, and a player page mock that rolls names with the game's own
+generator. `bundle_names.mjs` bundles that generator for the page.
+
 ```sh
 python3 scripts/sprites/vampire_lab/shipped_pass.py OUT
+python3 scripts/sprites/vampire_lab/build_page.py OUT PAGE
 ```
 
 Higher pixel density and look variants need the 3D models that the shipped
