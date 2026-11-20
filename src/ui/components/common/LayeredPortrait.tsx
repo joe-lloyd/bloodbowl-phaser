@@ -61,7 +61,8 @@ export function LayeredPortrait(props: LayeredPortraitProps) {
       .then((atlas) => {
         if (live) setSheet(toSheet(atlas));
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.warn(`Could not build the portrait look for ${model}`, error);
         if (live) setSheet(null);
       });
     return () => {
@@ -72,7 +73,11 @@ export function LayeredPortrait(props: LayeredPortraitProps) {
 
   useEffect(() => {
     const el = canvas.current;
-    if (!el || !sheet) return;
+    if (!el) return;
+    if (!sheet) {
+      el.getContext("2d")?.clearRect(0, 0, el.width, el.height);
+      return;
+    }
     setSide(drawFrame(el, sheet, 0));
     if (!animate && !hover) return;
     let frame = 0;

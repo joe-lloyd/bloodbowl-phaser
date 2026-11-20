@@ -2,11 +2,13 @@ import { useState } from "react";
 import type { LookOption } from "../../../boundary/layeredArt";
 import type { Player } from "../../../types/Player";
 import type { Team } from "../../../types/Team";
-import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
 import { appearanceOf, rollName } from "../../../game/names/playerIdentity";
+import { nameBookFor } from "../../../game/names/playerNames";
 import { lookOptions } from "../../../game/presentation/layered/layeredModels";
 import { modelFor } from "../../../game/presentation/playerArt";
 import { HudButton } from "../componentWarehouse/HudButton";
+import { Notice } from "../componentWarehouse/HudKit";
+import { commitPlayerChange } from "../hud/commitPlayerChange";
 
 const MAX_NAME = 40;
 
@@ -16,28 +18,45 @@ interface PlayerIdentityProps {
   readonly onSaved: () => void;
 }
 
-function savePlayer(team: Team, playerId: string, change: (player: Player) => void): void {
-  const latest = loadTeams().find((candidate) => candidate.id === team.id);
-  const target = latest?.players.find((candidate) => candidate.id === playerId);
-  if (!latest || !target) return;
-  change(target);
-  void saveTeam(latest);
-  const shown = team.players.find((candidate) => candidate.id === playerId);
-  if (shown) change(shown);
+function useSave({ player, team, onSaved }: PlayerIdentityProps) {
+  const [error, setError] = useState("");
+  const save = (change: (target: Player) => void): boolean => {
+    try {
+      commitPlayerChange(team, player.id, (_latestTeam, target) => {
+        change(target);
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+      return false;
+    }
+    setError("");
+    onSaved();
+    return true;
+  };
+  return { save, error };
 }
 
-function NameEditor({ player, team, onSaved }: PlayerIdentityProps) {
+function SaveError({ error }: { readonly error: string }) {
+  return error ? (
+    <Notice tone="bad" role="alert" className="w-full">
+      {error}
+    </Notice>
+  ) : null;
+}
+
+function NameEditor(props: PlayerIdentityProps) {
+  const { player, team } = props;
   const [draft, setDraft] = useState(player.playerName);
+  const { save: commit, error } = useSave(props);
   const position = { rosterName: team.rosterName, positionName: player.positionName };
-  const canRoll = rollName(position, player.appearance) !== undefined;
+  const canRoll = nameBookFor(team.rosterName, player.positionName) !== undefined;
   const save = (name: string) => {
     const clean = name.trim().slice(0, MAX_NAME);
     if (!clean) return;
-    savePlayer(team, player.id, (target) => {
+    const saved = commit((target) => {
       target.playerName = clean;
     });
-    setDraft(clean);
-    onSaved();
+    if (saved) setDraft(clean);
   };
   return (
     <form
@@ -72,6 +91,7 @@ function NameEditor({ player, team, onSaved }: PlayerIdentityProps) {
           New name
         </HudButton>
       )}
+      <SaveError error={error} />
     </form>
   );
 }
@@ -97,7 +117,9 @@ function OptionCycler({ option, value, onPick }: { option: LookOption; value: st
   );
 }
 
-export function PlayerLookControls({ player, team, onSaved }: PlayerIdentityProps) {
+export function PlayerLookControls(props: PlayerIdentityProps) {
+  const { player, team } = props;
+  const { save, error } = useSave(props);
   const options = lookOptions(modelFor(team.rosterName, player.positionName));
   if (options.length === 0) return null;
   const current = appearanceOf(player, team.rosterName) ?? {};
@@ -109,13 +131,13 @@ export function PlayerLookControls({ player, team, onSaved }: PlayerIdentityProp
           option={option}
           value={current[option[0]] ?? option[2][0]?.[0] ?? ""}
           onPick={(value) => {
-            savePlayer(team, player.id, (target) => {
+            save((target) => {
               target.appearance = { ...current, [option[0]]: value };
             });
-            onSaved();
           }}
         />
       ))}
+      <SaveError error={error} />
     </div>
   );
 }

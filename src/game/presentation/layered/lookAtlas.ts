@@ -4,7 +4,8 @@ import { composeFrame, type LookLayers } from "./compose";
 import { finishFrame, type FinishedFrame } from "./finish";
 import { colourTable } from "./paint";
 
-const ATLAS_WIDTH = 2048;
+const ATLAS_WIDTH = 4096;
+const MAX_TEXTURE_SIDE = 4096;
 
 interface AtlasRect {
   readonly x: number;
@@ -73,6 +74,7 @@ export function buildLookAtlas(input: LookAtlasInput): LookAtlas {
     frame: finishFrame(composeFrame(input.look, name), input.palette),
   }));
   const { rects, height } = place(painted);
+  if (height > MAX_TEXTURE_SIDE) console.warn(`A look atlas is ${String(height)} px tall, over the ${String(MAX_TEXTURE_SIDE)} px texture limit`);
   const pixels = new Uint8ClampedArray(ATLAS_WIDTH * height * 4);
   const table = colourTable(input.palette, input.colors);
   for (const item of painted) {

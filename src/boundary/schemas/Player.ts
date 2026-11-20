@@ -73,4 +73,5 @@ export const playerSchema: z.ZodType<Player> = z.looseObject({
   veteran: z.literal(true).exactOptional(),
   teamCaptain: z.literal(true).exactOptional(),
   hydrationWarning: z.string().exactOptional(),
+  appearance: z.record(z.string(), z.string()).exactOptional(),
 });
