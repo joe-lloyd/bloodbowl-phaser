@@ -19,7 +19,7 @@ import {
   standing,
   toGoal,
 } from "./board";
-import { type RollTarget, d6 } from "./chance";
+import { type RollTarget, d6, rerollSources } from "./chance";
 import { routesFor, withTeamReroll } from "./routes";
 import { type Context, threats, tierFor } from "./activationContext";
 import type { Activation } from "./activations";
@@ -187,9 +187,7 @@ function carrierLanding(c: Context, mate: Player, at: Square): number {
   });
   const plain = routesFor({ board: after, player: landed });
   const routes = c.teamReroll
-    ? withTeamReroll(plain, landed, (skill) =>
-        board.gs.getRerollArbiter().skillRerollAvailable(landed, skill)
-      )
+    ? withTeamReroll(plain, landed, rerollSources(board.gs, landed))
     : plain;
   let run = -Infinity;
   for (const route of routes.values())

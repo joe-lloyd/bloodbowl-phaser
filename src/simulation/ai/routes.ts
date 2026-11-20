@@ -21,7 +21,14 @@ import {
   key,
   neighbours,
 } from "./board";
-import { CERTAIN, type Chance, type RollTarget, chain } from "./chance";
+import {
+  CERTAIN,
+  type Chance,
+  type RerollSource,
+  type RollTarget,
+  chain,
+  rerollSources,
+} from "./chance";
 import { activeLayout } from "../../game/variants/activeMatch";
 
 const NO_ROLLS: RollTarget[] = [];
@@ -323,8 +330,7 @@ export function routesFor({
             player: player,
             rolls: rolls,
             teamReroll: false,
-            available: (skill) =>
-              board.gs.getRerollArbiter().skillRerollAvailable(player, skill),
+            available: rerollSources(board.gs, player),
           })
         : CERTAIN,
     });
@@ -335,7 +341,7 @@ export function routesFor({
 export function withTeamReroll(
   routes: Map<number, Route>,
   player: RosterPlayer,
-  available?: (skill: SkillType) => boolean
+  available?: (source: RerollSource) => boolean
 ): Map<number, Route> {
   const out = new Map<number, Route>();
   for (const [cell, route] of routes)

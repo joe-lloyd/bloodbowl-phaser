@@ -14,7 +14,7 @@ import { pickupPace } from "./pickupActivations";
 import type { ActionType } from "../../types/events";
 import { standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
-import { chain } from "./chance";
+import { chain, rerollSources } from "./chance";
 import type { Route } from "./routes";
 
 export const SKILL_PLANS: Partial<
@@ -57,8 +57,7 @@ function pickupScoreValue(c: Context, player: Player): number {
       player: player,
       rolls: [...pickup.rolls, ...end.rolls],
       teamReroll: c.teamReroll,
-      available: (skill) =>
-        board.gs.getRerollArbiter().skillRerollAvailable(player, skill),
+      available: rerollSources(board.gs, player),
     });
     value = Math.max(
       value,
@@ -99,9 +98,7 @@ export function secureBallActivations(
   const routes = routesFor({ board: board, player: player, securing: true });
   const route = (
     c.teamReroll
-      ? withTeamReroll(routes, player, (skill) =>
-          board.gs.getRerollArbiter().skillRerollAvailable(player, skill)
-        )
+      ? withTeamReroll(routes, player, rerollSources(board.gs, player))
       : routes
   ).get(key(board.ball.at));
   if (!route) return [];

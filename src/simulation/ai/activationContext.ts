@@ -1,7 +1,7 @@
 import { type FieldPlayer as Player } from "./board";
 import { PlayerStatus } from "../../types/Player";
 import { type Board, type Square, distance, toGoal } from "./board";
-import { type Chance } from "./chance";
+import { type Chance, rerollSources } from "./chance";
 import { SPP_VALUES, sppValuesFor } from "../../game/progression/MatchStats";
 import { type Route, routesFor, withTeamReroll } from "./routes";
 import { type Weights } from "./weights";
@@ -55,8 +55,10 @@ export function context({
     if (!routes)
       rerollCache.set(
         p.id,
-        (routes = withTeamReroll(plainRoutes(p), p, (skill) =>
-          board.gs.getRerollArbiter().skillRerollAvailable(p, skill)
+        (routes = withTeamReroll(
+          plainRoutes(p),
+          p,
+          rerollSources(board.gs, p)
         ))
       );
     return routes;

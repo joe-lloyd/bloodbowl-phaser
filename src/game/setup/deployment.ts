@@ -354,11 +354,30 @@ export function roleFit(
   return kicking ? kickingFit(player, role) : receivingFit(player, role);
 }
 
+export const VETERAN_PLANS = ["by role", "deep", "in reserve"] as const;
+export type VeteranPlan = (typeof VETERAN_PLANS)[number];
+
+export function setupLabel(name: string, veteran: VeteranPlan): string {
+  const suffix = veteran === "by role" ? "" : `, Veteran ${veteran}`;
+  return `Set up in the ${name} formation${suffix}`;
+}
+
+const VETERAN_DEEP_BONUS = 20;
+
 export interface Assignment {
   readonly squares: readonly FormationPosition[];
   readonly players: readonly Player[];
   readonly kicking: boolean;
   readonly mustField?: string | undefined;
+  readonly veteran?: VeteranPlan;
+}
+
+function slotFit(player: Player, role: DeploymentRole, args: Assignment) {
+  const deepVeteran =
+    args.veteran === "deep" && role === "deep" && !!player.veteran;
+  return (
+    roleFit(player, role, args.kicking) + (deepVeteran ? VETERAN_DEEP_BONUS : 0)
+  );
 }
 
 interface Step {
@@ -382,12 +401,14 @@ function extend({ best, fit, required }: Step) {
   return { next, choice };
 }
 
-export function assignPlayers({
-  squares,
-  players,
-  kicking,
-  mustField,
-}: Assignment): FormationPosition[] {
+export function assignPlayers(args: Assignment): FormationPosition[] {
+  const { squares, mustField } = args;
+  const players =
+    args.veteran === "in reserve" &&
+    args.players.length > squares.length &&
+    !args.players.some((p) => p.veteran && p.id === mustField)
+      ? args.players.filter((p) => !p.veteran)
+      : args.players;
   const slots = squares.slice(0, Math.min(squares.length, players.length));
   const full = (1 << slots.length) - 1;
   let best = Array.from({ length: full + 1 }, (_, mask) =>
@@ -396,9 +417,7 @@ export function assignPlayers({
   const choices = players.map((player) => {
     const step = extend({
       best,
-      fit: slots.map((slot) =>
-        roleFit(player, slot.role ?? "support", kicking)
-      ),
+      fit: slots.map((slot) => slotFit(player, slot.role ?? "support", args)),
       required: player.id === mustField,
     });
     best = step.next;

@@ -56,6 +56,28 @@ const REROLL_SKILL: Record<RollTarget["kind"], SkillType | null> = {
   landing: null,
 };
 
+export type RerollSource = SkillType | "veteran";
+
+const VETERAN_KINDS = new Set<RollTarget["kind"]>(["pickup", "catch", "pass"]);
+
+interface RerollArbiterView {
+  getRerollArbiter(): {
+    skillRerollAvailable(player: Player, skill: SkillType): boolean;
+    veteranRerollAvailable(player: Player): boolean;
+  };
+}
+
+export function rerollSources(
+  gs: RerollArbiterView,
+  player: Player
+): (source: RerollSource) => boolean {
+  const arbiter = gs.getRerollArbiter();
+  return (source) =>
+    source === "veteran"
+      ? arbiter.veteranRerollAvailable(player)
+      : arbiter.skillRerollAvailable(player, source);
+}
+
 function skillReroll(player: Player, kind: RollTarget["kind"]): boolean {
   const skill = REROLL_SKILL[kind];
   return skill !== null && hasSkill(player.skills, skill);
@@ -65,7 +87,7 @@ interface ChainArgs {
   player: Player;
   rolls: readonly RollTarget[];
   teamReroll: boolean;
-  available?: ((skill: SkillType) => boolean) | undefined;
+  available?: ((source: RerollSource) => boolean) | undefined;
 }
 
 export function chain({
@@ -82,6 +104,7 @@ export function chain({
     i: 0,
     spent: 0,
     team: teamReroll,
+    veteran: !!player.veteran && available("veteran"),
     rolls: rolls,
     has: has,
     seen: new Map(),
@@ -134,62 +157,36 @@ interface ChainFromArgs {
   i: number;
   spent: number;
   team: boolean;
+  veteran: boolean;
   rolls: readonly RollTarget[];
   has: readonly boolean[];
   seen: Map<number, number>;
 }
 
-function chainFrom({
-  i,
-  spent,
-  team,
-  rolls,
-  has,
-  seen,
-}: ChainFromArgs): number {
-  const roll = rolls[i];
+function savedBy(args: ChainFromArgs, roll: RollTarget): ChainFromArgs | null {
+  const k = KINDS.indexOf(roll.kind);
+  const next = { ...args, i: args.i + 1 };
+  if (!roll.noSkillReroll && args.has[k] && !(args.spent & (1 << k)))
+    return { ...next, spent: args.spent | (1 << k) };
+  if (args.veteran && VETERAN_KINDS.has(roll.kind))
+    return { ...next, veteran: false };
+  return args.team ? { ...next, team: false } : null;
+}
+
+function chainFrom(args: ChainFromArgs): number {
+  const roll = args.rolls[args.i];
   if (roll === undefined) return 1;
-  const id = i * (2 << KINDS.length) + spent * 2 + (team ? 1 : 0);
-  const known = seen.get(id);
+  const id =
+    ((args.i * (2 << KINDS.length) + args.spent) * 2 + (args.team ? 1 : 0)) *
+      2 +
+    (args.veteran ? 1 : 0);
+  const known = args.seen.get(id);
   if (known !== undefined) return known;
-  const { kind, target, noSkillReroll } = roll;
-  const k = KINDS.indexOf(kind);
-  const p = d6(target);
-  let saved = 0;
-  if (!noSkillReroll && has[k] && !(spent & (1 << k)))
-    saved =
-      p *
-      chainFrom({
-        i: i + 1,
-        spent: spent | (1 << k),
-        team: team,
-        rolls: rolls,
-        has: has,
-        seen: seen,
-      });
-  else if (team)
-    saved =
-      p *
-      chainFrom({
-        i: i + 1,
-        spent: spent,
-        team: false,
-        rolls: rolls,
-        has: has,
-        seen: seen,
-      });
-  const chance =
-    p *
-      chainFrom({
-        i: i + 1,
-        spent: spent,
-        team: team,
-        rolls: rolls,
-        has: has,
-        seen: seen,
-      }) +
-    (1 - p) * saved;
-  seen.set(id, chance);
+  const p = d6(roll.target);
+  const rescue = savedBy(args, roll);
+  const saved = rescue ? p * chainFrom(rescue) : 0;
+  const chance = p * chainFrom({ ...args, i: args.i + 1 }) + (1 - p) * saved;
+  args.seen.set(id, chance);
   return chance;
 }
 

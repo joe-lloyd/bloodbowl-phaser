@@ -22,7 +22,7 @@ import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
 import { foulActivations } from "./foulActivations";
 import { gatePriced } from "./gateActivations";
-import { pickupActivation } from "./pickupActivations";
+import { fetchActivations, pickupActivation } from "./pickupActivations";
 import {
   feedingSupportActivations,
   holdsFeedingSupport,
@@ -131,6 +131,7 @@ function fieldOptions(
 ): Activation[] {
   const out: Activation[] = [];
   out.push(...pickupOptions(c, player, actions));
+  if (actions.has("handoff")) out.push(...fetchActivations(c, player));
   if (actions.has("block")) out.push(...blockActivations(c, player));
   out.push(...skillOptions(c, player, actions));
   if (actions.has("blitz")) out.push(...blitzActivations(c, player));

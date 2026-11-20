@@ -10,7 +10,11 @@ import { type Player, PlayerStatus } from "../types/Player";
 import { type ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
-import { assignPlayers } from "../game/setup/deployment";
+import {
+  VETERAN_PLANS,
+  assignPlayers,
+  setupLabel,
+} from "../game/setup/deployment";
 import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { isConfinedToReserves } from "../game/kickoff/driveEffects";
@@ -409,19 +413,22 @@ async function setupCandidates(
   const kicking = gs.getState().setup?.kickingTeamId === teamId;
   const mustField = eligible.find((p) => p.teamCaptain)?.id;
 
-  return new FormationManager()
+  const formations = new FormationManager()
     .getBuiltInFormations(isTeam1)
-    .filter((formation) => formation.use !== (kicking ? "receive" : "kick"))
-    .map((formation) => ({
+    .filter((formation) => formation.use !== (kicking ? "receive" : "kick"));
+  const plans = eligible.some((p) => p.veteran) ? VETERAN_PLANS : (["by role"] as const);
+  return plans.flatMap((veteran) =>
+    formations.map((formation) => ({
       kind: "setup" as const,
-      label: `Set up in the ${formation.name} formation`,
+      label: setupLabel(formation.name, veteran),
       commands: setupCommands([
         ...clear,
-        ...assignPlayers({ squares: formation.positions, players: eligible, kicking, mustField }).map(
+        ...assignPlayers({ squares: formation.positions, players: eligible, kicking, mustField, veteran }).map(
           (pos): HeadlessCommand => ({ type: "place-player", playerId: pos.playerId, x: pos.x, y: pos.y })
         ),
       ], teamId),
-    }));
+    }))
+  );
 }
 
 function setupCommands(

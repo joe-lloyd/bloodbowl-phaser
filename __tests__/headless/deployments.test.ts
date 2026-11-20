@@ -9,6 +9,7 @@ import { withMatchFormat } from "../../src/game/variants/activeMatch";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { addPlayerToTeam, createTeam, RosterName } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
+import { enumerateDecision } from "../../src/simulation/candidates";
 
 const GENERAL = ["Balanced", "Spread", "Bunker"];
 
@@ -132,5 +133,53 @@ describe("deployments", () => {
     const placed = await deploy("Kick: Press", true);
     expect(placed["Dwarf Blitzer"]).toBe("2,5");
     expect(placed["Troll Slayer"]).toMatch(/^6,/);
+  });
+
+  it("lets the computer put its Veteran deep or leave it in reserve", async () => {
+    const team1 = dwarfs();
+    const roster = fixtureValue(getRosterByRosterName(RosterName.DWARF));
+    const lineman = fixtureValue(
+      roster.playerTemplates.find((p) => p.positionName === "Dwarf Lineman")
+    );
+    const veteran = createPlayer(lineman, team1.id, 8);
+    veteran.veteran = true;
+    veteran.stats.MA -= 1;
+    team1.treasury += veteran.cost;
+    expect(addPlayerToTeam(team1, veteran)).toBe(true);
+    const placedWith = async (label: string) => {
+      const game = new HeadlessGame({ seed: 5, team1 });
+      await game.execute({
+        type: "start-setup",
+        kickingTeamId: game.ctx.team2.id,
+      });
+      const theirs = fixtureValue(
+        new FormationManager()
+          .getBuiltInFormations(false)
+          .find((f) => f.name === "Balanced")
+      );
+      await game.execute({
+        type: "apply-formation",
+        teamId: game.ctx.team2.id,
+        formation: theirs.positions,
+      });
+      await game.execute({ type: "confirm-setup", teamId: game.ctx.team2.id });
+      const point = await enumerateDecision(game, null);
+      const choice = fixtureValue(
+        point.candidates.find((c) => c.label === label)
+      );
+      for (const command of choice.commands) await game.execute(command);
+      const placed = fixtureValue(
+        game.ctx.team1.players.find((p) => p.veteran)
+      ).gridPosition;
+      return placed ? `${String(placed.x)},${String(placed.y)}` : "reserve";
+    };
+    expect(
+      await placedWith("Set up in the Receive: Wedge formation, Veteran deep")
+    ).toBe("4,5");
+    expect(
+      await placedWith(
+        "Set up in the Receive: Wedge formation, Veteran in reserve"
+      )
+    ).toBe("reserve");
   });
 });

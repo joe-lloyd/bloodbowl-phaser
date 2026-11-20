@@ -27,7 +27,11 @@ import {
 } from "./weights";
 import { type RollTarget } from "./chance";
 import { enumerateLegalActions } from "../../headless/legalActions";
-import { deploymentsFor } from "../../game/setup/deployment";
+import {
+  VETERAN_PLANS,
+  deploymentsFor,
+  setupLabel,
+} from "../../game/setup/deployment";
 import type { HeadlessGame } from "../../headless/HeadlessGame";
 import { context as activationContext } from "./activationContext";
 import { key } from "./board";
@@ -401,11 +405,14 @@ function setupChoice(
   if (formations.length < 2) return null;
   const options = deploymentsFor(kicking);
   const wanted = Math.round(kicking ? w.setupKick : w.setupReceive);
-  const name = options[Math.max(0, Math.min(wanted, options.length - 1))]?.name;
+  const name = String(
+    options[Math.max(0, Math.min(wanted, options.length - 1))]?.name
+  );
+  const veteran = VETERAN_PLANS[Math.round(w.setupVeteran)] ?? VETERAN_PLANS[0];
   const pick =
-    formations.find(
-      (c) => c.label === `Set up in the ${String(name)} formation`
-    ) ?? formations[0];
+    formations.find((c) => c.label === setupLabel(name, veteran)) ??
+    formations.find((c) => c.label === setupLabel(name, "by role")) ??
+    formations[0];
   return pick ? { index: candidates.indexOf(pick) } : null;
 }
 
