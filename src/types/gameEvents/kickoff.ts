@@ -10,6 +10,12 @@ export interface KickoffGameEvents {
     to: { x: number; y: number };
     distance: number;
   };
+  [GameEventNames.BallHitWall]: {
+    from: { x: number; y: number };
+    wall: { x: number; y: number };
+    to: { x: number; y: number };
+    distance: number;
+  };
 
   [GameEventNames.BallPlaced]: { x: number; y: number };
   [GameEventNames.BallKicked]: {

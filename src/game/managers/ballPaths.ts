@@ -1,4 +1,5 @@
 import { GameConfig } from "../../config/GameConfig";
+import { isStandableSquare } from "../rules/pitchSquares";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { type Team } from "@/types/Team";
@@ -8,16 +9,11 @@ interface Square {
   y: number;
 }
 
-const MAX_X = GameConfig.PITCH_WIDTH - 1;
-const MAX_Y = GameConfig.PITCH_HEIGHT - 1;
-
 const distance = (a: Square, b: Square): number =>
   Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
-export const isOffPitch = (p: Square): boolean =>
-  p.x < 0 || p.x > MAX_X || p.y < 0 || p.y > MAX_Y;
-
 export function throwInDirections(from: Square): Square[] {
+  const MAX_X = GameConfig.PITCH_WIDTH - 1;
   if (from.x <= 0)
     return [
       { x: 1, y: -1 },
@@ -41,16 +37,6 @@ export function throwInDirections(from: Square): Square[] {
     { x: 0, y: -1 },
     { x: 1, y: -1 },
   ];
-}
-
-export function lastSquareIn(from: Square, dir: Square, steps: number): Square {
-  let lastIn = { ...from };
-  for (let s = 1; s <= steps; s++) {
-    const p = { x: from.x + dir.x * s, y: from.y + dir.y * s };
-    if (isOffPitch(p)) break;
-    lastIn = p;
-  }
-  return lastIn;
 }
 
 function isMarkedAt(square: Square, opponents: Team): boolean {
@@ -100,7 +86,7 @@ export function kickoffOnTheBallStep(
         : square.x < GameConfig.PITCH_WIDTH / 2;
       if (
         (dx !== 0 || dy !== 0) &&
-        !isOffPitch(square) &&
+        isStandableSquare(square) &&
         staysOwnHalf &&
         !isMarkedAt(square, opponents) &&
         !occupied.has(`${String(square.x)},${String(square.y)}`)

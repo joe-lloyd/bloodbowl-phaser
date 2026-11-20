@@ -2,7 +2,9 @@ import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { type FlowContext } from "../core/GameFlowManager";
 import { CatchOperation } from "./CatchOperation";
-import { GameConfig } from "@/config/GameConfig";
+import { d8Offset, settleOffObstacle } from "../rules/ballFlight";
+import { isOnPitch } from "../rules/pitchSquares";
+import { activeRules } from "../variants/activeMatch";
 import {
   awaitPresentation,
   nextPresentationId,
@@ -15,39 +17,49 @@ export class BounceOperation extends GameOperation {
 
   private startPosition: { x: number; y: number };
   private kickoff: boolean;
+  private bounces: number | undefined;
   constructor(
     startPosition: { x: number; y: number },
 
-    kickoff = false
+    kickoff = false,
+
+    bounces?: number
   ) {
     super();
     this.startPosition = startPosition;
     this.kickoff = kickoff;
+    this.bounces = bounces;
+  }
+
+  private bouncesLeft(context: FlowContext): number {
+    if (this.bounces !== undefined) return this.bounces;
+    const { x, y } = this.startPosition;
+    const onAPlayer = context.gameService.getPlayerAt(x, y) !== undefined;
+    return Math.max(activeRules().ballBounces, onAPlayer ? 1 : 0);
   }
 
   async execute(context: FlowContext): Promise<void> {
     const { gameService, eventBus, flowManager } = context;
 
+    const bounces = this.bouncesLeft(context);
+    if (bounces === 0) {
+      gameService.setBallPosition(this.startPosition.x, this.startPosition.y);
+      eventBus.emit(GameEventNames.BallPlaced, { ...this.startPosition });
+      return;
+    }
+
     const direction = gameService
       .getDiceController()
       .rollD8("Bounce Direction");
 
-    const scatterTemplate: Record<number, { x: number; y: number }> = {
-      1: { x: -1, y: -1 },
-      2: { x: 0, y: -1 },
-      3: { x: 1, y: -1 },
-      4: { x: -1, y: 0 },
-      5: { x: 1, y: 0 },
-      6: { x: -1, y: 1 },
-      7: { x: 0, y: 1 },
-      8: { x: 1, y: 1 },
+    const offset = d8Offset(direction);
+    const bounced = {
+      x: this.startPosition.x + offset.x,
+      y: this.startPosition.y + offset.y,
     };
-
-    const offset = scatterTemplate[direction];
-    if (!offset)
-      throw new Error(`No bounce direction for roll ${String(direction)}`);
-    const newX = this.startPosition.x + offset.x;
-    const newY = this.startPosition.y + offset.y;
+    const { x: newX, y: newY } = isOnPitch(bounced)
+      ? settleOffObstacle(gameService.getDiceController(), bounced)
+      : bounced;
 
     console.log(
       `[BounceOperation] Bouncing from ${String(this.startPosition.x)},${String(this.startPosition.y)} to ${String(newX)},${String(newY)}`
@@ -76,14 +88,9 @@ export class BounceOperation extends GameOperation {
       return;
     }
 
-    if (
-      newX < 0 ||
-      newX >= GameConfig.PITCH_WIDTH ||
-      newY < 0 ||
-      newY >= GameConfig.PITCH_HEIGHT
-    ) {
+    if (!isOnPitch(bounced)) {
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
-      gameService.throwInBall(this.startPosition);
+      gameService.throwInBall(this.startPosition, bounced, this.kickoff);
       return;
     }
 
@@ -98,6 +105,11 @@ export class BounceOperation extends GameOperation {
           origin: "bounce",
           kickoff: this.kickoff,
         }),
+        true
+      );
+    } else if (bounces > 1) {
+      flowManager.add(
+        new BounceOperation({ x: newX, y: newY }, this.kickoff, bounces - 1),
         true
       );
     } else {

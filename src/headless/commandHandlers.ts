@@ -13,6 +13,7 @@ import { type Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
 import { isBlockReplacement } from "../types/BlockReplacement";
 import { Inducement } from "../types/Inducements";
+import { isStandableSquare } from "../game/rules/pitchSquares";
 
 type QueryCommand = Extract<
   HeadlessCommand,
@@ -293,6 +294,8 @@ const COMMAND_HANDLERS: CommandHandlers = {
   },
   "kick-ball": async (host, cmd) => {
     const kicker = requirePlayer(host.ctx, cmd.playerId);
+    if (!isStandableSquare({ x: cmd.x, y: cmd.y }))
+      throw new Error("kick-target-blocked");
     const isTeam1Kicking = kicker.teamId === host.ctx.team1.id;
     host.setKickingTeam(kicker.teamId);
     await host.ctx.gameService.kickBall({ isTeam1Kicking: isTeam1Kicking, playerId: cmd.playerId, targetX: cmd.x, targetY: cmd.y }

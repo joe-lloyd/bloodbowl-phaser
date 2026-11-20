@@ -1,4 +1,7 @@
-import type { MatchFormat } from "../game/variants/activeMatch";
+import {
+  type MatchFormat,
+  withMatchFormat,
+} from "../game/variants/activeMatch";
 import { EventBus, type IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import {
@@ -121,6 +124,19 @@ function savedInputs(options: HeadlessGameOptions, restored: RestoredSave) {
 const formatOption = (options: HeadlessGameOptions) =>
   options.format === undefined ? {} : { format: options.format };
 
+function scenarioState(
+  options: HeadlessGameOptions,
+  scenario: Scenario,
+  { team1, team2 }: { team1: Team; team2: Team }
+): GameState {
+  const { format } = options;
+  if (!format) return applyScenario(scenario, team1, team2);
+  const state = withMatchFormat(format, () =>
+    applyScenario(scenario, team1, team2)
+  );
+  return { ...state, gameType: format.gameType, venue: format.venue };
+}
+
 const savedTurnManager = (
   options: HeadlessGameOptions,
   restored: RestoredSave
@@ -135,7 +151,15 @@ function startingState(
   const initialState: GameState | undefined =
     restored?.state ?? options.initialState;
   if (initialState) return initialState;
-  if (options.scenario) return applyScenario(options.scenario, team1, team2);
+  if (options.scenario) return scenarioState(options, options.scenario, { team1, team2 });
+  return freshMatchState(options, team1, team2);
+}
+
+function freshMatchState(
+  options: HeadlessGameOptions,
+  team1: Team,
+  team2: Team
+): GameState | undefined {
   if (options.startingPhase) {
     return GameService.createMatchState({ team1: team1, team2: team2, startingPhase: options.startingPhase, ...(options.startingSubPhase === undefined ? {} : { startingSubPhase: options.startingSubPhase }), fixture: options.paysWinnings === undefined ? {} : { paysWinnings: options.paysWinnings }, ...formatOption(options) }
     );

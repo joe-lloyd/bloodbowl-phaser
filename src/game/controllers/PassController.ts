@@ -5,6 +5,8 @@ import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import type { BallMovementController } from "./BallMovementController";
 import type { DiceController } from "./DiceController";
+import { isOnPitch } from "../rules/pitchSquares";
+import { settleOffObstacle } from "../rules/ballFlight";
 import { withRerollOffer } from "../skills";
 
 export type PassType = "Quick Pass" | "Short Pass" | "Long Pass" | "Long Bomb";
@@ -88,6 +90,15 @@ export class PassController {
     this.eventBus = eventBus;
     this.movementController = movementController;
     this.diceController = diceController;
+  }
+
+  public settleLanding(square: { x: number; y: number }): {
+    x: number;
+    y: number;
+  } {
+    return isOnPitch(square)
+      ? settleOffObstacle(this.diceController, square)
+      : square;
   }
 
   public static rangeValue(

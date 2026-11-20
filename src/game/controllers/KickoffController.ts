@@ -1,16 +1,22 @@
 import type { BallMovementController } from "./BallMovementController";
 import type { DiceController } from "./DiceController";
-import { GameConfig, isKickingTeamTerritory } from "@/config/GameConfig";
 import type { KickoffEvent } from "../kickoff/kickoffEvents";
 import { kickoffEventForRoll } from "../kickoff/kickoffEvents";
+import {
+  type WallHit,
+  lastSquareOnLine,
+  settleKick,
+} from "../rules/ballFlight";
+
+type KickDice = Pick<DiceController, "roll2D6" | "rollD6" | "rollD8">;
 
 export class KickoffController {
   private movementController: Pick<BallMovementController, "deviate">;
-  private diceController: Pick<DiceController, "roll2D6">;
+  private diceController: KickDice;
 
   constructor({ movementController, diceController }: {
     movementController: Pick<BallMovementController, "deviate">;
-    diceController: Pick<DiceController, "roll2D6">;
+    diceController: KickDice;
   }) {
     this.movementController = movementController;
     this.diceController = diceController;
@@ -26,29 +32,27 @@ export class KickoffController {
     finalX: number;
     finalY: number;
     isTouchback: boolean;
+    wallHits: WallHit[];
   } {
+    const target = { x: targetX, y: targetY };
     const finalPosition = this.movementController.deviate(
-      {
-        x: targetX,
-        y: targetY,
-      },
+      target,
       useKickD3,
       kickingTeamId
     );
 
-    const isOffPitch =
-      finalPosition.x < 0 ||
-      finalPosition.x >= GameConfig.PITCH_WIDTH ||
-      finalPosition.y < 0 ||
-      finalPosition.y >= GameConfig.PITCH_HEIGHT;
-
-    const isTouchback =
-      isOffPitch || isKickingTeamTerritory(finalPosition.x, isTeam1Kicking);
+    const kick = settleKick(
+      this.diceController,
+      { lastIn: lastSquareOnLine(target, finalPosition), to: finalPosition },
+      isTeam1Kicking
+    );
+    const settled = kick.landing ?? finalPosition;
 
     return {
-      finalX: finalPosition.x,
-      finalY: finalPosition.y,
-      isTouchback,
+      finalX: settled.x,
+      finalY: settled.y,
+      isTouchback: kick.landing === null,
+      wallHits: kick.wallHits,
     };
   }
 }
