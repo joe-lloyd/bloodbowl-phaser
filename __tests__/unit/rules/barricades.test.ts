@@ -34,7 +34,7 @@ describe("choosing how to cross a barricade", () => {
     ]);
   });
 
-  it("previews each Reckless crossing as a 2+ roll on its own leg", () => {
+  it("lets the coach choose at a crossing they can climb, and forces Reckless where they cannot", () => {
     const legs = withMatchFormat(SEWER, () =>
       planMoveLegs({ x: 10, y: 7 }, east(11, 15), {
         player: createTestPlayer({
@@ -43,6 +43,7 @@ describe("choosing how to cross a barricade", () => {
         }),
         opponents: [],
         ma: 6,
+        allowance: 8,
         used: 0,
         rushModifier: 0,
       })
@@ -51,7 +52,8 @@ describe("choosing how to cross a barricade", () => {
     expect(legs).toEqual([
       {
         risk: [{ type: "barricade", target: 2 }],
-        path: [{ x: 11, y: 7, reckless: true }],
+        path: [{ x: 11, y: 7 }],
+        climb: { safe: null, reckless: [{ type: "barricade", target: 2 }] },
       },
       { risk: null, path: east(12, 14) },
       {

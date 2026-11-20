@@ -62,6 +62,7 @@ describe("Dodge targets in a marked destination", () => {
         player,
         opponents,
         ma: 6,
+        allowance: 8,
         used: 0,
         rushModifier: 0,
       })

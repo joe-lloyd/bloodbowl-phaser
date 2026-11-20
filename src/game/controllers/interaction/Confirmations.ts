@@ -6,7 +6,11 @@ import { type AllEvents, GameEventNames } from "@/types/events";
 import type { ActivationGate } from "../../skills/SkillRule";
 import { availableRerolls } from "../../skills/rerolls";
 import { rollLabel } from "../../rules/rollTargets";
-import { type StepRisk, stepRolls } from "../../rules/moveLegs";
+import {
+  type ClimbChoice,
+  type StepRisk,
+  stepRolls,
+} from "../../rules/moveLegs";
 import type { foulPreview} from "../../rules/rollPreview";
 import { ROUTE_ROLL_NAMES, type RouteRoll } from "../../rules/rollPreview";
 
@@ -29,17 +33,29 @@ export class Confirmations {
     this.eventBus = eventBus;
   }
 
-  ask(prefix: string, request: ConfirmationRequest): Promise<boolean> {
+  async ask(prefix: string, request: ConfirmationRequest): Promise<boolean> {
+    return (await this.choose(prefix, request)) === "confirm";
+  }
+
+  choose(
+    prefix: string,
+    request: ConfirmationRequest
+  ): Promise<"confirm" | "alternative" | "cancel"> {
     const actionId = `${prefix}-${String(++this.asked)}`;
     return new Promise((resolve) => {
       const stopListening = () => {
         this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
         this.open.delete(stopListening);
       };
-      const onResult = (data: { actionId: string; confirmed: boolean }) => {
+      const onResult = (data: {
+        actionId: string;
+        confirmed: boolean;
+        alternative?: true;
+      }) => {
         if (data.actionId !== actionId) return;
         stopListening();
-        resolve(data.confirmed);
+        if (data.confirmed) resolve("confirm");
+        else resolve(data.alternative ? "alternative" : "cancel");
       };
       this.open.add(stopListening);
       this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
@@ -177,6 +193,36 @@ export function riskyStepRequest(
     confirmLabel: `${title}!`,
     cancelLabel: "Stop here",
     risky: true,
+  };
+}
+
+export function climbRequest({
+  deps,
+  player,
+  square,
+  climb,
+}: {
+  deps: { gameService: IGameService; eventBus: IEventBus };
+  player: Player;
+  square: Square;
+  climb: ClimbChoice;
+}): ConfirmationRequest {
+  const reckless = riskyStepRequest({ deps, player, square, risk: climb.reckless });
+  const safeRolls = climb.safe
+    ? stepRolls(climb.safe, square)
+        .map((roll) => rollLabel(rollName(roll.type), roll.target))
+        .join(", then ")
+    : null;
+  return {
+    ...reckless,
+    title: `${player.playerName}: Barricade`,
+    message:
+      `Climb Safely: 2 more squares of Movement, ${safeRolls ? `then ${safeRolls}` : "no roll"}.\n` +
+      `Go Recklessly: ${reckless.message}`,
+    confirmLabel: "Climb Safely",
+    alternativeLabel: "Go Recklessly!",
+    cancelLabel: "Stop here",
+    risky: false,
   };
 }
 
