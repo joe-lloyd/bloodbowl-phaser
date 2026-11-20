@@ -190,26 +190,6 @@ export async function getActiveMatchCode(uid: string): Promise<string | null> {
     : null;
 }
 
-export function defaultCoachName(uid: string): string {
-  return `Coach-${uid.slice(0, 4).toUpperCase()}`;
-}
-
-export async function getCoachName(uid: string): Promise<string | null> {
-  const snapshot = await getDoc(userRef(uid));
-  const name = snapshot.exists()
-    ? firebaseProfile(snapshot.data()).coachName
-    : undefined;
-  return name?.trim() ? name : null;
-}
-
-export async function resolveCoachName(uid: string): Promise<string> {
-  return (await getCoachName(uid)) ?? defaultCoachName(uid);
-}
-
-export async function setCoachName(uid: string, name: string): Promise<void> {
-  await setDoc(userRef(uid), { coachName: name.trim() }, { merge: true });
-}
-
 export async function createLobby(
   hostUid: string,
   displayName: string,

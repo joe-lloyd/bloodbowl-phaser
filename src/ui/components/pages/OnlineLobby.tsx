@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   announceHouseBotLobby,
@@ -34,8 +34,11 @@ import {
   updateSettings,
   getActiveMatchCode,
   fetchLobby,
-  resolveCoachName,
 } from "../../../firebase/lobby";
+import { resolveCoachName } from "../../../firebase/coaches";
+import { useFriends } from "../../hooks/useSocial";
+import { InviteInbox } from "../social/InviteInbox";
+import { FriendButton, InviteFriendsPanel } from "../social/LobbyFriends";
 import { type Team } from "../../../types/Team";
 import { type CompetitionContext } from "../../../competition/types";
 
@@ -62,6 +65,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   )?.competitionFixture;
 
   const [library] = useTeamLibrary();
+  const friends = useFriends(user?.uid ?? null);
 
   const myTeams = user ? library.filter((team) => !team.computerCoached) : [];
 
@@ -174,6 +178,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     };
     return (
       <JoinByCode
+        inbox={<InviteInbox uid={user.uid} />}
         joinInput={joinInput}
         onJoinInput={setJoinInput}
         busy={busy}
@@ -190,6 +195,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
 
   const isHost = user.uid === lobby.hostUid;
   const me = lobby.players[user.uid];
+  const opponentUid = isHost ? lobby.guestUid : lobby.hostUid;
 
   return (
     <PageShell
@@ -226,7 +232,18 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         }
       />
 
-      <LobbyPlayers lobby={lobby} isHost={isHost} />
+      <LobbyPlayers
+        lobby={lobby}
+        isHost={isHost}
+        opponentAction={
+          opponentUid && (
+            <FriendButton me={user.uid} other={opponentUid} friends={friends} />
+          )
+        }
+      />
+      {isHost && !lobby.guestUid && !lobby.competitionContext && (
+        <InviteFriendsPanel me={user.uid} code={lobby.code} friends={friends} />
+      )}
 
       <Section title="Your team">
         <TeamPicker
@@ -292,6 +309,7 @@ function lobbyWaitingOn(
 }
 
 function JoinByCode({
+  inbox,
   joinInput,
   onJoinInput,
   busy,
@@ -299,6 +317,7 @@ function JoinByCode({
   onJoin,
   onBack,
 }: {
+  inbox: ReactNode;
   joinInput: string;
   onJoinInput: (value: string) => void;
   busy: boolean;
@@ -318,6 +337,7 @@ function JoinByCode({
             Join Game
           </h1>
         </div>
+        {inbox}
         <input
           value={joinInput}
           onChange={(e) => {
@@ -418,17 +438,27 @@ function LobbyActions({
   );
 }
 
-function LobbyPlayers({ lobby, isHost }: { lobby: LobbyDoc; isHost: boolean }) {
+function LobbyPlayers({
+  lobby,
+  isHost,
+  opponentAction,
+}: {
+  lobby: LobbyDoc;
+  isHost: boolean;
+  opponentAction: ReactNode;
+}) {
   return (
     <div className="mb-6 grid gap-4 sm:grid-cols-2">
       <PlayerCard
         label={isHost ? "You (Host)" : "Host"}
         player={lobby.players[lobby.hostUid]}
+        action={isHost ? null : opponentAction}
       />
       <PlayerCard
         label={isHost ? "Guest" : "You (Guest)"}
         player={lobby.guestUid ? lobby.players[lobby.guestUid] : null}
         empty={!lobby.guestUid ? "Waiting for opponent…" : undefined}
+        action={isHost ? opponentAction : null}
       />
     </div>
   );
@@ -483,10 +513,12 @@ function PlayerCard({
   label,
   player,
   empty,
+  action,
 }: {
   label: string;
   player: LobbyPlayer | null | undefined;
   empty?: string | undefined;
+  action: ReactNode;
 }) {
   return (
     <Panel accent={player?.ready ? "good" : "neutral"} className="p-4">
@@ -501,12 +533,13 @@ function PlayerCard({
               ? `${player.team.name} (${player.team.rosterName})`
               : "No team picked"}
           </p>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             {player.ready ? (
               <Chip tone="good">READY</Chip>
             ) : (
               <Chip>not ready</Chip>
             )}
+            {action}
           </div>
         </>
       ) : (

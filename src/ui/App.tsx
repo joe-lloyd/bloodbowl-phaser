@@ -10,12 +10,14 @@ import { SharedTeamBrowser } from "./components/pages/SharedTeamBrowser";
 import { CompetitionHub } from "./components/pages/CompetitionHub";
 import { CompetitionBuilder } from "./components/pages/CompetitionBuilder";
 import { CompetitionView } from "./components/pages/CompetitionView";
+import { FriendsPage } from "./components/pages/FriendsPage";
 import { GamePage } from "./pages/GamePage";
 import { ComputerPlayPage } from "./pages/ComputerPlayPage";
 import { OnlinePlayPage } from "./pages/OnlinePlayPage";
 import { type ReactElement } from "react";
 import { EventBus } from "../services/EventBus";
 import { useAuth } from "./hooks/useAuth";
+import { useCoachPresence } from "./hooks/useSocial";
 import { TeamLibraryGate } from "./components/TeamManagement/TeamLibraryGate";
 import { isAdminUser } from "../firebase/admin";
 import "./styles/global.css";
@@ -30,6 +32,12 @@ function AdminRoute({ children }: { children: ReactElement }) {
   return isAdminUser(user) ? children : <Navigate to="/" replace />;
 }
 
+function CoachPresence() {
+  const { user } = useAuth();
+  useCoachPresence(user?.uid ?? null);
+  return null;
+}
+
 function withTeamLibrary(page: ReactElement): ReactElement {
   return <TeamLibraryGate>{page}</TeamLibraryGate>;
 }
@@ -37,6 +45,7 @@ function withTeamLibrary(page: ReactElement): ReactElement {
 export function App({ eventBus }: AppProps) {
   return (
     <BrowserRouter>
+      <CoachPresence />
       <Routes>
         <Route path="/" element={<MainMenu />} />
         <Route
@@ -56,6 +65,7 @@ export function App({ eventBus }: AppProps) {
           element={withTeamLibrary(<PlayerPage />)}
         />
         <Route path="/shared-teams" element={<SharedTeamBrowser />} />
+        <Route path="/friends" element={<FriendsPage />} />
         <Route path="/leagues" element={<CompetitionHub type="league" />} />
         <Route
           path="/leagues/new"

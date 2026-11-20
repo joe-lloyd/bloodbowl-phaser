@@ -1,3 +1,8 @@
+import type * as ConfigModule from "../../src/firebase/config";
+import type * as LobbyModule from "../../src/firebase/lobby";
+import type * as CoachesModule from "../../src/firebase/coaches";
+import type * as FriendsModule from "../../src/firebase/friends";
+import type * as InvitesModule from "../../src/firebase/invites";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -53,7 +58,7 @@ const sdk = vi.hoisted(() => {
 });
 
 vi.mock("../../src/firebase/config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/firebase/config")>()),
+  ...(await importOriginal<typeof ConfigModule>()),
   isFirebaseConfigured: () => true,
   getFirebaseAuth: () => ({
     get currentUser() {
@@ -84,8 +89,22 @@ vi.mock("firebase/auth", () => ({
 }));
 
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/firebase/lobby")>()),
+  ...(await importOriginal<typeof LobbyModule>()),
   getActiveMatchCode: () => Promise.resolve(null),
+}));
+
+vi.mock("../../src/firebase/friends", async (importOriginal) => ({
+  ...(await importOriginal<typeof FriendsModule>()),
+  subscribeFriendships: () => () => undefined,
+}));
+
+vi.mock("../../src/firebase/invites", async (importOriginal) => ({
+  ...(await importOriginal<typeof InvitesModule>()),
+  subscribeInvites: () => () => undefined,
+}));
+
+vi.mock("../../src/firebase/coaches", async (importOriginal) => ({
+  ...(await importOriginal<typeof CoachesModule>()),
   getCoachName: () => Promise.resolve(null),
 }));
 

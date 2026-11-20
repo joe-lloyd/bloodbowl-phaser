@@ -68,6 +68,8 @@ Firestore persistence and a command transport between the two browsers.
 
    `pnpm test:rules` proves the rules against the emulator, which needs Java.
    Pushing to `main` does not deploy them: run the command above after a change.
+   Agents deploy with a vault token instead; [AGENTS.md](../AGENTS.md#firestore-rules)
+   has the steps.
 
 5. Add the deployed hostname to Firebase Authentication's authorized domains.
 6. Restart Vite, or rebuild the deployed site, after changing environment values.
