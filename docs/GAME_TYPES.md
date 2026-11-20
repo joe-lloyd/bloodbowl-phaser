@@ -75,7 +75,7 @@ Fan Factor in this table is the team's Dedicated Fans, the same number the Seven
 | SB-K6 | 6 | Cheering Fans: D6 + Fan Factor each; the higher gets a team re-roll for the drive. A tie gives nothing. | ok |
 | SB-K7 | 7 | Brilliant Coaching: as SB-K6. | ok |
 | SB-K8 | 8 | Changing Weather: roll new Street Bowl weather. On Normal the ball scatters three times before landing. | ok |
-| SB-K9 | 9 | Potion Peddler: each team gains one Magic Potion. Our version: the potion is logged; using it waits for the Magic Potions rules. | differs |
+| SB-K9 | 9 | Potion Peddler: each team gains one Magic Potion, offered at the next drive break. | ok |
 | SB-K10 | 10 | Blitz: D3+1 Open kicking players may Move; one may Blitz and one may Throw Team-mate. A fall ends it. | ok |
 | SB-K11 | 11 | Throw a Bomb: D6 + Fan Factor each. The lower team has a random player on the pitch hit by an accurate bomb. A tie is a dud. Our version: the bomb goes off at once; nobody can catch it and throw it on. | differs |
 | SB-K12 | 12 | Guards!: the lowest MA player on each team (random tie-break) takes a ST 3 block with no skills. A player Knocked Down is arrested for the rest of the game. Pushes go straight back towards their own end zone. Our version: the block dice are picked for both sides, each taking its best face. | differs |
@@ -251,7 +251,7 @@ Street:
 | GB-KS7 | 7 | Cheering Fans: D6 + Fan Factor each; the higher gets a team re-roll for the drive. A tie gives nothing. | ok |
 | GB-KS8 | 8 | Changing Weather: roll new Street weather. On A Normal Day the ball scatters before landing. | ok |
 | GB-KS9 | 9 | Loose Dogs: for the drive, no team re-rolls on pick-ups or Blocks. | ok |
-| GB-KS10 | 10 | Black Market Dealer: each team gains a free Lesser Magic Potion. Our version: the potion is logged; using it waits for the Magic Potions rules. | differs |
+| GB-KS10 | 10 | Black Market Dealer: each team gains a free Lesser Magic Potion, offered at the next drive break. | ok |
 | GB-KS11 | 11 | Furious Neighbour: D6 + Fan Factor each; the lower team has a random player on the pitch KO'd. | ok |
 | GB-KS12 | 12 | "The Guards are Coming!": each coach picks a random player and rolls a D6; on 1-2 they are arrested for the game. | ok |
 
@@ -267,7 +267,7 @@ Sewer:
 | GB-KW7 | 7 | Cheering Fans: as GB-KS7. | ok |
 | GB-KW8 | 8 | Changing Weather: roll new Sewer weather. | ok |
 | GB-KW9 | 9 | Sticky Sludge: for the drive, +1 to pick-up but a ball carrier cannot Pass. | ok |
-| GB-KW10 | 10 | Black Market Dealer: as GB-KS10. Our version: the potion is logged; using it waits for the Magic Potions rules. | differs |
+| GB-KW10 | 10 | Black Market Dealer: as GB-KS10. | ok |
 | GB-KW11 | 11 | 'Fresh' Sewage: every player within 2 squares of a pit is Placed Prone. | ok |
 | GB-KW12 | 12 | Swarm of Rats: for the drive, a player who ends an activation next to a wall rolls a D6 and Falls Over on a 1; a Turnover only for the ball carrier. | ok |
 

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { Inducement } from "../../src/types/Inducements";
+import { inducementCount } from "../../src/game/inducements/inventory";
 import { GameEventNames } from "../../src/types/events";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { KICKOFF_TABLES } from "../../src/game/kickoff/kickoffTables";
@@ -100,12 +102,17 @@ describe("Street Bowl kick-off table", () => {
   });
 
   it("SB-K9 Potion Peddler gives each team a Magic Potion", async () => {
-    const { result } = await kick([4, 5]);
+    const { game, result } = await kick([4, 5]);
+    const state = game.ctx.gameService.getState();
 
     expect(result.outcome.perTeam).toEqual({
       team1: ["gains a free Magic Potion"],
       team2: ["gains a free Magic Potion"],
     });
+    expect([
+      inducementCount(state, "team1", Inducement.MAGIC_POTION),
+      inducementCount(state, "team2", Inducement.MAGIC_POTION),
+    ]).toEqual([1, 1]);
   });
 
   it("SB-K10 Blitz! opens a D3+1 kicking-team step with no Kick Team-mate", async () => {

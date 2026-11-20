@@ -15,7 +15,7 @@ import {
 } from "./potionShared";
 import { type PotionBoost, potionOutcome } from "./potionTables";
 import { addPotionEffect } from "./variantState";
-import { rollCasualty } from "./casualtyRoll";
+import { rollCasualty } from "../operations/injuryVerdict";
 
 export function pickRandom<T>(
   dice: DiceController,
@@ -92,7 +92,7 @@ export async function drinkPotion(
     case "casualty":
       await new CasualtyOperation(
         player.id,
-        rollCasualty(dice, `Casualty (${player.playerName})`, player.teamId)
+        rollCasualty(dice, player)
       ).execute(context);
       return;
     case "nothing":

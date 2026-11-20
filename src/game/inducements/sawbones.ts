@@ -7,7 +7,7 @@ import { Inducement } from "@/types/Inducements";
 import { type Player } from "@/types/Player";
 import { GameEventNames } from "@/types/events";
 import { inducementUsesLeft, spendInducement } from "./inventory";
-import { rollCasualty } from "./casualtyRoll";
+import { rollCasualty } from "../operations/injuryVerdict";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { removePotionEffect } from "./variantState";
 
@@ -64,11 +64,7 @@ async function sawbones(
     );
     return InjuryResult.DEAD;
   }
-  const second = rollCasualty(
-    dice,
-    `Sawbones Casualty (${player.playerName})`,
-    player.teamId
-  );
+  const second = rollCasualty(dice, player).result;
   const kept = milder(result, second);
   log(
     context,

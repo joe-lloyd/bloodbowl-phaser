@@ -1,3 +1,5 @@
+import { Inducement } from "@/types/Inducements";
+import { grantFreePotion, type PotionInducement } from "../inducements/inventory";
 import { type Team } from "@/types/Team";
 import { type Player } from "@/types/Player";
 import { movePlayerToBox } from "../rules/playerLocation";
@@ -32,7 +34,7 @@ export function streetBowlResolvers(deps: ResolverDeps) {
     [KickoffEvent.STRAY_PONY]: (ctx: KickoffEventResolverContext) =>
       resolveStrayPony(deps, ctx),
     [KickoffEvent.POTION_PEDDLER]: (ctx: KickoffEventResolverContext) => {
-      grantPotions(deps, ctx, "Magic Potion");
+      grantPotions(deps, ctx, Inducement.MAGIC_POTION);
     },
     [KickoffEvent.BLITZ]: () => undefined,
     [KickoffEvent.THROW_A_BOMB]: (ctx: KickoffEventResolverContext) =>
@@ -45,9 +47,10 @@ export function streetBowlResolvers(deps: ResolverDeps) {
 export function grantPotions(
   deps: ResolverDeps,
   ctx: KickoffEventResolverContext,
-  potion: string
+  potion: PotionInducement
 ): void {
   for (const team of [ctx.kickingTeam, ctx.receivingTeam]) {
+    grantFreePotion(deps.state, team.id, potion);
     grantLoggedEffect(deps, ctx, {
       team,
       effect: "magic-potion",

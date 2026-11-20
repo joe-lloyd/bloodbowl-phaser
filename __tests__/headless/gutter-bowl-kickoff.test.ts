@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { Inducement } from "../../src/types/Inducements";
+import { inducementCount } from "../../src/game/inducements/inventory";
 import { GameEventNames } from "../../src/types/events";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { KICKOFF_TABLES } from "../../src/game/kickoff/kickoffTables";
@@ -117,12 +119,17 @@ describe("Gutter Bowl street kick-off table", () => {
   });
 
   it("GB-KS10 Black Market Dealer gives each team a Lesser Magic Potion", async () => {
-    const { result } = await street([4, 6]);
+    const { game, result } = await street([4, 6]);
+    const state = game.ctx.gameService.getState();
 
     expect(result.outcome.perTeam).toEqual({
       team1: ["gains a free Lesser Magic Potion"],
       team2: ["gains a free Lesser Magic Potion"],
     });
+    expect([
+      inducementCount(state, "team1", Inducement.LESSER_MAGIC_POTION),
+      inducementCount(state, "team2", Inducement.LESSER_MAGIC_POTION),
+    ]).toEqual([1, 1]);
   });
 
   it("GB-KS11 Furious Neighbour KOs a random player of the lower team", async () => {

@@ -1,3 +1,4 @@
+import { Inducement } from "@/types/Inducements";
 import { surfaceArmourModifier } from "../rules/surfaceArmour";
 import { activeRules } from "../variants/activeMatch";
 import { GameEventNames } from "../../types/events";
@@ -51,7 +52,7 @@ export function gutterBowlResolvers(deps: ResolverDeps) {
     [KickoffEvent.ROUND_ON_US]: driveCondition(deps, "round-on-us", "a KO'd player goes to the Reserves on a D6 of 4+ this drive"),
     [KickoffEvent.LOOSE_DOGS]: driveCondition(deps, "loose-dogs", "no team re-rolls on pick-ups or Blocks this drive"),
     [KickoffEvent.BLACK_MARKET_DEALER]: (ctx: KickoffEventResolverContext) => {
-      grantPotions(deps, ctx, "Lesser Magic Potion");
+      grantPotions(deps, ctx, Inducement.LESSER_MAGIC_POTION);
     },
     [KickoffEvent.FURIOUS_NEIGHBOUR]: (ctx: KickoffEventResolverContext) =>
       resolveFuriousNeighbour(deps, ctx),
