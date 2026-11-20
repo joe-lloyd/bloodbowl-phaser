@@ -3,7 +3,7 @@ import { type FieldPlayer as Player } from "./board";
 import { type ActionType } from "../../types/events";
 import { type Board, type Square, carrierOf, distance } from "./board";
 import { hasTackleZone } from "../../types/Player";
-import { type RollTarget } from "./chance";
+import { type RollTarget, sequenceChance } from "./chance";
 import { type Route } from "./routes";
 import { type Weights } from "./weights";
 import { type Context, context, scoreChanceOf } from "./activationContext";
@@ -18,6 +18,7 @@ import {
   blitzActivations,
   carrierBlitzActivations,
   blockActivations,
+  blockFrom,
 } from "./blockActivations";
 import { repositionActivation, roleSquares } from "./repositionActivations";
 import { SKILL_PLANS } from "./skillActivations";
@@ -195,6 +196,18 @@ function hitsMarker(plan: Activation, markers: readonly Player[]): boolean {
   );
 }
 
+function hitStandsChance(c: Context, plan: Activation): number {
+  const intent = plan.intent;
+  if (plan.action !== "block" || intent.kind !== "block") return 1;
+  const odds = blockFrom({
+    c,
+    attacker: plan.player,
+    target: intent.target,
+    from: plan.player.gridPosition,
+  });
+  return 1 - odds.attackerDown;
+}
+
 function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
   const carrier = carrierOf(c.board);
   if (carrier?.teamId !== c.board.us) return plans;
@@ -202,17 +215,18 @@ function hitMarkersFirst(c: Context, plans: Activation[]): Activation[] {
     (p) =>
       hasTackleZone(p) && distance(p.gridPosition, carrier.gridPosition) === 1
   );
-  if (
-    !plans.some(
-      (plan) => plan.player.id !== carrier.id && hitsMarker(plan, markers)
-    )
-  )
-    return plans;
+  const hits = plans.filter(
+    (plan) => plan.player.id !== carrier.id && hitsMarker(plan, markers)
+  );
+  if (hits.length === 0) return plans;
+  const hitFirst = Math.max(...hits.map((plan) => hitStandsChance(c, plan)));
+  const scoresNow = (plan: Activation) =>
+    plan.intent.kind === "score" &&
+    sequenceChance([{ player: carrier, rolls: plan.rolls }], c.teamReroll) >=
+      hitFirst;
   return plans.filter(
     (plan) =>
-      plan.player.id !== carrier.id ||
-      plan.action !== "move" ||
-      (plan.intent.kind === "score" && plan.rolls.length === 0)
+      plan.player.id !== carrier.id || plan.action !== "move" || scoresNow(plan)
   );
 }
 
