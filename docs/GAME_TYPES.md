@@ -53,7 +53,7 @@ played, and `GameConfig` reads its pitch from there.
 | SB-M9 | Ricochet pass: a Pass action may target a wall square. Test accuracy as normal. On a miss, a D6 of 1-3 moves the target one wall square to the thrower's right, 4+ to the left. The ball bounces off the wall, straight back if thrown square on, otherwise on the mirrored diagonal, travels D6 squares and scatters once. It ricochets off any other wall it meets. One player from each team it passes over may try to catch it as an inaccurate pass. A Turnover unless the active team catches it. | missing |
 | SB-M10 | Throw Team-mate into a wall: the thrown player rolls a D6. 1-5 they stop at the wall and are Knocked Down with +2 Armour. On a 6 they push off: the coach picks a throw-in template direction, they move D3 squares and land as normal. | missing |
 | SB-M11 | No referee: nobody is Sent-off for a Foul. After any Foul the fouled player's coach rolls a D6; on 4+ a rock hits the fouler, who makes an Armour roll at +1. If the armour breaks, make an Injury roll and the fouling team suffers a Turnover. | ok |
-| SB-M12 | Secret Weapons play through the drive. At the end of each drive roll a D6 for each: 1-3 the crowd drags them off as Badly Hurt, 4+ they stay. A Loner stays only on a 6. | missing |
+| SB-M12 | Secret Weapons play through the drive. At the end of each drive roll a D6 for each: 1-3 the crowd drags them off as Badly Hurt, 4+ they stay. A Loner stays only on a 6. | ok: the roll is made for every Secret Weapon still in the game, Knocked-out ones included. Magic Potions cannot help, which the potion rules (SB-P) must respect |
 | SB-M13 | Injuries use the 2025 rulebook tables, with the Casualty roll. | ok: a Niggling Injury and Decay each add 1 to the Casualty roll. A Lasting Injury that cannot lower its characteristic is a Miss Next Game only |
 
 ### Kick-off table (2D6)
@@ -123,7 +123,7 @@ or to a fit player before a drive. Not to a player with Regeneration.
 | BB-M7 | The ball does not bounce when it lands in an open square. A crowd throw-in goes D6 squares, counting the square it left from as the first. | missing |
 | BB-M8 | Every Rush succeeds on 3+, before modifiers. | ok |
 | BB-M9 | Fouls: before the Armour roll the fouled player's coach rolls a D6. On 4-6 the fouler is Knocked Down and it is a Turnover. On 1-3 the Foul goes ahead. | ok: the referee still watches, so a double on the Foul can still send the fouler off |
-| BB-M10 | A Secret Weapon plays one drive, then misses the rest of the match. | missing |
+| BB-M10 | A Secret Weapon plays one drive, then misses the rest of the match. | ok: no Argue the Call or Bribe, since nothing is Sent-off |
 
 ### Kick-off table (2D6)
 
@@ -203,7 +203,7 @@ Assigned before a drive. Every souvenir breaks at the end of the half.
 | GB-M9 | A pass whose range ruler crosses a stall is at -1. A ball that lands on a stall or pit moves the minimum distance back onto the pitch in a D8 direction. | missing |
 | GB-M10 | Ricochet passes work as SB-M9. | missing |
 | GB-M11 | No referee: nobody is Sent-off. One Foul per turn still applies. | ok |
-| GB-M12 | Secret Weapons roll a D6 at the end of each drive: 1-3 the crowd removes them for the game, and a second D6 of 1 makes them a Casualty. 4+ they stay. Bribes do not help. | missing |
+| GB-M12 | Secret Weapons roll a D6 at the end of each drive: 1-3 the crowd removes them for the game, and a second D6 of 1 makes them a Casualty. 4+ they stay. Bribes do not help. | ok: a player removed for the game goes to the Sent-off box, and a Casualty makes a Casualty roll. No Bribe is offered |
 | GB-M13 | Stalling: at the end of the team turn a stalling player is hit by a bottle on a D6 of 2+ and makes an Injury roll. | missing |
 | GB-M14 | Injuries use the 2025 rulebook tables, with the Casualty roll. | ok, as SB-M13 |
 
