@@ -147,26 +147,35 @@ function secretKey(code: string, uid: string): string {
   return `bb_seed_secret_${code}_${uid}`;
 }
 
-function ownSecret(code: string, uid: string): string {
-  const key = secretKey(code, uid);
-  const kept = sessionStorage.getItem(key);
-  if (kept) return kept;
+function revealedKey(code: string, uid: string): string {
+  return `${secretKey(code, uid)}_revealed`;
+}
+
+function newSecret(code: string, uid: string): string {
   const secret = [...crypto.getRandomValues(new Uint8Array(32))]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
-  sessionStorage.setItem(key, secret);
+  sessionStorage.setItem(secretKey(code, uid), secret);
+  sessionStorage.removeItem(revealedKey(code, uid));
   return secret;
 }
 
+function secretToCommit(code: string, uid: string): string {
+  const kept = sessionStorage.getItem(secretKey(code, uid));
+  const revealed = sessionStorage.getItem(revealedKey(code, uid)) === "1";
+  return kept && !revealed ? kept : newSecret(code, uid);
+}
+
 export async function commitSeed(code: string, uid: string): Promise<void> {
-  const hash = await sha256Hex(ownSecret(code, uid));
+  const hash = await sha256Hex(secretToCommit(code, uid));
   await updateDoc(lobbyRef(code), { [`seedCommits.${uid}`]: hash });
 }
 
 export async function revealSeed(code: string, uid: string): Promise<void> {
-  await updateDoc(lobbyRef(code), {
-    [`seedReveals.${uid}`]: ownSecret(code, uid),
-  });
+  const secret =
+    sessionStorage.getItem(secretKey(code, uid)) ?? newSecret(code, uid);
+  sessionStorage.setItem(revealedKey(code, uid), "1");
+  await updateDoc(lobbyRef(code), { [`seedReveals.${uid}`]: secret });
 }
 
 export async function seedFor(lobby: LobbyDoc): Promise<number> {
@@ -314,7 +323,12 @@ export async function leaveGuestSeat(
     const current = await activeCodeIn(tx, uid);
     const seats = readLobbySeats((await tx.get(lobbyRef(code))).data());
     if (seats?.status !== "lobby" || seats.guestUid !== uid) return seats?.status;
-    tx.update(lobbyRef(code), { guestUid: null, [`players.${uid}`]: deleteField() });
+    tx.update(lobbyRef(code), {
+      guestUid: null,
+      [`players.${uid}`]: deleteField(),
+      seedCommits: {},
+      seedReveals: {},
+    });
     if (current === code)
       tx.set(userRef(uid), { activeMatchCode: null }, { merge: true });
     return seats.status;

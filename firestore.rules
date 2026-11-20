@@ -638,15 +638,19 @@ service cloud.firestore {
     }
 
     // A guest may give up their own seat while the lobby still waits, so a
-    // host can never start a match with a guest who has moved on.
+    // host can never start a match with a guest who has moved on. Leaving
+    // empties both seed maps: a secret already revealed must never meet the
+    // next guest's commit.
     function vacatesGuestSeat() {
       return resource.data.status == 'lobby'
         && request.auth.uid == resource.data.guestUid
         && request.resource.data.guestUid == null
-        && changed().hasOnly(['guestUid', 'players'])
+        && changed().hasOnly(['guestUid', 'players', 'seedCommits', 'seedReveals'])
         && request.resource.data.players.diff(resource.data.players)
           .affectedKeys().hasOnly([request.auth.uid])
-        && !(request.auth.uid in request.resource.data.players);
+        && !(request.auth.uid in request.resource.data.players)
+        && request.resource.data.get('seedCommits', {}).size() == 0
+        && request.resource.data.get('seedReveals', {}).size() == 0;
     }
 
     // Any coach may take a listed lobby off the open list once its host has
