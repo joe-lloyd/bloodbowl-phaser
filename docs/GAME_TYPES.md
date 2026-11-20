@@ -61,6 +61,7 @@ played, and `GameConfig` reads its pitch from there.
 | SB-M11 | No referee: nobody is Sent-off for a Foul. After any Foul the fouled player's coach rolls a D6; on 4+ a rock hits the fouler, who makes an Armour roll at +1. If the armour breaks, make an Injury roll and the fouling team suffers a Turnover. | ok |
 | SB-M12 | Secret Weapons play through the drive. At the end of each drive roll a D6 for each: 1-3 the crowd drags them off as Badly Hurt, 4+ they stay. A Loner stays only on a 6. | ok: the roll is made for every Secret Weapon still in the game, Knocked-out ones included. Magic Potions cannot help, which the potion rules (SB-P) must respect |
 | SB-M13 | Injuries use the 2025 rulebook tables, with the Casualty roll. | ok: a Niggling Injury and Decay each add 1 to the Casualty roll. A Lasting Injury that cannot lower its characteristic is a Miss Next Game only |
+| SB-M14 | Kick-off deviation is D6 squares, as in the 2025 rulebook. The Kick skill's D3 still applies. | ok |
 
 ### Kick-off table (2D6)
 
@@ -227,13 +228,14 @@ Reserves.
 | GB-M5 | A dropped ball bounces twice on the cobbles. | ok |
 | GB-M6 | Cobbles: +1 to every Armour roll after a fall. | ok |
 | GB-M7 | Pushed into a wall or stall: D6, 1-3 nothing happens, 4+ the player Falls Over. After a POW! they fall with no roll. | ok |
-| GB-M8 | Pushed into a sewer pit: a player next to a pit with no square to be pushed into goes in. In a pit a player has no Tackle Zone, cannot act and cannot be targeted. At the end of each team turn roll a D6 per player in a pit: 1 a Casualty, 2-3 stays, 4+ climbs out Standing onto the nearest free square. Until the 2025 Casualty roll is in the game, a player who rolls a 1 in a pit is Badly Hurt. | differs |
+| GB-M8 | Pushed into a sewer pit: a player next to a pit with no square to be pushed into goes in. In a pit a player has no Tackle Zone, cannot act and cannot be targeted. At the end of each team turn roll a D6 per player in a pit: 1 a Casualty, 2-3 stays, 4+ climbs out Standing onto the nearest free square. A 1 makes the 2025 Casualty roll. | ok |
 | GB-M9 | A pass whose range ruler crosses a stall is at -1. A ball that lands on a stall or pit moves the minimum distance back onto the pitch in a D8 direction. The game follows the line between the centres of the two squares. | ok |
 | GB-M10 | Ricochet passes work as SB-M9. As SB-M9. | differs |
 | GB-M11 | No referee: nobody is Sent-off. One Foul per turn still applies. | ok |
 | GB-M12 | Secret Weapons roll a D6 at the end of each drive: 1-3 the crowd removes them for the game, and a second D6 of 1 makes them a Casualty. 4+ they stay. Bribes do not help. | ok: a player removed for the game goes to the Sent-off box, and a Casualty makes a Casualty roll. No Bribe is offered |
 | GB-M13 | Stalling: at the end of the team turn a stalling player is hit by a bottle on a D6 of 2+ and makes an Injury roll. | differs: the bottle is thrown when the stalling player's activation ends, as the Sevens crowd is, not at the end of the team turn. A hit is an Injury roll with no Armour roll, Steady Footing does not help, and it is a Turnover |
 | GB-M14 | Injuries use the 2025 rulebook tables, with the Casualty roll. | ok, as SB-M13 |
+| GB-M15 | Kick-off deviation is D6 squares, as in the 2025 rulebook. The Kick skill's D3 still applies. | ok |
 
 ### Kick-off tables (2D6)
 

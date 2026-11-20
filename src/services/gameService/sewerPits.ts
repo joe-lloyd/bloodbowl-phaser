@@ -1,7 +1,7 @@
+import { rollCasualty } from "@/game/operations/injuryVerdict";
 import { type Player } from "@/types/Player";
 import { GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
-import { InjuryResult } from "@/game/controllers/InjuryController";
 import { CasualtyOperation } from "@/game/operations/CasualtyOperation";
 import { movePlayerToBox } from "@/game/rules/playerLocation";
 import { nearestFreeSquare } from "@/game/rules/pitchSquares";
@@ -40,7 +40,7 @@ function pitCasualty(parts: GameParts, player: Player): void {
     sppEligible: false,
   });
   parts.flowManager.add(
-    new CasualtyOperation(player.id, InjuryResult.BADLY_HURT),
+    new CasualtyOperation(player.id, rollCasualty(parts.diceController, player)),
     true
   );
 }

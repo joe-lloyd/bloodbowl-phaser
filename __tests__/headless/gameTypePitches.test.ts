@@ -162,16 +162,16 @@ describe("SB-M8 pushed into a wall", () => {
     expect(defender.gridPosition).toEqual({ x: 10, y: 0 });
   });
 
-  it("takes no wall bonus to Armour when the player only falls over", async () => {
+  it("adds only the cobbles to Armour when the player only falls over", async () => {
     const { game } = street();
-    const armour: boolean[] = [];
-    game.ctx.eventBus.on(GameEventNames.ArmorRolled, (roll) =>
-      armour.push(roll.broken)
+    const armour: { roll: number; broken: boolean }[] = [];
+    game.ctx.eventBus.on(GameEventNames.ArmorRolled, ({ roll, broken }) =>
+      armour.push({ roll, broken })
     );
-    forceDice(game.ctx.rng, [PUSH, 4, 4, 4]);
+    forceDice(game.ctx.rng, [PUSH, 4, 4, 3]);
     await blockAndPush(game, { x: 10, y: -1 });
 
-    expect(armour).toEqual([false]);
+    expect(armour).toEqual([{ roll: 8, broken: false }]);
   });
 });
 
@@ -353,7 +353,7 @@ describe("SB-M7 and GB-M3 kicks on walled pitches", () => {
   };
 
   it("bounces a kick off the sideline wall instead of a touchback", () => {
-    expect(kick(STREET, { x: 20, y: 1 }, [2, 3, 3, 3, 4])).toEqual({
+    expect(kick(STREET, { x: 20, y: 1 }, [2, 3, 3, 4])).toEqual({
       finalX: 20,
       finalY: 3,
       isTouchback: false,
