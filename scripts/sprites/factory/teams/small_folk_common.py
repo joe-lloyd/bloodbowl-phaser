@@ -160,3 +160,63 @@ def mounted(model, pose, loc, rotz=0.0, name="crew"):
     finally:
         core.ROOT[0] = root
     return J
+
+
+def pigtails(J, tag, pose, mat, tie="kit2", ln=0.42, r=0.07):
+    """Two plaits from the sides of the head, splayed out at rest and streaming behind in action: the clearest
+    sign of a small woman at game size."""
+    c, X, F, U, s = hf(J)
+    for sd in (-1, 1):
+        root = c + X * sd * s[0] * 0.9 + U * s[2] * 0.3 - F * s[1] * 0.3
+        out = X * sd
+        if pose.get("_action"):
+            pts = [root, root + out * 0.1 - F * 0.14, root + out * 0.16 - F * 0.32 - U * 0.04, root + out * 0.18 - F * ln - U * 0.08]
+        else:
+            pts = [root, root + out * 0.14 - U * 0.08, root + out * 0.2 - U * ln * 0.6, root + out * 0.18 - U * ln]
+        tube(tag + "pig%d" % sd, pts, [r * 0.9, r, r * 0.85, r * 0.45], mat, ref=F, n=8)
+        ball_at(tag + "pigtie%d" % sd, lerp(pts[1], pts[2], 0.7), r * 1.1, tie)
+
+
+def toadstool_hat(J, tag, cap_mat="shroom", spots="white", r=1.7, lift=0.3):
+    """A wide domed toadstool cap worn as a hat, white-spotted."""
+    c, X, F, U, s = hf(J)
+    R = J["head_R"]
+    cap(tag + "caphat", c + U * s[2] * lift, (s[0] * r, s[1] * r, s[2] * 1.0), cap_mat, U, cut=0.0, rot=R, thick=0.05)
+    ellipsoid(tag + "capgill", c + U * s[2] * lift, (s[0] * r * 0.95, s[1] * r * 0.95, 0.03), "bone_old", R, seg=12)
+    for i, (a, e) in enumerate(((20, 0.5), (140, 0.45), (250, 0.55), (0, 1.3))):
+        d = X * math.cos(D(a)) * math.cos(e) + F * math.sin(D(a)) * math.cos(e)
+        ball_at(tag + "capspot%d" % i, c + U * s[2] * (lift + 0.98 * math.sin(e)) + d * s[0] * r * 0.976, 0.06, spots)
+
+
+def nightcap(J, tag, pose, mat, band, bobble, ln=0.7):
+    """A long floppy stocking cap that hangs down the back (streams out in action), a bobble on the tip."""
+    c, X, F, U, s = hf(J)
+    b = c + U * s[2] * 0.3
+    tube(tag + "ncband", [b - U * 0.02, b + U * 0.09], [s[0] * 1.1, s[0] * 1.06], band, ref=X, n=10)
+    top = b + U * s[2] * 0.7 - F * 0.05
+    if pose.get("_action"):
+        pts = [b + U * 0.05, top, top - F * ln * 0.45 + U * 0.04, top - F * ln * 0.9 - U * 0.02]
+    else:
+        pts = [b + U * 0.05, top, top - F * ln * 0.35 - U * 0.04, top - F * ln * 0.55 - U * ln * 0.55]
+    tube(tag + "nightcap", pts, [s[0] * 1.06, s[0] * 0.8, s[0] * 0.42, 0.04], mat, ref=X, n=10)
+    ball_at(tag + "ncbobble", pts[-1], 0.08, bobble)
+
+
+def head_wrap(J, tag, pose, mat, knot=None, ln=0.3):
+    """A cloth band tied round the head with two tails at the back."""
+    c, X, F, U, s = hf(J)
+    tube(tag + "wrap", [c + U * s[2] * 0.3, c + U * s[2] * 0.5], [s[0] * 1.06, s[0] * 1.0], mat, ref=X, n=10)
+    k = c - F * s[1] * 0.95 + U * s[2] * 0.4
+    ball_at(tag + "wrapknot", k, 0.05, knot or mat)
+    st = 1.0 if pose.get("_action") else 0.15
+    for i, sw in enumerate((-0.25, 0.25)):
+        pts = hang(k, Vector((0, 1, 0)), X, ln, n=3, stream=st, sway=sw)
+        streamer(tag, "wraptail%d" % i, pts, 0.05, (knot or mat,), ref=X)
+
+
+def pot_helm(J, tag, mat="rust", spike="metal"):
+    """An upturned pot jammed on the head, a spike on top."""
+    c, X, F, U, s = hf(J)
+    cap(tag + "pothelm", c + U * 0.02, (s[0] * 1.14, s[1] * 1.14, s[2] * 1.12), mat, U, cut=0.25, rot=J["head_R"], thick=0.03)
+    if spike:
+        cone(tag + "potspike", c + U * s[2] * 1.05, c + U * (s[2] * 1.05 + 0.18), 0.05, spike, 5)

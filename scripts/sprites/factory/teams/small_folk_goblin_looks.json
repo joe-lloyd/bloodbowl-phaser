@@ -1,0 +1,37 @@
+{
+  "goblin_lineman": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["head", "Head", [["topknot", "Topknot"], ["pot", "Pot helmet"], ["hood", "Floppy hood"]]],
+    ["pads", "Pads", [["left", "Left pad"], ["both", "Both pads"], ["none", "No pads"]]]
+  ],
+  "bomma": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["hat", "Hat", [["tin", "Tin hat"], ["goggles", "Cap and goggles"], ["bare", "Bare head"]]],
+    ["bag", "Bombs", [["satchel", "Satchel"], ["keg", "Powder keg"]]]
+  ],
+  "doom_diver": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["head", "Head", [["cap", "Flying cap"], ["spike", "Spiked helm"], ["bare", "Bare head"]]],
+    ["wings", "Wings", [["canvas", "Canvas"], ["patched", "Patchwork"], ["hide", "Hide"]]]
+  ],
+  "fanatic": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["hood", "Hood", [["floppy", "Floppy hood"], ["pointed", "Pointed hood"], ["rag", "Head rag"]]],
+    ["rags", "Rags", [["skirt", "Ragged skirt"], ["robe", "Ragged robe"]]]
+  ],
+  "loony": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["helm", "Helmet", [["crest", "Crested helm"], ["bucket", "Bucket"], ["bare", "Bare head"]]],
+    ["apron", "Apron", [["apron", "Apron"], ["none", "No apron"]]]
+  ],
+  "ooligan": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["hat", "Hat", [["bobble", "Bobble hat"], ["horns", "Horned helm"], ["bare", "Bare head"]]],
+    ["scarf", "Scarf", [["long", "Long scarf"], ["short", "Short scarf"], ["none", "No scarf"]]]
+  ],
+  "pogoer": [
+    ["body", "Body", [["x", "Goblin"]]],
+    ["helm", "Helmet", [["spike", "Spiked helm"], ["cap", "Leather cap"], ["bare", "Bare head"]]],
+    ["flag", "Flag", [["pennant", "Pennant"], ["banner", "Back banner"], ["none", "No flag"]]]
+  ]
+}

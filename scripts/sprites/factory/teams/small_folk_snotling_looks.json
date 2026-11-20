@@ -1,0 +1,20 @@
+{
+  "snotling": [
+    ["body", "Body", [["x", "Snotling"]]],
+    ["head", "Head", [["tuft", "Hair tuft"], ["pot", "Pot helmet"], ["toadstool", "Toadstool cap"]]],
+    ["neck", "Neck", [["kerchief", "Neckerchief"], ["scarf", "Long scarf"]]]
+  ],
+  "stilty_runna": [
+    ["body", "Body", [["x", "Snotling"]]],
+    ["hat", "Hat", [["cone", "Floppy cone"], ["band", "Headband"], ["pot", "Pot helmet"]]]
+  ],
+  "fun_hoppa": [
+    ["body", "Body", [["x", "Snotling"]]],
+    ["hat", "Hat", [["band", "Headband"], ["cone", "Floppy cone"], ["pot", "Pot helmet"]]]
+  ],
+  "fungus_flinga": [
+    ["body", "Body", [["x", "Snotling"]]],
+    ["hat", "Hat", [["cap", "Toadstool cap"], ["pot", "Pot helmet"], ["band", "Headband"]]],
+    ["load", "Load", [["sack", "Sack"], ["basket", "Basket"]]]
+  ]
+}
