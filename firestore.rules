@@ -47,7 +47,9 @@ service cloud.firestore {
 
     // A coach's public card: the name other coaches see, the friend code
     // that finds them, and when they last had the game open. Fetched one
-    // coach at a time; nobody can list every coach.
+    // coach at a time; nobody can list every coach. The app fits a name to
+    // 40 characters; one character can take several units here, so the cap
+    // only stops an oversized write.
     function validFriendCode(code) {
       return code is string && code.matches('^[A-HJ-NP-Z2-9]{8}$');
     }
@@ -62,7 +64,7 @@ service cloud.firestore {
         && validFriendCode(request.resource.data.friendCode)
         && (!('coachName' in request.resource.data)
           || (request.resource.data.coachName is string
-            && request.resource.data.coachName.size() <= 40))
+            && request.resource.data.coachName.size() <= 200))
         && request.resource.data.lastSeen is int
         && request.resource.data.lastSeen <= request.time.toMillis() + 300000;
     }

@@ -120,6 +120,20 @@ describe.skipIf(!EMULATOR)("friends and invites", () => {
       expect(await as(alice, () => getCoachName(alice))).toBe("Grim");
     });
 
+    it("keeps a character whole when a name is cut to fit", async () => {
+      const alice = uniqueUid("alice");
+      const family = "👨‍👩‍👧";
+      await setDoc(doc(dbFor(alice), "users", alice), {
+        coachName: `${"A".repeat(39)}🏈 and more`,
+      });
+
+      expect(
+        (await as(alice, () => ensureCoachProfile(alice))).coachName
+      ).toBe(`${"A".repeat(39)}🏈`);
+      await as(alice, () => setCoachName(alice, `${"B".repeat(39)}${family}${family}`));
+      expect(await as(alice, () => getCoachName(alice))).toBe(`${"B".repeat(39)}${family}`);
+    });
+
     it("is written only by its coach, and a code only claimed for yourself", async () => {
       const alice = uniqueUid("alice");
       const mallory = uniqueUid("mallory");

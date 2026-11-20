@@ -21,7 +21,11 @@ import { getDb } from "./config";
 const COACH_NAME_LIMIT = 40;
 
 function fittedName(name: string | undefined): string | undefined {
-  const fitted = name?.trim().slice(0, COACH_NAME_LIMIT).trim();
+  const characters = Array.from(
+    new Intl.Segmenter().segment(name?.trim() ?? ""),
+    ({ segment }) => segment
+  );
+  const fitted = characters.slice(0, COACH_NAME_LIMIT).join("").trim();
   return fitted === "" ? undefined : fitted;
 }
 
