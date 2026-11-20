@@ -27,7 +27,11 @@ import {
 } from "./weights";
 import { type RollTarget } from "./chance";
 import { enumerateLegalActions } from "../../headless/legalActions";
-import { deploymentsFor } from "../../game/setup/deployment";
+import {
+  FALLBACK_FORMATION,
+  deploymentsFor,
+  setupLabel,
+} from "../../game/setup/deployment";
 import type { HeadlessGame } from "../../headless/HeadlessGame";
 import { context as activationContext } from "./activationContext";
 import { key } from "./board";
@@ -403,10 +407,10 @@ function setupChoice(
   const options = deploymentsFor(kicking);
   const wanted = Math.round(kicking ? w.setupKick : w.setupReceive);
   const name = options[Math.max(0, Math.min(wanted, options.length - 1))]?.name;
+  const named = (formation: string) =>
+    formations.find((c) => c.label === setupLabel(formation));
   const pick =
-    formations.find(
-      (c) => c.label === `Set up in the ${String(name)} formation`
-    ) ?? formations[0];
+    named(String(name)) ?? named(FALLBACK_FORMATION) ?? formations[0];
   return pick ? { index: candidates.indexOf(pick) } : null;
 }
 

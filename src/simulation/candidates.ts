@@ -10,7 +10,7 @@ import { type Player, PlayerStatus } from "../types/Player";
 import { type ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
-import { assignPlayers } from "../game/setup/deployment";
+import { assignPlayers, setupLabel } from "../game/setup/deployment";
 import { GameConfig, getSevensSetupZone } from "../config/GameConfig";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { isConfinedToReserves } from "../game/kickoff/driveEffects";
@@ -414,7 +414,7 @@ async function setupCandidates(
     .filter((formation) => formation.use !== (kicking ? "receive" : "kick"))
     .map((formation) => ({
       kind: "setup" as const,
-      label: `Set up in the ${formation.name} formation`,
+      label: setupLabel(formation.name),
       commands: setupCommands([
         ...clear,
         ...assignPlayers({ squares: formation.positions, players: eligible, kicking, mustField }).map(

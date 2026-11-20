@@ -1,4 +1,5 @@
-export type DeploymentRole = "line" | "support" | "flank" | "deep";
+export const DEPLOYMENT_ROLES = ["line", "support", "flank", "deep"] as const;
+export type DeploymentRole = (typeof DEPLOYMENT_ROLES)[number];
 
 export interface FormationPosition {
   playerId: string;
