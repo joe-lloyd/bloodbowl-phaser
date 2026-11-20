@@ -152,6 +152,13 @@ interface Search {
   pickup: number;
 }
 
+function dodgeBonus(player: Player): number {
+  return (
+    (hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0) +
+    (hasSkill(player.skills, SkillType.TITCHY) ? 1 : 0)
+  );
+}
+
 function searchFor(board: Board, player: Player, securing: boolean): Search {
   const ballKey = board.ball.kind === "loose" ? key(board.ball.at) : -1;
 
@@ -159,7 +166,7 @@ function searchFor(board: Board, player: Player, securing: boolean): Search {
     requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
   );
   const stunty = hasSkill(player.skills, SkillType.STUNTY);
-  const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
+  const twoHeads = dodgeBonus(player);
   const dodgeInto = new DataView(new ArrayBuffer(9 * 8));
   for (let marks = 0; marks < 9; marks++)
     dodgeInto.setFloat64(
@@ -382,7 +389,7 @@ function dodgeRoll(
   const modifier = hasSkill(player.skills, SkillType.STUNTY)
     ? 0
     : -board.marks.getUint8(key(to));
-  const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
+  const twoHeads = dodgeBonus(player);
   const tackled = board.theirs.some(
     (o) =>
       hasTackleZone(o) &&
