@@ -25,7 +25,7 @@ describe.each([
   "a page reloaded while its coach owes a %s decision",
   (decision, reply, what) => {
     it(`lets the coach give ${what} after the hello catches it up`, async () => {
-      const seed = 5150;
+      const seed = 5151;
       const recording = await runMatch({
         seed,
         rosters: ["Human", "Orc"],
