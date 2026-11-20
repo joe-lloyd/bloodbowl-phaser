@@ -36,6 +36,7 @@ import {
 import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
 import type { GameParts } from "./parts";
 import { calculateTeamValue } from "@/types/Team";
+import { grantFreePotion } from "@/game/inducements/inventory";
 
 export function commitInducements({
   parts,
@@ -55,11 +56,10 @@ export function commitInducements({
     ...state.inducements,
     profile,
     budgets: { ...budgets },
-    inventory: [
-      ...inventory.map((entry) => ({ ...entry })),
-      ...freeInducements(parts),
-    ],
+    inventory: inventory.map((entry) => ({ ...entry })),
   };
+  for (const kind of startingFreeInducements(activeMatchFormat().gameType))
+    for (const team of [team1, team2]) grantFreePotion(state, team.id, kind);
 
   if (
     state.paysWinnings &&
@@ -90,20 +90,6 @@ export function commitInducements({
       },
     });
   }
-}
-
-function freeInducements(parts: GameParts): InducementInventoryEntry[] {
-  const free = startingFreeInducements(activeMatchFormat().gameType);
-  return [parts.team1, parts.team2].flatMap((team) =>
-    free.map((inducement) => ({
-      inducement,
-      ownerTeamId: team.id,
-      quantity: 1,
-      remainingUses: 1,
-      price: 0,
-      provenance: "free" as const,
-    }))
-  );
 }
 
 function draftListInventory(parts: GameParts) {
