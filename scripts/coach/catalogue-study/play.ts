@@ -6,7 +6,10 @@ import { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { stabilizeIds } from "../../../src/headless/createHeadlessGame";
 import { GamePhase } from "../../../src/types/GameState";
 import { makeCoach } from "../../../src/simulation/commands/shared";
-import { type MatchRecording, runMatch } from "../../../src/simulation/runMatch";
+import {
+  type MatchRecording,
+  runMatch,
+} from "../../../src/simulation/runMatch";
 import { createTelemetry } from "./telemetry";
 import type { StudyGame, StudyJob } from "./model";
 import type { Team } from "../../../src/types/Team";
@@ -38,9 +41,15 @@ async function buyComputerInducements(game: HeadlessGame) {
   }
 }
 
-function firstReceiver(recording: MatchRecording): { initialReceivingSide?: 0 | 1 } {
-  const kick = recording.steps.find((step) => step.command.type === "kick-ball");
-  return kick ? { initialReceivingSide: kick.team === 0 ? 1 : 0 } : {};
+function openingReceiver(
+  recording: MatchRecording,
+  team1Id: string
+): { initialReceivingSide?: 0 | 1 } {
+  const [opening] = recording.steps;
+  if (opening?.command.type !== "start-setup" || !opening.ok) return {};
+  return {
+    initialReceivingSide: opening.command.kickingTeamId === team1Id ? 1 : 0,
+  };
 }
 
 export async function playStudyGame(
@@ -106,7 +115,7 @@ export async function playStudyGame(
     commands: recording.steps.length,
     ms: Date.now() - started,
     observationVersion: 2,
-    ...firstReceiver(recording),
+    ...openingReceiver(recording, team1.id),
     playerLosses: participants.map((players) => ({
       deaths: players.filter((p) => p.injuries.includes(InjuryType.DEAD))
         .length,

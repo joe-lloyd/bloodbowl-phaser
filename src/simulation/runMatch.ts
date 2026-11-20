@@ -18,7 +18,11 @@ import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
 import { type ActionType, GameEventNames } from "../types/events";
-import { type DecisionPoint, enumerateDecision } from "./candidates";
+import {
+  type Candidate,
+  type DecisionPoint,
+  enumerateDecision,
+} from "./candidates";
 import { type Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
 import {
@@ -370,23 +374,18 @@ function kickerAfter(
   return command.type === "kick-ball" ? teamId : kickingTeamId;
 }
 
-function withKicker(
+function forcedKickoff(
   point: DecisionPoint,
   kickingTeamId: string | undefined
-): DecisionPoint {
+): Candidate | null {
   const flipsCoin = point.candidates.some((c) =>
     c.commands.some((command) => command.type === "coin-flip")
   );
-  if (!kickingTeamId || !flipsCoin) return point;
+  if (!kickingTeamId || !flipsCoin) return null;
   return {
-    ...point,
-    candidates: [
-      {
-        kind: "setup",
-        commands: [{ type: "start-setup", kickingTeamId }],
-        label: "Start with the chosen kicker",
-      },
-    ],
+    kind: "setup",
+    commands: [{ type: "start-setup", kickingTeamId }],
+    label: "Start with the chosen kicker",
   };
 }
 
@@ -443,13 +442,13 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     if (snapshot.phase === GamePhase.GAME_OVER) break;
     kickingTeamId = kickerAtSetup(snapshot, kickingTeamId);
 
-    const point = withKicker(
-      await enumerateDecision(game, kickingTeamId),
-      spec.kickingTeamId
-    );
-    const candidates = point.candidates.filter(
-      (c) => !refused.has(JSON.stringify(c.commands))
-    );
+    const point = await enumerateDecision(game, kickingTeamId);
+    const forced = forcedKickoff(point, spec.kickingTeamId);
+    const candidates = forced
+      ? [forced]
+      : point.candidates.filter(
+          (c) => !refused.has(JSON.stringify(c.commands))
+        );
     if (candidates.length === 0) {
       report(
         "no-candidates",
@@ -462,12 +461,14 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
 
     const team = teamIndex(point.teamId);
     const narrowed = { ...point, candidates };
-    const choice = await spec.coaches[team].choose({
-      game,
-      snapshot,
-      point: narrowed,
-      rng,
-    });
+    const choice = forced
+      ? { index: 0 }
+      : await spec.coaches[team].choose({
+          game,
+          snapshot,
+          point: narrowed,
+          rng,
+        });
     const candidate = candidates[choice.index] ?? candidates[0];
     if (!candidate) break;
 

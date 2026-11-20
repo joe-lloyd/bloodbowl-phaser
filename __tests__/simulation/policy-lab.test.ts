@@ -19,6 +19,7 @@ import {
 } from "../../scripts/coach/catalogue-study/replay";
 import type { StudyJob } from "../../scripts/coach/catalogue-study/model";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
+import { createComputerTeamFromTemplate } from "../../src/competition/computerTeamTemplates";
 
 describe("repeatable Sevens policy lab", () => {
   const variants = labInventory();
@@ -214,6 +215,39 @@ describe("repeatable Sevens policy lab", () => {
       rmSync(out, { recursive: true, force: true });
     }
   });
+
+  it("reports the forced receiver when the opening drive is an automatic touchback", async () => {
+    const out = mkdtempSync(join(tmpdir(), "bb7-lab-touchback-"));
+    try {
+      const templates = [
+        "halfling-best-stuff-roster",
+        "dwarf-1-reroll",
+      ] as const;
+      const halflings = createComputerTeamFromTemplate(templates[0]);
+      const dwarfs = createComputerTeamFromTemplate(templates[1]);
+      dwarfs.players = [];
+      const job: StudyJob = {
+        id: "empty-kicker",
+        cohort: "calibration",
+        pair: "halfling-dwarf",
+        seed: 30_000_004,
+        templates: [...templates],
+        coaches: ["heuristic", "heuristic"],
+        receivingSide: 0,
+        inducements: false,
+      };
+      const result = await playStudyGame(job, out, [halflings, dwarfs]);
+      const { steps } = openTrace(
+        join(out, "traces", job.id + ".json.gz")
+      ).recording;
+      expect([
+        result.initialReceivingSide,
+        steps.find((step) => step.command.type === "kick-ball")?.team,
+      ]).toEqual([0, 0]);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  }, 60_000);
 
   it("gives a cheap Halfling preset its petty cash and buys the Master Chef", async () => {
     const out = mkdtempSync(join(tmpdir(), "bb7-lab-petty-cash-"));
