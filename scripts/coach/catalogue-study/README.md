@@ -12,7 +12,9 @@ pnpm exec tsx scripts/coach/catalogue-study/audit.ts sim-results/candidate-audit
 The default GW Sevens catalogue currently has 82 legal templates from 30 rosters.
 The inventory records the reason any bundled recipe is unavailable. Teams keep
 their actual players, veteran and reroll bank. No free simulation inducements are
-granted. Every match starts fresh; this evaluates play rather than career growth.
+granted, but the lower-value team spends its petty cash as the computer coach
+would; `--no-inducements` turns that off. Every match starts fresh; this
+evaluates play rather than career growth.
 
 The schedule contains 6,480 planner league games, 972 old-heuristic calibration
 games, 162 Hard games and 162 Legend games. League opponents play at home and
@@ -45,6 +47,8 @@ actions with the simulator's candidate seam and checks captain preparation.
 Older acquisitions with query-duplicated observations can be recounted without
 running coach search again. Each replay must match its recorded final hash;
 results and traces receive observation version 2, with a pipeline fingerprint.
+Run the repair with the source that wrote the traces: runs made before
+20 November 2026 hash their final state in key insertion order.
 
 ```sh
 pnpm exec tsx scripts/coach/catalogue-study/repair.ts <run-dir> 2

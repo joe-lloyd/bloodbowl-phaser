@@ -13,8 +13,13 @@ import {
   limitPolicyBlocks,
 } from "../../scripts/coach/policy-study/schedule";
 import { playStudyGame } from "../../scripts/coach/catalogue-study/play";
-import { replayStudyTrace } from "../../scripts/coach/catalogue-study/replay";
+import {
+  openTrace,
+  replayStudyTrace,
+} from "../../scripts/coach/catalogue-study/replay";
+import type { StudyJob } from "../../scripts/coach/catalogue-study/model";
 import { createPlannerCoach } from "../../src/simulation/ai/planner";
+import { createComputerTeamFromTemplate } from "../../src/competition/computerTeamTemplates";
 
 describe("repeatable Sevens policy lab", () => {
   const variants = labInventory();
@@ -210,4 +215,94 @@ describe("repeatable Sevens policy lab", () => {
       rmSync(out, { recursive: true, force: true });
     }
   });
+
+  it("reports the forced receiver when the opening drive is an automatic touchback", async () => {
+    const out = mkdtempSync(join(tmpdir(), "bb7-lab-touchback-"));
+    try {
+      const templates = [
+        "halfling-best-stuff-roster",
+        "dwarf-1-reroll",
+      ] as const;
+      const halflings = createComputerTeamFromTemplate(templates[0]);
+      const dwarfs = createComputerTeamFromTemplate(templates[1]);
+      dwarfs.players = [];
+      const job: StudyJob = {
+        id: "empty-kicker",
+        cohort: "calibration",
+        pair: "halfling-dwarf",
+        seed: 30_000_004,
+        templates: [...templates],
+        coaches: ["heuristic", "heuristic"],
+        receivingSide: 0,
+        inducements: false,
+      };
+      const result = await playStudyGame(job, out, [halflings, dwarfs]);
+      const { steps } = openTrace(
+        join(out, "traces", job.id + ".json.gz")
+      ).recording;
+      expect([
+        result.initialReceivingSide,
+        steps.find((step) => step.command.type === "kick-ball")?.team,
+      ]).toEqual([0, 0]);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("gives a cheap Halfling preset its petty cash and buys the Master Chef", async () => {
+    const out = mkdtempSync(join(tmpdir(), "bb7-lab-petty-cash-"));
+    try {
+      const job: StudyJob = {
+        id: "halfling-petty-cash",
+        cohort: "calibration",
+        pair: "halfling-dwarf",
+        seed: 30_000_004,
+        templates: ["halfling-best-stuff-roster", "dwarf-1-reroll"],
+        coaches: ["heuristic", "heuristic"],
+        receivingSide: 0,
+        inducements: true,
+      };
+      const result = await playStudyGame(job, out);
+      const trace = join(out, "traces", job.id + ".json.gz");
+      const inducements =
+        openTrace(trace).game.ctx.gameService.getState().inducements;
+      expect(inducements?.budgets).toEqual({ team1: 130_000, team2: 0 });
+      expect(
+        inducements?.inventory.map(
+          (e) => `${e.ownerTeamId}: ${e.inducement} x${String(e.quantity)}`
+        )
+      ).toEqual([
+        "team1: Halfling Master Chef x1",
+        "team1: Part-time Assistant Coach x2",
+      ]);
+      expect(result.completed).toBe(true);
+      expect(result.initialReceivingSide).toBe(0);
+      const opening = openTrace(trace);
+      const chefHalf = () =>
+        opening.game.ctx.gameService.getState().inducements?.masterChef?.half;
+      expect(chefHalf()).toBeUndefined();
+      const [first] = opening.recording.steps;
+      expect(first?.command).toEqual({
+        type: "start-setup",
+        kickingTeamId: "team2",
+      });
+      if (first) await opening.game.execute(first.command);
+      expect([chefHalf(), opening.game.snapshot().phase]).toEqual([
+        "h1",
+        "SETUP",
+      ]);
+      const replay = await replayStudyTrace(trace);
+      expect(replay.observations.counters).toEqual(result.counters);
+      const chefRolls = (rolls: { roll: string; attempts: number }[]) =>
+        rolls
+          .filter((r) => r.roll === "Halfling Master Chef")
+          .reduce((sum, r) => sum + r.attempts, 0);
+      expect([
+        chefRolls(result.rolls),
+        chefRolls(replay.observations.rolls),
+      ]).toEqual([2, 2]);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  }, 60_000);
 });

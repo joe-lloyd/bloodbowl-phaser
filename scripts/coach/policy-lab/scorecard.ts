@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { RosterName } from "../../../src/types/Team";
+import { RACE_RATES } from "../../../src/simulation/raceRates";
 import type { Tally as PlayTally } from "./usage";
 import { nth } from "../nth";
 
@@ -18,12 +19,29 @@ const CEILING = 0.75;
 
 const ROSTERS = new Set<string>(Object.values(RosterName));
 const isRosterName = (name: string): name is RosterName => ROSTERS.has(name);
-function tierOf(roster: string): Tier {
+function rosterOf(roster: string): RosterName {
   if (!isRosterName(roster)) throw new Error(`Unknown roster ${roster}`);
+  return roster;
+}
+function tierOf(roster: RosterName): Tier {
   const tier = getRosterByRosterName(roster).tier;
   if (tier !== 1 && tier !== 2 && tier !== 3 && tier !== 4)
     throw new Error(`${roster} has tier ${String(tier)}`);
   return tier;
+}
+
+interface Bar {
+  points: number;
+  scores: number;
+  pointsFrom: "tier" | "fumbbl";
+}
+
+function barOf(roster: RosterName, tier: Tier): Bar {
+  const standard = STANDARDS[tier];
+  const people = RACE_RATES[roster].wins;
+  return people < standard.points
+    ? { points: people, scores: standard.scores, pointsFrom: "fumbbl" }
+    : { ...standard, pointsFrom: "tier" };
 }
 
 interface TeamGame {
@@ -93,6 +111,7 @@ interface Signature {
 export interface RosterCard {
   roster: string;
   tier: Tier;
+  bar: Bar;
   games: number;
 
   points: number;
@@ -264,9 +283,10 @@ function signaturesOf(
 }
 
 const tenth = (n: number) => `${(100 * n).toFixed(1)}%`;
+const barPct = (x: number) => `${String(Math.round(x * 1000) / 10)}%`;
 
 function verdictOf(
-  tier: Tier,
+  bar: Bar,
   share: number,
   scores: number,
   judged: RosterCard["judged"]
@@ -276,13 +296,12 @@ function verdictOf(
       verdict: "ceiling",
       misses: [`${judged} ${pct(share)} over the ${pct(CEILING)} ceiling`],
     };
-  const standard = STANDARDS[tier];
   const misses = [
-    share < standard.points
-      ? `${judged} ${tenth(share)} under ${pct(standard.points)}`
+    share < bar.points
+      ? `${judged} ${tenth(share)} under ${barPct(bar.points)}`
       : "",
-    scores < standard.scores
-      ? `scores in ${tenth(scores)} of games, under ${pct(standard.scores)}`
+    scores < bar.scores
+      ? `scores in ${tenth(scores)} of games, under ${pct(bar.scores)}`
       : "",
   ].filter(Boolean);
   return { verdict: misses.length ? "below" : "meets", misses };
@@ -388,11 +407,14 @@ export function scorecard(
           o.turnovers += t.turnovers;
         }
       const foul = foulsOf(fouls, policies, roster);
-      const tier = tierOf(roster);
+      const name = rosterOf(roster);
+      const tier = tierOf(name);
+      const bar = barOf(name, tier);
       const scores = rows.filter((r) => r.touchdowns > 0).length / games;
       return {
         roster,
         tier,
+        bar,
         games,
         points,
         adjusted,
@@ -412,7 +434,7 @@ export function scorecard(
         sentOff: foul.count && foul.sentOff / foul.count,
         topFouler: foul.topFouler,
         signatures: signaturesOf(own, field, games),
-        ...verdictOf(tier, share, scores, judged),
+        ...verdictOf(bar, share, scores, judged),
       };
     })
     .sort(
@@ -431,6 +453,11 @@ const esc = (s: string) =>
     (c) => `&${String({ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[c])};`
   );
 
+const barCell = (bar: Bar) =>
+  bar.pointsFrom === "fumbbl"
+    ? `${barPct(bar.points)} <span class="ci">FUMBBL share</span>`
+    : barPct(bar.points);
+
 function html(cards: RosterCard[], stage: string, revision: string): string {
   const below = cards.filter((c) => c.verdict !== "meets");
   const row = (c: RosterCard) => `<tr class="${c.verdict}">
@@ -440,6 +467,7 @@ function html(cards: RosterCard[], stage: string, revision: string): string {
 <td class="n">${num(c.casualtiesFor)}</td><td class="n">${num(c.casualtiesAgainst)}</td>
 <td class="n">${num(c.foulsPerGame)}</td>
 <td>${c.signatures.map((s) => `${esc(s.play)} ×${s.lift.toFixed(1)}`).join(", ") || "<span class=ci>none</span>"}</td>
+<td class="n">${barCell(c.bar)}</td>
 <td>${c.verdict === "meets" ? "meets" : esc(c.misses.join("; "))}</td></tr>`;
   const standards = (
     Object.entries(STANDARDS)
@@ -461,12 +489,13 @@ td,th{padding:5px 8px;border-bottom:1px solid #2a3352;text-align:left;vertical-a
 tr.below td:last-child{color:#ef8a7a}tr.ceiling td:last-child{color:#e0b24a}tr.meets td:last-child{color:#8fd19e}
 </style>
 <h1>Team scorecard</h1>
-<p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${String(below.length)} of ${String(cards.length)} rosters miss their tier's standard.${cards.some((c) => c.adjusted === null) ? " This schedule splits the rosters into groups that never meet, so no strength can be fitted and each roster is judged on raw points." : ""}</p>
+<p>Stage ${esc(stage)}, revision <code>${esc(revision.slice(0, 12))}</code>. ${String(below.length)} of ${String(cards.length)} rosters miss their standard.${cards.some((c) => c.adjusted === null) ? " This schedule splits the rosters into groups that never meet, so no strength can be fitted and each roster is judged on raw points." : ""}</p>
 <h2>Rosters</h2>
-<div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Strength, 95%</th><th class="n">Raw points</th><th class="n">Change vs frozen</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th>Standard</th></tr>
+<div class="wrap"><table><tr><th>Roster</th><th class="n">Tier</th><th class="n">Games</th><th class="n">Strength, 95%</th><th class="n">Raw points</th><th class="n">Change vs frozen</th><th class="n">Scores</th><th class="n">TD for</th><th class="n">TD against</th><th class="n">Cas for</th><th class="n">Cas against</th><th class="n">Fouls</th><th>Signature plays, times the field</th><th class="n">Points bar</th><th>Standard</th></tr>
 ${cards.map(row).join("\n")}</table></div>
 <h2>Standards</h2>
 <div class="wrap"><table style="width:auto"><tr><th>Tier</th><th class="n">Points at least</th><th class="n">Scores in at least</th></tr>${standards}</table></div>
+<p>A roster's points bar is the lower of its tier's and the share of points people took with that race on FUMBBL, 2020 to 2024, in the 11-player game. The Points bar column marks each bar that people's share capped. The scores bar is always the tier's.</p>
 <p>Strength is the points share a roster would take from an average opponent of the same planner, so the average roster gets 50%. The lab pairs each roster with only a few others, so it is fitted from every game: a game between two rosters is taken to score about 50% plus the difference in their strengths, plus any edge one policy has over the other. Raw points is the plain share against whoever the schedule chose. Scores is the share of games with at least one touchdown. A roster over ${pct(CEILING)} is flagged so its lineup and rules are checked before the AI is changed. Per-game figures count each roster's own games. The interval refits strengths on whole schedule blocks drawn with replacement, a thousand times.</p>`;
 }
 

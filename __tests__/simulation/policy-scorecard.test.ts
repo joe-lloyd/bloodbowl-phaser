@@ -120,6 +120,52 @@ describe("policy-lab team scorecard", () => {
     ).toEqual([["run-in", 1.75]]);
   });
 
+  it("never asks a roster for more points than people take with it", () => {
+    const results = [
+      ...Array.from({ length: 9 }, () => 1),
+      0.5,
+      ...Array.from({ length: 15 }, () => 0),
+    ];
+    const vampireGames = (["candidate", "frozen"] as const).flatMap((policy) =>
+      results.flatMap((points, i) => {
+        const game = `${policy}${String(i)}`;
+        const other = policy === "candidate" ? "frozen" : "candidate";
+        return [
+          row({ game, policy, roster: "Vampire", points, touchdowns: 1 }),
+          row({
+            game,
+            policy: other,
+            roster: "Dwarf",
+            points: 1 - points,
+            touchdowns: 1,
+          }),
+        ];
+      })
+    );
+    const cards = scorecard(vampireGames, {}, fouls, ["candidate", "frozen"]);
+    expect(
+      cards.map((c) => [
+        c.roster,
+        c.bar,
+        Number(fixtureValue(c.adjusted).toFixed(3)),
+        c.verdict,
+      ])
+    ).toEqual([
+      [
+        "Dwarf",
+        { points: 0.45, scores: 0.5, pointsFrom: "tier" },
+        0.56,
+        "meets",
+      ],
+      [
+        "Vampire",
+        { points: 0.433, scores: 0.5, pointsFrom: "fumbbl" },
+        0.44,
+        "meets",
+      ],
+    ]);
+  });
+
   it("judges a roster against an average opponent, not its schedule", () => {
     const legs = ({
       a,

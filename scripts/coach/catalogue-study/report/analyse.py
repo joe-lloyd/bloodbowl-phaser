@@ -73,6 +73,8 @@ def collect(directories, rules_file):
     manifests = [json.loads((directory / 'manifest.json').read_text()) for directory in directories]
     if len({m['sourceDigest'] for m in manifests}) != 1:
         raise ValueError('Runs used different engine or study sources')
+    if len({m.get('pettyCash', False) for m in manifests}) != 1:
+        raise ValueError('Runs mixed games with and without petty cash')
     manifest = manifests[0]
     templates = {t['id']: t for t in manifest['inventory']['teams']}
     requested = [job for m in manifests for job in m['jobs']]
@@ -89,7 +91,7 @@ def collect(directories, rules_file):
     expected = {j['id']: j for j in requested}
     for game in games:
         job = expected[game['id']]
-        if any(game[k] != job[k] for k in ('seed','cohort','templates','coaches','pair')):
+        if any(game.get(k) != job.get(k) for k in ('seed','cohort','templates','coaches','pair','inducements')):
             raise ValueError('Game does not match manifest: ' + game['id'])
     team_games, contexts, roll_rows, match_rows, findings = [], [], [], [], []
     actions = collections.defaultdict(lambda: [0, 0])

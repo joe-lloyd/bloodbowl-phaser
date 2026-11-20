@@ -60,6 +60,14 @@ class ReportTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'Skill reconciliation'):
                 analyse(root,baseline)
 
+    def test_a_result_must_match_its_scheduled_petty_cash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);baseline=self.fixture(root)
+            file=root/'games/0.json';game=json.loads(file.read_text())
+            game['inducements']=False;file.write_text(json.dumps(game))
+            with self.assertRaisesRegex(ValueError,'Schedule mismatch: 0'):
+                analyse(root,baseline)
+
     def test_build_publishes_csvs_and_safe_embedded_data_without_recursive_zip(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);baseline=self.fixture(root)

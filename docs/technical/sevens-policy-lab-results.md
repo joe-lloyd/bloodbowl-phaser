@@ -390,6 +390,25 @@ None helped. The re-roll comes once a game, and the fetch spends the turn's Hand
 
 Role matching also changes the heuristic coach's games, so the lockstep reload test now replays seed 5151, which still reaches both decisions. The formation runs used candidate `aef765e6` against main at `c2cf35b2`, seed bases 1091000000 to 1093000000; the Veteran runs used `92ab9739` and `4b29abb3` against `aef765e6`, seed base 1101000000. The runs stay under `/Users/joelloyd/tmp/bb7-std` on Daily Driver as `dep-*`, `vet-*` and `vet2-*`.
 
+## Petty cash and people's bar, 20 November
+
+Two rules change how the lab measures a roster's standard. The standards in the sections above were measured without them.
+
+The lab now plays every game as a friendly with inducements. The team with the lower team value gets the difference as petty cash, and both sides shop with the computer coach's own list in `computerPurchases.ts`. It buys the Halfling Master Chef first when the Chef costs less than Extra Team Training, then Extra Team Training, Blitzer's Best Kegs, Part-time Assistant Coaches and Temp Agency Cheerleaders. A 470,000 Halfling preset against a 600,000 Dwarf team gets 130,000 and buys the Chef and two Assistant Coaches. Before, the cheap Halfling presets never got their gold back. Pass `--no-inducements` to the study runners to play without petty cash, as older runs did. A forced first receiver is now the trace's first recorded step, `start-setup`, and it draws nothing from the coach's random numbers, so such a game plays out as before with one more recorded command. Replay an archived trace with the source that made it.
+
+A roster's points bar is now the lower of its tier's bar and the share of points people took with that race on FUMBBL, 2020 to 2024, in the 11-player game. The lab no longer asks the AI to do better with a team than people do. Six rosters get a lower bar. The scores bar stays the tier's. The scorecard shows the bar each roster was judged against and marks the ones people's share capped.
+
+| Roster             | Tier | Tier bar | People's points share |
+| ------------------ | ---: | -------: | --------------------: |
+| Old World Alliance |    1 |      50% |                 49.1% |
+| Elven Union        |    1 |      50% |                 48.2% |
+| High Elf           |    1 |      50% |                 47.6% |
+| Imperial Nobility  |    2 |      45% |                 44.3% |
+| Vampire            |    2 |      45% |                 43.3% |
+| Nurgle             |    2 |      45% |                 42.9% |
+
+Replay verification now hashes the final state with sorted keys, as the engine's checksum does. Restoring a save reorders the keys in `state.inducements`, so the old hash failed once inducements were in the saved state.
+
 ## Frozen acquisition
 
 Candidate source: `eb1990dad29282ff010fc35628b3945a98f67971`, baseline: `7bde4654aa80c1d4e42bb2f54804a39675962550`. The archive and report record full revisions, source digests and result digests. Later documentation changes do not alter the measured engine or AI source tree.
