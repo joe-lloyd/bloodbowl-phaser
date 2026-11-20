@@ -1,4 +1,11 @@
 import { GameConfig } from "../../../config/GameConfig";
+import { formatOf } from "../../../game/variants/activeMatch";
+import { gameTypeRules } from "../../../game/variants/gameTypeRules";
+import {
+  DEFAULT_GAME_TYPE,
+  GAME_TYPE_LABELS,
+} from "../../../game/variants/gameTypes";
+import { PITCH_LAYOUTS } from "../../../game/variants/pitchLayouts";
 import { emptyDriveEffects } from "../../../game/kickoff/driveEffects";
 import { type Weather, weatherDescription } from "../../../game/rules/weather";
 import { type GameState, type TurnData } from "../../../types/GameState";
@@ -7,6 +14,16 @@ import { type Team } from "../../../types/Team";
 export function turnProgress(turn: number): string {
   const total = GameConfig.TURNS_PER_HALF;
   return `Turn ${String(Math.min(total, Math.max(0, turn)))} of ${String(total)}`;
+}
+
+export function gameTypeLabel(
+  state: Pick<GameState, "gameType" | "venue">
+): string | null {
+  const { gameType, venue } = formatOf(state);
+  if (gameType === DEFAULT_GAME_TYPE) return null;
+  return gameTypeRules(gameType).venues.length > 1
+    ? PITCH_LAYOUTS[venue].label
+    : GAME_TYPE_LABELS[gameType];
 }
 
 const WEATHER_LABELS: Record<

@@ -6,6 +6,7 @@ import { GamePhase } from "../../../types/GameState";
 import { Chip } from "../componentWarehouse/HudKit";
 import {
   driveEffectText,
+  gameTypeLabel,
   spentActions,
   spentSummary,
   weatherSummary,
@@ -19,6 +20,7 @@ function readStrip() {
   const spent = playing ? spentSummary(spentActions(state.turn)) : null;
   return {
     weather: weatherSummary(state.weather),
+    gameType: gameTypeLabel(state),
     teams: Object.keys(state.score).flatMap((id) => {
       const team = gs.getTeam(id);
       return team
@@ -108,6 +110,14 @@ export function MatchStrip({
             data-testid="match-strip-clock"
             className={`${FLAP} pointer-events-auto whitespace-nowrap empty:hidden`}
           />
+          {strip?.gameType && (
+            <span
+              data-testid="match-game-type"
+              className={`${FLAP} whitespace-nowrap font-bold uppercase text-hud-gold`}
+            >
+              <span className="skew-x-12">{strip.gameType}</span>
+            </span>
+          )}
         </div>
       </div>
       {strip?.teams.some((team) => team.spent || team.effects.length > 0) && (

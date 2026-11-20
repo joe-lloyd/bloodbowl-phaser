@@ -5,6 +5,7 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { teamRerollsLeft } from "../../../game/teamRerolls";
 import { kitOf } from "../../../game/presentation/kits";
+import { GameConfig } from "../../../config/GameConfig";
 
 interface TeamRow {
   id: string;
@@ -190,7 +191,7 @@ export function ScoreBoard({
                 {row.turn}
               </span>
               <div className="flex gap-[3px]">
-                {Array.from({ length: 6 }, (_, i) => (
+                {Array.from({ length: GameConfig.TURNS_PER_HALF }, (_, i) => (
                   <span
                     key={i}
                     className={`h-2 w-2 -skew-x-12 border ${
