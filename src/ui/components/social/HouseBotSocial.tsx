@@ -36,12 +36,16 @@ async function joinInvite(
   return true;
 }
 
+function attemptKey(invite: LobbyInvite): string {
+  return `${inviteId(invite)}:${invite.code}:${String(invite.createdAt)}`;
+}
+
 function firstMatchInvite(
   rows: readonly InviteRow[],
   tried: ReadonlySet<string>
 ): LobbyInvite | undefined {
   for (const { invite } of rows)
-    if (invite.kind === "match" && !tried.has(inviteId(invite))) return invite;
+    if (invite.kind === "match" && !tried.has(attemptKey(invite))) return invite;
   return undefined;
 }
 
@@ -73,7 +77,7 @@ function useJoinMatchInvites(uid: string | null, invites: readonly InviteRow[]):
       .catch(() => false)
       .then((attempted) => {
         joining.current = false;
-        if (attempted) setTried((done) => new Set(done).add(inviteId(next)));
+        if (attempted) setTried((done) => new Set(done).add(attemptKey(next)));
       });
   }, [uid, next, playing, navigate, tried]);
 }

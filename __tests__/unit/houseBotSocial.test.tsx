@@ -132,4 +132,15 @@ describe("the house bot's browser", () => {
     expect(world.acceptLobbyInvite).toHaveBeenLastCalledWith(second);
     expect(container.textContent).toBe("Lobby SECOND");
   });
+
+  it("tries a new invite from the same coach after an earlier one failed", async () => {
+    const replacement: Invite = { ...invite, code: "SECOND", createdAt: invite.createdAt + 1 };
+    world.acceptLobbyInvite.mockRejectedValueOnce(new Error("That game has already started."));
+    world.invites = [{ invite, fromName: "Joe" }];
+    await show("/");
+    world.acceptLobbyInvite.mockResolvedValueOnce("SECOND");
+    world.invites = [{ invite: replacement, fromName: "Joe" }];
+    await show("/");
+    expect(world.acceptLobbyInvite).toHaveBeenLastCalledWith(replacement);
+  });
 });
