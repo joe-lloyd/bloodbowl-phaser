@@ -22,7 +22,8 @@ import {
 import { RosterName, calculateTeamValue, type Team } from "../../../src/types/Team";
 
 type Mode = "none" | "petty" | "chef";
-const [modeArg, shardArg, seedsArg, out, rosterArg] = process.argv.slice(2);
+const [modeArg, shardArg, seedsArg, out, rosterArg, onlyBuild] =
+  process.argv.slice(2);
 const mode = (modeArg ?? "none") as Mode;
 const [shard, shards] = (shardArg ?? "0/1").split("/").map(Number) as [
   number,
@@ -65,7 +66,9 @@ function shopping(team: Team, budget: number): InducementInventoryEntry[] {
 }
 
 const templates = getComputerTeamTemplates();
-const builds = templates.filter((t) => t.rosterName === focus);
+const builds = templates.filter(
+  (t) => t.rosterName === focus && (!onlyBuild || t.id === onlyBuild)
+);
 const opponents = templates.filter((t) => t.rosterName !== focus);
 const jobs: { build: string; opponent: string; seed: number; side: 0 | 1 }[] =
   [];
