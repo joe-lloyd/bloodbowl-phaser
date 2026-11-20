@@ -42,6 +42,8 @@ import {
   onPlayerDowned,
   sweepChomped,
 } from "./turnHooks";
+import { rollSewerPits } from "./sewerPits";
+import { whenSettled } from "./activation";
 
 interface ActivationMarks {
   blitzBlockUsed: Set<string>;
@@ -222,8 +224,13 @@ function makeTurnManager(
       onTurnEnding: (endingTeamId) => {
         handleTurnEnding(getParts(), endingTeamId);
       },
-      betweenTurns: (endingTeamId) =>
-        castSportsWizards(getParts(), endingTeamId),
+      betweenTurns: (endingTeamId) => {
+        const parts = getParts();
+        const pits = rollSewerPits(parts);
+        const wizards = castSportsWizards(parts, endingTeamId);
+        if (wizards || !pits) return wizards;
+        return whenSettled(parts).then(() => undefined);
+      },
     },
     delay
   );

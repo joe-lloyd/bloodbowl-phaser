@@ -86,6 +86,11 @@ export interface Player {
     y: number;
   };
 
+  sewerPit?: {
+    x: number;
+    y: number;
+  };
+
   cost: number;
   teamValue: number;
 

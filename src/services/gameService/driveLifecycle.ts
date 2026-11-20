@@ -279,6 +279,7 @@ export function resetDriveState(parts: GameParts): void {
 
   [...team1.players, ...team2.players].forEach((p) => {
     if (p.conditions?.length) p.conditions = [];
+    if (p.sewerPit) movePlayerToBox(p, { box: "reserves" }, parts.eventBus);
   });
 
   parts.eventBus.emit(GameEventNames.RefreshBoard, undefined);
