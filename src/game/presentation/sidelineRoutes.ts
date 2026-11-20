@@ -33,24 +33,48 @@ export function worldToBoard(
   return { x: (u + v) / 2, y: (v - u) / 2 };
 }
 
+export interface SidelineExit {
+  rows: number;
+  project: BoardProjection;
+  gateX?: number;
+}
+
+const WALL_SIDE_LANE = 0.2;
+
+function exitCorners(
+  player: BoardPoint,
+  box: BoardPoint,
+  exit: SidelineExit
+): [number, number][] {
+  const home = box.y < 0;
+  const lane = home ? -0.5 : exit.rows + 0.5;
+  const outside: [number, number][] = [[box.x, lane]];
+  if (exit.gateX === undefined) return [[player.x, lane], ...outside];
+  const inside = home ? WALL_SIDE_LANE : exit.rows - WALL_SIDE_LANE;
+  return [
+    [player.x, inside],
+    [exit.gateX, inside],
+    [exit.gateX, lane],
+    ...outside,
+  ];
+}
+
 export function pitchExitRoute(
   from: BoardPoint,
   to: BoardPoint,
-  rows: number,
-  project: BoardProjection
+  exit: SidelineExit
 ): BoardPoint[] {
-  const player = worldToBoard(from, project);
-  const box = worldToBoard(to, project);
-  const lane = box.y < 0 ? -0.5 : rows + 0.5;
-  return [from, project(player.x, lane), project(box.x, lane), to].filter(
-    (point, i, points) => {
-      const previous = points[i - 1];
-      return (
-        !previous ||
-        Math.hypot(point.x - previous.x, point.y - previous.y) > 0.01
-      );
-    }
+  const player = worldToBoard(from, exit.project);
+  const box = worldToBoard(to, exit.project);
+  const corners = exitCorners(player, box, exit).map(([x, y]) =>
+    exit.project(x, y)
   );
+  return [from, ...corners, to].filter((point, i, points) => {
+    const previous = points[i - 1];
+    return (
+      !previous || Math.hypot(point.x - previous.x, point.y - previous.y) > 0.01
+    );
+  });
 }
 
 export function walkingSteps(route: readonly BoardPoint[]): BoardPoint[] {

@@ -7,9 +7,14 @@ import { BallSprite } from "../game/elements/BallSprite";
 import { Dugout } from "../game/elements/Dugout";
 import { SidelineTerrace } from "../game/elements/SidelineTerrace";
 import { preloadSidelineArt } from "../game/elements/SidelineStaffSprite";
-import { preloadStadium, Stadium } from "../game/elements/Stadium";
+import {
+  createVenueBackdrop,
+  preloadVenue,
+  type VenueBackdrop,
+} from "../game/elements/venue/backdrop";
 import { preloadPlayerArt } from "../game/presentation/playerArt";
 import { type Team, type TeamColors } from "../types/Team";
+import { GameConfig } from "../config/GameConfig";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { type IGameService } from "../services/interfaces/IGameService";
 import { type IEventBus } from "../services/EventBus";
@@ -35,6 +40,7 @@ import {
   startDiceLog,
 } from "./matchStart";
 import { followMatchWithCamera } from "./matchCamera";
+import { subscribeWallHits } from "./wallHitEffects";
 import * as board from "./boardSprites";
 import { subscribeBoardEvents, subscribeTurnMarkers } from "./boardEvents";
 import { wirePointerInput, wireTouchInput } from "./boardInput";
@@ -46,7 +52,7 @@ import {
 
 export class GameScene extends Phaser.Scene {
   public pitch!: Pitch;
-  public stadium!: Stadium;
+  public venue!: VenueBackdrop;
 
   public getPitch(): Pitch | undefined {
     return this.pitch;
@@ -185,7 +191,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload(): void {
-    preloadStadium(this);
+    preloadVenue(this);
     preloadSidelineArt(this);
     preloadPlayerArt(
       this,
@@ -202,13 +208,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.stadium = new Stadium(this, {
+    this.venue = createVenueBackdrop(this, {
       home: this.kitOf(this.team1.id).primary,
       away: this.kitOf(this.team2.id).primary,
     });
     wirePointerInput(this);
 
-    const origin = this.stadium.origin;
+    const origin = this.venue.origin;
     this.pitch = new Pitch(this, origin.x, origin.y);
 
     this.createDugouts();
@@ -228,7 +234,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.cameraController = new CameraController(
       {
-        scene: this,pitch: this.pitch,world: { width: this.stadium.width,height: this.stadium.height },dugoutPoints: [
+        scene: this,pitch: this.pitch,world: { width: this.venue.width,height: this.venue.height },dugoutPoints: [
           ...Array.from(this.dugouts.values()).flatMap((d) => d.getBounds()),
           ...this.staffTerraces.flatMap((terrace) => terrace.bounds),
         ],eventBus: this.eventBus,hudRects: () => {
@@ -259,6 +265,7 @@ export class GameScene extends Phaser.Scene {
     if (this.autosaveEnabled) this.autosave = startAutosave(this);
 
     subscribeTurnMarkers(this);
+    subscribeWallHits(this);
     followMatchWithCamera(this);
 
     this.eventBus.emit(GameEventNames.UI_LoadProgress, { progress: 1 });
@@ -278,7 +285,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private shutdown(): void {
-    this.stadium?.destroy();
+    this.venue?.destroy();
     this.autosave?.dispose();
     this.autosave = null;
     this.diceLog?.dispose();
@@ -350,12 +357,13 @@ export class GameScene extends Phaser.Scene {
     if (!this.isSceneLive("createDugouts")) return;
     const toWorld = (gx: number, gy: number) =>
       this.pitch.getPointPosition(gx, gy);
+    const { dugouts, gates } = this.venue;
     const benches = [
-      [this.team1, this.stadium.meta.dugouts.home, "s"],
-      [this.team2, this.stadium.meta.dugouts.away, "n"],
+      [this.team1, dugouts.home, "s", gates.home],
+      [this.team2, dugouts.away, "n", gates.away],
     ] as const;
-    for (const [team, squares, facing] of benches) {
-      const dugout = new Dugout({ scene: this, team: team, kit: this.kitOf(team.id), squares: squares, toWorld: toWorld, facing: facing, rows: this.stadium.meta.rows }
+    for (const [team, squares, facing, gateX] of benches) {
+      const dugout = new Dugout({ scene: this, team: team, kit: this.kitOf(team.id), squares: squares, toWorld: toWorld, facing: facing, exit: { rows: GameConfig.PITCH_HEIGHT, ...(gateX === undefined ? {} : { gateX }) } }
       );
       dugout.setDragCallbacks(
         (id) => {

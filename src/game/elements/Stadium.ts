@@ -49,6 +49,12 @@ export class Stadium {
     this.image = scene.add.image(0, 0, texture).setOrigin(0).setDepth(0);
   }
 
+  public get dugouts(): StadiumMeta["dugouts"] {
+    return this.meta.dugouts;
+  }
+
+  public readonly gates = {};
+
   public get origin(): { x: number; y: number } {
     const [x, y] = this.meta.sizes.lo.origin;
     return { x, y };
