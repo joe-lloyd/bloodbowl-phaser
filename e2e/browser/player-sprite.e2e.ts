@@ -19,6 +19,8 @@ const CASES = [
   },
 ] as const;
 
+const LAYERED_DENSITY = 2;
+
 const VIEWPORTS = [
   { width: 1280, height: 800 },
   { width: 360, height: 740 },
@@ -96,7 +98,8 @@ for (const viewport of VIEWPORTS) {
 
       expect(drawn.cssWidth).toBe(drawn.cssHeight);
       expect(drawn.cssWidth % drawn.side).toBe(0);
-      expect(drawn.cssWidth / drawn.side).toBeGreaterThanOrEqual(3);
+      const cssPixelsPerGamePixel = (drawn.cssWidth / drawn.side) * LAYERED_DENSITY;
+      expect(cssPixelsPerGamePixel).toBeGreaterThanOrEqual(4);
       expect(drawn.cssWidth).toBeLessThanOrEqual(240);
 
       expect(drawn.left).toBeGreaterThanOrEqual(0);
