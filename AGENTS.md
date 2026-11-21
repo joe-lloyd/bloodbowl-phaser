@@ -12,7 +12,7 @@ Open pull requests ready for review. If you opened a draft, run `gh pr ready` on
 
 ## Review scope
 
-Reviewers, CodeRabbit and fallback reviewers alike, skip `public/sprites/bloodbowl/` and `__tests__/`. Both are large and mostly generated, and the owner decided a review there is not worth it. Read the rest of the diff with `git diff origin/main...HEAD -- . ':!public/sprites/bloodbowl' ':!__tests__'`. CI still runs every test.
+Reviewers, CodeRabbit and fallback reviewers alike, skip `public/sprites/bloodbowl/` and `__tests__/`. Both are large and mostly generated, and the owner decided a review there is not worth it. Read the rest of the diff with `git -C "$(git rev-parse --show-toplevel)" diff origin/main...HEAD -- . ':!public/sprites/bloodbowl' ':!__tests__'`, which works from any folder. CI still runs every test.
 
 ## Firestore rules
 
