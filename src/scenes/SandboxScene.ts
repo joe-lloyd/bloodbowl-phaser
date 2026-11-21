@@ -216,13 +216,19 @@ export class SandboxScene extends GameScene {
     });
   }
 
+  private latestScenarioRequest = 0;
+
   private afterTeamArt(then: () => void): void {
+    const request = ++this.latestScenarioRequest;
+    const whenStillLatest = () => {
+      if (request === this.latestScenarioRequest) then();
+    };
     this.queueTeamArt();
-    if (this.load.list.size === 0) {
-      then();
+    if (!this.load.isLoading() && this.load.list.size === 0) {
+      whenStillLatest();
       return;
     }
-    this.load.once(Phaser.Loader.Events.COMPLETE, then);
+    this.load.once(Phaser.Loader.Events.COMPLETE, whenStillLatest);
     this.load.start();
   }
 
