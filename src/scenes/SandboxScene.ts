@@ -1,3 +1,4 @@
+import Phaser from "phaser";
 import { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
 import { TeamFactory } from "../game/TeamFactory";
@@ -197,7 +198,34 @@ export class SandboxScene extends GameScene {
         ? found.scenario
         : { ...found.scenario, seed: seedOverride };
     this.swapRosters(scenario);
+    this.afterTeamArt(() => {
+      this.showScenario({ scenario, scenarioId, promisedSeed, expectedOutcome, outcomeId });
+    });
+  }
 
+  private afterTeamArt(then: () => void): void {
+    this.queueTeamArt();
+    if (this.load.list.size === 0) {
+      then();
+      return;
+    }
+    this.load.once(Phaser.Loader.Events.COMPLETE, then);
+    this.load.start();
+  }
+
+  private showScenario({
+    scenario,
+    scenarioId,
+    promisedSeed,
+    expectedOutcome,
+    outcomeId,
+  }: {
+    scenario: Scenario;
+    scenarioId: string;
+    promisedSeed: number | undefined;
+    expectedOutcome: Scenario["expectedOutcome"];
+    outcomeId: string | undefined;
+  }): void {
     if (this.ballSprite) {
       this.ballSprite.destroy();
       this.ballSprite = null;

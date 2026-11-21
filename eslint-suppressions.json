@@ -4996,9 +4996,6 @@
     },
     "max-statements": {
       "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
     }
   },
   "src/scenes/boardEvents.ts": {

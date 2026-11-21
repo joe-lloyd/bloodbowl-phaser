@@ -195,6 +195,13 @@ export class GameScene extends Phaser.Scene {
   preload(): void {
     preloadVenue(this);
     preloadSidelineArt(this);
+    this.queueTeamArt();
+    this.load.on(Phaser.Loader.Events.PROGRESS, (progress: number) => {
+      this.eventBus?.emit(GameEventNames.UI_LoadProgress, { progress });
+    });
+  }
+
+  protected queueTeamArt(): void {
     const players = [this.team1, this.team2].flatMap((team) =>
       team.players.map((player) => ({
         rosterName: team.rosterName,
@@ -212,9 +219,6 @@ export class GameScene extends Phaser.Scene {
         colors,
       }))
     );
-    this.load.on(Phaser.Loader.Events.PROGRESS, (progress: number) => {
-      this.eventBus?.emit(GameEventNames.UI_LoadProgress, { progress });
-    });
   }
 
   create(): void {

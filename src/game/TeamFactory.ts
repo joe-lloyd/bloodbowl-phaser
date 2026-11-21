@@ -6,6 +6,7 @@ import {
 } from "../types/Team";
 import { createPlayer } from "../types/Player";
 import { getRosterByRosterName } from "../data/RosterTemplates";
+import { appearanceOf } from "./names/playerIdentity";
 
 interface CompositionLine {
   position: string;
@@ -118,6 +119,11 @@ export class TeamFactory {
       for (let i = 0; i < qty; i++) {
         const num = team.players.length + 1;
         const p = createPlayer(template, team.id, num);
+        const appearance = appearanceOf(
+          { id: `${teamName}-${String(num)}`, positionName: template.positionName },
+          rosterName
+        );
+        if (appearance) p.appearance = appearance;
         addPlayerToTeam(team, p);
       }
     };
