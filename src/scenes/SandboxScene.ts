@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
 import { TeamFactory } from "../game/TeamFactory";
+import { appearanceOf } from "../game/names/playerIdentity";
 import { RosterName } from "../types/Team";
 import { type Team } from "../types/Team";
 
@@ -85,6 +86,18 @@ function scenarioFromConfig(
   };
 }
 
+function sandboxTeam(rosterName: RosterName, teamName: string, color: number): Team {
+  const team = TeamFactory.createTestTeam(rosterName, teamName, color);
+  for (const player of team.players) {
+    const appearance = appearanceOf(
+      { id: `${teamName}-${String(player.number)}`, positionName: player.positionName },
+      rosterName
+    );
+    if (appearance) player.appearance = appearance;
+  }
+  return team;
+}
+
 export class SandboxScene extends GameScene {
   constructor() {
     super("SandboxScene");
@@ -101,12 +114,12 @@ export class SandboxScene extends GameScene {
       ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), team1: data.team1, team2: data.team2, initialState: initialState });
       super.init(data as { team1: Team; team2: Team });
     } else {
-      const team1 = TeamFactory.createTestTeam(
+      const team1 = sandboxTeam(
         SANDBOX_DEFAULT_TEAM1_ROSTER,
         "Test Humans",
         0x4169e1
       );
-      const team2 = TeamFactory.createTestTeam(
+      const team2 = sandboxTeam(
         SANDBOX_DEFAULT_TEAM2_ROSTER,
         "Test Orcs",
         0xdc143c
@@ -277,7 +290,7 @@ export class SandboxScene extends GameScene {
       scenario.setup.team1Roster !== this.team1.rosterName
     ) {
       console.log(`[Sandbox] Swapping Team 1 to ${scenario.setup.team1Roster}`);
-      this.team1 = TeamFactory.createTestTeam(
+      this.team1 = sandboxTeam(
         scenario.setup.team1Roster,
         `Test ${scenario.setup.team1Roster} 1`,
         0x4169e1
@@ -289,7 +302,7 @@ export class SandboxScene extends GameScene {
       scenario.setup.team2Roster !== this.team2.rosterName
     ) {
       console.log(`[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`);
-      this.team2 = TeamFactory.createTestTeam(
+      this.team2 = sandboxTeam(
         scenario.setup.team2Roster,
         `Test ${scenario.setup.team2Roster} 2`,
         0xdc143c
