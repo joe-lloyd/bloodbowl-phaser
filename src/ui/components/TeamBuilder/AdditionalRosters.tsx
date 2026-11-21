@@ -7,7 +7,7 @@ const slann: CatalogueRoster = {
   name: "Slann",
   tier: null,
   source:
-    "https://www.thenaf.net/tournaments/nafdocs/naf-tournament-approval-guidelines/#additional-slann-race",
+    "https://www.thenaf.net/tournaments/nafdocs/naf-regulations-for-tournaments/#4.3.4",
   experimental: false,
   positions: [
     { name: "Slann Lineman", quantity: "0–16", cost: 60_000, skills: ["Pogo"] },

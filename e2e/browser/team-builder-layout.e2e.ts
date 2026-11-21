@@ -112,8 +112,13 @@ test("the roster picker animates lineups and browses extra rosters", async ({
   await card.hover();
   await expect(art).toHaveCSS("animation-name", "roster-picker-idle");
   await expect
-    .poll(() => art.evaluate((image) => getComputedStyle(image).transform))
-    .not.toBe("matrix(1, 0, 0, 1, 0, 0)");
+    .poll(() =>
+      art.evaluate((image) => {
+        const transform = getComputedStyle(image).transform;
+        return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41;
+      })
+    )
+    .toBeLessThan(0);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(art).toHaveCSS("animation-name", "none");
 
