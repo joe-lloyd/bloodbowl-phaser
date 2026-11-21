@@ -1,4 +1,4 @@
-import { type Team, calculateTeamValue } from "../../types/Team";
+import { type Team, matchTeamValue } from "../../types/Team";
 import {
   Inducement,
   type InducementCatalogEntry,
@@ -18,8 +18,8 @@ export function calculateInducementBudgets(
   teamA: Team,
   teamB: Team
 ): Record<string, number> {
-  const tvA = calculateTeamValue(teamA);
-  const tvB = calculateTeamValue(teamB);
+  const tvA = matchTeamValue(teamA);
+  const tvB = matchTeamValue(teamB);
   const pettyCash = (team: Team, own: number, other: number) =>
     team.advancementMode === "matched-play" ? 0 : Math.max(0, other - own);
   return {

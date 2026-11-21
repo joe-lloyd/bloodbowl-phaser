@@ -21,6 +21,8 @@ import {
   type CompetitionFixture,
 } from "./types";
 import { fixtureContext } from "./fixtureContext";
+import { carriesInjuries } from "../game/rules/injuryRules";
+import { keepPreMatchInjuries } from "../game/rules/leagueRoster";
 import { fixturePaysWinnings, stalledSides } from "../game/rules/winnings";
 
 export interface SimulatedFixture {
@@ -124,6 +126,7 @@ export async function simulateFixture(
   options: SimulationOptions = {}
 ): Promise<SimulatedFixture> {
   const { home, away } = fixtureTeams(competition, fixtureId);
+  const beforeMatch = structuredClone([home, away]);
   const seed = options.seed ?? Math.floor(Math.random() * 2 ** 31);
   const rng = options.rng ?? new RNGService(seed);
   const context = fixtureContext({ competition, fixtureId, playedVia: "simulated" });
@@ -206,6 +209,12 @@ export async function simulateFixture(
       playedIds: new Set(tracker.getEligibleMvpPlayers(team.id)),
     });
     keepRecordedResult(team);
+    if (!carriesInjuries(team, true)) {
+      keepPreMatchInjuries(
+        team,
+        beforeMatch.find((before) => before.id === team.id)
+      );
+    }
     saveTeam(team);
 
     const stored = getTeamById(team.id)!;

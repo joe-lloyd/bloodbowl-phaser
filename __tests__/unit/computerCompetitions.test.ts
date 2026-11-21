@@ -19,7 +19,12 @@ import {
   simulateFixture,
 } from "../../src/competition/simulateFixture";
 import { type CompetitionDoc } from "../../src/competition/types";
-import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
+import {
+  getTeamById,
+  loadTeams,
+  saveTeam,
+  setTeamRepository,
+} from "../../src/game/managers/TeamManager";
 import { RNGService } from "../../src/services/rng/RNGService";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
@@ -53,6 +58,7 @@ function coachTeam(name: string): Team {
 
 beforeEach(() => {
   localStorage.clear();
+  setTeamRepository(null);
 });
 
 function fanFactorRolls(game: HeadlessGame): number {
@@ -237,6 +243,37 @@ describe("simulating a game between two computer teams", () => {
       .flatMap((team) => team.players)
       .reduce((sum, player) => sum + (player.spp ?? 0), 0);
     expect(kept + advanced.length).toBeGreaterThan(0);
+  }, 60_000);
+
+  it("keeps a Matched Play team's injury record out of a cached library", async () => {
+    let cache: Team[] = [];
+    setTeamRepository({
+      loadTeams: () => [...cache],
+      saveTeams: (next) => {
+        cache = [...next];
+      },
+      deleteTeam: () => undefined,
+    });
+    const [orcs, dwarfs] = [
+      computerTeam(RosterName.ORC, "Cached Orcs", "matched-play"),
+      computerTeam(RosterName.DWARF, "Cached Dwarfs", "matched-play"),
+    ];
+    const league = await createCompetition({
+      type: "league",
+      name: "Cached Season",
+      organizerUid: null,
+      entrants: [orcs, dwarfs].map((team) => ({ team, ownerUid: null })),
+    });
+    const outcome = await simulateFixture(
+      league,
+      fixtureValue(simulatableFixtures(league)[0]).id,
+      { seed: 3 }
+    );
+
+    expect(outcome.casualties.length).toBeGreaterThan(0);
+    expect(
+      loadTeams().flatMap((team) => team.players.flatMap((p) => p.injuries))
+    ).toEqual([]);
   }, 60_000);
 
   it("refuses a game a person plays", async () => {

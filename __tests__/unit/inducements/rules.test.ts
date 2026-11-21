@@ -7,7 +7,9 @@ import {
 } from "../../../src/game/inducements/rules";
 import { sevensInducementCatalog } from "../../../src/game/inducements/catalog";
 import { TeamFactory } from "../../../src/game/TeamFactory";
-import { RosterName } from "../../../src/types/Team";
+import { RosterName, type Team } from "../../../src/types/Team";
+import { InjuryType } from "../../../src/types/Player";
+import { SetupManager } from "../../../src/game/managers/SetupManager";
 
 describe("calculateInducementBudgets", () => {
   it("gives the lower-TV team petty cash equal to the gap", () => {
@@ -41,6 +43,41 @@ describe("calculateInducementBudgets", () => {
 
     const budgets = calculateInducementBudgets(cheap, rich);
     expect(budgets).toEqual({ [cheap.id]: 0, [rich.id]: 0 });
+  });
+
+  describe("with a league player due to miss the next game", () => {
+    function leagueTeams(): { missing: Team; full: Team; value: number } {
+      const missing = TeamFactory.createTestTeam(
+        RosterName.HUMAN,
+        "M",
+        0xff0000
+      );
+      const full = TeamFactory.createTestTeam(RosterName.HUMAN, "F", 0x0000ff);
+      for (const team of [missing, full])
+        team.advancementMode = "advanced-league";
+      const [absentee] = missing.players;
+      if (!absentee) throw new Error("the test team has no players");
+      absentee.injuries = [InjuryType.MISS_NEXT_GAME];
+      return { missing, full, value: absentee.cost };
+    }
+
+    it("prices a friendly with that player, who takes the pitch", () => {
+      const { missing, full } = leagueTeams();
+      SetupManager.sanitizeTeam(missing, { competition: false });
+      SetupManager.sanitizeTeam(full, { competition: false });
+
+      const budgets = calculateInducementBudgets(missing, full);
+      expect(budgets).toEqual({ [missing.id]: 0, [full.id]: 0 });
+    });
+
+    it("prices a competition game without that player, who sits out", () => {
+      const { missing, full, value } = leagueTeams();
+      SetupManager.sanitizeTeam(missing, { competition: true });
+      SetupManager.sanitizeTeam(full, { competition: true });
+
+      const budgets = calculateInducementBudgets(missing, full);
+      expect(budgets).toEqual({ [missing.id]: value, [full.id]: 0 });
+    });
   });
 });
 

@@ -361,15 +361,22 @@ export function isPendingRecruit(team: Team, playerId: string): boolean {
   );
 }
 
-export function playsNextGame(team: Team, player: Player): boolean {
+function playsThisMatch(team: Team, player: Player): boolean {
   if (isPendingRecruit(team, player.id)) return false;
-  if (
-    player.status === PlayerStatus.INJURED ||
-    player.status === PlayerStatus.DEAD
-  ) {
-    return false;
-  }
-  return !(
+  return (
+    player.status !== PlayerStatus.INJURED &&
+    player.status !== PlayerStatus.DEAD
+  );
+}
+
+export function playsNextGame(team: Team, player: Player): boolean {
+  return (
+    playsThisMatch(team, player) && !sitsOutNextLeagueGame(team, player)
+  );
+}
+
+function sitsOutNextLeagueGame(team: Team, player: Player): boolean {
+  return (
     isLeagueMode(team.advancementMode) &&
     (player.injuries.includes(InjuryType.MISS_NEXT_GAME) ||
       player.injuries.includes(InjuryType.DEAD))
@@ -380,10 +387,17 @@ export function playerValue(player: Player): number {
   return player.cost + (player.teamValue ?? 0);
 }
 
-export function playersTeamValue(team: Team): number {
+function valueOf(
+  team: Team,
+  plays: (team: Team, player: Player) => boolean
+): number {
   return team.players
-    .filter((player) => playsNextGame(team, player))
+    .filter((player) => plays(team, player))
     .reduce((value, player) => value + playerValue(player), 0);
+}
+
+export function playersTeamValue(team: Team): number {
+  return valueOf(team, playsNextGame);
 }
 
 export function staffTeamValue(team: Team): number {
@@ -397,6 +411,10 @@ export function staffTeamValue(team: Team): number {
 
 export function calculateTeamValue(team: Team): number {
   return playersTeamValue(team) + staffTeamValue(team);
+}
+
+export function matchTeamValue(team: Team): number {
+  return valueOf(team, playsThisMatch) + staffTeamValue(team);
 }
 
 function canAfford(team: Team, cost: number): boolean {
