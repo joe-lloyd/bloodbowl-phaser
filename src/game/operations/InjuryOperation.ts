@@ -14,6 +14,7 @@ import { offerApothecary } from "../inducements/apothecary";
 import { isFrog } from "../inducements/matchInducements";
 import { type FlowContext } from "../core/GameFlowManager";
 import { InjuryBand } from "../rules/injuryTables";
+import { injuryTableFor } from "../rules/injuryRules";
 import {
   type CasualtyRecord,
   type InjuryVerdict,
@@ -58,9 +59,14 @@ export async function resolveInjuryRoll(
     ctx
   );
 
+  const tableId = injuryTableFor(
+    gameService.getState(),
+    gameService.getTeam(player.teamId)
+  );
   const downgraded =
-    !!ctx.koDowngrade && total === injuryController.lowestKO(ctx.table);
-  const band = injuryController.getInjuryBand(total, ctx.table);
+    !!ctx.koDowngrade &&
+    total === injuryController.lowestKO(tableId, ctx.table);
+  const band = injuryController.getInjuryBand(tableId, total, ctx.table);
   const verdict = injuryVerdict(
     downgraded && band === InjuryBand.KO ? InjuryBand.STUNNED : band,
     gameService.getDiceController(),

@@ -96,6 +96,7 @@ function ApothecaryActions({ answer }: { answer: (accept: boolean) => void }) {
 function apothecaryResultLabel(request: ApothecaryDecisionRequest): string {
   if (request.resultKind === "ko")
     return request.location === "crowd" ? "Knocked Out (crowd)" : "Knocked Out";
+  if (request.casualtyRoll) return request.casualtyRoll.grade;
   if (request.casualtyType === "dead") return "Dead";
   return request.casualtyType === "seriously-hurt"
     ? "Seriously Hurt"
@@ -104,6 +105,8 @@ function apothecaryResultLabel(request: ApothecaryDecisionRequest): string {
 function apothecaryOutcomeDescription(
   request: ApothecaryDecisionRequest
 ): string {
+  if (request.resultKind !== "ko" && request.casualtyRoll)
+    return "makes a second Casualty roll and keeps the better result. Badly Hurt goes to the Reserves";
   if (request.resultKind !== "ko")
     return "rolls a D6 — 4+ moves them to the Reserves, 1-3 leaves the result unchanged";
   return request.location === "crowd"

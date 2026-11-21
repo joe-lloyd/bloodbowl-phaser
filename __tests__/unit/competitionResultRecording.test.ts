@@ -17,7 +17,9 @@ import {
   saveTeams,
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
-import { type Team } from "../../src/types/Team";
+import { type Team, type TeamAdvancementMode } from "../../src/types/Team";
+import { InjuryType } from "../../src/types/Player";
+import { TeamBuilder } from "../utils/test-builders";
 
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
@@ -234,4 +236,66 @@ describe("competition result orchestration", () => {
     expect(home?.firstMatchPlayedAt).toEqual(expect.any(Number));
     expect(away?.firstMatchPlayedAt).toEqual(expect.any(Number));
   });
+
+  it.each([
+    ["matched-play", []],
+    ["advanced-league", [InjuryType.MISS_NEXT_GAME]],
+  ] as const)(
+    "a %s team keeps the injuries from a fixture only if they carry",
+    async (mode: TeamAdvancementMode, kept) => {
+      let stored: Team[] = [];
+      setTeamRepository({
+        loadTeams: () => structuredClone(stored),
+        saveTeams: (next) => {
+          stored = structuredClone(next);
+        },
+        deleteTeam: () => undefined,
+      });
+      const teams = ["home5", "away5"].map((id) => {
+        const built = new TeamBuilder().withId(id).withPlayers(1).build();
+        built.advancementMode = mode;
+        return built;
+      });
+      await saveTeams(teams);
+      const entrants: CompetitionEntrant[] = teams.map((snapshot, index) => ({
+        id: `local:${snapshot.id}`,
+        teamId: snapshot.id,
+        ownerUid: null,
+        name: snapshot.name,
+        rosterName: snapshot.rosterName,
+        seed: index + 1,
+      }));
+      const fixtures = generateRoundRobin(entrants);
+      await saveCompetition({
+        id: `season-${mode}`,
+        type: "league",
+        name: "Season5",
+        organizerUid: null,
+        participantUids: [],
+        status: "active",
+        entrants,
+        fixtures,
+        standings: computeStandings(entrants, fixtures),
+        points: { win: 3, draw: 1, loss: 0 },
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const injured = structuredClone(fixtureValue(teams[0]));
+      fixtureValue(injured.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
+
+      await recordCompetitionFixture({
+        context: {
+          competitionType: "league",
+          competitionId: `season-${mode}`,
+          fixtureId: fixtureValue(fixtures[0]).id,
+        },
+        homeScore: 1,
+        awayScore: 0,
+        progressedTeams: { home: injured, away: fixtureValue(teams[1]) },
+      });
+
+      const home = stored.find((t) => t.id === "home5");
+      expect(fixtureValue(home?.players[0]).injuries).toEqual(kept);
+    }
+  );
 });

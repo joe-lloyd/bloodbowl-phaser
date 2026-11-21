@@ -101,6 +101,18 @@ export function casualtyGrade(total: number): CasualtyGrade {
   return total <= 14 ? CasualtyGrade.LASTING_INJURY : CasualtyGrade.DEAD;
 }
 
+const SEVERITY: readonly CasualtyGrade[] = [
+  CasualtyGrade.BADLY_HURT,
+  CasualtyGrade.SERIOUSLY_HURT,
+  CasualtyGrade.SERIOUS_INJURY,
+  CasualtyGrade.LASTING_INJURY,
+  CasualtyGrade.DEAD,
+];
+
+export function milderGrade(a: CasualtyGrade, b: CasualtyGrade): CasualtyGrade {
+  return SEVERITY.indexOf(b) < SEVERITY.indexOf(a) ? b : a;
+}
+
 export function casualtyGradeInjuries(grade: CasualtyGrade): InjuryType[] {
   switch (grade) {
     case CasualtyGrade.BADLY_HURT:
@@ -135,6 +147,10 @@ const LASTING_INJURIES: readonly LastingInjury[] = [
   { name: "Dislocated Hip", stat: "AG", injury: InjuryType.STAT_DECREASE_AG },
   { name: "Broken Shoulder", stat: "ST", injury: InjuryType.STAT_DECREASE_ST },
 ];
+
+export function lastingInjuryOf(stat: keyof PlayerStats): LastingInjury {
+  return LASTING_INJURIES.find((injury) => injury.stat === stat) ?? HEAD_INJURY;
+}
 
 export function lastingInjury(d6: number): LastingInjury {
   return LASTING_INJURIES[Math.min(5, Math.max(0, d6 - 1))] ?? HEAD_INJURY;

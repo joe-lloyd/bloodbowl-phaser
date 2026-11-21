@@ -309,7 +309,7 @@ function forgetSeriousKnockout(state: GameState, playerId: string): void {
 
 function recoveryTarget(state: GameState, playerId: string): number {
   return knockoutRecoveryTarget(
-    activeRules().injuryTable,
+    activeRules().injuryTables.short,
     !!state.seriousKnockoutIds?.includes(playerId)
   );
 }

@@ -224,12 +224,15 @@ function startingState(
   if (saved?.snapshot) {
     restoreLobbyTeams(saved, [team1, team2]);
     applySnapshotToTeams(saved.snapshot, [team1, team2]);
-    return { saved, initialState: deserializeGameState(saved.snapshot) };
+    const initialState = deserializeGameState(saved.snapshot);
+    if (lobby.competitionContext) initialState.competition = true;
+    return { saved, initialState };
   }
   const initialState = GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
       paysWinnings: fixturePaysWinnings(
         lobby.competitionContext?.competitionType
       ),
+      competition: !!lobby.competitionContext,
       pregameInducements: true,
     }, ...startingFormat(
         {

@@ -19,6 +19,26 @@ export const apothecaryDecisionRequestSchema: z.ZodType<ApothecaryDecisionReques
       })
       .exactOptional(),
     casualtyType: apothecaryCasualtyTypeSchema.exactOptional(),
+    casualtyRoll: z
+      .looseObject({
+        grade: z.union([
+          z.literal("Badly Hurt"),
+          z.literal("Seriously Hurt"),
+          z.literal("Serious Injury"),
+          z.literal("Lasting Injury"),
+          z.literal("Dead"),
+        ]),
+        lasting: z
+          .union([
+            z.literal("MA"),
+            z.literal("ST"),
+            z.literal("AG"),
+            z.literal("PA"),
+            z.literal("AV"),
+          ])
+          .exactOptional(),
+      })
+      .exactOptional(),
     killerId: z.string().exactOptional(),
     armsPlagueRidden: z
       .union([z.literal(false), z.literal(true)])

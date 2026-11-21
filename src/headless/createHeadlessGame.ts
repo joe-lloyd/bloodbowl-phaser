@@ -51,6 +51,7 @@ export interface HeadlessGameOptions {
   knockout?: boolean | undefined;
 
   paysWinnings?: boolean;
+  competition?: boolean;
 
   format?: MatchFormat;
 
@@ -160,7 +161,10 @@ function freshMatchState(
   team1: Team,
   team2: Team
 ): GameState | undefined {
-  const fixture = options.paysWinnings ? { paysWinnings: true } : {};
+  const fixture = {
+    ...(options.paysWinnings ? { paysWinnings: true } : {}),
+    ...(options.competition ? { competition: true } : {}),
+  };
   if (options.startingPhase) {
     return GameService.createMatchState({
       team1,
@@ -173,7 +177,7 @@ function freshMatchState(
       ...formatOption(options),
     });
   }
-  if (options.paysWinnings || options.format) {
+  if (options.paysWinnings || options.competition || options.format) {
     return GameService.createMatchState({
       team1,
       team2,
@@ -215,6 +219,7 @@ export function createHeadlessGame(
   );
   if (options.knockout) gameService.getState().knockout = true;
   if (options.paysWinnings) gameService.getState().paysWinnings = true;
+  if (options.competition) gameService.getState().competition = true;
   const turnManagerState = savedTurnManager(options, restored);
   if (turnManagerState) {
     gameService.restoreTurnManagerState(turnManagerState);

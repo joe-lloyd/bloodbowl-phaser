@@ -19,7 +19,12 @@ import {
   simulateFixture,
 } from "../../src/competition/simulateFixture";
 import { type CompetitionDoc } from "../../src/competition/types";
-import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
+import {
+  getTeamById,
+  loadTeams,
+  saveTeam,
+  setTeamRepository,
+} from "../../src/game/managers/TeamManager";
 import { RNGService } from "../../src/services/rng/RNGService";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
@@ -41,7 +46,12 @@ function computerTeam(
   name: string,
   mode: TeamAdvancementMode = "advanced-league"
 ): Team {
-  return createComputerTeam({ rosterName: roster, name: name, primaryColour: 0x335577, advancementMode: mode });
+  return createComputerTeam({
+    rosterName: roster,
+    name: name,
+    primaryColour: 0x335577,
+    advancementMode: mode,
+  });
 }
 
 function coachTeam(name: string): Team {
@@ -53,6 +63,7 @@ function coachTeam(name: string): Team {
 
 beforeEach(() => {
   localStorage.clear();
+  setTeamRepository(null);
 });
 
 function fanFactorRolls(game: HeadlessGame): number {
@@ -201,16 +212,22 @@ describe("simulating a game between two computer teams", () => {
     expect(fanFactorRolls(fixtureValue(game))).toBe(2);
     expect(result.winnings?.fanFactor).toEqual({
       home: fixtureValue(game).ctx.gameService.getState().fanFactors?.[orcs.id],
-      away: fixtureValue(game).ctx.gameService.getState().fanFactors?.[dwarfs.id],
+      away: fixtureValue(game).ctx.gameService.getState().fanFactors?.[
+        dwarfs.id
+      ],
     });
     expect(outcome.recording.findings).toEqual([]);
     expect(outcome.fixture.status).toBe("complete");
-    const stored = fixtureValue((await getCompetition("league", league.id)));
+    const stored = fixtureValue(await getCompetition("league", league.id));
     expect(stored.status).toBe("complete");
     expect(fixtureValue(stored.fixtures[0]).result).toEqual(result);
 
-    const home = fixtureValue(getTeamById(fixtureValue(stored.entrants[0]).teamId));
-    const away = fixtureValue(getTeamById(fixtureValue(stored.entrants[1]).teamId));
+    const home = fixtureValue(
+      getTeamById(fixtureValue(stored.entrants[0]).teamId)
+    );
+    const away = fixtureValue(
+      getTeamById(fixtureValue(stored.entrants[1]).teamId)
+    );
     expect([home.touchdowns, away.touchdowns]).toEqual([
       result.homeScore,
       result.awayScore,
@@ -220,7 +237,9 @@ describe("simulating a game between two computer teams", () => {
       lead > 0 ? [1, 0, 0] : lead < 0 ? [0, 0, 1] : [0, 1, 0]
     );
     for (const team of [home, away]) {
-      expect(team.recordedFixtureIds).toEqual([`${league.id}:${fixtureValue(fixture).id}`]);
+      expect(team.recordedFixtureIds).toEqual([
+        `${league.id}:${fixtureValue(fixture).id}`,
+      ]);
       expect(team.firstMatchPlayedAt).toBeTypeOf("number");
 
       expect(team.activeCompetitionId).toBeUndefined();
@@ -237,6 +256,57 @@ describe("simulating a game between two computer teams", () => {
       .flatMap((team) => team.players)
       .reduce((sum, player) => sum + (player.spp ?? 0), 0);
     expect(kept + advanced.length).toBeGreaterThan(0);
+  }, 60_000);
+
+  async function cachedMatchedPlayLeague() {
+    const library: { cache: Team[]; rejectSaves: boolean } = {
+      cache: [],
+      rejectSaves: false,
+    };
+    setTeamRepository({
+      loadTeams: () => [...library.cache],
+      saveTeams: (next) => {
+        library.cache = [...next];
+        if (library.rejectSaves) throw new Error("the cloud refused the write");
+      },
+      deleteTeam: () => undefined,
+    });
+    const [orcs, dwarfs] = [
+      computerTeam(RosterName.ORC, "Cached Orcs", "matched-play"),
+      computerTeam(RosterName.DWARF, "Cached Dwarfs", "matched-play"),
+    ];
+    const league = await createCompetition({
+      type: "league",
+      name: "Cached Season",
+      organizerUid: null,
+      entrants: [orcs, dwarfs].map((team) => ({ team, ownerUid: null })),
+    });
+    const fixtureId = fixtureValue(simulatableFixtures(league)[0]).id;
+    return { library, league, fixtureId };
+  }
+
+  function cachedInjuries(): string[] {
+    return loadTeams().flatMap((team) =>
+      team.players.flatMap((player) => player.injuries)
+    );
+  }
+
+  it("keeps a Matched Play team's injury record out of a cached library", async () => {
+    const { league, fixtureId } = await cachedMatchedPlayLeague();
+    const outcome = await simulateFixture(league, fixtureId, { seed: 3 });
+
+    expect(outcome.casualties.length).toBeGreaterThan(0);
+    expect(cachedInjuries()).toEqual([]);
+  }, 60_000);
+
+  it("leaves the cached teams untouched when recording the result fails", async () => {
+    const { library, league, fixtureId } = await cachedMatchedPlayLeague();
+    library.rejectSaves = true;
+
+    await expect(
+      simulateFixture(league, fixtureId, { seed: 3 })
+    ).rejects.toThrow("the cloud refused the write");
+    expect(cachedInjuries()).toEqual([]);
   }, 60_000);
 
   it("refuses a game a person plays", async () => {
@@ -315,7 +385,11 @@ describe("simulating a game between two computer teams", () => {
     expect(fanFactorRolls(fixtureValue(game))).toBe(0);
     expect(outcome.fixture.result?.winnings).toBeUndefined();
 
-    expect(fixtureValue(getTeamById(orcs.id)).treasury).toBeLessThanOrEqual(fixtureValue(before[0]));
-    expect(fixtureValue(getTeamById(dwarfs.id)).treasury).toBeLessThanOrEqual(fixtureValue(before[1]));
+    expect(fixtureValue(getTeamById(orcs.id)).treasury).toBeLessThanOrEqual(
+      fixtureValue(before[0])
+    );
+    expect(fixtureValue(getTeamById(dwarfs.id)).treasury).toBeLessThanOrEqual(
+      fixtureValue(before[1])
+    );
   }, 60_000);
 });

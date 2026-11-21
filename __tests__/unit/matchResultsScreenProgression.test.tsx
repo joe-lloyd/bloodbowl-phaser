@@ -11,6 +11,7 @@ import {
 import { setMatchSaveRepository } from "../../src/game/persistence/MatchSaveRepository";
 import { loadTeams, saveTeams } from "../../src/game/managers/TeamManager";
 import { resultsHarness, setup } from "./matchResultsScreenHarness";
+import { InjuryType } from "../../src/types/Player";
 
 const clearActiveMatchCode = vi.fn<[uid: string], Promise<void>>(() => Promise.resolve());
 vi.mock("../../src/firebase/lobby", async (importOriginal) => ({
@@ -134,6 +135,40 @@ describe("MatchResultsScreen", () => {
     expect(loadTeams().map((team) => fixtureValue(team.players[0]).spp)).toEqual([4, 4]);
     expect(clear).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ["a friendly forgets", false, []],
+    ["a tournament game keeps", true, [InjuryType.MISS_NEXT_GAME]],
+  ] as const)(
+    "%s the injuries a league team suffered",
+    async (_name, competition, kept) => {
+      localStorage.clear();
+      const { services, state, team1, team2 } = setup(true);
+      team1.advancementMode = "advanced-league";
+      team2.advancementMode = "advanced-league";
+      if (competition) state.competition = true;
+      await saveTeams([team1, team2]);
+      fixtureValue(team1.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
+      services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team1.players[0]).id);
+      services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team2.players[0]).id);
+      await h.render();
+      const buttons = (label: string) =>
+        [...h.container.querySelectorAll("button")].filter((b) =>
+          b.textContent.includes(label)
+        );
+      for (const button of buttons("Roll MVP D6")) {
+        act(() => {
+          button.click();
+        });
+      }
+      act(() => {
+        fixtureValue(buttons("Confirm and assign SPP")[0]).click();
+      });
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      const saved = loadTeams().find((team) => team.id === team1.id);
+      expect(fixtureValue(saved?.players[0]).injuries).toEqual(kept);
+    }
+  );
 
   it("lets the coach roll the computer's MVP when it did not roll by itself", async () => {
     const { services, state, team1, team2 } = setup(true);

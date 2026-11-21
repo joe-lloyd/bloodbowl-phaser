@@ -76,6 +76,8 @@ export interface GameSnapshot {
 
   paysWinnings?: boolean;
 
+  competition?: boolean;
+
   gameType?: GameType;
 
   venue?: Venue;
@@ -236,6 +238,7 @@ export function serializeGameState(
 
     ...(state.knockout ? { knockout: true } : {}),
     ...(state.paysWinnings ? { paysWinnings: true } : {}),
+    ...(state.competition ? { competition: true } : {}),
     ...formatFields(state),
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
@@ -278,6 +281,7 @@ function matchFlags(snapshot: GameSnapshot) {
   return {
     ...(snapshot.knockout ? { knockout: true } : {}),
     ...(snapshot.paysWinnings ? { paysWinnings: true } : {}),
+    ...(snapshot.competition ? { competition: true } : {}),
     ...formatFields(snapshot),
   };
 }

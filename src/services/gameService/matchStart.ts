@@ -24,11 +24,16 @@ export function createMatchState({
   team2: Team;
   startingPhase?: GamePhase;
   startingSubPhase?: SubPhase;
-  fixture?: { paysWinnings?: boolean; pregameInducements?: boolean };
+  fixture?: {
+    paysWinnings?: boolean;
+    competition?: boolean;
+    pregameInducements?: boolean;
+  };
   format?: MatchFormat;
 }): GameState {
   activateMatchFormat(format);
-  const readiness = { leagueFixture: !!fixture.paysWinnings };
+  const competition = !!(fixture.competition ?? fixture.paysWinnings);
+  const readiness = { leagueFixture: !!fixture.paysWinnings, competition };
   SetupManager.sanitizeTeam(team1, readiness);
   SetupManager.sanitizeTeam(team2, readiness);
   const state = createInitialState({
@@ -38,6 +43,7 @@ export function createMatchState({
     ...(startingSubPhase === undefined ? {} : { startingSubPhase }),
   });
   if (fixture.paysWinnings) state.paysWinnings = true;
+  if (competition) state.competition = true;
   if (format.gameType !== SEVENS_FORMAT.gameType) {
     state.gameType = format.gameType;
     state.venue = format.venue;

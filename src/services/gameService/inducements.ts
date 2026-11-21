@@ -35,7 +35,7 @@ import {
 } from "@/types/Inducements";
 import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
 import type { GameParts } from "./parts";
-import { calculateTeamValue } from "@/types/Team";
+import { matchTeamValue } from "@/types/Team";
 import { grantFreePotion } from "@/game/inducements/inventory";
 
 export function commitInducements({
@@ -172,8 +172,8 @@ export function readyInducements(parts: GameParts, teamId: string) {
     parts.inducementSession = null;
     pregame.offer = offerFor(parts, session(parts));
     pregame.buyOrder = buyOrder(
-      { id: parts.team1.id, value: calculateTeamValue(parts.team1) },
-      { id: parts.team2.id, value: calculateTeamValue(parts.team2) }
+      { id: parts.team1.id, value: matchTeamValue(parts.team1) },
+      { id: parts.team2.id, value: matchTeamValue(parts.team2) }
     );
   }
   parts.eventBus.emit(GameEventNames.UI_SyncBoard, undefined);

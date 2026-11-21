@@ -119,7 +119,7 @@ time. Public metadata and project-written UI hints live in
 `src/data/skillCatalog.ts`; builds and tests SHALL NOT require private reference
 files. `SkillRegistry.coverage()` SHALL report 106 registered families and
 `missing` SHALL equal `[DECAY, INSIGNIFICANT]`. Both exclusions are deliberate:
-Decay modifies a Casualty Roll that Sevens does not use, and Insignificant is
+Decay only modifies the Casualty Roll, which the injury code reads directly, and Insignificant is
 checked during draft-list construction. The implemented-set snapshot in
 `gate.test.ts` SHALL change with any registration change.
 
