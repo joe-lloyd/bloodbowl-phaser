@@ -3,6 +3,7 @@ import { type IGameService } from "../../services/interfaces/IGameService";
 import { GameEventNames } from "../../types/events";
 import { InjuryType, type Player, PlayerStatus } from "../../types/Player";
 import {
+  type ApothecaryCasualtyRoll,
   type ApothecaryCasualtyType,
   type ApothecaryDecisionAnswer,
   type ApothecaryDecisionRequest,
@@ -13,6 +14,17 @@ import { movePlayerToBox } from "../rules/playerLocation";
 import { inducementUsesLeft, spendInducement } from "./inventory";
 import { confirmKill } from "../rules/plagueRidden";
 import { isFrog } from "./matchInducements";
+import {
+  CasualtyGrade,
+  casualtyGradeInjuries,
+  lastingInjuryOf,
+  milderGrade,
+} from "../rules/injuryTables";
+import {
+  recordCasualty,
+  rollCasualty,
+  sufferLastingInjury,
+} from "../operations/injuryVerdict";
 
 function recordedInjury(casualtyType: ApothecaryCasualtyType): InjuryType {
   switch (casualtyType) {
@@ -83,6 +95,7 @@ type ApothecaryOffer =
   | {
       resultKind: "casualty";
       casualtyType: ApothecaryCasualtyType;
+      casualtyRoll?: ApothecaryCasualtyRoll;
       killerId?: string;
       armsPlagueRidden?: boolean;
     };
@@ -110,6 +123,7 @@ export async function offerApothecary(
       ? { location: opts.location, ...(opts.position === undefined ? {} : { position: opts.position }) }
       : {
           casualtyType: opts.casualtyType,
+          ...(opts.casualtyRoll ? { casualtyRoll: opts.casualtyRoll } : {}),
           ...(opts.killerId ? { killerId: opts.killerId } : {}),
           ...(opts.armsPlagueRidden ? { armsPlagueRidden: true } : {}),
         }),
@@ -136,7 +150,29 @@ function applyOriginalResult(
     movePlayerToBox(player, { box: "ko" }, eventBus);
     return;
   }
-  const dead = request.casualtyType === "dead";
+  applyCasualty(
+    { gameService, eventBus, request, player },
+    request.casualtyRoll
+  );
+}
+
+interface PatchUp {
+  gameService: IGameService;
+  eventBus: IEventBus;
+  request: ApothecaryDecisionRequest;
+  player: Player;
+}
+
+function applyCasualty(
+  { gameService, eventBus, request, player }: PatchUp,
+  roll: ApothecaryCasualtyRoll | undefined
+): void {
+  const dead = roll
+    ? roll.grade === CasualtyGrade.DEAD
+    : request.casualtyType === "dead";
+  if (roll?.lasting) {
+    sufferLastingInjury(player, lastingInjuryOf(roll.lasting), eventBus);
+  }
   movePlayerToBox(player, { box: "casualty", dead }, eventBus);
   if (dead) {
     confirmKill(
@@ -173,6 +209,11 @@ function applyApothecaryAnswer(
   }
 
   spendApothecary(gameService, request.chooserTeamId);
+
+  if (request.casualtyRoll) {
+    rulebookPatchUp({ gameService, eventBus, request, player }, request.casualtyRoll);
+    return;
+  }
 
   if (request.resultKind === "ko") {
     if (request.location === "pitch" && request.position) {
@@ -224,6 +265,37 @@ function applyApothecaryAnswer(
       `${player.playerName}'s Apothecary patch-up fails (${String(roll)}).`
     );
   }
+}
+
+function forgetInjuries(player: Player, grade: CasualtyGrade): void {
+  for (const injury of casualtyGradeInjuries(grade)) {
+    const index = player.injuries.lastIndexOf(injury);
+    if (index >= 0) player.injuries.splice(index, 1);
+  }
+}
+
+function rulebookPatchUp(
+  patchUp: PatchUp,
+  first: ApothecaryCasualtyRoll
+): void {
+  const { gameService, eventBus, player } = patchUp;
+  const rolled = rollCasualty(gameService.getDiceController(), player, "standard");
+  const second: ApothecaryCasualtyRoll = {
+    grade: rolled.grade,
+    ...(rolled.lasting ? { lasting: rolled.lasting.stat } : {}),
+  };
+  const kept = milderGrade(first.grade, second.grade) === first.grade ? first : second;
+  forgetInjuries(player, first.grade);
+  eventBus.emit(
+    GameEventNames.UI_Notification,
+    `${player.playerName}'s Apothecary: the second Casualty roll is ${second.grade}, so ${player.playerName} is ${kept.grade}.`
+  );
+  if (kept.grade === CasualtyGrade.BADLY_HURT) {
+    movePlayerToBox(player, { box: "reserves" }, eventBus);
+    return;
+  }
+  recordCasualty(player, kept.grade);
+  applyCasualty(patchUp, kept);
 }
 
 export function resumeApothecaryDecision(

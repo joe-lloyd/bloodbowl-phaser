@@ -86,3 +86,20 @@ no additional effect.
 
 - **WHEN** the opposing online coach submits a response to the Apothecary decision
 - **THEN** the response is rejected and the decision remains pending for its owner
+
+### Requirement: Advanced League casualties use the rulebook Apothecary
+
+When an Apothecary is used on a casualty from the 2025 Casualty roll, the system SHALL
+make a second Casualty roll and keep the milder result. A kept Badly Hurt SHALL move
+the player to the Reserves with no injury recorded. Declining SHALL apply the original
+result, including any Lasting Injury.
+
+#### Scenario: Second roll is milder
+
+- **WHEN** a Lasting Injury is patched up and the second Casualty roll is Badly Hurt
+- **THEN** the player moves to the Reserves with no characteristic lost
+
+#### Scenario: Second roll is worse
+
+- **WHEN** a Seriously Hurt is patched up and the second Casualty roll is Dead
+- **THEN** the player stays Seriously Hurt

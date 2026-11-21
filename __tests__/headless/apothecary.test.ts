@@ -425,3 +425,96 @@ describe("Sevens Apothecary decision — what a patch-up undoes", () => {
     expect(resumed.ctx.team2.players.length).toBe(rosterSize + 1);
   });
 });
+
+describe("Advanced League Apothecary: the rulebook second Casualty roll", () => {
+  async function casualty(dice: number[]) {
+    const game = new HeadlessGame({
+      scenario: scrimmage,
+      seed: 1,
+      competition: true,
+    });
+    game.ctx.team1.advancementMode = "advanced-league";
+    game.ctx.team1.apothecary = true;
+    forceDice(game.ctx.rng, dice);
+    const player = fixtureValue(game.ctx.team1.players[0]);
+    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    return { game, player };
+  }
+
+  it("offers the Apothecary with the Casualty roll's grade", async () => {
+    const { game } = await casualty([5, 5, 14, 3]);
+    expect(
+      game.ctx.gameService.getState().inducements?.pendingApothecaryDecision
+        ?.casualtyRoll
+    ).toEqual({
+      grade: "Lasting Injury",
+      lasting: "MA",
+    });
+  });
+
+  it("a milder second roll of Badly Hurt sends the player to the Reserves", async () => {
+    const { game, player } = await casualty([5, 5, 14, 3, 2]);
+    await answer(game, true);
+    expect(player.status).toBe(PlayerStatus.RESERVE);
+    expect(player.injuries).toEqual([]);
+    expect(player.stats.MA).toBe(6);
+  });
+
+  it("a worse second roll keeps the first result", async () => {
+    const { game, player } = await casualty([5, 5, 9, 16]);
+    await answer(game, true);
+    expect(player.status).toBe(PlayerStatus.INJURED);
+    expect(player.injuries).toEqual([InjuryType.MISS_NEXT_GAME]);
+  });
+
+  it("a Dead player can come back with the second roll's Serious Injury", async () => {
+    const { game, player } = await casualty([5, 5, 16, 11]);
+    await answer(game, true);
+    expect(player.status).toBe(PlayerStatus.INJURED);
+    expect(player.injuries).toEqual([
+      InjuryType.NIGGLING_INJURY,
+      InjuryType.MISS_NEXT_GAME,
+    ]);
+  });
+
+  it("keeping a Lasting Injury from the second roll takes the point", async () => {
+    const { game, player } = await casualty([5, 5, 16, 13, 1]);
+    await answer(game, true);
+    expect(player.stats.AV).toBe(8);
+    expect(player.injuries).toEqual([
+      InjuryType.MISS_NEXT_GAME,
+      InjuryType.STAT_DECREASE_AV,
+    ]);
+  });
+
+  it("declining still applies the Lasting Injury", async () => {
+    const { game, player } = await casualty([5, 5, 14, 3]);
+    await answer(game, false);
+    expect(player.status).toBe(PlayerStatus.INJURED);
+    expect(player.stats.MA).toBe(5);
+    expect(player.injuries).toEqual([
+      InjuryType.MISS_NEXT_GAME,
+      InjuryType.STAT_DECREASE_MA,
+    ]);
+  });
+
+  it("a Skill Selection team keeps the Sevens 4+ patch-up", async () => {
+    const game = new HeadlessGame({
+      scenario: scrimmage,
+      seed: 1,
+      competition: true,
+    });
+    game.ctx.team1.advancementMode = "sevens-skill-selection";
+    game.ctx.team1.apothecary = true;
+    forceDice(game.ctx.rng, [5, 5, 4]);
+    const player = fixtureValue(game.ctx.team1.players[0]);
+    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    expect(
+      game.ctx.gameService.getState().inducements?.pendingApothecaryDecision
+        ?.casualtyRoll
+    ).toBeUndefined();
+    await answer(game, true);
+    expect(player.status).toBe(PlayerStatus.RESERVE);
+    expect(player.injuries).toEqual([]);
+  });
+});

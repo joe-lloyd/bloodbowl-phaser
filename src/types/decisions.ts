@@ -1,3 +1,6 @@
+import type { CasualtyGrade } from "../game/rules/injuryTables";
+import type { PlayerStats } from "./Player";
+
 export type RerollSource = "skill" | "team" | "pro" | "veteran";
 
 export type RerollableRollKind =
@@ -90,6 +93,11 @@ export type ApothecaryCasualtyType = "badly-hurt" | "seriously-hurt" | "dead";
 
 export type ApothecaryResultKind = "ko" | "casualty";
 
+export interface ApothecaryCasualtyRoll {
+  grade: CasualtyGrade;
+  lasting?: keyof PlayerStats;
+}
+
 export interface ApothecaryDecisionRequest {
   type: "apothecary";
   id: string;
@@ -103,6 +111,8 @@ export interface ApothecaryDecisionRequest {
   position?: { x: number; y: number };
 
   casualtyType?: ApothecaryCasualtyType;
+
+  casualtyRoll?: ApothecaryCasualtyRoll;
 
   killerId?: string;
 
