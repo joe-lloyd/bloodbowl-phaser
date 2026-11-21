@@ -1,0 +1,38 @@
+.roster-picker-lineup {
+  display: block;
+  width: 100%;
+  aspect-ratio: 220 / 126;
+  overflow: hidden;
+  margin: 0.25rem auto;
+  background: radial-gradient(
+    ellipse at 50% 73%,
+    rgb(229 188 106 / 0.12),
+    transparent 68%
+  );
+}
+
+.roster-picker-lineup img {
+  display: block;
+  width: 800%;
+  max-width: none;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .roster-picker-card:focus-visible .roster-picker-lineup img {
+    animation: roster-picker-idle 1.33s steps(8, jump-none) infinite;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .roster-picker-card:hover .roster-picker-lineup img {
+    animation: roster-picker-idle 1.33s steps(8, jump-none) infinite;
+  }
+}
+
+@keyframes roster-picker-idle {
+  to {
+    transform: translateX(-87.5%);
+  }
+}
