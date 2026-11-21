@@ -133,8 +133,8 @@ export async function simulateFixture(
 
   const game = new HeadlessGame({
     seed,
-    team1: home,
-    team2: away,
+    team1: structuredClone(home),
+    team2: structuredClone(away),
     startingPhase: GamePhase.SETUP,
     progressionEnabled: true,
     knockout: context.knockout,
