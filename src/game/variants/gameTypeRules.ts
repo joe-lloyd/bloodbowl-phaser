@@ -12,6 +12,13 @@ export type WeatherTableId = KickoffTableId;
 
 export type InjuryTableId = "sevens" | "beach-bowl" | "standard";
 
+interface InjuryTables {
+  short: InjuryTableId;
+  lasting: InjuryTableId;
+}
+
+const SPIKE_OR_RULEBOOK: InjuryTables = { short: "sevens", lasting: "standard" };
+
 type RerollPricing =
   | { kind: "flat"; cost: number }
   | { kind: "double-roster" };
@@ -61,7 +68,7 @@ export interface GameTypeRules {
   setup: SetupRules;
   kickoffTable: (venue: Venue) => KickoffTableId;
   weatherTable: (venue: Venue) => WeatherTableId;
-  injuryTable: InjuryTableId;
+  injuryTables: InjuryTables;
   kickDeviation: "lower-of-2d6" | "d6";
   throwInDistance: "d6+2" | "2d6" | "d6";
   ballBounces: 0 | 1 | 2;
@@ -117,7 +124,7 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 3, maxPerWideZone: 1 },
     kickoffTable: () => SEVENS,
     weatherTable: () => SEVENS,
-    injuryTable: SEVENS,
+    injuryTables: SPIKE_OR_RULEBOOK,
     kickDeviation: "lower-of-2d6",
     throwInDistance: "d6+2",
     ballBounces: 1,
@@ -144,7 +151,7 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 1, maxPerWideZone: 1 },
     kickoffTable: () => STREET_BOWL,
     weatherTable: () => STREET_BOWL,
-    injuryTable: "standard",
+    injuryTables: SPIKE_OR_RULEBOOK,
     kickDeviation: "d6",
     throwInDistance: "2d6",
     ballBounces: 2,
@@ -169,7 +176,7 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 2, maxPerWideZone: 1 },
     kickoffTable: () => BEACH_BOWL,
     weatherTable: () => BEACH_BOWL,
-    injuryTable: BEACH_BOWL,
+    injuryTables: { short: BEACH_BOWL, lasting: BEACH_BOWL },
     kickDeviation: "lower-of-2d6",
     throwInDistance: "d6",
     ballBounces: 0,
@@ -201,7 +208,7 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     setup: { maxOnPitch: 7, minOnLineOfScrimmage: 3, maxPerWideZone: 2 },
     kickoffTable: venueTable,
     weatherTable: venueTable,
-    injuryTable: "standard",
+    injuryTables: SPIKE_OR_RULEBOOK,
     kickDeviation: "d6",
     throwInDistance: "2d6",
     ballBounces: 2,

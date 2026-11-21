@@ -16,24 +16,32 @@ const JOURNEYMEN_FILL_TO = 7;
 
 export interface GameReadiness {
   leagueFixture?: boolean;
+  competition?: boolean;
 }
 
 export function readyForLeagueGame(
   team: Team,
-  { leagueFixture = false }: GameReadiness = {}
+  { leagueFixture = false, competition = leagueFixture }: GameReadiness = {}
 ): void {
   if (!isLeagueMode(team.advancementMode)) return;
+  sitOutInjured(team, competition);
+  if (leagueFixture) takeOnJourneymen(team);
+}
+
+function sitOutInjured(team: Team, competition: boolean): void {
   for (const player of team.players) {
     if (player.injuries.includes(InjuryType.DEAD)) {
       movePlayerToBox(player, { box: "casualty", dead: true });
-    } else if (player.injuries.includes(InjuryType.MISS_NEXT_GAME)) {
+    } else if (
+      competition &&
+      player.injuries.includes(InjuryType.MISS_NEXT_GAME)
+    ) {
       player.injuries = player.injuries.filter(
         (injury) => injury !== InjuryType.MISS_NEXT_GAME
       );
       movePlayerToBox(player, { box: "casualty" });
     }
   }
-  if (leagueFixture) takeOnJourneymen(team);
 }
 
 function takeOnJourneymen(team: Team): void {
@@ -112,4 +120,13 @@ export function isDeadLeaguePlayer(team: Team, player: Player): boolean {
     isLeagueMode(team.advancementMode) &&
     player.injuries.includes(InjuryType.DEAD)
   );
+}
+
+export function keepPreMatchInjuries(team: Team, before: Team | undefined): void {
+  const saved = new Map(
+    (before?.players ?? []).map((player) => [player.id, player.injuries])
+  );
+  for (const player of team.players) {
+    player.injuries = [...(saved.get(player.id) ?? [])];
+  }
 }

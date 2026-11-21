@@ -4,7 +4,7 @@ import { InjuryOperation } from "../../../src/game/operations/InjuryOperation";
 import { InjuryType, PlayerStatus } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 import { type GameType } from "../../../src/game/variants/gameTypes";
-import { duel, session } from "./harness";
+import { ADVANCED_LEAGUE, type League, duel, inLeague, session } from "./harness";
 
 async function settle(s: ReturnType<typeof session>): Promise<void> {
   for (let i = 0; i < 50 && !s.game.pendingDecision(); i++) {
@@ -12,12 +12,18 @@ async function settle(s: ReturnType<typeof session>): Promise<void> {
   }
 }
 
-async function injure(
-  gameType: GameType,
-  dice: number[],
-  prepare: (player: ReturnType<ReturnType<typeof session>["player"]>) => void = () => undefined
-) {
-  const s = session(gameType, duel([{}], [{}]), dice);
+type Session = ReturnType<typeof session>;
+type Prepare = (player: ReturnType<Session["player"]>) => void;
+
+function injure(gameType: GameType, dice: number[], prepare?: Prepare) {
+  return hurt(inLeague(session(gameType, duel([{}], [{}]), dice), ADVANCED_LEAGUE), prepare);
+}
+
+function injureIn(league: League, gameType: GameType, dice: number[]) {
+  return hurt(inLeague(session(gameType, duel([{}], [{}]), dice), league));
+}
+
+async function hurt(s: Session, prepare: Prepare = () => undefined) {
   const player = s.player(2);
   prepare(player);
   s.game.ctx.gameService.flowManager.add(
@@ -128,10 +134,54 @@ describe("SB-M13, GB-M14: the 2025 rulebook injury tables", () => {
     expect(player.status).toBe(PlayerStatus.DEAD);
   });
 
-  it("Sevens keeps its own table: 10 is Badly Hurt with no Casualty roll", async () => {
-    const { s, player } = await injure("sevens", [5, 5]);
+});
+
+describe("the injury table follows the team's advancement mode", () => {
+  const SKILL_SELECTION: League = {
+    mode: "sevens-skill-selection",
+    competition: true,
+  };
+  const MATCHED_PLAY: League = { mode: "matched-play", competition: true };
+  const FRIENDLY: League = { mode: "advanced-league", competition: false };
+
+  it("Sevens Advanced League makes a Casualty roll on a 10", async () => {
+    const { s, player } = await injure("sevens", [5, 5, 14, 3]);
+    expect(casualtyRolls(s)).toHaveLength(1);
+    expect(player.stats.MA).toBe(5);
+    expect(player.injuries).toEqual([
+      InjuryType.MISS_NEXT_GAME,
+      InjuryType.STAT_DECREASE_MA,
+    ]);
+  });
+
+  for (const gameType of ["sevens", "street-bowl", "gutter-bowl"] as const) {
+    for (const [name, league] of [
+      ["Sevens Skill Selection", SKILL_SELECTION],
+      ["Matched Play", MATCHED_PLAY],
+      ["an Advanced League friendly", FRIENDLY],
+    ] as const) {
+      it(`${gameType}, ${name}: 10 is Badly Hurt with no Casualty roll`, async () => {
+        const { s, player } = await injureIn(league, gameType, [5, 5]);
+        expect(player.injuries).toEqual([InjuryType.BADLY_HURT]);
+        expect(casualtyRolls(s)).toEqual([]);
+      });
+    }
+
+    it(`${gameType}, Sevens Skill Selection: 11 is Seriously Hurt and 12 is Dead`, async () => {
+      const seriously = await injureIn(SKILL_SELECTION, gameType, [5, 6]);
+      expect(seriously.player.injuries).toEqual([InjuryType.MISS_NEXT_GAME]);
+      const dead = await injureIn(SKILL_SELECTION, gameType, [6, 6]);
+      expect(dead.player.status).toBe(PlayerStatus.DEAD);
+      expect(dead.player.injuries).toEqual([InjuryType.DEAD]);
+    });
+  }
+
+  it("Decay does nothing on the Sevens table", async () => {
+    const s = inLeague(session("sevens", duel([{}], [{}]), [5, 5]), SKILL_SELECTION);
+    const { player } = await hurt(s, (p) => {
+      p.skills.push(getSkill(SkillType.DECAY));
+    });
     expect(player.injuries).toEqual([InjuryType.BADLY_HURT]);
-    expect(casualtyRolls(s)).toEqual([]);
   });
 });
 

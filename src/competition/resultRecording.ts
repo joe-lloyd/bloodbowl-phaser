@@ -29,6 +29,7 @@ import {
 } from "./types";
 import { type Team } from "../types/Team";
 import { manageComputerTeams } from "./computerTeams";
+import { carriesInjuries } from "../game/rules/injuryRules";
 import { assertFixtureInOpenRound } from "./schedule";
 
 interface TeamRecordUpdate {
@@ -42,6 +43,7 @@ interface TeamRecordUpdate {
 }
 
 function applyProgression(team: Team, progressedTeam: Team): void {
+  const carries = carriesInjuries(team, true);
   const progression = new Map(
     progressedTeam.players.map((player) => [player.id, player])
   );
@@ -55,7 +57,7 @@ function applyProgression(team: Team, progressedTeam: Team): void {
       skills: structuredClone(updated.skills),
       stats: structuredClone(updated.stats),
       baseStats: structuredClone(updated.baseStats),
-      injuries: structuredClone(updated.injuries),
+      injuries: carries ? structuredClone(updated.injuries) : player.injuries,
       cost: updated.cost,
       teamValue: updated.teamValue,
     };

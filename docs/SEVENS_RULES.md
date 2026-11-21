@@ -122,6 +122,23 @@ crowd's roll yet.
 These replace the rulebook's injury table and the casualty roll. There is
 no Casualty Roll and there are no Lasting Injuries in Sevens.
 
+#### Which injury table a team uses
+
+The magazine's tables go with its own advancement. A team on Advanced League
+with SPP plays the full league, so it uses the full injury rules. The same
+choice applies in Street Bowl and Gutter Bowl. Beach Bowl keeps its own table
+for everyone.
+
+| Team | Injury table | After the game |
+| --- | --- | --- |
+| Advanced League, in a league or tournament | 2025 rulebook: Casualty roll, Niggling and Lasting Injuries, the rulebook Apothecary | Miss Next Game, Niggling, Lasting Injuries and Dead carry |
+| Sevens Skill Selection, in a league or tournament | Sevens table below | Miss Next Game and Dead carry |
+| Matched Play | Sevens table below | nothing carries |
+| Any team in a friendly | Sevens table below | nothing carries, and a player due to miss a game may play |
+
+A friendly leaves the team's injury record as it was before kick-off. The
+rest of this section describes the Sevens table.
+
 | ID | Standard | Stunty | Result |
 | --- | --- | --- | --- |
 | I1 | 2 to 7 | 2 to 6 | Stunned |
@@ -137,13 +154,18 @@ Mighty Blow and Stunty, keep working on the 2D6 roll. A modified total above
 
 Where the magazine is silent, the engine does this:
 
-- Decay only modifies the Casualty Roll, so it has no effect in Sevens. Its
-  rule is not registered.
+- Decay only modifies the Casualty Roll, so it has no effect on the Sevens
+  table. Its rule is not registered; the Casualty Roll reads it directly.
 - Regeneration still saves on a 4+ before a Badly Hurt, Seriously Hurt or
   Dead result is applied.
 - A Bloodlust bite that would cause a casualty is Badly Hurt, as in the
   rulebook.
-- The Apothecary keeps the Sevens patch-up from the sevens-apothecary spec.
+- On the Sevens table the Apothecary keeps the Sevens patch-up from the
+  sevens-apothecary spec. An Advanced League team on the rulebook table uses
+  the rulebook Apothecary instead: a second Casualty roll, keeping the
+  milder result. A Badly Hurt kept this way goes to the Reserves with nothing
+  recorded. Declining still applies a Lasting Injury.
+- The Sevens patch-up:
   On a KO on the pitch the player stays Stunned; on a KO in the crowd the
   player goes to Reserves. On any casualty result the coach rolls a D6, and
   on a 4+ the player goes to Reserves. The rulebook's second Casualty Roll

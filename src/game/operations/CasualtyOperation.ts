@@ -12,7 +12,10 @@ import {
 } from "../rules/plagueRidden";
 import { foldTrigger, type CasualtyContext } from "../skills";
 import { movePlayerToBox } from "../rules/playerLocation";
-import { type ApothecaryCasualtyType } from "../../types/decisions";
+import {
+  type ApothecaryCasualtyRoll,
+  type ApothecaryCasualtyType,
+} from "../../types/decisions";
 import { offerApothecary } from "../inducements/apothecary";
 import { isFrog } from "../inducements/matchInducements";
 import { variantCasualty } from "../inducements/sawbones";
@@ -23,12 +26,19 @@ import {
 } from "./injuryParties";
 import {
   type CasualtyRecord,
-  casualtyGradeFor,
+  casualtyRecordFor,
   casualtyLabel,
   recordCasualty,
   sufferLastingInjury,
 } from "./injuryVerdict";
-import { type LastingInjury } from "../rules/injuryTables";
+import { type CasualtyGrade, type LastingInjury } from "../rules/injuryTables";
+import { playerInjuryTable } from "../rules/injuryRules";
+
+interface RecordedCasualty {
+  result: CasualtyType;
+  grade: CasualtyGrade;
+  lasting: LastingInjury | undefined;
+}
 
 function apothecaryCasualtyType(result: CasualtyType): ApothecaryCasualtyType {
   switch (result) {
@@ -39,6 +49,17 @@ function apothecaryCasualtyType(result: CasualtyType): ApothecaryCasualtyType {
     case InjuryResult.DEAD:
       return "dead";
   }
+}
+
+function rulebookRoll(
+  rulebook: boolean,
+  grade: CasualtyGrade,
+  lasting: LastingInjury | undefined
+): { casualtyRoll?: ApothecaryCasualtyRoll } {
+  if (!rulebook) return {};
+  return {
+    casualtyRoll: { grade, ...(lasting ? { lasting: lasting.stat } : {}) },
+  };
 }
 
 export class CasualtyOperation extends InjuryPartiesOperation {
@@ -103,7 +124,7 @@ export class CasualtyOperation extends InjuryPartiesOperation {
 
     const outcome = await this.recordOutcome(context, player);
     if (!outcome) return;
-    const { result, lasting } = outcome;
+    const { result, grade, lasting } = outcome;
 
     const kill =
       result === InjuryResult.DEAD
@@ -118,6 +139,11 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     const offered = await offerApothecary(gameService, eventBus, player, {
       resultKind: "casualty",
       casualtyType: apothecaryCasualtyType(result),
+      ...rulebookRoll(
+        playerInjuryTable(gameService, player) === "standard",
+        grade,
+        lasting
+      ),
       ...kill,
     });
     if (offered) return;
@@ -142,27 +168,26 @@ export class CasualtyOperation extends InjuryPartiesOperation {
   private async recordOutcome(
     context: FlowContext,
     player: Player
-  ): Promise<
-    { result: CasualtyType; lasting: LastingInjury | undefined } | null
-  > {
-    const result = await variantCasualty(
+  ): Promise<RecordedCasualty | null> {
+    const outcome = await variantCasualty(
       context,
       player,
-      isFrog(context.gameService.getState(), player.id)
-        ? InjuryResult.BADLY_HURT
-        : this.result
+      casualtyRecordFor(
+        isFrog(context.gameService.getState(), player.id)
+          ? InjuryResult.BADLY_HURT
+          : this.result,
+        this.record
+      )
     );
-    if (result === "ko" || result === "reserves") {
-      movePlayerToBox(player, { box: result }, context.eventBus);
+    if (outcome === "ko" || outcome === "reserves") {
+      movePlayerToBox(player, { box: outcome }, context.eventBus);
       return null;
     }
-    const lasting =
-      this.record?.result === result ? this.record.lasting : undefined;
-    const grade = casualtyGradeFor(result, this.record);
+    const { result, grade, lasting } = outcome;
     announceCasualty(context.eventBus, player, casualtyLabel(grade, lasting));
     recordCasualty(player, grade);
     if (result === InjuryResult.DEAD) player.status = PlayerStatus.DEAD;
-    return { result, lasting };
+    return { result, grade, lasting };
   }
 }
 

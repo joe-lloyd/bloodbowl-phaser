@@ -17,6 +17,7 @@ import {
   lastingInjury,
   reduceCharacteristic,
 } from "../rules/injuryTables";
+import { type InjuryTableId } from "../variants/gameTypeRules";
 
 export interface CasualtyRecord {
   result: CasualtyType;
@@ -43,7 +44,35 @@ function gradeResult(grade: CasualtyGrade): CasualtyType {
   }
 }
 
-export function rollCasualty(dice: DiceController, player: Player): CasualtyRecord {
+const SHORT_CASUALTY: readonly CasualtyGrade[] = [
+  CasualtyGrade.BADLY_HURT,
+  CasualtyGrade.BADLY_HURT,
+  CasualtyGrade.BADLY_HURT,
+  CasualtyGrade.SERIOUSLY_HURT,
+  CasualtyGrade.SERIOUSLY_HURT,
+  CasualtyGrade.DEAD,
+];
+
+function rollShortCasualty(dice: DiceController, player: Player): CasualtyRecord {
+  const roll = dice.rollD6(`Casualty D6 (${player.playerName})`, player.teamId);
+  const grade = SHORT_CASUALTY[roll - 1] ?? CasualtyGrade.DEAD;
+  return { result: gradeResult(grade), grade };
+}
+
+export function rollCasualty(
+  dice: DiceController,
+  player: Player,
+  table: InjuryTableId
+): CasualtyRecord {
+  return table === "standard"
+    ? rollRulebookCasualty(dice, player)
+    : rollShortCasualty(dice, player);
+}
+
+function rollRulebookCasualty(
+  dice: DiceController,
+  player: Player
+): CasualtyRecord {
   const niggles = player.injuries.filter(
     (injury) => injury === InjuryType.NIGGLING_INJURY
   ).length;
@@ -77,7 +106,7 @@ export function injuryVerdict(
   player: Player
 ): InjuryVerdict {
   if (band === InjuryBand.CASUALTY_ROLL) {
-    const casualty = rollCasualty(dice, player);
+    const casualty = rollRulebookCasualty(dice, player);
     return { result: casualty.result, casualty, seriousKnockout: false };
   }
   return {
@@ -99,11 +128,13 @@ export function casualtyOutcome(
   return record?.result === result ? record : result;
 }
 
-export function casualtyGradeFor(
+export function casualtyRecordFor(
   result: CasualtyType,
   record: CasualtyRecord | undefined
-): CasualtyGrade {
-  return record?.result === result ? record.grade : RESULT_GRADES[result];
+): CasualtyRecord {
+  return record?.result === result
+    ? record
+    : { result, grade: RESULT_GRADES[result] };
 }
 
 export function recordCasualty(

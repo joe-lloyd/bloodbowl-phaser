@@ -6,6 +6,7 @@ import { movePlayerToBox } from "../rules/playerLocation";
 import { activeRules } from "../variants/activeMatch";
 import { CasualtyOperation } from "./CasualtyOperation";
 import { rollCasualty } from "./injuryVerdict";
+import { playerInjuryTable } from "../rules/injuryRules";
 import { resolveSendOff } from "./refereeCall";
 
 const OFF_THE_PITCH: readonly PlayerStatus[] = [
@@ -92,7 +93,11 @@ async function gutterCrowd(
     player,
     "Secret Weapon: the crowd leaves them a Casualty"
   );
-  const record = rollCasualty(context.gameService.getDiceController(), player);
+  const record = rollCasualty(
+    context.gameService.getDiceController(),
+    player,
+    playerInjuryTable(context.gameService, player)
+  );
   movePlayerToBox(player, { box: "casualty" }, context.eventBus);
   context.eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
     victimId: player.id,

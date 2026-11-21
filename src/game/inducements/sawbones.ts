@@ -7,20 +7,16 @@ import { Inducement } from "@/types/Inducements";
 import { type Player } from "@/types/Player";
 import { GameEventNames } from "@/types/events";
 import { inducementUsesLeft, spendInducement } from "./inventory";
-import { rollCasualty } from "../operations/injuryVerdict";
+import {
+  type CasualtyRecord,
+  rollCasualty,
+} from "../operations/injuryVerdict";
+import { CasualtyGrade, milderGrade } from "../rules/injuryTables";
+import { playerInjuryTable } from "../rules/injuryRules";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { removePotionEffect } from "./variantState";
 
-export type VariantCasualty = CasualtyType | "ko" | "reserves";
-
-const SEVERITY: readonly CasualtyType[] = [
-  InjuryResult.BADLY_HURT,
-  InjuryResult.SERIOUSLY_HURT,
-  InjuryResult.DEAD,
-];
-
-const milder = (a: CasualtyType, b: CasualtyType): CasualtyType =>
-  SEVERITY.indexOf(a) <= SEVERITY.indexOf(b) ? a : b;
+type VariantCasualty = CasualtyRecord | "ko" | "reserves";
 
 function log(context: FlowContext, text: string): void {
   context.eventBus.emit(GameEventNames.UI_GameLog, text);
@@ -52,9 +48,9 @@ async function sawbonesAccepted(
 async function sawbones(
   context: FlowContext,
   player: Player,
-  result: CasualtyType
+  first: CasualtyRecord
 ): Promise<VariantCasualty> {
-  if (!(await sawbonesAccepted(context, player, result))) return result;
+  if (!(await sawbonesAccepted(context, player, first.result))) return first;
   const dice = context.gameService.getDiceController();
   const roll = dice.rollD6(`Sawbones (${player.playerName})`, player.teamId);
   if (roll === 1) {
@@ -62,21 +58,26 @@ async function sawbones(
       context,
       `Sawbones (${String(roll)}): ${player.playerName} does not survive`
     );
-    return InjuryResult.DEAD;
+    return { result: InjuryResult.DEAD, grade: CasualtyGrade.DEAD };
   }
-  const second = rollCasualty(dice, player).result;
-  const kept = milder(result, second);
+  const second = rollCasualty(
+    dice,
+    player,
+    playerInjuryTable(context.gameService, player)
+  );
+  const kept =
+    milderGrade(first.grade, second.grade) === first.grade ? first : second;
   log(
     context,
-    `Sawbones: ${player.playerName} rolls ${second} and keeps ${kept}`
+    `Sawbones: ${player.playerName} rolls ${second.grade} and keeps ${kept.grade}`
   );
-  return kept === InjuryResult.BADLY_HURT ? "reserves" : kept;
+  return kept.grade === CasualtyGrade.BADLY_HURT ? "reserves" : kept;
 }
 
 export async function variantCasualty(
   context: FlowContext,
   player: Player,
-  result: CasualtyType
+  first: CasualtyRecord
 ): Promise<VariantCasualty> {
   if (
     removePotionEffect(context.gameService.getState(), player.id, "endurance")
@@ -87,5 +88,5 @@ export async function variantCasualty(
     );
     return "ko";
   }
-  return sawbones(context, player, result);
+  return sawbones(context, player, first);
 }

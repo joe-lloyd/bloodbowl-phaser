@@ -11,6 +11,7 @@ import { type MatchFormat } from "../../src/game/variants/activeMatch";
 import { movePlayerToBox } from "../../src/game/rules/playerLocation";
 import { InjuryResult } from "../../src/game/controllers/InjuryController";
 import { CasualtyOperation } from "../../src/game/operations/CasualtyOperation";
+import { CasualtyGrade } from "../../src/game/rules/injuryTables";
 import { PreDriveInducementsOperation } from "../../src/game/inducements/driveInducements";
 import { CastNoviceWizardOperation } from "../../src/game/inducements/noviceWizard";
 import { addPotionEffect } from "../../src/game/inducements/variantState";
@@ -227,6 +228,32 @@ describe("Gutter Bowl inducements (GB-I1 to GB-I5)", () => {
     await settle(game);
     expect(victim.status).toBe(PlayerStatus.RESERVE);
     expect(victim.injuries).toEqual([]);
+  });
+
+  it("Sawbones keeps a Lasting Injury from the second Casualty roll (GB-I3)", async () => {
+    const game = gutterGame();
+    game.ctx.gameService.getState().competition = true;
+    game.ctx.team1.advancementMode = "advanced-league";
+    induce(game, [[Inducement.SAWBONES, 1]]);
+    await settle(game);
+    const victim = player(game, 3);
+    game.ctx.gameService.flowManager.add(
+      new CasualtyOperation(victim.id, {
+        result: InjuryResult.DEAD,
+        grade: CasualtyGrade.DEAD,
+      }),
+      true
+    );
+    await settle(game);
+    forceDice(game.ctx.rng, [4, 14, 3]);
+    await game.execute({ type: "use-reaction", accept: true });
+    await settle(game);
+    expect(victim.status).toBe(PlayerStatus.INJURED);
+    expect(victim.stats.MA).toBe(fixtureValue(victim.baseStats).MA - 1);
+    expect(victim.injuries).toEqual([
+      InjuryType.MISS_NEXT_GAME,
+      InjuryType.STAT_DECREASE_MA,
+    ]);
   });
 
   it("Potion of Endurance turns the next Casualty into a KO (GB-I2)", async () => {

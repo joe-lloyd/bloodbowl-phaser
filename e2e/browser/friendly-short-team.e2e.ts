@@ -9,7 +9,7 @@ import { GameEventNames } from "../../src/types/events";
 const SHORT = "Human Founders";
 const OTHER = "Orc Founders";
 
-test("a short team sets up with the players it has in a friendly", async ({
+test("a friendly fields the player due to miss the next league game, with no Journeymen", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -71,7 +71,7 @@ test("a short team sets up with the players it has in a friendly", async ({
   await page.getByRole("button", { name: /LOAD/ }).click();
   const checklist = page.getByTestId("setup-checklist");
   await expect(checklist).toContainText("Line of scrimmage 3/3");
-  await expect(checklist).toContainText("Players placed 6/6");
+  await expect(checklist).toContainText("Players placed 7/7");
   await expect(
     page.getByRole("button", { name: /CONFIRM SETUP/ })
   ).toBeEnabled();

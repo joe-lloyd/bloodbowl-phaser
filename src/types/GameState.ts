@@ -83,6 +83,8 @@ export interface GameState {
 
   paysWinnings?: boolean;
 
+  competition?: boolean;
+
   gameType?: MatchFormat["gameType"];
 
   venue?: MatchFormat["venue"];
