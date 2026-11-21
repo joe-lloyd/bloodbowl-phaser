@@ -220,15 +220,29 @@ export class SandboxScene extends GameScene {
 
   private afterTeamArt(then: () => void): void {
     const request = ++this.latestScenarioRequest;
-    const whenStillLatest = () => {
-      if (request === this.latestScenarioRequest) then();
-    };
-    this.queueTeamArt();
-    if (!this.load.isLoading() && this.load.list.size === 0) {
-      whenStillLatest();
+    const missing = new Set(
+      [...this.queueTeamArt()].filter((key) => !this.textures.exists(key))
+    );
+    if (missing.size === 0) {
+      then();
       return;
     }
-    this.load.once(Phaser.Loader.Events.COMPLETE, whenStillLatest);
+    const settle = (key: string) => {
+      missing.delete(key);
+      const superseded = request !== this.latestScenarioRequest;
+      if (missing.size > 0 && !superseded) return;
+      this.load.off(Phaser.Loader.Events.FILE_COMPLETE, onLoaded);
+      this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, onFailed);
+      if (!superseded) then();
+    };
+    const onLoaded = (key: string) => {
+      settle(key);
+    };
+    const onFailed = (file: Phaser.Loader.File) => {
+      settle(file.key);
+    };
+    this.load.on(Phaser.Loader.Events.FILE_COMPLETE, onLoaded);
+    this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, onFailed);
     this.load.start();
   }
 

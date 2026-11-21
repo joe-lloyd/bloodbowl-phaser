@@ -77,12 +77,13 @@ function lookFile(
 export function preloadLooks(
   scene: Phaser.Scene,
   requests: readonly PlayerLookRequest[]
-): void {
-  const queued = new Set<string>();
+): ReadonlySet<string> {
+  const needed = new Set<string>();
   for (const request of requests) {
     const key = lookTextureKey(request);
-    if (key === null || queued.has(key) || scene.textures.exists(key)) continue;
-    queued.add(key);
-    scene.load.addFile(lookFile(scene.load, key, request));
+    if (key === null || needed.has(key)) continue;
+    needed.add(key);
+    if (!scene.textures.exists(key)) scene.load.addFile(lookFile(scene.load, key, request));
   }
+  return needed;
 }

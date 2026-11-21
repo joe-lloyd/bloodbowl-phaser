@@ -201,7 +201,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  protected queueTeamArt(): void {
+  protected queueTeamArt(): ReadonlySet<string> {
     const players = [this.team1, this.team2].flatMap((team) =>
       team.players.map((player) => ({
         rosterName: team.rosterName,
@@ -211,7 +211,7 @@ export class GameScene extends Phaser.Scene {
       }))
     );
     preloadPlayerArt(this, players);
-    preloadLooks(
+    return preloadLooks(
       this,
       players.map(({ rosterName, positionName, player, colors }) => ({
         model: modelFor(rosterName, positionName),
