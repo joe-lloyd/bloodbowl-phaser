@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "gallery": "vite -c vite.gallery.config.ts",
     "gallery:build": "vite build -c vite.gallery.config.ts",
+    "sprites:roster-cards": "tsx scripts/sprites/roster_picker_cards.ts",
     "gallery:shots": "playwright test -c scripts/hud-shots/playwright.config.ts",
     "headless": "tsx src/headless/cli.ts",
     "sim": "tsx src/simulation/cli.ts",

@@ -5766,14 +5766,6 @@
       "count": 1
     }
   },
-  "src/ui/components/TeamBuilder/RosterPicker.tsx": {
-    "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/ui/components/TeamBuilder/SidelineStaffSection.tsx": {
     "max-lines-per-function": {
       "count": 1

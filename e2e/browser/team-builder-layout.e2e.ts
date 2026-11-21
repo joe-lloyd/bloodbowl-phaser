@@ -44,7 +44,7 @@ test("a skill tooltip on the last hire opens whole, outside the table", async ({
     `[id="${String(await trigger.getAttribute("aria-describedby"))}"]`
   );
   await expect(tip).toBeVisible();
-  const box = fixtureValue((await tip.boundingBox()));
+  const box = fixtureValue(await tip.boundingBox());
 
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(900);
@@ -97,4 +97,53 @@ test("a new team chooses its roster first, then the main choices lead the sheet"
   await page.screenshot({
     path: test.info().outputPath("roster-picker-phone.png"),
   });
+});
+
+test("the roster picker animates lineups and browses extra rosters", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/build-team/new-team");
+
+  const card = page.getByTestId("roster-choice-Amazon");
+  const art = card.locator("img");
+  await expect(art).toHaveJSProperty("naturalWidth", 1760);
+  await expect(art).toHaveCSS("animation-name", "none");
+  await card.hover();
+  await expect(art).toHaveCSS("animation-name", "roster-picker-idle");
+  const frameOffsets = new Set<number>();
+  await expect
+    .poll(async () => {
+      const offset = await art.evaluate((image) => {
+        const transform = getComputedStyle(image).transform;
+        return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41;
+      });
+      if (offset < 0) frameOffsets.add(offset);
+      return frameOffsets.size;
+    })
+    .toBeGreaterThan(1);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(art).toHaveCSS("animation-name", "none");
+
+  await page.getByRole("tab", { name: "Additional rosters" }).click();
+  await page.getByText("Slann", { exact: true }).click();
+  await expect(page.getByText("Slann Catcher", { exact: false })).toBeVisible();
+  await page.getByRole("tab", { name: "Secret team rosters" }).click();
+  await expect(page.getByRole("status")).toHaveText("115 of 115 rosters");
+  await page
+    .getByRole("searchbox", { name: "Find a Secret League team" })
+    .fill("Four Nations");
+  await expect(page.getByRole("status")).toHaveText("1 of 115 rosters");
+  await page
+    .locator("summary")
+    .filter({ hasText: /^Four Nations/ })
+    .click();
+  await expect(
+    page.getByText("Nerves of Steel", { exact: false }).first()
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Standard rosters" }).click();
+  await card.click();
+  await expect(
+    page.getByRole("combobox", { name: "Roster", exact: true })
+  ).toHaveValue("Amazon");
 });
