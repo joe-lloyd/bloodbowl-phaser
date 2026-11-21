@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import { dehydratePlayer, hydratePlayer } from "../../../src/data/persistence/teamPersistence";
 import { hireWithIdentity } from "../../../src/game/names/playerIdentity";
+import { lookTextureKey } from "../../../src/game/presentation/layered/layeredModels";
+import { modelFor } from "../../../src/game/presentation/playerArt";
 import { createTeam, RosterName, type Team } from "../../../src/types/Team";
 
 function team(rosterName: RosterName): Team {
@@ -25,10 +27,24 @@ describe("hiring a player", () => {
     expect(player.playerName).not.toMatch(/#\d+$/);
   });
 
-  it("leaves rosters without looks or name books as they were", () => {
+  it("gives a roster without a name book a look and keeps its numbered name", () => {
     const { player } = hire(RosterName.HUMAN, "Human Lineman");
-    expect(player.appearance).toBeUndefined();
+    expect(["m", "f"]).toContain(player.appearance?.["body"]);
     expect(player.playerName).toBe(`Human Lineman #${String(player.number)}`);
+  });
+
+  it("draws every hired player of every roster from layered art", () => {
+    const colors = { primary: 0x8b0000, secondary: 0 };
+    const missing = Object.values(RosterName).flatMap((rosterName) =>
+      getRosterByRosterName(rosterName)
+        .playerTemplates.filter((t) => {
+          const { player } = hire(rosterName, t.positionName);
+          const model = modelFor(rosterName, t.positionName);
+          return lookTextureKey({ model, appearance: player.appearance, colors }) === null;
+        })
+        .map((t) => `${rosterName}: ${t.positionName}`),
+    );
+    expect(missing).toEqual([]);
   });
 });
 

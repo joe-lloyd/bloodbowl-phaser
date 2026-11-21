@@ -1,4 +1,5 @@
-# Render a team's models layered on Jellybingus: parallel chunks, then pack each model with --verify.
+# Render a team's models layered on Jellybingus: parallel chunks, then pack each model with --verify. At most
+# -Parallel Blenders run at once in either step; more than that runs the GPU out of memory.
 #   powershell -File team_render.ps1 -Models thrall,vampire_runner -Out out-layered [-Parallel 14]
 # Resumable: a chunk whose stash file exists is skipped. Writes logs-<Out>/ and logs-<Out>/all.done, which
 # starts with FAILED and lists the missing chunks of any model it did not pack; rerun to retry those.
@@ -21,6 +22,10 @@ function Start-Blender([string[]]$Opts, [string]$Log) {
   Start-Process -FilePath $Blender -ArgumentList $argv -RedirectStandardOutput "$Log.log" -RedirectStandardError "$Log.err" -NoNewWindow -PassThru
 }
 
+function Wait-Slot($Procs) {
+  while (($Procs | Where-Object { -not $_.HasExited }).Count -ge $Parallel) { Start-Sleep -Seconds 3 }
+}
+
 $jobs = @()
 $bodiesOf = @{}
 foreach ($model in $Models.Split(",")) {
@@ -37,7 +42,7 @@ foreach ($model in $Models.Split(",")) {
 "$($jobs.Count) chunks to render" | Out-File "$logs/plan.txt"
 $running = @()
 foreach ($job in $jobs) {
-  while (($running | Where-Object { -not $_.HasExited }).Count -ge $Parallel) { Start-Sleep -Seconds 3 }
+  Wait-Slot $running
   $running += Start-Blender -Opts $job[1] -Log "$logs/$($job[0])"
 }
 $running | Wait-Process
@@ -52,6 +57,7 @@ foreach ($model in $Models.Split(",")) {
     $failed += "$model missing $($missing -join ',')"
     continue
   }
+  Wait-Slot $packs
   Remove-Item -Force "$logs/pack-$model.log" -ErrorAction SilentlyContinue
   $packs += Start-Blender -Opts (@("--models", $model, "--pack", $stash, "--verify", "2") + $common) -Log "$logs/pack-$model"
   $packed += $model

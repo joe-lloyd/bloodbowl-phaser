@@ -1,6 +1,8 @@
+import Phaser from "phaser";
 import { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
 import { TeamFactory } from "../game/TeamFactory";
+import { appearanceOf } from "../game/names/playerIdentity";
 import { RosterName } from "../types/Team";
 import { type Team } from "../types/Team";
 
@@ -84,6 +86,18 @@ function scenarioFromConfig(
   };
 }
 
+function sandboxTeam(rosterName: RosterName, teamName: string, color: number): Team {
+  const team = TeamFactory.createTestTeam(rosterName, teamName, color);
+  for (const player of team.players) {
+    const appearance = appearanceOf(
+      { id: `${teamName}-${String(player.number)}`, positionName: player.positionName },
+      rosterName
+    );
+    if (appearance) player.appearance = appearance;
+  }
+  return team;
+}
+
 export class SandboxScene extends GameScene {
   constructor() {
     super("SandboxScene");
@@ -100,12 +114,12 @@ export class SandboxScene extends GameScene {
       ServiceContainer.initialize({ eventBus: this.getBrowserEventBus(), team1: data.team1, team2: data.team2, initialState: initialState });
       super.init(data as { team1: Team; team2: Team });
     } else {
-      const team1 = TeamFactory.createTestTeam(
+      const team1 = sandboxTeam(
         SANDBOX_DEFAULT_TEAM1_ROSTER,
         "Test Humans",
         0x4169e1
       );
-      const team2 = TeamFactory.createTestTeam(
+      const team2 = sandboxTeam(
         SANDBOX_DEFAULT_TEAM2_ROSTER,
         "Test Orcs",
         0xdc143c
@@ -197,7 +211,54 @@ export class SandboxScene extends GameScene {
         ? found.scenario
         : { ...found.scenario, seed: seedOverride };
     this.swapRosters(scenario);
+    this.afterTeamArt(() => {
+      this.showScenario({ scenario, scenarioId, promisedSeed, expectedOutcome, outcomeId });
+    });
+  }
 
+  private latestScenarioRequest = 0;
+
+  private afterTeamArt(then: () => void): void {
+    const request = ++this.latestScenarioRequest;
+    const missing = new Set(
+      [...this.queueTeamArt()].filter((key) => !this.textures.exists(key))
+    );
+    if (missing.size === 0) {
+      then();
+      return;
+    }
+    const settle = (key: string) => {
+      missing.delete(key);
+      const superseded = request !== this.latestScenarioRequest;
+      if (missing.size > 0 && !superseded) return;
+      this.load.off(Phaser.Loader.Events.FILE_COMPLETE, onLoaded);
+      this.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, onFailed);
+      if (!superseded) then();
+    };
+    const onLoaded = (key: string) => {
+      settle(key);
+    };
+    const onFailed = (file: Phaser.Loader.File) => {
+      settle(file.key);
+    };
+    this.load.on(Phaser.Loader.Events.FILE_COMPLETE, onLoaded);
+    this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, onFailed);
+    this.load.start();
+  }
+
+  private showScenario({
+    scenario,
+    scenarioId,
+    promisedSeed,
+    expectedOutcome,
+    outcomeId,
+  }: {
+    scenario: Scenario;
+    scenarioId: string;
+    promisedSeed: number | undefined;
+    expectedOutcome: Scenario["expectedOutcome"];
+    outcomeId: string | undefined;
+  }): void {
     if (this.ballSprite) {
       this.ballSprite.destroy();
       this.ballSprite = null;
@@ -249,7 +310,7 @@ export class SandboxScene extends GameScene {
       scenario.setup.team1Roster !== this.team1.rosterName
     ) {
       console.log(`[Sandbox] Swapping Team 1 to ${scenario.setup.team1Roster}`);
-      this.team1 = TeamFactory.createTestTeam(
+      this.team1 = sandboxTeam(
         scenario.setup.team1Roster,
         `Test ${scenario.setup.team1Roster} 1`,
         0x4169e1
@@ -261,7 +322,7 @@ export class SandboxScene extends GameScene {
       scenario.setup.team2Roster !== this.team2.rosterName
     ) {
       console.log(`[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`);
-      this.team2 = TeamFactory.createTestTeam(
+      this.team2 = sandboxTeam(
         scenario.setup.team2Roster,
         `Test ${scenario.setup.team2Roster} 2`,
         0xdc143c
