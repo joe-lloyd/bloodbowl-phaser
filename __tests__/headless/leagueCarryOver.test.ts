@@ -96,6 +96,32 @@ describe("Miss Next Game", () => {
     );
   });
 
+  it("lets a league player play a friendly and keeps the record for the next league game", () => {
+    const home = team("home", 9);
+    fixtureValue(home.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
+
+    const friendly = startGame(home, undefined, { leagueFixture: false });
+    const inMatch = fixtureValue(friendly.ctx.team1.players[0]);
+    expect(inMatch.status).toBe(PlayerStatus.RESERVE);
+    expect(inMatch.injuries).toEqual([InjuryType.MISS_NEXT_GAME]);
+  });
+
+  it("still sits the player out of a tournament game", () => {
+    const home = team("home", 9);
+    fixtureValue(home.players[0]).injuries.push(InjuryType.MISS_NEXT_GAME);
+
+    const game = new HeadlessGame({
+      team1: home,
+      team2: team("away", 7),
+      seed: 1,
+      startingPhase: GamePhase.SETUP,
+      competition: true,
+    });
+    expect(fixtureValue(game.ctx.team1.players[0]).status).toBe(
+      PlayerStatus.INJURED
+    );
+  });
+
   it("stays on a reloaded league player, while Badly Hurt does not", () => {
     const home = team("home", 9);
     fixtureValue(home.players[0]).injuries.push(

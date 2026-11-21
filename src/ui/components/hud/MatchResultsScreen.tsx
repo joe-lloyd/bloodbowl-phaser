@@ -21,6 +21,8 @@ import {
   recordCompetitionFixture,
 } from "../../../competition/resultRecording";
 import { earnsWinnings, stalledSides } from "../../../game/rules/winnings";
+import { carriesInjuries } from "../../../game/rules/injuryRules";
+import { keepPreMatchInjuries } from "../../../game/rules/leagueRoster";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import {
   LeaveControls,
@@ -407,6 +409,9 @@ export function MatchResultsScreen({
           }
         );
         keepRecordedResult(team);
+        if (!carriesInjuries(team, !!state.competition)) {
+          keepPreMatchInjuries(team, getTeamById(team.id));
+        }
       });
       developmentRecorded.current = true;
     }

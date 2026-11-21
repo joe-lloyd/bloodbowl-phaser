@@ -118,3 +118,12 @@ export function isDeadLeaguePlayer(team: Team, player: Player): boolean {
     player.injuries.includes(InjuryType.DEAD)
   );
 }
+
+export function keepPreMatchInjuries(team: Team, before: Team | undefined): void {
+  const saved = new Map(
+    (before?.players ?? []).map((player) => [player.id, player.injuries])
+  );
+  for (const player of team.players) {
+    player.injuries = [...(saved.get(player.id) ?? [])];
+  }
+}
