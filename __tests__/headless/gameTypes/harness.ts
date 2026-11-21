@@ -8,6 +8,7 @@ import { GameEventNames } from "../../../src/types/events";
 import { type GameType } from "../../../src/game/variants/gameTypes";
 import { gameTypeRules } from "../../../src/game/variants/gameTypeRules";
 import { forceDice } from "../../utils/test-helpers";
+import { type TeamAdvancementMode } from "../../../src/types/Team";
 
 export function duel(
   team1: Partial<PlayerPlacement>[],
@@ -48,6 +49,28 @@ const WATCHED = [
   GameEventNames.UI_GameLog,
   GameEventNames.KORecoveryRolled,
 ] as const;
+
+export interface League {
+  mode: TeamAdvancementMode;
+  competition: boolean;
+}
+
+export const ADVANCED_LEAGUE: League = {
+  mode: "advanced-league",
+  competition: true,
+};
+
+export function inLeague<T extends { game: HeadlessGame }>(
+  s: T,
+  league: League | undefined
+): T {
+  if (!league) return s;
+  const { ctx } = s.game;
+  if (league.competition) ctx.gameService.getState().competition = true;
+  ctx.team1.advancementMode = league.mode;
+  ctx.team2.advancementMode = league.mode;
+  return s;
+}
 
 export function session(gameType: GameType, scenario: Scenario, dice: number[]) {
   const venue = gameTypeRules(gameType).venues[0];

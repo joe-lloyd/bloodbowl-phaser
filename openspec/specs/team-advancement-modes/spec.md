@@ -131,6 +131,29 @@ increase from added skills.
   history remain, and the team receives 40,000 gold if those skills
   increased value by 20,000 each
 
+### Requirement: The injury table follows the advancement mode
+
+In Sevens, Street Bowl and Gutter Bowl, an Advanced League team in a league or
+tournament fixture SHALL use the 2025 rulebook injury table with the Casualty
+roll, Niggling and Lasting Injuries, and the rulebook Apothecary. Every other
+team SHALL use the Sevens injury table. A friendly SHALL leave every team's
+injury record as it was before kick-off.
+
+#### Scenario: Advanced League casualty in a league
+
+- **WHEN** an Advanced League player's Injury roll is 10 in a league fixture
+- **THEN** a Casualty roll decides the result
+
+#### Scenario: Skill Selection casualty
+
+- **WHEN** a Sevens Skill Selection player's Injury roll is 10
+- **THEN** the player is Badly Hurt with no Casualty roll
+
+#### Scenario: Friendly
+
+- **WHEN** a league team finishes a friendly with a Seriously Hurt player
+- **THEN** the saved team keeps the injuries it had before the match
+
 ### Requirement: Advancement mode is visible in the team overview
 
 The Teams overview card SHALL show each team's advancement mode

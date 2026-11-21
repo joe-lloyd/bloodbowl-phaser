@@ -4,7 +4,7 @@ import {
   injuryBand,
   lowestKO,
 } from "../rules/injuryTables";
-import { activeRules } from "../variants/activeMatch";
+import { type InjuryTableId } from "../variants/gameTypeRules";
 
 export const InjuryResult = {
   STUNNED: "Stunned",
@@ -22,13 +22,14 @@ export type CasualtyType =
 
 export class InjuryController {
   public getInjuryBand(
+    tableId: InjuryTableId,
     roll: number,
     table: InjuryTableKind = "standard"
   ): InjuryBand {
-    return injuryBand(activeRules().injuryTable, table, roll);
+    return injuryBand(tableId, table, roll);
   }
 
-  public lowestKO(table: InjuryTableKind): number {
-    return lowestKO(activeRules().injuryTable, table);
+  public lowestKO(tableId: InjuryTableId, table: InjuryTableKind): number {
+    return lowestKO(tableId, table);
   }
 }

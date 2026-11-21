@@ -230,6 +230,7 @@ function startingState(
       paysWinnings: fixturePaysWinnings(
         lobby.competitionContext?.competitionType
       ),
+      competition: !!lobby.competitionContext,
       pregameInducements: true,
     }, ...startingFormat(
         {

@@ -136,6 +136,7 @@ export async function simulateFixture(
     progressionEnabled: true,
     knockout: context.knockout,
     paysWinnings: fixturePaysWinnings(context.competitionType),
+    competition: true,
     ...startingFormat(
       { gameType: context.gameType },
       () => (rng.rollDie(6) - 1) / 6

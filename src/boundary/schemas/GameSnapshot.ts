@@ -27,6 +27,7 @@ export const gameSnapshotSchema: z.ZodType<GameSnapshot> = z.looseObject({
   score: z.record(z.string(), z.number()),
   knockout: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   paysWinnings: z.union([z.literal(false), z.literal(true)]).exactOptional(),
+  competition: z.union([z.literal(false), z.literal(true)]).exactOptional(),
   gameType: gameTypeSchema.exactOptional(),
   venue: venueSchema.exactOptional(),
   weather: weatherSchema,

@@ -16,13 +16,19 @@ const JOURNEYMEN_FILL_TO = 7;
 
 export interface GameReadiness {
   leagueFixture?: boolean;
+  competition?: boolean;
 }
 
 export function readyForLeagueGame(
   team: Team,
-  { leagueFixture = false }: GameReadiness = {}
+  { leagueFixture = false, competition = leagueFixture }: GameReadiness = {}
 ): void {
   if (!isLeagueMode(team.advancementMode)) return;
+  if (competition) sitOutInjured(team);
+  if (leagueFixture) takeOnJourneymen(team);
+}
+
+function sitOutInjured(team: Team): void {
   for (const player of team.players) {
     if (player.injuries.includes(InjuryType.DEAD)) {
       movePlayerToBox(player, { box: "casualty", dead: true });
@@ -33,7 +39,6 @@ export function readyForLeagueGame(
       movePlayerToBox(player, { box: "casualty" });
     }
   }
-  if (leagueFixture) takeOnJourneymen(team);
 }
 
 function takeOnJourneymen(team: Team): void {

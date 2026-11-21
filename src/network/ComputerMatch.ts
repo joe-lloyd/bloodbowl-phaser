@@ -89,6 +89,7 @@ function computerMatchState(options: ComputerMatchOptions): GameState {
         paysWinnings: fixturePaysWinnings(
           options.competitionContext?.competitionType
         ),
+        competition: !!options.competitionContext,
         pregameInducements: true,
       }, ...devVenueFormat(), ...startingFormat(
         options.competitionContext

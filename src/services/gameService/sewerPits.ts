@@ -1,4 +1,5 @@
 import { rollCasualty } from "@/game/operations/injuryVerdict";
+import { injuryTableFor } from "@/game/rules/injuryRules";
 import { type Player } from "@/types/Player";
 import { GamePhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
@@ -40,7 +41,17 @@ function pitCasualty(parts: GameParts, player: Player): void {
     sppEligible: false,
   });
   parts.flowManager.add(
-    new CasualtyOperation(player.id, rollCasualty(parts.diceController, player)),
+    new CasualtyOperation(
+      player.id,
+      rollCasualty(
+        parts.diceController,
+        player,
+        injuryTableFor(
+          parts.state,
+          [parts.team1, parts.team2].find((team) => team.id === player.teamId)
+        )
+      )
+    ),
     true
   );
 }

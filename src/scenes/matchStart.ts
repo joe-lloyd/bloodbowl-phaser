@@ -70,6 +70,7 @@ export function ensureMatchServices(
     restored?.state ??
     GameService.createMatchState({ team1: team1, team2: team2, startingPhase: GamePhase.SETUP, startingSubPhase: SubPhase.INTRO, fixture: {
         paysWinnings: fixturePaysWinnings(competitionContext?.competitionType),
+        competition: !!competitionContext,
         pregameInducements: true,
       }, ...startingFormat(
         competitionContext

@@ -4,17 +4,20 @@ import { InjuryType, PlayerStatus } from "../../../src/types/Player";
 import { SkillType } from "../../../src/types/Skills";
 import { playerBoxOf } from "../../../src/game/rules/playerLocation";
 import { type GameType } from "../../../src/game/variants/gameTypes";
-import { duel, session } from "./harness";
+import { ADVANCED_LEAGUE, type League, duel, inLeague, session } from "./harness";
 
 async function endDrive(
   gameType: GameType,
   dice: number[],
-  skills: SkillType[] = []
+  { skills = [], league }: { skills?: SkillType[]; league?: League } = {}
 ) {
-  const s = session(
-    gameType,
-    duel([{ skills: [SkillType.SECRET_WEAPON, ...skills] }], [{}]),
-    dice
+  const s = inLeague(
+    session(
+      gameType,
+      duel([{ skills: [SkillType.SECRET_WEAPON, ...skills] }], [{}]),
+      dice
+    ),
+    league
   );
   await s.game.ctx.gameService.flowManager.runToRest(
     new ClearPitchOperation("touchdown", "team2", true)
@@ -36,12 +39,12 @@ describe("SB-M12: the Street Bowl crowd and Secret Weapons", () => {
   });
 
   it("a Loner is dragged off on a 5", async () => {
-    const s = await endDrive("street-bowl", [5], [SkillType.LONER]);
+    const s = await endDrive("street-bowl", [5], { skills: [SkillType.LONER] });
     expect(s.player(1).status).toBe(PlayerStatus.INJURED);
   });
 
   it("a Loner stays on a 6", async () => {
-    const s = await endDrive("street-bowl", [6], [SkillType.LONER]);
+    const s = await endDrive("street-bowl", [6], { skills: [SkillType.LONER] });
     expect(s.player(1).status).toBe(PlayerStatus.RESERVE);
   });
 });
@@ -58,12 +61,26 @@ describe("GB-M12: the Gutter Bowl crowd and Secret Weapons", () => {
     expect(s.player(1).injuries).toEqual([]);
   });
 
-  it("1-3 and then a 1 makes the player a Casualty, with a Casualty roll", async () => {
-    const s = await endDrive("gutter-bowl", [1, 1, 16]);
+  it("1-3 and then a 1 makes an Advanced League player a Casualty, with a Casualty roll", async () => {
+    const s = await endDrive("gutter-bowl", [1, 1, 16], { league: ADVANCED_LEAGUE });
     expect(playerBoxOf(s.player(1))).toBe("casualty");
     expect(s.player(1).injuries).toEqual([InjuryType.DEAD]);
     expect(s.rolls()).toContain("Casualty Roll (Human Lineman #1): 16");
   });
+
+  for (const [d6, injuries] of [
+    [3, [InjuryType.BADLY_HURT]],
+    [4, [InjuryType.MISS_NEXT_GAME]],
+    [5, [InjuryType.MISS_NEXT_GAME]],
+    [6, [InjuryType.DEAD]],
+  ] as const) {
+    it(`on the Sevens table the Casualty is a D6: ${String(d6)} records ${injuries.join(", ")}`, async () => {
+      const s = await endDrive("gutter-bowl", [1, 1, d6]);
+      expect(playerBoxOf(s.player(1))).toBe("casualty");
+      expect(s.player(1).injuries).toEqual(injuries);
+      expect(s.rolls()).toContain(`Casualty D6 (Human Lineman #1): ${String(d6)}`);
+    });
+  }
 });
 
 describe("BB-M10: a Beach Bowl Secret Weapon plays one drive", () => {
