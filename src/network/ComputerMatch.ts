@@ -97,6 +97,7 @@ function computerMatchState(options: ComputerMatchOptions): GameState {
           : { gameType: options.gameType, venue: options.venue }
       ) }
     );
+  if (options.competitionContext) initialState.competition = true;
   if (!options.resume && options.competitionContext?.knockout)
     initialState.knockout = true;
   return initialState;

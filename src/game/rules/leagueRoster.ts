@@ -24,15 +24,18 @@ export function readyForLeagueGame(
   { leagueFixture = false, competition = leagueFixture }: GameReadiness = {}
 ): void {
   if (!isLeagueMode(team.advancementMode)) return;
-  if (competition) sitOutInjured(team);
+  sitOutInjured(team, competition);
   if (leagueFixture) takeOnJourneymen(team);
 }
 
-function sitOutInjured(team: Team): void {
+function sitOutInjured(team: Team, competition: boolean): void {
   for (const player of team.players) {
     if (player.injuries.includes(InjuryType.DEAD)) {
       movePlayerToBox(player, { box: "casualty", dead: true });
-    } else if (player.injuries.includes(InjuryType.MISS_NEXT_GAME)) {
+    } else if (
+      competition &&
+      player.injuries.includes(InjuryType.MISS_NEXT_GAME)
+    ) {
       player.injuries = player.injuries.filter(
         (injury) => injury !== InjuryType.MISS_NEXT_GAME
       );

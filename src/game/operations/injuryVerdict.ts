@@ -128,11 +128,13 @@ export function casualtyOutcome(
   return record?.result === result ? record : result;
 }
 
-export function casualtyGradeFor(
+export function casualtyRecordFor(
   result: CasualtyType,
   record: CasualtyRecord | undefined
-): CasualtyGrade {
-  return record?.result === result ? record.grade : RESULT_GRADES[result];
+): CasualtyRecord {
+  return record?.result === result
+    ? record
+    : { result, grade: RESULT_GRADES[result] };
 }
 
 export function recordCasualty(

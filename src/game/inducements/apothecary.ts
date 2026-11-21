@@ -279,13 +279,13 @@ function rulebookPatchUp(
   first: ApothecaryCasualtyRoll
 ): void {
   const { gameService, eventBus, player } = patchUp;
+  forgetInjuries(player, first.grade);
   const rolled = rollCasualty(gameService.getDiceController(), player, "standard");
   const second: ApothecaryCasualtyRoll = {
     grade: rolled.grade,
     ...(rolled.lasting ? { lasting: rolled.lasting.stat } : {}),
   };
   const kept = milderGrade(first.grade, second.grade) === first.grade ? first : second;
-  forgetInjuries(player, first.grade);
   eventBus.emit(
     GameEventNames.UI_Notification,
     `${player.playerName}'s Apothecary: the second Casualty roll is ${second.grade}, so ${player.playerName} is ${kept.grade}.`

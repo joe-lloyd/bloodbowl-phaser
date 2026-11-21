@@ -78,6 +78,7 @@ export function ensureMatchServices(
           : { gameType: start.gameType, venue: start.venue }
       ) }
     );
+  if (restored?.save.competition) initialState.competition = true;
   if (!restored && competitionContext?.knockout) {
     initialState.knockout = true;
   }

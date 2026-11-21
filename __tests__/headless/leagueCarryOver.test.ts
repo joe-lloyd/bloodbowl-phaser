@@ -191,6 +191,16 @@ describe("Dead", () => {
       PlayerStatus.DEAD
     );
   });
+
+  it("never fields a dead player in a friendly either", () => {
+    const home = team("home", 9);
+    fixtureValue(home.players[2]).injuries.push(InjuryType.DEAD);
+
+    const game = startGame(home, undefined, { leagueFixture: false });
+    expect(fixtureValue(game.ctx.team1.players[2]).status).toBe(
+      PlayerStatus.DEAD
+    );
+  });
 });
 
 describe("Journeymen (L2)", () => {

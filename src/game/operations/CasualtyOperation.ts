@@ -26,7 +26,7 @@ import {
 } from "./injuryParties";
 import {
   type CasualtyRecord,
-  casualtyGradeFor,
+  casualtyRecordFor,
   casualtyLabel,
   recordCasualty,
   sufferLastingInjury,
@@ -169,20 +169,21 @@ export class CasualtyOperation extends InjuryPartiesOperation {
     context: FlowContext,
     player: Player
   ): Promise<RecordedCasualty | null> {
-    const result = await variantCasualty(
+    const outcome = await variantCasualty(
       context,
       player,
-      isFrog(context.gameService.getState(), player.id)
-        ? InjuryResult.BADLY_HURT
-        : this.result
+      casualtyRecordFor(
+        isFrog(context.gameService.getState(), player.id)
+          ? InjuryResult.BADLY_HURT
+          : this.result,
+        this.record
+      )
     );
-    if (result === "ko" || result === "reserves") {
-      movePlayerToBox(player, { box: result }, context.eventBus);
+    if (outcome === "ko" || outcome === "reserves") {
+      movePlayerToBox(player, { box: outcome }, context.eventBus);
       return null;
     }
-    const lasting =
-      this.record?.result === result ? this.record.lasting : undefined;
-    const grade = casualtyGradeFor(result, this.record);
+    const { result, grade, lasting } = outcome;
     announceCasualty(context.eventBus, player, casualtyLabel(grade, lasting));
     recordCasualty(player, grade);
     if (result === InjuryResult.DEAD) player.status = PlayerStatus.DEAD;

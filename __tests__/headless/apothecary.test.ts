@@ -487,6 +487,13 @@ describe("Advanced League Apothecary: the rulebook second Casualty roll", () => 
     ]);
   });
 
+  it("the second roll ignores the first roll's own Niggling Injury", async () => {
+    const { game, player } = await casualty([5, 5, 11, 8]);
+    await answer(game, true);
+    expect(player.status).toBe(PlayerStatus.RESERVE);
+    expect(player.injuries).toEqual([]);
+  });
+
   it("declining still applies the Lasting Injury", async () => {
     const { game, player } = await casualty([5, 5, 14, 3]);
     await answer(game, false);

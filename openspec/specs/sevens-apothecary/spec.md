@@ -6,7 +6,9 @@ Give a team with an owned, unused Apothecary a once-per-match, owner-only use-or
 decision immediately after an eligible Knocked Out or casualty result, and apply Blood
 Bowl Sevens' patch-up outcomes: an on-pitch Knocked Out player is patched up Stunned in
 place, a crowd Knocked Out player moves to the Reserves, and Badly Hurt / Seriously Hurt
-/ Dead roll a D6 where 4+ moves the player to the Reserves. The decision, the original
+/ Dead roll a D6 where 4+ moves the player to the Reserves. A casualty from the 2025
+Casualty roll, which Advanced League teams make in a competition, instead uses the
+rulebook Apothecary: a second Casualty roll, keeping the milder result. The decision, the original
 result, and any rolled outcome are all serialized so the same match resumes and
 synchronizes identically across saves and online play.
 
@@ -54,7 +56,7 @@ player SHALL be placed in Reserves instead of the Knocked Out box.
 
 ### Requirement: Eligible casualties use the Sevens patch-up roll
 
-When an Apothecary is used on Badly Hurt, Seriously Hurt, or Dead, the system SHALL roll
+When an Apothecary is used on a Sevens-table Badly Hurt, Seriously Hurt, or Dead, the system SHALL roll
 one D6. On 4+, the player SHALL move from Casualties to Reserves; on 1-3, the original
 casualty result and placement SHALL remain.
 
