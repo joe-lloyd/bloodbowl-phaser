@@ -19,6 +19,7 @@ export type FinishKind = "pass" | "handoff" | "bomb" | "block" | "foul";
 export interface PlanFinish extends Square {
   kind: FinishKind;
   key: string;
+  targetId: string | null;
 }
 
 export interface PlannedDeclaration {
@@ -64,10 +65,17 @@ export function plannedActor(c: GameplayInteractionController, player: Player): 
   return end ? { ...player, gridPosition: { ...end } } : player;
 }
 
+const scenePlayers = (c: GameplayInteractionController): Player[] => [
+  ...c.getSceneTeam1().players,
+  ...c.getSceneTeam2().players,
+];
+
 export function boardWith(c: GameplayInteractionController, actor: Player): Player[] {
-  return [...c.getSceneTeam1().players, ...c.getSceneTeam2().players].map(
-    (p) => (p.id === actor.id ? actor : p)
-  );
+  return scenePlayers(c).map((p) => (p.id === actor.id ? actor : p));
+}
+
+export function scenePlayer(c: GameplayInteractionController, id: string): Player | undefined {
+  return scenePlayers(c).find((p) => p.id === id);
 }
 
 const isDowned = (p: Player) =>

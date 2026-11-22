@@ -36,7 +36,7 @@ test("a foul is declared and confirmed from the keyboard", async ({ page }) => {
   await page.keyboard.press("f");
   await expect(page.getByTestId("action-step-foul")).toBeVisible();
   await app.pitch.clickPlayer("team2:0");
-  await expect(page.getByTestId("action-plan")).toContainText("Armour 8+");
+  await expect(page.getByTestId("action-plan")).toContainText("Armour, all assists 8+");
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("action-plan")).toBeHidden();
 

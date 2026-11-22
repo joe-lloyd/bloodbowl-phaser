@@ -10,6 +10,7 @@ import {
   needsContact,
   plannedActor,
   reachNextTo,
+  scenePlayer,
 } from "./plan";
 import type { Player } from "@/types/Player";
 import { handoffTargetRefusalReason } from "../../rules/handoff";
@@ -17,6 +18,7 @@ import { planProblem, publishPlan } from "./planSummary";
 import { cancelAction } from "./actionModes";
 import { previewSquare } from "./previews";
 import { afterMove, refreshPlayerVisualization, stoppedShort, walkRoute } from "./routes";
+import { adjacentTo } from "./squares";
 import { FINISHERS, type SquareClick } from "./stepClicks";
 
 interface Square {
@@ -52,7 +54,7 @@ export function planFinishAt(
   if (locked?.x === click.x && locked.y === click.y) return goPlan(c);
   if (refusesTarget(c, kind, click.player)) return;
   if (needsContact(kind) && !reachNextTo(c, click)) return;
-  c.finish = { kind, key: finishKey(c), x: click.x, y: click.y };
+  c.finish = { kind, key: finishKey(c), x: click.x, y: click.y, targetId: click.player?.id ?? null };
   showFinishStep(c, kind);
   previewSquare(c, click.x, click.y);
   publishPlan(c);
@@ -83,7 +85,7 @@ function stillPlanned(c: GameplayInteractionController, playerId: string, planne
   );
 }
 
-async function declarePlanned(c: GameplayInteractionController, playerId: string): Promise<boolean> {
+export async function declarePlanned(c: GameplayInteractionController, playerId: string): Promise<boolean> {
   const planned = c.undeclared;
   c.undeclared = null;
   if (!planned) return true;
@@ -138,13 +140,22 @@ async function walkPlanned(c: GameplayInteractionController, playerId: string, r
   return reached;
 }
 
-function finishPlanned(c: GameplayInteractionController, finish: PlanFinish): Promise<void> | void {
+function finishTarget(c: GameplayInteractionController, finish: PlanFinish): SquareClick | null {
+  if (finish.targetId === null) return { x: finish.x, y: finish.y, player: c.getPlayerAt(finish.x, finish.y) };
+  const player = scenePlayer(c, finish.targetId);
+  const square = player?.gridPosition;
+  return player && square ? { x: square.x, y: square.y, player } : null;
+}
+
+function finishPlanned(c: GameplayInteractionController, playerId: string, finish: PlanFinish): Promise<void> | void {
   c.clearRollPreviews();
-  return FINISHERS[finish.kind](c, {
-    x: finish.x,
-    y: finish.y,
-    player: c.getPlayerAt(finish.x, finish.y),
-  });
+  const click = finishTarget(c, finish);
+  const actor = c.gameService.getPlayerById(playerId);
+  if (!click || (needsContact(finish.kind) && !adjacentTo(actor?.gridPosition, click))) {
+    stopPlan(c, playerId, "The target moved out of reach. Pick a new one.");
+    return;
+  }
+  return FINISHERS[finish.kind](c, click);
 }
 
 function readyToGo(c: GameplayInteractionController): string | null {
@@ -163,7 +174,7 @@ export async function goPlan(c: GameplayInteractionController): Promise<void> {
   c.dropFinish();
   if (c.undeclared && !(await declarePlanned(c, playerId))) return;
   if (route.length > 0 && !(await walkPlanned(c, playerId, route))) return;
-  if (finish) await finishPlanned(c, finish);
+  if (finish) await finishPlanned(c, playerId, finish);
 }
 
 export function clearPlan(c: GameplayInteractionController): void {

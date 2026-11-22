@@ -1,5 +1,5 @@
 import { GameEventNames, type ActionType } from "@/types/events";
-import { type Player, PlayerStatus } from "@/types/Player";
+import { type Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { activationGates } from "../../skills";
@@ -7,6 +7,8 @@ import { moveAllowance, standUpCost } from "../../skills/movement";
 import { activeRules } from "../../variants/activeMatch";
 import { rushModifier } from "../../inducements/matchInducements";
 import { requiredRoll } from "../../rules/rollTargets";
+import { weatherEffects } from "../../rules/weather";
+import { PassController } from "../PassController";
 import {
   ROUTE_ROLL_NAMES,
   blockPreviewLines,
@@ -52,8 +54,11 @@ export function throwNeeds(
   const opponents = c.gameService.getOpponents(passer.teamId);
   const from = passer.gridPosition ?? square;
   const range = c.passController.measureRange(from, square);
+  const catcherOpponents = receiver
+    ? c.gameService.getOpponents(receiver.teamId).map((p) => (p.id === passer.id ? passer : p))
+    : [];
   const catchNeed = receiver
-    ? catchTarget(withDriveModifiers(receiver, state), opponents, state.weather, handoff ? "handoff" : "pass")
+    ? catchTarget(withDriveModifiers(receiver, state), catcherOpponents, state.weather, handoff ? "handoff" : "pass")
     : null;
   return {
     range,
@@ -87,9 +92,15 @@ function routeStage(c: GameplayInteractionController, player: Player): PlanStage
   };
 }
 
-function throwStages(c: GameplayInteractionController, actor: Player, finish: PlanFinish): PlanStage[] {
+function catcherAt(c: GameplayInteractionController, actor: Player, finish: PlanFinish): Player | null {
   const target = c.getPlayerAt(finish.x, finish.y);
-  const receiver = target?.teamId === actor.teamId ? target : null;
+  if (!target || target.id === actor.id) return null;
+  if (finish.kind === "bomb") return hasTackleZone(target) ? target : null;
+  return target.teamId === actor.teamId ? target : null;
+}
+
+function throwStages(c: GameplayInteractionController, actor: Player, finish: PlanFinish): PlanStage[] {
+  const receiver = catcherAt(c, actor, finish);
   const handoff = finish.kind === "handoff";
   const needs = throwNeeds(c, { passer: actor, receiver, square: finish, handoff });
   const intercepts = handoff || !actor.gridPosition
@@ -102,7 +113,7 @@ function throwStages(c: GameplayInteractionController, actor: Player, finish: Pl
     stages.push({
       label: `${handoff ? "Hand-off to" : "Caught by"} #${String(receiver.number)} ${receiver.playerName}`,
       rolls: [{ kind: "catch", name: "Catch", target: needs.catch }],
-      notes: [],
+      notes: finish.kind === "bomb" ? ["A catch means they throw the bomb again."] : [],
     });
   }
   return stages;
@@ -135,7 +146,11 @@ function foulStage(c: GameplayInteractionController, actor: Player, target: Play
   const foul = foulPreview(actor, target, boardWith(c, actor), c.gameService.getState());
   return {
     label: `Foul #${String(target.number)} ${target.playerName}`,
-    rolls: [{ kind: "armour", name: "Armour", target: foul.targetNumber }],
+    rolls: [{
+      kind: "armour",
+      name: foul.analysis.offensiveAssists.length > 0 ? "Armour, all assists" : "Armour",
+      target: foul.targetNumber,
+    }],
     notes: foul.lines.slice(1),
   };
 }
@@ -158,6 +173,18 @@ function finishStages(c: GameplayInteractionController, actor: Player, finish: P
   }
 }
 
+function passRefusal(c: GameplayInteractionController, actor: Player, finish: PlanFinish): string | null {
+  const from = actor.gridPosition;
+  if (finish.kind !== "pass" || !from) return null;
+  const outOfRange = PassController.rangeValue(from, finish) === null;
+  if (outOfRange && !hasSkill(actor.skills, SkillType.HAIL_MARY_PASS)) {
+    return "The target is out of range from the end of the route.";
+  }
+  const { type } = c.passController.measureRange(from, finish, outOfRange);
+  const weather = c.gameService.getState().weather;
+  return weatherEffects(weather).passTypes.includes(type) ? null : `${weather} rules out a ${type}.`;
+}
+
 function blockedReason(c: GameplayInteractionController, actor: Player, finish: PlanFinish | null): string | null {
   if (!finish) return null;
   if (needsContact(finish.kind) && !adjacentTo(actor.gridPosition, finish)) {
@@ -166,7 +193,7 @@ function blockedReason(c: GameplayInteractionController, actor: Player, finish: 
   if (finish.kind === "block" && movementAfterRoute(c, actor) + 1 > moveAllowance(actor)) {
     return "No movement left to make the block. Shorten the route.";
   }
-  return null;
+  return passRefusal(c, actor, finish);
 }
 
 function selectedPlayer(c: GameplayInteractionController): Player | null {

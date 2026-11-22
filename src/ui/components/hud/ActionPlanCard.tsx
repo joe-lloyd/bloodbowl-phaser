@@ -54,7 +54,7 @@ function StageRow({ stage }: { stage: PlanStage }) {
         <span className="font-hud-label text-hud-sm font-bold uppercase tracking-[0.05em] text-hud-bone">
           {stage.label}
         </span>
-        {rolls.length === 0 && (
+        {rolls.length === 0 && stage.notes.length === 0 && (
           <span className="text-hud-xs text-hud-dim">no roll</span>
         )}
       </div>

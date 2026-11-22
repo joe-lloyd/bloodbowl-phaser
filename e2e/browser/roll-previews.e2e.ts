@@ -105,7 +105,7 @@ test("foul previews armour in the plan, and Clear drops it unrolled", async ({
   );
   await app.pitch.clickPlayer("team2:0");
   const plan = page.getByTestId("action-plan");
-  await expect(plan).toContainText("Armour 8+");
+  await expect(plan).toContainText("Armour, all assists 8+");
   await expect(plan).toContainText("A double sends the fouler off.");
   await page.screenshot({ path: test.info().outputPath("foul-plan.png") });
   await page.getByTestId("action-plan-clear").click();
@@ -124,7 +124,7 @@ test("clicking a downed opponent with nothing declared plans a Foul, not a Block
   await app.sandbox.open({ scenario: "ux-foul-preview" });
   await app.pitch.clickPlayer("team1:0");
   await app.pitch.clickPlayer("team2:0");
-  await expect(page.getByTestId("action-plan")).toContainText("Armour 8+");
+  await expect(page.getByTestId("action-plan")).toContainText("Armour, all assists 8+");
   await expect(page.getByTestId("block-dice-dialog")).toBeHidden();
 
   await page.getByTestId("action-plan-clear").click();

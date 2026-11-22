@@ -95,12 +95,14 @@ describe("GameplayInteractionController", () => {
             })
           : undefined
       );
-      (controller).getPlayerAt = vi.fn().mockReturnValue(playerWith({
+      const receiver = playerWith({
         id: "p3",
         teamId: "team1",
         gridPosition: { x: 6, y: 5 },
         status: "Active",
-      }));
+      });
+      (controller).scene.team1.players = [player1, receiver];
+      (controller).getPlayerAt = vi.fn().mockReturnValue(receiver);
 
       void (controller).onSquareClicked(6, 5);
       expect(serviceSpies.handOffBall).not.toHaveBeenCalled();
@@ -181,6 +183,7 @@ describe("GameplayInteractionController", () => {
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.getState.mockReturnValue(stateWith({ weather: "Nice" }));
+      (controller).scene.team2.players = [target];
       (controller).getPlayerAt = vi.fn().mockReturnValue(target);
     }
 

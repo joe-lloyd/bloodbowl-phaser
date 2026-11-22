@@ -35,6 +35,11 @@
       "count": 3
     }
   },
+  "__tests__/integration/action-plan-review.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    }
+  },
   "__tests__/integration/charge-click-to-move.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 4

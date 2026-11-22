@@ -14,7 +14,7 @@ import { computeJumpTargets } from "./previews";
 import { addWaypoint, refreshPlayerVisualization } from "./routes";
 import { askGates, defersGates, enterActionMode } from "./actionModes";
 import { PLANNED_MOVE, finishKindAt, plannedActionFor } from "./plan";
-import { goPlan, planFinishAt } from "./planRun";
+import { declarePlanned, goPlan, planFinishAt } from "./planRun";
 
 export function clickTouchback(
   c: GameplayInteractionController,
@@ -45,6 +45,9 @@ export async function handleJumpClick(
   }
   c.jumpTargeting = false;
   c.pitch.clearPath();
+  c.clearWaypoints();
+  c.dropFinish();
+  if (c.undeclared && !(await declarePlanned(c, player.id))) return;
   try {
     await c.gameService.jumpPlayer(player.id, { x, y });
   } catch (err) {
