@@ -9,7 +9,6 @@ const store = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../src/firebase/houseBot", () => ({ isHouseBotBrowser: () => false }));
 vi.mock("../../src/firebase/lobby", () => ({
   getActiveMatchCode: () => Promise.resolve("SEATED"),
   fetchLobby: () =>

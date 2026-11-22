@@ -1,18 +1,13 @@
 # The house bot
 
-A scripted coach that hosts online games on the production backend, so an
-admin can play an online match without a second person. It runs on
-old-mac, plays with the same AI as the computer opponent, and hosts the
-next game when one ends.
+A scripted coach that joins online games on the production backend, so
+you can play an online match without a second person. It runs on old-mac
+and plays with the same AI as the computer opponent.
 
-An admin joins from the main menu: Extras, Play the House Bot. The button
-looks in `houseBots` for a lobby still waiting for a guest and joins it.
-If no bot is waiting it says so.
-
-The bot is also a friend you can invite. Add it on the Friends page with
-its friend code, and it accepts the request by itself. Then host a game,
-invite House Bot from the lobby, and it joins, picks a random computer team
-and readies up. You host, so the game type, team value range, turn timer,
+The bot is a friend you invite. Add it on the Friends page with its friend
+code, and it accepts the request by itself. Then host a game, invite House
+Bot from the lobby, and it joins, picks a random computer team and readies
+up. You host, so the game type, team value range, turn timer,
 timeout bank and the rest of the settings are yours. Start the match when you are ready.
 If the bot is already in a match, it joins as soon as that match ends,
 while the invite is still fresh.
@@ -25,19 +20,14 @@ while the invite is still fresh.
   user. It hands the login to the bot's page in memory, and the app signs
   in, creating the account (coach name House Bot) the first time. The
   address is `lead.mushroom+housebot@gmail.com`, which reaches Joe's inbox.
-  `firestore.rules` lets only that address, in the account with uid
-  `HOUSE_BOT_UID` (`src/firebase/houseBotAccount.ts`), announce a lobby,
-  so another coach cannot pose as the bot.
-- The runner sets the `bb-house-bot` flag in that browser. While the bot's
-  lobby waits for a guest, the app writes the code to `houseBots/{uid}`
-  every minute. Any signed-in coach may read it. An announcement older
-  than three minutes is ignored.
+- The runner sets the `bb-house-bot` flag in that browser.
 - The bot's browser flag enables the same planner and paced command loop
   as the local Standard computer opponent. Its choices go through the
   online session, including block dice, pushes, follow-ups and re-rolls.
   Both peers execute the same commands and check their resulting states.
-- The runner handles sign-in, lobby hosting, the opening toss and leaving
-  full time. It does not choose moves or translate them into board clicks.
+- The runner handles sign-in, waiting on the main menu, the opening toss
+  and leaving full time. On start it goes back to any match or lobby the
+  bot was already in. It does not choose moves or translate them into board clicks.
   It never buys inducements either: the computer coach in the page owns
   that step and confirms them itself. A runner click that races the coach
   finds the button gone, so a runner click gives up after a second and
@@ -51,21 +41,21 @@ while the invite is still fresh.
   (`src/social/houseBotTeam.ts`), in Matched Play so it owes no skill pick,
   and picks again when the host changes either setting. If no template
   fits, it says so in `bot.log` and cannot ready up.
-- If the other coach ends the match early, the bot agrees and hosts the
-  next one.
+- If the other coach ends the match early, the bot agrees and waits for
+  the next invite.
 - In the bot's browser only, `HouseBotSocial`
   (`src/ui/components/social/HouseBotSocial.tsx`) accepts every incoming
   friend request and every match invite, as long as the bot has no guest
   waiting and is not playing. It then opens the invited lobby. The runner
-  waits the same way as host or guest: it presses Ready!, which stays
-  disabled until the bot's browser has picked a team that fits, and as host
-  it presses Start Match once the guest is ready.
+  presses Ready!, which stays disabled until the bot's browser has picked a
+  team that fits. If the host has not started after twenty minutes, the bot
+  leaves the seat.
 
 ## Running it
 
 It runs on old-mac as the LaunchAgent `cc.jialab.bb-house-bot`, from a
 worktree of `main` at `~/house-bot`. Each run moves that worktree to the
-latest `main`, hosts one match and exits, and launchd starts the next.
+latest `main`, plays one match and exits, and launchd starts the next.
 Install and run output goes to `~/Library/Logs/bb-house-bot.log`; the
 bot's own log is still `~/.bb-house-bot/logs/bot.log`.
 
@@ -88,7 +78,7 @@ To run it by hand instead, stop the agent first and use a checkout of
 on a different version.
 
 ```sh
-pnpm house-bot   # hosts games until stopped
+pnpm house-bot   # joins games until stopped
 ```
 
 - `HOUSE_BOT_HEADED=1` shows the bot's browser.

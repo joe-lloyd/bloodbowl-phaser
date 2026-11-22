@@ -1,5 +1,4 @@
 import type { CompetitionContext } from "../../../competition/types";
-import { isHouseBotBrowser } from "../../../firebase/houseBot";
 import {
   fetchLobby,
   getActiveMatchCode,
@@ -42,7 +41,6 @@ export async function currentLobby(
   if (doc.status === "active") return { code: doc.code, playing: true };
   if (reusableLobby(doc, { uid, fixture })) return { code: doc.code, playing: false };
   if (doc.status !== "lobby" || doc.guestUid !== uid) return null;
-  if (isHouseBotBrowser()) return { code: doc.code, playing: false };
   const status = await leaveGuestSeat(doc.code, uid);
   return status === "active" ? { code: doc.code, playing: true } : null;
 }

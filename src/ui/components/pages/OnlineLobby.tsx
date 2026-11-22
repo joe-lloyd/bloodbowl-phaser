@@ -1,10 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  announceHouseBotLobby,
-  isHouseBotBrowser,
-} from "../../../firebase/houseBot";
-import {
   Chip,
   EmptyState,
   Eyebrow,
@@ -141,19 +137,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     bothCommitted,
     revealed,
   ]);
-
-  const botWaitingIn = houseBotWaitingIn(lobby, myUid);
-  useEffect(() => {
-    if (!myUid || !isHouseBotBrowser()) return;
-    const announce = () =>
-      void announceHouseBotLobby(myUid, botWaitingIn).catch(() => {});
-    announce();
-    if (!botWaitingIn) return;
-    const id = setInterval(announce, 60_000);
-    return () => {
-      clearInterval(id);
-    };
-  }, [myUid, botWaitingIn]);
 
   useEffect(() => {
     if (lobby?.status === "active" && code) {
@@ -353,18 +336,6 @@ function seedProgress(lobby: LobbyDoc | null, myUid: string | undefined) {
       !!commits[lobby.hostUid] &&
       !!commits[lobby.guestUid],
   };
-}
-
-function houseBotWaitingIn(
-  lobby: LobbyDoc | null,
-  myUid: string | undefined
-): string | null {
-  return isHouseBotBrowser() &&
-    lobby?.status === "lobby" &&
-    lobby.hostUid === myUid &&
-    !lobby.guestUid
-    ? lobby.code
-    : null;
 }
 
 function playerWait(
