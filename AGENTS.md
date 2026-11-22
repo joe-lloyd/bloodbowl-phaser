@@ -8,10 +8,10 @@ Every change reaches `main` through a pull request. Open it ready for review, no
 
 CodeRabbit's plan is rate limited on most pushes. Waiting for it costs 20 to 40 minutes and usually ends in a refusal. In this repository, these rules replace the reviewer order in `~/.agents/AGENTS.md` and the CodeRabbit waits in `babysit-pr`:
 
-- As soon as the PR is open, spawn the Joe Codex reviewer with the reviewer brief from `full-send`. Spawn a new one after each push that fixes review findings. Do not wait for CodeRabbit first.
+- Spawn the Joe Codex reviewer with the reviewer brief from `full-send` as soon as the PR is open. Spawn a new one whenever the head changes, whether from a review fix, a CI fix or a rebase. If you declined every finding without pushing, spawn a new one with the review and your reply. Do not wait for CodeRabbit first.
 - Never post `@coderabbitai review`. When the helper reports `coderabbit-stalled` or `coderabbit-refused`, run `wait` again and keep waiting for the Codex review and CI.
-- CodeRabbit still runs on its own. If it finishes a head and opens threads, fix or decline them like any other review. An open CodeRabbit thread still blocks the merge.
-- Merge without asking once a Codex review on the current head says `Verdict: approve`, CI is green, and no CodeRabbit thread is open.
+- CodeRabbit still runs on its own. Read `openThreads` in every digest, not only on a findings event. Fix or decline each open thread like any other review. When you fixed a thread and CodeRabbit cannot review the new head, reply on the thread with the commit that fixed it, then resolve it. An open CodeRabbit thread blocks the merge.
+- Merge only when a Codex review on the current head says `Verdict: approve`, CI is green, and no CodeRabbit thread is open. A `ready` event without that Codex approval is not enough. Keep waiting.
 - If three Codex rounds in a row end in `Verdict: changes`, stop. Do not merge. Ask the owner.
 
 ## Review scope
