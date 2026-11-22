@@ -11,7 +11,26 @@ import { homedir } from "node:os";
 import { dirname } from "node:path";
 import { GameApp } from "../support/pages/game";
 import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
-import { clickIf, type Recorder } from "../fullgame/driver";
+import { type Recorder } from "../fullgame/driver";
+
+const CLICK_TIMEOUT_MS = 1000;
+const MAX_MISSED_CLICKS = 60;
+let missedClicks = 0;
+
+async function press(page: Page, name: RegExp): Promise<boolean> {
+  const button = page.getByRole("button", { name }).first();
+  if (!(await button.isVisible().catch(() => false))) return false;
+  try {
+    await button.click({ timeout: CLICK_TIMEOUT_MS });
+    missedClicks = 0;
+    return true;
+  } catch {
+    missedClicks++;
+    if (missedClicks >= MAX_MISSED_CLICKS)
+      throw new Error(`${name.source} stayed visible but took no click`);
+    return false;
+  }
+}
 
 const PORT = Number(process.env["HOUSE_BOT_PORT"] ?? 5299);
 const APP_URL = `http://localhost:${String(PORT)}`;
@@ -168,16 +187,15 @@ async function hostFreshGame(page: Page): Promise<string> {
 }
 
 async function answerPrompt(page: Page): Promise<boolean> {
-  if (await clickIf(page, /^End Match$/)) {
+  if (await press(page, /^End Match$/)) {
     log("the other coach ended the match");
     return true;
   }
   return (
-    (await clickIf(page, /^READY — ROLL WEATHER$/)) ||
-    (await clickIf(page, /^ON TO THE COIN TOSS$/)) ||
-    (await clickIf(page, /^Confirm — no purchases$/i)) ||
-    (await clickIf(page, /^READY — FLIP COIN$/)) ||
-    (await clickIf(page, /^RECEIVE$/))
+    (await press(page, /^READY — ROLL WEATHER$/)) ||
+    (await press(page, /^ON TO THE COIN TOSS$/)) ||
+    (await press(page, /^READY — FLIP COIN$/)) ||
+    (await press(page, /^RECEIVE$/))
   );
 }
 
@@ -195,15 +213,15 @@ async function playMatch(page: Page): Promise<"full time" | "ended"> {
 async function leaveFullTime(page: Page) {
   await page.waitForTimeout(3000);
   for (let k = 0; k < 20; k++) {
-    if (await clickIf(page, /^Roll MVP D6$/)) {
+    if (await press(page, /^Roll MVP D6$/)) {
       await page.waitForTimeout(1200);
       continue;
     }
-    if (await clickIf(page, /^Confirm and assign SPP$/)) {
+    if (await press(page, /^Confirm and assign SPP$/)) {
       await page.waitForTimeout(1500);
       continue;
     }
-    if (await clickIf(page, /^Continue to Main Menu$/)) return;
+    if (await press(page, /^Continue to Main Menu$/)) return;
     await page.mouse.wheel(0, 800);
     await page.waitForTimeout(500);
   }
