@@ -219,6 +219,16 @@ export async function clearActiveMatchCode(uid: string): Promise<void> {
   await setDoc(userRef(uid), { activeMatchCode: null }, { merge: true });
 }
 
+export async function closeHostedLobby(code: string, uid: string): Promise<void> {
+  await runTransaction(getDb(), async (tx) => {
+    const current = await activeCodeIn(tx, uid);
+    const seats = readLobbySeats((await tx.get(lobbyRef(code))).data());
+    if (seats?.status !== "lobby" || seats.hostUid !== uid) return;
+    tx.delete(lobbyRef(code));
+    if (current === code) tx.set(userRef(uid), { activeMatchCode: null }, { merge: true });
+  });
+}
+
 export async function getActiveMatchCode(uid: string): Promise<string | null> {
   const snapshot = await getDoc(userRef(uid));
   return snapshot.exists()
@@ -266,7 +276,6 @@ export async function createLobby(
     hostUid,
     guestUid: null,
     status: "lobby",
-
     settings: fixture
       ? {
           ...DEFAULT_SETTINGS,
@@ -289,7 +298,6 @@ export async function createLobby(
   await setDoc(lobbyRef(code), {
     ...firebaseDocument(lobby),
     createdAt: serverTimestamp(),
-
     expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
   });
   await setActiveMatchCode(hostUid, code);

@@ -17,12 +17,3 @@ const profileSchema = z.object({
 export function firebaseProfile(value: unknown) {
   return profileSchema.parse(value);
 }
-
-const houseBotSchema = z.object({
-  code: z.string().regex(/^[A-Z0-9]{4,8}$/),
-  updatedAt: z.number(),
-});
-
-export function houseBotAnnouncement(value: unknown) {
-  return houseBotSchema.safeParse(value);
-}

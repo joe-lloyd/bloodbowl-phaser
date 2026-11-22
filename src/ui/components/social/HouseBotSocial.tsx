@@ -3,7 +3,11 @@ import { type NavigateFunction, useLocation, useNavigate } from "react-router-do
 import type { LobbyInvite } from "../../../boundary/social";
 import { acceptFriend } from "../../../firebase/friends";
 import { acceptLobbyInvite, dismissInvite } from "../../../firebase/invites";
-import { fetchLobby, getActiveMatchCode } from "../../../firebase/lobby";
+import {
+  closeHostedLobby,
+  fetchLobby,
+  getActiveMatchCode,
+} from "../../../firebase/lobby";
 import { inviteId } from "../../../social/friends";
 import { errorText } from "../../errorText";
 import { useAuth } from "../../hooks/useAuth";
@@ -87,9 +91,27 @@ function useJoinMatchInvites(uid: string | null, invites: readonly InviteRow[]):
   }, [uid, next, playing, navigate, tried, minute]);
 }
 
+async function closeLeftoverLobby(uid: string): Promise<void> {
+  const code = await getActiveMatchCode(uid);
+  const lobby = code ? await fetchLobby(code) : null;
+  if (lobby?.status !== "lobby" || lobby.hostUid !== uid) return;
+  say(`closing lobby ${lobby.code}, left over from when the bot hosted`);
+  await closeHostedLobby(lobby.code, uid);
+}
+
+function useCloseLeftoverLobby(uid: string | null): void {
+  useEffect(() => {
+    if (!uid) return;
+    closeLeftoverLobby(uid).catch((error: unknown) => {
+      say(`could not close a leftover lobby: ${errorText(error)}`);
+    });
+  }, [uid]);
+}
+
 export function HouseBotSocial() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
+  useCloseLeftoverLobby(uid);
   useAcceptFriendRequests(useFriends(uid));
   useJoinMatchInvites(uid, useInvites(uid));
   return null;

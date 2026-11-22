@@ -6342,7 +6342,7 @@
       "count": 1
     },
     "@typescript-eslint/no-floating-promises": {
-      "count": 6
+      "count": 3
     },
     "@typescript-eslint/no-misused-promises": {
       "count": 9
@@ -6351,13 +6351,10 @@
       "count": 2
     },
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "max-lines-per-function": {
       "count": 2
-    },
-    "max-statements": {
-      "count": 1
     },
     "no-empty": {
       "count": 1
@@ -6368,9 +6365,6 @@
   },
   "src/ui/components/pages/OnlineLobby.tsx": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "@typescript-eslint/no-empty-function": {
       "count": 1
     },
     "@typescript-eslint/no-floating-promises": {

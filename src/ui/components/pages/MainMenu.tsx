@@ -21,15 +21,9 @@ import {
   sendVerificationLink,
 } from "../../../firebase/auth";
 import { useCoachProfile } from "../../hooks/useCoachProfile";
-import {
-  getActiveMatchCode,
-  fetchLobby,
-  joinLobby,
-} from "../../../firebase/lobby";
-import { resolveCoachName } from "../../../firebase/coaches";
+import { getActiveMatchCode, fetchLobby } from "../../../firebase/lobby";
 import { InviteInbox } from "../social/InviteInbox";
 import { FriendsMenuButton } from "../social/LobbyFriends";
-import { findHouseBotLobby } from "../../../firebase/houseBot";
 import { isAdminUser } from "../../../firebase/admin";
 import {
   clearMatchSave,
@@ -126,42 +120,6 @@ export function MainMenu() {
       }
     }
     navigate(path);
-  };
-
-  const playHouseBot = async () => {
-    setAuthError(null);
-    try {
-      const coach = user ?? (await signIn());
-
-      const current = await getActiveMatchCode(coach.uid);
-      const lobby = current ? await fetchLobby(current) : null;
-      if (lobby?.status === "active") {
-        navigate(`/online/play/${String(current)}`);
-        return;
-      }
-      if (lobby?.status === "lobby" && lobby.guestUid === coach.uid) {
-        navigate(`/online/lobby/${String(current)}`);
-        return;
-      }
-      if (lobby?.status === "lobby") {
-        setAuthError(
-          `You are hosting lobby ${String(current)}. Leave it before playing the house bot.`
-        );
-        return;
-      }
-      const code = await findHouseBotLobby();
-      if (!code) {
-        setAuthError(
-          "The house bot is not waiting for a game. Start it on old-mac with pnpm house-bot."
-        );
-        return;
-      }
-      await joinLobby(code, coach.uid, await resolveCoachName(coach.uid));
-      navigate(`/online/lobby/${code}`);
-    } catch (error) {
-      if (!(error instanceof SignInCancelled))
-        setAuthError(error instanceof Error ? error.message : String(error));
-    }
   };
 
   const resumeLocal = () => {
@@ -279,15 +237,6 @@ export function MainMenu() {
                 onClick={() => navigate("/music")}
               >
                 Sound Test
-              </HudButton>
-              <HudButton
-                variant="ghost"
-                block
-                disabled={onlineDisabled}
-                title={onlineAvailable ? undefined : ONLINE_HINT}
-                onClick={() => void playHouseBot()}
-              >
-                Play the House Bot
               </HudButton>
             </MenuSection>
           )}

@@ -52,7 +52,7 @@ const rec: Recorder = {
     page.screenshot({ path: `${OUT}/${String(Date.now())}-${name}.png` }),
 };
 
-test("the house bot hosts games until stopped", async () => {
+test("the house bot joins games until stopped", async () => {
   const context = await chromium.launchPersistentContext(PROFILE, {
     headless: process.env["HOUSE_BOT_HEADED"] !== "1",
     baseURL: APP_URL,
@@ -81,10 +81,9 @@ test("the house bot hosts games until stopped", async () => {
   for (let played = 0; MATCHES === 0 || played < MATCHES; ) {
     await page.goto("/");
     await signOut.waitFor({ timeout: 60_000 });
-    const code = await hostFreshGame(page);
-    log(`waiting in lobby ${code}, or for an invite`);
+    log("waiting for an invite");
     if (!(await waitForMatch(page))) continue;
-    const match = page.url().split("/").pop() ?? code;
+    const match = page.url().split("/").pop() ?? "";
     log(`match ${match} started`);
     if ((await playMatch(page)) === "full time") await leaveFullTime(page);
     log(`match ${match} over`);
@@ -121,36 +120,53 @@ async function logFriendCode(page: Page) {
 
 const WAIT_FOR_A_GAME_MS = 24 * 60 * 60 * 1000;
 const WAIT_AS_GUEST_MS = 20 * 60 * 1000;
+const LOBBY_LOAD_MS = 30 * 1000;
 
 async function readyUp(page: Page) {
   const ready = page.getByRole("button", { name: "Ready!" });
   if (await ready.isEnabled().catch(() => false)) await ready.click();
 }
 
-async function guestSince(page: Page, since: number | null): Promise<number | null> {
-  const hosting = await page
-    .getByRole("button", { name: "Start Match" })
+function guestSince(page: Page, since: number | null): number | null {
+  if (!page.url().includes("/online/lobby/")) return null;
+  return since ?? Date.now();
+}
+
+async function returnToEarlierGame(page: Page) {
+  if (new URL(page.url()).pathname !== "/") return;
+  if (await press(page, /^(Resume Match|Return to Lobby)/))
+    log("going back to an earlier game");
+}
+
+async function lobbyMissingSince(
+  page: Page,
+  since: number | null
+): Promise<number | null> {
+  if (!page.url().includes("/online/lobby/")) return null;
+  const shown = await page
+    .getByRole("button", { name: "Leave" })
     .isVisible()
     .catch(() => false);
-  if (hosting) return null;
+  if (shown) return null;
   return since ?? Date.now();
 }
 
 async function waitForMatch(page: Page): Promise<boolean> {
   const deadline = Date.now() + WAIT_FOR_A_GAME_MS;
   let guest: number | null = null;
+  let missing: number | null = null;
   while (Date.now() < deadline) {
     if (page.url().includes("/online/play/")) return true;
+    await returnToEarlierGame(page);
     await readyUp(page).catch(() => undefined);
-    const start = page.getByRole("button", { name: "Start Match" });
-    if (await start.isEnabled().catch(() => false)) {
-      await start.click();
-      await page.waitForURL(/\/online\/play\//, { timeout: 60_000 });
-      return true;
+    missing = await lobbyMissingSince(page, missing);
+    if (missing !== null && Date.now() - missing > LOBBY_LOAD_MS) {
+      log("that lobby never loaded; back to the menu");
+      return false;
     }
-    guest = await guestSince(page, guest);
+    guest = guestSince(page, guest);
     if (guest !== null && Date.now() - guest > WAIT_AS_GUEST_MS) {
-      log("the host never started; leaving the seat and hosting again");
+      log("the host never started; leaving the seat");
       await page.getByRole("button", { name: "Leave" }).click().catch(() => undefined);
       await page.waitForURL((url) => url.pathname === "/", { timeout: 10_000 }).catch(() => undefined);
       return false;
@@ -158,32 +174,6 @@ async function waitForMatch(page: Page): Promise<boolean> {
     await page.waitForTimeout(2000);
   }
   throw new Error("nobody started a game with the bot in a day");
-}
-
-async function hostFreshGame(page: Page): Promise<string> {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    await page.goto("/online/host");
-    const code = page.getByTestId("lobby-code");
-    const landed = await Promise.race([
-      code.waitFor({ timeout: 30_000 }).then(() => "lobby" as const),
-      page
-        .waitForURL(/\/online\/play\//, { timeout: 30_000 })
-        .then(() => "old match" as const),
-    ]).catch(() => "nothing" as const);
-    if (landed === "lobby") {
-      const value = await code.getAttribute("data-code");
-      if (value) return value;
-    }
-
-    if (landed === "old match") {
-      log("hosting resumed an earlier match; finishing it first");
-      if ((await playMatch(page)) === "full time") await leaveFullTime(page);
-    }
-    log(`hosting landed on ${landed}; trying again`);
-    await page.goto("/");
-    await page.waitForTimeout(5000);
-  }
-  throw new Error("could not open a fresh lobby");
 }
 
 async function answerPrompt(page: Page): Promise<boolean> {

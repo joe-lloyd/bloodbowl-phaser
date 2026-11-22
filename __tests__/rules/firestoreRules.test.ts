@@ -41,16 +41,13 @@ vi.mock("../../src/firebase/auth", () => ({
 }));
 
 import {
-  announceHouseBotLobby,
-  findHouseBotLobby,
-} from "../../src/firebase/houseBot";
-import {
   HOUSE_BOT_EMAIL,
   HOUSE_BOT_UID,
 } from "../../src/firebase/houseBotAccount";
 import {
   cancelEndMatch,
   commitSeed,
+  closeHostedLobby,
   createLobby,
   finishMatch,
   heartbeat,
@@ -229,55 +226,27 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
     localStorage.clear();
   });
 
-  describe("the house bot's lobby", () => {
-    const botLobby = async () =>
-      (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
-
-    it("is announced by the bot and found by another coach", async () => {
-      const code = await botLobby();
-      await as(BOT, () => announceHouseBotLobby(BOT, code));
-      expect(await as(GUEST, () => findHouseBotLobby())).toBe(code);
-
+  describe("the house bot", () => {
+    it("closes a lobby it hosts, with a coach still seated", async () => {
+      const code = (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
       await as(GUEST, () => joinLobby(code, GUEST, "Guest"));
-      expect(await as(GUEST, () => findHouseBotLobby())).toBeNull();
-      await as(BOT, () => announceHouseBotLobby(BOT, null));
+      await as(BOT, () => closeHostedLobby(code, BOT));
+      expect((await getDoc(game(ADMIN, code))).exists()).toBe(false);
     });
 
-    it("cannot be announced by any other account", async () => {
+    it("keeps its pointer when an invite moved it first", async () => {
+      const code = (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
+      await setDoc(doc(dbFor(BOT), "users", BOT), { activeMatchCode: "NEWER1" }, { merge: true });
+      await as(BOT, () => closeHostedLobby(code, BOT));
+      expect((await getDoc(doc(dbFor(ADMIN), "users", BOT))).data()?.["activeMatchCode"]).toBe("NEWER1");
+    });
+
+    it("keeps the old lobby announcement writable only by the bot's account", async () => {
       const code = await openLobby();
-
-      await denied(as(HOST, () => announceHouseBotLobby(HOST, code)));
-      await denied(as(GUEST, () => announceHouseBotLobby(BOT, code)));
-
-      await denied(as(SQUATTER, () => announceHouseBotLobby(SQUATTER, code)));
-      await denied(
-        setDoc(doc(dbFor(BOT), "houseBots", BOT), {
-          code,
-          updatedAt: Date.now(),
-          extra: true,
-        })
-      );
-    });
-
-    it("is still found past a malformed announcement", async () => {
-      const code = await botLobby();
-      await as(BOT, () => announceHouseBotLobby(BOT, code));
-
-      await setDoc(doc(dbFor(ADMIN), "houseBots", "broken"), {
-        code: "A/B",
-        updatedAt: Date.now() + 60 * 60 * 1000,
-      });
-      expect(await as(GUEST, () => findHouseBotLobby())).toBe(code);
-      await deleteDoc(doc(dbFor(ADMIN), "houseBots", "broken"));
-    });
-
-    it("is ignored once the bot has stopped announcing it", async () => {
-      const code = await botLobby();
-      await setDoc(doc(dbFor(BOT), "houseBots", BOT), {
-        code,
-        updatedAt: Date.now() - 10 * 60 * 1000,
-      });
-      expect(await as(GUEST, () => findHouseBotLobby())).toBeNull();
+      await setDoc(doc(dbFor(BOT), "houseBots", BOT), { code, updatedAt: Date.now() });
+      await denied(setDoc(doc(dbFor(HOST), "houseBots", HOST), { code, updatedAt: Date.now() }));
+      await denied(setDoc(doc(dbFor(GUEST), "houseBots", BOT), { code, updatedAt: Date.now() }));
+      await denied(setDoc(doc(dbFor(SQUATTER), "houseBots", SQUATTER), { code, updatedAt: Date.now() }));
     });
   });
 
