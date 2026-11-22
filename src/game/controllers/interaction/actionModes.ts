@@ -67,7 +67,7 @@ function planWithoutDeclaring(
   const deferrable =
     !data.razzleDazzle &&
     plansBeforeDeclaring(data.action, blockReplacement) &&
-    pendingGates(c, data.playerId, data.action).length > 0;
+    defersGates(c, data.playerId, data.action);
   if (!deferrable) return false;
   c.undeclared = { action: data.action, blockReplacement, razzleDazzle: false };
   enterActionMode({ c, playerId: data.playerId, action: data.action, blockReplacement });
@@ -375,7 +375,7 @@ export function resumeBallAndChain(
   refreshPlayerVisualization(c, playerId);
 }
 
-export function pendingGates(
+function pendingGates(
   c: GameplayInteractionController,
   playerId: string,
   action: ActionType
@@ -384,6 +384,14 @@ export function pendingGates(
   const player = c.gameService.getPlayerById(playerId);
   if (!player) return [];
   return activationGates(player, action, c.gameService.getTeammates(playerId));
+}
+
+export function defersGates(
+  c: GameplayInteractionController,
+  playerId: string,
+  action: ActionType
+): boolean {
+  return !c.gameService.runsCommandsLater && pendingGates(c, playerId, action).length > 0;
 }
 
 export function askGates(

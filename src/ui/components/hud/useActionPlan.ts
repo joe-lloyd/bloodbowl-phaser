@@ -17,9 +17,10 @@ export const rollText = (stage: PlanStage) =>
   stage.rolls.map((roll) => `${roll.name} ${String(roll.target)}+`);
 
 export function planRollList(plan: ActionPlanSummary): string {
-  const parts = plan.stages.flatMap((stage) =>
+  const rolls = plan.stages.flatMap((stage) =>
     stage.rolls.length > 0 ? rollText(stage) : stage.notes.slice(0, 1)
   );
-  return parts.length > 0 ? parts.join(" · ") : "No rolls";
+  const route = plan.squares > 0 ? [`${String(plan.squares)} sq`] : [];
+  return [...route, ...(rolls.length > 0 ? rolls : ["No rolls"])].join(" · ");
 }
 

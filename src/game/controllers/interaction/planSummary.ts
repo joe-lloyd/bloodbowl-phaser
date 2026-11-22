@@ -66,7 +66,7 @@ function gateStage(c: GameplayInteractionController, player: Player): PlanStage 
   const gates = activationGates(player, c.undeclared.action, c.gameService.getTeammates(player.id));
   if (gates.length === 0) return null;
   return {
-    label: "First",
+    label: "Before acting",
     rolls: gates.map((gate) => ({ kind: "gate", name: gate.skill, target: gateNeed(gate) })),
     notes: gates.map((gate) => GATE_FAILURE_TEXT[gate.onFail.kind]),
   };
@@ -96,7 +96,7 @@ function throwStages(c: GameplayInteractionController, actor: Player, finish: Pl
     : interceptions({ c, actor, from: actor.gridPosition, square: finish, opponents: c.gameService.getOpponents(actor.teamId) }).lines;
   const stages: PlanStage[] = handoff
     ? []
-    : [{ label: needs.range.type, rolls: [{ kind: "pass", name: "Accurate", target: needs.pass }], notes: intercepts }];
+    : [{ label: "Throw", rolls: [{ kind: "pass", name: needs.range.type, target: needs.pass }], notes: intercepts }];
   if (receiver && needs.catch !== null) {
     stages.push({
       label: `${handoff ? "Hand-off to" : "Caught by"} #${String(receiver.number)} ${receiver.playerName}`,
@@ -190,6 +190,7 @@ function buildPlan(c: GameplayInteractionController): ActionPlanSummary | null {
   const action = c.undeclared?.action ?? c.currentActionMode ?? "move";
   return {
     title: TITLES[action] ?? "Plan",
+    squares: c.waypoints.length,
     stages,
     rerolls: rerollSources(c, mover, stages.flatMap((stage) => stage.rolls.map((roll) => roll.kind))),
     blocked: blockedReason(c, actor, finish),

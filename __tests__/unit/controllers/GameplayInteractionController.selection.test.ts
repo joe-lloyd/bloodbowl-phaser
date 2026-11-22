@@ -76,7 +76,7 @@ describe("GameplayInteractionController", () => {
       await dispatchAction({ action: "blitz", playerId: "bone" });
       expect(confirmationsAsked()).toBe(0);
       expect(controller.undeclared).toEqual({ action: "blitz", blockReplacement: null, razzleDazzle: false });
-      expect(lastPlanStages()[0]).toMatchObject({ label: "First", rolls: [{ kind: "gate" }] });
+      expect(lastPlanStages()[0]).toMatchObject({ label: "Before acting", rolls: [{ kind: "gate" }] });
 
       controller.selectPlayer("mate");
 
@@ -107,6 +107,20 @@ describe("GameplayInteractionController", () => {
       expect(confirmationsAsked()).toBe(0);
       expect(serviceSpies.declareAction).toHaveBeenCalledWith({ playerId: "bone", action: "blitz" });
       expect(serviceSpies.movePlayer).toHaveBeenCalledWith("bone", [{ x: 6, y: 5 }]);
+    });
+
+    it("still asks for the Bone-head roll up front when an online host runs the commands", async () => {
+      armBoneHead();
+      mockGameService.runsCommandsLater = true;
+      try {
+        void dispatchAction({ action: "blitz", playerId: "bone" });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(controller.undeclared).toBeNull();
+        expect(confirmationsAsked()).toBe(1);
+      } finally {
+        mockGameService.runsCommandsLater = false;
+      }
     });
 
     function armBoneHead() {

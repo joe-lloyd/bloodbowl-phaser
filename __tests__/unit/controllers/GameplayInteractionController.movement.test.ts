@@ -127,6 +127,7 @@ describe("GameplayInteractionController", () => {
 
       expect(lastPlan()).toEqual({
         title: "Move",
+        squares: 1,
         stages: [
           {
             label: "Move 1 square",
@@ -285,7 +286,7 @@ async function settle(): Promise<void> {
 function lastPlan() {
   return eventBusSpies.emit.mock.calls
     .filter(([name, data]) => name === GameEventNames.UI_ActionPlan && data)
-    .map(([, data]) => z.object({ title: z.string(), stages: z.array(z.object({ label: z.string(), rolls: z.array(z.object({ kind: z.string(), name: z.string(), target: z.number() })), notes: z.array(z.string()) })), rerolls: z.array(z.string()), blocked: z.string().nullable() }).parse(data))
+    .map(([, data]) => z.object({ title: z.string(), squares: z.number(), stages: z.array(z.object({ label: z.string(), rolls: z.array(z.object({ kind: z.string(), name: z.string(), target: z.number() })), notes: z.array(z.string()) })), rerolls: z.array(z.string()), blocked: z.string().nullable() }).parse(data))
     .at(-1);
 }
 

@@ -186,9 +186,10 @@ export const PLAYER_VARIANTS: Variant[] = [
       later(30, () => {
         fx.bus.emit(GameEventNames.UI_ActionPlan, {
           title: "Blitz",
+          squares: 4,
           stages: [
             {
-              label: "First",
+              label: "Before acting",
               rolls: [{ kind: "gate", name: "Bone-head", target: 2 }],
               notes: ["On a fail they are Distracted and the activation ends."],
             },

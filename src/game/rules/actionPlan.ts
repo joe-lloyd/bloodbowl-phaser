@@ -21,6 +21,7 @@ export interface PlanStage {
 
 export interface ActionPlanSummary {
   title: string;
+  squares: number;
   stages: PlanStage[];
   rerolls: string[];
   blocked: string | null;

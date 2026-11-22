@@ -12,7 +12,7 @@ import type { GameplayInteractionController } from "../GameplayInteractionContro
 import { attack, type SquareClick, stepClickFor } from "./stepClicks";
 import { computeJumpTargets } from "./previews";
 import { addWaypoint, refreshPlayerVisualization } from "./routes";
-import { askGates, enterActionMode, pendingGates } from "./actionModes";
+import { askGates, defersGates, enterActionMode } from "./actionModes";
 import { PLANNED_MOVE, finishKindAt, plannedActionFor } from "./plan";
 import { goPlan, planFinishAt } from "./planRun";
 
@@ -237,6 +237,17 @@ function clickOtherPlayer(
   c.selectPlayer(playerAtSquare.id);
 }
 
+function readyToRoute(c: GameplayInteractionController, state: GameState, playerId: string): boolean | Promise<boolean> {
+  const currentAction = plannedActionFor(c, state, playerId);
+  if (!currentAction && defersGates(c, playerId, "move")) {
+    c.undeclared = PLANNED_MOVE;
+    return true;
+  }
+  const asked = currentAction ? null : askGates(c, playerId, "move");
+  if (!asked) return c.declareMoveIfNone(playerId, currentAction);
+  return asked.then((ok) => ok && c.declareMoveIfNone(playerId, currentAction));
+}
+
 async function clickEmptySquare(
 { c,selectedId,x,y }: { c: GameplayInteractionController; selectedId: string; x: number; y: number; }): Promise<void> {
   const player = c.gameService.getPlayerById(selectedId);
@@ -249,12 +260,8 @@ async function clickEmptySquare(
     return;
   }
 
-  const currentAction = plannedActionFor(c, state, player.id);
-  if (!currentAction && pendingGates(c, player.id, "move").length > 0) {
-    c.undeclared = PLANNED_MOVE;
-  } else if (!c.declareMoveIfNone(player.id, currentAction)) {
-    return;
-  }
+  const ready = readyToRoute(c, state, player.id);
+  if (ready instanceof Promise ? !(await ready) : !ready) return;
 
   const lastPos = c.waypoints.at(-1) ?? player.gridPosition;
 

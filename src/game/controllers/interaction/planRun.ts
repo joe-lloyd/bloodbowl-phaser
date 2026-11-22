@@ -14,6 +14,7 @@ import {
 import type { Player } from "@/types/Player";
 import { handoffTargetRefusalReason } from "../../rules/handoff";
 import { planProblem, publishPlan } from "./planSummary";
+import { cancelAction } from "./actionModes";
 import { previewSquare } from "./previews";
 import { afterMove, refreshPlayerVisualization, stoppedShort, walkRoute } from "./routes";
 import { FINISHERS, type SquareClick } from "./stepClicks";
@@ -74,7 +75,6 @@ function stopPlan(c: GameplayInteractionController, playerId: string, why: strin
 }
 
 function stillPlanned(c: GameplayInteractionController, playerId: string, planned: PlannedDeclaration): boolean {
-  if (c.gameService.runsCommandsLater) return true;
   const active = c.gameService.getState().activePlayer;
   return (
     active?.id === playerId &&
@@ -166,6 +166,10 @@ export async function goPlan(c: GameplayInteractionController): Promise<void> {
 export function clearPlan(c: GameplayInteractionController): void {
   const playerId = c.selectedPlayerId;
   if (c.isBusy || !playerId) return;
+  if (c.undeclared && c.waypoints.length === 0 && !currentFinish(c)) {
+    cancelAction(c);
+    return;
+  }
   if (currentFinish(c)) {
     c.dropFinish();
     c.clearRollPreviews();

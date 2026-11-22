@@ -20,8 +20,9 @@ import { BiteAndSpellTargets } from "./interaction/BiteAndSpellTargets";
 import { Confirmations } from "./interaction/Confirmations";
 import { PushPicker } from "./interaction/PushPicker";
 import {
+  askGates,
   cancelAction,
-  pendingGates,
+  defersGates,
   endActivation,
   reconcileRejectedCommand,
   resumeBallAndChain,
@@ -523,8 +524,15 @@ export class GameplayInteractionController {
     if (owner.id !== this.selectedPlayerId) this.selectPlayer(owner.id);
     if (this.selectedPlayerId !== owner.id) return false;
 
-    if (!this.undeclared && pendingGates(this, owner.id, "move").length > 0) {
+    if (this.undeclared) return true;
+    if (defersGates(this, owner.id, "move")) {
       this.undeclared = PLANNED_MOVE;
+      return true;
+    }
+    const asked = askGates(this, owner.id, "move");
+    if (asked) {
+      void asked.then((ok) => ok && this.declareMoveIfNone(owner.id));
+      return false;
     }
     return true;
   }
