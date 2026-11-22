@@ -49,11 +49,12 @@ while the invite is still fresh.
   the next invite.
 - In the bot's browser only, `HouseBotSocial`
   (`src/ui/components/social/HouseBotSocial.tsx`) accepts every incoming
-  friend request and every match invite, as long as the bot has no guest
-  waiting and is not playing. It then opens the invited lobby. The runner
+  friend request and every match invite, as long as the bot is not already
+  seated in a lobby or playing. It then opens the invited lobby. The runner
   presses Ready!, which stays disabled until the bot's browser has picked a
   team that fits. If the host has not started after twenty minutes, the bot
-  leaves the seat.
+  leaves the seat. If a lobby it opens never loads, it goes back to the menu
+  after thirty seconds.
 
 ## Running it
 

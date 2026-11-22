@@ -120,6 +120,7 @@ async function logFriendCode(page: Page) {
 
 const WAIT_FOR_A_GAME_MS = 24 * 60 * 60 * 1000;
 const WAIT_AS_GUEST_MS = 20 * 60 * 1000;
+const LOBBY_LOAD_MS = 30 * 1000;
 
 async function readyUp(page: Page) {
   const ready = page.getByRole("button", { name: "Ready!" });
@@ -137,13 +138,32 @@ async function returnToEarlierGame(page: Page) {
     log("going back to an earlier game");
 }
 
+async function lobbyMissingSince(
+  page: Page,
+  since: number | null
+): Promise<number | null> {
+  if (!page.url().includes("/online/lobby/")) return null;
+  const shown = await page
+    .getByRole("button", { name: "Leave" })
+    .isVisible()
+    .catch(() => false);
+  if (shown) return null;
+  return since ?? Date.now();
+}
+
 async function waitForMatch(page: Page): Promise<boolean> {
   const deadline = Date.now() + WAIT_FOR_A_GAME_MS;
   let guest: number | null = null;
+  let missing: number | null = null;
   while (Date.now() < deadline) {
     if (page.url().includes("/online/play/")) return true;
     await returnToEarlierGame(page);
     await readyUp(page).catch(() => undefined);
+    missing = await lobbyMissingSince(page, missing);
+    if (missing !== null && Date.now() - missing > LOBBY_LOAD_MS) {
+      log("that lobby never loaded; back to the menu");
+      return false;
+    }
     guest = guestSince(page, guest);
     if (guest !== null && Date.now() - guest > WAIT_AS_GUEST_MS) {
       log("the host never started; leaving the seat");

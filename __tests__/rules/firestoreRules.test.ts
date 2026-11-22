@@ -234,6 +234,13 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       expect((await getDoc(game(ADMIN, code))).exists()).toBe(false);
     });
 
+    it("keeps its pointer when an invite moved it first", async () => {
+      const code = (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
+      await setDoc(doc(dbFor(BOT), "users", BOT), { activeMatchCode: "NEWER1" }, { merge: true });
+      await as(BOT, () => closeHostedLobby(code, BOT));
+      expect((await getDoc(doc(dbFor(ADMIN), "users", BOT))).data()?.["activeMatchCode"]).toBe("NEWER1");
+    });
+
     it("keeps the old lobby announcement writable only by the bot's account", async () => {
       const code = await openLobby();
       await setDoc(doc(dbFor(BOT), "houseBots", BOT), { code, updatedAt: Date.now() });
