@@ -5,7 +5,7 @@ import type { ActionPlanSummary, PlanStage } from "../../../game/rules/actionPla
 import { HudButton } from "../componentWarehouse/HudKit";
 import { planRollList, rollText, useActionPlan } from "./useActionPlan";
 
-export function PlanButtons({
+function PlanButtons({
   eventBus,
   plan,
   size,
