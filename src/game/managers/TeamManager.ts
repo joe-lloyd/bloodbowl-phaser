@@ -6,6 +6,7 @@ import {
 import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
 import { chooseFirstLinemanAsVeteran } from "../rules/veteran";
 import { clearUnneededExpensiveMistakes } from "../rules/expensiveMistakes";
+import { latchGutterUnlock } from "../rules/club";
 import { isSeedOwned } from "../../seeding/seedMeta";
 import {
   cleanupDevelopmentSeedData,
@@ -156,6 +157,7 @@ export function loadTeams(): Team[] {
 
     backfillFirstMatchPlayedAt(team);
     migrateAdvancementMode(team);
+    latchGutterUnlock(team);
 
     if (isSeedOwned(team) && !team.players.some((player) => player.veteran)) {
       chooseFirstLinemanAsVeteran(team);

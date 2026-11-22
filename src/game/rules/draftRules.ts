@@ -26,16 +26,8 @@ export function teamGameTypeLabel(team: DraftedFor): string {
   return GAME_TYPE_LABELS[teamGameType(team)];
 }
 
-export function rerollPrice(
-  draft: DraftRules,
-  rosterRerollCost: number
-): number {
-  switch (draft.rerolls.kind) {
-    case "flat":
-      return draft.rerolls.cost;
-    case "double-roster":
-      return rosterRerollCost * 2;
-  }
+export function rerollPrice(draft: DraftRules): number {
+  return draft.rerollCost;
 }
 
 export function dedicatedFanPrice(draft: DraftRules): number {

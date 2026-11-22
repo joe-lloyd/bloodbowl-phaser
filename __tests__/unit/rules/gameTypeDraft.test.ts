@@ -62,8 +62,8 @@ function hire(team: Team, positions: Record<string, number>): void {
 describe("team re-roll prices per game type", () => {
   it.each([
     ["sevens", 100_000],
-    ["street-bowl", 120_000],
-    ["beach-bowl", 120_000],
+    ["street-bowl", 100_000],
+    ["beach-bowl", 100_000],
     ["gutter-bowl", 100_000],
   ] as const)(
     "%s charges %d for an Amazon re-roll (SB-D2, BB-D2, GB-D2)",
@@ -174,7 +174,7 @@ describe("legalGameTypes", () => {
       "Eagle Warrior": 4,
     });
     purchase(team, { type: "reroll" });
-    expect(team.treasury).toBe(30_000);
+    expect(team.treasury).toBe(50_000);
     expect(legalGameTypes(team, amazon)).toEqual([
       "gutter-bowl",
       "street-bowl",
@@ -196,19 +196,19 @@ describe("legalGameTypes", () => {
     ).toEqual(["lineman-limit"]);
   });
 
-  it("prices a draft at the other game type's re-roll cost", () => {
+  it("keeps a Gutter Bowl draft over 600,000 out of Street Bowl", () => {
     const team = draftTeam("gutter-bowl", 750_000);
     hire(team, {
       "Python Warrior": 2,
       "Piranha Warrior": 2,
-      "Eagle Warrior": 3,
+      "Eagle Warrior": 4,
     });
     purchase(team, { type: "reroll" });
     expect(legalGameTypes(team, amazon)).toEqual(["gutter-bowl"]);
     expect(
       validateRosterLegality(team, amazon, "street-bowl").map((v) => v.detail)
     ).toEqual([
-      "the draft costs 610,000 at Street Bowl prices (budget 600,000)",
+      "the draft costs 640,000 at Street Bowl prices (budget 600,000)",
     ]);
   });
 
@@ -253,7 +253,7 @@ describe("changing a draft's game type", () => {
     expect(street.rerolls).toBe(1);
     expect(street.apothecary).toBe(false);
     expect(street.coaches).toBe(0);
-    expect(street.treasury).toBe(130_000);
+    expect(street.treasury).toBe(150_000);
     expect(street.players.filter((player) => player.veteran)).toEqual([]);
     expect(team.gameType).toBeUndefined();
   });

@@ -30,6 +30,7 @@ import {
 import { type Team } from "../types/Team";
 import { manageComputerTeams } from "./computerTeams";
 import { carriesInjuries } from "../game/rules/injuryRules";
+import { restoreClubHome } from "../game/rules/club";
 import { assertFixtureInOpenRound } from "./schedule";
 
 interface TeamRecordUpdate {
@@ -117,6 +118,7 @@ function updateTeamRecord({
 export function keepRecordedResult(team: Team): void {
   const stored = getTeamById(team.id);
   if (!stored) return;
+  restoreClubHome(team, stored);
   team.wins = stored.wins;
   team.draws = stored.draws;
   team.losses = stored.losses;

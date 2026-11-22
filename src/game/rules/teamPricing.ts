@@ -17,6 +17,7 @@ import {
   teamGameTypeLabel,
 } from "./draftRules";
 import { freeRosterNumber, uniquePlayerId } from "./playerSlots";
+import { isGutterSpecialist } from "./club";
 import { countInsignificant } from "./insignificant";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { Inducement } from "../../types/Inducements";
@@ -143,7 +144,7 @@ function inducementPrice(team: Team, inducement: Inducement): PriceResult {
 }
 
 export function teamRerollPrice(team: Team): number {
-  return rerollPrice(teamDraftRules(team), team.rerollCost);
+  return rerollPrice(teamDraftRules(team));
 }
 
 export function priceOf(team: Team, item: PriceableItem): PriceResult {
@@ -217,7 +218,9 @@ export function draftInducementCount(
 export function draftListPlayers(team: Team): Player[] {
   return team.players.filter(
     (player) =>
-      staysOnRoster(team, player) && !isPendingRecruit(team, player.id)
+      staysOnRoster(team, player) &&
+      !isPendingRecruit(team, player.id) &&
+      !isGutterSpecialist(team, player)
   );
 }
 
@@ -263,7 +266,10 @@ export function hireRefusal(
   }
   if (
     joiningPlayerId === undefined &&
-    team.players.filter((player) => staysOnRoster(team, player)).length >= limit
+    team.players.filter(
+      (player) =>
+        staysOnRoster(team, player) && !isGutterSpecialist(team, player)
+    ).length >= limit
   ) {
     return `A ${label} team may have at most ${String(limit)} players, counting a Journeyman or recruit still waiting on a hiring decision.`;
   }

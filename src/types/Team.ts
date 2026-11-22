@@ -190,6 +190,14 @@ export interface Formation {
   positions: { playerId: string; x: number; y: number }[];
 }
 
+export interface ClubState {
+  gutterUnlocked?: true;
+
+  gutterSpecialistId?: string;
+
+  gutterSitsOutId?: string;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -252,6 +260,8 @@ export interface Team {
   league?: League;
 
   favouredOf?: FavouredOfRule;
+
+  club?: ClubState;
 }
 
 export interface TeamRoster {
@@ -402,7 +412,7 @@ export function playersTeamValue(team: Team): number {
 
 export function staffTeamValue(team: Team): number {
   return (
-    team.rerolls * rerollPrice(teamDraftRules(team), team.rerollCost) +
+    team.rerolls * rerollPrice(teamDraftRules(team)) +
     (team.apothecary ? APOTHECARY_COST : 0) +
     team.coaches * ASSISTANT_COACH_COST +
     team.cheerleaders * CHEERLEADER_COST

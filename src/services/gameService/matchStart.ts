@@ -11,6 +11,7 @@ import { SetupManager } from "@/game/managers/SetupManager";
 import { rollMasterChefs as cookMasterChefs } from "@/game/inducements/masterChef";
 import type { GameParts } from "./parts";
 import { readyInducements } from "./inducements";
+import { prepareClubSquad } from "@/game/rules/club";
 
 export function createMatchState({
   team1,
@@ -32,6 +33,8 @@ export function createMatchState({
   format?: MatchFormat;
 }): GameState {
   activateMatchFormat(format);
+  prepareClubSquad(team1, format.gameType);
+  prepareClubSquad(team2, format.gameType);
   const competition = !!(fixture.competition ?? fixture.paysWinnings);
   const readiness = { leagueFixture: !!fixture.paysWinnings, competition };
   SetupManager.sanitizeTeam(team1, readiness);
