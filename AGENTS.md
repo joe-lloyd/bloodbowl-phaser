@@ -2,17 +2,21 @@
 
 ## Pull requests
 
-Every change reaches `main` through a pull request. CodeRabbit reviews every pull request that is not a draft.
+Every change reaches `main` through a pull request. Open it ready for review, not as a draft. Then invoke the `babysit-pr` skill and stay on the PR until it merges.
 
-Open pull requests ready for review. If you opened a draft, run `gh pr ready` once the work is done, because CodeRabbit skips drafts. Then invoke the `babysit-pr` skill and stay on the PR until it merges. Its CodeRabbit section is the process:
+## Codex reviews first
 
-- Fix or decline every CodeRabbit finding, then wait for CodeRabbit to review the new head.
-- Once CodeRabbit passes the head clean, and any CI the repo runs is green, merge without asking.
-- If CodeRabbit still has open findings after three rounds of fixes, stop. Do not merge. Tell the owner directly.
+CodeRabbit's plan is rate limited on most pushes. Waiting for it costs 20 to 40 minutes and usually ends in a refusal. In this repository, these rules replace the reviewer order in `~/.agents/AGENTS.md` and the CodeRabbit waits in `babysit-pr`:
+
+- As soon as the PR is open, spawn the Joe Codex reviewer with the reviewer brief from `full-send`. Spawn a new one after each push that fixes review findings. Do not wait for CodeRabbit first.
+- Never post `@coderabbitai review`. When the helper reports `coderabbit-stalled` or `coderabbit-refused`, run `wait` again and keep waiting for the Codex review and CI.
+- CodeRabbit still runs on its own. If it finishes a head and opens threads, fix or decline them like any other review. An open CodeRabbit thread still blocks the merge.
+- Merge without asking once a Codex review on the current head says `Verdict: approve`, CI is green, and no CodeRabbit thread is open.
+- If three Codex rounds in a row end in `Verdict: changes`, stop. Do not merge. Ask the owner.
 
 ## Review scope
 
-Reviewers, CodeRabbit and fallback reviewers alike, skip `public/sprites/bloodbowl/` and `__tests__/`. Both are large and mostly generated, and the owner decided a review there is not worth it. Read the rest of the diff with `git -C "$(git rev-parse --show-toplevel)" diff origin/main...HEAD -- . ':(exclude)public/sprites/bloodbowl' ':(exclude)__tests__'`, which works from any folder. CI still runs every test.
+Reviewers, Codex and CodeRabbit alike, skip `public/sprites/bloodbowl/` and `__tests__/`. Both are large and mostly generated, and the owner decided a review there is not worth it. Read the rest of the diff with `git -C "$(git rev-parse --show-toplevel)" diff origin/main...HEAD -- . ':(exclude)public/sprites/bloodbowl' ':(exclude)__tests__'`, which works from any folder. CI still runs every test.
 
 ## Firestore rules
 
