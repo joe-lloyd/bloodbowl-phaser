@@ -21,22 +21,16 @@ test("route shows every roll with its target, and no odds, before a score run", 
   expect(await app.bridge.pitchLayers()).toContain("path_roll_label");
   await page.screenshot({ path: test.info().outputPath("route-preview.png") });
   await app.pitch.clickSquare({ x: 19, y: 5 });
-  await app.pitch.clickSquare({ x: 19, y: 5 });
-  await expect(page.getByTestId("confirmation-modal")).toContainText(
-    "Dodge: 3+. A fall is a turnover."
-  );
-  await page.getByRole("button", { name: "Dodge!" }).click();
-  await expect(page.getByRole("heading", { name: /: Rush$/ })).toBeVisible({
-    timeout: 20_000,
-  });
-  await page.getByRole("button", { name: "Stop here" }).click();
-  await app.pitch.hoverSquare({ x: 18, y: 4 });
-  await app.pitch.hoverSquare({ x: 19, y: 5 });
-  await expect(summary).toContainText("0 movement left");
-  await expect(summary).toContainText("Rush 2+");
-  await page.screenshot({
-    path: test.info().outputPath("second-leg-rush.png"),
-  });
+  const plan = page.getByTestId("action-plan");
+  await expect(plan).toContainText("Dodge 3+");
+  await expect(plan).toContainText("Rush 2+");
+  await expect(plan).not.toContainText("%");
+  await page.screenshot({ path: test.info().outputPath("move-plan.png") });
+
+  await page.getByTestId("action-plan-go").click();
+  await app.bridge.expectEvent(GameEventNames.DiceRoll, 20_000);
+  await expect(page.getByTestId("confirmation-modal")).toBeHidden();
+  await expect(plan).toBeHidden();
 });
 
 test("a second leg goes straight through when a detour would not fit", async ({
@@ -51,19 +45,13 @@ test("a second leg goes straight through when a detour would not fit", async ({
   await expect(page.getByTestId("route-summary")).toContainText(
     "Rush 2+Dodge 5+Rush 2+Dodge 5+"
   );
+  await expect(page.getByTestId("action-plan")).toContainText(
+    "Rush 2+Dodge 5+Rush 2+Dodge 5+"
+  );
   await page.screenshot({ path: test.info().outputPath("tight-leg.png") });
-  await app.pitch.clickSquare({ x: 10, y: 5 });
-
-  await expect(
-    page.getByRole("heading", { name: /: Rush & Dodge$/ })
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-
-  expect(await app.pitch.squareOf("team1:0")).toEqual({ x: 8, y: 4 });
 });
 
-test("pickup asks before entering the ball square and can stop", async ({
+test("the plan lists the pick-up, and Go walks onto the ball without asking", async ({
   page,
 }) => {
   const app = new GameApp(page);
@@ -71,19 +59,12 @@ test("pickup asks before entering the ball square and can stop", async ({
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickSquare({ x: 10, y: 7 });
   await expect(page.getByTestId("route-summary")).toContainText("Pick up 3+");
+  await expect(page.getByTestId("action-plan")).toContainText("Pick up 3+");
   await app.pitch.clickSquare({ x: 10, y: 7 });
-  await expect(page.getByTestId("confirmation-modal")).toContainText(
-    "Pick up: 3+. A fail is a turnover."
-  );
-  expect(await app.pitch.squareOf("team1:0")).toEqual({ x: 9, y: 7 });
-  await page.getByRole("button", { name: "Stop here" }).click();
-  expect(await app.pitch.squareOf("team1:0")).toEqual({ x: 9, y: 7 });
-  await app.pitch.clickSquare({ x: 10, y: 7 });
-  await app.pitch.clickSquare({ x: 10, y: 7 });
-  await page.getByRole("button", { name: "Pick up!" }).click();
   await expect
     .poll(() => app.pitch.squareOf("team1:0"))
     .toEqual({ x: 10, y: 7 });
+  await expect(page.getByTestId("confirmation-modal")).toBeHidden();
 });
 
 test("block hover names the chooser, assists and Dodge before opening the dialog", async ({
@@ -95,6 +76,7 @@ test("block hover names the chooser, assists and Dodge before opening the dialog
   await app.pitch.hoverSquare(await app.pitch.squareOf("team2:0"));
   const preview = page.getByTestId("target-roll-preview");
   await expect(preview).toContainText("2 dice, you pick");
+  await expect(preview).toContainText(/Our ST \d.* vs their ST \d/);
   await expect(preview).toContainText("Our assists: #2");
   await expect(preview).toContainText("They have Dodge");
   await page.screenshot({ path: test.info().outputPath("block-preview.png") });
@@ -108,7 +90,7 @@ test("block hover names the chooser, assists and Dodge before opening the dialog
   await page.screenshot({ path: test.info().outputPath("block-dialog.png") });
 });
 
-test("foul previews armour and asks for confirmation with Cancel", async ({
+test("foul previews armour in the plan, and Clear drops it unrolled", async ({
   page,
 }) => {
   const app = new GameApp(page);
@@ -122,14 +104,12 @@ test("foul previews armour and asks for confirmation with Cancel", async ({
     "Our assists: #2"
   );
   await app.pitch.clickPlayer("team2:0");
-  await expect(page.getByTestId("confirmation-modal")).toContainText(
-    "A double sends the fouler off."
-  );
-  await page.screenshot({
-    path: test.info().outputPath("foul-confirmation.png"),
-  });
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByTestId("confirmation-modal")).toBeHidden();
+  const plan = page.getByTestId("action-plan");
+  await expect(plan).toContainText("Armour, all assists 8+");
+  await expect(plan).toContainText("A double sends the fouler off.");
+  await page.screenshot({ path: test.info().outputPath("foul-plan.png") });
+  await page.getByTestId("action-plan-clear").click();
+  await expect(plan).toBeHidden();
   expect(
     (await app.bridge.events()).filter(
       (e) => e.name === GameEventNames.DiceRoll
@@ -137,20 +117,18 @@ test("foul previews armour and asks for confirmation with Cancel", async ({
   ).toHaveLength(0);
 });
 
-test("clicking a downed opponent with nothing declared offers a Foul, not a Block", async ({
+test("clicking a downed opponent with nothing declared plans a Foul, not a Block", async ({
   page,
 }) => {
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "ux-foul-preview" });
   await app.pitch.clickPlayer("team1:0");
   await app.pitch.clickPlayer("team2:0");
-  await expect(page.getByTestId("confirmation-modal")).toContainText(
-    "A double sends the fouler off."
-  );
+  await expect(page.getByTestId("action-plan")).toContainText("Armour, all assists 8+");
   await expect(page.getByTestId("block-dice-dialog")).toBeHidden();
 
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByTestId("confirmation-modal")).toBeHidden();
+  await page.getByTestId("action-plan-clear").click();
+  await expect(page.getByTestId("action-plan")).toBeHidden();
   const { activePlayer } = await app.bridge.snapshot();
   expect(activePlayer).toMatchObject({ action: "foul" });
   expect(activePlayer?.committed ?? false).toBe(false);
@@ -173,7 +151,7 @@ test("a foul clears its red target square once the foul is over", async ({
   await expect.poll(highlights).toHaveLength(1);
 
   await app.pitch.clickPlayer("team2:0");
-  await page.getByRole("button", { name: "Foul!", exact: true }).click();
+  await page.getByTestId("action-plan-go").click();
   await page.getByTestId("foul-assists-1").click();
   await app.bridge.expectEvent(GameEventNames.DiceRoll);
   await expect.poll(highlights, { timeout: 15_000 }).toHaveLength(0);
@@ -196,34 +174,30 @@ test("pass hover shows range, catch and each interception roll", async ({
   await page.screenshot({ path: test.info().outputPath("pass-preview.png") });
 });
 
-test("a blitz block asks for its Rush before any block dice", async ({
+test("a blitz plan lists the block's Rush, and Go rolls it with no extra prompt", async ({
   page,
 }) => {
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "blitz-rush-fail-seeded" });
   await app.hud.declareAction("team1:0", "blitz");
   await app.pitch.clickSquare({ x: 16, y: 7 });
-  await app.pitch.clickSquare({ x: 16, y: 7 });
+  await app.pitch.clickPlayer("team2:0");
+  const plan = page.getByTestId("action-plan");
+  await expect(plan).toContainText("Block");
+  await expect(plan).toContainText("Rush 2+");
+  await expect(plan).toContainText(/Our ST \d.* vs their ST \d/);
+  await page.screenshot({ path: test.info().outputPath("blitz-plan.png") });
+
+  await page.getByTestId("action-plan-go").click();
   await expect
-    .poll(() => app.pitch.squareOf("team1:0"))
-    .toEqual({ x: 16, y: 7 });
-  await expect(page.getByTestId("action-step-block")).toBeVisible();
-  await app.hud.selectActionStep("block");
-  await expect
-    .poll(
-      async () => {
-        await app.pitch.clickPlayer("team2:0");
-        return page.getByTestId("block-dice-dialog").isVisible();
-      },
-      { timeout: 30_000 }
+    .poll(async () =>
+      (await app.bridge.events()).some(
+        (e) => e.name === GameEventNames.DiceRoll && JSON.stringify(e).includes("Rush")
+      ),
+      { timeout: 20_000 }
     )
     .toBe(true);
-  await page.getByTestId("block-roll-dice").click();
-  await expect(page.getByTestId("confirmation-modal")).toContainText(
-    "This block needs a Rush: 2+."
-  );
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByTestId("block-dice-dialog")).toBeHidden();
+  await expect(page.getByTestId("confirmation-modal")).toBeHidden();
 });
 
 test("hand-off hover shows only the receiver's catch target", async ({

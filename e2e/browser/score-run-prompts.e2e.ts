@@ -93,7 +93,7 @@ const SEED = Number(process.env["SCORE_RUN_SEED"] ?? 2);
 
 if (process.env["SHOTS"]) test.use({ video: "on" });
 
-test("a score run stops before the Dodge and the Rush, and scores at the end", async ({
+test("a score run plans the Dodge and the Rush, and scores at the end on Go", async ({
   page,
 }) => {
   const app = new GameApp(page);
@@ -120,27 +120,15 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   await shot("selected");
 
   await app.pitch.clickSquare({ x: 19, y: 5 });
-  await shot("route-plotted");
-  await app.pitch.clickSquare({ x: 19, y: 5 });
-
-  await expect(page.getByRole("heading", { name: /: Dodge$/ })).toBeVisible();
-  await expect(
-    page.getByText(/Dodge: 3\+\. A fall is a turnover\./)
-  ).toBeVisible();
+  const plan = page.getByTestId("action-plan");
+  await expect(plan).toContainText("Dodge 3+");
+  await expect(plan).toContainText("Rush 2+");
   expect((await carrier()).position).toEqual({ x: 12, y: 5 });
-  await shot("dodge-prompt");
-  await page.getByRole("button", { name: "Dodge!" }).click();
-  await shot("dodge-rolling");
-
-  await expect(page.getByRole("heading", { name: /: Rush$/ })).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByText(/Rush: 2\+\./)).toBeVisible();
-  expect((await carrier()).position).toEqual({ x: 18, y: 5 });
   expect(await scored()).toBe(false);
-  await shot("rush-prompt");
-  await page.getByRole("button", { name: "Rush!" }).click();
-  await shot("rush-rolling");
+  await shot("route-plotted");
+  await page.getByTestId("action-plan-go").click();
+  await shot("running");
+  await expect(page.getByTestId("confirmation-modal")).toBeHidden();
 
   const touchdown = page.getByTestId("announcement");
   await expect(touchdown).toContainText("Touchdown", { timeout: 15_000 });
@@ -173,8 +161,6 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   await app.hud.actionButton("move").click();
   await app.pitch.clickSquare({ x: 19, y: 5 });
   await app.pitch.clickSquare({ x: 19, y: 5 });
-  await page.getByRole("button", { name: "Dodge!" }).click();
-  await page.getByRole("button", { name: "Rush!" }).click({ timeout: 15_000 });
 
   await expect(page.getByRole("heading", { name: "TURNOVER" })).toBeVisible({
     timeout: 20_000,
@@ -202,7 +188,7 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   expect(landedAtBanner).toBeGreaterThanOrEqual(thrownAtTurnover);
 });
 
-test("on two Rushes in a row, the second prompt waits for the first die to land", async ({
+test("on two Rushes in a row, the second Rush rolls only after every earlier die lands", async ({
   page,
 }) => {
   const app = new GameApp(page);
@@ -213,31 +199,23 @@ test("on two Rushes in a row, the second prompt waits for the first die to land"
     const w = window as unknown as {
       eventBus: { on(name: string, fn: (d: never) => void): void };
       tray: { thrown: number; landedThrough: number };
-      trayAtRushPrompts: { thrown: number; landedThrough: number }[];
+      rollsSeen: number;
+      trayAtRushRolls: { earlier: number; landed: number }[];
     };
     w.tray = { thrown: 0, landedThrough: 0 };
-    w.trayAtRushPrompts = [];
+    w.rollsSeen = 0;
+    w.trayAtRushRolls = [];
     w.eventBus.on(
       "ui:diceInAir",
       (d: { thrown: number; landedThrough: number }) => {
         w.tray = d;
       }
     );
-    const seen = new WeakSet<Element>();
-    new MutationObserver(() => {
-      for (const heading of document.querySelectorAll("h3")) {
-        if (
-          seen.has(heading) ||
-          !(heading.textContent ?? "").endsWith(": Rush")
-        )
-          continue;
-        seen.add(heading);
-        w.trayAtRushPrompts.push({
-          thrown: w.tray.thrown,
-          landedThrough: w.tray.landedThrough,
-        });
-      }
-    }).observe(document.body, { childList: true, subtree: true });
+    w.eventBus.on("diceRoll", (d: { rollType: string }) => {
+      if (/rush/i.test(d.rollType))
+        w.trayAtRushRolls.push({ earlier: w.rollsSeen, landed: w.tray.landedThrough });
+      w.rollsSeen++;
+    });
   });
   await app.pitch.waitForCameraToSettle();
   await app.pitch.clickPlayer("team1:0");
@@ -247,46 +225,29 @@ test("on two Rushes in a row, the second prompt waits for the first die to land"
   await app.pitch.clickSquare({ x: 18, y: 6 });
   await app.pitch.clickSquare({ x: 18, y: 7 });
   await app.pitch.clickSquare({ x: 18, y: 8 });
-  await app.pitch.clickSquare({ x: 18, y: 8 });
-  await page.getByRole("button", { name: "Dodge!" }).click();
-  await expect(page.getByRole("heading", { name: /: Rush$/ })).toBeVisible({
-    timeout: 15_000,
-  });
-
-  await page.evaluate(() => {
-    const w = window as unknown as {
-      eventBus: { emit(name: string, data: unknown): void };
-    };
-    for (const value of [3, 4, 5])
-      w.eventBus.emit("diceRoll", {
-        rollType: "Earlier roll",
-        diceType: "1d6",
-        value,
-        total: value,
-        description: "Earlier roll",
-      });
-  });
-  await page.getByRole("button", { name: "Rush!" }).click();
+  await expect(page.getByTestId("action-plan")).toContainText("Rush 2+");
+  await page.getByTestId("action-plan-go").click();
 
   await expect
     .poll(
       () =>
         page.evaluate(
           () =>
-            (window as unknown as { trayAtRushPrompts: unknown[] })
-              .trayAtRushPrompts.length
+            (window as unknown as { trayAtRushRolls: unknown[] })
+              .trayAtRushRolls.length
         ),
       { timeout: 30_000 }
     )
-    .toBe(2);
+    .toBeGreaterThanOrEqual(2);
   const [, second] = await page.evaluate(
     () =>
       (
         window as unknown as {
-          trayAtRushPrompts: { thrown: number; landedThrough: number }[];
+          trayAtRushRolls: { earlier: number; landed: number }[];
         }
-      ).trayAtRushPrompts
+      ).trayAtRushRolls
   );
 
-  expect(second).toEqual({ thrown: 5, landedThrough: 5 });
+  expect(fixtureValue(second).earlier).toBeGreaterThanOrEqual(2);
+  expect(fixtureValue(second).landed).toBeGreaterThanOrEqual(fixtureValue(second).earlier);
 });

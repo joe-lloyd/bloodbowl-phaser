@@ -10,7 +10,7 @@ async function foul(page: Page, app: GameApp, outcome: string) {
   await app.sandbox.open({ scenario: "bribe-for-sent-off-fouler", outcome });
   await app.hud.declareAction("team1:0", "foul");
   await app.pitch.clickPlayer("team2:0");
-  await expect(page.getByTestId("confirmation-modal")).toBeVisible();
+  await expect(page.getByTestId("action-plan")).toBeVisible();
   await page.keyboard.press("Enter");
 }
 

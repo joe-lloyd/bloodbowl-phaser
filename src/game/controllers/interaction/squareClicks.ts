@@ -1,5 +1,5 @@
-import { isOwnActor, activeActionFor } from "./players";
-import { withinOneSquare } from "./squares";
+import { isOwnActor } from "./players";
+import { adjacentTo, withinOneSquare } from "./squares";
 import { GameEventNames } from "@/types/events";
 import { type GameState } from "@/types/GameState";
 import { type Player, PlayerStatus } from "@/types/Player";
@@ -11,8 +11,11 @@ import { legalBlockReplacementTargets } from "../../rules/blockReplacements";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { attack, type SquareClick, stepClickFor } from "./stepClicks";
 import { computeJumpTargets } from "./previews";
-import { addWaypoint, executeMove, refreshPlayerVisualization } from "./routes";
-import { askGates, enterActionMode } from "./actionModes";
+import { addWaypoint, refreshPlayerVisualization } from "./routes";
+import { askGates, defersGates, enterActionMode, selectAction } from "./actionModes";
+import { PLANNED_MOVE, finishKindAt, plannedActionFor } from "./plan";
+import { declarePlanned, goPlan, planFinishAt } from "./planRun";
+import { publishPlan } from "./planSummary";
 
 export function clickTouchback(
   c: GameplayInteractionController,
@@ -43,6 +46,9 @@ export async function handleJumpClick(
   }
   c.jumpTargeting = false;
   c.pitch.clearPath();
+  c.clearWaypoints();
+  c.dropFinish();
+  if (c.undeclared && !(await declarePlanned(c, player.id))) return;
   try {
     await c.gameService.jumpPlayer(player.id, { x, y });
   } catch (err) {
@@ -57,6 +63,7 @@ export async function handleJumpClick(
     c.gameService.canActivate(player.id)
   ) {
     refreshPlayerVisualization(c, player.id);
+    publishPlan(c);
   } else {
     c.deselectPlayer();
   }
@@ -79,6 +86,14 @@ function isDownedOpponent(
 
 async function foulInsteadOfBlock(
 { c,playerId,x,y }: { c: GameplayInteractionController; playerId: string; x: number; y: number; }): Promise<void> {
+  if (c.undeclared) {
+    c.clearWaypoints();
+    c.dropFinish();
+    c.pitch.clearPath();
+    await selectAction(c, { playerId, action: "foul" });
+    await c.onSquareClicked(x, y);
+    return;
+  }
   const asked = askGates(c, playerId, "foul");
   if (asked && !(await asked)) return;
   if (!c.gameService.declareAction({ playerId: playerId, action: "foul" })) {
@@ -105,22 +120,10 @@ function clickBlitzBlock(
     return clickPitch(c, click);
   }
   const blitzer = c.gameService.getPlayerById(c.selectedPlayerId);
-  const inReach =
-    !!blitzer?.gridPosition &&
-    Math.max(
-      Math.abs(blitzer.gridPosition.x - x),
-      Math.abs(blitzer.gridPosition.y - y)
-    ) === 1;
-  if (inReach && isDownedOpponent(c, playerAtSquare)) {
+  if (adjacentTo(blitzer?.gridPosition, { x, y }) && isDownedOpponent(c, playerAtSquare)) {
     return foulInsteadOfBlock({ c,playerId: c.selectedPlayerId,x,y });
   }
-
-  c.isBusy = true;
-
-  c.gameService.previewBlock(c.selectedPlayerId, playerAtSquare.id);
-
-  c.deselectPlayer();
-  c.isBusy = false;
+  return clickPitch(c, click);
 }
 
 function adjacentBlocker(
@@ -247,6 +250,17 @@ function clickOtherPlayer(
   c.selectPlayer(playerAtSquare.id);
 }
 
+function readyToRoute(c: GameplayInteractionController, state: GameState, playerId: string): boolean | Promise<boolean> {
+  const currentAction = plannedActionFor(c, state, playerId);
+  if (!currentAction && defersGates(c, playerId, "move")) {
+    c.undeclared = PLANNED_MOVE;
+    return true;
+  }
+  const asked = currentAction ? null : askGates(c, playerId, "move");
+  if (!asked) return c.declareMoveIfNone(playerId, currentAction);
+  return asked.then((ok) => ok && c.declareMoveIfNone(playerId, currentAction));
+}
+
 async function clickEmptySquare(
 { c,selectedId,x,y }: { c: GameplayInteractionController; selectedId: string; x: number; y: number; }): Promise<void> {
   const player = c.gameService.getPlayerById(selectedId);
@@ -259,16 +273,13 @@ async function clickEmptySquare(
     return;
   }
 
-  const currentAction = activeActionFor(state, player.id);
-
-  const asked = currentAction ? null : askGates(c, player.id, "move");
-  if (asked && !(await asked)) return;
-  if (!c.declareMoveIfNone(player.id, currentAction)) return;
+  const ready = readyToRoute(c, state, player.id);
+  if (ready instanceof Promise ? !(await ready) : !ready) return;
 
   const lastPos = c.waypoints.at(-1) ?? player.gridPosition;
 
   if (lastPos?.x === x && lastPos.y === y) {
-    executeMove(c);
+    await goPlan(c);
   } else {
     addWaypoint(c, x, y);
   }
@@ -299,6 +310,8 @@ export function clickInPlay(
       `[Interaction] onSquareClicked: Pass Mode Detected. Step: ${String(c.currentStepId)}, Selected: ${String(c.selectedPlayerId)}`
     );
   }
+  const finish = finishKindAt(c, click);
+  if (finish) return planFinishAt(c, finish, click);
   const stepClick = stepClickFor(c, click);
   if (stepClick) return stepClick(c, click);
   if (

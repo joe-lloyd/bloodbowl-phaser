@@ -29,8 +29,8 @@ test("the Team Captain's 6 keeps the Team Re-roll", async ({ page }) => {
   });
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickSquare({ x: 5, y: 5 });
+  await expect(page.getByTestId("action-plan")).toContainText("Pick up");
   await app.pitch.clickSquare({ x: 5, y: 5 });
-  await page.getByRole("button", { name: "Pick up!" }).click();
   await expect(app.hud.rerollDialog()).toBeVisible({ timeout: 10_000 });
   await page.screenshot({
     path: test.info().outputPath("captain-reroll-offer.png"),
@@ -53,7 +53,7 @@ test("Bribery and Corruption re-rolls a 1 to Argue the Call", async ({
   await app.sandbox.open({ scenario: "bribery-and-corruption-argue-reroll" });
   await app.hud.declareAction("team1:1", "foul");
   await app.pitch.clickPlayer("team2:0");
-  await expect(page.getByTestId("confirmation-modal")).toBeVisible();
+  await expect(page.getByTestId("action-plan")).toBeVisible();
   await page.keyboard.press("Enter");
 
   await expect

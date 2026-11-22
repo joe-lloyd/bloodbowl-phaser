@@ -121,10 +121,10 @@ describe("GameplayInteractionController", () => {
       clickAt(controller, 6, 5);
 
       expect(
-        sent(["declareAction"], [GameEventNames.UI_MovePlan]).map(
+        sent(["declareAction"], [GameEventNames.UI_ActionPlan]).map(
           (call) => call.split(" {")[0]
         )
-      ).toEqual(["declareAction({\"playerId\":\"p1\",\"action\":\"move\"})", "ui:movePlan"]);
+      ).toEqual(["declareAction({\"playerId\":\"p1\",\"action\":\"move\"})", "ui:actionPlan"]);
       expect(mockMovementValidator.findPath).toHaveBeenCalledTimes(1);
     });
 
@@ -156,6 +156,7 @@ describe("GameplayInteractionController", () => {
     });
 
     it("keeps the board busy through a Hand-off and lets the player go once it resolves", async () => {
+      mockGameService.getState.mockReturnValue(stateWith({ activeTeamId: team1Id, ballPosition: { x: 5, y: 5 } }));
       const mate = playerWith({
         ...player1,
         id: "p3",
@@ -173,6 +174,8 @@ describe("GameplayInteractionController", () => {
       controller.currentStepId = "handoff";
       vi.clearAllMocks();
 
+      controller.handlePlayerClick("p3");
+      expect(serviceSpies.handOffBall).not.toHaveBeenCalled();
       controller.handlePlayerClick("p3");
 
       expect(serviceSpies.handOffBall).toHaveBeenCalledWith("p1", "p3");

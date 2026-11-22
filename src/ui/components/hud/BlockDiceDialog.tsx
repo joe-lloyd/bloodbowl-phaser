@@ -106,6 +106,10 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
 
     eventBus.on(GameEventNames.TurnEnded, onRollCancelled);
     eventBus.on(GameEventNames.UI_BlockDialog, onOpen);
+    const onRollStarted = () => {
+      setIsRolling(true);
+    };
+    eventBus.on(GameEventNames.UI_RollBlockDice, onRollStarted);
     eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
     eventBus.on(GameEventNames.BlockDiceKept, onDiceRolled);
     eventBus.on(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
@@ -140,6 +144,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       clearTimeout(holdTimer);
       eventBus.off(GameEventNames.TurnEnded, onRollCancelled);
       eventBus.off(GameEventNames.UI_BlockDialog, onOpen);
+      eventBus.off(GameEventNames.UI_RollBlockDice, onRollStarted);
       eventBus.off(GameEventNames.BlockDiceRolled, onDiceRolled);
       eventBus.off(GameEventNames.BlockDiceKept, onDiceRolled);
       eventBus.off(GameEventNames.UI_BlockRollCancelled, onRollCancelled);

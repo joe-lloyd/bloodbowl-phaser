@@ -35,6 +35,11 @@
       "count": 3
     }
   },
+  "__tests__/integration/action-plan-review.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    }
+  },
   "__tests__/integration/charge-click-to-move.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 4
@@ -2332,10 +2337,7 @@
   },
   "e2e/browser/score-run-prompts.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 8
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
+      "count": 6
     },
     "no-restricted-syntax": {
       "count": 4
@@ -3478,9 +3480,6 @@
       "count": 1
     },
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
-    "sonarjs/no-duplicate-string": {
       "count": 2
     }
   },
@@ -5722,7 +5721,7 @@
       "count": 14
     },
     "sonarjs/no-duplicate-string": {
-      "count": 2
+      "count": 1
     }
   },
   "src/ui/App.tsx": {
@@ -6128,17 +6127,6 @@
       "count": 1
     },
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/MovePlanBar.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "max-statements": {
       "count": 1
     }
   },

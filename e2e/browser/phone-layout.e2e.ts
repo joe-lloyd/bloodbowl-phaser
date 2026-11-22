@@ -103,14 +103,14 @@ test("a tap selects at the current zoom, a tap plans, Go walks", async ({
 
   const target = { x: start.x + 2, y: start.y };
   await tapSquare(page, app, target);
-  await expect(page.getByTestId("move-plan")).toContainText("2 sq");
+  await expect(page.getByTestId("action-plan")).toContainText("2 sq");
 
   expect(await app.pitch.squareOf("team1:0")).toEqual(start);
-  await page.getByTestId("move-plan-go").tap();
+  await page.getByTestId("action-plan-go").tap();
   await expect
     .poll(() => app.pitch.squareOf("team1:0"), { timeout: 10_000 })
     .toEqual(target);
-  await expect(page.getByTestId("move-plan")).toBeHidden();
+  await expect(page.getByTestId("action-plan")).toBeHidden();
 });
 
 test("a drag from the player draws a route under a magnifier", async ({
@@ -135,13 +135,13 @@ test("a drag from the player draws a route under a magnifier", async ({
   await expect(page.getByTestId("route-loupe")).toBeVisible();
   await finger.end();
   await expect(page.getByTestId("route-loupe")).toBeHidden();
-  await expect(page.getByTestId("move-plan")).toContainText("3 sq");
+  await expect(page.getByTestId("action-plan")).toContainText("3 sq");
 
   await finger.drag([fixtureValue(points[3]), fixtureValue(points[1])]);
   await finger.end();
-  await expect(page.getByTestId("move-plan")).toContainText("1 sq");
-  await page.getByTestId("move-plan-clear").tap();
-  await expect(page.getByTestId("move-plan")).toBeHidden();
+  await expect(page.getByTestId("action-plan")).toContainText("1 sq");
+  await page.getByTestId("action-plan-clear").tap();
+  await expect(page.getByTestId("action-plan")).toBeHidden();
   await expect(page.getByTestId("move-hint")).toHaveText(
     "Tap a square or drag a route"
   );
@@ -208,7 +208,7 @@ test("End Turn ends the turn only after a hold", async ({ page }) => {
     .not.toBe(first);
 });
 
-test("a pass aims on the first tap, shows its rolls, and throws on Throw", async ({
+test("a pass aims on the first tap, keeps its aim across steps, and throws on Go", async ({
   page,
 }) => {
   const app = await openScenario(page, "throw-marked-receiver");
@@ -220,18 +220,17 @@ test("a pass aims on the first tap, shows its rolls, and throws on Throw", async
   await app.pitch.waitForCameraToSettle();
 
   await tapSquare(page, app, receiver);
-  await expect(page.getByTestId("move-plan")).toContainText("Short Pass");
+  const plan = page.getByTestId("action-plan");
+  await expect(plan).toContainText("Short Pass");
   await page.getByTestId("action-step-move").tap();
-  await expect(page.getByTestId("move-plan")).toBeHidden();
+  await expect(plan).toContainText("Short Pass");
   await page.getByTestId("action-step-pass").tap();
   await app.pitch.waitForCameraToSettle();
 
-  await tapSquare(page, app, receiver);
-  await expect(page.getByTestId("move-plan")).toContainText("Short Pass");
-  await expect(page.getByTestId("move-plan")).toContainText("Catch");
+  await expect(plan).toContainText("Catch");
   expect((await app.bridge.snapshot()).ballPosition).toEqual(thrower);
 
-  await page.getByTestId("move-plan-go").tap();
+  await page.getByTestId("action-plan-go").tap();
 
   await page.getByRole("button", { name: "Decline" }).tap();
   await expect

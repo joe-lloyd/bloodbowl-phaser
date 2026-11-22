@@ -46,6 +46,7 @@ test.describe("rule interaction shapes", () => {
       (player) => player.position && player.id !== fixtureValue(thrower).id
     ));
     await app.pitch.clickSquare(fixtureValue(receiver.position));
+    await page.getByTestId("action-plan-go").click();
 
     await expect
       .poll(async () =>

@@ -22,6 +22,7 @@ import { PushPicker } from "./interaction/PushPicker";
 import {
   askGates,
   cancelAction,
+  defersGates,
   endActivation,
   reconcileRejectedCommand,
   resumeBallAndChain,
@@ -38,7 +39,9 @@ import {
   syncKickoffStep,
 } from "./interaction/kickoffInteraction";
 import { previewSquare } from "./interaction/previews";
-import { aimThrow, clearMovePlan, goMovePlan } from "./interaction/planBar";
+import { clearPlan, goPlan } from "./interaction/planRun";
+import type { PlanFinish, PlannedDeclaration } from "./interaction/plan";
+import { PLANNED_MOVE } from "./interaction/plan";
 import { dragRouteTo, routeOwnerAt } from "./interaction/routes";
 import { playerClickTarget } from "./interaction/stepClicks";
 import {
@@ -65,7 +68,8 @@ export class GameplayInteractionController {
   lastHoverGrid: Square | null = null;
   waypoints: Square[] = [];
 
-  aimedAt: { key: string; x: number; y: number } | null = null;
+  finish: PlanFinish | null = null;
+  undeclared: PlannedDeclaration | null = null;
   targetRollPreview: TargetRollPreview | null = null;
   targetAnchor: Square | null = null;
   publishTargetPreview = () => {
@@ -468,7 +472,7 @@ export class GameplayInteractionController {
       this.scene.unhighlightPlayer(this.selectedPlayerId);
       this.selectedPlayerId = null;
     }
-    this.clearWaypoints();
+    this.forgetPlan();
     this.clearRollPreviews();
     this.clearAllInteractionHighlights();
 
@@ -489,6 +493,7 @@ export class GameplayInteractionController {
   }
 
   declareMoveIfNone(playerId: string, action?: string | null): boolean {
+    if (this.undeclared) return true;
     const active = this.gameService.getState().activePlayer;
     if (active?.id === playerId && active.razzleDazzle?.awaitingSecond) {
       return this.gameService.declareAction({ playerId: playerId, action: "move" });
@@ -509,7 +514,6 @@ export class GameplayInteractionController {
 
   clearWaypoints(): void {
     this.waypoints = [];
-    this.eventBus.emit(GameEventNames.UI_MovePlan, null);
   }
 
   public startRouteDrag(world: { worldX: number; worldY: number }): boolean {
@@ -520,6 +524,11 @@ export class GameplayInteractionController {
     if (owner.id !== this.selectedPlayerId) this.selectPlayer(owner.id);
     if (this.selectedPlayerId !== owner.id) return false;
 
+    if (this.undeclared) return true;
+    if (defersGates(this, owner.id, "move")) {
+      this.undeclared = PLANNED_MOVE;
+      return true;
+    }
     const asked = askGates(this, owner.id, "move");
     if (asked) {
       void asked.then((ok) => ok && this.declareMoveIfNone(owner.id));
@@ -542,28 +551,28 @@ export class GameplayInteractionController {
     world: { worldX: number; worldY: number },
     isSetupActive: boolean
   ): void {
-    const { valid } = this.getGridFromPointer(world);
-    const square = this.pitch.worldToGrid(world.worldX, world.worldY);
-    const aimable = valid || this.passesAtWall(square);
-    if (aimable && !isSetupActive && aimThrow(this, square.x, square.y)) return;
-    this.dropAim();
     this.handlePointerDown(world, isSetupActive);
   }
 
-  dropAim(): void {
-    if (!this.aimedAt) return;
-    this.aimedAt = null;
-    this.eventBus.emit(GameEventNames.UI_ThrowAim, null);
+  private forgetPlan(): void {
+    this.clearWaypoints();
+    this.dropFinish();
+    this.undeclared = null;
+    this.eventBus.emit(GameEventNames.UI_ActionPlan, null);
+  }
 
+  dropFinish(): void {
+    if (!this.finish) return;
+    this.finish = null;
     this.eventBus.emit(GameEventNames.UI_PassAimed, null);
   }
 
   private onGoMovePlan = (): void => {
-    goMovePlan(this);
+    void goPlan(this);
   };
 
   private onClearMovePlan = (): void => {
-    clearMovePlan(this);
+    clearPlan(this);
   };
 
   public destroy(): void {
@@ -577,7 +586,6 @@ export class GameplayInteractionController {
   }
 
   clearRollPreviews(): void {
-    this.dropAim();
     this.targetRollPreview = null;
     this.targetAnchor = null;
     this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);

@@ -86,6 +86,7 @@ describe("roll preview analysis", () => {
     expect(blockPreviewLines(analysis, player, defender, "attacker")).toEqual(
       expect.arrayContaining([
         "2 dice, you pick",
+        "Our ST 4 (3 +1) vs their ST 3",
         "Our assists: #8",
         "They have Dodge: Stumble becomes Push",
       ])
@@ -95,9 +96,10 @@ describe("roll preview analysis", () => {
     const strong = { ...enemy, stats: { ...enemy.stats, ST: 4 } };
     const analysis = new BlockValidator().analyzeBlock({ attacker: player, defender: strong, allPlayers: [player, strong], activeTeamId: "ours" });
     expect(
-      blockPreviewLines(analysis, player, strong, "attacker").slice(0, 3)
+      blockPreviewLines(analysis, player, strong, "attacker").slice(0, 4)
     ).toEqual([
       "2 dice, they pick",
+      "Our ST 3 vs their ST 4",
       "Our assists: none",
       "Their assists: none",
     ]);

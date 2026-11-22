@@ -7,9 +7,14 @@ import { EndTurnButton } from "../ui/components/hud/EndTurnButton";
 import { PlayerInfoPanel } from "../ui/components/hud/PlayerInfoPanel";
 import { PlayerActionMenu } from "../ui/components/hud/PlayerActionMenu";
 import { OtherCoachPrompt } from "../ui/components/hud/OtherCoachPrompt";
+import { ActionPlanCard } from "../ui/components/hud/ActionPlanCard";
 import { later } from "./variantHelpers";
 import type { Variant } from "./variants";
 import type { MatchFixture } from "./fixtures";
+
+const ACTION_SECTION = "Action menu and sequence";
+const CARD_SECTION = "Player card";
+const PASS_SCENARIO = "throw-pickup-and-pass";
 
 const menuWithEndTurn = (fx: MatchFixture, activeTeamId: string) => (
   <HUDLayout
@@ -32,7 +37,7 @@ const menuWithEndTurn = (fx: MatchFixture, activeTeamId: string) => (
 export const PLAYER_VARIANTS: Variant[] = [
   {
     id: "card-selected",
-    section: "Player card",
+    section: CARD_SECTION,
     title: "Selected player",
     view: (fx) => (
       <HUDLayout bottomLeft={<PlayerInfoPanel eventBus={fx.bus} />} />
@@ -47,7 +52,7 @@ export const PLAYER_VARIANTS: Variant[] = [
   },
   {
     id: "card-compare",
-    section: "Player card",
+    section: CARD_SECTION,
     title: "Selected, comparing a hovered opponent",
     view: (fx) => (
       <HUDLayout bottomLeft={<PlayerInfoPanel eventBus={fx.bus} />} />
@@ -62,7 +67,7 @@ export const PLAYER_VARIANTS: Variant[] = [
   },
   {
     id: "card-injured",
-    section: "Player card",
+    section: CARD_SECTION,
     title: "Long name, stunned, with a condition and injuries",
     view: (fx) => (
       <HUDLayout bottomLeft={<PlayerInfoPanel eventBus={fx.bus} />} />
@@ -79,7 +84,7 @@ export const PLAYER_VARIANTS: Variant[] = [
   },
   {
     id: "card-crew",
-    section: "Player card",
+    section: CARD_SECTION,
     title: "Sideline crew",
     view: (fx) => (
       <HUDLayout bottomLeft={<PlayerInfoPanel eventBus={fx.bus} />} />
@@ -95,7 +100,7 @@ export const PLAYER_VARIANTS: Variant[] = [
 
   {
     id: "menu-block",
-    section: "Action menu and sequence",
+    section: ACTION_SECTION,
     title: "Next to an opponent: move, block, blitz",
     fixture: { scenario: "block-injury-test" },
     view: (fx) => menuWithEndTurn(fx, fx.team2.id),
@@ -108,7 +113,7 @@ export const PLAYER_VARIANTS: Variant[] = [
   },
   {
     id: "other-coach-prompt",
-    section: "Action menu and sequence",
+    section: ACTION_SECTION,
     title: "Waiting coach: the other coach's Rush prompt, read-only",
     fixture: { scenario: "block-injury-test" },
     view: (fx) => (
@@ -130,7 +135,7 @@ export const PLAYER_VARIANTS: Variant[] = [
   },
   {
     id: "menu-special",
-    section: "Action menu and sequence",
+    section: ACTION_SECTION,
     title: "A special action (Chainsaw)",
     fixture: { scenario: "chainsaw-loony" },
     view: (fx) => (
@@ -152,9 +157,9 @@ export const PLAYER_VARIANTS: Variant[] = [
   },
   {
     id: "menu-sequence",
-    section: "Action menu and sequence",
+    section: ACTION_SECTION,
     title: "Action sequence: Move, then Pass",
-    fixture: { scenario: "throw-pickup-and-pass" },
+    fixture: { scenario: PASS_SCENARIO },
     view: (fx) => menuWithEndTurn(fx, fx.team1.id),
     drive: (fx) =>
       later(30, () => {
@@ -170,10 +175,54 @@ export const PLAYER_VARIANTS: Variant[] = [
   },
 
   {
+    id: "action-plan-blitz",
+    section: ACTION_SECTION,
+    title: "Action plan: a Bone-head Blitz with every roll before Go",
+    fixture: { scenario: PASS_SCENARIO },
+    view: (fx) => (
+      <HUDLayout bottomRight={<ActionPlanCard eventBus={fx.bus} />} />
+    ),
+    drive: (fx) =>
+      later(30, () => {
+        fx.bus.emit(GameEventNames.UI_ActionPlan, {
+          title: "Blitz",
+          squares: 4,
+          stages: [
+            {
+              label: "Before acting",
+              rolls: [{ kind: "gate", name: "Bone-head", target: 2 }],
+              notes: ["On a fail they are Distracted and the activation ends."],
+            },
+            {
+              label: "Move 4 squares",
+              rolls: [
+                { kind: "dodge", name: "Dodge", target: 3 },
+                { kind: "rush", name: "Rush", target: 2 },
+              ],
+              notes: [],
+            },
+            {
+              label: "Block #5 Lineman",
+              rolls: [],
+              notes: [
+                "2 dice, you pick",
+                "Our ST 5 (4 +1) vs their ST 3",
+                "Our assists: #2",
+                "Their assists: none",
+              ],
+            },
+          ],
+          rerolls: ["team 2 left"],
+          blocked: null,
+        });
+      }),
+  },
+
+  {
     id: "route-summary",
-    section: "Action menu and sequence",
+    section: ACTION_SECTION,
     title: "Route summary: a Dodge then two Rushes",
-    fixture: { scenario: "throw-pickup-and-pass" },
+    fixture: { scenario: PASS_SCENARIO },
     view: (fx) => (
       <HUDLayout
         bottomRight={

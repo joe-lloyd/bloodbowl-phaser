@@ -93,9 +93,8 @@ for (const viewport of [
       await app.sandbox.open({ scenario: "pro-die-reroll", seed: 8 });
       await app.hud.declareAction("team1:0", "move");
       await app.pitch.clickSquare({ x: 9, y: 4 });
+      await expect(page.getByTestId("action-plan")).toContainText("Pro on 3+");
       await app.pitch.clickSquare({ x: 9, y: 4 });
-      await expect(page.getByText(/Pro needs 3/)).toBeVisible();
-      await page.getByRole("button", { name: "Dodge!", exact: true }).click();
       await expect(page.getByTestId("reroll-use-pro")).toBeVisible();
       await expect(page.getByTestId("reroll-odds")).toHaveText(
         "Needed 3+, rolled 1."
@@ -115,6 +114,7 @@ for (const viewport of [
       await app.hud.declareAction("team1:0", "pass");
       await app.hud.selectActionStep("pass");
       await app.pitch.clickPlayer("team1:1");
+      await page.getByTestId("action-plan-go").click();
       await expect(page.getByTestId("interception-dialog")).toBeVisible();
       await expect(page.getByText(/A miss costs nothing/)).toBeVisible();
       await expectDockClear(page, app, ["team2:0"], "interception");
@@ -127,27 +127,6 @@ for (const viewport of [
       expect(
         await app.pitch.viewportPoint(await app.pitch.squareOf("team2:0"))
       ).toEqual(point);
-    });
-
-    test("Dodge and Rush prompts leave the runner visible", async ({
-      page,
-    }) => {
-      test.skip(viewport.width !== 1280, "The block flow covers 1920x1080.");
-      const app = new GameApp(page);
-      await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: 2 });
-      await app.hud.declareAction("team1:0", "move");
-      await app.pitch.clickSquare({ x: 19, y: 5 });
-      await app.pitch.clickSquare({ x: 19, y: 5 });
-      await expect(
-        page.getByRole("button", { name: "Dodge!", exact: true })
-      ).toBeVisible();
-      await expectDockClear(page, app, ["team1:0"], "dodge");
-      await page.getByRole("button", { name: "Dodge!", exact: true }).click();
-
-      await expect(
-        page.getByRole("button", { name: "Rush!", exact: true })
-      ).toBeVisible({ timeout: 20_000 });
-      await expectDockClear(page, app, ["team1:0"], "rush");
     });
   });
 }

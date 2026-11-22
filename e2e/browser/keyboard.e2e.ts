@@ -36,9 +36,9 @@ test("a foul is declared and confirmed from the keyboard", async ({ page }) => {
   await page.keyboard.press("f");
   await expect(page.getByTestId("action-step-foul")).toBeVisible();
   await app.pitch.clickPlayer("team2:0");
-  await expect(page.getByTestId("confirmation-modal")).toBeVisible();
+  await expect(page.getByTestId("action-plan")).toContainText("Armour, all assists 8+");
   await page.keyboard.press("Enter");
-  await expect(page.getByTestId("confirmation-modal")).toBeHidden();
+  await expect(page.getByTestId("action-plan")).toBeHidden();
 
   await expect(page.getByTestId("foul-assists-dialog")).toBeVisible();
   await page.keyboard.press("1");
@@ -78,23 +78,19 @@ test("the menu's keys wait while a decision is open, and Enter presses the focus
   await app.sandbox.open({ scenario: "ux-foul-preview" });
   await app.hud.declareAction("team1:0", "foul");
   await app.pitch.clickPlayer("team2:0");
-  const confirm = page.getByTestId("confirmation-modal");
-  await expect(confirm).toBeVisible();
+  await page.getByTestId("action-plan-go").click();
+  const decision = page.getByTestId("foul-assists-dialog");
+  await expect(decision).toBeVisible();
 
   await page.keyboard.press("e");
   await page.keyboard.press("Shift+E");
-  await expect(confirm).toBeVisible();
+  await expect(decision).toBeVisible();
   expect((await app.bridge.phase()).activeTeamId).toBe(
     await app.bridge.resolveRef("team1")
   );
 
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).focus();
+  await page.getByTestId("foul-assists-1").focus();
   await page.keyboard.press("Enter");
-  await expect(confirm).toBeHidden();
-  expect(
-    (await app.bridge.events()).filter(
-      (e) => e.name === GameEventNames.DiceRoll
-    )
-  ).toHaveLength(0);
-  await expect(app.hud.actionMenu()).toBeVisible();
+  await expect(decision).toBeHidden();
+  await app.bridge.expectEvent(GameEventNames.DiceRoll);
 });

@@ -2,7 +2,6 @@ import { GameEventNames, type StepPrompt } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { weatherEffects } from "../../rules/weather";
-import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { legalJumpTargets, type JumpTarget } from "../../rules/jump";
 import { legalHandoffTargets } from "../../rules/handoff";
 import { isThrowTeammateInRange } from "../../rules/throwTeammate";
@@ -10,19 +9,23 @@ import { rollLabel } from "../../rules/rollTargets";
 import {
   foulPreview,
   blockPreviewLines,
-  catchTarget,
   interceptPreviewLine,
-  passTarget,
   type TargetRollPreview,
 } from "../../rules/rollPreview";
 import { BlockValidator } from "../../validators/BlockValidator";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
-import { foulRequest } from "./Confirmations";
 import { drawPath } from "./routes";
+import { boardWith, currentFinish, plannedActor } from "./plan";
+import { throwNeeds } from "./planSummary";
 
 interface Square {
   x: number;
   y: number;
+}
+
+function plannedPlayer(c: GameplayInteractionController, id: string): Player | undefined {
+  const player = c.gameService.getPlayerById(id);
+  return player ? plannedActor(c, player) : undefined;
 }
 
 export function computeJumpTargets(
@@ -39,28 +42,14 @@ function foulPreviewFor(
   fouler: Player,
   target: Player
 ) {
-  return foulPreview(
-    fouler,
-    target,
-    [...c.getSceneTeam1().players, ...c.getSceneTeam2().players],
-    c.gameService.getState()
-  );
-}
-
-export function confirmFoul(
-  c: GameplayInteractionController,
-  fouler: Player,
-  target: Player
-): Promise<boolean> {
-  const foul = foulPreviewFor(c, fouler, target);
-  return c.confirmations.ask("foul", foulRequest(fouler, foul));
+  return foulPreview(fouler, target, boardWith(c, fouler), c.gameService.getState());
 }
 
 function drawThrowAim(
 { c,selectedId,x,y }: { c: GameplayInteractionController; selectedId: string; x: number; y: number; }): void {
   c.pitch.clearPath();
 
-  const selectedPlayer = c.gameService.getPlayerById(selectedId);
+  const selectedPlayer = plannedPlayer(c, selectedId);
   if (selectedPlayer?.gridPosition) {
     const ranges = c.passController.getAllRanges(
       selectedPlayer.gridPosition,
@@ -94,7 +83,7 @@ function drawHandoffAim(
 ): void {
   c.pitch.clearPath();
   c.pitch.clearPassVisualization();
-  const selectedPlayer = c.gameService.getPlayerById(selectedId);
+  const selectedPlayer = plannedPlayer(c, selectedId);
   if (selectedPlayer) {
     const teammates = c.gameService.getTeammates(selectedPlayer.id);
     const targets = legalHandoffTargets(selectedPlayer, teammates).flatMap(
@@ -144,7 +133,7 @@ function drawFoulTargets(
   if (c.isBusy) return;
   c.pitch.clearPath();
   c.pitch.clearLayer("highlight");
-  const selectedPlayer = c.gameService.getPlayerById(selectedId);
+  const selectedPlayer = plannedPlayer(c, selectedId);
   const from = selectedPlayer?.gridPosition;
   if (!selectedPlayer || !from) return;
   const opponents = c.gameService.getOpponents(selectedPlayer.teamId);
@@ -209,7 +198,8 @@ export function previewSquare(
     c.pitch.clearPassVisualization();
     return;
   }
-  if (drawActionAim({ c, selectedId, x, y })) return;
+  const aim = currentFinish(c) ?? { x, y };
+  if (drawActionAim({ c, selectedId, x: aim.x, y: aim.y })) return;
   if (c.jumpTargeting) { drawJumpAim(c, selectedId); return; }
   c.pitch.clearPassVisualization();
   if (!c.getPlayerAt(x, y)) drawPath(c, x, y);
@@ -229,14 +219,14 @@ function ringAssists(
 
 function blockTargetPreview(
 { c,actor,target,square,adjacent }: { c: GameplayInteractionController; actor: Player; target: Player; square: Square; adjacent: boolean; }): TargetRollPreview {
-  const analysis = new BlockValidator().analyzeBlock({ attacker: actor, defender: target, allPlayers: [...c.getSceneTeam1().players, ...c.getSceneTeam2().players], activeTeamId: c.gameService.getState().activeTeamId });
+  const analysis = new BlockValidator().analyzeBlock({ attacker: actor, defender: target, allPlayers: boardWith(c, actor), activeTeamId: c.gameService.getState().activeTeamId });
   const preview = {
     square,
     lines: blockPreviewLines(analysis, actor, target, "attacker"),
     danger: analysis.isUphill,
   };
   if (!adjacent)
-    preview.lines.push("At current positions. Move into reach to block.");
+    preview.lines.push("Click to plan a route next to them.");
   ringAssists(c, analysis.attackerAssists, analysis.defenderAssists);
   return preview;
 }
@@ -252,7 +242,7 @@ function foulTargetPreview(
   return { square, lines: foul.lines, danger: true };
 }
 
-function interceptions(
+export function interceptions(
 { c,actor,from,square,opponents }: { c: GameplayInteractionController; actor: Player; from: Square; square: Square; opponents: Player[]; }): { lines: string[]; rolls: { square: Square; target: number }[] } {
   const weather = c.gameService.getState().weather;
   const passingTeam = [actor, ...c.gameService.getTeammates(actor.id)];
@@ -281,25 +271,16 @@ function interceptions(
 
 function throwTargetPreview(
 { c,actor,from,target,square,opponents }: { c: GameplayInteractionController; actor: Player; from: Square; target: Player; square: Square; opponents: Player[]; }): { preview: TargetRollPreview; aim: StepPrompt } {
-  const state = c.gameService.getState();
-  const passer = withDriveModifiers(actor, state);
-  const receiver = withDriveModifiers(target, state);
   const handoff = c.currentActionMode === "handoff";
-  const range = c.passController.measureRange(from, square);
-  const throwNeeds = passTarget(passer, opponents, state.weather, range);
-  const catchNeeds = catchTarget(
-    receiver,
-    opponents,
-    state.weather,
-    handoff ? "handoff" : "pass"
-  );
-  const lines = handoff ? [] : [rollLabel(range.type, throwNeeds)];
+  const needs = throwNeeds(c, { passer: actor, receiver: target, square, handoff });
+  const catchNeeds = needs.catch ?? 6;
+  const lines = handoff ? [] : [rollLabel(needs.range.type, needs.pass)];
   lines.push(rollLabel("Catch", catchNeeds));
 
   const aimRolls: StepPrompt["rolls"] = handoff
     ? [{ type: "catch", target: catchNeeds }]
     : [
-        { type: "pass", target: throwNeeds },
+        { type: "pass", target: needs.pass },
         { type: "catch", target: catchNeeds },
       ];
   const intercepts = handoff
@@ -364,7 +345,7 @@ function updateTargetPreview(
   c.pitch.clearLayer("intercept_roll_label");
   c.eventBus.emit(GameEventNames.UI_RoutePreview, null);
   if (!c.selectedPlayerId) return;
-  const actor = c.gameService.getPlayerById(c.selectedPlayerId);
+  const actor = plannedPlayer(c, c.selectedPlayerId);
   const target = c.getPlayerAt(x, y);
   const from = actor?.gridPosition;
   if (!actor || !from || !target || target.id === actor.id) return;

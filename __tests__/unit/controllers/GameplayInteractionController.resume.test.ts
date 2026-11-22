@@ -14,7 +14,6 @@ import {
   mockPitch,
   mockMovementValidator,
   mockGameService,
-  answerStepPrompt,
   team1Id,
   team2Id,
   player1,
@@ -67,7 +66,6 @@ describe("GameplayInteractionController", () => {
 
       await (controller).onSquareClicked(6, 5);
       await (controller).onSquareClicked(6, 5);
-      await answerStepPrompt(true);
       expect(serviceSpies.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
       ]);
@@ -286,7 +284,6 @@ describe("GameplayInteractionController", () => {
       });
       await (controller).onSquareClicked(6, 5);
       await (controller).onSquareClicked(6, 5);
-      await answerStepPrompt(true);
       expect(serviceSpies.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
       ]);

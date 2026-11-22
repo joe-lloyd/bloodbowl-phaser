@@ -140,13 +140,21 @@ export class HudPage {
       .filter({ hasText: "must roll first" });
   }
 
+  plannedActivationRoll(): Locator {
+    return this.page
+      .getByTestId("action-plan")
+      .filter({ hasText: "Before acting" });
+  }
+
   async rollNegatraitIfAsked(playerRef: string): Promise<void> {
     const id = await this.bridge.resolveRef(playerRef);
     const confirm = this.negatraitConfirm();
+    const planned = this.page.getByTestId("action-plan-go");
     await expect
       .poll(
         async () =>
           (await confirm.isVisible()) ||
+          (await planned.isVisible()) ||
           (await this.bridge.snapshot()).activePlayer?.id === id,
         { timeout: 3_000 }
       )
@@ -154,6 +162,8 @@ export class HudPage {
       .catch(() => {});
     if (await confirm.isVisible()) {
       await confirm.getByRole("button", { name: "Roll", exact: true }).click();
+    } else if (await planned.isVisible()) {
+      await this.page.getByTestId("action-plan-go").click();
     }
   }
 

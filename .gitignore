@@ -23,6 +23,7 @@ emulator.log
 # e2e/visual/__screenshots__ ARE committed — only per-run artifacts and
 # reports are ignored.
 /e2e-results/
+e2e/browser/e2e-results/
 /playwright-report/
 /test-results/
 /blob-report/

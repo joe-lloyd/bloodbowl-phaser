@@ -39,6 +39,7 @@ import { TurnoverOverlay } from "./TurnoverOverlay";
 import { OtherCoachPrompt } from "./OtherCoachPrompt";
 import { HUDLayout } from "./HUDLayout";
 import { MovePlanBar, PhoneNotice } from "./MovePlanBar";
+import { ActionPlanCard } from "./ActionPlanCard";
 import { FullscreenButton } from "./FullscreenButton";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { PHONE_QUERY } from "../../../game/presentation/phoneLayout";
@@ -490,6 +491,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <div className="w-full min-h-0 [&:has([data-decision-dialog])_.decision-actions]:hidden">
             {decisionDock}
             <div className="decision-actions flex w-full flex-col gap-3">
+              <ActionPlanCard eventBus={eventBus} />
               <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
               <EndTurnButton
                 phase={turnData.phase}

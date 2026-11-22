@@ -5,18 +5,17 @@ import { mockArbiter } from "./GameplayInteractionController.setup";
 import { stateWith } from "./GameplayInteractionController.setup";
 import { eventBusSpies } from "./GameplayInteractionController.setup";
 import { fixtureValue } from "../../../src/testing/fixtureValue";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import type { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
 import { GamePhase } from "../../../src/types/GameState";
 import { GameEventNames } from "../../../src/types/events";
 import { getSkill, SkillType } from "../../../src/types/Skills";
+import { emptyDriveEffects } from "../../../src/game/kickoff/driveEffects";
 import {
   mockScene,
   mockPitch,
   mockMovementValidator,
-  mockEventBus,
   mockGameService,
-  answerStepPrompt,
   team1Id,
   player1,
   player2,
@@ -82,43 +81,6 @@ describe("GameplayInteractionController", () => {
       }
     });
 
-    it("walks nowhere when the board is torn down with a Dodge prompt open", async () => {
-      mockMovementValidator.findPath.mockReturnValue({ cost: 0,
-        valid: true,
-        path: [{ x: 6, y: 5 }],
-        rolls: [],
-      });
-      void (controller).onSquareClicked(6, 5);
-      void (controller).onSquareClicked(6, 5);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      const ask = eventBusSpies.emit.mock.calls
-        .filter(([name]) => name === GameEventNames.UI_RequestConfirmation)
-        .at(-1);
-      expect(ask).toBeDefined();
-
-      controller.destroy();
-
-      const pitchCalls = () =>
-        Object.values(mockPitch).reduce(
-          (count: number, member) =>
-            count +
-            (typeof member === "function" && "mock" in member
-              ? (member).mock.calls.length
-              : 0),
-          0
-        );
-      const drawnAtTeardown = pitchCalls();
-
-      mockEventBus.emit(GameEventNames.UI_ConfirmationResult, {
-        confirmed: true,
-        actionId: z.object({ actionId: z.string() }).parse(fixtureValue(ask)[1]).actionId,
-      });
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(serviceSpies.movePlayer).not.toHaveBeenCalled();
-      expect(pitchCalls()).toBe(drawnAtTeardown);
-    });
-
     it("should execute move and deselect if player has acted", async () => {
       mockGameService.hasPlayerActed.mockReturnValue(true);
 
@@ -128,17 +90,12 @@ describe("GameplayInteractionController", () => {
         rolls: [],
       });
       void (controller).onSquareClicked(6, 5);
-
       void (controller).onSquareClicked(6, 5);
-
-      await answerStepPrompt(true);
+      await settle();
 
       expect(serviceSpies.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
       ]);
-
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
       expect(mockScene.unhighlightPlayer).toHaveBeenCalled();
     });
 
@@ -151,49 +108,44 @@ describe("GameplayInteractionController", () => {
         rolls: [],
       });
       void (controller).onSquareClicked(6, 5);
-
       void (controller).onSquareClicked(6, 5);
-
-      await answerStepPrompt(true);
+      await settle();
 
       expect(serviceSpies.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
       ]);
-
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
       expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();
       expect(mockScene.highlightPlayer).toHaveBeenCalled();
     });
 
-    it("asks before the Dodge with the number needed, and stops there when declined", async () => {
+    it("plans the Dodge with the number needed, then walks on the second click without asking", async () => {
       mockMovementValidator.findPath.mockReturnValue({ cost: 0,
         valid: true,
         path: [{ x: 6, y: 5 }],
         rolls: [],
       });
       void (controller).onSquareClicked(6, 5);
-      void (controller).onSquareClicked(6, 5);
-      expect(serviceSpies.movePlayer).not.toHaveBeenCalled();
 
-      const prompt = await answerStepPrompt(false);
-
-      expect(prompt.title).toBe("Blitzer: Dodge");
-
-      expect(prompt.message).toContain("Dodge: 4+");
-      expect(prompt.message).toContain("No re-roll available.");
-
-      expect(prompt.message).toBe(
-        "Dodge: 4+. A fall is a turnover.\nNo re-roll available."
-      );
-      expect(prompt.cancelLabel).toBe("Stop here");
-
-      expect(prompt.step).toEqual({
-        playerId: "p1",
-        rolls: [{ type: "dodge", target: 4 }],
+      expect(lastPlan()).toEqual({
+        title: "Move",
+        squares: 1,
+        stages: [
+          {
+            label: "Move 1 square",
+            rolls: [{ kind: "dodge", name: "Dodge", target: 4 }],
+            notes: [],
+          },
+        ],
+        rerolls: [],
+        blocked: null,
       });
       expect(serviceSpies.movePlayer).not.toHaveBeenCalled();
-      expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();
+
+      void (controller).onSquareClicked(6, 5);
+      await settle();
+
+      expect(confirmations()).toHaveLength(0);
+      expect(serviceSpies.movePlayer).toHaveBeenCalledWith("p1", [{ x: 6, y: 5 }]);
     });
 
     it("shows Rush 2+ and Dodge 3+ for a Stunty player in three tackle zones", async () => {
@@ -232,113 +184,87 @@ describe("GameplayInteractionController", () => {
           GameEventNames.UI_RoutePreview,
           expect.objectContaining({ rolls })
         );
-
-        void controller.onSquareClicked(6, 5);
-        const prompt = await answerStepPrompt(false);
-        expect(prompt.message).toContain("Rush: 2+");
-        expect(prompt.message).toContain("Dodge: 3+");
-        expect(fixtureValue(prompt.step).rolls).toEqual([
-          { type: "rush", target: 2 },
-          { type: "dodge", target: 3 },
+        expect(fixtureValue(lastPlan()).stages[0]?.rolls).toEqual([
+          { kind: "rush", name: "Rush", target: 2 },
+          { kind: "dodge", name: "Dodge", target: 3 },
         ]);
-        expect(serviceSpies.movePlayer).not.toHaveBeenCalled();
       } finally {
         mockGameService.getMovementUsed.mockReturnValue(0);
       }
     });
 
-    it("lists the team re-roll once for a dodge onto the ball", async () => {
+    it("lists the team re-roll for a dodge onto the ball", () => {
       const state = mockGameService.getState();
       mockGameService.getState.mockReturnValue(stateWith({
         ...state,
         ballPosition: { x: 6, y: 5 },
       }));
       const arbiter = mockArbiter;
-      arbiter.teamRerollAvailable.mockReturnValue(true);
       arbiter.nextTeamReroll.mockReturnValue("team");
-      arbiter.teamRerollsLeftFor = vi.fn().mockReturnValue(1);
+      arbiter.teamRerollsLeftFor.mockReturnValue(1);
       mockMovementValidator.findPath.mockReturnValue({ cost: 0,
         valid: true,
         path: [{ x: 6, y: 5 }],
         rolls: [],
       });
-      void (controller).onSquareClicked(6, 5);
-      void (controller).onSquareClicked(6, 5);
+      try {
+        void (controller).onSquareClicked(6, 5);
 
-      const prompt = await answerStepPrompt(false);
-      arbiter.teamRerollAvailable.mockReturnValue(false);
-      arbiter.nextTeamReroll.mockReturnValue(null);
-
-      expect(
-        fixtureValue(prompt.step).rolls.map((roll: { type: string }) => roll.type)
-      ).toEqual(["dodge", "pickup"]);
-      expect(prompt.message.match(/team re-roll/g)).toHaveLength(1);
-
-      const route = eventBusSpies.emit.mock.calls
-        .filter(
-          ([name, data]) => name === GameEventNames.UI_RoutePreview && data
-        )
-        .at(-1);
-      expect(route?.[1]).toMatchObject({ riskySteps: 2 });
-      expect(prompt.message).toContain(
-        "Re-rolls: team re-roll (1 left), for one of the two rolls."
-      );
+        const plan = fixtureValue(lastPlan());
+        expect(plan.stages[0]?.rolls.map((roll) => roll.kind)).toEqual(["dodge", "pickup"]);
+        expect(plan.rerolls).toEqual(["team 1 left"]);
+      } finally {
+        arbiter.nextTeamReroll.mockReturnValue(null);
+        arbiter.teamRerollsLeftFor.mockReturnValue(0);
+      }
     });
 
-    it("lists Pro once for a dodge onto the ball", async () => {
+    it("lists Pro and Veteran among the plan's re-rolls", () => {
       const state = mockGameService.getState();
       mockGameService.getState.mockReturnValue(stateWith({
         ...state,
         ballPosition: { x: 6, y: 5 },
-        activePlayer: { id: "p1", action: "move", committed: true },
       }));
       const pro = { ...player1, skills: [getSkill(SkillType.PRO)] };
       mockGameService.getPlayerById.mockReturnValue(pro);
       const arbiter = mockArbiter;
       arbiter.onceAvailable.mockReturnValue(true);
-      mockMovementValidator.findPath.mockReturnValue({ cost: 0,
-        valid: true,
-        path: [{ x: 6, y: 5 }],
-        rolls: [],
-      });
-      void (controller).onSquareClicked(6, 5);
-      void (controller).onSquareClicked(6, 5);
-
-      const prompt = await answerStepPrompt(false);
-      arbiter.onceAvailable.mockReturnValue(false);
-
-      expect(prompt.message).toBe(
-        "Dodge: 4+, then Pick up: 4+. A fail is a turnover.\n" +
-          "Re-rolls: Pro needs 3+, for one of the two rolls."
-      );
-    });
-
-    it("names the one roll Veteran covers on a dodge onto the ball", async () => {
-      const state = mockGameService.getState();
-      mockGameService.getState.mockReturnValue(stateWith({
-        ...state,
-        ballPosition: { x: 6, y: 5 },
-      }));
-      const arbiter = mockArbiter;
       arbiter.veteranRerollAvailable.mockReturnValue(true);
       mockMovementValidator.findPath.mockReturnValue({ cost: 0,
         valid: true,
         path: [{ x: 6, y: 5 }],
         rolls: [],
       });
-      void (controller).onSquareClicked(6, 5);
-      void (controller).onSquareClicked(6, 5);
-
-      const prompt = await answerStepPrompt(false);
-      arbiter.veteranRerollAvailable.mockReturnValue(false);
-
-      expect(prompt.message).toBe(
-        "Dodge: 4+, then Pick up: 4+. A fail is a turnover.\n" +
-          "Re-rolls: Veteran re-roll: Pick up 4+."
-      );
+      try {
+        void (controller).onSquareClicked(6, 5);
+        expect(fixtureValue(lastPlan()).rerolls).toEqual(["Pro on 3+", "Veteran"]);
+      } finally {
+        arbiter.onceAvailable.mockReturnValue(false);
+        arbiter.veteranRerollAvailable.mockReturnValue(false);
+      }
     });
 
-    it("walks the safe part first and asks again before the risky step", async () => {
+    it("counts a drive's movement modifier once when it plans the route's rolls", () => {
+      mockScene.team2.players = [];
+      mockGameService.getPlayerById.mockReturnValue({ ...player1, stats: { ...player1.stats, MA: 6 } });
+      mockGameService.getState.mockReturnValue(stateWith({
+        activeTeamId: team1Id,
+        weather: "Nice",
+        driveEffects: { ...emptyDriveEffects(), playerModifiers: { p1: { maModifier: -1 } } },
+      }));
+      const route = [1, 2, 3, 4, 5].map((i) => ({ x: 5 + i, y: 5 }));
+      mockMovementValidator.findPath.mockReturnValue({ cost: 0, valid: true, path: route, rolls: [] });
+
+      void (controller).onSquareClicked(10, 5);
+
+      expect(fixtureValue(lastPlan()).stages[0]).toEqual({
+        label: "Move 5 squares",
+        rolls: [],
+        notes: [],
+      });
+    });
+
+    it("walks the safe part first, then the rush, without asking in between", async () => {
       mockGameService.hasPlayerActed.mockReturnValue(false);
 
       mockScene.team2.players = [];
@@ -357,21 +283,36 @@ describe("GameplayInteractionController", () => {
         path: route,
         rolls: [],
       });
-      void (controller).onSquareClicked(12, 5);
-      void (controller).onSquareClicked(12, 5);
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      try {
+        void (controller).onSquareClicked(12, 5);
+        void (controller).onSquareClicked(12, 5);
+        await settle();
 
-      expect(serviceSpies.movePlayer).toHaveBeenCalledTimes(1);
-      expect(serviceSpies.movePlayer).toHaveBeenLastCalledWith(
-        "p1",
-        route.slice(0, 6)
-      );
-      const prompt = await answerStepPrompt(true);
-      expect(prompt.title).toBe("Blitzer: Rush");
-      expect(serviceSpies.movePlayer).toHaveBeenCalledTimes(2);
-      expect(serviceSpies.movePlayer).toHaveBeenLastCalledWith("p1", [
-        { x: 12, y: 5 },
-      ]);
+        expect(confirmations()).toHaveLength(0);
+        expect(serviceSpies.movePlayer.mock.calls).toEqual([
+          ["p1", route.slice(0, 6)],
+          ["p1", [{ x: 12, y: 5 }]],
+        ]);
+      } finally {
+        mockGameService.getMovementUsed.mockReturnValue(0);
+      }
     });
   });
 });
+
+async function settle(): Promise<void> {
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function lastPlan() {
+  return eventBusSpies.emit.mock.calls
+    .filter(([name, data]) => name === GameEventNames.UI_ActionPlan && data)
+    .map(([, data]) => z.object({ title: z.string(), squares: z.number(), stages: z.array(z.object({ label: z.string(), rolls: z.array(z.object({ kind: z.string(), name: z.string(), target: z.number() })), notes: z.array(z.string()) })), rerolls: z.array(z.string()), blocked: z.string().nullable() }).parse(data))
+    .at(-1);
+}
+
+function confirmations() {
+  return eventBusSpies.emit.mock.calls.filter(
+    ([name]) => name === GameEventNames.UI_RequestConfirmation
+  );
+}

@@ -21,7 +21,6 @@ test("Frenzy rolls its second block automatically and the blitzer can dodge away
   await app.hud.declareAction("team1:0", "blitz");
   await app.pitch.clickSquare({ x: 10, y: 4 });
   await app.pitch.clickSquare({ x: 10, y: 4 });
-  await page.getByRole("button", { name: "Dodge!", exact: true }).click();
   await expect
     .poll(() => app.pitch.squareOf("team1:0"))
     .toEqual({ x: 10, y: 4 });
@@ -33,6 +32,7 @@ test("Frenzy rolls its second block automatically and the blitzer can dodge away
 
   await app.hud.selectActionStep("block");
   await app.pitch.clickPlayer("team2:0");
+  await page.getByTestId("action-plan-go").click();
   await app.hud.rollBlockDice();
   await app.hud.chooseBlockResult("push");
   await expect(page.getByTestId("push-choice-prompt")).toBeVisible();
@@ -64,8 +64,8 @@ test("Frenzy rolls its second block automatically and the blitzer can dodge away
   await expect(app.hud.followUpDialog()).toBeHidden();
 
   await app.pitch.clickSquare({ x: 11, y: 4 });
+  await expect(page.getByTestId("action-plan")).toContainText("Dodge");
   await app.pitch.clickSquare({ x: 11, y: 4 });
-  await page.getByRole("button", { name: "Dodge!", exact: true }).click();
   await expect
     .poll(() => app.pitch.squareOf("team1:0"))
     .toEqual({ x: 11, y: 4 });

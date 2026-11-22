@@ -40,7 +40,7 @@ function rollBlock(context: ActionContext, data: GameEventMap[typeof GameEventNa
         eventBus.emit(GameEventNames.UI_BlockRollCancelled, undefined);
         return;
       }
-      if (used + 1 > effectiveAttacker.stats.MA) {
+      if (used + 1 > effectiveAttacker.stats.MA && !data.rushAccepted) {
         context.pendingBlitzBlock = data;
         const target = requiredRoll(
           activeRules().rushTarget,

@@ -136,10 +136,8 @@ export interface CommonUIEvents {
   [GameEventNames.UI_RoutePreview]:
     | import("../../game/rules/rollPreview").RoutePreview
     | null;
-  [GameEventNames.UI_MovePlan]:
-    | (import("../../game/rules/rollPreview").RoutePreview & {
-        squares: number;
-      })
+  [GameEventNames.UI_ActionPlan]:
+    | import("../../game/rules/actionPlan").ActionPlanSummary
     | null;
   [GameEventNames.UI_GoMovePlan]: void;
   [GameEventNames.UI_ClearMovePlan]: void;
