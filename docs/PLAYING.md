@@ -41,10 +41,28 @@ unchanged and can enter other leagues at the same time.
 ## During the match
 
 Select one of the active coach's players and choose an action from the HUD.
-Click a highlighted target or destination, then follow the prompts for dice,
-re-rolls, pushes and follow-ups. The HUD shows the selected player's abilities,
-movement and available actions. End their activation when finished, or end
-the team turn with **End Turn**.
+Plan the whole action before any die is rolled:
+
+1. Click squares to build the route. Click the Move step to add more squares
+   after picking a target.
+2. Click the target: the team-mate to pass or hand off to, the square to
+   throw at, or the player to block or foul. A target out of reach gets a
+   route to the nearest square beside it.
+3. Read the plan card. It lists every roll in order with the number it
+   needs: an activation roll such as Bone Head or Bloodlust, each Dodge,
+   Rush and Pick up, the throw, the catch and any interception, or the
+   block's dice and both players' strength.
+4. Press **Go**, press Enter, or click the target again. ✕ clears the target,
+   then the route.
+
+Go runs the plan without stopping between steps. A failed die still offers
+its re-roll, and the plan stops when a roll goes wrong. Then follow the
+prompts for pushes and follow-ups. The HUD shows the selected player's
+abilities, movement and available actions. End their activation when
+finished, or end the team turn with **End Turn**.
+
+In an online match, an activation roll such as Bone Head still rolls when
+you pick the action.
 
 Many failed actions cause a turnover. The other coach then takes their turn.
 The game handles drive resets, half-time and match results.
