@@ -65,6 +65,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   const { code: routeCode } = useParams();
   const { user } = useAuth();
   const [lobby, setLobby] = useState<LobbyDoc | null>(null);
+  const [closed, setClosed] = useState(false);
   const [code, setCode] = useState<string | null>(routeCode ?? null);
   const [joinInput, setJoinInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +119,10 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
 
   useEffect(() => {
     if (!code) return;
-    return subscribeLobby(code, setLobby);
+    return subscribeLobby(code, (next) => {
+      setClosed(next === "closed");
+      setLobby(next === "closed" ? null : next);
+    });
   }, [code]);
 
   const myUid = user?.uid;
@@ -206,7 +210,11 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   }
 
   if (!lobby) {
-    return <LobbyLoading busy={busy} error={error} />;
+    return closed ? (
+      <LobbyClosed onBack={() => void navigate("/")} />
+    ) : (
+      <LobbyLoading busy={busy} error={error} />
+    );
   }
 
   const isHost = user.uid === lobby.hostUid;
@@ -443,6 +451,22 @@ function LobbyLoading({
         {busy ? "Creating lobby…" : "Loading lobby…"}
       </p>
       {error && <ErrorText text={error} />}
+    </PageShell>
+  );
+}
+
+function LobbyClosed({ onBack }: { onBack: () => void }) {
+  return (
+    <PageShell width="narrow" className="flex flex-col justify-center">
+      <EmptyState
+        title="This lobby has closed."
+        titleAs="p"
+        action={
+          <HudButton variant="ghost" onClick={onBack}>
+            Back to Menu
+          </HudButton>
+        }
+      />
     </PageShell>
   );
 }

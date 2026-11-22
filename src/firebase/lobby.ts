@@ -45,7 +45,6 @@ export interface LobbyPlayer {
 
   team: Team | null;
   ready: boolean;
-
   lastSeen?: number;
 }
 
@@ -487,10 +486,11 @@ export function subscribeMatchLobby({
 
 export function subscribeLobby(
   code: string,
-  onChange: (lobby: LobbyDoc | null) => void
+  onChange: (lobby: LobbyDoc | "closed") => void
 ): () => void {
   return onSnapshot(lobbyRef(code), (snapshot) => {
-    onChange(snapshot.exists() ? readLobby(snapshot.data()) : null);
+    if (snapshot.exists()) onChange(readLobby(snapshot.data()));
+    else if (!snapshot.metadata.fromCache) onChange("closed");
   });
 }
 
