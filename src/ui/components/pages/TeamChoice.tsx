@@ -1,4 +1,5 @@
 import { teamPlaysGameType } from "../../../game/rules/rosterLegality";
+import { friendlyRefusal } from "../../../game/rules/club";
 import { GAME_TYPE_LABELS, type GameType } from "../../../game/variants/gameTypes";
 import {
   type TeamValueRange,
@@ -9,6 +10,7 @@ import { calculateTeamValue, type Team } from "../../../types/Team";
 import { Notice } from "../componentWarehouse/HudKit";
 
 function unfit(team: Team, gameType: GameType, teamValue: TeamValueRange | undefined): string | null {
+  if (friendlyRefusal(team)) return "is playing a tournament";
   if (!teamPlaysGameType(team, gameType))
     return `does not meet the ${GAME_TYPE_LABELS[gameType]} draft rules`;
   if (!withinTeamValue(team, teamValue))

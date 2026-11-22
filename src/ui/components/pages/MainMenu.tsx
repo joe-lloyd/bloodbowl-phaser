@@ -207,7 +207,12 @@ export function MainMenu() {
         />
         {user && <InviteInbox uid={user.uid} className="mt-4 max-w-2xl" />}
 
-        <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div
+          className={cx(
+            "mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2",
+            isAdminUser(user) ? "lg:grid-cols-5" : "lg:grid-cols-4"
+          )}
+        >
           <MenuSection title="Play">
             <HudButton
               variant="primary"
@@ -286,6 +291,15 @@ export function MainMenu() {
               </HudButton>
             </MenuSection>
           )}
+
+          <MenuSection title="Club">
+            <HudButton block onClick={() => void navigate("/clubs")}>
+              My Clubs
+            </HudButton>
+            <HudButton block onClick={() => void navigate("/clubs/new")}>
+              Found a Club
+            </HudButton>
+          </MenuSection>
         </div>
 
         <div

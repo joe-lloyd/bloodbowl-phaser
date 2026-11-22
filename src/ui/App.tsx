@@ -13,6 +13,9 @@ import { TeamSelect } from "./components/pages/TeamSelect";
 import { SoundTest } from "./components/pages/SoundTest";
 import { OnlineLobby } from "./components/pages/OnlineLobby";
 import { SharedTeamBrowser } from "./components/pages/SharedTeamBrowser";
+import { ClubHub } from "./components/club/ClubHub";
+import { ClubFounding } from "./components/club/ClubFounding";
+import { ClubPage } from "./components/club/ClubPage";
 import { CompetitionHub } from "./components/pages/CompetitionHub";
 import { CompetitionBuilder } from "./components/pages/CompetitionBuilder";
 import { CompetitionView } from "./components/pages/CompetitionView";
@@ -78,6 +81,9 @@ export function App({ eventBus }: AppProps) {
           path="/build-team/:teamId/player/:playerId"
           element={withTeamLibrary(<PlayerPage />)}
         />
+        <Route path="/clubs" element={withTeamLibrary(<ClubHub />)} />
+        <Route path="/clubs/new" element={withTeamLibrary(<ClubFounding />)} />
+        <Route path="/clubs/:teamId" element={withTeamLibrary(<ClubPage />)} />
         <Route path="/shared-teams" element={<SharedTeamBrowser />} />
         <Route path="/friends" element={<FriendsPage />} />
         <Route path="/leagues" element={<CompetitionHub type="league" />} />

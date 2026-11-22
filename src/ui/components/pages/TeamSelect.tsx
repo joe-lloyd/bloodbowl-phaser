@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { friendlyRefusal } from "../../../game/rules/club";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { type Team } from "../../../types/Team";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
@@ -86,6 +87,8 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     const issues: string[] = [];
     const insignificantError = validateInsignificant(team.players);
     if (insignificantError) issues.push(insignificantError);
+    const locked = friendlyRefusal(team);
+    if (locked) issues.push(locked);
     try {
       const roster = getRosterByRosterName(team.rosterName);
       issues.push(

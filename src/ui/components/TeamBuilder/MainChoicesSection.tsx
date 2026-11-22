@@ -68,7 +68,7 @@ function FormatChoices({
   locked: boolean;
   onChange: (team: Team) => void;
 }) {
-  const disabled = locked || !!team.activeCompetitionId;
+  const disabled = locked || !!team.activeCompetitionId || !!team.club;
   return (
     <>
       <div className="lg:col-span-2">

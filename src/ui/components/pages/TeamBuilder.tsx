@@ -162,11 +162,17 @@ function readSearch(search: string, teamId: string | undefined) {
   return {
     searchParams,
     postMatch: searchParams.get("postMatch") === "1",
-    destination: /^\/leagues\/[^/?#]+$/.test(returnTo)
+    destination: /^\/(leagues|clubs)\/[^/?#]+$/.test(returnTo)
       ? returnTo
       : "/build-team",
     matchWinnings: searchParams.get(`winnings-${teamId ?? ""}`),
   };
+}
+
+function returnLabelFor(destination: string): string | undefined {
+  if (destination.startsWith("/clubs/")) return "Back to the club";
+  if (destination.startsWith("/leagues/")) return "Back to the league";
+  return undefined;
 }
 
 type TeamPendingView = "loading" | "missing" | "failed";
@@ -236,7 +242,7 @@ export function TeamBuilder() {
     teamId
   );
 
-  const fromLeague = destination !== "/build-team";
+  const returnLabel = returnLabelFor(destination);
   const [completion, setCompletion] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -558,7 +564,7 @@ export function TeamBuilder() {
       <TeamPending
         view={pendingView}
         onBack={handleBack}
-        backLabel={fromLeague ? "Back to the league" : "Back to Teams"}
+        backLabel={returnLabel ?? "Back to Teams"}
       />
     );
   }
@@ -612,7 +618,7 @@ export function TeamBuilder() {
           pendingMistakes={pendingMistakes}
           incomplete={violations.length > 0}
           hasNextTeam={searchParams.has("nextTeam")}
-          returnsToLeague={fromLeague}
+          returnLabel={returnLabel}
           onBack={handleBack}
           onSave={handleSave}
         />
