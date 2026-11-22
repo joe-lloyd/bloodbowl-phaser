@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { friendlyRefusal } from "../../../game/rules/club";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { type Team } from "../../../types/Team";
@@ -236,39 +236,46 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             columnTeams.map((team) => {
               const issues = legalityIssues(team);
               const isSelected = selected?.id === team.id;
+              const locked = friendlyRefusal(team);
               return (
-                <button
-                  key={team.id}
-                  type="button"
-                  disabled={issues.length > 0}
-                  title={issues.length > 0 ? issues.join("; ") : undefined}
-                  aria-pressed={isSelected}
-                  className={cx(
-                    hudChoiceClass(isSelected),
-                    "flex w-full shrink-0 items-center gap-2.5 px-3 py-2"
+                <Fragment key={team.id}>
+                  <button
+                    type="button"
+                    disabled={issues.length > 0}
+                    title={issues.length > 0 ? issues.join("; ") : undefined}
+                    aria-pressed={isSelected}
+                    className={cx(
+                      hudChoiceClass(isSelected),
+                      "flex w-full shrink-0 items-center gap-2.5 px-3 py-2"
+                    )}
+                    onClick={() => {
+                      onSelect(team);
+                    }}
+                  >
+                    <TeamSwatch
+                      color={numToHex(team.colors.primary)}
+                      className="h-4 w-4"
+                    />
+                    <span className="min-w-0 flex-1 truncate font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                      {team.name}
+                    </span>
+                    <span className="shrink-0 text-hud-sm text-hud-dim">
+                      {team.rosterName}
+                    </span>
+                    {issues.length > 0 && (
+                      <Chip tone="blood">
+                        {locked
+                          ? "In a tournament"
+                          : `Not ${GAME_TYPE_LABELS[gameType]}`}
+                      </Chip>
+                    )}
+                  </button>
+                  {locked && (
+                    <p className="px-3 pb-1 text-hud-sm text-hud-warn">
+                      {locked}
+                    </p>
                   )}
-                  onClick={() => {
-                    onSelect(team);
-                  }}
-                >
-                  <TeamSwatch
-                    color={numToHex(team.colors.primary)}
-                    className="h-4 w-4"
-                  />
-                  <span className="min-w-0 flex-1 truncate font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
-                    {team.name}
-                  </span>
-                  <span className="shrink-0 text-hud-sm text-hud-dim">
-                    {team.rosterName}
-                  </span>
-                  {issues.length > 0 && (
-                    <Chip tone="blood">
-                      {friendlyRefusal(team)
-                        ? "In a tournament"
-                        : `Not ${GAME_TYPE_LABELS[gameType]}`}
-                    </Chip>
-                  )}
-                </button>
+                </Fragment>
               );
             })
           )}
