@@ -2332,10 +2332,7 @@
   },
   "e2e/browser/score-run-prompts.e2e.ts": {
     "@typescript-eslint/consistent-type-assertions": {
-      "count": 8
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
+      "count": 6
     },
     "no-restricted-syntax": {
       "count": 4
