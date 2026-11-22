@@ -22,6 +22,8 @@ import {
 import { readEach } from "../boundary/readEach";
 import { getDb } from "./config";
 import { teamPlaysGameType } from "../game/rules/rosterLegality";
+import { friendlyRefusal } from "../game/rules/club";
+import { tournamentLock } from "./lobbyTournamentLock";
 import { type Team } from "../types/Team";
 import { type GameSnapshot } from "../headless/serialization";
 import { type RNGState } from "../services/rng/RNGService";
@@ -532,7 +534,9 @@ export function canStart(lobby: LobbyDoc): boolean {
 export function teamFitsLobby(team: Team, lobby: LobbyDoc): boolean {
   const range = lobby.competitionContext ? undefined : lobby.settings.teamValue;
   return (
-    teamPlaysGameType(team, lobbyGameType(lobby)) && withinTeamValue(team, range)
+    teamPlaysGameType(team, lobbyGameType(lobby)) &&
+    withinTeamValue(team, range) &&
+    (!!lobby.competitionContext || friendlyRefusal(team) === undefined)
   );
 }
 
@@ -577,6 +581,8 @@ export async function startLobbyMatch(code: string): Promise<void> {
       throw new Error(
         "Both coaches need a ready team that meets this game type's rules and the team value range."
       );
+    const locked = await tournamentLock(tx, lobby);
+    if (locked) throw new Error(locked);
     tx.update(lobbyRef(code), {
       status: "active",
       timer: startingClock({

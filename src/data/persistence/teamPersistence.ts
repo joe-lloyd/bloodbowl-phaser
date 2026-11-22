@@ -12,6 +12,7 @@ import {
   PlayerStatus,
 } from "../../types/Player";
 import {
+  type ClubState,
   type DraftRecord,
   type FavouredOfRule,
   type Formation,
@@ -43,6 +44,7 @@ import {
   storedPlayedGames,
 } from "../../game/progression/matchHistory";
 import { parseAllegiance } from "../../game/rules/teamAllegiance";
+import { clubStateSchema } from "../../boundary/schemas/ClubState";
 import {
   appointTeamCaptain,
   hasTeamCaptainRule,
@@ -115,6 +117,7 @@ export interface StoredTeam {
   computerTemplateId?: string;
   league?: League;
   favouredOf?: FavouredOfRule;
+  club?: ClubState;
 }
 
 const INDUCEMENTS = new Set<string>(Object.values(Inducement));
@@ -461,6 +464,7 @@ export function hydrateStoredTeam(
       ? { draftHistory: raw["draftHistory"] }
       : {}),
     ...(knownRoster ? parseAllegiance(knownRoster, raw) : {}),
+    ...readClubState(raw["club"]),
   };
   team.players = team.players.filter((player) => staysOnRoster(team, player));
 
@@ -530,7 +534,14 @@ export function dehydrateTeam(team: Team): StoredTeam {
     ...(team.computerTemplateId === undefined ? {} : { computerTemplateId: team.computerTemplateId }),
     ...(team.league ? { league: team.league } : {}),
     ...(team.favouredOf ? { favouredOf: team.favouredOf } : {}),
+    ...(team.club ? { club: team.club } : {}),
   };
+}
+
+function readClubState(raw: unknown): { club?: ClubState } {
+  if (raw === undefined) return {};
+  const parsed = clubStateSchema.safeParse(raw);
+  return parsed.success ? { club: parsed.data } : { club: {} };
 }
 
 export function readStoredTeam(raw: unknown): HydrationResult {

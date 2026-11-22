@@ -23,6 +23,7 @@ import {
 import { earnsWinnings, stalledSides } from "../../../game/rules/winnings";
 import { carriesInjuries } from "../../../game/rules/injuryRules";
 import { keepPreMatchInjuries } from "../../../game/rules/leagueRoster";
+import { careerCounts } from "../../../game/rules/club";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import {
   LeaveControls,
@@ -396,7 +397,9 @@ export function MatchResultsScreen({
 
   const recordDevelopment = async () => {
     const gameState = container?.gameService.getState();
-    const managed = savedTeams(teams);
+    const managed = savedTeams(teams).filter((team) =>
+      careerCounts(team, !!state.competition)
+    );
     if (!developmentRecorded.current) {
       managed.forEach((team) => {
         recordPendingDevelopment(

@@ -14,6 +14,7 @@ import { draftRecordSchema } from "./DraftRecord";
 import { pendingDevelopmentSchema } from "./PendingDevelopment";
 import { leagueSchema } from "./League";
 import { favouredOfRuleSchema } from "./FavouredOfRule";
+import { clubStateSchema } from "./ClubState";
 import type { Team } from "../../types/Team";
 
 export const teamSchema: z.ZodType<Team> = z.looseObject({
@@ -58,4 +59,5 @@ export const teamSchema: z.ZodType<Team> = z.looseObject({
   computerTemplateId: z.string().exactOptional(),
   league: leagueSchema.exactOptional(),
   favouredOf: favouredOfRuleSchema.exactOptional(),
+  club: clubStateSchema.exactOptional(),
 });

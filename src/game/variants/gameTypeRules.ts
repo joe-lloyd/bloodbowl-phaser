@@ -19,16 +19,12 @@ interface InjuryTables {
 
 const SPIKE_OR_RULEBOOK: InjuryTables = { short: "sevens", lasting: "standard" };
 
-type RerollPricing =
-  | { kind: "flat"; cost: number }
-  | { kind: "double-roster" };
-
 export interface DraftRules {
   budget: number;
   minPlayers: number;
   maxPlayers: number;
   maxNonLinemen: number;
-  rerolls: RerollPricing;
+  rerollCost: number;
   assistantCoaches: boolean;
   cheerleaders: boolean;
   apothecary: boolean;
@@ -85,7 +81,7 @@ const SEVENS_DRAFT: DraftRules = {
   minPlayers: 7,
   maxPlayers: 11,
   maxNonLinemen: 4,
-  rerolls: { kind: "flat", cost: 100_000 },
+  rerollCost: 100_000,
   assistantCoaches: true,
   cheerleaders: true,
   apothecary: true,
@@ -141,7 +137,6 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     turnsPerHalf: 6,
     draft: {
       ...SEVENS_DRAFT,
-      rerolls: { kind: "double-roster" },
       assistantCoaches: false,
       cheerleaders: false,
       apothecary: false,
@@ -168,7 +163,6 @@ const GAME_TYPE_RULES: Record<GameType, GameTypeRules> = {
     turnsPerHalf: 6,
     draft: {
       ...SEVENS_DRAFT,
-      rerolls: { kind: "double-roster" },
       apothecary: false,
       dedicatedFansInLeagueOnly: true,
       veteran: false,

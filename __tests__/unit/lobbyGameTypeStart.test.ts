@@ -4,8 +4,12 @@ import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { hirePlayer, purchase } from "../../src/game/rules/teamPricing";
 import { chooseFirstLinemanAsVeteran } from "../../src/game/rules/veteran";
 import type { GameType } from "../../src/game/variants/gameTypes";
+import { dehydrateTeam } from "../../src/data/persistence/teamPersistence";
 
-const stored: { lobby: unknown } = { lobby: null };
+const stored: { lobby: unknown; teams: Record<string, unknown> } = {
+  lobby: null,
+  teams: {},
+};
 const update = vi.fn();
 
 vi.mock("firebase/firestore", () => ({
@@ -13,11 +17,15 @@ vi.mock("firebase/firestore", () => ({
   runTransaction: vi.fn(
     (_db: unknown, work: (tx: unknown) => Promise<unknown>) =>
       work({
-        get: () =>
-          Promise.resolve({
-            exists: () => stored.lobby !== null,
-            data: () => stored.lobby,
-          }),
+        get: ({ path }: { path: string }) => {
+          const data = path.startsWith("games/")
+            ? stored.lobby
+            : (stored.teams[path] ?? null);
+          return Promise.resolve({
+            exists: () => data !== null,
+            data: () => data,
+          });
+        },
         update,
       })
   ),
@@ -129,5 +137,24 @@ describe("the Start Match button", () => {
       "Both coaches need a ready team that meets this game type's rules and the team value range."
     );
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("refuses a club that entered a tournament after its coach picked it", async () => {
+    update.mockClear();
+    const club = sevensTeam("home", false);
+    club.club = {};
+    stored.lobby = readyLobby("sevens", club, sevensTeam("away", false));
+    stored.teams = {
+      [`users/host/teams/${club.id}`]: dehydrateTeam({
+        ...club,
+        activeCompetitionId: "tournament-1-abc",
+      }),
+    };
+
+    await expect(startLobbyMatch("ABC123")).rejects.toThrow(
+      "home is playing a tournament. A club in a tournament plays no other games until the tournament ends."
+    );
+    expect(update).not.toHaveBeenCalled();
+    stored.teams = {};
   });
 });

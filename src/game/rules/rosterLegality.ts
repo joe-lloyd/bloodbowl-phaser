@@ -8,7 +8,9 @@ import {
 import { PositionKeyWord, TraitKeyWord } from "../../types/Player";
 import { isDraftTeam } from "./teamLifecycle";
 import { isDeadLeaguePlayer } from "./leagueRoster";
+import { clubSquad, gutterLockReason } from "./club";
 import {
+  DEFAULT_GAME_TYPE,
   GAME_TYPES,
   GAME_TYPE_LABELS,
   type GameType,
@@ -213,8 +215,7 @@ function draftSpendUnder(team: Team, gameType: GameType): number {
     team.startingTreasury -
     team.treasury +
     team.rerolls *
-      (rerollPrice(other, team.rerollCost) -
-        rerollPrice(own, team.rerollCost)) +
+      (rerollPrice(other) - rerollPrice(own)) +
     boughtFans * (dedicatedFanPrice(other) - dedicatedFanPrice(own))
   );
 }
@@ -241,11 +242,51 @@ function budgetViolations(team: Team, gameType: GameType): RosterViolation[] {
     : [];
 }
 
+const CLUB_SQUAD_IGNORES = new Set(["budget", "dedicated-fans"]);
+
+function clubViolations(
+  team: Team,
+  roster: TeamRoster,
+  gameType: GameType
+): RosterViolation[] {
+  const locked = gameType === "gutter-bowl" ? gutterLockReason(team) : undefined;
+  const { budget } = draftRulesFor(DEFAULT_GAME_TYPE);
+  const founding =
+    isDraftTeam(team) && team.startingTreasury !== budget
+      ? [
+          {
+            rule: "club-budget",
+            detail: `A club drafts with ${budget.toLocaleString("en-GB")}, not ${team.startingTreasury.toLocaleString("en-GB")}.`,
+          },
+        ]
+      : [];
+  const core = validateRosterLegality(
+    clubSquad(team, DEFAULT_GAME_TYPE),
+    roster,
+    DEFAULT_GAME_TYPE
+  );
+  const squad =
+    gameType === DEFAULT_GAME_TYPE
+      ? []
+      : validateRosterLegality(clubSquad(team, gameType), roster, gameType).filter(
+          (violation) => !CLUB_SQUAD_IGNORES.has(violation.rule)
+        );
+  const unique = new Map(
+    [...core, ...squad].map((violation) => [violation.detail, violation])
+  );
+  return [
+    ...(locked ? [{ rule: "gutter-locked", detail: locked }] : []),
+    ...founding,
+    ...unique.values(),
+  ];
+}
+
 export function validateRosterLegality(
   team: Team,
   roster: TeamRoster,
   gameType: GameType = teamGameType(team)
 ): RosterViolation[] {
+  if (team.club) return clubViolations(team, roster, gameType);
   const draft = draftRulesFor(gameType);
   const label = GAME_TYPE_LABELS[gameType];
   const rostered = team.players.filter(

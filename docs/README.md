@@ -9,6 +9,7 @@ The [project README](../README.md) shows the game and its main features.
 | --------------------------- | ------------------------------------------------------ |
 | [Playing](PLAYING.md)       | Teams, local matches, controls and online entry points |
 | [Project status](STATUS.md) | Known gaps and the checks behind feature claims        |
+| [Club mode](CLUB_MODE.md)   | One club's career across every game type               |
 
 ## Contributors
 

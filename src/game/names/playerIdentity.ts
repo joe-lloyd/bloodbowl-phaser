@@ -40,11 +40,14 @@ export function appearanceOf(player: Pick<Player, "id" | "appearance" | "positio
   return options.length > 0 ? randomAppearance(options, seededRandom(player.id)) : undefined;
 }
 
+export function giveIdentity(team: Pick<Team, "rosterName">, player: Player): void {
+  const identity = rollIdentity({ rosterName: team.rosterName, positionName: player.positionName });
+  if (identity.name) player.playerName = identity.name;
+  if (identity.appearance) player.appearance = identity.appearance;
+}
+
 export function hireWithIdentity(team: Team, template: PlayerTemplate): ReturnType<typeof hirePlayer> {
   const hired = hirePlayer(team, template);
-  if (!hired.player) return hired;
-  const identity = rollIdentity({ rosterName: team.rosterName, positionName: template.positionName });
-  if (identity.name) hired.player.playerName = identity.name;
-  if (identity.appearance) hired.player.appearance = identity.appearance;
+  if (hired.player) giveIdentity(team, hired.player);
   return hired;
 }

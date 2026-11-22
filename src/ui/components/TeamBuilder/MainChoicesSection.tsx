@@ -31,10 +31,8 @@ export function MainChoicesSection({
           <select
             className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             value={selectedRace}
-            disabled={active || saving}
-            title={
-              active ? "Active teams cannot change roster type" : undefined
-            }
+            disabled={active || saving || !!team.club}
+            title={rosterLockReason(team, active)}
             onChange={(e) => {
               onRaceChange(e.target.value as RosterName);
             }}
@@ -59,6 +57,11 @@ export function MainChoicesSection({
   );
 }
 
+function rosterLockReason(team: Team, active: boolean): string | undefined {
+  if (team.club) return "A club keeps the roster it was founded with";
+  return active ? "Active teams cannot change roster type" : undefined;
+}
+
 function FormatChoices({
   team,
   locked,
@@ -68,7 +71,7 @@ function FormatChoices({
   locked: boolean;
   onChange: (team: Team) => void;
 }) {
-  const disabled = locked || !!team.activeCompetitionId;
+  const disabled = locked || !!team.activeCompetitionId || !!team.club;
   return (
     <>
       <div className="lg:col-span-2">
