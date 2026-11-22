@@ -29,7 +29,7 @@ test("coin toss and setup", async ({ page }) => {
   await shot(page, "match-options");
 });
 
-test("a dodge prompt, then the dice tray", async ({ page }) => {
+test("a planned dodge, then the dice tray", async ({ page }) => {
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: 2 });
   await app.pitch.waitForCameraToSettle();
@@ -47,11 +47,10 @@ test("a dodge prompt, then the dice tray", async ({ page }) => {
   await app.pitch.waitForCameraToSettle();
   await shot(page, "action-sequence");
   await app.pitch.clickSquare({ x: 19, y: 5 });
-  await app.pitch.clickSquare({ x: 19, y: 5 });
-  await expect(page.getByRole("heading", { name: /: Dodge$/ })).toBeVisible();
+  await expect(page.getByTestId("action-plan")).toContainText("Dodge 3+");
   await page.waitForTimeout(300);
-  await shot(page, "dodge-prompt");
-  await page.getByRole("button", { name: "Dodge!" }).click();
+  await shot(page, "action-plan");
+  await page.getByTestId("action-plan-go").click();
   await page.getByTestId("dice-tray").waitFor();
   await page.waitForTimeout(1600);
   await shot(page, "dice-tray");

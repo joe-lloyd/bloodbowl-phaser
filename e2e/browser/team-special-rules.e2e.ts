@@ -53,7 +53,7 @@ test("Bribery and Corruption re-rolls a 1 to Argue the Call", async ({
   await app.sandbox.open({ scenario: "bribery-and-corruption-argue-reroll" });
   await app.hud.declareAction("team1:1", "foul");
   await app.pitch.clickPlayer("team2:0");
-  await expect(page.getByTestId("confirmation-modal")).toBeVisible();
+  await expect(page.getByTestId("action-plan")).toBeVisible();
   await page.keyboard.press("Enter");
 
   await expect

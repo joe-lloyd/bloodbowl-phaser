@@ -19,6 +19,7 @@ test("a caught pass logs the pass roll and then the catch roll", async ({
   await app.hud.declareAction("team1:0", "pass");
   await app.hud.selectActionStep("pass");
   await app.pitch.clickSquare(await app.pitch.squareOf("team1:1"));
+  await page.getByTestId("action-plan-go").click();
 
   const log = page.getByTestId("dice-log");
   await expect(log.getByText(/^Catch \(.+\): \d, needs \d\+$/)).toBeVisible({

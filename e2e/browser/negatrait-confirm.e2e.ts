@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { GameEventNames } from "../../src/types/events";
 import { GameApp } from "../support/pages/game";
 
-test("Bone Head asks before it rolls, and Cancel declares nothing", async ({
+test("Bone Head shows in the plan, rolls only on Go, and Clear declares nothing", async ({
   page,
 }) => {
   const app = new GameApp(page);
@@ -14,20 +14,22 @@ test("Bone Head asks before it rolls, and Cancel declares nothing", async ({
 
   await app.pitch.clickPlayer("team1:0");
   await app.hud.actionButton("move").click();
-  const confirm = app.hud.negatraitConfirm();
-  await expect(confirm).toContainText("Bone Head: 2+");
-  await expect(confirm).toContainText("Distracted");
+  const plan = app.hud.plannedActivationRoll();
+  await expect(plan).toContainText("Bone Head 2+");
+  await expect(plan).toContainText("Distracted");
+  await expect(app.hud.negatraitConfirm()).toBeHidden();
   await page.screenshot({
-    path: test.info().outputPath("negatrait-confirm.png"),
+    path: test.info().outputPath("negatrait-plan.png"),
   });
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(confirm).toBeHidden();
+  await page.getByTestId("action-plan-clear").click();
+  await expect(plan).toBeHidden();
   expect((await app.bridge.snapshot()).activePlayer).toBeNull();
   expect(await rolls()).toHaveLength(0);
 
   await app.pitch.clickSquare({ x: 12, y: 5 });
-  await expect(confirm).toBeVisible();
-  await confirm.getByRole("button", { name: "Roll", exact: true }).click();
+  await expect(plan).toContainText("Bone Head 2+");
+  expect(await rolls()).toHaveLength(0);
+  await page.getByTestId("action-plan-go").click();
   await app.bridge.expectEvent(GameEventNames.DiceRoll);
-  expect((await app.bridge.snapshot()).activePlayer).not.toBeUndefined();
+  expect((await app.bridge.snapshot()).activePlayer).not.toBeNull();
 });
