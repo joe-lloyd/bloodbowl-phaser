@@ -143,6 +143,24 @@ const assistLine = (side: "Our" | "Their", players: Player[]): string =>
 
 export type BlockSide = "attacker" | "defender";
 
+function strengthPart(base: number, total: number): string {
+  const help = total - base;
+  return help === 0 ? String(total) : `${String(total)} (${String(base)} +${String(help)})`;
+}
+
+function strengthLine(
+  analysis: BlockAnalysis,
+  sides: { attacker: Player; defender: Player },
+  viewer: BlockSide
+): string {
+  const { attacker, defender } = sides;
+  const attacking = strengthPart(attacker.stats.ST, analysis.attackerST);
+  const defending = strengthPart(defender.stats.ST, analysis.defenderST);
+  const [ours, theirs] =
+    viewer === "attacker" ? [attacking, defending] : [defending, attacking];
+  return `Our ST ${ours} vs their ST ${theirs}`;
+}
+
 export function blockPreviewLines(
   analysis: BlockAnalysis,
   attacker: Player,
@@ -159,6 +177,7 @@ export function blockPreviewLines(
   const defenderIs = viewer === "defender" ? "We" : "They";
   const lines = [
     `${String(analysis.diceCount)} ${analysis.diceCount === 1 ? "die" : "dice"}, ${viewerPicks ? "you" : "they"} pick`,
+    strengthLine(analysis, { attacker, defender }, viewer),
     assistLine("Our", ours),
     assistLine("Their", theirs),
   ];
