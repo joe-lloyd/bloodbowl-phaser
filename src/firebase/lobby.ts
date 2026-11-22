@@ -45,26 +45,20 @@ export interface LobbyPlayer {
 
   team: Team | null;
   ready: boolean;
-
   lastSeen?: number;
 }
 
 export interface LobbySettings {
   turnSeconds: number;
-
   timeoutBankMs: number;
-
   progressionEnabled: boolean;
-
   gameType?: GameType;
-
   venue?: Venue;
   teamValue?: TeamValueRange;
 }
 
 export interface TimerState {
   deadline: number | null;
-
   turn?: string | null;
   pausedBy: string | null;
   pausedAt: number | null;
@@ -487,10 +481,16 @@ export function subscribeMatchLobby({
 
 export function subscribeLobby(
   code: string,
-  onChange: (lobby: LobbyDoc | null) => void
+  onChange: (lobby: LobbyDoc | "closed") => void
 ): () => void {
-  return onSnapshot(lobbyRef(code), (snapshot) => {
-    onChange(snapshot.exists() ? readLobby(snapshot.data()) : null);
+  let last: string | undefined;
+  return onSnapshot(lobbyRef(code), { includeMetadataChanges: true }, (snapshot) => {
+    const data: unknown = snapshot.data();
+    const seen = snapshot.exists() ? JSON.stringify(data) : undefined;
+    if (seen === undefined) {
+      if (!snapshot.metadata.fromCache) onChange("closed");
+    } else if (seen !== last) onChange(readLobby(data));
+    last = seen;
   });
 }
 
