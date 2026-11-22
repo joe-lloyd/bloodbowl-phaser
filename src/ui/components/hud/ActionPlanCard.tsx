@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { type IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import type { ActionPlanSummary, PlanStage } from "../../../game/rules/actionPlan";
 import { HudButton } from "../componentWarehouse/HudKit";
-import { rollText, useActionPlan } from "./useActionPlan";
+import { planRollList, rollText, useActionPlan } from "./useActionPlan";
 
 export function PlanButtons({
   eventBus,
@@ -73,15 +74,9 @@ function StageRow({ stage }: { stage: PlanStage }) {
   );
 }
 
-export function ActionPlanCard({ eventBus }: { eventBus: IEventBus }) {
-  const plan = useActionPlan(eventBus);
-  if (!plan) return null;
+function PlanDetails({ plan }: { plan: ActionPlanSummary }) {
   return (
-    <div
-      data-testid="action-plan"
-      className="hud-slab pointer-events-auto flex w-full flex-col gap-2 p-2.5 font-hud-body text-hud-bone animate-hud-in"
-    >
-      <span className="hud-label text-hud-gold">Plan · {plan.title}</span>
+    <>
       <ol className="flex flex-col gap-1.5">
         {plan.stages.map((stage, i) => (
           <StageRow key={i} stage={stage} />
@@ -97,8 +92,58 @@ export function ActionPlanCard({ eventBus }: { eventBus: IEventBus }) {
           {plan.blocked}
         </div>
       )}
+    </>
+  );
+}
+
+export function ActionPlanCard({ eventBus }: { eventBus: IEventBus }) {
+  const plan = useActionPlan(eventBus);
+  if (!plan) return null;
+  return (
+    <div
+      data-testid="action-plan"
+      className="hud-slab pointer-events-auto flex w-full flex-col gap-2 p-2.5 font-hud-body text-hud-bone animate-hud-in"
+    >
+      <span className="hud-label text-hud-gold">Plan · {plan.title}</span>
+      <PlanDetails plan={plan} />
       <div className="flex items-center gap-2">
         <PlanButtons eventBus={eventBus} plan={plan} size="sm" />
+      </div>
+    </div>
+  );
+}
+
+export function PhonePlanBar({ eventBus, plan }: { eventBus: IEventBus; plan: ActionPlanSummary }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      data-testid="action-plan"
+      className="hud-slab flex max-w-[92vw] flex-col gap-2 py-1.5 pl-3 pr-1.5 pointer-events-auto animate-hud-in"
+    >
+      {open && (
+        <div data-testid="action-plan-details" className="flex max-h-[45vh] flex-col gap-2 overflow-y-auto pr-1.5 font-hud-body text-hud-bone">
+          <PlanDetails plan={plan} />
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          data-testid="action-plan-toggle"
+          aria-expanded={open}
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpen(!open);
+          }}
+          className="min-w-0 max-w-[44vw] text-left"
+        >
+          <span className="hud-label block text-hud-2xs text-hud-gold">
+            {plan.title} {open ? "▾" : "▴ details"}
+          </span>
+          <span className="block truncate font-hud-label text-hud-sm font-bold leading-tight text-hud-bone">
+            {plan.blocked ?? planRollList(plan)}
+          </span>
+        </button>
+        <PlanButtons eventBus={eventBus} plan={plan} size="md" />
       </div>
     </div>
   );

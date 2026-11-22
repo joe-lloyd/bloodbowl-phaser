@@ -149,7 +149,7 @@ export class HudPage {
   async rollNegatraitIfAsked(playerRef: string): Promise<void> {
     const id = await this.bridge.resolveRef(playerRef);
     const confirm = this.negatraitConfirm();
-    const planned = this.plannedActivationRoll();
+    const planned = this.page.getByTestId("action-plan-go");
     await expect
       .poll(
         async () =>

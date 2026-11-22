@@ -10,6 +10,7 @@ import type { GameplayInteractionController } from "../../../src/game/controller
 import { GamePhase } from "../../../src/types/GameState";
 import { GameEventNames } from "../../../src/types/events";
 import { getSkill, SkillType } from "../../../src/types/Skills";
+import { emptyDriveEffects } from "../../../src/game/kickoff/driveEffects";
 import {
   mockScene,
   mockPitch,
@@ -241,6 +242,26 @@ describe("GameplayInteractionController", () => {
         arbiter.onceAvailable.mockReturnValue(false);
         arbiter.veteranRerollAvailable.mockReturnValue(false);
       }
+    });
+
+    it("counts a drive's movement modifier once when it plans the route's rolls", () => {
+      mockScene.team2.players = [];
+      mockGameService.getPlayerById.mockReturnValue({ ...player1, stats: { ...player1.stats, MA: 6 } });
+      mockGameService.getState.mockReturnValue(stateWith({
+        activeTeamId: team1Id,
+        weather: "Nice",
+        driveEffects: { ...emptyDriveEffects(), playerModifiers: { p1: { maModifier: -1 } } },
+      }));
+      const route = [1, 2, 3, 4, 5].map((i) => ({ x: 5 + i, y: 5 }));
+      mockMovementValidator.findPath.mockReturnValue({ cost: 0, valid: true, path: route, rolls: [] });
+
+      void (controller).onSquareClicked(10, 5);
+
+      expect(fixtureValue(lastPlan()).stages[0]).toEqual({
+        label: "Move 5 squares",
+        rolls: [],
+        notes: [],
+      });
     });
 
     it("walks the safe part first, then the rush, without asking in between", async () => {

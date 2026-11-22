@@ -104,7 +104,10 @@ async function declarePlanned(c: GameplayInteractionController, playerId: string
   } finally {
     c.isBusy = false;
   }
-  if (stillPlanned(c, playerId, planned)) return true;
+  if (stillPlanned(c, playerId, planned)) {
+    publishPlan(c);
+    return true;
+  }
   stopPlan(c, playerId, "The activation roll changed the plan.");
   return false;
 }

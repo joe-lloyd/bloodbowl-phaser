@@ -116,7 +116,10 @@ function routeScore(result: ReturnType<typeof findLeg>): number {
 function bestRouteNextTo(c: GameplayInteractionController, player: Player, target: Square) {
   const bounds = { width: GameConfig.PITCH_WIDTH, height: GameConfig.PITCH_HEIGHT };
   const routes = adjacentSquares(target, bounds)
-    .filter(({ x, y }) => !c.getPlayerAt(x, y))
+    .filter(({ x, y }) => {
+      const occupant = c.getPlayerAt(x, y);
+      return !occupant || occupant.id === player.id;
+    })
     .map(({ x, y }) => findLeg({ c, player, x, y }))
     .filter((result) => result.valid && result.path.length > 0);
   return routes.reduce<(typeof routes)[number] | null>(

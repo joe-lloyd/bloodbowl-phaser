@@ -6,8 +6,8 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { type Player } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
-import { PlanButtons } from "./ActionPlanCard";
-import { planRollList, useActionPlan } from "./useActionPlan";
+import { PhonePlanBar } from "./ActionPlanCard";
+import { useActionPlan } from "./useActionPlan";
 
 export function MovePlanBar({
   eventBus,
@@ -39,22 +39,7 @@ export function MovePlanBar({
     return <MoveHint>Tap your kicker, then a square in their half</MoveHint>;
   if (phase !== GamePhase.PLAY) return null;
 
-  if (plan) {
-    return (
-      <div
-        data-testid="action-plan"
-        className="hud-slab flex items-center gap-2 py-1.5 pl-3 pr-1.5 pointer-events-auto animate-hud-in"
-      >
-        <div className="min-w-0 max-w-[44vw]">
-          <div className="hud-label text-hud-2xs text-hud-gold">{plan.title}</div>
-          <div className="truncate font-hud-label text-hud-sm font-bold leading-tight text-hud-bone">
-            {plan.blocked ?? planRollList(plan)}
-          </div>
-        </div>
-        <PlanButtons eventBus={eventBus} plan={plan} size="md" />
-      </div>
-    );
-  }
+  if (plan) return <PhonePlanBar eventBus={eventBus} plan={plan} />;
 
   const online = getActiveOnlineMatch();
   const mine = online ? online.myTeamId === activeTeamId : true;

@@ -391,7 +391,8 @@ export function defersGates(
   playerId: string,
   action: ActionType
 ): boolean {
-  return !c.gameService.runsCommandsLater && pendingGates(c, playerId, action).length > 0;
+  const prone = c.gameService.getPlayerById(playerId)?.status === PlayerStatus.PRONE;
+  return !c.gameService.runsCommandsLater && !prone && pendingGates(c, playerId, action).length > 0;
 }
 
 export function askGates(

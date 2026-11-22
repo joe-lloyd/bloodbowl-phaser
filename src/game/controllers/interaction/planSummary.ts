@@ -1,5 +1,6 @@
 import { GameEventNames, type ActionType } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
+import { SkillType, hasSkill } from "@/types/Skills";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { activationGates } from "../../skills";
 import { moveAllowance, standUpCost } from "../../skills/movement";
@@ -168,10 +169,24 @@ function blockedReason(c: GameplayInteractionController, actor: Player, finish: 
   return null;
 }
 
-function plannedMover(c: GameplayInteractionController): Player | null {
+function selectedPlayer(c: GameplayInteractionController): Player | null {
   const id = c.selectedPlayerId;
-  const player = id ? c.gameService.getPlayerById(id) : undefined;
+  return (id ? c.gameService.getPlayerById(id) : undefined) ?? null;
+}
+
+function plannedMover(c: GameplayInteractionController): Player | null {
+  const player = selectedPlayer(c);
   return player ? withDriveModifiers(player, c.gameService.getState()) : null;
+}
+
+function receiverCatchReroll(c: GameplayInteractionController, actor: Player, finish: PlanFinish | null): string[] {
+  if (finish?.kind !== "pass" && finish?.kind !== "handoff") return [];
+  const receiver = c.getPlayerAt(finish.x, finish.y);
+  const ready =
+    receiver?.teamId === actor.teamId &&
+    hasSkill(receiver.skills, SkillType.CATCH) &&
+    c.gameService.getRerollArbiter().skillRerollAvailable(receiver, SkillType.CATCH);
+  return ready ? [`Catch (#${String(receiver.number)})`] : [];
 }
 
 export function planProblem(c: GameplayInteractionController): string | null {
@@ -180,19 +195,23 @@ export function planProblem(c: GameplayInteractionController): string | null {
 }
 
 function buildPlan(c: GameplayInteractionController): ActionPlanSummary | null {
-  const mover = plannedMover(c);
-  if (!mover) return null;
+  const player = selectedPlayer(c);
+  if (!player) return null;
   const finish = currentFinish(c);
   if (!c.undeclared && c.waypoints.length === 0 && !finish) return null;
+  const mover = withDriveModifiers(player, c.gameService.getState());
   const actor = plannedActor(c, mover);
-  const stages = [gateStage(c, mover), routeStage(c, mover), ...(finish ? finishStages(c, actor, finish) : [])]
+  const stages = [gateStage(c, mover), routeStage(c, player), ...(finish ? finishStages(c, actor, finish) : [])]
     .filter((stage): stage is PlanStage => stage !== null);
   const action = c.undeclared?.action ?? c.currentActionMode ?? "move";
   return {
     title: TITLES[action] ?? "Plan",
     squares: c.waypoints.length,
     stages,
-    rerolls: rerollSources(c, mover, stages.flatMap((stage) => stage.rolls.map((roll) => roll.kind))),
+    rerolls: [
+      ...rerollSources(c, mover, stages.flatMap((stage) => stage.rolls.map((roll) => roll.kind))),
+      ...receiverCatchReroll(c, actor, finish),
+    ],
     blocked: blockedReason(c, actor, finish),
   };
 }

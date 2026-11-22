@@ -11,6 +11,7 @@ import type { GameplayInteractionController } from "../../../src/game/controller
 import { GamePhase, type GameState } from "../../../src/types/GameState";
 import { GameEventNames } from "../../../src/types/events";
 import { getSkill, SkillType } from "../../../src/types/Skills";
+import { PlayerStatus } from "../../../src/types/Player";
 import {
   mockScene,
   mockPitch,
@@ -107,6 +108,39 @@ describe("GameplayInteractionController", () => {
       expect(confirmationsAsked()).toBe(0);
       expect(serviceSpies.declareAction).toHaveBeenCalledWith({ playerId: "bone", action: "blitz" });
       expect(serviceSpies.movePlayer).toHaveBeenCalledWith("bone", [{ x: 6, y: 5 }]);
+    });
+
+    it("still asks for the Bone-head roll up front for a Prone player, who must stand up first", async () => {
+      const { boneHead } = armBoneHead();
+      mockGameService.getPlayerById.mockImplementation(
+        (id: string) => (id === "bone" ? { ...boneHead, status: PlayerStatus.PRONE } : undefined)
+      );
+
+      void dispatchAction({ action: "blitz", playerId: "bone" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(controller.undeclared).toBeNull();
+      expect(confirmationsAsked()).toBe(1);
+    });
+
+    it("clears the plan card once Go has rolled a gate with nothing else planned", async () => {
+      armBoneHead();
+      mockGameService.declareAction.mockImplementation(({ playerId, action }) => {
+        mockGameService.getState.mockReturnValue(stateWith({
+          activeTeamId: team1Id,
+          weather: "Nice",
+          activePlayer: { id: playerId, action, committed: true },
+        }));
+        return true;
+      });
+      await dispatchAction({ action: "blitz", playerId: "bone" });
+      eventBusSpies.emit.mockClear();
+
+      mockEventBus.emit(GameEventNames.UI_GoMovePlan, undefined);
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const plans = eventBusSpies.emit.mock.calls.filter(([name]) => name === GameEventNames.UI_ActionPlan);
+      expect(plans.at(-1)?.[1]).toBeNull();
     });
 
     it("still asks for the Bone-head roll up front when an online host runs the commands", async () => {
