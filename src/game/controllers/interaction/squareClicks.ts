@@ -15,6 +15,7 @@ import { addWaypoint, refreshPlayerVisualization } from "./routes";
 import { askGates, defersGates, enterActionMode, selectAction } from "./actionModes";
 import { PLANNED_MOVE, finishKindAt, plannedActionFor } from "./plan";
 import { declarePlanned, goPlan, planFinishAt } from "./planRun";
+import { publishPlan } from "./planSummary";
 
 export function clickTouchback(
   c: GameplayInteractionController,
@@ -62,6 +63,7 @@ export async function handleJumpClick(
     c.gameService.canActivate(player.id)
   ) {
     refreshPlayerVisualization(c, player.id);
+    publishPlan(c);
   } else {
     c.deselectPlayer();
   }
