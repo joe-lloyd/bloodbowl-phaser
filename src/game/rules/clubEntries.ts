@@ -28,7 +28,7 @@ function clubPlayers(team: Team): Player[] {
   return [...corePlayers(team), ...(specialist ? [specialist] : [])];
 }
 
-export function clubEntry(team: Team, gameType: GameType): ClubEntry {
+function clubEntry(team: Team, gameType: GameType): ClubEntry {
   const home = staysHome(team, gameType);
   const players = clubPlayers(team);
   return {

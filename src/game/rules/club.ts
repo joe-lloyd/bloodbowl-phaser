@@ -15,7 +15,7 @@ import {
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { DEFAULT_GAME_TYPE, type GameType } from "../variants/gameTypes";
 import { draftRulesFor } from "./draftRules";
-import { staysOnRoster } from "./leagueRoster";
+import { nextFreeNumber, staysOnRoster } from "./leagueRoster";
 import { uniquePlayerId } from "./playerSlots";
 import type { EditDecision } from "./teamEditLegality";
 
@@ -188,20 +188,13 @@ export function gutterSpecialistRefusal(
   return undefined;
 }
 
-function freeShirtNumber(team: Team): number {
-  const used = new Set(team.players.map((player) => player.number));
-  let number = 1;
-  while (used.has(number)) number++;
-  return number;
-}
-
 export function hireGutterSpecialist(
   team: Team,
   template: PlayerTemplate
 ): SpecialistHire {
   const reason = gutterSpecialistRefusal(team, template);
   if (reason || !team.club) return { hired: false, reason: reason ?? "" };
-  const player = createPlayer(template, team.id, freeShirtNumber(team));
+  const player = createPlayer(template, team.id, nextFreeNumber(team));
   player.id = uniquePlayerId(team, player.id);
   player.cost = template.cost;
   team.players.push(player);

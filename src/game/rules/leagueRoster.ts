@@ -77,7 +77,7 @@ function takeOnJourneymen(team: Team): void {
   }
 }
 
-function nextFreeNumber(team: Team): number {
+export function nextFreeNumber(team: Team): number {
   const used = new Set(team.players.map((player) => player.number));
   let number = 1;
   while (used.has(number)) number++;
