@@ -11,6 +11,7 @@ import {
   latchGutterUnlock,
   prepareClubSquad,
   restoreClubHome,
+  shirtMoveRefusal,
 } from "../../../src/game/rules/club";
 import { createMatchState } from "../../../src/services/gameService/matchStart";
 import { getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
@@ -126,6 +127,16 @@ describe("the Gutter Bowl specialist", () => {
     if (!hire.hired) throw new Error(hire.reason);
     expect(hire.player.number).toBe(12);
     expect(hirePlayer(team, template("Dark Elf Lineman")).amount).toBe(65_000);
+  });
+
+  it("keeps its shirt above 11 when the Team Sheet reorders", () => {
+    const team = club(2_000_000, 6);
+    hireGutterSpecialist(team, template("Dark Elf Blitzer"));
+    const refusal =
+      "The Gutter Bowl specialist keeps a shirt number above 11, so the Core Sevens squad keeps all eleven.";
+    expect(shirtMoveRefusal(team, 12, 11)).toBe(refusal);
+    expect(shirtMoveRefusal(team, 3, 12)).toBe(refusal);
+    expect(shirtMoveRefusal(team, 3, 11)).toBeUndefined();
   });
 
   it("counts toward the roster's position limit when the core hires", () => {

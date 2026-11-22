@@ -245,6 +245,25 @@ export function chooseGutterSitsOut(
   return { allowed: true };
 }
 
+export function careerCounts(team: Team, competition: boolean): boolean {
+  return !team.club || competition;
+}
+
+export function shirtMoveRefusal(
+  team: Team,
+  from: number,
+  to: number
+): string | undefined {
+  const number = gutterSpecialist(team)?.number;
+  if (number === undefined) return undefined;
+  const intoCore =
+    (from === number && to <= ROSTER_SLOTS) ||
+    (to === number && from <= ROSTER_SLOTS);
+  return intoCore
+    ? "The Gutter Bowl specialist keeps a shirt number above 11, so the Core Sevens squad keeps all eleven."
+    : undefined;
+}
+
 export function inTournament(team: Team): boolean {
   return team.activeCompetitionId?.startsWith(TOURNAMENT_ID_PREFIX) ?? false;
 }

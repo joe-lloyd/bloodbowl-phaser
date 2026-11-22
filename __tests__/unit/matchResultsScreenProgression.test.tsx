@@ -70,6 +70,39 @@ describe("MatchResultsScreen", () => {
     expect(exitButton.disabled).toBe(false);
   });
 
+  it("keeps a club's career out of an exhibition even with progression on", async () => {
+    localStorage.clear();
+    const { services, team1, team2 } = setup(true);
+    team1.club = {};
+    team1.advancementMode = "advanced-league";
+    team2.advancementMode = "advanced-league";
+    saveTeams([team1, team2]);
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team1.players[0]).id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team2.players[0]).id);
+
+    await h.render();
+    for (const button of [...h.container.querySelectorAll("button")].filter(
+      (b) => b.textContent?.includes("Roll MVP D6")
+    ))
+      await act(async () => {
+        button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+    const confirmButton = fixtureValue([...h.container.querySelectorAll("button")].find(
+      (b) => b.textContent?.includes("Confirm and assign SPP")
+    ));
+    await act(async () => {
+      confirmButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const spp = (id: string) =>
+      fixtureValue(loadTeams().find((team) => team.id === id)).players.reduce(
+        (sum, player) => sum + player.spp,
+        0
+      );
+    expect(spp("team-1")).toBe(0);
+    expect(spp("team-2")).toBe(4);
+  });
+
   it("keeps confirmed SPP and the match save when storage fails, then retries without another award", async () => {
     localStorage.clear();
     const { services, state, team1, team2 } = setup(true);

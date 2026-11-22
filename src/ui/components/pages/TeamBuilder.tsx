@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { shirtMoveRefusal } from "../../../game/rules/club";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { type Team, RosterName, createTeam } from "../../../types/Team";
 import { validateInsignificant } from "../../../game/rules/insignificant";
@@ -408,6 +409,11 @@ export function TeamBuilder() {
 
   const handleReorderPlayers = (sourceSlot: number, targetSlot: number) => {
     if (!team) return;
+    const refusal = shirtMoveRefusal(team, sourceSlot, targetSlot);
+    if (refusal) {
+      alert(refusal);
+      return;
+    }
 
     const newPlayers = team.players.map((p) => ({ ...p }));
     const sourcePlayer = newPlayers.find((p) => p.number === sourceSlot);
