@@ -12,7 +12,7 @@ import type { GameplayInteractionController } from "../GameplayInteractionContro
 import { attack, type SquareClick, stepClickFor } from "./stepClicks";
 import { computeJumpTargets } from "./previews";
 import { addWaypoint, refreshPlayerVisualization } from "./routes";
-import { askGates, defersGates, enterActionMode } from "./actionModes";
+import { askGates, defersGates, enterActionMode, selectAction } from "./actionModes";
 import { PLANNED_MOVE, finishKindAt, plannedActionFor } from "./plan";
 import { declarePlanned, goPlan, planFinishAt } from "./planRun";
 
@@ -84,6 +84,14 @@ function isDownedOpponent(
 
 async function foulInsteadOfBlock(
 { c,playerId,x,y }: { c: GameplayInteractionController; playerId: string; x: number; y: number; }): Promise<void> {
+  if (c.undeclared) {
+    c.clearWaypoints();
+    c.dropFinish();
+    c.pitch.clearPath();
+    await selectAction(c, { playerId, action: "foul" });
+    await c.onSquareClicked(x, y);
+    return;
+  }
   const asked = askGates(c, playerId, "foul");
   if (asked && !(await asked)) return;
   if (!c.gameService.declareAction({ playerId: playerId, action: "foul" })) {

@@ -156,6 +156,7 @@ describe("GameplayInteractionController", () => {
     });
 
     it("keeps the board busy through a Hand-off and lets the player go once it resolves", async () => {
+      mockGameService.getState.mockReturnValue(stateWith({ activeTeamId: team1Id, ballPosition: { x: 5, y: 5 } }));
       const mate = playerWith({
         ...player1,
         id: "p3",

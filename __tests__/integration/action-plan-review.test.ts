@@ -179,6 +179,55 @@ describe("action plan review fixes", () => {
     expect(caught?.notes).toEqual(["A catch means they throw the bomb again."]);
   });
 
+  it("turns a planned Blitz into a planned Foul when a downed opponent is clicked", async () => {
+    const { game, seen, act, controller } = board(
+      [{ playerIndex: 0, x: 10, y: 5, skills: [SkillType.BONE_HEAD] }],
+      [{ playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE }]
+    );
+    forceDice(game.ctx.rng, [6, 1, 1]);
+    act(0, "blitz");
+    await controller.onSquareClicked(11, 5);
+
+    expect(seen.dice).toEqual([]);
+    expect(fixtureValue(seen.plan).title).toBe("Foul");
+    expect(fixtureValue(seen.plan).stages.map((stage) => stage.label)).toEqual([
+      "Before acting",
+      expect.stringContaining("Foul"),
+    ]);
+
+    await controller.onSquareClicked(11, 5);
+    await vi.waitFor(() => {
+      expect(seen.dice.length).toBeGreaterThan(1);
+    });
+    expect(seen.dice[0]).toContain("Bone Head");
+    expect(seen.notes.filter((note) => note.startsWith("Cannot declare"))).toEqual([]);
+  });
+
+  it("blocks a pass plan whose route never reaches the ball", async () => {
+    const { game, seen, act, controller } = board(
+      [
+        { playerIndex: 0, x: 6, y: 5 },
+        { playerIndex: 1, x: 12, y: 5 },
+      ],
+      [{ playerIndex: 0, x: 1, y: 9 }]
+    );
+    game.ctx.gameService.getState().ballPosition = { x: 7, y: 6 };
+    const passer = act(0, "pass");
+
+    await controller.onSquareClicked(7, 5);
+    await controller.onSquareClicked(12, 5);
+    expect(fixtureValue(seen.plan).blocked).toBe("They need the ball first. Route them over it.");
+    await controller.onSquareClicked(12, 5);
+    expect(passer.gridPosition).toEqual({ x: 6, y: 5 });
+
+    controller.eventBus.emit(GameEventNames.UI_ClearMovePlan, undefined);
+    controller.eventBus.emit(GameEventNames.UI_ClearMovePlan, undefined);
+    controller.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "move" });
+    await controller.onSquareClicked(7, 6);
+    await controller.onSquareClicked(12, 5);
+    expect(fixtureValue(seen.plan).blocked).toBeNull();
+  });
+
   it("says the foul's armour target counts every assist", async () => {
     const { seen, act, controller } = board(
       [

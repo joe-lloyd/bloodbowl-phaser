@@ -8,6 +8,7 @@ import { activeRules } from "../../variants/activeMatch";
 import { rushModifier } from "../../inducements/matchInducements";
 import { requiredRoll } from "../../rules/rollTargets";
 import { weatherEffects } from "../../rules/weather";
+import { ballInTheAir } from "../../rules/ballInTheAir";
 import { PassController } from "../PassController";
 import {
   ROUTE_ROLL_NAMES,
@@ -173,6 +174,16 @@ function finishStages(c: GameplayInteractionController, actor: Player, finish: P
   }
 }
 
+function endsWithBall(c: GameplayInteractionController): boolean {
+  const state = c.gameService.getState();
+  const ball = state.ballPosition;
+  const from = selectedPlayer(c)?.gridPosition;
+  if (!ball || !from || ballInTheAir(state)) return false;
+  if (from.x === ball.x && from.y === ball.y) return true;
+  if (c.getPlayerAt(ball.x, ball.y)) return false;
+  return c.waypoints.some((square) => square.x === ball.x && square.y === ball.y);
+}
+
 function passRefusal(c: GameplayInteractionController, actor: Player, finish: PlanFinish): string | null {
   const from = actor.gridPosition;
   if (finish.kind !== "pass" || !from) return null;
@@ -192,6 +203,9 @@ function blockedReason(c: GameplayInteractionController, actor: Player, finish: 
   }
   if (finish.kind === "block" && movementAfterRoute(c, actor) + 1 > moveAllowance(actor)) {
     return "No movement left to make the block. Shorten the route.";
+  }
+  if ((finish.kind === "pass" || finish.kind === "handoff") && !endsWithBall(c)) {
+    return "They need the ball first. Route them over it.";
   }
   return passRefusal(c, actor, finish);
 }

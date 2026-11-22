@@ -45,6 +45,7 @@ describe("GameplayInteractionController", () => {
       controller.currentActionMode = "handoff";
       controller.currentStepId = "handoff";
       controller.selectedPlayerId = "p1";
+      mockGameService.getState.mockReturnValue(stateWith({ ballPosition: { x: 5, y: 5 } }));
 
       const teammate = playerWith({
         id: "p3",
@@ -82,6 +83,7 @@ describe("GameplayInteractionController", () => {
       controller.currentActionMode = "handoff";
       controller.currentStepId = "handoff";
       controller.selectedPlayerId = "p1";
+      mockGameService.getState.mockReturnValue(stateWith({ ballPosition: { x: 5, y: 5 } }));
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.isTouchbackPending.mockReturnValue(false);
       mockGameService.getPlayerById.mockImplementation((id: string) =>
@@ -116,6 +118,7 @@ describe("GameplayInteractionController", () => {
       controller.currentActionMode = "handoff";
       controller.currentStepId = "handoff";
       controller.selectedPlayerId = "p1";
+      mockGameService.getState.mockReturnValue(stateWith({ ballPosition: { x: 5, y: 5 } }));
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.isTouchbackPending.mockReturnValue(false);
       mockGameService.getPlayerById.mockImplementation((id: string) =>
