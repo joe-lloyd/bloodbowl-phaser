@@ -187,6 +187,26 @@ describe("signing in from the main menu", () => {
     container.remove();
   });
 
+  it("shows the Club menu only to an admin", () => {
+    const hasClubMenu = () =>
+      [...container.querySelectorAll("button")].some(
+        (button) => button.textContent.trim() === "My Clubs"
+      );
+    expect(hasClubMenu()).toBe(false);
+
+    vi.stubEnv("VITE_ADMIN_EMAILS", "admin@example.com");
+    act(() => {
+      sdk.announce(sdk.coach("coach@example.com"));
+    });
+    expect(hasClubMenu()).toBe(false);
+
+    act(() => {
+      sdk.announce({ ...sdk.coach("admin@example.com"), emailVerified: true });
+    });
+    expect(hasClubMenu()).toBe(true);
+    vi.unstubAllEnvs();
+  });
+
   it("lets a cancelled sign-in finish late without closing the next one", async () => {
     await click("Host Game");
     await click("Sign in with Google");

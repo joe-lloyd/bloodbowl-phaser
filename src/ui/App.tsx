@@ -81,9 +81,18 @@ export function App({ eventBus }: AppProps) {
           path="/build-team/:teamId/player/:playerId"
           element={withTeamLibrary(<PlayerPage />)}
         />
-        <Route path="/clubs" element={withTeamLibrary(<ClubHub />)} />
-        <Route path="/clubs/new" element={withTeamLibrary(<ClubFounding />)} />
-        <Route path="/clubs/:teamId" element={withTeamLibrary(<ClubPage />)} />
+        <Route
+          path="/clubs"
+          element={<AdminRoute>{withTeamLibrary(<ClubHub />)}</AdminRoute>}
+        />
+        <Route
+          path="/clubs/new"
+          element={<AdminRoute>{withTeamLibrary(<ClubFounding />)}</AdminRoute>}
+        />
+        <Route
+          path="/clubs/:teamId"
+          element={<AdminRoute>{withTeamLibrary(<ClubPage />)}</AdminRoute>}
+        />
         <Route path="/shared-teams" element={<SharedTeamBrowser />} />
         <Route path="/friends" element={<FriendsPage />} />
         <Route path="/leagues" element={<CompetitionHub type="league" />} />

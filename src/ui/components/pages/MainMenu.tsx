@@ -292,14 +292,16 @@ export function MainMenu() {
             </MenuSection>
           )}
 
-          <MenuSection title="Club">
-            <HudButton block onClick={() => void navigate("/clubs")}>
-              My Clubs
-            </HudButton>
-            <HudButton block onClick={() => void navigate("/clubs/new")}>
-              Found a Club
-            </HudButton>
-          </MenuSection>
+          {isAdminUser(user) && (
+            <MenuSection title="Club" note="Admin">
+              <HudButton block onClick={() => void navigate("/clubs")}>
+                My Clubs
+              </HudButton>
+              <HudButton block onClick={() => void navigate("/clubs/new")}>
+                Found a Club
+              </HudButton>
+            </MenuSection>
+          )}
         </div>
 
         <div

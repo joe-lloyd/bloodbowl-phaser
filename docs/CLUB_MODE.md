@@ -5,7 +5,9 @@ history across every game type the game plays. It is not in any rulebook.
 Anything this page does not cover follows the team's game type: see
 [SEVENS_RULES.md](SEVENS_RULES.md) and [GAME_TYPES.md](GAME_TYPES.md).
 
-Open it from the main menu: **Club → My Clubs** or **Found a Club**.
+Club mode is admin-only while its design settles, like the Sandbox. An
+admin opens it from the main menu: **Club → My Clubs** or **Found a Club**.
+Everyone else sees no Club menu, and the `/clubs` pages send them home.
 
 | ID | Rule |
 | --- | --- |
