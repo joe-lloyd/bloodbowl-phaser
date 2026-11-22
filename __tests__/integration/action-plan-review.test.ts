@@ -119,6 +119,25 @@ describe("action plan review fixes", () => {
     expect(seen.plan).toBeNull();
   });
 
+  it("clears the planned route from the card after a refused Jump", async () => {
+    const { game, controller, seen, act } = board(
+      [{ playerIndex: 0, x: 10, y: 5, stats: { AG: 2 } }],
+      [{ playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE }]
+    );
+    vi.spyOn(game.ctx.gameService, "jumpPlayer").mockRejectedValue(new Error("refused"));
+    const jumper = act(0, "move");
+    await controller.onSquareClicked(10, 6);
+    expect(fixtureValue(seen.plan).squares).toBe(1);
+
+    game.ctx.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "jump" });
+    await controller.onSquareClicked(12, 5);
+
+    expect(seen.notes).toContain("Cannot Jump: Error: refused");
+    expect(jumper.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(controller.selectedPlayerId).toBe(jumper.id);
+    expect(seen.plan).toBeNull();
+  });
+
   it("blocks Go when the route's end puts the pass out of range", async () => {
     const { game, controller, seen, act } = board(
       [
