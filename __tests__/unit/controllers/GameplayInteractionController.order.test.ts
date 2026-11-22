@@ -121,10 +121,10 @@ describe("GameplayInteractionController", () => {
       clickAt(controller, 6, 5);
 
       expect(
-        sent(["declareAction"], [GameEventNames.UI_MovePlan]).map(
+        sent(["declareAction"], [GameEventNames.UI_ActionPlan]).map(
           (call) => call.split(" {")[0]
         )
-      ).toEqual(["declareAction({\"playerId\":\"p1\",\"action\":\"move\"})", "ui:movePlan"]);
+      ).toEqual(["declareAction({\"playerId\":\"p1\",\"action\":\"move\"})", "ui:actionPlan"]);
       expect(mockMovementValidator.findPath).toHaveBeenCalledTimes(1);
     });
 
@@ -173,6 +173,8 @@ describe("GameplayInteractionController", () => {
       controller.currentStepId = "handoff";
       vi.clearAllMocks();
 
+      controller.handlePlayerClick("p3");
+      expect(serviceSpies.handOffBall).not.toHaveBeenCalled();
       controller.handlePlayerClick("p3");
 
       expect(serviceSpies.handOffBall).toHaveBeenCalledWith("p1", "p3");

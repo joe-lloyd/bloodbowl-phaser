@@ -101,8 +101,4 @@ export interface PassGameEvents {
 
 export interface PassUIEvents {
   [GameEventNames.UI_InterceptionResponse]: import("../decisions").InterceptionDecisionAnswer;
-  [GameEventNames.UI_ThrowAim]: {
-    square: { x: number; y: number };
-    lines: string[];
-  } | null;
 }

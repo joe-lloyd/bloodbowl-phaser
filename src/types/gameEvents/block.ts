@@ -93,6 +93,7 @@ export interface BlockUIEvents {
     defenderId: string;
     numDice: number;
     isAttackerChoice: boolean;
+    rushAccepted?: true;
   };
 
   [GameEventNames.UI_BlockRollCancelled]: void;

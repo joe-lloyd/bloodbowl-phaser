@@ -51,7 +51,7 @@ export const mockPitch = {
   highlightHoverSquare: vi.fn(),
   highlightSquare: vi.fn<Parameters<InteractionPitch["highlightSquare"]>, InteractionMarker>(() => markerWith()),
   worldToGrid: mockFunction<Pitch["worldToGrid"]>(),
-  getPixelPosition: mockFunction<Pitch["getPixelPosition"]>(),
+  getPixelPosition: mockFunction<Pitch["getPixelPosition"]>().mockImplementation((x, y) => ({ x: x * 60, y: y * 60 })),
   drawJumpTargets: mockFunction<Pitch["drawJumpTargets"]>(),
   drawAssistRings: mockFunction<Pitch["drawAssistRings"]>(),
   drawInterceptionRolls: mockFunction<Pitch["drawInterceptionRolls"]>(),

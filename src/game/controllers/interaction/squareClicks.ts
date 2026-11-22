@@ -1,5 +1,5 @@
-import { isOwnActor, activeActionFor } from "./players";
-import { withinOneSquare } from "./squares";
+import { isOwnActor } from "./players";
+import { adjacentTo, withinOneSquare } from "./squares";
 import { GameEventNames } from "@/types/events";
 import { type GameState } from "@/types/GameState";
 import { type Player, PlayerStatus } from "@/types/Player";
@@ -11,8 +11,10 @@ import { legalBlockReplacementTargets } from "../../rules/blockReplacements";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { attack, type SquareClick, stepClickFor } from "./stepClicks";
 import { computeJumpTargets } from "./previews";
-import { addWaypoint, executeMove, refreshPlayerVisualization } from "./routes";
-import { askGates, enterActionMode } from "./actionModes";
+import { addWaypoint, refreshPlayerVisualization } from "./routes";
+import { askGates, enterActionMode, pendingGates } from "./actionModes";
+import { PLANNED_MOVE, finishKindAt, plannedActionFor } from "./plan";
+import { goPlan, planFinishAt } from "./planRun";
 
 export function clickTouchback(
   c: GameplayInteractionController,
@@ -105,22 +107,10 @@ function clickBlitzBlock(
     return clickPitch(c, click);
   }
   const blitzer = c.gameService.getPlayerById(c.selectedPlayerId);
-  const inReach =
-    !!blitzer?.gridPosition &&
-    Math.max(
-      Math.abs(blitzer.gridPosition.x - x),
-      Math.abs(blitzer.gridPosition.y - y)
-    ) === 1;
-  if (inReach && isDownedOpponent(c, playerAtSquare)) {
+  if (adjacentTo(blitzer?.gridPosition, { x, y }) && isDownedOpponent(c, playerAtSquare)) {
     return foulInsteadOfBlock({ c,playerId: c.selectedPlayerId,x,y });
   }
-
-  c.isBusy = true;
-
-  c.gameService.previewBlock(c.selectedPlayerId, playerAtSquare.id);
-
-  c.deselectPlayer();
-  c.isBusy = false;
+  return clickPitch(c, click);
 }
 
 function adjacentBlocker(
@@ -259,16 +249,17 @@ async function clickEmptySquare(
     return;
   }
 
-  const currentAction = activeActionFor(state, player.id);
-
-  const asked = currentAction ? null : askGates(c, player.id, "move");
-  if (asked && !(await asked)) return;
-  if (!c.declareMoveIfNone(player.id, currentAction)) return;
+  const currentAction = plannedActionFor(c, state, player.id);
+  if (!currentAction && pendingGates(c, player.id, "move").length > 0) {
+    c.undeclared = PLANNED_MOVE;
+  } else if (!c.declareMoveIfNone(player.id, currentAction)) {
+    return;
+  }
 
   const lastPos = c.waypoints.at(-1) ?? player.gridPosition;
 
   if (lastPos?.x === x && lastPos.y === y) {
-    executeMove(c);
+    await goPlan(c);
   } else {
     addWaypoint(c, x, y);
   }
@@ -299,6 +290,8 @@ export function clickInPlay(
       `[Interaction] onSquareClicked: Pass Mode Detected. Step: ${String(c.currentStepId)}, Selected: ${String(c.selectedPlayerId)}`
     );
   }
+  const finish = finishKindAt(c, click);
+  if (finish) return planFinishAt(c, finish, click);
   const stepClick = stepClickFor(c, click);
   if (stepClick) return stepClick(c, click);
   if (

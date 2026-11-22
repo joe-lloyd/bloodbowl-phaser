@@ -5,6 +5,7 @@ import { stateWith } from "./GameplayInteractionController.setup";
 import { dispatchAction } from "./GameplayInteractionController.setup";
 import { eventBusSpies } from "./GameplayInteractionController.setup";
 import { fixtureValue } from "../../../src/testing/fixtureValue";
+import { z } from "zod";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
 import { GamePhase, type GameState } from "../../../src/types/GameState";
@@ -14,7 +15,8 @@ import {
   mockScene,
   mockPitch,
   mockGameService,
-  answerStepPrompt,
+  mockEventBus,
+  mockMovementValidator,
   team1Id,
   team2Id,
   player1,
@@ -49,7 +51,7 @@ describe("GameplayInteractionController", () => {
 
       controller.selectPlayer("bone");
       const declaring = dispatchAction({
-        action: "move",
+        action: "block",
         playerId: "bone",
       });
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -68,7 +70,46 @@ describe("GameplayInteractionController", () => {
       expect(removed).toBe(resultListeners);
     });
 
-    it("declares nothing when the coach picked someone else while it was open", async () => {
+    it("plans a Bone-head Blitz without rolling, and drops it when the coach picks someone else", async () => {
+      const { boneHead } = armBoneHead();
+
+      await dispatchAction({ action: "blitz", playerId: "bone" });
+      expect(confirmationsAsked()).toBe(0);
+      expect(controller.undeclared).toEqual({ action: "blitz", blockReplacement: null, razzleDazzle: false });
+      expect(lastPlanStages()[0]).toMatchObject({ label: "First", rolls: [{ kind: "gate" }] });
+
+      controller.selectPlayer("mate");
+
+      expect(controller.undeclared).toBeNull();
+      expect(serviceSpies.declareAction).not.toHaveBeenCalled();
+      expect(boneHead.id).toBe("bone");
+    });
+
+    it("rolls the Bone-head Blitz on Go, then walks the planned route", async () => {
+      armBoneHead();
+      mockGameService.declareAction.mockImplementation(({ playerId, action }) => {
+        mockGameService.getState.mockReturnValue(stateWith({
+          activeTeamId: team1Id,
+          weather: "Nice",
+          activePlayer: { id: playerId, action, committed: true },
+        }));
+        return true;
+      });
+      mockMovementValidator.findPath.mockReturnValue({ cost: 0, valid: true, path: [{ x: 6, y: 5 }], rolls: [] });
+
+      await dispatchAction({ action: "blitz", playerId: "bone" });
+      await controller.onSquareClicked(6, 5);
+      expect(serviceSpies.declareAction).not.toHaveBeenCalled();
+
+      mockEventBus.emit(GameEventNames.UI_GoMovePlan, undefined);
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(confirmationsAsked()).toBe(0);
+      expect(serviceSpies.declareAction).toHaveBeenCalledWith({ playerId: "bone", action: "blitz" });
+      expect(serviceSpies.movePlayer).toHaveBeenCalledWith("bone", [{ x: 6, y: 5 }]);
+    });
+
+    function armBoneHead() {
       const boneHead = playerWith({
         ...player1,
         id: "bone",
@@ -85,26 +126,21 @@ describe("GameplayInteractionController", () => {
         (id: string) => ({ bone: boneHead, mate })[id]
       );
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
-      mockGameService.declareAction.mockReturnValue(true);
       mockGameService.getAvailableMovements.mockReturnValue([]);
-
       controller.selectPlayer("bone");
-      const declaring = dispatchAction({
-        action: "blitz",
-        playerId: "bone",
-      });
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      return { boneHead };
+    }
 
-      controller.selectPlayer("mate");
-      await answerStepPrompt(true);
-      await declaring;
+    function confirmationsAsked(): number {
+      return eventBusSpies.emit.mock.calls.filter(([name]) => name === GameEventNames.UI_RequestConfirmation).length;
+    }
 
-      expect(serviceSpies.declareAction).not.toHaveBeenCalledWith(
-        "bone",
-        "blitz",
-        undefined
-      );
-    });
+    function lastPlanStages() {
+      const plan = eventBusSpies.emit.mock.calls
+        .filter(([name, data]) => name === GameEventNames.UI_ActionPlan && data)
+        .at(-1)?.[1];
+      return z.object({ stages: z.array(z.object({ label: z.string(), rolls: z.array(z.object({ kind: z.string() })) })) }).parse(plan).stages;
+    }
   });
 
   describe("Player Selection", () => {

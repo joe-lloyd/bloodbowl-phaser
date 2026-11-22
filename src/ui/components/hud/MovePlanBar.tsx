@@ -1,14 +1,13 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { type IEventBus } from "../../../services/EventBus";
-import { GameEventNames, type UIEvents } from "../../../types/events";
+import { GameEventNames } from "../../../types/events";
 import { GamePhase, SubPhase } from "../../../types/GameState";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { type Player } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
-import { hudButtonClass } from "../componentWarehouse/HudKit";
-
-import { ROUTE_ROLL_NAMES } from "../../../game/rules/rollPreview";
+import { PlanButtons } from "./ActionPlanCard";
+import { planRollList, useActionPlan } from "./useActionPlan";
 
 export function MovePlanBar({
   eventBus,
@@ -19,19 +18,12 @@ export function MovePlanBar({
   phase: GamePhase;
   activeTeamId: string | null;
 }) {
-  const [plan, setPlan] =
-    useState<UIEvents[typeof GameEventNames.UI_MovePlan]>(null);
-  const [aim, setAim] =
-    useState<UIEvents[typeof GameEventNames.UI_ThrowAim]>(null);
+  const plan = useActionPlan(eventBus);
   const [selected, setSelected] = useState<Player | null>(null);
-  useEventBus(eventBus, GameEventNames.UI_MovePlan, setPlan);
-  useEventBus(eventBus, GameEventNames.UI_ThrowAim, setAim);
   useEventBus(eventBus, GameEventNames.PlayerSelected, ({ player }) => {
     setSelected(player);
   });
   useEventBus(eventBus, GameEventNames.TurnStarted, () => {
-    setPlan(null);
-    setAim(null);
     setSelected(null);
   });
 
@@ -47,76 +39,19 @@ export function MovePlanBar({
     return <MoveHint>Tap your kicker, then a square in their half</MoveHint>;
   if (phase !== GamePhase.PLAY) return null;
 
-  const clear = (
-    <button
-      type="button"
-      data-testid="move-plan-clear"
-      aria-label={aim ? "Clear the aim" : "Clear the route"}
-      onClick={() => {
-        eventBus.emit(GameEventNames.UI_ClearMovePlan, undefined);
-      }}
-      className={`${hudButtonClass("ghost", "md")} h-11 w-11 !px-0 text-hud-lg`}
-    >
-      ✕
-    </button>
-  );
-  const go = (label: string) => (
-    <button
-      type="button"
-      data-testid="move-plan-go"
-      onClick={() => {
-        eventBus.emit(GameEventNames.UI_GoMovePlan, undefined);
-      }}
-      className={`${hudButtonClass("gold", "md")} h-11 min-w-[78px] font-hud-display !text-hud-lg !font-normal`}
-    >
-      {label}
-    </button>
-  );
-
-  if (aim) {
+  if (plan) {
     return (
       <div
-        data-testid="move-plan"
+        data-testid="action-plan"
         className="hud-slab flex items-center gap-2 py-1.5 pl-3 pr-1.5 pointer-events-auto animate-hud-in"
       >
         <div className="min-w-0 max-w-[44vw]">
-          <div className="hud-label text-hud-2xs text-hud-gold">Throw</div>
-          {(aim.lines.length ? aim.lines : ["Throw here"]).map((line, i) => (
-            <div
-              key={i}
-              className={`truncate font-hud-label leading-tight ${
-                i === 0
-                  ? "text-hud-base font-bold text-hud-bone"
-                  : "text-hud-xs font-semibold text-hud-dim"
-              }`}
-            >
-              {line}
-            </div>
-          ))}
-        </div>
-        {clear}
-        {go("Throw")}
-      </div>
-    );
-  }
-
-  if (plan) {
-    const rolls = plan.rolls.map(
-      (r) => `${ROUTE_ROLL_NAMES[r.type]} ${String(r.target)}+`
-    );
-    return (
-      <div
-        data-testid="move-plan"
-        className="hud-slab flex items-center gap-2 py-1.5 pl-3 pr-1.5 pointer-events-auto animate-hud-in"
-      >
-        <div className="min-w-0 max-w-[40vw]">
-          <div className="hud-label text-hud-2xs text-hud-gold">Move</div>
-          <div className="truncate font-hud-label text-hud-base font-bold leading-tight text-hud-bone">
-            {plan.squares} sq · {rolls.length ? rolls.join(" · ") : "No rolls"}
+          <div className="hud-label text-hud-2xs text-hud-gold">{plan.title}</div>
+          <div className="truncate font-hud-label text-hud-sm font-bold leading-tight text-hud-bone">
+            {plan.blocked ?? planRollList(plan)}
           </div>
         </div>
-        {clear}
-        {go("Go")}
+        <PlanButtons eventBus={eventBus} plan={plan} size="md" />
       </div>
     );
   }

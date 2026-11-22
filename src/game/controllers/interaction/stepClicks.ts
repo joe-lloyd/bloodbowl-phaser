@@ -1,7 +1,7 @@
 import { isStandingOpponent } from "./players";
 import { withinOneSquare, adjacentTo } from "./squares";
 import type { ActionType } from "@/types/events";
-import { GameEventNames } from "@/types/events";
+import { type AllEvents, GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import {
@@ -17,7 +17,7 @@ import {
 } from "../../rules/throwTeammate";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
 import { SPECIAL_ACTION_MODES } from "./actionSteps";
-import { confirmFoul } from "./previews";
+import { type FinishKind, finishKindAt } from "./plan";
 
 export interface SquareClick {
   x: number;
@@ -283,44 +283,59 @@ function teamMateClickFor(
   return c.currentStepId === "throw" ? askForTeamMate : null;
 }
 
-async function clickFoulTarget(
-  c: GameplayInteractionController,
-  { x, y, player: playerAtSquare }: SquareClick
-): Promise<void> {
-  if (!c.selectedPlayerId) return;
-  if (playerAtSquare?.id === c.selectedPlayerId) {
-    return;
-  }
-
-  if (
-    playerAtSquare &&
-    (playerAtSquare.status === PlayerStatus.PRONE ||
-      playerAtSquare.status === PlayerStatus.STUNNED)
-  ) {
-    c.isBusy = true;
-    let committed = false;
-    try {
-      const fouler = c.gameService.getPlayerById(c.selectedPlayerId);
-
-      c.targetRollPreview = null;
-      c.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
-      if (!fouler || !(await confirmFoul(c, fouler, playerAtSquare))) return;
-      committed = true;
-      c.clearRollPreviews();
-      await c.gameService.foulPlayer(c.selectedPlayerId, x, y);
-
-      await c.gameService.getFlowContext().flowManager.whenIdle();
-    } finally {
-      c.isBusy = false;
-      if (committed) c.deselectPlayer();
-    }
-  } else {
-    c.eventBus.emit(
-      GameEventNames.UI_Notification,
-      "Target must be Prone or Stunned!"
-    );
-  }
+function clickFoulTarget(c: GameplayInteractionController): void {
+  c.eventBus.emit(
+    GameEventNames.UI_Notification,
+    "Target must be Prone or Stunned!"
+  );
 }
+
+async function foulPlanned(
+  c: GameplayInteractionController,
+  { x, y }: SquareClick
+): Promise<void> {
+  const foulerId = c.selectedPlayerId;
+  if (!foulerId) return;
+  await runThenDeselect(c, async () => {
+    await c.gameService.foulPlayer(foulerId, x, y);
+    await c.gameService.getFlowContext().flowManager.whenIdle();
+  });
+}
+
+type BlockDialog = AllEvents[typeof GameEventNames.UI_BlockDialog];
+
+function blockPlanned(
+  c: GameplayInteractionController,
+  { player: target }: SquareClick
+): void {
+  const attackerId = c.selectedPlayerId;
+  if (!attackerId || !target) return;
+  const opened: BlockDialog[] = [];
+  const grab = (dialog: BlockDialog) => {
+    opened.push(dialog);
+  };
+  c.eventBus.on(GameEventNames.UI_BlockDialog, grab);
+  c.gameService.previewBlock(attackerId, target.id);
+  c.eventBus.off(GameEventNames.UI_BlockDialog, grab);
+  c.deselectPlayer();
+  const [dialog] = opened;
+  if (!dialog) return;
+  c.eventBus.emit(GameEventNames.UI_RollBlockDice, {
+    attackerId,
+    defenderId: target.id,
+    numDice: dialog.analysis.diceCount,
+    isAttackerChoice: !dialog.analysis.isUphill,
+    rushAccepted: true,
+  });
+}
+
+export const FINISHERS: Record<FinishKind, StepClick> = {
+  pass: clickPassTarget,
+  handoff: clickHandoffTarget,
+  bomb: clickBombTarget,
+  block: blockPlanned,
+  foul: foulPlanned,
+};
 
 function clickSpecialTarget(
   c: GameplayInteractionController,
@@ -355,11 +370,8 @@ function clickSpecialTarget(
 const AIMING_STEPS: Partial<
   Record<ActionType, { step: string; click: StepClick }>
 > = {
-  pass: { step: "pass", click: clickPassTarget },
-  handoff: { step: "handoff", click: clickHandoffTarget },
   punt: { step: "punt", click: clickPuntFacing },
   multipleBlock: { step: "multipleBlock", click: clickMultipleBlockTarget },
-  throwBomb: { step: "bomb", click: clickBombTarget },
   ballAndChain: { step: "swing", click: clickSwingFacing },
 };
 
@@ -412,6 +424,8 @@ export function playerClickTarget(
   c: GameplayInteractionController,
   playerId: string
 ): { x: number; y: number } | null {
+  const clicked = c.gameService.getPlayerById(playerId);
+  if (clicked?.gridPosition && finishKindAt(c, { player: clicked })) return clicked.gridPosition;
   const takes = takesPlayerClick(c);
 
   const target =

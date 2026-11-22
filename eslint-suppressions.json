@@ -3479,9 +3479,6 @@
     },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 2
-    },
-    "sonarjs/no-duplicate-string": {
-      "count": 2
     }
   },
   "src/gallery/screenVariants.tsx": {
@@ -5722,7 +5719,7 @@
       "count": 14
     },
     "sonarjs/no-duplicate-string": {
-      "count": 2
+      "count": 1
     }
   },
   "src/ui/App.tsx": {
@@ -6136,17 +6133,6 @@
       "count": 1
     },
     "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/ui/components/hud/MovePlanBar.tsx": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    },
-    "max-statements": {
       "count": 1
     }
   },

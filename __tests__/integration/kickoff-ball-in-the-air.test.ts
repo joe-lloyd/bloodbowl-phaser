@@ -89,8 +89,9 @@ function watch(game: HeadlessGame) {
   const plannedRolls: string[] = [];
   const prompts: string[] = [];
   const dice: { rollType: string; target?: number; modifier?: number }[] = [];
-  eventBus.on(GameEventNames.UI_MovePlan, (plan) => {
-    for (const roll of plan?.rolls ?? []) plannedRolls.push(roll.type);
+  eventBus.on(GameEventNames.UI_ActionPlan, (plan) => {
+    for (const stage of plan?.stages ?? [])
+      for (const roll of stage.rolls) plannedRolls.push(roll.kind);
   });
   eventBus.on(GameEventNames.UI_RoutePreview, (route) => {
     for (const roll of route?.rolls ?? []) plannedRolls.push(roll.type);

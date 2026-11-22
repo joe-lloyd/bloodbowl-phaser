@@ -14,6 +14,8 @@ import { refreshPlayerVisualization } from "./routes";
 import { gateRequest } from "./Confirmations";
 import { activationGates } from "../../skills";
 import type { ActivationGate } from "../../skills/SkillRule";
+import { plansBeforeDeclaring } from "./plan";
+import { publishPlan } from "./planSummary";
 
 export function enterActionMode(
 { c,playerId,action,blockReplacement }: { c: GameplayInteractionController; playerId: string; action: ActionType; blockReplacement: BlockReplacement|null; }): void {
@@ -57,6 +59,22 @@ function gatesForAction(c: GameplayInteractionController, data: Parameters<typeo
   return askGates(c, data.playerId, data.action === "standUp" ? "move" : data.action);
 }
 
+function planWithoutDeclaring(
+  c: GameplayInteractionController,
+  data: Parameters<typeof selectAction>[1],
+  blockReplacement: BlockReplacement | null
+): boolean {
+  const deferrable =
+    !data.razzleDazzle &&
+    plansBeforeDeclaring(data.action, blockReplacement) &&
+    pendingGates(c, data.playerId, data.action).length > 0;
+  if (!deferrable) return false;
+  c.undeclared = { action: data.action, blockReplacement, razzleDazzle: false };
+  enterActionMode({ c, playerId: data.playerId, action: data.action, blockReplacement });
+  publishPlan(c);
+  return true;
+}
+
 async function standUpAction(c: GameplayInteractionController, playerId: string): Promise<void> {
     try {
       await c.gameService.standUp(playerId);
@@ -79,6 +97,12 @@ export async function selectAction(
     razzleDazzle?: boolean;
   }
 ): Promise<void> {
+  const blockReplacement =
+    data.blockReplacement ??
+    blockReplacementForDirectAction(data.action) ??
+    null;
+  if (planWithoutDeclaring(c, data, blockReplacement)) return;
+  c.undeclared = null;
   const asked = gatesForAction(c, data);
   if (asked && !(await asked)) return;
 
@@ -93,10 +117,14 @@ export async function selectAction(
     return;
   }
 
-  const blockReplacement =
-    data.blockReplacement ??
-    blockReplacementForDirectAction(data.action) ??
-    null;
+  declareNow(c, data, blockReplacement);
+}
+
+function declareNow(
+  c: GameplayInteractionController,
+  data: Parameters<typeof selectAction>[1],
+  blockReplacement: BlockReplacement | null
+): void {
   const success = c.gameService.declareAction({ playerId: data.playerId, action: data.action, ...(blockReplacement ? { blockReplacement } : {}), ...(data.razzleDazzle ? { options: { razzleDazzle: true } } : {}) }
   );
   if (success) {
@@ -162,7 +190,6 @@ export function selectStep(
   data: { stepId: string }
 ): void {
   if (!availableStep(c, data.stepId)) return;
-  if (data.stepId !== c.currentStepId) c.dropAim();
 
   if (data.stepId === "standup" && c.selectedPlayerId) {
     standUpStep(c, c.selectedPlayerId);
@@ -193,8 +220,31 @@ export function selectStep(
   }
 }
 
+function forgetAction(c: GameplayInteractionController, playerId: string): void {
+  c.dropFinish();
+  c.clearWaypoints();
+  c.pitch.clearPath();
+  c.currentActionMode = null;
+  c.currentBlockReplacement = null;
+  c.currentStepId = null;
+  c.actionSteps = [];
+  c.pitch.clearPassVisualization();
+  c.interactionSeq++;
+  const player = c.gameService.getPlayerById(playerId);
+  if (player) {
+    c.eventBus.emit(GameEventNames.PlayerSelected, { player });
+    refreshPlayerVisualization(c, playerId);
+  }
+  publishPlan(c);
+}
+
 export function cancelAction(c: GameplayInteractionController): void {
   if (!c.selectedPlayerId) return;
+  if (c.undeclared) {
+    c.undeclared = null;
+    forgetAction(c, c.selectedPlayerId);
+    return;
+  }
 
   if (c.hasMovedInAction) {
     console.warn("Cannot cancel action after moving");
@@ -209,23 +259,9 @@ export function cancelAction(c: GameplayInteractionController): void {
     return;
   }
 
-  c.dropAim();
-
-  c.currentActionMode = null;
-  c.currentBlockReplacement = null;
-  c.currentStepId = null;
-  c.actionSteps = [];
-  c.pitch.clearPassVisualization();
-
-  c.interactionSeq++;
-  c.pendingCancelSeqByPlayer.set(c.selectedPlayerId, c.interactionSeq);
-
-  const player = c.gameService.getPlayerById(c.selectedPlayerId);
-  if (player) {
-    c.eventBus.emit(GameEventNames.PlayerSelected, { player });
-
-    refreshPlayerVisualization(c, c.selectedPlayerId);
-  }
+  const playerId = c.selectedPlayerId;
+  forgetAction(c, playerId);
+  c.pendingCancelSeqByPlayer.set(playerId, c.interactionSeq);
 }
 
 export function reconcileRejectedCommand(
@@ -339,7 +375,7 @@ export function resumeBallAndChain(
   refreshPlayerVisualization(c, playerId);
 }
 
-function pendingGates(
+export function pendingGates(
   c: GameplayInteractionController,
   playerId: string,
   action: ActionType

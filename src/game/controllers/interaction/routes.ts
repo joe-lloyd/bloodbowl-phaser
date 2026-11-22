@@ -1,4 +1,4 @@
-import { isOwnActor, activeActionFor } from "./players";
+import { isOwnActor } from "./players";
 import { adjacentSquares } from "./squares";
 import { GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus, hasTackleZone } from "@/types/Player";
@@ -15,10 +15,13 @@ import {
   type RoutePreview,
   type RouteRoll,
 } from "../../rules/rollPreview";
+import type { PlanRollKind } from "../../rules/actionPlan";
 import { isSecuringBall } from "../../rules/secureBall";
 import { ballInTheAir } from "../../rules/ballInTheAir";
 import type { GameplayInteractionController } from "../GameplayInteractionController";
-import { climbRequest, riskyStepRequest } from "./Confirmations";
+import { climbRequest } from "./Confirmations";
+import { plannedActionFor } from "./plan";
+import { publishPlan } from "./planSummary";
 import type { MoveStep } from "@/headless/protocol";
 
 interface Square {
@@ -44,7 +47,7 @@ function sidesOf(
   };
 }
 
-function findLeg(
+export function findLeg(
 { c,player,x,y }: { c: GameplayInteractionController; player: Player; x: number; y: number; }) {
   const effectivePlayer = withDriveModifiers(player, c.gameService.getState());
   const startPos = c.waypoints.at(-1) ?? player.gridPosition;
@@ -75,19 +78,14 @@ export function addWaypoint(
   refreshPlayerVisualization(c, player.id);
 }
 
-export function executeMove(c: GameplayInteractionController): void {
-  if (!c.selectedPlayerId || c.waypoints.length === 0) return;
-  void moveAlong(c, c.selectedPlayerId, [...c.waypoints]);
-}
-
-function rerollSources(
+export function rerollSources(
   c: GameplayInteractionController,
   player: Player,
-  kinds: RouteRoll["type"][]
+  kinds: PlanRollKind[]
 ): string[] {
   const arbiter = c.gameService.getRerollArbiter();
-  const rerollSkill: Partial<Record<RouteRoll["type"], SkillType>> = {
-    dodge: SkillType.DODGE, rush: SkillType.SURE_FEET, pickup: SkillType.SURE_HANDS,
+  const rerollSkill: Partial<Record<PlanRollKind, SkillType>> = {
+    dodge: SkillType.DODGE, rush: SkillType.SURE_FEET, pickup: SkillType.SURE_HANDS, pass: SkillType.PASS,
   };
   const skills = new Set(kinds.flatMap((kind) => rerollSkill[kind] ?? []));
   const sources: string[] = [];
@@ -148,15 +146,22 @@ function planLegs(
   });
 }
 
+export function routeRolls(
+  c: GameplayInteractionController,
+  player: Player,
+  route: Square[]
+): RouteRoll[] {
+  return planLegs(c, player, route).flatMap((leg) =>
+    leg.risk ? stepRolls(leg.risk, leg.path[0]) : []
+  );
+}
+
 function drawPlannedRoute(
   c: GameplayInteractionController,
   player: Player,
   fullPath: Square[]
 ): RoutePreview {
-  const legs = planLegs(c, player, fullPath.slice(1));
-  const rolls = legs.flatMap((leg) =>
-    leg.risk ? stepRolls(leg.risk, leg.path[0]) : []
-  );
+  const rolls = routeRolls(c, player, fullPath.slice(1));
   const mover = withDriveModifiers(player, c.gameService.getState());
   const left = Math.max(
     0,
@@ -179,21 +184,17 @@ function drawPlannedRoute(
   return route;
 }
 
-function drawCurrentPath(c: GameplayInteractionController): void {
+export function drawCurrentPath(c: GameplayInteractionController): void {
   if (!c.selectedPlayerId) return;
 
   const player = c.gameService.getPlayerById(c.selectedPlayerId);
   if (player?.gridPosition) {
-    const fullPath = [
+    drawPlannedRoute(c, player, [
       { x: player.gridPosition.x, y: player.gridPosition.y },
       ...c.waypoints,
-    ];
-    const route = drawPlannedRoute(c, player, fullPath);
-    c.eventBus.emit(GameEventNames.UI_MovePlan, {
-      ...route,
-      squares: c.waypoints.length,
-    });
+    ]);
   }
+  publishPlan(c);
 }
 
 export function drawPath(
@@ -319,6 +320,7 @@ function rewindRoute({ c, player, start, x, y }: Parameters<typeof dragRouteTo>[
     c.clearRollPreviews();
     c.pitch.clearPath();
     refreshPlayerVisualization(c, player.id);
+    publishPlan(c);
     return true;
   }
   const back = c.waypoints.findIndex((p) => p.x === x && p.y === y);
@@ -352,7 +354,7 @@ export function dragRouteTo(
   if (rewindRoute({ c, player, start, x, y })) return;
   if (c.getPlayerAt(x, y)) return;
   const state = c.gameService.getState();
-  const action = activeActionFor(state, player.id);
+  const action = plannedActionFor(c, state, player.id);
   if (!c.declareMoveIfNone(player.id, action)) return;
 
   extendRoute(c, start, { x, y });
@@ -370,7 +372,7 @@ function isStillActing(
   );
 }
 
-function stoppedShort(
+export function stoppedShort(
   c: GameplayInteractionController,
   playerId: string,
   end: Square
@@ -384,7 +386,7 @@ function stoppedShort(
   );
 }
 
-function afterMove(c: GameplayInteractionController, playerId: string): void {
+export function afterMove(c: GameplayInteractionController, playerId: string): void {
   if (!isStillActing(c, playerId)) {
     if (c.selectedPlayerId === playerId) c.deselectPlayer();
     return;
@@ -395,24 +397,13 @@ function afterMove(c: GameplayInteractionController, playerId: string): void {
   c.pitch.clearPath();
 
   refreshPlayerVisualization(c, playerId);
+  publishPlan(c);
 }
 
 type PlannedLeg = ReturnType<typeof planLegs>[number];
 
-async function confirmLeg(c: GameplayInteractionController, player: Player, leg: PlannedLeg): Promise<boolean> {
-  if (!leg.risk) return true;
-  await c.dice.landed();
-  const square = player.gridPosition;
-  if (!square) return false;
-  const request = riskyStepRequest({ deps: c, player, square, risk: leg.risk });
-  return c.confirmations.ask("risky-step", request);
-}
-
 async function legPath(c: GameplayInteractionController, player: Player, leg: PlannedLeg): Promise<MoveStep[] | null> {
-  if (!("climb" in leg)) {
-    if (leg.risk && !(await confirmLeg(c, player, leg))) return null;
-    return leg.path;
-  }
+  if (!("climb" in leg)) return leg.path;
   await c.dice.landed();
   const square = player.gridPosition;
   if (!square) return null;
@@ -422,7 +413,7 @@ async function legPath(c: GameplayInteractionController, player: Player, leg: Pl
   return [answer === "alternative" ? { ...step, reckless: true } : step];
 }
 
-async function walkRoute(c: GameplayInteractionController, playerId: string, route: Square[]): Promise<boolean> {
+export async function walkRoute(c: GameplayInteractionController, playerId: string, route: Square[]): Promise<boolean> {
   let rest = route;
   let walked = false;
   while (rest.length > 0) {
@@ -440,25 +431,6 @@ async function walkRoute(c: GameplayInteractionController, playerId: string, rou
     rest = rest.slice(leg.path.length);
   }
   return walked;
-}
-
-async function moveAlong(c: GameplayInteractionController, playerId: string, route: Square[]): Promise<void> {
-  c.isBusy = true;
-  c.clearWaypoints();
-  c.clearRollPreviews();
-  c.pitch.clearPath();
-  let walked = false;
-  try {
-    walked = await walkRoute(c, playerId, route);
-  } catch (error) {
-    console.error("Move failed", error);
-    c.deselectPlayer();
-    return;
-  } finally {
-    c.isBusy = false;
-  }
-  if (walked) afterMove(c, playerId);
-  else refreshPlayerVisualization(c, playerId);
 }
 
 export function refreshPlayerVisualization(

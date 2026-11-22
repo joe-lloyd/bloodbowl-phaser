@@ -10,7 +10,6 @@ import { PlayerStatus } from "../../../src/types/Player";
 import {
   mockScene,
   mockGameService,
-  answerStepPrompt,
   player1,
   createController,
 } from "./GameplayInteractionController.setup";
@@ -71,13 +70,15 @@ describe("GameplayInteractionController", () => {
       const selectSpy = vi.spyOn(controller, "selectPlayer");
 
       controller.handlePlayerClick("p3");
+      expect(serviceSpies.handOffBall).not.toHaveBeenCalled();
+      controller.handlePlayerClick("p3");
 
       expect(serviceSpies.handOffBall).toHaveBeenCalledWith("p1", "p3");
       expect(serviceSpies.throwBall).not.toHaveBeenCalled();
       expect(selectSpy).not.toHaveBeenCalled();
     });
 
-    it("should execute the hand-off when clicking a square in the 'handoff' step", () => {
+    it("plans the hand-off on the first click and makes it on the second", () => {
       controller.currentActionMode = "handoff";
       controller.currentStepId = "handoff";
       controller.selectedPlayerId = "p1";
@@ -101,6 +102,8 @@ describe("GameplayInteractionController", () => {
         status: "Active",
       }));
 
+      void (controller).onSquareClicked(6, 5);
+      expect(serviceSpies.handOffBall).not.toHaveBeenCalled();
       void (controller).onSquareClicked(6, 5);
 
       expect(serviceSpies.handOffBall).toHaveBeenCalledWith("p1", "p3");
@@ -189,8 +192,9 @@ describe("GameplayInteractionController", () => {
       });
       whenFlowIdle.mockImplementation(() => idle);
 
+      void (controller).onSquareClicked(6, 5);
+      expect(serviceSpies.foulPlayer).not.toHaveBeenCalled();
       const click = (controller).onSquareClicked(6, 5);
-      await answerStepPrompt(true);
 
       await Promise.resolve();
       await Promise.resolve();
@@ -207,9 +211,8 @@ describe("GameplayInteractionController", () => {
       armFoulClick();
       whenFlowIdle.mockResolvedValue(undefined);
 
-      const click = (controller).onSquareClicked(6, 5);
-      await answerStepPrompt(true);
-      await click;
+      void (controller).onSquareClicked(6, 5);
+      await (controller).onSquareClicked(6, 5);
 
       expect(serviceSpies.foulPlayer).toHaveBeenCalledWith("p1", 6, 5);
       expect(mockScene.unhighlightPlayer).toHaveBeenCalledWith("p1");

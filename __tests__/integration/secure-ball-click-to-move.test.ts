@@ -85,6 +85,7 @@ describe("Secure the Ball on the board", () => {
       let prompt:
         | AllEvents[typeof GameEventNames.UI_RequestConfirmation]
         | undefined;
+      let plan: AllEvents[typeof GameEventNames.UI_ActionPlan] | undefined;
       const dice: string[] = [];
       let route: AllEvents[typeof GameEventNames.UI_RoutePreview] | undefined;
       eventBus.on(GameEventNames.UI_RequestConfirmation, (request) => {
@@ -92,6 +93,9 @@ describe("Secure the Ball on the board", () => {
       });
       eventBus.on(GameEventNames.UI_RoutePreview, (preview) => {
         route = preview;
+      });
+      eventBus.on(GameEventNames.UI_ActionPlan, (next) => {
+        plan = next ?? plan;
       });
       eventBus.on(GameEventNames.DiceRoll, (roll) =>
         dice.push(roll.description)
@@ -123,23 +127,10 @@ describe("Secure the Ball on the board", () => {
           fixtureValue(route).rolls,
           6
         );
+        expect(fixtureValue(plan).stages[0]?.rolls).toEqual([
+          { kind: "secureBall", name: "Secure the Ball", target },
+        ]);
         await controller.onSquareClicked(7, 5);
-        await vi.waitFor(() => {
-          expect(prompt).toBeDefined();
-        });
-        expect(fixtureValue(player).gridPosition).toEqual({ x: 6, y: 5 });
-        expect(fixtureValue(prompt).title).toBe(
-          "Human Lineman #1: Secure the Ball"
-        );
-        expect(fixtureValue(prompt).message).toContain(
-          `Secure the Ball: ${String(target)}+`
-        );
-        expect(fixtureValue(prompt).message).not.toContain("Sure Hands");
-        eventBus.emit(GameEventNames.UI_ConfirmationResult, {
-          actionId: fixtureValue(prompt).actionId,
-          confirmed: true,
-        });
-
         await vi.waitFor(() => {
           expect(gameService.hasPlayerActed(fixtureValue(player).id)).toBe(
             true
@@ -151,6 +142,7 @@ describe("Secure the Ball on the board", () => {
           `Secure the Ball (Human Lineman #1): ${String(target)}, needs ${String(target)}+`,
         ]);
         expect(controller.selectedPlayerId).toBeNull();
+        expect(prompt).toBeUndefined();
       } finally {
         controller.destroy();
       }

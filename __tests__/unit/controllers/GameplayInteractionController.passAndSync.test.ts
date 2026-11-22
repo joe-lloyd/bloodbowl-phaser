@@ -1,5 +1,5 @@
 import { serviceSpies } from "./GameplayInteractionController.setup";
-import { eventBusSpies } from "./GameplayInteractionController.setup";
+import { eventBusSpies, mockEventBus } from "./GameplayInteractionController.setup";
 import { playerWith } from "./controllerFixtures";
 import { stateWith } from "./GameplayInteractionController.setup";
 import { GameEventNames } from "../../../src/types/events";
@@ -79,9 +79,11 @@ describe("GameplayInteractionController", () => {
       expect(mockPitch.drawMovementPath).not.toHaveBeenCalled();
     });
 
-    it("should execute throw when clicking in 'pass' step", () => {
+    it("plans the throw on the first click and throws on the second", () => {
       controller.eventBus.emit(GameEventNames.UI_StepSelected, { stepId: "pass" });
 
+      void (controller).onSquareClicked(10, 5);
+      expect(serviceSpies.throwBall).not.toHaveBeenCalled();
       void (controller).onSquareClicked(10, 5);
       expect(serviceSpies.throwBall).toHaveBeenCalledWith(
         { passerId: "p1", targetX: 10, targetY: 5, hailMary: false }
@@ -94,6 +96,7 @@ describe("GameplayInteractionController", () => {
       mockPitch.worldToGrid.mockReturnValue({ x: 5, y: -1 });
 
       controller.handlePointerDown({ worldX: 0, worldY: 0 }, false);
+      controller.eventBus.emit(GameEventNames.UI_GoMovePlan, undefined);
       activateMatchFormat(SEVENS_FORMAT);
 
       expect(serviceSpies.throwBall).toHaveBeenCalledWith(
@@ -113,8 +116,8 @@ describe("GameplayInteractionController", () => {
 
       expect(passedOnFirstTap).toBe(0);
       expect(eventBusSpies.emit).toHaveBeenCalledWith(
-        GameEventNames.UI_ThrowAim,
-        expect.objectContaining({ square: { x: 5, y: -1 } })
+        GameEventNames.UI_ActionPlan,
+        expect.objectContaining({ title: "Pass" })
       );
       expect(serviceSpies.throwBall).toHaveBeenCalledWith(
         { passerId: "p1", targetX: 5, targetY: -1, hailMary: false }
@@ -154,23 +157,45 @@ describe("GameplayInteractionController", () => {
       expect(controller.currentStepId).toBe("block");
     });
 
-    it("should execute block when clicking opponent in 'block' step", () => {
+    it("plans a Blitz block with its strength, then blocks and rolls the dice on Go", () => {
       (controller).selectedPlayerId = "p1";
       (controller).currentActionMode = "blitz";
       (controller).currentStepId = "block";
 
-      const mockOpponent = playerWith({ id: "p2", teamId: "team2" });
+      const blitzer = playerWith({ id: "p1", teamId: "team1", stats: { MA: 6, ST: 4 }, gridPosition: { x: 9, y: 10 } });
+      const mockOpponent = playerWith({ id: "p2", teamId: "team2", status: "Active", stats: { ST: 3 }, gridPosition: { x: 10, y: 10 } });
       mockGameService.getPlayerById.mockImplementation((id) => {
-        if (id === "p1") return playerWith({ id: "p1", teamId: "team1", stats: { MA: 6 } });
+        if (id === "p1") return blitzer;
         if (id === "p2") return mockOpponent;
         return undefined;
       });
+      mockScene.team1.players = [blitzer];
+      mockScene.team2.players = [mockOpponent];
+      const analysis = { diceCount: 2, isUphill: false, attackerST: 4, defenderST: 3, barricadeCover: false, attackerAssists: [], defenderAssists: [] };
+      mockGameService.previewBlock.mockImplementation((attackerId, defenderId) => {
+        mockEventBus.emit(GameEventNames.UI_BlockDialog, { attackerId, defenderId, analysis });
+      });
 
-      (controller).getPlayerAt = vi.fn().mockReturnValue(mockOpponent);
+      (controller).getPlayerAt = vi.fn((x: number, y: number) => (x === 10 && y === 10 ? mockOpponent : null));
 
+      void (controller).onSquareClicked(10, 10);
+      expect(serviceSpies.previewBlock).not.toHaveBeenCalled();
+      const plan = eventBusSpies.emit.mock.calls
+        .filter(([name, data]) => name === GameEventNames.UI_ActionPlan && data)
+        .at(-1);
+      expect(JSON.stringify(plan?.[1])).toContain("Our ST 4 vs their ST 3");
+
+      eventBusSpies.emit.mockClear();
       void (controller).onSquareClicked(10, 10);
 
       expect(serviceSpies.previewBlock).toHaveBeenCalledWith("p1", "p2");
+      expect(eventBusSpies.emit).toHaveBeenCalledWith(GameEventNames.UI_RollBlockDice, {
+        attackerId: "p1",
+        defenderId: "p2",
+        numDice: 2,
+        isAttackerChoice: true,
+        rushAccepted: true,
+      });
       expect(mockScene.unhighlightPlayer).toHaveBeenCalled();
     });
 

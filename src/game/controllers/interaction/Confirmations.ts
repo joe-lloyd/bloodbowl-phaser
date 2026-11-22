@@ -11,7 +11,6 @@ import {
   type StepRisk,
   stepRolls,
 } from "../../rules/moveLegs";
-import type { foulPreview} from "../../rules/rollPreview";
 import { ROUTE_ROLL_NAMES, type RouteRoll } from "../../rules/rollPreview";
 
 type ConfirmationRequest = Omit<
@@ -141,7 +140,7 @@ function rerollText(source: RerollSource, line: RerollLine): string {
   }
 }
 
-export function riskyStepRequest(
+function riskyStepRequest(
 { deps,player,square,risk }: { deps: { gameService: IGameService; eventBus: IEventBus; }; player: Player; square: Square; risk: StepRisk; }): ConfirmationRequest {
   const rolls = stepRolls(risk, square);
   const rollText = rolls
@@ -226,7 +225,7 @@ export function climbRequest({
   };
 }
 
-const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string> = {
+export const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string> = {
   distracted: "On a fail they are Distracted and the activation ends.",
   endActivation: "On a fail the activation ends.",
   rooted: "On a fail they are Rooted and cannot leave their square.",
@@ -236,13 +235,16 @@ const GATE_FAILURE_TEXT: Record<ActivationGate["onFail"]["kind"], string> = {
     "On a fail they may switch to a Move, and must bite a Thrall before the activation ends.",
 };
 
+export const gateNeed = (gate: ActivationGate): number =>
+  Math.max(2, gate.target - gate.modifier);
+
 export function gateRequest(
   player: Player,
   gates: ActivationGate[]
 ): ConfirmationRequest {
   const lines = gates.map(
     (gate) =>
-      `${rollLabel(gate.skill, Math.max(2, gate.target - gate.modifier))}. ${GATE_FAILURE_TEXT[gate.onFail.kind]}`
+      `${rollLabel(gate.skill, gateNeed(gate))}. ${GATE_FAILURE_TEXT[gate.onFail.kind]}`
   );
   lines.push("Once rolled, the action cannot be changed.");
   return {
@@ -252,24 +254,5 @@ export function gateRequest(
     cancelLabel: "Cancel",
     risky: true,
     chooserTeamId: player.teamId,
-  };
-}
-
-export function foulRequest(
-  fouler: Player,
-  foul: ReturnType<typeof foulPreview>
-): ConfirmationRequest {
-  return {
-    title: "Confirm foul",
-    message: foul.lines.join("\n"),
-    confirmLabel: "Foul!",
-    cancelLabel: "Cancel",
-    risky: true,
-
-    chooserTeamId: fouler.teamId,
-    step: {
-      playerId: fouler.id,
-      rolls: [{ type: "armour", target: foul.targetNumber }],
-    },
   };
 }
