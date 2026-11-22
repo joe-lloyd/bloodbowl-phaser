@@ -1,5 +1,6 @@
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { writeFileSync } from "node:fs";
+import { env } from "node:process";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/firebase/config", () => ({
@@ -51,7 +52,7 @@ const SCHEDULE: { type: CompetitionType; gameType: GameType }[] = [
   { type: "tournament", gameType: "beach-bowl" },
 ];
 
-const TARGET_GAMES = Number(process.env["CLUB_GAMES"] ?? "40");
+const TARGET_GAMES = Number(env["CLUB_GAMES"] ?? "40");
 
 interface Snapshot {
   club: string;
@@ -83,6 +84,7 @@ interface Finding {
 }
 
 const findings: Finding[] = [];
+const engineFindings: Finding[] = [];
 const events: Finding[] = [];
 const snapshots: Snapshot[] = [];
 const competitions: { name: string; gameType: GameType; type: CompetitionType; entrants: string[] }[] = [];
@@ -108,7 +110,7 @@ function foundClubs(): string[] {
       advancementMode: "advanced-league",
     });
     team.club = {};
-    saveTeam(team);
+    void saveTeam(team);
     everSeen.set(team.id, new Set(team.players.map((player) => player.id)));
     return team.id;
   });
@@ -146,7 +148,7 @@ function hireSpecialists(where: string, clubIds: string[]): void {
     const result = hireGutterSpecialist(team, best);
     if (!result.hired) continue;
     everSeen.get(id)?.add(result.player.id);
-    saveTeam(team);
+    void saveTeam(team);
     events.push({
       where,
       rule: "specialist-hired",
@@ -164,6 +166,11 @@ function lostPlayers(team: Team): number {
   return [...seen].filter((id) => !present.has(id)).length;
 }
 
+function outcomeOf(own: number, other: number): Snapshot["outcome"] {
+  if (own === other) return "draw";
+  return own > other ? "win" : "loss";
+}
+
 function snapshot(
   team: Team,
   context: { competition: CompetitionDoc; gameType: GameType; score: [number, number]; winnings: number; sppEarned: number }
@@ -179,7 +186,7 @@ function snapshot(
     competition: context.competition.name,
     gameType: context.gameType,
     score: context.score,
-    outcome: own === other ? "draw" : own > other ? "win" : "loss",
+    outcome: outcomeOf(own, other),
     winnings: context.winnings,
     teamValue: calculateTeamValue(team),
     treasury: team.treasury,
@@ -189,7 +196,7 @@ function snapshot(
     players: team.players.filter((player) => player.playerKind !== "journeyman").length,
     lostSoFar: lostPlayers(team),
     sppEarned: context.sppEarned,
-    sppHeld: team.players.reduce((sum, player) => sum + (player.spp ?? 0), 0),
+    sppHeld: team.players.reduce((sum, player) => sum + player.spp, 0),
     advancements: team.players.reduce((sum, player) => sum + (player.advancements?.length ?? 0), 0),
     rerolls: team.rerolls,
     apothecary: team.apothecary,
@@ -220,7 +227,7 @@ async function playCompetition(competition: CompetitionDoc, gameType: GameType, 
       return;
     }
     for (const finding of outcome.recording.findings)
-      note(where, `match-${finding.kind}`, `${finding.key}: ${finding.message}`);
+      engineFindings.push({ where, rule: `match-${finding.kind}`, detail: `${finding.key}: ${finding.message}` });
     const result = fixtureValue(outcome.fixture.result);
     [homeId, awayId].forEach((id, index) => {
       const team = mustLoad(id);
@@ -271,7 +278,7 @@ async function enter(slot: (typeof SCHEDULE)[number], index: number, clubIds: st
   }
 }
 
-describe.runIf(process.env["CLUB_CAMPAIGN"] === "1")("a club campaign across every game type", () => {
+describe.runIf(env["CLUB_CAMPAIGN"] === "1")("a club campaign across every game type", () => {
   it("plays computer clubs through leagues and tournaments until each has played its games", async () => {
     localStorage.clear();
     const clubIds = foundClubs();
@@ -287,13 +294,15 @@ describe.runIf(process.env["CLUB_CAMPAIGN"] === "1")("a club campaign across eve
       }
     }
 
-    if (process.env["CLUB_OUT"]) {
+    if (env["CLUB_OUT"]) {
       writeFileSync(
-        process.env["CLUB_OUT"],
-        JSON.stringify({ findings, events, competitions, snapshots }, null, 2)
+        env["CLUB_OUT"],
+        JSON.stringify({ findings, engineFindings, events, competitions, snapshots }, null, 2)
       );
     }
-    console.log(`club campaign: ${String(snapshots.length / 2)} fixtures, fewest games ${String(fewest())}`);
+    console.log(
+      `club campaign: ${String(snapshots.length / 2)} fixtures, fewest games ${String(fewest())}, engine findings ${String(engineFindings.length)}`
+    );
     expect(fewest()).toBeGreaterThanOrEqual(TARGET_GAMES);
     expect(findings).toEqual([]);
   }, 3_600_000);

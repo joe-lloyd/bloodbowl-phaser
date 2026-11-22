@@ -28,7 +28,9 @@ match starts. `restoreClubHome` puts them back before the result is saved.
 `__tests__/campaign/club.test.ts` founds eight computer clubs and plays them
 through leagues and tournaments of every game type until each club has played
 `CLUB_GAMES` games. It checks that no specialist or banned staff member ever
-takes the pitch, and that none goes missing after a match.
+takes the pitch, and that none goes missing after a match. Engine invariant
+findings from the matches themselves go to `engineFindings` in the output
+and do not fail the run, because they are not club rules.
 
 ```sh
 CLUB_CAMPAIGN=1 CLUB_GAMES=40 CLUB_OUT=club.json pnpm exec vitest run __tests__/campaign/club.test.ts
