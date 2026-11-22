@@ -41,8 +41,13 @@ vi.mock("../../src/firebase/auth", () => ({
 }));
 
 import {
+  HOUSE_BOT_EMAIL,
+  HOUSE_BOT_UID,
+} from "../../src/firebase/houseBotAccount";
+import {
   cancelEndMatch,
   commitSeed,
+  closeHostedLobby,
   createLobby,
   finishMatch,
   heartbeat,
@@ -92,6 +97,10 @@ const ORGANIZER = "organizer-uid";
 const THIRD = "third-uid";
 const ADMIN = "owner";
 
+const BOT = HOUSE_BOT_UID;
+
+const SQUATTER = "squatter-uid";
+
 type EditableFixture = { id: string; status: string; result: unknown } & Record<
   string,
   unknown
@@ -114,7 +123,15 @@ function dbFor(uid: string): Firestore {
 
     {
       mockUserToken:
-        uid === ADMIN ? ADMIN : { sub: uid, user_id: uid },
+        uid === ADMIN
+          ? ADMIN
+          : {
+              sub: uid,
+              user_id: uid,
+              ...(uid === BOT || uid === SQUATTER
+                ? { email: HOUSE_BOT_EMAIL }
+                : {}),
+            },
     }
   );
   dbs.set(uid, db);
@@ -207,6 +224,23 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
   beforeEach(() => {
     sessionStorage.clear();
     localStorage.clear();
+  });
+
+  describe("the house bot", () => {
+    it("closes a lobby it hosts, with a coach still seated", async () => {
+      const code = (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
+      await as(GUEST, () => joinLobby(code, GUEST, "Guest"));
+      await as(BOT, () => closeHostedLobby(code, BOT));
+      expect((await getDoc(game(ADMIN, code))).exists()).toBe(false);
+    });
+
+    it("keeps the old lobby announcement writable only by the bot's account", async () => {
+      const code = await openLobby();
+      await setDoc(doc(dbFor(BOT), "houseBots", BOT), { code, updatedAt: Date.now() });
+      await denied(setDoc(doc(dbFor(HOST), "houseBots", HOST), { code, updatedAt: Date.now() }));
+      await denied(setDoc(doc(dbFor(GUEST), "houseBots", BOT), { code, updatedAt: Date.now() }));
+      await denied(setDoc(doc(dbFor(SQUATTER), "houseBots", SQUATTER), { code, updatedAt: Date.now() }));
+    });
   });
 
   describe("a whole online match, as the app writes it", () => {

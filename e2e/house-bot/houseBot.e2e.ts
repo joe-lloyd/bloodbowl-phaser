@@ -52,7 +52,7 @@ const rec: Recorder = {
     page.screenshot({ path: `${OUT}/${String(Date.now())}-${name}.png` }),
 };
 
-test("the house bot hosts games until stopped", async () => {
+test("the house bot joins games until stopped", async () => {
   const context = await chromium.launchPersistentContext(PROFILE, {
     headless: process.env["HOUSE_BOT_HEADED"] !== "1",
     baseURL: APP_URL,
@@ -81,7 +81,7 @@ test("the house bot hosts games until stopped", async () => {
   for (let played = 0; MATCHES === 0 || played < MATCHES; ) {
     await page.goto("/");
     await signOut.waitFor({ timeout: 60_000 });
-    await returnToEarlierGame(page);
+    log("waiting for an invite");
     if (!(await waitForMatch(page))) continue;
     const match = page.url().split("/").pop() ?? "";
     log(`match ${match} started`);
@@ -132,19 +132,9 @@ function guestSince(page: Page, since: number | null): number | null {
 }
 
 async function returnToEarlierGame(page: Page) {
-  const resume = page.getByRole("button", {
-    name: /^(Resume Match|Return to Lobby)/,
-  });
-  const found = await resume
-    .first()
-    .waitFor({ timeout: 10_000 })
-    .then(() => true)
-    .catch(() => false);
-  if (found && (await press(page, /^(Resume Match|Return to Lobby)/))) {
+  if (new URL(page.url()).pathname !== "/") return;
+  if (await press(page, /^(Resume Match|Return to Lobby)/))
     log("going back to an earlier game");
-    return;
-  }
-  log("waiting for an invite");
 }
 
 async function waitForMatch(page: Page): Promise<boolean> {
@@ -152,6 +142,7 @@ async function waitForMatch(page: Page): Promise<boolean> {
   let guest: number | null = null;
   while (Date.now() < deadline) {
     if (page.url().includes("/online/play/")) return true;
+    await returnToEarlierGame(page);
     await readyUp(page).catch(() => undefined);
     guest = guestSince(page, guest);
     if (guest !== null && Date.now() - guest > WAIT_AS_GUEST_MS) {

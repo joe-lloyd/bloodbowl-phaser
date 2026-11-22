@@ -6,6 +6,7 @@ import {
 import { firebaseDocument, firebaseProfile } from "../boundary/firebaseJson";
 import {
   collection,
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
@@ -217,6 +218,11 @@ async function setActiveMatchCode(uid: string, code: string): Promise<void> {
 
 export async function clearActiveMatchCode(uid: string): Promise<void> {
   await setDoc(userRef(uid), { activeMatchCode: null }, { merge: true });
+}
+
+export async function closeHostedLobby(code: string, uid: string): Promise<void> {
+  await deleteDoc(lobbyRef(code));
+  await clearActiveMatchCode(uid);
 }
 
 export async function getActiveMatchCode(uid: string): Promise<string | null> {

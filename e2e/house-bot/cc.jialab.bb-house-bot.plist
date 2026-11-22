@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- The house bot on old-mac (e2e/house-bot/README.md). Each run moves
-     ~/house-bot to the latest main, hosts one match and exits; launchd
+     ~/house-bot to the latest main, plays one match and exits; launchd
      starts the next, so the bot never lags the deployed protocol for long.
      Install: copy to ~/Library/LaunchAgents and run
      launchctl bootstrap gui/$(id -u) on it. -->

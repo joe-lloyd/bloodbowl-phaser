@@ -17,4 +17,3 @@ const profileSchema = z.object({
 export function firebaseProfile(value: unknown) {
   return profileSchema.parse(value);
 }
-

@@ -41,6 +41,10 @@ while the invite is still fresh.
   (`src/social/houseBotTeam.ts`), in Matched Play so it owes no skill pick,
   and picks again when the host changes either setting. If no template
   fits, it says so in `bot.log` and cannot ready up.
+- The bot used to host its own lobbies. On start, its browser closes any
+  lobby it still hosts, so a coach left seated there cannot block its
+  invites. `firestore.rules` keeps the old `houseBots` rule until no
+  deployed client reads it.
 - If the other coach ends the match early, the bot agrees and waits for
   the next invite.
 - In the bot's browser only, `HouseBotSocial`
