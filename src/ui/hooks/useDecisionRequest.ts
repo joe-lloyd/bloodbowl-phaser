@@ -43,6 +43,11 @@ function useDecisionRequest<T extends DecisionType>(
 
 const mayAct = () => getActiveOnlineMatch()?.mayAct() !== false;
 
+function mayAnswer(type: DecisionType): boolean {
+  const match = getActiveOnlineMatch();
+  return !match || (match.mayAct() && match.pendingDecision()?.type === type);
+}
+
 export function useLandedDecision<T extends DecisionType>(
   eventBus: IEventBus,
   options: DecisionRequestOptions<T>
@@ -54,7 +59,7 @@ export function useLandedDecision<T extends DecisionType>(
     send();
     setRequest(null);
   };
-  return { request: mayAct() ? request : null, answer };
+  return { request: mayAnswer(options.type) ? request : null, answer };
 }
 
 export function useGameDecision<T extends DecisionType>(
@@ -62,7 +67,8 @@ export function useGameDecision<T extends DecisionType>(
   options: DecisionRequestOptions<T>
 ) {
   const [request, setRequest] = useDecisionRequest(eventBus, options);
-  if (!request || !ServiceContainer.isInitialized() || !mayAct()) return null;
+  if (!request || !ServiceContainer.isInitialized() || !mayAnswer(options.type))
+    return null;
   const gameService = ServiceContainer.getInstance().gameService;
   return {
     request,
