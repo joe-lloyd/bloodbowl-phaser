@@ -13,6 +13,7 @@ import {
   restoreClubHome,
 } from "../../../src/game/rules/club";
 import { createMatchState } from "../../../src/services/gameService/matchStart";
+import { getTeamById, saveTeam } from "../../../src/game/managers/TeamManager";
 import { matchFormatFor } from "../../../src/game/variants/activeMatch";
 
 const darkElf = getRosterByRosterName(RosterName.DARK_ELF);
@@ -44,6 +45,7 @@ function club(budget = 600_000, linemen = 3): Team {
     "advanced-league"
   );
   team.club = {};
+  team.startingTreasury = 600_000;
   hire(team, {
     "Dark Elf Blitzer": 1,
     "Witch Elf": 1,
@@ -75,6 +77,26 @@ describe("a club's Core Sevens team", () => {
     expect(team.apothecary).toBe(false);
   });
 
+  it("drafts with exactly 600k", () => {
+    const team = club();
+    team.startingTreasury = 900_000;
+    expect(validateRosterLegality(team, darkElf).map((v) => v.detail)).toContain(
+      "A club drafts with 600,000, not 900,000."
+    );
+  });
+
+  it("keeps Gutter Bowl open when a poorer copy of the club is saved", async () => {
+    localStorage.clear();
+    const team = club(750_000);
+    await saveTeam(team);
+    expect(getTeamById(team.id)?.club).toEqual({ gutterUnlocked: true });
+    const poorer = structuredClone(team);
+    poorer.club = {};
+    poorer.treasury = 0;
+    await saveTeam(poorer);
+    expect(getTeamById(team.id)?.club).toEqual({ gutterUnlocked: true });
+  });
+
   it("opens Gutter Bowl at 750k of team value plus treasury and keeps it open", () => {
     const team = club();
     team.treasury += 150_000;
@@ -91,7 +113,31 @@ describe("a club's Core Sevens team", () => {
   });
 });
 
+function fixtureLineman(team: Team) {
+  const lineman = team.players.find((player) => player.positionName === "Dark Elf Lineman");
+  if (!lineman) throw new Error("no Lineman");
+  return lineman;
+}
+
 describe("the Gutter Bowl specialist", () => {
+  it("wears a number above 11, so the core can still hire its eleventh player", () => {
+    const team = club(2_000_000, 6);
+    const hire = hireGutterSpecialist(team, template("Dark Elf Blitzer"));
+    if (!hire.hired) throw new Error(hire.reason);
+    expect(hire.player.number).toBe(12);
+    expect(hirePlayer(team, template("Dark Elf Lineman")).amount).toBe(65_000);
+  });
+
+  it("counts toward the roster's position limit when the core hires", () => {
+    const team = club(2_000_000);
+    team.firstMatchPlayedAt = 1;
+    hireGutterSpecialist(team, template("Dark Elf Blitzer"));
+    expect(hirePlayer(team, template("Dark Elf Blitzer"))).toEqual({
+      amount: null,
+      reason: "Dark Elf Blitzer: the Dark Elf roster allows 0-2, and this team has 2.",
+    });
+  });
+
   it("cannot join before Gutter Bowl opens", () => {
     expect(hireGutterSpecialist(club(), template("Dark Elf Blitzer"))).toEqual({
       hired: false,
@@ -173,13 +219,42 @@ describe("a club in a match", () => {
     expect(home.apothecary).toBe(true);
   });
 
+  it("keeps a specialist hired while the match was suspended", () => {
+    const stored = club(1_000_000);
+    const matchCopy = structuredClone(stored);
+    hireGutterSpecialist(stored, template("Dark Elf Blitzer"));
+
+    restoreClubHome(matchCopy, stored);
+    expect(matchCopy.club).toEqual(stored.club);
+    const sevens = structuredClone(matchCopy);
+    prepareClubSquad(sevens, "sevens");
+    expect(sevens.players).toHaveLength(7);
+  });
+
+  it("gives a Journeyman who took a home player's number a free one", () => {
+    const stored = club(1_000_000);
+    const hire = hireGutterSpecialist(stored, template("Dark Elf Blitzer"));
+    if (!hire.hired) throw new Error(hire.reason);
+    const matchCopy = structuredClone(stored);
+    prepareClubSquad(matchCopy, "sevens");
+    const journeyman = structuredClone(fixtureLineman(matchCopy));
+    journeyman.id = "journeyman";
+    journeyman.number = hire.player.number;
+    matchCopy.players.push(journeyman);
+
+    restoreClubHome(matchCopy, stored);
+    const numbers = matchCopy.players.map((player) => player.number);
+    expect(new Set(numbers).size).toBe(numbers.length);
+    expect(matchCopy.players.find((player) => player.id === hire.player.id)?.number).toBe(12);
+  });
+
   it("plays no friendlies during a tournament but may during a league", () => {
     const team = club();
     team.activeCompetitionId = "league-1-abc";
     expect(friendlyRefusal(team)).toBeUndefined();
     team.activeCompetitionId = "tournament-1-abc";
     expect(friendlyRefusal(team)).toBe(
-      "Naggaroth Nightmares is playing a tournament. A club in a tournament plays no other games until it is out."
+      "Naggaroth Nightmares is playing a tournament. A club in a tournament plays no other games until the tournament ends."
     );
   });
 });

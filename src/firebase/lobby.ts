@@ -22,6 +22,7 @@ import {
 import { readEach } from "../boundary/readEach";
 import { getDb } from "./config";
 import { teamPlaysGameType } from "../game/rules/rosterLegality";
+import { friendlyRefusal } from "../game/rules/club";
 import { type Team } from "../types/Team";
 import { type GameSnapshot } from "../headless/serialization";
 import { type RNGState } from "../services/rng/RNGService";
@@ -532,7 +533,9 @@ export function canStart(lobby: LobbyDoc): boolean {
 export function teamFitsLobby(team: Team, lobby: LobbyDoc): boolean {
   const range = lobby.competitionContext ? undefined : lobby.settings.teamValue;
   return (
-    teamPlaysGameType(team, lobbyGameType(lobby)) && withinTeamValue(team, range)
+    teamPlaysGameType(team, lobbyGameType(lobby)) &&
+    withinTeamValue(team, range) &&
+    (!!lobby.competitionContext || friendlyRefusal(team) === undefined)
   );
 }
 

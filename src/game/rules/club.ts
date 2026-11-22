@@ -16,7 +16,7 @@ import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { DEFAULT_GAME_TYPE, type GameType } from "../variants/gameTypes";
 import { draftRulesFor } from "./draftRules";
 import { nextFreeNumber, staysOnRoster } from "./leagueRoster";
-import { uniquePlayerId } from "./playerSlots";
+import { ROSTER_SLOTS, uniquePlayerId } from "./playerSlots";
 import type { EditDecision } from "./teamEditLegality";
 
 export const GUTTER_UNLOCK_WORTH = 750_000;
@@ -128,19 +128,42 @@ export function clubSquad(team: Team, gameType: GameType): Team {
   return squad;
 }
 
+function renumberClashes(team: Team, homeIds: Set<string>): void {
+  const homeNumbers = new Set(
+    team.players
+      .filter((player) => homeIds.has(player.id))
+      .map((player) => player.number)
+  );
+  for (const player of team.players) {
+    if (homeIds.has(player.id) || !homeNumbers.has(player.number)) continue;
+    player.number = nextFreeNumber(team);
+  }
+}
+
 export function restoreClubHome(team: Team, stored: Team): void {
   if (!stored.club) return;
   const played = new Map(team.players.map((player) => [player.id, player]));
   const storedIds = new Set(stored.players.map((player) => player.id));
+  const homeIds = new Set(
+    [...storedIds].filter((id) => !played.has(id))
+  );
   team.players = [
     ...stored.players.map(
       (player) => played.get(player.id) ?? structuredClone(player)
     ),
     ...team.players.filter((player) => !storedIds.has(player.id)),
   ];
+  renumberClashes(team, homeIds);
+  team.club = structuredClone(stored.club);
   team.apothecary = stored.apothecary;
   team.coaches = stored.coaches;
   team.cheerleaders = stored.cheerleaders;
+}
+
+export function carryGutterUnlock(team: Team, stored: Team | undefined): void {
+  if (team.club && stored?.club?.gutterUnlocked)
+    team.club.gutterUnlocked = true;
+  latchGutterUnlock(team);
 }
 
 export function gutterLockReason(team: Team): string | undefined {
@@ -194,7 +217,11 @@ export function hireGutterSpecialist(
 ): SpecialistHire {
   const reason = gutterSpecialistRefusal(team, template);
   if (reason || !team.club) return { hired: false, reason: reason ?? "" };
-  const player = createPlayer(template, team.id, nextFreeNumber(team));
+  const player = createPlayer(
+    template,
+    team.id,
+    nextFreeNumber(team, ROSTER_SLOTS + 1)
+  );
   player.id = uniquePlayerId(team, player.id);
   player.cost = template.cost;
   team.players.push(player);
@@ -224,6 +251,6 @@ export function inTournament(team: Team): boolean {
 
 export function friendlyRefusal(team: Team): string | undefined {
   return team.club && inTournament(team)
-    ? `${team.name} is playing a tournament. A club in a tournament plays no other games until it is out.`
+    ? `${team.name} is playing a tournament. A club in a tournament plays no other games until the tournament ends.`
     : undefined;
 }

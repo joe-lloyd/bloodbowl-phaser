@@ -9,14 +9,14 @@ Open it from the main menu: **Club → My Clubs** or **Found a Club**.
 
 | ID | Rule |
 | --- | --- |
-| CL-1 | A club starts as a standard 600,000 Sevens draft: 7 to 11 players, at most 4 positionals, one Lineman as the Veteran. This is the Core Sevens squad. |
-| CL-2 | A club always uses Advanced League with SPP. Skills, injuries and deaths follow each player into every game type. |
+| CL-1 | A club starts as a standard 600,000 Sevens draft, and keeps the roster it was founded with: 7 to 11 players, at most 4 positionals, one Lineman as the Veteran. This is the Core Sevens squad. |
+| CL-2 | A club always uses Advanced League with SPP. Skills, injuries and deaths from league and tournament games follow each player into every game type. Friendlies are exhibitions, as for every team: nothing carries. |
 | CL-3 | The Core Sevens squad plays Sevens, Street Bowl and Beach Bowl from the first match. Staff a game type bans stays home for that match and comes back afterwards. |
 | CL-4 | Team re-rolls cost 100,000 in every game type, so a club's re-rolls never change price. |
 | CL-5 | Gutter Bowl opens once current team value plus treasury reaches 750,000. It stays open after that, even if the club's value falls. |
-| CL-6 | Once Gutter Bowl is open, the club may hire one Gutter Bowl specialist from the treasury: a fifth positional, at roster price. The specialist plays only Gutter Bowl and does not count toward the Core Sevens limits. Roster position limits count the whole club. |
+| CL-6 | Once Gutter Bowl is open, the club may hire one Gutter Bowl specialist from the treasury: a fifth positional, at roster price. The specialist plays only Gutter Bowl, wears a shirt number above 11, and does not count toward the Core Sevens limits. Roster position limits count the whole club. |
 | CL-7 | When the Core Sevens squad has 11 players, one Lineman sits out Gutter Bowl to make room for the specialist. By default it is the last Lineman hired. The coach may pick another, the Veteran included. The Veteran keeps MA −1 and its re-roll in every game type. |
-| CL-8 | A club in a tournament plays no other games, friendlies included, until the tournament ends for it. A club in a league may play friendlies between fixtures. A club enters one competition at a time. |
+| CL-8 | A club in a tournament plays no other games, friendlies included, until the tournament ends. A knocked-out club waits for the final, as every tournament team does. A club in a league may play friendlies between fixtures. A club enters one competition at a time. |
 | CL-9 | Dedicated Fans belong to the club and carry between game types. |
 
 The rules live in `src/game/rules/club.ts`. `prepareClubSquad` takes the

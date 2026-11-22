@@ -132,7 +132,7 @@ export function TeamDetailsSection({
             step="10000"
             className="hud-field disabled:cursor-not-allowed disabled:opacity-50"
             value={team.startingTreasury}
-            disabled={active || team.players.length > 0}
+            disabled={active || team.players.length > 0 || !!team.club}
             onChange={(e) => {
               const newVal = parseInt(e.target.value) || 0;
               onChange({

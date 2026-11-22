@@ -6,7 +6,7 @@ import {
 import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
 import { chooseFirstLinemanAsVeteran } from "../rules/veteran";
 import { clearUnneededExpensiveMistakes } from "../rules/expensiveMistakes";
-import { latchGutterUnlock } from "../rules/club";
+import { carryGutterUnlock, latchGutterUnlock } from "../rules/club";
 import { isSeedOwned } from "../../seeding/seedMeta";
 import {
   cleanupDevelopmentSeedData,
@@ -138,6 +138,12 @@ export function saveTeams(teams: Team[]): Promise<void> {
   try {
     assertTeamLibraryLoaded();
     teams.forEach(clearUnneededExpensiveMistakes);
+    const stored = new Map(
+      activeRepository.loadTeams().map((team) => [team.id, team])
+    );
+    teams.forEach((team) => {
+      carryGutterUnlock(team, stored.get(team.id));
+    });
     saved = Promise.resolve(activeRepository.saveTeams(teams));
   } catch (cause) {
     saved = Promise.reject(cause);

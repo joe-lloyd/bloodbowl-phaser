@@ -44,7 +44,7 @@ export function ClubFounding() {
       <PageHeader
         eyebrow="New club"
         title="FOUND A CLUB"
-        subtitle="Draft a standard 600k Sevens team. That team is your Core Sevens squad, and it plays Street Bowl and Beach Bowl too. Every club game earns Star Player Points, so injuries, skills and deaths follow each player into every game type."
+        subtitle="Draft a standard 600k Sevens team. That team is your Core Sevens squad, and it plays Street Bowl and Beach Bowl too. Every league and tournament game earns Star Player Points, so injuries, skills and deaths follow each player into every game type. Friendlies are exhibitions and change nothing."
       />
       <Section title="Club name">
         <Field label="Name">

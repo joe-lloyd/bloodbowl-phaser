@@ -250,6 +250,16 @@ function clubViolations(
   gameType: GameType
 ): RosterViolation[] {
   const locked = gameType === "gutter-bowl" ? gutterLockReason(team) : undefined;
+  const { budget } = draftRulesFor(DEFAULT_GAME_TYPE);
+  const founding =
+    isDraftTeam(team) && team.startingTreasury !== budget
+      ? [
+          {
+            rule: "club-budget",
+            detail: `A club drafts with ${budget.toLocaleString("en-GB")}, not ${team.startingTreasury.toLocaleString("en-GB")}.`,
+          },
+        ]
+      : [];
   const core = validateRosterLegality(
     clubSquad(team, DEFAULT_GAME_TYPE),
     roster,
@@ -266,6 +276,7 @@ function clubViolations(
   );
   return [
     ...(locked ? [{ rule: "gutter-locked", detail: locked }] : []),
+    ...founding,
     ...unique.values(),
   ];
 }

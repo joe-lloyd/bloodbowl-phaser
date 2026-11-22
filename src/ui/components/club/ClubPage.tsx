@@ -29,7 +29,7 @@ function CompetitionNotice({ team }: { team: Team }) {
   return inTournament(team) ? (
     <Notice tone="warn" title="Playing a tournament">
       A club in a tournament plays no other games, friendlies included, until
-      it is out.
+      the tournament ends.
     </Notice>
   ) : (
     <Notice tone="gold" title="Playing a league">

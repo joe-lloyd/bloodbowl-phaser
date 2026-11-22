@@ -282,7 +282,14 @@ function compositionRefusal(
   template: PlayerTemplate,
   listed: Player[]
 ): string | undefined {
-  const ofPosition = listed.filter(
+  const clubWide = [
+    ...listed,
+    ...team.players.filter(
+      (player) =>
+        isGutterSpecialist(team, player) && staysOnRoster(team, player)
+    ),
+  ];
+  const ofPosition = clubWide.filter(
     (player) => player.positionName === template.positionName
   ).length;
   if (template.maxAllowed !== undefined && ofPosition >= template.maxAllowed) {
@@ -292,7 +299,7 @@ function compositionRefusal(
   if (
     maxBigGuys !== undefined &&
     isBigGuy(template.keywords) &&
-    listed.filter((player) => isBigGuy(player.keywords)).length >= maxBigGuys
+    clubWide.filter((player) => isBigGuy(player.keywords)).length >= maxBigGuys
   ) {
     return `${team.rosterName} teams may have at most ${String(maxBigGuys)} Big Guy${maxBigGuys === 1 ? "" : "s"}.`;
   }
