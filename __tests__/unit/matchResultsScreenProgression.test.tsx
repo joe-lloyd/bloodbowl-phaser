@@ -76,23 +76,22 @@ describe("MatchResultsScreen", () => {
     team1.club = {};
     team1.advancementMode = "advanced-league";
     team2.advancementMode = "advanced-league";
-    saveTeams([team1, team2]);
+    await saveTeams([team1, team2]);
     services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team1.players[0]).id);
     services.eventBus.emit(GameEventNames.PlayerActivated, fixtureValue(team2.players[0]).id);
 
     await h.render();
-    for (const button of [...h.container.querySelectorAll("button")].filter(
-      (b) => b.textContent?.includes("Roll MVP D6")
-    ))
-      await act(async () => {
+    const click = (label: string) =>
+      [...h.container.querySelectorAll("button")].filter((b) =>
+        b.textContent.includes(label)
+      );
+    const press = (button: HTMLButtonElement) =>
+      act(async () => {
         button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await Promise.resolve();
       });
-    const confirmButton = fixtureValue([...h.container.querySelectorAll("button")].find(
-      (b) => b.textContent?.includes("Confirm and assign SPP")
-    ));
-    await act(async () => {
-      confirmButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
+    for (const button of click("Roll MVP D6")) await press(button);
+    await press(fixtureValue(click("Confirm and assign SPP")[0]));
 
     const spp = (id: string) =>
       fixtureValue(loadTeams().find((team) => team.id === id)).players.reduce(
