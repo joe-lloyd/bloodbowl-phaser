@@ -11,13 +11,12 @@ test("the re-roll dialog waits for the failed die to land", async ({
   await app.sandbox.open({ scenario: "pro-die-reroll", seed: 8 });
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickSquare({ x: 9, y: 4 });
-  await app.pitch.clickSquare({ x: 9, y: 4 });
-  await expect(page.getByText(/Pro needs 3/)).toBeVisible();
+  await expect(page.getByTestId("action-plan")).toContainText("Pro on 3+");
 
   const tray = page.getByTestId("dice-tray");
   const dir = "/tmp/review-loop-round2";
   await mkdir(dir, { recursive: true });
-  await page.getByRole("button", { name: "Dodge!", exact: true }).click();
+  await page.getByTestId("action-plan-go").click();
 
   await expect(tray).toHaveAttribute("data-dice", "in-air");
   await expect(app.hud.rerollDialog()).toBeHidden();

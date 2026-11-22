@@ -67,8 +67,6 @@ test("a failed Rush with an armour roll hands over without a long wait", async (
   await app.hud.actionButton("move").click();
   await app.pitch.clickSquare({ x: 19, y: 5 });
   await app.pitch.clickSquare({ x: 19, y: 5 });
-  await page.getByRole("button", { name: "Dodge!" }).click();
-  await page.getByRole("button", { name: "Rush!" }).click({ timeout: 15_000 });
 
   await page.waitForFunction(() => window.__turnoverPace.bannerAt > 0, null, {
     timeout: 30_000,

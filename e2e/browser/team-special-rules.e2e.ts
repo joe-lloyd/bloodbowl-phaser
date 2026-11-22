@@ -29,8 +29,8 @@ test("the Team Captain's 6 keeps the Team Re-roll", async ({ page }) => {
   });
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickSquare({ x: 5, y: 5 });
+  await expect(page.getByTestId("action-plan")).toContainText("Pick up");
   await app.pitch.clickSquare({ x: 5, y: 5 });
-  await page.getByRole("button", { name: "Pick up!" }).click();
   await expect(app.hud.rerollDialog()).toBeVisible({ timeout: 10_000 });
   await page.screenshot({
     path: test.info().outputPath("captain-reroll-offer.png"),

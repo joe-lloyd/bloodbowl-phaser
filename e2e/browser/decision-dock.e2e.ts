@@ -93,9 +93,8 @@ for (const viewport of [
       await app.sandbox.open({ scenario: "pro-die-reroll", seed: 8 });
       await app.hud.declareAction("team1:0", "move");
       await app.pitch.clickSquare({ x: 9, y: 4 });
+      await expect(page.getByTestId("action-plan")).toContainText("Pro on 3+");
       await app.pitch.clickSquare({ x: 9, y: 4 });
-      await expect(page.getByText(/Pro needs 3/)).toBeVisible();
-      await page.getByRole("button", { name: "Dodge!", exact: true }).click();
       await expect(page.getByTestId("reroll-use-pro")).toBeVisible();
       await expect(page.getByTestId("reroll-odds")).toHaveText(
         "Needed 3+, rolled 1."

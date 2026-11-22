@@ -25,17 +25,11 @@ test("Secure the Ball moves onto the ball with one unnumbered action and the rig
   await expect(page.getByTestId("route-rolls")).toHaveText(
     "Secure the Ball 2+"
   );
+  await expect(page.getByTestId("action-plan")).toContainText(
+    "Secure the Ball 2+"
+  );
+  await expect(page.getByTestId("action-plan")).not.toContainText("Sure Hands");
   await app.pitch.clickSquare({ x: 7, y: 5 });
-  await expect(
-    page.getByRole("heading", { name: "Human Lineman #1: Secure the Ball" })
-  ).toBeVisible();
-  await expect(
-    page.getByText(/Secure the Ball: 2\+\. A fail is a turnover\./)
-  ).toBeVisible();
-  await expect(page.getByText(/Sure Hands re-roll/)).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Secure the Ball!", exact: true })
-    .click();
   await expect
     .poll(async () => {
       const snapshot = await app.bridge.snapshot();
