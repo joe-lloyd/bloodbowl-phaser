@@ -194,6 +194,18 @@ describe("Gutter Bowl inducements (GB-I1 to GB-I5)", () => {
     expect(hasSkill(patient.skills, SkillType.STAND_FIRM)).toBe(true);
   });
 
+  it("keeping a potion for later says so in the game log", async () => {
+    const game = gutterGame();
+    induce(game, [[Inducement.SUPERIOR_MAGIC_POTION, 1]]);
+    const lines: string[] = [];
+    game.ctx.eventBus.on(GameEventNames.UI_GameLog, (line) => lines.push(line));
+    await settle(game);
+    await game.execute({ type: "choose-inducement" });
+    expect(lines).toContain(
+      `${game.ctx.team1.name} keeps its Superior Magic Potion for later`
+    );
+  });
+
   it("a player drinks at most one Gutter Bowl potion a game (GB-I1)", async () => {
     const game = gutterGame();
     induce(game, [[Inducement.LESSER_MAGIC_POTION, 2]]);

@@ -14,7 +14,17 @@ import { type PendingDecision } from "../../src/headless/protocol";
 import { FollowUpDialog } from "../../src/ui/components/hud/FollowUpDialog";
 import { RerollDialog } from "../../src/ui/components/hud/RerollDialog";
 import { BlockDiceDialog } from "../../src/ui/components/hud/BlockDiceDialog";
+import { InducementChoiceDialog } from "../../src/ui/components/hud/InducementChoiceDialog";
 import { type BlockRollData } from "../../src/services/BlockResolutionService";
+
+const rerollPending: PendingDecision = {
+  type: "reroll",
+  playerId: "team1-player-1",
+  chooserTeamId: "team1",
+  rollKind: "dodge",
+  sources: ["team"],
+  roll: 1,
+};
 
 describe("online dialogs", () => {
   let container: HTMLDivElement;
@@ -63,6 +73,7 @@ describe("online dialogs", () => {
 
   it("shows a re-roll prompt to the coach who rolled it", async () => {
     mayAct = true;
+    pending = rerollPending;
     await act(async () => {
       root.render(<RerollDialog eventBus={eventBus} />);
     });
@@ -70,6 +81,32 @@ describe("online dialogs", () => {
       askReroll();
     });
     expect(container.textContent).toContain("Re-roll");
+  });
+
+  it("drops the other coach's potion choice once the match moves on", () => {
+    const potion: Extract<PendingDecision, { type: "inducement-choice" }> = {
+      type: "inducement-choice",
+      kind: "magic-potion",
+      chooserTeamId: "team2",
+      playerIds: team2Ids.slice(0, 2),
+      optional: true,
+    };
+    mayAct = false;
+    pending = potion;
+    act(() => {
+      root.render(<InducementChoiceDialog eventBus={eventBus} />);
+    });
+    act(() => {
+      eventBus.emit(GameEventNames.DecisionRequested, potion);
+    });
+    expect(container.textContent).not.toContain("Magic Potion");
+
+    mayAct = true;
+    pending = null;
+    act(() => {
+      root.render(<InducementChoiceDialog eventBus={eventBus} />);
+    });
+    expect(container.textContent).toBe("");
   });
 
   it("does not show a follow-up the computer has already answered", async () => {

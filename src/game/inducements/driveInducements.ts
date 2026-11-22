@@ -119,7 +119,11 @@ async function offerPotions(
       optional: true,
     });
     const player = options.find((option) => option.id === answer.playerId);
-    if (!player || !spendInducement(state, team.id, kind)) return;
+    if (!player) {
+      logPotion(context.eventBus, `${team.name} keeps its ${kind} for later`);
+      return;
+    }
+    if (!spendInducement(state, team.id, kind)) return;
     drank.add(player.id);
     if (kind !== Inducement.MAGIC_POTION)
       getVariantInducements(state).dosedPlayerIds.push(player.id);
