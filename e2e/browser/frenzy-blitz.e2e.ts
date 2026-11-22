@@ -64,8 +64,8 @@ test("Frenzy rolls its second block automatically and the blitzer can dodge away
   await expect(app.hud.followUpDialog()).toBeHidden();
 
   await app.pitch.clickSquare({ x: 11, y: 4 });
+  await expect(page.getByTestId("action-plan")).toContainText("Dodge");
   await app.pitch.clickSquare({ x: 11, y: 4 });
-  await page.getByRole("button", { name: "Dodge!", exact: true }).click();
   await expect
     .poll(() => app.pitch.squareOf("team1:0"))
     .toEqual({ x: 11, y: 4 });

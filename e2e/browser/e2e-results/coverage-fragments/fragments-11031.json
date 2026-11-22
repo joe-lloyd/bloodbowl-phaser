@@ -1,0 +1,30 @@
+[
+  {
+    "caseId": "movement-unopposed-walk",
+    "variantId": "shape-block",
+    "layer": "browser",
+    "claims": [
+      "protocol-command:declare-action",
+      "protocol-command:block"
+    ]
+  },
+  {
+    "caseId": "movement-unopposed-walk",
+    "variantId": "shape-dialogs",
+    "layer": "browser",
+    "claims": [
+      "protocol-command:choose-block-result",
+      "decision:block-dice"
+    ]
+  },
+  {
+    "caseId": "secure-ball-move-to-ball",
+    "variantId": "secure-on-two",
+    "layer": "browser",
+    "claims": [
+      "declare-action:secureBall",
+      "move:normal",
+      "phase:PLAY"
+    ]
+  }
+]

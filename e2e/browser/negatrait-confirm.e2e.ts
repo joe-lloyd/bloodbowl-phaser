@@ -30,6 +30,6 @@ test("Bone Head shows in the plan, rolls only on Go, and Clear declares nothing"
   await expect(plan).toContainText("Bone Head 2+");
   expect(await rolls()).toHaveLength(0);
   await page.getByTestId("action-plan-go").click();
-  await app.bridge.expectEvent(GameEventNames.DiceRoll);
-  expect((await app.bridge.snapshot()).activePlayer).not.toBeNull();
+  await expect.poll(async () => (await rolls()).length).toBe(1);
+  await expect(plan).toBeHidden();
 });

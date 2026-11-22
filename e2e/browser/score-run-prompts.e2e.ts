@@ -199,9 +199,11 @@ test("on two Rushes in a row, the second Rush rolls only after every earlier die
     const w = window as unknown as {
       eventBus: { on(name: string, fn: (d: never) => void): void };
       tray: { thrown: number; landedThrough: number };
-      trayAtRushRolls: { thrown: number; landedThrough: number }[];
+      rollsSeen: number;
+      trayAtRushRolls: { earlier: number; landed: number }[];
     };
     w.tray = { thrown: 0, landedThrough: 0 };
+    w.rollsSeen = 0;
     w.trayAtRushRolls = [];
     w.eventBus.on(
       "ui:diceInAir",
@@ -210,7 +212,9 @@ test("on two Rushes in a row, the second Rush rolls only after every earlier die
       }
     );
     w.eventBus.on("diceRoll", (d: { rollType: string }) => {
-      if (/rush/i.test(d.rollType)) w.trayAtRushRolls.push({ ...w.tray });
+      if (/rush/i.test(d.rollType))
+        w.trayAtRushRolls.push({ earlier: w.rollsSeen, landed: w.tray.landedThrough });
+      w.rollsSeen++;
     });
   });
   await app.pitch.waitForCameraToSettle();
@@ -239,11 +243,11 @@ test("on two Rushes in a row, the second Rush rolls only after every earlier die
     () =>
       (
         window as unknown as {
-          trayAtRushRolls: { thrown: number; landedThrough: number }[];
+          trayAtRushRolls: { earlier: number; landed: number }[];
         }
       ).trayAtRushRolls
   );
 
-  expect(fixtureValue(second).thrown).toBeGreaterThan(1);
-  expect(fixtureValue(second).landedThrough).toBe(fixtureValue(second).thrown);
+  expect(fixtureValue(second).earlier).toBeGreaterThanOrEqual(2);
+  expect(fixtureValue(second).landed).toBeGreaterThanOrEqual(fixtureValue(second).earlier);
 });
