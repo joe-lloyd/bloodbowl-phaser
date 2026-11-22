@@ -11,10 +11,26 @@ import { homedir } from "node:os";
 import { dirname } from "node:path";
 import { GameApp } from "../support/pages/game";
 import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
-import { clickIf, type Recorder } from "../fullgame/driver";
+import { type Recorder } from "../fullgame/driver";
 
-const press = (page: Page, name: RegExp): Promise<boolean> =>
-  clickIf(page, name).catch(() => false);
+const CLICK_TIMEOUT_MS = 1000;
+const MAX_MISSED_CLICKS = 60;
+let missedClicks = 0;
+
+async function press(page: Page, name: RegExp): Promise<boolean> {
+  const button = page.getByRole("button", { name }).first();
+  if (!(await button.isVisible().catch(() => false))) return false;
+  try {
+    await button.click({ timeout: CLICK_TIMEOUT_MS });
+    missedClicks = 0;
+    return true;
+  } catch {
+    missedClicks++;
+    if (missedClicks >= MAX_MISSED_CLICKS)
+      throw new Error(`${name.source} stayed visible but took no click`);
+    return false;
+  }
+}
 
 const PORT = Number(process.env["HOUSE_BOT_PORT"] ?? 5299);
 const APP_URL = `http://localhost:${String(PORT)}`;

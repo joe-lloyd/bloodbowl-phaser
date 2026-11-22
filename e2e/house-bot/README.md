@@ -40,8 +40,9 @@ while the invite is still fresh.
   full time. It does not choose moves or translate them into board clicks.
   It never buys inducements either: the computer coach in the page owns
   that step and confirms them itself. A runner click that races the coach
-  finds the button gone, so every runner click treats a missing button as
-  a miss and tries again on the next pass, instead of ending the run.
+  finds the button gone, so a runner click gives up after a second and
+  tries again on the next pass. Sixty misses in a row end the run, and
+  launchd starts a fresh one.
   The page loads a Vite dev server on old-mac with the production Firebase
   config from `.env`.
 - The bot keeps no team library. In any lobby, its browser
