@@ -12,6 +12,9 @@ budget. A Sevens team needs a Veteran and keeps it in the other game
 types (SB-D4). A Street, Beach or Gutter Bowl draft has no Veteran, so it
 cannot play Sevens until it names one.
 
+A club keeps one team across every game type, with its own house rules for
+staff and a Gutter Bowl specialist. See [CLUB_MODE.md](CLUB_MODE.md).
+
 | Game type | Source | Pitch | Status |
 | --- | --- | --- | --- |
 | Sevens | GW, Spike! Journal 22 (2026) | 20 × 11 stadium, see [SEVENS_RULES.md](SEVENS_RULES.md) | complete |
@@ -39,7 +42,7 @@ played, and `GameConfig` reads its pitch from there.
 | ID | Rule | Status |
 | --- | --- | --- |
 | SB-D1 | Draft budget 600,000. 7 to 11 players. At most 4 players from positions with a limit below 0-12 (the non-Lineman limit). | ok |
-| SB-D2 | Team re-rolls cost double the roster's listed price. | ok |
+| SB-D2 | Team re-rolls cost double the roster's listed price. | differs: 100,000 for every roster, as in Sevens. A house rule so a club's re-rolls cost the same in every game type. |
 | SB-D3 | No Apothecary, Assistant Coaches or Cheerleaders. Dedicated Fans cost double. | ok |
 | SB-D4 | No Veteran: that is a Sevens rule. A Street Bowl draft cannot name one. A Sevens team that enters keeps its Veteran, with MA -1 and its one re-roll: a house rule so one roster can play every game type it meets. | differs |
 | SB-D5 | The only inducements are Magic Potions and the Halfling Master Chef. Each team gets one Magic Potion free; more cost 50,000 each with no limit. | ok |
@@ -116,7 +119,7 @@ recovery is done. A player who drank Tap Water waits for the next break.
 | ID | Rule | Status |
 | --- | --- | --- |
 | BB-D1 | Draft budget 600,000. 7 to 11 players. At most 4 positional players. | ok |
-| BB-D2 | Team re-rolls cost double the roster's listed price. | ok |
+| BB-D2 | Team re-rolls cost double the roster's listed price. | differs: 100,000 for every roster, as in Sevens. A house rule so a club's re-rolls cost the same in every game type. |
 | BB-D3 | No Apothecary. Cheerleaders and Assistant Coaches are allowed. Dedicated Fans only in a league. | ok |
 | BB-D4 | No Veteran. A Sevens team that enters keeps its Veteran, as in SB-D4. | differs |
 | BB-D5 | Inducements: Blitzer's Best Kegs, the Halfling Master Chef and the Souvenir Shop. | ok |
