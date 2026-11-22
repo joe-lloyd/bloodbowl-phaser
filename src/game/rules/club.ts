@@ -118,6 +118,7 @@ export function prepareClubSquad(team: Team, gameType: GameType): void {
   if (!team.club) return;
   const home = staysHome(team, gameType);
   team.players = team.players.filter((player) => !home.has(player.id));
+  team.club.matchSquad = team.players.map((player) => player.id);
   leaveBannedStaffHome(team, gameType);
 }
 
@@ -142,15 +143,20 @@ function renumberClashes(team: Team, homeIds: Set<string>): void {
 
 export function restoreClubHome(team: Team, stored: Team): void {
   if (!stored.club) return;
+  const removedAfterMatch = new Set(team.club?.matchSquad ?? []);
   const played = new Map(team.players.map((player) => [player.id, player]));
   const storedIds = new Set(stored.players.map((player) => player.id));
   const homeIds = new Set(
-    [...storedIds].filter((id) => !played.has(id))
+    [...storedIds].filter(
+      (id) => !played.has(id) && !removedAfterMatch.has(id)
+    )
   );
   team.players = [
-    ...stored.players.map(
-      (player) => played.get(player.id) ?? structuredClone(player)
-    ),
+    ...stored.players.flatMap((player) => {
+      const own = played.get(player.id);
+      if (own) return [own];
+      return homeIds.has(player.id) ? [structuredClone(player)] : [];
+    }),
     ...team.players.filter((player) => !storedIds.has(player.id)),
   ];
   renumberClashes(team, homeIds);

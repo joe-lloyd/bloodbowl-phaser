@@ -196,6 +196,8 @@ export interface ClubState {
   gutterSpecialistId?: string;
 
   gutterSitsOutId?: string;
+
+  matchSquad?: string[];
 }
 
 export interface Team {

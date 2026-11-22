@@ -242,6 +242,22 @@ describe("a club in a match", () => {
     expect(sevens.players).toHaveLength(7);
   });
 
+  it("leaves out a player the match removed, and brings back only who stayed home", () => {
+    const stored = club(1_000_000);
+    const hire = hireGutterSpecialist(stored, template("Dark Elf Blitzer"));
+    if (!hire.hired) throw new Error(hire.reason);
+    const matchCopy = structuredClone(stored);
+    prepareClubSquad(matchCopy, "sevens");
+    const removed = fixtureLineman(matchCopy).id;
+    matchCopy.players = matchCopy.players.filter((player) => player.id !== removed);
+
+    restoreClubHome(matchCopy, stored);
+    const ids = matchCopy.players.map((player) => player.id);
+    expect(ids).not.toContain(removed);
+    expect(ids).toContain(hire.player.id);
+    expect(matchCopy.players).toHaveLength(7);
+  });
+
   it("gives a Journeyman who took a home player's number a free one", () => {
     const stored = club(1_000_000);
     const hire = hireGutterSpecialist(stored, template("Dark Elf Blitzer"));

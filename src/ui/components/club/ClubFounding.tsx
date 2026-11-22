@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { RosterName } from "../../../types/Team";
 import { foundClub } from "../../../game/rules/club";
@@ -14,11 +14,23 @@ import {
 } from "../componentWarehouse/HudKit";
 import { RosterPicker } from "../TeamBuilder/RosterPicker";
 
+function useStillOnPage() {
+  const onPage = useRef(true);
+  useEffect(
+    () => () => {
+      onPage.current = false;
+    },
+    []
+  );
+  return onPage;
+}
+
 export function ClubFounding() {
   const navigate = useNavigate();
   const [name, setName] = useState("New Club");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const onPage = useStillOnPage();
 
   const found = async (rosterName: RosterName) => {
     if (saving) return;
@@ -26,7 +38,8 @@ export function ClubFounding() {
     const club = foundClub(name.trim() || "New Club", rosterName);
     try {
       await saveTeam(club);
-      await navigate(`/build-team/${club.id}?returnTo=/clubs/${club.id}`);
+      if (onPage.current)
+        await navigate(`/build-team/${club.id}?returnTo=/clubs/${club.id}`);
     } catch (cause) {
       setError(`The club could not be saved. ${errorText(cause)}`);
       setSaving(false);

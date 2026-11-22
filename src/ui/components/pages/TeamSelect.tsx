@@ -263,7 +263,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
                   </span>
                   {issues.length > 0 && (
                     <Chip tone="blood">
-                      Not {GAME_TYPE_LABELS[gameType]}
+                      {friendlyRefusal(team)
+                        ? "In a tournament"
+                        : `Not ${GAME_TYPE_LABELS[gameType]}`}
                     </Chip>
                   )}
                 </button>
