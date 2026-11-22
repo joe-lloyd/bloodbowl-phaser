@@ -403,8 +403,8 @@ export function afterMove(c: GameplayInteractionController, playerId: string): v
 type PlannedLeg = ReturnType<typeof planLegs>[number];
 
 async function legPath(c: GameplayInteractionController, player: Player, leg: PlannedLeg): Promise<MoveStep[] | null> {
-  if (!("climb" in leg)) return leg.path;
   await c.dice.landed();
+  if (!("climb" in leg)) return leg.path;
   const square = player.gridPosition;
   if (!square) return null;
   const answer = await c.confirmations.choose("climb", climbRequest({ deps: c, player, square, climb: leg.climb }));
