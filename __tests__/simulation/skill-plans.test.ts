@@ -750,11 +750,17 @@ describe("skill-aware tactical choices", () => {
       })
     ).toBeCloseTo(35 / 36);
     expect(
-      secureBallTarget(fieldPlayer(player), { x: 6, y: 5 }, [], "Pouring Rain")
+      secureBallTarget(fieldPlayer(player), { x: 6, y: 5 }, [], {
+        ...subject.ctx.gameService.getState(),
+        weather: "Pouring Rain",
+      })
     ).toBe(3);
     fieldPlayer(player).skills.push(getSkill(SkillType.BIG_HAND));
     expect(
-      secureBallTarget(fieldPlayer(player), { x: 6, y: 5 }, [], "Pouring Rain")
+      secureBallTarget(fieldPlayer(player), { x: 6, y: 5 }, [], {
+        ...subject.ctx.gameService.getState(),
+        weather: "Pouring Rain",
+      })
     ).toBe(2);
   });
 });

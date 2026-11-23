@@ -463,7 +463,12 @@ function handoffTo({
     handoverPace(c, carrier, mate);
   if (insufficientProgress(c, scoreChance, progress - w.advance * 2))
     return null;
-  const target = catchTarget(mate, board.theirs, board.weather, "handoff");
+  const target = catchTarget(
+    mate,
+    board.theirs,
+    board.gs.getState(),
+    "handoff"
+  );
 
   const approach = approachTo(carrier, mate, routes);
   if (approach === undefined) return null;
@@ -598,7 +603,12 @@ function bestThrow({
     const range = passRange(from, to);
     if (!range || from === to) continue;
     const thrower = { ...carrier, gridPosition: from };
-    const throwRoll = passTarget(thrower, board.theirs, board.weather, range);
+    const throwRoll = passTarget(
+      thrower,
+      board.theirs,
+      board.gs.getState(),
+      range
+    );
     const intercepted = notIntercepted(c, from, to);
     const transfer: RollTarget[] = [{ kind: "pass", target: throwRoll }];
     const chance =
@@ -662,7 +672,12 @@ function passTo({
     handoverPace(c, carrier, mate);
   if (insufficientProgress(c, scoreChance, progress - w.advance * 4))
     return null;
-  const catchRoll = catchTarget(mate, board.theirs, board.weather, "pass");
+  const catchRoll = catchTarget(
+    mate,
+    board.theirs,
+    board.gs.getState(),
+    "pass"
+  );
   const best = bestThrow({
     c: c,
     carrier: carrier,

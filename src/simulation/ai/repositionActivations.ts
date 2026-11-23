@@ -155,7 +155,7 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
       const s = { x, y };
       const range = isDeep({ c, from: at, s, receiver });
       if (!range) continue;
-      const target = passTarget(carrier, [], board.weather, range);
+      const target = passTarget(carrier, [], board.gs.getState(), range);
       const throws = hasSkill(carrier.skills, SkillType.PASS)
         ? withReroll(d6(target))
         : d6(target);

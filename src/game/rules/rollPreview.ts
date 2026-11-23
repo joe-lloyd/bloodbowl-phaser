@@ -2,13 +2,13 @@ import { type Player, hasTackleZone } from "../../types/Player";
 import { type BlockAnalysis } from "../../types/Actions";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { type PassRange } from "../controllers/PassController";
-import {
-  type Weather,
-  catchWeather,
-  pickUpWeather,
-  weatherEffects,
-} from "./weather";
+import { type Weather, weatherEffects } from "./weather";
 import { type GameState } from "../../types/GameState";
+import {
+  catchModifier,
+  passModifier,
+  pickUpModifier,
+} from "../kickoff/ballConditions";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
 import { rollLabel, requiredRoll } from "./rollTargets";
@@ -68,7 +68,7 @@ export function pickupTarget(
   player: Player,
   square: Square,
   opponents: Player[],
-  weather: Weather
+  state: GameState
 ): number {
   const marking = has(player, SkillType.BIG_HAND)
     ? 0
@@ -76,7 +76,7 @@ export function pickupTarget(
   return requiredRoll(
     player.stats.AG,
     -marking +
-      pickUpWeather(weather) +
+      pickUpModifier(state) +
       (has(player, SkillType.EXTRA_ARMS) ? 1 : 0)
   );
 }
@@ -85,10 +85,10 @@ export function secureBallTarget(
   player: Player,
   square: Square,
   opponents: Player[],
-  weather: Weather
+  state: GameState
 ): number {
   const marking = markingPlayers(square, opponents).length;
-  const rain = pickUpWeather(weather);
+  const rain = pickUpModifier(state);
   const modifier = has(player, SkillType.BIG_HAND)
     ? Math.max(0, rain)
     : rain - marking;
@@ -98,7 +98,7 @@ export function secureBallTarget(
 export function catchTarget(
   player: Player,
   opponents: Player[],
-  weather: Weather,
+  state: GameState,
   origin: "pass" | "handoff"
 ): number {
   const marking =
@@ -107,7 +107,7 @@ export function catchTarget(
       : 0;
   const modifier =
     -marking +
-    catchWeather(weather) -
+    catchModifier(state) -
     disturbing(player, opponents) +
     (has(player, SkillType.EXTRA_ARMS) ? 1 : 0) +
     (origin === "pass" && has(player, SkillType.DIVING_CATCH) ? 1 : 0);
@@ -117,7 +117,7 @@ export function catchTarget(
 export function passTarget(
   player: Player,
   opponents: Player[],
-  weather: Weather,
+  state: GameState,
   range: PassRange
 ): number {
   const marking =
@@ -132,7 +132,7 @@ export function passTarget(
     player.stats.PA,
     range.modifier -
       marking +
-      weatherEffects(weather).passingAbility +
+      passModifier(state, range.type) +
       bonus -
       disturbing(player, opponents)
   );
@@ -145,7 +145,9 @@ export type BlockSide = "attacker" | "defender";
 
 function strengthPart(base: number, total: number): string {
   const help = total - base;
-  return help === 0 ? String(total) : `${String(total)} (${String(base)} +${String(help)})`;
+  return help === 0
+    ? String(total)
+    : `${String(total)} (${String(base)} +${String(help)})`;
 }
 
 function strengthLine(

@@ -59,11 +59,11 @@ export function throwNeeds(
     ? c.gameService.getOpponents(receiver.teamId).map((p) => (p.id === passer.id ? passer : p))
     : [];
   const catchNeed = receiver
-    ? catchTarget(withDriveModifiers(receiver, state), catcherOpponents, state.weather, handoff ? "handoff" : "pass")
+    ? catchTarget(withDriveModifiers(receiver, state), catcherOpponents, state, handoff ? "handoff" : "pass")
     : null;
   return {
     range,
-    pass: passTarget(withDriveModifiers(passer, state), opponents, state.weather, range),
+    pass: passTarget(withDriveModifiers(passer, state), opponents, state, range),
     catch: catchNeed,
   };
 }

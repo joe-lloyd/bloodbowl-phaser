@@ -10,6 +10,7 @@ import {
 } from "../../../src/game/rules/rollPreview";
 import { createTestPlayer } from "../../fixtures/players";
 import { GameStateBuilder } from "../../utils/test-builders";
+import type { Weather } from "../../../src/game/rules/weather";
 import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 import { BlockValidator } from "../../../src/game/validators/BlockValidator";
@@ -27,12 +28,22 @@ const enemy = createTestPlayer({
   gridPosition: { x: 6, y: 5 },
 });
 
+const inWeather = (weather: Weather) => ({
+  ...new GameStateBuilder().build(),
+  weather,
+});
+
 describe("roll preview analysis", () => {
   it("includes marking and rain for pickups and catches", () => {
     expect(
-      pickupTarget(player, fixtureValue(player.gridPosition), [enemy], "Pouring Rain")
+      pickupTarget(
+        player,
+        fixtureValue(player.gridPosition),
+        [enemy],
+        inWeather("Pouring Rain")
+      )
     ).toBe(5);
-    expect(catchTarget(player, [enemy], "Nice", "handoff")).toBe(4);
+    expect(catchTarget(player, [enemy], inWeather("Nice"), "handoff")).toBe(4);
   });
   it("applies ball and passing skills before showing the target", () => {
     const skilled = {
@@ -42,9 +53,9 @@ describe("roll preview analysis", () => {
         getSkill(SkillType.NERVES_OF_STEEL),
       ],
     };
-    expect(catchTarget(skilled, [enemy], "Nice", "pass")).toBe(2);
+    expect(catchTarget(skilled, [enemy], inWeather("Nice"), "pass")).toBe(2);
     expect(
-      passTarget(skilled, [enemy], "Very Sunny", {
+      passTarget(skilled, [enemy], inWeather("Very Sunny"), {
         type: "Short Pass",
         modifier: -1,
         minDistance: 4,
@@ -81,7 +92,12 @@ describe("roll preview analysis", () => {
       stats: { ...enemy.stats, ST: 3 },
       skills: [getSkill(SkillType.DODGE)],
     };
-    const analysis = new BlockValidator().analyzeBlock({ attacker: player, defender: defender, allPlayers: [player, defender, assist], activeTeamId: "ours" });
+    const analysis = new BlockValidator().analyzeBlock({
+      attacker: player,
+      defender: defender,
+      allPlayers: [player, defender, assist],
+      activeTeamId: "ours",
+    });
     expect(analysis.attackerAssists.map((p) => p.number)).toEqual([8]);
     expect(blockPreviewLines(analysis, player, defender, "attacker")).toEqual(
       expect.arrayContaining([
@@ -94,7 +110,12 @@ describe("roll preview analysis", () => {
   });
   it("says the defender picks when they are stronger", () => {
     const strong = { ...enemy, stats: { ...enemy.stats, ST: 4 } };
-    const analysis = new BlockValidator().analyzeBlock({ attacker: player, defender: strong, allPlayers: [player, strong], activeTeamId: "ours" });
+    const analysis = new BlockValidator().analyzeBlock({
+      attacker: player,
+      defender: strong,
+      allPlayers: [player, strong],
+      activeTeamId: "ours",
+    });
     expect(
       blockPreviewLines(analysis, player, strong, "attacker").slice(0, 4)
     ).toEqual([

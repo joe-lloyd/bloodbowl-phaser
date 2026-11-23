@@ -79,7 +79,7 @@ function stepRolls({
         player,
         to,
         board.theirs,
-        board.weather
+        board.gs.getState()
       ),
     });
   return rolls;
@@ -198,7 +198,7 @@ function searchFor(board: Board, player: Player, securing: boolean): Search {
             player,
             square(ballKey),
             board.theirs,
-            board.weather
+            board.gs.getState()
           )
         )
       : 1;

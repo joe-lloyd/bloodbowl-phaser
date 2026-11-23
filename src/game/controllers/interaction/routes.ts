@@ -128,7 +128,7 @@ function planLegs(
       !c.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
         ? {
             square: state.ballPosition,
-            target: (securing ? secureBallTarget : pickupTarget)(mover, state.ballPosition, c.getOpposingPlayers(player.teamId), state.weather),
+            target: (securing ? secureBallTarget : pickupTarget)(mover, state.ballPosition, c.getOpposingPlayers(player.teamId), state),
             ...(securing ? { securing: true } : {}),
           }
         : undefined;
