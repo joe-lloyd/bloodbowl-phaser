@@ -4,6 +4,7 @@ import {
   catchTarget,
   interceptTarget,
   passTarget,
+  throwConditions,
 } from "../../game/rules/rollPreview";
 import {
   PassController,
@@ -40,7 +41,6 @@ import {
 } from "./activationContext";
 import { launchReady } from "./teammateActivations";
 import type { Weights } from "./weights";
-import { passModifier } from "../../game/kickoff/ballConditions";
 import { isWallSquare, obstacleKindAt } from "../../game/rules/pitchSquares";
 import { activeLayout, activeRules } from "../../game/variants/activeMatch";
 import type { Activation } from "./activations";
@@ -607,7 +607,7 @@ function bestThrow({
     const throwRoll = passTarget(
       thrower,
       board.theirs,
-      passModifier(board.gs.getState(), range.type),
+      throwConditions(board.gs.getState(), thrower, range.type),
       range
     );
     const intercepted = notIntercepted(c, from, to);

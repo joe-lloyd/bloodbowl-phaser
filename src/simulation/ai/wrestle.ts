@@ -121,15 +121,27 @@ function taken(board: Board, attacker: Player, square: Square): boolean {
   return !!there && there.id !== attacker.id;
 }
 
-function sidesteps(board: Board, attacker: Player, defender: Player): boolean {
+function anySquareOpen(
+  board: Board,
+  attacker: Player,
+  defender: Player
+): boolean {
   const from = defender.gridPosition;
-  if (!from || !has(defender, SkillType.SIDESTEP)) return false;
-  if (has(attacker, SkillType.GRAB)) return false;
-  return neighbours(from).some(
-    (square) =>
-      isOpenPushSquare(from, square) && !taken(board, attacker, square)
+  if (!from) return false;
+  const widened =
+    has(defender, SkillType.SIDESTEP) || has(attacker, SkillType.GRAB);
+  return (
+    widened &&
+    neighbours(from).some(
+      (square) =>
+        isOpenPushSquare(from, square) && !taken(board, attacker, square)
+    )
   );
 }
+
+const immovable = (defender: Player) =>
+  has(defender, SkillType.STAND_FIRM) ||
+  hasCondition(defender, PlayerCondition.ROOTED);
 
 function pinnedLanding(
   board: Board,
@@ -138,8 +150,8 @@ function pinnedLanding(
 ): Pinned | null {
   const from = defender.gridPosition;
   const by = attacker.gridPosition;
-  if (!from || !by || has(defender, SkillType.STAND_FIRM)) return null;
-  if (sidesteps(board, attacker, defender)) return null;
+  if (!from || !by || immovable(defender)) return null;
+  if (anySquareOpen(board, attacker, defender)) return null;
   let landing: Pinned | null = null;
   for (const square of pushBackSquares(by, from)) {
     const kind = pushLandingAt(from, square);

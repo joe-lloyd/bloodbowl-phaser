@@ -4,7 +4,11 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { type PassRange } from "../controllers/PassController";
 import { type Weather, weatherEffects } from "./weather";
 import { type GameState } from "../../types/GameState";
-import { catchModifier, pickUpModifier } from "../kickoff/ballConditions";
+import {
+  catchModifier,
+  passModifier,
+  pickUpModifier,
+} from "../kickoff/ballConditions";
 import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
@@ -90,7 +94,20 @@ export function secureBallTarget(
   const modifier = has(player, SkillType.BIG_HAND)
     ? Math.max(0, rain)
     : rain - marking;
-  return requiredRoll(2, modifier);
+  return requiredRoll(
+    2,
+    modifier + souvenirModifier(state, player.id, "pick-up")
+  );
+}
+
+export function throwConditions(
+  state: GameState,
+  thrower: Player,
+  type: PassRange["type"]
+): number {
+  return (
+    passModifier(state, type) + souvenirModifier(state, thrower.id, "pass")
+  );
 }
 
 export function catchTarget(

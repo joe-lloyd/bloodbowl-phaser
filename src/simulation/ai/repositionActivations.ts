@@ -1,5 +1,5 @@
 import { type FieldPlayer as Player } from "./board";
-import { passModifier } from "../../game/kickoff/ballConditions";
+
 import { PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "../../game/rules/throwTeammate";
@@ -21,7 +21,7 @@ import { type Route } from "./routes";
 import { PassController } from "../../game/controllers/PassController";
 import { type Context, crowd, gamble, tierFor } from "./activationContext";
 import { CORNERS, passRange } from "./ballActivations";
-import { passTarget } from "../../game/rules/rollPreview";
+import { passTarget, throwConditions } from "../../game/rules/rollPreview";
 import { d6, withReroll } from "./chance";
 import type { Activation, Role } from "./activations";
 import { moveFeedingCost } from "./feeding";
@@ -159,7 +159,7 @@ function deepSquares(c: Context, carrier: Player, add: AddSquare): void {
       const target = passTarget(
         carrier,
         [],
-        passModifier(board.gs.getState(), range.type),
+        throwConditions(board.gs.getState(), carrier, range.type),
         range
       );
       const throws = hasSkill(carrier.skills, SkillType.PASS)

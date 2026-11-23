@@ -8,7 +8,6 @@ import { activeRules } from "../../variants/activeMatch";
 import { rushModifier } from "../../inducements/matchInducements";
 import { requiredRoll } from "../../rules/rollTargets";
 import { weatherEffects } from "../../rules/weather";
-import { passModifier } from "../../kickoff/ballConditions";
 import { ballInTheAir } from "../../rules/ballInTheAir";
 import { PassController } from "../PassController";
 import {
@@ -17,6 +16,7 @@ import {
   catchTarget,
   foulPreview,
   passTarget,
+  throwConditions,
 } from "../../rules/rollPreview";
 import type { ActionPlanSummary, PlanStage } from "../../rules/actionPlan";
 import { BlockValidator } from "../../validators/BlockValidator";
@@ -67,7 +67,7 @@ export function throwNeeds(
     pass: passTarget(
       withDriveModifiers(passer, state),
       opponents,
-      bomb ? weatherEffects(state.weather).passingAbility : passModifier(state, range.type),
+      bomb ? weatherEffects(state.weather).passingAbility : throwConditions(state, passer, range.type),
       range
     ),
     catch: catchNeed,

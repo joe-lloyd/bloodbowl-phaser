@@ -4,6 +4,8 @@ import {
   pickupTarget,
   catchTarget,
   passTarget,
+  secureBallTarget,
+  throwConditions,
   blockPreviewLines,
   foulPreview,
   interceptTarget,
@@ -67,6 +69,25 @@ describe("roll preview analysis", () => {
       playerId: player.id,
     });
     expect([bare, catchTarget(player, [], state, "pass")]).toEqual([3, 2]);
+  });
+
+  it("adds a Sticky Bun to Secure the Ball and takes it off a pass", () => {
+    const rain = inWeather("Pouring Rain");
+    const square = fixtureValue(player.gridPosition);
+    const before = [
+      secureBallTarget(player, square, [], rain),
+      throwConditions(rain, player, "Quick Pass"),
+    ];
+    getVariantInducements(rain).souvenirs.push({
+      teamId: player.teamId,
+      souvenir: "Sticky Bun",
+      playerId: player.id,
+    });
+    expect([
+      ...before,
+      secureBallTarget(player, square, [], rain),
+      throwConditions(rain, player, "Quick Pass"),
+    ]).toEqual([3, 0, 2, -1]);
   });
 
   it("applies ball and passing skills before showing the target", () => {

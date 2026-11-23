@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fixtureValue } from "../../src/testing/fixtureValue";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { PlayerStatus } from "../../src/types/Player";
+import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { RosterName } from "../../src/types/Team";
 import {
@@ -236,7 +236,12 @@ describe("computer inducement choices", () => {
 function pinGame(
   format: MatchFormat,
   attacker: { x: number; y: number; skills?: SkillType[] },
-  defender: { x: number; y: number; skills?: SkillType[] }
+  defender: {
+    x: number;
+    y: number;
+    skills?: SkillType[];
+    conditions?: PlayerCondition[];
+  }
 ) {
   return new HeadlessGame({
     seed: 1,
@@ -265,6 +270,7 @@ function pinGame(
             x: defender.x,
             y: defender.y,
             skills: defender.skills ?? [],
+            conditions: defender.conditions ?? [],
           },
         ],
       },
@@ -280,7 +286,12 @@ function pushKnockdown(
     skills?: SkillType[];
     to?: { x: number; y: number };
   },
-  defender: { x: number; y: number; skills?: SkillType[] }
+  defender: {
+    x: number;
+    y: number;
+    skills?: SkillType[];
+    conditions?: PlayerCondition[];
+  }
 ): number {
   const game = pinGame(format, attacker, defender);
   const placed = fixtureValue(game.ctx.team1.players[0]);
@@ -333,6 +344,20 @@ describe("block dice against a Sidestep defender on the sideline", () => {
       push: faces.push.knockdown,
       prefersBothDown: faces["both-down"].rank > faces.push.rank,
     }).toEqual({ push: 0, prefersBothDown: true });
+  });
+
+  it("prices no pin when Grab lets the attacker use an open square, or the defender has taken root", () => {
+    const grabbed = pushKnockdown(
+      SEVENS_FORMAT,
+      { x: 0, y: 1, skills: [SkillType.BLOCK, SkillType.GRAB] },
+      { x: 0, y: 0, skills: [SkillType.SIDESTEP] }
+    );
+    const rooted = pushKnockdown(
+      SEVENS_FORMAT,
+      { x: 0, y: 1 },
+      { x: 0, y: 0, conditions: [PlayerCondition.ROOTED] }
+    );
+    expect([grabbed, rooted]).toEqual([0, 0]);
   });
 });
 
