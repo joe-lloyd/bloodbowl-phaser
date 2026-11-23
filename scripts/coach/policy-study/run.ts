@@ -30,6 +30,13 @@ import { processPool } from "./pool";
 import { sppValuesFor } from "../../../src/game/progression/MatchStats";
 import { createOpportunityLog } from "../policy-lab/evidence";
 import { labInventory } from "../policy-lab/teams";
+import { readGameType } from "../../../src/game/variants/gameTypes";
+import { gameTypeRules } from "../../../src/game/variants/gameTypeRules";
+import {
+  SEVENS_FORMAT,
+  type MatchFormat,
+} from "../../../src/game/variants/activeMatch";
+import { isVenue } from "../../../src/game/variants/pitchLayouts";
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) =>
@@ -43,13 +50,27 @@ const baseline = flag("baseline", "");
 if (!baseline) throw new Error("--baseline must name the frozen source root");
 const frozen = resolve(baseline);
 const lab = args.includes("--lab");
-const labVariants = lab ? labInventory() : null;
-const variants = labVariants ?? advancedInventory();
+const gameType = readGameType(flag("game-type", "sevens"));
+const venues = gameTypeRules(gameType).venues;
+const venueFlag = flag("venue", "");
+if (venueFlag && !(isVenue(venueFlag) && venues.some((v) => v === venueFlag)))
+  throw new Error(`--venue must be one of ${venues.join(", ")}`);
+const formatFor = (pairIndex: number): MatchFormat => ({
+  gameType,
+  venue:
+    venues.find((v) => v === venueFlag) ??
+    venues[pairIndex % venues.length] ??
+    venues[0],
+});
+const labVariants = lab ? labInventory(gameType) : null;
+const variants = labVariants ?? advancedInventory(gameType);
 const byId = new Map(variants.map((v) => [v.id, v]));
 const snapshots = new Map(labVariants?.map((v) => [v.id, v.team]));
 const getTeam = (id: string) => {
   const snapshot = snapshots.get(id);
-  return snapshot ? structuredClone(snapshot) : teamFromVariant(byId.get(id)!);
+  return snapshot
+    ? structuredClone(snapshot)
+    : teamFromVariant(byId.get(id)!, gameType);
 };
 const opponent = flag("opponent", "planner");
 if (!["planner", "heuristic", "hard", "legend"].includes(opponent))
@@ -122,6 +143,19 @@ function track(coach: Coach, collectPlans = false) {
   };
 }
 
+interface FormatActivator {
+  activateMatchFormat: (format: MatchFormat) => void;
+}
+
+function activatesFormats(module: unknown): module is FormatActivator {
+  return (
+    typeof module === "object" &&
+    module !== null &&
+    "activateMatchFormat" in module &&
+    typeof module.activateMatchFormat === "function"
+  );
+}
+
 if (args.includes("--worker")) {
   const module = await import(
     pathToFileURL(join(frozen, "src/simulation/commands/shared.ts")).href
@@ -130,12 +164,18 @@ if (args.includes("--worker")) {
     ...module.makeCoach(opponent, []),
     name: "planner-frozen",
   };
+  const frozenFormat: unknown = await import(
+    pathToFileURL(join(frozen, "src/game/variants/activeMatch.ts")).href
+  );
+  if (!activatesFormats(frozenFormat))
+    throw new Error("The frozen tree cannot switch game types");
   process.on("message", async (job: PolicyJob | false) => {
     if (!job) {
       process.disconnect();
       return;
     }
     try {
+      frozenFormat.activateMatchFormat(job.format ?? SEVENS_FORMAT);
       const candidate = track(candidateCoach(), lab);
       const old = track(legacy);
       const coaches: [Coach, Coach] =
@@ -256,6 +296,13 @@ if (args.includes("--worker")) {
       .slice(0, 96);
   }
   jobs = withInducementFlag(jobs, args);
+  if (gameType !== "sevens") {
+    const pairs = [...new Set(jobs.map((j) => j.pair))];
+    jobs = jobs.map((j) => ({
+      ...j,
+      format: formatFor(pairs.indexOf(j.pair)),
+    }));
+  }
   const workers = Number(flag("workers", "8"));
   if (!Number.isSafeInteger(workers) || workers < 1)
     throw new Error("Invalid worker count");
@@ -276,6 +323,7 @@ if (args.includes("--worker")) {
     baselineDigest,
     baselineRevision: flag("baseline-revision", "unspecified"),
     revision: flag("revision", "unspecified"),
+    gameType,
     smoke,
     opponent,
     candidate: candidateKind,

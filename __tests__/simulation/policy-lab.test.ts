@@ -264,11 +264,36 @@ describe("repeatable Sevens policy lab", () => {
       };
       const result = await playStudyGame(job, out);
       const trace = join(out, "traces", job.id + ".json.gz");
-      const inducements =
-        openTrace(trace).game.ctx.gameService.getState().inducements;
-      expect(inducements?.budgets).toEqual({ team1: 130_000, team2: 0 });
+      const opening = openTrace(trace);
+      const inducements = () =>
+        opening.game.ctx.gameService.getState().inducements;
+      expect(inducements()).toBeUndefined();
+      const steps = opening.recording.steps;
+      const setup = steps.findIndex(
+        (step) => step.command.type === "start-setup"
+      );
+      expect(steps.slice(0, setup + 1).map((step) => step.command)).toEqual([
+        {
+          type: "select-inducement",
+          teamId: "team1",
+          inducement: "Halfling Master Chef",
+          quantity: 1,
+        },
+        {
+          type: "select-inducement",
+          teamId: "team1",
+          inducement: "Part-time Assistant Coach",
+          quantity: 2,
+        },
+        { type: "confirm-inducements", teamId: "team1" },
+        { type: "confirm-inducements", teamId: "team2" },
+        { type: "start-setup", kickingTeamId: "team2" },
+      ]);
+      for (const step of steps.slice(0, setup))
+        await opening.game.execute(step.command);
+      expect(inducements()?.budgets).toEqual({ team1: 130_000, team2: 0 });
       expect(
-        inducements?.inventory.map(
+        inducements()?.inventory.map(
           (e) => `${e.ownerTeamId}: ${e.inducement} x${String(e.quantity)}`
         )
       ).toEqual([
@@ -277,16 +302,10 @@ describe("repeatable Sevens policy lab", () => {
       ]);
       expect(result.completed).toBe(true);
       expect(result.initialReceivingSide).toBe(0);
-      const opening = openTrace(trace);
-      const chefHalf = () =>
-        opening.game.ctx.gameService.getState().inducements?.masterChef?.half;
+      const chefHalf = () => inducements()?.masterChef?.half;
       expect(chefHalf()).toBeUndefined();
-      const [first] = opening.recording.steps;
-      expect(first?.command).toEqual({
-        type: "start-setup",
-        kickingTeamId: "team2",
-      });
-      if (first) await opening.game.execute(first.command);
+      const start = steps[setup];
+      if (start) await opening.game.execute(start.command);
       expect([chefHalf(), opening.game.snapshot().phase]).toEqual([
         "h1",
         "SETUP",
@@ -301,6 +320,56 @@ describe("repeatable Sevens policy lab", () => {
         chefRolls(result.rolls),
         chefRolls(replay.observations.rolls),
       ]).toEqual([2, 2]);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("plays a Street Bowl game with one free potion a team and replays it", async () => {
+    const out = mkdtempSync(join(tmpdir(), "bb7-lab-street-"));
+    try {
+      const job: StudyJob = {
+        id: "street-potions",
+        cohort: "calibration",
+        pair: "amazon-chaos-dwarf",
+        seed: 31_000_000,
+        templates: ["amazon-amazons-0rr", "chaos-dwarf-minotaur-1-reroll"],
+        coaches: ["heuristic", "heuristic"],
+        inducements: true,
+        format: { gameType: "street-bowl", venue: "street" },
+      };
+      const result = await playStudyGame(job, out);
+      const trace = join(out, "traces", job.id + ".json.gz");
+      const { recording, game } = openTrace(trace);
+      const inducementSteps = new Set([
+        "select-inducement",
+        "confirm-inducements",
+        "choose-inducement",
+      ]);
+      const kickoff = recording.steps.findIndex(
+        (step) => !inducementSteps.has(step.command.type)
+      );
+      const opening = recording.steps
+        .slice(0, kickoff + 1)
+        .map((step) => step.command.type);
+      const replay = await replayStudyTrace(trace);
+      expect({
+        gameType: game.ctx.gameService.getState().gameType,
+        pitch: [game.ctx.gameService.getState().venue, result.completed],
+        opening,
+        counters: replay.observations.counters,
+      }).toEqual({
+        gameType: "street-bowl",
+        pitch: ["street", true],
+        opening: [
+          "confirm-inducements",
+          "confirm-inducements",
+          "choose-inducement",
+          "choose-inducement",
+          "coin-flip",
+        ],
+        counters: result.counters,
+      });
     } finally {
       rmSync(out, { recursive: true, force: true });
     }

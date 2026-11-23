@@ -1,5 +1,6 @@
 import type { TeamPlayStats, Finding } from "../../../src/simulation/runMatch";
 import type { CoachName } from "../../../src/simulation/commands/shared";
+import type { MatchFormat } from "../../../src/game/variants/activeMatch";
 
 export interface StudyJob {
   id: string;
@@ -11,6 +12,7 @@ export interface StudyJob {
   receivingSide?: 0 | 1;
   persistentInjuries?: boolean;
   inducements?: boolean;
+  format?: MatchFormat;
 }
 
 export interface SkillObservation {

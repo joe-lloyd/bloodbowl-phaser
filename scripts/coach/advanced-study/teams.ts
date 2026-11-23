@@ -17,6 +17,10 @@ import {
 import { calculateTeamValue } from "../../../src/types/Team";
 import type { Player } from "../../../src/types/Player";
 import { createCoachRng } from "../../../src/simulation/rng";
+import {
+  DEFAULT_GAME_TYPE,
+  type GameType,
+} from "../../../src/game/variants/gameTypes";
 
 export interface Allocation {
   player: number;
@@ -72,8 +76,11 @@ function learn(player: Player, allocation: Allocation) {
   applyAdvancement(player, { kind, skill: allocation.skill });
 }
 
-export function teamFromVariant(variant: Variant) {
-  const team = createComputerTeamFromTemplate(variant.template);
+export function teamFromVariant(
+  variant: Variant,
+  gameType: GameType = DEFAULT_GAME_TYPE
+) {
+  const team = createComputerTeamFromTemplate(variant.template, { gameType });
   for (const allocation of variant.allocations)
     learn(playerAt(team.players, allocation.player), allocation);
   team.teamValue = calculateTeamValue(team);
@@ -84,14 +91,11 @@ export function teamFromVariant(variant: Variant) {
 
 function specializedFit(p: Player, skill: SkillType): number | undefined {
   const canThrow = hasSkill(p.skills, SkillType.THROW_TEAM_MATE);
-  if (THROW_BOOSTS.includes(skill))
-    return canThrow ? 120 : -1000;
+  if (THROW_BOOSTS.includes(skill)) return canThrow ? 120 : -1000;
   if (skill === SkillType.LETHAL_FLIGHT)
     return hasSkill(p.skills, SkillType.RIGHT_STUFF) ? 120 : -1000;
   if (skill === SkillType.VIOLENT_INNOVATOR)
-    return p.skills.some((s) => WEAPONS.includes(s.type))
-      ? 100
-      : -1000;
+    return p.skills.some((s) => WEAPONS.includes(s.type)) ? 100 : -1000;
   if (skill === SkillType.MULTIPLE_BLOCK && p.stats.ST < 4) return -100;
   return undefined;
 }
@@ -100,8 +104,7 @@ function fit(p: Player, skill: SkillType): number {
   const specific = specializedFit(p, skill);
   if (specific !== undefined) return specific;
   const category = SKILL_DEFINITIONS[skill].category;
-  if (MUTATIONS.includes(skill))
-    return (7 - p.stats.AG) * 12 + p.stats.MA * 3;
+  if (MUTATIONS.includes(skill)) return (7 - p.stats.AG) * 12 + p.stats.MA * 3;
   if (HOLDERS.includes(skill)) return p.stats.ST * 18;
   if (category === SkillCategory.PASSING)
     return p.stats.PA > 0 ? (7 - p.stats.PA) * 14 : -1000;
@@ -112,11 +115,12 @@ function fit(p: Player, skill: SkillType): number {
   return p.stats.MA * 4 + p.stats.ST * 4;
 }
 
-export function advancedInventory() {
+export function advancedInventory(gameType: GameType = DEFAULT_GAME_TYPE) {
   const variants: Variant[] = [];
   const coverage = new Map<SkillType, number>();
-  for (const template of getComputerTeamTemplates()) {
-    const base = createComputerTeamFromTemplate(template.id);
+  const templates = getComputerTeamTemplates({ gameType });
+  for (const template of templates) {
+    const base = createComputerTeamFromTemplate(template.id, { gameType });
     variants.push({
       id: template.id + "--base",
       template: template.id,
@@ -127,25 +131,39 @@ export function advancedInventory() {
       sppSpent: 0,
     });
   }
-  const templates = getComputerTeamTemplates();
   for (const replicate of [0, 1]) {
     templates.forEach((template, index) =>
       variants.push(
-        ...developedVariants(template.id, index, replicate, coverage)
+        ...developedVariants({
+          templateId: template.id,
+          index,
+          replicate,
+          coverage,
+          gameType,
+        })
       )
     );
   }
   return variants;
 }
 
-function developedVariants(
-  templateId: string,
-  index: number,
-  replicate: number,
-  coverage: Map<SkillType, number>
-): Variant[] {
+interface DevelopedVariantsArgs {
+  templateId: string;
+  index: number;
+  replicate: number;
+  coverage: Map<SkillType, number>;
+  gameType: GameType;
+}
+
+function developedVariants({
+  templateId,
+  index,
+  replicate,
+  coverage,
+  gameType,
+}: DevelopedVariantsArgs): Variant[] {
   const variants: Variant[] = [];
-  const team = createComputerTeamFromTemplate(templateId);
+  const team = createComputerTeamFromTemplate(templateId, { gameType });
   const allocations: Allocation[] = [];
   for (let slot = 0; slot < 6; slot++) {
     const options = team.players
@@ -183,7 +201,7 @@ function developedVariants(
     allocations.push(allocation);
     coverage.set(allocation.skill, (coverage.get(allocation.skill) ?? 0) + 1);
   }
-  const randomTeam = createComputerTeamFromTemplate(templateId);
+  const randomTeam = createComputerTeamFromTemplate(templateId, { gameType });
   const rng = createCoachRng(8_000_000 + replicate * 1000 + index);
   const random = allocations.map((allocation) => {
     const player = playerAt(randomTeam.players, allocation.player);

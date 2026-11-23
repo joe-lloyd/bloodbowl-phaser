@@ -283,6 +283,7 @@ export async function prepareSimInducements(
   game: HeadlessGame,
   sold: boolean
 ): Promise<void> {
+  if (game.ctx.gameService.getState().inducements) return;
   if (sold) return grantSimInducements(game);
   if (startingFreeInducements(simGameType(game)).length === 0) return;
   await commitSimInducements(game, []);
