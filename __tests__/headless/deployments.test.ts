@@ -160,6 +160,25 @@ describe("deployments", () => {
       .sort();
   }
 
+  it("stands the Blitz line's flankers on the inner row of each Wide Zone", () => {
+    const flankRows = (format: MatchFormat) =>
+      withMatchFormat(format, () =>
+        fixtureValue(
+          new FormationManager()
+            .getBuiltInFormations(true)
+            .find((f) => f.name === "Kick: Blitz line")
+        )
+          .positions.filter((p) => p.role === "flank")
+          .map((p) => p.y)
+          .sort((a, b) => a - b)
+      );
+    expect({
+      sevens: flankRows({ gameType: "sevens", venue: "stadium" }),
+      beach: flankRows({ gameType: "beach-bowl", venue: "beach" }),
+      gutter: flankRows({ gameType: "gutter-bowl", venue: "gutter-street" }),
+    }).toEqual({ sevens: [1, 9], beach: [1, 7], gutter: [3, 11] });
+  });
+
   it("kicks with a fast line in Sevens but a sturdy one where the lines touch", async () => {
     expect({
       sevens: await kickingBunker({ gameType: "sevens", venue: "stadium" }),

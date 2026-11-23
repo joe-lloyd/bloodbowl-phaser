@@ -5,7 +5,10 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { playerValue } from "../../types/Team";
 import { rushAllowance } from "../../game/skills/movement";
 import { BlockValidator } from "../../game/validators/BlockValidator";
-import { blockOdds, casualtyChance, fallCasualtyChance } from "./chance";
+import { blockOdds, casualtyChance, d6, fallCasualtyChance } from "./chance";
+import { activeRules } from "../../game/variants/activeMatch";
+import { requiredRoll } from "../../game/rules/rollTargets";
+import { weatherEffects } from "../../game/rules/weather";
 import {
   type Board,
   type Square,
@@ -86,10 +89,18 @@ export function lateMoveValue({
     toGoal(c.board, carrier.gridPosition) <= nextTurnReach(carrier)
   )
     return ordinary;
-  if (toGoal(c.board, route.to) > nextTurnReach(carrier))
-    return ordinary * c.w.lateProgress;
+  const left = toGoal(c.board, route.to);
+  if (left > nextTurnReach(carrier)) return ordinary * c.w.lateProgress;
+  const rushes = Math.max(0, left - carrier.stats.MA);
+  return (
+    ordinary + route.chance * rushChance(c.board) ** rushes * c.w.touchdown
+  );
+}
 
-  return ordinary + route.chance * c.w.touchdown;
+function rushChance(board: Board): number {
+  return d6(
+    requiredRoll(activeRules().rushTarget, weatherEffects(board.weather).rush)
+  );
 }
 
 export function markRisk(c: Context, carrier: Player, at: Square): number {
