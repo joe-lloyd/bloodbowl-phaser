@@ -272,7 +272,7 @@ export function interceptions(
 function throwTargetPreview(
 { c,actor,from,target,square,opponents }: { c: GameplayInteractionController; actor: Player; from: Square; target: Player; square: Square; opponents: Player[]; }): { preview: TargetRollPreview; aim: StepPrompt } {
   const handoff = c.currentActionMode === "handoff";
-  const needs = throwNeeds(c, { passer: actor, receiver: target, square, handoff, bomb: c.currentActionMode === "throwBomb" });
+  const needs = throwNeeds(c, { passer: actor, receiver: target, square, handoff, bomb: false });
   const catchNeeds = needs.catch ?? 6;
   const lines = handoff ? [] : [rollLabel(needs.range.type, needs.pass)];
   lines.push(rollLabel("Catch", catchNeeds));
@@ -285,7 +285,7 @@ function throwTargetPreview(
       ];
   const intercepts = handoff
     ? { lines: [], rolls: [] }
-    : interceptions({ c,actor,from,square,opponents,bomb: c.currentActionMode === "throwBomb" });
+    : interceptions({ c,actor,from,square,opponents });
   lines.push(...intercepts.lines);
   c.pitch.drawInterceptionRolls(intercepts.rolls);
   return {

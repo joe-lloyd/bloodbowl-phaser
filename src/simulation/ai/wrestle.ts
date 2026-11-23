@@ -144,15 +144,18 @@ function anySquareOpen(
   );
 }
 
-const immovable = (defender: Player) =>
-  has(defender, SkillType.STAND_FIRM) ||
-  hasCondition(defender, PlayerCondition.ROOTED);
+function immovable({ attacker, defender, blitz }: Matchup): boolean {
+  if (hasCondition(defender, PlayerCondition.ROOTED)) return true;
+  const juggernaut = !!blitz && has(attacker, SkillType.JUGGERNAUT);
+  const distracted = hasCondition(defender, PlayerCondition.DISTRACTED);
+  return has(defender, SkillType.STAND_FIRM) && !juggernaut && !distracted;
+}
 
 function pinnedLanding(board: Board, matchup: Matchup): Pinned | null {
   const { attacker, defender } = matchup;
   const from = defender.gridPosition;
   const by = attacker.gridPosition;
-  if (!from || !by || immovable(defender)) return null;
+  if (!from || !by || immovable(matchup)) return null;
   if (anySquareOpen(board, matchup)) return null;
   let landing: Pinned | null = null;
   for (const square of pushBackSquares(by, from)) {

@@ -206,6 +206,7 @@ function markerHit(
     attacker: plan.player,
     target: intent.target,
     route: intent.kind === "blitz" ? intent.route : null,
+    blitz: intent.kind === "blitz",
   };
 }
 

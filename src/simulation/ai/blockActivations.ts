@@ -205,6 +205,7 @@ export interface MarkerHit {
   attacker: Player;
   target: Player;
   route: Route | null;
+  blitz: boolean;
 }
 
 export function hitKeepsTurnChance(c: Context, hit: MarkerHit): number {
@@ -214,7 +215,7 @@ export function hitKeepsTurnChance(c: Context, hit: MarkerHit): number {
     attacker: hit.attacker,
     target: hit.target,
     from: hit.route?.to ?? hit.attacker.gridPosition,
-    blitz: hit.route !== null,
+    blitz: hit.blitz,
   });
   const reach = blitzReach({
     board: c.board,
@@ -317,7 +318,7 @@ function bestHitOn(hits: Activation[], carrier: Player): Activation | null {
 interface AssistRouteArgs {
   c: Context;
   player: Player;
-  hit: { player: Player; from: Square; before: BlockOdds };
+  hit: { player: Player; from: Square; before: BlockOdds; blitz: boolean };
   carrier: Player;
 }
 
@@ -345,6 +346,7 @@ function assistRoute({
       target: carrier,
       from: from,
       helper: { player, at },
+      blitz: hit.blitz,
     });
     const gain =
       (odds.knockdown - before.knockdown) * w.carrierKnockdown +
@@ -363,17 +365,20 @@ export function assistActivations(
   if (!carrier || carrier.teamId === board.us) return [];
   const hit = bestHitOn(hits, carrier);
   if (!hit) return [];
+  const blitz = hit.intent.kind === "blitz";
   const from =
     (hit.intent.kind === "blitz" ? hit.intent.route?.to : null) ??
     hit.player.gridPosition;
   const thrown = {
     player: hit.player,
     from,
+    blitz,
     before: blockFrom({
       c: c,
       attacker: hit.player,
       target: carrier,
       from: from,
+      blitz,
     }),
   };
   const out: Activation[] = [];
@@ -418,6 +423,7 @@ export function carrierBlitzActivations(
       attacker: carrier,
       target: marker,
       from: carrier.gridPosition,
+      blitz: true,
     });
     const value =
       odds.knockdown * targetValue(c, carrier, marker) -

@@ -372,11 +372,32 @@ describe("block dice against a Sidestep defender on the sideline", () => {
         conditions: [PlayerCondition.DISTRACTED],
       }
     );
-    expect({ grabbed, rooted, grabBlitz, distracted }).toEqual({
+    const standFirm = (attacker: { skills: SkillType[]; blitz: boolean }) =>
+      pushKnockdown(
+        SEVENS_FORMAT,
+        { x: 0, y: 1, ...attacker },
+        { x: 0, y: 0, skills: [SkillType.STAND_FIRM] }
+      );
+    expect({
+      grabbed,
+      rooted,
+      grabBlitz,
+      distracted,
+      standFirmBlock: standFirm({
+        skills: [SkillType.JUGGERNAUT],
+        blitz: false,
+      }),
+      standFirmJuggernautBlitz: standFirm({
+        skills: [SkillType.JUGGERNAUT],
+        blitz: true,
+      }),
+    }).toEqual({
       grabbed: 0,
       rooted: 0,
       grabBlitz: 1,
       distracted: 1,
+      standFirmBlock: 0,
+      standFirmJuggernautBlitz: 1,
     });
   });
 });
@@ -411,5 +432,55 @@ describe("push choices on a walled pitch", () => {
       pushKnockdown(STREET, { x: 0, y: 1 }, { x: 0, y: 0 }),
       fixtureValue(candidates[index ?? -1]).label,
     ]).toEqual([1, "-1,-1"]);
+  });
+});
+
+describe("a carrier's Blitz on a marker", () => {
+  it("prices a Grab carrier's Blitz by the Blitz's push rules, so the crowd removal counts", async () => {
+    const subject = new HeadlessGame({
+      seed: 1,
+      scenario: {
+        id: "grab-carrier-blitz",
+        name: "A Grab carrier blitzes its marker on the sideline",
+        description: "",
+        setup: {
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+          activeTeam: "team1",
+          turn: 2,
+          teamRerolls: { team1: 0, team2: 0 },
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 0,
+              y: 1,
+              hasBall: true,
+              stats: { ST: 4 },
+              skills: [SkillType.GRAB],
+            },
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 0,
+              y: 0,
+              skills: [SkillType.BLOCK, SkillType.DODGE],
+            },
+          ],
+        },
+      },
+    });
+    const point = await enumerateDecision(subject, null);
+    const blitzes = activations({
+      board: readBoard(subject, "team1"),
+      w: DEFAULT_WEIGHTS,
+      available: availableActions(point.candidates),
+    }).filter(
+      (a) =>
+        a.action === "blitz" &&
+        a.intent.kind === "blitz" &&
+        a.intent.route === null
+    );
+    expect(blitzes.map((a) => Math.round(a.value))).toEqual([16]);
   });
 });

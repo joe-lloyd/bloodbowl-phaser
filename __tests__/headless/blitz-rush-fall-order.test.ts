@@ -119,3 +119,47 @@ describe("a failed Rush for a Blitz's attack", () => {
     ]);
   });
 });
+
+describe("the Rush for a Blitz's attack", () => {
+  it("takes Drunkard's -1, as a Rush while moving does", async () => {
+    const rushOnTwo = async (skills: SkillType[]) => {
+      const game = new HeadlessGame({
+        seed: 4,
+        scenario: {
+          ...scenario,
+          setup: {
+            ...scenario.setup,
+            team1Placements: [
+              { playerIndex: 0, x: 5, y: 5, skills },
+              { playerIndex: 1, x: 3, y: 3 },
+            ],
+          },
+        },
+      });
+      game.ctx.team1.rerolls = 0;
+      const attacker = fixtureValue(game.ctx.team1.players[0]);
+      await game.execute({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "blitz",
+      });
+      game.ctx.gameService
+        .getState()
+        .turn.movementUsed.set(attacker.id, attacker.stats.MA);
+      forceDice(game.ctx.rng, [2, 3, 3, 3, 3, 3, 3, 3]);
+      const names = await eventNamesUntilSettled(game, () =>
+        game.ctx.gameService.rollBlockDice({
+          attackerId: attacker.id,
+          defenderId: fixtureValue(game.ctx.team2.players[0]).id,
+          numDice: 1,
+          isAttackerChoice: true,
+        })
+      );
+      return names.includes("playerKnockedDown") ? "fell" : "rushed";
+    };
+    expect({
+      plain: await rushOnTwo([]),
+      drunkard: await rushOnTwo([SkillType.DRUNKARD]),
+    }).toEqual({ plain: "rushed", drunkard: "fell" });
+  });
+});
