@@ -113,9 +113,10 @@ describe("no odds on a coach's screen", () => {
     );
     expect(foul.lines.join("\n")).not.toMatch(ODDS);
     expect(foul.lines).toContain("Lone Fouler may re-roll the armour roll");
-    expect(interceptPreviewLine(target, [fouler], "Nice").line).not.toMatch(
-      ODDS
-    );
+    expect(
+      interceptPreviewLine(target, [fouler], fx.services.gameService.getState())
+        .line
+    ).not.toMatch(ODDS);
     ServiceContainer.reset();
   });
 

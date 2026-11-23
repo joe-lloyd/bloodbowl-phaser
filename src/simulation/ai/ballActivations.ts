@@ -6,11 +6,8 @@ import {
   passTarget,
   throwConditions,
 } from "../../game/rules/rollPreview";
-import {
-  PassController,
-  type PassRange,
-  type PassType,
-} from "../../game/controllers/PassController";
+import { PassController } from "../../game/controllers/PassController";
+import { passRange } from "./passRange";
 import {
   pitchHeight,
   type Square,
@@ -531,24 +528,6 @@ export function handoffActivations(c: Context, carrier: Player): Activation[] {
   return out;
 }
 
-const PASS_TYPES = [
-  "Quick Pass",
-  "Short Pass",
-  "Long Pass",
-  "Long Bomb",
-] as const satisfies readonly PassType[];
-
-export function passRange(from: Square, to: Square): PassRange | null {
-  const value = PassController.rangeValue(from, to);
-  if (value === null) return null;
-  return {
-    type: PASS_TYPES[value],
-    modifier: -value,
-    minDistance: 0,
-    maxDistance: 0,
-  };
-}
-
 function offLine(p: Square, a: Square, b: Square): number {
   const [dx, dy] = [b.x - a.x, b.y - a.y];
   const length = dx * dx + dy * dy;
@@ -569,7 +548,8 @@ function notIntercepted(c: Context, from: Square, to: Square): number {
         distance(o.gridPosition, from) > 0
     )
     .reduce(
-      (p, o) => p * (1 - d6(interceptTarget(o, -3, board.ours, board.weather))),
+      (p, o) =>
+        p * (1 - d6(interceptTarget(o, -3, board.ours, board.gs.getState()))),
       1
     );
 }

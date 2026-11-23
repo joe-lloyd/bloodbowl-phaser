@@ -21,7 +21,7 @@ async function throwPast(seed: number) {
   const preview = interceptPreviewLine(
     fixtureValue(interceptor),
     passingTeam,
-    "Nice"
+    game.ctx.gameService.getState()
   );
   await game.execute({
     type: "declare-action",

@@ -6,6 +6,7 @@ import { type Weather, weatherEffects } from "./weather";
 import { type GameState } from "../../types/GameState";
 import {
   catchModifier,
+  lostBallHandling,
   passModifier,
   pickUpModifier,
 } from "../kickoff/ballConditions";
@@ -34,9 +35,9 @@ const has = (player: Player, skill: SkillType) =>
 
 export function dodgeTarget(
   player: Player,
-  from: Square,
-  to: Square,
-  opponents: Player[]
+  { from, to }: { from: Square; to: Square },
+  opponents: Player[],
+  bonus = 0
 ): number {
   const marking = has(player, SkillType.STUNTY)
     ? 0
@@ -46,7 +47,8 @@ export function dodgeTarget(
     has(p, SkillType.PREHENSILE_TAIL)
   );
   const modifier =
-    -marking -
+    bonus -
+    marking -
     (tail ? 1 : 0) +
     (has(player, SkillType.TITCHY) ? 1 : 0) +
     (has(player, SkillType.TWO_HEADS) ? 1 : 0);
@@ -295,12 +297,18 @@ export function interceptTarget(
   interceptor: Player,
   corridorModifier: number,
   passingTeam: Player[],
-  weather: Weather
+  state: GameState
 ): number {
   return requiredRoll(
     interceptor.stats.AG,
-    interceptModifiers(interceptor, corridorModifier, passingTeam, weather)
-      .total
+    interceptModifiers(
+      interceptor,
+      corridorModifier,
+      passingTeam,
+      state.weather
+    ).total +
+      lostBallHandling(state) +
+      souvenirModifier(state, interceptor.id, "intercept")
   );
 }
 
@@ -310,10 +318,10 @@ export const interceptNeed = (interceptor: Player, modifier: number): number =>
 export function interceptPreviewLine(
   interceptor: Player,
   passingTeam: Player[],
-  weather: Weather
+  state: GameState
 ): { line: string; accurate: number; inaccurate: number } {
-  const accurate = interceptTarget(interceptor, -3, passingTeam, weather);
-  const inaccurate = interceptTarget(interceptor, -2, passingTeam, weather);
+  const accurate = interceptTarget(interceptor, -3, passingTeam, state);
+  const inaccurate = interceptTarget(interceptor, -2, passingTeam, state);
   const name = `Intercept #${String(interceptor.number)}`;
   const line =
     accurate === inaccurate

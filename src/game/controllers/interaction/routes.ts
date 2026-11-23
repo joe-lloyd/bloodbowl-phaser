@@ -1,4 +1,5 @@
 import { isOwnActor } from "./players";
+import { souvenirModifier } from "../../inducements/souvenirModifiers";
 import { adjacentSquares } from "./squares";
 import { GameEventNames } from "@/types/events";
 import { type Player, PlayerStatus, hasTackleZone } from "@/types/Player";
@@ -141,6 +142,7 @@ function planLegs(
       c.gameService.getMovementUsed(player.id) +
       (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
     rushModifier: rushModifier(state, player),
+    dodgeModifier: souvenirModifier(state, player.id, "dodge"),
 
     ...(pickup === undefined ? {} : { pickup }),
   });

@@ -44,6 +44,7 @@ export interface LegContext {
   used: number;
 
   rushModifier: number;
+  dodgeModifier?: number;
   pickup?: { square: Square; target: number; securing?: boolean };
 }
 
@@ -79,7 +80,12 @@ function riskAt({
   if (markingPlayers(from, ctx.opponents).length > 0)
     rolls.push({
       type: "dodge",
-      target: dodgeTarget(ctx.player, from, step, ctx.opponents),
+      target: dodgeTarget(
+        ctx.player,
+        { from, to: step },
+        ctx.opponents,
+        ctx.dodgeModifier ?? 0
+      ),
     });
   if (crossing === "reckless")
     rolls.push({ type: "barricade", target: RECKLESS_CROSSING_TARGET });

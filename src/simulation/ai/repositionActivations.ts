@@ -20,7 +20,8 @@ import {
 import { type Route } from "./routes";
 import { PassController } from "../../game/controllers/PassController";
 import { type Context, crowd, gamble, tierFor } from "./activationContext";
-import { CORNERS, passRange } from "./ballActivations";
+import { CORNERS } from "./ballActivations";
+import { passRange } from "./passRange";
 import { passTarget, throwConditions } from "../../game/rules/rollPreview";
 import { d6, withReroll } from "./chance";
 import type { Activation, Role } from "./activations";

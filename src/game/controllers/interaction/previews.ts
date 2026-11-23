@@ -244,7 +244,7 @@ function foulTargetPreview(
 
 export function interceptions(
 { c,actor,from,square,opponents }: { c: GameplayInteractionController; actor: Player; from: Square; square: Square; opponents: Player[]; }): { lines: string[]; rolls: { square: Square; target: number }[] } {
-  const weather = c.gameService.getState().weather;
+  const state = c.gameService.getState();
   const passingTeam = [actor, ...c.gameService.getTeammates(actor.id)];
   const lines: string[] = [];
   const rolls: { square: Square; target: number }[] = [];
@@ -260,7 +260,7 @@ export function interceptions(
     const { line, accurate } = interceptPreviewLine(
       interceptor,
       passingTeam,
-      weather
+      state
     );
     lines.push(line);
     if (interceptor.gridPosition)

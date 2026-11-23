@@ -4,6 +4,7 @@ import {
   pickupTarget,
   catchTarget,
   passTarget,
+  dodgeTarget,
   secureBallTarget,
   throwConditions,
   blockPreviewLines,
@@ -14,7 +15,10 @@ import { createTestPlayer } from "../../fixtures/players";
 import { GameStateBuilder } from "../../utils/test-builders";
 import type { Weather } from "../../../src/game/rules/weather";
 import { passModifier } from "../../../src/game/kickoff/ballConditions";
-import { getVariantInducements } from "../../../src/game/inducements/variantState";
+import {
+  type Souvenir,
+  getVariantInducements,
+} from "../../../src/game/inducements/variantState";
 import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 import { BlockValidator } from "../../../src/game/validators/BlockValidator";
@@ -120,14 +124,85 @@ describe("roll preview analysis", () => {
       stats: { ...enemy.stats, AG: 3 },
     };
 
-    expect(interceptTarget(interceptor, -3, [player], "Nice")).toBe(6);
+    expect(interceptTarget(interceptor, -3, [player], inWeather("Nice"))).toBe(
+      6
+    );
     const legs = {
       ...interceptor,
       skills: [getSkill(SkillType.VERY_LONG_LEGS)],
       gridPosition: { x: 9, y: 9 },
     };
-    expect(interceptTarget(legs, -3, [player], "Nice")).toBe(4);
-    expect(interceptTarget(legs, -3, [player], "Pouring Rain")).toBe(5);
+    expect(interceptTarget(legs, -3, [player], inWeather("Nice"))).toBe(4);
+    expect(interceptTarget(legs, -3, [player], inWeather("Pouring Rain"))).toBe(
+      5
+    );
+  });
+
+  it("prices every roll the engine adjusts for the conch, the beach ball and souvenirs", () => {
+    const square = fixtureValue(player.gridPosition);
+    const legs = {
+      ...enemy,
+      skills: [getSkill(SkillType.VERY_LONG_LEGS)],
+      gridPosition: { x: 9, y: 9 },
+    };
+    const souvenir = (
+      state: ReturnType<typeof inWeather>,
+      item: Souvenir,
+      playerId: string
+    ) => {
+      getVariantInducements(state).souvenirs.push({
+        teamId: "any",
+        souvenir: item,
+        playerId,
+      });
+      return state;
+    };
+    const conch = { ...inWeather("Nice"), lostBall: "conch" as const };
+    const beachBall = { ...inWeather("Nice"), lostBall: "beach-ball" as const };
+    expect({
+      pickup: [
+        pickupTarget(player, square, [], conch),
+        pickupTarget(player, square, [], beachBall),
+        pickupTarget(
+          player,
+          square,
+          [],
+          souvenir(inWeather("Nice"), "Sticky Bun", player.id)
+        ),
+      ],
+      catch: [
+        catchTarget(player, [], conch, "pass"),
+        catchTarget(player, [], beachBall, "pass"),
+      ],
+      intercept: [
+        interceptTarget(legs, -3, [player], conch),
+        interceptTarget(legs, -3, [player], beachBall),
+        interceptTarget(
+          legs,
+          -3,
+          [player],
+          souvenir(inWeather("Nice"), "Sticky Bun", legs.id)
+        ),
+      ],
+      pass: [
+        throwConditions(beachBall, player, "Short Pass"),
+        throwConditions(
+          souvenir(inWeather("Nice"), "Sticky Bun", player.id),
+          player,
+          "Short Pass"
+        ),
+      ],
+      dodge: [
+        dodgeTarget(player, { from: square, to: { x: 5, y: 6 } }, [enemy]),
+        dodgeTarget(player, { from: square, to: { x: 5, y: 6 } }, [enemy], 1),
+      ],
+    }).toEqual({
+      pickup: [4, 2, 2],
+      catch: [4, 2],
+      intercept: [5, 3, 3],
+      pass: [-1, -1],
+      dodge: [4, 3],
+    });
   });
   it("uses the block analysis for the chooser and numbered assists", () => {
     const assist = createTestPlayer({
