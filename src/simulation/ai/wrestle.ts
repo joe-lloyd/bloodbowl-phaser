@@ -4,7 +4,9 @@ import {
   type BlockResultType,
   BlockResolutionService,
 } from "../../services/BlockResolutionService";
-import { type Board, carrierOf } from "./board";
+import { type Board, carrierOf, key } from "./board";
+import { pushBackSquares } from "../../game/rules/jump";
+import { type PushLanding, pushLandingAt } from "../../game/rules/pitchSquares";
 
 const has = (p: Player, skill: SkillType) => hasSkill(p.skills, skill);
 
@@ -55,7 +57,7 @@ export function defenderWrestles(attacker: Player, defender: Player): boolean {
 
 interface BlockFace {
   rank: number;
-  knockdown: boolean;
+  knockdown: number;
   attackerDown: boolean;
 }
 
@@ -75,25 +77,55 @@ export function blockFaces(
     defenderWrestles(attacker, defender);
   const value = wrestleValue(board, attacker, defender);
   const fallsHungry = wrestled && hungry(board, attacker);
+  const pushed = pushFace(pinnedLanding(board, attacker, defender));
   return {
-    pow: { rank: 5, knockdown: true, attackerDown: false },
+    pow: { rank: 5, knockdown: 1, attackerDown: false },
     "pow-dodge": dodges
-      ? { rank: 3, knockdown: false, attackerDown: false }
-      : { rank: 4.5, knockdown: true, attackerDown: false },
-    push: { rank: 3, knockdown: false, attackerDown: false },
+      ? pushed
+      : { rank: 4.5, knockdown: 1, attackerDown: false },
+    push: pushed,
     "both-down": wrestled
       ? {
           rank: fallsHungry ? value - 0.1 : value,
-          knockdown: true,
+          knockdown: 1,
           attackerDown: value === 0 || fallsHungry,
         }
       : {
           rank: bothDownRank(aBlock, dBlock),
-          knockdown: !dBlock,
+          knockdown: Number(!dBlock),
           attackerDown: !aBlock,
         },
-    skull: { rank: 0, knockdown: false, attackerDown: true },
+    skull: { rank: 0, knockdown: 0, attackerDown: true },
   };
+}
+
+type Pinned = Exclude<PushLanding, "pitch">;
+
+const WALL_FALL = 1 / 2;
+
+function pushFace(pinned: Pinned | null): BlockFace {
+  if (pinned === null) return { rank: 3, knockdown: 0, attackerDown: false };
+  if (pinned === "wall")
+    return { rank: 3.5, knockdown: WALL_FALL, attackerDown: false };
+  return { rank: 4.4, knockdown: 1, attackerDown: false };
+}
+
+export function pinnedLanding(
+  board: Board,
+  attacker: Player,
+  defender: Player
+): Pinned | null {
+  const from = defender.gridPosition;
+  const by = attacker.gridPosition;
+  if (!from || !by || has(defender, SkillType.STAND_FIRM)) return null;
+  let landing: Pinned | null = null;
+  for (const square of pushBackSquares(by, from)) {
+    const kind = pushLandingAt(from, square);
+    if (kind === "pitch") {
+      if (!board.occupant[key(square)]) return null;
+    } else if (landing === null || landing === "wall") landing = kind;
+  }
+  return landing;
 }
 
 const DIE_FACES = [1, 2, 3, 4, 5, 6].map(
@@ -108,9 +140,10 @@ export function pickedFaceOdds(
   const rolled = DIE_FACES.map((type) => faces[type]);
   const odds = { knockdown: 0, attackerDown: 0, both: 0 };
   const tally = (face: BlockFace, weight: number) => {
-    if (face.knockdown) odds.knockdown += weight;
-    if (face.attackerDown) odds.attackerDown += weight;
-    if (face.knockdown && face.attackerDown) odds.both += weight;
+    odds.knockdown += weight * face.knockdown;
+    if (!face.attackerDown) return;
+    odds.attackerDown += weight;
+    odds.both += weight * face.knockdown;
   };
   const visit = (left: number, chosen: BlockFace | null, weight: number) => {
     if (left === 0) {

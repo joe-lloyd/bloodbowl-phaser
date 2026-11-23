@@ -1,4 +1,5 @@
 import { type PitchLayout, isPlayableSquare } from "../variants/pitchLayouts";
+import { activeLayout } from "../variants/activeMatch";
 import {
   type DeploymentRole,
   type FormationPosition,
@@ -350,7 +351,10 @@ function roleFit(
   role: DeploymentRole,
   kicking: boolean
 ): number {
-  return kicking ? kickingFit(player, role) : receivingFit(player, role);
+  const contact = role === "line" && activeLayout().noMansLand === null;
+  return kicking && !contact
+    ? kickingFit(player, role)
+    : receivingFit(player, role);
 }
 
 export interface Assignment {

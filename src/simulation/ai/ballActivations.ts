@@ -39,6 +39,9 @@ import {
   tierFor,
 } from "./activationContext";
 import { launchReady } from "./teammateActivations";
+import type { Weights } from "./weights";
+import { isWallSquare, obstacleKindAt } from "../../game/rules/pitchSquares";
+import { activeLayout, activeRules } from "../../game/variants/activeMatch";
 import type { Activation } from "./activations";
 import { feedingCost, moveFeedingCost, unfedChance } from "./feeding";
 import {
@@ -56,6 +59,19 @@ export const CORNERS = [
   [1, 1],
 ] as const;
 
+function cornerHeld(
+  board: Context["board"],
+  corner: Square,
+  carrier: Player
+): boolean | null {
+  if (!onPitch(corner)) return shelters(corner);
+  const there = board.occupant[key(corner)];
+  if (!there) return null;
+  return (
+    there.teamId === board.us && standing(there) && there.id !== carrier.id
+  );
+}
+
 function cageCorners(c: Context, at: Square, carrier: Player): number {
   const { board, w } = c;
   const helpers = board.ours.filter(
@@ -65,12 +81,9 @@ function cageCorners(c: Context, at: Square, carrier: Player): number {
   let cage = 0;
   for (const [dx, dy] of CORNERS) {
     const corner = { x: at.x + dx, y: at.y + dy };
-    if (!onPitch(corner)) continue;
-    const there = board.occupant[key(corner)];
-    if (there) {
-      const holds =
-        there.teamId === board.us && standing(there) && there.id !== carrier.id;
-      if (holds) cage++;
+    const held = cornerHeld(board, corner, carrier);
+    if (held !== null) {
+      cage += Number(held);
       continue;
     }
     const helper = helpers.find(
@@ -84,6 +97,10 @@ function cageCorners(c: Context, at: Square, carrier: Player): number {
     }
   }
   return cage;
+}
+
+function shelters(square: Square): boolean {
+  return isWallSquare(square) || obstacleKindAt(square) !== undefined;
 }
 
 function carrierSquare(c: Context, at: Square, carrier: Player): number {
@@ -110,7 +127,7 @@ function carrierCover(c: Context, at: Square, carrier: Player): number {
       w.carrierMarked -
     threats(board, at) * w.carrierThreat * exposed +
     Math.min(cage, 4) * w.cageCorner -
-    sidelineCost(edge, w.sideline) -
+    sidelineCost(edge, w) -
     exposureCost(c, carrier, at) +
     launchReady(c, carrier, at)
   );
@@ -263,7 +280,8 @@ function stallRoute(
 ): Route | null {
   const { board } = c;
   if (board.turnsLeft === 0 || board.turnsLeft > 2) return null;
-  if (board.lead <= 0) return null;
+  if (board.lead <= 0 || activeRules().stallingPenalty === "bottle")
+    return null;
   const reach = carrier.stats.MA;
   const here = { route: null, at: carrier.gridPosition };
   const options = [
@@ -698,9 +716,10 @@ export function passActivations(c: Context, carrier: Player): Activation[] {
   return out;
 }
 
-function sidelineCost(edge: number, cost: number): number {
-  if (edge === 0) return cost;
-  return edge === 1 ? cost / 3 : 0;
+function sidelineCost(edge: number, w: Weights): number {
+  if (activeLayout().walledSidelines) return edge === 0 ? w.wallSide : 0;
+  if (edge === 0) return w.sideline;
+  return edge === 1 ? w.sideline / 3 : 0;
 }
 
 function carrierMoveRoutes(

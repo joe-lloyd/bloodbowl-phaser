@@ -56,11 +56,11 @@ const venues = gameTypeRules(gameType).venues;
 const venueFlag = flag("venue", "");
 if (venueFlag && !(isVenue(venueFlag) && venues.some((v) => v === venueFlag)))
   throw new Error(`--venue must be one of ${venues.join(", ")}`);
-const formatFor = (pairIndex: number): MatchFormat => ({
+const formatFor = (seed: number): MatchFormat => ({
   gameType,
   venue:
     venues.find((v) => v === venueFlag) ??
-    venues[pairIndex % venues.length] ??
+    venues[seed % venues.length] ??
     venues[0],
 });
 const labVariants = lab ? labInventory(gameType) : null;
@@ -333,13 +333,8 @@ if (args.includes("--worker")) {
       .slice(0, 96);
   }
   jobs = withInducementFlag(jobs, args);
-  if (gameType !== "sevens") {
-    const pairs = [...new Set(jobs.map((j) => j.pair))];
-    jobs = jobs.map((j) => ({
-      ...j,
-      format: formatFor(pairs.indexOf(j.pair)),
-    }));
-  }
+  if (gameType !== "sevens")
+    jobs = jobs.map((j) => ({ ...j, format: formatFor(j.seed) }));
   const workers = Number(flag("workers", "8"));
   if (!Number.isSafeInteger(workers) || workers < 1)
     throw new Error("Invalid worker count");

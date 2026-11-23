@@ -135,6 +135,41 @@ describe("deployments", () => {
     expect(placed["Troll Slayer"]).toMatch(/^6,/);
   });
 
+  async function kickingBunker(format: MatchFormat) {
+    const game = new HeadlessGame({ seed: 5, team1: dwarfs(), format });
+    await game.execute({
+      type: "start-setup",
+      kickingTeamId: game.ctx.team1.id,
+    });
+    const bunker = fixtureValue(
+      new FormationManager()
+        .getBuiltInFormations(true)
+        .find((f) => f.name === "Bunker")
+    );
+    await game.execute({
+      type: "apply-formation",
+      teamId: game.ctx.team1.id,
+      formation: bunker.positions,
+    });
+    const line = game.ctx.gameService.getState().setup;
+    const los = format.gameType === "sevens" ? 6 : 12;
+    expect(line?.kickingTeamId).toBe(game.ctx.team1.id);
+    return game.ctx.team1.players
+      .filter((p) => p.gridPosition?.x === los)
+      .map((p) => p.positionName)
+      .sort();
+  }
+
+  it("kicks with a fast line in Sevens but a sturdy one where the lines touch", async () => {
+    expect({
+      sevens: await kickingBunker({ gameType: "sevens", venue: "stadium" }),
+      street: await kickingBunker({ gameType: "street-bowl", venue: "street" }),
+    }).toEqual({
+      sevens: ["Dwarf Lineman", "Dwarf Runner", "Troll Slayer"],
+      street: ["Dwarf Lineman", "Dwarf Lineman", "Dwarf Lineman"],
+    });
+  });
+
   it("refuses a formation square with a role it does not know", () => {
     const command = (role: unknown) => ({
       type: "apply-formation",

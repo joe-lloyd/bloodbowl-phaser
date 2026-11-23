@@ -25,8 +25,10 @@ import {
 } from "../../src/game/variants/activeMatch";
 import type { PendingDecision } from "../../src/headless/protocol";
 import type { InducementChoiceKind } from "../../src/types/decisions";
+import { blockFaces } from "../../src/simulation/ai/wrestle";
 import {
   BEACH,
+  GUTTER_SEWER,
   GUTTER_STREET,
   STREET,
   STREET_SETUP,
@@ -223,5 +225,54 @@ describe("computer inducement choices", () => {
       "keep",
       `${carrier.id} Transmutation`,
     ]);
+  });
+});
+
+function pinGame(
+  format: MatchFormat,
+  attacker: { x: number; y: number },
+  defender: { x: number; y: number }
+) {
+  return new HeadlessGame({
+    seed: 1,
+    format,
+    scenario: {
+      id: "pinned-push",
+      name: "A defender with nowhere to be pushed",
+      description: "",
+      setup: {
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        activeTeam: "team1",
+        turn: 2,
+        teamRerolls: { team1: 0, team2: 0 },
+        team1Placements: [{ playerIndex: 0, ...attacker }],
+        team2Placements: [{ playerIndex: 0, ...defender, skills: [] }],
+      },
+    },
+  });
+}
+
+function pushKnockdown(
+  format: MatchFormat,
+  attacker: { x: number; y: number },
+  defender: { x: number; y: number }
+): number {
+  const game = pinGame(format, attacker, defender);
+  return blockFaces(
+    readBoard(game, "team1"),
+    fixtureValue(game.ctx.team1.players[0]),
+    fixtureValue(game.ctx.team2.players[0])
+  ).push.knockdown;
+}
+
+describe("pushes with nowhere to go", () => {
+  it("counts a push into a wall as half a knockdown, and a pit or the crowd as a whole one", () => {
+    expect({
+      open: pushKnockdown(STREET, { x: 5, y: 4 }, { x: 5, y: 3 }),
+      wall: pushKnockdown(STREET, { x: 5, y: 1 }, { x: 5, y: 0 }),
+      pit: pushKnockdown(GUTTER_SEWER, { x: 11, y: 3 }, { x: 10, y: 3 }),
+      crowd: pushKnockdown(SEVENS_FORMAT, { x: 5, y: 1 }, { x: 5, y: 0 }),
+    }).toEqual({ open: 0, wall: 0.5, pit: 1, crowd: 1 });
   });
 });

@@ -23,6 +23,8 @@ export const DEFAULT_WEIGHTS = {
 
   sideline: 30,
 
+  wallSide: 10,
+
   cageCorner: 4,
   cageKeep: 20,
 
