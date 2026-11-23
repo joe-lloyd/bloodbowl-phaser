@@ -14,6 +14,7 @@ import {
 } from "./board";
 import { hasBiteSupport, isThrall } from "./feeding";
 import { inducementChoice } from "./inducementChoices";
+import { catchTarget } from "../../game/rules/rollPreview";
 import { blockFaces, defenderWrestles, takesWrestle } from "./wrestle";
 
 const USE_REROLL = "use-reroll";
@@ -114,6 +115,21 @@ function pushChoice(
       ? wide
       : -wide - (onPitch(square) ? board.marks.getUint8(key(square)) : NaN);
   });
+}
+
+function highKickCatcher(
+  board: Board,
+  candidates: readonly Candidate[]
+): number | null {
+  const state = board.gs.getState();
+  const odds = (candidate: Candidate) => {
+    const [select] = candidate.commands;
+    if (select.type !== "kickoff-select-player") return undefined;
+    const player = board.gs.getPlayerById(select.playerId);
+    if (!player || hasSkill(player.skills, SkillType.NO_BALL)) return undefined;
+    return -catchTarget(player, board.theirs, state, "pass");
+  };
+  return best(candidates, odds);
 }
 
 function keepsFood(board: Board, attacker: FieldPlayer | undefined): boolean {
@@ -334,8 +350,9 @@ function otherDecision(
       );
     case "inducement-choice":
       return inducementChoice(board, pending, candidates);
-    case "foul-assists":
     case "kickoff-event":
+      return highKickCatcher(board, candidates);
+    case "foul-assists":
       return null;
   }
 }

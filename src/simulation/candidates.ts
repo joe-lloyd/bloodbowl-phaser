@@ -17,6 +17,10 @@ import { isConfinedToReserves } from "../game/kickoff/driveEffects";
 import { decisionOwner } from "../network/OwnershipGate";
 import { describePlayer, square, stepCandidates } from "./stepCandidates";
 import { isStandableSquare } from "../game/rules/pitchSquares";
+import {
+  KickoffEvent,
+  isOpenKickoffPlayer,
+} from "../game/kickoff/kickoffEvents";
 
 type CandidateKind =
   | "decision"
@@ -286,10 +290,33 @@ function decisionCandidates(
       });
     case "kickoff-event":
       return [
+        ...highKickCandidates(game, pending, name),
         one({ type: "kickoff-skip" }, `Skip the ${pending.event} step`),
         one({ type: "kickoff-confirm" }, `Confirm the ${pending.event} step`),
       ];
   }
+}
+
+function highKickCandidates(
+  game: HeadlessGame,
+  pending: PendingOf<"kickoff-event">,
+  name: (id: string) => string
+): Candidate[] {
+  const landing = pending.landingSquare;
+  if (pending.event !== KickoffEvent.HIGH_KICK || !landing) return [];
+  const { team1, team2 } = game.ctx;
+  const [team, opponents] =
+    pending.chooserTeamId === team1.id ? [team1, team2] : [team2, team1];
+  return team.players
+    .filter((player) => isOpenKickoffPlayer(player, opponents.players))
+    .map((player) => ({
+      kind: "decision",
+      commands: [
+        { type: "kickoff-select-player", playerId: player.id },
+        { type: "kickoff-place-player", playerId: player.id, ...landing },
+      ],
+      label: `High Kick: ${name(player.id)} stands under the ball`,
+    }));
 }
 
 function inducementCandidates(
