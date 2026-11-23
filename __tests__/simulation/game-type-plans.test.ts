@@ -3,6 +3,7 @@ import { fixtureValue } from "../../src/testing/fixtureValue";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
+import { SkillType } from "../../src/types/Skills";
 import { RosterName } from "../../src/types/Team";
 import {
   enumerateDecision,
@@ -234,8 +235,8 @@ describe("computer inducement choices", () => {
 
 function pinGame(
   format: MatchFormat,
-  attacker: { x: number; y: number },
-  defender: { x: number; y: number }
+  attacker: { x: number; y: number; skills?: SkillType[] },
+  defender: { x: number; y: number; skills?: SkillType[] }
 ) {
   return new HeadlessGame({
     seed: 1,
@@ -250,8 +251,22 @@ function pinGame(
         activeTeam: "team1",
         turn: 2,
         teamRerolls: { team1: 0, team2: 0 },
-        team1Placements: [{ playerIndex: 0, ...attacker }],
-        team2Placements: [{ playerIndex: 0, ...defender, skills: [] }],
+        team1Placements: [
+          {
+            playerIndex: 0,
+            x: attacker.x,
+            y: attacker.y,
+            skills: attacker.skills ?? [],
+          },
+        ],
+        team2Placements: [
+          {
+            playerIndex: 0,
+            x: defender.x,
+            y: defender.y,
+            skills: defender.skills ?? [],
+          },
+        ],
       },
     },
   });
@@ -259,13 +274,19 @@ function pinGame(
 
 function pushKnockdown(
   format: MatchFormat,
-  attacker: { x: number; y: number },
-  defender: { x: number; y: number }
+  attacker: {
+    x: number;
+    y: number;
+    skills?: SkillType[];
+    to?: { x: number; y: number };
+  },
+  defender: { x: number; y: number; skills?: SkillType[] }
 ): number {
   const game = pinGame(format, attacker, defender);
+  const placed = fixtureValue(game.ctx.team1.players[0]);
   return blockFaces(
     readBoard(game, "team1"),
-    fixtureValue(game.ctx.team1.players[0]),
+    attacker.to ? { ...placed, gridPosition: attacker.to } : placed,
     fixtureValue(game.ctx.team2.players[0])
   ).push.knockdown;
 }
@@ -278,6 +299,40 @@ describe("pushes with nowhere to go", () => {
       pit: pushKnockdown(GUTTER_SEWER, { x: 11, y: 3 }, { x: 10, y: 3 }),
       crowd: pushKnockdown(SEVENS_FORMAT, { x: 5, y: 1 }, { x: 5, y: 0 }),
     }).toEqual({ open: 0, wall: 0.5, pit: 1, crowd: 1 });
+  });
+
+  it("lets a Sidestep defender slip the wall, and reads the attacker's own vacated square as open", () => {
+    expect({
+      sidestep: pushKnockdown(
+        STREET,
+        { x: 5, y: 1 },
+        { x: 5, y: 0, skills: [SkillType.SIDESTEP] }
+      ),
+      vacated: pushKnockdown(
+        STREET,
+        { x: 4, y: 0, to: { x: 6, y: 1 } },
+        { x: 5, y: 0 }
+      ),
+    }).toEqual({ sidestep: 0, vacated: 0 });
+  });
+});
+
+describe("block dice against a Sidestep defender on the sideline", () => {
+  it("takes Both Down over a Push the Sidestep would escape", () => {
+    const game = pinGame(
+      SEVENS_FORMAT,
+      { x: 0, y: 1, skills: [SkillType.BLOCK] },
+      { x: 0, y: 0, skills: [SkillType.SIDESTEP] }
+    );
+    const faces = blockFaces(
+      readBoard(game, "team1"),
+      fixtureValue(game.ctx.team1.players[0]),
+      fixtureValue(game.ctx.team2.players[0])
+    );
+    expect({
+      push: faces.push.knockdown,
+      prefersBothDown: faces["both-down"].rank > faces.push.rank,
+    }).toEqual({ push: 0, prefersBothDown: true });
   });
 });
 

@@ -5,6 +5,7 @@ import { type PassRange } from "../controllers/PassController";
 import { type Weather, weatherEffects } from "./weather";
 import { type GameState } from "../../types/GameState";
 import { catchModifier, pickUpModifier } from "../kickoff/ballConditions";
+import { souvenirModifier } from "../inducements/souvenirModifiers";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
 import { rollLabel, requiredRoll } from "./rollTargets";
@@ -72,7 +73,9 @@ export function pickupTarget(
     : conditions - markingPlayers(square, opponents).length;
   return requiredRoll(
     player.stats.AG,
-    handling + (has(player, SkillType.EXTRA_ARMS) ? 1 : 0)
+    handling +
+      souvenirModifier(state, player.id, "pick-up") +
+      (has(player, SkillType.EXTRA_ARMS) ? 1 : 0)
   );
 }
 
@@ -102,7 +105,8 @@ export function catchTarget(
       : 0;
   const modifier =
     -marking +
-    catchModifier(state) -
+    catchModifier(state) +
+    souvenirModifier(state, player.id, "catch") -
     disturbing(player, opponents) +
     (has(player, SkillType.EXTRA_ARMS) ? 1 : 0) +
     (origin === "pass" && has(player, SkillType.DIVING_CATCH) ? 1 : 0);

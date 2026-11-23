@@ -12,6 +12,7 @@ import { createTestPlayer } from "../../fixtures/players";
 import { GameStateBuilder } from "../../utils/test-builders";
 import type { Weather } from "../../../src/game/rules/weather";
 import { passModifier } from "../../../src/game/kickoff/ballConditions";
+import { getVariantInducements } from "../../../src/game/inducements/variantState";
 import { PlayerStatus } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 import { BlockValidator } from "../../../src/game/validators/BlockValidator";
@@ -55,6 +56,17 @@ describe("roll preview analysis", () => {
       pickupTarget(bigHand, square, [], conch),
       pickupTarget(bigHand, square, [enemy], inWeather("Nice")),
     ]).toEqual([4, 3, 3]);
+  });
+
+  it("adds a Sticky Bun's bonus to the carrier's catch, as the engine does", () => {
+    const state = inWeather("Nice");
+    const bare = catchTarget(player, [], state, "pass");
+    getVariantInducements(state).souvenirs.push({
+      teamId: player.teamId,
+      souvenir: "Sticky Bun",
+      playerId: player.id,
+    });
+    expect([bare, catchTarget(player, [], state, "pass")]).toEqual([3, 2]);
   });
 
   it("applies ball and passing skills before showing the target", () => {

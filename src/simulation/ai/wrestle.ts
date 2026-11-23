@@ -4,9 +4,13 @@ import {
   type BlockResultType,
   BlockResolutionService,
 } from "../../services/BlockResolutionService";
-import { type Board, carrierOf, key } from "./board";
+import { type Board, type Square, carrierOf, key, neighbours } from "./board";
 import { pushBackSquares } from "../../game/rules/jump";
-import { type PushLanding, pushLandingAt } from "../../game/rules/pitchSquares";
+import {
+  type PushLanding,
+  isOpenPushSquare,
+  pushLandingAt,
+} from "../../game/rules/pitchSquares";
 
 const has = (p: Player, skill: SkillType) => hasSkill(p.skills, skill);
 
@@ -110,6 +114,23 @@ function pushFace(pinned: Pinned | null): BlockFace {
   return { rank: 4.4, knockdown: 1, attackerDown: false };
 }
 
+function taken(board: Board, attacker: Player, square: Square): boolean {
+  const at = attacker.gridPosition;
+  if (at?.x === square.x && at.y === square.y) return true;
+  const there = board.occupant[key(square)];
+  return !!there && there.id !== attacker.id;
+}
+
+function sidesteps(board: Board, attacker: Player, defender: Player): boolean {
+  const from = defender.gridPosition;
+  if (!from || !has(defender, SkillType.SIDESTEP)) return false;
+  if (has(attacker, SkillType.GRAB)) return false;
+  return neighbours(from).some(
+    (square) =>
+      isOpenPushSquare(from, square) && !taken(board, attacker, square)
+  );
+}
+
 function pinnedLanding(
   board: Board,
   attacker: Player,
@@ -118,11 +139,12 @@ function pinnedLanding(
   const from = defender.gridPosition;
   const by = attacker.gridPosition;
   if (!from || !by || has(defender, SkillType.STAND_FIRM)) return null;
+  if (sidesteps(board, attacker, defender)) return null;
   let landing: Pinned | null = null;
   for (const square of pushBackSquares(by, from)) {
     const kind = pushLandingAt(from, square);
     if (kind === "pitch") {
-      if (!board.occupant[key(square)]) return null;
+      if (!taken(board, attacker, square)) return null;
     } else if (landing === null || landing === "wall") landing = kind;
   }
   return landing;
