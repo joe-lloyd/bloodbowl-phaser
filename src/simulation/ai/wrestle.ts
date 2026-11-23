@@ -75,15 +75,8 @@ export interface Matchup {
 
 export function blockFaces(board: Board, matchup: Matchup): BlockFaces {
   const { attacker, defender } = matchup;
-  const aBlock = has(attacker, SkillType.BLOCK);
-  const dBlock = has(defender, SkillType.BLOCK);
   const dodges =
     has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE);
-  const wrestled =
-    takesWrestle(board, attacker, defender) ||
-    defenderWrestles(attacker, defender);
-  const value = wrestleValue(board, attacker, defender);
-  const fallsHungry = wrestled && hungry(board, attacker);
   const pushed = pushFace(pinnedLanding(board, matchup));
   return {
     pow: { rank: 5, knockdown: 1, attackerDown: false },
@@ -91,18 +84,36 @@ export function blockFaces(board: Board, matchup: Matchup): BlockFaces {
       ? pushed
       : { rank: 4.5, knockdown: 1, attackerDown: false },
     push: pushed,
-    "both-down": wrestled
-      ? {
-          rank: fallsHungry ? value - 0.1 : value,
-          knockdown: 1,
-          attackerDown: value === 0 || fallsHungry,
-        }
-      : {
-          rank: bothDownRank(aBlock, dBlock),
-          knockdown: Number(!dBlock),
-          attackerDown: !aBlock,
-        },
+    "both-down": bothDownFace(board, matchup, pushed),
     skull: { rank: 0, knockdown: 0, attackerDown: true },
+  };
+}
+
+function bothDownFace(
+  board: Board,
+  { attacker, defender, blitz }: Matchup,
+  pushed: BlockFace
+): BlockFace {
+  const juggernaut = !!blitz && has(attacker, SkillType.JUGGERNAUT);
+  const wrestled =
+    takesWrestle(board, attacker, defender) ||
+    (!juggernaut && defenderWrestles(attacker, defender));
+  if (wrestled) {
+    const value = wrestleValue(board, attacker, defender);
+    const fallsHungry = hungry(board, attacker);
+    return {
+      rank: fallsHungry ? value - 0.1 : value,
+      knockdown: 1,
+      attackerDown: value === 0 || fallsHungry,
+    };
+  }
+  if (juggernaut) return pushed;
+  const aBlock = has(attacker, SkillType.BLOCK);
+  const dBlock = has(defender, SkillType.BLOCK);
+  return {
+    rank: bothDownRank(aBlock, dBlock),
+    knockdown: Number(!dBlock),
+    attackerDown: !aBlock,
   };
 }
 

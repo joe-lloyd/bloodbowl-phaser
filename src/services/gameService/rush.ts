@@ -3,6 +3,8 @@ import { steadyFootingSaves } from "@/game/rules/steadyFooting";
 import { withRerollOffer } from "@/game/skills";
 import { rushRollModifier } from "@/game/rules/rollPreview";
 import type { Player } from "@/types/Player";
+import { SkillType, hasSkill } from "@/types/Skills";
+import { GameEventNames } from "@/types/events";
 import type { GameParts } from "./parts";
 
 interface RushRequest {
@@ -14,6 +16,12 @@ export async function rushSucceeds(
   attacker: Player,
   request: RushRequest = {}
 ): Promise<boolean> {
+  if (hasSkill(attacker.skills, SkillType.DRUNKARD))
+    parts.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: attacker.id,
+      skill: SkillType.DRUNKARD,
+      effect: "Drunkard: -1 to the Rush",
+    });
   const check = await withRerollOffer(
     { gameService: parts.game, eventBus: parts.eventBus },
     attacker,

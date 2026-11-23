@@ -10,6 +10,7 @@ import {
   neighbours,
   standing,
   toGoal,
+  projectBoard,
 } from "./board";
 import { type BlockOdds, blockOdds, casualtyChance, d6 } from "./chance";
 import { blockFaces } from "./wrestle";
@@ -95,11 +96,15 @@ export function blockFrom({
     activeTeamId: c.board.us,
   });
   const reroll = c.teamReroll && carrierOf(c.board)?.id === target.id;
+  const projected = projectBoard(c.board, [
+    { player: attacker, at: from },
+    ...(helper ? [{ player: helper.player, at: helper.at }] : []),
+  ]);
   return blockOdds({
     dice: analysis.diceCount,
     attackerPicks: !analysis.isUphill,
     teamReroll: reroll,
-    faces: blockFaces(c.board, { attacker: moved, defender: target, blitz }),
+    faces: blockFaces(projected, { attacker: moved, defender: target, blitz }),
   });
 }
 
@@ -191,14 +196,14 @@ interface BlitzReachArgs {
   board: Context["board"];
   player: Player;
   route: Route | null;
-  normal: number;
 }
 
-function blitzReach({ board, player, route, normal }: BlitzReachArgs): number {
-  const rush = d6(rushTarget(board, player));
-  return (
-    (route?.chance ?? 1) * (route && route.path.length >= normal ? rush : 1)
-  );
+function blitzReach({ board, player, route }: BlitzReachArgs): number {
+  const [normal, rushes] = movesLeft(board, player);
+  const steps = route?.path.length ?? 0;
+  if (steps >= normal + rushes) return 0;
+  const rush = steps >= normal ? d6(rushTarget(board, player)) : 1;
+  return (route?.chance ?? 1) * rush;
 }
 
 export interface MarkerHit {
@@ -209,7 +214,6 @@ export interface MarkerHit {
 }
 
 export function hitKeepsTurnChance(c: Context, hit: MarkerHit): number {
-  const [normal] = movesLeft(c.board, hit.attacker);
   const odds = blockFrom({
     c,
     attacker: hit.attacker,
@@ -217,12 +221,9 @@ export function hitKeepsTurnChance(c: Context, hit: MarkerHit): number {
     from: hit.route?.to ?? hit.attacker.gridPosition,
     blitz: hit.blitz,
   });
-  const reach = blitzReach({
-    board: c.board,
-    player: hit.attacker,
-    route: hit.route,
-    normal,
-  });
+  const reach = hit.blitz
+    ? blitzReach({ board: c.board, player: hit.attacker, route: hit.route })
+    : 1;
   return reach * (1 - odds.attackerDown);
 }
 
@@ -248,7 +249,7 @@ function bestBlitz({
       from: from,
       blitz: true,
     });
-    const reach = blitzReach({ board: c.board, player, route, normal });
+    const reach = blitzReach({ board: c.board, player, route });
     const chance = reach * (1 - odds.attackerDown);
     const value =
       reach * odds.knockdown * targetValue(c, player, target) -
@@ -425,9 +426,11 @@ export function carrierBlitzActivations(
       from: carrier.gridPosition,
       blitz: true,
     });
+    const reach = blitzReach({ board, player: carrier, route: null });
+    const keeps = reach * (1 - odds.attackerDown);
     const value =
-      odds.knockdown * targetValue(c, carrier, marker) -
-      odds.attackerDown * (c.turnover + w.ownDown + w.ballLoss);
+      reach * odds.knockdown * targetValue(c, carrier, marker) -
+      (1 - keeps) * (c.turnover + w.ownDown + w.ballLoss);
     if (value > 0)
       out.push({
         player: carrier,

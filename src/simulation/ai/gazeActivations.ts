@@ -15,6 +15,7 @@ import {
   distance,
   key,
   neighbours,
+  projectBoard,
   standing,
 } from "./board";
 import { d6 } from "./chance";
@@ -41,24 +42,6 @@ function distractedBoard(board: Board, target: Player): Board {
     everyone: board.everyone.map(replace),
     occupant,
     marks,
-  };
-}
-
-function gazerAt(
-  board: Board,
-  player: Player,
-  at: { x: number; y: number }
-): Board {
-  const moved = { ...player, gridPosition: at };
-  const replace = (p: Player) => (p.id === player.id ? moved : p);
-  const occupant = [...board.occupant];
-  occupant[key(player.gridPosition)] = undefined;
-  occupant[key(at)] = moved;
-  return {
-    ...board,
-    ours: board.ours.map(replace),
-    everyone: board.everyone.map(replace),
-    occupant,
   };
 }
 
@@ -133,7 +116,7 @@ function gazePlan({
 }: GazePlanArgs): Activation[] {
   const { board, w } = c;
   const at = route?.to ?? player.gridPosition;
-  const placed = gazerAt(board, player, at);
+  const placed = projectBoard(board, [{ player, at }]);
   const before = followupValue(
     context({
       board: placed,

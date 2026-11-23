@@ -14,7 +14,7 @@ import {
   createPlannerCoach,
 } from "../../src/simulation/ai/planner";
 import { activations } from "../../src/simulation/ai/activations";
-import { readBoard } from "../../src/simulation/ai/board";
+import { projectBoard, readBoard } from "../../src/simulation/ai/board";
 import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 import { casualtyChance } from "../../src/simulation/ai/chance";
 import { inducementChoice } from "../../src/simulation/ai/inducementChoices";
@@ -435,13 +435,76 @@ describe("push choices on a walled pitch", () => {
   });
 });
 
+async function stationaryBlitzValues(movementUsed: (ma: number) => number) {
+  const subject = new HeadlessGame({
+    seed: 1,
+    scenario: {
+      id: "grab-carrier-blitz",
+      name: "A Grab carrier blitzes its marker on the sideline",
+      description: "",
+      setup: {
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        activeTeam: "team1",
+        turn: 2,
+        teamRerolls: { team1: 0, team2: 0 },
+        team1Placements: [
+          {
+            playerIndex: 0,
+            x: 0,
+            y: 1,
+            hasBall: true,
+            stats: { ST: 4 },
+            skills: [SkillType.GRAB],
+          },
+        ],
+        team2Placements: [
+          {
+            playerIndex: 0,
+            x: 0,
+            y: 0,
+            skills: [SkillType.BLOCK, SkillType.DODGE],
+          },
+        ],
+      },
+    },
+  });
+  const carrier = fixtureValue(subject.ctx.team1.players[0]);
+  subject.ctx.gameService
+    .getState()
+    .turn.movementUsed.set(carrier.id, movementUsed(carrier.stats.MA));
+  const point = await enumerateDecision(subject, null);
+  return activations({
+    board: readBoard(subject, "team1"),
+    w: DEFAULT_WEIGHTS,
+    available: availableActions(point.candidates),
+  })
+    .filter(
+      (a) =>
+        a.action === "blitz" &&
+        a.intent.kind === "blitz" &&
+        a.intent.route === null
+    )
+    .map((a) => Math.round(a.value));
+}
+
 describe("a carrier's Blitz on a marker", () => {
-  it("prices a Grab carrier's Blitz by the Blitz's push rules, so the crowd removal counts", async () => {
-    const subject = new HeadlessGame({
+  it("prices a Grab carrier's Blitz by the Blitz's push rules, and charges the Rush to the block square", async () => {
+    expect({
+      fresh: await stationaryBlitzValues(() => 0),
+      rushToHit: await stationaryBlitzValues((ma) => ma),
+      noMovementLeft: await stationaryBlitzValues((ma) => ma + 2),
+    }).toEqual({ fresh: [16], rushToHit: [], noMovementLeft: [] });
+  });
+});
+
+describe("pushes priced on the board the move leaves", () => {
+  it("sees the square a helper fills, and a Juggernaut Blitz's Both Down as a Push", () => {
+    const game = new HeadlessGame({
       seed: 1,
       scenario: {
-        id: "grab-carrier-blitz",
-        name: "A Grab carrier blitzes its marker on the sideline",
+        id: "projected-push",
+        name: "A helper fills the only open push square",
         description: "",
         setup: {
           phase: GamePhase.PLAY,
@@ -450,37 +513,41 @@ describe("a carrier's Blitz on a marker", () => {
           turn: 2,
           teamRerolls: { team1: 0, team2: 0 },
           team1Placements: [
-            {
-              playerIndex: 0,
-              x: 0,
-              y: 1,
-              hasBall: true,
-              stats: { ST: 4 },
-              skills: [SkillType.GRAB],
-            },
+            { playerIndex: 0, x: 3, y: 1, skills: [SkillType.JUGGERNAUT] },
+            { playerIndex: 1, x: 6, y: 0 },
           ],
           team2Placements: [
             {
               playerIndex: 0,
-              x: 0,
+              x: 4,
               y: 0,
-              skills: [SkillType.BLOCK, SkillType.DODGE],
+              skills: [SkillType.BLOCK, SkillType.STAND_FIRM],
             },
           ],
         },
       },
     });
-    const point = await enumerateDecision(subject, null);
-    const blitzes = activations({
-      board: readBoard(subject, "team1"),
-      w: DEFAULT_WEIGHTS,
-      available: availableActions(point.candidates),
-    }).filter(
-      (a) =>
-        a.action === "blitz" &&
-        a.intent.kind === "blitz" &&
-        a.intent.route === null
+    const board = readBoard(game, "team1");
+    const attacker = fixtureValue(
+      board.ours.find((p) => p.gridPosition.x === 3)
     );
-    expect(blitzes.map((a) => Math.round(a.value))).toEqual([16]);
+    const helper = fixtureValue(board.ours.find((p) => p.gridPosition.x === 6));
+    const defender = fixtureValue(board.theirs[0]);
+    const filled = projectBoard(board, [
+      { player: helper, at: { x: 5, y: 0 } },
+    ]);
+    const face = (b: typeof board, blitz: boolean) =>
+      blockFaces(b, { attacker, defender, blitz });
+    expect({
+      openBlitz: face(board, true).push.knockdown,
+      filledBlitz: face(filled, true).push.knockdown,
+      filledBothDownBlitz: face(filled, true)["both-down"],
+      filledBothDownBlock: face(filled, false)["both-down"],
+    }).toEqual({
+      openBlitz: 0,
+      filledBlitz: 1,
+      filledBothDownBlitz: { rank: 4.4, knockdown: 1, attackerDown: false },
+      filledBothDownBlock: { rank: 0.5, knockdown: 0, attackerDown: true },
+    });
   });
 });
