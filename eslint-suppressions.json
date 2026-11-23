@@ -2765,9 +2765,6 @@
     },
     "max-lines-per-function": {
       "count": 1
-    },
-    "max-params": {
-      "count": 1
     }
   },
   "scripts/coach/catalogue-study.ts": {
@@ -2867,7 +2864,7 @@
       "count": 2
     },
     "no-nested-ternary": {
-      "count": 3
+      "count": 1
     }
   },
   "scripts/coach/fit-evaluation.ts": {

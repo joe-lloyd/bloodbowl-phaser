@@ -13,6 +13,7 @@ import {
 } from "../../../src/types/Player";
 import { SkillType, hasSkill } from "../../../src/types/Skills";
 import type { RollTally, SkillObservation } from "./model";
+import { GameConfig } from "../../../src/config/GameConfig";
 
 type Data = Record<string, unknown>;
 const increment = (tally: Record<string, number>, key: string) => {
@@ -20,14 +21,11 @@ const increment = (tally: Record<string, number>, key: string) => {
 };
 const sideOf = (game: HeadlessGame, id: string | undefined) =>
   id === game.ctx.team2.id ? 1 : 0;
+const THIRDS = ["left-third", "middle-third", "right-third"] as const;
 const third = (at: { x: number } | null) =>
-  !at
-    ? "off-pitch"
-    : at.x < 7
-      ? "left-third"
-      : at.x < 14
-        ? "middle-third"
-        : "right-third";
+  at
+    ? (THIRDS[Math.floor((3 * at.x) / GameConfig.PITCH_WIDTH)] ?? "right-third")
+    : "off-pitch";
 const typeOf = (command: HeadlessCommand) =>
   command.type === "declare-action"
     ? `declare:${command.action}${command.blockReplacement ? `:${command.blockReplacement}` : ""}`

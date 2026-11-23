@@ -3,14 +3,13 @@ import { join, resolve } from "node:path";
 import type { HeadlessGame } from "../../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../../src/types/events";
 import { PlayerStatus } from "../../../src/types/Player";
-import { GameConfig } from "../../../src/config/GameConfig";
+import { pitchWidth } from "../../../src/simulation/ai/board";
 import { RosterName } from "../../../src/types/Team";
 import { openTrace } from "../catalogue-study/replay";
 import { isEntry, replaySteps } from "./lab";
 
 const otherSide = (side: 0 | 1): 0 | 1 => (side === 0 ? 1 : 0);
 
-const WIDTH = GameConfig.PITCH_WIDTH;
 const ROSTERS = new Set<string>(Object.values(RosterName));
 
 export interface DriveTally {
@@ -87,7 +86,7 @@ export function watchDrives(
             p.status === PlayerStatus.ACTIVE
         )
       )
-        return { side, toGo: side === 0 ? WIDTH - 1 - at.x : at.x };
+        return { side, toGo: side === 0 ? pitchWidth() - 1 - at.x : at.x };
     return null;
   };
   const markedAt = (side: 0 | 1) => {

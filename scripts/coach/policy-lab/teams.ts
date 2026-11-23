@@ -16,6 +16,10 @@ import type { Team } from "../../../src/types/Team";
 import type { Player } from "../../../src/types/Player";
 import { createCoachRng } from "../../../src/simulation/rng";
 import { stabilizeIds } from "../../../src/headless/createHeadlessGame";
+import {
+  DEFAULT_GAME_TYPE,
+  type GameType,
+} from "../../../src/game/variants/gameTypes";
 
 export interface LabVariant extends Variant {
   buildMethod: "base" | "coverage" | "coherent" | "random-primary";
@@ -132,8 +136,23 @@ function developPlayer(
   return { skills, spent: 12 - p.spp };
 }
 
-function develop(template: string, index: number, random: boolean): LabVariant {
-  const team = stabilizeIds(createComputerTeamFromTemplate(template), template);
+interface DevelopArgs {
+  template: string;
+  index: number;
+  random: boolean;
+  gameType: GameType;
+}
+
+function develop({
+  template,
+  index,
+  random,
+  gameType,
+}: DevelopArgs): LabVariant {
+  const team = stabilizeIds(
+    createComputerTeamFromTemplate(template, { gameType }),
+    template
+  );
   const rng = createCoachRng(24_000_000 + index);
 
   const players = rolePlayers(team);
@@ -165,21 +184,24 @@ function develop(template: string, index: number, random: boolean): LabVariant {
   };
 }
 
-export function labInventory(): LabVariant[] {
-  const retained: LabVariant[] = advancedInventory()
+export function labInventory(
+  gameType: GameType = DEFAULT_GAME_TYPE
+): LabVariant[] {
+  const retained: LabVariant[] = advancedInventory(gameType)
     .filter(
       (v) => v.arm === "base" || (v.arm === "focused" && v.replicate === 0)
     )
     .map((v) => ({
       ...v,
       buildMethod: v.arm === "base" ? "base" : "coverage",
-      team: stabilizeIds(teamFromVariant(v), v.id),
+      team: stabilizeIds(teamFromVariant(v, gameType), v.id),
       developmentBudget: v.sppSpent,
     }));
-  getComputerTeamTemplates().forEach((template, index) => {
+  getComputerTeamTemplates({ gameType }).forEach((template, index) => {
+    const args = { template: template.id, index, gameType };
     retained.push(
-      develop(template.id, index, false),
-      develop(template.id, index, true)
+      develop({ ...args, random: false }),
+      develop({ ...args, random: true })
     );
   });
   return retained;
