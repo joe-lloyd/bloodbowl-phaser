@@ -706,12 +706,17 @@ export class PassOperation extends GameOperation {
         });
       }
       const lostBall = lostBallHandling(gameService.getState());
+      const souvenir = souvenirModifier(
+        gameService.getState(),
+        e.playerId,
+        "intercept"
+      );
       return {
         playerId: e.playerId,
         playerName: interceptor.playerName,
         base: base + lostBall,
         marking,
-        modifier: total + lostBall,
+        modifier: total + lostBall + souvenir,
       };
     });
 

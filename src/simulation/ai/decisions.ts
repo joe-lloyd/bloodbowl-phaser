@@ -58,6 +58,9 @@ function best(
   return pick;
 }
 
+const blitzing = (board: Board) =>
+  board.gs.getState().activePlayer?.action === "blitz";
+
 function blockDiceChoice(
   board: Board,
   pending: PendingOf<"block-dice">,
@@ -67,7 +70,11 @@ function blockDiceChoice(
   const defender = board.everyone.find((p) => p.id === pending.defenderId);
   if (!attacker || !defender)
     throw new Error("Block decision players must be on the pitch");
-  const faces = blockFaces(board, attacker, defender);
+  const faces = blockFaces(board, {
+    attacker,
+    defender,
+    blitz: blitzing(board),
+  });
   const rank = (type: BlockResultType) => faces[type].rank;
   const weAttack = attacker.teamId === board.us;
   const kept = pending.options.reduce<BlockResultType | null>(

@@ -126,7 +126,11 @@ export function exposureCost(c: Context, player: Player, at: Square): number {
       dice: hit.diceCount,
       attackerPicks: !hit.isUphill,
       teamReroll: false,
-      faces: blockFaces(board, opponent, moved),
+      faces: blockFaces(board, {
+        attacker: opponent,
+        defender: moved,
+        blitz: true,
+      }),
     });
     worst = Math.max(worst, odds.knockdown * casualtyChance(opponent, moved));
   }

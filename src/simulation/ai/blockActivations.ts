@@ -72,6 +72,7 @@ interface BlockFromArgs {
   target: Player;
   from: Square;
   helper?: { player: Player; at: Square };
+  blitz?: boolean;
 }
 
 export function blockFrom({
@@ -80,6 +81,7 @@ export function blockFrom({
   target,
   from,
   helper,
+  blitz = false,
 }: BlockFromArgs): BlockOdds {
   const moved = { ...attacker, gridPosition: from };
   const players = c.board.everyone.map((p) => {
@@ -97,7 +99,7 @@ export function blockFrom({
     dice: analysis.diceCount,
     attackerPicks: !analysis.isUphill,
     teamReroll: reroll,
-    faces: blockFaces(c.board, moved, target),
+    faces: blockFaces(c.board, { attacker: moved, defender: target, blitz }),
   });
 }
 
@@ -212,6 +214,7 @@ export function hitKeepsTurnChance(c: Context, hit: MarkerHit): number {
     attacker: hit.attacker,
     target: hit.target,
     from: hit.route?.to ?? hit.attacker.gridPosition,
+    blitz: hit.route !== null,
   });
   const reach = blitzReach({
     board: c.board,
@@ -242,6 +245,7 @@ function bestBlitz({
       attacker: player,
       target: target,
       from: from,
+      blitz: true,
     });
     const reach = blitzReach({ board: c.board, player, route, normal });
     const chance = reach * (1 - odds.attackerDown);

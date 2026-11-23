@@ -9,9 +9,9 @@ import { getActiveOnlineMatch } from "@/network/OnlineMatch";
 import { moveAllowance, standUpCost } from "../../skills/movement";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { planMoveLegs, stepRolls } from "../../rules/moveLegs";
-import { rushModifier } from "../../inducements/matchInducements";
 import {
   pickupTarget,
+  rushRollModifier,
   secureBallTarget,
   type RoutePreview,
   type RouteRoll,
@@ -141,7 +141,7 @@ function planLegs(
     used:
       c.gameService.getMovementUsed(player.id) +
       (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
-    rushModifier: rushModifier(state, player),
+    rushModifier: rushRollModifier(state, player),
     dodgeModifier: souvenirModifier(state, player.id, "dodge"),
 
     ...(pickup === undefined ? {} : { pickup }),

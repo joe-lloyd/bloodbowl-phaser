@@ -5,7 +5,6 @@ import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { activationGates } from "../../skills";
 import { moveAllowance, standUpCost } from "../../skills/movement";
 import { activeRules } from "../../variants/activeMatch";
-import { rushModifier } from "../../inducements/matchInducements";
 import { requiredRoll } from "../../rules/rollTargets";
 import { weatherEffects } from "../../rules/weather";
 import { ballInTheAir } from "../../rules/ballInTheAir";
@@ -15,7 +14,9 @@ import {
   blockPreviewLines,
   catchTarget,
   foulPreview,
+  bombThrowTarget,
   passTarget,
+  rushRollModifier,
   throwConditions,
 } from "../../rules/rollPreview";
 import type { ActionPlanSummary, PlanStage } from "../../rules/actionPlan";
@@ -64,12 +65,9 @@ export function throwNeeds(
     : null;
   return {
     range,
-    pass: passTarget(
-      withDriveModifiers(passer, state),
-      opponents,
-      bomb ? weatherEffects(state.weather).passingAbility : throwConditions(state, passer, range.type),
-      range
-    ),
+    pass: bomb
+      ? bombThrowTarget(withDriveModifiers(passer, state), opponents, range.modifier + weatherEffects(state.weather).passingAbility)
+      : passTarget(withDriveModifiers(passer, state), opponents, throwConditions(state, passer, range.type), range),
     catch: catchNeed,
   };
 }
@@ -112,7 +110,7 @@ function throwStages(c: GameplayInteractionController, actor: Player, finish: Pl
   const needs = throwNeeds(c, { passer: actor, receiver, square: finish, handoff, bomb: finish.kind === "bomb" });
   const intercepts = handoff || !actor.gridPosition
     ? []
-    : interceptions({ c, actor, from: actor.gridPosition, square: finish, opponents: c.gameService.getOpponents(actor.teamId) }).lines;
+    : interceptions({ c, actor, from: actor.gridPosition, square: finish, opponents: c.gameService.getOpponents(actor.teamId), bomb: finish.kind === "bomb" }).lines;
   const stages: PlanStage[] = handoff
     ? []
     : [{ label: "Throw", rolls: [{ kind: "pass", name: needs.range.type, target: needs.pass }], notes: intercepts }];
@@ -143,7 +141,7 @@ function blockStage(c: GameplayInteractionController, actor: Player, target: Pla
   return {
     label: `Block #${String(target.number)} ${target.playerName}`,
     rolls: needsRush
-      ? [{ kind: "rush", name: "Rush", target: requiredRoll(activeRules().rushTarget, rushModifier(state, actor)) }]
+      ? [{ kind: "rush", name: "Rush", target: requiredRoll(activeRules().rushTarget, rushRollModifier(state, actor)) }]
       : [],
     notes: blockPreviewLines(analysis, actor, target, "attacker"),
   };

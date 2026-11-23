@@ -9,6 +9,7 @@ import { rollLabel } from "../../rules/rollTargets";
 import {
   foulPreview,
   blockPreviewLines,
+  bombInterceptPreviewLine,
   interceptPreviewLine,
   type TargetRollPreview,
 } from "../../rules/rollPreview";
@@ -243,7 +244,7 @@ function foulTargetPreview(
 }
 
 export function interceptions(
-{ c,actor,from,square,opponents }: { c: GameplayInteractionController; actor: Player; from: Square; square: Square; opponents: Player[]; }): { lines: string[]; rolls: { square: Square; target: number }[] } {
+{ c,actor,from,square,opponents,bomb = false }: { c: GameplayInteractionController; actor: Player; from: Square; square: Square; opponents: Player[]; bomb?: boolean }): { lines: string[]; rolls: { square: Square; target: number }[] } {
   const state = c.gameService.getState();
   const passingTeam = [actor, ...c.gameService.getTeammates(actor.id)];
   const lines: string[] = [];
@@ -253,15 +254,14 @@ export function interceptions(
     const interceptor = c.gameService.getPlayerById(attempt.playerId);
     if (!interceptor) continue;
     if (
+      !bomb &&
       hasSkill(actor.skills, SkillType.CLOUD_BURSTER) &&
       !hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)
     )
       continue;
-    const { line, accurate } = interceptPreviewLine(
-      interceptor,
-      passingTeam,
-      state
-    );
+    const { line, accurate } = bomb
+      ? bombInterceptPreviewLine(interceptor, passingTeam)
+      : interceptPreviewLine(interceptor, passingTeam, state);
     lines.push(line);
     if (interceptor.gridPosition)
       rolls.push({ square: interceptor.gridPosition, target: accurate });
@@ -285,7 +285,7 @@ function throwTargetPreview(
       ];
   const intercepts = handoff
     ? { lines: [], rolls: [] }
-    : interceptions({ c,actor,from,square,opponents });
+    : interceptions({ c,actor,from,square,opponents,bomb: c.currentActionMode === "throwBomb" });
   lines.push(...intercepts.lines);
   c.pitch.drawInterceptionRolls(intercepts.rolls);
   return {

@@ -8,8 +8,11 @@ import {
 } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { requiredRoll } from "../../game/rules/rollTargets";
-import { pickupTarget, secureBallTarget } from "../../game/rules/rollPreview";
-import { rushModifier } from "../../game/inducements/matchInducements";
+import {
+  pickupTarget,
+  rushRollModifier,
+  secureBallTarget,
+} from "../../game/rules/rollPreview";
 import { souvenirModifier } from "../../game/inducements/souvenirModifiers";
 import { rushAllowance, standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
@@ -179,7 +182,7 @@ const souvenirDodge = (board: Board, player: RosterPlayer) =>
 export function rushTarget(board: Board, player: RosterPlayer): number {
   return requiredRoll(
     activeRules().rushTarget,
-    rushModifier(board.gs.getState(), player)
+    rushRollModifier(board.gs.getState(), player)
   );
 }
 

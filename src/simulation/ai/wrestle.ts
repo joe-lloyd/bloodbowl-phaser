@@ -67,11 +67,14 @@ interface BlockFace {
 
 export type BlockFaces = Record<BlockResultType, BlockFace>;
 
-export function blockFaces(
-  board: Board,
-  attacker: Player,
-  defender: Player
-): BlockFaces {
+export interface Matchup {
+  attacker: Player;
+  defender: Player;
+  blitz?: boolean;
+}
+
+export function blockFaces(board: Board, matchup: Matchup): BlockFaces {
+  const { attacker, defender } = matchup;
   const aBlock = has(attacker, SkillType.BLOCK);
   const dBlock = has(defender, SkillType.BLOCK);
   const dodges =
@@ -81,7 +84,7 @@ export function blockFaces(
     defenderWrestles(attacker, defender);
   const value = wrestleValue(board, attacker, defender);
   const fallsHungry = wrestled && hungry(board, attacker);
-  const pushed = pushFace(pinnedLanding(board, attacker, defender));
+  const pushed = pushFace(pinnedLanding(board, matchup));
   return {
     pow: { rank: 5, knockdown: 1, attackerDown: false },
     "pow-dodge": dodges
@@ -123,13 +126,15 @@ function taken(board: Board, attacker: Player, square: Square): boolean {
 
 function anySquareOpen(
   board: Board,
-  attacker: Player,
-  defender: Player
+  { attacker, defender, blitz }: Matchup
 ): boolean {
   const from = defender.gridPosition;
   if (!from) return false;
-  const widened =
-    has(defender, SkillType.SIDESTEP) || has(attacker, SkillType.GRAB);
+  const sidesteps =
+    has(defender, SkillType.SIDESTEP) &&
+    !hasCondition(defender, PlayerCondition.DISTRACTED);
+  const grabs = has(attacker, SkillType.GRAB) && !blitz;
+  const widened = sidesteps || grabs;
   return (
     widened &&
     neighbours(from).some(
@@ -143,15 +148,12 @@ const immovable = (defender: Player) =>
   has(defender, SkillType.STAND_FIRM) ||
   hasCondition(defender, PlayerCondition.ROOTED);
 
-function pinnedLanding(
-  board: Board,
-  attacker: Player,
-  defender: Player
-): Pinned | null {
+function pinnedLanding(board: Board, matchup: Matchup): Pinned | null {
+  const { attacker, defender } = matchup;
   const from = defender.gridPosition;
   const by = attacker.gridPosition;
   if (!from || !by || immovable(defender)) return null;
-  if (anySquareOpen(board, attacker, defender)) return null;
+  if (anySquareOpen(board, matchup)) return null;
   let landing: Pinned | null = null;
   for (const square of pushBackSquares(by, from)) {
     const kind = pushLandingAt(from, square);

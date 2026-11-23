@@ -4,6 +4,10 @@ import {
   pickupTarget,
   catchTarget,
   passTarget,
+  bombInterceptPreviewLine,
+  bombThrowTarget,
+  interceptPreviewLine,
+  rushRollModifier,
   dodgeTarget,
   secureBallTarget,
   throwConditions,
@@ -204,6 +208,63 @@ describe("roll preview analysis", () => {
       dodge: [4, 3],
     });
   });
+  it("rolls a Bomb by range, marking and weather only, and its interceptions by the corridor and marking", () => {
+    const conch = {
+      ...inWeather("Pouring Rain"),
+      lostBall: "conch" as const,
+    };
+    const thrower = {
+      ...player,
+      skills: [
+        getSkill(SkillType.ACCURATE),
+        getSkill(SkillType.NERVES_OF_STEEL),
+      ],
+    };
+    const quick = {
+      type: "Quick Pass" as const,
+      modifier: 0,
+      minDistance: 0,
+      maxDistance: 3,
+    };
+    const interceptor = {
+      ...enemy,
+      number: 4,
+      stats: { ...enemy.stats, AG: 2 },
+      skills: [
+        getSkill(SkillType.VERY_LONG_LEGS),
+        getSkill(SkillType.EXTRA_ARMS),
+      ],
+      gridPosition: { x: 9, y: 9 },
+    };
+    const drunk = { ...player, skills: [getSkill(SkillType.DRUNKARD)] };
+    expect({
+      throw: [
+        bombThrowTarget(thrower, [enemy], quick.modifier - 1),
+        passTarget(
+          thrower,
+          [enemy],
+          throwConditions(conch, thrower, "Quick Pass"),
+          quick
+        ),
+      ],
+      intercept: [
+        bombInterceptPreviewLine(interceptor, [player]).line,
+        interceptPreviewLine(interceptor, [player], conch).line,
+      ],
+      rush: [
+        rushRollModifier(inWeather("Nice"), player),
+        rushRollModifier(inWeather("Nice"), drunk),
+      ],
+    }).toEqual({
+      throw: [6, 3],
+      intercept: [
+        "Intercept #4: 5+, if inaccurate 4+",
+        "Intercept #4: 4+, if inaccurate 3+",
+      ],
+      rush: [0, -1],
+    });
+  });
+
   it("uses the block analysis for the chooser and numbered assists", () => {
     const assist = createTestPlayer({
       id: "assist",

@@ -285,6 +285,7 @@ function pushKnockdown(
     y: number;
     skills?: SkillType[];
     to?: { x: number; y: number };
+    blitz?: boolean;
   },
   defender: {
     x: number;
@@ -295,11 +296,11 @@ function pushKnockdown(
 ): number {
   const game = pinGame(format, attacker, defender);
   const placed = fixtureValue(game.ctx.team1.players[0]);
-  return blockFaces(
-    readBoard(game, "team1"),
-    attacker.to ? { ...placed, gridPosition: attacker.to } : placed,
-    fixtureValue(game.ctx.team2.players[0])
-  ).push.knockdown;
+  return blockFaces(readBoard(game, "team1"), {
+    attacker: attacker.to ? { ...placed, gridPosition: attacker.to } : placed,
+    defender: fixtureValue(game.ctx.team2.players[0]),
+    blitz: attacker.blitz ?? false,
+  }).push.knockdown;
 }
 
 describe("pushes with nowhere to go", () => {
@@ -335,11 +336,10 @@ describe("block dice against a Sidestep defender on the sideline", () => {
       { x: 0, y: 1, skills: [SkillType.BLOCK] },
       { x: 0, y: 0, skills: [SkillType.SIDESTEP] }
     );
-    const faces = blockFaces(
-      readBoard(game, "team1"),
-      fixtureValue(game.ctx.team1.players[0]),
-      fixtureValue(game.ctx.team2.players[0])
-    );
+    const faces = blockFaces(readBoard(game, "team1"), {
+      attacker: fixtureValue(game.ctx.team1.players[0]),
+      defender: fixtureValue(game.ctx.team2.players[0]),
+    });
     expect({
       push: faces.push.knockdown,
       prefersBothDown: faces["both-down"].rank > faces.push.rank,
@@ -357,7 +357,27 @@ describe("block dice against a Sidestep defender on the sideline", () => {
       { x: 0, y: 1 },
       { x: 0, y: 0, conditions: [PlayerCondition.ROOTED] }
     );
-    expect([grabbed, rooted]).toEqual([0, 0]);
+    const grabBlitz = pushKnockdown(
+      SEVENS_FORMAT,
+      { x: 0, y: 1, skills: [SkillType.BLOCK, SkillType.GRAB], blitz: true },
+      { x: 0, y: 0 }
+    );
+    const distracted = pushKnockdown(
+      SEVENS_FORMAT,
+      { x: 0, y: 1 },
+      {
+        x: 0,
+        y: 0,
+        skills: [SkillType.SIDESTEP],
+        conditions: [PlayerCondition.DISTRACTED],
+      }
+    );
+    expect({ grabbed, rooted, grabBlitz, distracted }).toEqual({
+      grabbed: 0,
+      rooted: 0,
+      grabBlitz: 1,
+      distracted: 1,
+    });
   });
 });
 

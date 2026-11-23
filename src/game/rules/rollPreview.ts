@@ -11,6 +11,7 @@ import {
   pickUpModifier,
 } from "../kickoff/ballConditions";
 import { souvenirModifier } from "../inducements/souvenirModifiers";
+import { rushModifier } from "../inducements/matchInducements";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
 import { rollLabel, requiredRoll } from "./rollTargets";
@@ -99,6 +100,12 @@ export function secureBallTarget(
   return requiredRoll(
     2,
     modifier + souvenirModifier(state, player.id, "pick-up")
+  );
+}
+
+export function rushRollModifier(state: GameState, player: Player): number {
+  return (
+    rushModifier(state, player) - (has(player, SkillType.DRUNKARD) ? 1 : 0)
   );
 }
 
@@ -315,13 +322,61 @@ export function interceptTarget(
 export const interceptNeed = (interceptor: Player, modifier: number): number =>
   requiredRoll(interceptor.stats.AG, modifier);
 
+const marks = (player: Player, opponents: Player[]) =>
+  player.gridPosition
+    ? markingPlayers(player.gridPosition, opponents).length
+    : 0;
+
+export function bombThrowTarget(
+  thrower: Player,
+  opponents: Player[],
+  modifier: number
+): number {
+  return requiredRoll(thrower.stats.PA, modifier - marks(thrower, opponents));
+}
+
+function bombInterceptTarget(
+  interceptor: Player,
+  corridorModifier: number,
+  throwingTeam: Player[]
+): number {
+  return requiredRoll(
+    interceptor.stats.AG,
+    corridorModifier - marks(interceptor, throwingTeam)
+  );
+}
+
+interface InterceptLine {
+  line: string;
+  accurate: number;
+  inaccurate: number;
+}
+
 export function interceptPreviewLine(
   interceptor: Player,
   passingTeam: Player[],
   state: GameState
-): { line: string; accurate: number; inaccurate: number } {
-  const accurate = interceptTarget(interceptor, -3, passingTeam, state);
-  const inaccurate = interceptTarget(interceptor, -2, passingTeam, state);
+): InterceptLine {
+  return interceptLine(interceptor, (corridor) =>
+    interceptTarget(interceptor, corridor, passingTeam, state)
+  );
+}
+
+export function bombInterceptPreviewLine(
+  interceptor: Player,
+  throwingTeam: Player[]
+): InterceptLine {
+  return interceptLine(interceptor, (corridor) =>
+    bombInterceptTarget(interceptor, corridor, throwingTeam)
+  );
+}
+
+function interceptLine(
+  interceptor: Player,
+  target: (corridorModifier: number) => number
+): InterceptLine {
+  const accurate = target(-3);
+  const inaccurate = target(-2);
   const name = `Intercept #${String(interceptor.number)}`;
   const line =
     accurate === inaccurate
